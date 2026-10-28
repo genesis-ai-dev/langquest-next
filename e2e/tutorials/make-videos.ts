@@ -10,9 +10,11 @@
 // library/timings/bsb-fs) and the web export on :8787 (e2e/ui-web.sh). Lines
 // and readings not said yet are said by Gemini first (gemini-voice.mjs,
 // make-readings.ts); lines not yet translated stop it (translate-lines.ts).
-// Films run three at a time, each with its own addresses (TUTORIAL_SLOT).
+// Films run three at a time (TUTORIAL_AT_ONCE), each with its own addresses
+// (TUTORIAL_SLOT). TUTORIAL_REPORT=<file> adds a line of JSON to it for each
+// video as it ends ({ language, id, ok }), for nightly.ts.
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { UI_LANGUAGES } from '@langquest-next/core';
 import { TUTORIALS } from './all';
@@ -46,7 +48,7 @@ if (!dry) {
 const queue = languages.flatMap((language) => ids.filter((id) => !TUTORIALS[id]!.notIn?.includes(language)).map((id) => ({ language, id })));
 let next = 0;
 let failed = 0;
-await Promise.all([0, 1, 2].map(async (slot) => {
+await Promise.all([...Array(Number(process.env['TUTORIAL_AT_ONCE'] ?? 3)).keys()].map(async (slot) => {
   while (next < queue.length) {
     const { language, id } = queue[next++]!;
     const folder = path.join(results, 'films', language, id);
@@ -59,6 +61,7 @@ await Promise.all([0, 1, 2].map(async (slot) => {
     const ok = (await run('npx', ['tsx', path.join('e2e', 'tutorials', 'film.ts'), id, folder], env, log)) &&
       (dry || (await run('npx', ['tsx', path.join('e2e', 'tutorials', 'compose.ts'), folder, mp4], {}, log)));
     if (!ok) failed++;
+    if (process.env['TUTORIAL_REPORT']) appendFileSync(process.env['TUTORIAL_REPORT'], `${JSON.stringify({ language, id, ok })}\n`);
     console.log(`${ok ? 'OK  ' : 'FAIL'} ${language} ${id}${ok ? (dry ? '' : ` → ${mp4}`) : ` (${log})`}`);
   }
 }));

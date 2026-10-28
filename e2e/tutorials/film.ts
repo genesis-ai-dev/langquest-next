@@ -14,7 +14,7 @@
 // ones: it is run once, with each file to write and its words after its own
 // args, so a voice can say them all in one request.
 // The speaker's recordings are WAV files in TUTORIAL_SPEECH (make-readings.ts makes them).
-import { chromium, type ElementHandle, type Locator } from 'playwright';
+import { chromium, type ElementHandle, type Locator, type Page } from 'playwright';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -22,6 +22,7 @@ import path from 'node:path';
 import { buildWorld, browserStateFor } from '../ui/fixture';
 import { giveAddresses } from './addresses';
 import { TUTORIALS } from './all';
+import { saving, steadyStep } from './look';
 import { installTutorialMic } from './mic';
 import { installPlaybackTap } from './playback';
 import { findInFilmLanguage } from './ui';
@@ -65,7 +66,7 @@ function wavSeconds(file: string): number {
   throw new Error(`${file} is not a WAV file`);
 }
 
-/** TUTORIAL_DRY=1: no voice and no film, a picture of each step instead, to try a script quickly. */
+/** TUTORIAL_DRY=1: no voice and no film, a picture of each step and its screen's words (steps/NN.png, NN.txt) instead, to try a script quickly. */
 const DRY = process.env['TUTORIAL_DRY'] === '1';
 /** TUTORIAL_VOICE_ONLY=1: say the lines that have no recording yet and stop, so many videos' lines are said at once before filming. */
 const VOICE_ONLY = process.env['TUTORIAL_VOICE_ONLY'] === '1';
@@ -200,6 +201,36 @@ function shownBox(element: Element): Box {
   return { x: left, y: top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * The screen's words for a dry run's look (look.ts): read out again until
+ * they stop changing, for up to 5 seconds, so a screen caught as it opens or
+ * saves reads as it settles; and without the toast, which comes and goes by
+ * the clock. The toast is hidden only while the words are read.
+ */
+async function steadyWords(page: Page): Promise<string> {
+  const read = async () => {
+    await page.evaluate(() => document.querySelector('[data-testid="toast"]')?.parentElement?.setAttribute('aria-hidden', 'true'));
+    try {
+      return await page.locator('body').ariaSnapshot();
+    } finally {
+      await page.evaluate(() => document.querySelector('[data-testid="toast"]')?.parentElement?.removeAttribute('aria-hidden'));
+    }
+  };
+  let words = await read();
+  // A part still saving shows neither its length nor its play button yet: waited out, up to half a minute.
+  for (const until = Date.now() + 30_000; saving(words, LANGUAGE) && Date.now() < until;) {
+    await sleep(500);
+    words = await read();
+  }
+  for (const until = Date.now() + 5000; Date.now() < until;) {
+    await sleep(500);
+    const again = await read();
+    if (steadyStep(again, LANGUAGE) === steadyStep(words, LANGUAGE)) return again;
+    words = again;
+  }
+  return words;
+}
 
 // ---- the film ---------------------------------------------------------------------------
 
@@ -394,7 +425,11 @@ async function play(step: Step, index: number): Promise<void> {
     await sleep(300);
     cut.to = Date.now();
   }
-  if (DRY) await page.screenshot({ path: path.join(out, 'steps', `${String(index + 1).padStart(2, '0')}.png`) });
+  if (DRY) {
+    const name = path.join(out, 'steps', String(index + 1).padStart(2, '0'));
+    await page.screenshot({ path: `${name}.png` });
+    writeFileSync(`${name}.txt`, await steadyWords(page));
+  }
 }
 
 for (const [index, step] of tutorial.steps.entries()) {

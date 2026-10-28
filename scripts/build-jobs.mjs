@@ -14,7 +14,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 /** Entry point to bundle name. */
 const BUNDLES = {
   'server/projections.ts': 'projections.mjs', 'server/v2.ts': 'v2.mjs', 'server/foldCanary.ts': 'canary.mjs', 'server/reconcileJob.ts': 'reconcile.mjs',
-  'server/tutorialPublish.ts': 'publish.mjs'
+  'server/tutorialPublish.ts': 'publish.mjs', 'server/tutorialIntake.ts': 'intake.mjs'
 };
 
 for (const [entry, out] of Object.entries(BUNDLES)) {

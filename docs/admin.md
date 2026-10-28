@@ -295,6 +295,9 @@ their ids are in `server/youtube.ts`.
   such as `youtube_invalid_grant`; the dashboard says so under Needs
   attention.
 - **Watch** a video before choosing it: it opens the file the filming made.
+  New films come in each day at 13:10 UTC, from the nightly filming on
+  GitHub (`tutorial_intake` in Server jobs; `docs/tutorial-videos.md`, Each
+  night); Run now starts the intake at once.
 - **Publish** the ones chosen. The publish job starts at once, and again at
   08:10 UTC each day while chosen videos wait: YouTube takes 100 uploads a
   day for all channels together. A new version of a video already up takes

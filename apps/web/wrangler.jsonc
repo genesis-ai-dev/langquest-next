@@ -30,7 +30,7 @@
     "directory": "../mobile/dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/connect", "/r/*", "/ops-dashboard", "/ops-dashboard/*", "/ops/api/*"]
+    "run_worker_first": ["/api/*", "/connect", "/r/*", "/v/*", "/ops-dashboard", "/ops-dashboard/*", "/ops/api/*"]
   },
   // Public settings (docs/environments.md). The project ref must match
   // [remotes.production] in supabase/config.toml (a test checks it). Local

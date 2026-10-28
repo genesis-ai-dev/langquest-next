@@ -91,6 +91,13 @@ describe('secrets', () => {
     expect(Object.keys(destinations('production', { ...values, YOUTUBE_CLIENT_ID: 'id' }, 'ref', 'k').workers.app)).not.toContain('YOUTUBE_CLIENT_ID');
   });
 
+  it('gives GitHub the Gemini key for the nightly filming, from production\'s file only, and nothing else', () => {
+    expect(destinations('production', { ...values, GEMINI_API_KEY: 'g' }, 'ref', 'k').github).toEqual({ GEMINI_API_KEY: 'g' });
+    expect(destinations('preview', { ...values, GEMINI_API_KEY: 'g' }, 'ref', 'k').github).toEqual({});
+    expect(destinations('production', values, 'ref', 'k').github).toEqual({});
+    expect(read('.github/workflows/tutorials.yml')).toContain('secrets.GEMINI_API_KEY');
+  });
+
   it('gives the webhook poke one secret at both ends and the Worker\'s own address, only when the file has it', () => {
     const sql = read(WEBHOOK_MIGRATION);
     const wanted = destinations('preview', { ...values, WEBHOOK_POKE_SECRET: 'poke' }, 'abc', 'k');
@@ -128,6 +135,8 @@ describe('secrets', () => {
     expect(summarize(ok).behind).toBe(false);
     expect(summarize({ ...ok, workers: { app: { K: 'missing' } } }).behind).toBe(true);
     expect(summarize({ ...ok, scheduled: false }).behind).toBe(true);
+    expect(summarize({ ...ok, github: { GEMINI_API_KEY: 'set' } }).behind).toBe(false);
+    expect(summarize({ ...ok, github: { GEMINI_API_KEY: 'missing' } }).behind).toBe(true);
   });
 
   it('reads query rows in either shape the Supabase CLI prints', () => {
