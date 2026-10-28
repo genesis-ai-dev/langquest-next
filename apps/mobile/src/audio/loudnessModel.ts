@@ -1,15 +1,18 @@
 // How loud a part is, and how loud the room is between its words (decision
-// 181). Pure, so a phone reading a part's WAV before it encodes it and the
-// web decoding any part measure alike. Loudness is ITU-R BS.1770's
-// (K-weighted, gated), the measure of Apple Podcasts' −16 LUFS that every
-// part is to be played at (Caleb, 2026-10-27); the room is what the
-// quietest of the part's 25 ms slices hold. A part whose room, once the
-// part is turned to −16 LUFS, is louder than NOISY_DB shows the noise
-// warning.
+// 181). Pure, so the web decoding any part measures as this file says; the
+// phones' Level.kt and Level.swift follow `loudnessMeter` line for line
+// (decision 182), as a phone's JavaScript is too slow for every sample of a
+// part. Loudness is ITU-R BS.1770's (K-weighted, gated), the measure of
+// Apple Podcasts' −16 LUFS that every part is played at (Caleb, 2026-10-27;
+// levelModel.ts); the room is what the quietest of the part's 25 ms slices
+// hold. A part whose room, once the part is turned to −16 LUFS, is louder
+// than NOISY_DB shows the noise warning.
 import { BAR_COUNT, barsFromAmps, packBars, unpackBars } from './barsModel';
 
-/** Every part is to be played at this loudness (Caleb, 2026-10-27: Apple Podcasts' level). */
+/** Every part is played at this loudness (Caleb, 2026-10-27: Apple Podcasts' level). */
 export const TARGET_LUFS = -16;
+/** A part is turned up by at most this much (decision 182), so a whisper or an empty room is not made as loud as a voice. */
+export const MAX_BOOST_DB = 24;
 /**
  * A room louder than this, once its part is at TARGET_LUFS, puts the noise
  * warning on the part. A first line from read recordings (decision 181):
@@ -40,6 +43,9 @@ export interface Loudness {
   /** The room between words, dBFS RMS; null for a part too short to tell. */
   noiseDb: number | null;
 }
+
+/** A part's measure, and each of its bars' spread (RMS about its own middle), as the phones' modules hand it over. */
+export interface Measured extends Loudness { amps: number[] }
 
 /** A part's measure, and its bars drawn with the room in them: `voice` is each bar with the room's share taken out. */
 export interface PartSound extends Loudness { bars: number[]; voice: number[] }
@@ -113,7 +119,8 @@ export function loudnessMeter(rate: number, frames: number, count = BAR_COUNT) {
         if (m > peak) peak = m;
       }
     },
-    result(): PartSound {
+    /** What was heard, once every sample has been added. */
+    measured(): Measured {
       closeBar();
       const blocks: number[] = [];
       for (let j = 0; j + STEPS_PER_BLOCK <= steps.length; j++) {
@@ -123,18 +130,29 @@ export function loudnessMeter(rate: number, frames: number, count = BAR_COUNT) {
       }
       // A part shorter than a block is one block.
       if (blocks.length === 0 && at > 0) blocks.push((steps.reduce((s, v) => s + v * step, 0) + stepSum) / at);
-      const amps = Array.from(barSq, (sq, k) => (barN[k]! > 0 ? Math.sqrt(Math.max(0, sq / barN[k]! - (barSum[k]! / barN[k]!) ** 2)) : 0));
-      const noiseDb = roomDb(rooms);
-      // The room is read at the quiet end of its slices: a bar of room alone runs up to about 3 dB over it, so a bar takes out twice its power.
-      const room = noiseDb === null ? 0 : 10 ** (noiseDb / 20) * Math.SQRT2;
       return {
         lufs: gatedLoudness(blocks),
         peakDb: peak > 0 ? Math.max(SILENT_DB, 20 * Math.log10(peak)) : SILENT_DB,
-        noiseDb,
-        bars: barsFromAmps(amps),
-        voice: barsFromAmps(amps.map((a) => Math.sqrt(Math.max(0, a * a - room * room))), amps)
+        noiseDb: roomDb(rooms),
+        amps: Array.from(barSq, (sq, k) => (barN[k]! > 0 ? Math.sqrt(Math.max(0, sq / barN[k]! - (barSum[k]! / barN[k]!) ** 2)) : 0))
       };
+    },
+    result(): PartSound {
+      return soundOf(this.measured());
     }
+  };
+}
+
+/** A part's measure with its bars drawn (barsModel.ts), the room's share taken out of each for `voice`. */
+export function soundOf(m: Measured): PartSound {
+  // The room is read at the quiet end of its slices: a bar of room alone runs up to about 3 dB over it, so a bar takes out twice its power.
+  const room = m.noiseDb === null ? 0 : 10 ** (m.noiseDb / 20) * Math.SQRT2;
+  return {
+    lufs: m.lufs,
+    peakDb: m.peakDb,
+    noiseDb: m.noiseDb,
+    bars: barsFromAmps(m.amps),
+    voice: barsFromAmps(m.amps.map((a) => Math.sqrt(Math.max(0, a * a - room * room))), m.amps)
   };
 }
 
@@ -155,14 +173,23 @@ export function roomDb(slices: readonly number[]): number | null {
   return dB(sorted[Math.floor(ROOM_AT * (sorted.length - 1))]!);
 }
 
-/** How loud the room between words would be with the part at TARGET_LUFS; null when either is unknown. */
-export function roomAtTarget(m: Loudness): number | null {
-  return m.lufs === null || m.noiseDb === null ? null : m.noiseDb + (TARGET_LUFS - m.lufs);
+/**
+ * How much a part is turned up (or down) to play at TARGET_LUFS (decision
+ * 182): never up by more than MAX_BOOST_DB, and not at all when nothing in
+ * it is loud enough to measure.
+ */
+export function playGainDb(m: Pick<Loudness, 'lufs'>): number {
+  return m.lufs === null ? 0 : Math.min(MAX_BOOST_DB, TARGET_LUFS - m.lufs);
 }
 
-/** Whether a part shows the noise warning: its room, at TARGET_LUFS, over NOISY_DB. */
+/** How loud the room between words is as the part plays (playGainDb); null when either is unknown. */
+export function roomAsPlayed(m: Loudness): number | null {
+  return m.lufs === null || m.noiseDb === null ? null : m.noiseDb + playGainDb(m);
+}
+
+/** Whether a part shows the noise warning: its room, as it plays, over NOISY_DB. */
 export function isNoisy(m: Loudness): boolean {
-  const room = roomAtTarget(m);
+  const room = roomAsPlayed(m);
   return room !== null && room > NOISY_DB;
 }
 

@@ -1,8 +1,9 @@
 // Each recording's loudness and the room between its words on this device
 // (loudnessModel.ts), by the hash of its audio: measured from its WAV when
-// a part is recorded here, or once from its file where this device can read
-// it (loudnessOfFile.ts), and kept from then on. Files are read one at a
-// time.
+// a part is recorded here, from its file when it is first shown
+// (loudnessOfFile.ts), or when its copy at even loudness is made
+// (levelStore.ts, decision 182), and kept from then on. Files are read one
+// at a time.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { noteExpected } from '../diagnostics/report';
 import { packSound, unpackSound, type PartSound } from './loudnessModel';
@@ -38,9 +39,9 @@ export function rememberSound(hash: string, sound: PartSound): void {
 
 /**
  * The measure of `hash`: kept on this device, or read from its file at
- * `uri` when this device can read it, and kept from then on. Null when it
- * cannot be had (an AAC part on a phone that did not record it, or no file
- * yet): a part with no measure shows no warning.
+ * `uri`, and kept from then on. Null when it cannot be had (no file on this
+ * device yet, or one that could not be read): a part with no measure shows
+ * no warning.
  */
 export function loadSound(hash: string, file: { uri: string; format: 'wav' | 'm4a' } | null): Promise<PartSound | null> {
   const had = known.get(hash);

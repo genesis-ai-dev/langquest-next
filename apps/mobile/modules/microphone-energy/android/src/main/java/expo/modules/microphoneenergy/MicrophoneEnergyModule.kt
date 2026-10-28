@@ -30,6 +30,8 @@ class MicrophoneEnergyModule : Module() {
   private val encodeScope = CoroutineScope(Dispatchers.Default)
   /** Clean up (CleanUp.kt, decision 179): DeepFilterNet3 on a part, one at a time. */
   private val cleanUp = CleanUp { appContext.reactContext }
+  /** Even loudness (Level.kt, decision 182): a recording measured and its copy to play written, one at a time. */
+  private val level = Level { appContext.reactContext }
   // Meter events go to the main thread without the capture loop waiting for it.
   private val main = Handler(Looper.getMainLooper())
   private val configLock = Any()
@@ -109,6 +111,11 @@ class MicrophoneEnergyModule : Module() {
       }
     }
     AsyncFunction("cleanUpForget") { id: String -> cleanUp.forget(id) }
+    AsyncFunction("level") { uri: String, out: String?, options: Map<String, Any?>, promise: Promise ->
+      level.level(uri, out, options) { result, e ->
+        if (e != null) promise.reject("LEVEL_ERROR", "Could not even out the recording: ${e.message}", e) else promise.resolve(result)
+      }
+    }
   }
 
   private fun startEnergyDetection(promise: Promise) {
