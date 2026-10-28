@@ -3191,7 +3191,10 @@
       "movingSub": "L’autre onglet sauvegarde ce qu’il a et se met en retrait.",
       "elsewhereSub": "Il fonctionne dans un seul onglet à la fois, pour que vos enregistrements et modifications restent au même endroit. Utilisez-le ici, ou retournez à l’autre onglet.",
       "useHere": "L’utiliser ici",
-      "useHereHelp": "Fait passer LangQuest dans cet onglet. L’autre onglet sauvegarde son travail et se met en retrait."
+      "useHereHelp": "Fait passer LangQuest dans cet onglet. L’autre onglet sauvegarde son travail et se met en retrait.",
+      "otherRecording": "L'autre onglet est en train d'enregistrer",
+      "otherRecordingSub": "Arrêtez d'abord l'enregistrement là-bas, puis réessayez.",
+      "cancelMoveHelp": "Arrête d'attendre. LangQuest reste dans l'autre onglet."
     },
     "lock": {
       "wait": "Trop d'essais. Attendez un peu, puis réessayez.",
@@ -3777,7 +3780,8 @@
         "recordedBy": "Enregistré par {{who}}",
         "recorded": "Enregistré",
         "bestAfter": "Mieux après avoir répondu aux remarques ({{kind}}), pour le faire sur la version que vous gardez",
-        "recordsItIn": "{{who}} l’enregistre en {{language}} — un nouveau contenu, pas un avis"
+        "recordsItIn": "{{who}} l’enregistre en {{language}} — un nouveau contenu, pas un avis",
+        "loggedStillWaits": "Noté « C’est bon » · attend toujours une vérification dans l’app"
       },
       "channels": {
         "whatsapp": "WhatsApp",
@@ -4005,7 +4009,8 @@
         "backTranslate": "La rétrotraduire",
         "doCheck": "Faire la {{check}}",
         "study": "Étude",
-        "record": "Enregistrer"
+        "record": "Enregistrer",
+        "continueCheck": "Continuer la {{check}}"
       },
       "continueRecording": "Continuer l’enregistrement",
       "askFor": "Demander la {{check}}",
@@ -4889,7 +4894,6 @@
       "timelineHelp": "Touchez ou faites glisser pour aller à un moment. Les temps : où vous en êtes, et la durée totale."
     },
     "recorder": {
-      "permissionNeeded": "L’autorisation du microphone est nécessaire.",
       "hidePartsHelp": "Masquer les parties.",
       "showPartsHelp": "Afficher chaque partie, pour l’écouter ou la supprimer.",
       "playAllHelp": "Écouter tout ce qui a été enregistré jusqu’ici, une partie après l’autre.",
@@ -4944,7 +4948,11 @@
       "movePartHelp": "Faites glisser vers le haut ou le bas pour déplacer cette partie. Une partie déplacée perd son verset, pour que vous le lui redonniez.",
       "moveUp": "Monter",
       "moveDown": "Descendre",
-      "undoHelp": "Annule votre dernier changement aux parties. Touchez encore pour remonter plus loin."
+      "undoHelp": "Annule votre dernier changement aux parties. Touchez encore pour remonter plus loin.",
+      "micOff": "LangQuest ne peut pas vous entendre. Activez le micro pour LangQuest dans les Réglages.",
+      "micOffWeb": "LangQuest ne peut pas vous entendre. Autorisez le micro pour ce site dans votre navigateur, puis touchez de nouveau Enregistrer.",
+      "openSettings": "Ouvrir les Réglages",
+      "openSettingsHelp": "Ouvre les réglages de ce téléphone pour LangQuest. Activez-y le micro, puis revenez."
     },
     "cleanUp": {
       "cleanUp": "Nettoyer",
@@ -6371,7 +6379,20 @@
       "doneRecordedHelp": "Met la {{what}} dans l’historique du passage.",
       "looksGoodOffline": "C’est bon. {{name}} le reçoit quand cet appareil sera connecté.",
       "feedbackOffline": "Retour enregistré. {{name}} le reçoit quand cet appareil sera connecté.",
-      "helpWordsHelp": "Ouvre les mots clés de ce passage, avec le mot de l’équipe pour chacun et si cette version l’a utilisé."
+      "helpWordsHelp": "Ouvre les mots clés de ce passage, avec le mot de l’équipe pour chacun et si cette version l’a utilisé.",
+      "addedAtCheckpoint": "{{kind}} : ajouté à l’historique. Le point de contrôle attend toujours une vérification faite dans l’app.",
+      "keptNotSent": "Votre vérification est gardée sur ce téléphone. Elle n’est pas encore envoyée.",
+      "notOnPhoneYet": "L’enregistrement n’est pas encore sur ce téléphone. Il se lira ici une fois le téléphone connecté.",
+      "previousQuestion": "Question précédente",
+      "previousQuestionHelp": "Revient à la question d’avant, pour changer votre réponse.",
+      "loggedCheckpoint": "Cette vérification est un point de contrôle : notée ici, elle va dans l’historique, mais seule une vérification faite dans l’app ouvre les étapes suivantes.",
+      "notPlayedYet": "Vous n’avez pas encore écouté cette version.",
+      "sendChangeTitle": "Envoyer ce qui doit changer avec « C’est bon » ?",
+      "sendChangeSub": "Vous avez dit ce qui doit changer, puis choisi « C’est bon ».",
+      "leaveItOut": "Ne pas l’envoyer",
+      "leaveItOutHelp": "Envoie seulement « C’est bon ». Ce que vous avez dit sur les changements ne va pas au dossier.",
+      "sendItToo": "L’envoyer aussi",
+      "sendItTooHelp": "Envoie « C’est bon » avec ce que vous avez dit, pour que le traducteur l’entende aussi."
     },
     "guest": {
       "previewSub": "Aperçu · ce que voit quelqu’un sans l’application",

@@ -10,6 +10,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PanResponder, Platform, Pressable, StyleSheet, View, type AccessibilityActionEvent, type LayoutChangeEvent } from 'react-native';
 import { Text } from '../ui/text';
 import { audioFormat } from './audioFormat';
+import { clipsAvailable } from './clipsAvailable';
 import { restartIndex } from './clipPosition';
 import { LISTEN_PLAYER, registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import type { ListenHooks } from '../recording/useListenLoop';
@@ -116,11 +117,7 @@ export function ClipPlayer(props: {
   const total = lengths.reduce((a, b) => a + b, 0);
   const before = lengths.slice(0, index).reduce((a, b) => a + b, 0);
   const elapsed = before + at;
-  const state = props.language.state;
-  const here = !!props.uri || (!!state && props.hashes.length > 0 && props.hashes.every((hash) =>
-    !!props.language.blobs.uriFor({ hash, format: audioFormat(state, hash) })));
-  const available = here || (!!state && props.hashes.length > 0 && props.language.online !== false
-    && props.hashes.every((hash) => isStored(state, hash)));
+  const available = !!props.uri || clipsAvailable(props.language, props.hashes);
 
   /** Load clip `i` and play it from `from` seconds; on its end, the next one. */
   async function playFrom(i: number, from: number, run: number) {

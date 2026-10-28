@@ -5898,6 +5898,16 @@ Reverse if: people expect Back on a tab's page to leave the app, as before,
 or find stepping back through a long task slower than they want (✕ still
 leaves it at once).
 
+Amended (2026-10-28, Caleb Koster): iOS follows the same rule as far as a
+swipe can. While a step registered with `useHardwareBack` is open, the
+screen's back swipe is off (`useSwipeBackOff`, iOS only), so only the
+header's arrow goes back, one step, and no swipe pops the screen past its
+steps. Task screens (`TASK_SCREENS` in `shell/chromeModel.ts`: recording,
+back translation, reviewing, a study, Get ready, New language, Ask someone)
+take the swipe only from the screen's edge, so a drag on a waveform or a
+slider is never a Back. From the UI audit Caleb asked to have fixed
+(findings 4 and 16).
+
 ## 138. One name for each thing on a language's page: its pick under each, the others and the organization's shelf behind it, and no More
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted

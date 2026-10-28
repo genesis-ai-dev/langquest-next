@@ -1,6 +1,7 @@
 // The recorder's shared state and failures: who holds voice detection, whether a
 // recording is running, and what a failure says (recording/useRecorder.ts).
 import { CommandError } from '@langquest-next/core';
+import { Platform } from 'react-native';
 import { t } from '../i18n';
 import { commandErrorText } from '../i18n/coreText';
 import { noteExpected, reportError } from '../diagnostics/report';
@@ -46,7 +47,7 @@ export function recorderProblem(
   const counter = faultCounter(code, failed);
   if (counter) countAudio(language, counter);
   const where = `recorder:${stage}`;
-  if (code === 'perm') { noteExpected(where, e, code); return t('recording.recorder.permissionNeeded'); }
+  if (code === 'perm') { noteExpected(where, e, code); return t(Platform.OS === 'web' ? 'recording.recorder.micOffWeb' : 'recording.recorder.micOff'); }
   return t('common.somethingWentWrong', { code: reportError(where, e, false, code) });
 }
 

@@ -25,6 +25,7 @@ import { noteExpected } from '../diagnostics/report';
 import { cachedHeardLevels, keepHeardLevels, loadHeardLevels } from '../mic/heardLevels';
 import type { JournalTarget } from './recordingJournalModel';
 import { storableRecording } from '../web/webAudio';
+import { holdTab } from '../web/tabBusy';
 import { claimVad, MicrophoneRefused, recorderProblem, vadOwner, activity } from './recorderState';
 import { recorderFaultCode, type RecorderFailure, type RecorderStage } from './recorderFaultModel';
 import { countAudio, type AudioLanguage } from '../audio/audioTally';
@@ -111,6 +112,8 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
   const [vadCapturing, setVadCapturing] = useState(false);
   const [manualOn, setManualOn] = useState(false);
   const [error, setError] = useState('');
+  /** The last failure was the microphone refused: shown with a way to turn it on (MicRefused). */
+  const [micRefused, setMicRefused] = useState(false);
   const [working, setWorking] = useState(0);
   const [failureCount, setFailureCount] = useState(0);
   const mounted = useRef(true);
@@ -149,7 +152,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
   const ending = useRef<Promise<void> | null>(null);
   const fail = useCallback((stage: RecorderStage, e: unknown, failed: RecorderFailure = null) => {
     const said = recorderProblem(stage, e, failed, languageRef.current);
-    if (mounted.current) setError(said);
+    if (mounted.current) { setError(said); setMicRefused(recorderFaultCode(e) === 'perm'); }
   }, []);
   const count = useCallback((counter: Parameters<typeof countAudio>[1], by = 1) => countAudio(languageRef.current, counter, by), []);
   const work = useCallback((delta: number) => {
@@ -248,6 +251,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     wanted.current = true;
     stopAudioPlayback();
     setError('');
+    setMicRefused(false);
     work(1);
     const start = (async () => {
       let stage: RecorderStage = 'start';
@@ -392,6 +396,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     if (readOnly) { setError(t('globalViewer.readOnly')); return Promise.resolve(); }
     stopAudioPlayback();
     setError('');
+    setMicRefused(false);
     work(1);
     // The session carries on where it stopped; a new one starts with the first tap.
     if (session.current) session.current.seam();
@@ -538,6 +543,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     const files = failures.current.splice(0);
     setFailureCount(0);
     setError('');
+    setMicRefused(false);
     for (const file of files) await deliver(file);
   }, [deliver]);
 
@@ -601,6 +607,26 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     };
   }, [count, deliver, endSession, fail, manualUp, notePart, stopVad, self]);
 
+  // The microphone turned on in Settings (or the browser's site settings): the refusal clears by itself on the way back.
+  useEffect(() => {
+    if (!micRefused) return;
+    const clear = () => { if (mounted.current) { setError(''); setMicRefused(false); } };
+    if (WEB) {
+      let status: PermissionStatus | null = null;
+      navigator.permissions?.query({ name: 'microphone' as PermissionName })
+        .then((s) => { status = s; s.onchange = () => { if (s.state === 'granted') clear(); }; })
+        .catch((e: unknown) => noteExpected('recorder: permission', e));
+      return () => { if (status) status.onchange = null; };
+    }
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      AudioModule.getRecordingPermissionsAsync()
+        .then((p) => { if (p.granted) clear(); })
+        .catch((e: unknown) => noteExpected('recorder: permission', e));
+    });
+    return () => sub.remove();
+  }, [micRefused]);
+
   // Hands-free recording means nobody touches the screen: keep it on, as v2
   // did, or the phone's screen timeout sends the app away and ends the session.
   const microphoneOn = manualOn || vadOn;
@@ -611,18 +637,20 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     return () => { deactivateKeepAwake(tag).catch((e: unknown) => noteExpected('recorder: keep awake', e)); };
   }, [microphoneOn]);
 
-  // Web: closing the tab mid-take loses it (its audio lives in the page until it stops), so say so first.
+  // Web: closing the tab mid-take loses it (its audio lives in the page until it stops), so say so first;
+  // and another tab asking for LangQuest is told this one is busy rather than reloading it away (tabLock.ts).
   const recording = manualOn || vadOn || sessionOpen || working > 0;
   useEffect(() => {
     if (!WEB || !recording) return;
     const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
     window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
+    const release = holdTab();
+    return () => { window.removeEventListener('beforeunload', warn); release(); };
   }, [recording]);
 
   const snap = session.current?.snapshot();
   return {
-    vadOn, vadPaused, vadCapturing, manualOn, error,
+    vadOn, vadPaused, vadCapturing, manualOn, error, micRefused,
     busy, failureCount, retryFailed,
     toggleVad, stopVad, pauseVad, resumeVad, manualDown, manualUp,
     /** A session is open: recording, or stopped with its parts still boxes to hear, move or drop. */

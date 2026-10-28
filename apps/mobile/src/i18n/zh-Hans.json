@@ -3007,7 +3007,10 @@
       "movingSub": "另一个标签页会保存它的内容，然后让出位置。",
       "elsewhereSub": "它一次只能在一个标签页中运行，这样你的录音和更改都保存在同一个地方。可以在这里使用，或者回到另一个标签页。",
       "useHere": "在这里使用",
-      "useHereHelp": "把 LangQuest 移到这个标签页。另一个标签页会保存它的工作，然后让出位置。"
+      "useHereHelp": "把 LangQuest 移到这个标签页。另一个标签页会保存它的工作，然后让出位置。",
+      "otherRecording": "另一个标签页正在录音",
+      "otherRecordingSub": "请先在那里停止录音，然后再试一次。",
+      "cancelMoveHelp": "停止等待。LangQuest 留在另一个标签页中。"
     },
     "lock": {
       "wait": "尝试次数太多。请稍等一会儿再试。",
@@ -3555,7 +3558,8 @@
         "recordedBy": "由{{who}}录制",
         "recorded": "已录音",
         "bestAfter": "最好等{{kind}}的反馈得到回应后再做，这样是针对你要保留的版本",
-        "recordsItIn": "{{who}}用{{language}}把它录下来——这是新的内容，不是评判"
+        "recordsItIn": "{{who}}用{{language}}把它录下来——这是新的内容，不是评判",
+        "loggedStillWaits": "已登记为“没问题” · 仍在等待应用中的检查"
       },
       "channels": {
         "whatsapp": "WhatsApp",
@@ -3767,7 +3771,8 @@
         "backTranslate": "回译",
         "doCheck": "做{{check}}",
         "study": "学习",
-        "record": "录音"
+        "record": "录音",
+        "continueCheck": "继续{{check}}"
       },
       "continueRecording": "继续录音",
       "askFor": "请求{{check}}",
@@ -4589,7 +4594,6 @@
       "timelineHelp": "点按或拖动可以跳到某个时间点。时间：你所在的位置，以及总时长。"
     },
     "recorder": {
-      "permissionNeeded": "需要麦克风权限。",
       "hidePartsHelp": "隐藏各段。",
       "showPartsHelp": "显示每一段，可以听或删除。",
       "playAllHelp": "按顺序一段一段地听目前录下的所有内容。",
@@ -4644,7 +4648,11 @@
       "movePartHelp": "上下拖动可以移动这一段。移动过的一段会去掉它的经节，方便你重新标注。",
       "moveUp": "上移",
       "moveDown": "下移",
-      "undoHelp": "撤销你对这些段落的上一个改动。再点一次可以继续往回。"
+      "undoHelp": "撤销你对这些段落的上一个改动。再点一次可以继续往回。",
+      "micOff": "LangQuest 听不到你的声音。请在“设置”中为 LangQuest 打开麦克风。",
+      "micOffWeb": "LangQuest 听不到你的声音。请在浏览器中允许此网站使用麦克风，然后再点一次录音。",
+      "openSettings": "打开设置",
+      "openSettingsHelp": "打开此手机上 LangQuest 的设置。在那里打开麦克风，然后返回。"
     },
     "cleanUp": {
       "cleanUp": "清理",
@@ -5869,7 +5877,20 @@
       "doneRecordedHelp": "把{{what}}写进经段记录。",
       "looksGoodOffline": "没问题。本设备联网后 {{name}} 才会收到。",
       "feedbackOffline": "反馈已保存。本设备联网后 {{name}} 才会收到。",
-      "helpWordsHelp": "打开这个经段的关键词，显示团队对每个词的说法，以及这个版本有没有用它。"
+      "helpWordsHelp": "打开这个经段的关键词，显示团队对每个词的说法，以及这个版本有没有用它。",
+      "addedAtCheckpoint": "已将{{kind}}加入记录。这个关卡仍在等待在应用中完成的检查。",
+      "keptNotSent": "你的检查保存在这部手机上，还没有发送。",
+      "notOnPhoneYet": "这段录音还不在这部手机上。手机联网后就能在这里播放。",
+      "previousQuestion": "上一个问题",
+      "previousQuestionHelp": "回到上一个问题，修改你的回答。",
+      "loggedCheckpoint": "这项检查是一个关卡：在这里登记会写入记录，但只有在应用中完成的检查才能打开后面的步骤。",
+      "notPlayedYet": "你还没有播放这个版本。",
+      "sendChangeTitle": "要把需要修改的内容和“没问题”一起发送吗？",
+      "sendChangeSub": "你说了需要修改的地方，然后选择了“没问题”。",
+      "leaveItOut": "不发送",
+      "leaveItOutHelp": "只发送“没问题”。你说的修改意见不会记录。",
+      "sendItToo": "一起发送",
+      "sendItTooHelp": "连同你说的话一起发送“没问题”，让译者也能听到。"
     },
     "guest": {
       "previewSub": "预览 · 没有应用的人看到的样子",

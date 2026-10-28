@@ -24,7 +24,7 @@ const w = passageWorld();
 const name = (who: WorldRole) => NAMES[who];
 
 /** Everything the record shows `who` on passage `k`, as the screen builds it. */
-function record(who: WorldRole, k: WorldPassage) {
+function record(who: WorldRole, k: WorldPassage, reviewDrafts?: ReadonlySet<string>) {
   const v = passageView(w.state, unitOf(k), w.languageId, 'Alpha');
   const { p, kinds } = v;
   const s = w.session(who);
@@ -38,7 +38,7 @@ function record(who: WorldRole, k: WorldPassage) {
   const alone = nobodyElseReviews(w.state, w.org, { languageId: w.languageId, me, lines: languageLines(w.state) });
   const input = recordPathInput({ p, kinds, me, name: nameFn, teamName });
   const steps = pathSteps(input);
-  const model = recordModel({ p, kinds, kind: v.kind, me, can, steps, mine, asker: isAuthor, isAuthor, alone });
+  const model = recordModel({ p, kinds, kind: v.kind, me, can, steps, mine, asker: isAuthor, isAuthor, alone, ...(reviewDrafts ? { reviewDrafts } : {}) });
   const lit = steps.find((st) => st.state === 'current');
   const sheetOf = (kindId: string) => {
     const step = p.steps.find((st) => st.kinds.some((x) => x.kindId === kindId))!;
@@ -120,6 +120,12 @@ describe('the passage record, per role (05-passage-record.md)', () => {
       TRANS: 'Ask for the back translation', REV: 'Do the peer check', TREV: 'Do the peer check', COORD: 'Do the peer check',
       LADMIN: 'Do the peer check', KEPT: 'Do the peer check', VIEW: null
     });
+  });
+
+  it('a review kept on the phone and not sent: its check\'s button says Continue (decision 127)', () => {
+    // Why: ✕ kept a half-done review as a draft, and the passage went on saying "Do the peer check".
+    expect(record('REV', 'P-SUBMITTED', new Set(['peer'])).main).toBe('Continue the peer check');
+    expect(record('REV', 'P-SUBMITTED', new Set(['community'])).main).toBe('Do the peer check');
   });
 
   it('PASS-004 P-NEEDS: feedback waiting for TRANS', () => {

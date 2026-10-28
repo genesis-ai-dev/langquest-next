@@ -39,6 +39,9 @@ import { useHardwareBack } from '../ui/useHardwareBack';
 import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
 import { ClipPlayer } from '../audio/clipPlayer';
+import { clipsAvailable } from '../audio/clipsAvailable';
+import { ReportFlag } from '../moderation/reportSheet';
+import { recordTarget } from '../moderation/reportTargets';
 import { VersionParts } from '../passage/versionParts';
 import type { Ctx } from '../shell/ctx';
 import { screenTitle } from '../shell/flow';
@@ -46,14 +49,14 @@ import { t } from '../i18n';
 import { formatClock } from '../i18n/format';
 import { HelpRow } from '../helpMode/helpBadge';
 import { indexesFor } from '../sync/indexes';
-import { Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ReasonSheet, Row, Screen, Sheet, SectionLabel } from '../ui/kit';
+import { Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, IconBtn, LinkBtn, PrimaryBtn, ReasonSheet, Row, Screen, Sheet, SectionLabel } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
 import { passageCrumbs, passageView as passageViewOf, versionTitle, type PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
 import { failureMessage } from '../diagnostics/report';
 import {
-  canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, clockMs, earlierReviews, firstOpenAt, isGroupKind, kindInSentence, kindLabel, listenLine, nextLabel,
+  canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, clockMs, earlierReviews, firstOpenAt, footHint, isGroupKind, kindInSentence, kindLabel, listenLine, nextLabel,
   momentIn, noteAnchorText, partAt, readiness, replyAnchor, requestFor, reviewCapture, reviewStages, stageAt, stageBack, summaryLine, toCompareFor, verdictQuestion, versionFor,
   type AnchorLook, type Answers, type Skips, type StageId, type VoiceAnswer
 } from '../reviewing/capture';
@@ -140,6 +143,12 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const [place, setPlace] = useState('');
   const [evidence, setEvidence] = useState<VoiceAnswer | null>(null);
   const [made, setMade] = useState<AudioCard[]>([]);
+  /** The version has been played here: Decide says when it has not. */
+  const [played, setPlayed] = useState(false);
+  /** What was said is about what should change: Looks good asks before sending it with a yes. */
+  const [saidForChange, setSaidForChange] = useState(false);
+  /** Looks good was tapped with words about what should change: send them too, or leave them out. */
+  const [askChange, setAskChange] = useState(false);
   const [busy, setBusy] = useState(false);
   // Where you are in the review, kept with the draft: Back from a key term or the study, or opening it again, returns here.
   const [stageId, setStageId] = useState<StageId>('listen');
@@ -180,7 +189,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const draft = useDraft<ReviewDraft | null>(v ? draftKey('review', actorId, v.languageId, v.unitId, kindId, logged ? 'logged' : 'live') : null, null, isStoredReview);
   const setDraft = draft.set;
   const onScreen: ReviewState = {
-    takeId, stage: stageId, qi, answers, voice, typing, skipped, comment, feedback, typeFeedback, moments, notes, people, givenBy, place, evidence, made
+    takeId, stage: stageId, qi, answers, voice, typing, skipped, comment, feedback, typeFeedback, moments, notes, people, givenBy, place, evidence, made,
+    played, saidForChange
   };
   const kept = JSON.stringify(reviewDraftOf(onScreen, version?.takeId, opened));
   // What the draft holds: written when the screen holds something else, so a draft not yet read is never written over.
@@ -195,6 +205,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     setTakeId(back.takeId); setStageId(back.stage); setQi(back.qi); setAnswers(back.answers); setVoice(back.voice); setTyping(back.typing);
     setSkipped(back.skipped); setComment(back.comment); setFeedback(back.feedback); setTypeFeedback(back.typeFeedback); setMoments(back.moments); setNotes(back.notes);
     setPeople(back.people); setGivenBy(back.givenBy); setPlace(back.place); setEvidence(back.evidence); setMade(back.made);
+    setPlayed(!!back.played); setSaidForChange(!!back.saidForChange);
   }, [draft.restoredAt]); // eslint-disable-line react-hooks/exhaustive-deps -- once per draft read: what it brings back is that read's value, versions and params
   useEffect(() => {
     if (kept === stored.current) return;
@@ -241,6 +252,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const crumbs = passageCrumbs(ctx, v, logged ? t('review.screen.alreadyHappened') : t('review.screen.reviewIt'));
   // One name for the check on every screen (decision 91).
   const check = checkName(kindId, v.kinds);
+  // Logged at a checkpoint: it goes on the record, but only a check done in the app opens the steps after it (decision 72).
+  const checkpoint = logged && !makes && v.p.steps.some((st) => st.step.checkpoint && st.step.kindIds.includes(kindId));
   const sub = wide ? (logged ? t('review.screen.alreadyHappened') : v.language) : logged ? t('review.screen.kindAlreadyHappened', { kind: check }) : check;
   const title = wide ? check : v.title;
   if (!version) {
@@ -259,7 +272,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   }
 
   const captured = reviewCapture({ questions, answers, voice: makes ? {} : voice, moments: makes ? [] : moments, evidence: makes ? null : evidence });
-  const r = readiness(questions, captured.answers, skipped, comment, feedback?.hash ?? null);
+  const r = readiness(questions, captured.answers, skipped, comment, feedback?.hash ?? null, notes.length + moments.length);
   const group = isGroupKind(kind.id);
   const asker = request?.by ? ctx.name(request.by) : undefined;
   const stages = reviewStages({ questions: questions.length, logged, makes: !!makes });
@@ -323,14 +336,15 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   ]);
   const whoTitle = logged && !group ? t('review.screen.whoReviewed') : logged ? t('review.parts.howManyListened') : t('review.screen.whoIsListening');
 
-  async function save(outcome: 'looks_good' | 'needs_changes' | 'recorded') {
+  async function save(outcome: 'looks_good' | 'needs_changes' | 'recorded', opts: { withoutSaid?: boolean } = {}) {
     const live = ctx.language.state;
     if (!live || !v || !version || !kind || busy) return;
     const state = live;
     const cmd = Crypto.randomUUID();
     const c = commands(state, indexesFor(state));
-    const text = comment.trim();
-    const commentHash = feedback?.hash ?? null;
+    // What was said about what should change goes with Looks good only when the reviewer says so.
+    const text = opts.withoutSaid ? '' : comment.trim();
+    const commentHash = opts.withoutSaid ? null : feedback?.hash ?? null;
     const cleanA = cleanAnswers(questions, captured.answers);
     const cleanS = cleanSkips(questions, captured.answers, skipped);
     const artifacts = captured.artifacts;
@@ -368,7 +382,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
             ...(text ? { comment: text } : {}), ...(commentHash ? { commentBlobHash: commentHash } : {}), ...shared,
             ...(artifacts.length ? { artifacts } : {}), ...(req ? { requestId: req.id } : {})
           });
-        message = t('review.screen.addedToRecord', { kind: check });
+        // A checkpoint clears only with approval given in the app (decision 72): the record says so where it was logged.
+        message = checkpoint && outcome === 'looks_good' ? t('review.screen.addedAtCheckpoint', { kind: check }) : t('review.screen.addedToRecord', { kind: check });
       }
       // Everything noted in this review goes with it, in the same batch, and names it (decisions.md 149).
       const sent = specs.find((sp) => sp.type === 'v1.ReviewRecorded')?.payload as { reviewId: string } | undefined;
@@ -412,20 +427,53 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const goStage = (id: StageId) => {
     setWhy(false);
     setStageId(id);
-    if (id === 'questions') setQi(openAt >= 0 ? openAt : 0);
+    // A required question still open, else the last one: the way back from Decide.
+    if (id === 'questions') setQi(openAt >= 0 ? openAt : Math.max(0, questions.length - 1));
+  };
+  /** The question before, on screen as well as on Android's Back. */
+  const previous = () => {
+    const back = stageBack(stages, stage, qi, questions.length);
+    if (back) { setStageId(back.stage); setQi(back.qi); }
+  };
+  // Where the version can be played: on this phone, or online from the server.
+  const audioHere = clipsAvailable(ctx.language, version.cardHashes);
+  /** Looks good, asking first when what was said is about what should change. */
+  const looksGood = () => {
+    if (saidForChange && (comment.trim() || feedback)) { setAskChange(true); return; }
+    void save('looks_good');
+  };
+  /** ✕ leaves the review as a draft on this phone: said once, so nobody takes it for sent. */
+  const leave = () => {
+    if (reviewDraftOf(onScreen, version.takeId, opened)) ctx.toast(t('review.screen.keptNotSent'));
+    ctx.back();
   };
 
   // ---- the footer, per stage ----
   let footer: ReactNode = null;
   if (why) {
-    footer = <PrimaryBtn label={t('review.screen.sendFeedback')} icon="send" disabled={!r.saysWhat || !r.ready} busy={busy} onPress={() => void save('needs_changes')} />;
+    // Why Send feedback is off, said above it.
+    const hint = !r.saysWhat || !r.ready ? footHint(r) : null;
+    footer = (
+      <>
+        {hint ? <Text style={[txt.smMuted, styles.center]}>{hint}</Text> : null}
+        <PrimaryBtn label={t('review.screen.sendFeedback')} icon="send" disabled={!r.saysWhat || !r.ready} busy={busy} onPress={() => void save('needs_changes')} />
+      </>
+    );
   } else if (stage === 'listen') {
-    footer = next ? <PrimaryBtn label={nextLabel(next)} icon="right" onPress={goNext} /> : null;
+    // A version that cannot be heard here is not checked from here: one logged afterwards was heard elsewhere.
+    const unheard = !logged && !audioHere;
+    footer = next ? (
+      <>
+        {unheard ? <Text style={[txt.smMuted, styles.center]}>{t('review.screen.notOnPhoneYet')}</Text> : null}
+        <PrimaryBtn label={nextLabel(next)} icon="right" disabled={unheard} onPress={goNext} />
+      </>
+    ) : null;
   } else if (stage === 'questions' && q) {
     const last = qi >= questions.length - 1;
     const answeredHere = !!captured.answers[q.q.id]?.trim() || skipped[q.q.id] !== undefined;
     footer = (
       <View style={styles.qFoot}>
+        {qi > 0 ? <IconBtn name="arrowL" label={t('review.screen.previousQuestion')} help={t('review.screen.previousQuestionHelp')} onPress={previous} /> : null}
         <SkipBtn onPress={() => (q.required && !answeredHere ? setSkipFor(q.q.id) : goNext())} />
         <View style={{ flex: 1 }}>
           <PrimaryBtn label={last ? nextLabel(next ?? stages[at]!) : t('review.screen.nextQuestion')} icon="right"
@@ -444,16 +492,35 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   // ---- Listen ----
   const directions = request && (request.note || request.noteBlobHash);
   const changed = version.n > 1 && (version.changeNote || version.changeBlobHash);
+  const whoRow = (
+    <DashedRow icon="people" label={whoTitle} help={!logged ? t('review.screen.whoHelp') : group ? t('review.screen.howManyHelp') : t('review.screen.whoReviewedHelp')}
+      {...(whoLine ? { sub: whoLine, done: true } : {})} right={whoLine ? t('review.shared.change') : t('review.shared.optional')} onPress={() => setSheet('who')} />
+  );
   const listen = (
     <>
       {logged ? (
         <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
           {t('review.screen.loggedIntro', { kind: kindInSentence(check) })}
+          {checkpoint ? ` ${t('review.screen.loggedCheckpoint')}` : ''}
         </Text>
+      ) : null}
+      {/* Logged afterwards: who gave it and which version was played come first, as they make the record (screen-path.md). */}
+      {logged ? whoRow : null}
+      {logged && v.p.versions.length > 1 ? (
+        <Block label={t('review.screen.whichVersion')}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+            {[...v.p.versions].reverse().map((x) => (
+              <HelpRow key={x.takeId} of="review.version">
+                <Chip label={versionTitle(x.n)} on={x.takeId === version.takeId} help={t('review.screen.whichVersionHelp')} onPress={() => setTakeId(x.takeId)} />
+              </HelpRow>
+            ))}
+          </View>
+        </Block>
       ) : null}
       {directions ? <RequestBanner ctx={ctx} request={request} /> : null}
       <ClipPlayer language={ctx.language} hashes={version.cardHashes} big
         title={mine ? t('review.screen.versionByYou', { n: version.n }) : t('review.screen.versionBy', { n: version.n, name: translator })} sub={listenLine(kind.id, logged)}
+        onPlay={() => setPlayed(true)}
         {...(makes ? {} : { onNote: (s: number) => noteMoment(Math.round(s * 1000)) })} />
       {/* Its parts with their verses, when they have verses, so a reviewer can say where (decisions.md 82). */}
       <VersionParts ctx={ctx} state={v.state} unitId={v.unitId} hashes={version.cardHashes} onlyNumbered />
@@ -491,13 +558,11 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
             help={t('review.screen.backgroundHelp')} onPress={() => setSheet('background')} last />
         </Group>
       ) : null}
-      <DashedRow icon="people" label={whoTitle} help={!logged ? t('review.screen.whoHelp') : group ? t('review.screen.howManyHelp') : t('review.screen.whoReviewedHelp')}
-        {...(whoLine ? { sub: whoLine, done: true } : {})} right={whoLine ? t('review.shared.change') : t('review.shared.optional')} onPress={() => setSheet('who')} />
+      {logged ? null : whoRow}
       {logged ? (
         <DashedRow icon="edit" label={t('review.screen.addDetails')}
           sub={summaryLine([
             place.trim() || t('review.screen.where'),
-            latest && version.takeId === latest.takeId ? t('review.screen.versionLatest', { n: version.n }) : versionTitle(version.n),
             !makes && (evidence ? t('review.screen.retellingRecorded') : t('review.screen.retelling'))
           ])} help={t('review.screen.addDetailsHelp')} onPress={() => setSheet('details')} />
       ) : null}
@@ -571,8 +636,9 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {openAt >= 0 ? (
         <LinkBtn label={t('review.capture.requiredLeft', { count: r.open })} help={t('review.screen.requiredLeftHelp')} style={{ alignSelf: 'center' }} onPress={() => goStage('questions')} />
       ) : null}
+      {!logged && !played ? <Text style={[txt.smMuted, styles.center]}>{t('review.screen.notPlayedYet')}</Text> : null}
       {goesWith}
-      <DecideCard tone="green" label={t('review.screen.looksGood')} icon="check" busy={busy} disabled={openAt >= 0} onPress={() => void save('looks_good')} />
+      <DecideCard tone="green" label={t('review.screen.looksGood')} icon="check" busy={busy} disabled={openAt >= 0} onPress={looksGood} />
       <DecideCard tone="amber" label={t('review.screen.needsChanges')} icon="chat" disabled={openAt >= 0 || busy} onPress={() => setWhy(true)} />
       <DashedRow icon="chatDots" label={logged ? t('review.screen.whatHappened') : t('review.screen.saySomething')}
         sub={comment.trim() || (feedback ? t('review.screen.saidInVoiceNoteCap') : logged ? t('review.screen.whatPeopleUnderstood')
@@ -600,9 +666,9 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
             <PlayChip ctx={ctx} clip={feedback} label={t('review.screen.yourFeedback')} tone="amber" />
             <AgainBtn label={t('review.screen.recordAgain')} onPress={() => setFeedback(null)} />
           </View>
-        ) : <BigMic language={ctx.language} label={t('review.screen.tapAndSpeak')} onClip={setFeedback} />}
+        ) : <BigMic language={ctx.language} label={t('review.screen.tapAndSpeak')} onClip={(clip) => { setSaidForChange(true); setFeedback(clip); }} />}
         {typeFeedback || comment ? (
-          <Field value={comment} onChangeText={setComment} placeholder={logged ? t('review.screen.typeWhatPeopleUnderstood') : t('review.screen.typeWhatWorked')} multiline testID="feedback-text" />
+          <Field value={comment} onChangeText={(text) => { setSaidForChange(true); setComment(text); }} placeholder={logged ? t('review.screen.typeWhatPeopleUnderstood') : t('review.screen.typeWhatWorked')} multiline testID="feedback-text" />
         ) : <LinkBtn label={t('common.orTypeIt')} help={t('review.screen.orTypeHelp')} style={{ alignSelf: 'center' }} onPress={() => setTypeFeedback(true)} />}
       </Centre>
       {evidence ? (
@@ -617,12 +683,18 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     </>
   );
 
-  const mark = <SavedMark status={draft.status} help={t('saved.draftHelp')} />;
+  // The version under review can be reported here as on its own page (decision 48); the flag hides on your own.
+  const mark = (
+    <View style={styles.headActions}>
+      <ReportFlag ctx={ctx} target={recordTarget(ctx, 'version', version.takeId, version.by, v.unitId)} />
+      <SavedMark status={draft.status} help={t('saved.draftHelp')} />
+    </View>
+  );
   const header = why ? (
     <Header title={title} sub={sub} crumbs={crumbs} onBack={() => setWhy(false)} action={mark} />
   ) : (
     <>
-      <Header title={title} sub={sub} crumbs={crumbs} onBack={ctx.back} close action={mark} />
+      <Header title={title} sub={sub} crumbs={crumbs} onBack={leave} close action={mark} />
       <StepStrip stages={stages} at={at} onGo={goStage} />
     </>
   );
@@ -660,17 +732,6 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         <Sheet visible title={t('review.screen.addDetails')} sub={t('review.screen.detailsSub')} onClose={() => setSheet(null)}
           footer={<PrimaryBtn label={t('common.done')} help={t('review.screen.sheetDoneHelp')} onPress={() => setSheet(null)} />}>
           <Field value={place} onChangeText={setPlace} placeholder={t('review.screen.wherePlaceholder')} help={t('review.screen.whereHelp')} />
-          {v.p.versions.length > 1 ? (
-            <Block label={t('review.screen.whichVersion')}>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-                {[...v.p.versions].reverse().map((x) => (
-                  <HelpRow key={x.takeId} of="review.version">
-                    <Chip label={versionTitle(x.n)} on={x.takeId === version.takeId} help={t('review.screen.whichVersionHelp')} onPress={() => setTakeId(x.takeId)} />
-                  </HelpRow>
-                ))}
-              </View>
-            </Block>
-          ) : null}
           {!makes ? (
             <Block label={t('review.screen.evidence')} hint={t('review.screen.evidenceHint')}>
               <VoiceNote ctx={ctx} label={t('review.screen.recordARetelling')} hash={evidence?.hash ?? null}
@@ -685,8 +746,15 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           sub={makes ? t('review.screen.saySubMakes') : logged ? t('review.screen.saySubLogged') : mine ? t('review.screen.saySubMine') : t('review.screen.saySub', { name: translator })}
           onClose={() => setSheet(null)} footer={<PrimaryBtn label={t('common.done')} help={t('review.screen.sheetDoneHelp')} onPress={() => setSheet(null)} />}>
           <VoiceNote ctx={ctx} label={logged ? t('review.screen.recordSummary') : t('common.sayIt')} hash={feedback?.hash ?? null}
-            onChange={(h, card) => setFeedback(h ? { hash: h, durationMs: card?.durationMs ?? 0, format: card?.format ?? 'm4a' } : null)} />
-          <Field value={comment} onChangeText={setComment} placeholder={t('common.orTypeIt')} multiline />
+            onChange={(h, card) => { setSaidForChange(false); setFeedback(h ? { hash: h, durationMs: card?.durationMs ?? 0, format: card?.format ?? 'm4a' } : null); }} />
+          <Field value={comment} onChangeText={(text) => { setSaidForChange(false); setComment(text); }} placeholder={t('common.orTypeIt')} multiline />
+        </Sheet>
+      ) : null}
+
+      {askChange ? (
+        <Sheet visible title={t('review.screen.sendChangeTitle')} sub={t('review.screen.sendChangeSub')} onClose={() => setAskChange(false)}>
+          <PrimaryBtn label={t('review.screen.leaveItOut')} help={t('review.screen.leaveItOutHelp')} icon="check" busy={busy} onPress={() => { setAskChange(false); void save('looks_good', { withoutSaid: true }); }} />
+          <GhostBtn label={t('review.screen.sendItToo')} help={t('review.screen.sendItTooHelp')} icon="send" onPress={() => { setAskChange(false); void save('looks_good'); }} />
         </Sheet>
       ) : null}
 
@@ -842,6 +910,7 @@ const styles = StyleSheet.create({
   verdictRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.md },
   answer: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', gap: space.lg, paddingVertical: space.xl },
   qFoot: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  headActions: { flexDirection: 'row', alignItems: 'center' },
   partRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: space.md },
   brand: { width: 32, height: 32, borderRadius: 10, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
   voiceOff: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 56, paddingHorizontal: space.md, paddingVertical: space.sm,

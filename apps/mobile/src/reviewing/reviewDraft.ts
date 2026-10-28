@@ -43,6 +43,10 @@ export interface ReviewState {
   place: string;
   evidence: VoiceAnswer | null;
   made: Card[];
+  /** The version has been played on this screen: Decide says when it has not. */
+  played?: boolean;
+  /** `comment` and `feedback` were said on "What should change?": Looks good asks before sending them. */
+  saidForChange?: boolean;
 }
 
 /** A review's draft: the screen's state, with the version it is about. Older drafts have no `notes`. */
@@ -67,7 +71,8 @@ export function reviewDraftOf(s: ReviewState, about: string | undefined, opened:
   return {
     takeId: about, stage: s.stage, qi: s.qi, answers: s.answers, voice: s.voice, typing: s.typing, skipped: s.skipped,
     comment: s.comment, feedback: s.feedback, typeFeedback: s.typeFeedback, moments: s.moments, notes: s.notes, people: s.people,
-    givenBy: s.givenBy, place: s.place, evidence: s.evidence, made: s.made
+    givenBy: s.givenBy, place: s.place, evidence: s.evidence, made: s.made,
+    ...(s.played ? { played: true } : {}), ...(s.saidForChange ? { saidForChange: true } : {})
   };
 }
 
@@ -125,7 +130,8 @@ export function isReviewDraft(x: unknown): x is ReviewDraft {
     && typeof x['comment'] === 'string' && (x['feedback'] === null || isVoice(x['feedback'])) && typeof x['typeFeedback'] === 'boolean'
     && isList(x['moments'], isMoment) && (x['notes'] === undefined || isList(x['notes'], isReviewNote)) && isCount(x['people'])
     && typeof x['givenBy'] === 'string' && typeof x['place'] === 'string' && (x['evidence'] === null || isVoice(x['evidence']))
-    && isList(x['made'], isCard);
+    && isList(x['made'], isCard) && (x['played'] === undefined || isBool(x['played']))
+    && (x['saidForChange'] === undefined || isBool(x['saidForChange']));
 }
 
 /** What useDraft keeps for a review: a draft, or nothing. */

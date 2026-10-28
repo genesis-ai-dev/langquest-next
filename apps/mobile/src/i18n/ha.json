@@ -3099,7 +3099,10 @@
       "movingSub": "Ɗayan shafin zai ajiye abin da yake da shi ya koma gefe.",
       "elsewhereSub": "Yana aiki a shafi ɗaya a lokaci guda, don naɗe-naɗenku da canje-canjenku su kasance a wuri ɗaya. Ku yi amfani da shi a nan, ko ku koma ɗayan shafin.",
       "useHere": "Yi amfani da shi a nan",
-      "useHereHelp": "Yana kawo LangQuest zuwa wannan shafi. Ɗayan shafin yana ajiye aikinsa ya koma gefe."
+      "useHereHelp": "Yana kawo LangQuest zuwa wannan shafi. Ɗayan shafin yana ajiye aikinsa ya koma gefe.",
+      "otherRecording": "Ɗayan shafin yana naɗi",
+      "otherRecordingSub": "Da farko ka dakatar da naɗi a can, sannan ka sake gwadawa.",
+      "cancelMoveHelp": "Yana daina jira. LangQuest zai zauna a ɗayan shafin."
     },
     "lock": {
       "wait": "Gwaje-gwaje sun yi yawa. Ku jira kaɗan, sannan ku sake gwadawa.",
@@ -3666,7 +3669,8 @@
         "recordedBy": "An naɗa ta hannun {{who}}",
         "recorded": "An naɗa",
         "bestAfter": "Ya fi kyau bayan an amsa sharhin {{kind}}, don a yi shi a sigar da za ku riƙe",
-        "recordsItIn": "{{who}} na naɗa shi a {{language}} — sabon abun ciki, ba hukunci ba"
+        "recordsItIn": "{{who}} na naɗa shi a {{language}} — sabon abun ciki, ba hukunci ba",
+        "loggedStillWaits": "An rubuta \"Yana da kyau\" · har yanzu yana jiran dubawa a manhaja"
       },
       "channels": {
         "whatsapp": "WhatsApp",
@@ -3886,7 +3890,8 @@
         "backTranslate": "Yi fassarar baya",
         "doCheck": "Yi {{check}}",
         "study": "Nazari",
-        "record": "Naɗa"
+        "record": "Naɗa",
+        "continueCheck": "Ci gaba da {{check}}"
       },
       "continueRecording": "Ci gaba da naɗawa",
       "askFor": "Nemi {{check}}",
@@ -4739,7 +4744,6 @@
       "timelineHelp": "Taɓa ko ku ja don zuwa wani lokaci. Lokutan: inda kuke, da tsawonsa."
     },
     "recorder": {
-      "permissionNeeded": "Ana buƙatar izinin makirufo.",
       "hidePartsHelp": "Ɓoye sassan.",
       "showPartsHelp": "Nuna kowane sashe, don ji ko goge shi.",
       "playAllHelp": "Ji duk abin da aka naɗa zuwa yanzu, sashe bayan sashe.",
@@ -4794,7 +4798,11 @@
       "movePartHelp": "Ku ja sama ko ƙasa don matsar da wannan sashe. Sashen da kuka matsar yana rasa ayarsa, don ku sake ba shi.",
       "moveUp": "Matsar sama",
       "moveDown": "Matsar ƙasa",
-      "undoHelp": "Yana janye canjinku na ƙarshe ga sassan. Ku sake taɓawa don komawa baya sosai."
+      "undoHelp": "Yana janye canjinku na ƙarshe ga sassan. Ku sake taɓawa don komawa baya sosai.",
+      "micOff": "LangQuest ba ya jin ka. Kunna makirufo don LangQuest a cikin Saituna.",
+      "micOffWeb": "LangQuest ba ya jin ka. Ba da izinin makirufo don wannan shafin a cikin burauzarka, sannan ka sake taɓa naɗi.",
+      "openSettings": "Buɗe Saituna",
+      "openSettingsHelp": "Yana buɗe saitunan wannan wayar don LangQuest. Kunna makirufo a can, sannan ka dawo."
     },
     "cleanUp": {
       "cleanUp": "Tsaftace",
@@ -6120,7 +6128,20 @@
       "doneRecordedHelp": "Yana sa {{what}} a tarihin nassin.",
       "looksGoodOffline": "Yana da kyau. {{name}} zai samu idan wannan na'ura ta samu intanet.",
       "feedbackOffline": "An adana ra'ayin. {{name}} zai samu idan wannan na'ura ta samu intanet.",
-      "helpWordsHelp": "Yana buɗe muhimman kalmomin wannan nassi, tare da kalmar tawagar ga kowacce da kuma ko wannan siga ta yi amfani da ita."
+      "helpWordsHelp": "Yana buɗe muhimman kalmomin wannan nassi, tare da kalmar tawagar ga kowacce da kuma ko wannan siga ta yi amfani da ita.",
+      "addedAtCheckpoint": "An ƙara {{kind}} cikin rikodin. Wurin dubawar har yanzu yana jiran dubawar da aka yi a cikin manhajar.",
+      "keptNotSent": "An ajiye bitarka a wannan wayar. Ba a aika ta ba tukuna.",
+      "notOnPhoneYet": "Naɗin bai zo wannan wayar ba tukuna. Zai kunnu a nan da zarar wayar ta haɗu da intanet.",
+      "previousQuestion": "Tambayar da ta gabata",
+      "previousQuestionHelp": "Yana komawa tambayar da ta gabata, don ka canza amsarka.",
+      "loggedCheckpoint": "Wannan dubawa wurin dubawa ne: idan aka rubuta ta nan, za ta shiga rikodin, amma dubawar da aka yi a cikin manhaja ce kaɗai ke buɗe matakan da ke biye.",
+      "notPlayedYet": "Ba ka kunna wannan sigar ba tukuna.",
+      "sendChangeTitle": "Aika abin da ya kamata a canza tare da \"Yana da kyau\"?",
+      "sendChangeSub": "Ka faɗi abin da ya kamata a canza, sannan ka zaɓi \"Yana da kyau\".",
+      "leaveItOut": "Kar a aika",
+      "leaveItOutHelp": "Yana aika \"Yana da kyau\" kaɗai. Abin da ka faɗa game da canje-canje ba zai shiga rikodi ba.",
+      "sendItToo": "Aika shi ma",
+      "sendItTooHelp": "Yana aika \"Yana da kyau\" tare da abin da ka faɗa, don mai fassara ma ya ji."
     },
     "guest": {
       "previewSub": "Duba farko · abin da wanda ba shi da manhajar yake gani",

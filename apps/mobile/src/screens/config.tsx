@@ -1013,7 +1013,7 @@ function OfferedRows(props: { ctx: Ctx; languageId: string | null; offered: Map<
   const open = ctx.language.languageId || null;
   return (
     <Group>
-      <Row icon="sound" label={t('config.reference.bibles')} sub={t('config.reference.biblesSub', { count: bibles })} help={t('config.reference.biblesHelp')} onPress={() => ctx.go('reference_bibles', params)} />
+      <Row icon="book" label={t('config.reference.bibles')} sub={t('config.reference.biblesSub', { count: bibles })} help={t('config.reference.biblesHelp')} onPress={() => ctx.go('reference_bibles', params)} />
       <Row icon="sparkle" label={t('config.reference.guidesNotes')} sub={`${t('config.reference.guidesRecommended', { count: guides })} · ${t('config.reference.notes', { count: notes })}`}
         help={t('config.reference.guidesNotesHelp')} onPress={() => ctx.go('reference_guides', params)} last={!open} />
       {open ? <Row icon="map" label={t('config.reference.coverage')} sub={t('config.reference.coverageSub', { language: languageName(ctx.org.state, open) })}

@@ -3191,7 +3191,10 @@
       "movingSub": "A outra aba salva o que tem e dá lugar a esta.",
       "elsewhereSub": "Ele funciona em uma aba de cada vez, para que as suas gravações e mudanças fiquem em um só lugar. Use aqui, ou volte para a outra aba.",
       "useHere": "Usar aqui",
-      "useHereHelp": "Passa o LangQuest para esta aba. A outra aba salva o trabalho dela e sai de cena."
+      "useHereHelp": "Passa o LangQuest para esta aba. A outra aba salva o trabalho dela e sai de cena.",
+      "otherRecording": "A outra aba está gravando",
+      "otherRecordingSub": "Pare a gravação lá primeiro e tente de novo.",
+      "cancelMoveHelp": "Para de esperar. O LangQuest fica na outra aba."
     },
     "lock": {
       "wait": "Tentativas demais. Espere um pouco e tente de novo.",
@@ -3777,7 +3780,8 @@
         "recordedBy": "Gravado por {{who}}",
         "recorded": "Gravado",
         "bestAfter": "Melhor depois de responder aos comentários da {{kind}}, para ser feito na versão que você vai manter",
-        "recordsItIn": "{{who}} grava em {{language}}: conteúdo novo, não uma avaliação"
+        "recordsItIn": "{{who}} grava em {{language}}: conteúdo novo, não uma avaliação",
+        "loggedStillWaits": "Registrada como \"Está bom\" · ainda espera uma verificação no app"
       },
       "channels": {
         "whatsapp": "WhatsApp",
@@ -4005,7 +4009,8 @@
         "backTranslate": "Fazer a retrotradução",
         "doCheck": "Fazer a {{check}}",
         "study": "Estudar",
-        "record": "Gravar"
+        "record": "Gravar",
+        "continueCheck": "Continuar a {{check}}"
       },
       "continueRecording": "Continuar gravando",
       "askFor": "Pedir a {{check}}",
@@ -4889,7 +4894,6 @@
       "timelineHelp": "Toque ou arraste para ir a um momento. Os tempos: onde você está, e quanto dura."
     },
     "recorder": {
-      "permissionNeeded": "É preciso permitir o uso do microfone.",
       "hidePartsHelp": "Esconder as partes.",
       "showPartsHelp": "Mostrar cada parte, para ouvir ou apagar.",
       "playAllHelp": "Ouvir tudo o que foi gravado até agora, uma parte depois da outra.",
@@ -4944,7 +4948,11 @@
       "movePartHelp": "Arraste para cima ou para baixo para mover esta parte. Uma parte que você move perde o versículo, para você dar de novo.",
       "moveUp": "Mover para cima",
       "moveDown": "Mover para baixo",
-      "undoHelp": "Desfaz sua última mudança nas partes. Toque de novo para voltar mais."
+      "undoHelp": "Desfaz sua última mudança nas partes. Toque de novo para voltar mais.",
+      "micOff": "O LangQuest não consegue ouvir você. Ative o microfone para o LangQuest em Ajustes.",
+      "micOffWeb": "O LangQuest não consegue ouvir você. Permita o microfone para este site no seu navegador e toque em gravar de novo.",
+      "openSettings": "Abrir Ajustes",
+      "openSettingsHelp": "Abre os ajustes deste telefone para o LangQuest. Ative o microfone lá e volte."
     },
     "cleanUp": {
       "cleanUp": "Limpar",
@@ -6371,7 +6379,20 @@
       "doneRecordedHelp": "Coloca a {{what}} na ficha da passagem.",
       "looksGoodOffline": "Está bom. {{name}} recebe quando este aparelho estiver conectado.",
       "feedbackOffline": "Comentário guardado. {{name}} recebe quando este aparelho estiver conectado.",
-      "helpWordsHelp": "Abre as palavras-chave desta passagem, com a palavra da equipe para cada uma e se esta versão a usou."
+      "helpWordsHelp": "Abre as palavras-chave desta passagem, com a palavra da equipe para cada uma e se esta versão a usou.",
+      "addedAtCheckpoint": "{{kind}} adicionada ao histórico. O ponto de controle ainda espera uma verificação feita no app.",
+      "keptNotSent": "Sua revisão está guardada neste telefone. Ainda não foi enviada.",
+      "notOnPhoneYet": "A gravação ainda não está neste telefone. Ela toca aqui quando o telefone estiver online.",
+      "previousQuestion": "Pergunta anterior",
+      "previousQuestionHelp": "Volta à pergunta anterior, para mudar sua resposta.",
+      "loggedCheckpoint": "Esta verificação é um ponto de controle: registrada aqui, ela vai para o histórico, mas só uma verificação feita no app abre as etapas seguintes.",
+      "notPlayedYet": "Você ainda não tocou esta versão.",
+      "sendChangeTitle": "Enviar o que deve mudar junto com \"Está bom\"?",
+      "sendChangeSub": "Você disse o que deve mudar e depois escolheu \"Está bom\".",
+      "leaveItOut": "Não enviar",
+      "leaveItOutHelp": "Envia só «Está bom». O que você disse sobre mudanças não vai para o registro.",
+      "sendItToo": "Enviar também",
+      "sendItTooHelp": "Envia «Está bom» com o que você disse, para o tradutor ouvir também."
     },
     "guest": {
       "previewSub": "Prévia · o que alguém sem o aplicativo vê",

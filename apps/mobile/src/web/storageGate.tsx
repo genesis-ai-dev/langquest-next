@@ -7,6 +7,7 @@ import { txt } from '../ui/textStyles';
 import { reportError } from '../diagnostics/report';
 import { allowStorage, onStoreFailure } from '../storage/store';
 import { startTab, type TabDeps, type TabState } from './tabLock';
+import { tabBusy } from './tabBusy';
 import { C, space } from '../ui/theme';
 
 const WEB = Platform.OS === 'web';
@@ -35,6 +36,7 @@ function browserTab(): TabDeps | null {
   const channel = new BroadcastChannel('langquest-tabs');
   return {
     request: async (name, opts, callback) => { await navigator.locks.request(name, opts, callback); },
+    busy: tabBusy,
     post: (m) => channel.postMessage(m),
     listen: (handler) => {
       const on = (e: MessageEvent) => handler(String(e.data));
@@ -54,6 +56,7 @@ interface TabControl {
   state: TabState;
   listeners: Set<(s: TabState) => void>;
   useHere(): void;
+  cancel(): void;
 }
 const TAB_KEY = '__langquestTabLock';
 
@@ -69,12 +72,13 @@ function tabControl(): TabControl | null {
   if (g[TAB_KEY]) return g[TAB_KEY];
   const deps = browserTab();
   if (!deps) return null;
-  const control: TabControl = { state: 'checking', listeners: new Set(), useHere: () => {} };
+  const control: TabControl = { state: 'checking', listeners: new Set(), useHere: () => {}, cancel: () => {} };
   const lock = startTab(deps, (s) => {
     control.state = s;
     for (const l of control.listeners) l(s);
   });
   control.useHere = () => { tookFlag('set'); lock.useHere(); };
+  control.cancel = () => { tookFlag('clear'); lock.cancel(); };
   g[TAB_KEY] = control;
   return control;
 }
@@ -97,7 +101,7 @@ function keepStorage(): void {
  */
 export function StorageGate(props: { children: ReactNode }) {
   const [tab, setTab] = useState<TabState>(WEB ? 'checking' : 'ready');
-  const [actions, setActions] = useState<{ useHere(): void } | null>(null);
+  const [actions, setActions] = useState<{ useHere(): void; cancel(): void } | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   /**
@@ -130,7 +134,7 @@ export function StorageGate(props: { children: ReactNode }) {
     }
     setTab(control.state);
     control.listeners.add(setTab);
-    setActions({ useHere: control.useHere });
+    setActions({ useHere: control.useHere, cancel: control.cancel });
     return () => { control.listeners.delete(setTab); };
   }, []);
 
@@ -163,12 +167,17 @@ export function StorageGate(props: { children: ReactNode }) {
   }
   if (tab === 'ready') return <View key={attempt} style={{ flex: 1 }}>{props.children}</View>;
   if (tab === 'checking') return null;
-  const title = tab === 'moved' ? t('entry.storage.moved') : tab === 'waiting' ? t('entry.storage.moving') : t('entry.storage.elsewhere');
-  const sub = tab === 'waiting' ? t('entry.storage.movingSub') : t('entry.storage.elsewhereSub');
+  const title = tab === 'moved' ? t('entry.storage.moved') : tab === 'waiting' ? t('entry.storage.moving')
+    : tab === 'busy' ? t('entry.storage.otherRecording') : t('entry.storage.elsewhere');
+  const sub = tab === 'waiting' ? t('entry.storage.movingSub') : tab === 'busy' ? t('entry.storage.otherRecordingSub') : t('entry.storage.elsewhereSub');
   return (
     <View style={{ flex: 1, justifyContent: 'center', backgroundColor: C.bg, padding: space.xl }}>
-      <EmptyState icon="layers" title={title} sub={sub}>
-        {tab !== 'waiting' && actions ? (
+      <EmptyState icon={tab === 'busy' ? 'mic' : 'layers'} title={title} sub={sub}>
+        {tab === 'waiting' && actions ? (
+          <View style={{ alignSelf: 'center' }}><GhostBtn label={t('common.cancel')} icon="close" full={false} help={t('entry.storage.cancelMoveHelp')} onPress={actions.cancel} /></View>
+        ) : tab === 'busy' && actions ? (
+          <View style={{ alignSelf: 'center' }}><GhostBtn label={t('common.tryAgain')} icon="restart" full={false} help={t('entry.storage.useHereHelp')} onPress={actions.useHere} /></View>
+        ) : actions ? (
           <View style={{ alignSelf: 'center' }}><GhostBtn label={t('entry.storage.useHere')} icon="swap" full={false} help={t('entry.storage.useHereHelp')} onPress={actions.useHere} /></View>
         ) : null}
       </EmptyState>

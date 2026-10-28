@@ -3099,7 +3099,10 @@
       "movingSub": "Kichupo kingine kinahifadhi kilicho nacho na kinakaa kando.",
       "elsewhereSub": "Inafanya kazi katika kichupo kimoja kwa wakati mmoja, ili rekodi na mabadiliko yako yabaki mahali pamoja. Itumie hapa, au rudi kwenye kichupo kingine.",
       "useHere": "Itumie hapa",
-      "useHereHelp": "Huhamisha LangQuest kwenye kichupo hiki. Kichupo kingine kinahifadhi kazi yake na kukaa kando."
+      "useHereHelp": "Huhamisha LangQuest kwenye kichupo hiki. Kichupo kingine kinahifadhi kazi yake na kukaa kando.",
+      "otherRecording": "Kichupo kingine kinarekodi",
+      "otherRecordingSub": "Simamisha kurekodi huko kwanza, kisha ujaribu tena.",
+      "cancelMoveHelp": "Huacha kusubiri. LangQuest inabaki kwenye kichupo kingine."
     },
     "lock": {
       "wait": "Majaribio mengi mno. Subiri kidogo, kisha ujaribu tena.",
@@ -3666,7 +3669,8 @@
         "recordedBy": "Imerekodiwa na {{who}}",
         "recorded": "Imerekodiwa",
         "bestAfter": "Ni bora baada ya maoni ya {{kind}} kujibiwa, ili ifanywe kwenye toleo utakalobaki nalo",
-        "recordsItIn": "{{who}} anakirekodi kwa {{language}} — maudhui mapya, si uamuzi"
+        "recordsItIn": "{{who}} anakirekodi kwa {{language}} — maudhui mapya, si uamuzi",
+        "loggedStillWaits": "Imeandikwa \"Iko sawa\" · bado inasubiri ukaguzi ndani ya programu"
       },
       "channels": {
         "whatsapp": "WhatsApp",
@@ -3886,7 +3890,8 @@
         "backTranslate": "Fanya tafsiri rejeshi",
         "doCheck": "Fanya {{check}}",
         "study": "Jifunze",
-        "record": "Rekodi"
+        "record": "Rekodi",
+        "continueCheck": "Endelea na {{check}}"
       },
       "continueRecording": "Endelea kurekodi",
       "askFor": "Omba {{check}}",
@@ -4739,7 +4744,6 @@
       "timelineHelp": "Gusa au buruta ili uende wakati fulani. Nyakati: ulipo sasa, na urefu wake wote."
     },
     "recorder": {
-      "permissionNeeded": "Ruhusa ya maikrofoni inahitajika.",
       "hidePartsHelp": "Ficha sehemu.",
       "showPartsHelp": "Onyesha kila sehemu, ili kuisikia au kuifuta.",
       "playAllHelp": "Sikia kila kilichorekodiwa hadi sasa, sehemu moja baada ya nyingine.",
@@ -4794,7 +4798,11 @@
       "movePartHelp": "Buruta juu au chini ili kusogeza sehemu hii. Sehemu unayosogeza hupoteza mstari wake, ili uupe tena.",
       "moveUp": "Peleka juu",
       "moveDown": "Peleka chini",
-      "undoHelp": "Hutendua badiliko lako la mwisho kwa sehemu. Gusa tena kurudi nyuma zaidi."
+      "undoHelp": "Hutendua badiliko lako la mwisho kwa sehemu. Gusa tena kurudi nyuma zaidi.",
+      "micOff": "LangQuest haiwezi kukusikia. Washa maikrofoni kwa LangQuest kwenye Mipangilio.",
+      "micOffWeb": "LangQuest haiwezi kukusikia. Ruhusu maikrofoni kwa tovuti hii kwenye kivinjari chako, kisha gusa rekodi tena.",
+      "openSettings": "Fungua Mipangilio",
+      "openSettingsHelp": "Hufungua mipangilio ya simu hii kwa LangQuest. Washa maikrofoni hapo, kisha urudi."
     },
     "cleanUp": {
       "cleanUp": "Safisha",
@@ -6120,7 +6128,20 @@
       "doneRecordedHelp": "Huweka {{what}} kwenye kumbukumbu za kifungu.",
       "looksGoodOffline": "Ni nzuri. {{name}} ataipata kifaa hiki kikiunganishwa.",
       "feedbackOffline": "Maoni yamehifadhiwa. {{name}} atayapata kifaa hiki kikiunganishwa.",
-      "helpWordsHelp": "Hufungua maneno muhimu katika kifungu hiki, pamoja na neno la timu kwa kila moja na kama toleo hili lililitumia."
+      "helpWordsHelp": "Hufungua maneno muhimu katika kifungu hiki, pamoja na neno la timu kwa kila moja na kama toleo hili lililitumia.",
+      "addedAtCheckpoint": "{{kind}} imeongezwa kwenye rekodi. Kituo cha ukaguzi bado kinasubiri ukaguzi uliofanywa ndani ya programu.",
+      "keptNotSent": "Ukaguzi wako umehifadhiwa kwenye simu hii. Bado haujatumwa.",
+      "notOnPhoneYet": "Rekodi bado haiko kwenye simu hii. Itacheza hapa simu ikiwa mtandaoni.",
+      "previousQuestion": "Swali lililotangulia",
+      "previousQuestionHelp": "Hurudi kwenye swali lililotangulia, ili ubadilishe jibu lako.",
+      "loggedCheckpoint": "Ukaguzi huu ni kituo cha ukaguzi: ukiandikwa hapa unaingia kwenye rekodi, lakini ni ukaguzi uliofanywa ndani ya programu tu unaofungua hatua zinazofuata.",
+      "notPlayedYet": "Bado hujacheza toleo hili.",
+      "sendChangeTitle": "Tuma kinachopaswa kubadilika pamoja na \"Iko sawa\"?",
+      "sendChangeSub": "Ulisema kinachopaswa kubadilika, kisha ukachagua \"Iko sawa\".",
+      "leaveItOut": "Usiitume",
+      "leaveItOutHelp": "Hutuma \"Iko sawa\" peke yake. Ulichosema kuhusu mabadiliko hakiingii kwenye kumbukumbu.",
+      "sendItToo": "Itume pia",
+      "sendItTooHelp": "Hutuma \"Iko sawa\" pamoja na ulichosema, ili mtafsiri asikie pia."
     },
     "guest": {
       "previewSub": "Hakiki · kile anachoona mtu asiye na programu",

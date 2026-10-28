@@ -1,4 +1,3 @@
-import { NavigationContext } from '@react-navigation/native';
 import { useContext, useEffect, useRef, useState } from 'react';
 import { PanResponder, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Line } from 'react-native-svg';
@@ -7,6 +6,7 @@ import { useHelpInfo, useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { LinkBtn, SmallBtn } from '../ui/kit';
 import { ScrollHoldContext } from '../ui/scrollHoldContext';
+import { useSwipeBackOff } from '../ui/useHardwareBack';
 import { Text } from '../ui/text';
 import { C, radius, space } from '../ui/theme';
 import { addDot, dotAt, MIN_DOTS, PICTURES } from '../session/lockModel';
@@ -29,11 +29,7 @@ export function PatternPad(props: { onDone: (dots: number[]) => void; disabled?:
   latest.current = { ...latest.current, dots, size, onDone: props.onDone, off: !!props.disabled || helping };
   useEffect(() => { setDots([]); setTapping(false); }, [props.resetKey]);
   // iOS takes a sideways drag anywhere on the screen as "go back" (fullScreenGestureEnabled in App.tsx).
-  const navigation = useContext(NavigationContext);
-  useEffect(() => {
-    navigation?.setOptions({ gestureEnabled: false });
-    return () => navigation?.setOptions({ gestureEnabled: true });
-  }, [navigation]);
+  useSwipeBackOff(true);
   // On iOS the screen's scroll view would take an up-and-down stroke for itself, so it waits while a finger is down.
   const hold = useContext(ScrollHoldContext);
   latest.current.hold = hold;

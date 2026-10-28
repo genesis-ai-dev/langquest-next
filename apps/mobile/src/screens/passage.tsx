@@ -66,6 +66,7 @@ import { PassageOfflineBar } from '../sync/offline';
 import { noteExpected, reportError } from '../diagnostics/report';
 import { Authored, ReportFlag } from '../moderation/reportSheet';
 import { authoredText, recordTarget } from '../moderation/reportTargets';
+import { useReviewDrafts } from '../reviewing/useReviewDrafts';
 import { UsedLine } from '../sources/used';
 import { contractsFor } from '../shell/screenContracts';
 import { edgeAllowed } from '../shell/session';
@@ -250,6 +251,9 @@ export function PassageRecord(ctx: Ctx) {
   const study = useMemo(() => (vState && vp && guide ? studyProgress(vState, vp, guide) : null), [vState, vp, guide]);
   const versesHeld = useVersesHeld(ctx, v?.state, v?.unitId);
   const me = ctx.session.actorId;
+  // A review kept on this phone and not sent: its check's button says Continue (decision 127).
+  const flowKinds = useMemo(() => (vp ? vp.flow.steps.flatMap((st) => st.kindIds) : []), [vp]);
+  const reviewDrafts = useReviewDrafts(me, vLanguageId, v?.unitId, flowKinds);
   const isAuthor = !!v?.p.latest && v.p.latest.by === me;
   // The version's author asks for its next check (demo ADR-034).
   const asker = isAuthor;
@@ -335,7 +339,7 @@ export function PassageRecord(ctx: Ctx) {
   // An earlier section (decision 80) is kept to be heard, not worked on.
   const earlierHere = isEarlierSection(ctx.language.state, unitId);
   // The main button, and the next check for asking (after publishing, or later from the button).
-  const model = recordModel({ p, kinds, kind: v.kind, me, can, steps, mine, asker, askKindId, isAuthor, earlier: earlierHere, alone });
+  const model = recordModel({ p, kinds, kind: v.kind, me, can, steps, mine, asker, askKindId, isAuthor, earlier: earlierHere, alone, reviewDrafts });
   const { answersMine, feedbackReview, myDraft, nextKinds, nextKind } = model;
   const nextTarget = nextKind ? targets[nextKind.kindId] : undefined;
   const m = model.main;

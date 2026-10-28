@@ -69,7 +69,8 @@ export function StepStrip(props: { stages: Stage[]; at: number; onGo: (id: Stage
 function StripStep(props: { stage: Stage; index: number; count: number; done: boolean; current: boolean; onGo: (id: StageId) => void }) {
   const { stage, done, current } = props;
   const spot = useHelpSpot(stage.label, done ? t('review.simple.goBack') : t('review.simple.stepOf', { index: props.index + 1, total: props.count }), () => props.onGo(stage.id));
-  const icon: IconName = done ? 'check' : stage.icon === 'help' ? 'help' : stage.icon;
+  // A done step is a green tick; the others their number, as every step list in the app draws them,
+  // so no step wears the help button's ? or a tick before it is done.
   const fg = done ? TINT.greenText : current ? C.primary : C.muted;
   return (
     <Pressable onPress={spot.onPress} disabled={!done} accessibilityRole="button"
@@ -77,7 +78,8 @@ function StripStep(props: { stage: Stage; index: number; count: number; done: bo
       accessibilityState={{ selected: current, disabled: !done }}
       style={({ pressed }) => [styles.step, pressed && styles.pressed]}>
       <View style={[styles.stepMark, done ? { backgroundColor: C.green } : current ? { backgroundColor: C.primary } : styles.stepLater]}>
-        <Ico name={icon} size={20} color={done || current ? C.white : C.muted} strokeWidth={done ? 3 : 2.2} />
+        {done ? <Ico name="check" size={20} color={C.white} strokeWidth={3} />
+          : <Text style={[styles.stepNum, { color: current ? C.white : C.muted }]}>{formatNumber(props.index + 1)}</Text>}
       </View>
       <Text style={[styles.stepLabel, { color: fg }]}>{stage.label}</Text>
       <HelpBadge spot={spot} />
@@ -426,10 +428,13 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
                   {open ? notes.map((n) => (
                     <HelpRow key={n.id} of="review.verseNote">
                       <Authored ctx={ctx} by={n.by}>
-                        <View style={{ gap: space.xs }}>
-                          {n.text ? <Text style={txt.sm}>{n.text}</Text> : null}
-                          {n.blobHash ? <AudioClip language={ctx.language} hashes={[n.blobHash]} label={t('review.parts.playNote')} /> : null}
-                          <Text style={txt.xs}>{ctx.name(n.by)} · {when(n.hlc)}{n.anchor.kind === 'verse' && n.anchor.at ? ` · ${t('review.simple.atTime', { time: n.anchor.at })}` : ''}</Text>
+                        <View style={{ flexDirection: 'row', gap: space.xs, alignItems: 'flex-start' }}>
+                          <View style={{ flex: 1, gap: space.xs }}>
+                            {n.text ? <Text style={txt.sm}>{n.text}</Text> : null}
+                            {n.blobHash ? <AudioClip language={ctx.language} hashes={[n.blobHash]} label={t('review.parts.playNote')} /> : null}
+                            <Text style={txt.xs}>{ctx.name(n.by)} · {when(n.hlc)}{n.anchor.kind === 'verse' && n.anchor.at ? ` · ${t('review.simple.atTime', { time: n.anchor.at })}` : ''}</Text>
+                          </View>
+                          <ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, n.unitId)} size={36} />
                         </View>
                       </Authored>
                     </HelpRow>
@@ -624,6 +629,7 @@ const styles = StyleSheet.create({
   step: { flex: 1, maxWidth: 120, minHeight: target.row, alignItems: 'center', gap: 4, paddingTop: space.xs, paddingHorizontal: 2 },
   stepMark: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   stepLater: { backgroundColor: C.card, borderWidth: 1.5, borderColor: C.border },
+  stepNum: { fontSize: T.base, fontWeight: '800' },
   stepLabel: { fontSize: T.xs, fontWeight: '800', textAlign: 'center' },
   dots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: space.xs },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: withAlpha(C.primary, 0.2) },

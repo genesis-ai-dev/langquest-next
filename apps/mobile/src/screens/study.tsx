@@ -127,7 +127,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   const chip = chipIds.includes(chipState) ? chipState : 'guide';
   const chips: ChipItem<RefChip>[] = chipIds.map((c) => ({
     guide: { id: 'guide' as const, label: t('study.screen.chips.guide'), icon: 'star' as const, hint: t('study.screen.chips.guideHint') },
-    bible: { id: 'bible' as const, label: t('study.screen.chips.bible'), icon: 'listen' as const, hint: t('study.screen.chips.bibleHint') },
+    bible: { id: 'bible' as const, label: t('study.screen.chips.bible'), icon: 'book' as const, hint: t('study.screen.chips.bibleHint') },
     terms: { id: 'terms' as const, label: t('study.screen.chips.terms'), icon: 'key' as const, hint: t('study.screen.chips.termsHint') },
     notes: { id: 'notes' as const, label: t('study.screen.chips.notes'), icon: 'chat' as const, count: notes.length, hint: t('study.screen.chips.notesHint') },
     earlier: { id: 'earlier' as const, label: t('study.screen.chips.earlier'), icon: 'clock' as const }

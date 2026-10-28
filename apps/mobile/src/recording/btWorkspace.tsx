@@ -49,7 +49,7 @@ import { nobodyElseReviews, sendTargetLabel } from '../passage/recordTextModel';
 import { sendToInput, type UsualTarget } from '../passage/sendTarget';
 import { AskCheckCard } from '../passage/askParts';
 import type { DoneAsk, DoneNext } from './publish';
-import { RecordButton, SaveProblem } from './parts';
+import { RecordButton, RecorderProblem, SaveProblem } from './parts';
 import { SplitPane } from './SplitPane';
 import { loopRecording, MIN_BOTTOM, MIN_BOTTOM_RECORDING } from './splitModel';
 import { useListenLoop } from './useListenLoop';
@@ -112,7 +112,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   type TopChip = 'version' | 'bible' | 'guide' | 'terms' | 'notes' | 'earlier';
   const topChips: ChipItem<TopChip>[] = [
     { id: 'version', label: t('backTranslation.chips.version', { n: of.n }), icon: 'mic' },
-    ...(bible.hasVerses && (shows.bibleAudio || shows.bibleText) ? [{ id: 'bible' as const, label: t('translate.chips.bible'), icon: 'listen' as const, hint: t('translate.chips.bibleHint') }] : []),
+    ...(bible.hasVerses && (shows.bibleAudio || shows.bibleText) ? [{ id: 'bible' as const, label: t('translate.chips.bible'), icon: 'book' as const, hint: t('translate.chips.bibleHint') }] : []),
     ...(study && (shows.guideAudio || shows.guideText) ? [{ id: 'guide' as const, label: t('translate.chips.guide'), icon: 'star' as const, hint: t('translate.chips.guideHint') }] : []),
     ...(shows.terms ? [{ id: 'terms' as const, label: t('translate.chips.terms'), icon: 'key' as const, hint: t('translate.chips.termsHint') }] : []),
     ...(anyFrom(state, kind.id, 'notes') ? [{ id: 'notes' as const, label: t('translate.chips.notes'), icon: 'chat' as const, count: passageNotes.length, hint: t('translate.chips.notesHint') }] : []),
@@ -283,7 +283,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
 
   const problem = drafts.problem ? <SaveProblem message={drafts.problem} />
     : rec.failureCount > 0 ? <SaveProblem message={rec.error || t('backTranslation.partNotSaved')} retryLabel={t('backTranslation.retrySaving')} busy={rec.busy} onRetry={() => void rec.retryFailed()} />
-    : rec.error ? <SaveProblem message={rec.error} /> : null;
+    : rec.error ? <RecorderProblem rec={rec} /> : null;
   const mine = of.by === me;
   const who = ctx.name(of.by).split(' ')[0] ?? ctx.name(of.by);
   const partN = part ? part.index + 1 : null;

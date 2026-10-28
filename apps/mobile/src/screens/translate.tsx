@@ -63,7 +63,7 @@ import { ReferenceRecordings, SourcePlayer } from '../passage/passageSourceAudio
 import { feedbackSource, passageCrumbs, versionTitle, type PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
 import { useBackTranslationDraft } from '../recording/useBackTranslationDraft';
-import { CardList, RecordButton, SaveProblem, type ListedCard } from '../recording/parts';
+import { CardList, RecordButton, RecorderProblem, SaveProblem, type ListedCard } from '../recording/parts';
 import { SplitPane } from '../recording/SplitPane';
 import { MIN_BOTTOM, MIN_BOTTOM_RECORDING, rememberedSplit } from '../recording/splitModel';
 import { useListenLoop } from '../recording/useListenLoop';
@@ -633,7 +633,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     if (c === 'guide' && guideItem) usage.open(guideItem);
   };
   const chips: ChipItem<RefChip>[] = chipIds.map((c) => ({
-    bible: { id: 'bible' as const, label: t('translate.chips.bible'), icon: 'listen' as const, hint: t('translate.chips.bibleHint') },
+    bible: { id: 'bible' as const, label: t('translate.chips.bible'), icon: 'book' as const, hint: t('translate.chips.bibleHint') },
     guide: { id: 'guide' as const, label: t('translate.chips.guide'), icon: 'star' as const, hint: t('translate.chips.guideHint') },
     terms: { id: 'terms' as const, label: t('translate.chips.terms'), icon: 'key' as const, hint: t('translate.chips.termsHint') },
     notes: { id: 'notes' as const, label: t('translate.chips.notes'), icon: 'chat' as const, count: notes.length, hint: t('translate.chips.notesHint') },
@@ -733,7 +733,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const problem = rec.failureCount > 0
     ? <SaveProblem message={rec.error || t('translate.partNotSaved')} retryLabel={t('translate.retrySaving')} busy={rec.busy} onRetry={() => void rec.retryFailed()} />
     : composeError ? <SaveProblem message={composeError} onRetry={() => setComposeError('')} />
-    : rec.error ? <SaveProblem message={rec.error} /> : null;
+    : rec.error ? <RecorderProblem rec={rec} /> : null;
   const record = () => void loop.toggle();
   const scope = { unitId, languageId };
   const lastDone = history.done[history.done.length - 1];

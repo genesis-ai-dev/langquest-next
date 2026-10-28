@@ -23,7 +23,7 @@ import { useAppVersion } from './src/appVersion/useAppVersion';
 import { maySwitchPersona } from './src/session/dev';
 import { MAP_SCREENS, PASSAGE_READING, SCREEN_IDS, TAB_SCREENS, type ScreenId } from './src/shell/flow';
 import { frame, layoutKind } from './src/ui/layout';
-import { chromeVisible, showsGlobalViewerLink } from './src/shell/chromeModel';
+import { chromeVisible, showsGlobalViewerLink, TASK_SCREENS } from './src/shell/chromeModel';
 import { NavChrome } from './src/shell/NavChrome';
 import { lockPhonesToPortrait } from './src/shell/orientation';
 import { paneFor, type SplitSpec } from './src/shell/panes';
@@ -638,7 +638,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
                   // crossfade like a tab switch; everything else slides like a
                   // push. On a wide window everything crossfades: the stack's
                   // box moves as a pane comes and goes, and a slide across it reads as a jump.
-                  <Stack.Screen key={id} name={id} component={HOSTS[id]} options={{ animation: wide || TAB_SCREENS.includes(id) ? 'fade' : 'default' }} />
+                  <Stack.Screen key={id} name={id} component={HOSTS[id]} options={{ animation: wide || TAB_SCREENS.includes(id) ? 'fade' : 'default', fullScreenGestureEnabled: !TASK_SCREENS.includes(id) }} />
                 ))}
               </Stack.Navigator>
             </NavigationContainer>

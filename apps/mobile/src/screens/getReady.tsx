@@ -626,7 +626,7 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
             {s.bibles.map((b, i) => bibleRow(b, search.searching && i === s.bibles.length - 1))}
             {/* Finding another Bible belongs to the whole list, not to a search of it. */}
             {!search.searching ? (
-              <Row icon="search" label={t('getReady.helps.findBible')} sub={s.bibles.length ? undefined : t('getReady.helps.noneChosen')} last
+              <Row icon="book" label={t('getReady.helps.findBible')} sub={s.bibles.length ? undefined : t('getReady.helps.noneChosen')} last
                 help={t('getReady.helps.findBibleHelp')} onPress={() => ctx.go('reference_bibles', { languageId })} />
             ) : null}
           </Group>
@@ -773,7 +773,7 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
       ) : null}
       <Sheet visible={adding} title={t('getReady.page.addMore')} sub={t('getReady.add.sub', { language: lang })} onClose={() => setAdding(false)}>
         <Group>
-          <Row icon="search" label={t('getReady.add.bible')} sub={t('getReady.add.bibleSub')} onPress={() => go('reference_bibles', { languageId })} />
+          <Row icon="book" label={t('getReady.add.bible')} sub={t('getReady.add.bibleSub')} onPress={() => go('reference_bibles', { languageId })} />
           <Row icon="star" label={t('getReady.add.guide')} sub={t('getReady.add.guideSub')} onPress={() => go('reference_guides', { languageId })} />
           <Row icon="note" label={t('getReady.add.note')} sub={t('getReady.add.noteSub')} onPress={() => go('material_editor', { itemId: 'new', kind: 'note', languageId })} />
           <Row icon="key" label={t('getReady.page.keyWords')} sub={t('getReady.add.keyWordsSub')} last onPress={() => go('key_terms', { languageId })} />

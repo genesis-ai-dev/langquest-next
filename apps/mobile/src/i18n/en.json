@@ -3099,7 +3099,10 @@
       "movingSub": "The other tab saves what it has and steps aside.",
       "elsewhereSub": "It works in one tab at a time, so your recordings and changes stay in one place. Use it here, or go back to the other tab.",
       "useHere": "Use it here",
-      "useHereHelp": "Moves LangQuest to this tab. The other tab saves its work and steps aside."
+      "useHereHelp": "Moves LangQuest to this tab. The other tab saves its work and steps aside.",
+      "otherRecording": "The other tab is recording",
+      "otherRecordingSub": "Stop recording there first, then try again.",
+      "cancelMoveHelp": "Stops waiting. LangQuest stays in the other tab."
     },
     "lock": {
       "wait": "Too many tries. Wait a little, then try again.",
@@ -3666,7 +3669,8 @@
         "recordedBy": "Recorded by {{who}}",
         "recorded": "Recorded",
         "bestAfter": "Best after the {{kind}} feedback is answered, so it's done on the version you keep",
-        "recordsItIn": "{{who}} records it in {{language}} — new content, not a verdict"
+        "recordsItIn": "{{who}} records it in {{language}} — new content, not a verdict",
+        "loggedStillWaits": "Logged as looks good · still waits for a check in the app"
       },
       "channels": {
         "whatsapp": "WhatsApp",
@@ -3886,7 +3890,8 @@
         "backTranslate": "Back-translate it",
         "doCheck": "Do the {{check}}",
         "study": "Study",
-        "record": "Record"
+        "record": "Record",
+        "continueCheck": "Continue the {{check}}"
       },
       "continueRecording": "Continue recording",
       "askFor": "Ask for the {{check}}",
@@ -4739,7 +4744,6 @@
       "timelineHelp": "Tap or drag to go to a moment. The times: where you are, and how long it is."
     },
     "recorder": {
-      "permissionNeeded": "Microphone permission is required.",
       "hidePartsHelp": "Hide the parts.",
       "showPartsHelp": "Show each part, to hear or delete it.",
       "playAllHelp": "Hear everything recorded so far, one part after another.",
@@ -4794,7 +4798,11 @@
       "movePartHelp": "Drag up or down to move this part. A part you move loses its verse, so you can give it again.",
       "moveUp": "Move up",
       "moveDown": "Move down",
-      "undoHelp": "Takes back your last change to the parts. Tap again to go further back."
+      "undoHelp": "Takes back your last change to the parts. Tap again to go further back.",
+      "micOff": "LangQuest cannot hear you. Turn on the microphone for LangQuest in Settings.",
+      "micOffWeb": "LangQuest cannot hear you. Allow the microphone for this site in your browser, then tap record again.",
+      "openSettings": "Open Settings",
+      "openSettingsHelp": "Opens this phone's settings for LangQuest. Turn on the microphone there, then come back."
     },
     "cleanUp": {
       "cleanUp": "Clean up",
@@ -6120,7 +6128,20 @@
       "doneRecordedHelp": "Puts the {{what}} on the passage's record.",
       "looksGoodOffline": "Looks good. {{name}} gets it when this device is connected.",
       "feedbackOffline": "Feedback saved. {{name}} gets it when this device is connected.",
-      "helpWordsHelp": "Opens the key words in this passage, with the team's word for each and whether this version used it."
+      "helpWordsHelp": "Opens the key words in this passage, with the team's word for each and whether this version used it.",
+      "addedAtCheckpoint": "{{kind}} added to the record. The checkpoint still waits for a check done in the app.",
+      "keptNotSent": "Your review is kept on this phone. It is not sent yet.",
+      "notOnPhoneYet": "The recording is not on this phone yet. It plays here once the phone is online.",
+      "previousQuestion": "Previous question",
+      "previousQuestionHelp": "Goes back to the question before, to change your answer.",
+      "loggedCheckpoint": "This check is a checkpoint: logged here, it goes on the record, but only a check done in the app opens the steps after it.",
+      "notPlayedYet": "You have not played this version yet.",
+      "sendChangeTitle": "Send what should change with Looks good?",
+      "sendChangeSub": "You said what should change, then chose Looks good.",
+      "leaveItOut": "Leave it out",
+      "leaveItOutHelp": "Sends Looks good alone. What you said about changes stays off the record.",
+      "sendItToo": "Send it too",
+      "sendItTooHelp": "Sends Looks good with what you said, so the translator hears it too."
     },
     "guest": {
       "previewSub": "Preview · what someone without the app sees",

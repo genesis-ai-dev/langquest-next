@@ -16,6 +16,7 @@ import { reportError } from '../diagnostics/report';
 import { lift } from '../ui/shadow';
 import { C, radius, space, target, TINT, withAlpha } from '../ui/theme';
 import { mmss } from './workspaceModel';
+import { MicRefused } from './micRefused';
 
 /**
  * What to say when a save failed (error-tracking): a refusal from core in
@@ -92,6 +93,12 @@ export function SaveProblem(props: { message: string; retryLabel?: string; onRet
       {props.onRetry ? <GhostBtn label={props.retryLabel ?? t('common.tryAgain')} help={t('help.details.tryAgain')} icon="restart" tone="red" disabled={props.busy} onPress={props.onRetry} /> : null}
     </View>
   );
+}
+
+/** The recorder's failure: a refused microphone with its way out, anything else as it is. */
+export function RecorderProblem(props: { rec: { error: string; micRefused: boolean } }) {
+  if (!props.rec.error) return null;
+  return props.rec.micRefused ? <MicRefused message={props.rec.error} /> : <SaveProblem message={props.rec.error} />;
 }
 
 const styles = StyleSheet.create({

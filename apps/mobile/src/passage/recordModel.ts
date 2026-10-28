@@ -133,6 +133,8 @@ export function recordModel(o: {
   earlier?: boolean;
   /** Nobody else here holds Review (`askCandidates` is empty): its author does the next check (decisions.md 178). */
   alone?: boolean;
+  /** Checks this person has a review of kept on this phone, not sent: their button says Continue. */
+  reviewDrafts?: ReadonlySet<string>;
 }): RecordModel {
   const { p, kinds, me, can } = o;
   const nameOf = (kindId: string) => checkName(kindId, kinds);
@@ -152,7 +154,10 @@ export function recordModel(o: {
   const openCheck = openCheckFor(p, { isAuthor: o.isAuthor, canReview: can.review, alone: !!o.alone });
   const check = (kindId: string, requestId?: string): RecordMain => {
     const produces = !!o.kind(kindId).produces;
-    return { id: 'check', kindId, produces, ...(requestId ? { requestId } : {}), ...doCheckButton(o.kind(kindId), kinds) };
+    const button = !produces && o.reviewDrafts?.has(kindId)
+      ? { label: t('passage.page.main.continueCheck', { check: kindInSentence(nameOf(kindId)) }), icon: 'check' as const }
+      : doCheckButton(o.kind(kindId), kinds);
+    return { id: 'check', kindId, produces, ...(requestId ? { requestId } : {}), ...button };
   };
 
   let main: RecordMain | null = null;

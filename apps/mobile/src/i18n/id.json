@@ -3007,7 +3007,10 @@
       "movingSub": "Tab lain menyimpan apa yang ada lalu mengalah.",
       "elsewhereSub": "LangQuest hanya bekerja di satu tab dalam satu waktu, agar rekaman dan perubahan Anda tetap di satu tempat. Pakai di sini, atau kembali ke tab lain.",
       "useHere": "Pakai di sini",
-      "useHereHelp": "Memindahkan LangQuest ke tab ini. Tab lain menyimpan pekerjaannya lalu mengalah."
+      "useHereHelp": "Memindahkan LangQuest ke tab ini. Tab lain menyimpan pekerjaannya lalu mengalah.",
+      "otherRecording": "Tab lain sedang merekam",
+      "otherRecordingSub": "Hentikan rekaman di sana dulu, lalu coba lagi.",
+      "cancelMoveHelp": "Berhenti menunggu. LangQuest tetap di tab lain."
     },
     "lock": {
       "wait": "Terlalu banyak percobaan. Tunggu sebentar, lalu coba lagi.",
@@ -3555,7 +3558,8 @@
         "recordedBy": "Direkam oleh {{who}}",
         "recorded": "Direkam",
         "bestAfter": "Sebaiknya setelah masukan {{kind}} dijawab, agar dikerjakan pada versi yang Anda pertahankan",
-        "recordsItIn": "{{who}} merekamnya dalam {{language}} — isi baru, bukan penilaian"
+        "recordsItIn": "{{who}} merekamnya dalam {{language}} — isi baru, bukan penilaian",
+        "loggedStillWaits": "Dicatat \"Sudah baik\" · masih menunggu pemeriksaan di aplikasi"
       },
       "channels": {
         "whatsapp": "WhatsApp",
@@ -3767,7 +3771,8 @@
         "backTranslate": "Terjemahkan balik",
         "doCheck": "Lakukan {{check}}",
         "study": "Studi",
-        "record": "Rekam"
+        "record": "Rekam",
+        "continueCheck": "Lanjutkan {{check}}"
       },
       "continueRecording": "Lanjutkan merekam",
       "askFor": "Minta {{check}}",
@@ -4589,7 +4594,6 @@
       "timelineHelp": "Ketuk atau tarik untuk pindah ke suatu saat. Waktunya: posisi Anda, dan panjang rekamannya."
     },
     "recorder": {
-      "permissionNeeded": "Izin mikrofon diperlukan.",
       "hidePartsHelp": "Sembunyikan bagian-bagiannya.",
       "showPartsHelp": "Tampilkan setiap bagian, untuk didengar atau dihapus.",
       "playAllHelp": "Dengarkan semua yang sudah direkam, satu bagian demi satu bagian.",
@@ -4644,7 +4648,11 @@
       "movePartHelp": "Tarik ke atas atau ke bawah untuk memindahkan bagian ini. Bagian yang dipindah kehilangan ayatnya, supaya Anda bisa memberinya lagi.",
       "moveUp": "Pindah ke atas",
       "moveDown": "Pindah ke bawah",
-      "undoHelp": "Membatalkan perubahan terakhir Anda pada bagian-bagian. Ketuk lagi untuk mundur lebih jauh."
+      "undoHelp": "Membatalkan perubahan terakhir Anda pada bagian-bagian. Ketuk lagi untuk mundur lebih jauh.",
+      "micOff": "LangQuest tidak bisa mendengar Anda. Nyalakan mikrofon untuk LangQuest di Pengaturan.",
+      "micOffWeb": "LangQuest tidak bisa mendengar Anda. Izinkan mikrofon untuk situs ini di browser Anda, lalu ketuk rekam lagi.",
+      "openSettings": "Buka Pengaturan",
+      "openSettingsHelp": "Membuka pengaturan ponsel ini untuk LangQuest. Nyalakan mikrofon di sana, lalu kembali."
     },
     "cleanUp": {
       "cleanUp": "Bersihkan",
@@ -5869,7 +5877,20 @@
       "doneRecordedHelp": "Memasukkan {{what}} ke riwayat perikop.",
       "looksGoodOffline": "Sudah baik. {{name}} menerimanya saat perangkat ini terhubung.",
       "feedbackOffline": "Masukan disimpan. {{name}} menerimanya saat perangkat ini terhubung.",
-      "helpWordsHelp": "Membuka kata kunci dalam perikop ini, dengan kata tim untuk masing-masing, dan apakah versi ini memakainya."
+      "helpWordsHelp": "Membuka kata kunci dalam perikop ini, dengan kata tim untuk masing-masing, dan apakah versi ini memakainya.",
+      "addedAtCheckpoint": "{{kind}} ditambahkan ke catatan. Titik periksa masih menunggu pemeriksaan yang dilakukan di aplikasi.",
+      "keptNotSent": "Tinjauan Anda disimpan di ponsel ini. Belum dikirim.",
+      "notOnPhoneYet": "Rekaman belum ada di ponsel ini. Rekaman diputar di sini setelah ponsel online.",
+      "previousQuestion": "Pertanyaan sebelumnya",
+      "previousQuestionHelp": "Kembali ke pertanyaan sebelumnya untuk mengubah jawaban Anda.",
+      "loggedCheckpoint": "Pemeriksaan ini adalah titik periksa: dicatat di sini, ia masuk catatan, tetapi hanya pemeriksaan di aplikasi yang membuka langkah sesudahnya.",
+      "notPlayedYet": "Anda belum memutar versi ini.",
+      "sendChangeTitle": "Kirim apa yang perlu diubah bersama \"Sudah baik\"?",
+      "sendChangeSub": "Anda menyebut apa yang perlu diubah, lalu memilih \"Sudah baik\".",
+      "leaveItOut": "Jangan sertakan",
+      "leaveItOutHelp": "Hanya mengirim \"Sudah baik\". Yang Anda katakan tentang perubahan tidak masuk catatan.",
+      "sendItToo": "Kirim juga",
+      "sendItTooHelp": "Mengirim \"Sudah baik\" bersama yang Anda katakan, agar penerjemah juga mendengarnya."
     },
     "guest": {
       "previewSub": "Pratinjau · yang dilihat orang tanpa aplikasi",

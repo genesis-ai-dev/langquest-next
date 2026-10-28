@@ -208,6 +208,20 @@ describe('a kind’s actions', () => {
     expect(kindRowSub({ status: peer, kind, step: s.steps[0]!, me: 'deng', name: nameFor('deng') })).toBe('Waiting on Ayen');
   });
 
+  it('a check logged as looks good at a checkpoint says it still waits for one done in the app (decision 72)', () => {
+    // Why: the checkpoint's row went on showing the usual reviewer's name, and
+    // nothing said why the steps after it stayed locked.
+    const p = language();
+    record(p, 'v1', ['c1']);
+    const gate = p.passage().steps.find((st) => st.step.checkpoint)!;
+    const kindId = gate.step.kindIds[0]!;
+    p.run('lead', (c) => c.recordReview({ commandId: 'l1', takeIds: [p.passage().latest!.takeId], kindId, outcome: 'looks_good', via: 'logged', givenBy: 'Pastor Deng' }));
+    const step = p.passage().steps.find((st) => st.step.id === gate.step.id)!;
+    expect(step.complete).toBe(false);
+    const kind = p.kinds().find((k) => k.id === kindId)!;
+    expect(kindRowSub({ status: step.kinds[0]!, kind, step, me: 'lead', name })).toBe('Logged as looks good · still waits for a check in the app');
+  });
+
   it('while feedback is open, the other kinds are best after it (advice, not a gate)', () => {
     const p = language();
     record(p, 'v1', ['c1']);
