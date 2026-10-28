@@ -185,6 +185,11 @@ kind of voice recording, so the "Voice or sound recordings" answer is
 unchanged. It needs no permission and sends nothing of its own, so no Play
 Console answer changes.
 
+The noise warning (decisions.md 181) measures how loud a part is and how
+loud the room is between its words, on the device that recorded or plays
+it. The numbers stay on that device and are never sent, so no Play Console
+answer changes.
+
 Bible text and audio (docs/reference-material.md, decisions.md 62) come
 from Faith Comes By Hearing's Bible Brain through our Worker, which holds the
 key and sends Bible Brain no user data; phones then download the audio from

@@ -4983,7 +4983,10 @@
       "kept": "Mantida como gravada",
       "keptLabel": "{{part}}: mantida como gravada",
       "keptHelp": "Limpar foi testado nesta parte, e a gravação foi mantida como foi dita. Toque para ver quem testou.",
-      "keptBy": "{{name}} testou Limpar em {{date}} e manteve a gravação como está."
+      "keptBy": "{{name}} testou Limpar em {{date}} e manteve a gravação como está.",
+      "noisy": "Muito ruído de fundo",
+      "noisyLabel": "{{part}}: muito ruído de fundo",
+      "noisyHelp": "Esta parte tem muito ruído de fundo. Toque para ver e limpar a parte."
     },
     "quoted": "“{{text}}”",
     "listening": "Ouvindo… {{time}}",

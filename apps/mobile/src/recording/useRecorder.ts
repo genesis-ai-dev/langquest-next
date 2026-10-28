@@ -19,6 +19,8 @@ import { cutWav, deleteRecorderFile } from '../audio/wavCut';
 import { barsOfFile } from '../audio/barsOfFile';
 import { barsFromLevels } from '../audio/barsModel';
 import { rememberBars } from '../audio/barsStore';
+import { loudnessOfFile } from '../audio/loudnessOfFile';
+import { rememberSound } from '../audio/loudnessStore';
 import { noteExpected } from '../diagnostics/report';
 import { cachedHeardLevels, keepHeardLevels, loadHeardLevels } from '../mic/heardLevels';
 import type { JournalTarget } from './recordingJournalModel';
@@ -174,6 +176,8 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
             // Its bars for the list of parts: a session's part brings them from the levels it showed; a
             // take, or a part found again after a restart, reads them from the WAV before a phone encodes it (barsStore.ts).
             const bars = file.bars ?? (file.format === 'wav' ? await barsOfFile(file.uri, 'wav').catch(() => null) : null);
+            // Its loudness and the room between its words, read from the WAV while a phone encodes it (loudnessStore.ts, decision 181).
+            const measuring = file.format === 'wav' ? loudnessOfFile(file.uri, 'wav').catch(() => null) : Promise.resolve(null);
             // A phone keeps AAC, about a fifth of the WAV (decisions.md 106). The
             // journal names the AAC copy before the WAV goes, so a restart finds
             // one of them; if encoding fails, the WAV is kept as it is.
@@ -183,6 +187,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
                 file.uri = await MicrophoneEnergy.encodeAac(wav);
                 file.format = 'm4a';
                 await journal.put({ ...entry(), stage: 'recorded' });
+                await measuring;
                 deleteQuietly(wav);
               } catch (e) {
                 const code = recorderFaultCode(e) === 'nospace' ? 'nospace' : 'encode';
@@ -195,6 +200,8 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
               journal.put({ ...entry(), stage: 'recorded', hash: ref.hash, size }));
             if (wavKept) count('wavKept');
             if (bars) rememberBars(ref.hash, bars);
+            const sound = await measuring;
+            if (sound) rememberSound(ref.hash, sound);
             file.card = { id: file.id, ref, size, durationMs: entry().durationMs };
           }
         }

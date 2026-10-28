@@ -10,8 +10,9 @@
 // place, so what is said next goes there (LAN-83). When the passage has
 // verses, each part in the card has a space beside it to tap a verse in
 // (verseParts.tsx, decisions.md 82). Each part reads as a voice message:
-// play, its bars and length, and a grip at its right end to drag it up or
-// down; a + on the card's right edge at each line opens a place there to
+// play, its bars and length (an orange warning after them when it has lots
+// of background noise, decision 181), and a grip at its right end to drag
+// it up or down; a + on the card's right edge at each line opens a place there to
 // record into, and the parts just recorded are shaded until the next
 // recording (Caleb, 2026-10-16).
 import { useState, type ReactNode } from 'react';
@@ -35,7 +36,8 @@ import { PartBars } from './partBars';
 import { useSwipeHint } from './useSwipeHint';
 import { useBars } from '../audio/useBars';
 import { PartNotesMark } from '../passage/PartNotes';
-import { KeptMark, type Kept } from './KeptMark';
+import type { Kept } from './KeptMark';
+import { CleanUpMark } from './NoiseMark';
 import { PartsMenu } from './partsMenu';
 import { UndoRedo, type UndoRedoProps } from '../ui/undoRedo';
 import { helpBinRow, opensAbove, rowKeys } from './workspaceModel';
@@ -48,7 +50,8 @@ import { useClip } from '../audio/useClip';
 import { VerseParts } from './verseParts';
 
 export interface Part { hash: string; durationMs?: number;
-  /** Tried in Clean up and kept as recorded: by whom, and when (decision 179). */ kept?: Kept }
+  /** Tried in Clean up and kept as recorded: by whom, and when (decision 179). */ kept?: Kept;
+  /** Opens Clean up for this part alone; given while it may be cleaned, for its noise warning (decision 181). */ cleanUp?: () => void }
 
 /** The recorder pane: the parts and their gaps, where the next part goes, and the next part at the end. */
 export function RecorderPane(props: {
@@ -226,8 +229,8 @@ function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; ch
         {props.chosen ? <ChosenMic /> : null}
         <HelpBadge spot={choose} />
       </Pressable>
-      {/* Tried in Clean up and kept as recorded (decision 179). */}
-      {props.part.kept ? <KeptMark kept={props.part.kept} part={label} /> : null}
+      {/* Tried in Clean up and kept as recorded (decision 179), or noisy (decision 181). */}
+      <CleanUpMark ctx={props.ctx} hash={props.part.hash} disabled={props.disabled} part={label} kept={props.part.kept} cleanUp={props.part.cleanUp} />
       {/* What the checks said about this part (decisions.md 149). */}
       <PartNotesMark hash={props.part.hash} label={label} />
       {props.grip}

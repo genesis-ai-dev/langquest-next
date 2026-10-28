@@ -4829,7 +4829,10 @@
       "kept": "Imeachwa kama ilivyorekodiwa",
       "keptLabel": "{{part}}: imeachwa kama ilivyorekodiwa",
       "keptHelp": "Safisha ilijaribiwa kwenye sehemu hii, na rekodi iliachwa kama ilivyosemwa. Gusa kuona nani alijaribu.",
-      "keptBy": "{{name}} alijaribu Safisha tarehe {{date}} na akaiacha rekodi kama ilivyo."
+      "keptBy": "{{name}} alijaribu Safisha tarehe {{date}} na akaiacha rekodi kama ilivyo.",
+      "noisy": "Kelele nyingi za nyuma",
+      "noisyLabel": "{{part}}: kelele nyingi za nyuma",
+      "noisyHelp": "Sehemu hii ina kelele nyingi za nyuma. Gusa kuziona na kusafisha sehemu."
     },
     "quoted": "“{{text}}”",
     "listening": "Inasikiliza… {{time}}",

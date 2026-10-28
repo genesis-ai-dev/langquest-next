@@ -4829,7 +4829,10 @@
       "kept": "Kept as recorded",
       "keptLabel": "{{part}}: kept as recorded",
       "keptHelp": "Clean up was tried on this part, and the recording was kept as it was said. Tap to see who tried it.",
-      "keptBy": "{{name}} tried Clean up on {{date}} and kept the recording as it is."
+      "keptBy": "{{name}} tried Clean up on {{date}} and kept the recording as it is.",
+      "noisy": "Lots of background noise",
+      "noisyLabel": "{{part}}: lots of background noise",
+      "noisyHelp": "This part has a lot of background noise. Tap to see it and to clean up the part."
     },
     "quoted": "“{{text}}”",
     "listening": "Listening… {{time}}",

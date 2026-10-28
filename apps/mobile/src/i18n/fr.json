@@ -4983,7 +4983,10 @@
       "kept": "Gardée telle qu’enregistrée",
       "keptLabel": "{{part}} : gardée telle qu’enregistrée",
       "keptHelp": "Nettoyer a été essayé sur cette partie, et l’enregistrement a été gardé tel qu’il a été dit. Touchez pour voir qui l’a essayé.",
-      "keptBy": "{{name}} a essayé Nettoyer le {{date}} et a gardé l’enregistrement tel quel."
+      "keptBy": "{{name}} a essayé Nettoyer le {{date}} et a gardé l’enregistrement tel quel.",
+      "noisy": "Beaucoup de bruit de fond",
+      "noisyLabel": "{{part}} : beaucoup de bruit de fond",
+      "noisyHelp": "Cette partie a beaucoup de bruit de fond. Touchez pour le voir et nettoyer la partie."
     },
     "quoted": "« {{text}} »",
     "listening": "Écoute… {{time}}",
