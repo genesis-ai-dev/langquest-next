@@ -9,8 +9,10 @@ import onnxruntime_objc
  * holding its sound as recorded and its cleaned sound as 48 kHz floats, so
  * a long part is never held in memory whole; the folder goes when the app
  * forgets the part. Parts are cleaned one at a time, on a queue of their own.
+ * Sendable by hand: `live` and `turn` are read and written only under
+ * `lock`, and `model` and `mixes` only on `queue`.
  */
-final class CleanUp {
+final class CleanUp: @unchecked Sendable {
     /// Bars a part is drawn with (barsModel.ts BAR_COUNT).
     static let barCount = 64
     private static let block = 65536
@@ -26,7 +28,7 @@ final class CleanUp {
 
     /// Cleans the part at `uri` as `id`: its length and the sums its bars are drawn from (deepFilter.ts SliceSums).
     func clean(id: String, uri: String, progress: @escaping (Double) -> Void) async throws -> [String: Any] {
-        lock.lock(); turn += 1; let mine = turn; live[id] = mine; lock.unlock()
+        let mine = begin(id)
         return try await withCheckedThrowingContinuation { done in
             queue.async {
                 do {
@@ -56,6 +58,14 @@ final class CleanUp {
             self.lock.lock(); let none = self.live.isEmpty; self.lock.unlock()
             if none { self.model = nil }
         }
+    }
+
+    /// The part's turn, taken under the lock outside the async function (NSLock is not for async contexts).
+    private func begin(_ id: String) -> Int {
+        lock.lock(); defer { lock.unlock() }
+        turn += 1
+        live[id] = turn
+        return turn
     }
 
     private func wanted(_ id: String, _ mine: Int) -> Bool {
