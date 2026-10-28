@@ -230,7 +230,7 @@ function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; ch
         <HelpBadge spot={choose} />
       </Pressable>
       {/* Tried in Clean up and kept as recorded (decision 179), or noisy (decision 180). */}
-      <CleanUpMark ctx={props.ctx} hash={props.part.hash} part={label} kept={props.part.kept} cleanUp={props.part.cleanUp} />
+      <CleanUpMark ctx={props.ctx} hash={props.part.hash} disabled={props.disabled} part={label} kept={props.part.kept} cleanUp={props.part.cleanUp} />
       {/* What the checks said about this part (decisions.md 149). */}
       <PartNotesMark hash={props.part.hash} label={label} />
       {props.grip}

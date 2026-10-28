@@ -24,15 +24,18 @@ import { PartBars } from './partBars';
 const TIP_WIDTH = 340;
 const TIP_HEIGHT = 170;
 
-/** Beside a part: the grey ear when Clean up was tried and the recording kept, else the warning when the part is noisy and may be cleaned. */
-export function CleanUpMark(props: { ctx: Ctx; hash: string; part: string; kept?: Kept | undefined; cleanUp?: (() => void) | undefined }) {
+/**
+ * Beside a part: the grey ear when Clean up was tried and the recording kept, else the warning when the part is noisy and may be cleaned.
+ * `disabled`: the screen is saving or recording, so its Clean up waits, as the ⋯ does.
+ */
+export function CleanUpMark(props: { ctx: Ctx; hash: string; part: string; disabled: boolean; kept?: Kept | undefined; cleanUp?: (() => void) | undefined }) {
   const sound = useLoudness(props.ctx.language, props.hash);
   if (props.kept) return <KeptMark kept={props.kept} part={props.part} />;
   if (!props.cleanUp || !sound || !isNoisy(sound)) return null;
-  return <NoiseMark sound={sound} part={props.part} onCleanUp={props.cleanUp} />;
+  return <NoiseMark sound={sound} part={props.part} disabled={props.disabled} onCleanUp={props.cleanUp} />;
 }
 
-export function NoiseMark(props: { sound: PartSound; part: string; onCleanUp: () => void }) {
+export function NoiseMark(props: { sound: PartSound; part: string; disabled: boolean; onCleanUp: () => void }) {
   const ref = useRef<View>(null);
   const [at, setAt] = useState<{ x: number; y: number } | null>(null);
   const { width, height } = useWindowDimensions();
@@ -60,7 +63,7 @@ export function NoiseMark(props: { sound: PartSound; part: string; onCleanUp: ()
             </View>
             <PartBars bars={props.sound.bars} voice={props.sound.voice} progress={null} />
             <GhostBtn icon="sparkle" label={t('recording.cleanUp.titleOne', { part: props.part })} help={t('recording.cleanUp.cleanUpHelp')}
-              onPress={() => { close(); props.onCleanUp(); }} />
+              disabled={props.disabled} onPress={() => { close(); props.onCleanUp(); }} />
           </View>
         ) : null}
         <ModalCover />
