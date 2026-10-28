@@ -8667,3 +8667,63 @@ Reverse if: partners' own parts show the line marks too many or too few,
 people learn to ignore the triangle, or phones need every part measured
 (the player that turns parts up to −16 LUFS will decode AAC on phones, and
 can measure there).
+
+Amended (2026-10-28, Caleb Koster): a phone now measures any part it has,
+AAC included, in the microphone module (182), so a part recorded on
+another device or before this change wears the warning too once the phone
+shows it. That reaches phones with the store build that brings 182.
+
+## 182. Every recording people make plays at −16 LUFS, from a copy made on the device the first time it plays
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb's go on the audio work (2026-10-28, thread "Build audio
+clean up in the app") took in loudness evened on every part by default,
+with no button, at −16 LUFS (Apple Podcasts' level, Caleb 2026-10-27).
+Partners record on different phones, at different distances from the
+mouth, so a reviewer turning the volume up and down between parts is the
+common case.
+- **A copy plays, the recording never changes.** What is uploaded, synced
+  and reviewed stays as it was recorded (or cleaned, 179). The player plays
+  a copy turned by `playGainDb` (`loudnessModel.ts`): −16 minus the part's
+  loudness, never more than 24 dB up (`MAX_BOOST_DB`), since a part that
+  quiet is mostly a phone held far away and turning it up further mostly
+  turns up the room. A part within half a decibel of −16, or a silent one,
+  plays as it is (`levelModel.ts` `needsCopy`). The noise warning (181)
+  now reads the room as the part plays (`roomAsPlayed`), with that cap.
+- **Peaks held at −1 dB.** Turned up whole, a quiet part's loud syllables
+  would clip. A limiter (`levelModel.ts` `limiter`) looks 5 ms ahead and
+  bends the gain down before a peak, so no sample goes over −1 dBFS and the
+  gain never steps, which would click; it comes back over 100 ms. Holding
+  peaks down takes loudness with it (a reading with syllables 20 dB over
+  its loudness came out 2.7 dB short), so the copy is measured as it is
+  made and made again turned up by what it fell short, at most 3 times in
+  all; that reading ends within 1 dB of −16.
+- **Made on the device, the first time it plays.** Nothing is uploaded and
+  no event is written: every device that plays a part makes its own copy,
+  and the measure is kept by the hash of the audio, as 181 keeps it. A
+  phone writes a 16-bit WAV to its cache (`levelCopy.ts`, at most 150 MB,
+  oldest first; the phone may clear it, and a copy is made again when the
+  part next plays). The web keeps a WAV blob in the page's memory (48 MB),
+  since a browser's player cannot turn a sound up and Safari on an iPhone
+  ignores its volume. While one part plays, the next one's copy is made.
+  If a copy cannot be made, the recording itself plays.
+- **The phones run it natively.** A phone's JavaScript is too slow for
+  every sample of a part, so the meter and the limiter are ported line for
+  line to Kotlin and Swift (`Level.kt`, `Level.swift`, in the microphone
+  module); `test/levelModel.test.ts` holds the TypeScript, and both ports
+  were checked against it on seven test recordings (44.1 and 48 kHz, quiet,
+  loud, peaky, short and silent), the same samples to the bit. The module
+  decodes AAC too, so phones now measure parts they did not record (181).
+- **What plays at even loudness**: parts, voice notes and spoken feedback,
+  wherever they play (`levelStore.ts` `playable`), and Clean up's previews
+  and the parts heard while recording, as passing copies of which only the
+  last four are kept. Source audio, reference material, Bible audio and
+  help play as they are: they are mastered by whoever published them. A
+  part streamed from the server plays as it is until it is on the device.
+- The native code is new, so this ships in a store build, not an OTA
+  update.
+Reverse if: people hear the limiter (a pumping or a dulled voice), the
+first play of a long part waits noticeably on the phones we support, or
+partners want parts played as recorded (then a switch in settings, not a
+button on each part).

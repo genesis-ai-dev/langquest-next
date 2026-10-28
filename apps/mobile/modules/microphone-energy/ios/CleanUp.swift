@@ -1,4 +1,3 @@
-import AVFoundation
 import Foundation
 import onnxruntime_objc
 
@@ -105,7 +104,7 @@ final class CleanUp: @unchecked Sendable {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let x = dir.appendingPathComponent("x.f32"), y = dir.appendingPathComponent("y.f32")
 
-        let length = try decode(uri, into: x) { done in try check(); progress(0.1 * done) }
+        let length = try Sound.decode(uri, into: x) { done in try check(); progress(0.1 * done) }
         if model == nil { model = try CleanUpModel.load() }
         guard let model else { throw fail(11, "Clean up's model did not load") }
 
@@ -134,41 +133,6 @@ final class CleanUp: @unchecked Sendable {
         return ["durationMs": Double(length) * 1000 / Double(DeepFilter.rate), "sums": [sums.n, sums.xx, sums.xy, sums.yy]]
     }
 
-    /// The part's file as 48 kHz mono floats in `target`; how many samples it holds.
-    private func decode(_ uri: String, into target: URL, progress: (Double) throws -> Void) throws -> Int {
-        guard let url = URL(string: uri), url.isFileURL else { throw fail(12, "Not a file: \(uri)") }
-        let file = try AVAudioFile(forReading: url)
-        let format = file.processingFormat
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 16_384) else { throw fail(8, "No buffer") }
-        let resampler = DeepFilter.Resampler(from: Int(format.sampleRate.rounded()), to: DeepFilter.rate)
-        FileManager.default.createFile(atPath: target.path, contents: nil)
-        let out = try FileHandle(forWritingTo: target)
-        defer { try? out.close() }
-        var length = 0
-        let put = { (part: [Float]) in
-            if part.isEmpty { return }
-            try out.write(contentsOf: part.withUnsafeBufferPointer { Data(buffer: $0) })
-            length += part.count
-        }
-        let channels = Int(format.channelCount), total = max(1, file.length)
-        while file.framePosition < file.length {
-            try file.read(into: buffer)
-            let n = Int(buffer.frameLength)
-            if n == 0 { break }
-            var mono = [Float](repeating: 0, count: n)
-            if let data = buffer.floatChannelData {
-                for c in 0..<channels { let ch = data[c]; for i in 0..<n { mono[i] += ch[i] } }
-                if channels > 1 { let k = 1 / Float(channels); for i in 0..<n { mono[i] *= k } }
-            }
-            try put(resampler.push(mono))
-            try progress(Double(file.framePosition) / Double(total))
-        }
-        try put(resampler.end())
-        try out.synchronize()
-        if length == 0 { throw fail(7, "Empty recording") }
-        return length
-    }
-
     /// Both sounds a block at a time: `body` gets a stretch of each and where it starts.
     private func both(_ x: URL, _ y: URL, _ length: Int, _ body: (ArraySlice<Float>, ArraySlice<Float>, Int) throws -> Void) throws {
         let a = try FileHandle(forReadingFrom: x), b = try FileHandle(forReadingFrom: y)
@@ -176,7 +140,7 @@ final class CleanUp: @unchecked Sendable {
         var at = 0
         while at < length {
             let n = min(CleanUp.block, length - at)
-            let xs = floats(try a.read(upToCount: n * 4) ?? Data()), ys = floats(try b.read(upToCount: n * 4) ?? Data())
+            let xs = Sound.floats(try a.read(upToCount: n * 4) ?? Data()), ys = Sound.floats(try b.read(upToCount: n * 4) ?? Data())
             let m = min(xs.count, ys.count)
             if m == 0 { break }
             try body(xs[0..<m], ys[0..<m], at)
@@ -200,7 +164,7 @@ final class CleanUp: @unchecked Sendable {
         FileManager.default.createFile(atPath: wav.path, contents: nil)
         let out = try FileHandle(forWritingTo: wav)
         do {
-            try out.write(contentsOf: wavHeader(samples: length))
+            try out.write(contentsOf: Sound.wavHeader(samples: length))
             let gain = DeepFilter.mixGain(limitDb)
             try both(x, y, length) { a, b, _ in
                 let pcm = DeepFilter.pcm16(DeepFilter.mix(a, b, gain: gain))
@@ -216,22 +180,6 @@ final class CleanUp: @unchecked Sendable {
         defer { try? FileManager.default.removeItem(at: wav) }
         return ["uri": try AacEncoder.encode(uri: wav.absoluteString), "format": "m4a"]
     }
-
-    /// A 16-bit mono WAV's header at 48 kHz, as the recorder writes them.
-    private func wavHeader(samples: Int) -> Data {
-        let rate = UInt32(DeepFilter.rate), bytes = UInt32(samples * 2)
-        var h = Data()
-        func put<T: FixedWidthInteger>(_ v: T) { withUnsafeBytes(of: v.littleEndian) { h.append(contentsOf: $0) } }
-        h.append("RIFF".data(using: .ascii)!); put(UInt32(36) + bytes)
-        h.append("WAVE".data(using: .ascii)!)
-        h.append("fmt ".data(using: .ascii)!); put(UInt32(16)); put(UInt16(1)); put(UInt16(1)); put(rate); put(rate * 2); put(UInt16(2)); put(UInt16(16))
-        h.append("data".data(using: .ascii)!); put(bytes)
-        return h
-    }
-}
-
-private func floats(_ data: Data) -> [Float] {
-    [Float](unsafeUninitializedCapacity: data.count / 4) { buf, n in n = data.copyBytes(to: buf) / 4 }
 }
 
 /**
@@ -268,6 +216,6 @@ final class CleanUpModel {
         guard let mask = out["erb_mask"], let coefs = out["df_coefs"] else {
             throw NSError(domain: "MicrophoneEnergy", code: 14, userInfo: [NSLocalizedDescriptionKey: "Clean up's model gave no answer"])
         }
-        return DeepFilter.ModelAnswer(mask: floats(try mask.tensorData() as Data), coefs: floats(try coefs.tensorData() as Data))
+        return DeepFilter.ModelAnswer(mask: Sound.floats(try mask.tensorData() as Data), coefs: Sound.floats(try coefs.tensorData() as Data))
     }
 }

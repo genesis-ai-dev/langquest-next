@@ -3,7 +3,8 @@
 // so each screen draws the control the design shows. It plays a passage's
 // cards one after another as one recording, or one file by `uri`, follows
 // audioSession.ts (starting one player stops every other), and streams a
-// card that is on the server but not on this device while online.
+// card that is on the server but not on this device while online. A file
+// on this device plays at even loudness (levelStore.ts, decision 182).
 import { isStored } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
@@ -14,6 +15,7 @@ import { noteExpected, reportError } from '../diagnostics/report';
 import { countAudio } from './audioTally';
 import type { LanguageHandle } from '../sync/useLanguage';
 import { cardSeconds } from './clipTime';
+import { playable, prepare } from './levelStore';
 
 export interface Clip {
   playing: boolean;
@@ -88,8 +90,8 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
     setIndex(i); indexRef.current = i;
     const lang = live.current.language;
     let uri = live.current.uri;
-    if (!uri) {
-      const hash = live.current.hashes[i]!;
+    const hash = uri ? null : live.current.hashes[i]!;
+    if (hash) {
       const ref = lang.state ? { hash, format: audioFormat(lang.state, hash) } : null;
       uri = (ref && lang.blobs.uriFor(ref)) || undefined;
       if (!uri && ref && lang.state && isStored(lang.state, hash)) {
@@ -103,6 +105,9 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
       }
     }
     if (!uri) { wants.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); countAudio(lang, 'playNotHere'); return; }
+    uri = await playable(hash, uri);
+    if (generation.current !== run || !wants.current) return;
+    prepare(lang, live.current.hashes[i + 1]);
     try {
       const p = createAudioPlayer({ uri });
       player.current = p;

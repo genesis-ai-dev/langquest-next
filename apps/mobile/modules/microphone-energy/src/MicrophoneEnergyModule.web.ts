@@ -285,5 +285,9 @@ export default {
   },
   async cleanUpForget(id: string): Promise<void> {
     (await import('./cleanUp.web')).cleanUpForget(id);
+  },
+  /** The web evens out loudness in the app (levelCopy.web.ts, decision 182), with no module call. */
+  async level(): Promise<never> {
+    throw new Error('Even loudness runs in the app on web.');
   }
 };

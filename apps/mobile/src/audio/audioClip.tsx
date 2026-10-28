@@ -1,4 +1,5 @@
-// Avatar U. Local and remote playback, paused before recording starts.
+// Avatar U. Local and remote playback, paused before recording starts. A
+// file on this device plays at even loudness (levelStore.ts, decision 182).
 import { isStored } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
@@ -13,6 +14,7 @@ import { countAudio } from './audioTally';
 import { C, target } from '../ui/theme';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import { audioFormat } from './audioFormat';
+import { playable, prepare } from './levelStore';
 
 // A player failure is a fault (native audio): it is reported and said without its message.
 export function AudioClip(props: {
@@ -111,6 +113,9 @@ export function AudioClip(props: {
           if (generation.current !== run || !wantsPlayback.current) return;
         }
         if (!uri) { wantsPlayback.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); countAudio(language, 'playNotHere'); return; }
+        uri = await playable(props.uri ? null : hash, uri);
+        if (generation.current !== run || !wantsPlayback.current) return;
+        if (!props.uri) prepare(language, props.hashes[index + 1]);
         try {
           const p = createAudioPlayer({ uri });
           player.current = p;

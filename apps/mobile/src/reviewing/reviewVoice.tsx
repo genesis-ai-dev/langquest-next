@@ -12,6 +12,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import type { AudioLanguage } from '../audio/audioTally';
 import { Text } from '../ui/text';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audio/audioSession';
+import { playable } from '../audio/levelStore';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
@@ -105,7 +106,9 @@ export function PlayChip(props: { ctx: Ctx; clip: VoiceAnswer; label: string; to
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState('');
   const player = useRef<AudioPlayer | null>(null);
-  const stop = () => { player.current?.remove(); player.current = null; setPlaying(false); };
+  // Bumped by every tap and stop, so a play still waiting for its file is let go.
+  const asked = useRef(0);
+  const stop = () => { asked.current++; player.current?.remove(); player.current = null; setPlaying(false); };
   useEffect(() => registerPlayback(stop), []);
   useEffect(() => () => { player.current?.remove(); player.current = null; }, [props.clip.hash]);
   const [bg, fill, fg] = props.tone === 'amber' ? [TINT.amber, onColor.amber, TINT.amberText]
@@ -114,10 +117,15 @@ export function PlayChip(props: { ctx: Ctx; clip: VoiceAnswer; label: string; to
     if (playing) { stop(); return; }
     stopAudioPlayback();
     setError('');
-    const uri = props.ctx.language.blobs.uriFor({ hash: props.clip.hash, format: props.clip.format });
-    if (!uri) { setError(t('review.voice.notOnDevice')); return; }
+    const file = props.ctx.language.blobs.uriFor({ hash: props.clip.hash, format: props.clip.format });
+    if (!file) { setError(t('review.voice.notOnDevice')); return; }
+    const mine = ++asked.current;
+    setPlaying(true);
     try {
+      // At even loudness (levelStore.ts, decision 182).
+      const uri = await playable(props.clip.hash, file);
       await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });
+      if (asked.current !== mine) return;
       const p = createAudioPlayer({ uri });
       player.current = p;
       p.addListener('playbackStatusUpdate', (st) => {
@@ -125,7 +133,6 @@ export function PlayChip(props: { ctx: Ctx; clip: VoiceAnswer; label: string; to
         if (st.didJustFinish) stop();
       });
       p.play();
-      setPlaying(true);
     } catch (e) {
       stop();
       setError(t('common.audioCouldNotPlay', { code: reportError('review clip play', e) }));

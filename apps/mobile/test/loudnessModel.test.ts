@@ -1,4 +1,4 @@
-import { gatedLoudness, isNoisy, kWeighting, loudnessMeter, mono16, NOISY_DB, packSound, roomAtTarget, roomDb, TARGET_LUFS, unpackSound } from '../src/audio/loudnessModel';
+import { gatedLoudness, isNoisy, kWeighting, loudnessMeter, MAX_BOOST_DB, mono16, NOISY_DB, packSound, playGainDb, roomAsPlayed, roomDb, soundOf, TARGET_LUFS, unpackSound } from '../src/audio/loudnessModel';
 
 const RATE = 44100;
 
@@ -103,10 +103,12 @@ describe('the room between words (decision 181)', () => {
 });
 
 describe('the noise warning (decision 181)', () => {
-  it('weighs the room as it would sound with the part at −16 LUFS', () => {
-    expect(roomAtTarget({ lufs: -26, peakDb: -6, noiseDb: -60 })).toBe(-60 + (TARGET_LUFS + 26));
-    expect(roomAtTarget({ lufs: null, peakDb: -90, noiseDb: -95 })).toBeNull();
-    expect(roomAtTarget({ lufs: -20, peakDb: -3, noiseDb: null })).toBeNull();
+  it('weighs the room as it sounds with the part played at −16 LUFS', () => {
+    expect(roomAsPlayed({ lufs: -26, peakDb: -6, noiseDb: -60 })).toBe(-60 + (TARGET_LUFS + 26));
+    expect(roomAsPlayed({ lufs: null, peakDb: -90, noiseDb: -95 })).toBeNull();
+    expect(roomAsPlayed({ lufs: -20, peakDb: -3, noiseDb: null })).toBeNull();
+    // A part too quiet to bring all the way up plays MAX_BOOST_DB louder, and so does its room.
+    expect(roomAsPlayed({ lufs: -50, peakDb: -30, noiseDb: -80 })).toBe(-80 + MAX_BOOST_DB);
   });
 
   it('marks a part in a noisy room, and not one in a quiet room, however loud it was said', () => {
@@ -124,6 +126,24 @@ describe('the noise warning (decision 181)', () => {
     expect(isNoisy({ lufs: TARGET_LUFS, peakDb: -1, noiseDb: NOISY_DB + 0.1 })).toBe(true);
     expect(isNoisy({ lufs: TARGET_LUFS, peakDb: -1, noiseDb: NOISY_DB })).toBe(false);
     expect(isNoisy({ lufs: null, peakDb: -1, noiseDb: -20 })).toBe(false);
+  });
+});
+
+describe('the loudness a part plays at (decision 182)', () => {
+  it('turns a part up or down to −16 LUFS, up by at most MAX_BOOST_DB, and leaves a silent one alone', () => {
+    expect(playGainDb({ lufs: -26 })).toBe(10);
+    expect(playGainDb({ lufs: -9 })).toBe(-7);
+    expect(playGainDb({ lufs: TARGET_LUFS - MAX_BOOST_DB - 6 })).toBe(MAX_BOOST_DB);
+    expect(playGainDb({ lufs: null })).toBe(0);
+  });
+
+  it('draws the same measure from what a phone hands over as from the meter', () => {
+    const x = speech(0.3);
+    const m = loudnessMeter(RATE, x.length);
+    m.add(plus(x, noise(x.length / RATE, -40)));
+    const measured = m.measured();
+    expect(measured.amps).toHaveLength(m.result().bars.length);
+    expect(soundOf(measured)).toEqual(m.result());
   });
 });
 

@@ -2,7 +2,8 @@
 // what is playing, a timeline to tap or drag, Back 10 seconds, a big play
 // button, and Note when the screen can take a note at a moment. It plays a
 // passage's cards one after another as one recording, like AudioClip, and
-// shows where in the whole recording it is.
+// shows where in the whole recording it is. A file on this device plays at
+// even loudness (levelStore.ts, decision 182).
 import { isStored, recordedDurationMs } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -26,6 +27,7 @@ import type { LanguageHandle } from '../sync/useLanguage';
 /** The timeline's press while help is on: it explains itself; it is moved by tapping and dragging when help is off. */
 const SEEK_ONLY = () => undefined;
 import { clock } from './clipTime';
+import { playable, prepare } from './levelStore';
 
 /** Each card's length in seconds, from the recording that holds it (0 when unknown). */
 function cardSeconds(language: LanguageHandle, hashes: string[]): number[] {
@@ -129,8 +131,8 @@ export function ClipPlayer(props: {
     setIndex(i); indexRef.current = i;
     const language = languageRef.current;
     let uri = props.uri;
-    if (!uri) {
-      const hash = props.hashes[i]!;
+    const hash = uri ? null : props.hashes[i]!;
+    if (hash) {
       const ref = language.state ? { hash, format: audioFormat(language.state, hash) } : null;
       uri = (ref && language.blobs.uriFor(ref)) || undefined;
       if (!uri && ref && language.state && isStored(language.state, hash)) {
@@ -144,6 +146,9 @@ export function ClipPlayer(props: {
       }
     }
     if (!uri) { wants.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); countAudio(language, 'playNotHere'); return; }
+    uri = await playable(hash, uri);
+    if (generation.current !== run || !wants.current) return;
+    prepare(language, props.hashes[i + 1]);
     try {
       const p = createAudioPlayer({ uri }, LISTEN_PLAYER);
       player.current = p;

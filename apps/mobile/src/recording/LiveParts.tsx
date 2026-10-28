@@ -24,6 +24,7 @@ import { Ico } from '../ui/kit';
 import { C, radius, withAlpha } from '../ui/theme';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audio/audioSession';
 import { cutWav, deleteRecorderFile } from '../audio/wavCut';
+import { playable } from '../audio/levelStore';
 import { noteExpected } from '../diagnostics/report';
 import { clampFrames, LIVE_BARS, liveBars, liveBoxes, liveHeight, type LiveBar, type LiveBox, type LiveState } from './livePartsModel';
 import type { RecordingSession } from './recordingSession';
@@ -329,8 +330,11 @@ function useBoxPlayer(editing: boolean) {
       try {
         const uri = await cutWav(from, p.fromMs!, p.toMs!);
         if (run.current !== mine) { deleteRecorderFile(uri); return; }
+        // At even loudness, as the part will play once kept (levelStore.ts, decision 182).
+        const heard = await playable(null, uri);
+        if (run.current !== mine) { deleteRecorderFile(uri); return; }
         await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });
-        const player = createAudioPlayer({ uri }, { updateInterval: 50 });
+        const player = createAudioPlayer({ uri: heard }, { updateInterval: 50 });
         current.current = { player, uri };
         player.addListener('playbackStatusUpdate', (status) => {
           if (current.current?.player !== player) return;
