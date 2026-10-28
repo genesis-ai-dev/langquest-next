@@ -134,9 +134,16 @@ docker info > /dev/null 2>&1 && echo "running" || fail "dockerd did not start (/
 step "The local stack's images"
 cli="$(node -p "require('supabase/package.json').version" 2>/dev/null || echo none)"
 images="supabase $cli without $SUPABASE_EXCLUDE"
+# The database's and the edge runtime's images, as a sign the rest are here
+# too (a thread short of disk may have pruned them all).
+pulled() {
+  local repos
+  repos="$(docker images --format '{{.Repository}}')"
+  grep -qE '(^|/)supabase/postgres$' <<< "$repos" && grep -qE '(^|/)supabase/edge-runtime$' <<< "$repos"
+}
 if ! docker info > /dev/null 2>&1; then
   fail "no Docker, so no images"
-elif [ "$(cat "$state/images" 2>/dev/null)" = "$images" ]; then
+elif [ "$(cat "$state/images" 2>/dev/null)" = "$images" ] && pulled; then
   echo "already pulled ($images)"
 elif [ -n "$(docker ps -q --filter 'name=^supabase_db_')" ]; then
   echo "the stack is running, so its images are here"
@@ -206,4 +213,4 @@ if [ "${#failed[@]}" -gt 0 ]; then
   printf '  %s\n' "${failed[@]}"
   exit 1
 fi
-printf '\ncloud setup: ready\n'
+printf '\ncloud setup: ready, %s of disk left\n' "$(df -h --output=avail . | tail -1 | tr -d ' ')"

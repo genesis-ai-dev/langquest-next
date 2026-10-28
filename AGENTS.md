@@ -144,6 +144,12 @@ and no iPhone simulator or Android emulator. When `CLAUDE_CODE_REMOTE` is
   `npm run test:web-smoke` run as on a Mac. It takes seconds when the
   environment's snapshot already has them. The project's cloud environment
   runs it as its setup script (`--snapshot`); change the steps in the script.
+- The machine's disk is about 40 GB, and the setup leaves about 14 GB of it
+  (it says how much at the end). The local stack's images are 8 GB of what
+  it takes. A thread that needs other large tools and not the local stack
+  frees those 8 GB with `docker system prune -af`; the setup pulls them
+  again when it next runs. A full disk shows up as SQLite's "database or
+  disk is full" in unit tests.
 - A project's threads load neither `.claude/skills` nor the repo's hooks.
   Read a skill from `.agents/skills/<name>/SKILL.md` when the task calls for
   it.
