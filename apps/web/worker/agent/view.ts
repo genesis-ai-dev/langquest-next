@@ -1,6 +1,6 @@
 import {
   approvedVersion, buildIndexes, decodeHlc, derivePassage, encodeHlc, externalKeyError, kindOf, languageInfo, libraryUnitRange, LISTENER_KIND, mayViewLanguage, orgLanguages, passageWork,
-  privilegesFor, releasesOf, stateRevision, stepAllowsLinks, validateEvent,
+  privilegesFor, recordedCard, releasesOf, stepAllowsLinks, validateEvent,
   type AnyEvent, type Card, type KindState, type LanguageState, type OrgState, type PassageState, type Version
 } from '@langquest-next/core';
 import { canRead, canReadValues, coversLanguage, sha256Hex, type Grant } from './tokens';
@@ -170,19 +170,6 @@ export function languageAccess(grant: Grant, org: OrgState, languageId: string):
   return abilities(grant, org, languageId);
 }
 
-const cardsCache = new WeakMap<LanguageState, { revision: number; cards: Map<string, Card> }>();
-
-/** Every target card by hash, for durations and formats. */
-function cardsOf(state: LanguageState): Map<string, Card> {
-  const revision = stateRevision(state);
-  const hit = cardsCache.get(state);
-  if (hit && hit.revision === revision) return hit.cards;
-  const cards = new Map<string, Card>();
-  for (const r of Object.values(state.recordings)) for (const c of r.cards) if (!cards.has(c.hash)) cards.set(c.hash, c);
-  cardsCache.set(state, { revision, cards });
-  return cards;
-}
-
 function pathOf(state: LanguageState, unitId: string): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
@@ -206,7 +193,6 @@ const statusOf = (s: PassageState): ApiStatus => {
 const heard = (grant: Grant, s: PassageState): Version | null => (canRead(grant, true) ? s.latest ?? null : approvedVersion(s));
 
 function summarize(grant: Grant, state: LanguageState, s: PassageState): PassageSummary {
-  const cards = cardsOf(state);
   const v = heard(grant, s);
   const approved = approvedVersion(s);
   const onVersion = v ? s.reviews.filter((r) => r.takeId === v.takeId && r.kindId === LISTENER_KIND) : [];
@@ -224,7 +210,7 @@ function summarize(grant: Grant, state: LanguageState, s: PassageState): Passage
     reference: referenceOf(s.unitId),
     status: statusOf(s),
     version: v
-      ? { n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc), durationMs: v.cardHashes.reduce((t, h) => t + (cards.get(h)?.durationMs ?? 0), 0) }
+      ? { n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc), durationMs: v.cardHashes.reduce((t, h) => t + (recordedCard(state, h)?.durationMs ?? 0), 0) }
       : null,
     approvedVersion: approved ? { n: approved.n, takeId: approved.takeId } : null,
     releases: releases.map((r) => ({ channel: r.channel, versionN: r.versionN, takeId: r.takeId, at: iso(r.hlc), ...(r.url !== undefined ? { url: r.url } : {}) })),
@@ -355,10 +341,9 @@ async function passageOut(
   };
   const v = heard(grant, s);
   const audioOf = async (ver: Version | null) => {
-    const cards = cardsOf(state);
     const audio: AudioCard[] = [];
     for (const hash of ver?.cardHashes ?? []) {
-      const card = cards.get(hash);
+      const card = recordedCard(state, hash);
       const format = card?.format ?? 'wav';
       audio.push({ hash, format, durationMs: card?.durationMs ?? 0, ...(await link(hash, format)) });
     }
@@ -799,11 +784,10 @@ export async function linkView(link: ReviewLink, org: OrgState, state: LanguageS
   const v = s.versions.find((x) => x.takeId === link.takeId);
   if (!v) return refuse(404, 'gone', 'This passage is no longer here.');
   const open = linkIsOpen(link, org, now);
-  const cards = cardsOf(state);
   const audio: AudioCard[] = [];
   // A closed link plays nothing: revoking it is how a sharer takes the audio back.
   for (const hash of open ? v.cardHashes : []) {
-    const card = cards.get(hash);
+    const card = recordedCard(state, hash);
     const format = card?.format ?? 'wav';
     const l = await sign(`${link.orgId}/${link.languageId}/${hash}.${format}`);
     audio.push({ hash, format, durationMs: card?.durationMs ?? 0, url: l.url, expiresAt: new Date(l.expiresAt).toISOString() });

@@ -72,6 +72,29 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
    */
   'v1.CardVerseSet': { unitId: string; hash: string; mark: 'next' | 'join' | 'set' | 'none'; from?: string; to?: string };
   /**
+   * Clean up's note on a recorded part, `hash` as it was recorded
+   * (decisions.md 176). `cleaned`: the part was cleaned into
+   * `cleanedHash`, a new file in `cleanedFormat` that a new take puts in
+   * the part's place, so a version already handed on keeps the part it had.
+   * The note names the cleaned file, so a take can hold it like a card, and
+   * it ties the two together: the original stays on the server, and phones
+   * do not download it while the note says so. `original`: someone tried
+   * Clean up and kept the part as recorded; nothing new is saved. `none`
+   * takes the note away (Undo). A cleaned file stays named after a later
+   * note, so a take that holds it still plays. `tool` is what removed the
+   * noise (`dfn3`: DeepFilterNet 3), and `limitDb` the most it might take
+   * out; none means no limit. Register per (unit, card hash).
+   */
+  'v1.CardCleanUpSet': {
+    unitId: string;
+    hash: string;
+    use: 'cleaned' | 'original' | 'none';
+    cleanedHash?: string;
+    cleanedFormat?: 'wav' | 'm4a';
+    tool?: string;
+    limitDb?: number;
+  };
+  /**
    * The translator hands a take to review. Until this, a take is a draft:
    * recordings save immediately, submission is the explicit act (UX spec A30).
    */

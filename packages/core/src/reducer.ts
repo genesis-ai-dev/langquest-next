@@ -1,5 +1,5 @@
 import type { AnyEvent, EventEnvelope } from './events';
-import type { LanguageState, Material, Register, ReviewTeam } from './state';
+import type { CardCleanUp, LanguageState, Material, Register, ReviewTeam } from './state';
 import { emptyLanguageState } from './state';
 import { validateEvent } from './validate';
 import { studyMarkKey, type Undo } from './record';
@@ -12,7 +12,7 @@ import { countEvent } from './changes';
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 19;
+export const REDUCER_VERSION = 20;
 
 // The revision and the change log live in changes.ts; re-exported for the callers that read them here.
 export { markChanged, stateRevision } from './changes';
@@ -147,6 +147,17 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
       // A register per (unit, card): the later clock wins, then the higher id (decisions.md 82).
       const { unitId, hash, ...mark } = event.payload;
       lww((state.cardVerses ??= {})[unitId] ??= {}, hash, event, mark);
+      break;
+    }
+
+    case 'v1.CardCleanUpSet': {
+      // A register per (unit, card as recorded): the later clock wins, then the higher id,
+      // and every cleaned file a note named stays named (decisions.md 176).
+      const { unitId, hash, ...note } = event.payload;
+      const notes = (state.cardCleanUps ??= {})[unitId] ??= {};
+      const files = note.cleanedHash && note.cleanedFormat ? { [note.cleanedHash]: note.cleanedFormat } : {};
+      const mine: Register<CardCleanUp> = { value: { ...note, actorId: event.actorId, files }, hlc: event.hlc, eventId: event.id };
+      notes[hash] = notes[hash] ? keptCleanUp(notes[hash], mine) : mine;
       break;
     }
 
@@ -446,6 +457,21 @@ type Verdict = LanguageState['blobs'][string];
 export function keptRecording(a: Recording, b: Recording): Recording {
   const content = ({ actorId: _a, hlc: _h, ...rest }: Recording) => rest;
   return earlier({ hlc: a.hlc, actorId: a.actorId } as EventEnvelope, content(a), b, content(b)) ? a : b;
+}
+
+/**
+ * Of two Clean up notes on one part, the later (`lww`), holding the cleaned
+ * files both name. A file named twice with two formats keeps the one that
+ * sorts first, so the result is the same in any order.
+ */
+export function keptCleanUp(a: Register<CardCleanUp>, b: Register<CardCleanUp>): Register<CardCleanUp> {
+  const later = a.hlc > b.hlc || (a.hlc === b.hlc && a.eventId > b.eventId) ? a : b;
+  const files: CardCleanUp['files'] = {};
+  for (const hash of [...new Set([...Object.keys(a.value.files), ...Object.keys(b.value.files)])].sort()) {
+    const x = a.value.files[hash], y = b.value.files[hash];
+    files[hash] = x && y ? (x < y ? x : y) : (x ?? y)!;
+  }
+  return { ...later, value: { ...later.value, files } };
 }
 
 /** Of two server verdicts on one file, the one the fold keeps: the latest, ties by event id (`blobVerdict`). */

@@ -126,6 +126,7 @@ export function touchedBy(state: LanguageState, event: AnyEvent): Touch {
     case 'v1.VersionReleased':
     case 'v1.ExternalValueSet':
     case 'v1.CardVerseSet':
+    case 'v1.CardCleanUpSet':
     case 'v1.MaterialDefined':
     case 'v1.MaterialFieldSet':
     case 'v1.MaterialLocked':

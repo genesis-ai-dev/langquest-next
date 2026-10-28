@@ -14,6 +14,26 @@ import { emptyRecordState, type RecordState } from './record';
 /** A part's verse mark (v1.CardVerseSet without its unit and hash); `none` is stored as no mark. */
 export interface CardVerseMark { mark: 'next' | 'join' | 'set' | 'none'; from?: string; to?: string }
 
+/**
+ * Clean up's note on a part (v1.CardCleanUpSet without its unit and hash),
+ * with who wrote it; the register's clock says when. `none` reads as no
+ * note (`cleanUpOf`, decisions.md 176).
+ */
+export interface CardCleanUp {
+  use: 'cleaned' | 'original' | 'none';
+  cleanedHash?: string;
+  cleanedFormat?: 'wav' | 'm4a';
+  tool?: string;
+  limitDb?: number;
+  actorId: string;
+  /**
+   * Every cleaned file any note on the part named, with its format, kept
+   * whichever note wins: a take that holds one still plays it, and the
+   * phone that made it still uploads it (reducer `keptCleanUp`).
+   */
+  files: Record<string, 'wav' | 'm4a'>;
+}
+
 export interface Register<V> {
   value: V;
   hlc: Hlc;
@@ -125,6 +145,8 @@ export interface LanguageState extends RecordState, ReferenceState {
   audioFormats: Record<string, Register<'wav' | 'm4a'>>;
   /** unitId -> card hash -> what verses the part holds (v1.CardVerseSet; verses.ts reads it). */
   cardVerses: Record<string, Record<string, Register<CardVerseMark>>>;
+  /** unitId -> card hash as recorded -> Clean up's note on the part (v1.CardCleanUpSet; cards.ts and blobs.ts read it). */
+  cardCleanUps: Record<string, Record<string, Register<CardCleanUp>>>;
   /** Idempotency guard. Compacted away when a snapshot is taken. */
   appliedEventIds: Record<string, true>;
   /** eventId -> reason. Malformed events are skipped, never thrown on. */
@@ -172,6 +194,7 @@ export function emptyLanguageState(): LanguageState {
     blobs: {},
     audioFormats: {},
     cardVerses: {},
+    cardCleanUps: {},
     appliedEventIds: {},
     invalidEvents: {},
     redactions: {},
