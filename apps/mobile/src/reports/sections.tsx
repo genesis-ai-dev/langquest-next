@@ -42,6 +42,12 @@ export interface SectionProps {
   orgName: string;
   /** Open a language's page. */
   open: (row: LanguageRow) => void;
+  /** Open a language's page at its settings (its country and target), for whoever may set them. */
+  openSettings: (row: LanguageRow) => void;
+  /** Whether this person may set a language's country and target (decision 41). */
+  maySet: (languageId: string) => boolean;
+  /** How many alerts need attention or are worth a look. */
+  alerts: number;
   /** Switch section, optionally with a country filter. */
   show: (section: SectionId, country?: string) => void;
   /** The clusters among these languages, when none is picked yet (decision 108); empty otherwise. */
@@ -124,6 +130,14 @@ export function Overview(p: SectionProps) {
   return (
     <>
       <Freshness updatedAt={totals.oldestUpdate} now={now} />
+      {/* The open alerts' count on the first page too, not only on the Alerts chip (UI audit, finding 71). */}
+      {p.alerts > 0 ? (
+        <Notice tone="amber" title={t('reports.home.alertsChip', { count: p.alerts })}>
+          <View style={{ alignSelf: 'flex-start', marginTop: space.sm }}>
+            <SmallBtn label={sectionLabel('alerts')} icon="flag" help={t('reports.overview.openAlertsHelp')} onPress={() => p.show('alerts')} />
+          </View>
+        </Notice>
+      ) : null}
       <Panel>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: space.md }}>
           <View>
@@ -474,6 +488,9 @@ export function Geography(p: SectionProps) {
 
 // ---- Field report ----------------------------------------------------------------------
 
+/** The field report's view, for Print. */
+const PRINT_FIELD = 'print-field';
+
 export function FieldReport(p: SectionProps) {
   const { rows, now } = p;
   const [period, setPeriod] = useState<ReportWindow>('week');
@@ -505,12 +522,14 @@ export function FieldReport(p: SectionProps) {
         {periods.map(([v, label]) => <Chip key={v} label={label} help={t('reports.field.periodHelp')} on={period === v} onPress={() => setPeriod(v)} />)}
       </ChipRow>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, alignItems: 'center' }}>
-        <SmallBtn label={Platform.OS === 'web' ? t('reports.field.copyText') : t('reports.field.shareText')} icon="share"
+        {/* One look per action: copy copies, share opens the share sheet, print prints (UI audit, finding 75). */}
+        <SmallBtn label={Platform.OS === 'web' ? t('reports.field.copyText') : t('reports.field.shareText')} icon={Platform.OS === 'web' ? 'copy' : 'share'}
           help={Platform.OS === 'web' ? t('reports.field.copyTextHelp') : t('reports.field.shareTextHelp')} onPress={copy} />
-        {canPrint ? <SmallBtn label={t('reports.printOrSave')} icon="download" help={t('reports.printOrSaveHelp')} onPress={printPage} /> : null}
+        {canPrint ? <SmallBtn label={t('reports.printOrSave')} icon="print" help={t('reports.printOrSaveHelp')} onPress={() => printPage(PRINT_FIELD)} /> : null}
         {copied ? <Text style={txt.smMuted} accessibilityLiveRegion="polite">{copied}</Text> : null}
       </View>
-      <Panel>
+      {/* What Print copies: the report itself (exportFiles.ts). */}
+      <View nativeID={PRINT_FIELD}><Panel>
         <Text style={txt.label}>{t('reports.field.eyebrow', { org: p.orgName })}</Text>
         <Text style={{ fontSize: 28, fontWeight: '800', color: C.dark }} accessibilityRole="header">{fieldTitle(fr)}</Text>
         <Text style={txt.smMuted}>{t('reports.field.range', { from: shortDate(fr.from), to: shortDate(fr.to), year: fr.to.slice(0, 4), asOf: dateTime(new Date(now).toISOString()) })}</Text>
@@ -615,7 +634,7 @@ export function FieldReport(p: SectionProps) {
             ))}
           </>
         )}
-      </Panel>
+      </Panel></View>
     </>
   );
 }
@@ -769,8 +788,8 @@ export function Pace(p: SectionProps) {
                             : t('reports.pace.ofPlan', { actual: pctText(pace.actual), expected: pctText(pace.expected) })}
                         </Text>
                       </>
-                    ) : <Text style={txt.xs}>{t('reports.pace.setTarget')}</Text>}>
-                    <LanguageLink row={row} open={p.open} />
+                    ) : <Text style={txt.xs}>{p.maySet(row.languageId) ? t('reports.pace.setTarget') : t('reports.pace.adminSets')}</Text>}>
+                    <LanguageLink row={row} open={!pace && p.maySet(row.languageId) ? p.openSettings : p.open} />
                     <Text style={txt.xs}>
                       {row.report.country ? `${countryName(row.report.country)} · ` : ''}
                       {target ? t('reports.pace.targetRange', { scope: scopeLabel(target.scope), from: dayYear(target.startDate), to: dayYear(target.targetDate) }) : paceLabel('no_target')}
@@ -800,7 +819,9 @@ export function Alerts(p: SectionProps) {
       </View>
       {alerts.length === 0 ? <Notice tone="green" title={t('reports.alerts.allClear')} body={t('reports.alerts.allClearBody')} /> : null}
       {alerts.map((a) => {
-        const words = alertText(a, p.asOf, p.now);
+        // Setting a country or a target is an admin's: the advice says who, and an admin's link opens the settings (finding 77).
+        const setting = a.id === 'country' || a.id === 'target';
+        const words = alertText(a, p.asOf, p.now, !setting || a.rows.some((r) => p.maySet(r.languageId)));
         return (
           <Panel key={a.id} title={words.title} right={<ToneBadge tone={LEVEL_TONE[a.level]} label={levelLabel(a.level)} />}>
             <Text style={txt.sm}>{words.body}</Text>
@@ -808,7 +829,7 @@ export function Alerts(p: SectionProps) {
             {a.rows.map((r) => (
               <HelpRow key={r.languageId} of="reports.alertLanguage">
                 <ListLine>
-                  <LanguageLink row={r} open={p.open} />
+                  <LanguageLink row={r} open={setting && p.maySet(r.languageId) ? p.openSettings : p.open} />
                   <Text style={txt.xs}>
                     {a.id === 'stuck' ? t('reports.alerts.stuckRow', {
                       recordings: t('reports.counts.recordings', { count: r.report.alerts.stuckCards }),

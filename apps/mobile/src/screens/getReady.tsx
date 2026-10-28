@@ -19,7 +19,7 @@ import {
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { Text } from '../ui/text';
 import type { LibraryChoice } from '../templates/contentTemplatesModel';
@@ -136,7 +136,7 @@ function Questions({ ctx, start, only }: { ctx: Ctx; start: number; only: boolea
     case 1: return <RecordStep {...props} />;
     case 2: return <HelpsStep {...props} />;
     // Choosing the steps opens the flow editor; coming back lands here, on what was saved.
-    case 3: return <ChecksStep {...props} onChoose={() => setN(3)} />;
+    case 3: return <ChecksStep {...props} />;
     default: return <InviteStep {...props} />;
   }
 }
@@ -822,7 +822,7 @@ function fromLine(h: HelpItem): string {
 
 // ---- 3 Who checks the recordings? -------------------------------------------------------------
 
-function ChecksStep({ ctx, header, next, back, onChoose }: StepProps & { onChoose: () => void }) {
+function ChecksStep({ ctx, header, next, back }: StepProps) {
   const state = ctx.language.state!;
   const languageId = ctx.language.languageId;
   const kinds = useMemo(() => deriveKinds(state), [state]);
@@ -834,12 +834,17 @@ function ChecksStep({ ctx, header, next, back, onChoose }: StepProps & { onChoos
   const [busy, setBusy] = useState(false);
   const key = picked ?? (custom ? 'custom' : first?.c.key ?? null);
   const canUse = ctx.session.can('manage_flows');
+  // Back from choosing the checks yourself, the checks saved there are the answer and the footer moves on (UI audit, finding 100).
+  const chose = useRef(false);
+  useEffect(() => {
+    if (chose.current && custom && flow.steps.length > 0) { chose.current = false; setPicked('custom'); }
+  }, [custom, flow]);
 
   // Its own checks would be gone for good: it asks before a ready-made set replaces them (decision 134).
   const [replacing, setReplacing] = useState<FlowEntry | null>(null);
   async function answer() {
     if (busy) return;
-    if (key === 'choose') { ctx.go('flow_editor', { languageId, steps: 'language' }); onChoose(); return; }
+    if (key === 'choose') { chose.current = true; ctx.go('flow_editor', { languageId, steps: 'language', done: '1' }); return; }
     const pick = entries.find((e) => e.c.key === key);
     if (!pick || pick.c === current || key === 'custom') { next(); return; }
     if (!canUse) { ctx.toast(t('getReady.checks.onlyChoosers')); return; }
@@ -924,6 +929,19 @@ function InviteStep({ ctx, lang, header, next, back }: StepProps) {
   const roleId = roles.choices.find((c) => c.id === choice)?.roleId ?? roles.others.find((r) => r.id === choice)?.id ?? null;
   const invite = useGroupInvite(ctx.language.orgId, may ? roleId : null, may ? scope : null, t('admin.invite.teamLabel', { name: lang }));
   const uri = invite && 'uri' in invite ? invite.uri : null;
+  // A role made from here ("Something else: make a new role") comes back chosen, its code shown, as on Invite someone.
+  const rolesBefore = useRef<Set<string> | null>(null);
+  const otherIds = roles.others.map((r) => r.id).join('|');
+  useEffect(() => {
+    const before = rolesBefore.current;
+    const made = before ? roles.others.find((r) => !before.has(r.id)) : undefined;
+    if (made) { rolesBefore.current = null; setMore(true); setChoice(made.id); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `otherIds` names what changes in `roles.others`
+  }, [otherIds]);
+  function newRole() {
+    rolesBefore.current = new Set(roles.others.map((r) => r.id));
+    ctx.go('role_editor', { roleId: 'new' });
+  }
   return (
     <Screen header={header} bodyStyle={PAD}
       footer={<>
@@ -936,7 +954,7 @@ function InviteStep({ ctx, lang, header, next, back }: StepProps) {
       <Question>{questionLabel('invite')}</Question>
       {/* Making a new role comes first, set apart from the roles there are (design principle 12). */}
       {ctx.session.can('manage_roles') ? (
-        <DashedRow icon="plus" label={t('admin.invite.newRole')} detail={t('admin.invite.newRoleHelp')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
+        <DashedRow icon="plus" label={t('admin.invite.newRole')} detail={t('admin.invite.newRoleHelp')} onPress={newRole} />
       ) : null}
       <Pills>
         {/* help-each: each plain role does different work */}
@@ -946,7 +964,7 @@ function InviteStep({ ctx, lang, header, next, back }: StepProps) {
             <Chip label={r.name} on={choice === r.id} help={t('admin.invite.pickRoleHelp')} onPress={() => setChoice(r.id)} />
           </HelpRow>
         )) : null}
-        {!more && roles.others.length ? <Chip label={t('getReady.invite.somethingElse')} icon="plus" on={false} help={t('admin.invite.otherRolesHelp')} onPress={() => setMore(true)} /> : null}
+        {!more && roles.others.length ? <Chip label={t('admin.invite.otherRoles', { total: formatNumber(roles.others.length) })} icon="down" on={false} help={t('admin.invite.otherRolesHelp')} onPress={() => setMore(true)} /> : null}
       </Pills>
       {may ? <InviteCode state={invite} /> : (
         <Banner icon="lock" title={t('getReady.invite.cannotTitle')} body={t('getReady.invite.cannotBody', { language: lang })} />

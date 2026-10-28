@@ -881,7 +881,7 @@ Preconditions (in addition to the global ones):
 - Device 2: COORD, signed in.
 
 Steps:
-1. Device 2: Manage → Members → KEPT → "Help them sign in". Leave "Their old device is lost or stolen" off. The code shows.
+1. Device 2: Manage → Members → KEPT → "Help Kept sign in on a new device" → "Help them sign in". Leave "Their old device is lost or stolen" off. The code shows.
 2. Device 1: tap "Scan a code" and scan the code (Auto: open its `/signin` link).
 3. Device 1: tap "Sign in".
 4. Device 1: Me → More settings.

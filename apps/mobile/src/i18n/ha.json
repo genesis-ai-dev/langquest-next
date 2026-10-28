@@ -899,6 +899,8 @@
       "howToLost": "A sabuwar na'urar {{name}}, a buɗe LangQuest, a taɓa Karanta lamba, a nuna ta nan. Tana aiki sau ɗaya, na tsawon sa'a ɗaya. Amfani da ita zai fitar da tsohuwar na'urarsu.",
       "willSee": "{{name}} na iya gani a Saituna cewa kun taimaka musu shiga.",
       "noEmail": "Babu imel ga {{name}}. A sabuwar na'ura, ku nuna musu lambar shiga.",
+      "row": "Taimaka wa {{name}} ya shiga a sabuwar na’ura",
+      "rowHelp": "Ga wanda ba shi da imel: yana buɗe shafi don yin lambar shiga. Ba a yin lamba har sai ka nema.",
       "lostSignOut": "Tsohuwar na'urarsu ta ɓace ko an sace ta: fitar da ita",
       "lost": "Tsohuwar na'urarsu ta ɓace ko an sace ta",
       "help": "Taimaka musu shiga",
@@ -936,6 +938,12 @@
       "shownOnceGroup_one": "Ana nuna ta sau ɗaya: barin wannan shafi zai ɓatar da lambar. Har zuwa mutum {{count, number}} zai iya amfani da ita, har zuwa {{date}}.",
       "shownOnceGroup_other": "Ana nuna ta sau ɗaya: barin wannan shafi zai ɓatar da lambar. Har zuwa mutane {{count, number}} za su iya amfani da ita, har zuwa {{date}}.",
       "shownOnceOne": "Ana nuna ta sau ɗaya: barin wannan shafi zai ɓatar da lambar. Ana iya amfani da ita sau ɗaya, har zuwa {{date}}.",
+      "leaveAsk": "Ka bar lambar?",
+      "leaveBody": "Ba za a iya sake nuna lambar {{name}} ba. Idan ba su duba ta ba, yi sabuwa.",
+      "stay": "Zauna a kan lambar",
+      "stayHelp": "Yana ajiye lambar a allo, don su duba ta.",
+      "leave": "Fita",
+      "leaveHelp": "Yana komawa. Ba za a iya sake nuna lambar ba.",
       "share": "Raba gayyata",
       "couldNotShare": "An kasa raba ta. Ku rubuta lambar da ke sama maimakon haka.",
       "toNameHelp": "Ci gaba zuwa ga wanda za a ba lambar.",
@@ -1438,7 +1446,6 @@
       "nextHelp": "Yana riƙe wannan hanyar dubawa, sannan ya ci gaba zuwa tambaya ta gaba."
     },
     "invite": {
-      "somethingElse": "Wani abu daban",
       "cannotTitle": "Masu iya gayyata a nan kaɗai ne za su iya nuna lamba",
       "cannotBody": "Ku roƙi wani da ke gudanar da tawagar {{language}} ya gayyaci masu fassararku."
     },
@@ -2483,7 +2490,7 @@
       "noneChosen": "Ba a zaɓi tsari ba tukuna",
       "noReviews": "Babu bita: an gama da zarar an naɗa",
       "title": "Tsare-tsaren Bita",
-      "addFlow": "Tsari",
+      "addFlow": "Sabon tsari",
       "noLanguages": "Babu harsuna tukuna",
       "noLanguagesSub": "Ku ƙara harshe, sannan ku zaɓi yadda ake duba nassosinsa.",
       "languageUses": "{{language}} yana amfani da",
@@ -2498,9 +2505,10 @@
       "nowUses": "{{language}} yanzu yana amfani da {{flow}}.",
       "addFlowHelp": "Yana yin sabon tsari: dubawar da nassi zai samu, bi da bi.",
       "openFlowHelp": "Yana buɗe shi, don gani ko canja matakansa.",
+      "editChecks": "Gyara dubawa da mutane",
+      "editChecksHelp": "Yana buɗe dubawar {{language}} ta kanta: tsarinsu, wanda ke yin kowanne, da abin da kowanne ke nunawa.",
       "saveAsFlowHelp": "Yana ajiye dubawar wannan harshe a matsayin tsari a ɗakin karatunku, don sauran harsuna.",
       "flowCardHelp": "Yana buɗe shi, don gani ko canja matakansa. Alamar kulle: dole a fara wuce wannan mataki.",
-      "inUseHelp": "Wannan harshe yana duba nassosinsa ta wannan hanya yanzu.",
       "useHelp": "Dubawarsa za ta zama ta {{language}}. Kuna iya canja su daga baya.",
       "stepsLabel": "Matakai",
       "stepsHelp": "Dubawa, daga hagu zuwa dama. Waɗanda aka tara a kan juna suna faruwa tare. Alamar kulle: dole a fara wuce wannan mataki.",
@@ -2536,7 +2544,7 @@
       "descriptionPlaceholder": "Amfaninsa, a layi ɗaya",
       "noChecks": "Babu dubawa: an gama da zarar an naɗa",
       "usedHere": "{{language}} yana amfani da shi. Canje-canje suna shafar nassosinsa nan take; ba abin da aka riga aka naɗa da zai ɓace.",
-      "usedNote": "Harsunan da ke amfani da shi suna komawa kowace sabuwar siga. Matakai shawarar tsari ne; mataki da aka kulle kaɗai ne dole a fara wuce shi.",
+      "usedNote": "Harsunan da suka ɗauki waɗannan dubawa suna da nasu kwafi: canza wannan tsari ba ya canza ko ɗaya daga cikinsu. Matakai shawarar tsari ne; mataki da aka kulle kaɗai ne dole a fara wuce shi.",
       "kindsSub": "Iri-iri kalmomin ƙungiyarku ne. Ku ƙara naku idan waɗannan ba su dace ba.",
       "newKindLabel": "Sabon iri",
       "newKindPlaceholder": "Sabon iri, misali Bitar Dattawa",
@@ -5394,6 +5402,7 @@
       "ofPlan": "{{actual}} cikin {{expected}} na shiri",
       "ofPlanFinishes": "{{actual}} cikin {{expected}} na shiri · zai kammala {{date}}",
       "setTarget": "Ku sa buri a shafin harshe.",
+      "adminSets": "Wanda ke kula da wannan harshe ne ke saita burinsa.",
       "targetRange": "{{scope}} · {{from}} – {{to}}"
     },
     "paceAdvice": {
@@ -5572,7 +5581,8 @@
       "alertsHelp": "Yana nuna matsalolin da ke buƙatar wani ya kula. Lamba tana nufin yawansu."
     },
     "home": {
-      "catchUp": "Kamo sabar",
+      "refresh": "Sabunta",
+      "clusterFilter": "Rukuni",
       "alertsChip_one": "Faɗakarwa, {{count, number}} na buƙatar wani",
       "alertsChip_other": "Faɗakarwa, {{count, number}} na buƙatar wani",
       "allCountries": "Dukan ƙasashe",
@@ -5610,7 +5620,8 @@
       "noCountries": "Babu harshen da ke da ƙasa tukuna. Ku sa ɗaya a shafin kowane harshe.",
       "toLanguagesHelp": "Yana komawa shafin da ke da kowane harshe dalla-dalla.",
       "toActivityHelp": "Yana komawa shafin abin da ya isa sabar, rana bayan rana.",
-      "toMapHelp": "Yana komawa taswirar inda harsunan suke."
+      "toMapHelp": "Yana komawa taswirar inda harsunan suke.",
+      "openAlertsHelp": "Yana buɗe Faɗakarwa: abin da ke bukatar wani, da abin da za a yi."
     },
     "portfolio": {
       "activeDays": "Masu aiki (kwanaki 14 na ƙarshe)",
@@ -5817,12 +5828,13 @@
       "allClear": "Komai lafiya",
       "allClearBody": "Babu sautin da ya maƙale, matsalar inganci ko tsofaffin alƙaluma.",
       "whatToDo": "<b>Abin da za a yi:</b> {{action}}",
+      "adminSets": "Wanda ke kula da kowane harshe zai iya saita wannan a shafinsa.",
       "stuckRow": "{{recordings}} a cikin {{passages}}, mafi tsufa daga {{date}}",
       "refreshed": "an sabunta {{when}}",
       "stale": {
         "title": "Waɗannan alƙaluma ba na yanzu ba ne",
         "body": "An karanta su {{ago}}. Aikin da aka daidaita tun lokacin ba ya ciki.",
-        "action": "Ku sake loda shafin don kamowa."
+        "action": "Danna Sabunta a saman Rahotanni don ka kamo."
       },
       "stuck": {
         "title": "Sautin da aka naɗa ya maƙale a na'urori",
@@ -5914,6 +5926,8 @@
       "scopeHelp": "Abin da burin ya ƙunsa. Sannan ku sa kwanakin ku ajiye.",
       "startHelp": "Ranar da aka fara aiki zuwa ga burin.",
       "finishByHelp": "Ranar da ya kamata a cim ma burin.",
+      "suggestEnd": "Wata 18: {{date}}",
+      "suggestEndHelp": "Yana cike kammalawa wata 18 bayan farawa, da yau a matsayin farawa idan babu. Ba a ajiye komai har sai ka ajiye burin.",
       "saveTargetHelp": "Yana ajiye burin da kwanakinsa a sabar yanzu. Yana buƙatar haɗi.",
       "pickCountryHelp": "Yana zaɓar wannan ƙasa. Sannan Ajiye ƙasa yana riƙe ta.",
       "chosenCountryHelp": "Ƙasar da aka zaɓa yanzu, a rubutu mai kauri. Taɓa wata don canja ta."
@@ -7087,7 +7101,9 @@
       "startHelp": "Yana maye gurbin dubawar da rukunin da aka shirya, don ku canja yadda kuke so.",
       "useHelp": "Yana maye gurbin dubawar {{language}} da waɗannan. Janye yana mayar da su.",
       "pickHelp": "Yana zaɓar sa. Sannan Yi amfani, a ƙasa, yana maye gurbin dubawar da tasa.",
-      "replaceAsk": "A maye gurbin dubawar {{language}} ta kanta da {{name}}?"
+      "replaceAsk": "A maye gurbin dubawar {{language}} ta kanta da {{name}}?",
+      "useThese": "Yi amfani da waɗannan dubawa",
+      "replaceOwnAsk": "A maye gurbin dubawar {{language}} ta kanta?"
     },
     "gone": "Wannan ba ya cikin dubawar harshen yanzu",
     "checkOf": "Dubawa ta {{n}} · {{language}}",
@@ -7137,6 +7153,8 @@
     "forTeam": "Don tawagar {{check}}",
     "forCheck": "Don {{check}}",
     "dragHelp": "Ku ja sama ko ƙasa don canja lokacin da wannan dubawa take zuwa.",
+    "moveUpHelp": "Wannan duba yana zuwa wuri ɗaya a gaba.",
+    "moveDownHelp": "Wannan duba yana zuwa wuri ɗaya a baya.",
     "addThisHelp": "Yana ƙara wannan dubawa bayan sauran.",
     "newCheckHelp": "Sunan sabuwar dubawa, idan ba ɗaya daga cikin waɗannan ba ce.",
     "addCheckHelp": "Ku zaɓi dubawar da ƙungiyarku ta sani, ko ku sa sunan sabuwa.",
@@ -7569,6 +7587,7 @@
     "onTitle": "Kuna iya karanta dukkan ƙungiyoyi",
     "onBody": "Kuna ganin abin da Mai Kallo ke gani. Ba za ku iya canza komai ba.",
     "search": "Ƙungiya ko harshe",
+    "searching": "Ana nema…",
     "openNowLabel": "{{name}}, a buɗe yanzu",
     "openHelp": "Yana buɗe wannan ƙungiya don karantawa.",
     "noneFound": "Babu ƙungiyar da ta dace.",

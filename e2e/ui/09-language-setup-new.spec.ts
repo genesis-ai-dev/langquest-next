@@ -125,7 +125,8 @@ test('SETUP-011 Pick the language from the language list', async ({ page }) => {
   await expectNotOnScreen(page, 'Searching the language list…', 'Is it one of these?');
   await field(page, 'Its name').fill('Hadiyya');
   // The local language list is not seeded, so nothing is found: picking an entry needs the preview environment.
-  await expect.poll(() => screenText(page), { timeout: 30_000 }).toMatch(/Is it one of these\?|Nothing in the language list goes by that name\./);
+  // A section label is capitals on screen (innerText), so the match ignores case.
+  await expect.poll(() => screenText(page), { timeout: 30_000 }).toMatch(/Is it one of these\?|Nothing in the language list goes by that name\./i);
   if (/Nothing in the language list goes by that name\./.test(await screenText(page))) {
     await expectOnScreen(page, 'Not there? Continue anyway. It is added unlinked, and you can link it from its page later.');
     test.info().annotations.push({ type: 'note', description: 'The local language list returned nothing; picking an entry was not exercised.' });
@@ -146,7 +147,9 @@ test('SETUP-012 Add a language offline, unlinked, and link it later', async ({ p
   await materialStep(page);
   await expectOnScreen(page, 'How will recordings get checked?', 'Standard Bible Flow');
   await page.context().setOffline(true);
+  // ✕ asks before the answers are lost (decision 137).
   await back(page).click();
+  await text(page, 'Leave').click();
   await orgHome(page, w);
   await startNewLanguage(page);
   await field(page, 'Its name').fill(name);

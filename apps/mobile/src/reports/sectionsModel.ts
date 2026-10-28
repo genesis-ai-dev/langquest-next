@@ -102,8 +102,12 @@ export function fieldReportText(fr: Report, orgName: string): string {
 
 type Alert = ReturnType<typeof alertsFor>[number];
 
-/** An alert's words by its id: core decides which alerts there are, the app says them. */
-export function alertText(a: Alert, asOf: string, now: number): { title: string; body: string; action: string } {
+/**
+ * An alert's words by its id: core decides which alerts there are, the app
+ * says them. `maySet` false: this person cannot set a country or a target,
+ * so the advice says who can (UI audit, finding 77).
+ */
+export function alertText(a: Alert, asOf: string, now: number, maySet = true): { title: string; body: string; action: string } {
   switch (a.id) {
     case 'stale': return {
       title: t('reports.alerts.stale.title'), body: t('reports.alerts.stale.body', { ago: ago(asOf, now) }), action: t('reports.alerts.stale.action')
@@ -119,10 +123,12 @@ export function alertText(a: Alert, asOf: string, now: number): { title: string;
       action: t('reports.alerts.invalid.action')
     };
     case 'country': return {
-      title: t('reports.alerts.country.title'), body: t('reports.alerts.country.body', { count: a.rows.length }), action: t('reports.alerts.country.action')
+      title: t('reports.alerts.country.title'), body: t('reports.alerts.country.body', { count: a.rows.length }),
+      action: maySet ? t('reports.alerts.country.action') : t('reports.alerts.adminSets')
     };
     case 'target': return {
-      title: t('reports.alerts.target.title'), body: t('reports.alerts.target.body', { count: a.rows.length }), action: t('reports.alerts.target.action')
+      title: t('reports.alerts.target.title'), body: t('reports.alerts.target.body', { count: a.rows.length }),
+      action: maySet ? t('reports.alerts.target.action') : t('reports.alerts.adminSets')
     };
   }
 }

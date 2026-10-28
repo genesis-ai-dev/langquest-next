@@ -8,7 +8,7 @@ import type { LucideIcon } from './icons';
 import {
   ArrowLeftRight, ArrowRight, Ban, BookOpen, Briefcase, Building2, Camera, ChartColumn, Check, ChevronDown, ChevronLeft,
   ChevronRight, ChevronUp, CircleHelp, ClipboardList, Clock, Cloud, CloudCheck, CloudOff, Download, Filter, Flag, Folder, Globe, History,
-  House, Image, Inbox, LayoutTemplate, Link, Lock, MapIcon, MapPin, MessageCircle, MessageSquareText, Mic, Pause, Pencil,
+  House, Image, Inbox, LayoutTemplate, Link, Lock, LockOpen, Printer, Copy, MapIcon, MapPin, MessageCircle, MessageSquareText, Mic, Pause, Pencil,
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
   ThumbsUp, Trash2, Undo2, Redo2, Upload, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers, Info,
   ArrowLeft, ArrowUp, ArrowDown, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert,
@@ -16,7 +16,7 @@ import {
 } from './icons';
 import { Fragment, isValidElement, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  AccessibilityInfo, Animated, Easing, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
+  AccessibilityInfo, ActivityIndicator, Animated, Easing, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
   type StyleProp, type TextStyle, type ViewStyle
 } from 'react-native';
 import { Text } from './text';
@@ -50,7 +50,7 @@ const ICONS = {
   arrowR: ArrowRight, assign: ClipboardList, block: Ban, book: BookOpen, building: Building2, camera: Camera, chat: MessageCircle,
   chatDots: MessageSquareText, check: Check, clock: Clock, close: X, cloud: Cloud, cut: Scissors, down: ChevronDown,
   download: Download, edit: Pencil, filter: Filter, flag: Flag, flow: Workflow, folder: Folder, globe: Globe,
-  help: CircleHelp, history: History, home: House, left: ChevronLeft, link: Link, lock: Lock, map: MapIcon, media: Image,
+  help: CircleHelp, history: History, home: House, left: ChevronLeft, link: Link, lock: Lock, unlocked: LockOpen, print: Printer, copy: Copy, map: MapIcon, media: Image,
   mic: Mic, note: StickyNote, notif: Bell, pause: Pause, people: Users, place: MapPin, play: Play, plus: Plus,
   progress: ChartColumn, qr: QrCode, restart: RotateCcw, right: ChevronRight, search: Search, settings: Settings,
   share: Share2, skip: SkipForward, sound: Volume2, sparkle: Sparkles, star: Star, stop: Square, swap: ArrowLeftRight,
@@ -631,8 +631,13 @@ export function IconBtn(props: { name: IconName; onPress: () => void; label: str
   /** What help mode says it does. */ help?: string }) {
   const size = props.size ?? 48;
   const spot = useHelpSpot(props.label, props.help, props.onPress);
+  // On the web an icon names itself on hover, as a button with words would (UI audit, findings 75 and 76).
+  const ref = useRef<View>(null);
+  useEffect(() => {
+    if (Platform.OS === 'web') (ref.current as unknown as { setAttribute?: (k: string, v: string) => void } | null)?.setAttribute?.('title', props.label);
+  }, [props.label]);
   return (
-    <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable ref={ref} {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
       {...a11yState({ disabled: !!props.disabled }, 'button')} hitSlop={Math.max(0, (target.min - size) / 2)}
       style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: props.bg ?? C.bg },
         props.disabled && { opacity: 0.4 }, pressed && styles.pressed]}>
@@ -881,10 +886,13 @@ export function Segments(props: { total: number; done: (i: number) => boolean; c
   );
 }
 
-export function EmptyState(props: { icon?: IconName; title: string; sub?: string; children?: ReactNode }) {
+/** A screen's empty or waiting state; `busy` turns the icon into a spinner, so work under way does not read as an answer. */
+export function EmptyState(props: { icon?: IconName; title: string; sub?: string; busy?: boolean; children?: ReactNode }) {
   return (
-    <View style={styles.empty}>
-      <View style={[styles.iconTile, { width: 64, height: 64, borderRadius: 20 }]}><Ico name={props.icon ?? 'sparkle'} size={30} color={C.primary} /></View>
+    <View style={styles.empty} {...(props.busy ? { accessibilityLiveRegion: 'polite' as const } : {})}>
+      <View style={[styles.iconTile, { width: 64, height: 64, borderRadius: 20 }]}>
+        {props.busy ? <ActivityIndicator color={C.primary} /> : <Ico name={props.icon ?? 'sparkle'} size={30} color={C.primary} />}
+      </View>
       <Text style={[txt.h3, { textAlign: 'center' }]}>{props.title}</Text>
       {props.sub ? <Text style={[txt.smMuted, { textAlign: 'center' }]}>{props.sub}</Text> : null}
       {props.children}

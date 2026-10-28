@@ -185,7 +185,7 @@ test('JRN-005 A coordinator gets a language ready and starts its team @p0 @wide'
     // in (a later answer to it would put the old figures back), catch up on Reports, as a
     // coordinator who just asked someone would: the Worker folds the log's tail now, and Ben
     // already holds the request, so it is on the server.
-    const catchUp = coord.getByRole('button', { name: 'Catch up with the server' }).locator('visible=true').first();
+    const catchUp = coord.getByRole('button', { name: 'Refresh', exact: true }).locator('visible=true').first();
     const caughtUp = reportsRead(true);
     await catchUp.click();
     await caughtUp;

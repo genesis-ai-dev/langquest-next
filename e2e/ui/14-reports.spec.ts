@@ -1,7 +1,7 @@
 // 14. Reports (docs/ui-test-suite/14-reports.md): the Reports section on a
 // wide window (decision 57), read from the Worker on :8787 (decision 44),
 // which folds the organization itself and catches up at once when asked
-// (`?fresh=1`, "Catch up with the server"), so these tests need not wait for
+// (`?fresh=1`, "Refresh"), so these tests need not wait for
 // the projection worker. Server answers are faked with routes on
 // `/api/orgs/{orgId}/reports`, and settings' saves with routes on
 // `append_events`. Every test runs in the wide project (@wide); RPT-002
@@ -28,7 +28,7 @@ const SECTIONS = ['Overview', 'Recent activity', 'Languages', 'Geography', 'Fiel
 const FRESHNESS = /Figures as of .+ \(.+\)\. Work recorded offline appears after the device syncs\./;
 
 const title = (page: Page) => page.getByRole('heading', { level: 1 }).locator('visible=true').first();
-const catchUp = (page: Page) => page.getByRole('button', { name: 'Catch up with the server' }).locator('visible=true').first();
+const catchUp = (page: Page) => page.getByRole('button', { name: 'Refresh', exact: true }).locator('visible=true').first();
 const chip = (page: Page, name: string | RegExp) => page.getByRole('button', { name, exact: typeof name === 'string' }).locator('visible=true').first();
 
 /** A wide browser of its own, signed in as `who`. */
@@ -176,7 +176,7 @@ for (const [who, names] of RPT006) {
   });
 }
 
-test('RPT-007 Catch up with the server shows new work @wide', async ({ page }) => {
+test('RPT-007 Refresh shows new work @wide', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'COORD');
   await openReports(page);
@@ -330,6 +330,13 @@ test('RPT-013 Alpha\'s page @wide', async ({ page }) => {
     expect(next, `"${h}" after the one before`).toBeGreaterThan(at);
     at = next;
   }
+  // Print copies only the report, under its name, into a layer of its own: no sidebar, buttons or settings (UI audit, finding 72).
+  await page.evaluate(() => { window.print = () => undefined; });
+  await button(page, 'Print or save as PDF').click();
+  const printed = (await page.locator('#lq-print').textContent()) ?? '';
+  expect(printed.startsWith('Alpha')).toBe(true);
+  expect(printed).toContain('Books');
+  expect(printed).not.toContain('Language settings');
   // The crumb and Back return to Reports, on the section it was on.
   await crumb.click();
   await expect(title(page)).toHaveText('Languages');
@@ -436,13 +443,19 @@ test('RPT-020 Set a target, with dates checked @wide', async ({ page }) => {
   for (const s of ['Gospels', 'New Testament', 'Old Testament', 'Whole Bible']) await expect(chip(page, s)).toBeVisible();
   const start = page.getByLabel('Start (YYYY-MM-DD)').locator('visible=true').first();
   const finish = page.getByLabel('Finish by (YYYY-MM-DD)').locator('visible=true').first();
+  // No target yet: nothing is filled in, so a tap cannot save made-up dates; 18 months from today is offered (UI audit, finding 74).
+  await expect(start).toHaveValue('');
+  await expect(finish).toHaveValue('');
+  const saveTarget = button(page, 'Save target');
+  await expect(saveTarget).toBeDisabled();
+  await page.getByRole('button', { name: /^18 months: / }).locator('visible=true').first().click();
   await expect(start).toHaveValue(new Date().toISOString().slice(0, 10));
   const ahead = (Date.parse(`${await finish.inputValue()}T00:00:00Z`) - Date.now()) / 86_400_000;
   expect(ahead).toBeGreaterThan(500);
   expect(ahead).toBeLessThan(600);
+  await expect(saveTarget).toBeEnabled();
   await chip(page, 'Gospels').click();
   const error = text(page, 'Write both dates as YYYY-MM-DD, with the finish after the start.');
-  const saveTarget = button(page, 'Save target');
   await start.fill('2026-13-01');
   await expect(error).toBeVisible();
   await expect(saveTarget).toBeDisabled();
@@ -482,6 +495,9 @@ test('RPT-021 Saving settings offline @wide', async ({ page, context }) => {
   const offlineWords = 'No connection. Nothing was saved; try again when you are back online.';
   await button(page, 'Save country').click();
   await expect(text(page, offlineWords)).toBeVisible({ timeout: 30_000 });
+  // Dates of its own, whether or not Alpha has a target yet (Save target waits for a change).
+  await page.getByLabel('Start (YYYY-MM-DD)').locator('visible=true').first().fill('2026-11-01');
+  await page.getByLabel('Finish by (YYYY-MM-DD)').locator('visible=true').first().fill('2028-06-30');
   await button(page, 'Save target').click();
   await expect(text(page, offlineWords)).toBeVisible({ timeout: 30_000 });
   expect(await waiting()).toBe(before);

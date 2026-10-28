@@ -188,6 +188,18 @@ export function InviteSomeone(props: {
           <Question>{t('admin.invite.timeToInvite')}</Question>
         </View>
       ) : <Question>{t('admin.invite.whoInviting')}</Question>}
+      {/* Where first, in view: the roles offered depend on it (UI audit, finding 93). */}
+      {props.scopes.length > 1 ? (
+        <>
+          <SectionLabel label={t('admin.invite.whichLanguage')} />
+          <Pills>{props.scopes.map((s) => (
+            <HelpRow key={s.key} of={s.scope.level === 'org' ? 'invite.scopeOrg' : 'invite.scopeLanguage'}>
+              <Chip label={s.label} on={scopeKey === s.key} onPress={() => setScopeKey(s.key)}
+                help={s.scope.level === 'org' ? t('admin.invite.scopeOrgHelp') : t('admin.invite.scopeLanguageHelp')} />
+            </HelpRow>
+          ))}</Pills>
+        </>
+      ) : null}
       {/* Making a new role comes first, set apart from the roles there are (design principle 12). */}
       {newRole ? <DashedRow icon="plus" label={t('admin.invite.newRole')} detail={t('admin.invite.newRoleHelp')} onPress={newRole} /> : null}
       {/* help-each: each role does different work */}
@@ -204,17 +216,6 @@ export function InviteSomeone(props: {
         </HelpRow>
       )) : <QuietLink icon="down" label={t('admin.invite.otherRoles', { total: formatNumber(more.length) })} detail={t('admin.invite.otherRolesHelp')}
         onPress={() => setOthers(true)} />) : null}
-      {props.scopes.length > 1 ? (
-        <>
-          <SectionLabel label={t('admin.invite.whichLanguage')} />
-          <Pills>{props.scopes.map((s) => (
-            <HelpRow key={s.key} of={s.scope.level === 'org' ? 'invite.scopeOrg' : 'invite.scopeLanguage'}>
-              <Chip label={s.label} on={scopeKey === s.key} onPress={() => setScopeKey(s.key)}
-                help={s.scope.level === 'org' ? t('admin.invite.scopeOrgHelp') : t('admin.invite.scopeLanguageHelp')} />
-            </HelpRow>
-          ))}</Pills>
-        </>
-      ) : null}
       {props.disabled ? <Text style={[txt.sm, { color: C.muted, paddingHorizontal: space.xs }]}>{props.disabled}</Text> : null}
     </Screen>
   );

@@ -3,12 +3,12 @@
 // screens/checks.tsx edits one check.
 import { checkHelps, checkPeople, checkShows, commands, deriveFlow, kindOf, languageName, questionsForKind, RECORD_STEP, type EventSpec, type KindDef, type LanguageState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useMemo, useRef, useState } from 'react';
-import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { useContext, useMemo, useState } from 'react';
+import { Pressable, StyleSheet, View, type PanResponderInstance } from 'react-native';
 import { Text } from '../ui/text';
 import { deriveKinds } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
-import { useHelpSpot } from '../helpMode/useHelpMode';
+import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
@@ -18,7 +18,7 @@ import { txt } from '../ui/textStyles';
 import { failureMessage } from '../diagnostics/report';
 import { C, space, TINT } from '../ui/theme';
 import { ChoiceCard, DashedRow, LockToggle } from '../admin/admin';
-import { checkName, checksLine, dropIndex } from '../admin/adminModel';
+import { checkName, checksLine } from '../admin/adminModel';
 import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
 import { teamLanguages } from '../reference/languages';
 import { addRow, moveRow, rowNumbers, rowsOf, setCheckpoint, type CheckRow } from './model';
@@ -30,44 +30,30 @@ import { newKindId } from '../config/model';
 import { saveRows } from './checkActions';
 import { styles } from './checkStyles';
 import { anyFrom, shownLine } from './showsModel';
+import { DragScrollContext, useDragRows, type DragScroll } from '../recording/useDragRows';
+import { ScrollHoldContext } from '../ui/scrollHoldContext';
 
 /** The grip's press while help is on: it explains itself; dragging waits until help is off. */
 const DRAG_HERE = () => undefined;
 
 function CheckCard(props: {
   ctx: Ctx; row: CheckRow; i: number; n: number; count: number; kinds: KindDef[]; people: string[] | null;
-  questions: number; helps: number; readOnly: boolean; height: number;
+  questions: number; helps: number; readOnly: boolean;
   /** What the check hides (decisions.md 130), as a line: "Bible text · Guide text". */ hidden?: ShownLine | null;
   /** The check that listens to what this step makes (decisions.md 130). */ checkedAt?: string;
-  onLayout: (h: number) => void; onMove: (to: number) => void; onLock: () => void; onOpen?: () => void;
+  /** The grip's touch handlers (useDragRows), and whether this card is the one being dragged. */
+  gripHandlers: PanResponderInstance['panHandlers']; lifted: boolean;
+  onMove: (to: number) => void; onLock: () => void; onOpen?: () => void;
   /** What help mode says opening the card shows. */ openHelp?: string;
 }) {
   const { row, i } = props;
   const title = checkName(row.kindId, props.kinds);
-  const [dy, setDy] = useState(0);
-  const latest = useRef(props);
-  latest.current = props;
   // While help is on the grip explains itself instead of dragging.
   const grip = useHelpSpot(t('review.checkSteps.move', { title }), t('checks.dragHelp'), props.readOnly ? undefined : DRAG_HERE);
-  const explaining = useRef(false);
-  explaining.current = !!grip.id;
-  const pan = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => !latest.current.readOnly && !explaining.current,
-    onMoveShouldSetPanResponder: () => !latest.current.readOnly && !explaining.current,
-    onPanResponderMove: (_e, g) => setDy(g.dy),
-    onPanResponderRelease: (_e, g) => {
-      const p = latest.current;
-      setDy(0);
-      const to = dropIndex(p.i, g.dy, p.height, p.count);
-      if (to !== p.i) p.onMove(to);
-    },
-    onPanResponderTerminate: () => setDy(0)
-  })).current;
   const open = useHelpSpot(title, props.openHelp ?? t('checks.openHelp'), props.onOpen ?? (() => {}));
   return (
-    <View onLayout={(e) => props.onLayout(e.nativeEvent.layout.height)}
-      style={[styles.card, dy !== 0 && { transform: [{ translateY: dy }], zIndex: 2, borderColor: C.primary }]}>
-      <View {...pan.panHandlers} style={styles.grip} accessibilityRole="adjustable" accessibilityLabel={t('review.checkSteps.move', { title })}
+    <View style={[styles.card, props.lifted && { borderColor: C.primary }]}>
+      <View {...(grip.id ? {} : props.gripHandlers)} style={styles.grip} accessibilityRole="adjustable" accessibilityLabel={t('review.checkSteps.move', { title })}
         accessibilityActions={props.readOnly ? [] : [{ name: 'increment', label: t('review.checkSteps.moveDown') }, { name: 'decrement', label: t('review.checkSteps.moveUp') }]}
         onAccessibilityAction={(e) => {
           if (e.nativeEvent.actionName === 'decrement' && i > 0) props.onMove(i - 1);
@@ -140,7 +126,13 @@ function RecordCard(props: { hidden: ShownLine; onOpen: () => void }) {
   );
 }
 
-/** The rows as cards, a translator's recording above them, checks that happen together joined by a bar. */
+/**
+ * The rows as cards, a translator's recording above them, checks that happen
+ * together joined by a bar. A card is dragged by its grip as a recording's
+ * parts are (useDragRows, UI audit finding 101): the cards it passes move
+ * aside, each by its own height, and the screen holds still meanwhile. Each
+ * check's page has Move up and Move down too.
+ */
 function CheckList(props: {
   ctx: Ctx; rows: CheckRow[]; kinds: KindDef[]; readOnly: boolean;
   peopleOf?: (kindId: string) => string[]; questionsOf?: (kindId: string) => number; helpsOf?: (kindId: string) => number;
@@ -149,29 +141,35 @@ function CheckList(props: {
   onChange: (rows: CheckRow[]) => void; onOpen?: (i: number) => void; onOpenRecord?: () => void;
   /** What help mode says opening a check shows, where it is not its people, questions and helps. */ openHelp?: string;
 }) {
-  const [height, setHeight] = useState(0);
   const { rows } = props;
   const numbers = rowNumbers(rows);
-  // Runs of rows in one step, so a bar can join them.
-  const groups: number[][] = [];
-  rows.forEach((r, i) => { if (r.together && groups.length) groups.at(-1)!.push(i); else groups.push([i]); });
-  const card = (i: number) => {
-    const r = rows[i]!;
-    return (
-      <HelpRow key={`${r.kindId}#${i}`} of="checks.check">
-        <CheckCard ctx={props.ctx} row={r} i={i} n={numbers[i]!} count={rows.length} kinds={props.kinds}
-          people={props.peopleOf ? props.peopleOf(r.kindId) : null} questions={props.questionsOf?.(r.kindId) ?? 0} helps={props.helpsOf?.(r.kindId) ?? 0}
-          readOnly={props.readOnly} height={height + space.sm + 2} onLayout={(h) => { if (Math.abs(h - height) > 1) setHeight(h); }}
-          {...(props.hiddenOf ? { hidden: props.hiddenOf(r.kindId) } : {})}
-          {...(props.checkedAtOf?.(r.kindId) ? { checkedAt: props.checkedAtOf(r.kindId)! } : {})}
-          onMove={(to) => props.onChange(moveRow(rows, i, to))}
-          onLock={() => props.onChange(setCheckpoint(rows, i, !r.checkpoint))}
-          {...(props.onOpen ? { onOpen: () => props.onOpen!(i) } : {})} {...(props.openHelp ? { openHelp: props.openHelp } : {})} />
-      </HelpRow>
-    );
-  };
+  const helpOn = useHelpOn();
+  const keys = useMemo(() => rowKeys(rows), [rows]);
+  // The screen's scroll stops while a card is dragged.
+  const hold = useContext(ScrollHoldContext);
+  const scroll = useMemo<DragScroll>(() => ({ by: () => 0, edges: () => null, hold: (on) => hold?.(on), reveal: () => {} }), [hold]);
   return (
-    <View style={{ gap: space.sm + 2 }}>
+    <DragScrollContext.Provider value={scroll}>
+      <Cards {...props} keys={keys} numbers={numbers} dragging={!props.readOnly && !helpOn} />
+    </DragScrollContext.Provider>
+  );
+}
+
+/** A key for each row that stays with it when rows move: its kind, and which of that kind it is. */
+function rowKeys(rows: CheckRow[]): string[] {
+  const seen = new Map<string, number>();
+  return rows.map((r) => {
+    const n = seen.get(r.kindId) ?? 0;
+    seen.set(r.kindId, n + 1);
+    return n ? `${r.kindId}#${n}` : r.kindId;
+  });
+}
+
+function Cards(props: Parameters<typeof CheckList>[0] & { keys: string[]; numbers: number[]; dragging: boolean }) {
+  const { rows, keys } = props;
+  const drag = useDragRows(keys, props.dragging, (from, to) => props.onChange(moveRow(rows, from, to)));
+  return (
+    <View>
       {props.onOpenRecord ? <RecordCard hidden={props.hiddenOf?.(RECORD_STEP) ?? null} onOpen={props.onOpenRecord} /> : (
         <View style={styles.start}>
           <View style={styles.mic}><Ico name="mic" size={18} color={C.white} /></View>
@@ -179,25 +177,57 @@ function CheckList(props: {
         </View>
       )}
       {rows.length === 0 ? (
-        <View style={[styles.card, { justifyContent: 'center' }]}>
+        <View style={[styles.card, { justifyContent: 'center', marginTop: GAP }]}>
           <Text style={[txt.sm, { color: C.muted, flex: 1, textAlign: 'center' }]}>{t('review.checkSteps.noChecks')}</Text>
         </View>
-      ) : groups.map((g) => (g.length === 1 ? card(g[0]!) : (
-        <View key={`group#${g[0]}`} style={styles.together}>
-          <View style={styles.bar} />
-          <View style={{ flex: 1, gap: space.xs }}>
-            {g.map((i, j) => (
-              <View key={i} style={{ gap: space.xs }}>
-                {j > 0 ? <Text style={styles.sameTime}>{t('checks.sameTime')}</Text> : null}
-                {card(i)}
+      ) : rows.map((r, i) => {
+        const key = keys[i]!;
+        // Checks in one step are joined by a bar down their left, drawn a piece beside each card.
+        const joined = r.together && i > 0;
+        const group = joined || (rows[i + 1]?.together ?? false);
+        const lastInGroup = group && !(rows[i + 1]?.together ?? false);
+        const moved = drag.offset(key);
+        const lifted = drag.dragging === key;
+        const card = (
+          <HelpRow of="checks.check">
+            <CheckCard ctx={props.ctx} row={r} i={i} n={props.numbers[i]!} count={rows.length} kinds={props.kinds}
+              people={props.peopleOf ? props.peopleOf(r.kindId) : null} questions={props.questionsOf?.(r.kindId) ?? 0} helps={props.helpsOf?.(r.kindId) ?? 0}
+              readOnly={props.readOnly} gripHandlers={drag.grip(key)} lifted={lifted}
+              {...(props.hiddenOf ? { hidden: props.hiddenOf(r.kindId) } : {})}
+              {...(props.checkedAtOf?.(r.kindId) ? { checkedAt: props.checkedAtOf(r.kindId)! } : {})}
+              onMove={(to) => props.onChange(moveRow(rows, i, to))}
+              onLock={() => props.onChange(setCheckpoint(rows, i, !r.checkpoint))}
+              {...(props.onOpen ? { onOpen: () => props.onOpen!(i) } : {})} {...(props.openHelp ? { openHelp: props.openHelp } : {})} />
+          </HelpRow>
+        );
+        return (
+          <View key={key} ref={drag.ref(key)} onLayout={drag.onLayout(key)}
+            style={[{ paddingTop: joined ? space.xs : GAP }, moved !== 0 && { transform: [{ translateY: moved }] }, lifted && { zIndex: 2 }]}>
+            {group ? (
+              <View style={styles.together}>
+                <View style={[styles.bar, { marginTop: joined ? -space.xs : space.lg, marginBottom: lastInGroup ? space.lg : 0 }]} />
+                <View style={{ flex: 1, gap: space.xs }}>
+                  {joined ? <Text style={styles.sameTime}>{t('checks.sameTime')}</Text> : null}
+                  {card}
+                </View>
               </View>
-            ))}
+            ) : card}
           </View>
+        );
+      })}
+      {/* What the lock on each card means, as the library's flow editor says it (UI audit, finding 105). */}
+      {rows.length ? (
+        <View style={[styles.legend, { marginTop: GAP }]}>
+          <Ico name="lock" size={15} color={C.muted} />
+          <Text style={[txt.sm, { color: C.muted, flex: 1 }]}>{t('review.checkSteps.legend')}</Text>
         </View>
-      )))}
+      ) : null}
     </View>
   );
 }
+
+/** The space between cards. */
+const GAP = space.sm + 2;
 
 /** Add a check: one the organization knows, or a new one by name. */
 function AddCheckSheet(props: { visible: boolean; kinds: KindDef[]; taken: string[]; onClose: () => void; onPick: (k: KindDef, isNew: boolean) => void }) {
@@ -255,9 +285,11 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
   const canManage = ctx.session.can('manage_flows');
   const undo = useChecksUndo(ctx);
   const draft = ctx.params['draft'] === '1';
+  // Opened from a question (New language's draft, Get ready's "I'll choose the checks"), Done goes back to it (finding 100).
+  const done = draft || ctx.params['done'] === '1';
   return (
     <Screen header={<Header title={t('checks.title')} sub={state ? language : undefined} onBack={ctx.back} action={canManage && state ? <UndoRedo {...undo.props} help={{ undo: t('checks.undoHelp'), redo: t('common.redoHelp') }} /> : undefined} />}
-      {...(draft && state ? { footer: <PrimaryBtn label={t('common.done')} icon="check" help={t('checks.draftDoneHelp')} onPress={ctx.back} /> } : {})}>
+      {...(done && state ? { footer: <PrimaryBtn label={t('common.done')} icon="check" help={draft ? t('checks.draftDoneHelp') : t('help.details.done')} onPress={ctx.back} /> } : {})}>
       {state ? <ChecksContent ctx={ctx} undo={undo} /> : <EmptyState icon="flow" title={t('common.loading')} />}
     </Screen>
   );

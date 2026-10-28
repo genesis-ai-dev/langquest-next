@@ -24,7 +24,7 @@ import { C, TINT } from '../ui/theme';
 import { PersonAvatar } from '../ui/UserChip';
 import { usePerson } from '../ui/usePerson';
 import { checkName } from '../admin/adminModel';
-import { groupOf, removeRow, rowNumbers, rowsOf, sameTimeOf, setCheckpoint, setSameTime } from '../checks/model';
+import { groupOf, moveRow, removeRow, rowNumbers, rowsOf, sameTimeOf, setCheckpoint, setSameTime } from '../checks/model';
 import { newKindId, nextFieldId, referenceKindName } from '../config/model';
 import { docLanguage, inLanguages, teamLanguages } from '../reference/languages';
 import { saveRows } from '../checks/checkActions';
@@ -267,6 +267,15 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
           {rows.length > 1 ? (
             <Row icon="swap" label={t('checks.sameTimeRow')} sub={others.length ? others.map((k) => checkName(k, known)).join(', ') : t('checks.sameTimeNone')}
               help={t('checks.sameTimeHelp')} onPress={() => setTogether(others)} />
+          ) : null}
+          {/* The list's drag, by tap (UI audit, finding 101); its Undo takes either back. */}
+          {i > 0 ? (
+            <Row icon="up" label={t('review.checkSteps.moveUp')} help={t('checks.moveUpHelp')}
+              onPress={() => void saveRows(ctx, moveRow(rows, i, i - 1), t('checks.saved', { language }))} />
+          ) : null}
+          {i < rows.length - 1 ? (
+            <Row icon="down" label={t('review.checkSteps.moveDown')} help={t('checks.moveDownHelp')}
+              onPress={() => void saveRows(ctx, moveRow(rows, i, i + 1), t('checks.saved', { language }))} />
           ) : null}
           {kind.produces ? (
             <Row icon="arrowR" label={t('checks.checkedAt')} sub={checkedByName} help={t('checks.checkedAtHelp')} onPress={() => setChecking(true)} />

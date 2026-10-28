@@ -134,18 +134,24 @@ export function useAuthenticatorSetup(): {
 /**
  * Every organization whose name, or a language's, holds `query`, a page at a
  * time (the query waits 300 ms after typing stops). `more` loads the next page.
+ * `busy` from the moment a search is due until its answer is in, so a blank
+ * list or an old "No organization matches" is not read as the answer (UI
+ * audit, finding 78).
  */
 export function useViewableOrganizations(query: string): {
-  rows: ViewableOrganization[] | null; hasMore: boolean; error: string; more: () => void; fail: (text: string) => void;
+  rows: ViewableOrganization[] | null; hasMore: boolean; error: string; busy: boolean; more: () => void; fail: (text: string) => void;
 } {
   const [rows, setRows] = useState<ViewableOrganization[] | null>(null);
   const [more, setMore] = useState(false);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(true);
   const asked = useRef(0);
   async function load(q: string, after?: ViewableOrganization) {
     const mine = ++asked.current;
+    setBusy(true);
     const { data, error: refused } = await globalViewerOrganizations(q, ORGANIZATIONS_PAGE, after ? { name: after.name, orgId: after.org_id } : undefined);
     if (mine !== asked.current) return;
+    setBusy(false);
     if (refused) { setError(failureMessage('global viewer organizations', refused)); return; }
     setError('');
     const page = data ?? [];
@@ -153,8 +159,9 @@ export function useViewableOrganizations(query: string): {
     setMore(hasMore(page));
   }
   useEffect(() => {
+    setBusy(true);
     const timer = setTimeout(() => { void load(query.trim()); }, query ? 300 : 0);
     return () => clearTimeout(timer);
   }, [query]);
-  return { rows, hasMore: more, error, more: () => { if (rows?.length) void load(query.trim(), rows[rows.length - 1]); }, fail: setError };
+  return { rows, hasMore: more, error, busy, more: () => { if (rows?.length) void load(query.trim(), rows[rows.length - 1]); }, fail: setError };
 }

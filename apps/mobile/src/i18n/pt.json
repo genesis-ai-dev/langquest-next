@@ -917,6 +917,8 @@
       "howToLost": "No aparelho novo, {{name}} abre o LangQuest, toca em Ler um código e aponta para cá. Funciona uma vez, durante uma hora. Ao usar o código, o aparelho antigo é desconectado.",
       "willSee": "{{name}} vai ver nas Configurações que você ajudou a pessoa a entrar.",
       "noEmail": "{{name}} não tem e-mail. Em um aparelho novo, mostre a essa pessoa um código de acesso.",
+      "row": "Ajudar {{name}} a entrar num dispositivo novo",
+      "rowHelp": "Para quem não tem e-mail: abre uma página para criar um código de entrada. Nenhum código é criado até o pedir.",
       "lostSignOut": "O aparelho antigo foi perdido ou roubado: desconectá-lo",
       "lost": "O aparelho antigo foi perdido ou roubado",
       "help": "Ajudar a entrar",
@@ -956,6 +958,12 @@
       "shownOnceGroup_many": "Aparece uma só vez: se você sair desta tela, o código se perde. Até {{count, number}} de pessoas podem usá-lo, até {{date}}.",
       "shownOnceGroup_other": "Aparece uma só vez: se você sair desta tela, o código se perde. Até {{count, number}} pessoas podem usá-lo, até {{date}}.",
       "shownOnceOne": "Aparece uma só vez: se você sair desta tela, o código se perde. Pode ser usado uma vez, até {{date}}.",
+      "leaveAsk": "Sair do código?",
+      "leaveBody": "O código de {{name}} não pode ser mostrado de novo. Se ainda não escanearam, faça um novo.",
+      "stay": "Ficar no código",
+      "stayHelp": "Mantém o código na tela, para escanearem.",
+      "leave": "Sair",
+      "leaveHelp": "Volta. O código não pode ser mostrado de novo.",
       "share": "Compartilhar convite",
       "couldNotShare": "Não foi possível compartilhar. Digite o código acima em vez disso.",
       "toNameHelp": "Avança para dizer para quem é.",
@@ -1474,7 +1482,6 @@
       "nextHelp": "Mantém esta forma de verificar e vai para a próxima pergunta."
     },
     "invite": {
-      "somethingElse": "Outra coisa",
       "cannotTitle": "Só quem pode convidar aqui pode mostrar um código",
       "cannotBody": "Peça a alguém que coordena a equipe de {{language}} para convidar os seus tradutores."
     },
@@ -2570,7 +2577,7 @@
       "noneChosen": "Nenhum fluxo escolhido ainda",
       "noReviews": "Sem revisões: pronto assim que gravado",
       "title": "Fluxos de revisão",
-      "addFlow": "Fluxo",
+      "addFlow": "Novo fluxo",
       "noLanguages": "Ainda não há idiomas",
       "noLanguagesSub": "Adicione um idioma e depois escolha como as passagens dele são verificadas.",
       "languageUses": "{{language}} usa",
@@ -2585,9 +2592,10 @@
       "nowUses": "{{language}} agora usa {{flow}}.",
       "addFlowHelp": "Cria um fluxo novo: quais verificações uma passagem recebe, em ordem.",
       "openFlowHelp": "Abre, para ver ou mudar as etapas dele.",
+      "editChecks": "Editar verificações e pessoas",
+      "editChecksHelp": "Abre as verificações próprias de {{language}}: a ordem, quem faz cada uma e o que cada uma mostra.",
       "saveAsFlowHelp": "Guarda as verificações deste idioma como um fluxo na sua biblioteca, para outros idiomas.",
       "flowCardHelp": "Abre, para ver ou mudar as etapas dele. Um cadeado: essa etapa precisa passar primeiro.",
-      "inUseHelp": "Este idioma verifica as passagens deste jeito agora.",
       "useHelp": "As verificações dele passam a ser de {{language}}. Você pode mudá-las depois.",
       "stepsLabel": "Etapas",
       "stepsHelp": "As verificações, da esquerda para a direita. As empilhadas acontecem juntas. Um cadeado: essa etapa precisa passar primeiro.",
@@ -2623,7 +2631,7 @@
       "descriptionPlaceholder": "Para que serve, em uma linha",
       "noChecks": "Sem verificações: pronto assim que gravado",
       "usedHere": "{{language}} usa este fluxo. As mudanças valem para as passagens dele na hora; nada do que já foi gravado se perde.",
-      "usedNote": "Os idiomas que o usam passam para cada versão nova. As etapas são uma ordem sugerida; só uma etapa bloqueada precisa passar primeiro.",
+      "usedNote": "Os idiomas que adotaram estas verificações têm a sua própria cópia: mudar este fluxo não muda nenhum deles. As etapas são uma ordem sugerida; só uma etapa bloqueada precisa passar primeiro.",
       "kindsSub": "Os tipos são o vocabulário da sua organização. Adicione os seus se estes não servirem.",
       "newKindLabel": "Um novo tipo",
       "newKindPlaceholder": "Novo tipo, ex.: Revisão dos anciãos",
@@ -5596,6 +5604,7 @@
       "ofPlan": "{{actual}} dos {{expected}} do plano",
       "ofPlanFinishes": "{{actual}} dos {{expected}} do plano · termina em {{date}}",
       "setTarget": "Defina uma meta na página do idioma.",
+      "adminSets": "Quem gerencia este idioma define a meta.",
       "targetRange": "{{scope}} · {{from}} – {{to}}"
     },
     "paceAdvice": {
@@ -5789,7 +5798,8 @@
       "alertsHelp": "Mostra problemas que precisam de alguém. Um número mostra quantos são."
     },
     "home": {
-      "catchUp": "Atualizar com o servidor",
+      "refresh": "Atualizar",
+      "clusterFilter": "Grupo",
       "alertsChip_one": "Alertas, {{count, number}} precisa de alguém",
       "alertsChip_many": "Alertas, {{count, number}} precisam de alguém",
       "alertsChip_other": "Alertas, {{count, number}} precisam de alguém",
@@ -5831,7 +5841,8 @@
       "noCountries": "Nenhum idioma tem país ainda. Defina um na página de cada idioma.",
       "toLanguagesHelp": "Passa para a página com todos os idiomas em detalhe.",
       "toActivityHelp": "Passa para a página do que chegou ao servidor, dia a dia.",
-      "toMapHelp": "Passa para o mapa de onde os idiomas estão."
+      "toMapHelp": "Passa para o mapa de onde os idiomas estão.",
+      "openAlertsHelp": "Abre Alertas: o que precisa de alguém e o que fazer."
     },
     "portfolio": {
       "activeDays": "Ativos (últimos 14 dias)",
@@ -6059,12 +6070,13 @@
       "allClear": "Tudo certo",
       "allClearBody": "Nenhum áudio preso, problema de integridade ou número desatualizado.",
       "whatToDo": "<b>O que fazer:</b> {{action}}",
+      "adminSets": "Quem gerencia cada idioma pode definir isso na página dele.",
       "stuckRow": "{{recordings}} em {{passages}}, a mais antiga de {{date}}",
       "refreshed": "atualizado {{when}}",
       "stale": {
         "title": "Estes números não estão atualizados",
         "body": "Eles foram lidos {{ago}}. O trabalho sincronizado depois disso não está neles.",
-        "action": "Recarregue a página para atualizar."
+        "action": "Toque em Atualizar no topo de Relatórios para ficar em dia."
       },
       "stuck": {
         "title": "Áudio gravado preso nos aparelhos",
@@ -6163,6 +6175,8 @@
       "scopeHelp": "O que a meta cobre. Depois defina as datas e salve.",
       "startHelp": "O dia em que o trabalho para a meta começou.",
       "finishByHelp": "O dia em que a meta deve ser alcançada.",
+      "suggestEnd": "18 meses: {{date}}",
+      "suggestEndHelp": "Preenche um fim 18 meses após o início, e hoje como início se estiver vazio. Nada é salvo até salvar a meta.",
       "saveTargetHelp": "Salva a meta e as datas dela no servidor agora. Precisa de conexão.",
       "pickCountryHelp": "Escolhe este país. Depois, Salvar país guarda a escolha.",
       "chosenCountryHelp": "O país escolhido agora, em negrito. Toque em outro para mudar."
@@ -7387,7 +7401,9 @@
       "startHelp": "Troca as verificações por um conjunto pronto, para mudar como quiser.",
       "useHelp": "Substitui as verificações de {{language}} por estas. Desfazer traz de volta.",
       "pickHelp": "Escolhe. Depois, Usar, embaixo, troca as verificações pelas dele.",
-      "replaceAsk": "Substituir as verificações próprias de {{language}} por {{name}}?"
+      "replaceAsk": "Substituir as verificações próprias de {{language}} por {{name}}?",
+      "useThese": "Usar estas verificações",
+      "replaceOwnAsk": "Substituir as verificações próprias de {{language}}?"
     },
     "gone": "Esta não é mais uma das verificações do idioma",
     "checkOf": "Verificação {{n}} · {{language}}",
@@ -7438,6 +7454,8 @@
     "forTeam": "Para a equipe de {{check}}",
     "forCheck": "Para {{check}}",
     "dragHelp": "Arraste para cima ou para baixo para mudar quando esta verificação acontece.",
+    "moveUpHelp": "Esta verificação vem um lugar antes.",
+    "moveDownHelp": "Esta verificação vem um lugar depois.",
     "addThisHelp": "Adiciona esta verificação depois das outras.",
     "newCheckHelp": "O nome de uma verificação nova, quando não é nenhuma destas.",
     "addCheckHelp": "Escolha uma verificação que a sua organização conhece, ou dê nome a uma nova.",
@@ -7894,6 +7912,7 @@
     "onTitle": "Você pode ler todas as organizações",
     "onBody": "Você vê o que um Observador vê. Você não pode mudar nada.",
     "search": "Organização ou idioma",
+    "searching": "A procurar…",
     "openNowLabel": "{{name}}, aberta agora",
     "openHelp": "Abre esta organização para ler.",
     "noneFound": "Nenhuma organização encontrada.",

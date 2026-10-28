@@ -311,7 +311,7 @@ test('SETUP-022 Get a language ready, question by question @p0', async ({ page, 
   await expectOnScreen(page, '3 of 4', 'Who checks the recordings?');
   await primary(page).click();
   await expectToast(page, /checks the recordings\.$/);
-  await expectOnScreen(page, '4 of 4', 'Invite your translators', 'Translate', 'Check', 'Back-translate', 'Help run the team', 'Something else');
+  await expectOnScreen(page, '4 of 4', 'Invite your translators', 'Translate', 'Check', 'Back-translate', 'Help run the team', /Other roles · \d+/);
   await expectOnScreen(page, 'Ask them to scan this', 'Share as a link');
   await text(page, 'Done').click();
   await expectOnScreen(page, 'Bravo', 'Ready · 0 translators', 'Content template', 'Reference material', 'Review flow', 'People');
@@ -462,10 +462,20 @@ test('SETUP-029 Invite your translators: other roles, and a new role', async ({ 
   await openAsIn(page, w, 'ADMIN', november);
   await languagePage(page, w, 'November');
   await text(page, 'Invite your translators').click();
-  await expectOnScreen(page, '4 of 4', 'Translate', 'Something else');
-  await text(page, 'Something else').click();
-  await expectOnScreen(page, 'Something else: make a new role');
+  await expectOnScreen(page, '4 of 4', 'Translate', 'Something else: make a new role');
+  await text(page, /^Other roles · \d+$/).click();
+  await expect(text(page, /^Other roles · \d+$/)).toHaveCount(0);
   await text(page, 'Check').click();
+  await expectOnScreen(page, 'Ask them to scan this');
+  // A role made from here comes back chosen, with its code (finding 98).
+  const role = `Elder ${w.run.slice(-4)}`;
+  await text(page, 'Something else: make a new role').click();
+  await field(page, 'What is it called?').fill(role);
+  await page.getByRole('switch', { name: 'Record' }).locator('visible=true').first().click();
+  await primary(page).click();
+  await expectToast(page, `${role} created.`);
+  await expectOnScreen(page, '4 of 4', role);
+  await expect(page.getByRole('button', { name: role, exact: true }).locator('visible=true').first()).toHaveAttribute('aria-pressed', 'true');
   await expectOnScreen(page, 'Ask them to scan this');
   await text(page, 'Done').click();
   await expectOnScreen(page, 'Get November ready');
@@ -493,8 +503,10 @@ test('SETUP-030 What counts as ready', async ({ page }) => {
   await text(page, 'Add a check').click();
   await text(page, 'Community check').click();
   await expectToast(page, 'Kilo\'s checks saved');
-  await back(page).click();
+  // The editor's Done goes back, and the checks saved there are the answer: the footer moves on (finding 100).
+  await text(page, 'Done').click();
   await expectOnScreen(page, 'In use · your own steps');
+  await expect(primary(page)).toContainText('Next');
   await byId(page, 'header-close').click();
   // ADMIN, COORD and VIEW hold organization-scope roles: they do not make it ready.
   await expectOnScreen(page, 'Get Kilo ready');

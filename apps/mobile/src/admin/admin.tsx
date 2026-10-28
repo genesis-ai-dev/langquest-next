@@ -15,7 +15,7 @@ import { useHelpMode, useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpLit } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { HelpInfo, Ico, type IconName } from '../ui/kit';
+import { HelpInfo, Ico, SmallBtn, type IconName } from '../ui/kit';
 import { markedParts } from '../ui/textMatch';
 import { HeaderExtraContext } from '../ui/headerExtra';
 import { useLayout, useOpenDetail } from '../ui/useLayout';
@@ -450,7 +450,8 @@ export function LockToggle(props: { on: boolean; onToggle: () => void; label: st
     <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="switch" {...a11yState({ checked: props.on, disabled: !!props.disabled }, 'switch')}
       accessibilityLabel={props.label} hitSlop={4}
       style={({ pressed }) => [styles.lock, props.on ? styles.lockOn : null, pressed && styles.pressed]}>
-      <Ico name="lock" size={20} color={props.on ? TINT.amberText : C.faint} />
+      {/* Closed and amber when it must pass, open and plain when it can be set aside: not by colour alone (UI audit, finding 105). */}
+      <Ico name={props.on ? 'lock' : 'unlocked'} size={20} color={props.on ? TINT.amberText : C.muted} />
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -481,6 +482,7 @@ export function InviteCode(props: { state: InviteState }) {
       <Text style={[txt.sm, { color: C.muted, textAlign: 'center' }]}>
         {s && 'error' in s ? s.error : t('admin.inviteCode.noPassword')}
       </Text>
+      {s && 'error' in s ? <SmallBtn label={t('common.tryAgain')} icon="restart" help={t('help.details.tryAgain')} onPress={s.retry} /> : null}
     </View>
   );
 }

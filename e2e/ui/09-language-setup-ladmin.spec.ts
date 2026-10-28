@@ -126,7 +126,7 @@ test('SETUP-063 LADMIN is not offered the organization\'s library writes', async
   await expectOnScreen(page, 'Review flows', 'Use');
   await expect(button(page, 'Follow')).toHaveCount(0);
   await expect(button(page, 'Copy')).toHaveCount(0);
-  await expect(button(page, 'Flow')).toHaveCount(0);
+  await expect(button(page, 'New flow')).toHaveCount(0);
   await expectNotOnScreen(page, 'Add to your flows');
   await back(page).click();
   await back(page).click();

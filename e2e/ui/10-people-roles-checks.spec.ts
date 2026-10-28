@@ -226,7 +226,7 @@ test('PEOPLE-038 Roles at a language are view only', async ({ page }) => {
   await alphaPage(page, w, { lead: true });
   await text(page, 'Roles').click();
   await expect(text(page, 'Language')).toBeVisible();
-  await expect(text(page, /Roles are defined for the whole organization, so here they are view only\. Edit them from Organization Home\.$/)).toBeVisible();
+  await expect(text(page, /Roles belong to the whole organization, so here you can only look\. Change them from Organization Home\.$/)).toBeVisible();
   const list = await between(page, 'Defined at Organization', null);
   for (const r of ['Organization Admin', 'Coordinator', 'Translator', 'Reviewer', 'Viewer', 'Language Lead', 'Translator-Reviewer']) {
     expect(list).toContain(`${r} View only · change it from Organization Home View only`);

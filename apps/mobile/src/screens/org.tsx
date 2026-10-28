@@ -1055,7 +1055,8 @@ export function InviteMember(ctx: Ctx) {
     ...(mayOrg ? [{ key: 'org', label: granted.length ? t('org.invite.allOfThem') : v.orgName, scope: { level: 'org' } as Scope }] : [])
   ];
   const asked = ctx.params['languageId'];
-  const initial = asked && granted.includes(asked) ? asked : level === 'language' && granted.includes(ctx.language.languageId) ? ctx.language.languageId : mayOrg ? 'org' : granted[0] ?? '';
+  // The open language first, never every language unless nothing narrower may be granted (UI audit, finding 93).
+  const initial = asked && granted.includes(asked) ? asked : granted.includes(ctx.language.languageId) ? ctx.language.languageId : granted.length === 1 ? granted[0]! : mayOrg ? 'org' : granted[0] ?? '';
   const [email, setEmail] = useState<{ roleId: string; scope: Scope } | null>(null);
   const [address, setAddress] = useState('');
   const [busy, setBusy] = useState(false);
@@ -1319,11 +1320,14 @@ function MemberEditor(ctx: Ctx) {
  * phone is lost" makes the code sign that phone out. Shown only when the
  * server says this session may help this person, at the top of their page so
  * a new invite (a second account) is not the first thing a helper reaches for.
+ * It is a row that opens a sheet (UI audit, finding 99): Save stays the page's
+ * one filled button, and no live code shows from one stray tap.
  */
 const HELP_ROW = { flexDirection: 'row', alignItems: 'center', gap: space.md } as const;
 
 function HelpSignIn(props: { memberId: string; who: string }) {
   const [may, setMay] = useState(false);
+  const [open, setOpen] = useState(false);
   const [lost, setLost] = useState(false);
   const [key, setKey] = useState<{ code: string; signInName: string; lost: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -1338,7 +1342,7 @@ function HelpSignIn(props: { memberId: string; who: string }) {
   async function make() {
     setBusy(true);
     setError('');
-    try { setKey({ ...(await issueSignInCode(props.memberId, lost)), lost }); }
+    try { setKey({ ...(await issueSignInCode(props.memberId, lost)), lost }); setOpen(false); }
     catch (e) { noteExpected('sign-in code', e); setError(signInFailure(e)); }
     finally { setBusy(false); }
   }
@@ -1354,19 +1358,22 @@ function HelpSignIn(props: { memberId: string; who: string }) {
           <Text style={[txt.xs, { textAlign: 'center' }]}>{t('org.signIn.willSee', { name: first })}</Text>
         </Card>
       ) : (
-        <Card>
-          <View style={HELP_ROW}>
-            <Ico name="lock" size={22} color={C.primary} />
-            <Text style={[txt.body, { flex: 1 }]}>{t('org.signIn.noEmail', { name: first })}</Text>
-          </View>
-          <View style={HELP_ROW}>
-            <Text style={[txt.sm, { flex: 1 }]}>{t('org.signIn.lostSignOut')}</Text>
-            <Toggle on={lost} onToggle={() => setLost(!lost)} label={t('org.signIn.lost')} help={lost ? t('org.signIn.lostOnHelp') : t('org.signIn.lostOffHelp')} />
-          </View>
-          <PrimaryBtn label={t('org.signIn.help')} icon="qr" busy={busy} disabled={busy} help={t('org.signIn.showCodeHelp')} onPress={() => void make()} />
-        </Card>
+        <Group>
+          <Row icon="qr" label={t('org.signIn.row', { name: first })} help={t('org.signIn.rowHelp')} onPress={() => setOpen(true)} last />
+        </Group>
       )}
-      {error ? <Banner icon="flag" tone="amber" title={t('org.noCode')} body={error} /> : null}
+      <Sheet visible={open} title={t('org.signIn.row', { name: first })} onClose={() => setOpen(false)}
+        footer={<PrimaryBtn label={t('org.signIn.help')} icon="qr" busy={busy} disabled={busy} help={t('org.signIn.showCodeHelp')} onPress={() => void make()} />}>
+        <View style={HELP_ROW}>
+          <Ico name="lock" size={22} color={C.primary} />
+          <Text style={[txt.body, { flex: 1 }]}>{t('org.signIn.noEmail', { name: first })}</Text>
+        </View>
+        <View style={HELP_ROW}>
+          <Text style={[txt.sm, { flex: 1 }]}>{t('org.signIn.lostSignOut')}</Text>
+          <Toggle on={lost} onToggle={() => setLost(!lost)} label={t('org.signIn.lost')} help={lost ? t('org.signIn.lostOnHelp') : t('org.signIn.lostOffHelp')} />
+        </View>
+        {error ? <Banner icon="flag" tone="amber" title={t('org.noCode')} body={error} /> : null}
+      </Sheet>
     </>
   );
 }
@@ -1402,8 +1409,11 @@ export function InviteQr(ctx: Ctx) {
   const [error, setError] = useState('');
   const role = roles.find((r) => r.id === roleId) ?? null;
   const canAdvance = step === 0 ? !!role : step === 1 ? name.trim().length > 0 : true;
-  // A phone's Back from the name goes back to the role, as the header's arrow does (decision 137).
-  useHardwareBack(step === 1 && !invite, () => setStep(0));
+  // The code is shown once: Back from it asks first (UI audit, finding 96). Done is the way out once they have scanned.
+  const [leaving, setLeaving] = useState(false);
+  const shown = step === 2 && !!invite;
+  // A phone's Back from the name goes back to the role, as the header's arrow does (decision 137); from the code, it asks.
+  useHardwareBack((step === 1 && !invite) || shown, () => (shown ? setLeaving(true) : setStep(0)));
   async function next() {
     if (step === 0) return setStep(1);
     setBusy(true);
@@ -1429,7 +1439,7 @@ export function InviteQr(ctx: Ctx) {
   const uri = invite ? inviteUri(ctx.language.orgId, invite.token, APP_URL) : '';
   return (
     <Screen header={<Header title={t('org.qr.title')} sub={role ? role.name : t('org.qr.sub')}
-      onBack={step === 1 && !invite ? () => setStep(0) : ctx.back} />}
+      onBack={step === 1 && !invite ? () => setStep(0) : shown ? () => setLeaving(true) : ctx.back} />}
       footer={step < 2
         ? <PrimaryBtn label={t('org.continue')} disabled={!canAdvance} busy={busy} help={step === 0 ? t('org.qr.toNameHelp') : t('org.qr.makeCodeHelp')} onPress={() => void next()} />
         : <PrimaryBtn label={t('common.done')} icon="check" help={t('org.qr.doneHelp')} onPress={() => ctx.go('members_list', params)} />}>
@@ -1488,6 +1498,13 @@ export function InviteQr(ctx: Ctx) {
         </>
       ) : null}
       {error ? <Banner icon="flag" tone="amber" title={t('org.noCode')} body={error} /> : null}
+      <Sheet visible={leaving} title={t('org.qr.leaveAsk')} onClose={() => setLeaving(false)}
+        footer={<>
+          <PrimaryBtn label={t('org.qr.stay')} icon="qr" help={t('org.qr.stayHelp')} onPress={() => setLeaving(false)} />
+          <GhostBtn label={t('org.qr.leave')} tone="red" help={t('org.qr.leaveHelp')} onPress={() => { setLeaving(false); ctx.back(); }} />
+        </>}>
+        <Text style={txt.body}>{t('org.qr.leaveBody', { name: name.trim() })}</Text>
+      </Sheet>
     </Screen>
   );
 }

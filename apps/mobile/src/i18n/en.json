@@ -899,6 +899,8 @@
       "howToLost": "On their new device, {{name}} opens LangQuest, taps Scan a code and points it here. It works once, for one hour. Using it signs their old device out.",
       "willSee": "{{name}} will see in Settings that you helped them sign in.",
       "noEmail": "{{name}} has no email. On a new device, show them a sign-in code.",
+      "row": "Help {{name}} sign in on a new device",
+      "rowHelp": "For someone with no email: opens a page to make a sign-in code. No code is made until you ask for one.",
       "lostSignOut": "Their old device is lost or stolen: sign it out",
       "lost": "Their old device is lost or stolen",
       "help": "Help them sign in",
@@ -936,6 +938,12 @@
       "shownOnceGroup_one": "Shown once: leaving this screen loses the code. Up to {{count, number}} person can use it, until {{date}}.",
       "shownOnceGroup_other": "Shown once: leaving this screen loses the code. Up to {{count, number}} people can use it, until {{date}}.",
       "shownOnceOne": "Shown once: leaving this screen loses the code. It can be used once, until {{date}}.",
+      "leaveAsk": "Leave the code?",
+      "leaveBody": "The code for {{name}} can’t be shown again. If they haven’t scanned it, make a new one.",
+      "stay": "Stay on the code",
+      "stayHelp": "Keeps the code on the screen, for them to scan.",
+      "leave": "Leave",
+      "leaveHelp": "Goes back. The code can’t be shown again.",
       "share": "Share invite",
       "couldNotShare": "Could not share it. Type the code above instead.",
       "toNameHelp": "On to who it is for.",
@@ -1438,7 +1446,6 @@
       "nextHelp": "Keeps this way of checking, then on to the next question."
     },
     "invite": {
-      "somethingElse": "Something else",
       "cannotTitle": "Only people who can invite here can show a code",
       "cannotBody": "Ask someone who runs {{language}}'s team to invite your translators."
     },
@@ -2483,7 +2490,7 @@
       "noneChosen": "No flow chosen yet",
       "noReviews": "No reviews: done once recorded",
       "title": "Review flows",
-      "addFlow": "Flow",
+      "addFlow": "New flow",
       "noLanguages": "No languages yet",
       "noLanguagesSub": "Add a language, then choose how its passages get checked.",
       "languageUses": "{{language}} uses",
@@ -2498,9 +2505,10 @@
       "nowUses": "{{language}} now uses {{flow}}.",
       "addFlowHelp": "Makes a new flow: which checks a passage gets, in order.",
       "openFlowHelp": "Opens it, to see or change its steps.",
+      "editChecks": "Edit checks and people",
+      "editChecksHelp": "Opens {{language}}’s own checks: their order, who does each, and what each shows.",
       "saveAsFlowHelp": "Keeps this language's checks as a flow in your library, for other languages.",
       "flowCardHelp": "Opens it, to see or change its steps. A lock: that step must pass first.",
-      "inUseHelp": "This language checks its passages this way now.",
       "useHelp": "Its checks become {{language}}'s own. You can change them after.",
       "stepsLabel": "Steps",
       "stepsHelp": "The checks, left to right. Stacked ones happen together. A lock: that step must pass first.",
@@ -2536,7 +2544,7 @@
       "descriptionPlaceholder": "What it is for, in a line",
       "noChecks": "No checks: done once recorded",
       "usedHere": "{{language}} uses it. Changes apply to its passages right away; nothing already recorded is lost.",
-      "usedNote": "Languages using it move to each new version. Steps are a suggested order; only a locked step has to pass first.",
+      "usedNote": "Languages that took these checks have their own copy: changing this flow changes none of them. Steps are a suggested order; only a locked step has to pass first.",
       "kindsSub": "Kinds are your organization's vocabulary. Add your own if these don't fit.",
       "newKindLabel": "A new kind",
       "newKindPlaceholder": "New kind, e.g. Elder Review",
@@ -5394,6 +5402,7 @@
       "ofPlan": "{{actual}} of plan's {{expected}}",
       "ofPlanFinishes": "{{actual}} of plan's {{expected}} · finishes {{date}}",
       "setTarget": "Set a target on the language page.",
+      "adminSets": "Someone who manages this language sets its target.",
       "targetRange": "{{scope}} · {{from}} – {{to}}"
     },
     "paceAdvice": {
@@ -5572,7 +5581,8 @@
       "alertsHelp": "Shows problems that need someone. A number means how many."
     },
     "home": {
-      "catchUp": "Catch up with the server",
+      "refresh": "Refresh",
+      "clusterFilter": "Cluster",
       "alertsChip_one": "Alerts, {{count, number}} needs someone",
       "alertsChip_other": "Alerts, {{count, number}} need someone",
       "allCountries": "All countries",
@@ -5610,7 +5620,8 @@
       "noCountries": "No language has a country yet. Set one on each language's page.",
       "toLanguagesHelp": "Switches to the page with every language in detail.",
       "toActivityHelp": "Switches to the page of what reached the server, day by day.",
-      "toMapHelp": "Switches to the map of where the languages are."
+      "toMapHelp": "Switches to the map of where the languages are.",
+      "openAlertsHelp": "Opens Alerts: what needs someone, and what to do."
     },
     "portfolio": {
       "activeDays": "Active (last 14 days)",
@@ -5817,12 +5828,13 @@
       "allClear": "All clear",
       "allClearBody": "No stuck audio, integrity problems or stale figures.",
       "whatToDo": "<b>What to do:</b> {{action}}",
+      "adminSets": "Someone who manages each language can set this on its page.",
       "stuckRow": "{{recordings}} in {{passages}}, oldest from {{date}}",
       "refreshed": "refreshed {{when}}",
       "stale": {
         "title": "These figures are not current",
         "body": "They were read {{ago}}. Work synced since then is not in them.",
-        "action": "Reload the page to catch up."
+        "action": "Press Refresh at the top of Reports to catch up."
       },
       "stuck": {
         "title": "Recorded audio stuck on devices",
@@ -5914,6 +5926,8 @@
       "scopeHelp": "What the target covers. Then set the dates and save.",
       "startHelp": "The day work toward the target began.",
       "finishByHelp": "The day the target should be reached.",
+      "suggestEnd": "18 months: {{date}}",
+      "suggestEndHelp": "Fills in a finish 18 months after the start, and today as the start if it is empty. Nothing is saved until you save the target.",
       "saveTargetHelp": "Saves the target and its dates to the server now. Needs a connection.",
       "pickCountryHelp": "Chooses this country. Save country then keeps it.",
       "chosenCountryHelp": "The country chosen now, in bold. Tap another to change it."
@@ -7087,7 +7101,9 @@
       "startHelp": "Replaces the checks with a ready-made set, to change as you like.",
       "useHelp": "Replaces {{language}}'s checks with these. Undo puts them back.",
       "pickHelp": "Picks it. Use, at the bottom, then replaces the checks with its own.",
-      "replaceAsk": "Replace {{language}}'s own checks with {{name}}?"
+      "replaceAsk": "Replace {{language}}'s own checks with {{name}}?",
+      "useThese": "Use these checks",
+      "replaceOwnAsk": "Replace {{language}}’s own checks?"
     },
     "gone": "This is no longer one of the language's checks",
     "checkOf": "Check {{n}} · {{language}}",
@@ -7137,6 +7153,8 @@
     "forTeam": "For the {{check}} team",
     "forCheck": "For {{check}}",
     "dragHelp": "Drag up or down to change when this check comes.",
+    "moveUpHelp": "This check comes one place earlier.",
+    "moveDownHelp": "This check comes one place later.",
     "addThisHelp": "Adds this check after the others.",
     "newCheckHelp": "A new check's name, when it is none of these.",
     "addCheckHelp": "Choose a check your organization knows, or name a new one.",
@@ -7569,6 +7587,7 @@
     "onTitle": "You can read every organization",
     "onBody": "You see what a Viewer sees. You can’t change anything.",
     "search": "Organization or language",
+    "searching": "Searching…",
     "openNowLabel": "{{name}}, open now",
     "openHelp": "Opens this organization to read.",
     "noneFound": "No organization matches.",

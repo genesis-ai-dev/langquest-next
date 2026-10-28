@@ -881,6 +881,8 @@
       "howToLost": "Di perangkat barunya, {{name}} membuka LangQuest, mengetuk Pindai kode, lalu mengarahkannya ke sini. Kode ini berlaku sekali, selama satu jam. Memakainya akan mengeluarkan perangkat lamanya.",
       "willSee": "{{name}} akan melihat di Pengaturan bahwa Anda membantunya masuk.",
       "noEmail": "{{name}} tidak punya email. Di perangkat baru, tunjukkan kode masuk kepadanya.",
+      "row": "Bantu {{name}} masuk di perangkat baru",
+      "rowHelp": "Untuk yang tidak punya email: membuka halaman untuk membuat kode masuk. Tidak ada kode dibuat sampai Anda memintanya.",
       "lostSignOut": "Perangkat lamanya hilang atau dicuri: keluarkan perangkat itu",
       "lost": "Perangkat lamanya hilang atau dicuri",
       "help": "Bantu mereka masuk",
@@ -916,6 +918,12 @@
       "orType": "Atau ketik kode ini",
       "shownOnceGroup_other": "Hanya ditampilkan sekali: meninggalkan layar ini akan menghilangkan kodenya. Sampai {{count, number}} orang dapat memakainya, sampai {{date}}.",
       "shownOnceOne": "Hanya ditampilkan sekali: meninggalkan layar ini akan menghilangkan kodenya. Kode ini dapat dipakai sekali, sampai {{date}}.",
+      "leaveAsk": "Tinggalkan kode?",
+      "leaveBody": "Kode untuk {{name}} tidak bisa ditampilkan lagi. Jika mereka belum memindainya, buat yang baru.",
+      "stay": "Tetap di kode",
+      "stayHelp": "Menjaga kode tetap di layar, untuk mereka pindai.",
+      "leave": "Keluar",
+      "leaveHelp": "Kembali. Kode tidak bisa ditampilkan lagi.",
       "share": "Bagikan undangan",
       "couldNotShare": "Tidak dapat membagikannya. Ketik saja kode di atas.",
       "toNameHelp": "Lanjut ke: untuk siapa kode ini.",
@@ -1402,7 +1410,6 @@
       "nextHelp": "Menyimpan cara memeriksa ini, lalu lanjut ke pertanyaan berikutnya."
     },
     "invite": {
-      "somethingElse": "Yang lain",
       "cannotTitle": "Hanya orang yang dapat mengundang di sini yang dapat menunjukkan kode",
       "cannotBody": "Minta orang yang memimpin tim {{language}} untuk mengundang penerjemah Anda."
     },
@@ -2396,7 +2403,7 @@
       "noneChosen": "Belum ada alur yang dipilih",
       "noReviews": "Tanpa pemeriksaan: selesai setelah direkam",
       "title": "Alur Pemeriksaan",
-      "addFlow": "Alur",
+      "addFlow": "Alur baru",
       "noLanguages": "Belum ada bahasa",
       "noLanguagesSub": "Tambahkan bahasa, lalu pilih cara perikop-perikopnya diperiksa.",
       "languageUses": "{{language}} memakai",
@@ -2411,9 +2418,10 @@
       "nowUses": "{{language}} sekarang memakai {{flow}}.",
       "addFlowHelp": "Membuat alur baru: pemeriksaan apa yang dilalui perikop, secara berurutan.",
       "openFlowHelp": "Membukanya, untuk melihat atau mengubah tahap-tahapnya.",
+      "editChecks": "Ubah pemeriksaan dan orang",
+      "editChecksHelp": "Membuka pemeriksaan milik {{language}} sendiri: urutannya, siapa yang mengerjakan masing-masing, dan apa yang ditampilkan masing-masing.",
       "saveAsFlowHelp": "Menyimpan pemeriksaan bahasa ini sebagai alur di perpustakaan Anda, untuk bahasa lain.",
       "flowCardHelp": "Membukanya, untuk melihat atau mengubah tahap-tahapnya. Gembok: tahap itu harus lulus lebih dulu.",
-      "inUseHelp": "Bahasa ini sekarang memeriksa perikopnya dengan cara ini.",
       "useHelp": "Pemeriksaannya menjadi milik {{language}} sendiri. Anda dapat mengubahnya sesudahnya.",
       "stepsLabel": "Tahap",
       "stepsHelp": "Pemeriksaan, dari kiri ke kanan. Yang bertumpuk dilakukan bersamaan. Gembok: tahap itu harus lulus lebih dulu.",
@@ -2449,7 +2457,7 @@
       "descriptionPlaceholder": "Kegunaannya, dalam satu baris",
       "noChecks": "Tanpa pemeriksaan: selesai setelah direkam",
       "usedHere": "{{language}} memakainya. Perubahan langsung berlaku untuk perikop-perikopnya; tidak ada rekaman yang hilang.",
-      "usedNote": "Bahasa yang memakainya pindah ke setiap versi baru. Urutan tahap hanya saran; hanya tahap yang terkunci yang harus lulus lebih dulu.",
+      "usedNote": "Bahasa yang mengambil pemeriksaan ini punya salinannya sendiri: mengubah alur ini tidak mengubah satu pun dari mereka. Urutan tahap hanya saran; hanya tahap yang terkunci yang harus lulus lebih dulu.",
       "kindsSub": "Jenis-jenis ini adalah kosakata organisasi Anda. Tambahkan sendiri jika yang ada tidak cocok.",
       "newKindLabel": "Jenis baru",
       "newKindPlaceholder": "Jenis baru, misalnya Pemeriksaan Penatua",
@@ -5192,6 +5200,7 @@
       "ofPlan": "{{actual}} dari rencana {{expected}}",
       "ofPlanFinishes": "{{actual}} dari rencana {{expected}} · selesai {{date}}",
       "setTarget": "Tetapkan target di halaman bahasa.",
+      "adminSets": "Orang yang mengelola bahasa ini yang menetapkan targetnya.",
       "targetRange": "{{scope}} · {{from}} – {{to}}"
     },
     "paceAdvice": {
@@ -5355,7 +5364,8 @@
       "alertsHelp": "Menampilkan masalah yang perlu ditangani. Angka menunjukkan jumlahnya."
     },
     "home": {
-      "catchUp": "Perbarui dari server",
+      "refresh": "Muat ulang",
+      "clusterFilter": "Kelompok",
       "alertsChip_other": "Peringatan, {{count, number}} perlu ditangani",
       "allCountries": "Semua negara",
       "loading": "Memuat laporan…",
@@ -5389,7 +5399,8 @@
       "noCountries": "Belum ada bahasa yang punya negara. Tetapkan di halaman masing-masing bahasa.",
       "toLanguagesHelp": "Pindah ke halaman yang merinci setiap bahasa.",
       "toActivityHelp": "Pindah ke halaman berisi apa yang sampai ke server, hari demi hari.",
-      "toMapHelp": "Pindah ke peta lokasi bahasa-bahasa."
+      "toMapHelp": "Pindah ke peta lokasi bahasa-bahasa.",
+      "openAlertsHelp": "Membuka Peringatan: yang butuh seseorang, dan apa yang harus dilakukan."
     },
     "portfolio": {
       "activeDays": "Aktif (14 hari terakhir)",
@@ -5575,12 +5586,13 @@
       "allClear": "Semua aman",
       "allClearBody": "Tidak ada audio yang tertahan, masalah keutuhan, atau angka yang usang.",
       "whatToDo": "<b>Yang perlu dilakukan:</b> {{action}}",
+      "adminSets": "Orang yang mengelola setiap bahasa dapat mengaturnya di halamannya.",
       "stuckRow": "{{recordings}} dalam {{passages}}, yang tertua dari {{date}}",
       "refreshed": "diperbarui {{when}}",
       "stale": {
         "title": "Angka-angka ini bukan yang terbaru",
         "body": "Angka ini dibaca {{ago}}. Pekerjaan yang tersinkron sejak itu tidak termasuk.",
-        "action": "Muat ulang halaman untuk memperbarui."
+        "action": "Tekan Muat ulang di atas Laporan untuk mengejar ketertinggalan."
       },
       "stuck": {
         "title": "Audio yang direkam tertahan di perangkat",
@@ -5665,6 +5677,8 @@
       "scopeHelp": "Apa yang dicakup target. Lalu atur tanggalnya dan simpan.",
       "startHelp": "Hari dimulainya pekerjaan menuju target.",
       "finishByHelp": "Hari target harus tercapai.",
+      "suggestEnd": "18 bulan: {{date}}",
+      "suggestEndHelp": "Mengisi tanggal selesai 18 bulan setelah mulai, dan hari ini sebagai mulai jika kosong. Tidak ada yang disimpan sampai Anda menyimpan target.",
       "saveTargetHelp": "Menyimpan target dan tanggalnya ke server sekarang. Memerlukan koneksi.",
       "pickCountryHelp": "Memilih negara ini. Lalu ketuk Simpan negara untuk menyimpannya.",
       "chosenCountryHelp": "Negara yang dipilih sekarang, dicetak tebal. Ketuk yang lain untuk menggantinya."
@@ -6787,7 +6801,9 @@
       "startHelp": "Mengganti pemeriksaan dengan kumpulan siap pakai, untuk diubah sesuka Anda.",
       "useHelp": "Mengganti pemeriksaan {{language}} dengan yang ini. Urungkan mengembalikannya.",
       "pickHelp": "Memilihnya. Lalu ketuk Pakai di bagian bawah untuk mengganti pemeriksaan dengan pemeriksaannya.",
-      "replaceAsk": "Ganti pemeriksaan milik {{language}} sendiri dengan {{name}}?"
+      "replaceAsk": "Ganti pemeriksaan milik {{language}} sendiri dengan {{name}}?",
+      "useThese": "Pakai pemeriksaan ini",
+      "replaceOwnAsk": "Ganti pemeriksaan milik {{language}} sendiri?"
     },
     "gone": "Ini bukan lagi salah satu pemeriksaan bahasa ini",
     "checkOf": "Pemeriksaan {{n}} · {{language}}",
@@ -6836,6 +6852,8 @@
     "forTeam": "Untuk tim {{check}}",
     "forCheck": "Untuk {{check}}",
     "dragHelp": "Tarik ke atas atau ke bawah untuk mengubah urutan pemeriksaan ini.",
+    "moveUpHelp": "Pemeriksaan ini datang satu tempat lebih awal.",
+    "moveDownHelp": "Pemeriksaan ini datang satu tempat lebih lambat.",
     "addThisHelp": "Menambahkan pemeriksaan ini setelah yang lain.",
     "newCheckHelp": "Nama pemeriksaan baru, jika bukan salah satu dari ini.",
     "addCheckHelp": "Pilih pemeriksaan yang sudah dikenal organisasi Anda, atau beri nama yang baru.",
@@ -7244,6 +7262,7 @@
     "onTitle": "Anda bisa membaca semua organisasi",
     "onBody": "Anda melihat apa yang dilihat Pengamat. Anda tidak bisa mengubah apa pun.",
     "search": "Organisasi atau bahasa",
+    "searching": "Mencari…",
     "openNowLabel": "{{name}}, terbuka sekarang",
     "openHelp": "Membuka organisasi ini untuk dibaca.",
     "noneFound": "Tidak ada organisasi yang cocok.",

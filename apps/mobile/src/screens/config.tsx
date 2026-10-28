@@ -322,7 +322,7 @@ export function RoleEditor(ctx: Ctx) {
             <Row key={`${h.profileId}-${JSON.stringify(h.scope)}`} icon="user"
               label={h.profileId === ctx.session.actorId ? t('common.you') : ctx.name(h.profileId)}
               sub={scopeName(h.scope, org)} help={t('config.roleEditor.personHelp')}
-              onPress={canAssign ? () => ctx.go('edit_member', { memberId: h.profileId }) : undefined} last={last} />
+              onPress={canAssign ? () => ctx.go('edit_member', { memberId: h.profileId, entry: h.entry, level: h.scope.level }) : undefined} last={last} />
           )} />
           {!readOnly ? <Field label={t('config.roleEditor.itsName')} value={label} onChangeText={setName} placeholder={t('config.roleEditor.itsNamePlaceholder')} autoCapitalize="words"
             help={t('config.roleEditor.renameHelp')} /> : null}
@@ -620,6 +620,11 @@ export function FlowsHome(ctx: Ctx) {
                 </Text>
               ) : null}
               <FlowStepsInline steps={current.steps} kinds={kinds} explain />
+              {/* The language's own checks and their people are changed there, not in a library flow (UI audit, finding 102). */}
+              {canManage ? (
+                <SmallBtn label={t('config.flows.editChecks')} icon="edit" tone="primary" help={t('config.flows.editChecksHelp', { language })}
+                  onPress={() => ctx.go('flow_editor', { languageId: ctx.language.languageId, steps: 'language' })} />
+              ) : null}
               {canManage && currentItem ? <SmallBtn label={t('config.flows.openFlow')} icon="edit" help={t('config.flows.openFlowHelp')} onPress={() => ctx.go('flow_editor', { itemId: currentItem.itemId })} /> : null}
               {canWrite && !current.itemId && current.chosen && current.steps.length ? (
                 <SmallBtn label={t('config.flows.addToFlows')} icon="plus" help={t('config.flows.saveAsFlowHelp')} onPress={() => ctx.go('flow_editor', { itemId: 'new', languageId: ctx.language.languageId })} />
@@ -646,12 +651,17 @@ export function FlowsHome(ctx: Ctx) {
                     </View>
                     {f.archived ? <Badge label={t('config.library.archivedBadge')} />
                       : updates[f.itemId] ? <Badge label={t('config.library.updateBadge')} tone="amber" /> : null}
-                    {on
-                      ? <SmallBtn label={t('config.flows.inUse')} icon="check" tone="primary" help={t('config.flows.inUseHelp')} onPress={() => {}} />
-                      : language && !f.archived ? <SmallBtn label={t('config.flows.use')} help={t('config.flows.useHelp', { language })} onPress={() => chooseFlow({ itemId: f.itemId })} disabled={!canManage || busy || !f.current} /> : null}
+                    {/* A mark, not a button: it does nothing (UI audit, finding 103). */}
+                    {on ? <Badge label={t('config.flows.inUse')} tone="brand" /> : null}
                   </View>
                   {/* Inside a card that opens, the card says what the steps mean. */}
                   <DocSteps doc={docs.get<FlowDoc>(f.current)} kinds={kinds} explain={!canManage} />
+                  {/* Use on its own line under the steps, apart from the title the card opens by. */}
+                  {!on && language && !f.archived ? (
+                    <View style={{ borderTopWidth: 1, borderTopColor: C.border, paddingTop: space.sm, marginTop: space.xs, alignItems: 'flex-start' }}>
+                      <SmallBtn label={t('config.flows.use')} help={t('config.flows.useHelp', { language })} onPress={() => chooseFlow({ itemId: f.itemId })} disabled={!canManage || busy || !f.current} />
+                    </View>
+                  ) : null}
                 </Card>
               </HelpRow>
             );

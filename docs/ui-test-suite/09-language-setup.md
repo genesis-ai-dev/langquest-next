@@ -746,7 +746,7 @@ Expected:
   {flow title}?" with "Use {flow title}" and "Cancel" (as SETUP-044).
 - The local library has no Bible to tick at step 4.
 - Step 6 shows the chips "Translate", "Check", "Back-translate", "Help run
-  the team", "Something else"; "Making the code…", then "Ask them to scan
+  the team", "Other roles · n"; "Making the code…", then "Ask them to scan
   this" and a QR, and the quiet link "Share as a link". The code is made as
   soon as the screen opens.
 - Bravo's page now shows "Bravo" with the green status "Ready · 0
@@ -939,14 +939,21 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Open Get ready at question 4 for a language that is not ready yet
    (Alpha is ready, so it has no question 4).
-2. Tap "Something else".
+2. Tap "Other roles · n".
 3. Tap "Check".
+4. Tap "Something else: make a new role", call it "Elder …", turn on
+   "Record", and tap the primary button.
 
 Expected:
-- "Something else" reveals the other roles as chips and the dashed row
-  "Something else: make a new role" (ADMIN holds Manage roles).
+- The dashed row "Something else: make a new role" shows above the roles
+  (ADMIN holds Manage roles); "Other roles · n" reveals the other roles as
+  chips. Only the dashed row says "Something else" (finding 98, 2026-10-28:
+  the chip said "Something else" too).
 - Each role change makes a code for that role ("Making the code…", then the
   QR).
+- After step 4: toast "Elder … created.", back on question 4 with the new
+  role chosen (its chip on) and its code shown (finding 98: it came back
+  hidden, with the Translator code still showing).
 - Tapping "Done" goes back to the page.
 - A session without Invite at Alpha would see "Only people who can invite
   here can show a code" with "Ask someone who runs Alpha's team to invite
@@ -963,7 +970,7 @@ Steps:
 1. Add "Kilo" with nothing chosen. Answer question 1, then close at
    question 2.
 2. Question 3: "I'll choose the checks" → "Choose the checks" → "Add a
-   check" → "Community check". Go back; close.
+   check" → "Community check" → "Done"; close.
 3. Read its page. (ADMIN, COORD and VIEW hold organization-scope roles.)
 4. Tap "Invite your translators", then "Done".
 
@@ -971,7 +978,10 @@ Expected:
 - After step 2 Kilo is "Get Kilo ready" with "Invite your translators"
   current: organization-scope members do not make it ready.
 - Question 3 done this way comes back to question 3 ("In use · your own
-  steps") without opening question 4.
+  steps", chosen) without opening question 4. The checks page has "Done"
+  when opened from the question, and back on the question the footer reads
+  "Next" (finding 100, 2026-10-28: it still read "Choose the checks" and
+  opened the checks again).
 - Opening question 4 issues a code, and an issued invite counts: the page
   shows "Ready · 0 translators".
 - What helps them is never required (here it is already answered by the
@@ -1375,12 +1385,17 @@ Steps:
 3. Read "From other organizations".
 
 Expected:
-- The header is "Review flows" with the sub "Alpha" and the action "Flow"
-  (decision 138: it was reached from More's "Every way to check").
+- The header is "Review flows" with the sub "Alpha" and the action "New
+  flow" (decision 138: it was reached from More's "Every way to check";
+  "Flow" until the UI audit, finding 103).
 - The card says "Alpha uses" and "Custom flow" (its checks were copied from
   Standard Bible Flow, decision 91), its steps (Peer Review, Back
-  Translation, Community Check, Consultant Check, Final Approval), and
-  "Add to your flows".
+  Translation, Community Check, Consultant Check, Final Approval), "Edit
+  checks and people" (opens Alpha's own checks, where who checks is chosen:
+  finding 102) and "Add to your flows".
+- A flow the language still follows (from before decision 91) shows an "In
+  use" badge, not a button; on the others "Use" sits on its own line under
+  the steps, apart from the card's title (finding 103).
 - "Your organization · 0" with "No flows here yet. Follow or copy one
   another organization shares, or make your own."
 - "From other organizations · {n}" lists LangQuest's flows with "LangQuest ·
@@ -1434,7 +1449,7 @@ Preconditions (in addition to the global ones):
 - Resets: adds a flow.
 
 Steps:
-1. Alpha's page → "Review flow" → "All review flows" → "Flow".
+1. Alpha's page → "Review flow" → "All review flows" → "New flow".
 2. Type "Community first {run}" in "Name" and a line in "Description".
 3. Tap "Add a step". Pick "Community Check".
 4. Add a step. Under "A new kind" type "Elder check". Tap "Add this kind",
@@ -1596,11 +1611,17 @@ Steps:
 1. Checks → "Community check". Turn on "Must pass". Go back.
 2. Open "Back translation". Tap "Same time as" (it reads "Peer check"),
    untick "Peer check", tap "Done"; then tick it again and "Done".
-3. Turn Community check's "Must pass" off again.
+3. Open "Community check". Tap "Move down", then "Move up". Turn its "Must
+   pass" off again.
 
 Expected:
 - Toast "Alpha's checks saved"; Community check's card shows the
-  lock ("Community check must pass before the next steps").
+  lock ("Community check must pass before the next steps"): closed and
+  amber when on, open when off, and the list ends with "🔒 = must pass
+  before the next steps" (UI audit, finding 105).
+- "Move down" makes it "Check 3 · Alpha", "Move up" "Check 2 · Alpha"
+  again: a tap does what the card's grip does by dragging (finding 101).
+  Dragging a card moves the cards it passes aside, each by its own height.
 - "Same time as" is a choice of any other checks (decision 130).
 - Back translation is "Check 1 · Alpha" while at the same time as Peer
   check, and "Check 2 · Alpha" on its own ("Same time as · No other
@@ -1693,17 +1714,20 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Open Alpha's page and tap "Review flow".
-2. Tap "Peer check → Final approval", then "Use Peer check → Final
-   approval".
+2. Tap "Peer check → Final approval", then "Use these checks".
 3. Tap "Peer check + back translation → Community check → Consultant check
-   → Final approval", then its "Use …" button.
+   → Final approval", then "Use these checks".
 4. Go back to Alpha's page.
 
 Expected:
 - Step 1: on top "Peer check + back translation → Community check →
   Consultant check → Final approval", "4 checks", who does each, and
   "Edit"; under it the ready-made flows, among them "Peer check → Final
-  approval"; last "All review flows".
+  approval" with "Quick Check" (its flow's name) in its line under; last
+  "All review flows". The footer button reads "Use these checks", and over
+  the language's own checks it asks "Replace Alpha’s own checks?" with the
+  checks under the question (UI audit, finding 104: the button carried the
+  whole chain).
 - Step 2: toast "Alpha now starts from Peer check → Final approval"; no
   question first (the checks were still as a ready-made flow made them,
   decision 134).
@@ -2156,8 +2180,8 @@ Expected:
   never "Edit" (decision 138). Luke reads "Called Luke in Alpha" and
   offers no "Divide differently". "View" opens the template read only:
   no "Copy to change it", "Create template", "Done" or saved mark.
-- Review flows offers "Use" (Alpha's own checks) but no "Flow", "Follow",
-  "Copy" or "Add to your flows".
+- Review flows offers "Use" (Alpha's own checks) but no "New flow",
+  "Follow", "Copy" or "Add to your flows".
 - Content templates offers "View" but no "Options" or "Template"; a shared
   template's sheet offers no "Follow" or "Copy".
 - Nothing goes to the organization's stream to be refused (G10.2).
