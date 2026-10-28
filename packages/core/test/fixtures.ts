@@ -112,6 +112,10 @@ export function buildStep11Fixture(): AnyEvent[] {
   emit('dB', 't1', 'v1.CardVerseSet', { unitId: 'u1', hash: 'c1', mark: 'set', from: '15:4', to: '15:5' });
   emit('dA', 't1', 'v1.CardVerseSet', { unitId: 'u1', hash: 'c2', mark: 'join' });
   emit('dW', 't1', 'v1.CardVerseSet', { unitId: 'u1', hash: 'c2', mark: 'none' });
+  // Clean up's notes (decisions.md 176): a register per (unit, card as recorded), from two devices, and an Undo.
+  emit('dB', 't1', 'v1.CardCleanUpSet', { unitId: 'luke1', hash: 'c1', use: 'cleaned', cleanedHash: 'c1clean', cleanedFormat: 'm4a', tool: 'dfn3', limitDb: 12 });
+  emit('dC', 't2', 'v1.CardCleanUpSet', { unitId: 'luke1', hash: 'c2', use: 'original', tool: 'dfn3' });
+  emit('dB', 't1', 'v1.CardCleanUpSet', { unitId: 'luke1', hash: 'c1', use: 'none' });
 
   // Materials with per-field registers, a locked document, the community
   // question set for a kind, a translator-written set, and a living glossary
