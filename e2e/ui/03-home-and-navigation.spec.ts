@@ -682,8 +682,8 @@ const GATES: Record<string, { record: boolean; review: boolean; ask: boolean; al
   ADMIN: { record: true, review: true, ask: true, already: true, movePast: true },
   COORD: { record: true, review: true, ask: true, already: true, movePast: true },
   LADMIN: { record: true, review: true, ask: true, already: true, movePast: false },
-  // TRANS recorded both passages: no review of their own version (decision 91 gave Translator Review).
-  TRANS: { record: true, review: false, ask: true, already: true, movePast: false },
+  // TRANS recorded both passages: "Review it myself" on their own version (decision 91 gave Translator Review, decisions.md 178).
+  TRANS: { record: true, review: true, ask: true, already: true, movePast: false },
   KEPT: { record: true, review: true, ask: true, already: true, movePast: false },
   REV: { record: false, review: true, ask: false, already: true, movePast: false },
   TREV: { record: true, review: true, ask: true, already: true, movePast: false },
@@ -698,7 +698,7 @@ for (const who of Object.keys(GATES)) {
     const seen = await offered(page);
     const got = {
       record: /Record a new version|MAIN: Record/.test(seen),
-      review: /Review it now/.test(seen),
+      review: /Review it now|Review it myself/.test(seen),
       ask: /Ask someone|Send to |Someone else should do this/.test(seen),
       already: /Already happened|We already did this/.test(seen),
       movePast: /Move past this checkpoint…/.test(seen)

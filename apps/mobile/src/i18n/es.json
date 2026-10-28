@@ -3763,7 +3763,8 @@
         "sendElsewhere": "Enviar a otra persona",
         "askSomeone": "Pedir a alguien",
         "alreadyHappened": "Ya ocurrió",
-        "setAside": "Apartar"
+        "setAside": "Apartar",
+        "reviewMyself": "Lo reviso yo"
       },
       "sub": {
         "reviewsIt": "{{kind}} lo revisa",
@@ -4095,7 +4096,10 @@
       "teamOptions": "Cada verificación en “{{section}}” también tiene sus propias opciones: tócala en el camino.",
       "sayInsteadHelp": "Abre una nota de voz para este pasaje. Tu equipo la escucha aquí.",
       "addNoteHelp": "Deja una nota en este pasaje, hablada o escrita. Tu equipo la ve aquí.",
-      "whatHelpsHelp": "Abre las Biblias, guías y otras ayudas para este pasaje."
+      "whatHelpsHelp": "Abre las Biblias, guías y otras ayudas para este pasaje.",
+      "myself": "Lo hago yo",
+      "myselfSub": "{{kind}}: escucha y decide ahora",
+      "myselfMakesSub": "{{kind}}: graba ahora"
     },
     "published": {
       "askTitle": "Pedir una verificación",
@@ -5023,7 +5027,8 @@
       "askHelp": "Termina la {{version}} y luego eliges a quién pedírselo.",
       "sendLater": "Enviar más tarde",
       "sendLaterHelp": "Termina la {{version}} sin pedírselo a nadie todavía. El equipo puede escucharla.",
-      "nextCheck": "Siguiente verificación"
+      "nextCheck": "Siguiente verificación",
+      "checkNowHelp": "Termina la {{version}} y abre la siguiente verificación para que la hagas tú ahora."
     },
     "tray": {
       "help": "Ayuda",
@@ -6555,7 +6560,8 @@
     "sendLaterHelp": "Termina la {{what}} sin pedírselo a nadie todavía. El equipo puede escucharla.",
     "chips": {
       "version": "Versión {{n}}"
-    }
+    },
+    "checkNowHelp": "Termina la {{what}} y abre la siguiente verificación para que la hagas tú ahora."
   },
   "translate": {
     "missing": "Este pasaje todavía no está en este dispositivo.",

@@ -65,7 +65,7 @@ tags:
 - extendedWaitUntil:
     visible: "Version 1 published\\..*"
     timeout: 20000
-# Not asked, so no check of one's own version is offered.
+# On a team, asking leads: their own check waits on the check's sheet as "Review it myself" (decision 178).
 - assertNotVisible: "Do the peer (check|review)"
 # Step 2: COORD asks TREV by name for the peer check.
 - runFlow: ../common/launch.yaml

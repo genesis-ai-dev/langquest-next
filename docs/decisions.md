@@ -8439,3 +8439,79 @@ Reverse if: people listening to an older version offline miss the part as
 recorded (a phone fetches it only when it plays online), originals are
 never recovered and their storage matters, or teams want to clean a whole
 book at once, which would need one note for many parts.
+
+## 177. Tutorial videos are filmed from scripts that play the web export, voiced by Gemini, and made in every app language from one English script
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-27 and 2026-10-28, thread "Plan tutorial videos and
+keep them current") asked for a short how-to video for each thing a person
+does in LangQuest, in all 15 app languages, kept current as the app changes,
+and said to make all of them (about 705) and the pipeline that keeps them
+current (`docs/tutorial-videos.md`).
+- **A video is a script, not a screen recording.** Each is a file in
+  `e2e/tutorials/` that plays the app on the web export from the UI tests'
+  fixture world (102): who is signed in, what is lit, what is said, what is
+  tapped. Chrome's screencast keeps each frame with its time, and
+  `compose.ts` puts the frames in a phone (or a browser window) with the
+  voice, what the speaker says into the microphone and what the app plays.
+  A changed screen is filmed again by running the script, in every language,
+  with nobody recording.
+- **One computer voice, Gemini's, in every language.** Gemini's
+  text-to-speech speaks all 15 app languages in the same voice. Lines go
+  through its Batch API (`gemini-voice.mjs`): outside it a project may make
+  100 speech requests a day, and the batch has no daily cap and costs half.
+  It takes no speaking style, so the voice is a little quicker than an
+  unhurried one. A line's recording is named by its words, so only changed
+  lines are said again.
+- **Other languages come from the English script.** Lines are translated by
+  Gemini, told the app's own words for what each line names, so the voice
+  says what the screen shows; they are machine translations like the app's
+  catalogs (81). What a script finds on the screen is translated as it looks
+  (`ui.ts`): its English is looked up in the catalogs and replaced by what
+  the film's language says, or kept where the screen shows data as written.
+  The scripts stay one readable English text instead of fifteen.
+- **The made-up language is read in French** (Louis Segond 1910) by another
+  Gemini voice; what the reviewer says in her own words is said in the film's
+  language.
+Reverse if: partners find the computer voice or the machine-translated lines
+hard to follow in a language (then those lines are recorded or checked by a
+speaker), or Gemini stops offering batch speech.
+
+## 178. Whoever recorded a version may check it themselves: "Review it myself" sits after asking, and leads when nobody else there holds Review
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-20), alone in his organization, finished a recording
+and found no way to review it: each check offered Ask someone, Already
+happened and Set aside, and Ask someone listed nobody ("Nobody on the team
+can do this"). The block was a line in `kindRowActions` from the UI test
+suite (PR 109, 2026-10-14), filed as a bug fix after its role matrix ("not
+their own version unless asked"); no entry here decided it, and it went
+against the demo's design principle 5 ("Any action can be done yourself or
+given to someone else") and against Caleb's rule for written work (give
+translators more freedom and record what happened). He chose (2026-10-27)
+to bring it back:
+- **On every check** (passage/recordTextModel.ts `kindRowActions`), the
+  version's author who holds Review gets **Review it myself** (a check that
+  records gets its own action, "Back-translate it"), after the sending and
+  asking buttons. Someone asked to check their own version still gets
+  Review it now, as before (REV-030).
+- **Alone** (`nobodyElseReviews`: Ask someone would list nobody, because
+  nobody else whose role covers the language holds Review), it leads:
+  first on the check's sheet with Ask someone beside it, the record's main
+  button is "Do the … check" (`recordModel`, `openCheckFor` with `alone`),
+  and Done's main button finishes the version and opens its next check
+  (`DoneAsk` `checkNow`, the record's `checkNow` param), with Ask someone
+  and Send later under it. The back translation's Done does the same.
+- **Something else?** offers "I'll do this myself" to the author when the
+  main button asks someone (on a team); alone, the main button already does
+  it, so it is not offered twice.
+- Nothing new is stored. A review of your own version is an ordinary
+  `v1.ReviewRecorded` by you on a take you made, so the record and history
+  already show who recorded it and who checked it, and it counts like any
+  other review, checkpoints included, as an asked one always did. The server
+  never refused it.
+Reverse if: teams rely on checks being done by someone other than the
+recorder (then a check, or a checkpoint, could say "not by its recorder"),
+or people on teams check their own work instead of asking.
