@@ -24,7 +24,10 @@ A step that cannot finish leaves `failed-step-<n>.png` and
 
 Gemini needs a key: `GEMINI_API_KEY`, or a network that adds it to requests
 to generativelanguage.googleapis.com. The key's Google project must have
-billing on, since the Batch API is not offered on the free tier.
+billing on, since the Batch API is not offered on the free tier. The key is
+kept encrypted in `.env.production` (`npm run env:update -- production
+GEMINI_API_KEY`); run with it as `npx dotenvx run -f .env.production -fk
+.env.keys -- npm run tutorials`.
 
 ## The parts
 
