@@ -120,7 +120,7 @@ rows, sagas) may be wrong for commutative, order-independent events. The
 
 Record a decision as a file of its own in `docs/decisions/`, named by its date and
 a few words, **not** in a `docs/adr/` folder or as a new numbered entry in
-`docs/decisions.md` (which holds entries 1 to 175). Match the format in
+`docs/decisions.md` (which holds entries 1 to 176). Match the format in
 `docs/decisions/README.md`: a heading, a `Date: · By: · Status:` line, `Reason:`,
 and `Reverse if:`. `By` is the developer, not the agent. Supersede or amend past
 decisions; never rewrite them. Write one only when the

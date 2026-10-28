@@ -183,8 +183,8 @@ access, the store listing. Google holds us to those answers.
 
 ## Decision log (required, whoever you are working for)
 
-The team's ADR log is `docs/decisions.md` (entries 1 to 175, cited by
-number) and, since 2026-10-27, one file per decision in `docs/decisions/`,
+The team's ADR log is `docs/decisions.md` (entries 1 to 176, cited by
+number) and, after those, one file per decision in `docs/decisions/`,
 named by its date and a few words (`docs/decisions/README.md` has the format).
 Any agent working in this repo keeps it current for every developer, without
 being asked.
