@@ -56,12 +56,12 @@ export const reportsOnTheWeb: Tutorial = {
     },
     {
       screen: 'reports_language',
-      part: (page) => heading(page, 'Review flow'),
+      part: (page) => [heading(page, 'Review flow'), page.getByRole('progressbar', { name: /^Final Approval: / }).locator('visible=true').first()],
       say: 'It shows where passages wait in the review flow,'
     },
     {
       screen: 'reports_language',
-      part: (page) => heading(page, 'Books'),
+      part: (page) => [heading(page, 'Books'), words(page, 'Luke')],
       say: 'and how far each book has come.'
     },
     {

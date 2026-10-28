@@ -2,7 +2,8 @@
 // ("ui-mvrfl11c287b-admin@example.test"), which show on Edit Profile and More
 // settings; a filmed world gives each person "<first name>@example.com"
 // instead. Every film uses the same addresses, so whoever had one in an
-// earlier film's world gives it up first.
+// earlier film's world gives it up first, and films run one at a time: two at
+// once would take each other's addresses.
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { localServer, signIn, type AccountKey, type UiWorld } from '../ui/fixture';
 
