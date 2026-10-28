@@ -30,6 +30,8 @@ import { paneFor, type SplitSpec } from './src/shell/panes';
 import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail, FooterHeightContext } from './src/ui/useLayout';
 import { EmptyState, GhostBtn, ToastView, type ToastSpec } from './src/ui/kit';
 import { readToastTime, toastTime } from './src/ui/toastTime';
+import { publishToast } from './src/ui/toastLayer';
+import { useSheetOpen } from './src/ui/useToastLayer';
 import { FeedbackHost } from './src/feedback/FeedbackSheet';
 import { txt } from './src/ui/textStyles';
 import { installGlobalHandlers, reportError } from './src/diagnostics/report';
@@ -678,7 +680,7 @@ const styles = StyleSheet.create({
  * screen that said what happened ("Signed in", "… is ready to grow"). The new
  * host shows it for the rest of its time (AUTH-049, NOORG-009).
  */
-let showing: { message: string; until: number } | null = null;
+let showing: { message: string; until: number; tone?: 'problem' } | null = null;
 
 /**
  * Shows one toast at a time for 3.5 s, or as long as Android's "Time to take
@@ -688,10 +690,14 @@ let showing: { message: string; until: number } | null = null;
 function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void; bottom: number }) {
   const [spec, setSpec] = useState<ToastSpec | null>(() => {
     const left = showing ? showing.until - Date.now() : 0;
-    return showing && left > 1000
-      ? { id: Date.now(), message: showing.message, ms: left }
-      : null;
+    if (!showing || left <= 1000) return null;
+    // A problem stays until closed: it has no time left to count.
+    return showing.tone === 'problem'
+      ? { id: Date.now(), message: showing.message, tone: 'problem' }
+      : { id: Date.now(), message: showing.message, ms: left };
   });
+  // While a sheet is open, the sheet on top draws the toast, as this one would be under it (toastLayer.ts).
+  const sheetOpen = useSheetOpen();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reader = useRef(false);
   useEffect(() => {
@@ -706,6 +712,12 @@ function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void;
   useEffect(() => {
     register((next) => {
       if (timer.current) clearTimeout(timer.current);
+      timer.current = null;
+      if (next.tone === 'problem') {
+        showing = { message: next.message, until: Infinity, tone: 'problem' };
+        setSpec(next);
+        return;
+      }
       const ms = toastTime() * (reader.current ? 2 : 1);
       showing = { message: next.message, until: Date.now() + ms };
       setSpec({ ...next, ms });
@@ -719,6 +731,8 @@ function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void;
     const t = setTimeout(() => setSpec((cur) => (cur?.id === id ? null : cur)), spec.ms);
     return () => clearTimeout(t);
   }, [spec]);
-  return <ToastView toast={spec} onDismiss={() => { showing = null; setSpec(null); }} bottom={props.bottom} />;
+  const dismiss = useCallback(() => { showing = null; setSpec(null); }, []);
+  useEffect(() => publishToast(spec, dismiss), [spec, dismiss]);
+  return sheetOpen ? null : <ToastView toast={spec} onDismiss={dismiss} bottom={props.bottom} />;
 }
 

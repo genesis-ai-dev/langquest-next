@@ -51,7 +51,7 @@ export function ReviewFlowPage({ ctx }: { ctx: Ctx }) {
       // A ready-made flow is copied into the language, its checks the language's own (decision 91).
       specs = commands(state, indexesFor(state)).copyFlow({ commandId: Crypto.randomUUID(), name: e.c.name, kinds: kindsOf(e.doc), steps: e.doc.steps });
     } catch (err) {
-      ctx.toast(t('common.notSaved', { reason: failureMessage('use flow', err) })); // i18n-ignore: log label
+      ctx.toast(t('common.notSaved', { reason: failureMessage('use flow', err) }), 'problem'); // i18n-ignore: log label
       setBusy(false);
       return;
     }

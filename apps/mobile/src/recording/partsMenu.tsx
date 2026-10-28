@@ -13,6 +13,7 @@ import { ModalCover } from '../ui/ModalCover';
 import { lift } from '../ui/shadow';
 import { txt } from '../ui/textStyles';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
+import { a11yState } from '../ui/a11yModel';
 
 const MENU_WIDTH = 280;
 const MENU_HEIGHT = 140;
@@ -30,7 +31,7 @@ export function PartsMenu(props: { disabled: boolean; onCleanUp?: () => void; on
   return (
     <>
       <Pressable ref={ref} onPress={spot.onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={t('recording.recorder.more')}
-        accessibilityState={{ disabled: props.disabled, expanded: !!at }} style={({ pressed }) => [styles.tap, props.disabled && styles.off, pressed && styles.pressed]}>
+        {...a11yState({ disabled: props.disabled, expanded: !!at }, 'button')} style={({ pressed }) => [styles.tap, props.disabled && styles.off, pressed && styles.pressed]}>
         <Ico name="more" size={22} color={C.muted} />
         <HelpBadge spot={spot} />
       </Pressable>

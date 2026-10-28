@@ -65,6 +65,7 @@ import { useUnsent } from '../account/useUnsent';
 import { deleteThisAccount } from '../account/deleteThisAccount';
 import { DisguiseRow } from '../disguise/DisguiseRow';
 import { useDisguise } from '../disguise/useDisguise';
+import { a11yState } from '../ui/a11yModel';
 
 // ---- Inbox (INBOX-1, INBOX-2) ---------------------------------------------------------------
 
@@ -136,7 +137,7 @@ export function InboxHome(ctx: Ctx) {
     const to = notificationTarget(row);
     if (to.orgId !== orgId) {
       await ctx.openOrganization(to.orgId, openAfterSwitch(to))
-        .catch((e: unknown) => ctx.toast(failure('inbox open organization', e)));
+        .catch((e: unknown) => ctx.toast(failure('inbox open organization', e), 'problem'));
     } else if (to.kind === 'passage') ctx.openPassage(to.unitId, to.languageId);
     else if (to.kind === 'join') ctx.go('members_list');
     else if (to.kind === 'report') ctx.toast(t('account.inbox.reportsNeedConnection'));
@@ -218,7 +219,7 @@ export function InboxHome(ctx: Ctx) {
     } catch (e) {
       // Offline or refused (the server's answer, in English, goes to the log).
       noteExpected('decline join request', e);
-      ctx.toast(t('account.inbox.notDeclined'));
+      ctx.toast(t('account.inbox.notDeclined'), 'problem');
     } finally {
       setDeclining(false);
     }
@@ -260,7 +261,7 @@ export function InboxHome(ctx: Ctx) {
                     : a.kind === 'block' ? (a.payload.blocked ? t('account.inbox.actions.block') : t('account.inbox.actions.unblock')) : t('account.inbox.actions.onboarding')}
                   sub={a.status === 'failed' ? t('account.inbox.failedSub', { reason: outboxErrorText(a.error) }) : t('account.inbox.waiting')}
                   badge={a.status === 'failed' ? t('account.inbox.badgeNotSent') : t('account.inbox.badgeSaved')} last={i === all.length - 1}
-                  onPress={a.status === 'failed' ? () => { void accountOutbox(me).retry(a.id).catch((e: unknown) => ctx.toast(failure('account retry', e))); } : undefined} />
+                  onPress={a.status === 'failed' ? () => { void accountOutbox(me).retry(a.id).catch((e: unknown) => ctx.toast(failure('account retry', e), 'problem')); } : undefined} />
               </HelpRow>
             ))}
           </Group>
@@ -534,7 +535,7 @@ function BlockedPeople(props: { ctx: Ctx; onClose: () => void }) {
       await ctx.blocks.set(id, blocked);
     } catch (e) {
       // i18n-ignore: log labels for the report, not words on screen
-      ctx.toast(failure(blocked ? 'block person' : 'unblock person', e));
+      ctx.toast(failure(blocked ? 'block person' : 'unblock person', e), 'problem');
     }
   }
   const shown = [...listed, ...ctx.blocks.ids.filter((id) => !listed.includes(id))];
@@ -891,7 +892,7 @@ export function DeleteAccount(ctx: Ctx) {
 export function SyncStatus(ctx: Ctx) {
   const { language, org } = ctx;
   const sync = useSyncStatus();
-  const { ins, orgIns, logged, rates } = useSyncInspection(language, org, (e) => ctx.toast(failure('sync inspect', e)));
+  const { ins, orgIns, logged, rates } = useSyncInspection(language, org, (e) => ctx.toast(failure('sync inspect', e), 'problem'));
   const [busy, setBusy] = useState(false);
   const offline = language.online === false;
   const offlineSummaryNow = useOfflineSummary(ctx);
@@ -903,7 +904,7 @@ export function SyncStatus(ctx: Ctx) {
   const syncNow = async () => {
     setBusy(true);
     try { await Promise.all([language.sync(), org.sync()]); language.triggerUpload(); }
-    catch (e) { ctx.toast(failure('sync now', e)); }
+    catch (e) { ctx.toast(failure('sync now', e), 'problem'); }
     finally { setBusy(false); }
   };
   return (
@@ -1011,7 +1012,7 @@ function Info(props: { label: string; text: string }) {
   return (
     <>
       <Pressable onPress={spot.onPress} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('account.sync.moreInfo')}
-        accessibilityState={{ expanded: open }} style={({ pressed }) => pressed && { opacity: 0.6 }}>
+        {...a11yState({ expanded: open }, 'button')} style={({ pressed }) => pressed && { opacity: 0.6 }}>
         <Ico name="info" size={18} color={open ? C.primary : C.muted} />
         <HelpBadge spot={spot} />
       </Pressable>

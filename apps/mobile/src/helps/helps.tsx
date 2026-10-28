@@ -33,6 +33,7 @@ import { textMissing } from './helpsModel';
 import { draftKey, EMPTY_NOTE, isNoteDraft } from '../drafts/draftModel';
 import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
+import { a11yState } from '../ui/a11yModel';
 
 /** A chosen verse or a found word: soft grey, never loud purple (Caleb, 2026-10-10). */
 const SOFT_MARK = withAlpha(C.dark, 0.1);
@@ -118,7 +119,7 @@ export function PassageTextBar(props: {
   const label = abbr ? t('reference.passageText.bar', { passage: props.title, bible: abbr }) : props.title;
   return (
     <View style={styles.textCard}>
-      <Pressable onPress={toggle.onPress} accessibilityRole="button" accessibilityState={{ expanded: props.open }}
+      <Pressable onPress={toggle.onPress} accessibilityRole="button" {...a11yState({ expanded: props.open }, 'button')}
         accessibilityLabel={props.open ? t('reference.passageText.closeText', { passage: label }) : t('reference.passageText.openText', { passage: label })}
         style={({ pressed }) => [styles.textBar, pressed && ps.pressed]}>
         <Ico name="book" size={22} color={TINT.amberText} />
@@ -203,7 +204,7 @@ function ShowHide(props: { shown: boolean; busy: boolean; onSet: (shown: boolean
 function ShowHideBtn(props: { on: boolean; icon: IconName; label: string; help: string; disabled: boolean; onPress: () => void }) {
   const spot = useHelpSpot(props.label, props.help, props.on ? () => undefined : props.onPress);
   return (
-    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="radio" accessibilityState={{ selected: props.on, disabled: props.disabled }}
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="radio" {...a11yState({ selected: props.on, disabled: props.disabled }, 'radio')}
       style={({ pressed }) => [styles.showBtn, props.on && styles.showBtnOn, pressed && ps.pressed]}>
       <Ico name={props.icon} size={18} color={props.on ? C.primary : C.muted} />
       <Text style={[styles.showLabel, { color: props.on ? C.primary : C.muted }]}>{props.label}</Text>
@@ -303,7 +304,7 @@ function VerseTap(props: { row: VerseRow; on: boolean; top: boolean; bottom: boo
   const r = props.row;
   const spot = useHelpSpot(t('reference.bible.verse', { verse: verseOf(r) }), t('notes.onVerses.verseHelp'), props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ selected: props.on }, 'button')}
       accessibilityLabel={t('sources.reader.verseLabel', { verse: r.key, text: r.text })}
       style={({ pressed }) => [styles.verse, props.on && styles.verseOn, props.top && styles.verseTop, props.bottom && styles.verseBottom, pressed && ps.pressed]}>
       <Text style={styles.reading}>

@@ -179,7 +179,7 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
       setBusy(false);
       next();
     } catch (e) {
-      ctx.toast(failureMessage('get ready: what they translate', e));
+      ctx.toast(failureMessage('get ready: what they translate', e), 'problem');
       setBusy(false);
     }
   }
@@ -304,7 +304,7 @@ function useHelpItems(ctx: Ctx) {
         : (r.language === 'hidden' && (r.org || !chosenOnly) ? 'inherit' : 'recommend');
       await rec.run(level, itemId, h.name, action);
     } catch (e) {
-      ctx.toast(t('common.notSaved', { reason: referenceFailure('offer reference', e) })); // i18n-ignore: log label
+      ctx.toast(t('common.notSaved', { reason: referenceFailure('offer reference', e) }), 'problem'); // i18n-ignore: log label
     } finally {
       setBusy(false);
     }
@@ -337,7 +337,7 @@ function useHelpItems(ctx: Ctx) {
         : t('getReady.helps.setChosen', { name: guideShortName(set.name), language: languageLabel(m.language) });
       await sayAll({ says }, message);
     } catch (e) {
-      ctx.toast(t('common.notSaved', { reason: referenceFailure('choose guide language', e) })); // i18n-ignore: log label
+      ctx.toast(t('common.notSaved', { reason: referenceFailure('choose guide language', e) }), 'problem'); // i18n-ignore: log label
     } finally {
       setBusy(false);
     }
@@ -480,7 +480,7 @@ function ReferenceLanguageStep({ ctx, lang, header, onDone }: StepProps & { onDo
         says.push(...plan.says.map((p) => ({ type: 'v1.ReferenceSet' as const, payload: p })));
       }
     } catch (e) {
-      ctx.toast(t('common.notSaved', { reason: referenceFailure('reference language', e) })); // i18n-ignore: log label
+      ctx.toast(t('common.notSaved', { reason: referenceFailure('reference language', e) }), 'problem'); // i18n-ignore: log label
       setBusy(false);
       return;
     }
@@ -705,7 +705,7 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
   const rowOf = (x: HelpItem, last: boolean) => (x.kind === 'source' ? bibleRow(x, last) : x.kind === 'guide' ? guideRow(x, last) : x.kind === 'words' ? wordRow(x, last) : noteRow(x, last));
   const none = (label: string) => <Row label={label} sub={t('getReady.page.addToOffer')} muted last />;
   // While searching, the team's own key terms and the notes written here show when the words typed are in them; "Goes with" shows neither.
-  const showTerms = !search.goesWith && matchesWords(`${t('getReady.page.keyTerms')} ${t('getReady.page.keyWords')}`, search.query);
+  const showTerms = !search.goesWith && matchesWords(t('getReady.page.keyWords'), search.query);
   const ownNotes = search.goesWith ? [] : written.filter((m) => matchesWords(m.title, search.query));
   const rendered = terms.filter((term) => term.renderings.length > 0).length;
   const found = search.found.length + ownNotes.length + (showTerms ? 1 : 0);
@@ -736,7 +736,8 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
           <Group>
             {/* The team's own words first, then the lists it is offered (FIA's key words). */}
             {showTerms ? (
-              <Row label={t('getReady.page.keyTerms')} sub={t('getReady.page.keyTermsSub', { count: terms.length, rendered: formatNumber(rendered), language: lang })} last={!s.words.length}
+              // Named by what it holds: the section above already says Key words (UI audit, finding 18).
+              <Row label={t('getReady.page.keyTermsSub', { count: terms.length, rendered: formatNumber(rendered), language: lang })} last={!s.words.length}
                 help={t('getReady.page.keyTermsHelp')} onPress={() => ctx.go('key_terms', { languageId })} />
             ) : null}
             {s.words.map((x, i) => wordRow(x, i === s.words.length - 1))}
@@ -838,7 +839,7 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
       // A ready-made flow is copied into the language, its checks the language's own (decision 91).
       specs = commands(state, indexesFor(state)).copyFlow({ commandId: Crypto.randomUUID(), name: pick.c.name, kinds: kindsOf(pick.doc), steps: pick.doc.steps });
     } catch (e) {
-      ctx.toast(t('common.notSaved', { reason: failureMessage('get ready: who checks', e) }));
+      ctx.toast(t('common.notSaved', { reason: failureMessage('get ready: who checks', e) }), 'problem');
       setBusy(false);
       return;
     }

@@ -11,7 +11,7 @@ import { HelpBadge } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { Ico } from '../ui/kit';
 import { IDLE, paceRing, ringOpacity, startPace, type RingPace, type RingState } from './syncRing';
-import { C } from '../ui/theme';
+import { C, type as T } from '../ui/theme';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Text } from '../ui/text';
@@ -73,7 +73,7 @@ export function SyncIndicator(props: { language: Ctx['language']; org: Ctx['org'
         <Ico name={standing === 'offline' ? 'notOnPhone' : 'cloud'} size={20} color={standing === 'refused' ? C.red : C.primary} />
         <View style={[styles.dot, { backgroundColor: color }]} />
         {shownCount > 0 ? (
-          <View style={styles.count}><Text style={styles.countText}>{shownCount > 99 ? '99+' : formatNumber(shownCount)}</Text></View>
+          <View style={styles.count}><Text style={styles.countText} maxFontSizeMultiplier={1.5}>{shownCount > 99 ? '99+' : formatNumber(shownCount)}</Text></View>
         ) : null}
       </View>
       <HelpBadge spot={spot} />
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   tap: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   box: { width: SIZE, height: SIZE, alignItems: 'center', justifyContent: 'center' },
   dot: { position: 'absolute', top: 3, right: 3, width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: C.white },
-  count: { position: 'absolute', bottom: -4, right: -6, minWidth: 18, height: 16, paddingHorizontal: 4, borderRadius: 8,
+  count: { position: 'absolute', bottom: -6, right: -8, minWidth: 20, minHeight: 20, paddingHorizontal: 4, borderRadius: 10,
     backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.white },
-  countText: { color: C.white, fontSize: 10, fontWeight: '700', fontVariant: ['tabular-nums'] }
+  countText: { color: C.white, fontSize: T.xs, fontWeight: '700', fontVariant: ['tabular-nums'] }
 });

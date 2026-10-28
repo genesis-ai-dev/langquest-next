@@ -28,7 +28,7 @@ Sources: `src/screens/map.tsx` (`StatusHome`, `MapHome`, `BookMap`),
 `src/offline.tsx` (marks). Decisions 61, 71 and 74.
 
 Layers (decision 102): which Map each role lands on (MAP-001, MAP-010), who
-may "Break up differently" (MAP-024) and what a viewer cannot take
+may "Divide differently" (MAP-024) and what a viewer cannot take
 (MAP-035) are held by `apps/mobile/test/navMatrix.test.ts`, one `it` per
 spec ID. The web tests prove a role or two reaches the glass; tests that
 read a screen's contents run once per role.
@@ -286,7 +286,7 @@ Roles: ADMIN, COORD, LADMIN, TRANS, REV, VIEW · Priority: P1 · Platforms: iOS,
 
 Preconditions (in addition to the global ones):
 - A book of Alpha (for example Jude) is listed but not yet broken up (09
-  SETUP). It shows on the map as "Waiting to be broken up" in amber. The
+  SETUP). It shows on the map as "Waiting to be divided" in amber. The
   automated test leaves Jude so by hiding its passages.
 
 Steps:
@@ -294,24 +294,24 @@ Steps:
 2. Tap it.
 
 Expected:
-- On the map, the row has no bar. It shows "Waiting to be broken up" in
+- On the map, the row has no bar. It shows "Waiting to be divided" in
   amber, and stays shown even while a filter is set.
-- The book's header sub reads "Waiting to be broken up".
-- The empty state reads "Jude isn't broken up yet".
+- The book's header sub reads "Waiting to be divided".
+- The empty state reads "Jude isn't divided yet".
 - ADMIN and COORD read "Choose how Jude is cut into pieces, by chapter,
   FIA's passages or another way. Then it can be recorded." They also get the
-  footer button "Break up Jude", which opens book structure at "How should
-  Jude be broken up?" (09 SETUP).
+  footer button "Divide Jude", which opens book structure at "How should
+  Jude be divided?" (09 SETUP).
 - LADMIN, TRANS, REV and VIEW read "A coordinator decides how Jude is cut
   into pieces. Then you can record it." They get no button. Breaking a book
   up publishes the template in the organization's library, which needs the
   privilege at organization scope (decision 74, README role matrix "Library
   writes"; book structure's `canBreak`).
-- Fixed (2026-10-12): LADMIN was offered "Break up Jude", which opened book
+- Fixed (2026-10-12): LADMIN was offered "Divide Jude", which opened book
   structure read-only ("A coordinator breaks up Jude before anyone records
   it.").
 
-### MAP-024 Edit passages ("Break up differently") only for those who shape templates
+### MAP-024 Edit passages ("Divide differently") only for those who shape templates
 Roles: ADMIN, COORD, LADMIN, TRANS, TREV, VIEW · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
@@ -319,12 +319,12 @@ Steps:
 2. Read the quiet links under the grid.
 
 Expected:
-- ADMIN, COORD and LADMIN see "Filter" and "Break up differently". The
+- ADMIN, COORD and LADMIN see "Filter" and "Divide differently". The
   second opens book structure for Luke, and its Back returns to the
   chapters.
 - TRANS, TREV and VIEW see only "Filter".
 - The screen-path doc calls this link "Edit passages". The app's words are
-  "Break up differently".
+  "Divide differently".
 
 ### MAP-025 Passages outside any book ("Other")
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -463,7 +463,7 @@ Steps:
 3. Tap "Something else?".
 
 Expected:
-- The map has no Next link. The chapter grid has no "Break up differently".
+- The map has no Next link. The chapter grid has no "Divide differently".
 - The record has no main button. Its footer holds only "Something else?" and
   "Versions and history".
 - Team rows are not tappable: tapping one opens nothing.

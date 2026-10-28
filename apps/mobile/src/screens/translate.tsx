@@ -369,7 +369,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       return true;
     } catch (e) {
       setCleared(wasCleared);
-      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: change parts', e) }));
+      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: change parts', e) }), 'problem');
       return false;
     } finally { if (!quiet) setWorking(false); }
   }
@@ -439,7 +439,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     try {
       specs = commands(state, idx).cleanUpParts({ commandId: Crypto.randomUUID(), unitId, actorId: me, cardHashes: list, parentTakeId: parentNow(), parts: choices, ...how });
     } catch (e) {
-      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: clean up', e) }));
+      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: clean up', e) }), 'problem');
       return false;
     }
     const before = snapNow();
@@ -497,7 +497,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         : which === 'undo' ? t('common.undone') : t('translate.redone'));
     } catch (e) {
       setCleared(wasCleared);
-      ctx.toast(t(which === 'undo' ? 'common.notUndone' : 'common.notSaved', { reason: failureMessage(`workspace: ${which}`, e) }));
+      ctx.toast(t(which === 'undo' ? 'common.notUndone' : 'common.notSaved', { reason: failureMessage(`workspace: ${which}`, e) }), 'problem');
     } finally { setWorking(false); }
   }
 
@@ -561,7 +561,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     try {
       specs = commands(state, idx).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards, marks: next, verses: verseKeys });
     } catch (e) {
-      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: verse labels', e) }));
+      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: verse labels', e) }), 'problem');
       return;
     }
     if (specs.length === 0) return;
@@ -636,7 +636,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     bible: { id: 'bible' as const, label: t('translate.chips.bible'), icon: 'book' as const, hint: t('translate.chips.bibleHint') },
     guide: { id: 'guide' as const, label: t('translate.chips.guide'), icon: 'star' as const, hint: t('translate.chips.guideHint') },
     terms: { id: 'terms' as const, label: t('translate.chips.terms'), icon: 'key' as const, hint: t('translate.chips.termsHint') },
-    notes: { id: 'notes' as const, label: t('translate.chips.notes'), icon: 'chat' as const, count: notes.length, hint: t('translate.chips.notesHint') },
+    notes: { id: 'notes' as const, label: t('translate.chips.notes'), icon: 'note' as const, count: notes.length, hint: t('translate.chips.notesHint') },
     earlier: { id: 'earlier' as const, label: t('translate.chips.earlier'), icon: 'clock' as const, hint: t('translate.chips.earlierHint') }
   })[c]);
 
@@ -673,7 +673,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name), offline);
       }
     } catch (e) {
-      ctx.toast(t('translate.notPublished', { reason: failureMessage('workspace: publish', e) }));
+      ctx.toast(t('translate.notPublished', { reason: failureMessage('workspace: publish', e) }), 'problem');
       return false;
     }
     setPublishing(true);

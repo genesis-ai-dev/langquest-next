@@ -52,9 +52,27 @@ export function recorderProblem(
 }
 
 /** Recorders with the microphone open or a save in progress, app-wide. */
-export const activity = new Set<symbol>();
+const activity = new Set<symbol>();
+const recordingListeners = new Set<() => void>();
 
-/** Transfers and checkpoints defer while this is true. */
+/** A recorder opened the microphone or started a save; the returned function says it is done. */
+export function startActivity(): () => void {
+  const token = Symbol('recorder');
+  activity.add(token);
+  for (const l of recordingListeners) l();
+  return () => {
+    activity.delete(token);
+    for (const l of recordingListeners) l();
+  };
+}
+
+/** Told when recording starts or stops (useIsRecording.ts). */
+export function onRecordingChange(listener: () => void): () => void {
+  recordingListeners.add(listener);
+  return () => { recordingListeners.delete(listener); };
+}
+
+/** Transfers, checkpoints and the update's restart defer while this is true. */
 export function isRecording(): boolean {
   return activity.size > 0;
 }

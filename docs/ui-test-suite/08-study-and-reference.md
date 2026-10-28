@@ -387,7 +387,7 @@ Steps:
 3. Each: tap a word to open its page.
 
 Expected:
-- No "Say yours", "Add a key word", "New term", "Tie to your draft" or "Adjust or add a rendering" is offered.
+- No "Say yours", "Add a key word", "New term", "Tie to your draft" or "Change or add a word" is offered.
 - Words can be heard, and the term's page can be read.
 
 ### STUDY-020 The Key Terms list
@@ -402,7 +402,7 @@ Steps:
 3. Tap ✕ or Back.
 
 Expected:
-- The screen is "Key Terms" with the sub "Luke 15:11-32 · Alpha".
+- The screen is "Key Words" with the sub "Luke 15:11-32 · Alpha".
 - "New term" is in the header (TRANS holds Fill reference).
 - Sections "In this passage · N" (including "heaven") and "Other terms · N".
 - Terms without a rendering read "No Alpha rendering yet". FIA terms carry an FIA badge.
@@ -454,8 +454,8 @@ Expected:
 - The meaning, or "No meaning written yet.".
 - Where it applies: "Appears in {places}", or "Applies to every passage".
 - A card "Tie to your draft" with "So reviewers know this term shaped Luke 15:11-32." (because a draft is open and TRANS holds Translate and Fill reference).
-- "In Alpha" with the rendering, or an amber "No rendering yet" with "Add how Alpha says this, and when to use it.".
-- "Adjust or add a rendering" (or "Add a rendering" when there is none).
+- "In Alpha" with the rendering, or an amber "No word yet" with "Add how Alpha says this, and when to use it.".
+- "Change or add a word" (or "Add a rendering" when there is none).
 - "Why it's rendered this way" and "Where it's used" sections when there is history.
 
 ### STUDY-024 Tie a key term to the draft
@@ -489,16 +489,16 @@ Expected:
 
 Fixed (2026-10-12): the term's page now ties to the person's own draft: the one the workspace names (`draftId`), else the one they changed last (`study/keyTermDraft.ts`, tested in `apps/mobile/test/keyTermDraft.test.ts`), never a teammate's. The workspace does not pass `draftId` yet (`translate.tsx`), so with several drafts of one's own the tie goes on the one changed last, which is the one the workspace opens by default.
 
-### STUDY-026 Adjust or add a rendering, with why
+### STUDY-026 Change or add a word, with why
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
 - "heaven"'s page is open from P-SUBMITTED's workspace.
 
 Steps:
-1. Tap "Adjust or add a rendering".
+1. Tap "Change or add a word".
 2. Try "Add your word" with nothing.
-3. Type a new rendering in "New rendering (optional)", and "Only for God's dwelling" in "When to use it".
+3. Type a new rendering in "New word (optional)", and "Only for God's dwelling" in "When to use it".
 4. Tap "Say why", say 5 seconds, stop. Tap "Add your word".
 5. Open the sheet again; this time only type "Elders prefer the older word" in "Or type what changed, and why", and tap "Add your word".
 

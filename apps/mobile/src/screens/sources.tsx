@@ -202,7 +202,7 @@ function BibleDetailView(props: {
       ctx.toast(t('sources.explore.added', { abbr: option.abbreviation }));
       ctx.back();
     } catch {
-      ctx.toast(t('sources.explore.notAdded'));
+      ctx.toast(t('sources.explore.notAdded'), 'problem');
     } finally { setBusy(false); }
   }
   // Removing says so; the footer then offers Add to My Bibles again (STUDY-032).
@@ -212,7 +212,7 @@ function BibleDetailView(props: {
       await mine.remove(option.itemId);
       ctx.toast(t('sources.explore.removed', { abbr: option.abbreviation }));
     } catch {
-      ctx.toast(t('sources.explore.notRemoved'));
+      ctx.toast(t('sources.explore.notRemoved'), 'problem');
     }
   }
 

@@ -342,7 +342,7 @@ function HelpLayer(props: {
           const p = { x: Math.max(2, Math.min(frame ? frame.width - MARK_SIZE - 2 : at.x, at.x)), y: Math.max(2, at.y) };
           return (
             <View key={i} testID="help-number" style={[styles.mark, fromLeft(p.x), { top: p.y }, l.part === props.current && styles.markCurrent]}>
-              <Text style={styles.markText}>{formatNumber(num)}</Text>
+              <Text style={styles.markText} maxFontSizeMultiplier={1.5}>{formatNumber(num)}</Text>
             </View>
           );
         })}
@@ -353,7 +353,7 @@ function HelpLayer(props: {
           {tip.below !== null ? <View style={[styles.pointer, tip.below ? { top: -7 } : { bottom: -7 }, fromLeft(tip.arrowX - 7)]} /> : null}
           <Pressable onPress={props.onClose} accessibilityRole="button" accessibilityLabel={helpLine(part.label, part.detail)}
             style={({ pressed }) => [styles.tipBody, pressed && { opacity: 0.8 }]}>
-            {n !== undefined ? <View style={styles.tipNumber}><Text style={styles.markText}>{formatNumber(n)}</Text></View> : null}
+            {n !== undefined ? <View style={styles.tipNumber}><Text style={styles.markText} maxFontSizeMultiplier={1.5}>{formatNumber(n)}</Text></View> : null}
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={styles.tipLabel}>{part.label}</Text>
               {part.detail ? <Text style={styles.tipDetail}>{part.detail}</Text> : null}
@@ -384,11 +384,11 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm, paddingLeft: space.md, paddingRight: space.sm, ...lift({ opacity: 0.2, radius: 16, y: 6, elevation: 8 }) },
   pointer: { position: 'absolute', width: 14, height: 14, backgroundColor: C.card, transform: [{ rotate: '45deg' }] },
   tipBody: { flex: 1, minWidth: 0, minHeight: 48, flexDirection: 'row', alignItems: 'flex-start', gap: space.md, paddingVertical: space.xs },
-  mark: { position: 'absolute', minWidth: MARK_SIZE, height: MARK_SIZE, paddingHorizontal: 4, borderRadius: MARK_SIZE / 2, backgroundColor: C.primary,
+  mark: { position: 'absolute', minWidth: MARK_SIZE, minHeight: MARK_SIZE, paddingHorizontal: 4, borderRadius: MARK_SIZE / 2, backgroundColor: C.primary,
     borderWidth: 2, borderColor: C.white, alignItems: 'center', justifyContent: 'center' },
   markCurrent: { backgroundColor: C.dark },
   markText: { fontSize: 13, fontWeight: '800', color: C.white },
-  tipNumber: { minWidth: 24, height: 24, paddingHorizontal: 4, borderRadius: 12, marginTop: 1, backgroundColor: C.dark, alignItems: 'center', justifyContent: 'center' },
+  tipNumber: { minWidth: 24, minHeight: 24, paddingHorizontal: 4, borderRadius: 12, marginTop: 1, backgroundColor: C.dark, alignItems: 'center', justifyContent: 'center' },
   tipLabel: { fontSize: 17, lineHeight: 23, fontWeight: '700', color: C.dark },
   tipDetail: { fontSize: 15, lineHeight: 21, color: C.dark, marginTop: 2 },
   play: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }

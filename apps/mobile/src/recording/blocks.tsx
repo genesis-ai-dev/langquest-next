@@ -15,6 +15,7 @@ import { lift } from '../ui/shadow';
 import { C, space, target, TINT, type as T, withAlpha } from '../ui/theme';
 import { mmss } from './model';
 import { styles } from './blockStyles';
+import { a11yState } from '../ui/a11yModel';
 
 // ---- the chips of what is attached ---------------------------------------------------
 
@@ -56,7 +57,7 @@ function RefChip<T extends string>(props: { item: ChipItem<T>; on: boolean; onPr
   const label = it.count ? t('recording.parts.chipCount', { label: it.label, n: formatNumber(it.count) }) : it.label;
   const spot = useHelpSpot(label, it.hint, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="tab" accessibilityState={{ selected: props.on }} aria-selected={props.on} accessibilityLabel={label}
+    <Pressable onPress={spot.onPress} accessibilityRole="tab" {...a11yState({ selected: props.on }, 'tab')} aria-selected={props.on} accessibilityLabel={label}
       style={({ pressed }) => [styles.chip, props.on && styles.chipOn, pressed && styles.pressed]}>
       <Ico name={it.icon} size={18} color={props.on ? C.white : C.dark} />
       <Text style={[styles.chipLabel, props.on && { color: C.white }]}>{label}</Text>
@@ -78,7 +79,7 @@ export function RoundBtn(props: {
   const fg = brand ? C.white : props.tone === 'amber' ? TINT.amberText : C.dark;
   return (
     <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
-      accessibilityState={{ disabled: !!props.disabled }}
+      {...a11yState({ disabled: !!props.disabled }, 'button')}
       style={({ pressed }) => [styles.round, { width: size, height: size, borderRadius: size / 2 },
         brand ? { backgroundColor: C.primary, borderColor: C.primary } : props.tone === 'white' ? { borderColor: C.card } : null,
         props.disabled && styles.off, pressed && styles.pressed]}>
@@ -130,7 +131,7 @@ export function MiniPlayer(props: {
         </View>
         {props.right}
         <Back10 onPress={props.onBack10} disabled={props.backDisabled ?? !props.available} />
-        {props.onNote ? <RoundBtn icon="chat" label={t('recording.player.addNoteHere')} hint={t('recording.player.noteHelp')} tone="amber" onPress={props.onNote} /> : null}
+        {props.onNote ? <RoundBtn icon="note" word={t('recording.player.note')} label={t('recording.player.addNoteHere')} hint={t('recording.player.noteHelp')} tone="amber" onPress={props.onNote} /> : null}
       </View>
       {props.error ? <Text accessibilityRole="alert" style={txt.error}>{props.error}</Text> : null}
     </View>
@@ -278,7 +279,7 @@ function StepRow(props: { n: number; title: string; state: 'done' | 'now' | 'lat
   const spot = useHelpSpot(props.title, t(props.state === 'done' ? 'recording.steps.openDoneHelp' : props.state === 'now' ? 'recording.steps.openNowHelp' : 'recording.steps.openHelp'), props.onPress);
   const now = props.state === 'now';
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: now }}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ selected: now }, 'button', 'current')}
       accessibilityLabel={t(props.state === 'done' ? 'recording.steps.rowDone' : now ? 'recording.steps.rowNow' : 'recording.steps.row', { n: formatNumber(props.n), title: props.title })}
       style={({ pressed }) => [styles.stepRow, now && { backgroundColor: C.light }, pressed && styles.pressed]}>
       <View style={[styles.stepMark, props.state === 'done' ? { backgroundColor: C.green, borderColor: C.green } : now ? { backgroundColor: C.primary, borderColor: C.primary } : null]}>
@@ -304,7 +305,7 @@ export function RecordBtn(props: { size?: number; recording: boolean; onPress: (
   return (
     <View style={{ padding: halo, borderRadius: (size + halo * 2) / 2, backgroundColor: withAlpha(C.red, off ? 0.06 : 0.14) }}>
       <Pressable testID="record-button" onPress={spot.onPress} disabled={off} accessibilityRole="button" accessibilityLabel={props.recording ? t('common.stopRecording') : t('common.record')}
-        accessibilityState={{ disabled: !!off }}
+        {...a11yState({ disabled: !!off }, 'button')}
         style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, backgroundColor: C.red, alignItems: 'center', justifyContent: 'center' },
           off && { opacity: 0.45 }, !off && lift({ color: C.red, opacity: 0.3, radius: 10, y: 4, elevation: 3 }), pressed && { transform: [{ scale: 0.95 }] }]}>
         {props.recording

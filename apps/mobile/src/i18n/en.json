@@ -104,7 +104,7 @@
     },
     "kinds": {
       "peer": {
-        "name": "Peer Review",
+        "name": "Peer Check",
         "usualReviewer": "Another translator",
         "description": "Another translator listens for accuracy and natural speech."
       },
@@ -311,8 +311,8 @@
     "workspace": "Record",
     "review_capture": "Review It",
     "back_translation": "Back-translate",
-    "key_terms": "Key Terms",
-    "key_term_detail": "Key Term",
+    "key_terms": "Key Words",
+    "key_term_detail": "Key Word",
     "inbox_home": "Inbox",
     "settings_home": "Me",
     "profile_edit": "Edit Profile",
@@ -681,7 +681,7 @@
       "languages_other": "{{count, number}} languages",
       "templates": "Content templates",
       "reference": "Reference material",
-      "referenceSub": "{{study}} study · {{questions}} question sets · {{terms}} key terms",
+      "referenceSub": "{{study}} study · {{questions}} question sets · {{terms}} key words",
       "flows": "Review flows",
       "roles": "Roles",
       "rolesSub_one": "{{count, number}} role at this level and above",
@@ -697,7 +697,7 @@
       },
       "titleHelp": "Shows what is set up once and seldom changed: content templates, reference material, review flows and roles.",
       "templatesHelp": "Opens the ways to divide the work into passages, and which one each language uses.",
-      "referenceHelp": "Opens the Bibles, study guides, questions and key terms offered to translators.",
+      "referenceHelp": "Opens the Bibles, study guides, questions and key words offered to translators.",
       "flowsHelp": "Opens the ways recordings get checked, and which one each language uses.",
       "rolesHelp": "Opens the roles, and what each one lets a person do."
     },
@@ -985,13 +985,13 @@
       "stages": {
         "language": "Language",
         "content": "Content",
-        "pieces": "Split into pieces",
+        "pieces": "Divide into sections",
         "material": "Reference material",
         "flow": "Review flow",
         "people": "People",
         "languageHelp": "The language they translate into: its name, found in the language list or typed. It can be linked to the list later.",
         "contentHelp": "What they will translate: the Bible, or something else, such as stories or songs.",
-        "piecesHelp": "How it is broken up into pieces small enough to record and check one at a time.",
+        "piecesHelp": "How it is divided into sections small enough to record and check one at a time.",
         "materialHelp": "The Bibles, study guides and notes translators and checkers will have beside them.",
         "flowHelp": "The checks a recording goes through before it is approved, and what each check’s people see.",
         "peopleHelp": "Then invite people: translators, checkers and others, each with a code to scan.",
@@ -1319,7 +1319,7 @@
       "keepIt": "Keep it",
       "whichPart": "Which part of the Bible?",
       "viewOnly": "Only people who set up languages can change what they translate.",
-      "keepEarlier": "Pieces that stay the same keep their recordings. What was recorded on a piece that changes is kept under \"Earlier sections\" on the new pieces.",
+      "keepEarlier": "Sections that stay the same keep their recordings. What was recorded on a section that changes is kept under \"Earlier sections\" on the new sections.",
       "partHelp": "They translate this part of the Bible.",
       "chooseBooksHelp": "Pick the books one by one, below.",
       "bookOnHelp": "Chosen. Tap to leave it out.",
@@ -1390,7 +1390,6 @@
       "passagesCovered_one": "{{count, number}} passage covered",
       "passagesCovered_other": "{{count, number}} passages covered",
       "keyWords": "Key words",
-      "keyTerms": "Key terms",
       "keyTermsSub_one": "{{count, number}} word · {{rendered}} with a {{language}} word",
       "keyTermsSub_other": "{{count, number}} words · {{rendered}} with a {{language}} word",
       "writtenHere": "Written here, for this language",
@@ -1733,7 +1732,7 @@
       "chooseBookSub": "Open a book from the language's Content Template, or from its Map.",
       "chapterChip": "Chapter",
       "noParts": "{{language}} has no {{parts}} in {{book}} yet.",
-      "coordinatorBreaks": "A coordinator breaks up {{book}} before anyone records it.",
+      "coordinatorBreaks": "A coordinator divides {{book}} before anyone records it.",
       "jump": "Jump to a chapter.",
       "chapter": "Chapter {{chapter}}",
       "chapterParts_one": "Chapter {{chapter}}, {{count, number}} {{part}}",
@@ -1787,13 +1786,13 @@
       "more_other": "{{first}}, {{second}} and {{count, number}} more"
     },
     "lesson": {
-      "sheetTitle": "How material is broken up",
+      "sheetTitle": "How material is divided",
       "progress": "{{step, number}} of {{total, number}}",
       "skip": "Skip the walk-through",
       "stepLabel": "Step {{step, number}} of {{total, number}}",
       "pieces": {
-        "title": "Your team records material in pieces",
-        "text": "Material is sorted into folders, and people record the pieces inside them. Here are stories, sorted into collections.",
+        "title": "Your team records material in sections",
+        "text": "Material is sorted into folders, and people record the sections inside them. Here are stories, sorted into collections.",
         "began": "How things began",
         "river": "Why the river is wide",
         "fire": "The first fire",
@@ -1802,12 +1801,12 @@
       },
       "bible": {
         "title": "A Bible has books, chapters and verses",
-        "text": "Each book is a folder. Inside, the book is cut into pieces to record, and each verse marks a place in the recording.",
+        "text": "Each book is a folder. Inside, the book is divided into sections to record, and each verse marks a place in the recording.",
         "chapterVerses": "{{book}} {{chapter}} · verses 1 to {{last}}"
       },
       "places": {
         "title": "The same book can be cut in different places",
-        "text": "Here is {{book}} three ways. Same verses, different pieces.",
+        "text": "Here is {{book}} three ways. Same verses, different sections.",
         "byChapter": "By chapter",
         "fia": "FIA passages",
         "unfoldingWord": "unfoldingWord chunks"
@@ -1824,7 +1823,7 @@
       },
       "choose": {
         "title": "So you choose two things",
-        "text": "First, what your team will translate. Then, for the Bible, how it is broken up: every book now, or one book at a time later. Some study guides, like FIA, come with their own way of breaking it up. Verse numbers sort themselves out from the Bibles you pick."
+        "text": "First, what your team will translate. Then, for the Bible, how it is divided: every book now, or one book at a time later. Some study guides, like FIA, come with their own way of dividing it. Verse numbers sort themselves out from the Bibles you pick."
       },
       "nextHelp": "Goes on to the next step.",
       "doneHelp": "Closes the walk-through.",
@@ -1842,22 +1841,22 @@
       "peaceToYou": "Peace be to you"
     },
     "pieceBar": {
-      "waitsLabel": "{{book}} waits to be broken up",
+      "waitsLabel": "{{book}} waits to be divided",
       "notInIt": "{{book}} is not in it",
       "waits": "{{book}} waits until a coordinator breaks it up",
-      "label_one": "{{book}} in {{count, number}} piece",
-      "label_other": "{{book}} in {{count, number}} pieces",
-      "caption_one": "{{book}}: {{count, number}} piece",
-      "caption_other": "{{book}}: {{count, number}} pieces",
-      "help": "Each block is one piece to record, as wide as its verses."
+      "label_one": "{{book}} in {{count, number}} section",
+      "label_other": "{{book}} in {{count, number}} sections",
+      "caption_one": "{{book}}: {{count, number}} section",
+      "caption_other": "{{book}}: {{count, number}} sections",
+      "help": "Each block is one section to record, as wide as its verses."
     },
     "way": {
       "inUse": "In use here",
-      "previewHelp": "Every piece {{way}} cuts a book into.",
+      "previewHelp": "Every section {{way}} divides a book into.",
       "comesWith": "Comes with {{pattern}} study guides",
       "previewLabel": "Preview {{way}}",
-      "pickHelp": "Picks this way of cutting it into pieces.",
-      "barHelp": "The bar shows {{book}} cut its way: each block is one piece, as wide as its verses."
+      "pickHelp": "Picks this way of dividing it into sections.",
+      "barHelp": "The bar shows {{book}} divided its way: each block is one section, as wide as its verses."
     },
     "preview": {
       "useThis": "Use this",
@@ -1900,23 +1899,23 @@
       "wait_other": "{{books}} wait to be divided. You can divide them from the map later."
     },
     "book": {
-      "breakDifferently": "Break up differently",
-      "breakDifferentlyHelp": "Choose another way to cut this book into pieces.",
+      "breakDifferently": "Divide differently",
+      "breakDifferentlyHelp": "Choose another way to divide this book into sections.",
       "namedToast": "{{language}} calls it {{name}}.",
-      "brokenUp": "Broken up",
+      "brokenUp": "Divided",
       "ownWay": "Its own way",
       "calledIn": "Called {{name}} in {{language}}",
       "templateCalls": "The template calls it {{name}}",
       "tapToName": "Tap to give it the name the team uses",
-      "brokenUpByChapter": "{{book}} is broken up by chapter.",
-      "brokenUpInto": "{{book}} is broken up into {{way}}.",
+      "brokenUpByChapter": "{{book}} is divided by chapter.",
+      "brokenUpInto": "{{book}} is divided into {{way}}.",
       "change": "Change {{book}}",
-      "breakUp": "Break up {{book}}",
-      "changeQuestion": "Change how {{book}} is broken up",
-      "question": "How should {{book}} be broken up?",
-      "nowEachPiece": "Now: {{way}}. Each piece is recorded on its own.",
-      "eachPiece": "Each piece is recorded on its own.",
-      "connectForWays": "Connect to load the ways to break it up.",
+      "breakUp": "Divide {{book}}",
+      "changeQuestion": "Change how {{book}} is divided",
+      "question": "How should {{book}} be divided?",
+      "nowEachPiece": "Now: {{way}}. Each section is recorded on its own.",
+      "eachPiece": "Each section is recorded on its own.",
+      "connectForWays": "Connect to load the ways to divide it.",
       "alsoUsedOne": "Used in {{name}} too. Change {{book}} for which of them?",
       "alsoUsedTwo": "Used in {{first}} and {{second}} too. Change {{book}} for which of them?",
       "alsoUsedMore_one": "Used in {{name}} and {{count, number}} more too. Change {{book}} for which of them?",
@@ -1940,9 +1939,9 @@
       "question": "What will {{language}} translate?",
       "bible": "The Bible",
       "else": "Something else",
-      "howBrokenUp": "How is material broken up?",
+      "howBrokenUp": "How is material divided?",
       "howBrokenUpDetail": "A short walk-through in five steps.",
-      "howBible": "How should the Bible be broken up?",
+      "howBible": "How should the Bible be divided?",
       "nothingYet": "Nothing to choose from yet. Connect to load the ways LangQuest offers.",
       "ourOwn": "Your organization's own",
       "noneReady": "There are no ready-made ones for this yet. Make your own: folders for how it's organized, and the things people record inside them.",
@@ -2190,10 +2189,10 @@
       "done_other": "Done · {{count, number}} sections"
     },
     "division": {
-      "way_one": "{{way}} · {{count, number}} piece",
-      "way_other": "{{way}} · {{count, number}} pieces",
-      "own_one": "Its own way · {{count, number}} piece",
-      "own_other": "Its own way · {{count, number}} pieces"
+      "way_one": "{{way}} · {{count, number}} section",
+      "way_other": "{{way}} · {{count, number}} sections",
+      "own_one": "Its own way · {{count, number}} section",
+      "own_other": "Its own way · {{count, number}} sections"
     }
   },
   "canon": {
@@ -2214,7 +2213,7 @@
     "unnamedOrg": "Organization",
     "listJoin": ", ",
     "quoted": "“{{text}}”",
-    "languageRenderings": "{{language}} renderings",
+    "languageRenderings": "{{language}} words",
     "levels": {
       "org": "Organization",
       "language": "Language"
@@ -2225,11 +2224,11 @@
         "desc": "Change org structures in their scope (languages)"
       },
       "inviteMembers": {
-        "label": "Invite Members",
+        "label": "Invite people",
         "desc": "Invite people in their scope"
       },
       "manageRoles": {
-        "label": "Manage Roles",
+        "label": "Make and change roles",
         "desc": "Create and edit roles in their scope"
       },
       "manageTemplates": {
@@ -2241,7 +2240,7 @@
         "desc": "Divide books into passages, name them, and publish those changes for their language"
       },
       "manageReference": {
-        "label": "Manage Reference Material",
+        "label": "Choose Bibles and guides",
         "desc": "Make and edit reference material in their scope"
       },
       "manageFlows": {
@@ -2253,31 +2252,31 @@
         "desc": "Make and edit review teams (groups) in their scope"
       },
       "assignWork": {
-        "label": "Assign Work",
+        "label": "Assign work",
         "desc": "Ask anyone in their scope to record or review a passage"
       },
       "overrideCheckpoints": {
-        "label": "Override Checkpoints",
+        "label": "Let work past a locked check",
         "desc": "Move a passage past a checkpoint, with the reason logged"
       },
       "translate": {
-        "label": "Translate",
+        "label": "Record",
         "desc": "Record and revise translations (turn off to keep, say, consultants from drafting)"
       },
       "fillReference": {
-        "label": "Fill Reference Content",
-        "desc": "Add key terms, notes, and reference content"
+        "label": "Add notes and key words",
+        "desc": "Add key words, notes, and reference content"
       },
       "sendToReviewers": {
-        "label": "Ask for Reviews",
+        "label": "Ask for checks",
         "desc": "Ask teammates, or someone outside the app by link, to review"
       },
       "review": {
-        "label": "Review",
+        "label": "Check recordings",
         "desc": "Give reviews, and record checks that happened outside the app"
       },
       "viewStatus": {
-        "label": "View Status",
+        "label": "See everyone’s work",
         "desc": "See the map and passage records read-only in their scope"
       }
     },
@@ -2305,7 +2304,7 @@
       },
       "keyTerms": {
         "code": "KT",
-        "name": "Key Terms"
+        "name": "Key Words"
       },
       "questions": {
         "code": "Q",
@@ -2542,8 +2541,8 @@
       "introLanguage": "{{language}}'s own material adds to what the organization recommends; nothing is copied. Translators see it in the workspace tray; reviewers see the questions for their kind of review.",
       "introOrg": "Material for every language lives in your library, and the organization recommends it to them. Each language adds its own from its Home.",
       "offered": "What translators are offered",
-      "keyTermsSection": "Key terms",
-      "keyTermsRow": "Key Terms",
+      "keyTermsSection": "Key words",
+      "keyTermsRow": "Key Words",
       "concepts_one": "{{count, number}} concept",
       "concepts_other": "{{count, number}} concepts",
       "addLanguageFirst": "Add a language first",
@@ -2551,7 +2550,7 @@
       "new": "New",
       "libraryEmpty": "Nothing in your library yet. Follow or copy what other organizations share, or publish your own.",
       "writeGuide": "Write a guide",
-      "writeGuideSub": "Steps with text and audio, pictures, maps and key terms",
+      "writeGuideSub": "Steps with text and audio, pictures, maps and key words",
       "studyMaterial": "Study material",
       "noStudy": "No study material written in the app for this language.",
       "blanks_one": "{{count, number}} blank",
@@ -2683,41 +2682,41 @@
       "pickPartHelp": "Links this part: translators get it there."
     },
     "keyTerms": {
-      "noLanguageRendering": "No {{language}} rendering yet",
-      "title": "Key Terms",
+      "noLanguageRendering": "No {{language}} word yet",
+      "title": "Key Words",
       "chooseLanguage": "Choose a language first",
       "added": "{{term}} added.",
       "newTerm": "New term",
       "search": "Search terms",
-      "empty": "No key terms yet",
+      "empty": "No key words yet",
       "emptySubCanAdd": "Add a term with how this language says it, and when to use it.",
-      "emptySub": "Terms your team adds show here with their renderings.",
+      "emptySub": "Words your team adds show here, with your language’s word for each.",
       "inPassage": "In this passage",
       "otherTerms": "Other terms",
       "allTerms": "All terms",
       "noOther": "No other terms.",
-      "intro": "Concepts come from a shared list (like FIA key terms) or your own. {{language}} keeps its own renderings and the reasons behind them.",
-      "newKeyTerm": "New key term",
-      "newSub": "Added to {{language}}'s key terms, with its first rendering.",
+      "intro": "Key words come from a shared list (like FIA key words) or your own. {{language}} keeps its own word for each, and the reasons behind it.",
+      "newKeyTerm": "New key word",
+      "newSub": "Added to {{language}}'s key words, with its first word.",
       "addTerm": "Add Term",
       "termPlaceholder": "Source term, e.g. grace (charis)",
       "meaningPlaceholder": "Meaning, briefly",
-      "renderingPlaceholder": "{{language}} rendering",
+      "renderingPlaceholder": "{{language}} word",
       "contextPlaceholder": "When to use it, and why",
       "newTermHelp": "Adds a concept, with how {{language}} says it.",
       "openTermHelp": "Opens it: what it means, how your team says it, and why.",
-      "openFiaTermHelp": "An FIA key term. Opens what it means, how your team says it, and why.",
+      "openFiaTermHelp": "An FIA key word. Opens what it means, how your team says it, and why.",
       "renderingHelp": "How {{language}} says it."
     },
     "keyTerm": {
-      "title": "Key Term",
+      "title": "Key Word",
       "gone": "This term is not here any more",
       "tied": "Tied {{term}} to your draft.",
       "added": "Added “{{rendering}}”.",
       "changeRecorded": "Change recorded.",
-      "firstRendering": "First rendering: {{rendering}}.",
-      "fiaSub": "FIA key term · {{language}}",
-      "sub": "{{language}} key term",
+      "firstRendering": "First word: {{rendering}}.",
+      "fiaSub": "FIA key word · {{language}}",
+      "sub": "{{language}} key word",
       "noMeaning": "No meaning written yet.",
       "appearsIn": "Appears in {{places}}",
       "everyPassage": "Applies to every passage",
@@ -2726,10 +2725,10 @@
       "tiedBody": "Reviewers will see this term and your reasoning.",
       "tieBody": "So reviewers know this term shaped {{passage}}.",
       "inLanguage": "In {{language}}",
-      "noRendering": "No rendering yet",
+      "noRendering": "No word yet",
       "addHow": "Add how {{language}} says this, and when to use it.",
-      "adjustOrAdd": "Adjust or add a rendering",
-      "addRendering": "Add a rendering",
+      "adjustOrAdd": "Change or add a word",
+      "addRendering": "Add a word",
       "details": "Details",
       "why": "Why it's rendered this way",
       "changes_one": "{{count, number}} change",
@@ -2740,7 +2739,7 @@
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Recorded as part of {{passage}}, and tied to your draft.",
       "adjustSub": "Every change is recorded with your reason.",
-      "newRendering": "New rendering (optional)",
+      "newRendering": "New word (optional)",
       "whenToUse": "When to use it",
       "sayWhy": "Say why",
       "orTypeWhy": "Or type what changed, and why",
@@ -3124,6 +3123,7 @@
     "update": {
       "restarting": "Restarting…",
       "ready": "Update ready — tap to restart",
+      "afterRecording": "Update ready · it restarts when you stop recording",
       "downloading": "Downloading update…",
       "downloadingPercent": "Downloading update… {{percent}}",
       "webReady": "A new version of LangQuest is ready. Reload to use it.",
@@ -3481,10 +3481,10 @@
     },
     "glossary": {
       "sub": "Glossary · {{source}}",
-      "openKeyTerm": "Open the key term",
+      "openKeyTerm": "Open the key word",
       "listen": "Listen: {{term}}",
       "standIn": "Couldn't load the audio — playing a stand-in",
-      "notKeyTerm": "This term isn't in your organization's key terms yet."
+      "notKeyTerm": "This term isn't in your organization's key words yet."
     },
     "callout": {
       "action": "Stop here",
@@ -3680,7 +3680,7 @@
         "passage": "Whole passage",
         "aVersion": "A version",
         "verse": "Verse {{verse}}",
-        "term": "Key term · {{term}}",
+        "term": "Key word · {{term}}",
         "aTerm": "term",
         "study": "Study",
         "studyAudioAt": "{{step}} · audio at {{at}}"
@@ -4036,7 +4036,7 @@
       "inResponseTo": "In response to the {{kind}} from {{who}}",
       "recording": "Recording",
       "details": "Details",
-      "keyTerms": "Key terms",
+      "keyTerms": "Key words",
       "termsTied_one": "{{count, number}} term tied · {{terms}}",
       "termsTied_other": "{{count, number}} terms tied · {{terms}}",
       "reviews": "Reviews of this version",
@@ -4045,7 +4045,7 @@
       "noteCount_one": "{{count, number}} note",
       "noteCount_other": "{{count, number}} notes",
       "inResponseHelp": "Opens the feedback this version answers.",
-      "termHelp": "Opens this key term: what it means and how your team says it."
+      "termHelp": "Opens this key word: what it means and how your team says it."
     },
     "review": {
       "noReviews": "No reviews on this passage yet.",
@@ -4407,7 +4407,7 @@
       },
       "term": {
         "title": "Pick a term",
-        "sub": "Its meaning and renderings open here."
+        "sub": "Its meaning and your team’s words open here."
       },
       "language": {
         "title": "Pick a language",
@@ -4926,30 +4926,30 @@
     },
     "tray": {
       "help": "Help",
-      "helpHint": "Key terms, the study, notes and history for this passage",
+      "helpHint": "Key words, the study, notes and history for this passage",
       "helpSub": "What the team knows about this passage.",
-      "keyTerms": "Key terms",
+      "keyTerms": "Key words",
       "studyPill": "{{pattern}} study {{done}}/{{total}}",
       "notes": "Notes",
       "history": "History",
       "tied": "Tied to your draft.",
-      "noTerms": "No key terms matched this passage's source.",
-      "noRendering": "No rendering yet",
+      "noTerms": "No key words in this passage.",
+      "noRendering": "No word yet",
       "termLabel": "{{term}}. {{rendered}}",
       "termLabelTied": "{{term}}. {{rendered}}. Tied to your draft",
-      "noLanguageRendering": "No {{language}} rendering yet",
+      "noLanguageRendering": "No {{language}} word yet",
       "tiedBadge": "Tied",
       "tying": "Tying…",
       "tie": "Tie to your draft",
       "recordFirst": "Record a part first; then you can tie terms to your draft.",
-      "allTerms": "All key terms →",
+      "allTerms": "All key words →",
       "studyTitle": "{{pattern}} study · {{passage}}",
       "openStudy": "Open the study →",
       "anchor": {
         "passage": "Whole passage",
         "draft": "A draft",
         "verse": "Verse {{verse}}",
-        "term": "Key term",
+        "term": "Key word",
         "study": "Study"
       },
       "notesEmpty": "Notes you leave here follow the passage — reviewers and the next translator will see them.",
@@ -4960,15 +4960,15 @@
       "firstRecording": "First recording.",
       "saidInVoiceNote": "Said in a voice note.",
       "playWhatChanged": "Play what changed in {{version}}",
-      "helpButtonHelp": "Opens key terms, the study, notes and history for this passage.",
-      "termsTabHelp": "Shows the key terms in this passage and how your language says them.",
+      "helpButtonHelp": "Opens key words, the study, notes and history for this passage.",
+      "termsTabHelp": "Shows the key words in this passage and how your language says them.",
       "studyTabHelp": "Shows the study's steps. The numbers are steps done out of all.",
       "notesTabHelp": "Shows the team's notes on this passage.",
       "historyTabHelp": "Shows each version recorded so far, and what changed.",
-      "termHelp": "Opens this key term: what it means and how it is said.",
-      "termTiedHelp": "Tied to your draft. Opens this key term: what it means and how it is said.",
-      "tieHelp": "Marks this key term as said in your draft. A tie cannot be undone.",
-      "allTermsHelp": "Opens every key term, not only this passage's.",
+      "termHelp": "Opens this key word: what it means and how it is said.",
+      "termTiedHelp": "Tied to your draft. Opens this key word: what it means and how it is said.",
+      "tieHelp": "Marks this key word as said in your draft. A tie cannot be undone.",
+      "allTermsHelp": "Opens every key word, not only this passage's.",
       "studyBarHelp": "How much of the study is done. It turns green when every step is.",
       "openStudyHelp": "Opens the whole study for this passage.",
       "addNoteHelp": "Leave a note on this passage, said or typed. It follows the passage."
@@ -5042,12 +5042,12 @@
       "ready_other": "{{ready}} of {{count, number}} passages ready on this device",
       "moreSettingsSub": "Password, notifications, sync, account"
     },
-    "waiting": "Waiting to be broken up",
+    "waiting": "Waiting to be divided",
     "parts": {
       "next": "Next: {{title}}",
       "nextHelp": "Your next passage. Opens it.",
       "pillHelp": "Shows these books.",
-      "waitingHelp": "Waiting to be broken up before anyone records it.",
+      "waitingHelp": "Waiting to be divided before anyone records it.",
       "bookHelp": "Opens its chapters.",
       "bookCount": "{{recorded}}/{{total}}",
       "chapter": "Chapter {{n}}",
@@ -5173,18 +5173,18 @@
       "sub_other": "{{recorded}} of {{count, number}} passages",
       "notHere": "This book isn't in this language",
       "notHereSub": "Go back to the map to pick another.",
-      "breakUp": "Break up {{book}}",
-      "notBrokenUp": "{{book}} isn't broken up yet",
-      "chooseHow": "Choose how {{book}} is cut into pieces, by chapter, FIA's passages or another way. Then it can be recorded.",
-      "coordinatorDecides": "A coordinator decides how {{book}} is cut into pieces. Then you can record it.",
+      "breakUp": "Divide {{book}}",
+      "notBrokenUp": "{{book}} isn't divided yet",
+      "chooseHow": "Choose how {{book}} is divided into sections: by chapter, FIA's passages or another way. Then it can be recorded.",
+      "coordinatorDecides": "A coordinator decides how {{book}} is divided into sections. Then you can record it.",
       "summary_one": "{{recorded}} of {{count, number}} passage recorded",
       "summary_other": "{{recorded}} of {{count, number}} passages recorded",
       "summaryIn_one": "{{recorded}} of {{count, number}} passage recorded in {{language}}",
       "summaryIn_other": "{{recorded}} of {{count, number}} passages recorded in {{language}}",
       "key": "Key",
       "filterHelp": "Show only some passages, and the full key.",
-      "breakUpDifferently": "Break up differently",
-      "breakUpDifferentlyHelp": "Change how this book is cut into pieces: by chapter, FIA's passages or another way.",
+      "breakUpDifferently": "Divide differently",
+      "breakUpDifferentlyHelp": "Change how this book is divided into sections: by chapter, FIA's passages or another way.",
       "chapterTitle": "{{book}} {{n}}",
       "pickPart_one": "{{count, number}} part — pick one",
       "pickPart_other": "{{count, number}} parts — pick one"
@@ -5945,7 +5945,7 @@
       "anchor": {
         "passage": "Whole passage",
         "verse": "Verse {{verse}}",
-        "term": "Key term · {{term}}",
+        "term": "Key word · {{term}}",
         "someTerm": "term",
         "version": "Version {{n}}",
         "aVersion": "A version",
@@ -6910,8 +6910,8 @@
       "findMore": "Find one under More Bibles.",
       "verseLabel": "Verse {{verse}}. {{text}}",
       "playsFromVerse": "Plays from this verse",
-      "keyTerm": "{{term}}, key term",
-      "keyTermTied": "{{term}}, key term, tied to your draft",
+      "keyTerm": "{{term}}, key word",
+      "keyTermTied": "{{term}}, key word, tied to your draft",
       "builtIn": "Built-in text, a last resort until your organization recommends Bibles.",
       "sharedBy": "Shared by {{org}}.",
       "copyright": "{{abbr}}: {{line}}",
@@ -7497,8 +7497,10 @@
     "dismiss": "Dismiss",
     "dismissHelp": "Hides this until a newer version comes out.",
     "required": "Please update the app",
+    "requiredSub": "Your recordings and changes still go to your team. Nothing new from them reaches this phone until you update.",
+    "requiredBar": "Update to get your team’s work",
     "keepWorking": "Keep working",
-    "keepWorkingHelp": "Your work stays on this phone and is sent after you update."
+    "keepWorkingHelp": "Closes this for now. You can keep recording; your work still goes to your team."
   },
   "globalViewer": {
     "title": "Global Viewer",

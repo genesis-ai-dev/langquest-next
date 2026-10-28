@@ -30,7 +30,7 @@ async function write(ctx: Ctx, w: RecWrite, message: string): Promise<boolean> {
   try {
     await ctx.org.append('v1.ReferenceRecommended', w.payload as { itemId: string; recommended: boolean });
   } catch (e) {
-    ctx.toast(t('common.notSaved', { reason: referenceFailure('recommend', e) }));
+    ctx.toast(t('common.notSaved', { reason: referenceFailure('recommend', e) }), 'problem');
     return false;
   }
   if (message) ctx.toast(message);

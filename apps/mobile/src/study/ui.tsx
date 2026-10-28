@@ -35,6 +35,7 @@ import { draftKey, EMPTY_NOTE, isNoteDraft } from '../drafts/draftModel';
 import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
 import { useNoteStep } from '../checks/useNoteStep';
+import { a11yState } from '../ui/a11yModel';
 
 // ---- audio -------------------------------------------------------------------------
 
@@ -111,7 +112,7 @@ export function ViewSwitch<T extends string>(props: { views: { id: T; label: str
           const on = props.active === v.id;
           return (
             // help-ignore: no screen shows this switch today; give it a line (useHelpSpot) when one does
-            <Pressable key={v.id} onPress={() => props.onChange(v.id)} accessibilityRole="tab" accessibilityState={{ selected: on }}
+            <Pressable key={v.id} onPress={() => props.onChange(v.id)} accessibilityRole="tab" {...a11yState({ selected: on }, 'tab')}
               style={({ pressed }) => [styles.switchTab, on && styles.switchOn, pressed && styles.pressed]}>
               <Ico name={v.icon} size={16} color={on ? C.primary : C.muted} />
               <Text style={[txt.sm, { fontWeight: '700', color: on ? C.dark : C.muted }]} numberOfLines={1}>{v.label}</Text>

@@ -33,6 +33,7 @@ import { useNoteStep } from '../checks/useNoteStep';
 import { useKeyWordLists } from '../keyTerms/useKeyWordLists';
 import { guideTermWord, ownTermId, ownWordOf, shortName, type KeyWordList } from '../keyTerms/listsModel';
 import { AddWordSheet } from '../helps/reference';
+import { a11yState } from '../ui/a11yModel';
 
 /** ‹ 2/6 Setting the stage ▾ ›, and the sheet of every step it opens. */
 export function GuideNav(props: { ctx: Ctx; sp: StudyProgress; index: number; onIndex: (i: number) => void; sheetFooter?: React.ReactNode }) {
@@ -226,7 +227,7 @@ function SectionView(props: {
   return (
     <View style={{ gap: space.sm }}>
       <Pressable disabled={!props.canContribute && !select.id} onPress={props.canContribute || select.id ? select.onPress : undefined} accessibilityRole={props.canContribute ? 'button' : undefined}
-        accessibilityState={{ selected: props.selected }} style={[styles.section, props.selected && styles.sectionOn]}>
+        {...a11yState({ selected: props.selected }, props.canContribute ? 'button' : undefined, 'current')} style={[styles.section, props.selected && styles.sectionOn]}>
         {body}
         {props.notes.length > 0 && !props.selected ? <View style={styles.count}><Text style={styles.countText}>{props.notes.length}</Text></View> : null}
         <HelpBadge spot={select} />

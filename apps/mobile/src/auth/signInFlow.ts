@@ -24,7 +24,7 @@ export type AuthResult = { kind: 'error'; text: string } | { kind: 'done' } | { 
 export interface AuthHost {
   /** Queue the terms for this account (AUTH-1); the account outbox delivers and retries. */
   acceptTerms: (userId: string) => Promise<void>;
-  toast: (text: string) => void;
+  toast: (text: string, tone?: 'problem') => void;
   isDev: boolean;
 }
 
@@ -33,7 +33,7 @@ async function recordTerms(host: AuthHost, userId: string): Promise<void> {
   try {
     await host.acceptTerms(userId);
   } catch (e) {
-    host.toast(failureMessage('accept terms', e));
+    host.toast(failureMessage('accept terms', e), 'problem');
   }
 }
 

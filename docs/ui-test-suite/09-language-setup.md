@@ -318,7 +318,7 @@ Steps:
 3. Tap "The Bible". Choose the numbering: type "World English" under "Which
    Bible do you translate from?" and pick it. Pick "FIA passages" (LangQuest's, "Comes with FIA
    study guides"; not "FIA passages (English)", Alpha's) under "How
-   should the Bible be broken up?". Leave "New Testament" chosen. Tap
+   should the Bible be divided?". Leave "New Testament" chosen. Tap
    "Continue".
 4. Under "Which languages should Charlie {run}'s Bibles and study guides
    be in?" leave "English" ticked. Tap "Continue". Under "What will help
@@ -334,7 +334,7 @@ Steps:
 
 Expected:
 - New language opens on its six steps (decision 146): "6 steps", then
-  Language, Content, Split into pieces, Reference material, Review flow and
+  Language, Content, Divide into sections, Reference material, Review flow and
   People, each with a small picture, and "Start".
 - Every step after that has the six as a bar under the header, done ones
   ticked, its own lit and named: "1 of 6 · Language" … "6 of 6 · People".
@@ -490,7 +490,7 @@ Steps:
    extra books, "Protestant or evangelical".
 4. Tap "Choose another", then choose "Numbered like the Hebrew and Greek"
    style from "Choose the numbering".
-5. Tap the "How is material broken up?" link and step through it.
+5. Tap the "How is material divided?" link and step through it.
 
 Expected:
 - Step 2 says "Not found."
@@ -1127,7 +1127,7 @@ Expected:
   the books with "{n} passages", and "Find a book".
 - "zzz" says "No book matches “zzz”."
 - "Luke" opens Luke ("Alpha · {n} passages"). Books waiting to be divided
-  are listed too, as "Waiting to be broken up", and open the ways to divide
+  are listed too, as "Waiting to be divided", and open the ways to divide
   them (decision 107).
 
 ### SETUP-036 Choose a different template for a language
@@ -1192,7 +1192,7 @@ Expected:
   "Something else".
 - Scripture asks what New language asks (decision 107): "Which Bible do you
   translate from?" with "Not listed? Answer a few questions", then "How
-  should the Bible be broken up?" with "Divide it your own way" first.
+  should the Bible be divided?" with "Divide it your own way" first.
 - The editor has no "Whole books" or "Chapters" choice; it says "Tap a book to choose how
   it's divided."
 - A book opens "Change how Genesis is broken up" with "Divide it your own
@@ -1258,8 +1258,8 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Oscar's page → "What will they record?": "The Bible", "Like most
    English Bibles", "FIA passages", "Whole Bible". Close Get ready with ✕.
-2. Map → Oscar → "Old Testament" → "Proverbs" → "Break up Proverbs".
-3. Tap "By chapter" → "Break up Proverbs" (and "Change it for this
+2. Map → Oscar → "Old Testament" → "Proverbs" → "Divide Proverbs".
+3. Tap "By chapter" → "Divide Proverbs" (and "Change it for this
    language" when other languages use the template).
 
 Expected:
@@ -1268,13 +1268,13 @@ Expected:
   divided from the map (decision 107). On a ready language, books that wait
   are also listed under "Content template" → "Each book's passages"
   (SETUP-035, decision 138).
-- "How should Proverbs be broken up?" with way cards ("By chapter" and
+- "How should Proverbs be divided?" with way cards ("By chapter" and
   others, each with a preview).
 - When another language uses the template, "Which languages should
   change?" lists Oscar fixed ("The one you're changing") and the others to
   tick, with "The languages you leave out keep the template as it is. The
   ones you choose get their own copy with this change."
-- Toast "Proverbs is broken up by chapter."; the book shows "Broken up".
+- Toast "Proverbs is divided by chapter."; the book shows "Divided".
 - Nothing is refused (the template version goes to the organization's
   library: ADMIN and COORD hold organization scope).
 
@@ -1286,11 +1286,11 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Alpha's page → "Content template" → "Each book's passages" → "Luke".
-   Tap "Break up differently".
+   Tap "Divide differently".
 2. Pick "By chapter". Tap "Change Luke".
 3. Tap "Keep it as it is". Repeat and tap "Change it anyway".
 4. Open Luke 15 on the map.
-5. "Each book's passages" → "Luke" → "Break up differently". Pick "FIA
+5. "Each book's passages" → "Luke" → "Divide differently". Pick "FIA
    passages", tap "Change Luke", then "Change it anyway".
 
 Expected:
@@ -1300,7 +1300,7 @@ Expected:
 - The sheet "Luke will be divided again" says the work moves to "Earlier
   sections" and "Nothing is deleted.", with "Change it anyway" and "Keep it
   as it is".
-- After the change, the toast "Luke is broken up by chapter." has no Undo.
+- After the change, the toast "Luke is divided by chapter." has no Undo.
   Luke 15 shows the warning mark and "Earlier sections" with P-CHECK's and
   P-SUBMITTED's recordings (decision 80).
 - Step 5 changes it back ("Luke is broken up into FIA passages."), with
@@ -1308,7 +1308,7 @@ Expected:
   book divided its own way has no ready-made way to pick again: it is drawn
   again with "Divide it your own way".
 
-Changed (2026-10-16, decision 134): no toast offers Undo; picking the earlier way again in "Break up differently" changes it back.
+Changed (2026-10-16, decision 134): no toast offers Undo; picking the earlier way again in "Divide differently" changes it back.
 
 ### SETUP-042 What a language calls a book, and what translators see
 Roles: ADMIN, TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -2123,7 +2123,7 @@ Steps:
 Expected:
 - The Content template page offers "View" and "Each book's passages",
   never "Edit" (decision 138). Luke reads "Called Luke in Alpha" and
-  offers no "Break up differently". "View" opens the template read only:
+  offers no "Divide differently". "View" opens the template read only:
   no "Copy to change it", "Create template", "Done" or saved mark.
 - Review flows offers "Use" (Alpha's own checks) but no "Flow", "Follow",
   "Copy" or "Add to your flows".

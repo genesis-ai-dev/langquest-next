@@ -985,13 +985,13 @@
       "stages": {
         "language": "Lugha",
         "content": "Maudhui",
-        "pieces": "Gawanya katika vipande",
+        "pieces": "Gawanya katika sehemu",
         "material": "Nyenzo za marejeo",
         "flow": "Mtiririko wa ukaguzi",
         "people": "Watu",
         "languageHelp": "Lugha watakayotafsiri kwayo: jina lake, kutoka orodha ya lugha au kama lilivyoandikwa. Inaweza kuunganishwa na orodha baadaye.",
         "contentHelp": "Watakachotafsiri: Biblia, au kitu kingine, kama hadithi au nyimbo.",
-        "piecesHelp": "Jinsi kinavyogawanywa katika vipande vidogo vya kutosha kurekodiwa na kukaguliwa kimoja kimoja.",
+        "piecesHelp": "Jinsi kinavyogawanywa katika sehemu vidogo vya kutosha kurekodiwa na kukaguliwa kimoja kimoja.",
         "materialHelp": "Biblia, miongozo ya kujifunza na madokezo ambayo watafsiri na wakaguzi watakuwa nayo kando yao.",
         "flowHelp": "Kaguzi ambazo rekodi inapitia kabla ya kuidhinishwa, na kile ambacho watu wa kila ukaguzi wanaona.",
         "peopleHelp": "Kisha alika watu: watafsiri, wakaguzi na wengine, kila mmoja kwa msimbo wa kusoma.",
@@ -1319,7 +1319,7 @@
       "keepIt": "Kiache",
       "whichPart": "Sehemu ipi ya Biblia?",
       "viewOnly": "Watu wanaoandaa lugha tu ndio wanaweza kubadilisha wanachotafsiri.",
-      "keepEarlier": "Vipande visivyobadilika vinabaki na rekodi zake. Kilichorekodiwa kwenye kipande kinachobadilika kinahifadhiwa chini ya \"Sehemu za awali\" kwenye vipande vipya.",
+      "keepEarlier": "Sehemu visivyobadilika vinabaki na rekodi zake. Kilichorekodiwa kwenye sehemu kinachobadilika kinahifadhiwa chini ya \"Sehemu za awali\" kwenye sehemu vipya.",
       "partHelp": "Wanatafsiri sehemu hii ya Biblia.",
       "chooseBooksHelp": "Chagua vitabu kimoja kimoja, hapa chini.",
       "bookOnHelp": "Kimechaguliwa. Gusa ili kukiacha.",
@@ -1390,7 +1390,6 @@
       "passagesCovered_one": "Inahusu kifungu {{count, number}}",
       "passagesCovered_other": "Inahusu vifungu {{count, number}}",
       "keyWords": "Maneno muhimu",
-      "keyTerms": "Orodha ya maneno muhimu",
       "keyTermsSub_one": "Neno {{count, number}} · {{rendered}} lina neno la {{language}}",
       "keyTermsSub_other": "Maneno {{count, number}} · {{rendered}} yana neno la {{language}}",
       "writtenHere": "Imeandikwa hapa, kwa ajili ya lugha hii",
@@ -1792,8 +1791,8 @@
       "skip": "Ruka maelezo haya",
       "stepLabel": "Hatua ya {{step, number}} kati ya {{total, number}}",
       "pieces": {
-        "title": "Timu yako inarekodi nyenzo kwa vipande",
-        "text": "Nyenzo hupangwa katika folda, na watu hurekodi vipande vilivyo ndani yake. Hapa kuna hadithi, zilizopangwa katika makusanyo.",
+        "title": "Timu yako inarekodi nyenzo kwa sehemu",
+        "text": "Nyenzo hupangwa katika folda, na watu hurekodi sehemu vilivyo ndani yake. Hapa kuna hadithi, zilizopangwa katika makusanyo.",
         "began": "Jinsi mambo yalivyoanza",
         "river": "Kwa nini mto ni mpana",
         "fire": "Moto wa kwanza",
@@ -1802,12 +1801,12 @@
       },
       "bible": {
         "title": "Biblia ina vitabu, sura na mistari",
-        "text": "Kila kitabu ni folda. Ndani yake, kitabu kimekatwa katika vipande vya kurekodi, na kila mstari unaonyesha mahali katika rekodi.",
+        "text": "Kila kitabu ni folda. Ndani yake, kitabu kimekatwa katika sehemu vya kurekodi, na kila mstari unaonyesha mahali katika rekodi.",
         "chapterVerses": "{{book}} {{chapter}} · mistari 1 hadi {{last}}"
       },
       "places": {
         "title": "Kitabu kilekile kinaweza kukatwa mahali tofauti",
-        "text": "Hiki ni {{book}} kwa njia tatu. Mistari ileile, vipande tofauti.",
+        "text": "Hiki ni {{book}} kwa njia tatu. Mistari ileile, sehemu tofauti.",
         "byChapter": "Kwa sura",
         "fia": "Vifungu vya FIA",
         "unfoldingWord": "Vipande vya unfoldingWord"
@@ -1845,19 +1844,19 @@
       "waitsLabel": "{{book}} kinasubiri kugawanywa",
       "notInIt": "{{book}} hakimo",
       "waits": "{{book}} kinasubiri hadi mratibu akigawe",
-      "label_one": "{{book}} katika kipande {{count, number}}",
-      "label_other": "{{book}} katika vipande {{count, number}}",
-      "caption_one": "{{book}}: kipande {{count, number}}",
-      "caption_other": "{{book}}: vipande {{count, number}}",
-      "help": "Kila mstatili ni kipande kimoja cha kurekodi, kipana kulingana na mistari yake."
+      "label_one": "{{book}} katika sehemu {{count, number}}",
+      "label_other": "{{book}} katika sehemu {{count, number}}",
+      "caption_one": "{{book}}: sehemu {{count, number}}",
+      "caption_other": "{{book}}: sehemu {{count, number}}",
+      "help": "Kila mstatili ni sehemu kimoja cha kurekodi, kipana kulingana na mistari yake."
     },
     "way": {
       "inUse": "Inatumika hapa",
-      "previewHelp": "Kila kipande ambacho {{way}} inakata kitabu.",
+      "previewHelp": "Kila sehemu ambacho {{way}} inakata kitabu.",
       "comesWith": "Inakuja na miongozo ya kujifunza ya {{pattern}}",
       "previewLabel": "Hakiki {{way}}",
-      "pickHelp": "Huchagua njia hii ya kukata vipande.",
-      "barHelp": "Upau unaonyesha {{book}} kikiwa kimekatwa kwa njia hii: kila mstatili ni kipande kimoja, kipana kulingana na mistari yake."
+      "pickHelp": "Huchagua njia hii ya kukata sehemu.",
+      "barHelp": "Upau unaonyesha {{book}} kikiwa kimekatwa kwa njia hii: kila mstatili ni sehemu kimoja, kipana kulingana na mistari yake."
     },
     "preview": {
       "useThis": "Tumia hii",
@@ -1901,7 +1900,7 @@
     },
     "book": {
       "breakDifferently": "Gawa kwa njia nyingine",
-      "breakDifferentlyHelp": "Chagua njia nyingine ya kukata kitabu hiki katika vipande.",
+      "breakDifferentlyHelp": "Chagua njia nyingine ya kukata kitabu hiki katika sehemu.",
       "namedToast": "{{language}} inakiita {{name}}.",
       "brokenUp": "Kimegawanywa",
       "ownWay": "Njia yake mwenyewe",
@@ -1914,8 +1913,8 @@
       "breakUp": "Gawa {{book}}",
       "changeQuestion": "Badilisha jinsi {{book}} kinavyogawanywa",
       "question": "{{book}} kigawanywe vipi?",
-      "nowEachPiece": "Sasa: {{way}}. Kila kipande kinarekodiwa peke yake.",
-      "eachPiece": "Kila kipande kinarekodiwa peke yake.",
+      "nowEachPiece": "Sasa: {{way}}. Kila sehemu kinarekodiwa peke yake.",
+      "eachPiece": "Kila sehemu kinarekodiwa peke yake.",
       "connectForWays": "Unganisha ili kupakia njia za kukigawa.",
       "alsoUsedOne": "Kinatumika pia katika {{name}}. Ubadilishe {{book}} kwa ipi kati yao?",
       "alsoUsedTwo": "Kinatumika pia katika {{first}} na {{second}}. Ubadilishe {{book}} kwa ipi kati yao?",
@@ -2190,10 +2189,10 @@
       "done_other": "Nimemaliza · sehemu {{count, number}}"
     },
     "division": {
-      "way_one": "{{way}} · kipande {{count, number}}",
-      "way_other": "{{way}} · vipande {{count, number}}",
-      "own_one": "Njia yake mwenyewe · kipande {{count, number}}",
-      "own_other": "Njia yake mwenyewe · vipande {{count, number}}"
+      "way_one": "{{way}} · sehemu {{count, number}}",
+      "way_other": "{{way}} · sehemu {{count, number}}",
+      "own_one": "Njia yake mwenyewe · sehemu {{count, number}}",
+      "own_other": "Njia yake mwenyewe · sehemu {{count, number}}"
     }
   },
   "canon": {
@@ -2214,7 +2213,7 @@
     "unnamedOrg": "Shirika",
     "listJoin": ", ",
     "quoted": "“{{text}}”",
-    "languageRenderings": "Tafsiri za {{language}}",
+    "languageRenderings": "Maneno ya {{language}}",
     "levels": {
       "org": "Shirika",
       "language": "Lugha"
@@ -2225,11 +2224,11 @@
         "desc": "Badilisha muundo wa shirika katika eneo lao (lugha)"
       },
       "inviteMembers": {
-        "label": "Alika Wanachama",
+        "label": "Alika watu",
         "desc": "Alika watu katika eneo lao"
       },
       "manageRoles": {
-        "label": "Simamia Majukumu",
+        "label": "Tengeneza na badilisha majukumu",
         "desc": "Unda na hariri majukumu katika eneo lao"
       },
       "manageTemplates": {
@@ -2241,7 +2240,7 @@
         "desc": "Gawa vitabu katika vifungu, vipe majina, na uchapishe mabadiliko hayo kwa lugha yao"
       },
       "manageReference": {
-        "label": "Simamia Nyenzo za Marejeo",
+        "label": "Chagua Biblia na miongozo",
         "desc": "Tengeneza na hariri nyenzo za marejeo katika eneo lao"
       },
       "manageFlows": {
@@ -2253,31 +2252,31 @@
         "desc": "Tengeneza na hariri timu za ukaguzi (vikundi) katika eneo lao"
       },
       "assignWork": {
-        "label": "Gawa Kazi",
+        "label": "Gawa kazi",
         "desc": "Omba mtu yeyote katika eneo lao arekodi au akague kifungu"
       },
       "overrideCheckpoints": {
-        "label": "Ruka Vituo vya Ukaguzi",
+        "label": "Ruhusu kazi ipite ukaguzi uliofungwa",
         "desc": "Pitisha kifungu zaidi ya kituo cha ukaguzi, sababu ikiandikwa"
       },
       "translate": {
-        "label": "Tafsiri",
+        "label": "Rekodi",
         "desc": "Rekodi na rekebisha tafsiri (zima ili, kwa mfano, washauri wasiandae rasimu)"
       },
       "fillReference": {
-        "label": "Jaza Maudhui ya Marejeo",
+        "label": "Ongeza madokezo na maneno muhimu",
         "desc": "Ongeza maneno muhimu, madokezo, na maudhui ya marejeo"
       },
       "sendToReviewers": {
-        "label": "Omba Ukaguzi",
+        "label": "Omba ukaguzi",
         "desc": "Omba wenzako wa timu, au mtu nje ya programu kwa kiungo, akague"
       },
       "review": {
-        "label": "Ukaguzi",
+        "label": "Kagua rekodi",
         "desc": "Toa ukaguzi, na rekodi ukaguzi uliofanyika nje ya programu"
       },
       "viewStatus": {
-        "label": "Tazama Hali",
+        "label": "Ona kazi ya kila mtu",
         "desc": "Ona ramani na kumbukumbu za vifungu kwa kusoma tu katika eneo lao"
       }
     },
@@ -2683,7 +2682,7 @@
       "pickPartHelp": "Huunganisha sehemu hii: watafsiri wanaipata hapo."
     },
     "keyTerms": {
-      "noLanguageRendering": "Bado hakuna tafsiri ya {{language}}",
+      "noLanguageRendering": "Bado hakuna neno la {{language}}",
       "title": "Maneno Muhimu",
       "chooseLanguage": "Chagua lugha kwanza",
       "added": "{{term}} limeongezwa.",
@@ -2691,18 +2690,18 @@
       "search": "Tafuta maneno",
       "empty": "Bado hakuna maneno muhimu",
       "emptySubCanAdd": "Ongeza neno pamoja na jinsi lugha hii inavyolisema, na wakati wa kulitumia.",
-      "emptySub": "Maneno ambayo timu yako inaongeza yanaonekana hapa pamoja na tafsiri zake.",
+      "emptySub": "Maneno ambayo timu yako inaongeza yanaonekana hapa, pamoja na neno la lugha yako kwa kila moja.",
       "inPassage": "Katika kifungu hiki",
       "otherTerms": "Maneno mengine",
       "allTerms": "Maneno yote",
       "noOther": "Hakuna maneno mengine.",
-      "intro": "Dhana zinatoka kwenye orodha inayoshirikiwa (kama maneno muhimu ya FIA) au yako mwenyewe. {{language}} inahifadhi tafsiri zake na sababu zake.",
+      "intro": "Maneno muhimu yanatoka kwenye orodha ya pamoja (kama maneno muhimu ya FIA) au yako mwenyewe. {{language}} inahifadhi neno lake kwa kila moja, na sababu zake.",
       "newKeyTerm": "Neno muhimu jipya",
-      "newSub": "Linaongezwa kwenye maneno muhimu ya {{language}}, pamoja na tafsiri yake ya kwanza.",
+      "newSub": "Linaongezwa kwenye maneno muhimu ya {{language}}, pamoja na neno lake la kwanza.",
       "addTerm": "Ongeza Neno",
       "termPlaceholder": "Neno la chanzo, k.m. neema (charis)",
       "meaningPlaceholder": "Maana, kwa ufupi",
-      "renderingPlaceholder": "Tafsiri ya {{language}}",
+      "renderingPlaceholder": "Neno la {{language}}",
       "contextPlaceholder": "Wakati wa kulitumia, na kwa nini",
       "newTermHelp": "Huongeza dhana, pamoja na jinsi {{language}} inavyoisema.",
       "openTermHelp": "Hulifungua: linamaanisha nini, timu yako inalisemaje, na kwa nini.",
@@ -2715,7 +2714,7 @@
       "tied": "{{term}} limeunganishwa na rasimu yako.",
       "added": "“{{rendering}}” imeongezwa.",
       "changeRecorded": "Badiliko limeandikwa.",
-      "firstRendering": "Tafsiri ya kwanza: {{rendering}}.",
+      "firstRendering": "Neno la kwanza: {{rendering}}.",
       "fiaSub": "Neno muhimu la FIA · {{language}}",
       "sub": "Neno muhimu la {{language}}",
       "noMeaning": "Bado hakuna maana iliyoandikwa.",
@@ -2726,10 +2725,10 @@
       "tiedBody": "Wakaguzi wataona neno hili na sababu zako.",
       "tieBody": "Ili wakaguzi wajue neno hili liliathiri {{passage}}.",
       "inLanguage": "Katika {{language}}",
-      "noRendering": "Bado hakuna tafsiri",
+      "noRendering": "Bado hakuna neno",
       "addHow": "Ongeza jinsi {{language}} inavyosema hili, na wakati wa kulitumia.",
-      "adjustOrAdd": "Rekebisha au ongeza tafsiri",
-      "addRendering": "Ongeza tafsiri",
+      "adjustOrAdd": "Badilisha au ongeza neno",
+      "addRendering": "Ongeza neno",
       "details": "Maelezo",
       "why": "Kwa nini linatafsiriwa hivi",
       "changes_one": "Badiliko {{count, number}}",
@@ -2740,7 +2739,7 @@
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Linaandikwa kama sehemu ya {{passage}}, na kuunganishwa na rasimu yako.",
       "adjustSub": "Kila badiliko linaandikwa pamoja na sababu yako.",
-      "newRendering": "Tafsiri mpya (si lazima)",
+      "newRendering": "Neno jipya (si lazima)",
       "whenToUse": "Wakati wa kulitumia",
       "sayWhy": "Sema kwa nini",
       "orTypeWhy": "Au andika kilichobadilika, na kwa nini",
@@ -3124,6 +3123,7 @@
     "update": {
       "restarting": "Inaanza upya…",
       "ready": "Sasisho liko tayari — gusa ili kuanza upya",
+      "afterRecording": "Sasisho liko tayari · litaanza upya ukiacha kurekodi",
       "downloading": "Inapakua sasisho…",
       "downloadingPercent": "Inapakua sasisho… {{percent}}",
       "webReady": "Toleo jipya la LangQuest liko tayari. Pakia upya ili kulitumia.",
@@ -4407,7 +4407,7 @@
       },
       "term": {
         "title": "Chagua neno",
-        "sub": "Maana yake na tafsiri zake zinafunguka hapa."
+        "sub": "Maana yake na maneno ya timu yako hufunguka hapa."
       },
       "language": {
         "title": "Chagua lugha",
@@ -4933,11 +4933,11 @@
       "notes": "Madokezo",
       "history": "Historia",
       "tied": "Limeunganishwa na rasimu yako.",
-      "noTerms": "Hakuna maneno muhimu yaliyolingana na chanzo cha kifungu hiki.",
-      "noRendering": "Bado hakuna tafsiri yake",
+      "noTerms": "Hakuna maneno muhimu katika kifungu hiki.",
+      "noRendering": "Bado hakuna neno",
       "termLabel": "{{term}}. {{rendered}}",
       "termLabelTied": "{{term}}. {{rendered}}. Limeunganishwa na rasimu yako",
-      "noLanguageRendering": "Bado hakuna tafsiri ya {{language}}",
+      "noLanguageRendering": "Bado hakuna neno la {{language}}",
       "tiedBadge": "Limeunganishwa",
       "tying": "Inaunganisha…",
       "tie": "Unganisha na rasimu yako",
@@ -5175,8 +5175,8 @@
       "notHereSub": "Rudi kwenye ramani ili kuchagua kingine.",
       "breakUp": "Gawa {{book}}",
       "notBrokenUp": "{{book}} bado hakijagawanywa",
-      "chooseHow": "Chagua jinsi {{book}} kitakavyokatwa vipande, kwa sura, vifungu vya FIA au njia nyingine. Kisha kinaweza kurekodiwa.",
-      "coordinatorDecides": "Mratibu anaamua jinsi {{book}} kitakavyokatwa vipande. Kisha unaweza kukirekodi.",
+      "chooseHow": "Chagua jinsi {{book}} kitakavyokatwa sehemu, kwa sura, vifungu vya FIA au njia nyingine. Kisha kinaweza kurekodiwa.",
+      "coordinatorDecides": "Mratibu anaamua jinsi {{book}} kitakavyokatwa sehemu. Kisha unaweza kukirekodi.",
       "summary_one": "{{recorded}} kati ya kifungu {{count, number}} kimerekodiwa",
       "summary_other": "{{recorded}} kati ya vifungu {{count, number}} vimerekodiwa",
       "summaryIn_one": "{{recorded}} kati ya kifungu {{count, number}} kimerekodiwa katika {{language}}",
@@ -5184,7 +5184,7 @@
       "key": "Ufunguo",
       "filterHelp": "Onyesha baadhi ya vifungu tu, na ufunguo kamili.",
       "breakUpDifferently": "Gawa kwa njia nyingine",
-      "breakUpDifferentlyHelp": "Badilisha jinsi kitabu hiki kinavyokatwa vipande: kwa sura, vifungu vya FIA au njia nyingine.",
+      "breakUpDifferentlyHelp": "Badilisha jinsi kitabu hiki kinavyokatwa sehemu: kwa sura, vifungu vya FIA au njia nyingine.",
       "chapterTitle": "{{book}} {{n}}",
       "pickPart_one": "Sehemu {{count, number}} — chagua moja",
       "pickPart_other": "Sehemu {{count, number}} — chagua moja"
@@ -7497,8 +7497,10 @@
     "dismiss": "Funga",
     "dismissHelp": "Huficha hili hadi toleo jipya zaidi litoke.",
     "required": "Tafadhali sasisha programu",
+    "requiredSub": "Rekodi na mabadiliko yako bado yanaenda kwa timu yako. Hakuna jipya kutoka kwao litakalofika kwenye simu hii hadi usasishe.",
+    "requiredBar": "Sasisha ili upate kazi ya timu yako",
     "keepWorking": "Endelea kufanya kazi",
-    "keepWorkingHelp": "Kazi yako inabaki kwenye simu hii na itatumwa baada ya kusasisha."
+    "keepWorkingHelp": "Hufunga hiki kwa sasa. Unaweza kuendelea kurekodi; kazi yako bado inaenda kwa timu yako."
   },
   "globalViewer": {
     "title": "Mtazamaji wa Kimataifa",

@@ -35,7 +35,7 @@ describe('roles', () => {
       expect(PRIVILEGE_INFO[p].label).toBeTruthy();
       expect(PRIVILEGE_INFO[p].desc).toBeTruthy();
     }
-    expect(PRIVILEGE_INFO.override_checkpoints.label).toBe('Override Checkpoints');
+    expect(PRIVILEGE_INFO.override_checkpoints.label).toBe('Let work past a locked check');
     expect(PRIVILEGE_INFO.shape_templates.label).toBe('Shape Content Templates');
   });
 

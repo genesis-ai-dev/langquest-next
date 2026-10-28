@@ -28,8 +28,8 @@ for (const who of ['ADMIN', 'COORD'] as const) {
     await alphaReference(p, who);
     await expectOnScreen(p, 'Alpha', 'Add material', 'Alpha\'s own material adds to what the organization recommends; nothing is copied.',
       'Bibles', /\d+ recommended · text, audio, offline use and timings/, 'Guides and notes', /\d+ recommended guides? · \d+ notes?/,
-      'Coverage', 'What reaches each passage in Alpha', 'Key Terms', /\d+ concepts? · Alpha renderings/, /Library · your organization · \d+/i,
-      'Write a guide', 'Steps with text and audio, pictures, maps and key terms', /Study material · \d+/i, /Review questions · \d+/i,
+      'Coverage', 'What reaches each passage in Alpha', 'Key Words', /\d+ concepts? · Alpha words/, /Library · your organization · \d+/i,
+      'Write a guide', 'Steps with text and audio, pictures, maps and key words', /Study material · \d+/i, /Review questions · \d+/i,
       'Question sets for the same kind add up', /General · Alpha · \d+/i);
     await expectOnScreen(p, /Study guides · English/);
     if (d) await d.context.close();
@@ -125,8 +125,8 @@ test('SETUP-054 Write a note and a question set', async ({ page, browser }) => {
   await primary(page).click();
   await text(page, 'Review Questions').click();
   await field(page, 'Title').fill(`Peer questions ${w.run.slice(-4)}`);
-  // The kinds of review are listed by their kind names here ("Peer Review").
-  await text(page, 'Peer Review').click();
+  // The kinds of review are listed by their kind names here ("Peer Check").
+  await text(page, 'Peer Check').click();
   await page.getByPlaceholder('The question').first().fill('Does it sound natural?');
   await primary(page).click();
   await expectToast(page, `Peer questions ${w.run.slice(-4)} added.`);

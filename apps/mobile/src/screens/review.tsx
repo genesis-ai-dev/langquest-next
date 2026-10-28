@@ -87,6 +87,7 @@ import { anyFrom, fromFilter } from '../checks/showsModel';
 import { ReviewKeyWordsSheet } from '../keyTerms/lazySheets';
 import { reviewCounts, reviewWords } from '../keyTerms/reviewWordsModel';
 import { useCheckKeyWords } from '../keyTerms/useCheckKeyWords';
+import { a11yState } from '../ui/a11yModel';
 
 /** Close a sheet, then leave: a screen opened under a closing sheet is hidden on some phones. */
 const SHEET_GAP_MS = 400;
@@ -404,7 +405,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         })];
       }
     } catch (e) {
-      ctx.toast(t('review.screen.notSaved', { reason: logged ? failureMessage('add record: save', e) : failureMessage('review: send', e) }));
+      ctx.toast(t('review.screen.notSaved', { reason: logged ? failureMessage('add record: save', e) : failureMessage('review: send', e) }), 'problem');
       return;
     }
     setBusy(true);
@@ -891,7 +892,7 @@ export function GuestReview(ctx: Ctx) {
       ))}
       <Block label={t('review.guest.tellUs')}>
         {/* A voice reply would be saved to the language's record; a preview must not write, so it is shown, not live. */}
-        <View style={styles.voiceOff} accessibilityState={{ disabled: true }}>
+        <View style={styles.voiceOff} {...a11yState({ disabled: true })}>
           <View style={styles.micDot}><Ico name="mic" size={18} color={C.white} /></View>
           <Text style={[txt.sm, { flex: 1, fontWeight: '600', color: C.muted }]}>{t('review.guest.replyByVoice')}</Text>
         </View>

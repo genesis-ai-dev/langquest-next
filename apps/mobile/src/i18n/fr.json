@@ -106,7 +106,7 @@
     },
     "kinds": {
       "peer": {
-        "name": "Révision par un pair",
+        "name": "Vérification par un pair",
         "usualReviewer": "Un autre traducteur",
         "description": "Un autre traducteur écoute pour vérifier l’exactitude et le naturel du parler."
       },
@@ -313,8 +313,8 @@
     "workspace": "Enregistrer",
     "review_capture": "Le réviser",
     "back_translation": "Rétrotraduire",
-    "key_terms": "Termes clés",
-    "key_term_detail": "Terme clé",
+    "key_terms": "Mots clés",
+    "key_term_detail": "Mot clé",
     "inbox_home": "Boîte de réception",
     "settings_home": "Moi",
     "profile_edit": "Modifier le profil",
@@ -687,7 +687,7 @@
       "languages_other": "{{count, number}} langues",
       "templates": "Modèles de contenu",
       "reference": "Documents de référence",
-      "referenceSub": "{{study}} étude · {{questions}} séries de questions · {{terms}} termes clés",
+      "referenceSub": "{{study}} étude · {{questions}} séries de questions · {{terms}} mots clés",
       "flows": "Circuits de révision",
       "roles": "Rôles",
       "rolesSub_one": "{{count, number}} rôle à ce niveau et au-dessus",
@@ -704,7 +704,7 @@
       },
       "titleHelp": "Montre ce qui se configure une fois et change peu : modèles de contenu, documents de référence, circuits de révision et rôles.",
       "templatesHelp": "Ouvre les façons de découper le travail en passages, et celle que chaque langue utilise.",
-      "referenceHelp": "Ouvre les Bibles, guides d’étude, questions et termes clés proposés aux traducteurs.",
+      "referenceHelp": "Ouvre les Bibles, guides d’étude, questions et mots clés proposés aux traducteurs.",
       "flowsHelp": "Ouvre les façons de vérifier les enregistrements, et celle que chaque langue utilise.",
       "rolesHelp": "Ouvre les rôles, et ce que chacun permet de faire."
     },
@@ -1004,13 +1004,13 @@
       "stages": {
         "language": "Langue",
         "content": "Contenu",
-        "pieces": "Découper en morceaux",
+        "pieces": "Découper en sections",
         "material": "Documents de référence",
         "flow": "Circuit de révision",
         "people": "Personnes",
         "languageHelp": "La langue dans laquelle ils traduisent : son nom, trouvé dans la liste des langues ou tapé. Elle peut être liée à la liste plus tard.",
         "contentHelp": "Ce qu’ils vont traduire : la Bible, ou autre chose, comme des récits ou des chants.",
-        "piecesHelp": "Comment c’est découpé en morceaux assez petits pour être enregistrés et vérifiés un par un.",
+        "piecesHelp": "Comment c’est découpé en sections assez petites pour être enregistrées et vérifiées une par une.",
         "materialHelp": "Les Bibles, guides d’étude et notes que les traducteurs et les vérificateurs auront à côté d’eux.",
         "flowHelp": "Les vérifications par lesquelles passe un enregistrement avant d’être approuvé, et ce que voient les personnes de chaque vérification.",
         "peopleHelp": "Ensuite, invitez des personnes : traducteurs, vérificateurs et autres, chacun avec un code à scanner.",
@@ -1348,7 +1348,7 @@
       "keepIt": "Le garder",
       "whichPart": "Quelle partie de la Bible ?",
       "viewOnly": "Seules les personnes qui configurent les langues peuvent changer ce qu’elles traduisent.",
-      "keepEarlier": "Les morceaux qui ne changent pas gardent leurs enregistrements. Ce qui a été enregistré sur un morceau qui change est gardé sous « Sections précédentes » dans les nouveaux morceaux.",
+      "keepEarlier": "Les sections qui ne changent pas gardent leurs enregistrements. Ce qui a été enregistré sur une section qui change est gardé sous « Sections précédentes » dans les nouvelles sections.",
       "partHelp": "Ils traduisent cette partie de la Bible.",
       "chooseBooksHelp": "Choisissez les livres un par un, ci-dessous.",
       "bookOnHelp": "Choisi. Touchez pour le laisser de côté.",
@@ -1422,7 +1422,6 @@
       "passagesCovered_many": "{{count, number}} passages couverts",
       "passagesCovered_other": "{{count, number}} passages couverts",
       "keyWords": "Mots clés",
-      "keyTerms": "Termes clés",
       "keyTermsSub_one": "{{count, number}} mot · {{rendered}} avec un mot en {{language}}",
       "keyTermsSub_many": "{{count, number}} mots · {{rendered}} avec un mot en {{language}}",
       "keyTermsSub_other": "{{count, number}} mots · {{rendered}} avec un mot en {{language}}",
@@ -1846,8 +1845,8 @@
       "skip": "Passer la présentation",
       "stepLabel": "Étape {{step, number}} sur {{total, number}}",
       "pieces": {
-        "title": "Votre équipe enregistre le contenu par morceaux",
-        "text": "Le contenu est rangé dans des dossiers, et les gens enregistrent les morceaux qui s’y trouvent. Voici des récits, rangés en recueils.",
+        "title": "Votre équipe enregistre le contenu par sections",
+        "text": "Le contenu est rangé dans des dossiers, et les gens enregistrent les sections qui s’y trouvent. Voici des récits, rangés en recueils.",
         "began": "Comment tout a commencé",
         "river": "Pourquoi le fleuve est large",
         "fire": "Le premier feu",
@@ -1856,12 +1855,12 @@
       },
       "bible": {
         "title": "Une Bible a des livres, des chapitres et des versets",
-        "text": "Chaque livre est un dossier. À l’intérieur, le livre est coupé en morceaux à enregistrer, et chaque verset marque un endroit dans l’enregistrement.",
+        "text": "Chaque livre est un dossier. À l’intérieur, le livre est coupé en sections à enregistrer, et chaque verset marque un endroit dans l’enregistrement.",
         "chapterVerses": "{{book}} {{chapter}} · versets 1 à {{last}}"
       },
       "places": {
         "title": "Un même livre peut être coupé à différents endroits",
-        "text": "Voici {{book}} de trois façons. Les mêmes versets, des morceaux différents.",
+        "text": "Voici {{book}} de trois façons. Les mêmes versets, des sections différentes.",
         "byChapter": "Par chapitre",
         "fia": "Passages FIA",
         "unfoldingWord": "Segments unfoldingWord"
@@ -1899,21 +1898,21 @@
       "waitsLabel": "{{book}} attend d’être découpé",
       "notInIt": "{{book}} n’y est pas",
       "waits": "{{book}} attend qu’un coordinateur le découpe",
-      "label_one": "{{book}} en {{count, number}} morceau",
-      "label_many": "{{book}} en {{count, number}} morceaux",
-      "label_other": "{{book}} en {{count, number}} morceaux",
-      "caption_one": "{{book}} : {{count, number}} morceau",
-      "caption_many": "{{book}} : {{count, number}} morceaux",
-      "caption_other": "{{book}} : {{count, number}} morceaux",
-      "help": "Chaque bloc est un morceau à enregistrer ; sa largeur suit le nombre de ses versets."
+      "label_one": "{{book}} en {{count, number}} section",
+      "label_many": "{{book}} en {{count, number}} sections",
+      "label_other": "{{book}} en {{count, number}} sections",
+      "caption_one": "{{book}} : {{count, number}} section",
+      "caption_many": "{{book}} : {{count, number}} sections",
+      "caption_other": "{{book}} : {{count, number}} sections",
+      "help": "Chaque bloc est une section à enregistrer ; sa largeur suit le nombre de ses versets."
     },
     "way": {
       "inUse": "Utilisé ici",
-      "previewHelp": "Tous les morceaux en lesquels {{way}} coupe un livre.",
+      "previewHelp": "Toutes les sections en lesquelles {{way}} découpe un livre.",
       "comesWith": "Vient avec les guides d’étude {{pattern}}",
       "previewLabel": "Aperçu : {{way}}",
-      "pickHelp": "Choisit cette façon de le couper en morceaux.",
-      "barHelp": "La barre montre {{book}} coupé de cette façon : chaque bloc est un morceau, et sa largeur suit le nombre de ses versets."
+      "pickHelp": "Choisit cette façon de le couper en sections.",
+      "barHelp": "La barre montre {{book}} coupé de cette façon : chaque bloc est une section, et sa largeur suit le nombre de ses versets."
     },
     "preview": {
       "useThis": "Utiliser ceci",
@@ -1959,7 +1958,7 @@
     },
     "book": {
       "breakDifferently": "Découper autrement",
-      "breakDifferentlyHelp": "Choisissez une autre façon de couper ce livre en morceaux.",
+      "breakDifferentlyHelp": "Choisissez une autre façon de couper ce livre en sections.",
       "namedToast": "{{language}} l’appelle {{name}}.",
       "brokenUp": "Découpé",
       "ownWay": "Son propre découpage",
@@ -1972,8 +1971,8 @@
       "breakUp": "Découper {{book}}",
       "changeQuestion": "Changer le découpage de {{book}}",
       "question": "Comment découper {{book}} ?",
-      "nowEachPiece": "Actuellement : {{way}}. Chaque morceau est enregistré séparément.",
-      "eachPiece": "Chaque morceau est enregistré séparément.",
+      "nowEachPiece": "Actuellement : {{way}}. Chaque section est enregistrée séparément.",
+      "eachPiece": "Chaque section est enregistrée séparément.",
       "connectForWays": "Connectez-vous pour charger les façons de le découper.",
       "alsoUsedOne": "Aussi utilisé dans {{name}}. Changer {{book}} pour lesquelles ?",
       "alsoUsedTwo": "Aussi utilisé dans {{first}} et {{second}}. Changer {{book}} pour lesquelles ?",
@@ -2263,12 +2262,12 @@
       "done_other": "Terminé · {{count, number}} sections"
     },
     "division": {
-      "way_one": "{{way}} · {{count, number}} morceau",
-      "way_many": "{{way}} · {{count, number}} morceaux",
-      "way_other": "{{way}} · {{count, number}} morceaux",
-      "own_one": "Son propre découpage · {{count, number}} morceau",
-      "own_many": "Son propre découpage · {{count, number}} morceaux",
-      "own_other": "Son propre découpage · {{count, number}} morceaux"
+      "way_one": "{{way}} · {{count, number}} section",
+      "way_many": "{{way}} · {{count, number}} sections",
+      "way_other": "{{way}} · {{count, number}} sections",
+      "own_one": "Son propre découpage · {{count, number}} section",
+      "own_many": "Son propre découpage · {{count, number}} sections",
+      "own_other": "Son propre découpage · {{count, number}} sections"
     }
   },
   "canon": {
@@ -2289,7 +2288,7 @@
     "unnamedOrg": "Organisation",
     "listJoin": ", ",
     "quoted": "« {{text}} »",
-    "languageRenderings": "Équivalents en {{language}}",
+    "languageRenderings": "Mots en {{language}}",
     "levels": {
       "org": "Organisation",
       "language": "Langue"
@@ -2300,11 +2299,11 @@
         "desc": "Modifier la structure de l’organisation dans leur périmètre (langues)"
       },
       "inviteMembers": {
-        "label": "Inviter des membres",
+        "label": "Inviter des personnes",
         "desc": "Inviter des personnes dans leur périmètre"
       },
       "manageRoles": {
-        "label": "Gérer les rôles",
+        "label": "Créer et modifier les rôles",
         "desc": "Créer et modifier des rôles dans leur périmètre"
       },
       "manageTemplates": {
@@ -2316,7 +2315,7 @@
         "desc": "Découper les livres en passages, les nommer, et publier ces changements pour leur langue"
       },
       "manageReference": {
-        "label": "Gérer les documents de référence",
+        "label": "Choisir les Bibles et les guides",
         "desc": "Créer et modifier des documents de référence dans leur périmètre"
       },
       "manageFlows": {
@@ -2332,27 +2331,27 @@
         "desc": "Demander à n’importe qui dans leur périmètre d’enregistrer ou de réviser un passage"
       },
       "overrideCheckpoints": {
-        "label": "Passer outre les points de contrôle",
+        "label": "Laisser passer un point de contrôle",
         "desc": "Faire avancer un passage au-delà d’un point de contrôle, en notant la raison"
       },
       "translate": {
-        "label": "Traduire",
+        "label": "Enregistrer",
         "desc": "Enregistrer et retravailler des traductions (à désactiver pour empêcher, par exemple, les consultants de rédiger)"
       },
       "fillReference": {
-        "label": "Remplir le contenu de référence",
-        "desc": "Ajouter des termes clés, des notes et du contenu de référence"
+        "label": "Ajouter des notes et des mots clés",
+        "desc": "Ajouter des mots clés, des notes et du contenu de référence"
       },
       "sendToReviewers": {
-        "label": "Demander des révisions",
+        "label": "Demander des vérifications",
         "desc": "Demander à des coéquipiers, ou à quelqu’un hors de l’application par un lien, de réviser"
       },
       "review": {
-        "label": "Réviser",
+        "label": "Vérifier les enregistrements",
         "desc": "Faire des révisions, et noter les vérifications faites hors de l’application"
       },
       "viewStatus": {
-        "label": "Voir l’avancement",
+        "label": "Voir le travail de tous",
         "desc": "Voir la carte et l’historique des passages en lecture seule dans leur périmètre"
       }
     },
@@ -2380,7 +2379,7 @@
       },
       "keyTerms": {
         "code": "TC",
-        "name": "Termes clés"
+        "name": "Mots clés"
       },
       "questions": {
         "code": "Q",
@@ -2625,8 +2624,8 @@
       "introLanguage": "Les documents propres à {{language}} s’ajoutent à ce que l’organisation recommande ; rien n’est copié. Les traducteurs les voient dans le volet de l’espace d’enregistrement ; les réviseurs voient les questions de leur type de révision.",
       "introOrg": "Les documents pour toutes les langues sont dans votre bibliothèque, et l’organisation les leur recommande. Chaque langue ajoute les siens depuis son Accueil.",
       "offered": "Ce qui est proposé aux traducteurs",
-      "keyTermsSection": "Termes clés",
-      "keyTermsRow": "Termes clés",
+      "keyTermsSection": "Mots clés",
+      "keyTermsRow": "Mots clés",
       "concepts_one": "{{count, number}} notion",
       "concepts_many": "{{count, number}} notions",
       "concepts_other": "{{count, number}} notions",
@@ -2635,7 +2634,7 @@
       "new": "Nouveau",
       "libraryEmpty": "Rien dans votre bibliothèque pour l’instant. Suivez ou copiez ce que partagent d’autres organisations, ou publiez le vôtre.",
       "writeGuide": "Écrire un guide",
-      "writeGuideSub": "Des étapes avec du texte et de l’audio, des images, des cartes et des termes clés",
+      "writeGuideSub": "Des étapes avec du texte et de l’audio, des images, des cartes et des mots clés",
       "studyMaterial": "Documents d’étude",
       "noStudy": "Aucun document d’étude écrit dans l’application pour cette langue.",
       "blanks_one": "{{count, number}} non rempli",
@@ -2772,41 +2771,41 @@
       "pickPartHelp": "Lie cette partie : les traducteurs le reçoivent là."
     },
     "keyTerms": {
-      "noLanguageRendering": "Pas encore d’équivalent en {{language}}",
-      "title": "Termes clés",
+      "noLanguageRendering": "Pas encore de mot en {{language}}",
+      "title": "Mots clés",
       "chooseLanguage": "Choisissez d’abord une langue",
       "added": "{{term}} ajouté.",
       "newTerm": "Nouveau terme",
       "search": "Chercher des termes",
-      "empty": "Pas encore de termes clés",
+      "empty": "Pas encore de mots clés",
       "emptySubCanAdd": "Ajoutez un terme avec la façon dont cette langue le dit, et quand l’utiliser.",
-      "emptySub": "Les termes que votre équipe ajoute apparaissent ici avec leurs équivalents.",
+      "emptySub": "Les mots ajoutés par votre équipe s’affichent ici, avec le mot de votre langue pour chacun.",
       "inPassage": "Dans ce passage",
       "otherTerms": "Autres termes",
       "allTerms": "Tous les termes",
       "noOther": "Aucun autre terme.",
-      "intro": "Les notions viennent d’une liste partagée (comme les termes clés FIA) ou de la vôtre. {{language}} garde ses propres équivalents et les raisons de ces choix.",
-      "newKeyTerm": "Nouveau terme clé",
-      "newSub": "Ajouté aux termes clés de {{language}}, avec son premier équivalent.",
+      "intro": "Les mots clés viennent d’une liste partagée (comme les mots clés FIA) ou de la vôtre. {{language}} garde son propre mot pour chacun, et ses raisons.",
+      "newKeyTerm": "Nouveau mot clé",
+      "newSub": "Ajouté aux mots clés de {{language}}, avec son premier mot.",
       "addTerm": "Ajouter le terme",
       "termPlaceholder": "Terme source, ex. : grâce (charis)",
       "meaningPlaceholder": "Sens, en bref",
-      "renderingPlaceholder": "Équivalent en {{language}}",
+      "renderingPlaceholder": "Mot en {{language}}",
       "contextPlaceholder": "Quand l’utiliser, et pourquoi",
       "newTermHelp": "Ajoute une notion, avec la façon dont {{language}} la dit.",
       "openTermHelp": "L’ouvre : ce qu’il veut dire, comment votre équipe le dit, et pourquoi.",
-      "openFiaTermHelp": "Un terme clé FIA. Ouvre ce qu’il veut dire, comment votre équipe le dit, et pourquoi.",
+      "openFiaTermHelp": "Un mot clé FIA. Ouvre ce qu’il veut dire, comment votre équipe le dit, et pourquoi.",
       "renderingHelp": "Comment {{language}} le dit."
     },
     "keyTerm": {
-      "title": "Terme clé",
+      "title": "Mot clé",
       "gone": "Ce terme n’existe plus ici",
       "tied": "{{term}} lié à votre brouillon.",
       "added": "« {{rendering}} » ajouté.",
       "changeRecorded": "Modification notée.",
-      "firstRendering": "Premier équivalent : {{rendering}}.",
-      "fiaSub": "Terme clé FIA · {{language}}",
-      "sub": "Terme clé · {{language}}",
+      "firstRendering": "Premier mot : {{rendering}}.",
+      "fiaSub": "Mot clé FIA · {{language}}",
+      "sub": "Mot clé · {{language}}",
       "noMeaning": "Aucun sens écrit pour l’instant.",
       "appearsIn": "Apparaît dans {{places}}",
       "everyPassage": "S’applique à tous les passages",
@@ -2815,10 +2814,10 @@
       "tiedBody": "Les réviseurs verront ce terme et votre raisonnement.",
       "tieBody": "Pour que les réviseurs sachent que ce terme a influencé {{passage}}.",
       "inLanguage": "En {{language}}",
-      "noRendering": "Pas encore d’équivalent",
+      "noRendering": "Pas encore de mot",
       "addHow": "Ajoutez comment {{language}} dit ceci, et quand l’utiliser.",
-      "adjustOrAdd": "Ajuster ou ajouter un équivalent",
-      "addRendering": "Ajouter un équivalent",
+      "adjustOrAdd": "Modifier ou ajouter un mot",
+      "addRendering": "Ajouter un mot",
       "details": "Détails",
       "why": "Pourquoi il est traduit ainsi",
       "changes_one": "{{count, number}} modification",
@@ -2830,7 +2829,7 @@
       "adjustTitle": "{{language}} · « {{term}} »",
       "adjustSubTie": "Noté dans le cadre de {{passage}}, et lié à votre brouillon.",
       "adjustSub": "Chaque modification est notée avec votre raison.",
-      "newRendering": "Nouvel équivalent (facultatif)",
+      "newRendering": "Nouveau mot (facultatif)",
       "whenToUse": "Quand l’utiliser",
       "sayWhy": "Dites pourquoi",
       "orTypeWhy": "Ou écrivez ce qui a changé, et pourquoi",
@@ -3216,6 +3215,7 @@
     "update": {
       "restarting": "Redémarrage…",
       "ready": "Mise à jour prête — touchez pour redémarrer",
+      "afterRecording": "Mise à jour prête · elle redémarre quand vous arrêtez d’enregistrer",
       "downloading": "Téléchargement de la mise à jour…",
       "downloadingPercent": "Téléchargement de la mise à jour… {{percent}}",
       "webReady": "Une nouvelle version de LangQuest est prête. Rechargez la page pour l’utiliser.",
@@ -3586,10 +3586,10 @@
     },
     "glossary": {
       "sub": "Glossaire · {{source}}",
-      "openKeyTerm": "Ouvrir le terme clé",
+      "openKeyTerm": "Ouvrir le mot clé",
       "listen": "Écouter : {{term}}",
       "standIn": "Impossible de charger l’audio — lecture d’un audio de remplacement",
-      "notKeyTerm": "Ce terme n’est pas encore dans les termes clés de votre organisation."
+      "notKeyTerm": "Ce terme n’est pas encore dans les mots clés de votre organisation."
     },
     "callout": {
       "action": "Arrêtez-vous ici",
@@ -3791,7 +3791,7 @@
         "passage": "Tout le passage",
         "aVersion": "Une version",
         "verse": "Verset {{verse}}",
-        "term": "Terme clé · {{term}}",
+        "term": "Mot clé · {{term}}",
         "aTerm": "terme",
         "study": "Étude",
         "studyAudioAt": "{{step}} · audio à {{at}}"
@@ -4156,7 +4156,7 @@
       "inResponseTo": "En réponse aux remarques de {{who}} ({{kind}})",
       "recording": "Enregistrement",
       "details": "Détails",
-      "keyTerms": "Termes clés",
+      "keyTerms": "Mots clés",
       "termsTied_one": "{{count, number}} terme lié · {{terms}}",
       "termsTied_many": "{{count, number}} termes liés · {{terms}}",
       "termsTied_other": "{{count, number}} termes liés · {{terms}}",
@@ -4167,7 +4167,7 @@
       "noteCount_many": "{{count, number}} notes",
       "noteCount_other": "{{count, number}} notes",
       "inResponseHelp": "Ouvre les remarques auxquelles cette version répond.",
-      "termHelp": "Ouvre ce terme clé : ce qu’il veut dire et comment votre équipe le dit."
+      "termHelp": "Ouvre ce mot clé : ce qu’il veut dire et comment votre équipe le dit."
     },
     "review": {
       "noReviews": "Pas encore de révisions sur ce passage.",
@@ -4545,7 +4545,7 @@
       },
       "term": {
         "title": "Choisissez un terme",
-        "sub": "Son sens et ses équivalents s’ouvrent ici."
+        "sub": "Son sens et les mots de votre équipe s’ouvrent ici."
       },
       "language": {
         "title": "Choisissez une langue",
@@ -5084,30 +5084,30 @@
     },
     "tray": {
       "help": "Aide",
-      "helpHint": "Termes clés, étude, notes et historique de ce passage",
+      "helpHint": "Mots clés, étude, notes et historique de ce passage",
       "helpSub": "Ce que l’équipe sait de ce passage.",
-      "keyTerms": "Termes clés",
+      "keyTerms": "Mots clés",
       "studyPill": "Étude {{pattern}} {{done}}/{{total}}",
       "notes": "Notes",
       "history": "Historique",
       "tied": "Lié à votre brouillon.",
-      "noTerms": "Aucun terme clé ne correspond à la source de ce passage.",
-      "noRendering": "Pas encore d’équivalent",
+      "noTerms": "Aucun mot clé dans ce passage.",
+      "noRendering": "Pas encore de mot",
       "termLabel": "{{term}}. {{rendered}}",
       "termLabelTied": "{{term}}. {{rendered}}. Lié à votre brouillon",
-      "noLanguageRendering": "Pas encore d’équivalent en {{language}}",
+      "noLanguageRendering": "Pas encore de mot en {{language}}",
       "tiedBadge": "Lié",
       "tying": "Liaison…",
       "tie": "Lier à votre brouillon",
       "recordFirst": "Enregistrez d’abord une partie ; ensuite vous pourrez lier des termes à votre brouillon.",
-      "allTerms": "Tous les termes clés →",
+      "allTerms": "Tous les mots clés →",
       "studyTitle": "Étude {{pattern}} · {{passage}}",
       "openStudy": "Ouvrir l’étude →",
       "anchor": {
         "passage": "Tout le passage",
         "draft": "Un brouillon",
         "verse": "Verset {{verse}}",
-        "term": "Terme clé",
+        "term": "Mot clé",
         "study": "Étude"
       },
       "notesEmpty": "Les notes que vous laissez ici suivent le passage — les réviseurs et le traducteur suivant les verront.",
@@ -5118,15 +5118,15 @@
       "firstRecording": "Premier enregistrement.",
       "saidInVoiceNote": "Dit dans une note vocale.",
       "playWhatChanged": "Écouter ce qui a changé dans {{version}}",
-      "helpButtonHelp": "Ouvre les termes clés, l’étude, les notes et l’historique de ce passage.",
-      "termsTabHelp": "Affiche les termes clés de ce passage et comment votre langue les dit.",
+      "helpButtonHelp": "Ouvre les mots clés, l’étude, les notes et l’historique de ce passage.",
+      "termsTabHelp": "Affiche les mots clés de ce passage et comment votre langue les dit.",
       "studyTabHelp": "Affiche les étapes de l’étude. Les nombres : étapes terminées sur le total.",
       "notesTabHelp": "Affiche les notes de l’équipe sur ce passage.",
       "historyTabHelp": "Affiche chaque version enregistrée jusqu’ici, et ce qui a changé.",
-      "termHelp": "Ouvre ce terme clé : ce qu’il veut dire et comment on le dit.",
-      "termTiedHelp": "Lié à votre brouillon. Ouvre ce terme clé : ce qu’il veut dire et comment on le dit.",
-      "tieHelp": "Marque ce terme clé comme dit dans votre brouillon. Un lien ne peut pas être annulé.",
-      "allTermsHelp": "Ouvre tous les termes clés, pas seulement ceux de ce passage.",
+      "termHelp": "Ouvre ce mot clé : ce qu’il veut dire et comment on le dit.",
+      "termTiedHelp": "Lié à votre brouillon. Ouvre ce mot clé : ce qu’il veut dire et comment on le dit.",
+      "tieHelp": "Marque ce mot clé comme dit dans votre brouillon. Un lien ne peut pas être annulé.",
+      "allTermsHelp": "Ouvre tous les mots clés, pas seulement ceux de ce passage.",
       "studyBarHelp": "La part de l’étude qui est terminée. Elle devient verte quand toutes les étapes le sont.",
       "openStudyHelp": "Ouvre toute l’étude de ce passage.",
       "addNoteHelp": "Laissez une note sur ce passage, dite ou écrite. Elle suit le passage."
@@ -5352,8 +5352,8 @@
       "notHereSub": "Revenez à la carte pour en choisir un autre.",
       "breakUp": "Découper {{book}}",
       "notBrokenUp": "{{book}} n’est pas encore découpé",
-      "chooseHow": "Choisissez comment {{book}} est coupé en morceaux : par chapitre, selon les passages FIA ou autrement. Ensuite, il pourra être enregistré.",
-      "coordinatorDecides": "Un coordinateur décide comment {{book}} est coupé en morceaux. Ensuite, vous pourrez l’enregistrer.",
+      "chooseHow": "Choisissez comment {{book}} est coupé en sections : par chapitre, selon les passages FIA ou autrement. Ensuite, il pourra être enregistré.",
+      "coordinatorDecides": "Un coordinateur décide comment {{book}} est coupé en sections. Ensuite, vous pourrez l’enregistrer.",
       "summary_one": "{{recorded}} passage enregistré sur {{count, number}}",
       "summary_many": "{{recorded}} passages enregistrés sur {{count, number}}",
       "summary_other": "{{recorded}} passages enregistrés sur {{count, number}}",
@@ -5363,7 +5363,7 @@
       "key": "Légende",
       "filterHelp": "N’afficher que certains passages, et la légende complète.",
       "breakUpDifferently": "Découper autrement",
-      "breakUpDifferentlyHelp": "Changer la façon dont ce livre est coupé en morceaux : par chapitre, selon les passages FIA ou autrement.",
+      "breakUpDifferentlyHelp": "Changer la façon dont ce livre est coupé en sections : par chapitre, selon les passages FIA ou autrement.",
       "chapterTitle": "{{book}} {{n}}",
       "pickPart_one": "{{count, number}} partie — choisissez-en une",
       "pickPart_many": "{{count, number}} parties — choisissez-en une",
@@ -6190,7 +6190,7 @@
       "anchor": {
         "passage": "Tout le passage",
         "verse": "Verset {{verse}}",
-        "term": "Terme clé · {{term}}",
+        "term": "Mot clé · {{term}}",
         "someTerm": "terme",
         "version": "Version {{n}}",
         "aVersion": "Une version",
@@ -7197,8 +7197,8 @@
       "findMore": "Trouvez-en une sous Autres Bibles.",
       "verseLabel": "Verset {{verse}}. {{text}}",
       "playsFromVerse": "Lecture à partir de ce verset",
-      "keyTerm": "{{term}}, terme clé",
-      "keyTermTied": "{{term}}, terme clé, lié à votre brouillon",
+      "keyTerm": "{{term}}, mot clé",
+      "keyTermTied": "{{term}}, mot clé, lié à votre brouillon",
       "builtIn": "Texte intégré, en dernier recours jusqu’à ce que votre organisation recommande des Bibles.",
       "sharedBy": "Partagé par {{org}}.",
       "copyright": "{{abbr}} : {{line}}",
@@ -7816,8 +7816,10 @@
     "dismiss": "Fermer",
     "dismissHelp": "Masque ce message jusqu’à la sortie d’une version plus récente.",
     "required": "Veuillez mettre à jour l’application",
+    "requiredSub": "Vos enregistrements et modifications partent toujours vers votre équipe. Rien de nouveau de leur part n’arrive sur ce téléphone avant la mise à jour.",
+    "requiredBar": "Mettez à jour pour recevoir le travail de votre équipe",
     "keepWorking": "Continuer à travailler",
-    "keepWorkingHelp": "Votre travail reste sur ce téléphone et sera envoyé après la mise à jour."
+    "keepWorkingHelp": "Ferme ceci pour l’instant. Vous pouvez continuer à enregistrer ; votre travail part toujours vers votre équipe."
   },
   "globalViewer": {
     "title": "Observateur global",

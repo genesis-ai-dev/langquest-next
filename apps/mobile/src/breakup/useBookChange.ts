@@ -59,7 +59,7 @@ export function useBookChange(ctx: Ctx, c: { book: string; bookName: string; doc
       c.onDone();
     } catch (e) {
       setBusy(false);
-      ctx.toast(failureMessage('break up a book', e));
+      ctx.toast(failureMessage('break up a book', e), 'problem');
     }
   }
   const here = () => new Set([ctx.language.languageId ?? '']);

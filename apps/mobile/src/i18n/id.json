@@ -309,8 +309,8 @@
     "workspace": "Rekam",
     "review_capture": "Periksa",
     "back_translation": "Terjemahkan Balik",
-    "key_terms": "Istilah Kunci",
-    "key_term_detail": "Istilah Kunci",
+    "key_terms": "Kata Kunci",
+    "key_term_detail": "Kata Kunci",
     "inbox_home": "Kotak Masuk",
     "settings_home": "Saya",
     "profile_edit": "Ubah Profil",
@@ -675,7 +675,7 @@
       "languages_other": "{{count, number}} bahasa",
       "templates": "Templat Isi",
       "reference": "Bahan Referensi",
-      "referenceSub": "{{study}} studi · {{questions}} kumpulan pertanyaan · {{terms}} istilah kunci",
+      "referenceSub": "{{study}} studi · {{questions}} kumpulan pertanyaan · {{terms}} kata kunci",
       "flows": "Alur Pemeriksaan",
       "roles": "Peran",
       "rolesSub_other": "{{count, number}} peran di tingkat ini dan di atasnya",
@@ -690,7 +690,7 @@
       },
       "titleHelp": "Menampilkan yang disiapkan sekali dan jarang berubah: templat isi, bahan referensi, alur pemeriksaan, dan peran.",
       "templatesHelp": "Membuka cara-cara membagi pekerjaan menjadi perikop, dan cara yang dipakai setiap bahasa.",
-      "referenceHelp": "Membuka Alkitab, panduan studi, pertanyaan, dan istilah kunci yang disediakan bagi penerjemah.",
+      "referenceHelp": "Membuka Alkitab, panduan studi, pertanyaan, dan kata kunci yang disediakan bagi penerjemah.",
       "flowsHelp": "Membuka cara-cara rekaman diperiksa, dan cara yang dipakai setiap bahasa.",
       "rolesHelp": "Membuka peran-peran, dan apa yang boleh dilakukan seseorang dengan masing-masing peran."
     },
@@ -966,13 +966,13 @@
       "stages": {
         "language": "Bahasa",
         "content": "Isi",
-        "pieces": "Bagi menjadi potongan",
+        "pieces": "Bagi menjadi bagian",
         "material": "Bahan referensi",
         "flow": "Alur pemeriksaan",
         "people": "Orang",
         "languageHelp": "Bahasa tujuan terjemahan mereka: namanya, dari daftar bahasa atau diketik. Bisa ditautkan ke daftar nanti.",
         "contentHelp": "Apa yang akan mereka terjemahkan: Alkitab, atau yang lain, seperti cerita atau lagu.",
-        "piecesHelp": "Cara isinya dibagi menjadi potongan yang cukup kecil untuk direkam dan diperiksa satu per satu.",
+        "piecesHelp": "Cara isinya dibagi menjadi bagian yang cukup kecil untuk direkam dan diperiksa satu per satu.",
         "materialHelp": "Alkitab, panduan studi, dan catatan yang ada di dekat penerjemah dan pemeriksa.",
         "flowHelp": "Pemeriksaan yang dilalui rekaman sebelum disetujui, dan apa yang dilihat orang-orang di setiap pemeriksaan.",
         "peopleHelp": "Lalu undang orang: penerjemah, pemeriksa, dan lainnya, masing-masing dengan kode untuk dipindai.",
@@ -1290,7 +1290,7 @@
       "keepIt": "Biarkan",
       "whichPart": "Bagian Alkitab yang mana?",
       "viewOnly": "Hanya orang yang mengatur bahasa yang dapat mengubah apa yang diterjemahkan.",
-      "keepEarlier": "Potongan yang tetap sama mempertahankan rekamannya. Apa yang direkam pada potongan yang berubah disimpan di bawah \"Potongan sebelumnya\" pada potongan yang baru.",
+      "keepEarlier": "Bagian yang tetap sama mempertahankan rekamannya. Apa yang direkam pada bagian yang berubah disimpan di bawah \"Bagian sebelumnya\" pada bagian yang baru.",
       "partHelp": "Mereka menerjemahkan bagian Alkitab ini.",
       "chooseBooksHelp": "Pilih kitab-kitabnya satu per satu, di bawah.",
       "bookOnHelp": "Dipilih. Ketuk untuk tidak memasukkannya.",
@@ -1358,7 +1358,6 @@
       "noNotes": "Belum ada catatan",
       "passagesCovered_other": "{{count, number}} perikop tercakup",
       "keyWords": "Kata kunci",
-      "keyTerms": "Istilah kunci",
       "keyTermsSub_other": "{{count, number}} kata · {{rendered}} dengan kata dalam {{language}}",
       "writtenHere": "Ditulis di sini, untuk bahasa ini",
       "addMoreHelp": "Cari Alkitab, panduan studi, catatan, atau kata kunci untuk disediakan bagi mereka.",
@@ -1738,8 +1737,8 @@
       "skip": "Lewati penjelasan",
       "stepLabel": "Langkah {{step, number}} dari {{total, number}}",
       "pieces": {
-        "title": "Tim Anda merekam bahan dalam potongan-potongan",
-        "text": "Bahan disusun dalam folder, dan orang-orang merekam potongan-potongan di dalamnya. Ini contoh cerita-cerita yang disusun dalam kumpulan.",
+        "title": "Tim Anda merekam bahan dalam bagian-bagian",
+        "text": "Bahan disusun dalam folder, dan orang-orang merekam bagian-bagian di dalamnya. Ini contoh cerita-cerita yang disusun dalam kumpulan.",
         "began": "Bagaimana semuanya bermula",
         "river": "Mengapa sungai itu lebar",
         "fire": "Api pertama",
@@ -1748,12 +1747,12 @@
       },
       "bible": {
         "title": "Alkitab punya kitab, pasal, dan ayat",
-        "text": "Setiap kitab adalah sebuah folder. Di dalamnya, kitab dibagi menjadi potongan untuk direkam, dan setiap ayat menandai satu tempat dalam rekaman.",
+        "text": "Setiap kitab adalah sebuah folder. Di dalamnya, kitab dibagi menjadi bagian untuk direkam, dan setiap ayat menandai satu tempat dalam rekaman.",
         "chapterVerses": "{{book}} {{chapter}} · ayat 1 sampai {{last}}"
       },
       "places": {
         "title": "Kitab yang sama bisa dibagi di tempat yang berbeda",
-        "text": "Ini {{book}} dengan tiga cara. Ayatnya sama, potongannya berbeda.",
+        "text": "Ini {{book}} dengan tiga cara. Ayatnya sama, bagiannya berbeda.",
         "byChapter": "Per pasal",
         "fia": "Perikop FIA",
         "unfoldingWord": "Potongan unfoldingWord"
@@ -1791,17 +1790,17 @@
       "waitsLabel": "{{book}} menunggu dibagi",
       "notInIt": "{{book}} tidak ada di dalamnya",
       "waits": "{{book}} menunggu sampai koordinator membaginya",
-      "label_other": "{{book}} dalam {{count, number}} potongan",
-      "caption_other": "{{book}}: {{count, number}} potongan",
-      "help": "Setiap blok adalah satu potongan untuk direkam, lebarnya sesuai banyaknya ayat."
+      "label_other": "{{book}} dalam {{count, number}} bagian",
+      "caption_other": "{{book}}: {{count, number}} bagian",
+      "help": "Setiap blok adalah satu bagian untuk direkam, lebarnya sesuai banyaknya ayat."
     },
     "way": {
       "inUse": "Dipakai di sini",
-      "previewHelp": "Setiap potongan yang dibuat {{way}} dari sebuah kitab.",
+      "previewHelp": "Setiap bagian yang dibuat {{way}} dari sebuah kitab.",
       "comesWith": "Disertai panduan studi {{pattern}}",
       "previewLabel": "Pratinjau {{way}}",
-      "pickHelp": "Memilih cara ini untuk membaginya menjadi potongan.",
-      "barHelp": "Batang ini menunjukkan {{book}} dibagi dengan cara ini: setiap blok adalah satu potongan, lebarnya sesuai banyaknya ayat."
+      "pickHelp": "Memilih cara ini untuk membaginya menjadi bagian.",
+      "barHelp": "Batang ini menunjukkan {{book}} dibagi dengan cara ini: setiap blok adalah satu bagian, lebarnya sesuai banyaknya ayat."
     },
     "preview": {
       "useThis": "Pakai ini",
@@ -1843,7 +1842,7 @@
     },
     "book": {
       "breakDifferently": "Bagi dengan cara lain",
-      "breakDifferentlyHelp": "Pilih cara lain untuk membagi kitab ini menjadi potongan.",
+      "breakDifferentlyHelp": "Pilih cara lain untuk membagi kitab ini menjadi bagian.",
       "namedToast": "Dalam {{language}} kitab ini disebut {{name}}.",
       "brokenUp": "Sudah dibagi",
       "ownWay": "Cara sendiri",
@@ -1856,8 +1855,8 @@
       "breakUp": "Bagi {{book}}",
       "changeQuestion": "Ubah cara {{book}} dibagi",
       "question": "Bagaimana {{book}} sebaiknya dibagi?",
-      "nowEachPiece": "Sekarang: {{way}}. Setiap potongan direkam tersendiri.",
-      "eachPiece": "Setiap potongan direkam tersendiri.",
+      "nowEachPiece": "Sekarang: {{way}}. Setiap bagian direkam tersendiri.",
+      "eachPiece": "Setiap bagian direkam tersendiri.",
       "connectForWays": "Sambungkan untuk memuat cara-cara membaginya.",
       "alsoUsedOne": "Juga dipakai di {{name}}. Ubah {{book}} untuk yang mana?",
       "alsoUsedTwo": "Juga dipakai di {{first}} dan {{second}}. Ubah {{book}} untuk yang mana?",
@@ -2117,8 +2116,8 @@
       "done_other": "Selesai · {{count, number}} bagian"
     },
     "division": {
-      "way_other": "{{way}} · {{count, number}} potongan",
-      "own_other": "Cara sendiri · {{count, number}} potongan"
+      "way_other": "{{way}} · {{count, number}} bagian",
+      "own_other": "Cara sendiri · {{count, number}} bagian"
     }
   },
   "canon": {
@@ -2139,7 +2138,7 @@
     "unnamedOrg": "Organisasi",
     "listJoin": ", ",
     "quoted": "“{{text}}”",
-    "languageRenderings": "Padanan {{language}}",
+    "languageRenderings": "Kata dalam {{language}}",
     "levels": {
       "org": "Organisasi",
       "language": "Bahasa"
@@ -2150,11 +2149,11 @@
         "desc": "Mengubah struktur organisasi dalam lingkupnya (bahasa)"
       },
       "inviteMembers": {
-        "label": "Undang Anggota",
+        "label": "Mengundang orang",
         "desc": "Mengundang orang dalam lingkupnya"
       },
       "manageRoles": {
-        "label": "Kelola Peran",
+        "label": "Membuat dan mengubah peran",
         "desc": "Membuat dan mengubah peran dalam lingkupnya"
       },
       "manageTemplates": {
@@ -2166,7 +2165,7 @@
         "desc": "Membagi kitab menjadi perikop, menamainya, dan menerbitkan perubahan itu untuk bahasanya"
       },
       "manageReference": {
-        "label": "Kelola Bahan Referensi",
+        "label": "Memilih Alkitab dan panduan",
         "desc": "Membuat dan mengubah bahan referensi dalam lingkupnya"
       },
       "manageFlows": {
@@ -2178,31 +2177,31 @@
         "desc": "Membuat dan mengubah tim pemeriksa (kelompok) dalam lingkupnya"
       },
       "assignWork": {
-        "label": "Tugaskan Pekerjaan",
+        "label": "Menugaskan pekerjaan",
         "desc": "Meminta siapa pun dalam lingkupnya merekam atau memeriksa perikop"
       },
       "overrideCheckpoints": {
-        "label": "Lewati Titik Periksa",
+        "label": "Meloloskan pekerjaan melewati pemeriksaan yang terkunci",
         "desc": "Meloloskan perikop melewati titik periksa, dengan alasan yang dicatat"
       },
       "translate": {
-        "label": "Terjemahkan",
+        "label": "Merekam",
         "desc": "Merekam dan memperbaiki terjemahan (matikan, misalnya, agar konsultan tidak membuat draf)"
       },
       "fillReference": {
-        "label": "Isi Bahan Referensi",
-        "desc": "Menambah istilah kunci, catatan, dan isi referensi"
+        "label": "Menambah catatan dan kata kunci",
+        "desc": "Menambah kata kunci, catatan, dan isi referensi"
       },
       "sendToReviewers": {
-        "label": "Minta Pemeriksaan",
+        "label": "Meminta pemeriksaan",
         "desc": "Meminta rekan tim, atau orang di luar aplikasi lewat tautan, untuk memeriksa"
       },
       "review": {
-        "label": "Periksa",
+        "label": "Memeriksa rekaman",
         "desc": "Memberi pemeriksaan, dan mencatat pemeriksaan yang dilakukan di luar aplikasi"
       },
       "viewStatus": {
-        "label": "Lihat Status",
+        "label": "Melihat pekerjaan semua orang",
         "desc": "Melihat peta dan riwayat perikop tanpa bisa mengubah, dalam lingkupnya"
       }
     },
@@ -2230,7 +2229,7 @@
       },
       "keyTerms": {
         "code": "KT",
-        "name": "Istilah Kunci"
+        "name": "Kata Kunci"
       },
       "questions": {
         "code": "Q",
@@ -2459,15 +2458,15 @@
       "introLanguage": "Bahan milik {{language}} sendiri melengkapi apa yang direkomendasikan organisasi; tidak ada yang disalin. Penerjemah melihatnya di panel tempat merekam; pemeriksa melihat pertanyaan untuk jenis pemeriksaan mereka.",
       "introOrg": "Bahan untuk semua bahasa ada di perpustakaan Anda, dan organisasi merekomendasikannya kepada bahasa-bahasa itu. Setiap bahasa menambahkan bahannya sendiri dari Berandanya.",
       "offered": "Apa yang disediakan bagi penerjemah",
-      "keyTermsSection": "Istilah kunci",
-      "keyTermsRow": "Istilah Kunci",
+      "keyTermsSection": "Kata kunci",
+      "keyTermsRow": "Kata Kunci",
       "concepts_other": "{{count, number}} konsep",
       "addLanguageFirst": "Tambahkan bahasa dulu",
       "libraryOrg": "Perpustakaan · organisasi Anda",
       "new": "Baru",
       "libraryEmpty": "Belum ada apa-apa di perpustakaan Anda. Ikuti atau salin apa yang dibagikan organisasi lain, atau terbitkan milik Anda sendiri.",
       "writeGuide": "Tulis panduan",
-      "writeGuideSub": "Langkah-langkah dengan teks dan audio, gambar, peta, dan istilah kunci",
+      "writeGuideSub": "Langkah-langkah dengan teks dan audio, gambar, peta, dan kata kunci",
       "studyMaterial": "Bahan studi",
       "noStudy": "Belum ada bahan studi yang ditulis di aplikasi untuk bahasa ini.",
       "blanks_other": "{{count, number}} isian kosong",
@@ -2594,41 +2593,41 @@
       "pickPartHelp": "Menautkan bagian ini: penerjemah mendapatkannya di sana."
     },
     "keyTerms": {
-      "noLanguageRendering": "Belum ada padanan dalam {{language}}",
-      "title": "Istilah Kunci",
+      "noLanguageRendering": "Belum ada kata dalam {{language}}",
+      "title": "Kata Kunci",
       "chooseLanguage": "Pilih bahasa dulu",
       "added": "{{term}} ditambahkan.",
       "newTerm": "Istilah baru",
       "search": "Cari istilah",
-      "empty": "Belum ada istilah kunci",
+      "empty": "Belum ada kata kunci",
       "emptySubCanAdd": "Tambahkan istilah dengan cara bahasa ini mengucapkannya, dan kapan memakainya.",
-      "emptySub": "Istilah yang ditambahkan tim Anda muncul di sini bersama padanannya.",
+      "emptySub": "Kata yang ditambahkan tim Anda muncul di sini, dengan kata bahasa Anda untuk masing-masing.",
       "inPassage": "Dalam perikop ini",
       "otherTerms": "Istilah lain",
       "allTerms": "Semua istilah",
       "noOther": "Tidak ada istilah lain.",
-      "intro": "Konsep berasal dari daftar bersama (seperti istilah kunci FIA) atau daftar Anda sendiri. {{language}} menyimpan padanannya sendiri beserta alasannya.",
-      "newKeyTerm": "Istilah kunci baru",
-      "newSub": "Ditambahkan ke istilah kunci {{language}}, dengan padanan pertamanya.",
+      "intro": "Kata kunci berasal dari daftar bersama (seperti kata kunci FIA) atau milik Anda sendiri. {{language}} menyimpan katanya sendiri untuk masing-masing, beserta alasannya.",
+      "newKeyTerm": "Kata kunci baru",
+      "newSub": "Ditambahkan ke kata kunci {{language}}, dengan kata pertamanya.",
       "addTerm": "Tambah Istilah",
       "termPlaceholder": "Istilah sumber, misalnya kasih karunia (kharis)",
       "meaningPlaceholder": "Artinya, secara singkat",
-      "renderingPlaceholder": "Padanan dalam {{language}}",
+      "renderingPlaceholder": "Kata dalam {{language}}",
       "contextPlaceholder": "Kapan memakainya, dan mengapa",
       "newTermHelp": "Menambahkan konsep, beserta cara mengucapkannya dalam {{language}}.",
       "openTermHelp": "Membukanya: artinya, cara tim Anda mengucapkannya, dan alasannya.",
-      "openFiaTermHelp": "Istilah kunci FIA. Membuka artinya, cara tim Anda mengucapkannya, dan alasannya.",
+      "openFiaTermHelp": "Kata kunci FIA. Membuka artinya, cara tim Anda mengucapkannya, dan alasannya.",
       "renderingHelp": "Cara mengucapkannya dalam {{language}}."
     },
     "keyTerm": {
-      "title": "Istilah Kunci",
+      "title": "Kata Kunci",
       "gone": "Istilah ini sudah tidak ada",
       "tied": "{{term}} dikaitkan dengan draf Anda.",
       "added": "“{{rendering}}” ditambahkan.",
       "changeRecorded": "Perubahan dicatat.",
-      "firstRendering": "Padanan pertama: {{rendering}}.",
-      "fiaSub": "Istilah kunci FIA · {{language}}",
-      "sub": "Istilah kunci {{language}}",
+      "firstRendering": "Kata pertama: {{rendering}}.",
+      "fiaSub": "Kata kunci FIA · {{language}}",
+      "sub": "Kata kunci {{language}}",
       "noMeaning": "Belum ada arti yang ditulis.",
       "appearsIn": "Muncul di {{places}}",
       "everyPassage": "Berlaku untuk setiap perikop",
@@ -2637,10 +2636,10 @@
       "tiedBody": "Pemeriksa akan melihat istilah ini dan alasan Anda.",
       "tieBody": "Agar pemeriksa tahu istilah ini memengaruhi {{passage}}.",
       "inLanguage": "Dalam {{language}}",
-      "noRendering": "Belum ada padanan",
+      "noRendering": "Belum ada kata",
       "addHow": "Tambahkan cara {{language}} mengucapkan ini, dan kapan memakainya.",
-      "adjustOrAdd": "Sesuaikan atau tambah padanan",
-      "addRendering": "Tambah padanan",
+      "adjustOrAdd": "Ubah atau tambah kata",
+      "addRendering": "Tambah kata",
       "details": "Detail",
       "why": "Mengapa dipadankan seperti ini",
       "changes_other": "{{count, number}} perubahan",
@@ -2650,7 +2649,7 @@
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Dicatat sebagai bagian dari {{passage}}, dan dikaitkan dengan draf Anda.",
       "adjustSub": "Setiap perubahan dicatat dengan alasan Anda.",
-      "newRendering": "Padanan baru (tidak wajib)",
+      "newRendering": "Kata baru (opsional)",
       "whenToUse": "Kapan memakainya",
       "sayWhy": "Sebutkan alasannya",
       "orTypeWhy": "Atau ketik apa yang berubah, dan mengapa",
@@ -3032,6 +3031,7 @@
     "update": {
       "restarting": "Memulai ulang…",
       "ready": "Pembaruan siap — ketuk untuk memulai ulang",
+      "afterRecording": "Pembaruan siap · dimulai ulang saat Anda berhenti merekam",
       "downloading": "Mengunduh pembaruan…",
       "downloadingPercent": "Mengunduh pembaruan… {{percent}}",
       "webReady": "Versi baru LangQuest sudah siap. Muat ulang untuk memakainya.",
@@ -3376,10 +3376,10 @@
     },
     "glossary": {
       "sub": "Daftar istilah · {{source}}",
-      "openKeyTerm": "Buka istilah kunci",
+      "openKeyTerm": "Buka kata kunci",
       "listen": "Dengarkan: {{term}}",
       "standIn": "Audio tidak dapat dimuat — memutar audio pengganti",
-      "notKeyTerm": "Istilah ini belum ada di istilah kunci organisasi Anda."
+      "notKeyTerm": "Istilah ini belum ada di kata kunci organisasi Anda."
     },
     "callout": {
       "action": "Berhenti di sini",
@@ -3569,7 +3569,7 @@
         "passage": "Seluruh perikop",
         "aVersion": "Sebuah versi",
         "verse": "Ayat {{verse}}",
-        "term": "Istilah kunci · {{term}}",
+        "term": "Kata kunci · {{term}}",
         "aTerm": "istilah",
         "study": "Studi",
         "studyAudioAt": "{{step}} · audio di {{at}}"
@@ -3916,14 +3916,14 @@
       "inResponseTo": "Menanggapi {{kind}} dari {{who}}",
       "recording": "Rekaman",
       "details": "Detail",
-      "keyTerms": "Istilah kunci",
+      "keyTerms": "Kata kunci",
       "termsTied_other": "{{count, number}} istilah terkait · {{terms}}",
       "reviews": "Pemeriksaan versi ini",
       "noReviews": "Belum ada pemeriksaan untuk versi ini.",
       "notes": "Catatan",
       "noteCount_other": "{{count, number}} catatan",
       "inResponseHelp": "Membuka masukan yang dijawab versi ini.",
-      "termHelp": "Membuka istilah kunci ini: artinya dan cara tim Anda mengucapkannya."
+      "termHelp": "Membuka kata kunci ini: artinya dan cara tim Anda mengucapkannya."
     },
     "review": {
       "noReviews": "Belum ada pemeriksaan untuk perikop ini.",
@@ -4269,7 +4269,7 @@
       },
       "term": {
         "title": "Pilih istilah",
-        "sub": "Arti dan padanannya terbuka di sini."
+        "sub": "Artinya dan kata-kata tim Anda terbuka di sini."
       },
       "language": {
         "title": "Pilih bahasa",
@@ -4768,30 +4768,30 @@
     },
     "tray": {
       "help": "Bantuan",
-      "helpHint": "Istilah kunci, studi, catatan, dan riwayat untuk perikop ini",
+      "helpHint": "Kata kunci, studi, catatan, dan riwayat untuk perikop ini",
       "helpSub": "Apa yang diketahui tim tentang perikop ini.",
-      "keyTerms": "Istilah kunci",
+      "keyTerms": "Kata kunci",
       "studyPill": "Studi {{pattern}} {{done}}/{{total}}",
       "notes": "Catatan",
       "history": "Riwayat",
       "tied": "Dikaitkan dengan draf Anda.",
-      "noTerms": "Tidak ada istilah kunci yang cocok dengan sumber perikop ini.",
-      "noRendering": "Belum ada padanan",
+      "noTerms": "Tidak ada kata kunci di perikop ini.",
+      "noRendering": "Belum ada kata",
       "termLabel": "{{term}}. {{rendered}}",
       "termLabelTied": "{{term}}. {{rendered}}. Dikaitkan dengan draf Anda",
-      "noLanguageRendering": "Belum ada padanan dalam {{language}}",
+      "noLanguageRendering": "Belum ada kata dalam {{language}}",
       "tiedBadge": "Terkait",
       "tying": "Mengaitkan…",
       "tie": "Kaitkan dengan draf Anda",
       "recordFirst": "Rekam dulu satu bagian; lalu Anda dapat mengaitkan istilah dengan draf Anda.",
-      "allTerms": "Semua istilah kunci →",
+      "allTerms": "Semua kata kunci →",
       "studyTitle": "Studi {{pattern}} · {{passage}}",
       "openStudy": "Buka studi →",
       "anchor": {
         "passage": "Seluruh perikop",
         "draft": "Sebuah draf",
         "verse": "Ayat {{verse}}",
-        "term": "Istilah kunci",
+        "term": "Kata kunci",
         "study": "Studi"
       },
       "notesEmpty": "Catatan yang Anda tinggalkan di sini ikut bersama perikop — pemeriksa dan penerjemah berikutnya akan melihatnya.",
@@ -4802,15 +4802,15 @@
       "firstRecording": "Rekaman pertama.",
       "saidInVoiceNote": "Diucapkan dalam catatan suara.",
       "playWhatChanged": "Putar apa yang berubah di {{version}}",
-      "helpButtonHelp": "Membuka istilah kunci, studi, catatan, dan riwayat untuk perikop ini.",
-      "termsTabHelp": "Menampilkan istilah kunci dalam perikop ini dan cara bahasa Anda mengucapkannya.",
+      "helpButtonHelp": "Membuka kata kunci, studi, catatan, dan riwayat untuk perikop ini.",
+      "termsTabHelp": "Menampilkan kata kunci dalam perikop ini dan cara bahasa Anda mengucapkannya.",
       "studyTabHelp": "Menampilkan langkah-langkah studi. Angkanya adalah langkah yang selesai dari seluruhnya.",
       "notesTabHelp": "Menampilkan catatan tim pada perikop ini.",
       "historyTabHelp": "Menampilkan setiap versi yang sudah direkam, dan apa yang berubah.",
-      "termHelp": "Membuka istilah kunci ini: artinya dan cara mengucapkannya.",
-      "termTiedHelp": "Dikaitkan dengan draf Anda. Membuka istilah kunci ini: artinya dan cara mengucapkannya.",
-      "tieHelp": "Menandai istilah kunci ini sudah diucapkan dalam draf Anda. Kaitan tidak dapat diurungkan.",
-      "allTermsHelp": "Membuka semua istilah kunci, bukan hanya yang ada di perikop ini.",
+      "termHelp": "Membuka kata kunci ini: artinya dan cara mengucapkannya.",
+      "termTiedHelp": "Dikaitkan dengan draf Anda. Membuka kata kunci ini: artinya dan cara mengucapkannya.",
+      "tieHelp": "Menandai kata kunci ini sudah diucapkan dalam draf Anda. Kaitan tidak dapat diurungkan.",
+      "allTermsHelp": "Membuka semua kata kunci, bukan hanya yang ada di perikop ini.",
       "studyBarHelp": "Seberapa banyak studi yang sudah selesai. Berubah hijau saat semua langkah selesai.",
       "openStudyHelp": "Membuka seluruh studi untuk perikop ini.",
       "addNoteHelp": "Tinggalkan catatan pada perikop ini, dengan suara atau diketik. Catatan ini ikut bersama perikopnya."
@@ -4998,14 +4998,14 @@
       "notHereSub": "Kembali ke peta untuk memilih yang lain.",
       "breakUp": "Bagi {{book}}",
       "notBrokenUp": "{{book}} belum dibagi",
-      "chooseHow": "Pilih cara {{book}} dibagi menjadi potongan-potongan: per pasal, per perikop FIA, atau cara lain. Lalu kitab itu bisa direkam.",
-      "coordinatorDecides": "Seorang koordinator menentukan cara {{book}} dibagi menjadi potongan-potongan. Lalu Anda bisa merekamnya.",
+      "chooseHow": "Pilih cara {{book}} dibagi menjadi bagian-bagian: per pasal, per perikop FIA, atau cara lain. Lalu kitab itu bisa direkam.",
+      "coordinatorDecides": "Seorang koordinator menentukan cara {{book}} dibagi menjadi bagian-bagian. Lalu Anda bisa merekamnya.",
       "summary_other": "{{recorded}} dari {{count, number}} perikop direkam",
       "summaryIn_other": "{{recorded}} dari {{count, number}} perikop direkam dalam {{language}}",
       "key": "Keterangan",
       "filterHelp": "Tampilkan hanya sebagian perikop, dan keterangan lengkap.",
       "breakUpDifferently": "Bagi dengan cara lain",
-      "breakUpDifferentlyHelp": "Ubah cara kitab ini dibagi menjadi potongan-potongan: per pasal, per perikop FIA, atau cara lain.",
+      "breakUpDifferentlyHelp": "Ubah cara kitab ini dibagi menjadi bagian-bagian: per pasal, per perikop FIA, atau cara lain.",
       "chapterTitle": "{{book}} {{n}}",
       "pickPart_other": "{{count, number}} bagian — pilih satu"
     },
@@ -5700,7 +5700,7 @@
       "anchor": {
         "passage": "Seluruh perikop",
         "verse": "Ayat {{verse}}",
-        "term": "Istilah kunci · {{term}}",
+        "term": "Kata kunci · {{term}}",
         "someTerm": "istilah",
         "version": "Versi {{n}}",
         "aVersion": "Sebuah versi",
@@ -6623,8 +6623,8 @@
       "findMore": "Cari di Alkitab Lain.",
       "verseLabel": "Ayat {{verse}}. {{text}}",
       "playsFromVerse": "Memutar dari ayat ini",
-      "keyTerm": "{{term}}, istilah kunci",
-      "keyTermTied": "{{term}}, istilah kunci, dikaitkan dengan draf Anda",
+      "keyTerm": "{{term}}, kata kunci",
+      "keyTermTied": "{{term}}, kata kunci, dikaitkan dengan draf Anda",
       "builtIn": "Teks bawaan, pilihan terakhir sampai organisasi Anda merekomendasikan Alkitab.",
       "sharedBy": "Dibagikan oleh {{org}}.",
       "copyright": "{{abbr}}: {{line}}",
@@ -7178,8 +7178,10 @@
     "dismiss": "Tutup",
     "dismissHelp": "Menyembunyikan ini sampai versi yang lebih baru keluar.",
     "required": "Harap perbarui aplikasi",
+    "requiredSub": "Rekaman dan perubahan Anda tetap terkirim ke tim. Tidak ada yang baru dari mereka yang sampai ke ponsel ini sampai Anda memperbarui.",
+    "requiredBar": "Perbarui untuk menerima pekerjaan tim Anda",
     "keepWorking": "Tetap bekerja",
-    "keepWorkingHelp": "Pekerjaan Anda tetap di ponsel ini dan dikirim setelah Anda memperbarui."
+    "keepWorkingHelp": "Menutup ini untuk sekarang. Anda bisa terus merekam; pekerjaan Anda tetap terkirim ke tim."
   },
   "globalViewer": {
     "title": "Pengamat Global",

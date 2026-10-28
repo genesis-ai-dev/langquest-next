@@ -125,8 +125,8 @@ async function perform(ctx: Ctx, build: (c: Commands) => EventSpec[], message: s
   try {
     specs = build(commands(state, indexesFor(state)));
   } catch (e) {
-    if (e instanceof CommandError) ctx.toast(commandErrorText(e));
-    else ctx.toast(t('common.somethingWentWrong', { code: reportError('passage: build command', e) }));
+    if (e instanceof CommandError) ctx.toast(commandErrorText(e), 'problem');
+    else ctx.toast(t('common.somethingWentWrong', { code: reportError('passage: build command', e) }), 'problem');
     return false;
   }
   try {
@@ -425,7 +425,7 @@ export function PassageRecord(ctx: Ctx) {
           {/* help-each: each option does something different */}
           {options.map((o) => <BigOption key={o.id} testID={`else-${o.id}${o.kindId ? `-${o.kindId}` : ''}`} icon={o.icon} label={o.label} sub={o.sub} onPress={() => onOption(o)} />)}
           <View style={styles.tiles}>
-            {can.note ? <SmallOption testID="else-note" icon="chat" label={t('common.addNote')} help={t('passage.else.addNoteHelp')} onPress={() => setNoting('note')} /> : null}
+            {can.note ? <SmallOption testID="else-note" icon="note" label={t('common.addNote')} help={t('passage.else.addNoteHelp')} onPress={() => setNoting('note')} /> : null}
             <SmallOption testID="else-reference" icon="book" label={t('passage.else.whatHelps')} help={t('passage.else.whatHelpsHelp')} onPress={() => go('passage_reference')} />
           </View>
           {canAct ? <Text style={txt.xs}>{t('passage.else.teamOptions', { section: t('passage.path.thenTheTeam') })}</Text> : null}

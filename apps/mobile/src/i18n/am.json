@@ -104,7 +104,7 @@
     },
     "kinds": {
       "peer": {
-        "name": "የአቻ ግምገማ",
+        "name": "የአቻ ፍተሻ",
         "usualReviewer": "ሌላ ተርጓሚ",
         "description": "ሌላ ተርጓሚ ትክክለኛነቱንና አነጋገሩ ተፈጥሯዊ መሆኑን ያዳምጣል።"
       },
@@ -985,13 +985,13 @@
       "stages": {
         "language": "ቋንቋ",
         "content": "ይዘት",
-        "pieces": "በቁራጭ መከፋፈል",
+        "pieces": "በክፍል መከፋፈል",
         "material": "የማጣቀሻ ጽሑፎች",
         "flow": "የግምገማ ሂደት",
         "people": "ሰዎች",
         "languageHelp": "የሚተረጉሙበት ቋንቋ፦ ስሙ፣ ከቋንቋዎች ዝርዝር የተገኘ ወይም የተጻፈ። በኋላ ከዝርዝሩ ጋር ሊገናኝ ይችላል።",
         "contentHelp": "የሚተረጉሙት፦ መጽሐፍ ቅዱስ፣ ወይም ሌላ ነገር፣ ለምሳሌ ታሪኮች ወይም መዝሙሮች።",
-        "piecesHelp": "አንድ በአንድ ለመቅረጽና ለመፈተሽ በሚበቁ ትናንሽ ቁራጮች እንዴት እንደሚከፋፈል።",
+        "piecesHelp": "አንድ በአንድ ለመቅረጽና ለመፈተሽ በሚበቁ ትናንሽ ክፍሎች እንዴት እንደሚከፋፈል።",
         "materialHelp": "ተርጓሚዎችና ፈታሾች ከጎናቸው የሚኖራቸው መጽሐፍ ቅዱሶች፣ የጥናት መመሪያዎችና ማስታወሻዎች።",
         "flowHelp": "አንድ ቀረጻ ከመጽደቁ በፊት የሚያልፍባቸው ፍተሻዎች፣ እና የእያንዳንዱ ፍተሻ ሰዎች የሚያዩት።",
         "peopleHelp": "ከዚያ ሰዎችን ይጋብዙ፦ ተርጓሚዎችን፣ ፈታሾችንና ሌሎችን፣ እያንዳንዳቸውን በሚቃኙት ኮድ።",
@@ -1319,7 +1319,7 @@
       "keepIt": "እንዳለ ያቆዩት",
       "whichPart": "የትኛው የመጽሐፍ ቅዱስ ክፍል?",
       "viewOnly": "የሚተረጎመውን መለወጥ የሚችሉት ቋንቋዎችን የሚያዋቅሩ ሰዎች ብቻ ናቸው።",
-      "keepEarlier": "ሳይለወጡ የሚቀሩ ቁራጮች ቀረጻዎቻቸውን ይይዛሉ። በሚለወጥ ቁራጭ ላይ የተቀረጸው በአዲሶቹ ቁራጮች ላይ በ«ቀደም ያሉ ክፍሎች» ሥር ይቀመጣል።",
+      "keepEarlier": "ሳይለወጡ የሚቀሩ ክፍሎች ቀረጻዎቻቸውን ይይዛሉ። በሚለወጥ ክፍል ላይ የተቀረጸው በአዲሶቹ ክፍሎች ላይ በ«ቀደም ያሉ ክፍሎች» ሥር ይቀመጣል።",
       "partHelp": "ይህን የመጽሐፍ ቅዱስ ክፍል ይተረጉማሉ።",
       "chooseBooksHelp": "መጻሕፍቱን ከታች አንድ በአንድ ይምረጡ።",
       "bookOnHelp": "ተመርጧል። ለመተው ይንኩ።",
@@ -1390,7 +1390,6 @@
       "passagesCovered_one": "{{count, number}} ክፍል ተሸፍኗል",
       "passagesCovered_other": "{{count, number}} ክፍሎች ተሸፍነዋል",
       "keyWords": "ዋና ቃላት",
-      "keyTerms": "ቁልፍ ቃላት",
       "keyTermsSub_one": "{{count, number}} ቃል · {{rendered}} የ{{language}} ቃል አላቸው",
       "keyTermsSub_other": "{{count, number}} ቃላት · {{rendered}} የ{{language}} ቃል አላቸው",
       "writtenHere": "እዚህ የተጻፈ፣ ለዚህ ቋንቋ",
@@ -1792,8 +1791,8 @@
       "skip": "ማብራሪያውን ይዝለሉ",
       "stepLabel": "ደረጃ {{step, number}} ከ{{total, number}}",
       "pieces": {
-        "title": "ቡድንዎ ጽሑፍን በቁራጭ በቁራጭ ይቀርጻል",
-        "text": "ጽሑፍ በአቃፊዎች ይደረደራል፣ ሰዎችም በውስጣቸው ያሉትን ቁራጮች ይቀርጻሉ። እነሆ በስብስቦች የተደረደሩ ታሪኮች።",
+        "title": "ቡድንዎ ጽሑፍን በክፍል በክፍል ይቀርጻል",
+        "text": "ጽሑፍ በአቃፊዎች ይደረደራል፣ ሰዎችም በውስጣቸው ያሉትን ክፍሎች ይቀርጻሉ። እነሆ በስብስቦች የተደረደሩ ታሪኮች።",
         "began": "ነገሮች እንዴት እንደጀመሩ",
         "river": "ወንዙ ለምን ሰፊ እንደሆነ",
         "fire": "የመጀመሪያው እሳት",
@@ -1802,12 +1801,12 @@
       },
       "bible": {
         "title": "መጽሐፍ ቅዱስ መጻሕፍት፣ ምዕራፎችና ቁጥሮች አሉት",
-        "text": "እያንዳንዱ መጽሐፍ አቃፊ ነው። በውስጡ መጽሐፉ ለመቅረጽ በቁራጮች ይከፋፈላል፣ እያንዳንዱ ቁጥርም በቀረጻው ውስጥ ቦታን ያመለክታል።",
+        "text": "እያንዳንዱ መጽሐፍ አቃፊ ነው። በውስጡ መጽሐፉ ለመቅረጽ በክፍሎች ይከፋፈላል፣ እያንዳንዱ ቁጥርም በቀረጻው ውስጥ ቦታን ያመለክታል።",
         "chapterVerses": "{{book}} {{chapter}} · ቁጥር 1 እስከ {{last}}"
       },
       "places": {
         "title": "አንድ መጽሐፍ በተለያዩ ቦታዎች ሊከፋፈል ይችላል",
-        "text": "እነሆ {{book}} በሦስት መንገድ። ያው ቁጥሮች፣ የተለያዩ ቁራጮች።",
+        "text": "እነሆ {{book}} በሦስት መንገድ። ያው ቁጥሮች፣ የተለያዩ ክፍሎች።",
         "byChapter": "በምዕራፍ",
         "fia": "የFIA ክፍሎች",
         "unfoldingWord": "የunfoldingWord ቁራጮች"
@@ -1845,19 +1844,19 @@
       "waitsLabel": "{{book}} እስኪከፋፈል ይጠብቃል",
       "notInIt": "{{book}} በውስጡ የለም",
       "waits": "{{book}} አስተባባሪ እስኪከፋፍለው ይጠብቃል",
-      "label_one": "{{book}} በ{{count, number}} ቁራጭ",
-      "label_other": "{{book}} በ{{count, number}} ቁራጮች",
-      "caption_one": "{{book}}፦ {{count, number}} ቁራጭ",
-      "caption_other": "{{book}}፦ {{count, number}} ቁራጮች",
-      "help": "እያንዳንዱ ሳጥን የሚቀረጽ አንድ ቁራጭ ነው፤ ስፋቱም እንደ ቁጥሮቹ ብዛት ነው።"
+      "label_one": "{{book}} በ{{count, number}} ክፍል",
+      "label_other": "{{book}} በ{{count, number}} ክፍሎች",
+      "caption_one": "{{book}}፦ {{count, number}} ክፍል",
+      "caption_other": "{{book}}፦ {{count, number}} ክፍሎች",
+      "help": "እያንዳንዱ ሳጥን የሚቀረጽ አንድ ክፍል ነው፤ ስፋቱም እንደ ቁጥሮቹ ብዛት ነው።"
     },
     "way": {
       "inUse": "እዚህ በጥቅም ላይ",
-      "previewHelp": "{{way}} አንድን መጽሐፍ የሚከፋፍልባቸው ቁራጮች ሁሉ።",
+      "previewHelp": "{{way}} አንድን መጽሐፍ የሚከፋፍልባቸው ክፍሎች ሁሉ።",
       "comesWith": "ከ{{pattern}} የጥናት መመሪያዎች ጋር ይመጣል",
       "previewLabel": "የ{{way}} ቅድመ እይታ",
-      "pickHelp": "ይህን በቁራጮች የመከፋፈያ መንገድ ይመርጣል።",
-      "barHelp": "አሞሌው {{book}} በዚህ መንገድ ሲከፋፈል ያሳያል፦ እያንዳንዱ ሳጥን አንድ ቁራጭ ነው፤ ስፋቱም እንደ ቁጥሮቹ ብዛት ነው።"
+      "pickHelp": "ይህን በክፍሎች የመከፋፈያ መንገድ ይመርጣል።",
+      "barHelp": "አሞሌው {{book}} በዚህ መንገድ ሲከፋፈል ያሳያል፦ እያንዳንዱ ሳጥን አንድ ክፍል ነው፤ ስፋቱም እንደ ቁጥሮቹ ብዛት ነው።"
     },
     "preview": {
       "useThis": "ይህን ይጠቀሙ",
@@ -1901,7 +1900,7 @@
     },
     "book": {
       "breakDifferently": "በተለየ መንገድ ይከፋፍሉ",
-      "breakDifferentlyHelp": "ይህን መጽሐፍ በቁራጮች የሚከፋፍሉበት ሌላ መንገድ ይምረጡ።",
+      "breakDifferentlyHelp": "ይህን መጽሐፍ በክፍሎች የሚከፋፍሉበት ሌላ መንገድ ይምረጡ።",
       "namedToast": "{{language}} {{name}} ብሎ ይጠራዋል።",
       "brokenUp": "ተከፋፍሏል",
       "ownWay": "የራሱ መንገድ",
@@ -1914,8 +1913,8 @@
       "breakUp": "{{book}}ን ይከፋፍሉ",
       "changeQuestion": "{{book}} እንዴት እንደሚከፋፈል ይቀይሩ",
       "question": "{{book}} እንዴት ይከፋፈል?",
-      "nowEachPiece": "አሁን፦ {{way}}። እያንዳንዱ ቁራጭ ለብቻው ይቀረጻል።",
-      "eachPiece": "እያንዳንዱ ቁራጭ ለብቻው ይቀረጻል።",
+      "nowEachPiece": "አሁን፦ {{way}}። እያንዳንዱ ክፍል ለብቻው ይቀረጻል።",
+      "eachPiece": "እያንዳንዱ ክፍል ለብቻው ይቀረጻል።",
       "connectForWays": "የመከፋፈያ መንገዶቹን ለመጫን ከኢንተርኔት ጋር ይገናኙ።",
       "alsoUsedOne": "በ{{name}}ም ጥቅም ላይ ይውላል። {{book}}ን ለየትኞቹ ይቀይሩት?",
       "alsoUsedTwo": "በ{{first}} እና በ{{second}}ም ጥቅም ላይ ይውላል። {{book}}ን ለየትኞቹ ይቀይሩት?",
@@ -2190,10 +2189,10 @@
       "done_other": "ተከናውኗል · {{count, number}} ክፍሎች"
     },
     "division": {
-      "way_one": "{{way}} · {{count, number}} ቁራጭ",
-      "way_other": "{{way}} · {{count, number}} ቁራጮች",
-      "own_one": "የራሱ መንገድ · {{count, number}} ቁራጭ",
-      "own_other": "የራሱ መንገድ · {{count, number}} ቁራጮች"
+      "way_one": "{{way}} · {{count, number}} ክፍል",
+      "way_other": "{{way}} · {{count, number}} ክፍሎች",
+      "own_one": "የራሱ መንገድ · {{count, number}} ክፍል",
+      "own_other": "የራሱ መንገድ · {{count, number}} ክፍሎች"
     }
   },
   "canon": {
@@ -2214,7 +2213,7 @@
     "unnamedOrg": "ድርጅት",
     "listJoin": "፣ ",
     "quoted": "«{{text}}»",
-    "languageRenderings": "የ{{language}} አተረጓጎሞች",
+    "languageRenderings": "የ{{language}} ቃላት",
     "levels": {
       "org": "ድርጅት",
       "language": "ቋንቋ"
@@ -2225,11 +2224,11 @@
         "desc": "በወሰናቸው ውስጥ የድርጅቱን አወቃቀሮች (ቋንቋዎች) መለወጥ"
       },
       "inviteMembers": {
-        "label": "አባላትን መጋበዝ",
+        "label": "ሰዎችን መጋበዝ",
         "desc": "በወሰናቸው ውስጥ ሰዎችን መጋበዝ"
       },
       "manageRoles": {
-        "label": "ሚናዎችን ማስተዳደር",
+        "label": "ሚናዎችን መፍጠርና መለወጥ",
         "desc": "በወሰናቸው ውስጥ ሚናዎችን መፍጠርና ማርትዕ"
       },
       "manageTemplates": {
@@ -2241,7 +2240,7 @@
         "desc": "መጻሕፍትን ወደ ክፍሎች መከፋፈል፣ መሰየምና እነዚያን ለውጦች ለቋንቋቸው ማተም"
       },
       "manageReference": {
-        "label": "የማጣቀሻ ጽሑፎችን ማስተዳደር",
+        "label": "መጽሐፍ ቅዱሶችንና መመሪያዎችን መምረጥ",
         "desc": "በወሰናቸው ውስጥ የማጣቀሻ ጽሑፎችን መሥራትና ማርትዕ"
       },
       "manageFlows": {
@@ -2257,27 +2256,27 @@
         "desc": "በወሰናቸው ውስጥ ማንኛውንም ሰው ክፍል እንዲቀርጽ ወይም እንዲገመግም መጠየቅ"
       },
       "overrideCheckpoints": {
-        "label": "ኬላዎችን ማሳለፍ",
+        "label": "ሥራ የተቆለፈ ፍተሻን እንዲያልፍ መፍቀድ",
         "desc": "ምክንያቱ ተመዝግቦ ክፍልን ከኬላ ማሳለፍ"
       },
       "translate": {
-        "label": "መተርጎም",
+        "label": "መቅረጽ",
         "desc": "ትርጉሞችን መቅረጽና ማሻሻል (ለምሳሌ አማካሪዎች ረቂቅ እንዳይሠሩ ለማድረግ ያጥፉት)"
       },
       "fillReference": {
-        "label": "የማጣቀሻ ይዘት መሙላት",
+        "label": "ማስታወሻዎችንና ቁልፍ ቃላትን ማከል",
         "desc": "ቁልፍ ቃላትን፣ ማስታወሻዎችንና የማጣቀሻ ይዘትን ማከል"
       },
       "sendToReviewers": {
-        "label": "ግምገማ መጠየቅ",
+        "label": "ፍተሻ መጠየቅ",
         "desc": "የቡድን አጋሮችን፣ ወይም ከመተግበሪያው ውጭ ያለን ሰው በሊንክ እንዲገመግም መጠየቅ"
       },
       "review": {
-        "label": "መገምገም",
+        "label": "ቀረጻዎችን መፈተሽ",
         "desc": "ግምገማዎችን መስጠትና ከመተግበሪያው ውጭ የተደረጉ ፍተሻዎችን መመዝገብ"
       },
       "viewStatus": {
-        "label": "ሁኔታን ማየት",
+        "label": "የሁሉንም ሰው ሥራ ማየት",
         "desc": "በወሰናቸው ውስጥ ካርታውንና የክፍሎችን መዝገቦች ለንባብ ብቻ ማየት"
       }
     },
@@ -2683,7 +2682,7 @@
       "pickPartHelp": "ይህን ክፍል ያገናኛል፦ ተርጓሚዎች እዚያ ያገኙታል።"
     },
     "keyTerms": {
-      "noLanguageRendering": "እስካሁን የ{{language}} አተረጓጎም የለም",
+      "noLanguageRendering": "እስካሁን የ{{language}} ቃል የለም",
       "title": "ቁልፍ ቃላት",
       "chooseLanguage": "መጀመሪያ ቋንቋ ይምረጡ",
       "added": "{{term}} ታክሏል።",
@@ -2691,18 +2690,18 @@
       "search": "ቃላትን ይፈልጉ",
       "empty": "እስካሁን ቁልፍ ቃላት የሉም",
       "emptySubCanAdd": "ይህ ቋንቋ እንዴት እንደሚለውና መቼ እንደሚጠቀሙበት የሚገልጽ ቃል ያክሉ።",
-      "emptySub": "ቡድንዎ የሚያክላቸው ቃላት ከአተረጓጎማቸው ጋር እዚህ ይታያሉ።",
+      "emptySub": "ቡድንዎ የሚያክላቸው ቃላት እዚህ ይታያሉ፣ ከቋንቋዎ ቃል ጋር።",
       "inPassage": "በዚህ ክፍል ውስጥ",
       "otherTerms": "ሌሎች ቃላት",
       "allTerms": "ሁሉም ቃላት",
       "noOther": "ሌሎች ቃላት የሉም።",
-      "intro": "ጽንሰ ሐሳቦች የሚመጡት ከጋራ ዝርዝር (እንደ FIA ቁልፍ ቃላት) ወይም ከራስዎ ነው። {{language}} የራሱን አተረጓጎሞችና ከበስተጀርባቸው ያሉትን ምክንያቶች ይይዛል።",
+      "intro": "ዋና ቃላት ከጋራ ዝርዝር (እንደ FIA ዋና ቃላት) ወይም ከራስዎ ይመጣሉ። {{language}} ለእያንዳንዱ የራሱን ቃልና ምክንያቱን ይይዛል።",
       "newKeyTerm": "አዲስ ቁልፍ ቃል",
-      "newSub": "ከመጀመሪያው አተረጓጎሙ ጋር ወደ {{language}} ቁልፍ ቃላት ታክሏል።",
+      "newSub": "ወደ {{language}} ዋና ቃላት ይታከላል፣ ከመጀመሪያው ቃሉ ጋር።",
       "addTerm": "ቃል ያክሉ",
       "termPlaceholder": "የምንጩ ቃል፣ ለምሳሌ ጸጋ (ካሪስ)",
       "meaningPlaceholder": "ትርጉሙ፣ በአጭሩ",
-      "renderingPlaceholder": "የ{{language}} አተረጓጎም",
+      "renderingPlaceholder": "የ{{language}} ቃል",
       "contextPlaceholder": "መቼ እንደሚጠቀሙበትና ለምን",
       "newTermHelp": "{{language}} እንዴት እንደሚለው ጋር ጽንሰ ሐሳብ ያክላል።",
       "openTermHelp": "ይከፍተዋል፦ ምን ማለት እንደሆነ፣ ቡድንዎ እንዴት እንደሚለውና ለምን።",
@@ -2715,7 +2714,7 @@
       "tied": "{{term}} ከረቂቅዎ ጋር ተያይዟል።",
       "added": "«{{rendering}}» ታክሏል።",
       "changeRecorded": "ለውጡ ተመዝግቧል።",
-      "firstRendering": "የመጀመሪያው አተረጓጎም፦ {{rendering}}።",
+      "firstRendering": "የመጀመሪያው ቃል፦ {{rendering}}።",
       "fiaSub": "የFIA ቁልፍ ቃል · {{language}}",
       "sub": "የ{{language}} ቁልፍ ቃል",
       "noMeaning": "እስካሁን ትርጉም አልተጻፈም።",
@@ -2726,10 +2725,10 @@
       "tiedBody": "ገምጋሚዎች ይህን ቃልና ምክንያትዎን ያያሉ።",
       "tieBody": "ገምጋሚዎች ይህ ቃል {{passage}}ን እንደቀረጸ እንዲያውቁ።",
       "inLanguage": "በ{{language}}",
-      "noRendering": "እስካሁን አተረጓጎም የለም",
+      "noRendering": "እስካሁን ቃል የለም",
       "addHow": "{{language}} ይህን እንዴት እንደሚለውና መቼ እንደሚጠቀሙበት ያክሉ።",
-      "adjustOrAdd": "አተረጓጎም ያስተካክሉ ወይም ያክሉ",
-      "addRendering": "አተረጓጎም ያክሉ",
+      "adjustOrAdd": "ቃል ይቀይሩ ወይም ያክሉ",
+      "addRendering": "ቃል ያክሉ",
       "details": "ዝርዝሮች",
       "why": "ለምን በዚህ መንገድ እንደተተረጎመ",
       "changes_one": "{{count, number}} ለውጥ",
@@ -2740,7 +2739,7 @@
       "adjustTitle": "{{language}} · «{{term}}»",
       "adjustSubTie": "እንደ {{passage}} አካል ተመዝግቦ ከረቂቅዎ ጋር ተያይዟል።",
       "adjustSub": "እያንዳንዱ ለውጥ ከምክንያትዎ ጋር ይመዘገባል።",
-      "newRendering": "አዲስ አተረጓጎም (ካስፈለገ)",
+      "newRendering": "አዲስ ቃል (አማራጭ)",
       "whenToUse": "መቼ እንደሚጠቀሙበት",
       "sayWhy": "ለምን እንደሆነ ይናገሩ",
       "orTypeWhy": "ወይም ምን እንደተለወጠና ለምን እንደሆነ ይጻፉ",
@@ -3124,6 +3123,7 @@
     "update": {
       "restarting": "እንደገና በማስጀመር ላይ…",
       "ready": "ዝማኔው ዝግጁ ነው — እንደገና ለማስጀመር ይንኩ",
+      "afterRecording": "ዝማኔ ዝግጁ ነው · መቅዳት ሲያቆሙ እንደገና ይጀምራል",
       "downloading": "ዝማኔውን በማውረድ ላይ…",
       "downloadingPercent": "ዝማኔውን በማውረድ ላይ… {{percent}}",
       "webReady": "አዲስ የLangQuest ስሪት ዝግጁ ነው። ለመጠቀም ገጹን እንደገና ይጫኑ።",
@@ -4407,7 +4407,7 @@
       },
       "term": {
         "title": "ቃል ይምረጡ",
-        "sub": "ትርጉሙና አተረጓጎሞቹ እዚህ ይከፈታሉ።"
+        "sub": "ትርጉሙና የቡድንዎ ቃላት እዚህ ይከፈታሉ።"
       },
       "language": {
         "title": "ቋንቋ ይምረጡ",
@@ -4933,11 +4933,11 @@
       "notes": "ማስታወሻዎች",
       "history": "ታሪክ",
       "tied": "ከረቂቅዎ ጋር ተያይዟል።",
-      "noTerms": "ከዚህ ክፍል ምንጭ ጋር የሚዛመዱ ቁልፍ ቃላት የሉም።",
-      "noRendering": "እስካሁን አተረጓጎም የለም",
+      "noTerms": "በዚህ ክፍል ውስጥ ዋና ቃላት የሉም።",
+      "noRendering": "እስካሁን ቃል የለም",
       "termLabel": "{{term}}። {{rendered}}",
       "termLabelTied": "{{term}}። {{rendered}}። ከረቂቅዎ ጋር ተያይዟል",
-      "noLanguageRendering": "እስካሁን የ{{language}} አተረጓጎም የለም",
+      "noLanguageRendering": "እስካሁን የ{{language}} ቃል የለም",
       "tiedBadge": "ተያይዟል",
       "tying": "በማያያዝ ላይ…",
       "tie": "ከረቂቅዎ ጋር ያያይዙ",
@@ -5175,8 +5175,8 @@
       "notHereSub": "ሌላ ለመምረጥ ወደ ካርታው ይመለሱ።",
       "breakUp": "{{book}}ን ይከፋፍሉ",
       "notBrokenUp": "{{book}} ገና አልተከፋፈለም",
-      "chooseHow": "{{book}} እንዴት በቁራጮች እንደሚከፋፈል ይምረጡ፣ በምዕራፍ፣ በFIA ክፍሎች ወይም በሌላ መንገድ። ከዚያ ሊቀረጽ ይችላል።",
-      "coordinatorDecides": "{{book}} እንዴት በቁራጮች እንደሚከፋፈል አስተባባሪ ይወስናል። ከዚያ ሊቀርጹት ይችላሉ።",
+      "chooseHow": "{{book}} እንዴት በክፍሎች እንደሚከፋፈል ይምረጡ፣ በምዕራፍ፣ በFIA ክፍሎች ወይም በሌላ መንገድ። ከዚያ ሊቀረጽ ይችላል።",
+      "coordinatorDecides": "{{book}} እንዴት በክፍሎች እንደሚከፋፈል አስተባባሪ ይወስናል። ከዚያ ሊቀርጹት ይችላሉ።",
       "summary_one": "ከ{{count, number}} ክፍል {{recorded}} ተቀርጿል",
       "summary_other": "ከ{{count, number}} ክፍሎች {{recorded}} ተቀርጸዋል",
       "summaryIn_one": "በ{{language}} ከ{{count, number}} ክፍል {{recorded}} ተቀርጿል",
@@ -5184,7 +5184,7 @@
       "key": "መፍቻ",
       "filterHelp": "አንዳንድ ክፍሎችን ብቻ ያሳዩ፣ ሙሉውን መፍቻም።",
       "breakUpDifferently": "በተለየ መንገድ ይከፋፍሉ",
-      "breakUpDifferentlyHelp": "ይህ መጽሐፍ በቁራጮች የሚከፋፈልበትን መንገድ ይቀይሩ፦ በምዕራፍ፣ በFIA ክፍሎች ወይም በሌላ መንገድ።",
+      "breakUpDifferentlyHelp": "ይህ መጽሐፍ በክፍሎች የሚከፋፈልበትን መንገድ ይቀይሩ፦ በምዕራፍ፣ በFIA ክፍሎች ወይም በሌላ መንገድ።",
       "chapterTitle": "{{book}} {{n}}",
       "pickPart_one": "{{count, number}} ክፍል — አንዱን ይምረጡ",
       "pickPart_other": "{{count, number}} ክፍሎች — አንዱን ይምረጡ"
@@ -7497,8 +7497,10 @@
     "dismiss": "ዝጋ",
     "dismissHelp": "አዲስ ስሪት እስኪወጣ ድረስ ይህን ይደብቃል።",
     "required": "እባክዎ መተግበሪያውን ያዘምኑ",
+    "requiredSub": "ቅጂዎችዎና ለውጦችዎ አሁንም ወደ ቡድንዎ ይሄዳሉ። እስኪያዘምኑ ድረስ ከእነሱ አዲስ ነገር ወደዚህ ስልክ አይደርስም።",
+    "requiredBar": "የቡድንዎን ሥራ ለማግኘት ያዘምኑ",
     "keepWorking": "መስራት ቀጥል",
-    "keepWorkingHelp": "ሥራዎ በዚህ ስልክ ላይ ይቆያል፤ ካዘመኑ በኋላ ይላካል።"
+    "keepWorkingHelp": "ይህን ለአሁን ይዘጋል። መቅዳትዎን መቀጠል ይችላሉ፤ ሥራዎ አሁንም ወደ ቡድንዎ ይሄዳል።"
   },
   "globalViewer": {
     "title": "ዓለም አቀፍ ተመልካች",

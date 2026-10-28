@@ -60,7 +60,7 @@ export function VersionsPage(props: {
     try {
       specs = commands(state, indexesFor(state)).deleteDraft({ commandId: Crypto.randomUUID(), unitId, takeId: d.takeId, actorId: me });
     } catch (e) {
-      ctx.toast(t('passage.versions.notDeleted', { reason: failureMessage('versions: delete draft', e) }));
+      ctx.toast(t('passage.versions.notDeleted', { reason: failureMessage('versions: delete draft', e) }), 'problem');
       return;
     }
     void ctx.act(specs, t('passage.versions.deleted', { name })).catch(() => { /* ctx.act said what went wrong */ });

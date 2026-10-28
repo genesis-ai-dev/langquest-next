@@ -66,15 +66,15 @@ export const divideBooksIntoPassages: Tutorial = {
     {
       screen: 'map_home',
       part: (page) => words(page, 'Proverbs'),
-      say: 'Proverbs is waiting to be broken up. Tap it.',
+      say: 'Proverbs is waiting to be divided. Tap it.',
       tap: true,
-      until: (page) => button(page, 'Break up Proverbs').waitFor({ timeout: 30_000 }),
+      until: (page) => button(page, 'Divide Proverbs').waitFor({ timeout: 30_000 }),
       stay: 0.6
     },
     {
       screen: 'book_map',
-      part: (page) => button(page, 'Break up Proverbs'),
-      say: 'Tap Break up Proverbs.',
+      part: (page) => button(page, 'Divide Proverbs'),
+      say: 'Tap Divide Proverbs.',
       tap: true,
       until: (page) => words(page, 'By chapter').waitFor({ timeout: 10_000 }),
       stay: 0.8
@@ -93,7 +93,7 @@ export const divideBooksIntoPassages: Tutorial = {
     },
     {
       screen: 'book_map',
-      part: (page) => button(page, 'Break up Proverbs'),
+      part: (page) => button(page, 'Divide Proverbs'),
       tap: true,
       until: (page) => id(page, 'toast').waitFor({ timeout: 30_000 }),
       stay: 1

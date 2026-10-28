@@ -104,7 +104,7 @@
     },
     "kinds": {
       "peer": {
-        "name": "Bitar Abokin Aiki",
+        "name": "Duban Abokin Aiki",
         "usualReviewer": "Wani mai fassara",
         "description": "Wani mai fassara yana saurara ko daidai ne, kuma ko maganar ta zo kamar yadda ake magana."
       },
@@ -985,13 +985,13 @@
       "stages": {
         "language": "Harshe",
         "content": "Abun ciki",
-        "pieces": "Raba gutsure-gutsure",
+        "pieces": "Raba sassa-sassa",
         "material": "Kayan bincike",
         "flow": "Tsarin bita",
         "people": "Mutane",
         "languageHelp": "Harshen da suke fassara zuwa gare shi: sunansa, daga jerin harsuna ko yadda aka rubuta. Ana iya haɗa shi da jerin daga baya.",
         "contentHelp": "Abin da za su fassara: Littafi Mai Tsarki, ko wani abu dabam, kamar labarai ko waƙoƙi.",
-        "piecesHelp": "Yadda ake raba shi gutsure-gutsure ƙanana isassu don a naɗa a kuma duba ɗaya bayan ɗaya.",
+        "piecesHelp": "Yadda ake raba shi sassa-sassa ƙanana isassu don a naɗa a kuma duba ɗaya bayan ɗaya.",
         "materialHelp": "Littattafai Masu Tsarki, jagororin nazari da bayanan da masu fassara da masu dubawa za su samu a kusa da su.",
         "flowHelp": "Dubawar da naɗi yake bi kafin a amince da shi, da abin da mutanen kowace dubawa suke gani.",
         "peopleHelp": "Sannan ku gayyaci mutane: masu fassara, masu dubawa da sauransu, kowa da lambar da zai karanta.",
@@ -1319,7 +1319,7 @@
       "keepIt": "Bar shi",
       "whichPart": "Wane sashe na Littafi Mai Tsarki?",
       "viewOnly": "Masu tsara harsuna kaɗai ne za su iya canja abin da suke fassarawa.",
-      "keepEarlier": "Gutsuttsuran da ba su canja ba za su riƙe naɗe-naɗensu. Abin da aka naɗa a gutsuren da ya canja ana ajiye shi a ƙarƙashin \"Sassan da suka gabata\" a sababbin gutsuttsuran.",
+      "keepEarlier": "Gutsuttsuran da ba su canja ba za su riƙe naɗe-naɗensu. Abin da aka naɗa a sashen da ya canja ana ajiye shi a ƙarƙashin \"Sassan da suka gabata\" a sababbin sassan.",
       "partHelp": "Suna fassara wannan sashe na Littafi Mai Tsarki.",
       "chooseBooksHelp": "Ku zaɓi littattafan ɗaya bayan ɗaya, a ƙasa.",
       "bookOnHelp": "An zaɓa. Taɓa don cire shi.",
@@ -1390,7 +1390,6 @@
       "passagesCovered_one": "Nassi {{count, number}} da aka rufe",
       "passagesCovered_other": "Nassosi {{count, number}} da aka rufe",
       "keyWords": "Muhimman kalmomi",
-      "keyTerms": "Muhimman kalmomi",
       "keyTermsSub_one": "Kalma {{count, number}} · {{rendered}} da kalmar {{language}}",
       "keyTermsSub_other": "Kalmomi {{count, number}} · {{rendered}} da kalmar {{language}}",
       "writtenHere": "An rubuta a nan, don wannan harshe",
@@ -1792,8 +1791,8 @@
       "skip": "Tsallake bayanin",
       "stepLabel": "Mataki na {{step, number}} cikin {{total, number}}",
       "pieces": {
-        "title": "Tawagarku tana naɗa kaya gutsure-gutsure",
-        "text": "Ana tsara kaya cikin foldoji, mutane kuma suna naɗa gutsuttsuran da ke ciki. Ga labarai, an tsara su cikin rukunoni.",
+        "title": "Tawagarku tana naɗa kaya sassa-sassa",
+        "text": "Ana tsara kaya cikin foldoji, mutane kuma suna naɗa sassan da ke ciki. Ga labarai, an tsara su cikin rukunoni.",
         "began": "Yadda abubuwa suka fara",
         "river": "Dalilin da kogin yake da faɗi",
         "fire": "Wuta ta farko",
@@ -1802,12 +1801,12 @@
       },
       "bible": {
         "title": "Littafi Mai Tsarki yana da littattafai, babobi da ayoyi",
-        "text": "Kowane littafi foldar ne. A ciki, ana yanka littafin gutsure-gutsure don naɗawa, kuma kowace aya tana nuna wuri a cikin naɗin.",
+        "text": "Kowane littafi foldar ne. A ciki, ana yanka littafin sassa-sassa don naɗawa, kuma kowace aya tana nuna wuri a cikin naɗin.",
         "chapterVerses": "{{book}} {{chapter}} · ayoyi 1 zuwa {{last}}"
       },
       "places": {
         "title": "Ana iya yanka littafi ɗaya a wurare daban-daban",
-        "text": "Ga {{book}} ta hanyoyi uku. Ayoyi iri ɗaya, gutsuttsura daban-daban.",
+        "text": "Ga {{book}} ta hanyoyi uku. Ayoyi iri ɗaya, sassa daban-daban.",
         "byChapter": "Babi-babi",
         "fia": "Nassosin FIA",
         "unfoldingWord": "Gutsuttsuran unfoldingWord"
@@ -1845,19 +1844,19 @@
       "waitsLabel": "{{book}} yana jiran a raba shi",
       "notInIt": "{{book}} ba ya ciki",
       "waits": "{{book}} yana jira har sai mai gudanarwa ya raba shi",
-      "label_one": "{{book}} a gutsure {{count, number}}",
-      "label_other": "{{book}} a gutsuttsura {{count, number}}",
-      "caption_one": "{{book}}: gutsure {{count, number}}",
-      "caption_other": "{{book}}: gutsuttsura {{count, number}}",
-      "help": "Kowane tubali gutsure ɗaya ne da za a naɗa; faɗinsa gwargwadon ayoyinsa."
+      "label_one": "{{book}} a sashe {{count, number}}",
+      "label_other": "{{book}} a sassa {{count, number}}",
+      "caption_one": "{{book}}: sashe {{count, number}}",
+      "caption_other": "{{book}}: sassa {{count, number}}",
+      "help": "Kowane tubali sashe ɗaya ne da za a naɗa; faɗinsa gwargwadon ayoyinsa."
     },
     "way": {
       "inUse": "Ana amfani da shi a nan",
-      "previewHelp": "Kowane gutsuren da {{way}} yake yanka littafi zuwa gare shi.",
+      "previewHelp": "Kowane sashen da {{way}} yake yanka littafi zuwa gare shi.",
       "comesWith": "Yana zuwa da jagororin nazari na {{pattern}}",
       "previewLabel": "Duba farko {{way}}",
-      "pickHelp": "Yana zaɓar wannan hanyar yanka shi gutsure-gutsure.",
-      "barHelp": "Sandan yana nuna yadda wannan hanya take yanka {{book}}: kowane tubali gutsure ɗaya ne, faɗinsa gwargwadon ayoyinsa."
+      "pickHelp": "Yana zaɓar wannan hanyar yanka shi sassa-sassa.",
+      "barHelp": "Sandan yana nuna yadda wannan hanya take yanka {{book}}: kowane tubali sashe ɗaya ne, faɗinsa gwargwadon ayoyinsa."
     },
     "preview": {
       "useThis": "Yi amfani da wannan",
@@ -1901,7 +1900,7 @@
     },
     "book": {
       "breakDifferently": "Raba ta wata hanya",
-      "breakDifferentlyHelp": "Zaɓi wata hanyar yanka wannan littafi gutsure-gutsure.",
+      "breakDifferentlyHelp": "Zaɓi wata hanyar yanka wannan littafi sassa-sassa.",
       "namedToast": "{{language}} yana kiransa {{name}}.",
       "brokenUp": "An raba",
       "ownWay": "Hanyarsa ta kansa",
@@ -1914,8 +1913,8 @@
       "breakUp": "Raba {{book}}",
       "changeQuestion": "Canja yadda aka raba {{book}}",
       "question": "Yaya za a raba {{book}}?",
-      "nowEachPiece": "Yanzu: {{way}}. Ana naɗa kowane gutsure shi kaɗai.",
-      "eachPiece": "Ana naɗa kowane gutsure shi kaɗai.",
+      "nowEachPiece": "Yanzu: {{way}}. Ana naɗa kowane sashe shi kaɗai.",
+      "eachPiece": "Ana naɗa kowane sashe shi kaɗai.",
       "connectForWays": "Ku haɗa intanet don loda hanyoyin raba shi.",
       "alsoUsedOne": "Ana amfani da shi a {{name}} ma. A canja {{book}} don wanne daga cikinsu?",
       "alsoUsedTwo": "Ana amfani da shi a {{first}} da {{second}} ma. A canja {{book}} don wanne daga cikinsu?",
@@ -2190,10 +2189,10 @@
       "done_other": "An gama · sassa {{count, number}}"
     },
     "division": {
-      "way_one": "{{way}} · gutsure {{count, number}}",
-      "way_other": "{{way}} · gutsuttsura {{count, number}}",
-      "own_one": "Hanyarsa ta kansa · gutsure {{count, number}}",
-      "own_other": "Hanyarsa ta kansa · gutsuttsura {{count, number}}"
+      "way_one": "{{way}} · sashe {{count, number}}",
+      "way_other": "{{way}} · sassa {{count, number}}",
+      "own_one": "Hanyarsa ta kansa · sashe {{count, number}}",
+      "own_other": "Hanyarsa ta kansa · sassa {{count, number}}"
     }
   },
   "canon": {
@@ -2214,7 +2213,7 @@
     "unnamedOrg": "Ƙungiya",
     "listJoin": ", ",
     "quoted": "“{{text}}”",
-    "languageRenderings": "Fassarorin {{language}}",
+    "languageRenderings": "Kalmomin {{language}}",
     "levels": {
       "org": "Ƙungiya",
       "language": "Harshe"
@@ -2225,11 +2224,11 @@
         "desc": "Canja tsarin ƙungiya a cikin iyakarsu (harsuna)"
       },
       "inviteMembers": {
-        "label": "Gayyaci Membobi",
+        "label": "Gayyaci mutane",
         "desc": "Gayyaci mutane a cikin iyakarsu"
       },
       "manageRoles": {
-        "label": "Kula da Matsayai",
+        "label": "Yi da canja matsayai",
         "desc": "Ƙirƙira da gyara matsayai a cikin iyakarsu"
       },
       "manageTemplates": {
@@ -2241,7 +2240,7 @@
         "desc": "Raba littattafai zuwa nassosi, sa musu suna, da wallafa waɗannan canje-canje don harshensu"
       },
       "manageReference": {
-        "label": "Kula da Kayan Bincike",
+        "label": "Zaɓi Littattafai Masu Tsarki da jagorori",
         "desc": "Yi da gyara kayan bincike a cikin iyakarsu"
       },
       "manageFlows": {
@@ -2253,31 +2252,31 @@
         "desc": "Yi da gyara tawagogin bita (rukunoni) a cikin iyakarsu"
       },
       "assignWork": {
-        "label": "Ba da Aiki",
+        "label": "Ba da aiki",
         "desc": "Roƙi kowa a cikin iyakarsu ya naɗa ko ya yi bitar nassi"
       },
       "overrideCheckpoints": {
-        "label": "Wuce Shingayen Dubawa",
+        "label": "Bari aiki ya wuce dubawar da aka kulle",
         "desc": "Wuce da nassi daga shingen dubawa, tare da rubuta dalili"
       },
       "translate": {
-        "label": "Fassara",
+        "label": "Naɗa",
         "desc": "Naɗa da gyara fassarori (ku kashe don hana, misali, mashawarta yin daftari)"
       },
       "fillReference": {
-        "label": "Cika Kayan Bincike",
+        "label": "Ƙara bayanai da muhimman kalmomi",
         "desc": "Ƙara muhimman kalmomi, bayanai, da kayan bincike"
       },
       "sendToReviewers": {
-        "label": "Nemi Bita",
+        "label": "Nemi dubawa",
         "desc": "Roƙi abokan aiki, ko wani a wajen manhajar ta mahaɗi, su yi bita"
       },
       "review": {
-        "label": "Bita",
+        "label": "Duba naɗe-naɗe",
         "desc": "Yi bitoci, da naɗa dubawar da ta faru a wajen manhajar"
       },
       "viewStatus": {
-        "label": "Duba Matsayi",
+        "label": "Ga aikin kowa",
         "desc": "Ga taswira da tarihin nassosi don karantawa kawai a cikin iyakarsu"
       }
     },
@@ -2683,7 +2682,7 @@
       "pickPartHelp": "Yana haɗa wannan sashe: masu fassara za su samu shi a can."
     },
     "keyTerms": {
-      "noLanguageRendering": "Babu fassarar {{language}} tukuna",
+      "noLanguageRendering": "Babu kalmar {{language}} tukuna",
       "title": "Muhimman Kalmomi",
       "chooseLanguage": "Ku fara zaɓar harshe",
       "added": "An ƙara {{term}}.",
@@ -2691,18 +2690,18 @@
       "search": "Nemi kalmomi",
       "empty": "Babu muhimman kalmomi tukuna",
       "emptySubCanAdd": "Ku ƙara kalma tare da yadda wannan harshe yake faɗinta, da lokacin amfani da ita.",
-      "emptySub": "Kalmomin da tawagarku ta ƙara suna bayyana a nan tare da fassarorinsu.",
+      "emptySub": "Kalmomin da ƙungiyarku ta ƙara suna nan, tare da kalmar harshenku ga kowacce.",
       "inPassage": "A wannan nassi",
       "otherTerms": "Wasu kalmomi",
       "allTerms": "Dukan kalmomi",
       "noOther": "Babu wasu kalmomi.",
-      "intro": "Ma'anoni suna zuwa daga jerin da aka raba (kamar muhimman kalmomin FIA) ko naku. {{language}} yana riƙe fassarorinsa da dalilansu.",
+      "intro": "Muhimman kalmomi suna zuwa daga jerin da aka raba (kamar muhimman kalmomin FIA) ko naku. {{language}} tana riƙe da kalmarta ga kowacce, da dalilan.",
       "newKeyTerm": "Sabuwar muhimmiyar kalma",
-      "newSub": "Ana ƙara ta a muhimman kalmomin {{language}}, tare da fassararta ta farko.",
+      "newSub": "An ƙara shi cikin muhimman kalmomin {{language}}, tare da kalmarsa ta farko.",
       "addTerm": "Ƙara Kalma",
       "termPlaceholder": "Kalmar asali, misali alheri (charis)",
       "meaningPlaceholder": "Ma'ana, a taƙaice",
-      "renderingPlaceholder": "Fassarar {{language}}",
+      "renderingPlaceholder": "Kalmar {{language}}",
       "contextPlaceholder": "Lokacin amfani da ita, da dalili",
       "newTermHelp": "Yana ƙara ma'ana, tare da yadda {{language}} yake faɗinta.",
       "openTermHelp": "Yana buɗe ta: abin da take nufi, yadda tawagarku take faɗinta, da dalili.",
@@ -2715,7 +2714,7 @@
       "tied": "An haɗa {{term}} da daftarinku.",
       "added": "An ƙara “{{rendering}}”.",
       "changeRecorded": "An rubuta canjin.",
-      "firstRendering": "Fassara ta farko: {{rendering}}.",
+      "firstRendering": "Kalma ta farko: {{rendering}}.",
       "fiaSub": "Muhimmiyar kalmar FIA · {{language}}",
       "sub": "Muhimmiyar kalmar {{language}}",
       "noMeaning": "Ba a rubuta ma'ana ba tukuna.",
@@ -2726,10 +2725,10 @@
       "tiedBody": "Masu bita za su ga wannan kalma da dalilinku.",
       "tieBody": "Don masu bita su san cewa wannan kalma ta tsara {{passage}}.",
       "inLanguage": "A {{language}}",
-      "noRendering": "Ba a fassara ta ba tukuna",
+      "noRendering": "Babu kalma tukuna",
       "addHow": "Ku ƙara yadda {{language}} yake faɗin wannan, da lokacin amfani da ita.",
-      "adjustOrAdd": "Daidaita ko ƙara fassara",
-      "addRendering": "Ƙara fassara",
+      "adjustOrAdd": "Canza ko ƙara kalma",
+      "addRendering": "Ƙara kalma",
       "details": "Cikakken bayani",
       "why": "Dalilin da aka fassara ta haka",
       "changes_one": "Canji {{count, number}}",
@@ -2740,7 +2739,7 @@
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "An rubuta a matsayin ɓangaren {{passage}}, kuma an haɗa da daftarinku.",
       "adjustSub": "Ana rubuta kowane canji tare da dalilinku.",
-      "newRendering": "Sabuwar fassara (ba dole ba)",
+      "newRendering": "Sabuwar kalma (na zaɓi)",
       "whenToUse": "Lokacin amfani da ita",
       "sayWhy": "Faɗi dalili",
       "orTypeWhy": "Ko ku rubuta abin da ya canja, da dalili",
@@ -3124,6 +3123,7 @@
     "update": {
       "restarting": "Ana sake kunnawa…",
       "ready": "Sabuntawa ta shirya — taɓa don sake kunnawa",
+      "afterRecording": "Sabuntawa a shirye · zai sake farawa idan ka daina rikodi",
       "downloading": "Ana sauke sabuntawa…",
       "downloadingPercent": "Ana sauke sabuntawa… {{percent}}",
       "webReady": "Sabuwar sigar LangQuest ta shirya. Ku sake loda shafin don amfani da ita.",
@@ -4407,7 +4407,7 @@
       },
       "term": {
         "title": "Zaɓi kalma",
-        "sub": "Ma'anarta da yadda aka fassara ta za su buɗe a nan."
+        "sub": "Ma’anarta da kalmomin ƙungiyarku suna buɗewa a nan."
       },
       "language": {
         "title": "Zaɓi harshe",
@@ -4933,11 +4933,11 @@
       "notes": "Bayanai",
       "history": "Tarihi",
       "tied": "An haɗa da daftarinku.",
-      "noTerms": "Babu muhimmiyar kalmar da ta dace da asalin wannan nassi.",
-      "noRendering": "Ba a fassara ta ba tukuna",
+      "noTerms": "Babu muhimman kalmomi a wannan sashe.",
+      "noRendering": "Babu kalma tukuna",
       "termLabel": "{{term}}. {{rendered}}",
       "termLabelTied": "{{term}}. {{rendered}}. An haɗa da daftarinku",
-      "noLanguageRendering": "Babu fassarar {{language}} tukuna",
+      "noLanguageRendering": "Babu kalmar {{language}} tukuna",
       "tiedBadge": "An haɗa",
       "tying": "Ana haɗawa…",
       "tie": "Haɗa da daftarinku",
@@ -5175,8 +5175,8 @@
       "notHereSub": "Koma taswira don zaɓar wani.",
       "breakUp": "Raba {{book}}",
       "notBrokenUp": "Ba a raba {{book}} ba tukuna",
-      "chooseHow": "Ku zaɓi yadda za a yanka {{book}} gutsure-gutsure, babi-babi, nassosin FIA ko ta wata hanya. Sannan za a iya naɗa shi.",
-      "coordinatorDecides": "Mai gudanarwa ne zai yanke yadda za a yanka {{book}} gutsure-gutsure. Sannan za ku iya naɗa shi.",
+      "chooseHow": "Ku zaɓi yadda za a yanka {{book}} sassa-sassa, babi-babi, nassosin FIA ko ta wata hanya. Sannan za a iya naɗa shi.",
+      "coordinatorDecides": "Mai gudanarwa ne zai yanke yadda za a yanka {{book}} sassa-sassa. Sannan za ku iya naɗa shi.",
       "summary_one": "An naɗa nassi {{recorded}} cikin {{count, number}}",
       "summary_other": "An naɗa nassosi {{recorded}} cikin {{count, number}}",
       "summaryIn_one": "An naɗa nassi {{recorded}} cikin {{count, number}} a {{language}}",
@@ -5184,7 +5184,7 @@
       "key": "Ma'anar alamomi",
       "filterHelp": "Nuna wasu nassosi kaɗai, da cikakkiyar ma'anar alamomi.",
       "breakUpDifferently": "Raba ta wata hanya",
-      "breakUpDifferentlyHelp": "Canja yadda aka yanka wannan littafi gutsure-gutsure: babi-babi, nassosin FIA ko ta wata hanya.",
+      "breakUpDifferentlyHelp": "Canja yadda aka yanka wannan littafi sassa-sassa: babi-babi, nassosin FIA ko ta wata hanya.",
       "chapterTitle": "{{book}} {{n}}",
       "pickPart_one": "Sashe {{count, number}} — zaɓi ɗaya",
       "pickPart_other": "Sassa {{count, number}} — zaɓi ɗaya"
@@ -7497,8 +7497,10 @@
     "dismiss": "Rufe",
     "dismissHelp": "Yana ɓoye wannan har sai sabon sigar ya fito.",
     "required": "Da fatan za a sabunta manhajar",
+    "requiredSub": "Rikodinka da canje-canjenka suna zuwa ga ƙungiyarka har yanzu. Babu sabon abu daga gare su da zai iso wannan waya har sai ka sabunta.",
+    "requiredBar": "Sabunta don samun aikin ƙungiyarka",
     "keepWorking": "Ci gaba da aiki",
-    "keepWorkingHelp": "Aikinka yana nan a wannan wayar, kuma za a aika shi bayan ka sabunta."
+    "keepWorkingHelp": "Yana rufe wannan yanzu. Kana iya ci gaba da rikodi; aikinka yana zuwa ga ƙungiyarka har yanzu."
   },
   "globalViewer": {
     "title": "Mai Kallo na Duniya",

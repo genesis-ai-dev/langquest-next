@@ -20,7 +20,7 @@ export function deleteVersion(ctx: Ctx, v: PassageView, ver: Version, after?: ()
   try {
     specs = commands(state, indexesFor(state)).deleteVersion({ commandId: Crypto.randomUUID(), unitId, takeId: ver.takeId, actorId: me });
   } catch (e) {
-    ctx.toast(t('passage.versions.notDeleted', { reason: failureMessage('versions: delete version', e) }));
+    ctx.toast(t('passage.versions.notDeleted', { reason: failureMessage('versions: delete version', e) }), 'problem');
     return;
   }
   void ctx.act(specs, t('passage.versions.deleted', { name }))

@@ -312,8 +312,8 @@ test('STUDY-010 Glossary words in the guide', async ({ page }) => {
   // The organization has no key term of that name, so the footer says so and is not a button.
   const keyTerms = Object.values((await langAs(world(), 'TRANS')).getState().keyTerms as Record<string, { term: string }>);
   expect(keyTerms.map((k) => k.term), 'the world has no key term of that name').not.toContain(GLOSSARY_WORD);
-  await expect(text(page, 'This term isn\'t in your organization\'s key terms yet.')).toBeVisible();
-  await expect(button(page, 'Open the key term')).toHaveCount(0);
+  await expect(text(page, 'This term isn\'t in your organization\'s key words yet.')).toBeVisible();
+  await expect(button(page, 'Open the key word')).toHaveCount(0);
 });
 
 test('STUDY-012 The study\'s other chips', async ({ page }) => {
@@ -410,7 +410,7 @@ test('STUDY-017 Key words in the workspace', async ({ page }) => {
   await tabChip(page, 'Key words').click();
   await button(page, /^heaven\. /).click();
   await expect(text(page, 'heaven')).toBeVisible();
-  await expect(text(page, 'Alpha key term')).toBeVisible();
+  await expect(text(page, 'Alpha key word')).toBeVisible();
 });
 
 test('STUDY-018 Say your word for a key word', async ({ page }) => {
@@ -436,14 +436,14 @@ test('STUDY-018 Say your word for a key word', async ({ page }) => {
 
 for (const who of ['REV', 'VIEW'] as const) {
   test(`STUDY-019 ${who} Reviewers and viewers cannot change key words`, async ({ page, browser }) => {
-    const forbidden = /^(Say yours|Say your word for .+|Add a key word|New term|Tie to your draft|Adjust or add a rendering|Add a rendering)$/;
+    const forbidden = /^(Say yours|Say your word for .+|Add a key word|New term|Tie to your draft|Change or add a word|Add a word)$/;
     const d = await device(browser, world(), who);
     await openStudy(d.page);
     await tabChip(d.page, 'Key words').click();
     await expect(button(d.page, /^heaven\. /)).toBeVisible();
     await expect(visible(d.page.getByRole('button', { name: forbidden }))).toHaveCount(0);
     await button(d.page, /^heaven\. /).click();
-    await expect(text(d.page, 'Alpha key term')).toBeVisible();
+    await expect(text(d.page, 'Alpha key word')).toBeVisible();
     await expect(visible(d.page.getByRole('button', { name: forbidden }))).toHaveCount(0);
     await d.context.close();
     void page;
@@ -455,7 +455,7 @@ test('STUDY-020 The Key Terms list', async ({ page }) => {
   await openWorkspace(page);
   await tabChip(page, 'Key words').click();
   await button(page, 'All key words').click();
-  await expect(text(page, 'Key Terms')).toBeVisible();
+  await expect(text(page, 'Key Words')).toBeVisible();
   await expect(text(page, `${world().passages['P-SUBMITTED'].label} · Alpha`)).toBeVisible();
   await expect(button(page, 'New term')).toBeVisible();
   await expect(text(page, /^In this passage · \d+$/)).toBeVisible();
@@ -478,11 +478,11 @@ test('STUDY-021 A new term from the Key Terms list', async ({ page }) => {
   await tabChip(page, 'Key words').click();
   await button(page, 'All key words').click();
   await button(page, 'New term').click();
-  await expect(text(page, 'New key term')).toBeVisible();
-  await expect(text(page, 'Added to Alpha\'s key terms, with its first rendering.')).toBeVisible();
+  await expect(text(page, 'New key word')).toBeVisible();
+  await expect(text(page, 'Added to Alpha\'s key words, with its first word.')).toBeVisible();
   await field(page, 'Source term, e.g. grace (charis)').fill('compassion');
   await expect(button(page, 'Add Term')).toBeDisabled();
-  await field(page, 'Alpha rendering').fill('imbabazi');
+  await field(page, 'Alpha word').fill('imbabazi');
   await field(page, 'When to use it, and why').fill('When the father sees the son');
   await button(page, 'Add Term').click();
   await sawToast(page, 'compassion added.');
@@ -495,7 +495,7 @@ test('STUDY-022 Nobody may add terms without Fill reference', async ({ page }) =
   await openStudy(page);
   await tabChip(page, 'Key words').click();
   await button(page, /^heaven\. /).click();
-  await expect(text(page, 'Alpha key term')).toBeVisible();
+  await expect(text(page, 'Alpha key word')).toBeVisible();
   await expect(button(page, 'New term')).toHaveCount(0);
 });
 
@@ -507,13 +507,13 @@ test('STUDY-023 A key term\'s page', async ({ page }) => {
   await tabChip(page, 'Key words').click();
   await button(page, /^heaven\. /).click();
   await expect(text(page, 'heaven')).toBeVisible();
-  await expect(text(page, 'Alpha key term')).toBeVisible();
+  await expect(text(page, 'Alpha key word')).toBeVisible();
   await expect(text(page, 'God\'s dwelling, or God himself')).toBeVisible();
   await expect(text(page, /^(Appears in .+|Applies to every passage)$/)).toBeVisible();
   await expect(button(page, 'Tie to your draft')).toBeVisible();
   await expect(text(page, `So reviewers know this term shaped ${world().passages['P-SUBMITTED'].label}.`)).toBeVisible();
   await expect(text(page, 'In Alpha')).toBeVisible();
-  await expect(button(page, 'Adjust or add a rendering')).toBeVisible();
+  await expect(button(page, 'Change or add a word')).toBeVisible();
   // The draft goes to the server, so a teammate's device (and STUDY-025) sees it.
   await expectSent(page, world());
 });
@@ -567,16 +567,16 @@ test('STUDY-026 Adjust or add a rendering, with why', async ({ page }) => {
   await openWorkspace(page);
   await tabChip(page, 'Key words').click();
   await button(page, /^heaven\. /).click();
-  await button(page, 'Adjust or add a rendering').click();
+  await button(page, 'Change or add a word').click();
   await expect(text(page, 'Alpha · “heaven”')).toBeVisible();
   await expect(text(page, `Recorded as part of ${world().passages['P-SUBMITTED'].label}, and tied to your draft.`)).toBeVisible();
   await expect(button(page, 'Add your word')).toBeDisabled();
-  await field(page, 'New rendering (optional)').fill('ijuru ry\'Imana');
+  await field(page, 'New word (optional)').fill('ijuru ry\'Imana');
   await field(page, 'When to use it').fill('Only for God\'s dwelling');
   await speakInto(page, 'Say why', 4000);
   await button(page, 'Add your word').click();
   await sawToast(page, 'Added “ijuru ry\'Imana”.');
-  await button(page, 'Adjust or add a rendering').click();
+  await button(page, 'Change or add a word').click();
   await field(page, 'Or type what changed, and why').fill('Elders prefer the older word');
   await button(page, 'Add your word').click();
   await sawToast(page, 'Change recorded.');
@@ -598,7 +598,7 @@ test('STUDY-028 The Bible chip in the workspace', async ({ page }) => {
   await button(page, /^Verse 15:20\. /).click();
   // The key word in the text opens its page.
   await visible(page.getByRole('link', { name: /^heaven, key word/ })).first().click();
-  await expect(text(page, 'Alpha key term')).toBeVisible();
+  await expect(text(page, 'Alpha key word')).toBeVisible();
   await byId(page, 'header-back').click();
   await tabChip(page, 'Bible').click();
   expect(await screenText(page)).toMatch(/BSB: /);

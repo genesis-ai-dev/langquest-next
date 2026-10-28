@@ -119,7 +119,7 @@ async function actCommand(ctx: Ctx, where: string, build: () => EventSpec[], mes
   try {
     specs = build();
   } catch (e) {
-    ctx.toast(failure(where, e));
+    ctx.toast(failure(where, e), 'problem');
     return false;
   }
   try {
@@ -283,7 +283,7 @@ export function RoleEditor(ctx: Ctx) {
       ctx.toast(isNew ? t('config.roleEditor.created', { name: next.name }) : t('config.roleEditor.saved', { name: next.name }));
       ctx.back();
     } catch (e) {
-      ctx.toast(t('common.notSaved', { reason: failure('save role', e) }));
+      ctx.toast(t('common.notSaved', { reason: failure('save role', e) }), 'problem');
       setBusy(false);
     }
   }
@@ -350,7 +350,7 @@ async function libraryAct(ctx: Ctx, where: string, action: () => Promise<unknown
   try {
     await action();
   } catch (e) {
-    ctx.toast(t('common.notSaved', { reason: libraryFailure(where, e) }));
+    ctx.toast(t('common.notSaved', { reason: libraryFailure(where, e) }), 'problem');
     return false;
   }
   ctx.toast(message);
@@ -588,7 +588,7 @@ export function FlowsHome(ctx: Ctx) {
       name = 'shared' in target ? target.shared.name : lib.item(target.itemId)?.name ?? doc.name;
       specs = copyFlowEvents(state, { name, doc, kinds });
     } catch (e) {
-      ctx.toast(t('common.notSaved', { reason: libraryFailure('use flow', e) })); // i18n-ignore: log label
+      ctx.toast(t('common.notSaved', { reason: libraryFailure('use flow', e) }), 'problem'); // i18n-ignore: log label
       setBusy(false);
       return;
     }
@@ -1409,7 +1409,7 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
     try {
       plan = planQuestionSetReviews(state!, it.itemId, material);
     } catch (e) {
-      ctx.toast(failure('use question set', e));
+      ctx.toast(failure('use question set', e), 'problem');
       return;
     }
     const kindLabel = kinds.find((x) => x.id === material.reviewKindId)?.name ?? material.reviewKindId;

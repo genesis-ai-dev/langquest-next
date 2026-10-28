@@ -34,6 +34,7 @@ import { bookOf, dayYear, num, pctText, shortDate, signed, type Tone } from '../
 import { languageCsv } from '../reports/csvModel';
 import { canPrint, exportCsv, fileName, printPage } from '../reports/exportFiles';
 import { useOrgInChrome } from '../ui/useLayout';
+import { a11yState } from '../ui/a11yModel';
 
 const COLUMN = measure.report;
 /** No rows yet: one list, so what is worked out from it is not worked out again on every draw. */
@@ -393,7 +394,7 @@ function CountryChoice(props: { code: string; chosen: boolean; onPick: () => voi
   const name = countryName(props.code);
   const spot = useHelpSpot(name, props.chosen ? t('reports.settings.chosenCountryHelp') : t('reports.settings.pickCountryHelp'), props.onPick);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: props.chosen }}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ selected: props.chosen }, 'button')}
       style={({ pressed }) => [{ minHeight: 48, justifyContent: 'center', paddingHorizontal: space.sm, borderBottomWidth: 1, borderColor: C.border }, pressed && { opacity: 0.6 }]}>
       <Text style={[txt.body, props.chosen ? { color: C.primary, fontWeight: '700' } : null]}>{name}</Text>
       <HelpBadge spot={spot} inset />

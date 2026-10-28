@@ -47,6 +47,7 @@ import { usePassageKeyWords } from '../keyTerms/usePassageKeyWords';
 import { KeyWordSheet } from '../keyTerms/lazySheets';
 import { ListWordRow } from '../keyTerms/KeyWordRows';
 import { ownTermId, shortName, type KeyWordList, type WordHere } from '../keyTerms/listsModel';
+import { a11yState } from '../ui/a11yModel';
 
 const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
 
@@ -190,7 +191,7 @@ function Verse(props: {
   ].filter(Boolean).join(' ');
   const spot = useHelpSpot(t('reference.bible.verse', { verse }), detail, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: props.here || props.selected }}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ selected: props.here || props.selected }, 'button')}
       accessibilityLabel={props.notes ? t('reference.bible.verseLabelNotes', { verse: r.key, text: r.text, count: props.notes }) : t('sources.reader.verseLabel', { verse: r.key, text: r.text })}
       style={({ pressed }) => [styles.verse, props.here && styles.versePlaying, props.selected && styles.verseSelected, pressed && ps.pressed]}>
       <Text style={styles.verseText}>
@@ -272,7 +273,7 @@ function BibleRow(props: { label: string; sub: string; on?: boolean; more?: bool
   /** What help mode says picking it does, where `sub` is what it has. */ help?: string }) {
   const spot = useHelpSpot(props.label, props.help ?? props.sub, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole={props.more ? 'button' : 'radio'} accessibilityState={props.more ? undefined : { selected: !!props.on }}
+    <Pressable onPress={spot.onPress} accessibilityRole={props.more ? 'button' : 'radio'} {...a11yState(props.more ? undefined : { selected: !!props.on }, props.more ? 'button' : 'radio')}
       style={({ pressed }) => [styles.bibleRow, !props.last && ps.rowBorder, pressed && ps.pressed]}>
       <Ico name={props.more ? 'plus' : 'book'} size={20} color={C.primary} />
       <View style={{ flex: 1, minWidth: 0 }}>

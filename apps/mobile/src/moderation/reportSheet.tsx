@@ -74,7 +74,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
       ctx.toast(alsoBlock ? t('moderation.toast.reportedAndBlocked', { name: who }) : reportedMessage(sent));
       props.onClose();
     } catch (e) {
-      ctx.toast(failureMessage('report content', e));
+      ctx.toast(failureMessage('report content', e), 'problem');
     } finally {
       setBusy(false);
     }
@@ -86,7 +86,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
       ctx.toast(blocked ? t('moderation.toast.unblocked', { name: who }) : t('moderation.toast.blocked', { name: who }));
       props.onClose();
     } catch (e) {
-      ctx.toast(failureMessage('block person', e));
+      ctx.toast(failureMessage('block person', e), 'problem');
     }
   }
 
@@ -102,7 +102,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
     } catch (e) {
       // Offline or refused: the server's answer says which.
       noteExpected('remove content', e);
-      ctx.toast(looksOffline(e) ? t('moderation.toast.notRemovedOffline') : t('moderation.toast.notRemovedRefused'));
+      ctx.toast(looksOffline(e) ? t('moderation.toast.notRemovedOffline') : t('moderation.toast.notRemovedRefused'), 'problem');
     } finally {
       setBusy(false);
     }
@@ -198,7 +198,7 @@ export function ReportActions(props: { ctx: Ctx; target: ReportTarget; onDone: (
       props.onDone();
     } catch (e) {
       noteExpected(`report ${what}`, e);
-      ctx.toast(looksOffline(e) ? t('moderation.toast.notSavedOffline') : t('moderation.toast.notSavedRefused'));
+      ctx.toast(looksOffline(e) ? t('moderation.toast.notSavedOffline') : t('moderation.toast.notSavedRefused'), 'problem');
     } finally {
       setBusy(false);
     }

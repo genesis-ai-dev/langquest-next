@@ -52,7 +52,7 @@ export function BookHead(props: {
       await ctx.act([{ id: Crypto.randomUUID(), type: 'v1.BookNameSet', payload: { book, name: trimmed } } as EventSpec], t('breakup.book.namedToast', { language: props.language, name: trimmed }));
       setNaming(false);
     } catch (e) {
-      ctx.toast(failureMessage('book name', e));
+      ctx.toast(failureMessage('book name', e), 'problem');
     }
   }
   return (

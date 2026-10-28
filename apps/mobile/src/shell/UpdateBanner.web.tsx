@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { t } from '../i18n';
 import { C, radius, space, type as T } from '../ui/theme';
 import { isRecording } from '../recording/recorderState';
+import { useIsRecording } from '../recording/useIsRecording';
 import { BUILD_ID } from '../build/webBuild';
 
 /**
@@ -34,7 +35,10 @@ export function UpdateBanner() {
     document.addEventListener('visibilitychange', shown);
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', shown); };
   }, []);
+  const recording = useIsRecording();
   if (!newer) return null;
+  // While a take is being recorded, the line goes quiet: a reload would cut it off.
+  if (recording) return <View style={[styles.banner, styles.quiet]}><Text style={styles.quietText}>{t('account.update.afterRecording')}</Text></View>;
   const text = t('account.update.webReady');
   return (
     // help-ignore: above the screens and the help layer (App.tsx); its words say what tapping does
@@ -47,5 +51,7 @@ export function UpdateBanner() {
 
 const styles = StyleSheet.create({
   banner: { margin: space.sm, paddingHorizontal: space.lg, paddingVertical: space.sm, borderRadius: radius.md, backgroundColor: C.primary, minHeight: 48, justifyContent: 'center' },
-  text: { fontSize: T.xs, color: C.white, fontWeight: '600' }
+  text: { fontSize: T.xs, color: C.white, fontWeight: '600' },
+  quiet: { backgroundColor: C.bg, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border },
+  quietText: { fontSize: T.xs, color: C.muted }
 });

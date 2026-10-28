@@ -14,6 +14,7 @@ import { C, radius, space, target, TINT } from '../ui/theme';
 import type { PathStep, PathStepKind, TeamStep } from './pathModel';
 import type { Ctx } from '../shell/ctx';
 import { PeopleLine } from '../checks/parts';
+import { a11yState } from '../ui/a11yModel';
 
 const STEP_ICON: Record<PathStepKind, IconName> = { study: 'star', record: 'mic', publish: 'send', feedback: 'chat', fix: 'mic' };
 
@@ -90,7 +91,7 @@ function StepRow(props: {
         <View style={lit ? styles.litCard : styles.plain}>
           {press ? (
             <Pressable testID={`path-step-${step.kind}`} onPress={press} accessibilityRole="button" accessibilityLabel={`${props.n}. ${step.title}. ${step.sub}`}
-              accessibilityState={{ selected: lit }} style={({ pressed }) => pressed && { opacity: 0.75 }}>
+              {...a11yState({ selected: lit }, 'button', 'current')} style={({ pressed }) => pressed && { opacity: 0.75 }}>
               {head}
               <HelpBadge spot={spot} />
             </Pressable>

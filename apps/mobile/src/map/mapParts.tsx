@@ -14,6 +14,7 @@ import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Ico, type IconName } from '../ui/kit';
 import { C, onColor, radius, space, target, TINT, type as T } from '../ui/theme';
+import { a11yState } from '../ui/a11yModel';
 
 /** What the "Next" disc's icon says is to be done there, for help mode (rule 3). */
 function nextIconLine(icon: IconName): string | null {
@@ -57,7 +58,7 @@ export function Pills<K extends string>(props: { items: { id: K; label: string }
 function Pill(props: { label: string; on: boolean; onPress: () => void }) {
   const spot = useHelpSpot(props.label, t('map.parts.pillHelp'), props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ selected: props.on }, 'button')}
       style={({ pressed }) => [styles.pill, props.on && styles.pillOn, pressed && styles.pressed]}>
       <Text style={[styles.pillText, props.on && { color: C.white }]}>{props.label}</Text>
       <HelpBadge spot={spot} />
@@ -98,7 +99,7 @@ export function BookBar(props: {
   }
   return (
     <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
-      accessibilityState={props.current ? { selected: true } : undefined}
+      {...a11yState(props.current ? { selected: true } : undefined, 'button', 'current')}
       style={({ pressed }) => [styles.book, !props.last && styles.bookBorder, props.current && { backgroundColor: C.light }, pressed && styles.pressed]}>
       <Text style={styles.bookName}>{props.name}</Text>
       <View style={styles.track}>
@@ -132,10 +133,10 @@ export function ChapterTileView(props: {
   const spot = useHelpSpot(t('map.parts.chapter', { n: formatNumber(props.n) }), props.help ?? t('map.parts.chapterHelp'), props.onPress);
   return (
     <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
-      accessibilityState={{ disabled: props.disabled, selected: props.current }}
+      {...a11yState({ disabled: props.disabled, selected: props.current }, 'button', 'current')}
       style={({ pressed }) => [styles.tile, props.below ? styles.tileTall : null, { backgroundColor: look.bg, borderColor: look.border, opacity: props.dim ? 0.28 : 1 },
         props.current && { borderColor: C.primary, borderWidth: 3 }, pressed && { transform: [{ scale: 0.95 }] }]}>
-      <Text style={[styles.tileNumber, { color: look.fg }]}>{formatNumber(props.n)}</Text>
+      <Text style={[styles.tileNumber, { color: look.fg }]} maxFontSizeMultiplier={1.5}>{formatNumber(props.n)}</Text>
       {props.stage === 'done' ? <Ico name="check" size={16} color={onColor.green} strokeWidth={3} />
         : props.stage === 'started' ? <View style={styles.tileDot} />
         : <View style={{ height: 16 }} />}
@@ -221,8 +222,8 @@ const styles = StyleSheet.create({
   bookName: { minWidth: 120, maxWidth: '50%', flexShrink: 1, fontSize: T.base, fontWeight: '700', color: C.dark },
   track: { flex: 1, height: 8, borderRadius: 4, overflow: 'hidden', flexDirection: 'row', backgroundColor: C.light },
   bookCount: { width: 64, textAlign: 'right', fontSize: T.sm, color: C.muted, fontVariant: ['tabular-nums'] },
-  tile: { flex: 1, height: 76, borderRadius: radius.lg, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  tileTall: { height: 124, justifyContent: 'flex-start', paddingTop: space.md },
+  tile: { flex: 1, minHeight: 76, paddingVertical: space.xs, borderRadius: radius.lg, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  tileTall: { minHeight: 124, justifyContent: 'flex-start', paddingTop: space.md },
   tileNumber: { fontSize: T.xl, fontWeight: '800' },
   tileDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary, marginVertical: 4 },
   key: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: space.lg, rowGap: space.xs },

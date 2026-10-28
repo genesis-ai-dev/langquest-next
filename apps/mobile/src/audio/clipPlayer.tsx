@@ -325,7 +325,7 @@ export function ClipPlayer(props: {
         {props.onNote ? (
           <Pressable onPress={note.onPress} accessibilityRole="button" accessibilityLabel={t('recording.player.addNoteAtMoment')}
             style={({ pressed }) => [styles.side, pressed && styles.pressed]}>
-            <Ico name="chat" size={18} color={TINT.amberText} />
+            <Ico name="note" size={18} color={TINT.amberText} />
             <Text style={[styles.sideLabel, { color: TINT.amberText }]}>{t('recording.player.note')}</Text>
             <HelpBadge spot={note} />
           </Pressable>

@@ -10,6 +10,7 @@ import { useSwipeBackOff } from '../ui/useHardwareBack';
 import { Text } from '../ui/text';
 import { C, radius, space } from '../ui/theme';
 import { addDot, dotAt, MIN_DOTS, PICTURES } from '../session/lockModel';
+import { a11yState } from '../ui/a11yModel';
 
 /**
  * Nine dots to draw a pattern on, as on the Android lock screen (decisions.md
@@ -105,7 +106,7 @@ export function PatternPad(props: { onDone: (dots: number[]) => void; disabled?:
           const p = at(d);
           return (
             <Pressable key={`a${d}`} accessible accessibilityRole="button" accessibilityLabel={t('shell.pattern.dot', { n: d + 1 })}
-              accessibilityState={{ selected: dots.includes(d) }} pointerEvents="none"
+              {...a11yState({ selected: dots.includes(d) }, 'button')} pointerEvents="none"
               onAccessibilityTap={() => { if (!props.disabled) { setTapping(true); setDots((now) => addDot(now, d)); } }}
               style={[styles.hit, { left: p.x - cell / 2, top: p.y - cell / 2, width: cell, height: cell }]} />
           );
@@ -150,7 +151,7 @@ function PictureTile(props: { picture: number; on: boolean; onPick: (picture: nu
   const spot = useHelpSpot(label, props.help, () => props.onPick(props.picture));
   return (
     <Pressable onPress={spot.onPress} disabled={props.disabled && !spot.id} testID={`lock-picture-${props.picture}`}
-      accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: props.on }}
+      accessibilityRole="button" accessibilityLabel={label} {...a11yState({ selected: props.on }, 'button')}
       style={({ pressed }) => [styles.tile, props.on && styles.tileOn, pressed && { opacity: 0.7 }]}>
       <Text style={styles.picture}>{PICTURES[props.picture]}</Text>
       <HelpBadge spot={spot} />

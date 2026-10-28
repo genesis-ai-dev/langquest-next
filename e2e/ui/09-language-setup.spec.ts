@@ -367,7 +367,7 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     await expect(primary(p)).toContainText('Keep it');
     await text(p, 'Whole Bible').click();
     await expect(primary(p)).toContainText('Use this');
-    await expectOnScreen(p, 'Pieces that stay the same keep their recordings. What was recorded on a piece that changes is kept under "Earlier sections" on the new pieces.');
+    await expectOnScreen(p, 'Sections that stay the same keep their recordings. What was recorded on a section that changes is kept under "Earlier sections" on the new sections.');
     await primary(p).click();
     await expectToast(p, /^Alpha translates .*\./);
     // No toast offers Undo (decision 134): the same step chooses the New Testament again.
@@ -438,14 +438,14 @@ test('SETUP-028 The "Reference material" page and "Add more"', async ({ page }) 
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
   await referenceMaterial(page);
-  await expectOnScreen(page, 'Reference material', 'Bibles', 'Study guides', 'Key words', 'Key terms', /\d+ words? · \d+ with a Alpha word/, 'Notes for translators');
+  await expectOnScreen(page, 'Reference material', 'Bibles', 'Study guides', 'Key words', /\d+ words? · \d+ with a Alpha word/, 'Notes for translators');
   // Last, the organization's whole shelf (decision 138), not a row in Add more.
   await expectOnScreen(page, 'No Bibles yet', 'No notes yet', 'Add more to offer some', /passages? covered/, 'All reference material');
   await text(page, 'Add more').click();
   await expectOnScreen(page, 'A Bible', 'A study guide', 'A note for translators', 'Key words');
   await expectNotOnScreen(page, 'Everything in your library');
   await text(page, 'Words to say the same way every time').click();
-  await expectOnScreen(page, 'Key Terms');
+  await expectOnScreen(page, 'Key Words');
 });
 
 test('SETUP-029 Invite your translators: other roles, and a new role', async ({ page }) => {
@@ -681,7 +681,7 @@ test('SETUP-037 Make a Scripture template', async ({ page }) => {
   await text(page, 'King James Version').click();
   await expectOnScreen(page, 'Like most English Bibles');
   await primary(page).click();
-  await expectOnScreen(page, 'How should the Bible be broken up?', 'Divide it your own way', 'Book by book: read each one and choose where its sections start');
+  await expectOnScreen(page, 'How should the Bible be divided?', 'Divide it your own way', 'Book by book: read each one and choose where its sections start');
   await text(page, 'By chapter').click();
   await primary(page).click();
   await expect(primary(page)).toBeDisabled();
@@ -690,11 +690,11 @@ test('SETUP-037 Make a Scripture template', async ({ page }) => {
   await expectNotOnScreen(page, 'Whole books');
   // A book: your own way first, then the ready-made ways.
   await text(page, 'Genesis').click();
-  await expectOnScreen(page, 'Change how Genesis is broken up', 'Divide it your own way', 'Or pick a ready-made way', 'Rename or remove Genesis');
+  await expectOnScreen(page, 'Change how Genesis is divided', 'Divide it your own way', 'Or pick a ready-made way', 'Rename or remove Genesis');
   await text(page, 'OpenBible: usual sections').click();
   await button(page, 'Change Genesis').click();
   await expectToast(page, 'Genesis is divided.');
-  await expectOnScreen(page, /OpenBible: usual sections · \d+ pieces/);
+  await expectOnScreen(page, /OpenBible: usual sections · \d+ sections/);
   // Its name in the language, and taking it out.
   await text(page, 'Exodus').click();
   await text(page, 'Rename or remove Exodus').click();
@@ -777,14 +777,14 @@ test('SETUP-040 Divide a book that waits, for this language', async ({ page }) =
   if (!(await text(page, 'Old Testament').isVisible())) await text(page, 'Oscar').click();
   await text(page, 'Old Testament').click();
   await text(page, 'Proverbs').click();
-  await button(page, 'Break up Proverbs').click();
-  await expectOnScreen(page, 'How should Proverbs be broken up?', 'By chapter');
+  await button(page, 'Divide Proverbs').click();
+  await expectOnScreen(page, 'How should Proverbs be divided?', 'By chapter');
   await text(page, 'By chapter').click();
-  await button(page, 'Break up Proverbs').click();
+  await button(page, 'Divide Proverbs').click();
   const sheet = await screenText(page);
   if (sheet.includes('Which languages should change?')) await text(page, 'Change it for this language').click();
-  await expectToast(page, 'Proverbs is broken up by chapter.');
-  await expectOnScreen(page, 'Broken up');
+  await expectToast(page, 'Proverbs is divided by chapter.');
+  await expectOnScreen(page, 'Divided');
   await expectOrgSent(page, w);
   expect(await orgRefused(page, w)).toEqual([]);
 });

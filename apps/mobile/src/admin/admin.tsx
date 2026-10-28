@@ -23,6 +23,7 @@ import { txt } from '../ui/textStyles';
 import { shadow } from '../ui/shadow';
 import { C, measure, radius, space, target, TINT, type as T } from '../ui/theme';
 import type { InviteState } from './useGroupInvite';
+import { a11yState } from '../ui/a11yModel';
 
 // ---- icons ----------------------------------------------------------------------------
 
@@ -57,7 +58,7 @@ export function HelpButton() {
   if (!help) return <View style={{ width: target.min }} />;
   return (
     <Pressable testID="header-help" onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? t('admin.help.turnOff') : t('admin.help.turnOn')}
-      accessibilityState={{ selected: help.on }}
+      {...a11yState({ selected: help.on }, 'button')}
       style={({ pressed }) => [styles.round, help.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
       <Ico name="help" size={24} color={help.on ? C.white : C.primary} />
       <HelpLit />
@@ -148,7 +149,7 @@ export function ChecklistRow(props: { state: 'done' | 'now' | 'later'; icon: Adm
   return (
     <Pressable onPress={spot.onPress} disabled={!props.onPress} accessibilityRole="button"
       accessibilityLabel={state === 'done' ? t('admin.checklist.doneLabel', { label: props.label }) : props.label}
-      accessibilityState={{ disabled: !props.onPress, selected: state === 'now' }}
+      {...a11yState({ disabled: !props.onPress, selected: state === 'now' }, 'button')}
       style={({ pressed }) => [styles.checkRow, state === 'now' && styles.checkRowNow, pressed && styles.pressed]}>
       <View style={[styles.checkCircle, state === 'done' ? { backgroundColor: C.green } : state === 'now' ? { backgroundColor: C.primary } : { backgroundColor: C.light }]}>
         {state === 'done' ? <Ico name="check" size={24} color={C.white} strokeWidth={3} />
@@ -220,7 +221,7 @@ export function ChoiceCard(props: { on: boolean; icon: AdminIcon; title: string;
   /** The organization `sub` names, so its blue check shows after the name (decisions.md 173). */ subOrg?: { name: string; id: string } | null }) {
   const spot = useHelpSpot(props.title, props.help ?? props.sub, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole={props.chevron ? 'button' : 'radio'} accessibilityState={props.chevron ? undefined : { selected: props.on }}
+    <Pressable onPress={spot.onPress} accessibilityRole={props.chevron ? 'button' : 'radio'} {...a11yState(props.chevron ? undefined : { selected: props.on }, props.chevron ? 'button' : 'radio')}
       accessibilityLabel={`${props.title}${props.sub ? `. ${props.sub}` : ''}`}
       style={({ pressed }) => [styles.choice, props.own && styles.choiceOwn, props.on && styles.choiceOn, pressed && styles.pressed]}>
       <View style={styles.choiceHead}>
@@ -253,7 +254,7 @@ export function NumberedSteps(props: { items: { label: string; lock?: boolean }[
     <View style={[styles.indent, { gap: 2 }]}>
       {props.items.map((s, i) => (
         <View key={`${s.label}-${i}`} style={styles.numbered}>
-          <View style={styles.num}><Text style={styles.numText}>{formatNumber(i + 1)}</Text></View>
+          <View style={styles.num}><Text style={styles.numText} maxFontSizeMultiplier={1.5}>{formatNumber(i + 1)}</Text></View>
           <Text style={{ fontSize: 14, fontWeight: '600', color: C.dark, flexShrink: 1 }}>{s.label}</Text>
           {s.lock ? <Ico name="lock" size={15} color={C.muted} /> : null}
         </View>
@@ -268,7 +269,7 @@ export function RadioRow(props: { icon: AdminIcon; label: string; sub?: string; 
   /** One of several that can be picked together: a tick instead of a dot. */ many?: boolean }) {
   const spot = useHelpSpot(props.label, props.help ?? props.sub, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole={props.many ? 'checkbox' : 'radio'} accessibilityState={props.many ? { checked: props.on } : { selected: props.on }} aria-checked={props.on} accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} accessibilityRole={props.many ? 'checkbox' : 'radio'} {...a11yState(props.many ? { checked: props.on } : { selected: props.on }, props.many ? 'checkbox' : 'radio')} aria-checked={props.on} accessibilityLabel={props.label}
       style={({ pressed }) => [styles.radioRow, props.tile && styles.radioRowTall, props.on && styles.choiceOn, pressed && styles.pressed]}>
       {props.tile ? <IconTile icon={props.icon} size={44} /> : <Glyph name={props.icon} size={24} />}
       <View style={{ flex: 1, minWidth: 0 }}>
@@ -348,7 +349,7 @@ export function CheckRow(props: { label: string; sub?: string; checked: boolean;
   const onPlay = useHelpSpot(playLabel, props.playHelp, props.onPlay);
   return (
     <View style={[styles.checkLine, !props.last && styles.rowBorder]}>
-      <Pressable onPress={onToggle.onPress} disabled={props.disabled} accessibilityRole="checkbox" accessibilityState={{ checked: props.checked, disabled: !!props.disabled }}
+      <Pressable onPress={onToggle.onPress} disabled={props.disabled} accessibilityRole="checkbox" {...a11yState({ checked: props.checked, disabled: !!props.disabled }, 'checkbox')}
         // The web reads its state from aria-* (react-native-web ignores accessibilityState there).
         aria-checked={props.checked} aria-disabled={!!props.disabled}
         accessibilityLabel={props.label} style={({ pressed }) => [styles.checkTap, pressed && styles.pressed]}>
@@ -392,7 +393,7 @@ export function SwitchRow(props: { label: string; sub?: string; on: boolean; onT
   below?: ReactNode }) {
   const spot = useHelpSpot(props.label, props.help ?? (props.on ? t('admin.switchRow.on') : t('admin.switchRow.off')), props.onToggle);
   const row = (
-    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="switch" accessibilityState={{ checked: props.on, disabled: !!props.disabled }}
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="switch" {...a11yState({ checked: props.on, disabled: !!props.disabled }, 'switch')}
       // The web reads its state from aria-* (react-native-web ignores accessibilityState there).
       aria-checked={props.on} aria-disabled={!!props.disabled}
       accessibilityLabel={props.label} style={({ pressed }) => [styles.switchRow, props.below ? styles.switchRowAbove : !props.last && styles.rowBorder, pressed && styles.pressed]}>
@@ -446,7 +447,7 @@ export function CountBadge(props: { n: number }) {
 export function LockToggle(props: { on: boolean; onToggle: () => void; label: string; disabled?: boolean }) {
   const spot = useHelpSpot(props.label, props.on ? t('admin.lock.on') : t('admin.lock.off'), props.onToggle);
   return (
-    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="switch" accessibilityState={{ checked: props.on, disabled: !!props.disabled }}
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="switch" {...a11yState({ checked: props.on, disabled: !!props.disabled }, 'switch')}
       accessibilityLabel={props.label} hitSlop={4}
       style={({ pressed }) => [styles.lock, props.on ? styles.lockOn : null, pressed && styles.pressed]}>
       <Ico name="lock" size={20} color={props.on ? TINT.amberText : C.faint} />
@@ -526,8 +527,8 @@ const styles = StyleSheet.create({
   indent: { paddingLeft: 52, gap: 6 },
   example: { fontSize: T.xs, color: C.muted, paddingHorizontal: space.sm, paddingVertical: 5, borderRadius: radius.sm, backgroundColor: C.bg, overflow: 'hidden' },
   numbered: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 30 },
-  num: { width: 22, height: 22, borderRadius: 11, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
-  numText: { fontSize: 12, fontWeight: '800', color: C.primary },
+  num: { minWidth: 24, minHeight: 24, borderRadius: 12, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
+  numText: { fontSize: T.xs, fontWeight: '800', color: C.primary },
   radioRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 56, paddingHorizontal: 16, paddingVertical: space.sm, borderRadius: radius.lg, backgroundColor: C.card, borderWidth: 2, borderColor: C.border },
   radioRowTall: { minHeight: 66, borderRadius: radius.xl, paddingHorizontal: 16 },
   radioLabel: { fontSize: T.base, fontWeight: '700', color: C.dark },

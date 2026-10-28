@@ -140,7 +140,7 @@ function FeedbackSheet(props: { ctx: Ctx; screen: string; shot: Shot | null; sig
       ctx.toast(sentMessage(sent, props.signedIn));
       props.onClose();
     } catch (e) {
-      ctx.toast(failureMessage('send feedback', e));
+      ctx.toast(failureMessage('send feedback', e), 'problem');
       setBusy(false);
     }
   }

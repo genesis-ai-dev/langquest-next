@@ -230,14 +230,14 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
       await rec.run(level, itemId, s.name, 'recommend');
       props.onClose();
     } catch (e) {
-      ctx.toast(t('reference.addBible.notAdded', { reason: referenceFailure('add ready source', e) })); // i18n-ignore: 'add ready source' is a log label
+      ctx.toast(t('reference.addBible.notAdded', { reason: referenceFailure('add ready source', e) }), 'problem'); // i18n-ignore: 'add ready source' is a log label
     } finally {
       setBusy(false);
     }
   }
   async function pick(b: BibleSummary) {
     setBusy(true);
-    try { setPicked(await bibleDetail(b.bibleId)); } catch (e) { ctx.toast(referenceFailure('bible detail', e)); } finally { setBusy(false); } // i18n-ignore: 'bible detail' is a log label
+    try { setPicked(await bibleDetail(b.bibleId)); } catch (e) { ctx.toast(referenceFailure('bible detail', e), 'problem'); } finally { setBusy(false); } // i18n-ignore: 'bible detail' is a log label
   }
   async function addBibleBrain(d: BibleDetail) {
     setBusy(true);
@@ -251,7 +251,7 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
       await rec.run(level, itemId, d.name, 'recommend');
       props.onClose();
     } catch (e) {
-      ctx.toast(t('reference.addBible.notAdded', { reason: referenceFailure('add bible brain source', e) })); // i18n-ignore: 'add bible brain source' is a log label
+      ctx.toast(t('reference.addBible.notAdded', { reason: referenceFailure('add bible brain source', e) }), 'problem'); // i18n-ignore: 'add bible brain source' is a log label
     } finally {
       setBusy(false);
     }
@@ -385,7 +385,7 @@ export function ReferenceSource(ctx: Ctx) {
       ctx.toast(t('reference.source.asked', { count: booksToTime }));
       await refresh();
     } catch (e) {
-      ctx.toast(t('reference.source.notAsked', { reason: referenceFailure('request timings', e) })); // i18n-ignore: 'request timings' is a log label
+      ctx.toast(t('reference.source.notAsked', { reason: referenceFailure('request timings', e) }), 'problem'); // i18n-ignore: 'request timings' is a log label
     } finally {
       setAsking(false);
     }
@@ -435,7 +435,7 @@ export function ReferenceSource(ctx: Ctx) {
           {!detail && !detailError ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('reference.source.checking')}</Text> : null}
           {mayAsk ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('reference.source.untimedBooks', { count: booksToTime })}</Text> : null}
           {jobs.map((j) => <HelpRow key={j.id} of="reference.timingJob"><JobCard job={j} outcome={outcomes[j.id]} ctx={ctx} onRetry={async () => {
-            try { await publishTimingJob(lib, it, j.id); ctx.toast(t('reference.source.published')); } catch (e) { ctx.toast(t('reference.source.notPublished', { reason: referenceFailure('publish timings', e) })); } // i18n-ignore: 'publish timings' is a log label
+            try { await publishTimingJob(lib, it, j.id); ctx.toast(t('reference.source.published')); } catch (e) { ctx.toast(t('reference.source.notPublished', { reason: referenceFailure('publish timings', e) }), 'problem'); } // i18n-ignore: 'publish timings' is a log label
           }} /></HelpRow>)}
         </>
       ) : null}

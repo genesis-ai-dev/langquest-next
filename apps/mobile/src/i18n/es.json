@@ -313,8 +313,8 @@
     "workspace": "Grabar",
     "review_capture": "Revisarlo",
     "back_translation": "Retrotraducir",
-    "key_terms": "Términos clave",
-    "key_term_detail": "Término clave",
+    "key_terms": "Palabras clave",
+    "key_term_detail": "Palabra clave",
     "inbox_home": "Bandeja de entrada",
     "settings_home": "Yo",
     "profile_edit": "Editar perfil",
@@ -687,7 +687,7 @@
       "languages_other": "{{count, number}} idiomas",
       "templates": "Plantillas de contenido",
       "reference": "Material de referencia",
-      "referenceSub": "{{study}} estudio · {{questions}} grupos de preguntas · {{terms}} términos clave",
+      "referenceSub": "{{study}} estudio · {{questions}} grupos de preguntas · {{terms}} palabras clave",
       "flows": "Flujos de revisión",
       "roles": "Roles",
       "rolesSub_one": "{{count, number}} rol en este nivel y superiores",
@@ -704,7 +704,7 @@
       },
       "titleHelp": "Muestra lo que se configura una vez y casi no cambia: plantillas de contenido, material de referencia, flujos de revisión y roles.",
       "templatesHelp": "Abre las formas de dividir el trabajo en pasajes, y cuál usa cada idioma.",
-      "referenceHelp": "Abre las Biblias, guías de estudio, preguntas y términos clave que se ofrecen a los traductores.",
+      "referenceHelp": "Abre las Biblias, guías de estudio, preguntas y palabras clave que se ofrecen a los traductores.",
       "flowsHelp": "Abre las formas en que se revisan las grabaciones, y cuál usa cada idioma.",
       "rolesHelp": "Abre los roles y lo que cada uno permite hacer a una persona."
     },
@@ -1004,13 +1004,13 @@
       "stages": {
         "language": "Idioma",
         "content": "Contenido",
-        "pieces": "Dividir en partes",
+        "pieces": "Dividir en secciones",
         "material": "Material de referencia",
         "flow": "Flujo de revisión",
         "people": "Personas",
         "languageHelp": "El idioma al que traducen: su nombre, de la lista de idiomas o escrito. Se puede vincular a la lista más tarde.",
         "contentHelp": "Lo que van a traducir: la Biblia u otra cosa, como historias o cantos.",
-        "piecesHelp": "Cómo se divide en partes lo bastante pequeñas para grabarlas y revisarlas una a una.",
+        "piecesHelp": "Cómo se divide en secciones lo bastante pequeñas para grabarlas y revisarlas una a una.",
         "materialHelp": "Las Biblias, guías de estudio y notas que los traductores y revisores tendrán a su lado.",
         "flowHelp": "Las verificaciones por las que pasa una grabación antes de aprobarse, y lo que ven las personas de cada verificación.",
         "peopleHelp": "Luego invita a personas: traductores, revisores y otros, cada uno con un código para escanear.",
@@ -1348,7 +1348,7 @@
       "keepIt": "Dejarlo así",
       "whichPart": "¿Qué parte de la Biblia?",
       "viewOnly": "Solo quienes configuran idiomas pueden cambiar lo que traducen.",
-      "keepEarlier": "Las partes que no cambian conservan sus grabaciones. Lo grabado en una parte que cambia se guarda en “Secciones anteriores”, dentro de las partes nuevas.",
+      "keepEarlier": "Las secciones que no cambian conservan sus grabaciones. Lo grabado en una sección que cambia se guarda en “Secciones anteriores”, dentro de las secciones nuevas.",
       "partHelp": "Traducen esta parte de la Biblia.",
       "chooseBooksHelp": "Elige los libros uno por uno, abajo.",
       "bookOnHelp": "Elegido. Toca para dejarlo fuera.",
@@ -1422,7 +1422,6 @@
       "passagesCovered_many": "{{count, number}} pasajes cubiertos",
       "passagesCovered_other": "{{count, number}} pasajes cubiertos",
       "keyWords": "Palabras clave",
-      "keyTerms": "Términos clave",
       "keyTermsSub_one": "{{count, number}} palabra · {{rendered}} con una palabra en {{language}}",
       "keyTermsSub_many": "{{count, number}} palabras · {{rendered}} con una palabra en {{language}}",
       "keyTermsSub_other": "{{count, number}} palabras · {{rendered}} con una palabra en {{language}}",
@@ -1846,8 +1845,8 @@
       "skip": "Saltar la explicación",
       "stepLabel": "Paso {{step, number}} de {{total, number}}",
       "pieces": {
-        "title": "Tu equipo graba el material por partes",
-        "text": "El material se ordena en carpetas, y las personas graban las partes que hay dentro. Aquí hay historias ordenadas en colecciones.",
+        "title": "Tu equipo graba el material por secciones",
+        "text": "El material se ordena en carpetas, y las personas graban las secciones que hay dentro. Aquí hay historias ordenadas en colecciones.",
         "began": "Cómo empezó todo",
         "river": "Por qué el río es ancho",
         "fire": "El primer fuego",
@@ -1856,12 +1855,12 @@
       },
       "bible": {
         "title": "Una Biblia tiene libros, capítulos y versículos",
-        "text": "Cada libro es una carpeta. Adentro, el libro se corta en partes para grabar, y cada versículo marca un lugar en la grabación.",
+        "text": "Cada libro es una carpeta. Adentro, el libro se corta en secciones para grabar, y cada versículo marca un lugar en la grabación.",
         "chapterVerses": "{{book}} {{chapter}} · versículos 1 al {{last}}"
       },
       "places": {
         "title": "El mismo libro se puede cortar en lugares distintos",
-        "text": "Aquí está {{book}} de tres formas. Los mismos versículos, partes distintas.",
+        "text": "Aquí está {{book}} de tres formas. Los mismos versículos, secciones distintas.",
         "byChapter": "Por capítulo",
         "fia": "Pasajes de FIA",
         "unfoldingWord": "Fragmentos de unfoldingWord"
@@ -1899,21 +1898,21 @@
       "waitsLabel": "{{book}} espera a que lo dividan",
       "notInIt": "{{book}} no está incluido",
       "waits": "{{book}} espera a que un coordinador lo divida",
-      "label_one": "{{book}} en {{count, number}} parte",
-      "label_many": "{{book}} en {{count, number}} partes",
-      "label_other": "{{book}} en {{count, number}} partes",
-      "caption_one": "{{book}}: {{count, number}} parte",
-      "caption_many": "{{book}}: {{count, number}} partes",
-      "caption_other": "{{book}}: {{count, number}} partes",
-      "help": "Cada bloque es una parte para grabar, tan ancho como sus versículos."
+      "label_one": "{{book}} en {{count, number}} sección",
+      "label_many": "{{book}} en {{count, number}} secciones",
+      "label_other": "{{book}} en {{count, number}} secciones",
+      "caption_one": "{{book}}: {{count, number}} sección",
+      "caption_many": "{{book}}: {{count, number}} secciones",
+      "caption_other": "{{book}}: {{count, number}} secciones",
+      "help": "Cada bloque es una sección para grabar, tan ancho como sus versículos."
     },
     "way": {
       "inUse": "En uso aquí",
-      "previewHelp": "Todas las partes en que {{way}} corta un libro.",
+      "previewHelp": "Todas las secciones en que {{way}} corta un libro.",
       "comesWith": "Viene con las guías de estudio de {{pattern}}",
       "previewLabel": "Vista previa de {{way}}",
-      "pickHelp": "Elige esta forma de cortarlo en partes.",
-      "barHelp": "La barra muestra {{book}} cortado de esta forma: cada bloque es una parte, tan ancho como sus versículos."
+      "pickHelp": "Elige esta forma de cortarlo en secciones.",
+      "barHelp": "La barra muestra {{book}} cortado de esta forma: cada bloque es una sección, tan ancho como sus versículos."
     },
     "preview": {
       "useThis": "Usar esto",
@@ -1959,7 +1958,7 @@
     },
     "book": {
       "breakDifferently": "Dividir de otra forma",
-      "breakDifferentlyHelp": "Elige otra forma de cortar este libro en partes.",
+      "breakDifferentlyHelp": "Elige otra forma de cortar este libro en secciones.",
       "namedToast": "{{language}} lo llama {{name}}.",
       "brokenUp": "Dividido",
       "ownWay": "A su manera",
@@ -1972,8 +1971,8 @@
       "breakUp": "Dividir {{book}}",
       "changeQuestion": "Cambiar cómo se divide {{book}}",
       "question": "¿Cómo se debe dividir {{book}}?",
-      "nowEachPiece": "Ahora: {{way}}. Cada parte se graba por separado.",
-      "eachPiece": "Cada parte se graba por separado.",
+      "nowEachPiece": "Ahora: {{way}}. Cada sección se graba por separado.",
+      "eachPiece": "Cada sección se graba por separado.",
       "connectForWays": "Conéctate para cargar las formas de dividirlo.",
       "alsoUsedOne": "También se usa en {{name}}. ¿En cuáles quieres cambiar {{book}}?",
       "alsoUsedTwo": "También se usa en {{first}} y {{second}}. ¿En cuáles quieres cambiar {{book}}?",
@@ -2263,12 +2262,12 @@
       "done_other": "Listo · {{count, number}} secciones"
     },
     "division": {
-      "way_one": "{{way}} · {{count, number}} parte",
-      "way_many": "{{way}} · {{count, number}} partes",
-      "way_other": "{{way}} · {{count, number}} partes",
-      "own_one": "A su manera · {{count, number}} parte",
-      "own_many": "A su manera · {{count, number}} partes",
-      "own_other": "A su manera · {{count, number}} partes"
+      "way_one": "{{way}} · {{count, number}} sección",
+      "way_many": "{{way}} · {{count, number}} secciones",
+      "way_other": "{{way}} · {{count, number}} secciones",
+      "own_one": "A su manera · {{count, number}} sección",
+      "own_many": "A su manera · {{count, number}} secciones",
+      "own_other": "A su manera · {{count, number}} secciones"
     }
   },
   "canon": {
@@ -2289,7 +2288,7 @@
     "unnamedOrg": "Organización",
     "listJoin": ", ",
     "quoted": "“{{text}}”",
-    "languageRenderings": "Equivalentes en {{language}}",
+    "languageRenderings": "Palabras en {{language}}",
     "levels": {
       "org": "Organización",
       "language": "Idioma"
@@ -2300,11 +2299,11 @@
         "desc": "Cambiar la estructura de la organización en su alcance (idiomas)"
       },
       "inviteMembers": {
-        "label": "Invitar miembros",
+        "label": "Invitar personas",
         "desc": "Invitar personas en su alcance"
       },
       "manageRoles": {
-        "label": "Administrar roles",
+        "label": "Crear y cambiar roles",
         "desc": "Crear y editar roles en su alcance"
       },
       "manageTemplates": {
@@ -2316,7 +2315,7 @@
         "desc": "Dividir libros en pasajes, ponerles nombre y publicar esos cambios para su idioma"
       },
       "manageReference": {
-        "label": "Administrar material de referencia",
+        "label": "Elegir Biblias y guías",
         "desc": "Crear y editar material de referencia en su alcance"
       },
       "manageFlows": {
@@ -2332,27 +2331,27 @@
         "desc": "Pedir a cualquiera en su alcance que grabe o revise un pasaje"
       },
       "overrideCheckpoints": {
-        "label": "Saltar puntos de control",
+        "label": "Saltar una verificación bloqueada",
         "desc": "Hacer que un pasaje pase un punto de control, dejando anotada la razón"
       },
       "translate": {
-        "label": "Traducir",
+        "label": "Grabar",
         "desc": "Grabar y corregir traducciones (desactívalo, por ejemplo, para que los consultores no hagan borradores)"
       },
       "fillReference": {
-        "label": "Llenar contenido de referencia",
-        "desc": "Agregar términos clave, notas y contenido de referencia"
+        "label": "Agregar notas y palabras clave",
+        "desc": "Agregar palabras clave, notas y contenido de referencia"
       },
       "sendToReviewers": {
-        "label": "Pedir revisiones",
+        "label": "Pedir verificaciones",
         "desc": "Pedir a compañeros, o a alguien fuera de la app por enlace, que revisen"
       },
       "review": {
-        "label": "Revisar",
+        "label": "Revisar grabaciones",
         "desc": "Hacer revisiones y anotar verificaciones que se hicieron fuera de la app"
       },
       "viewStatus": {
-        "label": "Ver el estado",
+        "label": "Ver el trabajo de todos",
         "desc": "Ver el mapa y los registros de los pasajes, sin poder cambiarlos, en su alcance"
       }
     },
@@ -2380,7 +2379,7 @@
       },
       "keyTerms": {
         "code": "TC",
-        "name": "Términos clave"
+        "name": "Palabras clave"
       },
       "questions": {
         "code": "P",
@@ -2625,8 +2624,8 @@
       "introLanguage": "El material propio de {{language}} se suma a lo que recomienda la organización; no se copia nada. Los traductores lo ven en la bandeja de trabajo; los revisores ven las preguntas de su tipo de revisión.",
       "introOrg": "El material para todos los idiomas está en tu biblioteca, y la organización se lo recomienda. Cada idioma agrega el suyo desde su Inicio.",
       "offered": "Lo que se ofrece a los traductores",
-      "keyTermsSection": "Términos clave",
-      "keyTermsRow": "Términos clave",
+      "keyTermsSection": "Palabras clave",
+      "keyTermsRow": "Palabras clave",
       "concepts_one": "{{count, number}} concepto",
       "concepts_many": "{{count, number}} conceptos",
       "concepts_other": "{{count, number}} conceptos",
@@ -2635,7 +2634,7 @@
       "new": "Nuevo",
       "libraryEmpty": "Todavía no hay nada en tu biblioteca. Sigue o copia lo que comparten otras organizaciones, o publica lo tuyo.",
       "writeGuide": "Escribir una guía",
-      "writeGuideSub": "Pasos con texto y audio, imágenes, mapas y términos clave",
+      "writeGuideSub": "Pasos con texto y audio, imágenes, mapas y palabras clave",
       "studyMaterial": "Material de estudio",
       "noStudy": "No hay material de estudio escrito en la app para este idioma.",
       "blanks_one": "{{count, number}} espacio en blanco",
@@ -2772,41 +2771,41 @@
       "pickPartHelp": "Vincula esta parte: los traductores lo reciben ahí."
     },
     "keyTerms": {
-      "noLanguageRendering": "Todavía no hay equivalente en {{language}}",
-      "title": "Términos clave",
+      "noLanguageRendering": "Todavía no hay palabra en {{language}}",
+      "title": "Palabras clave",
       "chooseLanguage": "Primero elige un idioma",
       "added": "{{term}} agregado.",
       "newTerm": "Término nuevo",
       "search": "Buscar términos",
-      "empty": "Todavía no hay términos clave",
+      "empty": "Todavía no hay palabras clave",
       "emptySubCanAdd": "Agrega un término con la forma en que lo dice este idioma y cuándo usarlo.",
-      "emptySub": "Los términos que agregue tu equipo aparecen aquí con sus equivalentes.",
+      "emptySub": "Las palabras que agrega tu equipo aparecen aquí, con la palabra de tu idioma para cada una.",
       "inPassage": "En este pasaje",
       "otherTerms": "Otros términos",
       "allTerms": "Todos los términos",
       "noOther": "No hay otros términos.",
-      "intro": "Los conceptos vienen de una lista compartida (como los términos clave de FIA) o de la tuya. {{language}} guarda sus propios equivalentes y las razones detrás de ellos.",
-      "newKeyTerm": "Término clave nuevo",
-      "newSub": "Se agrega a los términos clave de {{language}}, con su primer equivalente.",
+      "intro": "Las palabras clave vienen de una lista compartida (como las palabras clave de FIA) o de la tuya. {{language}} guarda su propia palabra para cada una, y sus razones.",
+      "newKeyTerm": "Palabra clave nueva",
+      "newSub": "Se agrega a las palabras clave de {{language}}, con su primera palabra.",
       "addTerm": "Agregar término",
       "termPlaceholder": "Término fuente, p. ej., gracia (charis)",
       "meaningPlaceholder": "Significado, en pocas palabras",
-      "renderingPlaceholder": "Equivalente en {{language}}",
+      "renderingPlaceholder": "Palabra en {{language}}",
       "contextPlaceholder": "Cuándo usarlo y por qué",
       "newTermHelp": "Agrega un concepto, con cómo lo dice {{language}}.",
-      "openTermHelp": "Lo abre: qué significa, cómo lo dice tu equipo y por qué.",
-      "openFiaTermHelp": "Un término clave de FIA. Abre qué significa, cómo lo dice tu equipo y por qué.",
+      "openTermHelp": "Lo abre: qué significa, cómo la dice tu equipo y por qué.",
+      "openFiaTermHelp": "Una palabra clave de FIA. Abre qué significa, cómo la dice tu equipo y por qué.",
       "renderingHelp": "Cómo lo dice {{language}}."
     },
     "keyTerm": {
-      "title": "Término clave",
+      "title": "Palabra clave",
       "gone": "Este término ya no está aquí",
       "tied": "{{term}} quedó ligado a tu borrador.",
       "added": "Se agregó “{{rendering}}”.",
       "changeRecorded": "Cambio registrado.",
-      "firstRendering": "Primer equivalente: {{rendering}}.",
-      "fiaSub": "Término clave de FIA · {{language}}",
-      "sub": "Término clave en {{language}}",
+      "firstRendering": "Primera palabra: {{rendering}}.",
+      "fiaSub": "Palabra clave de FIA · {{language}}",
+      "sub": "Palabra clave en {{language}}",
       "noMeaning": "Todavía no se escribió el significado.",
       "appearsIn": "Aparece en {{places}}",
       "everyPassage": "Se aplica a todos los pasajes",
@@ -2815,10 +2814,10 @@
       "tiedBody": "Los revisores verán este término y tu razonamiento.",
       "tieBody": "Así los revisores saben que este término influyó en {{passage}}.",
       "inLanguage": "En {{language}}",
-      "noRendering": "Todavía no hay equivalente",
+      "noRendering": "Todavía no hay palabra",
       "addHow": "Agrega cómo dice esto {{language}} y cuándo usarlo.",
-      "adjustOrAdd": "Ajustar o agregar un equivalente",
-      "addRendering": "Agregar un equivalente",
+      "adjustOrAdd": "Cambiar o agregar una palabra",
+      "addRendering": "Agregar una palabra",
       "details": "Detalles",
       "why": "Por qué se traduce así",
       "changes_one": "{{count, number}} cambio",
@@ -2830,7 +2829,7 @@
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Registrado como parte de {{passage}} y ligado a tu borrador.",
       "adjustSub": "Cada cambio se registra con tu razón.",
-      "newRendering": "Equivalente nuevo (opcional)",
+      "newRendering": "Palabra nueva (opcional)",
       "whenToUse": "Cuándo usarlo",
       "sayWhy": "Di por qué",
       "orTypeWhy": "O escribe qué cambió y por qué",
@@ -3216,6 +3215,7 @@
     "update": {
       "restarting": "Reiniciando…",
       "ready": "Actualización lista: toca para reiniciar",
+      "afterRecording": "Actualización lista · se reinicia cuando dejes de grabar",
       "downloading": "Descargando actualización…",
       "downloadingPercent": "Descargando actualización… {{percent}}",
       "webReady": "Hay una versión nueva de LangQuest lista. Vuelve a cargar la página para usarla.",
@@ -3586,10 +3586,10 @@
     },
     "glossary": {
       "sub": "Glosario · {{source}}",
-      "openKeyTerm": "Abrir el término clave",
+      "openKeyTerm": "Abrir la palabra clave",
       "listen": "Escuchar: {{term}}",
       "standIn": "No se pudo cargar el audio; se reproduce uno de reemplazo",
-      "notKeyTerm": "Este término todavía no está en los términos clave de tu organización."
+      "notKeyTerm": "Este término todavía no está en las palabras clave de tu organización."
     },
     "callout": {
       "action": "Detente aquí",
@@ -3791,7 +3791,7 @@
         "passage": "Todo el pasaje",
         "aVersion": "Una versión",
         "verse": "Versículo {{verse}}",
-        "term": "Término clave · {{term}}",
+        "term": "Palabra clave · {{term}}",
         "aTerm": "término",
         "study": "Estudio",
         "studyAudioAt": "{{step}} · audio en {{at}}"
@@ -4156,7 +4156,7 @@
       "inResponseTo": "En respuesta a la {{kind}} de {{who}}",
       "recording": "Grabación",
       "details": "Detalles",
-      "keyTerms": "Términos clave",
+      "keyTerms": "Palabras clave",
       "termsTied_one": "{{count, number}} término ligado · {{terms}}",
       "termsTied_many": "{{count, number}} términos ligados · {{terms}}",
       "termsTied_other": "{{count, number}} términos ligados · {{terms}}",
@@ -4167,7 +4167,7 @@
       "noteCount_many": "{{count, number}} notas",
       "noteCount_other": "{{count, number}} notas",
       "inResponseHelp": "Abre los comentarios a los que responde esta versión.",
-      "termHelp": "Abre este término clave: qué significa y cómo lo dice tu equipo."
+      "termHelp": "Abre esta palabra clave: qué significa y cómo la dice tu equipo."
     },
     "review": {
       "noReviews": "Todavía no hay revisiones de este pasaje.",
@@ -4545,7 +4545,7 @@
       },
       "term": {
         "title": "Elige un término",
-        "sub": "Su significado y sus equivalentes se abren aquí."
+        "sub": "Aquí se abren su significado y las palabras de tu equipo."
       },
       "language": {
         "title": "Elige un idioma",
@@ -5084,30 +5084,30 @@
     },
     "tray": {
       "help": "Ayuda",
-      "helpHint": "Términos clave, el estudio, notas e historial de este pasaje",
+      "helpHint": "Palabras clave, el estudio, notas e historial de este pasaje",
       "helpSub": "Lo que el equipo sabe sobre este pasaje.",
-      "keyTerms": "Términos clave",
+      "keyTerms": "Palabras clave",
       "studyPill": "Estudio de {{pattern}} {{done}}/{{total}}",
       "notes": "Notas",
       "history": "Historial",
       "tied": "Ligado a tu borrador.",
-      "noTerms": "Ningún término clave coincide con la fuente de este pasaje.",
-      "noRendering": "Todavía no hay equivalente",
+      "noTerms": "No hay palabras clave en este pasaje.",
+      "noRendering": "Todavía no hay palabra",
       "termLabel": "{{term}}. {{rendered}}",
       "termLabelTied": "{{term}}. {{rendered}}. Ligado a tu borrador",
-      "noLanguageRendering": "Todavía no hay equivalente en {{language}}",
+      "noLanguageRendering": "Todavía no hay palabra en {{language}}",
       "tiedBadge": "Ligado",
       "tying": "Ligando…",
       "tie": "Ligar a tu borrador",
       "recordFirst": "Primero graba una parte; luego podrás ligar términos a tu borrador.",
-      "allTerms": "Todos los términos clave →",
+      "allTerms": "Todas las palabras clave →",
       "studyTitle": "Estudio de {{pattern}} · {{passage}}",
       "openStudy": "Abrir el estudio →",
       "anchor": {
         "passage": "Todo el pasaje",
         "draft": "Un borrador",
         "verse": "Versículo {{verse}}",
-        "term": "Término clave",
+        "term": "Palabra clave",
         "study": "Estudio"
       },
       "notesEmpty": "Las notas que dejes aquí acompañan al pasaje: los revisores y el próximo traductor las verán.",
@@ -5118,15 +5118,15 @@
       "firstRecording": "Primera grabación.",
       "saidInVoiceNote": "Dicho en una nota de voz.",
       "playWhatChanged": "Reproducir qué cambió en {{version}}",
-      "helpButtonHelp": "Abre los términos clave, el estudio, las notas y el historial de este pasaje.",
-      "termsTabHelp": "Muestra los términos clave de este pasaje y cómo los dice tu idioma.",
+      "helpButtonHelp": "Abre las palabras clave, el estudio, las notas y el historial de este pasaje.",
+      "termsTabHelp": "Muestra las palabras clave de este pasaje y cómo las dice tu idioma.",
       "studyTabHelp": "Muestra los pasos del estudio. Los números son los pasos hechos de todos los que hay.",
       "notesTabHelp": "Muestra las notas del equipo sobre este pasaje.",
       "historyTabHelp": "Muestra cada versión grabada hasta ahora y qué cambió.",
-      "termHelp": "Abre este término clave: qué significa y cómo se dice.",
-      "termTiedHelp": "Ligado a tu borrador. Abre este término clave: qué significa y cómo se dice.",
-      "tieHelp": "Marca este término clave como dicho en tu borrador. Ligarlo no se puede deshacer.",
-      "allTermsHelp": "Abre todos los términos clave, no solo los de este pasaje.",
+      "termHelp": "Abre esta palabra clave: qué significa y cómo se dice.",
+      "termTiedHelp": "Ligada a tu borrador. Abre esta palabra clave: qué significa y cómo se dice.",
+      "tieHelp": "Marca esta palabra clave como dicha en tu borrador. Ligarlo no se puede deshacer.",
+      "allTermsHelp": "Abre todas las palabras clave, no solo las de este pasaje.",
       "studyBarHelp": "Cuánto del estudio está hecho. Se pone verde cuando todos los pasos lo están.",
       "openStudyHelp": "Abre todo el estudio de este pasaje.",
       "addNoteHelp": "Deja una nota sobre este pasaje, hablada o escrita. Acompaña al pasaje."
@@ -5352,8 +5352,8 @@
       "notHereSub": "Vuelve al mapa para elegir otro.",
       "breakUp": "Dividir {{book}}",
       "notBrokenUp": "{{book}} todavía no está dividido",
-      "chooseHow": "Elige cómo se corta {{book}} en partes: por capítulo, con los pasajes de FIA o de otra forma. Después se podrá grabar.",
-      "coordinatorDecides": "Un coordinador decide cómo se corta {{book}} en partes. Después podrás grabarlo.",
+      "chooseHow": "Elige cómo se corta {{book}} en secciones: por capítulo, con los pasajes de FIA o de otra forma. Después se podrá grabar.",
+      "coordinatorDecides": "Un coordinador decide cómo se corta {{book}} en secciones. Después podrás grabarlo.",
       "summary_one": "{{recorded}} de {{count, number}} pasaje grabado",
       "summary_many": "{{recorded}} de {{count, number}} pasajes grabados",
       "summary_other": "{{recorded}} de {{count, number}} pasajes grabados",
@@ -5363,7 +5363,7 @@
       "key": "Leyenda",
       "filterHelp": "Mostrar solo algunos pasajes, y la leyenda completa.",
       "breakUpDifferently": "Dividir de otra forma",
-      "breakUpDifferentlyHelp": "Cambia cómo se corta este libro en partes: por capítulo, con los pasajes de FIA o de otra forma.",
+      "breakUpDifferentlyHelp": "Cambia cómo se corta este libro en secciones: por capítulo, con los pasajes de FIA o de otra forma.",
       "chapterTitle": "{{book}} {{n}}",
       "pickPart_one": "{{count, number}} parte: elige una",
       "pickPart_many": "{{count, number}} partes: elige una",
@@ -6190,7 +6190,7 @@
       "anchor": {
         "passage": "Todo el pasaje",
         "verse": "Versículo {{verse}}",
-        "term": "Término clave · {{term}}",
+        "term": "Palabra clave · {{term}}",
         "someTerm": "término",
         "version": "Versión {{n}}",
         "aVersion": "Una versión",
@@ -7197,8 +7197,8 @@
       "findMore": "Busca una en Más Biblias.",
       "verseLabel": "Versículo {{verse}}. {{text}}",
       "playsFromVerse": "Reproduce desde este versículo",
-      "keyTerm": "{{term}}, término clave",
-      "keyTermTied": "{{term}}, término clave, ligado a tu borrador",
+      "keyTerm": "{{term}}, palabra clave",
+      "keyTermTied": "{{term}}, palabra clave, ligada a tu borrador",
       "builtIn": "Texto incluido, como último recurso hasta que tu organización recomiende Biblias.",
       "sharedBy": "Compartido por {{org}}.",
       "copyright": "{{abbr}}: {{line}}",
@@ -7816,8 +7816,10 @@
     "dismiss": "Cerrar",
     "dismissHelp": "Oculta este aviso hasta que salga una versión más nueva.",
     "required": "Actualiza la app",
+    "requiredSub": "Tus grabaciones y cambios siguen llegando a tu equipo. Nada nuevo de ellos llega a este teléfono hasta que actualices.",
+    "requiredBar": "Actualiza para recibir el trabajo de tu equipo",
     "keepWorking": "Seguir trabajando",
-    "keepWorkingHelp": "Tu trabajo se queda en este teléfono y se envía cuando actualices."
+    "keepWorkingHelp": "Cierra esto por ahora. Puedes seguir grabando; tu trabajo sigue llegando a tu equipo."
   },
   "globalViewer": {
     "title": "Observador global",

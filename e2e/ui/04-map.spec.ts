@@ -338,7 +338,7 @@ for (const who of ['ADMIN', 'COORD', 'LADMIN', 'TRANS', 'REV', 'VIEW'] as const)
     await judeWaiting();
     const { context, page } = await device(browser, who);
     await alphaMap(page);
-    await expect(button(page, /^Jude\./)).toContainText('Waiting to be broken up');
+    await expect(button(page, /^Jude\./)).toContainText('Waiting to be divided');
     if (who === 'TRANS') {
       // It stays shown while a filter is set.
       await button(page, 'Filter').click();
@@ -348,16 +348,16 @@ for (const who of ['ADMIN', 'COORD', 'LADMIN', 'TRANS', 'REV', 'VIEW'] as const)
     }
     await button(page, /^Jude\./).click();
     await expect.poll(() => headerTitle(page)).toBe('Jude');
-    await expect(text(page, 'Waiting to be broken up')).toBeVisible();
-    await expect(text(page, "Jude isn't broken up yet")).toBeVisible();
+    await expect(text(page, 'Waiting to be divided')).toBeVisible();
+    await expect(text(page, "Jude isn't divided yet")).toBeVisible();
     // Breaking a book up is a library write at organization scope (decision 74): LADMIN is told who does it.
     if (['ADMIN', 'COORD'].includes(who)) {
-      await expect(text(page, "Choose how Jude is cut into pieces, by chapter, FIA's passages or another way. Then it can be recorded.")).toBeVisible();
-      await expect(primary(page)).toHaveText('Break up Jude');
+      await expect(text(page, "Choose how Jude is divided into sections: by chapter, FIA's passages or another way. Then it can be recorded.")).toBeVisible();
+      await expect(primary(page)).toHaveText('Divide Jude');
       await primary(page).click();
-      await expect(text(page, 'How should Jude be broken up?'), `${who} can break up Jude`).toBeVisible();
+      await expect(text(page, 'How should Jude be divided?'), `${who} can divide Jude`).toBeVisible();
     } else {
-      await expect(text(page, 'A coordinator decides how Jude is cut into pieces. Then you can record it.')).toBeVisible();
+      await expect(text(page, 'A coordinator decides how Jude is divided into sections. Then you can record it.')).toBeVisible();
       await expect(primary(page)).toHaveCount(0);
     }
     await context.close();
@@ -365,19 +365,19 @@ for (const who of ['ADMIN', 'COORD', 'LADMIN', 'TRANS', 'REV', 'VIEW'] as const)
 }
 
 for (const who of ['COORD'] as const) {
-  test(`MAP-024 ${who} Break up differently, for those who shape templates`, async ({ browser }) => {
+  test(`MAP-024 ${who} Divide differently, for those who shape templates`, async ({ browser }) => {
     const { context, page } = await device(browser, who);
     await alphaMap(page);
     await button(page, /^Luke\./).click();
     await expect(button(page, 'Filter')).toBeVisible();
     if (['ADMIN', 'COORD', 'LADMIN'].includes(who)) {
-      await button(page, 'Break up differently').click();
+      await button(page, 'Divide differently').click();
       // Book structure for Luke.
-      await expect(text(page, /^Luke: \d+ pieces$/)).toBeVisible();
+      await expect(text(page, /^Luke: \d+ sections$/)).toBeVisible();
       await back(page).click();
       await expect(row(page, 'Luke 1:1–4')).toBeVisible();
     } else {
-      await expect(button(page, 'Break up differently')).toHaveCount(0);
+      await expect(button(page, 'Divide differently')).toHaveCount(0);
     }
     await context.close();
   });
@@ -431,7 +431,7 @@ test('MAP-035 The viewer\'s map is read-only', async ({ page }) => {
   await alphaMap(page);
   await expect(button(page, /^Next: /)).toHaveCount(0);
   await button(page, /^Luke\./).click();
-  await expect(button(page, 'Break up differently')).toHaveCount(0);
+  await expect(button(page, 'Divide differently')).toHaveCount(0);
   await row(page, label('P-SUBMITTED')).click();
   await expect.poll(() => headerTitle(page)).toBe(label('P-SUBMITTED'));
   await expect(primary(page)).toHaveCount(0);

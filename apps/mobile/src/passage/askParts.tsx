@@ -16,6 +16,7 @@ import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { PeopleLine } from '../checks/parts';
 import { nextQuestionType, questionTypeLabel } from './recordTextModel';
 import { C, radius, space } from '../ui/theme';
+import { a11yState } from '../ui/a11yModel';
 
 const newId = () => Crypto.randomUUID();
 
@@ -24,7 +25,7 @@ export function AskCheckCard(props: { ctx: Ctx; kindId: string; name: string; on
   const { on } = props;
   const spot = useHelpSpot(props.name, t('passage.published.pickCheckHelp'), props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ selected: on, checked: on }} aria-checked={on}
+    <Pressable onPress={spot.onPress} accessibilityRole="radio" {...a11yState({ selected: on, checked: on }, 'radio')} aria-checked={on}
       style={[styles.askCard, !on && { borderWidth: 1, borderColor: C.border }]}>
       <View style={styles.askIcon}><Ico name={kindIcon(props.kindId)} size={24} color={C.primary} /></View>
       <View style={{ flex: 1, minWidth: 0, gap: 4 }}>

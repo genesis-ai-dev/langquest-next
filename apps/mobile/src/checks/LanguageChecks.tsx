@@ -313,7 +313,7 @@ export function ChecksContent({ ctx, undo, startFrom = true }: { ctx: Ctx; undo:
         try {
           specs = commands(state, indexesFor(state)).copyFlow({ commandId: Crypto.randomUUID(), name: e.c.name, kinds, steps: e.doc.steps });
         } catch (err) {
-          ctx.toast(t('common.notSaved', { reason: failureMessage('use flow', err) })); // i18n-ignore: log label
+          ctx.toast(t('common.notSaved', { reason: failureMessage('use flow', err) }), 'problem'); // i18n-ignore: log label
           return;
         }
         const said = t('checks.flows.used', { name: e.c.name, language });

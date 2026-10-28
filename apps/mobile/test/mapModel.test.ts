@@ -161,7 +161,7 @@ describe('a language\'s books', () => {
     expect(bookRowWords(base, 'feedback').label.match(/with feedback/g)).toHaveLength(1);
     const none: BookSummary = { ...base, recorded: 0, done: 0, feedback: 0, mine: 0 };
     expect(bookRowWords(none, 'all').sub).toBe('Not started');
-    expect(bookRowWords({ ...none, waiting: true }, 'all').sub).toBe('Waiting to be broken up');
+    expect(bookRowWords({ ...none, waiting: true }, 'all').sub).toBe('Waiting to be divided');
   });
 
   it('knows an outline language: passages in no book and none waiting', () => {

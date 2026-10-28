@@ -102,7 +102,7 @@
     },
     "kinds": {
       "peer": {
-        "name": "同伴审核",
+        "name": "同伴检查",
         "usualReviewer": "另一位译者",
         "description": "另一位译者来听，看是否准确、说得是否自然。"
       },
@@ -309,8 +309,8 @@
     "workspace": "录音",
     "review_capture": "审核",
     "back_translation": "回译",
-    "key_terms": "关键术语",
-    "key_term_detail": "关键术语",
+    "key_terms": "关键词",
+    "key_term_detail": "关键词",
     "inbox_home": "收件箱",
     "settings_home": "我",
     "profile_edit": "编辑个人资料",
@@ -675,7 +675,7 @@
       "languages_other": "{{count, number}} 个语言",
       "templates": "内容模板",
       "reference": "参考资料",
-      "referenceSub": "{{study}} 份学习资料 · {{questions}} 个问题集 · {{terms}} 个关键术语",
+      "referenceSub": "{{study}} 份学习资料 · {{questions}} 个问题集 · {{terms}} 个关键词",
       "flows": "审核流程",
       "roles": "角色",
       "rolesSub_other": "这一级及以上共 {{count, number}} 个角色",
@@ -690,7 +690,7 @@
       },
       "titleHelp": "显示只需设置一次、很少更改的内容：内容模板、参考资料、审核流程和角色。",
       "templatesHelp": "打开把工作划分成经段的各种方式，以及每个语言用的是哪一种。",
-      "referenceHelp": "打开提供给译者的圣经、学习指南、问题和关键术语。",
+      "referenceHelp": "打开提供给译者的圣经、学习指南、问题和关键词。",
       "flowsHelp": "打开检查录音的各种方式，以及每个语言用的是哪一种。",
       "rolesHelp": "打开各个角色，以及每个角色允许做什么。"
     },
@@ -966,13 +966,13 @@
       "stages": {
         "language": "语言",
         "content": "内容",
-        "pieces": "拆分成部分",
+        "pieces": "划分成段",
         "material": "参考资料",
         "flow": "审核流程",
         "people": "人员",
         "languageHelp": "他们要译成的语言：它的名称，从语言列表中找到或直接输入。以后可以关联到列表。",
         "contentHelp": "他们要翻译什么：圣经，或其他内容，比如故事或歌曲。",
-        "piecesHelp": "怎样把它拆分成足够小的部分，一次录一部分、查一部分。",
+        "piecesHelp": "怎样把它拆分成足够小的段，一次录一段、查一段。",
         "materialHelp": "译者和检查人员手边会有的圣经、学习指南和笔记。",
         "flowHelp": "录音在批准前要经过的检查，以及每项检查的人员能看到什么。",
         "peopleHelp": "然后邀请人员：译者、检查人员和其他人，每人扫一个邀请码。",
@@ -1290,7 +1290,7 @@
       "keepIt": "保持不变",
       "whichPart": "翻译圣经的哪一部分？",
       "viewOnly": "只有负责设置语言的人可以更改要翻译的内容。",
-      "keepEarlier": "没有变化的部分会保留原来的录音。有变化的部分，上面录的内容会保留在新部分的“之前的部分”下。",
+      "keepEarlier": "没有变化的段会保留原来的录音。有变化的段，上面录的内容会保留在新段的“之前的段”下。",
       "partHelp": "他们翻译圣经的这一部分。",
       "chooseBooksHelp": "在下面逐卷选择书卷。",
       "bookOnHelp": "已选择。点按可以不选。",
@@ -1358,7 +1358,6 @@
       "noNotes": "还没有注释",
       "passagesCovered_other": "涵盖 {{count, number}} 个经段",
       "keyWords": "关键词",
-      "keyTerms": "关键术语",
       "keyTermsSub_other": "{{count, number}} 个词 · {{rendered}} 个已有{{language}}说法",
       "writtenHere": "在这里为这个语言撰写",
       "addMoreHelp": "查找圣经、学习指南、注释或关键词，提供给他们。",
@@ -1738,8 +1737,8 @@
       "skip": "跳过讲解",
       "stepLabel": "第 {{step, number}} 步，共 {{total, number}} 步",
       "pieces": {
-        "title": "你的团队一部分一部分地录资料",
-        "text": "资料被分放在文件夹里，大家录文件夹里的各个部分。这里是一些故事，分成了几个合集。",
+        "title": "你的团队一段一段地录资料",
+        "text": "资料被分放在文件夹里，大家录文件夹里的各段。这里是一些故事，分成了几个合集。",
         "began": "万物的起源",
         "river": "河为什么这么宽",
         "fire": "第一把火",
@@ -1748,12 +1747,12 @@
       },
       "bible": {
         "title": "圣经有书卷、章和节",
-        "text": "每卷书是一个文件夹。在里面，书卷被切成几部分来录，每一节在录音中标出一个位置。",
+        "text": "每卷书是一个文件夹。在里面，书卷被切成几段来录，每一节在录音中标出一个位置。",
         "chapterVerses": "{{book}} {{chapter}} · 第 1 至 {{last}} 节"
       },
       "places": {
         "title": "同一卷书可以在不同的地方切分",
-        "text": "这是{{book}}的三种分法。经节相同，部分不同。",
+        "text": "这是{{book}}的三种分法。经节相同，段不同。",
         "byChapter": "按章",
         "fia": "FIA 经段",
         "unfoldingWord": "unfoldingWord 分段"
@@ -1791,17 +1790,17 @@
       "waitsLabel": "{{book}}等待划分",
       "notInIt": "{{book}}不在其中",
       "waits": "{{book}}要等协调员划分",
-      "label_other": "{{book}}分为 {{count, number}} 个部分",
-      "caption_other": "{{book}}：{{count, number}} 个部分",
-      "help": "每个方块是一个要录音的部分，宽度和它的经节多少相当。"
+      "label_other": "{{book}}分为 {{count, number}} 段",
+      "caption_other": "{{book}}：{{count, number}} 段",
+      "help": "每个方块是一个要录音的段，宽度和它的经节多少相当。"
     },
     "way": {
       "inUse": "这里正在使用",
-      "previewHelp": "{{way}}把一卷书切成的每个部分。",
+      "previewHelp": "{{way}}把一卷书切成的每段。",
       "comesWith": "配有{{pattern}}学习指南",
       "previewLabel": "预览{{way}}",
       "pickHelp": "选择这种切分方式。",
-      "barHelp": "横条显示按这种方式切分的{{book}}：每个方块是一个部分，宽度和它的经节多少相当。"
+      "barHelp": "横条显示按这种方式切分的{{book}}：每个方块是一段，宽度和它的经节多少相当。"
     },
     "preview": {
       "useThis": "使用这个",
@@ -1843,7 +1842,7 @@
     },
     "book": {
       "breakDifferently": "换一种划分方式",
-      "breakDifferentlyHelp": "选择另一种方式把这卷书切分成几部分。",
+      "breakDifferentlyHelp": "选择另一种方式把这卷书切分成几段。",
       "namedToast": "{{language}}称它为{{name}}。",
       "brokenUp": "已划分",
       "ownWay": "自己的方式",
@@ -1856,8 +1855,8 @@
       "breakUp": "划分{{book}}",
       "changeQuestion": "更改{{book}}的划分方式",
       "question": "{{book}}要怎样划分？",
-      "nowEachPiece": "现在：{{way}}。每个部分单独录音。",
-      "eachPiece": "每个部分单独录音。",
+      "nowEachPiece": "现在：{{way}}。每段单独录音。",
+      "eachPiece": "每段单独录音。",
       "connectForWays": "联网后可以加载各种划分方式。",
       "alsoUsedOne": "{{name}}也在使用。要为哪些语言更改{{book}}？",
       "alsoUsedTwo": "{{first}}和{{second}}也在使用。要为哪些语言更改{{book}}？",
@@ -2117,8 +2116,8 @@
       "done_other": "完成 · {{count, number}}段"
     },
     "division": {
-      "way_other": "{{way}} · {{count, number}} 个部分",
-      "own_other": "自己的方式 · {{count, number}} 个部分"
+      "way_other": "{{way}} · {{count, number}} 段",
+      "own_other": "自己的方式 · {{count, number}} 段"
     }
   },
   "canon": {
@@ -2139,7 +2138,7 @@
     "unnamedOrg": "机构",
     "listJoin": "、",
     "quoted": "“{{text}}”",
-    "languageRenderings": "{{language}}译法",
+    "languageRenderings": "{{language}}说法",
     "levels": {
       "org": "机构",
       "language": "语言"
@@ -2150,11 +2149,11 @@
         "desc": "更改其范围内的机构结构（语言）"
       },
       "inviteMembers": {
-        "label": "邀请成员",
+        "label": "邀请人员",
         "desc": "邀请其范围内的人员"
       },
       "manageRoles": {
-        "label": "管理角色",
+        "label": "创建和更改角色",
         "desc": "创建和编辑其范围内的角色"
       },
       "manageTemplates": {
@@ -2166,7 +2165,7 @@
         "desc": "把书卷划分为经段、为经段命名，并为其语言发布这些更改"
       },
       "manageReference": {
-        "label": "管理参考资料",
+        "label": "选择圣经和指南",
         "desc": "制作和编辑其范围内的参考资料"
       },
       "manageFlows": {
@@ -2182,27 +2181,27 @@
         "desc": "请其范围内的任何人录制或审核经段"
       },
       "overrideCheckpoints": {
-        "label": "越过检查点",
+        "label": "让工作越过锁定的检查",
         "desc": "让经段越过检查点，并记录原因"
       },
       "translate": {
-        "label": "翻译",
+        "label": "录音",
         "desc": "录制和修改译文（关闭后，比如可以不让顾问起草）"
       },
       "fillReference": {
-        "label": "填写参考内容",
-        "desc": "添加关键术语、备注和参考内容"
+        "label": "添加备注和关键词",
+        "desc": "添加关键词、备注和参考内容"
       },
       "sendToReviewers": {
-        "label": "请求审核",
+        "label": "请求检查",
         "desc": "请队友或应用外的人通过链接进行审核"
       },
       "review": {
-        "label": "审核",
+        "label": "检查录音",
         "desc": "进行审核，并记录在应用外进行的检查"
       },
       "viewStatus": {
-        "label": "查看状态",
+        "label": "查看所有人的工作",
         "desc": "以只读方式查看其范围内的地图和经段记录"
       }
     },
@@ -2230,7 +2229,7 @@
       },
       "keyTerms": {
         "code": "术语",
-        "name": "关键术语"
+        "name": "关键词"
       },
       "questions": {
         "code": "问题",
@@ -2459,15 +2458,15 @@
       "introLanguage": "{{language}}自己的资料是在机构推荐的资料之外另加的，不会复制任何内容。译者会在录音页面的资料栏中看到它；审核人会看到对应审核类型的问题。",
       "introOrg": "供所有语言使用的资料放在你的资料库中，由机构推荐给各个语言。每个语言可以在自己的主页上添加自己的资料。",
       "offered": "提供给译者的资料",
-      "keyTermsSection": "关键术语",
-      "keyTermsRow": "关键术语",
+      "keyTermsSection": "关键词",
+      "keyTermsRow": "关键词",
       "concepts_other": "{{count, number}} 个概念",
       "addLanguageFirst": "请先添加一个语言",
       "libraryOrg": "资料库 · 你的机构",
       "new": "新建",
       "libraryEmpty": "你的资料库中还没有内容。可以关注或复制其他机构分享的资料，也可以发布你自己的。",
       "writeGuide": "编写指南",
-      "writeGuideSub": "包含文字和音频、图片、地图和关键术语的步骤",
+      "writeGuideSub": "包含文字和音频、图片、地图和关键词的步骤",
       "studyMaterial": "学习资料",
       "noStudy": "这个语言没有在应用中编写的学习资料。",
       "blanks_other": "{{count, number}} 处待填",
@@ -2594,41 +2593,41 @@
       "pickPartHelp": "链接这个部分：译者会在那里收到它。"
     },
     "keyTerms": {
-      "noLanguageRendering": "还没有{{language}}译法",
-      "title": "关键术语",
+      "noLanguageRendering": "还没有{{language}}说法",
+      "title": "关键词",
       "chooseLanguage": "请先选择一个语言",
       "added": "已添加{{term}}。",
       "newTerm": "新术语",
       "search": "搜索术语",
-      "empty": "还没有关键术语",
+      "empty": "还没有关键词",
       "emptySubCanAdd": "添加一个术语，写下这个语言怎么说，以及什么时候用。",
-      "emptySub": "团队添加的术语会和它们的译法一起显示在这里。",
+      "emptySub": "团队添加的词会显示在这里，并附上你们语言对每个词的说法。",
       "inPassage": "在这个经段中",
       "otherTerms": "其他术语",
       "allTerms": "所有术语",
       "noOther": "没有其他术语。",
-      "intro": "概念来自共享列表（比如 FIA 关键术语）或你自己的列表。{{language}}保留自己的译法以及这样译的原因。",
-      "newKeyTerm": "新的关键术语",
-      "newSub": "添加到{{language}}的关键术语中，并附上第一个译法。",
+      "intro": "关键词来自共享列表（如 FIA 关键词）或你们自己的列表。{{language}}为每个词保存自己的说法及其理由。",
+      "newKeyTerm": "新的关键词",
+      "newSub": "加入{{language}}的关键词，并附上第一个说法。",
       "addTerm": "添加术语",
       "termPlaceholder": "源术语，例如：恩典（charis）",
       "meaningPlaceholder": "简要说明意思",
-      "renderingPlaceholder": "{{language}}译法",
+      "renderingPlaceholder": "{{language}}说法",
       "contextPlaceholder": "什么时候用，为什么",
       "newTermHelp": "添加一个概念，并写下{{language}}怎么说。",
       "openTermHelp": "打开它：它的意思、你的团队怎么说，以及为什么。",
-      "openFiaTermHelp": "FIA 关键术语。打开查看它的意思、你的团队怎么说，以及为什么。",
+      "openFiaTermHelp": "FIA 关键词。打开查看它的意思、你的团队怎么说，以及为什么。",
       "renderingHelp": "{{language}}怎么说。"
     },
     "keyTerm": {
-      "title": "关键术语",
+      "title": "关键词",
       "gone": "这个术语已经不在这里了",
       "tied": "已将{{term}}关联到你的草稿。",
       "added": "已添加“{{rendering}}”。",
       "changeRecorded": "修改已记录。",
-      "firstRendering": "第一个译法：{{rendering}}。",
-      "fiaSub": "FIA 关键术语 · {{language}}",
-      "sub": "{{language}}关键术语",
+      "firstRendering": "第一个说法：{{rendering}}。",
+      "fiaSub": "FIA 关键词 · {{language}}",
+      "sub": "{{language}}关键词",
       "noMeaning": "还没有写意思。",
       "appearsIn": "出现在{{places}}",
       "everyPassage": "适用于每个经段",
@@ -2637,10 +2636,10 @@
       "tiedBody": "审核人会看到这个术语和你的理由。",
       "tieBody": "让审核人知道这个术语影响了{{passage}}。",
       "inLanguage": "在{{language}}中",
-      "noRendering": "还没有译法",
+      "noRendering": "还没有说法",
       "addHow": "添加{{language}}怎么说，以及什么时候用。",
-      "adjustOrAdd": "调整或添加译法",
-      "addRendering": "添加译法",
+      "adjustOrAdd": "修改或添加说法",
+      "addRendering": "添加说法",
       "details": "详细信息",
       "why": "为什么这样译",
       "changes_other": "{{count, number}} 次修改",
@@ -2650,7 +2649,7 @@
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "作为{{passage}}的一部分记录，并关联到你的草稿。",
       "adjustSub": "每次修改都会和你的理由一起记录下来。",
-      "newRendering": "新译法（选填）",
+      "newRendering": "新说法（可选）",
       "whenToUse": "什么时候用",
       "sayWhy": "说明原因",
       "orTypeWhy": "或者输入改了什么，以及为什么",
@@ -3032,6 +3031,7 @@
     "update": {
       "restarting": "正在重新启动……",
       "ready": "更新已就绪——点按重新启动",
+      "afterRecording": "更新已就绪 · 停止录音后可重启",
       "downloading": "正在下载更新……",
       "downloadingPercent": "正在下载更新……{{percent}}",
       "webReady": "LangQuest 的新版本已就绪。重新加载即可使用。",
@@ -3376,10 +3376,10 @@
     },
     "glossary": {
       "sub": "词汇表 · {{source}}",
-      "openKeyTerm": "打开关键术语",
+      "openKeyTerm": "打开关键词",
       "listen": "听：{{term}}",
       "standIn": "无法加载音频——正在播放替代音频",
-      "notKeyTerm": "这个术语还不在你的机构的关键术语中。"
+      "notKeyTerm": "这个术语还不在你的机构的关键词中。"
     },
     "callout": {
       "action": "在这里停下",
@@ -3569,7 +3569,7 @@
         "passage": "整个经段",
         "aVersion": "一个版本",
         "verse": "第 {{verse}} 节",
-        "term": "关键术语 · {{term}}",
+        "term": "关键词 · {{term}}",
         "aTerm": "术语",
         "study": "学习",
         "studyAudioAt": "{{step}} · 音频 {{at}} 处"
@@ -3916,14 +3916,14 @@
       "inResponseTo": "回应来自{{who}}的{{kind}}",
       "recording": "录音",
       "details": "详细信息",
-      "keyTerms": "关键术语",
+      "keyTerms": "关键词",
       "termsTied_other": "已关联 {{count, number}} 个术语 · {{terms}}",
       "reviews": "这个版本的审核",
       "noReviews": "这个版本还没有审核。",
       "notes": "备注",
       "noteCount_other": "{{count, number}} 条备注",
       "inResponseHelp": "打开这个版本所回应的反馈。",
-      "termHelp": "打开这个关键术语：它的意思，以及你的团队怎么说。"
+      "termHelp": "打开这个关键词：它的意思，以及你的团队怎么说。"
     },
     "review": {
       "noReviews": "这个经段还没有审核。",
@@ -4269,7 +4269,7 @@
       },
       "term": {
         "title": "选择一个术语",
-        "sub": "它的意思和译法会在这里打开。"
+        "sub": "它的意思和团队的说法会在这里打开。"
       },
       "language": {
         "title": "选择一种语言",
@@ -4768,30 +4768,30 @@
     },
     "tray": {
       "help": "帮助",
-      "helpHint": "这个经段的关键术语、学习内容、备注和历史记录",
+      "helpHint": "这个经段的关键词、学习内容、备注和历史记录",
       "helpSub": "团队对这个经段的了解。",
-      "keyTerms": "关键术语",
+      "keyTerms": "关键词",
       "studyPill": "{{pattern}}学习 {{done}}/{{total}}",
       "notes": "备注",
       "history": "历史记录",
       "tied": "已关联到你的草稿。",
-      "noTerms": "没有与这个经段的源文本匹配的关键术语。",
-      "noRendering": "还没有译法",
+      "noTerms": "这段经文里没有关键词。",
+      "noRendering": "还没有说法",
       "termLabel": "{{term}}。{{rendered}}",
       "termLabelTied": "{{term}}。{{rendered}}。已关联到你的草稿",
-      "noLanguageRendering": "还没有{{language}}译法",
+      "noLanguageRendering": "还没有{{language}}说法",
       "tiedBadge": "已关联",
       "tying": "正在关联……",
       "tie": "关联到你的草稿",
       "recordFirst": "请先录一个片段，然后才能把术语关联到你的草稿。",
-      "allTerms": "所有关键术语 →",
+      "allTerms": "所有关键词 →",
       "studyTitle": "{{pattern}}学习 · {{passage}}",
       "openStudy": "打开学习 →",
       "anchor": {
         "passage": "整个经段",
         "draft": "一份草稿",
         "verse": "第 {{verse}} 节",
-        "term": "关键术语",
+        "term": "关键词",
         "study": "学习"
       },
       "notesEmpty": "你在这里留下的备注会跟着经段——审核人和下一位译者都会看到。",
@@ -4802,15 +4802,15 @@
       "firstRecording": "第一次录音。",
       "saidInVoiceNote": "在语音备注中说明了。",
       "playWhatChanged": "播放{{version}}中改了什么",
-      "helpButtonHelp": "打开这个经段的关键术语、学习内容、备注和历史记录。",
-      "termsTabHelp": "显示这个经段中的关键术语，以及你的语言怎么说。",
+      "helpButtonHelp": "打开这个经段的关键词、学习内容、备注和历史记录。",
+      "termsTabHelp": "显示这个经段中的关键词，以及你的语言怎么说。",
       "studyTabHelp": "显示学习的各个步骤。数字表示已完成的步骤数和总步骤数。",
       "notesTabHelp": "显示团队对这个经段的备注。",
       "historyTabHelp": "显示到目前为止录过的每个版本，以及改了什么。",
-      "termHelp": "打开这个关键术语：它的意思，以及怎么说。",
-      "termTiedHelp": "已关联到你的草稿。打开这个关键术语：它的意思，以及怎么说。",
-      "tieHelp": "把这个关键术语标记为已在你的草稿中说出。关联后无法撤销。",
-      "allTermsHelp": "打开所有关键术语，而不只是这个经段的。",
+      "termHelp": "打开这个关键词：它的意思，以及怎么说。",
+      "termTiedHelp": "已关联到你的草稿。打开这个关键词：它的意思，以及怎么说。",
+      "tieHelp": "把这个关键词标记为已在你的草稿中说出。关联后无法撤销。",
+      "allTermsHelp": "打开所有关键词，而不只是这个经段的。",
       "studyBarHelp": "学习完成了多少。每一步都完成后会变成绿色。",
       "openStudyHelp": "打开这个经段的完整学习内容。",
       "addNoteHelp": "对这个经段留一条语音或文字备注。它会跟着这个经段。"
@@ -4998,8 +4998,8 @@
       "notHereSub": "回到地图选择另一卷。",
       "breakUp": "划分{{book}}",
       "notBrokenUp": "{{book}}还没有划分",
-      "chooseHow": "选择怎样把{{book}}切分成几部分：按章、按 FIA 经段或其他方式。然后就可以录音了。",
-      "coordinatorDecides": "由协调员决定怎样把{{book}}切分成几部分。然后你就可以录音了。",
+      "chooseHow": "选择怎样把{{book}}切分成几段：按章、按 FIA 经段或其他方式。然后就可以录音了。",
+      "coordinatorDecides": "由协调员决定怎样把{{book}}切分成几段。然后你就可以录音了。",
       "summary_other": "已录音 {{recorded}}/{{count, number}} 个经段",
       "summaryIn_other": "{{language}}已录音 {{recorded}}/{{count, number}} 个经段",
       "key": "图例",
@@ -5700,7 +5700,7 @@
       "anchor": {
         "passage": "整个经段",
         "verse": "第 {{verse}} 节",
-        "term": "关键术语 · {{term}}",
+        "term": "关键词 · {{term}}",
         "someTerm": "术语",
         "version": "第 {{n}} 版",
         "aVersion": "一个版本",
@@ -6623,8 +6623,8 @@
       "findMore": "可以在“更多圣经”中找一本。",
       "verseLabel": "第 {{verse}} 节。{{text}}",
       "playsFromVerse": "从这一节开始播放",
-      "keyTerm": "{{term}}，关键术语",
-      "keyTermTied": "{{term}}，关键术语，已关联到你的草稿",
+      "keyTerm": "{{term}}，关键词",
+      "keyTermTied": "{{term}}，关键词，已关联到你的草稿",
       "builtIn": "内置文字，在你的机构推荐圣经之前作为备用。",
       "sharedBy": "由{{org}}分享。",
       "copyright": "{{abbr}}：{{line}}",
@@ -7178,8 +7178,10 @@
     "dismiss": "关闭",
     "dismissHelp": "隐藏此提示，直到有更新的版本。",
     "required": "请更新应用",
+    "requiredSub": "你的录音和更改仍会发送给团队。在你更新之前，团队的新内容不会到达这部手机。",
+    "requiredBar": "更新后才能收到团队的工作",
     "keepWorking": "继续工作",
-    "keepWorkingHelp": "你的工作会保留在这部手机上，更新后再发送。"
+    "keepWorkingHelp": "暂时关闭此页。你可以继续录音，你的工作仍会发送给团队。"
   },
   "globalViewer": {
     "title": "全局查看者",

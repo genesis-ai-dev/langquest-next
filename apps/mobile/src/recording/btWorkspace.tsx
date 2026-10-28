@@ -76,6 +76,7 @@ import { useBible } from '../helps/useBible';
 import { useStudyGuide } from '../study/useStudyGuides';
 import { studyProgress } from '../study/progress';
 import { GuideNav, GuideStep } from '../study/guide';
+import { a11yState } from '../ui/a11yModel';
 
 export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; kind: KindDef; of: Version }) {
   const { state, unitId, languageId, p } = v;
@@ -197,7 +198,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
       setHistory((h) => didStep(h, { before, after: before.filter((c) => !gone.has(c.hash)), what }));
       AccessibilityInfo.announceForAccessibility(what);
     } catch (e) {
-      ctx.toast(t('backTranslation.notDeleted', { reason: failureMessage('back translation: delete part', e) }));
+      ctx.toast(t('backTranslation.notDeleted', { reason: failureMessage('back translation: delete part', e) }), 'problem');
     } finally { setWorking(false); }
   }
 
@@ -214,7 +215,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
       AccessibilityInfo.announceForAccessibility(step.what ? t(which === 'undo' ? 'common.undoneWhat' : 'common.redoneWhat', { what: step.what })
         : which === 'undo' ? t('common.undone') : t('translate.redone'));
     } catch (e) {
-      ctx.toast(t(which === 'undo' ? 'common.notUndone' : 'common.notSaved', { reason: failureMessage(`back translation: ${which}`, e) }));
+      ctx.toast(t(which === 'undo' ? 'common.notUndone' : 'common.notSaved', { reason: failureMessage(`back translation: ${which}`, e) }), 'problem');
     } finally { setWorking(false); }
   }
   const lastDone = history.done[history.done.length - 1];
@@ -256,7 +257,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
         message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name), offline);
       }
     } catch (e) {
-      ctx.toast(t('backTranslation.notPublished', { reason: failureMessage('back translation: save', e) }));
+      ctx.toast(t('backTranslation.notPublished', { reason: failureMessage('back translation: save', e) }), 'problem');
       return;
     }
     setSaving(true);
@@ -419,7 +420,7 @@ function PartCard(props: { ctx: Ctx; part: BackPart; verse: string | null; into:
   const spot = useHelpSpot(label, said ? t('backTranslation.partSaidHelp') : t('backTranslation.partTapHelp'), props.onPick);
   return (
     <View style={[styles.part, props.fresh && styles.partFresh, focused && styles.partNow]}>
-      <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: focused }}
+      <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" {...a11yState({ selected: focused }, 'button')}
         accessibilityLabel={sub ? t('backTranslation.partA11y', { part: props.verse ? `${label}, ${props.verse}` : label, sub }) : props.verse ? `${label}, ${props.verse}` : label}
         style={({ pressed }) => [styles.partHead, pressed && { opacity: 0.7 }]}>
         <View style={[styles.partMark, said ? { backgroundColor: C.green } : focused ? { backgroundColor: C.primary } : { backgroundColor: C.light }]}>
@@ -467,7 +468,7 @@ function BigRecord(props: { disabled: boolean; part: number | null; onPress: () 
   return (
     <View style={[styles.halo, props.disabled && { opacity: 0.45 }]}>
       <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={n ? t('backTranslation.recordPart', { n }) : t('common.record')}
-        accessibilityHint={t('backTranslation.recordHint')} accessibilityState={{ disabled: props.disabled }}
+        accessibilityHint={t('backTranslation.recordHint')} {...a11yState({ disabled: props.disabled }, 'button')}
         style={({ pressed }) => [styles.record, pressed && { transform: [{ scale: 0.95 }] }]}>
         <Ico name="mic" size={34} color={C.white} />
         <HelpBadge spot={spot} />
@@ -479,7 +480,7 @@ function BigRecord(props: { disabled: boolean; part: number | null; onPress: () 
 function PublishBtn(props: { disabled: boolean; onPress: () => void }) {
   const spot = useHelpSpot(t('common.done'), t('backTranslation.doneHelp'), props.onPress);
   return (
-    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('common.done')} accessibilityState={{ disabled: props.disabled }}
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('common.done')} {...a11yState({ disabled: props.disabled }, 'button')}
       style={({ pressed }) => [styles.publish, props.disabled && { opacity: 0.45 }, pressed && { opacity: 0.7 }]}>
       <Text style={styles.publishLabel}>{t('common.done')}</Text>
       <HelpBadge spot={spot} />

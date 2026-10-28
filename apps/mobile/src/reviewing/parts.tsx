@@ -29,6 +29,7 @@ import { C, measure, radius, space, target, TINT, type as T, withAlpha } from '.
 import {
   questionSource, summaryLine, YES_NO, yesNoLabel, type Answers, type Skips, type Stage, type StageId
 } from './capture';
+import { a11yState } from '../ui/a11yModel';
 
 // ---- answers --------------------------------------------------------------------------
 
@@ -40,7 +41,7 @@ import {
 function Choice(props: { label: string; on: boolean; onPress: () => void; big?: boolean }) {
   const spot = useHelpSpot(props.label, t('review.simple.yourAnswerHelp'), props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ checked: props.on }} aria-checked={props.on} accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} accessibilityRole="radio" {...a11yState({ checked: props.on }, 'radio')} aria-checked={props.on} accessibilityLabel={props.label}
       style={({ pressed }) => [styles.choice, props.on ? { backgroundColor: C.primary } : null, pressed && { opacity: 0.7 }]}>
       <Text style={[props.big ? styles.choiceBig : styles.choiceLabel, { color: props.on ? C.white : C.dark }]}>{props.label}</Text>
       <HelpBadge spot={spot} />
@@ -398,7 +399,7 @@ function StageTab(props: { stage: Stage; index: number; count: number; at: numbe
   return (
     <Pressable onPress={spot.onPress} disabled={!done && !spot.id} accessibilityRole="button"
       accessibilityLabel={done ? t('review.parts.backToStage', { stage: st.label }) : t('review.parts.stageOf', { stage: st.label, index: i + 1, total: props.count })}
-      accessibilityState={{ selected: current, disabled: !done }}
+      {...a11yState({ selected: current, disabled: !done }, 'button', 'current')}
       style={({ pressed }) => [styles.stage, current && { backgroundColor: C.light }, pressed && { opacity: 0.7 }]}>
       <View style={[styles.stageNum, current ? { backgroundColor: C.primary } : done ? { backgroundColor: C.dark } : styles.stageNumLater]}>
         {done ? <Ico name="check" size={14} color={C.white} strokeWidth={3} /> : (

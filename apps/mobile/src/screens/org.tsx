@@ -653,7 +653,7 @@ function OrgNameAndLicense(props: { ctx: Ctx }) {
       setOpen(null);
       ctx.toast(t('org.license.now', { license: licenseText(next).name }));
     } catch (e) {
-      ctx.toast(failure('open license', e));
+      ctx.toast(failure('open license', e), 'problem');
     } finally {
       setBusy(false);
     }
@@ -1467,7 +1467,7 @@ export function InviteQr(ctx: Ctx) {
               : t('org.qr.shownOnceOne', { date: formatDayYear(invite.expiresAt) })}</Text>
             <SmallBtn label={t('org.qr.share')} icon="share" help={t('org.qr.shareHelp')} onPress={() => void shareText(uri).then((r) => {
               if (r === 'copied') ctx.toast(t('admin.invite.linkCopied'));
-              else if (r === 'failed') ctx.toast(t('org.qr.couldNotShare'));
+              else if (r === 'failed') ctx.toast(t('org.qr.couldNotShare'), 'problem');
             })} />
           </Card>
         </>

@@ -28,6 +28,7 @@ import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { useHardwareBack } from '../ui/useHardwareBack';
 import { rowsOf } from '../checks/model';
+import { a11yState } from '../ui/a11yModel';
 
 export interface InviteScope {
   key: string;
@@ -252,7 +253,7 @@ function RoleCard(props: {
         </View>
       </View>
       <View style={styles.cardFoot}>
-        <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ expanded: props.open }} accessibilityLabel={`${what}: ${offer.title}`}
+        <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ expanded: props.open }, 'button')} accessibilityLabel={`${what}: ${offer.title}`}
           style={({ pressed }) => [styles.more, pressed && { opacity: 0.7 }]}>
           <Text style={styles.moreText}>{what}</Text>
           <Ico name={props.open ? 'up' : 'down'} size={18} color={C.primary} />

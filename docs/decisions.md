@@ -7495,6 +7495,16 @@ Reverse if: toasts that stay longer get in people's way more than they help
 (reports of toasts covering work), or people with reduce motion on miss the
 countdown; then the runner's settings can go and the app's stay.
 
+Amended (2026-10-28, Caleb Koster): a toast that says something went wrong
+(a save refused, a fault with its code) is a problem toast
+(`ctx.toast(message, 'problem')`, `ui/toastModel.ts`): an amber warning
+instead of the green check, no bar, and it stays until closed, so its words
+and the code a person reads out to support are never gone first; a screen
+reader hears it as an alert. While a sheet is open, the sheet on top draws
+the toast (`ui/toastLayer.ts`), as one drawn by the screen was hidden under
+it. `test/toastModel.test.ts` fails on a failure toast that is not a
+problem toast. From the UI audit Caleb asked to have fixed (finding 20).
+
 ## 160. Staff see LangQuest's operations on one signed-in page, a Worker of its own that reads diagnostics as diag_reader
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted

@@ -100,7 +100,7 @@ export function QuietToggle(props: { label: string; onPress: () => void; open?: 
 const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   bell: { width: target.min, height: target.min, borderRadius: target.min / 2, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
-  badge: { position: 'absolute', top: -4, right: -4, minWidth: 22, height: 22, paddingHorizontal: 5, borderRadius: 11, backgroundColor: onColor.amber, borderWidth: 2, borderColor: C.card, alignItems: 'center', justifyContent: 'center' },
+  badge: { position: 'absolute', top: -4, right: -4, minWidth: 22, minHeight: 22, paddingHorizontal: 5, borderRadius: 11, backgroundColor: onColor.amber, borderWidth: 2, borderColor: C.card, alignItems: 'center', justifyContent: 'center' },
   badgeText: { color: C.white, fontSize: T.xs, fontWeight: '800' },
   next: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 2, borderColor: C.primary, padding: space.lg, gap: space.md },
   nextLabel: { fontSize: T.xs, fontWeight: '800', letterSpacing: 1.4, color: C.primary, textTransform: 'uppercase', marginBottom: space.xs },

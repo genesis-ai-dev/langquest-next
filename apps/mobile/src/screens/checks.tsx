@@ -177,7 +177,7 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
     try {
       define = commands(s, indexesFor(s)).defineMaterial({ commandId: Crypto.randomUUID(), materialId, kind: 'note', title: w.title, scope: {}, fields: [{ fieldId: 'body', text: w.text }] });
     } catch (e) {
-      ctx.toast(t('common.notSaved', { reason: failureMessage('write note', e) })); // i18n-ignore: log label
+      ctx.toast(t('common.notSaved', { reason: failureMessage('write note', e) }), 'problem'); // i18n-ignore: log label
       return;
     }
     await setHelp({ materialId }, true, define);
@@ -477,7 +477,7 @@ function QuestionsPage({ ctx }: { ctx: Ctx }) {
         }
       }
     } catch (e) {
-      ctx.toast(t('common.notSaved', { reason: failureMessage('save question', e) })); // i18n-ignore: log label
+      ctx.toast(t('common.notSaved', { reason: failureMessage('save question', e) }), 'problem'); // i18n-ignore: log label
       return;
     }
     await ctx.act(specs, remove ? t('checks.questionRemoved') : t('checks.questionSaved')).catch(() => {});

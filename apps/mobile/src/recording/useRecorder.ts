@@ -26,7 +26,7 @@ import { cachedHeardLevels, keepHeardLevels, loadHeardLevels } from '../mic/hear
 import type { JournalTarget } from './recordingJournalModel';
 import { storableRecording } from '../web/webAudio';
 import { holdTab } from '../web/tabBusy';
-import { claimVad, MicrophoneRefused, recorderProblem, vadOwner, activity } from './recorderState';
+import { claimVad, MicrophoneRefused, recorderProblem, vadOwner, startActivity } from './recorderState';
 import { recorderFaultCode, type RecorderFailure, type RecorderStage } from './recorderFaultModel';
 import { countAudio, type AudioLanguage } from '../audio/audioTally';
 
@@ -534,9 +534,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
   const busy = working > 0;
   useEffect(() => {
     if (!(manualOn || vadOn || busy)) return;
-    const token = Symbol('recorder');
-    activity.add(token);
-    return () => { activity.delete(token); };
+    return startActivity();
   }, [manualOn, vadOn, busy]);
 
   const retryFailed = useCallback(async () => {

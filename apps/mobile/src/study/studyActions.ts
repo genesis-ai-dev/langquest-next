@@ -24,8 +24,8 @@ export async function saveNote(ctx: Ctx, v: Pick<PassageView, 'unitId'>, anchor:
       ...(c.text.trim() ? { text: c.text.trim() } : {}), ...(c.blobHash ? { blobHash: c.blobHash } : {}), ...(kindId ? { kindId } : {})
     });
   } catch (e) {
-    if (e instanceof CommandError) ctx.toast(commandErrorText(e));
-    else ctx.toast(t('common.somethingWentWrong', { code: reportError('study: build note', e) }));
+    if (e instanceof CommandError) ctx.toast(commandErrorText(e), 'problem');
+    else ctx.toast(t('common.somethingWentWrong', { code: reportError('study: build note', e) }), 'problem');
     return false;
   }
   try {

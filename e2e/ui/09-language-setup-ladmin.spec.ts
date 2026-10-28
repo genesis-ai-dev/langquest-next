@@ -112,7 +112,7 @@ test('SETUP-063 LADMIN is not offered the organization\'s library writes', async
   await text(page, 'Each book\'s passages').click();
   await text(page, 'Luke').click();
   await expectOnScreen(page, 'Luke', 'Called Luke in Alpha');
-  await expectNotOnScreen(page, 'Break up differently');
+  await expectNotOnScreen(page, 'Divide differently');
   await back(page).click();
   await back(page).click();
   await text(page, 'View').click();

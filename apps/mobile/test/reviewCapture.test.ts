@@ -126,7 +126,7 @@ describe('before an outcome can be sent (REV-2, REV-3)', () => {
     const look = { term: (id: string) => (id === 't1' ? 'Shepherd' : undefined), versionN: (id: string) => (id === 'tk' ? 2 : undefined) };
     expect(noteAnchorText({ kind: 'passage' }, look)).toBe('Whole passage');
     expect(noteAnchorText({ kind: 'verse', verse: '4' }, look)).toBe('Verse 4');
-    expect(noteAnchorText({ kind: 'term', termId: 't1' }, look)).toBe('Key term · Shepherd');
+    expect(noteAnchorText({ kind: 'term', termId: 't1' }, look)).toBe('Key word · Shepherd');
     expect(noteAnchorText({ kind: 'version', takeId: 'tk' }, look)).toBe('Version 2');
   });
 });

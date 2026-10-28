@@ -44,6 +44,7 @@ import { isItself } from './model';
 import { useWays } from './useBreakup';
 import { useBookText } from './useBookText';
 import { useHardwareBack } from '../ui/useHardwareBack';
+import { a11yState } from '../ui/a11yModel';
 
 /** A dashed line where at least this many of the 20 Bibles start a section. */
 const SUGGEST = 10;
@@ -497,7 +498,7 @@ function JumpTile(props: { c: number; n: number; here: boolean; onPress: () => v
 function PaneTab(props: { label: string; detail: string; on: boolean; onPress: () => void }) {
   const spot = useHelpSpot(props.label, props.detail, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="tab" accessibilityState={{ selected: props.on }}
+    <Pressable onPress={spot.onPress} accessibilityRole="tab" {...a11yState({ selected: props.on }, 'tab')}
       style={[styles.tab, props.on && styles.tabOn]}>
       <Text style={[txt.sm, { fontWeight: '800', color: props.on ? C.card : C.dark }]}>{props.label}</Text>
       <HelpBadge spot={spot} />
@@ -531,7 +532,7 @@ function Pill(props: { icon?: IconName; label: string; help?: boolean; down?: bo
   const color = props.help ? TINT.amberText : C.dark;
   const spot = useHelpSpot(props.label, props.detail, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={props.on === undefined ? undefined : { expanded: props.on }}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label} {...a11yState(props.on === undefined ? undefined : { expanded: props.on }, 'button')}
       style={({ pressed }) => [styles.pill, props.help && styles.pillHelp, pressed && { opacity: 0.7 }]}>
       {props.icon ? <Ico name={props.icon} size={16} color={color} /> : null}
       <Text style={[txt.sm, { fontWeight: '700', color, flexShrink: 1 }]}>{props.label}</Text>

@@ -1137,7 +1137,7 @@ test('REV-050 Notes on a check\'s help, a key word, and a reply', async ({ page 
   await button(page, 'Close').click();
   // All three wait together with the review; nothing is sent before the verdict.
   await expect(text(page, 'With your review')).toBeVisible();
-  for (const on of ['“What to listen for”', 'Key term · feast', `Reply to ${TOM_FIRST}`]) await expect(text(page, on)).toBeVisible();
+  for (const on of ['“What to listen for”', 'Key word · feast', `Reply to ${TOM_FIRST}`]) await expect(text(page, on)).toBeVisible();
   expect(await eventCount(page)).toBe(before);
   await primary(page).click();
   await expect(text(page, '3 notes go with your review')).toBeVisible();

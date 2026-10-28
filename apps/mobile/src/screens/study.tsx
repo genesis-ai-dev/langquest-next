@@ -129,7 +129,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
     guide: { id: 'guide' as const, label: t('study.screen.chips.guide'), icon: 'star' as const, hint: t('study.screen.chips.guideHint') },
     bible: { id: 'bible' as const, label: t('study.screen.chips.bible'), icon: 'book' as const, hint: t('study.screen.chips.bibleHint') },
     terms: { id: 'terms' as const, label: t('study.screen.chips.terms'), icon: 'key' as const, hint: t('study.screen.chips.termsHint') },
-    notes: { id: 'notes' as const, label: t('study.screen.chips.notes'), icon: 'chat' as const, count: notes.length, hint: t('study.screen.chips.notesHint') },
+    notes: { id: 'notes' as const, label: t('study.screen.chips.notes'), icon: 'note' as const, count: notes.length, hint: t('study.screen.chips.notesHint') },
     earlier: { id: 'earlier' as const, label: t('study.screen.chips.earlier'), icon: 'clock' as const }
   })[c]);
   const openTerm = (termId: string) => ctx.go('key_term_detail', { ...scope, termId });

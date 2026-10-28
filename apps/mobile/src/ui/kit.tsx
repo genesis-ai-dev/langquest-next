@@ -39,6 +39,9 @@ import { useHelpHost } from '../helpMode/useHelpMode';
 import { HeaderExtraContext } from './headerExtra';
 import { ModalCover } from './ModalCover';
 import { ScrollHoldContext } from './scrollHoldContext';
+import { toastLook, type ToastSpec } from './toastModel';
+import { useSheetOnTop, useShownToast } from './useToastLayer';
+import { a11yState } from './a11yModel';
 
 // ---- icons -------------------------------------------------------------------------
 
@@ -307,7 +310,7 @@ export function HelpToggle(props: { testID: string }) {
   if (!help) return null;
   return (
     <Pressable testID={props.testID} onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? t('help.turnOff') : t('help.explainScreen')}
-      accessibilityState={{ selected: help.on }}
+      {...a11yState({ selected: help.on }, 'button')}
       style={({ pressed }) => [styles.helpBtn, help.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
       <Ico name="help" size={24} color={help.on ? C.white : C.primary} />
       <HelpLit />
@@ -342,7 +345,7 @@ export function Card(props: { children: ReactNode; onPress?: () => void; style?:
   if (props.onPress) {
     return (
       <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
-        accessibilityState={props.current ? { selected: true } : undefined}
+        {...a11yState(props.current ? { selected: true } : undefined, 'button', 'current')}
         // aria-selected is not allowed on a button. aria-current is, and a screen reader says "current".
         // accessibilityState.selected stays for native; react-native-web does not turn it into aria-selected.
         aria-current={props.current ? true : undefined}
@@ -459,7 +462,7 @@ export function Row(props: {
   const id = props.testID ? { testID: props.testID } : {};
   if (!props.onPress) return <View {...id} style={style}>{body}</View>;
   return (
-    <Pressable {...id} onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
+    <Pressable {...id} onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole={props.role ?? 'button'} {...a11yState(state, props.role ?? 'button', 'current')} accessibilityLabel={props.accessibilityLabel}
       // react-native-web drops accessibilityState.selected, and aria-selected is not allowed on a button: a current row says aria-current.
       aria-current={props.current ? true : undefined}
       // The web reads only aria-*: a radio, checkbox or switch says whether it is on.
@@ -487,7 +490,7 @@ export function Disclosure(props: { icon: IconName; title: string; summary: stri
   const spot = useHelpSpot(props.title, props.help ?? (props.open ? t('help.details.disclosureOpen') : t('help.details.disclosure')), props.onToggle);
   return (
     <View style={styles.disclosure}>
-      <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ expanded: props.open }}
+      <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" {...a11yState({ expanded: props.open }, 'button')}
         accessibilityLabel={t('shell.a11y.labelDetail', { label: props.title, detail: props.summary })} accessibilityHint={props.open ? t('shell.kit.hidesDetails') : t('shell.kit.showsDetails')}
         style={({ pressed }) => [styles.disclosureHead, pressed && styles.pressed]}>
         <View style={styles.iconTile}><Ico name={props.icon} size={20} color={C.primary} /></View>
@@ -517,7 +520,7 @@ export function PrimaryBtn(props: { label: string; onPress: () => void; disabled
   const spot = useHelpSpot(props.label, props.help ?? t('help.details.primary'), props.onPress);
   const onPress = spot.onPress;
   return (
-    <Pressable testID="primary-action" onPress={onPress} disabled={off && !spot.id} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={{ disabled: !!off, busy: !!props.busy }}
+    <Pressable testID="primary-action" onPress={onPress} disabled={off && !spot.id} accessibilityRole="button" accessibilityLabel={props.label} {...a11yState({ disabled: !!off, busy: !!props.busy }, 'button')}
       style={({ pressed }) => [styles.primary, { backgroundColor: off ? C.faint : bg }, props.full === false && { alignSelf: 'flex-start', paddingHorizontal: space.xl },
         !off && lift({ color: bg, opacity: 0.25, y: 5, elevation: 3 }), pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={C.white} /> : null}
@@ -536,7 +539,7 @@ export function GhostBtn(props: { label: string; onPress: () => void; disabled?:
   const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
-      accessibilityState={{ disabled: !!props.disabled }}
+      {...a11yState({ disabled: !!props.disabled }, 'button')}
       style={({ pressed }) => [styles.ghost, { backgroundColor: bg }, props.full === false && { alignSelf: 'flex-start', paddingHorizontal: space.xl },
         props.disabled && { opacity: 0.5 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={fg} /> : null}
@@ -555,7 +558,7 @@ export function SmallBtn(props: { label: string; onPress: () => void; icon?: Ico
   const onPress = spot.onPress;
   return (
     <Pressable testID={props.testID} onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
-      accessibilityState={{ disabled: !!props.disabled }}
+      {...a11yState({ disabled: !!props.disabled }, 'button')}
       style={({ pressed }) => [styles.small, filled ? { backgroundColor: bg, borderColor: bg } : null, props.disabled && { opacity: 0.45 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={filled ? C.white : C.primary} /> : null}
       <Text style={[styles.smallLabel, { color: filled ? C.white : C.primary }]}>{props.label}</Text>
@@ -570,7 +573,7 @@ export function LinkBtn(props: { label: string; onPress: () => void; color?: str
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   return (
     <Pressable onPress={spot.onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
-      accessibilityState={props.expanded !== undefined ? { expanded: props.expanded } : undefined}
+      {...a11yState(props.expanded !== undefined ? { expanded: props.expanded } : undefined, 'button')}
       style={({ pressed }) => [styles.linkBtn, props.style, pressed && styles.pressed]}>
       <Text style={[txt.link, props.color ? { color: props.color } : null]}>{props.label}</Text>
       <HelpBadge spot={spot} />
@@ -615,7 +618,7 @@ export function IconBtn(props: { name: IconName; onPress: () => void; label: str
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   return (
     <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
-      accessibilityState={{ disabled: !!props.disabled }} hitSlop={Math.max(0, (target.min - size) / 2)}
+      {...a11yState({ disabled: !!props.disabled }, 'button')} hitSlop={Math.max(0, (target.min - size) / 2)}
       style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: props.bg ?? C.bg },
         props.disabled && { opacity: 0.4 }, pressed && styles.pressed]}>
       <Ico name={props.name} size={Math.round(size * 0.46)} color={props.color ?? C.dark} />
@@ -630,7 +633,7 @@ export function Chip(props: { label: string; on: boolean; onPress: () => void; i
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   const onPress = spot.onPress;
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }} accessibilityLabel={props.accessibilityLabel}
+    <Pressable onPress={onPress} accessibilityRole="button" {...a11yState({ selected: props.on }, 'button')} accessibilityLabel={props.accessibilityLabel}
       // A chip is a toggle: on the web, a pressed button ("Mark, pressed"). react-native-web drops accessibilityState.selected.
       aria-pressed={props.on}
       style={({ pressed }) => [styles.chip, props.on ? { backgroundColor: C.primary, borderColor: C.primary } : null, pressed && styles.pressed]}>
@@ -842,7 +845,7 @@ export function MovingBar(props: { color?: string; height?: number }) {
   const run = width * 0.4;
   const ends = isRtl() ? [width, -run] : [-run, width];
   return (
-    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} accessibilityRole="progressbar" accessibilityState={{ busy: true }}
+    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} accessibilityRole="progressbar" {...a11yState({ busy: true }, 'progressbar')}
       style={{ height: h, borderRadius: h, backgroundColor: C.border, overflow: 'hidden' }}>
       {width ? (
         <Animated.View style={{ position: 'absolute', left: 0, top: 0, width: run, height: h, borderRadius: h, backgroundColor: props.color ?? C.muted,
@@ -967,6 +970,8 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
   const insets = useSafeAreaInsets();
   const wide = useLayout().kind !== 'phone';
   const host = useHelpHost(props.visible);
+  // The toast shows on the sheet on top, as the screen's would be hidden under it (toastLayer.ts).
+  const onTop = useSheetOnTop(props.visible);
   return (
     <Modal visible={props.visible} transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onBack ?? props.onClose}>
       <HelpHost id={host}>
@@ -993,9 +998,16 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
         </View>
       </KeyboardSafe>
       </HelpHost>
+      {onTop ? <SheetToast top={insets.top + space.md} /> : null}
       <ModalCover />
     </Modal>
   );
+}
+
+/** The toast, drawn on the sheet on top: at its top, clear of the sheet's buttons. */
+function SheetToast(props: { top: number }) {
+  const shown = useShownToast();
+  return <ToastView toast={shown.toast} onDismiss={shown.dismiss} top={props.top} />;
 }
 
 /**
@@ -1037,7 +1049,7 @@ export function ReasonSheet(props: {
 function QuickReason(props: { reason: string; on: boolean; onPick: () => void }) {
   const spot = useHelpSpot(props.reason, t('help.details.quickReason'), props.onPick);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ selected: props.on }, 'button')}
       style={({ pressed }) => [styles.quickReason, props.on ? { backgroundColor: C.dark, borderColor: C.dark } : null, pressed && styles.pressed]}>
       <Text style={[txt.sm, { fontWeight: '600', color: props.on ? C.white : C.dark, flexShrink: 1 }]}>{props.reason}</Text>
       <HelpBadge spot={spot} />
@@ -1047,12 +1059,10 @@ function QuickReason(props: { reason: string; on: boolean; onPick: () => void })
 
 // ---- toasts ----------------------------------------------------------------------------------
 
-export interface ToastSpec {
-  id: number;
-  message: string;
-  /** How long it shows, for the bar that counts down to its going (the host sets it). */
-  ms?: number;
-}
+export type { ToastSpec } from './toastModel';
+
+/** The toast last announced, by id. */
+let announcedToast = 0;
 
 /**
  * What changed (CORE-5), and nothing to do about it: a toast never offers
@@ -1063,15 +1073,20 @@ export interface ToastSpec {
  * closes it sooner. The host places it above the screen's buttons, never
  * over them.
  */
-export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => void; bottom: number }) {
+export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => void } & ({ bottom: number } | { top: number })) {
   const toast = props.toast;
   const wide = useLayout().kind !== 'phone';
   const left = useRef(new Animated.Value(1)).current;
   // With reduce motion on, no bar runs down (A11Y-8): the toast still goes by itself, and the screen stays still.
   const still = useReduceMotion();
-  const bar = !!toast?.ms && !still;
+  // A problem stays until closed, with no bar, and never wears the check (toastModel.ts).
+  const look = toastLook(toast ?? {});
+  const bar = !!toast?.ms && look.goesBy && !still;
   useEffect(() => {
-    if (toast) AccessibilityInfo.announceForAccessibility(toast.message);
+    // Once per toast, though it moves between the screen and a sheet (toastLayer.ts).
+    if (!toast || toast.id === announcedToast) return;
+    announcedToast = toast.id;
+    AccessibilityInfo.announceForAccessibility(toast.message);
   }, [toast?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- announced once per toast: its words do not change for its id
   useEffect(() => {
     if (!bar) return;
@@ -1082,12 +1097,12 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
   }, [toast?.id, toast?.ms, bar, left]);
   if (!toast) return null;
   return (
-    <View style={[{ pointerEvents: 'box-none' }, styles.toastWrap, { bottom: props.bottom }]}>
+    <View style={[{ pointerEvents: 'box-none' }, styles.toastWrap, 'top' in props ? { top: props.top } : { bottom: props.bottom }]}>
       <View style={[styles.toast, wide && { maxWidth: measure.toast }]}>
         {/* help-ignore: a toast goes by itself in a few seconds; help explains what stays on the screen */}
         <Pressable testID="toast" onPress={props.onDismiss} accessibilityRole="button" accessibilityLabel={t('shell.toast.dismissLabel', { message: toast.message })}
-          accessibilityLiveRegion="polite" style={styles.toastMessage}>
-          <Ico name="check" size={20} color={C.green} />
+          accessibilityLiveRegion={look.live} style={styles.toastMessage}>
+          <Ico name={look.icon} size={20} color={C[look.color]} />
           <Text style={[txt.sm, { color: C.white, flex: 1, fontWeight: '600' }]}>{toast.message}</Text>
         </Pressable>
         {/* help-ignore: the toast's close, gone in a few seconds with the toast */}
