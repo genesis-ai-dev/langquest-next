@@ -74,12 +74,26 @@ function lines(): Line[] {
   });
   return appLines;
 }
-const DIGIT = '[\\d\\u0660-\\u0669\\u06F0-\\u06F9\\u0966-\\u096F\\u09E6-\\u09EF\\u1040-\\u1049\\u0E50-\\u0E59]';
+const DIGIT = '[0-9\\u0660-\\u0669\\u06F0-\\u06F9\\u0966-\\u096F\\u09E6-\\u09EF\\u1040-\\u1049\\u0E50-\\u0E59]';
 // Where each script's digits start: Arabic, Persian, Devanagari, Bengali, Myanmar, Thai.
 const ZEROS = [0x660, 0x6f0, 0x966, 0x9e6, 0x1040, 0xe50];
 const DIGIT_OF = (d: string) => `[${d}${ZEROS.map((z) => `\\u${(z + Number(d)).toString(16).padStart(4, '0')}`).join('')}]`;
 const keptAsIs = new WeakSet<RegExp>();
 const made = new WeakSet<RegExp>();
+
+/** A pattern's source without its anchors, to go inside another: every ^ and $ outside [...] is one here. */
+function unanchored(source: string): string {
+  let out = '';
+  let inClass = false;
+  for (let i = 0; i < source.length; i++) {
+    const c = source[i]!;
+    if (c === '\\') { out += c + (source[i + 1] ?? ''); i++; continue; }
+    if (inClass) { if (c === ']') inClass = false; out += c; continue; }
+    if (c === '[') { inClass = true; out += c; continue; }
+    if (c !== '^' && c !== '$') out += c;
+  }
+  return out;
+}
 
 /** Words the screen shows as written in every language (a string exactly, or a pattern). */
 export function asIs(words: string | RegExp): RegExp {
@@ -91,7 +105,7 @@ export function asIs(words: string | RegExp): RegExp {
 /** A value as the film language has it, or as written: a name from the library can be either. */
 function eitherOf(found: string | RegExp, english: string): string | RegExp {
   if (found === english) return english;
-  const r = new RegExp(`^(?:${typeof found === 'string' ? escape(found) : found.source.replace(/^\^/, '').replace(/\$$/, '')}|${escape(english)})$`);
+  const r = new RegExp(`^(?:${typeof found === 'string' ? escape(found) : unanchored(found.source)}|${escape(english)})$`);
   made.add(r);
   return r;
 }
@@ -122,7 +136,7 @@ function filmPattern(line: Line, values: Record<string, string | RegExp>): strin
     if (v === undefined) return '.+?';
     // A number is written in the film language's digits, perhaps grouped ("1.234").
     if (typeof v === 'string' && /^\d[\d.,]*$/.test(v)) return [...v.replace(/[.,]/g, '')].map((d) => `${DIGIT_OF(d)}[.,\\s\u00a0\u202f\u066c]?`).join('');
-    return typeof v === 'string' ? escape(v) : `(?:${v.source.replace(/^\^|\$$/g, '')})`;
+    return typeof v === 'string' ? escape(v) : `(?:${unanchored(v.source)})`;
   }).join('');
 }
 
@@ -142,7 +156,7 @@ function inUiText(english: string, depth: number): string | RegExp {
   if (numbered) {
     const rest = inUiText(numbered[2]!, depth);
     if (rest === numbered[2]) return english;
-    const r = new RegExp(`^${escape(numbered[1]!)}${typeof rest === 'string' ? escape(rest) : `(?:${rest.source.replace(/^\^/, '').replace(/\$$/, '')})`}$`, 's');
+    const r = new RegExp(`^${escape(numbered[1]!)}${typeof rest === 'string' ? escape(rest) : `(?:${unanchored(rest.source)})`}$`, 's');
     made.add(r);
     return r;
   }
@@ -168,7 +182,7 @@ function piecewise(words: string, between = ' · '): string | RegExp {
   const english = words.split(between);
   const pieces = english.map((p) => (p.trim() ? inUiText(p, 1) : p));
   if (pieces.every((p, i) => p === english[i])) return words;
-  const r = new RegExp(`^${pieces.map((p) => (typeof p === 'string' ? escape(p) : `(?:${p.source.replace(/^\^/, '').replace(/\$$/, '')})`)).join(between)}$`, 's');
+  const r = new RegExp(`^${pieces.map((p) => (typeof p === 'string' ? escape(p) : `(?:${unanchored(p.source)})`)).join(between)}$`, 's');
   made.add(r);
   return r;
 }
@@ -220,7 +234,7 @@ function inUiPattern(english: RegExp): RegExp {
   let plain: string | undefined;
   if (inner.length === 1 && inner[0]!.plain) {
     const found = inner[0]!.text.includes(' · ') ? piecewise(inner[0]!.text) : inUiText(inner[0]!.text, 0);
-    if (found !== inner[0]!.text) plain = `${anchored ? '^' : ''}${typeof found === 'string' ? escape(found) : found.source.replace(/^\^/, '').replace(/\$$/, '')}${ended ? '$' : ''}`;
+    if (found !== inner[0]!.text) plain = `${anchored ? '^' : ''}${typeof found === 'string' ? escape(found) : unanchored(found.source)}${ended ? '$' : ''}`;
   }
   // Words open at an end ("^Block Peter") can also be the start of a longer line.
   const sampled = plain && anchored && ended ? undefined : bySample(english, anchored, ended);
@@ -275,6 +289,7 @@ function inUiPattern(english: RegExp): RegExp {
  * fits, with its words and its other parts in their places in the film's language. A
  * pattern open at its end (or start) fits the start (or end) of a line.
  */
+let nesting = 0;
 function bySample(english: RegExp, anchored: boolean, ended: boolean): string | undefined {
   const body = english.source.slice(anchored ? 1 : 0, ended ? -1 : undefined);
   const parts = runs(body);
@@ -290,9 +305,17 @@ function bySample(english: RegExp, anchored: boolean, ended: boolean): string | 
     const holding = lines().filter((l) => l.en.includes(sample)).sort((a, b) => a.literal - b.literal).slice(0, 12);
     return holding.length ? `(?:${[...new Set(holding.map((l) => filmPattern(l, {})))].join('|')})` : undefined;
   }
+  // A value of words and other parts ("\ue000's feedback") can be a line of the app itself, looked up in turn.
+  const unsaid = new Set<string>();
   const value = (got: string): string | RegExp => {
     if (![...got].some(isStand)) return eitherOf(inUiText(got, 2), got);
-    const r = new RegExp(`^${[...got].map((c) => (isStand(c) ? `(?:${stands[c.charCodeAt(0) - 0xe000]})` : escape(c))).join('')}$`);
+    const source = `^${[...got].map((c) => (isStand(c) ? `(?:${stands[c.charCodeAt(0) - 0xe000]})` : escape(c))).join('')}$`;
+    const words = /[^\s\ue000-\uefff]/.test(got);
+    const inner = words && nesting < 2 ? (nesting++, inUiPattern(new RegExp(source))) : undefined;
+    if (inner) nesting--;
+    const found = inner && inner.source !== source && inner.source !== source.replace(/\\d/g, DIGIT) ? inner : undefined;
+    if (words && !found) unsaid.add(got);
+    const r = new RegExp(found ? `(?:${found.source})|(?:${source})` : source);
     made.add(r);
     return r;
   };
@@ -327,9 +350,10 @@ function bySample(english: RegExp, anchored: boolean, ended: boolean): string | 
       const m = new RegExp(`^${source}$`, 's').exec(sample);
       if (!m) continue;
       const got = m.slice(1);
-      // A value of words and other parts together ("2 of \\d+") is a sign of a poor fit.
-      const mixed = got.filter((g) => [...g].some(isStand) && /[^\s\ue000-\uefff]/.test(g)).length;
-      found.push({ mixed, held: cut.replace(/\{\{[^}]*\}\}/g, '').length, literal: l.literal, source: filmPattern(l, Object.fromEntries(names.map((n, i) => [n, value(got[i]!)]))) });
+      const film = filmPattern(l, Object.fromEntries(names.map((n, i) => [n, value(got[i]!)])));
+      // A value of words and other parts that is no line of the app ("2 of \\d+") is a sign of a poor fit.
+      const mixed = got.filter((g) => unsaid.has(g)).length;
+      found.push({ mixed, held: cut.replace(/\{\{[^}]*\}\}/g, '').length, literal: l.literal, source: film });
       break;
     }
   }
@@ -378,7 +402,7 @@ export function findInFilmLanguage(page: Page): void {
       const named = typeof testId === 'string' ? /^(.*?-)([A-Z][^-]*)$/.exec(testId) : null;
       const found = named ? inUiText(named[2]!, 0) : undefined;
       if (!named || found === undefined || found === named[2]) return byTestId.call(this, testId);
-      const theirs = typeof found === 'string' ? escape(found) : found.source.replace(/^\^/, '').replace(/\$$/, '');
+      const theirs = typeof found === 'string' ? escape(found) : unanchored(found.source);
       return byTestId.call(this, new RegExp(`^${escape(named[1]!)}(?:${theirs}|${escape(named[2]!)})$`));
     };
     const byRole = proto.getByRole;
