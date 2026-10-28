@@ -33,7 +33,7 @@ export function routeClass(method: string, path: string): RouteClass | null {
   if (path.startsWith('/api/v1/links/')) return 'links';
   if (path === '/api/v1' || path.startsWith('/api/v1/')) return 'agent_api';
   if (path === '/api/internal/poke') return 'webhook';
-  if (path.startsWith('/api/') || path === '/connect' || path.startsWith('/r/')) return 'other';
+  if (path.startsWith('/api/') || path === '/connect' || path.startsWith('/r/') || path.startsWith('/v/')) return 'other';
   return null;
 }
 

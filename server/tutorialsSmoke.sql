@@ -1,8 +1,8 @@
 -- Tutorial videos on YouTube (migration *_tutorial_videos.sql, decisions.md
 -- 180): only the service role connects a channel, reads its refresh token back
 -- out of Vault, records a video and marks one published; diag_reader reads the
--- dashboard's summary, never a token. Run by `npm run db:test`. Every write
--- rolls back.
+-- dashboard's summary, never a token; the intake that lists the nightly
+-- films is a daily job. Run by `npm run db:test`. Every write rolls back.
 \set ON_ERROR_STOP on
 begin;
 
@@ -60,6 +60,9 @@ set local role service_role;
 do $$ begin
   perform public.ops_tutorial_published('record-a-passage', 'en', repeat('a', 64), 'dQw4w9WgXcQ', null);
   assert jsonb_array_length(public.ops_tutorials_due(10)) = 0, 'nothing due once it is up';
+  -- What a link to the video in another language goes on to (migration *_tutorial_intake.sql).
+  assert public.ops_tutorial_watch('record-a-passage', 'en') = 'dQw4w9WgXcQ', 'the English link goes to the video up';
+  assert public.ops_tutorial_watch('record-a-passage', 'es') is null, 'the Spanish link goes to the channel while none is up';
   begin
     perform 1 from ops.tutorial_videos;
     raise exception 'the service role read ops.tutorial_videos directly';
@@ -122,11 +125,21 @@ do $$ begin
     raise exception 'authenticated read the summary';
   exception when insufficient_privilege then null;
   end;
+  begin
+    perform public.ops_tutorial_watch('record-a-passage', 'en');
+    raise exception 'authenticated asked where a link goes';
+  exception when insufficient_privilege then null;
+  end;
 end $$;
 reset role;
 
 -- The new actions are on the log's list.
 select public.ops_record_action('0d000000-0000-0000-0000-0000000000aa', 'tutorials_publish', 'record-a-passage', 'ok', 'approved:1');
 select public.ops_record_action('0d000000-0000-0000-0000-0000000000aa', 'youtube_connect', 'UC8Ry8oFIPWzDygngMwvkBLQ', 'ok', 'en');
+
+-- The intake (migration *_tutorial_intake.sql) is a daily job, so a day without its run shows.
+do $$ begin
+  assert (select every from diag.job_schedule where job = 'tutorial_intake') = interval '1 day', 'the intake is on the schedule';
+end $$;
 
 rollback;

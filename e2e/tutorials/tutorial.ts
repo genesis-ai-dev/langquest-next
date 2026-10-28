@@ -57,6 +57,8 @@ export interface Tutorial {
   language?: LanguageKey;
   /** App languages the video is not made in (it shows switching to that language). */
   notIn?: string[];
+  /** For LangQuest staff, not the public: filmed only by hand, never each night or on YouTube (nightly.ts). */
+  staff?: true;
   /** Nobody is signed in when the app opens: the video signs in, or makes an account. */
   signedOut?: boolean;
   /** The window, when it is not a phone's (430 by 932): a computer's, for what is done on the web. */

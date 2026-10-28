@@ -42,6 +42,7 @@ describe('security headers on the Worker\'s own answers', () => {
     expect(own('/api/reports/o')).toBe(true);
     expect(own('/connect')).toBe(true);
     expect(own(`/r/${'a'.repeat(22)}`)).toBe(true);
+    expect(own('/v/es/record-a-passage')).toBe(true);
     expect(own('/')).toBe(false);
     expect(own('/index.html')).toBe(false);
     expect(own('/connect', 'POST')).toBe(false);

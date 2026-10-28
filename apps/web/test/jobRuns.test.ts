@@ -60,6 +60,7 @@ describe('the Worker request tally', () => {
     expect(routeClass('POST', '/api/v1/device/token')).toBe('device');
     expect(routeClass('GET', '/api/v1/links/abc')).toBe('links');
     expect(routeClass('GET', '/r/abc')).toBe('other');
+    expect(routeClass('GET', '/v/es/record-a-passage')).toBe('other');
     expect(routeClass('GET', '/ops-dashboard')).toBe('ops');
     expect(routeClass('GET', '/ops-dashboard/x')).toBe('ops');
     expect(routeClass('GET', '/ops/api/runs')).toBe('ops');
