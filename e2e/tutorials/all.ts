@@ -43,6 +43,7 @@ import { versionsAndHistory } from './versions-and-history';
 import { workWithoutInternet } from './work-without-internet';
 import { yourAccount } from './your-account';
 import { reportOrBlockSomeone } from './report-or-block-someone';
+import { lookAroundWithoutAnAccount } from './look-around-without-an-account';
 
 export const TUTORIALS: Record<string, Tutorial> = Object.fromEntries([
   // Everyone
@@ -54,5 +55,7 @@ export const TUTORIALS: Record<string, Tutorial> = Object.fromEntries([
   // Translators
   studyAPassage, recordAPassage, hearMoveDeleteParts, giveEachPartItsVerse, finishAndAskForACheck, answerFeedback, keyWords, readBiblesBesideAPassage, versionsAndHistory, somethingElse,
   // Reviewers and consultants
-  doACheck, backTranslateAPassage, consultantCheck, takeBackAReview
+  doACheck, backTranslateAPassage, consultantCheck, takeBackAReview,
+  // Followers, partners and staff
+  lookAroundWithoutAnAccount
 ].map((t) => [t.id, t]));
