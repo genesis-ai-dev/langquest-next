@@ -16,6 +16,39 @@ export function openOnMap(label: string, typed: string, say: string): Step[] {
       until: (page) => find(page).waitFor({ timeout: 30_000 }),
       stay: 0.6
     },
+    ...findOnMap(label, typed)
+  ];
+}
+
+/**
+ * The same for someone who sees every language's progress on the Map
+ * (a coordinator or an admin): Map, the language, then the passage.
+ */
+export function openFromProgress(language: string, label: string, typed: string, say: string): Step[] {
+  const row = (page: Page) => page.getByRole('button', { name: new RegExp(`^${language}: `) }).locator('visible=true').first();
+  return [
+    {
+      screen: 'my_work',
+      part: (page) => page.getByRole('tab', { name: 'Map' }).locator('visible=true').first(),
+      say,
+      tap: true,
+      until: (page) => row(page).waitFor({ timeout: 30_000 }),
+      stay: 0.6
+    },
+    {
+      screen: 'status_home',
+      part: row,
+      tap: true,
+      until: (page) => find(page).waitFor({ timeout: 30_000 }),
+      stay: 0.6
+    },
+    ...findOnMap(label, typed)
+  ];
+}
+
+/** On a language's map: type where the passage is, and tap it. */
+export function findOnMap(label: string, typed: string): Step[] {
+  return [
     {
       screen: 'map_home',
       part: find,
