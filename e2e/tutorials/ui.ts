@@ -190,23 +190,23 @@ function inUiText(english: string, depth: number): string | RegExp {
 }
 
 /**
- * A comma between pieces as the film language writes it ("، " in Arabic), or
- * as English does: the app joins pieces with its own line for it ("{{title}}, {{sub}}").
+ * Marks between pieces as the film language writes them: the app joins some
+ * pieces in code with English marks (", ", ". ", ": "), and the screen may show
+ * its language's own ("، " in Arabic, "，" and "。" in Chinese, "။" in Burmese).
  */
-let commas: string | undefined;
-function comma(): string {
-  if (commas) return commas;
-  const between = lines().filter((l) => /^\{\{[^}]*\}\}, \{\{[^}]*\}\}$/.test(l.en)).map((l) => /^\{\{[^}]*\}\}(.*?)\{\{[^}]*\}\}$/.exec(l.film)?.[1]).filter((c): c is string => !!c);
-  return (commas = `(?:${[...new Set([', ', ...between])].map(escape).join('|')})`);
-}
-const joiner = (between: string) => (between === ', ' ? comma() : escape(between));
+const MARKS: [RegExp, string][] = [
+  [/, /g, '(?:, ?|، ?|，|、|၊ ?|፣ ?)'],
+  [/\\\. /g, '(?:\\. ?|。|। ?|။ ?|። ?)'],
+  [/(?<!\(\?): /g, '(?:[\\s\\u00a0\\u202f]?: ?|：|፦ ?)']
+];
+const widen = (source: string) => MARKS.reduce((s, [mark, any]) => s.replace(mark, any), source);
 
 /** Words in pieces the app puts together ("Translator · Lumari", "Parts 1–4, 4 parts", "Kalu Hills. 2 languages"), each piece looked up by itself. */
 function piecewise(words: string, between = ' · '): string | RegExp {
   const english = words.split(between);
   const pieces = english.map((p) => (p.trim() ? inUiText(p, 1) : p));
   if (pieces.every((p, i) => p === english[i])) return words;
-  const r = new RegExp(`^${pieces.map((p) => (typeof p === 'string' ? escape(p) : `(?:${unanchored(p.source)})`)).join(joiner(between))}$`, 's');
+  const r = new RegExp(`^${pieces.map((p) => (typeof p === 'string' ? escape(p) : `(?:${unanchored(p.source)})`)).join(escape(between))}$`, 's');
   made.add(r);
   return r;
 }
@@ -279,7 +279,7 @@ function inUiPattern(english: RegExp): RegExp {
     const each = body.split(', ').map((piece, i, all) =>
       inUiPattern(new RegExp(`${anchored || i > 0 ? '^' : ''}${piece}${ended || i < all.length - 1 ? '$' : ''}`, english.flags)));
     const joined = each.map((r) => `(?:${unanchored(r.source)})`);
-    if (joined.join(', ').replace(/\(\?:|\)/g, '') !== body) pieces = `${anchored ? '^' : ''}${joined.join(comma())}${ended ? '$' : ''}`;
+    if (joined.join(', ').replace(/\(\?:|\)/g, '') !== body) pieces = `${anchored ? '^' : ''}${joined.join(', ')}${ended ? '$' : ''}`;
   }
   if (plain || sampled || pieces) {
     const r = new RegExp([plain, sampled, pieces].filter(Boolean).map((x) => `(?:${x})`).join('|').replace(/\\d/g, DIGIT), english.flags);
@@ -413,12 +413,18 @@ export function inUi<T extends string | RegExp>(english: T): string | RegExp {
   if (FILM_LANGUAGE === 'en') return english;
   if (typeof english !== 'string' && (keptAsIs.has(english) || made.has(english))) return forPlaywright(english);
   const found = typeof english === 'string' ? inUiText(english, 0) : inUiPattern(english);
-  if (found === english) return english;
+  if (found === english) {
+    // No line of the app: a name the screen shows as written ("Lumari: "), its marks the film language's.
+    if (typeof english === 'string' || widen(english.source) === english.source) return english;
+    const r = new RegExp(widen(english.source), english.flags);
+    made.add(r);
+    return forPlaywright(r);
+  }
   // Or the English: names the screen shows as written (a role, a book, a kind of
   // check from the library) are the app's words too, and stay English there.
   const theirs = typeof found === 'string' ? `^${escape(found)}$` : found.source;
   const ours = typeof english === 'string' ? `^${escape(english.trim())}$` : english.source;
-  const r = new RegExp(`(?:${theirs})|(?:${ours})`, typeof found === 'string' ? '' : found.flags);
+  const r = new RegExp(`(?:${widen(theirs)})|(?:${widen(ours)})`, typeof found === 'string' ? '' : found.flags);
   made.add(r);
   return forPlaywright(r);
 }
