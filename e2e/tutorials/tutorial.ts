@@ -1,0 +1,52 @@
+// What a tutorial video is made of (the plan: "Tutorial videos: what to make
+// and how to keep them current"): the made-up world it is filmed in, who is
+// signed in, and its steps. Each step names the screen it is on, the part of
+// the screen it lights (as help mode lights a part), what the voice says, and
+// what the finger does. film.ts plays the steps against the web export.
+import type { Locator, Page } from 'playwright';
+import type { AccountKey, WorldNames } from '../ui/fixture';
+
+export interface Step {
+  /** The app's screen, by its id in apps/mobile/src/shell/flow.ts. */
+  screen: string;
+  /** The part of the screen to light: one locator, or several lit as one box. The light follows them if they move. */
+  part?: (page: Page) => Locator | Locator[];
+  /** What the voice says. Where it comes from a help line, `help` names the line. */
+  say?: string;
+  /** The help line (catalog key in apps/mobile/src/i18n/en.json) that the words follow. */
+  help?: string;
+  /** Wait until the speaker's last recording has played this many seconds (a step said while they speak). */
+  atSpeech?: number;
+  /** The finger taps the lit part. */
+  tap?: boolean;
+  /** Where on the part the finger lands or starts a drag, when not its middle. */
+  tapAt?: (box: Box) => { x: number; y: number };
+  /** The finger presses the lit part and holds it until this shows. */
+  press?: (page: Page) => Locator;
+  /** The finger drags the lit part: by so many points, or onto another part's place. */
+  drag?: { by: { x: number; y: number } } | { to: (page: Page) => Locator };
+  /** The speaker starts saying their recording number n (in `speech`) into the microphone after the finger's action. */
+  speak?: number;
+  /** Wait until the screen shows what the step leads to. */
+  until?: (page: Page) => Promise<unknown>;
+  /** Seconds to stay on the result before the next step. */
+  stay?: number;
+}
+
+export interface Box { x: number; y: number; width: number; height: number }
+
+/** The microphone, off camera: says the speaker's recording number n and resolves once it has played to the end. */
+export interface Mic { say(n: number): Promise<void> }
+
+export interface Tutorial {
+  id: string;
+  title: string;
+  /** Who is signed in, from the UI tests' world. */
+  as: AccountKey;
+  names: WorldNames;
+  /** The speaker's recordings that the microphone hears (WAV files in TUTORIAL_SPEECH). */
+  speech?: string[];
+  /** What happens off camera before filming starts: the work that the video starts from. */
+  before?: (page: Page, mic: Mic) => Promise<void>;
+  steps: Step[];
+}

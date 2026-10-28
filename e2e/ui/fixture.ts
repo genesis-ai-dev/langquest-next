@@ -153,7 +153,7 @@ async function rpc<T>(sb: SupabaseClient, fn: string, args: Record<string, unkno
 }
 
 /** An account made with the admin API, signed in, with its profile name set as the app sets it (`save_profile`). */
-async function makeAccount(key: AccountKey, run: string): Promise<Person> {
+async function makeAccount(key: AccountKey, run: string, name = NAMES[key]): Promise<Person> {
   const s = localServer();
   const admin = createClient(s.url, s.service, { auth: { persistSession: false, autoRefreshToken: false } });
   const email = `ui-${run}-${key.toLowerCase()}@example.test`;
@@ -163,8 +163,8 @@ async function makeAccount(key: AccountKey, run: string): Promise<Person> {
   const sb = anonClient();
   const { data, error } = await sb.auth.signInWithPassword({ email, password });
   if (error || !data.session) throw new Error(`sign in as ${key}: ${error?.message ?? 'no session'}`);
-  await rpc(sb, 'save_profile', { p_display_name: NAMES[key] });
-  return { key, id: data.user.id, email, password, name: NAMES[key], session: data.session, sb };
+  await rpc(sb, 'save_profile', { p_display_name: name });
+  return { key, id: data.user.id, email, password, name, session: data.session, sb };
 }
 
 /** Terms and the welcome, recorded on the server with the app's own ids (accountData.ts `recordUserEvent`). */
@@ -453,23 +453,41 @@ async function joinAsNew(issuer: Person, orgId: string, roleId: string, scope: S
  * `welcomed: false` leaves every account's Welcome unseen (AUTH-056); the
  * terms stay accepted, so the Welcome is the first thing each one sees.
  */
-export async function buildWorld(opts: { welcomed?: boolean } = {}): Promise<UiWorld> {
+/**
+ * Names a person sees, for a world that is filmed (e2e/tutorials): the
+ * tests' own names otherwise, the organizations with the run's id after them.
+ */
+export interface WorldNames {
+  org?: string;
+  org2?: string;
+  languages?: Partial<Record<LanguageKey, string>>;
+  people?: Partial<Record<AccountKey, string>>;
+}
+
+/**
+ * `keptByInvite`: KEPT joins by an ordinary invite, with an email and a
+ * password, instead of through the `join` Edge Function (a filmed world,
+ * where nobody looks after anyone, needs no Edge Functions running).
+ */
+export async function buildWorld(opts: { welcomed?: boolean; names?: WorldNames; keptByInvite?: boolean } = {}): Promise<UiWorld> {
   const started = Date.now();
   const welcomed = opts.welcomed ?? true;
   const s = localServer();
   const run = `${Date.now().toString(36)}${randomBytes(2).toString('hex')}`;
-  const orgName = `UI Test Org ${run}`;
-  const org2Name = `UI Second Org ${run}`;
+  const orgName = opts.names?.org ?? `UI Test Org ${run}`;
+  const org2Name = opts.names?.org2 ?? `UI Second Org ${run}`;
+  const languageName = { A: 'Alpha', B: 'Bravo', C: 'Charlie', ...opts.names?.languages };
+  const personName = { ...NAMES, ...opts.names?.people };
 
   // Accounts, except the looked-after one, which joining makes.
-  const made = await Promise.all(ACCOUNT_KEYS.filter((k) => k !== 'KEPT').map((k) => makeAccount(k, run)));
+  const made = await Promise.all(ACCOUNT_KEYS.filter((k) => k !== 'KEPT').map((k) => makeAccount(k, run, personName[k])));
   const P = Object.fromEntries(made.map((p) => [p.key, p])) as Record<AccountKey, Person>;
   const { ADMIN, COORD, LADMIN, TRANS, REV, TREV, VIEW, OWNER2 } = P;
 
   // ORG2 is built beside ORG: its own owner, CC BY 4.0, Charlie, and ADMIN as a Translator.
   const second = (async () => {
     const { orgId, org } = await createOrg(OWNER2, org2Name, 'CC-BY-4.0');
-    const charlie = await newLanguage(OWNER2, orgId, org, 'Charlie');
+    const charlie = await newLanguage(OWNER2, orgId, org, languageName.C);
     await joinByInvite(OWNER2, ADMIN, orgId, 'translator', { level: 'org' });
     return { orgId, charlie };
   })();
@@ -486,11 +504,11 @@ export async function buildWorld(opts: { welcomed?: boolean } = {}): Promise<UiW
   ] as EventSpec[], 'ORG: custom roles');
 
   // LANG-A ready, listed publicly; LANG-B only added.
-  const alpha = await newLanguage(ADMIN, orgId, org, 'Alpha');
+  const alpha = await newLanguage(ADMIN, orgId, org, languageName.A);
   const A = alpha.languageId;
   await rpc(ADMIN.sb, 'set_language_visibility', { p_org: orgId, p_language: A, p_listed: true });
   const B = newLanguageId('bra');
-  await commit(org, [{ id: randomUUID(), type: 'v1.LanguageAdded', payload: { languageId: B, name: 'Bravo', code: 'bra', sourceCode: 'eng' } }], 'Bravo: LanguageAdded');
+  await commit(org, [{ id: randomUUID(), type: 'v1.LanguageAdded', payload: { languageId: B, name: languageName.B, code: 'bra', sourceCode: 'eng' } }], 'Bravo: LanguageAdded');
 
   // Everyone else joins by invite (decision 75).
   const atA: Scope = { level: 'language', languageId: A };
@@ -502,7 +520,9 @@ export async function buildWorld(opts: { welcomed?: boolean } = {}): Promise<UiW
     joinByInvite(ADMIN, TREV, orgId, translatorReviewer, atA),
     joinByInvite(ADMIN, VIEW, orgId, 'viewer', { level: 'org' })
   ]);
-  const KEPT = await joinAsNew(ADMIN, orgId, 'translator', atA, NAMES.KEPT);
+  const KEPT = opts.keptByInvite
+    ? await makeAccount('KEPT', run, personName.KEPT).then(async (p) => { await joinByInvite(ADMIN, p, orgId, 'translator', atA); return p; })
+    : await joinAsNew(ADMIN, orgId, 'translator', atA, personName.KEPT);
   P.KEPT = KEPT;
   await Promise.all(Object.values(P).map((p) => firstRun(p, welcomed)));
 
@@ -603,9 +623,9 @@ export async function buildWorld(opts: { welcomed?: boolean } = {}): Promise<UiW
     supabaseUrl: s.url, apiUrl: s.api, orgId, orgName, org2Id, org2Name,
     roles: { languageLead, translatorReviewer },
     languages: {
-      A: { languageId: A, name: 'Alpha', orgId },
-      B: { languageId: B, name: 'Bravo', orgId },
-      C: { languageId: charlie.languageId, name: 'Charlie', orgId: org2Id }
+      A: { languageId: A, name: languageName.A, orgId },
+      B: { languageId: B, name: languageName.B, orgId },
+      C: { languageId: charlie.languageId, name: languageName.C, orgId: org2Id }
     },
     passages,
     consultantQuestionId: `${questionSet}#q4`,
