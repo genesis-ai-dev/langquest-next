@@ -37,6 +37,15 @@ async function recordTerms(host: AuthHost, userId: string): Promise<void> {
   }
 }
 
+/**
+ * Too many wrong tries here: how long to wait, and the way in that does not
+ * wait, a helper's code. The password waits as the pattern does, since both
+ * count against the same lock (decisions.md 168).
+ */
+export function waitText(ms: number): string {
+  return t('entry.lock.waitFor', { count: Math.max(1, Math.ceil(ms / 60_000)) });
+}
+
 /** Email or sign-in name and password. Signing in accepts the terms (the session the screen was given is the guest's, so the terms go to the account that just signed in). */
 export async function signInWithEmail(email: string, password: string, host: AuthHost): Promise<AuthResult> {
   const started = Date.now();
@@ -44,7 +53,7 @@ export async function signInWithEmail(email: string, password: string, host: Aut
     // Signed out of this phone before: the password opens the lock, with no connection (decisions.md 168).
     const local = await signBackIn('password', password, { address: signInAddress(email) });
     if (local.kind === 'ok') return { kind: 'done' };
-    if (local.kind === 'wait') return { kind: 'error', text: t('entry.lock.wait') };
+    if (local.kind === 'wait') return { kind: 'error', text: waitText(local.ms) };
     const outcome = await signIn(email, password, {
       signInWithPassword, setSession, signInWithV2Account, ...(host.isDev ? { recreateDevAccount } : {})
     });

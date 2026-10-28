@@ -26,7 +26,7 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   await button(page, /^Start a new one/).click();
   await field(page, "What's it called?").fill(orgName);
   await button(page, /^License:/).click();
-  await page.getByRole('radio', { name: /^CC BY-NC-SA 4\.0/ }).click();
+  await page.getByRole('radio', { name: /CC BY-NC-SA 4\.0$/ }).click();
   await expect(text(page, 'People outside can hear your team')).toBeVisible();
   await button(page, 'Use this license').click();
   await expect(button(page, /^License: CC BY-NC-SA 4\.0/)).toBeVisible();

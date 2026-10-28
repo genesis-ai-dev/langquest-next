@@ -6,3 +6,6 @@
  */
 export const PRIVACY_URL = 'https://next.langquest.org/privacy';
 export const DELETE_ACCOUNT_URL = 'https://next.langquest.org/delete-account';
+
+/** Where someone who cannot get in writes, until people can reset their own password (UI audit, finding 30). */
+export const SUPPORT_EMAIL = 'admin@frontierrnd.com';

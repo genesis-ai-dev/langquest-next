@@ -44,7 +44,7 @@ test('SETUP-002 Only an organization admin renames the organization and changes 
   await expect(page.getByTestId('org-rename')).toHaveCount(0);
   await button(page, /^(License: )?All rights reserved/).click();
   await expectOnScreen(page, 'Who may use your work', 'Only an organization admin can change this.');
-  await expectNotOnScreen(page, 'Open to ', 'Pick a more open license');
+  await expectNotOnScreen(page, 'Open up: ', 'Pick a more open license');
 
   // LADMIN: Org home from Alpha's page, where Back would be (decision 138).
   const lead = await deviceFor(page.context().browser()!, w, 'LADMIN');
@@ -835,8 +835,8 @@ test('SETUP-059 The licence is shown to everyone who manages, changed by an orga
   await setup(page);
   await button(page, /^(License: )?All rights reserved/).click();
   await expectOnScreen(page, 'Who may use your work', 'Opening up is permanent: anyone who copies your work keeps these terms.');
-  await page.getByRole('radio', { name: /^CC BY 4\.0/ }).click();
-  await expect(button(page, 'Open to CC BY 4.0')).toBeVisible();
+  await page.getByRole('radio', { name: /CC BY 4\.0$/ }).click();
+  await expect(button(page, 'Open up: Any use, with credit')).toBeVisible();
   await expectOnScreen(page, 'People outside can hear your team', /Anyone will be able to listen to your recordings/);
   await closeSheet(page);
   await expectOnScreen(page, 'All rights reserved');
@@ -849,14 +849,14 @@ test('SETUP-060 The licence only opens, never closes', async ({ page }) => {
   await orgHome(page, w);
   await setup(page);
   await button(page, /^(License: )?All rights reserved/).click();
-  await page.getByRole('radio', { name: /^CC BY-NC-ND 4\.0/ }).click();
-  await button(page, 'Open to CC BY-NC-ND 4.0').click();
+  await page.getByRole('radio', { name: /CC BY-NC-ND 4\.0$/ }).click();
+  await button(page, 'Open up: Share unchanged, not for sale').click();
   await expectOnScreen(page, 'This can\'t be undone', 'You will not be able to close it again.', 'Back');
-  await button(page, 'Yes, open to CC BY-NC-ND 4.0').click();
+  await button(page, 'Yes, open up: Share unchanged, not for sale').click();
   await expectToast(page, 'Your work is now under CC BY-NC-ND 4.0.');
   await expectOrgSent(page, w);
   expect(await orgRefused(page, w)).toEqual([]);
   await button(page, /^(License: )?CC BY-NC-ND 4\.0/).click();
   await expectOnScreen(page, 'Your work is already more open than this');
-  await expect(button(page, /^Open to All rights reserved/)).toHaveCount(0);
+  await expect(button(page, /^Open up: /)).toHaveCount(0);
 });

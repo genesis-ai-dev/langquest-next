@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState } from 'react';
-import { PanResponder, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { AccessibilityInfo, PanResponder, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Line } from 'react-native-svg';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpInfo, useHelpSpot } from '../helpMode/useHelpMode';
@@ -9,7 +9,7 @@ import { ScrollHoldContext } from '../ui/scrollHoldContext';
 import { useSwipeBackOff } from '../ui/useHardwareBack';
 import { Text } from '../ui/text';
 import { C, radius, space } from '../ui/theme';
-import { addDot, dotAt, MIN_DOTS, PICTURES } from '../session/lockModel';
+import { addDot, dotAt, dotsAtDrag, MIN_DOTS, PICTURES } from '../session/lockModel';
 import { a11yState } from '../ui/a11yModel';
 
 /**
@@ -26,8 +26,9 @@ export function PatternPad(props: { onDone: (dots: number[]) => void; disabled?:
   const [tapping, setTapping] = useState(false);
   const spot = useHelpInfo(t('shell.pattern.label', { n: MIN_DOTS }), t('shell.pattern.help', { n: MIN_DOTS }));
   const helping = !!spot.id;
-  const latest = useRef({ dots, size, moved: false, onDone: props.onDone, off: !!props.disabled || helping, hold: null as ((on: boolean) => void) | null });
-  latest.current = { ...latest.current, dots, size, onDone: props.onDone, off: !!props.disabled || helping };
+  const latest = useRef({ dots, size, tapping, moved: false, from: null as number | null, onDone: props.onDone, off: !!props.disabled || helping,
+    hold: null as ((on: boolean) => void) | null });
+  latest.current = { ...latest.current, dots, size, tapping, onDone: props.onDone, off: !!props.disabled || helping };
   useEffect(() => { setDots([]); setTapping(false); }, [props.resetKey]);
   // iOS takes a sideways drag anywhere on the screen as "go back" (fullScreenGestureEnabled in App.tsx).
   useSwipeBackOff(true);
@@ -53,10 +54,21 @@ export function PatternPad(props: { onDone: (dots: number[]) => void; disabled?:
     onPanResponderGrant: (e) => {
       latest.current.hold?.(true);
       latest.current.moved = false;
+      latest.current.from = dotAt(e.nativeEvent.locationX, e.nativeEvent.locationY, latest.current.size);
       reach(e.nativeEvent.locationX, e.nativeEvent.locationY);
     },
     onPanResponderMove: (e, g) => {
-      if (Math.abs(g.dx) + Math.abs(g.dy) > 12) latest.current.moved = true;
+      if (!latest.current.moved && Math.abs(g.dx) + Math.abs(g.dy) > 12) {
+        latest.current.moved = true;
+        // A drag starts the pattern afresh: dots tapped before it are let go.
+        if (latest.current.tapping) {
+          const fresh = dotsAtDrag(latest.current.dots, true, latest.current.from);
+          latest.current.dots = fresh;
+          latest.current.tapping = false;
+          setDots(fresh);
+          setTapping(false);
+        }
+      }
       setFinger({ x: e.nativeEvent.locationX, y: e.nativeEvent.locationY });
       reach(e.nativeEvent.locationX, e.nativeEvent.locationY);
     },
@@ -76,6 +88,18 @@ export function PatternPad(props: { onDone: (dots: number[]) => void; disabled?:
       setFinger(null);
     }
   })).current;
+
+  // A dot tapped one at a time: by finger (the pad), or by a screen reader. iOS
+  // sends VoiceOver's double tap to onAccessibilityTap; Android sends TalkBack's
+  // as a click, to onPress, which the dots need even though no finger reaches them.
+  const tapDot = (d: number) => {
+    if (latest.current.off) return;
+    const next = addDot(latest.current.dots, d);
+    latest.current.dots = next;
+    setTapping(true);
+    setDots(next);
+    AccessibilityInfo.announceForAccessibility(t('shell.pattern.dotsSoFar', { count: next.length }));
+  };
 
   const cell = size / 3;
   const at = (d: number) => ({ x: ((d % 3) + 0.5) * cell, y: (Math.floor(d / 3) + 0.5) * cell });
@@ -105,9 +129,10 @@ export function PatternPad(props: { onDone: (dots: number[]) => void; disabled?:
         {size > 0 ? Array.from({ length: 9 }, (_, d) => {
           const p = at(d);
           return (
+            // help-ignore: reached by a screen reader only (no finger gets past pointerEvents); help mode explains the pad as a whole
             <Pressable key={`a${d}`} accessible accessibilityRole="button" accessibilityLabel={t('shell.pattern.dot', { n: d + 1 })}
               {...a11yState({ selected: dots.includes(d) }, 'button')} pointerEvents="none"
-              onAccessibilityTap={() => { if (!props.disabled) { setTapping(true); setDots((now) => addDot(now, d)); } }}
+              onAccessibilityTap={() => tapDot(d)} onPress={() => tapDot(d)}
               style={[styles.hit, { left: p.x - cell / 2, top: p.y - cell / 2, width: cell, height: cell }]} />
           );
         }) : null}

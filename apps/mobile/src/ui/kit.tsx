@@ -104,6 +104,8 @@ export function Screen(props: {
   bodyStyle?: StyleProp<ViewStyle>;
   /** On a wide window, a column wider than the reading width (reports' tables and charts side by side). */
   columnWidth?: number;
+  /** Show the scroll bar, where what is below the fold is a way on (Sign In on a short phone). */
+  scrollBar?: boolean;
 }) {
   // A wide window keeps the phone's reading width: the body sits in a
   // centred column and the footer's actions stop stretching (decisions.md 55).
@@ -125,8 +127,8 @@ export function Screen(props: {
         {props.fixed ? (
           <View style={[{ flex: 1 }, column, props.bodyStyle]}>{props.children}</View>
         ) : (
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
-            scrollEnabled={!held}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={!!props.scrollBar}
+            persistentScrollbar={!!props.scrollBar} scrollEnabled={!held}>
             <ScrollHoldContext.Provider value={setHeld}>{props.children}</ScrollHoldContext.Provider>
           </ScrollView>
         )}
@@ -318,9 +320,20 @@ export function HelpToggle(props: { testID: string }) {
   );
 }
 
-/** A screen with no header (Sign in, Welcome, Sign out?) still has its ?, alone at the top on the reading end. */
-export function HelpTop() {
-  return useHelpMode() ? <View style={styles.helpTop}><HelpToggle testID="header-help" /></View> : null;
+/**
+ * A screen with no header (Sign in, Welcome, Sign out?) still has its ?, at
+ * the top on the reading end. `start` shares its line, at the other end (Sign
+ * In's language), so the screen keeps its height for the ways in.
+ */
+export function HelpTop(props: { start?: ReactNode }) {
+  const help = useHelpMode();
+  if (!help && !props.start) return null;
+  return (
+    <View style={[styles.helpTop, props.start ? styles.helpTopShared : null]}>
+      {props.start}
+      {help ? <HelpToggle testID="header-help" /> : null}
+    </View>
+  );
 }
 
 /** A parent above a wide window's title, one tap away. */
@@ -336,26 +349,28 @@ function Crumb(props: { label: string; onPress: () => void }) {
 
 /**
  * `current`: what this card opened is showing beside the list (a split on a
- * wide window, panes.ts). A card that opens something says so in help mode:
- * its `accessibilityLabel` names it and `help` says what tapping does.
+ * wide window, panes.ts), and a screen reader says so. `lead`: the usual
+ * choice among several, drawn the same way but said as nothing, since nothing
+ * has been chosen yet. A card that opens something says so in help mode: its
+ * `accessibilityLabel` names it and `help` says what tapping does.
  */
 export function Card(props: { children: ReactNode; onPress?: () => void; style?: StyleProp<ViewStyle>; accessibilityLabel?: string; current?: boolean;
+  lead?: boolean;
   /** What help mode says tapping it does. */ help?: string }) {
   const spot = useHelpSpot(props.accessibilityLabel ?? '', props.help, props.onPress);
+  const marked = (props.current || props.lead) && styles.cardCurrent;
   if (props.onPress) {
     return (
       <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
+        // aria-selected is not allowed on a button: a current card says aria-current, which a screen reader says as "current".
         {...a11yState(props.current ? { selected: true } : undefined, 'button', 'current')}
-        // aria-selected is not allowed on a button. aria-current is, and a screen reader says "current".
-        // accessibilityState.selected stays for native; react-native-web does not turn it into aria-selected.
-        aria-current={props.current ? true : undefined}
-        style={({ pressed }) => [styles.card, props.style, props.current && styles.cardCurrent, pressed && styles.pressed]}>
+        style={({ pressed }) => [styles.card, props.style, marked, pressed && styles.pressed]}>
         {props.children}
         <HelpBadge spot={spot} />
       </Pressable>
     );
   }
-  return <View style={[styles.card, props.style, props.current && styles.cardCurrent]}>{props.children}</View>;
+  return <View style={[styles.card, props.style, marked]}>{props.children}</View>;
 }
 
 /** A group of rows on one white card. */
@@ -1162,6 +1177,7 @@ const styles = StyleSheet.create({
   smallLabel: { fontSize: T.sm, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
   linkBtn: { minHeight: target.min, justifyContent: 'center' },
   helpTop: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: space.lg, paddingTop: space.sm },
+  helpTopShared: { justifyContent: 'space-between', alignItems: 'center' },
   helpBtn: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
   quietRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.xs },
   quiet: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: target.min, paddingHorizontal: space.sm, flexShrink: 1, maxWidth: '100%' },

@@ -53,12 +53,12 @@ export function LicenseSheet(props: {
   } else if (props.mode === 'open') {
     footer = confirming ? (
       <>
-        <PrimaryBtn label={props.busy ? t('shell.license.opening') : t('shell.license.yesOpenTo', { name: words.name })} disabled={props.busy}
+        <PrimaryBtn label={props.busy ? t('shell.license.opening') : t('shell.license.yesOpenTo', { terms: words.short })} disabled={props.busy}
           help={t('shell.license.yesOpenToHelp')} onPress={() => props.onConfirm?.(picked)} />
         <GhostBtn label={t('common.back')} help={t('shell.license.backHelp')} onPress={() => setConfirming(false)} />
       </>
     ) : (
-      <PrimaryBtn label={changed ? t('shell.license.openTo', { name: words.name }) : t('shell.license.pickMoreOpen')} disabled={!changed}
+      <PrimaryBtn label={changed ? t('shell.license.openTo', { terms: words.short }) : t('shell.license.pickMoreOpen')} disabled={!changed}
         {...(changed ? { help: t('shell.license.openToHelp') } : {})} onPress={() => setConfirming(true)} />
     );
   }
@@ -71,15 +71,18 @@ export function LicenseSheet(props: {
           body={`${words.means} ${t('shell.license.cannotClose')}`} />
       ) : (
         <View>
+          {/* What it allows is what people compare, so it is the label; the code stays in the line under it,
+              and in what a screen reader says, to be looked up (UI audit, finding 67). */}
           {/* help-each: each license means something different */}
           {licenseChoices(floor).map(({ info: option, available }, i, all) => {
             const selected = option.license === picked;
             const locked = !available;
             const pickable = props.mode !== 'view' && !locked;
+            const choice = licenseText(option.license);
             return (
               <Row key={option.license} role="radio" selected={selected} last={i === all.length - 1}
-                label={licenseText(option.license).name} muted={locked}
-                sub={locked ? t('shell.license.alreadyMoreOpen') : licenseText(option.license).short}
+                label={choice.short} muted={locked} accessibilityLabel={t('shell.a11y.labelDetail', { label: choice.short, detail: choice.name })}
+                sub={locked ? `${choice.name} · ${t('shell.license.alreadyMoreOpen')}` : choice.name}
                 onPress={pickable ? () => setPicked(option.license) : undefined}
                 right={locked ? <Ico name="lock" size={18} color={C.faint} />
                   : selected ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />}
@@ -113,7 +116,7 @@ export function LicenseRow(props: { license: License; onPress: () => void; last?
   const info = LICENSE_INFO[props.license];
   const words = licenseText(props.license);
   return (
-    <Row icon={info.terms.outsidersMayView ? 'globe' : 'lock'} label={words.name} sub={words.short}
+    <Row icon={info.terms.outsidersMayView ? 'globe' : 'lock'} label={words.short} sub={words.name}
       onPress={props.onPress} last={props.last} accessibilityLabel={t('shell.license.rowLabel', { name: words.name, short: words.short })} help={t('shell.license.rowHelp')} />
   );
 }

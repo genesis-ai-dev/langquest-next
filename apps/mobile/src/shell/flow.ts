@@ -298,6 +298,7 @@ export const EDGES: Edge[] = [
   e('create_account', 'welcome', 'replace'),
   e('scan_qr', 'sign_out_confirm'),
   e('explore_home', 'request_access'),
+  e('request_access', 'scan_qr'), // Not here? Scan their code (UI audit, finding 69)
   e('inbox_home', 'members_list', undefined, 'assigner'),
   e('create_account', 'terms_privacy', undefined, 'guest'),
   e('scan_qr', 'terms_privacy', undefined, 'guest'),

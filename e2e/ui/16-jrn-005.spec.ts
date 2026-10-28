@@ -105,15 +105,15 @@ test('JRN-005 A coordinator gets a language ready and starts its team @p0 @wide'
     const nora = await devices.open('NOORG');
     await button(nora, /^Find your organization/).click();
     await nora.getByPlaceholder('Name or language').fill(w.orgName);
-    const askOrg = nora.getByRole('button', { name: `Ask ${w.orgName} to let you in`, exact: true }).locator('visible=true');
+    const askOrg = nora.getByTestId(`listed-${w.orgId}`).locator('visible=true');
     // The phone holds the first 500 listed organizations; the server searches them all as you type
     // (decision 66, amended 2026-10-13), so wait for its answer as a person would.
     const found = await askOrg.first().waitFor({ state: 'visible', timeout: 20_000 }).then(() => true, () => false);
     expect.soft(found, `"${w.orgName}" can be found by name`).toBe(true);
     if (found) {
+      // The row opens the form to ask; Ask to join sends (UI audit, finding 63).
       await askOrg.first().click();
-      const ask = nora.getByRole('button', { name: /^Ask to join$|^Send$|^Ask$/ }).locator('visible=true');
-      if (await ask.count()) await ask.first().click();
+      await nora.getByRole('button', { name: 'Ask to join', exact: true }).locator('visible=true').first().click();
       await expect(text(nora, `Asked ${w.orgName}`)).toBeVisible();
     } else {
       const { sb } = await signIn(w, 'NOORG');

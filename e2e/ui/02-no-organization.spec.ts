@@ -30,7 +30,17 @@ test.beforeEach(async ({ page }) => {
 
 const base = () => 'http://localhost:' + (process.env['UI_PORT'] ?? '8097');
 const org = () => world().orgName;
-const askRow = (page: Page, name: string) => page.getByRole('button', { name: `Ask ${name} to let you in`, exact: true }).locator('visible=true').first();
+/** An organization's row on Find your organization; tapping it opens the form to ask it (UI audit, finding 63). */
+const orgRow = (page: Page, orgId: string) => page.getByTestId(`listed-${orgId}`).locator('visible=true').first();
+const orgRows = (page: Page) => page.locator('[data-testid^="listed-"]').locator('visible=true');
+
+/** Ask an organization from its row: the row opens the form, and Ask to join sends. */
+async function askFrom(page: Page, orgId: string, name: string) {
+  await orgRow(page, orgId).click();
+  await expect(text(page, `Ask ${name}`)).toBeVisible();
+  await expect(primary(page)).toHaveAccessibleName('Ask to join');
+  await primary(page).click();
+}
 const CARDS = ['Scan their code', 'Find your organization', 'Start a new one'];
 
 async function onJoinYourTeam(page: Page) {
@@ -56,13 +66,13 @@ async function onlyThisWorld(page: Page) {
 async function findOrg(page: Page) {
   await text(page, 'Find your organization').click();
   await field(page, 'Name or language').fill(org());
-  await expect(askRow(page, org())).toBeVisible({ timeout: 30_000 });
+  await expect(orgRow(page, world().orgId)).toBeVisible({ timeout: 30_000 });
 }
 
 /** Ask this world's organization from Find your organization, and go back to Join your team. */
 async function askFromList(page: Page) {
   await findOrg(page);
-  await askRow(page, org()).click();
+  await askFrom(page, world().orgId, org());
   await expect(text(page, `Asked ${org()}`)).toBeVisible();
   await button(page, 'Done').click();
   await expect(text(page, `Asked ${org()}`)).toBeVisible();
@@ -98,8 +108,9 @@ test('NOORG-001 Someone with no organization lands on "Join your team" @p0', asy
   expect([...at].sort((a, b) => a - b)).toEqual(at);
   for (const sub of ['Someone on your team shows it', 'Ask them to let you in', 'For a team leader']) expect(body).toContain(sub);
   // The first card is the highlighted one.
-  // Highlighted, and said so to a screen reader (kit Card's `current` as aria-current); soft, so the rest is still checked.
-  await expect.soft(page.getByRole('button', { name: 'Scan their code', exact: true })).toHaveAttribute('aria-current', 'true');
+  // Highlighted, but not said as chosen: nothing has been chosen yet (UI audit, finding 68).
+  await expect(page.getByRole('button', { name: 'Scan their code', exact: true })).not.toHaveAttribute('aria-current', 'true');
+  await expect(page.getByRole('button', { name: 'Scan their code', exact: true })).not.toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('button', { name: 'Find your organization', exact: true })).not.toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('button', { name: 'Find your organization', exact: true })).not.toHaveAttribute('aria-current', 'true');
   await expect(button(page, 'Sign out')).toBeVisible();
@@ -181,7 +192,7 @@ test('NOORG-005 On the web, sign-out waits for account changes still to send', a
   await context.setOffline(true);
   await text(page, 'Find your organization').click();
   await field(page, 'Name or language').fill(org());
-  await askRow(page, org()).click();
+  await askFrom(page, world().orgId, org());
   await button(page, 'Done').click();
   await button(page, 'Sign out').click();
   await expect(text(page, 'Still to send: 1 account change. This device is offline. Sign out once they have synced so they are not stranded here.')).toBeVisible();
@@ -189,7 +200,7 @@ test('NOORG-005 On the web, sign-out waits for account changes still to send', a
   await button(page, 'Cancel').click();
   await expect(text(page, `Asked ${org()}`)).toBeVisible();
   await context.setOffline(false);
-  await expect(text(page, "You'll go straight in when they say yes. You can close the app; we'll let you know.")).toBeVisible({ timeout: 60_000 });
+  await expect(text(page, "You can close the app. Next time you open it, you'll go straight in if they said yes.")).toBeVisible({ timeout: 60_000 });
   await signOutHere(page);
   await expect(page.getByLabel('Email or sign-in name', { exact: true }).locator('visible=true').first()).toBeVisible({ timeout: 60_000 });
 });
@@ -234,10 +245,11 @@ test('NOORG-008 Choosing who may use the work', async ({ page, context }) => {
   await expect(text(page, 'Who may use your work').last()).toBeVisible();
   await expect(text(page, 'Who may use what your team records and writes. You can open it up later, but never close it again.')).toBeVisible();
   const radios = page.getByRole('radio').locator('visible=true');
+  // What each allows is the label, the code the line under it (UI audit, finding 67).
   const names = (await radios.allInnerTexts()).map((t) => t.split('\n')[0]!.trim());
-  expect(names).toEqual(['All rights reserved', 'CC BY-NC-ND 4.0', 'CC BY-NC-SA 4.0', 'CC BY-SA 4.0', 'CC BY 4.0', 'CC0 (public domain)']);
+  expect(names).toEqual(['Only your organization', 'Share unchanged, not for sale', 'Share and adapt, not for sale', 'Share and adapt, same terms', 'Any use, with credit', 'No conditions']);
   const body = await screenText(page);
-  for (const short of ['Only your organization', 'Share unchanged, not for sale', 'Share and adapt, not for sale', 'Share and adapt, same terms', 'Any use, with credit', 'No conditions']) expect(body).toContain(short);
+  for (const code of ['All rights reserved', 'CC BY-NC-ND 4.0', 'CC BY-NC-SA 4.0', 'CC BY-SA 4.0', 'CC BY 4.0', 'CC0 (public domain)']) expect(body).toContain(code);
   // Ticked, and said so to a screen reader; soft, so the rest is still checked.
   await expect.soft(radios.nth(0)).toHaveAttribute('aria-checked', 'true');
   await expect(text(page, 'Only your members can see and use your work. Nobody else may copy or share it.')).toBeVisible();
@@ -381,22 +393,32 @@ test('NOORG-014 Find an organization by name or language', async ({ page }) => {
   // The run's name keeps this world's row among the first 25.
   const run = world().run;
   await search.fill(`ui test org ${run}`);
-  const row = askRow(page, org());
+  const row = orgRow(page, world().orgId);
   await expect(row).toBeVisible({ timeout: 30_000 });
   await expect(row).toContainText(org());
   await expect(row).toContainText('Alpha');
-  await expect(row).toContainText('Ask to join');
-  await expect(text(page, 'Not here? Ask someone on your team to show you their code.')).toBeVisible();
+  // The scanner, one tap away for an organization not listed (UI audit, finding 69).
+  await expect(button(page, 'Not here? Scan their code')).toBeVisible();
   await search.fill(world().org2Name.toLowerCase());
-  await expect(askRow(page, world().org2Name)).toHaveCount(0);
+  await expect(orgRow(page, world().org2Id)).toHaveCount(0);
   // Every row matches by a language now; this world's is among them.
   await search.fill(`ALPHA`);
-  await expect(page.getByRole('button', { name: /^Ask .+ to let you in$/ }).first()).toBeVisible();
+  await expect(orgRows(page).first()).toBeVisible();
   await search.fill('zzzz');
-  await expect(page.getByRole('button', { name: /^Ask .+ to let you in$/ })).toHaveCount(0);
+  await expect(orgRows(page)).toHaveCount(0);
   await expect(text(page, 'No organization or language matches “zzzz”.')).toBeVisible();
   await search.fill('');
-  await expect(page.getByRole('button', { name: /^Ask .+ to let you in$/ }).first()).toBeVisible();
+  await expect(orgRows(page).first()).toBeVisible();
+  // A row opens the form to ask, and sends nothing by itself; Back is back to the list (UI audit, finding 63).
+  await search.fill(org());
+  await orgRow(page, world().orgId).click();
+  await expect(text(page, `Ask ${org()}`)).toBeVisible();
+  await expect(text(page, "An admin there sees your request. When they let you in, you'll go straight to your work.")).toBeVisible();
+  await back(page).click();
+  await expect(field(page, 'Name or language')).toBeVisible();
+  await button(page, 'Not here? Scan their code').click();
+  await expect(text(page, 'Scan a code')).toBeVisible();
+  await back(page).click();
   await back(page).click();
   await expect(text(page, 'Join your team')).toBeVisible();
 });
@@ -406,16 +428,16 @@ test('NOORG-015 Asking to join from the list', async ({ page }) => {
   await openNew(page, world(), fresh);
   await onJoinYourTeam(page);
   await findOrg(page);
-  await askRow(page, org()).click();
+  await askFrom(page, world().orgId, org());
   await expect(text(page, 'Asked').first()).toBeVisible();
   await expect(text(page, `Asked ${org()}`)).toBeVisible();
-  await expect(text(page, /^(You'll go straight in when they say yes\. You can close the app; we'll let you know\.|Saved on this device\. It sends when you have a connection\.)$/)).toBeVisible();
-  await expect(text(page, "You'll go straight in when they say yes. You can close the app; we'll let you know.")).toBeVisible({ timeout: 30_000 });
+  await expect(text(page, /^(You can close the app\. Next time you open it, you'll go straight in if they said yes\.|Saved on this device\. It sends when you have a connection\.)$/)).toBeVisible();
+  await expect(text(page, "You can close the app. Next time you open it, you'll go straight in if they said yes.")).toBeVisible({ timeout: 30_000 });
   await expect(byId(page, 'header-back')).toBeVisible();
   await button(page, 'Done').click();
   await expect(text(page, `Asked ${org()}`).first()).toBeVisible();
   await expect(text(page, 'Welcome, Lia')).toBeHidden();
-  await expect(text(page, "You'll go straight in when they say yes. You can close the app; we'll let you know.")).toBeVisible();
+  await expect(text(page, "You can close the app. Next time you open it, you'll go straight in if they said yes.")).toBeVisible();
   await expect(text(page, 'Meanwhile')).toBeVisible();
   for (const card of CARDS) await expect(page.getByRole('button', { name: card, exact: true })).not.toHaveAttribute('aria-selected', 'true');
   expect(await requestsFor(fresh)).toHaveLength(1);
@@ -434,7 +456,7 @@ test('NOORG-016 Asking with no connection', async ({ page, context }) => {
   await text(page, 'Find your organization').click();
   await expect(text(page, 'Unable to refresh. Showing what was saved on this device.')).toBeVisible({ timeout: 30_000 });
   await field(page, 'Name or language').fill(org());
-  await askRow(page, org()).click();
+  await askFrom(page, world().orgId, org());
   await expect(text(page, `Asked ${org()}`)).toBeVisible();
   await expect(text(page, 'Saved on this device. It sends when you have a connection.')).toBeVisible();
   await button(page, 'Done').click();
@@ -442,7 +464,7 @@ test('NOORG-016 Asking with no connection', async ({ page, context }) => {
   await expect(text(page, 'Your request is saved on this device and sends when you have a connection.')).toBeVisible();
   // Step 4 (restarting offline) needs a phone: a browser cannot load the app with no connection.
   await context.setOffline(false);
-  await expect(text(page, "You'll go straight in when they say yes. You can close the app; we'll let you know.")).toBeVisible({ timeout: 60_000 });
+  await expect(text(page, "You can close the app. Next time you open it, you'll go straight in if they said yes.")).toBeVisible({ timeout: 60_000 });
   expect(await requestsFor(fresh)).toHaveLength(1);
 });
 
@@ -459,7 +481,7 @@ test('NOORG-017 More than 25 listed organizations', async ({ page }) => {
   await openFresh(page, world(), 'NOORG');
   await onJoinYourTeam(page);
   await text(page, 'Find your organization').click();
-  const rows = page.getByRole('button', { name: /^Ask .+ to let you in$/ }).locator('visible=true');
+  const rows = orgRows(page);
   await expect(rows).toHaveCount(25, { timeout: 30_000 });
   const more = page.getByRole('button', { name: /^Show \d+ more · \d+ left$/ });
   const [, shown, left] = /^Show (\d+) more · (\d+) left$/.exec((await more.innerText()).trim())!;
@@ -481,8 +503,45 @@ test('NOORG-018 No organization is listed', async ({ page }) => {
   await openFresh(page, world(), 'NOORG');
   await onJoinYourTeam(page);
   await text(page, 'Find your organization').click();
-  await expect(text(page, 'No organizations are listed yet. Ask someone on your team to show you their code.')).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole('button', { name: /^Ask .+ to let you in$/ })).toHaveCount(0);
+  await expect(text(page, 'No organizations are listed yet.')).toBeVisible({ timeout: 30_000 });
+  await expect(orgRows(page)).toHaveCount(0);
+  await expect(button(page, 'Scan their code').last()).toBeVisible();
+});
+
+test('NOORG-027 Find your organization, never loaded, with no connection', async ({ page }) => {
+  // The list has never come, and asking for it fails: not "none are listed" (UI audit, finding 64).
+  await page.unroute('**/rest/v1/rpc/listed_organizations*');
+  let refuse = true;
+  await page.route('**/rest/v1/rpc/listed_organizations*', (route) => (refuse ? route.abort('internetdisconnected') : route.continue()));
+  await openFresh(page, world(), 'NOORG');
+  await onJoinYourTeam(page);
+  await text(page, 'Find your organization').click();
+  await expect(text(page, "Couldn't load the list")).toBeVisible({ timeout: 30_000 });
+  await expect(text(page, 'No organizations are listed yet.')).toBeHidden();
+  await expect(text(page, 'Unable to refresh. Showing what was saved on this device.')).toBeHidden();
+  refuse = false;
+  await button(page, 'Try again').click();
+  await expect(orgRows(page).first()).toBeVisible({ timeout: 30_000 });
+});
+
+test('NOORG-028 A guest\'s tap on Explore waits through signing in', async ({ page }) => {
+  const fresh = await newAccount(world(), 'Gus Guest');
+  await onlyThisWorld(page);
+  await page.goto('/');
+  await button(page, 'Browse public work').click();
+  const card = page.getByRole('button', { name: /^Alpha, / }).locator('visible=true').first();
+  await expect(card).toContainText('Sign in to ask', { timeout: 30_000 });
+  await card.click();
+  // Sign In says what the tap was for, and keeps it while they sign in (UI audit, finding 33).
+  await expect(text(page, 'Sign in, then ask to join the Alpha team')).toBeVisible();
+  await signInWithForm(page, fresh.email, fresh.password);
+  await expect(text(page, `Ask ${org()}`)).toBeVisible({ timeout: 60_000 });
+  await expect(text(page, 'Alpha').first()).toBeVisible();
+  await expect(primary(page)).toHaveAccessibleName('Ask to join');
+  // Once: back on Join your team, it does not open again.
+  await back(page).click();
+  await expect(text(page, 'Join your team')).toBeVisible();
+  await expect(text(page, `Ask ${org()}`)).toBeHidden();
 });
 
 test('NOORG-019 Asking from Explore, with a message', async ({ page }) => {
@@ -493,7 +552,9 @@ test('NOORG-019 Asking from Explore, with a message', async ({ page }) => {
   await button(page, 'Look around first').click();
   await page.getByRole('button', { name: /^Alpha, / }).locator('visible=true').first().click({ timeout: 30_000 });
   await expect(text(page, `Ask ${org()}`)).toBeVisible();
-  await expect(text(page, "They'll let you in, and you'll go straight to your work.")).toBeVisible();
+  // The card named the organization, and the form names the language asked about (UI audit, finding 65).
+  await expect(text(page, 'Alpha').first()).toBeVisible();
+  await expect(text(page, "An admin there sees your request. When they let you in, you'll go straight to your work.")).toBeVisible();
   await expect(page.getByPlaceholder('Who you are, and which team', { exact: true })).toBeVisible();
   await field(page, 'Say something (optional)').fill('I am Ana, from the Alpha team in Juba');
   await expect(primary(page)).toHaveAccessibleName('Ask to join');
@@ -540,7 +601,7 @@ async function asked(page: Page, name: string): Promise<Fresh> {
   await openNew(page, world(), fresh);
   await onJoinYourTeam(page);
   await askFromList(page);
-  await expect(text(page, "You'll go straight in when they say yes. You can close the app; we'll let you know.")).toBeVisible({ timeout: 60_000 });
+  await expect(text(page, "You can close the app. Next time you open it, you'll go straight in if they said yes.")).toBeVisible({ timeout: 60_000 });
   return fresh;
 }
 

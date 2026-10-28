@@ -49,6 +49,7 @@ const APP_ONLY: Record<string, string> = {
   'create_account->welcome': 'an email account made while an invite is held (Scan, I already have an account, then Create Account) joins at once and is welcomed (flow B); the demo has no held invite',
   'scan_qr->sign_out_confirm': 'someone else is joining on a signed-in phone: sign out first, and the invite waits for them (flow C)',
   'explore_home->request_access': 'request membership from a public language listing',
+  'request_access->scan_qr': 'an organization not on the list is joined by its code: the scanner is one tap away there, not back on Join your team (UI audit, finding 69)',
   'inbox_home->members_list': 'administrators see every pending join request from the inbox',
   'create_account->terms_privacy': 'the terms are one tap away before an account exists, as under Sign In',
   'scan_qr->terms_privacy': 'joining by invite makes an account, so its terms are one tap away there too (decisions.md 59)',
