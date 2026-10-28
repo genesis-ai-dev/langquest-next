@@ -643,7 +643,7 @@ Expected:
   | --- | --- | --- | --- | --- | --- |
   | ADMIN, COORD | yes | yes | yes | yes | yes |
   | LADMIN | yes | yes | yes | yes | no |
-  | TRANS | yes | yes: "Review it myself", their own version (decisions.md 177) | yes | yes | no |
+  | TRANS | yes | yes: "Review it myself", their own version (decisions.md 178) | yes | yes | no |
   | KEPT | yes | yes (Translator has Review, decision 91) | yes | yes | no |
   | REV | no | yes | no | yes | no |
   | TREV | yes | yes | yes | yes | no |

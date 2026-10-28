@@ -241,7 +241,7 @@ describe('the passage record, per role (05-passage-record.md)', () => {
       const all = r.else.options.join('\n');
       // Fixed (2026-10-12): the Back translation is already asked of REV, so nobody is offered a second request.
       if (all.includes('Someone else should do this')) got.someone.push(who);
-      // Only its author is offered doing it themselves (decisions.md 177).
+      // Only its author is offered doing it themselves (decisions.md 178).
       if (all.includes("I'll do this myself Back translation: record it now")) got.myself.push(who);
       if (all.includes('We already did this Say when and how the back translation happened')) got.already.push(who);
       if (all.includes('Not now Set the back translation aside. Say why')) got.notNow.push(who);

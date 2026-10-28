@@ -161,7 +161,7 @@ Preconditions: P-Q4 is asked of TREV to record.
 
 Steps:
 1. Device 1 (TREV): record P-Q4 Version 1, tap "Done", then "Send later".
-2. COORD (any device): open P-Q4, tap its "Peer check" card, then "Send to someone else", and ask TREV by name. Asked, TREV's own version's check reads "Do the peer check" on the record; unasked, it waits on the check's sheet as "Review it myself" (decision 177).
+2. COORD (any device): open P-Q4, tap its "Peer check" card, then "Send to someone else", and ask TREV by name. Asked, TREV's own version's check reads "Do the peer check" on the record; unasked, it waits on the check's sheet as "Review it myself" (decision 178).
 3. Device 1 (TREV): sync. On the passage record, tap "Do the peer check". Play it, then tap "Looks good".
 4. Device 2 (TRANS): record P-Q3 Version 1, tap "Done", then "Ask the Peer check team".
 5. Device 1 (TREV): sync. Open P-Q3 and tap "Do the peer check", then "Looks good".

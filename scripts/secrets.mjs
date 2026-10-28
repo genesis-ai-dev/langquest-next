@@ -42,8 +42,10 @@ export const ADMIN_KEYS = ['ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_SUPABASE_TOKEN', 'AD
  * Keys .env.<env> may hold. DIAG_DATABASE_URL is read on a laptop (npm run diag -- --hosted) and by
  * the admin Worker; V2_DATABASE_URL (scripts/v2-access.sh) goes to the app's Worker for the v2
  * import's job (decisions.md 141) and is read on a laptop by npm run v2 -- --production.
+ * GEMINI_API_KEY is the tutorial videos' voice and translations (docs/tutorial-videos.md),
+ * read where they are made; this script places it nowhere.
  */
-export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', ...ADMIN_KEYS];
+export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', ...ADMIN_KEYS];
 export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET'];
 /**
  * Placed when the file has them, never required: the Worker answers without

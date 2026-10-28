@@ -274,7 +274,7 @@ files rely on it.
 | Map tab opens | All languages | All languages | All languages | LANG-A's map | LANG-A's map | LANG-A's map | All languages | LANG-A's map | — |
 | Manage opens | Org home | Org home | LANG-A's page | — | — | — | — | — | — |
 | Record, publish (Translate) | yes | yes | yes | yes | no | yes | no | yes | — |
-| Review it, back-translate (Review) | yes | yes | yes | yes (their own version as "Review it myself", decisions.md 177) | yes | yes | no | yes | — |
+| Review it, back-translate (Review) | yes | yes | yes | yes (their own version as "Review it myself", decisions.md 178) | yes | yes | no | yes | — |
 | Ask someone (Send to reviewers or Assign) | yes | yes | yes | yes | no | yes | no | yes | — |
 | Already happened (Translate or Review) | yes | yes | yes | yes | yes | yes | no | yes | — |
 | Override a checkpoint | yes | yes | no | no | no | no | no | no | — |

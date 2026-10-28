@@ -33,7 +33,7 @@ import { styles as ps } from './blockStyles';
 /**
  * How a finished version goes on: to the usual people for a check, to
  * someone else, to its maker doing the check now (nobody else could,
- * decisions.md 177), or nowhere yet.
+ * decisions.md 178), or nowhere yet.
  */
 export type DoneAsk = { kindId: string; questions: QuestionSpec[] } | { someoneElse: string } | { checkNow: string } | null;
 
@@ -75,7 +75,7 @@ export function PublishScreen(props: {
   const done = (ask: DoneAsk) => {
     void props.onDone(text, hash, ask).then((ok) => { if (ok) void draft.clear(); });
   };
-  // Nobody else could be asked: Done does the next check now, and asking stays one tap away (decisions.md 177).
+  // Nobody else could be asked: Done does the next check now, and asking stays one tap away (decisions.md 178).
   const checkNow = next && !nextTarget && props.next?.selfCheck ? doCheckButton(v.kind(next.kindId), v.kinds) : null;
   const footer = next && checkNow ? (
     <View style={{ gap: space.xs }}>

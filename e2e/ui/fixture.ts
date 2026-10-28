@@ -153,7 +153,7 @@ async function rpc<T>(sb: SupabaseClient, fn: string, args: Record<string, unkno
 }
 
 /** An account made with the admin API, signed in, with its profile name set as the app sets it (`save_profile`). */
-async function makeAccount(key: AccountKey, run: string): Promise<Person> {
+async function makeAccount(key: AccountKey, run: string, name = NAMES[key]): Promise<Person> {
   const s = localServer();
   const admin = createClient(s.url, s.service, { auth: { persistSession: false, autoRefreshToken: false } });
   const email = `ui-${run}-${key.toLowerCase()}@example.test`;
@@ -163,8 +163,8 @@ async function makeAccount(key: AccountKey, run: string): Promise<Person> {
   const sb = anonClient();
   const { data, error } = await sb.auth.signInWithPassword({ email, password });
   if (error || !data.session) throw new Error(`sign in as ${key}: ${error?.message ?? 'no session'}`);
-  await rpc(sb, 'save_profile', { p_display_name: NAMES[key] });
-  return { key, id: data.user.id, email, password, name: NAMES[key], session: data.session, sb };
+  await rpc(sb, 'save_profile', { p_display_name: name });
+  return { key, id: data.user.id, email, password, name, session: data.session, sb };
 }
 
 /** Terms and the welcome, recorded on the server with the app's own ids (accountData.ts `recordUserEvent`). */
@@ -243,11 +243,32 @@ function voice(n: number, voicedSeconds: number, totalSeconds: number): { bytes:
   return { bytes, hash: createHash('sha256').update(bytes).digest('hex'), durationMs: Math.round(totalSeconds * 1000) };
 }
 
-/** Recordings made in this world, each different. Uploaded where the app keeps a language's files (decision 69). */
-function audio(orgId: string, languageId: string) {
+/** How long a 16-bit WAV file plays, from its header. */
+function wavMs(bytes: Uint8Array): number {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let bytesPerSecond = 0;
+  for (let at = 12; at + 8 <= bytes.length;) {
+    const chunk = String.fromCharCode(...bytes.subarray(at, at + 4));
+    const size = view.getUint32(at + 4, true);
+    if (chunk === 'fmt ') bytesPerSecond = view.getUint32(at + 16, true);
+    if (chunk === 'data' && bytesPerSecond) return Math.round((size / bytesPerSecond) * 1000);
+    at += 8 + size + (size % 2);
+  }
+  throw new Error('not a WAV file');
+}
+
+/**
+ * Recordings made in this world, each different. Uploaded where the app keeps a language's files (decision 69).
+ * `voices` gives a filmed world real speech for some of them, by what each one is (`P-NEEDS#2`, `note:P-NEEDS`, `bt:P-CHECK#1`).
+ */
+function audio(orgId: string, languageId: string, voices?: (what: string) => Uint8Array | undefined) {
   let n = 0;
-  return async (who: Person, voicedSeconds = 1.5, totalSeconds = 3) => {
-    const v = voice(n++, voicedSeconds, totalSeconds);
+  return async (who: Person, voicedSeconds = 1.5, totalSeconds = 3, what = '') => {
+    const real = what ? voices?.(what) : undefined;
+    const v = real
+      ? { bytes: real, hash: createHash('sha256').update(real).digest('hex'), durationMs: wavMs(real) }
+      : voice(n, voicedSeconds, totalSeconds);
+    n++;
     await setupBlobs(localServer().api, who.session.access_token).put(blobKey(orgId, languageId, v.hash, 'wav'), v.bytes);
     return { hash: v.hash, durationMs: v.durationMs, format: 'wav' as const };
   };
@@ -453,23 +474,41 @@ async function joinAsNew(issuer: Person, orgId: string, roleId: string, scope: S
  * `welcomed: false` leaves every account's Welcome unseen (AUTH-056); the
  * terms stay accepted, so the Welcome is the first thing each one sees.
  */
-export async function buildWorld(opts: { welcomed?: boolean } = {}): Promise<UiWorld> {
+/**
+ * Names a person sees, for a world that is filmed (e2e/tutorials): the
+ * tests' own names otherwise, the organizations with the run's id after them.
+ */
+export interface WorldNames {
+  org?: string;
+  org2?: string;
+  languages?: Partial<Record<LanguageKey, string>>;
+  people?: Partial<Record<AccountKey, string>>;
+}
+
+/**
+ * `keptByInvite`: KEPT joins by an ordinary invite, with an email and a
+ * password, instead of through the `join` Edge Function (a filmed world,
+ * where nobody looks after anyone, needs no Edge Functions running).
+ */
+export async function buildWorld(opts: { welcomed?: boolean; names?: WorldNames; keptByInvite?: boolean; voices?: (what: string) => Uint8Array | undefined } = {}): Promise<UiWorld> {
   const started = Date.now();
   const welcomed = opts.welcomed ?? true;
   const s = localServer();
   const run = `${Date.now().toString(36)}${randomBytes(2).toString('hex')}`;
-  const orgName = `UI Test Org ${run}`;
-  const org2Name = `UI Second Org ${run}`;
+  const orgName = opts.names?.org ?? `UI Test Org ${run}`;
+  const org2Name = opts.names?.org2 ?? `UI Second Org ${run}`;
+  const languageName = { A: 'Alpha', B: 'Bravo', C: 'Charlie', ...opts.names?.languages };
+  const personName = { ...NAMES, ...opts.names?.people };
 
   // Accounts, except the looked-after one, which joining makes.
-  const made = await Promise.all(ACCOUNT_KEYS.filter((k) => k !== 'KEPT').map((k) => makeAccount(k, run)));
+  const made = await Promise.all(ACCOUNT_KEYS.filter((k) => k !== 'KEPT').map((k) => makeAccount(k, run, personName[k])));
   const P = Object.fromEntries(made.map((p) => [p.key, p])) as Record<AccountKey, Person>;
   const { ADMIN, COORD, LADMIN, TRANS, REV, TREV, VIEW, OWNER2 } = P;
 
   // ORG2 is built beside ORG: its own owner, CC BY 4.0, Charlie, and ADMIN as a Translator.
   const second = (async () => {
     const { orgId, org } = await createOrg(OWNER2, org2Name, 'CC-BY-4.0');
-    const charlie = await newLanguage(OWNER2, orgId, org, 'Charlie');
+    const charlie = await newLanguage(OWNER2, orgId, org, languageName.C);
     await joinByInvite(OWNER2, ADMIN, orgId, 'translator', { level: 'org' });
     return { orgId, charlie };
   })();
@@ -486,11 +525,11 @@ export async function buildWorld(opts: { welcomed?: boolean } = {}): Promise<UiW
   ] as EventSpec[], 'ORG: custom roles');
 
   // LANG-A ready, listed publicly; LANG-B only added.
-  const alpha = await newLanguage(ADMIN, orgId, org, 'Alpha');
+  const alpha = await newLanguage(ADMIN, orgId, org, languageName.A);
   const A = alpha.languageId;
   await rpc(ADMIN.sb, 'set_language_visibility', { p_org: orgId, p_language: A, p_listed: true });
   const B = newLanguageId('bra');
-  await commit(org, [{ id: randomUUID(), type: 'v1.LanguageAdded', payload: { languageId: B, name: 'Bravo', code: 'bra', sourceCode: 'eng' } }], 'Bravo: LanguageAdded');
+  await commit(org, [{ id: randomUUID(), type: 'v1.LanguageAdded', payload: { languageId: B, name: languageName.B, code: 'bra', sourceCode: 'eng' } }], 'Bravo: LanguageAdded');
 
   // Everyone else joins by invite (decision 75).
   const atA: Scope = { level: 'language', languageId: A };
@@ -502,7 +541,9 @@ export async function buildWorld(opts: { welcomed?: boolean } = {}): Promise<UiW
     joinByInvite(ADMIN, TREV, orgId, translatorReviewer, atA),
     joinByInvite(ADMIN, VIEW, orgId, 'viewer', { level: 'org' })
   ]);
-  const KEPT = await joinAsNew(ADMIN, orgId, 'translator', atA, NAMES.KEPT);
+  const KEPT = opts.keptByInvite
+    ? await makeAccount('KEPT', run, personName.KEPT).then(async (p) => { await joinByInvite(ADMIN, p, orgId, 'translator', atA); return p; })
+    : await joinAsNew(ADMIN, orgId, 'translator', atA, personName.KEPT);
   P.KEPT = KEPT;
   await Promise.all(Object.values(P).map((p) => firstRun(p, welcomed)));
 
@@ -519,7 +560,7 @@ export async function buildWorld(opts: { welcomed?: boolean } = {}): Promise<UiW
     return [k, { unitId: u.unitId, label: u.label, ref: `Luke ${c}:${f}-${t}` }];
   })) as Record<PassageKey, UiPassage>;
   const unit = (k: PassageKey) => passages[k].unitId;
-  const record = audio(orgId, A);
+  const record = audio(orgId, A, opts.voices);
   const id = () => randomUUID();
 
   // COORD sets up the checks' people and the Consultant Check's questions (LangQuest's checks bring none), then asks for recordings.
@@ -546,7 +587,7 @@ export async function buildWorld(opts: { welcomed?: boolean } = {}): Promise<UiW
   // TRANS records: two parts kept as a draft, and Version 1 (three parts) of six passages; asks REV for one Peer Review.
   const trans = await languageClient(TRANS, orgId, A);
   const recordParts = async (k: PassageKey, parts: number) => {
-    const cards = await Promise.all(Array.from({ length: parts }, () => record(TRANS)));
+    const cards = await Promise.all(Array.from({ length: parts }, (_, i) => record(TRANS, 1.5, 3, `${k}#${i + 1}`)));
     for (const card of cards) {
       const recordingId = id();
       await trans.step((st) => commands(st).addRecording({ commandId: recordingId, recordingId, unitId: unit(k), kind: 'target', card }));
@@ -567,7 +608,7 @@ export async function buildWorld(opts: { welcomed?: boolean } = {}): Promise<UiW
   // REV reviews: feedback with a voice note, Peer Reviews that look good, back translations and community checks.
   const rev = await languageClient(REV, orgId, A);
   const take = (k: PassageKey) => passages[k].takeId!;
-  const note = await record(REV, 4.5, 5);
+  const note = await record(REV, 4.5, 5, 'note:P-NEEDS');
   await rev.step(() => [{ id: id(), type: 'v1.AudioFormatSet', payload: { hash: note.hash, format: 'wav' } } as EventSpec]);
   await rev.step((st) => commands(st).recordReview({ commandId: id(), takeIds: [take('P-NEEDS')], kindId: 'peer', outcome: 'needs_changes', via: 'app',
     comment: 'Verse 18 is too fast', commentBlobHash: note.hash }));
@@ -575,7 +616,7 @@ export async function buildWorld(opts: { welcomed?: boolean } = {}): Promise<UiW
     await rev.step((st) => commands(st).recordReview({ commandId: id(), takeIds: [take(k)], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
   }
   for (const k of ['P-CHECK', 'P-DONE'] as const) {
-    const bt = await Promise.all([record(REV), record(REV)]);
+    const bt = await Promise.all([record(REV, 1.5, 3, `bt:${k}#1`), record(REV, 1.5, 3, `bt:${k}#2`)]);
     await rev.step((st) => commands(st).produceContent({ commandId: id(), fromTakeId: take(k), kindId: 'bt', cards: bt, via: 'app' }));
     await rev.step((st) => commands(st).recordReview({ commandId: id(), takeIds: [take(k)], kindId: 'community', outcome: 'looks_good', via: 'app', people: 6 }));
   }
@@ -603,9 +644,9 @@ export async function buildWorld(opts: { welcomed?: boolean } = {}): Promise<UiW
     supabaseUrl: s.url, apiUrl: s.api, orgId, orgName, org2Id, org2Name,
     roles: { languageLead, translatorReviewer },
     languages: {
-      A: { languageId: A, name: 'Alpha', orgId },
-      B: { languageId: B, name: 'Bravo', orgId },
-      C: { languageId: charlie.languageId, name: 'Charlie', orgId: org2Id }
+      A: { languageId: A, name: languageName.A, orgId },
+      B: { languageId: B, name: languageName.B, orgId },
+      C: { languageId: charlie.languageId, name: languageName.C, orgId: org2Id }
     },
     passages,
     consultantQuestionId: `${questionSet}#q4`,

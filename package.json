@@ -56,6 +56,7 @@
     "ui:fixture": "tsx scripts/ui-fixture.ts",
     "languoids": "tsx scripts/languoids.ts",
     "help-audio": "tsx scripts/help-audio.ts",
+    "tutorials": "tsx e2e/tutorials/make-videos.ts",
     "snapshot": "node scripts/with-local-keys.mjs tsx server/snapshotWorker.ts",
     "reconcile": "node scripts/with-local-keys.mjs tsx server/blobReconciler.ts",
     "listening:demo": "tsx --tsconfig tsconfig.listening-demo.json server/listeningDemo.ts",

@@ -36,7 +36,7 @@ fixture world and the role matrix hold for every test here.
   from the step sheet's "Undo" under your own check, or from your own
   review's page.
 - Since decision 91 the Translator role holds Review, so TRANS and KEPT may
-  check other people's versions. Since decision 177 they may check their own
+  check other people's versions. Since decision 178 they may check their own
   too: "Review it myself", after the asking buttons.
 - Recording, the review screens and the study belong to 06 REC, 07 REV and
   08 STUDY. Here a test only checks that the record's buttons open them, and
@@ -565,7 +565,7 @@ Expected:
 
 - The author is offered their own version's checks after the sending and
   asking buttons: "Review it myself" (or "Back-translate it"), never "Review
-  it now" unless they were asked (decision 177). Before decision 177 the
+  it now" unless they were asked (decision 178). Before decision 178 the
   author was offered neither; from 2026-10-12 to 2026-10-27 that was
   treated as the rule.
 - When a check has people (or one person usually does it), its author sees
@@ -705,7 +705,7 @@ Expected:
   | Option | TRANS, KEPT | REV | TREV, COORD, ADMIN, LADMIN | VIEW |
   | --- | --- | --- | --- | --- |
   | "Someone else should do this" | no (it is already asked) | no | no (it is already asked) | no |
-  | "I'll do this myself" ("Back translation: record it now") | TRANS only (its author, decision 177) | no | no | no |
+  | "I'll do this myself" ("Back translation: record it now") | TRANS only (its author, decision 178) | no | no | no |
   | "We already did this" ("Say when and how the back translation happened") | yes | yes | yes | no |
   | "Not now" ("Set the back translation aside. Say why") | yes | yes | yes | no |
   | "Record a new version" ("Reviews so far stay with the version they heard") | yes | no | yes | no |

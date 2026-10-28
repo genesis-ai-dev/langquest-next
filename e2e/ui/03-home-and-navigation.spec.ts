@@ -682,7 +682,7 @@ const GATES: Record<string, { record: boolean; review: boolean; ask: boolean; al
   ADMIN: { record: true, review: true, ask: true, already: true, movePast: true },
   COORD: { record: true, review: true, ask: true, already: true, movePast: true },
   LADMIN: { record: true, review: true, ask: true, already: true, movePast: false },
-  // TRANS recorded both passages: "Review it myself" on their own version (decision 91 gave Translator Review, decisions.md 177).
+  // TRANS recorded both passages: "Review it myself" on their own version (decision 91 gave Translator Review, decisions.md 178).
   TRANS: { record: true, review: true, ask: true, already: true, movePast: false },
   KEPT: { record: true, review: true, ask: true, already: true, movePast: false },
   REV: { record: false, review: true, ask: false, already: true, movePast: false },

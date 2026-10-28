@@ -127,7 +127,7 @@ describe('the "Something else?" moves', () => {
   });
 });
 
-describe('checking your own version (decisions.md 177)', () => {
+describe('checking your own version (decisions.md 178)', () => {
   // P-CHECK is TRANS's Version 1: peer check, back translation and community check done; the consultant check is next.
   const own = (alone: boolean) => {
     const r = record('TRANS', 'P-CHECK');

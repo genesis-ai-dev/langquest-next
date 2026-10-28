@@ -231,7 +231,7 @@ export function PassageRecord(ctx: Ctx) {
   useEffect(() => {
     if (askSomeoneParam && v) goRef.current('ask_someone', { unitId: v.unitId, languageId: v.languageId, what: 'review', kindId: askSomeoneParam });
   }, [askSomeoneParam]); // eslint-disable-line react-hooks/exhaustive-deps -- once per arrival with the param; v is new on every draw
-  // Done's "Do the … check" when nobody else could do it (decisions.md 177): the version is on the record; its check opens from here.
+  // Done's "Do the … check" when nobody else could do it (decisions.md 178): the version is on the record; its check opens from here.
   const checkNowParam = ctx.params['checkNow'];
   useEffect(() => {
     if (checkNowParam && v) goRef.current(v.kind(checkNowParam).produces ? 'back_translation' : 'review_capture', { unitId: v.unitId, languageId: v.languageId, kindId: checkNowParam });
@@ -260,7 +260,7 @@ export function PassageRecord(ctx: Ctx) {
     () => (vState && vp && vLanguageId !== undefined ? usualTargets(vState, orgState, { p: vp, languageId: vLanguageId, me, asker, lines }) : {}),
     [vState, vLanguageId, vp, orgState, me, asker, lines]
   );
-  // Nobody else here could check it: its author's own review leads (decisions.md 177).
+  // Nobody else here could check it: its author's own review leads (decisions.md 178).
   const alone = useMemo(() => !!vState && vLanguageId !== undefined && nobodyElseReviews(vState, orgState, { languageId: vLanguageId, me, lines }),
     [vState, vLanguageId, orgState, me, lines]);
   if (!v) return <Missing ctx={ctx} id="passage_record" />;

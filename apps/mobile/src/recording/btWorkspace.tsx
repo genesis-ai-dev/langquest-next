@@ -235,7 +235,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   const nextUp = useMemo(() => (askCan ? nextAfterDone(p, { recordedKindId: kind.id }) : undefined), [p, askCan, kind.id]);
   const lines = ctx.language.lines;
   const targets = useMemo(() => (nextUp ? usualTargets(state, orgState, { p, languageId, me, asker: true, lines }) : {}), [nextUp, state, orgState, p, languageId, me, lines]);
-  // Nobody else here could check it: Done does the next check now (decisions.md 177).
+  // Nobody else here could check it: Done does the next check now (decisions.md 178).
   const reviewCan = recordCan(ctx.session).review;
   const selfCheck = useMemo(() => !!nextUp && reviewCan && nobodyElseReviews(state, orgState, { languageId, me, lines }), [nextUp, reviewCan, state, orgState, languageId, me, lines]);
   async function publish(extra: string, ask: DoneAsk) {
@@ -526,7 +526,7 @@ function PublishSheet(props: {
   const next = kinds.find((k) => k.kindId === kindId) ?? kinds[0];
   const nextTarget = next ? props.next?.targets[next.kindId] : undefined;
   const finish = (ask: DoneAsk) => { if (!props.busy) props.onPublish(props.extra, ask); };
-  // Nobody else could be asked: Done does the next check now, and asking stays one tap away (decisions.md 177).
+  // Nobody else could be asked: Done does the next check now, and asking stays one tap away (decisions.md 178).
   const checkNow = next && !nextTarget && props.next?.selfCheck ? doCheckButton(v.kind(next.kindId), v.kinds) : null;
   const footer = next && checkNow ? (
     <View style={{ gap: space.xs }}>

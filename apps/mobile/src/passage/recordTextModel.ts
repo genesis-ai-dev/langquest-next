@@ -256,7 +256,7 @@ interface KindRowActions {
  * to whoever usually does it (`sendTo`, "the Community team" or a name),
  * with Send to someone else beside it, or asks someone when nobody usually
  * does; a reviewer, or someone who was asked, does it now. Whoever recorded
- * it may also review it themselves (decisions.md 177): "Review it myself"
+ * it may also review it themselves (decisions.md 178): "Review it myself"
  * after the asking, and first when nobody else here could be asked.
  */
 export function kindRowActions(o: {
@@ -271,7 +271,7 @@ export function kindRowActions(o: {
   const mine = o.mine ?? namesMe(o.me);
   const askedMe = s === 'asked' && !!o.status.request && mine(o.status.request);
   const cleared = kindCleared(o.status, o.step);
-  // Its author may check their own version too (decisions.md 177); the record says who did.
+  // Its author may check their own version too (decisions.md 178); the record says who did.
   const mineToCheck = o.isAuthor && !askedMe;
   const doIt: RowAction | undefined = o.can.review
     ? { id: 'do', label: o.kind.produces ? o.kind.produces.action : mineToCheck ? t('passage.record.actions.reviewMyself') : t('passage.record.actions.reviewNow') } : undefined;
@@ -295,7 +295,7 @@ export function kindRowActions(o: {
 /**
  * A check someone may do without being asked: the next one on someone else's
  * version, not yet done, or on their own when nobody else here could do it
- * (`alone`, decisions.md 177). None while feedback waits on the translator
+ * (`alone`, decisions.md 178). None while feedback waits on the translator
  * (the next check is best done on the version they keep), and none on a
  * check whose feedback needs changes (the step sheet offers it nothing either).
  */
@@ -589,7 +589,7 @@ export function askCandidates(
 
 /**
  * Nobody here but the person looking holds Review: Ask someone would list
- * nobody on the team, so their own review comes first (decisions.md 177).
+ * nobody on the team, so their own review comes first (decisions.md 178).
  */
 export function nobodyElseReviews(
   state: LanguageState, org: OrgState | null, o: { languageId: string; me: string; lines: PassageLines }
