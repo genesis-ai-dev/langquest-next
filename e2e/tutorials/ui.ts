@@ -61,9 +61,12 @@ const untagged = (s: string) => s.replace(/<\/?\w+\s*\/?>/g, '');
 const PLACE = /(\{\{[^}]*\}\})/;
 const placeName = (p: string) => /^\{\{\s*(\w+)/.exec(p)?.[1];
 let appLines: Line[] | undefined;
+let filmLines: Map<string, string> | undefined;
+/** The film catalog's own lines, with the plural forms English has no line for ("_few" in Arabic). */
+const filmLine = (key: string) => (filmLines ??= new Map(flatten(catalogs.film))).get(key);
 function lines(): Line[] {
   if (appLines) return appLines;
-  const film = new Map(flatten(catalogs.film));
+  const film = (filmLines ??= new Map(flatten(catalogs.film)));
   appLines = flatten(catalogs.en ?? catalogs.film).flatMap(([key, en]) => {
     const words = untagged(en).trim();
     const theirs = film.get(key);
@@ -127,7 +130,7 @@ function filmPattern(line: Line, values: Record<string, string | RegExp>): strin
   if (plural && typeof values['count'] === 'string' && /^\d+$/.test(values['count'])) {
     const form = new Intl.PluralRules(FILM_LANGUAGE).select(Number(values['count']));
     const base = line.key.slice(0, -plural[0].length);
-    film = untagged(lines().find((l) => l.key === `${base}_${form}`)?.film ?? film);
+    film = untagged(filmLine(`${base}_${form}`)?.trim() ?? film);
   }
   return film.split(PLACE).map((p) => {
     const n = placeName(p);
