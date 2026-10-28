@@ -19,26 +19,12 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { buildWorld, browserStateFor } from '../ui/fixture';
-import { answerFeedback } from './answer-feedback';
-import { doACheck } from './do-a-check';
-import { joinYourTeam } from './join-your-team';
-import { startAnOrganization } from './start-an-organization';
-import { addALanguage } from './add-a-language';
-import { inviteYourTeam } from './invite-your-team';
-import { setUpTheReviewChecks } from './set-up-the-review-checks';
-import { findYourWayAround } from './find-your-way-around';
-import { useTheHelp } from './use-the-help';
-import { workWithoutInternet } from './work-without-internet';
-import { finishAndAskForACheck } from './finish-and-ask-for-a-check';
-import { giveEachPartItsVerse } from './give-each-part-its-verse';
-import { hearMoveDeleteParts } from './hear-move-delete-parts';
+import { TUTORIALS } from './all';
 import { installTutorialMic } from './mic';
 import { installPlaybackTap } from './playback';
-import { recordAPassage } from './record-a-passage';
 import { WORLD_VOICES } from './voices';
-import type { Box, Step, Tutorial } from './tutorial';
+import type { Box, Step } from './tutorial';
 
-const TUTORIALS: Record<string, Tutorial> = Object.fromEntries([recordAPassage, hearMoveDeleteParts, giveEachPartItsVerse, finishAndAskForACheck, answerFeedback, doACheck, joinYourTeam, startAnOrganization, addALanguage, inviteYourTeam, setUpTheReviewChecks, findYourWayAround, useTheHelp, workWithoutInternet].map((t) => [t.id, t]));
 const LANGUAGE = 'en';
 
 const [name = 'record-a-passage', outArg] = process.argv.slice(2);
@@ -190,6 +176,7 @@ const world = await buildWorld({
   keptByInvite: true, names: tutorial.names,
   voices: (what) => (WORLD_VOICES[what] ? readFileSync(path.join(speechDir, WORLD_VOICES[what]!)) : undefined)
 });
+await tutorial.prepare?.(world);
 writeFileSync(path.join(out, 'world.json'), JSON.stringify(world));
 const viewport = { width: 430, height: 932 };
 const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required'] });

@@ -52,6 +52,8 @@ export interface Tutorial {
   names: WorldNames;
   /** The speaker's recordings that the microphone hears (WAV files in TUTORIAL_SPEECH). */
   speech?: string[];
+  /** What is added to the world before the app opens (a guide, a Bible). */
+  prepare?: (world: UiWorld) => Promise<void>;
   /** What happens off camera before filming starts: the work that the video starts from. */
   before?: (page: Page, mic: Mic, world: UiWorld) => Promise<void>;
   steps: Step[];

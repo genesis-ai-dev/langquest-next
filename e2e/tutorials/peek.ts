@@ -2,16 +2,19 @@
 // a picture and the screen's outline (Playwright's aria snapshot) after it
 // opens, and after each tap named on the command line.
 //
-//   npx tsx e2e/tutorials/peek.ts <out-dir> <ACCOUNT> ['text to tap' | '#test-id' | 'role:Name' ...]
+//   [PEEK_AS=<tutorial id>] npx tsx e2e/tutorials/peek.ts <out-dir> <ACCOUNT> ['text to tap' | '#test-id' | 'role:Name' ...]
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { buildWorld, browserStateFor, type AccountKey } from '../ui/fixture';
-import { recordAPassage } from './record-a-passage';
+import { TUTORIALS } from './all';
 
 const [out = 'e2e/results/peek', as = 'TRANS', ...taps] = process.argv.slice(2);
 mkdirSync(out, { recursive: true });
-const world = await buildWorld({ keptByInvite: true, names: recordAPassage.names });
+// PEEK_AS=<tutorial id>: that tutorial's names, and what it adds to the world.
+const like = TUTORIALS[process.env['PEEK_AS'] ?? 'record-a-passage']!;
+const world = await buildWorld({ keptByInvite: true, names: like.names });
+await like.prepare?.(world);
 writeFileSync(path.join(out, 'world.json'), JSON.stringify(world));
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 430, height: 932 }, deviceScaleFactor: 1 });

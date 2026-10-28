@@ -1,0 +1,38 @@
+// Every tutorial video, by id, in the order the plan lists them by who
+// watches (the plan: "Tutorial videos: what to make and how to keep them current").
+import type { Tutorial } from './tutorial';
+import { addALanguage } from './add-a-language';
+import { backTranslateAPassage } from './back-translate-a-passage';
+import { consultantCheck } from './consultant-check';
+import { answerFeedback } from './answer-feedback';
+import { doACheck } from './do-a-check';
+import { findYourWayAround } from './find-your-way-around';
+import { finishAndAskForACheck } from './finish-and-ask-for-a-check';
+import { giveEachPartItsVerse } from './give-each-part-its-verse';
+import { hearMoveDeleteParts } from './hear-move-delete-parts';
+import { inviteYourTeam } from './invite-your-team';
+import { joinYourTeam } from './join-your-team';
+import { keyWords } from './key-words';
+import { readBiblesBesideAPassage } from './read-bibles-beside-a-passage';
+import { recordAPassage } from './record-a-passage';
+import { setUpTheReviewChecks } from './set-up-the-review-checks';
+import { somethingElse } from './something-else';
+import { startAnOrganization } from './start-an-organization';
+import { studyAPassage } from './study-a-passage';
+import { takeBackAReview } from './take-back-a-review';
+import { useTheHelp } from './use-the-help';
+import { versionsAndHistory } from './versions-and-history';
+import { workWithoutInternet } from './work-without-internet';
+
+export const TUTORIALS: Record<string, Tutorial> = Object.fromEntries([
+  // Everyone
+  joinYourTeam, findYourWayAround, useTheHelp, workWithoutInternet,
+  // Organization heads and admins
+  startAnOrganization, addALanguage, inviteYourTeam,
+  // Team coordinators and language leads
+  setUpTheReviewChecks,
+  // Translators
+  studyAPassage, recordAPassage, hearMoveDeleteParts, giveEachPartItsVerse, finishAndAskForACheck, answerFeedback, keyWords, readBiblesBesideAPassage, versionsAndHistory, somethingElse,
+  // Reviewers and consultants
+  doACheck, backTranslateAPassage, consultantCheck, takeBackAReview
+].map((t) => [t.id, t]));
