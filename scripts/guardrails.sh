@@ -77,7 +77,10 @@ step "Local stack"
 # without the language list (db:start leaves it out on CI), which the UI tests
 # expect to be empty (SETUP-074 adds a language the list would offer instead).
 export SUPABASE_EXCLUDE="${SUPABASE_EXCLUDE-studio,imgproxy,vector,logflare,supavisor}"
-if ! source e2e/env.sh 2>/dev/null; then CI=true npm run db:start; fi
+# db:start also restarts a stack whose Edge Functions are down (scripts/local-db.mjs).
+if ! source e2e/env.sh 2>/dev/null || ! docker ps --format '{{.Names}}' | grep -q '^supabase_edge_runtime_'; then
+  CI=true npm run db:start
+fi
 
 step "SQL smokes, parity and the client integration test (server)"
 npm run --silent db:test
