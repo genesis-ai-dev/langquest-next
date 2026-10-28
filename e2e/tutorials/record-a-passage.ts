@@ -4,6 +4,7 @@
 // made-up language's stand-in, a pause after each verse.
 import type { Tutorial } from './tutorial';
 import { button, id, shows } from './workspace';
+import { uiPattern, uiText } from './ui';
 
 export const recordAPassage: Tutorial = {
   id: 'record-a-passage',
@@ -17,7 +18,7 @@ export const recordAPassage: Tutorial = {
   steps: [
     {
       screen: 'my_work',
-      part: (page) => [page.getByText('Next for you', { exact: true }).locator('visible=true').first(), id(page, 'primary-action')],
+      part: (page) => [page.getByText(uiText('work.lead.nextForYou'), { exact: true }).locator('visible=true').first(), id(page, 'primary-action')],
       say: "Here's how to record a passage. My Work shows what's next for you.",
       stay: 0.3
     },
@@ -32,7 +33,7 @@ export const recordAPassage: Tutorial = {
     },
     {
       screen: 'passage_record',
-      part: (page) => [id(page, 'path-step-record'), page.getByText('Then ask for the peer check').locator('visible=true').first()],
+      part: (page) => [id(page, 'path-step-record'), page.getByText(uiPattern('passage.path.thenAskFor')).locator('visible=true').first()],
       say: 'First you record the passage in your own language. Then you finish it, and ask for a check.'
     },
     {
@@ -45,8 +46,12 @@ export const recordAPassage: Tutorial = {
     },
     {
       screen: 'workspace',
-      // The card and the verses showing above the divider (13:33 is under the parts).
-      part: (page) => [button(page, 'Play Luke 13:31–35'), button(page, 'Add a note here'), page.getByRole('button', { name: /^Verse 13:32\./ }).locator('visible=true').first()],
+      // The card and the verses showing above the divider (13:33 is under the parts); the Bible is in English in every film.
+      part: (page) => [
+        page.getByRole('button', { name: uiPattern('recording.player.playTitle') }).locator('visible=true').first(),
+        button(page, uiText('recording.player.addNoteHere')),
+        page.getByText(/Go tell that fox/).locator('visible=true').first()
+      ],
       say: 'The Bible for this passage is at the top. Read it, or tap play to hear it, before you speak.',
       help: 'reference.passageText.listenHelp'
     },
@@ -91,7 +96,7 @@ export const recordAPassage: Tutorial = {
     },
     {
       screen: 'workspace',
-      part: (page) => button(page, 'Done'),
+      part: (page) => button(page, uiText('recording.recorder.leave')),
       say: 'Tap the tick to keep your parts.',
       help: 'recording.recorder.leaveHelp',
       tap: true,

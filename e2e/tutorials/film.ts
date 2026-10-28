@@ -26,12 +26,21 @@ import { installPlaybackTap } from './playback';
 import { WORLD_VOICES } from './voices';
 import type { Box, Step } from './tutorial';
 
-const LANGUAGE = 'en';
+// TUTORIAL_LANGUAGE: the app's language for the film (one of apps/mobile/src/i18n), and the voice's.
+const LANGUAGE = process.env['TUTORIAL_LANGUAGE'] ?? 'en';
 
 const [name = 'record-a-passage', outArg] = process.argv.slice(2);
 const tutorial = TUTORIALS[name];
 if (!tutorial) throw new Error(`No tutorial called ${name}. Known: ${Object.keys(TUTORIALS).join(', ')}`);
 const out = path.resolve(outArg ?? path.join('e2e', 'results', 'tutorials', name));
+// In another language the title and each line are said as e2e/tutorials/lines/<language>.json has them, by their English.
+const translated = LANGUAGE === 'en' ? {} : JSON.parse(readFileSync(path.join('e2e', 'tutorials', 'lines', `${LANGUAGE}.json`), 'utf8')) as Record<string, string>;
+function inLanguage(english: string): string {
+  if (LANGUAGE === 'en') return english;
+  const words = translated[english];
+  if (!words) throw new Error(`e2e/tutorials/lines/${LANGUAGE}.json has no "${english}"`);
+  return words;
+}
 const base = `http://localhost:${process.env['UI_PORT'] ?? '8787'}`;
 const speechDir = path.resolve(process.env['TUTORIAL_SPEECH'] ?? path.join('e2e', 'tutorials', 'speech'));
 
@@ -170,14 +179,15 @@ mkdirSync(path.join(out, 'frames'), { recursive: true });
 mkdirSync(path.join(out, 'heard'), { recursive: true });
 if (DRY) mkdirSync(path.join(out, 'steps'), { recursive: true });
 // Every line is said once before filming, so a slow voice never holds the film.
-const lines = new Map(tutorial.steps.filter((s) => s.say).map((s) => [s.say!, voiceLine(s.say!)]));
+const lines = new Map(tutorial.steps.filter((s) => s.say).map((s) => [s.say!, voiceLine(inLanguage(s.say!))]));
 const speech = (tutorial.speech ?? []).map((f) => { const file = path.join(speechDir, f); return { file, seconds: wavSeconds(file) }; });
 
 const world = await buildWorld({
   keptByInvite: true, names: tutorial.names,
   voices: (what) => (WORLD_VOICES[what] ? readFileSync(path.join(speechDir, WORLD_VOICES[what]!)) : undefined)
 });
-await giveAddresses(world);
+// A dry run keeps the run-numbered addresses, so it can run beside a film.
+if (!DRY) await giveAddresses(world);
 await tutorial.prepare?.(world);
 writeFileSync(path.join(out, 'world.json'), JSON.stringify(world));
 const viewport = tutorial.viewport ?? { width: 430, height: 932 };
@@ -206,6 +216,8 @@ await page.exposeBinding('__tutorialHeard', (_source, entry: { kind: string; id:
   }
 });
 await page.addInitScript(installPlaybackTap, '__tutorialHeard');
+// The language picked in this browser (apps/mobile/src/i18n/choice.web.ts).
+if (LANGUAGE !== 'en') await page.addInitScript((code) => { localStorage.setItem('ui-language:v1', code); }, LANGUAGE);
 if (!tutorial.signedOut) {
   await page.addInitScript((entries) => {
     for (const [k, v] of Object.entries(entries)) if (localStorage.getItem(k) === null) localStorage.setItem(k, v);
@@ -293,7 +305,7 @@ async function play(step: Step, index: number): Promise<void> {
   }
   if (step.say) {
     const line = lines.get(step.say)!;
-    said.push({ t: now(), ...line, words: step.say });
+    said.push({ t: now(), ...line, words: inLanguage(step.say) });
     await sleep(line.seconds * 1000 + 250);
   }
   const acts = !!(step.tap || step.press || step.drag || step.type || step.paste);
@@ -360,6 +372,6 @@ const heard = played
   .filter((p) => p.at >= t0 && audio.has(p.id) && p.to > p.from)
   .map((p) => ({ t: clock(p.at), file: audio.get(p.id)!, from: p.from, to: p.to }));
 writeFileSync(path.join(out, 'film.json'), JSON.stringify({
-  tutorial: tutorial.id, title: tutorial.title, language: LANGUAGE, end, frames, said, spoken, heard
+  tutorial: tutorial.id, title: inLanguage(tutorial.title), language: LANGUAGE, end, frames, said, spoken, heard
 }, null, 1));
 console.log(`${tutorial.title}: ${frames.length} frames, ${end.toFixed(1)} s, ${said.length} lines, ${heard.length} played → ${out}`);
