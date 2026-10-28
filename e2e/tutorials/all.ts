@@ -44,6 +44,7 @@ import { workWithoutInternet } from './work-without-internet';
 import { yourAccount } from './your-account';
 import { reportOrBlockSomeone } from './report-or-block-someone';
 import { lookAroundWithoutAnAccount } from './look-around-without-an-account';
+import { followProgressAsAViewer } from './follow-progress-as-a-viewer';
 
 export const TUTORIALS: Record<string, Tutorial> = Object.fromEntries([
   // Everyone
@@ -57,5 +58,5 @@ export const TUTORIALS: Record<string, Tutorial> = Object.fromEntries([
   // Reviewers and consultants
   doACheck, backTranslateAPassage, consultantCheck, takeBackAReview,
   // Followers, partners and staff
-  lookAroundWithoutAnAccount
+  lookAroundWithoutAnAccount, followProgressAsAViewer
 ].map((t) => [t.id, t]));
