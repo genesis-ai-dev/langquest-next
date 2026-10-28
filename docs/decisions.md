@@ -8600,8 +8600,9 @@ picked from real recordings, starting near −45 dB.
   part's 25 ms slices, each slice's spread about its own middle so an
   offset is not taken for noise. On 118 parts of read recordings (FLEURS
   and LibriVox) cut as the recorder cuts them (140 ms before the first
-  word, 300 ms after the last), it read at most 3.5 dB over the noise in
-  Silero's speech-free stretches, and about 3 dB under it at the middle.
+  word, 300 ms after the last), it read at most 5.8 dB over the noise in
+  Silero's speech-free stretches (19 parts in 20 at or under it), and
+  about 3 dB under it at the middle.
   The first try, a tenth of 50 ms slices, read up to 25 dB high in parts
   with few pauses.
 - **The line.** On the 105 FLEURS parts (Hausa, Yoruba, Vietnamese and
