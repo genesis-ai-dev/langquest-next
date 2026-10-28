@@ -211,6 +211,8 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('takeId', 'respondsToTakeId') ?? optStr('note', 'blobHash');
     case 'v1.CardVerseSet':
       return str('unitId', 'hash') ?? oneOf('mark', ['next', 'join', 'set', 'none']) ?? cardVerseError(p);
+    case 'v1.CardCleanUpSet':
+      return str('unitId', 'hash') ?? oneOf('use', ['cleaned', 'original', 'none']) ?? cardCleanUpError(p);
     case 'v1.AudioFormatSet':
       return str('hash') ?? oneOf('format', ['wav', 'm4a']);
     case 'v1.ExternalValueSet':
@@ -406,6 +408,27 @@ export function verseRefOrder(ref: unknown): number | null {
   if (typeof ref !== 'string' || !VERSE_REF.test(ref)) return null;
   const [c, v] = ref.split(':').map(Number) as [number, number];
   return c * 1000 + v;
+}
+
+/**
+ * `cleaned` names its file, in a format a player reads, and the tool;
+ * `original` names the tool only, as nothing new was saved; `none` names
+ * neither. A limit is a number of decibels above 0 and at most 100, and
+ * goes with a tool.
+ */
+function cardCleanUpError(p: Record<string, unknown>): string | null {
+  const given = (k: string) => p[k] !== undefined;
+  const text = (k: string) => typeof p[k] === 'string' && p[k] !== '';
+  if (given('limitDb') && !(typeof p['limitDb'] === 'number' && p['limitDb'] > 0 && p['limitDb'] <= 100)) return 'limitDb must be a number above 0 and at most 100';
+  if (p['use'] !== 'cleaned') {
+    if (given('cleanedHash') || given('cleanedFormat')) return 'cleanedHash and cleanedFormat belong to cleaned only';
+  } else {
+    if (!text('cleanedHash')) return 'cleanedHash must be a non-empty string';
+    if (p['cleanedHash'] === p['hash']) return 'cleanedHash must not be hash';
+    if (p['cleanedFormat'] !== 'wav' && p['cleanedFormat'] !== 'm4a') return 'cleanedFormat must be one of wav, m4a';
+  }
+  if (p['use'] === 'none') return given('tool') || given('limitDb') ? 'none names no tool' : null;
+  return text('tool') ? null : 'tool must be a non-empty string';
 }
 
 /** `set` needs from and to in order; the other marks carry neither. */

@@ -15,7 +15,8 @@ import type { EventType } from './events';
  * `state.bookNames`. An event type is listed only when its reducer case
  * writes none of those fields. What each one writes instead:
  * - `RecordingAdded` recordings, `BlobStored`/`BlobInvalidated` blobs,
- *   `AudioFormatSet` audioFormats, `CardVerseSet` cardVerses
+ *   `AudioFormatSet` audioFormats, `CardVerseSet` cardVerses,
+ *   `CardCleanUpSet` cardCleanUps
  * - `NoteAdded` and `StudyStepMarked` notes and study marks, which shape a
  *   passage's timeline, never its rows or counts
  * - `Material*`, `KeyTerm*`, `Reference*`/`PassageReferenceLinked`/
@@ -33,6 +34,7 @@ import type { EventType } from './events';
 export const eventsThatCannotChangeInbox: ReadonlySet<EventType> = new Set<EventType>([
   'v1.RecordingAdded',
   'v1.CardVerseSet',
+  'v1.CardCleanUpSet',
   'v1.BlobStored',
   'v1.BlobInvalidated',
   'v1.AudioFormatSet',

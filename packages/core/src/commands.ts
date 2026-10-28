@@ -5,6 +5,7 @@ import type { FlowSelection, LanguageState } from './state';
 import { canDeleteVersion, derivePassage, latestDraftBy, type PassageState } from './passage';
 import type { UsedReference } from './references';
 import { cardVerseEvents, type PartMark } from './verses';
+import { cleanUpOf, mayCleanUp } from './cards';
 import { CUSTOM_FLOW, flowStepId, flowStepPrefix, type DepartureType, type KindDef, type NoteAnchor, type QuestionSpec, type RecordEvents, type ReviewOutcome, type ReviewVia } from './record';
 
 /**
@@ -50,6 +51,24 @@ export interface Commands {
    * per card whose mark changed, from the marks of a whole list of cards.
    */
   setCardVerses(c: { commandId: string; unitId: string; cards: readonly string[]; marks: readonly PartMark[]; verses: readonly string[] }): EventSpec[];
+  /**
+   * Clean up's choice for one part of the person's draft (decisions.md 176).
+   * `cleaned`: the note naming the cleaned file, a draft with that file in
+   * the part's place (as `keepTake`, from `cardHashes`, the parts as the
+   * person sees them), and the part's verse mark on the file, so the verses
+   * read as before. `original`: the note alone. Refused for a part not in the
+   * list, or one that may not be cleaned (`mayCleanUp`).
+   */
+  cleanUpPart(c: {
+    commandId: string; unitId: string; actorId: string; cardHashes: string[]; hash: string; tool: string; limitDb?: number; parentTakeId?: string | null;
+  } & ({ use: 'original' } | { use: 'cleaned'; cleaned: { hash: string; format: 'wav' | 'm4a' } })): EventSpec[];
+  /**
+   * Undo of Clean up's choice (decisions.md 176): the note taken away and,
+   * when the cleaned sound is in the draft, a draft with the part as
+   * recorded back in its place, with the verse mark the cleaned sound has
+   * now. Nothing when the part has no note.
+   */
+  undoCleanUp(c: { commandId: string; unitId: string; actorId: string; cardHashes: string[]; hash: string; parentTakeId?: string | null }): EventSpec[];
   /** Record a deliberate discard of pending cards so recovery never resurrects them. `parentTakeId`: the draft they were dropped from. */
   discardCards(c: { commandId: string; unitId: string; cardHashes: string[]; parentTakeId?: string | null }): EventSpec[];
   /** Set a passage note in the language's translation guidelines, defining the material on first use. */
@@ -169,24 +188,26 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
     payload: { recordingId: c.recordingId, unitId: c.unitId, kind: c.kind, cards: [{ hash: c.card.hash, durationMs: c.card.durationMs, ...(c.card.format ? { format: c.card.format } : {}) }] }
   });
 
+  const keepTake: Commands['keepTake'] = (c) => {
+    if (c.cardHashes.length === 0) throw new CommandError('Nothing to keep.');
+    const next = ids(c.commandId);
+    const takeId = `take:${c.commandId}`;
+    const passage = derivePassage(state, c.unitId, idx);
+    const { parent, retire } = continuing(passage, c);
+    const out: EventSpec[] = [
+      { id: next(), type: 'v1.TakeComposed', payload: { takeId, unitId: c.unitId, cardHashes: c.cardHashes, parentTakeId: parent } }
+    ];
+    if (retire) out.push({ id: next(), type: 'v1.TakeArchived', payload: { takeId: retire } });
+    return out;
+  };
+
   return {
     addRecording(c) {
       if (state.recordings[c.recordingId]) return [];
       return [cardEvent(ids(c.commandId)(), c)];
     },
 
-    keepTake(c) {
-      if (c.cardHashes.length === 0) throw new CommandError('Nothing to keep.');
-      const next = ids(c.commandId);
-      const takeId = `take:${c.commandId}`;
-      const passage = derivePassage(state, c.unitId, idx);
-      const { parent, retire } = continuing(passage, c);
-      const out: EventSpec[] = [
-        { id: next(), type: 'v1.TakeComposed', payload: { takeId, unitId: c.unitId, cardHashes: c.cardHashes, parentTakeId: parent } }
-      ];
-      if (retire) out.push({ id: next(), type: 'v1.TakeArchived', payload: { takeId: retire } });
-      return out;
-    },
+    keepTake,
 
     deleteDraft(c) {
       const draft = derivePassage(state, c.unitId, idx).drafts.find((d) => d.takeId === c.takeId);
@@ -203,6 +224,47 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
 
     setCardVerses(c) {
       return cardVerseEvents(state, c) satisfies EventSpec<'v1.CardVerseSet'>[];
+    },
+
+    cleanUpPart(c) {
+      if (!c.cardHashes.includes(c.hash)) throw new CommandError('That part is not in this draft.');
+      if (!mayCleanUp(state, c.unitId, c.hash)) throw new CommandError('That part was cleaned already.');
+      const next = ids(c.commandId);
+      const how = { tool: c.tool, ...(c.limitDb === undefined ? {} : { limitDb: c.limitDb }) };
+      if (c.use === 'original') return [{ id: next(), type: 'v1.CardCleanUpSet', payload: { unitId: c.unitId, hash: c.hash, use: 'original', ...how } }];
+      const cleaned = c.cleaned.hash;
+      if (cleaned === c.hash || c.cardHashes.includes(cleaned)) throw new CommandError('That sound is already a part of this draft.');
+      const out: EventSpec[] = [
+        { id: next(), type: 'v1.CardCleanUpSet', payload: { unitId: c.unitId, hash: c.hash, use: 'cleaned', cleanedHash: cleaned, cleanedFormat: c.cleaned.format, ...how } },
+        ...keepTake({
+          commandId: `${c.commandId}:take`, unitId: c.unitId, actorId: c.actorId,
+          cardHashes: c.cardHashes.map((h) => (h === c.hash ? cleaned : h)),
+          ...(c.parentTakeId === undefined ? {} : { parentTakeId: c.parentTakeId })
+        })
+      ];
+      const mark = state.cardVerses?.[c.unitId]?.[c.hash]?.value;
+      if (mark && mark.mark !== 'none') out.push({ id: next(), type: 'v1.CardVerseSet', payload: { unitId: c.unitId, hash: cleaned, ...mark } });
+      return out;
+    },
+
+    undoCleanUp(c) {
+      const note = cleanUpOf(state, c.unitId, c.hash);
+      if (!note) return [];
+      const next = ids(c.commandId);
+      const out: EventSpec[] = [{ id: next(), type: 'v1.CardCleanUpSet', payload: { unitId: c.unitId, hash: c.hash, use: 'none' } }];
+      const cleaned = note.value.use === 'cleaned' ? note.value.cleanedHash : undefined;
+      if (!cleaned || !c.cardHashes.includes(cleaned)) return out;
+      out.push(...keepTake({
+        commandId: `${c.commandId}:take`, unitId: c.unitId, actorId: c.actorId,
+        cardHashes: c.cardHashes.map((h) => (h === cleaned ? c.hash : h)),
+        ...(c.parentTakeId === undefined ? {} : { parentTakeId: c.parentTakeId })
+      }));
+      const marks = state.cardVerses?.[c.unitId];
+      const mark = marks?.[cleaned]?.value;
+      if (mark && JSON.stringify(mark) !== JSON.stringify(marks?.[c.hash]?.value ?? { mark: 'none' })) {
+        out.push({ id: next(), type: 'v1.CardVerseSet', payload: { unitId: c.unitId, hash: c.hash, ...mark } });
+      }
+      return out;
     },
 
     discardCards(c) {

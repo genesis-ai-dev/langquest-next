@@ -42,6 +42,7 @@ const OPTIONAL: Partial<Record<string, string[]>> = {
   'v1.TakeSubmitted': ['questionSetIds'],
   'v1.ResponseRecorded': ['note', 'blobHash'],
   'v1.CardVerseSet': ['from', 'to'],
+  'v1.CardCleanUpSet': ['cleanedHash', 'cleanedFormat', 'tool', 'limitDb'],
   'v1.MaterialDefined': ['templateRef'],
   'v1.MaterialFieldSet': ['text', 'blobHash'],
   'v1.KeyTermAdjusted': ['blobHash', 'duringTakeId'],
@@ -131,6 +132,15 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     case 'v1.BookNameSet':
       variants.push({ ...p, book: 'luk' }, { ...p, book: 'LUKE' }, { ...p, book: '1 SA' });
       break;
+    case 'v1.CardCleanUpSet': {
+      const file = { cleanedHash: 'x', cleanedFormat: 'm4a' };
+      for (const use of ['cleaned', 'original', 'none', 'kept']) variants.push({ unitId: p['unitId'], hash: p['hash'], use }, { unitId: p['unitId'], hash: p['hash'], use, tool: 'dfn3' },
+        { unitId: p['unitId'], hash: p['hash'], use, ...file }, { unitId: p['unitId'], hash: p['hash'], use, tool: 'dfn3', ...file });
+      variants.push({ ...p, use: 'cleaned', cleanedHash: p['hash'], cleanedFormat: 'wav', tool: 'dfn3' }, { ...p, use: 'cleaned', cleanedHash: 'x', cleanedFormat: 'mp3', tool: 'dfn3' },
+        { ...p, use: 'none', cleanedHash: 'x' }, { ...p, use: 'none', cleanedFormat: 'wav' }, { ...p, use: 'none', limitDb: 12 });
+      for (const limitDb of [0, -1, 12, 12.5, 100, 100.5, '12', Infinity]) variants.push({ ...p, use: 'original', tool: 'dfn3', limitDb }, { ...p, use: 'cleaned', cleanedHash: 'x', cleanedFormat: 'wav', tool: 'dfn3', limitDb });
+      break;
+    }
     case 'v1.VersionReleased':
       variants.push({ ...p, live: 1 }, { ...p, channel: '' }, { ...p, channel: 'x'.repeat(61) }, { ...p, channel: '🎧'.repeat(60) }, { ...p, url: '' }, { ...p, url: ' ' });
       break;
