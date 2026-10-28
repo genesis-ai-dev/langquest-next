@@ -28,7 +28,7 @@ export const useTheHelp: Tutorial = {
       part: (page) => id(page, 'primary-action'),
       say: 'Tap a part to see what it does. Nothing happens when you tap it now.',
       tap: true,
-      until: (page) => button(page, /^Start\. Opens it/).waitFor({ timeout: 10_000 }),
+      until: (page) => button(page, /^Start\. /).waitFor({ timeout: 10_000 }),
       stay: 0.8
     },
     {

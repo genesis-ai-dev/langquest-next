@@ -10,8 +10,8 @@
 // how it sounds are the same in every language: the model hears the language
 // from the words.
 //
-// The lines go to Gemini's Batch API, one request each in one job, and the
-// job is waited for (a few minutes): a project may make only 100 speech
+// The lines go to Gemini's Batch API, a request each, in jobs that are waited
+// for (a few minutes each): a project may make only 100 speech
 // requests a day on Tier 1, and the 47 videos have over 400 lines, while a
 // batch job's requests are not counted against that and cost half as much.
 // A batch request has no place for a delivery style ("unhurried", which the
@@ -59,8 +59,9 @@ function wavOf(pcm, rate) {
   return Buffer.concat([head, pcm]);
 }
 
-try {
-  const requests = lines.map((line, i) => ({
+/** Sends these lines in one batch job, waits for it, and writes each line Gemini said. */
+async function sayInOneJob(group) {
+  const requests = group.map((line, i) => ({
     request: {
       contents: [{ parts: [{ text: line.words }] }],
       generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } } } }
@@ -69,7 +70,7 @@ try {
   }));
   let job = await call(`${API}/models/${MODEL}:batchGenerateContent`, {
     method: 'POST',
-    body: JSON.stringify({ batch: { display_name: `tutorial lines (${lines.length})`, input_config: { requests: { requests } } } })
+    body: JSON.stringify({ batch: { display_name: `tutorial lines (${group.length})`, input_config: { requests: { requests } } } })
   });
   const name = job.name;
   for (const until = Date.now() + 3 * 3600_000; ; ) {
@@ -82,7 +83,7 @@ try {
   }
   const replies = (job.response ?? job.metadata?.output)?.inlinedResponses?.inlinedResponses ?? [];
   for (const reply of replies) {
-    const line = lines[Number(reply.metadata?.key)];
+    const line = group[Number(reply.metadata?.key)];
     if (!line) continue;
     const audio = reply.response?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData)?.inlineData;
     if (!audio?.data) { line.error = JSON.stringify(reply.error ?? reply.response?.candidates?.[0]?.finishReason ?? 'no audio'); continue; }
@@ -91,6 +92,24 @@ try {
     mkdirSync(path.dirname(line.file), { recursive: true });
     writeFileSync(line.file, bytes.toString('ascii', 0, 4) === 'RIFF' ? bytes : wavOf(bytes, rate));
     line.said = true;
+  }
+}
+
+// A big job comes back with many lines turned down ("Precondition check failed",
+// two in three of a thousand); jobs of a hundred, four at a time, and the lines
+// turned down sent again, get every line said.
+const PER_JOB = 100;
+try {
+  for (let round = 1; round <= 8; round++) {
+    const unsaid = lines.filter((l) => !l.said);
+    if (!unsaid.length) break;
+    const groups = [];
+    for (let i = 0; i < unsaid.length; i += PER_JOB) groups.push(unsaid.slice(i, i + PER_JOB));
+    let next = 0;
+    await Promise.all([0, 1, 2, 3].map(async () => { while (next < groups.length) await sayInOneJob(groups[next++]); }));
+    const left = lines.filter((l) => !l.said).length;
+    if (left) console.error(`round ${round}: ${unsaid.length - left} of ${unsaid.length} said; trying the other ${left} again`);
+    if (left === unsaid.length) await sleep(60_000 * round);
   }
   const unsaid = lines.filter((l) => !l.said);
   if (unsaid.length) throw new Error(`Gemini could not say ${unsaid.map((l) => `"${l.words}" (${l.error ?? 'no reply'})`).join(', ')}`);

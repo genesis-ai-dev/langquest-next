@@ -4,9 +4,9 @@ import type { Page } from 'playwright';
 import type { Tutorial } from './tutorial';
 import { recordAPassage } from './record-a-passage';
 import { button } from './workspace';
-import { freeAddresses } from './addresses';
+import { DOMAIN, freeAddresses } from './addresses';
 
-const EMAIL = 'mary.okafor@example.com';
+const EMAIL = `mary.okafor@${DOMAIN}`;
 const field = (page: Page, label: string) => page.getByLabel(label, { exact: true }).locator('visible=true').first();
 
 export const createAnAccount: Tutorial = {

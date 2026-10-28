@@ -17,7 +17,7 @@ export const getALanguageReady: Tutorial = {
   steps: [
     {
       screen: 'my_work',
-      part: (page) => page.getByText(/^Get Kitara ready · 1 of 4/).locator('visible=true').first(),
+      part: (page) => page.getByText(/^Get Kitara ready · /).locator('visible=true').first(),
       say: "Here's how to get a new language ready for its translators. My Work asks four questions, one at a time."
     },
     {

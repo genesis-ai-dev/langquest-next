@@ -4,9 +4,12 @@
 import type { Page } from 'playwright';
 import type { Tutorial } from './tutorial';
 import { recordAPassage } from './record-a-passage';
+import { asIs, escape } from './ui';
 import { button } from './workspace';
 
-const toggle = (page: Page, name: string) => page.getByRole('switch', { name, exact: true }).locator('visible=true').first();
+// A library item's name as written; in another language the app adds the item's language after it ("(English)").
+const toggle = (page: Page, name: string) =>
+  page.getByRole('switch', { name: asIs(new RegExp(`^${escape(name)}( \\(.+\\))?$`)) }).locator('visible=true').first();
 
 export const chooseReferenceMaterial: Tutorial = {
   id: 'choose-reference-material',

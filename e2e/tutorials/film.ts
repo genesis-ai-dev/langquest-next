@@ -235,6 +235,13 @@ if (!tutorial.signedOut) {
   }, browserStateFor(world, tutorial.as, tutorial.language ?? 'A'));
 }
 
+/** What the screen showed when a step failed: a picture, and its accessibility tree to read the names in. */
+async function keepFailure(name: string): Promise<void> {
+  await page.screenshot({ path: path.join(out, `${name}.png`) }).catch(() => undefined);
+  const tree = await page.locator('body').ariaSnapshot().catch(() => '');
+  writeFileSync(path.join(out, `${name}.txt`), tree);
+}
+
 const say = (n: number): Promise<number> =>
   page.evaluate((i) => (window as unknown as { __tutorialMic: { play(n: number): Promise<number> } }).__tutorialMic.play(i), n);
 
@@ -244,7 +251,7 @@ if (tutorial.before) {
   await tutorial.before(page, { say: async (n) => { await say(n); await sleep(speech[n]!.seconds * 1000); } }, world);
 } else {
   const first = tutorial.steps.find((s) => s.part)?.part?.(page);
-  if (first) await handlesOf(first);
+  if (first) await handlesOf(first).catch(async (error: unknown) => { await keepFailure('failed-start'); throw error; });
   await sleep(4000); // the first pull settles the bell and the lists
 }
 
@@ -367,7 +374,7 @@ for (const [index, step] of tutorial.steps.entries()) {
   try {
     await play(step, index);
   } catch (error) {
-    await page.screenshot({ path: path.join(out, `failed-step-${index + 1}.png`) });
+    await keepFailure(`failed-step-${index + 1}`);
     await browser.close();
     throw new Error(`step ${index + 1} on ${step.screen} could not finish: ${String(error)}`);
   }

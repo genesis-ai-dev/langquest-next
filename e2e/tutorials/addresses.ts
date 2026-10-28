@@ -2,10 +2,14 @@
 // ("ui-mvrfl11c287b-admin@example.test"), which show on Edit Profile and More
 // settings; a filmed world gives each person "<first name>@example.com"
 // instead. Every film uses the same addresses, so whoever had one in an
-// earlier film's world gives it up first, and films run one at a time: two at
-// once would take each other's addresses.
+// earlier film's world gives it up first, and films at the same time would
+// take each other's addresses: TUTORIAL_SLOT gives each of up to three films
+// running at once a domain of its own (example.com, .org, .net).
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { localServer, signIn, type AccountKey, type UiWorld } from '../ui/fixture';
+
+/** The domain this film's addresses are at. */
+export const DOMAIN = ['example.com', 'example.org', 'example.net'][Number(process.env['TUTORIAL_SLOT'] ?? 0)] ?? 'example.com';
 
 function admin(): SupabaseClient {
   const s = localServer();
@@ -34,7 +38,7 @@ export async function giveAddresses(world: UiWorld): Promise<void> {
   const address = new Map<AccountKey, string>();
   for (const k of keys) {
     const first = world.accounts[k].name.split(/\s+/)[0]!.toLowerCase().normalize('NFD').replace(/[^a-z]/g, '') || k.toLowerCase();
-    const email = taken.has(`${first}@example.com`) ? `${first}.${k.toLowerCase()}@example.com` : `${first}@example.com`;
+    const email = taken.has(`${first}@${DOMAIN}`) ? `${first}.${k.toLowerCase()}@${DOMAIN}` : `${first}@${DOMAIN}`;
     taken.add(email);
     address.set(k, email);
   }

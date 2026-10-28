@@ -1,12 +1,16 @@
 // "Choose the app's language", for everyone: Grace opens Language on Me,
-// picks Arabic (the app starts again, right to left), and goes back to English.
+// picks Arabic (the app starts again, right to left), and goes back to her own
+// language (English, or the film's: the picker names each in itself).
 import type { Page } from 'playwright';
+import { UI_LANGUAGES } from '@langquest-next/core';
 import type { Tutorial } from './tutorial';
+import { FILM_LANGUAGE, asIs, escape } from './ui';
 import { recordAPassage } from './record-a-passage';
 import { button } from './workspace';
 
 const tab = (page: Page, name: string) => page.getByRole('tab', { name, exact: true }).locator('visible=true').first();
-const radio = (page: Page, name: RegExp) => page.getByRole('radio', { name }).locator('visible=true').first();
+const radio = (page: Page, name: RegExp) => page.getByRole('radio', { name: asIs(name) }).locator('visible=true').first();
+const own = new RegExp(`^${escape(UI_LANGUAGES.find((l) => l.code === FILM_LANGUAGE)!.name)}`);
 
 export const chooseTheAppLanguage: Tutorial = {
   id: 'choose-the-app-language',
@@ -27,7 +31,7 @@ export const chooseTheAppLanguage: Tutorial = {
       part: (page) => button(page, /^Language/),
       say: 'Tap Language.',
       tap: true,
-      until: (page) => radio(page, /^English/).waitFor({ timeout: 10_000 }),
+      until: (page) => radio(page, own).waitFor({ timeout: 10_000 }),
       stay: 0.8
     },
     {
@@ -61,12 +65,12 @@ export const chooseTheAppLanguage: Tutorial = {
       part: (page) => button(page, /^اللغة/),
       say: 'then Language,',
       tap: true,
-      until: (page) => radio(page, /^English/).waitFor({ timeout: 10_000 }),
+      until: (page) => radio(page, own).waitFor({ timeout: 10_000 }),
       stay: 0.4
     },
     {
       screen: 'settings_home',
-      part: (page) => radio(page, /^English/),
+      part: (page) => radio(page, own),
       say: 'and choose.',
       tap: true,
       until: (page) => tab(page, 'Me').waitFor({ timeout: 120_000 }),
