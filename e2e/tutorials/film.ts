@@ -19,14 +19,26 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { buildWorld, browserStateFor } from '../ui/fixture';
+import { answerFeedback } from './answer-feedback';
+import { doACheck } from './do-a-check';
+import { joinYourTeam } from './join-your-team';
+import { startAnOrganization } from './start-an-organization';
+import { addALanguage } from './add-a-language';
+import { inviteYourTeam } from './invite-your-team';
+import { setUpTheReviewChecks } from './set-up-the-review-checks';
+import { findYourWayAround } from './find-your-way-around';
+import { useTheHelp } from './use-the-help';
+import { workWithoutInternet } from './work-without-internet';
+import { finishAndAskForACheck } from './finish-and-ask-for-a-check';
 import { giveEachPartItsVerse } from './give-each-part-its-verse';
 import { hearMoveDeleteParts } from './hear-move-delete-parts';
 import { installTutorialMic } from './mic';
 import { installPlaybackTap } from './playback';
 import { recordAPassage } from './record-a-passage';
+import { WORLD_VOICES } from './voices';
 import type { Box, Step, Tutorial } from './tutorial';
 
-const TUTORIALS: Record<string, Tutorial> = Object.fromEntries([recordAPassage, hearMoveDeleteParts, giveEachPartItsVerse].map((t) => [t.id, t]));
+const TUTORIALS: Record<string, Tutorial> = Object.fromEntries([recordAPassage, hearMoveDeleteParts, giveEachPartItsVerse, finishAndAskForACheck, answerFeedback, doACheck, joinYourTeam, startAnOrganization, addALanguage, inviteYourTeam, setUpTheReviewChecks, findYourWayAround, useTheHelp, workWithoutInternet].map((t) => [t.id, t]));
 const LANGUAGE = 'en';
 
 const [name = 'record-a-passage', outArg] = process.argv.slice(2);
@@ -54,7 +66,11 @@ function wavSeconds(file: string): number {
   throw new Error(`${file} is not a WAV file`);
 }
 
+/** TUTORIAL_DRY=1: no voice and no film, a picture of each step instead, to try a script quickly. */
+const DRY = process.env['TUTORIAL_DRY'] === '1';
+
 function voiceLine(words: string): { file: string; seconds: number } {
+  if (DRY) return { file: '', seconds: 0.2 };
   const file = path.join(out, 'voice', `${lineHash(words)}.wav`);
   if (!existsSync(file)) {
     const tts = process.env['TUTORIAL_TTS']?.trim();
@@ -73,8 +89,8 @@ function voiceLine(words: string): { file: string; seconds: number } {
  * takes the light away. The box follows the elements while they move (a bar
  * that comes and goes over the screen pushes everything down).
  */
-function light(els: Element[] | null): void {
-  const w = window as unknown as { __lit?: Element[]; __litLoop?: boolean };
+function light(els: Node[] | null): void {
+  const w = window as unknown as { __lit?: Node[]; __litLoop?: boolean };
   let el = document.getElementById('tutorial-light');
   w.__lit = els ?? [];
   if (!els) {
@@ -93,7 +109,7 @@ function light(els: Element[] | null): void {
   }
   const box = el;
   const place = () => {
-    const shown = (w.__lit ?? []).filter((e) => e.isConnected).map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0);
+    const shown = (w.__lit ?? []).filter((e) => e.isConnected).map((e) => (e as Element).getBoundingClientRect()).filter((r) => r.width > 0);
     if (shown.length) {
       const pad = 6;
       const x = Math.max(4, Math.min(...shown.map((r) => r.left)) - pad);
@@ -162,13 +178,18 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 rmSync(path.join(out, 'frames'), { recursive: true, force: true });
 rmSync(path.join(out, 'heard'), { recursive: true, force: true });
+rmSync(path.join(out, 'steps'), { recursive: true, force: true });
 mkdirSync(path.join(out, 'frames'), { recursive: true });
 mkdirSync(path.join(out, 'heard'), { recursive: true });
+if (DRY) mkdirSync(path.join(out, 'steps'), { recursive: true });
 // Every line is said once before filming, so a slow voice never holds the film.
 const lines = new Map(tutorial.steps.filter((s) => s.say).map((s) => [s.say!, voiceLine(s.say!)]));
 const speech = (tutorial.speech ?? []).map((f) => { const file = path.join(speechDir, f); return { file, seconds: wavSeconds(file) }; });
 
-const world = await buildWorld({ keptByInvite: true, names: tutorial.names });
+const world = await buildWorld({
+  keptByInvite: true, names: tutorial.names,
+  voices: (what) => (WORLD_VOICES[what] ? readFileSync(path.join(speechDir, WORLD_VOICES[what]!)) : undefined)
+});
 writeFileSync(path.join(out, 'world.json'), JSON.stringify(world));
 const viewport = { width: 430, height: 932 };
 const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required'] });
@@ -206,7 +227,7 @@ const say = (n: number): Promise<number> =>
 await page.goto(base);
 await page.waitForFunction(() => !!(globalThis as { __langquestLog?: unknown }).__langquestLog, undefined, { timeout: 120_000 });
 if (tutorial.before) {
-  await tutorial.before(page, { say: async (n) => { await say(n); await sleep(speech[n]!.seconds * 1000); } });
+  await tutorial.before(page, { say: async (n) => { await say(n); await sleep(speech[n]!.seconds * 1000); } }, world);
 } else {
   const first = tutorial.steps.find((s) => s.part)?.part?.(page);
   if (first) await handlesOf(first);
@@ -261,6 +282,7 @@ async function play(step: Step, index: number): Promise<void> {
     if (!last) throw new Error(`step ${index + 1} waits on speech that never started`);
     while (now() < last.t + step.atSpeech) await sleep(20);
   }
+  if (step.first) await step.first(page);
   const parts = step.part?.(page);
   const target = parts ? (Array.isArray(parts) ? parts[0]! : parts) : null;
   if (parts) {
@@ -272,7 +294,7 @@ async function play(step: Step, index: number): Promise<void> {
     said.push({ t: now(), ...line, words: step.say });
     await sleep(line.seconds * 1000 + 250);
   }
-  const acts = !!(step.tap || step.press || step.drag);
+  const acts = !!(step.tap || step.press || step.drag || step.type || step.paste);
   if (acts && target) {
     const b = (await target.boundingBox())!;
     const at = step.tapAt?.(b) ?? centre(b);
@@ -293,6 +315,8 @@ async function play(step: Step, index: number): Promise<void> {
       await sleep(140);
       if (step.tapAt) await page.mouse.click(at.x, at.y);
       else await target.click();
+      if (step.type) await target.pressSequentially(step.type, { delay: 70 });
+      if (step.paste) await target.fill(typeof step.paste === 'string' ? step.paste : step.paste(world));
     }
     if (step.speak !== undefined) {
       const started = await say(step.speak);
@@ -302,7 +326,8 @@ async function play(step: Step, index: number): Promise<void> {
     await page.evaluate(light, null);
   }
   if (step.until) await step.until(page);
-  await sleep((step.stay ?? 0.4) * 1000);
+  await sleep((DRY ? Math.min(step.stay ?? 0.4, 1) : step.stay ?? 0.4) * 1000);
+  if (DRY) await page.screenshot({ path: path.join(out, 'steps', `${String(index + 1).padStart(2, '0')}.png`) });
 }
 
 for (const [index, step] of tutorial.steps.entries()) {

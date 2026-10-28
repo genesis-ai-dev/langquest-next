@@ -243,11 +243,32 @@ function voice(n: number, voicedSeconds: number, totalSeconds: number): { bytes:
   return { bytes, hash: createHash('sha256').update(bytes).digest('hex'), durationMs: Math.round(totalSeconds * 1000) };
 }
 
-/** Recordings made in this world, each different. Uploaded where the app keeps a language's files (decision 69). */
-function audio(orgId: string, languageId: string) {
+/** How long a 16-bit WAV file plays, from its header. */
+function wavMs(bytes: Uint8Array): number {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let bytesPerSecond = 0;
+  for (let at = 12; at + 8 <= bytes.length;) {
+    const chunk = String.fromCharCode(...bytes.subarray(at, at + 4));
+    const size = view.getUint32(at + 4, true);
+    if (chunk === 'fmt ') bytesPerSecond = view.getUint32(at + 16, true);
+    if (chunk === 'data' && bytesPerSecond) return Math.round((size / bytesPerSecond) * 1000);
+    at += 8 + size + (size % 2);
+  }
+  throw new Error('not a WAV file');
+}
+
+/**
+ * Recordings made in this world, each different. Uploaded where the app keeps a language's files (decision 69).
+ * `voices` gives a filmed world real speech for some of them, by what each one is (`P-NEEDS#2`, `note:P-NEEDS`, `bt:P-CHECK#1`).
+ */
+function audio(orgId: string, languageId: string, voices?: (what: string) => Uint8Array | undefined) {
   let n = 0;
-  return async (who: Person, voicedSeconds = 1.5, totalSeconds = 3) => {
-    const v = voice(n++, voicedSeconds, totalSeconds);
+  return async (who: Person, voicedSeconds = 1.5, totalSeconds = 3, what = '') => {
+    const real = what ? voices?.(what) : undefined;
+    const v = real
+      ? { bytes: real, hash: createHash('sha256').update(real).digest('hex'), durationMs: wavMs(real) }
+      : voice(n, voicedSeconds, totalSeconds);
+    n++;
     await setupBlobs(localServer().api, who.session.access_token).put(blobKey(orgId, languageId, v.hash, 'wav'), v.bytes);
     return { hash: v.hash, durationMs: v.durationMs, format: 'wav' as const };
   };
@@ -469,7 +490,7 @@ export interface WorldNames {
  * password, instead of through the `join` Edge Function (a filmed world,
  * where nobody looks after anyone, needs no Edge Functions running).
  */
-export async function buildWorld(opts: { welcomed?: boolean; names?: WorldNames; keptByInvite?: boolean } = {}): Promise<UiWorld> {
+export async function buildWorld(opts: { welcomed?: boolean; names?: WorldNames; keptByInvite?: boolean; voices?: (what: string) => Uint8Array | undefined } = {}): Promise<UiWorld> {
   const started = Date.now();
   const welcomed = opts.welcomed ?? true;
   const s = localServer();
@@ -539,7 +560,7 @@ export async function buildWorld(opts: { welcomed?: boolean; names?: WorldNames;
     return [k, { unitId: u.unitId, label: u.label, ref: `Luke ${c}:${f}-${t}` }];
   })) as Record<PassageKey, UiPassage>;
   const unit = (k: PassageKey) => passages[k].unitId;
-  const record = audio(orgId, A);
+  const record = audio(orgId, A, opts.voices);
   const id = () => randomUUID();
 
   // COORD sets up the checks' people and the Consultant Check's questions (LangQuest's checks bring none), then asks for recordings.
@@ -566,7 +587,7 @@ export async function buildWorld(opts: { welcomed?: boolean; names?: WorldNames;
   // TRANS records: two parts kept as a draft, and Version 1 (three parts) of six passages; asks REV for one Peer Review.
   const trans = await languageClient(TRANS, orgId, A);
   const recordParts = async (k: PassageKey, parts: number) => {
-    const cards = await Promise.all(Array.from({ length: parts }, () => record(TRANS)));
+    const cards = await Promise.all(Array.from({ length: parts }, (_, i) => record(TRANS, 1.5, 3, `${k}#${i + 1}`)));
     for (const card of cards) {
       const recordingId = id();
       await trans.step((st) => commands(st).addRecording({ commandId: recordingId, recordingId, unitId: unit(k), kind: 'target', card }));
@@ -587,7 +608,7 @@ export async function buildWorld(opts: { welcomed?: boolean; names?: WorldNames;
   // REV reviews: feedback with a voice note, Peer Reviews that look good, back translations and community checks.
   const rev = await languageClient(REV, orgId, A);
   const take = (k: PassageKey) => passages[k].takeId!;
-  const note = await record(REV, 4.5, 5);
+  const note = await record(REV, 4.5, 5, 'note:P-NEEDS');
   await rev.step(() => [{ id: id(), type: 'v1.AudioFormatSet', payload: { hash: note.hash, format: 'wav' } } as EventSpec]);
   await rev.step((st) => commands(st).recordReview({ commandId: id(), takeIds: [take('P-NEEDS')], kindId: 'peer', outcome: 'needs_changes', via: 'app',
     comment: 'Verse 18 is too fast', commentBlobHash: note.hash }));
@@ -595,7 +616,7 @@ export async function buildWorld(opts: { welcomed?: boolean; names?: WorldNames;
     await rev.step((st) => commands(st).recordReview({ commandId: id(), takeIds: [take(k)], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
   }
   for (const k of ['P-CHECK', 'P-DONE'] as const) {
-    const bt = await Promise.all([record(REV), record(REV)]);
+    const bt = await Promise.all([record(REV, 1.5, 3, `bt:${k}#1`), record(REV, 1.5, 3, `bt:${k}#2`)]);
     await rev.step((st) => commands(st).produceContent({ commandId: id(), fromTakeId: take(k), kindId: 'bt', cards: bt, via: 'app' }));
     await rev.step((st) => commands(st).recordReview({ commandId: id(), takeIds: [take(k)], kindId: 'community', outcome: 'looks_good', via: 'app', people: 6 }));
   }

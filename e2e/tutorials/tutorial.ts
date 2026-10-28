@@ -4,7 +4,7 @@
 // the screen it lights (as help mode lights a part), what the voice says, and
 // what the finger does. film.ts plays the steps against the web export.
 import type { Locator, Page } from 'playwright';
-import type { AccountKey, WorldNames } from '../ui/fixture';
+import type { AccountKey, UiWorld, WorldNames } from '../ui/fixture';
 
 export interface Step {
   /** The app's screen, by its id in apps/mobile/src/shell/flow.ts. */
@@ -25,6 +25,12 @@ export interface Step {
   press?: (page: Page) => Locator;
   /** The finger drags the lit part: by so many points, or onto another part's place. */
   drag?: { by: { x: number; y: number } } | { to: (page: Page) => Locator };
+  /** The finger taps the lit part, then types these words into it, a key at a time. */
+  type?: string;
+  /** The finger taps the lit part, then pastes these words into it at once (a link). */
+  paste?: string | ((world: UiWorld) => string);
+  /** Off camera, before the step: what changes around the phone (the internet goes, a teammate does something). */
+  first?: (page: Page) => Promise<unknown>;
   /** The speaker starts saying their recording number n (in `speech`) into the microphone after the finger's action. */
   speak?: number;
   /** Wait until the screen shows what the step leads to. */
@@ -47,6 +53,6 @@ export interface Tutorial {
   /** The speaker's recordings that the microphone hears (WAV files in TUTORIAL_SPEECH). */
   speech?: string[];
   /** What happens off camera before filming starts: the work that the video starts from. */
-  before?: (page: Page, mic: Mic) => Promise<void>;
+  before?: (page: Page, mic: Mic, world: UiWorld) => Promise<void>;
   steps: Step[];
 }
