@@ -19,8 +19,8 @@ export interface Step {
   atSpeech?: number;
   /** The finger taps the lit part. */
   tap?: boolean;
-  /** Where on the part the finger lands or starts a drag, when not its middle. */
-  tapAt?: (box: Box) => { x: number; y: number };
+  /** Where on the part the finger lands or starts a drag, when not its middle; `screen` is the page's size. */
+  tapAt?: (box: Box, screen: { width: number; height: number }) => { x: number; y: number };
   /** The finger presses the lit part and holds it until this shows. */
   press?: (page: Page) => Locator;
   /** The finger drags the lit part: by so many points, or onto another part's place. */

@@ -330,7 +330,7 @@ async function play(step: Step, index: number): Promise<void> {
   const acts = !!(step.tap || step.press || step.drag || step.type || step.paste);
   if (acts && target) {
     const b = (await target.boundingBox())!;
-    const at = step.tapAt?.(b) ?? centre(b);
+    const at = step.tapAt?.(b, viewport) ?? centre(b);
     await page.evaluate(light, null);
     if (step.press) {
       const shows = step.press(page);
