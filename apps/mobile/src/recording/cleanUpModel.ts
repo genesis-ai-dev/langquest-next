@@ -22,6 +22,19 @@ export function limitAt(place: number): number | null {
   return p >= 1 ? null : Math.round(6 * 8 ** p);
 }
 
+/** How near an end a finger counts as at it: a thumb dragged to an end is let go a little short of it. */
+const SNAP = 0.04;
+
+/**
+ * The slider's place for a finger `x` of the way along it: near an end is
+ * the end, so a drag reaches More (no limit). Without it the phone check
+ * (2026-10-28) let go at 0.98, a limit of 46 dB.
+ */
+export function snapPlace(x: number): number {
+  const p = Math.min(1, Math.max(0, x));
+  return p >= 1 - SNAP ? 1 : p <= SNAP ? 0 : p;
+}
+
 /** The slider's place for a limit (`limitAt` the other way). */
 export function placeOf(limitDb: number | null): number {
   return limitDb === null ? 1 : Math.min(1, Math.max(0, Math.log(limitDb / 6) / Math.log(8)));

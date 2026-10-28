@@ -10,7 +10,7 @@ import onnxruntime_objc
  * a long part is never held in memory whole; the folder goes when the app
  * forgets the part. Parts are cleaned one at a time, on a queue of their own.
  * Sendable by hand: `live` and `turn` are read and written only under
- * `lock`, and `model` and `mixes` only on `queue`.
+ * `lock`, and `model`, `mixes` and `swept` only on `queue`.
  */
 final class CleanUp: @unchecked Sendable {
     /// Bars a part is drawn with (barsModel.ts BAR_COUNT).
@@ -25,6 +25,8 @@ final class CleanUp: @unchecked Sendable {
     /// Loaded on the queue when a part first needs it, and let go when no part is left.
     private var model: CleanUpModel?
     private var mixes = 0
+    /// Whether the folders an app stopped with the sheet open left behind are gone (`sweep`).
+    private var swept = false
 
     /// Cleans the part at `uri` as `id`: its length and the sums its bars are drawn from (deepFilter.ts SliceSums).
     func clean(id: String, uri: String, progress: @escaping (Double) -> Void) async throws -> [String: Any] {
@@ -77,15 +79,27 @@ final class CleanUp: @unchecked Sendable {
         NSError(domain: "MicrophoneEnergy", code: code, userInfo: [NSLocalizedDescriptionKey: message])
     }
 
+    private static var root: URL {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("CleanUp", isDirectory: true)
+    }
+
     private func folder(_ id: String) -> URL {
         let safe = String(id.unicodeScalars.map { CharacterSet.alphanumerics.contains($0) || $0 == "-" || $0 == "_" ? Character($0) : "_" })
-        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        return caches.appendingPathComponent("CleanUp", isDirectory: true).appendingPathComponent(safe, isDirectory: true)
+        return CleanUp.root.appendingPathComponent(safe, isDirectory: true)
+    }
+
+    /// The first part cleaned since the app started takes away every folder left by an app stopped
+    /// with the sheet open: folders are made only on the queue, so none of this start's is there yet.
+    private func sweep() {
+        if swept { return }
+        swept = true
+        try? FileManager.default.removeItem(at: CleanUp.root)
     }
 
     private func run(_ id: String, _ mine: Int, _ uri: String, _ progress: (Double) -> Void) throws -> [String: Any] {
         let check = { if !self.wanted(id, mine) { throw self.fail(10, "Clean up stopped") } }
         try check()
+        sweep()
         let dir = folder(id)
         try? FileManager.default.removeItem(at: dir)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

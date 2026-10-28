@@ -1,6 +1,6 @@
 import { buildIndexes, commands, emptyLanguageState, foldLanguage, type AnyEvent, type EventPayloads, type EventType } from '@langquest-next/core';
 import { mixGain } from '../modules/microphone-energy/src/deepFilter';
-import { buttonLabel, cleanSums, cleanUpOffer, gainOf, limitAt, mixBars, placeOf, SLIDER_START, toneBars, type CleanSums } from '../src/recording/cleanUpModel';
+import { buttonLabel, cleanSums, cleanUpOffer, gainOf, limitAt, mixBars, placeOf, SLIDER_START, snapPlace, toneBars, type CleanSums } from '../src/recording/cleanUpModel';
 
 describe('the slider (decision 177; Caleb, 2026-10-28)', () => {
   it('starts at 12 dB, goes from 6 dB at Less to no limit at More, and reads back its place', () => {
@@ -10,6 +10,16 @@ describe('the slider (decision 177; Caleb, 2026-10-28)', () => {
     expect(limitAt(0.999)).toBe(48);
     expect(limitAt(1)).toBeNull();
     for (const p of [0, 1 / 3, 2 / 3, 1]) expect(placeOf(limitAt(p))).toBeCloseTo(p, 5);
+  });
+
+  it('counts a finger near an end as at it, so a drag reaches More', () => {
+    expect(limitAt(snapPlace(0.98))).toBeNull();
+    expect(snapPlace(0.97)).toBe(1);
+    expect(snapPlace(0.02)).toBe(0);
+    expect(snapPlace(-0.2)).toBe(0);
+    expect(snapPlace(1.3)).toBe(1);
+    expect(snapPlace(0.5)).toBe(0.5);
+    expect(snapPlace(SLIDER_START)).toBe(SLIDER_START);
   });
 
   it('mixes back what the phones mix back', () => {

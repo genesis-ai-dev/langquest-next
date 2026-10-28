@@ -33,6 +33,8 @@ class CleanUp(private val context: () -> Context?) {
   /** Loaded on the worker when a part first needs it, and let go when no part is left. */
   private var model: CleanUpModel? = null
   private var mixes = 0
+  /** Whether the folders an app stopped with the sheet open left behind are gone (`sweep`). On the worker only. */
+  private var swept = false
 
   /** Cleans the part at `uri` as `id`: its length and the sums its bars are drawn from (deepFilter.ts SliceSums). */
   fun clean(id: String, uri: String, progress: (Double) -> Unit, done: (Map<String, Any>?, Exception?) -> Unit) {
@@ -70,10 +72,21 @@ class CleanUp(private val context: () -> Context?) {
     return File(File(ctx.cacheDir, "CleanUp"), id.replace(Regex("[^A-Za-z0-9_-]"), "_"))
   }
 
+  /**
+   * The first part cleaned since the app started takes away every folder left by an app stopped
+   * with the sheet open: folders are made only on the worker, so none of this start's is there yet.
+   */
+  private fun sweep(ctx: Context) {
+    if (swept) return
+    swept = true
+    File(ctx.cacheDir, "CleanUp").deleteRecursively()
+  }
+
   private fun run(id: String, mine: Int, uri: String, progress: (Double) -> Unit): Map<String, Any> {
     val check = { if (!wanted(id, mine)) throw IllegalStateException("Clean up stopped") }
     check()
     val ctx = context() ?: throw IllegalStateException("Context not available")
+    sweep(ctx)
     val dir = folder(id)!!
     dir.deleteRecursively()
     dir.mkdirs()

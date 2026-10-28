@@ -21,7 +21,7 @@ import { useBars } from '../audio/useBars';
 import { useClip } from '../audio/useClip';
 import { mmss } from './model';
 import { PartBars } from './partBars';
-import { buttonLabel, limitAt, toneBars, type CleanUpPick } from './cleanUpModel';
+import { buttonLabel, limitAt, snapPlace, toneBars, type CleanUpPick } from './cleanUpModel';
 import { useCleanUp, type CleanStatus, type CleanUp } from './useCleanUp';
 
 export interface CleanUpPart { hash: string; label: string; durationMs?: number }
@@ -205,7 +205,7 @@ function NoiseSlider(props: { work: CleanUp }) {
   const from = useRef(0);
   const latest = useRef(work);
   latest.current = work;
-  const at = (x: number) => (width.current > THUMB ? Math.min(1, Math.max(0, (x - THUMB / 2) / (width.current - THUMB))) : latest.current.place);
+  const at = (x: number) => (width.current > THUMB ? snapPlace((x - THUMB / 2) / (width.current - THUMB)) : latest.current.place);
   const responder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
