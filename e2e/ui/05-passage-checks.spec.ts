@@ -429,7 +429,8 @@ test('PASS-053 A check logged afterwards never clears a checkpoint', async ({ br
 test('PASS-054 Move past a checkpoint, with a reason @p0', async ({ browser }) => {
   const page = await recordAs(browser, world(), 'COORD', 'P-CHECK');
   await somethingElse(page);
-  expect(await screenText(page)).toContain('Move past a checkpoint Consultant check is a must-pass step. Say why, and it\'s on the record');
+  // Polled: on a busy runner the sheet can open before P-CHECK's takes arrive, and then lists only what an unrecorded passage offers (PR 259's CI, 2026-10-28).
+  await expect.poll(() => screenText(page)).toContain('Move past a checkpoint Consultant check is a must-pass step. Say why, and it\'s on the record');
   await byId(page, 'header-close').click();
   await openTeamRow(page, 'Consultant check');
   await sheet(page).getByRole('button', { name: 'Move past this checkpoint…' }).click();
