@@ -204,8 +204,36 @@ export function scanHelp(root: string): Finding[] {
   return appFiles(root).flatMap((path) => findUnexplained(path, readFileSync(path, 'utf8'), relative(root, path)));
 }
 
+/** Kit parts that say a stock line when they have no `help` ("The main thing to do on this screen."). */
+const STOCK = new Set(['PrimaryBtn', 'Field']);
+
+/**
+ * The PrimaryBtns and Fields that fall back to the kit's stock line (UI audit,
+ * finding 108): each should say what this one does. helpMode.test.ts holds the
+ * count so it only goes down.
+ */
+export function findStockLines(path: string, source: string, file = path): Finding[] {
+  if (SKIP.test(path) || !path.endsWith('.tsx')) return [];
+  const sf = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const out: Finding[] = [];
+  const visit = (node: ts.Node) => {
+    if ((ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) && STOCK.has(node.tagName.getText(sf))
+      && !attr(node, 'help') && !spreads(node)) {
+      out.push({ file, line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1, text: `${node.tagName.getText(sf)} says the stock line` });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return out;
+}
+
+export function scanStockLines(root: string): Finding[] {
+  return appFiles(root).flatMap((path) => findStockLines(path, readFileSync(path, 'utf8'), relative(root, path)));
+}
+
 // `npx tsx apps/mobile/test/helpParts.ts` lists what is left.
 if (process.argv[1] && /helpParts\.ts$/.test(process.argv[1])) {
   const root = join(import.meta.dirname, '..');
   for (const f of [...scanHelp(root), ...scanRows(root)]) console.log(`${f.file}:${f.line} ${f.text}`);
+  if (process.argv.includes('--stock')) for (const f of scanStockLines(root)) console.log(`${f.file}:${f.line} ${f.text}`);
 }

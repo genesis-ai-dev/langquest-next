@@ -5908,6 +5908,15 @@ take the swipe only from the screen's edge, so a drag on a waveform or a
 slider is never a Back. From the UI audit Caleb asked to have fixed
 (findings 4 and 16).
 
+Amended (2026-10-28, Caleb Koster): two ✕s no longer leave at once,
+because what they leave cannot be had again. New language's ✕ (and Back on
+its first step) asks "Leave without adding ‹language›?" once a name or an
+answer is in, with Keep going first (`org.tsx`, finding 45). The sign-in
+code page for someone with no email asks "Leave the code?" before its Back
+or Android's Back throws away a code nobody has scanned, since the code
+cannot be shown again; Done, which says they have it, leaves at once
+(finding 96). Every other ✕ still leaves a task at once.
+
 ## 138. One name for each thing on a language's page: its pick under each, the others and the organization's shelf behind it, and no More
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -7209,6 +7218,16 @@ Reverse if: people dismiss the bar and stay on old versions long enough to
 matter (then show it again after some days), or the In-App Updates question
 is settled, or Google's page stops showing the version (then Android asks
 the phone, with In-App Updates).
+
+Amended (2026-10-28, Caleb Koster): after Keep working, the app no longer
+looks as if the server were at fault. The sync standing has its own
+`tooOld` (`sync/syncStanding.ts`, after a refused account and before
+refused events): the header's cloud turns amber with a down arrow ("Update
+to receive"), and the Sync screen offers Update, which opens the store
+page, where Sync now was. Its words say the person's own work still goes
+out only below the minimum version; a server that refuses the app's
+protocol (LQ001) takes nothing, and it says to update. From the UI audit
+Caleb asked to have fixed (findings 24 and 119).
 
 ## 155. While a new build is in store review, the public build keeps getting every merge as an OTA update from a release branch
 
@@ -8747,3 +8766,63 @@ Reverse if: people hear the limiter (a pumping or a dulled voice), the
 first play of a long part waits noticeably on the phones we support, or
 partners want parts played as recorded (then a switch in settings, not a
 button on each part).
+
+## 183. The UI audit's fixes: a screen says what it waits for, asks before what cannot be undone, and opens a thing where the same thing opens elsewhere
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: a UI audit of the app (127 findings, each reproduced on the web
+export and judged) found screens that said untrue things, did something
+other than what they showed, or threw work away without asking. Caleb
+(2026-10-28): "Please fix all of these issues." Most fixes follow rules
+already recorded (one name per thing, 138; status indicators tell the
+truth; touch targets; no explanatory text, as help on each element); the
+ones below change what a screen does, beyond the partner demo or an
+earlier entry, and are kept on purpose:
+- **Asking before what cannot be undone.** Delete Account's big button is
+  Cancel; "Delete My Account" is a red ghost button that asks once more by
+  name (`public/delete-account.html` says so). The Inbox's report sheet
+  leads with opening what was reported (the version, the review or the
+  passage), and Remove is a red ghost button after it. Looks good asks
+  before sending words that asked for changes. New language's ✕ and the
+  sign-in code page ask before leaving (137 amended).
+- **The same thing opens the same way.** An Inbox request for a check
+  opens the check, as My Work's row does (`work/homeModel.ts`
+  `updateTarget`; flow edges from the Inbox to review and back
+  translation). A request done or withdrawn leaves the Inbox and the bell,
+  on the phone and in the server's Inbox rows (core `settledUpdate`,
+  `server/projectionWorker.ts`). "New in ‹language›" and a language chip on
+  the Map say that they switch the whole app, and a toast says "Now in
+  ‹language›". Someone with a manage role in one language gets that
+  language's map from the Map tab, not a Progress list of one.
+- **Saying what it waits for.** My Work says when the language is not on
+  this phone yet or has no passages, instead of "Nothing is waiting on
+  you". The path draws a check set aside and a checkpoint moved past (with
+  its reason) apart from one that passed, and a step behind a locked
+  checkpoint waits for it. Asking someone without the app saves the
+  request and then offers their message to send yourself, since the app
+  sends nothing. Signing out with work waiting shows it sending and opens
+  Sync to see what waits. One "waiting to send" number everywhere. A failed
+  password change keeps the renamed name and says so.
+- **Notifications are a switch** that turns off as well as on, and when the
+  phone's settings block them it says so and offers the phone's settings.
+- **The sync icon has a glyph per standing** (tick, plain, crossed out,
+  warning, down arrow for too old), not colour alone.
+- **Finding a passage.** A book lists 25 passages at a time with Show
+  more; Filter is in the book's header and the key sits above the chapter
+  tiles; on a phone the sub-line names the language; with a filter on,
+  chapters outside it are grey and open a sheet instead of a passage; each
+  testament's chip counts its matches, and the map opens on the one that
+  has them. "Divide differently" opens the chooser at once and is offered
+  only to those who may write the organization's library (as MAP-023).
+- **Help mode.** On the web, Listen shows only when the browser has a voice
+  for the app's language (`helpContext.ts` `voiceFor`), and the tooltip
+  tells a screen reader that a tap closes it. Fields and primary buttons
+  with the kit's stock help get their own words; a ratchet in
+  `test/helpMode.test.ts` holds the count still left (96) and lets it only
+  fall.
+Not done here: finding 92 (removed content leaves a trace for its author
+and in History) needs new state in core and a reducer version; finding 8
+and 107 (help and questions spoken on phones) wait on Caleb's choice.
+Reverse if: people find the extra asks slow on work they do every day, or
+partners expect the demo's flow where it differs here.

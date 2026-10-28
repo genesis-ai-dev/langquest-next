@@ -259,7 +259,7 @@ Expected:
 - Every step reads "looks good" (or "answered").
 - No role has a main button.
 - "Something else?" offers no "Someone else should do this", "We already
-  did this" or "Not now", because nothing is left to do.
+  did this" or "Set the … aside", because nothing is left to do.
 - TRANS, COORD and LADMIN are offered "Record a new version". REV and VIEW
   are not.
 
@@ -680,8 +680,8 @@ Expected:
 - "Someone else should do this" ("Ask a person on the team, or someone
   outside by WhatsApp or text") shows for TRANS, TREV, COORD, ADMIN, LADMIN
   and KEPT. Not for REV or VIEW.
-- No "We already did this", "Not now" or "Record a new version" (nothing is
-  recorded yet).
+- No "We already did this", "Set the … aside" or "Record a new version"
+  (nothing is recorded yet).
 - Tiles: "Add a note" (everyone but VIEW) and "What helps here" (everyone).
 - No offline card: whether the passage comes along offline is the line at
   the top of the passage (PASS-035, decision 166).
@@ -707,7 +707,7 @@ Expected:
   | "Someone else should do this" | no (it is already asked) | no | no (it is already asked) | no |
   | "I'll do this myself" ("Back translation: record it now") | TRANS only (its author, decision 178) | no | no | no |
   | "We already did this" ("Say when and how the back translation happened") | yes | yes | yes | no |
-  | "Not now" ("Set the back translation aside. Say why") | yes | yes | yes | no |
+  | "Set the back translation aside" ("Say why. It goes on the record.", the skip mark) | yes | yes | yes | no |
   | "Record a new version" ("Reviews so far stay with the version they heard") | yes | no | yes | no |
   | "Move past a checkpoint" | no | no | COORD and ADMIN only, and only at a checkpoint | no |
 
@@ -754,12 +754,12 @@ Expected:
   onward).
 - ✕ returns to "Something else?", with nothing saved.
 
-### PASS-030 Not now, from Something else?
+### PASS-030 Set a check aside, from Something else?
 Roles: TREV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
 1. Open a Version 1 of TRANS's whose Peer check nobody has asked for. Tap
-   "Something else?", then "Not now".
+   "Something else?", then "Set the peer check aside".
 2. Choose "No one available for this right now". Tap "Set aside".
 3. Tap ✕. Open "Versions and history" → "History" and tap "Undo" on "Peer
    check set aside".
@@ -1028,18 +1028,22 @@ Steps:
 2. Type "Pastor Garang" in "Their name — e.g. Pastor Garang". Tap "SMS".
    Type "123" in "Phone number".
 3. Type "+211 555 0100".
-4. Tap "Ask Pastor".
+4. Tap "Save the request".
 
 Expected:
-- A preview "SMS preview" reads "Hi Pastor Garang — could you listen to Luke
-  14:1-14 in Alpha and tell us what you understood? No account needed:"
-  followed by "The request is saved on the record with their name and
-  number. Sending the no-account link from the app is not ready yet."
-- With "123" the footer stays disabled (more than 3 characters are needed).
-- After sending, the toast reads "Asked Pastor Garang · the request is on the
-  record", with no Undo. History's "Withdraw" takes it back (PASS-044).
-- The Back translation's sub reads "Waiting on Pastor Garang · by link over
-  SMS".
+- A card "Send them this yourself, by SMS" reads "Hi Pastor Garang — could
+  you listen to Luke 14:1-14 in Alpha and tell us what you understood?",
+  with "Share the message" (the share sheet; a browser copies it).
+- "Phone number · needed" labels the phone field. With "123" the footer
+  stays disabled (more than 3 characters are needed).
+- After saving, the toast reads "Saved on the record, not sent. Send it to
+  Pastor Garang yourself.", with no Undo. History's "Withdraw" takes it
+  back (PASS-044).
+- The Back translation's sub reads "Waiting on Pastor Garang · not sent by
+  the app · SMS".
+- Changed (UI audit, finding 87): the page showed an "SMS preview", the
+  button said "Ask Pastor" and the toast "Asked Pastor Garang", though the
+  app sends nothing; every word now says the person sends it.
 - Known issue (2026-10-12): nothing is sent to the phone, and the link page
   (`guest_review`) is not reachable. In passage summaries (map rows,
   "Opened lately") the guest's name becomes an anonymous colour-and-shape
@@ -1250,8 +1254,10 @@ Expected:
 - "Move past checkpoint" is disabled until there is a reason.
 - The toast reads "Moved past the checkpoint · reason saved", with no Undo.
   History's "Undo" takes it back (PASS-056).
-- "Then the team" reads "Consultant check" "moved past" and "Final approval"
-  "next".
+- "Then the team" reads "Consultant check" "moved past · {reason}", in an
+  amber tile with a flag (not a pass's green tick), and "Final approval"
+  "next". A check set aside is a grey tile with the skip mark (UI audit,
+  finding 86).
 - "Consultant check"'s sheet's sub reads "Checkpoint moved past, with a
   reason — later steps can go ahead. Undo it from History."
 - "Final approval"'s sheet is no longer locked, and offers its buttons.
@@ -1293,15 +1299,18 @@ Expected:
   (2026-10-13, decisions.md 97): taking back an override needs Override
   checkpoints, as making one does. Undoing a set-aside does not.
 
-### PASS-057 Not now at a checkpoint
+### PASS-057 No setting aside at a checkpoint
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
 1. Open P-CHECK. Tap "Something else?".
 
 Expected:
-- "Not now" is not offered at a checkpoint. The step sheet hides "Set aside"
-  there, and only an override moves past one.
+- "Set the consultant check aside" is not offered at a checkpoint. The step
+  sheet hides "Set aside" there, and only an override moves past one.
+- Changed (UI audit, finding 88): this option was called "Not now", the
+  same words and clock as the Ask page's button that only closes it; it is
+  named for what it does, with the skip mark set-aside checks wear.
 - Fixed (2026-10-12): "Something else?" offered "Not now" ("Set the
   consultant check aside. Say why") at a checkpoint (`elseChoices`,
   record.ts).
@@ -1342,22 +1351,27 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Open P-DONE. Tap "Something else?", then "Continue recording".
 2. Read the page.
-3. Tap "Edit" on "Draft 2", then ✕.
+3. Tap "Draft 2" itself, then ✕.
 4. On the unstarted passage with two drafts, tap the main button, then ✕,
    then the path's "Record" step.
 
 Expected:
-- With several drafts, "Continue recording" opens the Versions page to pick
-  one, not the workspace. That is the main button where Record is lit, the
-  "Record" step, and the "Something else?" option on a finished passage
-  (P-DONE).
+- With several drafts, "Continue recording" opens a page titled "Which
+  draft?" to pick one, not the workspace. That is the main button where
+  Record is lit, the "Record" step, and the "Something else?" option on a
+  finished passage (P-DONE). Its big button is "Continue Draft 2" (the
+  newest), a tap on a draft opens it, and "New version" is a quiet link
+  under the button. Opened from "Versions and history", the page is
+  "Versions" with "New version" as its button, as before (UI audit,
+  finding 89).
 - The page shows "Your drafts", with "Draft 1" and "Draft 2" in the order
   started. Each has a play button, "{n} parts · {m:ss} · from Version {n}"
   (or without "from"), "Saved {when}", "Edit", "Done" and a trash
   button.
 - "Done" is disabled on a draft whose parts are the same as the latest
   version. Otherwise it opens that draft's Done screen (06 REC-011).
-- "Edit" opens the workspace on that draft, named "Draft 2".
+- "Edit", or a tap on the draft while picking, opens the workspace on that
+  draft, named "Draft 2".
 - Fixed (2026-10-12): the path's "Record" step skipped the picker and opened
   the workspace on the latest draft (`passage.tsx` `onStep`). (On P-DONE the
   done "Record" step opens the version, as it should.)

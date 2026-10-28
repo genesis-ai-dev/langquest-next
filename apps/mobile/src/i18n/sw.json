@@ -825,6 +825,7 @@
       "sectionLanguage": "Wanachama wa lugha · {{total}}",
       "pending": "Inasubiri",
       "none": "Bado hakuna mwenye jukumu hapa.",
+      "connectToSee": "Unganisha intaneti uone nani aliomba kujiunga",
       "expandBy": "Panua kwa",
       "byLanguage": "Kwa lugha",
       "higher": "Kila lugha · kuangalia tu",
@@ -2825,6 +2826,9 @@
       "askTitle": "Ingia, kisha uombe kujiunga na timu ya {{language}}",
       "namePlaceholder": "Barua pepe au jina la kuingia",
       "nameHint": "Jina la kuingia halina nafasi: herufi, tarakimu na vistari, kama nyibol-deng-482.",
+      "nameHelp": "Barua pepe yako, au jina lako la kuingia, kama nyibol-deng-482.",
+      "passwordHelp": "Nenosiri la akaunti hii.",
+      "buttonHelp": "Inakuingiza kwa jina na nenosiri lililo juu.",
       "button": "Ingia",
       "cantSignIn": "Huwezi kuingia?",
       "cantSignInHelp": "Huonyesha njia za kuingia zisizohitaji nenosiri.",
@@ -2914,6 +2918,9 @@
       "scanHint": "Hakuna barua pepe wala nenosiri linalohitajika. Mwaliko unakufungulia akaunti na kukuweka kwenye timu.",
       "failed": "Imeshindwa kufungua akaunti. Jaribu tena.",
       "confirmHelp": "Andika nenosiri lilelile tena, ili kuhakikisha ni sahihi.",
+      "emailHelp": "Tunatuma kiungo hapa. Kifungue ili kukamilisha akaunti yako.",
+      "passwordHelp": "Herufi 6 au zaidi. Unaingia nalo.",
+      "buttonHelp": "Inaunda akaunti yako na kutuma kiungo kwa barua pepe yako.",
       "scanInviteHelp": "Hufungua kamera. Mwaliko unafungua akaunti yako: hakuna barua pepe inayohitajika."
     },
     "scan": {
@@ -3016,7 +3023,8 @@
       "licenseLabel": "Nani anaweza kutumia kazi yako",
       "readyTitle": "Tayari kutumika",
       "readyBody": "Utapata majukumu ya kawaida na njia ya kawaida ya kukagua vifungu. Kisha, tutaongeza lugha yako ya kwanza na timu pamoja.",
-      "nameHelp": "Jina la shirika lako, kama timu zako zitakavyoliona."
+      "nameHelp": "Jina la shirika lako, kama timu zako zitakavyoliona.",
+      "buttonHelp": "Inaunda shirika. Kisha unaongeza lugha yako ya kwanza."
     },
     "request": {
       "notSent": "Halijatumwa",
@@ -3302,8 +3310,11 @@
       "setPasswordSub": "Ikiwa watu wengine wanatumia kifaa hiki",
       "notifications": "Arifa",
       "notificationsSub": "Pata habari za maombi na maoni",
-      "notificationsOn": "Arifa zimewashwa.",
+      "notificationsBlocked": "Zimezimwa kwenye mipangilio ya simu hii",
       "notificationsFailed": "Arifa hazikuweza kuwashwa. Jaribu tena ukiunganishwa.",
+      "notificationsOffNeedsConnection": "Kuzizima kunahitaji muunganisho. Jaribu tena ukiwa umeunganishwa.",
+      "openPhoneSettings": "Fungua mipangilio ya simu hii",
+      "openPhoneSettingsHelp": "Inafungua mipangilio ya simu hii, mahali pekee panapoweza sasa kuruhusu arifa za LangQuest.",
       "switchOrg": "Badilisha Shirika",
       "switchActive": "{{org}} (linatumika)",
       "switchOrStart": "{{org}} · au anzisha jipya",
@@ -3312,6 +3323,7 @@
       "syncRefused": "Akaunti hii haiwezi kusawazisha shirika hili",
       "syncPending_one": "Badiliko {{count, number}} linasubiri kutumwa",
       "syncPending_other": "Mabadiliko {{count, number}} yanasubiri kutumwa",
+      "syncPendingMixed": "{{total, number}} vinasubiri kutumwa · rekodi: {{recordings, number}}",
       "syncLive": "Moja kwa moja: mabadiliko yanafika yanapotokea",
       "syncOffline": "Nje ya mtandao: kazi inahifadhiwa kwenye kifaa hiki",
       "syncUpToDate": "Imesasishwa",
@@ -3326,7 +3338,6 @@
       "deleteSub": "Akaunti yako na jina lako, milele",
       "testing": "Majaribio",
       "personaSub": "Ingia kama mtafsiri, mkaguzi au msimamizi wa majaribio",
-      "notificationsHelp": "Huwasha arifa, ili kifaa hiki kikujulishe kuhusu maombi na maoni.",
       "syncHelp": "Huonyesha kinachosubiri kutumwa au kupakuliwa. Namba inamaanisha mabadiliko yanayosubiri kutumwa.",
       "blockedHelp": "Huonyesha uliowazuia, ili uache kuwazuia.",
       "switchOrgHelp": "Hufungua mashirika yako, ili uhamie jingine au uanzishe jipya."
@@ -3347,6 +3358,7 @@
       "nameLabel": "Jina Kamili",
       "shortPassword": "Chagua nenosiri la herufi 6 au zaidi.",
       "passwordNeedsConnection": "Kuweka nenosiri kunahitaji mtandao.",
+      "nameSaved": "Jina limehifadhiwa.",
       "passwordFailed": "Nenosiri halikuweza kuwekwa. Jaribu tena.",
       "savedWithPassword": "Imehifadhiwa. Unaweza kuingia kwa jina lako la kuingia na nenosiri hili.",
       "saved": "Wasifu umehifadhiwa. Utasawazishwa ukiunganishwa.",
@@ -3395,17 +3407,22 @@
       "signingOut": "Inatoka…",
       "button": "Toka",
       "notYet": "Bado",
+      "sending": "Inatuma…",
+      "seeWaiting": "Ona kinachosubiri",
+      "seeWaitingHelp": "Inafungua Sawazisha: kinachosubiri kutumwa, kwa kifungu, na Sawazisha sasa.",
       "question": "Toka?"
     },
     "delete": {
       "title": "Futa Akaunti",
       "deleting": "Inafuta…",
       "button": "Futa Akaunti Yangu",
+      "buttonHelp": "Inauliza mara moja zaidi, kisha inafuta akaunti hii kabisa.",
       "sendFirstTitle": "Tuma kazi yako kwanza",
       "sendFirstBody": "Bado vya kutuma: {{things}}. Futa akaunti yako baada ya kusawazishwa, ili shirika lako livipate.",
       "offlineTitle": "Uko nje ya mtandao",
       "offlineBody": "Unganisha kwenye intaneti ili kufuta akaunti yako.",
       "question": "Futa akaunti yako?",
+      "confirmTitle": "Futa akaunti ya {{name}}?",
       "deleted": "Vinafutwa",
       "deletedSub": "Kuingia kwako, barua pepe, jina, arifa, uzuiaji na taarifa za uchunguzi. Unaondoka katika kila shirika.",
       "kept": "Vinabaki na shirika lako",
@@ -3417,6 +3434,7 @@
       "syncNow": "Sawazisha sasa",
       "refused": "Seva imekataa akaunti hii kwa shirika hili.",
       "tooOld": "Sasisha programu ili kusawazisha.",
+      "tooOldSends": "Programu hii ni ya zamani mno kupokea mabadiliko ya timu yako. Kazi yako mwenyewe bado inatumwa.",
       "waitingUpload": "zinasubiri kupakiwa",
       "refusedByServer": "zimekataliwa na seva",
       "latestConfirmed": "ya mwisho iliyothibitishwa",
@@ -3439,13 +3457,15 @@
         "live": "Moja kwa moja",
         "checking": "Imeunganishwa",
         "offline": "Nje ya mtandao",
-        "refused": "Haisawazishi"
+        "refused": "Haisawazishi",
+        "tooOld": "Sasisha ili kupokea"
       },
       "help": {
         "live": "Mabadiliko ya timu yako yanafika papo hapo, na yako yanatumwa mara moja.",
         "checking": "Imeunganishwa, lakini njia ya moja kwa moja haifanyi kazi, kwa hiyo kifaa hiki kinaangalia mabadiliko kila baada ya dakika chache. Sawazisha sasa huangalia mara moja.",
         "offline": "Hakuna mtandao. Kila unachofanya kinahifadhiwa kwenye kifaa hiki na kinatumwa chenyewe ukirudi mtandaoni.",
         "refused": "Seva haikubali mabadiliko kutoka kifaa hiki. Kazi yako bado imehifadhiwa hapa.",
+        "tooOld": "Programu hii ni ya zamani mno kupokea mabadiliko ya timu yako. Isasishe kutoka dukani.",
         "toReceive": "Rekodi za wengine ambazo kifaa hiki bado kinapakua.",
         "refusedLine": "Mabadiliko ambayo seva haikukubali, kwa kawaida kwa sababu ruhusa imebadilika. Yanabaki kwenye kifaa hiki; fungua Maelezo kuona kila moja."
       },
@@ -3701,7 +3721,7 @@
         "askedYou": "{{by}} amekuomba",
         "askedYourTeam": "{{by}} ameomba timu yako ya {{team}}",
         "askedYourReviewTeam": "{{by}} ameomba timu yako ya ukaguzi",
-        "byLinkOver": "kwa kiungo kupitia {{channel}}",
+        "byLinkOver": "haijatumwa na programu · {{channel}}",
         "askedForChanges": "{{who}} ameomba mabadiliko",
         "answered": "Maoni yamejibiwa — inakamilika mkaguzi akisema Iko sawa",
         "recordedBy": "Imerekodiwa na {{who}}",
@@ -3787,8 +3807,8 @@
         "text": "Maandishi",
         "rating": "1–5"
       },
-      "guestMessage": "Habari {{name}} — unaweza kusikiliza {{passage}} kwa {{language}} na kutuambia ulichoelewa? Huhitaji akaunti:",
-      "guestMessageNoName": "Habari — unaweza kusikiliza {{passage}} kwa {{language}} na kutuambia ulichoelewa? Huhitaji akaunti:"
+      "guestMessage": "Habari {{name}} — unaweza kusikiliza {{passage}} kwa {{language}} na kutuambia ulichoelewa?",
+      "guestMessageNoName": "Habari — unaweza kusikiliza {{passage}} kwa {{language}} na kutuambia ulichoelewa?"
     },
     "path": {
       "theCheck": "{{check}}",
@@ -3819,6 +3839,7 @@
       "fixSub": "Kisha inarudi kwenye ukaguzi",
       "status": {
         "movedPast": "imerukwa",
+        "movedPastWhy": "imepitwa · {{reason}}",
         "setAside": "imewekwa kando",
         "answered": "imejibiwa",
         "answeredBack": "imejibiwa · inarudi kwa ukaguzi",
@@ -3934,6 +3955,7 @@
       "continueRecording": "Endelea kurekodi",
       "askFor": "Omba {{check}}",
       "movePastThis": "Ruka kituo hiki cha ukaguzi…",
+      "heldAt": "Inasubiri kwenye {{check}}, ambayo lazima ipite kwanza",
       "skip": {
         "title": "Weka kando {{kind}}?",
         "sub": "Mtiririko unapendekeza hatua hii. Ni sawa kuiweka kando — sema kwa nini ili mtu anayefuata aelewe.",
@@ -4011,7 +4033,6 @@
       "someoneElseCheck": "{{kind}}: omba mtu, kikundi, au mtu wa nje kwa WhatsApp au ujumbe mfupi",
       "alreadyDid": "Tayari tumefanya hili",
       "alreadyDidSub": "Sema {{check}} ilifanyika lini na jinsi gani",
-      "notNowSub": "Weka kando {{check}}. Sema kwa nini",
       "newVersion": "Rekodi toleo jipya",
       "newVersionSub": "Ukaguzi uliofanyika hadi sasa unabaki na toleo lililosikilizwa",
       "movePast": "Ruka kituo cha ukaguzi",
@@ -4023,7 +4044,9 @@
       "whatHelpsHelp": "Hufungua Biblia, miongozo na visaidizi vingine vya kifungu hiki.",
       "myself": "Nitafanya hili mwenyewe",
       "myselfSub": "{{kind}}: sikiliza na uamue sasa",
-      "myselfMakesSub": "{{kind}}: irekodi sasa"
+      "myselfMakesSub": "{{kind}}: irekodi sasa",
+      "setAside": "Weka {{check}} kando",
+      "setAsideSub": "Sema kwa nini. Inaingia kwenye kumbukumbu."
     },
     "published": {
       "askTitle": "Omba ukaguzi",
@@ -4123,9 +4146,10 @@
       "titleRecord": "Omba mtu arekodi",
       "titleKind": "Omba {{kind}}",
       "titleReview": "Omba ukaguzi",
-      "doneOutside": "Umemwomba {{name}} · ombi liko kwenye kumbukumbu",
+      "doneOutside": "Imehifadhiwa kwenye kumbukumbu, haijatumwa. Mtumie {{name}} wewe mwenyewe.",
       "doneTeam": "{{name}} ataliona kwenye Kazi Yangu yake",
       "askName": "Omba {{name}}",
+      "saveRequest": "Hifadhi ombi",
       "chooseSomeone": "Chagua mtu",
       "recordIt": "Kirekodi",
       "recordSub": "Watakipata kwenye Kazi Yangu yao, pamoja na chanzo na somo tayari.",
@@ -4134,11 +4158,9 @@
       "withoutApp": "Mtu asiye na programu",
       "usuallyDoesThis": "Kwa kawaida hufanya hili",
       "nobody": "Hakuna mtu kwenye timu anayeweza kufanya hili.",
-      "nobodyTryOutside": "Hakuna mtu kwenye timu anayeweza kufanya hili. Jaribu mtu asiye na programu.",
       "guestName": "Jina lake — k.m. Mchungaji Garang",
       "phone": "Namba ya simu",
-      "preview": "Hakiki ya {{channel}}",
-      "previewNote": "Ombi limehifadhiwa kwenye kumbukumbu pamoja na jina na namba yake. Kutuma kiungo kisichohitaji akaunti kutoka kwenye programu bado hakujawa tayari.",
+      "phoneNeeded": "Namba ya simu · inahitajika",
       "directions": "Maelekezo · si lazima",
       "sayKeepInMind": "Sema cha kuzingatia",
       "sayListenFor": "Sema cha kusikilizia",
@@ -4148,12 +4170,15 @@
       "answerType": "Jibu: {{type}}",
       "addQuestion": "Ongeza swali",
       "sendHelp": "Hutuma ombi. Wanalipata kwenye Kazi Yangu.",
-      "sendOutsideHelp": "Huhifadhi ombi kwenye kumbukumbu, pamoja na jina na namba yake.",
+      "sendOutsideHelp": "Huhifadhi ombi kwenye kumbukumbu, pamoja na jina na namba yao. Hakuna kinachotumwa kwao.",
       "onTeamHelp": "Chagua mtu anayetumia programu.",
-      "withoutAppHelp": "Badala yake mwombe mtu kwa WhatsApp au ujumbe mfupi.",
+      "withoutAppHelp": "Huhifadhi ombi kwa mtu asiye na programu. Wewe mwenyewe unamtumia ujumbe.",
       "teamHelp": "Huwaomba wote walio kwenye ukaguzi huu. Yeyote kati yao anaweza kuufanya.",
       "personHelp": "Humchagua mtu huyu ili umwombe.",
       "phoneHelp": "Mahali pa kumpata kwa WhatsApp au ujumbe mfupi.",
+      "sendYourself": "Watumie hili wewe mwenyewe, kwa {{channel}}",
+      "shareMessage": "Shiriki ujumbe",
+      "shareMessageHelp": "Hufungua ukurasa wa kushiriki wa simu yako na ujumbe huu. Kwenye kivinjari, huunakili.",
       "whatsappHelp": "Mpate kwa WhatsApp.",
       "smsHelp": "Mpate kwa ujumbe mfupi.",
       "askSpecificHelp": "Andika swali ili walijibu, kisha uliongeze.",
@@ -4167,7 +4192,9 @@
     },
     "versions": {
       "title": "Matoleo",
+      "whichDraft": "Rasimu ipi?",
       "newVersion": "Toleo jipya",
+      "continueDraft": "Endelea na {{name}}",
       "yourDraft": "Rasimu yako",
       "yourDrafts": "Rasimu zako",
       "published": "Yaliyochapishwa",
@@ -4204,6 +4231,7 @@
   "work": {
     "title": "Kazi Yangu",
     "loading": "Inapakia kazi yako…",
+    "notReady": "{{language}} ikishakuwa na vifungu vya kurekodi, kazi yako itaonekana hapa.",
     "askedBy": "imeombwa na {{name}}",
     "checkPassage": "Kagua {{passage}}",
     "bell": {
@@ -4257,7 +4285,8 @@
       "wantsToJoin": "{{name}} anataka kujiunga",
       "asked": "Aliomba {{when}}",
       "askedJustNow": "Ameomba sasa hivi",
-      "openHelp": "Hufungua ombi lake: chagua jukumu na umruhusu aingie."
+      "openHelp": "Hufungua ombi lake: chagua jukumu na umruhusu aingie.",
+      "connectToLetIn": "Unganisha intaneti ili uwakaribishe"
     },
     "lead": {
       "getOrgReady": "Andaa {{org}}",
@@ -4315,7 +4344,11 @@
     "elsewhere": {
       "title": "Taarifa mpya katika {{language}}",
       "sub_one": "Taarifa {{count, number}} kwa ajili yako. Gusa ili uhamie {{language}}.",
-      "sub_other": "Taarifa {{count, number}} kwa ajili yako. Gusa ili uhamie {{language}}."
+      "sub_other": "Taarifa {{count, number}} kwa ajili yako. Gusa ili uhamie {{language}}.",
+      "switched": "Sasa katika {{language}}",
+      "help": "Huhamisha programu kwenda {{language}}.",
+      "back": "Rudi {{language}}",
+      "backSub": "{{language}} iko wazi sasa."
     },
     "again": {
       "title": "Rekodi {{passage}} tena",
@@ -4498,6 +4531,7 @@
     "turnOff": "Zima msaada",
     "listen": "Sikiliza",
     "stop": "Acha",
+    "closeHint": "Inafunga maelezo haya.",
     "line": "{{label}}. {{detail}}",
     "lineAfterSentence": "{{label}} {{detail}}",
     "details": {
@@ -4533,10 +4567,11 @@
       "explorer": "Hufungua kichunguzi cha lugha kwenye kichupo kipya: kila lugha na mahali inapozungumzwa."
     },
     "sync": {
-      "live": "Nukta ya kijani: imeunganishwa. Kazi yako inatumwa unapoendelea. Gusa ili kuona kilichotumwa.",
-      "checking": "Nukta ya kijivu: inatafuta mtandao. Kazi yako inabaki kwenye kifaa hiki hadi itumwe.",
-      "offline": "Nukta ya manjano: nje ya mtandao. Kazi yako inabaki kwenye kifaa hiki na inatumwa ukishaunganishwa.",
-      "refused": "Nyekundu: seva imekataa kitu. Gusa ili kuona ni nini, na cha kufanya.",
+      "live": "Wingu lenye alama ya vema: umeunganishwa. Kazi yako inatumwa unapoendelea. Gusa uone kilichotumwa.",
+      "checking": "Wingu tupu: linatafuta muunganisho. Kazi yako inabaki kwenye kifaa hiki hadi itumwe.",
+      "offline": "Wingu lililokatwa: nje ya mtandao. Kazi yako inabaki kwenye kifaa hiki na itatumwa ukiunganishwa.",
+      "refused": "Wingu jekundu lenye onyo: seva ilikataa kitu. Gusa uone ni nini, na la kufanya.",
+      "tooOld": "Wingu la njano lenye mshale wa chini: programu hii ni ya zamani mno kupokea mabadiliko ya timu yako. Gusa ili kuisasisha.",
       "withWaiting": "{{standing}} Namba ni idadi ya vitu vinavyosubiri kutumwa.",
       "withReceiving": "{{standing}} Pete inazunguka wakati rekodi za wengine zinapakuliwa kwenye kifaa hiki. Hakuna kinachosubiri kutumwa."
     }
@@ -4714,10 +4749,13 @@
     "actions": {
       "openMembers": "Fungua Wanachama",
       "openPassage": "Fungua kifungu",
+      "openVersion": "Fungua toleo",
+      "openReview": "Fungua tathmini",
       "closeReport": "Funga ripoti",
       "keep": "Kiache",
-      "openPassageHelp": "Hufungua kifungu ambacho ripoti hii inahusu.",
+      "openPassageHelp": "Inafungua kilichoripotiwa, ili ukiangalie kabla ya kuamua.",
       "keepHelp": "Hukiacha kwenye kumbukumbu na kufunga ripoti.",
+      "removeHelp": "Inauliza mara moja zaidi, kisha inakiondoa kwenye kumbukumbu kwenye kila kifaa.",
       "closeReportHelp": "Hufunga ripoti. Hakuna anayeondolewa."
     },
     "hidden": {
@@ -5228,7 +5266,8 @@
       "breakUpDifferentlyHelp": "Badilisha jinsi kitabu hiki kinavyokatwa sehemu: kwa sura, vifungu vya FIA au njia nyingine.",
       "chapterTitle": "{{book}} {{n}}",
       "pickPart_one": "Sehemu {{count, number}} — chagua moja",
-      "pickPart_other": "Sehemu {{count, number}} — chagua moja"
+      "pickPart_other": "Sehemu {{count, number}} — chagua moja",
+      "outsideFilter": "Nje ya kichujio"
     },
     "home": {
       "title": "Ramani ya Vifungu",
@@ -5247,9 +5286,10 @@
       "noPassageMatch": "Hakuna kifungu kinacholingana — jaribu jina la kitabu, kisha sura",
       "oldTestament": "Agano la Kale",
       "newTestament": "Agano Jipya",
+      "testamentCount": "{{name}} · {{n, number}}",
       "noBooks": "Bado hakuna vitabu katika lugha hii.",
       "findHelp": "Andika jina la kitabu, kisha namba ya sura ili uruke moja kwa moja hadi hapo.",
-      "languageChipHelp": "Huonyesha ramani ya lugha hii."
+      "languageChipHelp": "Inafungua ramani ya lugha hii na kuifanya lugha unayofanyia kazi. Kazi Yangu nayo inafuata."
     },
     "tones": {
       "done": "Imekamilika",

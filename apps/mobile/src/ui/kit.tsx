@@ -12,7 +12,7 @@ import {
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
   ThumbsUp, Trash2, Undo2, Redo2, Upload, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers, Info,
   ArrowLeft, ArrowUp, ArrowDown, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert,
-  ChevronsUpDown, FileText, Eye, EyeOff, Menu, Bug, Lightbulb, Ellipsis, MessageCirclePlus, Reply, Ear
+  ChevronsUpDown, CloudAlert, CloudDownload, FileText, Eye, EyeOff, Menu, Bug, Lightbulb, Ellipsis, MessageCirclePlus, Reply, Ear
 } from './icons';
 import { Fragment, isValidElement, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -55,7 +55,7 @@ const ICONS = {
   progress: ChartColumn, qr: QrCode, restart: RotateCcw, right: ChevronRight, search: Search, settings: Settings,
   share: Share2, skip: SkipForward, sound: Volume2, sparkle: Sparkles, star: Star, stop: Square, swap: ArrowLeftRight,
   template: LayoutTemplate, thumbUp: ThumbsUp, trash: Trash2, undo: Undo2, redo: Redo2, up: ChevronUp, arrowUp: ArrowUp, arrowDown: ArrowDown, upload: Upload, user: User, video: Video,
-  work: Briefcase, inbox: Inbox, listen: Headphones, layers: Layers, info: Info, onPhone: CloudCheck, notOnPhone: CloudOff,
+  work: Briefcase, inbox: Inbox, listen: Headphones, layers: Layers, info: Info, onPhone: CloudCheck, notOnPhone: CloudOff, cloudAlert: CloudAlert, cloudDown: CloudDownload,
   arrowL: ArrowLeft, send: Send, key: KeyRound, list: List, phone: Smartphone, grip: GripVertical, handle: Menu, sliders: SlidersHorizontal, done: CircleCheck,
   warning: TriangleAlert, join: ChevronsUpDown, file: FileText, more: Ellipsis,
   // Show here / Hide here on a passage's helps (demo ADR-042).

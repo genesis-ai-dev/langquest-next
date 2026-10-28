@@ -11,7 +11,7 @@ import { Dimensions, I18nManager, Platform, Pressable, StyleSheet, View } from '
 import Svg, { Circle, Defs, Mask, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '../ui/text';
-import { chooseRows, clipRect, helpLine, litShape, MARK_SIZE, markAt, numberParts, speaks, tooltipPlace, type FirstSeen, type HelpLit, type HelpMark, type HelpMode, type HelpPart, type HelpRect } from './helpContext';
+import { chooseRows, clipRect, helpLine, litShape, MARK_SIZE, markAt, numberParts, speaks, tooltipPlace, voiceFor, type FirstSeen, type HelpLit, type HelpMark, type HelpMode, type HelpPart, type HelpRect } from './helpContext';
 import { HelpContext, HelpLayerContext } from './useHelpMode';
 import { measureDue } from './measureModel';
 import { currentLocale, isRtl, t } from '../i18n';
@@ -35,25 +35,52 @@ function fromLeft(x: number) {
 /** The dimmed screen: the app's dark ink, thin enough that what is under it still reads. */
 const DIM = 'rgba(28,20,64,0.42)';
 
-type Utterance = { lang: string; onend: (() => void) | null; onerror: (() => void) | null };
+type Voice = { lang: string };
+type Utterance = { lang: string; voice: Voice | null; onend: (() => void) | null; onerror: (() => void) | null };
+type Synth = {
+  cancel: () => void;
+  speak: (u: Utterance) => void;
+  getVoices: () => Voice[];
+  addEventListener?: (type: 'voiceschanged', fn: () => void) => void;
+  removeEventListener?: (type: 'voiceschanged', fn: () => void) => void;
+};
 
 /** The browser's own voice, on the web where it has one. */
 function browserVoice() {
   if (Platform.OS !== 'web') return null;
-  const g = globalThis as unknown as { speechSynthesis?: { cancel: () => void; speak: (u: Utterance) => void }; SpeechSynthesisUtterance?: new (text: string) => Utterance };
+  const g = globalThis as unknown as { speechSynthesis?: Synth; SpeechSynthesisUtterance?: new (text: string) => Utterance };
   return g.speechSynthesis && g.SpeechSynthesisUtterance ? { synth: g.speechSynthesis, Utterance: g.SpeechSynthesisUtterance } : null;
 }
 
-/** Read the words aloud in the browser; resolves when it stops, including when anything stops all playback (audioSession.ts). */
-function speakInBrowser(text: string): Promise<void> {
+/** How long to wait for a browser that lists its voices late (Chrome lists none until it has loaded them). */
+const VOICES_WAIT_MS = 1500;
+
+/** The browser voice for the app's language (voiceFor), waiting once for the list to load. */
+function voiceForLocale(): Promise<Voice | undefined> {
   const voice = browserVoice();
-  if (!voice) return Promise.resolve();
+  if (!voice) return Promise.resolve(undefined);
+  const pick = () => { try { return voiceFor(currentLocale(), voice.synth.getVoices()); } catch { return undefined; } };
+  const now = pick();
+  if (now || !voice.synth.addEventListener) return Promise.resolve(now);
+  return new Promise((resolve) => {
+    const done = () => { clearTimeout(timer); voice.synth.removeEventListener?.('voiceschanged', done); resolve(pick()); };
+    const timer = setTimeout(done, VOICES_WAIT_MS);
+    voice.synth.addEventListener?.('voiceschanged', done);
+  });
+}
+
+/** Read the words aloud in the browser; resolves when it stops, including when anything stops all playback (audioSession.ts). */
+async function speakInBrowser(text: string): Promise<void> {
+  const voice = browserVoice();
+  const speaker = await voiceForLocale();
+  if (!voice || !speaker) return;
   return new Promise((resolve) => {
     let unregister = () => {};
     const end = () => { unregister(); resolve(); };
     try {
       const u = new voice.Utterance(text);
-      u.lang = currentLocale();
+      u.lang = speaker.lang;
+      u.voice = speaker;
       u.onend = end;
       u.onerror = end;
       voice.synth.cancel();
@@ -68,10 +95,10 @@ function stopSpeaking() {
   try { browserVoice()?.synth.cancel(); } catch { /* nothing was speaking */ }
 }
 
-/** Whether the play button has something to play: a recording of every line, or the browser's voice. */
+/** Whether the play button has something to play: a recording of every line, or a browser voice for the app's language. */
 async function canSay(label: string, detail?: string): Promise<boolean> {
-  if (browserVoice()) return true;
-  return isRecorded(label, ...(detail ? [detail] : []));
+  if (await isRecorded(label, ...(detail ? [detail] : []))) return true;
+  return !!(await voiceForLocale());
 }
 
 /** What is lit and where: written as parts are measured while help is on, read by the layer that draws it. */
@@ -351,7 +378,7 @@ function HelpLayer(props: {
         <View key={part.key} style={[styles.tip, fromLeft(tip.x), { top: tip.y, width: tip.width, opacity: tipHeight ? 1 : 0 }]}
           onLayout={(e) => setTipHeight(e.nativeEvent.layout.height)} accessibilityLiveRegion="polite">
           {tip.below !== null ? <View style={[styles.pointer, tip.below ? { top: -7 } : { bottom: -7 }, fromLeft(tip.arrowX - 7)]} /> : null}
-          <Pressable onPress={props.onClose} accessibilityRole="button" accessibilityLabel={helpLine(part.label, part.detail)}
+          <Pressable onPress={props.onClose} accessibilityRole="button" accessibilityLabel={helpLine(part.label, part.detail)} accessibilityHint={t('help.closeHint')}
             style={({ pressed }) => [styles.tipBody, pressed && { opacity: 0.8 }]}>
             {n !== undefined ? <View style={styles.tipNumber}><Text style={styles.markText} maxFontSizeMultiplier={1.5}>{formatNumber(n)}</Text></View> : null}
             <View style={{ flex: 1, minWidth: 0 }}>

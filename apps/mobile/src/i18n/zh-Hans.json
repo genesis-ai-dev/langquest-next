@@ -807,6 +807,7 @@
       "sectionLanguage": "语言成员 · {{total}}",
       "pending": "待处理",
       "none": "这里还没有人有角色。",
+      "connectToSee": "联网后可查看谁申请加入",
       "expandBy": "展开方式",
       "byLanguage": "按语言",
       "higher": "所有语言 · 仅查看",
@@ -2731,6 +2732,9 @@
       "askTitle": "登录后，申请加入{{language}}团队",
       "namePlaceholder": "邮箱或登录名",
       "nameHint": "登录名不含空格：只有字母、数字和连字符，例如 nyibol-deng-482。",
+      "nameHelp": "你的邮箱，或你的登录名，例如 nyibol-deng-482。",
+      "passwordHelp": "这个账户的密码。",
+      "buttonHelp": "用上面的名字和密码登录。",
       "button": "登录",
       "cantSignIn": "无法登录？",
       "cantSignInHelp": "显示无需密码的登录方式。",
@@ -2820,6 +2824,9 @@
       "scanHint": "不需要邮箱或密码。邀请会为你创建账号，并把你加入团队。",
       "failed": "无法创建账号。请重试。",
       "confirmHelp": "再输入一次同样的密码，确保没有输错。",
+      "emailHelp": "我们会把链接发到这里。打开它即可完成账户。",
+      "passwordHelp": "至少 6 个字符。登录时要用。",
+      "buttonHelp": "创建你的账户，并把链接发到你的邮箱。",
       "scanInviteHelp": "打开相机。邀请会为你创建账号：不需要邮箱。"
     },
     "scan": {
@@ -2922,7 +2929,8 @@
       "licenseLabel": "谁可以使用你的作品",
       "readyTitle": "可以使用了",
       "readyBody": "你会得到常用的角色和一种标准的经段检查方式。接下来，我们一起添加你的第一个语言和团队。",
-      "nameHelp": "你的机构的名称，你的团队会看到这个名称。"
+      "nameHelp": "你的机构的名称，你的团队会看到这个名称。",
+      "buttonHelp": "创建组织。接着添加你的第一种语言。"
     },
     "request": {
       "notSent": "未发送",
@@ -3204,8 +3212,11 @@
       "setPasswordSub": "如果其他人也使用这台设备",
       "notifications": "通知",
       "notificationsSub": "接收关于请求和反馈的通知",
-      "notificationsOn": "通知已开启。",
+      "notificationsBlocked": "在这部手机的设置里已关闭",
       "notificationsFailed": "无法开启通知。请在联网后重试。",
+      "notificationsOffNeedsConnection": "关闭需要联网。联网后再试一次。",
+      "openPhoneSettings": "打开这部手机的设置",
+      "openPhoneSettingsHelp": "打开这部手机的设置，现在只有那里能允许 LangQuest 的通知。",
       "switchOrg": "切换机构",
       "switchActive": "{{org}}（当前）",
       "switchOrStart": "{{org}} · 或者新建一个",
@@ -3213,6 +3224,7 @@
       "sync": "同步",
       "syncRefused": "这个账号无法同步这个机构",
       "syncPending_other": "{{count, number}} 项更改等待发送",
+      "syncPendingMixed": "{{total, number}} 项待发送 · 录音：{{recordings, number}}",
       "syncLive": "实时：更改会随时送达",
       "syncOffline": "离线：工作保存在本设备上",
       "syncUpToDate": "已是最新",
@@ -3226,7 +3238,6 @@
       "deleteSub": "永久删除你的账号和名字",
       "testing": "测试",
       "personaSub": "以演示用的译者、审核人或管理员身份登录",
-      "notificationsHelp": "开启通知，让本设备提醒你有关请求和反馈的消息。",
       "syncHelp": "显示等待发送或下载的内容。数字表示有等待发送的更改。",
       "blockedHelp": "显示你屏蔽了谁，可以取消屏蔽。",
       "switchOrgHelp": "打开你的机构，可以切换到另一个，或者新建一个。"
@@ -3247,6 +3258,7 @@
       "nameLabel": "全名",
       "shortPassword": "请设置至少 6 个字符的密码。",
       "passwordNeedsConnection": "设置密码需要联网。",
+      "nameSaved": "名字已保存。",
       "passwordFailed": "无法设置密码。请重试。",
       "savedWithPassword": "已保存。你可以用你的登录名和这个密码登录。",
       "saved": "个人资料已保存。联网后会同步。",
@@ -3291,17 +3303,22 @@
       "signingOut": "正在退出登录……",
       "button": "退出登录",
       "notYet": "暂不退出",
+      "sending": "正在发送…",
+      "seeWaiting": "查看等待发送的内容",
+      "seeWaitingHelp": "打开同步：按经段列出等待发送的内容，以及立即同步。",
       "question": "要退出登录吗？"
     },
     "delete": {
       "title": "删除账号",
       "deleting": "正在删除……",
       "button": "删除我的账号",
+      "buttonHelp": "再确认一次，然后永久删除这个账号。",
       "sendFirstTitle": "请先发送你的工作",
       "sendFirstBody": "还要发送：{{things}}。请等它们同步完成后再删除账号，这样你的机构才能收到。",
       "offlineTitle": "你处于离线状态",
       "offlineBody": "请连接互联网后再删除账号。",
       "question": "要删除你的账号吗？",
+      "confirmTitle": "删除 {{name}} 的账号？",
       "deleted": "会被删除的",
       "deletedSub": "你的登录信息、邮箱、名字、通知、屏蔽设置和诊断信息。你会退出所有机构。",
       "kept": "由你的机构保留的",
@@ -3313,6 +3330,7 @@
       "syncNow": "立即同步",
       "refused": "服务器拒绝了这个账号访问这个机构。",
       "tooOld": "请更新应用后再同步。",
+      "tooOldSends": "这个应用版本太旧，收不到团队的更改。你自己的工作仍会发送出去。",
       "waitingUpload": "等待上传",
       "refusedByServer": "被服务器拒绝",
       "latestConfirmed": "最新确认",
@@ -3333,13 +3351,15 @@
         "live": "实时",
         "checking": "已连接",
         "offline": "离线",
-        "refused": "未同步"
+        "refused": "未同步",
+        "tooOld": "更新后才能接收"
       },
       "help": {
         "live": "团队的更改会即时到达，你的更改也会立刻发出。",
         "checking": "已连接，但实时通道中断，所以本设备每隔几分钟检查一次更改。“立即同步”会马上检查。",
         "offline": "没有网络连接。你所做的一切都保存在本设备上，重新联网后会自动发送。",
         "refused": "服务器不接受本设备的更改。你的工作仍保存在这里。",
+        "tooOld": "这个应用版本太旧，收不到团队的更改。请到应用商店更新。",
         "toReceive": "本设备仍在下载的他人录音。",
         "refusedLine": "服务器未接受的更改，通常是因为权限有变。它们留在本设备上；打开“详细信息”查看每一项。"
       },
@@ -3585,7 +3605,7 @@
         "askedYou": "{{by}}请你做",
         "askedYourTeam": "{{by}}请你的{{team}}团队做",
         "askedYourReviewTeam": "{{by}}请你的审核团队做",
-        "byLinkOver": "通过{{channel}}发送链接",
+        "byLinkOver": "未由应用发送 · {{channel}}",
         "askedForChanges": "{{who}}要求修改",
         "answered": "已回应反馈——审核人说“没问题”后就会完成",
         "recordedBy": "由{{who}}录制",
@@ -3665,8 +3685,8 @@
         "text": "文字",
         "rating": "1–5"
       },
-      "guestMessage": "{{name}}你好——能请你听一下{{language}}的{{passage}}，告诉我们你听懂了什么吗？不需要账号：",
-      "guestMessageNoName": "你好——能请你听一下{{language}}的{{passage}}，告诉我们你听懂了什么吗？不需要账号："
+      "guestMessage": "{{name}}你好——能请你听一下{{language}}的{{passage}}，告诉我们你听懂了什么吗？",
+      "guestMessageNoName": "你好——能请你听一下{{language}}的{{passage}}，告诉我们你听懂了什么吗？"
     },
     "path": {
       "theCheck": "{{check}}",
@@ -3696,6 +3716,7 @@
       "fixSub": "然后再回到检查",
       "status": {
         "movedPast": "已越过",
+        "movedPastWhy": "已越过 · {{reason}}",
         "setAside": "已搁置",
         "answered": "已回应",
         "answeredBack": "已回复 · 退回检查",
@@ -3810,6 +3831,7 @@
       "continueRecording": "继续录音",
       "askFor": "请求{{check}}",
       "movePastThis": "越过这个检查点……",
+      "heldAt": "停在{{check}}，必须先通过",
       "skip": {
         "title": "要搁置{{kind}}吗？",
         "sub": "流程建议做这一步。搁置也可以——请说明原因，让下一个人明白。",
@@ -3887,7 +3909,6 @@
       "someoneElseCheck": "{{kind}}：请一个人、一个小组，或者通过 WhatsApp 或短信请团队外的人",
       "alreadyDid": "我们已经做过了",
       "alreadyDidSub": "说明{{check}}是什么时候、怎样进行的",
-      "notNowSub": "搁置{{check}}。请说明原因",
       "newVersion": "录制新版本",
       "newVersionSub": "目前的审核会保留在他们听过的版本上",
       "movePast": "越过检查点",
@@ -3899,7 +3920,9 @@
       "whatHelpsHelp": "打开这个经段的圣经、指南和其他帮助资料。",
       "myself": "我自己来做",
       "myselfSub": "{{kind}}：现在就听并作出决定",
-      "myselfMakesSub": "{{kind}}：现在就录"
+      "myselfMakesSub": "{{kind}}：现在就录",
+      "setAside": "搁置{{check}}",
+      "setAsideSub": "说明原因。这会记入记录。"
     },
     "published": {
       "askTitle": "请求检查",
@@ -3992,9 +4015,10 @@
       "titleRecord": "请人录音",
       "titleKind": "请求{{kind}}",
       "titleReview": "请求审核",
-      "doneOutside": "已请{{name}} · 请求已写进记录",
+      "doneOutside": "已记入记录，未发送。请你自己发给{{name}}。",
       "doneTeam": "{{name}}会在“我的工作”中看到",
       "askName": "请{{name}}",
+      "saveRequest": "保存请求",
       "chooseSomeone": "选择一个人",
       "recordIt": "录下来",
       "recordSub": "他们会在“我的工作”中看到，源文本和学习内容都已准备好。",
@@ -4003,11 +4027,9 @@
       "withoutApp": "没有应用的人",
       "usuallyDoesThis": "通常负责这项",
       "nobody": "团队中没有人能做这项工作。",
-      "nobodyTryOutside": "团队中没有人能做这项工作。试试没有应用的人。",
       "guestName": "对方的名字——例如：王牧师",
       "phone": "电话号码",
-      "preview": "{{channel}}预览",
-      "previewNote": "请求会和对方的名字、号码一起写进记录。从应用中发送免账号链接的功能还没有准备好。",
+      "phoneNeeded": "电话号码 · 必填",
       "directions": "说明 · 选填",
       "sayKeepInMind": "说说需要注意什么",
       "sayListenFor": "说说要听什么",
@@ -4017,12 +4039,15 @@
       "answerType": "回答方式：{{type}}",
       "addQuestion": "添加问题",
       "sendHelp": "发送请求。对方会在“我的工作”中看到。",
-      "sendOutsideHelp": "把请求写进记录，附上对方的名字和电话号码。",
+      "sendOutsideHelp": "把请求连同对方的姓名和号码记入记录。不会向对方发送任何内容。",
       "onTeamHelp": "选择一个使用应用的人。",
-      "withoutAppHelp": "改为通过 WhatsApp 或短信请人。",
+      "withoutAppHelp": "为没有应用的人保存请求。消息由你自己发送。",
       "teamHelp": "请这项检查的所有人。其中任何人都可以做。",
       "personHelp": "选择请这个人。",
       "phoneHelp": "通过 WhatsApp 或短信联系对方的号码。",
+      "sendYourself": "请你自己通过{{channel}}发给对方",
+      "shareMessage": "分享这条消息",
+      "shareMessageHelp": "用这条消息打开手机的分享面板。在浏览器中会复制它。",
       "whatsappHelp": "通过 WhatsApp 联系对方。",
       "smsHelp": "通过短信联系对方。",
       "askSpecificHelp": "输入一个让对方回答的问题，然后添加。",
@@ -4036,7 +4061,9 @@
     },
     "versions": {
       "title": "版本",
+      "whichDraft": "哪份草稿？",
       "newVersion": "新版本",
+      "continueDraft": "继续{{name}}",
       "yourDraft": "你的草稿",
       "yourDrafts": "你的草稿",
       "published": "已发布",
@@ -4072,6 +4099,7 @@
   "work": {
     "title": "我的工作",
     "loading": "正在加载你的工作……",
+    "notReady": "{{language}}有了可录制的段落后，你的工作会显示在这里。",
     "askedBy": "由{{name}}请求",
     "checkPassage": "检查{{passage}}",
     "bell": {
@@ -4121,7 +4149,8 @@
       "wantsToJoin": "{{name}}想加入",
       "asked": "{{when}}申请",
       "askedJustNow": "刚刚申请",
-      "openHelp": "打开对方的申请：选择一个角色，让他加入。"
+      "openHelp": "打开对方的申请：选择一个角色，让他加入。",
+      "connectToLetIn": "联网后才能让他们加入"
     },
     "lead": {
       "getOrgReady": "为{{org}}做准备",
@@ -4174,7 +4203,11 @@
     },
     "elsewhere": {
       "title": "{{language}}有新动态",
-      "sub_other": "有 {{count, number}} 条与你有关。点按切换到{{language}}。"
+      "sub_other": "有 {{count, number}} 条与你有关。点按切换到{{language}}。",
+      "switched": "现在在{{language}}",
+      "help": "把应用切换到{{language}}。",
+      "back": "回到{{language}}",
+      "backSub": "现在打开的是{{language}}。"
     },
     "again": {
       "title": "重新录制{{passage}}",
@@ -4354,6 +4387,7 @@
     "turnOff": "关闭帮助",
     "listen": "收听",
     "stop": "停止",
+    "closeHint": "关闭这条说明。",
     "line": "{{label}}。{{detail}}",
     "lineAfterSentence": "{{label}}{{detail}}",
     "details": {
@@ -4389,10 +4423,11 @@
       "explorer": "在新标签页中打开语言浏览：所有语言，以及在哪里使用。"
     },
     "sync": {
-      "live": "绿点：已联网。你的工作会随时发送。点按查看发送了什么。",
-      "checking": "灰点：正在寻找网络连接。你的工作会保存在本设备上，直到发送出去。",
-      "offline": "黄点：离线。你的工作保存在本设备上，联网后就会发送。",
-      "refused": "红色：服务器拒绝了某些内容。点按查看是什么，以及该怎么做。",
+      "live": "带勾的云：已联网。你的工作会随时发送。点按查看发送了什么。",
+      "checking": "普通的云：正在寻找网络。发送之前，你的工作留在这台设备上。",
+      "offline": "划掉的云：离线。你的工作留在这台设备上，联网后发送。",
+      "refused": "带警告的红色云：服务器拒绝了某些内容。点按查看是什么，以及该怎么做。",
+      "tooOld": "琥珀色带向下箭头的云：这个应用版本太旧，收不到团队的更改。点按即可更新。",
       "withWaiting": "{{standing}}数字表示有多少项等待发送。",
       "withReceiving": "{{standing}} 他人的录音下载到此设备时，圆环会转动。没有等待发送的内容。"
     }
@@ -4561,10 +4596,13 @@
     "actions": {
       "openMembers": "打开成员",
       "openPassage": "打开经段",
+      "openVersion": "打开这个版本",
+      "openReview": "打开这次审阅",
       "closeReport": "关闭举报",
       "keep": "保留",
-      "openPassageHelp": "打开这条举报所涉及的经段。",
+      "openPassageHelp": "打开被举报的内容，让你先看再决定。",
       "keepHelp": "把它保留在记录中，并关闭举报。",
+      "removeHelp": "再确认一次，然后在每台设备上把它从记录中移除。",
       "closeReportHelp": "关闭举报。不会移除任何人。"
     },
     "hidden": {
@@ -5042,7 +5080,8 @@
       "breakUpDifferently": "换一种划分方式",
       "breakUpDifferentlyHelp": "更改这卷书的切分方式：按章、按 FIA 经段或其他方式。",
       "chapterTitle": "{{book}} {{n}}",
-      "pickPart_other": "{{count, number}} 个部分——选择一个"
+      "pickPart_other": "{{count, number}} 个部分——选择一个",
+      "outsideFilter": "不在筛选范围内"
     },
     "home": {
       "title": "经段地图",
@@ -5060,9 +5099,10 @@
       "noPassageMatch": "没有匹配的经段——请先输入书卷名，再输入章号",
       "oldTestament": "旧约",
       "newTestament": "新约",
+      "testamentCount": "{{name}} · {{n, number}}",
       "noBooks": "这个语言还没有书卷。",
       "findHelp": "输入书卷名，再输入章号，就能直接跳过去。",
-      "languageChipHelp": "显示这个语言的地图。"
+      "languageChipHelp": "打开这种语言的地图，并把它设为你工作的语言。我的工作也会跟着切换。"
     },
     "tones": {
       "done": "已完成",

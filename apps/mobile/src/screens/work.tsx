@@ -18,7 +18,7 @@ import {
   checkPeople, highlightsOf, languageName, libraryItemView, membershipsOf, recommendedFor, unitPlace, unitTitle, upNextOf, waitingOf,
   type Highlight, type KindDef, type LanguageState, type OrgState, type Waiting
 } from '@langquest-next/core';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { deriveKinds, passageSummary } from '../i18n/coreText';
@@ -29,12 +29,12 @@ import { formatAgo } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
 import { baseWay, LATER_ITEM } from '../breakup/model';
 import { useEarlierSections } from '../breakup/useEarlierSections';
-import { pendingRequests, type PendingRequest } from '../invites/invites';
+import type { PendingRequest } from '../invites/invites';
+import { useJoinRequestList } from '../invites/useJoinRequestList';
 import { useServerInbox } from '../account/useInboxSources';
-import { Card, Group, Header, Ico, Row, Screen, SectionLabel, StepMarks, type IconName } from '../ui/kit';
+import { Card, EmptyState, Group, Header, Ico, Row, Screen, SectionLabel, StepMarks, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { isJustNow, when } from '../passage/passageView';
-import { noteExpected } from '../diagnostics/report';
 import { contractsFor } from '../shell/screenContracts';
 import { edgeAllowed, mapScreenFor } from '../shell/session';
 import { Bell, NextCard, QuietToggle, ReadyCard } from '../work/home';
@@ -42,7 +42,8 @@ import { checkName } from '../admin/adminModel';
 import { Faces } from '../checks/parts';
 import { HelpRow } from '../helpMode/helpBadge';
 import { useReadySummary, type ReadySummary } from '../admin/useReadySummary';
-import { divideSub, elsewhereCounts, nextSub, readinessFrom, THEN_CAP, undecided, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat, type Readiness } from '../work/homeModel';
+import { switchedFrom } from '../work/switchedFrom';
+import { divideSub, elsewhereCounts, nextSub, readinessFrom, THEN_CAP, undecided, waitingWhat, waitingWho, workEmpty, workIcon, workSub, workTarget, workWhat, type Readiness } from '../work/homeModel';
 import { SyncIndicator } from '../sync/SyncIndicator';
 import { C, space, TINT } from '../ui/theme';
 import { useOrgInChrome } from '../ui/useLayout';
@@ -94,23 +95,16 @@ function readyFor(ctx: Ctx, summary: ReadySummary): Readiness | null {
 
 /**
  * People asking to join, for those who may let them in (the existing Assign
- * role & accept, in Edit Member). Read from the server; offline the list is
- * empty and the bell still counts them. Read again when the bell's count
- * moves, which it does when someone asks or is decided.
+ * role & accept, in Edit Member). The list last read from the server stays
+ * shown offline (useJoinRequestList), with `offline` saying letting them in
+ * waits for a connection. Read again when the bell's count moves, which it
+ * does when someone asks or is decided.
  */
-function useJoinRequests(ctx: Ctx): PendingRequest[] {
+function useJoinRequests(ctx: Ctx): { rows: PendingRequest[]; offline: boolean } {
   const may = ctx.session.can('invite_members') && canGo(ctx, 'edit_member');
-  const orgId = ctx.language.orgId;
-  const tick = ctx.inbox.unread;
-  const [rows, setRows] = useState<PendingRequest[]>([]);
-  useEffect(() => {
-    if (!may) { setRows([]); return; }
-    let live = true;
-    pendingRequests(orgId).then((r) => { if (live) setRows(r); }).catch((e: unknown) => noteExpected('my work join requests', e));
-    return () => { live = false; };
-  }, [may, orgId, tick]);
+  const { rows, offline } = useJoinRequestList(ctx.language.orgId, may, ctx.inbox.unread);
   const decided = ctx.org.state?.joinDecisions ?? {};
-  return undecided(rows, decided);
+  return { rows: undecided(rows, decided), offline };
 }
 
 /**
@@ -119,13 +113,14 @@ function useJoinRequests(ctx: Ctx): PendingRequest[] {
  * cover the rest). My Work is about one language, so it says where else
  * something is waiting, and tapping a line switches to that language.
  */
-function useElsewhere(ctx: Ctx): { languageId: string; count: number }[] {
+function useElsewhere(ctx: Ctx): { rows: { languageId: string; count: number; ids: string[] }[]; markSeen: (ids: string[]) => Promise<void> } {
   const me = ctx.session.actorId;
   const orgId = ctx.language.orgId;
   const open = ctx.languageId;
   // Read again whenever the Inbox count moves.
-  const { remote: rows, seen: read } = useServerInbox(me, ctx.inbox.unread);
-  return useMemo(() => elsewhereCounts(rows, read, orgId, open), [rows, read, orgId, open]);
+  const { remote, seen: read, markSeen } = useServerInbox(me, ctx.inbox.unread);
+  const rows = useMemo(() => elsewhereCounts(remote, read, orgId, open), [remote, read, orgId, open]);
+  return { rows, markSeen };
 }
 
 /** The sync state as one icon beside the bell, always: live or not, and what is still moving. */
@@ -200,8 +195,11 @@ export function MyWork(ctx: Ctx) {
       {...(orgName ? { subNode: <OrgLine text={[language, orgName].filter(Boolean).join(' · ')} orgName={orgName} orgId={ctx.language.orgId} style={txt.xs} /> } : {})}
       action={<View style={styles.headerActions}><SyncChip {...ctx} />{bell}</View>} />
   );
+  // Not on this phone and no connection: say so, as the Map does, not "loading" for ever or "nothing waiting" (UI audit, finding 79).
+  const notHere = <EmptyState icon="cloud" title={t('map.home.needsConnection', { language })} sub={t('map.home.needsConnectionSub')} />;
   if (!state || !lists) {
-    return <Screen header={header}><Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xxl }]}>{t('work.loading')}</Text></Screen>;
+    const away = workEmpty({ open: languageId, pulled: ctx.language.pulled, online: ctx.language.online, loaded: false, passages: 0, gettingReady: false });
+    return <Screen header={header}>{away ? notHere : <EmptyState busy title={t('work.loading')} />}</Screen>;
   }
 
   const { forYou, waiting, recent, kinds } = lists;
@@ -237,16 +235,19 @@ export function MyWork(ctx: Ctx) {
     return { id: h.id, icon: look.icon, tone: look.tone, title: h.kind === 'review' ? t('work.checkPassage', { passage: w.title }) : w.title, sub, onPress: () => open(h, languageId),
       help: t('work.list.openHelp') };
   };
-  const joinItems: WorkItem[] = joins.map((r) => ({
+  const joinItems: WorkItem[] = joins.rows.map((r) => ({
     id: `join:${r.id}`, icon: 'people', tone: 'brand',
     title: t('work.join.wantsToJoin', { name: r.name ?? ctx.name(r.profileId) }),
-    sub: r.message.trim() || joinAsked(r.createdAt), help: t('work.join.openHelp'),
+    // Offline the request still shows, from this phone; letting them in waits for a connection (finding 85).
+    sub: joins.offline ? t('work.join.connectToLetIn') : r.message.trim() || joinAsked(r.createdAt), help: t('work.join.openHelp'),
     onPress: () => ctx.go('edit_member', { memberId: r.profileId, requestId: r.id, ...(r.name ? { name: r.name } : {}), ...(r.message ? { message: r.message } : {}) })
   }));
 
   // ---- the lead card: Get ready, the next thing for you, or a good place to start ----
   const ready = readyFor(ctx, readySummary);
-  const getReady = ready && ready.next ? ready : null;
+  // A language not on this phone, offline, reads as unset here: Get ready would ask what is already answered (UI audit).
+  const away = workEmpty({ open: languageId, pulled: ctx.language.pulled, online: ctx.language.online, loaded: true, passages: idx.passages.length, gettingReady: false }) === 'notHere';
+  const getReady = ready && ready.next && !away ? ready : null;
   const addLanguage = !languageId && ctx.session.isAdmin && canGo(ctx, 'new_language');
   const isAdminOnly = ctx.session.isAdmin && !canRecord && !canReview;
   let lead: React.JSX.Element | null = null;
@@ -316,21 +317,39 @@ export function MyWork(ctx: Ctx) {
       help: bookId && canGo(ctx, 'book_structure') ? t('work.divide.help') : t('work.divide.mapHelp'),
       onPress: () => (bookId && canGo(ctx, 'book_structure') ? ctx.go('book_structure', { languageId, bookId }) : map()) });
   }
-  // What is new for this person in the organization's other languages: the line switches to that language.
-  for (const e of elsewhere) {
+  // What is new for this person in the organization's other languages: the line switches to that language, says so,
+  // and its updates are read from then on (that language's own Inbox lists them). The way back stays offered (finding 81).
+  const switchTo = (to: string, ids: string[]) => {
+    if (languageId) switchedFrom.set(languageId, to);
+    if (ids.length) void elsewhere.markSeen(ids);
+    ctx.setLanguage(to);
+    ctx.toast(t('work.elsewhere.switched', { language: languageName(ctx.org.state, to) }));
+  };
+  for (const e of elsewhere.rows) {
     const name = languageName(ctx.org.state, e.languageId);
     tasks.push({ id: `elsewhere:${e.languageId}`, icon: 'globe', tone: 'brand', title: t('work.elsewhere.title', { language: name }),
-      sub: t('work.elsewhere.sub', { count: e.count, language: name }), onPress: () => ctx.setLanguage(e.languageId) });
+      sub: t('work.elsewhere.sub', { count: e.count, language: name }), help: t('work.elsewhere.help', { language: name }), onPress: () => switchTo(e.languageId, e.ids) });
+  }
+  const cameFrom = switchedFrom.get();
+  const backName = cameFrom && cameFrom.to === languageId && cameFrom.from !== languageId ? languageName(ctx.org.state, cameFrom.from) : '';
+  if (cameFrom && backName && !elsewhere.rows.some((e) => e.languageId === cameFrom.from)) {
+    tasks.push({ id: 'switched-back', icon: 'swap', tone: 'brand', title: t('work.elsewhere.back', { language: backName }),
+      sub: t('work.elsewhere.backSub', { language }), help: t('work.elsewhere.help', { language: backName }),
+      onPress: () => { switchedFrom.clear(); ctx.setLanguage(cameFrom.from); ctx.toast(t('work.elsewhere.switched', { language: backName })); } });
   }
 
   const items = [...joinItems, ...tasks, ...(languageId ? rest.map((h) => toItem(h, languageId)) : [])];
   const shown = moreShown ? items : items.slice(0, THEN_CAP);
   const listLabel = lead && !getReady && !addLanguage && !suggested ? t('work.list.then') : t('work.list.alsoForYou');
   const nothing = !lead && items.length === 0;
+  const empty = nothing ? workEmpty({ open: languageId, pulled: ctx.language.pulled, online: ctx.language.online, loaded: true, passages: idx.passages.length, gettingReady: !!getReady }) : null;
   return (
     <Screen header={header}>
       {lead}
-      {nothing ? (
+      {empty === 'notHere' ? notHere : null}
+      {/* Not set up yet: nothing to record is not the same as done (finding 79). */}
+      {empty === 'noPassages' ? <EmptyState icon="book" title={t('map.home.noPassages')} sub={t('work.notReady', { language })} /> : null}
+      {nothing && !empty ? (
         <Card style={styles.caughtUp}>
           <View style={[styles.tile, { backgroundColor: TINT.green }]}><Ico name="check" size={24} color={TINT.greenText} /></View>
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -394,7 +413,7 @@ export function MyWork(ctx: Ctx) {
         ) : null}
         {languageId && (forYou.length === 0 || nothing) ? (
           <QuietToggle label={isAdminOnly ? t('work.map.everyLanguage') : t('work.map.everything', { language })} onPress={isAdminOnly ? everyLanguage : map}
-            detail={t('work.map.help')} />
+            icon="map" detail={t('work.map.help')} />
         ) : null}
       </View>
     </Screen>

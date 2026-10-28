@@ -980,7 +980,9 @@ export function BookStructure(ctx: Ctx) {
   const book = bookId ? bibleBook(bookId) : undefined;
   const list = useRef<FlatList<number>>(null);
   const [picking, setPicking] = useState(false);
-  const [choosing, setChoosing] = useState(false);
+  // The book map's "Break up differently" opens the ways to choose from, and closing them goes back there (UI audit, finding 127).
+  const cameToChange = ctx.params['change'] === '1';
+  const [choosing, setChoosing] = useState(cameToChange);
   const [own, setOwn] = useState(false);
   const canShape = ctx.session.can('shape_templates') || ctx.session.can('manage_templates');
   // Breaking up a book changes the language's template: coordinators and admins (decision 74). It publishes a
@@ -1027,12 +1029,12 @@ export function BookStructure(ctx: Ctx) {
     if (own) {
       return (
         <DivideOwnWay ctx={ctx} book={usfm} bookName={data.label} doc={doc} v11n={v11n} fallbackVerses={book.verses} item={item} redo={data.segments.length > 0} recorded={data.recorded.size}
-          onClose={() => setOwn(false)} onDone={() => { setOwn(false); setChoosing(false); }} />
+          onClose={() => setOwn(false)} onDone={() => { setOwn(false); if (cameToChange) ctx.back(); else setChoosing(false); }} />
       );
     }
     return (
       <BreakUpBook ctx={ctx} book={usfm} bookName={data.label} language={data.language} doc={doc} item={item} redo={data.segments.length > 0} recorded={data.recorded.size}
-        onClose={() => (choosing ? setChoosing(false) : ctx.back())} onOwn={() => setOwn(true)} />
+        onClose={() => (choosing && !cameToChange ? setChoosing(false) : ctx.back())} onOwn={() => setOwn(true)} />
     );
   }
   const words = partWords(doc);

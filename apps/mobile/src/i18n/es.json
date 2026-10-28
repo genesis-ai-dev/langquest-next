@@ -843,6 +843,7 @@
       "sectionLanguage": "Miembros del idioma · {{total}}",
       "pending": "Pendiente",
       "none": "Nadie tiene un rol aquí todavía.",
+      "connectToSee": "Conéctate para ver quién pidió unirse",
       "expandBy": "Agrupar por",
       "byLanguage": "Por idioma",
       "higher": "Todos los idiomas · solo lectura",
@@ -2919,6 +2920,9 @@
       "askTitle": "Inicia sesión y luego pide unirte al equipo de {{language}}",
       "namePlaceholder": "Correo o nombre de usuario",
       "nameHint": "Un nombre de usuario no lleva espacios: letras, números y guiones, como nyibol-deng-482.",
+      "nameHelp": "Tu correo, o tu nombre de usuario, como nyibol-deng-482.",
+      "passwordHelp": "La contraseña de esta cuenta.",
+      "buttonHelp": "Te deja entrar con el nombre y la contraseña de arriba.",
       "button": "Iniciar sesión",
       "cantSignIn": "¿No puedes entrar?",
       "cantSignInHelp": "Muestra las formas de entrar que no necesitan contraseña.",
@@ -3008,6 +3012,9 @@
       "scanHint": "No necesitas correo ni contraseña. La invitación crea tu cuenta y te agrega al equipo.",
       "failed": "No se pudo crear la cuenta. Inténtalo de nuevo.",
       "confirmHelp": "Vuelve a escribir la misma contraseña, para asegurarte de que está bien.",
+      "emailHelp": "Enviamos un enlace aquí. Ábrelo para terminar tu cuenta.",
+      "passwordHelp": "6 caracteres o más. Entras con ella.",
+      "buttonHelp": "Crea tu cuenta y envía el enlace a tu correo.",
       "scanInviteHelp": "Abre la cámara. La invitación crea tu cuenta: no necesitas correo."
     },
     "scan": {
@@ -3110,7 +3117,8 @@
       "licenseLabel": "Quién puede usar tu trabajo",
       "readyTitle": "Lista para usar",
       "readyBody": "Tendrás los roles de siempre y una forma estándar de revisar los pasajes. Después agregaremos juntos tu primer idioma y tu equipo.",
-      "nameHelp": "El nombre de tu organización, como lo verán tus equipos."
+      "nameHelp": "El nombre de tu organización, como lo verán tus equipos.",
+      "buttonHelp": "Crea la organización. Después añades tu primer idioma."
     },
     "request": {
       "notSent": "No se envió",
@@ -3400,8 +3408,11 @@
       "setPasswordSub": "Si otras personas usan este dispositivo",
       "notifications": "Notificaciones",
       "notificationsSub": "Recibe avisos de solicitudes y comentarios",
-      "notificationsOn": "Las notificaciones están activadas.",
+      "notificationsBlocked": "Desactivadas en los ajustes de este teléfono",
       "notificationsFailed": "No se pudieron activar las notificaciones. Inténtalo de nuevo cuando tengas conexión.",
+      "notificationsOffNeedsConnection": "Desactivarlas necesita conexión. Vuelve a intentarlo cuando estés conectado.",
+      "openPhoneSettings": "Abrir los ajustes de este teléfono",
+      "openPhoneSettingsHelp": "Abre los ajustes de este teléfono, el único lugar que ahora puede permitir las notificaciones de LangQuest.",
       "switchOrg": "Cambiar de organización",
       "switchActive": "{{org}} (activa)",
       "switchOrStart": "{{org}} · o empieza una nueva",
@@ -3411,6 +3422,7 @@
       "syncPending_one": "{{count, number}} cambio esperando para enviarse",
       "syncPending_many": "{{count, number}} cambios esperando para enviarse",
       "syncPending_other": "{{count, number}} cambios esperando para enviarse",
+      "syncPendingMixed": "{{total, number}} por enviar · grabaciones: {{recordings, number}}",
       "syncLive": "En vivo: los cambios llegan en el momento",
       "syncOffline": "Sin conexión: el trabajo se guarda en este dispositivo",
       "syncUpToDate": "Al día",
@@ -3426,7 +3438,6 @@
       "deleteSub": "Tu cuenta y tu nombre, para siempre",
       "testing": "Pruebas",
       "personaSub": "Iniciar sesión como traductor, revisor o administrador de prueba",
-      "notificationsHelp": "Activa las notificaciones, para que este dispositivo te avise de solicitudes y comentarios.",
       "syncHelp": "Muestra lo que espera para enviarse o descargarse. Un número indica cambios esperando para enviarse.",
       "blockedHelp": "Muestra a quién bloqueaste, para desbloquearlo.",
       "switchOrgHelp": "Abre tus organizaciones, para cambiar a otra o empezar una nueva."
@@ -3447,6 +3458,7 @@
       "nameLabel": "Nombre completo",
       "shortPassword": "Elige una contraseña de 6 caracteres o más.",
       "passwordNeedsConnection": "Para poner una contraseña necesitas conexión.",
+      "nameSaved": "Nombre guardado.",
       "passwordFailed": "No se pudo poner la contraseña. Inténtalo de nuevo.",
       "savedWithPassword": "Guardado. Puedes iniciar sesión con tu nombre de usuario y esta contraseña.",
       "saved": "Perfil guardado. Se sincroniza cuando tengas conexión.",
@@ -3499,17 +3511,22 @@
       "signingOut": "Cerrando sesión…",
       "button": "Cerrar sesión",
       "notYet": "Todavía no",
+      "sending": "Enviando…",
+      "seeWaiting": "Ver lo que espera",
+      "seeWaitingHelp": "Abre Sincronizar: lo que espera para enviarse, por pasaje, y Sincronizar ahora.",
       "question": "¿Cerrar sesión?"
     },
     "delete": {
       "title": "Eliminar cuenta",
       "deleting": "Eliminando…",
       "button": "Eliminar mi cuenta",
+      "buttonHelp": "Pregunta una vez más y luego elimina esta cuenta para siempre.",
       "sendFirstTitle": "Primero envía tu trabajo",
       "sendFirstBody": "Falta enviar: {{things}}. Elimina tu cuenta cuando se hayan sincronizado, para que tu organización los reciba.",
       "offlineTitle": "No tienes conexión",
       "offlineBody": "Conéctate a internet para eliminar tu cuenta.",
       "question": "¿Eliminar tu cuenta?",
+      "confirmTitle": "¿Eliminar la cuenta de {{name}}?",
       "deleted": "Se elimina",
       "deletedSub": "Tu inicio de sesión, correo, nombre, notificaciones, bloqueos y diagnósticos. Sales de todas las organizaciones.",
       "kept": "Lo conserva tu organización",
@@ -3521,6 +3538,7 @@
       "syncNow": "Sincronizar ahora",
       "refused": "El servidor rechazó esta cuenta para esta organización.",
       "tooOld": "Actualiza la app para sincronizar.",
+      "tooOldSends": "Esta app es demasiado antigua para recibir los cambios de tu equipo. Tu propio trabajo sí se sigue enviando.",
       "waitingUpload": "esperando para subir",
       "refusedByServer": "rechazado por el servidor",
       "latestConfirmed": "último confirmado",
@@ -3545,13 +3563,15 @@
         "live": "En vivo",
         "checking": "Conectado",
         "offline": "Sin conexión",
-        "refused": "No se sincroniza"
+        "refused": "No se sincroniza",
+        "tooOld": "Actualiza para recibir"
       },
       "help": {
         "live": "Los cambios de su equipo llegan al momento, y los suyos salen enseguida.",
         "checking": "Conectado, pero el canal en vivo no funciona, así que este dispositivo busca cambios cada pocos minutos. Sincronizar ahora lo hace al instante.",
         "offline": "Sin conexión. Todo lo que haga se guarda en este dispositivo y se envía solo cuando vuelva a tener conexión.",
         "refused": "El servidor no acepta cambios de este dispositivo. Su trabajo sigue guardado aquí.",
+        "tooOld": "Esta app es demasiado antigua para recibir los cambios de tu equipo. Actualízala desde la tienda.",
         "toReceive": "Grabaciones de otras personas que este dispositivo todavía está descargando.",
         "refusedLine": "Cambios que el servidor no aceptó, normalmente porque cambió un permiso. Se quedan en este dispositivo; abra Detalles para ver cada uno."
       },
@@ -3817,7 +3837,7 @@
         "askedYou": "{{by}} te lo pidió",
         "askedYourTeam": "{{by}} se lo pidió a tu equipo {{team}}",
         "askedYourReviewTeam": "{{by}} se lo pidió a tu equipo de revisión",
-        "byLinkOver": "por enlace en {{channel}}",
+        "byLinkOver": "la aplicación no lo envió · {{channel}}",
         "askedForChanges": "{{who}} pidió cambios",
         "answered": "Comentarios respondidos: se cierra cuando el revisor dice Está bien",
         "recordedBy": "Grabado por {{who}}",
@@ -3909,8 +3929,8 @@
         "text": "Texto",
         "rating": "1–5"
       },
-      "guestMessage": "Hola, {{name}}: ¿podrías escuchar {{passage}} en {{language}} y decirnos qué entendiste? No necesitas una cuenta:",
-      "guestMessageNoName": "Hola: ¿podrías escuchar {{passage}} en {{language}} y decirnos qué entendiste? No necesitas una cuenta:"
+      "guestMessage": "Hola, {{name}}: ¿podrías escuchar {{passage}} en {{language}} y decirnos qué entendiste?",
+      "guestMessageNoName": "Hola: ¿podrías escuchar {{passage}} en {{language}} y decirnos qué entendiste?"
     },
     "path": {
       "theCheck": "la {{check}}",
@@ -3942,6 +3962,7 @@
       "fixSub": "Luego vuelve a la verificación",
       "status": {
         "movedPast": "superado",
+        "movedPastWhy": "se pasó · {{reason}}",
         "setAside": "apartado",
         "answered": "respondido",
         "answeredBack": "respondida · vuelve a la revisión",
@@ -4058,6 +4079,7 @@
       "continueRecording": "Seguir grabando",
       "askFor": "Pedir la {{check}}",
       "movePastThis": "Pasar este punto de control…",
+      "heldAt": "Espera en la {{check}}, que debe aprobarse primero",
       "skip": {
         "title": "¿Apartar {{kind}}?",
         "sub": "El flujo sugiere este paso. Está bien apartarlo: di por qué, para que la próxima persona lo entienda.",
@@ -4135,7 +4157,6 @@
       "someoneElseCheck": "{{kind}}: pídesela a una persona, a un grupo o a alguien de fuera por WhatsApp o mensaje de texto",
       "alreadyDid": "Ya lo hicimos",
       "alreadyDidSub": "Di cuándo y cómo se hizo la {{check}}",
-      "notNowSub": "Aparta la {{check}}. Di por qué",
       "newVersion": "Grabar una versión nueva",
       "newVersionSub": "Las revisiones hechas hasta ahora se quedan con la versión que escucharon",
       "movePast": "Pasar un punto de control",
@@ -4147,7 +4168,9 @@
       "whatHelpsHelp": "Abre las Biblias, guías y otras ayudas para este pasaje.",
       "myself": "Lo hago yo",
       "myselfSub": "{{kind}}: escucha y decide ahora",
-      "myselfMakesSub": "{{kind}}: graba ahora"
+      "myselfMakesSub": "{{kind}}: graba ahora",
+      "setAside": "Apartar la {{check}}",
+      "setAsideSub": "Di por qué. Queda en el registro."
     },
     "published": {
       "askTitle": "Pedir una verificación",
@@ -4254,9 +4277,10 @@
       "titleRecord": "Pedir a alguien que grabe",
       "titleKind": "Pedir {{kind}}",
       "titleReview": "Pedir una revisión",
-      "doneOutside": "Se pidió a {{name}} · la solicitud está en el registro",
+      "doneOutside": "Guardado en el registro, sin enviar. Envíaselo tú a {{name}}.",
       "doneTeam": "{{name}} lo verá en su Mi trabajo",
       "askName": "Pedir a {{name}}",
+      "saveRequest": "Guardar la solicitud",
       "chooseSomeone": "Elige a alguien",
       "recordIt": "Grabarlo",
       "recordSub": "Lo encontrará en su Mi trabajo, con la fuente y el estudio listos.",
@@ -4265,11 +4289,9 @@
       "withoutApp": "Alguien sin la app",
       "usuallyDoesThis": "Por lo general hace esto",
       "nobody": "Nadie del equipo puede hacer esto.",
-      "nobodyTryOutside": "Nadie del equipo puede hacer esto. Prueba con alguien sin la app.",
       "guestName": "Su nombre, p. ej., Pastor Garang",
       "phone": "Número de teléfono",
-      "preview": "Vista previa de {{channel}}",
-      "previewNote": "La solicitud se guarda en el registro con su nombre y número. Todavía no se puede enviar desde la app el enlace sin cuenta.",
+      "phoneNeeded": "Número de teléfono · obligatorio",
       "directions": "Instrucciones · opcional",
       "sayKeepInMind": "Di qué hay que tener en cuenta",
       "sayListenFor": "Di a qué hay que prestar atención",
@@ -4279,12 +4301,15 @@
       "answerType": "Respuesta: {{type}}",
       "addQuestion": "Agregar pregunta",
       "sendHelp": "Envía la solicitud. La encuentra en Mi trabajo.",
-      "sendOutsideHelp": "Guarda la solicitud en el registro, con su nombre y su número.",
+      "sendOutsideHelp": "Guarda la solicitud en el registro, con su nombre y número. No se le envía nada.",
       "onTeamHelp": "Elige a alguien que usa la app.",
-      "withoutAppHelp": "Mejor pídeselo a alguien por WhatsApp o mensaje de texto.",
+      "withoutAppHelp": "Guarda una solicitud para alguien sin la aplicación. Tú le envías el mensaje.",
       "teamHelp": "Se lo pide a todos los de esta verificación. Cualquiera de ellos puede hacerla.",
       "personHelp": "Elige a esta persona para pedírselo.",
       "phoneHelp": "Dónde se le puede contactar por WhatsApp o mensaje de texto.",
+      "sendYourself": "Envíales esto tú mismo, por {{channel}}",
+      "shareMessage": "Compartir el mensaje",
+      "shareMessageHelp": "Abre el menú para compartir de tu teléfono con este mensaje. En un navegador, lo copia.",
       "whatsappHelp": "Se le contacta por WhatsApp.",
       "smsHelp": "Se le contacta por mensaje de texto.",
       "askSpecificHelp": "Escribe una pregunta para que la responda y luego agrégala.",
@@ -4298,7 +4323,9 @@
     },
     "versions": {
       "title": "Versiones",
+      "whichDraft": "¿Qué borrador?",
       "newVersion": "Versión nueva",
+      "continueDraft": "Seguir con {{name}}",
       "yourDraft": "Tu borrador",
       "yourDrafts": "Tus borradores",
       "published": "Publicadas",
@@ -4336,6 +4363,7 @@
   "work": {
     "title": "Mi trabajo",
     "loading": "Cargando tu trabajo…",
+    "notReady": "Cuando {{language}} tenga pasajes para grabar, tu trabajo aparecerá aquí.",
     "askedBy": "pedido por {{name}}",
     "checkPassage": "Revisar {{passage}}",
     "bell": {
@@ -4393,7 +4421,8 @@
       "wantsToJoin": "{{name}} quiere unirse",
       "asked": "Lo pidió {{when}}",
       "askedJustNow": "Lo pidió hace un momento",
-      "openHelp": "Abre su solicitud: elige un rol y déjale entrar."
+      "openHelp": "Abre su solicitud: elige un rol y déjale entrar.",
+      "connectToLetIn": "Conéctate para dejarlos entrar"
     },
     "lead": {
       "getOrgReady": "Prepara {{org}}",
@@ -4456,7 +4485,11 @@
       "title": "Novedades en {{language}}",
       "sub_one": "{{count, number}} novedad para ti. Toca para cambiar a {{language}}.",
       "sub_many": "{{count, number}} novedades para ti. Toca para cambiar a {{language}}.",
-      "sub_other": "{{count, number}} novedades para ti. Toca para cambiar a {{language}}."
+      "sub_other": "{{count, number}} novedades para ti. Toca para cambiar a {{language}}.",
+      "switched": "Ahora en {{language}}",
+      "help": "Cambia la aplicación a {{language}}.",
+      "back": "Volver a {{language}}",
+      "backSub": "Ahora está abierto {{language}}."
     },
     "again": {
       "title": "Graba {{passage}} otra vez",
@@ -4642,6 +4675,7 @@
     "turnOff": "Apagar la ayuda",
     "listen": "Escuchar",
     "stop": "Detener",
+    "closeHint": "Cierra esta explicación.",
     "line": "{{label}}. {{detail}}",
     "lineAfterSentence": "{{label}} {{detail}}",
     "details": {
@@ -4677,10 +4711,11 @@
       "explorer": "Abre el explorador de idiomas en una pestaña nueva: todos los idiomas y dónde se hablan."
     },
     "sync": {
-      "live": "Punto verde: con conexión. Tu trabajo se envía a medida que avanzas. Toca para ver lo que se envió.",
-      "checking": "Punto gris: buscando conexión. Tu trabajo se queda en este dispositivo hasta que se envíe.",
-      "offline": "Punto ámbar: sin conexión. Tu trabajo se queda en este dispositivo y se envía cuando tengas conexión.",
-      "refused": "Rojo: el servidor rechazó algo. Toca para ver qué y qué hacer.",
+      "live": "Nube con una marca: con conexión. Tu trabajo se envía a medida que avanzas. Toca para ver lo que se envió.",
+      "checking": "Nube sola: buscando conexión. Tu trabajo se queda en este dispositivo hasta que se envíe.",
+      "offline": "Nube tachada: sin conexión. Tu trabajo se queda en este dispositivo y se envía cuando te conectes.",
+      "refused": "Nube roja con una advertencia: el servidor rechazó algo. Toca para ver qué y qué hacer.",
+      "tooOld": "Nube ámbar con una flecha hacia abajo: esta app es demasiado antigua para recibir los cambios de tu equipo. Toca para actualizarla.",
       "withWaiting": "{{standing}} El número indica cuántas cosas esperan para enviarse.",
       "withReceiving": "{{standing}} El anillo gira mientras las grabaciones de otros se descargan en este dispositivo. No hay nada por enviar."
     }
@@ -4867,10 +4902,13 @@
     "actions": {
       "openMembers": "Abrir Miembros",
       "openPassage": "Abrir el pasaje",
+      "openVersion": "Abrir la versión",
+      "openReview": "Abrir la revisión",
       "closeReport": "Cerrar el reporte",
       "keep": "Dejarlo",
-      "openPassageHelp": "Abre el pasaje del que trata este reporte.",
+      "openPassageHelp": "Abre lo que se reportó, para que lo mires antes de decidir.",
       "keepHelp": "Lo deja en el registro y cierra el reporte.",
+      "removeHelp": "Pregunta una vez más y luego lo quita del registro en todos los dispositivos.",
       "closeReportHelp": "Cierra el reporte. No se quita a nadie."
     },
     "hidden": {
@@ -5414,7 +5452,8 @@
       "chapterTitle": "{{book}} {{n}}",
       "pickPart_one": "{{count, number}} parte: elige una",
       "pickPart_many": "{{count, number}} partes: elige una",
-      "pickPart_other": "{{count, number}} partes: elige una"
+      "pickPart_other": "{{count, number}} partes: elige una",
+      "outsideFilter": "Fuera del filtro"
     },
     "home": {
       "title": "Mapa de pasajes",
@@ -5434,9 +5473,10 @@
       "noPassageMatch": "Ningún pasaje coincide: prueba con el nombre de un libro y luego un capítulo",
       "oldTestament": "Antiguo Testamento",
       "newTestament": "Nuevo Testamento",
+      "testamentCount": "{{name}} · {{n, number}}",
       "noBooks": "Todavía no hay libros en este idioma.",
       "findHelp": "Escribe el nombre de un libro y luego un número de capítulo para ir directo a él.",
-      "languageChipHelp": "Muestra el mapa de este idioma."
+      "languageChipHelp": "Abre el mapa de este idioma y lo convierte en el idioma en que trabajas. Mi trabajo también cambia."
     },
     "tones": {
       "done": "Listo",

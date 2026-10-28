@@ -114,13 +114,13 @@ export function SignIn(ctx: Ctx) {
       ) : null}
       {/* Two ways in that never combine (the demo's ADR-031): the fields, or a code. */}
       <Card>
-        <Field label={t('entry.signIn.namePlaceholder')} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+        <Field label={t('entry.signIn.namePlaceholder')} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" help={t('entry.signIn.nameHelp')} />
         {/* The button stays off until this can be an email or a sign-in name: say why. */}
         {nameNeedsFix(email) ? <Text style={txt.error}>{t('entry.signIn.nameHint')}</Text> : null}
-        <Field label={t('entry.fields.password')} value={password} onChangeText={setPassword} secure autoCapitalize="none"
+        <Field label={t('entry.fields.password')} value={password} onChangeText={setPassword} secure autoCapitalize="none" help={t('entry.signIn.passwordHelp')}
           onSubmit={() => { if (ready && !busy) void submit(); }} />
         {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
-        <PrimaryBtn label={busy ? t('entry.shared.signingIn') : t('entry.signIn.button')} onPress={() => void submit()} disabled={!ready || busy} />
+        <PrimaryBtn label={busy ? t('entry.shared.signingIn') : t('entry.signIn.button')} help={t('entry.signIn.buttonHelp')} onPress={() => void submit()} disabled={!ready || busy} />
         <LinkBtn label={t('entry.signIn.cantSignIn')} help={t('entry.signIn.cantSignInHelp')} expanded={stuck} onPress={() => setStuck(!stuck)}
           style={{ alignSelf: 'center' }} />
         {stuck ? <CantSignIn /> : null}
@@ -490,15 +490,17 @@ function EmailAccount(ctx: Ctx) {
 
   return (
     <Screen header={<Header title={t('entry.createAccount.title')} onBack={ctx.back} />}>
-      <Field label={t('entry.fields.email')} value={email} onChangeText={setEmail} placeholder={t('entry.createAccount.emailPlaceholder')} keyboardType="email-address" autoCapitalize="none" />
-      <Field label={t('entry.fields.password')} value={password} onChangeText={setPassword} placeholder={t('entry.createAccount.passwordPlaceholder')} secure autoCapitalize="none" />
+      <Field label={t('entry.fields.email')} value={email} onChangeText={setEmail} placeholder={t('entry.createAccount.emailPlaceholder')} keyboardType="email-address" autoCapitalize="none"
+        help={t('entry.createAccount.emailHelp')} />
+      <Field label={t('entry.fields.password')} value={password} onChangeText={setPassword} placeholder={t('entry.createAccount.passwordPlaceholder')} secure autoCapitalize="none"
+        help={t('entry.createAccount.passwordHelp')} />
       <Field label={t('entry.createAccount.confirmLabel')} value={confirm} onChangeText={setConfirm} placeholder={t('entry.createAccount.confirmPlaceholder')} secure autoCapitalize="none"
         help={t('entry.createAccount.confirmHelp')} />
       {/* The placeholder that says so is gone once typing starts: say why the button stays off. */}
       {password.length > 0 && password.length < MIN_PASSWORD ? <Text style={txt.error}>{t('entry.createAccount.tooShort')}</Text> : null}
       {confirm.length > 0 && password !== confirm ? <Text style={txt.error}>{t('entry.createAccount.mismatch')}</Text> : null}
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
-      <PrimaryBtn label={busy ? t('entry.shared.creating') : t('entry.createAccount.button')} onPress={() => void create()} disabled={!ready || busy} />
+      <PrimaryBtn label={busy ? t('entry.shared.creating') : t('entry.createAccount.button')} help={t('entry.createAccount.buttonHelp')} onPress={() => void create()} disabled={!ready || busy} />
       <TermsLink ctx={ctx} i18nKey="entry.termsLine.creating" />
       <OrDivider />
       <GhostBtn label={t('entry.createAccount.scanInvite')} icon="qr" help={t('entry.createAccount.scanInviteHelp')} onPress={() => ctx.go('scan_qr')} />
@@ -892,7 +894,7 @@ export function CreateOrg(ctx: Ctx) {
   return (
     <Screen
       header={<Header title={t('entry.createOrg.title')} onBack={ctx.back} />}
-      footer={<PrimaryBtn label={busy ? t('entry.shared.creating') : t('entry.createOrg.button')} onPress={() => void create()} disabled={!name.trim() || busy} />}
+      footer={<PrimaryBtn label={busy ? t('entry.shared.creating') : t('entry.createOrg.button')} help={t('entry.createOrg.buttonHelp')} onPress={() => void create()} disabled={!name.trim() || busy} />}
     >
       <View style={styles.hero}>
         <View style={[styles.tile, styles.heroTile]}><Ico name="building" size={32} color={C.primary} /></View>

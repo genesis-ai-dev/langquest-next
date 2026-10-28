@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { highlightsOf, type Update } from '@langquest-next/core';
+import { highlightsOf, settledUpdate, type Update } from '@langquest-next/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePendingRequestCount } from '../invites/useInviteRequests';
 import type { Blocks } from '../moderation/moderationData';
@@ -31,6 +31,7 @@ export function useInbox(o: { language: Pick<LanguageHandle, 'state' | 'lines' |
   }, [open, lines, actorId, updatesFor]);
   // Nothing from someone this person blocked reaches their Inbox (decisions.md 48).
   const updates = useMemo(() => all.filter((u) => !blocks.has(u.by)), [all, blocks]);
+  const doneIds = useMemo(() => new Set(updates.filter(settledUpdate).map((u) => u.id)), [updates]);
   const readKey = `inbox-read:${actorId}:${orgId}`;
   const [readIds, setReadIds] = useState<ReadonlySet<string>>(new Set());
   useEffect(() => { AsyncStorage.getItem(readKey).then((v) => setReadIds(new Set(v ? JSON.parse(v) as string[] : []))).catch(() => {}); }, [readKey]);
@@ -42,11 +43,12 @@ export function useInbox(o: { language: Pick<LanguageHandle, 'state' | 'lines' |
       return next;
     });
   }, [readKey]);
-  const unread = updates.filter((u) => !readIds.has(u.id)).length;
+  // A request done or withdrawn is read, marked or not: the bell counts what still wants something (UI audit, finding 80).
+  const isRead = useCallback((id: string) => readIds.has(id) || doneIds.has(id), [readIds, doneIds]);
+  const unread = updates.filter((u) => !isRead(u.id)).length;
   // Open reports count toward the Inbox badge (the tab, or My Work's bell) for whoever may act on them (decisions.md 48).
   const reportCount = useOpenReportCount(orgId, signedIn && (session.can('manage_structure') || session.can('invite_members')));
   // People asking to join count too, for whoever may admit them.
   const requestCount = usePendingRequestCount(orgId, signedIn && session.can('invite_members'));
-  const isRead = useCallback((id: string) => readIds.has(id), [readIds]);
   return { forYou, updates, unread: unread + reportCount + requestCount, isRead, markRead };
 }

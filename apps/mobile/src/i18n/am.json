@@ -825,6 +825,7 @@
       "sectionLanguage": "የቋንቋው አባላት · {{total}}",
       "pending": "በመጠባበቅ ላይ",
       "none": "እስካሁን እዚህ ሚና ያለው የለም።",
+      "connectToSee": "ለመቀላቀል የጠየቁትን ለማየት ከኢንተርኔት ጋር ይገናኙ",
       "expandBy": "በዚህ ይዘርጉ",
       "byLanguage": "በቋንቋ",
       "higher": "ሁሉም ቋንቋ · ለማየት ብቻ",
@@ -2825,6 +2826,9 @@
       "askTitle": "ይግቡ፣ ከዚያ የ{{language}} ቡድንን ለመቀላቀል ይጠይቁ",
       "namePlaceholder": "ኢሜይል ወይም የመግቢያ ስም",
       "nameHint": "የመግቢያ ስም ክፍተት የለውም፦ ፊደሎች፣ ቁጥሮች እና ሰረዞች፣ ለምሳሌ nyibol-deng-482።",
+      "nameHelp": "ኢሜይልዎ፣ ወይም የመግቢያ ስምዎ፣ ለምሳሌ nyibol-deng-482።",
+      "passwordHelp": "የዚህ መለያ የይለፍ ቃል።",
+      "buttonHelp": "ከላይ ባለው ስም እና የይለፍ ቃል ያስገባዎታል።",
       "button": "ይግቡ",
       "cantSignIn": "መግባት አልቻሉም?",
       "cantSignInHelp": "የይለፍ ቃል የማያስፈልጋቸውን የመግቢያ መንገዶች ያሳያል።",
@@ -2914,6 +2918,9 @@
       "scanHint": "ኢሜይል ወይም የይለፍ ቃል አያስፈልግም። ግብዣው መለያዎን ፈጥሮ ቡድኑ ውስጥ ያስገባዎታል።",
       "failed": "መለያውን መፍጠር አልተቻለም። እንደገና ይሞክሩ።",
       "confirmHelp": "ትክክል መሆኑን ለማረጋገጥ ያንኑ የይለፍ ቃል እንደገና ይጻፉ።",
+      "emailHelp": "ወደዚህ አገናኝ እንልካለን። መለያዎን ለመጨረስ ይክፈቱት።",
+      "passwordHelp": "6 ወይም ከዚያ በላይ ፊደላት። በእሱ ይገባሉ።",
+      "buttonHelp": "መለያዎን ይፈጥራል፤ አገናኙንም ወደ ኢሜይልዎ ይልካል።",
       "scanInviteHelp": "ካሜራውን ይከፍታል። ግብዣው መለያዎን ይፈጥራል፦ ኢሜይል አያስፈልግም።"
     },
     "scan": {
@@ -3016,7 +3023,8 @@
       "licenseLabel": "ሥራዎን ማን ሊጠቀም ይችላል",
       "readyTitle": "ለመጠቀም ዝግጁ",
       "readyBody": "የተለመዱትን ሚናዎችና ክፍሎችን የመፈተሻ መደበኛ መንገድ ያገኛሉ። ቀጥሎ የመጀመሪያ ቋንቋዎንና ቡድንዎን በአንድነት እናክላለን።",
-      "nameHelp": "ቡድኖችዎ እንደሚያዩት የድርጅትዎ ስም።"
+      "nameHelp": "ቡድኖችዎ እንደሚያዩት የድርጅትዎ ስም።",
+      "buttonHelp": "ድርጅቱን ይፈጥራል። ቀጥሎ የመጀመሪያ ቋንቋዎን ያክላሉ።"
     },
     "request": {
       "notSent": "አልተላከም",
@@ -3302,8 +3310,11 @@
       "setPasswordSub": "ሌሎች ሰዎች ይህን መሣሪያ የሚጠቀሙ ከሆነ",
       "notifications": "ማሳወቂያዎች",
       "notificationsSub": "ስለ ጥያቄዎችና አስተያየቶች ይስሙ",
-      "notificationsOn": "ማሳወቂያዎች በርተዋል።",
+      "notificationsBlocked": "በዚህ ስልክ ቅንብሮች ውስጥ ጠፍቷል",
       "notificationsFailed": "ማሳወቂያዎችን ማብራት አልተቻለም። ኢንተርኔት ሲገናኝ እንደገና ይሞክሩ።",
+      "notificationsOffNeedsConnection": "እነሱን ማጥፋት ግንኙነት ይፈልጋል። ሲገናኙ እንደገና ይሞክሩ።",
+      "openPhoneSettings": "የዚህን ስልክ ቅንብሮች ይክፈቱ",
+      "openPhoneSettingsHelp": "የዚህን ስልክ ቅንብሮች ይከፍታል፤ አሁን ለLangQuest ማሳወቂያዎችን መፍቀድ የሚቻለው እዚያ ብቻ ነው።",
       "switchOrg": "ድርጅት ይቀይሩ",
       "switchActive": "{{org}} (ገቢር)",
       "switchOrStart": "{{org}} · ወይም አዲስ ይጀምሩ",
@@ -3312,6 +3323,7 @@
       "syncRefused": "ይህ መለያ ይህን ድርጅት ማመሳሰል አይችልም",
       "syncPending_one": "{{count, number}} ለውጥ ለመላክ በመጠበቅ ላይ",
       "syncPending_other": "{{count, number}} ለውጦች ለመላክ በመጠበቅ ላይ",
+      "syncPendingMixed": "{{total, number}} ለመላክ በመጠባበቅ ላይ · ቅጂዎች፦ {{recordings, number}}",
       "syncLive": "በቀጥታ፦ ለውጦች ሲከሰቱ ይደርሳሉ",
       "syncOffline": "ከመስመር ውጭ፦ ሥራ በዚህ መሣሪያ ላይ ይቀመጣል",
       "syncUpToDate": "ወቅታዊ ነው",
@@ -3326,7 +3338,6 @@
       "deleteSub": "መለያዎና ስምዎ፣ ለዘለቄታው",
       "testing": "ሙከራ",
       "personaSub": "እንደ ማሳያ ተርጓሚ፣ ገምጋሚ ወይም አስተዳዳሪ ይግቡ",
-      "notificationsHelp": "ይህ መሣሪያ ስለ ጥያቄዎችና አስተያየቶች እንዲነግርዎ ማሳወቂያዎችን ያበራል።",
       "syncHelp": "ለመላክ ወይም ለማውረድ የሚጠብቀውን ያሳያል። ቁጥር ለመላክ የሚጠብቁ ለውጦች አሉ ማለት ነው።",
       "blockedHelp": "እገዳውን ለማንሳት ያገዷቸውን ሰዎች ያሳያል።",
       "switchOrgHelp": "ወደ ሌላ ለመቀየር ወይም አዲስ ለመጀመር ድርጅቶችዎን ይከፍታል።"
@@ -3347,6 +3358,7 @@
       "nameLabel": "ሙሉ ስም",
       "shortPassword": "6 ወይም ከዚያ በላይ ፊደላት ያለው የይለፍ ቃል ይምረጡ።",
       "passwordNeedsConnection": "የይለፍ ቃል ማዘጋጀት ግንኙነት ይፈልጋል።",
+      "nameSaved": "ስሙ ተቀምጧል።",
       "passwordFailed": "የይለፍ ቃሉን ማዘጋጀት አልተቻለም። እንደገና ይሞክሩ።",
       "savedWithPassword": "ተቀምጧል። በመግቢያ ስምዎና በዚህ የይለፍ ቃል መግባት ይችላሉ።",
       "saved": "መገለጫው ተቀምጧል። ኢንተርኔት ሲገናኙ ይመሳሰላል።",
@@ -3395,17 +3407,22 @@
       "signingOut": "በመውጣት ላይ…",
       "button": "ይውጡ",
       "notYet": "ገና ነው",
+      "sending": "በመላክ ላይ…",
+      "seeWaiting": "የሚጠብቀውን ይመልከቱ",
+      "seeWaitingHelp": "ማስመርን ይከፍታል፦ ለመላክ የሚጠብቀው በክፍል፣ እና አሁን አስምር።",
       "question": "ይውጡ?"
     },
     "delete": {
       "title": "መለያ ይሰርዙ",
       "deleting": "በመሰረዝ ላይ…",
       "button": "መለያዬን ሰርዝ",
+      "buttonHelp": "አንድ ጊዜ እንደገና ይጠይቃል፤ ከዚያ ይህን መለያ ለዘለቄታው ይሰርዛል።",
       "sendFirstTitle": "መጀመሪያ ሥራዎን ይላኩ",
       "sendFirstBody": "ገና የሚላክ፦ {{things}}። ድርጅትዎ እንዲያገኛቸው ከተመሳሰሉ በኋላ መለያዎን ይሰርዙ።",
       "offlineTitle": "ከመስመር ውጭ ነዎት",
       "offlineBody": "መለያዎን ለመሰረዝ ከኢንተርኔት ጋር ይገናኙ።",
       "question": "መለያዎን ይሰርዛሉ?",
+      "confirmTitle": "የ{{name}} መለያ ይሰረዝ?",
       "deleted": "የሚሰረዘው",
       "deletedSub": "መግቢያዎ፣ ኢሜይልዎ፣ ስምዎ፣ ማሳወቂያዎችዎ፣ እገዳዎችዎና የምርመራ መረጃዎ። ከሁሉም ድርጅቶች ይወጣሉ።",
       "kept": "ድርጅትዎ የሚያቆየው",
@@ -3417,6 +3434,7 @@
       "syncNow": "አሁን ያመሳስሉ",
       "refused": "አገልጋዩ ይህን መለያ ለዚህ ድርጅት እምቢ ብሏል።",
       "tooOld": "ለማመሳሰል መተግበሪያውን ያዘምኑ።",
+      "tooOldSends": "ይህ መተግበሪያ የቡድንዎን ለውጦች ለመቀበል በጣም አሮጌ ነው። የራስዎ ሥራ ግን አሁንም ይላካል።",
       "waitingUpload": "ለመስቀል በመጠበቅ ላይ",
       "refusedByServer": "በአገልጋዩ ውድቅ የተደረገ",
       "latestConfirmed": "የመጨረሻው የተረጋገጠ",
@@ -3439,13 +3457,15 @@
         "live": "በቀጥታ",
         "checking": "ተገናኝቷል",
         "offline": "ከመስመር ውጭ",
-        "refused": "እያሰመረ አይደለም"
+        "refused": "እያሰመረ አይደለም",
+        "tooOld": "ለመቀበል ያዘምኑ"
       },
       "help": {
         "live": "የቡድንዎ ለውጦች ወዲያውኑ ይደርሳሉ፣ የእርስዎም ወዲያውኑ ይላካሉ።",
         "checking": "ተገናኝቷል፣ ግን የቀጥታ ቻናሉ ተቋርጧል፣ ስለዚህ ይህ መሣሪያ በጥቂት ደቂቃዎች ልዩነት ለውጦችን ይፈትሻል። አሁን አሰምር ወዲያውኑ ይፈትሻል።",
         "offline": "ግንኙነት የለም። የሚያደርጉት ሁሉ በዚህ መሣሪያ ላይ ይቀመጣል፣ እንደገና መስመር ላይ ሲሆኑ ራሱ ይላካል።",
         "refused": "አገልጋዩ ከዚህ መሣሪያ ለውጦችን እየተቀበለ አይደለም። ሥራዎ አሁንም እዚህ ተቀምጧል።",
+        "tooOld": "ይህ መተግበሪያ የቡድንዎን ለውጦች ለመቀበል በጣም አሮጌ ነው። ከመደብሩ ያዘምኑት።",
         "toReceive": "ይህ መሣሪያ አሁንም እያወረዳቸው ያሉ የሌሎች ቅጂዎች።",
         "refusedLine": "አገልጋዩ ያልተቀበላቸው ለውጦች፣ ብዙውን ጊዜ ፈቃድ ስለተቀየረ። በዚህ መሣሪያ ላይ ይቆያሉ፤ እያንዳንዱን ለማየት ዝርዝሮችን ይክፈቱ።"
       },
@@ -3701,7 +3721,7 @@
         "askedYou": "{{by}} ጠይቆዎታል",
         "askedYourTeam": "{{by}} የእርስዎን የ{{team}} ቡድን ጠይቋል",
         "askedYourReviewTeam": "{{by}} የግምገማ ቡድንዎን ጠይቋል",
-        "byLinkOver": "በ{{channel}} በሊንክ",
+        "byLinkOver": "በመተግበሪያው አልተላከም · {{channel}}",
         "askedForChanges": "{{who}} ለውጦችን ጠይቋል",
         "answered": "አስተያየቱ ተመልሷል — ገምጋሚው «ጥሩ ነው» ሲል ይጸዳል",
         "recordedBy": "በ{{who}} ተቀርጿል",
@@ -3787,8 +3807,8 @@
         "text": "ጽሑፍ",
         "rating": "1–5"
       },
-      "guestMessage": "ሰላም {{name}} — {{passage}}ን በ{{language}} አዳምጠው የተረዱትን ሊነግሩን ይችላሉ? መለያ አያስፈልግም፦",
-      "guestMessageNoName": "ሰላም — {{passage}}ን በ{{language}} አዳምጠው የተረዱትን ሊነግሩን ይችላሉ? መለያ አያስፈልግም፦"
+      "guestMessage": "ሰላም {{name}} — {{passage}}ን በ{{language}} አዳምጠው የተረዱትን ሊነግሩን ይችላሉ?",
+      "guestMessageNoName": "ሰላም — {{passage}}ን በ{{language}} አዳምጠው የተረዱትን ሊነግሩን ይችላሉ?"
     },
     "path": {
       "theCheck": "{{check}}",
@@ -3819,6 +3839,7 @@
       "fixSub": "ከዚያ ወደ ፍተሻው ይመለሳል",
       "status": {
         "movedPast": "ታልፏል",
+        "movedPastWhy": "ታልፏል · {{reason}}",
         "setAside": "ወደ ጎን ተትቷል",
         "answered": "ተመልሷል",
         "answeredBack": "ተመልሷል · ወደ ፍተሻው ይመለሳል",
@@ -3934,6 +3955,7 @@
       "continueRecording": "መቅረጽዎን ይቀጥሉ",
       "askFor": "{{check}} ይጠይቁ",
       "movePastThis": "ይህን ኬላ ያሳልፉ…",
+      "heldAt": "{{check}} ላይ እየጠበቀ ነው፤ መጀመሪያ ማለፍ አለበት",
       "skip": {
         "title": "{{kind}}ን ወደ ጎን ይተዋሉ?",
         "sub": "ሂደቱ ይህን ደረጃ ይጠቁማል። ወደ ጎን መተው ችግር የለውም — ቀጣዩ ሰው እንዲረዳ ለምን እንደሆነ ይናገሩ።",
@@ -4011,7 +4033,6 @@
       "someoneElseCheck": "{{kind}}፦ ሰውን፣ ቡድንን ወይም ከውጭ ያለን ሰው በWhatsApp ወይም በጽሑፍ መልዕክት ይጠይቁ",
       "alreadyDid": "ይህን አስቀድመን ሠርተናል",
       "alreadyDidSub": "{{check}} መቼና እንዴት እንደተከናወነ ይናገሩ",
-      "notNowSub": "{{check}}ን ወደ ጎን ይተዉ። ለምን እንደሆነ ይናገሩ",
       "newVersion": "አዲስ ስሪት ይቅረጹ",
       "newVersionSub": "እስካሁን ያሉ ግምገማዎች ከሰሙት ስሪት ጋር ይቆያሉ",
       "movePast": "ኬላ ያሳልፉ",
@@ -4023,7 +4044,9 @@
       "whatHelpsHelp": "ለዚህ ክፍል መጽሐፍ ቅዱሶችን፣ መመሪያዎችንና ሌሎች እገዛዎችን ይከፍታል።",
       "myself": "ይህን ራሴ እሠራዋለሁ",
       "myselfSub": "{{kind}}፦ አሁን ያዳምጡና ይወስኑ",
-      "myselfMakesSub": "{{kind}}፦ አሁን ይቅዱት"
+      "myselfMakesSub": "{{kind}}፦ አሁን ይቅዱት",
+      "setAside": "{{check}}ን ወደ ጎን አስቀምጥ",
+      "setAsideSub": "ምክንያቱን ይናገሩ። በመዝገቡ ላይ ይቀመጣል።"
     },
     "published": {
       "askTitle": "ፍተሻ ይጠይቁ",
@@ -4123,9 +4146,10 @@
       "titleRecord": "አንድ ሰው እንዲቀርጽ ይጠይቁ",
       "titleKind": "{{kind}} ይጠይቁ",
       "titleReview": "ግምገማ ይጠይቁ",
-      "doneOutside": "{{name}} ተጠይቋል · ጥያቄው በመዝገቡ ላይ ነው",
+      "doneOutside": "በመዝገቡ ላይ ተቀምጧል፣ አልተላከም። ራስዎ ለ{{name}} ይላኩት።",
       "doneTeam": "{{name}} በ«ሥራዬ» ላይ ያየዋል",
       "askName": "{{name}}ን ይጠይቁ",
+      "saveRequest": "ጥያቄውን አስቀምጥ",
       "chooseSomeone": "አንድ ሰው ይምረጡ",
       "recordIt": "ይቅረጹት",
       "recordSub": "ምንጩና ጥናቱ ተዘጋጅተው በ«ሥራዬ» ላይ ያገኙታል።",
@@ -4134,11 +4158,9 @@
       "withoutApp": "መተግበሪያው የሌለው ሰው",
       "usuallyDoesThis": "ብዙውን ጊዜ ይህን ይሠራል",
       "nobody": "በቡድኑ ውስጥ ይህን ሊሠራ የሚችል ማንም የለም።",
-      "nobodyTryOutside": "በቡድኑ ውስጥ ይህን ሊሠራ የሚችል ማንም የለም። መተግበሪያው የሌለውን ሰው ይሞክሩ።",
       "guestName": "ስማቸው — ለምሳሌ ፓስተር ጋራንግ",
       "phone": "ስልክ ቁጥር",
-      "preview": "የ{{channel}} ቅድመ እይታ",
-      "previewNote": "ጥያቄው ከስማቸውና ከቁጥራቸው ጋር በመዝገቡ ላይ ተቀምጧል። መለያ የማያስፈልገውን ሊንክ ከመተግበሪያው መላክ ገና ዝግጁ አይደለም።",
+      "phoneNeeded": "ስልክ ቁጥር · ያስፈልጋል",
       "directions": "መመሪያ · ካስፈለገ",
       "sayKeepInMind": "ልብ ሊሉት የሚገባውን ይናገሩ",
       "sayListenFor": "ምን እንደሚያዳምጡ ይናገሩ",
@@ -4148,12 +4170,15 @@
       "answerType": "መልስ፦ {{type}}",
       "addQuestion": "ጥያቄ ያክሉ",
       "sendHelp": "ጥያቄውን ይልካል። በ«ሥራዬ» ላይ ያገኙታል።",
-      "sendOutsideHelp": "ጥያቄውን ከስማቸውና ከቁጥራቸው ጋር በመዝገቡ ላይ ያስቀምጣል።",
+      "sendOutsideHelp": "ጥያቄውን ከስማቸውና ከቁጥራቸው ጋር በመዝገቡ ላይ ያስቀምጣል። ምንም አይላክላቸውም።",
       "onTeamHelp": "መተግበሪያውን የሚጠቀም ሰው ይምረጡ።",
-      "withoutAppHelp": "በምትኩ አንድን ሰው በWhatsApp ወይም በጽሑፍ መልዕክት ይጠይቁ።",
+      "withoutAppHelp": "መተግበሪያው ለሌለው ሰው ጥያቄ ያስቀምጣል። መልእክቱን ራስዎ ይልካሉ።",
       "teamHelp": "በዚህ ፍተሻ ላይ ያሉትን ሁሉ ይጠይቃል። ከእነሱ ማንኛውም ሊያደርገው ይችላል።",
       "personHelp": "የሚጠየቀውን ይህን ሰው ይመርጣል።",
       "phoneHelp": "በWhatsApp ወይም በጽሑፍ መልዕክት የሚገኙበት።",
+      "sendYourself": "ይህን ራስዎ በ{{channel}} ይላኩላቸው",
+      "shareMessage": "መልእክቱን አጋራ",
+      "shareMessageHelp": "ይህን መልእክት በስልክዎ የማጋሪያ ገጽ ይከፍታል። በአሳሽ ውስጥ ይቀዳዋል።",
       "whatsappHelp": "በWhatsApp ያግኟቸው።",
       "smsHelp": "በጽሑፍ መልዕክት ያግኟቸው።",
       "askSpecificHelp": "የሚመልሱትን ጥያቄ ይጻፉ፣ ከዚያ ያክሉት።",
@@ -4167,7 +4192,9 @@
     },
     "versions": {
       "title": "ስሪቶች",
+      "whichDraft": "የትኛው ረቂቅ?",
       "newVersion": "አዲስ ስሪት",
+      "continueDraft": "{{name}}ን ቀጥል",
       "yourDraft": "ረቂቅዎ",
       "yourDrafts": "ረቂቆችዎ",
       "published": "የታተሙ",
@@ -4204,6 +4231,7 @@
   "work": {
     "title": "ሥራዬ",
     "loading": "ሥራዎን በመጫን ላይ…",
+    "notReady": "{{language}} የሚቀረጹ ክፍሎች ሲኖሩት ሥራዎ እዚህ ይታያል።",
     "askedBy": "በ{{name}} የተጠየቀ",
     "checkPassage": "{{passage}}ን ይፈትሹ",
     "bell": {
@@ -4257,7 +4285,8 @@
       "wantsToJoin": "{{name}} መቀላቀል ይፈልጋል",
       "asked": "{{when}} ጠይቋል",
       "askedJustNow": "አሁን ጠይቋል",
-      "openHelp": "ጥያቄያቸውን ይከፍታል፦ ሚና ይምረጡና እንዲገቡ ይፍቀዱ።"
+      "openHelp": "ጥያቄያቸውን ይከፍታል፦ ሚና ይምረጡና እንዲገቡ ይፍቀዱ።",
+      "connectToLetIn": "እንዲገቡ ለማድረግ ከኢንተርኔት ጋር ይገናኙ"
     },
     "lead": {
       "getOrgReady": "{{org}}ን ያዘጋጁ",
@@ -4315,7 +4344,11 @@
     "elsewhere": {
       "title": "በ{{language}} አዲስ ዝማኔዎች",
       "sub_one": "ለእርስዎ {{count, number}} ዝማኔ። ወደ {{language}} ለመቀየር ይንኩ።",
-      "sub_other": "ለእርስዎ {{count, number}} ዝማኔዎች። ወደ {{language}} ለመቀየር ይንኩ።"
+      "sub_other": "ለእርስዎ {{count, number}} ዝማኔዎች። ወደ {{language}} ለመቀየር ይንኩ።",
+      "switched": "አሁን በ{{language}}",
+      "help": "መተግበሪያውን ወደ {{language}} ይቀይራል።",
+      "back": "ወደ {{language}} ተመለስ",
+      "backSub": "አሁን {{language}} ክፍት ነው።"
     },
     "again": {
       "title": "{{passage}}ን እንደገና ይቅረጹ",
@@ -4498,6 +4531,7 @@
     "turnOff": "እገዛን ያጥፉ",
     "listen": "ያዳምጡ",
     "stop": "ያቁሙ",
+    "closeHint": "ይህን ማብራሪያ ይዘጋል።",
     "line": "{{label}}። {{detail}}",
     "lineAfterSentence": "{{label}} {{detail}}",
     "details": {
@@ -4533,10 +4567,11 @@
       "explorer": "የቋንቋ አሳሹን በአዲስ ትር ይከፍታል፦ እያንዳንዱ ቋንቋና የሚነገርበት ቦታ።"
     },
     "sync": {
-      "live": "አረንጓዴ ነጥብ፦ ተገናኝቷል። ሥራዎ እየሠሩ ሳሉ ይላካል። የተላከውን ለማየት ይንኩ።",
-      "checking": "ግራጫ ነጥብ፦ ግንኙነት በመፈለግ ላይ። ሥራዎ እስኪላክ ድረስ በዚህ መሣሪያ ላይ ይቆያል።",
-      "offline": "ወርቃማ ነጥብ፦ ከመስመር ውጭ። ሥራዎ በዚህ መሣሪያ ላይ ይቆያል፣ ኢንተርኔት እንደተገናኙም ይላካል።",
-      "refused": "ቀይ፦ አገልጋዩ አንድ ነገር እምቢ ብሏል። ምን እንደሆነና ምን ማድረግ እንዳለብዎ ለማየት ይንኩ።",
+      "live": "ምልክት ያለው ደመና፦ ተገናኝቷል። ሥራዎ እየሰሩ ይላካል። የተላከውን ለማየት ይንኩ።",
+      "checking": "ባዶ ደመና፦ ግንኙነት እየፈለገ ነው። ሥራዎ እስኪላክ ድረስ በዚህ መሣሪያ ላይ ይቆያል።",
+      "offline": "የተሰረዘ ደመና፦ ከመስመር ውጭ። ሥራዎ በዚህ መሣሪያ ላይ ይቆያል፣ ሲገናኙ ይላካል።",
+      "refused": "ማስጠንቀቂያ ያለው ቀይ ደመና፦ አገልጋዩ አንድ ነገር አልተቀበለም። ምን እንደሆነና ምን እንደሚደረግ ለማየት ይንኩ።",
+      "tooOld": "ወደ ታች ቀስት ያለው ብርቱካናማ ደመና፦ ይህ መተግበሪያ የቡድንዎን ለውጦች ለመቀበል በጣም አሮጌ ነው። ለማዘመን ይንኩ።",
       "withWaiting": "{{standing}} ቁጥሩ ለመላክ የሚጠብቁ ነገሮችን ብዛት ያሳያል።",
       "withReceiving": "{{standing}} የሌሎች ቅጂዎች ወደዚህ መሣሪያ እየወረዱ ሳለ ቀለበቱ ይዞራል። የሚላክ ምንም የለም።"
     }
@@ -4714,10 +4749,13 @@
     "actions": {
       "openMembers": "«አባላት»ን ይክፈቱ",
       "openPassage": "ክፍሉን ይክፈቱ",
+      "openVersion": "ቅጂውን ይክፈቱ",
+      "openReview": "ግምገማውን ይክፈቱ",
       "closeReport": "ሪፖርቱን ይዝጉ",
       "keep": "ያቆዩት",
-      "openPassageHelp": "ይህ ሪፖርት የሚመለከተውን ክፍል ይከፍታል።",
+      "openPassageHelp": "የተጠቆመውን ይከፍታል፣ ከመወሰንዎ በፊት እንዲያዩት።",
       "keepHelp": "በመዝገቡ ላይ ያቆየዋል፣ ሪፖርቱንም ይዘጋል።",
+      "removeHelp": "አንድ ጊዜ እንደገና ይጠይቃል፤ ከዚያ ከመዝገቡ በሁሉም መሣሪያዎች ያስወግደዋል።",
       "closeReportHelp": "ሪፖርቱን ይዘጋል። ማንም አይወገድም።"
     },
     "hidden": {
@@ -5228,7 +5266,8 @@
       "breakUpDifferentlyHelp": "ይህ መጽሐፍ በክፍሎች የሚከፋፈልበትን መንገድ ይቀይሩ፦ በምዕራፍ፣ በFIA ክፍሎች ወይም በሌላ መንገድ።",
       "chapterTitle": "{{book}} {{n}}",
       "pickPart_one": "{{count, number}} ክፍል — አንዱን ይምረጡ",
-      "pickPart_other": "{{count, number}} ክፍሎች — አንዱን ይምረጡ"
+      "pickPart_other": "{{count, number}} ክፍሎች — አንዱን ይምረጡ",
+      "outsideFilter": "ከማጣሪያው ውጭ"
     },
     "home": {
       "title": "የክፍሎች ካርታ",
@@ -5247,9 +5286,10 @@
       "noPassageMatch": "የሚዛመድ ክፍል የለም — የመጽሐፍ ስም፣ ከዚያ ምዕራፍ ይሞክሩ",
       "oldTestament": "ብሉይ ኪዳን",
       "newTestament": "አዲስ ኪዳን",
+      "testamentCount": "{{name}} · {{n, number}}",
       "noBooks": "እስካሁን በዚህ ቋንቋ መጻሕፍት የሉም።",
       "findHelp": "በቀጥታ ወደዚያ ለመዝለል የመጽሐፍ ስም፣ ከዚያ የምዕራፍ ቁጥር ይጻፉ።",
-      "languageChipHelp": "የዚህን ቋንቋ ካርታ ያሳያል።"
+      "languageChipHelp": "የዚህን ቋንቋ ካርታ ይከፍታል፤ የሚሠሩበትም ቋንቋ ያደርገዋል። ሥራዬም ይከተላል።"
     },
     "tones": {
       "done": "ተከናውኗል",

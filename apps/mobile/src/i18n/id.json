@@ -807,6 +807,7 @@
       "sectionLanguage": "Anggota bahasa · {{total}}",
       "pending": "Menunggu",
       "none": "Belum ada yang punya peran di sini.",
+      "connectToSee": "Hubungkan ke internet untuk melihat siapa yang minta bergabung",
       "expandBy": "Kelompokkan menurut",
       "byLanguage": "Menurut bahasa",
       "higher": "Semua bahasa · hanya lihat",
@@ -2731,6 +2732,9 @@
       "askTitle": "Masuk, lalu minta bergabung dengan tim {{language}}",
       "namePlaceholder": "Email atau nama pengguna",
       "nameHint": "Nama pengguna tidak memakai spasi: huruf, angka, dan tanda hubung, seperti nyibol-deng-482.",
+      "nameHelp": "Email Anda, atau nama pengguna Anda, seperti nyibol-deng-482.",
+      "passwordHelp": "Kata sandi untuk akun ini.",
+      "buttonHelp": "Memasukkan Anda dengan nama dan kata sandi di atas.",
       "button": "Masuk",
       "cantSignIn": "Tidak bisa masuk?",
       "cantSignInHelp": "Menunjukkan cara masuk yang tidak perlu kata sandi.",
@@ -2820,6 +2824,9 @@
       "scanHint": "Tidak perlu email atau kata sandi. Undangan akan membuat akun Anda dan memasukkan Anda ke dalam tim.",
       "failed": "Tidak dapat membuat akun. Coba lagi.",
       "confirmHelp": "Ketik lagi kata sandi yang sama, untuk memastikan sudah benar.",
+      "emailHelp": "Kami mengirim tautan ke sini. Buka untuk menyelesaikan akun Anda.",
+      "passwordHelp": "6 karakter atau lebih. Anda masuk dengannya.",
+      "buttonHelp": "Membuat akun Anda dan mengirim tautan ke email Anda.",
       "scanInviteHelp": "Membuka kamera. Undangan akan membuat akun Anda: tidak perlu email."
     },
     "scan": {
@@ -2922,7 +2929,8 @@
       "licenseLabel": "Siapa yang boleh memakai karya Anda",
       "readyTitle": "Siap dipakai",
       "readyBody": "Anda akan mendapat peran-peran yang biasa dan cara standar untuk memeriksa perikop. Berikutnya, kita akan menambahkan bahasa dan tim pertama Anda bersama-sama.",
-      "nameHelp": "Nama organisasi Anda, seperti yang akan dilihat tim-tim Anda."
+      "nameHelp": "Nama organisasi Anda, seperti yang akan dilihat tim-tim Anda.",
+      "buttonHelp": "Membuat organisasi. Selanjutnya Anda menambahkan bahasa pertama."
     },
     "request": {
       "notSent": "Tidak terkirim",
@@ -3204,8 +3212,11 @@
       "setPasswordSub": "Jika orang lain memakai perangkat ini",
       "notifications": "Notifikasi",
       "notificationsSub": "Dapat kabar tentang permintaan dan masukan",
-      "notificationsOn": "Notifikasi aktif.",
+      "notificationsBlocked": "Mati di pengaturan ponsel ini",
       "notificationsFailed": "Notifikasi tidak dapat diaktifkan. Coba lagi saat terhubung.",
+      "notificationsOffNeedsConnection": "Mematikannya perlu koneksi. Coba lagi saat terhubung.",
+      "openPhoneSettings": "Buka pengaturan ponsel ini",
+      "openPhoneSettingsHelp": "Membuka pengaturan ponsel ini, satu-satunya tempat yang kini bisa mengizinkan notifikasi LangQuest.",
       "switchOrg": "Ganti Organisasi",
       "switchActive": "{{org}} (aktif)",
       "switchOrStart": "{{org}} · atau mulai yang baru",
@@ -3213,6 +3224,7 @@
       "sync": "Sinkronisasi",
       "syncRefused": "Akun ini tidak dapat menyinkronkan organisasi ini",
       "syncPending_other": "{{count, number}} perubahan menunggu dikirim",
+      "syncPendingMixed": "{{total, number}} menunggu dikirim · rekaman: {{recordings, number}}",
       "syncLive": "Langsung: perubahan masuk saat terjadi",
       "syncOffline": "Offline: pekerjaan disimpan di perangkat ini",
       "syncUpToDate": "Sudah terbaru",
@@ -3226,7 +3238,6 @@
       "deleteSub": "Akun dan nama Anda, untuk selamanya",
       "testing": "Pengujian",
       "personaSub": "Masuk sebagai penerjemah, pemeriksa, atau admin contoh",
-      "notificationsHelp": "Mengaktifkan notifikasi, agar perangkat ini memberi tahu Anda tentang permintaan dan masukan.",
       "syncHelp": "Menampilkan apa yang menunggu dikirim atau diunduh. Angka berarti ada perubahan yang menunggu dikirim.",
       "blockedHelp": "Menampilkan siapa yang Anda blokir, untuk membuka blokirnya.",
       "switchOrgHelp": "Membuka organisasi-organisasi Anda, untuk berpindah ke yang lain atau memulai yang baru."
@@ -3247,6 +3258,7 @@
       "nameLabel": "Nama Lengkap",
       "shortPassword": "Pilih kata sandi 6 karakter atau lebih.",
       "passwordNeedsConnection": "Membuat kata sandi memerlukan koneksi.",
+      "nameSaved": "Nama disimpan.",
       "passwordFailed": "Kata sandi tidak dapat dibuat. Coba lagi.",
       "savedWithPassword": "Tersimpan. Anda dapat masuk dengan nama pengguna Anda dan kata sandi ini.",
       "saved": "Profil tersimpan. Akan disinkronkan saat Anda terhubung.",
@@ -3291,17 +3303,22 @@
       "signingOut": "Keluar…",
       "button": "Keluar",
       "notYet": "Belum",
+      "sending": "Mengirim…",
+      "seeWaiting": "Lihat yang menunggu",
+      "seeWaitingHelp": "Membuka Sinkronisasi: yang menunggu dikirim, per perikop, dan Sinkronkan sekarang.",
       "question": "Keluar?"
     },
     "delete": {
       "title": "Hapus Akun",
       "deleting": "Menghapus…",
       "button": "Hapus Akun Saya",
+      "buttonHelp": "Bertanya sekali lagi, lalu menghapus akun ini untuk selamanya.",
       "sendFirstTitle": "Kirim dulu pekerjaan Anda",
       "sendFirstBody": "Masih perlu dikirim: {{things}}. Hapus akun Anda setelah semuanya tersinkron, agar organisasi Anda menerimanya.",
       "offlineTitle": "Anda sedang offline",
       "offlineBody": "Sambungkan ke internet untuk menghapus akun Anda.",
       "question": "Hapus akun Anda?",
+      "confirmTitle": "Hapus akun {{name}}?",
       "deleted": "Dihapus",
       "deletedSub": "Data masuk, email, nama, notifikasi, blokir, dan data diagnostik Anda. Anda keluar dari semua organisasi.",
       "kept": "Disimpan oleh organisasi Anda",
@@ -3313,6 +3330,7 @@
       "syncNow": "Sinkronkan sekarang",
       "refused": "Server menolak akun ini untuk organisasi ini.",
       "tooOld": "Perbarui aplikasi untuk sinkronisasi.",
+      "tooOldSends": "Aplikasi ini terlalu lama untuk menerima perubahan tim Anda. Pekerjaan Anda sendiri tetap terkirim.",
       "waitingUpload": "menunggu diunggah",
       "refusedByServer": "ditolak oleh server",
       "latestConfirmed": "terakhir dikonfirmasi",
@@ -3333,13 +3351,15 @@
         "live": "Langsung",
         "checking": "Terhubung",
         "offline": "Luring",
-        "refused": "Tidak menyinkronkan"
+        "refused": "Tidak menyinkronkan",
+        "tooOld": "Perbarui untuk menerima"
       },
       "help": {
         "live": "Perubahan dari tim Anda langsung tiba, dan perubahan Anda langsung terkirim.",
         "checking": "Terhubung, tetapi saluran langsung terputus, jadi perangkat ini memeriksa perubahan setiap beberapa menit. Sinkronkan sekarang memeriksa saat itu juga.",
         "offline": "Tidak ada koneksi. Semua yang Anda lakukan disimpan di perangkat ini dan terkirim sendiri saat Anda kembali daring.",
         "refused": "Server tidak menerima perubahan dari perangkat ini. Pekerjaan Anda tetap tersimpan di sini.",
+        "tooOld": "Aplikasi ini terlalu lama untuk menerima perubahan tim Anda. Perbarui dari toko aplikasi.",
         "toReceive": "Rekaman dari orang lain yang masih diunduh perangkat ini.",
         "refusedLine": "Perubahan yang tidak diterima server, biasanya karena izin berubah. Tetap ada di perangkat ini; buka Detail untuk melihat masing-masing."
       },
@@ -3585,7 +3605,7 @@
         "askedYou": "{{by}} meminta Anda",
         "askedYourTeam": "{{by}} meminta tim {{team}} Anda",
         "askedYourReviewTeam": "{{by}} meminta tim pemeriksa Anda",
-        "byLinkOver": "lewat tautan di {{channel}}",
+        "byLinkOver": "tidak dikirim oleh aplikasi · {{channel}}",
         "askedForChanges": "{{who}} meminta perubahan",
         "answered": "Masukan dijawab — selesai setelah pemeriksa mengatakan Sudah baik",
         "recordedBy": "Direkam oleh {{who}}",
@@ -3665,8 +3685,8 @@
         "text": "Teks",
         "rating": "1–5"
       },
-      "guestMessage": "Halo {{name}} — bisakah Anda mendengarkan {{passage}} dalam {{language}} dan memberi tahu kami apa yang Anda pahami? Tidak perlu akun:",
-      "guestMessageNoName": "Halo — bisakah Anda mendengarkan {{passage}} dalam {{language}} dan memberi tahu kami apa yang Anda pahami? Tidak perlu akun:"
+      "guestMessage": "Halo {{name}} — bisakah Anda mendengarkan {{passage}} dalam {{language}} dan memberi tahu kami apa yang Anda pahami?",
+      "guestMessageNoName": "Halo — bisakah Anda mendengarkan {{passage}} dalam {{language}} dan memberi tahu kami apa yang Anda pahami?"
     },
     "path": {
       "theCheck": "{{check}}",
@@ -3696,6 +3716,7 @@
       "fixSub": "Lalu dikembalikan ke pemeriksaan",
       "status": {
         "movedPast": "dilewati",
+        "movedPastWhy": "dilewati · {{reason}}",
         "setAside": "ditunda",
         "answered": "dijawab",
         "answeredBack": "sudah dijawab · kembali ke pemeriksaan",
@@ -3810,6 +3831,7 @@
       "continueRecording": "Lanjutkan merekam",
       "askFor": "Minta {{check}}",
       "movePastThis": "Lewati titik periksa ini…",
+      "heldAt": "Menunggu di {{check}}, yang harus lolos dulu",
       "skip": {
         "title": "Tunda {{kind}}?",
         "sub": "Alur menyarankan tahap ini. Menundanya tidak apa-apa — sebutkan alasannya agar orang berikutnya mengerti.",
@@ -3887,7 +3909,6 @@
       "someoneElseCheck": "{{kind}}: minta seseorang, sebuah kelompok, atau orang luar lewat WhatsApp atau SMS",
       "alreadyDid": "Kami sudah melakukan ini",
       "alreadyDidSub": "Sebutkan kapan dan bagaimana {{check}} dilakukan",
-      "notNowSub": "Tunda {{check}}. Sebutkan alasannya",
       "newVersion": "Rekam versi baru",
       "newVersionSub": "Pemeriksaan sejauh ini tetap pada versi yang mereka dengar",
       "movePast": "Lewati titik periksa",
@@ -3899,7 +3920,9 @@
       "whatHelpsHelp": "Membuka Alkitab, panduan, dan bantuan lain untuk perikop ini.",
       "myself": "Saya kerjakan sendiri",
       "myselfSub": "{{kind}}: dengarkan dan putuskan sekarang",
-      "myselfMakesSub": "{{kind}}: rekam sekarang"
+      "myselfMakesSub": "{{kind}}: rekam sekarang",
+      "setAside": "Sisihkan {{check}}",
+      "setAsideSub": "Sebutkan alasannya. Ini masuk ke catatan."
     },
     "published": {
       "askTitle": "Minta pemeriksaan",
@@ -3992,9 +4015,10 @@
       "titleRecord": "Minta seseorang merekam",
       "titleKind": "Minta {{kind}}",
       "titleReview": "Minta pemeriksaan",
-      "doneOutside": "Sudah meminta {{name}} · permintaannya tercatat di riwayat",
+      "doneOutside": "Tersimpan di catatan, tidak terkirim. Kirim sendiri ke {{name}}.",
       "doneTeam": "{{name}} akan melihatnya di Pekerjaan Saya mereka",
       "askName": "Minta {{name}}",
+      "saveRequest": "Simpan permintaan",
       "chooseSomeone": "Pilih seseorang",
       "recordIt": "Rekam",
       "recordSub": "Mereka akan menemukannya di Pekerjaan Saya mereka, dengan sumber dan studi yang sudah siap.",
@@ -4003,11 +4027,9 @@
       "withoutApp": "Seseorang tanpa aplikasi",
       "usuallyDoesThis": "Biasanya melakukan ini",
       "nobody": "Tidak ada seorang pun di tim yang dapat melakukan ini.",
-      "nobodyTryOutside": "Tidak ada seorang pun di tim yang dapat melakukan ini. Coba seseorang tanpa aplikasi.",
       "guestName": "Nama mereka — misalnya Pendeta Yohanes",
       "phone": "Nomor telepon",
-      "preview": "Pratinjau {{channel}}",
-      "previewNote": "Permintaan disimpan di riwayat dengan nama dan nomor mereka. Mengirim tautan tanpa akun dari aplikasi belum tersedia.",
+      "phoneNeeded": "Nomor telepon · wajib",
       "directions": "Petunjuk · tidak wajib",
       "sayKeepInMind": "Sebutkan apa yang perlu diingat",
       "sayListenFor": "Sebutkan apa yang perlu diperhatikan saat mendengar",
@@ -4017,12 +4039,15 @@
       "answerType": "Jawaban: {{type}}",
       "addQuestion": "Tambah pertanyaan",
       "sendHelp": "Mengirim permintaan. Mereka menemukannya di Pekerjaan Saya.",
-      "sendOutsideHelp": "Menyimpan permintaan di riwayat, dengan nama dan nomor mereka.",
+      "sendOutsideHelp": "Menyimpan permintaan di catatan, dengan nama dan nomornya. Tidak ada yang dikirim kepadanya.",
       "onTeamHelp": "Pilih seseorang yang memakai aplikasi.",
-      "withoutAppHelp": "Minta seseorang lewat WhatsApp atau SMS saja.",
+      "withoutAppHelp": "Menyimpan permintaan untuk orang tanpa aplikasi. Anda sendiri yang mengirim pesannya.",
       "teamHelp": "Meminta semua orang di pemeriksaan ini. Siapa pun dari mereka boleh mengerjakannya.",
       "personHelp": "Memilih orang ini untuk diminta.",
       "phoneHelp": "Nomor untuk menghubungi mereka lewat WhatsApp atau SMS.",
+      "sendYourself": "Kirim ini sendiri kepada mereka, lewat {{channel}}",
+      "shareMessage": "Bagikan pesan",
+      "shareMessageHelp": "Membuka lembar berbagi ponsel Anda dengan pesan ini. Di peramban, menyalinnya.",
       "whatsappHelp": "Hubungi mereka lewat WhatsApp.",
       "smsHelp": "Hubungi mereka lewat SMS.",
       "askSpecificHelp": "Ketik pertanyaan untuk mereka jawab, lalu tambahkan.",
@@ -4036,7 +4061,9 @@
     },
     "versions": {
       "title": "Versi",
+      "whichDraft": "Draf yang mana?",
       "newVersion": "Versi baru",
+      "continueDraft": "Lanjutkan {{name}}",
       "yourDraft": "Draf Anda",
       "yourDrafts": "Draf-draf Anda",
       "published": "Diterbitkan",
@@ -4072,6 +4099,7 @@
   "work": {
     "title": "Pekerjaan Saya",
     "loading": "Memuat pekerjaan Anda…",
+    "notReady": "Setelah {{language}} punya perikop untuk direkam, pekerjaan Anda muncul di sini.",
     "askedBy": "diminta oleh {{name}}",
     "checkPassage": "Periksa {{passage}}",
     "bell": {
@@ -4121,7 +4149,8 @@
       "wantsToJoin": "{{name}} ingin bergabung",
       "asked": "Diajukan {{when}}",
       "askedJustNow": "Baru saja diajukan",
-      "openHelp": "Membuka permintaannya: pilih peran dan izinkan mereka masuk."
+      "openHelp": "Membuka permintaannya: pilih peran dan izinkan mereka masuk.",
+      "connectToLetIn": "Hubungkan ke internet untuk menerima mereka"
     },
     "lead": {
       "getOrgReady": "Siapkan {{org}}",
@@ -4174,7 +4203,11 @@
     },
     "elsewhere": {
       "title": "Kabar baru di {{language}}",
-      "sub_other": "{{count, number}} kabar untuk Anda. Ketuk untuk pindah ke {{language}}."
+      "sub_other": "{{count, number}} kabar untuk Anda. Ketuk untuk pindah ke {{language}}.",
+      "switched": "Sekarang di {{language}}",
+      "help": "Memindahkan aplikasi ke {{language}}.",
+      "back": "Kembali ke {{language}}",
+      "backSub": "{{language}} sedang terbuka."
     },
     "again": {
       "title": "Rekam {{passage}} lagi",
@@ -4354,6 +4387,7 @@
     "turnOff": "Matikan bantuan",
     "listen": "Dengarkan",
     "stop": "Berhenti",
+    "closeHint": "Menutup penjelasan ini.",
     "line": "{{label}}. {{detail}}",
     "lineAfterSentence": "{{label}} {{detail}}",
     "details": {
@@ -4389,10 +4423,11 @@
       "explorer": "Membuka penjelajah bahasa di tab baru: setiap bahasa dan di mana bahasa itu dipakai."
     },
     "sync": {
-      "live": "Titik hijau: terhubung. Pekerjaan Anda dikirim selagi Anda bekerja. Ketuk untuk melihat apa yang sudah dikirim.",
-      "checking": "Titik abu-abu: mencari koneksi. Pekerjaan Anda tetap di perangkat ini sampai terkirim.",
-      "offline": "Titik kuning: offline. Pekerjaan Anda tetap di perangkat ini dan dikirim begitu Anda terhubung.",
-      "refused": "Merah: server menolak sesuatu. Ketuk untuk melihat apa, dan apa yang perlu dilakukan.",
+      "live": "Awan dengan tanda centang: terhubung. Pekerjaan Anda dikirim sambil jalan. Ketuk untuk melihat yang sudah terkirim.",
+      "checking": "Awan polos: mencari koneksi. Pekerjaan Anda tetap di perangkat ini sampai terkirim.",
+      "offline": "Awan dicoret: luring. Pekerjaan Anda tetap di perangkat ini dan dikirim setelah terhubung.",
+      "refused": "Awan merah dengan peringatan: server menolak sesuatu. Ketuk untuk melihat apa, dan apa yang harus dilakukan.",
+      "tooOld": "Awan kuning dengan panah ke bawah: aplikasi ini terlalu lama untuk menerima perubahan tim Anda. Ketuk untuk memperbaruinya.",
       "withWaiting": "{{standing}} Angkanya menunjukkan berapa banyak yang menunggu dikirim.",
       "withReceiving": "{{standing}} Cincin berputar selama rekaman dari orang lain diunduh ke perangkat ini. Tidak ada yang menunggu dikirim."
     }
@@ -4561,10 +4596,13 @@
     "actions": {
       "openMembers": "Buka Anggota",
       "openPassage": "Buka perikop",
+      "openVersion": "Buka versinya",
+      "openReview": "Buka tinjauannya",
       "closeReport": "Tutup laporan",
       "keep": "Biarkan",
-      "openPassageHelp": "Membuka perikop yang dibahas dalam laporan ini.",
+      "openPassageHelp": "Membuka yang dilaporkan, agar Anda bisa melihatnya sebelum memutuskan.",
       "keepHelp": "Membiarkannya tetap di riwayat dan menutup laporan.",
+      "removeHelp": "Bertanya sekali lagi, lalu mengeluarkannya dari catatan di setiap perangkat.",
       "closeReportHelp": "Menutup laporan. Tidak ada yang dikeluarkan."
     },
     "hidden": {
@@ -5042,7 +5080,8 @@
       "breakUpDifferently": "Bagi dengan cara lain",
       "breakUpDifferentlyHelp": "Ubah cara kitab ini dibagi menjadi bagian-bagian: per pasal, per perikop FIA, atau cara lain.",
       "chapterTitle": "{{book}} {{n}}",
-      "pickPart_other": "{{count, number}} bagian — pilih satu"
+      "pickPart_other": "{{count, number}} bagian — pilih satu",
+      "outsideFilter": "Di luar saringan"
     },
     "home": {
       "title": "Peta Perikop",
@@ -5060,9 +5099,10 @@
       "noPassageMatch": "Tidak ada perikop yang cocok — coba nama kitab, lalu pasal",
       "oldTestament": "Perjanjian Lama",
       "newTestament": "Perjanjian Baru",
+      "testamentCount": "{{name}} · {{n, number}}",
       "noBooks": "Belum ada kitab dalam bahasa ini.",
       "findHelp": "Ketik nama kitab, lalu nomor pasal untuk langsung ke sana.",
-      "languageChipHelp": "Menampilkan peta bahasa ini."
+      "languageChipHelp": "Membuka peta bahasa ini dan menjadikannya bahasa kerja Anda. Pekerjaan Saya ikut berganti."
     },
     "tones": {
       "done": "Selesai",

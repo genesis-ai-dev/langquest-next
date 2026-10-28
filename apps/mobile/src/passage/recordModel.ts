@@ -181,6 +181,18 @@ export function recordModel(o: {
   return { answersMine, feedbackReview, myDraft, nextKinds, nextKind, main };
 }
 
+/**
+ * The checkpoint a recorded passage is held at, for someone who may move it
+ * past and has no main button there (a lead who neither recorded it nor
+ * reviews): the record says it waits there and offers moving past, which
+ * was only under Something else? (UI audit, finding 90).
+ */
+export function heldAtCheckpoint(p: PassageState, can: RecordCan, hasMain: boolean): FlowStepStatus | undefined {
+  const step = p.next;
+  if (!can.override || hasMain || !step) return undefined;
+  return step.step.checkpoint && !step.complete && !step.override && !step.lockedBy ? step : undefined;
+}
+
 /** The button that does a check now: "Do the peer check", or "Back-translate it" for a check that records. */
 export function doCheckButton(kind: KindDef, kinds: KindDef[]): { label: string; icon: IconName } {
   return kind.produces
@@ -247,7 +259,8 @@ export function elseOptions(o: {
     out.push({ id: 'already', icon: 'check', label: t('passage.else.alreadyDid'), sub: t('passage.else.alreadyDidSub', { check: kindInSentence(nameOf(current.kind.kindId)) }), kindId: current.kind.kindId });
   }
   if (current && offers.skip && can.skip) {
-    out.push({ id: 'notNow', icon: 'clock', label: t('common.notNow'), sub: t('passage.else.notNowSub', { check: kindInSentence(nameOf(current.kind.kindId)) }),
+    // Said as what it does: "Not now" closes the Ask page, but this goes on the record (UI audit, finding 88).
+    out.push({ id: 'notNow', icon: 'skip', label: t('passage.else.setAside', { check: kindInSentence(nameOf(current.kind.kindId)) }), sub: t('passage.else.setAsideSub'),
       kindId: current.kind.kindId, stepId: current.step.step.id });
   }
   if (can.record && p.recorded && !o.answersMine) {
@@ -321,7 +334,8 @@ export function stepSheet(o: {
     title: stepTitle(step.step.kindIds, kinds),
     sub: stepSheetSub(step, lockedName),
     rows,
-    movePast: o.can.override && step.step.checkpoint && !step.complete && !step.override
+    // Only at the checkpoint the passage is held at, not one still behind it (UI audit, finding 91; as elseOptions).
+    movePast: o.can.override && step.step.checkpoint && !step.complete && !step.override && !step.lockedBy
   };
 }
 

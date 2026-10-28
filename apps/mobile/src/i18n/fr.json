@@ -843,6 +843,7 @@
       "sectionLanguage": "Membres de la langue · {{total}}",
       "pending": "En attente",
       "none": "Personne n’a encore de rôle ici.",
+      "connectToSee": "Connectez-vous pour voir qui a demandé à rejoindre",
       "expandBy": "Regrouper par",
       "byLanguage": "Par langue",
       "higher": "Toutes les langues · lecture seule",
@@ -2919,6 +2920,9 @@
       "askTitle": "Connectez-vous, puis demandez à rejoindre l’équipe {{language}}",
       "namePlaceholder": "E-mail ou nom de connexion",
       "nameHint": "Un nom de connexion n’a pas d’espaces : des lettres, des chiffres et des tirets, comme nyibol-deng-482.",
+      "nameHelp": "Votre e-mail, ou votre nom de connexion, comme nyibol-deng-482.",
+      "passwordHelp": "Le mot de passe de ce compte.",
+      "buttonHelp": "Vous connecte avec le nom et le mot de passe ci-dessus.",
       "button": "Se connecter",
       "cantSignIn": "Impossible de vous connecter ?",
       "cantSignInHelp": "Montre les façons d’entrer qui ne demandent pas de mot de passe.",
@@ -3008,6 +3012,9 @@
       "scanHint": "Pas besoin d’e-mail ni de mot de passe. L’invitation crée votre compte et vous ajoute à l’équipe.",
       "failed": "Impossible de créer le compte. Réessayez.",
       "confirmHelp": "Tapez à nouveau le même mot de passe, pour être sûr qu’il est correct.",
+      "emailHelp": "Nous envoyons un lien ici. Ouvrez-le pour terminer votre compte.",
+      "passwordHelp": "6 caractères ou plus. Vous vous connectez avec.",
+      "buttonHelp": "Crée votre compte et envoie le lien à votre e-mail.",
       "scanInviteHelp": "Ouvre l’appareil photo. L’invitation crée votre compte : pas besoin d’e-mail."
     },
     "scan": {
@@ -3110,7 +3117,8 @@
       "licenseLabel": "Qui peut utiliser votre travail",
       "readyTitle": "Prête à l’emploi",
       "readyBody": "Vous recevrez les rôles habituels et une façon standard de vérifier les passages. Ensuite, nous ajouterons ensemble votre première langue et votre équipe.",
-      "nameHelp": "Le nom de votre organisation, tel que vos équipes le verront."
+      "nameHelp": "Le nom de votre organisation, tel que vos équipes le verront.",
+      "buttonHelp": "Crée l’organisation. Ensuite, vous ajoutez votre première langue."
     },
     "request": {
       "notSent": "Non envoyée",
@@ -3400,8 +3408,11 @@
       "setPasswordSub": "Si d’autres personnes utilisent cet appareil",
       "notifications": "Notifications",
       "notificationsSub": "Être averti des demandes et des remarques",
-      "notificationsOn": "Les notifications sont activées.",
+      "notificationsBlocked": "Désactivées dans les réglages de ce téléphone",
       "notificationsFailed": "Impossible d’activer les notifications. Réessayez une fois connecté.",
+      "notificationsOffNeedsConnection": "Les désactiver demande une connexion. Réessayez une fois connecté.",
+      "openPhoneSettings": "Ouvrir les réglages de ce téléphone",
+      "openPhoneSettingsHelp": "Ouvre les réglages de ce téléphone, le seul endroit qui peut désormais autoriser les notifications de LangQuest.",
       "switchOrg": "Changer d’organisation",
       "switchActive": "{{org}} (active)",
       "switchOrStart": "{{org}} · ou en créer une nouvelle",
@@ -3411,6 +3422,7 @@
       "syncPending_one": "{{count, number}} modification en attente d’envoi",
       "syncPending_many": "{{count, number}} modifications en attente d’envoi",
       "syncPending_other": "{{count, number}} modifications en attente d’envoi",
+      "syncPendingMixed": "{{total, number}} en attente d’envoi · enregistrements : {{recordings, number}}",
       "syncLive": "En direct : les modifications arrivent au fur et à mesure",
       "syncOffline": "Hors ligne : le travail est gardé sur cet appareil",
       "syncUpToDate": "À jour",
@@ -3426,7 +3438,6 @@
       "deleteSub": "Votre compte et votre nom, définitivement",
       "testing": "Test",
       "personaSub": "Se connecter comme traducteur, réviseur ou administrateur de démonstration",
-      "notificationsHelp": "Active les notifications, pour que cet appareil vous prévienne des demandes et des remarques.",
       "syncHelp": "Affiche ce qui attend d’être envoyé ou téléchargé. Un nombre indique des modifications en attente d’envoi.",
       "blockedHelp": "Affiche les personnes que vous avez bloquées, pour les débloquer.",
       "switchOrgHelp": "Ouvre vos organisations, pour passer à une autre ou en créer une nouvelle."
@@ -3447,6 +3458,7 @@
       "nameLabel": "Nom complet",
       "shortPassword": "Choisissez un mot de passe de 6 caractères ou plus.",
       "passwordNeedsConnection": "Pour définir un mot de passe, il faut une connexion.",
+      "nameSaved": "Nom enregistré.",
       "passwordFailed": "Le mot de passe n’a pas pu être défini. Réessayez.",
       "savedWithPassword": "Sauvegardé. Vous pouvez vous connecter avec votre nom de connexion et ce mot de passe.",
       "saved": "Profil sauvegardé. Il se synchronise quand vous êtes connecté.",
@@ -3499,17 +3511,22 @@
       "signingOut": "Déconnexion…",
       "button": "Se déconnecter",
       "notYet": "Pas encore",
+      "sending": "Envoi…",
+      "seeWaiting": "Voir ce qui attend",
+      "seeWaitingHelp": "Ouvre Synchroniser : ce qui attend d’être envoyé, par passage, et Synchroniser maintenant.",
       "question": "Se déconnecter ?"
     },
     "delete": {
       "title": "Supprimer le compte",
       "deleting": "Suppression…",
       "button": "Supprimer mon compte",
+      "buttonHelp": "Demande une dernière fois, puis supprime ce compte définitivement.",
       "sendFirstTitle": "Envoyez d’abord votre travail",
       "sendFirstBody": "Reste à envoyer : {{things}}. Supprimez votre compte une fois la synchronisation faite, pour que votre organisation les reçoive.",
       "offlineTitle": "Vous êtes hors ligne",
       "offlineBody": "Connectez-vous à Internet pour supprimer votre compte.",
       "question": "Supprimer votre compte ?",
+      "confirmTitle": "Supprimer le compte de {{name}} ?",
       "deleted": "Supprimé",
       "deletedSub": "Votre connexion, votre e-mail, votre nom, vos notifications, vos blocages et vos diagnostics. Vous quittez toutes les organisations.",
       "kept": "Gardé par votre organisation",
@@ -3521,6 +3538,7 @@
       "syncNow": "Synchroniser maintenant",
       "refused": "Le serveur a refusé ce compte pour cette organisation.",
       "tooOld": "Mettez à jour l’application pour synchroniser.",
+      "tooOldSends": "Cette application est trop ancienne pour recevoir les changements de votre équipe. Votre propre travail part toujours.",
       "waitingUpload": "en attente d’envoi",
       "refusedByServer": "refusé par le serveur",
       "latestConfirmed": "dernier confirmé",
@@ -3545,13 +3563,15 @@
         "live": "En direct",
         "checking": "Connecté",
         "offline": "Hors ligne",
-        "refused": "Pas de synchronisation"
+        "refused": "Pas de synchronisation",
+        "tooOld": "Mettez à jour pour recevoir"
       },
       "help": {
         "live": "Les modifications de votre équipe arrivent en temps réel, et les vôtres partent aussitôt.",
         "checking": "Connecté, mais le canal en direct est coupé : cet appareil vérifie les modifications toutes les quelques minutes. Synchroniser maintenant vérifie tout de suite.",
         "offline": "Pas de connexion. Tout ce que vous faites est gardé sur cet appareil et part tout seul quand vous êtes de nouveau en ligne.",
         "refused": "Le serveur n’accepte pas les modifications de cet appareil. Votre travail reste gardé ici.",
+        "tooOld": "Cette application est trop ancienne pour recevoir les changements de votre équipe. Mettez-la à jour depuis le store.",
         "toReceive": "Enregistrements d’autres personnes que cet appareil télécharge encore.",
         "refusedLine": "Modifications que le serveur n’a pas acceptées, souvent parce qu’une permission a changé. Elles restent sur cet appareil ; ouvrez Détails pour les voir."
       },
@@ -3817,7 +3837,7 @@
         "askedYou": "{{by}} vous l’a demandé",
         "askedYourTeam": "{{by}} l’a demandé à votre équipe {{team}}",
         "askedYourReviewTeam": "{{by}} l’a demandé à votre équipe de révision",
-        "byLinkOver": "par lien via {{channel}}",
+        "byLinkOver": "non envoyé par l’application · {{channel}}",
         "askedForChanges": "{{who}} a demandé des modifications",
         "answered": "Remarques traitées — c’est réglé quand le réviseur dit C’est bon",
         "recordedBy": "Enregistré par {{who}}",
@@ -3909,8 +3929,8 @@
         "text": "Texte",
         "rating": "1–5"
       },
-      "guestMessage": "Bonjour {{name}} — pourriez-vous écouter {{passage}} en {{language}} et nous dire ce que vous avez compris ? Pas besoin de compte :",
-      "guestMessageNoName": "Bonjour — pourriez-vous écouter {{passage}} en {{language}} et nous dire ce que vous avez compris ? Pas besoin de compte :"
+      "guestMessage": "Bonjour {{name}} — pourriez-vous écouter {{passage}} en {{language}} et nous dire ce que vous avez compris ?",
+      "guestMessageNoName": "Bonjour — pourriez-vous écouter {{passage}} en {{language}} et nous dire ce que vous avez compris ?"
     },
     "path": {
       "theCheck": "la {{check}}",
@@ -3942,6 +3962,7 @@
       "fixSub": "Ensuite, il retourne à la vérification",
       "status": {
         "movedPast": "franchi",
+        "movedPastWhy": "dépassé · {{reason}}",
         "setAside": "mis de côté",
         "answered": "traité",
         "answeredBack": "répondu · retour à la vérification",
@@ -4058,6 +4079,7 @@
       "continueRecording": "Continuer l’enregistrement",
       "askFor": "Demander la {{check}}",
       "movePastThis": "Franchir ce point de contrôle…",
+      "heldAt": "En attente à la {{check}}, qui doit passer d’abord",
       "skip": {
         "title": "Mettre de côté : {{kind}} ?",
         "sub": "Le circuit suggère cette étape. Vous pouvez la mettre de côté — dites pourquoi pour que la personne suivante comprenne.",
@@ -4135,7 +4157,6 @@
       "someoneElseCheck": "{{kind}} : demandez à une personne, à un groupe, ou à quelqu’un de l’extérieur par WhatsApp ou SMS",
       "alreadyDid": "Nous l’avons déjà fait",
       "alreadyDidSub": "Dites quand et comment la {{check}} a eu lieu",
-      "notNowSub": "Mettez la {{check}} de côté. Dites pourquoi",
       "newVersion": "Enregistrer une nouvelle version",
       "newVersionSub": "Les révisions faites jusqu’ici restent avec la version qu’elles ont écoutée",
       "movePast": "Franchir un point de contrôle",
@@ -4147,7 +4168,9 @@
       "whatHelpsHelp": "Ouvre les Bibles, les guides et les autres aides pour ce passage.",
       "myself": "Je le fais moi-même",
       "myselfSub": "{{kind}} : écoutez et décidez maintenant",
-      "myselfMakesSub": "{{kind}} : enregistrez maintenant"
+      "myselfMakesSub": "{{kind}} : enregistrez maintenant",
+      "setAside": "Mettre la {{check}} de côté",
+      "setAsideSub": "Dites pourquoi. C’est inscrit au dossier."
     },
     "published": {
       "askTitle": "Demander une vérification",
@@ -4254,9 +4277,10 @@
       "titleRecord": "Demander à quelqu’un d’enregistrer",
       "titleKind": "Demander : {{kind}}",
       "titleReview": "Demander une révision",
-      "doneOutside": "Demandé à {{name}} · la demande est dans l’historique",
+      "doneOutside": "Enregistré au dossier, pas envoyé. Envoyez-le vous-même à {{name}}.",
       "doneTeam": "{{name}} le verra dans Mon travail",
       "askName": "Demander à {{name}}",
+      "saveRequest": "Enregistrer la demande",
       "chooseSomeone": "Choisir quelqu’un",
       "recordIt": "L’enregistrer",
       "recordSub": "Ils le trouveront dans Mon travail, avec la source et l’étude prêtes.",
@@ -4265,11 +4289,9 @@
       "withoutApp": "Quelqu’un sans l’application",
       "usuallyDoesThis": "Fait cela d’habitude",
       "nobody": "Personne dans l’équipe ne peut faire cela.",
-      "nobodyTryOutside": "Personne dans l’équipe ne peut faire cela. Essayez quelqu’un sans l’application.",
       "guestName": "Son nom — ex. : Pasteur Garang",
       "phone": "Numéro de téléphone",
-      "preview": "Aperçu {{channel}}",
-      "previewNote": "La demande est gardée dans l’historique avec son nom et son numéro. L’envoi du lien sans compte depuis l’application n’est pas encore prêt.",
+      "phoneNeeded": "Numéro de téléphone · requis",
       "directions": "Consignes · facultatif",
       "sayKeepInMind": "Dites ce qu’il faut garder en tête",
       "sayListenFor": "Dites à quoi faire attention en écoutant",
@@ -4279,12 +4301,15 @@
       "answerType": "Réponse : {{type}}",
       "addQuestion": "Ajouter une question",
       "sendHelp": "Envoie la demande. Ils la trouvent dans Mon travail.",
-      "sendOutsideHelp": "Note la demande dans l’historique, avec son nom et son numéro.",
+      "sendOutsideHelp": "Enregistre la demande au dossier, avec son nom et son numéro. Rien ne lui est envoyé.",
       "onTeamHelp": "Choisissez quelqu’un qui utilise l’application.",
-      "withoutAppHelp": "Demandez plutôt à quelqu’un par WhatsApp ou SMS.",
+      "withoutAppHelp": "Enregistre une demande pour quelqu’un sans l’application. Vous lui envoyez le message vous-même.",
       "teamHelp": "Demande à tous ceux qui font cette vérification. N’importe lequel peut la faire.",
       "personHelp": "Choisit cette personne.",
       "phoneHelp": "Où la joindre par WhatsApp ou SMS.",
+      "sendYourself": "Envoyez-leur ceci vous-même, par {{channel}}",
+      "shareMessage": "Partager le message",
+      "shareMessageHelp": "Ouvre le menu de partage du téléphone avec ce message. Dans un navigateur, le copie.",
       "whatsappHelp": "La joindre par WhatsApp.",
       "smsHelp": "La joindre par SMS.",
       "askSpecificHelp": "Tapez une question à laquelle ils répondront, puis ajoutez-la.",
@@ -4298,7 +4323,9 @@
     },
     "versions": {
       "title": "Versions",
+      "whichDraft": "Quel brouillon ?",
       "newVersion": "Nouvelle version",
+      "continueDraft": "Continuer {{name}}",
       "yourDraft": "Votre brouillon",
       "yourDrafts": "Vos brouillons",
       "published": "Publiées",
@@ -4336,6 +4363,7 @@
   "work": {
     "title": "Mon travail",
     "loading": "Chargement de votre travail…",
+    "notReady": "Quand {{language}} aura des passages à enregistrer, votre travail s’affichera ici.",
     "askedBy": "demandé par {{name}}",
     "checkPassage": "Vérifier {{passage}}",
     "bell": {
@@ -4393,7 +4421,8 @@
       "wantsToJoin": "{{name}} veut rejoindre",
       "asked": "Demande {{when}}",
       "askedJustNow": "Demande à l’instant",
-      "openHelp": "Ouvre sa demande : choisissez un rôle et acceptez la personne."
+      "openHelp": "Ouvre sa demande : choisissez un rôle et acceptez la personne.",
+      "connectToLetIn": "Connectez-vous pour les faire entrer"
     },
     "lead": {
       "getOrgReady": "Préparer {{org}}",
@@ -4456,7 +4485,11 @@
       "title": "Nouvelles en {{language}}",
       "sub_one": "{{count, number}} nouvelle pour vous. Touchez pour passer à {{language}}.",
       "sub_many": "{{count, number}} nouvelles pour vous. Touchez pour passer à {{language}}.",
-      "sub_other": "{{count, number}} nouvelles pour vous. Touchez pour passer à {{language}}."
+      "sub_other": "{{count, number}} nouvelles pour vous. Touchez pour passer à {{language}}.",
+      "switched": "Maintenant dans {{language}}",
+      "help": "Passe l’application à {{language}}.",
+      "back": "Revenir à {{language}}",
+      "backSub": "{{language}} est ouvert maintenant."
     },
     "again": {
       "title": "Enregistrer {{passage}} à nouveau",
@@ -4642,6 +4675,7 @@
     "turnOff": "Désactiver l’aide",
     "listen": "Écouter",
     "stop": "Arrêter",
+    "closeHint": "Ferme cette explication.",
     "line": "{{label}}. {{detail}}",
     "lineAfterSentence": "{{label}} {{detail}}",
     "details": {
@@ -4677,10 +4711,11 @@
       "explorer": "Ouvre l’explorateur de langues dans un nouvel onglet : chaque langue et où elle est parlée."
     },
     "sync": {
-      "live": "Point vert : connecté. Votre travail est envoyé au fur et à mesure. Touchez pour voir ce qui a été envoyé.",
-      "checking": "Point gris : recherche d’une connexion. Votre travail reste sur cet appareil jusqu’à ce qu’il soit envoyé.",
-      "offline": "Point orange : hors ligne. Votre travail reste sur cet appareil et sera envoyé dès que vous serez connecté.",
-      "refused": "Rouge : le serveur a refusé quelque chose. Touchez pour voir quoi, et que faire.",
+      "live": "Nuage avec une coche : connecté. Votre travail est envoyé au fur et à mesure. Touchez pour voir ce qui a été envoyé.",
+      "checking": "Nuage seul : recherche d’une connexion. Votre travail reste sur cet appareil jusqu’à son envoi.",
+      "offline": "Nuage barré : hors ligne. Votre travail reste sur cet appareil et sera envoyé une fois connecté.",
+      "refused": "Nuage rouge avec un avertissement : le serveur a refusé quelque chose. Touchez pour voir quoi, et que faire.",
+      "tooOld": "Nuage orange avec une flèche vers le bas : cette application est trop ancienne pour recevoir les changements de votre équipe. Touchez pour la mettre à jour.",
       "withWaiting": "{{standing}} Le nombre indique combien d’éléments attendent d’être envoyés.",
       "withReceiving": "{{standing}} L’anneau tourne pendant que les enregistrements des autres se téléchargent sur cet appareil. Rien n’attend d’être envoyé."
     }
@@ -4867,10 +4902,13 @@
     "actions": {
       "openMembers": "Ouvrir Membres",
       "openPassage": "Ouvrir le passage",
+      "openVersion": "Ouvrir la version",
+      "openReview": "Ouvrir la relecture",
       "closeReport": "Clore le signalement",
       "keep": "Le garder",
-      "openPassageHelp": "Ouvre le passage concerné par ce signalement.",
+      "openPassageHelp": "Ouvre ce qui a été signalé, pour le regarder avant de décider.",
       "keepHelp": "Le garde dans l’historique et clôt le signalement.",
+      "removeHelp": "Demande une dernière fois, puis le retire du registre sur chaque appareil.",
       "closeReportHelp": "Clôt le signalement. Personne n’est retiré."
     },
     "hidden": {
@@ -5414,7 +5452,8 @@
       "chapterTitle": "{{book}} {{n}}",
       "pickPart_one": "{{count, number}} partie — choisissez-en une",
       "pickPart_many": "{{count, number}} parties — choisissez-en une",
-      "pickPart_other": "{{count, number}} parties — choisissez-en une"
+      "pickPart_other": "{{count, number}} parties — choisissez-en une",
+      "outsideFilter": "Hors du filtre"
     },
     "home": {
       "title": "Carte des passages",
@@ -5434,9 +5473,10 @@
       "noPassageMatch": "Aucun passage ne correspond — essayez un nom de livre, puis un chapitre",
       "oldTestament": "Ancien Testament",
       "newTestament": "Nouveau Testament",
+      "testamentCount": "{{name}} · {{n, number}}",
       "noBooks": "Pas encore de livres dans cette langue.",
       "findHelp": "Tapez un nom de livre, puis un numéro de chapitre pour y aller directement.",
-      "languageChipHelp": "Affiche la carte de cette langue."
+      "languageChipHelp": "Ouvre la carte de cette langue et en fait celle dans laquelle vous travaillez. Mon travail suit."
     },
     "tones": {
       "done": "Terminé",

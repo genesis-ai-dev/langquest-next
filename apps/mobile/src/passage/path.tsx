@@ -112,18 +112,18 @@ function TeamRow(props: { ctx: Ctx; step: TeamStep; people: string[] | null; onP
   const { step } = props;
   const status = props.onPress ? t('passage.path.help.team', { status: step.status }) : t('passage.path.help.teamView', { status: step.status });
   // The lock on a check that must pass says so; the other icons say what the status beside them says.
-  const locked = step.checkpoint && step.state !== 'done';
-  const spot = useHelpSpot(step.name, locked ? t('passage.path.help.withMark', { help: status, mark: t('passage.path.help.checkpoint') }) : status,
-    props.onPress ?? INFO);
+  const locked = step.checkpoint && step.state !== 'done' && step.state !== 'movedPast';
+  // What the grey and amber marks mean, as History and the step sheet say it.
+  const mark = locked ? t('passage.path.help.checkpoint') : step.state === 'movedPast' ? t('passage.record.sheet.movedPast')
+    : step.state === 'setAside' ? t('passage.page.marks.skipped') : '';
+  const spot = useHelpSpot(step.name, mark ? t('passage.path.help.withMark', { help: status, mark }) : status, props.onPress ?? INFO);
   const press = props.onPress || spot.id ? spot.onPress : undefined;
-  const icon: IconName = step.state === 'done' ? 'check' : step.state === 'locked' || step.checkpoint ? 'lock' : step.state === 'attention' ? 'chat' : step.state === 'waiting' ? 'clock' : 'people';
-  const color = step.state === 'done' ? TINT.greenText : step.state === 'attention' ? TINT.amberText : step.state === 'waiting' ? C.primary : C.faint;
-  const tile = step.state === 'done' ? TINT.green : step.state === 'attention' ? TINT.amber : step.state === 'waiting' ? C.light : C.bg;
+  const look = teamLook(step);
   return (
     <Pressable testID={`team-row-${step.kindId}`} onPress={press} disabled={!press} accessibilityRole="button" accessibilityLabel={`${step.name}, ${step.status}`}
       style={({ pressed }) => [styles.teamCard, pressed && { opacity: 0.7 }]}>
-      <View style={[styles.teamTile, { backgroundColor: tile }]}>
-        <Ico name={icon} size={20} color={color} strokeWidth={step.state === 'done' ? 3 : 2.2} />
+      <View style={[styles.teamTile, { backgroundColor: look.tile }]}>
+        <Ico name={look.icon} size={20} color={look.color} strokeWidth={step.state === 'done' ? 3 : 2.2} />
       </View>
       <HelpBadge spot={spot} />
       <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
@@ -134,6 +134,23 @@ function TeamRow(props: { ctx: Ctx; step: TeamStep; people: string[] | null; onP
       {props.onPress ? <Ico name="right" size={20} color={C.muted} /> : null}
     </Pressable>
   );
+}
+
+/**
+ * A team check's icon and colours. Only a check that passed gets the green
+ * tick; one set aside is grey with the skip mark, as the step sheet and the
+ * versions grid draw it, and a checkpoint moved past without its check is an
+ * amber flag, as History marks it (UI audit, finding 86).
+ */
+function teamLook(step: TeamStep): { icon: IconName; color: string; tile: string } {
+  switch (step.state) {
+    case 'done': return { icon: 'check', color: TINT.greenText, tile: TINT.green };
+    case 'setAside': return { icon: 'skip', color: TINT.grayText, tile: TINT.gray };
+    case 'movedPast': return { icon: 'flag', color: TINT.amberText, tile: TINT.amber };
+    case 'attention': return { icon: step.checkpoint ? 'lock' : 'chat', color: TINT.amberText, tile: TINT.amber };
+    case 'waiting': return { icon: step.checkpoint ? 'lock' : 'clock', color: C.primary, tile: C.light };
+    default: return { icon: step.state === 'locked' || step.checkpoint ? 'lock' : 'people', color: C.faint, tile: C.bg };
+  }
 }
 
 export function PassagePath(props: {

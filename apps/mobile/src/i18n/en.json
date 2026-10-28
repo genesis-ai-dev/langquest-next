@@ -825,6 +825,7 @@
       "sectionLanguage": "Language members · {{total}}",
       "pending": "Pending",
       "none": "Nobody has a role here yet.",
+      "connectToSee": "Connect to see who asked to join",
       "expandBy": "Expand by",
       "byLanguage": "By language",
       "higher": "Every language · view only",
@@ -2825,6 +2826,9 @@
       "askTitle": "Sign in, then ask to join the {{language}} team",
       "namePlaceholder": "Email or sign-in name",
       "nameHint": "A sign-in name has no spaces: letters, digits and dashes, like nyibol-deng-482.",
+      "nameHelp": "Your email, or your sign-in name, like nyibol-deng-482.",
+      "passwordHelp": "The password for this account.",
+      "buttonHelp": "Signs you in with the name and password above.",
       "button": "Sign In",
       "cantSignIn": "Can't sign in?",
       "cantSignInHelp": "Shows the ways in that need no password.",
@@ -2914,6 +2918,9 @@
       "scanHint": "No email or password needed. The invite makes your account and puts you on the team.",
       "failed": "Could not create the account. Try again.",
       "confirmHelp": "Type the same password again, to be sure it is right.",
+      "emailHelp": "We send a link here. Open it to finish your account.",
+      "passwordHelp": "6 or more characters. You sign in with it.",
+      "buttonHelp": "Makes your account and sends the link to your email.",
       "scanInviteHelp": "Opens the camera. The invite makes your account: no email needed."
     },
     "scan": {
@@ -3016,7 +3023,8 @@
       "licenseLabel": "Who may use your work",
       "readyTitle": "Ready to use",
       "readyBody": "You'll get the usual roles and a standard way to check passages. Next, we'll add your first language and team together.",
-      "nameHelp": "Your organization's name, as your teams will see it."
+      "nameHelp": "Your organization's name, as your teams will see it.",
+      "buttonHelp": "Makes the organization. Next you add your first language."
     },
     "request": {
       "notSent": "Not sent",
@@ -3302,8 +3310,11 @@
       "setPasswordSub": "If other people use this device",
       "notifications": "Notifications",
       "notificationsSub": "Hear about requests and feedback",
-      "notificationsOn": "Notifications are on.",
+      "notificationsBlocked": "Off in this phone’s settings",
       "notificationsFailed": "Notifications could not be turned on. Try again when connected.",
+      "notificationsOffNeedsConnection": "Turning them off needs a connection. Try again when connected.",
+      "openPhoneSettings": "Open this phone’s settings",
+      "openPhoneSettingsHelp": "Opens this phone’s settings, the only place that can allow notifications for LangQuest now.",
       "switchOrg": "Switch Organization",
       "switchActive": "{{org}} (active)",
       "switchOrStart": "{{org}} · or start a new one",
@@ -3312,6 +3323,7 @@
       "syncRefused": "This account cannot sync this organization",
       "syncPending_one": "{{count, number}} change waiting to send",
       "syncPending_other": "{{count, number}} changes waiting to send",
+      "syncPendingMixed": "{{total, number}} waiting to send · recordings: {{recordings, number}}",
       "syncLive": "Live: changes arrive as they happen",
       "syncOffline": "Offline: work is kept on this device",
       "syncUpToDate": "Up to date",
@@ -3326,7 +3338,6 @@
       "deleteSub": "Your account and your name, for good",
       "testing": "Testing",
       "personaSub": "Sign in as a demo translator, reviewer or admin",
-      "notificationsHelp": "Turns notifications on, so this device tells you about requests and feedback.",
       "syncHelp": "Shows what waits to send or download. A number means changes waiting to send.",
       "blockedHelp": "Shows who you blocked, to unblock them.",
       "switchOrgHelp": "Opens your organizations, to switch to another or start a new one."
@@ -3347,6 +3358,7 @@
       "nameLabel": "Full Name",
       "shortPassword": "Choose a password of 6 or more characters.",
       "passwordNeedsConnection": "Setting a password needs a connection.",
+      "nameSaved": "Name saved.",
       "passwordFailed": "The password could not be set. Try again.",
       "savedWithPassword": "Saved. You can sign in with your sign-in name and this password.",
       "saved": "Profile saved. It syncs when you are connected.",
@@ -3395,17 +3407,22 @@
       "signingOut": "Signing out…",
       "button": "Sign Out",
       "notYet": "Not yet",
+      "sending": "Sending…",
+      "seeWaiting": "See what is waiting",
+      "seeWaitingHelp": "Opens Sync: what waits to send, by passage, and Sync now.",
       "question": "Sign out?"
     },
     "delete": {
       "title": "Delete Account",
       "deleting": "Deleting…",
       "button": "Delete My Account",
+      "buttonHelp": "Asks once more, then deletes this account for good.",
       "sendFirstTitle": "Send your work first",
       "sendFirstBody": "Still to send: {{things}}. Delete your account once they have synced, so your organization gets them.",
       "offlineTitle": "You're offline",
       "offlineBody": "Connect to the internet to delete your account.",
       "question": "Delete your account?",
+      "confirmTitle": "Delete {{name}}’s account?",
       "deleted": "Deleted",
       "deletedSub": "Your sign-in, email, name, notifications, blocks and diagnostics. You leave every organization.",
       "kept": "Kept by your organization",
@@ -3417,6 +3434,7 @@
       "syncNow": "Sync now",
       "refused": "The server refused this account for this organization.",
       "tooOld": "Update the app to sync.",
+      "tooOldSends": "This app is too old to receive your team’s changes. Your own work still goes out.",
       "waitingUpload": "waiting to upload",
       "refusedByServer": "refused by the server",
       "latestConfirmed": "latest confirmed",
@@ -3439,13 +3457,15 @@
         "live": "Live",
         "checking": "Connected",
         "offline": "Offline",
-        "refused": "Not syncing"
+        "refused": "Not syncing",
+        "tooOld": "Update to receive"
       },
       "help": {
         "live": "Changes from your team arrive as they happen, and yours go out right away.",
         "checking": "Connected, but the live channel is down, so this device checks for changes every few minutes. Sync now checks at once.",
         "offline": "No connection. Everything you do is kept on this device and sends by itself when you are back online.",
         "refused": "The server is not accepting changes from this device. Your work is still kept here.",
+        "tooOld": "This app is too old to receive your team’s changes. Update it from the store.",
         "toReceive": "Recordings from others that this device is still downloading.",
         "refusedLine": "Changes the server would not accept, usually because a permission changed. They stay on this device; open Details to see each one."
       },
@@ -3701,7 +3721,7 @@
         "askedYou": "{{by}} asked you",
         "askedYourTeam": "{{by}} asked your {{team}} team",
         "askedYourReviewTeam": "{{by}} asked your review team",
-        "byLinkOver": "by link over {{channel}}",
+        "byLinkOver": "not sent by the app · {{channel}}",
         "askedForChanges": "{{who}} asked for changes",
         "answered": "Feedback answered — clears once the reviewer says Looks good",
         "recordedBy": "Recorded by {{who}}",
@@ -3787,8 +3807,8 @@
         "text": "Text",
         "rating": "1–5"
       },
-      "guestMessage": "Hi {{name}} — could you listen to {{passage}} in {{language}} and tell us what you understood? No account needed:",
-      "guestMessageNoName": "Hi there — could you listen to {{passage}} in {{language}} and tell us what you understood? No account needed:"
+      "guestMessage": "Hi {{name}} — could you listen to {{passage}} in {{language}} and tell us what you understood?",
+      "guestMessageNoName": "Hi there — could you listen to {{passage}} in {{language}} and tell us what you understood?"
     },
     "path": {
       "theCheck": "the {{check}}",
@@ -3819,6 +3839,7 @@
       "fixSub": "Then it goes back to the check",
       "status": {
         "movedPast": "moved past",
+        "movedPastWhy": "moved past · {{reason}}",
         "setAside": "set aside",
         "answered": "answered",
         "answeredBack": "answered · back to the check",
@@ -3934,6 +3955,7 @@
       "continueRecording": "Continue recording",
       "askFor": "Ask for the {{check}}",
       "movePastThis": "Move past this checkpoint…",
+      "heldAt": "Waiting at the {{check}}, which must pass first",
       "skip": {
         "title": "Set aside {{kind}}?",
         "sub": "The flow suggests this step. Setting it aside is fine — say why so the next person understands.",
@@ -4011,7 +4033,6 @@
       "someoneElseCheck": "{{kind}}: ask a person, a group, or someone outside by WhatsApp or text",
       "alreadyDid": "We already did this",
       "alreadyDidSub": "Say when and how the {{check}} happened",
-      "notNowSub": "Set the {{check}} aside. Say why",
       "newVersion": "Record a new version",
       "newVersionSub": "Reviews so far stay with the version they heard",
       "movePast": "Move past a checkpoint",
@@ -4023,7 +4044,9 @@
       "whatHelpsHelp": "Opens the Bibles, guides and other helps for this passage.",
       "myself": "I'll do this myself",
       "myselfSub": "{{kind}}: listen and decide now",
-      "myselfMakesSub": "{{kind}}: record it now"
+      "myselfMakesSub": "{{kind}}: record it now",
+      "setAside": "Set the {{check}} aside",
+      "setAsideSub": "Say why. It goes on the record."
     },
     "published": {
       "askTitle": "Ask for a check",
@@ -4123,9 +4146,10 @@
       "titleRecord": "Ask someone to record",
       "titleKind": "Ask for {{kind}}",
       "titleReview": "Ask for a review",
-      "doneOutside": "Asked {{name}} · the request is on the record",
+      "doneOutside": "Saved on the record, not sent. Send it to {{name}} yourself.",
       "doneTeam": "{{name}} will see it on their My Work",
       "askName": "Ask {{name}}",
+      "saveRequest": "Save the request",
       "chooseSomeone": "Choose someone",
       "recordIt": "Record it",
       "recordSub": "They'll find it on their My Work, with the source and the study ready.",
@@ -4134,11 +4158,9 @@
       "withoutApp": "Someone without the app",
       "usuallyDoesThis": "Usually does this",
       "nobody": "Nobody on the team can do this.",
-      "nobodyTryOutside": "Nobody on the team can do this. Try someone without the app.",
       "guestName": "Their name — e.g. Pastor Garang",
       "phone": "Phone number",
-      "preview": "{{channel}} preview",
-      "previewNote": "The request is saved on the record with their name and number. Sending the no-account link from the app is not ready yet.",
+      "phoneNeeded": "Phone number · needed",
       "directions": "Directions · optional",
       "sayKeepInMind": "Say what to keep in mind",
       "sayListenFor": "Say what to listen for",
@@ -4148,12 +4170,15 @@
       "answerType": "Answer: {{type}}",
       "addQuestion": "Add question",
       "sendHelp": "Sends the request. They find it on My Work.",
-      "sendOutsideHelp": "Saves the request on the record, with their name and number.",
+      "sendOutsideHelp": "Saves the request on the record, with their name and number. Nothing is sent to them.",
       "onTeamHelp": "Choose someone who uses the app.",
-      "withoutAppHelp": "Ask someone by WhatsApp or text message instead.",
+      "withoutAppHelp": "Saves a request for someone without the app. You send them the message yourself.",
       "teamHelp": "Asks everyone on this check. Any of them can do it.",
       "personHelp": "Picks this person to ask.",
       "phoneHelp": "Where to reach them by WhatsApp or text message.",
+      "sendYourself": "Send them this yourself, by {{channel}}",
+      "shareMessage": "Share the message",
+      "shareMessageHelp": "Opens your phone’s share sheet with this message. In a browser, copies it.",
       "whatsappHelp": "Reach them by WhatsApp.",
       "smsHelp": "Reach them by text message.",
       "askSpecificHelp": "Type a question for them to answer, then add it.",
@@ -4167,7 +4192,9 @@
     },
     "versions": {
       "title": "Versions",
+      "whichDraft": "Which draft?",
       "newVersion": "New version",
+      "continueDraft": "Continue {{name}}",
       "yourDraft": "Your draft",
       "yourDrafts": "Your drafts",
       "published": "Published",
@@ -4204,6 +4231,7 @@
   "work": {
     "title": "My Work",
     "loading": "Loading your work…",
+    "notReady": "Once {{language}} has passages to record, your work shows here.",
     "askedBy": "asked by {{name}}",
     "checkPassage": "Check {{passage}}",
     "bell": {
@@ -4257,7 +4285,8 @@
       "wantsToJoin": "{{name}} wants to join",
       "asked": "Asked {{when}}",
       "askedJustNow": "Asked just now",
-      "openHelp": "Opens their request: choose a role and let them in."
+      "openHelp": "Opens their request: choose a role and let them in.",
+      "connectToLetIn": "Connect to let them in"
     },
     "lead": {
       "getOrgReady": "Get {{org}} ready",
@@ -4315,7 +4344,11 @@
     "elsewhere": {
       "title": "New in {{language}}",
       "sub_one": "{{count, number}} update for you. Tap to switch to {{language}}.",
-      "sub_other": "{{count, number}} updates for you. Tap to switch to {{language}}."
+      "sub_other": "{{count, number}} updates for you. Tap to switch to {{language}}.",
+      "switched": "Now in {{language}}",
+      "help": "Switches the app to {{language}}.",
+      "back": "Back to {{language}}",
+      "backSub": "{{language}} is open now."
     },
     "again": {
       "title": "Record {{passage}} again",
@@ -4498,6 +4531,7 @@
     "turnOff": "Turn help off",
     "listen": "Listen",
     "stop": "Stop",
+    "closeHint": "Closes this explanation.",
     "line": "{{label}}. {{detail}}",
     "lineAfterSentence": "{{label}} {{detail}}",
     "details": {
@@ -4533,10 +4567,11 @@
       "explorer": "Opens the language explorer in a new tab: every language and where it is spoken."
     },
     "sync": {
-      "live": "Green dot: connected. Your work is sent as you go. Tap to see what was sent.",
-      "checking": "Grey dot: looking for a connection. Your work stays on this device until it is sent.",
-      "offline": "Amber dot: offline. Your work stays on this device and is sent once you are connected.",
-      "refused": "Red: the server refused something. Tap to see what, and what to do.",
+      "live": "Cloud with a tick: connected. Your work is sent as you go. Tap to see what was sent.",
+      "checking": "Plain cloud: looking for a connection. Your work stays on this device until it is sent.",
+      "offline": "Cloud crossed out: offline. Your work stays on this device and is sent once you are connected.",
+      "refused": "Red cloud with a warning: the server refused something. Tap to see what, and what to do.",
+      "tooOld": "Amber cloud with a down arrow: this app is too old to receive your team’s changes. Tap to update it.",
       "withWaiting": "{{standing}} The number is how many things wait to send.",
       "withReceiving": "{{standing}} The ring turns while recordings from others download to this device. Nothing waits to send."
     }
@@ -4714,10 +4749,13 @@
     "actions": {
       "openMembers": "Open Members",
       "openPassage": "Open the passage",
+      "openVersion": "Open the version",
+      "openReview": "Open the review",
       "closeReport": "Close the report",
       "keep": "Keep it",
-      "openPassageHelp": "Opens the passage this report is about.",
+      "openPassageHelp": "Opens what was reported, so you can look before you decide.",
       "keepHelp": "Keeps it on the record and closes the report.",
+      "removeHelp": "Asks once more, then takes it out of the record on every device.",
       "closeReportHelp": "Closes the report. Nobody is removed."
     },
     "hidden": {
@@ -5228,7 +5266,8 @@
       "breakUpDifferentlyHelp": "Change how this book is divided into sections: by chapter, FIA's passages or another way.",
       "chapterTitle": "{{book}} {{n}}",
       "pickPart_one": "{{count, number}} part — pick one",
-      "pickPart_other": "{{count, number}} parts — pick one"
+      "pickPart_other": "{{count, number}} parts — pick one",
+      "outsideFilter": "Outside the filter"
     },
     "home": {
       "title": "Passage Map",
@@ -5247,9 +5286,10 @@
       "noPassageMatch": "No passage matches — try a book name, then a chapter",
       "oldTestament": "Old Testament",
       "newTestament": "New Testament",
+      "testamentCount": "{{name}} · {{n, number}}",
       "noBooks": "No books in this language yet.",
       "findHelp": "Type a book name, then a chapter number to jump straight to it.",
-      "languageChipHelp": "Shows this language's map."
+      "languageChipHelp": "Opens this language’s map and makes it the one you work in. My Work follows."
     },
     "tones": {
       "done": "Done",

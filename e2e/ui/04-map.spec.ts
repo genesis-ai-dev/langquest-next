@@ -9,7 +9,7 @@ import {
   addLanguages, chapterUnits, createEmptyOrg, finishPassages, headerTitle, headings, invite, labels, leaveBookWaiting, settled
 } from './nav-helpers';
 import {
-  back, button, byId, expect, openAs, primary, screenText, syncNow, tab, tabsShown, test, text, useWorld,
+  back, bookRow, button, byId, expect, openAs, primary, screenText, syncNow, tab, tabsShown, test, text, useWorld,
   type AccountKey, type PassageKey
 } from './support';
 
@@ -57,11 +57,29 @@ const search = (page: Page) => page.getByTestId('map-search').locator('visible=t
 /** A passage's row in a book's list (decisions.md 166): its spoken label starts with its title. */
 const escaped = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const row = (page: Page, title: string) => button(page, new RegExp(`^${escaped(title)}\\.`));
+/** The same, showing more of the book until it is drawn (25 at a time, UI audit finding 122). */
+const bookPassage = (page: Page, title: string) => bookRow(page, new RegExp(`^${escaped(title)}\\.`));
+/** Every passage of the book, Show more until none is left. */
+async function wholeBook(page: Page): Promise<void> {
+  const more = page.getByRole('button', { name: /^Show \d+ more · / }).locator('visible=true').first();
+  await expect(more).toBeVisible();
+  while (await more.isVisible()) await more.click();
+}
 const closeSheet = (page: Page) => page.getByRole('button', { name: 'Close' }).locator('visible=true').first().click({ position: { x: 10, y: 10 } });
 
 // ---- All languages -------------------------------------------------------------------------
 
-for (const who of ['ADMIN', 'LADMIN'] as const) {
+test('MAP-001 LADMIN One language: the Map tab opens it @p0', async ({ browser }) => {
+  // LADMIN holds a role in Alpha only: the Map tab opens Alpha, not a Progress list of one (UI audit, finding 82).
+  const { context, page } = await device(browser, 'LADMIN');
+  await tab(page, 'map').click();
+  await expect.poll(() => headerTitle(page)).toBe('Alpha');
+  await expect(search(page)).toBeVisible();
+  await expect(byId(page, 'header-back')).toHaveCount(0);
+  await context.close();
+});
+
+for (const who of ['ADMIN'] as const) {
   test(`MAP-001 ${who} All languages @p0`, async ({ browser }) => {
     const { context, page } = await device(browser, who);
     await tab(page, 'map').click();
@@ -69,14 +87,11 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     await expect(text(page, `${W().orgName} · All languages`)).toBeVisible();
     await expect(byId(page, 'header-back')).toHaveCount(0);
     const all = await screen(page);
-    // LADMIN holds a role in Alpha only, so Progress lists Alpha alone (NAV-042).
-    const n = who === 'LADMIN' ? 1 : 2;
-    expect(all, who).toMatch(new RegExp(`(Across ${n} languages?|\\d of ${n} languages counted) · \\d+ passages`));
+    expect(all, who).toMatch(/(Across 2 languages|\d of 2 languages counted) · \d+ passages/);
     expect(all).toMatch(/\d+% recorded \d+% done \d+ with reviewers/);
     expect(all).toMatch(/ALP Alpha \d+ passages · Standard Bible Flow 2 Recorded/);
     for (const word of [/Consultant (Check|check)/, /Final (Approval|approval)/, 'Done']) expect(all).toMatch(word);
-    if (who === 'LADMIN') expect(all).not.toContain('Bravo');
-    else expect(all).toMatch(/Bravo (Open it to bring it onto this device|0 passages · as of )/);
+    expect(all).toMatch(/Bravo (Open it to bring it onto this device|0 passages · as of )/);
     await button(page, /^Alpha: /).click();
     await expect.poll(() => headerTitle(page)).toBe('Alpha');
     await back(page).click();
@@ -280,9 +295,14 @@ for (const who of ['TRANS', 'VIEW'] as const) {
     await alphaMap(page);
     await button(page, /^Luke\./).click();
     await expect.poll(() => headerTitle(page)).toBe('Luke');
-    await expect(text(page, '9 of 97 passages')).toBeVisible();
+    // On a phone the sub-line names the language, as the crumbs do on a wide window (UI audit, finding 124).
+    await expect(text(page, 'Alpha · 9 of 97 passages')).toBeVisible();
     await expect(byId(page, 'header-back')).toBeVisible();
     await expect(text(page, /^[\d,]+ of 97 passages? ready on this device$/)).toBeVisible();
+    // 25 at a time (UI audit, finding 122), then the rest.
+    expect((await labels(page)).filter((l) => /^Luke \d+:\d+/.test(l))).toHaveLength(25);
+    await expect(button(page, 'Show 25 more · 72 left')).toBeVisible();
+    await wholeBook(page);
     const spoken = await labels(page);
     expect(spoken.filter((l) => /^Chapter \d+:/.test(l))).toHaveLength(0);
     const rows = spoken.filter((l) => /^Luke \d+:\d+/.test(l));
@@ -313,6 +333,7 @@ test('MAP-021 A book of passages: the filters one tap deeper, and each row says 
   // The key is the chapter tiles'; a list of passages has none.
   await expect(text(page, 'Key')).toHaveCount(0);
   await closeSheet(page);
+  await wholeBook(page);
   const spoken = await labels(page);
   const of = (t: string) => spoken.find((l) => l.startsWith(`${t}.`))!;
   expect(of(label('P-NEEDS'))).toMatch(/Feedback for you to answer\. For you/);
@@ -325,8 +346,9 @@ test('MAP-022 A passage opens from its row, and Back comes to the book', async (
   await alphaMap(page);
   await button(page, /^Luke\./).click();
   // Luke 14's passages one after another, with the steps of the one in review.
+  await (await bookPassage(page, label('P-BT'))).scrollIntoViewIfNeeded();
   expect(await screen(page)).toMatch(new RegExp(`0/4 ${label('P-BT')}`));
-  await row(page, label('P-NEEDS')).click();
+  await (await bookPassage(page, label('P-NEEDS'))).click();
   await expect.poll(() => headerTitle(page)).toBe(label('P-NEEDS'));
   await back(page).click();
   await expect.poll(() => headerTitle(page)).toBe('Luke');
@@ -372,8 +394,8 @@ for (const who of ['COORD'] as const) {
     await expect(button(page, 'Filter')).toBeVisible();
     if (['ADMIN', 'COORD', 'LADMIN'].includes(who)) {
       await button(page, 'Divide differently').click();
-      // Book structure for Luke.
-      await expect(text(page, /^Luke: \d+ sections$/)).toBeVisible();
+      // The ways to divide Luke at once, not the book's page with the same link again (UI audit, finding 127).
+      await expect(text(page, 'Change how Luke is divided')).toBeVisible();
       await back(page).click();
       await expect(row(page, 'Luke 1:1–4')).toBeVisible();
     } else {
@@ -416,6 +438,8 @@ test('MAP-034 Switching language from the map', async ({ page }) => {
   await expect(button(page, 'Bravo')).toBeVisible();
   await search(page).fill('Luke 15');
   await button(page, 'Bravo').click();
+  // The whole app now works in Bravo, and says so (UI audit, finding 126).
+  await expect(text(page, 'Now in Bravo')).toBeVisible();
   await expect.poll(() => headerTitle(page)).toBe('Bravo');
   await expect(text(page, 'No passages yet')).toBeVisible({ timeout: 60_000 });
   await expect(button(page, 'Alpha')).toBeVisible();
@@ -432,7 +456,7 @@ test('MAP-035 The viewer\'s map is read-only', async ({ page }) => {
   await expect(button(page, /^Next: /)).toHaveCount(0);
   await button(page, /^Luke\./).click();
   await expect(button(page, 'Divide differently')).toHaveCount(0);
-  await row(page, label('P-SUBMITTED')).click();
+  await (await bookPassage(page, label('P-SUBMITTED'))).click();
   await expect.poll(() => headerTitle(page)).toBe(label('P-SUBMITTED'));
   await expect(primary(page)).toHaveCount(0);
   await expect(text(page, 'Something else?')).toBeVisible();

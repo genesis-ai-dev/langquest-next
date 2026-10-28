@@ -191,6 +191,17 @@ describe('a language\'s books', () => {
     expect(mapShelf([], 'all', null)).toMatchObject({ testaments: [], shownTestament: undefined, visible: [], other: undefined });
   });
 
+  it('with a filter on, opens on the testament that holds the matches, and counts them on each (UI audit, finding 121)', () => {
+    const books = summarizeBooks([entry('p1', 'luk', [1]), entry('p2', 'gen', [1], recorded([true, true], { done: true }))], 'done', new Set());
+    const shelf = mapShelf(books, 'done', null);
+    expect(shelf.shownTestament).toBe('ot');
+    expect(shelf.visible.map((b) => b.key)).toEqual(['gen']);
+    expect(shelf.counts).toEqual({ nt: 0, ot: 1 });
+    // Picked by hand, it stays picked, and its pill says 0.
+    expect(mapShelf(books, 'done', 'nt')).toMatchObject({ shownTestament: 'nt', visible: [] });
+    expect(mapShelf(books, 'all', null).counts).toBeNull();
+  });
+
   it('hides books and Other that the filter leaves empty', () => {
     const books = summarizeBooks(entries, 'done', new Set());
     const shelf = mapShelf(books, 'done', null);

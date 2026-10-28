@@ -428,7 +428,12 @@ export const EDGES: Edge[] = [
   // account belongs to no organization, so it lands on What brings you here?; inside one, the link in
   // every header opens it, as chrome does (decision 71 amended).
   e('intent_chooser', 'global_viewer'),
-  e('global_viewer', 'intent_chooser', 'back')
+  e('global_viewer', 'intent_chooser', 'back'),
+  // App only: a check asked of you opens from the Inbox as it does from My Work (decision 93; UI audit, finding 111)
+  e('inbox_home', 'review_capture', undefined, 'reviewer'),
+  e('inbox_home', 'back_translation', undefined, 'reviewer'),
+  // App only: a browser's sign-out held back by unsent work shows what is waiting (UI audit, finding 115)
+  e('sign_out_confirm', 'sync_status')
 ];
 
 /**

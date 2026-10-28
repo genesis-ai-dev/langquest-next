@@ -250,7 +250,7 @@ describe('the passage record, per role (05-passage-record.md)', () => {
       // Only its author is offered doing it themselves (decisions.md 178).
       if (all.includes("I'll do this myself Back translation: record it now")) got.myself.push(who);
       if (all.includes('We already did this Say when and how the back translation happened')) got.already.push(who);
-      if (all.includes('Not now Set the back translation aside. Say why')) got.notNow.push(who);
+      if (all.includes('Set the back translation aside Say why. It goes on the record.')) got.notNow.push(who);
       if (all.includes('Record a new version Reviews so far stay with the version they heard')) got.newVersion.push(who);
       if (all.includes('Move past a checkpoint')) got.movePast.push(who);
     }

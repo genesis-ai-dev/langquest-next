@@ -129,15 +129,16 @@ export function ChapterTileView(props: {
   /** Under the number: the chapter's download button (decisions.md 166). */
   below?: ReactNode;
 }) {
-  const look = STAGE[props.stage];
+  // Outside the filter: a flat grey ground and a readable number, never faded to a ghost (UI audit, finding 125).
+  const look = props.dim ? { bg: TINT.gray, fg: C.muted, border: TINT.gray } : STAGE[props.stage];
   const spot = useHelpSpot(t('map.parts.chapter', { n: formatNumber(props.n) }), props.help ?? t('map.parts.chapterHelp'), props.onPress);
   return (
     <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
       {...a11yState({ disabled: props.disabled, selected: props.current }, 'button', 'current')}
-      style={({ pressed }) => [styles.tile, props.below ? styles.tileTall : null, { backgroundColor: look.bg, borderColor: look.border, opacity: props.dim ? 0.28 : 1 },
+      style={({ pressed }) => [styles.tile, props.below ? styles.tileTall : null, { backgroundColor: look.bg, borderColor: look.border, opacity: props.dim ? 0.6 : 1 },
         props.current && { borderColor: C.primary, borderWidth: 3 }, pressed && { transform: [{ scale: 0.95 }] }]}>
       <Text style={[styles.tileNumber, { color: look.fg }]} maxFontSizeMultiplier={1.5}>{formatNumber(props.n)}</Text>
-      {props.stage === 'done' ? <Ico name="check" size={16} color={onColor.green} strokeWidth={3} />
+      {props.stage === 'done' ? <Ico name="check" size={16} color={props.dim ? C.muted : onColor.green} strokeWidth={3} />
         : props.stage === 'started' ? <View style={styles.tileDot} />
         : <View style={{ height: 16 }} />}
       {props.below}

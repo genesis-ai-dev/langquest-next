@@ -36,7 +36,7 @@ read a screen's contents run once per role.
 ## All languages
 
 ### MAP-001 All languages, per role
-Roles: ADMIN, COORD, LADMIN, VIEW · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
+Roles: ADMIN, COORD, VIEW (LADMIN: see the last line) · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
 1. Tap "Map" (VIEW is already there).
@@ -58,8 +58,9 @@ Expected:
 - Tapping Alpha opens its map with a Back arrow to "Progress".
 - On a desktop-wide window (Wide), Alpha's map opens beside the list, and
   Alpha's card is marked as the one open.
-- LADMIN sees Alpha alone ("Across 1 language · …"): Progress lists only
-  the languages a role of the person's covers (NAV-042).
+- Progress lists only the languages a role of the person's covers
+  (NAV-042). LADMIN, whose role covers Alpha alone, does not see Progress
+  from the Map tab: it opens Alpha's map, with no Back (NAV-002).
 
 ### MAP-002 Finding a language among many
 Roles: ADMIN · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -194,6 +195,10 @@ Expected:
 - With both, the pills "New Testament" and "Old Testament" show, with New
   Testament chosen first.
 - Each pill shows only its testament's books.
+- With a filter on, each pill says how many of its books match ("Old
+  Testament · 1"), and the map opens on a testament that has matches rather
+  than on "Nothing here matches" while the other holds them; a pill picked
+  by hand stays picked (UI audit, finding 121).
 
 ### MAP-015 The filter, one tap deeper
 Roles: TRANS, COORD · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -240,12 +245,16 @@ Steps:
 2. Read the header, the line under it and the list.
 
 Expected:
-- The header is "Luke", with the sub "{recorded} of {n} passages" ("9 of 97
-  passages" once Luke 3 is done), and Back. On a wide window, crumbs "Alpha"
-  › "Luke" show above the title (the kit draws crumbs only there).
+- The header is "Luke", with the sub "Alpha · {recorded} of {n} passages"
+  ("Alpha · 9 of 97 passages" once Luke 3 is done), "Filter" at its end, and
+  Back. On a wide window, crumbs "Alpha" › "Luke" show above the title (the
+  kit draws crumbs only there) and the sub drops the language (UI audit,
+  findings 123 and 124).
 - The fixture's template divides Luke into FIA's passages, which can run
   across chapters, so Luke lists its 97 passages as rows, not chapter tiles
-  (decision 166). A passage across two chapters (Luke 7:36–8:3) is one row.
+  (decision 166), 25 at a time with "Show 25 more · 72 left" under them (UI
+  audit, finding 122). A passage across two chapters (Luke 7:36–8:3) is one
+  row.
 - The line over the list reads "{ready} of 97 passages ready on this
   device", with the green download mark.
 - Each row has the passage's disc (dashed mic, steps, ✓ when done), its
@@ -254,7 +263,11 @@ Expected:
   for offline · {here} of {total}"), green when it is here ("On this
   device").
 - A book whose passages are its chapters one each still shows chapter tiles,
-  four across on a phone, each with its download button.
+  four across on a phone, each with its download button, and the short key
+  ("✓ Done • Started") above them. With a filter on, a chapter outside it
+  is grey with its number still readable, and a tap shows its passage in a
+  sheet marked "Outside the filter" rather than opening it (UI audit,
+  findings 123 and 125).
 
 ### MAP-021 A book of passages: the filters one tap deeper, and each row says where it stands
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -316,13 +329,16 @@ Roles: ADMIN, COORD, LADMIN, TRANS, TREV, VIEW · Priority: P1 · Platforms: iOS
 
 Steps:
 1. Open Luke's chapters.
-2. Read the quiet links under the grid.
+2. Read the header and the quiet link under the list.
 
 Expected:
-- ADMIN, COORD and LADMIN see "Filter" and "Divide differently". The
-  second opens book structure for Luke, and its Back returns to the
-  chapters.
-- TRANS, TREV and VIEW see only "Filter".
+- Everyone sees "Filter" in the header.
+- ADMIN and COORD see "Divide differently" under the list. It opens Luke's
+  "Change how Luke is divided" choices at once, and their Back (or "Not
+  now") returns to the book (UI audit, finding 127).
+- LADMIN, TRANS, TREV and VIEW do not see it: dividing a book publishes the
+  template in the organization's library, which needs that privilege at
+  organization scope (decision 74, as for "Divide Jude" in MAP-023).
 - The screen-path doc calls this link "Edit passages". The app's words are
   "Divide differently".
 
@@ -450,7 +466,9 @@ Steps:
 Expected:
 - Chips "Alpha" and "Bravo" show, with Alpha on. Chips show only on the Map
   tab's own map, when the person can open more than one language.
-- Tapping "Bravo" switches the map in place. The search clears.
+- Tapping "Bravo" switches the map in place, with the toast "Now in
+  Bravo": the chip changes the language the whole app works in, and its
+  help says My Work follows (UI audit, finding 126). The search clears.
 - My Work's sub now reads "Bravo · UI Test Org".
 
 ### MAP-035 The viewer's map is read-only

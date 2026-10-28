@@ -32,6 +32,8 @@ export { default as CircleHelp } from 'lucide-react-native/icons/circle-question
 export { default as ClipboardList } from 'lucide-react-native/icons/clipboard-list';
 export { default as Clock } from 'lucide-react-native/icons/clock';
 export { default as Cloud } from 'lucide-react-native/icons/cloud';
+export { default as CloudAlert } from 'lucide-react-native/icons/cloud-alert';
+export { default as CloudDownload } from 'lucide-react-native/icons/cloud-download';
 export { default as CloudCheck } from 'lucide-react-native/icons/cloud-check';
 export { default as CloudOff } from 'lucide-react-native/icons/cloud-off';
 export { default as Download } from 'lucide-react-native/icons/download';

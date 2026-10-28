@@ -16,7 +16,7 @@ import type { Ctx } from '../shell/ctx';
 import type { ScreenId } from '../shell/flow';
 import { t } from '../i18n';
 import { indexesFor } from '../sync/indexes';
-import { Badge, Header, IconBtn, Ico, PrimaryBtn, Screen, SectionLabel, SmallBtn } from '../ui/kit';
+import { Badge, Header, IconBtn, Ico, PrimaryBtn, QuietLinks, Screen, SectionLabel, SmallBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { versionTitle, when, type PassageView } from './passageView';
 import { failureMessage } from '../diagnostics/report';
@@ -39,6 +39,12 @@ export function VersionsPage(props: {
   onBack: () => void;
   /** The study, reviews by version and the history, under the versions. */
   history: ReactNode;
+  /**
+   * Opened from the record's main button with several drafts: the page asks
+   * which draft to go on with, a draft opens on a tap, and its newest is the
+   * big button; a new version is the quiet way (UI audit, finding 89).
+   */
+  pick?: boolean;
 }) {
   const { ctx, v } = props;
   const { p, state, unitId } = v;
@@ -66,9 +72,20 @@ export function VersionsPage(props: {
     void ctx.act(specs, t('passage.versions.deleted', { name })).catch(() => { /* ctx.act said what went wrong */ });
   };
 
+  const pick = !!props.pick && props.canRecord && mine.length > 0;
+  const newest = mine.reduce<DraftView | undefined>((a, d) => (!a || d.hlc > a.hlc ? d : a), undefined);
+  const newVersion = () => props.go('workspace', { fresh: '1' });
+  const footer = !props.canRecord ? undefined : pick && newest ? (
+    <View style={{ gap: space.xs }}>
+      <PrimaryBtn label={t('passage.versions.continueDraft', { name: draftName(mine, newest.rootTakeId) })} icon="mic" help={t('passage.versions.editDraftHelp')}
+        onPress={() => props.go('workspace', { draftId: newest.rootTakeId })} />
+      <QuietLinks items={[{ label: t('passage.versions.newVersion'), icon: 'plus', help: t('passage.versions.newVersionHelp'), onPress: newVersion }]} />
+    </View>
+  ) : <PrimaryBtn label={t('passage.versions.newVersion')} icon="plus" help={t('passage.versions.newVersionHelp')} onPress={newVersion} />;
+
   return (
-    <Screen header={<Header title={t('passage.versions.title')} sub={v.title} onBack={props.onBack} close />}
-      footer={props.canRecord ? <PrimaryBtn label={t('passage.versions.newVersion')} icon="plus" help={t('passage.versions.newVersionHelp')} onPress={() => props.go('workspace', { fresh: '1' })} /> : undefined}>
+    <Screen header={<Header title={pick ? t('passage.versions.whichDraft') : t('passage.versions.title')} sub={v.title} onBack={props.onBack} close />}
+      footer={footer}>
       {mine.length > 0 ? <SectionLabel label={mine.length > 1 ? t('passage.versions.yourDrafts') : t('passage.versions.yourDraft')} /> : null}
       {mine.map((d) => {
         const name = draftName(mine, d.rootTakeId);
@@ -77,6 +94,7 @@ export function VersionsPage(props: {
         return (
           <HelpRow key={d.takeId} of="versions.draft">
             <ItemCard ctx={ctx} hashes={d.cardHashes} title={name}
+              {...(pick ? { onOpen: () => props.go('workspace', { draftId: d.rootTakeId }), openHelp: t('passage.versions.editDraftHelp') } : {})}
               lines={[from && from !== p.latest?.n ? t('passage.versions.lengthFrom', { length: length(d.cardHashes), version: versionTitle(from) }) : length(d.cardHashes), saved(d.hlc)]}
               trailing={<IconBtn name="trash" label={t('passage.versions.delete', { name })} help={t('passage.versions.deleteHelp')} bg="transparent" color={C.muted} size={44}
                 onPress={() => setAsking({ name, sub: length(d.cardHashes), go: () => remove(d, name) })} />}>
@@ -130,13 +148,13 @@ function VersionCard(props: {
 /** One draft or version: play it, its name and what it holds, then its buttons. */
 function ItemCard(props: {
   ctx: Ctx; hashes: string[]; title: string; lines: string[]; badge?: string | undefined; trailing?: ReactNode;
-  onOpen?: () => void; children?: ReactNode;
+  onOpen?: () => void; openHelp?: string; children?: ReactNode;
 }) {
   const clip = useClip(props.ctx.language, props.hashes);
   const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: props.title }) : t('recording.player.playTitle', { title: props.title });
   const play = useHelpSpot(playLabel, undefined, clip.toggle);
   const openLabel = t('passage.versions.open', { title: props.title });
-  const open = useHelpSpot(openLabel, t('passage.page.openVersionHelp'), props.onOpen);
+  const open = useHelpSpot(openLabel, props.openHelp ?? t('passage.page.openVersionHelp'), props.onOpen);
   const body = (
     <>
       <View style={styles.titleRow}>

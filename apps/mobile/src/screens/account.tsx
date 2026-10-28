@@ -12,15 +12,18 @@
 import { OrgName } from '../verified/VerifiedSeal';
 import { signInName } from '../auth/accounts';
 import { readHelp, type SignInHelp } from '../auth/signInHelp';
-import { CommandError, decodeHlc, languageName, unitTitle, type Update } from '@langquest-next/core';
+import { decodeHlc, languageName, unitTitle, type Update } from '@langquest-next/core';
 import * as Updates from 'expo-updates';
 import { useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { accountOutbox, queueAccountAction } from '../account/accountData';
 import { authErrorText, groupByRead, outboxErrorText, ownName, remoteTitle, roleWords, updateText } from '../account/accountText';
 import { deriveKinds, kindOf } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
+import { edgeFor } from '../shell/flow';
+import { edgeAllowed } from '../shell/session';
+import { updateTarget } from '../work/homeModel';
 import { t } from '../i18n';
 import { formatAgo, formatDayTime, formatNumber, formatShortDate, formatTime } from '../i18n/format';
 import { FillBanner, OfflineCard } from '../sync/offline';
@@ -35,8 +38,11 @@ import { reasonLabel, reportSummary, reportTitle, type ReportGroup } from '../mo
 import { decideRequest, type PendingRequest } from '../invites/invites';
 import { Badge, Banner, Card, Disclosure, EmptyState, Field, GhostBtn, Group, HelpTop, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
+import { storeUrl } from '../appVersion/appVersionModel';
+import { belowMinimum } from '../appVersion/syncGate';
+import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { useLayout, useOpenDetail } from '../ui/useLayout';
-import { enableNotifications, tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications/notifications';
+import { tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications/notifications';
 import { notificationTarget, openAfterSwitch } from '../notifications/notificationTarget';
 import { personLook } from '../ui/people';
 import { noteExpected, failureMessage } from '../diagnostics/report';
@@ -52,11 +58,12 @@ import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { runningBuildLabel } from '../shell/updateStatus';
 import { PersonAvatar } from '../ui/UserChip';
-import { standingTitle, syncStanding, type SyncStanding } from '../sync/syncStanding';
+import { iconCounts, standingTitle, syncStanding, type SyncStanding } from '../sync/syncStanding';
 import { LanguageRow } from '../account/uiLanguage';
 import { inSeveral, refusedHere, remoteRowView, speed, syncSummary } from '../account/model';
 import { useSyncInspection } from '../account/useSyncInspection';
 import { useDiagnosticsSwitch } from '../account/useDiagnosticsSwitch';
+import { useNotificationSwitch } from '../account/useNotificationSwitch';
 import { useHasPassword } from '../account/useHasPassword';
 import { useJoinRequests, useOpenReports, useServerInbox } from '../account/useInboxSources';
 import { useInviterName } from '../account/useInviterName';
@@ -151,10 +158,22 @@ export function InboxHome(ctx: Ctx) {
     const kinds = deriveKinds(state);
     const kindName = (id: string | undefined) => (id ? (kinds.find((k) => k.id === id) ?? kindOf(state, id)).name : t('account.updates.reviewFallback'));
     const produces = (id: string) => !!(kinds.find((k) => k.id === id) ?? kindOf(state, id)).produces;
-    return (u: Update) => updateText(u, {
-      name: ctx.name, passage: unitTitle(state, u.unitId), language, kindName, produces
-    });
+    return {
+      text: (u: Update) => updateText(u, { name: ctx.name, passage: unitTitle(state, u.unitId), language, kindName, produces }),
+      produces
+    };
   }, [state, language, ctx.name]);
+
+  /** A check still asked of them opens the check, as on My Work; the rest open the passage (UI audit, finding 111). */
+  function openUpdate(u: Update) {
+    const to = words ? updateTarget(u, words.produces, ctx.session.can('review')) : 'passage';
+    const screen = to === 'review' ? 'review_capture' : to === 'back_translation' ? 'back_translation' : null;
+    const edge = screen ? edgeFor('inbox_home', screen) : undefined;
+    if (screen && edge && edgeAllowed(edge, ctx.session) && u.request) {
+      return ctx.go(screen, { unitId: u.unitId, languageId, requestId: u.request.id, ...(u.request.kindId ? { kindId: u.request.kindId } : {}) });
+    }
+    ctx.openPassage(u.unitId, languageId);
+  }
 
   // Built each render: only the shown rows are drawn, and the words are memoized above.
   const items: InboxItem[] = [];
@@ -180,12 +199,12 @@ export function InboxHome(ctx: Ctx) {
   }
   if (words) {
     for (const u of ctx.inbox.updates) {
-      const w = words(u);
+      const w = words.text(u);
       // Requests and finished checks name the language in their own words.
       const named = u.kind === 'request' || (u.kind === 'request_done' && u.request?.what !== 'record');
       items.push({
         id: u.id, icon: w.icon, title: w.title, body: w.body, time: manyLanguages && !named ? `${language} · ${ago(u.hlc)}` : ago(u.hlc), read: ctx.inbox.isRead(u.id), unitId: u.unitId,
-        onPress: () => { ctx.inbox.markRead([u.id]); ctx.openPassage(u.unitId, languageId); }, help: t('account.inbox.updateHelp')
+        onPress: () => { ctx.inbox.markRead([u.id]); openUpdate(u); }, help: t('account.inbox.updateHelp')
       });
     }
   }
@@ -293,7 +312,10 @@ export function InboxHome(ctx: Ctx) {
               setOpenReport(null);
               // The person reported, where they can be removed; the list for those who may not edit members.
               if (target.kind === 'person') ctx.go(canAssign ? 'edit_member' : 'members_list', canAssign ? { memberId: target.profileId } : undefined);
-              else if (target.unitId && target.languageId) ctx.openPassage(target.unitId, target.languageId);
+              // A version or review opens itself, over its passage (UI audit, finding 113); a note or request, the passage.
+              else if (target.unitId && target.languageId) {
+                ctx.openPassage(target.unitId, target.languageId, target.kind === 'version' || target.kind === 'review' ? { reported: `${target.kind}:${target.id}` } : undefined);
+              }
             }} />}>
           <View style={styles.requestBody}>
             <Text style={txt.body}>
@@ -358,7 +380,8 @@ export function SettingsHome(ctx: Ctx) {
   // changes count too (a language or organization made offline), as they do before sign-out.
   const p = ctx.language;
   const status = useSyncStatus();
-  const waiting = status.pending + status.orgPending;
+  // One number for what waits to send, the sync icon's (UI audit, finding 118).
+  const waiting = iconCounts(status).toSend;
   const moreSub = p.refused ? t('account.me.moreRefused')
     : p.refusedEvents > 0 ? t('account.me.moreRefusedEvents', { n: p.refusedEvents })
     : waiting > 0 ? t('account.me.morePending', { count: waiting }) : moreSettingsSub();
@@ -413,7 +436,7 @@ function DangerLink(props: { label: string; onPress: () => void }) {
  * blocked people and deleting the account.
  */
 export function SettingsMore(ctx: Ctx) {
-  const [notificationMessage, setNotificationMessage] = useState('');
+  const notify = useNotificationSwitch();
   const [blockedOpen, setBlockedOpen] = useState(false);
   const diag = useDiagnosticsSwitch(ctx);
   const s = ctx.session;
@@ -425,6 +448,7 @@ export function SettingsMore(ctx: Ctx) {
   const name = useOwnName(ctx);
   const p = ctx.language;
   const status = useSyncStatus();
+  const toSend = iconCounts(status).toSend;
   const syncSub = syncSummary({ refused: p.refused, live: p.live, online: p.online, pending: status.pending + status.orgPending, recordings: status.pendingUp, lastSync: status.lastSync });
   // Someone in several organizations switches on Me itself; anyone else finds it here, where it also starts a new one.
   const orgs = useOrganizations(s.actorId).rows;
@@ -467,22 +491,23 @@ export function SettingsMore(ctx: Ctx) {
             <Row icon="lock" label={t('account.more.setPassword')} sub={t('account.more.setPasswordSub')} onPress={() => ctx.go('profile_edit')}
               last={!notifications && !switchHere} />
           ) : null}
+          {/* A switch that shows its state and turns off too (UI audit, finding 114). */}
           {notifications ? (
-            <Row icon="notif" label={t('account.more.notifications')} sub={notificationMessage || t('account.more.notificationsSub')} help={t('account.more.notificationsHelp')} onPress={() => {
-              void enableNotifications().then(() => setNotificationMessage(t('account.more.notificationsOn'))).catch((e: unknown) => {
-                // Turned off on the phone says so in its own words (push.ts); anything else is the server or the device.
-                if (!(e instanceof CommandError)) noteExpected('enable notifications', e);
-                setNotificationMessage(e instanceof CommandError ? e.message : t('account.more.notificationsFailed'));
-              });
-            }} last={!switchHere} />
+            <Row icon="notif" label={t('account.more.notifications')}
+              sub={notify.message || (notify.blocked && !notify.on ? t('account.more.notificationsBlocked') : t('account.more.notificationsSub'))}
+              role="switch" checked={notify.on === true} disabled={notify.on === null || notify.busy} onPress={notify.toggle} last={!switchHere} />
           ) : null}
           {/* Someone in one organization may start another here (Switch Organization, then New organization). */}
           {switchHere ? <SwitchOrgRow ctx={ctx} orgName={orgName} several={orgs === null} last /> : null}
         </Group>
       ) : null}
+      {/* Refused for good: only the phone's settings can allow them, one tap away. */}
+      {notifications && notify.blocked && notify.on === false ? (
+        <LinkBtn label={t('account.more.openPhoneSettings')} help={t('account.more.openPhoneSettingsHelp')} onPress={notify.openSettings} style={{ alignSelf: 'flex-start' }} />
+      ) : null}
       <SectionLabel label={t('account.more.thisDevice')} />
       <Group>
-        <Row icon="cloud" label={t('account.more.sync')} sub={syncSub} help={t('account.more.syncHelp')} badge={status.pending > 0 ? formatNumber(status.pending) : undefined} onPress={() => ctx.go('sync_status')} />
+        <Row icon="cloud" label={t('account.more.sync')} sub={syncSub} help={t('account.more.syncHelp')} badge={toSend > 0 ? formatNumber(toSend) : undefined} onPress={() => ctx.go('sync_status')} />
         {/* A calculator or notepad in front of the app, opened with a code (decisions.md 171); phones only. */}
         <DisguiseRow ctx={ctx} />
         {/* docs/diagnostics.md, decisions.md 39: on by default, off here. */}
@@ -585,21 +610,26 @@ export function ProfileEdit(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
-      // A password goes to the server now (it needs a connection); the name syncs whenever it can.
-      // A too-short one is refused here and nothing is written, name included.
+      // A too-short password is refused here and nothing is written, name included (ACCT-019).
+      if (passwordTooShort) { setError(t('account.profile.shortPassword')); return; }
+      // The name syncs whenever it can, so it is kept first: a password that needs a connection
+      // never takes the name down with it (UI audit, finding 117).
+      const saved = String(pending?.payload.displayName ?? names[ctx.session.actorId] ?? '').trim();
+      const renamed = value.trim() !== saved;
+      if (renamed || !(managed && password)) await queueAccountAction(ctx.session.actorId, 'profile', { displayName: value.trim() });
+      // A password goes to the server now (it needs a connection).
       if (managed && password) {
-        if (passwordTooShort) { setError(t('account.profile.shortPassword')); return; }
         const { error } = await setAccountPassword(password);
         if (error) {
           noteExpected('set password', error);
-          setError(authErrorText(error, t('account.profile.passwordFailed'), t('account.profile.passwordNeedsConnection')));
+          const why = authErrorText(error, t('account.profile.passwordFailed'), t('account.profile.passwordNeedsConnection'));
+          setError(renamed ? `${t('account.profile.nameSaved')} ${why}` : why);
           return;
         }
         // The new password also signs them back in here offline (decisions.md 168).
         if (ctx.session.email) await rememberPassword(ctx.session.actorId, ctx.session.email, password);
         recheck();
       }
-      await queueAccountAction(ctx.session.actorId, 'profile', { displayName: value.trim() });
       ctx.toast(managed && password ? t('account.profile.savedWithPassword') : t('account.profile.saved'));
       ctx.back();
     } catch (e) { setError(failure('save profile', e)); }
@@ -825,6 +855,14 @@ export function SignOutConfirm(ctx: Ctx) {
       )}
       <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">{blocked ? t('account.signOut.notYet') : t('account.signOut.question')}</Text>
       {why ? <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>{why}</Text> : null}
+      {/* Held back by unsent work: show it going, and where to see it (UI audit, finding 115). Sign Out enables itself once it has gone. */}
+      {blocked && online !== false ? (
+        <View style={styles.sending} accessibilityLiveRegion="polite">
+          <ActivityIndicator color={C.primary} />
+          <Text style={txt.bodyMuted}>{t('account.signOut.sending')}</Text>
+        </View>
+      ) : null}
+      {blocked && ctx.language.orgId ? <LinkBtn label={t('account.signOut.seeWaiting')} help={t('account.signOut.seeWaitingHelp')} onPress={() => ctx.go('sync_status')} /> : null}
       {/* Someone with a password may still want a pattern, and a pattern can be changed. */}
       {LOCKS_ON_SIGN_OUT && lock.ways && !needsPattern ? (
         <LinkBtn label={lock.ways.includes('pattern') ? t('account.lock.newPattern') : t('account.lock.drawTitle')}
@@ -850,21 +888,31 @@ export function DeleteAccount(ctx: Ctx) {
   const offline = ctx.language.online === false;
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const name = useOwnName(ctx);
   async function remove() {
     setBusy(true);
     try {
       await deleteThisAccount(ctx.session.actorId);
-    } catch (e) { setError(failure('delete account', e)); setBusy(false); }
+    } catch (e) {
+      // The sheet closes so the error shows on the screen, not behind it.
+      setError(failure('delete account', e)); setBusy(false); setConfirming(false);
+    }
   }
   const blocked = waiting.length > 0 || offline;
+  // What cannot be undone is never the easy tap: Cancel leads, and deleting asks once more by name (UI audit, finding 112).
   return (
     <Screen header={<Header title={t('account.delete.title')} onBack={ctx.back} />}
       footer={
         <>
-          <PrimaryBtn label={busy ? t('account.delete.deleting') : t('account.delete.button')} tone="red" onPress={() => void remove()} disabled={blocked || busy} />
-          <GhostBtn label={t('common.cancel')} help={t('help.details.cancel')} onPress={ctx.back} />
+          <PrimaryBtn label={t('common.cancel')} help={t('help.details.cancel')} onPress={ctx.back} />
+          <GhostBtn label={t('account.delete.button')} icon="trash" tone="red" help={t('account.delete.buttonHelp')}
+            onPress={() => { setError(''); setConfirming(true); }} disabled={blocked || busy} />
         </>
       }>
+      <ConfirmDelete visible={confirming && !blocked} name={name} title={t('account.delete.confirmTitle', { name })} sub={t('account.delete.cannotUndo')}
+        confirmLabel={busy ? t('account.delete.deleting') : t('account.delete.button')} busy={busy}
+        onConfirm={() => void remove()} onClose={() => { if (!busy) setConfirming(false); }} />
       {waiting.length > 0 ? (
         <Banner icon="cloud" tone="amber" title={t('account.delete.sendFirstTitle')}
           body={t('account.delete.sendFirstBody', { things: waiting.join(', ') })} />
@@ -908,9 +956,15 @@ export function SyncStatus(ctx: Ctx) {
     finally { setBusy(false); }
   };
   return (
-    <Screen header={<Header title={t('account.more.sync')} onBack={ctx.back} />}
-      footer={<PrimaryBtn label={busy ? t('account.sync.syncing') : t('account.sync.syncNow')} icon="restart" help={t('account.sync.syncNowHelp')}
-        onPress={() => void syncNow()} disabled={language.tooOld || busy} />}>
+    <Screen header={<Header title={offlineFirst ? t('account.me.offline') : t('account.more.sync')} onBack={ctx.back} />}
+      footer={language.tooOld && STORE ? (
+        // Too old to receive: the way on is the store, a button rather than a line (UI audit, finding 119).
+        <PrimaryBtn label={t('appVersion.update')} icon="download" help={t('appVersion.updateHelp')}
+          onPress={() => { Linking.openURL(storeUrl(STORE)).catch((e: unknown) => noteExpected('store page', e)); }} />
+      ) : (
+        <PrimaryBtn label={busy ? t('account.sync.syncing') : t('account.sync.syncNow')} icon="restart" help={t('account.sync.syncNowHelp')}
+          onPress={() => void syncNow()} disabled={language.tooOld || busy} />
+      )}>
       {/* The last try failing to reach the server outranks the live channel, which can take a minute to notice a lost network. */}
       <Card>
         <View style={[styles.profile, { flexWrap: 'wrap' }]} accessible accessibilityLabel={standingTitle(standing)}>
@@ -919,7 +973,10 @@ export function SyncStatus(ctx: Ctx) {
           <Info label={standingTitle(standing)} text={standingHelp(standing)} />
         </View>
         {/* The server's refusal is English (its reason goes to the log): say what it means. */}
-        {language.refused || language.tooOld ? <Text style={txt.smMuted}>{language.refused ? t('account.sync.refused') : t('account.sync.tooOld')}</Text> : null}
+        {language.refused ? <Text style={txt.smMuted}>{t('account.sync.refused')}</Text> : language.tooOld ? (
+          // Below the minimum version the phone still sends its own work (syncGate.ts); a server that refuses the protocol takes nothing.
+          <Text style={txt.body}>{belowMinimum() ? t('account.sync.tooOldSends') : t('account.sync.tooOld')}</Text>
+        ) : null}
       </Card>
       {/* Settings' "Ready for offline" opens here with what comes along first (decisions.md 61); otherwise what waits to upload, by passage, and what went up (decision 166). */}
       {offlineFirst ? <><FillBanner ctx={ctx} /><OfflineCard ctx={ctx} s={offlineSummaryNow} /></> : null}
@@ -998,11 +1055,14 @@ function clock(hlc: string): string {
   try { return formatTime(decodeHlc(hlc).wallMs, { seconds: true }); } catch { return ''; }
 }
 
-const STANDING_COLOR: Record<SyncStanding, string> = { live: C.green, checking: C.faint, offline: C.amber, refused: C.red };
+/** The store a phone updates from; none on the web, which is always the newest. */
+const STORE = Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : null;
+
+const STANDING_COLOR: Record<SyncStanding, string> = { live: C.green, checking: C.faint, offline: C.amber, refused: C.red, tooOld: C.amber };
 
 function standingHelp(s: SyncStanding): string {
   return s === 'live' ? t('account.sync.help.live') : s === 'offline' ? t('account.sync.help.offline')
-    : s === 'checking' ? t('account.sync.help.checking') : t('account.sync.help.refused');
+    : s === 'checking' ? t('account.sync.help.checking') : s === 'tooOld' ? t('account.sync.help.tooOld') : t('account.sync.help.refused');
 }
 
 /** A small ⓘ that shows one plain sentence under its row. While help is on, it says that sentence about its row (`label`). */
@@ -1079,6 +1139,7 @@ function Transfer(props: { icon: IconName; pending: number; peak: number; rate: 
 }
 
 const styles = StyleSheet.create({
+  sending: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm },
   rowEnd: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: C.primary },
   requestBody: { backgroundColor: C.light, borderRadius: radius.lg, padding: space.lg, gap: space.sm },

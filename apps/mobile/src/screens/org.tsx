@@ -17,7 +17,7 @@ import {
   subscriptionItemId, templateBooks, type EventSpec, type LanguageProgress, type LibraryDoc, type LibraryKind, type License, type Scope, type ScopeLevel, type SourceDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { Pressable, View } from 'react-native';
 import { Text } from '../ui/text';
@@ -28,7 +28,8 @@ import type { Ctx } from '../shell/ctx';
 import { t, Trans } from '../i18n';
 import { formatAgo, formatClock, formatDayYear, formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { canHelpSignIn, decideRequest, inviteUri, issueInvite, issueSignInCode, pendingRequests, type NewInvite, type PendingRequest } from '../invites/invites';
+import { canHelpSignIn, decideRequest, inviteUri, issueInvite, issueSignInCode, pendingRequests, type NewInvite } from '../invites/invites';
+import { useJoinRequestList } from '../invites/useJoinRequestList';
 import { APP_URL } from '../web/appUrl';
 import { signInUri } from '../invites/inviteCode';
 import { Seal } from '../verified/VerifiedSeal';
@@ -871,17 +872,11 @@ export function MembersList(ctx: Ctx) {
   const languageId = level === 'language' ? v.openId : undefined;
   const mayInvite = ctx.session.can('invite_members');
   const entries = useMemo(() => memberEntries(v.org), [v.org]);
-  const [requests, setRequests] = useState<PendingRequest[]>([]);
+  // The list last read stays shown offline; with none saved, the screen says it needs a connection rather than that nobody asked (UI audit, finding 85).
+  const joins = useJoinRequestList(ctx.language.orgId, mayInvite, ctx.inbox.unread);
+  const decided = v.org?.joinDecisions ?? {};
+  const requests = joins.rows.filter((r) => !decided[r.id]);
   const [shown, setShown] = useState(30);
-  const refresh = useCallback(async () => {
-    if (!mayInvite) return;
-    try { setRequests(await pendingRequests(ctx.language.orgId)); } catch (e) {
-      // Offline: the list is a server read with no local mirror, so it stays
-      // empty rather than claiming nobody asked.
-      noteExpected('members join requests', e);
-    }
-  }, [mayInvite, ctx.language.orgId]);
-  useEffect(() => void refresh(), [refresh]);
 
   const current = membersAt(entries, level, languageId);
   const higher = membersAbove(entries, level);
@@ -918,6 +913,7 @@ export function MembersList(ctx: Ctx) {
       action={mayInvite ? <SmallBtn label={t('org.members.invite')} icon="plus" tone="primary" help={t('org.home.inviteHelp')} onPress={() => ctx.go('invite_member', params)} /> : undefined} />}>
       <Text style={txt.xs}>{level === 'org' ? t('org.members.introOrg') : t('org.members.introLanguage')}</Text>
       <SectionLabel label={level === 'org' ? t('org.members.sectionOrg', { total }) : t('org.members.sectionLanguage', { total })} />
+      {joins.offline && requests.length === 0 ? <Banner icon="cloud" title={t('org.members.connectToSee')} /> : null}
       <Group>
         {requests.map((r) => (
           <HelpRow key={r.id} of="org.request">
