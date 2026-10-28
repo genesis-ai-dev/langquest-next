@@ -1,7 +1,7 @@
 import Foundation
 
 /**
- * Clean up's arithmetic (decision 178): a line-for-line port of
+ * Clean up's arithmetic (decision 179): a line-for-line port of
  * src/deepFilter.ts, which the web runs and the tests hold, as DeepFilter.kt
  * is. Keep the three in step. Everything around DeepFilterNet3 but the
  * network: the part at 48 kHz, its frames and the model's features, the

@@ -6,7 +6,7 @@
 // needs), the next part lit, the one-line bar when the
 // reference has the screen, and the footer with the big red button and
 // Done. A part slides either way to its bin (swipeRow.tsx), and the card's
-// ⋯ has Clean up (decision 178) and a delete for them all. A deleted part leaves the lit next part in its
+// ⋯ has Clean up (decision 179) and a delete for them all. A deleted part leaves the lit next part in its
 // place, so what is said next goes there (LAN-83). When the passage has
 // verses, each part in the card has a space beside it to tap a verse in
 // (verseParts.tsx, decisions.md 82). Each part reads as a voice message:
@@ -48,7 +48,7 @@ import { useClip } from '../audio/useClip';
 import { VerseParts } from './verseParts';
 
 export interface Part { hash: string; durationMs?: number;
-  /** Tried in Clean up and kept as recorded: by whom, and when (decision 178). */ kept?: Kept }
+  /** Tried in Clean up and kept as recorded: by whom, and when (decision 179). */ kept?: Kept }
 
 /** The recorder pane: the parts and their gaps, where the next part goes, and the next part at the end. */
 export function RecorderPane(props: {
@@ -58,7 +58,7 @@ export function RecorderPane(props: {
   title?: string;
   /** Delete every part, to start over (asks first). */
   onDeleteAll?: () => void;
-  /** Open Clean up for the parts it is offered for (decision 178). */
+  /** Open Clean up for the parts it is offered for (decision 179). */
   onCleanUp?: () => void;
   /** Give the recorder the room to show its parts (the card opened while the pane is small). */
   onRoom?: () => void;
@@ -131,7 +131,7 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
           <Ico name={clip.playing ? 'pause' : 'play'} size={22} color={C.primary} strokeWidth={2.6} fill={C.primary} />
           <HelpBadge spot={play} />
         </Pressable>
-        {/* The ⋯ took the place of the card's bin (decision 178): Clean up, and Delete every part. */}
+        {/* The ⋯ took the place of the card's bin (decision 179): Clean up, and Delete every part. */}
         {props.onDeleteAll || props.onCleanUp ? (
           <PartsMenu disabled={props.disabled} {...(props.onCleanUp ? { onCleanUp: props.onCleanUp } : {})} {...(props.onDeleteAll ? { onDeleteAll: props.onDeleteAll } : {})} />
         ) : null}
@@ -226,7 +226,7 @@ function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; ch
         {props.chosen ? <ChosenMic /> : null}
         <HelpBadge spot={choose} />
       </Pressable>
-      {/* Tried in Clean up and kept as recorded (decision 178). */}
+      {/* Tried in Clean up and kept as recorded (decision 179). */}
       {props.part.kept ? <KeptMark kept={props.part.kept} part={label} /> : null}
       {/* What the checks said about this part (decisions.md 149). */}
       <PartNotesMark hash={props.part.hash} label={label} />

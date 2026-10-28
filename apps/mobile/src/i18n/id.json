@@ -3541,7 +3541,8 @@
         "sendElsewhere": "Kirim ke orang lain",
         "askSomeone": "Minta seseorang",
         "alreadyHappened": "Sudah terjadi",
-        "setAside": "Tunda"
+        "setAside": "Tunda",
+        "reviewMyself": "Periksa sendiri"
       },
       "sub": {
         "reviewsIt": "{{kind}} memeriksanya",
@@ -3857,7 +3858,10 @@
       "teamOptions": "Setiap pemeriksaan di bawah \"{{section}}\" juga punya pilihan sendiri: ketuk pemeriksaan itu di jalurnya.",
       "sayInsteadHelp": "Membuka catatan suara untuk perikop ini. Tim Anda mendengarnya di sini.",
       "addNoteHelp": "Tinggalkan catatan pada perikop ini, dengan suara atau diketik. Tim Anda melihatnya di sini.",
-      "whatHelpsHelp": "Membuka Alkitab, panduan, dan bantuan lain untuk perikop ini."
+      "whatHelpsHelp": "Membuka Alkitab, panduan, dan bantuan lain untuk perikop ini.",
+      "myself": "Saya kerjakan sendiri",
+      "myselfSub": "{{kind}}: dengarkan dan putuskan sekarang",
+      "myselfMakesSub": "{{kind}}: rekam sekarang"
     },
     "published": {
       "askTitle": "Minta pemeriksaan",
@@ -4748,7 +4752,8 @@
       "askHelp": "Menyelesaikan {{version}}, lalu Anda memilih siapa yang diminta.",
       "sendLater": "Kirim nanti",
       "sendLaterHelp": "Menyelesaikan {{version}} tanpa meminta siapa pun dulu. Tim bisa mendengarnya.",
-      "nextCheck": "Pemeriksaan berikutnya"
+      "nextCheck": "Pemeriksaan berikutnya",
+      "checkNowHelp": "Menyelesaikan {{version}}, lalu membuka pemeriksaan berikutnya untuk Anda kerjakan sendiri sekarang."
     },
     "tray": {
       "help": "Bantuan",
@@ -6080,7 +6085,8 @@
     "sendLaterHelp": "Menyelesaikan {{what}} tanpa meminta siapa pun dulu. Tim bisa mendengarnya.",
     "chips": {
       "version": "Versi {{n}}"
-    }
+    },
+    "checkNowHelp": "Menyelesaikan {{what}}, lalu membuka pemeriksaan berikutnya untuk Anda kerjakan sendiri sekarang."
   },
   "translate": {
     "missing": "Perikop ini belum ada di perangkat ini.",

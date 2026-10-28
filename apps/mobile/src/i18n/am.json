@@ -3652,7 +3652,8 @@
         "sendElsewhere": "ለሌላ ሰው ይላኩ",
         "askSomeone": "አንድ ሰው ይጠይቁ",
         "alreadyHappened": "አስቀድሞ ተከናውኗል",
-        "setAside": "ወደ ጎን ይተዉ"
+        "setAside": "ወደ ጎን ይተዉ",
+        "reviewMyself": "ራሴ ልገምግመው"
       },
       "sub": {
         "reviewsIt": "{{kind}} ይገመግመዋል",
@@ -3976,7 +3977,10 @@
       "teamOptions": "በ«{{section}}» ሥር ያለ እያንዳንዱ ፍተሻም የራሱ አማራጮች አሉት፦ በመንገዱ ላይ ይንኩት።",
       "sayInsteadHelp": "ለዚህ ክፍል የድምፅ ማስታወሻ ይከፍታል። ቡድንዎ እዚህ ይሰማዋል።",
       "addNoteHelp": "በዚህ ክፍል ላይ በድምፅ ወይም በጽሑፍ ማስታወሻ ይተዉ። ቡድንዎ እዚህ ያየዋል።",
-      "whatHelpsHelp": "ለዚህ ክፍል መጽሐፍ ቅዱሶችን፣ መመሪያዎችንና ሌሎች እገዛዎችን ይከፍታል።"
+      "whatHelpsHelp": "ለዚህ ክፍል መጽሐፍ ቅዱሶችን፣ መመሪያዎችንና ሌሎች እገዛዎችን ይከፍታል።",
+      "myself": "ይህን ራሴ እሠራዋለሁ",
+      "myselfSub": "{{kind}}፦ አሁን ያዳምጡና ይወስኑ",
+      "myselfMakesSub": "{{kind}}፦ አሁን ይቅዱት"
     },
     "published": {
       "askTitle": "ፍተሻ ይጠይቁ",
@@ -4906,7 +4910,8 @@
       "askHelp": "{{version}}ን ይጨርሳል፣ ከዚያ ማንን እንደሚጠይቁ ይመርጣሉ።",
       "sendLater": "በኋላ ይላኩ",
       "sendLaterHelp": "ማንንም ገና ሳይጠይቁ {{version}}ን ይጨርሳል። ቡድኑ ሊሰማው ይችላል።",
-      "nextCheck": "ቀጣዩ ፍተሻ"
+      "nextCheck": "ቀጣዩ ፍተሻ",
+      "checkNowHelp": "{{version}}ን ይጨርሳል፣ ከዚያ ቀጣዩን ፍተሻ አሁን ራስዎ እንዲያደርጉት ይከፍታል።"
     },
     "tray": {
       "help": "እገዛ",
@@ -6338,7 +6343,8 @@
     "sendLaterHelp": "ማንንም ገና ሳይጠይቁ {{what}}ን ይጨርሳል። ቡድኑ ሊሰማው ይችላል።",
     "chips": {
       "version": "ስሪት {{n}}"
-    }
+    },
+    "checkNowHelp": "{{what}}ን ይጨርሳል፣ ከዚያ ቀጣዩን ፍተሻ አሁን ራስዎ እንዲያደርጉት ይከፍታል።"
   },
   "translate": {
     "missing": "ይህ ክፍል ገና በዚህ መሣሪያ ላይ የለም።",

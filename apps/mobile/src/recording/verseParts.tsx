@@ -336,7 +336,7 @@ function PartRow(props: {
         {props.chosen ? <ChosenMic /> : null}
         <HelpBadge spot={choose} />
       </Pressable>
-      {/* Tried in Clean up and kept as recorded (decision 178). */}
+      {/* Tried in Clean up and kept as recorded (decision 179). */}
       {props.part.kept ? <KeptMark kept={props.part.kept} part={name} /> : null}
       {/* What the checks said about this part (decisions.md 149). */}
       <PartNotesMark hash={props.part.hash} label={name} />

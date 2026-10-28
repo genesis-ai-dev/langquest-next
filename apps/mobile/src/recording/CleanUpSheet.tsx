@@ -1,4 +1,4 @@
-// Clean up's sheet (decision 178; Caleb's mockups 17 to 19, 2026-10-28):
+// Clean up's sheet (decision 179; Caleb's mockups 17 to 19, 2026-10-28):
 // the parts it is offered for, cleaned on this phone while the sheet is
 // open, each heard as recorded and cleaned, with a slider for how much
 // noise to take out (Less to More), and one pick per part. One part: the

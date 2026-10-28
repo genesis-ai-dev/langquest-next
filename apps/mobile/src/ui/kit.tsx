@@ -61,7 +61,7 @@ const ICONS = {
   bug: Bug, idea: Lightbulb,
   // A note on what a check shows, and an answer to one (decisions.md 149).
   noteOn: MessageCirclePlus, reply: Reply,
-  // A part tried in Clean up and kept as recorded (decision 178).
+  // A part tried in Clean up and kept as recorded (decision 179).
   ear: Ear
 } satisfies Record<string, LucideIcon>;
 export type IconName = keyof typeof ICONS;

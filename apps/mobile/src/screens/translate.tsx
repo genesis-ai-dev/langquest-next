@@ -23,7 +23,7 @@
 // microphone hears, the room and the voice, with nothing to set (LAN-82).
 // The card's ⋯ opens Clean up, which takes background noise out of the
 // parts on this phone; the person hears each part both ways and picks, and
-// a part kept as recorded wears a grey ear (decision 178).
+// a part kept as recorded wears a grey ear (decision 179).
 // Parts are dragged up and down by a grip (the moved part loses its verses,
 // to be labelled again), a mark on the line between two parts opens a place
 // there to record into, the parts just recorded are shaded until the next
@@ -96,7 +96,7 @@ import { QuietLink, RefChips, type ChipItem } from '../recording/blocks';
 import { checkName } from '../admin/adminModel';
 import { PublishScreen, type DoneAsk } from '../recording/publish';
 import { goesWhenConnected, nextAfterDone, recordCan, sentText, usualTargets } from '../passage/recordModel';
-import { sendTargetLabel } from '../passage/recordTextModel';
+import { nobodyElseReviews, sendTargetLabel } from '../passage/recordTextModel';
 import { sendToInput } from '../passage/sendTarget';
 import { draftKey } from '../drafts/draftModel';
 import { SavedMark } from '../ui/SavedMark';
@@ -426,7 +426,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     await change(specs, { before, after }, t('translate.partMoved', { part: partLabel(from), place: partLabel(to) }));
   }
 
-  // ---- Clean up (decision 178) ----
+  // ---- Clean up (decision 179) ----
   // The ⋯ on the card opens it for the parts it is offered for, as they were
   // when it opened; the picks become one change, which Undo takes back.
   const [cleaningUp, setCleaningUp] = useState<{ parts: CleanUpPart[]; before: number } | null>(null);
@@ -647,6 +647,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const nextUp = useMemo(() => (can.ask ? nextAfterDone(p, { publishing: true }) : undefined), [p, can.ask]);
   const lines = ctx.language.lines;
   const targets = useMemo(() => (nextUp ? usualTargets(state, orgState, { p, languageId, me, asker: true, lines }) : {}), [nextUp, state, orgState, p, languageId, me, lines]);
+  // Nobody else here could check it: Done does the next check now (decisions.md 178).
+  const selfCheck = useMemo(() => !!nextUp && can.review && nobodyElseReviews(state, orgState, { languageId, me, lines }), [nextUp, can.review, state, orgState, languageId, me, lines]);
   async function publish(note: string, noteBlobHash: string | null, ask: DoneAsk): Promise<boolean> {
     const commandId = Crypto.randomUUID();
     let specs: EventSpec[];
@@ -681,16 +683,17 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       // The voice note said on the Done screen was kept while uploads waited: send it now.
       ctx.language.triggerUpload();
       setConfirming(false);
-      // Back to the record, where the version and who was asked show; Someone else opens there with the check chosen.
+      // Back to the record, where the version and who was asked show; Someone else, or the check done now, opens there with the check chosen.
       const someone = ask && 'someoneElse' in ask ? ask.someoneElse : ask && 'kindId' in ask && !sendTo ? ask.kindId : undefined;
-      ctx.go('passage_record', { unitId, languageId, ...(someone ? { askSomeone: someone } : { asked: `${nextN}:${Date.now()}` }) });
+      const checkNow = ask && 'checkNow' in ask ? ask.checkNow : undefined;
+      ctx.go('passage_record', { unitId, languageId, ...(checkNow ? { checkNow } : someone ? { askSomeone: someone } : { asked: `${nextN}:${Date.now()}` }) });
       return true;
     } catch { return false; /* ctx.act said what went wrong */ }
     finally { setPublishing(false); }
   }
 
   const parts: Part[] = list.map((hash) => {
-    // Tried in Clean up and kept as recorded: the grey ear says who, and when (decision 178).
+    // Tried in Clean up and kept as recorded: the grey ear says who, and when (decision 179).
     const note = cleanUpOf(state, unitId, hash);
     const kept = note?.value.use === 'original' ? { by: ctx.name(note.value.actorId), when: formatDay(decodeHlc(note.hlc).wallMs) } : null;
     return { hash, ...(durations.has(hash) ? { durationMs: durations.get(hash)! } : {}), ...(kept ? { kept } : {}) };
@@ -743,7 +746,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         bible={bible.option?.abbreviation} busy={publishing} answers={answers} tied={canTie ? tied.size : 0}
         {...(revising ? { revisingKind: checkName(revising.kindId, v.kinds) } : {})}
         draftKey={draftKey('publish', me, languageId, unitId, rootRef.current ?? 'new')}
-        next={nextUp ? { kinds: nextUp.kinds, targets } : null}
+        next={nextUp ? { kinds: nextUp.kinds, targets, selfCheck } : null}
         onClose={() => (publishParam ? ctx.back() : setConfirming(false))} onDone={publish} />
     );
   }

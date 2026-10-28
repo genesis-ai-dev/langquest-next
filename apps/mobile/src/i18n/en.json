@@ -3652,7 +3652,8 @@
         "sendElsewhere": "Send to someone else",
         "askSomeone": "Ask someone",
         "alreadyHappened": "Already happened",
-        "setAside": "Set aside"
+        "setAside": "Set aside",
+        "reviewMyself": "Review it myself"
       },
       "sub": {
         "reviewsIt": "the {{kind}} reviews it",
@@ -3976,7 +3977,10 @@
       "teamOptions": "Each check under \"{{section}}\" has its own options too: tap it on the path.",
       "sayInsteadHelp": "Opens a voice note for this passage. Your team hears it here.",
       "addNoteHelp": "Leave a note on this passage, said or typed. Your team sees it here.",
-      "whatHelpsHelp": "Opens the Bibles, guides and other helps for this passage."
+      "whatHelpsHelp": "Opens the Bibles, guides and other helps for this passage.",
+      "myself": "I'll do this myself",
+      "myselfSub": "{{kind}}: listen and decide now",
+      "myselfMakesSub": "{{kind}}: record it now"
     },
     "published": {
       "askTitle": "Ask for a check",
@@ -4906,7 +4910,8 @@
       "askHelp": "Finishes {{version}}, then you choose who to ask.",
       "sendLater": "Send later",
       "sendLaterHelp": "Finishes {{version}} without asking anyone yet. The team can hear it.",
-      "nextCheck": "Next check"
+      "nextCheck": "Next check",
+      "checkNowHelp": "Finishes {{version}}, then opens the next check for you to do now."
     },
     "tray": {
       "help": "Help",
@@ -6338,7 +6343,8 @@
     "sendLaterHelp": "Finishes the {{what}} without asking anyone yet. The team can hear it.",
     "chips": {
       "version": "Version {{n}}"
-    }
+    },
+    "checkNowHelp": "Finishes the {{what}}, then opens the next check for you to do now."
   },
   "translate": {
     "missing": "This passage isn't on this device yet.",

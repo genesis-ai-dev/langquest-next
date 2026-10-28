@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { languageLines, recordTimeline } from '@langquest-next/core';
 import { pathSteps } from '../src/passage/pathModel';
 import {
-  askButtonLabel, askForLabel, elseMove, historyAction, historyMove, listenerLabel, listenersLine, mainMove, nothingToAsk, passageNoteFor,
+  askButtonLabel, askForLabel, currentCheck, doCheckButton, elseMove, elseOptions, historyAction, historyMove, listenerLabel, listenersLine, mainMove, nothingToAsk, passageNoteFor,
   nextAfterDone, recordCan, recordModel, recordPathInput, rowBar, rowMove, sentText, stepMove, stepSheet, studyLine, studyPathInfo,
   usualTargets, type RecordMain
 } from '../src/passage/recordModel';
 import { requestIsMine, teamNameIn } from '../src/passage/sendTarget';
+import { currentStepId } from '../src/passage/recordTextModel';
 import { passageView } from '../src/passage/passageView';
 import { t } from '../src/i18n';
 import { ID, passageWorld, unitOf, type WorldPassage, type WorldRole } from './passageWorld';
@@ -121,6 +122,36 @@ describe('the "Something else?" moves', () => {
     expect(elseMove(o('notNow'))).toEqual({ id: 'skip', kindId: 'peer', stepId: 's2' });
     expect(elseMove(o('newVersion'))).toEqual({ id: 'recordOrPick' });
     expect(elseMove(o('movePast'))).toEqual({ id: 'override', stepId: 's2' });
+    expect(elseMove(o('myself'))).toEqual({ id: 'go', to: 'review_capture', extra: { kindId: 'peer' } });
+    expect(elseMove(o('myself', { kindId: 'bt', produces: true }))).toEqual({ id: 'go', to: 'back_translation', extra: { kindId: 'bt' } });
+  });
+});
+
+describe('checking your own version (decisions.md 178)', () => {
+  // P-CHECK is TRANS's Version 1: peer check, back translation and community check done; the consultant check is next.
+  const own = (alone: boolean) => {
+    const r = record('TRANS', 'P-CHECK');
+    const model = recordModel({ p: r.p, kinds: r.kinds, kind: r.v.kind, me: r.me, can: r.can, steps: r.steps, mine: requestIsMine(w.state, r.me), asker: true, isAuthor: true, alone });
+    const options = elseOptions({ p: r.p, kinds: r.kinds, can: r.can, current: currentCheck(r.p, currentStepId(r.p)), answersMine: model.answersMine, myDraft: model.myDraft, isAuthor: true, alone });
+    return { main: model.main?.label, options: options.map((x) => `${x.label} · ${x.sub}`) };
+  };
+  it('on a team, the author asks first, and Something else? offers doing it yourself after someone else', () => {
+    const { main, options } = own(false);
+    expect(main).toBe('Ask for the consultant check');
+    expect(options.slice(0, 2)).toEqual([
+      'Someone else should do this · Consultant check: ask a person, a group, or someone outside by WhatsApp or text',
+      "I'll do this myself · Consultant check: listen and decide now"
+    ]);
+  });
+  it('with nobody else to ask, the main button does it, and Something else? does not offer it again', () => {
+    const { main, options } = own(true);
+    expect(main).toBe('Do the consultant check');
+    expect(options.some((x) => x.startsWith("I'll do this myself"))).toBe(false);
+  });
+  it('names the check, or the recording a check makes', () => {
+    const r = record('TRANS', 'P-CHECK');
+    expect(doCheckButton(r.v.kind('peer'), r.kinds)).toEqual({ label: 'Do the peer check', icon: 'check' });
+    expect(doCheckButton(r.v.kind('bt'), r.kinds)).toEqual({ label: 'Back-translate it', icon: 'globe' });
   });
 });
 

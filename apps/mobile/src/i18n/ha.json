@@ -3652,7 +3652,8 @@
         "sendElsewhere": "Aika zuwa wani daban",
         "askSomeone": "Roƙi wani",
         "alreadyHappened": "Ya riga ya faru",
-        "setAside": "Ajiye a gefe"
+        "setAside": "Ajiye a gefe",
+        "reviewMyself": "Zan bita da kaina"
       },
       "sub": {
         "reviewsIt": "{{kind}} zai yi masa bita",
@@ -3976,7 +3977,10 @@
       "teamOptions": "Kowace dubawa a ƙarƙashin \"{{section}}\" tana da nata zaɓuɓɓuka: taɓa ta a kan hanyar.",
       "sayInsteadHelp": "Yana buɗe saƙon murya don wannan nassi. Tawagarku za ta ji shi a nan.",
       "addNoteHelp": "Ku bar bayani a kan wannan nassi, da murya ko rubutu. Tawagarku za ta gan shi a nan.",
-      "whatHelpsHelp": "Yana buɗe Littattafai Masu Tsarki, jagorori da sauran abubuwan taimako don wannan nassi."
+      "whatHelpsHelp": "Yana buɗe Littattafai Masu Tsarki, jagorori da sauran abubuwan taimako don wannan nassi.",
+      "myself": "Zan yi wannan da kaina",
+      "myselfSub": "{{kind}}: ku saurara ku yanke shawara yanzu",
+      "myselfMakesSub": "{{kind}}: ku nadi shi yanzu"
     },
     "published": {
       "askTitle": "Nemi dubawa",
@@ -4906,7 +4910,8 @@
       "askHelp": "Yana gama {{version}}, sannan ku zaɓi wanda za ku roƙa.",
       "sendLater": "Aika daga baya",
       "sendLaterHelp": "Yana gama {{version}} ba tare da kun roƙi kowa ba tukuna. Tawagar za ta iya jin ta.",
-      "nextCheck": "Duba na gaba"
+      "nextCheck": "Duba na gaba",
+      "checkNowHelp": "Yana gama {{version}}, sannan ya buɗe duba na gaba don ku yi shi da kanku yanzu."
     },
     "tray": {
       "help": "Taimako",
@@ -6338,7 +6343,8 @@
     "sendLaterHelp": "Yana gama {{what}} ba tare da kun roƙi kowa ba tukuna. Tawagar za ta iya jin sa.",
     "chips": {
       "version": "Siga ta {{n}}"
-    }
+    },
+    "checkNowHelp": "Yana gama {{what}}, sannan ya buɗe duba na gaba don ku yi shi da kanku yanzu."
   },
   "translate": {
     "missing": "Wannan nassi ba ya kan wannan na'ura tukuna.",

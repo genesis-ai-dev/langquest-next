@@ -3763,7 +3763,8 @@
         "sendElsewhere": "Envoyer à quelqu’un d’autre",
         "askSomeone": "Demander à quelqu’un",
         "alreadyHappened": "Déjà fait",
-        "setAside": "Mettre de côté"
+        "setAside": "Mettre de côté",
+        "reviewMyself": "Le réviser moi-même"
       },
       "sub": {
         "reviewsIt": "examiné lors de : {{kind}}",
@@ -4095,7 +4096,10 @@
       "teamOptions": "Chaque vérification sous « {{section}} » a aussi ses propres options : touchez-la sur le parcours.",
       "sayInsteadHelp": "Ouvre une note vocale pour ce passage. Votre équipe l’écoute ici.",
       "addNoteHelp": "Laissez une note sur ce passage, dite ou écrite. Votre équipe la voit ici.",
-      "whatHelpsHelp": "Ouvre les Bibles, les guides et les autres aides pour ce passage."
+      "whatHelpsHelp": "Ouvre les Bibles, les guides et les autres aides pour ce passage.",
+      "myself": "Je le fais moi-même",
+      "myselfSub": "{{kind}} : écoutez et décidez maintenant",
+      "myselfMakesSub": "{{kind}} : enregistrez maintenant"
     },
     "published": {
       "askTitle": "Demander une vérification",
@@ -5064,7 +5068,8 @@
       "askHelp": "Termine {{version}}, puis vous choisissez à qui demander.",
       "sendLater": "Envoyer plus tard",
       "sendLaterHelp": "Termine {{version}} sans rien demander à personne pour l’instant. L’équipe peut l’écouter.",
-      "nextCheck": "Prochaine vérification"
+      "nextCheck": "Prochaine vérification",
+      "checkNowHelp": "Termine {{version}}, puis ouvre la vérification suivante pour que vous la fassiez vous-même maintenant."
     },
     "tray": {
       "help": "Aide",
@@ -6596,7 +6601,8 @@
     "sendLaterHelp": "Termine la {{what}} sans rien demander à personne pour l’instant. L’équipe peut l’écouter.",
     "chips": {
       "version": "Version {{n}}"
-    }
+    },
+    "checkNowHelp": "Termine la {{what}}, puis ouvre la vérification suivante pour que vous la fassiez vous-même maintenant."
   },
   "translate": {
     "missing": "Ce passage n’est pas encore sur cet appareil.",

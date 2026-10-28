@@ -438,7 +438,7 @@ describe('what an undo or redo shows (Caleb, 2026-10-16)', () => {
   });
 });
 
-describe('Clean up in the undo history (decision 178)', () => {
+describe('Clean up in the undo history (decision 179)', () => {
   const clean = { use: 'cleaned', cleanedHash: 'a2', cleanedFormat: 'm4a', tool: 'dfn3', limitDb: 12 } as const;
   /** A draft of a and b, with a's cleaned sound in a's place, as Clean up leaves it. */
   function cleaned() {

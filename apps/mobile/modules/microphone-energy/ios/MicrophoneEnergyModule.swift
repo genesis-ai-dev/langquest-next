@@ -35,7 +35,7 @@ public class MicrophoneEnergyModule: Module {
     private var chunks: Chunks?
     /// Is this sound speech? (Speech.swift, decision 135): loaded once, before the microphone opens; nil where it cannot load, and parts split by levels alone.
     private var speechModel: SpeechModel?
-    /// Clean up (CleanUp.swift, decision 178): DeepFilterNet3 on a part, one at a time.
+    /// Clean up (CleanUp.swift, decision 179): DeepFilterNet3 on a part, one at a time.
     private let cleanUp = CleanUp()
     private var speechTried = false
     private let speechQueue = DispatchQueue(label: "MicrophoneEnergy.speech")

@@ -276,7 +276,7 @@ export default {
   async renderAudio(): Promise<string> {
     throw new Error('Audio export is not implemented on web.');
   },
-  /** Clean up (cleanUp.web.ts, decision 178), in a chunk of its own, loaded when a part is first cleaned. */
+  /** Clean up (cleanUp.web.ts, decision 179), in a chunk of its own, loaded when a part is first cleaned. */
   async cleanUp(id: string, uri: string): Promise<CleanedPart> {
     return (await import('./cleanUp.web')).cleanUp(id, uri, (done) => emit('onCleanUpProgress', { id, done }));
   },
