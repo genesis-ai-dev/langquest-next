@@ -73,3 +73,11 @@ A script is written once, in English. In another language:
   translate.
 - `notIn` on a script skips a language it cannot be made in ("Choose the
   app's language" switches to Arabic, so it is not made in Arabic).
+
+## On YouTube
+
+Each app language has its own YouTube channel (decision 180). A version filmed
+is kept in R2 by its hash and listed on the ops dashboard's Tutorial videos
+section, where a person watches it and chooses to put it up; the publish job
+uploads it. Connecting the channels and publishing are in `docs/admin.md`
+("Tutorial videos on YouTube").

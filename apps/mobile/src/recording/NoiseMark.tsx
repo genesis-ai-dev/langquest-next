@@ -1,4 +1,4 @@
-// The noise warning on a part (decision 180; Caleb's mockup 12,
+// The noise warning on a part (decision 181; Caleb's mockup 12,
 // 2026-10-27): an orange triangle beside a part whose room between words
 // would be loud once the part is turned to −16 LUFS (loudnessModel.ts). A
 // tap shows the noise in the part's bars, amber around the purple of the

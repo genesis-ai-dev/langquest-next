@@ -1,5 +1,5 @@
 // How loud a part is, and how loud the room is between its words (decision
-// 180). Pure, so a phone reading a part's WAV before it encodes it and the
+// 181). Pure, so a phone reading a part's WAV before it encodes it and the
 // web decoding any part measure alike. Loudness is ITU-R BS.1770's
 // (K-weighted, gated), the measure of Apple Podcasts' −16 LUFS that every
 // part is to be played at (Caleb, 2026-10-27); the room is what the
@@ -12,7 +12,7 @@ import { BAR_COUNT, barsFromAmps, packBars, unpackBars } from './barsModel';
 export const TARGET_LUFS = -16;
 /**
  * A room louder than this, once its part is at TARGET_LUFS, puts the noise
- * warning on the part. A first line from read recordings (decision 180):
+ * warning on the part. A first line from read recordings (decision 181):
  * −45 marked over half of them, too many for "lots of background noise".
  */
 export const NOISY_DB = -40;

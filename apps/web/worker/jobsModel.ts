@@ -29,7 +29,10 @@ export const JOBS = {
   // Three languages folded afresh and compared with their stored snapshot and lines (server/foldCanary.ts, ops dashboard plan 5.4).
   'fold-canary': { job: 'fold_canary', entrypoint: ['node', 'canary.mjs'], timeLimitMs: 60 * 60_000 },
   // The R2 reconciliation without hashing every object (server/reconcileJob.ts, plan 5.6).
-  'blob-reconcile': { job: 'blob_reconcile', entrypoint: ['node', 'reconcile.mjs'], timeLimitMs: 120 * 60_000 }
+  'blob-reconcile': { job: 'blob_reconcile', entrypoint: ['node', 'reconcile.mjs'], timeLimitMs: 120 * 60_000 },
+  // The tutorial videos the ops dashboard's Publish chose, put up on YouTube (server/tutorialPublish.ts, decisions.md 180):
+  // at most YouTube's 100 uploads a day, each a download and an upload of about 15 MB.
+  'tutorial-publish': { job: 'tutorial_publish', entrypoint: ['node', 'publish.mjs'], timeLimitMs: 150 * 60_000 }
 } as const satisfies Record<string, JobSpec>;
 
 export type JobKey = keyof typeof JOBS;
@@ -44,7 +47,9 @@ export const JOB_TICK = '*/5 * * * *';
  * import every 15 minutes, and at 03:15 UTC a whole read of every project
  * (the workflow's 03:17, on the nearest tick); the fold canary at 04:05 UTC
  * and the R2 reconciliation at 04:35, after the import's whole read and
- * apart from each other so a night never runs three heavy jobs at once.
+ * apart from each other so a night never runs three heavy jobs at once. The
+ * tutorial videos still waiting from a Publish go on at 08:10 UTC, after
+ * YouTube's day starts again at midnight Pacific (07:00 or 08:00 UTC).
  */
 export function jobsDue(scheduledTime: number): { key: JobKey; all?: true }[] {
   const t = new Date(scheduledTime);
@@ -53,6 +58,7 @@ export function jobsDue(scheduledTime: number): { key: JobKey; all?: true }[] {
   if (minute % 15 === 0) due.push(t.getUTCHours() === 3 && minute === 15 ? { key: 'v2-import', all: true } : { key: 'v2-import' });
   if (t.getUTCHours() === 4 && minute === 5) due.push({ key: 'fold-canary' });
   if (t.getUTCHours() === 4 && minute === 35) due.push({ key: 'blob-reconcile' });
+  if (t.getUTCHours() === 8 && minute === 10) due.push({ key: 'tutorial-publish' });
   return due;
 }
 
@@ -173,7 +179,7 @@ export function deadRun(key: JobKey, mark: RunMark | undefined, exit: Exit, now:
   };
 }
 
-/** What the Worker hands a job's container: the database for both, and v2's keys and the Worker's address for the import. */
+/** What the Worker hands a job's container: the database for every job, v2's keys and the Worker's address for the import, and the OAuth client for publishing. */
 export interface JobSettings {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
@@ -182,6 +188,8 @@ export interface JobSettings {
   V2_IMPORT_CONCURRENCY?: string | undefined;
   V2_SUPABASE_ANON_KEY?: string | undefined;
   V2_DATABASE_URL?: string | undefined;
+  YOUTUBE_CLIENT_ID?: string | undefined;
+  YOUTUBE_CLIENT_SECRET?: string | undefined;
 }
 
 /**
@@ -200,6 +208,13 @@ export function jobEnv(key: JobKey, s: JobSettings): { env: Record<string, strin
   if (key === 'projection' || key === 'fold-canary') return { env };
   // The reconciliation lists R2 through the Worker.
   if (key === 'blob-reconcile') return s.API_URL ? { env: { ...env, API_URL: s.API_URL } } : { refuse: 'blob reconcile: API_URL not set on the Worker' };
+  // Publishing reads the videos from the Worker and needs the OAuth client to use a channel's refresh token.
+  // Until the client is in .env.production it stays off, as the import does before its switch.
+  if (key === 'tutorial-publish') {
+    if (!s.YOUTUBE_CLIENT_ID || !s.YOUTUBE_CLIENT_SECRET) return { skip: 'disabled' };
+    if (!s.API_URL) return { refuse: 'tutorial publish: API_URL not set on the Worker' };
+    return { env: { ...env, API_URL: s.API_URL, YOUTUBE_CLIENT_ID: s.YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET: s.YOUTUBE_CLIENT_SECRET } };
+  }
   if (s.V2_IMPORT_ENABLED !== 'true') return { skip: 'disabled' };
   const missing = (['API_URL', 'V2_SUPABASE_ANON_KEY'] as const).filter((k) => !s[k]);
   if (missing.length) return { refuse: `v2 import: ${missing.join(', ')} not set on the Worker (npm run secrets)` };

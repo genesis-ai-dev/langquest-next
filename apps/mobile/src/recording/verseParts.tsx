@@ -335,7 +335,7 @@ function PartRow(props: {
         {props.chosen ? <ChosenMic /> : null}
         <HelpBadge spot={choose} />
       </Pressable>
-      {/* Tried in Clean up and kept as recorded (decision 179), or noisy (decision 180). */}
+      {/* Tried in Clean up and kept as recorded (decision 179), or noisy (decision 181). */}
       <CleanUpMark ctx={props.ctx} hash={props.part.hash} disabled={props.disabled} part={name} kept={props.part.kept} cleanUp={props.part.cleanUp} />
       {/* What the checks said about this part (decisions.md 149). */}
       <PartNotesMark hash={props.part.hash} label={name} />

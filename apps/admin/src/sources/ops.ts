@@ -2,6 +2,7 @@ import { REDUCER_VERSION } from '@langquest-next/core';
 import { SNAPSHOT_SCHEDULE } from '@langquest-next/sync/server';
 import { isMissing, type Query } from '../db';
 import { failed, ok, off, type Alert, type Section } from '../section';
+import { CHANNELS, type ChannelLanguage } from '../../../../server/youtube';
 
 /**
  * The sections the ops dashboard plan added (docs/ops-dashboard-plan.md,
@@ -378,17 +379,66 @@ export const DELETIONS_SQL = `select coalesce(jsonb_agg(to_jsonb(x) order by x.w
 /** Feedback not done, and since when (migration 20261026120000_ops_feedback_and_since): diag_reader may not read diag.feedback itself. */
 export const FEEDBACK_OPEN_SQL = `select diag.ops_feedback_open() as v`;
 
+// ---- tutorial videos on YouTube (decisions.md 180) ---------------------------------------------
+
+export interface Tutorials {
+  /** Every app language's channel, connected or not (server/youtube.ts CHANNELS). */
+  channels: { language: ChannelLanguage; channelId: string; title: string | null; connectedAt: string | null; section: string | null; videos: number; latestAt: string | null }[];
+  /** Each video's newest version not up yet: ready to choose, or chosen and waiting for the job. */
+  waiting: {
+    tutorial: string; language: string; sha256: string; title: string; playlist: string; seconds: number; madeAt: string;
+    chosenAt: string | null; failed: string | null; failedAt: string | null; replaces: string | null;
+  }[];
+}
+
+interface TutorialsRow {
+  channels: { channelId: string; language: string; title: string; connectedAt: string; section: string | null }[];
+  waiting: Tutorials['waiting'];
+  published: { language: string; videos: number; latestAt: string }[];
+}
+
+/** The 15 channels in CHANNELS's order with what the database knows of each. */
+export function tutorialsOf(row: TutorialsRow): Tutorials {
+  const languages = Object.keys(CHANNELS) as ChannelLanguage[];
+  return {
+    channels: languages.map((language) => {
+      const c = row.channels.find((x) => x.channelId === CHANNELS[language]);
+      const p = row.published.find((x) => x.language === language);
+      return { language, channelId: CHANNELS[language], title: c?.title ?? null, connectedAt: c?.connectedAt ?? null, section: c?.section ?? null, videos: num(p?.videos), latestAt: p?.latestAt ?? null };
+    }),
+    waiting: row.waiting
+  };
+}
+
+/** Codes that mean a channel must be connected again before its videos can go up. */
+const RECONNECT = /^youtube_(invalid_grant|not_connected|unauthorized|forbidden)/;
+/** A chosen video still not up after this long has met more than YouTube's daily limit. */
+export const PUBLISH_DUE_HOURS = 30;
+
+export function tutorialAlerts(t: Tutorials, now = Date.now()): Alert[] {
+  const out: Alert[] = [];
+  const ready = t.waiting.filter((w) => !w.chosenAt).length;
+  if (ready) out.push({ level: 'watch', text: `${plural(ready, 'tutorial video')} ready to publish (Tutorial videos).` });
+  const reconnect = [...new Set(t.waiting.filter((w) => w.chosenAt && w.failed && RECONNECT.test(w.failed)).map((w) => w.language))];
+  if (reconnect.length) out.push({ level: 'problem', text: `YouTube refused the ${reconnect.join(', ')} ${reconnect.length === 1 ? 'channel' : 'channels'}: connect again (Tutorial videos).` });
+  const stuck = t.waiting.filter((w) => w.chosenAt && !(w.failed && RECONNECT.test(w.failed)) && now - Date.parse(w.chosenAt) > PUBLISH_DUE_HOURS * 3_600_000).length;
+  if (stuck) out.push({ level: 'problem', text: `${plural(stuck, 'tutorial video')} chosen more than ${PUBLISH_DUE_HOURS} hours ago ${stuck === 1 ? 'is' : 'are'} still not on YouTube (Tutorial videos).` });
+  return out;
+}
+
+const TUTORIALS_MIGRATION = 'Needs migration 20261028090000_tutorial_videos.sql on this database.';
+
 // ---- one load ---------------------------------------------------------------------------------
 
 export interface OpsSections {
   fleet: Section; safety: Section; people: Section; cron: Section; dbdetail: Section;
-  push: Section; worker: Section; integrations: Section; support: Section; security: Section;
+  push: Section; worker: Section; integrations: Section; support: Section; security: Section; tutorials: Section;
 }
 
 /** Every section above on one connection; each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
   const [fleet, rejected, arrivals, canary, pipeline, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
-    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications] = await Promise.all([
+    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials] = await Promise.all([
     part<Fleet>(query, FLEET_SQL),
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
@@ -409,7 +459,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<{ open: number; oldestAt: string | null }>(query, FEEDBACK_OPEN_SQL),
     part<{ v2SignInFailures24h: number; installsAtDiagCap: number }>(query, `select diag.ops_limits() as v`),
     part<Support['actions']>(query, `select diag.ops_actions(15) as v`),
-    part<VerificationRow[]>(query, `select diag.org_verification_requests() as v`)
+    part<VerificationRow[]>(query, `select diag.org_verification_requests() as v`),
+    part<TutorialsRow>(query, `select diag.ops_tutorials() as v`)
   ]);
 
   const routes = workerTotals.ok ? routeRows(workerTotals.value) : [];
@@ -459,6 +510,10 @@ export async function opsSections(query: Query): Promise<OpsSections> {
         } : null
       };
       return ok(s, securityAlerts(s));
+    }),
+    tutorials: build([tutorials], TUTORIALS_MIGRATION, () => {
+      const t = tutorialsOf(val(tutorials));
+      return ok(t, tutorialAlerts(t));
     })
   };
 }

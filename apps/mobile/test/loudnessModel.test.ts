@@ -39,7 +39,7 @@ function speech(peak: number) {
   return join(gap(), word(), gap(), word(), gap(), word(), gap(), word(), gap());
 }
 
-describe('loudness (BS.1770, decision 180)', () => {
+describe('loudness (BS.1770, decision 181)', () => {
   it('K-weights with the standard filters at 48 kHz', () => {
     const [shelf, cut] = kWeighting(48000);
     const near = (got: number[], want: number[]) => got.forEach((g, i) => expect(g).toBeCloseTo(want[i]!, 6));
@@ -73,7 +73,7 @@ describe('loudness (BS.1770, decision 180)', () => {
   });
 });
 
-describe('the room between words (decision 180)', () => {
+describe('the room between words (decision 181)', () => {
   it('hears the noise under the voice, not the voice', () => {
     const x = speech(0.3);
     const r = measure(plus(x, noise(x.length / RATE, -50)));
@@ -102,7 +102,7 @@ describe('the room between words (decision 180)', () => {
   });
 });
 
-describe('the noise warning (decision 180)', () => {
+describe('the noise warning (decision 181)', () => {
   it('weighs the room as it would sound with the part at −16 LUFS', () => {
     expect(roomAtTarget({ lufs: -26, peakDb: -6, noiseDb: -60 })).toBe(-60 + (TARGET_LUFS + 26));
     expect(roomAtTarget({ lufs: null, peakDb: -90, noiseDb: -95 })).toBeNull();
@@ -127,7 +127,7 @@ describe('the noise warning (decision 180)', () => {
   });
 });
 
-describe('keeping a measure (decision 180)', () => {
+describe('keeping a measure (decision 181)', () => {
   it('reads back what it kept, to a tenth of a decibel', () => {
     const x = speech(0.3);
     const r = measure(plus(x, noise(x.length / RATE, -40)));

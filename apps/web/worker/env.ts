@@ -57,6 +57,14 @@ export interface Env {
    * wait for the cron, at most ten minutes.
    */
   WEBHOOK_POKE_SECRET?: string;
+  /**
+   * The OAuth client the tutorial channels are connected with and their
+   * videos published (docs/tutorial-videos.md, decisions.md 180). Optional
+   * (`npm run secrets`): without them Connect YouTube says it is not set up
+   * and the publish job stays off.
+   */
+  YOUTUBE_CLIENT_ID?: string;
+  YOUTUBE_CLIENT_SECRET?: string;
 }
 
 let shared: { url: string; key: string; client: SupabaseClient } | undefined;

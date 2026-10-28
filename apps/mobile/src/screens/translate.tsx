@@ -25,7 +25,7 @@
 // parts on this phone; the person hears each part both ways and picks, and
 // a part kept as recorded wears a grey ear (decision 179). A part with lots
 // of background noise wears an orange warning that opens Clean up for it
-// alone (decision 180).
+// alone (decision 181).
 // Parts are dragged up and down by a grip (the moved part loses its verses,
 // to be labelled again), a mark on the line between two parts opens a place
 // there to record into, the parts just recorded are shaded until the next
@@ -700,7 +700,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     // Tried in Clean up and kept as recorded: the grey ear says who, and when (decision 179).
     const note = cleanUpOf(state, unitId, hash);
     const kept = note?.value.use === 'original' ? { by: ctx.name(note.value.actorId), when: formatDay(decodeHlc(note.hlc).wallMs) } : null;
-    // A noisy part's warning opens Clean up for it alone (decision 180).
+    // A noisy part's warning opens Clean up for it alone (decision 181).
     return { hash, ...(durations.has(hash) ? { durationMs: durations.get(hash)! } : {}), ...(kept ? { kept } : {}),
       ...(offered.has(i) ? { cleanUp: () => openCleanUp([i]) } : {}) };
   });

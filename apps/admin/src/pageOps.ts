@@ -26,7 +26,8 @@ export const GROUPS = [
   { id: 'people', title: 'People and organizations', src: 'Counted, never named: accounts, activity, organizations, joining', wide: true, parts: ['people'] },
   { id: 'support', title: 'Support', src: 'Content reports, suspensions, deletions, feedback, and what was done from this page', wide: true, parts: ['support', 'feedback'] },
   { id: 'access', title: 'Access and integrations', src: 'Global Viewers, limits hit, tokens, device grants, webhooks, review links, and what expires', parts: ['security', 'integrations', 'expiry'] },
-  { id: 'stores', title: 'App stores', src: 'Google Play vitals and reviews, App Store review state, builds and reviews', parts: ['googleplay', 'appstore'] }
+  { id: 'stores', title: 'App stores', src: 'Google Play vitals and reviews, App Store review state, builds and reviews', parts: ['googleplay', 'appstore'] },
+  { id: 'tutorials', title: 'Tutorial videos', src: 'Each app language\'s YouTube channel, the videos made and not up yet, and Publish', wide: true, parts: ['tutorials'] }
 ] as const;
 
 /** Sub-headings where a source's own title would repeat its section's, or say too little inside it. */
@@ -35,11 +36,11 @@ export const PART_TITLES: Record<string, string> = {
   expo: 'EAS builds and updates', adoption: 'Update adoption', jobs: 'Jobs', cron: 'pg_cron', push: 'Push delivery and Inbox', v2: 'v2 import',
   database: 'Health', dbdetail: 'Where the space goes', supabase: 'Supabase project', cloudflare: 'Cloudflare Workers', worker: 'App Worker routes, last 24 h',
   storage: 'Storage and backups', capacity: 'Capacity and cost', support: 'Queue', feedback: 'Feedback', security: 'Global Viewers and limits',
-  integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store'
+  integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', tutorials: 'Channels and videos'
 };
 
 /** Read as diag_reader in one call (/ops/api/ops). */
-export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security'] as const;
+export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials'] as const;
 
 /** Each from its own call (/ops/api/<id>), like the providers. */
 export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption'] as const;
@@ -60,7 +61,8 @@ export const OPS_SECTIONS = [
   { id: 'support', title: 'Support queue', src: 'Content reports, suspensions, account deletions, open feedback' },
   { id: 'security', title: 'Security and limits', src: 'Global Viewers, limits hit, new credentials' },
   { id: 'expiry', title: 'Expiry dates', src: 'Tokens, Apple certificates and profiles, and dates kept in apps/admin/expiry.json' },
-  { id: 'capacity', title: 'Capacity and cost', src: 'Database and R2 growth against the plan, Cloudflare usage this month' }
+  { id: 'capacity', title: 'Capacity and cost', src: 'Database and R2 growth against the plan, Cloudflare usage this month' },
+  { id: 'tutorials', title: 'Tutorial videos', src: 'ops.youtube_channels and ops.tutorial_videos (decisions.md 180)' }
 ] as const;
 
 export const OPS_SCRIPT = String.raw`
@@ -69,6 +71,8 @@ const installLink = (id) => id ? '<button class="link" data-q="' + esc(id) + '">
 const share = (a, b) => b ? ((a / b) * 100).toFixed(1) + '%' : '–';
 const hours = (msv) => msv === null || msv === undefined ? '–' : ms(Number(msv));
 const ageOf = (iso) => iso ? ago(iso) : '–';
+/** An app language's name in English ('zh-Hans', Simplified Chinese), from the browser. */
+const languageName = (code) => { try { return new Intl.DisplayNames(['en'], { type: 'language' }).of(code) || code; } catch { return code; } };
 
 Object.assign(RENDER, {
   safety(d) {
@@ -275,23 +279,94 @@ Object.assign(RENDER, {
       ]) + '<p class="muted">Container time is not in the analytics this page reads: see the Cloudflare dashboard.</p>';
     }
     return h;
+  },
+  tutorials(d) {
+    const connected = d.channels.filter((c) => c.connectedAt).length;
+    const ready = d.waiting.filter((w) => !w.chosenAt);
+    const up = d.channels.reduce((n, c) => n + c.videos, 0);
+    let h = '<div class="stats">' + stat(connected + ' of ' + d.channels.length, 'channels connected', connected < d.channels.length ? 'warn' : '', NOW) +
+      stat(num(ready.length), 'ready to publish', ready.length ? 'warn' : '', NOW) + stat(num(d.waiting.length - ready.length), 'chosen, going up', '', 'YouTube takes 100 a day') +
+      stat(num(up), 'videos on YouTube', '', ALL_TIME) + '</div>';
+    h += '<h3>Channels</h3><p class="muted">Connect opens Google\'s page: sign in with the account that owns the channels and choose that language\'s channel.</p>' + table([
+      { h: 'Language', v: (c) => esc(languageName(c.language)) },
+      { h: 'Channel', v: (c) => '<a href="https://www.youtube.com/channel/' + esc(c.channelId) + '" target="_blank" rel="noopener noreferrer">' + esc(c.title || 'Open on YouTube') + '</a>' },
+      { h: 'Connected', v: (c) => c.connectedAt ? when(c.connectedAt) + (c.section && c.section !== 'made' && c.section !== 'updated' ? '<br><small class="warn">Other channels list: ' + esc(c.section) + '</small>' : '') : '<span class="muted">not yet</span>' },
+      { h: 'Videos up', n: true, v: (c) => num(c.videos) },
+      { h: '', v: (c) => '<button data-yt-connect="' + esc(c.language) + '">' + (c.connectedAt ? 'Connect again' : 'Connect') + '</button>' }
+    ], d.channels);
+    h += '<h3>Not on YouTube yet</h3>';
+    if (ready.length) h += '<p><label><input type="checkbox" data-yt-all> All ' + num(ready.length) + ' ready</label> <button data-yt-publish disabled>Publish</button></p>';
+    h += table([
+      { h: '', v: (w) => w.chosenAt ? '' : '<input type="checkbox" data-yt-item data-t="' + esc(w.tutorial) + '" data-l="' + esc(w.language) + '" data-s="' + esc(w.sha256) + '" aria-label="Choose ' + esc(w.title) + '">' },
+      { h: 'Language', v: (w) => esc(languageName(w.language)) },
+      { h: 'Video', v: (w) => esc(w.title) + '<br><small>' + esc(w.playlist) + (w.replaces ? ' · replaces <a href="https://youtu.be/' + esc(w.replaces) + '" target="_blank" rel="noopener noreferrer">' + esc(w.replaces) + '</a>' : '') + '</small>' },
+      { h: 'Length', n: true, v: (w) => Math.floor(w.seconds / 60) + ':' + String(w.seconds % 60).padStart(2, '0') },
+      { h: 'Made', v: (w) => when(w.madeAt) },
+      { h: 'State', v: (w) => !w.chosenAt ? '<span class="warn">ready</span>' : w.failed ? '<span class="bad">' + esc(w.failed) + '</span><br><small>' + when(w.failedAt) + '</small>' : 'chosen ' + when(w.chosenAt) },
+      { h: '', v: (w) => '<a href="/api/tutorials/' + esc(w.language) + '/' + esc(w.tutorial) + '/' + esc(w.sha256) + '.mp4" target="_blank" rel="noopener">Watch</a>' }
+    ], d.waiting);
+    return h;
   }
 });
 
 // ---- the few actions (decisions.md 162): the app Worker checks the person again and records each ----
-async function perform(action, button) {
+async function post(action) {
   const t = await token();
-  if (!t) { showSignIn(); return; }
+  if (!t) { showSignIn(); throw new Error('Signed out'); }
+  const res = await fetch('/ops/api/actions', { method: 'POST', headers: { authorization: 'Bearer ' + t, 'content-type': 'application/json' }, body: JSON.stringify(action) });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || ('HTTP ' + res.status));
+  return body;
+}
+const PUBLISHED = {
+  started: 'Going up on YouTube now, 100 a day.', running: 'A run is going; it takes them too, or the next daily run does.',
+  disabled: 'Chosen, but publishing is off here (no YouTube client).'
+};
+async function perform(action, button) {
   if (button) button.disabled = true;
   try {
-    const res = await fetch('/ops/api/actions', { method: 'POST', headers: { authorization: 'Bearer ' + t, 'content-type': 'application/json' }, body: JSON.stringify(action) });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || ('HTTP ' + res.status));
+    const body = await post(action);
     say(action.kind === 'run' ? (body.result === 'started' ? 'Started ' + action.key + '.' : action.key + ' was ' + body.result + '; nothing started.')
-      : action.kind === 'verification' ? 'Blue check ' + body.result + '.' : 'Feedback marked ' + body.result + '.');
+      : action.kind === 'verification' ? 'Blue check ' + body.result + '.'
+      : action.kind === 'tutorials-publish' ? num(action.items.length) + ' chosen. ' + (PUBLISHED[body.result] || body.result)
+      : 'Feedback marked ' + body.result + '.');
     load(false);
-  } catch (err) { say(err.message, 'red'); if (button) button.disabled = false; }
+  } catch (err) { if (err.message !== 'Signed out') say(err.message, 'red'); if (button) button.disabled = false; }
 }
+
+// ---- tutorial videos (decisions.md 180): Connect goes to Google and back; Publish chooses what goes up ----
+async function connectYouTube(button) {
+  button.disabled = true;
+  try { location.assign((await post({ kind: 'youtube-start' })).result); }
+  catch (err) { if (err.message !== 'Signed out') say(err.message, 'red'); button.disabled = false; }
+}
+/** Back from Google's page: the callback put its answer after the #, which never reaches a server; hand it on with this person's token. */
+async function finishYouTube() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (!h.has('youtube-code') && !h.has('youtube-error')) return;
+  history.replaceState(history.state, '', location.pathname + location.search);
+  if (!h.has('youtube-code')) { say('Google did not connect the channel (' + h.get('youtube-error') + ').', 'red'); return; }
+  say('Connecting the channel…');
+  try { say('Connected the ' + (await post({ kind: 'youtube-connect', code: h.get('youtube-code'), state: h.get('youtube-state') || '' })).result + ' channel.'); }
+  catch (err) { if (err.message !== 'Signed out') say(err.message, 'red'); }
+}
+const chosenVideos = () => [...document.querySelectorAll('[data-yt-item]:checked')].map((b) => [b.dataset.t, b.dataset.l, b.dataset.s]);
+function countChosen() {
+  const n = chosenVideos().length;
+  const b = document.querySelector('[data-yt-publish]');
+  if (b) { b.disabled = n === 0; b.textContent = n ? 'Publish ' + num(n) : 'Publish'; }
+}
+document.addEventListener('change', (e) => {
+  if (e.target.matches && e.target.matches('[data-yt-all]')) for (const b of document.querySelectorAll('[data-yt-item]')) b.checked = e.target.checked;
+  if (e.target.matches && e.target.matches('[data-yt-all], [data-yt-item]')) countChosen();
+});
+document.addEventListener('click', (e) => {
+  const c = e.target.closest && e.target.closest('[data-yt-connect]');
+  if (c) connectYouTube(c);
+  const p = e.target.closest && e.target.closest('[data-yt-publish]');
+  const items = p ? chosenVideos() : [];
+  if (items.length && confirm('Publish ' + items.length + (items.length === 1 ? ' video' : ' videos') + ' on YouTube? Each goes up public; YouTube takes 100 a day.')) perform({ kind: 'tutorials-publish', items }, p);
+});
 document.addEventListener('click', (e) => {
   const run = e.target.closest && e.target.closest('[data-run]');
   if (run && confirm('Run ' + run.dataset.run + ' now?')) perform({ kind: 'run', key: run.dataset.run }, run);

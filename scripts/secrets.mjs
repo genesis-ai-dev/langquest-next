@@ -43,16 +43,18 @@ export const ADMIN_KEYS = ['ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_SUPABASE_TOKEN', 'AD
  * the admin Worker; V2_DATABASE_URL (scripts/v2-access.sh) goes to the app's Worker for the v2
  * import's job (decisions.md 141) and is read on a laptop by npm run v2 -- --production.
  * GEMINI_API_KEY is the tutorial videos' voice and translations (docs/tutorial-videos.md),
- * read where they are made; this script places it nowhere.
+ * read where they are made; this script places it nowhere. YOUTUBE_CLIENT_ID and
+ * YOUTUBE_CLIENT_SECRET are the OAuth client the tutorial channels are connected with and
+ * published to (docs/tutorial-videos.md), for the app's Worker and its job.
  */
-export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', ...ADMIN_KEYS];
+export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', ...ADMIN_KEYS];
 export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET'];
 /**
  * Placed when the file has them, never required: the Worker answers without
  * them (the Bible routes say 503), so neither a deploy nor this script waits
  * for one. Not in the Worker's `secrets.required` for the same reason.
  */
-export const OPTIONAL_KEYS = ['BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET'];
+export const OPTIONAL_KEYS = ['BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET'];
 
 /** LangQuest v2's production project, read (never written) by the v2 import and v2-sign-in (docs/v2-import.md). */
 export const V2_SUPABASE_URL = 'https://unsxkmlcyxgtgmtzfonb.supabase.co';
@@ -136,7 +138,9 @@ export function destinations(environment, values, ref, serviceRoleKey) {
         ...(values.WEBHOOK_POKE_SECRET ? { WEBHOOK_POKE_SECRET: values.WEBHOOK_POKE_SECRET } : {}),
         // The v2 import's job reads v2 with these (apps/web/worker/jobsModel.ts jobEnv): it refuses to start without the key, and names people only with the login.
         ...(values.V2_SUPABASE_ANON_KEY ? { V2_SUPABASE_ANON_KEY: values.V2_SUPABASE_ANON_KEY } : {}),
-        ...(values.V2_DATABASE_URL ? { V2_DATABASE_URL: values.V2_DATABASE_URL } : {})
+        ...(values.V2_DATABASE_URL ? { V2_DATABASE_URL: values.V2_DATABASE_URL } : {}),
+        // Connect YouTube and the publish job (decisions.md 180): both or neither, as one is no use alone.
+        ...(values.YOUTUBE_CLIENT_ID && values.YOUTUBE_CLIENT_SECRET ? { YOUTUBE_CLIENT_ID: values.YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET: values.YOUTUBE_CLIENT_SECRET } : {})
       },
       'invite-email': { INVITE_RELAY_SECRET: values.INVITE_RELAY_SECRET },
       // The ops dashboard's provider tokens, each optional. Its database login is not a Worker

@@ -1,5 +1,6 @@
 import { access, bearer } from './auth';
 import { API_BASE, PAGE_PATH } from './paths';
+import { ACTION_BYTES, youtubeCallback } from './youtube';
 import { diagConnection, withDiag } from './db';
 import type { Env } from './env';
 import { page, SECURITY_HEADERS } from './page';
@@ -60,7 +61,7 @@ const PROVIDERS: Record<string, (env: Env) => Promise<Section>> = {
 
 /** The sections read as diag_reader in one connection, with what each says when that connection fails. */
 const DIAG_IDS = ['jobs', 'clients', 'database', 'v2', 'feedback'] as const;
-const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security'] as const;
+const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials'] as const;
 
 const unreachable = (e: unknown): Section => ({ state: 'error', alerts: [], error: `Could not reach the database as diag_reader: ${errorText(e)}`, checkedAt: new Date().toISOString() });
 
@@ -111,13 +112,15 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     const { success } = await env.ADMIN_RATE_LIMIT.limit({ key: request.headers.get('cf-connecting-ip') ?? 'unknown' });
     if (!success) return json({ error: 'Too many requests; wait a minute.' }, 429);
   }
+  // Google sends the person back here from Connect YouTube (decisions.md 180), without the page's token.
+  if (url.pathname === `${API_BASE}youtube/callback`) return youtubeCallback(url);
   const who = await access(request, env);
   if (!who.ok) return json({ error: who.error, ...(who.need ? { need: who.need } : {}) }, who.status);
 
   if (acting) {
     if (!env.APP_ACTIONS) return json({ error: 'Actions are not connected here (APP_ACTIONS).' }, 503);
     const text = await request.text();
-    if (text.length > 1000) return json({ error: 'Too large' }, 413);
+    if (text.length > ACTION_BYTES) return json({ error: 'Too large' }, 413);
     let body: unknown;
     try { body = JSON.parse(text); } catch { return json({ error: 'Not JSON' }, 400); }
     const done = await env.APP_ACTIONS.perform(bearer(request) ?? '', body);

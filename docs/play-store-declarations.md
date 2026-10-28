@@ -185,7 +185,7 @@ kind of voice recording, so the "Voice or sound recordings" answer is
 unchanged. It needs no permission and sends nothing of its own, so no Play
 Console answer changes.
 
-The noise warning (decisions.md 180) measures how loud a part is and how
+The noise warning (decisions.md 181) measures how loud a part is and how
 loud the room is between its words, on the device that recorded or plays
 it. The numbers stay on that device and are never sent, so no Play Console
 answer changes.

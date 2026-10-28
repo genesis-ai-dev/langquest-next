@@ -176,7 +176,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
             // Its bars for the list of parts: a session's part brings them from the levels it showed; a
             // take, or a part found again after a restart, reads them from the WAV before a phone encodes it (barsStore.ts).
             const bars = file.bars ?? (file.format === 'wav' ? await barsOfFile(file.uri, 'wav').catch(() => null) : null);
-            // Its loudness and the room between its words, read from the WAV while a phone encodes it (loudnessStore.ts, decision 180).
+            // Its loudness and the room between its words, read from the WAV while a phone encodes it (loudnessStore.ts, decision 181).
             const measuring = file.format === 'wav' ? loudnessOfFile(file.uri, 'wav').catch(() => null) : Promise.resolve(null);
             // A phone keeps AAC, about a fifth of the WAV (decisions.md 106). The
             // journal names the AAC copy before the WAV goes, so a restart finds

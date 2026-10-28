@@ -12,7 +12,10 @@ import {
 describe('job runner', () => {
   const mark = { startedAt: 1_000 };
   const db = { SUPABASE_URL: 'https://x.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'service' };
-  const v2 = { ...db, API_URL: 'https://next.langquest.org', V2_IMPORT_ENABLED: 'true', V2_SUPABASE_ANON_KEY: 'anon', V2_DATABASE_URL: 'postgres://ro' };
+  const v2 = {
+    ...db, API_URL: 'https://next.langquest.org', V2_IMPORT_ENABLED: 'true', V2_SUPABASE_ANON_KEY: 'anon', V2_DATABASE_URL: 'postgres://ro',
+    YOUTUBE_CLIENT_ID: 'client.apps.googleusercontent.com', YOUTUBE_CLIENT_SECRET: 'shh'
+  };
 
   it('starts the pass every tick, the import every 15 minutes, and a whole read at 03:15 UTC', () => {
     // Why: the workflows ran the pass every 10 minutes (now 5, as the Edge pass did),
@@ -32,6 +35,9 @@ describe('job runner', () => {
     expect(jobsDue(Date.UTC(2026, 9, 19, 4, 35))).toEqual([{ key: 'projection' }, { key: 'blob-reconcile' }]);
     expect(jobsDue(Date.UTC(2026, 9, 19, 5, 5))).toEqual([{ key: 'projection' }]);
     expect(jobsDue(Date.UTC(2026, 9, 19, 16, 35))).toEqual([{ key: 'projection' }]);
+    // Tutorial videos still waiting from a Publish, once YouTube's day starts again (midnight Pacific).
+    expect(jobsDue(Date.UTC(2026, 9, 19, 8, 10))).toEqual([{ key: 'projection' }, { key: 'tutorial-publish' }]);
+    expect(JOBS['tutorial-publish']).toMatchObject({ job: 'tutorial_publish', entrypoint: ['node', 'publish.mjs'], timeLimitMs: 150 * 60_000 });
     expect(JOBS['fold-canary']).toMatchObject({ job: 'fold_canary', entrypoint: ['node', 'canary.mjs'], timeLimitMs: 60 * 60_000 });
     expect(JOBS['blob-reconcile']).toMatchObject({ job: 'blob_reconcile', entrypoint: ['node', 'reconcile.mjs'], timeLimitMs: 120 * 60_000 });
   });
