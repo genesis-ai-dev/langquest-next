@@ -26,7 +26,7 @@ const APP_ONLY: Record<string, string> = {
   'get_ready->template_editor': 'What will they record?: Make your own (decision 71, demo ADR-039)',
   'get_ready->templates_home': "A ready language's Content template: Each book's passages, and All content templates (decisions 71 and 138)",
   'get_ready->reference_bibles': 'What will help them?: Find another Bible, and Add more (decision 71, demo ADR-039)',
-  'get_ready->reference_source': 'What will help them?: hear a Bible on its own page (decision 71, demo ADR-039)',
+  'get_ready->bible_explore': "What will help them?: a Bible's play button opens it to hear, in the Bible reader (decision 71, demo ADR-039; UI audit, finding 57)",
   'get_ready->reference_guides': 'Reference material: Add more, a study guide (decisions 71 and 138)',
   'get_ready->reference_home': "A ready language's Reference material ends with All reference material, the organization's shelf (decision 138)",
   'get_ready->material_editor': 'Reference material: Add more, a note for translators, or open one written here (decisions 71 and 138)',

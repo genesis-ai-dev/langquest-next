@@ -385,7 +385,8 @@ export const EDGES: Edge[] = [
   e('get_ready', 'template_editor', undefined, 'manageTemplates'),
   e('get_ready', 'templates_home', undefined, 'manageTemplates'),
   e('get_ready', 'reference_bibles', undefined, 'manageReference'),
-  e('get_ready', 'reference_source', undefined, 'manageReference'),
+  e('get_ready', 'bible_explore'), // a Bible's play button opens it to hear (UI audit, finding 57)
+  e('bible_explore', 'get_ready', 'back'),
   e('get_ready', 'reference_guides', undefined, 'manageReference'),
   e('get_ready', 'reference_home', undefined, 'manageReference'),
   e('get_ready', 'material_editor', undefined, 'manageReference'),

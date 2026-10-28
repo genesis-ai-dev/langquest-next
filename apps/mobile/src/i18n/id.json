@@ -676,7 +676,6 @@
       "reference": "Bahan Referensi",
       "flows": "Alur Pemeriksaan",
       "roles": "Peran",
-      "rolesSub_other": "{{count, number}} peran di tingkat ini dan di atasnya",
       "summary": {
         "templates": "Templat isi",
         "referenceFirst": "Bahan Referensi",
@@ -695,14 +694,15 @@
         "study_other": "{{count, number}} panduan belajar",
         "questions_other": "{{count, number}} kumpulan pertanyaan",
         "terms_other": "{{count, number}} kata kunci"
-      }
+      },
+      "rolesSub_other": "{{count, number}} peran"
     },
     "people": {
       "title": "Orang",
       "members": "Anggota",
-      "assignedHere_other": "{{count, number}} ditugaskan di bahasa ini",
-      "orgSub": "{{here}} di tingkat organisasi · {{total}} seluruhnya",
-      "membersHelp": "Membuka daftar orang dan peran mereka, untuk mengundang seseorang atau mengubah peran."
+      "orgSub": "{{here}} di semua bahasa · {{total}} seluruhnya",
+      "membersHelp": "Membuka daftar orang dan peran mereka, untuk mengundang seseorang atau mengubah peran.",
+      "assignedHere_other": "{{count, number}} punya peran di bahasa ini"
     },
     "home": {
       "title": "Organisasi",
@@ -801,15 +801,15 @@
       "joined": "{{target}} · bergabung {{when}}",
       "count_other": "{{count, number}} anggota",
       "invite": "Undang",
-      "introOrg": "Anggota yang ditugaskan di lingkup organisasi. Buka kelompok di bawah untuk tingkat lainnya.",
-      "introLanguage": "Anggota yang ditugaskan di lingkup bahasa untuk tampilan ini. Buka kelompok di bawah untuk tingkat lainnya.",
+      "introOrg": "Orang yang perannya mencakup semua bahasa. Buka grup di bawah untuk orang di setiap bahasa.",
+      "introLanguage": "Orang yang punya peran di bahasa ini. Buka grup di bawah untuk yang lain.",
       "sectionOrg": "Anggota organisasi · {{total}}",
       "sectionLanguage": "Anggota bahasa · {{total}}",
       "pending": "Menunggu",
-      "none": "Belum ada anggota yang ditugaskan di tingkat ini.",
+      "none": "Belum ada yang punya peran di sini.",
       "expandBy": "Kelompokkan menurut",
       "byLanguage": "Menurut bahasa",
-      "higher": "Tingkat lebih tinggi · hanya lihat",
+      "higher": "Semua bahasa · hanya lihat",
       "memberHelp": "Membuka perannya dan tempat peran itu berlaku, untuk mengubahnya.",
       "lockedHelp": "Anda tidak boleh mengubah peran orang ini dari sini.",
       "requestHelp": "Ingin bergabung. Membuka permintaannya: izinkan masuk, atau tolak.",
@@ -821,9 +821,9 @@
     "assign": {
       "noRoles": "Tidak ada peran yang tersedia di sini.",
       "where": "Di mana?",
-      "whereHelp": "Di mana orang ini dapat memakai hak dari peran yang dipilih.",
+      "whereHelp": "Di mana orang ini bisa melakukan apa yang diizinkan perannya.",
       "language": "Bahasa",
-      "languageHelp": "Bahasa yang berlaku untuk penugasan ini.",
+      "languageHelp": "Untuk bahasa mana peran ini.",
       "noLanguages": "Belum ada bahasa.",
       "orgHelp": "Peran ini berlaku di seluruh organisasi.",
       "languageLevelHelp": "Peran ini berlaku di satu bahasa, yang dipilih di bawah.",
@@ -851,18 +851,18 @@
     },
     "member": {
       "isNow": "{{name}} sekarang {{role}}",
-      "removedOrg": "{{name}} dikeluarkan di tingkat organisasi",
-      "removedLanguage": "{{name}} dikeluarkan di tingkat bahasa",
+      "removedOrg": "{{name}} tidak lagi punya peran di semua bahasa",
+      "removedLanguage": "{{name}} tidak lagi punya peran di bahasa ini",
       "declined": "Permintaan {{name}} ditolak",
       "editTitle": "Ubah Anggota",
       "notMember": "Bukan anggota di sini",
       "notMemberSub": "Orang ini sudah tidak punya peran di organisasi ini.",
       "awaiting": "Menunggu persetujuan",
       "assignRole": "Beri Peran",
-      "saveAssignment": "Simpan Penugasan",
+      "saveAssignment": "Simpan peran",
       "decline": "Tolak",
-      "introPending": "Orang ini membuat akun dan meminta bergabung. Beri peran dan lingkup agar mereka mendapat akses.",
-      "intro": "Pilih peran, lalu pilih lingkup yang berlaku untuk penugasan ini. Lingkupnya bisa tingkat ini atau di bawahnya.",
+      "introPending": "Orang ini membuat akun dan minta bergabung. Pilih perannya dan di mana berlakunya untuk mengizinkannya masuk.",
+      "intro": "Pilih peran, lalu di mana berlakunya.",
       "outranked": "{{name}} memegang hak lebih banyak dari Anda di sini, jadi hanya orang dengan hak yang setara yang dapat mengubah ini.",
       "onlyManager": "Hanya {{name}} yang dapat mengelola peran",
       "onlyManagerYou": "Hanya Anda yang dapat mengelola peran",
@@ -900,7 +900,6 @@
       "pickRole": "Pilih peran untuk orang ini. Anda tidak perlu email mereka.",
       "alreadyTitle": "Sudah ada di tim, dengan perangkat baru?",
       "alreadyBody": "Buka orang itu di Anggota dan ketuk Bantu mereka masuk. Undangan baru akan membuat akun kedua.",
-      "privileges_other": "{{count, number}} hak",
       "noRoles": "Belum ada peran.",
       "createRole": "Buat peran baru",
       "one": "Satu orang",
@@ -924,7 +923,8 @@
       "doneHelp": "Selesai: membuka daftar anggota.",
       "nameFieldHelp": "Untuk siapa kode ini. Mereka melihatnya saat memindai.",
       "groupNameFieldHelp": "Nama untuk kelompok. Semua yang memindai melihatnya.",
-      "shareHelp": "Mengirim tautan undangan lewat pesan, atau menyalinnya."
+      "shareHelp": "Mengirim tautan undangan lewat pesan, atau menyalinnya.",
+      "privileges_other": "{{count, number}} izin"
     },
     "newLanguage": {
       "theOrganization": "organisasi",
@@ -2161,19 +2161,19 @@
     "privileges": {
       "manageStructure": {
         "label": "Kelola Struktur Organisasi",
-        "desc": "Mengubah struktur organisasi dalam lingkupnya (bahasa)"
+        "desc": "Menambah dan mengubah bahasa di tempat perannya berlaku"
       },
       "inviteMembers": {
         "label": "Mengundang orang",
-        "desc": "Mengundang orang dalam lingkupnya"
+        "desc": "Mengundang orang di tempat perannya berlaku"
       },
       "manageRoles": {
         "label": "Membuat dan mengubah peran",
-        "desc": "Membuat dan mengubah peran dalam lingkupnya"
+        "desc": "Membuat dan mengubah peran di tempat perannya berlaku"
       },
       "manageTemplates": {
         "label": "Kelola Templat Isi",
-        "desc": "Membuat dan mengubah templat isi dalam lingkupnya"
+        "desc": "Membuat dan mengubah templat konten di tempat perannya berlaku"
       },
       "shapeTemplates": {
         "label": "Bentuk Templat Isi",
@@ -2181,7 +2181,7 @@
       },
       "manageReference": {
         "label": "Memilih Alkitab dan panduan",
-        "desc": "Membuat dan mengubah bahan referensi dalam lingkupnya"
+        "desc": "Membuat dan mengubah bahan rujukan di tempat perannya berlaku"
       },
       "manageFlows": {
         "label": "Kelola Alur Pemeriksaan",
@@ -2189,11 +2189,11 @@
       },
       "manageTeams": {
         "label": "Kelola Tim Pemeriksa",
-        "desc": "Membuat dan mengubah tim pemeriksa (kelompok) dalam lingkupnya"
+        "desc": "Membuat dan mengubah tim tinjauan di tempat perannya berlaku"
       },
       "assignWork": {
         "label": "Menugaskan pekerjaan",
-        "desc": "Meminta siapa pun dalam lingkupnya merekam atau memeriksa perikop"
+        "desc": "Meminta siapa pun di tempat perannya berlaku untuk merekam atau meninjau perikop"
       },
       "overrideCheckpoints": {
         "label": "Meloloskan pekerjaan melewati pemeriksaan yang terkunci",
@@ -2217,7 +2217,7 @@
       },
       "viewStatus": {
         "label": "Melihat pekerjaan semua orang",
-        "desc": "Melihat peta dan riwayat perikop tanpa bisa mengubah, dalam lingkupnya"
+        "desc": "Melihat peta dan catatan perikop, tanpa mengubahnya, di tempat perannya berlaku"
       }
     },
     "privilegeGroups": {
@@ -2283,19 +2283,19 @@
     "roles": {
       "title": "Peran",
       "addRole": "Peran",
-      "introOrg": "Peran adalah kumpulan hak tanpa lingkup tetap. Lingkup dipilih saat memberikan peran kepada anggota. Peran yang dibuat di sini dapat diberikan di tingkat mana pun.",
-      "introLanguage": "Peran adalah kumpulan hak tanpa lingkup tetap. Lingkup dipilih saat memberikan peran kepada anggota. Peran ditetapkan untuk seluruh organisasi, jadi di sini hanya bisa dilihat. Ubah peran dari Beranda Organisasi.",
+      "introOrg": "Peran adalah apa yang boleh dilakukan seseorang. Di mana ia boleh melakukannya dipilih saat peran diberikan: di semua bahasa, atau di satu bahasa.",
+      "introLanguage": "Peran adalah apa yang boleh dilakukan seseorang. Peran milik seluruh organisasi, jadi di sini Anda hanya bisa melihat. Ubah dari Beranda Organisasi.",
       "loading": "Memuat peran…",
       "empty": "Belum ada peran",
       "emptySub": "Buat satu peran untuk setiap cara orang membantu: apa yang boleh mereka lakukan, bukan di mana.",
       "definedAtOrg": "Ditetapkan di Organisasi",
-      "inheritedSub": "Hanya lihat · ubah dari tingkat tempat peran ini ditetapkan",
+      "inheritedSub": "Hanya lihat · ubah dari Beranda Organisasi",
       "members_other": "{{count, number}} anggota",
-      "privileges_other": "{{count, number}} hak",
       "addRoleHelp": "Membuat peran baru: kumpulan hal yang boleh dilakukan orang yang memegangnya.",
       "ownRoleHelp": "Membuka apa yang boleh dilakukan pemegangnya, dan siapa yang memilikinya. Bintang: organisasi Anda yang membuatnya.",
       "builtInRoleHelp": "Membuka apa yang boleh dilakukan pemegangnya, dan siapa yang memilikinya. Peran ini bawaan aplikasi.",
-      "inheritedRoleHelp": "Menampilkan apa yang boleh dilakukan pemegangnya. Ubah dari Beranda Organisasi."
+      "inheritedRoleHelp": "Menampilkan apa yang boleh dilakukan pemegangnya. Ubah dari Beranda Organisasi.",
+      "privileges_other": "{{count, number}} izin"
     },
     "roleEditor": {
       "title": "Peran",
@@ -2306,7 +2306,7 @@
       "newRole": "Peran baru",
       "aNewRole": "Sebuah peran baru",
       "people_other": "{{count, number}} orang",
-      "inheritedBody": "Ditetapkan di tingkat organisasi. Ubah dari Beranda Organisasi.",
+      "inheritedBody": "Dibuat untuk seluruh organisasi. Ubah dari Beranda Organisasi.",
       "noPermission": "Anda tidak punya izin untuk mengubah peran ini.",
       "nameLabel": "Apa namanya?",
       "namePlaceholder": "misalnya Penerjemah balik",
@@ -2478,7 +2478,6 @@
       "concepts_other": "{{count, number}} konsep",
       "addLanguageFirst": "Tambahkan bahasa dulu",
       "libraryOrg": "Perpustakaan · organisasi Anda",
-      "new": "Baru",
       "libraryEmpty": "Belum ada apa-apa di perpustakaan Anda. Ikuti atau salin apa yang dibagikan organisasi lain, atau terbitkan milik Anda sendiri.",
       "writeGuide": "Tulis panduan",
       "writeGuideSub": "Langkah-langkah dengan teks dan audio, gambar, peta, dan kata kunci",
@@ -2501,10 +2500,15 @@
       "biblesHelp": "Membuka Alkitab yang didengar dan dibaca penerjemah, dan mana yang direkomendasikan.",
       "guidesNotesHelp": "Membuka panduan studi dan catatan yang didapat penerjemah, dan mana yang direkomendasikan.",
       "keyTermsHelp": "Membuka setiap konsep dan cara bahasa ini mengucapkannya.",
-      "newHelp": "Memulai bahan baru di perpustakaan Anda.",
       "libraryItemHelp": "Membukanya: apa isinya, dan bagaimana bahan ini dibagikan.",
       "openMaterialHelp": "Membukanya, untuk dibaca atau diubah.",
-      "openLockedHelp": "Membukanya. Terkunci: hanya orang yang mengelola bahan referensi yang dapat mengubahnya."
+      "openLockedHelp": "Membukanya. Terkunci: hanya orang yang mengelola bahan referensi yang dapat mengubahnya.",
+      "add": {
+        "here": "Pedoman, ringkasan, atau pertanyaan",
+        "hereSub": "Ditulis di sini, bagian demi bagian; pertanyaan tinjauan masuk ke satu jenis tinjauan",
+        "byVerses": "Catatan yang ditempatkan menurut ayat",
+        "byVersesSub": "Masuk ke perpustakaan, dan menjangkau perikop tempat ayat atau bagian templatnya berada"
+      }
     },
     "material": {
       "editTitle": "Ubah Bahan",
@@ -2814,7 +2818,7 @@
       "title": "Pindai kode",
       "subSignIn": "Kode dari orang yang membantu Anda masuk",
       "subGuest": "Tidak perlu email atau kata sandi",
-      "subMember": "Undangan berisi organisasi, peran, dan lingkup",
+      "subMember": "Undangan menyebut organisasi, peran, dan bahasanya",
       "notCode": "Ini bukan kode LangQuest.",
       "notQr": "Kode QR ini bukan kode LangQuest.",
       "cameraOff": "Akses kamera mati. Anda dapat menempelkan kode di bawah.",
@@ -6186,22 +6190,19 @@
     "rec": {
       "recommended": "Direkomendasikan",
       "notRecommended": "Tidak direkomendasikan",
-      "hiddenForLanguage": "Disembunyikan untuk bahasa ini",
+      "notHere": "Tidak direkomendasikan di sini",
       "forLanguage": "Direkomendasikan untuk bahasa ini",
       "byOrganization": "Direkomendasikan oleh organisasi",
       "stop": "Berhenti merekomendasikan",
       "recommend": "Rekomendasikan",
-      "follow": "Ikuti organisasi",
-      "hide": "Sembunyikan",
+      "recommendHere": "Rekomendasikan di sini",
+      "stopHere": "Berhenti merekomendasikan di sini",
       "done": {
         "recommendedEverywhere": "{{name}} direkomendasikan untuk setiap bahasa.",
         "recommendedHere": "{{name}} direkomendasikan untuk tim bahasa ini.",
         "stopped": "{{name}} tidak lagi direkomendasikan.",
-        "hidden": "{{name}} disembunyikan untuk bahasa ini.",
-        "follows": "{{name}} mengikuti organisasi di sini."
+        "stoppedHere": "{{name}} tidak lagi direkomendasikan untuk tim bahasa ini."
       },
-      "followHelp": "Bahasa ini kembali ke apa yang direkomendasikan organisasi.",
-      "hideHelp": "Tim bahasa ini tidak lagi mendapatkannya, meskipun organisasi merekomendasikannya.",
       "recommendLanguageHelp": "Tim bahasa ini mendapatkannya sebagai rekomendasi.",
       "recommendOrgHelp": "Tim setiap bahasa mendapatkannya sebagai rekomendasi.",
       "stopLanguageHelp": "Tim bahasa ini tidak lagi mendapatkannya sebagai rekomendasi.",
@@ -6266,7 +6267,7 @@
       "noneRecommendedAdd": "Belum ada Alkitab yang direkomendasikan di sini. Tambahkan satu.",
       "noneRecommendedBelow": "Belum ada Alkitab yang direkomendasikan di sini. Rekomendasikan satu di bawah.",
       "noneRecommendedYet": "Belum ada Alkitab yang direkomendasikan di sini.",
-      "hidden": "Disembunyikan untuk bahasa ini · {{n, number}}",
+      "hidden": "Tidak direkomendasikan di sini · {{n, number}}",
       "notRecommended": "Ada di perpustakaan Anda, tidak direkomendasikan · {{n, number}}",
       "cardHelp": "Membukanya: teks, audio, penanda waktu ayat, dan untuk siapa Alkitab ini direkomendasikan."
     },
@@ -6287,7 +6288,6 @@
       "bibleBrainHelp": "Cari Alkitab di Bible Brain menurut bahasa.",
       "bibleHelp": "Menampilkan isinya sebelum Anda menambahkannya.",
       "fromLangQuestHelp": "Menampilkan Alkitab yang sudah disiapkan LangQuest untuk diikuti.",
-      "readyHelp": "Menambahkannya ke perpustakaan Anda dan merekomendasikannya di sini.",
       "searchHelp": "Ketik nama atau kode bahasa untuk menemukan Alkitabnya.",
       "listed": "Hanya bahasa yang punya Alkitab di Bible Brain yang ditampilkan.",
       "noMatch": "Tidak ada bahasa dengan nama itu yang punya Alkitab di Bible Brain.",

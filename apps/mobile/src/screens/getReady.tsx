@@ -113,6 +113,13 @@ interface StepProps {
   /** Answered: on to the next question, or back where the admin came from. */
   next: () => void;
   only: boolean;
+  /** To the question before, when there is one: on screen for iPhone and the web, which have no Back key (UI audit, finding 48). */
+  back?: () => void;
+}
+
+/** The footer's quiet Back, one page or question before. */
+function StepBack(props: { onPress?: () => void }) {
+  return props.onPress ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', help: t('getReady.backHelp'), onPress: props.onPress }]} /> : null;
 }
 
 function Questions({ ctx, start, only }: { ctx: Ctx; start: number; only: boolean }) {
@@ -124,7 +131,7 @@ function Questions({ ctx, start, only }: { ctx: Ctx; start: number; only: boolea
   const next = () => (only || n >= 4 ? ctx.back() : setN(n + 1));
   // A phone's Back goes to the question before, down to the one this opened on, then leaves; ✕ leaves at once (decision 137).
   useHardwareBack(n > start, () => setN(n - 1));
-  const props: StepProps = { ctx, lang, header, next, only };
+  const props: StepProps = { ctx, lang, header, next, only, ...(n > start ? { back: () => setN(n - 1) } : {}) };
   switch (n) {
     case 1: return <RecordStep {...props} />;
     case 2: return <HelpsStep {...props} />;
@@ -195,7 +202,7 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
             help={only ? (changed ? t('getReady.record.useThisHelp') : t('getReady.record.keepItHelp')) : t('getReady.record.nextHelp')}
             onPress={() => void answer()} />
         )}
-        {tq.page !== 'what' ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', help: t('getReady.backHelp'), onPress: () => { tq.retreat(); } }]} /> : null}
+        <StepBack onPress={tq.page !== 'what' ? () => { tq.retreat(); } : undefined} />
       </>}>
       <TranslateQuestion ctx={ctx} t={tq} lang={lang} canMake={lib.canWrite('template')} onMake={() => ctx.go('template_editor', { new: '1', kind: 'outline' })} />
       {doc?.bible && tq.last ? (
@@ -447,7 +454,7 @@ function HelpsStep(props: StepProps) {
  * The team's reference language: saved when it changes, and a guide set
  * (FIA) the team has follows it into that language when it is there.
  */
-function ReferenceLanguageStep({ ctx, lang, header, onDone }: StepProps & { onDone: () => void }) {
+function ReferenceLanguageStep({ ctx, lang, header, back, onDone }: StepProps & { onDone: () => void }) {
   const state = ctx.language.state!;
   const org = ctx.org.state;
   const languageId = ctx.language.languageId;
@@ -498,7 +505,10 @@ function ReferenceLanguageStep({ ctx, lang, header, onDone }: StepProps & { onDo
   }
 
   return (
-    <Screen header={header} bodyStyle={PAD} footer={<PrimaryBtn label={t('common.next')} icon="right" busy={busy} help={t('getReady.language.nextHelp')} onPress={() => void save()} />}>
+    <Screen header={header} bodyStyle={PAD} footer={<>
+      <PrimaryBtn label={t('common.next')} icon="right" busy={busy} help={t('getReady.language.nextHelp')} onPress={() => void save()} />
+      <StepBack onPress={back} />
+    </>}>
       <ReferenceLanguagePage team={lang} choices={refs.choices} value={values} first={current} onChange={setPicked} loading={refs.loading} />
       {!may ? <Banner icon="lock" title={t('common.viewOnly')} body={t('getReady.helps.viewOnly')} /> : null}
     </Screen>
@@ -584,7 +594,7 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
       <HelpRow key={b.key} of="getReady.bible">
         <CheckRow label={`${languageLabel(doc.language)} · ${doc.abbreviation}`} sub={mediaText(mediaOf(doc, h.get))} checked={b.on} highlight={search.query} last={last}
           disabled={!h.may || h.busy} onToggle={() => void h.toggle(b)} playLabel={t('admin.checkRow.hear', { name: b.name })} playHelp={t('getReady.helps.openBibleHelp')}
-          {...(b.itemId ? { onPlay: () => ctx.go('reference_source', { itemId: b.itemId!, languageId }) } : {})} />
+          {...(b.itemId ? { onPlay: () => ctx.go('bible_explore', { itemId: b.itemId!, languageId }) } : {})} />
       </HelpRow>
     );
   };
@@ -615,7 +625,10 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
   );
   const rowOf = (x: HelpItem, last: boolean) => (x.kind === 'source' ? bibleRow(x, last) : x.kind === 'guide' ? guideRow(x, last) : x.kind === 'words' ? wordRow(x, last) : noteRow(x, last));
   return (
-    <Screen header={header} bodyStyle={PAD} footer={<PrimaryBtn label={t('common.next')} icon="right" help={t('getReady.nextHelp')} onPress={next} />}>
+    <Screen header={header} bodyStyle={PAD} footer={<>
+      <PrimaryBtn label={t('common.next')} icon="right" help={t('getReady.nextHelp')} onPress={next} />
+      <StepBack onPress={onLanguage} />
+    </>}>
       <ReferenceLanguageChip languages={h.languages} onPress={onLanguage} />
       <Question>{questionLabel('helps')}</Question>
       {search.bar}
@@ -677,6 +690,8 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
   const search = useHelpSearch(h.items);
   const reads = languageLabel(h.reads);
   const [adding, setAdding] = useState(false);
+  // A note for every language goes to the organization's library; without that, it is written in this language (UI audit, finding 54).
+  const noteTo: Record<string, string> = useLibrary(ctx).canWrite('material') ? { itemId: 'new', kind: 'note', languageId } : { languageId };
   const terms = useMemo(() => keyTermsFor(state), [state]);
   const written = useMemo(() => materialsFor(state).filter((m) => m.kind !== 'questions' && m.kind !== 'key_terms' && m.kind !== 'fia_study'), [state]);
   // Only what is in the team's language, and what the team already has (decision 130 amended); a search looks through everything.
@@ -776,7 +791,7 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
         <Group>
           <Row icon="book" label={t('getReady.add.bible')} sub={t('getReady.add.bibleSub')} onPress={() => go('reference_bibles', { languageId })} />
           <Row icon="star" label={t('getReady.add.guide')} sub={t('getReady.add.guideSub')} onPress={() => go('reference_guides', { languageId })} />
-          <Row icon="note" label={t('getReady.add.note')} sub={t('getReady.add.noteSub')} onPress={() => go('material_editor', { itemId: 'new', kind: 'note', languageId })} />
+          <Row icon="note" label={t('getReady.add.note')} sub={t('getReady.add.noteSub')} onPress={() => go('material_editor', noteTo)} />
           <Row icon="key" label={t('getReady.page.keyWords')} sub={t('getReady.add.keyWordsSub')} last onPress={() => go('key_terms', { languageId })} />
         </Group>
       </Sheet>
@@ -807,7 +822,7 @@ function fromLine(h: HelpItem): string {
 
 // ---- 3 Who checks the recordings? -------------------------------------------------------------
 
-function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () => void }) {
+function ChecksStep({ ctx, header, next, back, onChoose }: StepProps & { onChoose: () => void }) {
   const state = ctx.language.state!;
   const languageId = ctx.language.languageId;
   const kinds = useMemo(() => deriveKinds(state), [state]);
@@ -855,7 +870,7 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
     const sub = e.c === current ? t('getReady.checks.inUse') : e === starter && i === 0 ? t('getReady.checks.suggested') : flowSub(e.doc.steps);
     return (
       <HelpRow key={e.c.key} of="getReady.way">
-        <ChoiceCard on={on} icon="people" title={titleOf(e.doc)} sub={sub} help={t('getReady.checks.wayHelp')} onPress={() => setPicked(e.c.key)}>
+        <ChoiceCard on={on} icon="flow" title={titleOf(e.doc)} sub={sub} help={t('getReady.checks.wayHelp')} onPress={() => setPicked(e.c.key)}>
           {on && e.doc.steps.length ? <NumberedSteps items={flowWho(e.doc.steps, kindsOf(e.doc))} /> : null}
         </ChoiceCard>
       </HelpRow>
@@ -864,15 +879,18 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
   return (
     <Screen header={header} bodyStyle={PAD}
       // Next waits for the ready-made list: pressed while it loads, it moved on without the suggested checks.
-      footer={<PrimaryBtn label={key === 'choose' ? t('getReady.checks.chooseSteps') : t('common.next')} icon="right" busy={busy}
-        {...(key === 'choose' ? {} : { help: t('getReady.checks.nextHelp') })} disabled={!loaded && key === null} onPress={() => void answer()} />}>
+      footer={<>
+        <PrimaryBtn label={key === 'choose' ? t('getReady.checks.chooseSteps') : t('common.next')} icon="right" busy={busy}
+          {...(key === 'choose' ? {} : { help: t('getReady.checks.nextHelp') })} disabled={!loaded && key === null} onPress={() => void answer()} />
+        <StepBack onPress={back} />
+      </>}>
       <Question>{questionLabel('checks')}</Question>
       {/* Making your own comes first, set apart, so the ready-made list below can grow (design principle 12). */}
       {canUse ? (
         <ChoiceCard own on={key === 'choose'} icon="edit" title={t('getReady.checks.illChoose')} help={t('getReady.checks.illChooseHelp')} onPress={() => setPicked('choose')} />
       ) : null}
       {custom ? (
-        <ChoiceCard on={key === 'custom'} icon="people" title={flowTitle(flow.steps, kinds)} sub={t('getReady.checks.ownSteps')} help={t('getReady.checks.keepOwnHelp')}
+        <ChoiceCard on={key === 'custom'} icon="flow" title={flowTitle(flow.steps, kinds)} sub={t('getReady.checks.ownSteps')} help={t('getReady.checks.keepOwnHelp')}
           onPress={() => setPicked('custom')}>
           {key === 'custom' ? <NumberedSteps items={flowWho(flow.steps, kinds)} /> : null}
         </ChoiceCard>
@@ -896,7 +914,7 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
 
 // ---- 4 Invite your translators -------------------------------------------------------------------
 
-function InviteStep({ ctx, lang, header, next }: StepProps) {
+function InviteStep({ ctx, lang, header, next, back }: StepProps) {
   const languageId = ctx.language.languageId;
   const scope = { level: 'language' as const, languageId };
   const roles = usePlainRoles(ctx, scope);
@@ -910,7 +928,10 @@ function InviteStep({ ctx, lang, header, next }: StepProps) {
     <Screen header={header} bodyStyle={PAD}
       footer={<>
         <PrimaryBtn label={t('common.done')} icon="check" help={t('help.details.done')} onPress={next} />
-        {uri ? <QuietLinks items={[{ label: t('admin.invite.shareLink'), icon: 'send', help: t('admin.invite.shareLinkHelp'), onPress: () => shareInvite(ctx, uri) }]} /> : null}
+        {uri || back ? <QuietLinks items={[
+          ...(uri ? [{ label: t('admin.invite.shareLink'), icon: 'send' as const, help: t('admin.invite.shareLinkHelp'), onPress: () => shareInvite(ctx, uri) }] : []),
+          ...(back ? [{ label: t('common.back'), icon: 'arrowL' as const, help: t('getReady.backHelp'), onPress: back }] : [])
+        ]} /> : null}
       </>}>
       <Question>{questionLabel('invite')}</Question>
       {/* Making a new role comes first, set apart from the roles there are (design principle 12). */}

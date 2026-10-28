@@ -682,8 +682,6 @@
       "reference": "Nyenzo za Marejeo",
       "flows": "Mitiririko ya Ukaguzi",
       "roles": "Majukumu",
-      "rolesSub_one": "Jukumu {{count, number}} katika ngazi hii na juu",
-      "rolesSub_other": "Majukumu {{count, number}} katika ngazi hii na juu",
       "summary": {
         "templates": "Violezo vya maudhui",
         "referenceFirst": "Nyenzo za Marejeo",
@@ -705,15 +703,17 @@
         "questions_other": "Seti {{count, number}} za maswali",
         "terms_one": "Neno kuu {{count, number}}",
         "terms_other": "Maneno makuu {{count, number}}"
-      }
+      },
+      "rolesSub_one": "Jukumu {{count, number}}",
+      "rolesSub_other": "Majukumu {{count, number}}"
     },
     "people": {
       "title": "Watu",
       "members": "Wanachama",
-      "assignedHere_one": "{{count, number}} amepangiwa katika lugha hii",
-      "assignedHere_other": "{{count, number}} wamepangiwa katika lugha hii",
-      "orgSub": "{{here}} katika ngazi ya shirika · {{total}} jumla",
-      "membersHelp": "Hufungua watu na majukumu yao, ili kumwalika mtu au kubadilisha jukumu."
+      "orgSub": "{{here}} katika kila lugha · {{total}} kwa jumla",
+      "membersHelp": "Hufungua watu na majukumu yao, ili kumwalika mtu au kubadilisha jukumu.",
+      "assignedHere_one": "{{count, number}} mwenye jukumu katika lugha hii",
+      "assignedHere_other": "{{count, number}} wenye jukumu katika lugha hii"
     },
     "home": {
       "title": "Shirika",
@@ -819,15 +819,15 @@
       "count_one": "Mwanachama {{count, number}}",
       "count_other": "Wanachama {{count, number}}",
       "invite": "Alika",
-      "introOrg": "Wanachama waliopangiwa katika ngazi ya shirika. Panua vikundi vilivyo hapa chini kwa ngazi nyingine.",
-      "introLanguage": "Wanachama waliopangiwa katika ngazi ya lugha kwa mwonekano huu. Panua vikundi vilivyo hapa chini kwa ngazi nyingine.",
+      "introOrg": "Watu ambao jukumu lao linahusu kila lugha. Fungua kikundi hapa chini kuona watu wa kila lugha.",
+      "introLanguage": "Watu wenye jukumu katika lugha hii. Fungua kikundi hapa chini kuona wengine.",
       "sectionOrg": "Wanachama wa shirika · {{total}}",
       "sectionLanguage": "Wanachama wa lugha · {{total}}",
       "pending": "Inasubiri",
-      "none": "Bado hakuna wanachama waliopangiwa katika ngazi hii.",
+      "none": "Bado hakuna mwenye jukumu hapa.",
       "expandBy": "Panua kwa",
       "byLanguage": "Kwa lugha",
-      "higher": "Ngazi za juu · kutazama tu",
+      "higher": "Kila lugha · kuangalia tu",
       "memberHelp": "Hufungua jukumu lake na mahali linapohusika, ili ubadilishe.",
       "lockedHelp": "Huruhusiwi kubadilisha jukumu la mtu huyu kutoka hapa.",
       "requestHelp": "Anataka kujiunga. Hufungua ombi lake: mruhusu aingie, au kataa.",
@@ -839,9 +839,9 @@
     "assign": {
       "noRoles": "Hakuna majukumu yanayopatikana hapa.",
       "where": "Wapi?",
-      "whereHelp": "Mahali ambapo mtu huyu anaweza kutumia ruhusa za jukumu lililochaguliwa.",
+      "whereHelp": "Mahali mtu huyu anaweza kufanya kile jukumu linaruhusu.",
       "language": "Lugha",
-      "languageHelp": "Lugha ambayo upangaji huu unahusu.",
+      "languageHelp": "Jukumu ni kwa lugha gani.",
       "noLanguages": "Bado hakuna lugha.",
       "orgHelp": "Jukumu linahusika katika shirika zima.",
       "languageLevelHelp": "Jukumu linahusika katika lugha moja, inayochaguliwa hapa chini.",
@@ -869,18 +869,18 @@
     },
     "member": {
       "isNow": "{{name}} sasa ni {{role}}",
-      "removedOrg": "{{name}} ameondolewa katika ngazi ya shirika",
-      "removedLanguage": "{{name}} ameondolewa katika ngazi ya lugha",
+      "removedOrg": "{{name}} hana tena jukumu katika kila lugha",
+      "removedLanguage": "{{name}} hana tena jukumu katika lugha hii",
       "declined": "Ombi la {{name}} limekataliwa",
       "editTitle": "Hariri Mwanachama",
       "notMember": "Si mwanachama hapa",
       "notMemberSub": "Mtu huyu hana jukumu tena katika shirika hili.",
       "awaiting": "Anasubiri kuidhinishwa",
       "assignRole": "Mpe Jukumu",
-      "saveAssignment": "Hifadhi Upangaji",
+      "saveAssignment": "Hifadhi jukumu",
       "decline": "Kataa",
-      "introPending": "Mtu huyu amefungua akaunti na kuomba kujiunga. Mpe jukumu na eneo ili apate ruhusa.",
-      "intro": "Chagua jukumu, kisha chagua eneo ambalo upangaji huu unahusu. Eneo linaweza kuwa ngazi hii au chini yake.",
+      "introPending": "Mtu huyu alifungua akaunti na akaomba kujiunga. Chagua jukumu lake na linapotumika ili umruhusu aingie.",
+      "intro": "Chagua jukumu, kisha linapotumika.",
       "outranked": "{{name}} ana mamlaka zaidi hapa kuliko wewe, kwa hiyo ni mtu mwenye mamlaka sawa tu anayeweza kubadilisha hili.",
       "onlyManager": "{{name}} ndiye pekee anayeweza kusimamia majukumu",
       "onlyManagerYou": "Wewe ndiye pekee unayeweza kusimamia majukumu",
@@ -918,8 +918,6 @@
       "pickRole": "Chagua jukumu ambalo mtu huyu anapaswa kuwa nalo. Huhitaji barua pepe yake.",
       "alreadyTitle": "Tayari yuko kwenye timu, akiwa na kifaa kipya?",
       "alreadyBody": "Mfungue katika Wanachama na uguse Msaidie kuingia. Mwaliko mpya ungetengeneza akaunti ya pili.",
-      "privileges_one": "Ruhusa {{count, number}}",
-      "privileges_other": "Ruhusa {{count, number}}",
       "noRoles": "Bado hakuna majukumu.",
       "createRole": "Unda jukumu jipya",
       "one": "Mtu mmoja",
@@ -945,7 +943,9 @@
       "doneHelp": "Umemaliza: hufungua orodha ya wanachama.",
       "nameFieldHelp": "Msimbo ni kwa ajili ya nani. Analiona jina hili anapousoma.",
       "groupNameFieldHelp": "Jina la kikundi. Kila anayeusoma msimbo analiona.",
-      "shareHelp": "Hutuma kiungo cha mwaliko kwa ujumbe, au hukinakili."
+      "shareHelp": "Hutuma kiungo cha mwaliko kwa ujumbe, au hukinakili.",
+      "privileges_one": "Ruhusa {{count, number}}",
+      "privileges_other": "Ruhusa {{count, number}}"
     },
     "newLanguage": {
       "theOrganization": "shirika",
@@ -2240,19 +2240,19 @@
     "privileges": {
       "manageStructure": {
         "label": "Simamia Muundo wa Shirika",
-        "desc": "Badilisha muundo wa shirika katika eneo lao (lugha)"
+        "desc": "Kuongeza na kubadilisha lugha mahali jukumu lao linapotumika"
       },
       "inviteMembers": {
         "label": "Alika watu",
-        "desc": "Alika watu katika eneo lao"
+        "desc": "Kualika watu mahali jukumu lao linapotumika"
       },
       "manageRoles": {
         "label": "Tengeneza na badilisha majukumu",
-        "desc": "Unda na hariri majukumu katika eneo lao"
+        "desc": "Kutengeneza na kubadilisha majukumu mahali jukumu lao linapotumika"
       },
       "manageTemplates": {
         "label": "Simamia Violezo vya Maudhui",
-        "desc": "Tengeneza na hariri violezo vya maudhui katika eneo lao"
+        "desc": "Kutengeneza na kubadilisha violezo vya maudhui mahali jukumu lao linapotumika"
       },
       "shapeTemplates": {
         "label": "Rekebisha Violezo vya Maudhui",
@@ -2260,7 +2260,7 @@
       },
       "manageReference": {
         "label": "Chagua Biblia na miongozo",
-        "desc": "Tengeneza na hariri nyenzo za marejeo katika eneo lao"
+        "desc": "Kutengeneza na kubadilisha vifaa vya marejeo mahali jukumu lao linapotumika"
       },
       "manageFlows": {
         "label": "Simamia Mitiririko ya Ukaguzi",
@@ -2268,11 +2268,11 @@
       },
       "manageTeams": {
         "label": "Simamia Timu za Ukaguzi",
-        "desc": "Tengeneza na hariri timu za ukaguzi (vikundi) katika eneo lao"
+        "desc": "Kutengeneza na kubadilisha timu za ukaguzi mahali jukumu lao linapotumika"
       },
       "assignWork": {
         "label": "Gawa kazi",
-        "desc": "Omba mtu yeyote katika eneo lao arekodi au akague kifungu"
+        "desc": "Kumwomba yeyote mahali jukumu lao linapotumika arekodi au akague kifungu"
       },
       "overrideCheckpoints": {
         "label": "Ruhusu kazi ipite ukaguzi uliofungwa",
@@ -2296,7 +2296,7 @@
       },
       "viewStatus": {
         "label": "Ona kazi ya kila mtu",
-        "desc": "Ona ramani na kumbukumbu za vifungu kwa kusoma tu katika eneo lao"
+        "desc": "Kuona ramani na kumbukumbu za vifungu, bila kuzibadilisha, mahali jukumu lao linapotumika"
       }
     },
     "privilegeGroups": {
@@ -2366,21 +2366,21 @@
     "roles": {
       "title": "Majukumu",
       "addRole": "Jukumu",
-      "introOrg": "Majukumu ni seti za ruhusa zisizo na eneo maalum. Eneo huchaguliwa wakati wa kumpa mwanachama jukumu. Majukumu yanayoundwa hapa yanaweza kutolewa katika ngazi yoyote.",
-      "introLanguage": "Majukumu ni seti za ruhusa zisizo na eneo maalum. Eneo huchaguliwa wakati wa kumpa mwanachama jukumu. Majukumu yamefafanuliwa kwa shirika zima, kwa hiyo hapa ni ya kutazama tu. Yahariri kutoka ukurasa mkuu wa Shirika.",
+      "introOrg": "Jukumu ni kile mtu anaweza kufanya. Mahali anapoweza kukifanya huchaguliwa anapopewa jukumu: katika kila lugha, au katika moja.",
+      "introLanguage": "Jukumu ni kile mtu anaweza kufanya. Majukumu ni ya shirika lote, kwa hiyo hapa unaweza kuangalia tu. Yabadilishe kutoka Nyumbani kwa Shirika.",
       "loading": "Inapakia majukumu…",
       "empty": "Bado hakuna majukumu",
       "emptySub": "Tengeneza moja kwa kila njia watu wanayosaidia: wanachoweza kufanya, si wapi.",
       "definedAtOrg": "Limefafanuliwa katika Shirika",
-      "inheritedSub": "Kutazama tu · hariri kutoka ngazi lilipofafanuliwa",
+      "inheritedSub": "Kuangalia tu · libadilishe kutoka Nyumbani kwa Shirika",
       "members_one": "Mwanachama {{count, number}}",
       "members_other": "Wanachama {{count, number}}",
-      "privileges_one": "Ruhusa {{count, number}}",
-      "privileges_other": "Ruhusa {{count, number}}",
       "addRoleHelp": "Hutengeneza jukumu jipya: seti ya mambo ambayo watu wake wanaruhusiwa kufanya.",
       "ownRoleHelp": "Hufungua kile watu wake wanaruhusiwa kufanya, na nani analo. Nyota: shirika lako lililitengeneza.",
       "builtInRoleHelp": "Hufungua kile watu wake wanaruhusiwa kufanya, na nani analo. Linakuja na programu.",
-      "inheritedRoleHelp": "Huonyesha kile watu wake wanaruhusiwa kufanya. Libadilishe kutoka ukurasa mkuu wa Shirika."
+      "inheritedRoleHelp": "Huonyesha kile watu wake wanaruhusiwa kufanya. Libadilishe kutoka ukurasa mkuu wa Shirika.",
+      "privileges_one": "Ruhusa {{count, number}}",
+      "privileges_other": "Ruhusa {{count, number}}"
     },
     "roleEditor": {
       "title": "Jukumu",
@@ -2392,7 +2392,7 @@
       "aNewRole": "Jukumu jipya",
       "people_one": "Mtu {{count, number}}",
       "people_other": "Watu {{count, number}}",
-      "inheritedBody": "Limefafanuliwa katika ngazi ya shirika. Lihariri kutoka ukurasa mkuu wa Shirika.",
+      "inheritedBody": "Limetengenezwa kwa shirika lote. Libadilishe kutoka Nyumbani kwa Shirika.",
       "noPermission": "Huna ruhusa ya kuhariri jukumu hili.",
       "nameLabel": "Linaitwaje?",
       "namePlaceholder": "k.m. Mtafsiri wa tafsiri rejeshi",
@@ -2566,7 +2566,6 @@
       "concepts_other": "Dhana {{count, number}}",
       "addLanguageFirst": "Ongeza lugha kwanza",
       "libraryOrg": "Maktaba · shirika lako",
-      "new": "Mpya",
       "libraryEmpty": "Bado hakuna kitu katika maktaba yako. Fuata au nakili kile mashirika mengine yanashiriki, au chapisha chako.",
       "writeGuide": "Andika mwongozo",
       "writeGuideSub": "Hatua zenye maandishi na sauti, picha, ramani na maneno muhimu",
@@ -2593,10 +2592,15 @@
       "biblesHelp": "Hufungua Biblia ambazo watafsiri wanasikia na kusoma, na zipi zinapendekezwa.",
       "guidesNotesHelp": "Hufungua miongozo ya kujifunza na madokezo ambayo watafsiri wanapata, na yapi yanapendekezwa.",
       "keyTermsHelp": "Hufungua kila dhana na jinsi lugha hii inavyoisema.",
-      "newHelp": "Huanzisha nyenzo mpya katika maktaba yako.",
       "libraryItemHelp": "Huifungua: kilichomo, na jinsi inavyoshirikiwa.",
       "openMaterialHelp": "Huifungua, ili uisome au uibadilishe.",
-      "openLockedHelp": "Huifungua. Imefungwa: watu wanaosimamia nyenzo za marejeo tu ndio wanaweza kuibadilisha."
+      "openLockedHelp": "Huifungua. Imefungwa: watu wanaosimamia nyenzo za marejeo tu ndio wanaweza kuibadilisha.",
+      "add": {
+        "here": "Miongozo, muhtasari au maswali",
+        "hereSub": "Huandikwa hapa, sehemu kwa sehemu; maswali ya ukaguzi huenda kwenye aina ya ukaguzi",
+        "byVerses": "Dokezo lililowekwa kwa mistari",
+        "byVersesSub": "Huenda kwenye maktaba, na hufikia vifungu ambavyo mistari yake au sehemu za kiolezo zimo"
+      }
     },
     "material": {
       "editTitle": "Hariri Nyenzo",
@@ -2908,7 +2912,7 @@
       "title": "Soma msimbo",
       "subSignIn": "Msimbo kutoka kwa mtu anayekusaidia kuingia",
       "subGuest": "Hakuna barua pepe wala nenosiri linalohitajika",
-      "subMember": "Mwaliko una shirika, jukumu, na eneo",
+      "subMember": "Mwaliko unasema shirika, jukumu na lugha gani",
       "notCode": "Huu si msimbo wa LangQuest.",
       "notQr": "Msimbo huu wa QR si msimbo wa LangQuest.",
       "cameraOff": "Ruhusa ya kamera imezimwa. Unaweza kubandika msimbo hapa chini.",
@@ -6452,22 +6456,19 @@
     "rec": {
       "recommended": "Inapendekezwa",
       "notRecommended": "Haipendekezwi",
-      "hiddenForLanguage": "Imefichwa kwa lugha hii",
+      "notHere": "Haipendekezwi hapa",
       "forLanguage": "Inapendekezwa kwa lugha hii",
       "byOrganization": "Inapendekezwa na shirika",
       "stop": "Acha kupendekeza",
       "recommend": "Pendekeza",
-      "follow": "Fuata shirika",
-      "hide": "Ficha",
+      "recommendHere": "Pendekeza hapa",
+      "stopHere": "Acha kupendekeza hapa",
       "done": {
         "recommendedEverywhere": "{{name}} inapendekezwa kwa kila lugha.",
         "recommendedHere": "{{name}} inapendekezwa kwa timu ya lugha hii.",
         "stopped": "{{name}} haipendekezwi tena.",
-        "hidden": "{{name}} imefichwa kwa lugha hii.",
-        "follows": "{{name}} inafuata shirika hapa."
+        "stoppedHere": "{{name}} haipendekezwi tena kwa timu ya lugha hii."
       },
-      "followHelp": "Lugha hii inarudi kwenye kile shirika linachopendekeza.",
-      "hideHelp": "Timu ya lugha hii inaacha kuipata, ingawa shirika linaipendekeza.",
       "recommendLanguageHelp": "Timu ya lugha hii inaipata kama pendekezo.",
       "recommendOrgHelp": "Timu ya kila lugha inaipata kama pendekezo.",
       "stopLanguageHelp": "Timu ya lugha hii inaacha kuipata kama pendekezo.",
@@ -6532,7 +6533,7 @@
       "noneRecommendedAdd": "Bado hakuna Biblia inayopendekezwa hapa. Ongeza moja.",
       "noneRecommendedBelow": "Bado hakuna Biblia inayopendekezwa hapa. Pendekeza moja hapa chini.",
       "noneRecommendedYet": "Bado hakuna Biblia inayopendekezwa hapa.",
-      "hidden": "Zilizofichwa kwa lugha hii · {{n, number}}",
+      "hidden": "Haipendekezwi hapa · {{n, number}}",
       "notRecommended": "Katika maktaba yako, hazipendekezwi · {{n, number}}",
       "cardHelp": "Huifungua: maandishi yake, sauti, nyakati za mistari na inapendekezwa kwa nani."
     },
@@ -6553,7 +6554,6 @@
       "bibleBrainHelp": "Tafuta Biblia kwa lugha katika Bible Brain.",
       "bibleHelp": "Huonyesha ilicho nacho kabla hujaiongeza.",
       "fromLangQuestHelp": "Huonyesha Biblia ambazo LangQuest inazo tayari kufuatwa.",
-      "readyHelp": "Huiongeza kwenye maktaba yako na kuipendekeza hapa.",
       "searchHelp": "Andika jina au msimbo wa lugha ili kupata Biblia zake.",
       "listed": "Lugha zenye Biblia katika Bible Brain pekee ndizo zinaonyeshwa.",
       "noMatch": "Hakuna lugha kwa jina hilo yenye Biblia katika Bible Brain.",

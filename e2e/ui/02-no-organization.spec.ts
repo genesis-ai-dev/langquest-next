@@ -124,7 +124,7 @@ test('NOORG-002 The cards and "Look around first" lead where they say', async ({
   await onJoinYourTeam(page);
   await text(page, 'Scan their code').click();
   await expect(text(page, 'Scan a code')).toBeVisible();
-  await expect(text(page, 'Invite includes organization, role, and scope')).toBeVisible();
+  await expect(text(page, 'The invite says which organization, role and language')).toBeVisible();
   await back(page).click();
   await expect(text(page, 'Join your team')).toBeVisible();
   await text(page, 'Find your organization').click();

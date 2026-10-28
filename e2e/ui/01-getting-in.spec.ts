@@ -585,7 +585,7 @@ test('AUTH-032 An invite nobody claimed is offered after signing in', async ({ p
   await onSignIn(page);
   await expect(text(page, 'Sign in to join')).toBeHidden();
   await signInWithForm(page, trev.email, trev.password!);
-  await expect(text(page, 'Invite includes organization, role, and scope')).toBeVisible({ timeout: 60_000 });
+  await expect(text(page, 'The invite says which organization, role and language')).toBeVisible({ timeout: 60_000 });
   await expect(text(page, 'Invite for Translator Two')).toBeVisible();
   await expect(button(page, `Join as ${trev.name}`)).toBeVisible();
   await expect(button(page, `Not ${trev.name}? Sign out first`)).toBeVisible();
@@ -609,7 +609,7 @@ test('AUTH-033 A signed-in member joins with "Join as"', async ({ page }) => {
   await expect(text(page, 'Join your team')).toBeVisible({ timeout: 60_000 });
   await text(page, 'Scan their code').click();
   await paste(page, PASTE, invite.link);
-  await expect(text(page, 'Invite includes organization, role, and scope')).toBeVisible();
+  await expect(text(page, 'The invite says which organization, role and language')).toBeVisible();
   await expect(button(page, 'Join as Nadia Fresh')).toBeVisible();
   await expect(button(page, 'Not Nadia Fresh? Sign out first')).toBeVisible();
   await expect(button(page, 'Not now')).toBeVisible();

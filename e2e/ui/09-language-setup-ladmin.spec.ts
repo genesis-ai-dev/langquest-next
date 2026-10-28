@@ -154,7 +154,7 @@ test('SETUP-064 LADMIN\'s Bibles: recommendations are Alpha\'s; adding one to th
   await expectOnScreen(page, 'Bibles', 'What this language’s team is offered');
   // Adding a Bible follows LangQuest's or publishes Bible Brain's in the organization's library.
   await expect(button(page, 'Add a Bible')).toHaveCount(0);
-  // The local library has no Bible (no source@1 is seeded): Hide, Follow organization and Recommend need the preview environment.
+  // The local library has no Bible (no source@1 is seeded): Recommend here and Stop recommending here need the preview environment.
   await expectOrgSent(page, w);
   expect(await orgRefused(page, w)).toEqual([]);
 });
@@ -165,8 +165,8 @@ test('SETUP-065 LADMIN\'s guides and material are Alpha\'s own', async ({ page }
   await alphaPage(page);
   await referenceLibrary(page);
   await expectNotOnScreen(page, 'Write a guide');
-  await expect(button(page, 'New')).toHaveCount(0);
   await expect(button(page, 'Follow')).toHaveCount(0);
+  // One kind to make, so Add material opens it at once (UI audit, finding 59).
   await primary(page).click();
   await expectNotOnScreen(page, 'Where it applies', 'All languages');
   await field(page, 'Title').fill(title);

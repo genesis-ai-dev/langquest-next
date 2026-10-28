@@ -594,7 +594,7 @@ Steps:
 
 Expected:
 - Step 2: Sign In shows no "Sign in to join" banner. After signing in, the app goes to "Scan a code" by itself:
-  - The subtitle reads "Invite includes organization, role, and scope".
+  - The subtitle reads "The invite says which organization, role and language".
   - The invite card shows.
   - The footer has "Join as {TRANS's name}" and "Not {TRANS's name}? Sign out first", and "Not now" is under the field.
 - Nothing joins without a tap.
@@ -613,7 +613,7 @@ Steps:
 3. Tap "Join as {NOORG's name}".
 
 Expected:
-- The subtitle reads "Invite includes organization, role, and scope".
+- The subtitle reads "The invite says which organization, role and language".
 - The footer has "Join as {NOORG's name}" and "Not {NOORG's name}? Sign out first". "Not now" shows under the field. No terms line shows.
 - While it works, the button reads "Joining…". Then UI Test Org opens on the welcome: "You're a Translator on the Alpha team at UI Test Org."
 - No "Nothing to remember" banner shows.

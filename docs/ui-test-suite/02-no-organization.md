@@ -62,7 +62,7 @@ Steps:
 4. Tap "Look around first", then the back arrow.
 
 Expected:
-- Step 1: "Scan a code" with "Invite includes organization, role, and scope". On a phone the camera starts by itself (permission is allowed, G5).
+- Step 1: "Scan a code" with "The invite says which organization, role and language". On a phone the camera starts by itself (permission is allowed, G5).
 - Step 2: "Find your organization" with a search field, "Name or language".
 - Step 3: "Create Organization".
 - Step 4: "Explore", with no "Sign In" in the header.

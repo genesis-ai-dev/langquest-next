@@ -66,12 +66,12 @@ test('PEOPLE-032 Roles, for an organization admin', async ({ page }) => {
   await expect(text(page, 'Roles')).toBeVisible();
   await expect(text(page, 'Organization')).toBeVisible();
   await expect(button(page, 'Role')).toBeVisible();
-  await expect(text(page, 'Roles are privilege sets without a fixed scope. Scope is chosen when assigning a role to a member. Roles created here can be assigned at any level.')).toBeVisible();
+  await expect(text(page, 'A role is what someone may do. Where they may do it is chosen when someone is given the role: in every language, or in one.')).toBeVisible();
   // The seed roles first, then the organization's own by name; Translator has Review since decision 91.
   // The heading draws before the rows and their member counts, so the list is read until it settles.
   await expect.poll(async () => (await between(page, 'Defined at Organization', null)).trim()).toBe([
-    'Organization Admin 1 member · 15 privileges', 'Coordinator 1 member · 14 privileges', 'Translator 2 members · 5 privileges',
-    'Reviewer 1 member · 2 privileges', 'Viewer 1 member · 1 privilege', 'Language Lead 1 member · 13 privileges', 'Translator-Reviewer 1 member · 5 privileges'
+    'Organization Admin 1 member · 15 permissions', 'Coordinator 1 member · 14 permissions', 'Translator 2 members · 5 permissions',
+    'Reviewer 1 member · 2 permissions', 'Viewer 1 member · 1 permission', 'Language Lead 1 member · 13 permissions', 'Translator-Reviewer 1 member · 5 permissions'
   ].join(' '));
   expect(await screenText(page)).not.toContain(`Retired ${run()}`);
 });
@@ -114,7 +114,7 @@ test('PEOPLE-034 Make a new role', async ({ page, browser }) => {
   await primary(page).click();
   await expectToast(page, `${elder} created.`);
   await expect(text(page, elder)).toBeVisible();
-  expect(await between(page, elder, null)).toMatch(/^ 0 members · 3 privileges/);
+  expect(await between(page, elder, null)).toMatch(/^ 0 members · 3 permissions/);
 
   // Offered under "Other roles" wherever the inviter holds what it gives.
   for (const [who, lead] of [['ADMIN', false], ['COORD', false], ['LADMIN', true]] as const) {
@@ -154,7 +154,7 @@ test('PEOPLE-035 Edit a role, partly-on switches, and change it back', async ({ 
   await expectToast(page, `${elders} saved.`);
   await expect(text(page, elders)).toBeVisible();
   // Off then on again sets every privilege it covers: still three.
-  expect(await between(page, elders, null)).toMatch(/^ 0 members · 3 privileges/);
+  expect(await between(page, elders, null)).toMatch(/^ 0 members · 3 permissions/);
   // No toast offers Undo (decision 134): the role is opened again and its old name saved.
   await text(page, elders).click();
   await field(page, 'Its name').fill(elder);
@@ -229,11 +229,11 @@ test('PEOPLE-038 Roles at a language are view only', async ({ page }) => {
   await expect(text(page, /Roles are defined for the whole organization, so here they are view only\. Edit them from Organization Home\.$/)).toBeVisible();
   const list = await between(page, 'Defined at Organization', null);
   for (const r of ['Organization Admin', 'Coordinator', 'Translator', 'Reviewer', 'Viewer', 'Language Lead', 'Translator-Reviewer']) {
-    expect(list).toContain(`${r} View only · edit from the level where it was defined View only`);
+    expect(list).toContain(`${r} View only · change it from Organization Home View only`);
   }
   await text(page, 'Language Lead').click();
   await expect(text(page, 'View only')).toBeVisible();
-  await expect(text(page, 'Defined at the organization level. Edit it from Organization Home.')).toBeVisible();
+  await expect(text(page, 'Made for the whole organization. Change it from Organization Home.')).toBeVisible();
   await expect(text(page, 'Save')).toHaveCount(0);
 });
 

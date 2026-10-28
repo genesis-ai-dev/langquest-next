@@ -682,8 +682,6 @@
       "reference": "Kayan Bincike",
       "flows": "Tsare-tsaren Bita",
       "roles": "Matsayai",
-      "rolesSub_one": "Matsayi {{count, number}} a wannan mataki da sama",
-      "rolesSub_other": "Matsayai {{count, number}} a wannan mataki da sama",
       "summary": {
         "templates": "Samfuran abun ciki",
         "referenceFirst": "Kayan Bincike",
@@ -705,15 +703,17 @@
         "questions_other": "Rukunonin tambayoyi {{count, number}}",
         "terms_one": "Babbar kalma {{count, number}}",
         "terms_other": "Manyan kalmomi {{count, number}}"
-      }
+      },
+      "rolesSub_one": "Matsayi {{count, number}}",
+      "rolesSub_other": "Matsayi {{count, number}}"
     },
     "people": {
       "title": "Mutane",
       "members": "Membobi",
-      "assignedHere_one": "{{count, number}} an sanya a wannan harshe",
-      "assignedHere_other": "{{count, number}} an sanya a wannan harshe",
-      "orgSub": "{{here}} a matakin ƙungiya · {{total}} gaba ɗaya",
-      "membersHelp": "Yana buɗe mutane da matsayinsu, don gayyatar wani ko canja matsayi."
+      "orgSub": "{{here}} a kowane harshe · {{total}} gaba ɗaya",
+      "membersHelp": "Yana buɗe mutane da matsayinsu, don gayyatar wani ko canja matsayi.",
+      "assignedHere_one": "{{count, number}} mai matsayi a wannan harshe",
+      "assignedHere_other": "{{count, number}} masu matsayi a wannan harshe"
     },
     "home": {
       "title": "Ƙungiya",
@@ -819,15 +819,15 @@
       "count_one": "Memba {{count, number}}",
       "count_other": "Membobi {{count, number}}",
       "invite": "Gayyata",
-      "introOrg": "Membobin da aka sanya a iyakar ƙungiya. Ku buɗe rukunonin da ke ƙasa don sauran matakai.",
-      "introLanguage": "Membobin da aka sanya a iyakar harshe don wannan gani. Ku buɗe rukunonin da ke ƙasa don sauran matakai.",
+      "introOrg": "Mutanen da matsayinsu ya shafi kowane harshe. Buɗe rukuni a ƙasa don ganin na kowane harshe.",
+      "introLanguage": "Mutanen da ke da matsayi a wannan harshe. Buɗe rukuni a ƙasa don ganin sauran.",
       "sectionOrg": "Membobin ƙungiya · {{total}}",
       "sectionLanguage": "Membobin harshe · {{total}}",
       "pending": "Ana jira",
-      "none": "Ba a sanya wani memba a wannan mataki ba tukuna.",
+      "none": "Babu wanda ke da matsayi a nan tukuna.",
       "expandBy": "Buɗe bisa",
       "byLanguage": "Bisa harshe",
-      "higher": "Manyan matakai · kallo kawai",
+      "higher": "Kowane harshe · kallo kawai",
       "memberHelp": "Yana buɗe matsayinsu da inda ya shafa, don canja su.",
       "lockedHelp": "Ba za ku iya canja matsayin wannan mutum daga nan ba.",
       "requestHelp": "Suna neman shiga. Yana buɗe buƙatarsu: ku bar su su shiga, ko ku ƙi.",
@@ -839,9 +839,9 @@
     "assign": {
       "noRoles": "Babu matsayai a nan.",
       "where": "A ina?",
-      "whereHelp": "Inda wannan mutum zai iya amfani da izinan matsayin da aka zaɓa.",
+      "whereHelp": "Inda wannan mutumin zai iya yin abin da matsayin ya ba shi damar yi.",
       "language": "Harshe",
-      "languageHelp": "Harshen da wannan sanyawa ta shafa.",
+      "languageHelp": "Ga wane harshe matsayin yake.",
       "noLanguages": "Babu harsuna tukuna.",
       "orgHelp": "Matsayin yana aiki a dukan ƙungiyar.",
       "languageLevelHelp": "Matsayin yana aiki a harshe ɗaya, wanda za a zaɓa a ƙasa.",
@@ -869,18 +869,18 @@
     },
     "member": {
       "isNow": "{{name}} yanzu {{role}} ne",
-      "removedOrg": "An cire {{name}} a matakin ƙungiya",
-      "removedLanguage": "An cire {{name}} a matakin harshe",
+      "removedOrg": "{{name}} ba shi da matsayi a kowane harshe yanzu",
+      "removedLanguage": "{{name}} ba shi da matsayi a wannan harshe yanzu",
       "declined": "An ƙi buƙatar {{name}}",
       "editTitle": "Gyara Memba",
       "notMember": "Ba memba ba ne a nan",
       "notMemberSub": "Wannan mutum ba shi da matsayi a wannan ƙungiya yanzu.",
       "awaiting": "Yana jiran amincewa",
       "assignRole": "Ba da Matsayi",
-      "saveAssignment": "Ajiye Sanyawa",
+      "saveAssignment": "Ajiye matsayi",
       "decline": "Ƙi",
-      "introPending": "Wannan mutum ya buɗe asusu ya nemi shiga. Ku ba da matsayi da iyaka don ba su izinin shiga.",
-      "intro": "Ku zaɓi matsayi, sannan ku zaɓi iyakar da wannan sanyawa ta shafa. Iyaka za ta iya zama wannan mataki ko ƙasa da shi.",
+      "introPending": "Wannan mutumin ya buɗe asusu ya nemi shiga. Zaɓi matsayinsa da inda zai yi aiki don ka bar shi ya shiga.",
+      "intro": "Zaɓi matsayi, sannan inda zai yi aiki.",
       "outranked": "{{name}} na da iko fiye da ku a nan, don haka sai wanda ke da iko daidai da haka ne zai iya canja wannan.",
       "onlyManager": "{{name}} ne kaɗai zai iya sarrafa matsayi",
       "onlyManagerYou": "Kai kaɗai ne za ka iya sarrafa matsayi",
@@ -918,8 +918,6 @@
       "pickRole": "Ku zaɓi matsayin da ya kamata wannan mutum ya samu. Ba ku buƙatar imel ɗinsu.",
       "alreadyTitle": "Yana cikin tawagar tuni, da sabuwar na'ura?",
       "alreadyBody": "Ku buɗe su a Membobi ku taɓa Taimaka musu shiga. Sabuwar gayyata za ta yi asusu na biyu.",
-      "privileges_one": "Izini {{count, number}}",
-      "privileges_other": "Izinai {{count, number}}",
       "noRoles": "Babu matsayai tukuna.",
       "createRole": "Ƙirƙiri sabon matsayi",
       "one": "Mutum ɗaya",
@@ -945,7 +943,9 @@
       "doneHelp": "An gama: yana buɗe jerin membobi.",
       "nameFieldHelp": "Wanda za a ba lambar. Za su ga sunan idan sun karanta ta.",
       "groupNameFieldHelp": "Suna don rukunin. Duk wanda ya karanta lambar zai gan shi.",
-      "shareHelp": "Yana aika mahaɗin gayyatar a saƙo, ko ya kwafa shi."
+      "shareHelp": "Yana aika mahaɗin gayyatar a saƙo, ko ya kwafa shi.",
+      "privileges_one": "Izini {{count, number}}",
+      "privileges_other": "Izini {{count, number}}"
     },
     "newLanguage": {
       "theOrganization": "ƙungiyar",
@@ -2240,19 +2240,19 @@
     "privileges": {
       "manageStructure": {
         "label": "Kula da Tsarin Ƙungiya",
-        "desc": "Canja tsarin ƙungiya a cikin iyakarsu (harsuna)"
+        "desc": "Ƙara da canza harsuna inda matsayinsu ke aiki"
       },
       "inviteMembers": {
         "label": "Gayyaci mutane",
-        "desc": "Gayyaci mutane a cikin iyakarsu"
+        "desc": "Gayyatar mutane inda matsayinsu ke aiki"
       },
       "manageRoles": {
         "label": "Yi da canja matsayai",
-        "desc": "Ƙirƙira da gyara matsayai a cikin iyakarsu"
+        "desc": "Yin da canza matsayi inda matsayinsu ke aiki"
       },
       "manageTemplates": {
         "label": "Kula da Samfuran Abun Ciki",
-        "desc": "Yi da gyara samfuran abun ciki a cikin iyakarsu"
+        "desc": "Yin da canza samfuran abun ciki inda matsayinsu ke aiki"
       },
       "shapeTemplates": {
         "label": "Tsara Samfuran Abun Ciki",
@@ -2260,7 +2260,7 @@
       },
       "manageReference": {
         "label": "Zaɓi Littattafai Masu Tsarki da jagorori",
-        "desc": "Yi da gyara kayan bincike a cikin iyakarsu"
+        "desc": "Yin da canza kayan bayani inda matsayinsu ke aiki"
       },
       "manageFlows": {
         "label": "Kula da Tsare-tsaren Bita",
@@ -2268,11 +2268,11 @@
       },
       "manageTeams": {
         "label": "Kula da Tawagogin Bita",
-        "desc": "Yi da gyara tawagogin bita (rukunoni) a cikin iyakarsu"
+        "desc": "Yin da canza ƙungiyoyin bita inda matsayinsu ke aiki"
       },
       "assignWork": {
         "label": "Ba da aiki",
-        "desc": "Roƙi kowa a cikin iyakarsu ya naɗa ko ya yi bitar nassi"
+        "desc": "Neman kowa inda matsayinsu ke aiki ya naɗa ko ya yi bitar sashe"
       },
       "overrideCheckpoints": {
         "label": "Bari aiki ya wuce dubawar da aka kulle",
@@ -2296,7 +2296,7 @@
       },
       "viewStatus": {
         "label": "Ga aikin kowa",
-        "desc": "Ga taswira da tarihin nassosi don karantawa kawai a cikin iyakarsu"
+        "desc": "Ganin taswira da bayanan sassa, ba tare da canza su ba, inda matsayinsu ke aiki"
       }
     },
     "privilegeGroups": {
@@ -2366,21 +2366,21 @@
     "roles": {
       "title": "Matsayai",
       "addRole": "Matsayi",
-      "introOrg": "Matsayai rukunonin izinai ne ba tare da tsayayyar iyaka ba. Ana zaɓar iyaka lokacin ba wa memba matsayi. Ana iya ba da matsayan da aka ƙirƙira a nan a kowane mataki.",
-      "introLanguage": "Matsayai rukunonin izinai ne ba tare da tsayayyar iyaka ba. Ana zaɓar iyaka lokacin ba wa memba matsayi. An ayyana matsayai don dukan ƙungiyar, don haka a nan kallo kawai ake yi. Ku gyara su daga Shafin Ƙungiya.",
+      "introOrg": "Matsayi shi ne abin da mutum zai iya yi. Inda zai iya yin sa ana zaɓa lokacin da aka ba shi matsayin: a kowane harshe, ko a ɗaya.",
+      "introLanguage": "Matsayi shi ne abin da mutum zai iya yi. Matsayi na dukan ƙungiyar ne, don haka a nan kallo kawai za ka iya. Canza su daga Gidan ƙungiya.",
       "loading": "Ana loda matsayai…",
       "empty": "Babu matsayai tukuna",
       "emptySub": "Ku yi ɗaya don kowace hanyar da mutane suke taimakawa: abin da za su iya yi, ba inda ba.",
       "definedAtOrg": "An ayyana a Ƙungiya",
-      "inheritedSub": "Kallo kawai · ku gyara daga matakin da aka ayyana shi",
+      "inheritedSub": "Kallo kawai · canza shi daga Gidan ƙungiya",
       "members_one": "Memba {{count, number}}",
       "members_other": "Membobi {{count, number}}",
-      "privileges_one": "Izini {{count, number}}",
-      "privileges_other": "Izinai {{count, number}}",
       "addRoleHelp": "Yana yin sabon matsayi: rukunin abubuwan da mutanensa za su iya yi.",
       "ownRoleHelp": "Yana buɗe abin da mutanensa za su iya yi, da waɗanda suke da shi. Alamar tauraro: ƙungiyarku ce ta yi shi.",
       "builtInRoleHelp": "Yana buɗe abin da mutanensa za su iya yi, da waɗanda suke da shi. Yana zuwa tare da manhajar.",
-      "inheritedRoleHelp": "Yana nuna abin da mutanensa za su iya yi. Ku canja shi daga Shafin Ƙungiya."
+      "inheritedRoleHelp": "Yana nuna abin da mutanensa za su iya yi. Ku canja shi daga Shafin Ƙungiya.",
+      "privileges_one": "Izini {{count, number}}",
+      "privileges_other": "Izini {{count, number}}"
     },
     "roleEditor": {
       "title": "Matsayi",
@@ -2392,7 +2392,7 @@
       "aNewRole": "Sabon matsayi",
       "people_one": "Mutum {{count, number}}",
       "people_other": "Mutane {{count, number}}",
-      "inheritedBody": "An ayyana a matakin ƙungiya. Ku gyara shi daga Shafin Ƙungiya.",
+      "inheritedBody": "An yi shi don dukan ƙungiyar. Canza shi daga Gidan ƙungiya.",
       "noPermission": "Ba ku da izinin gyara wannan matsayi.",
       "nameLabel": "Me ake kiransa?",
       "namePlaceholder": "misali Mai fassarar baya",
@@ -2566,7 +2566,6 @@
       "concepts_other": "Ma'anoni {{count, number}}",
       "addLanguageFirst": "Ku fara ƙara harshe",
       "libraryOrg": "Ɗakin karatu · ƙungiyarku",
-      "new": "Sabo",
       "libraryEmpty": "Babu komai a ɗakin karatunku tukuna. Ku bi ko ku kwafi abin da wasu ƙungiyoyi suke rabawa, ko ku wallafa naku.",
       "writeGuide": "Rubuta jagora",
       "writeGuideSub": "Matakai da rubutu da sauti, hotuna, taswirori da muhimman kalmomi",
@@ -2593,10 +2592,15 @@
       "biblesHelp": "Yana buɗe Littattafai Masu Tsarki da masu fassara suke ji da karantawa, da waɗanda aka ba da shawararsu.",
       "guidesNotesHelp": "Yana buɗe jagororin nazari da bayanan da masu fassara suke samu, da waɗanda aka ba da shawararsu.",
       "keyTermsHelp": "Yana buɗe kowace ma'ana da yadda wannan harshe yake faɗinta.",
-      "newHelp": "Yana fara sabon kaya a ɗakin karatunku.",
       "libraryItemHelp": "Yana buɗe shi: abin da ke cikinsa, da yadda ake raba shi.",
       "openMaterialHelp": "Yana buɗe shi, don karantawa ko canja shi.",
-      "openLockedHelp": "Yana buɗe shi. A kulle: masu kula da kayan bincike kaɗai ne za su iya canja shi."
+      "openLockedHelp": "Yana buɗe shi. A kulle: masu kula da kayan bincike kaɗai ne za su iya canja shi.",
+      "add": {
+        "here": "Ka’idoji, taƙaitaccen bayani ko tambayoyi",
+        "hereSub": "Ana rubuta shi a nan, sashe-sashe; tambayoyin bita suna zuwa wani nau’in bita",
+        "byVerses": "Bayani da aka sanya ta ayoyi",
+        "byVersesSub": "Yana shiga ɗakin karatu, kuma yana kai wa sassan da ayoyinsa ko sassan samfurinsa suke ciki"
+      }
     },
     "material": {
       "editTitle": "Gyara Kaya",
@@ -2908,7 +2912,7 @@
       "title": "Karanta lamba",
       "subSignIn": "Lamba daga wanda ke taimaka muku shiga",
       "subGuest": "Ba a buƙatar imel ko kalmar sirri",
-      "subMember": "Gayyatar ta ƙunshi ƙungiya, matsayi, da iyaka",
+      "subMember": "Gayyatar tana faɗin wace ƙungiya, matsayi da harshe",
       "notCode": "Wannan ba lambar LangQuest ba ce.",
       "notQr": "Wannan lambar QR ba lambar LangQuest ba ce.",
       "cameraOff": "An kashe izinin kyamara. Kuna iya liƙa lambar a ƙasa.",
@@ -6452,22 +6456,19 @@
     "rec": {
       "recommended": "An ba da shawara",
       "notRecommended": "Ba a ba da shawara ba",
-      "hiddenForLanguage": "An ɓoye don wannan harshe",
+      "notHere": "Ba a ba da shawara a nan ba",
       "forLanguage": "An ba da shawara don wannan harshe",
       "byOrganization": "Ƙungiyar ta ba da shawara",
       "stop": "Daina ba da shawara",
       "recommend": "Ba da shawara",
-      "follow": "Bi ƙungiya",
-      "hide": "Ɓoye",
+      "recommendHere": "Ba da shawara a nan",
+      "stopHere": "Daina ba da shawara a nan",
       "done": {
         "recommendedEverywhere": "An ba da shawarar {{name}} ga kowane harshe.",
         "recommendedHere": "An ba da shawarar {{name}} ga tawagar wannan harshe.",
         "stopped": "Ba a ba da shawarar {{name}} yanzu.",
-        "hidden": "An ɓoye {{name}} don wannan harshe.",
-        "follows": "{{name}} yana bin ƙungiyar a nan."
+        "stoppedHere": "Ba a ba da shawarar {{name}} ga ƙungiyar wannan harshe yanzu."
       },
-      "followHelp": "Wannan harshe yana komawa ga abin da ƙungiyar take ba da shawara.",
-      "hideHelp": "Tawagar wannan harshe ba za ta ƙara samun sa ba, ko da yake ƙungiyar tana ba da shawararsa.",
       "recommendLanguageHelp": "Tawagar wannan harshe tana samun sa a matsayin shawara.",
       "recommendOrgHelp": "Tawagar kowane harshe tana samun sa a matsayin shawara.",
       "stopLanguageHelp": "Tawagar wannan harshe ba za ta ƙara samun sa a matsayin shawara ba.",
@@ -6532,7 +6533,7 @@
       "noneRecommendedAdd": "Ba a ba da shawarar wani Littafi Mai Tsarki a nan ba tukuna. Ku ƙara ɗaya.",
       "noneRecommendedBelow": "Ba a ba da shawarar wani Littafi Mai Tsarki a nan ba tukuna. Ku ba da shawarar ɗaya a ƙasa.",
       "noneRecommendedYet": "Ba a ba da shawarar wani Littafi Mai Tsarki a nan ba tukuna.",
-      "hidden": "An ɓoye don wannan harshe · {{n, number}}",
+      "hidden": "Ba a ba da shawara a nan ba · {{n, number}}",
       "notRecommended": "A ɗakin karatunku, ba a ba da shawara ba · {{n, number}}",
       "cardHelp": "Yana buɗe shi: rubutunsa, sautinsa, lokutan ayoyinsa da waɗanda aka ba su shawararsa."
     },
@@ -6553,7 +6554,6 @@
       "bibleBrainHelp": "Ku nemi Littattafai Masu Tsarki a Bible Brain bisa harshe.",
       "bibleHelp": "Yana nuna abin da yake da shi kafin ku ƙara shi.",
       "fromLangQuestHelp": "Yana nuna Littattafai Masu Tsarki da LangQuest yake da su a shirye don a bi.",
-      "readyHelp": "Yana ƙara shi a ɗakin karatunku kuma yana ba da shawararsa a nan.",
       "searchHelp": "Ku rubuta sunan harshe ko lambarsa don nemo Littattafai Masu Tsarkinsa.",
       "listed": "Harsunan da ke da Littafi Mai Tsarki a Bible Brain kaɗai ake nunawa.",
       "noMatch": "Babu harshe mai wannan suna da ke da Littafi Mai Tsarki a Bible Brain.",

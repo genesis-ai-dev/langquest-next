@@ -33,7 +33,7 @@ import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
-import { Badge, Banner, Card, Chip, ChipRow, EmptyState, Field, Group, Header, HelpInfo, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, SmallBtn } from '../ui/kit';
+import { Badge, Banner, Card, Chip, ChipRow, ChipWrap, EmptyState, Field, Group, Header, HelpInfo, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, SmallBtn } from '../ui/kit';
 import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
@@ -305,15 +305,15 @@ function Editor(props: {
         help={t('guides.editor.publishHelp')} />}>
       {/* Forms keep the reading width; only the steps use the whole window, side by side. */}
       <View style={[{ gap: space.md }, panel === 'steps' ? null : s.reading]}>
-        {/* Tabs within the screen (kit ChipRow): they scroll sideways on a phone instead of shrinking. */}
+        {/* Tabs within the screen wrap (kit ChipWrap, decision 139): scrolled sideways, Glossary sat past a phone's edge (UI audit, finding 61). */}
         <View accessibilityRole="tablist">
-          <ChipRow>
+          <ChipWrap>
             {/* help-each: each tab shows a different part of the guide */}
             {PANELS.map((p) => (
               <Chip key={p.id} icon={p.icon} label={panelLabel(p.id)} on={panel === p.id} onPress={() => setPanel(p.id)} help={panelHelp(p.id)}
-                {...(counts[p.id] !== null ? { count: counts[p.id]! } : {})} />
+                {...(counts[p.id] ? { count: counts[p.id]! } : {})} />
             ))}
-          </ChipRow>
+          </ChipWrap>
         </View>
         {props.newer ? (
           <Banner icon="history" tone="amber" title={t('guides.editor.newer')} body={t('guides.editor.newerBody')} />
@@ -779,7 +779,7 @@ function AudioSlot(props: { ctx: Ctx; label: string; removeLabel: string; record
         <>
           <VoiceNote ctx={ctx} label={props.recordLabel} hash={null}
             onChange={(hash, card) => { if (hash) props.onChange({ hash, format: card?.format ?? 'm4a', ...(card ? { seconds: Math.round(card.durationMs / 1000) } : {}) }); }} />
-          {canPickFiles ? <SmallBtn label={t('guides.audio.upload')} icon="download" help={t('guides.audio.uploadHelp')} onPress={() => void upload()} /> : null}
+          {canPickFiles ? <SmallBtn label={t('guides.audio.upload')} icon="upload" help={t('guides.audio.uploadHelp')} onPress={() => void upload()} /> : null}
         </>
       )}
       {error ? <Text style={txt.error}>{error}</Text> : null}

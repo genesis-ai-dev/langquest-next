@@ -688,9 +688,6 @@
       "reference": "Material de referência",
       "flows": "Fluxos de revisão",
       "roles": "Funções",
-      "rolesSub_one": "{{count, number}} função neste nível e acima",
-      "rolesSub_many": "{{count, number}} de funções neste nível e acima",
-      "rolesSub_other": "{{count, number}} funções neste nível e acima",
       "summary": {
         "templates": "Modelos de conteúdo",
         "referenceFirst": "Material de referência",
@@ -715,16 +712,19 @@
         "terms_one": "{{count, number}} palavra-chave",
         "terms_many": "{{count, number}} palavras-chave",
         "terms_other": "{{count, number}} palavras-chave"
-      }
+      },
+      "rolesSub_one": "{{count, number}} função",
+      "rolesSub_many": "{{count, number}} funções",
+      "rolesSub_other": "{{count, number}} funções"
     },
     "people": {
       "title": "Pessoas",
       "members": "Membros",
-      "assignedHere_one": "{{count, number}} atribuído neste idioma",
-      "assignedHere_many": "{{count, number}} de atribuídos neste idioma",
-      "assignedHere_other": "{{count, number}} atribuídos neste idioma",
-      "orgSub": "{{here}} no nível da organização · {{total}} no total",
-      "membersHelp": "Abre as pessoas e as funções delas, para convidar alguém ou mudar uma função."
+      "orgSub": "{{here}} em todos os idiomas · {{total}} no total",
+      "membersHelp": "Abre as pessoas e as funções delas, para convidar alguém ou mudar uma função.",
+      "assignedHere_one": "{{count, number}} com uma função neste idioma",
+      "assignedHere_many": "{{count, number}} com uma função neste idioma",
+      "assignedHere_other": "{{count, number}} com uma função neste idioma"
     },
     "home": {
       "title": "Organização",
@@ -837,15 +837,15 @@
       "count_many": "{{count, number}} de membros",
       "count_other": "{{count, number}} membros",
       "invite": "Convidar",
-      "introOrg": "Membros atribuídos no alcance da organização. Abra os grupos abaixo para ver os outros níveis.",
-      "introLanguage": "Membros atribuídos no alcance do idioma nesta visão. Abra os grupos abaixo para ver os outros níveis.",
+      "introOrg": "Pessoas cuja função abrange todos os idiomas. Abra um grupo abaixo para ver as de cada idioma.",
+      "introLanguage": "Pessoas com uma função neste idioma. Abra um grupo abaixo para ver as outras.",
       "sectionOrg": "Membros da organização · {{total}}",
       "sectionLanguage": "Membros do idioma · {{total}}",
       "pending": "Pendente",
-      "none": "Ainda não há membros atribuídos neste nível.",
+      "none": "Ninguém tem uma função aqui ainda.",
       "expandBy": "Agrupar por",
       "byLanguage": "Por idioma",
-      "higher": "Níveis acima · só para ver",
+      "higher": "Todos os idiomas · só leitura",
       "memberHelp": "Abre a função da pessoa e onde ela se aplica, para mudar.",
       "lockedHelp": "Você não pode mudar a função desta pessoa daqui.",
       "requestHelp": "Quer entrar. Abre o pedido: deixe a pessoa entrar, ou recuse.",
@@ -857,9 +857,9 @@
     "assign": {
       "noRoles": "Não há funções disponíveis aqui.",
       "where": "Onde?",
-      "whereHelp": "Onde esta pessoa pode usar as permissões da função escolhida.",
+      "whereHelp": "Onde esta pessoa pode fazer o que a função permite.",
       "language": "Idioma",
-      "languageHelp": "A qual idioma esta atribuição se aplica.",
+      "languageHelp": "Para qual idioma é a função.",
       "noLanguages": "Ainda não há idiomas.",
       "orgHelp": "A função se aplica à organização inteira.",
       "languageLevelHelp": "A função se aplica a um idioma, escolhido abaixo.",
@@ -887,18 +887,18 @@
     },
     "member": {
       "isNow": "{{name}} agora é {{role}}",
-      "removedOrg": "{{name}} removido no nível da organização",
-      "removedLanguage": "{{name}} removido no nível do idioma",
+      "removedOrg": "{{name}} não tem mais uma função em todos os idiomas",
+      "removedLanguage": "{{name}} não tem mais uma função neste idioma",
       "declined": "Pedido de {{name}} recusado",
       "editTitle": "Editar membro",
       "notMember": "Não é membro aqui",
       "notMemberSub": "Esta pessoa não tem mais função nesta organização.",
       "awaiting": "Aguardando aprovação",
       "assignRole": "Atribuir função",
-      "saveAssignment": "Salvar atribuição",
+      "saveAssignment": "Salvar função",
       "decline": "Recusar",
-      "introPending": "Esta pessoa criou uma conta e pediu para entrar. Atribua uma função e um alcance para dar acesso a ela.",
-      "intro": "Escolha uma função e depois o alcance em que esta atribuição vale. O alcance pode ser este nível ou um abaixo.",
+      "introPending": "Esta pessoa criou uma conta e pediu para entrar. Escolha a função e onde ela vale para deixá-la entrar.",
+      "intro": "Escolha uma função e depois onde ela vale.",
       "outranked": "{{name}} tem mais permissões aqui do que você, então só alguém com as mesmas permissões pode mudar isso.",
       "onlyManager": "{{name}} é a única pessoa que pode gerenciar funções",
       "onlyManagerYou": "Você é a única pessoa que pode gerenciar funções",
@@ -936,9 +936,6 @@
       "pickRole": "Escolha a função que esta pessoa deve ter. Você não precisa do e-mail dela.",
       "alreadyTitle": "Já está na equipe, com um aparelho novo?",
       "alreadyBody": "Abra a pessoa em Membros e toque em Ajudar a entrar. Um novo convite criaria uma segunda conta.",
-      "privileges_one": "{{count, number}} permissão",
-      "privileges_many": "{{count, number}} de permissões",
-      "privileges_other": "{{count, number}} permissões",
       "noRoles": "Ainda não há funções.",
       "createRole": "Criar uma nova função",
       "one": "Uma pessoa",
@@ -966,7 +963,10 @@
       "doneHelp": "Terminado: abre a lista de membros.",
       "nameFieldHelp": "Para quem é o código. A pessoa vê isso quando lê o código.",
       "groupNameFieldHelp": "Um nome para o grupo. Todos que lerem o código veem esse nome.",
-      "shareHelp": "Envia o link do convite numa mensagem, ou copia o link."
+      "shareHelp": "Envia o link do convite numa mensagem, ou copia o link.",
+      "privileges_one": "{{count, number}} permissão",
+      "privileges_many": "{{count, number}} permissões",
+      "privileges_other": "{{count, number}} permissões"
     },
     "newLanguage": {
       "theOrganization": "a organização",
@@ -2319,19 +2319,19 @@
     "privileges": {
       "manageStructure": {
         "label": "Gerenciar a estrutura da organização",
-        "desc": "Mudar a estrutura da organização no seu alcance (idiomas)"
+        "desc": "Adicionar e mudar idiomas onde a função vale"
       },
       "inviteMembers": {
         "label": "Convidar pessoas",
-        "desc": "Convidar pessoas no seu alcance"
+        "desc": "Convidar pessoas onde a função vale"
       },
       "manageRoles": {
         "label": "Criar e mudar funções",
-        "desc": "Criar e editar funções no seu alcance"
+        "desc": "Criar e mudar funções onde a função vale"
       },
       "manageTemplates": {
         "label": "Gerenciar modelos de conteúdo",
-        "desc": "Criar e editar modelos de conteúdo no seu alcance"
+        "desc": "Criar e mudar modelos de conteúdo onde a função vale"
       },
       "shapeTemplates": {
         "label": "Ajustar modelos de conteúdo",
@@ -2339,7 +2339,7 @@
       },
       "manageReference": {
         "label": "Escolher Bíblias e guias",
-        "desc": "Criar e editar material de referência no seu alcance"
+        "desc": "Criar e mudar material de referência onde a função vale"
       },
       "manageFlows": {
         "label": "Gerenciar fluxos de revisão",
@@ -2347,11 +2347,11 @@
       },
       "manageTeams": {
         "label": "Gerenciar equipes de revisão",
-        "desc": "Criar e editar equipes de revisão (grupos) no seu alcance"
+        "desc": "Criar e mudar equipes de revisão onde a função vale"
       },
       "assignWork": {
         "label": "Atribuir trabalho",
-        "desc": "Pedir a qualquer pessoa no seu alcance que grave ou revise uma passagem"
+        "desc": "Pedir a qualquer pessoa onde a função vale que grave ou revise uma passagem"
       },
       "overrideCheckpoints": {
         "label": "Deixar o trabalho passar de uma verificação bloqueada",
@@ -2375,7 +2375,7 @@
       },
       "viewStatus": {
         "label": "Ver o trabalho de todos",
-        "desc": "Ver o mapa e as fichas das passagens, só para leitura, no seu alcance"
+        "desc": "Ver o mapa e os registros das passagens, sem mudá-los, onde a função vale"
       }
     },
     "privilegeGroups": {
@@ -2449,23 +2449,23 @@
     "roles": {
       "title": "Funções",
       "addRole": "Função",
-      "introOrg": "Funções são conjuntos de permissões sem alcance fixo. O alcance é escolhido ao atribuir uma função a um membro. As funções criadas aqui podem ser atribuídas em qualquer nível.",
-      "introLanguage": "Funções são conjuntos de permissões sem alcance fixo. O alcance é escolhido ao atribuir uma função a um membro. As funções são definidas para toda a organização, então aqui elas são só para ver. Edite-as no Início da organização.",
+      "introOrg": "Uma função é o que alguém pode fazer. Onde pode fazer é escolhido ao dar a função: em todos os idiomas ou em um.",
+      "introLanguage": "Uma função é o que alguém pode fazer. As funções são de toda a organização, então aqui você só pode ver. Mude-as no Início da organização.",
       "loading": "Carregando funções…",
       "empty": "Ainda não há funções",
       "emptySub": "Crie uma para cada forma de as pessoas ajudarem: o que elas podem fazer, não onde.",
       "definedAtOrg": "Definida na organização",
-      "inheritedSub": "Só para ver · edite no nível em que foi definida",
+      "inheritedSub": "Só leitura · mude no Início da organização",
       "members_one": "{{count, number}} membro",
       "members_many": "{{count, number}} de membros",
       "members_other": "{{count, number}} membros",
-      "privileges_one": "{{count, number}} permissão",
-      "privileges_many": "{{count, number}} de permissões",
-      "privileges_other": "{{count, number}} permissões",
       "addRoleHelp": "Cria uma função nova: um conjunto de coisas que as pessoas com ela podem fazer.",
       "ownRoleHelp": "Abre o que as pessoas com ela podem fazer, e quem a tem. Uma estrela: a sua organização a criou.",
       "builtInRoleHelp": "Abre o que as pessoas com ela podem fazer, e quem a tem. Ela vem com o aplicativo.",
-      "inheritedRoleHelp": "Mostra o que as pessoas com ela podem fazer. Mude no Início da organização."
+      "inheritedRoleHelp": "Mostra o que as pessoas com ela podem fazer. Mude no Início da organização.",
+      "privileges_one": "{{count, number}} permissão",
+      "privileges_many": "{{count, number}} permissões",
+      "privileges_other": "{{count, number}} permissões"
     },
     "roleEditor": {
       "title": "Função",
@@ -2478,7 +2478,7 @@
       "people_one": "{{count, number}} pessoa",
       "people_many": "{{count, number}} de pessoas",
       "people_other": "{{count, number}} pessoas",
-      "inheritedBody": "Definida no nível da organização. Edite-a no Início da organização.",
+      "inheritedBody": "Feita para toda a organização. Mude no Início da organização.",
       "noPermission": "Você não tem permissão para editar esta função.",
       "nameLabel": "Como ela se chama?",
       "namePlaceholder": "ex.: Retrotradutor",
@@ -2654,7 +2654,6 @@
       "concepts_other": "{{count, number}} conceitos",
       "addLanguageFirst": "Primeiro adicione um idioma",
       "libraryOrg": "Biblioteca · sua organização",
-      "new": "Novo",
       "libraryEmpty": "Ainda não há nada na sua biblioteca. Siga ou copie o que outras organizações compartilham, ou publique o seu.",
       "writeGuide": "Escrever um guia",
       "writeGuideSub": "Etapas com texto e áudio, imagens, mapas e palavras-chave",
@@ -2685,10 +2684,15 @@
       "biblesHelp": "Abre as Bíblias que os tradutores ouvem e leem, e quais são recomendadas.",
       "guidesNotesHelp": "Abre os guias de estudo e as notas que os tradutores recebem, e quais são recomendados.",
       "keyTermsHelp": "Abre cada conceito e como este idioma o diz.",
-      "newHelp": "Começa um material novo na sua biblioteca.",
       "libraryItemHelp": "Abre: o que ele contém, e como é compartilhado.",
       "openMaterialHelp": "Abre, para ler ou mudar.",
-      "openLockedHelp": "Abre. Bloqueado: só quem gerencia o material de referência pode mudar."
+      "openLockedHelp": "Abre. Bloqueado: só quem gerencia o material de referência pode mudar.",
+      "add": {
+        "here": "Diretrizes, um resumo ou perguntas",
+        "hereSub": "Escrito aqui, seção por seção; as perguntas de revisão vão para um tipo de revisão",
+        "byVerses": "Uma nota colocada por versículos",
+        "byVersesSub": "Vai para a biblioteca e chega às passagens onde estão seus versículos ou partes do modelo"
+      }
     },
     "material": {
       "editTitle": "Editar material",
@@ -3002,7 +3006,7 @@
       "title": "Ler um código",
       "subSignIn": "Um código de alguém que está ajudando você a entrar",
       "subGuest": "Não precisa de e-mail nem de senha",
-      "subMember": "O convite inclui organização, função e alcance",
+      "subMember": "O convite diz qual organização, função e idioma",
       "notCode": "Este não é um código do LangQuest.",
       "notQr": "Este código QR não é um código do LangQuest.",
       "cameraOff": "O acesso à câmera está desligado. Você pode colar o código abaixo.",
@@ -6718,22 +6722,19 @@
     "rec": {
       "recommended": "Recomendado",
       "notRecommended": "Não recomendado",
-      "hiddenForLanguage": "Escondido para este idioma",
+      "notHere": "Não recomendado aqui",
       "forLanguage": "Recomendado para este idioma",
       "byOrganization": "Recomendado pela organização",
       "stop": "Parar de recomendar",
       "recommend": "Recomendar",
-      "follow": "Seguir a organização",
-      "hide": "Esconder",
+      "recommendHere": "Recomendar aqui",
+      "stopHere": "Parar de recomendar aqui",
       "done": {
         "recommendedEverywhere": "{{name}} é recomendado a todos os idiomas.",
         "recommendedHere": "{{name}} é recomendado à equipe deste idioma.",
         "stopped": "{{name}} não é mais recomendado.",
-        "hidden": "{{name}} está escondido para este idioma.",
-        "follows": "{{name}} segue a organização aqui."
+        "stoppedHere": "{{name}} não é mais recomendado à equipe deste idioma."
       },
-      "followHelp": "Este idioma volta a seguir o que a organização recomenda.",
-      "hideHelp": "A equipe deste idioma deixa de receber, mesmo que a organização recomende.",
       "recommendLanguageHelp": "A equipe deste idioma recebe como recomendação.",
       "recommendOrgHelp": "A equipe de cada idioma recebe como recomendação.",
       "stopLanguageHelp": "A equipe deste idioma deixa de receber como recomendação.",
@@ -6798,7 +6799,7 @@
       "noneRecommendedAdd": "Ainda não há Bíblia recomendada aqui. Adicione uma.",
       "noneRecommendedBelow": "Ainda não há Bíblia recomendada aqui. Recomende uma abaixo.",
       "noneRecommendedYet": "Ainda não há Bíblia recomendada aqui.",
-      "hidden": "Escondidas para este idioma · {{n, number}}",
+      "hidden": "Não recomendado aqui · {{n, number}}",
       "notRecommended": "Na sua biblioteca, não recomendadas · {{n, number}}",
       "cardHelp": "Abre: o texto, o áudio, a marcação de tempo dos versículos e para quem é recomendada."
     },
@@ -6819,7 +6820,6 @@
       "bibleBrainHelp": "Pesquise Bíblias por idioma no Bible Brain.",
       "bibleHelp": "Mostra o que ela tem antes de você adicionar.",
       "fromLangQuestHelp": "Mostra as Bíblias que o LangQuest tem prontas para seguir.",
-      "readyHelp": "Adiciona à sua biblioteca e recomenda aqui.",
       "searchHelp": "Digite o nome ou o código de um idioma para encontrar as Bíblias dele.",
       "listed": "Só aparecem idiomas com Bíblias no Bible Brain.",
       "noMatch": "Nenhum idioma com esse nome tem uma Bíblia no Bible Brain.",

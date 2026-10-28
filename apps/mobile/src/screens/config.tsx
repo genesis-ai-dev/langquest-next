@@ -34,7 +34,7 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Badge, Banner, Card, Chip, ChipRow, ChipWrap, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle } from '../ui/kit';
+import { Badge, Banner, Card, Chip, ChipRow, ChipWrap, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useOpenDetail } from '../ui/useLayout';
 import { ImportRows } from '../imports/ImportRows';
@@ -913,6 +913,7 @@ export function ReferenceHome(ctx: Ctx) {
   const termCount = useMemo(() => (state && languageId ? keyTermsFor(state).length : 0), [state, languageId]);
   // What translators are offered at this level (screens/reference.tsx).
   const offered = useMemo(() => recommendedFor(ctx.org.state?.recommendations, languageView ? state : null), [ctx.org.state, state, languageView]);
+  const [adding, setAdding] = useState(false);
   if (!state || !view) return <Screen header={<Header title={t('config.reference.title')} onBack={ctx.back} />}><EmptyState title={t('common.loading')} /></Screen>;
 
   const own = languageView && language ? language : null;
@@ -940,9 +941,20 @@ export function ReferenceHome(ctx: Ctx) {
     );
   };
 
+  // One way to make something (UI audit, finding 59): Add material, then which kind when there is more than one.
+  const mayWrite = canManage && lib.canWrite('material');
+  const addChoices: { key: string; icon: IconName; label: string; sub: string; go: () => void }[] = [
+    { key: 'here', icon: 'note', label: t('config.reference.add.here'), sub: t('config.reference.add.hereSub'), go: () => ctx.go('material_editor', params) },
+    ...(mayWrite ? [
+      { key: 'guide', icon: 'sparkle' as const, label: t('config.reference.writeGuide'), sub: t('config.reference.writeGuideSub'), go: () => ctx.go('guide_editor', params) },
+      { key: 'verses', icon: 'book' as const, label: t('config.reference.add.byVerses'), sub: t('config.reference.add.byVersesSub'), go: () => ctx.go('material_editor', { itemId: 'new', ...params }) }
+    ] : [])
+  ];
+  const add = () => (addChoices.length === 1 ? addChoices[0]!.go() : setAdding(true));
+
   return (
     <Screen header={<Header title={t('config.reference.title')} sub={own ?? orgName(ctx)} onBack={ctx.back} />}
-      footer={canManage ? <PrimaryBtn label={t('config.reference.addMaterial')} icon="plus" help={t('config.reference.addMaterialHelp')} onPress={() => ctx.go('material_editor', params)} /> : undefined}>
+      footer={canManage ? <PrimaryBtn label={t('config.reference.addMaterial')} icon="plus" help={t('config.reference.addMaterialHelp')} onPress={add} /> : undefined}>
       <Intro>{own ? t('config.reference.introLanguage', { language: own }) : t('config.reference.introOrg')}</Intro>
 
       <SectionLabel label={t('config.reference.offered')} />
@@ -956,15 +968,12 @@ export function ReferenceHome(ctx: Ctx) {
           onPress={languageId ? () => ctx.go('key_terms', { languageId }) : undefined} />
       </Group>
 
-      <SectionLabel label={withCount(t('config.reference.libraryOrg'), materials.length)}
-        action={canManage && lib.canWrite('material') ? <SmallBtn label={t('config.reference.new')} icon="plus" help={t('config.reference.newHelp')} onPress={() => ctx.go('material_editor', { itemId: 'new', ...params })} /> : undefined} />
+      <SectionLabel label={withCount(t('config.reference.libraryOrg'), materials.length)} />
       <Capped items={materials} render={libraryRow}
         empty={t('config.reference.libraryEmpty')} />
-      {canManage && lib.canWrite('material') ? <Group><Row icon="sparkle" label={t('config.reference.writeGuide')} sub={t('config.reference.writeGuideSub')} last
-        onPress={() => ctx.go('guide_editor', params)} /></Group> : null}
-      <ImportRows ctx={ctx} canManage={canManage && lib.canWrite('material')} orgName={orgName(ctx)} />
-      <MoveOffers ctx={ctx} kinds={['material']} canManage={canManage && lib.canWrite('material')} />
-      <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canManage && lib.canWrite('material')}
+      <ImportRows ctx={ctx} canManage={mayWrite} orgName={orgName(ctx)} />
+      <MoveOffers ctx={ctx} kinds={['material']} canManage={mayWrite} />
+      <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={mayWrite}
         detail={(s) => {
           const doc = docs.get(s.latest_hash);
           const what = libraryMaterialLine(doc, versificationNameOf(docs, doc), kinds);
@@ -992,6 +1001,14 @@ export function ReferenceHome(ctx: Ctx) {
           <Capped items={view.general} empty={t('config.reference.noGeneral')} render={generalRow} />
         </>
       ) : null}
+      <Sheet visible={adding} title={t('config.reference.addMaterial')} onClose={() => setAdding(false)}>
+        <Group>
+          {/* help-each: each row makes a different kind */}
+          {addChoices.map((c, i) => (
+            <Row key={c.key} icon={c.icon} label={c.label} sub={c.sub} last={i === addChoices.length - 1} help={c.sub} onPress={() => { setAdding(false); c.go(); }} />
+          ))}
+        </Group>
+      </Sheet>
     </Screen>
   );
 }

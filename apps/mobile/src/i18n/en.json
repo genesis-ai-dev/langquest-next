@@ -682,8 +682,6 @@
       "reference": "Reference material",
       "flows": "Review flows",
       "roles": "Roles",
-      "rolesSub_one": "{{count, number}} role at this level and above",
-      "rolesSub_other": "{{count, number}} roles at this level and above",
       "summary": {
         "templates": "Content templates",
         "referenceFirst": "Reference material",
@@ -705,15 +703,17 @@
         "questions_other": "{{count, number}} question sets",
         "terms_one": "{{count, number}} key word",
         "terms_other": "{{count, number}} key words"
-      }
+      },
+      "rolesSub_one": "{{count, number}} role",
+      "rolesSub_other": "{{count, number}} roles"
     },
     "people": {
       "title": "People",
       "members": "Members",
-      "assignedHere_one": "{{count, number}} assigned at this language",
-      "assignedHere_other": "{{count, number}} assigned at this language",
-      "orgSub": "{{here}} at org level · {{total}} total",
-      "membersHelp": "Opens the people and their roles, to invite someone or change a role."
+      "orgSub": "{{here}} in every language · {{total}} in all",
+      "membersHelp": "Opens the people and their roles, to invite someone or change a role.",
+      "assignedHere_one": "{{count, number}} with a role in this language",
+      "assignedHere_other": "{{count, number}} with a role in this language"
     },
     "home": {
       "title": "Organization",
@@ -819,15 +819,15 @@
       "count_one": "{{count, number}} member",
       "count_other": "{{count, number}} members",
       "invite": "Invite",
-      "introOrg": "Members assigned at organization scope. Expand the groups below for the other levels.",
-      "introLanguage": "Members assigned at language scope for this view. Expand the groups below for the other levels.",
+      "introOrg": "People whose role covers every language. Open a group below for each language’s own.",
+      "introLanguage": "People with a role in this language. Open a group below for the others.",
       "sectionOrg": "Organization members · {{total}}",
       "sectionLanguage": "Language members · {{total}}",
       "pending": "Pending",
-      "none": "No members assigned at this level yet.",
+      "none": "Nobody has a role here yet.",
       "expandBy": "Expand by",
       "byLanguage": "By language",
-      "higher": "Higher levels · view only",
+      "higher": "Every language · view only",
       "memberHelp": "Opens their role and where it applies, to change them.",
       "lockedHelp": "You may not change this person's role from here.",
       "requestHelp": "Wants to join. Opens their request: let them in, or say no.",
@@ -839,9 +839,9 @@
     "assign": {
       "noRoles": "No roles available here.",
       "where": "Where?",
-      "whereHelp": "Where this person can use the selected role's privileges.",
+      "whereHelp": "Where this person can do what the role lets them do.",
       "language": "Language",
-      "languageHelp": "Which language this assignment applies to.",
+      "languageHelp": "Which language the role is for.",
       "noLanguages": "No languages yet.",
       "orgHelp": "The role applies across the whole organization.",
       "languageLevelHelp": "The role applies in one language, chosen below.",
@@ -869,18 +869,18 @@
     },
     "member": {
       "isNow": "{{name}} is now {{role}}",
-      "removedOrg": "{{name}} removed at organization level",
-      "removedLanguage": "{{name}} removed at language level",
+      "removedOrg": "{{name}} no longer has a role in every language",
+      "removedLanguage": "{{name}} no longer has a role in this language",
       "declined": "Declined {{name}}'s request",
       "editTitle": "Edit Member",
       "notMember": "Not a member here",
       "notMemberSub": "This person has no role in this organization any more.",
       "awaiting": "Awaiting approval",
       "assignRole": "Assign Role",
-      "saveAssignment": "Save Assignment",
+      "saveAssignment": "Save role",
       "decline": "Decline",
-      "introPending": "This person created an account and asked to join. Assign a role and scope to give them access.",
-      "intro": "Pick a role, then choose the scope this assignment applies to. Scope can be this level or below.",
+      "introPending": "This person made an account and asked to join. Choose their role and where it applies to let them in.",
+      "intro": "Choose a role, then where it applies.",
       "outranked": "{{name}} holds more here than you do, so only someone who holds as much can change this.",
       "onlyManager": "{{name}} is the only one who can manage roles",
       "onlyManagerYou": "You are the only one who can manage roles",
@@ -918,8 +918,6 @@
       "pickRole": "Pick the role this person should have. You don't need their email.",
       "alreadyTitle": "Already on the team, with a new device?",
       "alreadyBody": "Open them in Members and tap Help them sign in. A new invite would make a second account.",
-      "privileges_one": "{{count, number}} privilege",
-      "privileges_other": "{{count, number}} privileges",
       "noRoles": "No roles yet.",
       "createRole": "Create a new role",
       "one": "One person",
@@ -945,7 +943,9 @@
       "doneHelp": "Finished: opens the members list.",
       "nameFieldHelp": "Who the code is for. They see it when they scan.",
       "groupNameFieldHelp": "A name for the group. Everyone who scans sees it.",
-      "shareHelp": "Sends the invite link in a message, or copies it."
+      "shareHelp": "Sends the invite link in a message, or copies it.",
+      "privileges_one": "{{count, number}} permission",
+      "privileges_other": "{{count, number}} permissions"
     },
     "newLanguage": {
       "theOrganization": "the organization",
@@ -2240,19 +2240,19 @@
     "privileges": {
       "manageStructure": {
         "label": "Manage Org Structure",
-        "desc": "Change org structures in their scope (languages)"
+        "desc": "Add and change languages where their role applies"
       },
       "inviteMembers": {
         "label": "Invite people",
-        "desc": "Invite people in their scope"
+        "desc": "Invite people where their role applies"
       },
       "manageRoles": {
         "label": "Make and change roles",
-        "desc": "Create and edit roles in their scope"
+        "desc": "Make and change roles where their role applies"
       },
       "manageTemplates": {
         "label": "Manage Content Templates",
-        "desc": "Make and edit content templates in their scope"
+        "desc": "Make and change content templates where their role applies"
       },
       "shapeTemplates": {
         "label": "Shape Content Templates",
@@ -2260,7 +2260,7 @@
       },
       "manageReference": {
         "label": "Choose Bibles and guides",
-        "desc": "Make and edit reference material in their scope"
+        "desc": "Make and change reference material where their role applies"
       },
       "manageFlows": {
         "label": "Manage Review Flows",
@@ -2268,11 +2268,11 @@
       },
       "manageTeams": {
         "label": "Manage Review Teams",
-        "desc": "Make and edit review teams (groups) in their scope"
+        "desc": "Make and change review teams where their role applies"
       },
       "assignWork": {
         "label": "Assign work",
-        "desc": "Ask anyone in their scope to record or review a passage"
+        "desc": "Ask anyone where their role applies to record or review a passage"
       },
       "overrideCheckpoints": {
         "label": "Let work past a locked check",
@@ -2296,7 +2296,7 @@
       },
       "viewStatus": {
         "label": "See everyone’s work",
-        "desc": "See the map and passage records read-only in their scope"
+        "desc": "See the map and passage records, without changing them, where their role applies"
       }
     },
     "privilegeGroups": {
@@ -2366,21 +2366,21 @@
     "roles": {
       "title": "Roles",
       "addRole": "Role",
-      "introOrg": "Roles are privilege sets without a fixed scope. Scope is chosen when assigning a role to a member. Roles created here can be assigned at any level.",
-      "introLanguage": "Roles are privilege sets without a fixed scope. Scope is chosen when assigning a role to a member. Roles are defined for the whole organization, so here they are view only. Edit them from Organization Home.",
+      "introOrg": "A role is what someone may do. Where they may do it is chosen when someone is given the role: in every language, or in one.",
+      "introLanguage": "A role is what someone may do. Roles belong to the whole organization, so here you can only look. Change them from Organization Home.",
       "loading": "Loading roles…",
       "empty": "No roles yet",
       "emptySub": "Make one for each way people help: what they may do, not where.",
       "definedAtOrg": "Defined at Organization",
-      "inheritedSub": "View only · edit from the level where it was defined",
+      "inheritedSub": "View only · change it from Organization Home",
       "members_one": "{{count, number}} member",
       "members_other": "{{count, number}} members",
-      "privileges_one": "{{count, number}} privilege",
-      "privileges_other": "{{count, number}} privileges",
       "addRoleHelp": "Makes a new role: a set of things its people may do.",
       "ownRoleHelp": "Opens what its people may do, and who has it. A star: your organization made it.",
       "builtInRoleHelp": "Opens what its people may do, and who has it. It comes with the app.",
-      "inheritedRoleHelp": "Shows what its people may do. Change it from Organization Home."
+      "inheritedRoleHelp": "Shows what its people may do. Change it from Organization Home.",
+      "privileges_one": "{{count, number}} permission",
+      "privileges_other": "{{count, number}} permissions"
     },
     "roleEditor": {
       "title": "Role",
@@ -2392,7 +2392,7 @@
       "aNewRole": "A new role",
       "people_one": "{{count, number}} person",
       "people_other": "{{count, number}} people",
-      "inheritedBody": "Defined at the organization level. Edit it from Organization Home.",
+      "inheritedBody": "Made for the whole organization. Change it from Organization Home.",
       "noPermission": "You do not have permission to edit this role.",
       "nameLabel": "What is it called?",
       "namePlaceholder": "e.g. Back-translator",
@@ -2566,7 +2566,6 @@
       "concepts_other": "{{count, number}} concepts",
       "addLanguageFirst": "Add a language first",
       "libraryOrg": "Library · your organization",
-      "new": "New",
       "libraryEmpty": "Nothing in your library yet. Follow or copy what other organizations share, or publish your own.",
       "writeGuide": "Write a guide",
       "writeGuideSub": "Steps with text and audio, pictures, maps and key words",
@@ -2593,10 +2592,15 @@
       "biblesHelp": "Opens the Bibles translators hear and read, and which are recommended.",
       "guidesNotesHelp": "Opens the study guides and notes translators get, and which are recommended.",
       "keyTermsHelp": "Opens each concept and how this language says it.",
-      "newHelp": "Starts new material in your library.",
       "libraryItemHelp": "Opens it: what it holds, and how it is shared.",
       "openMaterialHelp": "Opens it, to read or change it.",
-      "openLockedHelp": "Opens it. Locked: only people who manage reference material can change it."
+      "openLockedHelp": "Opens it. Locked: only people who manage reference material can change it.",
+      "add": {
+        "here": "Guidelines, a brief or questions",
+        "hereSub": "Written here, section by section; review questions go to a kind of review",
+        "byVerses": "A note placed by verses",
+        "byVersesSub": "Goes to the library, and reaches the passages its verses or template parts are in"
+      }
     },
     "material": {
       "editTitle": "Edit Material",
@@ -2908,7 +2912,7 @@
       "title": "Scan a code",
       "subSignIn": "A code from someone helping you sign in",
       "subGuest": "No email or password needed",
-      "subMember": "Invite includes organization, role, and scope",
+      "subMember": "The invite says which organization, role and language",
       "notCode": "This is not a LangQuest code.",
       "notQr": "This QR code is not a LangQuest code.",
       "cameraOff": "Camera access is off. You can paste the code below.",
@@ -6452,22 +6456,19 @@
     "rec": {
       "recommended": "Recommended",
       "notRecommended": "Not recommended",
-      "hiddenForLanguage": "Hidden for this language",
+      "notHere": "Not recommended here",
       "forLanguage": "Recommended for this language",
       "byOrganization": "Recommended by the organization",
       "stop": "Stop recommending",
       "recommend": "Recommend",
-      "follow": "Follow organization",
-      "hide": "Hide",
+      "recommendHere": "Recommend here",
+      "stopHere": "Stop recommending here",
       "done": {
         "recommendedEverywhere": "{{name}} is recommended to every language.",
         "recommendedHere": "{{name}} is recommended to this language's team.",
         "stopped": "{{name}} is no longer recommended.",
-        "hidden": "{{name}} is hidden for this language.",
-        "follows": "{{name}} follows the organization here."
+        "stoppedHere": "{{name}} is no longer recommended to this language's team."
       },
-      "followHelp": "This language goes back to what the organization recommends.",
-      "hideHelp": "This language’s team stops getting it, though the organization recommends it.",
       "recommendLanguageHelp": "This language’s team gets it as a recommendation.",
       "recommendOrgHelp": "Every language’s team gets it as a recommendation.",
       "stopLanguageHelp": "This language’s team stops getting it as a recommendation.",
@@ -6532,7 +6533,7 @@
       "noneRecommendedAdd": "No Bible is recommended here yet. Add one.",
       "noneRecommendedBelow": "No Bible is recommended here yet. Recommend one below.",
       "noneRecommendedYet": "No Bible is recommended here yet.",
-      "hidden": "Hidden for this language · {{n, number}}",
+      "hidden": "Not recommended here · {{n, number}}",
       "notRecommended": "In your library, not recommended · {{n, number}}",
       "cardHelp": "Opens it: its text, audio, verse timings and who it is recommended to."
     },
@@ -6553,7 +6554,6 @@
       "bibleBrainHelp": "Search Bible Brain for Bibles by language.",
       "bibleHelp": "Shows what it has before you add it.",
       "fromLangQuestHelp": "Shows the Bibles LangQuest has ready to follow.",
-      "readyHelp": "Adds it to your library and recommends it here.",
       "searchHelp": "Type a language’s name or code to find its Bibles.",
       "listed": "Only languages with Bibles in Bible Brain are listed.",
       "noMatch": "No language by that name has a Bible in Bible Brain.",

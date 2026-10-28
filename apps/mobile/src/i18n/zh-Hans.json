@@ -676,7 +676,6 @@
       "reference": "参考资料",
       "flows": "审核流程",
       "roles": "角色",
-      "rolesSub_other": "这一级及以上共 {{count, number}} 个角色",
       "summary": {
         "templates": "内容模板",
         "referenceFirst": "参考资料",
@@ -695,14 +694,15 @@
         "study_other": "{{count, number}} 份学习指南",
         "questions_other": "{{count, number}} 组问题",
         "terms_other": "{{count, number}} 个关键词"
-      }
+      },
+      "rolesSub_other": "{{count, number}} 个角色"
     },
     "people": {
       "title": "人员",
       "members": "成员",
-      "assignedHere_other": "{{count, number}} 人分配在这个语言",
-      "orgSub": "机构级 {{here}} 人 · 共 {{total}} 人",
-      "membersHelp": "打开人员和他们的角色，可以邀请人或更改角色。"
+      "orgSub": "所有语言 {{here}} · 共 {{total}}",
+      "membersHelp": "打开人员和他们的角色，可以邀请人或更改角色。",
+      "assignedHere_other": "{{count, number}} 人在这个语言有角色"
     },
     "home": {
       "title": "机构",
@@ -801,15 +801,15 @@
       "joined": "{{target}} · {{when}}加入",
       "count_other": "{{count, number}} 位成员",
       "invite": "邀请",
-      "introOrg": "在机构范围内分配的成员。展开下面的分组可以查看其他级别。",
-      "introLanguage": "在这个语言范围内分配的成员。展开下面的分组可以查看其他级别。",
+      "introOrg": "角色涵盖所有语言的人。打开下面的组查看每个语言自己的人。",
+      "introLanguage": "在这个语言有角色的人。打开下面的组查看其他人。",
       "sectionOrg": "机构成员 · {{total}}",
       "sectionLanguage": "语言成员 · {{total}}",
       "pending": "待处理",
-      "none": "这一级还没有分配成员。",
+      "none": "这里还没有人有角色。",
       "expandBy": "展开方式",
       "byLanguage": "按语言",
-      "higher": "更高级别 · 仅查看",
+      "higher": "所有语言 · 仅查看",
       "memberHelp": "打开他的角色及其适用范围，可以更改。",
       "lockedHelp": "你不能在这里更改这个人的角色。",
       "requestHelp": "想要加入。打开对方的申请：让他加入，或者拒绝。",
@@ -821,9 +821,9 @@
     "assign": {
       "noRoles": "这里没有可用的角色。",
       "where": "在哪里？",
-      "whereHelp": "这个人可以在哪里使用所选角色的权限。",
+      "whereHelp": "这个人可以在哪里做角色允许的事。",
       "language": "语言",
-      "languageHelp": "这项分配适用于哪个语言。",
+      "languageHelp": "这个角色用于哪个语言。",
       "noLanguages": "还没有语言。",
       "orgHelp": "这个角色适用于整个机构。",
       "languageLevelHelp": "这个角色只适用于一个语言，在下面选择。",
@@ -851,18 +851,18 @@
     },
     "member": {
       "isNow": "{{name}}现在是{{role}}",
-      "removedOrg": "已在机构级别移除{{name}}",
-      "removedLanguage": "已在语言级别移除{{name}}",
+      "removedOrg": "{{name}}在所有语言中已不再有角色",
+      "removedLanguage": "{{name}}在这个语言中已不再有角色",
       "declined": "已拒绝{{name}}的申请",
       "editTitle": "编辑成员",
       "notMember": "不是这里的成员",
       "notMemberSub": "这个人在这个机构中已经没有角色了。",
       "awaiting": "等待批准",
       "assignRole": "分配角色",
-      "saveAssignment": "保存分配",
+      "saveAssignment": "保存角色",
       "decline": "拒绝",
-      "introPending": "这个人创建了账号并申请加入。为他分配角色和范围，就能让他访问。",
-      "intro": "选择一个角色，然后选择这项分配适用的范围。范围可以是这一级或更低的级别。",
+      "introPending": "此人创建了账户并申请加入。选择他们的角色和适用范围，让他们加入。",
+      "intro": "选择一个角色，再选择适用范围。",
       "outranked": "{{name}}在这里的权限比你多，所以只有权限同样多的人才能更改。",
       "onlyManager": "只有 {{name}} 能管理角色",
       "onlyManagerYou": "只有你能管理角色",
@@ -900,7 +900,6 @@
       "pickRole": "选择这个人应有的角色。不需要他的邮箱。",
       "alreadyTitle": "已经在团队中，只是换了新设备？",
       "alreadyBody": "在“成员”中打开他，点按“帮他登录”。再发一个新邀请会创建第二个账号。",
-      "privileges_other": "{{count, number}} 项权限",
       "noRoles": "还没有角色。",
       "createRole": "创建新角色",
       "one": "一个人",
@@ -924,7 +923,8 @@
       "doneHelp": "完成：打开成员列表。",
       "nameFieldHelp": "这个邀请码是给谁的。对方扫码时会看到。",
       "groupNameFieldHelp": "这个组的名称。每个扫码的人都会看到。",
-      "shareHelp": "通过消息发送邀请链接，或者复制它。"
+      "shareHelp": "通过消息发送邀请链接，或者复制它。",
+      "privileges_other": "{{count, number}} 项权限"
     },
     "newLanguage": {
       "theOrganization": "机构",
@@ -2161,19 +2161,19 @@
     "privileges": {
       "manageStructure": {
         "label": "管理机构结构",
-        "desc": "更改其范围内的机构结构（语言）"
+        "desc": "在其角色适用的范围内添加和更改语言"
       },
       "inviteMembers": {
         "label": "邀请人员",
-        "desc": "邀请其范围内的人员"
+        "desc": "在其角色适用的范围内邀请人"
       },
       "manageRoles": {
         "label": "创建和更改角色",
-        "desc": "创建和编辑其范围内的角色"
+        "desc": "在其角色适用的范围内创建和更改角色"
       },
       "manageTemplates": {
         "label": "管理内容模板",
-        "desc": "制作和编辑其范围内的内容模板"
+        "desc": "在其角色适用的范围内创建和更改内容模板"
       },
       "shapeTemplates": {
         "label": "调整内容模板",
@@ -2181,7 +2181,7 @@
       },
       "manageReference": {
         "label": "选择圣经和指南",
-        "desc": "制作和编辑其范围内的参考资料"
+        "desc": "在其角色适用的范围内创建和更改参考资料"
       },
       "manageFlows": {
         "label": "管理审核流程",
@@ -2189,11 +2189,11 @@
       },
       "manageTeams": {
         "label": "管理审核团队",
-        "desc": "制作和编辑其范围内的审核团队（小组）"
+        "desc": "在其角色适用的范围内创建和更改审核团队"
       },
       "assignWork": {
         "label": "分配工作",
-        "desc": "请其范围内的任何人录制或审核经段"
+        "desc": "在其角色适用的范围内请任何人录制或审核段落"
       },
       "overrideCheckpoints": {
         "label": "让工作越过锁定的检查",
@@ -2217,7 +2217,7 @@
       },
       "viewStatus": {
         "label": "查看所有人的工作",
-        "desc": "以只读方式查看其范围内的地图和经段记录"
+        "desc": "在其角色适用的范围内查看地图和段落记录，但不能更改"
       }
     },
     "privilegeGroups": {
@@ -2283,19 +2283,19 @@
     "roles": {
       "title": "角色",
       "addRole": "角色",
-      "introOrg": "角色是一组权限，没有固定范围。给成员分配角色时再选择范围。在这里创建的角色可以在任何级别分配。",
-      "introLanguage": "角色是一组权限，没有固定范围。给成员分配角色时再选择范围。角色是为整个机构定义的，所以在这里只能查看。请在机构主页中编辑。",
+      "introOrg": "角色是一个人可以做的事。在哪里做，是在给人这个角色时选择的：所有语言，或其中一个。",
+      "introLanguage": "角色是一个人可以做的事。角色属于整个机构，所以这里只能查看。请从机构主页更改。",
       "loading": "正在加载角色……",
       "empty": "还没有角色",
       "emptySub": "为大家帮忙的每种方式各建一个角色：规定他们能做什么，而不是在哪里做。",
       "definedAtOrg": "在机构级别定义",
-      "inheritedSub": "仅查看 · 请在定义它的级别编辑",
+      "inheritedSub": "仅查看 · 请从机构主页更改",
       "members_other": "{{count, number}} 位成员",
-      "privileges_other": "{{count, number}} 项权限",
       "addRoleHelp": "创建新角色：规定拥有这个角色的人可以做哪些事。",
       "ownRoleHelp": "打开查看拥有它的人可以做什么，以及谁有这个角色。星号：由你的机构创建。",
       "builtInRoleHelp": "打开查看拥有它的人可以做什么，以及谁有这个角色。它是应用自带的。",
-      "inheritedRoleHelp": "显示拥有它的人可以做什么。请在“机构主页”中更改。"
+      "inheritedRoleHelp": "显示拥有它的人可以做什么。请在“机构主页”中更改。",
+      "privileges_other": "{{count, number}} 项权限"
     },
     "roleEditor": {
       "title": "角色",
@@ -2306,7 +2306,7 @@
       "newRole": "新角色",
       "aNewRole": "一个新角色",
       "people_other": "{{count, number}} 人",
-      "inheritedBody": "在机构级别定义。请在机构主页中编辑。",
+      "inheritedBody": "为整个机构创建。请从机构主页更改。",
       "noPermission": "你没有权限编辑这个角色。",
       "nameLabel": "它叫什么？",
       "namePlaceholder": "例如：回译人",
@@ -2478,7 +2478,6 @@
       "concepts_other": "{{count, number}} 个概念",
       "addLanguageFirst": "请先添加一个语言",
       "libraryOrg": "资料库 · 你的机构",
-      "new": "新建",
       "libraryEmpty": "你的资料库中还没有内容。可以关注或复制其他机构分享的资料，也可以发布你自己的。",
       "writeGuide": "编写指南",
       "writeGuideSub": "包含文字和音频、图片、地图和关键词的步骤",
@@ -2501,10 +2500,15 @@
       "biblesHelp": "打开译者听和读的圣经，以及推荐了哪些。",
       "guidesNotesHelp": "打开译者收到的学习指南和注释，以及推荐了哪些。",
       "keyTermsHelp": "打开每个概念，以及这个语言怎么说。",
-      "newHelp": "在你的资料库中新建资料。",
       "libraryItemHelp": "打开它：查看它包含什么，以及怎样分享。",
       "openMaterialHelp": "打开它，可以阅读或更改。",
-      "openLockedHelp": "打开它。已锁定：只有管理参考资料的人可以更改。"
+      "openLockedHelp": "打开它。已锁定：只有管理参考资料的人可以更改。",
+      "add": {
+        "here": "指南、简介或问题",
+        "hereSub": "在这里逐节编写；审核问题归入某一种审核",
+        "byVerses": "按经节放置的注释",
+        "byVersesSub": "放入资料库，并出现在其经节或模板部分所在的段落"
+      }
     },
     "material": {
       "editTitle": "编辑资料",
@@ -2814,7 +2818,7 @@
       "title": "扫码",
       "subSignIn": "帮你登录的人给你的登录码",
       "subGuest": "不需要邮箱或密码",
-      "subMember": "邀请包含机构、角色和范围",
+      "subMember": "邀请会说明机构、角色和语言",
       "notCode": "这不是 LangQuest 的代码。",
       "notQr": "这个二维码不是 LangQuest 的代码。",
       "cameraOff": "相机权限已关闭。你可以在下面粘贴代码。",
@@ -6186,22 +6190,19 @@
     "rec": {
       "recommended": "推荐",
       "notRecommended": "不推荐",
-      "hiddenForLanguage": "对这个语言隐藏",
+      "notHere": "这里不推荐",
       "forLanguage": "推荐给这个语言",
       "byOrganization": "由机构推荐",
       "stop": "停止推荐",
       "recommend": "推荐",
-      "follow": "跟随机构",
-      "hide": "隐藏",
+      "recommendHere": "在这里推荐",
+      "stopHere": "在这里停止推荐",
       "done": {
         "recommendedEverywhere": "{{name}}已推荐给每个语言。",
         "recommendedHere": "{{name}}已推荐给这个语言的团队。",
         "stopped": "{{name}}已不再推荐。",
-        "hidden": "{{name}}已对这个语言隐藏。",
-        "follows": "{{name}}在这里跟随机构的设置。"
+        "stoppedHere": "{{name}}已不再推荐给这个语言的团队。"
       },
-      "followHelp": "这个语言恢复为机构推荐的设置。",
-      "hideHelp": "虽然机构推荐了它，这个语言的团队也不再收到它。",
       "recommendLanguageHelp": "这个语言的团队会收到它，作为推荐。",
       "recommendOrgHelp": "每个语言的团队都会收到它，作为推荐。",
       "stopLanguageHelp": "这个语言的团队不再收到它作为推荐。",
@@ -6266,7 +6267,7 @@
       "noneRecommendedAdd": "这里还没有推荐任何圣经。请添加一本。",
       "noneRecommendedBelow": "这里还没有推荐任何圣经。请在下面推荐一本。",
       "noneRecommendedYet": "这里还没有推荐任何圣经。",
-      "hidden": "对这个语言隐藏 · {{n, number}}",
+      "hidden": "这里不推荐 · {{n, number}}",
       "notRecommended": "在你的资料库中，未推荐 · {{n, number}}",
       "cardHelp": "打开它：查看文字、音频、经节时间点，以及推荐给了谁。"
     },
@@ -6287,7 +6288,6 @@
       "bibleBrainHelp": "在 Bible Brain 中按语言搜索圣经。",
       "bibleHelp": "在你添加之前，显示它包含什么。",
       "fromLangQuestHelp": "显示 LangQuest 准备好可以关注的圣经。",
-      "readyHelp": "把它添加到你的资料库，并在这里推荐。",
       "searchHelp": "输入语言的名称或代码，查找它的圣经。",
       "listed": "只列出在 Bible Brain 中有圣经的语言。",
       "noMatch": "没有这个名称的语言在 Bible Brain 中有圣经。",

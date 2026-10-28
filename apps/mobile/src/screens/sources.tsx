@@ -65,7 +65,9 @@ export function BibleExplore(ctx: Ctx) {
   const [query, setQuery] = useState('');
   const [bibles, setBibles] = useState<BibleSummary[] | null>(null);
   const [problem, setProblem] = useState('');
-  const [picked, setPicked] = useState<Picked | null>(null);
+  // Opened on one of the library's Bibles (Get ready's play button, UI audit finding 57): that Bible, and Back leaves.
+  const opened = ctx.params['itemId'];
+  const [picked, setPicked] = useState<Picked | null>(() => (opened ? { kind: 'library', itemId: opened } : null));
 
   // Bibles in the chosen language.
   useEffect(() => {
@@ -94,9 +96,9 @@ export function BibleExplore(ctx: Ctx) {
   });
 
   const passageLabel = unitId && state?.units[unitId] ? state.units[unitId]!.label : undefined;
-  const back = () => (picked ? setPicked(null) : ctx.back());
+  const back = () => (picked && !opened ? setPicked(null) : ctx.back());
   // A phone's Back from one Bible goes back to the list, as the header's arrow does (decision 137).
-  useHardwareBack(!!picked, () => setPicked(null));
+  useHardwareBack(!!picked && !opened, () => setPicked(null));
   const header = <Header title={screenTitle('bible_explore')} sub={passageLabel ? t('sources.explore.forPassage', { passage: passageLabel }) : t('sources.explore.sub')} onBack={back} />;
 
   if (picked) {

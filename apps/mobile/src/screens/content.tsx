@@ -1026,12 +1026,12 @@ export function BookStructure(ctx: Ctx) {
     // Dividing it your own way: the book's text, where other Bibles start sections, and its helps (decision 93).
     if (own) {
       return (
-        <DivideOwnWay ctx={ctx} book={usfm} bookName={data.label} doc={doc} v11n={v11n} fallbackVerses={book.verses} item={item} redo={data.segments.length > 0}
+        <DivideOwnWay ctx={ctx} book={usfm} bookName={data.label} doc={doc} v11n={v11n} fallbackVerses={book.verses} item={item} redo={data.segments.length > 0} recorded={data.recorded.size}
           onClose={() => setOwn(false)} onDone={() => { setOwn(false); setChoosing(false); }} />
       );
     }
     return (
-      <BreakUpBook ctx={ctx} book={usfm} bookName={data.label} language={data.language} doc={doc} item={item} redo={data.segments.length > 0}
+      <BreakUpBook ctx={ctx} book={usfm} bookName={data.label} language={data.language} doc={doc} item={item} redo={data.segments.length > 0} recorded={data.recorded.size}
         onClose={() => (choosing ? setChoosing(false) : ctx.back())} onOwn={() => setOwn(true)} />
     );
   }

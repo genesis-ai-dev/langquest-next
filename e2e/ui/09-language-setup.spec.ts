@@ -18,10 +18,10 @@ test('SETUP-001 Org home shows the organization, its languages and its setup', a
   await orgHome(page, world());
   const w = world();
   // 8 people hold a role in ORG: ADMIN, COORD, LADMIN, TRANS, REV, TREV, VIEW, KEPT.
-  await expectOnScreen(page, '2 languages · 8 members', 'Invite people', 'Alpha', 'Bravo', 'New language', 'Members', '3 at org level · 8 total');
+  await expectOnScreen(page, '2 languages · 8 members', 'Invite people', 'Alpha', 'Bravo', 'New language', 'Members', '3 in every language · 8 in all');
   await expectOnScreen(page, /Alpha Standard Bible Flow · \d+ of \d+ recorded · \d+ done/);
   await setup(page);
-  await expectOnScreen(page, 'Content templates', 'Reference material', 'Review flows', 'Roles', '7 roles at this level and above', 'All rights reserved');
+  await expectOnScreen(page, 'Content templates', 'Reference material', 'Review flows', 'Roles', '7 roles', 'All rights reserved');
   // The name and licence are changed beside the name, not in Setup (decision 138).
   await expect(byId(page, 'org-rename')).toBeVisible();
   await expect(text(page, w.orgName).first()).toBeVisible();
@@ -302,6 +302,13 @@ test('SETUP-022 Get a language ready, question by question @p0', async ({ page, 
   // The local library has no Bible (no source@1 is seeded): there is none to tick here.
   await primary(page).click();
   await expectOnScreen(page, '3 of 4', 'Who checks the recordings?', 'Suggested');
+  // The footer's Back steps to the question before, on every platform (finding 48), then Next comes back.
+  await button(page, 'Back').click();
+  await expectOnScreen(page, '2 of 4', 'Which languages should Bravo\'s Bibles and study guides be in?');
+  await primary(page).click();
+  await expectOnScreen(page, 'What will help them?');
+  await primary(page).click();
+  await expectOnScreen(page, '3 of 4', 'Who checks the recordings?');
   await primary(page).click();
   await expectToast(page, /checks the recordings\.$/);
   await expectOnScreen(page, '4 of 4', 'Invite your translators', 'Translate', 'Check', 'Back-translate', 'Help run the team', 'Something else');

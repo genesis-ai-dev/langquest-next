@@ -35,7 +35,7 @@ import { noteExpected } from '../diagnostics/report';
 import { BibleError, bibleDetail, biblesIn, bibleSearchAvailable, heldDetail, type BibleDetail, type BibleSummary } from '../sources/bibleBrainAdmin';
 import { coverageSummary, itemReaches } from '../reference/coverage';
 import {
-  biblebrainItemId, offlineLine, orgLevelCan, recActions, recLabel, recState, recTone,
+  biblebrainItemId, offlineLine, orgLevelCan, recActions, recLabel, recOn, recState, recTone,
   sourceFacts, sourceFromBible, sourceSummary, testamentLines, timingsNeeded, type Level
 } from '../reference/model';
 import { bibleBrainDescription, bibleBrainIds, bibleLine, offeredBibleLanguages, providerName, readySources, splitBibles } from '../reference/biblesModel';
@@ -88,14 +88,9 @@ function Intro(props: { children: ReactNode }) {
 }
 
 /** What a recommendation button does, for help mode: who gets the item, or stops getting it. */
-function recHelp(id: ReturnType<typeof recActions>[number]['id'], level: Level, r: ReturnType<typeof recState>): string {
-  if (level.kind === 'org') return id === 'stop' ? t('reference.rec.stopOrgHelp') : t('reference.rec.recommendOrgHelp');
-  switch (id) {
-    case 'recommend': return t('reference.rec.recommendLanguageHelp');
-    case 'hide': return t('reference.rec.hideHelp');
-    // "Follow organization", or "Stop recommending" what only this language recommends.
-    default: return r.language === 'hidden' || r.org ? t('reference.rec.followHelp') : t('reference.rec.stopLanguageHelp');
-  }
+function recHelp(level: Level, r: ReturnType<typeof recState>): string {
+  if (level.kind === 'org') return r.org ? t('reference.rec.stopOrgHelp') : t('reference.rec.recommendOrgHelp');
+  return recOn(r) ? t('reference.rec.stopLanguageHelp') : t('reference.rec.recommendLanguageHelp');
 }
 
 /** Recommend, stop, hide or follow the organization, for one item at this level. */
@@ -103,9 +98,9 @@ function RecButtons(props: { ctx: Ctx; level: Level; itemId: string; name: strin
   const r = recState(props.ctx.org.state?.recommendations, props.ctx.language.state, props.level, props.itemId);
   return (
     <View style={styles.actions}>
-      {/* help-each: each button does something different */}
+      {/* help-each: one button, its help said for what it does now */}
       {recActions(r, props.level).map((a) => (
-        <SmallBtn key={a.id} label={a.label} tone={a.id === 'recommend' ? 'primary' : 'plain'} disabled={props.rec.busy} help={recHelp(a.id, props.level, r)}
+        <SmallBtn key={a.id} label={a.label} tone={(props.level.kind === 'org' ? r.org : recOn(r)) ? 'plain' : 'primary'} disabled={props.rec.busy} help={recHelp(props.level, r)}
           onPress={() => void props.rec.run(props.level, props.itemId, props.name, a.id)} />
       ))}
     </View>
@@ -137,6 +132,11 @@ export function ReferenceBibles(ctx: Ctx) {
 
   if (!ctx.language.state || !ctx.org.state) return <Screen header={<Header title={t('reference.bibles.title')} onBack={ctx.back} />}><EmptyState title={t('common.loading')} /></Screen>;
   const { loading, on, hidden, off } = splitBibles(rows, ctx.org.state?.recommendations, ctx.language.state, level);
+  // With none recommended, it says only what this person can do here: add one, recommend one listed below, both or neither (UI audit, finding 56).
+  const canAdd = lib.canWrite('material');
+  const below = canAct && off.length > 0;
+  const noneLine = canAdd && below ? t('reference.bibles.noneRecommended') : canAdd ? t('reference.bibles.noneRecommendedAdd')
+    : below ? t('reference.bibles.noneRecommendedBelow') : t('reference.bibles.noneRecommendedYet');
 
   const card = ({ r }: (typeof on)[number]) => {
     const doc = r.doc as SourceDoc;
@@ -163,11 +163,11 @@ export function ReferenceBibles(ctx: Ctx) {
   return (
     <Screen header={<Header title={t('reference.bibles.title')} sub={levelName(ctx, level)} onBack={ctx.back} />}
       // Adding a Bible follows LangQuest's or publishes Bible Brain's in the organization's library (`mayWriteLibrary`).
-      footer={lib.canWrite('material') ? <PrimaryBtn label={t('reference.bibles.add')} icon="plus" onPress={() => setAdding(true)} /> : undefined}>
+      footer={canAdd ? <PrimaryBtn label={t('reference.bibles.add')} icon="plus" onPress={() => setAdding(true)} /> : undefined}>
       <Intro>{level.kind === 'org' ? t('reference.bibles.introOrg') : t('reference.bibles.introLanguage')}</Intro>
       <SectionLabel label={t('reference.bibles.recommended', { n: on.length })} />
       {on.length ? on.slice(0, n).map(card) : (
-        <Card><Text style={txt.smMuted}>{loading ? t('common.loading') : t('reference.bibles.noneRecommended')}</Text></Card>
+        <Card><Text style={txt.smMuted}>{loading ? t('common.loading') : noneLine}</Text></Card>
       )}
       <ShowMore remaining={on.length - n} step={STEP} onMore={() => setN(n + STEP)} />
       {hidden.length ? (
@@ -202,6 +202,8 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
   const [lang, setLang] = useState<LanguoidHit | null>(() => ({ id: `picked:${fallback}`, name: languageLabel(fallback), dialect: false, parentName: null, alsoCalled: null, code: fallback }));
   const [bibles, setBibles] = useState<BibleSummary[] | null>(null);
   const [picked, setPicked] = useState<BibleDetail | null>(null);
+  // A LangQuest Bible shows what it is before it is added, as Bible Brain's do (UI audit, finding 60).
+  const [readyPicked, setReadyPicked] = useState<SharedItem | null>(null);
   const [error, setError] = useState('');
   const searching = tab === 'biblebrain' && bibleSearchAvailable && !lang;
   const bibleLanguages = useBibleBrainLanguages(searching);
@@ -257,18 +259,24 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
     }
   }
 
-  const facts = picked ? sourceFacts(sourceFromBible(picked, '0'.repeat(64)), () => null, picked) : null;
+  const readyDoc = readyPicked ? readyDocs.get(readyPicked.latest_hash) as SourceDoc | null : null;
+  const facts = picked ? sourceFacts(sourceFromBible(picked, '0'.repeat(64)), () => null, picked)
+    : readyDoc ? sourceFacts(readyDoc, readyDocs.get) : null;
+  const unpick = () => { setPicked(null); setReadyPicked(null); };
+  const shown = picked ? { name: picked.name, sub: [picked.abbreviation, picked.languageName, providerName('biblebrain')].join(' · '), add: () => void addBibleBrain(picked) }
+    : readyPicked && readyDoc ? { name: readyPicked.name, sub: [readyDoc.abbreviation, languageLabel(readyDoc.language), readyPicked.org_name].join(' · '), add: () => void addReady(readyPicked) }
+    : null;
   return (
-    <Sheet visible title={picked ? picked.name : t('reference.addBible.title')} onClose={props.onClose}
-      onBack={picked ? () => setPicked(null) : undefined}
-      sub={picked ? [picked.abbreviation, picked.languageName, providerName('biblebrain')].join(' · ') : t('reference.addBible.sub')}
-      footer={picked ? (
+    <Sheet visible title={shown ? shown.name : t('reference.addBible.title')} onClose={props.onClose}
+      onBack={shown ? unpick : undefined}
+      sub={shown ? shown.sub : t('reference.addBible.sub')}
+      footer={shown ? (
         <>
-          <PrimaryBtn label={t('reference.addBible.addAndRecommend')} onPress={() => void addBibleBrain(picked)} busy={busy} />
-          <GhostBtn label={t('reference.addBible.backToList')} help={t('reference.addBible.backToListHelp')} onPress={() => setPicked(null)} />
+          <PrimaryBtn label={t('reference.addBible.addAndRecommend')} onPress={shown.add} busy={busy} />
+          <GhostBtn label={t('reference.addBible.backToList')} help={t('reference.addBible.backToListHelp')} onPress={unpick} />
         </>
       ) : undefined}>
-      {picked && facts ? (
+      {shown && facts ? (
         <>
           <Group>
             {testamentLines(facts).map((l, i, all) => <Row key={l.testament} icon="book" label={l.label} sub={l.line} last={i === all.length - 1} />)}
@@ -292,7 +300,7 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
                     return (
                       <HelpRow key={`${s.org_id}/${s.item_id}`} of="reference.readyBible">
                         <Row icon="book" label={s.name} disabled={busy} last={i === ready.length - 1}
-                          sub={[s.org_name, languageLabel(doc.language), sourceSummary(sourceFacts(doc, readyDocs.get))].join(' · ')} help={t('reference.addBible.readyHelp')} onPress={() => void addReady(s)} />
+                          sub={[s.org_name, languageLabel(doc.language), sourceSummary(sourceFacts(doc, readyDocs.get))].join(' · ')} help={t('reference.addBible.bibleHelp')} onPress={() => setReadyPicked(s)} />
                       </HelpRow>
                     );
                   })}
@@ -483,7 +491,10 @@ export function ReferenceGuides(ctx: Ctx) {
   const level = levelOf(ctx);
   const state = ctx.language.state;
   const beside = useOpenDetail();
-  const { rows, docs } = useRefItems(ctx);
+  const { lib, rows, docs } = useRefItems(ctx);
+  // Guides and notes for every language are the organization's library (`mayWriteLibrary`); a language's own
+  // manager writes a note in the language instead (UI audit, findings 54 and 55).
+  const mayWrite = lib.canWrite('material');
   const canAct = canActAt(ctx, level);
   const rec = useRecommend(ctx);
   const [filtering, setFiltering] = useState(false);
@@ -509,13 +520,16 @@ export function ReferenceGuides(ctx: Ctx) {
   const shown = filterGuides(items, { kind, language, book, covers }, reach);
   const active = activeFilterCount({ kind, language, book, covers });
   const withRec = guideRows(shown, ctx.org.state?.recommendations, state, level);
+  const noteTo: Record<string, string> | null = mayWrite ? { itemId: 'new', kind: 'note', ...levelParams(level) }
+    : languageId && ctx.session.can('manage_reference') ? { languageId } : null;
+  const ownGuide = (r: (typeof withRec)[number]['r']) => r.doc?.format === 'study@2' && r.it.source !== 'subscription' && mayWrite;
 
   return (
     <Screen header={<Header title={t('reference.guides.title')} sub={levelName(ctx, level)} onBack={ctx.back} />}
-      footer={ctx.session.can('manage_reference') ? <PrimaryBtn label={t('reference.guides.newNote')} icon="plus" onPress={() => ctx.go('material_editor', { itemId: 'new', kind: 'note', ...levelParams(level) })} /> : undefined}>
+      footer={noteTo ? <PrimaryBtn label={t('reference.guides.newNote')} icon="plus" onPress={() => ctx.go('material_editor', noteTo)} /> : undefined}>
       <Intro>{t('reference.guides.intro')}</Intro>
       {/* Write your own, beside following others' (design principle 12; Get ready promises it). */}
-      {ctx.session.can('manage_reference') ? (
+      {mayWrite ? (
         <Group>
           <Row icon="sparkle" label={t('config.reference.writeGuide')} sub={t('config.reference.writeGuideSub')} last
             onPress={() => ctx.go('guide_editor', levelParams(level))} />
@@ -531,10 +545,10 @@ export function ReferenceGuides(ctx: Ctx) {
         <Card><Text style={txt.smMuted}>{items.length ? t('reference.guides.nothingMatches') : t('reference.guides.empty')}</Text></Card>
       ) : withRec.slice(0, n).map(({ r, st, label }) => (
         <HelpRow key={r.it.itemId} of="reference.guide"><Card current={beside?.screen === 'material_editor' && beside.params['itemId'] === r.it.itemId}
-          onPress={() => (r.doc?.format === 'study@2' && r.it.source !== 'subscription'
+          onPress={() => (ownGuide(r)
             ? ctx.go('guide_editor', { itemId: r.it.itemId, ...levelParams(level) })
             : ctx.go('material_editor', { itemId: r.it.itemId, ...levelParams(level) }))} accessibilityLabel={t('reference.itemLabel', { name: r.it.name, state: label })}
-          help={r.doc?.format === 'study@2' && r.it.source !== 'subscription' ? t('reference.guides.editHelp') : t('reference.guides.openHelp')}>
+          help={ownGuide(r) ? t('reference.guides.editHelp') : t('reference.guides.openHelp')}>
           <View style={styles.titleRow}>
             <Text style={[txt.h3, styles.titleText]}>{r.it.name}</Text>
             <Badge label={label} tone={recTone(st)} />

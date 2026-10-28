@@ -94,7 +94,7 @@ test('PEOPLE-001 Members at organization level, and by language', async ({ page,
   await orgMembers(page, w);
   await expect(text(page, 'Members')).toBeVisible();
   await expect(button(page, 'Invite')).toBeVisible();
-  await expect(text(page, 'Members assigned at organization scope. Expand the groups below for the other levels.')).toBeVisible();
+  await expect(text(page, 'People whose role covers every language. Open a group below for each language’s own.')).toBeVisible();
   await expect(text(page, 'Organization members · 3')).toBeVisible();
   // ADMIN sees their own row as "You"; names arrive from the server.
   for (const [who, role] of [['You', 'Organization Admin'], [w.accounts.COORD.name, 'Coordinator'], [w.accounts.VIEW.name, 'Viewer']]) {
@@ -122,13 +122,13 @@ test('PEOPLE-002 Members of one language, with higher levels view only', async (
   const w = world();
   await openAs(page, w, 'ADMIN');
   await alphaMembers(page, w);
-  await expect(text(page, 'Members assigned at language scope for this view. Expand the groups below for the other levels.')).toBeVisible();
+  await expect(text(page, 'People with a role in this language. Open a group below for the others.')).toBeVisible();
   await expect(text(page, 'Language members · 5')).toBeVisible();
   for (const [k, role] of [['LADMIN', 'Language Lead'], ['TRANS', 'Translator'], ['REV', 'Reviewer'], ['TREV', 'Translator-Reviewer'], ['KEPT', 'Translator']] as const) {
-    await expect.poll(() => between(page, 'Language members · 5', 'Higher levels · view only'))
+    await expect.poll(() => between(page, 'Language members · 5', 'Every language · view only'))
       .toMatch(new RegExp(`${esc(w.accounts[k].name)} Alpha · joined just now ${esc(role)}`, 'i'));
   }
-  const higher = await between(page, 'Higher levels · view only', null);
+  const higher = await between(page, 'Every language · view only', null);
   for (const who of ['You', w.accounts.COORD.name, w.accounts.VIEW.name]) expect(higher).toContain(who);
   // Higher levels are greyed with a lock: not buttons, and a tap does nothing.
   await expect(rowButton(page, w.accounts.VIEW.name)).toHaveCount(0);
@@ -198,7 +198,7 @@ test('PEOPLE-003 Invite by group code, and the person joins on a second device @
   await expect(text(page, /^Language members · /)).toBeVisible();
   await syncNow(page);
   await expect(text(page, joiner())).toBeVisible({ timeout: 30_000 });
-  expect(await between(page, 'Language members', 'Higher levels')).toMatch(new RegExp(`${esc(joiner())} Alpha · joined just now Translator`, 'i'));
+  expect(await between(page, 'Language members', 'Every language · view only')).toMatch(new RegExp(`${esc(joiner())} Alpha · joined just now Translator`, 'i'));
   await back(page).click();
   await expect(text(page, 'Ready · 4 translators')).toBeVisible();
 });
@@ -307,7 +307,7 @@ test('PEOPLE-006 Invite one person by name, and they join @p0', async ({ page, b
   await primary(page).click();
   await expect(text(page, /^Language members · /)).toBeVisible();
   await syncNow(page);
-  await expect.poll(async () => between(page, 'Language members', 'Higher levels'), { timeout: 30_000 })
+  await expect.poll(async () => between(page, 'Language members', 'Every language · view only'), { timeout: 30_000 })
     .toMatch(new RegExp(`${esc(nyibol())} Alpha · joined just now Reviewer`, 'i'));
 
   // The same code again, on a third device: used.
@@ -341,7 +341,7 @@ test('PEOPLE-007 Invite by QR from the start: role first, then a group', async (
   for (const [role, n] of [['Organization Admin', 15], ['Coordinator', 14], ['Language Lead', 13], ['Translator', 5], ['Reviewer', 2]] as const) {
     await expect(page.getByRole('radio', { name: new RegExp(`^${esc(role)} ${n} privileges`) })).toBeVisible();
   }
-  await expect(page.getByRole('radio', { name: /^Viewer 1 privilege/ })).toBeVisible();
+  await expect(page.getByRole('radio', { name: /^Viewer 1 permission/ })).toBeVisible();
   await expect(text(page, 'Create a new role')).toBeVisible();
   await page.getByRole('radio', { name: /^Viewer/ }).click();
   await primary(page).click();
@@ -595,7 +595,7 @@ test('PEOPLE-017 Several requests, and pending rows in Members', async ({ page }
     await text(page, '2 people want to join').click();
     await expect(text(page, /^Language members · /)).toBeVisible();
     // Both first, each with an amber Pending; one says its message, the other that they asked.
-    await expect.poll(() => between(page, 'Language members · ', 'Higher levels'))
+    await expect.poll(() => between(page, 'Language members · ', 'Every language · view only'))
       .toMatch(new RegExp(`^\\d+ \\S+ ${esc(a.name)} From the Alpha school Pending \\S+ ${esc(b.name)} Asked to join Pending`));
     const count = Number(/Language members · (\d+)/i.exec(await screenText(page))![1]);
     const atAlpha = (await serviceClient().from('org_memberships').select('profile_id').eq('org_id', w.orgId).eq('removed', false)
@@ -828,7 +828,7 @@ test('PEOPLE-025 Remove a member', async ({ page }) => {
   expect(r!).toBeGreaterThan(b! + 60);
   // Under the form; Save Assignment is in the footer, apart from it.
   await expectInOrder(page, 'Which language this assignment applies to.', 'Remove from language');
-  await expect(primary(page)).toHaveText('Save Assignment');
+  await expect(primary(page)).toHaveText('Save role');
   expect(await remove.evaluate((e, save) => !!save && save.contains(e), await primary(page).elementHandle())).toBe(false);
   // It asks first (decision 134): nothing puts a member back afterwards. Cancel keeps them.
   const ask = page.getByTestId('sheet').locator('visible=true').last();
@@ -841,7 +841,7 @@ test('PEOPLE-025 Remove a member', async ({ page }) => {
   // The sheet's button has the link's words. The person stays removed for the rest of this file.
   await remove.click();
   await ask.getByRole('button', { name: 'Remove from language', exact: true }).click();
-  await expectToast(page, `${joiner()} removed at language level`);
+  await expectToast(page, `${joiner()} no longer has a role in this language`);
   await expect(text(page, /^Language members · /)).toBeVisible();
   await expect(text(page, joiner())).toHaveCount(0);
   // An organization member's link and sheet name the organization.
@@ -882,7 +882,7 @@ test('PEOPLE-027 A member who holds more than you is view only', async ({ page }
   await expect(text(page, 'View only')).toBeVisible();
   await expect(text(page, `${w.accounts.ADMIN.name} holds more here than you do, so only someone who holds as much can change this.`)).toBeVisible();
   await expect(text(page, 'What will they do?')).toHaveCount(0);
-  await expect(text(page, 'Save Assignment')).toHaveCount(0);
+  await expect(text(page, 'Save role')).toHaveCount(0);
   await expect(text(page, 'Remove from organization')).toHaveCount(0);
 });
 
@@ -971,7 +971,7 @@ test('PEOPLE-030 A language lead grants only what they hold, only at their langu
   await expect(text(page, 'Step 1 of 3 — Role')).toBeVisible();
   const qrRoles = (await page.getByRole('radio').locator('visible=true').allInnerTexts()).map((s) => s.replace(/\s+/g, ' '));
   for (const [r, n] of [['Language Lead', 13], ['Translator', 5], ['Translator-Reviewer', 5], ['Reviewer', 2], ['Viewer', 1]] as const) {
-    expect(qrRoles.some((x) => x.startsWith(`${r} ${n} privilege`))).toBe(true);
+    expect(qrRoles.some((x) => x.startsWith(`${r} ${n} permission`))).toBe(true);
   }
   for (const no of ['Coordinator', 'Organization Admin']) expect(qrRoles.some((x) => x.startsWith(no))).toBe(false);
 
@@ -1021,5 +1021,5 @@ test('PEOPLE-031 A language lead cannot act at organization scope', async ({ pag
   await expect(rowButton(page, w.accounts.COORD.name)).toHaveCount(0);
   await text(page, w.accounts.COORD.name).click();
   await expect(text(page, /^Organization members · /)).toBeVisible();
-  await expect(text(page, 'Save Assignment')).toHaveCount(0);
+  await expect(text(page, 'Save role')).toHaveCount(0);
 });

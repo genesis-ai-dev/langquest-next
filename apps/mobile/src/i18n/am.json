@@ -682,8 +682,6 @@
       "reference": "የማጣቀሻ ጽሑፎች",
       "flows": "የግምገማ ሂደቶች",
       "roles": "ሚናዎች",
-      "rolesSub_one": "በዚህ ደረጃና ከዚያ በላይ {{count, number}} ሚና",
-      "rolesSub_other": "በዚህ ደረጃና ከዚያ በላይ {{count, number}} ሚናዎች",
       "summary": {
         "templates": "የይዘት አብነቶች",
         "referenceFirst": "የማጣቀሻ ጽሑፎች",
@@ -705,15 +703,17 @@
         "questions_other": "{{count, number}} የጥያቄ ስብስቦች",
         "terms_one": "{{count, number}} ቁልፍ ቃል",
         "terms_other": "{{count, number}} ቁልፍ ቃላት"
-      }
+      },
+      "rolesSub_one": "{{count, number}} ሚና",
+      "rolesSub_other": "{{count, number}} ሚናዎች"
     },
     "people": {
       "title": "ሰዎች",
       "members": "አባላት",
-      "assignedHere_one": "በዚህ ቋንቋ {{count, number}} ተመድቧል",
-      "assignedHere_other": "በዚህ ቋንቋ {{count, number}} ተመድበዋል",
-      "orgSub": "በድርጅት ደረጃ {{here}} · በአጠቃላይ {{total}}",
-      "membersHelp": "አንድ ሰው ለመጋበዝ ወይም ሚና ለመቀየር ሰዎቹንና ሚናዎቻቸውን ይከፍታል።"
+      "orgSub": "በሁሉም ቋንቋ {{here}} · በአጠቃላይ {{total}}",
+      "membersHelp": "አንድ ሰው ለመጋበዝ ወይም ሚና ለመቀየር ሰዎቹንና ሚናዎቻቸውን ይከፍታል።",
+      "assignedHere_one": "በዚህ ቋንቋ ሚና ያለው {{count, number}}",
+      "assignedHere_other": "በዚህ ቋንቋ ሚና ያላቸው {{count, number}}"
     },
     "home": {
       "title": "ድርጅት",
@@ -819,15 +819,15 @@
       "count_one": "{{count, number}} አባል",
       "count_other": "{{count, number}} አባላት",
       "invite": "ይጋብዙ",
-      "introOrg": "በድርጅት ወሰን የተመደቡ አባላት። ለሌሎቹ ደረጃዎች ከታች ያሉትን ቡድኖች ይዘርጉ።",
-      "introLanguage": "ለዚህ እይታ በቋንቋ ወሰን የተመደቡ አባላት። ለሌሎቹ ደረጃዎች ከታች ያሉትን ቡድኖች ይዘርጉ።",
+      "introOrg": "ሚናቸው ሁሉንም ቋንቋዎች የሚሸፍን ሰዎች። የእያንዳንዱን ቋንቋ ሰዎች ለማየት ከታች አንድ ቡድን ይክፈቱ።",
+      "introLanguage": "በዚህ ቋንቋ ሚና ያላቸው ሰዎች። ሌሎቹን ለማየት ከታች አንድ ቡድን ይክፈቱ።",
       "sectionOrg": "የድርጅቱ አባላት · {{total}}",
       "sectionLanguage": "የቋንቋው አባላት · {{total}}",
       "pending": "በመጠባበቅ ላይ",
-      "none": "እስካሁን በዚህ ደረጃ የተመደቡ አባላት የሉም።",
+      "none": "እስካሁን እዚህ ሚና ያለው የለም።",
       "expandBy": "በዚህ ይዘርጉ",
       "byLanguage": "በቋንቋ",
-      "higher": "ከፍተኛ ደረጃዎች · ለማየት ብቻ",
+      "higher": "ሁሉም ቋንቋ · ለማየት ብቻ",
       "memberHelp": "ለመቀየር ሚናቸውንና የት እንደሚሠራ ይከፍታል።",
       "lockedHelp": "የዚህን ሰው ሚና ከዚህ መቀየር አይችሉም።",
       "requestHelp": "መቀላቀል ይፈልጋሉ። ጥያቄያቸውን ይከፍታል፦ እንዲገቡ ይፍቀዱ ወይም እምቢ ይበሉ።",
@@ -839,9 +839,9 @@
     "assign": {
       "noRoles": "እዚህ ምንም ሚና የለም።",
       "where": "የት?",
-      "whereHelp": "ይህ ሰው የተመረጠውን ሚና ፈቃዶች የት መጠቀም እንደሚችል።",
+      "whereHelp": "ይህ ሰው ሚናው የሚፈቅድለትን የሚያደርግበት ቦታ።",
       "language": "ቋንቋ",
-      "languageHelp": "ይህ ምደባ የሚመለከተው የትኛውን ቋንቋ ነው።",
+      "languageHelp": "ሚናው ለየትኛው ቋንቋ እንደሆነ።",
       "noLanguages": "እስካሁን ቋንቋዎች የሉም።",
       "orgHelp": "ሚናው በመላው ድርጅት ይሠራል።",
       "languageLevelHelp": "ሚናው ከታች በሚመረጥ አንድ ቋንቋ ውስጥ ይሠራል።",
@@ -869,18 +869,18 @@
     },
     "member": {
       "isNow": "{{name}} አሁን {{role}} ነው",
-      "removedOrg": "{{name}} በድርጅት ደረጃ ተወግዷል",
-      "removedLanguage": "{{name}} በቋንቋ ደረጃ ተወግዷል",
+      "removedOrg": "{{name}} ከአሁን በኋላ በሁሉም ቋንቋ ሚና የለውም",
+      "removedLanguage": "{{name}} ከአሁን በኋላ በዚህ ቋንቋ ሚና የለውም",
       "declined": "የ{{name}} ጥያቄ ውድቅ ተደርጓል",
       "editTitle": "አባሉን ያርትዑ",
       "notMember": "እዚህ አባል አይደለም",
       "notMemberSub": "ይህ ሰው ከአሁን በኋላ በዚህ ድርጅት ውስጥ ሚና የለውም።",
       "awaiting": "ማጽደቂያ በመጠበቅ ላይ",
       "assignRole": "ሚና ይመድቡ",
-      "saveAssignment": "ምደባውን ያስቀምጡ",
+      "saveAssignment": "ሚናውን አስቀምጥ",
       "decline": "ውድቅ ያድርጉ",
-      "introPending": "ይህ ሰው መለያ ፈጥሮ ለመቀላቀል ጠይቋል። እንዲገባ ለመፍቀድ ሚናና ወሰን ይመድቡለት።",
-      "intro": "ሚና ይምረጡ፣ ከዚያ ይህ ምደባ የሚሠራበትን ወሰን ይምረጡ። ወሰኑ ይህ ደረጃ ወይም ከዚህ በታች ሊሆን ይችላል።",
+      "introPending": "ይህ ሰው መለያ ፈጥሮ ለመቀላቀል ጠይቋል። እንዲገባ ሚናውንና የሚሠራበትን ቦታ ይምረጡ።",
+      "intro": "ሚና ይምረጡ፣ ከዚያም የሚሠራበትን ቦታ።",
       "outranked": "{{name}} እዚህ ከእርስዎ የበለጠ ሥልጣን አለው፤ ስለዚህ ይህን መለወጥ የሚችለው እኩል ሥልጣን ያለው ሰው ብቻ ነው።",
       "onlyManager": "ሚናዎችን ማስተዳደር የሚችለው {{name}} ብቻ ነው",
       "onlyManagerYou": "ሚናዎችን ማስተዳደር የሚችሉት እርስዎ ብቻ ነዎት",
@@ -918,8 +918,6 @@
       "pickRole": "ይህ ሰው ሊኖረው የሚገባውን ሚና ይምረጡ። ኢሜይሉ አያስፈልግዎትም።",
       "alreadyTitle": "አስቀድሞ በቡድኑ ውስጥ ነው፣ አዲስ መሣሪያ ይዞ?",
       "alreadyBody": "በአባላት ውስጥ ከፍተው «እንዲገቡ ያግዟቸው»ን ይንኩ። አዲስ ግብዣ ሁለተኛ መለያ ይፈጥራል።",
-      "privileges_one": "{{count, number}} ፈቃድ",
-      "privileges_other": "{{count, number}} ፈቃዶች",
       "noRoles": "እስካሁን ሚናዎች የሉም።",
       "createRole": "አዲስ ሚና ይፍጠሩ",
       "one": "አንድ ሰው",
@@ -945,7 +943,9 @@
       "doneHelp": "ተጠናቋል፦ የአባላት ዝርዝሩን ይከፍታል።",
       "nameFieldHelp": "ኮዱ ለማን እንደሆነ። ሲቃኙ ያዩታል።",
       "groupNameFieldHelp": "ለቡድኑ የሚሆን ስም። የሚቃኘው ሁሉ ያየዋል።",
-      "shareHelp": "የግብዣውን ሊንክ በመልዕክት ይልካል፣ ወይም ይቀዳዋል።"
+      "shareHelp": "የግብዣውን ሊንክ በመልዕክት ይልካል፣ ወይም ይቀዳዋል።",
+      "privileges_one": "{{count, number}} ፈቃድ",
+      "privileges_other": "{{count, number}} ፈቃዶች"
     },
     "newLanguage": {
       "theOrganization": "ድርጅቱ",
@@ -2240,19 +2240,19 @@
     "privileges": {
       "manageStructure": {
         "label": "የድርጅቱን አወቃቀር ማስተዳደር",
-        "desc": "በወሰናቸው ውስጥ የድርጅቱን አወቃቀሮች (ቋንቋዎች) መለወጥ"
+        "desc": "ሚናቸው በሚሠራበት ቋንቋዎችን ማከልና መቀየር"
       },
       "inviteMembers": {
         "label": "ሰዎችን መጋበዝ",
-        "desc": "በወሰናቸው ውስጥ ሰዎችን መጋበዝ"
+        "desc": "ሚናቸው በሚሠራበት ሰዎችን መጋበዝ"
       },
       "manageRoles": {
         "label": "ሚናዎችን መፍጠርና መለወጥ",
-        "desc": "በወሰናቸው ውስጥ ሚናዎችን መፍጠርና ማርትዕ"
+        "desc": "ሚናቸው በሚሠራበት ሚናዎችን መሥራትና መቀየር"
       },
       "manageTemplates": {
         "label": "የይዘት አብነቶችን ማስተዳደር",
-        "desc": "በወሰናቸው ውስጥ የይዘት አብነቶችን መሥራትና ማርትዕ"
+        "desc": "ሚናቸው በሚሠራበት የይዘት አብነቶችን መሥራትና መቀየር"
       },
       "shapeTemplates": {
         "label": "የይዘት አብነቶችን መቅረጽ",
@@ -2260,7 +2260,7 @@
       },
       "manageReference": {
         "label": "መጽሐፍ ቅዱሶችንና መመሪያዎችን መምረጥ",
-        "desc": "በወሰናቸው ውስጥ የማጣቀሻ ጽሑፎችን መሥራትና ማርትዕ"
+        "desc": "ሚናቸው በሚሠራበት የማጣቀሻ ቁሳቁሶችን መሥራትና መቀየር"
       },
       "manageFlows": {
         "label": "የግምገማ ሂደቶችን ማስተዳደር",
@@ -2268,11 +2268,11 @@
       },
       "manageTeams": {
         "label": "የግምገማ ቡድኖችን ማስተዳደር",
-        "desc": "በወሰናቸው ውስጥ የግምገማ ቡድኖችን (ስብስቦችን) መሥራትና ማርትዕ"
+        "desc": "ሚናቸው በሚሠራበት የግምገማ ቡድኖችን መሥራትና መቀየር"
       },
       "assignWork": {
         "label": "ሥራ መመደብ",
-        "desc": "በወሰናቸው ውስጥ ማንኛውንም ሰው ክፍል እንዲቀርጽ ወይም እንዲገመግም መጠየቅ"
+        "desc": "ሚናቸው በሚሠራበት ማንንም ክፍል እንዲቀርጽ ወይም እንዲገመግም መጠየቅ"
       },
       "overrideCheckpoints": {
         "label": "ሥራ የተቆለፈ ፍተሻን እንዲያልፍ መፍቀድ",
@@ -2296,7 +2296,7 @@
       },
       "viewStatus": {
         "label": "የሁሉንም ሰው ሥራ ማየት",
-        "desc": "በወሰናቸው ውስጥ ካርታውንና የክፍሎችን መዝገቦች ለንባብ ብቻ ማየት"
+        "desc": "ሚናቸው በሚሠራበት ካርታውንና የክፍል መዝገቦችን ሳይቀይሩ ማየት"
       }
     },
     "privilegeGroups": {
@@ -2366,21 +2366,21 @@
     "roles": {
       "title": "ሚናዎች",
       "addRole": "ሚና",
-      "introOrg": "ሚናዎች ቋሚ ወሰን የሌላቸው የፈቃዶች ስብስቦች ናቸው። ወሰኑ የሚመረጠው ሚናን ለአባል ሲመድቡ ነው። እዚህ የተፈጠሩ ሚናዎች በማንኛውም ደረጃ ሊመደቡ ይችላሉ።",
-      "introLanguage": "ሚናዎች ቋሚ ወሰን የሌላቸው የፈቃዶች ስብስቦች ናቸው። ወሰኑ የሚመረጠው ሚናን ለአባል ሲመድቡ ነው። ሚናዎች ለመላው ድርጅት የሚወሰኑ በመሆናቸው እዚህ ለማየት ብቻ ናቸው። ከድርጅቱ መነሻ ያርትዑዋቸው።",
+      "introOrg": "ሚና አንድ ሰው ሊያደርግ የሚችለው ነው። የት ሊያደርገው እንደሚችል ሚናው ሲሰጠው ይመረጣል፦ በሁሉም ቋንቋ ወይም በአንዱ።",
+      "introLanguage": "ሚና አንድ ሰው ሊያደርግ የሚችለው ነው። ሚናዎች የመላው ድርጅት ናቸው፣ ስለዚህ እዚህ ማየት ብቻ ይችላሉ። ከድርጅት መነሻ ይቀይሯቸው።",
       "loading": "ሚናዎችን በመጫን ላይ…",
       "empty": "እስካሁን ሚናዎች የሉም",
       "emptySub": "ሰዎች ለሚረዱበት ለእያንዳንዱ መንገድ አንድ ይሥሩ፦ የት ሳይሆን ምን ማድረግ እንደሚችሉ።",
       "definedAtOrg": "በድርጅት ደረጃ የተወሰነ",
-      "inheritedSub": "ለማየት ብቻ · ከተወሰነበት ደረጃ ያርትዑ",
+      "inheritedSub": "ለማየት ብቻ · ከድርጅት መነሻ ይቀይሩት",
       "members_one": "{{count, number}} አባል",
       "members_other": "{{count, number}} አባላት",
-      "privileges_one": "{{count, number}} ፈቃድ",
-      "privileges_other": "{{count, number}} ፈቃዶች",
       "addRoleHelp": "አዲስ ሚና ይፈጥራል፦ ሚናው ያላቸው ሰዎች ሊያደርጓቸው የሚችሉ ነገሮች ስብስብ።",
       "ownRoleHelp": "ሚናው ያላቸው ሰዎች ምን ማድረግ እንደሚችሉና ማን እንዳለው ይከፍታል። ኮከብ፦ ድርጅትዎ የሠራው ነው።",
       "builtInRoleHelp": "ሚናው ያላቸው ሰዎች ምን ማድረግ እንደሚችሉና ማን እንዳለው ይከፍታል። ከመተግበሪያው ጋር ይመጣል።",
-      "inheritedRoleHelp": "ሚናው ያላቸው ሰዎች ምን ማድረግ እንደሚችሉ ያሳያል። ከድርጅቱ መነሻ ይቀይሩት።"
+      "inheritedRoleHelp": "ሚናው ያላቸው ሰዎች ምን ማድረግ እንደሚችሉ ያሳያል። ከድርጅቱ መነሻ ይቀይሩት።",
+      "privileges_one": "{{count, number}} ፈቃድ",
+      "privileges_other": "{{count, number}} ፈቃዶች"
     },
     "roleEditor": {
       "title": "ሚና",
@@ -2392,7 +2392,7 @@
       "aNewRole": "አዲስ ሚና",
       "people_one": "{{count, number}} ሰው",
       "people_other": "{{count, number}} ሰዎች",
-      "inheritedBody": "በድርጅት ደረጃ የተወሰነ። ከድርጅቱ መነሻ ያርትዑት።",
+      "inheritedBody": "ለመላው ድርጅት የተሠራ። ከድርጅት መነሻ ይቀይሩት።",
       "noPermission": "ይህን ሚና ለማርትዕ ፈቃድ የለዎትም።",
       "nameLabel": "ምን ይባላል?",
       "namePlaceholder": "ለምሳሌ ተመላሽ ተርጓሚ",
@@ -2566,7 +2566,6 @@
       "concepts_other": "{{count, number}} ጽንሰ ሐሳቦች",
       "addLanguageFirst": "መጀመሪያ ቋንቋ ያክሉ",
       "libraryOrg": "ቤተ መጻሕፍት · የእርስዎ ድርጅት",
-      "new": "አዲስ",
       "libraryEmpty": "እስካሁን በቤተ መጻሕፍትዎ ውስጥ ምንም የለም። ሌሎች ድርጅቶች የሚያጋሩትን ይከተሉ ወይም ይቅዱ፣ ወይም የራስዎን ያትሙ።",
       "writeGuide": "መመሪያ ይጻፉ",
       "writeGuideSub": "ጽሑፍና ድምፅ፣ ስዕሎች፣ ካርታዎችና ቁልፍ ቃላት ያሏቸው ደረጃዎች",
@@ -2593,10 +2592,15 @@
       "biblesHelp": "ተርጓሚዎች የሚሰሟቸውንና የሚያነቧቸውን መጽሐፍ ቅዱሶች፣ የትኞቹ እንደተመከሩም ይከፍታል።",
       "guidesNotesHelp": "ተርጓሚዎች የሚያገኟቸውን የጥናት መመሪያዎችና ማስታወሻዎች፣ የትኞቹ እንደተመከሩም ይከፍታል።",
       "keyTermsHelp": "እያንዳንዱን ጽንሰ ሐሳብና ይህ ቋንቋ እንዴት እንደሚለው ይከፍታል።",
-      "newHelp": "በቤተ መጻሕፍትዎ ውስጥ አዲስ ጽሑፍ ይጀምራል።",
       "libraryItemHelp": "ይከፍተዋል፦ ምን እንደያዘና እንዴት እንደሚጋራ።",
       "openMaterialHelp": "ለማንበብ ወይም ለመቀየር ይከፍተዋል።",
-      "openLockedHelp": "ይከፍተዋል። ተቆልፏል፦ ሊቀይሩት የሚችሉት የማጣቀሻ ጽሑፎችን የሚያስተዳድሩ ሰዎች ብቻ ናቸው።"
+      "openLockedHelp": "ይከፍተዋል። ተቆልፏል፦ ሊቀይሩት የሚችሉት የማጣቀሻ ጽሑፎችን የሚያስተዳድሩ ሰዎች ብቻ ናቸው።",
+      "add": {
+        "here": "መመሪያዎች፣ አጭር መግለጫ ወይም ጥያቄዎች",
+        "hereSub": "እዚህ ክፍል በክፍል ይጻፋል፤ የግምገማ ጥያቄዎች ወደ አንድ የግምገማ ዓይነት ይሄዳሉ",
+        "byVerses": "በቁጥሮች የተቀመጠ ማስታወሻ",
+        "byVersesSub": "ወደ ቤተ መጻሕፍቱ ይገባል፣ ቁጥሮቹ ወይም የአብነት ክፍሎቹ ያሉባቸውን ክፍሎችም ይደርሳል"
+      }
     },
     "material": {
       "editTitle": "ጽሑፉን ያርትዑ",
@@ -2908,7 +2912,7 @@
       "title": "ኮድ ይቃኙ",
       "subSignIn": "እንዲገቡ ከሚያግዝዎት ሰው የተገኘ ኮድ",
       "subGuest": "ኢሜይል ወይም የይለፍ ቃል አያስፈልግም",
-      "subMember": "ግብዣው ድርጅትን፣ ሚናንና ወሰንን ይይዛል",
+      "subMember": "ግብዣው የትኛው ድርጅት፣ ሚናና ቋንቋ እንደሆነ ይናገራል",
       "notCode": "ይህ የLangQuest ኮድ አይደለም።",
       "notQr": "ይህ QR ኮድ የLangQuest ኮድ አይደለም።",
       "cameraOff": "የካሜራ ፈቃድ ጠፍቷል። ኮዱን ከታች መለጠፍ ይችላሉ።",
@@ -6452,22 +6456,19 @@
     "rec": {
       "recommended": "የተመከረ",
       "notRecommended": "ያልተመከረ",
-      "hiddenForLanguage": "ለዚህ ቋንቋ የተደበቀ",
+      "notHere": "እዚህ ያልተመከረ",
       "forLanguage": "ለዚህ ቋንቋ የተመከረ",
       "byOrganization": "በድርጅቱ የተመከረ",
       "stop": "መምከር ያቁሙ",
       "recommend": "ይምከሩ",
-      "follow": "ድርጅቱን ይከተሉ",
-      "hide": "ይደብቁ",
+      "recommendHere": "እዚህ ይምከሩ",
+      "stopHere": "እዚህ መምከር ያቁሙ",
       "done": {
         "recommendedEverywhere": "{{name}} ለሁሉም ቋንቋዎች ተመክሯል።",
         "recommendedHere": "{{name}} ለዚህ ቋንቋ ቡድን ተመክሯል።",
         "stopped": "{{name}} ከአሁን በኋላ አይመከርም።",
-        "hidden": "{{name}} ለዚህ ቋንቋ ተደብቋል።",
-        "follows": "{{name}} እዚህ ድርጅቱን ይከተላል።"
+        "stoppedHere": "{{name}} ከአሁን በኋላ ለዚህ ቋንቋ ቡድን አይመከርም።"
       },
-      "followHelp": "ይህ ቋንቋ ድርጅቱ ወደሚመክረው ይመለሳል።",
-      "hideHelp": "ድርጅቱ ቢመክረውም የዚህ ቋንቋ ቡድን ማግኘቱን ያቆማል።",
       "recommendLanguageHelp": "የዚህ ቋንቋ ቡድን እንደ ምክር ያገኘዋል።",
       "recommendOrgHelp": "የእያንዳንዱ ቋንቋ ቡድን እንደ ምክር ያገኘዋል።",
       "stopLanguageHelp": "የዚህ ቋንቋ ቡድን እንደ ምክር ማግኘቱን ያቆማል።",
@@ -6532,7 +6533,7 @@
       "noneRecommendedAdd": "እስካሁን እዚህ የተመከረ መጽሐፍ ቅዱስ የለም። አንዱን ያክሉ።",
       "noneRecommendedBelow": "እስካሁን እዚህ የተመከረ መጽሐፍ ቅዱስ የለም። ከታች አንዱን ይምከሩ።",
       "noneRecommendedYet": "እስካሁን እዚህ የተመከረ መጽሐፍ ቅዱስ የለም።",
-      "hidden": "ለዚህ ቋንቋ የተደበቁ · {{n, number}}",
+      "hidden": "እዚህ ያልተመከረ · {{n, number}}",
       "notRecommended": "በቤተ መጻሕፍትዎ ውስጥ ያሉ፣ ያልተመከሩ · {{n, number}}",
       "cardHelp": "ይከፍተዋል፦ ጽሑፉ፣ ድምፁ፣ የቁጥር ጊዜ አመዳደቡና ለማን እንደተመከረ።"
     },
@@ -6553,7 +6554,6 @@
       "bibleBrainHelp": "በBible Brain ውስጥ መጽሐፍ ቅዱሶችን በቋንቋ ይፈልጉ።",
       "bibleHelp": "ከማከልዎ በፊት ምን እንዳለው ያሳያል።",
       "fromLangQuestHelp": "LangQuest ለመከተል ያዘጋጃቸውን መጽሐፍ ቅዱሶች ያሳያል።",
-      "readyHelp": "ወደ ቤተ መጻሕፍትዎ ያክለዋል፣ እዚህም ይመክረዋል።",
       "searchHelp": "መጽሐፍ ቅዱሶቹን ለማግኘት የቋንቋውን ስም ወይም ኮድ ይጻፉ።",
       "listed": "በBible Brain መጽሐፍ ቅዱስ ያላቸው ቋንቋዎች ብቻ ይታያሉ።",
       "noMatch": "በዚህ ስም የሚጠራ ቋንቋ በBible Brain መጽሐፍ ቅዱስ የለውም።",

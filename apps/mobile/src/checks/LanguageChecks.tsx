@@ -236,7 +236,7 @@ function FlowsSheet(props: { ctx: Ctx; visible: boolean; kinds: KindDef[]; langu
       {chk.entries.length === 0 ? <Text style={txt.smMuted}>{chk.loaded ? t('getReady.checks.noWays') : t('common.loading')}</Text> : null}
       {chk.entries.map((e) => (
         <HelpRow key={e.c.key} of="checks.flow">
-          <ChoiceCard on={picked === e.c.key} icon="route" title={e.c.name} sub={checksLine(e.doc.steps, chk.kindsOf(e.doc))} help={t('checks.flows.pickHelp')} onPress={() => setPicked(e.c.key)} />
+          <ChoiceCard on={picked === e.c.key} icon="flow" title={e.c.name} sub={checksLine(e.doc.steps, chk.kindsOf(e.doc))} help={t('checks.flows.pickHelp')} onPress={() => setPicked(e.c.key)} />
         </HelpRow>
       ))}
     </Sheet>
