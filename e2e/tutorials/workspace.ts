@@ -34,8 +34,8 @@ export async function recordOffCamera(page: Page, mic: Mic, parts: number): Prom
   await button(page, 'Done').click();
   await shows(page, 'publish-button');
   await button(page, new RegExp(`^Parts 1–${parts}, ${parts} parts · `)).waitFor({ timeout: 60_000 });
-  await page.waitForFunction((n) => [...document.querySelectorAll(`[aria-label="Play Parts 1–${n}"]`)]
-    .some((e) => (e as HTMLElement).offsetParent !== null && e.getAttribute('aria-disabled') !== 'true'), parts, { timeout: 60_000 });
+  const play = page.getByRole('button', { name: `Play Parts 1–${parts}`, exact: true }).locator('visible=true').first();
+  await page.waitForFunction((e) => e?.getAttribute('aria-disabled') !== 'true', await play.elementHandle({ timeout: 60_000 }), { timeout: 60_000 });
   await page.getByText('All uploaded').waitFor({ timeout: 60_000 }).catch(() => undefined);
   await id(page, 'upload-bar').waitFor({ state: 'hidden', timeout: 60_000 });
 }

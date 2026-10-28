@@ -16,6 +16,7 @@ export const chooseTheAppLanguage: Tutorial = {
   id: 'choose-the-app-language',
   title: "Choose the app's language",
   as: 'TRANS',
+  notIn: ['ar'],
   names: recordAPassage.names,
   steps: [
     {

@@ -4,7 +4,7 @@
 // the tutorial's person, at phone size. Chrome's screencast keeps every frame
 // with the time it was drawn, and the film notes when each line is said, when
 // the speaker starts speaking and what the app plays aloud, so the video can
-// be put together afterwards with its sound (compose.py).
+// be put together afterwards with its sound (compose.ts).
 //
 //   TUTORIAL_TTS="<command> <args>" TUTORIAL_SPEECH=<dir> npx tsx e2e/tutorials/film.ts record-a-passage [out]
 //
@@ -13,7 +13,7 @@
 // so a line whose words change is said again. TUTORIAL_TTS makes the missing
 // ones: it is run once, with each file to write and its words after its own
 // args, so a voice can say them all in one request.
-// The speaker's recordings are WAV files in TUTORIAL_SPEECH.
+// The speaker's recordings are WAV files in TUTORIAL_SPEECH (make-readings.ts makes them).
 import { chromium, type ElementHandle, type Locator } from 'playwright';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -45,7 +45,7 @@ function inLanguage(english: string): string {
   return words;
 }
 const base = `http://localhost:${process.env['UI_PORT'] ?? '8787'}`;
-const speechDir = path.resolve(process.env['TUTORIAL_SPEECH'] ?? path.join('e2e', 'tutorials', 'speech'));
+const speechDir = path.resolve(process.env['TUTORIAL_SPEECH'] ?? path.join('e2e', 'results', 'tutorials', 'speech', LANGUAGE));
 
 // ---- the voice --------------------------------------------------------------------------
 
@@ -225,8 +225,8 @@ await page.exposeBinding('__tutorialHeard', (_source, entry: { kind: string; id:
   }
 });
 await page.addInitScript(installPlaybackTap, '__tutorialHeard');
-// The language picked in this browser (apps/mobile/src/i18n/choice.web.ts).
-if (LANGUAGE !== 'en') await page.addInitScript((code) => { localStorage.setItem('ui-language:v1', code); }, LANGUAGE);
+// The language picked in this browser (apps/mobile/src/i18n/choice.web.ts), until the video picks another.
+if (LANGUAGE !== 'en') await page.addInitScript((code) => { if (localStorage.getItem('ui-language:v1') === null) localStorage.setItem('ui-language:v1', code); }, LANGUAGE);
 // The scripts' English is looked for in the app's language.
 findInFilmLanguage(page);
 if (!tutorial.signedOut) {

@@ -81,6 +81,7 @@ export const GROUPS = [
       'ui:fixture': "the UI test suite's fixture world, on the local server",
       languoids: 'the languoid explorer, preview and apply',
       'help-audio': "help mode's recorded voice: the lines to record, the upload",
+      tutorials: 'film the tutorial videos in every app language (docs/tutorial-videos.md)',
       snapshot: 'one snapshot pass over every language',
       reconcile: 'confirm uploaded files in R2 (-- --verify hashes them)',
       'listening:demo': "a local stand-in for LangQuest's partner API (decision 109)",

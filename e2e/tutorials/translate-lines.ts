@@ -14,6 +14,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { UI_LANGUAGES } from '@langquest-next/core';
 import { TUTORIALS } from './all';
+import { RUTHS_WORDS } from './readings';
 
 const MODEL = process.env['TUTORIAL_TRANSLATE_MODEL'] ?? 'gemini-pro-latest';
 const API = 'https://generativelanguage.googleapis.com/v1beta';
@@ -90,9 +91,14 @@ for (const language of languages) {
   const have: Record<string, string> = existsSync(linesFile(language.code)) ? JSON.parse(readFileSync(linesFile(language.code), 'utf8')) : {};
   files.set(language.code, have);
   const target = flat(catalog(language.code));
-  for (const tutorial of Object.values(TUTORIALS)) {
-    const lines = [...new Set(tutorial.steps.filter((s) => s.say).map((s) => s.say!))];
-    const missing = [tutorial.title, ...lines].filter((l) => !have[l]);
+  // Each video's lines, and what Ruth says into the microphone in them.
+  const videos = [
+    ...Object.values(TUTORIALS).map((t) => ({ title: t.title, lines: [...new Set(t.steps.filter((s) => s.say).map((s) => s.say!))], titled: true })),
+    { title: 'What a reviewer says into the microphone: her feedback, and passages said again in her own language', lines: RUTHS_WORDS, titled: false }
+  ];
+  for (const tutorial of videos) {
+    const lines = tutorial.lines;
+    const missing = [...(tutorial.titled ? [tutorial.title] : []), ...lines].filter((l) => !have[l]);
     if (!missing.length) continue;
     jobs.push({ code: language.code, missing, text: prompt(`${language.english} (${language.name})`, tutorial.title, lines, missing, have, glossary([tutorial.title, ...lines], target)) });
   }

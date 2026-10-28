@@ -55,6 +55,8 @@ export interface Tutorial {
   as: AccountKey;
   /** The language the app opens in (A, the world's first, when not said). */
   language?: LanguageKey;
+  /** App languages the video is not made in (it shows switching to that language). */
+  notIn?: string[];
   /** Nobody is signed in when the app opens: the video signs in, or makes an account. */
   signedOut?: boolean;
   /** The window, when it is not a phone's (430 by 932): a computer's, for what is done on the web. */

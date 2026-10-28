@@ -148,7 +148,10 @@ function inUiText(english: string, depth: number): string | RegExp {
   }
   // A line with values in it: every line it fits ("Open Version 1" is "Open {{version}}"
   // on one screen and "Open Version {{n}}" on another), the most particular first.
-  const chosen = lines().filter((l) => l.names.length && l.literal >= 3 && l.pattern.test(words)).sort((a, b) => b.literal - a.literal).slice(0, 8);
+  // A line of few words of its own ("{{step}} of {{total}}") fits only numbers.
+  // A line whose own words are a small part of these ("{{a}} and {{b}}") is a poor fit.
+  const fitting = (l: Line) => l.literal >= words.length / 4 && (l.literal >= 3 || (l.literal >= 2 && l.pattern.exec(words)!.slice(1).every((v) => /^\d[\d.,]*$/.test(v))));
+  const chosen = lines().filter((l) => l.names.length && l.literal >= 2 && l.pattern.test(words) && fitting(l)).sort((a, b) => b.literal - a.literal).slice(0, 8);
   if (!chosen.length) return english;
   const sources = [...new Set(chosen.map((l) => {
     const got = l.pattern.exec(words)!.slice(1);
@@ -273,7 +276,6 @@ function inUiPattern(english: RegExp): RegExp {
  * pattern open at its end (or start) fits the start (or end) of a line.
  */
 function bySample(english: RegExp, anchored: boolean, ended: boolean): string | undefined {
-  if (!anchored && !ended) return undefined;
   const body = english.source.slice(anchored ? 1 : 0, ended ? -1 : undefined);
   const parts = runs(body);
   if (!parts.some((r) => r.plain) || parts.some((r) => !r.plain && /[()|^$]/.test(r.text.replace(/\\./g, '')))) return undefined;
@@ -282,6 +284,12 @@ function bySample(english: RegExp, anchored: boolean, ended: boolean): string | 
   const isStand = (c: string) => c >= '\ue000' && c < '\uf000';
   const sample = parts.map((r) => (r.plain ? r.text : String.fromCharCode(0xe000 + stands.push(r.text) - 1))).join('');
   if (anchored && ended && !stands.length) return undefined;
+  // Words from the middle of a line ("Bibles and study guides be in?"): the lines that hold them.
+  if (!anchored && !ended) {
+    if (stands.length || sample.length < 8) return undefined;
+    const holding = lines().filter((l) => l.en.includes(sample)).sort((a, b) => a.literal - b.literal).slice(0, 12);
+    return holding.length ? `(?:${[...new Set(holding.map((l) => filmPattern(l, {})))].join('|')})` : undefined;
+  }
   const value = (got: string): string | RegExp => {
     if (![...got].some(isStand)) return eitherOf(inUiText(got, 2), got);
     const r = new RegExp(`^${[...got].map((c) => (isStand(c) ? `(?:${stands[c.charCodeAt(0) - 0xe000]})` : escape(c))).join('')}$`);
