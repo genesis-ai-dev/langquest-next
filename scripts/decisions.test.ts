@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-// The ADR log is docs/decisions.md (entries 1 to 176, cited by number) and,
+// The ADR log is docs/decisions.md (entries 1 to 178, cited by number) and,
 // after those, one file per decision in docs/decisions/, named by its date
 // and a few words (docs/decisions/2026-10-27-one-file-per-decision.md). Code
 // and docs cite both, so the numbers stay as they are, no new numbered entry
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 // and whether it still holds.
 
 const root = new URL('..', import.meta.url);
-const LAST_NUMBERED = 176;
+const LAST_NUMBERED = 178;
 
 const src = readFileSync(new URL('docs/decisions.md', root), 'utf8');
 const lines = src.replace(/```[\s\S]*?```/g, '').split('\n');
@@ -34,7 +34,7 @@ const files = readdirSync(new URL('docs/decisions/', root))
   });
 const names = new Set(files.map((d) => d.name));
 
-describe('decision log, entries 1 to 176', () => {
+describe('decision log, entries 1 to 178', () => {
   it('numbers entries 1, 2, 3 … with no gaps or repeats', () => {
     expect(entries.map((e) => e.n)).toEqual(entries.map((_, i) => i + 1));
   });

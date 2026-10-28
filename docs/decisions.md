@@ -1,11 +1,11 @@
 # Decisions
 
-The architecture decision record (ADR) log for this app, entries 1 to 176.
+The architecture decision record (ADR) log for this app, entries 1 to 178.
 Every architecture or design decision, from any developer or agent, is
 recorded as it is made, so the log reads as the history of how the design got
 to where it is. Each entry has the reason and what would change our mind.
 
-After entry 176, each new decision is a file of its own in
+After entry 178, each new decision is a file of its own in
 [decisions/](./decisions/), named by its date and a few words, so two branches
 never take the same number
 ([2026-10-27-one-file-per-decision](./decisions/2026-10-27-one-file-per-decision.md)).

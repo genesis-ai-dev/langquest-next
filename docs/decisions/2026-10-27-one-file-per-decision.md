@@ -1,4 +1,4 @@
-# Each new decision is a file of its own in docs/decisions, named by its date and a few words; entries 1 to 176 keep their numbers in decisions.md
+# Each new decision is a file of its own in docs/decisions, named by its date and a few words; entries 1 to 178 keep their numbers in decisions.md
 
 Date: 2026-10-27 · By: Caleb Koster · Status: accepted
 
@@ -18,7 +18,7 @@ each new decision a file of its own:
   same one. Naming the file by its pull request's number, as Rust and Ember
   name their RFCs, was the other choice; it needs a rename once the pull
   request opens.
-- Entries 1 to 176 stay in `docs/decisions.md` with their numbers, since
+- Entries 1 to 178 stay in `docs/decisions.md` with their numbers, since
   code and docs cite them about 3,000 times. They still take a new status or
   a dated amendment; no entry is added there.
 - `scripts/decisions.test.ts` checks each file's name, title and

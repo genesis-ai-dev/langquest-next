@@ -1,7 +1,7 @@
 # Decisions, one file each
 
-The architecture decision record (ADR) log for this app, after entry 176.
-Entries 1 to 176 came before and are in [../decisions.md](../decisions.md),
+The architecture decision record (ADR) log for this app, after entry 178.
+Entries 1 to 178 came before and are in [../decisions.md](../decisions.md),
 where they keep their numbers. Every architecture or design decision, from
 any developer or agent, gets a file here as it is made, so the files in name
 order read as the history of how the design got to where it is. Each one has
@@ -37,7 +37,7 @@ Reverse if: the evidence that would change our mind.
   `partly superseded by <name>`, where `<name>` is the later decision's file
   name without `.md`.
 - Cite a decision by its path: `docs/decisions/2026-10-27-one-file-per-decision.md`.
-  Entries 1 to 176 are still cited by number ("decisions.md 34").
+  Entries 1 to 178 are still cited by number ("decisions.md 34").
 - Never rewrite a past decision's reasoning. If a decision changes, write a
   new one that says "Supersedes <name>" (or "Supersedes 35") and set the old
   one's status. If it only narrows or extends, append a dated paragraph to
