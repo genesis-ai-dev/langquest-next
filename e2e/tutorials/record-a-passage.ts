@@ -10,7 +10,7 @@ export const recordAPassage: Tutorial = {
   title: 'Record a passage',
   as: 'TRANS',
   names: {
-    org: 'Riverside Translation Team', languages: { A: 'Lumari' },
+    org: 'Riverside Translation Team', org2: 'Hillside Bible Fellowship', languages: { A: 'Lumari' },
     people: { TRANS: 'Grace', COORD: 'Daniel', REV: 'Ruth', TREV: 'Peter', ADMIN: 'Samuel', LADMIN: 'Esther', VIEW: 'Joseph' }
   },
   speech: ['passage.wav'],

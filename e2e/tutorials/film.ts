@@ -19,6 +19,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { buildWorld, browserStateFor } from '../ui/fixture';
+import { giveAddresses } from './addresses';
 import { TUTORIALS } from './all';
 import { installTutorialMic } from './mic';
 import { installPlaybackTap } from './playback';
@@ -176,6 +177,7 @@ const world = await buildWorld({
   keptByInvite: true, names: tutorial.names,
   voices: (what) => (WORLD_VOICES[what] ? readFileSync(path.join(speechDir, WORLD_VOICES[what]!)) : undefined)
 });
+await giveAddresses(world);
 await tutorial.prepare?.(world);
 writeFileSync(path.join(out, 'world.json'), JSON.stringify(world));
 const viewport = { width: 430, height: 932 };
@@ -204,9 +206,11 @@ await page.exposeBinding('__tutorialHeard', (_source, entry: { kind: string; id:
   }
 });
 await page.addInitScript(installPlaybackTap, '__tutorialHeard');
-await page.addInitScript((entries) => {
-  for (const [k, v] of Object.entries(entries)) if (localStorage.getItem(k) === null) localStorage.setItem(k, v);
-}, browserStateFor(world, tutorial.as, 'A'));
+if (!tutorial.signedOut) {
+  await page.addInitScript((entries) => {
+    for (const [k, v] of Object.entries(entries)) if (localStorage.getItem(k) === null) localStorage.setItem(k, v);
+  }, browserStateFor(world, tutorial.as, 'A'));
+}
 
 const say = (n: number): Promise<number> =>
   page.evaluate((i) => (window as unknown as { __tutorialMic: { play(n: number): Promise<number> } }).__tutorialMic.play(i), n);
@@ -302,7 +306,7 @@ async function play(step: Step, index: number): Promise<void> {
       await sleep(140);
       if (step.tapAt) await page.mouse.click(at.x, at.y);
       else await target.click();
-      if (step.type) await target.pressSequentially(step.type, { delay: 70 });
+      if (step.type) await target.pressSequentially(typeof step.type === 'string' ? step.type : step.type(world), { delay: 70 });
       if (step.paste) await target.fill(typeof step.paste === 'string' ? step.paste : step.paste(world));
     }
     if (step.speak !== undefined) {

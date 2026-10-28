@@ -3,7 +3,9 @@
 import type { Tutorial } from './tutorial';
 import { addALanguage } from './add-a-language';
 import { backTranslateAPassage } from './back-translate-a-passage';
+import { chooseTheAppLanguage } from './choose-the-app-language';
 import { consultantCheck } from './consultant-check';
+import { createAnAccount } from './create-an-account';
 import { answerFeedback } from './answer-feedback';
 import { doACheck } from './do-a-check';
 import { findYourWayAround } from './find-your-way-around';
@@ -23,10 +25,11 @@ import { takeBackAReview } from './take-back-a-review';
 import { useTheHelp } from './use-the-help';
 import { versionsAndHistory } from './versions-and-history';
 import { workWithoutInternet } from './work-without-internet';
+import { yourAccount } from './your-account';
 
 export const TUTORIALS: Record<string, Tutorial> = Object.fromEntries([
   // Everyone
-  joinYourTeam, findYourWayAround, useTheHelp, workWithoutInternet,
+  joinYourTeam, createAnAccount, findYourWayAround, useTheHelp, workWithoutInternet, chooseTheAppLanguage, yourAccount,
   // Organization heads and admins
   startAnOrganization, addALanguage, inviteYourTeam,
   // Team coordinators and language leads

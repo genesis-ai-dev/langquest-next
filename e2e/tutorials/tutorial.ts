@@ -26,7 +26,7 @@ export interface Step {
   /** The finger drags the lit part: by so many points, or onto another part's place. */
   drag?: { by: { x: number; y: number } } | { to: (page: Page) => Locator };
   /** The finger taps the lit part, then types these words into it, a key at a time. */
-  type?: string;
+  type?: string | ((world: UiWorld) => string);
   /** The finger taps the lit part, then pastes these words into it at once (a link). */
   paste?: string | ((world: UiWorld) => string);
   /** Off camera, before the step: what changes around the phone (the internet goes, a teammate does something). */
@@ -49,6 +49,8 @@ export interface Tutorial {
   title: string;
   /** Who is signed in, from the UI tests' world. */
   as: AccountKey;
+  /** Nobody is signed in when the app opens: the video signs in, or makes an account. */
+  signedOut?: boolean;
   names: WorldNames;
   /** The speaker's recordings that the microphone hears (WAV files in TUTORIAL_SPEECH). */
   speech?: string[];
