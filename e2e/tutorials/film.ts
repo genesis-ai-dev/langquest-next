@@ -24,6 +24,7 @@ import { giveAddresses } from './addresses';
 import { TUTORIALS } from './all';
 import { installTutorialMic } from './mic';
 import { installPlaybackTap } from './playback';
+import { findInFilmLanguage } from './ui';
 import { WORLD_VOICES } from './voices';
 import type { Box, Step } from './tutorial';
 
@@ -39,6 +40,7 @@ const translated = LANGUAGE === 'en' ? {} : JSON.parse(readFileSync(path.join('e
 function inLanguage(english: string): string {
   if (LANGUAGE === 'en') return english;
   const words = translated[english];
+  if (!words && DRY) return english; // a dry run says nothing, so it can try a script before its lines are translated
   if (!words) throw new Error(`e2e/tutorials/lines/${LANGUAGE}.json has no "${english}"`);
   return words;
 }
@@ -225,6 +227,8 @@ await page.exposeBinding('__tutorialHeard', (_source, entry: { kind: string; id:
 await page.addInitScript(installPlaybackTap, '__tutorialHeard');
 // The language picked in this browser (apps/mobile/src/i18n/choice.web.ts).
 if (LANGUAGE !== 'en') await page.addInitScript((code) => { localStorage.setItem('ui-language:v1', code); }, LANGUAGE);
+// The scripts' English is looked for in the app's language.
+findInFilmLanguage(page);
 if (!tutorial.signedOut) {
   await page.addInitScript((entries) => {
     for (const [k, v] of Object.entries(entries)) if (localStorage.getItem(k) === null) localStorage.setItem(k, v);
