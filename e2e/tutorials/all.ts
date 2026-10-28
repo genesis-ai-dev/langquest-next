@@ -47,6 +47,7 @@ import { lookAroundWithoutAnAccount } from './look-around-without-an-account';
 import { followProgressAsAViewer } from './follow-progress-as-a-viewer';
 import { reportsOnTheWeb } from './reports-on-the-web';
 import { bringInYourOwnMaterial } from './bring-in-your-own-material';
+import { readAnyOrganization } from './read-any-organization';
 
 export const TUTORIALS: Record<string, Tutorial> = Object.fromEntries([
   // Everyone
@@ -60,5 +61,5 @@ export const TUTORIALS: Record<string, Tutorial> = Object.fromEntries([
   // Reviewers and consultants
   doACheck, backTranslateAPassage, consultantCheck, takeBackAReview,
   // Followers, partners and staff
-  lookAroundWithoutAnAccount, followProgressAsAViewer, reportsOnTheWeb, bringInYourOwnMaterial
+  lookAroundWithoutAnAccount, followProgressAsAViewer, reportsOnTheWeb, bringInYourOwnMaterial, readAnyOrganization
 ].map((t) => [t.id, t]));
