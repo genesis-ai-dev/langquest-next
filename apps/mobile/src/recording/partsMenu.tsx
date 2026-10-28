@@ -35,15 +35,14 @@ export function PartsMenu(props: { disabled: boolean; onCleanUp?: () => void; on
         <HelpBadge spot={spot} />
       </Pressable>
       <Modal visible={!!at} transparent animationType="fade" onRequestClose={close}>
-        {/* help-ignore: around the open menu; tapping anywhere closes it */}
-        <Pressable style={StyleSheet.absoluteFill} onPress={close} accessibilityLabel={t('common.close')}>
-          {at ? (
-            <View style={[styles.menu, { top: at.y, right: at.right, width: Math.min(MENU_WIDTH, width - space.lg * 2) }]} accessibilityRole="menu">
-              {props.onCleanUp ? <Item icon="sparkle" title={t('recording.cleanUp.cleanUp')} sub={t('recording.cleanUp.removesNoise')} help={t('recording.cleanUp.cleanUpHelp')} onPress={pick(props.onCleanUp)} /> : null}
-              {props.onDeleteAll ? <Item icon="trash" title={t('recording.recorder.deleteAll')} red help={t('recording.recorder.deleteAllHelp')} onPress={pick(props.onDeleteAll)} /> : null}
-            </View>
-          ) : null}
-        </Pressable>
+        {/* help-ignore: behind the open menu, beside it rather than around it so VoiceOver reaches its items; a tap closes it */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={close} accessibilityLabel={t('common.close')} />
+        {at ? (
+          <View style={[styles.menu, { top: at.y, right: at.right, width: Math.min(MENU_WIDTH, width - space.lg * 2) }]} accessibilityRole="menu">
+            {props.onCleanUp ? <Item icon="sparkle" title={t('recording.cleanUp.cleanUp')} sub={t('recording.cleanUp.removesNoise')} help={t('recording.cleanUp.cleanUpHelp')} onPress={pick(props.onCleanUp)} /> : null}
+            {props.onDeleteAll ? <Item icon="trash" title={t('recording.recorder.deleteAll')} red help={t('recording.recorder.deleteAllHelp')} onPress={pick(props.onDeleteAll)} /> : null}
+          </View>
+        ) : null}
         <ModalCover />
       </Modal>
     </>

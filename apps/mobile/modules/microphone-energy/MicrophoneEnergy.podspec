@@ -16,7 +16,11 @@ Pod::Spec.new do |s|
   # Runs the speech model (Speech.swift, decision 135) and Clean up's (CleanUp.swift, decision 177).
   # Held at 1.22.0, as on Android: from 1.29.0 the runtime carries Microsoft's telemetry (1DS); 1.22.0 has none.
   s.dependency 'onnxruntime-objc', '1.22.0'
-  # The speech model and Clean up's DeepFilterNet3 (models/README.md; models links to the module's one copy).
+  # The speech model and Clean up's DeepFilterNet3 (models/README.md). This
+  # file sits at the module's root (expo-module.config.json podspecPath) so
+  # that models/ is a real folder under it: CocoaPods does not follow a
+  # symlinked folder, and through the ios/models link it once bundled no
+  # model at all (the 2026-10-28 phone check found the bundle empty).
   s.resource_bundles = { 'MicrophoneEnergyModels' => ['models/*.onnx'] }
 
   # Swift/Objective-C compatibility
@@ -24,5 +28,5 @@ Pod::Spec.new do |s|
     'DEFINES_MODULE' => 'YES',
   }
 
-  s.source_files = "**/*.{h,m,mm,swift,hpp,cpp}"
+  s.source_files = "ios/**/*.{h,m,mm,swift,hpp,cpp}"
 end

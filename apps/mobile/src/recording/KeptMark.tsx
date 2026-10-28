@@ -36,18 +36,17 @@ export function KeptMark(props: { kept: Kept; part: string }) {
         <HelpBadge spot={spot} />
       </Pressable>
       <Modal visible={!!at} transparent animationType="fade" onRequestClose={() => setAt(null)}>
-        {/* help-ignore: around the open note; tapping anywhere closes it */}
-        <Pressable style={StyleSheet.absoluteFill} onPress={() => setAt(null)} accessibilityLabel={t('common.close')}>
-          {at ? (
-            <View style={[styles.tip, { top: at.y, left: Math.max(space.lg, Math.min(at.x - TIP_WIDTH / 2, width - TIP_WIDTH - space.lg)) }]}>
-              <View style={styles.head}>
-                <Ico name="ear" size={18} color={C.muted} />
-                <Text style={styles.title}>{t('recording.cleanUp.kept')}</Text>
-              </View>
-              <Text style={txt.sm}>{said}</Text>
+        {/* help-ignore: behind the open note, beside it rather than around it so VoiceOver reads it; a tap anywhere, the note too, closes it */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setAt(null)} accessibilityLabel={t('common.close')} />
+        {at ? (
+          <View pointerEvents="none" style={[styles.tip, { top: at.y, left: Math.max(space.lg, Math.min(at.x - TIP_WIDTH / 2, width - TIP_WIDTH - space.lg)) }]}>
+            <View style={styles.head}>
+              <Ico name="ear" size={18} color={C.muted} />
+              <Text style={styles.title}>{t('recording.cleanUp.kept')}</Text>
             </View>
-          ) : null}
-        </Pressable>
+            <Text style={txt.sm}>{said}</Text>
+          </View>
+        ) : null}
         <ModalCover />
       </Modal>
     </>

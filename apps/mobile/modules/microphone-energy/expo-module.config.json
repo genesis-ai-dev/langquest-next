@@ -1,7 +1,8 @@
 {
   "platforms": ["ios", "android"],
   "ios": {
-    "modules": ["MicrophoneEnergyModule"]
+    "modules": ["MicrophoneEnergyModule"],
+    "podspecPath": "MicrophoneEnergy.podspec"
   },
   "android": {
     "modules": ["expo.modules.microphoneenergy.MicrophoneEnergyModule"]

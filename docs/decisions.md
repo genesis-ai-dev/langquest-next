@@ -8497,7 +8497,13 @@ the screens.
 - **The kept file is a recording's file.** On a phone it is AAC, as parts
   are (106); a browser has no AAC encoder, so the web keeps WAV.
 - The native code is new, so this ships in a store build, not an OTA
-  update (the runtime is fingerprinted).
+  update (the runtime is fingerprinted). The iPhone module's podspec moved
+  to the module's root (`expo-module.config.json` `podspecPath`), because
+  CocoaPods does not follow the `ios/models` symlink it used: the phone
+  check on 2026-10-28 found the models bundle empty, in this build and in
+  a dev build from 2026-10-26, so iPhones have most likely split parts by
+  level alone since 135 (the speech model was missing and the module fell
+  back without a word). From this build on, the bundle holds both models.
 Reverse if: cleaning takes longer than people will wait on the phones we
 support (2 GB Android phones, 30 parts in a passage), voices come out
 damaged in languages we did not test, the 8.6 MB matters for downloads, or
