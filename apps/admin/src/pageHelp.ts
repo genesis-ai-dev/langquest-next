@@ -20,7 +20,8 @@ export const GROUP_HELP: Record<string, string> = {
   people: 'Who uses LangQuest, counted and never named: accounts, activity, organizations and requests to join. Open an organization for its own page.',
   support: 'Work waiting on LangQuest staff: content reports (the Terms promise action within 24 hours), suspensions, deletions, feedback from the help button, and what was done from this page.',
   access: 'Who can see every organization (Global Viewers), limits that refused requests, other apps connected through tokens, device sign-ins, webhooks and review links, and what stops working on a date.',
-  stores: 'How the app does in the stores: Android crash and freeze rates as Google Play measures them, App Store review state and builds, and recent reviews.'
+  stores: 'How the app does in the stores: Android crash and freeze rates as Google Play measures them, App Store review state and builds, and recent reviews.',
+  tutorials: 'The how-to videos on YouTube, one channel for each app language: which channels are connected, the videos made and not up yet (Watch one before choosing it), and Publish, which puts the chosen ones up, 100 a day.'
 };
 
 /** Each part of a section (one source's answer), on its sub-heading. */
@@ -52,7 +53,8 @@ export const SECTION_HELP: Record<string, string> = {
   googleplay: 'Android crash and freeze (ANR) rates as Google Play measures them, against Play\'s bad-behaviour lines, and recent reviews.',
   appstore: 'iOS versions in review, builds Apple processed, TestFlight crash reports, and recent reviews.',
   v2: 'The import from LangQuest v2: each v2 project\'s latest transfer, and whether it finished, stopped part way or failed.',
-  lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.'
+  lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
+  tutorials: 'Each app language\'s YouTube channel and whether LangQuest may post to it, and every video made that is not on YouTube yet: ready to choose, or chosen and waiting for its turn.'
 };
 
 export const HELP: Record<string, string> = {
@@ -197,6 +199,15 @@ export const HELP: Record<string, string> = {
   revoked: 'Global Viewer access that was ended.',
   'Limits hit': 'Requests refused by a limit in the last day. A sudden rise can mean someone is guessing codes, or an app is stuck in a loop.',
   'New this week': 'Credentials made this week.',
+
+  // ---- tutorial videos
+  'channels connected': 'Channels LangQuest may post to: someone pressed Connect and chose that channel on Google\'s page.',
+  'ready to publish': 'Videos made (new, or changed since the one on YouTube) that nobody has chosen yet. Watch them, then Publish.',
+  'chosen, going up': 'Videos chosen with Publish that are not up yet. YouTube takes 100 a day for all channels together; the rest go up the next day at 08:10 UTC.',
+  'videos on YouTube': 'Videos up on all channels together, each counted once however many versions it has had.',
+  Channels: 'Each app language\'s channel. Connect again when its videos fail with a sign-in code such as youtube_invalid_grant.',
+  'Not on YouTube yet': 'Each video\'s newest version that is not up. A new version of one already up replaces it: it takes its place in the playlist, and the old one is unlisted with a link to the new.',
+  'Videos up': 'Videos on this channel now.',
 
   // ---- providers
   'commits not deployed': 'Commits on main the live web app does not have yet.',
