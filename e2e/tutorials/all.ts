@@ -31,6 +31,7 @@ import { moveAPassageAlong } from './move-a-passage-along';
 import { chooseReferenceMaterial } from './choose-reference-material';
 import { writeAStudyGuide } from './write-a-study-guide';
 import { chooseAContentTemplate } from './choose-a-content-template';
+import { divideBooksIntoPassages } from './divide-books-into-passages';
 import { somethingElse } from './something-else';
 import { startAnOrganization } from './start-an-organization';
 import { studyAPassage } from './study-a-passage';
@@ -47,7 +48,7 @@ export const TUTORIALS: Record<string, Tutorial> = Object.fromEntries([
   // Organization heads and admins
   startAnOrganization, addALanguage, getALanguageReady, inviteYourTeam, letPeopleIn, changeARole, makeARole, showALanguageToThePublic, groupLanguagesIntoACluster, getTheBlueCheck, shareTemplatesAndFlows,
   // Team coordinators and language leads
-  setUpTheReviewChecks, askSomeone, moveAPassageAlong, chooseReferenceMaterial, chooseAContentTemplate, writeAStudyGuide,
+  setUpTheReviewChecks, askSomeone, moveAPassageAlong, chooseReferenceMaterial, chooseAContentTemplate, divideBooksIntoPassages, writeAStudyGuide,
   // Translators
   studyAPassage, recordAPassage, hearMoveDeleteParts, giveEachPartItsVerse, finishAndAskForACheck, answerFeedback, keyWords, readBiblesBesideAPassage, versionsAndHistory, somethingElse,
   // Reviewers and consultants
