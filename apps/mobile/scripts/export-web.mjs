@@ -53,10 +53,12 @@ execFileSync('npx', ['dotenvx', 'run', '-f', `.env.${env}`, '--strict', '--', 'n
 fs.writeFileSync(path.join(dist, 'version.json'), `${JSON.stringify({ build })}\n`);
 
 // The speech model and the runtime it needs (modules/microphone-energy/src/speechModel.web.ts,
-// decision 135): served as files, loaded when the microphone first opens, so
-// they are in neither JavaScript budget below. NO_SPEECH_MODEL=1 leaves them
-// out, for the UI tests, whose microphones are tones: their parts are timed
-// by level, as without a model (e2e/ui-web.sh, e2e/web-smoke.sh).
+// decision 135), and Clean up's DeepFilterNet3 on the same runtime
+// (cleanUp.web.ts, decision 179): served as files, loaded when the
+// microphone first opens or a part is first cleaned, so they are in neither
+// JavaScript budget below. NO_SPEECH_MODEL=1 leaves them out, for the UI
+// tests, whose microphones are tones: their parts are timed by level, as
+// without a model (e2e/ui-web.sh, e2e/web-smoke.sh).
 if (process.env.NO_SPEECH_MODEL !== '1') {
   const ortDist = path.dirname(createRequire(import.meta.url).resolve('onnxruntime-web'));
   fs.mkdirSync(path.join(dist, 'ort'), { recursive: true });
@@ -64,7 +66,9 @@ if (process.env.NO_SPEECH_MODEL !== '1') {
     fs.copyFileSync(path.join(ortDist, name), path.join(dist, 'ort', name));
   }
   fs.mkdirSync(path.join(dist, 'models'), { recursive: true });
-  fs.copyFileSync(path.join(app, 'modules/microphone-energy/models/silero_vad_16k_op15.onnx'), path.join(dist, 'models', 'silero_vad_16k_op15.onnx'));
+  for (const name of ['silero_vad_16k_op15.onnx', 'deepfilter.onnx']) {
+    fs.copyFileSync(path.join(app, 'modules/microphone-energy/models', name), path.join(dist, 'models', name));
+  }
 }
 
 // The other languages' words, fetched by a browser when someone picks one

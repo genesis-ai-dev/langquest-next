@@ -28,6 +28,8 @@ class MicrophoneEnergyModule : Module() {
   private var recordingScope: CoroutineScope? = null
   private var writeScope: CoroutineScope? = null
   private val encodeScope = CoroutineScope(Dispatchers.Default)
+  /** Clean up (CleanUp.kt, decision 179): DeepFilterNet3 on a part, one at a time. */
+  private val cleanUp = CleanUp { appContext.reactContext }
   // Meter events go to the main thread without the capture loop waiting for it.
   private val main = Handler(Looper.getMainLooper())
   private val configLock = Any()
@@ -65,7 +67,7 @@ class MicrophoneEnergyModule : Module() {
 
   override fun definition() = ModuleDefinition {
     Name("MicrophoneEnergy")
-    Events("onEnergyResult", "onError", "onSegmentComplete", "onSegmentStart", "onChunkComplete")
+    Events("onEnergyResult", "onError", "onSegmentComplete", "onSegmentStart", "onChunkComplete", "onCleanUpProgress")
     
     AsyncFunction("prepareSpeech") { promise: Promise -> CoroutineScope(Dispatchers.IO).launch { speech() }; promise.resolve(null) }
     AsyncFunction("startEnergyDetection") { promise: Promise -> startEnergyDetection(promise) }
@@ -90,6 +92,23 @@ class MicrophoneEnergyModule : Module() {
         }
       }
     }
+    AsyncFunction("cleanUp") { id: String, uri: String, promise: Promise ->
+      var told = -1.0
+      cleanUp.clean(id, uri, { done ->
+        if (done >= 1 || done - told >= 0.02) {
+          told = done
+          main.post { sendEvent("onCleanUpProgress", mapOf("id" to id, "done" to done)) }
+        }
+      }) { result, e ->
+        if (e != null) promise.reject("CLEAN_UP_ERROR", "Could not clean up the part: ${e.message}", e) else promise.resolve(result)
+      }
+    }
+    AsyncFunction("cleanUpMix") { id: String, limitDb: Double?, keep: Boolean, promise: Promise ->
+      cleanUp.mix(id, limitDb, keep) { result, e ->
+        if (e != null) promise.reject("CLEAN_UP_ERROR", "Could not write the cleaned part: ${e.message}", e) else promise.resolve(result)
+      }
+    }
+    AsyncFunction("cleanUpForget") { id: String -> cleanUp.forget(id) }
   }
 
   private fun startEnergyDetection(promise: Promise) {

@@ -35,6 +35,7 @@ export { default as Cloud } from 'lucide-react-native/icons/cloud';
 export { default as CloudCheck } from 'lucide-react-native/icons/cloud-check';
 export { default as CloudOff } from 'lucide-react-native/icons/cloud-off';
 export { default as Download } from 'lucide-react-native/icons/download';
+export { default as Ear } from 'lucide-react-native/icons/ear';
 export { default as Ellipsis } from 'lucide-react-native/icons/ellipsis';
 export { default as Eye } from 'lucide-react-native/icons/eye';
 export { default as EyeOff } from 'lucide-react-native/icons/eye-off';
