@@ -85,6 +85,10 @@ describe('secrets', () => {
     expect(wanted.workers.app).toMatchObject({ V2_SUPABASE_ANON_KEY: 'v2', V2_DATABASE_URL: 'postgres://ro' });
     expect(Object.keys(destinations('production', values, 'ref', 'k').workers.app)).not.toContain('V2_DATABASE_URL');
     expect(OPTIONAL_KEYS).toContain('V2_DATABASE_URL');
+    // The YouTube OAuth client goes to the app's Worker as a pair, never one alone.
+    const client = { YOUTUBE_CLIENT_ID: 'id.apps.googleusercontent.com', YOUTUBE_CLIENT_SECRET: 'secret' };
+    expect(destinations('production', { ...values, ...client }, 'ref', 'k').workers.app).toMatchObject(client);
+    expect(Object.keys(destinations('production', { ...values, YOUTUBE_CLIENT_ID: 'id' }, 'ref', 'k').workers.app)).not.toContain('YOUTUBE_CLIENT_ID');
   });
 
   it('gives the webhook poke one secret at both ends and the Worker\'s own address, only when the file has it', () => {

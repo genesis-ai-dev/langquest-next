@@ -5,7 +5,10 @@ import { handle } from '../src/index';
 import { containerAlerts, containerSection } from '../src/sources/container';
 import { lookup } from '../src/sources/diag';
 import { expiryAlerts, expirySection, keptByHand } from '../src/sources/expiry';
-import { dbDetailAlerts, fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, workerAlerts, type DbDetail, type Fleet, type Safety } from '../src/sources/ops';
+import {
+  dbDetailAlerts, fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, tutorialAlerts, tutorialsOf, workerAlerts, type DbDetail, type Fleet, type Safety, type Tutorials
+} from '../src/sources/ops';
+import { CHANNELS } from '../../../server/youtube';
 import { isMerge, migrationsBehind, releaseAlerts, type Releases } from '../src/sources/releases';
 import { ALLOWANCE, PRICE_USD, capacityAlerts, extraUsd, growthPerDay, latestBackup, r2ByClass, storageAlerts, type Capacity, type Storage } from '../src/sources/storage';
 
@@ -230,6 +233,7 @@ describe('reading as diag_reader', () => {
     for (const id of ['people', 'cron', 'dbdetail', 'push', 'integrations', 'support', 'security'] as const) {
       expect(s[id]).toMatchObject({ state: 'off', setup: expect.stringContaining('20261023100000_ops_dashboard.sql') });
     }
+    expect(s.tutorials).toMatchObject({ state: 'off', setup: expect.stringContaining('20261028090000_tutorial_videos.sql') });
   });
 
   it('looks a person up by email and answers with their id and installs, never the address', async () => {
@@ -269,6 +273,26 @@ describe('acting from the page', () => {
     vi.unstubAllGlobals();
   });
 
+  it('takes a Publish of every video in every language, and nothing much larger', async () => {
+    forgetSignIns();
+    vi.stubGlobal('fetch', supabase('on'));
+    const perform = vi.fn(async () => ({ ok: true as const, result: 'started' }));
+    const items = Array.from({ length: 47 * 15 }, (_, i) => [`tutorial-number-${i}`, 'zh-Hans', 'a'.repeat(64)]);
+    expect((await handle(post({ kind: 'tutorials-publish', items }), { ...env, APP_ACTIONS: { perform } } as never)).status).toBe(200);
+    expect(perform).toHaveBeenCalledTimes(1);
+    expect((await handle(post({ kind: 'tutorials-publish', items: [...items, ...items, ...items, ...items] }), { ...env, APP_ACTIONS: { perform } } as never)).status).toBe(413);
+    vi.unstubAllGlobals();
+  });
+
+  it('hands what Google sent back from Connect YouTube to the page, after the #, without a sign-in', async () => {
+    const back = await handle(new Request('https://next.langquest.org/ops/api/youtube/callback?state=p.1.sig&code=4/0AVG-code&scope=x'), env as never);
+    expect(back.status).toBe(302);
+    expect(back.headers.get('location')).toBe('/ops-dashboard#youtube-code=4%2F0AVG-code&youtube-state=p.1.sig');
+    expect(back.headers.get('referrer-policy')).toBe('no-referrer');
+    const refused = await handle(new Request('https://next.langquest.org/ops/api/youtube/callback?error=access_denied&state=p.1.sig'), env as never);
+    expect(refused.headers.get('location')).toBe('/ops-dashboard#youtube-error=access_denied');
+  });
+
   it('takes POST on the actions path only, and says when actions are not connected', async () => {
     forgetSignIns();
     vi.stubGlobal('fetch', supabase('on'));
@@ -297,3 +321,33 @@ describe('the longest query and oldest transaction', () => {
   });
 });
 
+describe('tutorial videos (decisions.md 180)', () => {
+  const waiting = (over: Partial<Tutorials['waiting'][number]> = {}): Tutorials['waiting'][number] => ({
+    tutorial: 'record-a-passage', language: 'es', sha256: 'a'.repeat(64), title: 'Grabar un pasaje', playlist: 'Traductores', seconds: 80,
+    madeAt: hoursAgo(50), chosenAt: null, failed: null, failedAt: null, replaces: null, ...over
+  });
+
+  it('lists all 15 channels, connected or not, with the count up on each', () => {
+    const t = tutorialsOf({
+      channels: [{ channelId: CHANNELS.es, language: 'es', title: 'LangQuest - Español', connectedAt: hoursAgo(1), section: 'made' }],
+      waiting: [], published: [{ language: 'es', videos: 3, latestAt: hoursAgo(2) }]
+    });
+    expect(t.channels).toHaveLength(15);
+    expect(t.channels[0]).toMatchObject({ language: 'en', title: null, connectedAt: null, videos: 0 });
+    expect(t.channels.find((c) => c.language === 'es')).toMatchObject({ title: 'LangQuest - Español', videos: 3, section: 'made' });
+  });
+
+  it('asks for a Publish, a Connect again, or a look, each when it is due', () => {
+    const t = (w: Tutorials['waiting']): Tutorials => ({ channels: [], waiting: w });
+    expect(tutorialAlerts(t([]), NOW)).toEqual([]);
+    expect(tutorialAlerts(t([waiting(), waiting({ language: 'fr' })]), NOW)).toEqual([{ level: 'watch', text: '2 tutorial videos ready to publish (Tutorial videos).' }]);
+    expect(tutorialAlerts(t([waiting({ chosenAt: hoursAgo(2), failed: 'youtube_invalid_grant' })]), NOW)).toEqual([
+      { level: 'problem', text: 'YouTube refused the es channel: connect again (Tutorial videos).' }
+    ]);
+    // A day's limit is no problem until the video has waited past a day and more.
+    expect(tutorialAlerts(t([waiting({ chosenAt: hoursAgo(10), failed: 'youtube_uploadLimitExceeded' })]), NOW)).toEqual([]);
+    expect(tutorialAlerts(t([waiting({ chosenAt: hoursAgo(31), failed: 'youtube_uploadLimitExceeded' })]), NOW)).toEqual([
+      { level: 'problem', text: '1 tutorial video chosen more than 30 hours ago is still not on YouTube (Tutorial videos).' }
+    ]);
+  });
+});

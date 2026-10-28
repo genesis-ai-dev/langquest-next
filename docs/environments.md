@@ -64,7 +64,7 @@ declares:
 
 | Destination | Gets |
 | --- | --- |
-| app's Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo; `BIBLE_BRAIN_ACCESS_KEY`, `WEBHOOK_POKE_SECRET`, `V2_SUPABASE_ANON_KEY` and `V2_DATABASE_URL` when the file has them. Its job containers get them from the Worker at each start: the projection pass the database's, the v2 import v2's too (`docs/server-jobs.md`) |
+| app's Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo; `BIBLE_BRAIN_ACCESS_KEY`, `WEBHOOK_POKE_SECRET`, `V2_SUPABASE_ANON_KEY` and `V2_DATABASE_URL` when the file has them, and `YOUTUBE_CLIENT_ID` with `YOUTUBE_CLIENT_SECRET` when it has both. Its job containers get them from the Worker at each start: the projection pass the database's, the v2 import v2's too, the tutorial publish job the YouTube client's (`docs/server-jobs.md`) |
 | invite-email Worker | `INVITE_RELAY_SECRET` |
 | admin Worker (production only) | each provider token or key (`ADMIN_*`) when the file has them (`docs/admin.md`). Never the service-role key |
 | Hyperdrive `langquest-next-diag` (production only) | `DIAG_DATABASE_URL`, as the config's connection; the first run makes the config and writes its id into `apps/admin/wrangler.jsonc` to commit (`docs/admin.md`) |

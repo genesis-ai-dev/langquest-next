@@ -13,9 +13,11 @@ app's page from ever answering them. Production only: preview has no
 database of its own for it to read yet, so `/ops-dashboard` there says it
 is not set up.
 
-It reads, with three exceptions (decisions.md 162): marking feedback seen,
-done or open again, running a server job now, and granting or declining an
-organization's blue check request (decisions.md 173, docs/verified-organizations.md). For those the page posts
+It reads, with four exceptions (decisions.md 162): marking feedback seen,
+done or open again, running a server job now, granting or declining an
+organization's blue check request (decisions.md 173, docs/verified-organizations.md),
+and connecting a tutorial channel on YouTube and choosing the videos to put
+up there (decisions.md 180, below). For those the page posts
 to `/ops/api/actions`; this Worker, which holds no writer's key, passes the
 action and the person's own token to the app Worker's `OpsActions`
 entrypoint (`APP_ACTIONS` binding), which checks the token itself (a live
@@ -87,10 +89,11 @@ known start (the billing month, the last reset of Postgres' counters, the
 first nightly size), `oldest 2 days ago` for a queue, `now` for a state,
 `all time` for a total. A count whose start is not known says so.
 
-The page has twelve sections, each about one subject (`apps/admin/src/pageOps.ts`
+The page has thirteen sections, each about one subject (`apps/admin/src/pageOps.ts`
 `GROUPS`): Look up, Sync and data safety, Phones and browsers, Releases,
 Server jobs, Database, Workers and traffic, Storage and capacity, People and
-organizations, Support, Access and integrations, and App stores. A section
+organizations, Support, Access and integrations, App stores, and Tutorial
+videos. A section
 gathers the parts below (one source's answer each) under sub-headings, and
 each figure is shown in one place only: the database's size with Capacity,
 deploy times in Releases' timeline, the live commit in Code and deploys,
@@ -113,6 +116,7 @@ the page loads to exactly one section.
 | Job container | each server job's object, asked through the app Worker's read-only `JobStatus` entrypoint (`APP_JOBS` binding): running or not, since when, its limit | the binding |
 | Scheduled database jobs, Database detail, Push and Inbox, Integrations, Support queue, Security and limits | `diag.ops_cron`, `ops_database`, `ops_push`, `ops_integrations`, `ops_support`, `ops_limits`, and job runs (`push_delivery`, `webhook_dispatch`, `account_delete`, `worker_requests` for the rate limits' refusals). The longest query and oldest transaction name their role, client and wait (never the query's text) and leave out background work that always runs: every backend that is not a client's (autovacuum, WAL senders, pg_cron's and pg_net's workers) and Realtime's sessions, listed apart (migration `20261026160000_ops_database_who.sql`). To see its text, "Which query is it" below | `DIAG_DATABASE_URL`, the migration |
 | App Worker | requests by route, server errors, rate-limit refusals and time taken, from the request tally | `DIAG_DATABASE_URL` |
+| Tutorial videos | `diag.ops_tutorials`: each app language's YouTube channel and when it was connected, each video's newest version not on YouTube (ready, or chosen and waiting, with the last failure's code), and the count up in each language; never a token (migration `20261028090000_tutorial_videos.sql`) | `DIAG_DATABASE_URL`, the migration; Connect and Publish need `YOUTUBE_CLIENT_ID` and `YOUTUBE_CLIENT_SECRET` on the app's Worker |
 | People and organizations | `diag.ops_people` and `ops_orgs`, counted, never named; an organization opens its own page at `/ops-dashboard/org/<id>` (`diag.ops_org` and its installs' sync errors) | `DIAG_DATABASE_URL`, the migration |
 | Storage and backups | Supabase's backups and point-in-time recovery, R2's size (`r2StorageAdaptiveGroups`), files lost on phones, the nightly R2 check | `DIAG_DATABASE_URL`; `ADMIN_SUPABASE_TOKEN` with read access to database backups; `ADMIN_CLOUDFLARE_TOKEN` |
 | Expiry dates | each provider token's end date where its provider reports one (Cloudflare, GitHub), Apple's certificates and provisioning profiles, and the dates in `apps/admin/expiry.json` | the tokens; the file needs nothing |
@@ -275,6 +279,32 @@ answer, usually a missing permission.
 For sign-in from a single-sign-on account and a second factor on top of the
 password, Cloudflare Access can sit in front of `/ops-dashboard*` and
 `/ops/api/*`; the page works unchanged behind it.
+
+## Tutorial videos on YouTube
+
+The how-to videos (`docs/tutorial-videos.md`) go on YouTube, one channel
+for each app language (decisions.md 180). The channels were made by hand;
+their ids are in `server/youtube.ts`.
+
+- **Connect**, once per channel. Google's page opens: sign in with the
+  account that owns the channels and choose that language's channel. Back
+  on the dashboard the channel shows as connected, and its home page gets a
+  list of the other LangQuest channels. Google sends the person back to
+  `/ops/api/youtube/callback`, which must be the OAuth client's redirect
+  address. Connect again when a channel's videos fail with a sign-in code
+  such as `youtube_invalid_grant`; the dashboard says so under Needs
+  attention.
+- **Watch** a video before choosing it: it opens the file the filming made.
+- **Publish** the ones chosen. The publish job starts at once, and again at
+  08:10 UTC each day while chosen videos wait: YouTube takes 100 uploads a
+  day for all channels together. A new version of a video already up takes
+  its place in the playlist, and the old one is unlisted with a link to the
+  new. The job's runs are in Server jobs (`tutorial_publish`).
+
+The OAuth client is a Web application client in the Google Cloud project
+that has the YouTube Data API v3 on, with the redirect address above. Store
+its id and secret with `npm run env:update -- production YOUTUBE_CLIENT_ID`
+and `YOUTUBE_CLIENT_SECRET`, then `npm run secrets -- production`.
 
 ## Which query is it
 
