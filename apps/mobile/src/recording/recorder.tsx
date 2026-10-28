@@ -5,8 +5,8 @@
 // 2026-10-16; opened again when the pane is small, it takes the room it
 // needs), the next part lit, the one-line bar when the
 // reference has the screen, and the footer with the big red button and
-// Done. A part slides either way to its bin (swipeRow.tsx), and the card
-// has one bin for them all. A deleted part leaves the lit next part in its
+// Done. A part slides either way to its bin (swipeRow.tsx), and the card's
+// ⋯ has Clean up (decision 177) and a delete for them all. A deleted part leaves the lit next part in its
 // place, so what is said next goes there (LAN-83). When the passage has
 // verses, each part in the card has a space beside it to tap a verse in
 // (verseParts.tsx, decisions.md 82). Each part reads as a voice message:
@@ -22,7 +22,7 @@ import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { HelpInfo, Ico, IconBtn } from '../ui/kit';
+import { HelpInfo, Ico } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { loopRecording, type LoopPhase } from './splitModel';
 import { C, radius, space, target as target_, TINT, type as T, withAlpha } from '../ui/theme';
@@ -35,6 +35,8 @@ import { PartBars } from './partBars';
 import { useSwipeHint } from './useSwipeHint';
 import { useBars } from '../audio/useBars';
 import { PartNotesMark } from '../passage/PartNotes';
+import { KeptMark, type Kept } from './KeptMark';
+import { PartsMenu } from './partsMenu';
 import { UndoRedo, type UndoRedoProps } from '../ui/undoRedo';
 import { helpBinRow, opensAbove, rowKeys } from './workspaceModel';
 import { partIndexAfter } from './dragModel';
@@ -45,7 +47,8 @@ import { styles as ps } from './blockStyles';
 import { useClip } from '../audio/useClip';
 import { VerseParts } from './verseParts';
 
-export interface Part { hash: string; durationMs?: number }
+export interface Part { hash: string; durationMs?: number;
+  /** Tried in Clean up and kept as recorded: by whom, and when (decision 177). */ kept?: Kept }
 
 /** The recorder pane: the parts and their gaps, where the next part goes, and the next part at the end. */
 export function RecorderPane(props: {
@@ -55,6 +58,8 @@ export function RecorderPane(props: {
   title?: string;
   /** Delete every part, to start over (asks first). */
   onDeleteAll?: () => void;
+  /** Open Clean up for the parts it is offered for (decision 177). */
+  onCleanUp?: () => void;
   /** Give the recorder the room to show its parts (the card opened while the pane is small). */
   onRoom?: () => void;
   /** The card's rows (parts and gaps) and where the next part goes (LAN-83). */
@@ -89,7 +94,7 @@ export function RecorderPane(props: {
           ) : undefined} ctx={props.ctx} parts={parts} title={props.title ?? recorderLines(rows.length).group} sub={lines.groupSub(totalMs(parts.map((p) => p.durationMs)))}
           open={expanded} onToggle={toggle} disabled={props.disabled} onDelete={props.onDelete} rows={rows} target={props.target} onChoose={props.onChoose}
           onMove={props.onMove} fresh={props.fresh} show={props.show ?? null}
-          {...(props.onDeleteAll ? { onDeleteAll: props.onDeleteAll } : {})} />
+          {...(props.onDeleteAll ? { onDeleteAll: props.onDeleteAll } : {})} {...(props.onCleanUp ? { onCleanUp: props.onCleanUp } : {})} />
       ) : null}
       <View style={styles.underCard}>
         <NextCard label={partLabel(endN - 1)} chosen={atEnd} disabled={props.disabled} onChoose={() => props.onChoose({ kind: 'end' })}
@@ -100,7 +105,7 @@ export function RecorderPane(props: {
 }
 
 function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string; open: boolean; onToggle: () => void; disabled: boolean; onDelete: (hash: string, label: string) => void;
-  onDeleteAll?: () => void;
+  onDeleteAll?: () => void; onCleanUp?: () => void;
   rows: SlotRow[]; target: RecordTarget; onChoose: (to: RecordTarget) => void;
   onMove: (from: number, to: number) => void; fresh: ReadonlySet<string>; show: { hash: string; at: number } | null;
   /** The parts with their verse spaces, in place of the plain rows. */
@@ -109,7 +114,6 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
   const toggle = useHelpSpot(props.title, props.open ? t('recording.recorder.hidePartsHelp') : t('recording.recorder.showPartsHelp'), props.onToggle);
   const playLabel = clip.playing ? t('common.pause') : t('recording.player.playTitle', { title: props.title });
   const play = useHelpSpot(playLabel, t('recording.recorder.playAllHelp'), clip.toggle);
-  const onDeleteAll = props.onDeleteAll;
   return (
     // The card's box reaches past its right edge, for the + marks that hang off it (slots.tsx EDGE); the card is drawn inside.
     <View style={styles.cardBox}>
@@ -127,8 +131,9 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
           <Ico name={clip.playing ? 'pause' : 'play'} size={22} color={C.primary} strokeWidth={2.6} fill={C.primary} />
           <HelpBadge spot={play} />
         </Pressable>
-        {onDeleteAll ? (
-          <IconBtn name="trash" label={t('recording.recorder.deleteAll')} help={t('recording.recorder.deleteAllHelp')} bg="transparent" color={C.muted} size={target_.min} disabled={props.disabled} onPress={onDeleteAll} />
+        {/* The ⋯ took the place of the card's bin (decision 177): Clean up, and Delete every part. */}
+        {props.onDeleteAll || props.onCleanUp ? (
+          <PartsMenu disabled={props.disabled} {...(props.onCleanUp ? { onCleanUp: props.onCleanUp } : {})} {...(props.onDeleteAll ? { onDeleteAll: props.onDeleteAll } : {})} />
         ) : null}
         <Pressable onPress={toggle.onPress} accessibilityRole="button" accessibilityLabel={props.open ? t('recording.recorder.hideParts') : t('recording.recorder.showParts')} style={({ pressed }) => [styles.iconTap, pressed && ps.pressed]}>
           <Ico name={props.open ? 'down' : 'right'} size={22} color={C.muted} />
@@ -221,6 +226,8 @@ function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; ch
         {props.chosen ? <ChosenMic /> : null}
         <HelpBadge spot={choose} />
       </Pressable>
+      {/* Tried in Clean up and kept as recorded (decision 177). */}
+      {props.part.kept ? <KeptMark kept={props.part.kept} part={label} /> : null}
       {/* What the checks said about this part (decisions.md 149). */}
       <PartNotesMark hash={props.part.hash} label={label} />
       {props.grip}

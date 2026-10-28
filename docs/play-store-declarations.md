@@ -175,6 +175,16 @@ ID, with the INTERNET and ACCESS_NETWORK_STATE permissions), which would
 add "Device or other IDs", collected and shared with Microsoft. Check for it
 before raising the version.
 
+Clean up (decisions.md 177) takes background noise out of a part on the
+phone, when the person asks for it: DeepFilterNet 3, an 8.6 MB file in the
+app beside the speech model, run by the same ONNX Runtime (1.22.0, so the
+telemetry above stays out). It removes noise from the person's own
+recording; it makes no new content, so "No AI-generated content" above
+still holds. The cleaned part is uploaded like any other part, as the same
+kind of voice recording, so the "Voice or sound recordings" answer is
+unchanged. It needs no permission and sends nothing of its own, so no Play
+Console answer changes.
+
 Bible text and audio (docs/reference-material.md, decisions.md 62) come
 from Faith Comes By Hearing's Bible Brain through our Worker, which holds the
 key and sends Bible Brain no user data; phones then download the audio from

@@ -35,9 +35,9 @@ export function barsBuilder(total: number, count = BAR_COUNT) {
   };
 }
 
-/** Bars from each slice's RMS amplitude (0..1): scaled to the loudest, curved. */
-function barsFromAmps(amps: number[]): number[] {
-  const top = Math.max(QUIET, ...amps);
+/** Bars from each slice's RMS amplitude (0..1): scaled to the loudest of `scale` (the slices themselves, or another sound to draw beside), curved. */
+export function barsFromAmps(amps: readonly number[], scale: readonly number[] = amps): number[] {
+  const top = Math.max(QUIET, ...scale);
   return amps.map((a) => Math.min(1, Math.pow(a / top, CURVE)));
 }
 

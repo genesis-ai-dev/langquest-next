@@ -3,7 +3,7 @@
 // and kept in chunks with the room around them by chunks.ts (LAN-82), and
 // 16-bit WAV files delivered as blob: URIs. renderAudio (export and editing)
 // is native-only and fails loudly.
-import type { MicrophoneEnergyModuleEvents, VADConfig } from './MicrophoneEnergyModule';
+import type { CleanedPart, MicrophoneEnergyModuleEvents, VADConfig } from './MicrophoneEnergyModule';
 import {
   assemble, DEFAULT_PREROLL_MS, encodeWav, FRAME_SAMPLES, peakEnergy, prerollFrames, SAMPLE_RATE
 } from './vadCore';
@@ -12,7 +12,7 @@ import { Chunks, ringFrames } from './chunks';
 import { frameScore, Resampler, SpeechChunks } from './speech';
 import { loadSpeechModel, type SpeechModel } from './speechModel.web';
 
-export type { VADConfig, MicrophoneEnergyModuleEvents } from './MicrophoneEnergyModule';
+export type { CleanedPart, VADConfig, MicrophoneEnergyModuleEvents } from './MicrophoneEnergyModule';
 
 type Events = MicrophoneEnergyModuleEvents;
 const listeners = new Map<keyof Events, Set<(...args: never[]) => void>>();
@@ -275,5 +275,15 @@ export default {
   },
   async renderAudio(): Promise<string> {
     throw new Error('Audio export is not implemented on web.');
+  },
+  /** Clean up (cleanUp.web.ts, decision 177), in a chunk of its own, loaded when a part is first cleaned. */
+  async cleanUp(id: string, uri: string): Promise<CleanedPart> {
+    return (await import('./cleanUp.web')).cleanUp(id, uri, (done) => emit('onCleanUpProgress', { id, done }));
+  },
+  async cleanUpMix(id: string, limitDb: number | null, keep: boolean): Promise<{ uri: string; format: 'wav' | 'm4a' }> {
+    return (await import('./cleanUp.web')).cleanUpMix(id, limitDb, keep);
+  },
+  async cleanUpForget(id: string): Promise<void> {
+    (await import('./cleanUp.web')).cleanUpForget(id);
   }
 };

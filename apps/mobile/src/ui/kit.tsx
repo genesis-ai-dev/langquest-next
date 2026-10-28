@@ -12,7 +12,7 @@ import {
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
   ThumbsUp, Trash2, Undo2, Redo2, Upload, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers, Info,
   ArrowLeft, ArrowUp, ArrowDown, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert,
-  ChevronsUpDown, FileText, Eye, EyeOff, Menu, Bug, Lightbulb, Ellipsis, MessageCirclePlus, Reply
+  ChevronsUpDown, FileText, Eye, EyeOff, Menu, Bug, Lightbulb, Ellipsis, MessageCirclePlus, Reply, Ear
 } from './icons';
 import { Fragment, isValidElement, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -60,7 +60,9 @@ const ICONS = {
   // Feedback from help mode: a problem, an idea (decisions.md 145).
   bug: Bug, idea: Lightbulb,
   // A note on what a check shows, and an answer to one (decisions.md 149).
-  noteOn: MessageCirclePlus, reply: Reply
+  noteOn: MessageCirclePlus, reply: Reply,
+  // A part tried in Clean up and kept as recorded (decision 177).
+  ear: Ear
 } satisfies Record<string, LucideIcon>;
 export type IconName = keyof typeof ICONS;
 

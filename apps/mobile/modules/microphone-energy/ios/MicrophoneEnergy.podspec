@@ -13,10 +13,10 @@ Pod::Spec.new do |s|
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'
-  # Runs the speech model (Speech.swift, decision 135). Held at 1.22.0, as on Android: from 1.29.0 the
-  # runtime carries Microsoft's telemetry (1DS); 1.22.0 has none.
+  # Runs the speech model (Speech.swift, decision 135) and Clean up's (CleanUp.swift, decision 177).
+  # Held at 1.22.0, as on Android: from 1.29.0 the runtime carries Microsoft's telemetry (1DS); 1.22.0 has none.
   s.dependency 'onnxruntime-objc', '1.22.0'
-  # The speech model itself (models/README.md; models links to the module's one copy).
+  # The speech model and Clean up's DeepFilterNet3 (models/README.md; models links to the module's one copy).
   s.resource_bundles = { 'MicrophoneEnergyModels' => ['models/*.onnx'] }
 
   # Swift/Objective-C compatibility

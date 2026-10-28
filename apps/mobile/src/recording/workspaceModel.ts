@@ -3,7 +3,7 @@
 // are tied, and the events a change to the list means. No React, no I/O,
 // so the rules are tested in test/workspace.test.ts.
 import {
-  commands, derivePartVerses, markForSpan, recordingsOf, withPartMark,
+  cleanedFiles, cleanUpOf, commands, derivePartVerses, markForSpan, recordingsOf, withPartMark,
   type Card, type DraftView, type EventSpec, type Indexes, type KeyTermView, type LanguageState, type PartLabel, type PartMark
 } from '@langquest-next/core';
 import { formatClock } from '../i18n/format';
@@ -54,6 +54,11 @@ export function canPublish(list: readonly string[], latestCards: readonly string
 export function cardDurations(state: LanguageState, unitId: string): Map<string, number> {
   const out = new Map<string, number>();
   for (const r of recordingsOf(state, unitId)) for (const c of r.cards) out.set(c.hash, c.durationMs);
+  // A part's cleaned sound is as long as the part (decisions.md 176).
+  for (const f of cleanedFiles(state.cardCleanUps?.[unitId] ?? {})) {
+    const ms = out.get(f.from);
+    if (ms !== undefined && !out.has(f.hash)) out.set(f.hash, ms);
+  }
   return out;
 }
 
@@ -414,10 +419,30 @@ export function marksAfterMove(marks: readonly PartMark[], from: number, to: num
 
 // ---- undo and redo on the recording screen (Caleb, 2026-10-16) ----------------------------
 
-/** The parts as they stood: their order and each one's verse mark. */
-export interface PartsSnap { list: string[]; marks: PartMark[] }
+/**
+ * The parts as they stood: their order and each one's verse mark; and for
+ * a step of Clean up (decision 177), its note on each part it touched, by
+ * the part as recorded (null: no note).
+ */
+export interface PartsSnap { list: string[]; marks: PartMark[]; cleanUps?: Record<string, CleanUpNote | null> }
+
+/** Clean up's note on a part (v1.CardCleanUpSet) as a step keeps it. */
+export interface CleanUpNote { use: 'cleaned' | 'original'; cleanedHash?: string; cleanedFormat?: 'wav' | 'm4a'; tool?: string; limitDb?: number }
 
 const sameMark = (a: PartMark | undefined, b: PartMark | undefined) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+
+/** The note on a part now, as a step keeps it. */
+export function cleanUpNoteOf(state: LanguageState, unitId: string, hash: string): CleanUpNote | null {
+  const note = cleanUpOf(state, unitId, hash)?.value;
+  if (!note || note.use === 'none') return null;
+  return {
+    use: note.use, ...(note.cleanedHash ? { cleanedHash: note.cleanedHash } : {}), ...(note.cleanedFormat ? { cleanedFormat: note.cleanedFormat } : {}),
+    ...(note.tool ? { tool: note.tool } : {}), ...(note.limitDb !== undefined ? { limitDb: note.limitDb } : {})
+  };
+}
+
+const sameNote = (a: CleanUpNote | null, b: CleanUpNote | null) => a === b || (!!a && !!b && a.use === b.use && a.cleanedHash === b.cleanedHash
+  && a.cleanedFormat === b.cleanedFormat && a.tool === b.tool && a.limitDb === b.limitDb);
 
 /**
  * The events that make the parts what `to` says, written after everything
@@ -426,7 +451,8 @@ const sameMark = (a: PartMark | undefined, b: PartMark | undefined) => JSON.stri
  * from, the draft is set aside, as when its last part is deleted. A verse
  * mark is put back only where it is still what this step left (`from`):
  * one changed since, here or in another draft sharing the part, is left as
- * it is, so an undo never wipes out later work.
+ * it is, so an undo never wipes out later work. Clean up's notes are put
+ * back the same way.
  */
 export function restoreSpecs(state: LanguageState, idx: Indexes, c: {
   commandId: string; unitId: string; actorId: string; to: PartsSnap; verses: readonly string[];
@@ -454,6 +480,12 @@ export function restoreSpecs(state: LanguageState, idx: Indexes, c: {
     });
     specs.push(...cmd.setCardVerses({ commandId: `${c.commandId}:verses`, unitId: c.unitId, cards: list, marks, verses: c.verses }));
   }
+  Object.entries(c.to.cleanUps ?? {}).forEach(([hash, want], i) => {
+    const now = cleanUpNoteOf(state, c.unitId, hash);
+    const left = c.from?.cleanUps?.[hash];
+    if (sameNote(now, want) || (left !== undefined && !sameNote(now, left))) return;
+    specs.push({ id: `${c.commandId}:cleanUp:${i}`, type: 'v1.CardCleanUpSet', payload: { unitId: c.unitId, hash, ...(want ?? { use: 'none' }) } });
+  });
   return { specs, cleared: list.length === 0 };
 }
 
@@ -482,12 +514,13 @@ export function marksOf(list: readonly string[], from: { list: readonly string[]
 /**
  * The parts an undo or redo changed, to shade and show (Apple's advice:
  * show the result, so it does not look as if nothing happened): parts that
- * came back, parts whose verses changed, and parts that moved (those out of
- * the longest run still in the same order).
+ * came back, parts whose verses or Clean up note changed, and parts that
+ * moved (those out of the longest run still in the same order).
  */
 export function changedParts(from: PartsSnap, to: PartsSnap): string[] {
   const was = new Map(from.list.map((h, i) => [h, i] as const));
   const out = new Set<string>();
+  for (const [hash, note] of Object.entries(to.cleanUps ?? {})) if (!sameNote(from.cleanUps?.[hash] ?? null, note)) out.add(hash);
   to.list.forEach((h, i) => {
     if (!was.has(h)) out.add(h);
     else if (!sameMark(from.marks[was.get(h)!], to.marks[i])) out.add(h);
@@ -523,11 +556,21 @@ const isMark = (x: unknown): x is PartMark => {
   if (m['t'] === 'next' || m['t'] === 'join') return true;
   return m['t'] === 'set' && typeof m['s'] === 'number' && typeof m['e'] === 'number';
 };
+const isNote = (x: unknown): x is CleanUpNote | null => {
+  if (x === null) return true;
+  if (typeof x !== 'object') return false;
+  const n = x as Record<string, unknown>;
+  const optional = (k: string, type: string) => n[k] === undefined || typeof n[k] === type;
+  return (n['use'] === 'original' || (n['use'] === 'cleaned' && typeof n['cleanedHash'] === 'string' && (n['cleanedFormat'] === 'wav' || n['cleanedFormat'] === 'm4a')))
+    && optional('tool', 'string') && optional('limitDb', 'number');
+};
 const isSnap = (x: unknown): x is PartsSnap => {
   if (typeof x !== 'object' || x === null) return false;
   const s = x as Record<string, unknown>;
+  const notes = s['cleanUps'];
   return Array.isArray(s['list']) && s['list'].every((h) => typeof h === 'string') && Array.isArray(s['marks'])
-    && s['marks'].length === s['list'].length && s['marks'].every(isMark);
+    && s['marks'].length === s['list'].length && s['marks'].every(isMark)
+    && (notes === undefined || (typeof notes === 'object' && notes !== null && Object.values(notes).every(isNote)));
 };
 /** A stored history of a draft's parts. */
 export const parsePartsHistory = (raw: string | null): PartsHistory => parseHistory(raw, isSnap);
