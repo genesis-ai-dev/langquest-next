@@ -36,7 +36,8 @@ fixture world and the role matrix hold for every test here.
   from the step sheet's "Undo" under your own check, or from your own
   review's page.
 - Since decision 91 the Translator role holds Review, so TRANS and KEPT may
-  check other people's versions (never their own unless asked).
+  check other people's versions. Since decision 178 they may check their own
+  too: "Review it myself", after the asking buttons.
 - Recording, the review screens and the study belong to 06 REC, 07 REV and
   08 STUDY. Here a test only checks that the record's buttons open them, and
   that the record shows the result when they finish. The automated tests
@@ -557,14 +558,16 @@ Expected:
 
   | Role | Peer check (asked of REV) | Back translation (not asked) |
   | --- | --- | --- |
-  | TRANS (author) | "Already happened", "Set aside" | "Send to the Back translation team" (primary), "Send to someone else", "Already happened", "Set aside" |
+  | TRANS (author) | "Review it myself", "Already happened", "Set aside" | "Send to the Back translation team" (primary), "Send to someone else", "Back-translate it", "Already happened", "Set aside" |
   | REV | "Review it now" (primary), "Already happened", "Set aside" | "Back-translate it" (primary), "Already happened", "Set aside" |
   | TREV, COORD, ADMIN, LADMIN, KEPT | "Review it now", "Already happened", "Set aside" | "Back-translate it" (primary), "Already happened", "Ask someone", "Set aside" |
   | VIEW | the sheet does not open | — |
 
-- The author is never offered "Review it now" or "Back-translate it" on
-  their own version unless they were asked (the role matrix). Fixed
-  (2026-10-12): TRANS was offered both.
+- The author is offered their own version's checks after the sending and
+  asking buttons: "Review it myself" (or "Back-translate it"), never "Review
+  it now" unless they were asked (decision 178). Before decision 178 the
+  author was offered neither; from 2026-10-12 to 2026-10-27 that was
+  treated as the rule.
 - When a check has people (or one person usually does it), its author sees
   "Send to the {check} team" (or the name) as primary, and "Send to someone
   else" beside it, instead of "Ask someone".
@@ -702,6 +705,7 @@ Expected:
   | Option | TRANS, KEPT | REV | TREV, COORD, ADMIN, LADMIN | VIEW |
   | --- | --- | --- | --- | --- |
   | "Someone else should do this" | no (it is already asked) | no | no (it is already asked) | no |
+  | "I'll do this myself" ("Back translation: record it now") | TRANS only (its author, decision 178) | no | no | no |
   | "We already did this" ("Say when and how the back translation happened") | yes | yes | yes | no |
   | "Not now" ("Set the back translation aside. Say why") | yes | yes | yes | no |
   | "Record a new version" ("Reviews so far stay with the version they heard") | yes | no | yes | no |

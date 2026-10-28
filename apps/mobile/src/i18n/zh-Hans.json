@@ -3541,7 +3541,8 @@
         "sendElsewhere": "发送给其他人",
         "askSomeone": "请人帮忙",
         "alreadyHappened": "已经做过了",
-        "setAside": "搁置"
+        "setAside": "搁置",
+        "reviewMyself": "我自己审核"
       },
       "sub": {
         "reviewsIt": "由{{kind}}审核",
@@ -3857,7 +3858,10 @@
       "teamOptions": "“{{section}}”下的每项检查也都有自己的选项：在路线上点按它即可。",
       "sayInsteadHelp": "打开这个经段的语音备注。你的团队会在这里听到。",
       "addNoteHelp": "对这个经段留一条语音或文字备注。你的团队会在这里看到。",
-      "whatHelpsHelp": "打开这个经段的圣经、指南和其他帮助资料。"
+      "whatHelpsHelp": "打开这个经段的圣经、指南和其他帮助资料。",
+      "myself": "我自己来做",
+      "myselfSub": "{{kind}}：现在就听并作出决定",
+      "myselfMakesSub": "{{kind}}：现在就录"
     },
     "published": {
       "askTitle": "请求检查",
@@ -4715,7 +4719,8 @@
       "askHelp": "完成{{version}}，然后由你选择请谁。",
       "sendLater": "以后再发送",
       "sendLaterHelp": "完成{{version}}，暂时不请任何人。团队可以听到。",
-      "nextCheck": "下一项检查"
+      "nextCheck": "下一项检查",
+      "checkNowHelp": "完成{{version}}，然后打开下一项检查，由你现在自己来做。"
     },
     "tray": {
       "help": "帮助",
@@ -6047,7 +6052,8 @@
     "sendLaterHelp": "完成{{what}}，暂时不请任何人。团队可以听到。",
     "chips": {
       "version": "第 {{n}} 版"
-    }
+    },
+    "checkNowHelp": "完成{{what}}，然后打开下一项检查，由你现在自己来做。"
   },
   "translate": {
     "missing": "这个经段还不在本设备上。",

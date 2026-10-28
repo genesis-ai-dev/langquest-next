@@ -5,8 +5,8 @@ import {
 } from '@langquest-next/core';
 import {
   answeredQuestions, askCandidates, currentStepId, describeEntry, feedbackNames, gridKindIds, heroHeadline, historySummary,
-  kindLineText, kindRowActions, kindRowSub, kindPathState, lastReviewOn, ledTo, listenersOf, madeAfter, nextQuestionType, oldKindLineText, oldStepState,
-  oldStepSummary, pathState, sendTargetLabel, stepSheetSub, stepSummary, versionCaption
+  kindLineText, kindRowActions, kindRowSub, kindPathState, lastReviewOn, ledTo, listenersOf, madeAfter, nextQuestionType, nobodyElseReviews, oldKindLineText, oldStepState,
+  oldStepSummary, openCheckFor, pathState, sendTargetLabel, stepSheetSub, stepSummary, versionCaption
 } from '../src/passage/recordTextModel';
 import { requestIsMine, sendToInput, usualTargetFor } from '../src/passage/sendTarget';
 import { hiddenText } from '../src/moderation/model';
@@ -132,7 +132,7 @@ describe('the step path', () => {
 });
 
 describe('a kind’s actions', () => {
-  it('the author gets Ask as the main button, a reviewer gets Review it now; set aside is not on checkpoints', () => {
+  it('the author gets Ask as the main button and Review it myself after it, a reviewer gets Review it now; set aside is not on checkpoints', () => {
     const p = language();
     record(p, 'v1', ['c1']);
     const s = p.passage();
@@ -141,7 +141,8 @@ describe('a kind’s actions', () => {
     const author = kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: true, me: 'akol' });
     expect(author.primary?.label).toBe('Ask someone');
     expect(author.second?.label).toBe('Already happened');
-    expect(author.rest.map((a) => a.label)).toEqual(['Set aside']);
+    // Its author may check their own version too (decisions.md 178), after asking someone.
+    expect(author.rest.map((a) => a.label)).toEqual(['Review it myself', 'Set aside']);
     const reviewer = kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: false, me: 'ayen' });
     expect(reviewer.primary?.label).toBe('Review it now');
 
@@ -149,6 +150,35 @@ describe('a kind’s actions', () => {
     const cKind = p.kinds().find((k) => k.id === 'consultant')!;
     const onCheckpoint = kindRowActions({ status: consultant, kind: cKind, step: s.steps[2]!, can: all, isAuthor: false, me: 'ayen' });
     expect([onCheckpoint.primary, onCheckpoint.second, ...onCheckpoint.rest].map((a) => a?.label)).not.toContain('Set aside');
+  });
+
+  it('its author does it first when nobody else could be asked, with asking beside it (decisions.md 178)', () => {
+    const p = language();
+    record(p, 'v1', ['c1']);
+    const s = p.passage();
+    const peer = s.steps[0]!.kinds[0]!;
+    const kind = p.kinds().find((k) => k.id === 'peer')!;
+    const alone = kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: true, me: 'akol', alone: true });
+    expect(alone.primary).toEqual({ id: 'do', label: 'Review it myself' });
+    expect(alone.second?.label).toBe('Ask someone');
+    expect(alone.rest.map((a) => a.label)).toEqual(['Already happened', 'Set aside']);
+    const bt = s.steps[0]!.kinds[1]!;
+    const btKind = p.kinds().find((k) => k.id === 'bt')!;
+    expect(kindRowActions({ status: bt, kind: btKind, step: s.steps[0]!, can: all, isAuthor: true, me: 'akol', alone: true }).primary?.label).toBe('Back-translate it');
+    // Without Review there is nothing of their own to do: asking leads, as before.
+    expect(kindRowActions({ status: peer, kind, step: s.steps[0]!, can: { ...all, review: false }, isAuthor: true, me: 'akol', alone: true }).primary?.label).toBe('Ask someone');
+    // The next check on their own version is theirs to do only when nobody else could do it.
+    expect(openCheckFor(s, { isAuthor: true, canReview: true })).toBeUndefined();
+    expect(openCheckFor(s, { isAuthor: true, canReview: true, alone: true })?.kindId).toBe('peer');
+    expect(openCheckFor(s, { isAuthor: true, canReview: false, alone: true })).toBeUndefined();
+  });
+
+  it('nobody else reviews where the person looking is the only one there', () => {
+    const p = language();
+    const org = team();
+    // Dinka has a translator and two reviewers besides the lead; nobody else is on Nuer.
+    expect(nobodyElseReviews(p.state(), org, { languageId: 'din', me: 'lead', lines: languageLines(p.state()) })).toBe(false);
+    expect(nobodyElseReviews(p.state(), org, { languageId: 'nus', me: 'lead', lines: languageLines(p.state()) })).toBe(true);
   });
 
   it('a producing kind offers its own action, and says it records content, not a verdict', () => {
@@ -303,8 +333,8 @@ describe('sending to the usual reviewer (ADR-029)', () => {
     const acts = kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: true, me: 'akol', sendTo: 'the Peer team' });
     expect(acts.primary).toEqual({ id: 'send', label: 'Send to the Peer team' });
     expect(acts.second).toEqual({ id: 'ask', label: 'Send to someone else' });
-    // The author never reviews their own version unless asked.
-    expect(acts.rest.map((a) => a.label)).toEqual(['Already happened', 'Set aside']);
+    // The author may review their own version too, after the sending (decisions.md 178).
+    expect(acts.rest.map((a) => a.label)).toEqual(['Review it myself', 'Already happened', 'Set aside']);
     // Nobody usually does it: Ask someone, as before. A reviewer still reviews it now.
     expect(kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: true, me: 'akol' }).primary?.label).toBe('Ask someone');
     expect(kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: false, me: 'ayen', sendTo: 'Deng' }).primary?.label).toBe('Review it now');

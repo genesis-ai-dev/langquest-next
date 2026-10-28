@@ -29,7 +29,7 @@ import { indexesFor } from '../sync/indexes';
 import { Badge, Card, Chip, ChipWrap, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, LinkBtn, NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, type IconName } from '../ui/kit';
 import { kindIcon } from '../ui/kindIcon';
 import { txt } from '../ui/textStyles';
-import { anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, gridKindIds, guestMessage, historySummary, listenersOf, nextQuestionType, questionTypeLabel, reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText, type RowAction } from '../passage/recordTextModel';
+import { anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, gridKindIds, guestMessage, historySummary, listenersOf, nextQuestionType, nobodyElseReviews, questionTypeLabel, reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText, type RowAction } from '../passage/recordTextModel';
 import { PassagePath } from '../passage/path';
 import { AskCheckCard, TheyAnswer } from '../passage/askParts';
 import { askInput, askDoneText, askModel, TEAM, type AskPicks } from '../passage/askModel';
@@ -231,6 +231,11 @@ export function PassageRecord(ctx: Ctx) {
   useEffect(() => {
     if (askSomeoneParam && v) goRef.current('ask_someone', { unitId: v.unitId, languageId: v.languageId, what: 'review', kindId: askSomeoneParam });
   }, [askSomeoneParam]); // eslint-disable-line react-hooks/exhaustive-deps -- once per arrival with the param; v is new on every draw
+  // Done's "Do the … check" when nobody else could do it (decisions.md 178): the version is on the record; its check opens from here.
+  const checkNowParam = ctx.params['checkNow'];
+  useEffect(() => {
+    if (checkNowParam && v) goRef.current(v.kind(checkNowParam).produces ? 'back_translation' : 'review_capture', { unitId: v.unitId, languageId: v.languageId, kindId: checkNowParam });
+  }, [checkNowParam]); // eslint-disable-line react-hooks/exhaustive-deps -- once per arrival with the param; v is new on every draw
   useHardwareBack(page !== 'path', () => setPage('path'));
   const [historyShown, setHistoryShown] = useState(HISTORY_STEP);
   // Which of the checks that happen next the ask page sends (decision 91): the first, unless another is picked.
@@ -255,6 +260,9 @@ export function PassageRecord(ctx: Ctx) {
     () => (vState && vp && vLanguageId !== undefined ? usualTargets(vState, orgState, { p: vp, languageId: vLanguageId, me, asker, lines }) : {}),
     [vState, vLanguageId, vp, orgState, me, asker, lines]
   );
+  // Nobody else here could check it: its author's own review leads (decisions.md 178).
+  const alone = useMemo(() => !!vState && vLanguageId !== undefined && nobodyElseReviews(vState, orgState, { languageId: vLanguageId, me, lines }),
+    [vState, vLanguageId, orgState, me, lines]);
   if (!v) return <Missing ctx={ctx} id="passage_record" />;
 
   const { p, kinds, unitId, languageId } = v;
@@ -305,7 +313,7 @@ export function PassageRecord(ctx: Ctx) {
     else if (mv.id === 'undoReview') takeBackReview(mv.reviewId);
     else doMove(mv);
   };
-  const sheetOf = (step: FlowStepStatus) => stepSheet({ p, kinds, kind: v.kind, step, can, isAuthor, me, mine, name: ctx.name, teamName, targets });
+  const sheetOf = (step: FlowStepStatus) => stepSheet({ p, kinds, kind: v.kind, step, can, isAuthor, me, mine, name: ctx.name, teamName, targets, alone });
   const undoFromHistory = (departureId: string, type: string) => void perform(ctx, (c) => c.undoDeparture({ commandId: newId(), departureId }), undoneText(type));
   const withdraw = (requestId: string) => void perform(ctx, (c) => c.withdrawRequest({ commandId: newId(), requestId }), t('passage.page.withdrawn'));
   /** Your own review or note, taken back (decisions.md 111): the check is open again, the note gone. */
@@ -327,7 +335,7 @@ export function PassageRecord(ctx: Ctx) {
   // An earlier section (decision 80) is kept to be heard, not worked on.
   const earlierHere = isEarlierSection(ctx.language.state, unitId);
   // The main button, and the next check for asking (after publishing, or later from the button).
-  const model = recordModel({ p, kinds, kind: v.kind, me, can, steps, mine, asker, askKindId, isAuthor, earlier: earlierHere });
+  const model = recordModel({ p, kinds, kind: v.kind, me, can, steps, mine, asker, askKindId, isAuthor, earlier: earlierHere, alone });
   const { answersMine, feedbackReview, myDraft, nextKinds, nextKind } = model;
   const nextTarget = nextKind ? targets[nextKind.kindId] : undefined;
   const m = model.main;
@@ -394,7 +402,7 @@ export function PassageRecord(ctx: Ctx) {
 
   // ---- Something else? (demo a-else) ----
   if (page === 'else') {
-    const options = elseOptions({ p, kinds, can, current: currentCheck(p, currentStepId(p)), answersMine, myDraft });
+    const options = elseOptions({ p, kinds, can, current: currentCheck(p, currentStepId(p)), answersMine, myDraft, isAuthor, alone });
     const onOption = (o: ElseOption) => {
       const mv = elseMove(o);
       if (mv.id === 'skip') return setSkipping({ kindId: mv.kindId, stepId: mv.stepId });
