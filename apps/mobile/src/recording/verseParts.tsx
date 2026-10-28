@@ -34,7 +34,7 @@ import { PartBars } from './partBars';
 import { useSwipeHint } from './useSwipeHint';
 import { useBars } from '../audio/useBars';
 import { PartNotesMark } from '../passage/PartNotes';
-import { KeptMark } from './KeptMark';
+import { CleanUpMark } from './NoiseMark';
 import { useClip } from '../audio/useClip';
 import { partIs, spanName, spanShort } from './verseModel';
 import { helpBinRow, opensAbove, rowKeys, type RecordTarget, type SlotRow } from './workspaceModel';
@@ -336,8 +336,8 @@ function PartRow(props: {
         {props.chosen ? <ChosenMic /> : null}
         <HelpBadge spot={choose} />
       </Pressable>
-      {/* Tried in Clean up and kept as recorded (decision 179). */}
-      {props.part.kept ? <KeptMark kept={props.part.kept} part={name} /> : null}
+      {/* Tried in Clean up and kept as recorded (decision 179), or noisy (decision 180). */}
+      <CleanUpMark ctx={props.ctx} hash={props.part.hash} part={name} kept={props.part.kept} cleanUp={props.part.cleanUp} />
       {/* What the checks said about this part (decisions.md 149). */}
       <PartNotesMark hash={props.part.hash} label={name} />
       {props.grip}

@@ -4675,7 +4675,10 @@
       "kept": "Disimpan seperti direkam",
       "keptLabel": "{{part}}: disimpan seperti direkam",
       "keptHelp": "Bersihkan sudah dicoba pada bagian ini, dan rekamannya disimpan seperti yang diucapkan. Ketuk untuk melihat siapa yang mencoba.",
-      "keptBy": "{{name}} mencoba Bersihkan pada {{date}} dan menyimpan rekaman apa adanya."
+      "keptBy": "{{name}} mencoba Bersihkan pada {{date}} dan menyimpan rekaman apa adanya.",
+      "noisy": "Banyak suara latar",
+      "noisyLabel": "{{part}}: banyak suara latar",
+      "noisyHelp": "Bagian ini punya banyak suara latar. Ketuk untuk melihatnya dan membersihkan bagian ini."
     },
     "quoted": "“{{text}}”",
     "listening": "Mendengarkan… {{time}}",

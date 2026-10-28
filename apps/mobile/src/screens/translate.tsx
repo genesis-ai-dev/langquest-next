@@ -23,7 +23,9 @@
 // microphone hears, the room and the voice, with nothing to set (LAN-82).
 // The card's ⋯ opens Clean up, which takes background noise out of the
 // parts on this phone; the person hears each part both ways and picks, and
-// a part kept as recorded wears a grey ear (decision 179).
+// a part kept as recorded wears a grey ear (decision 179). A part with lots
+// of background noise wears an orange warning that opens Clean up for it
+// alone (decision 180).
 // Parts are dragged up and down by a grip (the moved part loses its verses,
 // to be labelled again), a mark on the line between two parts opens a place
 // there to record into, the parts just recorded are shaded until the next
@@ -692,11 +694,15 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     finally { setPublishing(false); }
   }
 
-  const parts: Part[] = list.map((hash) => {
+  const offer = cleanUpOffer(state, unitId, list);
+  const offered = new Set(offer.offered);
+  const parts: Part[] = list.map((hash, i) => {
     // Tried in Clean up and kept as recorded: the grey ear says who, and when (decision 179).
     const note = cleanUpOf(state, unitId, hash);
     const kept = note?.value.use === 'original' ? { by: ctx.name(note.value.actorId), when: formatDay(decodeHlc(note.hlc).wallMs) } : null;
-    return { hash, ...(durations.has(hash) ? { durationMs: durations.get(hash)! } : {}), ...(kept ? { kept } : {}) };
+    // A noisy part's warning opens Clean up for it alone (decision 180).
+    return { hash, ...(durations.has(hash) ? { durationMs: durations.get(hash)! } : {}), ...(kept ? { kept } : {}),
+      ...(offered.has(i) ? { cleanUp: () => openCleanUp([i]) } : {}) };
   });
   // The parts card's rows (parts, and gaps a part can be recorded into) and where the next part goes (LAN-83).
   const verseLabels = verseKeys.length > 0 ? derivePartVerses(marks, verseKeys.length).labels : [];
@@ -710,11 +716,12 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const targetN = targetNumber(rows, target);
   rowsRef.current = rows;
   const nextIndex = targetN - 1;
-  const offer = cleanUpOffer(state, unitId, list);
-  const openCleanUp = () => {
+  // The ⋯ opens Clean up for every part it is offered for; a noisy part's warning, for that part alone.
+  const openCleanUp = (which: readonly number[] = offer.offered) => {
     if (blocked) return;
     const names = new Map(rows.flatMap((r) => (r.kind === 'part' ? [[r.index, partLabel(r.n - 1)] as const] : [])));
-    setCleaningUp({ parts: offer.offered.map((i) => ({ hash: list[i]!, label: names.get(i) ?? partLabel(i), ...(parts[i]?.durationMs !== undefined ? { durationMs: parts[i].durationMs } : {}) })), before: offer.before.length });
+    setCleaningUp({ parts: which.map((i) => ({ hash: list[i]!, label: names.get(i) ?? partLabel(i), ...(parts[i]?.durationMs !== undefined ? { durationMs: parts[i].durationMs } : {}) })),
+      before: which === offer.offered ? offer.before.length : 0 });
   };
   // While a session is open its parts are not in the list yet (LAN-82): the next one's number is the session's.
   const sessionIndex = (rec.sessionNext ?? targetN) - 1;
@@ -816,7 +823,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                 {problem}
                 <RecorderPane ctx={ctx} parts={parts} phase={loop.phase} capturing={rec.vadCapturing} small={height < 360} disabled={blocked}
                   onDelete={(h, label) => void remove(h, label)} onDeleteAll={() => setAskingAll(true)} onRoom={room} onResume={loop.resumeNow}
-                  {...(offer.offered.length > 0 ? { onCleanUp: openCleanUp } : {})}
+                  {...(offer.offered.length > 0 ? { onCleanUp: () => openCleanUp() } : {})}
                   {...(recorderGroupTitle ? { title: recorderGroupTitle } : {})}
                   rows={rows} target={target} onChoose={choose} onMove={(from, to) => void move(from, to)} fresh={justSaid} show={show}
                   verses={{ keys: verseKeys, marks, onMarks: setMarks }} />

@@ -4675,7 +4675,10 @@
       "kept": "保留原录音",
       "keptLabel": "{{part}}：保留原录音",
       "keptHelp": "这一段试过清理，录音按原样保留。点按查看是谁试的。",
-      "keptBy": "{{name}} 在 {{date}} 试过清理，并保留了原录音。"
+      "keptBy": "{{name}} 在 {{date}} 试过清理，并保留了原录音。",
+      "noisy": "背景噪音很多",
+      "noisyLabel": "{{part}}：背景噪音很多",
+      "noisyHelp": "这一段背景噪音很多。点按查看，并清理这一段。"
     },
     "quoted": "“{{text}}”",
     "listening": "正在听……{{time}}",

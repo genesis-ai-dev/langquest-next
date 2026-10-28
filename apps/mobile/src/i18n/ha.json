@@ -4829,7 +4829,10 @@
       "kept": "An bar shi kamar yadda aka yi rikodi",
       "keptLabel": "{{part}}: an bar shi kamar yadda aka yi rikodi",
       "keptHelp": "An gwada Tsaftace a kan wannan sashe, kuma an bar rikodin kamar yadda aka faɗa. Taɓa don ganin wanda ya gwada.",
-      "keptBy": "{{name}} ya gwada Tsaftace a ranar {{date}} kuma ya bar rikodin yadda yake."
+      "keptBy": "{{name}} ya gwada Tsaftace a ranar {{date}} kuma ya bar rikodin yadda yake.",
+      "noisy": "Hayaniyar baya da yawa",
+      "noisyLabel": "{{part}}: hayaniyar baya da yawa",
+      "noisyHelp": "Wannan sashe yana da hayaniyar baya da yawa. Taɓa don ganinta da kuma tsaftace sashen."
     },
     "quoted": "“{{text}}”",
     "listening": "Ana saurara… {{time}}",

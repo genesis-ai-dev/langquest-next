@@ -4983,7 +4983,10 @@
       "kept": "Se dejó como se grabó",
       "keptLabel": "{{part}}: se dejó como se grabó",
       "keptHelp": "Se probó Limpiar en esta parte y se dejó la grabación como se dijo. Toca para ver quién lo probó.",
-      "keptBy": "{{name}} probó Limpiar el {{date}} y dejó la grabación como está."
+      "keptBy": "{{name}} probó Limpiar el {{date}} y dejó la grabación como está.",
+      "noisy": "Mucho ruido de fondo",
+      "noisyLabel": "{{part}}: mucho ruido de fondo",
+      "noisyHelp": "Esta parte tiene mucho ruido de fondo. Toca para verlo y limpiar la parte."
     },
     "quoted": "“{{text}}”",
     "listening": "Escuchando… {{time}}",
