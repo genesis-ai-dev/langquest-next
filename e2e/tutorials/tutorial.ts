@@ -55,6 +55,8 @@ export interface Tutorial {
   language?: LanguageKey;
   /** Nobody is signed in when the app opens: the video signs in, or makes an account. */
   signedOut?: boolean;
+  /** The window, when it is not a phone's (430 by 932): a computer's, for what is done on the web. */
+  viewport?: { width: number; height: number };
   names: WorldNames;
   /** The speaker's recordings that the microphone hears (WAV files in TUTORIAL_SPEECH). */
   speech?: string[];

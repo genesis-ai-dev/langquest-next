@@ -180,7 +180,7 @@ const world = await buildWorld({
 await giveAddresses(world);
 await tutorial.prepare?.(world);
 writeFileSync(path.join(out, 'world.json'), JSON.stringify(world));
-const viewport = { width: 430, height: 932 };
+const viewport = tutorial.viewport ?? { width: 430, height: 932 };
 const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required'] });
 const context = await browser.newContext({ viewport, deviceScaleFactor: 2, permissions: ['microphone'], reducedMotion: 'no-preference' });
 const page = await context.newPage();

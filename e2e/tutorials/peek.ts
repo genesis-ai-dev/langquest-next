@@ -2,7 +2,7 @@
 // a picture and the screen's outline (Playwright's aria snapshot) after it
 // opens, and after each tap named on the command line.
 //
-//   [PEEK_AS=<tutorial id>] npx tsx e2e/tutorials/peek.ts <out-dir> <ACCOUNT> ['text to tap' | '#test-id' | 'role:Name' ...]
+//   [PEEK_AS=<tutorial id>] [PEEK_WIDE=1] npx tsx e2e/tutorials/peek.ts <out-dir> <ACCOUNT> ['text to tap' | '#test-id' | 'role:Name' ...]
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -17,7 +17,8 @@ const world = await buildWorld({ keptByInvite: true, names: like.names });
 await like.prepare?.(world);
 writeFileSync(path.join(out, 'world.json'), JSON.stringify(world));
 const browser = await chromium.launch();
-const context = await browser.newContext({ viewport: { width: 430, height: 932 }, deviceScaleFactor: 1 });
+// PEEK_WIDE=1: a computer's window, for what is done on the web.
+const context = await browser.newContext({ viewport: process.env['PEEK_WIDE'] ? { width: 1280, height: 800 } : { width: 430, height: 932 }, deviceScaleFactor: 1 });
 const page = await context.newPage();
 await page.addInitScript((entries) => {
   for (const [k, v] of Object.entries(entries)) if (localStorage.getItem(k) === null) localStorage.setItem(k, v);
