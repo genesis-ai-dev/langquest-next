@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { passageVerseKeys, readPartVerses, spanName, spanShort, verseName, versesHeld } from '../src/recording/verseModel';
+import { inVerseGutter, passageVerseKeys, readPartVerses, spanName, spanShort, verseName, versesHeld } from '../src/recording/verseModel';
 
 const versesIn = (_book: string, chapter: number) => (chapter === 1 ? 31 : 25);
 
@@ -38,5 +38,23 @@ describe("a published version's parts, read only (decisions.md 82)", () => {
     expect(versesHeld([{ t: 'set', s: 2, e: 2 }, null], keys)).toBe('Verse 3');
     expect(versesHeld([null, null], keys)).toBeNull();
     expect(versesHeld([{ t: 'next' }], [])).toBeNull();
+  });
+});
+
+describe('inVerseGutter', () => {
+  // A part list 400 wide, 10 from the screen's left edge.
+  it('takes the left side left to right', () => {
+    expect(inVerseGutter(12, 10, 400, false)).toBe(true);
+    expect(inVerseGutter(73, 10, 400, false)).toBe(true);
+    expect(inVerseGutter(74, 10, 400, false)).toBe(false);
+    expect(inVerseGutter(400, 10, 400, false)).toBe(false);
+    expect(inVerseGutter(5, 10, 400, false)).toBe(false);
+  });
+  it('takes the right side right to left, where the left side holds the grips', () => {
+    expect(inVerseGutter(12, 10, 400, true)).toBe(false);
+    expect(inVerseGutter(400, 10, 400, true)).toBe(true);
+    expect(inVerseGutter(347, 10, 400, true)).toBe(true);
+    expect(inVerseGutter(346, 10, 400, true)).toBe(false);
+    expect(inVerseGutter(411, 10, 400, true)).toBe(false);
   });
 });
