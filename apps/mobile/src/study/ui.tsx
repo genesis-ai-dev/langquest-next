@@ -1,6 +1,6 @@
 // The study screens' shared widgets (the UX demo's screens/shared.tsx
 // `useAudio`, `AudioBar`, `MediaTile`, `MediaSheet`, `StudyStepMark`, and
-// study.tsx's `ViewSwitch`, `PassageReader`, `ContributeSheet`). STUDY-3,
+// study.tsx's `ViewSwitch`, `ContributeSheet`). STUDY-3,
 // STUDY-5, STUDY-7, ADR-019. Audio follows audioSession.ts: starting one
 // player stops every other, and playback sets the session to play mode.
 import type { PassageNote } from '@langquest-next/core';
@@ -20,7 +20,6 @@ import { txt } from '../ui/textStyles';
 import { when, type PassageView } from '../passage/passageView';
 import { Authored, ReportFlag } from '../moderation/reportSheet';
 import { recordTarget } from '../moderation/reportTargets';
-import { SourceReader } from '../sources/SourceReader';
 import { C, space, type as T } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
 import type { GlossaryEntry, StudyMedia, StudyMediaKind, StudyResource } from './guides';
@@ -28,14 +27,14 @@ import { useStudyFileUri } from './useStudyFileUri';
 import type { StudyStepStatus } from './progress';
 import { inlineParts, isCallout, isQuestion, studySections, type StudySection } from './text';
 import { shownClock, mediaKindLabel, CALLOUT_LOOK, calloutLabel } from './studyText';
-import { saveNote, takeBackNote } from './studyActions';
+import { takeBackNote } from './studyActions';
 import { styles } from './studyStyles';
 import { useStudyAudio, type StudyAudio } from './useStudyAudio';
 import { draftKey, EMPTY_NOTE, isNoteDraft } from '../drafts/draftModel';
 import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
-import { useNoteStep } from '../checks/useNoteStep';
 import { a11yState } from '../ui/a11yModel';
+import { styles as ps } from '../recording/blockStyles';
 
 // ---- audio -------------------------------------------------------------------------
 
@@ -70,14 +69,16 @@ function Scrubber(props: { value: number; max: number; label: string; onSeek: (s
 }
 
 /** Play/pause, a scrubber, and back 10 seconds. */
-export function AudioBar(props: { audio: StudyAudio; label: string; sub?: string }) {
+/** `off` while there is nothing to play yet (not on the phone, or it could not load): the buttons are grey and the line says why. */
+export function AudioBar(props: { audio: StudyAudio; label: string; sub?: string; off?: boolean }) {
   const a = props.audio;
   const play = useHelpSpot(a.playing ? t('study.audio.pause', { label: props.label }) : t('study.audio.play', { label: props.label }), t('recording.player.playHelp'), a.toggle);
   const back = useHelpSpot(t('common.backTenSeconds'), t('recording.player.back10Help'), () => a.seek(a.time - 10));
   return (
     <View style={styles.audioBar}>
-      <Pressable onPress={play.onPress} accessibilityRole="button" accessibilityLabel={a.playing ? t('study.audio.pause', { label: props.label }) : t('study.audio.play', { label: props.label })}
-        style={({ pressed }) => [styles.playBtn, pressed && styles.pressed]}>
+      <Pressable onPress={play.onPress} disabled={props.off} accessibilityRole="button" accessibilityLabel={a.playing ? t('study.audio.pause', { label: props.label }) : t('study.audio.play', { label: props.label })}
+        {...a11yState({ disabled: !!props.off }, 'button')}
+        style={({ pressed }) => [styles.playBtn, props.off && ps.off, pressed && styles.pressed]}>
         <Ico name={a.playing ? 'pause' : 'play'} size={26} color={C.white} />
         <HelpBadge spot={play} />
       </Pressable>
@@ -90,8 +91,9 @@ export function AudioBar(props: { audio: StudyAudio; label: string; sub?: string
         <Scrubber value={a.time} max={a.duration} label={props.label} onSeek={a.seek} />
         {props.sub ? <Text style={[txt.xs, { marginTop: -2 }]}>{props.sub}</Text> : null}
       </View>
-      <Pressable onPress={back.onPress} accessibilityRole="button" accessibilityLabel={t('common.backTenSeconds')}
-        style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}>
+      <Pressable onPress={back.onPress} disabled={props.off} accessibilityRole="button" accessibilityLabel={t('common.backTenSeconds')}
+        {...a11yState({ disabled: !!props.off }, 'button')}
+        style={({ pressed }) => [styles.backBtn, props.off && ps.off, pressed && styles.pressed]}>
         <Ico name="undo" size={16} color={C.primary} />
         <Text style={[txt.xsStrong, { color: C.primary }]}>{formatNumber(10)}</Text>
         <HelpBadge spot={back} />
@@ -289,8 +291,9 @@ export function GlossarySheet(props: {
 }) {
   const e = props.entry;
   const words = (e.body ?? e.hint ?? '').split(/\s+/).filter(Boolean).length;
-  const { uri: audioUri } = useStudyFileUri(props.orgId, e.audioFile, e.audioUrl);
+  const { uri: audioUri, failed: notHere } = useStudyFileUri(props.orgId, e.audioFile, e.audioUrl);
   const audio = useStudyAudio(audioUri, Math.max(5, Math.round(words / 2.5)));
+  const audioSub = audio.failed ? t('study.guide.couldNotLoad') : notHere ? t('recording.player.notOnDeviceYet') : !audioUri ? t('study.guide.gettingRecording') : undefined;
   useEffect(() => () => audio.pause(), []); // eslint-disable-line react-hooks/exhaustive-deps -- it reads only refs, so the first draw's copy is enough on unmount
   const add = !props.hasKeyTerm ? props.add : undefined;
   return (
@@ -303,7 +306,7 @@ export function GlossarySheet(props: {
           </View>
         ) : undefined}>
       {e.hint ? <Text style={[txt.body, { fontWeight: '600' }]}>{e.hint}</Text> : null}
-      {e.audioUrl || e.audioFile ? <AudioBar audio={audio} label={t('study.glossary.listen', { term: e.term })} {...(audio.failed ? { sub: t('study.glossary.standIn') } : {})} /> : null}
+      {e.audioUrl || e.audioFile ? <AudioBar audio={audio} label={t('study.glossary.listen', { term: e.term })} off={audio.failed || !audioUri} {...(audioSub ? { sub: audioSub } : {})} /> : null}
       {e.body ? e.body.split(/\n{2,}/).map((para, i) => <Text key={i} style={txt.body}>{para.trim()}</Text>) : null}
       {!props.hasKeyTerm && !add ? <Text style={txt.xs}>{t('study.glossary.notKeyTerm')}</Text> : null}
     </Sheet>
@@ -372,65 +375,3 @@ export function StepPreview(props: { text: string; onOpenRef?: (ref: string) => 
 
 // ---- the passage: read and listen in a few translations, note any verse (STUDY-5) -------
 
-// ---- the passage: read and listen in the language's Bibles, note any verse (STUDY-5) -------
-
-/**
- * The study's Passage view: the source reader (sources/SourceReader.tsx)
- * with the team's notes on each verse. Tapping a verse plays on from it and
- * selects it, so a note can be added there; paused in a verse, the note
- * says where.
- */
-export function PassageReader(props: { ctx: Ctx; v: PassageView; canContribute: boolean; header?: ReactNode; hidden?: boolean }) {
-  const noteStep = useNoteStep();
-  const { ctx, v } = props;
-  const [adding, setAdding] = useState<{ verse: string; at?: string; code: string } | null>(null);
-  const notes = useMemo(() => v.p.notes.filter((n) => n.anchor.kind === 'verse'), [v.p.notes]);
-  const notesOn = (ref: string) => notes.filter((n) => n.anchor.kind === 'verse' && n.anchor.verse === ref);
-  return (
-    <>
-      <SourceReader ctx={ctx} unitId={v.unitId} languageId={v.languageId} layout="screen" hidden={props.hidden}
-        {...(props.header ? { header: props.header } : {})}
-        onMoreBibles={() => ctx.go('bible_explore', { unitId: v.unitId, languageId: v.languageId })}
-        verse={{
-          badge: (row) => notesOn(row.key).length,
-          below: (row, c) => {
-            const here = notesOn(row.key);
-            if (!(c.selected && props.canContribute) && here.length === 0) return null;
-            return (
-              <View style={{ paddingLeft: 44, paddingRight: space.xs, paddingBottom: space.sm, gap: space.sm }}>
-                {c.selected && props.canContribute ? (
-                  <AddNoteHere label={c.at ? t('study.reader.addNoteOnAt', { verse: row.key, time: c.at }) : t('study.reader.addNoteOn', { verse: row.key })}
-                    onPress={() => setAdding({ verse: row.key, code: c.code, ...(c.at ? { at: c.at } : {}) })} />
-                ) : null}
-                {here.map((n) => {
-                  const a = n.anchor.kind === 'verse' ? [n.anchor.translation, n.anchor.at].filter(Boolean).join(' · ') : '';
-                  return <HelpRow key={n.id} of="study.note"><StudyNote ctx={ctx} note={n} label={a || t('study.reader.verse', { verse: row.key })} /></HelpRow>;
-                })}
-              </View>
-            );
-          }
-        }} />
-      {adding ? (
-        <ContributeSheet ctx={ctx} unitId={v.unitId} languageId={v.languageId} title={t('common.addNote')} draftAt={`verse:${adding.verse}`}
-          where={adding.at
-            ? t('study.reader.whereAt', { title: v.title, verse: adding.verse, bible: adding.code, time: adding.at })
-            : t('study.reader.where', { title: v.title, verse: adding.verse, bible: adding.code })}
-          onClose={() => setAdding(null)}
-          onSave={(c) => saveNote(ctx, v, { kind: 'verse', verse: adding.verse, translation: adding.code, ...(adding.at ? { at: adding.at } : {}) }, c,
-            t('study.reader.noteAdded', { verse: adding.verse }), noteStep)} />
-      ) : null}
-    </>
-  );
-}
-
-/** "Add a note on 15:20" under the verse chosen in the passage reader. */
-function AddNoteHere(props: { label: string; onPress: () => void }) {
-  const spot = useHelpSpot(props.label, t('study.reader.addNoteHelp'), props.onPress);
-  return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.addBtn, pressed && styles.pressed]}>
-      <Ico name="note" size={16} color={C.white} />
-      <Text style={[txt.sm, { fontWeight: '700', color: C.white, flexShrink: 1 }]}>{props.label}</Text>
-      <HelpBadge spot={spot} />
-    </Pressable>
-  );
-}

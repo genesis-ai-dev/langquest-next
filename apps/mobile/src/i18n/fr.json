@@ -680,14 +680,12 @@
       "aTemplate": "Un modèle",
       "applied": "{{name}} appliqué",
       "noneApplied": "Aucun appliqué",
-      "none": "Aucun",
+      "inLibrary_one": "{{count, number}} dans la bibliothèque",
+      "inLibrary_many": "{{count, number}} dans la bibliothèque",
+      "inLibrary_other": "{{count, number}} dans la bibliothèque",
       "noLanguages": "Pas encore de langues",
-      "languages_one": "{{count, number}} langue",
-      "languages_many": "{{count, number}} langues",
-      "languages_other": "{{count, number}} langues",
       "templates": "Modèles de contenu",
       "reference": "Documents de référence",
-      "referenceSub": "{{study}} étude · {{questions}} séries de questions · {{terms}} mots clés",
       "flows": "Circuits de révision",
       "roles": "Rôles",
       "rolesSub_one": "{{count, number}} rôle à ce niveau et au-dessus",
@@ -706,7 +704,18 @@
       "templatesHelp": "Ouvre les façons de découper le travail en passages, et celle que chaque langue utilise.",
       "referenceHelp": "Ouvre les Bibles, guides d’étude, questions et mots clés proposés aux traducteurs.",
       "flowsHelp": "Ouvre les façons de vérifier les enregistrements, et celle que chaque langue utilise.",
-      "rolesHelp": "Ouvre les rôles, et ce que chacun permet de faire."
+      "rolesHelp": "Ouvre les rôles, et ce que chacun permet de faire.",
+      "counts": {
+        "study_one": "{{count, number}} guide d’étude",
+        "study_many": "{{count, number}} guides d’étude",
+        "study_other": "{{count, number}} guides d’étude",
+        "questions_one": "{{count, number}} série de questions",
+        "questions_many": "{{count, number}} séries de questions",
+        "questions_other": "{{count, number}} séries de questions",
+        "terms_one": "{{count, number}} mot clé",
+        "terms_many": "{{count, number}} mots clés",
+        "terms_other": "{{count, number}} mots clés"
+      }
     },
     "people": {
       "title": "Personnes",
@@ -1031,6 +1040,11 @@
       "toChecksHelp": "Affiche ses vérifications, pour configurer chacune d’elles.",
       "startAgainAsk": "Recommencer à partir de {{flow}} ?",
       "startAgain": "Recommencer",
+      "leaveAsk": "Partir sans ajouter {{language}} ?",
+      "keepGoing": "Continuer",
+      "keepGoingHelp": "Revient à la page où vous étiez, avec vos réponses gardées.",
+      "leave": "Partir",
+      "leaveHelp": "Part sans ajouter la langue. Vos réponses ici sont perdues.",
       "material": {
         "question": "Qu’est-ce qui aidera l’équipe de {{language}} ?",
         "onHelp": "L’équipe de {{language}} l’aura. Touchez pour le laisser de côté.",
@@ -1931,6 +1945,7 @@
       "hereDetail": "La langue que vous changez change toujours.",
       "cannotChange": "Vous ne pouvez pas changer celle-ci",
       "otherDetail": "Cochez-la pour changer {{language}} de la même façon. Sinon, {{language}} garde le modèle tel qu’il est.",
+      "otherDetailRedo": "Cochez-la pour diviser {{book}} de la même façon pour {{language}} et déplacer ses enregistrements de même. Sinon, {{language}} garde {{book}} tel qu’il est.",
       "everyLanguage": "Toutes les langues qui l’utilisent changent.",
       "someLanguages": "Les langues que vous laissez de côté gardent le modèle tel qu’il est. Celles que vous choisissez reçoivent leur propre copie avec ce changement."
     },
@@ -1941,7 +1956,12 @@
       "titleBook": "{{book}} va être découpé à nouveau",
       "bodyNumbering": "Tout ce qui a été enregistré et révisé sur les sections qui changent passe sous « Sections précédentes » dans les nouvelles, avec un avertissement, et devra être refait. Cela comprend les enregistrements encore sur le téléphone de quelqu’un et pas encore synchronisés.",
       "bodyBook": "Tout ce qui a été enregistré et révisé sur les anciennes sections de {{book}} passe sous « Sections précédentes » dans les nouvelles, avec un avertissement, et devra être refait. Cela comprend les enregistrements encore sur le téléphone de quelqu’un et pas encore synchronisés.",
-      "nothingDeleted": "Rien n’est supprimé."
+      "bodyRecorded_one": "{{count, number}} section de {{book}} a des enregistrements sur ce téléphone. Tout ce qui a été enregistré et révisé sur les anciennes sections de {{book}} passe sous « Sections précédentes » dans les nouvelles, avec un avertissement, et devra être refait. Cela comprend les enregistrements encore sur le téléphone de quelqu’un et pas encore synchronisés.",
+      "bodyRecorded_many": "{{count, number}} sections de {{book}} ont des enregistrements sur ce téléphone. Tout ce qui a été enregistré et révisé sur les anciennes sections de {{book}} passe sous « Sections précédentes » dans les nouvelles, avec un avertissement, et devra être refait. Cela comprend les enregistrements encore sur le téléphone de quelqu’un et pas encore synchronisés.",
+      "bodyRecorded_other": "{{count, number}} sections de {{book}} ont des enregistrements sur ce téléphone. Tout ce qui a été enregistré et révisé sur les anciennes sections de {{book}} passe sous « Sections précédentes » dans les nouvelles, avec un avertissement, et devra être refait. Cela comprend les enregistrements encore sur le téléphone de quelqu’un et pas encore synchronisés.",
+      "nothingDeleted": "Rien n’est supprimé.",
+      "bodyNoneHere": "Aucun enregistrement de {{book}} n’est arrivé sur ce téléphone. Les enregistrements encore sur le téléphone de quelqu’un et pas encore synchronisés passent sous « Sections précédentes » dans les nouvelles, avec un avertissement, et devront être refaits.",
+      "alsoLanguages": "{{book}} change de la même façon pour {{languages}}, et leurs enregistrements aussi."
     },
     "numbering": {
       "ignore": "OK, ignorer",
@@ -2171,6 +2191,9 @@
       "noBibleChip": "Pas de Bible",
       "chapterChip": "Chapitre {{n}}",
       "key": "Les lignes pointillées montrent où d’autres Bibles commencent une section ({{total}} Bibles anglaises, d’OpenBible.info). Touchez-en une pour y commencer une section, ou touchez n’importe quel verset.",
+      "restored": "Votre brouillon du {{when}}",
+      "startFromNow": "Recommencer",
+      "startFromNowHelp": "Remet les sections que le livre a maintenant, à la place de votre brouillon. Annuler ramène le brouillon.",
       "loadingText": "Chargement du texte de {{book}}…",
       "noText": "Les Bibles de l’équipe n’ont pas le texte de {{book}}, ses versets s’affichent donc en chiffres.",
       "chapterHead": "Chapitre {{n}}",
@@ -3600,7 +3623,6 @@
       "sub": "Glossaire · {{source}}",
       "openKeyTerm": "Ouvrir le mot clé",
       "listen": "Écouter : {{term}}",
-      "standIn": "Impossible de charger l’audio — lecture d’un audio de remplacement",
       "notKeyTerm": "Ce terme n’est pas encore dans les mots clés de votre organisation."
     },
     "callout": {
@@ -3613,10 +3635,6 @@
     "reader": {
       "addNoteOn": "Ajouter une note sur {{verse}}",
       "addNoteOnAt": "Ajouter une note sur {{verse}} à {{time}}",
-      "verse": "Verset {{verse}}",
-      "where": "{{title}} · verset {{verse}} · {{bible}}",
-      "whereAt": "{{title}} · verset {{verse}} · {{bible}} · {{time}}",
-      "noteAdded": "Note ajoutée sur {{verse}} — elle suit ce passage",
       "addNoteHelp": "Dites ou tapez une note sur ce verset. Elle reste avec le passage."
     },
     "screen": {
@@ -3638,6 +3656,7 @@
       "stepDone": "{{step}} terminée · {{done, number}} sur {{total, number}}",
       "allDone": "Toutes les étapes sont terminées",
       "backToGuide": "Retour au guide",
+      "backTo": "Retour à {{chip}}",
       "doneWithStep": "Étape terminée",
       "openWorkspace": "Ouvrir l’espace d’enregistrement",
       "recordFirstDraft": "Enregistrer le premier jet",
@@ -4457,6 +4476,7 @@
       "notSaved": "Non sauvegardé : {{reason}}",
       "notSavedCode": "Non sauvegardé. Un problème est survenu (code {{code}}).",
       "dismissLabel": "{{message}} Fermer",
+      "close": "Fermer le message",
       "goesWhenConnected": "{{message}} Votre équipe le reçoit quand cet appareil sera connecté."
     },
     "nav": {
@@ -6775,6 +6795,9 @@
       "introLanguage": "Ce qui est proposé à l’équipe de cette langue : les recommandations de l’organisation, plus ce que vous ajoutez ou masquez ici. Les traducteurs peuvent toujours explorer n’importe quelle Bible en ligne.",
       "recommended": "Recommandées · {{n, number}}",
       "noneRecommended": "Aucune Bible n’est encore recommandée ici. Ajoutez-en une, ou recommandez-en une ci-dessous.",
+      "noneRecommendedAdd": "Aucune Bible n’est encore recommandée ici. Ajoutez-en une.",
+      "noneRecommendedBelow": "Aucune Bible n’est encore recommandée ici. Recommandez-en une ci-dessous.",
+      "noneRecommendedYet": "Aucune Bible n’est encore recommandée ici.",
       "hidden": "Masquées pour cette langue · {{n, number}}",
       "notRecommended": "Dans votre bibliothèque, pas recommandées · {{n, number}}",
       "cardHelp": "L’ouvre : son texte, son audio, le minutage des versets et à qui elle est recommandée."
@@ -7022,6 +7045,7 @@
       "all": "Tous les mots clés",
       "hear": "Écouter {{term}}",
       "hearHelp": "Fait entendre le verset où il se trouve.",
+      "noVerseAudio": "Cette Bible n’a pas d’audio pour ce verset.",
       "hearLabel": "Écouter {{term}} dans la Bible",
       "openHelp": "Ce qu’il veut dire, comment votre équipe le dit, et pourquoi.",
       "termLabel": "{{term}}. {{refs}}",
@@ -7040,9 +7064,11 @@
       "added": "{{term}} ajouté.",
       "addSub": "Un mot que l’équipe devrait dire toujours de la même façon. Il est ajouté aux mots clés de {{language}}.",
       "addWord": "Ajouter le mot",
+      "addWordHelp": "Ajoute le mot une fois que vous avez dit ou écrit comment le dit le {{language}}.",
       "wordPlaceholder": "Le mot dans la Bible, ex. : berger",
       "meaningPlaceholder": "Ce qu’il veut dire (facultatif)",
       "sayItIn": "Le dire en {{language}}",
+      "howSays": "Comment le dit le {{language}}",
       "allHelp": "Ouvre la liste de tous les mots clés dans cette langue.",
       "typeHelp": "Tapez comment on le dit en {{language}}.",
       "addYourWord": "Ajouter votre mot"

@@ -670,12 +670,10 @@
       "aTemplate": "Sebuah templat",
       "applied": "{{name}} diterapkan",
       "noneApplied": "Belum ada yang diterapkan",
-      "none": "Tidak ada",
+      "inLibrary_other": "{{count, number}} di perpustakaan",
       "noLanguages": "Belum ada bahasa",
-      "languages_other": "{{count, number}} bahasa",
       "templates": "Templat Isi",
       "reference": "Bahan Referensi",
-      "referenceSub": "{{study}} studi · {{questions}} kumpulan pertanyaan · {{terms}} kata kunci",
       "flows": "Alur Pemeriksaan",
       "roles": "Peran",
       "rolesSub_other": "{{count, number}} peran di tingkat ini dan di atasnya",
@@ -692,7 +690,12 @@
       "templatesHelp": "Membuka cara-cara membagi pekerjaan menjadi perikop, dan cara yang dipakai setiap bahasa.",
       "referenceHelp": "Membuka Alkitab, panduan studi, pertanyaan, dan kata kunci yang disediakan bagi penerjemah.",
       "flowsHelp": "Membuka cara-cara rekaman diperiksa, dan cara yang dipakai setiap bahasa.",
-      "rolesHelp": "Membuka peran-peran, dan apa yang boleh dilakukan seseorang dengan masing-masing peran."
+      "rolesHelp": "Membuka peran-peran, dan apa yang boleh dilakukan seseorang dengan masing-masing peran.",
+      "counts": {
+        "study_other": "{{count, number}} panduan belajar",
+        "questions_other": "{{count, number}} kumpulan pertanyaan",
+        "terms_other": "{{count, number}} kata kunci"
+      }
     },
     "people": {
       "title": "Orang",
@@ -991,6 +994,11 @@
       "toChecksHelp": "Menampilkan pemeriksaannya, untuk menyiapkan masing-masing.",
       "startAgainAsk": "Mulai lagi dari {{flow}}?",
       "startAgain": "Mulai lagi",
+      "leaveAsk": "Keluar tanpa menambahkan {{language}}?",
+      "keepGoing": "Lanjutkan",
+      "keepGoingHelp": "Kembali ke halaman tadi, dengan jawaban Anda tetap tersimpan.",
+      "leave": "Keluar",
+      "leaveHelp": "Keluar tanpa menambahkan bahasa. Jawaban Anda di sini hilang.",
       "material": {
         "question": "Apa yang akan membantu tim {{language}}?",
         "onHelp": "Tim {{language}} akan memilikinya. Ketuk untuk tidak menyertakannya.",
@@ -1817,6 +1825,7 @@
       "hereDetail": "Bahasa yang sedang Anda ubah selalu ikut berubah.",
       "cannotChange": "Anda tidak dapat mengubah yang ini",
       "otherDetail": "Centang untuk mengubah {{language}} dengan cara yang sama. Jika dibiarkan, {{language}} tetap memakai templat seperti sekarang.",
+      "otherDetailRedo": "Centang untuk membagi {{book}} dengan cara yang sama untuk {{language}}, dan memindahkan rekamannya dengan cara yang sama. Jika dibiarkan, {{language}} tetap memakai {{book}} seperti sekarang.",
       "everyLanguage": "Semua bahasa yang memakainya ikut berubah.",
       "someLanguages": "Bahasa yang tidak Anda pilih tetap memakai templat seperti sekarang. Bahasa yang Anda pilih mendapat salinannya sendiri dengan perubahan ini."
     },
@@ -1827,7 +1836,10 @@
       "titleBook": "{{book}} akan dibagi ulang",
       "bodyNumbering": "Semua yang direkam dan diperiksa pada potongan yang berubah pindah ke \"Potongan sebelumnya\" di bawah potongan yang baru, diberi tanda peringatan, dan perlu dikerjakan ulang. Termasuk rekaman yang masih ada di ponsel seseorang dan belum tersinkron.",
       "bodyBook": "Semua yang direkam dan diperiksa pada potongan lama {{book}} pindah ke \"Potongan sebelumnya\" di bawah potongan yang baru, diberi tanda peringatan, dan perlu dikerjakan ulang. Termasuk rekaman yang masih ada di ponsel seseorang dan belum tersinkron.",
-      "nothingDeleted": "Tidak ada yang dihapus."
+      "bodyRecorded_other": "{{count, number}} potongan {{book}} punya rekaman di ponsel ini. Semua yang direkam dan diperiksa pada potongan lama {{book}} pindah ke \"Potongan sebelumnya\" di bawah potongan yang baru, diberi tanda peringatan, dan perlu dikerjakan ulang. Termasuk rekaman yang masih ada di ponsel seseorang dan belum tersinkron.",
+      "nothingDeleted": "Tidak ada yang dihapus.",
+      "bodyNoneHere": "Belum ada rekaman {{book}} yang sampai ke ponsel ini. Rekaman yang masih ada di ponsel seseorang dan belum tersinkron pindah ke \"Potongan sebelumnya\" di bawah potongan yang baru, diberi tanda peringatan, dan perlu dikerjakan ulang.",
+      "alsoLanguages": "{{book}} berubah dengan cara yang sama untuk {{languages}}, begitu juga rekamannya."
     },
     "numbering": {
       "ignore": "Oke, abaikan",
@@ -2037,6 +2049,9 @@
       "noBibleChip": "Tidak ada Alkitab",
       "chapterChip": "Pasal {{n}}",
       "key": "Garis putus-putus menunjukkan di mana Alkitab lain memulai bagian ({{total}} Alkitab bahasa Inggris, dari OpenBible.info). Ketuk salah satunya untuk memulai bagian di sana, atau ketuk ayat mana saja.",
+      "restored": "Draf Anda dari {{when}}",
+      "startFromNow": "Mulai lagi",
+      "startFromNowHelp": "Mengembalikan potongan yang dimiliki kitab ini sekarang, menggantikan draf Anda. Urungkan mengembalikan draf.",
       "loadingText": "Memuat teks {{book}}…",
       "noText": "Alkitab tim tidak memiliki teks {{book}}, jadi ayat-ayatnya tampil sebagai angka.",
       "chapterHead": "Pasal {{n}}",
@@ -3388,7 +3403,6 @@
       "sub": "Daftar istilah · {{source}}",
       "openKeyTerm": "Buka kata kunci",
       "listen": "Dengarkan: {{term}}",
-      "standIn": "Audio tidak dapat dimuat — memutar audio pengganti",
       "notKeyTerm": "Istilah ini belum ada di kata kunci organisasi Anda."
     },
     "callout": {
@@ -3401,10 +3415,6 @@
     "reader": {
       "addNoteOn": "Tambah catatan pada {{verse}}",
       "addNoteOnAt": "Tambah catatan pada {{verse}} di {{time}}",
-      "verse": "Ayat {{verse}}",
-      "where": "{{title}} · ayat {{verse}} · {{bible}}",
-      "whereAt": "{{title}} · ayat {{verse}} · {{bible}} · {{time}}",
-      "noteAdded": "Catatan ditambahkan pada {{verse}} — catatan ini ikut bersama perikop ini",
       "addNoteHelp": "Ucapkan atau ketik catatan pada ayat ini. Catatan ini tetap bersama perikopnya."
     },
     "screen": {
@@ -3426,6 +3436,7 @@
       "stepDone": "{{step}} selesai · {{done, number}} dari {{total, number}}",
       "allDone": "Semua langkah sudah selesai",
       "backToGuide": "Kembali ke panduan",
+      "backTo": "Kembali ke {{chip}}",
       "doneWithStep": "Selesai dengan langkah ini",
       "openWorkspace": "Buka tempat merekam",
       "recordFirstDraft": "Rekam draf pertama",
@@ -4181,6 +4192,7 @@
       "notSaved": "Tidak tersimpan: {{reason}}",
       "notSavedCode": "Tidak tersimpan. Terjadi kesalahan (kode {{code}}).",
       "dismissLabel": "{{message}} Tutup",
+      "close": "Tutup pesan",
       "goesWhenConnected": "{{message}} Tim Anda menerimanya saat perangkat ini terhubung."
     },
     "nav": {
@@ -6251,6 +6263,9 @@
       "introLanguage": "Apa yang disediakan bagi tim bahasa ini: rekomendasi organisasi, ditambah apa yang Anda tambahkan atau sembunyikan di sini. Penerjemah tetap dapat menjelajahi Alkitab mana pun secara online.",
       "recommended": "Direkomendasikan · {{n, number}}",
       "noneRecommended": "Belum ada Alkitab yang direkomendasikan di sini. Tambahkan satu, atau rekomendasikan satu di bawah.",
+      "noneRecommendedAdd": "Belum ada Alkitab yang direkomendasikan di sini. Tambahkan satu.",
+      "noneRecommendedBelow": "Belum ada Alkitab yang direkomendasikan di sini. Rekomendasikan satu di bawah.",
+      "noneRecommendedYet": "Belum ada Alkitab yang direkomendasikan di sini.",
       "hidden": "Disembunyikan untuk bahasa ini · {{n, number}}",
       "notRecommended": "Ada di perpustakaan Anda, tidak direkomendasikan · {{n, number}}",
       "cardHelp": "Membukanya: teks, audio, penanda waktu ayat, dan untuk siapa Alkitab ini direkomendasikan."
@@ -6462,6 +6477,7 @@
       "all": "Semua kata kunci",
       "hear": "Dengarkan {{term}}",
       "hearHelp": "Memutar ayat tempat kata itu muncul.",
+      "noVerseAudio": "Alkitab ini tidak punya audio untuk ayat itu.",
       "hearLabel": "Dengarkan {{term}} dalam Alkitab",
       "openHelp": "Artinya, cara tim Anda mengucapkannya, dan alasannya.",
       "termLabel": "{{term}}. {{refs}}",
@@ -6480,9 +6496,11 @@
       "added": "{{term}} ditambahkan.",
       "addSub": "Kata yang harus diucapkan tim dengan cara yang sama setiap kali. Kata ini ditambahkan ke kata kunci {{language}}.",
       "addWord": "Tambahkan kata ini",
+      "addWordHelp": "Menambahkan kata setelah Anda mengucapkan atau mengetik cara {{language}} mengatakannya.",
       "wordPlaceholder": "Kata dalam Alkitab, misalnya gembala",
       "meaningPlaceholder": "Artinya (tidak wajib)",
       "sayItIn": "Ucapkan dalam {{language}}",
+      "howSays": "Cara {{language}} mengatakannya",
       "allHelp": "Membuka daftar semua kata kunci dalam bahasa ini.",
       "typeHelp": "Ketik cara mengucapkannya dalam {{language}}.",
       "addYourWord": "Tambahkan kata Anda"

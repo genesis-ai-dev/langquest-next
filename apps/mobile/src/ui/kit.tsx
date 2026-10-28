@@ -659,7 +659,7 @@ export function Chip(props: { label: string; on: boolean; onPress: () => void; i
   );
 }
 
-/** Pills in a row that scrolls sideways (filters, tabs within a screen). */
+/** Pills in a row that scrolls sideways (filters, a long list of places); a few tabs within a screen wrap instead (ChipWrap). */
 export function ChipRow(props: { children: ReactNode }) {
   return <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm, paddingVertical: 2 }}>{props.children}</ScrollView>;
 }
@@ -1120,8 +1120,8 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
           <Ico name={look.icon} size={20} color={C[look.color]} />
           <Text style={[txt.sm, { color: C.white, flex: 1, fontWeight: '600' }]}>{toast.message}</Text>
         </Pressable>
-        {/* help-ignore: the toast's close, gone in a few seconds with the toast */}
-        <IconBtn name="close" label={t('common.close')} onPress={props.onDismiss} bg="transparent" color={C.white} size={target.min} />
+        {/* help-ignore: the toast's close, gone in a few seconds with the toast. Named apart from a sheet's ✕, as it now shows on the sheet too. */}
+        <IconBtn name="close" label={t('shell.toast.close')} onPress={props.onDismiss} bg="transparent" color={C.white} size={target.min} />
         {bar ? (
           <View style={[styles.toastTrack, { pointerEvents: 'none' }]}>
             <Animated.View style={[styles.toastLeft, { width: left.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />

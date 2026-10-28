@@ -798,7 +798,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                   </>
                 ) : chip === 'terms' ? (
                   <KeyWordsPane ctx={ctx} v={v} terms={trayTerms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} bibleLanguage={bible.option?.language} draftTakeId={draft?.takeId} canTie={canTie} disabled={blocked}
-                    onHear={(key) => { setChip('bible'); if (key) { setVerse(key); bible.playVerse(key); } }}
+                    canHear={chipIds.includes('bible') && bible.timed && !bible.audioAbsent}
+                    onHear={(key) => { if (!bible.playVerse(key)) return false; setChip('bible'); setVerse(key); return true; }}
                     allTerms={() => ctx.go('key_terms', scope)}
                     {...(recording ? {} : { onWordPage: (list: KeyWordList, word: KeyWordDoc) => ctx.go('key_term_detail', { ...scope, listId: list.itemId, wordId: word.id, ...(draft ? { draftId: draft.takeId } : {}) }) })} />
                 ) : chip === 'notes' ? (

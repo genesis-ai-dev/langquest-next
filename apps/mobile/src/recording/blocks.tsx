@@ -241,7 +241,8 @@ export function StepNav(props: { index: number; count: number; title: string; on
         <Ico name="down" size={20} color={C.muted} />
         <HelpBadge spot={list} />
       </Pressable>
-      <RoundBtn icon="right" label={t('recording.steps.next')} hint={t('recording.steps.nextHelp')} onPress={props.onNext} disabled={last} tone="brand" />
+      {/* Plain like ‹: a filled › looked like Done with this step, and moving on with it left steps unmarked (UI audit, finding 40). */}
+      <RoundBtn icon="right" label={t('recording.steps.next')} hint={t('recording.steps.nextHelp')} onPress={props.onNext} disabled={last} />
     </View>
   );
 }

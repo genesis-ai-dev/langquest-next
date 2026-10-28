@@ -680,14 +680,12 @@
       "aTemplate": "Um modelo",
       "applied": "{{name}} aplicado",
       "noneApplied": "Nenhum aplicado",
-      "none": "Nenhum",
+      "inLibrary_one": "{{count, number}} na biblioteca",
+      "inLibrary_many": "{{count, number}} na biblioteca",
+      "inLibrary_other": "{{count, number}} na biblioteca",
       "noLanguages": "Ainda não há idiomas",
-      "languages_one": "{{count, number}} idioma",
-      "languages_many": "{{count, number}} de idiomas",
-      "languages_other": "{{count, number}} idiomas",
       "templates": "Modelos de conteúdo",
       "reference": "Material de referência",
-      "referenceSub": "{{study}} de estudo · {{questions}} conjuntos de perguntas · {{terms}} palavras-chave",
       "flows": "Fluxos de revisão",
       "roles": "Funções",
       "rolesSub_one": "{{count, number}} função neste nível e acima",
@@ -706,7 +704,18 @@
       "templatesHelp": "Abre as formas de dividir o trabalho em passagens, e qual delas cada idioma usa.",
       "referenceHelp": "Abre as Bíblias, os guias de estudo, as perguntas e as palavras-chave oferecidas aos tradutores.",
       "flowsHelp": "Abre as formas de verificar as gravações, e qual delas cada idioma usa.",
-      "rolesHelp": "Abre as funções, e o que cada uma deixa uma pessoa fazer."
+      "rolesHelp": "Abre as funções, e o que cada uma deixa uma pessoa fazer.",
+      "counts": {
+        "study_one": "{{count, number}} guia de estudo",
+        "study_many": "{{count, number}} guias de estudo",
+        "study_other": "{{count, number}} guias de estudo",
+        "questions_one": "{{count, number}} conjunto de perguntas",
+        "questions_many": "{{count, number}} conjuntos de perguntas",
+        "questions_other": "{{count, number}} conjuntos de perguntas",
+        "terms_one": "{{count, number}} palavra-chave",
+        "terms_many": "{{count, number}} palavras-chave",
+        "terms_other": "{{count, number}} palavras-chave"
+      }
     },
     "people": {
       "title": "Pessoas",
@@ -1031,6 +1040,11 @@
       "toChecksHelp": "Mostra as verificações, para configurar cada uma.",
       "startAgainAsk": "Começar de novo a partir de {{flow}}?",
       "startAgain": "Começar de novo",
+      "leaveAsk": "Sair sem adicionar {{language}}?",
+      "keepGoing": "Continuar",
+      "keepGoingHelp": "Volta para a página em que você estava, com suas respostas guardadas.",
+      "leave": "Sair",
+      "leaveHelp": "Sai sem adicionar o idioma. Suas respostas aqui se perdem.",
       "material": {
         "question": "O que vai ajudar a equipe de {{language}}?",
         "onHelp": "A equipe de {{language}} vai ter isto. Toque para deixar de fora.",
@@ -1931,6 +1945,7 @@
       "hereDetail": "O idioma que você está mudando sempre muda.",
       "cannotChange": "Você não pode mudar este",
       "otherDetail": "Marque para mudar {{language}} do mesmo jeito. Se não marcar, {{language}} mantém o modelo como está.",
+      "otherDetailRedo": "Marque para dividir {{book}} do mesmo jeito para {{language}} e mover as gravações do mesmo jeito. Se não marcar, {{language}} mantém {{book}} como está.",
       "everyLanguage": "Todos os idiomas que o usam mudam.",
       "someLanguages": "Os idiomas que você deixar de fora mantêm o modelo como está. Os que você escolher recebem uma cópia própria com esta mudança."
     },
@@ -1941,7 +1956,12 @@
       "titleBook": "{{book}} vai ser dividido de novo",
       "bodyNumbering": "Tudo o que foi gravado e revisado nas seções que mudam vai para \"Seções anteriores\", abaixo das novas, marcado com um aviso, e vai precisar ser feito de novo. Isso inclui gravações que ainda estão no celular de alguém e não foram sincronizadas.",
       "bodyBook": "Tudo o que foi gravado e revisado nas seções antigas de {{book}} vai para \"Seções anteriores\", abaixo das novas, marcado com um aviso, e vai precisar ser feito de novo. Isso inclui gravações que ainda estão no celular de alguém e não foram sincronizadas.",
-      "nothingDeleted": "Nada é excluído."
+      "bodyRecorded_one": "{{count, number}} seção de {{book}} tem gravações neste celular. Tudo o que foi gravado e revisado nas seções antigas de {{book}} vai para \"Seções anteriores\", abaixo das novas, marcado com um aviso, e vai precisar ser feito de novo. Isso inclui gravações que ainda estão no celular de alguém e não foram sincronizadas.",
+      "bodyRecorded_many": "{{count, number}} seções de {{book}} têm gravações neste celular. Tudo o que foi gravado e revisado nas seções antigas de {{book}} vai para \"Seções anteriores\", abaixo das novas, marcado com um aviso, e vai precisar ser feito de novo. Isso inclui gravações que ainda estão no celular de alguém e não foram sincronizadas.",
+      "bodyRecorded_other": "{{count, number}} seções de {{book}} têm gravações neste celular. Tudo o que foi gravado e revisado nas seções antigas de {{book}} vai para \"Seções anteriores\", abaixo das novas, marcado com um aviso, e vai precisar ser feito de novo. Isso inclui gravações que ainda estão no celular de alguém e não foram sincronizadas.",
+      "nothingDeleted": "Nada é excluído.",
+      "bodyNoneHere": "Nada gravado em {{book}} chegou a este celular. Gravações que ainda estão no celular de alguém e não foram sincronizadas vão para \"Seções anteriores\", abaixo das novas, marcadas com um aviso, e vão precisar ser feitas de novo.",
+      "alsoLanguages": "{{book}} muda do mesmo jeito para {{languages}}, e as gravações delas também."
     },
     "numbering": {
       "ignore": "OK, ignorar",
@@ -2171,6 +2191,9 @@
       "noBibleChip": "Sem Bíblia",
       "chapterChip": "Capítulo {{n}}",
       "key": "As linhas tracejadas mostram onde outras Bíblias começam uma seção ({{total}} Bíblias em inglês, do OpenBible.info). Toque em uma para começar uma seção ali, ou toque em qualquer versículo.",
+      "restored": "Seu rascunho de {{when}}",
+      "startFromNow": "Recomeçar",
+      "startFromNowHelp": "Volta às seções que o livro tem agora, no lugar do seu rascunho. Desfazer traz o rascunho de volta.",
       "loadingText": "Carregando o texto de {{book}}…",
       "noText": "As Bíblias da equipe não têm o texto de {{book}}, então os versículos aparecem como números.",
       "chapterHead": "Capítulo {{n}}",
@@ -3600,7 +3623,6 @@
       "sub": "Glossário · {{source}}",
       "openKeyTerm": "Abrir a palavra-chave",
       "listen": "Ouvir: {{term}}",
-      "standIn": "Não foi possível carregar o áudio; tocando um substituto",
       "notKeyTerm": "Este termo ainda não está nas palavras-chave da sua organização."
     },
     "callout": {
@@ -3613,10 +3635,6 @@
     "reader": {
       "addNoteOn": "Adicionar uma nota em {{verse}}",
       "addNoteOnAt": "Adicionar uma nota em {{verse}}, em {{time}}",
-      "verse": "Versículo {{verse}}",
-      "where": "{{title}} · versículo {{verse}} · {{bible}}",
-      "whereAt": "{{title}} · versículo {{verse}} · {{bible}} · {{time}}",
-      "noteAdded": "Nota adicionada em {{verse}}: ela acompanha esta passagem",
       "addNoteHelp": "Diga ou digite uma nota neste versículo. Ela fica com a passagem."
     },
     "screen": {
@@ -3638,6 +3656,7 @@
       "stepDone": "{{step}} feita · {{done, number}} de {{total, number}}",
       "allDone": "Todas as etapas estão feitas",
       "backToGuide": "Voltar ao guia",
+      "backTo": "Voltar para {{chip}}",
       "doneWithStep": "Terminei esta etapa",
       "openWorkspace": "Abrir a tela de gravação",
       "recordFirstDraft": "Gravar o primeiro rascunho",
@@ -4457,6 +4476,7 @@
       "notSaved": "Não foi salvo: {{reason}}",
       "notSavedCode": "Não foi salvo. Algo deu errado (código {{code}}).",
       "dismissLabel": "{{message}} Dispensar",
+      "close": "Fechar a mensagem",
       "goesWhenConnected": "{{message}} Sua equipe recebe quando este aparelho estiver conectado."
     },
     "nav": {
@@ -6775,6 +6795,9 @@
       "introLanguage": "O que é oferecido à equipe deste idioma: as recomendações da organização, com o que você adicionar ou esconder aqui. Os tradutores ainda podem explorar qualquer Bíblia online.",
       "recommended": "Recomendadas · {{n, number}}",
       "noneRecommended": "Ainda não há Bíblia recomendada aqui. Adicione uma, ou recomende uma abaixo.",
+      "noneRecommendedAdd": "Ainda não há Bíblia recomendada aqui. Adicione uma.",
+      "noneRecommendedBelow": "Ainda não há Bíblia recomendada aqui. Recomende uma abaixo.",
+      "noneRecommendedYet": "Ainda não há Bíblia recomendada aqui.",
       "hidden": "Escondidas para este idioma · {{n, number}}",
       "notRecommended": "Na sua biblioteca, não recomendadas · {{n, number}}",
       "cardHelp": "Abre: o texto, o áudio, a marcação de tempo dos versículos e para quem é recomendada."
@@ -7022,6 +7045,7 @@
       "all": "Todas as palavras-chave",
       "hear": "Ouvir {{term}}",
       "hearHelp": "Toca o versículo em que ela está.",
+      "noVerseAudio": "Esta Bíblia não tem áudio para esse versículo.",
       "hearLabel": "Ouvir {{term}} na Bíblia",
       "openHelp": "O que significa, como a sua equipe diz e por quê.",
       "termLabel": "{{term}}. {{refs}}",
@@ -7040,9 +7064,11 @@
       "added": "{{term}} adicionada.",
       "addSub": "Uma palavra que a equipe deve dizer sempre do mesmo jeito. Ela é adicionada às palavras-chave de {{language}}.",
       "addWord": "Adicionar a palavra",
+      "addWordHelp": "Adiciona a palavra depois que você disser ou digitar como se diz em {{language}}.",
       "wordPlaceholder": "A palavra na Bíblia, ex.: pastor",
       "meaningPlaceholder": "O que significa (opcional)",
       "sayItIn": "Diga em {{language}}",
+      "howSays": "Como se diz em {{language}}",
       "allHelp": "Abre a lista de todas as palavras-chave neste idioma.",
       "typeHelp": "Digite como {{language}} diz.",
       "addYourWord": "Adicionar a sua palavra"

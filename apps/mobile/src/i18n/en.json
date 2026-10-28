@@ -675,13 +675,11 @@
       "aTemplate": "A template",
       "applied": "{{name}} applied",
       "noneApplied": "None applied",
-      "none": "None",
+      "inLibrary_one": "{{count, number}} in the library",
+      "inLibrary_other": "{{count, number}} in the library",
       "noLanguages": "No languages yet",
-      "languages_one": "{{count, number}} language",
-      "languages_other": "{{count, number}} languages",
       "templates": "Content templates",
       "reference": "Reference material",
-      "referenceSub": "{{study}} study · {{questions}} question sets · {{terms}} key words",
       "flows": "Review flows",
       "roles": "Roles",
       "rolesSub_one": "{{count, number}} role at this level and above",
@@ -699,7 +697,15 @@
       "templatesHelp": "Opens the ways to divide the work into passages, and which one each language uses.",
       "referenceHelp": "Opens the Bibles, study guides, questions and key words offered to translators.",
       "flowsHelp": "Opens the ways recordings get checked, and which one each language uses.",
-      "rolesHelp": "Opens the roles, and what each one lets a person do."
+      "rolesHelp": "Opens the roles, and what each one lets a person do.",
+      "counts": {
+        "study_one": "{{count, number}} study guide",
+        "study_other": "{{count, number}} study guides",
+        "questions_one": "{{count, number}} question set",
+        "questions_other": "{{count, number}} question sets",
+        "terms_one": "{{count, number}} key word",
+        "terms_other": "{{count, number}} key words"
+      }
     },
     "people": {
       "title": "People",
@@ -1011,6 +1017,11 @@
       "toChecksHelp": "Shows its checks, to set up each one.",
       "startAgainAsk": "Start again from {{flow}}?",
       "startAgain": "Start again",
+      "leaveAsk": "Leave without adding {{language}}?",
+      "keepGoing": "Keep going",
+      "keepGoingHelp": "Goes back to the page you were on, with your answers kept.",
+      "leave": "Leave",
+      "leaveHelp": "Leaves without adding the language. Your answers here are lost.",
       "material": {
         "question": "What will help {{language}}’s team?",
         "onHelp": "{{language}}’s team will have it. Tap to leave it out.",
@@ -1874,6 +1885,7 @@
       "hereDetail": "The language you are changing always changes.",
       "cannotChange": "You can't change this one",
       "otherDetail": "Tick it to change {{language}} the same way. Leave it, and {{language}} keeps the template as it is.",
+      "otherDetailRedo": "Tick it to divide {{book}} the same way for {{language}}, and move its recordings the same way. Leave it, and {{language}} keeps {{book}} as it is.",
       "everyLanguage": "Every language using it changes.",
       "someLanguages": "The languages you leave out keep the template as it is. The ones you choose get their own copy with this change."
     },
@@ -1884,7 +1896,11 @@
       "titleBook": "{{book}} will be divided again",
       "bodyNumbering": "Everything recorded and reviewed on the sections that change moves to \"Earlier sections\" under the new ones, marked with a warning, and will need to be done again. That includes recordings still on someone's phone that haven't synced.",
       "bodyBook": "Everything recorded and reviewed on {{book}}'s old sections moves to \"Earlier sections\" under the new ones, marked with a warning, and will need to be done again. That includes recordings still on someone's phone that haven't synced.",
-      "nothingDeleted": "Nothing is deleted."
+      "bodyRecorded_one": "{{count, number}} section of {{book}} has recordings on this phone. Everything recorded and reviewed on {{book}}'s old sections moves to \"Earlier sections\" under the new ones, marked with a warning, and will need to be done again. That includes recordings still on someone's phone that haven't synced.",
+      "bodyRecorded_other": "{{count, number}} sections of {{book}} have recordings on this phone. Everything recorded and reviewed on {{book}}'s old sections moves to \"Earlier sections\" under the new ones, marked with a warning, and will need to be done again. That includes recordings still on someone's phone that haven't synced.",
+      "nothingDeleted": "Nothing is deleted.",
+      "bodyNoneHere": "Nothing recorded in {{book}} has reached this phone. Recordings still on someone's phone that haven't synced move to \"Earlier sections\" under the new ones, marked with a warning, and will need to be done again.",
+      "alsoLanguages": "{{book}} changes the same way for {{languages}}, and so do their recordings."
     },
     "numbering": {
       "ignore": "OK, ignore",
@@ -2104,6 +2120,9 @@
       "noBibleChip": "No Bible",
       "chapterChip": "Chapter {{n}}",
       "key": "Dashed lines show where other Bibles start a section ({{total}} English Bibles, from OpenBible.info). Tap one to start a section there, or tap any verse.",
+      "restored": "Your draft from {{when}}",
+      "startFromNow": "Start over",
+      "startFromNowHelp": "Puts back the sections the book has now, in place of your draft. Undo brings the draft back.",
       "loadingText": "Getting the words of {{book}}…",
       "noText": "The team's Bibles don't have the words of {{book}}, so its verses show as numbers.",
       "chapterHead": "Chapter {{n}}",
@@ -3494,7 +3513,6 @@
       "sub": "Glossary · {{source}}",
       "openKeyTerm": "Open the key word",
       "listen": "Listen: {{term}}",
-      "standIn": "Couldn't load the audio — playing a stand-in",
       "notKeyTerm": "This term isn't in your organization's key words yet."
     },
     "callout": {
@@ -3507,10 +3525,6 @@
     "reader": {
       "addNoteOn": "Add a note on {{verse}}",
       "addNoteOnAt": "Add a note on {{verse}} at {{time}}",
-      "verse": "Verse {{verse}}",
-      "where": "{{title}} · verse {{verse}} · {{bible}}",
-      "whereAt": "{{title}} · verse {{verse}} · {{bible}} · {{time}}",
-      "noteAdded": "Note added on {{verse}} — it follows this passage",
       "addNoteHelp": "Say or type a note on this verse. It stays with the passage."
     },
     "screen": {
@@ -3532,6 +3546,7 @@
       "stepDone": "{{step}} done · {{done, number}} of {{total, number}}",
       "allDone": "Every step is done",
       "backToGuide": "Back to the guide",
+      "backTo": "Back to {{chip}}",
       "doneWithStep": "Done with this step",
       "openWorkspace": "Open the recording workspace",
       "recordFirstDraft": "Record the first draft",
@@ -4319,6 +4334,7 @@
       "notSaved": "Not saved: {{reason}}",
       "notSavedCode": "Not saved. Something went wrong (code {{code}}).",
       "dismissLabel": "{{message}} Dismiss",
+      "close": "Close the message",
       "goesWhenConnected": "{{message}} Your team gets it when this device is connected."
     },
     "nav": {
@@ -6513,6 +6529,9 @@
       "introLanguage": "What this language’s team is offered: the organization’s recommendations, with what you add or hide here. Translators can still explore any Bible online.",
       "recommended": "Recommended · {{n, number}}",
       "noneRecommended": "No Bible is recommended here yet. Add one, or recommend one below.",
+      "noneRecommendedAdd": "No Bible is recommended here yet. Add one.",
+      "noneRecommendedBelow": "No Bible is recommended here yet. Recommend one below.",
+      "noneRecommendedYet": "No Bible is recommended here yet.",
       "hidden": "Hidden for this language · {{n, number}}",
       "notRecommended": "In your library, not recommended · {{n, number}}",
       "cardHelp": "Opens it: its text, audio, verse timings and who it is recommended to."
@@ -6742,6 +6761,7 @@
       "all": "All key words",
       "hear": "Hear {{term}}",
       "hearHelp": "Plays the verse it is in.",
+      "noVerseAudio": "This Bible has no audio for that verse.",
       "hearLabel": "Hear {{term}} in the Bible",
       "openHelp": "What it means, how your team says it, and why.",
       "termLabel": "{{term}}. {{refs}}",
@@ -6760,9 +6780,11 @@
       "added": "{{term}} added.",
       "addSub": "A word the team should say the same way every time. It is added to {{language}}'s key words.",
       "addWord": "Add the word",
+      "addWordHelp": "Adds the word once you have said or typed how {{language}} says it.",
       "wordPlaceholder": "The word in the Bible, e.g. shepherd",
       "meaningPlaceholder": "What it means (optional)",
       "sayItIn": "Say it in {{language}}",
+      "howSays": "How {{language}} says it",
       "allHelp": "Opens the list of every key word in this language.",
       "typeHelp": "Type how {{language}} says it.",
       "addYourWord": "Add your word"

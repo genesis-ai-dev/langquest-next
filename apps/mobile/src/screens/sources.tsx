@@ -8,7 +8,7 @@
 // added the same way. Every Bible says whether it has audio and whether it
 // can be kept offline.
 import { chaptersInBook, libraryItems, testamentOf, type SourceDoc, type VersificationDoc, type VerseRange } from '@langquest-next/core';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
@@ -23,7 +23,7 @@ import { txt } from '../ui/textStyles';
 import { useLibraryDocs } from '../library/useLibrary';
 import { contractsFor } from '../shell/screenContracts';
 import { bibleErrorText, type BibleDetail, type BibleLanguage, type BibleSummary } from '../sources/bibleBrain';
-import { offersFor, offlineAllowed, refText, type SourceOption } from '../sources/model';
+import { offersFor, offlineAllowed, refText, unitCoordinates, type SourceOption } from '../sources/model';
 import { SourceView } from '../sources/SourceReader';
 import { bibleBrain, type MyBible } from '../sources/store';
 import { useBibleBrainBibles } from '../sources/useBibleBrainBibles';
@@ -150,6 +150,30 @@ export function BibleExplore(ctx: Ctx) {
   );
 }
 
+/** A sideways row of chips that keeps the lit one in view, as RefChips does (recording/blocks.tsx). */
+function LitInView(props: { lit: string | null; keys: string[]; children: (key: string) => ReactNode }) {
+  const scroll = useRef<ScrollView>(null);
+  const xs = useRef(new Map<string, number>());
+  useEffect(() => {
+    const x = props.lit === null ? undefined : xs.current.get(props.lit);
+    if (x !== undefined) scroll.current?.scrollTo({ x: Math.max(0, x - space.lg), animated: true });
+  }, [props.lit]);
+  return (
+    <ScrollView ref={scroll} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+      {/* help-each: each chip is drawn by the caller, in its own HelpRow */}
+      {props.keys.map((k) => (
+        <View key={k} onLayout={(e) => {
+          const x = e.nativeEvent.layout.x;
+          xs.current.set(k, x);
+          if (k === props.lit && x > space.lg) scroll.current?.scrollTo({ x: x - space.lg, animated: false });
+        }}>
+          {props.children(k)}
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
+
 /** One Bible: what it has, any chapter to read and hear, and Add to My Bibles. */
 function BibleDetailView(props: {
   ctx: Ctx; picked: Picked; lib: { itemId: string; doc: SourceDoc; hash: string } | undefined; languageId: string | null; unitId: string | undefined;
@@ -171,16 +195,23 @@ function BibleDetailView(props: {
     ? (lib ? { itemId: lib.itemId, kind: 'library', from: 'mine', name: lib.doc.name, abbreviation: lib.doc.abbreviation, language: lib.doc.language, doc: lib.doc, docHash: lib.hash, ...(bible ? { bible } : {}) } : undefined)
     : (bible ? { itemId: `biblebrain.${bible.bibleId}`, kind: 'biblebrain', from: 'mine', name: bible.name, abbreviation: bible.abbreviation, language: bible.language, bible } : undefined);
 
-  // Which chapter to show: the passage's own when this Bible has it, else its first.
-  const passageBook = props.unitId ? /\/([A-Z0-9]{3})/.exec(props.unitId)?.[1] : undefined;
+  // Which chapter to show: the passage's own when this Bible has it, else its first (UI audit, finding 37).
+  const passageRange = props.unitId ? unitCoordinates(props.unitId) : null;
+  const passageBook = passageRange?.book ?? (props.unitId ? /\/([A-Z0-9]{3})/.exec(props.unitId)?.[1] : undefined);
   const books = useMemo(() => {
     if (picked.kind === 'library') return (lib?.doc.books ?? []).map((b) => ({ book: b.book, name: b.name, chapters: 0 }));
     return (bible?.books ?? []).map((b) => ({ book: b.book, name: b.name, chapters: b.chapters }));
   }, [picked.kind, lib, bible]);
   const [book, setBook] = useState<string | null>(null);
-  const [chapter, setChapter] = useState(1);
   const current = book ?? (books.find((b) => b.book === passageBook)?.book ?? books[0]?.book ?? null);
   const chapters = books.find((b) => b.book === current)?.chapters ?? 0;
+  // The passage's chapter in the passage's book, unless this Bible's book is shorter.
+  const startOf = (b: string | null, count: number) => {
+    const c = b === passageBook ? passageRange?.start.chapter ?? 1 : 1;
+    return count > 0 && c > count ? 1 : c;
+  };
+  const [shownChapter, setChapter] = useState<number | null>(null);
+  const chapter = shownChapter ?? startOf(current, chapters);
   const range: VerseRange | null = current ? { book: current, start: { chapter, verse: 1 }, end: { chapter, verse: 999 } } : null;
   const { get } = useLibraryDocs(ctx.language.orgId, picked.kind === 'library' ? [lib?.doc.versification] : []);
   // A library Bible's last chapter of the book, from its numbering; unknown until that document is here.
@@ -239,29 +270,35 @@ function BibleDetailView(props: {
               {has ? <LinkBtn label={t('sources.explore.remove')} color={C.muted} style={{ alignSelf: 'flex-start' }} help={t('sources.explore.removeHelp')} onPress={() => void remove()} /> : null}
             </Card>
             {books.length > 1 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-                {books.map((b) => (
-                  <HelpRow key={b.book} of="sources.book">
-                    <Chip label={b.name} on={b.book === current} help={t('sources.explore.bookHelp')} onPress={() => { setBook(b.book); setChapter(1); }} />
-                  </HelpRow>
-                ))}
-              </ScrollView>
+              <LitInView lit={current} keys={books.map((b) => b.book)}>
+                {(k) => {
+                  const b = books.find((x) => x.book === k)!;
+                  return (
+                    <HelpRow of="sources.book">
+                      <Chip label={b.name} on={b.book === current} help={t('sources.explore.bookHelp')} onPress={() => { setBook(b.book); setChapter(startOf(b.book, b.chapters)); }} />
+                    </HelpRow>
+                  );
+                }}
+              </LitInView>
             ) : null}
             {chapters > 1 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-                {Array.from({ length: chapters }, (_, i) => i + 1).map((c) => (
-                  <HelpRow key={c} of="sources.chapter">
-                    <Chip label={formatNumber(c)} on={c === chapter} accessibilityLabel={t('sources.explore.chapter', { n: c })} help={t('sources.explore.chapterHelp', { n: c })} onPress={() => setChapter(c)} />
-                  </HelpRow>
-                ))}
-              </ScrollView>
+              <LitInView lit={String(chapter)} keys={Array.from({ length: chapters }, (_, i) => String(i + 1))}>
+                {(k) => {
+                  const c = Number(k);
+                  return (
+                    <HelpRow of="sources.chapter">
+                      <Chip label={formatNumber(c)} on={c === chapter} accessibilityLabel={t('sources.explore.chapter', { n: c })} help={t('sources.explore.chapterHelp', { n: c })} onPress={() => setChapter(c)} />
+                    </HelpRow>
+                  );
+                }}
+              </LitInView>
             ) : picked.kind === 'library' ? (
               <View style={styles.chapterStep}>
-                <LinkBtn label={t('sources.explore.previousChapter')} help={t('sources.explore.previousChapterHelp')} onPress={() => setChapter((c) => Math.max(1, c - 1))} />
+                <LinkBtn label={t('sources.explore.previousChapter')} help={t('sources.explore.previousChapterHelp')} onPress={() => setChapter(Math.max(1, chapter - 1))} />
                 <Text style={txt.sm}>{t('sources.explore.chapter', { n: chapter })}</Text>
                 {/* Stops at the book's last chapter (STUDY-034). */}
                 {lastChapter === null || chapter < lastChapter
-                  ? <LinkBtn label={t('sources.explore.nextChapter')} help={t('sources.explore.nextChapterHelp')} onPress={() => setChapter((c) => (lastChapter === null ? c + 1 : Math.min(lastChapter, c + 1)))} />
+                  ? <LinkBtn label={t('sources.explore.nextChapter')} help={t('sources.explore.nextChapterHelp')} onPress={() => setChapter(lastChapter === null ? chapter + 1 : Math.min(lastChapter, chapter + 1))} />
                   : <View />}
               </View>
             ) : null}

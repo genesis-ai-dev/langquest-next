@@ -273,18 +273,19 @@ export function PassageNoteEditor({ ctx }: { ctx: Ctx }) {
       header={<>{header}<View style={styles.chipBar}><BibleChips ctx={ctx} bible={bible} /></View></>}
       footer={(
         <>
-          <View style={styles.whereRow}>
-            <View style={styles.wherePill}><Text style={styles.whereText} numberOfLines={1}>{key ? t('notes.onVerses.on', { where: keyLabel(key) }) : t('notes.onVerses.onWhole')}</Text></View>
-            {key ? <LinkBtn label={t('notes.onVerses.whole')} color={C.muted} help={t('notes.onVerses.wholeHelp')} onPress={() => setRun(null)} /> : null}
-          </View>
           <VoiceNote ctx={ctx} label={t('notes.onVerses.say')} hash={hash} onChange={(h) => draft.set((d) => ({ ...d, hash: h }))} />
-          <Field value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} autoCapitalize="sentences" help={t('reference.notes.typeHelp')} multiline />
+          {/* One line until there is more to show, so the verses keep most of a small phone (UI audit, finding 44). */}
+          <Field value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} autoCapitalize="sentences" help={t('reference.notes.typeHelp')} multiline style={styles.typeLine} />
           <PrimaryBtn label={t('common.addNote')} icon="check" disabled={!ready} busy={busy} onPress={() => void add()} />
         </>
       )}>
       <View style={styles.hint}>
         <Ico name="note" size={16} color={C.muted} />
         <Text style={[txt.smMuted, { flex: 1 }]}>{t('notes.onVerses.hint')}</Text>
+      </View>
+      <View style={styles.whereRow}>
+        <View style={styles.wherePill}><Text style={styles.whereText} numberOfLines={1}>{key ? t('notes.onVerses.on', { where: keyLabel(key) }) : t('notes.onVerses.onWhole')}</Text></View>
+        {key ? <LinkBtn label={t('notes.onVerses.whole')} color={C.muted} help={t('notes.onVerses.wholeHelp')} onPress={() => setRun(null)} /> : null}
       </View>
       {rows.length ? (
         <View>
@@ -473,6 +474,7 @@ const styles = StyleSheet.create({
   verseTop: { borderTopLeftRadius: radius.md, borderTopRightRadius: radius.md },
   verseBottom: { borderBottomLeftRadius: radius.md, borderBottomRightRadius: radius.md },
   whereRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  typeLine: { minHeight: target.primary },
   wherePill: { minHeight: 40, paddingHorizontal: space.lg, borderRadius: radius.full, backgroundColor: SOFT_MARK, justifyContent: 'center', flexShrink: 1 },
   whereText: { fontSize: T.sm, fontWeight: '800', color: C.dark },
   pad: { paddingHorizontal: space.xs },
