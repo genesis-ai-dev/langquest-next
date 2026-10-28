@@ -163,8 +163,9 @@ function inUiText(english: string, depth: number): string | RegExp {
   // A line with values in it: every line it fits ("Open Version 1" is "Open {{version}}"
   // on one screen and "Open Version {{n}}" on another), the most particular first.
   // A line of few words of its own ("{{step}} of {{total}}") fits only numbers.
-  // A line whose own words are a small part of these ("{{a}} and {{b}}") is a poor fit.
-  const fitting = (l: Line) => l.literal >= words.length / 4 && (l.literal >= 3 || (l.literal >= 2 && l.pattern.exec(words)!.slice(1).every((v) => /^\d[\d.,]*$/.test(v))));
+  // A line whose own words are a small part of these ("{{a}} and {{b}}") is a poor fit,
+  // unless it has one value, a long name, say ("{{name}}, active").
+  const fitting = (l: Line) => (l.literal >= words.length / 4 || (l.names.length === 1 && l.literal >= 6)) && (l.literal >= 3 || (l.literal >= 2 && l.pattern.exec(words)!.slice(1).every((v) => /^\d[\d.,]*$/.test(v))));
   const chosen = lines().filter((l) => l.names.length && l.literal >= 2 && l.pattern.test(words) && fitting(l)).sort((a, b) => b.literal - a.literal).slice(0, 8);
   if (!chosen.length) return english;
   const sources = [...new Set(chosen.map((l) => {
@@ -216,12 +217,21 @@ function runs(source: string): { text: string; plain: boolean }[] {
   return out;
 }
 
+/** A choice with a letter that may be left out ("Verses? "), spelled with it and without. */
+function spellings(choice: string): string[] {
+  const at = choice.search(/(?<!\\)\p{L}\?/u);
+  if (at < 0) return [choice];
+  return [...spellings(choice.slice(0, at + 1) + choice.slice(at + 2)), ...spellings(choice.slice(0, at) + choice.slice(at + 2))];
+}
+
 function inUiPattern(english: RegExp): RegExp {
   if (keptAsIs.has(english) || made.has(english)) return english;
-  // One group of words to choose from ("^Do the consultant (check|review)$"): each choice by itself.
+  // One group of words to choose from ("^Do the consultant (check|review)$"): each choice by itself,
+  // a letter that may be left out ("Verses? ") both ways.
   const group = /^(\^?)((?:[^()|\\]|\\.)*)\((?:\?:)?((?:[^()\\]|\\.)*)\)((?:[^()|\\]|\\.)*?)(\$?)$/.exec(english.source);
-  if (group && group[3]!.includes('|') && group[3]!.split('|').every((a) => runs(a).every((r) => r.plain))) {
-    const each = group[3]!.split('|').map((a) => inUiPattern(new RegExp(`${group[1]}${group[2]}${a}${group[4]}${group[5]}`, english.flags)));
+  const choices = group?.[3]!.split('|').flatMap(spellings);
+  if (group && choices!.length > 1 && choices!.every((a) => runs(a).every((r) => r.plain))) {
+    const each = choices!.map((a) => inUiPattern(new RegExp(`${group[1]}${group[2]}${a}${group[4]}${group[5]}`, english.flags)));
     const r = new RegExp(each.map((c) => `(?:${c.source})`).join('|'), english.flags);
     made.add(r);
     return r;
@@ -238,8 +248,18 @@ function inUiPattern(english: RegExp): RegExp {
   }
   // Words open at an end ("^Block Peter") can also be the start of a longer line.
   const sampled = plain && anchored && ended ? undefined : bySample(english, anchored, ended);
-  if (plain || sampled) {
-    const r = new RegExp([plain, sampled].filter(Boolean).map((x) => `(?:${x})`).join('|').replace(/\\d/g, DIGIT), english.flags);
+  // Lines the app joins with a comma ("^Part 1, 0:\\d\\d in English"), each looked up by itself;
+  // open at an end ("^Peer check, asked"), the last can be the start of a longer line.
+  let pieces: string | undefined;
+  const body = english.source.slice(anchored ? 1 : 0, ended ? -1 : undefined);
+  if ((!plain || !(anchored && ended)) && body.includes(', ') && !/[([|]/.test(body)) {
+    const each = body.split(', ').map((piece, i, all) =>
+      inUiPattern(new RegExp(`${anchored || i > 0 ? '^' : ''}${piece}${ended || i < all.length - 1 ? '$' : ''}`, english.flags)));
+    const joined = each.map((r) => `(?:${unanchored(r.source)})`).join(', ');
+    if (joined.replace(/\(\?:|\)/g, '') !== body) pieces = `${anchored ? '^' : ''}${joined}${ended ? '$' : ''}`;
+  }
+  if (plain || sampled || pieces) {
+    const r = new RegExp([plain, sampled, pieces].filter(Boolean).map((x) => `(?:${x})`).join('|').replace(/\\d/g, DIGIT), english.flags);
     made.add(r);
     return r;
   }
@@ -324,7 +344,7 @@ function bySample(english: RegExp, anchored: boolean, ended: boolean): string | 
   const tail = sample.split(/[\ue000-\uefff]/).at(-1)!;
   const found: { mixed: number; held: number; literal: number; source: string }[] = [];
   for (const l of lines()) {
-    if (l.literal < 3) continue;
+    if (l.en.replace(/\{\{[^}]*\}\}/g, '').length < 3) continue;
     const pieces = l.en.split(PLACE);
     if (anchored && !(lead.startsWith(pieces[0]!) || pieces[0]!.startsWith(lead))) continue;
     if (ended && !(tail.endsWith(pieces.at(-1)!) || pieces.at(-1)!.endsWith(tail))) continue;
@@ -344,7 +364,8 @@ function bySample(english: RegExp, anchored: boolean, ended: boolean): string | 
     for (const k of cuts) {
       const cut = anchored ? l.en.slice(0, k) : l.en.slice(k);
       // Some of the line's own words must be in the part that fits, not only its values.
-      if (cut.replace(/\{\{[^}]*\}\}/g, '').trim().length < 3) continue;
+      const own = cut.replace(/\{\{[^}]*\}\}/g, '');
+      if (own.length < 3 || !/\p{L}/u.test(own)) continue;
       const names: string[] = [];
       const source = cut.split(PLACE).map((p) => { const n = placeName(p); if (n) { names.push(n); return '(.+?)'; } return escape(p); }).join('');
       const m = new RegExp(`^${source}$`, 's').exec(sample);
