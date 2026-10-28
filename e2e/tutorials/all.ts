@@ -13,6 +13,9 @@ import { finishAndAskForACheck } from './finish-and-ask-for-a-check';
 import { giveEachPartItsVerse } from './give-each-part-its-verse';
 import { hearMoveDeleteParts } from './hear-move-delete-parts';
 import { inviteYourTeam } from './invite-your-team';
+import { letPeopleIn } from './let-people-in';
+import { changeARole } from './change-a-role';
+import { makeARole } from './make-a-role';
 import { joinYourTeam } from './join-your-team';
 import { keyWords } from './key-words';
 import { readBiblesBesideAPassage } from './read-bibles-beside-a-passage';
@@ -26,12 +29,13 @@ import { useTheHelp } from './use-the-help';
 import { versionsAndHistory } from './versions-and-history';
 import { workWithoutInternet } from './work-without-internet';
 import { yourAccount } from './your-account';
+import { reportOrBlockSomeone } from './report-or-block-someone';
 
 export const TUTORIALS: Record<string, Tutorial> = Object.fromEntries([
   // Everyone
-  joinYourTeam, createAnAccount, findYourWayAround, useTheHelp, workWithoutInternet, chooseTheAppLanguage, yourAccount,
+  joinYourTeam, createAnAccount, findYourWayAround, useTheHelp, workWithoutInternet, chooseTheAppLanguage, yourAccount, reportOrBlockSomeone,
   // Organization heads and admins
-  startAnOrganization, addALanguage, inviteYourTeam,
+  startAnOrganization, addALanguage, inviteYourTeam, letPeopleIn, changeARole, makeARole,
   // Team coordinators and language leads
   setUpTheReviewChecks,
   // Translators

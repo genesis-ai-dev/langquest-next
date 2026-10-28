@@ -11,7 +11,7 @@ export const recordAPassage: Tutorial = {
   as: 'TRANS',
   names: {
     org: 'Riverside Translation Team', org2: 'Hillside Bible Fellowship', languages: { A: 'Lumari' },
-    people: { TRANS: 'Grace', COORD: 'Daniel', REV: 'Ruth', TREV: 'Peter', ADMIN: 'Samuel', LADMIN: 'Esther', VIEW: 'Joseph' }
+    people: { TRANS: 'Grace', COORD: 'Daniel', REV: 'Ruth', TREV: 'Peter', ADMIN: 'Samuel', LADMIN: 'Esther', VIEW: 'Joseph', KEPT: 'Abigail', NOORG: 'Mary', OWNER2: 'Hannah' }
   },
   speech: ['passage.wav'],
   steps: [
