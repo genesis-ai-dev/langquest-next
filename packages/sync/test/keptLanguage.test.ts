@@ -708,5 +708,44 @@ describe('file planning for a language kept on disk', () => {
     // Kept offline: the passage's recording and its voice note, read from the file list alone.
     expect((await files.download(new Set(), new Set(['u3']))).map((r) => r.hash).sort()).toEqual(['h3', 'voice']);
   });
+
+  it('fetches a cleaned part\'s sound and not the part as recorded after the note went to disk, and the part again after Undo', async () => {
+    // Why: rows on disk are written again, never taken away, so the row for
+    // the cleaned sound must stop saying it plays instead of the part once
+    // Undo takes the note away (decisions.md 176).
+    const server = new FakeServer();
+    await language(server, 8);
+    const { client, store } = phone(server, 'dB', 't1', { keepOnDisk: true, checkpointEvery: 3 });
+    await client.load();
+    await client.sync();
+    const other = phone(server, 'dX', 't2');
+    await other.client.load();
+    let more = 0;
+    const checkpoint = async () => {
+      for (let i = 0; i < 4; i++, more++) await other.client.append('v1.UnitAdded', { unitId: `n${more}`, parentUnitId: null, kind: 'passage', label: `N${more}`, order: `z${more}` });
+      await other.client.sync();
+      await client.sync();
+    };
+    await client.append('v1.CardCleanUpSet', { unitId: 'u3', hash: 'h3', use: 'cleaned', cleanedHash: 'h3c', cleanedFormat: 'm4a', tool: 'dfn3' });
+    await client.sync();
+    await checkpoint();
+    expect(client.getState().cardCleanUps['u3']).toBeUndefined();
+    expect(await store.keptById('org1', 'p1', 'cardCleanUps', ['u3'])).toHaveLength(1);
+
+    const files = new LanguageFiles(client, store, 'org1', 'p1');
+    expect((await files.upload(new Set(['h3', 'h3c']))).map((r) => [r.hash, r.format])).toEqual([['h3c', 'm4a']]);
+    server.storeBlob('org1', 'p1', 'h3c', 50);
+    await client.sync();
+    await client.sync();
+    expect((await files.download(new Set(), new Set(['u3']))).map((r) => r.hash)).toEqual(['h3c']);
+    expect((await files.evictable(new Set(['h3', 'h3c']), new Set(['u3']))).map((r) => r.hash)).toEqual(['h3']);
+
+    await client.append('v1.CardCleanUpSet', { unitId: 'u3', hash: 'h3', use: 'none' });
+    await client.sync();
+    await checkpoint();
+    expect(client.getState().cardCleanUps['u3']).toBeUndefined();
+    const again = new LanguageFiles(client, store, 'org1', 'p1');
+    expect((await again.download(new Set(), new Set(['u3']))).map((r) => r.hash).sort()).toEqual(['h3', 'h3c']);
+  });
 });
 });

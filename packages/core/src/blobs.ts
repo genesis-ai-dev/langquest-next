@@ -2,7 +2,7 @@ import type { EventPayloads, EventType } from './events';
 import { unitAncestry } from './materials';
 import { unitsAskedOf } from './passageLines';
 import { stateRevision } from './reducer';
-import type { LanguageState } from './state';
+import type { CardCleanUp, LanguageState, Register } from './state';
 
 /**
  * Blob work lists, derived on every pass (PLAN.md section 14 rule 1).
@@ -15,6 +15,11 @@ export interface BlobRef {
   format: 'wav' | 'm4a';
   /** The unit this blob belongs to; download scope is a set of units. */
   unitId: string;
+  /**
+   * A part's cleaned sound: the part as recorded, which stays on the server
+   * and which no phone downloads while the note names this file (decisions.md 176).
+   */
+  replaces?: string;
 }
 
 /** Where each event that can name a voice note keeps its hash. */
@@ -82,6 +87,8 @@ export interface FilePlan {
   refs: ReadonlyMap<string, BlobRef>;
   /** Each referenced file's place in `refs`, so a list made from a few files keeps the log's order. */
   order: ReadonlyMap<string, number>;
+  /** Parts as recorded whose cleaned sound plays instead: uploaded like any part, never downloaded (decisions.md 176). */
+  aside: ReadonlySet<string>;
   idx: AudioIndex;
   /** The server's latest verdict on a file. */
   verdict(hash: string): Verdict | undefined;
@@ -120,9 +127,13 @@ export function filePlan(
   verdict: (hash: string) => Verdict | undefined
 ): FilePlan {
   const order = new Map<string, number>();
+  const aside = new Set<string>();
   let n = 0;
-  for (const hash of refs.keys()) order.set(hash, n++);
-  return { refs, order, idx: audioIndex(state, refs), verdict, units: state.units, scoped: new Map(), byScope: new WeakMap() };
+  for (const [hash, ref] of refs) {
+    order.set(hash, n++);
+    if (ref.replaces) aside.add(ref.replaces);
+  }
+  return { refs, order, aside, idx: audioIndex(state, refs, aside), verdict, units: state.units, scoped: new Map(), byScope: new WeakMap() };
 }
 
 /** Every blob the language references: recording cards and reference audio. Read-only: it is shared until the next change. */
@@ -158,16 +169,36 @@ function inOrder(plan: FilePlan, hashes: Iterable<string>, keep: (ref: BlobRef) 
   return out.sort((a, b) => plan.order.get(a.hash)! - plan.order.get(b.hash)!);
 }
 
+/**
+ * The cleaned files Clean up's notes on one passage's parts name
+ * (decisions.md 176), each with its part as recorded (`from`), and
+ * `replaces` when the note says the cleaned file plays instead of it. A
+ * note that no longer says so still names the file, so a kept language's
+ * audio row for it is written again without `replaces`.
+ */
+export function cleanedFiles(notes: Readonly<Record<string, Register<CardCleanUp>>>): { hash: string; format: BlobRef['format']; from: string; replaces?: string }[] {
+  const out: { hash: string; format: BlobRef['format']; from: string; replaces?: string }[] = [];
+  for (const [from, note] of Object.entries(notes)) {
+    for (const [hash, format] of Object.entries(note.value.files)) {
+      out.push(note.value.use === 'cleaned' && note.value.cleanedHash === hash ? { hash, format, from, replaces: from } : { hash, format, from });
+    }
+  }
+  return out;
+}
+
 /** A voice note's format, as its recording device said (decisions.md 77): m4a unless the log says otherwise. */
 export function voiceFormat(state: Pick<LanguageState, 'audioFormats'>, hash: string): BlobRef['format'] {
   return state.audioFormats[hash]?.value ?? 'm4a';
 }
 
 /** The record's own audio (decision 30) one entry names, with its format when the entry says it; a voice note's comes from the log. */
-export function recordAudio(map: string, value: unknown): { hash: string; format?: BlobRef['format'] }[] {
-  const out: { hash: string; format?: BlobRef['format'] }[] = [];
+export function recordAudio(map: string, value: unknown): { hash: string; format?: BlobRef['format']; replaces?: string }[] {
+  const out: { hash: string; format?: BlobRef['format']; replaces?: string }[] = [];
   const add = (hash: string | undefined, format?: BlobRef['format']) => { if (hash) out.push(format ? { hash, format } : { hash }); };
   switch (map) {
+    case 'cardCleanUps':
+      for (const { from: _, ...c } of cleanedFiles(value as LanguageState['cardCleanUps'][string])) out.push(c);
+      break;
     case 'recordings': for (const c of (value as LanguageState['recordings'][string]).cards) add(c.hash, c.format ?? 'wav'); break;
     case 'responses': add((value as LanguageState['responses'][string]).blobHash); break;
     case 'notes': add((value as LanguageState['notes'][string]).blobHash); break;
@@ -190,6 +221,10 @@ function collectRefs(state: LanguageState): Map<string, BlobRef> {
     for (const c of r.cards) {
       if (!out.has(c.hash)) out.set(c.hash, { hash: c.hash, format: c.format ?? 'wav', unitId: r.unitId });
     }
+  }
+  // A part's cleaned sound, named by Clean up's note (decisions.md 176); `recordAudio` says the same for a kept language.
+  for (const [unitId, notes] of Object.entries(state.cardCleanUps ?? {})) {
+    for (const { from: _, ...c } of cleanedFiles(notes)) if (!out.has(c.hash)) out.set(c.hash, { ...c, unitId });
   }
   for (const m of Object.values(state.materials)) {
     const unitId = m.scope.unitId ?? '';
@@ -269,7 +304,7 @@ export function downloadWorkOf(plan: FilePlan, present: ReadonlySet<string>, sco
   if (scope && scope.size === 0) return [];
   // A scope is a person's passages: look at their files, not at every file the language names.
   if (scope) return forScope(plan, scope).stored.filter((ref) => !present.has(ref.hash));
-  return [...plan.refs.values()].filter((ref) => plan.verdict(ref.hash)?.stored === true && !present.has(ref.hash));
+  return [...plan.refs.values()].filter((ref) => plan.verdict(ref.hash)?.stored === true && !present.has(ref.hash) && !plan.aside.has(ref.hash));
 }
 
 /**
@@ -285,7 +320,7 @@ interface AudioIndex {
   everywhere: string[];
 }
 
-function audioIndex(state: Pick<LanguageState, 'materials' | 'keyTerms'>, refs: ReadonlyMap<string, BlobRef>): AudioIndex {
+function audioIndex(state: Pick<LanguageState, 'materials' | 'keyTerms'>, refs: ReadonlyMap<string, BlobRef>, aside: ReadonlySet<string>): AudioIndex {
   const own = new Map<string, string[]>();
   const byScope = new Map<string, string[]>();
   const everywhere: string[] = [];
@@ -293,7 +328,8 @@ function audioIndex(state: Pick<LanguageState, 'materials' | 'keyTerms'>, refs: 
     const list = map.get(key);
     if (list) list.push(hash); else map.set(key, [hash]);
   };
-  for (const ref of refs.values()) add(own, ref.unitId, ref.hash);
+  // A part whose cleaned sound plays is not a passage's to fetch: its cleaned file is.
+  for (const ref of refs.values()) if (!aside.has(ref.hash)) add(own, ref.unitId, ref.hash);
   for (const material of Object.values(state.materials)) {
     if (material.scope.stepId) continue;
     for (const field of Object.values(material.fields)) {

@@ -626,7 +626,7 @@ test('REV-027 A translator checks their own version only from the check, after a
     await openRecord(page, world(), k);
     await expect(visible(page.getByRole('button', { name: REVIEW_ACTIONS }))).toHaveCount(0);
   }
-  // On the check itself (decisions.md 176): "Review it myself", after the asking, never "Review it now".
+  // On the check itself (decisions.md 177): "Review it myself", after the asking, never "Review it now".
   await openTeamRow(page, 'Consultant check');
   await expect(visible(sheet(page).getByRole('button', { name: 'Review it myself', exact: true }))).toBeVisible();
   await expect(visible(sheet(page).getByRole('button', { name: 'Review it now', exact: true }))).toHaveCount(0);

@@ -131,7 +131,7 @@ export function recordModel(o: {
   askKindId?: string | null;
   isAuthor: boolean;
   earlier?: boolean;
-  /** Nobody else here holds Review (`askCandidates` is empty): its author does the next check (decisions.md 176). */
+  /** Nobody else here holds Review (`askCandidates` is empty): its author does the next check (decisions.md 177). */
   alone?: boolean;
 }): RecordModel {
   const { p, kinds, me, can } = o;
@@ -165,7 +165,7 @@ export function recordModel(o: {
   } else if (lit?.kind === 'record' && can.record) {
     main = { id: 'record', label: myDraft ? t('passage.page.continueRecording') : t('passage.page.main.record'), icon: 'mic' };
   } else if (o.isAuthor && o.alone && openCheck) {
-    // Nobody else could be asked: the author does it, and asking stays under Something else? (decisions.md 176).
+    // Nobody else could be asked: the author does it, and asking stays under Something else? (decisions.md 177).
     main = check(openCheck.kindId);
   } else if (nextKind && can.ask) {
     main = { id: 'ask', label: t('passage.page.askFor', { check: kindInSentence(nameOf(nextKind.kindId)) }), icon: 'send', kindId: nextKind.kindId };
@@ -211,7 +211,7 @@ export interface ElseOption { id: ElseOptionId; label: string; sub: string; icon
 /**
  * The ways forward on "Something else?" (demo a-else), top to bottom: someone
  * else records it, or does the current check; its author does it themselves
- * (decisions.md 176); it already happened; not now; a new version; move past
+ * (decisions.md 177); it already happened; not now; a new version; move past
  * the checkpoint the passage is at. Notes and What helps here follow as tiles.
  */
 export function elseOptions(o: {
@@ -232,7 +232,7 @@ export function elseOptions(o: {
   if (current && offers.ask && can.ask) {
     out.push({ id: 'checkSomeone', icon: 'people', label: t('passage.else.someoneElse'), sub: t('passage.else.someoneElseCheck', { kind: nameOf(current.kind.kindId) }), kindId: current.kind.kindId });
   }
-  // Doing it yourself: offered to its author, whose main button asks someone (decisions.md 176).
+  // Doing it yourself: offered to its author, whose main button asks someone (decisions.md 177).
   if (current && offers.log && can.review && o.isAuthor && !o.alone) {
     const produces = !!o.kinds.find((k) => k.id === current.kind.kindId)?.produces;
     out.push({ id: 'myself', icon: produces ? 'globe' : 'check', label: t('passage.else.myself'),
@@ -292,7 +292,7 @@ export function rowBar(acts: SheetRow['acts'], compact: boolean): { others: numb
 export function stepSheet(o: {
   p: PassageState; kinds: KindDef[]; kind: (id: string) => KindDef; step: FlowStepStatus; can: RecordCan; isAuthor: boolean; me: string;
   mine: MineFn; name: NameFn; teamName: (teamId: string) => string | undefined; targets: Record<string, UsualTarget | undefined>;
-  /** Nobody else here holds Review: the author's own review leads each row (decisions.md 176). */
+  /** Nobody else here holds Review: the author's own review leads each row (decisions.md 177). */
   alone?: boolean;
 }): { title: string; sub: string; rows: SheetRow[]; movePast: boolean } {
   const { p, step, kinds } = o;

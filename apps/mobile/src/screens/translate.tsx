@@ -606,7 +606,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const nextUp = useMemo(() => (can.ask ? nextAfterDone(p, { publishing: true }) : undefined), [p, can.ask]);
   const lines = ctx.language.lines;
   const targets = useMemo(() => (nextUp ? usualTargets(state, orgState, { p, languageId, me, asker: true, lines }) : {}), [nextUp, state, orgState, p, languageId, me, lines]);
-  // Nobody else here could check it: Done does the next check now (decisions.md 176).
+  // Nobody else here could check it: Done does the next check now (decisions.md 177).
   const selfCheck = useMemo(() => !!nextUp && can.review && nobodyElseReviews(state, orgState, { languageId, me, lines }), [nextUp, can.review, state, orgState, languageId, me, lines]);
   async function publish(note: string, noteBlobHash: string | null, ask: DoneAsk): Promise<boolean> {
     const commandId = Crypto.randomUUID();

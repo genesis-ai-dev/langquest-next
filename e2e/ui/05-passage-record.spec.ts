@@ -245,7 +245,7 @@ test('PASS-027 TRANS Something else? on a recorded passage', async ({ browser })
   expect(all).not.toContain(`${label('P-BT')} · `);
   // Fixed (2026-10-12): the Back translation is already asked of REV, so nobody is offered a second request.
   expect(all).not.toContain('Someone else should do this');
-  // Its author may do it themselves (decisions.md 176).
+  // Its author may do it themselves (decisions.md 177).
   expect(all).toContain("I'll do this myself Back translation: record it now");
   expect(all).toContain('We already did this Say when and how the back translation happened');
   expect(all).toContain('Not now Set the back translation aside. Say why');

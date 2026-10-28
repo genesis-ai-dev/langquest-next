@@ -141,7 +141,7 @@ describe('a kind’s actions', () => {
     const author = kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: true, me: 'akol' });
     expect(author.primary?.label).toBe('Ask someone');
     expect(author.second?.label).toBe('Already happened');
-    // Its author may check their own version too (decisions.md 176), after asking someone.
+    // Its author may check their own version too (decisions.md 177), after asking someone.
     expect(author.rest.map((a) => a.label)).toEqual(['Review it myself', 'Set aside']);
     const reviewer = kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: false, me: 'ayen' });
     expect(reviewer.primary?.label).toBe('Review it now');
@@ -152,7 +152,7 @@ describe('a kind’s actions', () => {
     expect([onCheckpoint.primary, onCheckpoint.second, ...onCheckpoint.rest].map((a) => a?.label)).not.toContain('Set aside');
   });
 
-  it('its author does it first when nobody else could be asked, with asking beside it (decisions.md 176)', () => {
+  it('its author does it first when nobody else could be asked, with asking beside it (decisions.md 177)', () => {
     const p = language();
     record(p, 'v1', ['c1']);
     const s = p.passage();
@@ -333,7 +333,7 @@ describe('sending to the usual reviewer (ADR-029)', () => {
     const acts = kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: true, me: 'akol', sendTo: 'the Peer team' });
     expect(acts.primary).toEqual({ id: 'send', label: 'Send to the Peer team' });
     expect(acts.second).toEqual({ id: 'ask', label: 'Send to someone else' });
-    // The author may review their own version too, after the sending (decisions.md 176).
+    // The author may review their own version too, after the sending (decisions.md 177).
     expect(acts.rest.map((a) => a.label)).toEqual(['Review it myself', 'Already happened', 'Set aside']);
     // Nobody usually does it: Ask someone, as before. A reviewer still reviews it now.
     expect(kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: true, me: 'akol' }).primary?.label).toBe('Ask someone');

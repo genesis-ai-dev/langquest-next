@@ -17,7 +17,7 @@
 /** The maps of passage records: core `PASSAGE_PARTS`, by `map`. */
 export const PASSAGE_MAPS = [
   'recordings', 'takes', 'submissions', 'responses', 'kindReviews', 'departures', 'undoneDepartures', 'requests',
-  'withdrawnRequests', 'withdrawnReviews', 'notes', 'withdrawnNotes', 'studyMarks', 'cardVerses', 'passageLinks',
+  'withdrawnRequests', 'withdrawnReviews', 'notes', 'withdrawnNotes', 'studyMarks', 'cardVerses', 'cardCleanUps', 'passageLinks',
   'referencesUsed', 'keyTermLinks', 'releases'
 ];
 

@@ -551,7 +551,7 @@ Expected:
 ### REV-027 A translator checks their own version only from the check, after asking
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
-Since decision 91 the Translator role holds Review, so TRANS may be on a check and review a teammate's version. Since decision 176 TRANS may also check their own version, by choice: on a team, asking someone comes first.
+Since decision 91 the Translator role holds Review, so TRANS may be on a check and review a teammate's version. Since decision 177 TRANS may also check their own version, by choice: on a team, asking someone comes first.
 
 Preconditions:
 - P-SUBMITTED, P-CHECK and P-BT as in the fixture (each is TRANS's Version 1).
@@ -566,7 +566,7 @@ Expected:
 - The Consultant check's sheet offers "Review it myself" after "Ask someone" and "Already happened", and never "Review it now" (nobody asked TRANS).
 - My Work offers TRANS no review of these passages.
 
-Changed (2026-10-27, decision 176): before, no step sheet offered the author a review action.
+Changed (2026-10-27, decision 177): before, no step sheet offered the author a review action.
 
 ### REV-028 A viewer sees no record or review controls
 Roles: VIEW · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -622,7 +622,7 @@ Expected:
 ### REV-051 Alone in the organization, finishing a recording checks it
 Roles: one Organization Admin with nobody else in the organization · Priority: P1 · Platforms: iOS, Android, Web · Run: Manual
 
-Decision 176. The fixture world has a team, so this runs on an organization of one (a fresh sign-up, a language from New language with the Standard Bible Flow).
+Decision 177. The fixture world has a team, so this runs on an organization of one (a fresh sign-up, a language from New language with the Standard Bible Flow).
 
 Steps:
 1. Record a passage and tap "Done".
