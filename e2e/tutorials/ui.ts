@@ -78,9 +78,14 @@ function lines(): Line[] {
   return appLines;
 }
 const DIGIT = '[0-9\\u0660-\\u0669\\u06F0-\\u06F9\\u0966-\\u096F\\u09E6-\\u09EF\\u1040-\\u1049\\u0E50-\\u0E59]';
-/** A pattern's `\\d` as any script's digit, inside a set too, where a comma ("[\\d,]") is any language's mark between thousands. */
-const anyDigit = (source: string) => source.replace(/\\d|\\.|\[(?:[^\]\\]|\\.)*\]/g, (m) =>
-  (m === '\\d' ? DIGIT : m.startsWith('\\') ? m : m.replace(/\\d/g, DIGIT.slice(1, -1) + (m.includes(',') ? '.\\s\\u00a0\\u202f\\u066c' : ''))));
+/**
+ * A pattern's digits as any script's: `\\d`, inside a set too, where a comma ("[\\d,]") is any
+ * language's mark between thousands, and a digit written out ("0:\\d\\d" is "০:১৪" in Bengali).
+ * Escapes ("\\u0660") and counts ("{2}") are left as they are.
+ */
+const anyDigit = (source: string) => source.replace(/\\u[0-9a-fA-F]{4}|\\x[0-9a-fA-F]{2}|\\d|\\.|\[(?:[^\]\\]|\\.)*\]|\{\d+(?:,\d*)?\}|\d/g, (m) =>
+  (m === '\\d' ? DIGIT : /^\d$/.test(m) ? DIGIT_OF(m) : m.startsWith('\\') || m.startsWith('{') ? m
+    : m.replace(/\\d/g, DIGIT.slice(1, -1) + (m.includes(',') ? '.\\s\\u00a0\\u202f\\u066c' : ''))));
 // Where each script's digits start: Arabic, Persian, Devanagari, Bengali, Myanmar, Thai.
 const ZEROS = [0x660, 0x6f0, 0x966, 0x9e6, 0x1040, 0xe50];
 const DIGIT_OF = (d: string) => `[${d}${ZEROS.map((z) => `\\u${(z + Number(d)).toString(16).padStart(4, '0')}`).join('')}]`;
@@ -463,7 +468,7 @@ export function inUi<T extends string | RegExp>(english: T): string | RegExp {
   // check from the library) are the app's words too, and stay English there.
   const theirs = typeof found === 'string' ? `^${escape(found)}$` : found.source;
   const ours = typeof english === 'string' ? `^${escape(english.trim())}$` : english.source;
-  const r = new RegExp(`(?:${widen(theirs)})|(?:${widen(ours)})`, typeof found === 'string' ? '' : found.flags);
+  const r = new RegExp(`(?:${anyDigit(widen(theirs))})|(?:${widen(ours)})`, typeof found === 'string' ? '' : found.flags);
   made.add(r);
   return forPlaywright(r);
 }
