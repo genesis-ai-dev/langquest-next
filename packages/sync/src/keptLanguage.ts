@@ -42,15 +42,19 @@ export const LINE = 'line';
 /** The maps a snapshot's text is split on as it is read: the parts and the verdicts. */
 export const SPLIT_MAPS: ReadonlySet<string> = new Set([...PASSAGE_PARTS.map((p) => p.map), 'blobs']);
 
-/** What an audio row says: the record naming the file (kind and row id) and, for a recording's card or an artifact, its format. */
-export interface AudioRow { k: string; i: string; f?: 'wav' | 'm4a' }
+/**
+ * What an audio row says: the record naming the file (kind and row id), for
+ * a recording's card, an artifact or a cleaned part its format, and for a
+ * cleaned part the part as recorded that it plays instead of (decisions.md 176).
+ */
+export interface AudioRow { k: string; i: string; f?: 'wav' | 'm4a'; r?: string }
 
 /** The rows that keep one placed entry: the entry, and an audio row per file it names. `json` is the entry's text when it came as text. */
 export function entryRows(part: PassagePart, id: string, unitId: string, value: unknown, json = JSON.stringify(value)): KeptRecord[] {
   const [key, inner] = part.depth === 2 ? splitInnerKey(id) : [id, undefined];
   const rows: KeptRecord[] = [{ kind: part.kind, id, unitId, ref: part.ref?.(key, value, inner) ?? '', json }];
   for (const a of recordAudio(part.map, value)) {
-    const audio: AudioRow = { k: part.kind, i: id, ...(a.format ? { f: a.format } : {}) };
+    const audio: AudioRow = { k: part.kind, i: id, ...(a.format ? { f: a.format } : {}), ...(a.replaces ? { r: a.replaces } : {}) };
     rows.push({ kind: AUDIO, id: a.hash, unitId, ref: '', json: JSON.stringify(audio) });
   }
   return rows;

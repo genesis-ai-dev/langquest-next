@@ -143,7 +143,7 @@ export class LanguageFiles {
     const add = (hash: string) => {
       if (refs.has(hash)) return;
       const a = c.audio.get(hash);
-      if (a) refs.set(hash, { hash, format: a.f ?? voiceFormat(live, hash), unitId: a.unitId });
+      if (a) refs.set(hash, { hash, format: a.f ?? voiceFormat(live, hash), unitId: a.unitId, ...(a.r ? { replaces: a.r } : {}) });
     };
     for (const u of units) for (const h of c.unitFiles.get(u) ?? []) add(h);
     for (const h of hashes) add(h);

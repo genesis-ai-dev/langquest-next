@@ -1,6 +1,6 @@
 import type { AnyEvent } from './events';
-import { keptRecording } from './reducer';
-import type { LanguageState } from './state';
+import { keptCleanUp, keptRecording } from './reducer';
+import type { CardCleanUp, LanguageState, Register } from './state';
 import { earlier } from './ties';
 
 /**
@@ -21,7 +21,7 @@ import { earlier } from './ties';
 /** The maps of `LanguageState` whose entries each belong to one passage. */
 export type PassageMap =
   | 'recordings' | 'takes' | 'submissions' | 'responses' | 'kindReviews' | 'departures' | 'undoneDepartures'
-  | 'requests' | 'withdrawnRequests' | 'notes' | 'studyMarks' | 'cardVerses' | 'passageLinks' | 'referencesUsed'
+  | 'requests' | 'withdrawnRequests' | 'notes' | 'studyMarks' | 'cardVerses' | 'cardCleanUps' | 'passageLinks' | 'referencesUsed'
   | 'keyTermLinks' | 'releases' | 'withdrawnReviews' | 'withdrawnNotes';
 
 /**
@@ -144,6 +144,7 @@ export const PASSAGE_PARTS: readonly PassagePart[] = [
     merge: (a, b) => firstUndo(a as Entry<'withdrawnNotes'>, b as Entry<'withdrawnNotes'>) },
   { map: 'studyMarks', kind: 'studyMark', depth: 1, passage: (k) => ({ studyKey: k }), merge: (a, b) => laterRegister(a as Reg, b as Reg) },
   { map: 'cardVerses', kind: 'cardVerses', depth: 1, passage: (k) => ({ unitId: k }), merge: (a, b) => byKey(laterRegister)(a as Record<string, Reg>, b as Record<string, Reg>) },
+  { map: 'cardCleanUps', kind: 'cardCleanUps', depth: 1, passage: (k) => ({ unitId: k }), merge: (a, b) => byKey(keptCleanUp)(a as Record<string, Register<CardCleanUp>>, b as Record<string, Register<CardCleanUp>>) },
   { map: 'passageLinks', kind: 'passageLinks', depth: 1, passage: (k) => ({ unitId: k }), merge: (a, b) => byKey(laterRegister)(a as Record<string, Reg>, b as Record<string, Reg>) },
   { map: 'referencesUsed', kind: 'used', depth: 1, passage: (k) => usedSubject(k), merge: (a, b) => byKey(keptUse)(a as Record<string, Used>, b as Record<string, Used>) },
   { map: 'keyTermLinks', kind: 'termLink', depth: 2, passage: (k) => ({ take: k }), merge: (a, b) => keptTermLink(a as TermLink, b as TermLink), ref: (_k, _v, term) => term ?? '' },
@@ -195,6 +196,7 @@ export function eventPassage(e: AnyEvent): PassageOf | 'settings' | null {
     case 'v1.NoteAdded':
     case 'v1.StudyStepMarked':
     case 'v1.CardVerseSet':
+    case 'v1.CardCleanUpSet':
     case 'v1.PassageReferenceLinked':
     case 'v1.ReferencesUsed':
     case 'v1.UnitAdded':
