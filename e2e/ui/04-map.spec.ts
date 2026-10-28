@@ -370,7 +370,8 @@ for (const who of ['ADMIN', 'COORD', 'LADMIN', 'TRANS', 'REV', 'VIEW'] as const)
     }
     await button(page, /^Jude\./).click();
     await expect.poll(() => headerTitle(page)).toBe('Jude');
-    await expect(text(page, 'Waiting to be divided')).toBeVisible();
+    // On a phone the sub-line names the language too (UI audit, finding 124).
+    await expect(text(page, 'Alpha · Waiting to be divided')).toBeVisible();
     await expect(text(page, "Jude isn't divided yet")).toBeVisible();
     // Breaking a book up is a library write at organization scope (decision 74): LADMIN is told who does it.
     if (['ADMIN', 'COORD'].includes(who)) {

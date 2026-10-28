@@ -738,13 +738,16 @@ test('PEOPLE-022 Join requests offline', async ({ page }) => {
     await primary(page).click();
     await expect(text(page, 'Not saved')).toBeVisible();
     await back(page).click();
-    // Members, opened offline, lists no requests rather than claiming nobody asked; the bell keeps its count.
+    // Offline, Members and My Work keep the request last read, as the bell keeps its count (UI audit, finding 85);
+    // letting them in waits for a connection.
     await toTabs(page);
     await orgMembers(page, w);
     await expectSyncIdle(page);
-    expect(await screenText(page)).not.toContain(person.name);
+    expect(await screenText(page)).toContain(person.name);
     await toTabs(page);
     await tab(page, 'work').click();
+    await expect(text(page, `${person.name} wants to join`)).toBeVisible();
+    await expect(text(page, 'Connect to let them in')).toBeVisible();
     await expect(bell).toHaveAttribute('aria-label', before!);
     expect((await membership(person.id)).length).toBe(0);
   } finally {

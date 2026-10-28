@@ -16,7 +16,7 @@ import { send, signIn, type UiWorld } from './fixture';
 import { headerTitle } from './nav-helpers';
 import { projectionPass } from './pass-helpers';
 import {
-  back, button, byId, expect, expectNothingRefused, expectSyncIdle, expectToast, field, languageArrived, openAs, openPassage, openSignedOut, primary, screenText, syncNow, tab, test, text,
+  back, bookRow, button, byId, expect, expectNothingRefused, expectSyncIdle, expectToast, field, languageArrived, openAs, openPassage, openSignedOut, primary, screenText, syncNow, tab, test, text,
   useWorld, type AccountKey
 } from './support';
 
@@ -574,7 +574,8 @@ test('MOD-016 Removing a version works the passage out again', async ({ page, br
     const alpha = text(p, 'Alpha');
     if (!(await p.getByRole('button', { name: /^Luke/ }).locator('visible=true').count()) && await alpha.isVisible().catch(() => false)) await alpha.click();
     await button(p, /^Luke/).click();
-    await text(p, label, false).click();
+    // Luke lists 25 passages at a time (UI audit, finding 122).
+    await (await bookRow(p, new RegExp(`^${label}\\.`))).click();
   };
   await openAs(page, w, 'COORD');
   await openIt(page);

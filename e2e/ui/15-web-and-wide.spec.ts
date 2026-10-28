@@ -695,11 +695,9 @@ test('WEB-026 The update banner waits while recording', async ({ page }) => {
   await primary(page).click();
   await byId(page, 'record-button').click();
   await expect(byId(page, 'record-button')).toHaveAttribute('aria-label', 'Stop recording');
-  let reloaded = false;
-  page.once('load', () => { reloaded = true; });
-  await banner.click();
-  await page.waitForTimeout(1500); // sleep: proves a negative (tapping Reload while recording must not reload); nothing to observe
-  expect(reloaded).toBe(false);
+  // While a take is recorded the bar goes quiet: it says when it restarts and is no button (UI audit, finding 26).
+  await expect(text(page, 'Update ready · it restarts when you stop recording')).toBeVisible();
+  await expect(banner).toHaveCount(0);
   await expect(byId(page, 'record-button')).toHaveAttribute('aria-label', 'Stop recording');
   // Done leaves the session (LAN-82): its parts are saved, and only then may the page reload.
   await button(page, 'Done').click();

@@ -530,7 +530,8 @@ test('NAV-023 COORD Offline, a language this phone has not brought down', async 
   await open(page, 'COORD', { language: 'B' });
   await context.setOffline(true);
   await tab(page, 'map').click();
-  if (await headerTitle(page) === 'Progress') await button(page, /^Alpha: /).click();
+  // Progress names Alpha as not on this device yet.
+  if (await headerTitle(page) === 'Progress') await button(page, /^Alpha\. Not on this device yet/).click();
   await expect(text(page, "Alpha isn't on this device yet")).toBeVisible();
   await tab(page, 'work').click();
   await expect.poll(() => headerTitle(page)).toBe('My Work');

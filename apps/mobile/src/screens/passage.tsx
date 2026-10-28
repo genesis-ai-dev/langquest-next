@@ -241,14 +241,17 @@ export function PassageRecord(ctx: Ctx) {
     if (checkNowParam && v) goRef.current(v.kind(checkNowParam).produces ? 'back_translation' : 'review_capture', { unitId: v.unitId, languageId: v.languageId, kindId: checkNowParam });
   }, [checkNowParam]); // eslint-disable-line react-hooks/exhaustive-deps -- once per arrival with the param; v is new on every draw
   // A report's Open (UI audit, finding 113): the reported version or review opens from here, so Back leads to its passage.
+  // The passage may still be loading when the param arrives: wait for it, then open once.
   const reportedParam = ctx.params['reported'];
+  const reportedOpened = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (!reportedParam || !v) return;
+    if (!reportedParam || !v || reportedOpened.current === reportedParam) return;
+    reportedOpened.current = reportedParam;
     const [kind, id] = reportedParam.split(':');
     const at = { unitId: v.unitId, languageId: v.languageId };
     if (kind === 'version' && id) goRef.current('version_detail', { ...at, takeId: id });
     else if (kind === 'review' && id) goRef.current('review_detail', { ...at, reviewId: id });
-  }, [reportedParam]); // eslint-disable-line react-hooks/exhaustive-deps -- once per arrival with the param; v is new on every draw
+  }, [reportedParam, !!v]); // eslint-disable-line react-hooks/exhaustive-deps -- once per arrival with the param; v is new on every draw
   useHardwareBack(page !== 'path', () => setPage('path'));
   const [historyShown, setHistoryShown] = useState(HISTORY_STEP);
   // Which of the checks that happen next the ask page sends (decision 91): the first, unless another is picked.

@@ -309,7 +309,9 @@ Steps:
 Expected:
 - On the map, the row has no bar. It shows "Waiting to be divided" in
   amber, and stays shown even while a filter is set.
-- The book's header sub reads "Waiting to be divided".
+- The book's header sub reads "Waiting to be divided" (on a phone, "Alpha ·
+  Waiting to be divided": the language comes first, as the crumbs show it on a
+  wide window).
 - The empty state reads "Jude isn't divided yet".
 - ADMIN and COORD read "Choose how Jude is cut into pieces, by chapter,
   FIA's passages or another way. Then it can be recorded." They also get the

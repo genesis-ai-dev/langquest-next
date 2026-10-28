@@ -687,7 +687,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   // The version under review can be reported here as on its own page (decision 48); the flag hides on your own.
   const mark = (
     <View style={styles.headActions}>
-      <ReportFlag ctx={ctx} target={recordTarget(ctx, 'version', version.takeId, version.by, v.unitId)} />
+      {/* A full 48 in the header: the web has no hitSlop to make up a smaller flag (A11Y-009). */}
+      <ReportFlag ctx={ctx} target={recordTarget(ctx, 'version', version.takeId, version.by, v.unitId)} size={48} />
       <SavedMark status={draft.status} help={t('saved.draftHelp')} />
     </View>
   );

@@ -590,8 +590,9 @@ Steps:
 2. Open the request from the Inbox and tap "Let {first} in".
 
 Expected:
-- Offline the Members and My Work lists show no requests rather than
-  claiming nobody asked; the bell keeps its last count.
+- Offline the Members and My Work lists keep the request last read, as the
+  bell keeps its count; on My Work its row says "Connect to let them in".
+  Changed (2026-10-28, UI audit finding 85): they used to show no requests.
 - Deciding offline shows the banner "Not saved" with a reason; nothing is
   half done.
 

@@ -590,8 +590,8 @@ test('ACCT-031 The language chip on Sign In', async ({ page }) => {
   await reloaded;
   await expect(button(page, say(fr, 'uiLanguage.chipLabel', { language: 'Français' }))).toBeVisible({ timeout: 120_000 });
   const who = world().accounts.TRANS;
-  await page.getByPlaceholder(say(fr, 'entry.signIn.namePlaceholder')).fill(who.email);
-  await page.getByPlaceholder(say(fr, 'entry.fields.password')).fill(who.password!);
+  await field(page, say(fr, 'entry.signIn.namePlaceholder')).fill(who.email);
+  await field(page, say(fr, 'entry.fields.password')).fill(who.password!);
   await primary(page).click();
   await expect(tab(page, 'me')).toBeVisible({ timeout: 60_000 });
   await expect(tab(page, 'me')).toHaveAttribute('aria-label', say(fr, 'account.me.title'));
@@ -765,7 +765,7 @@ async function openDelete(page: Page) {
 const deleteButton = (page: Page) => button(page, 'Delete My Account');
 async function confirmDelete(page: Page) {
   await deleteButton(page).click();
-  await expect(heading(page, /^Delete .+’s account\?$/)).toBeVisible();
+  await expect(text(page, /^Delete .+’s account\?$/)).toBeVisible();
   await deleteButton(page).click();
 }
 
@@ -787,9 +787,9 @@ test('ACCT-044 The Delete Account screen says what goes and what stays @p0', asy
   await expect(tab(page, 'me')).toBeHidden();
   // Deleting asks once more, by name; Cancel there keeps the account.
   await deleteButton(page).click();
-  await expect(heading(page, /^Delete .+’s account\?$/)).toBeVisible();
+  await expect(text(page, /^Delete .+’s account\?$/)).toBeVisible();
   await button(page, 'Cancel').click();
-  await expect(heading(page, /^Delete .+’s account\?$/)).toBeHidden();
+  await expect(text(page, /^Delete .+’s account\?$/)).toBeHidden();
   await primary(page).click();
   await expect(heading(page, 'More settings')).toBeVisible();
 });
