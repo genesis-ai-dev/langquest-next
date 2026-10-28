@@ -37,6 +37,8 @@ public class MicrophoneEnergyModule: Module {
     private var speechModel: SpeechModel?
     /// Clean up (CleanUp.swift, decision 179): DeepFilterNet3 on a part, one at a time.
     private let cleanUp = CleanUp()
+    /// Even loudness (Level.swift, decision 182): a recording measured and its copy to play written, one at a time.
+    private let level = Level()
     private var speechTried = false
     private let speechQueue = DispatchQueue(label: "MicrophoneEnergy.speech")
     private var resampler: Resampler?
@@ -83,6 +85,9 @@ public class MicrophoneEnergyModule: Module {
             try await self.cleanUp.mix(id: id, limitDb: limitDb, keep: keep)
         }
         AsyncFunction("cleanUpForget") { (id: String) -> Void in self.cleanUp.forget(id: id) }
+        AsyncFunction("level") { (uri: String, out: String?, options: [String: Double]) async throws -> [String: Any] in
+            try await self.level.level(uri: uri, out: out, options: try Level.Options(options))
+        }
     }
     
     /// On speechQueue: the speech model, loaded once by whichever asks first (prepareSpeech, or the microphone opening).

@@ -9,8 +9,9 @@
 // Sources: the encrypted .env.<env> at the repository root, the project ref
 // in supabase/config.toml [remotes.<env>], and the project's service-role key,
 // read from Supabase each time rather than stored. Destinations: each
-// Worker's secrets, the Edge Function secrets, the two Vault secrets the
-// push delivery cron job reads, and that job itself (by running its
+// Worker's secrets, the Edge Function secrets, the Gemini key as a GitHub
+// Actions secret of this repository (production's file only), the two Vault
+// secrets the push delivery cron job reads, and that job itself (by running its
 // scheduling migration again, which also keeps the projection pass off
 // pg_cron: it runs in the Worker's job container, decisions.md 141, 148).
 // Every step is idempotent.
@@ -42,8 +43,9 @@ export const ADMIN_KEYS = ['ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_SUPABASE_TOKEN', 'AD
  * Keys .env.<env> may hold. DIAG_DATABASE_URL is read on a laptop (npm run diag -- --hosted) and by
  * the admin Worker; V2_DATABASE_URL (scripts/v2-access.sh) goes to the app's Worker for the v2
  * import's job (decisions.md 141) and is read on a laptop by npm run v2 -- --production.
- * GEMINI_API_KEY is the tutorial videos' voice and translations (docs/tutorial-videos.md),
- * read where they are made; this script places it nowhere. YOUTUBE_CLIENT_ID and
+ * GEMINI_API_KEY is the tutorial videos' voice and translations (docs/tutorial-videos.md):
+ * production's goes to this repository's GitHub Actions secrets, for the nightly filming
+ * (.github/workflows/tutorials.yml), and is read on a laptop. YOUTUBE_CLIENT_ID and
  * YOUTUBE_CLIENT_SECRET are the OAuth client the tutorial channels are connected with and
  * published to (docs/tutorial-videos.md), for the app's Worker and its job.
  */
@@ -55,6 +57,9 @@ export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET'];
  * for one. Not in the Worker's `secrets.required` for the same reason.
  */
 export const OPTIONAL_KEYS = ['BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET'];
+
+/** The repository whose Actions secrets this script sets: only the Gemini key, which no production system reads (decisions.md 183). */
+export const GITHUB_REPO = 'genesis-ai-dev/langquest-next';
 
 /** LangQuest v2's production project, read (never written) by the v2 import and v2-sign-in (docs/v2-import.md). */
 export const V2_SUPABASE_URL = 'https://unsxkmlcyxgtgmtzfonb.supabase.co';
@@ -150,6 +155,8 @@ export function destinations(environment, values, ref, serviceRoleKey) {
       } : {})
     },
     hyperdrive: environment === 'production' && values.DIAG_DATABASE_URL ? { connectionString: values.DIAG_DATABASE_URL } : null,
+    // The nightly filming's voice (.github/workflows/tutorials.yml). Never a production key: scripts/workflows.test.ts.
+    github: environment === 'production' && values.GEMINI_API_KEY ? { GEMINI_API_KEY: values.GEMINI_API_KEY } : {},
     // Read with Deno.env.get in supabase/functions. The relay URL is public
     // but has no other way into a function.
     functions: {
@@ -257,6 +264,18 @@ function workerSecretNames(config, environment) {
   }
 }
 
+function githubSecretNames() {
+  const result = spawnSync('gh', ['secret', 'list', '--repo', GITHUB_REPO, '--json', 'name', '--jq', '.[].name'], { cwd: root, encoding: 'utf8' });
+  if (result.status !== 0) throw new Error(failure(result.stdout, result.stderr) || 'gh secret list failed (gh auth login?)');
+  return result.stdout.split('\n').filter(Boolean);
+}
+
+/** Sets a repository's Actions secret, the value on gh's input, never its arguments. */
+function setGithubSecret(name, value) {
+  const result = spawnSync('gh', ['secret', 'set', name, '--repo', GITHUB_REPO], { cwd: root, encoding: 'utf8', input: value });
+  if (result.status !== 0) throw new Error(failure(result.stdout, result.stderr) || `gh secret set ${name} failed`);
+}
+
 function hostedState(environment, ref, wanted) {
   const listed = JSON.parse(run('supabase', ['secrets', 'list', '--project-ref', ref, '-o', 'json']));
   const functionDigests = Object.fromEntries(listed.map((s) => [s.name, s.value ?? s.digest]));
@@ -279,8 +298,11 @@ function hostedState(environment, ref, wanted) {
       try { run('wrangler', ['hyperdrive', 'get', id, '-c', WORKERS.admin, ...authArgs()]); hyperdrive = 'set'; } catch { /* gone: made again */ }
     }
   }
+  // GitHub, like Cloudflare, says only which secrets a repository has.
+  const githubPresent = Object.keys(wanted.github).length ? githubSecretNames() : [];
   return {
     hyperdrive,
+    github: Object.fromEntries(Object.keys(wanted.github).map((name) => [name, githubPresent.includes(name) ? 'set' : 'missing'])),
     functions: drift(wanted.functions, functionDigests),
     retired: RETIRED_FUNCTION_SECRETS.filter((name) => name in functionDigests),
     vault: drift(wanted.vault, vaultDigests),
@@ -299,6 +321,10 @@ export function summarize(state) {
       lines.push(`  ${mark(s)} ${worker} Worker secret ${name}${s === 'set' ? ' (set; its value cannot be read back)' : ' (missing)'}`);
       if (s !== 'set') behind = true;
     }
+  }
+  for (const [name, s] of Object.entries(state.github ?? {})) {
+    lines.push(`  ${mark(s)} GitHub Actions secret ${name}${s === 'set' ? ' (set; its value cannot be read back)' : ' (missing)'}`);
+    if (s !== 'set') behind = true;
   }
   for (const [label, states] of [['function secret', state.functions], ['vault secret', state.vault]]) {
     for (const [name, s] of Object.entries(states)) {
@@ -352,7 +378,7 @@ async function main() {
     console.error(`x ${file} holds ${unknown.join(', ')}, which scripts/secrets.mjs does not place. Add it to FILE_KEYS and destinations, or remove it.`);
     process.exit(1);
   }
-  const values = decrypt(file, [...REQUIRED_KEYS, ...OPTIONAL_KEYS, ...(environment === 'production' ? ['DIAG_DATABASE_URL', ...ADMIN_KEYS] : [])]);
+  const values = decrypt(file, [...REQUIRED_KEYS, ...OPTIONAL_KEYS, ...(environment === 'production' ? ['DIAG_DATABASE_URL', 'GEMINI_API_KEY', ...ADMIN_KEYS] : [])]);
   const missing = REQUIRED_KEYS.filter((name) => !values[name]);
   if (missing.length) {
     console.error(`x ${file} is missing ${missing.join(', ')}.`);
@@ -379,7 +405,9 @@ async function main() {
   const wanted = destinations(environment, values, ref, serviceRoleKey);
 
   console.log(`Comparing ${file} with ${environment} (project ${ref}):`);
-  const before = summarize(hostedState(environment, ref, wanted));
+  // What is hosted, and its summary: applying reads the first (the Hyperdrive config, retired secrets), the person the second.
+  const hosted = hostedState(environment, ref, wanted);
+  const before = summarize(hosted);
   console.log(before.lines.join('\n'));
   if (flag === '--check') process.exit(before.behind ? 1 : 0);
   const question = before.behind
@@ -399,11 +427,12 @@ async function main() {
     withTempFile('secrets.json', JSON.stringify(secrets), (f) =>
       run('wrangler', ['secret', 'bulk', f, ...targetArgs(WORKERS[worker], environment), ...authArgs()]));
   }
-  if (wanted.hyperdrive) applyHyperdrive(wanted.hyperdrive.connectionString, before.hyperdrive);
+  if (wanted.hyperdrive) applyHyperdrive(wanted.hyperdrive.connectionString, hosted.hyperdrive);
+  for (const [name, value] of Object.entries(wanted.github)) setGithubSecret(name, value);
   withTempFile('functions.env', Object.entries(wanted.functions).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join('\n') + '\n',
     (f) => run('supabase', ['secrets', 'set', '--project-ref', ref, '--env-file', f]));
   // --yes: the CLI asks before unsetting, and with no answer it unsets nothing yet exits 0 (2026-10-20).
-  if (before.retired?.length) run('supabase', ['secrets', 'unset', '--yes', '--project-ref', ref, ...before.retired]);
+  if (hosted.retired.length) run('supabase', ['secrets', 'unset', '--yes', '--project-ref', ref, ...hosted.retired]);
   query(ref, vaultSql(wanted.vault));
   // The migration ran before Vault had these on a new project, so it
   // scheduled nothing; it unschedules by name first, so running it again is safe.

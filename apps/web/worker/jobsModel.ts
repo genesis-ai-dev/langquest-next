@@ -32,7 +32,10 @@ export const JOBS = {
   'blob-reconcile': { job: 'blob_reconcile', entrypoint: ['node', 'reconcile.mjs'], timeLimitMs: 120 * 60_000 },
   // The tutorial videos the ops dashboard's Publish chose, put up on YouTube (server/tutorialPublish.ts, decisions.md 180):
   // at most YouTube's 100 uploads a day, each a download and an upload of about 15 MB.
-  'tutorial-publish': { job: 'tutorial_publish', entrypoint: ['node', 'publish.mjs'], timeLimitMs: 150 * 60_000 }
+  'tutorial-publish': { job: 'tutorial_publish', entrypoint: ['node', 'publish.mjs'], timeLimitMs: 150 * 60_000 },
+  // The films the nightly filming made on GitHub, brought into R2 and listed for Publish (server/tutorialIntake.ts):
+  // most nights a few, the first full set about 705 of about 10 MB, each a download and an upload.
+  'tutorial-intake': { job: 'tutorial_intake', entrypoint: ['node', 'intake.mjs'], timeLimitMs: 120 * 60_000 }
 } as const satisfies Record<string, JobSpec>;
 
 export type JobKey = keyof typeof JOBS;
@@ -49,7 +52,9 @@ export const JOB_TICK = '*/5 * * * *';
  * and the R2 reconciliation at 04:35, after the import's whole read and
  * apart from each other so a night never runs three heavy jobs at once. The
  * tutorial videos still waiting from a Publish go on at 08:10 UTC, after
- * YouTube's day starts again at midnight Pacific (07:00 or 08:00 UTC).
+ * YouTube's day starts again at midnight Pacific (07:00 or 08:00 UTC). The
+ * films the nightly filming made (on GitHub from 08:30 UTC) come in at
+ * 13:10 UTC, ready for Publish by morning in the Americas.
  */
 export function jobsDue(scheduledTime: number): { key: JobKey; all?: true }[] {
   const t = new Date(scheduledTime);
@@ -59,6 +64,7 @@ export function jobsDue(scheduledTime: number): { key: JobKey; all?: true }[] {
   if (t.getUTCHours() === 4 && minute === 5) due.push({ key: 'fold-canary' });
   if (t.getUTCHours() === 4 && minute === 35) due.push({ key: 'blob-reconcile' });
   if (t.getUTCHours() === 8 && minute === 10) due.push({ key: 'tutorial-publish' });
+  if (t.getUTCHours() === 13 && minute === 10) due.push({ key: 'tutorial-intake' });
   return due;
 }
 
@@ -215,6 +221,8 @@ export function jobEnv(key: JobKey, s: JobSettings): { env: Record<string, strin
     if (!s.API_URL) return { refuse: 'tutorial publish: API_URL not set on the Worker' };
     return { env: { ...env, API_URL: s.API_URL, YOUTUBE_CLIENT_ID: s.YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET: s.YOUTUBE_CLIENT_SECRET } };
   }
+  // The intake reads the public release itself and puts the films through the Worker.
+  if (key === 'tutorial-intake') return s.API_URL ? { env: { ...env, API_URL: s.API_URL } } : { refuse: 'tutorial intake: API_URL not set on the Worker' };
   if (s.V2_IMPORT_ENABLED !== 'true') return { skip: 'disabled' };
   const missing = (['API_URL', 'V2_SUPABASE_ANON_KEY'] as const).filter((k) => !s[k]);
   if (missing.length) return { refuse: `v2 import: ${missing.join(', ')} not set on the Worker (npm run secrets)` };

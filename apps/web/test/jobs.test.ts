@@ -38,6 +38,9 @@ describe('job runner', () => {
     // Tutorial videos still waiting from a Publish, once YouTube's day starts again (midnight Pacific).
     expect(jobsDue(Date.UTC(2026, 9, 19, 8, 10))).toEqual([{ key: 'projection' }, { key: 'tutorial-publish' }]);
     expect(JOBS['tutorial-publish']).toMatchObject({ job: 'tutorial_publish', entrypoint: ['node', 'publish.mjs'], timeLimitMs: 150 * 60_000 });
+    // The films the nightly filming made on GitHub (from 08:30 UTC), brought in before morning in the Americas.
+    expect(jobsDue(Date.UTC(2026, 9, 19, 13, 10))).toEqual([{ key: 'projection' }, { key: 'tutorial-intake' }]);
+    expect(JOBS['tutorial-intake']).toMatchObject({ job: 'tutorial_intake', entrypoint: ['node', 'intake.mjs'], timeLimitMs: 120 * 60_000 });
     expect(JOBS['fold-canary']).toMatchObject({ job: 'fold_canary', entrypoint: ['node', 'canary.mjs'], timeLimitMs: 60 * 60_000 });
     expect(JOBS['blob-reconcile']).toMatchObject({ job: 'blob_reconcile', entrypoint: ['node', 'reconcile.mjs'], timeLimitMs: 120 * 60_000 });
   });
@@ -46,6 +49,11 @@ describe('job runner', () => {
     expect(jobEnv('fold-canary', v2)).toEqual({ env: { ...db, LANGQUEST_JOB: 'fold-canary', NODE_OPTIONS: '--max-old-space-size=3072' } });
     expect(jobEnv('blob-reconcile', v2)).toEqual({ env: { ...db, LANGQUEST_JOB: 'blob-reconcile', NODE_OPTIONS: '--max-old-space-size=3072', API_URL: 'https://next.langquest.org' } });
     expect(jobEnv('blob-reconcile', { ...v2, API_URL: undefined })).toEqual({ refuse: expect.stringContaining('API_URL') });
+  });
+
+  it('hands the tutorial intake the database and the Worker\'s address, and nothing of YouTube\'s', () => {
+    expect(jobEnv('tutorial-intake', v2)).toEqual({ env: { ...db, LANGQUEST_JOB: 'tutorial-intake', NODE_OPTIONS: '--max-old-space-size=3072', API_URL: 'https://next.langquest.org' } });
+    expect(jobEnv('tutorial-intake', { ...v2, API_URL: undefined })).toEqual({ refuse: expect.stringContaining('API_URL') });
   });
 
   it('keeps each run inside its time limit, and every limit inside the platform\'s six hours', () => {

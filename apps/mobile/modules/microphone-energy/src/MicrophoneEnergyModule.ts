@@ -52,6 +52,14 @@ export type MicrophoneEnergyModuleEvents = {
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type CleanedPart = { durationMs: number; sums: number[][] };
 
+/**
+ * What `level` heard in a recording (loudnessModel.ts Measured, decision
+ * 182) and what it did: the gain the copy was made with, and whether one was
+ * written. An iPhone leaves out `lufs` and `noiseDb` where they are unknown.
+ */
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+export type LevelAnswer = { lufs?: number | null; peakDb: number; noiseDb?: number | null; amps: number[]; gainDb: number; written: boolean };
+
 declare class MicrophoneEnergyModule extends NativeModule<MicrophoneEnergyModuleEvents> {
   /**
    * Starts loading the speech model (speech.ts, decision 135) without waiting for it, so it is
@@ -73,6 +81,14 @@ declare class MicrophoneEnergyModule extends NativeModule<MicrophoneEnergyModule
   cleanUpMix(id: string, limitDb: number | null, keep: boolean): Promise<{ uri: string; format: 'wav' | 'm4a' }>;
   /** Done with the part: its work stops and its files go. A kept file is the caller's, and stays. */
   cleanUpForget(id: string): Promise<void>;
+  /**
+   * Even loudness (decision 182): the recording at `uri` read at 48 kHz and
+   * measured as loudnessModel.ts measures; with `out`, when it is to be
+   * turned by `options.minChangeDb` or more, its copy at the loudness asked
+   * for, peaks held at the ceiling, written there as a 16-bit WAV. `options`
+   * is levelModel.ts LEVEL. Recordings are taken one at a time. Phones only.
+   */
+  level(uri: string, out: string | null, options: Record<string, number>): Promise<LevelAnswer>;
 }
 
 // This call loads the native module object from the JSI.

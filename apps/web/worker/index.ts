@@ -17,6 +17,7 @@ import { JOB_TICK, jobsDue } from './jobsModel';
 import { checkStores, storeCheckDue } from './storeReleases';
 import { isOpsPath, toOps } from './ops';
 import { pokeInBatches } from './batches';
+import { handleWatch } from './tutorialVideos';
 
 export { OrgSnapshot } from './orgSnapshot';
 export { JobRunner } from './jobs';
@@ -176,6 +177,14 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
   if (review && request.method === 'GET') {
     const [{ reviewPage }, { pageLanguage }] = await Promise.all([import('./agent/reviewPage'), import('./i18n/pages')]);
     return reviewPage(review[1]!, pageLanguage(request));
+  }
+  // A tutorial video in another language, linked from each video's description on YouTube.
+  if (url.pathname.startsWith('/v/')) {
+    return handleWatch(request, async (tutorial, language) => {
+      const { data, error } = await serviceClient(env).rpc('ops_tutorial_watch', { p_tutorial: tutorial, p_language: language });
+      if (error) throw new Error(error.message);
+      return typeof data === 'string' ? data : null;
+    });
   }
   if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
   // The database says an organization's log moved (decisions.md 101); its object looks a few seconds later.

@@ -1,0 +1,146 @@
+# The tutorial videos, filmed each night (docs/tutorial-videos.md, decisions.md
+# 141 amended 2026-10-28, 183). For each app language listed, every video is
+# tried without voice or film, and those whose screens changed since the film
+# the repository's `tutorials` release keeps are filmed again
+# (e2e/tutorials/nightly.ts), against the same local stack and web export as
+# the UI tests. The new films and the language's manifest go into the
+# release, which is public, and the app's job container brings them into R2
+# for the ops dashboard's Publish at 13:10 UTC (server/tutorialIntake.ts).
+#
+# This workflow holds the Gemini key, for the voice, and no production key:
+# it writes only to this repository's release (scripts/workflows.test.ts).
+# A late or dropped run only leaves the videos as they were a day longer.
+# Each language's job files its failure in Linear, as the guardrails
+# nightly jobs do (scripts/nightly-report.mjs).
+name: tutorials
+
+on:
+  schedule:
+    # 08:30 UTC: after the guardrails nightly (02:30), and before the intake at 13:10.
+    - cron: '30 8 * * *'
+  workflow_dispatch:
+    inputs:
+      languages:
+        description: App languages, separated by commas (empty for the nightly list below)
+        default: ''
+      videos:
+        description: Only these videos, by id, separated by spaces, filmed whether or not they look changed (empty for every one that changed)
+        default: ''
+
+# The release's files; nothing else.
+permissions:
+  contents: write
+
+# One night at a time: two runs would both put a language's films in the release.
+concurrency:
+  group: tutorials
+  cancel-in-progress: false
+
+env:
+  # The app languages filmed each night. A line is said by Gemini's batch
+  # voice, on its paid tier, the first time it is filmed; the release keeps
+  # each language's voice (voice-<language>.tgz), so it is never paid twice.
+  NIGHTLY_LANGUAGES: en
+
+jobs:
+  languages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      list: ${{ steps.list.outputs.list }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ASKED: ${{ inputs.languages }}
+    steps:
+      - id: list
+        run: echo "list=$(node -e 'console.log(JSON.stringify((process.env.ASKED || process.env.NIGHTLY_LANGUAGES).split(",").map((l) => l.trim()).filter(Boolean)))')" >> "$GITHUB_OUTPUT"
+      # Made once, before the languages' jobs start together: a pre-release, so it is never the repository's latest.
+      - name: The tutorials release
+        run: |
+          gh release view tutorials --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 ||
+            gh release create tutorials --repo "$GITHUB_REPOSITORY" --prerelease --latest=false --title "Tutorial videos" \
+              --notes "Each tutorial video's newest film in each app language, made each night by .github/workflows/tutorials.yml (docs/tutorial-videos.md)."
+
+  film:
+    needs: languages
+    runs-on: ubuntu-latest
+    # The first night of a language films all 47 videos.
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        language: ${{ fromJSON(needs.languages.outputs.list) }}
+    env:
+      CI: 'true'
+      UI_PORT: '8787'
+      LANGUAGE: ${{ matrix.language }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Keep the stack's ports out of the outbound port range
+        run: bash scripts/ci-reserve-ports.sh
+      # As in guardrails ui-web: the stack starts in the background while the export builds.
+      - name: Start the local stack in the background
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: bash scripts/ci-background.sh start stack bash -c 'bash scripts/ci-docker-images.sh warm && bash scripts/ci-retry-pull.sh npm run db:start'
+      - name: Build the web export in the background
+        run: bash scripts/ci-background.sh start export env NO_SPEECH_MODEL=1 npm run export:web -w mobile -- development
+      - uses: ./.github/actions/playwright
+        with: { browsers: chromium }
+      # compose.ts puts a film together with ffmpeg; Noto has the letters of every app language.
+      - name: ffmpeg and the fonts
+        run: |
+          for try in 1 2 3; do
+            timeout 300 bash -c 'sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends ffmpeg fonts-noto-core' && exit 0
+            echo "::warning::Installing ffmpeg and the fonts did not finish within 5 minutes (try $try of 3); trying again."
+            sudo pkill -f apt-get || true
+            sudo dpkg --configure -a || true
+          done
+          exit 1
+      - name: Wait for the web export
+        run: bash scripts/ci-background.sh wait export
+      - name: Wait for the local stack
+        run: bash scripts/ci-background.sh wait stack
+      - name: Serve the export and seed the library with Bibles and their timings
+        run: |
+          nohup env WEB_EXPORTED=1 bash e2e/ui-web.sh "$UI_PORT" > "$RUNNER_TEMP/web.log" 2>&1 &
+          for _ in $(seq 150); do curl -sf "http://localhost:$UI_PORT" > /dev/null && break; sleep 2; done
+          curl -sf "http://localhost:$UI_PORT" > /dev/null || { tail -50 "$RUNNER_TEMP/web.log"; exit 1; }
+          npm run library:seed -- --sources --timings library/timings/bsb-fs
+      - name: What the release keeps for this language
+        run: |
+          mkdir -p "$RUNNER_TEMP/release" e2e/results/tutorials
+          gh release download tutorials -D "$RUNNER_TEMP/release" -p "manifest-$LANGUAGE.json" -p "voice-$LANGUAGE.tgz" || true
+          if [ -f "$RUNNER_TEMP/release/voice-$LANGUAGE.tgz" ]; then tar xzf "$RUNNER_TEMP/release/voice-$LANGUAGE.tgz" -C e2e/results/tutorials; fi
+          ls "$RUNNER_TEMP/release"
+      - name: Try every video, and film the ones that changed
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          VIDEOS: ${{ inputs.videos }}
+        # VIDEOS is split into ids on purpose.
+        run: npx tsx e2e/tutorials/nightly.ts --language "$LANGUAGE" --release "$RUNNER_TEMP/release" --out "$RUNNER_TEMP/out" $VIDEOS
+      - name: Put the new films in the release
+        if: ${{ !cancelled() }}
+        run: npx tsx e2e/tutorials/put-in-release.ts "$LANGUAGE" "$RUNNER_TEMP/out"
+      - name: Keep the logs and each step's picture
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: tutorials-${{ matrix.language }}
+          path: |
+            e2e/results/tutorials/films/*/*/log.txt
+            e2e/results/tutorials/films/*/*/steps/*
+          if-no-files-found: ignore
+      - name: Tell Linear
+        if: always()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          JOB_STATUS: ${{ job.status }}
+          DRY: ${{ github.ref != 'refs/heads/main' && '--dry-run' || '' }}
+        run: node scripts/nightly-report.mjs job --name "tutorials-$LANGUAGE" --status "$JOB_STATUS" --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" $DRY
