@@ -10,8 +10,9 @@
 //
 // A line's recording is <out>/voice/<hash>.wav, named as help audio names
 // its lines (the first 16 hex digits of SHA-256 over "<language>\n<words>"),
-// so a line whose words change is said again. TUTORIAL_TTS makes a missing
-// one: it is run with the file to write and the words after its own args.
+// so a line whose words change is said again. TUTORIAL_TTS makes the missing
+// ones: it is run once, with each file to write and its words after its own
+// args, so a voice can say them all in one request.
 // The speaker's recordings are WAV files in TUTORIAL_SPEECH.
 import { chromium, type ElementHandle, type Locator } from 'playwright';
 import { createHash } from 'node:crypto';
@@ -64,18 +65,20 @@ function wavSeconds(file: string): number {
 
 /** TUTORIAL_DRY=1: no voice and no film, a picture of each step instead, to try a script quickly. */
 const DRY = process.env['TUTORIAL_DRY'] === '1';
+/** TUTORIAL_VOICE_ONLY=1: say the lines that have no recording yet and stop, so many videos' lines are said at once before filming. */
+const VOICE_ONLY = process.env['TUTORIAL_VOICE_ONLY'] === '1';
 
-function voiceLine(words: string): { file: string; seconds: number } {
-  if (DRY) return { file: '', seconds: 0.2 };
-  const file = path.join(out, 'voice', `${lineHash(words)}.wav`);
-  if (!existsSync(file)) {
+function voiceLines(all: string[]): Map<string, { file: string; seconds: number }> {
+  const fileOf = (words: string) => path.join(out, 'voice', `${lineHash(words)}.wav`);
+  const missing = DRY ? [] : [...new Set(all)].filter((words) => !existsSync(fileOf(words)));
+  if (missing.length) {
     const tts = process.env['TUTORIAL_TTS']?.trim();
-    if (!tts) throw new Error(`No recording of "${words}" and no TUTORIAL_TTS to make one.`);
+    if (!tts) throw new Error(`No recording of "${missing[0]}" and no TUTORIAL_TTS to make one.`);
     const [command, ...args] = tts.split(/\s+/);
-    mkdirSync(path.dirname(file), { recursive: true });
-    execFileSync(command!, [...args, file, words], { stdio: ['ignore', 'ignore', 'inherit'] });
+    mkdirSync(path.join(out, 'voice'), { recursive: true });
+    execFileSync(command!, [...args, ...missing.flatMap((words) => [fileOf(words), words])], { stdio: ['ignore', 'ignore', 'inherit'] });
   }
-  return { file, seconds: wavSeconds(file) };
+  return new Map(all.map((words) => [words, DRY ? { file: '', seconds: 0.2 } : { file: fileOf(words), seconds: wavSeconds(fileOf(words)) }]));
 }
 
 // ---- what is drawn over the app ---------------------------------------------------------
@@ -172,14 +175,18 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // ---- the film ---------------------------------------------------------------------------
 
+// Every line is said once before filming, so a slow voice never holds the film.
+const says = tutorial.steps.filter((s) => s.say).map((s) => s.say!);
+const voiced = voiceLines(says.map(inLanguage));
+const lines = new Map(says.map((say) => [say, voiced.get(inLanguage(say))!]));
+if (VOICE_ONLY) process.exit(0);
+
 rmSync(path.join(out, 'frames'), { recursive: true, force: true });
 rmSync(path.join(out, 'heard'), { recursive: true, force: true });
 rmSync(path.join(out, 'steps'), { recursive: true, force: true });
 mkdirSync(path.join(out, 'frames'), { recursive: true });
 mkdirSync(path.join(out, 'heard'), { recursive: true });
 if (DRY) mkdirSync(path.join(out, 'steps'), { recursive: true });
-// Every line is said once before filming, so a slow voice never holds the film.
-const lines = new Map(tutorial.steps.filter((s) => s.say).map((s) => [s.say!, voiceLine(inLanguage(s.say!))]));
 const speech = (tutorial.speech ?? []).map((f) => { const file = path.join(speechDir, f); return { file, seconds: wavSeconds(file) }; });
 
 const world = await buildWorld({
