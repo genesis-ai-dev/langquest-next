@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  accessToken, CHANNELS, consentUrl, exchangeCode, languageOfChannel, myChannel, outOfQuota, placeInPlaylist, playlistFor,
+  accessToken, bannerPath, channelAbout, CHANNELS, consentUrl, exchangeCode, languageOfChannel, myChannel, outOfQuota, placeInPlaylist, playlistFor,
   readState, retire, setOtherChannels, signState, uploadVideo, WORDS, YouTubeError, type Fetch
 } from '../../../server/youtube';
 
@@ -171,5 +173,27 @@ describe('Publish', () => {
       status: { privacyStatus: 'unlisted', embeddable: true, license: 'youtube', publicStatsViewable: true, selfDeclaredMadeForKids: false, containsSyntheticMedia: true }
     });
     expect(await retire(f, 'at', 'GONEvideo00', 'NEWvideo000', 'es')).toBe('gone');
+  });
+});
+
+describe('how a channel looks', () => {
+  it('has a description YouTube takes, in every language, naming the app', () => {
+    for (const language of Object.keys(CHANNELS) as (keyof typeof CHANNELS)[]) {
+      const about = channelAbout(language);
+      expect([...about].length).toBeLessThanOrEqual(1000);
+      expect(about).not.toMatch(/[<>]/);
+      expect(about.endsWith('LangQuest: https://next.langquest.org')).toBe(true);
+      expect(WORDS[language].tagline.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('has a banner of the size YouTube asks for, in the web app, for every language', () => {
+    for (const language of Object.keys(CHANNELS) as (keyof typeof CHANNELS)[]) {
+      const png = readFileSync(path.join(__dirname, '..', '..', 'mobile', 'public', ...bannerPath(language).split('/').filter(Boolean)));
+      expect(png.subarray(1, 4).toString()).toBe('PNG');
+      // Width and height, from the PNG's header: 2560 × 1440, under YouTube's 6 MB.
+      expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([2560, 1440]);
+      expect(png.length).toBeLessThan(6 * 1024 * 1024);
+    }
   });
 });

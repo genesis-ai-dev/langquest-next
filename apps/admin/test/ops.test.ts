@@ -334,7 +334,23 @@ describe('tutorial videos (decisions.md 180)', () => {
     });
     expect(t.channels).toHaveLength(15);
     expect(t.channels[0]).toMatchObject({ language: 'en', title: null, connectedAt: null, videos: 0 });
-    expect(t.channels.find((c) => c.language === 'es')).toMatchObject({ title: 'LangQuest - Español', videos: 3, section: 'made' });
+    expect(t.channels.find((c) => c.language === 'es')).toMatchObject({ title: 'LangQuest - Español', videos: 3, section: 'made', branded: false, held: null });
+  });
+
+  it('says how many comments wait for review, and which channel Google stopped letting in', () => {
+    const t = tutorialsOf({
+      channels: [
+        { channelId: CHANNELS.es, language: 'es', title: 'LangQuest - Español', connectedAt: hoursAgo(1), section: 'made', branded: true, brandFailed: null, held: 2 },
+        { channelId: CHANNELS.fr, language: 'fr', title: 'LangQuest - Français', connectedAt: hoursAgo(1), section: 'made', branded: false, brandFailed: 'youtube_invalid_grant', held: null },
+        { channelId: CHANNELS.sw, language: 'sw', title: 'LangQuest - Kiswahili', connectedAt: hoursAgo(1), section: 'made', branded: true, brandFailed: null, held: 1 }
+      ],
+      waiting: [], published: []
+    });
+    expect(t.channels.find((c) => c.language === 'es')).toMatchObject({ branded: true, held: 2 });
+    expect(tutorialAlerts(t, NOW)).toEqual([
+      { level: 'problem', text: 'YouTube refused the fr channel: connect again (Tutorial videos).' },
+      { level: 'watch', text: '3 comments held for review on YouTube: approve or remove in YouTube Studio (Tutorial videos).' }
+    ]);
   });
 
   it('asks for a Publish, a Connect again, or a look, each when it is due', () => {
