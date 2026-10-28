@@ -43,6 +43,7 @@ GEMINI_API_KEY`); run with it as `npx dotenvx run -f .env.production -fk
 | `make-videos.ts` | `npm run tutorials`: all of the above, three films at a time |
 | `look.ts` | a video's look: each step's screen as text, with what changes from run to run taken out, hashed |
 | `nightly.ts`, `put-in-release.ts` | the nightly filming of one language, and putting what it made in the `tutorials` release |
+| `banners.ts` | each channel's banner, drawn by the browser into the web app's `public/youtube` |
 | `playlists.ts` | what YouTube shows: the title, the lines said as the description with links to the same video in the other languages, and the playlist of who it is for |
 
 ## Voice
@@ -130,3 +131,11 @@ language it is made in: `https://next.langquest.org/v/<language>/<video>`,
 which the app's Worker sends on to that video's newest version on YouTube,
 or to the language's channel while none is up (decision 183). So a
 description never needs changing when a newer version replaces one.
+
+Each channel looks like LangQuest's in its own language: a description of
+what the videos are with the app's address, its language set, a banner with
+the app's mark and "Tutorial videos" (`banners.ts` draws them), and a list
+of the other channels. The publish job puts these on whenever they change
+(`server/youtube.ts` `brandChannel`, decision 184); the picture is set by
+hand. Comments that may be inappropriate are held for review, and the ops
+dashboard counts them for each channel.

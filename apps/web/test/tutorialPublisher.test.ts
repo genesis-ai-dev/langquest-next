@@ -1,17 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { publishTutorials, type Due, type PublishReport } from '../../../server/tutorialPublisher';
-import { CHANNELS } from '../../../server/youtube';
+import { publishTutorials, type Channel, type Due, type PublishReport } from '../../../server/tutorialPublisher';
+import { brandOf, channelAbout, CHANNELS } from '../../../server/youtube';
 
 /** The publish job (server/tutorialPublisher.ts, decisions.md 180) against a YouTube that answers by address. */
 
-const fresh = (): PublishReport => ({ due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, outOfQuota: false, firstError: null });
+const fresh = (): PublishReport => ({ branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, outOfQuota: false, firstError: null });
 const video = (tutorial: string, over: Partial<Due> = {}): Due => ({
   tutorial, language: 'es', sha256: 'a'.repeat(64), title: tutorial, description: 'd', playlist: 'Traductores', bytes: 5,
   channelId: CHANNELS.es, replaces: null, ...over
 });
 
-function youtube(options: { uploads?: number; tokenRefused?: string } = {}) {
+function youtube(options: { uploads?: number; tokenRefused?: string; channel?: string } = {}) {
   const calls: string[] = [];
+  const sent: Record<string, unknown>[] = [];
   let uploaded = 0;
   const fetcher = async (input: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
@@ -25,6 +26,20 @@ function youtube(options: { uploads?: number; tokenRefused?: string } = {}) {
       return new Response(null, { headers: { location: 'https://upload.example/session' } });
     }
     if (input === 'https://upload.example/session') return Response.json({ id: `video${String(++uploaded).padStart(6, '0')}` });
+    if (path === '/youtube/v3/channels' && method === 'GET') {
+      return Response.json({ items: [{ id: options.channel ?? CHANNELS.es, brandingSettings: { channel: { title: 'LangQuest Español', keywords: 'LangQuest', country: 'MX' } } }] });
+    }
+    if (path === '/upload/youtube/v3/channelBanners/insert') return Response.json({ url: 'https://yt3.example/banner' });
+    if (path === '/youtube/v3/channels') {
+      sent.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return Response.json({});
+    }
+    if (path === '/youtube/v3/channelSections') return Response.json(method === 'GET' ? { items: [] } : {});
+    if (path === '/youtube/v3/commentThreads') {
+      const q = new URL(input).searchParams;
+      if (q.get('moderationStatus') !== 'heldForReview') return Response.json({ items: [] });
+      return Response.json(q.get('pageToken') ? { items: [{ id: 'c3' }] } : { items: [{ id: 'c1' }, { id: 'c2' }], nextPageToken: 'p2' });
+    }
     if (path === '/youtube/v3/playlists' && method === 'GET') return Response.json({ items: [{ id: 'PLtrad', snippet: { title: 'Traductores' } }] });
     if (path === '/youtube/v3/playlists') return Response.json({ id: 'PLnew' });
     if (path === '/youtube/v3/playlistItems' && method === 'GET') return Response.json({ items: [{ id: 'old-item', snippet: { position: 3 } }] });
@@ -33,16 +48,22 @@ function youtube(options: { uploads?: number; tokenRefused?: string } = {}) {
     if (path === '/youtube/v3/videos') return Response.json({ id: 'oldvideo001' });
     return new Response('{}', { status: 404 });
   };
-  return { calls, fetcher };
+  return { calls, sent, fetcher };
 }
 
-function deps(due: Due[], yt: ReturnType<typeof youtube>, refresh: Record<string, string | null> = { [CHANNELS.es]: '1//es' }) {
+const BANNER = new Uint8Array([137, 80, 78, 71]);
+
+function deps(due: Due[], yt: ReturnType<typeof youtube>, refresh: Record<string, string | null> = { [CHANNELS.es]: '1//es' }, channels: Channel[] = []) {
   const marks: string[] = [];
   return {
     marks,
     deps: {
       fetcher: yt.fetcher,
       client: { clientId: 'id', clientSecret: 'secret' },
+      channels: async () => channels,
+      banner: async () => BANNER,
+      branded: async (c: Channel, brand: string | null, failed: string | null) => { marks.push(`${c.language} ${brand ? 'branded' : `failed ${failed}`}`); c.branded = brand ?? c.branded; },
+      held: async (c: Channel, count: number) => { marks.push(`${c.language} held ${count}`); },
       due: async () => due,
       refreshToken: async (channelId: string) => refresh[channelId] ?? null,
       file: async () => ({ body: new Response('video').body!, bytes: 5 }),
@@ -95,5 +116,41 @@ describe('the publish job', () => {
     expect(await publishTutorials(d.deps, fresh())).toMatchObject({ due: 2, published: 2 });
     expect(d.marks).toEqual(['a video000001', 'b video000002']);
     expect(asked).toBe(3);
+  });
+
+  it('first puts each channel\'s description, language, banner and list of the others on, once, and counts its held comments', async () => {
+    const yt = youtube();
+    const es: Channel = { channelId: CHANNELS.es, language: 'es', branded: null };
+    const d = deps([video('record-a-passage')], yt, undefined, [es]);
+    expect(await publishTutorials(d.deps, fresh())).toMatchObject({ branded: 1, brandFailed: 0, held: 3, published: 1 });
+    expect(yt.calls.slice(1, 6)).toEqual([
+      'GET /youtube/v3/channels', 'POST /upload/youtube/v3/channelBanners/insert', 'PUT /youtube/v3/channels', 'GET /youtube/v3/channelSections', 'POST /youtube/v3/channelSections'
+    ]);
+    // Its other settings kept; its name, which only Google's account pages change, left out.
+    expect(yt.sent[0]).toEqual({
+      id: CHANNELS.es,
+      brandingSettings: { channel: { keywords: 'LangQuest', country: 'MX', description: channelAbout('es'), defaultLanguage: 'es' }, image: { bannerExternalUrl: 'https://yt3.example/banner' } }
+    });
+    expect(d.marks).toEqual(['es branded', 'es held 3', 'record-a-passage video000001']);
+    expect(es.branded).toBe(await brandOf('es', BANNER));
+
+    // The next run changes nothing on the channel, and counts again.
+    const again = youtube();
+    await publishTutorials(deps([], again, undefined, [es]).deps, fresh());
+    expect(again.calls).toEqual(['POST https://oauth2.googleapis.com/token', 'GET /youtube/v3/commentThreads', 'GET /youtube/v3/commentThreads']);
+  });
+
+  it('leaves a channel alone when its token is for another, and still puts the videos up', async () => {
+    const yt = youtube({ channel: CHANNELS.pt });
+    const d = deps([video('record-a-passage')], yt, undefined, [{ channelId: CHANNELS.es, language: 'es', branded: null }]);
+    expect(await publishTutorials(d.deps, fresh())).toMatchObject({ branded: 0, brandFailed: 1, published: 1, firstError: 'youtube_wrong_channel' });
+    expect(yt.sent).toEqual([]);
+    expect(d.marks).toEqual(['es failed youtube_wrong_channel', 'record-a-passage video000001']);
+  });
+
+  it('leaves a channel Google no longer lets in, and says why', async () => {
+    const d = deps([], youtube({ tokenRefused: 'invalid_grant' }), undefined, [{ channelId: CHANNELS.es, language: 'es', branded: 'f'.repeat(64) }]);
+    expect(await publishTutorials(d.deps, fresh())).toMatchObject({ branded: 0, brandFailed: 1, held: 0, firstError: 'youtube_invalid_grant' });
+    expect(d.marks).toEqual(['es failed youtube_invalid_grant']);
   });
 });

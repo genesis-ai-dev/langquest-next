@@ -39,27 +39,73 @@ export function languageOfChannel(channelId: string): ChannelLanguage | null {
 }
 
 /**
- * The two lines LangQuest writes on YouTube itself, in each channel's
- * language: the list of the other channels on a channel's home page, and the
- * first line of a video a newer one replaced. Machine translations, like the
- * app's catalogs (decisions.md 81).
+ * What LangQuest writes on YouTube itself, in each channel's language: the
+ * list of the other channels on a channel's home page, the first line of a
+ * video a newer one replaced, the line under the name on the channel's
+ * banner (e2e/tutorials/banners.ts), and the channel's description. Machine
+ * translations, like the app's catalogs (decisions.md 81).
  */
-export const WORDS: Record<ChannelLanguage, { otherChannels: string; replacedBy: string }> = {
-  en: { otherChannels: 'Other LangQuest channels', replacedBy: 'Replaced by a newer video:' },
-  es: { otherChannels: 'Otros canales de LangQuest', replacedBy: 'Reemplazado por un video más nuevo:' },
-  pt: { otherChannels: 'Outros canais do LangQuest', replacedBy: 'Substituído por um vídeo mais recente:' },
-  fr: { otherChannels: 'Autres chaînes LangQuest', replacedBy: 'Remplacée par une vidéo plus récente :' },
-  ar: { otherChannels: 'قنوات LangQuest الأخرى', replacedBy: 'حلّ محله فيديو أحدث:' },
-  sw: { otherChannels: 'Chaneli nyingine za LangQuest', replacedBy: 'Imebadilishwa na video mpya zaidi:' },
-  ha: { otherChannels: 'Sauran tashoshin LangQuest', replacedBy: 'An maye gurbinsa da sabon bidiyo:' },
-  am: { otherChannels: 'ሌሎች የLangQuest ቻናሎች', replacedBy: 'በአዲስ ቪዲዮ ተተክቷል፦' },
-  hi: { otherChannels: 'LangQuest के अन्य चैनल', replacedBy: 'इसकी जगह एक नया वीडियो आ गया है:' },
-  bn: { otherChannels: 'LangQuest-এর অন্যান্য চ্যানেল', replacedBy: 'এর জায়গায় একটি নতুন ভিডিও এসেছে:' },
-  ne: { otherChannels: 'LangQuest का अन्य च्यानलहरू', replacedBy: 'यसको सट्टा नयाँ भिडियो आएको छ:' },
-  id: { otherChannels: 'Saluran LangQuest lainnya', replacedBy: 'Diganti dengan video yang lebih baru:' },
-  th: { otherChannels: 'ช่อง LangQuest อื่นๆ', replacedBy: 'มีวิดีโอใหม่มาแทนแล้ว:' },
-  my: { otherChannels: 'အခြား LangQuest ချန်နယ်များ', replacedBy: 'ဗီဒီယိုအသစ်ဖြင့် အစားထိုးထားသည်-' },
-  'zh-Hans': { otherChannels: '其他 LangQuest 频道', replacedBy: '已由新视频取代：' }
+export const WORDS: Record<ChannelLanguage, { otherChannels: string; replacedBy: string; tagline: string; about: string }> = {
+  en: {
+    otherChannels: 'Other LangQuest channels', replacedBy: 'Replaced by a newer video:', tagline: 'Tutorial videos',
+    about: 'Short videos on how to use LangQuest, the free app for recording a Bible translation, checking it together and following its progress. One video for each task, kept up to date with the app.'
+  },
+  es: {
+    otherChannels: 'Otros canales de LangQuest', replacedBy: 'Reemplazado por un video más nuevo:', tagline: 'Videotutoriales',
+    about: 'Videos cortos sobre cómo usar LangQuest, la app gratuita para grabar una traducción de la Biblia, revisarla en equipo y seguir su avance. Un video para cada tarea, siempre al día con la app.'
+  },
+  pt: {
+    otherChannels: 'Outros canais do LangQuest', replacedBy: 'Substituído por um vídeo mais recente:', tagline: 'Vídeos tutoriais',
+    about: 'Vídeos curtos sobre como usar o LangQuest, o app gratuito para gravar uma tradução da Bíblia, revisá-la em equipe e acompanhar o progresso. Um vídeo para cada tarefa, sempre atualizado com o app.'
+  },
+  fr: {
+    otherChannels: 'Autres chaînes LangQuest', replacedBy: 'Remplacée par une vidéo plus récente :', tagline: 'Tutoriels vidéo',
+    about: 'Courtes vidéos pour apprendre à utiliser LangQuest, l\'application gratuite pour enregistrer une traduction de la Bible, la vérifier ensemble et suivre son avancement. Une vidéo par tâche, toujours à jour avec l\'application.'
+  },
+  ar: {
+    otherChannels: 'قنوات LangQuest الأخرى', replacedBy: 'حلّ محله فيديو أحدث:', tagline: 'فيديوهات تعليمية',
+    about: 'فيديوهات قصيرة تشرح كيفية استخدام LangQuest، التطبيق المجاني لتسجيل ترجمة الكتاب المقدس ومراجعتها معًا ومتابعة تقدّمها. فيديو لكل مهمة، يُحدَّث دائمًا مع التطبيق.'
+  },
+  sw: {
+    otherChannels: 'Chaneli nyingine za LangQuest', replacedBy: 'Imebadilishwa na video mpya zaidi:', tagline: 'Video za mafunzo',
+    about: 'Video fupi kuhusu jinsi ya kutumia LangQuest, programu ya bure ya kurekodi tafsiri ya Biblia, kuikagua pamoja na kufuatilia maendeleo yake. Video moja kwa kila kazi, inayosasishwa pamoja na programu.'
+  },
+  ha: {
+    otherChannels: 'Sauran tashoshin LangQuest', replacedBy: 'An maye gurbinsa da sabon bidiyo:', tagline: 'Bidiyoyin koyarwa',
+    about: 'Gajerun bidiyoyi kan yadda ake amfani da LangQuest, manhaja kyauta don naɗar fassarar Littafi Mai Tsarki, duba ta tare da bin diddigin cigabanta. Bidiyo ɗaya ga kowane aiki, ana sabunta su tare da manhajar.'
+  },
+  am: {
+    otherChannels: 'ሌሎች የLangQuest ቻናሎች', replacedBy: 'በአዲስ ቪዲዮ ተተክቷል፦', tagline: 'የማስተማሪያ ቪዲዮዎች',
+    about: 'LangQuestን እንዴት መጠቀም እንደሚቻል የሚያሳዩ አጫጭር ቪዲዮዎች። LangQuest የመጽሐፍ ቅዱስ ትርጉምን ለመቅዳት፣ በጋራ ለመገምገም እና ሂደቱን ለመከታተል የሚያገለግል ነፃ መተግበሪያ ነው። ለእያንዳንዱ ተግባር አንድ ቪዲዮ፣ ከመተግበሪያው ጋር ሁልጊዜ የተዘመነ።'
+  },
+  hi: {
+    otherChannels: 'LangQuest के अन्य चैनल', replacedBy: 'इसकी जगह एक नया वीडियो आ गया है:', tagline: 'ट्यूटोरियल वीडियो',
+    about: 'LangQuest इस्तेमाल करने के छोटे वीडियो। LangQuest बाइबल अनुवाद रिकॉर्ड करने, उसे मिलकर जाँचने और उसकी प्रगति देखने का मुफ़्त ऐप है। हर काम के लिए एक वीडियो, जो ऐप के साथ हमेशा अपडेट रहता है।'
+  },
+  bn: {
+    otherChannels: 'LangQuest-এর অন্যান্য চ্যানেল', replacedBy: 'এর জায়গায় একটি নতুন ভিডিও এসেছে:', tagline: 'টিউটোরিয়াল ভিডিও',
+    about: 'LangQuest কীভাবে ব্যবহার করতে হয় তার ছোট ভিডিও। LangQuest হলো বাইবেল অনুবাদ রেকর্ড করা, একসাথে যাচাই করা এবং তার অগ্রগতি দেখার একটি বিনামূল্যের অ্যাপ। প্রতিটি কাজের জন্য একটি ভিডিও, অ্যাপের সাথে সবসময় হালনাগাদ।'
+  },
+  ne: {
+    otherChannels: 'LangQuest का अन्य च्यानलहरू', replacedBy: 'यसको सट्टा नयाँ भिडियो आएको छ:', tagline: 'ट्युटोरियल भिडियोहरू',
+    about: 'LangQuest कसरी प्रयोग गर्ने भन्ने छोटा भिडियोहरू। LangQuest बाइबल अनुवाद रेकर्ड गर्न, सँगै जाँच गर्न र यसको प्रगति हेर्न प्रयोग हुने निःशुल्क एप हो। हरेक कामका लागि एउटा भिडियो, एपसँगै सधैं अद्यावधिक।'
+  },
+  id: {
+    otherChannels: 'Saluran LangQuest lainnya', replacedBy: 'Diganti dengan video yang lebih baru:', tagline: 'Video tutorial',
+    about: 'Video singkat tentang cara memakai LangQuest, aplikasi gratis untuk merekam terjemahan Alkitab, memeriksanya bersama, dan mengikuti kemajuannya. Satu video untuk setiap tugas, selalu diperbarui bersama aplikasinya.'
+  },
+  th: {
+    otherChannels: 'ช่อง LangQuest อื่นๆ', replacedBy: 'มีวิดีโอใหม่มาแทนแล้ว:', tagline: 'วิดีโอสอนการใช้งาน',
+    about: 'วิดีโอสั้นสอนการใช้ LangQuest แอปฟรีสำหรับบันทึกเสียงงานแปลพระคัมภีร์ ตรวจทานร่วมกัน และติดตามความคืบหน้า หนึ่งวิดีโอต่อหนึ่งงาน อัปเดตตามแอปเสมอ'
+  },
+  my: {
+    otherChannels: 'အခြား LangQuest ချန်နယ်များ', replacedBy: 'ဗီဒီယိုအသစ်ဖြင့် အစားထိုးထားသည်-', tagline: 'သင်ခန်းစာ ဗီဒီယိုများ',
+    about: 'LangQuest ကို အသုံးပြုနည်း ဗီဒီယိုတိုများ။ LangQuest သည် သမ္မာကျမ်းစာ ဘာသာပြန်ကို အသံသွင်းရန်၊ အတူတကွ စစ်ဆေးရန်နှင့် တိုးတက်မှုကို ကြည့်ရှုရန် အခမဲ့ အက်ပ်ဖြစ်သည်။ လုပ်ငန်းတစ်ခုစီအတွက် ဗီဒီယိုတစ်ခု၊ အက်ပ်နှင့်အတူ အမြဲ နောက်ဆုံးအခြေအနေ။'
+  },
+  'zh-Hans': {
+    otherChannels: '其他 LangQuest 频道', replacedBy: '已由新视频取代：', tagline: '教程视频',
+    about: 'LangQuest 使用教程短视频。LangQuest 是一款免费应用，用于录制圣经译文、一起审核并跟进进度。每项任务一个视频，随应用一同更新。'
+  }
 };
 
 /**
@@ -192,6 +238,80 @@ export async function setOtherChannels(fetcher: Fetch, token: string, language: 
   const body = { ...(mine ? { id: mine.id } : {}), snippet: { type: 'multipleChannels', title }, contentDetails: { channels } };
   await answer(await fetcher(`${API}/channelSections?part=snippet,contentDetails`, { method: mine ? 'PUT' : 'POST', headers: json(token), body: JSON.stringify(body) }));
   return mine ? 'updated' : 'made';
+}
+
+// ---- The channel itself ---------------------------------------------------------------------------
+
+/** The app, which opens on the web too. */
+export const APP_LINK = 'https://next.langquest.org';
+
+/** A channel's description: what its videos are, and where the app is. YouTube takes 1,000 characters. */
+export const channelAbout = (language: ChannelLanguage) => `${WORDS[language].about}\n\nLangQuest: ${APP_LINK}`;
+
+/** Where the publish job finds a channel's banner: the web app's file (apps/mobile/public/youtube, made by e2e/tutorials/banners.ts). */
+export const bannerPath = (language: ChannelLanguage) => `/youtube/${language}.png`;
+
+const hex = (bytes: ArrayBuffer) => [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
+
+/**
+ * How a channel should look, as one hash: its description, its language, its
+ * banner's bytes and its list of the others. The database keeps the last one
+ * put on the channel, so a channel is changed again only when one of them is.
+ */
+export async function brandOf(language: ChannelLanguage, banner: Uint8Array<ArrayBuffer>): Promise<string> {
+  const what = JSON.stringify([language, channelAbout(language), WORDS[language].otherChannels, hex(await crypto.subtle.digest('SHA-256', banner))]);
+  return hex(await crypto.subtle.digest('SHA-256', text.encode(what)));
+}
+
+/**
+ * A channel made to look like LangQuest's in its own language: its
+ * description, its language (so YouTube shows it to people who read that
+ * language), its banner (the app's mark on black with "Tutorial videos"), and
+ * the list of the other channels. About 150 of the day's 10,000 units. A
+ * token for any other channel than the language's is refused. The channel's
+ * picture cannot be set this way (docs/admin.md).
+ */
+export async function brandChannel(fetcher: Fetch, token: string, language: ChannelLanguage, banner: Uint8Array<ArrayBuffer>): Promise<void> {
+  const got = await answer<{ items?: { id: string; brandingSettings?: { channel?: Record<string, unknown> } }[] }>(
+    await fetcher(`${API}/channels?part=brandingSettings&mine=true`, { headers: json(token) }));
+  const channel = got.items?.[0];
+  if (!channel) throw new YouTubeError(404, 'no_channel');
+  if (channel.id !== CHANNELS[language]) throw new YouTubeError(409, 'wrong_channel');
+  const uploaded = await answer<{ url: string }>(await fetcher('https://www.googleapis.com/upload/youtube/v3/channelBanners/insert?uploadType=media', {
+    method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'image/png' }, body: banner
+  }));
+  // The channel's other settings (its keywords, its country) are sent back as they were, since an update
+  // replaces them all; its name is left out, which only Google's account pages change.
+  const kept = { ...channel.brandingSettings?.channel };
+  delete kept['title'];
+  await answer(await fetcher(`${API}/channels?part=brandingSettings`, {
+    method: 'PUT', headers: json(token),
+    body: JSON.stringify({
+      id: channel.id,
+      brandingSettings: { channel: { ...kept, description: channelAbout(language), defaultLanguage: language }, image: { bannerExternalUrl: uploaded.url } }
+    })
+  }));
+  await setOtherChannels(fetcher, token, language);
+}
+
+/** At most this many held comments are counted on a channel; more read as this many. */
+export const HELD_MAX = 500;
+
+/**
+ * How many comments on the channel's videos YouTube holds for a person to
+ * approve or remove (Studio's "Held for review"; the channels hold what may
+ * be inappropriate, docs/admin.md). A unit for each 100 counted.
+ */
+export async function heldComments(fetcher: Fetch, token: string, channelId: string): Promise<number> {
+  let held = 0;
+  let page = '';
+  do {
+    const q = new URLSearchParams({ part: 'id', allThreadsRelatedToChannelId: channelId, moderationStatus: 'heldForReview', maxResults: '100', ...(page ? { pageToken: page } : {}) });
+    const got = await answer<{ items?: unknown[]; nextPageToken?: string }>(await fetcher(`${API}/commentThreads?${q}`, { headers: json(token) }));
+    held += got.items?.length ?? 0;
+    page = got.nextPageToken ?? '';
+  } while (page && held < HELD_MAX);
+  return Math.min(held, HELD_MAX);
 }
 
 // ---- Publish -------------------------------------------------------------------------------------
