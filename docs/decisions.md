@@ -6210,6 +6210,17 @@ packages, for the v2 import's conversion of MP3 and WebM to M4A (94). Built
 locally, the image grows from about 320 MB to 710 MB; with half a CPU it
 converts a 20-minute chapter in about 27 seconds.
 
+Amended (2026-10-28, Caleb Koster): the tutorial videos are filmed each
+night in GitHub Actions (`.github/workflows/tutorials.yml`, 183), a
+scheduled workflow, which this entry keeps from production jobs. It is not
+one: it holds the Gemini key and the repository's own token, no production
+key, and writes only to the repository's public `tutorials` release, from
+which the job container's `tutorial-intake` takes the films into R2.
+Filming needs the local stack and a browser, which a runner has and the
+job container does not, and a late or dropped run only leaves the videos as
+they were a day longer. `scripts/workflows.test.ts` lists it among the
+scheduled workflows.
+
 ## 142. The projection pass stores what each language's report is made from, and the dashboard renders reports from it without folding
 
 Date: 2026-10-19 · By: Carl Sauder · Status: accepted
@@ -8767,7 +8778,68 @@ first play of a long part waits noticeably on the phones we support, or
 partners want parts played as recorded (then a switch in settings, not a
 button on each part).
 
-## 183. The UI audit's fixes: a screen says what it waits for, asks before what cannot be undone, and opens a thing where the same thing opens elsewhere
+## 183. Tutorial videos are filmed each night on GitHub, only those whose screens changed, and the job container brings them in
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-28, thread "Plan tutorial videos and keep them
+current") asked for the whole pipeline running and chose "GitHub films,
+Cloudflare publishes": the filming runs where the local stack and a browser
+are, with the Gemini key alone, and production's keys stay in production
+(141, amended today).
+- **Only what changed is filmed again.** Each night every video is tried
+  without voice or film, one at a time, on a fresh local stack, and each
+  step's screen is read out as text (Playwright's accessibility tree), once
+  it stops changing and without the toast. With what changes from run to
+  run though the app did not taken out (made-up addresses, sign-in keys,
+  numbers, times, upload status, the order of names in a line and of
+  things side by side: `e2e/tutorials/look.ts`), the steps hash to the
+  video's look. A video is filmed again when its look differs from its last film's,
+  or it has no film. A video that looks changed is tried again, up to twice,
+  and is filmed when two tries agree on the new look or the third still
+  differs. On 2026-10-28, two runs of all 47 English videos read the same for
+  41 before the words were read once steady, without the toast, with things
+  side by side sorted and after a projection pass; with them, 46 of 47 read
+  the same, and the 47th ("Record a passage") read as before on the next two
+  tries. The same day, on main with Clean up, seven videos looked changed
+  (the ⋯ menu that replaced a bin), and two of them read differently on a
+  second try: a part still saving, and a passage heard a moment earlier
+  kept on the device or not yet. Since then a step is read once nothing on
+  it is saving, and the app's words about saving, uploading and keeping on
+  the device are taken out in the film's language (from its catalog); all
+  seven then read the same. Videos for LangQuest staff (the Global Viewer's) are never filmed
+  each night or put on YouTube: the channels are for the public (Caleb,
+  2026-10-28).
+- **The release is the hand-over.** The repository is public, so its
+  `tutorials` release (a pre-release, never the latest) holds each video's
+  newest film in each language, named by its hash; a manifest per language
+  with what YouTube shows (the title, the lines said as the description,
+  the playlist of who it is for: `e2e/tutorials/playlists.ts`) and each
+  film's look; and each language's voice, so a line is paid for once. New
+  films go up before the manifest that names them, older ones come out
+  after (`e2e/tutorials/put-in-release.ts`).
+- **Each description links to the same video in every other language**
+  it is made in (Caleb, 2026-10-28), by a link to the app's Worker,
+  `next.langquest.org/v/<language>/<video>`, which goes on to that video's
+  newest version on YouTube, or to the language's channel while none is up
+  (`ops_tutorial_watch`). A replaced version never leaves stale links
+  behind, and no description is edited after upload, which would cost 50
+  of YouTube's 10,000 daily units for each of up to 690 videos.
+- **The intake job brings them in** (`server/tutorialIntake.ts`, the job
+  container at 13:10 UTC): each film R2 lacks is downloaded, its hash
+  checked, put through the Worker's service-only `PUT /api/tutorials/…`,
+  which R2 checks again, and listed (`ops_tutorial_made`). The dashboard
+  shows it for Publish (180); nothing filmed goes public without a person.
+- **English each night to begin with** (`NIGHTLY_LANGUAGES`); a language
+  joins once its voice can be made (Gemini's batch voice needs the paid
+  tier). The Gemini key reaches GitHub through `npm run secrets --
+  production`, from `.env.production`. Each language's job files a failure
+  in Linear, as the guardrails nightly jobs do.
+Reverse if: the look misses changes people notice in the films, or flags
+changes nobody can see often enough to burden Publish; or the runners
+cannot film reliably (then the job container gets a browser and the stack).
+
+## 184. The UI audit's fixes: a screen says what it waits for, asks before what cannot be undone, and opens a thing where the same thing opens elsewhere
 
 Date: 2026-10-28 · By: Caleb Koster · Status: accepted
 

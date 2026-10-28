@@ -1,5 +1,6 @@
 // Every tutorial video, by id, in the order the plan lists them by who
 // watches (the plan: "Tutorial videos: what to make and how to keep them current").
+import type { Who } from './playlists';
 import type { Tutorial } from './tutorial';
 import { addALanguage } from './add-a-language';
 import { backTranslateAPassage } from './back-translate-a-passage';
@@ -49,17 +50,21 @@ import { reportsOnTheWeb } from './reports-on-the-web';
 import { bringInYourOwnMaterial } from './bring-in-your-own-material';
 import { readAnyOrganization } from './read-any-organization';
 
-export const TUTORIALS: Record<string, Tutorial> = Object.fromEntries([
-  // Everyone
-  joinYourTeam, createAnAccount, findYourWayAround, useTheHelp, workWithoutInternet, chooseTheAppLanguage, yourAccount, reportOrBlockSomeone,
-  // Organization heads and admins
-  startAnOrganization, addALanguage, getALanguageReady, inviteYourTeam, letPeopleIn, changeARole, makeARole, showALanguageToThePublic, groupLanguagesIntoACluster, getTheBlueCheck, shareTemplatesAndFlows, removeFromTheRecord,
-  // Team coordinators and language leads
-  setUpTheReviewChecks, askSomeone, moveAPassageAlong, chooseReferenceMaterial, chooseAContentTemplate, divideBooksIntoPassages, followALanguage, writeAStudyGuide,
-  // Translators
-  studyAPassage, recordAPassage, hearMoveDeleteParts, giveEachPartItsVerse, finishAndAskForACheck, answerFeedback, keyWords, readBiblesBesideAPassage, versionsAndHistory, somethingElse,
-  // Reviewers and consultants
-  doACheck, backTranslateAPassage, consultantCheck, takeBackAReview,
-  // Followers, partners and staff
-  lookAroundWithoutAnAccount, followProgressAsAViewer, reportsOnTheWeb, bringInYourOwnMaterial, readAnyOrganization
-].map((t) => [t.id, t]));
+/** Who each video is for, which is its playlist on YouTube (playlists.ts), each in the plan's order. */
+export const GROUPS: { who: Who; videos: Tutorial[] }[] = [
+  { who: 'everyone', videos: [joinYourTeam, createAnAccount, findYourWayAround, useTheHelp, workWithoutInternet, chooseTheAppLanguage, yourAccount, reportOrBlockSomeone] },
+  {
+    who: 'admins',
+    videos: [startAnOrganization, addALanguage, getALanguageReady, inviteYourTeam, letPeopleIn, changeARole, makeARole, showALanguageToThePublic, groupLanguagesIntoACluster,
+      getTheBlueCheck, shareTemplatesAndFlows, removeFromTheRecord]
+  },
+  { who: 'leads', videos: [setUpTheReviewChecks, askSomeone, moveAPassageAlong, chooseReferenceMaterial, chooseAContentTemplate, divideBooksIntoPassages, followALanguage, writeAStudyGuide] },
+  {
+    who: 'translators',
+    videos: [studyAPassage, recordAPassage, hearMoveDeleteParts, giveEachPartItsVerse, finishAndAskForACheck, answerFeedback, keyWords, readBiblesBesideAPassage, versionsAndHistory, somethingElse]
+  },
+  { who: 'reviewers', videos: [doACheck, backTranslateAPassage, consultantCheck, takeBackAReview] },
+  { who: 'followers', videos: [lookAroundWithoutAnAccount, followProgressAsAViewer, reportsOnTheWeb, bringInYourOwnMaterial, readAnyOrganization] }
+];
+
+export const TUTORIALS: Record<string, Tutorial> = Object.fromEntries(GROUPS.flatMap((g) => g.videos).map((t) => [t.id, t]));

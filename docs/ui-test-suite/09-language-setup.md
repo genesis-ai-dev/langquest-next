@@ -1810,7 +1810,7 @@ Expected:
 
 Changed (2026-10-16, decision 134): no toast offers Undo; the row's own button ("Stop recommending", "Follow organization") changes it back.
 
-Changed (2026-10-28, UI audit finding 58, decision 183): one switch in a
+Changed (2026-10-28, UI audit finding 58, decision 184): one switch in a
 language, as on Get ready: "Recommend here" and "Stop recommending here"
 replace Hide, Follow organization, Recommend and Stop recommending; the
 section and badge read "Not recommended here" in place of "Hidden for this

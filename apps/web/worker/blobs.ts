@@ -103,6 +103,12 @@ async function sameSecret(a: string, b: string): Promise<boolean> {
   return diff === 0 && b.length > 0;
 }
 
+/** Whether a request carries the service key: a job writing to the bucket itself (tutorialVideos.ts). */
+export async function fromService(request: Request, serviceKey: string): Promise<boolean> {
+  const token = bearer(request);
+  return !!token && sameSecret(token, serviceKey);
+}
+
 /** The link-signing key: derived from the service key, so there is no other secret to keep. */
 async function urlKey(serviceKey: string): Promise<CryptoKey> {
   const raw = await sha256(`langquest blob urls v1\n${serviceKey}`);

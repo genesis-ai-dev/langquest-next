@@ -88,7 +88,7 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
     return deps.blobs ? handleBlobs(request, { ...deps.blobs, profileOf: deps.profileOf }) : json(503, { error: 'File storage is not set up here.' });
   }
   if (url.pathname.startsWith('/api/help-audio/')) return handleHelpAudio(request, deps.blobs?.bucket);
-  if (url.pathname.startsWith('/api/tutorials/')) return handleTutorialVideo(request, deps.blobs?.bucket);
+  if (url.pathname.startsWith('/api/tutorials/')) return handleTutorialVideo(request, deps.blobs);
   if (url.pathname === '/api/languoids') {
     return deps.languoids ? handleLanguoids(request, deps.languoids) : json(503, { error: 'The language list is not set up here.' });
   }
