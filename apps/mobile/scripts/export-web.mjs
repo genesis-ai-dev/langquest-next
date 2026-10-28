@@ -54,7 +54,7 @@ fs.writeFileSync(path.join(dist, 'version.json'), `${JSON.stringify({ build })}\
 
 // The speech model and the runtime it needs (modules/microphone-energy/src/speechModel.web.ts,
 // decision 135), and Clean up's DeepFilterNet3 on the same runtime
-// (cleanUp.web.ts, decision 177): served as files, loaded when the
+// (cleanUp.web.ts, decision 178): served as files, loaded when the
 // microphone first opens or a part is first cleaned, so they are in neither
 // JavaScript budget below. NO_SPEECH_MODEL=1 leaves them out, for the UI
 // tests, whose microphones are tones: their parts are timed by level, as

@@ -1,4 +1,4 @@
-// Clean up on the recording screen (decision 177): which parts it is
+// Clean up on the recording screen (decision 178): which parts it is
 // offered for, the slider, the bars of a part as recorded and as it would
 // sound, and the button's words. Pure; the cleaning itself is the
 // microphone module's (deepFilter.ts), and useCleanUp.ts runs it.

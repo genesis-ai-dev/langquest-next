@@ -23,7 +23,7 @@
 // microphone hears, the room and the voice, with nothing to set (LAN-82).
 // The card's ⋯ opens Clean up, which takes background noise out of the
 // parts on this phone; the person hears each part both ways and picks, and
-// a part kept as recorded wears a grey ear (decision 177).
+// a part kept as recorded wears a grey ear (decision 178).
 // Parts are dragged up and down by a grip (the moved part loses its verses,
 // to be labelled again), a mark on the line between two parts opens a place
 // there to record into, the parts just recorded are shaded until the next
@@ -426,7 +426,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     await change(specs, { before, after }, t('translate.partMoved', { part: partLabel(from), place: partLabel(to) }));
   }
 
-  // ---- Clean up (decision 177) ----
+  // ---- Clean up (decision 178) ----
   // The ⋯ on the card opens it for the parts it is offered for, as they were
   // when it opened; the picks become one change, which Undo takes back.
   const [cleaningUp, setCleaningUp] = useState<{ parts: CleanUpPart[]; before: number } | null>(null);
@@ -690,7 +690,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   }
 
   const parts: Part[] = list.map((hash) => {
-    // Tried in Clean up and kept as recorded: the grey ear says who, and when (decision 177).
+    // Tried in Clean up and kept as recorded: the grey ear says who, and when (decision 178).
     const note = cleanUpOf(state, unitId, hash);
     const kept = note?.value.use === 'original' ? { by: ctx.name(note.value.actorId), when: formatDay(decodeHlc(note.hlc).wallMs) } : null;
     return { hash, ...(durations.has(hash) ? { durationMs: durations.get(hash)! } : {}), ...(kept ? { kept } : {}) };

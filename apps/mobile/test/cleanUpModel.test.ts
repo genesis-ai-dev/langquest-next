@@ -2,7 +2,7 @@ import { buildIndexes, commands, emptyLanguageState, foldLanguage, type AnyEvent
 import { mixGain } from '../modules/microphone-energy/src/deepFilter';
 import { buttonLabel, cleanSums, cleanUpOffer, gainOf, limitAt, mixBars, placeOf, SLIDER_START, snapPlace, toneBars, type CleanSums } from '../src/recording/cleanUpModel';
 
-describe('the slider (decision 177; Caleb, 2026-10-28)', () => {
+describe('the slider (decision 178; Caleb, 2026-10-28)', () => {
   it('starts at 12 dB, goes from 6 dB at Less to no limit at More, and reads back its place', () => {
     expect(limitAt(SLIDER_START)).toBe(12);
     expect(limitAt(0)).toBe(6);

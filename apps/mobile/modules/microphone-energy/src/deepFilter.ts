@@ -1,4 +1,4 @@
-// Clean up's arithmetic (decision 177): everything around DeepFilterNet3
+// Clean up's arithmetic (decision 178): everything around DeepFilterNet3
 // except the network itself. A part's sound is brought to the model's
 // 48 kHz, cut into 20 ms frames (960-point real FFT, 480-sample hop, Vorbis
 // window), and each frame gives the model two features: its loudness in 32

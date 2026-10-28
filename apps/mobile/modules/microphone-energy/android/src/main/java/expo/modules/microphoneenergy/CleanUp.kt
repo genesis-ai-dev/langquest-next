@@ -17,7 +17,7 @@ import java.nio.FloatBuffer
 import java.util.concurrent.Executors
 
 /**
- * Clean up on an Android phone (decision 177): a part's file read and brought
+ * Clean up on an Android phone (decision 178): a part's file read and brought
  * to 48 kHz, DeepFilterNet3 run over it (DeepFilter.kt), and the slider's mix
  * written as a file. Each part being cleaned has a folder in the cache
  * holding its sound as recorded and its cleaned sound as 48 kHz floats, so a

@@ -1,7 +1,7 @@
 // A part's sound as bars beside its length (Caleb, 2026-10-16: the row
 // reads as a voice message): as many bars as the row has room for, filled
 // from the left as it plays. Until a part's bars are known it shows a low
-// even line. In Clean up (decision 177) a bar shows its noise too: amber,
+// even line. In Clean up (decision 178) a bar shows its noise too: amber,
 // around the purple of the voice it holds.
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';

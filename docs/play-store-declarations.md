@@ -175,7 +175,7 @@ ID, with the INTERNET and ACCESS_NETWORK_STATE permissions), which would
 add "Device or other IDs", collected and shared with Microsoft. Check for it
 before raising the version.
 
-Clean up (decisions.md 177) takes background noise out of a part on the
+Clean up (decisions.md 178) takes background noise out of a part on the
 phone, when the person asks for it: DeepFilterNet 3, an 8.6 MB file in the
 app beside the speech model, run by the same ONNX Runtime (1.22.0, so the
 telemetry above stays out). It removes noise from the person's own

@@ -10,7 +10,7 @@ import {
 } from '../modules/microphone-energy/src/deepFilter';
 import { BAR_COUNT } from '../src/audio/barsModel';
 
-// Clean up's arithmetic (decision 177): the web runs deepFilter.ts, and the
+// Clean up's arithmetic (decision 178): the web runs deepFilter.ts, and the
 // phones' DeepFilter.kt and DeepFilter.swift follow it line for line. The
 // model itself is run here through onnxruntime-web's Node build, the web
 // module's runtime.

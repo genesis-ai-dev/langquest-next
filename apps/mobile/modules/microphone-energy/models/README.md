@@ -22,7 +22,7 @@ project is also offered under Apache 2.0) as one ONNX graph, opset 17, from
 https://huggingface.co/soniqo/DeepFilterNet3-ONNX (`deepfilter.onnx`, sha256
 e1157049059434ae0d5857e32c812abea227b975e946b2eb64d001abbce156d3). It is the
 network alone: Clean up's arithmetic around it (src/deepFilter.ts and its
-line-for-line ports DeepFilter.kt and DeepFilter.swift, decision 177) makes
+line-for-line ports DeepFilter.kt and DeepFilter.swift, decision 178) makes
 its features from 48 kHz sound and applies its answer, as DeepFilterNet's
 libDF does. The Android module ships it as an asset, the iPhone module as a
 resource, and the web export copies it to `/models/`.

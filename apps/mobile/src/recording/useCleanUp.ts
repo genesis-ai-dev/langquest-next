@@ -1,4 +1,4 @@
-// Clean up's work while its sheet is open (decision 177): each part cleaned
+// Clean up's work while its sheet is open (decision 178): each part cleaned
 // on this phone, one after another, by the microphone module; a mix to hear
 // at the slider's place; and the chosen mix kept as a recording's file when
 // the person picks. Nothing is kept until then: closing the sheet forgets

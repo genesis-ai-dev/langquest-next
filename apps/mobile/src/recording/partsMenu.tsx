@@ -1,4 +1,4 @@
-// The parts card's ⋯ (decision 177; Caleb's mockup 11, 2026-10-27): it took
+// The parts card's ⋯ (decision 178; Caleb's mockup 11, 2026-10-27): it took
 // the place of the card's bin, and opens a short menu under it: Clean up,
 // which takes background noise out of the parts, and Delete every part,
 // which asks first as the bin did.

@@ -421,7 +421,7 @@ export function marksAfterMove(marks: readonly PartMark[], from: number, to: num
 
 /**
  * The parts as they stood: their order and each one's verse mark; and for
- * a step of Clean up (decision 177), its note on each part it touched, by
+ * a step of Clean up (decision 178), its note on each part it touched, by
  * the part as recorded (null: no note).
  */
 export interface PartsSnap { list: string[]; marks: PartMark[]; cleanUps?: Record<string, CleanUpNote | null> }

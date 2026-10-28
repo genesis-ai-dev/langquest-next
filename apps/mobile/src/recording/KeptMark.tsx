@@ -1,4 +1,4 @@
-// A grey ear on a part tried in Clean up and kept as recorded (decision 177;
+// A grey ear on a part tried in Clean up and kept as recorded (decision 178;
 // Caleb's mockup 15, 2026-10-28), so whoever hears it next knows noise
 // removal was tried and turned down. A tap says who tried it, and when.
 import { useRef, useState } from 'react';

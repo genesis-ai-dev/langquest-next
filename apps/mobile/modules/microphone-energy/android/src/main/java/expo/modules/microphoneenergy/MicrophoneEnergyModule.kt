@@ -28,7 +28,7 @@ class MicrophoneEnergyModule : Module() {
   private var recordingScope: CoroutineScope? = null
   private var writeScope: CoroutineScope? = null
   private val encodeScope = CoroutineScope(Dispatchers.Default)
-  /** Clean up (CleanUp.kt, decision 177): DeepFilterNet3 on a part, one at a time. */
+  /** Clean up (CleanUp.kt, decision 178): DeepFilterNet3 on a part, one at a time. */
   private val cleanUp = CleanUp { appContext.reactContext }
   // Meter events go to the main thread without the capture loop waiting for it.
   private val main = Handler(Looper.getMainLooper())
