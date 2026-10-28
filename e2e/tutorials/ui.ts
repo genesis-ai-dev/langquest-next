@@ -163,6 +163,17 @@ function inUiText(english: string, depth: number): string | RegExp {
     made.add(r);
     return r;
   }
+  // A mark the app puts before a line ("✓ 3 of 3 parts said"): the mark, then the line,
+  // unless the catalog has lines that begin with that mark.
+  const marked = /^([^\p{L}\p{N}\s]+ )(.+)$/su.exec(words);
+  if (marked && !lines().some((l) => l.en.startsWith(marked[1]!))) {
+    const rest = inUiText(marked[2]!, depth);
+    if (rest !== marked[2]) {
+      const r = new RegExp(`^${escape(marked[1]!)}${typeof rest === 'string' ? escape(rest) : `(?:${unanchored(rest.source)})`}$`, 's');
+      made.add(r);
+      return r;
+    }
+  }
   // A line with values in it: every line it fits ("Open Version 1" is "Open {{version}}"
   // on one screen and "Open Version {{n}}" on another), the most particular first.
   // A line of few words of its own ("{{step}} of {{total}}") fits only numbers.
@@ -192,14 +203,17 @@ function inUiText(english: string, depth: number): string | RegExp {
 /**
  * Marks between pieces as the film language writes them: the app joins some
  * pieces in code with English marks (", ", ". ", ": "), and the screen may show
- * its language's own ("، " in Arabic, "，" and "。" in Chinese, "။" in Burmese).
+ * its language's own ("، " in Arabic, "，" and "。" in Chinese, "။" in Burmese, a space
+ * between sentences in Thai).
  */
 const MARKS: [RegExp, string][] = [
   [/, /g, '(?:, ?|، ?|，|、|၊ ?|፣ ?)'],
-  [/\\\. /g, '(?:\\. ?|。|। ?|။ ?|። ?)'],
+  [/\\\. /g, '(?:\\. ?|。|। ?|။ ?|። ?| )'],
   [/(?<!\(\?): /g, '(?:[\\s\\u00a0\\u202f]?: ?|：|፦ ?)']
 ];
 const widen = (source: string) => MARKS.reduce((s, [mark, any]) => s.replace(mark, any), source);
+/** One mark after some words, or their end, as any language writes it. */
+const EDGE_MARKS: Record<string, string> = { ',': '[,،，、၊፣]', '.': '[.。।။።]', ':': '[:：፦]', ';': '[;؛；]', $: '$' };
 
 /** Words in pieces the app puts together ("Translator · Lumari", "Parts 1–4, 4 parts", "Kalu Hills. 2 languages"), each piece looked up by itself. */
 function piecewise(words: string, between = ' · '): string | RegExp {
@@ -249,12 +263,34 @@ function spellings(choice: string): string[] {
 
 function inUiPattern(english: RegExp): RegExp {
   if (keptAsIs.has(english) || made.has(english)) return english;
+  // Words, then a mark or the end ("^Part 2(,|$)"): the words open at their end, then the
+  // film language's mark or the end, so "Record part 2" (Burmese "Part 2 ကို …") does not fit.
+  const edge = /^(.+?)\((?:\?:)?([,.:;$](?:\|[,.:;$])*)\)$/s.exec(english.source);
+  if (edge?.[2]!.includes('$')) {
+    const open = inUiPattern(new RegExp(edge[1]!, english.flags));
+    if (open.source !== edge[1]) {
+      const marks = edge[2]!.split('|').map((m) => EDGE_MARKS[m]!);
+      const r = new RegExp(`(?:${open.source})(?:${marks.join('|')})`, english.flags);
+      made.add(r);
+      return r;
+    }
+  }
   // One group of words to choose from ("^Do the consultant (check|review)$"): each choice by itself,
   // a letter that may be left out ("Verses? ") both ways.
   const group = /^(\^?)((?:[^()|\\]|\\.)*)\((?:\?:)?((?:[^()\\]|\\.)*)\)((?:[^()|\\]|\\.)*?)(\$?)$/.exec(english.source);
   const choices = group?.[3]!.split('|').flatMap(spellings);
   if (group && choices!.length > 1 && choices!.every((a) => runs(a).every((r) => r.plain))) {
     const each = choices!.map((a) => inUiPattern(new RegExp(`${group[1]}${group[2]}${a}${group[4]}${group[5]}`, english.flags)));
+    const r = new RegExp(each.map((c) => `(?:${c.source})`).join('|'), english.flags);
+    made.add(r);
+    return r;
+  }
+  // A letter that may be left out outside a group ("^Published \\d+ items?$"): the pattern both ways,
+  // as the app has a line for each ("Published {{count}} item", "… items").
+  const optional = /(?<![\\\p{L}])(\p{L}+?)(\p{L})\?/u.exec(english.source);
+  if (optional && !/[()|]/.test(english.source)) {
+    const [before, after] = [english.source.slice(0, optional.index) + optional[1], english.source.slice(optional.index + optional[0].length)];
+    const each = [before + optional[2] + after, before + after].map((s) => inUiPattern(new RegExp(s, english.flags)));
     const r = new RegExp(each.map((c) => `(?:${c.source})`).join('|'), english.flags);
     made.add(r);
     return r;

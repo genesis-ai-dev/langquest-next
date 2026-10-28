@@ -173,6 +173,19 @@ async function handlesOf(parts: Locator | Locator[]): Promise<ElementHandle[]> {
 }
 
 const centre = (b: Box) => ({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
+
+/** The part of an element that shows: its box cut by the screen and by each box around it that hides what overflows. */
+function shownBox(element: Element): Box {
+  const r = element.getBoundingClientRect();
+  let [left, top, right, bottom] = [Math.max(r.left, 0), Math.max(r.top, 0), Math.min(r.right, innerWidth), Math.min(r.bottom, innerHeight)];
+  for (let e = element.parentElement; e; e = e.parentElement) {
+    const style = getComputedStyle(e);
+    if (style.overflowX === 'visible' && style.overflowY === 'visible') continue;
+    const o = e.getBoundingClientRect();
+    [left, top, right, bottom] = [Math.max(left, o.left), Math.max(top, o.top), Math.min(right, o.right), Math.min(bottom, o.bottom)];
+  }
+  return { x: left, y: top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
+}
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // ---- the film ---------------------------------------------------------------------------
@@ -330,7 +343,7 @@ async function play(step: Step, index: number): Promise<void> {
   const acts = !!(step.tap || step.press || step.drag || step.type || step.paste);
   if (acts && target) {
     const b = (await target.boundingBox())!;
-    const at = step.tapAt?.(b, viewport) ?? centre(b);
+    const at = step.tapAt ? step.tapAt(await target.evaluate(shownBox)) : centre(b);
     await page.evaluate(light, null);
     if (step.press) {
       const shows = step.press(page);
