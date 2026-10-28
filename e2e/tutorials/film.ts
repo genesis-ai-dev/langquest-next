@@ -306,6 +306,7 @@ async function play(step: Step, index: number): Promise<void> {
       await sleep(140);
       if (step.tapAt) await page.mouse.click(at.x, at.y);
       else await target.click();
+      if (step.type && step.replace) await target.selectText();
       if (step.type) await target.pressSequentially(typeof step.type === 'string' ? step.type : step.type(world), { delay: 70 });
       if (step.paste) await target.fill(typeof step.paste === 'string' ? step.paste : step.paste(world));
     }

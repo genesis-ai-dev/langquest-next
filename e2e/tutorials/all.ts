@@ -20,6 +20,7 @@ import { getALanguageReady } from './get-a-language-ready';
 import { showALanguageToThePublic } from './show-a-language-to-the-public';
 import { groupLanguagesIntoACluster } from './group-languages-into-a-cluster';
 import { getTheBlueCheck } from './get-the-blue-check';
+import { shareTemplatesAndFlows } from './share-templates-and-flows';
 import { joinYourTeam } from './join-your-team';
 import { keyWords } from './key-words';
 import { readBiblesBesideAPassage } from './read-bibles-beside-a-passage';
@@ -39,7 +40,7 @@ export const TUTORIALS: Record<string, Tutorial> = Object.fromEntries([
   // Everyone
   joinYourTeam, createAnAccount, findYourWayAround, useTheHelp, workWithoutInternet, chooseTheAppLanguage, yourAccount, reportOrBlockSomeone,
   // Organization heads and admins
-  startAnOrganization, addALanguage, getALanguageReady, inviteYourTeam, letPeopleIn, changeARole, makeARole, showALanguageToThePublic, groupLanguagesIntoACluster, getTheBlueCheck,
+  startAnOrganization, addALanguage, getALanguageReady, inviteYourTeam, letPeopleIn, changeARole, makeARole, showALanguageToThePublic, groupLanguagesIntoACluster, getTheBlueCheck, shareTemplatesAndFlows,
   // Team coordinators and language leads
   setUpTheReviewChecks,
   // Translators

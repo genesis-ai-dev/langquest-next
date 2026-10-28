@@ -27,6 +27,8 @@ export interface Step {
   drag?: { by: { x: number; y: number } } | { to: (page: Page) => Locator };
   /** The finger taps the lit part, then types these words into it, a key at a time. */
   type?: string | ((world: UiWorld) => string);
+  /** What is typed takes the place of what the box had. */
+  replace?: boolean;
   /** The finger taps the lit part, then pastes these words into it at once (a link). */
   paste?: string | ((world: UiWorld) => string);
   /** Off camera, before the step: what changes around the phone (the internet goes, a teammate does something). */
