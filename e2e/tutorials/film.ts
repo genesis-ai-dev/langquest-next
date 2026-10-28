@@ -227,14 +227,25 @@ if (tutorial.before) {
 
 const frames: { file: string; t: number }[] = [];
 let t0 = 0;
-const now = () => (Date.now() - t0) / 1000;
+// Waits the video leaves out (a step's offCamera); one still going ends at Infinity.
+const cuts: { from: number; to: number }[] = [];
+/** Seconds into the video at this moment: a moment inside a cut is where the cut starts. */
+const clock = (at: number) => {
+  let ms = at - t0;
+  for (const c of cuts) ms -= Math.max(0, Math.min(at, c.to) - c.from);
+  return ms / 1000;
+};
+const now = () => clock(Date.now());
 const cdp = await context.newCDPSession(page);
 cdp.on('Page.screencastFrame', (f) => {
   const at = Date.now();
   if (!t0) t0 = at;
+  const t = clock(at);
+  // Inside a cut every frame falls at its start: the last one, what the wait led to, is kept.
+  if (frames.at(-1)?.t === t) frames.pop();
   const file = path.join(out, 'frames', `${String(frames.length).padStart(5, '0')}.jpg`);
   writeFileSync(file, Buffer.from(f.data, 'base64'));
-  frames.push({ file, t: (at - t0) / 1000 });
+  frames.push({ file, t });
   void cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => undefined);
 });
 await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 92, maxWidth: viewport.width * 2, maxHeight: viewport.height * 2, everyNthFrame: 1 });
@@ -312,13 +323,20 @@ async function play(step: Step, index: number): Promise<void> {
     }
     if (step.speak !== undefined) {
       const started = await say(step.speak);
-      spoken.push({ t: (started - t0) / 1000, file: speech[step.speak]!.file });
+      spoken.push({ t: clock(started), file: speech[step.speak]!.file });
     }
   } else if (parts) {
     await page.evaluate(light, null);
   }
   if (step.until) await step.until(page);
   await sleep((DRY ? Math.min(step.stay ?? 0.4, 1) : step.stay ?? 0.4) * 1000);
+  if (step.offCamera) {
+    const cut = { from: Date.now(), to: Infinity };
+    cuts.push(cut);
+    await step.offCamera(page);
+    await sleep(300);
+    cut.to = Date.now();
+  }
   if (DRY) await page.screenshot({ path: path.join(out, 'steps', `${String(index + 1).padStart(2, '0')}.png`) });
 }
 
@@ -340,7 +358,7 @@ await browser.close();
 writeFileSync(path.join(out, 'played.json'), JSON.stringify({ t0, played, audio: [...audio.entries()] }, null, 1));
 const heard = played
   .filter((p) => p.at >= t0 && audio.has(p.id) && p.to > p.from)
-  .map((p) => ({ t: (p.at - t0) / 1000, file: audio.get(p.id)!, from: p.from, to: p.to }));
+  .map((p) => ({ t: clock(p.at), file: audio.get(p.id)!, from: p.from, to: p.to }));
 writeFileSync(path.join(out, 'film.json'), JSON.stringify({
   tutorial: tutorial.id, title: tutorial.title, language: LANGUAGE, end, frames, said, spoken, heard
 }, null, 1));

@@ -39,6 +39,8 @@ export interface Step {
   until?: (page: Page) => Promise<unknown>;
   /** Seconds to stay on the result before the next step. */
   stay?: number;
+  /** After the step, a wait the video leaves out (the server building something): it cuts to what the wait led to. */
+  offCamera?: (page: Page) => Promise<unknown>;
 }
 
 export interface Box { x: number; y: number; width: number; height: number }
