@@ -67,3 +67,17 @@ export function versesHeld(marks: readonly PartMark[], keys: readonly string[]):
   if (labels.length === 0) return null;
   return spanName(keys, Math.min(...labels.map((l) => l.s)), Math.max(...labels.map((l) => l.e)));
 }
+
+/** The verse spaces' width, down the start of every part row. */
+export const VERSE_GUTTER = 64;
+
+/**
+ * Whether a finger at x (on the screen) starts in the verse spaces of the
+ * part list that spans left to left + width: they run down the row's start,
+ * the left side, or the right side when the app reads right to left (where
+ * the left side holds each part's grip).
+ */
+export function inVerseGutter(x: number, left: number, width: number, rtl: boolean): boolean {
+  const from = rtl ? left + width - x : x - left;
+  return from >= 0 && from < VERSE_GUTTER;
+}

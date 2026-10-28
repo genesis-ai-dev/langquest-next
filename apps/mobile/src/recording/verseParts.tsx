@@ -21,7 +21,7 @@ import {
 import type { Ctx } from '../shell/ctx';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
-import { t } from '../i18n';
+import { isRtl, t } from '../i18n';
 import { HelpInfo, Ico, IconBtn, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
@@ -36,13 +36,12 @@ import { useBars } from '../audio/useBars';
 import { PartNotesMark } from '../passage/PartNotes';
 import { CleanUpMark } from './NoiseMark';
 import { useClip } from '../audio/useClip';
-import { partIs, spanName, spanShort } from './verseModel';
+import { inVerseGutter, partIs, spanName, spanShort, VERSE_GUTTER } from './verseModel';
 import { helpBinRow, opensAbove, rowKeys, type RecordTarget, type SlotRow } from './workspaceModel';
 import { partIndexAfter } from './dragModel';
 import { useDragRows } from './useDragRows';
 import { lift } from '../ui/shadow';
 
-const GUTTER = 64;
 /** A range's size, so "49–50" or "100–105" sits whole inside the space beside its part. */
 const rangeFit = (text: string) => ({ fontSize: text.length <= 5 ? T.sm : T.xs - 1, letterSpacing: -0.3 });
 const HOLD_MS = 420;
@@ -100,7 +99,7 @@ export function VerseParts(props: {
   // phone the responder system carries it; on the web, pointer events do,
   // since a Pressable keeps mouse presses from the responder system there.
   const box = useRef<View>(null);
-  const boxLeft = useRef(0);
+  const boxSpan = useRef({ left: 0, width: 0 });
   const rects = useRef<Map<number, { y: number; h: number }>>(new Map());
   const refs = useRef<Map<number, View>>(new Map());
   const slide = useRef<{ armed: boolean; startY: number; last: number; marks: PartMark[] | null; base: PartMark[]; endedAt: number }>(
@@ -110,7 +109,7 @@ export function VerseParts(props: {
   const latest = useRef({ marks, count, disabled, helpOn, save: (_m: PartMark[], _t: string) => {} });
   latest.current = { marks, count, disabled, helpOn, save };
   const measure = () => {
-    box.current?.measureInWindow((x) => { boxLeft.current = x; });
+    box.current?.measureInWindow((x, _y, w) => { boxSpan.current = { left: x, width: w }; });
     for (const [i, view] of refs.current) view.measureInWindow((_x, y, _w, h) => rects.current.set(i, { y, h }));
   };
   const rowAt = (y: number) => { for (const [i, r] of rects.current) if (y >= r.y && y < r.y + r.h) return i; return -1; };
@@ -129,7 +128,7 @@ export function VerseParts(props: {
   };
   const arm = (x: number, y: number) => {
     measure();
-    slide.current = { ...slide.current, armed: !latest.current.disabled && !latest.current.helpOn && x - boxLeft.current >= 0 && x - boxLeft.current < GUTTER, startY: y, last: -1, marks: null };
+    slide.current = { ...slide.current, armed: !latest.current.disabled && !latest.current.helpOn && inVerseGutter(x, boxSpan.current.left, boxSpan.current.width, isRtl()), startY: y, last: -1, marks: null };
   };
   const begin = () => {
     const sl = slide.current;
@@ -219,7 +218,7 @@ export function VerseParts(props: {
   const binRow = helpBinRow(rows);
 
   return (
-    <View ref={box} style={styles.list} onLayout={() => box.current?.measureInWindow((x) => { boxLeft.current = x; })} {...(Platform.OS === 'web' ? {} : responder.panHandlers)}>
+    <View ref={box} style={styles.list} onLayout={() => box.current?.measureInWindow((x, _y, w) => { boxSpan.current = { left: x, width: w }; })} {...(Platform.OS === 'web' ? {} : responder.panHandlers)}>
       {rows.map((r, k) => {
         const key = keys[k]!;
         const moved = drag.offset(key);
@@ -442,10 +441,10 @@ const styles = StyleSheet.create({
   lifted: { zIndex: 10 },
   liftedRow: { backgroundColor: C.card, borderRadius: radius.md, ...lift({ opacity: 0.18, radius: 12, y: 4, elevation: 6 }) },
 
-  gutter: { width: GUTTER, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderColor: C.border },
+  gutter: { width: VERSE_GUTTER, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderColor: C.border },
   // A part's own verse: a soft grey tile with a dark number, so the labels stay quiet beside the parts.
   // Narrow enough for a range ("49–50") to sit inside the 64-point space beside its part.
-  badge: { minWidth: 44, maxWidth: GUTTER - 6, height: 44, paddingHorizontal: 4, borderRadius: radius.md + 2, backgroundColor: TINT.gray, alignItems: 'center', justifyContent: 'center' },
+  badge: { minWidth: 44, maxWidth: VERSE_GUTTER - 6, height: 44, paddingHorizontal: 4, borderRadius: radius.md + 2, backgroundColor: TINT.gray, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontSize: 20, fontWeight: '700', color: C.dark },
   badgeRange: { fontSize: T.base, fontWeight: '700', color: C.dark },
   // More of the verse above: grey like an empty space, but solid and darker, so it reads as labelled.
