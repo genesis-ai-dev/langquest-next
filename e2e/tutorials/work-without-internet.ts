@@ -101,9 +101,14 @@ export const workWithoutInternet: Tutorial = {
     },
     {
       screen: 'workspace',
+      part: (page) => id(page, 'upload-bar'),
+      say: 'When the internet comes back, it uploads by itself. There is nothing to do.'
+    },
+    {
+      // Back online after the line, so the bar is seen saying it is all uploaded before it goes.
+      screen: 'workspace',
       first: (page) => page.context().setOffline(false),
       part: (page) => id(page, 'upload-bar'),
-      say: 'When the internet comes back, it uploads by itself. There is nothing to do.',
       until: (page) => page.getByText('All uploaded', { exact: true }).locator('visible=true').first().waitFor({ timeout: 60_000 }),
       stay: 2.5
     }
