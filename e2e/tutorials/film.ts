@@ -248,7 +248,8 @@ const say = (n: number): Promise<number> =>
 await page.goto(base);
 await page.waitForFunction(() => !!(globalThis as { __langquestLog?: unknown }).__langquestLog, undefined, { timeout: 120_000 });
 if (tutorial.before) {
-  await tutorial.before(page, { say: async (n) => { await say(n); await sleep(speech[n]!.seconds * 1000); } }, world);
+  await tutorial.before(page, { say: async (n) => { await say(n); await sleep(speech[n]!.seconds * 1000); } }, world)
+    .catch(async (error: unknown) => { await keepFailure('failed-before'); throw error; });
 } else {
   const first = tutorial.steps.find((s) => s.part)?.part?.(page);
   if (first) await handlesOf(first).catch(async (error: unknown) => { await keepFailure('failed-start'); throw error; });

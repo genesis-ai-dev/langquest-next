@@ -138,7 +138,7 @@ function filmPattern(line: Line, values: Record<string, string | RegExp>): strin
     const v = values[n];
     if (v === undefined) return '.+?';
     // A number is written in the film language's digits, perhaps grouped ("1.234").
-    if (typeof v === 'string' && /^\d[\d.,]*$/.test(v)) return [...v.replace(/[.,]/g, '')].map((d) => `${DIGIT_OF(d)}[.,\\s\u00a0\u202f\u066c]?`).join('');
+    if (typeof v === 'string' && /^\d[\d.,]*$/.test(v)) return [...v.replace(/[.,]/g, '')].map((d) => `${DIGIT_OF(d)}[.,\\s\u00a0\u202f\u066c\u200e\u200f\u061c]?`).join('');
     return typeof v === 'string' ? escape(v) : `(?:${unanchored(v.source)})`;
   }).join('');
 }
@@ -167,9 +167,17 @@ function inUiText(english: string, depth: number): string | RegExp {
   // on one screen and "Open Version {{n}}" on another), the most particular first.
   // A line of few words of its own ("{{step}} of {{total}}") fits only numbers.
   // A line whose own words are a small part of these ("{{a}} and {{b}}") is a poor fit,
-  // unless it has one value, a long name, say ("{{name}}, active").
-  const fitting = (l: Line) => (l.literal >= words.length / 4 || (l.names.length === 1 && l.literal >= 6)) && (l.literal >= 3 || (l.literal >= 2 && l.pattern.exec(words)!.slice(1).every((v) => /^\d[\d.,]*$/.test(v))));
-  const chosen = lines().filter((l) => l.names.length && l.literal >= 2 && l.pattern.test(words) && fitting(l)).sort((a, b) => b.literal - a.literal).slice(0, 8);
+  // unless it has one value, a long name, say ("{{name}}, active", "Play {{passage}}").
+  const fitting = (l: Line) => (l.literal >= words.length / 4 || (l.names.length === 1 && l.literal >= 4)) && (l.literal >= 3 || (l.literal >= 2 && l.pattern.exec(words)!.slice(1).every((v) => /^\d[\d.,]*$/.test(v))));
+  const fits = lines().filter((l) => l.names.length && l.literal >= 2 && l.pattern.test(words) && fitting(l)).sort((a, b) => b.literal - a.literal);
+  // A value that runs over a sentence's end ("{{n}} languages" in "Kalu Hills. 2 languages")
+  // is a poor fit: the app joins sentences it says apart, so each is looked up by itself first.
+  const whole = fits.filter((l) => !l.pattern.exec(words)!.slice(1).some((v) => v.includes('. ')));
+  if (!whole.length && words.includes('. ')) {
+    const sentences = piecewise(words, '. ');
+    if (sentences !== words) return sentences;
+  }
+  const chosen = (whole.length ? whole : fits).slice(0, 8);
   if (!chosen.length) return english;
   const sources = [...new Set(chosen.map((l) => {
     const got = l.pattern.exec(words)!.slice(1);
@@ -181,12 +189,24 @@ function inUiText(english: string, depth: number): string | RegExp {
   return r;
 }
 
-/** Words in pieces the app puts together ("Translator · Lumari", "Parts 1–4, 4 parts"), each piece looked up by itself. */
+/**
+ * A comma between pieces as the film language writes it ("، " in Arabic), or
+ * as English does: the app joins pieces with its own line for it ("{{title}}, {{sub}}").
+ */
+let commas: string | undefined;
+function comma(): string {
+  if (commas) return commas;
+  const between = lines().filter((l) => /^\{\{[^}]*\}\}, \{\{[^}]*\}\}$/.test(l.en)).map((l) => /^\{\{[^}]*\}\}(.*?)\{\{[^}]*\}\}$/.exec(l.film)?.[1]).filter((c): c is string => !!c);
+  return (commas = `(?:${[...new Set([', ', ...between])].map(escape).join('|')})`);
+}
+const joiner = (between: string) => (between === ', ' ? comma() : escape(between));
+
+/** Words in pieces the app puts together ("Translator · Lumari", "Parts 1–4, 4 parts", "Kalu Hills. 2 languages"), each piece looked up by itself. */
 function piecewise(words: string, between = ' · '): string | RegExp {
   const english = words.split(between);
   const pieces = english.map((p) => (p.trim() ? inUiText(p, 1) : p));
   if (pieces.every((p, i) => p === english[i])) return words;
-  const r = new RegExp(`^${pieces.map((p) => (typeof p === 'string' ? escape(p) : `(?:${unanchored(p.source)})`)).join(between)}$`, 's');
+  const r = new RegExp(`^${pieces.map((p) => (typeof p === 'string' ? escape(p) : `(?:${unanchored(p.source)})`)).join(joiner(between))}$`, 's');
   made.add(r);
   return r;
 }
@@ -258,8 +278,8 @@ function inUiPattern(english: RegExp): RegExp {
   if ((!plain || !(anchored && ended)) && body.includes(', ') && !/[([|]/.test(body)) {
     const each = body.split(', ').map((piece, i, all) =>
       inUiPattern(new RegExp(`${anchored || i > 0 ? '^' : ''}${piece}${ended || i < all.length - 1 ? '$' : ''}`, english.flags)));
-    const joined = each.map((r) => `(?:${unanchored(r.source)})`).join(', ');
-    if (joined.replace(/\(\?:|\)/g, '') !== body) pieces = `${anchored ? '^' : ''}${joined}${ended ? '$' : ''}`;
+    const joined = each.map((r) => `(?:${unanchored(r.source)})`);
+    if (joined.join(', ').replace(/\(\?:|\)/g, '') !== body) pieces = `${anchored ? '^' : ''}${joined.join(comma())}${ended ? '$' : ''}`;
   }
   if (plain || sampled || pieces) {
     const r = new RegExp([plain, sampled, pieces].filter(Boolean).map((x) => `(?:${x})`).join('|').replace(/\\d/g, DIGIT), english.flags);
@@ -300,7 +320,8 @@ function inUiPattern(english: RegExp): RegExp {
     }).join('');
   }
   // Some languages put a space before a percent sign ("34 %").
-  source = source.replace(/(?<!\\)%/g, '[\\s\\u00a0\\u202f]?%');
+  // Arabic has its own sign, and marks that keep the sign beside its number ("34\u200e%\u200e").
+  source = source.replace(/(?<!\\)%/g, '[\\s\\u00a0\\u202f\\u200e\\u200f\\u061c]*[%\\u066a][\\u200e\\u200f\\u061c]*');
   if (source === english.source && !source.includes('\\d')) return english;
   const r = new RegExp(source.replace(/\\d/g, DIGIT), english.flags);
   made.add(r);
