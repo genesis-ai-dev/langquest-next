@@ -167,8 +167,21 @@ function finger(at: { x: number; y: number } | null): void {
 async function handlesOf(parts: Locator | Locator[]): Promise<ElementHandle[]> {
   return Promise.all((Array.isArray(parts) ? parts : [parts]).map(async (p) => {
     await p.waitFor({ state: 'visible', timeout: 30_000 });
+    const handle = (await p.elementHandle())!;
+    // A box that hides what overflows is no scroller a finger can move: it stays as it was
+    // (right to left, it would show a part cut off on the left and shift the whole panel).
+    const held = await handle.evaluateHandle((e) => {
+      const kept: { box: Element; x: number; y: number }[] = [];
+      for (let box = e.parentElement; box; box = box.parentElement) {
+        const style = getComputedStyle(box);
+        if (/hidden|clip/.test(style.overflowX + style.overflowY)) kept.push({ box, x: box.scrollLeft, y: box.scrollTop });
+      }
+      return kept;
+    });
     await p.scrollIntoViewIfNeeded();
-    return (await p.elementHandle())!;
+    await held.evaluate((kept) => { for (const k of kept) { k.box.scrollLeft = k.x; k.box.scrollTop = k.y; } });
+    await held.dispose();
+    return handle;
   }));
 }
 

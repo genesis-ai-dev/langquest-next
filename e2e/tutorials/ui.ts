@@ -78,6 +78,9 @@ function lines(): Line[] {
   return appLines;
 }
 const DIGIT = '[0-9\\u0660-\\u0669\\u06F0-\\u06F9\\u0966-\\u096F\\u09E6-\\u09EF\\u1040-\\u1049\\u0E50-\\u0E59]';
+/** A pattern's `\\d` as any script's digit, inside a set too, where a comma ("[\\d,]") is any language's mark between thousands. */
+const anyDigit = (source: string) => source.replace(/\\d|\\.|\[(?:[^\]\\]|\\.)*\]/g, (m) =>
+  (m === '\\d' ? DIGIT : m.startsWith('\\') ? m : m.replace(/\\d/g, DIGIT.slice(1, -1) + (m.includes(',') ? '.\\s\\u00a0\\u202f\\u066c' : ''))));
 // Where each script's digits start: Arabic, Persian, Devanagari, Bengali, Myanmar, Thai.
 const ZEROS = [0x660, 0x6f0, 0x966, 0x9e6, 0x1040, 0xe50];
 const DIGIT_OF = (d: string) => `[${d}${ZEROS.map((z) => `\\u${(z + Number(d)).toString(16).padStart(4, '0')}`).join('')}]`;
@@ -318,7 +321,7 @@ function inUiPattern(english: RegExp): RegExp {
     if (joined.join(', ').replace(/\(\?:|\)/g, '') !== body) pieces = `${anchored ? '^' : ''}${joined.join(', ')}${ended ? '$' : ''}`;
   }
   if (plain || sampled || pieces) {
-    const r = new RegExp([plain, sampled, pieces].filter(Boolean).map((x) => `(?:${x})`).join('|').replace(/\\d/g, DIGIT), english.flags);
+    const r = new RegExp(anyDigit([plain, sampled, pieces].filter(Boolean).map((x) => `(?:${x})`).join('|')), english.flags);
     made.add(r);
     return r;
   }
@@ -359,7 +362,7 @@ function inUiPattern(english: RegExp): RegExp {
   // Arabic has its own sign, and marks that keep the sign beside its number ("34\u200e%\u200e").
   source = source.replace(/(?<!\\)%/g, '[\\s\\u00a0\\u202f\\u200e\\u200f\\u061c]*[%\\u066a][\\u200e\\u200f\\u061c]*');
   if (source === english.source && !source.includes('\\d')) return english;
-  const r = new RegExp(source.replace(/\\d/g, DIGIT), english.flags);
+  const r = new RegExp(anyDigit(source), english.flags);
   made.add(r);
   return r;
 }
@@ -393,7 +396,7 @@ function bySample(english: RegExp, anchored: boolean, ended: boolean): string | 
     const words = /[^\s\ue000-\uefff]/.test(got);
     const inner = words && nesting < 2 ? (nesting++, inUiPattern(new RegExp(source))) : undefined;
     if (inner) nesting--;
-    const found = inner && inner.source !== source && inner.source !== source.replace(/\\d/g, DIGIT) ? inner : undefined;
+    const found = inner && inner.source !== source && inner.source !== anyDigit(source) ? inner : undefined;
     if (words && !found) unsaid.add(got);
     const r = new RegExp(found ? `(?:${found.source})|(?:${source})` : source);
     made.add(r);
