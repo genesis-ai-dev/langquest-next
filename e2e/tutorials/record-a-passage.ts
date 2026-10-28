@@ -85,7 +85,8 @@ export const recordAPassage: Tutorial = {
       say: 'Tap a part to hear it.',
       help: 'recording.recorder.stoppedHelp',
       tap: true,
-      tapAt: (b) => ({ x: b.x + b.width / 2, y: b.y + 40 }),
+      // The strip ends scrolled to the newest part, which can leave part of the first off the screen: the middle of what shows.
+      tapAt: (b) => ({ x: (Math.max(b.x, 0) + b.x + b.width) / 2, y: b.y + 40 }),
       stay: 5.8
     },
     {
