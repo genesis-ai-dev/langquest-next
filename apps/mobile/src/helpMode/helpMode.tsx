@@ -11,7 +11,7 @@ import { Dimensions, I18nManager, Platform, Pressable, StyleSheet, View } from '
 import Svg, { Circle, Defs, Mask, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '../ui/text';
-import { chooseRows, clipRect, helpLine, litShape, MARK_SIZE, markAt, numberParts, speaks, tooltipPlace, type FirstSeen, type HelpLit, type HelpMark, type HelpMode, type HelpPart, type HelpRect } from './helpContext';
+import { chooseRows, clipRect, helpLine, litShape, MARK_SIZE, markAt, numberParts, speaks, tooltipPlace, voiceFor, type FirstSeen, type HelpLit, type HelpMark, type HelpMode, type HelpPart, type HelpRect } from './helpContext';
 import { HelpContext, HelpLayerContext } from './useHelpMode';
 import { measureDue } from './measureModel';
 import { currentLocale, isRtl, t } from '../i18n';
@@ -35,25 +35,52 @@ function fromLeft(x: number) {
 /** The dimmed screen: the app's dark ink, thin enough that what is under it still reads. */
 const DIM = 'rgba(28,20,64,0.42)';
 
-type Utterance = { lang: string; onend: (() => void) | null; onerror: (() => void) | null };
+type Voice = { lang: string };
+type Utterance = { lang: string; voice: Voice | null; onend: (() => void) | null; onerror: (() => void) | null };
+type Synth = {
+  cancel: () => void;
+  speak: (u: Utterance) => void;
+  getVoices: () => Voice[];
+  addEventListener?: (type: 'voiceschanged', fn: () => void) => void;
+  removeEventListener?: (type: 'voiceschanged', fn: () => void) => void;
+};
 
 /** The browser's own voice, on the web where it has one. */
 function browserVoice() {
   if (Platform.OS !== 'web') return null;
-  const g = globalThis as unknown as { speechSynthesis?: { cancel: () => void; speak: (u: Utterance) => void }; SpeechSynthesisUtterance?: new (text: string) => Utterance };
+  const g = globalThis as unknown as { speechSynthesis?: Synth; SpeechSynthesisUtterance?: new (text: string) => Utterance };
   return g.speechSynthesis && g.SpeechSynthesisUtterance ? { synth: g.speechSynthesis, Utterance: g.SpeechSynthesisUtterance } : null;
 }
 
-/** Read the words aloud in the browser; resolves when it stops, including when anything stops all playback (audioSession.ts). */
-function speakInBrowser(text: string): Promise<void> {
+/** How long to wait for a browser that lists its voices late (Chrome lists none until it has loaded them). */
+const VOICES_WAIT_MS = 1500;
+
+/** The browser voice for the app's language (voiceFor), waiting once for the list to load. */
+function voiceForLocale(): Promise<Voice | undefined> {
   const voice = browserVoice();
-  if (!voice) return Promise.resolve();
+  if (!voice) return Promise.resolve(undefined);
+  const pick = () => { try { return voiceFor(currentLocale(), voice.synth.getVoices()); } catch { return undefined; } };
+  const now = pick();
+  if (now || !voice.synth.addEventListener) return Promise.resolve(now);
+  return new Promise((resolve) => {
+    const done = () => { clearTimeout(timer); voice.synth.removeEventListener?.('voiceschanged', done); resolve(pick()); };
+    const timer = setTimeout(done, VOICES_WAIT_MS);
+    voice.synth.addEventListener?.('voiceschanged', done);
+  });
+}
+
+/** Read the words aloud in the browser; resolves when it stops, including when anything stops all playback (audioSession.ts). */
+async function speakInBrowser(text: string): Promise<void> {
+  const voice = browserVoice();
+  const speaker = await voiceForLocale();
+  if (!voice || !speaker) return;
   return new Promise((resolve) => {
     let unregister = () => {};
     const end = () => { unregister(); resolve(); };
     try {
       const u = new voice.Utterance(text);
-      u.lang = currentLocale();
+      u.lang = speaker.lang;
+      u.voice = speaker;
       u.onend = end;
       u.onerror = end;
       voice.synth.cancel();
@@ -68,10 +95,10 @@ function stopSpeaking() {
   try { browserVoice()?.synth.cancel(); } catch { /* nothing was speaking */ }
 }
 
-/** Whether the play button has something to play: a recording of every line, or the browser's voice. */
+/** Whether the play button has something to play: a recording of every line, or a browser voice for the app's language. */
 async function canSay(label: string, detail?: string): Promise<boolean> {
-  if (browserVoice()) return true;
-  return isRecorded(label, ...(detail ? [detail] : []));
+  if (await isRecorded(label, ...(detail ? [detail] : []))) return true;
+  return !!(await voiceForLocale());
 }
 
 /** What is lit and where: written as parts are measured while help is on, read by the layer that draws it. */
@@ -342,7 +369,7 @@ function HelpLayer(props: {
           const p = { x: Math.max(2, Math.min(frame ? frame.width - MARK_SIZE - 2 : at.x, at.x)), y: Math.max(2, at.y) };
           return (
             <View key={i} testID="help-number" style={[styles.mark, fromLeft(p.x), { top: p.y }, l.part === props.current && styles.markCurrent]}>
-              <Text style={styles.markText}>{formatNumber(num)}</Text>
+              <Text style={styles.markText} maxFontSizeMultiplier={1.5}>{formatNumber(num)}</Text>
             </View>
           );
         })}
@@ -351,9 +378,9 @@ function HelpLayer(props: {
         <View key={part.key} style={[styles.tip, fromLeft(tip.x), { top: tip.y, width: tip.width, opacity: tipHeight ? 1 : 0 }]}
           onLayout={(e) => setTipHeight(e.nativeEvent.layout.height)} accessibilityLiveRegion="polite">
           {tip.below !== null ? <View style={[styles.pointer, tip.below ? { top: -7 } : { bottom: -7 }, fromLeft(tip.arrowX - 7)]} /> : null}
-          <Pressable onPress={props.onClose} accessibilityRole="button" accessibilityLabel={helpLine(part.label, part.detail)}
+          <Pressable onPress={props.onClose} accessibilityRole="button" accessibilityLabel={helpLine(part.label, part.detail)} accessibilityHint={t('help.closeHint')}
             style={({ pressed }) => [styles.tipBody, pressed && { opacity: 0.8 }]}>
-            {n !== undefined ? <View style={styles.tipNumber}><Text style={styles.markText}>{formatNumber(n)}</Text></View> : null}
+            {n !== undefined ? <View style={styles.tipNumber}><Text style={styles.markText} maxFontSizeMultiplier={1.5}>{formatNumber(n)}</Text></View> : null}
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={styles.tipLabel}>{part.label}</Text>
               {part.detail ? <Text style={styles.tipDetail}>{part.detail}</Text> : null}
@@ -384,11 +411,11 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm, paddingLeft: space.md, paddingRight: space.sm, ...lift({ opacity: 0.2, radius: 16, y: 6, elevation: 8 }) },
   pointer: { position: 'absolute', width: 14, height: 14, backgroundColor: C.card, transform: [{ rotate: '45deg' }] },
   tipBody: { flex: 1, minWidth: 0, minHeight: 48, flexDirection: 'row', alignItems: 'flex-start', gap: space.md, paddingVertical: space.xs },
-  mark: { position: 'absolute', minWidth: MARK_SIZE, height: MARK_SIZE, paddingHorizontal: 4, borderRadius: MARK_SIZE / 2, backgroundColor: C.primary,
+  mark: { position: 'absolute', minWidth: MARK_SIZE, minHeight: MARK_SIZE, paddingHorizontal: 4, borderRadius: MARK_SIZE / 2, backgroundColor: C.primary,
     borderWidth: 2, borderColor: C.white, alignItems: 'center', justifyContent: 'center' },
   markCurrent: { backgroundColor: C.dark },
   markText: { fontSize: 13, fontWeight: '800', color: C.white },
-  tipNumber: { minWidth: 24, height: 24, paddingHorizontal: 4, borderRadius: 12, marginTop: 1, backgroundColor: C.dark, alignItems: 'center', justifyContent: 'center' },
+  tipNumber: { minWidth: 24, minHeight: 24, paddingHorizontal: 4, borderRadius: 12, marginTop: 1, backgroundColor: C.dark, alignItems: 'center', justifyContent: 'center' },
   tipLabel: { fontSize: 17, lineHeight: 23, fontWeight: '700', color: C.dark },
   tipDetail: { fontSize: 15, lineHeight: 21, color: C.dark, marginTop: 2 },
   play: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }

@@ -94,8 +94,11 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   // The steps this screen showed before, so a phone's Back retraces them (decision 137).
   const [trail, setTrail] = useState<number[]>([]);
   // Back: from Bible, Key words or Notes to the guide, as "Back to the guide" does; then the step before; then out.
+  // Where the footer and Back return to from a chip: the chip a key word's headphones came from, else the guide (UI audit, finding 41).
+  const [backChip, setBackChip] = useState<RefChip | null>(null);
+  const pickChip = (c: RefChip) => { setBackChip(null); setChip(c); };
   useHardwareBack(chipState !== 'guide' || trail.length > 0, () => {
-    if (chipState !== 'guide') { setChip('guide'); return; }
+    if (chipState !== 'guide') { pickChip(backChip ?? 'guide'); return; }
     setIndexState(trail[trail.length - 1] ?? null);
     setTrail(trail.slice(0, -1));
   });
@@ -127,9 +130,9 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   const chip = chipIds.includes(chipState) ? chipState : 'guide';
   const chips: ChipItem<RefChip>[] = chipIds.map((c) => ({
     guide: { id: 'guide' as const, label: t('study.screen.chips.guide'), icon: 'star' as const, hint: t('study.screen.chips.guideHint') },
-    bible: { id: 'bible' as const, label: t('study.screen.chips.bible'), icon: 'listen' as const, hint: t('study.screen.chips.bibleHint') },
+    bible: { id: 'bible' as const, label: t('study.screen.chips.bible'), icon: 'book' as const, hint: t('study.screen.chips.bibleHint') },
     terms: { id: 'terms' as const, label: t('study.screen.chips.terms'), icon: 'key' as const, hint: t('study.screen.chips.termsHint') },
-    notes: { id: 'notes' as const, label: t('study.screen.chips.notes'), icon: 'chat' as const, count: notes.length, hint: t('study.screen.chips.notesHint') },
+    notes: { id: 'notes' as const, label: t('study.screen.chips.notes'), icon: 'note' as const, count: notes.length, hint: t('study.screen.chips.notesHint') },
     earlier: { id: 'earlier' as const, label: t('study.screen.chips.earlier'), icon: 'clock' as const }
   })[c]);
   const openTerm = (termId: string) => ctx.go('key_term_detail', { ...scope, termId });
@@ -165,8 +168,9 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
 
   const allDone = !sp.next;
   const recorded = v.p.versions.length > 0;
+  const backTo = chips.find((c) => c.id === backChip && c.id !== chip && c.id !== 'guide');
   const footer = chip !== 'guide' ? (
-    <PrimaryBtn label={t('study.screen.backToGuide')} icon="arrowL" onPress={() => setChip('guide')} />
+    <PrimaryBtn label={backTo ? t('study.screen.backTo', { chip: backTo.label }) : t('study.screen.backToGuide')} icon="arrowL" onPress={() => pickChip(backTo?.id ?? 'guide')} />
   ) : canStudy && !status.done ? (
     <PrimaryBtn label={t('study.screen.doneWithStep')} icon="check" help={t('study.screen.doneWithStepHelp')} onPress={() => void done()} />
   ) : (
@@ -207,7 +211,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   return (
     <Screen fixed footer={footer}
       header={<Header title={v.title} sub={t('study.screen.study')} onBack={ctx.back} close />}>
-      <RefChips items={chips} value={chip} onChange={setChip} />
+      <RefChips items={chips} value={chip} onChange={pickChip} />
       {chip === 'guide' ? <GuideNav ctx={ctx} sp={sp} index={index} onIndex={setIndex} sheetFooter={sheetFooter} /> : null}
       <HelpClip style={{ flex: 1 }}>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
@@ -219,7 +223,12 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
               onTerm={openTerm} onMoreBibles={() => ctx.go('bible_explore', scope)} />
           ) : chip === 'terms' ? (
             <KeyWordsPane ctx={ctx} v={v} terms={terms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} bibleLanguage={bible.option?.language} draftTakeId={v.p.draftTakeId} canTie={false}
-              onHear={(key) => { setChip('bible'); if (key) { setVerse(key); bible.playVerse(key); } }} />
+              canHear={chipIds.includes('bible') && bible.timed && !bible.audioAbsent}
+              onHear={(key) => {
+                if (!bible.playVerse(key)) return false;
+                setBackChip('terms'); setChip('bible'); setVerse(key);
+                return true;
+              }} />
           ) : (
             <NotesPane ctx={ctx} v={v} notes={notes} canAdd={canContribute} />
           )}

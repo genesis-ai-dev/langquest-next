@@ -127,7 +127,8 @@ describe('the passage path (decision 71)', () => {
     l.run('ayen', (c) => c.depart({ commandId: 'd1', unitId: 'luk15', type: 'skip', kindId: 'bt', reason: 'No bilingual speaker yet.' }));
     const team = teamSteps(l.input('akol'));
     expect(team[0]).toMatchObject({ kindId: 'peer', state: 'done', status: 'looks good' });
-    expect(team[1]).toMatchObject({ kindId: 'bt', state: 'done', status: 'set aside' });
+    // Set aside is behind the passage too, but never looks like a check that passed (UI audit, finding 86).
+    expect(team[1]).toMatchObject({ kindId: 'bt', state: 'setAside', status: 'set aside' });
     expect(team[2]).toMatchObject({ kindId: 'community', state: 'todo', status: 'next' });
     expect(team[3]).toMatchObject({ status: 'after the community check' });
   });

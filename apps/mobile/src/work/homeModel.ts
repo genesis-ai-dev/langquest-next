@@ -69,6 +69,21 @@ export function workTarget(kind: WorkKind): WorkTarget {
   }
 }
 
+/**
+ * Where an Inbox update opens: a check still asked of this person opens the
+ * check itself, as the same request does on My Work (decision 93; UI audit,
+ * finding 111); anything else opens the passage.
+ */
+export function updateTarget(
+  u: { kind: string; request?: { status: string; what: string; kindId?: string } },
+  produces: (kindId: string) => boolean,
+  canReview: boolean
+): WorkTarget {
+  const r = u.request;
+  if (u.kind !== 'request' || !r || r.status !== 'open' || r.what !== 'review' || !canReview) return 'passage';
+  return r.kindId && produces(r.kindId) ? 'back_translation' : 'review';
+}
+
 /** The tile a row reads by: mic to record, amber chat for feedback, check for a check, globe to back-translate. */
 export function workIcon(kind: WorkKind): { icon: 'mic' | 'chat' | 'check' | 'globe'; tone: 'brand' | 'amber' } {
   switch (kind) {
@@ -154,20 +169,21 @@ export function undecided<T extends { id: string }>(rows: readonly T[], decided:
 /**
  * Unread updates for this person in the organization's other languages, by
  * language: not the open one, not another organization's, not ones with no
- * language, not the ones already read.
+ * language, not the ones already read. With their ids, so switching marks
+ * them read: the open language's own Inbox lists them from then on.
  */
 export function elsewhereCounts(
   rows: readonly { id: string; org_id: string; language_id?: string | null }[],
   read: ReadonlySet<string>,
   orgId: string,
   open: string | null | undefined
-): { languageId: string; count: number }[] {
-  const counts = new Map<string, number>();
+): { languageId: string; count: number; ids: string[] }[] {
+  const ids = new Map<string, string[]>();
   for (const r of rows) {
     if (r.org_id !== orgId || !r.language_id || r.language_id === open || read.has(r.id)) continue;
-    counts.set(r.language_id, (counts.get(r.language_id) ?? 0) + 1);
+    ids.set(r.language_id, [...(ids.get(r.language_id) ?? []), r.id]);
   }
-  return [...counts].map(([languageId, count]) => ({ languageId, count }));
+  return [...ids].map(([languageId, of]) => ({ languageId, count: of.length, ids: of }));
 }
 
 /**
@@ -178,4 +194,18 @@ export function elsewhereCounts(
 export function divideSub(o: { wayName: string | null; book: string; waiting: number; bookByBook: boolean }): string {
   const why = o.wayName && !o.bookByBook ? t('work.divide.leftOut', { way: o.wayName, book: o.book }) : null;
   return !why ? t('work.divide.waiting', { count: o.waiting }) : o.waiting > 1 ? `${why} ${t('work.divide.more', { count: o.waiting - 1 })}` : why;
+}
+
+/**
+ * Why My Work has nothing, before it says "Nothing is waiting on you" (UI
+ * audit, finding 79): the open language is not on this phone yet and there
+ * is no connection to bring it (the Map's own rule, MAP-033), or it has no
+ * passages yet because nobody has set it up. Otherwise null: it really is
+ * caught up. Get ready leads for an admin, so it is never "not set up" then.
+ */
+export function workEmpty(o: { open: string | null; pulled: boolean; online: boolean | null; loaded: boolean; passages: number; gettingReady: boolean }): 'notHere' | 'noPassages' | null {
+  if (!o.open) return null;
+  // mapModel's needsConnection, for the open language (mapModel reads this file, so not imported from there).
+  if (!o.pulled && o.online === false && (!o.loaded || o.passages === 0)) return 'notHere';
+  return o.loaded && o.passages === 0 && !o.gettingReady ? 'noPassages' : null;
 }

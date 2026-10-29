@@ -6,6 +6,8 @@ import { t } from '../i18n';
 import { noteExpected } from '../diagnostics/report';
 import { C, radius, space, type as T } from '../ui/theme';
 import { updateFailure, updateStatus } from './updateStatus';
+import { isRecording } from '../recording/recorderState';
+import { useIsRecording } from '../recording/useIsRecording';
 
 /**
  * One line at the top of the app saying where an OTA update has got to, and
@@ -13,6 +15,9 @@ import { updateFailure, updateStatus } from './updateStatus';
  * silent and the swap happens at an arbitrary later cold start. A check or
  * download that failed shows nothing (decisions.md 166): diagnostics hear
  * why, and the next return to the app looks again.
+ *
+ * While a take is being recorded or saved, the ready line goes quiet and
+ * restarts nothing: a restart would cut the take off (UI audit, finding 26).
  *
  * It also re-checks when the app comes back to the foreground: a device that
  * lives in a pocket between sessions may go days without a cold start, which
@@ -43,21 +48,22 @@ export function UpdateBanner() {
     return () => sub.remove();
   }, [check, pending]);
 
+  const recording = useIsRecording();
   const onPress = useCallback(() => {
-    if (status?.action === 'restart') void Updates.reloadAsync().catch((e: unknown) => noteExpected('update reload', e));
+    if (status?.action === 'restart' && !isRecording()) void Updates.reloadAsync().catch((e: unknown) => noteExpected('update reload', e));
   }, [status?.action]);
 
   if (!status) return null;
-  const ready = status.kind === 'ready';
+  const ready = status.kind === 'ready' && !recording;
   const body = (
     <View style={[styles.banner, ready ? styles.ready : styles.quiet]}>
       {status.kind === 'busy' ? <ActivityIndicator size="small" color={C.muted} /> : null}
       <Text style={[styles.text, ready && styles.readyText]}>
-        {status.text}
+        {status.action && recording ? t('account.update.afterRecording') : status.text}
       </Text>
     </View>
   );
-  if (!status.action) return body;
+  if (!status.action || recording) return body;
   return (
     // help-ignore: above the screens and the help layer (App.tsx); its words say what tapping does
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={status.text}>

@@ -16,6 +16,7 @@ import { Chip, GhostBtn, HelpInfo, Ico, LinkBtn, PrimaryBtn, Sheet } from '../ui
 import { txt } from '../ui/textStyles';
 import { CheckRow, ChoiceCard, Pills } from '../admin/admin';
 import { alsoUsedLine } from './templateNames';
+import { joinAnd } from '../admin/adminModel';
 import type { BookChangeSheet } from './useBookChange';
 import { C, radius, space, TINT } from '../ui/theme';
 import {
@@ -205,9 +206,10 @@ export function LessonSheet(props: { visible: boolean; onClose: () => void; wayD
 export function BookChangeSheets({ s }: { s: BookChangeSheet }) {
   return (
     <>
-      <RedoSheet visible={s.warn} book={s.bookName} busy={s.busy} onClose={s.closeWarn} onConfirm={s.confirmRedo} />
+      <RedoSheet visible={s.warn} book={s.bookName} busy={s.busy} onClose={s.closeWarn} onConfirm={s.confirmRedo} also={s.also}
+        {...(s.recorded !== undefined ? { recorded: s.recorded } : {})} />
       {s.users && s.asking ? (
-        <ApplySheet visible={s.asking} users={s.users} here={s.here} busy={s.busy} onClose={s.closeAsk} onApply={s.apply}>
+        <ApplySheet visible={s.asking} users={s.users} here={s.here} busy={s.busy} onClose={s.closeAsk} onApply={s.apply} {...(s.redo ? { redoBook: s.bookName } : {})}>
           <Text style={txt.body}>{alsoUsedLine(s.others, s.bookName)}</Text>
         </ApplySheet>
       ) : null}
@@ -222,6 +224,8 @@ export function BookChangeSheets({ s }: { s: BookChangeSheet }) {
  */
 export function ApplySheet(props: {
   visible: boolean; users: TemplateUser[]; here: string; busy: boolean; onClose: () => void; onApply: (chosen: Set<string>) => void; children?: ReactNode;
+  /** The book being divided again: each language ticked moves its recordings on it too, and its row says so. */
+  redoBook?: string;
 }) {
   const [chosen, setChosen] = useState<Set<string>>(() => new Set([props.here]));
   const others = props.users.filter((u) => u.languageId !== props.here);
@@ -236,7 +240,7 @@ export function ApplySheet(props: {
         {others.map((u, i) => (
           <HelpRow key={u.languageId} of="breakup.applyLanguage">
             <CheckRow label={u.name} sub={u.mayChange ? undefined : t('breakup.apply.cannotChange')} checked={chosen.has(u.languageId)} disabled={!u.mayChange}
-              detail={t('breakup.apply.otherDetail', { language: u.name })}
+              detail={props.redoBook ? t('breakup.apply.otherDetailRedo', { language: u.name, book: props.redoBook }) : t('breakup.apply.otherDetail', { language: u.name })}
               last={i === others.length - 1}
               onToggle={() => setChosen((cur) => { const next = new Set(cur); if (next.has(u.languageId)) next.delete(u.languageId); else next.add(u.languageId); return next; })} />
           </HelpRow>
@@ -256,17 +260,36 @@ export function ApplySheet(props: {
  * and needs doing again; that includes recordings on phones that have not
  * synced. Nothing is deleted.
  */
-export function RedoSheet(props: { visible: boolean; book: string; busy: boolean; onClose: () => void; onConfirm: () => void; numbering?: boolean }) {
+export function RedoSheet(props: {
+  visible: boolean; book: string; busy: boolean; onClose: () => void; onConfirm: () => void; numbering?: boolean;
+  /**
+   * This language's sections of the book with recordings on this phone, when
+   * known: the warning says what it costs here, and is amber when nothing
+   * recorded has reached the phone (UI audit, finding 53). It is asked all the
+   * same: recordings still on phones cannot be counted (decision 74).
+   */
+  recorded?: number;
+  /** Other languages changing with it, by name. */
+  also?: string[];
+}) {
+  const known = !props.numbering && props.recorded !== undefined;
+  const calm = known && props.recorded === 0;
+  const body = props.numbering ? t('breakup.redo.bodyNumbering')
+    : !known ? t('breakup.redo.bodyBook', { book: props.book })
+    : calm ? t('breakup.redo.bodyNoneHere', { book: props.book })
+    : t('breakup.redo.bodyRecorded', { count: props.recorded!, book: props.book });
+  const also = props.also ?? [];
   return (
     <Sheet visible={props.visible} title={props.numbering ? t('breakup.redo.titleNumbering') : t('breakup.redo.titleBook', { book: props.book })} onClose={props.onClose}
       footer={<>
-        <PrimaryBtn label={t('breakup.redo.changeAnyway')} tone="red" busy={props.busy} onPress={props.onConfirm} />
+        <PrimaryBtn label={also.length ? t('breakup.apply.changeFor', { count: also.length + 1 }) : t('breakup.redo.changeAnyway')} tone={calm ? 'amber' : 'red'} busy={props.busy} onPress={props.onConfirm} />
         <GhostBtn label={t('breakup.redo.keep')} icon="close" help={t('help.details.cancel')} onPress={props.onClose} />
       </>}>
-      <View style={styles.danger}>
-        <Ico name="flag" size={28} color={TINT.redText} />
+      <View style={[styles.danger, calm && { backgroundColor: TINT.amber }]}>
+        <Ico name="flag" size={28} color={calm ? TINT.amberText : TINT.redText} />
       </View>
-      <Text style={txt.body}>{props.numbering ? t('breakup.redo.bodyNumbering') : t('breakup.redo.bodyBook', { book: props.book })}</Text>
+      <Text style={txt.body}>{body}</Text>
+      {also.length ? <Text style={txt.body}>{t('breakup.redo.alsoLanguages', { languages: joinAnd(also), book: props.book })}</Text> : null}
       <Text style={txt.smMuted}>{t('breakup.redo.nothingDeleted')}</Text>
     </Sheet>
   );

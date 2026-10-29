@@ -46,7 +46,7 @@ export function useChecksUndo(ctx: Ctx) {
       AccessibilityInfo.announceForAccessibility(step.what ? t(which === 'undo' ? 'common.undoneWhat' : 'common.redoneWhat', { what: step.what })
         : which === 'undo' ? t('common.undone') : t('translate.redone'));
     } catch (e) {
-      ctx.toast(t(which === 'undo' ? 'common.notUndone' : 'common.notSaved', { reason: failureMessage(`checks: ${which}`, e) }));
+      ctx.toast(t(which === 'undo' ? 'common.notUndone' : 'common.notSaved', { reason: failureMessage(`checks: ${which}`, e) }), 'problem');
     } finally { setBusy(false); }
   }
   const lastDone = history.done[history.done.length - 1];

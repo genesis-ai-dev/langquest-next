@@ -22,6 +22,12 @@ export async function requestPushToken(): Promise<string> {
   })).data;
 }
 
+/** Whether this phone lets the app notify: yes, refused for good (only the phone's settings change it), or it may still ask. */
+export async function pushPermission(): Promise<'granted' | 'blocked' | 'ask'> {
+  const p = await Notifications.getPermissionsAsync();
+  return p.granted ? 'granted' : p.canAskAgain === false ? 'blocked' : 'ask';
+}
+
 /** Calls `open` with the Inbox row's id for the notification that launched the app, and for each one tapped while it runs. */
 export function onNotificationOpened(open: (notificationId: string) => void): () => void {
   const receive = (response: Notifications.NotificationResponse | null) => {

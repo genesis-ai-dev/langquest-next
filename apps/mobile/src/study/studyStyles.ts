@@ -28,8 +28,6 @@ export const styles = StyleSheet.create({
   selected: { backgroundColor: withAlpha(C.primary, 0.07), borderWidth: 1.5, borderColor: withAlpha(C.primary, 0.38) },
   count: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 5, backgroundColor: onColor.amber, alignItems: 'center', justifyContent: 'center', marginTop: 3 },
   countText: { fontSize: T.xs, fontWeight: '800', color: C.white },
-  addBtn: { alignSelf: 'flex-start', minHeight: target.min, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', gap: space.sm,
-    paddingHorizontal: space.lg, marginTop: space.xs, marginBottom: space.xs, backgroundColor: onColor.amber },
   where: { backgroundColor: C.card, borderLeftWidth: 3, borderColor: C.primary, borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: space.sm },
   imageWrap: { borderRadius: radius.lg, overflow: 'hidden', backgroundColor: TINT.gray },
   image: { width: '100%', aspectRatio: 4 / 3, backgroundColor: TINT.gray },

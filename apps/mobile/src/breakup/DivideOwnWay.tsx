@@ -19,8 +19,8 @@ import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { formatNumber } from '../i18n/format';
-import { Field, Group, Header, Ico, PrimaryBtn, QuietLinks, Row, Screen, Sheet, type IconName } from '../ui/kit';
+import { formatDayTime, formatNumber } from '../i18n/format';
+import { Field, Group, Header, Ico, LinkBtn, PrimaryBtn, QuietLinks, Row, Screen, Sheet, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { SavedMark } from '../ui/SavedMark';
 import { UndoRedo } from '../ui/undoRedo';
@@ -44,6 +44,7 @@ import { isItself } from './model';
 import { useWays } from './useBreakup';
 import { useBookText } from './useBookText';
 import { useHardwareBack } from '../ui/useHardwareBack';
+import { a11yState } from '../ui/a11yModel';
 
 /** A dashed line where at least this many of the 20 Bibles start a section. */
 const SUGGEST = 10;
@@ -78,6 +79,8 @@ type Panel = null | 'bible' | 'jump' | 'from' | 'helps' | { section: At };
 export function DivideOwnWay(props: {
   ctx: Ctx; book: string; bookName: string; doc: TemplateDoc; v11n: VersificationDoc | null; fallbackVerses: readonly number[];
   item: LibraryItemView | null; redo: boolean; onClose: () => void; onDone: () => void;
+  /** The language's sections of the book recorded on this phone, for the warning (RedoSheet). */
+  recorded?: number;
   /** In the template editor (decision 107): take the book's new sections instead of changing the language's template. */
   apply?: (way: TemplateDoc, note: string, said: string) => void;
 }) {
@@ -125,7 +128,8 @@ export function DivideOwnWay(props: {
   const text = useBookText(ctx, book, maxVerses);
   const helps = useBookHelps(ctx, book, props.v11n);
   const change = useBookChange(ctx, {
-    book, bookName, doc: props.doc, item: props.item, redo: props.redo, onDone: () => { void draft.clear(); props.onDone(); }
+    book, bookName, doc: props.doc, item: props.item, redo: props.redo, onDone: () => { void draft.clear(); props.onDone(); },
+    ...(props.recorded !== undefined ? { recorded: props.recorded } : {})
   });
   const onViewable = useRef(({ viewableItems }: { viewableItems: { item: number }[] }) => { if (viewableItems[0]) setInView(viewableItems[0].item); }).current;
 
@@ -143,6 +147,17 @@ export function DivideOwnWay(props: {
     setHistory(step.history);
     setSel(null);
     if (step.what) AccessibilityInfo.announceForAccessibility(t(which === 'undo' ? 'common.undoneWhat' : 'common.redoneWhat', { what: step.what }));
+  };
+  // A draft kept from an earlier visit is drawn over the book as it is now (finding 52 of the
+  // UI audit): a line says so until the first change, and Start over puts the book back. Undo
+  // brings the draft's sections back.
+  const restored = draft.restoredAt !== null && draft.value.starts.length > 0 && history.done.length === 0;
+  const startOver = () => {
+    const said = t('breakup.own.startFromNow');
+    setHistory((h) => didStep(h, { before: [...starts].sort(), after: [...was.starts].sort(), what: said }));
+    draft.set(EMPTY_OWN_WAY);
+    setSel(null);
+    AccessibilityInfo.announceForAccessibility(said);
   };
   const lastDone = history.done[history.done.length - 1];
   const lastUndone = history.undone[history.undone.length - 1];
@@ -232,6 +247,13 @@ export function DivideOwnWay(props: {
               <Ico name="cut" size={14} color={C.muted} />
               <Text style={[txt.xs, { flex: 1 }]}>{t('breakup.own.key', { total: formatNumber(BIBLES_COUNTED) })}</Text>
             </View>
+            {restored && draft.restoredAt !== null ? (
+              <View style={styles.key}>
+                <Ico name="history" size={14} color={TINT.amberText} />
+                <Text style={[txt.xs, { flex: 1 }]}>{t('breakup.own.restored', { when: formatDayTime(draft.restoredAt) })}</Text>
+                <LinkBtn label={t('breakup.own.startFromNow')} help={t('breakup.own.startFromNowHelp')} onPress={startOver} />
+              </View>
+            ) : null}
             {text.loading ? <Text style={txt.smMuted}>{t('breakup.own.loadingText', { book: bookName })}</Text>
               : text.byAt.size === 0 ? <Text style={txt.smMuted}>{text.problem ?? t('breakup.own.noText', { book: bookName })}</Text> : null}
           </View>
@@ -497,7 +519,7 @@ function JumpTile(props: { c: number; n: number; here: boolean; onPress: () => v
 function PaneTab(props: { label: string; detail: string; on: boolean; onPress: () => void }) {
   const spot = useHelpSpot(props.label, props.detail, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="tab" accessibilityState={{ selected: props.on }}
+    <Pressable onPress={spot.onPress} accessibilityRole="tab" {...a11yState({ selected: props.on }, 'tab')}
       style={[styles.tab, props.on && styles.tabOn]}>
       <Text style={[txt.sm, { fontWeight: '800', color: props.on ? C.card : C.dark }]}>{props.label}</Text>
       <HelpBadge spot={spot} />
@@ -531,7 +553,7 @@ function Pill(props: { icon?: IconName; label: string; help?: boolean; down?: bo
   const color = props.help ? TINT.amberText : C.dark;
   const spot = useHelpSpot(props.label, props.detail, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={props.on === undefined ? undefined : { expanded: props.on }}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label} {...a11yState(props.on === undefined ? undefined : { expanded: props.on }, 'button')}
       style={({ pressed }) => [styles.pill, props.help && styles.pillHelp, pressed && { opacity: 0.7 }]}>
       {props.icon ? <Ico name={props.icon} size={16} color={color} /> : null}
       <Text style={[txt.sm, { fontWeight: '700', color, flexShrink: 1 }]}>{props.label}</Text>

@@ -3,7 +3,7 @@ import { chapterStage, chapterTone, type PassageFacts } from '../src/reference/c
 import { needsConnection, openableLanguages } from '../src/map/mapModel';
 import { EDGES } from '../src/shell/flow';
 import { edgeAllowed, tabsFor } from '../src/shell/session';
-import { nextSub, readiness, readySteps, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat } from '../src/work/homeModel';
+import { nextSub, readiness, readySteps, updateTarget, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat } from '../src/work/homeModel';
 import { offlineCount } from '../src/account/meModel';
 import { inSeveral } from '../src/account/model';
 import { roleSession } from './sessions';
@@ -34,6 +34,17 @@ describe('the simple My Work (decision 71)', () => {
     expect(workTarget('respond')).toBe('passage');
     expect(workTarget('review')).toBe('review');
     expect(workTarget('produce')).toBe('back_translation');
+  });
+
+  it('opens a check asked in the Inbox as My Work does, and anything else at the passage (UI audit, finding 111)', () => {
+    const produces = (kindId: string) => kindId === 'bt';
+    const asked = (what: string, status = 'open', kindId = 'peer') => ({ kind: 'request', request: { what, status, kindId } });
+    expect(updateTarget(asked('review'), produces, true)).toBe('review');
+    expect(updateTarget(asked('review', 'open', 'bt'), produces, true)).toBe('back_translation');
+    expect(updateTarget(asked('review', 'withdrawn'), produces, true)).toBe('passage');
+    expect(updateTarget(asked('record'), produces, true)).toBe('passage');
+    expect(updateTarget(asked('review'), produces, false)).toBe('passage');
+    expect(updateTarget({ kind: 'review' }, produces, true)).toBe('passage');
   });
 
   it('reads each row by its tile: mic, amber chat, check, globe', () => {

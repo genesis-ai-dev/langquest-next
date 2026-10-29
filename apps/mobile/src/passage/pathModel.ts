@@ -32,7 +32,13 @@ export interface TeamStep {
   name: string;
   /** "after you publish", "asked Mary", "needs changes", "looks good". */
   status: string;
-  state: 'done' | 'attention' | 'waiting' | 'todo' | 'locked';
+  /**
+   * `done` only for a check that passed or whose feedback was answered; a
+   * check set aside, or a checkpoint moved past without it, is behind the
+   * passage too but did not pass, and never looks as if it had (UI audit,
+   * finding 86).
+   */
+  state: 'done' | 'setAside' | 'movedPast' | 'attention' | 'waiting' | 'todo' | 'locked';
   checkpoint: boolean;
 }
 
@@ -162,9 +168,13 @@ export function teamSteps(input: PathInput): TeamStep[] {
       // A checkpoint clears only with approval given in the app (decision 72; core derivePassage), so a check
       // logged afterwards leaves it open; moving past it (an override) is done for the path, though core never counts it complete.
       const kindDone = kindCleared(k, s);
-      if (s.complete || s.override || kindDone) {
-        state = 'done';
-        status = s.override && !kindDone ? t('passage.path.status.movedPast') : k.state === 'skipped' ? t('passage.path.status.setAside')
+      // A step still behind an earlier checkpoint waits for it, even moved past or logged (UI audit, finding 91).
+      const behind = !!s.lockedBy && !s.complete;
+      if (!behind && (s.complete || s.override || kindDone)) {
+        const movedPast = !!s.override && !kindDone;
+        state = movedPast ? 'movedPast' : k.state === 'skipped' ? 'setAside' : 'done';
+        status = movedPast ? (s.override?.reason ? t('passage.path.status.movedPastWhy', { reason: s.override.reason }) : t('passage.path.status.movedPast'))
+          : k.state === 'skipped' ? t('passage.path.status.setAside')
           : k.state === 'addressed' ? t('passage.path.status.answered') : t('passage.path.status.looksGood');
       } else if (k.state === 'suggestions') {
         state = 'attention'; status = t('passage.path.status.needsChanges');

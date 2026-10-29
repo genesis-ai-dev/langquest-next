@@ -20,6 +20,7 @@ import { C, radius, space, target } from '../ui/theme';
 import { partLabel } from './model';
 import { styles as ps } from './blockStyles';
 import { lift } from '../ui/shadow';
+import { a11yState } from '../ui/a11yModel';
 
 /**
  * Half a + mark's 48 pt target, centred on the card's right edge: every row
@@ -41,7 +42,7 @@ export function GapSlot(props: { n: number; tile?: ReactNode; chosen: boolean; d
   const spot = useHelpSpot(t('recording.recorder.recordInGap', { part: name }), props.chosen ? t('recording.recorder.nextCardHelp') : t('recording.recorder.gapHelp'), props.onPress);
   return (
     <View style={[styles.place, !props.first && styles.rowBorder]}>
-      <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: props.chosen }}
+      <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" {...a11yState({ selected: props.chosen }, 'button')}
         // The web reads only the aria prop: react-native-web drops accessibilityState.selected.
         aria-selected={props.chosen}
         accessibilityLabel={t('recording.recorder.recordInGap', { part: name })}

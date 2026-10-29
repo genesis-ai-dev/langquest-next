@@ -62,6 +62,16 @@ async function startCheck(page: Page, key: Parameters<typeof openRecord>[2], che
   await expect(text(page, /^Version \d+ · recorded by (you|Tom|Trevor)$/)).toBeVisible();
 }
 
+/** Keep the open passage on this device, so its version plays offline: Listen waits for audio that can play (UI audit, finding 9). */
+async function keepOnDevice(page: Page): Promise<void> {
+  const line = byId(page, 'passage-offline');
+  await expect(async () => {
+    const label = (await line.getAttribute('aria-label')) ?? '';
+    if (/^Download for offline/.test(label)) await line.click();
+    expect(label).toMatch(/^On this device/);
+  }).toPass({ timeout: 60_000 });
+}
+
 /** Tap a big microphone, let the file voice speak, then stop. */
 async function speakInto(page: Page, mic: string, ms = 3500): Promise<void> {
   await button(page, mic).click();
@@ -179,7 +189,8 @@ test('REV-005 Needs changes, said and typed @p0', async ({ page, browser }) => {
   await expect(byId(page, 'header-back')).toBeVisible();
   await expect(button(page, /^Listen, /)).toHaveCount(0);
   await expect(primary(page)).toHaveText('Send feedback');
-  await expect(primary(page)).toBeDisabled();
+  // The note already says what should change (UI audit, finding 5).
+  await expect(primary(page)).toBeEnabled();
   await speakInto(page, 'Tap and speak');
   await expect(button(page, /^Play Your feedback, \d+:\d\d$/)).toBeVisible();
   await expect(button(page, 'Record again')).toBeVisible();
@@ -428,6 +439,10 @@ test('REV-014 Back to an earlier stage keeps the answers', async ({ page }) => {
   await primary(page).click();
   await expect(text(page, 'Does it carry the meaning?')).toBeVisible();
   await button(page, 'Questions, done. Go back').click();
+  // Back at the question last shown, not the first (UI audit, finding 11); Previous question walks back to it.
+  await expect(page.getByRole('heading', { name: 'Does it carry the meaning of the original?' }).locator('visible=true')).toBeVisible();
+  await expect(radio(page, 'Yes')).toBeChecked();
+  for (let i = 0; i < 3; i++) await button(page, 'Previous question').click();
   await expect(text(page, 'How well does this draft hold up against the source in the hardest verses?')).toBeVisible();
   await expect(radio(page, '4')).toBeChecked();
   await button(page, 'Listen, done. Go back').click();
@@ -545,6 +560,7 @@ test('REV-022 Review offline', async ({ page, context }) => {
   await open(page, world(), 'REV');
   await startCheck(page, 'P-S');
   await byId(page, 'header-close').click();
+  await keepOnDevice(page);
   await context.setOffline(true);
   await doCheck(page, 'peer').click();
   await primary(page).click();
@@ -561,6 +577,8 @@ test('REV-023 A review the server refuses is not lost silently', async ({ page, 
   const w = world();
   await publishVersion(w, 'TRANS', 'P-Q4', { parts: 2 });
   await open(page, w, 'REV');
+  await openRecord(page, w, 'P-Q4');
+  await keepOnDevice(page);
   await startCheck(page, 'P-Q4');
   await context.setOffline(true);
   // COORD makes REV a Viewer at LANG-A while REV's device is offline.
@@ -608,7 +626,9 @@ test('REV-024 Leaving a review keeps it; opening it again brings it back', async
   // Opened again, after a reload too, the review is back where it was left: on Decide, with the words and the note.
   await page.reload();
   await openRecord(page, world(), 'P-NEW');
-  await doCheck(page, 'peer').click();
+  // The passage says a review waits: its button continues it (UI audit, finding 7).
+  await expect(doCheck(page, 'peer')).toHaveCount(0);
+  await button(page, 'Continue the peer check').click();
   await expect(text(page, 'Is it accurate and natural?')).toBeVisible();
   await button(page, 'Needs changes').click();
   await expect(field(page, 'Or type it — what worked, what didn\'t')).toHaveValue('Too quiet at the start');
@@ -1137,7 +1157,7 @@ test('REV-050 Notes on a check\'s help, a key word, and a reply', async ({ page 
   await button(page, 'Close').click();
   // All three wait together with the review; nothing is sent before the verdict.
   await expect(text(page, 'With your review')).toBeVisible();
-  for (const on of ['“What to listen for”', 'Key term · feast', `Reply to ${TOM_FIRST}`]) await expect(text(page, on)).toBeVisible();
+  for (const on of ['“What to listen for”', 'Key word · feast', `Reply to ${TOM_FIRST}`]) await expect(text(page, on)).toBeVisible();
   expect(await eventCount(page)).toBe(before);
   await primary(page).click();
   await expect(text(page, '3 notes go with your review')).toBeVisible();

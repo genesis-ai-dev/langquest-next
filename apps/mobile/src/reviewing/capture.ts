@@ -86,13 +86,13 @@ interface Readiness {
   open: number;
   /** Looks good may be sent: every required question handled (REV-3). */
   ready: boolean;
-  /** Something says what to change: text or a voice note. */
+  /** Something says what to change: text, a voice note, or a note made while listening (decisions.md 149). */
   saysWhat: boolean;
 }
 
-export function readiness(questions: SourcedQuestion[], answers: Answers, skipped: Skips, comment: string, commentHash: string | null): Readiness {
+export function readiness(questions: SourcedQuestion[], answers: Answers, skipped: Skips, comment: string, commentHash: string | null, notes = 0): Readiness {
   const open = openRequired(questions, answers, skipped).length;
-  return { open, ready: open === 0, saysWhat: comment.trim() !== '' || !!commentHash };
+  return { open, ready: open === 0, saysWhat: comment.trim() !== '' || !!commentHash || notes > 0 };
 }
 
 /** The line above the buttons: what still stands between you and sending. */
@@ -105,7 +105,7 @@ export function footHint(r: Readiness, makes?: { what: string; has: boolean }): 
 // ---- stages (REV-0, ADR-029; demo SIMPLE-10) ------------------------------------------------
 
 export type StageId = 'listen' | 'questions' | 'decide';
-export interface Stage { id: StageId; label: string; icon: 'listen' | 'help' | 'check' | 'mic' }
+export interface Stage { id: StageId; label: string; icon: 'listen' | 'list' | 'check' | 'mic' }
 
 /**
  * Reviewing is three short stages under the header: Listen, Questions (one
@@ -116,7 +116,7 @@ export interface Stage { id: StageId; label: string; icon: 'listen' | 'help' | '
 export function reviewStages(opts: { questions: number; logged: boolean; makes: boolean }): Stage[] {
   return [
     { id: 'listen', label: t('review.capture.stages.listen'), icon: 'listen' },
-    ...(opts.questions > 0 ? [{ id: 'questions' as const, label: t('review.capture.stages.questions'), icon: 'help' as const }] : []),
+    ...(opts.questions > 0 ? [{ id: 'questions' as const, label: t('review.capture.stages.questions'), icon: 'list' as const }] : []),
     opts.makes ? { id: 'decide', label: t('review.capture.stages.recordIt'), icon: 'mic' } : { id: 'decide', label: t('review.capture.stages.decide'), icon: 'check' }
   ];
 }
