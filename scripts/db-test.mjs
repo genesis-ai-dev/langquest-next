@@ -42,6 +42,7 @@ const SMOKES = [
   'server/publisherImportSmoke.sql',
   'server/libraryMoveSmoke.sql',
   'server/externalValuesSmoke.sql',
+  'server/receivedTimesSmoke.sql',
   'server/notificationsSmoke.sql',
   'server/concurrentAppendSmoke.sql',
   'server/rlsReadSmoke.sql',

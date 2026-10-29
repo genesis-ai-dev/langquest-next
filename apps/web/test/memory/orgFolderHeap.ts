@@ -258,7 +258,7 @@ function dispatcher(): WebhookDispatcher {
 
 // As OrgSnapshot keeps them: one dispatcher and one AgentOrg for the object's life, over the one folder.
 const webhooks = dispatcher();
-const agent = new AgentOrg(folder, orgId, { append: async () => [], sign, now: () => now, webhooks, records: recordsOf });
+const agent = new AgentOrg(folder, orgId, { append: async () => [], sign, now: () => now, webhooks, records: recordsOf, received: async () => new Map() });
 
 const extra: Record<string, unknown> = {};
 

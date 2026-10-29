@@ -81,7 +81,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'get_passage',
-    description: 'One passage: its latest version\'s audio (links that play for ten minutes, in order), its reviews and, with the read scope, its steps (each kind\'s kindId, and whether a review through this API counts there), the requests not done yet (forYou marks the ones asked of this token\'s person) and its versions. For several passages, or only some of this, use list_passages with unitIds and include.',
+    description: 'One passage: its latest version\'s audio (links that play for ten minutes, in order), its reviews and, with the read scope, its steps (each kind\'s kindId, and whether a review through this API counts there), the requests not done yet (forYou marks the ones asked of this token\'s person) and its versions. Times such as submittedAt are the phone\'s clock; uploadedAt is when LangQuest\'s server received it, and on an audio file when the file was stored (null while it is still on the phone); v2UploadedAt, for work brought over from LangQuest v2, is when v2\'s server received it. For several passages, or only some of this, use list_passages with unitIds and include.',
     inputSchema: obj({ languageId: LANGUAGE, unitId: UNIT }, ['languageId', 'unitId']),
     allowed: (g) => canRead(g),
     run: (a, g, org) => org.read(g, { op: 'passage', languageId: str(a['languageId']), unitId: str(a['unitId']) })

@@ -107,6 +107,8 @@ export interface V2Vote {
   active: boolean;
   created_at: string;
   last_updated: string;
+  /** When v2's server got the vote (its own clock, set on insert); `created_at` is the phone's. */
+  uploaded_at?: string | null;
 }
 
 export interface V2ProjectRows {

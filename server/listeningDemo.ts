@@ -11,7 +11,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import {
-  encodeHlc, foldLanguage, foldOrg, orgLanguages, privilegeAllows, privilegeFor, privilegesFor,
+  decodeHlc, encodeHlc, foldLanguage, foldOrg, orgLanguages, privilegeAllows, privilegeFor, privilegesFor,
   SEED_ROLES, validateEvent, type AnyEvent,
 } from '@langquest-next/core';
 import { AgentOrg } from '../apps/web/worker/agent/org';
@@ -54,13 +54,24 @@ function speak(text: string) {
 // ---- the log ----------------------------------------------------------------------------
 const streams = new Map<string, AnyEvent[]>();
 const ids = new Set<string>();
-function push(event: AnyEvent, persist = true) {
-  const list = streams.get(event.streamId) ?? [];
-  const stored = { ...event, serverSeq: list.length + 1 };
+/** When the log took each event: the demo's `public.events.received_at` (decisions.md 188). A line kept before it had one took its clock. */
+const arrived = new Map<string, number>();
+function push(event: AnyEvent & { receivedAt?: number }, persist = true) {
+  const { receivedAt = persist ? Date.now() : decodeHlc(event.hlc).wallMs, ...rest } = event;
+  const list = streams.get(rest.streamId) ?? [];
+  const stored = { ...rest, serverSeq: list.length + 1 } as AnyEvent;
   list.push(stored);
-  streams.set(event.streamId, list);
-  ids.add(event.id);
-  if (persist) appendFileSync(logPath, JSON.stringify(stored) + '\n');
+  streams.set(stored.streamId, list);
+  ids.add(stored.id);
+  arrived.set(stored.id, receivedAt);
+  if (persist) appendFileSync(logPath, JSON.stringify({ ...stored, receivedAt }) + '\n');
+}
+/** What received_times finds an event by: its id, and a take's publish, a review or a request by theirs. */
+function receiptKeys(e: AnyEvent): string[] {
+  const p = e.payload as Record<string, string>;
+  const own = e.type === 'v1.TakeSubmitted' ? `submitted:${p['takeId']}` : e.type === 'v1.ReviewRecorded' ? `review:${p['reviewId']}`
+    : e.type === 'v1.RequestMade' ? `request:${p['requestId']}` : null;
+  return own ? [`event:${e.id}`, own] : [`event:${e.id}`];
 }
 let clock = Date.now();
 const hlc = () => encodeHlc(Math.max(++clock, Date.now()), 0, 'demo');
@@ -141,6 +152,15 @@ const agent = new AgentOrg(folder, orgId, {
   // The demo's languages are small: each is read whole.
   async records(languageId) {
     return wholeRecords((await folder.languageState(languageId))!.state);
+  },
+  // The first arrival of each key asked about, as received_times answers.
+  async received(languageId, keys) {
+    const wanted = new Set(keys);
+    const first = new Map<string, number>();
+    for (const e of streams.get(languageId) ?? []) {
+      for (const key of receiptKeys(e)) if (wanted.has(key)) first.set(key, Math.min(first.get(key) ?? Infinity, arrived.get(e.id)!));
+    }
+    return new Map([...first].map(([key, at]) => [key, new Date(at).toISOString()]));
   },
 });
 

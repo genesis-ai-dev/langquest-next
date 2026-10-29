@@ -138,6 +138,21 @@ export function readableCode(name: string): string {
 
 const pad = (n: number, w = 6) => String(Math.max(0, Math.trunc(n))).padStart(w, '0');
 const latest = (times: string[]) => times.reduce((a, b) => (Date.parse(b) > Date.parse(a) ? b : a));
+/** One of v2's server stamps, as ISO text the API gives; null for none or one that is not a time. Postgres may write an offset as `+00`. */
+const stampOf = (t: string | null | undefined): string | null => {
+  const ms = t ? Date.parse(isoTime(t).replace(/([+-]\d\d)$/, '$1:00')) : NaN;
+  return Number.isNaN(ms) ? null : new Date(ms).toISOString();
+};
+const earliest = (a: string | null | undefined, b: string | null | undefined): string | null => {
+  const x = stampOf(a);
+  const y = stampOf(b);
+  return x && y ? (y < x ? y : x) : x ?? y;
+};
+const newest = (a: string | null | undefined, b: string | null | undefined): string | null => {
+  const x = stampOf(a);
+  const y = stampOf(b);
+  return x && y ? (y > x ? y : x) : x ?? y;
+};
 
 export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
   const languageId = ctx.languageId ?? rows.project.id;
@@ -223,6 +238,24 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
     if (!names.length && !textOf(a)) return;
     report.heldBack += 1;
     report.heldFiles.push(...names);
+  };
+  /**
+   * When v2's server got a part's files (decisions.md 188): each file's
+   * segment (`segment:<hash>`, its `uploaded_at`) and its audio
+   * (`file:<hash>`, `audio_uploaded_at`), the earliest where two segments
+   * name one file; null where v2 has no stamp.
+   */
+  const fileStamps = (a: V2Asset) => (): Record<string, string | null> => {
+    const out: Record<string, string | null> = {};
+    for (const c of contentsOf.get(a.id) ?? []) {
+      for (const raw of c.audio ?? []) {
+        const file = ctx.files.get(bucketName(raw) ?? '');
+        if (!file) continue;
+        out[`segment:${file.hash}`] = earliest(out[`segment:${file.hash}`], c.uploaded_at);
+        out[`file:${file.hash}`] = earliest(out[`file:${file.hash}`], c.audio_uploaded_at);
+      }
+    }
+    return out;
   };
 
   // ---- where quests go -----------------------------------------------------------------
@@ -354,6 +387,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
         const verse = verses.get(a.id) ?? null;
         facts.push({
           key: `rec:${q.id}:${a.id}`, streamId: languageId, actorId: actor(a.creator_id), at: at(a.created_at), unsay: 'redact', hold: r.waiting,
+          stamps: fileStamps(a),
           say: (s) => [
             { type: 'v1.RecordingAdded', payload: { recordingId: `rec:${a.id}:${q.id}#${s.n}`, unitId, kind: 'target', cards: r.cards } },
             // Which verses it holds, when v2 says: the first card is set to them and the rest join it.
@@ -458,6 +492,7 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
         recorded.add(v2Actor(t.creator_id));
         facts.push({
           key: `rec:${t.id}`, streamId: languageId, actorId: actor(t.creator_id), at: at(t.created_at), unsay: 'redact', hold: r.waiting,
+          stamps: fileStamps(t),
           say: (s) => [{ type: 'v1.RecordingAdded', payload: { recordingId: `rec:${t.id}#${s.n}`, unitId: passage, kind: 'target', cards: r.cards } }]
         });
         facts.push(takeFact(`take:${t.id}`, passage, r.cards.map((c) => c.hash), actor(t.creator_id), at(t.created_at), r.waiting));
@@ -556,13 +591,15 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
     };
   }
 
-  function reviewFact(key: string, takeKey: string, person: string, votes: { polarity: string; comment: string | null; created_at: string; label: string }[]): Fact {
+  function reviewFact(key: string, takeKey: string, person: string, votes: { polarity: string; comment: string | null; created_at: string; uploaded_at?: string | null; label: string }[]): Fact {
     const down = votes.some((v) => v.polarity === 'down');
     const comment = votes.filter((v) => v.comment?.trim()).sort((a, b) => a.created_at.localeCompare(b.created_at))
       .map((v) => (v.label ? `${v.label}: ${v.comment!.trim()}` : v.comment!.trim())).join('\n');
     const value = { outcome: down ? 'needs_changes' : 'looks_good', comment };
     return {
       key, streamId: languageId, actorId: who(person), at: latest(votes.map((v) => at(v.created_at))), unsay: 'redact', value,
+      // When v2's server got the newest of its votes (decisions.md 188).
+      stamps: (n) => ({ [`review:${key}#${n}`]: votes.reduce<string | null>((t, v) => newest(t, v.uploaded_at), null) }),
       say: (s, look) => {
         const take = look(takeKey);
         if (!take?.lastSaid) return [];

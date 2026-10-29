@@ -4,7 +4,7 @@ import { MemoryStore, SqliteStore, SyncClient } from '@langquest-next/sync';
 import { FakeServer } from '../../../packages/sync/src/testing/fakeServer';
 import { LanguageRecordsKeeper, objectSqlDriver, positionIn, wholeRecords } from '../worker/languageRecords';
 import type { SqlStore } from '../worker/sqlCache';
-import { passageFor, passagesFor, PASSAGES_PAGE_MAX, type Signer } from '../worker/agent/view';
+import { passageFor, passagesFor, PASSAGES_PAGE_MAX, type Receipts, type Signer } from '../worker/agent/view';
 import { digestOf, digestOfRecords } from '../worker/agent/webhooks';
 import type { Grant } from '../worker/agent/tokens';
 
@@ -67,6 +67,8 @@ async function language(server: FakeServer) {
 
 const grant: Grant = { tokenId: 'tok', orgId: 'org1', profileId: 'lead', scopes: ['read', 'review', 'release'], languageIds: null };
 const sign: Signer = async (key) => ({ url: `https://lq.test/${key}`, expiresAt: 0 });
+/** Each key answered with itself, so records read by passage and whole must ask about the same things. */
+const received: Receipts = async (keys) => new Map(keys.map((k) => [k, k]));
 const ALL = ['audio', 'reviews', 'steps', 'requests', 'versions', 'approvedAudio'] as const;
 
 describe('a language read as records in the object\'s SQLite (decisions.md 147)', () => {
@@ -100,12 +102,12 @@ describe('a language read as records in the object\'s SQLite (decisions.md 147)'
     expect(server.chunkCalls).toBe(0);
     expect(records.passages).toEqual(whole.passages);
     const query = { filter: {}, include: [...ALL], limit: PASSAGES_PAGE_MAX };
-    expect(await passagesFor(grant, 'org1', 'p1', records, query, sign)).toEqual(await passagesFor(grant, 'org1', 'p1', whole, query, sign));
+    expect(await passagesFor(grant, 'org1', 'p1', records, query, sign, received)).toEqual(await passagesFor(grant, 'org1', 'p1', whole, query, sign, received));
     for (const status of ['in_review', 'approved', 'not_started'] as const) {
       const q = { filter: { status }, include: [], limit: 2 };
-      expect(await passagesFor(grant, 'org1', 'p1', records, q, sign), status).toEqual(await passagesFor(grant, 'org1', 'p1', whole, q, sign));
+      expect(await passagesFor(grant, 'org1', 'p1', records, q, sign, received), status).toEqual(await passagesFor(grant, 'org1', 'p1', whole, q, sign, received));
     }
-    for (const u of ['u00', 'u01', 'u04', 'u99']) expect(await passageFor(grant, 'org1', 'p1', records, u, sign), u).toEqual(await passageFor(grant, 'org1', 'p1', whole, u, sign));
+    for (const u of ['u00', 'u01', 'u04', 'u99']) expect(await passageFor(grant, 'org1', 'p1', records, u, sign, received), u).toEqual(await passageFor(grant, 'org1', 'p1', whole, u, sign, received));
     expect(await digestOfRecords(records)).toEqual(digestOf(await whole.view([])));
     // A voice note is new only if nothing in the language names it, wherever its passage is.
     const named = await records.files(['1'.repeat(64), 'f'.repeat(64)]);

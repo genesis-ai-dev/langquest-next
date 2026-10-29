@@ -70,6 +70,7 @@ function fakes() {
       for (const e of entries) l.set(e.key, e);
       ledgers.set(scope, l);
     },
+    putStamps: async () => {},
     append: async (list: AnyEvent[]) => { events.push(...list); return { accepted: list.length, duplicates: 0, rejected: [] }; },
     files: async (names: string[]) => new Map(names.flatMap((n) => (fileMap.has(n) ? [[n, fileMap.get(n)!] as const] : []))),
     putFiles: async (list: { name: string; file: CopiedFile | null }[]) => {
