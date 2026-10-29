@@ -162,6 +162,7 @@ jobs:
       - name: Put the new films in the release
         if: ${{ !cancelled() }}
         run: npx tsx e2e/tutorials/put-in-release.ts "$LANGUAGE" "$RUNNER_TEMP/out"
+      # A step that could not finish leaves the screen as it was (failed-*.png) and its words (failed-*.txt).
       - name: Keep the logs and each step's picture
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -170,6 +171,7 @@ jobs:
           path: |
             e2e/results/tutorials/films/*/*/log.txt
             e2e/results/tutorials/films/*/*/steps/*
+            e2e/results/tutorials/films/*/*/failed-*
           if-no-files-found: ignore
       - name: Tell Linear
         if: always()

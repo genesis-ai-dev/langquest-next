@@ -4,6 +4,11 @@
 // Ruth in another, kept by its words in .../speech/pieces, and the pieces are
 // put together with their pauses.
 //
+// A reading is made again only when what it is made from changed (its words,
+// voice, speed or pauses, or MAKING): speech/<language>/made.json keeps what
+// each was made from, and the release keeps it with the readings
+// (put-in-release.ts), so a night that changes nothing says nothing.
+//
 //   npx tsx e2e/tutorials/make-readings.ts [language ...]
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -14,6 +19,11 @@ import { READINGS, type Reading } from './readings';
 
 const VOICES: Record<Reading['who'], string> = { grace: 'Leda', ruth: 'Aoede' };
 const RATE = 24000;
+// How the pieces are put together; one more makes every reading again.
+// 2: Gemini's own quiet cut where two pieces of a part join (October 2026).
+const MAKING = 2;
+/** The breath between two pieces of a part, well under the second of quiet that ends a part in the app's recorder (splitter.ts). */
+const BREATH = 0.45;
 const root = path.join('e2e', 'results', 'tutorials', 'speech');
 const pieceFile = (who: Reading['who'], words: string) =>
   path.join(root, 'pieces', `${createHash('sha256').update(`${VOICES[who]}\n${words}`).digest('hex').slice(0, 16)}.wav`);
@@ -27,12 +37,22 @@ const inLanguage = (code: string, english: string) => {
   return words;
 };
 const piecesOf = (code: string, r: Reading) => r.parts.map((p) => p.map((english) => (r.who === 'ruth' ? inLanguage(code, english) : english)));
+const madeFrom = (code: string, r: Reading) =>
+  createHash('sha256').update(JSON.stringify([MAKING, VOICES[r.who], piecesOf(code, r), r.speed ?? 1, r.lead, r.gap, r.tail])).digest('hex').slice(0, 16);
+const madeFile = (code: string) => path.join(root, code, 'made.json');
+const made = (code: string): Record<string, string> => (existsSync(madeFile(code)) ? (JSON.parse(readFileSync(madeFile(code), 'utf8')) as Record<string, string>) : {});
 
-// Every piece not yet said, each voice in one run.
+// The readings each language lacks, or made from something else.
+const toMake = new Map(languages.map((code) => {
+  const was = made(code);
+  return [code, Object.entries(READINGS).filter(([name, r]) => !existsSync(path.join(root, code, `${name}.wav`)) || was[name] !== madeFrom(code, r))];
+}));
+
+// Every piece they need not yet said, each voice in one run.
 for (const who of ['grace', 'ruth'] as const) {
   const missing = new Map<string, string>();
-  for (const code of languages) {
-    for (const r of Object.values(READINGS).filter((x) => x.who === who)) {
+  for (const [code, readings] of toMake) {
+    for (const [, r] of readings.filter(([, x]) => x.who === who)) {
       for (const words of piecesOf(code, r).flat()) if (!existsSync(pieceFile(who, words))) missing.set(pieceFile(who, words), words);
     }
   }
@@ -47,6 +67,31 @@ for (const who of ['grace', 'ruth'] as const) {
 const samples = (file: string, speed = 1) =>
   execFileSync('ffmpeg', ['-v', 'error', '-i', file, ...(speed === 1 ? [] : ['-af', `atempo=${speed}`]), '-f', 's16le', '-ac', '1', '-ar', String(RATE), '-'], { maxBuffer: 1 << 28 });
 const quiet = (seconds: number) => Buffer.alloc(Math.round(seconds * RATE) * 2);
+
+/**
+ * A piece without the quiet Gemini leaves before (head) or after (tail) what
+ * it says, but a little, so the breath between two pieces is the breath asked
+ * for. Left in, it came to more than a second in some languages, and the
+ * recorder made two parts of one. Sound is a 10 ms stretch with a quarter of
+ * it over -45 dB, so a click in the quiet is not where the words start.
+ */
+function trimmed(pcm: Buffer, head: boolean, tail: boolean): Buffer {
+  const frame = RATE / 100;
+  const frames = Math.floor(pcm.length / 2 / frame);
+  const sound = (f: number) => {
+    let over = 0;
+    for (let i = f * frame; i < (f + 1) * frame; i++) if (Math.abs(pcm.readInt16LE(i * 2)) > 184) over++;
+    return over >= frame / 4;
+  };
+  let first = 0;
+  while (head && first < frames && !sound(first)) first++;
+  let last = frames;
+  while (tail && last > first && !sound(last - 1)) last--;
+  if (first >= last) return pcm;
+  const keep = Math.round(0.08 * RATE);
+  return pcm.subarray(head ? Math.max(0, first * frame - keep) * 2 : 0, tail ? Math.min(pcm.length / 2, last * frame + keep) * 2 : pcm.length);
+}
+
 function wav(pcm: Buffer): Buffer {
   const head = Buffer.alloc(44);
   head.write('RIFF', 0); head.writeUInt32LE(36 + pcm.length, 4); head.write('WAVE', 8);
@@ -56,13 +101,19 @@ function wav(pcm: Buffer): Buffer {
   return Buffer.concat([head, pcm]);
 }
 
-for (const code of languages) {
+for (const [code, readings] of toMake) {
   const dir = path.join(root, code);
   mkdirSync(dir, { recursive: true });
-  for (const [name, r] of Object.entries(READINGS)) {
+  const record = made(code);
+  for (const [name, r] of readings) {
     const gap = r.gap ?? 2.4;
-    const parts = piecesOf(code, r).map((pieces) => Buffer.concat(pieces.flatMap((words, i) => [...(i ? [quiet(0.45)] : []), samples(pieceFile(r.who, words), r.speed)])));
+    const parts = piecesOf(code, r).map((pieces) => Buffer.concat(pieces.flatMap((words, i) => [
+      ...(i ? [quiet(BREATH)] : []),
+      trimmed(samples(pieceFile(r.who, words), r.speed), i > 0, i < pieces.length - 1)
+    ])));
     writeFileSync(path.join(dir, `${name}.wav`), wav(Buffer.concat([quiet(r.lead ?? 0.4), ...parts.flatMap((p, i) => [...(i ? [quiet(gap)] : []), p]), quiet(r.tail ?? gap)])));
+    record[name] = madeFrom(code, r);
   }
-  console.log(`${Object.keys(READINGS).length} readings → ${dir}`);
+  writeFileSync(madeFile(code), `${JSON.stringify(record, null, 1)}\n`);
+  console.log(`${readings.length} of ${Object.keys(READINGS).length} readings made → ${dir}`);
 }
