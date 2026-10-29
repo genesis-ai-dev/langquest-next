@@ -35,7 +35,10 @@ export const JOBS = {
   'tutorial-publish': { job: 'tutorial_publish', entrypoint: ['node', 'publish.mjs'], timeLimitMs: 150 * 60_000 },
   // The films the nightly filming made on GitHub, brought into R2 and listed for Publish (server/tutorialIntake.ts):
   // most nights a few, the first full set about 705 of about 10 MB, each a download and an upload.
-  'tutorial-intake': { job: 'tutorial_intake', entrypoint: ['node', 'intake.mjs'], timeLimitMs: 120 * 60_000 }
+  'tutorial-intake': { job: 'tutorial_intake', entrypoint: ['node', 'intake.mjs'], timeLimitMs: 120 * 60_000 },
+  // The comments on the tutorial videos, kept for Claude's nightly look (server/tutorialComments.ts, decisions.md 186):
+  // a day's comments, a page of 100 a call, and at most 20 Linear issues.
+  'tutorial-comments': { job: 'tutorial_comments', entrypoint: ['node', 'comments.mjs'], timeLimitMs: 60 * 60_000 }
 } as const satisfies Record<string, JobSpec>;
 
 export type JobKey = keyof typeof JOBS;
@@ -55,7 +58,7 @@ export const JOB_TICK = '*/5 * * * *';
  * (23:00 to 00:00 UTC, decision 183 amended): the films the nightly filming
  * made (on GitHub from 20:10 UTC) come in at 23:10, and the videos still
  * waiting from a Publish go on at 23:40, on YouTube's allowance for that
- * Pacific day.
+ * Pacific day; the day's comments on the videos are read at 23:50 (186).
  */
 export function jobsDue(scheduledTime: number): { key: JobKey; all?: true }[] {
   const t = new Date(scheduledTime);
@@ -66,6 +69,7 @@ export function jobsDue(scheduledTime: number): { key: JobKey; all?: true }[] {
   if (t.getUTCHours() === 4 && minute === 35) due.push({ key: 'blob-reconcile' });
   if (t.getUTCHours() === 23 && minute === 10) due.push({ key: 'tutorial-intake' });
   if (t.getUTCHours() === 23 && minute === 40) due.push({ key: 'tutorial-publish' });
+  if (t.getUTCHours() === 23 && minute === 50) due.push({ key: 'tutorial-comments' });
   return due;
 }
 
@@ -197,6 +201,7 @@ export interface JobSettings {
   V2_DATABASE_URL?: string | undefined;
   YOUTUBE_CLIENT_ID?: string | undefined;
   YOUTUBE_CLIENT_SECRET?: string | undefined;
+  LINEAR_API_KEY?: string | undefined;
 }
 
 /**
@@ -221,6 +226,13 @@ export function jobEnv(key: JobKey, s: JobSettings): { env: Record<string, strin
     if (!s.YOUTUBE_CLIENT_ID || !s.YOUTUBE_CLIENT_SECRET) return { skip: 'disabled' };
     if (!s.API_URL) return { refuse: 'tutorial publish: API_URL not set on the Worker' };
     return { env: { ...env, API_URL: s.API_URL, YOUTUBE_CLIENT_ID: s.YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET: s.YOUTUBE_CLIENT_SECRET } };
+  }
+  // The comments job reads the channels with the OAuth client: off until it is set. Linear is optional:
+  // without it accepted code changes wait on the dashboard.
+  if (key === 'tutorial-comments') {
+    if (!s.YOUTUBE_CLIENT_ID || !s.YOUTUBE_CLIENT_SECRET) return { skip: 'disabled' };
+    return { env: { ...env, YOUTUBE_CLIENT_ID: s.YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET: s.YOUTUBE_CLIENT_SECRET,
+      ...(s.LINEAR_API_KEY ? { LINEAR_API_KEY: s.LINEAR_API_KEY } : {}) } };
   }
   // The intake reads the public release itself and puts the films through the Worker.
   if (key === 'tutorial-intake') return s.API_URL ? { env: { ...env, API_URL: s.API_URL } } : { refuse: 'tutorial intake: API_URL not set on the Worker' };

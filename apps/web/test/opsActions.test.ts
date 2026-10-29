@@ -10,6 +10,9 @@ type Deps = Parameters<typeof act>[0];
 const VIEWER = '0857d1bc-0000-4000-8000-000000000001';
 const FEEDBACK = '11111111-1111-4111-8111-111111111111';
 const REQUEST = '22222222-2222-4222-8222-222222222222';
+const SUGGESTION = '33333333-3333-4333-8333-333333333333';
+const CODE = '44444444-4444-4444-8444-444444444444';
+const ANSWERED = '55555555-5555-4555-8555-555555555555';
 const NOW = Date.parse('2026-10-28T09:00:00Z');
 const CLIENT = { clientId: 'client.apps.googleusercontent.com', clientSecret: 'client-secret' };
 const REDIRECT = 'https://next.langquest.org/ops/api/youtube/callback';
@@ -28,6 +31,12 @@ function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[
     youtube: null,
     connectChannel: async (row) => { done.push(`connect ${row.language} ${row.channelId} ${row.title} ${row.refreshToken} by ${row.by} section ${row.section}`); },
     approveTutorials: async (items, by) => { done.push(`approve ${items.length} by ${by}`); return items.length; },
+    addNote: async (tutorial, text, by) => { done.push(`note ${tutorial} ${text} by ${by}`); },
+    decideSuggestion: async (id, decision, detail, reason, by) => {
+      done.push(`${decision} ${id} ${detail} ${reason} by ${by}`);
+      return id === SUGGESTION ? { result: decision, kind: 'script' } : id === CODE ? { result: decision, kind: 'code' } : id === ANSWERED ? { result: 'decided', kind: 'script' } : { result: 'not_found' };
+    },
+    fileSuggestion: async (id) => { done.push(`file ${id}`); return 'LAN-170'; },
     now: () => NOW,
     ...over
   };
@@ -208,5 +217,65 @@ describe('tutorial videos on YouTube (decisions.md 180)', () => {
     const aal1 = deps();
     expect(await act(aal1, 'aal1', { kind: 'tutorials-publish', items })).toMatchObject({ ok: false, status: 403 });
     expect(aal1.done).toEqual([]);
+  });
+});
+
+describe('feedback on the tutorial videos (decisions.md 186)', () => {
+  it('takes a note on a video or none, and an answer to a suggestion, with their arguments checked', () => {
+    expect(parseAction({ kind: 'tutorial-note', tutorial: 'record-a-passage', text: '  Says Save, shows Done.  ' }))
+      .toEqual({ kind: 'tutorial-note', tutorial: 'record-a-passage', text: 'Says Save, shows Done.' });
+    expect(parseAction({ kind: 'tutorial-note', tutorial: null, text: 'A video on exporting audio.' })).toEqual({ kind: 'tutorial-note', tutorial: null, text: 'A video on exporting audio.' });
+    expect(parseAction({ kind: 'tutorial-suggestion', id: SUGGESTION, decision: 'accept' })).toEqual({ kind: 'tutorial-suggestion', id: SUGGESTION, decision: 'accept', detail: null, reason: null });
+    expect(parseAction({ kind: 'tutorial-suggestion', id: SUGGESTION, decision: 'edit', detail: 'Say Done.' })).toMatchObject({ decision: 'edit', detail: 'Say Done.' });
+    for (const bad of [
+      { kind: 'tutorial-note', tutorial: 'Record a passage', text: 'x' }, { kind: 'tutorial-note', tutorial: null, text: ' ' },
+      { kind: 'tutorial-note', tutorial: null, text: 'x'.repeat(2001) }, { kind: 'tutorial-suggestion', id: 'x', decision: 'accept' },
+      { kind: 'tutorial-suggestion', id: SUGGESTION, decision: 'build' }, { kind: 'tutorial-suggestion', id: SUGGESTION, decision: 'edit' },
+      { kind: 'tutorial-suggestion', id: SUGGESTION, decision: 'reject', reason: 'x'.repeat(501) }, { kind: 'tutorial-suggestion', id: SUGGESTION, decision: 'accept', detail: 7 }
+    ]) {
+      expect(parseAction(bad)).toBeNull();
+    }
+  });
+
+  it('keeps a note as this person, and records it', async () => {
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'tutorial-note', tutorial: 'record-a-passage', text: 'Says Save, shows Done.' })).toEqual({ ok: true, result: 'noted' });
+    expect(d.done).toEqual([`note record-a-passage Says Save, shows Done. by ${VIEWER}`]);
+    expect(d.rows).toEqual([{ profileId: VIEWER, action: 'tutorial_note', target: 'record-a-passage', result: 'ok' }]);
+  });
+
+  it('accepts, edits or rejects a suggestion once, and records each', async () => {
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'tutorial-suggestion', id: SUGGESTION, decision: 'edit', detail: 'Say Done.' })).toEqual({ ok: true, result: 'edited' });
+    expect(await act(d, 'aal2', { kind: 'tutorial-suggestion', id: SUGGESTION, decision: 'reject', reason: 'Not needed' })).toEqual({ ok: true, result: 'rejected' });
+    expect(await act(d, 'aal2', { kind: 'tutorial-suggestion', id: ANSWERED, decision: 'accept' })).toMatchObject({ ok: false, status: 400 });
+    expect(await act(d, 'aal2', { kind: 'tutorial-suggestion', id: REQUEST, decision: 'accept' })).toMatchObject({ ok: false, status: 404 });
+    expect(d.done).toEqual([
+      `edited ${SUGGESTION} Say Done. null by ${VIEWER}`, `rejected ${SUGGESTION} null Not needed by ${VIEWER}`,
+      `accepted ${ANSWERED} null null by ${VIEWER}`, `accepted ${REQUEST} null null by ${VIEWER}`
+    ]);
+    expect(d.rows).toEqual([
+      { profileId: VIEWER, action: 'suggestion_edited', target: SUGGESTION, result: 'ok', detail: 'script' },
+      { profileId: VIEWER, action: 'suggestion_rejected', target: SUGGESTION, result: 'ok', detail: 'script' },
+      { profileId: VIEWER, action: 'suggestion_accepted', target: ANSWERED, result: 'refused', detail: 'decided' },
+      { profileId: VIEWER, action: 'suggestion_accepted', target: REQUEST, result: 'refused', detail: 'not_found' }
+    ]);
+  });
+
+  it('files an accepted code change in Linear, and keeps it accepted when Linear has no key or fails', async () => {
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'tutorial-suggestion', id: CODE, decision: 'accept' })).toEqual({ ok: true, result: 'accepted:LAN-170' });
+    expect(d.done).toEqual([`accepted ${CODE} null null by ${VIEWER}`, `file ${CODE}`]);
+    expect(d.rows).toEqual([{ profileId: VIEWER, action: 'suggestion_accepted', target: CODE, result: 'ok', detail: 'LAN-170' }]);
+    const e = deps({ fileSuggestion: async () => null });
+    expect(await act(e, 'aal2', { kind: 'tutorial-suggestion', id: CODE, decision: 'accept' })).toEqual({ ok: true, result: 'accepted:waiting' });
+    const { LinearError } = await import('../../../server/linear');
+    const f = deps({ fileSuggestion: async () => { throw new LinearError('ratelimited'); } });
+    expect(await act(f, 'aal2', { kind: 'tutorial-suggestion', id: CODE, decision: 'accept' })).toEqual({ ok: true, result: 'accepted:waiting' });
+    expect(f.rows).toEqual([{ profileId: VIEWER, action: 'suggestion_accepted', target: CODE, result: 'ok', detail: 'linear_ratelimited' }]);
+    // A script change never goes to Linear.
+    const g = deps();
+    expect(await act(g, 'aal2', { kind: 'tutorial-suggestion', id: SUGGESTION, decision: 'accept' })).toEqual({ ok: true, result: 'accepted' });
+    expect(g.done).toEqual([`accepted ${SUGGESTION} null null by ${VIEWER}`]);
   });
 });

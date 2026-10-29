@@ -1,6 +1,7 @@
 import { connectPage } from '../worker/agent/connectPage';
 import { reviewPage } from '../worker/agent/reviewPage';
 import { PAGE_CATALOGS, pageLanguage } from '../worker/i18n/pages';
+import { pageVideos, videosPage, type PageVideo } from '../worker/videosPage';
 import { UI_LANGUAGES } from '../../mobile/src/i18n/languages';
 
 /** The shared review link page in the reader's language (LAN-42, worker/i18n/pages.ts). */
@@ -43,9 +44,14 @@ describe('pages the Worker serves, in the reader’s language', () => {
     for (const l of UI_LANGUAGES) expect(html).toContain(`<option value="${l.code}"`);
   });
 
+  // A video's title and playlist come from the database, in the video's language.
+  const video = (tutorial: string, youtube: boolean): PageVideo => ({ tutorial, sha256: 'a'.repeat(64), title: 'ж', playlist: 'ж', seconds: 93, bytes: 12_900_000, youtube });
   const pages = {
     review: (lang: 'my' | 'es') => reviewPage('a'.repeat(22), lang),
-    connect: (lang: 'my' | 'es') => connectPage({ supabaseUrl: 'https://x.supabase.co', anonKey: 'k' }, lang)
+    connect: (lang: 'my' | 'es') => connectPage({ supabaseUrl: 'https://x.supabase.co', anonKey: 'k' }, lang),
+    videos: (lang: 'my' | 'es') => videosPage(lang, [video('record-a-passage', true), video('do-a-check', false)]),
+    'empty videos': (lang: 'my' | 'es') => videosPage(lang, []),
+    'failed videos': (lang: 'my' | 'es') => videosPage(lang, null)
   };
 
   for (const [name, page] of Object.entries(pages)) {
@@ -77,6 +83,30 @@ describe('pages the Worker serves, in the reader’s language', () => {
       }
     });
   }
+
+  it('lists the videos by who they are for, each to play, download, and watch on YouTube once it is up (decisions.md 187)', async () => {
+    const v = (tutorial: string, playlist: string, youtube: boolean, sha = 'a'): PageVideo =>
+      ({ tutorial, sha256: sha.repeat(64), title: `<${tutorial}>`, playlist, seconds: 93, bytes: 12_900_000, youtube });
+    const r = videosPage('es', [v('record-a-passage', 'Traductores', true), v('do-a-check', 'Revisores', false, 'b'), v('hear-parts', 'Traductores', false, 'c')]);
+    expect(r.headers.get('content-type')).toBe('text/html; charset=utf-8');
+    expect(r.headers.get('vary')).toBe('accept-language');
+    const html = await r.text();
+    expect([...html.matchAll(/<h2>([^<]*)<\/h2>/g)].map((m) => m[1])).toEqual(['Traductores', 'Revisores']);
+    expect(html).toContain('&lt;record-a-passage&gt;');
+    expect(html).not.toContain('<record-a-passage>');
+    expect(html).toContain(`href="/api/tutorials/es/record-a-passage/${'a'.repeat(64)}.mp4"`);
+    expect(html).toContain(`href="/api/tutorials/es/record-a-passage/${'a'.repeat(64)}.mp4?download" download`);
+    expect(html).toContain('href="/v/es/record-a-passage"');
+    expect(html).not.toContain('href="/v/es/do-a-check"');
+    expect(html).toContain('12,3 MB');
+    expect(html).toContain('1:33');
+  });
+
+  it('keeps only videos the database described whole', () => {
+    const good = { tutorial: 'record-a-passage', sha256: 'a'.repeat(64), title: 'Grabar', playlist: 'Traductores', seconds: 93, bytes: 1, youtube: true };
+    expect(pageVideos([good, { ...good, tutorial: '../x' }, { ...good, sha256: 'z' }, { ...good, seconds: null }, null])).toEqual([good]);
+    expect(pageVideos({ not: 'a list' })).toEqual([]);
+  });
 
   it('uses the session signed in on /connect even when the web app left an expired one', async () => {
     // The web app's session in localStorage goes stale whenever the

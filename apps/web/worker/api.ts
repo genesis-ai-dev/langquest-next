@@ -3,6 +3,7 @@ import { handleBible, type BibleDeps } from './bible';
 import { handleBlobs, type BlobDeps } from './blobs';
 import { handleHelpAudio } from './helpAudio';
 import { handleTutorialVideo } from './tutorialVideos';
+import { handleTutorialReview, REVIEW_PATH, type ReviewDeps } from './tutorialReview';
 import { handleLanguoids, type LanguoidDeps } from './languoids';
 import { handleAgentApi, type AgentDeps } from './agent/http';
 
@@ -29,6 +30,8 @@ export interface ApiDeps {
   agent?: AgentDeps;
   /** The language explorer's data (`/api/languoids`, languoids.ts); without it that route answers 503. */
   languoids?: LanguoidDeps;
+  /** Claude's nightly look at the tutorial videos' feedback (`/api/tutorial-review`, tutorialReview.ts); without it that route answers 503. */
+  tutorialReview?: ReviewDeps;
 }
 
 const NO_STORE = { 'cache-control': 'private, no-store' };
@@ -89,6 +92,7 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
   }
   if (url.pathname.startsWith('/api/help-audio/')) return handleHelpAudio(request, deps.blobs?.bucket);
   if (url.pathname.startsWith('/api/tutorials/')) return handleTutorialVideo(request, deps.blobs);
+  if (url.pathname === REVIEW_PATH) return deps.tutorialReview ? handleTutorialReview(request, deps.tutorialReview) : json(503, { error: 'The tutorial review is not set up here.' });
   if (url.pathname === '/api/languoids') {
     return deps.languoids ? handleLanguoids(request, deps.languoids) : json(503, { error: 'The language list is not set up here.' });
   }

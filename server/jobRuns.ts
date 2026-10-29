@@ -18,7 +18,7 @@
 export type JobName =
   | 'projection' | 'push_delivery' | 'v2_import' | 'job_starts'
   | 'webhook_dispatch' | 'invite_email' | 'verification_email' | 'worker_requests' | 'worker_cron'
-  | 'fold_canary' | 'blob_reconcile' | 'account_delete' | 'tutorial_publish' | 'tutorial_intake';
+  | 'fold_canary' | 'blob_reconcile' | 'account_delete' | 'tutorial_publish' | 'tutorial_intake' | 'tutorial_comments' | 'tutorial_review';
 
 export interface JobRun {
   job: JobName;

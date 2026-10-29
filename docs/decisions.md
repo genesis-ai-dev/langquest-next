@@ -7722,6 +7722,15 @@ declining an organization's blue check request that waits for staff
 identity, not a change to its work; revoking stays in the script
 (`npm run org-verification -- revoke`).
 
+Amended (2026-10-29, Caleb Koster): two more kinds, for the feedback on the
+tutorial videos (decision 186): `tutorial-note`, a note about a video or one
+not made yet, recorded as `tutorial_note`; and `tutorial-suggestion`, a
+suggestion Claude made accepted, edited (its text, before a yes or no) or
+rejected (with why), recorded as `suggestion_accepted`, `suggestion_edited`
+or `suggestion_rejected`. They change only that feedback, never an
+organization's work. Accepting a code change also files it in Linear when
+the app Worker has `LINEAR_API_KEY`.
+
 ## 163. A pull request's guardrails run in about the time of its slowest test job, not of its setup
 
 Date: 2026-10-23 · By: Carl Sauder · Status: accepted
@@ -8956,3 +8965,107 @@ and in History) needs new state in core and a reducer version; finding 8
 and 107 (help and questions spoken on phones) wait on Caleb's choice.
 Reverse if: people find the extra asks slow on work they do every day, or
 partners expect the demo's flow where it differs here.
+
+## 186. Claude looks each night at what came in about the tutorial videos and suggests changes; a person accepts, edits or rejects each on the ops dashboard
+
+Date: 2026-10-29 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-29, thread "Plan tutorial videos and keep them
+current") asked for an AI such as Claude to weigh, for each video, every
+input not yet answered (comments on YouTube, code changes, notes the team
+leaves on the ops dashboard) and suggest changes to its screens, script or
+voice, to the app's code (to Linear), or a new video, with the inputs and
+suggestions on the dashboard for a developer to accept, edit or reject. He
+chose GitHub Actions signed in to his Claude plan over a routine in his own
+account, so the system is in the open for the team: any developer can see
+it, and replace the token with their own plan's if his has trouble. Decided:
+- **Inputs and suggestions are rows in `ops`** (migration
+  `20261029120000_tutorial_feedback.sql`): `ops.tutorial_inputs` (a
+  comment, a code change or a note), `ops.tutorial_suggestions` (script,
+  screen, voice, code or new) with the inputs each answers, and one
+  `ops.tutorial_reviews` row per look. Only the service role writes them;
+  the dashboard reads `diag.ops_tutorial_feedback`. An input is open until
+  Claude looks at it, or while a suggestion that answers it waits.
+  Inputs and answered suggestions over a year old are taken out.
+- **The comments job only reads** (`server/tutorialComments.ts`, job
+  container, 23:50 UTC): each connected channel's new comments become
+  inputs. Making sense of them is the look's. It also files in Linear the
+  accepted code changes the Worker could not, 20 a night at most.
+- **The look runs on GitHub Actions on a Claude plan**
+  (`.github/workflows/tutorial-review.yml`, 10:00 UTC):
+  `anthropics/claude-code-action` with `CLAUDE_CODE_OAUTH_TOKEN` from
+  `claude setup-token`, kept encrypted in `.env.production` and set as a
+  repository secret by `npm run secrets`. It uses the plan's five-hour and
+  weekly limits, not an API bill; Caleb chose no cap, as he does not use
+  the plan at that hour. Claude follows the `tutorial-review` skill.
+- **No production key in GitHub.** The workflow reads what is open and
+  sends its look through the app Worker (`/api/tutorial-review`), which
+  lets in only this workflow on main by the OpenID Connect token GitHub
+  signs for the job: issuer, audience, repository, `workflow_ref` and `ref`
+  checked against GitHub's keys (`apps/web/worker/githubOidc.ts`). No
+  shared secret to leak or rotate.
+- **Comments are untrusted.** Anyone can write one, so Claude gets no
+  network, no token and no shell beyond reading git; its one output is a
+  file the Worker checks (`parseReview`, `server/tutorialFeedback.ts`) and
+  the database checks again; and nothing it suggests happens without a
+  person. The replies it writes are shown to copy into Studio, never posted.
+- **Code changes come in through the look**, from the changes merged into
+  main since the last one, and only where a video's words or steps no
+  longer fit; a screen that only looks different is filmed again by the
+  nightly filming (183).
+- **The dashboard decides** (Tutorial videos → Feedback and suggestions;
+  162 amended): Accept, Edit, or Reject with why, which the next look reads
+  before suggesting the same again; Add a note. An accepted code change
+  becomes a Linear issue.
+- **Not yet:** making an accepted script, screen, voice or new-video change
+  is by hand. Building it as a pull request with a preview film is a later
+  change.
+Reverse if: the looks eat into the plan's limits when people need them;
+more suggestions are rejected than accepted for weeks (then keep the
+inputs and drop the suggestions); or GitHub changes what its OIDC tokens
+say.
+
+## 187. Every tutorial video can be downloaded from LangQuest, by a link that lasts and from a page of them all; YouTube's descriptions give both
+
+Date: 2026-10-29 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-29, thread "Plan tutorial videos and keep them
+current") asked that every video be available to download from LangQuest,
+with download links to LangQuest on the videos on YouTube, kept up to date
+along with the videos. The pipeline plan had promised it (real downloads and
+links that never break), and nothing had been built. YouTube offers no file
+to keep: its offline download works in about 125 countries, stays inside the
+YouTube app and needs it to reconnect every 48 hours, and some countries
+block YouTube. Decided:
+- **A lasting download link per video and language**:
+  `next.langquest.org/v/<language>/<video>.mp4`
+  (`apps/web/worker/tutorialVideos.ts` `handleDownload`) goes on to the
+  newest version a person chose with Publish (`ops_tutorial_download`), as a
+  file to keep (`?download` on the R2 file, named
+  `langquest-<video>-<language>.mp4`). While none is chosen, or when the
+  database cannot say, it opens the language's videos page. Like the watch
+  links (decision 183) it is asked about at most every five minutes.
+- **The chosen version, not the uploaded one**: Publish is the person's
+  choice (decision 180); a download follows it at once instead of waiting for
+  YouTube's 100 uploads a day, which takes a week for the first full set. A
+  new version can be downloaded before YouTube has it.
+- **A page of them all**: `next.langquest.org/videos`
+  (`apps/web/worker/videosPage.ts`, `ops_tutorial_list`) in the reader's
+  language (`?lang=`, else the browser's), grouped by who each video is for,
+  each with Download and its size, Play (the file in the phone's own player,
+  so no YouTube is needed) and Watch on YouTube once a version is up. Written
+  by the Worker like the review and connect pages, its words in the 15
+  catalogs of `apps/web/worker/i18n/`; cached five minutes.
+- **YouTube gives both**: each video's description has a download line under
+  the app's address (`e2e/tutorials/playlists.ts` `youtubeText`), and each
+  channel's description links the page (`server/youtube.ts` `channelAbout`),
+  in the channel's language (`WORDS.download`, `WORDS.allVideos`). A
+  description is set when a version is uploaded and never changes after, so
+  the link had to be one that outlives versions. Changing the channel's
+  description changes its look, and the publish job puts it on each channel
+  once.
+- **Nothing in the app changes**: the help mode play button and Me's videos
+  from the pipeline plan are a later change, with the store answers it
+  needs.
+Reverse if: R2's egress stops being free and downloads cost more than they
+help; or the videos move to a host that gives lasting files itself.

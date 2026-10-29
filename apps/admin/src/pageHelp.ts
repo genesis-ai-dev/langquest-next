@@ -21,7 +21,7 @@ export const GROUP_HELP: Record<string, string> = {
   support: 'Work waiting on LangQuest staff: content reports (the Terms promise action within 24 hours), suspensions, deletions, feedback from the help button, and what was done from this page.',
   access: 'Who can see every organization (Global Viewers), limits that refused requests, other apps connected through tokens, device sign-ins, webhooks and review links, and what stops working on a date.',
   stores: 'How the app does in the stores: Android crash and freeze rates as Google Play measures them, App Store review state and builds, and recent reviews.',
-  tutorials: 'The how-to videos on YouTube, one channel for each app language: which channels are connected, the videos made and not up yet (Watch one before choosing it), and Publish, which puts the chosen ones up, 100 a day.'
+  tutorials: 'The how-to videos on YouTube, one channel for each app language: which channels are connected, the videos made and not up yet (Watch one before choosing it), Publish, which puts the chosen ones up, 100 a day, and what Claude suggests each night from the comments, the code changes and the team\'s notes, to accept, edit or reject.'
 };
 
 /** Each part of a section (one source's answer), on its sub-heading. */
@@ -54,7 +54,8 @@ export const SECTION_HELP: Record<string, string> = {
   appstore: 'iOS versions in review, builds Apple processed, TestFlight crash reports, and recent reviews.',
   v2: 'The import from LangQuest v2: each v2 project\'s latest transfer, and whether it finished, stopped part way or failed.',
   lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
-  tutorials: 'Each app language\'s YouTube channel and whether LangQuest may post to it, and every video made that is not on YouTube yet: ready to choose, or chosen and waiting for its turn.'
+  tutorials: 'Each app language\'s YouTube channel and whether LangQuest may post to it, and every video made that is not on YouTube yet: ready to choose, or chosen and waiting for its turn.',
+  videofeedback: 'What came in about the videos (comments on YouTube, code changes merged into main, notes left here) and what Claude suggests doing about it each night: a change to a video\'s script, screens or voice, to the app\'s code, or a new video. Accept, edit or reject each; an accepted code change goes to Linear. Reply to comments in YouTube Studio.'
 };
 
 export const HELP: Record<string, string> = {
@@ -208,6 +209,15 @@ export const HELP: Record<string, string> = {
   Channels: 'Each app language\'s channel. Connect again when its videos fail with a sign-in code such as youtube_invalid_grant.',
   'Not on YouTube yet': 'Each video\'s newest version that is not up. A new version of one already up replaces it: it takes its place in the playlist, and the old one is unlisted with a link to the new.',
   'Videos up': 'Videos on this channel now.',
+  'suggestions waiting': 'Suggestions Claude made that nobody has accepted, edited or rejected yet. Edit one to change what it says before accepting it.',
+  'not looked at yet': 'Comments, code changes and notes Claude has not looked at yet. It looks each night at 10:00 UTC (tutorial-review.yml on GitHub).',
+  'not in Linear yet': 'Accepted code changes not filed in Linear yet. They wait when Linear refused or there is no Linear key (LINEAR_API_KEY); the comments job files them each night at 23:50 UTC.',
+  'last look': 'When Claude last looked, how many comments, changes and notes it looked at, and how many suggestions it made.',
+  Suggestions: 'What Claude suggests, waiting ones first, then those answered in the last 30 days, each with what it answers. Accept says yes; Reject asks why not, which Claude reads before suggesting the same again.',
+  'What came in': 'Comments, code changes and notes Claude has not looked at yet, and those it looked at in the last 30 days and suggested nothing for, with why.',
+  'Reply suggested': 'A reply Claude wrote for the channel to post, in English, and in the comment\'s language to copy. Read it before posting it in YouTube Studio: it never promises a change or a date.',
+  "Claude's answer": 'Why Claude suggested nothing for this (thanks only, spam, a recorded decision says no), or that it has not looked yet.',
+  'Add a note': 'Ask for something about a video, or a video not made yet. Claude weighs it at the next look, as it does a comment.',
 
   // ---- providers
   'commits not deployed': 'Commits on main the live web app does not have yet.',

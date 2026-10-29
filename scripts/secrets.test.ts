@@ -91,11 +91,24 @@ describe('secrets', () => {
     expect(Object.keys(destinations('production', { ...values, YOUTUBE_CLIENT_ID: 'id' }, 'ref', 'k').workers.app)).not.toContain('YOUTUBE_CLIENT_ID');
   });
 
-  it('gives GitHub the Gemini key for the nightly filming, from production\'s file only, and nothing else', () => {
+  it('gives the app\'s Worker Linear\'s key when the file has it, and never the Gemini key or the Claude token', () => {
+    const all = { ...values, GEMINI_API_KEY: 'g', LINEAR_API_KEY: 'lin', CLAUDE_CODE_OAUTH_TOKEN: 'sk-oat' };
+    expect(destinations('production', all, 'ref', 'k').workers.app).toMatchObject({ LINEAR_API_KEY: 'lin' });
+    expect(Object.keys(destinations('production', all, 'ref', 'k').workers.app)).not.toContain('GEMINI_API_KEY');
+    expect(Object.keys(destinations('production', all, 'ref', 'k').workers.app)).not.toContain('CLAUDE_CODE_OAUTH_TOKEN');
+    expect(Object.keys(destinations('production', values, 'ref', 'k').workers.app)).not.toContain('LINEAR_API_KEY');
+    expect(OPTIONAL_KEYS).toContain('LINEAR_API_KEY');
+  });
+
+  it('gives GitHub the Gemini key for the nightly filming and the Claude token for the nightly look, from production\'s file only, and nothing else', () => {
     expect(destinations('production', { ...values, GEMINI_API_KEY: 'g' }, 'ref', 'k').github).toEqual({ GEMINI_API_KEY: 'g' });
-    expect(destinations('preview', { ...values, GEMINI_API_KEY: 'g' }, 'ref', 'k').github).toEqual({});
+    expect(destinations('production', { ...values, GEMINI_API_KEY: 'g', CLAUDE_CODE_OAUTH_TOKEN: 'sk-oat' }, 'ref', 'k').github)
+      .toEqual({ GEMINI_API_KEY: 'g', CLAUDE_CODE_OAUTH_TOKEN: 'sk-oat' });
+    expect(destinations('preview', { ...values, GEMINI_API_KEY: 'g', CLAUDE_CODE_OAUTH_TOKEN: 'sk-oat' }, 'ref', 'k').github).toEqual({});
     expect(destinations('production', values, 'ref', 'k').github).toEqual({});
     expect(read('.github/workflows/tutorials.yml')).toContain('secrets.GEMINI_API_KEY');
+    expect(read('.github/workflows/tutorial-review.yml')).toContain('secrets.CLAUDE_CODE_OAUTH_TOKEN');
+    expect(FILE_KEYS).toContain('CLAUDE_CODE_OAUTH_TOKEN');
   });
 
   it('gives the webhook poke one secret at both ends and the Worker\'s own address, only when the file has it', () => {

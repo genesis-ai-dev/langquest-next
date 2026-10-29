@@ -1,6 +1,6 @@
 import { BadDigest, fromService, resolveRange, type BlobBucket } from './blobs';
 import { TtlCache } from './isolateCache';
-import { CHANNELS, type ChannelLanguage } from '../../../server/youtube';
+import { CHANNELS, videosPath, type ChannelLanguage } from '../../../server/youtube';
 
 /**
  * The tutorial videos the filming made (docs/tutorial-videos.md, decisions.md
@@ -9,6 +9,8 @@ import { CHANNELS, type ChannelLanguage } from '../../../server/youtube';
  * its way to YouTube, and the ops dashboard plays one before Publish. They
  * are made to be public, so no sign-in; a file's name is its bytes' hash, so
  * it never changes. Ranges are served, as a browser's video player asks.
+ * With `?download` it comes as a file to keep, named for its video and
+ * language (decisions.md 187).
  *
  * `PUT` with the service key is how a version gets there: the intake job
  * (server/tutorialIntake.ts) brings each film the nightly filming made on
@@ -22,6 +24,13 @@ export const TUTORIAL_MAX_BYTES = 100 * 1024 * 1024;
 
 /** Where a version is kept in the bucket. */
 export const tutorialKey = (language: string, tutorial: string, sha256: string) => `tutorials/${language}/${tutorial}/${sha256}.mp4`;
+
+/** A downloaded video's file name: plain letters only, from the checked path, so it reads the same on every phone. */
+export const downloadName = (language: string, tutorial: string) => `langquest-${tutorial}-${language}.mp4`;
+
+/** A version's address, as a file to keep (`?download`) or to play. */
+export const tutorialFile = (language: string, tutorial: string, sha256: string, download = false) =>
+  `/api/tutorials/${language}/${tutorial}/${sha256}.mp4${download ? '?download' : ''}`;
 
 export async function handleTutorialVideo(request: Request, blobs: { bucket: BlobBucket; serviceKey: string } | undefined): Promise<Response> {
   if (request.method !== 'GET' && request.method !== 'HEAD' && request.method !== 'PUT') return new Response('Only GET, HEAD and PUT are supported.', { status: 405 });
@@ -39,7 +48,8 @@ export async function handleTutorialVideo(request: Request, blobs: { bucket: Blo
     'x-content-type-options': 'nosniff',
     'accept-ranges': 'bytes',
     etag: `"${file[1]}"`,
-    'cache-control': 'public, max-age=31536000, immutable'
+    'cache-control': 'public, max-age=31536000, immutable',
+    ...(new URL(request.url).searchParams.has('download') ? { 'content-disposition': `attachment; filename="${downloadName(m[1]!, m[2]!)}"` } : {})
   };
   const range = resolveRange(request.headers.get('range'), head.size);
   if (range === 'unsatisfiable') return new Response(null, { status: 416, headers: { 'content-range': `bytes */${head.size}` } });
@@ -93,6 +103,35 @@ export async function handleWatch(request: Request, newest: (tutorial: string, l
     });
     to = id ? `https://youtu.be/${id}` : `https://www.youtube.com/channel/${CHANNELS[language]}`;
     if (id !== undefined) watched.set(key, to, Date.now() + WATCH_MS);
+  }
+  return new Response(null, { status: 302, headers: { location: to, 'cache-control': `public, max-age=${WATCH_MS / 1000}` } });
+}
+
+const downloads = new TtlCache<string>(2000);
+
+/**
+ * `GET /v/<language>/<tutorial>.mp4`: a video to download, by a link that
+ * lasts (decisions.md 187). Each video's description on YouTube gives it, and
+ * the videos page (videosPage.ts) lists them. It goes on to the newest
+ * version a person chose to publish, as a file to keep, so a download is
+ * always what YouTube shows or is about to; while none is chosen, or when the
+ * database cannot say, to the language's videos page. `chosen` is asked at
+ * most every five minutes for each video.
+ */
+export async function handleDownload(request: Request, chosen: (tutorial: string, language: string) => Promise<string | null>): Promise<Response> {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Only GET is supported.', { status: 405 });
+  const m = /^\/v\/([^/]+)\/([^/]+)\.mp4$/.exec(new URL(request.url).pathname);
+  if (!m || !Object.hasOwn(CHANNELS, m[1]!) || m[2]!.length > 80 || !TUTORIAL.test(m[2]!)) return new Response('Not found.', { status: 404 });
+  const [language, tutorial] = [m[1]!, m[2]!];
+  const key = `${language}/${tutorial}`;
+  let to = downloads.get(key);
+  if (!to) {
+    const sha = await chosen(tutorial, language).catch((e: unknown) => {
+      console.error(`tutorial download ${key}:`, e);
+      return undefined;
+    });
+    to = sha && FILE.test(`${sha}.mp4`) ? tutorialFile(language, tutorial, sha, true) : videosPath(language);
+    if (sha !== undefined) downloads.set(key, to, Date.now() + WATCH_MS);
   }
   return new Response(null, { status: 302, headers: { location: to, 'cache-control': `public, max-age=${WATCH_MS / 1000}` } });
 }

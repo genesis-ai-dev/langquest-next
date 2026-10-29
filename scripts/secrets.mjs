@@ -47,18 +47,24 @@ export const ADMIN_KEYS = ['ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_SUPABASE_TOKEN', 'AD
  * production's goes to this repository's GitHub Actions secrets, for the nightly filming
  * (.github/workflows/tutorials.yml), and is read on a laptop. YOUTUBE_CLIENT_ID and
  * YOUTUBE_CLIENT_SECRET are the OAuth client the tutorial channels are connected with and
- * published to (docs/tutorial-videos.md), for the app's Worker and its job.
+ * published to (docs/tutorial-videos.md), for the app's Worker and its job. The comments job
+ * (decisions.md 186) reads the comments with that client. LINEAR_API_KEY, a Linear personal
+ * API key, is how the app's Worker and its comments job file an accepted code change in Linear.
+ * CLAUDE_CODE_OAUTH_TOKEN signs Claude's nightly look at the videos' feedback
+ * (.github/workflows/tutorial-review.yml) in to a Claude plan: made by `claude setup-token`,
+ * it lasts a year, and production's goes to this repository's GitHub Actions secrets. Anyone
+ * on the team can replace it with their own plan's.
  */
-export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', ...ADMIN_KEYS];
+export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', ...ADMIN_KEYS];
 export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET'];
 /**
  * Placed when the file has them, never required: the Worker answers without
  * them (the Bible routes say 503), so neither a deploy nor this script waits
  * for one. Not in the Worker's `secrets.required` for the same reason.
  */
-export const OPTIONAL_KEYS = ['BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET'];
+export const OPTIONAL_KEYS = ['BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY'];
 
-/** The repository whose Actions secrets this script sets: only the Gemini key, which no production system reads (decisions.md 183). */
+/** The repository whose Actions secrets this script sets: the Gemini key and the Claude token, which no production system reads (decisions.md 183, 186). */
 export const GITHUB_REPO = 'genesis-ai-dev/langquest-next';
 
 /** LangQuest v2's production project, read (never written) by the v2 import and v2-sign-in (docs/v2-import.md). */
@@ -145,7 +151,9 @@ export function destinations(environment, values, ref, serviceRoleKey) {
         ...(values.V2_SUPABASE_ANON_KEY ? { V2_SUPABASE_ANON_KEY: values.V2_SUPABASE_ANON_KEY } : {}),
         ...(values.V2_DATABASE_URL ? { V2_DATABASE_URL: values.V2_DATABASE_URL } : {}),
         // Connect YouTube and the publish job (decisions.md 180): both or neither, as one is no use alone.
-        ...(values.YOUTUBE_CLIENT_ID && values.YOUTUBE_CLIENT_SECRET ? { YOUTUBE_CLIENT_ID: values.YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET: values.YOUTUBE_CLIENT_SECRET } : {})
+        ...(values.YOUTUBE_CLIENT_ID && values.YOUTUBE_CLIENT_SECRET ? { YOUTUBE_CLIENT_ID: values.YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET: values.YOUTUBE_CLIENT_SECRET } : {}),
+        // An accepted code change to Linear (decisions.md 186).
+        ...(values.LINEAR_API_KEY ? { LINEAR_API_KEY: values.LINEAR_API_KEY } : {})
       },
       'invite-email': { INVITE_RELAY_SECRET: values.INVITE_RELAY_SECRET },
       // The ops dashboard's provider tokens, each optional. Its database login is not a Worker
@@ -155,8 +163,12 @@ export function destinations(environment, values, ref, serviceRoleKey) {
       } : {})
     },
     hyperdrive: environment === 'production' && values.DIAG_DATABASE_URL ? { connectionString: values.DIAG_DATABASE_URL } : null,
-    // The nightly filming's voice (.github/workflows/tutorials.yml). Never a production key: scripts/workflows.test.ts.
-    github: environment === 'production' && values.GEMINI_API_KEY ? { GEMINI_API_KEY: values.GEMINI_API_KEY } : {},
+    // The nightly filming's voice (.github/workflows/tutorials.yml) and Claude's nightly look at the videos'
+    // feedback (tutorial-review.yml). Never a production key: scripts/workflows.test.ts.
+    github: environment === 'production' ? {
+      ...(values.GEMINI_API_KEY ? { GEMINI_API_KEY: values.GEMINI_API_KEY } : {}),
+      ...(values.CLAUDE_CODE_OAUTH_TOKEN ? { CLAUDE_CODE_OAUTH_TOKEN: values.CLAUDE_CODE_OAUTH_TOKEN } : {})
+    } : {},
     // Read with Deno.env.get in supabase/functions. The relay URL is public
     // but has no other way into a function.
     functions: {
@@ -378,7 +390,7 @@ async function main() {
     console.error(`x ${file} holds ${unknown.join(', ')}, which scripts/secrets.mjs does not place. Add it to FILE_KEYS and destinations, or remove it.`);
     process.exit(1);
   }
-  const values = decrypt(file, [...REQUIRED_KEYS, ...OPTIONAL_KEYS, ...(environment === 'production' ? ['DIAG_DATABASE_URL', 'GEMINI_API_KEY', ...ADMIN_KEYS] : [])]);
+  const values = decrypt(file, [...REQUIRED_KEYS, ...OPTIONAL_KEYS, ...(environment === 'production' ? ['DIAG_DATABASE_URL', 'GEMINI_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', ...ADMIN_KEYS] : [])]);
   const missing = REQUIRED_KEYS.filter((name) => !values[name]);
   if (missing.length) {
     console.error(`x ${file} is missing ${missing.join(', ')}.`);

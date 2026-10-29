@@ -27,7 +27,7 @@ export const GROUPS = [
   { id: 'support', title: 'Support', src: 'Content reports, suspensions, deletions, feedback, and what was done from this page', wide: true, parts: ['support', 'feedback'] },
   { id: 'access', title: 'Access and integrations', src: 'Global Viewers, limits hit, tokens, device grants, webhooks, review links, and what expires', parts: ['security', 'integrations', 'expiry'] },
   { id: 'stores', title: 'App stores', src: 'Google Play vitals and reviews, App Store review state, builds and reviews', parts: ['googleplay', 'appstore'] },
-  { id: 'tutorials', title: 'Tutorial videos', src: 'Each app language\'s YouTube channel, the videos made and not up yet, and Publish', wide: true, parts: ['tutorials'] }
+  { id: 'tutorials', title: 'Tutorial videos', src: 'Each app language\'s YouTube channel, the videos made and not up yet, Publish, and what Claude suggests from comments, code changes and notes', wide: true, parts: ['tutorials', 'videofeedback'] }
 ] as const;
 
 /** Sub-headings where a source's own title would repeat its section's, or say too little inside it. */
@@ -36,11 +36,11 @@ export const PART_TITLES: Record<string, string> = {
   expo: 'EAS builds and updates', adoption: 'Update adoption', jobs: 'Jobs', cron: 'pg_cron', push: 'Push delivery and Inbox', v2: 'v2 import',
   database: 'Health', dbdetail: 'Where the space goes', supabase: 'Supabase project', cloudflare: 'Cloudflare Workers', worker: 'App Worker routes, last 24 h',
   storage: 'Storage and backups', capacity: 'Capacity and cost', support: 'Queue', feedback: 'Feedback', security: 'Global Viewers and limits',
-  integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', tutorials: 'Channels and videos'
+  integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', tutorials: 'Channels and videos', videofeedback: 'Feedback and suggestions'
 };
 
 /** Read as diag_reader in one call (/ops/api/ops). */
-export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials'] as const;
+export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials', 'videofeedback'] as const;
 
 /** Each from its own call (/ops/api/<id>), like the providers. */
 export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption'] as const;
@@ -62,7 +62,8 @@ export const OPS_SECTIONS = [
   { id: 'security', title: 'Security and limits', src: 'Global Viewers, limits hit, new credentials' },
   { id: 'expiry', title: 'Expiry dates', src: 'Tokens, Apple certificates and profiles, and dates kept in apps/admin/expiry.json' },
   { id: 'capacity', title: 'Capacity and cost', src: 'Database and R2 growth against the plan, Cloudflare usage this month' },
-  { id: 'tutorials', title: 'Tutorial videos', src: 'ops.youtube_channels and ops.tutorial_videos (decisions.md 180)' }
+  { id: 'tutorials', title: 'Tutorial videos', src: 'ops.youtube_channels and ops.tutorial_videos (decisions.md 180)' },
+  { id: 'videofeedback', title: 'Feedback on the videos', src: 'ops.tutorial_inputs and ops.tutorial_suggestions: comments, code changes and notes, and what Claude suggests each night (decisions.md 186)' }
 ] as const;
 
 export const OPS_SCRIPT = String.raw`
@@ -308,6 +309,48 @@ Object.assign(RENDER, {
       { h: '', v: (w) => '<a href="/api/tutorials/' + esc(w.language) + '/' + esc(w.tutorial) + '/' + esc(w.sha256) + '.mp4" target="_blank" rel="noopener">Watch</a>' }
     ], d.waiting);
     return h;
+  },
+  // What came in about the videos and what Claude's nightly look suggests (decisions.md 186): a person accepts, edits or rejects each.
+  videofeedback(d) {
+    const out = (href, text) => '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
+    const titles = new Map(d.videos.map((v) => [v.tutorial, v.title]));
+    const video = (t) => t ? esc(titles.get(t) || t) : '';
+    // server/tutorialFeedback.ts inputLink
+    const link = (i) => i.kind === 'comment' ? (i.youtubeId && i.ref ? 'https://www.youtube.com/watch?v=' + i.youtubeId + '&lc=' + i.ref : 'https://studio.youtube.com')
+      : i.kind === 'code' ? (i.pr ? 'https://github.com/genesis-ai-dev/langquest-next/pull/' + i.pr : i.ref ? 'https://github.com/genesis-ai-dev/langquest-next/commit/' + i.ref : null) : null;
+    const where = (i) => i.kind === 'comment' ? 'Comment' + (i.language ? ', ' + esc(languageName(i.language)) : '') : i.kind === 'code' ? 'Code change' + (i.pr ? ' #' + i.pr : '') : 'Note';
+    const said = (i) => esc(i.english || i.text) + (i.kind === 'comment' && i.english && i.language !== 'en' ? '<details><summary>As written</summary>' + esc(i.text) + '</details>' : '');
+    const answers = (s) => s.inputs.length ? '<ul>' + s.inputs.map((i) => '<li><small>' + where(i) + ' · ' + when(i.at) + (link(i) ? ' · ' + out(link(i), 'open') : '') + '</small><br>' + said(i) +
+      (i.reply ? '<br><small>Reply suggested: ' + esc(i.replyEnglish || i.reply) + '</small>' + (i.language !== 'en' ? '<details><summary>In ' + esc(languageName(i.language)) + '</summary>' + esc(i.reply) + '</details>' : '') : '') + '</li>').join('') + '</ul>' : '';
+    let h = '<div class="stats">' + stat(num(d.open), 'suggestions waiting', d.open ? 'warn' : '', NOW) + stat(num(d.waiting), 'not looked at yet', '', 'Claude looks at 10:00 UTC') +
+      stat(num(d.unfiled), 'not in Linear yet', d.unfiled ? 'warn' : '', NOW) +
+      stat(d.last ? when(d.last.at) : 'never', 'last look', '', d.last ? num(d.last.looked) + ' looked at, ' + num(d.last.suggested) + ' suggested' : '') + '</div>';
+    if (d.last) h += '<p class="muted">' + out(d.last.runUrl, 'The last look\'s run on GitHub') + ', up to ' + out('https://github.com/genesis-ai-dev/langquest-next/commit/' + d.last.sha, '<code>' + esc(d.last.sha.slice(0, 8)) + '</code>') + '.</p>';
+    h += '<h3>Suggestions</h3>';
+    h += d.suggestions.length ? d.suggestions.map((s) => '<div class="fb"><span class="tag">' + esc(SUGGESTION_KINDS[s.kind] || s.kind) + '</span>' +
+      (s.decision ? '<span class="tag ' + (s.decision === 'accepted' ? 'good' : '') + '">' + esc(s.decision) + '</span>' : '<span class="tag bad">waiting</span>') +
+      '<small>' + (s.tutorial ? video(s.tutorial) + ' · ' : '') + 'suggested ' + when(s.madeAt) + (s.editedAt ? ' · edited ' + when(s.editedAt) : '') + (s.decidedAt ? ' · ' + esc(s.decision) + ' ' + when(s.decidedAt) : '') + '</small>' +
+      '<p><b>' + esc(s.title) + '</b></p><p class="setup">' + esc(s.detail) + '</p>' + answers(s) +
+      (s.reason ? '<p><small>' + (s.decision === 'rejected' ? 'Why not: ' : 'Note: ') + esc(s.reason) + '</small></p>' : '') +
+      (s.issue ? '<p><small>Linear: ' + out(s.issueUrl, esc(s.issue)) + '</small></p>' : s.kind === 'code' && s.decision === 'accepted' ? '<p><small class="muted">Linear: tonight, with the comments job</small></p>' : '') +
+      (s.decision ? '' : '<p><button type="button" data-sg="' + esc(s.id) + '" data-decision="accept" data-kind="' + esc(s.kind) + '">Accept</button> ' +
+        '<button type="button" data-sg="' + esc(s.id) + '" data-decision="reject">Reject</button></p>' +
+        '<details><summary>Edit</summary><label for="sg-' + esc(s.id) + '">What to change</label><textarea id="sg-' + esc(s.id) + '" maxlength="4000" rows="6">' + esc(s.detail) + '</textarea>' +
+        '<p><button type="button" data-sg="' + esc(s.id) + '" data-decision="edit">Save</button></p></details>') +
+      '</div>').join('') : '<p class="muted">Nothing here.</p>';
+    h += '<h3>What came in</h3>' + table([
+      { h: 'When', v: (i) => when(i.at) },
+      { h: 'Kind', v: (i) => where(i) },
+      { h: 'Video', v: (i) => video(i.tutorial) },
+      { h: 'What it says', v: (i) => said(i) },
+      { h: 'Reply suggested', v: (i) => i.reply ? esc(i.replyEnglish || i.reply) + (i.language !== 'en' ? '<details><summary>In ' + esc(languageName(i.language)) + '</summary>' + esc(i.reply) + '</details>' : '') : '' },
+      { h: 'Claude\'s answer', v: (i) => i.lookedAt ? esc(i.outcome || '') : '<span class="muted">at the next look</span>' },
+      { h: '', v: (i) => link(i) ? out(link(i), i.kind === 'comment' ? 'Reply on YouTube' : 'Open') : '' }
+    ], d.inputs);
+    h += '<h3>Add a note</h3><label for="note-video">Video</label><select id="note-video"><option value="">None: a new video, or all of them</option>' +
+      d.videos.map((v) => '<option value="' + esc(v.tutorial) + '">' + esc(v.title) + '</option>').join('') + '</select>' +
+      '<label for="note-text">Note</label><textarea id="note-text" maxlength="2000" rows="3"></textarea><p><button type="button" data-note>Add note</button></p>';
+    return h;
   }
 });
 
@@ -320,6 +363,8 @@ async function post(action) {
   if (!res.ok) throw new Error(body.error || ('HTTP ' + res.status));
   return body;
 }
+const SUGGESTION_KINDS = { script: 'Script', screen: 'Screens', voice: 'Voice', code: 'App code', new: 'New video' };
+const DECIDED = { accepted: 'Accepted.', 'accepted:waiting': 'Accepted. The comments job puts it in Linear tonight.', rejected: 'Rejected.', edited: 'Saved.' };
 const PUBLISHED = {
   started: 'Going up on YouTube now, 100 a day.', running: 'A run is going; it takes them too, or the next daily run does.',
   disabled: 'Chosen, but publishing is off here (no YouTube client).'
@@ -331,6 +376,8 @@ async function perform(action, button) {
     say(action.kind === 'run' ? (body.result === 'started' ? 'Started ' + action.key + '.' : action.key + ' was ' + body.result + '; nothing started.')
       : action.kind === 'verification' ? 'Blue check ' + body.result + '.'
       : action.kind === 'tutorials-publish' ? num(action.items.length) + ' chosen. ' + (PUBLISHED[body.result] || body.result)
+      : action.kind === 'tutorial-note' ? 'Note added. Claude looks at it at the next look.'
+      : action.kind === 'tutorial-suggestion' ? (DECIDED[body.result] || (body.result.startsWith('accepted:') ? 'Accepted, and filed in Linear as ' + body.result.slice(9) + '.' : body.result))
       : 'Feedback marked ' + body.result + '.');
     load(false);
   } catch (err) { if (err.message !== 'Signed out') say(err.message, 'red'); if (button) button.disabled = false; }
@@ -376,6 +423,30 @@ document.addEventListener('click', (e) => {
   if (fb) perform({ kind: 'feedback', id: fb.dataset.fb, status: fb.dataset.status }, fb);
   const ver = e.target.closest && e.target.closest('[data-ver]');
   if (ver && confirm((ver.dataset.decision === 'grant' ? 'Grant' : 'Decline') + ' this blue check?')) perform({ kind: 'verification', id: ver.dataset.ver, decision: ver.dataset.decision }, ver);
+});
+
+// ---- feedback on the tutorial videos (decisions.md 186): a yes, a no with why, or the suggestion edited; a note for the next look ----
+document.addEventListener('click', (e) => {
+  const sg = e.target.closest && e.target.closest('[data-sg]');
+  if (sg) {
+    const id = sg.dataset.sg, d = sg.dataset.decision;
+    if (d === 'accept' && confirm('Accept this suggestion?' + (sg.dataset.kind === 'code' ? ' It goes to Linear.' : ''))) perform({ kind: 'tutorial-suggestion', id, decision: 'accept', detail: null, reason: null }, sg);
+    if (d === 'reject') {
+      const reason = prompt('Why not? Claude reads this before suggesting it again. (You may leave it empty.)', '');
+      if (reason !== null) perform({ kind: 'tutorial-suggestion', id, decision: 'reject', detail: null, reason: reason.slice(0, 500) }, sg);
+    }
+    if (d === 'edit') {
+      const detail = (document.getElementById('sg-' + id) || {}).value || '';
+      if (detail.trim()) perform({ kind: 'tutorial-suggestion', id, decision: 'edit', detail, reason: null }, sg);
+      else say('Write what to change before saving.', 'red');
+    }
+  }
+  const note = e.target.closest && e.target.closest('[data-note]');
+  if (note) {
+    const text = ($('note-text') || {}).value || '';
+    if (text.trim()) perform({ kind: 'tutorial-note', tutorial: ($('note-video') || {}).value || null, text }, note);
+    else say('Write the note first.', 'red');
+  }
 });
 
 // ---- one install's diagnostics, readable --------------------------------------------------

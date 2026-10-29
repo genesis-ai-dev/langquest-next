@@ -132,5 +132,16 @@
       "release": "说明某个版本在哪里发布（在应用或网站上线），或已下线",
       "externalValues": "以你的身份把应用自己的数据和你的语言一起存储。LangQuest 只保存这些数据，从不据此执行任何操作"
     }
+  },
+  "videos": {
+    "pageTitle": "视频 · LangQuest",
+    "language": "语言",
+    "title": "LangQuest 视频",
+    "play": "播放",
+    "download": "下载",
+    "youtube": "在 YouTube 上观看",
+    "size": "{{mb}} MB",
+    "none": "此语言暂无视频。",
+    "failed": "视频未能加载。请重新加载页面再试。"
   }
 }

@@ -20,6 +20,7 @@ export function ownsResponse(url: URL, request: Pick<Request, 'method'>): boolea
   if (url.pathname === '/connect' && request.method === 'GET') return true;
   if (/^\/r\/[A-Za-z0-9_-]{22}\/?$/.test(url.pathname) && request.method === 'GET') return true;
   if (url.pathname.startsWith('/v/')) return true;
+  if (url.pathname === '/videos' && request.method === 'GET') return true;
   return url.pathname.startsWith('/api/');
 }
 

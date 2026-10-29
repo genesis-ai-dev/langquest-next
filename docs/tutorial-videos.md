@@ -134,9 +134,92 @@ or to the language's channel while none is up (decision 183). So a
 description never needs changing when a newer version replaces one.
 
 Each channel looks like LangQuest's in its own language: a description of
-what the videos are with the app's address, its language set, a banner with
+what the videos are with a link to the videos page (below) and the app's
+address, its language set, a banner with
 the app's mark and "Tutorial videos" (`banners.ts` draws them), and a list
 of the other channels. The publish job puts these on whenever they change
 (`server/youtube.ts` `brandChannel`, decision 184); the picture is set by
 hand. Comments that may be inappropriate are held for review, and the ops
 dashboard counts them for each channel.
+
+## Downloads
+
+Every video can be downloaded from LangQuest itself, not only watched on
+YouTube (decision 187). YouTube's own offline download works in only some
+countries, keeps the video inside the YouTube app, and needs it to reconnect
+every 48 hours; some countries block YouTube.
+
+- **A link that lasts:** `https://next.langquest.org/v/<language>/<video>.mp4`
+  gives the newest version a person chose with Publish, as a file named
+  `langquest-<video>-<language>.mp4`. It follows each new version by itself,
+  so it never needs changing. While none is chosen in that language it opens
+  the videos page. Each video's description on YouTube gives it, under the
+  app's address.
+- **The videos page:** `https://next.langquest.org/videos` lists every video
+  chosen in the reader's language (or `?lang=`), grouped by who it is for,
+  each with Download (and its size), Play (the file in the phone's own
+  player, no YouTube needed) and, once it is up, Watch on YouTube. Each
+  channel's description links it. The Worker writes it
+  (`apps/web/worker/videosPage.ts`, words in `apps/web/worker/i18n/`).
+- **Chosen, not uploaded:** a download is the version Publish chose, at once,
+  without waiting for YouTube's 100 uploads a day; so a new version can be
+  downloaded a day or more before YouTube has it. The files are the ones R2
+  keeps for the publish job (`/api/tutorials/...`, by hash, kept for good).
+
+## Feedback
+
+What people say about a video, and what changes in the app, come back to
+the videos (decision 186). Three kinds of input:
+
+- **Comments** on the videos and channels. The comments job in the app's
+  job container (`server/tutorialComments.ts`) reads each connected
+  channel's new comments each day at 23:50 UTC, after the publish job.
+- **Changes merged into main** that make a video's words or steps wrong (a
+  button renamed, a step moved, a help line changed). Claude finds them; a
+  change that only alters how a screen looks needs nothing, since the
+  nightly filming films that video again by itself.
+- **Notes** the team leaves on the ops dashboard: Tutorial videos →
+  Feedback and suggestions → Add a note, about a video or one not made yet.
+
+Each night at 10:00 UTC `.github/workflows/tutorial-review.yml` has Claude
+look at what is open. `scripts/tutorial-review.mjs fetch` gets it from the
+app's Worker and lists the changes merged into main since the last look;
+Claude (`anthropics/claude-code-action`, following the `tutorial-review`
+skill in `.agents/skills`) puts each comment into English with a reply in
+its own language, and suggests what to change: a video's script, screens or
+voice, the app's code, or a new video. Every input ends in a suggestion or
+with a line saying why none. `send` hands the look to the Worker, which
+checks it (`parseReview` in `server/tutorialFeedback.ts`) before the
+database takes it.
+
+A person decides each suggestion on the dashboard: Accept, Edit (change
+what it says first), or Reject with why, which the next look reads before
+suggesting the same again. An accepted code change becomes a Linear issue,
+"Tutorial feedback: …": at once when the app's Worker has `LINEAR_API_KEY`,
+otherwise at the comments job's next run. The replies Claude suggests are
+shown to copy into YouTube Studio; nothing is posted by itself. Making an
+accepted change to a video is still done by hand. Inputs and answered
+suggestions over a year old are taken out.
+
+Claude signs in with a Claude plan, not an API key, and uses that plan's
+five-hour and weekly limits. The token, `CLAUDE_CODE_OAUTH_TOKEN`, is made
+by `claude setup-token` (`npx -y @anthropic-ai/claude-code setup-token`
+without the command installed), lasts a year, and is kept with `npm run
+env:update -- production CLAUDE_CODE_OAUTH_TOKEN`; `npm run secrets --
+production` makes it a secret of this repository's Actions. Anyone on the
+team can replace it with their own plan's the same way. Without one, the
+run says so and stops.
+
+The workflow holds no production key. The app's Worker answers
+`/api/tutorial-review` only for this workflow on main, which it knows by
+the OpenID Connect token GitHub signs for the job
+(`apps/web/worker/githubOidc.ts`); a branch, a fork or another workflow
+gets a token that names itself. Claude has no network, no token and no
+shell beyond reading git: the script around it fetches and sends. Anyone
+can write a comment, so the skill treats comments as data, never as
+instructions, and nothing Claude suggests happens without a person.
+
+The looks' runs are in the dashboard's Server jobs as `tutorial_review`
+(one the Worker refused is `bad_review`), and the comments job's as
+`tutorial_comments`. Run either by hand: Run workflow on GitHub, or Run now
+on the dashboard.

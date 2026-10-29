@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { handleApi, type ApiDeps } from '../worker/api';
 import { BadDigest, type BlobBucket } from '../worker/blobs';
-import { handleWatch } from '../worker/tutorialVideos';
+import { handleDownload, handleWatch } from '../worker/tutorialVideos';
 import { CHANNELS } from '../../../server/youtube';
 
 /** The tutorial videos the filming made (worker/tutorialVideos.ts): public, by language, tutorial and hash, never anything else in the bucket. */
@@ -43,6 +43,13 @@ describe('/api/tutorials', () => {
     expect(r.headers.get('content-type')).toBe('video/mp4');
     expect(r.headers.get('content-length')).toBe('10');
     expect(r.headers.get('cache-control')).toContain('immutable');
+  });
+
+  it('comes as a file to keep, named for its video and language, when asked to download (decisions.md 187)', async () => {
+    const r = await get(`/api/tutorials/zh-Hans/record-a-passage/${SHA}.mp4?download`);
+    expect(r.status).toBe(200);
+    expect(r.headers.get('content-disposition')).toBe('attachment; filename="langquest-record-a-passage-zh-Hans.mp4"');
+    expect((await get(`/api/tutorials/zh-Hans/record-a-passage/${SHA}.mp4`)).headers.get('content-disposition')).toBeNull();
   });
 
   it('answers the part a video player asks for', async () => {
@@ -152,5 +159,40 @@ describe('/v/<language>/<tutorial>', () => {
 
   it('knows only LangQuest\'s languages and plain video names', async () => {
     for (const path of ['/v/de/record-a-passage', '/v/es/Record', '/v/es/a/b', '/v/constructor/record-a-passage']) expect((await watch(path, 'abcdefghijk')).status).toBe(404);
+  });
+});
+
+describe('/v/<language>/<tutorial>.mp4 (decisions.md 187)', () => {
+  const asked: string[] = [];
+  const download = (path: string, chosen: string | null | Error) => handleDownload(new Request(`https://x${path}`), async (tutorial, language) => {
+    asked.push(`${language}/${tutorial}`);
+    if (chosen instanceof Error) throw chosen;
+    return chosen;
+  });
+
+  it('goes on to the newest chosen version, as a file to keep', async () => {
+    const r = await download('/v/es/record-a-passage.mp4', SHA);
+    expect(r.status).toBe(302);
+    expect(r.headers.get('location')).toBe(`/api/tutorials/es/record-a-passage/${SHA}.mp4?download`);
+  });
+
+  it('goes on to the language\'s videos page while none is chosen, or when the database cannot say', async () => {
+    expect((await download('/v/fr/invite-your-team.mp4', null)).headers.get('location')).toBe('/videos?lang=fr');
+    expect((await download('/v/sw/invite-your-team.mp4', new Error('down'))).headers.get('location')).toBe('/videos?lang=sw');
+  });
+
+  it('asks the database once in a while, except after it failed', async () => {
+    asked.length = 0;
+    await download('/v/pt/do-a-check.mp4', SHA);
+    await download('/v/pt/do-a-check.mp4', 'b'.repeat(64));
+    await download('/v/ha/do-a-check.mp4', new Error('down'));
+    await download('/v/ha/do-a-check.mp4', null);
+    expect(asked).toEqual(['pt/do-a-check', 'ha/do-a-check', 'ha/do-a-check']);
+  });
+
+  it('knows only LangQuest\'s languages and plain video names', async () => {
+    for (const path of ['/v/de/record-a-passage.mp4', '/v/es/Record.mp4', '/v/es/a/b.mp4', '/v/constructor/record-a-passage.mp4', '/v/es/record-a-passage.mp4/x']) {
+      expect((await download(path, SHA)).status).toBe(404);
+    }
   });
 });

@@ -3,6 +3,7 @@ import { SNAPSHOT_SCHEDULE } from '@langquest-next/sync/server';
 import { isMissing, type Query } from '../db';
 import { failed, ok, off, type Alert, type Section } from '../section';
 import { CHANNELS, type ChannelLanguage } from '../../../../server/youtube';
+import type { FeedbackInput, Suggestion } from '../../../../server/tutorialFeedback';
 
 /**
  * The sections the ops dashboard plan added (docs/ops-dashboard-plan.md,
@@ -442,17 +443,49 @@ export function tutorialAlerts(t: Tutorials, now = Date.now()): Alert[] {
 
 const TUTORIALS_MIGRATION = 'Needs migration 20261028090000_tutorial_videos.sql on this database.';
 
+// ---- feedback on the tutorial videos (decisions.md 186) ------------------------------------------
+
+/**
+ * What came in about the videos (comments on YouTube, changes merged into
+ * main, the team's notes) and what Claude's nightly look suggests doing
+ * about it, for a person to accept, edit or reject (server/tutorialFeedback.ts).
+ */
+export interface Feedback {
+  /** Waiting for a person first, then those answered in the last 30 days (at most 300). */
+  suggestions: Suggestion[];
+  /** Not looked at yet, and those looked at in the last 30 days with nothing to suggest (at most 300), newest first. */
+  inputs: FeedbackInput[];
+  /** Inputs not looked at yet; suggestions waiting; accepted code changes not in Linear yet. */
+  waiting: number; open: number; unfiled: number;
+  last: { at: string; sha: string; runUrl: string; looked: number; suggested: number; code: number } | null;
+  /** Each video's English title, for a note. */
+  videos: { tutorial: string; title: string }[];
+}
+
+export function feedbackOf(row: Feedback): Feedback {
+  return { ...row, waiting: num(row.waiting), open: num(row.open), unfiled: num(row.unfiled) };
+}
+
+export function feedbackAlerts(f: Feedback): Alert[] {
+  const out: Alert[] = [];
+  if (f.open) out.push({ level: 'watch', text: `${plural(f.open, 'suggestion')} for the tutorial videos ${f.open === 1 ? 'waits' : 'wait'} for a yes or no (Tutorial videos).` });
+  if (f.unfiled) out.push({ level: 'watch', text: `${plural(f.unfiled, 'accepted code change')} not in Linear yet (Tutorial videos).` });
+  return out;
+}
+
+const FEEDBACK_MIGRATION = 'Needs migration 20261029120000_tutorial_feedback.sql on this database.';
+
 // ---- one load ---------------------------------------------------------------------------------
 
 export interface OpsSections {
   fleet: Section; safety: Section; people: Section; cron: Section; dbdetail: Section;
-  push: Section; worker: Section; integrations: Section; support: Section; security: Section; tutorials: Section;
+  push: Section; worker: Section; integrations: Section; support: Section; security: Section; tutorials: Section; videofeedback: Section;
 }
 
 /** Every section above on one connection; each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
   const [fleet, rejected, arrivals, canary, pipeline, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
-    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials] = await Promise.all([
+    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback] = await Promise.all([
     part<Fleet>(query, FLEET_SQL),
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
@@ -474,7 +507,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<{ v2SignInFailures24h: number; installsAtDiagCap: number }>(query, `select diag.ops_limits() as v`),
     part<Support['actions']>(query, `select diag.ops_actions(15) as v`),
     part<VerificationRow[]>(query, `select diag.org_verification_requests() as v`),
-    part<TutorialsRow>(query, `select diag.ops_tutorials() as v`)
+    part<TutorialsRow>(query, `select diag.ops_tutorials() as v`),
+    part<Feedback>(query, `select diag.ops_tutorial_feedback() as v`)
   ]);
 
   const routes = workerTotals.ok ? routeRows(workerTotals.value) : [];
@@ -528,6 +562,10 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     tutorials: build([tutorials], TUTORIALS_MIGRATION, () => {
       const t = tutorialsOf(val(tutorials));
       return ok(t, tutorialAlerts(t));
+    }),
+    videofeedback: build([videofeedback], FEEDBACK_MIGRATION, () => {
+      const f = feedbackOf(val(videofeedback));
+      return ok(f, feedbackAlerts(f));
     })
   };
 }
