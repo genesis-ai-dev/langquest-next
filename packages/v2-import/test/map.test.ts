@@ -219,6 +219,34 @@ describe('mapProject: a Bible project', () => {
     expect((take?.payload as { cardHashes: string[] }).cardHashes).toEqual([H('1'), H('2')]);
   });
 
+  it("keeps when v2's server got each file and each review, and again when v2 stamps more later (decisions.md 188)", () => {
+    const stamped = bible();
+    // a1's segment reached v2 on Feb 3 and its audio on Feb 5; a2's first segment reached it, its audio not stamped yet.
+    stamped.contents[0] = { ...stamped.contents[0]!, uploaded_at: '2025-02-03 10:00:00+00', audio_uploaded_at: '2025-02-05T10:00:00.123456+00:00' };
+    stamped.contents[1] = { ...stamped.contents[1]!, uploaded_at: '2025-02-04T00:00:00+00:00' };
+    stamped.votes = stamped.votes.map((v, i) => ({ ...v, uploaded_at: `2025-03-0${i + 2}T00:00:00+00:00` }));
+    const later = structuredClone(stamped);
+    later.contents[1]!.audio_uploaded_at = '2025-02-20T00:00:00+00:00';
+    const ledger = new Map<string, LedgerEntry>();
+    const pass = (rows: V2ProjectRows) => {
+      const r = reconcile(mapProject(rows, ctx()).facts, ledger, { orgId: 'org1', scope: 'p1', now: NOW, takeBackAbsent: chosenHere });
+      for (const [k, e] of r.entries) ledger.set(k, e);
+      return { events: r.events, stamps: Object.fromEntries(r.stamps.map((x) => [x.key, x.at])) };
+    };
+    const first = pass(stamped);
+    expect(first.stamps).toEqual({
+      [`segment:${H('1')}`]: '2025-02-03T10:00:00.000Z', [`file:${H('1')}`]: '2025-02-05T10:00:00.123Z',
+      [`segment:${H('2')}`]: '2025-02-04T00:00:00.000Z',
+      // Both of rev's votes are one review: the newest stamp.
+      'review:review:ch1:rev#1': '2025-03-03T00:00:00.000Z'
+    });
+    expect(pass(stamped).stamps).toEqual({});
+    // a2's audio reaches v2: its part's stamps are kept again, and nothing is said.
+    const audio = pass(later);
+    expect(audio.events).toEqual([]);
+    expect(audio.stamps).toEqual({ [`segment:${H('2')}`]: '2025-02-04T00:00:00.000Z', [`file:${H('2')}`]: '2025-02-20T00:00:00.000Z' });
+  });
+
   it('keeps a review when the vote is removed in v2, and a member when they leave it', () => {
     const later = bible();
     later.votes = later.votes.map((v) => ({ ...v, active: false }));

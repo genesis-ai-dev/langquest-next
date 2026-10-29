@@ -120,6 +120,30 @@ describe('reconcile', () => {
     expect(r.events[0]!.hlc < r.events[1]!.hlc).toBe(true);
   });
 
+  it("keeps a fact's stamps from v2 beside its events, under the statement that said it, and again only when they change (decisions.md 188)", () => {
+    const review = (comment: string, uploadedAt: string | null): Fact => ({
+      ...note(comment), key: 'review:q1:rev', value: comment,
+      stamps: (n) => ({ [`review:review:q1:rev#${n}`]: uploadedAt })
+    });
+    const ledger = new Map<string, LedgerEntry>();
+    const pass = (fact: Fact) => {
+      const r = reconcile([fact], ledger, ctx);
+      for (const [k, e] of r.entries) ledger.set(k, e);
+      return r;
+    };
+    // Said before v2 had stamped it (or before stamps were kept): nothing to keep yet.
+    expect(pass(review('fine', null)).stamps).toEqual([]);
+    // v2's stamp turns up: kept for the statement that said it, with nothing said again.
+    const stamped = pass(review('fine', '2025-03-02T00:00:00.000Z'));
+    expect(stamped.events).toEqual([]);
+    expect(stamped.stamps).toEqual([{ streamId: 'p1', key: 'review:review:q1:rev#1', at: '2025-03-02T00:00:00.000Z' }]);
+    expect(pass(review('fine', '2025-03-02T00:00:00.000Z')).stamps).toEqual([]);
+    // Said again: the new statement's stamp, before its event is appended.
+    const again = pass(review('too fast', '2025-03-09T00:00:00.000Z'));
+    expect(again.events.map((e) => e.id)).toEqual(['v2:p1:review:q1:rev#2:NoteAdded']);
+    expect(again.stamps).toEqual([{ streamId: 'p1', key: 'review:review:q1:rev#2', at: '2025-03-09T00:00:00.000Z' }]);
+  });
+
   it('refuses a fact said twice in one pass', () => {
     expect(() => reconcile([renamed('a'), renamed('b')], new Map(), ctx)).toThrow(/said twice/);
   });
