@@ -4,7 +4,7 @@ import { RECEIPTS_PER_ASK, receivedTimes } from '../worker/agent/store';
 
 /**
  * How the Worker asks `received_times` (decisions.md 188): each kind of key
- * in its own list, a bounded number at a time, and the database's
+ * in its own list (v2's stamps too), a bounded number at a time, and the database's
  * timestamps read back as the API's ISO times.
  */
 
@@ -25,10 +25,10 @@ describe('receivedTimes', () => {
       { key: 'submitted:t1', received_at: '2026-10-29T15:42:56.123456+00:00' },
       { key: 'review:r1', received_at: '2026-10-28T01:02:03+00:00' }
     ]);
-    const got = await receivedTimes(client, 'org1', 'L1', ['submitted:t1', 'review:r1', 'request:q1', 'event:e1']);
+    const got = await receivedTimes(client, 'org1', 'L1', ['submitted:t1', 'review:r1', 'request:q1', 'event:e1', 'v2:review:r1', 'v2:file:h1']);
     expect(calls).toEqual([{
       name: 'received_times',
-      args: { p_org: 'org1', p_stream: 'L1', p_takes: ['t1'], p_events: ['e1'], p_entities: ['review:r1', 'request:q1'] }
+      args: { p_org: 'org1', p_stream: 'L1', p_takes: ['t1'], p_events: ['e1'], p_v2: ['review:r1', 'file:h1'], p_entities: ['review:r1', 'request:q1'] }
     }]);
     expect([...got]).toEqual([['submitted:t1', '2026-10-29T15:42:56.123Z'], ['review:r1', '2026-10-28T01:02:03.000Z']]);
   });

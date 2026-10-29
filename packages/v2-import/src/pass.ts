@@ -368,6 +368,8 @@ class Run {
   private async say(scope: string, orgId: string, facts: Fact[], progress?: (p: Progress) => Promise<void>, actor?: string, takeBackAbsent: boolean | ((key: string) => boolean) = false): Promise<Pick<ProjectReport, 'append' | 'rejected' | 'retry' | 'added'> & { created?: boolean; languageAdded?: boolean }> {
     const ledger = await this.deps.target.ledger(scope);
     const r = reconcile(facts, ledger, { orgId, scope, now: this.now(), ...(actor ? { actor } : {}), takeBackAbsent });
+    // v2's stamps go in before the events they are about, so the API never reads imported work without them (decisions.md 188).
+    if (r.stamps.length) await this.deps.target.putStamps(orgId, r.stamps);
     const orgEvents = r.events.filter((e) => e.streamId === ORG_STREAM);
     const rest = r.events.filter((e) => e.streamId !== ORG_STREAM);
     const total = r.events.length;

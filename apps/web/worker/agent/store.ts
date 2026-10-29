@@ -292,9 +292,9 @@ export async function receivedTimes(service: SupabaseClient, orgId: string, lang
     const page = keys.slice(i, i + RECEIPTS_PER_ASK);
     const named = (prefix: string) => page.filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length));
     const data = must('received_times', await service.rpc('received_times', {
-      p_org: orgId, p_stream: languageId, p_takes: named('submitted:'), p_events: named('event:'),
+      p_org: orgId, p_stream: languageId, p_takes: named('submitted:'), p_events: named('event:'), p_v2: named('v2:'),
       // The rest are entity keys as the database writes them (review:<id>, request:<id>).
-      p_entities: page.filter((k) => !k.startsWith('submitted:') && !k.startsWith('event:'))
+      p_entities: page.filter((k) => !k.startsWith('submitted:') && !k.startsWith('event:') && !k.startsWith('v2:'))
     }));
     for (const r of (data ?? []) as { key: string; received_at: string }[]) out.set(r.key, new Date(r.received_at).toISOString());
   }

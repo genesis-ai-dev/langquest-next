@@ -1,6 +1,6 @@
 # The LangQuest API, review links, and MCP
 
-Other apps, AI agents and people without an account can take part in a translation's review. Why it is built this way: `docs/decisions.md` 70 (tokens), 72 (reviews, releases, review links), 79 (external values), 85 (the passage list), 86 (the OpenAPI document), 101 (webhooks and the change feed), 109 (a listening app's approved audio) and 188 (when the server received each thing).
+Other apps, AI agents and people without an account can take part in a translation's review. Why it is built this way: `docs/decisions.md` 70 (tokens), 72 (reviews, releases, review links), 79 (external values), 85 (the passage list), 86 (the OpenAPI document), 101 (webhooks and the change feed), 109 (a listening app's approved audio) and 188 (when the server received each thing, and when LangQuest v2's did).
 
 - **Partner apps and agents** use an access token. They read passages, record reviews, report where a version is published, and store values of their own with a language.
 - **Anyone with a review link** (`/r/<code>`, shared on WhatsApp, say) can hear one version and answer, with any name.
@@ -92,9 +92,14 @@ A phone that was offline for three days sends three days of work at once. The wo
 - A phone publishes a version before its files finish uploading, so a file's `uploadedAt` can be `null` for a while.
 - Its link plays only once `uploadedAt` is set.
 
-Two more things to know:
-- Work brought over from LangQuest v2 has the day it was imported as `uploadedAt`. `submittedAt` keeps v2's own time.
-- Releases and external values are written only through this API, so their `at` is the server's clock as well.
+**Work brought over from LangQuest v2** has three times, for paying translators by when their work arrived:
+- `submittedAt` and a review's `at`: the v2 phone's clock, when it was recorded.
+- `v2UploadedAt`: v2's server clock, when v2 received it. On an audio file, when v2 had the file; on a review, its newest vote; on a version, the newest of its parts, so when v2 had all of it.
+- `uploadedAt`: when LangQuest Next received it from the import.
+
+`v2UploadedAt` is `null` for work made in LangQuest Next, and where v2 kept no time (it is filled in by the import's next whole read, at 03:15 UTC, for work that came over earlier).
+
+Releases and external values are written only through this API, so their `at` is the server's clock as well.
 
 ## Writing
 
@@ -298,6 +303,6 @@ The device endpoints use OAuth's error codes.
 | `/connect` | `apps/web/worker/agent/connectPage.ts` |
 | Voice note checks | `apps/web/worker/agent/voice.ts` |
 | Tables (service role only) | `supabase/migrations/20261008000000_api_tokens.sql`, `20261008140000_review_links_releases.sql`, `20261013120000_api_webhooks.sql` (also the poke) |
-| When the server received it (`uploadedAt`) | `received_times` in `supabase/migrations/20261029160000_received_times.sql`, asked once a page (`receivedTimes` in `apps/web/worker/agent/store.ts`) and remembered by the organization's object (`agent/org.ts`) |
+| When the server received it (`uploadedAt`, `v2UploadedAt`) | `received_times` in `supabase/migrations/20261029160000_received_times.sql`, asked once a page (`receivedTimes` in `apps/web/worker/agent/store.ts`) and remembered by the organization's object (`agent/org.ts`); v2's stamps kept by the import (`v2_import.stamps`, `Fact.stamps` in `packages/v2-import`) |
 | Approved version, releases, links per step | core `approvedVersion`, `releasesOf`, `stepAllowsLinks`; events `v1.VersionReleased`, `v1.FlowStepLinksSet` |
 | Tests | `apps/web/test/agentApi.test.ts`, `packages/core/test/externalReview.test.ts` |

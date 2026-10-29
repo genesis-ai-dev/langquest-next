@@ -1,8 +1,9 @@
 -- When the server received a language's records (decisions.md 188):
 -- received_times answers the access-token API's uploadedAt from the
--- database's own stamp on each event, by take, by entity and by id, for one
--- stream only, and only to the service role. Repeatable; every write rolls
--- back.
+-- database's own stamp on each event, by take, by entity and by id, and its
+-- v2UploadedAt from what the v2 import kept of LangQuest v2's stamps, for
+-- one stream only, and only to the service role. Repeatable; every write
+-- rolls back.
 \set ON_ERROR_STOP on
 begin;
 update public.server_config set min_client_version = 0;
@@ -48,7 +49,7 @@ end $$;
 -- 1. Each key is answered with the database's stamp, not the phone's week-old clock.
 do $$ declare got jsonb; want jsonb; begin
   select jsonb_object_agg(t.key, t.received_at) into got
-    from public.received_times('rt-org', 'rt-L', array['t1', 'nope'], array['review:rv1', 'request:rq1', 'review:nope'], array['rt-L-01', 'rt-M-06']) t;
+    from public.received_times('rt-org', 'rt-L', array['t1', 'nope'], array['review:rv1', 'request:rq1', 'review:nope'], array['rt-L-01', 'rt-M-06'], '{}') t;
   select jsonb_build_object(
       'submitted:t1', (select received_at from public.events where id = 'rt-L-03'),
       'review:rv1', (select received_at from public.events where id = 'rt-L-04'),
@@ -62,17 +63,31 @@ end $$;
 
 -- 2. Nothing asked, nothing answered.
 do $$ begin
-  if exists (select 1 from public.received_times('rt-org', 'rt-L', '{}', '{}', '{}')) then raise exception 'empty lists should answer nothing'; end if;
+  if exists (select 1 from public.received_times('rt-org', 'rt-L', '{}', '{}', '{}', '{}')) then raise exception 'empty lists should answer nothing'; end if;
 end $$;
 
--- 3. The service role's alone: it answers about any stream.
-do $$ declare v text; begin
-  select string_agg(r, ', ') into v from unnest(array['anon', 'authenticated', 'public']) r
-   where has_function_privilege(r, 'public.received_times(text, text, text[], text[], text[])', 'execute');
-  if v is not null then raise exception 'received_times must be the service role''s alone, not: %', v; end if;
-  if not has_function_privilege('service_role', 'public.received_times(text, text, text[], text[], text[])', 'execute') then
-    raise exception 'the service role must run received_times';
+-- 3. v2's stamps, as the import keeps them: by language and key, a key kept again taking the new time.
+do $$ declare got jsonb; begin
+  perform public.v2_import_stamps_put('rt-org', '[
+    {"streamId":"rt-L","key":"file:h1","at":"2025-02-05T10:00:00.123Z"},
+    {"streamId":"rt-L","key":"review:rv1","at":"2025-03-01T09:00:00Z"},
+    {"streamId":"rt-M","key":"file:h1","at":"2024-01-01T00:00:00Z"}
+  ]'::jsonb);
+  perform public.v2_import_stamps_put('rt-org', '[{"streamId":"rt-L","key":"review:rv1","at":"2025-03-02T09:00:00Z"}]'::jsonb);
+  select jsonb_object_agg(t.key, t.received_at) into got
+    from public.received_times('rt-org', 'rt-L', '{}', '{}', '{}', array['file:h1', 'review:rv1', 'segment:h1']) t;
+  if got is distinct from jsonb_build_object('v2:file:h1', '2025-02-05T10:00:00.123+00:00'::timestamptz, 'v2:review:rv1', '2025-03-02T09:00:00+00:00'::timestamptz) then
+    raise exception 'v2 stamps: got %', got;
   end if;
+end $$;
+
+-- 4. The service role's alone: they answer about, and write, any stream.
+do $$ declare f text; v text; begin
+  foreach f in array array['public.received_times(text, text, text[], text[], text[], text[])', 'public.v2_import_stamps_put(text, jsonb)'] loop
+    select string_agg(r, ', ') into v from unnest(array['anon', 'authenticated', 'public']) r where has_function_privilege(r, f, 'execute');
+    if v is not null then raise exception '% must be the service role''s alone, not: %', f, v; end if;
+    if not has_function_privilege('service_role', f, 'execute') then raise exception 'the service role must run %', f; end if;
+  end loop;
 end $$;
 
 rollback;

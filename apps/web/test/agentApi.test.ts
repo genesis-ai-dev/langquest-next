@@ -4,7 +4,7 @@ import {
 } from '@langquest-next/core';
 import { MemoryStore as EventMemoryStore, type AppendResult } from '@langquest-next/sync';
 import { handleAgentApi, type AgentDeps, type OrgStub } from '../worker/agent/http';
-import { AgentOrg } from '../worker/agent/org';
+import { AgentOrg, V2_RECHECK_MS } from '../worker/agent/org';
 import type { AgentStore, DeviceGrant, NewToken, NewWebhook, TokenRecord, WebhookRecord } from '../worker/agent/store';
 import { WebhookDispatcher } from '../worker/agent/dispatch';
 import type { JobRun } from '../../../server/jobRuns';
@@ -39,10 +39,14 @@ class Log implements Source {
   delayMs = ARRIVES_AFTER_MS;
   /** Each question `received_times` was asked: the keys. */
   readonly receivedAsks: string[][] = [];
+  /** What the v2 import kept of LangQuest v2's stamps (v2_import.stamps), by language and key. */
+  readonly v2Stamps = new Map<string, string>();
+  /** The device events added from now on come from: 'v2import' for work the import brings over. */
+  device = 'd';
 
   add(streamId: string, type: string, payload: unknown, actorId = 'admin', id = `e${this.seq + 1}`) {
     this.seq += 1;
-    this.push({ id, type, orgId: ORG, streamId, actorId, deviceId: 'd', hlc: encodeHlc(T0 + this.seq * 1000, 0, 'd'), payload } as AnyEvent);
+    this.push({ id, type, orgId: ORG, streamId, actorId, deviceId: this.device, hlc: encodeHlc(T0 + this.seq * 1000, 0, this.device), payload } as AnyEvent);
   }
 
   push(e: AnyEvent) {
@@ -52,13 +56,18 @@ class Log implements Source {
     this.arrived.set(e.id, decodeHlc(e.hlc).wallMs + this.delayMs);
   }
 
-  /** received_times as the database answers it (migration 20261029160000): the first publish of a take, an entity's event, an event by id. */
+  /** received_times as the database answers it (migration 20261029160000): the first publish of a take, an entity's event, an event by id, v2's stamps. */
   async received(streamId: string, keys: readonly string[]): Promise<Map<string, string>> {
     this.receivedAsks.push([...keys]);
     const events = this.streams.get(streamId) ?? [];
     const out = new Map<string, string>();
     for (const key of keys) {
       const [kind, id] = [key.slice(0, key.indexOf(':')), key.slice(key.indexOf(':') + 1)];
+      if (kind === 'v2') {
+        const at = this.v2Stamps.get(`${streamId}\n${id}`);
+        if (at) out.set(key, at);
+        continue;
+      }
       const p = (e: AnyEvent) => e.payload as Record<string, unknown>;
       const hits = events.filter((e) =>
         kind === 'submitted' ? e.type === 'v1.TakeSubmitted' && p(e)['takeId'] === id
@@ -548,7 +557,7 @@ describe('when the server received it (decisions.md 188)', () => {
     expect(d4.version.submittedAt).toBe(iso(decodeHlc(submitted.hlc).wallMs));
     expect(d4.version.uploadedAt).toBe(arrivalOf(log, submitted));
     expect(Date.parse(d4.version.uploadedAt) - Date.parse(d4.version.submittedAt)).toBe(DAYS_3);
-    expect(d4.versions).toEqual([{ n: 1, takeId: 'take-d4', submittedAt: d4.version.submittedAt, uploadedAt: d4.version.uploadedAt }]);
+    expect(d4.versions).toEqual([{ n: 1, takeId: 'take-d4', submittedAt: d4.version.submittedAt, uploadedAt: d4.version.uploadedAt, v2UploadedAt: null }]);
     expect(d4.requests).toMatchObject([{ requestId: 'q-d4', uploadedAt: arrivalOf(log, eventOf(log, 'v1.RequestMade', (p) => p['requestId'] === 'q-d4')) }]);
     expect(d4.reviews).toMatchObject([{ kindId: 'peer', uploadedAt: arrivalOf(log, eventOf(log, 'v1.ReviewRecorded', (p) => p['reviewId'] === 'peer-d4')) }]);
     // The list gives the same, for the version it summarizes.
@@ -577,6 +586,37 @@ describe('when the server received it (decisions.md 188)', () => {
     const listening = await token('admin', { scopes: ['read:published'] });
     const d1 = (await call('GET', '/api/v1/languages/din/passages?include=audio', listening)).body.passages[0];
     expect(d1.audio.map((a: { uploadedAt: string | null }) => a.uploadedAt)).toEqual([stored(card('d1a').hash), null]);
+  });
+
+  it("gives work brought over from LangQuest v2 the time v2's server received it, beside when it came into Next", async () => {
+    // Why: partners pay translators by when their work arrived (Caleb, 2026-10-29). v2's created_at, which the import
+    // gives a version as submittedAt, is a phone's; v2's server stamped each segment, its audio and each vote.
+    const { call, token, log, advance } = setup();
+    log.device = 'v2import';
+    recorded(log, 'din', 'd4');
+    log.add('din', 'v1.ReviewRecorded', { reviewId: 'review:q4:rev#1', takeId: 'take-d4', kindId: 'peer', outcome: 'needs_changes', via: 'app' }, 'rev');
+    log.device = 'd';
+    const [a, b] = [card('d4a').hash, card('d4b').hash];
+    const kept = { [`segment:${a}`]: '2025-02-02T08:00:00.000Z', [`file:${a}`]: '2025-02-02T08:05:00.000Z', [`segment:${b}`]: '2025-02-03T08:00:00.000Z', 'review:review:q4:rev#1': '2025-03-01T09:00:00.000Z' };
+    for (const [key, at] of Object.entries(kept)) log.v2Stamps.set(`din\n${key}`, at);
+    const t = await token('admin', { scopes: ['read'] });
+    const d4 = (await call('GET', '/api/v1/languages/din/passages/d4', t)).body;
+    // The version: when v2 had all of it, the newest stamp on its parts. b's audio has no stamp yet.
+    expect(d4.version).toMatchObject({ v2UploadedAt: '2025-02-03T08:00:00.000Z', uploadedAt: arrivalOf(log, eventOf(log, 'v1.TakeSubmitted', (p) => p['takeId'] === 'take-d4')) });
+    expect(d4.versions).toMatchObject([{ takeId: 'take-d4', v2UploadedAt: '2025-02-03T08:00:00.000Z' }]);
+    expect(d4.audio.map((x: { v2UploadedAt: string | null }) => x.v2UploadedAt)).toEqual(['2025-02-02T08:05:00.000Z', null]);
+    expect(d4.reviews).toMatchObject([{ v2UploadedAt: '2025-03-01T09:00:00.000Z' }]);
+    // Work made in Next has none, and costs no question about v2.
+    const d2 = (await call('GET', '/api/v1/languages/din/passages/d2', t)).body;
+    expect([d2.version.v2UploadedAt, ...d2.audio.map((x: { v2UploadedAt: string | null }) => x.v2UploadedAt), ...d2.reviews.map((r: { v2UploadedAt: string | null }) => r.v2UploadedAt)]).toEqual([null, null, null]);
+    expect(log.receivedAsks.at(-1)!.filter((k) => k.startsWith('v2:'))).toEqual([]);
+    // b's audio reaches v2 and the import keeps it: the API asks again after a while, not on every read.
+    log.v2Stamps.set(`din\n${'file:' + b}`, '2025-02-10T00:00:00.000Z');
+    expect((await call('GET', '/api/v1/languages/din/passages/d4', t)).body.audio[1].v2UploadedAt).toBeNull();
+    advance(V2_RECHECK_MS);
+    const later = (await call('GET', '/api/v1/languages/din/passages/d4', t)).body;
+    expect(later.audio[1].v2UploadedAt).toBe('2025-02-10T00:00:00.000Z');
+    expect(later.version.v2UploadedAt).toBe('2025-02-10T00:00:00.000Z');
   });
 
   it('asks the database once for a page, and after that only about what it has not seen', async () => {

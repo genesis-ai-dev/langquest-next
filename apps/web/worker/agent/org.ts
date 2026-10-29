@@ -49,6 +49,13 @@ const HOUR_MS = 60 * 60 * 1000;
  * same passages again asks the database only about what is new to it.
  */
 export const RECEIPTS_KEPT = 20_000;
+/**
+ * How long the object trusts that the import has kept no LangQuest v2 stamp
+ * for something: it keeps them on each pass (every 15 minutes), for audio
+ * that reached v2 late too, and fills them in for work it brought over
+ * before (decisions.md 188). One it has kept is remembered like a receipt.
+ */
+export const V2_RECHECK_MS = 15 * 60 * 1000;
 
 const no = (r: Refusal): Answer<never> => ({ ok: false, ...r });
 const yes = <T>(data: T): Answer<T> => ({ ok: true, data });
@@ -79,24 +86,31 @@ export class AgentOrg {
     }
   ) {}
 
-  private readonly receipts = new Map<string, string>();
+  /** Each receipt by language and key: its time (null for a v2 stamp not kept yet), and until when that holds. */
+  private readonly receipts = new Map<string, { at: string | null; until: number }>();
 
   /** A language's receipts, from what the object remembers first and the database for the rest, in one question. */
   private receivedIn(languageId: string): Receipts {
     return async (keys) => {
       const out = new Map<string, string>();
       const ask: string[] = [];
+      const now = this.now();
       for (const key of keys) {
-        const at = this.receipts.get(`${languageId}\n${key}`);
-        if (at === undefined) ask.push(key);
-        else out.set(key, at);
+        const known = this.receipts.get(`${languageId}\n${key}`);
+        if (!known || known.until <= now) ask.push(key);
+        else if (known.at !== null) out.set(key, known.at);
       }
       if (!ask.length) return out;
-      for (const [key, at] of await this.deps.received(languageId, ask)) {
-        out.set(key, at);
+      const answer = await this.deps.received(languageId, ask);
+      for (const key of ask) {
+        const at = answer.get(key) ?? null;
+        if (at !== null) out.set(key, at);
+        // A v2 stamp not kept yet may be by the import's next pass; anything else missing is asked again next time.
+        if (at === null && !key.startsWith('v2:')) continue;
         // The oldest go first once there are too many: a Map keeps the order they came in.
+        this.receipts.delete(`${languageId}\n${key}`);
         if (this.receipts.size >= RECEIPTS_KEPT) this.receipts.delete(this.receipts.keys().next().value!);
-        this.receipts.set(`${languageId}\n${key}`, at);
+        this.receipts.set(`${languageId}\n${key}`, { at, until: at === null ? now + V2_RECHECK_MS : Infinity });
       }
       return out;
     };

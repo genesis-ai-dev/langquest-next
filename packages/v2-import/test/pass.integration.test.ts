@@ -178,4 +178,48 @@ describe.skipIf(!SERVICE)('a pass against the local database', () => {
     expect(Object.keys(lang.invalidEvents)).toEqual([]);
     expect(lang.languageReferences[guides]?.value).toBe('recommended');
   }, 60_000);
+
+  it("keeps when v2's server got the work, and the API's lookup answers it beside Next's own stamp (decisions.md 188)", async () => {
+    const db = createClient(URL, SERVICE, { auth: { persistSession: false } });
+    const run = `s${Date.now().toString(36)}`;
+    const id = `${run}-p`;
+    const orgId = `org-v2-test-${run}`;
+    // Both segments reached v2 in February; only the first one's audio is stamped as arrived so far.
+    const rows = project(id, 2);
+    rows.contents = rows.contents.map((c, i) => ({ ...c, uploaded_at: `2025-02-0${i + 2}T08:00:00+00:00`, audio_uploaded_at: i === 0 ? '2025-02-02T08:05:00+00:00' : null }));
+    rows.votes = rows.votes.map((v) => ({ ...v, uploaded_at: '2025-03-01T09:00:00+00:00' }));
+    const target = supabaseTarget(db, memoryFiles());
+    await target.savePlan(
+      [{ org_id: orgId, name: `Test ${run}`, existing: false, admins: [`${id}-owner`] }],
+      [{ project_id: id, org_id: orgId, name: 'Kwa', languoid_id: null, code: 'kwa', confirmed: true }], 'test'
+    );
+    const all = new Map([[id, rows]]);
+    const first = await sync({ v2: fakeV2(all), target }, { projects: [id] });
+    expect(first[0]?.rejected ?? []).toEqual([]);
+    const { data: recorded, error } = await db.from('events').select('payload').eq('org_id', orgId).eq('stream_id', id).eq('type', 'v1.RecordingAdded');
+    if (error) throw error;
+    const [h1, h2] = (recorded ?? []).flatMap((e) => (e.payload as { cards: { hash: string }[] }).cards.map((c) => c.hash));
+    const review = `review:${id}-mrk1:${id}-rev#1`;
+    const keys = [`segment:${h1}`, `file:${h1}`, `segment:${h2}`, `file:${h2}`, `review:${review}`];
+    const ask = async () => {
+      const { data, error } = await db.rpc('received_times', { p_org: orgId, p_stream: id, p_takes: [`take:${id}-mrk1#1`], p_entities: [`review:${review}`], p_events: [], p_v2: keys });
+      if (error) throw error;
+      return Object.fromEntries((data as { key: string; received_at: string }[]).map((r) => [r.key, new Date(r.received_at).toISOString()]));
+    };
+    const before = await ask();
+    expect(before).toMatchObject({
+      [`v2:segment:${h1}`]: '2025-02-02T08:00:00.000Z', [`v2:file:${h1}`]: '2025-02-02T08:05:00.000Z', [`v2:segment:${h2}`]: '2025-02-03T08:00:00.000Z',
+      [`v2:review:${review}`]: '2025-03-01T09:00:00.000Z'
+    });
+    expect(before[`v2:file:${h2}`]).toBeUndefined();
+    // Next's own stamps are the day it came over, not v2's.
+    expect(Date.parse(before[`submitted:take:${id}-mrk1#1`]!)).toBeGreaterThan(Date.now() - 120_000);
+    expect(Date.parse(before[`review:${review}`]!)).toBeGreaterThan(Date.now() - 120_000);
+
+    // The second file's audio reaches v2 a week later: the next pass keeps it, and says nothing new.
+    all.get(id)!.contents[1]!.audio_uploaded_at = '2025-02-10T00:00:00+00:00';
+    const second = await sync({ v2: fakeV2(all), target }, { projects: [id] });
+    expect(second[0]?.append).toMatchObject({ accepted: 0 });
+    expect((await ask())[`v2:file:${h2}`]).toBe('2025-02-10T00:00:00.000Z');
+  }, 60_000);
 });

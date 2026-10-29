@@ -263,6 +263,18 @@ the rest.
   segments, placements and votes are read by slices of the project's own
   quest and asset ids. v2's own totals (`project_closure`) are no longer
   kept, so the dashboard counts each project's assets itself.
+- **When v2 got it.** v2's server stamps each segment (`uploaded_at`),
+  its audio (`audio_uploaded_at`) and each vote (`uploaded_at`) with its
+  own clock; `created_at`, which becomes a version's `submittedAt` here,
+  is the phone's. Partners pay translators by when work arrived (Caleb,
+  2026-10-29), so the import keeps those stamps in `v2_import.stamps`, by
+  language: each file's segment and audio, and each review's newest vote.
+  They go in before the events they are about, and again when v2 stamps
+  something later (audio that arrived after its rows) or a pass first
+  finds stamps for work that came over before they were kept; nothing is
+  said again for them (`Fact.stamps`, decisions.md 188). The access-token
+  API gives them as `v2UploadedAt`, beside `uploadedAt`, Next's own stamp
+  from when the import appended the work (`docs/agent-api.md`).
 - **Trying it.** `npm run v2 -- try --project <id>` maps projects and checks
   every event against the app's rules, writing nothing;
   `V2_IMPORT_FILES_DIR` keeps files in a folder instead of R2, for a whole
@@ -272,8 +284,8 @@ the rest.
 
 A schema of its own, `v2_import`, reachable only by the service role
 through `v2_import_*` functions, holding the plan (section 2), the ledger
-(one row per fact: its last event id, digest and clock), the file map and
-one row per pass. Nothing in `public` changes except `profiles` names and
+(one row per fact: its last event id, digest and clock), the file map,
+v2's server stamps on the work (section 5) and one row per pass. Nothing in `public` changes except `profiles` names and
 `user_blocks`, which the import fills like any account would.
 
 ## 7. People who come over (demo ADR-043)
