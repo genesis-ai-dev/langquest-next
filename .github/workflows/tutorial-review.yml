@@ -41,7 +41,9 @@ jobs:
     steps:
       - name: Without a Claude token, say so
         if: env.HAS_CLAUDE_TOKEN != 'true'
-        run: echo "::notice::No CLAUDE_CODE_OAUTH_TOKEN: run claude setup-token, then npm run env:update -- production CLAUDE_CODE_OAUTH_TOKEN and npm run secrets -- production"
+        # A block, since YAML takes the colon after the secret's name for a key.
+        run: |
+          echo "::notice::No CLAUDE_CODE_OAUTH_TOKEN: run claude setup-token, then npm run env:update -- production CLAUDE_CODE_OAUTH_TOKEN and npm run secrets -- production"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         if: env.HAS_CLAUDE_TOKEN == 'true'
         with:

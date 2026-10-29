@@ -38,4 +38,6 @@ export async function recordOffCamera(page: Page, mic: Mic, parts: number): Prom
   await page.waitForFunction((e) => e?.getAttribute('aria-disabled') !== 'true', await play.elementHandle({ timeout: 60_000 }), { timeout: 60_000 });
   await page.getByText('All uploaded').waitFor({ timeout: 60_000 }).catch(() => undefined);
   await id(page, 'upload-bar').waitFor({ state: 'hidden', timeout: 60_000 });
+  // The count can read right before the last part comes in: counted again once every part is kept.
+  await button(page, new RegExp(`^Parts 1–${parts}, ${parts} parts · `)).waitFor({ timeout: 10_000 });
 }

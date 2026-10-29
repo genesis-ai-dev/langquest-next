@@ -58,6 +58,17 @@ than one asked to be unhurried. Jobs of more than about 100 lines come back
 with many lines turned down ("Precondition check failed"), so
 `gemini-voice.mjs` sends 100 at a time and sends the turned-down lines again.
 
+What the speaker says into the microphone (`readings.ts`) is parts with a
+long pause after each, since the app's recorder ends a part after a second of
+quiet (`splitter.ts`), and a part said as two pieces has a breath between
+them. Gemini leaves some quiet before and after what it says, so
+`make-readings.ts` cuts it where two pieces join: left in, the breath came to
+more than a second in some languages, and "Give each part its verse" got six
+parts where it asks for five. A reading is made again only when what it is
+made from changes (its words, voice, speed or pauses, or `MAKING` in
+`make-readings.ts`); `speech/<language>/made.json` says what each was made
+from, and the release keeps it with the readings.
+
 ## Other languages
 
 A script is written once, in English. In another language:
