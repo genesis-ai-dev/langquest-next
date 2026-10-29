@@ -891,7 +891,7 @@ export function EmptyState(props: { icon?: IconName; title: string; sub?: string
   return (
     <View style={styles.empty} {...(props.busy ? { accessibilityLiveRegion: 'polite' as const } : {})}>
       <View style={[styles.iconTile, { width: 64, height: 64, borderRadius: 20 }]}>
-        {props.busy ? <ActivityIndicator color={C.primary} /> : <Ico name={props.icon ?? 'sparkle'} size={30} color={C.primary} />}
+        {props.busy ? <ActivityIndicator color={C.primary} accessibilityLabel={props.title} /> : <Ico name={props.icon ?? 'sparkle'} size={30} color={C.primary} />}
       </View>
       <Text style={[txt.h3, { textAlign: 'center' }]}>{props.title}</Text>
       {props.sub ? <Text style={[txt.smMuted, { textAlign: 'center' }]}>{props.sub}</Text> : null}

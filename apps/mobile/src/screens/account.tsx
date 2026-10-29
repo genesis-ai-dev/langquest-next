@@ -858,7 +858,7 @@ export function SignOutConfirm(ctx: Ctx) {
       {/* Held back by unsent work: show it going, and where to see it (UI audit, finding 115). Sign Out enables itself once it has gone. */}
       {blocked && online !== false ? (
         <View style={styles.sending} accessibilityLiveRegion="polite">
-          <ActivityIndicator color={C.primary} />
+          <ActivityIndicator color={C.primary} accessibilityLabel={t('account.signOut.sending')} />
           <Text style={txt.bodyMuted}>{t('account.signOut.sending')}</Text>
         </View>
       ) : null}
