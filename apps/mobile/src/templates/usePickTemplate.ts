@@ -30,7 +30,7 @@ export function usePickTemplate(ctx: Ctx, lib: Lib, state: LanguageState | null,
       } catch { return; }
       after();
     } catch (e) {
-      ctx.toast(failureMessage('use template', e));
+      ctx.toast(failureMessage('use template', e), 'problem');
     } finally {
       setBusy(false);
     }

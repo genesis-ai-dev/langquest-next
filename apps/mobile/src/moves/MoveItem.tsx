@@ -42,7 +42,7 @@ export function MoveItem(props: { ctx: Ctx; it: LibraryItemView; canManage: bool
   async function withdraw() {
     if (!move) return;
     setBusy(true);
-    try { if (!await moves.withdraw(move.id)) ctx.toast(t('moves.problem.offline')); } finally { setBusy(false); }
+    try { if (!await moves.withdraw(move.id)) ctx.toast(t('moves.problem.offline'), 'problem'); } finally { setBusy(false); }
   }
 
   if (move?.state === 'moved') {

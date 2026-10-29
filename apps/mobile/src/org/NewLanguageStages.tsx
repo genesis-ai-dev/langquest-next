@@ -8,7 +8,7 @@ import { Text } from '../ui/text';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { HelpInfo, Ico, type IconName } from '../ui/kit';
-import { C, radius, space, TINT } from '../ui/theme';
+import { C, radius, space, TINT, type as T } from '../ui/theme';
 import { STAGES, stageHelp, stageIcon, stageLabel, type Stage } from './stagesModel';
 
 /** The reduce-motion setting: the path is drawn at once when it is on. */
@@ -54,7 +54,7 @@ function StageStop(props: { stage: Stage; n: number; last: boolean }) {
       <View style={styles.rail} accessible accessibilityLabel={t('org.newLanguage.stageOf', { n: formatNumber(props.n), total: formatNumber(STAGES.length), name: label })}>
         <View style={styles.dot}>
           <Ico name={stageIcon(props.stage)} size={24} color={C.primary} />
-          <View style={styles.n}><Text style={styles.nText}>{formatNumber(props.n)}</Text></View>
+          <View style={styles.n}><Text style={styles.nText} maxFontSizeMultiplier={1.5}>{formatNumber(props.n)}</Text></View>
         </View>
         {props.last ? null : <View style={styles.line} />}
       </View>
@@ -151,9 +151,9 @@ const styles = StyleSheet.create({
   stop: { flexDirection: 'row', gap: space.lg, minHeight: 92 },
   rail: { width: DOT, alignItems: 'center' },
   dot: { width: DOT, height: DOT, borderRadius: DOT / 2, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
-  n: { position: 'absolute', top: -4, right: -4, minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 5, backgroundColor: C.primary,
+  n: { position: 'absolute', top: -4, right: -4, minWidth: 24, minHeight: 24, borderRadius: 12, paddingHorizontal: 5, backgroundColor: C.primary,
     borderWidth: 2, borderColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-  nText: { color: C.white, fontSize: 12, fontWeight: '800' },
+  nText: { color: C.white, fontSize: T.xs, fontWeight: '800' },
   line: { flex: 1, width: 3, borderRadius: 2, backgroundColor: C.border, marginVertical: 4 },
   what: { flex: 1, minWidth: 0, paddingTop: 4, paddingBottom: space.lg, gap: space.sm },
   label: { fontSize: 19, fontWeight: '800', color: C.dark },

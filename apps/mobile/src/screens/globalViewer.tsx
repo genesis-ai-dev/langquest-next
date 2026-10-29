@@ -95,7 +95,7 @@ function SetUp(props: { refresh: () => Promise<void> }) {
 function Organizations(props: { ctx: Ctx }) {
   const { ctx } = props;
   const [query, setQuery] = useState('');
-  const { rows, hasMore: more, error, more: loadMore, fail: setError } = useViewableOrganizations(query);
+  const { rows, hasMore: more, error, busy, more: loadMore, fail: setError } = useViewableOrganizations(query);
   const here = ctx.session.viewingAsGlobalViewer ? ctx.org.state?.org?.value.name ?? '' : '';
   const dashboard = opsDashboardLink();
   return (
@@ -131,6 +131,9 @@ function Organizations(props: { ctx: Ctx }) {
       ) : <Banner icon="eye" title={t('globalViewer.onTitle')} body={t('globalViewer.onBody')} />}
       <SearchField value={query} onChangeText={setQuery} placeholder={t('globalViewer.search')} testID="global-viewer-search" />
       {error ? <Banner icon="cloud" tone="amber" title={error} /> : null}
+      {/* Searching shows: a blank list, or an old "No organization matches", is not the answer (UI audit, finding 78). */}
+      {busy && !rows ? <EmptyState busy title={t('globalViewer.searching')} /> : null}
+      {busy && rows ? <Text style={txt.smMuted} accessibilityLiveRegion="polite">{t('globalViewer.searching')}</Text> : null}
       {rows?.map((r) => {
         const open = r.org_id === ctx.language.orgId;
         return (
@@ -149,7 +152,7 @@ function Organizations(props: { ctx: Ctx }) {
           </HelpRow>
         );
       })}
-      {rows && !rows.length ? <EmptyState icon="search" title={t('globalViewer.noneFound')} /> : null}
+      {rows && !rows.length && !busy ? <EmptyState icon="search" title={t('globalViewer.noneFound')} /> : null}
       {more && rows ? <GhostBtn label={t('globalViewer.more')} full help={t('help.details.showMore')} onPress={loadMore} /> : null}
     </View>
   );

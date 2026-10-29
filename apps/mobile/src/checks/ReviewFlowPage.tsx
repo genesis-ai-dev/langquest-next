@@ -51,7 +51,7 @@ export function ReviewFlowPage({ ctx }: { ctx: Ctx }) {
       // A ready-made flow is copied into the language, its checks the language's own (decision 91).
       specs = commands(state, indexesFor(state)).copyFlow({ commandId: Crypto.randomUUID(), name: e.c.name, kinds: kindsOf(e.doc), steps: e.doc.steps });
     } catch (err) {
-      ctx.toast(t('common.notSaved', { reason: failureMessage('use flow', err) })); // i18n-ignore: log label
+      ctx.toast(t('common.notSaved', { reason: failureMessage('use flow', err) }), 'problem'); // i18n-ignore: log label
       setBusy(false);
       return;
     }
@@ -67,7 +67,8 @@ export function ReviewFlowPage({ ctx }: { ctx: Ctx }) {
   return (
     <Screen header={<Header title={t('org.language.reviewFlow')} sub={language} onBack={ctx.back} />} bodyStyle={PAD}
       footer={pick && canUse ? (
-        <PrimaryBtn label={t('checks.flows.use', { name: nameOf(pick) })} icon="check" busy={busy} help={t('checks.flows.useHelp', { language })}
+        // The checks themselves are the option's label; the button is short (UI audit, finding 104).
+        <PrimaryBtn label={t('checks.flows.useThese')} icon="check" busy={busy} help={t('checks.flows.useHelp', { language })}
           onPress={() => (own ? setReplacing(pick) : void take(pick))} />
       ) : undefined}>
       <PickCard title={checksLine(flow.steps, kinds)} sub={flowSub(flow.steps)}
@@ -76,7 +77,7 @@ export function ReviewFlowPage({ ctx }: { ctx: Ctx }) {
       </PickCard>
       {options.map((e) => (
         <HelpRow key={e.c.key} of="getReady.flow.option">
-          <RadioRow icon="people" label={nameOf(e)} sub={flowSub(e.doc.steps)} on={picked === e.c.key}
+          <RadioRow icon="people" label={nameOf(e)} sub={[e.c.name, flowSub(e.doc.steps)].filter(Boolean).join(' · ')} on={picked === e.c.key}
             help={canUse ? t('checks.flows.pickHelp') : t('getReady.flow.optionViewHelp')} onPress={() => { if (canUse) setPicked(picked === e.c.key ? null : e.c.key); }} />
         </HelpRow>
       ))}
@@ -86,8 +87,8 @@ export function ReviewFlowPage({ ctx }: { ctx: Ctx }) {
           <Row icon="flow" label={t('getReady.flow.all')} help={t('getReady.flow.allHelp')} last onPress={() => ctx.go('flows_home', { level: 'language', languageId })} />
         </Group>
       ) : null}
-      <ConfirmDelete visible={!!replacing} name={replacing ? nameOf(replacing) : ''} replaces
-        title={t('checks.flows.replaceAsk', { language, name: replacing ? nameOf(replacing) : '' })} confirmLabel={t('checks.flows.use', { name: replacing ? nameOf(replacing) : '' })}
+      <ConfirmDelete visible={!!replacing} name={replacing ? nameOf(replacing) : ''} replaces {...(replacing ? { sub: nameOf(replacing) } : {})}
+        title={t('checks.flows.replaceOwnAsk', { language })} confirmLabel={t('checks.flows.useThese')}
         onClose={() => setReplacing(null)} onConfirm={() => { const r = replacing; setReplacing(null); if (r) void take(r); }} />
     </Screen>
   );

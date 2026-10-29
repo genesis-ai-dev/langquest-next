@@ -46,6 +46,7 @@ import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
 import type { BackgroundData } from './reviewText';
 import { NotedRow, NotesUnder } from './notesOn';
+import { a11yState } from '../ui/a11yModel';
 
 // ---- the strip of steps ----------------------------------------------------------------------
 
@@ -69,15 +70,17 @@ export function StepStrip(props: { stages: Stage[]; at: number; onGo: (id: Stage
 function StripStep(props: { stage: Stage; index: number; count: number; done: boolean; current: boolean; onGo: (id: StageId) => void }) {
   const { stage, done, current } = props;
   const spot = useHelpSpot(stage.label, done ? t('review.simple.goBack') : t('review.simple.stepOf', { index: props.index + 1, total: props.count }), () => props.onGo(stage.id));
-  const icon: IconName = done ? 'check' : stage.icon === 'help' ? 'help' : stage.icon;
+  // A done step is a green tick; the others their number, as every step list in the app draws them,
+  // so no step wears the help button's ? or a tick before it is done.
   const fg = done ? TINT.greenText : current ? C.primary : C.muted;
   return (
     <Pressable onPress={spot.onPress} disabled={!done} accessibilityRole="button"
       accessibilityLabel={done ? t('review.simple.stepDone', { stage: stage.label }) : t('review.simple.stepA11y', { stage: stage.label, index: props.index + 1, total: props.count })}
-      accessibilityState={{ selected: current, disabled: !done }}
+      {...a11yState({ selected: current, disabled: !done }, 'button', 'current')}
       style={({ pressed }) => [styles.step, pressed && styles.pressed]}>
       <View style={[styles.stepMark, done ? { backgroundColor: C.green } : current ? { backgroundColor: C.primary } : styles.stepLater]}>
-        <Ico name={icon} size={20} color={done || current ? C.white : C.muted} strokeWidth={done ? 3 : 2.2} />
+        {done ? <Ico name="check" size={20} color={C.white} strokeWidth={3} />
+          : <Text style={[styles.stepNum, { color: current ? C.white : C.muted }]}>{formatNumber(props.index + 1)}</Text>}
       </View>
       <Text style={[styles.stepLabel, { color: fg }]}>{stage.label}</Text>
       <HelpBadge spot={spot} />
@@ -128,7 +131,7 @@ export function DecideCard(props: { tone: 'green' | 'amber'; label: string; icon
   const spot = useHelpSpot(props.label, green ? t('review.simple.looksGoodHelp') : t('review.simple.needsChangesHelp'), props.onPress);
   return (
     <Pressable onPress={spot.onPress} disabled={props.disabled || props.busy} accessibilityRole="button" accessibilityLabel={props.label}
-      accessibilityState={{ disabled: !!props.disabled, busy: !!props.busy }}
+      {...a11yState({ disabled: !!props.disabled, busy: !!props.busy }, 'button')}
       style={({ pressed }) => [styles.decide, green ? { backgroundColor: TINT.green, borderColor: C.green } : { backgroundColor: TINT.amber, borderColor: C.amber },
         props.disabled && { opacity: 0.45 }, pressed && styles.pressed]}>
       <View style={[styles.decideMark, { backgroundColor: green ? onColor.green : onColor.amber }]}>
@@ -323,7 +326,7 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
           </View>
           {(
             <Pressable onPress={pick.onPress} accessibilityRole="button" accessibilityLabel={option ? t('review.simple.chooseBibleNow', { bible: option.name }) : t('review.simple.chooseBible')}
-              accessibilityState={{ expanded: picking }} style={({ pressed }) => [styles.picker, pressed && styles.pressed]}>
+              {...a11yState({ expanded: picking }, 'button')} style={({ pressed }) => [styles.picker, pressed && styles.pressed]}>
               <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText, flexShrink: 1 }]} numberOfLines={2}>{option?.abbreviation ?? t('review.simple.bibles')}</Text>
               <Ico name={picking ? 'up' : 'down'} size={18} color={TINT.amberText} strokeWidth={2.6} />
               <HelpBadge spot={pick} />
@@ -426,10 +429,13 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
                   {open ? notes.map((n) => (
                     <HelpRow key={n.id} of="review.verseNote">
                       <Authored ctx={ctx} by={n.by}>
-                        <View style={{ gap: space.xs }}>
-                          {n.text ? <Text style={txt.sm}>{n.text}</Text> : null}
-                          {n.blobHash ? <AudioClip language={ctx.language} hashes={[n.blobHash]} label={t('review.parts.playNote')} /> : null}
-                          <Text style={txt.xs}>{ctx.name(n.by)} · {when(n.hlc)}{n.anchor.kind === 'verse' && n.anchor.at ? ` · ${t('review.simple.atTime', { time: n.anchor.at })}` : ''}</Text>
+                        <View style={{ flexDirection: 'row', gap: space.xs, alignItems: 'flex-start' }}>
+                          <View style={{ flex: 1, gap: space.xs }}>
+                            {n.text ? <Text style={txt.sm}>{n.text}</Text> : null}
+                            {n.blobHash ? <AudioClip language={ctx.language} hashes={[n.blobHash]} label={t('review.parts.playNote')} /> : null}
+                            <Text style={txt.xs}>{ctx.name(n.by)} · {when(n.hlc)}{n.anchor.kind === 'verse' && n.anchor.at ? ` · ${t('review.simple.atTime', { time: n.anchor.at })}` : ''}</Text>
+                          </View>
+                          <ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, n.unitId)} size={36} />
                         </View>
                       </Authored>
                     </HelpRow>
@@ -451,7 +457,7 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
 function VerseTap(props: { verse: string; selected: boolean; plays: boolean; accessibilityLabel: string; onPress: () => void; children: ReactNode }) {
   const spot = useHelpSpot(t('review.capture.anchor.verse', { verse: props.verse }), props.plays ? t('review.simple.verseHelpPlay') : t('review.simple.verseHelpPick'), props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityState={{ selected: props.selected }}
+    <Pressable onPress={spot.onPress} {...a11yState({ selected: props.selected }, 'button')}
       accessibilityHint={props.plays ? t('review.simple.playsFromVerse') : t('review.simple.picksVerse')}
       accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
       style={({ pressed }) => [pressed && styles.pressed]}>
@@ -465,7 +471,7 @@ function VerseTap(props: { verse: string; selected: boolean; plays: boolean; acc
 function NotesBy(props: { open: boolean; label: string; names: string; onPress: () => void }) {
   const spot = useHelpSpot(props.label, t('review.simple.notesByHelp', { names: props.names }), props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ expanded: props.open }} accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ expanded: props.open }, 'button')} accessibilityLabel={props.label}
       style={({ pressed }) => [styles.noteBy, pressed && styles.pressed]}>
       <Ico name="chat" size={16} color={TINT.amberText} />
       <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]}>{props.names}</Text>
@@ -561,7 +567,7 @@ function BigChoice(props: { label: string; icon?: IconName; on: boolean; tall?: 
   const spot = useHelpSpot(props.label, t('review.simple.yourAnswerHelp'), props.onPress);
   return (
     // aria-checked as well: the web reads the chosen answer from it, not from accessibilityState.
-    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ checked: props.on }} aria-checked={props.on} accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} accessibilityRole="radio" {...a11yState({ checked: props.on }, 'radio')} aria-checked={props.on} accessibilityLabel={props.label}
       style={({ pressed }) => [styles.choice, props.tall && { minHeight: 112 }, props.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={30} color={props.on ? C.white : C.primary} strokeWidth={2.6} /> : null}
       <Text style={[styles.choiceLabel, { color: props.on ? C.white : C.dark }]}>{props.label}</Text>
@@ -624,6 +630,7 @@ const styles = StyleSheet.create({
   step: { flex: 1, maxWidth: 120, minHeight: target.row, alignItems: 'center', gap: 4, paddingTop: space.xs, paddingHorizontal: 2 },
   stepMark: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   stepLater: { backgroundColor: C.card, borderWidth: 1.5, borderColor: C.border },
+  stepNum: { fontSize: T.base, fontWeight: '800' },
   stepLabel: { fontSize: T.xs, fontWeight: '800', textAlign: 'center' },
   dots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: space.xs },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: withAlpha(C.primary, 0.2) },

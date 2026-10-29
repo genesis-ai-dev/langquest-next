@@ -349,6 +349,8 @@ export function kindRowSub(o: {
     return line(status.review ? t('passage.record.sub.recordedBy', { who: feedbackSource(status.review, name, true) }) : t('passage.record.sub.recorded'), checked);
   }
   if (cleared) return line(stateLabel(s), status.review ? feedbackSource(status.review, name) : '');
+  // Logged as looks good at a checkpoint, which only a check in the app clears (decision 72): it still waits.
+  if (s === 'approved' && step.step.checkpoint) return t('passage.record.sub.loggedStillWaits');
   if (s === 'locked') return startsAfter(step, o.lockedName);
   if (o.waitFor) return t('passage.record.sub.bestAfter', { kind: o.waitFor });
   if (makes) return line(t('passage.record.sub.recordsItIn', { who: kind.usualReviewer || t('common.someone'), language: makes.into }), checked);

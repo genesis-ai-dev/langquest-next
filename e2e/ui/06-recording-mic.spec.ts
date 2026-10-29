@@ -23,7 +23,8 @@ async function sitePermission(page: Page, setting: 'denied' | 'granted'): Promis
   await mic(page).mode(setting === 'denied' ? 'refuse' : 'file');
 }
 
-const refused = (page: Page) => text(page, 'Microphone permission is required.');
+// A browser keeps the choice in its site settings, which a page cannot open: the words say so, with no Open Settings.
+const refused = (page: Page) => text(page, /^LangQuest cannot hear you\. Allow the microphone for this site/);
 
 test('REC-020 Microphone permission refused @p0', async ({ page }) => {
   const w = world();
@@ -33,6 +34,7 @@ test('REC-020 Microphone permission refused @p0', async ({ page }) => {
   const before = await settledEventCount(page, w);
   await recordButton(page).click();
   await expect(refused(page)).toBeVisible();
+  await expect(button(page, 'Open Settings')).toHaveCount(0);
   await expectIdle(page);
   expect(await partCount(page)).toBe(0);
   await expect(publishButton(page)).toHaveAttribute('aria-disabled', 'true');

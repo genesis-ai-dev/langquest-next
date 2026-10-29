@@ -16,6 +16,8 @@ import { reportError } from '../diagnostics/report';
 import { lift } from '../ui/shadow';
 import { C, radius, space, target, TINT, withAlpha } from '../ui/theme';
 import { mmss } from './workspaceModel';
+import { MicRefused } from './micRefused';
+import { a11yState } from '../ui/a11yModel';
 
 /**
  * What to say when a save failed (error-tracking): a refusal from core in
@@ -33,7 +35,7 @@ export function RecordButton(props: { recording: boolean; disabled?: boolean; on
     <Pressable onPress={spot.onPress} disabled={off} accessibilityRole="button"
       accessibilityLabel={props.recording ? t('common.stopRecording') : t('recording.take.record')}
       accessibilityHint={props.recording ? undefined : t('recording.take.recordHint')}
-      accessibilityState={{ disabled: !!off }}
+      {...a11yState({ disabled: !!off }, 'button')}
       style={({ pressed }) => [styles.record, off && { opacity: 0.45 },
         props.recording ? { borderWidth: 8, borderColor: withAlpha(C.red, 0.33) } : null,
         pressed && { transform: [{ scale: 0.95 }] }]}>
@@ -92,6 +94,12 @@ export function SaveProblem(props: { message: string; retryLabel?: string; onRet
       {props.onRetry ? <GhostBtn label={props.retryLabel ?? t('common.tryAgain')} help={t('help.details.tryAgain')} icon="restart" tone="red" disabled={props.busy} onPress={props.onRetry} /> : null}
     </View>
   );
+}
+
+/** The recorder's failure: a refused microphone with its way out, anything else as it is. */
+export function RecorderProblem(props: { rec: { error: string; micRefused: boolean } }) {
+  if (!props.rec.error) return null;
+  return props.rec.micRefused ? <MicRefused message={props.rec.error} /> : <SaveProblem message={props.rec.error} />;
 }
 
 const styles = StyleSheet.create({

@@ -10,9 +10,10 @@ import type { Offer } from './appVersionModel';
  * Telling people to update (decisions.md 154). An older version than the
  * newest in the store shows a bar with Update, which opens the store page,
  * and a close button that hides it until a newer version comes out. Below
- * the minimum, the whole screen says "Please update the app": sync has
- * stopped (syncGate.ts) and the person's work waits on the phone; Keep
- * working closes the screen for this launch.
+ * the minimum, the whole screen says "Please update the app", and why:
+ * the phone still sends its own work, but nothing new from the team reaches
+ * it (syncGate.ts). Keep working closes the screen for this launch, and a
+ * bar with Update stays.
  */
 export function AppVersionPrompt(props: { offer: Offer; onUpdate: () => void; onDismiss: () => void }) {
   const [keptWorking, setKeptWorking] = useState(false);
@@ -25,11 +26,21 @@ export function AppVersionPrompt(props: { offer: Offer; onUpdate: () => void; on
       </View>
     );
   }
-  if (props.offer !== 'required' || keptWorking) return null;
+  if (props.offer !== 'required') return null;
+  // After Keep working, Update stays one tap away for the rest of the launch (UI audit, finding 119).
+  if (keptWorking) {
+    return (
+      <View style={styles.bar} testID="update-required-bar">
+        <Text style={styles.barText}>{t('appVersion.requiredBar')}</Text>
+        <GhostBtn label={t('appVersion.update')} help={t('appVersion.updateHelp')} onPress={props.onUpdate} full={false} />
+      </View>
+    );
+  }
   return (
     <View style={styles.cover} testID="update-required">
       <Text style={styles.title} accessibilityRole="header">{t('appVersion.required')}</Text>
-      <PrimaryBtn label={t('appVersion.update')} onPress={props.onUpdate} icon="download" />
+      <Text style={styles.sub}>{t('appVersion.requiredSub')}</Text>
+      <PrimaryBtn label={t('appVersion.update')} help={t('appVersion.updateHelp')} onPress={props.onUpdate} icon="download" />
       <GhostBtn label={t('appVersion.keepWorking')} help={t('appVersion.keepWorkingHelp')} onPress={() => setKeptWorking(true)} />
     </View>
   );
@@ -49,5 +60,6 @@ const styles = StyleSheet.create({
   },
   barText: { flex: 1, fontSize: T.sm, color: C.dark, fontWeight: '600' },
   cover: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 10, backgroundColor: C.card, justifyContent: 'center', padding: space.xl, gap: space.lg },
-  title: { fontSize: T.xl, fontWeight: '700', color: C.dark, textAlign: 'center' }
+  title: { fontSize: T.xl, fontWeight: '700', color: C.dark, textAlign: 'center' },
+  sub: { fontSize: T.base, color: C.muted, textAlign: 'center' }
 });
