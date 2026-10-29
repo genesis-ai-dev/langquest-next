@@ -14,7 +14,7 @@
 // (TUTORIAL_SLOT). TUTORIAL_REPORT=<file> adds a line of JSON to it for each
 // video as it ends ({ language, id, ok }), for nightly.ts.
 import { spawn } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { UI_LANGUAGES } from '@langquest-next/core';
 import { TUTORIALS } from './all';
@@ -40,8 +40,11 @@ const run = (command: string, argv: string[], env: Record<string, string>, log: 
 mkdirSync(results, { recursive: true });
 // A dry run needs the readings too: the people in a video's world have recorded them.
 const readings = languages.filter((l) => !existsSync(path.join(results, 'speech', l)));
-if (readings.length && !(await run('npx', ['tsx', path.join('e2e', 'tutorials', 'make-readings.ts'), ...readings], {}, path.join(results, 'readings.log')))) {
-  throw new Error(`The readings could not be made: ${path.join(results, 'readings.log')}`);
+const readingsLog = path.join(results, 'readings.log');
+if (readings.length && !(await run('npx', ['tsx', path.join('e2e', 'tutorials', 'make-readings.ts'), ...readings], {}, readingsLog))) {
+  // Its end says why (Gemini's answer, a line not translated), where a runner's log shows it.
+  console.error(readFileSync(readingsLog, 'utf8').split('\n').slice(-40).join('\n'));
+  throw new Error(`The readings could not be made: ${readingsLog}`);
 }
 
 const queue = languages.flatMap((language) => ids.filter((id) => !TUTORIALS[id]!.notIn?.includes(language)).map((id) => ({ language, id })));
