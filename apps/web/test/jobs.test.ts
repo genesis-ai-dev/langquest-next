@@ -35,11 +35,13 @@ describe('job runner', () => {
     expect(jobsDue(Date.UTC(2026, 9, 19, 4, 35))).toEqual([{ key: 'projection' }, { key: 'blob-reconcile' }]);
     expect(jobsDue(Date.UTC(2026, 9, 19, 5, 5))).toEqual([{ key: 'projection' }]);
     expect(jobsDue(Date.UTC(2026, 9, 19, 16, 35))).toEqual([{ key: 'projection' }]);
-    // Tutorial videos still waiting from a Publish, once YouTube's day starts again (midnight Pacific).
-    expect(jobsDue(Date.UTC(2026, 9, 19, 8, 10))).toEqual([{ key: 'projection' }, { key: 'tutorial-publish' }]);
+    // The tutorial jobs, in the hour when the fewest people on earth are at work: videos still waiting from a Publish.
+    expect(jobsDue(Date.UTC(2026, 9, 19, 23, 40))).toEqual([{ key: 'projection' }, { key: 'tutorial-publish' }]);
+    expect(jobsDue(Date.UTC(2026, 9, 19, 8, 10))).toEqual([{ key: 'projection' }]);
     expect(JOBS['tutorial-publish']).toMatchObject({ job: 'tutorial_publish', entrypoint: ['node', 'publish.mjs'], timeLimitMs: 150 * 60_000 });
-    // The films the nightly filming made on GitHub (from 08:30 UTC), brought in before morning in the Americas.
-    expect(jobsDue(Date.UTC(2026, 9, 19, 13, 10))).toEqual([{ key: 'projection' }, { key: 'tutorial-intake' }]);
+    // The films the nightly filming made on GitHub (from 20:10 UTC).
+    expect(jobsDue(Date.UTC(2026, 9, 19, 23, 10))).toEqual([{ key: 'projection' }, { key: 'tutorial-intake' }]);
+    expect(jobsDue(Date.UTC(2026, 9, 19, 13, 10))).toEqual([{ key: 'projection' }]);
     expect(JOBS['tutorial-intake']).toMatchObject({ job: 'tutorial_intake', entrypoint: ['node', 'intake.mjs'], timeLimitMs: 120 * 60_000 });
     expect(JOBS['fold-canary']).toMatchObject({ job: 'fold_canary', entrypoint: ['node', 'canary.mjs'], timeLimitMs: 60 * 60_000 });
     expect(JOBS['blob-reconcile']).toMatchObject({ job: 'blob_reconcile', entrypoint: ['node', 'reconcile.mjs'], timeLimitMs: 120 * 60_000 });
