@@ -28,6 +28,9 @@ export function useTestProbes(o: {
         ...syncActivity(),
         pending: (os?.pending.length ?? 0) + (ls?.pending.length ?? 0),
         rejected: (os?.rejected.length ?? 0) + (ls?.rejected.length ?? 0),
+        // Read up to date since this page loaded, as this render drew it: a test that wrote through
+        // the server waits on these, not on a pause (e2e/ui/support.ts languageArrived).
+        orgPulled: org.pulled, languagePulled: !languageId || language.pulled,
         orgId, languageId
       };
     };
