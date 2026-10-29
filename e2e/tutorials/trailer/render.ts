@@ -36,12 +36,17 @@ if (!words) throw new Error(`no words for ${LANG} in words.json`);
 const capture = JSON.parse(readFileSync(path.join(captureDir, 'capture.json'), 'utf8'));
 if (capture.language !== LANG) throw new Error(`${captureDir} holds a ${capture.language} capture`);
 
+// Chromium carries no number or date rules for these languages and writes them as American English. The page
+// writes numbers with a locale it has that writes them as the language does (checked in openFilm), and takes the
+// date from here.
+const NUMBERS: Record<string, string> = { ha: 'en', my: 'en-u-nu-mymr', ne: 'hi-u-nu-deva' };
+const DATE = new Intl.DateTimeFormat(LANG, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${AS_OF}T12:00:00Z`));
+
 /** Every character the film writes, so Google Fonts sends only those. */
 function filmText(): string {
   const nf = new Intl.NumberFormat(LANG);
-  const date = new Intl.DateTimeFormat(LANG, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${AS_OF}T12:00:00Z`));
   const all = [
-    JSON.stringify(words), nf.format(1234567890), new Intl.NumberFormat(LANG, { minimumIntegerDigits: 7 }).format(0), date,
+    JSON.stringify(words), nf.format(1234567890), new Intl.NumberFormat(LANG, { minimumIntegerDigits: 7 }).format(0), DATE,
     'LangQuest Next langquest.org 0123456789 ,.·/:●–—+ '
   ].join('');
   return [...new Set([...all.replace(/[{}"[\]\\]/g, '')])].join('');
@@ -86,11 +91,17 @@ async function openFilm(): Promise<Page> {
     return route.fulfill({ status: 404 });
   });
   await page.addInitScript((film) => { (window as unknown as { FILM: unknown }).FILM = film; }, {
-    lang: LANG, words, capture, frameBase: 'http://film.local/c/', clips: CLIPS, asOf: AS_OF, fontCss: css
+    lang: LANG, numbers: NUMBERS[LANG] ?? LANG, date: DATE, words, capture, frameBase: 'http://film.local/c/', clips: CLIPS, fontCss: css
   });
   page.on('pageerror', (e) => console.error(`film: ${e.message}`));
   await page.goto('http://film.local/film.html');
   await page.evaluate(() => (window as unknown as { __ready: Promise<unknown> }).__ready);
+  const numbers = (locale: string) => [
+    new Intl.NumberFormat(locale).format(1234567), new Intl.NumberFormat(locale, { minimumIntegerDigits: 7 }).format(392523),
+    new Intl.NumberFormat(locale, { useGrouping: false }).format(2026)
+  ].join(' ');
+  const there = await page.evaluate(`(${numbers})(${JSON.stringify(NUMBERS[LANG] ?? LANG)})`);
+  if (there !== numbers(LANG)) throw new Error(`Chromium writes ${LANG} numbers as "${there}", not "${numbers(LANG)}": add it to NUMBERS`);
   return page;
 }
 const seek = (page: Page, t: number) => page.evaluate((x) => (window as unknown as { __seek(t: number): Promise<void> }).__seek(x), t);

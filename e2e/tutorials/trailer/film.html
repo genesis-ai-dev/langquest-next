@@ -61,6 +61,8 @@
   .paper .counter, .paper .rl { color: rgba(255,255,255,.75); }
   .head { font-weight: 800; letter-spacing: -0.05em; line-height: .96; text-wrap: balance; }
   html.script .head { line-height: 1.22; }
+  /* Myanmar stacks its signs above and below the line: more room, or one line's touch the next's. */
+  html[lang="my"] .head, html[lang="my"] .say { line-height: 1.45; }
   .rl { font-family: var(--small); font-size: 22px; letter-spacing: .16em; text-transform: uppercase; color: #9a94b8; white-space: nowrap;
     transform: translateX(-50%); }
   html.script .rl { letter-spacing: 0; text-transform: none; font-size: 24px; font-weight: 600; }
@@ -135,16 +137,20 @@ const $ = (id) => document.getElementById(id);
 const X = (x, w = 0) => (RTL ? 1920 - x - w : x); // a left edge, mirrored for right-to-left
 
 // ---- words ---------------------------------------------------------------------------------
-const nf = new Intl.NumberFormat(LANG);
-const nf2 = new Intl.NumberFormat(LANG, { minimumIntegerDigits: 2 });
+// Numbers in a locale Chromium has that writes them as the language does, and the date from Node (render.ts).
+const NUMBERS = F.numbers;
+const nf = new Intl.NumberFormat(NUMBERS);
+const nf2 = new Intl.NumberFormat(NUMBERS, { minimumIntegerDigits: 2 });
 const ZERO = nf.format(0);
 const fill = (s, vars) => s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
-const YEAR = new Intl.NumberFormat(LANG, { useGrouping: false }).format(2026);
-const DATE = new Intl.DateTimeFormat(LANG, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(F.asOf + 'T12:00:00Z'));
+const YEAR = new Intl.NumberFormat(NUMBERS, { useGrouping: false }).format(2026);
+const DATE = F.date;
 const CLIPS = F.clips;
 
 function tokens(text) {
-  if (!SEGMENTED) return text.split(/(\s+)/).filter(Boolean);
+  // Only breaking spaces part words: a no-break space keeps French "ligne ?" on one line.
+  // A long word joined by a hyphen may break after it ("Berminggu-minggu"); a short part stays ("Faites-le").
+  if (!SEGMENTED) return text.split(/([ \t\n]+)/).filter(Boolean).flatMap((w) => w.match(/^\p{L}{4,}-(?=\p{L}{4,})|.+/gu));
   const seg = new Intl.Segmenter(LANG === 'zh-Hans' ? 'zh' : LANG, { granularity: 'word' });
   const out = [];
   for (const { segment, isWordLike } of seg.segment(text)) {
@@ -225,9 +231,10 @@ function show(el, on) { el.style.display = on ? '' : 'none'; }
 
 /** A count with its leading zeros dimmed, as seven digits, and the "+" of a round number passed (plus is its opacity). */
 function countHtml(v, plus = 0) {
-  const s = new Intl.NumberFormat(LANG, { minimumIntegerDigits: 7 }).format(Math.round(v));
+  const s = new Intl.NumberFormat(NUMBERS, { minimumIntegerDigits: 7 }).format(Math.round(v));
   let i = 0;
-  const nz = s.search(new RegExp(`[^${ZERO}\\D]`, 'u'));
+  // The first digit that is not zero, in the language's own digits (Bengali, Myanmar...): \d is only 0-9.
+  const nz = s.search(new RegExp(`[^${ZERO}\\P{Nd}]`, 'u'));
   i = nz < 0 ? s.length - 1 : nz;
   return `<span class="z">${s.slice(0, i)}</span>${s.slice(i)}<span style="opacity:${plus.toFixed(3)}">+</span>`;
 }
@@ -421,6 +428,10 @@ function layoutInk(root) {
   }
   const speakHead = q('[data-act="speak"]');
   const cap = q('[data-cap="speak"]');
+  const capW = COL.cx - L.speak.rects[0].w / 2 - 140 - 48; // from the margin up to the phone
+  const capSize = SCRIPT ? 26 : 22;
+  cap.style.fontSize = capSize + 'px';
+  cap.style.fontSize = Math.min(capSize, (capSize * capW) / Math.max(1, cap.offsetWidth)) + 'px';
   cap.style.left = X(140, cap.offsetWidth) + 'px';
   cap.style.top = speakHead.offsetTop + speakHead.offsetHeight + 34 + 'px';
   const offHead = q('[data-act="offline"]');
@@ -998,6 +1009,9 @@ function seek(t) {
 }
 
 window.__ready = (async () => {
+  // Every face before anything is measured: a face no element has used yet is not loaded by then, and the
+  // headlines would be fitted in the fallback's widths (an Amharic headline of two lines drawn in three).
+  await Promise.all([...document.fonts].map((f) => f.load()));
   await document.fonts.ready;
   layoutActs();
   buildInk($('inkA'), false);

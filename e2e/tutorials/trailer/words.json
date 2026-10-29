@@ -64,7 +64,7 @@
     "listen": "Écoutez jusqu’à le *connaître.*",
     "speak": "Puis, *parlez.*",
     "keptHere": "Gardé sur ce téléphone au fil de l’enregistrement",
-    "offline": "Des semaines hors ligne ? *Continuez.*",
+    "offline": "Des semaines hors ligne\u00a0? *Continuez.*",
     "noSignal": "Jour {n} · Pas de réseau",
     "backInRange": "Jour {n} · De nouveau du réseau",
     "heard": "Faites-le *entendre* tôt.",
