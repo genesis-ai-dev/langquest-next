@@ -1,5 +1,5 @@
 import {
-  accessToken, outOfQuota, placeInPlaylist, playlistFor, retire, uploadVideo, YouTubeError,
+  accessToken, brandChannel, brandOf, heldComments, outOfQuota, placeInPlaylist, playlistFor, retire, uploadVideo, YouTubeError,
   type ChannelLanguage, type Client, type Fetch
 } from './youtube';
 
@@ -10,7 +10,10 @@ import {
  * order, and the database is told which YouTube video it became as soon as
  * it is up, so a later failure never puts it up twice. A new version takes
  * the old one's place in its playlist, and the old one is unlisted with a
- * line pointing to the new one.
+ * line pointing to the new one. Before any video, each channel that does not
+ * yet look as it should (its description, language, banner and list of the
+ * others: youtube.ts `brandChannel`) is brought up to date, and the comments
+ * YouTube holds for review on each are counted for the dashboard.
  *
  * YouTube allows 100 uploads a day for the whole Google Cloud project, all
  * channels together, and 10,000 units for everything else (a video and its
@@ -32,9 +35,23 @@ export interface Due {
   replaces: string | null;
 }
 
+/** A connected channel, and the look last put on it (youtube.ts `brandOf`), as `ops_youtube_channels` answers it. */
+export interface Channel {
+  channelId: string;
+  language: ChannelLanguage;
+  branded: string | null;
+}
+
 export interface PublisherDeps {
   fetcher: Fetch;
   client: Client;
+  channels(): Promise<Channel[]>;
+  /** The channel's banner, as the web app serves it. */
+  banner(language: ChannelLanguage): Promise<Uint8Array<ArrayBuffer>>;
+  /** The look now on the channel, or the code of why it could not be put there. */
+  branded(channel: Channel, brand: string | null, failed: string | null): Promise<void>;
+  /** How many comments the channel holds for review. */
+  held(channel: Channel, count: number): Promise<void>;
   due(limit: number): Promise<Due[]>;
   /** The channel's refresh token from Vault; null when it was never connected. */
   refreshToken(channelId: string): Promise<string | null>;
@@ -47,6 +64,11 @@ export interface PublisherDeps {
 }
 
 export interface PublishReport {
+  /** Channels brought up to date, and those that could not be. */
+  branded: number;
+  brandFailed: number;
+  /** Comments held for review, on all channels. */
+  held: number;
   due: number;
   published: number;
   replaced: number;
@@ -74,6 +96,7 @@ export async function publishTutorials(deps: PublisherDeps, report: PublishRepor
   const tried = new Set<string>();
   const key = (v: Due) => `${v.tutorial}/${v.language}/${v.sha256}`;
   const run: Run = { tokens: new Map(), playlists: new Map() };
+  await tendChannels(deps, run, report);
   while (!report.outOfQuota && !deps.stopping() && tried.size < DAY_UPLOADS) {
     const due = (await deps.due(DAY_UPLOADS)).filter((v) => !tried.has(key(v))).slice(0, DAY_UPLOADS - tried.size);
     if (!due.length) break;
@@ -91,26 +114,66 @@ interface Run {
   playlists: Map<string, string>;
 }
 
-async function publishSome(deps: PublisherDeps, { tokens, playlists }: Run, due: Due[], report: PublishReport): Promise<void> {
-  const token = async (channelId: string): Promise<string> => {
-    const kept = tokens.get(channelId);
-    if (kept && 'failed' in kept) throw new YouTubeError(401, kept.failed);
-    if (kept && Date.now() - kept.at < 45 * 60_000) return kept.token;
-    const refresh = await deps.refreshToken(channelId);
-    if (!refresh) {
-      tokens.set(channelId, { failed: 'not_connected' });
-      throw new YouTubeError(401, 'not_connected');
+/** A channel's access token for this run: asked again past 45 minutes, and never again once Google refused it. */
+async function tokenFor(deps: PublisherDeps, { tokens }: Run, channelId: string): Promise<string> {
+  const kept = tokens.get(channelId);
+  if (kept && 'failed' in kept) throw new YouTubeError(401, kept.failed);
+  if (kept && Date.now() - kept.at < 45 * 60_000) return kept.token;
+  const refresh = await deps.refreshToken(channelId);
+  if (!refresh) {
+    tokens.set(channelId, { failed: 'not_connected' });
+    throw new YouTubeError(401, 'not_connected');
+  }
+  try {
+    const fresh = await accessToken(deps.fetcher, deps.client, refresh);
+    tokens.set(channelId, { token: fresh, at: Date.now() });
+    return fresh;
+  } catch (e) {
+    // A token Google took back (invalid_grant) fails every video of that channel until it is connected again.
+    if (e instanceof YouTubeError && e.status < 500) tokens.set(channelId, { failed: e.reason });
+    throw e;
+  }
+}
+
+/**
+ * Each channel whose look is not the one it should have gets it, and its
+ * held comments are counted; what fails waits for the next run.
+ */
+async function tendChannels(deps: PublisherDeps, run: Run, report: PublishReport): Promise<void> {
+  for (const channel of await deps.channels()) {
+    if (deps.stopping() || report.outOfQuota) return;
+    let token: string;
+    try {
+      token = await tokenFor(deps, run, channel.channelId);
+      const banner = await deps.banner(channel.language);
+      const brand = await brandOf(channel.language, banner);
+      if (brand !== channel.branded) {
+        await brandChannel(deps.fetcher, token, channel.language, banner);
+        await deps.branded(channel, brand, null);
+        report.branded += 1;
+      }
+    } catch (e) {
+      const code = failureCode(e);
+      report.brandFailed += 1;
+      report.firstError ??= code;
+      report.outOfQuota ||= outOfQuota(e);
+      await deps.branded(channel, null, code);
+      continue;
     }
     try {
-      const fresh = await accessToken(deps.fetcher, deps.client, refresh);
-      tokens.set(channelId, { token: fresh, at: Date.now() });
-      return fresh;
+      const held = await heldComments(deps.fetcher, token, channel.channelId);
+      await deps.held(channel, held);
+      report.held += held;
     } catch (e) {
-      // A token Google took back (invalid_grant) fails every video of that channel until it is connected again.
-      if (e instanceof YouTubeError && e.status < 500) tokens.set(channelId, { failed: e.reason });
-      throw e;
+      report.firstError ??= failureCode(e);
+      report.outOfQuota ||= outOfQuota(e);
     }
-  };
+  }
+}
+
+async function publishSome(deps: PublisherDeps, run: Run, due: Due[], report: PublishReport): Promise<void> {
+  const { playlists } = run;
+  const token = (channelId: string) => tokenFor(deps, run, channelId);
   const fail = async (video: Due, e: unknown) => {
     const code = failureCode(e);
     report.failed += 1;

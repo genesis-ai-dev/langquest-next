@@ -142,4 +142,33 @@ do $$ begin
   assert (select every from diag.job_schedule where job = 'tutorial_intake') = interval '1 day', 'the intake is on the schedule';
 end $$;
 
+-- How each channel looks (migration *_youtube_channel_look.sql): the job reads the channels with the
+-- look each has, and records the one it put on or why it could not, and the comments each holds for
+-- review; the dashboard sees whether its look is on and how many are held.
+set local role service_role;
+do $$ declare v jsonb := public.ops_youtube_channels(); begin
+  assert jsonb_array_length(v) = 2 and v->0->>'language' = 'en' and v->0->'branded' = 'null'::jsonb, 'both channels, neither branded: %', v;
+  perform public.ops_youtube_branded('UC8Ry8oFIPWzDygngMwvkBLQ', repeat('f', 64), null);
+  perform public.ops_youtube_branded('UCpZYy6RO9gLD__QuUDVaEYg', null, 'youtube_quotaExceeded');
+  perform public.ops_youtube_held('UC8Ry8oFIPWzDygngMwvkBLQ', 3);
+  v := public.ops_youtube_channels();
+  assert v->0->>'branded' = repeat('f', 64) and v->1->'branded' = 'null'::jsonb, 'English has its look, Spanish not yet: %', v;
+end $$;
+reset role;
+set local role diag_reader;
+do $$ declare v jsonb := diag.ops_tutorials()->'channels'; begin
+  assert (v->0->>'branded')::boolean and v->0->'brandFailed' = 'null'::jsonb and (v->0->>'held')::int = 3, 'English branded, 3 held: %', v->0;
+  assert not (v->1->>'branded')::boolean and v->1->>'brandFailed' = 'youtube_quotaExceeded', 'Spanish waits, with why: %', v->1;
+end $$;
+reset role;
+set local role authenticated;
+do $$ begin
+  begin
+    perform public.ops_youtube_branded('UC8Ry8oFIPWzDygngMwvkBLQ', repeat('0', 64), null);
+    raise exception 'authenticated marked a channel branded';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
 rollback;

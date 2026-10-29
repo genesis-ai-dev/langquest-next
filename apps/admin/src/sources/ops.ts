@@ -383,7 +383,13 @@ export const FEEDBACK_OPEN_SQL = `select diag.ops_feedback_open() as v`;
 
 export interface Tutorials {
   /** Every app language's channel, connected or not (server/youtube.ts CHANNELS). */
-  channels: { language: ChannelLanguage; channelId: string; title: string | null; connectedAt: string | null; section: string | null; videos: number; latestAt: string | null }[];
+  channels: {
+    language: ChannelLanguage; channelId: string; title: string | null; connectedAt: string | null; section: string | null;
+    /** Whether the publish job has put its description, language and banner on (server/youtube.ts brandChannel), and why its last try failed. */
+    branded: boolean; brandFailed: string | null;
+    /** Comments the channel holds for review, as the publish job last counted them; null before it has. */
+    held: number | null; videos: number; latestAt: string | null;
+  }[];
   /** Each video's newest version not up yet: ready to choose, or chosen and waiting for the job. */
   waiting: {
     tutorial: string; language: string; sha256: string; title: string; playlist: string; seconds: number; madeAt: string;
@@ -392,7 +398,7 @@ export interface Tutorials {
 }
 
 interface TutorialsRow {
-  channels: { channelId: string; language: string; title: string; connectedAt: string; section: string | null }[];
+  channels: { channelId: string; language: string; title: string; connectedAt: string; section: string | null; branded?: boolean; brandFailed?: string | null; held?: number | null }[];
   waiting: Tutorials['waiting'];
   published: { language: string; videos: number; latestAt: string }[];
 }
@@ -404,7 +410,10 @@ export function tutorialsOf(row: TutorialsRow): Tutorials {
     channels: languages.map((language) => {
       const c = row.channels.find((x) => x.channelId === CHANNELS[language]);
       const p = row.published.find((x) => x.language === language);
-      return { language, channelId: CHANNELS[language], title: c?.title ?? null, connectedAt: c?.connectedAt ?? null, section: c?.section ?? null, videos: num(p?.videos), latestAt: p?.latestAt ?? null };
+      return {
+        language, channelId: CHANNELS[language], title: c?.title ?? null, connectedAt: c?.connectedAt ?? null, section: c?.section ?? null,
+        branded: c?.branded ?? false, brandFailed: c?.brandFailed ?? null, held: c?.held ?? null, videos: num(p?.videos), latestAt: p?.latestAt ?? null
+      };
     }),
     waiting: row.waiting
   };
@@ -419,9 +428,14 @@ export function tutorialAlerts(t: Tutorials, now = Date.now()): Alert[] {
   const out: Alert[] = [];
   const ready = t.waiting.filter((w) => !w.chosenAt).length;
   if (ready) out.push({ level: 'watch', text: `${plural(ready, 'tutorial video')} ready to publish (Tutorial videos).` });
-  const reconnect = [...new Set(t.waiting.filter((w) => w.chosenAt && w.failed && RECONNECT.test(w.failed)).map((w) => w.language))];
+  const reconnect = [...new Set([
+    ...t.waiting.filter((w) => w.chosenAt && w.failed && RECONNECT.test(w.failed)).map((w) => w.language),
+    ...t.channels.filter((c) => c.brandFailed && RECONNECT.test(c.brandFailed)).map((c) => c.language)
+  ])];
   if (reconnect.length) out.push({ level: 'problem', text: `YouTube refused the ${reconnect.join(', ')} ${reconnect.length === 1 ? 'channel' : 'channels'}: connect again (Tutorial videos).` });
   const stuck = t.waiting.filter((w) => w.chosenAt && !(w.failed && RECONNECT.test(w.failed)) && now - Date.parse(w.chosenAt) > PUBLISH_DUE_HOURS * 3_600_000).length;
+  const held = t.channels.reduce((n, c) => n + (c.held ?? 0), 0);
+  if (held) out.push({ level: 'watch', text: `${plural(held, 'comment')} held for review on YouTube: approve or remove in YouTube Studio (Tutorial videos).` });
   if (stuck) out.push({ level: 'problem', text: `${plural(stuck, 'tutorial video')} chosen more than ${PUBLISH_DUE_HOURS} hours ago ${stuck === 1 ? 'is' : 'are'} still not on YouTube (Tutorial videos).` });
   return out;
 }

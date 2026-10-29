@@ -8,7 +8,7 @@ import { setupBlobs } from './blob-upload';
 import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import { createHash, randomUUID } from 'node:crypto';
 import { clientAs, localServer, send, signIn } from './fixture';
-import { button, byId, enterPassage, expect, expectStill, expectSyncIdle, openAs, screenText, tab, text, waitForApp, type AccountKey, type PassageKey, type UiWorld } from './support';
+import { button, byId, enterPassage, expect, expectStill, languageArrived, openAs, screenText, tab, text, waitForApp, type AccountKey, type PassageKey, type UiWorld } from './support';
 
 const visible = (l: Locator) => l.locator('visible=true');
 
@@ -76,11 +76,11 @@ export async function openRecord(page: Page, world: UiWorld, p: Passage): Promis
 }
 
 async function settleRecord(page: Page, world: UiWorld): Promise<void> {
+  // What the server has (another account's writes, the session's privileges, people's names) is on
+  // screen once both streams have pulled since the page loaded: wait for that, not for the text.
+  await languageArrived(page);
   await expect(visible(page.getByText('Then the team', { exact: true })).first()).toBeVisible({ timeout: 30_000 });
-  // Names come with the organization: wait for the checks' people, by name.
   await expect(visible(page.getByText(new RegExp(`${world.accounts.TREV.name}|${world.accounts.REV.name}`))).first()).toBeVisible({ timeout: 30_000 });
-  // The session's privileges come from the organization's fold: let the sync finish, then the footer holds still.
-  await expectSyncIdle(page);
   await expectStill(byId(page, 'primary-action').or(header(page)).first());
 }
 

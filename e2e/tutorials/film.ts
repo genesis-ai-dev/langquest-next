@@ -283,7 +283,7 @@ await page.exposeBinding('__tutorialHeard', (_source, entry: { kind: string; id:
 });
 await page.addInitScript(installPlaybackTap, '__tutorialHeard');
 // A phone's browser has a voice for its language, and help's Listen shows only where there is one (UI audit,
-// finding 110). This headless Chromium lists none, so it is given one to find; the film never taps Listen.
+// finding 109). This headless Chromium lists none, so it is given one to find; the film never taps Listen.
 await page.addInitScript((lang) => {
   const synth = globalThis.speechSynthesis;
   if (!synth) return;

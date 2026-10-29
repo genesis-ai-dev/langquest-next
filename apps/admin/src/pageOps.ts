@@ -291,7 +291,9 @@ Object.assign(RENDER, {
       { h: 'Language', v: (c) => esc(languageName(c.language)) },
       { h: 'Channel', v: (c) => '<a href="https://www.youtube.com/channel/' + esc(c.channelId) + '" target="_blank" rel="noopener noreferrer">' + esc(c.title || 'Open on YouTube') + '</a>' },
       { h: 'Connected', v: (c) => c.connectedAt ? when(c.connectedAt) + (c.section && c.section !== 'made' && c.section !== 'updated' ? '<br><small class="warn">Other channels list: ' + esc(c.section) + '</small>' : '') : '<span class="muted">not yet</span>' },
+      { h: 'Description and banner', v: (c) => c.branded ? 'on' + (c.brandFailed ? '<br><small class="warn">Last change: ' + esc(c.brandFailed) + '</small>' : '') : c.brandFailed ? '<span class="warn">' + esc(c.brandFailed) + '</span>' : c.connectedAt ? '<span class="muted">at the next publish run</span>' : '' },
       { h: 'Videos up', n: true, v: (c) => num(c.videos) },
+      { h: 'Held comments', n: true, v: (c) => c.held ? '<a class="warn" href="https://studio.youtube.com/channel/' + esc(c.channelId) + '/comments/inbox" target="_blank" rel="noopener noreferrer">' + num(c.held) + '</a>' : c.held === 0 ? '0' : '' },
       { h: '', v: (c) => '<button data-yt-connect="' + esc(c.language) + '">' + (c.connectedAt ? 'Connect again' : 'Connect') + '</button>' }
     ], d.channels);
     h += '<h3>Not on YouTube yet</h3>';

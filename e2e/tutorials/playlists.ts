@@ -6,6 +6,7 @@
 // translations, like the app's catalogs (decisions.md 81).
 
 import { UI_LANGUAGES } from '@langquest-next/core';
+import { APP_LINK } from '../../server/youtube';
 
 /** Who a group of videos is for (all.ts GROUPS). */
 export type Who = 'everyone' | 'admins' | 'leads' | 'translators' | 'reviewers' | 'followers';
@@ -74,8 +75,8 @@ export const PLAYLISTS: Record<string, Record<Who, string>> = {
   }
 };
 
-/** The app, which opens on the web too: named in every description. */
-export const APP_LINK = 'https://next.langquest.org';
+/** The app, which opens on the web too: named in every description, as on each channel (server/youtube.ts). */
+export { APP_LINK };
 
 /**
  * A video in a language, as a link that lasts: the app's Worker sends it on

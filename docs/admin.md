@@ -303,6 +303,21 @@ their ids are in `server/youtube.ts`.
   day for all channels together. A new version of a video already up takes
   its place in the playlist, and the old one is unlisted with a link to the
   new. The job's runs are in Server jobs (`tutorial_publish`).
+- **How each channel looks** is the publish job's too: before any video,
+  each channel whose description, language, banner or list of the other
+  channels differs from what `server/youtube.ts` says (`WORDS`, and the
+  banners in `apps/mobile/public/youtube`, made by
+  `npx tsx e2e/tutorials/banners.ts`) gets them, about 150 of the day's
+  10,000 units each. The channels table shows "on" once it has them.
+- **Held comments**: each channel holds comments that may be
+  inappropriate for a person to approve or remove (YouTube Studio →
+  Settings → Community → Defaults: "Hold potentially inappropriate comments
+  for review", with Increase strictness). The publish job counts them each day; the channels
+  table shows each channel's count, linked to its comments in Studio, and
+  Needs attention says when any wait. Approving and removing stay in Studio.
+- **The picture** (the round one beside the name) is the one thing YouTube
+  lets nobody but a person set: in YouTube Studio, on each channel,
+  Customization → Branding → Picture → Upload, `apps/mobile/assets/icon.png`.
 
 The OAuth client is a Web application client in the Google Cloud project
 that has the YouTube Data API v3 on, with the redirect address above. Store
