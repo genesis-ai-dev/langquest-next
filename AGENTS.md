@@ -204,6 +204,7 @@ Project skills, written for this app (use these first):
 - `run-app`: the app on the iOS simulator and Android emulator, two accounts, Maestro, and the quirks that cost time.
 - `laws-of-ux`: Fitts, Hick, Jakob and the rest, tuned for field use.
 - `infrastructure-as-code`: hosted settings, secrets and env files live in the repo, never only in a dashboard.
+- `tutorial-review`: the nightly look at the tutorial videos' comments, changes and notes, and what to suggest.
 
 Third-party skills, by task:
 

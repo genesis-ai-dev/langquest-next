@@ -2,7 +2,9 @@
 -- 180): only the service role connects a channel, reads its refresh token back
 -- out of Vault, records a video and marks one published; diag_reader reads the
 -- dashboard's summary, never a token; the intake that lists the nightly
--- films is a daily job. Run by `npm run db:test`. Every write rolls back.
+-- films is a daily job, as are the read of the videos' comments and Claude's
+-- look at them. Run by
+-- `npm run db:test`. Every write rolls back.
 \set ON_ERROR_STOP on
 begin;
 
@@ -170,5 +172,124 @@ do $$ begin
   end;
 end $$;
 reset role;
+
+-- Feedback on the videos (migration *_tutorial_feedback.sql, decisions.md 185): the comments job keeps
+-- each comment once, with the tutorial its video is a version of; a note comes from the dashboard; Claude's
+-- nightly look reads every open input and the suggestions so far, adds the code changes it found, each
+-- comment in English with a reply, what it looked at and suggests; a person accepts, edits or rejects
+-- each suggestion once, and an accepted code change waits for Linear until it is filed. The dashboard
+-- reads it all. Only the service role writes; authenticated reads nothing.
+set local role service_role;
+do $$ declare v jsonb; n int; note uuid; bug uuid; thanks uuid; s1 uuid; s2 uuid; r jsonb; begin
+  n := public.ops_comments_read('en', 'UC8Ry8oFIPWzDygngMwvkBLQ', jsonb_build_array(
+    jsonb_build_object('id', 'Ugcomment-bug-0001', 'videoId', 'dQw4w9WgXcQ', 'text', 'The Save button does nothing', 'publishedAt', now() - interval '2 days'),
+    jsonb_build_object('id', 'Ugcomment-thanks-02', 'videoId', 'dQw4w9WgXcQ', 'text', 'Merci !', 'publishedAt', now() - interval '1 day'),
+    jsonb_build_object('id', 'bad id', 'videoId', 'dQw4w9WgXcQ', 'text', 'not kept', 'publishedAt', now())));
+  assert n = 2, 'two kept, the malformed one left out: %', n;
+  assert public.ops_comments_read('en', 'UC8Ry8oFIPWzDygngMwvkBLQ', jsonb_build_array(
+    jsonb_build_object('id', 'Ugcomment-bug-0001', 'videoId', 'dQw4w9WgXcQ', 'text', 'again', 'publishedAt', now()))) = 0, 'a comment read again is not new';
+  assert public.ops_comments_known(array['Ugcomment-bug-0001', 'Ugcomment-other-03']) = '["Ugcomment-bug-0001"]'::jsonb, 'known: the one read';
+  note := public.ops_tutorial_note('record-a-passage', 'The voice says "tap Save" but the button says Done.', '0d000000-0000-0000-0000-0000000000aa');
+
+  v := public.ops_tutorial_review_state();
+  assert v->'last' = 'null'::jsonb and jsonb_array_length(v->'inputs') = 3 and jsonb_array_length(v->'suggestions') = 0, 'no look yet, three open inputs: %', v;
+  assert v->'inputs'->0->>'ref' = 'Ugcomment-bug-0001' and v->'inputs'->0->>'tutorial' = 'record-a-passage', 'oldest first, with its tutorial: %', v->'inputs'->0;
+  assert v->'videos'->0->>'tutorial' = 'record-a-passage' and v->'videos'->0->>'title' = 'Record a passage', 'the videos: %', v->'videos';
+  bug := (v->'inputs'->0->>'id')::uuid;
+  thanks := (v->'inputs'->1->>'id')::uuid;
+
+  r := public.ops_tutorial_reviewed(jsonb_build_object('sha', repeat('1', 40), 'runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/123',
+    'code', jsonb_build_array(jsonb_build_object('key', 'code-1', 'sha', repeat('2', 40), 'tutorial', 'record-a-passage', 'pr', 272,
+      'title', 'Save is now Done on the record screen', 'english', 'The button the video taps is called Done now.', 'at', now() - interval '3 hours')),
+    'comments', jsonb_build_array(
+      jsonb_build_object('id', bug, 'english', 'The Save button does nothing', 'reply', 'Thanks, we are looking at it.', 'replyEnglish', 'Thanks, we are looking at it.'),
+      jsonb_build_object('id', thanks, 'english', 'Thank you!', 'reply', '', 'replyEnglish', '')),
+    'looked', jsonb_build_array(jsonb_build_object('input', thanks, 'outcome', 'Thanks; nothing to change.'),
+      jsonb_build_object('input', gen_random_uuid(), 'outcome', 'an id that is not there')),
+    'suggestions', jsonb_build_array(
+      jsonb_build_object('kind', 'script', 'tutorial', 'record-a-passage', 'title', 'Say Done, not Save', 'detail', 'Line 9: "Tap Done."', 'inputs', jsonb_build_array('code-1', note)),
+      jsonb_build_object('kind', 'code', 'tutorial', 'record-a-passage', 'title', 'Save does nothing on Record', 'detail', 'A viewer says Save does nothing.', 'inputs', jsonb_build_array(bug)))));
+  assert (r->>'code')::int = 1 and (r->>'looked')::int = 1 and (r->>'suggested')::int = 2 and (r->>'skipped')::int = 1, 'what the look did: %', r;
+
+  v := public.ops_tutorial_review_state();
+  assert v->'last'->>'sha' = repeat('1', 40), 'the look is remembered: %', v->'last';
+  assert jsonb_array_length(v->'inputs') = 3, 'three inputs wait on the two suggestions (the thanks is done): %', v->'inputs';
+  assert jsonb_array_length(v->'suggestions') = 2, 'two suggestions: %', v->'suggestions';
+  s1 := (select (x->>'id')::uuid from jsonb_array_elements(v->'suggestions') x where x->>'kind' = 'script');
+  s2 := (select (x->>'id')::uuid from jsonb_array_elements(v->'suggestions') x where x->>'kind' = 'code');
+  assert (select jsonb_array_length(x->'inputs') from jsonb_array_elements(v->'suggestions') x where x->>'kind' = 'script') = 2, 'the script change answers the code change and the note';
+
+  -- A second look adds the same code change again (kept once) and gives the thanks to no one.
+  r := public.ops_tutorial_reviewed(jsonb_build_object('sha', repeat('3', 40), 'runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/124/attempts/2',
+    'code', jsonb_build_array(jsonb_build_object('key', 'k', 'sha', repeat('2', 40), 'tutorial', 'record-a-passage', 'pr', 272,
+      'title', 'Save is now Done on the record screen', 'english', 'The button is Done.', 'at', now())),
+    'attach', jsonb_build_array(jsonb_build_object('suggestion', s1, 'inputs', jsonb_build_array('k')),
+      jsonb_build_object('suggestion', gen_random_uuid(), 'inputs', jsonb_build_array('k')))));
+  assert (r->>'code')::int = 1 and (r->>'skipped')::int = 1, 'the second look: %', r;
+
+  -- A person edits the script change and accepts it; rejects the code change; neither can be answered twice.
+  assert public.ops_suggestion_decide(s1, 'edited', 'Line 9: "Now tap Done."', null, '0d000000-0000-0000-0000-0000000000aa')->>'result' = 'edited', 'edited';
+  assert public.ops_suggestion_decide(s1, 'accepted', null, null, '0d000000-0000-0000-0000-0000000000aa')->>'result' = 'accepted', 'accepted';
+  assert public.ops_suggestion_decide(s1, 'rejected', null, 'no', '0d000000-0000-0000-0000-0000000000aa')->>'result' = 'decided', 'once only';
+  assert public.ops_suggestion_decide(gen_random_uuid(), 'accepted', null, null, '0d000000-0000-0000-0000-0000000000aa')->>'result' = 'not_found', 'not found';
+  assert jsonb_array_length(public.ops_suggestions_to_file(10)) = 0, 'nothing for Linear yet';
+  assert public.ops_suggestion_decide(s2, 'accepted', 'A viewer says Save does nothing on Record.', 'worth a look', '0d000000-0000-0000-0000-0000000000aa')->>'kind' = 'code', 'the code change accepted';
+  v := public.ops_suggestions_to_file(10);
+  assert jsonb_array_length(v) = 1 and v->0->>'detail' = 'A viewer says Save does nothing on Record.' and v->0->'inputs'->0->>'youtubeId' = 'dQw4w9WgXcQ', 'waits for Linear with its comment: %', v;
+  assert jsonb_array_length(public.ops_suggestions_to_file(10, s1)) = 0, 'a script change never goes to Linear';
+  perform public.ops_suggestion_filed(s2, 'LAN-170', 'https://linear.app/frontierrnd/issue/LAN-170');
+  assert jsonb_array_length(public.ops_suggestions_to_file(10)) = 0, 'filed once';
+  assert jsonb_array_length(public.ops_tutorial_review_state()->'inputs') = 0, 'every input answered';
+end $$;
+reset role;
+do $$ begin
+  assert (select edited_by is not null and detail = 'Line 9: "Now tap Done."' from ops.tutorial_suggestions where kind = 'script'), 'the edit is kept, and who made it';
+  assert (select reason = 'worth a look' and issue = 'LAN-170' from ops.tutorial_suggestions where kind = 'code'), 'the reason and the issue';
+  assert (select count(*) from ops.tutorial_inputs where kind = 'code') = 1, 'one code change';
+  assert (select count(*) from ops.tutorial_reviews) = 2, 'two looks';
+  begin
+    insert into ops.tutorial_suggestions (kind, tutorial, title, detail) values ('new', 'record-a-passage', 'x', 'y');
+    raise exception 'a new video named an old one';
+  exception when check_violation then null;
+  end;
+  -- An answered comment a year old is taken out on the next read.
+  update ops.tutorial_inputs set at = now() - interval '13 months' where ref = 'Ugcomment-thanks-02';
+end $$;
+set local role service_role;
+select public.ops_comments_read('en', 'UC8Ry8oFIPWzDygngMwvkBLQ', '[]'::jsonb);
+reset role;
+do $$ begin
+  assert not exists (select 1 from ops.tutorial_inputs where ref = 'Ugcomment-thanks-02'), 'kept a year';
+end $$;
+set local role diag_reader;
+do $$ declare v jsonb := diag.ops_tutorial_feedback(); begin
+  assert jsonb_array_length(v->'suggestions') = 2 and (v->>'open')::int = 0 and (v->>'waiting')::int = 0 and (v->>'unfiled')::int = 0, 'the dashboard''s feedback: %', v;
+  assert v->'last'->>'runUrl' like '%/124/attempts/2' and v->'videos'->0->>'title' = 'Record a passage', 'its last look and the videos: %', v;
+end $$;
+reset role;
+set local role authenticated;
+do $$ begin
+  begin
+    perform public.ops_comments_read('en', 'UC8Ry8oFIPWzDygngMwvkBLQ', '[]'::jsonb);
+    raise exception 'authenticated kept comments';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.ops_tutorial_reviewed('{}'::jsonb);
+    raise exception 'authenticated wrote a look';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform diag.ops_tutorial_feedback();
+    raise exception 'authenticated read the feedback';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+select public.ops_record_action('0d000000-0000-0000-0000-0000000000aa', 'suggestion_accepted', '0d000000-0000-0000-0000-0000000000bb', 'ok', 'script');
+do $$ begin
+  assert (select every from diag.job_schedule where job = 'tutorial_comments') = interval '1 day', 'the comments job is on the schedule';
+  assert (select every from diag.job_schedule where job = 'tutorial_review') = interval '1 day', 'so is Claude''s look';
+end $$;
 
 rollback;

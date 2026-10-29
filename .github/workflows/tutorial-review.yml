@@ -1,0 +1,66 @@
+# Claude's nightly look at what came in about the tutorial videos
+# (docs/tutorial-videos.md "Feedback", decisions.md 185): the comments on
+# YouTube, the changes merged into main since its last look, and the notes
+# the team left on the ops dashboard. Claude follows the tutorial-review
+# skill (.agents/skills/tutorial-review/SKILL.md): it puts each comment into
+# English with a reply the channel could post, and suggests changes to a
+# video's script, screens or voice, to the app's code, or a new video. A
+# person accepts, edits or rejects each on the ops dashboard.
+#
+# Claude signs in with a Claude plan's token (CLAUDE_CODE_OAUTH_TOKEN, made by
+# `claude setup-token`, from .env.production through `npm run secrets --
+# production`); anyone on the team can replace it with their own. Without it
+# the run says so and stops. This workflow holds no production key: it reads
+# and writes the feedback only through the app's Worker, which lets in this
+# workflow on main by the OpenID Connect token GitHub gives the job
+# (apps/web/worker/tutorialReview.ts; scripts/workflows.test.ts). Claude has
+# no network and no token: the scripts around it fetch and send.
+name: tutorial-review
+
+on:
+  schedule:
+    # 10:00 UTC (3 AM Pacific): after the comments job at 23:50 UTC, and when
+    # the team whose plan it runs on is asleep.
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: tutorial-review
+  cancel-in-progress: false
+
+jobs:
+  look:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      HAS_CLAUDE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+    steps:
+      - name: Without a Claude token, say so
+        if: env.HAS_CLAUDE_TOKEN != 'true'
+        run: echo "::notice::No CLAUDE_CODE_OAUTH_TOKEN: run claude setup-token, then npm run env:update -- production CLAUDE_CODE_OAUTH_TOKEN and npm run secrets -- production"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        if: env.HAS_CLAUDE_TOKEN == 'true'
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: env.HAS_CLAUDE_TOKEN == 'true'
+        with: { node-version: 24 }
+      - name: What is open, and what main changed
+        if: env.HAS_CLAUDE_TOKEN == 'true'
+        run: node scripts/tutorial-review.mjs fetch .tutorial-review
+      - name: Claude looks
+        if: env.HAS_CLAUDE_TOKEN == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: |
+            Use the tutorial-review skill (.agents/skills/tutorial-review/SKILL.md). What is open is in .tutorial-review/state.json and the changes merged into main since the last look are in .tutorial-review/changes.json. Write your look to .tutorial-review/review.json, as the skill says, and nothing else.
+          claude_args: --allowedTools "Read,Glob,Grep,Write,Bash(git log:*),Bash(git show:*),Bash(git diff:*)"
+      - name: Send the look
+        if: env.HAS_CLAUDE_TOKEN == 'true'
+        run: node scripts/tutorial-review.mjs send .tutorial-review

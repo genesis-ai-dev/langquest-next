@@ -69,7 +69,7 @@ button.primary { min-height: 48px; background: var(--primary); border-color: var
 button.link { border: 0; background: none; color: var(--primary); padding: 0; min-height: 0; font-weight: 600; cursor: pointer; text-align: start; }
 form.signin { max-width: 420px; margin: 48px auto; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
 label { display:block; font-weight:600; margin: 14px 0 6px; }
-input[type=email], input[type=password], input[type=search], input[type=text] { width:100%; min-height:44px; padding: 8px 12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); font:inherit; }
+input[type=email], input[type=password], input[type=search], input[type=text], textarea, select { width:100%; min-height:44px; padding: 8px 12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); font:inherit; }
 .notice { padding: 12px 14px; border-radius: 10px; background: var(--bg); margin: 12px 0; }
 .notice.red { color: var(--red); background: var(--redbg); }
 .setup { white-space: pre-line; }

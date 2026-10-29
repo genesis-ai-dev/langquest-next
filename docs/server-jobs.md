@@ -30,6 +30,7 @@ Now, on a hosted project (decisions 141, 142):
 | R2 reconciliation without hashing, missing and orphaned files counted (`server/reconcileJob.ts`) | job container `JobRunner` blob-reconcile | 4 GiB | daily, 04:35 UTC | the Worker's job tick |
 | Tutorial videos chosen on the ops dashboard, put up on YouTube (`server/tutorialPublish.ts`, decision 180) | job container `JobRunner` tutorial-publish | 4 GiB | on Publish, and daily at 23:40 UTC | the dashboard's Publish; the Worker's job tick |
 | Tutorial films the nightly filming on GitHub made, brought into R2 and listed for Publish (`server/tutorialIntake.ts`, decision 183) | job container `JobRunner` tutorial-intake | 4 GiB | daily, 23:10 UTC | the Worker's job tick |
+| Comments on the tutorial videos, kept for Claude's nightly look; accepted code changes filed in Linear (`server/tutorialComments.ts`, decision 185) | job container `JobRunner` tutorial-comments | 4 GiB | daily, 23:50 UTC | the Worker's job tick |
 | Push delivery | Edge Function `push-delivery` | 256 MB | 1 min | pg_cron |
 | Reports | Durable Object `OrgSnapshot`, rendering stored report inputs | 128 MB isolate | on request | HTTP |
 | The agent API, MCP, review links, webhooks | Durable Object `OrgSnapshot`, reading each passage's records from the server's cut, never a whole language (decision 147) | 128 MB isolate | on request | HTTP |

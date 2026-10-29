@@ -314,6 +314,51 @@ export async function heldComments(fetcher: Fetch, token: string, channelId: str
   return Math.min(held, HELD_MAX);
 }
 
+/** A comment someone left on one of a channel's videos, as the comments job reads it (server/tutorialCommentsModel.ts). */
+export interface VideoComment {
+  /** The thread's id, which is its first comment's. */
+  id: string;
+  /** The video it is on; null for one left on the channel itself. */
+  videoId: string | null;
+  /** The words as YouTube shows them, in plain text; never who wrote them. */
+  text: string;
+  publishedAt: string;
+  /** Replies under it so far, the channel's own among them. */
+  replies: number;
+}
+
+/** At most this many comments are read from a channel in a run, newest first. */
+export const COMMENTS_MAX = 500;
+
+/**
+ * The comments people can see on the channel's videos (not those held for
+ * review), newest first, until one `known` says was read before or one
+ * older than `since`: so a run reads only what came since the last, and
+ * nothing the job no longer keeps. The channel's own are left out. A unit
+ * for each 100 read.
+ */
+export async function newComments(fetcher: Fetch, token: string, channelId: string, known: (ids: string[]) => Promise<Set<string>>, since: string): Promise<VideoComment[]> {
+  type Thread = { id: string; snippet?: { videoId?: string; totalReplyCount?: number; topLevelComment?: { snippet?: {
+    textDisplay?: string; publishedAt?: string; authorChannelId?: { value?: string } } } } };
+  const out: VideoComment[] = [];
+  let page = '';
+  do {
+    const q = new URLSearchParams({ part: 'snippet', allThreadsRelatedToChannelId: channelId, order: 'time', textFormat: 'plainText', maxResults: '100', ...(page ? { pageToken: page } : {}) });
+    const got = await answer<{ items?: Thread[]; nextPageToken?: string }>(await fetcher(`${API}/commentThreads?${q}`, { headers: json(token) }));
+    const items = got.items ?? [];
+    const seen = await known(items.map((t) => t.id));
+    for (const t of items) {
+      const c = t.snippet?.topLevelComment?.snippet;
+      if (seen.has(t.id) || (c?.publishedAt && c.publishedAt < since)) return out;
+      if (!c?.textDisplay?.trim() || !c.publishedAt || c.authorChannelId?.value === channelId) continue;
+      out.push({ id: t.id, videoId: t.snippet?.videoId ?? null, text: c.textDisplay.trim(), publishedAt: c.publishedAt, replies: t.snippet?.totalReplyCount ?? 0 });
+      if (out.length >= COMMENTS_MAX) return out;
+    }
+    page = got.nextPageToken ?? '';
+  } while (page);
+  return out;
+}
+
 // ---- Publish -------------------------------------------------------------------------------------
 
 export interface NewVideo {

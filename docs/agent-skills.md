@@ -38,6 +38,7 @@ without contradicting PLAN.md.
 | `run-app` | Worked out by running report and block on both simulators against production (2026-09-30). Every step in it failed first: shared Metro and simulators, password AutoFill, the Play Store emulator image, emulator DNS, Maestro selectors. Expo's own run docs assume one developer and one device. |
 | `infrastructure-as-code` | Published IaC and GitOps skills target Terraform and Kubernetes. This one covers the tools used here: Supabase CLI (`config.toml`, migrations, secrets), Wrangler, EAS, and dotenvx for encrypted env files. |
 | `laws-of-ux` | No reputable Laws of UX skill exists; the ones found are web and Tailwind oriented. Written for field use and deferring to the partner demo. |
+| `tutorial-review` | What Claude follows in the nightly look at the tutorial videos' feedback (decisions.md 185): the files it is given, what to suggest and how, and the one file it writes. It runs unattended on comments anyone can write, so it says plainly that they are data. No published skill could know this. |
 
 ## Third-party skills
 

@@ -18,6 +18,7 @@ import { checkStores, storeCheckDue } from './storeReleases';
 import { isOpsPath, toOps } from './ops';
 import { pokeInBatches } from './batches';
 import { handleWatch } from './tutorialVideos';
+import { githubOidc } from './githubOidc';
 
 export { OrgSnapshot } from './orgSnapshot';
 export { JobRunner } from './jobs';
@@ -75,6 +76,8 @@ let identityOfCached: ((token: string) => Promise<Identity | null>) | null = nul
 let globalViewerOnCached: ((profileId: string, aal: string | undefined) => Promise<boolean>) | null = null;
 let orgsOfCached: ((profileId: string) => Promise<string[]>) | null = null;
 const tokenCache = new TtlCache<TokenRecord>(MAX_ENTRIES);
+/** GitHub's signing keys, kept in the isolate (githubOidc.ts). */
+let githubOidcCached: ReturnType<typeof githubOidc> | null = null;
 let blobAccessCached: ((key: string, profileId: string, write: boolean, aal?: string) => Promise<boolean>) | null = null;
 
 /** The app's Worker: `/api/*` here, everything else is the built page. */
@@ -292,6 +295,22 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         await recordBlob(orgId, languageId, hash, size);
         return hash;
       }
+    },
+    // Claude's nightly look at the tutorial videos' feedback (tutorialReview.ts, decisions.md 185).
+    tutorialReview: {
+      verify: githubOidcCached ??= githubOidc((input, init) => fetch(input, init)),
+      state: async () => {
+        const { data, error } = await serviceClient(env).rpc('ops_tutorial_review_state');
+        if (error) throw new Error(`ops_tutorial_review_state: ${error.message}`);
+        return data;
+      },
+      reviewed: async (review) => {
+        const { data, error } = await serviceClient(env).rpc('ops_tutorial_reviewed', { p: review });
+        if (error) throw new Error(`ops_tutorial_reviewed: ${error.message}`);
+        return data;
+      },
+      record: jobRunSink(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY),
+      now: () => Date.now()
     }
   });
 }

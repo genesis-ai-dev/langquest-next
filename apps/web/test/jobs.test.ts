@@ -43,6 +43,9 @@ describe('job runner', () => {
     expect(jobsDue(Date.UTC(2026, 9, 19, 23, 10))).toEqual([{ key: 'projection' }, { key: 'tutorial-intake' }]);
     expect(jobsDue(Date.UTC(2026, 9, 19, 13, 10))).toEqual([{ key: 'projection' }]);
     expect(JOBS['tutorial-intake']).toMatchObject({ job: 'tutorial_intake', entrypoint: ['node', 'intake.mjs'], timeLimitMs: 120 * 60_000 });
+    // The day's comments on the videos, after the publish job (decision 185).
+    expect(jobsDue(Date.UTC(2026, 9, 19, 23, 50))).toEqual([{ key: 'projection' }, { key: 'tutorial-comments' }]);
+    expect(JOBS['tutorial-comments']).toMatchObject({ job: 'tutorial_comments', entrypoint: ['node', 'comments.mjs'], timeLimitMs: 60 * 60_000 });
     expect(JOBS['fold-canary']).toMatchObject({ job: 'fold_canary', entrypoint: ['node', 'canary.mjs'], timeLimitMs: 60 * 60_000 });
     expect(JOBS['blob-reconcile']).toMatchObject({ job: 'blob_reconcile', entrypoint: ['node', 'reconcile.mjs'], timeLimitMs: 120 * 60_000 });
   });
@@ -56,6 +59,14 @@ describe('job runner', () => {
   it('hands the tutorial intake the database and the Worker\'s address, and nothing of YouTube\'s', () => {
     expect(jobEnv('tutorial-intake', v2)).toEqual({ env: { ...db, LANGQUEST_JOB: 'tutorial-intake', NODE_OPTIONS: '--max-old-space-size=3072', API_URL: 'https://next.langquest.org' } });
     expect(jobEnv('tutorial-intake', { ...v2, API_URL: undefined })).toEqual({ refuse: expect.stringContaining('API_URL') });
+  });
+
+  it('hands the comments job the YouTube client and Linear\'s key when it is set, and stays off without the client', () => {
+    const youtube = { YOUTUBE_CLIENT_ID: 'client.apps.googleusercontent.com', YOUTUBE_CLIENT_SECRET: 'shh' };
+    const base = { ...db, LANGQUEST_JOB: 'tutorial-comments', NODE_OPTIONS: '--max-old-space-size=3072', ...youtube };
+    expect(jobEnv('tutorial-comments', v2)).toEqual({ env: base });
+    expect(jobEnv('tutorial-comments', { ...v2, LINEAR_API_KEY: 'lin' })).toEqual({ env: { ...base, LINEAR_API_KEY: 'lin' } });
+    expect(jobEnv('tutorial-comments', { ...v2, YOUTUBE_CLIENT_SECRET: undefined })).toEqual({ skip: 'disabled' });
   });
 
   it('keeps each run inside its time limit, and every limit inside the platform\'s six hours', () => {

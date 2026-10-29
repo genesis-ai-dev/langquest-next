@@ -6,7 +6,8 @@ import { containerAlerts, containerSection } from '../src/sources/container';
 import { lookup } from '../src/sources/diag';
 import { expiryAlerts, expirySection, keptByHand } from '../src/sources/expiry';
 import {
-  dbDetailAlerts, fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, tutorialAlerts, tutorialsOf, workerAlerts, type DbDetail, type Fleet, type Safety, type Tutorials
+  dbDetailAlerts, feedbackAlerts, feedbackOf, fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, tutorialAlerts, tutorialsOf, workerAlerts,
+  type DbDetail, type Feedback, type Fleet, type Safety, type Tutorials
 } from '../src/sources/ops';
 import { CHANNELS } from '../../../server/youtube';
 import { isMerge, migrationsBehind, releaseAlerts, type Releases } from '../src/sources/releases';
@@ -234,6 +235,7 @@ describe('reading as diag_reader', () => {
       expect(s[id]).toMatchObject({ state: 'off', setup: expect.stringContaining('20261023100000_ops_dashboard.sql') });
     }
     expect(s.tutorials).toMatchObject({ state: 'off', setup: expect.stringContaining('20261028090000_tutorial_videos.sql') });
+    expect(s.videofeedback).toMatchObject({ state: 'off', setup: expect.stringContaining('20261029120000_tutorial_feedback.sql') });
   });
 
   it('looks a person up by email and answers with their id and installs, never the address', async () => {
@@ -365,5 +367,28 @@ describe('tutorial videos (decisions.md 180)', () => {
     expect(tutorialAlerts(t([waiting({ chosenAt: hoursAgo(31), failed: 'youtube_uploadLimitExceeded' })]), NOW)).toEqual([
       { level: 'problem', text: '1 tutorial video chosen more than 30 hours ago is still not on YouTube (Tutorial videos).' }
     ]);
+  });
+});
+
+describe('feedback on the tutorial videos (decisions.md 185)', () => {
+  const feedback = (over: Partial<Feedback> = {}): Feedback => ({ suggestions: [], inputs: [], waiting: 0, open: 0, unfiled: 0, last: null, videos: [], ...over });
+
+  it('counts what the database sends as numbers', () => {
+    expect(feedbackOf({ ...feedback(), waiting: '3' as unknown as number, open: null as unknown as number })).toMatchObject({ waiting: 3, open: 0, unfiled: 0 });
+  });
+
+  it('says when suggestions wait for a yes or no, and when accepted code changes are not in Linear', () => {
+    expect(feedbackAlerts(feedback({ waiting: 12 }))).toEqual([]);
+    expect(feedbackAlerts(feedback({ open: 1 }))).toEqual([{ level: 'watch', text: '1 suggestion for the tutorial videos waits for a yes or no (Tutorial videos).' }]);
+    expect(feedbackAlerts(feedback({ open: 4, unfiled: 2 }))).toEqual([
+      { level: 'watch', text: '4 suggestions for the tutorial videos wait for a yes or no (Tutorial videos).' },
+      { level: 'watch', text: '2 accepted code changes not in Linear yet (Tutorial videos).' }
+    ]);
+  });
+
+  it('reads diag.ops_tutorial_feedback into its section', async () => {
+    const row = feedback({ open: 1, videos: [{ tutorial: 'record-a-passage', title: 'Record a passage' }] });
+    const s = await opsSections(fakeQuery([['ops_tutorial_feedback', row]]));
+    expect(s.videofeedback).toMatchObject({ state: 'ok', data: { open: 1, videos: row.videos } });
   });
 });
