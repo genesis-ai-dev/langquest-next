@@ -119,7 +119,11 @@ describe('parseReview', () => {
       [{ code: [{ key: INPUT, sha: 'b'.repeat(40), tutorial: 'record-a-passage', pr: null, title: 't', english: 'e', at: '2026-10-29T18:00:00Z' }] }, 'code[0].key'],
       [{ comments: [{ id: 'Ugc-1', english: 'e', reply: '', replyEnglish: '' }] }, 'comments[0].id'],
       [{ looked: Array.from({ length: 4001 }, () => ({ input: INPUT, outcome: null })) }, 'looked'],
-      [{ attach: [{ suggestion: 'pr-272', inputs: [] }] }, 'attach[0].suggestion']
+      [{ attach: [{ suggestion: 'pr-272', inputs: [] }] }, 'attach[0].suggestion'],
+      // The phone's disguise (decisions.md 171) is never explained in public, whoever asks.
+      [{ suggestions: [{ kind: 'new', tutorial: null, title: 'Make LangQuest look like a calculator', detail: 'd', inputs: [] }] }, 'suggestions[0].title'],
+      [{ suggestions: [{ kind: 'script', tutorial: 'your-account', title: 'Show the App icon row', detail: 'Tap App icon, then Notepad, and type a code.', inputs: [] }] }, 'suggestions[0].detail'],
+      [{ comments: [{ id: INPUT, english: 'How do I hide the app?', reply: 'Toca Yo, luego Icono de la app.', replyEnglish: 'Tap Me, then App icon, and pick the disguise.' }] }, 'comments[0].replyEnglish']
     ];
     for (const [over, where] of wrong) {
       expect(() => parseReview(review(over)), where).toThrow(ReviewError);

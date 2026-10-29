@@ -147,6 +147,12 @@ look. A video for LangQuest staff (`staff: true`, "Read any
 organization as a Global Viewer") is never filmed here or put on YouTube:
 `npm run tutorials` films it by hand.
 
+No video shows or explains the phone's disguise, the calculator or notepad
+LangQuest can wear (decisions.md 171, amended): the web app they are filmed on
+draws no App icon row, `e2e/tutorials/no-disguise.test.ts` fails on a video that
+names or lights it, and the nightly look is refused when a reply or suggestion
+names it.
+
 ## On YouTube
 
 Each app language has its own YouTube channel (decision 180). A version filmed

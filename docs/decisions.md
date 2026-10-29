@@ -8221,6 +8221,15 @@ and notepad stay and the icon goes, or the reverse), people lose their codes
 or typing the code after every permission prompt or share drives people to
 turn it off (then leaving for a few seconds does not lock).
 
+Amended (2026-10-29, Caleb Koster): no tutorial video, channel trailer,
+YouTube reply or nightly suggestion shows or explains the disguise, or how to
+turn it on or open it. Telling the stores is not teaching the public: a public
+how-to teaches anyone who picks up the phone to see through it. The web app
+the videos are filmed on draws no App icon row (`DisguiseRow.web.tsx`),
+`e2e/tutorials/no-disguise.test.ts` fails on a video that names or lights it,
+and the nightly look at the videos' feedback is refused whole when a reply or
+suggestion names it (`server/tutorialFeedback.ts`, decision 186).
+
 ## 172. FIA's key words are a key-word list per language, picked apart from FIA's guides, shown where a passage links or says them, and every reference list can be searched
 
 Date: 2026-10-26 · By: Caleb Koster · Status: accepted

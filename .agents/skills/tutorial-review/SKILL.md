@@ -28,6 +28,13 @@ posted, filmed or merged without them.
   wrong, look again (`git show`, the video's file) rather than guess.
 - **Leave out the staff video** `read-any-organization`: it is filmed by
   hand and never put on YouTube.
+- **Never the phone's disguise.** No reply, suggestion or new video shows
+  or explains the calculator or notepad LangQuest can wear on a phone
+  (decisions.md 171), or how to turn it on or open it: a public how-to
+  teaches anyone to see through it. When a comment asks about it, leave
+  `reply` and `replyEnglish` empty and say in `looked` that a person
+  answers it. A look whose reply or suggestion names it is refused whole
+  (`server/tutorialFeedback.ts`).
 - **Follow the app's recorded decisions.** Before a code suggestion, read
   the entries of `docs/decisions.md` and the parts of `PLAN.md` that touch
   it. Never suggest what they rule out (explanatory text on screens, due
