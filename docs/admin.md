@@ -302,7 +302,10 @@ their ids are in `server/youtube.ts`.
   night); Run now starts the intake at once.
 - **Publish** the ones chosen. The publish job starts at once, and again at
   23:40 UTC each day while chosen videos wait: YouTube takes 100 uploads a
-  day for all channels together. A new version of a video already up takes
+  day for all channels together, and fewer from one new channel (Arabic's
+  stopped at 10), so a channel at its own limit waits for the next run
+  while the others go on. English goes first, then French, then the other
+  languages in turn (decision 180). A new version of a video already up takes
   its place in the playlist, and the old one is unlisted with a link to the
   new. The job's runs are in Server jobs (`tutorial_publish`).
 - **How each channel looks** is the publish job's too: before any video,

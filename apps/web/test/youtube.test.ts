@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  accessToken, bannerPath, channelAbout, CHANNELS, consentUrl, exchangeCode, languageOfChannel, myChannel, outOfQuota, placeInPlaylist, playlistFor,
+  accessToken, bannerPath, channelAbout, channelFull, CHANNELS, consentUrl, exchangeCode, languageOfChannel, myChannel, outOfQuota, placeInPlaylist, playlistFor,
   readState, retire, setOtherChannels, signState, uploadVideo, WORDS, YouTubeError, type Fetch
 } from '../../../server/youtube';
 
@@ -115,12 +115,15 @@ describe('Publish', () => {
     expect(put).toMatchObject({ method: 'PUT', body: bytes });
   });
 
-  it('says when the day\'s uploads are used up', async () => {
-    const f = google(() => Response.json({ error: { code: 403, errors: [{ reason: 'uploadLimitExceeded' }] } }, { status: 403 }));
+  it('tells the project\'s day used up from a channel\'s', async () => {
+    const f = google(() => Response.json({ error: { code: 400, errors: [{ reason: 'uploadLimitExceeded' }] } }, { status: 400 }));
     const e = await uploadVideo(f, 'at', { title: 't', description: 'd', language: 'en', file: { body: new Uint8Array(1), bytes: 1 }, replacing: false }).catch((x: unknown) => x);
     expect(e).toBeInstanceOf(YouTubeError);
-    expect(outOfQuota(e)).toBe(true);
     expect((e as YouTubeError).code).toBe('youtube_uploadLimitExceeded');
+    expect(channelFull(e)).toBe(true);
+    expect(outOfQuota(e)).toBe(false);
+    expect(outOfQuota(new YouTubeError(403, 'quotaExceeded'))).toBe(true);
+    expect(channelFull(new YouTubeError(403, 'quotaExceeded'))).toBe(false);
     expect(outOfQuota(new YouTubeError(403, 'forbidden'))).toBe(false);
   });
 
