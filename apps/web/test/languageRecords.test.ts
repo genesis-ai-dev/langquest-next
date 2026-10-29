@@ -62,6 +62,9 @@ async function language(server: FakeServer) {
     await lead.append('v1.RequestMade', { requestId: `q${i}`, unitId, what: 'review', kindId: 'peer', profileId: 'lead' });
   }
   await lead.sync();
+  // The Worker's confirmation of each upload but one: the file of u07 is still on the phone.
+  for (let i = 0; i < 12; i++) if (i % 3 !== 2 && i !== 7) server.storeBlob('org1', 'p1', `${i}`.repeat(64).slice(0, 64), 100 + i);
+  await lead.sync();
   return lead;
 }
 
@@ -107,7 +110,12 @@ describe('a language read as records in the object\'s SQLite (decisions.md 147)'
       const q = { filter: { status }, include: [], limit: 2 };
       expect(await passagesFor(grant, 'org1', 'p1', records, q, sign, received), status).toEqual(await passagesFor(grant, 'org1', 'p1', whole, q, sign, received));
     }
-    for (const u of ['u00', 'u01', 'u04', 'u99']) expect(await passageFor(grant, 'org1', 'p1', records, u, sign, received), u).toEqual(await passageFor(grant, 'org1', 'p1', whole, u, sign, received));
+    for (const u of ['u00', 'u01', 'u04', 'u07', 'u99']) expect(await passageFor(grant, 'org1', 'p1', records, u, sign, received), u).toEqual(await passageFor(grant, 'org1', 'p1', whole, u, sign, received));
+    // When the server stored each file, from the verdicts kept on disk: set for a stored file, null for one not uploaded yet.
+    const stored = await passageFor(grant, 'org1', 'p1', records, 'u01', sign, received);
+    const pending = await passageFor(grant, 'org1', 'p1', records, 'u07', sign, received);
+    expect('audio' in stored && stored.audio[0]?.uploadedAt).toMatch(/^20\d\d-/);
+    expect('audio' in pending && pending.audio[0]?.uploadedAt).toBeNull();
     expect(await digestOfRecords(records)).toEqual(digestOf(await whole.view([])));
     // A voice note is new only if nothing in the language names it, wherever its passage is.
     const named = await records.files(['1'.repeat(64), 'f'.repeat(64)]);
