@@ -21,6 +21,11 @@ on:
     # 23:10, the hour when the fewest people on earth are at work (decision 183,
     # amended).
     - cron: '10 20 * * *'
+  # A change to the scripts or to how they are filmed is filmed when it is
+  # merged into main, not at the next 20:10.
+  push:
+    branches: [main]
+    paths: ['e2e/tutorials/**', '.github/workflows/tutorials.yml']
   workflow_dispatch:
     inputs:
       languages:
@@ -123,6 +128,31 @@ jobs:
           gh release download tutorials -D "$RUNNER_TEMP/release" -p "manifest-$LANGUAGE.json" -p "voice-$LANGUAGE.tgz" || true
           if [ -f "$RUNNER_TEMP/release/voice-$LANGUAGE.tgz" ]; then tar xzf "$RUNNER_TEMP/release/voice-$LANGUAGE.tgz" -C e2e/results/tutorials; fi
           ls "$RUNNER_TEMP/release"
+      # A line no one has translated yet (a script's new line, what Ruth says in
+      # the readings) is translated here by Gemini, so the language is still
+      # filmed; translate-lines.ts does nothing when every line is translated.
+      # The translated file is kept with the job, to commit. A line that could
+      # not be translated stops only the videos that say it.
+      - name: Translate the lines this language lacks
+        if: ${{ matrix.language != 'en' }}
+        continue-on-error: true
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          status=0
+          npx tsx e2e/tutorials/translate-lines.ts "$LANGUAGE" || status=$?
+          if ! git diff --quiet -- e2e/tutorials/lines; then
+            mkdir -p "$RUNNER_TEMP/lines" && cp "e2e/tutorials/lines/$LANGUAGE.json" "$RUNNER_TEMP/lines/"
+            echo "::notice::Lines translated on the runner: commit e2e/tutorials/lines/$LANGUAGE.json from the job's lines-$LANGUAGE artifact"
+          fi
+          exit "$status"
+      - name: Keep the lines translated here
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lines-${{ matrix.language }}
+          path: ${{ runner.temp }}/lines
+          if-no-files-found: ignore
       - name: Try every video, and film the ones that changed
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

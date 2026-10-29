@@ -8817,7 +8817,15 @@ and the changed videos are filmed on the same night), since the Gemini key
 is on Tier 1, which the batch voice needs. Five languages film at a time,
 each about 50 minutes on a night without new films, so all fifteen finish
 before the intake. A first night for a language, which films every video,
-can finish after the intake; its films then come in the next day.
+can finish after the intake; its films then come in the next day. So that
+a line no one has translated yet (a script's new line, or what Ruth says in
+the readings, which no language had) never stops a language, the job has
+Gemini translate it first (`translate-lines.ts`, the same machine
+translation as the committed lines, decision 81) and keeps the file to
+commit. A change to the scripts or to how they are filmed is filmed when it
+is merged into main, rather than at the next 20:10: a fix to the filming
+should not wait a day, or for a person to press Run workflow, since the
+agents that work on the videos cannot start or re-run a workflow.
 
 ## 184. The publish job keeps each YouTube channel's description, banner and list of the others; held comments are counted on the dashboard and moderated in Studio
 
