@@ -49,7 +49,7 @@ import { nobodyElseReviews, sendTargetLabel } from '../passage/recordTextModel';
 import { sendToInput, type UsualTarget } from '../passage/sendTarget';
 import { AskCheckCard } from '../passage/askParts';
 import type { DoneAsk, DoneNext } from './publish';
-import { RecordButton, SaveProblem } from './parts';
+import { RecordButton, RecorderProblem, SaveProblem } from './parts';
 import { SplitPane } from './SplitPane';
 import { loopRecording, MIN_BOTTOM, MIN_BOTTOM_RECORDING } from './splitModel';
 import { useListenLoop } from './useListenLoop';
@@ -76,6 +76,7 @@ import { useBible } from '../helps/useBible';
 import { useStudyGuide } from '../study/useStudyGuides';
 import { studyProgress } from '../study/progress';
 import { GuideNav, GuideStep } from '../study/guide';
+import { a11yState } from '../ui/a11yModel';
 
 export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; kind: KindDef; of: Version }) {
   const { state, unitId, languageId, p } = v;
@@ -112,7 +113,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   type TopChip = 'version' | 'bible' | 'guide' | 'terms' | 'notes' | 'earlier';
   const topChips: ChipItem<TopChip>[] = [
     { id: 'version', label: t('backTranslation.chips.version', { n: of.n }), icon: 'mic' },
-    ...(bible.hasVerses && (shows.bibleAudio || shows.bibleText) ? [{ id: 'bible' as const, label: t('translate.chips.bible'), icon: 'listen' as const, hint: t('translate.chips.bibleHint') }] : []),
+    ...(bible.hasVerses && (shows.bibleAudio || shows.bibleText) ? [{ id: 'bible' as const, label: t('translate.chips.bible'), icon: 'book' as const, hint: t('translate.chips.bibleHint') }] : []),
     ...(study && (shows.guideAudio || shows.guideText) ? [{ id: 'guide' as const, label: t('translate.chips.guide'), icon: 'star' as const, hint: t('translate.chips.guideHint') }] : []),
     ...(shows.terms ? [{ id: 'terms' as const, label: t('translate.chips.terms'), icon: 'key' as const, hint: t('translate.chips.termsHint') }] : []),
     ...(anyFrom(state, kind.id, 'notes') ? [{ id: 'notes' as const, label: t('translate.chips.notes'), icon: 'chat' as const, count: passageNotes.length, hint: t('translate.chips.notesHint') }] : []),
@@ -197,7 +198,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
       setHistory((h) => didStep(h, { before, after: before.filter((c) => !gone.has(c.hash)), what }));
       AccessibilityInfo.announceForAccessibility(what);
     } catch (e) {
-      ctx.toast(t('backTranslation.notDeleted', { reason: failureMessage('back translation: delete part', e) }));
+      ctx.toast(t('backTranslation.notDeleted', { reason: failureMessage('back translation: delete part', e) }), 'problem');
     } finally { setWorking(false); }
   }
 
@@ -214,7 +215,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
       AccessibilityInfo.announceForAccessibility(step.what ? t(which === 'undo' ? 'common.undoneWhat' : 'common.redoneWhat', { what: step.what })
         : which === 'undo' ? t('common.undone') : t('translate.redone'));
     } catch (e) {
-      ctx.toast(t(which === 'undo' ? 'common.notUndone' : 'common.notSaved', { reason: failureMessage(`back translation: ${which}`, e) }));
+      ctx.toast(t(which === 'undo' ? 'common.notUndone' : 'common.notSaved', { reason: failureMessage(`back translation: ${which}`, e) }), 'problem');
     } finally { setWorking(false); }
   }
   const lastDone = history.done[history.done.length - 1];
@@ -256,7 +257,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
         message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name), offline);
       }
     } catch (e) {
-      ctx.toast(t('backTranslation.notPublished', { reason: failureMessage('back translation: save', e) }));
+      ctx.toast(t('backTranslation.notPublished', { reason: failureMessage('back translation: save', e) }), 'problem');
       return;
     }
     setSaving(true);
@@ -283,7 +284,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
 
   const problem = drafts.problem ? <SaveProblem message={drafts.problem} />
     : rec.failureCount > 0 ? <SaveProblem message={rec.error || t('backTranslation.partNotSaved')} retryLabel={t('backTranslation.retrySaving')} busy={rec.busy} onRetry={() => void rec.retryFailed()} />
-    : rec.error ? <SaveProblem message={rec.error} /> : null;
+    : rec.error ? <RecorderProblem rec={rec} /> : null;
   const mine = of.by === me;
   const who = ctx.name(of.by).split(' ')[0] ?? ctx.name(of.by);
   const partN = part ? part.index + 1 : null;
@@ -337,7 +338,8 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
                   <GuideStep key={study.steps[gStep]!.step.id} ctx={ctx} v={v} guide={guide} status={study.steps[gStep]!} spoken={shows.guideAudio} read={shows.guideText} canContribute={!recording} />
                 ) : top === 'terms' ? (
                   <KeyWordsPane ctx={ctx} v={v} terms={unitTerms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} bibleLanguage={bible.option?.language} draftTakeId={undefined} canTie={false} disabled={blocked}
-                    onHear={(key) => { setTop('bible'); if (key) { setVerse(key); bible.playVerse(key); } }} />
+                    canHear={topChips.some((c) => c.id === 'bible') && bible.timed && !bible.audioAbsent}
+                    onHear={(key) => { if (!bible.playVerse(key)) return false; setTop('bible'); setVerse(key); return true; }} />
                 ) : top === 'notes' ? (
                   <NotesPane ctx={ctx} v={v} notes={passageNotes} disabled={blocked} />
                 ) : top === 'earlier' ? (
@@ -419,7 +421,7 @@ function PartCard(props: { ctx: Ctx; part: BackPart; verse: string | null; into:
   const spot = useHelpSpot(label, said ? t('backTranslation.partSaidHelp') : t('backTranslation.partTapHelp'), props.onPick);
   return (
     <View style={[styles.part, props.fresh && styles.partFresh, focused && styles.partNow]}>
-      <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: focused }}
+      <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" {...a11yState({ selected: focused }, 'button')}
         accessibilityLabel={sub ? t('backTranslation.partA11y', { part: props.verse ? `${label}, ${props.verse}` : label, sub }) : props.verse ? `${label}, ${props.verse}` : label}
         style={({ pressed }) => [styles.partHead, pressed && { opacity: 0.7 }]}>
         <View style={[styles.partMark, said ? { backgroundColor: C.green } : focused ? { backgroundColor: C.primary } : { backgroundColor: C.light }]}>
@@ -467,7 +469,7 @@ function BigRecord(props: { disabled: boolean; part: number | null; onPress: () 
   return (
     <View style={[styles.halo, props.disabled && { opacity: 0.45 }]}>
       <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={n ? t('backTranslation.recordPart', { n }) : t('common.record')}
-        accessibilityHint={t('backTranslation.recordHint')} accessibilityState={{ disabled: props.disabled }}
+        accessibilityHint={t('backTranslation.recordHint')} {...a11yState({ disabled: props.disabled }, 'button')}
         style={({ pressed }) => [styles.record, pressed && { transform: [{ scale: 0.95 }] }]}>
         <Ico name="mic" size={34} color={C.white} />
         <HelpBadge spot={spot} />
@@ -479,7 +481,7 @@ function BigRecord(props: { disabled: boolean; part: number | null; onPress: () 
 function PublishBtn(props: { disabled: boolean; onPress: () => void }) {
   const spot = useHelpSpot(t('common.done'), t('backTranslation.doneHelp'), props.onPress);
   return (
-    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('common.done')} accessibilityState={{ disabled: props.disabled }}
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('common.done')} {...a11yState({ disabled: props.disabled }, 'button')}
       style={({ pressed }) => [styles.publish, props.disabled && { opacity: 0.45 }, pressed && { opacity: 0.7 }]}>
       <Text style={styles.publishLabel}>{t('common.done')}</Text>
       <HelpBadge spot={spot} />

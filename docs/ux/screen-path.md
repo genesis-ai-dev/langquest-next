@@ -40,7 +40,7 @@ always a way back to a home.
 
 | Screen | What the person needs to see | Main action | Secondary | Rarer | Way back |
 | --- | --- | --- | --- | --- | --- |
-| Org home | The organization and its languages | Invite people | A language; Members | Setup (content templates, reference, review flows, roles, licence) | — (Manage tab) |
+| Org home | The organization and its languages | Invite people (Add a language while it has none; Invite people is then a row under People) | A language; Members | Setup (content templates, reference, review flows, roles, licence) | — (Manage tab) |
 | Language home | The language's progress | Open the passage map | Members; Review teams | Setup (templates, reference, flows, roles, list publicly) | Back to the org |
 | Members | Who is in, at which level | Invite | A member | By language | Back |
 | Review team | The team's members and kind | Save | Usually reviews (kind) | — | Back |

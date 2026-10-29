@@ -79,7 +79,8 @@ Steps:
 
 Expected:
 - Step 1 opens "Edit Profile".
-- Step 2 opens "Sync" (the Sync screen; its contents are in SYNC).
+- Step 2 opens the Sync screen titled "Ready for offline", with what this
+  device keeps first (its contents are in SYNC; UI audit, finding 120).
 - Step 3 opens "What is LangQuest?" with "1 of {n}" under the title.
 - Step 4 opens the "Language" sheet over Me.
 - Step 5 opens "More settings".
@@ -166,7 +167,7 @@ Expected:
 - A "Set a password" row with "If other people use this device". Tapping it
   opens "Edit Profile".
 
-### ACCT-007 Notifications can be turned on
+### ACCT-007 Notifications can be turned on and off
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android · Run: Device
 
 Preconditions:
@@ -177,13 +178,18 @@ Steps:
 2. Allow notifications in the system prompt.
 3. Android only: open the system settings for LangQuest's notifications.
 4. Go Back to Me, then open "More settings" again.
+5. Tap "Notifications" again.
 
 Expected:
+- The row is a switch, off, with "Hear about requests and feedback" and no
+  chevron (UI audit, finding 114).
 - Step 1 shows the system's permission prompt.
-- After step 2, the row's sub-line says "Notifications are on."
+- After step 2, the switch is on.
 - Android: the app has a notification channel named "Work updates".
-- After step 4, the sub-line is "Hear about requests and feedback" again
-  (the message is not kept).
+- After step 4, the switch is still on: it is read from the phone.
+- After step 5, the switch is off, and COORD's requests no longer bring a
+  push to this device (offline, it stays on and says it needs a
+  connection).
 - COORD asking TRANS to record a passage (PASS) now brings a push to this
   device. Tapping it opens the Inbox over My Work, with Back (NAV).
 
@@ -202,8 +208,11 @@ Steps:
 3. Open My Work and tap the bell.
 
 Expected:
-- After step 2, the sub-line says "Notifications are off. Your inbox still
-  works."
+- After step 2, the switch is off and the sub-line says "Notifications are
+  off. Your inbox still works."
+- Where the phone will not ask again, "Open this phone's settings" shows
+  under the row and opens them; on coming back, the switch reads what was
+  chosen there.
 - Nothing else changes, and no error code is shown.
 - Step 3 opens the Inbox as usual.
 
@@ -219,8 +228,8 @@ Steps:
 
 Expected:
 - The sub-line says "Notifications could not be turned on. Try again when
-  connected."
-- Tapping again once online says "Notifications are on."
+  connected." The switch stays off.
+- Tapping again once online turns the switch on.
 
 ### ACCT-010 Switch Organization says which organization is active, on Me for someone in several
 Roles: ADMIN, TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -438,10 +447,16 @@ Preconditions:
 
 Steps:
 1. Open "Set a password", type "kept-pass-1", and tap "Save Profile".
+2. Change the name too, and tap "Save Profile" again.
+3. Put the name back, clear the password, and tap "Save Profile".
 
 Expected:
-- Red text "Setting a password needs a connection."
-- The screen stays open. "Set a password" is still on More settings.
+- Step 1: red text "Setting a password needs a connection." The screen
+  stays open.
+- Step 2: "Name saved. Setting a password needs a connection." The new
+  name is kept on the device and syncs later (UI audit, finding 117).
+- Step 3: back on More settings with the name. "Set a password" is still
+  there.
 
 ### ACCT-021 A looked-after account sets a password
 Roles: KEPT · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto (Web added as for ACCT-006; its own world, `11-account-kept-password.spec.ts`)
@@ -901,9 +916,11 @@ Expected:
 - Step 2: an amber cloud icon, the title "Not yet", and "Still to send: 1
   change. This device is offline. Sign out once they have synced so they
   are not stranded here." "Sign Out" is disabled. "Cancel" works.
+- Under it, "See what is waiting" opens the Sync screen, with Sync now and
+  the change by passage; Back returns here (UI audit, finding 115).
 - If the browser is online but the work has not gone yet, the text is
   "Still to send: 1 change. Sign out once they have synced so they are not
-  stranded here."
+  stranded here.", with a spinner and "Sending…"
 - Step 3: the title becomes "Sign out?" with "You can sign back in anytime.
   This browser forgets everything it kept for you, so the next person here
   sees none of it." "Sign Out" is enabled.
@@ -985,7 +1002,8 @@ Preconditions:
 
 Steps:
 1. Tap "Me", "More settings", then "Delete account".
-2. Tap "Cancel".
+2. Tap "Delete My Account", then "Cancel" on the sheet.
+3. Tap "Cancel".
 
 Expected:
 - Step 1: header "Delete Account" with Back. A heading "Delete your
@@ -995,9 +1013,13 @@ Expected:
   made stay part of its work, without your name."
 - "This cannot be undone. To use LangQuest again you would create a new
   account."
-- A red "Delete My Account" button, enabled, and "Cancel".
+- "Cancel" is the main button; under it a quieter red "Delete My Account",
+  enabled (UI audit, finding 112).
 - No banner. No tabs.
-- Step 2: back on More settings.
+- Step 2: a sheet asks "Delete {name}’s account?" with "This cannot be
+  undone…", a red "Delete My Account" and "Cancel". Cancel closes it and
+  nothing is deleted.
+- Step 3: back on More settings.
 
 ### ACCT-045 Deleting needs a connection
 Roles: NEW · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
@@ -1039,7 +1061,7 @@ Expected:
 Resets: P-SUBMITTED has a note by NEW-1 (and LANG-A a version of Luke
 17:1-10 if it was recorded).
 
-### ACCT-047 One tap deletes the account, and the work stays without a name
+### ACCT-047 Deleting the account keeps the work without a name
 Roles: NEW, COORD · Priority: P0 · Platforms: iOS, Android, Web · Run: Device
 
 Preconditions:
@@ -1048,14 +1070,14 @@ Preconditions:
 - Device 2 is signed in as COORD.
 
 Steps:
-1. Device 1 (NEW-1): on "Delete Account", tap "Delete My Account" once.
+1. Device 1 (NEW-1): on "Delete Account", tap "Delete My Account", then
+   "Delete My Account" on the sheet that names NEW-1.
 2. Device 1: on "Sign In", sign in with NEW-1's email and password.
 3. Device 2 (COORD): tap "Sync now", restart the app, and open Luke
    17:1-10. Then open "Manage" → Members.
 
 Expected:
-- Step 1: the button says "Deleting…". No second question is asked. "Sign
-  In" shows (web: the page reloads to it, and the browser's data is gone as
+- Step 1: the sheet's button says "Deleting…". "Sign In" shows (web: the page reloads to it, and the browser's data is gone as
   in WEB-023).
 - Step 2: sign-in fails as for an unknown account (AUTH).
 - Step 3: Version 1 is still there and plays. Its author shows as a colour
@@ -1071,10 +1093,12 @@ Preconditions:
   request with HTTP 500.
 
 Steps:
-1. Open "Delete account" and tap "Delete My Account".
+1. Open "Delete account", tap "Delete My Account", then "Delete My
+   Account" on the sheet.
 
 Expected:
-- Red text "Something went wrong (code {code}). Nothing was lost."
+- The sheet closes, and red text "Something went wrong (code {code}).
+  Nothing was lost." shows on the screen.
 - Still signed in, on "Delete Account", with the button enabled again.
 
 ### ACCT-049 Deleting from "Join your team"
@@ -1087,7 +1111,8 @@ Preconditions:
 Steps:
 1. Tap "Delete account" on "Join your team".
 2. Tap Back.
-3. Tap "Delete account" again, then "Delete My Account".
+3. Tap "Delete account" again, then "Delete My Account", and "Delete My
+   Account" on the sheet.
 
 Expected:
 - Step 1: the same "Delete Account" screen as ACCT-044.

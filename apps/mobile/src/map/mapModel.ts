@@ -360,10 +360,15 @@ export function inFilter(b: BookSummary, filter: MapFilter): boolean {
  */
 export function mapShelf(books: readonly BookSummary[], filter: MapFilter, picked: Testament | null) {
   const testaments = (['nt', 'ot'] as const).filter((x) => books.some((b) => b.book?.testament === x));
-  const shownTestament = picked && testaments.includes(picked) ? picked : testaments[0];
+  const matching = (x: Testament) => books.filter((b) => b.book && b.book.testament === x && inFilter(b, filter));
+  // With a filter on, each testament says how many of its books match, and one not picked by hand opens
+  // where the matches are, never on "Nothing here matches" while the other holds them (UI audit, finding 121).
+  const counts = filter === 'all' ? null : { nt: matching('nt').length, ot: matching('ot').length };
+  const first = counts && testaments[0] && counts[testaments[0]] === 0 ? testaments.find((x) => counts[x] > 0) : undefined;
+  const shownTestament = picked && testaments.includes(picked) ? picked : first ?? testaments[0];
   return {
-    testaments, shownTestament,
-    visible: books.filter((b) => b.book && b.book.testament === shownTestament && inFilter(b, filter)),
+    testaments, shownTestament, counts,
+    visible: shownTestament ? matching(shownTestament) : [],
     other: books.find((b) => !b.book && inFilter(b, filter))
   };
 }

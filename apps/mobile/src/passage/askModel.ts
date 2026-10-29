@@ -76,7 +76,9 @@ export function askModel(o: {
   const outside = picks.mode === 'outside' && !isRecord;
   const target = outside ? picks.guestName.trim() : chosen === TEAM && team ? sendTargetLabel(team, o.name) : chosen ? o.name(chosen) : '';
   const ready = !!target && (!outside || picks.contact.trim().length > 3);
-  const buttonLabel = chosen === TEAM && team && !outside ? t('passage.published.askTarget', { target })
+  // Nothing goes to someone without the app: the button says what it does (UI audit, finding 87).
+  const buttonLabel = outside ? t('passage.ask.saveRequest')
+    : chosen === TEAM && team ? t('passage.published.askTarget', { target })
     : target ? t('passage.ask.askName', { name: target.split(' ')[0] }) : t('passage.ask.chooseSomeone');
   return { isRecord, kindId, check, title, usual, others, team, teamPeople, chosen, asked, outside, target, ready, buttonLabel };
 }

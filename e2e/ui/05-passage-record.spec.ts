@@ -143,7 +143,7 @@ test('PASS-008 TRANS P-DONE: every check complete @p0', async ({ browser }) => {
   expect(await mainButton(page)).toBeNull();
   await somethingElse(page);
   const all = await screenText(page);
-  for (const gone of ['Someone else should do this', 'We already did this', 'Not now']) expect(all, gone).not.toContain(gone);
+  for (const gone of ['Someone else should do this', 'We already did this', 'aside Say why']) expect(all, gone).not.toContain(gone);
   expect(all).toContain('Record a new version');
 });
 
@@ -229,7 +229,7 @@ test('PASS-026 TRANS Something else? on a passage nobody has recorded', async ({
   expect(all).toContain(`Something else? ${label('P-NEW')} · Record`);
   await expect(byId(page, 'header-close')).toBeVisible();
   expect(all).toContain('Someone else should do this Ask a person on the team, or someone outside by WhatsApp or text');
-  for (const gone of ['We already did this', 'Not now', 'Record a new version']) expect(all, gone).not.toContain(gone);
+  for (const gone of ['We already did this', 'aside Say why', 'Record a new version']) expect(all, gone).not.toContain(gone);
   expect(all).toContain('Add a note');
   expect(all).toContain('What helps here');
   expect(all, 'no offline card here').not.toMatch(/Keep offline|Not kept on this device/);
@@ -248,7 +248,7 @@ test('PASS-027 TRANS Something else? on a recorded passage', async ({ browser })
   // Its author may do it themselves (decisions.md 178).
   expect(all).toContain("I'll do this myself Back translation: record it now");
   expect(all).toContain('We already did this Say when and how the back translation happened');
-  expect(all).toContain('Not now Set the back translation aside. Say why');
+  expect(all).toContain('Set the back translation aside Say why. It goes on the record.');
   expect(all).toContain('Record a new version Reviews so far stay with the version they heard');
   expect(all).not.toContain('Move past a checkpoint');
 });

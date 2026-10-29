@@ -5898,6 +5898,25 @@ Reverse if: people expect Back on a tab's page to leave the app, as before,
 or find stepping back through a long task slower than they want (✕ still
 leaves it at once).
 
+Amended (2026-10-28, Caleb Koster): iOS follows the same rule as far as a
+swipe can. While a step registered with `useHardwareBack` is open, the
+screen's back swipe is off (`useSwipeBackOff`, iOS only), so only the
+header's arrow goes back, one step, and no swipe pops the screen past its
+steps. Task screens (`TASK_SCREENS` in `shell/chromeModel.ts`: recording,
+back translation, reviewing, a study, Get ready, New language, Ask someone)
+take the swipe only from the screen's edge, so a drag on a waveform or a
+slider is never a Back. From the UI audit Caleb asked to have fixed
+(findings 4 and 16).
+
+Amended (2026-10-28, Caleb Koster): two ✕s no longer leave at once,
+because what they leave cannot be had again. New language's ✕ (and Back on
+its first step) asks "Leave without adding ‹language›?" once a name or an
+answer is in, with Keep going first (`org.tsx`, finding 45). The sign-in
+code page for someone with no email asks "Leave the code?" before its Back
+or Android's Back throws away a code nobody has scanned, since the code
+cannot be shown again; Done, which says they have it, leaves at once
+(finding 96). Every other ✕ still leaves a task at once.
+
 ## 138. One name for each thing on a language's page: its pick under each, the others and the organization's shelf behind it, and no More
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -7200,6 +7219,16 @@ matter (then show it again after some days), or the In-App Updates question
 is settled, or Google's page stops showing the version (then Android asks
 the phone, with In-App Updates).
 
+Amended (2026-10-28, Caleb Koster): after Keep working, the app no longer
+looks as if the server were at fault. The sync standing has its own
+`tooOld` (`sync/syncStanding.ts`, after a refused account and before
+refused events): the header's cloud turns amber with a down arrow ("Update
+to receive"), and the Sync screen offers Update, which opens the store
+page, where Sync now was. Its words say the person's own work still goes
+out only below the minimum version; a server that refuses the app's
+protocol (LQ001) takes nothing, and it says to update. From the UI audit
+Caleb asked to have fixed (findings 24 and 119).
+
 ## 155. While a new build is in store review, the public build keeps getting every merge as an OTA update from a release branch
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted
@@ -7484,6 +7513,16 @@ on sees no countdown, which is what those settings ask for.
 Reverse if: toasts that stay longer get in people's way more than they help
 (reports of toasts covering work), or people with reduce motion on miss the
 countdown; then the runner's settings can go and the app's stay.
+
+Amended (2026-10-28, Caleb Koster): a toast that says something went wrong
+(a save refused, a fault with its code) is a problem toast
+(`ctx.toast(message, 'problem')`, `ui/toastModel.ts`): an amber warning
+instead of the green check, no bar, and it stays until closed, so its words
+and the code a person reads out to support are never gone first; a screen
+reader hears it as an alert. While a sheet is open, the sheet on top draws
+the toast (`ui/toastLayer.ts`), as one drawn by the screen was hidden under
+it. `test/toastModel.test.ts` fails on a failure toast that is not a
+problem toast. From the UI audit Caleb asked to have fixed (finding 20).
 
 ## 160. Staff see LangQuest's operations on one signed-in page, a Worker of its own that reads diagnostics as diag_reader
 
@@ -8532,3 +8571,377 @@ to bring it back:
 Reverse if: teams rely on checks being done by someone other than the
 recorder (then a check, or a checkpoint, could say "not by its recorder"),
 or people on teams check their own work instead of asking.
+
+## 179. Clean up runs DeepFilterNet 3 on the phone, and the person hears each part both ways before picking
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-28, thread "Choose voice protection and audio cleanup
+tools") said go on Clean up with "the slider rather than the 3 buttons"
+(his mockups 11 to 20). Decision 176 made the record; this is the tool and
+the screens.
+- **DeepFilterNet 3 on the device, never a server.** Partners record
+  offline for months, so noise removal runs where the part is: an 8.6 MB
+  ONNX model (`models/deepfilter.onnx`, MIT license) in the
+  microphone module beside the speech model, run by the same ONNX Runtime
+  (1.22.0, 135), and served at `/models` on the web, where its code is a
+  chunk of its own that loads when a part is first cleaned. No new
+  dependency. It took a steady hiss from −35 to under −75 dB in our tests.
+- **One arithmetic, three copies.** `deepFilter.ts` (the feature
+  extraction, the model's runs and the resynthesis) is ported line for
+  line to Kotlin and Swift; `test/deepFilter.test.ts` holds the TypeScript,
+  and the Kotlin was checked against it to the bit. A part is cleaned in
+  runs of 10 seconds with 3 seconds to settle and 1 to cross-fade, so a
+  long part never sits in memory whole; the part and its cleaned sound wait
+  in the phone's cache as 48 kHz floats until the sheet closes.
+- **The slider mixes, it does not clean again.** The sound kept is
+  g·recorded + (1 − g)·cleaned with g = 10^(−limit/20): the slider's place p
+  is a limit of 6·8^p dB (6 at Less, 12 where it starts, no limit at More),
+  so moving it costs a mix, not a run of the model. The module hands back
+  per-slice sums, so the two-tone bars (amber noise around the purple voice)
+  follow the slider without reading audio. The note keeps `limitDb`.
+- **Where it is.** The parts card's bin became a ⋯ with Clean up and
+  Delete every part. The sheet offers the parts `mayCleanUp` allows: for one
+  part, the part as recorded and the cleaned sound with Use or Not used;
+  for several, the slider on top and Original or Cleaned for each. The
+  button keeps every pick in one change (core `cleanUpParts`: one draft for
+  all the cleaned sounds) and the undo history keeps each note
+  (`PartsSnap.cleanUps`), so Undo takes the picks back and nothing asks
+  "Are you sure?". A part kept as recorded wears a grey ear saying who
+  tried it and when.
+- **The kept file is a recording's file.** On a phone it is AAC, as parts
+  are (106); a browser has no AAC encoder, so the web keeps WAV.
+- The native code is new, so this ships in a store build, not an OTA
+  update (the runtime is fingerprinted). The iPhone module's podspec moved
+  to the module's root (`expo-module.config.json` `podspecPath`), because
+  CocoaPods does not follow the `ios/models` symlink it used: the phone
+  check on 2026-10-28 found the models bundle empty, in this build and in
+  a dev build from 2026-10-26, so iPhones have most likely split parts by
+  level alone since 135 (the speech model was missing and the module fell
+  back without a word). From this build on, the bundle holds both models.
+Reverse if: cleaning takes longer than people will wait on the phones we
+support (2 GB Android phones, 30 parts in a passage), voices come out
+damaged in languages we did not test, the 8.6 MB matters for downloads, or
+people want a whole book cleaned at once.
+
+## 180. Tutorial videos go on YouTube, one channel per app language, connected once from the ops dashboard; a person's Publish chooses what goes up
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-27 and 2026-10-28, thread "Plan tutorial videos and
+keep them current") chose a YouTube channel for each app language, as
+BibleProject has, one Publish press on the ops dashboard to put new videos
+up, and YouTube's API only, never a browser driven for it. He made the 15
+channels and the OAuth client (`docs/tutorial-videos.md`).
+- **One channel per app language**, made by hand: YouTube's API cannot make
+  one. Their ids are in `server/youtube.ts`. Each is connected once from the
+  dashboard: Google's page asks which channel, and its refresh token goes
+  into Vault (`youtube_refresh_<channel>`), which only the service role reads
+  back. The state Google carries is signed with the OAuth client's secret
+  and names who pressed Connect, so nothing is kept while they are on
+  Google's page and only they can finish, within 15 minutes. A channel that
+  is not one of LangQuest's is refused and its token handed back.
+- **A person chooses what goes up.** Each version filmed is kept in R2 by
+  its hash (`tutorials/<language>/<tutorial>/<sha256>.mp4`, served publicly
+  at `/api/tutorials/…`) and recorded (`ops_tutorial_made`). The dashboard
+  lists each video's newest version not on YouTube, with Watch, and a Global
+  Viewer on an aal2 session chooses which go up (OpsActions, 162). A video
+  changed by mistake never goes public by itself.
+- **The publish job runs in the job container (141)**, started by Publish
+  and at 08:10 UTC each day while chosen videos wait. YouTube allows the
+  project 100 uploads a day for all channels together, and 10,000 units for
+  the rest (a video and its playlist place cost about 100), so the first
+  full set of about 705 takes a week. Each video is recorded as up the
+  moment it is, so a later failure never puts it up twice.
+- **YouTube cannot replace a video's file**, so a new version is a new
+  video: it takes the old one's place in its playlist, and the old one is
+  unlisted with a first line linking the new, so its links and comments
+  keep working. A replacement does not notify subscribers.
+- **An upload says what it is**: public, not made for kids, and marked as
+  synthetic media, since the voice is a computer's (177).
+Reverse if: YouTube's limits or review make publishing this way
+impractical, or partners need the videos where YouTube is blocked (then
+next.langquest.org serves the same files).
+
+## 181. A part with lots of background noise wears an orange warning, measured on the device from its loudness and the room between its words
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb's go on Clean up (2026-10-28, 179) took in the warning in his
+mockup 12: a noisy part shows an orange triangle, and a tap shows the noise
+and offers Clean up for that part. The options doc said the line would be
+picked from real recordings, starting near −45 dB.
+- **What counts as noisy.** The room between words, heard as it would be
+  with the part at −16 LUFS (Apple Podcasts' level, Caleb 2026-10-27),
+  louder than −40 dB (`loudnessModel.ts` `NOISY_DB`). Loudness is
+  BS.1770's (K-weighted, gated). The room is the 5th percentile of the
+  part's 25 ms slices, each slice's spread about its own middle so an
+  offset is not taken for noise. On 118 parts of read recordings (FLEURS
+  and LibriVox) cut as the recorder cuts them (140 ms before the first
+  word, 300 ms after the last), it read at most 5.8 dB over the noise in
+  Silero's speech-free stretches (19 parts in 20 at or under it), and
+  about 3 dB under it at the middle.
+  The first try, a tenth of 50 ms slices, read up to 25 dB high in parts
+  with few pauses.
+- **The line.** On the 105 FLEURS parts (Hausa, Yoruba, Vietnamese and
+  Mandarin, read by native speakers outside a studio), −45 dB marked 54 %,
+  −40 marks 26 % and −35 marks 11 %. A warning that says "lots of background
+  noise" should not be on half of everything, so the line is −40. The
+  trial's part 4, whose noise rose to −38 dB when it was turned up, is
+  over it, and a café 5 dB under the voice is −25.
+- **Where it is measured.** On the phone that records a part, from its WAV
+  while it is encoded to AAC (`useRecorder`), kept by the hash of its audio
+  on that phone (`loudnessStore.ts`); the web decodes any part. A phone has
+  no AAC decoder in JavaScript, so on a phone a part recorded elsewhere, or
+  before this change, has no measure and no warning: only a measured part
+  is marked. The measure is never synced or sent. This is JavaScript only,
+  so it reaches the builds that have Clean up (179) as an OTA update.
+- **What it shows.** The triangle sits where the grey ear does. A part kept
+  as recorded shows the ear instead, and a part `mayCleanUp` refuses (a
+  cleaned part) shows neither. The note shows the part's bars, amber around
+  the purple of the voice (each bar with twice the room's power taken out,
+  since the room is read at its quiet end), and "Clean up Part N", which
+  opens 179's sheet for that part alone.
+Reverse if: partners' own parts show the line marks too many or too few,
+people learn to ignore the triangle, or phones need every part measured
+(the player that turns parts up to −16 LUFS will decode AAC on phones, and
+can measure there).
+
+Amended (2026-10-28, Caleb Koster): a phone now measures any part it has,
+AAC included, in the microphone module (182), so a part recorded on
+another device or before this change wears the warning too once the phone
+shows it. That reaches phones with the store build that brings 182.
+
+## 182. Every recording people make plays at −16 LUFS, from a copy made on the device the first time it plays
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb's go on the audio work (2026-10-28, thread "Build audio
+clean up in the app") took in loudness evened on every part by default,
+with no button, at −16 LUFS (Apple Podcasts' level, Caleb 2026-10-27).
+Partners record on different phones, at different distances from the
+mouth, so a reviewer turning the volume up and down between parts is the
+common case.
+- **A copy plays, the recording never changes.** What is uploaded, synced
+  and reviewed stays as it was recorded (or cleaned, 179). The player plays
+  a copy turned by `playGainDb` (`loudnessModel.ts`): −16 minus the part's
+  loudness, never more than 24 dB up (`MAX_BOOST_DB`), since a part that
+  quiet is mostly a phone held far away and turning it up further mostly
+  turns up the room. A part within half a decibel of −16, or a silent one,
+  plays as it is (`levelModel.ts` `needsCopy`). The noise warning (181)
+  now reads the room as the part plays (`roomAsPlayed`), with that cap.
+- **Peaks held at −1 dB.** Turned up whole, a quiet part's loud syllables
+  would clip. A limiter (`levelModel.ts` `limiter`) looks 5 ms ahead and
+  bends the gain down before a peak, so no sample goes over −1 dBFS and the
+  gain never steps, which would click; it comes back over 100 ms. Holding
+  peaks down takes loudness with it (a reading with syllables 20 dB over
+  its loudness came out 2.7 dB short), so the copy is measured as it is
+  made and made again turned up by what it fell short, at most 3 times in
+  all; that reading ends within 1 dB of −16.
+- **Made on the device, the first time it plays.** Nothing is uploaded and
+  no event is written: every device that plays a part makes its own copy,
+  and the measure is kept by the hash of the audio, as 181 keeps it. A
+  phone writes a 16-bit WAV to its cache (`levelCopy.ts`, at most 150 MB,
+  oldest first; the phone may clear it, and a copy is made again when the
+  part next plays). The web keeps a WAV blob in the page's memory (48 MB),
+  since a browser's player cannot turn a sound up and Safari on an iPhone
+  ignores its volume. While one part plays, the next one's copy is made.
+  If a copy cannot be made, the recording itself plays.
+- **The phones run it natively.** A phone's JavaScript is too slow for
+  every sample of a part, so the meter and the limiter are ported line for
+  line to Kotlin and Swift (`Level.kt`, `Level.swift`, in the microphone
+  module); `test/levelModel.test.ts` holds the TypeScript, and both ports
+  were checked against it on seven test recordings (44.1 and 48 kHz, quiet,
+  loud, peaky, short and silent), the same samples to the bit. The module
+  decodes AAC too, so phones now measure parts they did not record (181).
+- **What plays at even loudness**: parts, voice notes and spoken feedback,
+  wherever they play (`levelStore.ts` `playable`), and Clean up's previews
+  and the parts heard while recording, as passing copies of which only the
+  last four are kept. Source audio, reference material, Bible audio and
+  help play as they are: they are mastered by whoever published them. A
+  part streamed from the server plays as it is until it is on the device.
+- The native code is new, so this ships in a store build, not an OTA
+  update.
+Reverse if: people hear the limiter (a pumping or a dulled voice), the
+first play of a long part waits noticeably on the phones we support, or
+partners want parts played as recorded (then a switch in settings, not a
+button on each part).
+
+## 183. Tutorial videos are filmed each night on GitHub, only those whose screens changed, and the job container brings them in
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-28, thread "Plan tutorial videos and keep them
+current") asked for the whole pipeline running and chose "GitHub films,
+Cloudflare publishes": the filming runs where the local stack and a browser
+are, with the Gemini key alone, and production's keys stay in production
+(141, amended today).
+- **Only what changed is filmed again.** Each night every video is tried
+  without voice or film, one at a time, on a fresh local stack, and each
+  step's screen is read out as text (Playwright's accessibility tree), once
+  it stops changing and without the toast. With what changes from run to
+  run though the app did not taken out (made-up addresses, sign-in keys,
+  numbers, times, upload status, the order of names in a line and of
+  things side by side: `e2e/tutorials/look.ts`), the steps hash to the
+  video's look. A video is filmed again when its look differs from its last film's,
+  or it has no film. A video that looks changed is tried again, up to twice,
+  and is filmed when two tries agree on the new look or the third still
+  differs. On 2026-10-28, two runs of all 47 English videos read the same for
+  41 before the words were read once steady, without the toast, with things
+  side by side sorted and after a projection pass; with them, 46 of 47 read
+  the same, and the 47th ("Record a passage") read as before on the next two
+  tries. The same day, on main with Clean up, seven videos looked changed
+  (the ⋯ menu that replaced a bin), and two of them read differently on a
+  second try: a part still saving, and a passage heard a moment earlier
+  kept on the device or not yet. Since then a step is read once nothing on
+  it is saving, and the app's words about saving, uploading and keeping on
+  the device are taken out in the film's language (from its catalog); all
+  seven then read the same. Videos for LangQuest staff (the Global Viewer's) are never filmed
+  each night or put on YouTube: the channels are for the public (Caleb,
+  2026-10-28).
+- **The release is the hand-over.** The repository is public, so its
+  `tutorials` release (a pre-release, never the latest) holds each video's
+  newest film in each language, named by its hash; a manifest per language
+  with what YouTube shows (the title, the lines said as the description,
+  the playlist of who it is for: `e2e/tutorials/playlists.ts`) and each
+  film's look; and each language's voice, so a line is paid for once. New
+  films go up before the manifest that names them, older ones come out
+  after (`e2e/tutorials/put-in-release.ts`).
+- **Each description links to the same video in every other language**
+  it is made in (Caleb, 2026-10-28), by a link to the app's Worker,
+  `next.langquest.org/v/<language>/<video>`, which goes on to that video's
+  newest version on YouTube, or to the language's channel while none is up
+  (`ops_tutorial_watch`). A replaced version never leaves stale links
+  behind, and no description is edited after upload, which would cost 50
+  of YouTube's 10,000 daily units for each of up to 690 videos.
+- **The intake job brings them in** (`server/tutorialIntake.ts`, the job
+  container at 13:10 UTC): each film R2 lacks is downloaded, its hash
+  checked, put through the Worker's service-only `PUT /api/tutorials/…`,
+  which R2 checks again, and listed (`ops_tutorial_made`). The dashboard
+  shows it for Publish (180); nothing filmed goes public without a person.
+- **English each night to begin with** (`NIGHTLY_LANGUAGES`); a language
+  joins once its voice can be made (Gemini's batch voice needs the paid
+  tier). The Gemini key reaches GitHub through `npm run secrets --
+  production`, from `.env.production`. Each language's job files a failure
+  in Linear, as the guardrails nightly jobs do.
+Reverse if: the look misses changes people notice in the films, or flags
+changes nobody can see often enough to burden Publish; or the runners
+cannot film reliably (then the job container gets a browser and the stack).
+
+Amended (2026-10-29, Caleb Koster): the tutorial runs moved to the hour when
+the fewest people on earth are at work, as Caleb asked: many of the people
+who use the app are in Nepal, Nigeria, Thailand and India. By population
+and time zone, 23:00 to 00:00 UTC has about 100 million people in working
+hours (9 to 5) out of 7 billion: the Americas' west in the afternoon and
+Australia's morning (India 4:30 AM, Nepal 4:45 AM, Thailand 6 AM, Nigeria
+midnight). The publish run at 08:10 UTC had had about 5.9 billion, and the
+intake at 13:10 UTC about 2.3 billion. The intake now
+runs at 23:10 UTC and the publish job's daily run (180) at 23:40 UTC, on
+YouTube's allowance for that Pacific day; the filming, on GitHub's machines
+and touching nothing live, starts at 20:10 UTC so a night's films are in the
+release by the intake. Every app language is now filmed each night, English
+and French first (Caleb, 2026-10-29: every language is checked for changes
+and the changed videos are filmed on the same night), since the Gemini key
+is on Tier 1, which the batch voice needs. Five languages film at a time,
+each about 50 minutes on a night without new films, so all fifteen finish
+before the intake. A first night for a language, which films every video,
+can finish after the intake; its films then come in the next day. So that
+a line no one has translated yet (a script's new line, or what Ruth says in
+the readings, which no language had) never stops a language, the job has
+Gemini translate it first (`translate-lines.ts`, the same machine
+translation as the committed lines, decision 81) and keeps the file to
+commit. A change to the scripts or to how they are filmed is filmed when it
+is merged into main, rather than at the next 20:10: a fix to the filming
+should not wait a day, or for a person to press Run workflow, since the
+agents that work on the videos cannot start or re-run a workflow.
+
+## 184. The publish job keeps each YouTube channel's description, banner and list of the others; held comments are counted on the dashboard and moderated in Studio
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-28, thread "Plan tutorial videos and keep them
+current") asked that each channel be set up in its own language, with its
+own look, a description and links to the other language channels, and that
+inappropriate comments be held for review.
+- **The publish job sets each channel's look** (180, `server/youtube.ts`
+  `brandChannel`): a description in the channel's language with the app's
+  address (`WORDS`, machine translations as the app's catalogs are, 81),
+  the channel's language, a banner with the app's mark and "Tutorial
+  videos" in that language (`apps/mobile/public/youtube`, drawn by
+  `e2e/tutorials/banners.ts`), and the list of the other 14 channels. The
+  channel's other settings are sent back as they were. It runs before any
+  upload, only for a channel whose hash of all of these (`brandOf`)
+  differs from the one last put on it, so it costs about 150 of the day's
+  10,000 units once, and again only when the words or a banner change.
+  The picture is the one thing YouTube's API cannot set; it is set by hand
+  in Studio (`docs/admin.md`).
+- **Held comments are counted, not moderated, on the dashboard.** Each
+  channel holds comments that may be inappropriate (a Studio setting, set
+  by hand). The publish job counts each channel's held comments once a day
+  (up to 500), and the dashboard shows each count linked to that channel's
+  comments in Studio, with a line in Needs attention when any wait.
+  Approving and removing stay in Studio, as moderating stays out of the
+  dashboard (162).
+Reverse if: YouTube's API stops taking a channel's description, language
+or banner; or held comments come often enough that going through Studio
+channel by channel is a burden (then the dashboard approves and removes).
+
+## 185. The UI audit's fixes: a screen says what it waits for, asks before what cannot be undone, and opens a thing where the same thing opens elsewhere
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: a UI audit of the app (127 findings, each reproduced on the web
+export and judged) found screens that said untrue things, did something
+other than what they showed, or threw work away without asking. Caleb
+(2026-10-28): "Please fix all of these issues." Most fixes follow rules
+already recorded (one name per thing, 138; status indicators tell the
+truth; touch targets; no explanatory text, as help on each element); the
+ones below change what a screen does, beyond the partner demo or an
+earlier entry, and are kept on purpose:
+- **Asking before what cannot be undone.** Delete Account's big button is
+  Cancel; "Delete My Account" is a red ghost button that asks once more by
+  name (`public/delete-account.html` says so). The Inbox's report sheet
+  leads with opening what was reported (the version, the review or the
+  passage), and Remove is a red ghost button after it. Looks good asks
+  before sending words that asked for changes. New language's ✕ and the
+  sign-in code page ask before leaving (137 amended).
+- **The same thing opens the same way.** An Inbox request for a check
+  opens the check, as My Work's row does (`work/homeModel.ts`
+  `updateTarget`; flow edges from the Inbox to review and back
+  translation). A request done or withdrawn leaves the Inbox and the bell,
+  on the phone and in the server's Inbox rows (core `settledUpdate`,
+  `server/projectionWorker.ts`). "New in ‹language›" and a language chip on
+  the Map say that they switch the whole app, and a toast says "Now in
+  ‹language›". Someone with a manage role in one language gets that
+  language's map from the Map tab, not a Progress list of one.
+- **Saying what it waits for.** My Work says when the language is not on
+  this phone yet or has no passages, instead of "Nothing is waiting on
+  you". The path draws a check set aside and a checkpoint moved past (with
+  its reason) apart from one that passed, and a step behind a locked
+  checkpoint waits for it. Asking someone without the app saves the
+  request and then offers their message to send yourself, since the app
+  sends nothing. Signing out with work waiting shows it sending and opens
+  Sync to see what waits. One "waiting to send" number everywhere. A failed
+  password change keeps the renamed name and says so.
+- **Notifications are a switch** that turns off as well as on, and when the
+  phone's settings block them it says so and offers the phone's settings.
+- **The sync icon has a glyph per standing** (tick, plain, crossed out,
+  warning, down arrow for too old), not colour alone.
+- **Finding a passage.** A book lists 25 passages at a time with Show
+  more; Filter is in the book's header and the key sits above the chapter
+  tiles; on a phone the sub-line names the language; with a filter on,
+  chapters outside it are grey and open a sheet instead of a passage; each
+  testament's chip counts its matches, and the map opens on the one that
+  has them. "Divide differently" opens the chooser at once and is offered
+  only to those who may write the organization's library (as MAP-023).
+- **Help mode.** On the web, Listen shows only when the browser has a voice
+  for the app's language (`helpContext.ts` `voiceFor`), and the tooltip
+  tells a screen reader that a tap closes it. Fields and primary buttons
+  with the kit's stock help get their own words; a ratchet in
+  `test/helpMode.test.ts` holds the count still left (96) and lets it only
+  fall.
+Not done here: finding 92 (removed content leaves a trace for its author
+and in History) needs new state in core and a reducer version; finding 8
+and 107 (help and questions spoken on phones) wait on Caleb's choice.
+Reverse if: people find the extra asks slow on work they do every day, or
+partners expect the demo's flow where it differs here.

@@ -39,8 +39,10 @@ tags:
     commands:
       - tapOn: "(?i)Don.t Allow|Don.t allow"
 - extendedWaitUntil:
-    visible: "Microphone permission is required\\."
+    visible: "LangQuest cannot hear you\\..*"
     timeout: 10000
+# A way to the phone's Settings, where the microphone is turned on (iOS never asks again).
+- assertVisible: "Open Settings"
 # The button is back to Record, no part was made, and Done stays off.
 - assertVisible:
     id: "record-button"
@@ -64,7 +66,7 @@ tags:
             visible: "(?i)Don.t Allow|Don.t allow"
           commands:
             - tapOn: "(?i)Don.t Allow|Don.t allow"
-- assertVisible: "Microphone permission is required\\."
+- assertVisible: "LangQuest cannot hear you\\..*"
 - assertNotVisible: "This screen could not open"
 # ✕ still returns to the record.
 - tapOn:

@@ -40,8 +40,8 @@ test('ACCT-021 A looked-after account sets a password', async ({ page }) => {
   await primary(page).click();
   await reloaded;
   await expect(text(page, 'Create Account')).toBeVisible({ timeout: 120_000 });
-  await page.getByPlaceholder('Email or sign-in name').fill(kept.signInName!);
-  await page.getByPlaceholder('Password').fill(password);
+  await field(page, 'Email or sign-in name').fill(kept.signInName!);
+  await field(page, 'Password').fill(password);
   await primary(page).click();
   await expect(tab(page, 'me')).toBeVisible({ timeout: 60_000 });
 });
