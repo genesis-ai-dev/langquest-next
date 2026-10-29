@@ -22,7 +22,7 @@ import path from 'node:path';
 import { buildWorld, browserStateFor } from '../ui/fixture';
 import { giveAddresses } from './addresses';
 import { TUTORIALS } from './all';
-import { saving, steadyStep } from './look';
+import { steadyWords } from './look';
 import { installTutorialMic } from './mic';
 import { installPlaybackTap } from './playback';
 import { findInFilmLanguage } from './ui';
@@ -202,35 +202,6 @@ function shownBox(element: Element): Box {
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/**
- * The screen's words for a dry run's look (look.ts): read out again until
- * they stop changing, for up to 5 seconds, so a screen caught as it opens or
- * saves reads as it settles; and without the toast, which comes and goes by
- * the clock. The toast is hidden only while the words are read.
- */
-async function steadyWords(page: Page): Promise<string> {
-  const read = async () => {
-    await page.evaluate(() => document.querySelector('[data-testid="toast"]')?.parentElement?.setAttribute('aria-hidden', 'true'));
-    try {
-      return await page.locator('body').ariaSnapshot();
-    } finally {
-      await page.evaluate(() => document.querySelector('[data-testid="toast"]')?.parentElement?.removeAttribute('aria-hidden'));
-    }
-  };
-  let words = await read();
-  // A part still saving shows neither its length nor its play button yet: waited out, up to half a minute.
-  for (const until = Date.now() + 30_000; saving(words, LANGUAGE) && Date.now() < until;) {
-    await sleep(500);
-    words = await read();
-  }
-  for (const until = Date.now() + 5000; Date.now() < until;) {
-    await sleep(500);
-    const again = await read();
-    if (steadyStep(again, LANGUAGE) === steadyStep(words, LANGUAGE)) return again;
-    words = again;
-  }
-  return words;
-}
 
 // ---- the film ---------------------------------------------------------------------------
 
@@ -437,7 +408,7 @@ async function play(step: Step, index: number): Promise<void> {
   if (DRY) {
     const name = path.join(out, 'steps', String(index + 1).padStart(2, '0'));
     await page.screenshot({ path: `${name}.png` });
-    writeFileSync(`${name}.txt`, await steadyWords(page));
+    writeFileSync(`${name}.txt`, await steadyWords(page, LANGUAGE));
   }
 }
 

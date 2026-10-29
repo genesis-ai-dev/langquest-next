@@ -286,11 +286,12 @@ const hex = (bytes: ArrayBuffer) => [...new Uint8Array(bytes)].map((b) => b.toSt
 
 /**
  * How a channel should look, as one hash: its description, its language, its
- * banner's bytes and its list of the others. The database keeps the last one
- * put on the channel, so a channel is changed again only when one of them is.
+ * banner's bytes, its list of the others and its trailer once one is up. The
+ * database keeps the last one put on the channel, so a channel is changed
+ * again only when one of them is.
  */
-export async function brandOf(language: ChannelLanguage, banner: Uint8Array<ArrayBuffer>): Promise<string> {
-  const what = JSON.stringify([language, channelAbout(language), WORDS[language].otherChannels, hex(await crypto.subtle.digest('SHA-256', banner))]);
+export async function brandOf(language: ChannelLanguage, banner: Uint8Array<ArrayBuffer>, trailer?: string | null): Promise<string> {
+  const what = JSON.stringify([language, channelAbout(language), WORDS[language].otherChannels, hex(await crypto.subtle.digest('SHA-256', banner)), ...(trailer ? [trailer] : [])]);
   return hex(await crypto.subtle.digest('SHA-256', text.encode(what)));
 }
 
@@ -302,7 +303,7 @@ export async function brandOf(language: ChannelLanguage, banner: Uint8Array<Arra
  * token for any other channel than the language's is refused. The channel's
  * picture cannot be set this way (docs/admin.md).
  */
-export async function brandChannel(fetcher: Fetch, token: string, language: ChannelLanguage, banner: Uint8Array<ArrayBuffer>): Promise<void> {
+export async function brandChannel(fetcher: Fetch, token: string, language: ChannelLanguage, banner: Uint8Array<ArrayBuffer>, trailer?: string): Promise<void> {
   const got = await answer<{ items?: { id: string; brandingSettings?: { channel?: Record<string, unknown> } }[] }>(
     await fetcher(`${API}/channels?part=brandingSettings&mine=true`, { headers: json(token) }));
   const channel = got.items?.[0];
@@ -320,7 +321,8 @@ export async function brandChannel(fetcher: Fetch, token: string, language: Chan
     method: 'PUT', headers: json(token),
     body: JSON.stringify({ id: channel.id, brandingSettings: { channel: settings, image: { bannerExternalUrl: uploaded.url } } })
   });
-  const settings = { ...kept, description: channelAbout(language) };
+  // A trailer named here becomes the one the channel shows people who have not subscribed; otherwise the one set stays (kept).
+  const settings = { ...kept, description: channelAbout(language), ...(trailer ? { unsubscribedTrailer: trailer } : {}) };
   try {
     await answer(await put({ ...settings, defaultLanguage: language }));
   } catch (e) {
@@ -399,6 +401,14 @@ export async function newComments(fetcher: Fetch, token: string, channelId: stri
 
 // ---- Publish -------------------------------------------------------------------------------------
 
+/**
+ * The channel trailer's name among the videos (e2e/tutorials/trailer,
+ * decisions.md 188): filmed and published as a video is, first in the
+ * playlist for everyone, and once up it is what the channel shows people who
+ * have not subscribed.
+ */
+export const TRAILER = 'trailer';
+
 export interface NewVideo {
   title: string;
   description: string;
@@ -407,12 +417,14 @@ export interface NewVideo {
   file: { body: ReadableStream<Uint8Array> | Uint8Array; bytes: number };
   /** A new version of a video already up: its subscribers were told about the first. */
   replacing: boolean;
+  /** Its voice is a computer's (YouTube's "altered or synthetic content"); every tutorial's is, the trailer has none. */
+  synthetic: boolean;
 }
 
 /**
  * Uploads a video, public, as made for everyone and not for kids (so it can
- * take comments), with YouTube's "altered or synthetic content" set because
- * the voice is a computer's. Answers its id.
+ * take comments), with YouTube's "altered or synthetic content" set when the
+ * voice is a computer's. Answers its id.
  */
 export async function uploadVideo(fetcher: Fetch, token: string, video: NewVideo): Promise<string> {
   const q = new URLSearchParams({ uploadType: 'resumable', part: 'snippet,status', notifySubscribers: String(!video.replacing) });
@@ -421,7 +433,7 @@ export async function uploadVideo(fetcher: Fetch, token: string, video: NewVideo
     headers: { ...json(token), 'x-upload-content-type': 'video/mp4', 'x-upload-content-length': String(video.file.bytes) },
     body: JSON.stringify({
       snippet: { title: video.title, description: video.description, categoryId: '27', defaultLanguage: video.language, defaultAudioLanguage: video.language },
-      status: { privacyStatus: 'public', selfDeclaredMadeForKids: false, containsSyntheticMedia: true, embeddable: true, license: 'youtube' }
+      status: { privacyStatus: 'public', selfDeclaredMadeForKids: false, containsSyntheticMedia: video.synthetic, embeddable: true, license: 'youtube' }
     })
   });
   if (!start.ok) await answer(start);
@@ -453,9 +465,10 @@ export async function playlistFor(fetcher: Fetch, token: string, title: string, 
 
 /**
  * Puts a video in its playlist: in the old version's place when it replaces
- * one there (the old one's entry goes), at the end otherwise.
+ * one there (the old one's entry goes), first when asked (the trailer), at
+ * the end otherwise.
  */
-export async function placeInPlaylist(fetcher: Fetch, token: string, playlistId: string, videoId: string, replacing?: string): Promise<void> {
+export async function placeInPlaylist(fetcher: Fetch, token: string, playlistId: string, videoId: string, replacing?: string, first = false): Promise<void> {
   let old: { id: string; snippet: { position: number } } | undefined;
   if (replacing) {
     const got = await answer<{ items?: { id: string; snippet: { position: number } }[] }>(
@@ -464,7 +477,7 @@ export async function placeInPlaylist(fetcher: Fetch, token: string, playlistId:
   }
   await answer(await fetcher(`${API}/playlistItems?part=snippet`, {
     method: 'POST', headers: json(token),
-    body: JSON.stringify({ snippet: { playlistId, resourceId: { kind: 'youtube#video', videoId }, ...(old ? { position: old.snippet.position } : {}) } })
+    body: JSON.stringify({ snippet: { playlistId, resourceId: { kind: 'youtube#video', videoId }, ...(old ? { position: old.snippet.position } : first ? { position: 0 } : {}) } })
   }));
   if (old) await answer(await fetcher(`${API}/playlistItems?id=${encodeURIComponent(old.id)}`, { method: 'DELETE', headers: json(token) }));
 }

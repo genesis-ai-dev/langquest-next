@@ -16,6 +16,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import type { Page } from 'playwright';
 
 type Catalog = { [key: string]: string | Catalog };
 
@@ -133,6 +134,38 @@ export function steadyStep(step: string, language = 'en'): string {
     return under.length ? `${node.line}{${under.join('|')}}` : node.line;
   };
   return write(root);
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * The screen's words for a dry run's look: read out again until they stop
+ * changing, for up to 5 seconds, so a screen caught as it opens or saves
+ * reads as it settles; and without the toast, which comes and goes by the
+ * clock. The toast is hidden only while the words are read.
+ */
+export async function steadyWords(page: Page, language = 'en'): Promise<string> {
+  const read = async () => {
+    await page.evaluate(() => document.querySelector('[data-testid="toast"]')?.parentElement?.setAttribute('aria-hidden', 'true'));
+    try {
+      return await page.locator('body').ariaSnapshot();
+    } finally {
+      await page.evaluate(() => document.querySelector('[data-testid="toast"]')?.parentElement?.removeAttribute('aria-hidden'));
+    }
+  };
+  let words = await read();
+  // A part still saving shows neither its length nor its play button yet: waited out, up to half a minute.
+  for (const until = Date.now() + 30_000; saving(words, language) && Date.now() < until;) {
+    await sleep(500);
+    words = await read();
+  }
+  for (const until = Date.now() + 5000; Date.now() < until;) {
+    await sleep(500);
+    const again = await read();
+    if (steadyStep(again, language) === steadyStep(words, language)) return again;
+    words = again;
+  }
+  return words;
 }
 
 /** A video's look: its steps' screens, in order, each made steady, hashed. */

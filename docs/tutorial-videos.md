@@ -153,6 +153,17 @@ of the other channels. The publish job puts these on whenever they change
 hand. Comments that may be inappropriate are held for review, and the ops
 dashboard counts them for each channel.
 
+## The trailer
+
+Each channel greets people who have not subscribed with a 48-second film of
+the app in its language (decision 188, `e2e/tutorials/trailer/README.md`):
+the October 2026 team film "From the ground up" made again from today's
+screens, with its score. It is filmed with the videos each night and made
+again only when its screens or its parts change, like a video. It goes up as
+the video `trailer`, first in the playlist for everyone, and the publish job
+makes it the channel's trailer. Its count ("1,000,000+ audio clips") and the
+day it was so are `CLIPS` and `AS_OF` in `e2e/tutorials/trailer/trailer.ts`.
+
 ## Downloads
 
 Every video can be downloaded from LangQuest itself, not only watched on

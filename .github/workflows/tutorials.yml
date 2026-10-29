@@ -127,6 +127,10 @@ jobs:
           mkdir -p "$RUNNER_TEMP/release" e2e/results/tutorials
           gh release download tutorials -D "$RUNNER_TEMP/release" -p "manifest-$LANGUAGE.json" -p "voice-$LANGUAGE.tgz" || true
           if [ -f "$RUNNER_TEMP/release/voice-$LANGUAGE.tgz" ]; then tar xzf "$RUNNER_TEMP/release/voice-$LANGUAGE.tgz" -C e2e/results/tutorials; fi
+          # The trailer records Grace's reading from the English night in every language (trailer/capture.ts).
+          if [ "$LANGUAGE" != en ] && gh release download tutorials -D "$RUNNER_TEMP" -p voice-en.tgz; then
+            tar xzf "$RUNNER_TEMP/voice-en.tgz" -C e2e/results/tutorials speech/en || true
+          fi
           ls "$RUNNER_TEMP/release"
       # A line no one has translated yet (a script's new line, what Ruth says in
       # the readings) is translated here by Gemini, so the language is still

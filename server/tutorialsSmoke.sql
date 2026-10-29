@@ -329,4 +329,18 @@ do $$ declare v jsonb; begin
 end $$;
 reset role;
 
+-- Each channel's trailer (migration *_youtube_channel_trailer.sql, decisions.md 188): the job reads the
+-- video the language's newest trailer became, so a channel whose trailer was not set gets it next run.
+set local role service_role;
+select public.ops_tutorial_made('trailer', 'es', repeat('9', 64), 'LangQuest Next · Escucha. Habla.', 'Cada uno merece un lugar seguro.', 'Todos', 0, 48, 5000000);
+do $$ declare v jsonb; begin
+  v := public.ops_youtube_channels();
+  assert (select x->'trailer' from jsonb_array_elements(v) x where x->>'language' = 'es') = 'null'::jsonb, 'not up yet: %', v;
+  perform public.ops_tutorial_published('trailer', 'es', repeat('9', 64), 'Tr41l3r_es0', null);
+  v := public.ops_youtube_channels();
+  assert (select x->>'trailer' from jsonb_array_elements(v) x where x->>'language' = 'es') = 'Tr41l3r_es0', 'Spanish has its trailer: %', v;
+  assert (select x->'trailer' from jsonb_array_elements(v) x where x->>'language' = 'en') = 'null'::jsonb, 'English has none: %', v;
+end $$;
+reset role;
+
 rollback;
