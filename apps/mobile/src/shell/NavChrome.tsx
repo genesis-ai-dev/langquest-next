@@ -16,6 +16,7 @@ import { txt } from '../ui/textStyles';
 import type { Tab, TabId } from './session';
 import { C, measure, radius, space, target } from '../ui/theme';
 import { UserChip } from '../ui/UserChip';
+import { a11yState } from '../ui/a11yModel';
 
 const TAB_ICONS: Record<TabId, IconName | 'bookClosed'> = { work: 'list', map: 'bookClosed', reports: 'progress', manage: 'settings', inbox: 'notif', me: 'user' };
 
@@ -93,7 +94,7 @@ function BarTab(props: { tab: Tab; active: boolean; rail: boolean; onSelect: (ta
       onPress={spot.onPress}
       accessibilityRole="tab"
       accessibilityLabel={tabLabel(tab)}
-      accessibilityState={{ selected: active }}
+      {...a11yState({ selected: active }, 'tab')}
       aria-selected={active}
       style={({ pressed }) => [rail ? styles.railItem : styles.tab, pressed && { opacity: 0.6 }]}
     >
@@ -101,7 +102,7 @@ function BarTab(props: { tab: Tab; active: boolean; rail: boolean; onSelect: (ta
       <View style={[styles.tabPill, rail && active && { backgroundColor: C.light }]}>
         <TabIcon id={tab.id} size={26} color={color} />
         {tab.badge ? (
-          <View style={styles.tabBadge}><Text style={styles.tabBadgeText}>{badgeText(tab.badge)}</Text></View>
+          <View style={styles.tabBadge}><Text style={styles.tabBadgeText} maxFontSizeMultiplier={1.5}>{badgeText(tab.badge)}</Text></View>
         ) : null}
       </View>
       <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>{tab.label}</Text>
@@ -117,7 +118,7 @@ function SideTab(props: { tab: Tab; active: boolean; onSelect: (tab: Tab) => voi
   const spot = useHelpSpot(tab.label, tabHelp(tab.id), () => props.onSelect(tab));
   return (
     <Pressable testID={`tab-${tab.id}`} onPress={spot.onPress} accessibilityRole="tab"
-      accessibilityLabel={tabLabel(tab)} accessibilityState={{ selected: active }} aria-selected={active}
+      accessibilityLabel={tabLabel(tab)} {...a11yState({ selected: active }, 'tab')} aria-selected={active}
       style={({ pressed }) => [styles.sideItem, active && { backgroundColor: C.light }, pressed && { opacity: 0.6 }]}>
       <TabIcon id={tab.id} size={22} color={active ? C.primary : C.muted} />
       <Text style={[txt.body, { flex: 1, fontWeight: active ? '700' : '600', color }]} numberOfLines={1}>{tab.label}</Text>
@@ -146,7 +147,7 @@ const styles = StyleSheet.create({
   tab: { flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center', gap: 4, paddingTop: space.sm },
   tabPill: { paddingHorizontal: 18, paddingVertical: 4, borderRadius: 99 },
   tabLabel: { fontSize: 13, fontWeight: '600' },
-  tabBadge: { position: 'absolute', top: -4, right: 6, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 4, backgroundColor: C.red, alignItems: 'center', justifyContent: 'center' },
+  tabBadge: { position: 'absolute', top: -4, right: 6, minWidth: 20, minHeight: 20, borderRadius: 10, paddingHorizontal: 4, backgroundColor: C.red, alignItems: 'center', justifyContent: 'center' },
   tabBadgeText: { color: C.white, fontSize: 13, fontWeight: '800' },
   rail: { width: measure.rail, backgroundColor: C.card, borderRightWidth: StyleSheet.hairlineWidth, borderColor: C.border, paddingTop: space.md, gap: space.xs },
   railItem: { minHeight: target.row, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: space.xs },

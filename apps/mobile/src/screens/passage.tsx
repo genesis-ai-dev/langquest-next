@@ -10,7 +10,7 @@
 import { EarlierNote, EarlierSections } from '../breakup/earlier';
 import { isEarlierSection } from '../breakup/earlierSections';
 import { Faces, PeopleLine } from '../checks/parts';
-import { checkName } from '../admin/adminModel';
+import { checkName, stepTitle } from '../admin/adminModel';
 import {
   CommandError, canDeleteVersion, checkPeople, commands, draftsBy, questionsForKind, recordTimeline,
   type Commands, type EventSpec, type FlowStepStatus, type KindState, type KindStatus, type PassageNote, type QuestionSpec, type ReviewView
@@ -26,9 +26,10 @@ import type { Ctx } from '../shell/ctx';
 import { edgeFor, screenTitle, type ScreenId } from '../shell/flow';
 import { t, Trans } from '../i18n';
 import { indexesFor } from '../sync/indexes';
-import { Badge, Card, Chip, ChipWrap, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, LinkBtn, NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, type IconName } from '../ui/kit';
+import { Badge, Banner, Card, Chip, ChipWrap, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, LinkBtn, NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, type IconName } from '../ui/kit';
 import { kindIcon } from '../ui/kindIcon';
 import { txt } from '../ui/textStyles';
+import { shareText } from '../ui/share';
 import { anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, gridKindIds, guestMessage, historySummary, listenersOf, nextQuestionType, nobodyElseReviews, questionTypeLabel, reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText, type RowAction } from '../passage/recordTextModel';
 import { PassagePath } from '../passage/path';
 import { AskCheckCard, TheyAnswer } from '../passage/askParts';
@@ -51,7 +52,7 @@ import { CheckNotes } from '../passage/checkNotes';
 import { useVersesHeld } from '../passage/useVerses';
 import { pathSteps, teamSteps, type PathStep, type TeamStep } from '../passage/pathModel';
 import {
-  askButtonLabel, askForLabel, currentCheck, elseMove, elseOptions, historyAction, historyHelp, historyMove, listenerLabel, listenersLine, mainMove,
+  askButtonLabel, askForLabel, currentCheck, elseMove, elseOptions, heldAtCheckpoint, historyAction, historyHelp, historyMove, listenerLabel, listenersLine, mainMove,
   nothingToAsk, passageNoteFor, recordCan, recordModel, recordPathInput, rowBar, rowButtons, rowMove, sentText,
   stepMove, stepSheet, studyLine, studyPathInfo, teamStepsOpen, usualTargets, waitingOnAnswer,
   type ElseOption, type RecordMain, type RecordMove, type SheetRow
@@ -66,6 +67,7 @@ import { PassageOfflineBar } from '../sync/offline';
 import { noteExpected, reportError } from '../diagnostics/report';
 import { Authored, ReportFlag } from '../moderation/reportSheet';
 import { authoredText, recordTarget } from '../moderation/reportTargets';
+import { useReviewDrafts } from '../reviewing/useReviewDrafts';
 import { UsedLine } from '../sources/used';
 import { contractsFor } from '../shell/screenContracts';
 import { edgeAllowed } from '../shell/session';
@@ -124,8 +126,8 @@ async function perform(ctx: Ctx, build: (c: Commands) => EventSpec[], message: s
   try {
     specs = build(commands(state, indexesFor(state)));
   } catch (e) {
-    if (e instanceof CommandError) ctx.toast(commandErrorText(e));
-    else ctx.toast(t('common.somethingWentWrong', { code: reportError('passage: build command', e) }));
+    if (e instanceof CommandError) ctx.toast(commandErrorText(e), 'problem');
+    else ctx.toast(t('common.somethingWentWrong', { code: reportError('passage: build command', e) }), 'problem');
     return false;
   }
   try {
@@ -221,6 +223,8 @@ export function PassageRecord(ctx: Ctx) {
   // The record's pages: the path, "Something else?", asking for the next check, and every version (decisions.md 83).
   // Done asks for the next check itself (decision 127), so the record opens on the path after it.
   const [page, setPage] = useState<'path' | 'else' | 'ask' | 'versions'>('path');
+  // Opened to pick, the Versions page asks which draft, and a tap on one opens it (UI audit, finding 89).
+  const [picking, setPicking] = useState(false);
   // Asking someone comes back to the path, where the request shows, even when it started from "Something else?".
   const askedParam = ctx.params['asked'];
   useEffect(() => { if (askedParam) setPage('path'); }, [askedParam]);
@@ -236,6 +240,18 @@ export function PassageRecord(ctx: Ctx) {
   useEffect(() => {
     if (checkNowParam && v) goRef.current(v.kind(checkNowParam).produces ? 'back_translation' : 'review_capture', { unitId: v.unitId, languageId: v.languageId, kindId: checkNowParam });
   }, [checkNowParam]); // eslint-disable-line react-hooks/exhaustive-deps -- once per arrival with the param; v is new on every draw
+  // A report's Open (UI audit, finding 113): the reported version or review opens from here, so Back leads to its passage.
+  // The passage may still be loading when the param arrives: wait for it, then open once.
+  const reportedParam = ctx.params['reported'];
+  const reportedOpened = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!reportedParam || !v || reportedOpened.current === reportedParam) return;
+    reportedOpened.current = reportedParam;
+    const [kind, id] = reportedParam.split(':');
+    const at = { unitId: v.unitId, languageId: v.languageId };
+    if (kind === 'version' && id) goRef.current('version_detail', { ...at, takeId: id });
+    else if (kind === 'review' && id) goRef.current('review_detail', { ...at, reviewId: id });
+  }, [reportedParam, !!v]); // eslint-disable-line react-hooks/exhaustive-deps -- once per arrival with the param; v is new on every draw
   useHardwareBack(page !== 'path', () => setPage('path'));
   const [historyShown, setHistoryShown] = useState(HISTORY_STEP);
   // Which of the checks that happen next the ask page sends (decision 91): the first, unless another is picked.
@@ -250,9 +266,13 @@ export function PassageRecord(ctx: Ctx) {
   const study = useMemo(() => (vState && vp && guide ? studyProgress(vState, vp, guide) : null), [vState, vp, guide]);
   const versesHeld = useVersesHeld(ctx, v?.state, v?.unitId);
   const me = ctx.session.actorId;
+  // A review kept on this phone and not sent: its check's button says Continue (decision 127).
+  const flowKinds = useMemo(() => (vp ? vp.flow.steps.flatMap((st) => st.kindIds) : []), [vp]);
+  const reviewDrafts = useReviewDrafts(me, vLanguageId, v?.unitId, flowKinds);
   const isAuthor = !!v?.p.latest && v.p.latest.by === me;
-  // The version's author asks for its next check (demo ADR-034).
-  const asker = isAuthor;
+  // The version's author asks for its next check (demo ADR-034), and so does a lead who hands out work but does
+  // not review, who otherwise had no main button at all (UI audit, finding 90). Reviewers keep "Do the check".
+  const asker = isAuthor || (ctx.session.can('assign_work') && !ctx.session.can('review'));
   // Where each of the flow's kinds usually goes; only its author sends a version on (ADR-029).
   const orgState = ctx.org.state;
   const lines = ctx.language.lines;
@@ -275,7 +295,7 @@ export function PassageRecord(ctx: Ctx) {
   const teamName = teamNameIn(v.state);
   // A person may keep several drafts (decisions.md 83): with more than one, Record opens Versions to pick.
   const myDrafts = draftsBy(p, me);
-  const recordOrPick = () => (myDrafts.length > 1 ? setPage('versions') : go('workspace'));
+  const recordOrPick = () => { if (myDrafts.length > 1) { setPicking(true); setPage('versions'); } else go('workspace'); };
   const openStep = openStepId ? p.steps.find((st) => st.step.id === openStepId) : undefined;
   const anchor = (n: PassageNote) => anchorLabel(n, { state: v.state, p, guide });
   const describe = (e: (typeof timeline)[number]) => describeEntry(e, { p, kinds, name: ctx.name, anchor, guide, hidden: (id) => id !== me && ctx.blocks.has(id) });
@@ -335,7 +355,7 @@ export function PassageRecord(ctx: Ctx) {
   // An earlier section (decision 80) is kept to be heard, not worked on.
   const earlierHere = isEarlierSection(ctx.language.state, unitId);
   // The main button, and the next check for asking (after publishing, or later from the button).
-  const model = recordModel({ p, kinds, kind: v.kind, me, can, steps, mine, asker, askKindId, isAuthor, earlier: earlierHere, alone });
+  const model = recordModel({ p, kinds, kind: v.kind, me, can, steps, mine, asker, askKindId, isAuthor, earlier: earlierHere, alone, reviewDrafts });
   const { answersMine, feedbackReview, myDraft, nextKinds, nextKind } = model;
   const nextTarget = nextKind ? targets[nextKind.kindId] : undefined;
   const m = model.main;
@@ -421,7 +441,7 @@ export function PassageRecord(ctx: Ctx) {
           {/* help-each: each option does something different */}
           {options.map((o) => <BigOption key={o.id} testID={`else-${o.id}${o.kindId ? `-${o.kindId}` : ''}`} icon={o.icon} label={o.label} sub={o.sub} onPress={() => onOption(o)} />)}
           <View style={styles.tiles}>
-            {can.note ? <SmallOption testID="else-note" icon="chat" label={t('common.addNote')} help={t('passage.else.addNoteHelp')} onPress={() => setNoting('note')} /> : null}
+            {can.note ? <SmallOption testID="else-note" icon="note" label={t('common.addNote')} help={t('passage.else.addNoteHelp')} onPress={() => setNoting('note')} /> : null}
             <SmallOption testID="else-reference" icon="book" label={t('passage.else.whatHelps')} help={t('passage.else.whatHelpsHelp')} onPress={() => go('passage_reference')} />
           </View>
           {canAct ? <Text style={txt.xs}>{t('passage.else.teamOptions', { section: t('passage.path.thenTheTeam') })}</Text> : null}
@@ -543,7 +563,7 @@ export function PassageRecord(ctx: Ctx) {
   if (page === 'versions') {
     return (
       <>
-        <VersionsPage ctx={ctx} v={v} canRecord={can.record} go={go} onBack={() => setPage('path')} history={history}
+        <VersionsPage ctx={ctx} v={v} canRecord={can.record} go={go} onBack={() => setPage('path')} history={history} pick={picking}
           {...(nextKind && can.ask ? { ask: { label: askForLabel(nextKind.kindId, kinds), onPress: () => setPage('ask') } } : {})} />
         {sheets}
       </>
@@ -552,12 +572,13 @@ export function PassageRecord(ctx: Ctx) {
 
   // ---- the path ----
   const waiting = waitingOnAnswer({ p, kinds, answersMine, name: ctx.name });
+  const held = earlierHere ? undefined : heldAtCheckpoint(p, can, !!main);
   const footer = (
     <View style={{ gap: space.xs }}>
       {main ? <PrimaryBtn label={main.label} icon={main.icon} help={main.help} onPress={main.onPress} /> : null}
       <QuietLinks items={[
         { label: t('passage.else.title'), icon: 'help', help: t('passage.page.elseHelp'), onPress: () => setPage('else') },
-        { label: t('passage.page.history'), icon: 'list', help: t('passage.page.historyHelp'), onPress: () => setPage('versions') }
+        { label: t('passage.page.history'), icon: 'list', help: t('passage.page.historyHelp'), onPress: () => { setPicking(false); setPage('versions'); } }
       ]} />
     </View>
   );
@@ -566,6 +587,14 @@ export function PassageRecord(ctx: Ctx) {
       {/* Whether this passage comes along without a connection, and the button that takes it along, first (decisions.md 61, 166). */}
       <PassageOfflineBar ctx={ctx} unitId={unitId} />
       {waiting ? <Text style={[txt.sm, { color: TINT.amberText }]}>{waiting}</Text> : null}
+      {held ? (
+        <View style={{ gap: space.sm }}>
+          <Banner icon="lock" tone="amber" title={t('passage.page.heldAt', { check: kindInSentence(stepTitle(held.step.kindIds, kinds)) })} />
+          <View style={{ alignSelf: 'flex-start' }}>
+            <SmallBtn label={t('passage.page.movePastThis')} icon="lock" help={t('passage.page.movePastHelp')} onPress={() => setOverriding(held.step.id)} />
+          </View>
+        </View>
+      ) : null}
       <EarlierNote ctx={ctx} unitId={unitId} languageId={languageId} />
       <PassagePath ctx={ctx} steps={steps} team={team} peopleOf={(kindId) => checkPeople(v.state, kindId)} onStep={onStep} onTeamStep={onTeamStep} extraFor={extraFor} />
       <EarlierSections ctx={ctx} unitId={unitId} languageId={languageId} />
@@ -1246,6 +1275,7 @@ export function AskSomeone(ctx: Ctx) {
 
   const kind = kindId ? v.kind(kindId) : undefined;
   const picks: AskPicks = { mode, who, guestName, contact };
+  const guestText = guestMessage({ name: guestName, passage: v.title, language: v.language });
   const model = askModel({ v, org: ctx.org.state, me, name: ctx.name, what, kindId, candidates, picks, lines });
   // The check's team (decision 91): everyone on it gets the request, and it is the first choice.
   const { isRecord, check, title, usual, others, team, teamPeople, chosen, asked, outside, ready } = model;
@@ -1305,9 +1335,7 @@ export function AskSomeone(ctx: Ctx) {
             </View>
           ) : null}
           {candidates.length === 0 ? (
-            <Text style={[txt.smMuted, { padding: space.lg }]}>
-              {isRecord ? t('passage.ask.nobody') : t('passage.ask.nobodyTryOutside')}
-            </Text>
+            <Text style={[txt.smMuted, { padding: space.lg }]}>{t('passage.ask.nobody')}</Text>
           ) : null}
         </Group>
       ) : (
@@ -1317,11 +1345,17 @@ export function AskSomeone(ctx: Ctx) {
             <Chip label={channelLabel('whatsapp')} on={channel === 'whatsapp'} help={t('passage.ask.whatsappHelp')} onPress={() => setChannel('whatsapp')} />
             <Chip label={channelLabel('sms')} on={channel === 'sms'} help={t('passage.ask.smsHelp')} onPress={() => setChannel('sms')} />
           </View>
-          <Field value={contact} onChangeText={setContact} placeholder={t('passage.ask.phone')} keyboardType="phone-pad" help={t('passage.ask.phoneHelp')} />
+          <Field label={t('passage.ask.phoneNeeded')} value={contact} onChangeText={setContact} placeholder={t('passage.ask.phone')} keyboardType="phone-pad" help={t('passage.ask.phoneHelp')} />
+          {/* The app sends nothing to someone without it yet: the request is saved on the record, and the message is theirs to send (UI audit, finding 87). */}
           <View style={styles.preview}>
-            <Label text={t('passage.ask.preview', { channel: channelLabel(channel) })} color={TINT.greenText} />
-            <Text style={txt.sm}>{guestMessage({ name: guestName, passage: v.title, language: v.language })}</Text>
-            <Text style={[txt.xs, { color: TINT.greenText }]}>{t('passage.ask.previewNote')}</Text>
+            <Label text={t('passage.ask.sendYourself', { channel: channelLabel(channel) })} color={TINT.greenText} />
+            <Text style={txt.sm}>{guestText}</Text>
+            <View style={{ alignSelf: 'flex-start' }}>
+              <SmallBtn label={t('passage.ask.shareMessage')} icon="share" help={t('passage.ask.shareMessageHelp')} onPress={() => void shareText(guestText).then((r) => {
+                if (r === 'copied') ctx.toast(t('reports.field.copied'));
+                else if (r === 'failed') ctx.toast(t('org.qr.couldNotShare'), 'problem');
+              })} />
+            </View>
           </View>
         </View>
       )}

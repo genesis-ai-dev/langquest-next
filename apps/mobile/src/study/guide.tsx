@@ -33,6 +33,7 @@ import { useNoteStep } from '../checks/useNoteStep';
 import { useKeyWordLists } from '../keyTerms/useKeyWordLists';
 import { guideTermWord, ownTermId, ownWordOf, shortName, type KeyWordList } from '../keyTerms/listsModel';
 import { AddWordSheet } from '../helps/reference';
+import { a11yState } from '../ui/a11yModel';
 
 /** ‹ 2/6 Setting the stage ▾ ›, and the sheet of every step it opens. */
 export function GuideNav(props: { ctx: Ctx; sp: StudyProgress; index: number; onIndex: (i: number) => void; sheetFooter?: React.ReactNode }) {
@@ -77,7 +78,7 @@ export function GuideStep(props: {
   const step = status.step;
   const sections = useMemo(() => studySections(step.text), [step.text]);
   const hasAudio = !!(step.audio.url || step.audio.file);
-  const { uri: audioUri } = useStudyFileUri(ctx.language.orgId, step.audio.file, step.audio.url);
+  const { uri: audioUri, failed: notHere } = useStudyFileUri(ctx.language.orgId, step.audio.file, step.audio.url);
   const audio = useStudyAudio(audioUri, step.audio.seconds);
   const [selected, setSelected] = useState<string | null>(null);
   // A note or answer being added. Its draft is kept per part of the step, and one for the step's moments (whichever moment it is noted at).
@@ -112,8 +113,8 @@ export function GuideStep(props: {
   return (
     <View style={{ gap: space.md }}>
       {props.spoken && hasAudio ? (
-        <MiniPlayer title={t('study.guide.spoken')} sub={audio.failed ? t('study.guide.couldNotLoad') : !audioUri ? t('study.guide.gettingRecording') : [shownClock(audio.playing || audio.time > 0 ? audio.time : audio.duration), lang].filter(Boolean).join(' · ')}
-          playing={audio.playing} available onToggle={audio.toggle} onBack10={() => audio.seek(audio.time - 10)} backDisabled={audio.time <= 0}
+        <MiniPlayer title={t('study.guide.spoken')} sub={audio.failed ? t('study.guide.couldNotLoad') : notHere ? t('recording.player.notOnDeviceYet') : !audioUri ? t('study.guide.gettingRecording') : [shownClock(audio.playing || audio.time > 0 ? audio.time : audio.duration), lang].filter(Boolean).join(' · ')}
+          playing={audio.playing} available={!audio.failed && !!audioUri} onToggle={audio.toggle} onBack10={() => audio.seek(audio.time - 10)} backDisabled={audio.time <= 0}
           {...(props.canContribute ? { onNote: () => { audio.pause(); setAdding({ at: clock(audio.time), quote: t('study.guide.recordingAt', { time: shownClock(audio.time) }), answer: false }); } } : {})} />
       ) : null}
 
@@ -196,7 +197,12 @@ function Inline(props: { text: string; resources: StudyResource[]; onOpenRef: (r
 /** A part that only explains itself, while help is on: its marks, for whoever cannot note it. */
 const NOTHING = () => undefined;
 
-/** One section: tap to select it, then note it (or answer a question). Pictures it links to follow as cards. */
+/**
+ * One section: tap to select it, then note it. A question shows its Answer
+ * button without a tap first, and a tap on it answers too: hidden until
+ * selected, most went unanswered (UI audit, finding 39). Pictures it links
+ * to follow as cards.
+ */
 function SectionView(props: {
   ctx: Ctx; section: StudySection; resources: StudyResource[]; notes: StudyStepStatus['notes']; orgId: string | null;
   selected: boolean; canContribute: boolean; onSelect: () => void; onAdd: () => void; onOpenRef: (ref: string) => void;
@@ -214,7 +220,8 @@ function SectionView(props: {
     props.notes.length && !props.selected ? t('study.guide.help.noteCount') : null
   ].filter(Boolean).join(' ');
   const select = useHelpSpot(question ? t('study.guide.help.question') : t('study.guide.help.part'), detail || undefined,
-    props.canContribute ? props.onSelect : marked ? NOTHING : undefined);
+    props.canContribute ? (question ? props.onAdd : props.onSelect) : marked ? NOTHING : undefined);
+  const on = props.selected && !question;
   const body = isCallout(sec.kind) ? (
     <Callout {...CALLOUTS[sec.kind]} label={calloutLabel(sec.kind)}>{inline}</Callout>
   ) : sec.kind === 'item' ? (
@@ -226,12 +233,12 @@ function SectionView(props: {
   return (
     <View style={{ gap: space.sm }}>
       <Pressable disabled={!props.canContribute && !select.id} onPress={props.canContribute || select.id ? select.onPress : undefined} accessibilityRole={props.canContribute ? 'button' : undefined}
-        accessibilityState={{ selected: props.selected }} style={[styles.section, props.selected && styles.sectionOn]}>
+        {...a11yState(question ? undefined : { selected: on }, props.canContribute ? 'button' : undefined, 'current')} style={[styles.section, on && styles.sectionOn]}>
         {body}
-        {props.notes.length > 0 && !props.selected ? <View style={styles.count}><Text style={styles.countText}>{props.notes.length}</Text></View> : null}
+        {props.notes.length > 0 && !on ? <View style={styles.count}><Text style={styles.countText}>{props.notes.length}</Text></View> : null}
         <HelpBadge spot={select} />
       </Pressable>
-      {props.selected && props.canContribute ? (
+      {(on || question) && props.canContribute ? (
         <View style={{ flexDirection: 'row' }}>
           <SmallBtn label={question ? t('study.guide.answer') : t('common.addNote')} icon={question ? 'mic' : 'note'} tone="primary" onPress={props.onAdd}
             help={question ? t('study.guide.answerHelp') : t('study.guide.addNoteHelp')} />

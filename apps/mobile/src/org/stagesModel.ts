@@ -7,13 +7,16 @@ export type Stage = 'language' | 'content' | 'pieces' | 'material' | 'flow' | 'p
 
 export const STAGES: readonly Stage[] = ['language', 'content', 'pieces', 'material', 'flow', 'people'];
 
-/** Each stage's picture, as the kit's icons name them. */
-export function stageIcon(s: Stage): 'globe' | 'book' | 'cut' | 'star' | 'flow' | 'people' {
+/**
+ * Each stage's picture, as the kit's icons name them: the same picture for the
+ * same thing wherever it shows (template, listen, flow; UI audit, finding 49).
+ */
+export function stageIcon(s: Stage): 'globe' | 'template' | 'cut' | 'listen' | 'flow' | 'people' {
   switch (s) {
     case 'language': return 'globe';
-    case 'content': return 'book';
+    case 'content': return 'template';
     case 'pieces': return 'cut';
-    case 'material': return 'star';
+    case 'material': return 'listen';
     case 'flow': return 'flow';
     case 'people': return 'people';
   }

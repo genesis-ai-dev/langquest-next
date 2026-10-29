@@ -23,7 +23,7 @@ import { booksInScope, languageScopeLabel, type LanguageScope } from '../org/org
 export const QUESTIONS = [
   { id: 'record', icon: 'template' },
   { id: 'helps', icon: 'listen' },
-  { id: 'checks', icon: 'people' },
+  { id: 'checks', icon: 'flow' },
   { id: 'invite', icon: 'qr' }
 ] as const;
 export type QuestionId = (typeof QUESTIONS)[number]['id'];

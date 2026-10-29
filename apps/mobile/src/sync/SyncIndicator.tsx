@@ -1,6 +1,7 @@
 // The header's sync state as one icon, always shown (replaces the text chip on My Work).
-// The dot always says where the phone stands (green live, grey checking now
-// and then, amber offline, red refused); the ring shows work in flight, both
+// The glyph says where the phone stands (standingIcon), and the dot says it
+// again in colour (green live, grey checking now and then, amber offline, red
+// refused); the ring shows work in flight, both
 // ways, and the counter what waits to send. Motion, and when it is drawn, is in
 // syncRing.ts. Tapping opens the Sync screen.
 import { useEffect, useRef, useState } from 'react';
@@ -11,12 +12,12 @@ import { HelpBadge } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { Ico } from '../ui/kit';
 import { IDLE, paceRing, ringOpacity, startPace, type RingPace, type RingState } from './syncRing';
-import { C } from '../ui/theme';
+import { C, TINT, type as T } from '../ui/theme';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Text } from '../ui/text';
 import { useSyncStatus } from './useSyncStatus';
-import { syncStanding, standingTitle, type SyncStanding, previewCount, previewListeners, iconCounts } from './syncStanding';
+import { syncStanding, standingIcon, standingTitle, type SyncStanding, previewCount, previewListeners, iconCounts } from './syncStanding';
 
 const SIZE = 40;
 const R = 17;
@@ -28,12 +29,12 @@ const LAPS = [
   { color: C.dark, width: 3.5, opacity: 1 }
 ];
 
-const STANDING_COLOR: Record<SyncStanding, string> = { live: C.green, checking: C.faint, offline: C.amber, refused: C.red };
+const STANDING_COLOR: Record<SyncStanding, string> = { live: C.green, checking: C.faint, offline: C.amber, refused: C.red, tooOld: C.amber };
 
 /** What the dot's colour means, as help mode says it. */
 function standingHelp(s: SyncStanding): string {
   return s === 'live' ? t('help.sync.live') : s === 'offline' ? t('help.sync.offline')
-    : s === 'checking' ? t('help.sync.checking') : t('help.sync.refused');
+    : s === 'checking' ? t('help.sync.checking') : s === 'tooOld' ? t('help.sync.tooOld') : t('help.sync.refused');
 }
 
 export function SyncIndicator(props: { language: Ctx['language']; org: Ctx['org']; onPress: () => void }) {
@@ -70,10 +71,10 @@ export function SyncIndicator(props: { language: Ctx['language']; org: Ctx['org'
             strokeDasharray={`${CIRC} ${CIRC}`} strokeDashoffset={CIRC * (1 - ring.shown)}
             transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`} />
         </Svg>
-        <Ico name={standing === 'offline' ? 'notOnPhone' : 'cloud'} size={20} color={standing === 'refused' ? C.red : C.primary} />
+        <Ico name={standingIcon(standing)} size={20} color={standing === 'refused' ? C.red : standing === 'tooOld' ? TINT.amberText : C.primary} />
         <View style={[styles.dot, { backgroundColor: color }]} />
         {shownCount > 0 ? (
-          <View style={styles.count}><Text style={styles.countText}>{shownCount > 99 ? '99+' : formatNumber(shownCount)}</Text></View>
+          <View style={styles.count}><Text style={styles.countText} maxFontSizeMultiplier={1.5}>{shownCount > 99 ? '99+' : formatNumber(shownCount)}</Text></View>
         ) : null}
       </View>
       <HelpBadge spot={spot} />
@@ -129,7 +130,7 @@ const styles = StyleSheet.create({
   tap: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   box: { width: SIZE, height: SIZE, alignItems: 'center', justifyContent: 'center' },
   dot: { position: 'absolute', top: 3, right: 3, width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: C.white },
-  count: { position: 'absolute', bottom: -4, right: -6, minWidth: 18, height: 16, paddingHorizontal: 4, borderRadius: 8,
+  count: { position: 'absolute', bottom: -6, right: -8, minWidth: 20, minHeight: 20, paddingHorizontal: 4, borderRadius: 10,
     backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.white },
-  countText: { color: C.white, fontSize: 10, fontWeight: '700', fontVariant: ['tabular-nums'] }
+  countText: { color: C.white, fontSize: T.xs, fontWeight: '700', fontVariant: ['tabular-nums'] }
 });

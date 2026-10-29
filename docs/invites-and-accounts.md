@@ -197,7 +197,8 @@ connection to create the account, and the button says so. The key stays
 held across restarts until it can be used.
 
 **F. New phone, reinstalled, or signed out (looked-after account).**
-A helper opens Members → the person → **Help them sign in** (with "Their
+A helper opens Members → the person → **Help {name} sign in on a new
+device** → **Help them sign in** (with "Their
 old phone is lost" when it is) → a QR. The person taps **Scan a code** on
 Sign In → signed in, with nothing to type; their Settings says who helped.
 (Before 59: they chose a new password.)
