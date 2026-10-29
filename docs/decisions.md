@@ -8839,6 +8839,33 @@ Reverse if: the look misses changes people notice in the films, or flags
 changes nobody can see often enough to burden Publish; or the runners
 cannot film reliably (then the job container gets a browser and the stack).
 
+Amended (2026-10-29, Caleb Koster): the tutorial runs moved to the hour when
+the fewest people on earth are at work, as Caleb asked: many of the people
+who use the app are in Nepal, Nigeria, Thailand and India. By population
+and time zone, 23:00 to 00:00 UTC has about 100 million people in working
+hours (9 to 5) out of 7 billion: the Americas' west in the afternoon and
+Australia's morning (India 4:30 AM, Nepal 4:45 AM, Thailand 6 AM, Nigeria
+midnight). The publish run at 08:10 UTC had had about 5.9 billion, and the
+intake at 13:10 UTC about 2.3 billion. The intake now
+runs at 23:10 UTC and the publish job's daily run (180) at 23:40 UTC, on
+YouTube's allowance for that Pacific day; the filming, on GitHub's machines
+and touching nothing live, starts at 20:10 UTC so a night's films are in the
+release by the intake. Every app language is now filmed each night, English
+and French first (Caleb, 2026-10-29: every language is checked for changes
+and the changed videos are filmed on the same night), since the Gemini key
+is on Tier 1, which the batch voice needs. Five languages film at a time,
+each about 50 minutes on a night without new films, so all fifteen finish
+before the intake. A first night for a language, which films every video,
+can finish after the intake; its films then come in the next day. So that
+a line no one has translated yet (a script's new line, or what Ruth says in
+the readings, which no language had) never stops a language, the job has
+Gemini translate it first (`translate-lines.ts`, the same machine
+translation as the committed lines, decision 81) and keeps the file to
+commit. A change to the scripts or to how they are filmed is filmed when it
+is merged into main, rather than at the next 20:10: a fix to the filming
+should not wait a day, or for a person to press Run workflow, since the
+agents that work on the videos cannot start or re-run a workflow.
+
 ## 184. The publish job keeps each YouTube channel's description, banner and list of the others; held comments are counted on the dashboard and moderated in Studio
 
 Date: 2026-10-28 · By: Caleb Koster · Status: accepted

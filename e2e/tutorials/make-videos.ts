@@ -38,11 +38,10 @@ const run = (command: string, argv: string[], env: Record<string, string>, log: 
   });
 
 mkdirSync(results, { recursive: true });
-if (!dry) {
-  const readings = languages.filter((l) => !existsSync(path.join(results, 'speech', l)));
-  if (readings.length && !(await run('npx', ['tsx', path.join('e2e', 'tutorials', 'make-readings.ts'), ...readings], {}, path.join(results, 'readings.log')))) {
-    throw new Error(`The readings could not be made: ${path.join(results, 'readings.log')}`);
-  }
+// A dry run needs the readings too: the people in a video's world have recorded them.
+const readings = languages.filter((l) => !existsSync(path.join(results, 'speech', l)));
+if (readings.length && !(await run('npx', ['tsx', path.join('e2e', 'tutorials', 'make-readings.ts'), ...readings], {}, path.join(results, 'readings.log')))) {
+  throw new Error(`The readings could not be made: ${path.join(results, 'readings.log')}`);
 }
 
 const queue = languages.flatMap((language) => ids.filter((id) => !TUTORIALS[id]!.notIn?.includes(language)).map((id) => ({ language, id })));
