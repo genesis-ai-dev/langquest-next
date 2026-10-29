@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import {
-  buildIndexes, derivePassage, emptyLanguageState, foldLanguage, HlcClock, REDUCER_VERSION, keptVerdict, languageLines, PART_OF_KIND, putEntry, updatesFor, withOwnParts,
+  buildIndexes, derivePassage, emptyLanguageState, foldLanguage, HlcClock, REDUCER_VERSION, keptVerdict, languageLines, PART_OF_KIND, putEntry, referencedBlobs, updatesFor, withOwnParts,
   type LanguageState
 } from '@langquest-next/core';
 import { PART_KINDS } from '../src/keptLanguage';
@@ -276,6 +276,10 @@ describe('a language that keeps its recordings on disk', () => {
     for (const u of ['u1', 'u5', 'u9']) expect(derivePassage(view, u)).toEqual(derivePassage(full, u, idx));
     expect(updatesFor(view, 'lead').filter((x) => ['u1', 'u5', 'u9'].includes(x.unitId)))
       .toEqual(updatesFor(full, 'lead').filter((x) => ['u1', 'u5', 'u9'].includes(x.unitId)));
+    // And knows which of their files the server stored, though memory keeps only the verdicts its own records name.
+    const files = [...referencedBlobs(view).keys()];
+    expect(files.filter((h) => !onDisk.client.getState().blobs[h]).length).toBeGreaterThan(0);
+    for (const h of files) expect(view.blobs[h], h).toEqual(full.blobs[h]);
 
     // Opening a passage brings its whole record back.
     await onDisk.client.loadUnits(['u5']);

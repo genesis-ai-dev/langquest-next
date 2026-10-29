@@ -309,15 +309,24 @@ export class KeptLanguage {
 
   /**
    * The language as memory holds it plus, from disk, these passages' rows
-   * of these kinds: what a list works out a few passages from (their lines,
-   * the Inbox, a key term's uses). Memory's entries are taken before the
-   * rows are read, so a checkpoint meanwhile loses nothing; the state
-   * itself is never changed.
+   * of these kinds and the verdicts on the files they name: what a list
+   * works out a few passages from (their lines, the Inbox, a key term's
+   * uses, when the server stored a file). Memory keeps only the verdicts
+   * its own records name, so without the kept ones a file on disk read as
+   * never stored. Memory's entries are taken before the rows are read, so
+   * a checkpoint meanwhile loses nothing; the state itself is never changed.
    */
   async view(live: LanguageState, unitIds: readonly string[], kinds: readonly string[] = PART_KINDS, streamId = this.streamId): Promise<LanguageState> {
     const out = withOwnParts(live);
     if (unitIds.length > 0) {
       for (const row of await this.store.keptByUnit(this.orgId, streamId, kinds, unitIds)) putEntry(out, PART_OF_KIND.get(row.kind)!, row.id, JSON.parse(row.json));
+      const missing = [...this.named(out)].filter((h) => !out.blobs[h]);
+      if (missing.length > 0) {
+        // A map of the view's own: memory's is shared with the live state.
+        const blobs = { ...out.blobs };
+        for (const row of await this.store.keptById(this.orgId, streamId, FILE, missing)) blobs[row.id] = JSON.parse(row.json) as Verdict;
+        out.blobs = blobs;
+      }
     }
     return out;
   }
