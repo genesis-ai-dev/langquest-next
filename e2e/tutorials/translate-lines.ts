@@ -9,11 +9,12 @@
 //   npx tsx e2e/tutorials/translate-lines.ts [language ...]
 //   TUTORIAL_TRANSLATE_SHOW=1 npx tsx e2e/tutorials/translate-lines.ts es   (what Gemini is asked)
 //
-// GEMINI_API_KEY is sent when it is set, and what Gemini counted is kept, as in gemini-voice.mjs.
+// GEMINI_API_KEY is sent when it is set; what Gemini counted is kept, and a refusal only a person can fix is said on the ops dashboard, as in gemini-voice.mjs.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { UI_LANGUAGES } from '@langquest-next/core';
 import { TUTORIALS } from './all';
+import { geminiNeedsYou, needsYou } from './needs-you.mjs';
 import { RUTHS_WORDS } from './readings';
 
 const MODEL = process.env['TUTORIAL_TRANSLATE_MODEL'] ?? 'gemini-pro-latest';
@@ -76,8 +77,12 @@ async function call(url: string, init?: RequestInit): Promise<any> {
   for (let attempt = 1; attempt <= 6; attempt++) {
     const res = await fetch(url, { headers, ...init });
     if (res.ok) return res.json();
-    lastError = `${res.status} ${(await res.text()).slice(0, 300)}`;
-    if (res.status !== 429 && res.status < 500) break;
+    const body = await res.text();
+    lastError = `${res.status} ${body.slice(0, 300)}`;
+    // Google has said "credits are depleted" with 429 as well as 402: no try again gets past it.
+    const problem = geminiNeedsYou(res.status, body);
+    if (problem) needsYou(problem);
+    if (problem || (res.status !== 429 && res.status < 500)) break;
     await sleep(2000 * 2 ** attempt);
   }
   throw new Error(lastError);

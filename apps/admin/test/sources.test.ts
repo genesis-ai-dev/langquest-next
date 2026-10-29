@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { byWorker, cloudflareAlerts, cloudflareSection } from '../src/sources/cloudflare';
 import { clientAlerts, databaseAlerts, diagSections, errorText, jobsSection, mediaType, v2Section, type Clients, type JobRow, type V2Project } from '../src/sources/diag';
 import { expoAlerts, expoFrom } from '../src/sources/expo';
-import { APP_BUILD_PATHS, changesApp, codeAlerts, codeSection, latestPerWorkflow, type Code } from '../src/sources/github';
+import { APP_BUILD_PATHS, changesApp, codeAlerts, codeSection, latestPerWorkflow, needsYouOf, type Code } from '../src/sources/github';
 import { SQLSTATE, errorGroups, httpErrorsSql, pathShape, pgErrorsSql, projectsOf, supabaseAlerts, supabaseSection } from '../src/sources/supabase';
 
 const NOW = Date.parse('2026-10-19T22:00:00Z');
@@ -123,7 +123,7 @@ describe('the database and the v2 import', () => {
 
 describe('code and deploys', () => {
   const code = (over: Partial<Code>): Code => ({
-    repo: 'o/r', main: { sha: 'abcdef1234567890', at: hAgo(2), title: 'x' }, live: { url: 'https://next.langquest.org', build: 'abcdef123456' }, behind: 0, appChanged: null, runs: [], ...over
+    repo: 'o/r', main: { sha: 'abcdef1234567890', at: hAgo(2), title: 'x' }, live: { url: 'https://next.langquest.org', build: 'abcdef123456' }, behind: 0, appChanged: null, runs: [], needsYou: [], ...over
   });
 
   it('is quiet when the web app serves main', () => {
@@ -164,11 +164,46 @@ describe('code and deploys', () => {
 
   it('keeps the latest run of each workflow and reads failures', () => {
     const runs = latestPerWorkflow([
-      { name: 'guardrails', status: 'completed', conclusion: 'failure', head_sha: 'aaaaaaaaaa', created_at: hAgo(1), html_url: 'u1', event: 'push', run_number: 9 },
-      { name: 'guardrails', status: 'completed', conclusion: 'success', head_sha: 'bbbbbbbbbb', created_at: hAgo(2), html_url: 'u2', event: 'push', run_number: 8 }
+      { id: 2, name: 'guardrails', status: 'completed', conclusion: 'failure', head_sha: 'aaaaaaaaaa', created_at: hAgo(1), html_url: 'u1', event: 'push', run_number: 9 },
+      { id: 1, name: 'guardrails', status: 'completed', conclusion: 'success', head_sha: 'bbbbbbbbbb', created_at: hAgo(2), html_url: 'u2', event: 'push', run_number: 8 }
     ]);
     expect(runs).toHaveLength(1);
-    expect(codeAlerts(code({ runs }), NOW)).toEqual([{ level: 'watch', text: 'GitHub workflow "guardrails" failed on main (run 9, push).' }]);
+    expect(codeAlerts(code({ runs }), NOW)).toEqual([{ level: 'watch', text: 'GitHub workflow "guardrails" failed on main (run 9, push).', link: 'u1' }]);
+  });
+
+  // 2026-10-29: Gemini's prepaid credit ran out mid-filming, and the dashboard said only that "tutorials" failed.
+  const tutorials = { id: 7, workflow: 'tutorials', status: 'completed', conclusion: 'failure', sha: 'cccccccc', at: hAgo(1), url: 'https://github.com/o/r/actions/runs/7', event: 'schedule', number: 6 };
+  const credit = { title: 'Needs you: Gemini credit', annotation_level: 'failure', message: 'Google refused the voice: the prepaid credit is used up. https://aistudio.google.com/projects' };
+
+  it("reads what only a person can fix from a run's annotations, once each, with the page that fixes it", () => {
+    const noise = { title: '', annotation_level: 'failure', message: 'Process completed with exit code 1.' };
+    expect(needsYouOf(tutorials, [noise, credit, credit])).toEqual([
+      { workflow: 'tutorials', what: 'Gemini credit', text: 'Google refused the voice: the prepaid credit is used up.', link: 'https://aistudio.google.com/projects' }
+    ]);
+    // Without a page in its message, the run itself is the link.
+    expect(needsYouOf(tutorials, [{ ...credit, message: 'No key.' }])[0]?.link).toBe(tutorials.url);
+  });
+
+  it('says it as a problem with its link, in place of the plain failure', () => {
+    const alerts = codeAlerts(code({ runs: [tutorials], needsYou: needsYouOf(tutorials, [credit]) }), NOW);
+    expect(alerts).toEqual([{ level: 'problem', text: 'Gemini credit: Google refused the voice: the prepaid credit is used up. (GitHub workflow "tutorials")', link: 'https://aistudio.google.com/projects' }]);
+  });
+
+  it("reads the failed jobs' annotations of the repository's own runs, never a pull request's", async () => {
+    const own = { id: 7, name: 'tutorials', status: 'completed', conclusion: 'failure', head_sha: 'cccccccccc', created_at: hAgo(1), html_url: tutorials.url, event: 'schedule', run_number: 6 };
+    const fork = { id: 8, name: 'guardrails', status: 'completed', conclusion: 'failure', head_sha: 'dddddddddd', created_at: hAgo(1), html_url: 'https://github.com/o/r/actions/runs/8', event: 'pull_request', run_number: 3 };
+    const fetcher = routes([
+      ['/version.json', { build: 'fedcba987654' }],
+      ['/commits/main', { sha: 'fedcba9876543210', commit: { message: 'x', committer: { date: hAgo(3) } } }],
+      ['/actions/runs/7/jobs', { jobs: [{ id: 70, conclusion: 'success' }, { id: 71, conclusion: 'failure' }] }],
+      ['/actions/runs/8/jobs', { jobs: [{ id: 80, conclusion: 'failure' }] }],
+      ['/check-runs/71/annotations', [credit]],
+      ['/check-runs/80/annotations', [{ ...credit, title: 'Needs you: Click here', message: 'https://example.com' }]],
+      ['/actions/runs', { workflow_runs: [own, fork] }]
+    ]);
+    const s = await codeSection({ GITHUB_REPO: 'o/r', APP_URL: 'https://next.langquest.org' }, fetcher);
+    expect((s.data as Code).needsYou.map((n) => n.what)).toEqual(['Gemini credit']);
+    expect(s.alerts.map((a) => a.level)).toEqual(['problem', 'watch']);
   });
 
   it('compares the served commit with main through GitHub', async () => {

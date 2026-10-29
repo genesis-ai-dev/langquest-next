@@ -9,8 +9,10 @@
 #
 # Claude signs in with a Claude plan's token (CLAUDE_CODE_OAUTH_TOKEN, made by
 # `claude setup-token`, from .env.production through `npm run secrets --
-# production`); anyone on the team can replace it with their own. Without it
-# the run says so and stops. This workflow holds no production key: it reads
+# production`); anyone on the team can replace it with their own. Without it,
+# or when Claude refuses it, the run fails with an annotation titled "Needs
+# you: Claude token", which the ops dashboard lists under Needs attention
+# (apps/admin/src/sources/github.ts). This workflow holds no production key: it reads
 # and writes the feedback only through the app's Worker, which lets in this
 # workflow on main by the OpenID Connect token GitHub gives the job
 # (apps/web/worker/tutorialReview.ts; scripts/workflows.test.ts). Claude has
@@ -43,7 +45,8 @@ jobs:
         if: env.HAS_CLAUDE_TOKEN != 'true'
         # A block, since YAML takes the colon after the secret's name for a key.
         run: |
-          echo "::notice::No CLAUDE_CODE_OAUTH_TOKEN: run claude setup-token, then npm run env:update -- production CLAUDE_CODE_OAUTH_TOKEN and npm run secrets -- production"
+          echo "::error title=Needs you%3A Claude token::The nightly look at the tutorial videos' feedback has no CLAUDE_CODE_OAUTH_TOKEN. Run claude setup-token, then npm run env:update -- production CLAUDE_CODE_OAUTH_TOKEN and npm run secrets -- production. https://github.com/${{ github.repository }}/blob/main/docs/tutorial-videos.md#feedback"
+          exit 1
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         if: env.HAS_CLAUDE_TOKEN == 'true'
         with:
@@ -55,6 +58,7 @@ jobs:
         if: env.HAS_CLAUDE_TOKEN == 'true'
         run: node scripts/tutorial-review.mjs fetch .tutorial-review
       - name: Claude looks
+        id: look
         if: env.HAS_CLAUDE_TOKEN == 'true'
         uses: anthropics/claude-code-action@v1
         with:
@@ -66,3 +70,13 @@ jobs:
       - name: Send the look
         if: env.HAS_CLAUDE_TOKEN == 'true'
         run: node scripts/tutorial-review.mjs send .tutorial-review
+      # Only when Claude's own answer says the token was refused: an expired
+      # or revoked plan token, for the ops dashboard's Needs attention.
+      - name: A Claude token that no longer works, say so
+        if: failure() && steps.look.outcome == 'failure'
+        env:
+          EXECUTION: ${{ steps.look.outputs.execution_file }}
+        run: |
+          if [ -f "$EXECUTION" ] && grep -qiE 'authentication_error|invalid api key|oauth token (has expired|has been revoked)|invalid bearer token' "$EXECUTION"; then
+            echo "::error title=Needs you%3A Claude token::Claude refused CLAUDE_CODE_OAUTH_TOKEN (expired or revoked). Run claude setup-token, then npm run env:update -- production CLAUDE_CODE_OAUTH_TOKEN and npm run secrets -- production. https://github.com/${{ github.repository }}/blob/main/docs/tutorial-videos.md#feedback"
+          fi

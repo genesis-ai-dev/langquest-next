@@ -58,6 +58,12 @@ than one asked to be unhurried. Jobs of more than about 100 lines come back
 with many lines turned down ("Precondition check failed"), so
 `gemini-voice.mjs` sends 100 at a time and sends the turned-down lines again.
 
+When Google refuses the voice or a translation for a reason only a person can
+fix (the prepaid credit used up, the key refused or missing), the job says so
+in an annotation titled "Needs you: Gemini credit" or "Needs you: Gemini key"
+(`needs-you.mjs`), and the ops dashboard lists it under Needs attention with a
+link to AI Studio, until the next run works.
+
 What Gemini counts for each batch job (tokens in, out and thinking) goes into
 `e2e/results/tutorials/gemini-usage.jsonl`, and each job's summary on GitHub
 adds it up by model (`gemini-usage.mjs`), to set against the bill in AI Studio.
@@ -240,8 +246,10 @@ by `claude setup-token` (`npx -y @anthropic-ai/claude-code setup-token`
 without the command installed), lasts a year, and is kept with `npm run
 env:update -- production CLAUDE_CODE_OAUTH_TOKEN`; `npm run secrets --
 production` makes it a secret of this repository's Actions. Anyone on the
-team can replace it with their own plan's the same way. Without one, the
-run says so and stops.
+team can replace it with their own plan's the same way. Without one, or
+when Claude's answer says it was refused (expired or revoked), the run fails
+with an annotation titled "Needs you: Claude token", which the ops dashboard
+lists under Needs attention with a link to this section.
 
 The workflow holds no production key. The app's Worker answers
 `/api/tutorial-review` only for this workflow on main, which it knows by
