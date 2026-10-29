@@ -338,6 +338,10 @@ npm run test:ui:phone -- --platform ios --voice --tags smoke
   probes that exist only in test builds (`src/testBuild.ts`: dev, or an export
   with `EXPO_PUBLIC_LOCAL_RELEASE=1`): the log, Sync now, and
   `__langquestTestState` (`testState`, `expectSyncIdle` in `support.ts`).
+  After a test writes through the server and (re)opens a page, it waits with
+  `languageArrived`: the organization and the language both read up to date
+  since the page loaded, and drawn. Idle sync alone is not that (the
+  organization's sync finishes first, and nothing runs between the two).
   `UI_WORKERS` sets how many files run at once (4 by default). The `phone`
   project runs everything at 430×932; the `wide` project runs the tests
   tagged `@wide` at 1280×900.
