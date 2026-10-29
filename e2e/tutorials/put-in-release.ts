@@ -29,16 +29,20 @@ const films = readdirSync(out).filter((f) => named.has(f));
 if (films.length) gh('release', 'upload', TUTORIALS_TAG, ...films.map((f) => path.join(out, f)), '--clobber');
 gh('release', 'upload', TUTORIALS_TAG, manifest, '--clobber');
 
-// The voice: each line said and the speaker's readings, so a line is never paid for twice.
-if (films.length) {
-  const results = path.join('e2e', 'results', 'tutorials');
+// The voice: each line said, the speaker's readings and the pieces they are
+// made of, so a line is never paid for twice. Kept whenever Gemini said
+// something (gemini-voice.mjs writes what it counted), films or not.
+const results = path.join('e2e', 'results', 'tutorials');
+if (films.length || existsSync(path.join(results, 'gemini-usage.jsonl'))) {
   const voices = existsSync(path.join(results, 'films', language))
     ? readdirSync(path.join(results, 'films', language)).map((id) => path.join('films', language, id, 'voice')).filter((v) => existsSync(path.join(results, v)))
     : [];
-  const speech = existsSync(path.join(results, 'speech', language)) ? [path.join('speech', language)] : [];
-  const archive = path.join(out, `voice-${language}.tgz`);
-  execFileSync('tar', ['czf', archive, '-C', results, ...speech, ...voices]);
-  gh('release', 'upload', TUTORIALS_TAG, archive, '--clobber');
+  const speech = [path.join('speech', language), path.join('speech', 'pieces')].filter((s) => existsSync(path.join(results, s)));
+  if (speech.length || voices.length) {
+    const archive = path.join(out, `voice-${language}.tgz`);
+    execFileSync('tar', ['czf', archive, '-C', results, ...speech, ...voices]);
+    gh('release', 'upload', TUTORIALS_TAG, archive, '--clobber');
+  }
 }
 
 const prefix = `${language}.`;
