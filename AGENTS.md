@@ -121,15 +121,47 @@ Before pushing:
    `npm install`) rebuild the worker bundle and run the fast checks.
 
 Things parallel branches collide on, which only show on the merge with
-`main`: the next number in `docs/decisions.md` (`scripts/decisions.test.ts`
-allows no gaps or repeats; take the next free number after merging `main`,
-and renumber yours, never theirs), a migration's 14-digit version
-(`scripts/migrations.test.ts`), the web size budget (two branches can each fit
-alone and not together), and the worker bundle. When a check is red, read its
+`main`: a migration's 14-digit version (`scripts/migrations.test.ts`), the
+web size budget (two branches can each fit alone and not together), and the
+worker bundle. A decision no longer does: each is a file of its own (Decision
+log below). When a check is red, read its
 log first (`gh run view <run> --log-failed`), and say whether the cause is the
 change, `main`, or a flaky test. A test that fails without a product cause is
 tagged `@quarantine` with an owner (`docs/testing.md`), never retried until it
 passes or skipped quietly.
+
+## Cloud threads (Claude Code on a cloud machine)
+
+Coding threads run on Claude Code's cloud machines, not on a developer's Mac
+(`docs/decisions/2026-10-27-coding-threads-run-in-the-cloud.md`). A cloud machine is Linux with 4 CPUs, 16 GB and Docker,
+and no iPhone simulator or Android emulator. When `CLAUDE_CODE_REMOTE` is
+`true`:
+
+- Run `bash scripts/cloud-setup.sh` before anything else, and again after
+  merging a `main` that changed `package-lock.json`. It gives the machine
+  Node 24, the full git history, the packages, Docker, the local stack's
+  images and Playwright's browsers, so `npm run guardrails -- --all` and
+  `npm run test:web-smoke` run as on a Mac. It takes seconds when the
+  environment's snapshot already has them. The project's cloud environment
+  runs it as its setup script (`--snapshot`); change the steps in the script.
+- The machine's disk is about 40 GB, and the setup leaves about 14 GB of it
+  (it says how much at the end). The local stack's images are 8 GB of what
+  it takes. A thread that needs other large tools and not the local stack
+  frees those 8 GB with `docker system prune -af`; the setup pulls them
+  again when it next runs. A full disk shows up as SQLite's "database or
+  disk is full" in unit tests.
+- A project's threads load neither `.claude/skills` nor the repo's hooks.
+  Read a skill from `.agents/skills/<name>/SKILL.md` when the task calls for
+  it.
+- Check a screen in the web build on the local stack (`npm run db:start`,
+  then `bash e2e/web.sh` and Playwright), or with a UI test
+  (`npm run test:ui:web -- e2e/ui/<file>`). What only a phone shows (native
+  modules, gestures, the keyboard, permissions, audio, a store build) goes to
+  one phone-check thread on the Mac, which runs one simulator at a time
+  (`run-app`); say what it should look at and on which screens.
+- The machine has no `.env.keys`: nothing there decrypts env files, pushes to
+  EAS, applies secrets or touches a hosted database. Those steps stay on the
+  Mac.
 
 ## Store declarations (required, whoever you are working for)
 
@@ -151,24 +183,28 @@ access, the store listing. Google holds us to those answers.
 
 ## Decision log (required, whoever you are working for)
 
-`docs/decisions.md` is the team's ADR log. Any agent working in this repo keeps
-it current for every developer, without being asked. The file's header has the
-format.
+The team's ADR log is `docs/decisions.md` (entries 1 to 178, cited by
+number) and, after those, one file per decision in `docs/decisions/`,
+named by its date and a few words (`docs/decisions/README.md` has the format).
+Any agent working in this repo keeps it current for every developer, without
+being asked.
 
-- Before designing, read the entries that touch the area. If the change
-  contradicts one, say so and ask the developer before going on. Never quietly
-  work around a recorded decision.
+- Before designing, read the decisions that touch the area (search both). If
+  the change contradicts one, say so and ask the developer before going on.
+  Never quietly work around a recorded decision.
 - When a change makes or changes an architecture or design decision (the
-  header lists the triggers), add or amend the entry in the same change. Put
-  the developer driving the session in `By` (`git config user.name` gives
-  their handle; use their full name as the log already does) and today's date
-  in `Date`.
+  README lists the triggers), write a new file in `docs/decisions/`, or amend
+  the decision, in the same change. Never add a numbered entry to
+  `docs/decisions.md`. Put the developer driving the session in `By`
+  (`git config user.name` gives their handle; use their full name as the log
+  already does) and today's date in `Date` and the file name. Cite it by its
+  path (`docs/decisions/2026-10-27-one-file-per-decision.md`).
 - If the reason is not clear from the conversation, ask the developer for it.
   Do not make one up.
 - Never renumber an entry or rewrite its reasoning. Supersede it with a new
-  entry, or append an `Amended (date, name):` paragraph.
-- When you finish, say which entry you added or amended, or that the change
-  needed none.
+  decision, or append an `Amended (date, name):` paragraph.
+- When you finish, say which decision you added or amended, or that the
+  change needed none.
 
 ## Porting LangQuest v2 records (required, whoever you are working for)
 
@@ -223,8 +259,8 @@ Where a skill and this project disagree, the project wins:
 - PLAN.md invariants and `docs/decisions.md` override any skill. Generic
   event-sourcing advice (expected-version checks, ordered projections,
   last-writer-wins rows, stored status) does not apply; see `event-sourced-sync`.
-- Record decisions in `docs/decisions.md` in its existing format, not in a new
-  `docs/adr/` folder.
+- Record decisions as files in `docs/decisions/` in its format (its README),
+  not in a `docs/adr/` folder.
 - Touch targets are 48pt and primary actions 56pt, not 44pt.
 - The partner demo decides screens. Skills that assume Expo Router, NativeWind,
   `@expo/ui` or a web stack do not apply; this app uses react-navigation and

@@ -1,39 +1,22 @@
 # Decisions
 
-The architecture decision record (ADR) log for this app. It is the only one:
-every architecture or design decision, from any developer or agent, is recorded
-here as it is made, so the log reads as the history of how the design got to
-where it is. Each entry has the reason and what would change our mind.
+The architecture decision record (ADR) log for this app, entries 1 to 178.
+Every architecture or design decision, from any developer or agent, is
+recorded as it is made, so the log reads as the history of how the design got
+to where it is. Each entry has the reason and what would change our mind.
 
-## How to write an entry
+After entry 178, each new decision is a file of its own in
+[decisions/](./decisions/), named by its date and a few words, so two branches
+never take the same number
+([2026-10-27-one-file-per-decision](./decisions/2026-10-27-one-file-per-decision.md)).
+[decisions/README.md](./decisions/README.md) says how to write one.
 
-Write one when a change is hard to reverse, would surprise a reader without
-context, and came from a real trade-off. Typical triggers: a new merge shape,
-partition, deployable, worker, queue or storage table; a dependency that
-carries lock-in; a change to authorization, sync, or what the app keeps
-offline; a deliberate departure from PLAN.md, the partner demo or an earlier
-entry. A bug fix, a refactor that keeps behaviour, or a new event that fits an
-existing merge shape does not need one.
-
-```md
-## 35. The decision, stated as a sentence
-
-Date: YYYY-MM-DD · By: Full Name · Status: accepted
-
-Reason: the context, what was chosen and why, naming the code that holds it.
-Reverse if: the evidence that would change our mind.
-```
-
-- Number entries in order and never renumber; code and docs cite them by
-  number ("decisions.md 34").
-- `By` is the developer who made the decision, not the agent that typed it.
-- `Status` is `accepted`, `superseded by N` or `partly superseded by N`.
-- Never rewrite a past entry's reasoning. If a decision changes, add a new
-  entry that says "Supersedes N" and set N's status. If it only narrows or
-  extends, append a dated paragraph to it:
-  `Amended (YYYY-MM-DD, Full Name): what changed and why.`
-- Land the entry in the same commit or PR as the change it explains.
-  `scripts/decisions.test.ts` checks the format.
+The entries below keep their numbers, which code and docs cite
+("decisions.md 34"). No entry is added here. One below changes in only two
+ways: its status (`superseded by N`, `partly superseded by N`, where N is a
+later number or a decision's file name without `.md`), and a dated paragraph
+appended to it: `Amended (YYYY-MM-DD, Full Name): what changed and why.`
+`scripts/decisions.test.ts` checks the format of both.
 
 ## 1. Event log over state replication
 
@@ -552,7 +535,7 @@ second work partition is a registry entry, not a new event.
 
 ## 35. This file is the one ADR log, and agents keep it for every developer
 
-Date: 2026-09-29 · By: Caleb Koster · Status: accepted
+Date: 2026-09-29 · By: Caleb Koster · Status: partly superseded by 2026-10-27-one-file-per-decision
 
 Reason: several developers, each working through their own agent sessions,
 were making design decisions, and only some of them reached this file. So

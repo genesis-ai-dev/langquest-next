@@ -39,6 +39,11 @@ if git fetch -q origin main 2>/dev/null; then
 else
   echo "! could not fetch origin/main; skipped"
 fi
+# A shallow clone (a cloud thread's) lacks the commits that store builds were
+# made from, which the server-call check reads; CI fetches them all too.
+if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
+  git fetch -q --unshallow origin || echo "! could not fetch the full history; the server-call check needs it"
+fi
 
 step "Typecheck"
 npm run --silent typecheck
@@ -68,7 +73,14 @@ npm run --silent export:web -w mobile -- development
 [ "$level" = web ] && { printf '\nchecks and web export: passed (web-smoke and ui-web still run only with --all or in CI)\n'; exit 0; }
 
 step "Local stack"
-if ! source e2e/env.sh 2>/dev/null; then npm run db:start; fi
+# Started as CI starts it: without the services the tests do not use, and
+# without the language list (db:start leaves it out on CI), which the UI tests
+# expect to be empty (SETUP-074 adds a language the list would offer instead).
+export SUPABASE_EXCLUDE="${SUPABASE_EXCLUDE-studio,imgproxy,vector,logflare,supavisor}"
+# db:start also restarts a stack whose Edge Functions are down (scripts/local-db.mjs).
+if ! source e2e/env.sh 2>/dev/null || ! docker ps --format '{{.Names}}' | grep -q '^supabase_edge_runtime_'; then
+  CI=true npm run db:start
+fi
 
 step "SQL smokes, parity and the client integration test (server)"
 npm run --silent db:test
@@ -80,9 +92,13 @@ npm run --silent test:old-sync
 # job starts from `npm run db:start`, so put back what it leaves (on a running
 # stack that is only scripts/local-db.mjs prepare()).
 step "Library and push delivery back after the reset (npm run db:start)"
-npm run --silent db:start
+CI=true npm run --silent db:start
 
 step "P0 web UI tests on the export (ui-web)"
+# Two browsers at a time on 4 cores or fewer (a cloud thread's machine), as
+# on each CI shard (guardrails.yml, ui-web): with four, pages there loaded
+# past the tests' waits.
+if [ "$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 8)" -le 4 ]; then export UI_WORKERS="${UI_WORKERS:-2}"; fi
 npm run test:ui:web -- --grep @p0 --grep-invert @quarantine
 
 printf '\nall guardrails: passed (web-smoke in Firefox and WebKit runs only in CI, or npm run test:web-smoke)\n'

@@ -1,7 +1,7 @@
 # Documentation
 
 - [testing.md](./testing.md) — The testing strategy: five layers, which one a test belongs in, the end-to-end rules, and what runs on a PR, nightly and before a release
-- [decisions.md](./decisions.md) — The ADR log: every design decision, who made it and when, with reasoning and reversal conditions
+- [decisions.md](./decisions.md) and [decisions/](./decisions/) — The ADR log: every design decision, who made it and when, with reasoning and reversal conditions; entries 1 to 178 in the file, then one file per decision in the folder
 - [cloudflare.md](./cloudflare.md) — Workers Builds: what merging to develop and main deploys; builds hold no secrets
 - [environments.md](./environments.md) — Development, preview and production: branches, where public settings and secrets live, `npm run secrets`, setup
 - [flow-coverage-audit.md](./flow-coverage-audit.md) — Flow coverage audit

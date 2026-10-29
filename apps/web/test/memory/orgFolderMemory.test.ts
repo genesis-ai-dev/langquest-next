@@ -22,6 +22,14 @@ import { describe, expect, it } from 'vitest';
 const HARNESS = fileURLToPath(new URL('./orgFolderHeap.ts', import.meta.url));
 /** Below the isolate's 128 MB, for the memory the isolate spends outside V8's old space. */
 const HEAP_MB = 112;
+/**
+ * The young generation, which V8 sizes apart from the old space. Node 24 lets
+ * it grow to 64 MB a semi-space (heap limit 304 MB at HEAP_MB, against 160 MB
+ * on Node 22), so the heap was no longer capped near the isolate, and the
+ * 6 × 5,000 API case took 84 s alone instead of 50 s (a cloud machine,
+ * 2026-10-28). 8 MB keeps the whole heap at 136 MB on either.
+ */
+const SEMI_SPACE_MB = 8;
 /** Held between requests: the fold budget (about twice its bytes once parsed) and the rest of the object, with room to spare. */
 const RETAINED_MB = 48;
 /**
@@ -42,7 +50,7 @@ interface Out { retainedHeapMb: number; peakHeapMb: number }
 function run(path: Path, a: number, b: number, unbounded = false, takes?: number): Promise<{ status: number | null; signal: string | null; out: Out | null; stderr: string }> {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [
-      `--max-old-space-size=${HEAP_MB}`, '--expose-gc', '--no-warnings', '--import', 'tsx', HARNESS, path, String(a), String(b),
+      `--max-old-space-size=${HEAP_MB}`, `--max-semi-space-size=${SEMI_SPACE_MB}`, '--expose-gc', '--no-warnings', '--import', 'tsx', HARNESS, path, String(a), String(b),
       ...(takes ? [`takes=${takes}`] : []), ...(unbounded ? ['unbounded'] : [])
     ], { timeout: CASE_MS });
     let stdout = '';
