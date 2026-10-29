@@ -81,8 +81,8 @@ A script is written once, in English. In another language:
 ## Each night
 
 `.github/workflows/tutorials.yml` keeps the videos current (decision 183).
-At 08:30 UTC, for each language in its `NIGHTLY_LANGUAGES` (English to begin
-with), a runner starts the local stack and the web export as the UI tests
+At 20:10 UTC, for each language in its `NIGHTLY_LANGUAGES` (all fifteen,
+English and French first, five at a time), a runner starts the local stack and the web export as the UI tests
 do, and `nightly.ts`:
 
 1. tries every video for the public without voice or film, one at a time,
@@ -104,7 +104,7 @@ The workflow holds the Gemini key (`GEMINI_API_KEY`, a repository secret
 that `npm run secrets -- production` sets from `.env.production`) and no
 production key.
 
-At 13:10 UTC the intake job in the app's job container
+At 23:10 UTC the intake job in the app's job container
 (`server/tutorialIntake.ts`) reads each language's manifest, and puts each
 film R2 lacks there through the Worker, checking its hash; the ops dashboard
 then lists it for Publish. A run by hand: Run now on the dashboard's Server jobs
@@ -113,8 +113,7 @@ and videos to film.
 
 A change the look does not see (a new sound, a colour) is filmed by running
 the workflow by hand with that video named, which films it whatever its
-look; a language joins the nightly list once
-its voice can be made. A video for LangQuest staff (`staff: true`, "Read any
+look. A video for LangQuest staff (`staff: true`, "Read any
 organization as a Global Viewer") is never filmed here or put on YouTube:
 `npm run tutorials` films it by hand.
 

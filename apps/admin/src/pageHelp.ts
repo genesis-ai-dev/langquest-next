@@ -203,7 +203,7 @@ export const HELP: Record<string, string> = {
   // ---- tutorial videos
   'channels connected': 'Channels LangQuest may post to: someone pressed Connect and chose that channel on Google\'s page.',
   'ready to publish': 'Videos made (new, or changed since the one on YouTube) that nobody has chosen yet. Watch them, then Publish.',
-  'chosen, going up': 'Videos chosen with Publish that are not up yet. YouTube takes 100 a day for all channels together; the rest go up the next day at 08:10 UTC.',
+  'chosen, going up': 'Videos chosen with Publish that are not up yet. YouTube takes 100 a day for all channels together; the rest go up on a later day at 23:40 UTC.',
   'videos on YouTube': 'Videos up on all channels together, each counted once however many versions it has had.',
   Channels: 'Each app language\'s channel. Connect again when its videos fail with a sign-in code such as youtube_invalid_grant.',
   'Not on YouTube yet': 'Each video\'s newest version that is not up. A new version of one already up replaces it: it takes its place in the playlist, and the old one is unlisted with a link to the new.',

@@ -1,7 +1,7 @@
 /**
  * The tutorial videos a Publish on the ops dashboard chose, put up on YouTube
  * (docs/tutorial-videos.md, decisions.md 180): server/tutorialPublisher.ts
- * run by the job container, started by Publish and each day at 08:10 UTC
+ * run by the job container, started by Publish and each day at 23:40 UTC
  * while chosen videos wait (apps/web/worker/jobsModel.ts; scripts/build-jobs.mjs
  * bundles this file). It reads each MP4 from the Worker (API_URL), each
  * channel's refresh token from Vault, and records a `tutorial_publish` job

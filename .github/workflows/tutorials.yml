@@ -5,7 +5,7 @@
 # (e2e/tutorials/nightly.ts), against the same local stack and web export as
 # the UI tests. The new films and the language's manifest go into the
 # release, which is public, and the app's job container brings them into R2
-# for the ops dashboard's Publish at 13:10 UTC (server/tutorialIntake.ts).
+# for the ops dashboard's Publish at 23:10 UTC (server/tutorialIntake.ts).
 #
 # This workflow holds the Gemini key, for the voice, and no production key:
 # it writes only to this repository's release (scripts/workflows.test.ts).
@@ -16,8 +16,11 @@ name: tutorials
 
 on:
   schedule:
-    # 08:30 UTC: after the guardrails nightly (02:30), and before the intake at 13:10.
-    - cron: '30 8 * * *'
+    # 20:10 UTC: five languages at a time, each about 50 minutes on a night
+    # without new films, so all fifteen are in the release for the intake at
+    # 23:10, the hour when the fewest people on earth are at work (decision 183,
+    # amended).
+    - cron: '10 20 * * *'
   workflow_dispatch:
     inputs:
       languages:
@@ -37,10 +40,11 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # The app languages filmed each night. A line is said by Gemini's batch
-  # voice, on its paid tier, the first time it is filmed; the release keeps
-  # each language's voice (voice-<language>.tgz), so it is never paid twice.
-  NIGHTLY_LANGUAGES: en
+  # The app languages filmed each night: all fifteen, English and French
+  # first. A line is said by Gemini's batch voice, on its paid tier, the first
+  # time it is filmed; the release keeps each language's voice
+  # (voice-<language>.tgz), so it is never paid twice.
+  NIGHTLY_LANGUAGES: en,fr,es,pt,ar,sw,ha,am,hi,bn,ne,id,th,my,zh-Hans
 
 jobs:
   languages:

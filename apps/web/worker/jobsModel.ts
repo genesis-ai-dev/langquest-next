@@ -51,10 +51,11 @@ export const JOB_TICK = '*/5 * * * *';
  * (the workflow's 03:17, on the nearest tick); the fold canary at 04:05 UTC
  * and the R2 reconciliation at 04:35, after the import's whole read and
  * apart from each other so a night never runs three heavy jobs at once. The
- * tutorial videos still waiting from a Publish go on at 08:10 UTC, after
- * YouTube's day starts again at midnight Pacific (07:00 or 08:00 UTC). The
- * films the nightly filming made (on GitHub from 08:30 UTC) come in at
- * 13:10 UTC, ready for Publish by morning in the Americas.
+ * tutorial jobs run in the hour when the fewest people on earth are at work
+ * (23:00 to 00:00 UTC, decision 183 amended): the films the nightly filming
+ * made (on GitHub from 20:10 UTC) come in at 23:10, and the videos still
+ * waiting from a Publish go on at 23:40, on YouTube's allowance for that
+ * Pacific day.
  */
 export function jobsDue(scheduledTime: number): { key: JobKey; all?: true }[] {
   const t = new Date(scheduledTime);
@@ -63,8 +64,8 @@ export function jobsDue(scheduledTime: number): { key: JobKey; all?: true }[] {
   if (minute % 15 === 0) due.push(t.getUTCHours() === 3 && minute === 15 ? { key: 'v2-import', all: true } : { key: 'v2-import' });
   if (t.getUTCHours() === 4 && minute === 5) due.push({ key: 'fold-canary' });
   if (t.getUTCHours() === 4 && minute === 35) due.push({ key: 'blob-reconcile' });
-  if (t.getUTCHours() === 8 && minute === 10) due.push({ key: 'tutorial-publish' });
-  if (t.getUTCHours() === 13 && minute === 10) due.push({ key: 'tutorial-intake' });
+  if (t.getUTCHours() === 23 && minute === 10) due.push({ key: 'tutorial-intake' });
+  if (t.getUTCHours() === 23 && minute === 40) due.push({ key: 'tutorial-publish' });
   return due;
 }
 

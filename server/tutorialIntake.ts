@@ -1,7 +1,7 @@
 /**
  * The films the nightly filming made on GitHub, brought into R2 and listed
  * on the ops dashboard (docs/tutorial-videos.md): server/tutorialIntakeModel.ts
- * run by the job container each day at 13:10 UTC, after the filming
+ * run by the job container each day at 23:10 UTC, after the filming
  * (apps/web/worker/jobsModel.ts; scripts/build-jobs.mjs bundles this file).
  * It reads the manifests from the repository's public `tutorials` release,
  * puts each film R2 lacks through the Worker (API_URL) and records a
