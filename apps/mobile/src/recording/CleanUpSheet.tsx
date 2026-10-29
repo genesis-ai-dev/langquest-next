@@ -23,6 +23,7 @@ import { mmss } from './model';
 import { PartBars } from './partBars';
 import { buttonLabel, limitAt, snapPlace, toneBars, type CleanUpPick } from './cleanUpModel';
 import { useCleanUp, type CleanStatus, type CleanUp } from './useCleanUp';
+import { a11yState } from '../ui/a11yModel';
 
 export interface CleanUpPart { hash: string; label: string; durationMs?: number }
 
@@ -117,7 +118,7 @@ function SoundCard(props: { ctx: Ctx; title: string; icon: IconName; hash?: stri
         <PlayDot ctx={props.ctx} title={props.title} {...(props.hash ? { hash: props.hash } : {})} {...(props.uri ? { uri: props.uri } : {})} />
         <Ico name={props.icon} size={18} color={C.dark} />
         <Text style={[styles.name, { flex: 1 }]} numberOfLines={1}>{props.title}</Text>
-        <Pressable onPress={pick.onPress} disabled={props.off && !pick.id} accessibilityRole="radio" accessibilityState={{ checked: props.picked, disabled: !!props.off }}
+        <Pressable onPress={pick.onPress} disabled={props.off && !pick.id} accessibilityRole="radio" {...a11yState({ checked: props.picked, disabled: !!props.off }, 'radio')}
           accessibilityLabel={t('recording.cleanUp.pickLabel', { sound: props.title, state: pickLabel })} style={({ pressed }) => [styles.tagTap, pressed && styles.pressed]}>
           <View style={[styles.tag, props.picked ? styles.tagOn : styles.tagOff, props.off && styles.off]}>
             {props.picked ? <Ico name="check" size={14} color={C.white} strokeWidth={3} /> : null}
@@ -164,7 +165,7 @@ function Segment(props: { label: string; part: string; on: boolean; off?: boolea
   const label = t('recording.cleanUp.segmentLabel', { part: props.part, sound: props.label });
   const spot = useHelpSpot(label, t('recording.cleanUp.pickHelp'), props.off ? undefined : props.onPress);
   return (
-    <Pressable onPress={spot.onPress} disabled={props.off && !spot.id} accessibilityRole="radio" accessibilityState={{ checked: props.on, disabled: !!props.off }} accessibilityLabel={label}
+    <Pressable onPress={spot.onPress} disabled={props.off && !spot.id} accessibilityRole="radio" {...a11yState({ checked: props.on, disabled: !!props.off }, 'radio')} accessibilityLabel={label}
       style={({ pressed }) => [styles.segment, props.on && styles.segmentOn, props.off && styles.off, pressed && styles.pressed]}>
       {props.on ? <Ico name="check" size={16} color={C.white} strokeWidth={3} /> : null}
       <Text style={[styles.segmentText, props.on && { color: C.white }]} numberOfLines={1}>{props.label}</Text>

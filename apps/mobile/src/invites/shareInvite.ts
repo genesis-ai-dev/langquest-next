@@ -7,6 +7,6 @@ import { shareText } from '../ui/share';
 export function shareInvite(ctx: Ctx, uri: string) {
   void shareText(uri).then((r) => {
     if (r === 'copied') ctx.toast(t('admin.invite.linkCopied'));
-    else if (r === 'failed') ctx.toast(t('admin.invite.couldNotShare'));
+    else if (r === 'failed') ctx.toast(t('admin.invite.couldNotShare'), 'problem');
   });
 }

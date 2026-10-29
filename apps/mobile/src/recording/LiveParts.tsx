@@ -21,7 +21,7 @@ import { Text } from '../ui/text';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Ico } from '../ui/kit';
-import { C, radius, withAlpha } from '../ui/theme';
+import { C, radius, type as T, withAlpha } from '../ui/theme';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audio/audioSession';
 import { cutWav, deleteRecorderFile } from '../audio/wavCut';
 import { playable } from '../audio/levelStore';
@@ -110,7 +110,7 @@ export function LiveParts(props: {
       {/* Each number stays in sight while any of its box is. */}
       {boxes.map((b) => (
         <View key={`n-${b.index}`} pointerEvents="none" style={[styles.pill, { left: Math.max(b.from * bw, 0) + 3, backgroundColor: b.open ? ink.pillOpen : ink.pill }]}>
-          <Text style={[styles.pillText, { color: b.open ? ink.pillOpenText : ink.pillText }]}>{formatNumber(b.n)}</Text>
+          <Text style={[styles.pillText, { color: b.open ? ink.pillOpenText : ink.pillText }]} maxFontSizeMultiplier={1.3}>{formatNumber(b.n)}</Text>
         </View>
       ))}
       <View style={styles.bars} pointerEvents="none">
@@ -354,13 +354,13 @@ function useBoxPlayer(editing: boolean) {
   return { at, play, stop };
 }
 
-const PILL = 18;
+const PILL = 20;
 const styles = StyleSheet.create({
   // Time runs left to right in every language.
   fill: { flex: 1, minHeight: 56, position: 'relative', direction: 'ltr' },
   part: { position: 'absolute', top: 0, bottom: 0, borderRadius: radius.md, overflow: 'hidden' },
-  pill: { position: 'absolute', top: 3, minWidth: PILL, height: PILL, borderRadius: 5, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
-  pillText: { fontSize: 11, fontWeight: '800', lineHeight: 14 },
+  pill: { position: 'absolute', top: 3, minWidth: PILL, minHeight: PILL, borderRadius: 5, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
+  pillText: { fontSize: T.xs, fontWeight: '800', lineHeight: 16 },
   bars: { position: 'absolute', left: 0, right: 0, top: PILL + 6, bottom: 4, flexDirection: 'row' },
   slot: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   band: { position: 'absolute', left: 0, right: 0 },

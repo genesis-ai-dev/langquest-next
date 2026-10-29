@@ -56,6 +56,15 @@ export async function signIn(email: string, password: string, deps: SignInDeps):
   return { kind: 'signed-in', userId: data.user?.id ?? null };
 }
 
+/**
+ * What was typed cannot be an email or a sign-in name, so Sign In stays off:
+ * the screen says why (UI audit, finding 35). A first letter is not judged.
+ */
+export function nameNeedsFix(email: string): boolean {
+  const typed = email.trim();
+  return typed.length > 1 && !typed.includes('@') && !isSignInName(typed);
+}
+
 /** Whether Sign In can be pressed: an email or a sign-in name, and a password. */
 export function signInReady(email: string, password: string): boolean {
   return (email.trim().includes('@') || isSignInName(email)) && password.length > 0;

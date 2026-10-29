@@ -99,12 +99,14 @@ export async function passageRow(page: Page, label: string, language = 'Alpha'):
   // The Map tab may come back where it was left: take the deepest of these that shows.
   const ways = [
     page.getByRole('button', { name: new RegExp(`^Chapter ${chapter}:`) }),
+    // A book's passages show 25 at a time (UI audit, finding 122): more of them, before leaving the book.
+    page.getByRole('button', { name: /^Show \d+ more · / }),
     page.getByRole('button', { name: /^Luke\./ }),
     page.getByRole('button', { name: new RegExp(`^${language}: .*Open its map`) })
   ].map((l) => l.locator('visible=true').first());
-  for (let i = 0; i < 8 && !(await row.isVisible()); i++) {
+  for (let i = 0; i < 12 && !(await row.isVisible()); i++) {
     const [first, ...rest] = [row, ...ways];
-    await first!.or(rest[0]!).or(rest[1]!).or(rest[2]!).first().waitFor({ timeout: 5_000 }).catch(() => {});
+    await first!.or(rest[0]!).or(rest[1]!).or(rest[2]!).or(rest[3]!).first().waitFor({ timeout: 5_000 }).catch(() => {});
     if (await row.isVisible()) break;
     for (const way of ways) {
       if (await way.isVisible()) { await way.click(); break; }

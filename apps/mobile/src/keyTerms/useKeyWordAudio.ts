@@ -29,7 +29,7 @@ export function useKeyWordAudio(ctx: Ctx, audio: MediaRef | undefined): {
   const [asked, setAsked] = useState(false);
   // From the blob store only when there is no address to play from, and only once asked for.
   const file = asked && !audio?.url ? mediaFile(audio, 'audio', false) : undefined;
-  const { uri, waiting } = useStudyFileUri(ctx.language.orgId, file, audio?.url);
+  const { uri, waiting, failed: notHere } = useStudyFileUri(ctx.language.orgId, file, audio?.url);
   const player = useStudyAudio(uri, 0);
   const pending = useRef(false);
   const play = player.play;
@@ -48,6 +48,6 @@ export function useKeyWordAudio(ctx: Ctx, audio: MediaRef | undefined): {
   const length = audio?.seconds ?? (!player.simulated && player.duration > 0 ? player.duration : null);
   return {
     has: !!(audio?.url || audio?.hash), playing: player.playing, time: player.time, length,
-    failed: player.failed, waiting: asked && waiting, toggle, pause
+    failed: player.failed || notHere, waiting: asked && waiting, toggle, pause
   };
 }

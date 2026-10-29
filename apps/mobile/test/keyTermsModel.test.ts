@@ -19,7 +19,7 @@ const view = (termId: string, term: string, gloss = '') => ({ termId, term, glos
 describe('the first-rendering note', () => {
   it('is stored in English and read back in the language showing', () => {
     expect(firstRenderingNote('nhom')).toBe('First rendering: nhom.');
-    expect(adjustmentNote(firstRenderingNote('nhom'))).toBe('First rendering: nhom.');
+    expect(adjustmentNote(firstRenderingNote('nhom'))).toBe('First word: nhom.');
     expect(adjustmentNote(firstRenderingNote('a. b'))).toContain('a. b');
   });
 

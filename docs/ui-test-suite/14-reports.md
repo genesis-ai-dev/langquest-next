@@ -14,8 +14,7 @@ can be faked with Playwright routes on `/api/orgs/{orgId}/reports`.
 
 Reports need a connection. Figures come from the projection worker, which
 runs every minute on the local stack, so work done on a device shows after
-it syncs and the worker has run; tap "Catch up with the server" to ask
-again.
+it syncs and the worker has run; tap "Refresh" to ask again.
 
 ---
 
@@ -75,10 +74,15 @@ Steps:
 Expected:
 - While loading: "Loading reports…".
 - Then the header "Overview", with "Reports" under it (the sidebar names the
-  organization), and an
-  icon button "Catch up with the server" at the right.
-- A row of chips: "Overview" (on), "Recent activity", "Languages",
-  "Geography", "Field report", "Monthly ledger", "Pace", "Alerts".
+  organization), and a button "Refresh" (a round arrow and the word) at
+  the right.
+- Chips that wrap onto a second line rather than run off the edge, all in
+  sight: "Overview" (on), "Recent activity", "Languages", "Geography",
+  "Field report", "Monthly ledger", "Pace", "Alerts".
+- When any alert needs someone, Overview starts with an amber notice
+  ("{n} need(s) someone") and a button "Alerts" that opens that section.
+- A cluster or country filter row starts with its name ("Cluster",
+  "Country"), and a country chosen is named in the header's line too.
 - The content is in a centred column, with the sidebar or rail beside it.
 
 ### RPT-004 Each chip opens its section
@@ -112,7 +116,7 @@ Preconditions:
 - Two minutes have passed since the fixture was built.
 
 Steps:
-1. Tap "Reports", then "Catch up with the server".
+1. Tap "Reports", then "Refresh".
 2. Open "Languages", then "Alpha".
 3. On the device, open the Map for LANG-A and count the passages per state.
 
@@ -148,7 +152,7 @@ Expected:
 - TRANS and LADMIN (LANG-A scope): Alpha only.
 - Nobody sees a language of ORG2.
 
-### RPT-007 Catch up with the server shows new work
+### RPT-007 Refresh shows new work
 Roles: COORD, TRANS · Priority: P1 · Platforms: Wide · Run: Auto
 
 Preconditions:
@@ -157,10 +161,10 @@ Preconditions:
 Steps:
 1. Device 2 (TRANS): record and publish Version 1 of P-NEW. Wait until it
    has synced.
-2. Wait two minutes. Device 1: tap "Catch up with the server".
+2. Wait two minutes. Device 1: tap "Refresh".
 
 Expected:
-- While it asks, the icon cannot be tapped again.
+- While it asks, "Refresh" cannot be tapped again.
 - Alpha's recorded count goes up by 1.
 - Alpha's page says "Figures as of {when} ({ago}). Work recorded offline
   appears after the device syncs." with a recent time.
@@ -240,7 +244,7 @@ Preconditions:
 
 Steps:
 1. Go offline.
-2. Tap "Catch up with the server".
+2. Tap "Refresh".
 3. Open another section, and Alpha's page.
 
 Expected:
@@ -321,8 +325,9 @@ Steps:
 1. On Alpha's page, tap "Print or save as PDF".
 
 Expected:
-- Web: the browser's print dialog opens; the preview shows the report
-  readably.
+- Web: the browser's print dialog opens; the preview shows only the report,
+  headed "Alpha": no sidebar, header buttons or "Language settings". The
+  field report's "Print" likewise prints only the field report.
 - iPad: there is no such button.
 
 ### RPT-016 A language whose report you cannot see
@@ -411,7 +416,7 @@ Expected:
   "Country: Kenya. Change it."). "Save country" is enabled.
 - Step 5: "Saving…", then a green notice "Saved.". The page's country
   badge says "Kenya", and "Save country" is disabled again.
-- Another device's Reports shows Kenya after "Catch up with the server".
+- Another device's Reports shows Kenya after "Refresh".
 
 Resets: Alpha's country is Kenya.
 
@@ -424,14 +429,18 @@ Preconditions:
 Steps:
 1. In "Language settings", look at "Target".
 2. Tap "Gospels".
-3. Change "Start (YYYY-MM-DD)" to "2026-13-01".
+3. Tap "18 months: {date}". Then change "Start (YYYY-MM-DD)" to
+   "2026-13-01".
 4. Change it to "2026-10-01", and "Finish by (YYYY-MM-DD)" to "2026-09-01".
 5. Change "Finish by" to "2027-12-31". Tap "Save target".
 
 Expected:
 - Step 1: chips "Gospels", "New Testament", "Old Testament", "Whole Bible",
-  with "New Testament" on. "Start" is today; "Finish by" is about 18 months
-  ahead.
+  with "New Testament" on. "Start" and "Finish by" are empty, "Save
+  target" is disabled, and a button "18 months: {date}" is under them.
+- Step 3: the button fills "Start" with today and "Finish by" about 18
+  months ahead, and "Save target" is enabled; then the bad start shows the
+  error.
 - Step 2: "Gospels" is on.
 - Steps 3 and 4: red text "Write both dates as YYYY-MM-DD, with the finish
   after the start." "Save target" is disabled.
@@ -451,7 +460,7 @@ Preconditions:
 
 Steps:
 1. Choose another country and tap "Save country".
-2. Tap "Save target".
+2. Fill in a start and a finish, and tap "Save target".
 
 Expected:
 - Each shows an amber notice "No connection. Nothing was saved; try again

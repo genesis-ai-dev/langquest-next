@@ -1,4 +1,4 @@
-import { signIn, signInReady, type SignInDeps } from '../src/auth/signIn';
+import { nameNeedsFix, signIn, signInReady, type SignInDeps } from '../src/auth/signIn';
 import { signInAddress } from '../src/auth/accounts';
 
 const user = (id: string) => ({ data: { user: { id } }, error: null });
@@ -76,6 +76,14 @@ describe('signing in (AUTH-1, docs/v2-import.md section 3)', () => {
     expect(signInReady('a', 'x')).toBe(false); // a sign-in name is two characters or more
     expect(signInReady('nobody', '')).toBe(false);
     expect(signInReady('nobody', 'x')).toBe(true);
+    // Off for what cannot be a name, the screen says why (UI audit, finding 35); a first letter is not judged.
+    expect(signInReady('Nyibol Deng', 'x')).toBe(false);
+    expect(nameNeedsFix('Nyibol Deng')).toBe(true);
+    expect(nameNeedsFix('nyibol_deng')).toBe(true);
+    expect(nameNeedsFix('n')).toBe(false);
+    expect(nameNeedsFix('Nyibol-Deng-482')).toBe(false);
+    expect(nameNeedsFix('ana@x')).toBe(false);
+    expect(nameNeedsFix('')).toBe(false);
     expect(signInReady('user@example.org', 'x')).toBe(true);
     expect(signInReady('-bad-name', 'x')).toBe(false);
     expect(signInReady('Nyibol-482', 'x')).toBe(true);

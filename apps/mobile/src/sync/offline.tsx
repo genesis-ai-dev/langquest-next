@@ -29,6 +29,7 @@ import { offlineLook, type OfflineLook } from './offlineModel';
 import { useStudyRevision } from './useOfflineSummary';
 import { WaveArrow } from './transit';
 import { useSyncStatus } from './useSyncStatus';
+import { a11yState } from '../ui/a11yModel';
 
 /**
  * Where one passage stands, from what this device has counted and nothing
@@ -112,7 +113,7 @@ export function DownloadButton(props: { ctx: Ctx; unitId: string; testID?: strin
   const spot = useHelpSpot(look.label, keep.help, keep.onPress);
   return (
     <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={!keep.onPress && !spot.id} accessibilityRole="button" accessibilityLabel={look.label}
-      accessibilityState={{ disabled: !keep.onPress }} hitSlop={4} style={({ pressed }) => [styles.discTap, pressed && { opacity: 0.6 }]}>
+      {...a11yState({ disabled: !keep.onPress }, 'button')} hitSlop={4} style={({ pressed }) => [styles.discTap, pressed && { opacity: 0.6 }]}>
       <DownloadDisc look={look} {...(props.size ? { size: props.size } : {})} />
       <HelpBadge spot={spot} />
     </Pressable>
@@ -137,7 +138,7 @@ export function PassageOfflineBar(props: { ctx: Ctx; unitId: string }) {
     : look.kind === 'checking' || look.kind === 'noConnection' ? { bg: C.card, fg: C.muted } : { bg: C.card, fg: C.primary };
   return (
     <Pressable testID="passage-offline" onPress={spot.onPress} disabled={!keep.onPress && !spot.id} accessibilityRole="button" accessibilityLabel={look.label}
-      accessibilityState={{ disabled: !keep.onPress }}
+      {...a11yState({ disabled: !keep.onPress }, 'button')}
       style={({ pressed }) => [styles.bar, { backgroundColor: tone.bg, borderColor: look.kind === 'none' ? C.border : tone.bg }, pressed && { opacity: 0.7 }]}>
       <DownloadDisc look={look} size={30} />
       <Text style={[txt.sm, { flex: 1, fontWeight: '700', color: tone.fg }]}>{look.label}</Text>

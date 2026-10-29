@@ -10,7 +10,7 @@ import {
   askTeam, askToJoin, createEmptyOrg, headerTitle, labels, leaveBookWaiting, litTab, settled
 } from './nav-helpers';
 import {
-  back, button, byId, expect, openAs, primary, screenChanged, screenText, syncNow, tab, tabsShown, test, text, useWorld,
+  back, bookRow, button, byId, expect, openAs, primary, screenChanged, screenText, syncNow, tab, tabsShown, test, text, useWorld,
   type AccountKey, type PassageKey, type UiWorld
 } from './support';
 
@@ -174,7 +174,7 @@ test('NAV-005 Pressing a tab resets its stack', async ({ browser }) => {
   const t = await device(browser, 'TRANS');
   await tab(t.page, 'map').click();
   await button(t.page, /^Luke\./).click();
-  await button(t.page, new RegExp(`^${label('P-CHECK')}\\.`)).click();
+  await (await bookRow(t.page, new RegExp(`^${label('P-CHECK')}\\.`))).click();
   await expect.poll(() => headerTitle(t.page)).toBe(label('P-CHECK'));
   await expect.poll(() => tabsShown(t.page)).toEqual([]);
   await back(t.page).click();
@@ -273,7 +273,7 @@ test('NAV-008 Which tab is lit @wide', async ({ browser }) => {
   await tab(t.page, 'map').click();
   await button(t.page, /^Luke\./).click();
   await expect.poll(() => litTab(t.page), { message: 'chapters' }).toBe('map');
-  await button(t.page, new RegExp(`^${label('P-DONE')}\\.`)).click();
+  await (await bookRow(t.page, new RegExp(`^${label('P-DONE')}\\.`))).click();
   await expect(text(t.page, 'Versions and history')).toBeVisible();
   await expect.poll(() => litTab(t.page), { message: 'passage from the map' }).toBe('map');
   await t.context.close();
@@ -283,7 +283,7 @@ test('NAV-008 Which tab is lit @wide', async ({ browser }) => {
   await expect.poll(() => litTab(v.page)).toBe('map');
   await button(v.page, /^Luke\./).click();
   await expect.poll(() => litTab(v.page)).toBe('map');
-  await button(v.page, new RegExp(`^${label('P-DONE')}\\.`)).click();
+  await (await bookRow(v.page, new RegExp(`^${label('P-DONE')}\\.`))).click();
   await expect(text(v.page, 'Versions and history')).toBeVisible();
   await expect.poll(() => litTab(v.page)).toBe('map');
   await v.context.close();
@@ -523,6 +523,25 @@ test('NAV-022 TRANS is not offered to divide a book', async ({ browser }) => {
   await context.close();
 });
 
+test('NAV-023 COORD Offline, a language this phone has not brought down', async ({ browser }) => {
+  // COORD's phone has opened only Bravo; Alpha is set up, with passages and work, but not on this phone (UI audit, finding 79).
+  const context = await browser.newContext({ viewport: { width: 430, height: 932 } });
+  const page = await context.newPage();
+  await open(page, 'COORD', { language: 'B' });
+  await context.setOffline(true);
+  await tab(page, 'map').click();
+  // Progress names Alpha as not on this device yet.
+  if (await headerTitle(page) === 'Progress') await button(page, /^Alpha\. Not on this device yet/).click();
+  await expect(text(page, "Alpha isn't on this device yet")).toBeVisible();
+  await tab(page, 'work').click();
+  await expect.poll(() => headerTitle(page)).toBe('My Work');
+  await expect(text(page, "Alpha isn't on this device yet")).toBeVisible();
+  // Not caught up, and not unset: Get ready would ask what Alpha has already answered.
+  await expect(text(page, 'Nothing is waiting on you')).toHaveCount(0);
+  await expect(text(page, /^Get Alpha ready/)).toHaveCount(0);
+  await context.close();
+});
+
 // ---- The bell and the Inbox -------------------------------------------------------------
 
 test('NAV-030 The bell\'s count and the Inbox, from My Work @p0', async ({ page }) => {
@@ -542,7 +561,7 @@ test('NAV-030 The bell\'s count and the Inbox, from My Work @p0', async ({ page 
   const all = await screen(page);
   expect(all).toContain(`Cora asked you to record ${label('P-NEW')} (Alpha)`);
   expect(all).not.toMatch(/\bdue\b/);
-  expect(all).toMatch(new RegExp(`Feedback on ${label('P-NEEDS')} Rita Reviewer: Peer (Review|check) suggests changes — revise, or keep it and say why\\.`));
+  expect(all).toMatch(new RegExp(`Feedback on ${label('P-NEEDS')} Rita Reviewer: Peer (Review|[Cc]heck) suggests changes — revise, or keep it and say why\\.`));
   // Nothing TRANS did themselves.
   expect(all).not.toMatch(/Tom Translator (asked|published|recorded|approved|made)/);
   await back(page).click();
@@ -606,7 +625,7 @@ for (const who of ['VIEW', 'ADMIN'] as const) {
     if (who === 'VIEW') await expect(button(page, /^Next: /)).toHaveCount(0);
     else await expect(button(page, /^Next: /)).toBeVisible();
     await button(page, /^Luke\./).click();
-    await button(page, new RegExp(`^${label('P-DONE')}\\.`)).click();
+    await (await bookRow(page, new RegExp(`^${label('P-DONE')}\\.`))).click();
     await expect.poll(() => headerTitle(page)).toBe(label('P-DONE'));
     if (who === 'VIEW') await expect(primary(page)).toHaveCount(0);
     for (const want of ['Luke', 'Alpha', 'Progress']) {
@@ -621,18 +640,9 @@ for (const who of ['VIEW', 'ADMIN'] as const) {
 test('NAV-042 A language lead opening a language outside its scope', async ({ page }) => {
   await open(page, 'LADMIN');
   await tab(page, 'map').click();
-  await expect.poll(() => headerTitle(page)).toBe('Progress');
-  await expect(button(page, /^Alpha: /)).toBeVisible();
-  // Intended: Bravo is not offered (LADMIN holds no role there), or it opens read-only and the tabs stay.
-  const bravo = page.getByRole('button', { name: /^Bravo/ }).locator('visible=true');
-  if (await bravo.count()) {
-    const before = await screenText(page);
-    await bravo.first().click();
-    await screenChanged(page, before, 10_000);
-    await expect.poll(() => tabsShown(page), { message: 'tabs stay in Bravo' }).toEqual(['work', 'map', 'manage', 'me']);
-    await back(page).click();
-    await expect.poll(() => headerTitle(page)).toBe('Progress');
-  }
+  // LADMIN holds a role in Alpha only: the Map tab opens Alpha itself, and no language chips offer Bravo (UI audit, finding 82).
+  await expect.poll(() => headerTitle(page)).toBe('Alpha');
+  await expect(page.getByRole('button', { name: /^Bravo/ }).locator('visible=true')).toHaveCount(0);
   await expect.poll(() => tabsShown(page)).toEqual(['work', 'map', 'manage', 'me']);
   await tab(page, 'work').click();
   await expect.poll(() => headerTitle(page)).toBe('My Work');

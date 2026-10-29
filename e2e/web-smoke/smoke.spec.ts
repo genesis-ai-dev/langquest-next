@@ -148,8 +148,8 @@ test('a new organization on the web, from sign-up to sign-out', async ({ browser
   if (mic) {
     let block = true;
     await page.route('**/api/blobs/**', (route) => (block ? route.abort() : route.continue()));
+    // An organization with one language: the Map tab opens that language's map (UI audit, finding 82).
     await page.getByRole('tab', { name: 'Map' }).click();
-    await button(page, /^Dinka:/).click();
     await button(page, /^Matthew\./).click();
     // A book of FIA passages lists them as rows (decisions.md 166).
     await button(page, /^Matthew 3:1–17\. Not started/).click();

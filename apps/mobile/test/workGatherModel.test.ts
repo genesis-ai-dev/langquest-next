@@ -28,7 +28,7 @@ describe('My Work, the things gathered around its lead', () => {
       { id: '6', org_id: 'o', language_id: null },       // no language
       { id: '7', org_id: 'o', language_id: 'L4' }
     ];
-    expect(elsewhereCounts(rows, new Set(['4']), 'o', 'L1')).toEqual([{ languageId: 'L2', count: 2 }, { languageId: 'L4', count: 1 }]);
+    expect(elsewhereCounts(rows, new Set(['4']), 'o', 'L1')).toMatchObject([{ languageId: 'L2', count: 2 }, { languageId: 'L4', count: 1, ids: ['7'] }]);
     expect(elsewhereCounts(rows, new Set(), 'o', null).map((e) => e.languageId)).toEqual(['L2', 'L1', 'L3', 'L4']);
   });
 

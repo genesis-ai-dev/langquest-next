@@ -473,7 +473,10 @@ Expected:
   "Test report" in quotes, in italics.
 - Under it: "Reports never say who sent them. The LangQuest team sees every
   report too."
-- Buttons: a red "Remove from the record", "Open the passage", "Keep it".
+- Buttons: "Open the version" leads; under it a quieter red "Remove from
+  the record", then "Keep it" (UI audit, finding 113: look before removing).
+  A review's report says "Open the review"; a note's or request's, "Open
+  the passage".
 - Nothing names REV.
 - With several reports on one thing, the row says "{n} reports", the
   reasons are listed once each, and at most five comments show.
@@ -486,14 +489,14 @@ Preconditions:
   report on a disposable note by TREV on P-BT.
 
 Steps:
-1. Open the version's report and tap "Open the passage".
+1. Open the version's report and tap "Open the version", then Back.
 2. Go back to the Inbox. Open the same report and tap "Keep it".
 3. Open the note's report and tap "Remove from the record".
 4. Check REV's and COORD's Inboxes.
 
 Expected:
-- Step 1: P-SUBMITTED's record opens (on a desktop-wide window, beside the
-  Inbox).
+- Step 1: Version 1's page opens over P-SUBMITTED's record (on a
+  desktop-wide window, beside the Inbox); Back shows the record.
 - Step 2: the toast "Kept. The report is closed." The row leaves the Inbox,
   and the bell's count drops by one. Version 1 is unchanged.
 - Step 3: asked once more, as from the flag (MOD-015): "It leaves the

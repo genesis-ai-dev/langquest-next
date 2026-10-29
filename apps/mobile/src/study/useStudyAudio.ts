@@ -9,9 +9,9 @@ export interface StudyAudio {
   playing: boolean;
   time: number;
   duration: number;
-  /** No file, or it could not load: a clock at reading pace stands in. */
+  /** No address to play from: a clock at reading pace stands in. */
   simulated: boolean;
-  /** There was a file and it could not load. */
+  /** There was a file and it could not load: stopped, and the next Play tries again. */
   failed: boolean;
   play: () => void;
   pause: () => void;
@@ -20,10 +20,11 @@ export interface StudyAudio {
 }
 
 /**
- * Plays a real file when there is one (FIA's step and glossary audio) and
- * falls back to a simulated clock when there is none or it cannot load
- * (offline), so the screen behaves the same either way. The file is only
- * fetched on the first Play, to spare field data.
+ * Plays a real file when there is one (FIA's step and glossary audio), and a
+ * simulated clock when there is no address at all. A file that cannot load
+ * (offline) stops the player and says so: a clock counting over silence
+ * would say it plays (UI audit, finding 36). The file is only fetched on the
+ * first Play, to spare field data.
  */
 export function useStudyAudio(address: string | undefined, estimate: number): StudyAudio {
   // The phone's copy when the passage is kept offline (studyFiles.ts), else the web.
@@ -33,7 +34,7 @@ export function useStudyAudio(address: string | undefined, estimate: number): St
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(estimate);
   const [failed, setFailed] = useState(false);
-  const simulated = !url || failed;
+  const simulated = !url;
   const now = useRef({ time: 0, duration: estimate });
   now.current = { time, duration };
   // Where the simulated clock started from, so a seek while playing moves it.
@@ -59,11 +60,12 @@ export function useStudyAudio(address: string | undefined, estimate: number): St
     return () => clearInterval(tick);
   }, [playing, simulated]);
 
-  /** The file could not load or play: the simulated clock carries on from `from`. */
+  /** The file could not load or play: stopped at `from`, and the next Play tries again. */
   const fallBack = (from = now.current.time) => {
     player.current?.remove();
     player.current = null;
-    base.current = { at: Date.now(), from };
+    setTime(from);
+    setPlaying(false);
     setFailed(true);
   };
 
@@ -76,6 +78,7 @@ export function useStudyAudio(address: string | undefined, estimate: number): St
       setPlaying(true);
       return;
     }
+    setFailed(false);
     setPlaying(true);
     try {
       await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });

@@ -77,14 +77,18 @@ for (const who of ['ADMIN', 'COORD'] as const) {
     if (!d) await openAs(p, w, who);
     await languagePage(p, w, 'Alpha');
     await reviewFlows(p);
-    await expectOnScreen(p, 'Review flows', 'Alpha', 'Flow');
+    await expectOnScreen(p, 'Review flows', 'Alpha', 'New flow');
     // Alpha's checks were copied from Standard Bible Flow (decision 91): they are its own.
-    await expectOnScreen(p, 'Alpha uses', 'Custom flow', 'Peer Review', 'Back Translation', 'Community Check', 'Consultant Check', 'Final Approval', 'Add to your flows');
+    await expectOnScreen(p, 'Alpha uses', 'Custom flow', 'Peer Check', 'Back Translation', 'Community Check', 'Consultant Check', 'Final Approval', 'Add to your flows');
     await expectOnScreen(p, /Your organization · 0/i, 'No flows here yet. Follow or copy one another organization shares, or make your own.');
     await expectOnScreen(p, /From other organizations · \d+/i, 'Standard Bible Flow', 'Quick Check', /LangQuest · \d+ versions?/);
     await expect(button(p, 'Use')).toBeVisible();
     await expect(button(p, 'Follow')).toBeVisible();
     await expect(button(p, 'Copy')).toBeVisible();
+    // Who checks is chosen on Alpha's own checks: the card goes there (finding 102).
+    await button(p, 'Edit checks and people').click();
+    await expectOnScreen(p, 'Checks', 'Add a check');
+    await back(p).click();
     if (d) await d.context.close();
   });
 }
@@ -98,8 +102,8 @@ test('SETUP-044 Use a ready-made flow for a language @p0', async ({ page, browse
   // The copy replaces the checks this device holds: Alpha's record must have arrived (a fresh device pulls
   // it in pages), or the old checks stay beside the new ones.
   await languageArrived(page);
-  await expectOnScreen(page, /Alpha uses Custom flow Peer Review Back Translation Community Check Consultant Check Final Approval Add to your flows/);
-  const quick = await flowCard(page, 'Quick Check', 'Peer Review', 'Final Approval');
+  await expectOnScreen(page, /Alpha uses Custom flow Peer Check Back Translation Community Check Consultant Check Final Approval Edit checks and people Add to your flows/);
+  const quick = await flowCard(page, 'Quick Check', 'Peer Check', 'Final Approval');
   // Alpha's checks are still as Standard Bible Flow made them, so it can choose that again: Use asks nothing (decision 134).
   await quick.getByRole('button', { name: 'Use', exact: true }).click();
   await expectToast(page, 'Alpha now uses Quick Check.');
@@ -133,7 +137,7 @@ test('SETUP-044 Use a ready-made flow for a language @p0', async ({ page, browse
   // Changed, Alpha's checks are its own: a ready-made set over them asks first, and Cancel keeps them.
   await back(page).click();
   await text(page, 'All review flows').click();
-  const quickAgain = await flowCard(page, 'Quick Check', 'Peer Review', 'Final Approval');
+  const quickAgain = await flowCard(page, 'Quick Check', 'Peer Check', 'Final Approval');
   await quickAgain.getByRole('button', { name: 'Use', exact: true }).click();
   await expect(text(page, 'Replace Alpha\'s own checks with Quick Check?')).toBeVisible();
   await button(page, 'Cancel').click();
@@ -157,12 +161,14 @@ test('SETUP-075 A ready language\'s Review flow: its checks, the others, and the
   await languageArrived(page);
   await expectOnScreen(page, ORDER, '4 checks', 'Edit', 'Peer check → Final approval', 'All review flows');
   await text(page, 'Peer check → Final approval').click();
-  await button(page, 'Use Peer check → Final approval').click();
+  // The option is named by its checks, its flow's name under them; the button is short (finding 104).
+  await expectOnScreen(page, /Peer check → Final approval\s*Quick Check/);
+  await button(page, 'Use these checks').click();
   await expectToast(page, 'Alpha now starts from Peer check → Final approval');
   // Still as a ready-made flow made them: the one it used before is listed, and Use asks nothing (decision 134).
   await expect(text(page, 'Peer check → Final approval')).toBeVisible();
   await text(page, 'Peer check + back translation → Community check → Consultant check → Final approval').click();
-  await button(page, 'Use Peer check + back translation → Community check → Consultant check → Final approval').click();
+  await button(page, 'Use these checks').click();
   await expectToast(page, /^Alpha now starts from Peer check \+ back translation/);
   await expect(text(page, /^Replace Alpha's own checks/)).toHaveCount(0);
   await back(page).click();
@@ -177,7 +183,7 @@ test('SETUP-045 Make a review flow in the library', async ({ page }) => {
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
   await reviewFlows(page);
-  await text(page, 'Flow').click();
+  await text(page, 'New flow').click();
   await expectOnScreen(page, 'New way to check', 'New · your organization');
   await field(page, 'Name').fill(name);
   await field(page, 'Description').fill('The community first, then sign-off.');
@@ -362,6 +368,8 @@ test('SETUP-070 Must pass, and checks at the same time', async ({ page }) => {
   await expect(toggle(page, 'Must pass')).toBeChecked();
   await back(page).click();
   await expect(page.getByLabel('Community check must pass before the next steps')).toHaveCount(1);
+  // The list says what the lock means (finding 105).
+  await expectOnScreen(page, '= must pass before the next steps');
   // Back translation happens at the same time as Peer check; untick it there and it is a check of its own (decision 130).
   await text(page, 'Back translation').click();
   await expectOnScreen(page, /Same time as Peer check/);
@@ -376,8 +384,13 @@ test('SETUP-070 Must pass, and checks at the same time', async ({ page }) => {
   await primary(page).click();
   await expectOnScreen(page, 'Check 1 · Alpha', /Same time as Peer check/);
   await back(page).click();
-  // Community check back as it was.
+  // Community check back as it was, moved down and up by tap on the way (finding 101).
   await text(page, 'Community check').click();
+  await expectOnScreen(page, 'Check 2 · Alpha');
+  await text(page, 'Move down').click();
+  await expectOnScreen(page, 'Check 3 · Alpha');
+  await text(page, 'Move up').click();
+  await expectOnScreen(page, 'Check 2 · Alpha');
   if (await toggle(page, 'Must pass').isChecked()) await toggle(page, 'Must pass').click({ force: true });
   await back(page).click();
   await goBack(page);

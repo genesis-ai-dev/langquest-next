@@ -119,7 +119,8 @@ export function FeedbackHost(props: { ctx: Ctx; screen: string; signedIn: boolea
 function FeedbackSheet(props: { ctx: Ctx; screen: string; shot: Shot | null; signedIn: boolean; onClose: () => void }) {
   const { ctx, shot } = props;
   const me = ctx.session.actorId;
-  const [kind, setKind] = useState<FeedbackKind | null>(null);
+  // A problem until it is said to be an idea: the words already ask "What happened?", and Send waits only for them.
+  const [kind, setKind] = useState<FeedbackKind>('bug');
   const [body, setBody] = useState('');
   const [voice, setVoice] = useState<VoiceRef | null>(null);
   const [withShot, setWithShot] = useState(false);
@@ -139,7 +140,7 @@ function FeedbackSheet(props: { ctx: Ctx; screen: string; shot: Shot | null; sig
       ctx.toast(sentMessage(sent, props.signedIn));
       props.onClose();
     } catch (e) {
-      ctx.toast(failureMessage('send feedback', e));
+      ctx.toast(failureMessage('send feedback', e), 'problem');
       setBusy(false);
     }
   }

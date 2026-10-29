@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { requestPushToken } from './push';
+import { pushPermission, requestPushToken } from './push';
 import * as server from '../server/notifications';
 
 export async function enableNotifications(): Promise<void> {
@@ -7,6 +7,11 @@ export async function enableNotifications(): Promise<void> {
   const { error } = await server.registerPushToken(token);
   if (error) throw new Error(error.message);
   await AsyncStorage.setItem('push-token', token);
+}
+/** On when this phone's token is registered and the phone still allows them; blocked when only the phone's settings can turn them on. */
+export async function notificationStanding(): Promise<{ on: boolean; blocked: boolean }> {
+  const [token, permission] = await Promise.all([AsyncStorage.getItem('push-token'), pushPermission()]);
+  return { on: !!token && permission === 'granted', blocked: permission === 'blocked' };
 }
 export async function unregisterNotifications(): Promise<void> {
   if (!await tryUnregisterNotifications()) throw new Error('Connect once to disconnect notifications before signing out.');

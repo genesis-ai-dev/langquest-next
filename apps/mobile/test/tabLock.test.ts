@@ -2,14 +2,14 @@ import { LOCK_NAME, startTab, type TabDeps, type TabState } from '../src/web/tab
 
 // One tab at a time on the web (decisions.md 58): two tabs of one browser, faked.
 
-function browser(opts: { onWait?: () => void } = {}) {
+function browser(opts: { onWait?: () => void; busy?: (tab: number) => boolean; stays?: (tab: number) => boolean } = {}) {
   let holder: number | null = null;
   const waiting: { tab: number; grant: () => void }[] = [];
-  const channels = new Map<number, (m: string) => void>();
+  const channels = new Map<number, Set<(m: string) => void>>();
   const flags = new Map<number, boolean>();
   const reloads: number[] = [];
   const tab = (id: number): TabDeps => ({
-    request: async (name, opts, callback) => {
+    request: async (name, o, callback) => {
       expect(name).toBe(LOCK_NAME);
       // As Web Locks do: the lock is let go once the callback's promise settles.
       const held = async () => {
@@ -18,15 +18,32 @@ function browser(opts: { onWait?: () => void } = {}) {
         if (holder === id) { holder = null; waiting.shift()?.grant(); }
       };
       if (holder === null) { await held(); return; }
-      if (opts.ifAvailable) { await callback(null); return; }
-      await new Promise<void>((grant) => waiting.push({ tab: id, grant }));
+      if (o.ifAvailable) { await callback(null); return; }
+      await new Promise<void>((grant, fail) => {
+        const entry = { tab: id, grant };
+        waiting.push(entry);
+        // As Web Locks do: an aborted request leaves the queue and fails.
+        o.signal?.addEventListener('abort', () => {
+          const i = waiting.indexOf(entry);
+          if (i >= 0) waiting.splice(i, 1);
+          fail(new Error('AbortError'));
+        });
+      });
       await held();
     },
-    post: (m) => { for (const [other, h] of channels) if (other !== id) h(m); },
-    listen: (h) => { channels.set(id, h); return () => channels.delete(id); },
+    post: (m) => { for (const [other, hs] of channels) if (other !== id) for (const h of [...hs]) h(m); },
+    listen: (h) => {
+      const hs = channels.get(id) ?? new Set();
+      hs.add(h);
+      channels.set(id, hs);
+      return () => { hs.delete(h); };
+    },
+    busy: () => opts.busy?.(id) ?? false,
     movedFlag: { get: () => !!flags.get(id), set: () => flags.set(id, true), clear: () => flags.delete(id) },
     wait: async () => { opts.onWait?.(); },
     reload: () => {
+      // The person chose Stay on the browser's "Leave site?": the page and its lock stay.
+      if (opts.stays?.(id)) return;
       reloads.push(id);
       channels.delete(id);
       // The page goes, and its lock with it.
@@ -125,5 +142,52 @@ describe('one tab at a time', () => {
     await settle();
     expect(states.at(-1)).toBe('ready');
     expect(b.holder()).toBe(2);
+  });
+
+  it('a tab that is recording says so, and keeps LangQuest, instead of reloading its session away', async () => {
+    // Why: a take's audio lives in the page until it is saved, and the
+    // asking tab said "The other tab saves what it has" while it lost it.
+    let recording = true;
+    const b = browser({ busy: (tab) => tab === 1 && recording });
+    startTab(b.tab(1), () => {});
+    await settle();
+    const states: TabState[] = [];
+    const two = startTab(b.tab(2), (s) => states.push(s));
+    await settle();
+    two.useHere();
+    await settle();
+    expect(states.at(-1)).toBe('busy');
+    expect(b.reloads).toEqual([]);
+    expect(b.holder()).toBe(1);
+    // Stopped there: asking again moves it.
+    recording = false;
+    two.useHere();
+    await settle();
+    expect(states.at(-1)).toBe('ready');
+    expect(b.reloads).toEqual([1]);
+    expect(b.holder()).toBe(2);
+  });
+
+  it('waiting can be cancelled, and a cancelled tab never takes the lock later', async () => {
+    // Why: a holder that stays (Stay on "Leave site?") left the asking tab
+    // saying "Moving LangQuest to this tab…" for ever, with no way out.
+    let stays = true;
+    const b = browser({ stays: (tab) => tab === 1 && stays });
+    const one = startTab(b.tab(1), () => {});
+    await settle();
+    const states: TabState[] = [];
+    const two = startTab(b.tab(2), (s) => states.push(s));
+    await settle();
+    two.useHere();
+    await settle();
+    expect(states.at(-1)).toBe('waiting');
+    two.cancel();
+    await settle();
+    expect(states.at(-1)).toBe('elsewhere');
+    stays = false;
+    one.stop();
+    await settle();
+    expect(b.holder()).toBe(null);
+    expect(states.at(-1)).toBe('elsewhere');
   });
 });

@@ -17,7 +17,7 @@ export function useDiagnosticsSwitch(ctx: Ctx): { on: boolean | null; toggle: ()
     setOn(next);
     void setDiagnosticsEnabled(next).catch((e: unknown) => {
       setOn(!next);
-      ctx.toast(failure('diagnostics setting', e));
+      ctx.toast(failure('diagnostics setting', e), 'problem');
     });
   }
   return { on, toggle };

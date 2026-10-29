@@ -40,7 +40,7 @@ Expected:
 - "Join your team" opens, with "Welcome, {first}" under the title. No welcome screen shows first.
 - No tab bar shows.
 - Three cards, in this order:
-  - "Scan their code" / "Someone on your team shows it". It is highlighted as the first choice.
+  - "Scan their code" / "Someone on your team shows it". It is highlighted as the first choice, but a screen reader does not call it selected or current: nothing has been chosen yet (UI audit, finding 68).
   - "Find your organization" / "Ask them to let you in".
   - "Start a new one" / "For a team leader".
 - Quiet links under the cards: "Sign out" and "Delete account".
@@ -62,7 +62,7 @@ Steps:
 4. Tap "Look around first", then the back arrow.
 
 Expected:
-- Step 1: "Scan a code" with "Invite includes organization, role, and scope". On a phone the camera starts by itself (permission is allowed, G5).
+- Step 1: "Scan a code" with "The invite says which organization, role and language". On a phone the camera starts by itself (permission is allowed, G5).
 - Step 2: "Find your organization" with a search field, "Name or language".
 - Step 3: "Create Organization".
 - Step 4: "Explore", with no "Sign In" in the header.
@@ -108,9 +108,9 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Go offline (Chrome DevTools, Network: Offline).
-2. Tap "Find your organization" and tap "Ask to join" on UI Test Org's row. Tap "Done".
+2. Tap "Find your organization", tap UI Test Org's row, then "Ask to join". Tap "Done".
 3. Tap "Sign out".
-4. Go online, wait for "Asked UI Test Org" to say "You'll go straight in when they say yes…", then tap "Sign out".
+4. Go online, wait for "Asked UI Test Org" to say "You can close the app…", then tap "Sign out".
 
 Expected:
 - Step 3: "Still to send: 1 account change. This device is offline. Sign out once they have synced so they are not stranded here." NOORG stays signed in.
@@ -168,20 +168,20 @@ Steps:
 
 Expected:
 - Step 1: a sheet "Who may use your work" with "Who may use what your team records and writes. You can open it up later, but never close it again."
-- It lists six licences, in this order, with "All rights reserved" ticked:
-  - "All rights reserved", "Only your organization".
-  - "CC BY-NC-ND 4.0", "Share unchanged, not for sale".
-  - "CC BY-NC-SA 4.0", "Share and adapt, not for sale".
-  - "CC BY-SA 4.0", "Share and adapt, same terms".
-  - "CC BY 4.0", "Any use, with credit".
-  - "CC0 (public domain)", "No conditions".
+- It lists six licences, in this order, with "All rights reserved" ticked. What each allows is the label, and its code the line under it (UI audit, finding 67):
+  - "Only your organization", "All rights reserved".
+  - "Share unchanged, not for sale", "CC BY-NC-ND 4.0".
+  - "Share and adapt, not for sale", "CC BY-NC-SA 4.0".
+  - "Share and adapt, same terms", "CC BY-SA 4.0".
+  - "Any use, with credit", "CC BY 4.0".
+  - "No conditions", "CC0 (public domain)".
 - The ticked one shows what it means: "Only your members can see and use your work. Nobody else may copy or share it."
 - Step 2:
   - "CC BY 4.0" is ticked and shows "Anyone may use, adapt and sell your work for any purpose, as long as they credit you." with "Read the license".
   - The amber banner "People outside can hear your team" / "Anyone will be able to listen to your recordings. If a voice could put someone at risk, keep your work closed." shows.
   - Every licence except "All rights reserved" shows this banner.
 - Step 3 opens the licence's page in the browser.
-- Step 4: the sheet closes. The row reads "CC BY 4.0" / "Any use, with credit", with a globe icon.
+- Step 4: the sheet closes. The row reads "Any use, with credit" / "CC BY 4.0", with a globe icon. Its accessibility label is still "License: CC BY 4.0. Any use, with credit".
 - Step 5: the row reads "All rights reserved" again. Before the organization exists, the choice can be closed again.
 
 ### NOORG-009 Start a new organization
@@ -292,9 +292,9 @@ Steps:
 Expected:
 - Step 1:
   - "Loading…" may show briefly.
-  - Then a row "UI Test Org" with "Alpha" under it, and "Ask to join" on the right. Its accessibility label is "Ask UI Test Org to let you in".
+  - Then a row "UI Test Org" with "Alpha" under it, and a chevron: tapping it opens the request, and sends nothing by itself.
   - UI Second Org is not listed.
-  - Under the list: "Not here? Ask someone on your team to show you their code."
+  - Under the list: "Not here? Scan their code", which opens "Scan a code" (UI audit, finding 69).
 - Step 2: UI Test Org stays (the name matches, ignoring case).
 - Step 3: UI Test Org stays (its language matches).
 - Step 4: no rows, and "No organization or language matches “zzzz”."
@@ -311,15 +311,16 @@ Resets: NOORG has a join request to UI Test Org. NOORG-021 and NOORG-023 answer 
 
 Steps:
 1. Tap the "UI Test Org" row.
-2. Tap "Done".
+2. Tap "Ask to join".
+3. Tap "Done".
 
 Expected:
-- One tap sends: no confirmation and no message field. The row's right side reads "Asking…" while it saves.
-- The screen becomes "Asked", with "Asked UI Test Org" and "You'll go straight in when they say yes. You can close the app; we'll let you know."
+- Step 1 opens "Ask UI Test Org": "An admin there sees your request. When they let you in, you'll go straight to your work.", the field "Say something (optional)" and the footer button "Ask to join", as from Explore (NOORG-019). Its back arrow, or Android's Back, returns to the list with nothing sent. A slip on a row never sends a request (UI audit, finding 63).
+- Step 2: the screen becomes "Asked", with "Asked UI Test Org" and "You can close the app. Next time you open it, you'll go straight in if they said yes."
 - Briefly, before it is sent, the text may read "Saved on this device. It sends when you have a connection."
 - The header has a back arrow.
-- Step 2: "Join your team" opens, titled "Asked UI Test Org", with no "Welcome, {first}" line.
-  - A clock and "Asked UI Test Org", with "You'll go straight in when they say yes. You can close the app; we'll let you know."
+- Step 3: "Join your team" opens, titled "Asked UI Test Org", with no "Welcome, {first}" line.
+  - A clock and "Asked UI Test Org", with "You can close the app. Next time you open it, you'll go straight in if they said yes."
   - "Meanwhile" over the same three cards, none highlighted.
 
 Fixed (2026-10-12): the "Asked" screen's back arrow leads to "Join your team", as Done does.
@@ -334,7 +335,7 @@ Resets: as NOORG-015.
 
 Steps:
 1. Go offline. Tap "Find your organization".
-2. Tap "UI Test Org".
+2. Tap "UI Test Org", then "Ask to join".
 3. Tap "Done".
 4. Kill and reopen the app, still offline.
 5. Go online and wait up to 30 seconds.
@@ -343,7 +344,7 @@ Expected:
 - Step 1: the saved list shows, with the banner "Unable to refresh. Showing what was saved on this device."
 - Step 2: "Asked", with "Asked UI Test Org" and "Saved on this device. It sends when you have a connection."
 - Steps 3 and 4: "Join your team" is titled "Asked UI Test Org". The body reads "Your request is saved on this device and sends when you have a connection."
-- Step 5: the body changes to "You'll go straight in when they say yes. You can close the app; we'll let you know." COORD's My Work shows the request (NOORG-021).
+- Step 5: the body changes to "You can close the app. Next time you open it, you'll go straight in if they said yes." COORD's My Work shows the request (NOORG-021).
 
 ### NOORG-017 More than 25 listed organizations
 Roles: NOORG · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -374,7 +375,7 @@ Steps:
 
 Expected:
 - No rows.
-- "No organizations are listed yet. Ask someone on your team to show you their code."
+- "No organizations are listed yet.", and "Scan their code" under it, which opens "Scan a code".
 
 ### NOORG-019 Asking from Explore, with a message
 Roles: NOORG · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -391,7 +392,7 @@ Steps:
 4. Tap "Done".
 
 Expected:
-- Step 1: "Ask UI Test Org" opens, with "They'll let you in, and you'll go straight to your work."
+- Step 1: "Ask UI Test Org" opens, with "Alpha" under the title: the card named the organization, and the form names the language asked about (UI audit, finding 65). Then "An admin there sees your request. When they let you in, you'll go straight to your work." (finding 70).
   - The field "Say something (optional)", with "Who you are, and which team" as its placeholder.
   - The footer button "Ask to join".
 - Step 3: "Asked" with "Asked UI Test Org".
@@ -536,3 +537,34 @@ Steps:
 Expected:
 - NOORG joins by the invite and sees the welcome, as in AUTH-033. The waiting request does not hold the join up.
 - If COORD then opens the old request and taps "Let {first} in", the app does not crash, and Members still lists NOORG once.
+
+### NOORG-027 Find your organization, never loaded, with no connection
+Roles: NOORG · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions (in addition to the global ones):
+- Nothing is saved on the device for the list, and asking the server for it fails (offline).
+
+Steps:
+1. Tap "Find your organization".
+2. Get a connection, and tap "Try again".
+
+Expected:
+- Step 1: "Couldn't load the list" / "Try again when you have a connection, or scan a code from someone on your team.", with "Try again" and "Scan their code". No "Unable to refresh" banner and no "No organizations are listed yet.": nobody is told there is nothing to find when it was never asked (UI audit, finding 64).
+- Step 2: the list shows.
+
+### NOORG-028 A guest's tap on Explore waits through signing in
+Roles: GUEST · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions (in addition to the global ones):
+- Signed out. A fresh account with no organization is to hand.
+
+Resets: as NOORG-015.
+
+Steps:
+1. Tap "Browse public work", then LANG-A's card, which ends with "Sign in to ask".
+2. Sign in as the fresh account.
+
+Expected:
+- Step 1: Sign In opens with "Sign in, then ask to join the Alpha team".
+- Step 2: "Join your team" opens, and at once "Ask UI Test Org", with "Alpha" under the title. Nobody had to find the organization again by name (UI audit, finding 33).
+- The tapped language is kept on the device for an hour at most, and only once: the next person to sign in on a shared phone is not sent to ask it.

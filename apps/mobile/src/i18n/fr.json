@@ -106,7 +106,7 @@
     },
     "kinds": {
       "peer": {
-        "name": "Révision par un pair",
+        "name": "Vérification par un pair",
         "usualReviewer": "Un autre traducteur",
         "description": "Un autre traducteur écoute pour vérifier l’exactitude et le naturel du parler."
       },
@@ -313,8 +313,8 @@
     "workspace": "Enregistrer",
     "review_capture": "Le réviser",
     "back_translation": "Rétrotraduire",
-    "key_terms": "Termes clés",
-    "key_term_detail": "Terme clé",
+    "key_terms": "Mots clés",
+    "key_term_detail": "Mot clé",
     "inbox_home": "Boîte de réception",
     "settings_home": "Moi",
     "profile_edit": "Modifier le profil",
@@ -680,19 +680,14 @@
       "aTemplate": "Un modèle",
       "applied": "{{name}} appliqué",
       "noneApplied": "Aucun appliqué",
-      "none": "Aucun",
+      "inLibrary_one": "{{count, number}} dans la bibliothèque",
+      "inLibrary_many": "{{count, number}} dans la bibliothèque",
+      "inLibrary_other": "{{count, number}} dans la bibliothèque",
       "noLanguages": "Pas encore de langues",
-      "languages_one": "{{count, number}} langue",
-      "languages_many": "{{count, number}} langues",
-      "languages_other": "{{count, number}} langues",
       "templates": "Modèles de contenu",
       "reference": "Documents de référence",
-      "referenceSub": "{{study}} étude · {{questions}} séries de questions · {{terms}} termes clés",
       "flows": "Circuits de révision",
       "roles": "Rôles",
-      "rolesSub_one": "{{count, number}} rôle à ce niveau et au-dessus",
-      "rolesSub_many": "{{count, number}} rôles à ce niveau et au-dessus",
-      "rolesSub_other": "{{count, number}} rôles à ce niveau et au-dessus",
       "summary": {
         "templates": "Modèles de contenu",
         "referenceFirst": "Documents de référence",
@@ -704,18 +699,32 @@
       },
       "titleHelp": "Montre ce qui se configure une fois et change peu : modèles de contenu, documents de référence, circuits de révision et rôles.",
       "templatesHelp": "Ouvre les façons de découper le travail en passages, et celle que chaque langue utilise.",
-      "referenceHelp": "Ouvre les Bibles, guides d’étude, questions et termes clés proposés aux traducteurs.",
+      "referenceHelp": "Ouvre les Bibles, guides d’étude, questions et mots clés proposés aux traducteurs.",
       "flowsHelp": "Ouvre les façons de vérifier les enregistrements, et celle que chaque langue utilise.",
-      "rolesHelp": "Ouvre les rôles, et ce que chacun permet de faire."
+      "rolesHelp": "Ouvre les rôles, et ce que chacun permet de faire.",
+      "counts": {
+        "study_one": "{{count, number}} guide d’étude",
+        "study_many": "{{count, number}} guides d’étude",
+        "study_other": "{{count, number}} guides d’étude",
+        "questions_one": "{{count, number}} série de questions",
+        "questions_many": "{{count, number}} séries de questions",
+        "questions_other": "{{count, number}} séries de questions",
+        "terms_one": "{{count, number}} mot clé",
+        "terms_many": "{{count, number}} mots clés",
+        "terms_other": "{{count, number}} mots clés"
+      },
+      "rolesSub_one": "{{count, number}} rôle",
+      "rolesSub_many": "{{count, number}} rôles",
+      "rolesSub_other": "{{count, number}} rôles"
     },
     "people": {
       "title": "Personnes",
       "members": "Membres",
-      "assignedHere_one": "{{count, number}} attribué à cette langue",
-      "assignedHere_many": "{{count, number}} attribués à cette langue",
-      "assignedHere_other": "{{count, number}} attribués à cette langue",
-      "orgSub": "{{here}} au niveau de l’organisation · {{total}} au total",
-      "membersHelp": "Ouvre les personnes et leurs rôles, pour inviter quelqu’un ou changer un rôle."
+      "orgSub": "{{here}} dans toutes les langues · {{total}} en tout",
+      "membersHelp": "Ouvre les personnes et leurs rôles, pour inviter quelqu’un ou changer un rôle.",
+      "assignedHere_one": "{{count, number}} avec un rôle dans cette langue",
+      "assignedHere_many": "{{count, number}} avec un rôle dans cette langue",
+      "assignedHere_other": "{{count, number}} avec un rôle dans cette langue"
     },
     "home": {
       "title": "Organisation",
@@ -828,15 +837,16 @@
       "count_many": "{{count, number}} membres",
       "count_other": "{{count, number}} membres",
       "invite": "Inviter",
-      "introOrg": "Membres attribués au niveau de l’organisation. Ouvrez les groupes ci-dessous pour les autres niveaux.",
-      "introLanguage": "Membres attribués au niveau de la langue pour cette vue. Ouvrez les groupes ci-dessous pour les autres niveaux.",
+      "introOrg": "Les personnes dont le rôle couvre toutes les langues. Ouvrez un groupe ci-dessous pour celles de chaque langue.",
+      "introLanguage": "Les personnes qui ont un rôle dans cette langue. Ouvrez un groupe ci-dessous pour les autres.",
       "sectionOrg": "Membres de l’organisation · {{total}}",
       "sectionLanguage": "Membres de la langue · {{total}}",
       "pending": "En attente",
-      "none": "Aucun membre attribué à ce niveau pour l’instant.",
+      "none": "Personne n’a encore de rôle ici.",
+      "connectToSee": "Connectez-vous pour voir qui a demandé à rejoindre",
       "expandBy": "Regrouper par",
       "byLanguage": "Par langue",
-      "higher": "Niveaux supérieurs · lecture seule",
+      "higher": "Toutes les langues · lecture seule",
       "memberHelp": "Ouvre son rôle et où il s’applique, pour les changer.",
       "lockedHelp": "Vous ne pouvez pas changer le rôle de cette personne d’ici.",
       "requestHelp": "Veut rejoindre. Ouvre sa demande : l’accepter, ou refuser.",
@@ -848,9 +858,9 @@
     "assign": {
       "noRoles": "Aucun rôle disponible ici.",
       "where": "Où ?",
-      "whereHelp": "Où cette personne peut utiliser les droits du rôle choisi.",
+      "whereHelp": "Où cette personne peut faire ce que le rôle lui permet.",
       "language": "Langue",
-      "languageHelp": "La langue à laquelle cette attribution s’applique.",
+      "languageHelp": "Pour quelle langue est le rôle.",
       "noLanguages": "Pas encore de langues.",
       "orgHelp": "Le rôle s’applique à toute l’organisation.",
       "languageLevelHelp": "Le rôle s’applique dans une langue, choisie ci-dessous.",
@@ -878,18 +888,18 @@
     },
     "member": {
       "isNow": "{{name}} est maintenant {{role}}",
-      "removedOrg": "{{name}} retiré au niveau de l’organisation",
-      "removedLanguage": "{{name}} retiré au niveau de la langue",
+      "removedOrg": "{{name}} n’a plus de rôle dans toutes les langues",
+      "removedLanguage": "{{name}} n’a plus de rôle dans cette langue",
       "declined": "Demande de {{name}} refusée",
       "editTitle": "Modifier le membre",
       "notMember": "N’est pas membre ici",
       "notMemberSub": "Cette personne n’a plus de rôle dans cette organisation.",
       "awaiting": "En attente d’approbation",
       "assignRole": "Attribuer un rôle",
-      "saveAssignment": "Sauvegarder l’attribution",
+      "saveAssignment": "Enregistrer le rôle",
       "decline": "Refuser",
-      "introPending": "Cette personne a créé un compte et demande à rejoindre. Attribuez-lui un rôle et un périmètre pour lui donner accès.",
-      "intro": "Choisissez un rôle, puis le périmètre auquel cette attribution s’applique. Le périmètre peut être ce niveau ou un niveau en dessous.",
+      "introPending": "Cette personne a créé un compte et demandé à rejoindre. Choisissez son rôle et où il s’applique pour la laisser entrer.",
+      "intro": "Choisissez un rôle, puis où il s’applique.",
       "outranked": "{{name}} a plus de droits ici que vous, donc seule une personne qui en a autant peut changer cela.",
       "onlyManager": "{{name}} est la seule personne qui peut gérer les rôles",
       "onlyManagerYou": "Vous êtes la seule personne qui peut gérer les rôles",
@@ -908,6 +918,8 @@
       "howToLost": "Sur son nouvel appareil, {{name}} ouvre LangQuest, touche Scanner un code et le pointe ici. Il fonctionne une fois, pendant une heure. L’utiliser déconnecte son ancien appareil.",
       "willSee": "{{name}} verra dans les Réglages que vous l’avez aidé à se connecter.",
       "noEmail": "{{name}} n’a pas d’e-mail. Sur un nouvel appareil, montrez-lui un code de connexion.",
+      "row": "Aider {{name}} à se connecter sur un nouvel appareil",
+      "rowHelp": "Pour qui n’a pas d’e-mail : ouvre une page pour créer un code de connexion. Aucun code n’est créé avant que vous le demandiez.",
       "lostSignOut": "Son ancien appareil est perdu ou volé : le déconnecter",
       "lost": "Son ancien appareil est perdu ou volé",
       "help": "L’aider à se connecter",
@@ -927,9 +939,6 @@
       "pickRole": "Choisissez le rôle que cette personne doit avoir. Vous n’avez pas besoin de son e-mail.",
       "alreadyTitle": "Déjà dans l’équipe, avec un nouvel appareil ?",
       "alreadyBody": "Ouvrez sa fiche dans Membres et touchez L’aider à se connecter. Une nouvelle invitation créerait un deuxième compte.",
-      "privileges_one": "{{count, number}} droit",
-      "privileges_many": "{{count, number}} droits",
-      "privileges_other": "{{count, number}} droits",
       "noRoles": "Pas encore de rôles.",
       "createRole": "Créer un nouveau rôle",
       "one": "Une personne",
@@ -950,6 +959,12 @@
       "shownOnceGroup_many": "Affiché une seule fois : quitter cet écran fait perdre le code. Jusqu’à {{count, number}} personnes peuvent l’utiliser, jusqu’au {{date}}.",
       "shownOnceGroup_other": "Affiché une seule fois : quitter cet écran fait perdre le code. Jusqu’à {{count, number}} personnes peuvent l’utiliser, jusqu’au {{date}}.",
       "shownOnceOne": "Affiché une seule fois : quitter cet écran fait perdre le code. Il peut être utilisé une fois, jusqu’au {{date}}.",
+      "leaveAsk": "Quitter le code ?",
+      "leaveBody": "Le code de {{name}} ne peut plus être affiché. S’ils ne l’ont pas scanné, faites-en un nouveau.",
+      "stay": "Rester sur le code",
+      "stayHelp": "Garde le code à l’écran, pour qu’ils le scannent.",
+      "leave": "Partir",
+      "leaveHelp": "Revient en arrière. Le code ne peut plus être affiché.",
       "share": "Partager l’invitation",
       "couldNotShare": "Impossible de la partager. Tapez plutôt le code ci-dessus.",
       "toNameHelp": "Passe à l’étape suivante : à qui il est destiné.",
@@ -957,7 +972,10 @@
       "doneHelp": "Terminé : ouvre la liste des membres.",
       "nameFieldHelp": "La personne à qui le code est destiné. Elle le voit quand elle scanne.",
       "groupNameFieldHelp": "Un nom pour le groupe. Tous ceux qui scannent le voient.",
-      "shareHelp": "Envoie le lien d’invitation dans un message, ou le copie."
+      "shareHelp": "Envoie le lien d’invitation dans un message, ou le copie.",
+      "privileges_one": "{{count, number}} permission",
+      "privileges_many": "{{count, number}} permissions",
+      "privileges_other": "{{count, number}} permissions"
     },
     "newLanguage": {
       "theOrganization": "l’organisation",
@@ -1004,13 +1022,13 @@
       "stages": {
         "language": "Langue",
         "content": "Contenu",
-        "pieces": "Découper en morceaux",
+        "pieces": "Découper en sections",
         "material": "Documents de référence",
         "flow": "Circuit de révision",
         "people": "Personnes",
         "languageHelp": "La langue dans laquelle ils traduisent : son nom, trouvé dans la liste des langues ou tapé. Elle peut être liée à la liste plus tard.",
         "contentHelp": "Ce qu’ils vont traduire : la Bible, ou autre chose, comme des récits ou des chants.",
-        "piecesHelp": "Comment c’est découpé en morceaux assez petits pour être enregistrés et vérifiés un par un.",
+        "piecesHelp": "Comment c’est découpé en sections assez petites pour être enregistrées et vérifiées une par une.",
         "materialHelp": "Les Bibles, guides d’étude et notes que les traducteurs et les vérificateurs auront à côté d’eux.",
         "flowHelp": "Les vérifications par lesquelles passe un enregistrement avant d’être approuvé, et ce que voient les personnes de chaque vérification.",
         "peopleHelp": "Ensuite, invitez des personnes : traducteurs, vérificateurs et autres, chacun avec un code à scanner.",
@@ -1031,6 +1049,11 @@
       "toChecksHelp": "Affiche ses vérifications, pour configurer chacune d’elles.",
       "startAgainAsk": "Recommencer à partir de {{flow}} ?",
       "startAgain": "Recommencer",
+      "leaveAsk": "Partir sans ajouter {{language}} ?",
+      "keepGoing": "Continuer",
+      "keepGoingHelp": "Revient à la page où vous étiez, avec vos réponses gardées.",
+      "leave": "Partir",
+      "leaveHelp": "Part sans ajouter la langue. Vos réponses ici sont perdues.",
       "material": {
         "question": "Qu’est-ce qui aidera l’équipe de {{language}} ?",
         "onHelp": "L’équipe de {{language}} l’aura. Touchez pour le laisser de côté.",
@@ -1348,7 +1371,7 @@
       "keepIt": "Le garder",
       "whichPart": "Quelle partie de la Bible ?",
       "viewOnly": "Seules les personnes qui configurent les langues peuvent changer ce qu’elles traduisent.",
-      "keepEarlier": "Les morceaux qui ne changent pas gardent leurs enregistrements. Ce qui a été enregistré sur un morceau qui change est gardé sous « Sections précédentes » dans les nouveaux morceaux.",
+      "keepEarlier": "Les sections qui ne changent pas gardent leurs enregistrements. Ce qui a été enregistré sur une section qui change est gardé sous « Sections précédentes » dans les nouvelles sections.",
       "partHelp": "Ils traduisent cette partie de la Bible.",
       "chooseBooksHelp": "Choisissez les livres un par un, ci-dessous.",
       "bookOnHelp": "Choisi. Touchez pour le laisser de côté.",
@@ -1422,7 +1445,6 @@
       "passagesCovered_many": "{{count, number}} passages couverts",
       "passagesCovered_other": "{{count, number}} passages couverts",
       "keyWords": "Mots clés",
-      "keyTerms": "Termes clés",
       "keyTermsSub_one": "{{count, number}} mot · {{rendered}} avec un mot en {{language}}",
       "keyTermsSub_many": "{{count, number}} mots · {{rendered}} avec un mot en {{language}}",
       "keyTermsSub_other": "{{count, number}} mots · {{rendered}} avec un mot en {{language}}",
@@ -1461,7 +1483,6 @@
       "nextHelp": "Garde cette façon de vérifier, puis passe à la question suivante."
     },
     "invite": {
-      "somethingElse": "Autre chose",
       "cannotTitle": "Seules les personnes qui peuvent inviter ici peuvent montrer un code",
       "cannotBody": "Demandez à quelqu’un qui dirige l’équipe de {{language}} d’inviter vos traducteurs."
     },
@@ -1846,8 +1867,8 @@
       "skip": "Passer la présentation",
       "stepLabel": "Étape {{step, number}} sur {{total, number}}",
       "pieces": {
-        "title": "Votre équipe enregistre le contenu par morceaux",
-        "text": "Le contenu est rangé dans des dossiers, et les gens enregistrent les morceaux qui s’y trouvent. Voici des récits, rangés en recueils.",
+        "title": "Votre équipe enregistre le contenu par sections",
+        "text": "Le contenu est rangé dans des dossiers, et les gens enregistrent les sections qui s’y trouvent. Voici des récits, rangés en recueils.",
         "began": "Comment tout a commencé",
         "river": "Pourquoi le fleuve est large",
         "fire": "Le premier feu",
@@ -1856,12 +1877,12 @@
       },
       "bible": {
         "title": "Une Bible a des livres, des chapitres et des versets",
-        "text": "Chaque livre est un dossier. À l’intérieur, le livre est coupé en morceaux à enregistrer, et chaque verset marque un endroit dans l’enregistrement.",
+        "text": "Chaque livre est un dossier. À l’intérieur, le livre est coupé en sections à enregistrer, et chaque verset marque un endroit dans l’enregistrement.",
         "chapterVerses": "{{book}} {{chapter}} · versets 1 à {{last}}"
       },
       "places": {
         "title": "Un même livre peut être coupé à différents endroits",
-        "text": "Voici {{book}} de trois façons. Les mêmes versets, des morceaux différents.",
+        "text": "Voici {{book}} de trois façons. Les mêmes versets, des sections différentes.",
         "byChapter": "Par chapitre",
         "fia": "Passages FIA",
         "unfoldingWord": "Segments unfoldingWord"
@@ -1899,21 +1920,21 @@
       "waitsLabel": "{{book}} attend d’être découpé",
       "notInIt": "{{book}} n’y est pas",
       "waits": "{{book}} attend qu’un coordinateur le découpe",
-      "label_one": "{{book}} en {{count, number}} morceau",
-      "label_many": "{{book}} en {{count, number}} morceaux",
-      "label_other": "{{book}} en {{count, number}} morceaux",
-      "caption_one": "{{book}} : {{count, number}} morceau",
-      "caption_many": "{{book}} : {{count, number}} morceaux",
-      "caption_other": "{{book}} : {{count, number}} morceaux",
-      "help": "Chaque bloc est un morceau à enregistrer ; sa largeur suit le nombre de ses versets."
+      "label_one": "{{book}} en {{count, number}} section",
+      "label_many": "{{book}} en {{count, number}} sections",
+      "label_other": "{{book}} en {{count, number}} sections",
+      "caption_one": "{{book}} : {{count, number}} section",
+      "caption_many": "{{book}} : {{count, number}} sections",
+      "caption_other": "{{book}} : {{count, number}} sections",
+      "help": "Chaque bloc est une section à enregistrer ; sa largeur suit le nombre de ses versets."
     },
     "way": {
       "inUse": "Utilisé ici",
-      "previewHelp": "Tous les morceaux en lesquels {{way}} coupe un livre.",
+      "previewHelp": "Toutes les sections en lesquelles {{way}} découpe un livre.",
       "comesWith": "Vient avec les guides d’étude {{pattern}}",
       "previewLabel": "Aperçu : {{way}}",
-      "pickHelp": "Choisit cette façon de le couper en morceaux.",
-      "barHelp": "La barre montre {{book}} coupé de cette façon : chaque bloc est un morceau, et sa largeur suit le nombre de ses versets."
+      "pickHelp": "Choisit cette façon de le couper en sections.",
+      "barHelp": "La barre montre {{book}} coupé de cette façon : chaque bloc est une section, et sa largeur suit le nombre de ses versets."
     },
     "preview": {
       "useThis": "Utiliser ceci",
@@ -1932,6 +1953,7 @@
       "hereDetail": "La langue que vous changez change toujours.",
       "cannotChange": "Vous ne pouvez pas changer celle-ci",
       "otherDetail": "Cochez-la pour changer {{language}} de la même façon. Sinon, {{language}} garde le modèle tel qu’il est.",
+      "otherDetailRedo": "Cochez-la pour diviser {{book}} de la même façon pour {{language}} et déplacer ses enregistrements de même. Sinon, {{language}} garde {{book}} tel qu’il est.",
       "everyLanguage": "Toutes les langues qui l’utilisent changent.",
       "someLanguages": "Les langues que vous laissez de côté gardent le modèle tel qu’il est. Celles que vous choisissez reçoivent leur propre copie avec ce changement."
     },
@@ -1942,7 +1964,12 @@
       "titleBook": "{{book}} va être découpé à nouveau",
       "bodyNumbering": "Tout ce qui a été enregistré et révisé sur les sections qui changent passe sous « Sections précédentes » dans les nouvelles, avec un avertissement, et devra être refait. Cela comprend les enregistrements encore sur le téléphone de quelqu’un et pas encore synchronisés.",
       "bodyBook": "Tout ce qui a été enregistré et révisé sur les anciennes sections de {{book}} passe sous « Sections précédentes » dans les nouvelles, avec un avertissement, et devra être refait. Cela comprend les enregistrements encore sur le téléphone de quelqu’un et pas encore synchronisés.",
-      "nothingDeleted": "Rien n’est supprimé."
+      "bodyRecorded_one": "{{count, number}} section de {{book}} a des enregistrements sur ce téléphone. Tout ce qui a été enregistré et révisé sur les anciennes sections de {{book}} passe sous « Sections précédentes » dans les nouvelles, avec un avertissement, et devra être refait. Cela comprend les enregistrements encore sur le téléphone de quelqu’un et pas encore synchronisés.",
+      "bodyRecorded_many": "{{count, number}} sections de {{book}} ont des enregistrements sur ce téléphone. Tout ce qui a été enregistré et révisé sur les anciennes sections de {{book}} passe sous « Sections précédentes » dans les nouvelles, avec un avertissement, et devra être refait. Cela comprend les enregistrements encore sur le téléphone de quelqu’un et pas encore synchronisés.",
+      "bodyRecorded_other": "{{count, number}} sections de {{book}} ont des enregistrements sur ce téléphone. Tout ce qui a été enregistré et révisé sur les anciennes sections de {{book}} passe sous « Sections précédentes » dans les nouvelles, avec un avertissement, et devra être refait. Cela comprend les enregistrements encore sur le téléphone de quelqu’un et pas encore synchronisés.",
+      "nothingDeleted": "Rien n’est supprimé.",
+      "bodyNoneHere": "Aucun enregistrement de {{book}} n’est arrivé sur ce téléphone. Les enregistrements encore sur le téléphone de quelqu’un et pas encore synchronisés passent sous « Sections précédentes » dans les nouvelles, avec un avertissement, et devront être refaits.",
+      "alsoLanguages": "{{book}} change de la même façon pour {{languages}}, et leurs enregistrements aussi."
     },
     "numbering": {
       "ignore": "OK, ignorer",
@@ -1959,7 +1986,7 @@
     },
     "book": {
       "breakDifferently": "Découper autrement",
-      "breakDifferentlyHelp": "Choisissez une autre façon de couper ce livre en morceaux.",
+      "breakDifferentlyHelp": "Choisissez une autre façon de couper ce livre en sections.",
       "namedToast": "{{language}} l’appelle {{name}}.",
       "brokenUp": "Découpé",
       "ownWay": "Son propre découpage",
@@ -1972,8 +1999,8 @@
       "breakUp": "Découper {{book}}",
       "changeQuestion": "Changer le découpage de {{book}}",
       "question": "Comment découper {{book}} ?",
-      "nowEachPiece": "Actuellement : {{way}}. Chaque morceau est enregistré séparément.",
-      "eachPiece": "Chaque morceau est enregistré séparément.",
+      "nowEachPiece": "Actuellement : {{way}}. Chaque section est enregistrée séparément.",
+      "eachPiece": "Chaque section est enregistrée séparément.",
       "connectForWays": "Connectez-vous pour charger les façons de le découper.",
       "alsoUsedOne": "Aussi utilisé dans {{name}}. Changer {{book}} pour lesquelles ?",
       "alsoUsedTwo": "Aussi utilisé dans {{first}} et {{second}}. Changer {{book}} pour lesquelles ?",
@@ -2172,6 +2199,9 @@
       "noBibleChip": "Pas de Bible",
       "chapterChip": "Chapitre {{n}}",
       "key": "Les lignes pointillées montrent où d’autres Bibles commencent une section ({{total}} Bibles anglaises, d’OpenBible.info). Touchez-en une pour y commencer une section, ou touchez n’importe quel verset.",
+      "restored": "Votre brouillon du {{when}}",
+      "startFromNow": "Recommencer",
+      "startFromNowHelp": "Remet les sections que le livre a maintenant, à la place de votre brouillon. Annuler ramène le brouillon.",
       "loadingText": "Chargement du texte de {{book}}…",
       "noText": "Les Bibles de l’équipe n’ont pas le texte de {{book}}, ses versets s’affichent donc en chiffres.",
       "chapterHead": "Chapitre {{n}}",
@@ -2263,12 +2293,12 @@
       "done_other": "Terminé · {{count, number}} sections"
     },
     "division": {
-      "way_one": "{{way}} · {{count, number}} morceau",
-      "way_many": "{{way}} · {{count, number}} morceaux",
-      "way_other": "{{way}} · {{count, number}} morceaux",
-      "own_one": "Son propre découpage · {{count, number}} morceau",
-      "own_many": "Son propre découpage · {{count, number}} morceaux",
-      "own_other": "Son propre découpage · {{count, number}} morceaux"
+      "way_one": "{{way}} · {{count, number}} section",
+      "way_many": "{{way}} · {{count, number}} sections",
+      "way_other": "{{way}} · {{count, number}} sections",
+      "own_one": "Son propre découpage · {{count, number}} section",
+      "own_many": "Son propre découpage · {{count, number}} sections",
+      "own_other": "Son propre découpage · {{count, number}} sections"
     }
   },
   "canon": {
@@ -2289,7 +2319,7 @@
     "unnamedOrg": "Organisation",
     "listJoin": ", ",
     "quoted": "« {{text}} »",
-    "languageRenderings": "Équivalents en {{language}}",
+    "languageRenderings": "Mots en {{language}}",
     "levels": {
       "org": "Organisation",
       "language": "Langue"
@@ -2297,27 +2327,27 @@
     "privileges": {
       "manageStructure": {
         "label": "Gérer la structure de l’organisation",
-        "desc": "Modifier la structure de l’organisation dans leur périmètre (langues)"
+        "desc": "Ajouter et changer des langues là où leur rôle s’applique"
       },
       "inviteMembers": {
-        "label": "Inviter des membres",
-        "desc": "Inviter des personnes dans leur périmètre"
+        "label": "Inviter des personnes",
+        "desc": "Inviter des personnes là où leur rôle s’applique"
       },
       "manageRoles": {
-        "label": "Gérer les rôles",
-        "desc": "Créer et modifier des rôles dans leur périmètre"
+        "label": "Créer et modifier les rôles",
+        "desc": "Créer et changer des rôles là où leur rôle s’applique"
       },
       "manageTemplates": {
         "label": "Gérer les modèles de contenu",
-        "desc": "Créer et modifier des modèles de contenu dans leur périmètre"
+        "desc": "Créer et changer des modèles de contenu là où leur rôle s’applique"
       },
       "shapeTemplates": {
         "label": "Adapter les modèles de contenu",
         "desc": "Découper les livres en passages, les nommer, et publier ces changements pour leur langue"
       },
       "manageReference": {
-        "label": "Gérer les documents de référence",
-        "desc": "Créer et modifier des documents de référence dans leur périmètre"
+        "label": "Choisir les Bibles et les guides",
+        "desc": "Créer et changer des ressources là où leur rôle s’applique"
       },
       "manageFlows": {
         "label": "Gérer les circuits de révision",
@@ -2325,35 +2355,35 @@
       },
       "manageTeams": {
         "label": "Gérer les équipes de révision",
-        "desc": "Créer et modifier des équipes de révision (groupes) dans leur périmètre"
+        "desc": "Créer et changer des équipes de révision là où leur rôle s’applique"
       },
       "assignWork": {
         "label": "Attribuer le travail",
-        "desc": "Demander à n’importe qui dans leur périmètre d’enregistrer ou de réviser un passage"
+        "desc": "Demander à quiconque là où leur rôle s’applique d’enregistrer ou de réviser un passage"
       },
       "overrideCheckpoints": {
-        "label": "Passer outre les points de contrôle",
+        "label": "Laisser passer un point de contrôle",
         "desc": "Faire avancer un passage au-delà d’un point de contrôle, en notant la raison"
       },
       "translate": {
-        "label": "Traduire",
+        "label": "Enregistrer",
         "desc": "Enregistrer et retravailler des traductions (à désactiver pour empêcher, par exemple, les consultants de rédiger)"
       },
       "fillReference": {
-        "label": "Remplir le contenu de référence",
-        "desc": "Ajouter des termes clés, des notes et du contenu de référence"
+        "label": "Ajouter des notes et des mots clés",
+        "desc": "Ajouter des mots clés, des notes et du contenu de référence"
       },
       "sendToReviewers": {
-        "label": "Demander des révisions",
+        "label": "Demander des vérifications",
         "desc": "Demander à des coéquipiers, ou à quelqu’un hors de l’application par un lien, de réviser"
       },
       "review": {
-        "label": "Réviser",
+        "label": "Vérifier les enregistrements",
         "desc": "Faire des révisions, et noter les vérifications faites hors de l’application"
       },
       "viewStatus": {
-        "label": "Voir l’avancement",
-        "desc": "Voir la carte et l’historique des passages en lecture seule dans leur périmètre"
+        "label": "Voir le travail de tous",
+        "desc": "Voir la carte et les fiches des passages, sans les changer, là où leur rôle s’applique"
       }
     },
     "privilegeGroups": {
@@ -2380,7 +2410,7 @@
       },
       "keyTerms": {
         "code": "TC",
-        "name": "Termes clés"
+        "name": "Mots clés"
       },
       "questions": {
         "code": "Q",
@@ -2427,23 +2457,23 @@
     "roles": {
       "title": "Rôles",
       "addRole": "Rôle",
-      "introOrg": "Les rôles sont des ensembles de droits sans périmètre fixe. Le périmètre est choisi quand on attribue un rôle à un membre. Les rôles créés ici peuvent être attribués à n’importe quel niveau.",
-      "introLanguage": "Les rôles sont des ensembles de droits sans périmètre fixe. Le périmètre est choisi quand on attribue un rôle à un membre. Les rôles sont définis pour toute l’organisation, donc ici ils sont en lecture seule. Modifiez-les depuis l’Accueil de l’organisation.",
+      "introOrg": "Un rôle, c’est ce que quelqu’un peut faire. Où il peut le faire se choisit quand on lui donne le rôle : dans toutes les langues, ou dans une seule.",
+      "introLanguage": "Un rôle, c’est ce que quelqu’un peut faire. Les rôles appartiennent à toute l’organisation : ici, vous pouvez seulement les voir. Changez-les depuis l’accueil de l’organisation.",
       "loading": "Chargement des rôles…",
       "empty": "Pas encore de rôles",
       "emptySub": "Créez-en un pour chaque façon dont les gens aident : ce qu’ils peuvent faire, pas où.",
       "definedAtOrg": "Défini au niveau de l’organisation",
-      "inheritedSub": "Lecture seule · à modifier depuis le niveau où il a été défini",
+      "inheritedSub": "Lecture seule · changez-le depuis l’accueil de l’organisation",
       "members_one": "{{count, number}} membre",
       "members_many": "{{count, number}} membres",
       "members_other": "{{count, number}} membres",
-      "privileges_one": "{{count, number}} droit",
-      "privileges_many": "{{count, number}} droits",
-      "privileges_other": "{{count, number}} droits",
       "addRoleHelp": "Crée un nouveau rôle : un ensemble de choses que les personnes qui l’ont peuvent faire.",
       "ownRoleHelp": "Ouvre ce que ce rôle permet, et qui l’a. Une étoile : votre organisation l’a créé.",
       "builtInRoleHelp": "Ouvre ce que ce rôle permet, et qui l’a. Il est fourni avec l’application.",
-      "inheritedRoleHelp": "Affiche ce que ce rôle permet. Changez-le depuis l’Accueil de l’organisation."
+      "inheritedRoleHelp": "Affiche ce que ce rôle permet. Changez-le depuis l’Accueil de l’organisation.",
+      "privileges_one": "{{count, number}} permission",
+      "privileges_many": "{{count, number}} permissions",
+      "privileges_other": "{{count, number}} permissions"
     },
     "roleEditor": {
       "title": "Rôle",
@@ -2456,7 +2486,7 @@
       "people_one": "{{count, number}} personne",
       "people_many": "{{count, number}} personnes",
       "people_other": "{{count, number}} personnes",
-      "inheritedBody": "Défini au niveau de l’organisation. Modifiez-le depuis l’Accueil de l’organisation.",
+      "inheritedBody": "Fait pour toute l’organisation. Changez-le depuis l’accueil de l’organisation.",
       "noPermission": "Vous n’avez pas le droit de modifier ce rôle.",
       "nameLabel": "Comment s’appelle-t-il ?",
       "namePlaceholder": "ex. : Rétrotraducteur",
@@ -2548,7 +2578,7 @@
       "noneChosen": "Aucun circuit choisi pour l’instant",
       "noReviews": "Aucune révision : terminé dès qu’il est enregistré",
       "title": "Circuits de révision",
-      "addFlow": "Circuit",
+      "addFlow": "Nouveau circuit",
       "noLanguages": "Pas encore de langues",
       "noLanguagesSub": "Ajoutez une langue, puis choisissez comment ses passages sont vérifiés.",
       "languageUses": "{{language}} utilise",
@@ -2563,9 +2593,10 @@
       "nowUses": "{{language}} utilise maintenant {{flow}}.",
       "addFlowHelp": "Crée un nouveau circuit : les vérifications d’un passage, dans l’ordre.",
       "openFlowHelp": "L’ouvre, pour voir ou changer ses étapes.",
+      "editChecks": "Modifier les vérifications et les personnes",
+      "editChecksHelp": "Ouvre les vérifications propres à {{language}} : leur ordre, qui fait chacune et ce que chacune montre.",
       "saveAsFlowHelp": "Garde les vérifications de cette langue comme circuit dans votre bibliothèque, pour d’autres langues.",
       "flowCardHelp": "L’ouvre, pour voir ou changer ses étapes. Un cadenas : cette étape doit être validée d’abord.",
-      "inUseHelp": "Cette langue vérifie maintenant ses passages de cette façon.",
       "useHelp": "Ses vérifications deviennent celles de {{language}}. Vous pourrez les changer ensuite.",
       "stepsLabel": "Étapes",
       "stepsHelp": "Les vérifications, de gauche à droite. Celles qui sont empilées se font ensemble. Un cadenas : cette étape doit être validée d’abord.",
@@ -2601,7 +2632,7 @@
       "descriptionPlaceholder": "À quoi il sert, en une ligne",
       "noChecks": "Aucune vérification : terminé dès qu’il est enregistré",
       "usedHere": "{{language}} l’utilise. Les modifications s’appliquent tout de suite à ses passages ; rien de ce qui est déjà enregistré n’est perdu.",
-      "usedNote": "Les langues qui l’utilisent passent à chaque nouvelle version. Les étapes sont un ordre suggéré ; seule une étape verrouillée doit être validée d’abord.",
+      "usedNote": "Les langues qui ont pris ces vérifications en ont leur propre copie : modifier ce circuit n’en change aucune. Les étapes sont un ordre suggéré ; seule une étape verrouillée doit être validée d’abord.",
       "kindsSub": "Les types sont le vocabulaire de votre organisation. Ajoutez les vôtres si ceux-ci ne conviennent pas.",
       "newKindLabel": "Un nouveau type",
       "newKindPlaceholder": "Nouveau type, ex. : Révision par les anciens",
@@ -2625,17 +2656,16 @@
       "introLanguage": "Les documents propres à {{language}} s’ajoutent à ce que l’organisation recommande ; rien n’est copié. Les traducteurs les voient dans le volet de l’espace d’enregistrement ; les réviseurs voient les questions de leur type de révision.",
       "introOrg": "Les documents pour toutes les langues sont dans votre bibliothèque, et l’organisation les leur recommande. Chaque langue ajoute les siens depuis son Accueil.",
       "offered": "Ce qui est proposé aux traducteurs",
-      "keyTermsSection": "Termes clés",
-      "keyTermsRow": "Termes clés",
+      "keyTermsSection": "Mots clés",
+      "keyTermsRow": "Mots clés",
       "concepts_one": "{{count, number}} notion",
       "concepts_many": "{{count, number}} notions",
       "concepts_other": "{{count, number}} notions",
       "addLanguageFirst": "Ajoutez d’abord une langue",
       "libraryOrg": "Bibliothèque · votre organisation",
-      "new": "Nouveau",
       "libraryEmpty": "Rien dans votre bibliothèque pour l’instant. Suivez ou copiez ce que partagent d’autres organisations, ou publiez le vôtre.",
       "writeGuide": "Écrire un guide",
-      "writeGuideSub": "Des étapes avec du texte et de l’audio, des images, des cartes et des termes clés",
+      "writeGuideSub": "Des étapes avec du texte et de l’audio, des images, des cartes et des mots clés",
       "studyMaterial": "Documents d’étude",
       "noStudy": "Aucun document d’étude écrit dans l’application pour cette langue.",
       "blanks_one": "{{count, number}} non rempli",
@@ -2663,10 +2693,15 @@
       "biblesHelp": "Ouvre les Bibles que les traducteurs écoutent et lisent, et celles qui sont recommandées.",
       "guidesNotesHelp": "Ouvre les guides d’étude et les notes que reçoivent les traducteurs, et ceux qui sont recommandés.",
       "keyTermsHelp": "Ouvre chaque notion et comment cette langue la dit.",
-      "newHelp": "Commence un nouveau document dans votre bibliothèque.",
       "libraryItemHelp": "L’ouvre : ce qu’il contient, et comment il est partagé.",
       "openMaterialHelp": "L’ouvre, pour le lire ou le changer.",
-      "openLockedHelp": "L’ouvre. Verrouillé : seules les personnes qui gèrent les documents de référence peuvent le changer."
+      "openLockedHelp": "L’ouvre. Verrouillé : seules les personnes qui gèrent les documents de référence peuvent le changer.",
+      "add": {
+        "here": "Des consignes, un résumé ou des questions",
+        "hereSub": "Écrit ici, section par section ; les questions de révision vont à un type de révision",
+        "byVerses": "Une note placée par versets",
+        "byVersesSub": "Va dans la bibliothèque et atteint les passages où sont ses versets ou ses parties de modèle"
+      }
     },
     "material": {
       "editTitle": "Modifier le document",
@@ -2772,41 +2807,41 @@
       "pickPartHelp": "Lie cette partie : les traducteurs le reçoivent là."
     },
     "keyTerms": {
-      "noLanguageRendering": "Pas encore d’équivalent en {{language}}",
-      "title": "Termes clés",
+      "noLanguageRendering": "Pas encore de mot en {{language}}",
+      "title": "Mots clés",
       "chooseLanguage": "Choisissez d’abord une langue",
       "added": "{{term}} ajouté.",
       "newTerm": "Nouveau terme",
       "search": "Chercher des termes",
-      "empty": "Pas encore de termes clés",
+      "empty": "Pas encore de mots clés",
       "emptySubCanAdd": "Ajoutez un terme avec la façon dont cette langue le dit, et quand l’utiliser.",
-      "emptySub": "Les termes que votre équipe ajoute apparaissent ici avec leurs équivalents.",
+      "emptySub": "Les mots ajoutés par votre équipe s’affichent ici, avec le mot de votre langue pour chacun.",
       "inPassage": "Dans ce passage",
       "otherTerms": "Autres termes",
       "allTerms": "Tous les termes",
       "noOther": "Aucun autre terme.",
-      "intro": "Les notions viennent d’une liste partagée (comme les termes clés FIA) ou de la vôtre. {{language}} garde ses propres équivalents et les raisons de ces choix.",
-      "newKeyTerm": "Nouveau terme clé",
-      "newSub": "Ajouté aux termes clés de {{language}}, avec son premier équivalent.",
+      "intro": "Les mots clés viennent d’une liste partagée (comme les mots clés FIA) ou de la vôtre. {{language}} garde son propre mot pour chacun, et ses raisons.",
+      "newKeyTerm": "Nouveau mot clé",
+      "newSub": "Ajouté aux mots clés de {{language}}, avec son premier mot.",
       "addTerm": "Ajouter le terme",
       "termPlaceholder": "Terme source, ex. : grâce (charis)",
       "meaningPlaceholder": "Sens, en bref",
-      "renderingPlaceholder": "Équivalent en {{language}}",
+      "renderingPlaceholder": "Mot en {{language}}",
       "contextPlaceholder": "Quand l’utiliser, et pourquoi",
       "newTermHelp": "Ajoute une notion, avec la façon dont {{language}} la dit.",
       "openTermHelp": "L’ouvre : ce qu’il veut dire, comment votre équipe le dit, et pourquoi.",
-      "openFiaTermHelp": "Un terme clé FIA. Ouvre ce qu’il veut dire, comment votre équipe le dit, et pourquoi.",
+      "openFiaTermHelp": "Un mot clé FIA. Ouvre ce qu’il veut dire, comment votre équipe le dit, et pourquoi.",
       "renderingHelp": "Comment {{language}} le dit."
     },
     "keyTerm": {
-      "title": "Terme clé",
+      "title": "Mot clé",
       "gone": "Ce terme n’existe plus ici",
       "tied": "{{term}} lié à votre brouillon.",
       "added": "« {{rendering}} » ajouté.",
       "changeRecorded": "Modification notée.",
-      "firstRendering": "Premier équivalent : {{rendering}}.",
-      "fiaSub": "Terme clé FIA · {{language}}",
-      "sub": "Terme clé · {{language}}",
+      "firstRendering": "Premier mot : {{rendering}}.",
+      "fiaSub": "Mot clé FIA · {{language}}",
+      "sub": "Mot clé · {{language}}",
       "noMeaning": "Aucun sens écrit pour l’instant.",
       "appearsIn": "Apparaît dans {{places}}",
       "everyPassage": "S’applique à tous les passages",
@@ -2815,10 +2850,10 @@
       "tiedBody": "Les réviseurs verront ce terme et votre raisonnement.",
       "tieBody": "Pour que les réviseurs sachent que ce terme a influencé {{passage}}.",
       "inLanguage": "En {{language}}",
-      "noRendering": "Pas encore d’équivalent",
+      "noRendering": "Pas encore de mot",
       "addHow": "Ajoutez comment {{language}} dit ceci, et quand l’utiliser.",
-      "adjustOrAdd": "Ajuster ou ajouter un équivalent",
-      "addRendering": "Ajouter un équivalent",
+      "adjustOrAdd": "Modifier ou ajouter un mot",
+      "addRendering": "Ajouter un mot",
       "details": "Détails",
       "why": "Pourquoi il est traduit ainsi",
       "changes_one": "{{count, number}} modification",
@@ -2830,7 +2865,7 @@
       "adjustTitle": "{{language}} · « {{term}} »",
       "adjustSubTie": "Noté dans le cadre de {{passage}}, et lié à votre brouillon.",
       "adjustSub": "Chaque modification est notée avec votre raison.",
-      "newRendering": "Nouvel équivalent (facultatif)",
+      "newRendering": "Nouveau mot (facultatif)",
       "whenToUse": "Quand l’utiliser",
       "sayWhy": "Dites pourquoi",
       "orTypeWhy": "Ou écrivez ce qui a changé, et pourquoi",
@@ -2856,7 +2891,7 @@
       "signingIn": "Connexion…",
       "askedOrg": "Demande envoyée à {{org}}",
       "askedUnknown": "Demande envoyée à l’organisation",
-      "sentBody": "Vous entrerez directement dès qu’ils diront oui. Vous pouvez fermer l’application ; nous vous préviendrons.",
+      "sentBody": "Vous pouvez fermer l’application. La prochaine fois que vous l’ouvrirez, vous entrerez directement s’ils ont dit oui.",
       "savedOnDevice": "Gardé sur cet appareil"
     },
     "termsLine": {
@@ -2880,13 +2915,21 @@
       "v2SameEmail": "Vous avez déjà un compte ici avec cet e-mail. Connectez-vous avec le mot de passe que vous utilisez ici."
     },
     "signIn": {
-      "tagline": "Coordonner la traduction de la Bible, du brouillon à l’approbation",
       "joinTitle": "Connectez-vous pour rejoindre",
       "joinBody": "Votre invitation est gardée. Vous rejoindrez dès que vous vous connecterez.",
+      "askTitle": "Connectez-vous, puis demandez à rejoindre l’équipe {{language}}",
       "namePlaceholder": "E-mail ou nom de connexion",
+      "nameHint": "Un nom de connexion n’a pas d’espaces : des lettres, des chiffres et des tirets, comme nyibol-deng-482.",
+      "nameHelp": "Votre e-mail, ou votre nom de connexion, comme nyibol-deng-482.",
+      "passwordHelp": "Le mot de passe de ce compte.",
+      "buttonHelp": "Vous connecte avec le nom et le mot de passe ci-dessus.",
       "button": "Se connecter",
+      "cantSignIn": "Impossible de vous connecter ?",
+      "cantSignInHelp": "Montre les façons d’entrer qui ne demandent pas de mot de passe.",
+      "stuckTitle": "Demandez à quelqu’un de votre équipe de vous montrer un code de connexion, puis touchez Scanner un code.",
+      "writeTo": "Écrire à {{email}}",
+      "writeToHelp": "Ouvre un e-mail pour nous écrire, pour vous aider à entrer.",
       "scanCode": "Scanner un code",
-      "scanHint": "Une invitation, ou un code de quelqu’un qui vous aide à vous connecter",
       "noAccount": "Pas encore de compte ?",
       "browse": "Parcourir le travail public",
       "switchPersona": "Changer de profil",
@@ -2941,6 +2984,7 @@
       "listed": "Visible publiquement",
       "cardLabel": "{{name}}, {{percent}}",
       "recorded": "Enregistré",
+      "signInToAsk": "Se connecter pour demander",
       "emptyTitle": "Rien de visible pour l’instant",
       "emptySub": "Les organisations apparaissent ici quand elles rendent leur travail public.",
       "signInHelp": "Connectez-vous, puis vous pourrez demander à rejoindre une organisation.",
@@ -2968,13 +3012,16 @@
       "scanHint": "Pas besoin d’e-mail ni de mot de passe. L’invitation crée votre compte et vous ajoute à l’équipe.",
       "failed": "Impossible de créer le compte. Réessayez.",
       "confirmHelp": "Tapez à nouveau le même mot de passe, pour être sûr qu’il est correct.",
+      "emailHelp": "Nous envoyons un lien ici. Ouvrez-le pour terminer votre compte.",
+      "passwordHelp": "6 caractères ou plus. Vous vous connectez avec.",
+      "buttonHelp": "Crée votre compte et envoie le lien à votre e-mail.",
       "scanInviteHelp": "Ouvre l’appareil photo. L’invitation crée votre compte : pas besoin d’e-mail."
     },
     "scan": {
       "title": "Scanner un code",
       "subSignIn": "Un code de quelqu’un qui vous aide à vous connecter",
       "subGuest": "Pas besoin d’e-mail ni de mot de passe",
-      "subMember": "L’invitation comprend l’organisation, le rôle et le périmètre",
+      "subMember": "L’invitation dit quelle organisation, quel rôle et quelle langue",
       "notCode": "Ce n’est pas un code LangQuest.",
       "notQr": "Ce code QR n’est pas un code LangQuest.",
       "cameraOff": "L’accès à l’appareil photo est désactivé. Vous pouvez coller le code ci-dessous.",
@@ -2982,6 +3029,8 @@
       "haveAccount": "J’ai déjà un compte",
       "notMe": "Vous n’êtes pas {{name}} ? Déconnectez-vous d’abord",
       "notYou": "Ce n’est pas vous ? Déconnectez-vous d’abord",
+      "joinWhenConnected": "Rejoindre une fois connecté",
+      "joinWhenConnectedHelp": "Rejoindre demande une connexion. Ce bouton s’active tout seul quand il y en a une.",
       "hintPoint": "Pointez l’appareil photo vers le code",
       "hintRead": "Code lu",
       "hintTap": "Touchez Scanner pour utiliser l’appareil photo",
@@ -3025,6 +3074,7 @@
       "expiredOrUsed": "Ce code a expiré ou a déjà été utilisé. Demandez-en un nouveau.",
       "codeBusy": "Impossible d’utiliser ce code. Veuillez réessayer.",
       "scanElseHelp": "Laisse ce code et rouvre le scanner.",
+      "signOutHelp": "Ouvre la déconnexion, pour que la personne à qui ce code est destiné puisse se connecter sur cet appareil.",
       "buttonHelp": "Vous connecte sur cet appareil avec ce code. Rien à taper.",
       "cancelHelp": "Ne vous connecte pas. Retour au scanner."
     },
@@ -3067,7 +3117,8 @@
       "licenseLabel": "Qui peut utiliser votre travail",
       "readyTitle": "Prête à l’emploi",
       "readyBody": "Vous recevrez les rôles habituels et une façon standard de vérifier les passages. Ensuite, nous ajouterons ensemble votre première langue et votre équipe.",
-      "nameHelp": "Le nom de votre organisation, tel que vos équipes le verront."
+      "nameHelp": "Le nom de votre organisation, tel que vos équipes le verront.",
+      "buttonHelp": "Crée l’organisation. Ensuite, vous ajoutez votre première langue."
     },
     "request": {
       "notSent": "Non envoyée",
@@ -3078,20 +3129,21 @@
       "askOrg": "Demander à {{org}}",
       "askUnknown": "Demander à l’organisation",
       "askToJoin": "Demander à rejoindre",
-      "askIntro": "Ils vous accepteront, et vous irez directement à votre travail.",
+      "askIntro": "Un administrateur de l’organisation voit votre demande. Quand il vous accepte, vous allez directement à votre travail.",
       "messageLabel": "Dites quelque chose (facultatif)",
       "messagePlaceholder": "Qui vous êtes, et quelle équipe",
       "searchPlaceholder": "Nom ou langue",
-      "askRowLabel": "Demander à {{org}} de vous accepter",
-      "asking": "Demande en cours…",
       "noMatch": "Aucune organisation ni langue ne correspond à « {{query}} ».",
-      "notHere": "Pas ici ? Demandez à quelqu’un de votre équipe de vous montrer son code.",
-      "noneListed": "Aucune organisation n’est encore visible. Demandez à quelqu’un de votre équipe de vous montrer son code.",
+      "notHere": "Pas ici ? Scanner leur code",
+      "noneListed": "Aucune organisation n’est encore visible.",
+      "loadFailedTitle": "Impossible de charger la liste",
+      "loadFailedSub": "Réessayez quand vous aurez une connexion, ou scannez le code d’une personne de votre équipe.",
+      "tryAgainHelp": "Redemande la liste.",
       "backHelp": "Retour aux façons de rejoindre votre équipe.",
       "doneHelp": "Retour au début. Leur réponse s’y affichera quand elle arrivera.",
-      "askHelp": "Envoie votre demande. Un administrateur de l’organisation vous accepte.",
+      "askHelp": "Envoie votre demande à un administrateur de l’organisation.",
       "messageHelp": "Un administrateur de l’organisation lit ceci avec votre demande.",
-      "rowHelp": "Envoie à cette organisation votre demande pour la rejoindre."
+      "rowHelp": "Ouvre votre demande à cette organisation, à envoyer avec un message si vous voulez."
     },
     "welcome": {
       "roles": {
@@ -3191,11 +3243,16 @@
       "movingSub": "L’autre onglet sauvegarde ce qu’il a et se met en retrait.",
       "elsewhereSub": "Il fonctionne dans un seul onglet à la fois, pour que vos enregistrements et modifications restent au même endroit. Utilisez-le ici, ou retournez à l’autre onglet.",
       "useHere": "L’utiliser ici",
-      "useHereHelp": "Fait passer LangQuest dans cet onglet. L’autre onglet sauvegarde son travail et se met en retrait."
+      "useHereHelp": "Fait passer LangQuest dans cet onglet. L’autre onglet sauvegarde son travail et se met en retrait.",
+      "otherRecording": "L'autre onglet est en train d'enregistrer",
+      "otherRecordingSub": "Arrêtez d'abord l'enregistrement là-bas, puis réessayez.",
+      "cancelMoveHelp": "Arrête d'attendre. LangQuest reste dans l'autre onglet."
     },
     "lock": {
-      "wait": "Trop d'essais. Attendez un peu, puis réessayez.",
       "wrong": "Ce schéma n'est pas le bon.",
+      "waitFor_one": "Trop d’essais. Réessayez dans {{count, number}} minute, ou scannez un code de connexion d’une personne de votre équipe.",
+      "waitFor_many": "Trop d’essais. Réessayez dans {{count, number}} minutes, ou scannez un code de connexion d’une personne de votre équipe.",
+      "waitFor_other": "Trop d’essais. Réessayez dans {{count, number}} minutes, ou scannez un code de connexion d’une personne de votre équipe.",
       "notMe": "Ce n'est pas mon image",
       "notMeHelp": "Revient aux images.",
       "pictureHelp": "Déconnecté de ce téléphone ? Touchez votre image, puis dessinez votre schéma. Pas besoin de connexion."
@@ -3213,6 +3270,7 @@
     "update": {
       "restarting": "Redémarrage…",
       "ready": "Mise à jour prête — touchez pour redémarrer",
+      "afterRecording": "Mise à jour prête · elle redémarre quand vous arrêtez d’enregistrer",
       "downloading": "Téléchargement de la mise à jour…",
       "downloadingPercent": "Téléchargement de la mise à jour… {{percent}}",
       "webReady": "Une nouvelle version de LangQuest est prête. Rechargez la page pour l’utiliser.",
@@ -3350,8 +3408,11 @@
       "setPasswordSub": "Si d’autres personnes utilisent cet appareil",
       "notifications": "Notifications",
       "notificationsSub": "Être averti des demandes et des remarques",
-      "notificationsOn": "Les notifications sont activées.",
+      "notificationsBlocked": "Désactivées dans les réglages de ce téléphone",
       "notificationsFailed": "Impossible d’activer les notifications. Réessayez une fois connecté.",
+      "notificationsOffNeedsConnection": "Les désactiver demande une connexion. Réessayez une fois connecté.",
+      "openPhoneSettings": "Ouvrir les réglages de ce téléphone",
+      "openPhoneSettingsHelp": "Ouvre les réglages de ce téléphone, le seul endroit qui peut désormais autoriser les notifications de LangQuest.",
       "switchOrg": "Changer d’organisation",
       "switchActive": "{{org}} (active)",
       "switchOrStart": "{{org}} · ou en créer une nouvelle",
@@ -3361,6 +3422,7 @@
       "syncPending_one": "{{count, number}} modification en attente d’envoi",
       "syncPending_many": "{{count, number}} modifications en attente d’envoi",
       "syncPending_other": "{{count, number}} modifications en attente d’envoi",
+      "syncPendingMixed": "{{total, number}} en attente d’envoi · enregistrements : {{recordings, number}}",
       "syncLive": "En direct : les modifications arrivent au fur et à mesure",
       "syncOffline": "Hors ligne : le travail est gardé sur cet appareil",
       "syncUpToDate": "À jour",
@@ -3376,7 +3438,6 @@
       "deleteSub": "Votre compte et votre nom, définitivement",
       "testing": "Test",
       "personaSub": "Se connecter comme traducteur, réviseur ou administrateur de démonstration",
-      "notificationsHelp": "Active les notifications, pour que cet appareil vous prévienne des demandes et des remarques.",
       "syncHelp": "Affiche ce qui attend d’être envoyé ou téléchargé. Un nombre indique des modifications en attente d’envoi.",
       "blockedHelp": "Affiche les personnes que vous avez bloquées, pour les débloquer.",
       "switchOrgHelp": "Ouvre vos organisations, pour passer à une autre ou en créer une nouvelle."
@@ -3397,6 +3458,7 @@
       "nameLabel": "Nom complet",
       "shortPassword": "Choisissez un mot de passe de 6 caractères ou plus.",
       "passwordNeedsConnection": "Pour définir un mot de passe, il faut une connexion.",
+      "nameSaved": "Nom enregistré.",
       "passwordFailed": "Le mot de passe n’a pas pu être défini. Réessayez.",
       "savedWithPassword": "Sauvegardé. Vous pouvez vous connecter avec votre nom de connexion et ce mot de passe.",
       "saved": "Profil sauvegardé. Il se synchronise quand vous êtes connecté.",
@@ -3449,17 +3511,22 @@
       "signingOut": "Déconnexion…",
       "button": "Se déconnecter",
       "notYet": "Pas encore",
+      "sending": "Envoi…",
+      "seeWaiting": "Voir ce qui attend",
+      "seeWaitingHelp": "Ouvre Synchroniser : ce qui attend d’être envoyé, par passage, et Synchroniser maintenant.",
       "question": "Se déconnecter ?"
     },
     "delete": {
       "title": "Supprimer le compte",
       "deleting": "Suppression…",
       "button": "Supprimer mon compte",
+      "buttonHelp": "Demande une dernière fois, puis supprime ce compte définitivement.",
       "sendFirstTitle": "Envoyez d’abord votre travail",
       "sendFirstBody": "Reste à envoyer : {{things}}. Supprimez votre compte une fois la synchronisation faite, pour que votre organisation les reçoive.",
       "offlineTitle": "Vous êtes hors ligne",
       "offlineBody": "Connectez-vous à Internet pour supprimer votre compte.",
       "question": "Supprimer votre compte ?",
+      "confirmTitle": "Supprimer le compte de {{name}} ?",
       "deleted": "Supprimé",
       "deletedSub": "Votre connexion, votre e-mail, votre nom, vos notifications, vos blocages et vos diagnostics. Vous quittez toutes les organisations.",
       "kept": "Gardé par votre organisation",
@@ -3471,6 +3538,7 @@
       "syncNow": "Synchroniser maintenant",
       "refused": "Le serveur a refusé ce compte pour cette organisation.",
       "tooOld": "Mettez à jour l’application pour synchroniser.",
+      "tooOldSends": "Cette application est trop ancienne pour recevoir les changements de votre équipe. Votre propre travail part toujours.",
       "waitingUpload": "en attente d’envoi",
       "refusedByServer": "refusé par le serveur",
       "latestConfirmed": "dernier confirmé",
@@ -3495,13 +3563,15 @@
         "live": "En direct",
         "checking": "Connecté",
         "offline": "Hors ligne",
-        "refused": "Pas de synchronisation"
+        "refused": "Pas de synchronisation",
+        "tooOld": "Mettez à jour pour recevoir"
       },
       "help": {
         "live": "Les modifications de votre équipe arrivent en temps réel, et les vôtres partent aussitôt.",
         "checking": "Connecté, mais le canal en direct est coupé : cet appareil vérifie les modifications toutes les quelques minutes. Synchroniser maintenant vérifie tout de suite.",
         "offline": "Pas de connexion. Tout ce que vous faites est gardé sur cet appareil et part tout seul quand vous êtes de nouveau en ligne.",
         "refused": "Le serveur n’accepte pas les modifications de cet appareil. Votre travail reste gardé ici.",
+        "tooOld": "Cette application est trop ancienne pour recevoir les changements de votre équipe. Mettez-la à jour depuis le store.",
         "toReceive": "Enregistrements d’autres personnes que cet appareil télécharge encore.",
         "refusedLine": "Modifications que le serveur n’a pas acceptées, souvent parce qu’une permission a changé. Elles restent sur cet appareil ; ouvrez Détails pour les voir."
       },
@@ -3583,10 +3653,9 @@
     },
     "glossary": {
       "sub": "Glossaire · {{source}}",
-      "openKeyTerm": "Ouvrir le terme clé",
+      "openKeyTerm": "Ouvrir le mot clé",
       "listen": "Écouter : {{term}}",
-      "standIn": "Impossible de charger l’audio — lecture d’un audio de remplacement",
-      "notKeyTerm": "Ce terme n’est pas encore dans les termes clés de votre organisation."
+      "notKeyTerm": "Ce terme n’est pas encore dans les mots clés de votre organisation."
     },
     "callout": {
       "action": "Arrêtez-vous ici",
@@ -3598,10 +3667,6 @@
     "reader": {
       "addNoteOn": "Ajouter une note sur {{verse}}",
       "addNoteOnAt": "Ajouter une note sur {{verse}} à {{time}}",
-      "verse": "Verset {{verse}}",
-      "where": "{{title}} · verset {{verse}} · {{bible}}",
-      "whereAt": "{{title}} · verset {{verse}} · {{bible}} · {{time}}",
-      "noteAdded": "Note ajoutée sur {{verse}} — elle suit ce passage",
       "addNoteHelp": "Dites ou tapez une note sur ce verset. Elle reste avec le passage."
     },
     "screen": {
@@ -3623,6 +3688,7 @@
       "stepDone": "{{step}} terminée · {{done, number}} sur {{total, number}}",
       "allDone": "Toutes les étapes sont terminées",
       "backToGuide": "Retour au guide",
+      "backTo": "Retour à {{chip}}",
       "doneWithStep": "Étape terminée",
       "openWorkspace": "Ouvrir l’espace d’enregistrement",
       "recordFirstDraft": "Enregistrer le premier jet",
@@ -3771,13 +3837,14 @@
         "askedYou": "{{by}} vous l’a demandé",
         "askedYourTeam": "{{by}} l’a demandé à votre équipe {{team}}",
         "askedYourReviewTeam": "{{by}} l’a demandé à votre équipe de révision",
-        "byLinkOver": "par lien via {{channel}}",
+        "byLinkOver": "non envoyé par l’application · {{channel}}",
         "askedForChanges": "{{who}} a demandé des modifications",
         "answered": "Remarques traitées — c’est réglé quand le réviseur dit C’est bon",
         "recordedBy": "Enregistré par {{who}}",
         "recorded": "Enregistré",
         "bestAfter": "Mieux après avoir répondu aux remarques ({{kind}}), pour le faire sur la version que vous gardez",
-        "recordsItIn": "{{who}} l’enregistre en {{language}} — un nouveau contenu, pas un avis"
+        "recordsItIn": "{{who}} l’enregistre en {{language}} — un nouveau contenu, pas un avis",
+        "loggedStillWaits": "Noté « C’est bon » · attend toujours une vérification dans l’app"
       },
       "channels": {
         "whatsapp": "WhatsApp",
@@ -3787,7 +3854,7 @@
         "passage": "Tout le passage",
         "aVersion": "Une version",
         "verse": "Verset {{verse}}",
-        "term": "Terme clé · {{term}}",
+        "term": "Mot clé · {{term}}",
         "aTerm": "terme",
         "study": "Étude",
         "studyAudioAt": "{{step}} · audio à {{at}}"
@@ -3862,8 +3929,8 @@
         "text": "Texte",
         "rating": "1–5"
       },
-      "guestMessage": "Bonjour {{name}} — pourriez-vous écouter {{passage}} en {{language}} et nous dire ce que vous avez compris ? Pas besoin de compte :",
-      "guestMessageNoName": "Bonjour — pourriez-vous écouter {{passage}} en {{language}} et nous dire ce que vous avez compris ? Pas besoin de compte :"
+      "guestMessage": "Bonjour {{name}} — pourriez-vous écouter {{passage}} en {{language}} et nous dire ce que vous avez compris ?",
+      "guestMessageNoName": "Bonjour — pourriez-vous écouter {{passage}} en {{language}} et nous dire ce que vous avez compris ?"
     },
     "path": {
       "theCheck": "la {{check}}",
@@ -3895,6 +3962,7 @@
       "fixSub": "Ensuite, il retourne à la vérification",
       "status": {
         "movedPast": "franchi",
+        "movedPastWhy": "dépassé · {{reason}}",
         "setAside": "mis de côté",
         "answered": "traité",
         "answeredBack": "répondu · retour à la vérification",
@@ -4005,11 +4073,13 @@
         "backTranslate": "La rétrotraduire",
         "doCheck": "Faire la {{check}}",
         "study": "Étude",
-        "record": "Enregistrer"
+        "record": "Enregistrer",
+        "continueCheck": "Continuer la {{check}}"
       },
       "continueRecording": "Continuer l’enregistrement",
       "askFor": "Demander la {{check}}",
       "movePastThis": "Franchir ce point de contrôle…",
+      "heldAt": "En attente à la {{check}}, qui doit passer d’abord",
       "skip": {
         "title": "Mettre de côté : {{kind}} ?",
         "sub": "Le circuit suggère cette étape. Vous pouvez la mettre de côté — dites pourquoi pour que la personne suivante comprenne.",
@@ -4087,7 +4157,6 @@
       "someoneElseCheck": "{{kind}} : demandez à une personne, à un groupe, ou à quelqu’un de l’extérieur par WhatsApp ou SMS",
       "alreadyDid": "Nous l’avons déjà fait",
       "alreadyDidSub": "Dites quand et comment la {{check}} a eu lieu",
-      "notNowSub": "Mettez la {{check}} de côté. Dites pourquoi",
       "newVersion": "Enregistrer une nouvelle version",
       "newVersionSub": "Les révisions faites jusqu’ici restent avec la version qu’elles ont écoutée",
       "movePast": "Franchir un point de contrôle",
@@ -4099,7 +4168,9 @@
       "whatHelpsHelp": "Ouvre les Bibles, les guides et les autres aides pour ce passage.",
       "myself": "Je le fais moi-même",
       "myselfSub": "{{kind}} : écoutez et décidez maintenant",
-      "myselfMakesSub": "{{kind}} : enregistrez maintenant"
+      "myselfMakesSub": "{{kind}} : enregistrez maintenant",
+      "setAside": "Mettre la {{check}} de côté",
+      "setAsideSub": "Dites pourquoi. C’est inscrit au dossier."
     },
     "published": {
       "askTitle": "Demander une vérification",
@@ -4151,7 +4222,7 @@
       "inResponseTo": "En réponse aux remarques de {{who}} ({{kind}})",
       "recording": "Enregistrement",
       "details": "Détails",
-      "keyTerms": "Termes clés",
+      "keyTerms": "Mots clés",
       "termsTied_one": "{{count, number}} terme lié · {{terms}}",
       "termsTied_many": "{{count, number}} termes liés · {{terms}}",
       "termsTied_other": "{{count, number}} termes liés · {{terms}}",
@@ -4162,7 +4233,7 @@
       "noteCount_many": "{{count, number}} notes",
       "noteCount_other": "{{count, number}} notes",
       "inResponseHelp": "Ouvre les remarques auxquelles cette version répond.",
-      "termHelp": "Ouvre ce terme clé : ce qu’il veut dire et comment votre équipe le dit."
+      "termHelp": "Ouvre ce mot clé : ce qu’il veut dire et comment votre équipe le dit."
     },
     "review": {
       "noReviews": "Pas encore de révisions sur ce passage.",
@@ -4206,9 +4277,10 @@
       "titleRecord": "Demander à quelqu’un d’enregistrer",
       "titleKind": "Demander : {{kind}}",
       "titleReview": "Demander une révision",
-      "doneOutside": "Demandé à {{name}} · la demande est dans l’historique",
+      "doneOutside": "Enregistré au dossier, pas envoyé. Envoyez-le vous-même à {{name}}.",
       "doneTeam": "{{name}} le verra dans Mon travail",
       "askName": "Demander à {{name}}",
+      "saveRequest": "Enregistrer la demande",
       "chooseSomeone": "Choisir quelqu’un",
       "recordIt": "L’enregistrer",
       "recordSub": "Ils le trouveront dans Mon travail, avec la source et l’étude prêtes.",
@@ -4217,11 +4289,9 @@
       "withoutApp": "Quelqu’un sans l’application",
       "usuallyDoesThis": "Fait cela d’habitude",
       "nobody": "Personne dans l’équipe ne peut faire cela.",
-      "nobodyTryOutside": "Personne dans l’équipe ne peut faire cela. Essayez quelqu’un sans l’application.",
       "guestName": "Son nom — ex. : Pasteur Garang",
       "phone": "Numéro de téléphone",
-      "preview": "Aperçu {{channel}}",
-      "previewNote": "La demande est gardée dans l’historique avec son nom et son numéro. L’envoi du lien sans compte depuis l’application n’est pas encore prêt.",
+      "phoneNeeded": "Numéro de téléphone · requis",
       "directions": "Consignes · facultatif",
       "sayKeepInMind": "Dites ce qu’il faut garder en tête",
       "sayListenFor": "Dites à quoi faire attention en écoutant",
@@ -4231,12 +4301,15 @@
       "answerType": "Réponse : {{type}}",
       "addQuestion": "Ajouter une question",
       "sendHelp": "Envoie la demande. Ils la trouvent dans Mon travail.",
-      "sendOutsideHelp": "Note la demande dans l’historique, avec son nom et son numéro.",
+      "sendOutsideHelp": "Enregistre la demande au dossier, avec son nom et son numéro. Rien ne lui est envoyé.",
       "onTeamHelp": "Choisissez quelqu’un qui utilise l’application.",
-      "withoutAppHelp": "Demandez plutôt à quelqu’un par WhatsApp ou SMS.",
+      "withoutAppHelp": "Enregistre une demande pour quelqu’un sans l’application. Vous lui envoyez le message vous-même.",
       "teamHelp": "Demande à tous ceux qui font cette vérification. N’importe lequel peut la faire.",
       "personHelp": "Choisit cette personne.",
       "phoneHelp": "Où la joindre par WhatsApp ou SMS.",
+      "sendYourself": "Envoyez-leur ceci vous-même, par {{channel}}",
+      "shareMessage": "Partager le message",
+      "shareMessageHelp": "Ouvre le menu de partage du téléphone avec ce message. Dans un navigateur, le copie.",
       "whatsappHelp": "La joindre par WhatsApp.",
       "smsHelp": "La joindre par SMS.",
       "askSpecificHelp": "Tapez une question à laquelle ils répondront, puis ajoutez-la.",
@@ -4250,7 +4323,9 @@
     },
     "versions": {
       "title": "Versions",
+      "whichDraft": "Quel brouillon ?",
       "newVersion": "Nouvelle version",
+      "continueDraft": "Continuer {{name}}",
       "yourDraft": "Votre brouillon",
       "yourDrafts": "Vos brouillons",
       "published": "Publiées",
@@ -4288,6 +4363,7 @@
   "work": {
     "title": "Mon travail",
     "loading": "Chargement de votre travail…",
+    "notReady": "Quand {{language}} aura des passages à enregistrer, votre travail s’affichera ici.",
     "askedBy": "demandé par {{name}}",
     "checkPassage": "Vérifier {{passage}}",
     "bell": {
@@ -4345,7 +4421,8 @@
       "wantsToJoin": "{{name}} veut rejoindre",
       "asked": "Demande {{when}}",
       "askedJustNow": "Demande à l’instant",
-      "openHelp": "Ouvre sa demande : choisissez un rôle et acceptez la personne."
+      "openHelp": "Ouvre sa demande : choisissez un rôle et acceptez la personne.",
+      "connectToLetIn": "Connectez-vous pour les faire entrer"
     },
     "lead": {
       "getOrgReady": "Préparer {{org}}",
@@ -4408,7 +4485,11 @@
       "title": "Nouvelles en {{language}}",
       "sub_one": "{{count, number}} nouvelle pour vous. Touchez pour passer à {{language}}.",
       "sub_many": "{{count, number}} nouvelles pour vous. Touchez pour passer à {{language}}.",
-      "sub_other": "{{count, number}} nouvelles pour vous. Touchez pour passer à {{language}}."
+      "sub_other": "{{count, number}} nouvelles pour vous. Touchez pour passer à {{language}}.",
+      "switched": "Maintenant dans {{language}}",
+      "help": "Passe l’application à {{language}}.",
+      "back": "Revenir à {{language}}",
+      "backSub": "{{language}} est ouvert maintenant."
     },
     "again": {
       "title": "Enregistrer {{passage}} à nouveau",
@@ -4440,6 +4521,7 @@
       "notSaved": "Non sauvegardé : {{reason}}",
       "notSavedCode": "Non sauvegardé. Un problème est survenu (code {{code}}).",
       "dismissLabel": "{{message}} Fermer",
+      "close": "Fermer le message",
       "goesWhenConnected": "{{message}} Votre équipe le reçoit quand cet appareil sera connecté."
     },
     "nav": {
@@ -4540,7 +4622,7 @@
       },
       "term": {
         "title": "Choisissez un terme",
-        "sub": "Son sens et ses équivalents s’ouvrent ici."
+        "sub": "Son sens et les mots de votre équipe s’ouvrent ici."
       },
       "language": {
         "title": "Choisissez une langue",
@@ -4557,8 +4639,8 @@
       "subView": "Les conditions sous lesquelles votre organisation partage ses enregistrements et ses écrits.",
       "use": "Utiliser cette licence",
       "opening": "Ouverture…",
-      "yesOpenTo": "Oui, ouvrir à {{name}}",
-      "openTo": "Ouvrir à {{name}}",
+      "yesOpenTo": "Oui, ouvrir : {{terms}}",
+      "openTo": "Ouvrir : {{terms}}",
       "pickMoreOpen": "Choisissez une licence plus ouverte",
       "title": "Qui peut utiliser votre travail",
       "cannotUndo": "C’est irréversible",
@@ -4579,6 +4661,9 @@
       "label": "Schéma : reliez au moins {{n}} points",
       "help": "Passez sur les points sans lever le doigt, ou touchez-les un par un puis Terminé. Reliez au moins {{n}} points.",
       "dot": "Point {{n}}",
+      "dotsSoFar_one": "{{count, number}} point",
+      "dotsSoFar_many": "{{count, number}} points",
+      "dotsSoFar_other": "{{count, number}} points",
       "picture": "Image {{n}}",
       "again": "Recommencer",
       "againHelp": "Efface les points pour recommencer le schéma.",
@@ -4590,6 +4675,7 @@
     "turnOff": "Désactiver l’aide",
     "listen": "Écouter",
     "stop": "Arrêter",
+    "closeHint": "Ferme cette explication.",
     "line": "{{label}}. {{detail}}",
     "lineAfterSentence": "{{label}} {{detail}}",
     "details": {
@@ -4625,10 +4711,11 @@
       "explorer": "Ouvre l’explorateur de langues dans un nouvel onglet : chaque langue et où elle est parlée."
     },
     "sync": {
-      "live": "Point vert : connecté. Votre travail est envoyé au fur et à mesure. Touchez pour voir ce qui a été envoyé.",
-      "checking": "Point gris : recherche d’une connexion. Votre travail reste sur cet appareil jusqu’à ce qu’il soit envoyé.",
-      "offline": "Point orange : hors ligne. Votre travail reste sur cet appareil et sera envoyé dès que vous serez connecté.",
-      "refused": "Rouge : le serveur a refusé quelque chose. Touchez pour voir quoi, et que faire.",
+      "live": "Nuage avec une coche : connecté. Votre travail est envoyé au fur et à mesure. Touchez pour voir ce qui a été envoyé.",
+      "checking": "Nuage seul : recherche d’une connexion. Votre travail reste sur cet appareil jusqu’à son envoi.",
+      "offline": "Nuage barré : hors ligne. Votre travail reste sur cet appareil et sera envoyé une fois connecté.",
+      "refused": "Nuage rouge avec un avertissement : le serveur a refusé quelque chose. Touchez pour voir quoi, et que faire.",
+      "tooOld": "Nuage orange avec une flèche vers le bas : cette application est trop ancienne pour recevoir les changements de votre équipe. Touchez pour la mettre à jour.",
       "withWaiting": "{{standing}} Le nombre indique combien d’éléments attendent d’être envoyés.",
       "withReceiving": "{{standing}} L’anneau tourne pendant que les enregistrements des autres se téléchargent sur cet appareil. Rien n’attend d’être envoyé."
     }
@@ -4815,10 +4902,13 @@
     "actions": {
       "openMembers": "Ouvrir Membres",
       "openPassage": "Ouvrir le passage",
+      "openVersion": "Ouvrir la version",
+      "openReview": "Ouvrir la relecture",
       "closeReport": "Clore le signalement",
       "keep": "Le garder",
-      "openPassageHelp": "Ouvre le passage concerné par ce signalement.",
+      "openPassageHelp": "Ouvre ce qui a été signalé, pour le regarder avant de décider.",
       "keepHelp": "Le garde dans l’historique et clôt le signalement.",
+      "removeHelp": "Demande une dernière fois, puis le retire du registre sur chaque appareil.",
       "closeReportHelp": "Clôt le signalement. Personne n’est retiré."
     },
     "hidden": {
@@ -4889,7 +4979,6 @@
       "timelineHelp": "Touchez ou faites glisser pour aller à un moment. Les temps : où vous en êtes, et la durée totale."
     },
     "recorder": {
-      "permissionNeeded": "L’autorisation du microphone est nécessaire.",
       "hidePartsHelp": "Masquer les parties.",
       "showPartsHelp": "Afficher chaque partie, pour l’écouter ou la supprimer.",
       "playAllHelp": "Écouter tout ce qui a été enregistré jusqu’ici, une partie après l’autre.",
@@ -4944,7 +5033,11 @@
       "movePartHelp": "Faites glisser vers le haut ou le bas pour déplacer cette partie. Une partie déplacée perd son verset, pour que vous le lui redonniez.",
       "moveUp": "Monter",
       "moveDown": "Descendre",
-      "undoHelp": "Annule votre dernier changement aux parties. Touchez encore pour remonter plus loin."
+      "undoHelp": "Annule votre dernier changement aux parties. Touchez encore pour remonter plus loin.",
+      "micOff": "LangQuest ne peut pas vous entendre. Activez le micro pour LangQuest dans les Réglages.",
+      "micOffWeb": "LangQuest ne peut pas vous entendre. Autorisez le micro pour ce site dans votre navigateur, puis touchez de nouveau Enregistrer.",
+      "openSettings": "Ouvrir les Réglages",
+      "openSettingsHelp": "Ouvre les réglages de ce téléphone pour LangQuest. Activez-y le micro, puis revenez."
     },
     "cleanUp": {
       "cleanUp": "Nettoyer",
@@ -5076,30 +5169,30 @@
     },
     "tray": {
       "help": "Aide",
-      "helpHint": "Termes clés, étude, notes et historique de ce passage",
+      "helpHint": "Mots clés, étude, notes et historique de ce passage",
       "helpSub": "Ce que l’équipe sait de ce passage.",
-      "keyTerms": "Termes clés",
+      "keyTerms": "Mots clés",
       "studyPill": "Étude {{pattern}} {{done}}/{{total}}",
       "notes": "Notes",
       "history": "Historique",
       "tied": "Lié à votre brouillon.",
-      "noTerms": "Aucun terme clé ne correspond à la source de ce passage.",
-      "noRendering": "Pas encore d’équivalent",
+      "noTerms": "Aucun mot clé dans ce passage.",
+      "noRendering": "Pas encore de mot",
       "termLabel": "{{term}}. {{rendered}}",
       "termLabelTied": "{{term}}. {{rendered}}. Lié à votre brouillon",
-      "noLanguageRendering": "Pas encore d’équivalent en {{language}}",
+      "noLanguageRendering": "Pas encore de mot en {{language}}",
       "tiedBadge": "Lié",
       "tying": "Liaison…",
       "tie": "Lier à votre brouillon",
       "recordFirst": "Enregistrez d’abord une partie ; ensuite vous pourrez lier des termes à votre brouillon.",
-      "allTerms": "Tous les termes clés →",
+      "allTerms": "Tous les mots clés →",
       "studyTitle": "Étude {{pattern}} · {{passage}}",
       "openStudy": "Ouvrir l’étude →",
       "anchor": {
         "passage": "Tout le passage",
         "draft": "Un brouillon",
         "verse": "Verset {{verse}}",
-        "term": "Terme clé",
+        "term": "Mot clé",
         "study": "Étude"
       },
       "notesEmpty": "Les notes que vous laissez ici suivent le passage — les réviseurs et le traducteur suivant les verront.",
@@ -5110,15 +5203,15 @@
       "firstRecording": "Premier enregistrement.",
       "saidInVoiceNote": "Dit dans une note vocale.",
       "playWhatChanged": "Écouter ce qui a changé dans {{version}}",
-      "helpButtonHelp": "Ouvre les termes clés, l’étude, les notes et l’historique de ce passage.",
-      "termsTabHelp": "Affiche les termes clés de ce passage et comment votre langue les dit.",
+      "helpButtonHelp": "Ouvre les mots clés, l’étude, les notes et l’historique de ce passage.",
+      "termsTabHelp": "Affiche les mots clés de ce passage et comment votre langue les dit.",
       "studyTabHelp": "Affiche les étapes de l’étude. Les nombres : étapes terminées sur le total.",
       "notesTabHelp": "Affiche les notes de l’équipe sur ce passage.",
       "historyTabHelp": "Affiche chaque version enregistrée jusqu’ici, et ce qui a changé.",
-      "termHelp": "Ouvre ce terme clé : ce qu’il veut dire et comment on le dit.",
-      "termTiedHelp": "Lié à votre brouillon. Ouvre ce terme clé : ce qu’il veut dire et comment on le dit.",
-      "tieHelp": "Marque ce terme clé comme dit dans votre brouillon. Un lien ne peut pas être annulé.",
-      "allTermsHelp": "Ouvre tous les termes clés, pas seulement ceux de ce passage.",
+      "termHelp": "Ouvre ce mot clé : ce qu’il veut dire et comment on le dit.",
+      "termTiedHelp": "Lié à votre brouillon. Ouvre ce mot clé : ce qu’il veut dire et comment on le dit.",
+      "tieHelp": "Marque ce mot clé comme dit dans votre brouillon. Un lien ne peut pas être annulé.",
+      "allTermsHelp": "Ouvre tous les mots clés, pas seulement ceux de ce passage.",
       "studyBarHelp": "La part de l’étude qui est terminée. Elle devient verte quand toutes les étapes le sont.",
       "openStudyHelp": "Ouvre toute l’étude de ce passage.",
       "addNoteHelp": "Laissez une note sur ce passage, dite ou écrite. Elle suit le passage."
@@ -5344,8 +5437,8 @@
       "notHereSub": "Revenez à la carte pour en choisir un autre.",
       "breakUp": "Découper {{book}}",
       "notBrokenUp": "{{book}} n’est pas encore découpé",
-      "chooseHow": "Choisissez comment {{book}} est coupé en morceaux : par chapitre, selon les passages FIA ou autrement. Ensuite, il pourra être enregistré.",
-      "coordinatorDecides": "Un coordinateur décide comment {{book}} est coupé en morceaux. Ensuite, vous pourrez l’enregistrer.",
+      "chooseHow": "Choisissez comment {{book}} est coupé en sections : par chapitre, selon les passages FIA ou autrement. Ensuite, il pourra être enregistré.",
+      "coordinatorDecides": "Un coordinateur décide comment {{book}} est coupé en sections. Ensuite, vous pourrez l’enregistrer.",
       "summary_one": "{{recorded}} passage enregistré sur {{count, number}}",
       "summary_many": "{{recorded}} passages enregistrés sur {{count, number}}",
       "summary_other": "{{recorded}} passages enregistrés sur {{count, number}}",
@@ -5355,11 +5448,12 @@
       "key": "Légende",
       "filterHelp": "N’afficher que certains passages, et la légende complète.",
       "breakUpDifferently": "Découper autrement",
-      "breakUpDifferentlyHelp": "Changer la façon dont ce livre est coupé en morceaux : par chapitre, selon les passages FIA ou autrement.",
+      "breakUpDifferentlyHelp": "Changer la façon dont ce livre est coupé en sections : par chapitre, selon les passages FIA ou autrement.",
       "chapterTitle": "{{book}} {{n}}",
       "pickPart_one": "{{count, number}} partie — choisissez-en une",
       "pickPart_many": "{{count, number}} parties — choisissez-en une",
-      "pickPart_other": "{{count, number}} parties — choisissez-en une"
+      "pickPart_other": "{{count, number}} parties — choisissez-en une",
+      "outsideFilter": "Hors du filtre"
     },
     "home": {
       "title": "Carte des passages",
@@ -5379,9 +5473,10 @@
       "noPassageMatch": "Aucun passage ne correspond — essayez un nom de livre, puis un chapitre",
       "oldTestament": "Ancien Testament",
       "newTestament": "Nouveau Testament",
+      "testamentCount": "{{name}} · {{n, number}}",
       "noBooks": "Pas encore de livres dans cette langue.",
       "findHelp": "Tapez un nom de livre, puis un numéro de chapitre pour y aller directement.",
-      "languageChipHelp": "Affiche la carte de cette langue."
+      "languageChipHelp": "Ouvre la carte de cette langue et en fait celle dans laquelle vous travaillez. Mon travail suit."
     },
     "tones": {
       "done": "Terminé",
@@ -5549,6 +5644,7 @@
       "ofPlan": "{{actual}} sur les {{expected}} prévus",
       "ofPlanFinishes": "{{actual}} sur les {{expected}} prévus · fin le {{date}}",
       "setTarget": "Fixez un objectif sur la page de la langue.",
+      "adminSets": "Quelqu’un qui gère cette langue fixe son objectif.",
       "targetRange": "{{scope}} · {{from}} – {{to}}"
     },
     "paceAdvice": {
@@ -5742,7 +5838,8 @@
       "alertsHelp": "Affiche les problèmes qui demandent quelqu’un. Un nombre indique combien."
     },
     "home": {
-      "catchUp": "Se mettre à jour avec le serveur",
+      "refresh": "Actualiser",
+      "clusterFilter": "Groupe",
       "alertsChip_one": "Alertes, {{count, number}} demande quelqu’un",
       "alertsChip_many": "Alertes, {{count, number}} demandent quelqu’un",
       "alertsChip_other": "Alertes, {{count, number}} demandent quelqu’un",
@@ -5784,7 +5881,8 @@
       "noCountries": "Aucune langue n’a encore de pays. Définissez-en un sur la page de chaque langue.",
       "toLanguagesHelp": "Passe à la page qui détaille chaque langue.",
       "toActivityHelp": "Passe à la page de ce qui est arrivé sur le serveur, jour par jour.",
-      "toMapHelp": "Passe à la carte des endroits où sont les langues."
+      "toMapHelp": "Passe à la carte des endroits où sont les langues.",
+      "openAlertsHelp": "Ouvre Alertes : ce qui demande quelqu’un, et que faire."
     },
     "portfolio": {
       "activeDays": "Actives (14 derniers jours)",
@@ -6012,12 +6110,13 @@
       "allClear": "Tout va bien",
       "allClearBody": "Pas d’audio bloqué, pas de problème d’intégrité ni de chiffres périmés.",
       "whatToDo": "<b>Que faire :</b> {{action}}",
+      "adminSets": "Quelqu’un qui gère chaque langue peut le régler sur sa page.",
       "stuckRow": "{{recordings}} dans {{passages}}, le plus ancien du {{date}}",
       "refreshed": "actualisé {{when}}",
       "stale": {
         "title": "Ces chiffres ne sont pas à jour",
         "body": "Ils ont été lus {{ago}}. Le travail synchronisé depuis n’y figure pas.",
-        "action": "Rechargez la page pour vous mettre à jour."
+        "action": "Appuyez sur Actualiser en haut des Rapports pour vous mettre à jour."
       },
       "stuck": {
         "title": "Audio enregistré bloqué sur des appareils",
@@ -6116,6 +6215,8 @@
       "scopeHelp": "Ce que couvre l’objectif. Ensuite, fixez les dates et sauvegardez.",
       "startHelp": "Le jour où le travail vers l’objectif a commencé.",
       "finishByHelp": "Le jour où l’objectif doit être atteint.",
+      "suggestEnd": "18 mois : {{date}}",
+      "suggestEndHelp": "Remplit une fin 18 mois après le début, et aujourd’hui comme début s’il est vide. Rien n’est enregistré avant que vous enregistriez l’objectif.",
       "saveTargetHelp": "Sauvegarde l’objectif et ses dates sur le serveur maintenant. Il faut une connexion.",
       "pickCountryHelp": "Choisit ce pays. Sauvegarder le pays le garde ensuite.",
       "chosenCountryHelp": "Le pays choisi maintenant, en gras. Touchez-en un autre pour le changer."
@@ -6182,7 +6283,7 @@
       "anchor": {
         "passage": "Tout le passage",
         "verse": "Verset {{verse}}",
-        "term": "Terme clé · {{term}}",
+        "term": "Mot clé · {{term}}",
         "someTerm": "terme",
         "version": "Version {{n}}",
         "aVersion": "Une version",
@@ -6371,7 +6472,20 @@
       "doneRecordedHelp": "Met la {{what}} dans l’historique du passage.",
       "looksGoodOffline": "C’est bon. {{name}} le reçoit quand cet appareil sera connecté.",
       "feedbackOffline": "Retour enregistré. {{name}} le reçoit quand cet appareil sera connecté.",
-      "helpWordsHelp": "Ouvre les mots clés de ce passage, avec le mot de l’équipe pour chacun et si cette version l’a utilisé."
+      "helpWordsHelp": "Ouvre les mots clés de ce passage, avec le mot de l’équipe pour chacun et si cette version l’a utilisé.",
+      "addedAtCheckpoint": "{{kind}} : ajouté à l’historique. Le point de contrôle attend toujours une vérification faite dans l’app.",
+      "keptNotSent": "Votre vérification est gardée sur ce téléphone. Elle n’est pas encore envoyée.",
+      "notOnPhoneYet": "L’enregistrement n’est pas encore sur ce téléphone. Il se lira ici une fois le téléphone connecté.",
+      "previousQuestion": "Question précédente",
+      "previousQuestionHelp": "Revient à la question d’avant, pour changer votre réponse.",
+      "loggedCheckpoint": "Cette vérification est un point de contrôle : notée ici, elle va dans l’historique, mais seule une vérification faite dans l’app ouvre les étapes suivantes.",
+      "notPlayedYet": "Vous n’avez pas encore écouté cette version.",
+      "sendChangeTitle": "Envoyer ce qui doit changer avec « C’est bon » ?",
+      "sendChangeSub": "Vous avez dit ce qui doit changer, puis choisi « C’est bon ».",
+      "leaveItOut": "Ne pas l’envoyer",
+      "leaveItOutHelp": "Envoie seulement « C’est bon ». Ce que vous avez dit sur les changements ne va pas au dossier.",
+      "sendItToo": "L’envoyer aussi",
+      "sendItTooHelp": "Envoie « C’est bon » avec ce que vous avez dit, pour que le traducteur l’entende aussi."
     },
     "guest": {
       "previewSub": "Aperçu · ce que voit quelqu’un sans l’application",
@@ -6662,22 +6776,19 @@
     "rec": {
       "recommended": "Recommandé",
       "notRecommended": "Pas recommandé",
-      "hiddenForLanguage": "Masqué pour cette langue",
+      "notHere": "Pas recommandé ici",
       "forLanguage": "Recommandé pour cette langue",
       "byOrganization": "Recommandé par l’organisation",
       "stop": "Ne plus recommander",
       "recommend": "Recommander",
-      "follow": "Suivre l’organisation",
-      "hide": "Masquer",
+      "recommendHere": "Recommander ici",
+      "stopHere": "Ne plus recommander ici",
       "done": {
         "recommendedEverywhere": "{{name}} est recommandé à toutes les langues.",
         "recommendedHere": "{{name}} est recommandé à l’équipe de cette langue.",
         "stopped": "{{name}} n’est plus recommandé.",
-        "hidden": "{{name}} est masqué pour cette langue.",
-        "follows": "{{name}} suit l’organisation ici."
+        "stoppedHere": "{{name}} n’est plus recommandé à l’équipe de cette langue."
       },
-      "followHelp": "Cette langue revient à ce que l’organisation recommande.",
-      "hideHelp": "L’équipe de cette langue ne le reçoit plus, même si l’organisation le recommande.",
       "recommendLanguageHelp": "L’équipe de cette langue le reçoit comme recommandation.",
       "recommendOrgHelp": "L’équipe de chaque langue le reçoit comme recommandation.",
       "stopLanguageHelp": "L’équipe de cette langue ne le reçoit plus comme recommandation.",
@@ -6739,7 +6850,10 @@
       "introLanguage": "Ce qui est proposé à l’équipe de cette langue : les recommandations de l’organisation, plus ce que vous ajoutez ou masquez ici. Les traducteurs peuvent toujours explorer n’importe quelle Bible en ligne.",
       "recommended": "Recommandées · {{n, number}}",
       "noneRecommended": "Aucune Bible n’est encore recommandée ici. Ajoutez-en une, ou recommandez-en une ci-dessous.",
-      "hidden": "Masquées pour cette langue · {{n, number}}",
+      "noneRecommendedAdd": "Aucune Bible n’est encore recommandée ici. Ajoutez-en une.",
+      "noneRecommendedBelow": "Aucune Bible n’est encore recommandée ici. Recommandez-en une ci-dessous.",
+      "noneRecommendedYet": "Aucune Bible n’est encore recommandée ici.",
+      "hidden": "Pas recommandé ici · {{n, number}}",
       "notRecommended": "Dans votre bibliothèque, pas recommandées · {{n, number}}",
       "cardHelp": "L’ouvre : son texte, son audio, le minutage des versets et à qui elle est recommandée."
     },
@@ -6760,7 +6874,6 @@
       "bibleBrainHelp": "Cherchez des Bibles par langue dans Bible Brain.",
       "bibleHelp": "Montre ce qu’elle contient avant que vous l’ajoutiez.",
       "fromLangQuestHelp": "Affiche les Bibles que LangQuest a prêtes à suivre.",
-      "readyHelp": "L’ajoute à votre bibliothèque et la recommande ici.",
       "searchHelp": "Tapez le nom ou le code d’une langue pour trouver ses Bibles.",
       "listed": "Seules les langues ayant des Bibles dans Bible Brain sont listées.",
       "noMatch": "Aucune langue de ce nom n’a de Bible dans Bible Brain.",
@@ -6986,6 +7099,7 @@
       "all": "Tous les mots clés",
       "hear": "Écouter {{term}}",
       "hearHelp": "Fait entendre le verset où il se trouve.",
+      "noVerseAudio": "Cette Bible n’a pas d’audio pour ce verset.",
       "hearLabel": "Écouter {{term}} dans la Bible",
       "openHelp": "Ce qu’il veut dire, comment votre équipe le dit, et pourquoi.",
       "termLabel": "{{term}}. {{refs}}",
@@ -7004,9 +7118,11 @@
       "added": "{{term}} ajouté.",
       "addSub": "Un mot que l’équipe devrait dire toujours de la même façon. Il est ajouté aux mots clés de {{language}}.",
       "addWord": "Ajouter le mot",
+      "addWordHelp": "Ajoute le mot une fois que vous avez dit ou écrit comment le dit le {{language}}.",
       "wordPlaceholder": "Le mot dans la Bible, ex. : berger",
       "meaningPlaceholder": "Ce qu’il veut dire (facultatif)",
       "sayItIn": "Le dire en {{language}}",
+      "howSays": "Comment le dit le {{language}}",
       "allHelp": "Ouvre la liste de tous les mots clés dans cette langue.",
       "typeHelp": "Tapez comment on le dit en {{language}}.",
       "addYourWord": "Ajouter votre mot"
@@ -7176,8 +7292,8 @@
       "findMore": "Trouvez-en une sous Autres Bibles.",
       "verseLabel": "Verset {{verse}}. {{text}}",
       "playsFromVerse": "Lecture à partir de ce verset",
-      "keyTerm": "{{term}}, terme clé",
-      "keyTermTied": "{{term}}, terme clé, lié à votre brouillon",
+      "keyTerm": "{{term}}, mot clé",
+      "keyTermTied": "{{term}}, mot clé, lié à votre brouillon",
       "builtIn": "Texte intégré, en dernier recours jusqu’à ce que votre organisation recommande des Bibles.",
       "sharedBy": "Partagé par {{org}}.",
       "copyright": "{{abbr}} : {{line}}",
@@ -7325,7 +7441,9 @@
       "startHelp": "Remplace les vérifications par un ensemble tout prêt, à modifier comme vous voulez.",
       "useHelp": "Remplace les vérifications de {{language}} par celles-ci. Annuler les remet.",
       "pickHelp": "Le choisit. Utiliser, en bas, remplace ensuite les vérifications par les siennes.",
-      "replaceAsk": "Remplacer les vérifications propres à {{language}} par {{name}} ?"
+      "replaceAsk": "Remplacer les vérifications propres à {{language}} par {{name}} ?",
+      "useThese": "Utiliser ces vérifications",
+      "replaceOwnAsk": "Remplacer les vérifications propres à {{language}} ?"
     },
     "gone": "Ceci ne fait plus partie des vérifications de la langue",
     "checkOf": "Vérification {{n}} · {{language}}",
@@ -7376,6 +7494,8 @@
     "forTeam": "Pour l’équipe de {{check}}",
     "forCheck": "Pour {{check}}",
     "dragHelp": "Faites glisser vers le haut ou le bas pour changer le moment où vient cette vérification.",
+    "moveUpHelp": "Cette vérification vient une place plus tôt.",
+    "moveDownHelp": "Cette vérification vient une place plus tard.",
     "addThisHelp": "Ajoute cette vérification après les autres.",
     "newCheckHelp": "Le nom d’une nouvelle vérification, quand ce n’est aucune de celles-ci.",
     "addCheckHelp": "Choisissez une vérification que votre organisation connaît, ou nommez-en une nouvelle.",
@@ -7795,8 +7915,10 @@
     "dismiss": "Fermer",
     "dismissHelp": "Masque ce message jusqu’à la sortie d’une version plus récente.",
     "required": "Veuillez mettre à jour l’application",
+    "requiredSub": "Vos enregistrements et modifications partent toujours vers votre équipe. Rien de nouveau de leur part n’arrive sur ce téléphone avant la mise à jour.",
+    "requiredBar": "Mettez à jour pour recevoir le travail de votre équipe",
     "keepWorking": "Continuer à travailler",
-    "keepWorkingHelp": "Votre travail reste sur ce téléphone et sera envoyé après la mise à jour."
+    "keepWorkingHelp": "Ferme ceci pour l’instant. Vous pouvez continuer à enregistrer ; votre travail part toujours vers votre équipe."
   },
   "globalViewer": {
     "title": "Observateur global",
@@ -7830,6 +7952,7 @@
     "onTitle": "Vous pouvez consulter toutes les organisations",
     "onBody": "Vous voyez ce que voit un Observateur. Vous ne pouvez rien modifier.",
     "search": "Organisation ou langue",
+    "searching": "Recherche…",
     "openNowLabel": "{{name}}, ouverte maintenant",
     "openHelp": "Ouvre cette organisation pour la consulter.",
     "noneFound": "Aucune organisation ne correspond.",

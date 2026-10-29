@@ -9,7 +9,7 @@ import {
   clustersOf, dayPercents, orgClusters, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
   type LanguageReport, type LanguageRow, type TargetScope
 } from '@langquest-next/core';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { mayViewReports } from '../shell/session';
 import { Pressable, View } from 'react-native';
 import { Text } from '../ui/text';
@@ -18,7 +18,7 @@ import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t, Trans } from '../i18n';
 import { contractsFor } from '../shell/screenContracts';
-import { Chip, ChipRow, EmptyState, Field, Header, IconBtn, Screen, SearchField, Sheet, SmallBtn } from '../ui/kit';
+import { Chip, ChipRow, ChipWrap, EmptyState, Field, Header, IconBtn, Screen, SearchField, Sheet, SmallBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { filterByCluster, type ClusterFilter } from '../clusters/model';
 import { saveLanguageSetting } from '../reports/languageSettings';
@@ -34,6 +34,7 @@ import { bookOf, dayYear, num, pctText, shortDate, signed, type Tone } from '../
 import { languageCsv } from '../reports/csvModel';
 import { canPrint, exportCsv, fileName, printPage } from '../reports/exportFiles';
 import { useOrgInChrome } from '../ui/useLayout';
+import { a11yState } from '../ui/a11yModel';
 
 const COLUMN = measure.report;
 /** No rows yet: one list, so what is worked out from it is not worked out again on every draw. */
@@ -69,31 +70,40 @@ export function ReportsHome(ctx: Ctx) {
   const alerts = reports.status === 'ready' ? openAlerts(all, reports.asOf, now) : 0;
   const clusterName = filter.kind === 'cluster' ? clusters.find((c) => c.clusterId === filter.clusterId)?.name ?? ''
     : filter.kind === 'none' ? t('clusters.status.none') : '';
+  // A country chosen narrows every section's figures: it is named where they are (UI audit, finding 73).
+  const countryShown = spec.filterCountry && country ? countryName(country) : '';
   // A cluster's report is named for it too: the field report's heading and the files it downloads.
-  const reportName = [orgName, clusterName].filter(Boolean).join(' · ');
+  const reportName = [orgName, clusterName, countryShown].filter(Boolean).join(' · ');
+  // Who may set a language's country and target (decision 41): the advice to set them is theirs to follow (finding 77).
+  const maySet = (languageId: string) => !!org && privilegesFor(org, ctx.session.actorId, languageId).has('manage_structure');
   const props: SectionProps = {
-    rows, all, now, orgName: reportName, asOf: reports.status === 'ready' ? reports.asOf : new Date(now).toISOString(),
+    rows, all, now, orgName: reportName, asOf: reports.status === 'ready' ? reports.asOf : new Date(now).toISOString(), alerts,
     open: (row) => ctx.go('reports_language', { languageId: row.languageId }),
+    maySet,
+    openSettings: (row) => ctx.go('reports_language', { languageId: row.languageId, focus: 'settings' }),
     show: (to, c) => { setSection(to); if (c !== undefined) setCountry(c); },
     clusters: filter.kind === 'all' ? clusters : [],
     clustersOf: (languageId) => clustersOf(org, languageId).map((c) => c.name),
     pickCluster: (clusterId) => { setCluster({ kind: 'cluster', clusterId }); setCountry(''); }
   };
   const header = (
-    <Header title={sectionLabel(section)} sub={[orgInChrome ? '' : orgName, clusterName, t('reports.title')].filter(Boolean).join(' · ')} columnWidth={COLUMN}
-      action={<IconBtn name="restart" label={t('reports.home.catchUp')} help={t('reports.home.catchUpHelp')} onPress={reports.refresh} disabled={reports.status === 'ready' && reports.refreshing} />} />
+    <Header title={sectionLabel(section)} sub={[orgInChrome ? '' : orgName, clusterName, countryShown, t('reports.title')].filter(Boolean).join(' · ')} columnWidth={COLUMN}
+      // A worded Refresh: the round arrow alone read as undo (UI audit, finding 76).
+      action={<SmallBtn label={t('reports.home.refresh')} icon="restart" help={t('reports.home.catchUpHelp')} onPress={reports.refresh} disabled={reports.status === 'ready' && reports.refreshing} />} />
   );
   return (
     <Screen header={header} columnWidth={COLUMN}>
-      <ChipRow>
+      {/* Every section in sight, Alerts and its count too, not past the edge of a sideways row (decision 139, UI audit finding 71). */}
+      <ChipWrap>
         {/* help-each: each section shows a different report */}
         {SECTIONS.map((s) => (
           <Chip key={s.id} label={sectionLabel(s.id)} help={sectionHelp(s.id)} on={s.id === section} onPress={() => setSection(s.id)}
             {...(s.id === 'alerts' && alerts > 0 ? { count: alerts, accessibilityLabel: t('reports.home.alertsChip', { count: alerts }) } : {})} />
         ))}
-      </ChipRow>
+      </ChipWrap>
+      {/* The filters are named, so they read as filters and not as more sections (finding 73). */}
       {clusters.length ? (
-        <ChipRow>
+        <FilterRow label={t('reports.home.clusterFilter')}>
           <Chip label={t('reports.home.allLanguages')} icon="globe" count={every.length} help={t('reports.home.allLanguagesHelp')} on={filter.kind === 'all'} onPress={() => { setCluster({ kind: 'all' }); setCountry(''); }} />
           {clusters.map((c) => (
             <HelpRow key={c.clusterId} of="reports.clusterChip">
@@ -102,17 +112,17 @@ export function ReportsHome(ctx: Ctx) {
             </HelpRow>
           ))}
           {outside ? <Chip label={t('clusters.status.none')} count={outside} help={t('reports.home.noClusterHelp')} on={filter.kind === 'none'} onPress={() => { setCluster({ kind: 'none' }); setCountry(''); }} /> : null}
-        </ChipRow>
+        </FilterRow>
       ) : null}
       {spec.filterCountry && countries.length > 1 ? (
-        <ChipRow>
+        <FilterRow label={t('reports.settings.country')}>
           <Chip label={t('reports.home.allCountries')} icon="globe" help={t('reports.home.allCountriesHelp')} on={!country} onPress={() => setCountry('')} />
           {countries.map((c) => (
             <HelpRow key={c || 'none'} of="reports.countryChip">
               <Chip label={countryName(c || null)} help={t('reports.home.countryHelp')} on={country === c} onPress={() => setCountry(c)} />
             </HelpRow>
           ))}
-        </ChipRow>
+        </FilterRow>
       ) : null}
       {reports.status === 'loading' ? <EmptyState icon="progress" title={t('reports.home.loading')} /> : null}
       {reports.status === 'error' ? (
@@ -140,6 +150,16 @@ export function ReportsHome(ctx: Ctx) {
   );
 }
 
+/** A row of filter chips with its name before it ("Country"). */
+function FilterRow(props: { label: string; children: ReactNode }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+      <Text style={txt.xsStrong}>{props.label}</Text>
+      <View style={{ flex: 1, minWidth: 0 }}><ChipRow>{props.children}</ChipRow></View>
+    </View>
+  );
+}
+
 /** One language's report: coverage, uploads, pace, its flow, books, and its settings for admins. */
 export function ReportsLanguage(ctx: Ctx) {
   const orgId = ctx.language.orgId;
@@ -154,13 +174,18 @@ export function ReportsLanguage(ctx: Ctx) {
   const mayView = mayViewReports(ctx.session, ctx.org.state, languageId);
   const row = reports.status === 'ready' && mayView ? reports.rows.find((r) => r.languageId === languageId) : undefined;
   const title = row?.report.name ?? t('reports.language.fallbackTitle');
+  const org = ctx.org.state;
+  const mayEdit = !!org && privilegesFor(org, ctx.session.actorId, languageId).has('manage_structure');
+  // Sent from an alert to set a country or a target: the settings come first (UI audit, finding 77).
+  const settingsFirst = ctx.params['focus'] === 'settings';
+  const settings = row && mayEdit ? <SettingsPanel ctx={ctx} row={row} refresh={reports.refresh} /> : null;
   const header = (
     <Header title={title} sub={[orgInChrome ? '' : orgName, ...clustersOf(ctx.org.state, languageId).map((c) => c.name)].filter(Boolean).join(' · ')} columnWidth={COLUMN}
       onBack={ctx.back} crumbs={[{ label: t('reports.title'), onPress: ctx.back }]}
       action={row ? (
         <View style={{ flexDirection: 'row', gap: space.sm }}>
           <IconBtn name="download" label={t('reports.language.downloadBooks')} help={t('reports.language.downloadBooksHelp')} onPress={() => exportCsv(fileName(t('reports.files.books', { name: row.report.name })), languageCsv(row.report))} />
-          {canPrint ? <IconBtn name="share" label={t('reports.printOrSave')} help={t('reports.printOrSaveHelp')} onPress={printPage} /> : null}
+          {canPrint ? <IconBtn name="print" label={t('reports.printOrSave')} help={t('reports.printOrSaveHelp')} onPress={() => printPage(PRINT_LANGUAGE, title)} /> : null}
         </View>
       ) : undefined} />
   );
@@ -177,22 +202,26 @@ export function ReportsLanguage(ctx: Ctx) {
           <Notice tone="gray" title={t('reports.language.notVisible')} body={t('reports.language.notVisibleBody')} />
         )
       ) : null}
-      {row ? <LanguageBody ctx={ctx} row={row} refresh={reports.refresh} /> : null}
+      {settingsFirst ? settings : null}
+      {/* What Print copies: the report, not the settings form. */}
+      {row ? <View nativeID={PRINT_LANGUAGE} style={{ gap: space.md }}><LanguageBody ctx={ctx} row={row} /></View> : null}
+      {settingsFirst ? null : settings}
     </Screen>
   );
 }
 
 const bold = <Text style={{ fontWeight: '700' }} />;
 
-function LanguageBody(props: { ctx: Ctx; row: LanguageRow; refresh: () => void }) {
+/** The language report's view, for Print (exportFiles.ts). */
+const PRINT_LANGUAGE = 'print-language';
+
+function LanguageBody(props: { ctx: Ctx; row: LanguageRow }) {
   const { ctx, row } = props;
   const r = row.report;
   const now = Date.now();
   const recency = recencyOf(r, now);
   const pace = paceOf(r, now);
   const sevenAgo = new Date(now - 6 * 86_400_000).toISOString().slice(0, 10);
-  const org = ctx.org.state;
-  const mayEdit = !!org && privilegesFor(org, ctx.session.actorId, row.languageId).has('manage_structure');
   const bottleneck = bottleneckText(r);
   return (
     <>
@@ -264,7 +293,6 @@ function LanguageBody(props: { ctx: Ctx; row: LanguageRow; refresh: () => void }
           </ListLine>
         ))}
       </Panel>
-      {mayEdit ? <SettingsPanel ctx={ctx} row={row} refresh={props.refresh} /> : null}
     </>
   );
 }
@@ -323,11 +351,15 @@ function SettingsPanel(props: { ctx: Ctx; row: LanguageRow; refresh: () => void 
   const [picking, setPicking] = useState(false);
   const [search, setSearch] = useState('');
   const [scope, setScope] = useState<TargetScope>(r.target?.scope ?? 'nt');
-  const [start, setStart] = useState(r.target?.startDate ?? new Date(now).toISOString().slice(0, 10));
-  const [end, setEnd] = useState(r.target?.targetDate ?? new Date(now + 548 * 86_400_000).toISOString().slice(0, 10));
+  // No target yet: the dates start empty, so nothing made up is saved by a tap; 18 months is offered, not filled in (UI audit, finding 74).
+  const [start, setStart] = useState(r.target?.startDate ?? '');
+  const [end, setEnd] = useState(r.target?.targetDate ?? '');
   const [busy, setBusy] = useState<'' | 'country' | 'target'>('');
   const [status, setStatus] = useState<{ tone: Tone; text: string } | null>(null);
   const datesOk = validDay(start) && validDay(end) && end > start;
+  const typed = start !== '' && end !== '';
+  const suggestedEnd = new Date(Date.parse(`${validDay(start) ? start : new Date(now).toISOString().slice(0, 10)}T00:00:00Z`) + 548 * 86_400_000).toISOString().slice(0, 10);
+  const changed = start !== (r.target?.startDate ?? '') || end !== (r.target?.targetDate ?? '') || scope !== (r.target?.scope ?? 'nt');
   const codes = useMemo(() => countryCodes(), []);
   const q = search.trim().toLowerCase();
   const choices = q ? codes.filter((c) => countryName(c).toLowerCase().includes(q) || c.toLowerCase() === q) : codes;
@@ -369,10 +401,16 @@ function SettingsPanel(props: { ctx: Ctx; row: LanguageRow; refresh: () => void 
         <Field label={t('reports.settings.start')} value={start} onChangeText={setStart} autoCapitalize="none" help={t('reports.settings.startHelp')} />
         <Field label={t('reports.settings.finishBy')} value={end} onChangeText={setEnd} autoCapitalize="none" help={t('reports.settings.finishByHelp')} />
       </Columns>
-      {!datesOk ? <Text style={txt.error} accessibilityRole="alert">{t('reports.settings.datesInvalid')}</Text> : null}
+      {!end ? (
+        <View style={{ alignSelf: 'flex-start' }}>
+          <SmallBtn label={t('reports.settings.suggestEnd', { date: dayYear(suggestedEnd) })} icon="clock" help={t('reports.settings.suggestEndHelp')}
+            onPress={() => { if (!start) setStart(new Date(now).toISOString().slice(0, 10)); setEnd(suggestedEnd); }} />
+        </View>
+      ) : null}
+      {typed && !datesOk ? <Text style={txt.error} accessibilityRole="alert">{t('reports.settings.datesInvalid')}</Text> : null}
       <View style={{ alignSelf: 'flex-start' }}>
         <SmallBtn label={busy === 'target' ? t('common.saving') : t('reports.settings.saveTarget')} tone="primary" help={t('reports.settings.saveTargetHelp')}
-          onPress={() => void save('target')} disabled={busy !== '' || !datesOk} />
+          onPress={() => void save('target')} disabled={busy !== '' || !datesOk || !changed} />
       </View>
       {status ? <Notice tone={status.tone} title={status.text} /> : null}
       <Sheet visible={picking} title={t('reports.settings.country')} sub={r.name} onClose={() => setPicking(false)}>
@@ -393,7 +431,7 @@ function CountryChoice(props: { code: string; chosen: boolean; onPick: () => voi
   const name = countryName(props.code);
   const spot = useHelpSpot(name, props.chosen ? t('reports.settings.chosenCountryHelp') : t('reports.settings.pickCountryHelp'), props.onPick);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: props.chosen }}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ selected: props.chosen }, 'button')}
       style={({ pressed }) => [{ minHeight: 48, justifyContent: 'center', paddingHorizontal: space.sm, borderBottomWidth: 1, borderColor: C.border }, pressed && { opacity: 0.6 }]}>
       <Text style={[txt.body, props.chosen ? { color: C.primary, fontWeight: '700' } : null]}>{name}</Text>
       <HelpBadge spot={spot} inset />

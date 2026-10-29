@@ -56,7 +56,7 @@ function PsalmLines(props: { numbered: boolean; small?: boolean }) {
   const s = props.small;
   const line = (n: string | null, heading: boolean, words: string) => (
     <View style={styles.pline}>
-      <Text style={[styles.vnum, s && { fontSize: 11, width: 12 }]}>{n ?? ''}</Text>
+      <Text style={[styles.vnum, s && { fontSize: PICTURE_DIGIT, width: 12 }]}>{n ?? ''}</Text>
       {s ? <View style={[styles.stroke, heading && styles.strokeHeading]} />
         : <Text style={[txt2.line, heading && txt2.heading]} numberOfLines={1}>{words}</Text>}
     </View>
@@ -259,6 +259,9 @@ export function NumberingContext(props: { choice: NumberingChoice; onPress: () =
     </Pressable>
   );
 }
+
+/** The digits of the small drawn page: part of a picture, not text to read (below the 13 point floor on purpose). */
+const PICTURE_DIGIT = 11;
 
 const txt2 = StyleSheet.create({
   muted: { fontSize: T.sm, color: C.muted },

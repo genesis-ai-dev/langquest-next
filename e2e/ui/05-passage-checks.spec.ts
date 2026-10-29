@@ -268,12 +268,13 @@ test('PASS-025 TRANS Bring back a set-aside step from History', async ({ browser
 
 // ---- Something else? ---------------------------------------------------------------------------
 
-test('PASS-030 Not now, from Something else?', async ({ browser }) => {
+test('PASS-030 Set a check aside, from Something else?', async ({ browser }) => {
   const s = await spare(2);
   await recordOn(world(), 'TRANS', s, { parts: 2, publish: true });
   const page = await recordAs(browser, world(), 'TREV', s);
   await somethingElse(page);
-  await button(page, /^Not now/).click();
+  // Named for what it does, with the skip mark: "Not now" only closes the Ask page (UI audit, finding 88).
+  await button(page, /^Set the peer check aside/).click();
   await expect(text(page, 'Set aside Peer check?')).toBeVisible();
   await sheet(page).getByRole('button', { name: 'No one available for this right now' }).click();
   await sheet(page).getByRole('button', { name: 'Set aside', exact: true }).last().click();
@@ -445,7 +446,8 @@ test('PASS-054 Move past a checkpoint, with a reason @p0', async ({ browser }) =
   await confirm.click();
   await toast(page, 'Moved past the checkpoint · reason saved');
   // Fixed (2026-10-12): the rows say it was moved past, and the step after it is next.
-  await expect.poll(async () => (await teamRows(page)).slice(3)).toEqual(['Consultant check, moved past', 'Final approval, next']);
+  // Moved past says why, with an amber flag rather than a pass's green tick (UI audit, finding 86).
+  await expect.poll(async () => (await teamRows(page)).slice(3)).toEqual(['Consultant check, moved past · Consultant visit is months away; church needs it now', 'Final approval, next']);
   await openTeamRow(page, 'Consultant check');
   expect(await sheetText(page)).toContain('Checkpoint moved past, with a reason — later steps can go ahead. Undo it from History.');
   await closeSheet(page);
@@ -485,12 +487,12 @@ test('PASS-056 Undo moving past a checkpoint', async ({ browser }) => {
   await actAs(world(), 'COORD', (c) => c.undoDeparture({ commandId: id(), departureId }));
 });
 
-test('PASS-057 Not now at a checkpoint', async ({ browser }) => {
+test('PASS-057 No setting aside at a checkpoint', async ({ browser }) => {
   await checkpointMovedPast(false);
   const page = await recordAs(browser, world(), 'TRANS', 'P-CHECK');
   await somethingElse(page);
-  // Fixed (2026-10-12): no "Not now" at a checkpoint; only an override moves past one.
-  expect(await screenText(page)).not.toContain('Not now');
+  // Fixed (2026-10-12): no setting aside at a checkpoint; only an override moves past one.
+  expect(await screenText(page)).not.toMatch(/Set the .+ aside/);
 });
 
 // ---- versions and history ------------------------------------------------------------------------
@@ -506,10 +508,14 @@ test('PASS-059 Several drafts of one passage', async ({ browser }) => {
   await refreshRecord(page, world(), 'P-DONE');
   await somethingElse(page);
   await button(page, /^Continue recording/).click();
-  await expect(header(page)).toHaveText('Versions');
+  // Opened to pick, the page asks which draft: the newest is the big button, a tap on a draft opens it,
+  // and a new version is the quiet way (UI audit, finding 89).
+  await expect(header(page)).toHaveText('Which draft?');
   const all = await screenText(page);
   expect(all).toMatch(/Your drafts Draft 1 .*Saved .*Draft 2 .*Saved/i);
-  await page.getByRole('button', { name: 'Edit' }).locator('visible=true').nth(1).click();
+  await expect(byId(page, 'primary-action')).toHaveText('Continue Draft 2');
+  await expect(button(page, 'New version')).toBeVisible();
+  await button(page, 'Open Draft 2').click();
   await expect(text(page, /^Draft 2/)).toBeVisible();
   await byId(page, 'header-close').click();
   // An unstarted passage with two drafts: the main button and the Record step both open the picker.
@@ -523,11 +529,11 @@ test('PASS-059 Several drafts of one passage', async ({ browser }) => {
   await byId(p, 'header-close').click();
   await refreshRecord(p, world(), s);
   await byId(p, 'primary-action').click();
-  await expect(header(p)).toHaveText('Versions');
+  await expect(header(p)).toHaveText('Which draft?');
   await byId(p, 'header-close').click();
   // Fixed (2026-10-12): the Record step picks too, like the main button.
   await pathStep(p, 'Record').click();
-  await expect(header(p)).toHaveText('Versions');
+  await expect(header(p)).toHaveText('Which draft?');
 });
 
 test('PASS-060 Delete a draft, asked first', async ({ browser }) => {

@@ -313,15 +313,18 @@ test('PASS-042 Ask someone without the app', async ({ browser }) => {
   await field(page, 'Their name — e.g. Pastor Garang').fill('Pastor Garang');
   await button(page, 'SMS').click();
   await field(page, 'Phone number').fill('123');
+  // The app sends nothing to someone without it yet: the message is theirs to send, and every word says so (UI audit, finding 87).
   const all = await screenText(page);
-  expect(all).toContain(`SMS PREVIEW Hi Pastor Garang — could you listen to ${L} in Alpha and tell us what you understood? No account needed: The request is saved on the record with their name and number. Sending the no-account link from the app is not ready yet.`);
+  expect(all).toContain(`SEND THEM THIS YOURSELF, BY SMS Hi Pastor Garang — could you listen to ${L} in Alpha and tell us what you understood?`);
+  expect(all).not.toContain('No account needed');
+  await expect(button(page, 'Share the message')).toBeVisible();
   await expect(byId(page, 'primary-action')).toBeDisabled();
   await field(page, 'Phone number').fill('+211 555 0100');
-  await expect(byId(page, 'primary-action')).toHaveText('Ask Pastor');
+  await expect(byId(page, 'primary-action')).toHaveText('Save the request');
   await byId(page, 'primary-action').click();
-  await toast(page, 'Asked Pastor Garang · the request is on the record');
+  await toast(page, 'Saved on the record, not sent. Send it to Pastor Garang yourself.');
   await openTeamRow(page, 'Back translation');
-  expect(await screenText(page)).toContain('Waiting on Pastor Garang · by link over SMS');
+  expect(await screenText(page)).toContain('Waiting on Pastor Garang · not sent by the app · SMS');
   await closeSheet(page);
 });
 

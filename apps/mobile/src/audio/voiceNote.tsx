@@ -16,6 +16,7 @@ import { Ico, IconBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { C, radius, space, TINT } from '../ui/theme';
 import { useRecorder, type RecordedCard } from '../recording/useRecorder';
+import { MicRefused } from '../recording/micRefused';
 
 export function VoiceNote(props: {
   ctx: Ctx;
@@ -66,7 +67,7 @@ export function VoiceNote(props: {
         </Text>
         <HelpBadge spot={toggle} />
       </Pressable>
-      {rec.error ? <Text style={[txt.xs, { color: TINT.redText }]}>{rec.error}</Text> : null}
+      {rec.micRefused ? <MicRefused message={rec.error} /> : rec.error ? <Text style={[txt.xs, { color: TINT.redText }]}>{rec.error}</Text> : null}
     </View>
   );
 }

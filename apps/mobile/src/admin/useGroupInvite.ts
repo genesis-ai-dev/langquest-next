@@ -6,17 +6,19 @@ import { inviteUri, issueInvite } from '../invites/invites';
 import { noteExpected } from '../diagnostics/report';
 import { inviteFailureText, GROUP_USES } from './inviteText';
 
-export type InviteState = { uri: string } | { error: string } | null;
+export type InviteState = { uri: string } | { error: string; retry: () => void } | null;
 
 const NO_CHECKS: readonly string[] = [];
 
 /**
  * A group code for one role at one scope, issued when first shown (the same
  * RPC as Invite by QR) and kept while the screen is up, so switching back to
- * a role shows the code already made. Offline, it says so.
+ * a role shows the code already made. Offline, it says so, and Try again
+ * asks once more (UI audit, finding 95).
  */
 export function useGroupInvite(orgId: string, roleId: string | null, scope: Scope | null, label: string, checks: readonly string[] = NO_CHECKS): InviteState {
   const [made, setMade] = useState<Record<string, InviteState>>({});
+  const [tries, setTries] = useState(0);
   // A code that puts people on checks (decisions.md 146) is another code.
   const key = roleId && scope ? `${roleId}|${scopeKey(scope)}|${[...checks].sort().join(',')}` : '';
   useEffect(() => {
@@ -27,10 +29,14 @@ export function useGroupInvite(orgId: string, roleId: string | null, scope: Scop
       .catch((e: unknown) => {
         // Offline or refused by the server: its words say which.
         noteExpected('issue group invite', e);
-        if (live) setMade((m) => ({ ...m, [key]: { error: inviteFailureText(e) } }));
+        const retry = () => {
+          setMade((m) => Object.fromEntries(Object.entries(m).filter(([k]) => k !== key)));
+          setTries((n) => n + 1);
+        };
+        if (live) setMade((m) => ({ ...m, [key]: { error: inviteFailureText(e), retry } }));
       });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `made` is read to skip a code already made; it must not re-run the effect
-  }, [key, orgId, label]);
+  }, [key, orgId, label, tries]);
   return key ? made[key] ?? null : null;
 }

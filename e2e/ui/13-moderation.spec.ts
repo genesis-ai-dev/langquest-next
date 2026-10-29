@@ -13,9 +13,10 @@ import {
   reportAs, serverBlocks, setBlocked, toTabs
 } from './account-helpers';
 import { send, signIn, type UiWorld } from './fixture';
+import { headerTitle } from './nav-helpers';
 import { projectionPass } from './pass-helpers';
 import {
-  back, button, byId, expect, expectNothingRefused, expectSyncIdle, expectToast, field, languageArrived, openAs, openPassage, openSignedOut, primary, screenText, syncNow, tab, test, text,
+  back, bookRow, button, byId, expect, expectNothingRefused, expectSyncIdle, expectToast, field, languageArrived, openAs, openPassage, openSignedOut, primary, screenText, syncNow, tab, test, text,
   useWorld, type AccountKey
 } from './support';
 
@@ -573,7 +574,8 @@ test('MOD-016 Removing a version works the passage out again', async ({ page, br
     const alpha = text(p, 'Alpha');
     if (!(await p.getByRole('button', { name: /^Luke/ }).locator('visible=true').count()) && await alpha.isVisible().catch(() => false)) await alpha.click();
     await button(p, /^Luke/).click();
-    await text(p, label, false).click();
+    // Luke lists 25 passages at a time (UI audit, finding 122).
+    await (await bookRow(p, new RegExp(`^${label}\\.`))).click();
   };
   await openAs(page, w, 'COORD');
   await openIt(page);
@@ -650,8 +652,9 @@ for (const key of ['ADMIN', 'COORD', 'LADMIN'] as const) {
       .toBeVisible();
     await expect(text(d.page, '"Test report"')).toBeVisible();
     await expect(text(d.page, 'Reports never say who sent them. The LangQuest team sees every report too.')).toBeVisible();
+    // Look first: Open the version leads; removing is a quieter red button (UI audit, finding 113).
+    await expect(primary(d.page)).toHaveAccessibleName('Open the version');
     await expect(button(d.page, 'Remove from the record')).toBeVisible();
-    await expect(button(d.page, 'Open the passage')).toBeVisible();
     await expect(button(d.page, 'Keep it')).toBeVisible();
     expect(await screenText(d.page)).not.toContain(nameOf('REV'));
     await d.context.close();
@@ -666,7 +669,10 @@ test('MOD-020 A moderator acts on a content report', async ({ page, browser }) =
   await openAs(page, w, 'ADMIN');
   await openBell(page);
   await row(page, 'A version was reported').click();
-  await button(page, 'Open the passage').click();
+  // The reported version itself opens, over its passage.
+  await primary(page).click();
+  await expect.poll(() => headerTitle(page)).toMatch(/^Version \d+$/);
+  await back(page).click();
   await expect(text(page, w.passages['P-SUBMITTED'].label, false)).toBeVisible();
   await expect(text(page, 'Something else?')).toBeVisible();
   await openBell(page);

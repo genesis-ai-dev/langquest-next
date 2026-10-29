@@ -675,17 +675,13 @@
       "aTemplate": "Kiolezo",
       "applied": "{{name}} kimetumika",
       "noneApplied": "Hakuna kilichotumika",
-      "none": "Hakuna",
+      "inLibrary_one": "{{count, number}} kwenye maktaba",
+      "inLibrary_other": "{{count, number}} kwenye maktaba",
       "noLanguages": "Bado hakuna lugha",
-      "languages_one": "Lugha {{count, number}}",
-      "languages_other": "Lugha {{count, number}}",
       "templates": "Violezo vya Maudhui",
       "reference": "Nyenzo za Marejeo",
-      "referenceSub": "Kujifunza {{study}} · seti {{questions}} za maswali · maneno muhimu {{terms}}",
       "flows": "Mitiririko ya Ukaguzi",
       "roles": "Majukumu",
-      "rolesSub_one": "Jukumu {{count, number}} katika ngazi hii na juu",
-      "rolesSub_other": "Majukumu {{count, number}} katika ngazi hii na juu",
       "summary": {
         "templates": "Violezo vya maudhui",
         "referenceFirst": "Nyenzo za Marejeo",
@@ -699,15 +695,25 @@
       "templatesHelp": "Hufungua njia za kugawa kazi katika vifungu, na ipi kila lugha inatumia.",
       "referenceHelp": "Hufungua Biblia, miongozo ya kujifunza, maswali na maneno muhimu wanayopewa watafsiri.",
       "flowsHelp": "Hufungua njia za kukagua rekodi, na ipi kila lugha inatumia.",
-      "rolesHelp": "Hufungua majukumu, na kile kila moja linamruhusu mtu kufanya."
+      "rolesHelp": "Hufungua majukumu, na kile kila moja linamruhusu mtu kufanya.",
+      "counts": {
+        "study_one": "Mwongozo {{count, number}} wa kujifunza",
+        "study_other": "Miongozo {{count, number}} ya kujifunza",
+        "questions_one": "Seti {{count, number}} ya maswali",
+        "questions_other": "Seti {{count, number}} za maswali",
+        "terms_one": "Neno kuu {{count, number}}",
+        "terms_other": "Maneno makuu {{count, number}}"
+      },
+      "rolesSub_one": "Jukumu {{count, number}}",
+      "rolesSub_other": "Majukumu {{count, number}}"
     },
     "people": {
       "title": "Watu",
       "members": "Wanachama",
-      "assignedHere_one": "{{count, number}} amepangiwa katika lugha hii",
-      "assignedHere_other": "{{count, number}} wamepangiwa katika lugha hii",
-      "orgSub": "{{here}} katika ngazi ya shirika · {{total}} jumla",
-      "membersHelp": "Hufungua watu na majukumu yao, ili kumwalika mtu au kubadilisha jukumu."
+      "orgSub": "{{here}} katika kila lugha · {{total}} kwa jumla",
+      "membersHelp": "Hufungua watu na majukumu yao, ili kumwalika mtu au kubadilisha jukumu.",
+      "assignedHere_one": "{{count, number}} mwenye jukumu katika lugha hii",
+      "assignedHere_other": "{{count, number}} wenye jukumu katika lugha hii"
     },
     "home": {
       "title": "Shirika",
@@ -813,15 +819,16 @@
       "count_one": "Mwanachama {{count, number}}",
       "count_other": "Wanachama {{count, number}}",
       "invite": "Alika",
-      "introOrg": "Wanachama waliopangiwa katika ngazi ya shirika. Panua vikundi vilivyo hapa chini kwa ngazi nyingine.",
-      "introLanguage": "Wanachama waliopangiwa katika ngazi ya lugha kwa mwonekano huu. Panua vikundi vilivyo hapa chini kwa ngazi nyingine.",
+      "introOrg": "Watu ambao jukumu lao linahusu kila lugha. Fungua kikundi hapa chini kuona watu wa kila lugha.",
+      "introLanguage": "Watu wenye jukumu katika lugha hii. Fungua kikundi hapa chini kuona wengine.",
       "sectionOrg": "Wanachama wa shirika · {{total}}",
       "sectionLanguage": "Wanachama wa lugha · {{total}}",
       "pending": "Inasubiri",
-      "none": "Bado hakuna wanachama waliopangiwa katika ngazi hii.",
+      "none": "Bado hakuna mwenye jukumu hapa.",
+      "connectToSee": "Unganisha intaneti uone nani aliomba kujiunga",
       "expandBy": "Panua kwa",
       "byLanguage": "Kwa lugha",
-      "higher": "Ngazi za juu · kutazama tu",
+      "higher": "Kila lugha · kuangalia tu",
       "memberHelp": "Hufungua jukumu lake na mahali linapohusika, ili ubadilishe.",
       "lockedHelp": "Huruhusiwi kubadilisha jukumu la mtu huyu kutoka hapa.",
       "requestHelp": "Anataka kujiunga. Hufungua ombi lake: mruhusu aingie, au kataa.",
@@ -833,9 +840,9 @@
     "assign": {
       "noRoles": "Hakuna majukumu yanayopatikana hapa.",
       "where": "Wapi?",
-      "whereHelp": "Mahali ambapo mtu huyu anaweza kutumia ruhusa za jukumu lililochaguliwa.",
+      "whereHelp": "Mahali mtu huyu anaweza kufanya kile jukumu linaruhusu.",
       "language": "Lugha",
-      "languageHelp": "Lugha ambayo upangaji huu unahusu.",
+      "languageHelp": "Jukumu ni kwa lugha gani.",
       "noLanguages": "Bado hakuna lugha.",
       "orgHelp": "Jukumu linahusika katika shirika zima.",
       "languageLevelHelp": "Jukumu linahusika katika lugha moja, inayochaguliwa hapa chini.",
@@ -863,18 +870,18 @@
     },
     "member": {
       "isNow": "{{name}} sasa ni {{role}}",
-      "removedOrg": "{{name}} ameondolewa katika ngazi ya shirika",
-      "removedLanguage": "{{name}} ameondolewa katika ngazi ya lugha",
+      "removedOrg": "{{name}} hana tena jukumu katika kila lugha",
+      "removedLanguage": "{{name}} hana tena jukumu katika lugha hii",
       "declined": "Ombi la {{name}} limekataliwa",
       "editTitle": "Hariri Mwanachama",
       "notMember": "Si mwanachama hapa",
       "notMemberSub": "Mtu huyu hana jukumu tena katika shirika hili.",
       "awaiting": "Anasubiri kuidhinishwa",
       "assignRole": "Mpe Jukumu",
-      "saveAssignment": "Hifadhi Upangaji",
+      "saveAssignment": "Hifadhi jukumu",
       "decline": "Kataa",
-      "introPending": "Mtu huyu amefungua akaunti na kuomba kujiunga. Mpe jukumu na eneo ili apate ruhusa.",
-      "intro": "Chagua jukumu, kisha chagua eneo ambalo upangaji huu unahusu. Eneo linaweza kuwa ngazi hii au chini yake.",
+      "introPending": "Mtu huyu alifungua akaunti na akaomba kujiunga. Chagua jukumu lake na linapotumika ili umruhusu aingie.",
+      "intro": "Chagua jukumu, kisha linapotumika.",
       "outranked": "{{name}} ana mamlaka zaidi hapa kuliko wewe, kwa hiyo ni mtu mwenye mamlaka sawa tu anayeweza kubadilisha hili.",
       "onlyManager": "{{name}} ndiye pekee anayeweza kusimamia majukumu",
       "onlyManagerYou": "Wewe ndiye pekee unayeweza kusimamia majukumu",
@@ -893,6 +900,8 @@
       "howToLost": "Kwenye kifaa chake kipya, {{name}} anafungua LangQuest, anagusa Soma msimbo na kuielekeza hapa. Unafanya kazi mara moja, kwa saa moja. Kuutumia kunatoa kifaa chake cha zamani.",
       "willSee": "{{name}} ataona katika Mipangilio kwamba ulimsaidia kuingia.",
       "noEmail": "{{name}} hana barua pepe. Kwenye kifaa kipya, mwonyeshe msimbo wa kuingia.",
+      "row": "Msaidie {{name}} kuingia kwenye kifaa kipya",
+      "rowHelp": "Kwa asiye na barua pepe: hufungua ukurasa wa kutengeneza msimbo wa kuingia. Hakuna msimbo unaotengenezwa hadi uuombe.",
       "lostSignOut": "Kifaa chake cha zamani kimepotea au kimeibiwa: kitoe",
       "lost": "Kifaa chake cha zamani kimepotea au kimeibiwa",
       "help": "Msaidie kuingia",
@@ -912,8 +921,6 @@
       "pickRole": "Chagua jukumu ambalo mtu huyu anapaswa kuwa nalo. Huhitaji barua pepe yake.",
       "alreadyTitle": "Tayari yuko kwenye timu, akiwa na kifaa kipya?",
       "alreadyBody": "Mfungue katika Wanachama na uguse Msaidie kuingia. Mwaliko mpya ungetengeneza akaunti ya pili.",
-      "privileges_one": "Ruhusa {{count, number}}",
-      "privileges_other": "Ruhusa {{count, number}}",
       "noRoles": "Bado hakuna majukumu.",
       "createRole": "Unda jukumu jipya",
       "one": "Mtu mmoja",
@@ -932,6 +939,12 @@
       "shownOnceGroup_one": "Huonyeshwa mara moja: ukiondoka kwenye skrini hii msimbo unapotea. Hadi mtu {{count, number}} anaweza kuutumia, hadi {{date}}.",
       "shownOnceGroup_other": "Huonyeshwa mara moja: ukiondoka kwenye skrini hii msimbo unapotea. Hadi watu {{count, number}} wanaweza kuutumia, hadi {{date}}.",
       "shownOnceOne": "Huonyeshwa mara moja: ukiondoka kwenye skrini hii msimbo unapotea. Unaweza kutumika mara moja, hadi {{date}}.",
+      "leaveAsk": "Uache msimbo?",
+      "leaveBody": "Msimbo wa {{name}} hauwezi kuonyeshwa tena. Kama hawajauskani, tengeneza mpya.",
+      "stay": "Baki kwenye msimbo",
+      "stayHelp": "Huacha msimbo kwenye skrini, ili wauskani.",
+      "leave": "Ondoka",
+      "leaveHelp": "Hurudi nyuma. Msimbo hauwezi kuonyeshwa tena.",
       "share": "Shiriki mwaliko",
       "couldNotShare": "Imeshindwa kuushiriki. Andika msimbo ulio hapo juu badala yake.",
       "toNameHelp": "Endelea: ni kwa ajili ya nani.",
@@ -939,7 +952,9 @@
       "doneHelp": "Umemaliza: hufungua orodha ya wanachama.",
       "nameFieldHelp": "Msimbo ni kwa ajili ya nani. Analiona jina hili anapousoma.",
       "groupNameFieldHelp": "Jina la kikundi. Kila anayeusoma msimbo analiona.",
-      "shareHelp": "Hutuma kiungo cha mwaliko kwa ujumbe, au hukinakili."
+      "shareHelp": "Hutuma kiungo cha mwaliko kwa ujumbe, au hukinakili.",
+      "privileges_one": "Ruhusa {{count, number}}",
+      "privileges_other": "Ruhusa {{count, number}}"
     },
     "newLanguage": {
       "theOrganization": "shirika",
@@ -985,13 +1000,13 @@
       "stages": {
         "language": "Lugha",
         "content": "Maudhui",
-        "pieces": "Gawanya katika vipande",
+        "pieces": "Gawanya katika sehemu",
         "material": "Nyenzo za marejeo",
         "flow": "Mtiririko wa ukaguzi",
         "people": "Watu",
         "languageHelp": "Lugha watakayotafsiri kwayo: jina lake, kutoka orodha ya lugha au kama lilivyoandikwa. Inaweza kuunganishwa na orodha baadaye.",
         "contentHelp": "Watakachotafsiri: Biblia, au kitu kingine, kama hadithi au nyimbo.",
-        "piecesHelp": "Jinsi kinavyogawanywa katika vipande vidogo vya kutosha kurekodiwa na kukaguliwa kimoja kimoja.",
+        "piecesHelp": "Jinsi kinavyogawanywa katika sehemu vidogo vya kutosha kurekodiwa na kukaguliwa kimoja kimoja.",
         "materialHelp": "Biblia, miongozo ya kujifunza na madokezo ambayo watafsiri na wakaguzi watakuwa nayo kando yao.",
         "flowHelp": "Kaguzi ambazo rekodi inapitia kabla ya kuidhinishwa, na kile ambacho watu wa kila ukaguzi wanaona.",
         "peopleHelp": "Kisha alika watu: watafsiri, wakaguzi na wengine, kila mmoja kwa msimbo wa kusoma.",
@@ -1011,6 +1026,11 @@
       "toChecksHelp": "Huonyesha kaguzi zake, ili uandae kila ukaguzi.",
       "startAgainAsk": "Anza upya kutoka {{flow}}?",
       "startAgain": "Anza upya",
+      "leaveAsk": "Uondoke bila kuongeza {{language}}?",
+      "keepGoing": "Endelea",
+      "keepGoingHelp": "Hukurudisha kwenye ukurasa uliokuwa, majibu yako yakiwa yamehifadhiwa.",
+      "leave": "Ondoka",
+      "leaveHelp": "Huondoka bila kuongeza lugha. Majibu yako hapa yanapotea.",
       "material": {
         "question": "Nini kitaisaidia timu ya {{language}}?",
         "onHelp": "Timu ya {{language}} itakuwa nayo. Gusa ili kuiacha nje.",
@@ -1319,7 +1339,7 @@
       "keepIt": "Kiache",
       "whichPart": "Sehemu ipi ya Biblia?",
       "viewOnly": "Watu wanaoandaa lugha tu ndio wanaweza kubadilisha wanachotafsiri.",
-      "keepEarlier": "Vipande visivyobadilika vinabaki na rekodi zake. Kilichorekodiwa kwenye kipande kinachobadilika kinahifadhiwa chini ya \"Sehemu za awali\" kwenye vipande vipya.",
+      "keepEarlier": "Sehemu visivyobadilika vinabaki na rekodi zake. Kilichorekodiwa kwenye sehemu kinachobadilika kinahifadhiwa chini ya \"Sehemu za awali\" kwenye sehemu vipya.",
       "partHelp": "Wanatafsiri sehemu hii ya Biblia.",
       "chooseBooksHelp": "Chagua vitabu kimoja kimoja, hapa chini.",
       "bookOnHelp": "Kimechaguliwa. Gusa ili kukiacha.",
@@ -1390,7 +1410,6 @@
       "passagesCovered_one": "Inahusu kifungu {{count, number}}",
       "passagesCovered_other": "Inahusu vifungu {{count, number}}",
       "keyWords": "Maneno muhimu",
-      "keyTerms": "Orodha ya maneno muhimu",
       "keyTermsSub_one": "Neno {{count, number}} · {{rendered}} lina neno la {{language}}",
       "keyTermsSub_other": "Maneno {{count, number}} · {{rendered}} yana neno la {{language}}",
       "writtenHere": "Imeandikwa hapa, kwa ajili ya lugha hii",
@@ -1428,7 +1447,6 @@
       "nextHelp": "Huhifadhi njia hii ya kukagua, kisha huendelea kwenye swali linalofuata."
     },
     "invite": {
-      "somethingElse": "Kitu kingine",
       "cannotTitle": "Watu wanaoweza kualika hapa tu ndio wanaweza kuonyesha msimbo",
       "cannotBody": "Mwombe mtu anayeongoza timu ya {{language}} awaalike watafsiri wako."
     },
@@ -1792,8 +1810,8 @@
       "skip": "Ruka maelezo haya",
       "stepLabel": "Hatua ya {{step, number}} kati ya {{total, number}}",
       "pieces": {
-        "title": "Timu yako inarekodi nyenzo kwa vipande",
-        "text": "Nyenzo hupangwa katika folda, na watu hurekodi vipande vilivyo ndani yake. Hapa kuna hadithi, zilizopangwa katika makusanyo.",
+        "title": "Timu yako inarekodi nyenzo kwa sehemu",
+        "text": "Nyenzo hupangwa katika folda, na watu hurekodi sehemu vilivyo ndani yake. Hapa kuna hadithi, zilizopangwa katika makusanyo.",
         "began": "Jinsi mambo yalivyoanza",
         "river": "Kwa nini mto ni mpana",
         "fire": "Moto wa kwanza",
@@ -1802,12 +1820,12 @@
       },
       "bible": {
         "title": "Biblia ina vitabu, sura na mistari",
-        "text": "Kila kitabu ni folda. Ndani yake, kitabu kimekatwa katika vipande vya kurekodi, na kila mstari unaonyesha mahali katika rekodi.",
+        "text": "Kila kitabu ni folda. Ndani yake, kitabu kimekatwa katika sehemu vya kurekodi, na kila mstari unaonyesha mahali katika rekodi.",
         "chapterVerses": "{{book}} {{chapter}} · mistari 1 hadi {{last}}"
       },
       "places": {
         "title": "Kitabu kilekile kinaweza kukatwa mahali tofauti",
-        "text": "Hiki ni {{book}} kwa njia tatu. Mistari ileile, vipande tofauti.",
+        "text": "Hiki ni {{book}} kwa njia tatu. Mistari ileile, sehemu tofauti.",
         "byChapter": "Kwa sura",
         "fia": "Vifungu vya FIA",
         "unfoldingWord": "Vipande vya unfoldingWord"
@@ -1845,19 +1863,19 @@
       "waitsLabel": "{{book}} kinasubiri kugawanywa",
       "notInIt": "{{book}} hakimo",
       "waits": "{{book}} kinasubiri hadi mratibu akigawe",
-      "label_one": "{{book}} katika kipande {{count, number}}",
-      "label_other": "{{book}} katika vipande {{count, number}}",
-      "caption_one": "{{book}}: kipande {{count, number}}",
-      "caption_other": "{{book}}: vipande {{count, number}}",
-      "help": "Kila mstatili ni kipande kimoja cha kurekodi, kipana kulingana na mistari yake."
+      "label_one": "{{book}} katika sehemu {{count, number}}",
+      "label_other": "{{book}} katika sehemu {{count, number}}",
+      "caption_one": "{{book}}: sehemu {{count, number}}",
+      "caption_other": "{{book}}: sehemu {{count, number}}",
+      "help": "Kila mstatili ni sehemu kimoja cha kurekodi, kipana kulingana na mistari yake."
     },
     "way": {
       "inUse": "Inatumika hapa",
-      "previewHelp": "Kila kipande ambacho {{way}} inakata kitabu.",
+      "previewHelp": "Kila sehemu ambacho {{way}} inakata kitabu.",
       "comesWith": "Inakuja na miongozo ya kujifunza ya {{pattern}}",
       "previewLabel": "Hakiki {{way}}",
-      "pickHelp": "Huchagua njia hii ya kukata vipande.",
-      "barHelp": "Upau unaonyesha {{book}} kikiwa kimekatwa kwa njia hii: kila mstatili ni kipande kimoja, kipana kulingana na mistari yake."
+      "pickHelp": "Huchagua njia hii ya kukata sehemu.",
+      "barHelp": "Upau unaonyesha {{book}} kikiwa kimekatwa kwa njia hii: kila mstatili ni sehemu kimoja, kipana kulingana na mistari yake."
     },
     "preview": {
       "useThis": "Tumia hii",
@@ -1875,6 +1893,7 @@
       "hereDetail": "Lugha unayoibadilisha hubadilika kila mara.",
       "cannotChange": "Huwezi kubadilisha hii",
       "otherDetail": "Iwekee alama ili kubadilisha {{language}} kwa njia ileile. Ukiiacha, {{language}} itabaki na kiolezo kama kilivyo.",
+      "otherDetailRedo": "Iwekee alama ili kugawa {{book}} kwa njia ileile kwa {{language}}, na kuhamisha rekodi zake vivyo hivyo. Ukiiacha, {{language}} itabaki na {{book}} kama ilivyo.",
       "everyLanguage": "Kila lugha inayokitumia itabadilika.",
       "someLanguages": "Lugha unazoziacha zinabaki na kiolezo kama kilivyo. Zile unazochagua zinapata nakala yao wenyewe yenye mabadiliko haya."
     },
@@ -1885,7 +1904,11 @@
       "titleBook": "{{book}} kitagawanywa upya",
       "bodyNumbering": "Kila kilichorekodiwa na kukaguliwa kwenye sehemu zinazobadilika kinahamia \"Sehemu za awali\" chini ya zile mpya, kikiwa na alama ya tahadhari, na kitahitaji kufanywa upya. Hii inajumuisha rekodi ambazo bado ziko kwenye simu ya mtu na hazijasawazishwa.",
       "bodyBook": "Kila kilichorekodiwa na kukaguliwa kwenye sehemu za zamani za {{book}} kinahamia \"Sehemu za awali\" chini ya zile mpya, kikiwa na alama ya tahadhari, na kitahitaji kufanywa upya. Hii inajumuisha rekodi ambazo bado ziko kwenye simu ya mtu na hazijasawazishwa.",
-      "nothingDeleted": "Hakuna kinachofutwa."
+      "bodyRecorded_one": "Sehemu {{count, number}} ya {{book}} ina rekodi kwenye simu hii. Kila kilichorekodiwa na kukaguliwa kwenye sehemu za zamani za {{book}} kinahamia \"Sehemu za awali\" chini ya zile mpya, kikiwa na alama ya tahadhari, na kitahitaji kufanywa upya. Hii inajumuisha rekodi ambazo bado ziko kwenye simu ya mtu na hazijasawazishwa.",
+      "bodyRecorded_other": "Sehemu {{count, number}} za {{book}} zina rekodi kwenye simu hii. Kila kilichorekodiwa na kukaguliwa kwenye sehemu za zamani za {{book}} kinahamia \"Sehemu za awali\" chini ya zile mpya, kikiwa na alama ya tahadhari, na kitahitaji kufanywa upya. Hii inajumuisha rekodi ambazo bado ziko kwenye simu ya mtu na hazijasawazishwa.",
+      "nothingDeleted": "Hakuna kinachofutwa.",
+      "bodyNoneHere": "Hakuna kilichorekodiwa katika {{book}} kilichofika kwenye simu hii. Rekodi ambazo bado ziko kwenye simu ya mtu na hazijasawazishwa zinahamia \"Sehemu za awali\" chini ya zile mpya, zikiwa na alama ya tahadhari, na zitahitaji kufanywa upya.",
+      "alsoLanguages": "{{book}} inabadilika kwa njia ileile kwa {{languages}}, na rekodi zao pia."
     },
     "numbering": {
       "ignore": "Sawa, puuza",
@@ -1901,7 +1924,7 @@
     },
     "book": {
       "breakDifferently": "Gawa kwa njia nyingine",
-      "breakDifferentlyHelp": "Chagua njia nyingine ya kukata kitabu hiki katika vipande.",
+      "breakDifferentlyHelp": "Chagua njia nyingine ya kukata kitabu hiki katika sehemu.",
       "namedToast": "{{language}} inakiita {{name}}.",
       "brokenUp": "Kimegawanywa",
       "ownWay": "Njia yake mwenyewe",
@@ -1914,8 +1937,8 @@
       "breakUp": "Gawa {{book}}",
       "changeQuestion": "Badilisha jinsi {{book}} kinavyogawanywa",
       "question": "{{book}} kigawanywe vipi?",
-      "nowEachPiece": "Sasa: {{way}}. Kila kipande kinarekodiwa peke yake.",
-      "eachPiece": "Kila kipande kinarekodiwa peke yake.",
+      "nowEachPiece": "Sasa: {{way}}. Kila sehemu kinarekodiwa peke yake.",
+      "eachPiece": "Kila sehemu kinarekodiwa peke yake.",
       "connectForWays": "Unganisha ili kupakia njia za kukigawa.",
       "alsoUsedOne": "Kinatumika pia katika {{name}}. Ubadilishe {{book}} kwa ipi kati yao?",
       "alsoUsedTwo": "Kinatumika pia katika {{first}} na {{second}}. Ubadilishe {{book}} kwa ipi kati yao?",
@@ -2105,6 +2128,9 @@
       "noBibleChip": "Hakuna Biblia",
       "chapterChip": "Sura {{n}}",
       "key": "Mistari ya vistari inaonyesha mahali Biblia nyingine zinapoanza sehemu (Biblia {{total}} za Kiingereza, kutoka OpenBible.info). Gusa mmoja kuanza sehemu hapo, au gusa mstari wowote.",
+      "restored": "Rasimu yako ya {{when}}",
+      "startFromNow": "Anza upya",
+      "startFromNowHelp": "Hurudisha sehemu ambazo kitabu kina sasa, badala ya rasimu yako. Tendua huirudisha rasimu.",
       "loadingText": "Inapakia maneno ya {{book}}…",
       "noText": "Biblia za timu hazina maneno ya {{book}}, kwa hiyo mistari yake inaonekana kama namba.",
       "chapterHead": "Sura {{n}}",
@@ -2190,10 +2216,10 @@
       "done_other": "Nimemaliza · sehemu {{count, number}}"
     },
     "division": {
-      "way_one": "{{way}} · kipande {{count, number}}",
-      "way_other": "{{way}} · vipande {{count, number}}",
-      "own_one": "Njia yake mwenyewe · kipande {{count, number}}",
-      "own_other": "Njia yake mwenyewe · vipande {{count, number}}"
+      "way_one": "{{way}} · sehemu {{count, number}}",
+      "way_other": "{{way}} · sehemu {{count, number}}",
+      "own_one": "Njia yake mwenyewe · sehemu {{count, number}}",
+      "own_other": "Njia yake mwenyewe · sehemu {{count, number}}"
     }
   },
   "canon": {
@@ -2214,7 +2240,7 @@
     "unnamedOrg": "Shirika",
     "listJoin": ", ",
     "quoted": "“{{text}}”",
-    "languageRenderings": "Tafsiri za {{language}}",
+    "languageRenderings": "Maneno ya {{language}}",
     "levels": {
       "org": "Shirika",
       "language": "Lugha"
@@ -2222,27 +2248,27 @@
     "privileges": {
       "manageStructure": {
         "label": "Simamia Muundo wa Shirika",
-        "desc": "Badilisha muundo wa shirika katika eneo lao (lugha)"
+        "desc": "Kuongeza na kubadilisha lugha mahali jukumu lao linapotumika"
       },
       "inviteMembers": {
-        "label": "Alika Wanachama",
-        "desc": "Alika watu katika eneo lao"
+        "label": "Alika watu",
+        "desc": "Kualika watu mahali jukumu lao linapotumika"
       },
       "manageRoles": {
-        "label": "Simamia Majukumu",
-        "desc": "Unda na hariri majukumu katika eneo lao"
+        "label": "Tengeneza na badilisha majukumu",
+        "desc": "Kutengeneza na kubadilisha majukumu mahali jukumu lao linapotumika"
       },
       "manageTemplates": {
         "label": "Simamia Violezo vya Maudhui",
-        "desc": "Tengeneza na hariri violezo vya maudhui katika eneo lao"
+        "desc": "Kutengeneza na kubadilisha violezo vya maudhui mahali jukumu lao linapotumika"
       },
       "shapeTemplates": {
         "label": "Rekebisha Violezo vya Maudhui",
         "desc": "Gawa vitabu katika vifungu, vipe majina, na uchapishe mabadiliko hayo kwa lugha yao"
       },
       "manageReference": {
-        "label": "Simamia Nyenzo za Marejeo",
-        "desc": "Tengeneza na hariri nyenzo za marejeo katika eneo lao"
+        "label": "Chagua Biblia na miongozo",
+        "desc": "Kutengeneza na kubadilisha vifaa vya marejeo mahali jukumu lao linapotumika"
       },
       "manageFlows": {
         "label": "Simamia Mitiririko ya Ukaguzi",
@@ -2250,35 +2276,35 @@
       },
       "manageTeams": {
         "label": "Simamia Timu za Ukaguzi",
-        "desc": "Tengeneza na hariri timu za ukaguzi (vikundi) katika eneo lao"
+        "desc": "Kutengeneza na kubadilisha timu za ukaguzi mahali jukumu lao linapotumika"
       },
       "assignWork": {
-        "label": "Gawa Kazi",
-        "desc": "Omba mtu yeyote katika eneo lao arekodi au akague kifungu"
+        "label": "Gawa kazi",
+        "desc": "Kumwomba yeyote mahali jukumu lao linapotumika arekodi au akague kifungu"
       },
       "overrideCheckpoints": {
-        "label": "Ruka Vituo vya Ukaguzi",
+        "label": "Ruhusu kazi ipite ukaguzi uliofungwa",
         "desc": "Pitisha kifungu zaidi ya kituo cha ukaguzi, sababu ikiandikwa"
       },
       "translate": {
-        "label": "Tafsiri",
+        "label": "Rekodi",
         "desc": "Rekodi na rekebisha tafsiri (zima ili, kwa mfano, washauri wasiandae rasimu)"
       },
       "fillReference": {
-        "label": "Jaza Maudhui ya Marejeo",
+        "label": "Ongeza madokezo na maneno muhimu",
         "desc": "Ongeza maneno muhimu, madokezo, na maudhui ya marejeo"
       },
       "sendToReviewers": {
-        "label": "Omba Ukaguzi",
+        "label": "Omba ukaguzi",
         "desc": "Omba wenzako wa timu, au mtu nje ya programu kwa kiungo, akague"
       },
       "review": {
-        "label": "Ukaguzi",
+        "label": "Kagua rekodi",
         "desc": "Toa ukaguzi, na rekodi ukaguzi uliofanyika nje ya programu"
       },
       "viewStatus": {
-        "label": "Tazama Hali",
-        "desc": "Ona ramani na kumbukumbu za vifungu kwa kusoma tu katika eneo lao"
+        "label": "Ona kazi ya kila mtu",
+        "desc": "Kuona ramani na kumbukumbu za vifungu, bila kuzibadilisha, mahali jukumu lao linapotumika"
       }
     },
     "privilegeGroups": {
@@ -2348,21 +2374,21 @@
     "roles": {
       "title": "Majukumu",
       "addRole": "Jukumu",
-      "introOrg": "Majukumu ni seti za ruhusa zisizo na eneo maalum. Eneo huchaguliwa wakati wa kumpa mwanachama jukumu. Majukumu yanayoundwa hapa yanaweza kutolewa katika ngazi yoyote.",
-      "introLanguage": "Majukumu ni seti za ruhusa zisizo na eneo maalum. Eneo huchaguliwa wakati wa kumpa mwanachama jukumu. Majukumu yamefafanuliwa kwa shirika zima, kwa hiyo hapa ni ya kutazama tu. Yahariri kutoka ukurasa mkuu wa Shirika.",
+      "introOrg": "Jukumu ni kile mtu anaweza kufanya. Mahali anapoweza kukifanya huchaguliwa anapopewa jukumu: katika kila lugha, au katika moja.",
+      "introLanguage": "Jukumu ni kile mtu anaweza kufanya. Majukumu ni ya shirika lote, kwa hiyo hapa unaweza kuangalia tu. Yabadilishe kutoka Nyumbani kwa Shirika.",
       "loading": "Inapakia majukumu…",
       "empty": "Bado hakuna majukumu",
       "emptySub": "Tengeneza moja kwa kila njia watu wanayosaidia: wanachoweza kufanya, si wapi.",
       "definedAtOrg": "Limefafanuliwa katika Shirika",
-      "inheritedSub": "Kutazama tu · hariri kutoka ngazi lilipofafanuliwa",
+      "inheritedSub": "Kuangalia tu · libadilishe kutoka Nyumbani kwa Shirika",
       "members_one": "Mwanachama {{count, number}}",
       "members_other": "Wanachama {{count, number}}",
-      "privileges_one": "Ruhusa {{count, number}}",
-      "privileges_other": "Ruhusa {{count, number}}",
       "addRoleHelp": "Hutengeneza jukumu jipya: seti ya mambo ambayo watu wake wanaruhusiwa kufanya.",
       "ownRoleHelp": "Hufungua kile watu wake wanaruhusiwa kufanya, na nani analo. Nyota: shirika lako lililitengeneza.",
       "builtInRoleHelp": "Hufungua kile watu wake wanaruhusiwa kufanya, na nani analo. Linakuja na programu.",
-      "inheritedRoleHelp": "Huonyesha kile watu wake wanaruhusiwa kufanya. Libadilishe kutoka ukurasa mkuu wa Shirika."
+      "inheritedRoleHelp": "Huonyesha kile watu wake wanaruhusiwa kufanya. Libadilishe kutoka ukurasa mkuu wa Shirika.",
+      "privileges_one": "Ruhusa {{count, number}}",
+      "privileges_other": "Ruhusa {{count, number}}"
     },
     "roleEditor": {
       "title": "Jukumu",
@@ -2374,7 +2400,7 @@
       "aNewRole": "Jukumu jipya",
       "people_one": "Mtu {{count, number}}",
       "people_other": "Watu {{count, number}}",
-      "inheritedBody": "Limefafanuliwa katika ngazi ya shirika. Lihariri kutoka ukurasa mkuu wa Shirika.",
+      "inheritedBody": "Limetengenezwa kwa shirika lote. Libadilishe kutoka Nyumbani kwa Shirika.",
       "noPermission": "Huna ruhusa ya kuhariri jukumu hili.",
       "nameLabel": "Linaitwaje?",
       "namePlaceholder": "k.m. Mtafsiri wa tafsiri rejeshi",
@@ -2465,7 +2491,7 @@
       "noneChosen": "Bado hakuna mtiririko uliochaguliwa",
       "noReviews": "Hakuna ukaguzi: kinakamilika kikisharekodiwa",
       "title": "Mitiririko ya Ukaguzi",
-      "addFlow": "Mtiririko",
+      "addFlow": "Mtiririko mpya",
       "noLanguages": "Bado hakuna lugha",
       "noLanguagesSub": "Ongeza lugha, kisha uchague jinsi vifungu vyake vinavyokaguliwa.",
       "languageUses": "{{language}} inatumia",
@@ -2480,9 +2506,10 @@
       "nowUses": "{{language}} sasa inatumia {{flow}}.",
       "addFlowHelp": "Hutengeneza mtiririko mpya: kaguzi ambazo kifungu kinapata, kwa mpangilio.",
       "openFlowHelp": "Huufungua, ili uone au ubadilishe hatua zake.",
+      "editChecks": "Hariri kaguzi na watu",
+      "editChecksHelp": "Hufungua kaguzi za {{language}} zenyewe: mpangilio wake, nani hufanya kila moja, na kila moja huonyesha nini.",
       "saveAsFlowHelp": "Huhifadhi kaguzi za lugha hii kama mtiririko katika maktaba yako, kwa ajili ya lugha nyingine.",
       "flowCardHelp": "Huufungua, ili uone au ubadilishe hatua zake. Kufuli: hatua hiyo lazima ipite kwanza.",
-      "inUseHelp": "Lugha hii inakagua vifungu vyake kwa njia hii sasa.",
       "useHelp": "Kaguzi zake zinakuwa za {{language}} yenyewe. Unaweza kuzibadilisha baadaye.",
       "stepsLabel": "Hatua",
       "stepsHelp": "Kaguzi, kutoka kushoto kwenda kulia. Zilizopangwa juu ya nyingine hufanyika pamoja. Kufuli: hatua hiyo lazima ipite kwanza.",
@@ -2518,7 +2545,7 @@
       "descriptionPlaceholder": "Ni wa nini, kwa mstari mmoja",
       "noChecks": "Hakuna ukaguzi: kinakamilika kikisharekodiwa",
       "usedHere": "{{language}} inautumia. Mabadiliko yanahusu vifungu vyake mara moja; hakuna kilichorekodiwa tayari kinachopotea.",
-      "usedNote": "Lugha zinazoutumia zinahamia kila toleo jipya. Hatua ni mpangilio unaopendekezwa; hatua iliyofungwa tu ndiyo lazima ipite kwanza.",
+      "usedNote": "Lugha zilizochukua kaguzi hizi zina nakala yao wenyewe: kubadilisha mtiririko huu hakubadilishi yoyote kati yao. Hatua ni mpangilio unaopendekezwa; hatua iliyofungwa tu ndiyo lazima ipite kwanza.",
       "kindsSub": "Aina ni msamiati wa shirika lako. Ongeza zako kama hizi hazifai.",
       "newKindLabel": "Aina mpya",
       "newKindPlaceholder": "Aina mpya, k.m. Ukaguzi wa Wazee",
@@ -2548,7 +2575,6 @@
       "concepts_other": "Dhana {{count, number}}",
       "addLanguageFirst": "Ongeza lugha kwanza",
       "libraryOrg": "Maktaba · shirika lako",
-      "new": "Mpya",
       "libraryEmpty": "Bado hakuna kitu katika maktaba yako. Fuata au nakili kile mashirika mengine yanashiriki, au chapisha chako.",
       "writeGuide": "Andika mwongozo",
       "writeGuideSub": "Hatua zenye maandishi na sauti, picha, ramani na maneno muhimu",
@@ -2575,10 +2601,15 @@
       "biblesHelp": "Hufungua Biblia ambazo watafsiri wanasikia na kusoma, na zipi zinapendekezwa.",
       "guidesNotesHelp": "Hufungua miongozo ya kujifunza na madokezo ambayo watafsiri wanapata, na yapi yanapendekezwa.",
       "keyTermsHelp": "Hufungua kila dhana na jinsi lugha hii inavyoisema.",
-      "newHelp": "Huanzisha nyenzo mpya katika maktaba yako.",
       "libraryItemHelp": "Huifungua: kilichomo, na jinsi inavyoshirikiwa.",
       "openMaterialHelp": "Huifungua, ili uisome au uibadilishe.",
-      "openLockedHelp": "Huifungua. Imefungwa: watu wanaosimamia nyenzo za marejeo tu ndio wanaweza kuibadilisha."
+      "openLockedHelp": "Huifungua. Imefungwa: watu wanaosimamia nyenzo za marejeo tu ndio wanaweza kuibadilisha.",
+      "add": {
+        "here": "Miongozo, muhtasari au maswali",
+        "hereSub": "Huandikwa hapa, sehemu kwa sehemu; maswali ya ukaguzi huenda kwenye aina ya ukaguzi",
+        "byVerses": "Dokezo lililowekwa kwa mistari",
+        "byVersesSub": "Huenda kwenye maktaba, na hufikia vifungu ambavyo mistari yake au sehemu za kiolezo zimo"
+      }
     },
     "material": {
       "editTitle": "Hariri Nyenzo",
@@ -2683,7 +2714,7 @@
       "pickPartHelp": "Huunganisha sehemu hii: watafsiri wanaipata hapo."
     },
     "keyTerms": {
-      "noLanguageRendering": "Bado hakuna tafsiri ya {{language}}",
+      "noLanguageRendering": "Bado hakuna neno la {{language}}",
       "title": "Maneno Muhimu",
       "chooseLanguage": "Chagua lugha kwanza",
       "added": "{{term}} limeongezwa.",
@@ -2691,18 +2722,18 @@
       "search": "Tafuta maneno",
       "empty": "Bado hakuna maneno muhimu",
       "emptySubCanAdd": "Ongeza neno pamoja na jinsi lugha hii inavyolisema, na wakati wa kulitumia.",
-      "emptySub": "Maneno ambayo timu yako inaongeza yanaonekana hapa pamoja na tafsiri zake.",
+      "emptySub": "Maneno ambayo timu yako inaongeza yanaonekana hapa, pamoja na neno la lugha yako kwa kila moja.",
       "inPassage": "Katika kifungu hiki",
       "otherTerms": "Maneno mengine",
       "allTerms": "Maneno yote",
       "noOther": "Hakuna maneno mengine.",
-      "intro": "Dhana zinatoka kwenye orodha inayoshirikiwa (kama maneno muhimu ya FIA) au yako mwenyewe. {{language}} inahifadhi tafsiri zake na sababu zake.",
+      "intro": "Maneno muhimu yanatoka kwenye orodha ya pamoja (kama maneno muhimu ya FIA) au yako mwenyewe. {{language}} inahifadhi neno lake kwa kila moja, na sababu zake.",
       "newKeyTerm": "Neno muhimu jipya",
-      "newSub": "Linaongezwa kwenye maneno muhimu ya {{language}}, pamoja na tafsiri yake ya kwanza.",
+      "newSub": "Linaongezwa kwenye maneno muhimu ya {{language}}, pamoja na neno lake la kwanza.",
       "addTerm": "Ongeza Neno",
       "termPlaceholder": "Neno la chanzo, k.m. neema (charis)",
       "meaningPlaceholder": "Maana, kwa ufupi",
-      "renderingPlaceholder": "Tafsiri ya {{language}}",
+      "renderingPlaceholder": "Neno la {{language}}",
       "contextPlaceholder": "Wakati wa kulitumia, na kwa nini",
       "newTermHelp": "Huongeza dhana, pamoja na jinsi {{language}} inavyoisema.",
       "openTermHelp": "Hulifungua: linamaanisha nini, timu yako inalisemaje, na kwa nini.",
@@ -2715,7 +2746,7 @@
       "tied": "{{term}} limeunganishwa na rasimu yako.",
       "added": "“{{rendering}}” imeongezwa.",
       "changeRecorded": "Badiliko limeandikwa.",
-      "firstRendering": "Tafsiri ya kwanza: {{rendering}}.",
+      "firstRendering": "Neno la kwanza: {{rendering}}.",
       "fiaSub": "Neno muhimu la FIA · {{language}}",
       "sub": "Neno muhimu la {{language}}",
       "noMeaning": "Bado hakuna maana iliyoandikwa.",
@@ -2726,10 +2757,10 @@
       "tiedBody": "Wakaguzi wataona neno hili na sababu zako.",
       "tieBody": "Ili wakaguzi wajue neno hili liliathiri {{passage}}.",
       "inLanguage": "Katika {{language}}",
-      "noRendering": "Bado hakuna tafsiri",
+      "noRendering": "Bado hakuna neno",
       "addHow": "Ongeza jinsi {{language}} inavyosema hili, na wakati wa kulitumia.",
-      "adjustOrAdd": "Rekebisha au ongeza tafsiri",
-      "addRendering": "Ongeza tafsiri",
+      "adjustOrAdd": "Badilisha au ongeza neno",
+      "addRendering": "Ongeza neno",
       "details": "Maelezo",
       "why": "Kwa nini linatafsiriwa hivi",
       "changes_one": "Badiliko {{count, number}}",
@@ -2740,7 +2771,7 @@
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Linaandikwa kama sehemu ya {{passage}}, na kuunganishwa na rasimu yako.",
       "adjustSub": "Kila badiliko linaandikwa pamoja na sababu yako.",
-      "newRendering": "Tafsiri mpya (si lazima)",
+      "newRendering": "Neno jipya (si lazima)",
       "whenToUse": "Wakati wa kulitumia",
       "sayWhy": "Sema kwa nini",
       "orTypeWhy": "Au andika kilichobadilika, na kwa nini",
@@ -2766,7 +2797,7 @@
       "signingIn": "Inaingia…",
       "askedOrg": "Umeomba {{org}}",
       "askedUnknown": "Umeomba shirika",
-      "sentBody": "Utaingia moja kwa moja watakapokubali. Unaweza kufunga programu; tutakujulisha.",
+      "sentBody": "Unaweza kufunga programu. Utakapoifungua tena, utaingia moja kwa moja kama walikubali.",
       "savedOnDevice": "Imehifadhiwa kwenye kifaa hiki"
     },
     "termsLine": {
@@ -2790,13 +2821,21 @@
       "v2SameEmail": "Tayari una akaunti hapa yenye barua pepe hii. Ingia kwa nenosiri unalotumia hapa."
     },
     "signIn": {
-      "tagline": "Kuratibu tafsiri ya Biblia — kutoka rasimu hadi idhini",
       "joinTitle": "Ingia ili kujiunga",
       "joinBody": "Mwaliko wako umehifadhiwa. Utajiunga mara tu utakapoingia.",
+      "askTitle": "Ingia, kisha uombe kujiunga na timu ya {{language}}",
       "namePlaceholder": "Barua pepe au jina la kuingia",
+      "nameHint": "Jina la kuingia halina nafasi: herufi, tarakimu na vistari, kama nyibol-deng-482.",
+      "nameHelp": "Barua pepe yako, au jina lako la kuingia, kama nyibol-deng-482.",
+      "passwordHelp": "Nenosiri la akaunti hii.",
+      "buttonHelp": "Inakuingiza kwa jina na nenosiri lililo juu.",
       "button": "Ingia",
+      "cantSignIn": "Huwezi kuingia?",
+      "cantSignInHelp": "Huonyesha njia za kuingia zisizohitaji nenosiri.",
+      "stuckTitle": "Mwombe mtu kwenye timu yako akuonyeshe msimbo wa kuingia, kisha gusa Soma msimbo.",
+      "writeTo": "Andika kwa {{email}}",
+      "writeToHelp": "Hufungua barua pepe kwetu, kwa msaada wa kuingia.",
       "scanCode": "Soma msimbo",
-      "scanHint": "Mwaliko, au msimbo kutoka kwa mtu anayekusaidia kuingia",
       "noAccount": "Huna akaunti?",
       "browse": "Vinjari kazi za umma",
       "switchPersona": "Badilisha mhusika",
@@ -2851,6 +2890,7 @@
       "listed": "Imeorodheshwa hadharani",
       "cardLabel": "{{name}}, {{percent}}",
       "recorded": "Imerekodiwa",
+      "signInToAsk": "Ingia ili uombe",
       "emptyTitle": "Bado hakuna kilichoorodheshwa",
       "emptySub": "Mashirika yanaonekana hapa yanapoorodhesha kazi yao hadharani.",
       "signInHelp": "Ingia, kisha unaweza kuomba kujiunga na shirika.",
@@ -2878,13 +2918,16 @@
       "scanHint": "Hakuna barua pepe wala nenosiri linalohitajika. Mwaliko unakufungulia akaunti na kukuweka kwenye timu.",
       "failed": "Imeshindwa kufungua akaunti. Jaribu tena.",
       "confirmHelp": "Andika nenosiri lilelile tena, ili kuhakikisha ni sahihi.",
+      "emailHelp": "Tunatuma kiungo hapa. Kifungue ili kukamilisha akaunti yako.",
+      "passwordHelp": "Herufi 6 au zaidi. Unaingia nalo.",
+      "buttonHelp": "Inaunda akaunti yako na kutuma kiungo kwa barua pepe yako.",
       "scanInviteHelp": "Hufungua kamera. Mwaliko unafungua akaunti yako: hakuna barua pepe inayohitajika."
     },
     "scan": {
       "title": "Soma msimbo",
       "subSignIn": "Msimbo kutoka kwa mtu anayekusaidia kuingia",
       "subGuest": "Hakuna barua pepe wala nenosiri linalohitajika",
-      "subMember": "Mwaliko una shirika, jukumu, na eneo",
+      "subMember": "Mwaliko unasema shirika, jukumu na lugha gani",
       "notCode": "Huu si msimbo wa LangQuest.",
       "notQr": "Msimbo huu wa QR si msimbo wa LangQuest.",
       "cameraOff": "Ruhusa ya kamera imezimwa. Unaweza kubandika msimbo hapa chini.",
@@ -2892,6 +2935,8 @@
       "haveAccount": "Tayari nina akaunti",
       "notMe": "Si {{name}}? Toka kwanza",
       "notYou": "Si wewe? Toka kwanza",
+      "joinWhenConnected": "Jiunge ukiwa na mtandao",
+      "joinWhenConnectedHelp": "Kujiunga kunahitaji mtandao. Hiki huwaka chenyewe mtandao ukipatikana.",
       "hintPoint": "Elekeza kamera kwenye msimbo",
       "hintRead": "Msimbo umesomwa",
       "hintTap": "Gusa Soma msimbo wa QR ili kutumia kamera",
@@ -2935,6 +2980,7 @@
       "expiredOrUsed": "Msimbo huu umeisha muda au tayari umetumika. Omba mpya.",
       "codeBusy": "Imeshindwa kutumia msimbo huu. Tafadhali jaribu tena.",
       "scanElseHelp": "Huacha msimbo huu na kufungua kisoma msimbo tena.",
+      "signOutHelp": "Hufungua kutoka, ili mtu wa msimbo huu aweze kuingia kwenye kifaa hiki.",
       "buttonHelp": "Hukuingiza kwenye kifaa hiki kwa msimbo huu. Hakuna cha kuandika.",
       "cancelHelp": "Hurudi kwenye kisoma msimbo bila kuingia."
     },
@@ -2977,7 +3023,8 @@
       "licenseLabel": "Nani anaweza kutumia kazi yako",
       "readyTitle": "Tayari kutumika",
       "readyBody": "Utapata majukumu ya kawaida na njia ya kawaida ya kukagua vifungu. Kisha, tutaongeza lugha yako ya kwanza na timu pamoja.",
-      "nameHelp": "Jina la shirika lako, kama timu zako zitakavyoliona."
+      "nameHelp": "Jina la shirika lako, kama timu zako zitakavyoliona.",
+      "buttonHelp": "Inaunda shirika. Kisha unaongeza lugha yako ya kwanza."
     },
     "request": {
       "notSent": "Halijatumwa",
@@ -2988,20 +3035,21 @@
       "askOrg": "Omba {{org}}",
       "askUnknown": "Omba shirika",
       "askToJoin": "Omba kujiunga",
-      "askIntro": "Watakuruhusu uingie, na utaenda moja kwa moja kwenye kazi yako.",
+      "askIntro": "Msimamizi huko ataona ombi lako. Akikuruhusu uingie, utaenda moja kwa moja kwenye kazi yako.",
       "messageLabel": "Sema kitu (si lazima)",
       "messagePlaceholder": "Wewe ni nani, na timu ipi",
       "searchPlaceholder": "Jina au lugha",
-      "askRowLabel": "Omba {{org}} wakuruhusu uingie",
-      "asking": "Inaomba…",
       "noMatch": "Hakuna shirika wala lugha inayolingana na “{{query}}”.",
-      "notHere": "Halipo? Mwombe mtu kwenye timu yako akuonyeshe msimbo wake.",
-      "noneListed": "Bado hakuna mashirika yaliyoorodheshwa. Mwombe mtu kwenye timu yako akuonyeshe msimbo wake.",
+      "notHere": "Halipo? Soma msimbo wao",
+      "noneListed": "Bado hakuna mashirika yaliyoorodheshwa.",
+      "loadFailedTitle": "Imeshindwa kupakia orodha",
+      "loadFailedSub": "Jaribu tena ukiwa na mtandao, au soma msimbo kutoka kwa mtu kwenye timu yako.",
+      "tryAgainHelp": "Huomba orodha tena.",
       "backHelp": "Rudi kwenye njia za kujiunga na timu yako.",
       "doneHelp": "Rudi mwanzo. Jibu lao litaonekana hapo litakapokuja.",
-      "askHelp": "Hutuma ombi lako. Msimamizi huko atakuruhusu uingie.",
+      "askHelp": "Hutuma ombi lako kwa msimamizi huko.",
       "messageHelp": "Msimamizi huko anasoma hiki pamoja na ombi lako.",
-      "rowHelp": "Hutumia shirika hili ombi lako la kujiunga."
+      "rowHelp": "Hufungua ombi lako kwa shirika hili, ili ulitume na ujumbe ukipenda."
     },
     "welcome": {
       "roles": {
@@ -3099,11 +3147,15 @@
       "movingSub": "Kichupo kingine kinahifadhi kilicho nacho na kinakaa kando.",
       "elsewhereSub": "Inafanya kazi katika kichupo kimoja kwa wakati mmoja, ili rekodi na mabadiliko yako yabaki mahali pamoja. Itumie hapa, au rudi kwenye kichupo kingine.",
       "useHere": "Itumie hapa",
-      "useHereHelp": "Huhamisha LangQuest kwenye kichupo hiki. Kichupo kingine kinahifadhi kazi yake na kukaa kando."
+      "useHereHelp": "Huhamisha LangQuest kwenye kichupo hiki. Kichupo kingine kinahifadhi kazi yake na kukaa kando.",
+      "otherRecording": "Kichupo kingine kinarekodi",
+      "otherRecordingSub": "Simamisha kurekodi huko kwanza, kisha ujaribu tena.",
+      "cancelMoveHelp": "Huacha kusubiri. LangQuest inabaki kwenye kichupo kingine."
     },
     "lock": {
-      "wait": "Majaribio mengi mno. Subiri kidogo, kisha ujaribu tena.",
       "wrong": "Mchoro huo si sahihi.",
+      "waitFor_one": "Majaribio mengi mno. Jaribu tena baada ya dakika {{count, number}}, au soma msimbo wa kuingia kutoka kwa mtu kwenye timu yako.",
+      "waitFor_other": "Majaribio mengi mno. Jaribu tena baada ya dakika {{count, number}}, au soma msimbo wa kuingia kutoka kwa mtu kwenye timu yako.",
       "notMe": "Si picha yangu",
       "notMeHelp": "Inarudi kwenye picha.",
       "pictureHelp": "Ulitoka kwenye simu hii? Gusa picha yako, kisha uchore mchoro wako. Huhitaji mtandao."
@@ -3121,6 +3173,7 @@
     "update": {
       "restarting": "Inaanza upya…",
       "ready": "Sasisho liko tayari — gusa ili kuanza upya",
+      "afterRecording": "Sasisho liko tayari · litaanza upya ukiacha kurekodi",
       "downloading": "Inapakua sasisho…",
       "downloadingPercent": "Inapakua sasisho… {{percent}}",
       "webReady": "Toleo jipya la LangQuest liko tayari. Pakia upya ili kulitumia.",
@@ -3257,8 +3310,11 @@
       "setPasswordSub": "Ikiwa watu wengine wanatumia kifaa hiki",
       "notifications": "Arifa",
       "notificationsSub": "Pata habari za maombi na maoni",
-      "notificationsOn": "Arifa zimewashwa.",
+      "notificationsBlocked": "Zimezimwa kwenye mipangilio ya simu hii",
       "notificationsFailed": "Arifa hazikuweza kuwashwa. Jaribu tena ukiunganishwa.",
+      "notificationsOffNeedsConnection": "Kuzizima kunahitaji muunganisho. Jaribu tena ukiwa umeunganishwa.",
+      "openPhoneSettings": "Fungua mipangilio ya simu hii",
+      "openPhoneSettingsHelp": "Inafungua mipangilio ya simu hii, mahali pekee panapoweza sasa kuruhusu arifa za LangQuest.",
       "switchOrg": "Badilisha Shirika",
       "switchActive": "{{org}} (linatumika)",
       "switchOrStart": "{{org}} · au anzisha jipya",
@@ -3267,6 +3323,7 @@
       "syncRefused": "Akaunti hii haiwezi kusawazisha shirika hili",
       "syncPending_one": "Badiliko {{count, number}} linasubiri kutumwa",
       "syncPending_other": "Mabadiliko {{count, number}} yanasubiri kutumwa",
+      "syncPendingMixed": "{{total, number}} vinasubiri kutumwa · rekodi: {{recordings, number}}",
       "syncLive": "Moja kwa moja: mabadiliko yanafika yanapotokea",
       "syncOffline": "Nje ya mtandao: kazi inahifadhiwa kwenye kifaa hiki",
       "syncUpToDate": "Imesasishwa",
@@ -3281,7 +3338,6 @@
       "deleteSub": "Akaunti yako na jina lako, milele",
       "testing": "Majaribio",
       "personaSub": "Ingia kama mtafsiri, mkaguzi au msimamizi wa majaribio",
-      "notificationsHelp": "Huwasha arifa, ili kifaa hiki kikujulishe kuhusu maombi na maoni.",
       "syncHelp": "Huonyesha kinachosubiri kutumwa au kupakuliwa. Namba inamaanisha mabadiliko yanayosubiri kutumwa.",
       "blockedHelp": "Huonyesha uliowazuia, ili uache kuwazuia.",
       "switchOrgHelp": "Hufungua mashirika yako, ili uhamie jingine au uanzishe jipya."
@@ -3302,6 +3358,7 @@
       "nameLabel": "Jina Kamili",
       "shortPassword": "Chagua nenosiri la herufi 6 au zaidi.",
       "passwordNeedsConnection": "Kuweka nenosiri kunahitaji mtandao.",
+      "nameSaved": "Jina limehifadhiwa.",
       "passwordFailed": "Nenosiri halikuweza kuwekwa. Jaribu tena.",
       "savedWithPassword": "Imehifadhiwa. Unaweza kuingia kwa jina lako la kuingia na nenosiri hili.",
       "saved": "Wasifu umehifadhiwa. Utasawazishwa ukiunganishwa.",
@@ -3350,17 +3407,22 @@
       "signingOut": "Inatoka…",
       "button": "Toka",
       "notYet": "Bado",
+      "sending": "Inatuma…",
+      "seeWaiting": "Ona kinachosubiri",
+      "seeWaitingHelp": "Inafungua Sawazisha: kinachosubiri kutumwa, kwa kifungu, na Sawazisha sasa.",
       "question": "Toka?"
     },
     "delete": {
       "title": "Futa Akaunti",
       "deleting": "Inafuta…",
       "button": "Futa Akaunti Yangu",
+      "buttonHelp": "Inauliza mara moja zaidi, kisha inafuta akaunti hii kabisa.",
       "sendFirstTitle": "Tuma kazi yako kwanza",
       "sendFirstBody": "Bado vya kutuma: {{things}}. Futa akaunti yako baada ya kusawazishwa, ili shirika lako livipate.",
       "offlineTitle": "Uko nje ya mtandao",
       "offlineBody": "Unganisha kwenye intaneti ili kufuta akaunti yako.",
       "question": "Futa akaunti yako?",
+      "confirmTitle": "Futa akaunti ya {{name}}?",
       "deleted": "Vinafutwa",
       "deletedSub": "Kuingia kwako, barua pepe, jina, arifa, uzuiaji na taarifa za uchunguzi. Unaondoka katika kila shirika.",
       "kept": "Vinabaki na shirika lako",
@@ -3372,6 +3434,7 @@
       "syncNow": "Sawazisha sasa",
       "refused": "Seva imekataa akaunti hii kwa shirika hili.",
       "tooOld": "Sasisha programu ili kusawazisha.",
+      "tooOldSends": "Programu hii ni ya zamani mno kupokea mabadiliko ya timu yako. Kazi yako mwenyewe bado inatumwa.",
       "waitingUpload": "zinasubiri kupakiwa",
       "refusedByServer": "zimekataliwa na seva",
       "latestConfirmed": "ya mwisho iliyothibitishwa",
@@ -3394,13 +3457,15 @@
         "live": "Moja kwa moja",
         "checking": "Imeunganishwa",
         "offline": "Nje ya mtandao",
-        "refused": "Haisawazishi"
+        "refused": "Haisawazishi",
+        "tooOld": "Sasisha ili kupokea"
       },
       "help": {
         "live": "Mabadiliko ya timu yako yanafika papo hapo, na yako yanatumwa mara moja.",
         "checking": "Imeunganishwa, lakini njia ya moja kwa moja haifanyi kazi, kwa hiyo kifaa hiki kinaangalia mabadiliko kila baada ya dakika chache. Sawazisha sasa huangalia mara moja.",
         "offline": "Hakuna mtandao. Kila unachofanya kinahifadhiwa kwenye kifaa hiki na kinatumwa chenyewe ukirudi mtandaoni.",
         "refused": "Seva haikubali mabadiliko kutoka kifaa hiki. Kazi yako bado imehifadhiwa hapa.",
+        "tooOld": "Programu hii ni ya zamani mno kupokea mabadiliko ya timu yako. Isasishe kutoka dukani.",
         "toReceive": "Rekodi za wengine ambazo kifaa hiki bado kinapakua.",
         "refusedLine": "Mabadiliko ambayo seva haikukubali, kwa kawaida kwa sababu ruhusa imebadilika. Yanabaki kwenye kifaa hiki; fungua Maelezo kuona kila moja."
       },
@@ -3480,7 +3545,6 @@
       "sub": "Faharasa · {{source}}",
       "openKeyTerm": "Fungua neno muhimu",
       "listen": "Sikiliza: {{term}}",
-      "standIn": "Imeshindwa kupakia sauti — inacheza sauti mbadala",
       "notKeyTerm": "Neno hili bado halipo katika maneno muhimu ya shirika lako."
     },
     "callout": {
@@ -3493,10 +3557,6 @@
     "reader": {
       "addNoteOn": "Ongeza dokezo kwenye {{verse}}",
       "addNoteOnAt": "Ongeza dokezo kwenye {{verse}} wakati {{time}}",
-      "verse": "Mstari {{verse}}",
-      "where": "{{title}} · mstari {{verse}} · {{bible}}",
-      "whereAt": "{{title}} · mstari {{verse}} · {{bible}} · {{time}}",
-      "noteAdded": "Dokezo limeongezwa kwenye {{verse}} — linafuata kifungu hiki",
       "addNoteHelp": "Sema au andika dokezo kwenye mstari huu. Linabaki na kifungu."
     },
     "screen": {
@@ -3518,6 +3578,7 @@
       "stepDone": "{{step}} imekamilika · {{done, number}} kati ya {{total, number}}",
       "allDone": "Kila hatua imekamilika",
       "backToGuide": "Rudi kwenye mwongozo",
+      "backTo": "Rudi kwenye {{chip}}",
       "doneWithStep": "Nimemaliza hatua hii",
       "openWorkspace": "Fungua sehemu ya kurekodi",
       "recordFirstDraft": "Rekodi rasimu ya kwanza",
@@ -3660,13 +3721,14 @@
         "askedYou": "{{by}} amekuomba",
         "askedYourTeam": "{{by}} ameomba timu yako ya {{team}}",
         "askedYourReviewTeam": "{{by}} ameomba timu yako ya ukaguzi",
-        "byLinkOver": "kwa kiungo kupitia {{channel}}",
+        "byLinkOver": "haijatumwa na programu · {{channel}}",
         "askedForChanges": "{{who}} ameomba mabadiliko",
         "answered": "Maoni yamejibiwa — inakamilika mkaguzi akisema Iko sawa",
         "recordedBy": "Imerekodiwa na {{who}}",
         "recorded": "Imerekodiwa",
         "bestAfter": "Ni bora baada ya maoni ya {{kind}} kujibiwa, ili ifanywe kwenye toleo utakalobaki nalo",
-        "recordsItIn": "{{who}} anakirekodi kwa {{language}} — maudhui mapya, si uamuzi"
+        "recordsItIn": "{{who}} anakirekodi kwa {{language}} — maudhui mapya, si uamuzi",
+        "loggedStillWaits": "Imeandikwa \"Iko sawa\" · bado inasubiri ukaguzi ndani ya programu"
       },
       "channels": {
         "whatsapp": "WhatsApp",
@@ -3745,8 +3807,8 @@
         "text": "Maandishi",
         "rating": "1–5"
       },
-      "guestMessage": "Habari {{name}} — unaweza kusikiliza {{passage}} kwa {{language}} na kutuambia ulichoelewa? Huhitaji akaunti:",
-      "guestMessageNoName": "Habari — unaweza kusikiliza {{passage}} kwa {{language}} na kutuambia ulichoelewa? Huhitaji akaunti:"
+      "guestMessage": "Habari {{name}} — unaweza kusikiliza {{passage}} kwa {{language}} na kutuambia ulichoelewa?",
+      "guestMessageNoName": "Habari — unaweza kusikiliza {{passage}} kwa {{language}} na kutuambia ulichoelewa?"
     },
     "path": {
       "theCheck": "{{check}}",
@@ -3777,6 +3839,7 @@
       "fixSub": "Kisha inarudi kwenye ukaguzi",
       "status": {
         "movedPast": "imerukwa",
+        "movedPastWhy": "imepitwa · {{reason}}",
         "setAside": "imewekwa kando",
         "answered": "imejibiwa",
         "answeredBack": "imejibiwa · inarudi kwa ukaguzi",
@@ -3886,11 +3949,13 @@
         "backTranslate": "Fanya tafsiri rejeshi",
         "doCheck": "Fanya {{check}}",
         "study": "Jifunze",
-        "record": "Rekodi"
+        "record": "Rekodi",
+        "continueCheck": "Endelea na {{check}}"
       },
       "continueRecording": "Endelea kurekodi",
       "askFor": "Omba {{check}}",
       "movePastThis": "Ruka kituo hiki cha ukaguzi…",
+      "heldAt": "Inasubiri kwenye {{check}}, ambayo lazima ipite kwanza",
       "skip": {
         "title": "Weka kando {{kind}}?",
         "sub": "Mtiririko unapendekeza hatua hii. Ni sawa kuiweka kando — sema kwa nini ili mtu anayefuata aelewe.",
@@ -3968,7 +4033,6 @@
       "someoneElseCheck": "{{kind}}: omba mtu, kikundi, au mtu wa nje kwa WhatsApp au ujumbe mfupi",
       "alreadyDid": "Tayari tumefanya hili",
       "alreadyDidSub": "Sema {{check}} ilifanyika lini na jinsi gani",
-      "notNowSub": "Weka kando {{check}}. Sema kwa nini",
       "newVersion": "Rekodi toleo jipya",
       "newVersionSub": "Ukaguzi uliofanyika hadi sasa unabaki na toleo lililosikilizwa",
       "movePast": "Ruka kituo cha ukaguzi",
@@ -3980,7 +4044,9 @@
       "whatHelpsHelp": "Hufungua Biblia, miongozo na visaidizi vingine vya kifungu hiki.",
       "myself": "Nitafanya hili mwenyewe",
       "myselfSub": "{{kind}}: sikiliza na uamue sasa",
-      "myselfMakesSub": "{{kind}}: irekodi sasa"
+      "myselfMakesSub": "{{kind}}: irekodi sasa",
+      "setAside": "Weka {{check}} kando",
+      "setAsideSub": "Sema kwa nini. Inaingia kwenye kumbukumbu."
     },
     "published": {
       "askTitle": "Omba ukaguzi",
@@ -4080,9 +4146,10 @@
       "titleRecord": "Omba mtu arekodi",
       "titleKind": "Omba {{kind}}",
       "titleReview": "Omba ukaguzi",
-      "doneOutside": "Umemwomba {{name}} · ombi liko kwenye kumbukumbu",
+      "doneOutside": "Imehifadhiwa kwenye kumbukumbu, haijatumwa. Mtumie {{name}} wewe mwenyewe.",
       "doneTeam": "{{name}} ataliona kwenye Kazi Yangu yake",
       "askName": "Omba {{name}}",
+      "saveRequest": "Hifadhi ombi",
       "chooseSomeone": "Chagua mtu",
       "recordIt": "Kirekodi",
       "recordSub": "Watakipata kwenye Kazi Yangu yao, pamoja na chanzo na somo tayari.",
@@ -4091,11 +4158,9 @@
       "withoutApp": "Mtu asiye na programu",
       "usuallyDoesThis": "Kwa kawaida hufanya hili",
       "nobody": "Hakuna mtu kwenye timu anayeweza kufanya hili.",
-      "nobodyTryOutside": "Hakuna mtu kwenye timu anayeweza kufanya hili. Jaribu mtu asiye na programu.",
       "guestName": "Jina lake — k.m. Mchungaji Garang",
       "phone": "Namba ya simu",
-      "preview": "Hakiki ya {{channel}}",
-      "previewNote": "Ombi limehifadhiwa kwenye kumbukumbu pamoja na jina na namba yake. Kutuma kiungo kisichohitaji akaunti kutoka kwenye programu bado hakujawa tayari.",
+      "phoneNeeded": "Namba ya simu · inahitajika",
       "directions": "Maelekezo · si lazima",
       "sayKeepInMind": "Sema cha kuzingatia",
       "sayListenFor": "Sema cha kusikilizia",
@@ -4105,12 +4170,15 @@
       "answerType": "Jibu: {{type}}",
       "addQuestion": "Ongeza swali",
       "sendHelp": "Hutuma ombi. Wanalipata kwenye Kazi Yangu.",
-      "sendOutsideHelp": "Huhifadhi ombi kwenye kumbukumbu, pamoja na jina na namba yake.",
+      "sendOutsideHelp": "Huhifadhi ombi kwenye kumbukumbu, pamoja na jina na namba yao. Hakuna kinachotumwa kwao.",
       "onTeamHelp": "Chagua mtu anayetumia programu.",
-      "withoutAppHelp": "Badala yake mwombe mtu kwa WhatsApp au ujumbe mfupi.",
+      "withoutAppHelp": "Huhifadhi ombi kwa mtu asiye na programu. Wewe mwenyewe unamtumia ujumbe.",
       "teamHelp": "Huwaomba wote walio kwenye ukaguzi huu. Yeyote kati yao anaweza kuufanya.",
       "personHelp": "Humchagua mtu huyu ili umwombe.",
       "phoneHelp": "Mahali pa kumpata kwa WhatsApp au ujumbe mfupi.",
+      "sendYourself": "Watumie hili wewe mwenyewe, kwa {{channel}}",
+      "shareMessage": "Shiriki ujumbe",
+      "shareMessageHelp": "Hufungua ukurasa wa kushiriki wa simu yako na ujumbe huu. Kwenye kivinjari, huunakili.",
       "whatsappHelp": "Mpate kwa WhatsApp.",
       "smsHelp": "Mpate kwa ujumbe mfupi.",
       "askSpecificHelp": "Andika swali ili walijibu, kisha uliongeze.",
@@ -4124,7 +4192,9 @@
     },
     "versions": {
       "title": "Matoleo",
+      "whichDraft": "Rasimu ipi?",
       "newVersion": "Toleo jipya",
+      "continueDraft": "Endelea na {{name}}",
       "yourDraft": "Rasimu yako",
       "yourDrafts": "Rasimu zako",
       "published": "Yaliyochapishwa",
@@ -4161,6 +4231,7 @@
   "work": {
     "title": "Kazi Yangu",
     "loading": "Inapakia kazi yako…",
+    "notReady": "{{language}} ikishakuwa na vifungu vya kurekodi, kazi yako itaonekana hapa.",
     "askedBy": "imeombwa na {{name}}",
     "checkPassage": "Kagua {{passage}}",
     "bell": {
@@ -4214,7 +4285,8 @@
       "wantsToJoin": "{{name}} anataka kujiunga",
       "asked": "Aliomba {{when}}",
       "askedJustNow": "Ameomba sasa hivi",
-      "openHelp": "Hufungua ombi lake: chagua jukumu na umruhusu aingie."
+      "openHelp": "Hufungua ombi lake: chagua jukumu na umruhusu aingie.",
+      "connectToLetIn": "Unganisha intaneti ili uwakaribishe"
     },
     "lead": {
       "getOrgReady": "Andaa {{org}}",
@@ -4272,7 +4344,11 @@
     "elsewhere": {
       "title": "Taarifa mpya katika {{language}}",
       "sub_one": "Taarifa {{count, number}} kwa ajili yako. Gusa ili uhamie {{language}}.",
-      "sub_other": "Taarifa {{count, number}} kwa ajili yako. Gusa ili uhamie {{language}}."
+      "sub_other": "Taarifa {{count, number}} kwa ajili yako. Gusa ili uhamie {{language}}.",
+      "switched": "Sasa katika {{language}}",
+      "help": "Huhamisha programu kwenda {{language}}.",
+      "back": "Rudi {{language}}",
+      "backSub": "{{language}} iko wazi sasa."
     },
     "again": {
       "title": "Rekodi {{passage}} tena",
@@ -4303,6 +4379,7 @@
       "notSaved": "Haijahifadhiwa: {{reason}}",
       "notSavedCode": "Haijahifadhiwa. Kuna hitilafu (msimbo {{code}}).",
       "dismissLabel": "{{message}} Ondoa",
+      "close": "Funga ujumbe",
       "goesWhenConnected": "{{message}} Timu yako itaipata kifaa hiki kikiunganishwa."
     },
     "nav": {
@@ -4402,7 +4479,7 @@
       },
       "term": {
         "title": "Chagua neno",
-        "sub": "Maana yake na tafsiri zake zinafunguka hapa."
+        "sub": "Maana yake na maneno ya timu yako hufunguka hapa."
       },
       "language": {
         "title": "Chagua lugha",
@@ -4419,8 +4496,8 @@
       "subView": "Masharti ambayo shirika lako hushiriki rekodi na maandishi yake chini yake.",
       "use": "Tumia leseni hii",
       "opening": "Inafungua…",
-      "yesOpenTo": "Ndiyo, fungua kwa {{name}}",
-      "openTo": "Fungua kwa {{name}}",
+      "yesOpenTo": "Ndiyo, fungua: {{terms}}",
+      "openTo": "Fungua: {{terms}}",
       "pickMoreOpen": "Chagua leseni iliyo wazi zaidi",
       "title": "Nani anaweza kutumia kazi yako",
       "cannotUndo": "Hili haliwezi kutenduliwa",
@@ -4441,6 +4518,8 @@
       "label": "Mchoro: unganisha angalau nukta {{n}}",
       "help": "Pitisha kidole kwenye nukta bila kukiinua, au gusa moja moja kisha Nimemaliza. Unganisha angalau nukta {{n}}.",
       "dot": "Nukta {{n}}",
+      "dotsSoFar_one": "nukta {{count, number}}",
+      "dotsSoFar_other": "nukta {{count, number}}",
       "picture": "Picha {{n}}",
       "again": "Anza upya",
       "againHelp": "Inafuta nukta ili uanze mchoro upya.",
@@ -4452,6 +4531,7 @@
     "turnOff": "Zima msaada",
     "listen": "Sikiliza",
     "stop": "Acha",
+    "closeHint": "Inafunga maelezo haya.",
     "line": "{{label}}. {{detail}}",
     "lineAfterSentence": "{{label}} {{detail}}",
     "details": {
@@ -4487,10 +4567,11 @@
       "explorer": "Hufungua kichunguzi cha lugha kwenye kichupo kipya: kila lugha na mahali inapozungumzwa."
     },
     "sync": {
-      "live": "Nukta ya kijani: imeunganishwa. Kazi yako inatumwa unapoendelea. Gusa ili kuona kilichotumwa.",
-      "checking": "Nukta ya kijivu: inatafuta mtandao. Kazi yako inabaki kwenye kifaa hiki hadi itumwe.",
-      "offline": "Nukta ya manjano: nje ya mtandao. Kazi yako inabaki kwenye kifaa hiki na inatumwa ukishaunganishwa.",
-      "refused": "Nyekundu: seva imekataa kitu. Gusa ili kuona ni nini, na cha kufanya.",
+      "live": "Wingu lenye alama ya vema: umeunganishwa. Kazi yako inatumwa unapoendelea. Gusa uone kilichotumwa.",
+      "checking": "Wingu tupu: linatafuta muunganisho. Kazi yako inabaki kwenye kifaa hiki hadi itumwe.",
+      "offline": "Wingu lililokatwa: nje ya mtandao. Kazi yako inabaki kwenye kifaa hiki na itatumwa ukiunganishwa.",
+      "refused": "Wingu jekundu lenye onyo: seva ilikataa kitu. Gusa uone ni nini, na la kufanya.",
+      "tooOld": "Wingu la njano lenye mshale wa chini: programu hii ni ya zamani mno kupokea mabadiliko ya timu yako. Gusa ili kuisasisha.",
       "withWaiting": "{{standing}} Namba ni idadi ya vitu vinavyosubiri kutumwa.",
       "withReceiving": "{{standing}} Pete inazunguka wakati rekodi za wengine zinapakuliwa kwenye kifaa hiki. Hakuna kinachosubiri kutumwa."
     }
@@ -4668,10 +4749,13 @@
     "actions": {
       "openMembers": "Fungua Wanachama",
       "openPassage": "Fungua kifungu",
+      "openVersion": "Fungua toleo",
+      "openReview": "Fungua tathmini",
       "closeReport": "Funga ripoti",
       "keep": "Kiache",
-      "openPassageHelp": "Hufungua kifungu ambacho ripoti hii inahusu.",
+      "openPassageHelp": "Inafungua kilichoripotiwa, ili ukiangalie kabla ya kuamua.",
       "keepHelp": "Hukiacha kwenye kumbukumbu na kufunga ripoti.",
+      "removeHelp": "Inauliza mara moja zaidi, kisha inakiondoa kwenye kumbukumbu kwenye kila kifaa.",
       "closeReportHelp": "Hufunga ripoti. Hakuna anayeondolewa."
     },
     "hidden": {
@@ -4739,7 +4823,6 @@
       "timelineHelp": "Gusa au buruta ili uende wakati fulani. Nyakati: ulipo sasa, na urefu wake wote."
     },
     "recorder": {
-      "permissionNeeded": "Ruhusa ya maikrofoni inahitajika.",
       "hidePartsHelp": "Ficha sehemu.",
       "showPartsHelp": "Onyesha kila sehemu, ili kuisikia au kuifuta.",
       "playAllHelp": "Sikia kila kilichorekodiwa hadi sasa, sehemu moja baada ya nyingine.",
@@ -4794,7 +4877,11 @@
       "movePartHelp": "Buruta juu au chini ili kusogeza sehemu hii. Sehemu unayosogeza hupoteza mstari wake, ili uupe tena.",
       "moveUp": "Peleka juu",
       "moveDown": "Peleka chini",
-      "undoHelp": "Hutendua badiliko lako la mwisho kwa sehemu. Gusa tena kurudi nyuma zaidi."
+      "undoHelp": "Hutendua badiliko lako la mwisho kwa sehemu. Gusa tena kurudi nyuma zaidi.",
+      "micOff": "LangQuest haiwezi kukusikia. Washa maikrofoni kwa LangQuest kwenye Mipangilio.",
+      "micOffWeb": "LangQuest haiwezi kukusikia. Ruhusu maikrofoni kwa tovuti hii kwenye kivinjari chako, kisha gusa rekodi tena.",
+      "openSettings": "Fungua Mipangilio",
+      "openSettingsHelp": "Hufungua mipangilio ya simu hii kwa LangQuest. Washa maikrofoni hapo, kisha urudi."
     },
     "cleanUp": {
       "cleanUp": "Safisha",
@@ -4925,11 +5012,11 @@
       "notes": "Madokezo",
       "history": "Historia",
       "tied": "Limeunganishwa na rasimu yako.",
-      "noTerms": "Hakuna maneno muhimu yaliyolingana na chanzo cha kifungu hiki.",
-      "noRendering": "Bado hakuna tafsiri yake",
+      "noTerms": "Hakuna maneno muhimu katika kifungu hiki.",
+      "noRendering": "Bado hakuna neno",
       "termLabel": "{{term}}. {{rendered}}",
       "termLabelTied": "{{term}}. {{rendered}}. Limeunganishwa na rasimu yako",
-      "noLanguageRendering": "Bado hakuna tafsiri ya {{language}}",
+      "noLanguageRendering": "Bado hakuna neno la {{language}}",
       "tiedBadge": "Limeunganishwa",
       "tying": "Inaunganisha…",
       "tie": "Unganisha na rasimu yako",
@@ -5167,8 +5254,8 @@
       "notHereSub": "Rudi kwenye ramani ili kuchagua kingine.",
       "breakUp": "Gawa {{book}}",
       "notBrokenUp": "{{book}} bado hakijagawanywa",
-      "chooseHow": "Chagua jinsi {{book}} kitakavyokatwa vipande, kwa sura, vifungu vya FIA au njia nyingine. Kisha kinaweza kurekodiwa.",
-      "coordinatorDecides": "Mratibu anaamua jinsi {{book}} kitakavyokatwa vipande. Kisha unaweza kukirekodi.",
+      "chooseHow": "Chagua jinsi {{book}} kitakavyokatwa sehemu, kwa sura, vifungu vya FIA au njia nyingine. Kisha kinaweza kurekodiwa.",
+      "coordinatorDecides": "Mratibu anaamua jinsi {{book}} kitakavyokatwa sehemu. Kisha unaweza kukirekodi.",
       "summary_one": "{{recorded}} kati ya kifungu {{count, number}} kimerekodiwa",
       "summary_other": "{{recorded}} kati ya vifungu {{count, number}} vimerekodiwa",
       "summaryIn_one": "{{recorded}} kati ya kifungu {{count, number}} kimerekodiwa katika {{language}}",
@@ -5176,10 +5263,11 @@
       "key": "Ufunguo",
       "filterHelp": "Onyesha baadhi ya vifungu tu, na ufunguo kamili.",
       "breakUpDifferently": "Gawa kwa njia nyingine",
-      "breakUpDifferentlyHelp": "Badilisha jinsi kitabu hiki kinavyokatwa vipande: kwa sura, vifungu vya FIA au njia nyingine.",
+      "breakUpDifferentlyHelp": "Badilisha jinsi kitabu hiki kinavyokatwa sehemu: kwa sura, vifungu vya FIA au njia nyingine.",
       "chapterTitle": "{{book}} {{n}}",
       "pickPart_one": "Sehemu {{count, number}} — chagua moja",
-      "pickPart_other": "Sehemu {{count, number}} — chagua moja"
+      "pickPart_other": "Sehemu {{count, number}} — chagua moja",
+      "outsideFilter": "Nje ya kichujio"
     },
     "home": {
       "title": "Ramani ya Vifungu",
@@ -5198,9 +5286,10 @@
       "noPassageMatch": "Hakuna kifungu kinacholingana — jaribu jina la kitabu, kisha sura",
       "oldTestament": "Agano la Kale",
       "newTestament": "Agano Jipya",
+      "testamentCount": "{{name}} · {{n, number}}",
       "noBooks": "Bado hakuna vitabu katika lugha hii.",
       "findHelp": "Andika jina la kitabu, kisha namba ya sura ili uruke moja kwa moja hadi hapo.",
-      "languageChipHelp": "Huonyesha ramani ya lugha hii."
+      "languageChipHelp": "Inafungua ramani ya lugha hii na kuifanya lugha unayofanyia kazi. Kazi Yangu nayo inafuata."
     },
     "tones": {
       "done": "Imekamilika",
@@ -5353,6 +5442,7 @@
       "ofPlan": "{{actual}} kati ya {{expected}} ya mpango",
       "ofPlanFinishes": "{{actual}} kati ya {{expected}} ya mpango · inamaliza {{date}}",
       "setTarget": "Weka lengo kwenye ukurasa wa lugha.",
+      "adminSets": "Anayesimamia lugha hii ndiye huweka lengo lake.",
       "targetRange": "{{scope}} · {{from}} – {{to}}"
     },
     "paceAdvice": {
@@ -5531,7 +5621,8 @@
       "alertsHelp": "Huonyesha matatizo yanayohitaji mtu. Namba inaonyesha ni mangapi."
     },
     "home": {
-      "catchUp": "Sawazisha na seva",
+      "refresh": "Onyesha upya",
+      "clusterFilter": "Kundi",
       "alertsChip_one": "Tahadhari, {{count, number}} inahitaji mtu",
       "alertsChip_other": "Tahadhari, {{count, number}} zinahitaji mtu",
       "allCountries": "Nchi zote",
@@ -5569,7 +5660,8 @@
       "noCountries": "Bado hakuna lugha yenye nchi. Weka nchi kwenye ukurasa wa kila lugha.",
       "toLanguagesHelp": "Huhamia ukurasa wenye kila lugha kwa undani.",
       "toActivityHelp": "Huhamia ukurasa wa kilichofika kwenye seva, siku kwa siku.",
-      "toMapHelp": "Huhamia ramani ya mahali lugha zilipo."
+      "toMapHelp": "Huhamia ramani ya mahali lugha zilipo.",
+      "openAlertsHelp": "Hufungua Tahadhari: kinachohitaji mtu, na la kufanya."
     },
     "portfolio": {
       "activeDays": "Hai (siku 14 zilizopita)",
@@ -5776,12 +5868,13 @@
       "allClear": "Kila kitu kiko sawa",
       "allClearBody": "Hakuna sauti iliyokwama, matatizo ya uadilifu wa faili wala takwimu zilizopitwa na wakati.",
       "whatToDo": "<b>Cha kufanya:</b> {{action}}",
+      "adminSets": "Anayesimamia kila lugha anaweza kuweka hili kwenye ukurasa wake.",
       "stuckRow": "{{recordings}} katika {{passages}}, ya zamani zaidi kutoka {{date}}",
       "refreshed": "imesasishwa {{when}}",
       "stale": {
         "title": "Takwimu hizi si za sasa",
         "body": "Zilisomwa {{ago}}. Kazi iliyosawazishwa tangu hapo haimo.",
-        "action": "Pakia ukurasa upya ili kusasisha."
+        "action": "Bonyeza Onyesha upya juu ya Ripoti ili upate yaliyo mapya."
       },
       "stuck": {
         "title": "Sauti iliyorekodiwa imekwama kwenye vifaa",
@@ -5873,6 +5966,8 @@
       "scopeHelp": "Lengo linahusu nini. Kisha weka tarehe na uhifadhi.",
       "startHelp": "Siku ambayo kazi ya kufikia lengo ilianza.",
       "finishByHelp": "Siku ambayo lengo linapaswa kufikiwa.",
+      "suggestEnd": "Miezi 18: {{date}}",
+      "suggestEndHelp": "Hujaza tarehe ya kumaliza miezi 18 baada ya kuanza, na leo kama mwanzo ikiwa tupu. Hakuna kinachohifadhiwa hadi uhifadhi lengo.",
       "saveTargetHelp": "Huhifadhi lengo na tarehe zake kwenye seva sasa. Inahitaji mtandao.",
       "pickCountryHelp": "Huchagua nchi hii. Kisha Hifadhi nchi huihifadhi.",
       "chosenCountryHelp": "Nchi iliyochaguliwa sasa, kwa herufi nzito. Gusa nyingine ili kuibadilisha."
@@ -6120,7 +6215,20 @@
       "doneRecordedHelp": "Huweka {{what}} kwenye kumbukumbu za kifungu.",
       "looksGoodOffline": "Ni nzuri. {{name}} ataipata kifaa hiki kikiunganishwa.",
       "feedbackOffline": "Maoni yamehifadhiwa. {{name}} atayapata kifaa hiki kikiunganishwa.",
-      "helpWordsHelp": "Hufungua maneno muhimu katika kifungu hiki, pamoja na neno la timu kwa kila moja na kama toleo hili lililitumia."
+      "helpWordsHelp": "Hufungua maneno muhimu katika kifungu hiki, pamoja na neno la timu kwa kila moja na kama toleo hili lililitumia.",
+      "addedAtCheckpoint": "{{kind}} imeongezwa kwenye rekodi. Kituo cha ukaguzi bado kinasubiri ukaguzi uliofanywa ndani ya programu.",
+      "keptNotSent": "Ukaguzi wako umehifadhiwa kwenye simu hii. Bado haujatumwa.",
+      "notOnPhoneYet": "Rekodi bado haiko kwenye simu hii. Itacheza hapa simu ikiwa mtandaoni.",
+      "previousQuestion": "Swali lililotangulia",
+      "previousQuestionHelp": "Hurudi kwenye swali lililotangulia, ili ubadilishe jibu lako.",
+      "loggedCheckpoint": "Ukaguzi huu ni kituo cha ukaguzi: ukiandikwa hapa unaingia kwenye rekodi, lakini ni ukaguzi uliofanywa ndani ya programu tu unaofungua hatua zinazofuata.",
+      "notPlayedYet": "Bado hujacheza toleo hili.",
+      "sendChangeTitle": "Tuma kinachopaswa kubadilika pamoja na \"Iko sawa\"?",
+      "sendChangeSub": "Ulisema kinachopaswa kubadilika, kisha ukachagua \"Iko sawa\".",
+      "leaveItOut": "Usiitume",
+      "leaveItOutHelp": "Hutuma \"Iko sawa\" peke yake. Ulichosema kuhusu mabadiliko hakiingii kwenye kumbukumbu.",
+      "sendItToo": "Itume pia",
+      "sendItTooHelp": "Hutuma \"Iko sawa\" pamoja na ulichosema, ili mtafsiri asikie pia."
     },
     "guest": {
       "previewSub": "Hakiki · kile anachoona mtu asiye na programu",
@@ -6402,22 +6510,19 @@
     "rec": {
       "recommended": "Inapendekezwa",
       "notRecommended": "Haipendekezwi",
-      "hiddenForLanguage": "Imefichwa kwa lugha hii",
+      "notHere": "Haipendekezwi hapa",
       "forLanguage": "Inapendekezwa kwa lugha hii",
       "byOrganization": "Inapendekezwa na shirika",
       "stop": "Acha kupendekeza",
       "recommend": "Pendekeza",
-      "follow": "Fuata shirika",
-      "hide": "Ficha",
+      "recommendHere": "Pendekeza hapa",
+      "stopHere": "Acha kupendekeza hapa",
       "done": {
         "recommendedEverywhere": "{{name}} inapendekezwa kwa kila lugha.",
         "recommendedHere": "{{name}} inapendekezwa kwa timu ya lugha hii.",
         "stopped": "{{name}} haipendekezwi tena.",
-        "hidden": "{{name}} imefichwa kwa lugha hii.",
-        "follows": "{{name}} inafuata shirika hapa."
+        "stoppedHere": "{{name}} haipendekezwi tena kwa timu ya lugha hii."
       },
-      "followHelp": "Lugha hii inarudi kwenye kile shirika linachopendekeza.",
-      "hideHelp": "Timu ya lugha hii inaacha kuipata, ingawa shirika linaipendekeza.",
       "recommendLanguageHelp": "Timu ya lugha hii inaipata kama pendekezo.",
       "recommendOrgHelp": "Timu ya kila lugha inaipata kama pendekezo.",
       "stopLanguageHelp": "Timu ya lugha hii inaacha kuipata kama pendekezo.",
@@ -6479,7 +6584,10 @@
       "introLanguage": "Kile ambacho timu ya lugha hii inapewa: mapendekezo ya shirika, pamoja na unachoongeza au kuficha hapa. Watafsiri bado wanaweza kuchunguza Biblia yoyote mtandaoni.",
       "recommended": "Zinazopendekezwa · {{n, number}}",
       "noneRecommended": "Bado hakuna Biblia inayopendekezwa hapa. Ongeza moja, au pendekeza moja hapa chini.",
-      "hidden": "Zilizofichwa kwa lugha hii · {{n, number}}",
+      "noneRecommendedAdd": "Bado hakuna Biblia inayopendekezwa hapa. Ongeza moja.",
+      "noneRecommendedBelow": "Bado hakuna Biblia inayopendekezwa hapa. Pendekeza moja hapa chini.",
+      "noneRecommendedYet": "Bado hakuna Biblia inayopendekezwa hapa.",
+      "hidden": "Haipendekezwi hapa · {{n, number}}",
       "notRecommended": "Katika maktaba yako, hazipendekezwi · {{n, number}}",
       "cardHelp": "Huifungua: maandishi yake, sauti, nyakati za mistari na inapendekezwa kwa nani."
     },
@@ -6500,7 +6608,6 @@
       "bibleBrainHelp": "Tafuta Biblia kwa lugha katika Bible Brain.",
       "bibleHelp": "Huonyesha ilicho nacho kabla hujaiongeza.",
       "fromLangQuestHelp": "Huonyesha Biblia ambazo LangQuest inazo tayari kufuatwa.",
-      "readyHelp": "Huiongeza kwenye maktaba yako na kuipendekeza hapa.",
       "searchHelp": "Andika jina au msimbo wa lugha ili kupata Biblia zake.",
       "listed": "Lugha zenye Biblia katika Bible Brain pekee ndizo zinaonyeshwa.",
       "noMatch": "Hakuna lugha kwa jina hilo yenye Biblia katika Bible Brain.",
@@ -6708,6 +6815,7 @@
       "all": "Maneno muhimu yote",
       "hear": "Sikia {{term}}",
       "hearHelp": "Inacheza mstari lilimo.",
+      "noVerseAudio": "Biblia hii haina sauti ya mstari huo.",
       "hearLabel": "Sikia {{term}} katika Biblia",
       "openHelp": "Linamaanisha nini, timu yako inalisemaje, na kwa nini.",
       "termLabel": "{{term}}. {{refs}}",
@@ -6726,9 +6834,11 @@
       "added": "{{term}} limeongezwa.",
       "addSub": "Neno ambalo timu inapaswa kulisema kwa njia ileile kila mara. Linaongezwa kwenye maneno muhimu ya {{language}}.",
       "addWord": "Ongeza neno",
+      "addWordHelp": "Huongeza neno baada ya kusema au kuandika jinsi {{language}} inavyolisema.",
       "wordPlaceholder": "Neno katika Biblia, k.m. mchungaji",
       "meaningPlaceholder": "Linamaanisha nini (si lazima)",
       "sayItIn": "Lisema kwa {{language}}",
+      "howSays": "Jinsi {{language}} inavyosema",
       "allHelp": "Hufungua orodha ya kila neno muhimu katika lugha hii.",
       "typeHelp": "Andika jinsi {{language}} inavyolisema.",
       "addYourWord": "Ongeza neno lenu"
@@ -7031,7 +7141,9 @@
       "startHelp": "Huweka seti iliyo tayari badala ya kaguzi zilizopo, ili uzibadilishe upendavyo.",
       "useHelp": "Huweka hizi badala ya kaguzi za {{language}}. Tendua huzirudisha.",
       "pickHelp": "Huuchagua. Kisha Tumia, chini kabisa, huweka kaguzi zake badala ya zilizopo.",
-      "replaceAsk": "Weka {{name}} badala ya kaguzi za {{language}} zenyewe?"
+      "replaceAsk": "Weka {{name}} badala ya kaguzi za {{language}} zenyewe?",
+      "useThese": "Tumia kaguzi hizi",
+      "replaceOwnAsk": "Badilisha kaguzi za {{language}} zenyewe?"
     },
     "gone": "Ukaguzi huu haumo tena kwenye kaguzi za lugha",
     "checkOf": "Ukaguzi wa {{n}} · {{language}}",
@@ -7081,6 +7193,8 @@
     "forTeam": "Kwa timu ya {{check}}",
     "forCheck": "Kwa {{check}}",
     "dragHelp": "Buruta juu au chini ili kubadilisha ukaguzi huu unakuja lini.",
+    "moveUpHelp": "Ukaguzi huu unakuja nafasi moja mapema.",
+    "moveDownHelp": "Ukaguzi huu unakuja nafasi moja baadaye.",
     "addThisHelp": "Huongeza ukaguzi huu baada ya nyingine.",
     "newCheckHelp": "Jina la ukaguzi mpya, ikiwa si mojawapo ya hizi.",
     "addCheckHelp": "Chagua ukaguzi ambao shirika lako linaujua, au taja mpya.",
@@ -7476,8 +7590,10 @@
     "dismiss": "Funga",
     "dismissHelp": "Huficha hili hadi toleo jipya zaidi litoke.",
     "required": "Tafadhali sasisha programu",
+    "requiredSub": "Rekodi na mabadiliko yako bado yanaenda kwa timu yako. Hakuna jipya kutoka kwao litakalofika kwenye simu hii hadi usasishe.",
+    "requiredBar": "Sasisha ili upate kazi ya timu yako",
     "keepWorking": "Endelea kufanya kazi",
-    "keepWorkingHelp": "Kazi yako inabaki kwenye simu hii na itatumwa baada ya kusasisha."
+    "keepWorkingHelp": "Hufunga hiki kwa sasa. Unaweza kuendelea kurekodi; kazi yako bado inaenda kwa timu yako."
   },
   "globalViewer": {
     "title": "Mtazamaji wa Kimataifa",
@@ -7511,6 +7627,7 @@
     "onTitle": "Unaweza kusoma mashirika yote",
     "onBody": "Unaona anachoona Mtazamaji. Huwezi kubadilisha chochote.",
     "search": "Shirika au lugha",
+    "searching": "Inatafuta…",
     "openNowLabel": "{{name}}, imefunguliwa sasa",
     "openHelp": "Hufungua shirika hili kusoma.",
     "noneFound": "Hakuna shirika linalolingana.",

@@ -143,8 +143,14 @@ Steps:
 1. Open "Sync".
 
 Expected:
-- Under the banner: "Update the app to sync."
-- "Sync now" is disabled.
+- The header's sync icon is an amber cloud with a down arrow, named
+  "Update to receive", not "Not syncing" (UI audit, finding 119).
+- Sync's standing says "Update to receive", and under it "Update the app
+  to sync." (below the minimum version set in app_versions instead: "This
+  app is too old to receive your team's changes. Your own work still goes
+  out.").
+- On a phone the main button is "Update", which opens the store page; on
+  the web "Sync now" is disabled.
 - Work made now still saves on the device and shows as waiting.
 
 Resets: undo the server setting.

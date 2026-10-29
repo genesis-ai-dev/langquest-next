@@ -48,6 +48,7 @@ import { PartMark, RecordBtn } from './blocks';
 import { styles as ps } from './blockStyles';
 import { useClip } from '../audio/useClip';
 import { VerseParts } from './verseParts';
+import { a11yState } from '../ui/a11yModel';
 
 export interface Part { hash: string; durationMs?: number;
   /** Tried in Clean up and kept as recorded: by whom, and when (decision 179). */ kept?: Kept;
@@ -123,7 +124,7 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
       <View style={styles.cardFace} pointerEvents="none" />
       <View style={[styles.head, props.open && styles.headOpen]}>
         <PartMark state="done" />
-        <Pressable onPress={toggle.onPress} accessibilityRole="button" accessibilityState={{ expanded: props.open }} accessibilityLabel={t('recording.recorder.groupLabel', { title: props.title, sub: props.sub })}
+        <Pressable onPress={toggle.onPress} accessibilityRole="button" {...a11yState({ expanded: props.open }, 'button')} accessibilityLabel={t('recording.recorder.groupLabel', { title: props.title, sub: props.sub })}
           style={({ pressed }) => [{ flex: 1, minHeight: target_.min, justifyContent: 'center', paddingLeft: space.xs + 2 }, pressed && ps.pressed]}>
           <Text style={styles.title}>{props.title}</Text>
           <Text style={txt.smMuted}>{props.sub}</Text>
@@ -219,7 +220,7 @@ function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; ch
         <View style={styles.playDot}><Ico name={clip.playing ? 'pause' : 'play'} size={16} color={C.primary} strokeWidth={2.6} fill={C.primary} /></View>
         <HelpBadge spot={play} />
       </Pressable>
-      <Pressable onPress={choose.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: props.chosen }}
+      <Pressable onPress={choose.onPress} disabled={props.disabled} accessibilityRole="button" {...a11yState({ selected: props.chosen }, 'button')}
         accessibilityLabel={t('recording.recorder.recordOver', { part: label })}
         accessibilityActions={props.disabled ? [] : [{ name: 'delete', label: t('recording.deleteItem', { item: label }) }]}
         onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'delete') props.onOpen(1); }}
@@ -338,7 +339,7 @@ export function RecorderFooter(props: { count: number; phase: LoopPhase; recordD
       <RecordBtn size={72} recording={recording} disabled={props.recordDisabled} onPress={props.onRecord} />
       <View style={styles.sideBox}>
         {session ? null : (
-          <Pressable testID="publish-button" onPress={publish.onPress} disabled={props.publishDisabled} accessibilityRole="button" accessibilityLabel={t('common.done')} accessibilityState={{ disabled: props.publishDisabled }}
+          <Pressable testID="publish-button" onPress={publish.onPress} disabled={props.publishDisabled} accessibilityRole="button" accessibilityLabel={t('common.done')} {...a11yState({ disabled: props.publishDisabled }, 'button')}
             style={({ pressed }) => [styles.publish, props.publishDisabled && { opacity: 0.45 }, pressed && ps.pressed]}>
             <Text style={styles.publishLabel}>{t('common.done')}</Text>
             <HelpBadge spot={publish} />
