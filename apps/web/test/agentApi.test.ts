@@ -52,7 +52,7 @@ class Log implements Source {
     this.arrived.set(e.id, decodeHlc(e.hlc).wallMs + this.delayMs);
   }
 
-  /** received_times as the database answers it (migration 20261029150000): the first publish of a take, an entity's event, an event by id. */
+  /** received_times as the database answers it (migration 20261029160000): the first publish of a take, an entity's event, an event by id. */
   async received(streamId: string, keys: readonly string[]): Promise<Map<string, string>> {
     this.receivedAsks.push([...keys]);
     const events = this.streams.get(streamId) ?? [];

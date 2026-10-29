@@ -298,6 +298,6 @@ The device endpoints use OAuth's error codes.
 | `/connect` | `apps/web/worker/agent/connectPage.ts` |
 | Voice note checks | `apps/web/worker/agent/voice.ts` |
 | Tables (service role only) | `supabase/migrations/20261008000000_api_tokens.sql`, `20261008140000_review_links_releases.sql`, `20261013120000_api_webhooks.sql` (also the poke) |
-| When the server received it (`uploadedAt`) | `received_times` in `supabase/migrations/20261029150000_received_times.sql`, asked once a page (`receivedTimes` in `apps/web/worker/agent/store.ts`) and remembered by the organization's object (`agent/org.ts`) |
+| When the server received it (`uploadedAt`) | `received_times` in `supabase/migrations/20261029160000_received_times.sql`, asked once a page (`receivedTimes` in `apps/web/worker/agent/store.ts`) and remembered by the organization's object (`agent/org.ts`) |
 | Approved version, releases, links per step | core `approvedVersion`, `releasesOf`, `stepAllowsLinks`; events `v1.VersionReleased`, `v1.FlowStepLinksSet` |
 | Tests | `apps/web/test/agentApi.test.ts`, `packages/core/test/externalReview.test.ts` |

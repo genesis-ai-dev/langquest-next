@@ -9100,7 +9100,7 @@ hold for everything since the databases were reset (63). Decided:
 - **`uploadedAt` beside the phone's time** on `version` and `versions`
   (the first publish of the take to arrive), `reviews`, `requests` and
   `releases`, from `received_times` (migration
-  `20261029150000_received_times.sql`, service role only). It reads one
+  `20261029160000_received_times.sql`, service role only). It reads one
   stream's rows through the indexes the log has: `events_type_idx` for a
   take's `v1.TakeSubmitted`, `events_entity_idx` for a review or request,
   the id for a release. No index is added, since one would lock the log
