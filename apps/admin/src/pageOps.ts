@@ -27,7 +27,7 @@ export const GROUPS = [
   { id: 'support', title: 'Support', src: 'Content reports, suspensions, deletions, feedback, and what was done from this page', wide: true, parts: ['support', 'feedback'] },
   { id: 'access', title: 'Access and integrations', src: 'Global Viewers, limits hit, tokens, device grants, webhooks, review links, and what expires', parts: ['security', 'integrations', 'expiry'] },
   { id: 'stores', title: 'App stores', src: 'Google Play vitals and reviews, App Store review state, builds and reviews', parts: ['googleplay', 'appstore'] },
-  { id: 'tutorials', title: 'Tutorial videos', src: 'Each app language\'s YouTube channel, the videos made and not up yet, Publish, and what Claude suggests from comments, code changes and notes', wide: true, parts: ['tutorials', 'videofeedback'] }
+  { id: 'tutorials', title: 'Tutorial videos', src: 'Filming now, each app language\'s YouTube channel, the videos made and not up yet, Publish, and what Claude suggests from comments, code changes and notes', wide: true, parts: ['filming', 'tutorials', 'videofeedback'] }
 ] as const;
 
 /** Sub-headings where a source's own title would repeat its section's, or say too little inside it. */
@@ -36,14 +36,14 @@ export const PART_TITLES: Record<string, string> = {
   expo: 'EAS builds and updates', adoption: 'Update adoption', jobs: 'Jobs', cron: 'pg_cron', push: 'Push delivery and Inbox', v2: 'v2 import',
   database: 'Health', dbdetail: 'Where the space goes', supabase: 'Supabase project', cloudflare: 'Cloudflare Workers', worker: 'App Worker routes, last 24 h',
   storage: 'Storage and backups', capacity: 'Capacity and cost', support: 'Queue', feedback: 'Feedback', security: 'Global Viewers and limits',
-  integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', tutorials: 'Channels and videos', videofeedback: 'Feedback and suggestions'
+  integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', filming: 'Filming', tutorials: 'Channels and videos', videofeedback: 'Feedback and suggestions'
 };
 
 /** Read as diag_reader in one call (/ops/api/ops). */
 export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials', 'videofeedback'] as const;
 
 /** Each from its own call (/ops/api/<id>), like the providers. */
-export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption'] as const;
+export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'filming'] as const;
 
 export const OPS_SECTIONS = [
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true },
@@ -62,6 +62,7 @@ export const OPS_SECTIONS = [
   { id: 'security', title: 'Security and limits', src: 'Global Viewers, limits hit, new credentials' },
   { id: 'expiry', title: 'Expiry dates', src: 'Tokens, Apple certificates and profiles, and dates kept in apps/admin/expiry.json' },
   { id: 'capacity', title: 'Capacity and cost', src: 'Database and R2 growth against the plan, Cloudflare usage this month' },
+  { id: 'filming', title: 'Filming', src: 'GitHub: the run of tutorials.yml on main filming now, or the latest, and each language\'s job (decisions.md 183)' },
   { id: 'tutorials', title: 'Tutorial videos', src: 'ops.youtube_channels and ops.tutorial_videos (decisions.md 180)' },
   { id: 'videofeedback', title: 'Feedback on the videos', src: 'ops.tutorial_inputs and ops.tutorial_suggestions: comments, code changes and notes, and what Claude suggests each night (decisions.md 186)' }
 ] as const;
@@ -279,6 +280,30 @@ Object.assign(RENDER, {
         ['R2 class A operations', u.r2ClassA, u.allowance.r2ClassA, u.price && u.price.r2ClassA], ['R2 class B operations', u.r2ClassB, u.allowance.r2ClassB, u.price && u.price.r2ClassB]
       ]) + '<p class="muted">Container time is not in the analytics this page reads: see the Cloudflare dashboard.</p>';
     }
+    return h;
+  },
+  // The run of tutorials.yml filming now, or the latest (sources/filming.ts): where each language's job is.
+  filming(d) {
+    if (!d.run) return '<p class="muted">No filming run on main yet.</p>';
+    const films = d.jobs.filter((j) => j.language);
+    const count = (state) => films.filter((j) => j.state === state).length;
+    const running = d.run.status !== 'completed';
+    const by = { push: 'a merge into main', schedule: 'the nightly schedule', workflow_dispatch: 'Run workflow on GitHub' }[d.run.event] || d.run.event;
+    let h = '<div class="stats">' + stat(count('done') + ' of ' + films.length, 'languages done', '', running ? NOW : 'run ' + d.run.number) +
+      stat(num(count('running')), 'languages filming now', '', NOW) + stat(num(count('waiting')), 'languages waiting', '', NOW) +
+      stat(num(count('failed')), 'languages failed', count('failed') ? 'bad' : '', running ? NOW : 'run ' + d.run.number) + '</div>';
+    h += '<p><a href="' + esc(d.run.url) + '" target="_blank" rel="noopener">Run ' + num(d.run.number) + '</a>, started by ' + esc(by) + ' ' + when(d.run.at) + ' on <code>' + esc(d.run.sha) + '</code>: ' +
+      '<span class="' + (running ? 'warn' : d.run.conclusion === 'success' ? 'good' : 'bad') + '">' + esc(running ? 'filming' : d.run.conclusion || d.run.status) + '</span>' +
+      (d.queued ? ' · ' + num(d.queued) + ' more ' + (d.queued === 1 ? 'run waits' : 'runs wait') + ' behind it' : '') + '</p>';
+    if (running && !films.length) h += '<p class="muted">The languages start once Grace\'s pieces are said.</p>';
+    const name = (j) => j.language ? esc(languageName(j.language)) + ' <small><code>' + esc(j.language) + '</code></small>' : j.job === 'grace' ? 'Grace\'s pieces <small>(every language)</small>' : esc(j.job);
+    const now = (j) => j.state === 'running' ? '<span class="warn">' + (j.language ? 'filming' : 'running') + '</span>' + (j.step ? '<br><small>' + esc(j.step) + (j.stepAt ? ', ' + esc(ago(j.stepAt)) : '') + '</small>' : '')
+      : j.state === 'done' ? '<span class="good">done</span>' : j.state === 'failed' ? '<span class="bad">failed</span>' : '<span class="muted">' + esc(j.state === 'waiting' ? 'waiting its turn' : j.state) + '</span>';
+    const took = (j) => !j.startedAt ? '–' : j.finishedAt ? ms(Date.parse(j.finishedAt) - Date.parse(j.startedAt)) : ms(Date.now() - Date.parse(j.startedAt)) + ' so far';
+    h += table([
+      { h: 'Language', v: name }, { h: 'Now', v: now }, { h: 'Started', v: (j) => j.startedAt ? when(j.startedAt) : '–' }, { h: 'Took', n: true, v: took },
+      { h: '', v: (j) => j.url ? '<a href="' + esc(j.url) + '" target="_blank" rel="noopener">Log</a>' : '' }
+    ], d.jobs.filter((j) => j.language || j.job === 'grace' || j.state !== 'done'));
     return h;
   },
   tutorials(d) {

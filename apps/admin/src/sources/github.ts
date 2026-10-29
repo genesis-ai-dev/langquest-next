@@ -106,7 +106,7 @@ const JOBS_READ = 3;
  * a pull request from a fork can name its branch main too, so its runs are
  * never read for what to tell staff.
  */
-const OWN_EVENTS = new Set(['push', 'schedule', 'workflow_dispatch']);
+export const OWN_EVENTS = new Set(['push', 'schedule', 'workflow_dispatch']);
 
 /** The latest run of each workflow, newest first. Dependabot's and CodeQL's own runs (`dynamic`) are left out: they are not ours. */
 export function latestPerWorkflow(runs: Runs['workflow_runs']): Run[] {
@@ -122,7 +122,10 @@ export function latestPerWorkflow(runs: Runs['workflow_runs']): Run[] {
   return out;
 }
 
-export async function codeSection(env: { GITHUB_REPO: string; ADMIN_GITHUB_TOKEN?: string; APP_URL: string }, fetcher: typeof fetch = fetch): Promise<Section<Code>> {
+export interface GitHubEnv { GITHUB_REPO: string; ADMIN_GITHUB_TOKEN?: string }
+
+/** Reads `path` under the repository on GitHub's API; the repository is public, so the token only lifts the anonymous rate limit. */
+export function githubApi(env: GitHubEnv, fetcher: typeof fetch): <T>(path: string, what: string) => Promise<T> {
   const headers: Record<string, string> = {
     accept: 'application/vnd.github+json',
     'x-github-api-version': '2022-11-28',
@@ -131,8 +134,12 @@ export async function codeSection(env: { GITHUB_REPO: string; ADMIN_GITHUB_TOKEN
   };
   const api = `https://api.github.com/repos/${env.GITHUB_REPO}`;
   const anonymous = env.ADMIN_GITHUB_TOKEN ? '' : ' Without ADMIN_GITHUB_TOKEN, GitHub limits anonymous calls per address, which a Worker shares.';
-  const gh = <T>(path: string, what: string) => getJson<T>(fetcher, `${api}${path}`, { headers }, what)
+  return <T>(path: string, what: string) => getJson<T>(fetcher, `${api}${path}`, { headers }, what)
     .catch((e: Error) => { throw new Error(`${e.message}${anonymous}`); });
+}
+
+export async function codeSection(env: GitHubEnv & { APP_URL: string }, fetcher: typeof fetch = fetch): Promise<Section<Code>> {
+  const gh = githubApi(env, fetcher);
 
   const liveUrl = `${env.APP_URL.replace(/\/+$/, '')}/version.json`;
   const live = fetcher(liveUrl, { signal: AbortSignal.timeout(8000) })

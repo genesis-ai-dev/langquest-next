@@ -130,6 +130,9 @@ of, so a line is said once), and takes out the films the manifest no longer
 names. Grace's pieces are the same French in every language, so the workflow
 says them once, before the languages' jobs, and keeps them in
 `pieces-grace.tgz`. A language's job that fails files it in Linear.
+The ops dashboard's Tutorial videos → Filming shows where a run is: each
+language waiting its turn, filming (and on which step), done or failed,
+with a link to its log.
 The workflow holds the Gemini key (`GEMINI_API_KEY`, a repository secret
 that `npm run secrets -- production` sets from `.env.production`) and no
 production key.
