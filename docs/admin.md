@@ -123,7 +123,7 @@ the page loads to exactly one section.
 | Storage and backups | Supabase's backups and point-in-time recovery, R2's size (`r2StorageAdaptiveGroups`), files lost on phones, the nightly R2 check | `DIAG_DATABASE_URL`; `ADMIN_SUPABASE_TOKEN` with read access to database backups; `ADMIN_CLOUDFLARE_TOKEN` |
 | Expiry dates | each provider token's end date where its provider reports one (Cloudflare, GitHub), Apple's certificates and provisioning profiles, and the dates in `apps/admin/expiry.json` | the tokens; the file needs nothing |
 | Capacity and cost | the database's size and growth (the fold canary records sizes nightly) against its provisioned disk (`SUPABASE_DB_LIMIT_GB`, 64 GB), R2's growth, and this month's Workers, Durable Object and R2 usage against the plan's allowance (`apps/admin/src/sources/storage.ts` `ALLOWANCE`) | `DIAG_DATABASE_URL`; `ADMIN_CLOUDFLARE_TOKEN` |
-| Code and deploys | `main` on GitHub, the latest run of each workflow on `main`, and the commit `next.langquest.org/version.json` says it serves. A web app still behind `main` 45 minutes after a merge that changed a file it is built from (its watch paths, `docs/cloudflare.md`) is a problem: the deploy failed (as every Workers Build did from 2026-10-16 to 10-19) | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
+| Code and deploys | `main` on GitHub, the latest run of each workflow on `main`, and the commit `next.langquest.org/version.json` says it serves. A web app still behind `main` 45 minutes after a merge that changed a file it is built from (its watch paths, `docs/cloudflare.md`) is a problem: the deploy failed (as every Workers Build did from 2026-10-16 to 10-19). A failed run of this repository's own (a push, a schedule or a run by hand) that says what only a person can fix, in an annotation titled "Needs you: …" (Gemini's credit or key for the tutorial videos, `e2e/tutorials/needs-you.mjs`; the Claude token of `tutorial-review.yml`), is a problem with an Open link to the page that fixes it; the next run that works takes it away. A pull request's runs are never read for it | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
 | Cloudflare | each Worker's requests, errors and CPU over the last day (GraphQL Analytics), its latest deploy and its latest Workers Build | `ADMIN_CLOUDFLARE_TOKEN` |
 | Supabase | for LangQuest Next (`SUPABASE_PROJECTS`; v2 is left off): project status, each service's health, Edge Functions, and counts from the day's logs (API 5xx, Edge Function 5xx, Postgres errors, Auth 5xx), with the errors grouped: a Postgres error by its SQLSTATE (named), role, client and the RPC a PostgREST call named; a server error by method, the path's first parts (ids hidden) and status. Never a log message, which can quote what someone typed | `ADMIN_SUPABASE_TOKEN` |
 | App builds and updates | EAS builds, store submissions and the newest update on each branch | `ADMIN_EXPO_TOKEN` |
@@ -314,6 +314,10 @@ their ids are in `server/youtube.ts`.
   banners in `apps/mobile/public/youtube`, made by
   `npx tsx e2e/tutorials/banners.ts`) gets them, about 150 of the day's
   10,000 units each. The channels table shows "on" once it has them.
+  A look YouTube refuses (`brandingValidationError`, Hausa's on 2026-10-29)
+  is tried without its language, then without the channel's own settings
+  (its keywords, its country); one still refused shows the field YouTube
+  named (`youtube_brandingValidationError:brandingSettings.channel.…`).
 - **Held comments**: each channel holds comments that may be
   inappropriate for a person to approve or remove (YouTube Studio →
   Settings → Community → Defaults: "Hold potentially inappropriate comments
@@ -331,6 +335,13 @@ their ids are in `server/youtube.ts`.
 - **The picture** (the round one beside the name) is the one thing YouTube
   lets nobody but a person set: in YouTube Studio, on each channel,
   Customization → Branding → Picture → Upload, `apps/mobile/assets/icon.png`.
+- **A higher upload limit** is each channel's own: YouTube Studio →
+  Settings → Channel → Feature eligibility, a phone under Intermediate
+  features, then Access features under Advanced (the owner's video or ID
+  check counts for every channel). One phone number verifies at most 2
+  channels a year (YouTube Help 171664), so English and French come
+  first. It speeds up one language, not the whole set: the project's 100
+  uploads a day are the limit once every language has videos waiting.
 
 The OAuth client is a Web application client in the Google Cloud project
 that has the YouTube Data API v3 on, with the redirect address above. Store

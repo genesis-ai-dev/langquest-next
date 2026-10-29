@@ -98,6 +98,11 @@ jobs:
             gh release upload tutorials "$RUNNER_TEMP/pieces-grace.tgz" --clobber
           fi
           exit "$status"
+      # A refusal only a person can fix (no credit, a key refused), as an
+      # annotation the ops dashboard lists under Needs attention (needs-you.mjs).
+      - name: What needs a person
+        if: always()
+        run: node e2e/tutorials/needs-you.mjs
       - name: What Gemini counted
         if: always()
         run: node e2e/tutorials/gemini-usage.mjs | tee -a "$GITHUB_STEP_SUMMARY"
@@ -201,6 +206,10 @@ jobs:
       - name: Put the new films in the release
         if: ${{ !cancelled() }}
         run: npx tsx e2e/tutorials/put-in-release.ts "$LANGUAGE" "$RUNNER_TEMP/out"
+      # A refusal only a person can fix, for the ops dashboard's Needs attention (needs-you.mjs).
+      - name: What needs a person
+        if: always()
+        run: node e2e/tutorials/needs-you.mjs
       # Tokens in, out and thinking for each model, to set against the bill in AI Studio.
       - name: What Gemini counted
         if: always()

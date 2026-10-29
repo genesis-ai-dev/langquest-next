@@ -169,7 +169,8 @@ async function tendChannels(deps: PublisherDeps, run: Run, report: PublishReport
       report.brandFailed += 1;
       report.firstError ??= code;
       report.outOfQuota ||= outOfQuota(e);
-      await deps.branded(channel, null, code);
+      // The channel keeps which field YouTube refused, when it says, so the dashboard shows it.
+      await deps.branded(channel, null, e instanceof YouTubeError ? e.codeWhere : code);
       continue;
     }
     try {

@@ -90,6 +90,16 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const SHA = /^[0-9a-f]{40}$/;
 const KEY = /^[A-Za-z0-9_-]{1,40}$/;
 const RUN = new RegExp(`^https://github\\.com/${REPOSITORY.replace('/', '\\/')}/actions/runs/[0-9]{1,20}(/attempts/[0-9]{1,5})?$`);
+/**
+ * The phone's disguise (decisions.md 171): a calculator or notepad in front of the app that a code opens. No video,
+ * reply or suggestion shows or explains it (Caleb, 2026-10-29): a public how-to teaches anyone to see through it.
+ * A look whose reply or suggestion names it is refused whole; a person answers such a comment.
+ */
+export const DISGUISE = /\b(disguis\w*|calculators?|notepads?)\b/i;
+const noDisguise = (s: string, where: string): string => {
+  if (DISGUISE.test(s)) throw new ReviewError(`${where}: never the phone's disguise (decisions.md 171)`);
+  return s;
+};
 /** More than a night could bring; a look past them is refused whole. */
 export const REVIEW_MAX = { code: 200, comments: 2000, looked: 4000, suggestions: 200, attach: 200, inputs: 100 } as const;
 
@@ -157,7 +167,10 @@ export function parseReview(input: unknown): Review {
   const comments = list(input, 'comments', REVIEW_MAX.comments).map((c, n) => {
     const where = `comments[${n}]`;
     if (!isObj(c) || typeof c['id'] !== 'string' || !UUID.test(c['id'])) throw new ReviewError(`${where}.id: an input's id`);
-    return { id: c['id'], english: text(c, 'english', where, 5000), reply: text(c, 'reply', where, 2000, 0), replyEnglish: text(c, 'replyEnglish', where, 2000, 0) };
+    return {
+      id: c['id'], english: text(c, 'english', where, 5000), reply: noDisguise(text(c, 'reply', where, 2000, 0), `${where}.reply`),
+      replyEnglish: noDisguise(text(c, 'replyEnglish', where, 2000, 0), `${where}.replyEnglish`)
+    };
   });
   const looked = list(input, 'looked', REVIEW_MAX.looked).map((l, n) => {
     const where = `looked[${n}]`;
@@ -175,7 +188,10 @@ export function parseReview(input: unknown): Review {
     if (kind === 'new' ? tutorial !== null : tutorial !== null && (typeof tutorial !== 'string' || !TUTORIAL.test(tutorial) || tutorial.length > 80)) {
       throw new ReviewError(`${where}.tutorial: ${kind === 'new' ? 'null for a new video' : "a video's id, or null"}`);
     }
-    return { kind: kind as SuggestionKind, tutorial: tutorial as string | null, title: text(s, 'title', where, 200), detail: text(s, 'detail', where, 4000), inputs: refs(s, where) };
+    return {
+      kind: kind as SuggestionKind, tutorial: tutorial as string | null, title: noDisguise(text(s, 'title', where, 200), `${where}.title`),
+      detail: noDisguise(text(s, 'detail', where, 4000), `${where}.detail`), inputs: refs(s, where)
+    };
   });
   const attach = list(input, 'attach', REVIEW_MAX.attach).map((a, n) => {
     const where = `attach[${n}]`;

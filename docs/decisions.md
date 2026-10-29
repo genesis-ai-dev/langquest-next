@@ -8221,6 +8221,15 @@ and notepad stay and the icon goes, or the reverse), people lose their codes
 or typing the code after every permission prompt or share drives people to
 turn it off (then leaving for a few seconds does not lock).
 
+Amended (2026-10-29, Caleb Koster): no tutorial video, channel trailer,
+YouTube reply or nightly suggestion shows or explains the disguise, or how to
+turn it on or open it. Telling the stores is not teaching the public: a public
+how-to teaches anyone who picks up the phone to see through it. The web app
+the videos are filmed on draws no App icon row (`DisguiseRow.web.tsx`),
+`e2e/tutorials/no-disguise.test.ts` fails on a video that names or lights it,
+and the nightly look at the videos' feedback is refused whole when a reply or
+suggestion names it (`server/tutorialFeedback.ts`, decision 186).
+
 ## 172. FIA's key words are a key-word list per language, picked apart from FIA's guides, shown where a passage links or says them, and every reference list can be searched
 
 Date: 2026-10-26 · By: Caleb Koster · Status: accepted
@@ -8919,6 +8928,14 @@ Reverse if: YouTube's API stops taking a channel's description, language
 or banner; or held comments come often enough that going through Studio
 channel by channel is a burden (then the dashboard approves and removes).
 
+Amended (2026-10-29, Caleb Koster): YouTube refused Hausa's look
+(`brandingValidationError`) with its language and again without it, and
+kept only that code, so nobody could see why. A refused look now goes on
+without the channel's own settings as well (its keywords and country, sent
+back unchanged until now and cleared then), keeping only the description and
+the trailer; one still refused keeps the field YouTube named beside the code
+(`ops.youtube_channels.brand_failed`), never YouTube's message.
+
 ## 185. The UI audit's fixes: a screen says what it waits for, asks before what cannot be undone, and opens a thing where the same thing opens elsewhere
 
 Date: 2026-10-28 · By: Caleb Koster · Status: accepted
@@ -9193,3 +9210,37 @@ for its count to say over a million. Decided:
 Reverse if: YouTube drops channel trailers or the API's setting for them; or
 the trailer's look changes most nights without the app changing, which would
 spend a channel's uploads.
+
+## 190. A workflow says what only a person can fix in an annotation titled "Needs you", and the ops dashboard lists it under Needs attention
+
+Date: 2026-10-29 · By: Caleb Koster · Status: accepted
+
+Reason: on 2026-10-29 Gemini's prepaid credit ran out partway through the
+first filming of the tutorial videos in all fifteen languages. The ops
+dashboard said only that the "tutorials" workflow failed, and Caleb found out
+from Claude hours later. He asked (thread "Plan tutorial videos and keep them
+current") that a problem like the Gemini billing account, or the Claude token
+missing, show on the ops dashboard. Decided:
+- **The workflow names the problem**: a script that gets a refusal only a
+  person can fix writes it down (`e2e/tutorials/needs-you.mjs`: Gemini's 402
+  or "prepayment credits are depleted", a key refused or missing), and the
+  job's last step says each once as an error annotation titled "Needs you:
+  <what>", its message ending with the page that fixes it.
+  `tutorial-review.yml` does the same for a Claude token that is missing, or
+  that Claude's own answer says was refused. A refusal is said only when the
+  answer says it; anything else stays a plain failure.
+- **The dashboard reads it from GitHub** (`apps/admin/src/sources/github.ts`):
+  for the latest failed run of each workflow on `main`, the annotations of
+  its first three failed jobs (every tutorials job says the same account's
+  problem). Each "Needs you" is a problem under Needs attention, with an Open
+  link, in place of the plain "failed" line. The next run that works takes
+  it away. Only the repository's own runs are read (a push, a schedule, a run
+  by hand): a pull request from a fork can name its branch `main`, and its
+  words never reach staff.
+Rejected: a table and an endpoint the workflow reports to with GitHub's OIDC
+token (as `tutorial-review.yml` sends its look), since the run already holds
+the words and its failure, and a second store could disagree with GitHub's;
+Linear issues alone, since the nightly report files a failure, not its
+cause; reading the jobs' logs, which are large and unstructured.
+Reverse if: GitHub stops keeping annotations, or a problem needs to show
+while the run that met it is not the latest.

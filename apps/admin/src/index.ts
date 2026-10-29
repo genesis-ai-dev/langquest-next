@@ -80,14 +80,14 @@ async function opsAnswer(env: Env): Promise<Record<string, Section>> {
  * "Needs attention" shows, as JSON for whatever reads it without the page
  * (docs/ops-dashboard-plan.md 5.1).
  */
-async function attention(env: Env, fresh: boolean): Promise<{ checkedAt: string; urgent: number; problems: number; watch: number; items: { level: Level; text: string; section: string }[] }> {
+async function attention(env: Env, fresh: boolean): Promise<{ checkedAt: string; urgent: number; problems: number; watch: number; items: { level: Level; text: string; link?: string; section: string }[] }> {
   const [diag, ops, ...providers] = await Promise.all([
     diagAnswer(env), opsAnswer(env),
     ...Object.entries(PROVIDERS).map(([id, run]) => memo(id, fresh, () => settle(id, () => run(env))).then((s) => [id, s] as const))
   ]);
   const all: (readonly [string, Section])[] = [...Object.entries(diag), ...Object.entries(ops), ...(providers as (readonly [string, Section])[])];
   const items = all.flatMap(([section, s]) => [
-    ...s.alerts.map((a) => ({ level: a.level, text: a.text, section })),
+    ...s.alerts.map((a) => ({ level: a.level, text: a.text, ...(a.link ? { link: a.link } : {}), section })),
     ...(s.state === 'error' ? [{ level: 'watch' as const, text: `Could not read: ${s.error ?? 'unknown'}`, section }] : [])
   ]).sort((a, b) => LEVELS.indexOf(a.level) - LEVELS.indexOf(b.level));
   const count = (level: Level) => items.filter((i) => i.level === level).length;

@@ -410,7 +410,7 @@ function attention() {
   for (const g of SECTIONS) for (const part of g.parts) {
     const s = results[part];
     if (!s) continue;
-    for (const a of s.alerts || []) items.push({ level: a.level, text: a.text, where: g.title, id: g.id });
+    for (const a of s.alerts || []) items.push({ level: a.level, text: a.text, link: a.link, where: g.title, id: g.id });
     if (s.state === 'error') items.push({ level: 'watch', text: 'Could not read: ' + s.error, where: g.title, id: g.id });
   }
   const loading = PARTS.filter((p) => !results[p]).length;
@@ -419,7 +419,9 @@ function attention() {
   const el = $('attention-pill');
   el.className = 'pill ' + (top || (loading ? 'wait' : 'ok'));
   el.textContent = top ? LEVELS.filter((l) => c[l] > 0).map((l) => LEVEL[l].count(c[l])).join(', ') : loading ? 'Checking…' : 'All clear';
-  const item = (i) => '<li><span class="dot ' + i.level + '"></span><span>' + esc(tidy(i.text)) + ' <button type="button" class="link where" data-goto="' + esc(i.id) + '">' + esc(i.where) + '</button></span></li>';
+  // A link only to https pages: an alert's link comes from what a workflow wrote (apps/admin/src/sources/github.ts).
+  const fix = (i) => String(i.link || '').startsWith('https://') ? ' <a href="' + esc(i.link) + '" target="_blank" rel="noopener">Open</a>' : '';
+  const item = (i) => '<li><span class="dot ' + i.level + '"></span><span>' + esc(tidy(i.text)) + fix(i) + ' <button type="button" class="link where" data-goto="' + esc(i.id) + '">' + esc(i.where) + '</button></span></li>';
   $('attention-list').innerHTML = items.length
     ? LEVELS.map((l) => {
       const at = items.filter((i) => (i.level in LEVEL ? i.level : 'watch') === l);
