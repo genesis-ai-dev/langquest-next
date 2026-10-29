@@ -17,7 +17,7 @@ export function useRunner(ctx: Ctx) {
     try {
       await fn();
     } catch (e) {
-      ctx.toast(t('common.notSaved', { reason: failureMessage(what, e) }));
+      ctx.toast(t('common.notSaved', { reason: failureMessage(what, e) }), 'problem');
     } finally {
       setBusy(false);
     }

@@ -27,6 +27,7 @@ import { stepLine } from '../study/studyText';
 import { C, radius, space, target, TINT, withAlpha } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
 import { useNoteStep } from '../checks/useNoteStep';
+import { a11yState } from '../ui/a11yModel';
 
 export type TrayTab = 'terms' | 'study' | 'notes' | 'history';
 
@@ -35,7 +36,7 @@ export function HelpButton(props: { onPress: () => void; disabled?: boolean }) {
   const spot = useHelpSpot(t('recording.tray.help'), t('recording.tray.helpButtonHelp'), props.onPress);
   return (
     <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('recording.tray.help')}
-      accessibilityHint={t('recording.tray.helpHint')} accessibilityState={{ disabled: !!props.disabled }}
+      accessibilityHint={t('recording.tray.helpHint')} {...a11yState({ disabled: !!props.disabled }, 'button')}
       style={({ pressed }) => [styles.help, props.disabled && { opacity: 0.45 }, pressed && { opacity: 0.7 }]}>
       <Ico name="help" size={20} color={C.primary} />
       <Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{t('recording.tray.help')}</Text>

@@ -298,6 +298,7 @@ export const EDGES: Edge[] = [
   e('create_account', 'welcome', 'replace'),
   e('scan_qr', 'sign_out_confirm'),
   e('explore_home', 'request_access'),
+  e('request_access', 'scan_qr'), // Not here? Scan their code (UI audit, finding 69)
   e('inbox_home', 'members_list', undefined, 'assigner'),
   e('create_account', 'terms_privacy', undefined, 'guest'),
   e('scan_qr', 'terms_privacy', undefined, 'guest'),
@@ -384,7 +385,8 @@ export const EDGES: Edge[] = [
   e('get_ready', 'template_editor', undefined, 'manageTemplates'),
   e('get_ready', 'templates_home', undefined, 'manageTemplates'),
   e('get_ready', 'reference_bibles', undefined, 'manageReference'),
-  e('get_ready', 'reference_source', undefined, 'manageReference'),
+  e('get_ready', 'bible_explore'), // a Bible's play button opens it to hear (UI audit, finding 57)
+  e('bible_explore', 'get_ready', 'back'),
   e('get_ready', 'reference_guides', undefined, 'manageReference'),
   e('get_ready', 'reference_home', undefined, 'manageReference'),
   e('get_ready', 'material_editor', undefined, 'manageReference'),
@@ -426,7 +428,12 @@ export const EDGES: Edge[] = [
   // account belongs to no organization, so it lands on What brings you here?; inside one, the link in
   // every header opens it, as chrome does (decision 71 amended).
   e('intent_chooser', 'global_viewer'),
-  e('global_viewer', 'intent_chooser', 'back')
+  e('global_viewer', 'intent_chooser', 'back'),
+  // App only: a check asked of you opens from the Inbox as it does from My Work (decision 93; UI audit, finding 111)
+  e('inbox_home', 'review_capture', undefined, 'reviewer'),
+  e('inbox_home', 'back_translation', undefined, 'reviewer'),
+  // App only: a browser's sign-out held back by unsent work shows what is waiting (UI audit, finding 115)
+  e('sign_out_confirm', 'sync_status')
 ];
 
 /**

@@ -67,8 +67,9 @@ Steps:
 
 Expected:
 - The header is "Members" with the action "Invite".
-- The intro is "Members assigned at organization scope. Expand the groups
-  below for the other levels."
+- The intro is "People whose role covers every language. Open a group
+  below for each language’s own." (Plain words since 2026-10-28, UI audit
+  finding 94.)
 - "Organization members · 3": ADMIN (as "You"), COORD and VIEW, each with an
   avatar, "{ORG name} · joined {ago}" and a role badge (Organization Admin,
   Coordinator, Viewer).
@@ -86,15 +87,15 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Alpha's page → "People" (or More → "Members").
 2. Read the list.
-3. Tap VIEW's row under "Higher levels · view only".
+3. Tap VIEW's row under "Every language · view only".
 
 Expected:
-- The intro is "Members assigned at language scope for this view. Expand
-  the groups below for the other levels."
+- The intro is "People with a role in this language. Open a group below
+  for the others."
 - "Language members · 5": LADMIN (Language Lead), TRANS (Translator), REV
   (Reviewer), TREV (Translator-Reviewer), KEPT (Translator), each "Alpha ·
   joined {ago}".
-- "Higher levels · view only" lists ADMIN, COORD and VIEW, greyed with a
+- "Every language · view only" lists ADMIN, COORD and VIEW, greyed with a
   lock; tapping does nothing.
 - For LADMIN the Language members rows are editable (chevron).
 
@@ -123,12 +124,15 @@ Steps:
 
 Expected:
 - Step 2: header "Invite someone" with the sub "Alpha"; "Who are you
-  inviting?" with a card per role, "Translators", "Checkers",
-  "Back-translators", "Team leads", each with its line, "What they may do"
-  and its own "Invite", no radio buttons (decision 146); "Other roles · 3";
-  the dashed "Something else: make a new role"; "In which language?" with
-  "Alpha" and "Bravo" (from a language's Members an invite is at a
-  language; "All of them" is offered from Org home's "Invite people").
+  inviting?", then "In which language?" with "Alpha" (chosen: the open
+  language) and "Bravo" (from a language's Members an invite is at a
+  language; "All of them" is offered from Org home's "Invite people"), then
+  a card per role, "Translators", "Checkers", "Back-translators", "Team
+  leads", each with its line, "What they may do" and its own "Invite", no
+  radio buttons (decision 146); "Other roles · 3"; the dashed "Something
+  else: make a new role". (UI audit, finding 93, 2026-10-28: the language
+  came after the cards, so a card's Invite could be tapped before it was
+  seen, and from Org home it started on "All of them".)
 - The group code is the first way offered (decisions 71, 146). A role that
   does checks is asked "Which checks will they do?" first; ticking none
   skips it.
@@ -239,19 +243,23 @@ Steps:
    Translator".
 2. Go back to step 1 of 3 with Back. Read it.
 3. Pick "Viewer". Continue. Pick "A group". Type "Juba workshop". Continue.
-4. Tap Back from step 3.
+4. Tap Back from step 3. Tap "Stay on the code", then Back and "Leave".
 
 Expected:
 - Step 1 says "Pick the role this person should have. You don't need their
   email." with the banner "Already on the team, with a new device?" / "Open
   them in Members and tap Help them sign in. A new invite would make a
   second account."
-- Each role shows "{n} privileges"; "Create a new role" shows for ADMIN.
+- Each role shows "{n} permissions"; "Create a new role" shows for ADMIN.
 - With "A group" the field is "Group name" (placeholder "e.g. Juba
   workshop").
 - Step 3 says "Shown once: leaving this screen loses the code. Up to 30
   people can use it, until {date}."
-- Leaving step 3 loses the code: coming back starts again.
+- Leaving step 3 loses the code, so Back asks first: "Leave the code?" with
+  "The code for Juba workshop can’t be shown again. If they haven’t scanned
+  it, make a new one.", "Stay on the code" and a red "Leave" (UI audit,
+  finding 96: Back left at once). "Stay on the code" keeps it showing;
+  "Leave" goes back, and coming back starts again.
 
 ### PEOPLE-008 Invite by QR targets the language chosen, not only the open one
 Roles: ADMIN · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -349,14 +357,17 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. ADMIN: Alpha's members → KEPT.
-2. Read the card at the top. Tap "Help them sign in".
+2. Tap the row "Help Kept sign in on a new device" at the top. Read the
+   sheet. Tap "Help them sign in".
 3. KEPT's new device: Sign In → "Scan a code". Scan the QR.
 4. Tap "Sign in".
 5. KEPT: Me → More settings.
 
 Expected:
-- The card says "Kept has no email. On a new device, show them a sign-in
+- The sheet says "Kept has no email. On a new device, show them a sign-in
   code." with the toggle "Their old device is lost or stolen: sign it out".
+  (A row that opens a sheet since the UI audit, finding 99: "Save
+  Assignment" stays the page's one filled button.)
 - After step 2: a QR, "Sign-in code for Kept Person", "On their new device,
   Kept opens LangQuest, taps Scan a code and points it here. It works once,
   for one hour." and "Kept will see in Settings that you helped them sign
@@ -376,8 +387,9 @@ Preconditions (in addition to the global ones):
 - KEPT signed in on two devices (after PEOPLE-012).
 
 Steps:
-1. COORD: Alpha's members → KEPT. Turn on "Their old device is lost or
-   stolen: sign it out". Tap "Help them sign in".
+1. COORD: Alpha's members → KEPT → "Help Kept sign in on a new device".
+   Turn on "Their old device is lost or stolen: sign it out". Tap "Help
+   them sign in".
 2. On a third device, scan it and tap "Sign in".
 3. Open the app on KEPT's other devices.
 
@@ -396,17 +408,19 @@ Preconditions (in addition to the global ones):
 - None.
 
 Steps:
-1. ADMIN: open TRANS (an account with its own email). Look for "Help them
-   sign in".
+1. ADMIN: open TRANS (an account with its own email). Look for "Help Tom
+   sign in on a new device".
 2. LADMIN: open KEPT.
 3. Any of them: open Nyibol {run} (PEOPLE-006).
 
 Expected:
-- TRANS has no sign-in card: only looked-after accounts with no email get
+- TRANS has no sign-in row: only looked-after accounts with no email get
   one (decision 59).
-- LADMIN sees the card for KEPT: LADMIN holds Invite and every Translator
+- LADMIN sees the row for KEPT: LADMIN holds Invite and every Translator
   privilege at Alpha, where KEPT joined (decision 75).
-- Nyibol {run}'s card shows for each of them.
+- Nyibol {run}'s row shows for each of them. It opens a sheet with "Nyibol
+  has no email. On a new device, show them a sign-in code.", the lost-device
+  toggle and "Help them sign in".
 - When the server refuses: banner "No code was made" with "You may not help
   this person sign in."
 
@@ -576,8 +590,9 @@ Steps:
 2. Open the request from the Inbox and tap "Let {first} in".
 
 Expected:
-- Offline the Members and My Work lists show no requests rather than
-  claiming nobody asked; the bell keeps its last count.
+- Offline the Members and My Work lists keep the request last read, as the
+  bell keeps its count; on My Work its row says "Connect to let them in".
+  Changed (2026-10-28, UI audit finding 85): they used to show no requests.
 - Deciding offline shows the banner "Not saved" with a reason; nothing is
   half done.
 
@@ -594,19 +609,19 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Alpha's members → REV.
 2. Read the page.
-3. Choose "Translator-Reviewer". Tap "Save Assignment".
+3. Choose "Translator-Reviewer". Tap "Save role".
 4. On REV's device, Sync now. Open P-DRAFT.
-5. Alpha's members → REV again. Choose "Reviewer". Tap "Save Assignment".
+5. Alpha's members → REV again. Choose "Reviewer". Tap "Save role".
 
 Expected:
 - The header is REV's name with "Reviewer · Alpha".
-- The intro: "Pick a role, then choose the scope this assignment applies
-  to. Scope can be this level or below."
+- The intro: "Choose a role, then where it applies." (Plain words since
+  the UI audit, 2026-10-28.)
 - "What will they do?" lists the roles the editor may grant at Alpha, plus
   REV's current one; "Where?" with "Organization" (ADMIN, COORD at
-  organization view only) and "Language", "Where this person can use the
-  selected role's privileges.", and "Language" with Alpha chosen.
-- "Save Assignment" is disabled until something changes. (Fixed
+  organization view only) and "Language", "Where this person can do what
+  the role lets them do.", and "Language" with Alpha chosen.
+- "Save role" is disabled until something changes. (Fixed
   2026-10-13: it was enabled at once.)
 - Toast "{REV name} is now Translator-Reviewer", with no Undo. Step 5
   toasts "{REV name} is now Reviewer".
@@ -623,11 +638,11 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Org home → Members → VIEW.
-2. Tap "Language" under "Where?". Choose "Alpha". Tap "Save Assignment".
+2. Tap "Language" under "Where?". Choose "Alpha". Tap "Save role".
 3. Read Members at organization level and at Alpha.
 4. On VIEW's device, Sync now. Open Map → All languages → "Bravo".
 5. Org home → Members → VIEW again (now under Alpha). Tap "Organization"
-   under "Where?". Tap "Save Assignment".
+   under "Where?". Tap "Save role".
 
 Expected:
 - Toast "{VIEW name} is now Viewer", with no Undo.
@@ -657,17 +672,18 @@ Steps:
 
 Expected:
 - The link "Remove from language" is red and sits under the form, away
-  from "Save Assignment". Its help says "Takes away their role here. It
+  from "Save role". Its help says "Takes away their role here. It
   asks first; to come back, they join again."
 - Step 2 removes nothing yet: it asks first, in a sheet titled "Remove UI
   Joiner {run}?" with their role line under it ("{role} · Alpha"), a red
   "Remove from language" and "Cancel".
 - "Cancel" closes the sheet; UI Joiner {run} is still a member.
-- Step 4: toast "UI Joiner {run} removed at language level", with no
+- Step 4: toast "UI Joiner {run} no longer has a role in this language", with no
   Undo; the page goes back to Members and the row has left it. Nothing in
   the app puts them back: they come back only by joining again.
 - An organization-scope member's link and the sheet's button read "Remove
-  from organization", and its toast "… removed at organization level".
+  from organization", and its toast "… no longer has a role in every
+  language".
 
 Changed (2026-10-16, decision 134): no toast offers Undo; removing a member asks first ("Remove {name}?"), and they come back only by joining again.
 
@@ -686,7 +702,7 @@ Expected:
   someone else a role with Manage roles first. Then this role can change,
   or be removed." (for someone else's row, "{name} is the only one who can
   manage roles").
-- No "Remove from organization"; "Save Assignment" stays disabled for a
+- No "Remove from organization"; "Save role" stays disabled for a
   role without Manage roles (and for no change).
 - The server refuses the change anyway: removing, demoting, taking Manage
   roles off the only role with it, or retiring that role
@@ -709,7 +725,7 @@ Steps:
 Expected:
 - A banner "View only" with "{ADMIN name} holds more here than you do, so
   only someone who holds as much can change this." (decision 75).
-- No role choices, no "Save Assignment", no "Remove from organization".
+- No role choices, no "Save role", no "Remove from organization".
 
 ### PEOPLE-028 Opening a member page you may not edit
 Roles: VIEW, TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -767,8 +783,8 @@ Steps:
    checks).
 3. Tap "One person, by name", then Back. Read the role list.
 4. Back in Members, open TRANS. Read "What will they do?" and "Where?".
-5. Choose "Reviewer". Tap "Save Assignment".
-6. Open TRANS again. Choose "Translator". Tap "Save Assignment".
+5. Choose "Reviewer". Tap "Save role".
+6. Open TRANS again. Choose "Translator". Tap "Save role".
 
 Expected:
 - The header sub is "Alpha"; there is no "In which language?" (one scope)
@@ -781,7 +797,7 @@ Expected:
 - The code for Language Lead is made; the shown screen's question reads
   "Team leads" (no " · Alpha", as there is one scope).
 - Invite by QR lists Language Lead, Reviewer, Translator,
-  Translator-Reviewer and Viewer, each "{n} privileges".
+  Translator-Reviewer and Viewer, each "{n} permissions".
 - TRANS's page offers only "Language" under "Where?", and the same five
   roles.
 - Toast "{TRANS name} is now Reviewer", with no Undo. Step 6 puts it back
@@ -824,17 +840,16 @@ Steps:
 
 Expected:
 - The header is "Roles" with the sub "Organization" and the action "Role".
-- The intro: "Roles are privilege sets without a fixed scope. Scope is
-  chosen when assigning a role to a member. Roles created here can be
-  assigned at any level."
+- The intro: "A role is what someone may do. Where they may do it is
+  chosen when someone is given the role: in every language, or in one."
 - "Defined at Organization": the seed roles first (Organization Admin,
   Coordinator, Translator, Reviewer, Viewer, with the people icon), then
   the custom ones by name (Language Lead, Translator-Reviewer, with a
   star).
-- Each sub reads "{n} members · {n} privileges", for example Organization
-  Admin "1 member · 15 privileges", Coordinator "1 member · 14
-  privileges", Translator "2 members · 5 privileges" (Review since decision
-  91), Language Lead "1 member · 13 privileges".
+- Each sub reads "{n} members · {n} permissions", for example Organization
+  Admin "1 member · 15 permissions", Coordinator "1 member · 14
+  permissions", Translator "2 members · 5 permissions" (Review since decision
+  91), Language Lead "1 member · 13 permissions".
 - Retired roles are not listed.
 
 ### PEOPLE-033 A role is twelve switches in three groups
@@ -880,7 +895,7 @@ Expected:
   Back-translator".
 - Save is disabled until a name is typed.
 - Toast "Elder {run} created." with no Undo.
-- It is listed with a star and "0 members · 3 privileges" (Choose who
+- It is listed with a star and "0 members · 3 permissions" (Choose who
   checks covers flows and review groups).
 - It is offered under "Other roles" to ADMIN, COORD and LADMIN (each
   holds Review, Manage flows and Manage teams where they invite).
@@ -957,13 +972,13 @@ Steps:
 2. Open "Language Lead".
 
 Expected:
-- The sub is "Language"; the intro ends "Roles are defined for the whole
-  organization, so here they are view only. Edit them from Organization
-  Home."
-- Each row has a lock, "View only · edit from the level where it was
-  defined" and a "View only" badge.
-- The role opens with "View only" / "Defined at the organization level.
-  Edit it from Organization Home." and no Save.
+- The sub is "Language"; the intro ends "Roles belong to the whole
+  organization, so here you can only look. Change them from Organization
+  Home." (Plain words since the UI audit, 2026-10-28.)
+- Each row has a lock, "View only · change it from Organization Home" and
+  a "View only" badge.
+- The role opens with "View only" / "Made for the whole organization.
+  Change it from Organization Home." and no Save.
 
 ### PEOPLE-039 Retiring a role
 Roles: ADMIN · Priority: P2 · Platforms: iOS, Android, Web · Run: Manual
@@ -1082,9 +1097,9 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. ADMIN: change TRANS to Viewer at Alpha (Alpha's members → TRANS →
-   "Viewer" → "Save Assignment").
+   "Viewer" → "Save role").
 2. TRANS: Sync now, then open My Work and a passage.
-3. ADMIN: open TRANS again, choose "Translator", tap "Save Assignment".
+3. ADMIN: open TRANS again, choose "Translator", tap "Save role".
 4. TRANS: Sync now.
 
 Expected:

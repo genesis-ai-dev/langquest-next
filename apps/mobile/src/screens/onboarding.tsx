@@ -62,7 +62,7 @@ export function Welcome(ctx: Ctx) {
     setBusy(true);
     try { await ctx.markWelcomed(); }
     // Saved to the account outbox, which retries; a failure to queue is a fault.
-    catch (e) { ctx.toast(t('common.somethingWentWrong', { code: reportError('welcome seen', e) })); }
+    catch (e) { ctx.toast(t('common.somethingWentWrong', { code: reportError('welcome seen', e) }), 'problem'); }
     setBusy(false);
     // Along the home_hub edge: My Work for everyone who does or asks for work, the overview for viewers.
     ctx.go(home);
@@ -159,7 +159,7 @@ export function WelcomeBack(ctx: Ctx) {
     setBusy(true);
     try { await ctx.markWelcomed(); }
     // Saved to the account outbox, which retries; a failure to queue is a fault.
-    catch (e) { ctx.toast(t('common.somethingWentWrong', { code: reportError('welcome back seen', e) })); }
+    catch (e) { ctx.toast(t('common.somethingWentWrong', { code: reportError('welcome back seen', e) }), 'problem'); }
     setBusy(false);
     then();
   }

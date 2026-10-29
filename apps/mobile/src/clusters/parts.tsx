@@ -20,6 +20,7 @@ import { Text } from '../ui/text';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { clusterEvents, clusterNamed, newClusterId, type ClusterEvent, type LanguageGroup } from './model';
 import { appendClusterEvents } from './clusterActions';
+import { a11yState } from '../ui/a11yModel';
 
 /** A cluster's tile: layers, in amber. */
 export function ClusterTile(props: { size?: number }) {
@@ -44,7 +45,7 @@ export function LanguageGroupCard(props: { group: LanguageGroup; open: boolean; 
   return (
     <Group style={props.current ? styles.groupCurrent : undefined}>
       <View style={[styles.head, { backgroundColor: bg }, props.open && styles.headOpen]}>
-        <Pressable testID={`language-group-${group.key}`} onPress={toggle.onPress} accessibilityRole="button" accessibilityState={{ expanded: props.open }}
+        <Pressable testID={`language-group-${group.key}`} onPress={toggle.onPress} accessibilityRole="button" {...a11yState({ expanded: props.open }, 'button')}
           // The web reads only aria-*: whether its languages show.
           aria-expanded={props.open}
           accessibilityLabel={t('shell.a11y.labelDetail', { label: title, detail: t('clusters.language.count', { count }) })}

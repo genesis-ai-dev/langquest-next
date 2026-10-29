@@ -9,7 +9,7 @@ import { commands, type LanguageState } from '@langquest-next/core';
 import type { SyncClient } from '@langquest-next/sync';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { clientAs, localServer, send, signIn, type UiWorld } from './fixture';
-import { button, expect, field, openAs, openPassage, primary, text, waitForApp, type AccountKey, type PassageKey } from './support';
+import { bookRow, button, expect, field, openAs, openPassage, primary, text, waitForApp, type AccountKey, type PassageKey } from './support';
 
 const TERMS_VERSION = /TERMS_VERSION = '([^']+)'/.exec(
   readFileSync(new URL('../../apps/mobile/src/account/accountData.ts', import.meta.url), 'utf8'))![1]!;
@@ -134,8 +134,8 @@ export async function openPassageByBook(page: Page, world: UiWorld, key: Passage
   const alpha = text(page, 'Alpha');
   if (!(await page.getByRole('button', { name: /^Luke/ }).locator('visible=true').count()) && await alpha.isVisible().catch(() => false)) await alpha.click();
   await button(page, /^Luke/).click();
-  // Luke lists its passages (decisions.md 166): the row is named by the passage.
-  await button(page, new RegExp(`^${label}\\.`)).click();
+  // Luke lists its passages (decisions.md 166), 25 at a time (UI audit, finding 122): the row is named by the passage.
+  await (await bookRow(page, new RegExp(`^${label}\\.`))).click();
   await expect(text(page, 'Something else?')).toBeVisible();
 }
 

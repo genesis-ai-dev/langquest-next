@@ -1,14 +1,14 @@
 // What the Ready screen reads: the language's summary, requests waiting and the roles in plain words (admin/ready.tsx).
 import { deriveFlow, languageName, libraryItems, libraryItemView, mayGrantRole, recommendedFor, scopeKey, type LibraryDoc, type Scope, type SourceDoc, type TemplateDoc } from '@langquest-next/core';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { deriveKinds } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
-import { pendingRequests, type PendingRequest } from '../invites/invites';
+import type { PendingRequest } from '../invites/invites';
+import { useJoinRequestList } from '../invites/useJoinRequestList';
 import { useLibraryDocs } from '../library/useLibrary';
 import { guideSets, setReach } from '../reference/guideSets';
 import { docLanguage } from '../reference/languages';
-import { noteExpected } from '../diagnostics/report';
 import { checksLine, guideShortName, helpsSummary, invitedTo, languageLabel, languageTranslators, plainRoleChoices, readiness, recordSummary, translatorsOf, type Readiness, type RoleInfo } from './adminModel';
 
 export interface ReadySummary {
@@ -77,23 +77,15 @@ export function useReadySummary(ctx: Ctx): ReadySummary {
 }
 
 /**
- * Join requests this person may decide; empty for everyone else, and offline
- * (a server read). Read again when the bell's count moves, and a request
- * decided on this phone leaves at once, as on My Work.
+ * Join requests this person may decide; empty for everyone else. Read again
+ * when the bell's count moves, and a request decided on this phone leaves at
+ * once, as on My Work.
  */
 export function usePendingRequests(ctx: Ctx): PendingRequest[] {
-  const may = ctx.session.can('invite_members');
-  const orgId = ctx.language.orgId;
-  const tick = ctx.inbox.unread;
-  const [requests, setRequests] = useState<PendingRequest[]>([]);
-  useEffect(() => {
-    if (!may) return;
-    let live = true;
-    void pendingRequests(orgId).then((r) => { if (live) setRequests(r); }).catch((e: unknown) => noteExpected('language join requests', e));
-    return () => { live = false; };
-  }, [may, orgId, tick]);
+  // The list last read stays shown offline (useJoinRequestList, UI audit finding 85).
+  const { rows } = useJoinRequestList(ctx.language.orgId, ctx.session.can('invite_members'), ctx.inbox.unread);
   const decided = ctx.org.state?.joinDecisions ?? {};
-  return requests.filter((r) => !decided[r.id]);
+  return rows.filter((r) => !decided[r.id]);
 }
 
 /** The four plain choices of what someone will do, from this organization's roles. */

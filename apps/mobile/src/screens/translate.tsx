@@ -58,7 +58,7 @@ import { ReferenceRecordings, SourcePlayer } from '../passage/passageSourceAudio
 import { feedbackSource, passageCrumbs, versionTitle, type PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
 import { useBackTranslationDraft } from '../recording/useBackTranslationDraft';
-import { CardList, RecordButton, SaveProblem, type ListedCard } from '../recording/parts';
+import { CardList, RecordButton, RecorderProblem, SaveProblem, type ListedCard } from '../recording/parts';
 import { SplitPane } from '../recording/SplitPane';
 import { MIN_BOTTOM, MIN_BOTTOM_RECORDING, rememberedSplit } from '../recording/splitModel';
 import { useListenLoop } from '../recording/useListenLoop';
@@ -358,7 +358,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       return true;
     } catch (e) {
       setCleared(wasCleared);
-      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: change parts', e) }));
+      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: change parts', e) }), 'problem');
       return false;
     } finally { if (!quiet) setWorking(false); }
   }
@@ -454,7 +454,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         : which === 'undo' ? t('common.undone') : t('translate.redone'));
     } catch (e) {
       setCleared(wasCleared);
-      ctx.toast(t(which === 'undo' ? 'common.notUndone' : 'common.notSaved', { reason: failureMessage(`workspace: ${which}`, e) }));
+      ctx.toast(t(which === 'undo' ? 'common.notUndone' : 'common.notSaved', { reason: failureMessage(`workspace: ${which}`, e) }), 'problem');
     } finally { setWorking(false); }
   }
 
@@ -518,7 +518,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     try {
       specs = commands(state, idx).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards, marks: next, verses: verseKeys });
     } catch (e) {
-      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: verse labels', e) }));
+      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: verse labels', e) }), 'problem');
       return;
     }
     if (specs.length === 0) return;
@@ -590,10 +590,10 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     if (c === 'guide' && guideItem) usage.open(guideItem);
   };
   const chips: ChipItem<RefChip>[] = chipIds.map((c) => ({
-    bible: { id: 'bible' as const, label: t('translate.chips.bible'), icon: 'listen' as const, hint: t('translate.chips.bibleHint') },
+    bible: { id: 'bible' as const, label: t('translate.chips.bible'), icon: 'book' as const, hint: t('translate.chips.bibleHint') },
     guide: { id: 'guide' as const, label: t('translate.chips.guide'), icon: 'star' as const, hint: t('translate.chips.guideHint') },
     terms: { id: 'terms' as const, label: t('translate.chips.terms'), icon: 'key' as const, hint: t('translate.chips.termsHint') },
-    notes: { id: 'notes' as const, label: t('translate.chips.notes'), icon: 'chat' as const, count: notes.length, hint: t('translate.chips.notesHint') },
+    notes: { id: 'notes' as const, label: t('translate.chips.notes'), icon: 'note' as const, count: notes.length, hint: t('translate.chips.notesHint') },
     earlier: { id: 'earlier' as const, label: t('translate.chips.earlier'), icon: 'clock' as const, hint: t('translate.chips.earlierHint') }
   })[c]);
 
@@ -630,7 +630,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name), offline);
       }
     } catch (e) {
-      ctx.toast(t('translate.notPublished', { reason: failureMessage('workspace: publish', e) }));
+      ctx.toast(t('translate.notPublished', { reason: failureMessage('workspace: publish', e) }), 'problem');
       return false;
     }
     setPublishing(true);
@@ -674,7 +674,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const problem = rec.failureCount > 0
     ? <SaveProblem message={rec.error || t('translate.partNotSaved')} retryLabel={t('translate.retrySaving')} busy={rec.busy} onRetry={() => void rec.retryFailed()} />
     : composeError ? <SaveProblem message={composeError} onRetry={() => setComposeError('')} />
-    : rec.error ? <SaveProblem message={rec.error} /> : null;
+    : rec.error ? <RecorderProblem rec={rec} /> : null;
   const record = () => void loop.toggle();
   const scope = { unitId, languageId };
   const lastDone = history.done[history.done.length - 1];
@@ -739,7 +739,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                   </>
                 ) : chip === 'terms' ? (
                   <KeyWordsPane ctx={ctx} v={v} terms={trayTerms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} bibleLanguage={bible.option?.language} draftTakeId={draft?.takeId} canTie={canTie} disabled={blocked}
-                    onHear={(key) => { setChip('bible'); if (key) { setVerse(key); bible.playVerse(key); } }}
+                    canHear={chipIds.includes('bible') && bible.timed && !bible.audioAbsent}
+                    onHear={(key) => { if (!bible.playVerse(key)) return false; setChip('bible'); setVerse(key); return true; }}
                     allTerms={() => ctx.go('key_terms', scope)}
                     {...(recording ? {} : { onWordPage: (list: KeyWordList, word: KeyWordDoc) => ctx.go('key_term_detail', { ...scope, listId: list.itemId, wordId: word.id, ...(draft ? { draftId: draft.takeId } : {}) }) })} />
                 ) : chip === 'notes' ? (
