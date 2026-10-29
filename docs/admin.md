@@ -314,6 +314,10 @@ their ids are in `server/youtube.ts`.
   banners in `apps/mobile/public/youtube`, made by
   `npx tsx e2e/tutorials/banners.ts`) gets them, about 150 of the day's
   10,000 units each. The channels table shows "on" once it has them.
+  A look YouTube refuses (`brandingValidationError`, Hausa's on 2026-10-29)
+  is tried without its language, then without the channel's own settings
+  (its keywords, its country); one still refused shows the field YouTube
+  named (`youtube_brandingValidationError:brandingSettings.channel.…`).
 - **Held comments**: each channel holds comments that may be
   inappropriate for a person to approve or remove (YouTube Studio →
   Settings → Community → Defaults: "Hold potentially inappropriate comments
@@ -331,6 +335,13 @@ their ids are in `server/youtube.ts`.
 - **The picture** (the round one beside the name) is the one thing YouTube
   lets nobody but a person set: in YouTube Studio, on each channel,
   Customization → Branding → Picture → Upload, `apps/mobile/assets/icon.png`.
+- **A higher upload limit** is each channel's own: YouTube Studio →
+  Settings → Channel → Feature eligibility, a phone under Intermediate
+  features, then Access features under Advanced (the owner's video or ID
+  check counts for every channel). One phone number verifies at most 2
+  channels a year (YouTube Help 171664), so English and French come
+  first. It speeds up one language, not the whole set: the project's 100
+  uploads a day are the limit once every language has videos waiting.
 
 The OAuth client is a Web application client in the Google Cloud project
 that has the YouTube Data API v3 on, with the redirect address above. Store

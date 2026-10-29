@@ -143,12 +143,18 @@ export interface Client { clientId: string; clientSecret: string }
 
 /** A call YouTube or Google refused: its status and YouTube's reason (`quotaExceeded`, `uploadLimitExceeded`, `forbidden`). */
 export class YouTubeError extends Error {
-  constructor(readonly status: number, readonly reason: string) {
-    super(`YouTube ${status} ${reason}`);
+  /** `where`: the field YouTube names as the one it refused (`brandingSettings.channel.keywords`), when it names one. */
+  constructor(readonly status: number, readonly reason: string, readonly where?: string) {
+    super(`YouTube ${status} ${reason}${where ? ` ${where}` : ''}`);
     this.name = 'YouTubeError';
   }
   /** For a job run's error class: a fixed code, never YouTube's message. */
   get code(): string { return `youtube_${this.reason.replace(/[^A-Za-z0-9_]/g, '').slice(0, 60) || this.status}`; }
+  /** The code and the field refused, for a channel's look that did not go on (the dashboard shows it): still never YouTube's message. */
+  get codeWhere(): string {
+    const where = (this.where ?? '').replace(/[^A-Za-z0-9_.]/g, '');
+    return where ? `${this.code}:${where}`.slice(0, 80) : this.code;
+  }
 }
 
 /** Out of the project's units for today: nothing more is done until midnight Pacific. */
@@ -163,10 +169,11 @@ export const channelFull = (e: unknown) => e instanceof YouTubeError && e.reason
 
 async function answer<T>(response: Response): Promise<T> {
   if (response.ok) return (response.status === 204 ? undefined : await response.json()) as T;
-  const body = (await response.json().catch(() => null)) as { error?: string | { errors?: { reason?: string }[]; status?: string } } | null;
+  const body = (await response.json().catch(() => null)) as { error?: string | { errors?: { reason?: string; location?: string }[]; status?: string } } | null;
   const error = body?.error;
-  const reason = typeof error === 'string' ? error : error?.errors?.[0]?.reason ?? error?.status ?? 'unknown';
-  throw new YouTubeError(response.status, reason);
+  const first = typeof error === 'string' ? undefined : error?.errors?.[0];
+  const reason = typeof error === 'string' ? error : first?.reason ?? error?.status ?? 'unknown';
+  throw new YouTubeError(response.status, reason, first?.location);
 }
 
 const API = 'https://www.googleapis.com/youtube/v3';
@@ -323,13 +330,21 @@ export async function brandChannel(fetcher: Fetch, token: string, language: Chan
   });
   // A trailer named here becomes the one the channel shows people who have not subscribed; otherwise the one set stays (kept).
   const settings = { ...kept, description: channelAbout(language), ...(trailer ? { unsubscribedTrailer: trailer } : {}) };
+  const refused = (e: unknown) => e instanceof YouTubeError && e.reason === 'brandingValidationError';
   try {
     await answer(await put({ ...settings, defaultLanguage: language }));
   } catch (e) {
-    // YouTube refused Hausa's channel (brandingValidationError, 2026-10-29), and a language it does not
-    // offer is the likeliest cause: the description and banner go on without saying the language.
-    if (!(e instanceof YouTubeError && e.reason === 'brandingValidationError')) throw e;
-    await answer(await put(settings));
+    // YouTube refused Hausa's channel (brandingValidationError, 2026-10-29) with its language, and again
+    // without it: then without the settings the channel already had (its keywords, its country), one of
+    // which may be what YouTube refuses. Only the description and the trailer go on; the rest is cleared.
+    if (!refused(e)) throw e;
+    try {
+      await answer(await put(settings));
+    } catch (again) {
+      if (!refused(again)) throw again;
+      const shown = settings.unsubscribedTrailer;
+      await answer(await put({ description: settings.description, ...(shown ? { unsubscribedTrailer: shown } : {}) }));
+    }
   }
   await setOtherChannels(fetcher, token, language);
 }

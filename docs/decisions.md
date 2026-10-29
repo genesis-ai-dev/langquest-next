@@ -8928,6 +8928,14 @@ Reverse if: YouTube's API stops taking a channel's description, language
 or banner; or held comments come often enough that going through Studio
 channel by channel is a burden (then the dashboard approves and removes).
 
+Amended (2026-10-29, Caleb Koster): YouTube refused Hausa's look
+(`brandingValidationError`) with its language and again without it, and
+kept only that code, so nobody could see why. A refused look now goes on
+without the channel's own settings as well (its keywords and country, sent
+back unchanged until now and cleared then), keeping only the description and
+the trailer; one still refused keeps the field YouTube named beside the code
+(`ops.youtube_channels.brand_failed`), never YouTube's message.
+
 ## 185. The UI audit's fixes: a screen says what it waits for, asks before what cannot be undone, and opens a thing where the same thing opens elsewhere
 
 Date: 2026-10-28 · By: Caleb Koster · Status: accepted

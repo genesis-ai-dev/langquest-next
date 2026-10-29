@@ -13,9 +13,9 @@ const video = (tutorial: string, over: Partial<Due> = {}): Due => ({
 /**
  * `uploads`: how many the project may put up before YouTube's day is out; `perChannel`: how many each
  * channel may (its access token is its refresh token's); `brandRefused`: a language YouTube will not
- * take for a channel.
+ * take for a channel; `fieldRefused`: a setting of the channel's it will not take back, by its name.
  */
-function youtube(options: { uploads?: number; perChannel?: number; tokenRefused?: string; channel?: string; brandRefused?: string } = {}) {
+function youtube(options: { uploads?: number; perChannel?: number; tokenRefused?: string; channel?: string; brandRefused?: string; fieldRefused?: string } = {}) {
   const calls: string[] = [];
   const sent: Record<string, unknown>[] = [];
   /** Every JSON body sent, by call. */
@@ -44,10 +44,13 @@ function youtube(options: { uploads?: number; perChannel?: number; tokenRefused?
     }
     if (path === '/upload/youtube/v3/channelBanners/insert') return Response.json({ url: 'https://yt3.example/banner' });
     if (path === '/youtube/v3/channels') {
-      const body = JSON.parse(String(init?.body)) as { brandingSettings: { channel: { defaultLanguage?: string } } };
+      const body = JSON.parse(String(init?.body)) as { brandingSettings: { channel: Record<string, unknown> & { defaultLanguage?: string } } };
       sent.push(body);
       if (options.brandRefused && body.brandingSettings.channel.defaultLanguage === options.brandRefused) {
         return Response.json({ error: { errors: [{ reason: 'brandingValidationError' }] } }, { status: 400 });
+      }
+      if (options.fieldRefused && options.fieldRefused in body.brandingSettings.channel) {
+        return Response.json({ error: { errors: [{ reason: 'brandingValidationError', location: `brandingSettings.channel.${options.fieldRefused}` }] } }, { status: 400 });
       }
       return Response.json({});
     }
@@ -212,6 +215,23 @@ describe('the publish job', () => {
       { id: CHANNELS.es, brandingSettings: { channel: { keywords: 'LangQuest', country: 'MX', description: channelAbout('es'), defaultLanguage: 'es' }, image: { bannerExternalUrl: 'https://yt3.example/banner' } } },
       { id: CHANNELS.es, brandingSettings: { channel: { keywords: 'LangQuest', country: 'MX', description: channelAbout('es') }, image: { bannerExternalUrl: 'https://yt3.example/banner' } } }
     ]);
+  });
+
+  it('puts them on without the channel\'s own settings when YouTube refuses one of those too, and says which field it refused', async () => {
+    // Why: YouTube refused Hausa's channel with its language and without it (2026-10-29).
+    const yt = youtube({ brandRefused: 'es', fieldRefused: 'keywords' });
+    const es: Channel = { channelId: CHANNELS.es, language: 'es', branded: null };
+    expect(await publishTutorials(deps([], yt, undefined, [es]).deps, fresh())).toMatchObject({ branded: 1, brandFailed: 0 });
+    expect(yt.sent.map((b) => (b as { brandingSettings: { channel: object } }).brandingSettings.channel)).toEqual([
+      { keywords: 'LangQuest', country: 'MX', description: channelAbout('es'), defaultLanguage: 'es' },
+      { keywords: 'LangQuest', country: 'MX', description: channelAbout('es') },
+      { description: channelAbout('es') }
+    ]);
+    const refused = youtube({ fieldRefused: 'description' });
+    const d = deps([], refused, undefined, [{ ...es, branded: null }]);
+    expect(await publishTutorials(d.deps, fresh())).toMatchObject({ branded: 0, brandFailed: 1, firstError: 'youtube_brandingValidationError' });
+    expect(refused.sent).toHaveLength(3);
+    expect(d.marks).toEqual(['es failed youtube_brandingValidationError:brandingSettings.channel.description']);
   });
 
   it('leaves a channel alone when its token is for another, and still puts the videos up', async () => {
