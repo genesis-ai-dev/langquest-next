@@ -54,6 +54,9 @@ const VALUE_KEY = {
 };
 const WEBHOOK_ID = { name: 'webhookId', in: 'path', required: true, schema: text(), description: 'A webhookId from POST /webhooks.' };
 const CHANGED_SINCE = { name: 'changedSince', in: 'query', schema: time(), description: 'Only what changed after this time. Pass the newest updatedAt (or at) you have seen to follow changes.' };
+/** The server's own time for a thing (decisions.md 188), beside the clock of the phone that made it. */
+const UPLOADED = 'When LangQuest\'s server received it, by the server\'s clock. A phone that was offline sends days of work at once: its own times stay old, this is when it arrived.';
+const FILE_UPLOADED = 'When LangQuest\'s server stored the file, by the server\'s clock. Null while the server holds no good copy, usually because the phone has not uploaded it yet; the link plays only once it has.';
 
 function schemas(): Record<string, Schema> {
   const summary: Record<string, Schema> = {
@@ -64,7 +67,7 @@ function schemas(): Record<string, Schema> {
     order: text('Sorts passages into display order, compared as plain strings.'),
     reference: nullable(ref('PassageReference')),
     status: ref('Status'),
-    version: nullable(obj({ n: int(), takeId: text(), submittedAt: time(), durationMs: int() }, [],
+    version: nullable(obj({ n: int(), takeId: text(), submittedAt: time('When it was published, by the phone\'s clock.'), uploadedAt: nullable(time(UPLOADED)), durationMs: int() }, [],
       'The version this token hears: the latest with read, the approved one with read:published alone. Null when there is none.')),
     approvedVersion: nullable(obj({ n: int(), takeId: text() }, [], 'The newest version every step approved; what a listening app should play.')),
     releases: list(ref('Release'), 'Where a version is live, one entry per channel.'),
@@ -76,7 +79,7 @@ function schemas(): Record<string, Schema> {
     reviews: list(ref('Review'), 'With read: every review of every version. With read:published alone: listener reviews of version.'),
     steps: list(ref('Step'), 'The language\'s review flow and where the passage is in it. Needs read.'),
     requests: list(ref('Request'), 'Work asked for and not done yet, oldest first. Needs read.'),
-    versions: list(obj({ n: int(), takeId: text(), submittedAt: time() }), 'Every version, oldest first. Needs read.'),
+    versions: list(obj({ n: int(), takeId: text(), submittedAt: time('By the phone\'s clock.'), uploadedAt: nullable(time(UPLOADED)) }), 'Every version, oldest first. Needs read.'),
     approvedAudio: list(ref('AudioCard'), 'approvedVersion\'s cards in playing order, so a listening app keeps playing what it published while a newer version is in review; empty when nothing is approved. Needs read.')
   };
   const passage = (optional: string[], description: string) => obj({ ...summary, ...includes }, optional, description);
@@ -152,16 +155,21 @@ function schemas(): Record<string, Schema> {
     }, ['languageId', 'unitIds', 'moreUnits', 'cursor', 'tokenId', 'reason', 'webhookId'],
     'A nudge, never the data: read the change feed, or the passages by unitIds, with your token.'),
     Status: text(undefined, { enum: [...API_STATUSES] }),
-    Release: obj({ channel: text(), versionN: int(), takeId: text(), url: text(), at: time() }, ['url']),
+    Release: obj({
+      channel: text(), versionN: int(), takeId: text(), url: text(),
+      at: time('When it was reported through this API, by LangQuest\'s clock.'), uploadedAt: nullable(time(UPLOADED))
+    }, ['url']),
     AudioCard: obj({
       hash: text(), format: text(undefined, { enum: ['wav', 'm4a'] }), durationMs: int(),
-      url: text('Plays without a token until expiresAt (ten minutes), with Range support. Ask again for a fresh one.'), expiresAt: time()
+      url: text('Plays without a token until expiresAt (ten minutes), with Range support. Ask again for a fresh one.'), expiresAt: time(),
+      uploadedAt: nullable(time(FILE_UPLOADED))
     }),
     Review: obj({
       kindId: text('listener, or a kind in the language\'s flow.'), kind: text('The kind\'s name, such as "Peer Review".'),
       outcome: text(undefined, { enum: ['looks_good', 'needs_changes', 'recorded'] }), via: text(undefined, { enum: ['app', 'link', 'logged'] }),
-      versionN: int(), at: time(), comment: text(), givenBy: text(),
-      voiceNotes: list(obj({ url: text(), expiresAt: time(), durationMs: int(), atMs: int('Where in the version it is about.') }, ['atMs']))
+      versionN: int(), at: time('By the reviewer\'s clock: their phone\'s, or LangQuest\'s for one given by link or through this API.'), uploadedAt: nullable(time(UPLOADED)),
+      comment: text(), givenBy: text(),
+      voiceNotes: list(obj({ url: text(), expiresAt: time(), durationMs: int(), atMs: int('Where in the version it is about.'), uploadedAt: nullable(time(FILE_UPLOADED)) }, ['atMs']))
     }, ['comment', 'givenBy', 'voiceNotes']),
     Step: obj({
       name: text('Such as "Peer Review + Back Translation".'), complete: bool(), checkpoint: bool(),
@@ -173,7 +181,8 @@ function schemas(): Record<string, Schema> {
     }),
     Request: obj({
       requestId: text(), what: text(undefined, { enum: ['record', 'review'] }), kindId: text('A review of this kind answers it.'), kind: text(),
-      forYou: bool('Asked of the token\'s person, or a team they are in.'), team: text(), note: text(), askedAt: time()
+      forYou: bool('Asked of the token\'s person, or a team they are in.'), team: text(), note: text(), askedAt: time('By the asker\'s phone\'s clock.'),
+      uploadedAt: nullable(time(UPLOADED))
     }, ['kindId', 'kind', 'team', 'note']),
     PassageListItem: passage([...PASSAGE_INCLUDES], 'A passage\'s summary, with the fields include named.'),
     PassageDetail: passage(['steps', 'requests', 'versions', 'approvedAudio'], 'Everything the token may see of one passage; steps, requests, versions and approvedAudio need read.'),
@@ -211,7 +220,7 @@ function schemas(): Record<string, Schema> {
       key: text(),
       data: nullable({ type: 'object', description: 'Null when the key was deleted (listed only with changedSince).' }),
       writtenBy: obj({ profileId: text(), tokenId: nullable(text()), app: text('The app behind the token.') }, ['app']),
-      at: time()
+      at: time('When it was stored, by LangQuest\'s server: only LangQuest writes values, as the API is called.')
     }),
     ExternalValuePage: obj({
       values: list(ref('ExternalValue')),

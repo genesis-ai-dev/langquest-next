@@ -9,7 +9,7 @@ import {
   checkLinkSpec, externalValueEvent, externalValueFor, externalValuesFor, isRefusal, languageAccess, languagesFor, linkIsOpen, linkReviewEvent, linkView,
   mayRevokeLinks, mayStoreValues, passageFor, passagesFor, releaseEvent, reviewEvent,
   type ExternalValueFilter, type ExternalValueOut, type LanguageView, type LinkReviewInput, type LinkSpec, type LinkView, type PassageDetail,
-  type PassageListItem, type PassageListQuery, type Refusal, type ReleaseInput, type ReviewInput, type ReviewLink, type Signer
+  type PassageListItem, type PassageListQuery, type Receipts, type Refusal, type ReleaseInput, type ReviewInput, type ReviewLink, type Signer
 } from './view';
 
 export type AgentQuery =
@@ -43,6 +43,12 @@ export const WRITES_PER_HOUR = 600;
  */
 export const UPLOADS_PER_HOUR = 100;
 const HOUR_MS = 60 * 60 * 1000;
+/**
+ * Server receipts the object remembers: each is the database's stamp on an
+ * event, which never changes (decisions.md 188), so a partner reading the
+ * same passages again asks the database only about what is new to it.
+ */
+export const RECEIPTS_KEPT = 20_000;
 
 const no = (r: Refusal): Answer<never> => ({ ok: false, ...r });
 const yes = <T>(data: T): Answer<T> => ({ ok: true, data });
@@ -68,8 +74,33 @@ export class AgentOrg {
        * the object may answer from what it checked a few seconds ago, which is what a read needs.
        */
       records(languageId: string, fresh: boolean): Promise<LanguageRecords>;
+      /** When the server received these records of a language (`received_times`); keys as `Receipts` names them. */
+      received(languageId: string, keys: readonly string[]): Promise<ReadonlyMap<string, string>>;
     }
   ) {}
+
+  private readonly receipts = new Map<string, string>();
+
+  /** A language's receipts, from what the object remembers first and the database for the rest, in one question. */
+  private receivedIn(languageId: string): Receipts {
+    return async (keys) => {
+      const out = new Map<string, string>();
+      const ask: string[] = [];
+      for (const key of keys) {
+        const at = this.receipts.get(`${languageId}\n${key}`);
+        if (at === undefined) ask.push(key);
+        else out.set(key, at);
+      }
+      if (!ask.length) return out;
+      for (const [key, at] of await this.deps.received(languageId, ask)) {
+        out.set(key, at);
+        // The oldest go first once there are too many: a Map keeps the order they came in.
+        if (this.receipts.size >= RECEIPTS_KEPT) this.receipts.delete(this.receipts.keys().next().value!);
+        this.receipts.set(`${languageId}\n${key}`, at);
+      }
+      return out;
+    };
+  }
 
   /**
    * A language the organization lists, caught up now: the organization
@@ -116,10 +147,10 @@ export class AgentOrg {
     }
     if (!can.read) return no({ status: 403, code: 'scope', error: 'This token was not given a read scope.' });
     if (q.op === 'passages') {
-      const page = await passagesFor(grant, grant.orgId, q.languageId, held.records, q.query, this.deps.sign);
+      const page = await passagesFor(grant, grant.orgId, q.languageId, held.records, q.query, this.deps.sign, this.receivedIn(q.languageId));
       return isRefusal(page) ? no(page) : yes(page);
     }
-    const detail = await passageFor(grant, grant.orgId, q.languageId, held.records, q.unitId, this.deps.sign);
+    const detail = await passageFor(grant, grant.orgId, q.languageId, held.records, q.unitId, this.deps.sign, this.receivedIn(q.languageId));
     return isRefusal(detail) ? no(detail) : yes(detail);
   }
 
@@ -135,9 +166,14 @@ export class AgentOrg {
     }
     const appended = await this.append(event);
     if (!appended.ok) return appended;
-    // Read it back so the answer already shows it.
+    // Read it back so the answer already shows it. It is written either way: a read-back that fails answers null, never an error a client would retry.
     const after = await this.language(w.languageId, true);
-    const passage = after ? await passageFor(grant, grant.orgId, w.languageId, after.records, w.unitId, this.deps.sign) : null;
+    const passage = after
+      ? await passageFor(grant, grant.orgId, w.languageId, after.records, w.unitId, this.deps.sign, this.receivedIn(w.languageId)).catch((e: unknown) => {
+        console.error(`agent read-back ${w.languageId}/${w.unitId}:`, e);
+        return null;
+      })
+      : null;
     return yes({ eventId: event.id, duplicate: appended.data, passage: passage && !isRefusal(passage) ? passage : null });
   }
 

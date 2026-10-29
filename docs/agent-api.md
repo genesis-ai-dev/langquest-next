@@ -1,6 +1,6 @@
 # The LangQuest API, review links, and MCP
 
-Other apps, AI agents and people without an account can take part in a translation's review. Why it is built this way: `docs/decisions.md` 70 (tokens), 72 (reviews, releases, review links), 79 (external values), 85 (the passage list), 86 (the OpenAPI document), 101 (webhooks and the change feed) and 109 (a listening app's approved audio).
+Other apps, AI agents and people without an account can take part in a translation's review. Why it is built this way: `docs/decisions.md` 70 (tokens), 72 (reviews, releases, review links), 79 (external values), 85 (the passage list), 86 (the OpenAPI document), 101 (webhooks and the change feed), 109 (a listening app's approved audio) and 188 (when the server received each thing).
 
 - **Partner apps and agents** use an access token. They read passages, record reviews, report where a version is published, and store values of their own with a language.
 - **Anyone with a review link** (`/r/<code>`, shared on WhatsApp, say) can hear one version and answer, with any name.
@@ -72,12 +72,29 @@ curl -H "$T" https://next.langquest.org/api/v1/languages/LANG/passages/UNIT     
   - **Filters:** `status`, `changedSince`, and `unitIds` for particular passages. Repeat `unitIds` once per id, since an id may hold a comma. Ids that do not exist, or that the token cannot see, are left out.
   - **`include`** adds fields of one passage (below) to every passage on the page, comma-separated: `audio`, `reviews`, `steps`, `requests`, `versions`, `approvedAudio`. Links are signed only for the page. `steps`, `requests`, `versions` and `approvedAudio` need `read`; with `read:published` alone they are refused (`403`, `scope`).
 - **`reference`** is the verses the passage holds, read from its unit id so you need not parse `GEN.1.1-2.3~org`: `{ book, chapter, verse, endChapter, endVerse }`, in the template's own numbering. A whole chapter has null verses, a whole book null chapters too. It is null for a unit someone made by hand.
-- **Following changes:** pass the newest `updatedAt` you have seen as `changedSince`. Versions, reviews and releases all count as changes. The server catches up with the log at least once a minute. `changedSince` never sees a passage leave the list or change its label; follow the change feed (below) for those.
+- **Following changes:** pass the newest `updatedAt` you have seen as `changedSince`. Versions, reviews and releases all count as changes. The server catches up with the log at least once a minute. `changedSince` never sees a passage leave the list or change its label, and it compares the phones' own clocks, so work from a phone that was offline can arrive older than what you have seen. The change feed (below) is in the order LangQuest received things and catches both.
 - **One passage** has everything the token may see of it: the list's fields, `audio` and `reviews`, plus `steps`, `requests` and `versions` with `read`. It is the list with every include, for one unit.
   - `audio` is `version`'s cards in playing order. Each has a `url` that plays without a token for ten minutes, with Range support.
   - `approvedAudio` (with `read`) is `approvedVersion`'s cards, so an app keeps playing the version it published while a newer one is in review. It is empty when nothing is approved.
   - Each step lists its `kinds`: `kindId` (what a review of it sends), `name`, `state`, and `apiReviewCounts`, whether a review through this API completes it. It does on an ordinary step that takes links, never on a checkpoint.
   - `requests` are the ones not done yet: `requestId`, `what` (`review` or `record`), `kindId` and `kind`, `forYou` (to the token's person, or a team they are in), `team`, `note` and `askedAt`.
+
+### When LangQuest received it
+
+Everything a phone makes carries two times (decisions.md 188):
+
+- **The phone's clock, when it was made:** a version's `submittedAt`, a review's `at`, a request's `askedAt`.
+- **The server's clock, when it arrived:** `uploadedAt`, on `version`, `versions`, `reviews`, `requests` and `releases`. The database stamps each record as it is received, and the stamp never changes.
+
+A phone that was offline for three days sends three days of work at once. The work keeps its old phone times, and its `uploadedAt` is when it arrived.
+
+**Audio files** (`audio`, `approvedAudio` and a review's `voiceNotes`) have an `uploadedAt` of their own: when the server stored the file.
+- A phone publishes a version before its files finish uploading, so a file's `uploadedAt` can be `null` for a while.
+- Its link plays only once `uploadedAt` is set.
+
+Two more things to know:
+- Work brought over from LangQuest v2 has the day it was imported as `uploadedAt`. `submittedAt` keeps v2's own time.
+- Releases and external values are written only through this API, so their `at` is the server's clock as well.
 
 ## Writing
 
@@ -281,5 +298,6 @@ The device endpoints use OAuth's error codes.
 | `/connect` | `apps/web/worker/agent/connectPage.ts` |
 | Voice note checks | `apps/web/worker/agent/voice.ts` |
 | Tables (service role only) | `supabase/migrations/20261008000000_api_tokens.sql`, `20261008140000_review_links_releases.sql`, `20261013120000_api_webhooks.sql` (also the poke) |
+| When the server received it (`uploadedAt`) | `received_times` in `supabase/migrations/20261029150000_received_times.sql`, asked once a page (`receivedTimes` in `apps/web/worker/agent/store.ts`) and remembered by the organization's object (`agent/org.ts`) |
 | Approved version, releases, links per step | core `approvedVersion`, `releasesOf`, `stepAllowsLinks`; events `v1.VersionReleased`, `v1.FlowStepLinksSet` |
 | Tests | `apps/web/test/agentApi.test.ts`, `packages/core/test/externalReview.test.ts` |

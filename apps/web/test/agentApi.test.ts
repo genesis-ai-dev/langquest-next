@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import {
-  encodeHlc, foldOrg, languageInfo, privilegeAllows, privilegeFor, privilegesFor, SEED_ROLES, type AnyEvent
+  decodeHlc, encodeHlc, foldOrg, languageInfo, privilegeAllows, privilegeFor, privilegesFor, SEED_ROLES, type AnyEvent
 } from '@langquest-next/core';
 import { MemoryStore as EventMemoryStore, type AppendResult } from '@langquest-next/sync';
 import { handleAgentApi, type AgentDeps, type OrgStub } from '../worker/agent/http';
@@ -27,9 +27,18 @@ import { check, compileAll, openApiProblems, uncovered } from './openapiCheck';
 const ORG = 'org1';
 const T0 = 1_790_000_000_000;
 
+/** How long after its clock an event reaches the server, unless a test keeps the phone offline longer. */
+const ARRIVES_AFTER_MS = 60_000;
+
 class Log implements Source {
   readonly streams = new Map<string, AnyEvent[]>();
   private seq = 0;
+  /** When the server took each event, by id: its `received_at`. */
+  readonly arrived = new Map<string, number>();
+  /** How long events pushed from now on took to arrive: set it to keep a phone offline. */
+  delayMs = ARRIVES_AFTER_MS;
+  /** Each question `received_times` was asked: the keys. */
+  readonly receivedAsks: string[][] = [];
 
   add(streamId: string, type: string, payload: unknown, actorId = 'admin', id = `e${this.seq + 1}`) {
     this.seq += 1;
@@ -40,6 +49,25 @@ class Log implements Source {
     const list = this.streams.get(e.streamId) ?? [];
     list.push({ ...e, serverSeq: list.length + 1 } as AnyEvent);
     this.streams.set(e.streamId, list);
+    this.arrived.set(e.id, decodeHlc(e.hlc).wallMs + this.delayMs);
+  }
+
+  /** received_times as the database answers it (migration 20261029150000): the first publish of a take, an entity's event, an event by id. */
+  async received(streamId: string, keys: readonly string[]): Promise<Map<string, string>> {
+    this.receivedAsks.push([...keys]);
+    const events = this.streams.get(streamId) ?? [];
+    const out = new Map<string, string>();
+    for (const key of keys) {
+      const [kind, id] = [key.slice(0, key.indexOf(':')), key.slice(key.indexOf(':') + 1)];
+      const p = (e: AnyEvent) => e.payload as Record<string, unknown>;
+      const hits = events.filter((e) =>
+        kind === 'submitted' ? e.type === 'v1.TakeSubmitted' && p(e)['takeId'] === id
+          : kind === 'review' ? e.type === 'v1.ReviewRecorded' && p(e)['reviewId'] === id
+            : kind === 'request' ? e.type === 'v1.RequestMade' && p(e)['requestId'] === id
+              : kind === 'event' && e.id === id);
+      if (hits.length) out.set(key, new Date(Math.min(...hits.map((e) => this.arrived.get(e.id)!))).toISOString());
+    }
+    return out;
   }
 
   async pull(orgId: string, streamId: string, after: number, limit: number) {
@@ -257,7 +285,8 @@ function setup() {
     },
     now: () => now,
     webhooks: dispatcher,
-    records: (id, fresh) => { recordsAsked.push({ id, fresh }); return keeper.records(id); }
+    records: (id, fresh) => { recordsAsked.push({ id, fresh }); return keeper.records(id); },
+    received: (id, keys) => log.received(id, keys)
   });
   const deps: AgentDeps = {
     store,
@@ -498,6 +527,74 @@ describe('reading', () => {
   });
 });
 
+describe('when the server received it (decisions.md 188)', () => {
+  const DAYS_3 = 3 * 24 * 60 * 60 * 1000;
+  const iso = (ms: number) => new Date(ms).toISOString();
+  const eventOf = (log: Log, type: string, match: (p: Record<string, unknown>) => boolean) =>
+    (log.streams.get('din') ?? []).find((e) => e.type === type && match(e.payload as Record<string, unknown>))!;
+  const arrivalOf = (log: Log, e: AnyEvent) => iso(log.arrived.get(e.id)!);
+
+  it('gives each version, review, request and release the server\'s time beside the phone\'s, however long the phone was offline', async () => {
+    // Why: partners need when LangQuest received the work. A phone offline for days keeps its own old times.
+    const { call, token, log } = setup();
+    log.delayMs = DAYS_3;
+    recorded(log, 'din', 'd4');
+    log.delayMs = ARRIVES_AFTER_MS;
+    log.add('din', 'v1.ReviewRecorded', { reviewId: 'peer-d4', takeId: 'take-d4', kindId: 'peer', outcome: 'needs_changes', via: 'app' }, 'rev');
+    log.add('din', 'v1.RequestMade', { requestId: 'q-d4', unitId: 'd4', what: 'review', kindId: 'peer', profileId: 'rev' }, 'tr');
+    const t = await token('admin', { scopes: ['read', 'release'] });
+    const d4 = (await call('GET', '/api/v1/languages/din/passages/d4', t)).body;
+    const submitted = eventOf(log, 'v1.TakeSubmitted', (p) => p['takeId'] === 'take-d4');
+    expect(d4.version.submittedAt).toBe(iso(decodeHlc(submitted.hlc).wallMs));
+    expect(d4.version.uploadedAt).toBe(arrivalOf(log, submitted));
+    expect(Date.parse(d4.version.uploadedAt) - Date.parse(d4.version.submittedAt)).toBe(DAYS_3);
+    expect(d4.versions).toEqual([{ n: 1, takeId: 'take-d4', submittedAt: d4.version.submittedAt, uploadedAt: d4.version.uploadedAt }]);
+    expect(d4.requests).toMatchObject([{ requestId: 'q-d4', uploadedAt: arrivalOf(log, eventOf(log, 'v1.RequestMade', (p) => p['requestId'] === 'q-d4')) }]);
+    expect(d4.reviews).toMatchObject([{ kindId: 'peer', uploadedAt: arrivalOf(log, eventOf(log, 'v1.ReviewRecorded', (p) => p['reviewId'] === 'peer-d4')) }]);
+    // The list gives the same, for the version it summarizes.
+    const listed = (await call('GET', '/api/v1/languages/din/passages?unitIds=d4', t)).body.passages[0];
+    expect(listed.version.uploadedAt).toBe(d4.version.uploadedAt);
+    // A release reported through the API, read back in the answer.
+    const released = await call('POST', '/api/v1/languages/din/passages/d1/releases', t, { channel: 'Every Language app', live: true });
+    const release = eventOf(log, 'v1.VersionReleased', (p) => p['takeId'] === 'take-d1');
+    expect(released.body.passage.releases).toEqual([{ channel: 'Every Language app', versionN: 1, takeId: 'take-d1', at: expect.any(String), uploadedAt: arrivalOf(log, release) }]);
+  });
+
+  it('says when the server stored each recording and voice note, and null for one it does not hold yet', async () => {
+    const { call, token, log } = setup();
+    const note = 'f'.repeat(64);
+    log.add('din', 'v1.ReviewRecorded', { reviewId: 'peer-d2-note', takeId: 'take-d2', kindId: 'peer', outcome: 'needs_changes', via: 'app', commentBlobHash: note }, 'rev');
+    // Only the server appends BlobStored, on its own clock, once a file is safely stored; d2's second part is still on the phone.
+    log.add('din', 'v1.BlobStored', { hash: card('d2a').hash, size: 1200 }, 'service');
+    log.add('din', 'v1.BlobStored', { hash: note, size: 300 }, 'service');
+    log.add('din', 'v1.BlobStored', { hash: card('d1a').hash, size: 1200 }, 'service');
+    const stored = (hash: string) => iso(decodeHlc(eventOf(log, 'v1.BlobStored', (p) => p['hash'] === hash).hlc).wallMs);
+    const t = await token('admin', { scopes: ['read'] });
+    const d2 = (await call('GET', '/api/v1/languages/din/passages/d2', t)).body;
+    expect(d2.audio.map((a: { hash: string; uploadedAt: string | null }) => [a.hash, a.uploadedAt])).toEqual([[card('d2a').hash, stored(card('d2a').hash)], [card('d2b').hash, null]]);
+    expect(d2.reviews.find((r: { voiceNotes?: unknown }) => r.voiceNotes).voiceNotes).toMatchObject([{ uploadedAt: stored(note) }]);
+    // A listening app's approved audio says the same.
+    const listening = await token('admin', { scopes: ['read:published'] });
+    const d1 = (await call('GET', '/api/v1/languages/din/passages?include=audio', listening)).body.passages[0];
+    expect(d1.audio.map((a: { uploadedAt: string | null }) => a.uploadedAt)).toEqual([stored(card('d1a').hash), null]);
+  });
+
+  it('asks the database once for a page, and after that only about what it has not seen', async () => {
+    const { call, token, log } = setup();
+    const t = await token('admin', { scopes: ['read'] });
+    const page = '/api/v1/languages/din/passages?include=reviews,versions,requests';
+    await call('GET', page, t);
+    expect(log.receivedAsks).toHaveLength(1);
+    expect([...log.receivedAsks[0]!].sort()).toEqual(['review:peer-take-d1', 'submitted:take-d1', 'submitted:take-d2']);
+    // A stamp never changes, so reading the same page again asks nothing.
+    await call('GET', page, t);
+    expect(log.receivedAsks).toHaveLength(1);
+    log.add('din', 'v1.ReviewRecorded', { reviewId: 'peer-d2-late', takeId: 'take-d2', kindId: 'peer', outcome: 'needs_changes', via: 'app' }, 'rev');
+    await call('GET', page, t);
+    expect(log.receivedAsks.at(-1)).toEqual(['review:peer-d2-late']);
+  });
+});
+
 describe('writing', () => {
   it('records listener feedback as a review by the token\'s person, once per reviewer and outcome', async () => {
     const { call, token, log } = setup();
@@ -523,7 +620,7 @@ describe('writing', () => {
     log.add('din', 'v1.RequestMade', { requestId: 'q-rev', unitId: 'd2', what: 'review', kindId: 'peer', profileId: 'rev', note: 'Please check' }, 'tr');
     const asked = await token('rev', { scopes: ['read', 'review'] });
     const before = await call('GET', '/api/v1/languages/din/passages/d2', asked);
-    expect(before.body.requests).toEqual([{ requestId: 'q-rev', what: 'review', kindId: 'peer', kind: 'Peer Review', forYou: true, note: 'Please check', askedAt: expect.any(String) }]);
+    expect(before.body.requests).toEqual([{ requestId: 'q-rev', what: 'review', kindId: 'peer', kind: 'Peer Review', forYou: true, note: 'Please check', askedAt: expect.any(String), uploadedAt: expect.any(String) }]);
     expect(before.body.steps[0].kinds).toEqual([{ kindId: 'peer', name: 'Peer Review', state: 'asked', apiReviewCounts: true }]);
     // Anyone else with read sees it, not as theirs.
     const other = await token('admin', { scopes: ['read'] });
@@ -566,7 +663,8 @@ describe('writing', () => {
     const up = await call('PUT', '/api/v1/languages/din/voice-notes', t, undefined, m4a('token-note'));
     expect(up.body.voiceNote).toMatchObject({ format: 'm4a', hash: expect.stringMatching(/^[0-9a-f]{64}$/) });
     const sent = await call('POST', '/api/v1/languages/din/passages/d2/reviews', t, { outcome: 'needs_changes', reviewerId: 'a', voiceNotes: [{ ...up.body.voiceNote, atMs: 1200 }] });
-    expect(sent.body.passage.reviews.at(-1).voiceNotes).toEqual([{ url: expect.stringContaining(up.body.voiceNote.hash), expiresAt: expect.any(String), durationMs: 0, atMs: 1200 }]);
+    // This test's file store records nothing in the log, so the server has not said it holds the note (the Worker's does, as it stores it).
+    expect(sent.body.passage.reviews.at(-1).voiceNotes).toEqual([{ url: expect.stringContaining(up.body.voiceNote.hash), expiresAt: expect.any(String), durationMs: 0, atMs: 1200, uploadedAt: null }]);
     const reader = await token('rev', { scopes: ['read'] });
     expect((await call('PUT', '/api/v1/languages/din/voice-notes', reader, undefined, m4a('nope'))).body).toMatchObject({ code: 'scope' });
   });

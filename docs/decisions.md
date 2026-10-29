@@ -9082,3 +9082,51 @@ block YouTube. Decided:
   needs.
 Reverse if: R2's egress stops being free and downloads cost more than they
 help; or the videos move to a host that gives lasting files itself.
+
+## 188. The access-token API gives the server's time of arrival as `uploadedAt`, read from the database's own stamp on each event and file
+
+Date: 2026-10-29 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-29, thread "Give partners server upload times via
+API") said partners need the time LangQuest's server received the content
+and the recording files, through the API. Every time the API gave was a
+phone's clock (`submittedAt`, a review's `at`, `askedAt`, `updatedAt`), so a
+phone that was offline for a week showed last week. The server already had
+the times: the database stamps every event as it is appended
+(`public.events.received_at`, default `now()`, never overwritten, and the
+log refuses UPDATE), and every stored file has a `v1.BlobStored` that only
+the server appends, on its own clock (69). Nothing needed backfilling: both
+hold for everything since the databases were reset (63). Decided:
+- **`uploadedAt` beside the phone's time** on `version` and `versions`
+  (the first publish of the take to arrive), `reviews`, `requests` and
+  `releases`, from `received_times` (migration
+  `20261029150000_received_times.sql`, service role only). It reads one
+  stream's rows through the indexes the log has: `events_type_idx` for a
+  take's `v1.TakeSubmitted`, `events_entity_idx` for a review or request,
+  the id for a release. No index is added, since one would lock the log
+  while it builds (161).
+- **A file's `uploadedAt`** on `audio`, `approvedAudio` and a review's
+  `voiceNotes` is its `v1.BlobStored`, already in the language's records,
+  so files cost no lookup. It is null while the server holds no good copy,
+  which is honest about a version published before its parts finished
+  uploading.
+- **Asked once a page and remembered.** `apps/web/worker/agent/view.ts`
+  builds each item with `uploadedAt: null` and stamps the page with one
+  question (`Receipts`). The organization's object keeps the answers
+  (`RECEIPTS_KEPT` in `agent/org.ts`): a stamp never changes, so a partner
+  reading the same passages again costs the database nothing. A failed
+  lookup fails a read (502, try again) rather than answer null, and a
+  write's read-back answers `passage: null` rather than an error a client
+  would retry.
+- **Not in core.** The stamp stays out of the fold: a phone's pending
+  event has none, and one event carrying two values would break the
+  fold's idempotence and order-independence (PLAN.md section 4).
+Rejected: R2's own object dates, since an upload is an idempotent overwrite
+(a phone's retry moves it) and the copy into R2 on 2026-10-07 reset them;
+and a `receivedSince` filter on the passage list, which the change feed
+(101) already answers in the order LangQuest received things.
+Work imported from LangQuest v2 has the day it was imported as `uploadedAt`;
+its `submittedAt` keeps v2's time.
+Reverse if: a language's `v1.TakeSubmitted` scan shows in the database's
+statement times (then a partial index on the take id, built concurrently);
+or partners need the stamp in the change feed or webhooks too.

@@ -38,12 +38,14 @@ export interface PassageSummary {
   /**
    * The version this token hears: the latest shared for review with `read`,
    * the approved one with `read:published` alone. Null when there is none.
+   * `submittedAt` is the publishing phone's clock; `uploadedAt` the server's,
+   * when the publish reached it (decisions.md 188).
    */
-  version: { n: number; takeId: string; submittedAt: string; durationMs: number } | null;
+  version: { n: number; takeId: string; submittedAt: string; uploadedAt: string | null; durationMs: number } | null;
   /** The newest version every step approved on its own (core approvedVersion); what a listening app should play. */
   approvedVersion: { n: number; takeId: string } | null;
   /** Where a version is live, one entry per channel (core releasesOf). */
-  releases: { channel: string; versionN: number; takeId: string; url?: string; at: string }[];
+  releases: { channel: string; versionN: number; takeId: string; url?: string; at: string; uploadedAt: string | null }[];
   /** Listener feedback on `version`. */
   listenerFeedback: { looksGood: number; needsChanges: number };
   /** The newest thing that happened to the passage's versions or reviews. */
@@ -57,6 +59,8 @@ export interface AudioCard {
   /** Plays without a token until `expiresAt` (Range supported); ask for the passage again for a fresh one. */
   url: string;
   expiresAt: string;
+  /** When the server stored the file; null while the phone has not uploaded it yet (decisions.md 188). */
+  uploadedAt: string | null;
 }
 
 export interface ReviewOut {
@@ -65,11 +69,14 @@ export interface ReviewOut {
   outcome: 'looks_good' | 'needs_changes' | 'recorded';
   via: 'app' | 'link' | 'logged';
   versionN: number;
+  /** The reviewer's clock: the phone's, or LangQuest's for one given by link. */
   at: string;
+  /** When the server received it (decisions.md 188). */
+  uploadedAt: string | null;
   comment?: string;
   givenBy?: string;
-  /** Voice notes, each with where in the version it is about (`atMs`) when the reviewer said. */
-  voiceNotes?: { url: string; expiresAt: string; durationMs: number; atMs?: number }[];
+  /** Voice notes, each with where in the version it is about (`atMs`) when the reviewer said, and when the server stored its file. */
+  voiceNotes?: { url: string; expiresAt: string; durationMs: number; atMs?: number; uploadedAt: string | null }[];
 }
 
 export interface PassageDetail extends PassageSummary {
@@ -89,8 +96,8 @@ export interface PassageDetail extends PassageSummary {
    * the token's person, or to a review team they are in; a review of its
    * `kindId` answers it.
    */
-  requests?: { requestId: string; what: 'record' | 'review'; kindId?: string; kind?: string; forYou: boolean; team?: string; note?: string; askedAt: string }[];
-  versions?: { n: number; takeId: string; submittedAt: string }[];
+  requests?: { requestId: string; what: 'record' | 'review'; kindId?: string; kind?: string; forYou: boolean; team?: string; note?: string; askedAt: string; uploadedAt: string | null }[];
+  versions?: { n: number; takeId: string; submittedAt: string; uploadedAt: string | null }[];
   /**
    * With `read`: `approvedVersion`'s cards, so a listening app keeps playing what it
    * published while a newer recording is in review. Empty when nothing is approved.
@@ -116,6 +123,35 @@ export const isRefusal = (x: unknown): x is Refusal => typeof x === 'object' && 
 /** Signs a read link for an object key; the Worker's own `readPath`, absolute. */
 export type Signer = (key: string) => Promise<{ url: string; expiresAt: number }>;
 
+/**
+ * When the server received what an answer names (decisions.md 188), by key:
+ * `submitted:<takeId>` for a version (its first publish to arrive),
+ * `review:<reviewId>`, `request:<requestId>`, and `event:<eventId>` for
+ * anything else. Each is the database's own stamp on the event
+ * (`public.events.received_at`, read by `received_times`), as ISO text; a
+ * key with no row is left out. Asked once for a whole page.
+ */
+export type Receipts = (keys: readonly string[]) => Promise<ReadonlyMap<string, string>>;
+
+/**
+ * What one answer asks `Receipts` for: each item is built with `uploadedAt:
+ * null`, named here by its key, and stamped once every passage of the page
+ * is built, with one question for them all.
+ */
+class Arrivals {
+  private readonly items: [string, { uploadedAt: string | null }][] = [];
+
+  want(key: string, item: { uploadedAt: string | null }): void {
+    this.items.push([key, item]);
+  }
+
+  async stamp(received: Receipts): Promise<void> {
+    if (!this.items.length) return;
+    const at = await received([...new Set(this.items.map(([key]) => key))]);
+    for (const [key, item] of this.items) item.uploadedAt = at.get(key) ?? null;
+  }
+}
+
 /** A whole chapter has null verses; a whole book, null chapters too. A range may end in a later chapter. */
 export interface PassageReference {
   book: string;
@@ -140,6 +176,17 @@ export function referenceOf(unitId: string): PassageReference | null {
 
 const wallOf = (hlc: string): number => Number(hlc.slice(0, hlc.indexOf(':')));
 const iso = (hlc: string) => new Date(wallOf(hlc)).toISOString();
+
+/**
+ * When the server stored a file's bytes: its v1.BlobStored, which only the
+ * server appends, stamped with the server's clock (decisions.md 69 and 188).
+ * Null while no upload has been confirmed, or after the server found the
+ * bytes wrong or gone.
+ */
+const fileUploadedAt = (state: LanguageState, hash: string): string | null => {
+  const b = state.blobs[hash];
+  return b?.stored ? iso(b.hlc) : null;
+};
 
 const refuse = (status: number, code: string, error: string): Refusal => ({ status, code, error });
 
@@ -210,10 +257,10 @@ function summarize(grant: Grant, state: LanguageState, s: PassageState): Passage
     reference: referenceOf(s.unitId),
     status: statusOf(s),
     version: v
-      ? { n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc), durationMs: v.cardHashes.reduce((t, h) => t + (recordedCard(state, h)?.durationMs ?? 0), 0) }
+      ? { n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc), uploadedAt: null, durationMs: v.cardHashes.reduce((t, h) => t + (recordedCard(state, h)?.durationMs ?? 0), 0) }
       : null,
     approvedVersion: approved ? { n: approved.n, takeId: approved.takeId } : null,
-    releases: releases.map((r) => ({ channel: r.channel, versionN: r.versionN, takeId: r.takeId, at: iso(r.hlc), ...(r.url !== undefined ? { url: r.url } : {}) })),
+    releases: releases.map((r) => ({ channel: r.channel, versionN: r.versionN, takeId: r.takeId, at: iso(r.hlc), ...(r.url !== undefined ? { url: r.url } : {}), uploadedAt: null })),
     listenerFeedback: {
       looksGood: onVersion.filter((r) => r.outcome === 'looks_good').length,
       needsChanges: onVersion.filter((r) => r.outcome === 'needs_changes').length
@@ -284,7 +331,7 @@ export function parsePassageQuery(raw: { status?: unknown; changedSince?: unknow
  * never whole in the object's memory.
  */
 export async function passagesFor(
-  grant: Grant, orgId: string, languageId: string, records: LanguageRecords, q: PassageListQuery, sign: Signer
+  grant: Grant, orgId: string, languageId: string, records: LanguageRecords, q: PassageListQuery, sign: Signer, received: Receipts
 ): Promise<{ passages: PassageListItem[]; nextAfter: string | null } | Refusal> {
   const teamOnly = q.include.filter((i) => TEAM_ONLY.includes(i));
   if (teamOnly.length && !canRead(grant, true)) return refuse(403, 'scope', `${teamOnly.join(' and ')} need the read scope; read:published shows approved passages only.`);
@@ -294,6 +341,7 @@ export async function passagesFor(
   const wanted = q.filter.unitIds ? new Set(q.filter.unitIds) : null;
   const include = new Set(q.include);
   const passages: PassageListItem[] = [];
+  const arrivals = new Arrivals();
   let nextAfter: string | null = null;
   // A language held whole hands back the same state for every slice: index it once.
   const indexes = new WeakMap<LanguageState, ReturnType<typeof buildIndexes>>();
@@ -310,15 +358,16 @@ export async function passagesFor(
         nextAfter = passages[passages.length - 1]!.unitId;
         break scan;
       }
-      passages.push(await passageOut(grant, orgId, languageId, state, s, sum, include, sign));
+      passages.push(await passageOut(grant, orgId, languageId, state, s, sum, include, sign, arrivals));
     }
   }
+  await arrivals.stamp(received);
   return { passages, nextAfter };
 }
 
 /** One passage with everything the token may see; the list with every include, for one unit. */
 export async function passageFor(
-  grant: Grant, orgId: string, languageId: string, records: LanguageRecords, unitId: string, sign: Signer
+  grant: Grant, orgId: string, languageId: string, records: LanguageRecords, unitId: string, sign: Signer, received: Receipts
 ): Promise<PassageDetail | Refusal> {
   if (positionIn(records.passages, unitId) < 0) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
   const state = await records.view([unitId]);
@@ -327,14 +376,22 @@ export async function passageFor(
   const s = derivePassage(state, unitId, idx);
   if (!visible(grant, s)) return refuse(404, 'no_passage', 'There is no approved passage with that id in this language.');
   const include = new Set<PassageInclude>(canRead(grant, true) ? PASSAGE_INCLUDES : PASSAGE_INCLUDES.filter((i) => !TEAM_ONLY.includes(i)));
-  return (await passageOut(grant, orgId, languageId, state, s, summarize(grant, state, s), include, sign)) as PassageDetail;
+  const arrivals = new Arrivals();
+  const out = (await passageOut(grant, orgId, languageId, state, s, summarize(grant, state, s), include, sign, arrivals)) as PassageDetail;
+  await arrivals.stamp(received);
+  return out;
 }
 
 async function passageOut(
   grant: Grant, orgId: string, languageId: string, state: LanguageState, s: PassageState, sum: PassageSummary,
-  include: ReadonlySet<PassageInclude>, sign: Signer
+  include: ReadonlySet<PassageInclude>, sign: Signer, arrivals: Arrivals
 ): Promise<PassageListItem> {
   const out: PassageListItem = { ...sum };
+  if (out.version) arrivals.want(`submitted:${out.version.takeId}`, out.version);
+  for (const r of out.releases) {
+    const reg = state.releases?.[r.takeId]?.[r.channel];
+    if (reg) arrivals.want(`event:${reg.eventId}`, r);
+  }
   const link = async (hash: string, format: string) => {
     const l = await sign(`${orgId}/${languageId}/${hash}.${format}`);
     return { url: l.url, expiresAt: new Date(l.expiresAt).toISOString() };
@@ -345,7 +402,7 @@ async function passageOut(
     for (const hash of ver?.cardHashes ?? []) {
       const card = recordedCard(state, hash);
       const format = card?.format ?? 'wav';
-      audio.push({ hash, format, durationMs: card?.durationMs ?? 0, ...(await link(hash, format)) });
+      audio.push({ hash, format, durationMs: card?.durationMs ?? 0, ...(await link(hash, format)), uploadedAt: fileUploadedAt(state, hash) });
     }
     return audio;
   };
@@ -356,7 +413,8 @@ async function passageOut(
     out.reviews = [];
     for (const r of s.reviews) {
       if (!all && (r.kindId !== LISTENER_KIND || r.takeId !== v?.takeId)) continue;
-      const review: ReviewOut = { kindId: r.kindId, kind: kindOf(state, r.kindId).name, outcome: r.outcome, via: r.via, versionN: r.versionN, at: iso(r.hlc) };
+      const review: ReviewOut = { kindId: r.kindId, kind: kindOf(state, r.kindId).name, outcome: r.outcome, via: r.via, versionN: r.versionN, at: iso(r.hlc), uploadedAt: null };
+      arrivals.want(`review:${r.id}`, review);
       if (r.comment !== undefined) review.comment = r.comment;
       if (r.givenBy !== undefined) review.givenBy = r.givenBy;
       // Voice notes: one in commentBlobHash (the app's; m4a unless the log says otherwise, decisions.md 77), and
@@ -367,7 +425,9 @@ async function passageOut(
       ];
       if (notes.length) {
         review.voiceNotes = [];
-        for (const n of notes) review.voiceNotes.push({ ...(await link(n.hash, n.format ?? 'wav')), durationMs: n.durationMs, ...(n.atMs !== undefined ? { atMs: n.atMs } : {}) });
+        for (const n of notes) {
+          review.voiceNotes.push({ ...(await link(n.hash, n.format ?? 'wav')), durationMs: n.durationMs, ...(n.atMs !== undefined ? { atMs: n.atMs } : {}), uploadedAt: fileUploadedAt(state, n.hash) });
+        }
       }
       out.reviews.push(review);
     }
@@ -382,15 +442,25 @@ async function passageOut(
     });
   }
   if (include.has('requests')) {
-    out.requests = s.openRequests.map((r) => ({
-      requestId: r.id, what: r.what,
-      ...(r.kindId ? { kindId: r.kindId, kind: kindOf(state, r.kindId).name } : {}),
-      forYou: r.profileId === grant.profileId || (r.team?.memberIds.includes(grant.profileId) ?? false),
-      ...(r.team ? { team: r.team.name } : {}), ...(r.note ? { note: r.note } : {}),
-      askedAt: iso(r.hlc)
-    }));
+    out.requests = s.openRequests.map((r) => {
+      const request: NonNullable<PassageDetail['requests']>[number] = {
+        requestId: r.id, what: r.what,
+        ...(r.kindId ? { kindId: r.kindId, kind: kindOf(state, r.kindId).name } : {}),
+        forYou: r.profileId === grant.profileId || (r.team?.memberIds.includes(grant.profileId) ?? false),
+        ...(r.team ? { team: r.team.name } : {}), ...(r.note ? { note: r.note } : {}),
+        askedAt: iso(r.hlc), uploadedAt: null
+      };
+      arrivals.want(`request:${r.id}`, request);
+      return request;
+    });
   }
-  if (include.has('versions')) out.versions = s.versions.map((ver) => ({ n: ver.n, takeId: ver.takeId, submittedAt: iso(ver.hlc) }));
+  if (include.has('versions')) {
+    out.versions = s.versions.map((ver) => {
+      const version: NonNullable<PassageDetail['versions']>[number] = { n: ver.n, takeId: ver.takeId, submittedAt: iso(ver.hlc), uploadedAt: null };
+      arrivals.want(`submitted:${ver.takeId}`, version);
+      return version;
+    });
+  }
   return out;
 }
 
@@ -790,7 +860,7 @@ export async function linkView(link: ReviewLink, org: OrgState, state: LanguageS
     const card = recordedCard(state, hash);
     const format = card?.format ?? 'wav';
     const l = await sign(`${link.orgId}/${link.languageId}/${hash}.${format}`);
-    audio.push({ hash, format, durationMs: card?.durationMs ?? 0, url: l.url, expiresAt: new Date(l.expiresAt).toISOString() });
+    audio.push({ hash, format, durationMs: card?.durationMs ?? 0, url: l.url, expiresAt: new Date(l.expiresAt).toISOString(), uploadedAt: fileUploadedAt(state, hash) });
   }
   const kind = kindOf(state, link.kindId);
   return {
