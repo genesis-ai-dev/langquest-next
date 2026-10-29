@@ -160,7 +160,8 @@ export function reconcile(facts: readonly Fact[], ledger: ReadonlyMap<string, Le
   const events: AnyEvent[] = [];
   const entries = new Map<string, LedgerEntry>();
   const owner = new Map<string, string>();
-  const stamps: Stamp[] = [];
+  /** One stamp per key, the earliest: facts that use the same file name its stamps alike, and one upsert may not touch a row twice. */
+  const stamps = new Map<string, Stamp>();
   const seen = new Set<string>();
   const look: Look = (key) => entries.get(key) ?? ledger.get(key);
 
@@ -170,7 +171,11 @@ export function reconcile(facts: readonly Fact[], ledger: ReadonlyMap<string, Le
     const now = fact.stamps(n);
     const digest = hash53(canonical(now));
     if (entry.stamped === digest) return null;
-    for (const [key, at] of Object.entries(now)) if (at) stamps.push({ streamId: entry.streamId, key, at });
+    for (const [key, at] of Object.entries(now)) {
+      if (!at) continue;
+      const had = stamps.get(`${entry.streamId}\n${key}`);
+      if (!had || Date.parse(at) < Date.parse(had.at)) stamps.set(`${entry.streamId}\n${key}`, { streamId: entry.streamId, key, at });
+    }
     return { ...entry, stamped: digest };
   };
 
@@ -224,13 +229,13 @@ export function reconcile(facts: readonly Fact[], ledger: ReadonlyMap<string, Le
   }
 
   // Facts the import said that are no longer stated at all: kept, unless they are the dashboard's to drop.
-  if (!ctx.takeBackAbsent) return { events, entries, owner, stamps };
+  if (!ctx.takeBackAbsent) return { events, entries, owner, stamps: [...stamps.values()] };
   const drops = typeof ctx.takeBackAbsent === 'function' ? ctx.takeBackAbsent : () => true;
   for (const entry of ledger.values()) {
     if (seen.has(entry.key) || entry.withdrawn || !drops(entry.key)) continue;
     entries.set(entry.key, takeBack(null, entry, ctx.now));
   }
-  return { events, entries, owner, stamps };
+  return { events, entries, owner, stamps: [...stamps.values()] };
 
   function takeBack(fact: Fact | null, entry: LedgerEntry, at: number): LedgerEntry {
     const s = { n: entry.n + 1, lastSaid: entry.lastSaid };
