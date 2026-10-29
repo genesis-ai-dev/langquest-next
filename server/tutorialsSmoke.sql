@@ -81,9 +81,22 @@ update ops.tutorial_videos set made_at = now() - interval '1 day' where sha256 =
 set local role service_role;
 select public.ops_tutorial_made('record-a-passage', 'en', repeat('e', 64), 'Record a passage', 'How to record, again.', 'Translators', 29, 76, 12100000);
 do $$ declare v jsonb; begin
+  -- What a video's download link and the videos page give (migration *_tutorial_downloads.sql, decisions.md 187):
+  -- the newest version a person chose, not one made since and not chosen yet.
+  assert public.ops_tutorial_download('record-a-passage', 'en') = repeat('a', 64), 'the English download is the version chosen, not the newer one';
   perform public.ops_tutorials_approve(jsonb_build_array(jsonb_build_array('record-a-passage', 'en', repeat('e', 64))), '0d000000-0000-0000-0000-0000000000aa');
   v := public.ops_tutorials_due(10);
   assert jsonb_array_length(v) = 1 and v->0->>'sha256' = repeat('e', 64) and v->0->>'replaces' = 'dQw4w9WgXcQ', 'the new version replaces the old: %', v;
+  -- Once chosen, the newer one is the download at once, before YouTube has it.
+  assert public.ops_tutorial_download('record-a-passage', 'en') = repeat('e', 64), 'the English download is the newer version once chosen';
+  assert public.ops_tutorial_download('record-a-passage', 'fr') = repeat('c', 64), 'French downloads without a channel connected';
+  assert public.ops_tutorial_download('record-a-passage', 'es') is null, 'nothing to download in Spanish until one is chosen';
+  v := public.ops_tutorial_list('en');
+  assert jsonb_array_length(v) = 1 and v->0->>'sha256' = repeat('e', 64) and v->0->>'title' = 'Record a passage'
+    and v->0->>'playlist' = 'Translators' and (v->0->>'seconds')::int = 76 and (v->0->>'youtube')::boolean, 'the English page: %', v;
+  v := public.ops_tutorial_list('fr');
+  assert jsonb_array_length(v) = 1 and not (v->0->>'youtube')::boolean, 'the French page, nothing on YouTube yet: %', v;
+  assert public.ops_tutorial_list('es') = '[]'::jsonb, 'the Spanish page is empty';
 end $$;
 reset role;
 
@@ -130,6 +143,16 @@ do $$ begin
   begin
     perform public.ops_tutorial_watch('record-a-passage', 'en');
     raise exception 'authenticated asked where a link goes';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.ops_tutorial_download('record-a-passage', 'en');
+    raise exception 'authenticated asked where a download goes';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.ops_tutorial_list('en');
+    raise exception 'authenticated read the videos page''s list';
   exception when insufficient_privilege then null;
   end;
 end $$;

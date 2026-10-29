@@ -132,5 +132,16 @@
       "release": "Say where a version is published (live in an app or on a site), or taken down",
       "externalValues": "Store the app's own values with your languages, as you. LangQuest keeps them and never acts on them"
     }
+  },
+  "videos": {
+    "pageTitle": "Videos · LangQuest",
+    "language": "Language",
+    "title": "LangQuest videos",
+    "play": "Play",
+    "download": "Download",
+    "youtube": "Watch on YouTube",
+    "size": "{{mb}} MB",
+    "none": "No videos in this language yet.",
+    "failed": "The videos did not load. Reload the page to try again."
   }
 }

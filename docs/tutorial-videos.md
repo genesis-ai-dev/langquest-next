@@ -134,12 +134,37 @@ or to the language's channel while none is up (decision 183). So a
 description never needs changing when a newer version replaces one.
 
 Each channel looks like LangQuest's in its own language: a description of
-what the videos are with the app's address, its language set, a banner with
+what the videos are with a link to the videos page (below) and the app's
+address, its language set, a banner with
 the app's mark and "Tutorial videos" (`banners.ts` draws them), and a list
 of the other channels. The publish job puts these on whenever they change
 (`server/youtube.ts` `brandChannel`, decision 184); the picture is set by
 hand. Comments that may be inappropriate are held for review, and the ops
 dashboard counts them for each channel.
+
+## Downloads
+
+Every video can be downloaded from LangQuest itself, not only watched on
+YouTube (decision 187). YouTube's own offline download works in only some
+countries, keeps the video inside the YouTube app, and needs it to reconnect
+every 48 hours; some countries block YouTube.
+
+- **A link that lasts:** `https://next.langquest.org/v/<language>/<video>.mp4`
+  gives the newest version a person chose with Publish, as a file named
+  `langquest-<video>-<language>.mp4`. It follows each new version by itself,
+  so it never needs changing. While none is chosen in that language it opens
+  the videos page. Each video's description on YouTube gives it, under the
+  app's address.
+- **The videos page:** `https://next.langquest.org/videos` lists every video
+  chosen in the reader's language (or `?lang=`), grouped by who it is for,
+  each with Download (and its size), Play (the file in the phone's own
+  player, no YouTube needed) and, once it is up, Watch on YouTube. Each
+  channel's description links it. The Worker writes it
+  (`apps/web/worker/videosPage.ts`, words in `apps/web/worker/i18n/`).
+- **Chosen, not uploaded:** a download is the version Publish chose, at once,
+  without waiting for YouTube's 100 uploads a day; so a new version can be
+  downloaded a day or more before YouTube has it. The files are the ones R2
+  keeps for the publish job (`/api/tutorials/...`, by hash, kept for good).
 
 ## Feedback
 

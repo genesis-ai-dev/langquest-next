@@ -42,69 +42,86 @@ export function languageOfChannel(channelId: string): ChannelLanguage | null {
  * What LangQuest writes on YouTube itself, in each channel's language: the
  * list of the other channels on a channel's home page, the first line of a
  * video a newer one replaced, the line under the name on the channel's
- * banner (e2e/tutorials/banners.ts), and the channel's description. Machine
- * translations, like the app's catalogs (decisions.md 81).
+ * banner (e2e/tutorials/banners.ts), the channel's description, and the
+ * lines that lead to a video's download and to the page of all of them
+ * (decisions.md 187). Machine translations, like the app's catalogs
+ * (decisions.md 81).
  */
-export const WORDS: Record<ChannelLanguage, { otherChannels: string; replacedBy: string; tagline: string; about: string }> = {
+export const WORDS: Record<ChannelLanguage, { otherChannels: string; replacedBy: string; tagline: string; about: string; download: string; allVideos: string }> = {
   en: {
     otherChannels: 'Other LangQuest channels', replacedBy: 'Replaced by a newer video:', tagline: 'Tutorial videos',
-    about: 'Short videos on how to use LangQuest, the free app for recording a Bible translation, checking it together and following its progress. One video for each task, kept up to date with the app.'
+    about: 'Short videos on how to use LangQuest, the free app for recording a Bible translation, checking it together and following its progress. One video for each task, kept up to date with the app.',
+    download: 'Download this video:', allVideos: 'Watch or download every video:'
   },
   es: {
     otherChannels: 'Otros canales de LangQuest', replacedBy: 'Reemplazado por un video más nuevo:', tagline: 'Videotutoriales',
-    about: 'Videos cortos sobre cómo usar LangQuest, la app gratuita para grabar una traducción de la Biblia, revisarla en equipo y seguir su avance. Un video para cada tarea, siempre al día con la app.'
+    about: 'Videos cortos sobre cómo usar LangQuest, la app gratuita para grabar una traducción de la Biblia, revisarla en equipo y seguir su avance. Un video para cada tarea, siempre al día con la app.',
+    download: 'Descargar este video:', allVideos: 'Ver o descargar todos los videos:'
   },
   pt: {
     otherChannels: 'Outros canais do LangQuest', replacedBy: 'Substituído por um vídeo mais recente:', tagline: 'Vídeos tutoriais',
-    about: 'Vídeos curtos sobre como usar o LangQuest, o app gratuito para gravar uma tradução da Bíblia, revisá-la em equipe e acompanhar o progresso. Um vídeo para cada tarefa, sempre atualizado com o app.'
+    about: 'Vídeos curtos sobre como usar o LangQuest, o app gratuito para gravar uma tradução da Bíblia, revisá-la em equipe e acompanhar o progresso. Um vídeo para cada tarefa, sempre atualizado com o app.',
+    download: 'Baixar este vídeo:', allVideos: 'Assistir ou baixar todos os vídeos:'
   },
   fr: {
     otherChannels: 'Autres chaînes LangQuest', replacedBy: 'Remplacée par une vidéo plus récente :', tagline: 'Tutoriels vidéo',
-    about: 'Courtes vidéos pour apprendre à utiliser LangQuest, l\'application gratuite pour enregistrer une traduction de la Bible, la vérifier ensemble et suivre son avancement. Une vidéo par tâche, toujours à jour avec l\'application.'
+    about: 'Courtes vidéos pour apprendre à utiliser LangQuest, l\'application gratuite pour enregistrer une traduction de la Bible, la vérifier ensemble et suivre son avancement. Une vidéo par tâche, toujours à jour avec l\'application.',
+    download: 'Télécharger cette vidéo :', allVideos: 'Regarder ou télécharger toutes les vidéos :'
   },
   ar: {
     otherChannels: 'قنوات LangQuest الأخرى', replacedBy: 'حلّ محله فيديو أحدث:', tagline: 'فيديوهات تعليمية',
-    about: 'فيديوهات قصيرة تشرح كيفية استخدام LangQuest، التطبيق المجاني لتسجيل ترجمة الكتاب المقدس ومراجعتها معًا ومتابعة تقدّمها. فيديو لكل مهمة، يُحدَّث دائمًا مع التطبيق.'
+    about: 'فيديوهات قصيرة تشرح كيفية استخدام LangQuest، التطبيق المجاني لتسجيل ترجمة الكتاب المقدس ومراجعتها معًا ومتابعة تقدّمها. فيديو لكل مهمة، يُحدَّث دائمًا مع التطبيق.',
+    download: 'تنزيل هذا الفيديو:', allVideos: 'شاهد أو نزّل كل الفيديوهات:'
   },
   sw: {
     otherChannels: 'Chaneli nyingine za LangQuest', replacedBy: 'Imebadilishwa na video mpya zaidi:', tagline: 'Video za mafunzo',
-    about: 'Video fupi kuhusu jinsi ya kutumia LangQuest, programu ya bure ya kurekodi tafsiri ya Biblia, kuikagua pamoja na kufuatilia maendeleo yake. Video moja kwa kila kazi, inayosasishwa pamoja na programu.'
+    about: 'Video fupi kuhusu jinsi ya kutumia LangQuest, programu ya bure ya kurekodi tafsiri ya Biblia, kuikagua pamoja na kufuatilia maendeleo yake. Video moja kwa kila kazi, inayosasishwa pamoja na programu.',
+    download: 'Pakua video hii:', allVideos: 'Tazama au pakua video zote:'
   },
   ha: {
     otherChannels: 'Sauran tashoshin LangQuest', replacedBy: 'An maye gurbinsa da sabon bidiyo:', tagline: 'Bidiyoyin koyarwa',
-    about: 'Gajerun bidiyoyi kan yadda ake amfani da LangQuest, manhaja kyauta don naɗar fassarar Littafi Mai Tsarki, duba ta tare da bin diddigin cigabanta. Bidiyo ɗaya ga kowane aiki, ana sabunta su tare da manhajar.'
+    about: 'Gajerun bidiyoyi kan yadda ake amfani da LangQuest, manhaja kyauta don naɗar fassarar Littafi Mai Tsarki, duba ta tare da bin diddigin cigabanta. Bidiyo ɗaya ga kowane aiki, ana sabunta su tare da manhajar.',
+    download: 'Sauke wannan bidiyon:', allVideos: 'Kalla ko sauke dukkan bidiyoyin:'
   },
   am: {
     otherChannels: 'ሌሎች የLangQuest ቻናሎች', replacedBy: 'በአዲስ ቪዲዮ ተተክቷል፦', tagline: 'የማስተማሪያ ቪዲዮዎች',
-    about: 'LangQuestን እንዴት መጠቀም እንደሚቻል የሚያሳዩ አጫጭር ቪዲዮዎች። LangQuest የመጽሐፍ ቅዱስ ትርጉምን ለመቅዳት፣ በጋራ ለመገምገም እና ሂደቱን ለመከታተል የሚያገለግል ነፃ መተግበሪያ ነው። ለእያንዳንዱ ተግባር አንድ ቪዲዮ፣ ከመተግበሪያው ጋር ሁልጊዜ የተዘመነ።'
+    about: 'LangQuestን እንዴት መጠቀም እንደሚቻል የሚያሳዩ አጫጭር ቪዲዮዎች። LangQuest የመጽሐፍ ቅዱስ ትርጉምን ለመቅዳት፣ በጋራ ለመገምገም እና ሂደቱን ለመከታተል የሚያገለግል ነፃ መተግበሪያ ነው። ለእያንዳንዱ ተግባር አንድ ቪዲዮ፣ ከመተግበሪያው ጋር ሁልጊዜ የተዘመነ።',
+    download: 'ይህን ቪዲዮ ያውርዱ፦', allVideos: 'ሁሉንም ቪዲዮዎች ይመልከቱ ወይም ያውርዱ፦'
   },
   hi: {
     otherChannels: 'LangQuest के अन्य चैनल', replacedBy: 'इसकी जगह एक नया वीडियो आ गया है:', tagline: 'ट्यूटोरियल वीडियो',
-    about: 'LangQuest इस्तेमाल करने के छोटे वीडियो। LangQuest बाइबल अनुवाद रिकॉर्ड करने, उसे मिलकर जाँचने और उसकी प्रगति देखने का मुफ़्त ऐप है। हर काम के लिए एक वीडियो, जो ऐप के साथ हमेशा अपडेट रहता है।'
+    about: 'LangQuest इस्तेमाल करने के छोटे वीडियो। LangQuest बाइबल अनुवाद रिकॉर्ड करने, उसे मिलकर जाँचने और उसकी प्रगति देखने का मुफ़्त ऐप है। हर काम के लिए एक वीडियो, जो ऐप के साथ हमेशा अपडेट रहता है।',
+    download: 'यह वीडियो डाउनलोड करें:', allVideos: 'सभी वीडियो देखें या डाउनलोड करें:'
   },
   bn: {
     otherChannels: 'LangQuest-এর অন্যান্য চ্যানেল', replacedBy: 'এর জায়গায় একটি নতুন ভিডিও এসেছে:', tagline: 'টিউটোরিয়াল ভিডিও',
-    about: 'LangQuest কীভাবে ব্যবহার করতে হয় তার ছোট ভিডিও। LangQuest হলো বাইবেল অনুবাদ রেকর্ড করা, একসাথে যাচাই করা এবং তার অগ্রগতি দেখার একটি বিনামূল্যের অ্যাপ। প্রতিটি কাজের জন্য একটি ভিডিও, অ্যাপের সাথে সবসময় হালনাগাদ।'
+    about: 'LangQuest কীভাবে ব্যবহার করতে হয় তার ছোট ভিডিও। LangQuest হলো বাইবেল অনুবাদ রেকর্ড করা, একসাথে যাচাই করা এবং তার অগ্রগতি দেখার একটি বিনামূল্যের অ্যাপ। প্রতিটি কাজের জন্য একটি ভিডিও, অ্যাপের সাথে সবসময় হালনাগাদ।',
+    download: 'এই ভিডিওটি ডাউনলোড করুন:', allVideos: 'সব ভিডিও দেখুন বা ডাউনলোড করুন:'
   },
   ne: {
     otherChannels: 'LangQuest का अन्य च्यानलहरू', replacedBy: 'यसको सट्टा नयाँ भिडियो आएको छ:', tagline: 'ट्युटोरियल भिडियोहरू',
-    about: 'LangQuest कसरी प्रयोग गर्ने भन्ने छोटा भिडियोहरू। LangQuest बाइबल अनुवाद रेकर्ड गर्न, सँगै जाँच गर्न र यसको प्रगति हेर्न प्रयोग हुने निःशुल्क एप हो। हरेक कामका लागि एउटा भिडियो, एपसँगै सधैं अद्यावधिक।'
+    about: 'LangQuest कसरी प्रयोग गर्ने भन्ने छोटा भिडियोहरू। LangQuest बाइबल अनुवाद रेकर्ड गर्न, सँगै जाँच गर्न र यसको प्रगति हेर्न प्रयोग हुने निःशुल्क एप हो। हरेक कामका लागि एउटा भिडियो, एपसँगै सधैं अद्यावधिक।',
+    download: 'यो भिडियो डाउनलोड गर्नुहोस्:', allVideos: 'सबै भिडियोहरू हेर्नुहोस् वा डाउनलोड गर्नुहोस्:'
   },
   id: {
     otherChannels: 'Saluran LangQuest lainnya', replacedBy: 'Diganti dengan video yang lebih baru:', tagline: 'Video tutorial',
-    about: 'Video singkat tentang cara memakai LangQuest, aplikasi gratis untuk merekam terjemahan Alkitab, memeriksanya bersama, dan mengikuti kemajuannya. Satu video untuk setiap tugas, selalu diperbarui bersama aplikasinya.'
+    about: 'Video singkat tentang cara memakai LangQuest, aplikasi gratis untuk merekam terjemahan Alkitab, memeriksanya bersama, dan mengikuti kemajuannya. Satu video untuk setiap tugas, selalu diperbarui bersama aplikasinya.',
+    download: 'Unduh video ini:', allVideos: 'Tonton atau unduh semua video:'
   },
   th: {
     otherChannels: 'ช่อง LangQuest อื่นๆ', replacedBy: 'มีวิดีโอใหม่มาแทนแล้ว:', tagline: 'วิดีโอสอนการใช้งาน',
-    about: 'วิดีโอสั้นสอนการใช้ LangQuest แอปฟรีสำหรับบันทึกเสียงงานแปลพระคัมภีร์ ตรวจทานร่วมกัน และติดตามความคืบหน้า หนึ่งวิดีโอต่อหนึ่งงาน อัปเดตตามแอปเสมอ'
+    about: 'วิดีโอสั้นสอนการใช้ LangQuest แอปฟรีสำหรับบันทึกเสียงงานแปลพระคัมภีร์ ตรวจทานร่วมกัน และติดตามความคืบหน้า หนึ่งวิดีโอต่อหนึ่งงาน อัปเดตตามแอปเสมอ',
+    download: 'ดาวน์โหลดวิดีโอนี้:', allVideos: 'ดูหรือดาวน์โหลดวิดีโอทั้งหมด:'
   },
   my: {
     otherChannels: 'အခြား LangQuest ချန်နယ်များ', replacedBy: 'ဗီဒီယိုအသစ်ဖြင့် အစားထိုးထားသည်-', tagline: 'သင်ခန်းစာ ဗီဒီယိုများ',
-    about: 'LangQuest ကို အသုံးပြုနည်း ဗီဒီယိုတိုများ။ LangQuest သည် သမ္မာကျမ်းစာ ဘာသာပြန်ကို အသံသွင်းရန်၊ အတူတကွ စစ်ဆေးရန်နှင့် တိုးတက်မှုကို ကြည့်ရှုရန် အခမဲ့ အက်ပ်ဖြစ်သည်။ လုပ်ငန်းတစ်ခုစီအတွက် ဗီဒီယိုတစ်ခု၊ အက်ပ်နှင့်အတူ အမြဲ နောက်ဆုံးအခြေအနေ။'
+    about: 'LangQuest ကို အသုံးပြုနည်း ဗီဒီယိုတိုများ။ LangQuest သည် သမ္မာကျမ်းစာ ဘာသာပြန်ကို အသံသွင်းရန်၊ အတူတကွ စစ်ဆေးရန်နှင့် တိုးတက်မှုကို ကြည့်ရှုရန် အခမဲ့ အက်ပ်ဖြစ်သည်။ လုပ်ငန်းတစ်ခုစီအတွက် ဗီဒီယိုတစ်ခု၊ အက်ပ်နှင့်အတူ အမြဲ နောက်ဆုံးအခြေအနေ။',
+    download: 'ဤဗီဒီယိုကို ဒေါင်းလုဒ်လုပ်ရန်-', allVideos: 'ဗီဒီယိုအားလုံးကို ကြည့်ရန် သို့မဟုတ် ဒေါင်းလုဒ်လုပ်ရန်-'
   },
   'zh-Hans': {
     otherChannels: '其他 LangQuest 频道', replacedBy: '已由新视频取代：', tagline: '教程视频',
-    about: 'LangQuest 使用教程短视频。LangQuest 是一款免费应用，用于录制圣经译文、一起审核并跟进进度。每项任务一个视频，随应用一同更新。'
+    about: 'LangQuest 使用教程短视频。LangQuest 是一款免费应用，用于录制圣经译文、一起审核并跟进进度。每项任务一个视频，随应用一同更新。',
+    download: '下载本视频：', allVideos: '观看或下载全部视频：'
   }
 };
 
@@ -245,8 +262,15 @@ export async function setOtherChannels(fetcher: Fetch, token: string, language: 
 /** The app, which opens on the web too. */
 export const APP_LINK = 'https://next.langquest.org';
 
-/** A channel's description: what its videos are, and where the app is. YouTube takes 1,000 characters. */
-export const channelAbout = (language: ChannelLanguage) => `${WORDS[language].about}\n\nLangQuest: ${APP_LINK}`;
+/** The page of a language's videos, each to watch or download (apps/web/worker/videosPage.ts, decisions.md 187). */
+export const videosPath = (language: string) => `/videos?lang=${language}`;
+
+/** A video's newest chosen version as a file to keep, by a link that lasts (apps/web/worker/tutorialVideos.ts `handleDownload`). */
+export const downloadLink = (language: string, tutorial: string) => `${APP_LINK}/v/${language}/${tutorial}.mp4`;
+
+/** A channel's description: what its videos are, where to download them, and where the app is. YouTube takes 1,000 characters. */
+export const channelAbout = (language: ChannelLanguage) =>
+  `${WORDS[language].about}\n\n${WORDS[language].allVideos} ${APP_LINK}${videosPath(language)}\nLangQuest: ${APP_LINK}`;
 
 /** Where the publish job finds a channel's banner: the web app's file (apps/mobile/public/youtube, made by e2e/tutorials/banners.ts). */
 export const bannerPath = (language: ChannelLanguage) => `/youtube/${language}.png`;

@@ -1,7 +1,7 @@
 import { lookOf, saving, steadyLine, steadyStep, tryAgain } from './look';
 import { APP_LINK, OTHER_LANGUAGES, PLAYLISTS, watchLink, youtubeText } from './playlists';
 import { UI_LANGUAGES } from '@langquest-next/core';
-import { CHANNELS } from '../../server/youtube';
+import { CHANNELS, downloadLink, WORDS } from '../../server/youtube';
 
 /** What the nightly filming compares (look.ts) and what it gives YouTube (playlists.ts). */
 
@@ -86,11 +86,19 @@ describe('a video on YouTube', () => {
     expect(links[1]).toBe(`English: ${APP_LINK}/v/en/record-a-passage`);
   });
 
+  it('links to the video itself to download from LangQuest, in the video\'s language (decisions.md 187)', () => {
+    const { description } = youtubeText('Grabar un pasaje', ['Toca Iniciar.'], { language: 'es', tutorial: 'record-a-passage' });
+    expect(description.split('\n\n')[1]).toBe(`LangQuest: ${APP_LINK}\n${WORDS.es.download} ${APP_LINK}/v/es/record-a-passage.mp4`);
+    expect(downloadLink('zh-Hans', 'record-a-passage')).toBe(`${APP_LINK}/v/zh-Hans/record-a-passage.mp4`);
+    expect(Object.keys(WORDS).sort()).toEqual(Object.keys(CHANNELS).sort());
+  });
+
   it('keeps within what YouTube takes', () => {
     const long = youtubeText(`<${'x'.repeat(120)}>`, Array.from({ length: 200 }, (_, i) => `Line ${i}: ${'ह'.repeat(20)}`), { language: 'hi', tutorial: 'record-a-passage' });
     expect(long.title).toBe('x'.repeat(100));
     expect(new TextEncoder().encode(long.description).length).toBeLessThanOrEqual(5000);
     expect(long.description).toContain(`LangQuest: ${APP_LINK}`);
+    expect(long.description).toContain(downloadLink('hi', 'record-a-passage'));
     expect(long.description.endsWith(watchLink('my', 'record-a-passage'))).toBe(true);
     expect(long.description).toContain('Line 0:');
   });

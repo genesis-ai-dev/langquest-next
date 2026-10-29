@@ -183,6 +183,8 @@ describe('how a channel looks', () => {
       expect([...about].length).toBeLessThanOrEqual(1000);
       expect(about).not.toMatch(/[<>]/);
       expect(about.endsWith('LangQuest: https://next.langquest.org')).toBe(true);
+      // Where every video is, to play or download (decisions.md 187).
+      expect(about).toContain(`${WORDS[language].allVideos} https://next.langquest.org/videos?lang=${language}\n`);
       expect(WORDS[language].tagline.length).toBeGreaterThan(0);
     }
   });

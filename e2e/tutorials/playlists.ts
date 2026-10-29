@@ -6,7 +6,7 @@
 // translations, like the app's catalogs (decisions.md 81).
 
 import { UI_LANGUAGES } from '@langquest-next/core';
-import { APP_LINK } from '../../server/youtube';
+import { APP_LINK, downloadLink, WORDS, type ChannelLanguage } from '../../server/youtube';
 
 /** Who a group of videos is for (all.ts GROUPS). */
 export type Who = 'everyone' | 'admins' | 'leads' | 'translators' | 'reviewers' | 'followers';
@@ -121,8 +121,9 @@ export interface Elsewhere {
 
 /**
  * A video's title and description on YouTube: its title, and what its voice
- * says, each line once and in order, then the app's address and a link to
- * the same video in each other language. A description too long for YouTube
+ * says, each line once and in order, then the app's address, a link to
+ * download the video from LangQuest (decisions.md 187), and a link to the
+ * same video in each other language. A description too long for YouTube
  * keeps the lines that fit.
  */
 export function youtubeText(title: string, said: string[], elsewhere?: Elsewhere): { title: string; description: string } {
@@ -130,7 +131,8 @@ export function youtubeText(title: string, said: string[], elsewhere?: Elsewhere
   const links = elsewhere && others.length
     ? `\n\n${OTHER_LANGUAGES[elsewhere.language] ?? OTHER_LANGUAGES['en']}\n${others.map((l) => `${l.name}: ${watchLink(l.code, elsewhere.tutorial)}`).join('\n')}`
     : '';
-  const end = `\n\nLangQuest: ${APP_LINK}${links}`;
+  const download = elsewhere ? `\n${(WORDS[elsewhere.language as ChannelLanguage] ?? WORDS.en).download} ${downloadLink(elsewhere.language, elsewhere.tutorial)}` : '';
+  const end = `\n\nLangQuest: ${APP_LINK}${download}${links}`;
   const lines = [...new Set(said.map(plain).filter(Boolean))];
   while (lines.length && bytes(lines.join('\n') + end) > YOUTUBE_DESCRIPTION_BYTES) lines.pop();
   return { title: [...plain(title)].slice(0, YOUTUBE_TITLE).join(''), description: (lines.join('\n') + end).trim() };

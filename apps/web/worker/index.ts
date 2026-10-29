@@ -17,7 +17,7 @@ import { JOB_TICK, jobsDue } from './jobsModel';
 import { checkStores, storeCheckDue } from './storeReleases';
 import { isOpsPath, toOps } from './ops';
 import { pokeInBatches } from './batches';
-import { handleWatch } from './tutorialVideos';
+import { handleDownload, handleWatch } from './tutorialVideos';
 import { githubOidc } from './githubOidc';
 
 export { OrgSnapshot } from './orgSnapshot';
@@ -180,6 +180,22 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
   if (review && request.method === 'GET') {
     const [{ reviewPage }, { pageLanguage }] = await Promise.all([import('./agent/reviewPage'), import('./i18n/pages')]);
     return reviewPage(review[1]!, pageLanguage(request));
+  }
+  // The tutorial videos in the reader's language, to play or download (videosPage.ts, decisions.md 187).
+  if (url.pathname === '/videos' && request.method === 'GET') {
+    const [{ videosPage, pageVideos }, { pageLanguage }] = await Promise.all([import('./videosPage'), import('./i18n/pages')]);
+    const language = pageLanguage(request);
+    const { data, error } = await serviceClient(env).rpc('ops_tutorial_list', { p_language: language });
+    if (error) console.error(`ops_tutorial_list ${language}:`, error.message);
+    return videosPage(language, error ? null : pageVideos(data));
+  }
+  // A tutorial video to download, by a link that lasts (decisions.md 187), linked from its description on YouTube.
+  if (url.pathname.startsWith('/v/') && url.pathname.endsWith('.mp4')) {
+    return handleDownload(request, async (tutorial, language) => {
+      const { data, error } = await serviceClient(env).rpc('ops_tutorial_download', { p_tutorial: tutorial, p_language: language });
+      if (error) throw new Error(error.message);
+      return typeof data === 'string' ? data : null;
+    });
   }
   // A tutorial video in another language, linked from each video's description on YouTube.
   if (url.pathname.startsWith('/v/')) {
