@@ -98,9 +98,9 @@ describe('how a book is divided now, and what lists offer (decision 107)', () =>
   });
 
   it('says how each book is divided in a line', () => {
-    expect(divisionLine(own, 'ROM', 'By chapter', eng)).toBe('By chapter · 16 pieces');
-    expect(divisionLine(own, 'RUT', null, eng)).toBe('Its own way · 2 pieces');
-    expect(divisionLine(fia, 'ROM', null, eng)).toBe('Waiting to be broken up');
+    expect(divisionLine(own, 'ROM', 'By chapter', eng)).toBe('By chapter · 16 sections');
+    expect(divisionLine(own, 'RUT', null, eng)).toBe('Its own way · 2 sections');
+    expect(divisionLine(fia, 'ROM', null, eng)).toBe('Waiting to be divided');
   });
 
   it("lists LangQuest's ways once, in the numbering, and not its older templates", () => {

@@ -489,7 +489,9 @@ export function MapHome(ctx: Ctx) {
   // Reached from the Map tab, a worker switches language here; from the
   // overview or a language home, the screen is about that one language.
   const choices = ctx.params['languageId'] ? [] : openableLanguages(ctx);
+  // The chip switches the language the whole app works in, My Work too, so it says so (UI audit, finding 126).
   const switchLanguage = (id: string) => {
+    if (id !== languageId) ctx.toast(t('work.elsewhere.switched', { language: languageName(ctx.org.state, id) }));
     ctx.setLanguage(id);
     setQuery('');
     setLimit(PAGE);
@@ -581,7 +583,10 @@ export function MapHome(ctx: Ctx) {
           {numbering.clash ? <NumberingNote clash={numbering.clash} onIgnore={numbering.ignore} /> : null}
           <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => setFilter('all')} />
           {testaments.length > 1 && shownTestament ? (
-            <Pills items={testaments.map((id) => ({ id, label: id === 'ot' ? t('map.home.oldTestament') : t('map.home.newTestament') }))} on={shownTestament} onPick={setTestament} />
+            <Pills items={testaments.map((id) => {
+              const name = id === 'ot' ? t('map.home.oldTestament') : t('map.home.newTestament');
+              return { id, label: shelf.counts ? t('map.home.testamentCount', { name, n: shelf.counts[id] }) : name };
+            })} on={shownTestament} onPick={setTestament} />
           ) : null}
 
           {visible.length === 0 && !other ? (
@@ -660,9 +665,18 @@ export function BookMap(ctx: Ctx) {
   const title = book?.name ?? t('map.other');
   const recordedCount = entries.filter((e) => e.s.recorded).length;
   const crumbs = [{ label: language || t('map.home.title'), onPress: () => ctx.go('map_home', languageId ? { languageId } : undefined) }, { label: title }];
-  const canEdit = !!book && canGo(ctx, 'book_map', 'book_structure');
+  // Breaking up publishes the language's template in the organization's library, so the link shows only to
+  // those who may do it there (decision 74; UI audit, finding 127).
+  const canEdit = !!book && canGo(ctx, 'book_map', 'book_structure') && mayWriteLibrary(ctx.org.state, ctx.session.actorId, 'template');
+  // On a phone the crumbs are hidden, so the sub-line names the language whose book this is (UI audit, finding 124).
+  const inLanguage = (sub: string) => (layout.kind === 'phone' && language ? `${language} · ${sub}` : sub);
+  // Filter where the map has it, in the header (UI audit, finding 123).
+  const filterLink = entries.length > 0
+    ? <QuietIconLink icon="filter" label={t('map.filter.title')} onPress={() => setFilterOpen(true)} detail={t('map.book.filterHelp')} />
+    : undefined;
   // The demo's book (MapBook): the book's name and how many of its passages are recorded; nothing else up top.
-  const header = <Header title={title} crumbs={crumbs} onBack={ctx.back} sub={t('map.book.sub', { count: entries.length, recorded: fmt(recordedCount) })} />;
+  const header = <Header title={title} crumbs={crumbs} onBack={ctx.back} sub={inLanguage(t('map.book.sub', { count: entries.length, recorded: fmt(recordedCount) }))}
+    {...(filterLink ? { action: filterLink } : {})} />;
   if (!languageId || (!book && bookId !== OTHER)) {
     return <Screen header={header}><EmptyState icon="book" title={t('map.book.notHere')} sub={t('map.book.notHereSub')} /></Screen>;
   }
@@ -673,7 +687,7 @@ export function BookMap(ctx: Ctx) {
     // privilege at organization scope (decision 74, content.tsx `canBreak`): a language lead is told who does it.
     const may = canGo(ctx, 'book_map', 'book_structure') && mayWriteLibrary(ctx.org.state, ctx.session.actorId, 'template');
     return (
-      <Screen header={<Header title={title} crumbs={crumbs} onBack={ctx.back} sub={t('map.waiting')} />}
+      <Screen header={<Header title={title} crumbs={crumbs} onBack={ctx.back} sub={inLanguage(t('map.waiting'))} />}
         footer={may ? <PrimaryBtn label={t('map.book.breakUp', { book: book.name })} icon="cut" onPress={() => ctx.go('book_structure', { languageId, bookId })} /> : undefined}>
         <EmptyState icon="cut" title={t('map.book.notBrokenUp', { book: book.name })}
           sub={may ? t('map.book.chooseHow', { book: book.name }) : t('map.book.coordinatorDecides', { book: book.name })} />
@@ -698,16 +712,14 @@ export function BookMap(ctx: Ctx) {
       ) : null}
     </FilterSheet>
   );
-  // The less likely ways on, quiet, under the chapters: the filters and the full key, and shaping the book for those who may.
-  const quiet = (
+  // The less likely way on, quiet, under the chapters: shaping the book, for those who may. It opens the ways to
+  // break it up, not the book's page with the same link again (UI audit, finding 127).
+  const quiet = canEdit ? (
     <View style={styles.quietRow}>
-      <QuietIconLink icon="filter" label={t('map.filter.title')} onPress={() => setFilterOpen(true)} detail={t('map.book.filterHelp')} />
-      {canEdit ? (
-        <QuietIconLink icon="cut" label={t('map.book.breakUpDifferently')} onPress={() => ctx.go('book_structure', { languageId: languageId ?? '', bookId })}
-          detail={t('map.book.breakUpDifferentlyHelp')} />
-      ) : null}
+      <QuietIconLink icon="cut" label={t('map.book.breakUpDifferently')} onPress={() => ctx.go('book_structure', { languageId: languageId ?? '', bookId, change: '1' })}
+        detail={t('map.book.breakUpDifferentlyHelp')} />
     </View>
-  );
+  ) : null;
 
   // Passages that sit in no book have no chapters to lay out: a list, 25 at a time.
   if (!book) {
@@ -740,16 +752,18 @@ export function BookMap(ctx: Ctx) {
     return (
       <Screen header={header}>
         <BookOfflineLine ready={ready} count={entries.length} checking={!ctx.language.blobs.keptOffline} />
-        <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => setFilter('all')} />
+        <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => { setFilter('all'); setLimit(PAGE); }} />
         {shown.length === 0 ? <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>{t('map.nothingMatches')}</Text> : (
           <Group>
-            {shown.map((e, i, list) => (
+            {/* 25 at a time, as decision 166 says, so a book of hundreds of passages does not draw them all at once (UI audit, finding 122). */}
+            {shown.slice(0, limit).map((e, i, list) => (
               <HelpRow key={e.unitId} of="map.passage">
                 <PassageRow ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === list.length - 1} onPress={() => open(e)} changed={earlier.over.has(e.unitId)} />
               </HelpRow>
             ))}
           </Group>
         )}
+        <ShowMore remaining={shown.length - limit} step={PAGE} onMore={() => setLimit((l) => l + PAGE)} />
         {quiet}
         {filterSheet}
       </Screen>
@@ -764,14 +778,17 @@ export function BookMap(ctx: Ctx) {
     <Screen header={header}>
       <BookOfflineLine ready={ready} count={entries.length} checking={!ctx.language.blobs.keptOffline} />
       <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => setFilter('all')} />
+      {/* The key beside the tiles it explains, not after the last of them (UI audit, finding 123). */}
+      <ShortKey />
       <View style={{ gap: space.sm }}>
         {rows.map((row, r) => (
           <View key={r} style={{ flexDirection: 'row', gap: space.sm }}>
             {row.map((c) => (
               <HelpRow key={c.n} of="map.chapter">
                 <Tile ctx={ctx} testID={`row-${bookId}-${c.n}`} c={c} offline={offline} changed={c.list.some((e) => earlier.over.has(e.unitId))} current={beside?.screen === 'passage_record' && c.list.some((e) => e.unitId === beside.params['unitId'])} onPress={() => {
-                  if (c.list.length === 1) open(c.list[0]!);
-                  else if (c.list.length > 1) setOpenChapter(c.n);
+                  // Outside the filter, a tap shows its passages first rather than opening one unasked (UI audit, finding 125).
+                  if (c.list.length === 1 && c.matches) open(c.list[0]!);
+                  else if (c.list.length > 0) setOpenChapter(c.n);
                 }} />
               </HelpRow>
             ))}
@@ -779,10 +796,9 @@ export function BookMap(ctx: Ctx) {
           </View>
         ))}
       </View>
-      <ShortKey />
       {quiet}
       {filterSheet}
-      <Sheet visible={!!sheet} title={sheet ? t('map.book.chapterTitle', { book: book.name, n: fmt(sheet.n) }) : ''} sub={sheet ? t('map.book.pickPart', { count: sheet.list.length }) : ''} onClose={() => setOpenChapter(null)}>
+      <Sheet visible={!!sheet} title={sheet ? t('map.book.chapterTitle', { book: book.name, n: fmt(sheet.n) }) : ''} sub={!sheet ? '' : sheet.matches ? t('map.book.pickPart', { count: sheet.list.length }) : t('map.book.outsideFilter')} onClose={() => setOpenChapter(null)}>
         {sheet ? (
           <Group>
             {sheet.list.map((e, i) => (

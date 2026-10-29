@@ -10,6 +10,8 @@ describe('the account screens\' words for sync', () => {
     expect(syncSummary({ ...quiet, pending: 3, live: true })).toBe(t('account.more.syncPending', { count: 3 }));
     // Recordings waiting are never hidden behind "Live" or "Up to date" (decisions.md 166).
     expect(syncSummary({ ...quiet, recordings: 2, live: true })).toBe(t('uploads.barRecordings', { count: 2 }));
+    // The same total as the sync icon and the badges, with the recordings in it named (UI audit, finding 118).
+    expect(syncSummary({ ...quiet, pending: 5, recordings: 2, live: true })).toBe('7 waiting to send · recordings: 2');
     // The live channel can lag the network: offline is said first.
     expect(syncSummary({ ...quiet, live: true, online: false })).toBe(t('account.more.syncOffline'));
     expect(syncSummary({ ...quiet, live: true })).toBe(t('account.more.syncLive'));

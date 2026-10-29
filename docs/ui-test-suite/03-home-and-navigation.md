@@ -74,12 +74,13 @@ Steps:
 3. Look for a Back arrow in the header.
 
 Expected:
-- ADMIN, COORD, LADMIN and VIEW see "Progress" with the sub "UI Test Org · All
+- ADMIN, COORD and VIEW see "Progress" with the sub "UI Test Org · All
   languages", and no Back.
-- TRANS, REV, TREV and KEPT see "Alpha", LANG-A's map, with no Back. The
-  search field reads "Find “John 3”".
-- LADMIN gets All languages because a manage privilege gives it an admin
-  scope (`mapScreenFor`), even though it can also record and review.
+- LADMIN, TRANS, REV, TREV and KEPT see "Alpha", LANG-A's map, with no
+  Back. The search field reads "Find “John 3”".
+- LADMIN gets Alpha because it holds a role in that one language only
+  (`mapScreenFor`): a list of one language would only add a tap (UI audit,
+  finding 82). Someone who manages several languages gets Progress.
 - The "Map" tab is lit.
 
 ### NAV-003 What the Manage tab opens
@@ -483,6 +484,25 @@ Expected:
   waits fits beside it" (85934a9); the row used to open the Map tab's screen.
 - TRANS does not see the row.
 
+### NAV-023 Offline, a language this phone has not brought down
+Roles: COORD · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions (in addition to the global ones):
+- COORD's phone has opened only Bravo, so Alpha (set up, with passages
+  and work) is not on it.
+
+Steps:
+1. Go offline.
+2. Open Alpha from the Map tab.
+3. Open My Work.
+
+Expected:
+- The Map and My Work both say "Alpha isn't on this device yet".
+- My Work does not say "Nothing is waiting on you", and does not offer
+  "Get Alpha ready": Alpha is set up, this phone just does not have it.
+- Added (2026-10-28): UI audit, finding 79 and the Get ready card seen
+  while reproducing it.
+
 ## The bell and the Inbox
 
 ### NAV-030 The bell's count and the Inbox, from My Work
@@ -609,13 +629,12 @@ Expected:
 Roles: LADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
-1. Tap "Map". "Progress" lists Alpha and Bravo.
-2. Tap "Bravo".
-3. Look at the tab bar, then tap Back.
+1. Tap "Map".
+2. Look for Bravo, and at the tab bar.
 
 Expected:
-- Intended: LADMIN either does not see Bravo, or sees it read-only, and
-  keeps its tabs.
+- LADMIN does not see Bravo, and keeps its tabs. The Map tab opens Alpha
+  itself, LADMIN's one language (NAV-002), with no language chips.
 - Fixed (2026-10-12): Progress lists only the languages a role of the
   person's covers (`simple/mapModel.ts` `openableLanguages`), so LADMIN sees
   Alpha alone. Before, tapping Bravo made it the open language with no

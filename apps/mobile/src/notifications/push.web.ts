@@ -7,6 +7,10 @@ export async function requestPushToken(): Promise<string> {
   throw new Error('Notifications work in the app on a phone or tablet.');
 }
 
+export async function pushPermission(): Promise<'granted' | 'blocked' | 'ask'> {
+  return 'blocked';
+}
+
 export function onNotificationOpened(_open: () => void): () => void {
   return () => {};
 }

@@ -28,6 +28,7 @@ import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { useHardwareBack } from '../ui/useHardwareBack';
 import { rowsOf } from '../checks/model';
+import { a11yState } from '../ui/a11yModel';
 
 export interface InviteScope {
   key: string;
@@ -187,6 +188,18 @@ export function InviteSomeone(props: {
           <Question>{t('admin.invite.timeToInvite')}</Question>
         </View>
       ) : <Question>{t('admin.invite.whoInviting')}</Question>}
+      {/* Where first, in view: the roles offered depend on it (UI audit, finding 93). */}
+      {props.scopes.length > 1 ? (
+        <>
+          <SectionLabel label={t('admin.invite.whichLanguage')} />
+          <Pills>{props.scopes.map((s) => (
+            <HelpRow key={s.key} of={s.scope.level === 'org' ? 'invite.scopeOrg' : 'invite.scopeLanguage'}>
+              <Chip label={s.label} on={scopeKey === s.key} onPress={() => setScopeKey(s.key)}
+                help={s.scope.level === 'org' ? t('admin.invite.scopeOrgHelp') : t('admin.invite.scopeLanguageHelp')} />
+            </HelpRow>
+          ))}</Pills>
+        </>
+      ) : null}
       {/* Making a new role comes first, set apart from the roles there are (design principle 12). */}
       {newRole ? <DashedRow icon="plus" label={t('admin.invite.newRole')} detail={t('admin.invite.newRoleHelp')} onPress={newRole} /> : null}
       {/* help-each: each role does different work */}
@@ -203,17 +216,6 @@ export function InviteSomeone(props: {
         </HelpRow>
       )) : <QuietLink icon="down" label={t('admin.invite.otherRoles', { total: formatNumber(more.length) })} detail={t('admin.invite.otherRolesHelp')}
         onPress={() => setOthers(true)} />) : null}
-      {props.scopes.length > 1 ? (
-        <>
-          <SectionLabel label={t('admin.invite.whichLanguage')} />
-          <Pills>{props.scopes.map((s) => (
-            <HelpRow key={s.key} of={s.scope.level === 'org' ? 'invite.scopeOrg' : 'invite.scopeLanguage'}>
-              <Chip label={s.label} on={scopeKey === s.key} onPress={() => setScopeKey(s.key)}
-                help={s.scope.level === 'org' ? t('admin.invite.scopeOrgHelp') : t('admin.invite.scopeLanguageHelp')} />
-            </HelpRow>
-          ))}</Pills>
-        </>
-      ) : null}
       {props.disabled ? <Text style={[txt.sm, { color: C.muted, paddingHorizontal: space.xs }]}>{props.disabled}</Text> : null}
     </Screen>
   );
@@ -252,7 +254,7 @@ function RoleCard(props: {
         </View>
       </View>
       <View style={styles.cardFoot}>
-        <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ expanded: props.open }} accessibilityLabel={`${what}: ${offer.title}`}
+        <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ expanded: props.open }, 'button')} accessibilityLabel={`${what}: ${offer.title}`}
           style={({ pressed }) => [styles.more, pressed && { opacity: 0.7 }]}>
           <Text style={styles.moreText}>{what}</Text>
           <Ico name={props.open ? 'up' : 'down'} size={18} color={C.primary} />

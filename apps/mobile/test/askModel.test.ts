@@ -75,6 +75,8 @@ describe('Someone else: who is listed and what Ask says (askModel.ts)', () => {
     expect(guest('5551').ready).toBe(true);
     expect(guest('5551').target).toBe('Joe Guest');
     expect(askDoneText(guest('5551'))).toBe(t('passage.ask.doneOutside', { name: 'Joe Guest' }));
+    // Nothing is sent to a guest: the button saves the request, and says so (UI audit, finding 87).
+    expect(guest('5551').buttonLabel).toBe(t('passage.ask.saveRequest'));
     expect(ask('COORD', 'P-SUBMITTED', 'review', 'peer', picks({ mode: 'outside', contact: '5551' })).model.ready).toBe(false);
   });
 

@@ -19,7 +19,7 @@ organization's blue check request (decisions.md 173, docs/verified-organizations
 connecting a tutorial channel on YouTube and choosing the videos to put
 up there (decisions.md 180, below), and leaving a note about a tutorial
 video or accepting, editing or rejecting a change Claude suggests for one
-(decisions.md 185). For those the page posts
+(decisions.md 186). For those the page posts
 to `/ops/api/actions`; this Worker, which holds no writer's key, passes the
 action and the person's own token to the app Worker's `OpsActions`
 entrypoint (`APP_ACTIONS` binding), which checks the token itself (a live

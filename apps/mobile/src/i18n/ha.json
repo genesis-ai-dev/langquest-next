@@ -104,7 +104,7 @@
     },
     "kinds": {
       "peer": {
-        "name": "Bitar Abokin Aiki",
+        "name": "Duban Abokin Aiki",
         "usualReviewer": "Wani mai fassara",
         "description": "Wani mai fassara yana saurara ko daidai ne, kuma ko maganar ta zo kamar yadda ake magana."
       },
@@ -675,17 +675,13 @@
       "aTemplate": "Samfuri",
       "applied": "An yi amfani da {{name}}",
       "noneApplied": "Ba a yi amfani da ko ɗaya ba",
-      "none": "Babu",
+      "inLibrary_one": "{{count, number}} a ɗakin karatu",
+      "inLibrary_other": "{{count, number}} a ɗakin karatu",
       "noLanguages": "Babu harsuna tukuna",
-      "languages_one": "Harshe {{count, number}}",
-      "languages_other": "Harsuna {{count, number}}",
       "templates": "Samfuran Abun Ciki",
       "reference": "Kayan Bincike",
-      "referenceSub": "Nazari {{study}} · rukunin tambayoyi {{questions}} · muhimman kalmomi {{terms}}",
       "flows": "Tsare-tsaren Bita",
       "roles": "Matsayai",
-      "rolesSub_one": "Matsayi {{count, number}} a wannan mataki da sama",
-      "rolesSub_other": "Matsayai {{count, number}} a wannan mataki da sama",
       "summary": {
         "templates": "Samfuran abun ciki",
         "referenceFirst": "Kayan Bincike",
@@ -699,15 +695,25 @@
       "templatesHelp": "Yana buɗe hanyoyin raba aikin zuwa nassosi, da wacce kowane harshe yake amfani da ita.",
       "referenceHelp": "Yana buɗe Littattafai Masu Tsarki, jagororin nazari, tambayoyi da muhimman kalmomin da ake ba masu fassara.",
       "flowsHelp": "Yana buɗe hanyoyin da ake duba naɗe-naɗe, da wacce kowane harshe yake amfani da ita.",
-      "rolesHelp": "Yana buɗe matsayai, da abin da kowanne yake bari mutum ya yi."
+      "rolesHelp": "Yana buɗe matsayai, da abin da kowanne yake bari mutum ya yi.",
+      "counts": {
+        "study_one": "Jagorar nazari {{count, number}}",
+        "study_other": "Jagororin nazari {{count, number}}",
+        "questions_one": "Rukunin tambayoyi {{count, number}}",
+        "questions_other": "Rukunonin tambayoyi {{count, number}}",
+        "terms_one": "Babbar kalma {{count, number}}",
+        "terms_other": "Manyan kalmomi {{count, number}}"
+      },
+      "rolesSub_one": "Matsayi {{count, number}}",
+      "rolesSub_other": "Matsayi {{count, number}}"
     },
     "people": {
       "title": "Mutane",
       "members": "Membobi",
-      "assignedHere_one": "{{count, number}} an sanya a wannan harshe",
-      "assignedHere_other": "{{count, number}} an sanya a wannan harshe",
-      "orgSub": "{{here}} a matakin ƙungiya · {{total}} gaba ɗaya",
-      "membersHelp": "Yana buɗe mutane da matsayinsu, don gayyatar wani ko canja matsayi."
+      "orgSub": "{{here}} a kowane harshe · {{total}} gaba ɗaya",
+      "membersHelp": "Yana buɗe mutane da matsayinsu, don gayyatar wani ko canja matsayi.",
+      "assignedHere_one": "{{count, number}} mai matsayi a wannan harshe",
+      "assignedHere_other": "{{count, number}} masu matsayi a wannan harshe"
     },
     "home": {
       "title": "Ƙungiya",
@@ -813,15 +819,16 @@
       "count_one": "Memba {{count, number}}",
       "count_other": "Membobi {{count, number}}",
       "invite": "Gayyata",
-      "introOrg": "Membobin da aka sanya a iyakar ƙungiya. Ku buɗe rukunonin da ke ƙasa don sauran matakai.",
-      "introLanguage": "Membobin da aka sanya a iyakar harshe don wannan gani. Ku buɗe rukunonin da ke ƙasa don sauran matakai.",
+      "introOrg": "Mutanen da matsayinsu ya shafi kowane harshe. Buɗe rukuni a ƙasa don ganin na kowane harshe.",
+      "introLanguage": "Mutanen da ke da matsayi a wannan harshe. Buɗe rukuni a ƙasa don ganin sauran.",
       "sectionOrg": "Membobin ƙungiya · {{total}}",
       "sectionLanguage": "Membobin harshe · {{total}}",
       "pending": "Ana jira",
-      "none": "Ba a sanya wani memba a wannan mataki ba tukuna.",
+      "none": "Babu wanda ke da matsayi a nan tukuna.",
+      "connectToSee": "Haɗa da intanet don ganin wanda ya nemi shiga",
       "expandBy": "Buɗe bisa",
       "byLanguage": "Bisa harshe",
-      "higher": "Manyan matakai · kallo kawai",
+      "higher": "Kowane harshe · kallo kawai",
       "memberHelp": "Yana buɗe matsayinsu da inda ya shafa, don canja su.",
       "lockedHelp": "Ba za ku iya canja matsayin wannan mutum daga nan ba.",
       "requestHelp": "Suna neman shiga. Yana buɗe buƙatarsu: ku bar su su shiga, ko ku ƙi.",
@@ -833,9 +840,9 @@
     "assign": {
       "noRoles": "Babu matsayai a nan.",
       "where": "A ina?",
-      "whereHelp": "Inda wannan mutum zai iya amfani da izinan matsayin da aka zaɓa.",
+      "whereHelp": "Inda wannan mutumin zai iya yin abin da matsayin ya ba shi damar yi.",
       "language": "Harshe",
-      "languageHelp": "Harshen da wannan sanyawa ta shafa.",
+      "languageHelp": "Ga wane harshe matsayin yake.",
       "noLanguages": "Babu harsuna tukuna.",
       "orgHelp": "Matsayin yana aiki a dukan ƙungiyar.",
       "languageLevelHelp": "Matsayin yana aiki a harshe ɗaya, wanda za a zaɓa a ƙasa.",
@@ -863,18 +870,18 @@
     },
     "member": {
       "isNow": "{{name}} yanzu {{role}} ne",
-      "removedOrg": "An cire {{name}} a matakin ƙungiya",
-      "removedLanguage": "An cire {{name}} a matakin harshe",
+      "removedOrg": "{{name}} ba shi da matsayi a kowane harshe yanzu",
+      "removedLanguage": "{{name}} ba shi da matsayi a wannan harshe yanzu",
       "declined": "An ƙi buƙatar {{name}}",
       "editTitle": "Gyara Memba",
       "notMember": "Ba memba ba ne a nan",
       "notMemberSub": "Wannan mutum ba shi da matsayi a wannan ƙungiya yanzu.",
       "awaiting": "Yana jiran amincewa",
       "assignRole": "Ba da Matsayi",
-      "saveAssignment": "Ajiye Sanyawa",
+      "saveAssignment": "Ajiye matsayi",
       "decline": "Ƙi",
-      "introPending": "Wannan mutum ya buɗe asusu ya nemi shiga. Ku ba da matsayi da iyaka don ba su izinin shiga.",
-      "intro": "Ku zaɓi matsayi, sannan ku zaɓi iyakar da wannan sanyawa ta shafa. Iyaka za ta iya zama wannan mataki ko ƙasa da shi.",
+      "introPending": "Wannan mutumin ya buɗe asusu ya nemi shiga. Zaɓi matsayinsa da inda zai yi aiki don ka bar shi ya shiga.",
+      "intro": "Zaɓi matsayi, sannan inda zai yi aiki.",
       "outranked": "{{name}} na da iko fiye da ku a nan, don haka sai wanda ke da iko daidai da haka ne zai iya canja wannan.",
       "onlyManager": "{{name}} ne kaɗai zai iya sarrafa matsayi",
       "onlyManagerYou": "Kai kaɗai ne za ka iya sarrafa matsayi",
@@ -893,6 +900,8 @@
       "howToLost": "A sabuwar na'urar {{name}}, a buɗe LangQuest, a taɓa Karanta lamba, a nuna ta nan. Tana aiki sau ɗaya, na tsawon sa'a ɗaya. Amfani da ita zai fitar da tsohuwar na'urarsu.",
       "willSee": "{{name}} na iya gani a Saituna cewa kun taimaka musu shiga.",
       "noEmail": "Babu imel ga {{name}}. A sabuwar na'ura, ku nuna musu lambar shiga.",
+      "row": "Taimaka wa {{name}} ya shiga a sabuwar na’ura",
+      "rowHelp": "Ga wanda ba shi da imel: yana buɗe shafi don yin lambar shiga. Ba a yin lamba har sai ka nema.",
       "lostSignOut": "Tsohuwar na'urarsu ta ɓace ko an sace ta: fitar da ita",
       "lost": "Tsohuwar na'urarsu ta ɓace ko an sace ta",
       "help": "Taimaka musu shiga",
@@ -912,8 +921,6 @@
       "pickRole": "Ku zaɓi matsayin da ya kamata wannan mutum ya samu. Ba ku buƙatar imel ɗinsu.",
       "alreadyTitle": "Yana cikin tawagar tuni, da sabuwar na'ura?",
       "alreadyBody": "Ku buɗe su a Membobi ku taɓa Taimaka musu shiga. Sabuwar gayyata za ta yi asusu na biyu.",
-      "privileges_one": "Izini {{count, number}}",
-      "privileges_other": "Izinai {{count, number}}",
       "noRoles": "Babu matsayai tukuna.",
       "createRole": "Ƙirƙiri sabon matsayi",
       "one": "Mutum ɗaya",
@@ -932,6 +939,12 @@
       "shownOnceGroup_one": "Ana nuna ta sau ɗaya: barin wannan shafi zai ɓatar da lambar. Har zuwa mutum {{count, number}} zai iya amfani da ita, har zuwa {{date}}.",
       "shownOnceGroup_other": "Ana nuna ta sau ɗaya: barin wannan shafi zai ɓatar da lambar. Har zuwa mutane {{count, number}} za su iya amfani da ita, har zuwa {{date}}.",
       "shownOnceOne": "Ana nuna ta sau ɗaya: barin wannan shafi zai ɓatar da lambar. Ana iya amfani da ita sau ɗaya, har zuwa {{date}}.",
+      "leaveAsk": "Ka bar lambar?",
+      "leaveBody": "Ba za a iya sake nuna lambar {{name}} ba. Idan ba su duba ta ba, yi sabuwa.",
+      "stay": "Zauna a kan lambar",
+      "stayHelp": "Yana ajiye lambar a allo, don su duba ta.",
+      "leave": "Fita",
+      "leaveHelp": "Yana komawa. Ba za a iya sake nuna lambar ba.",
       "share": "Raba gayyata",
       "couldNotShare": "An kasa raba ta. Ku rubuta lambar da ke sama maimakon haka.",
       "toNameHelp": "Ci gaba zuwa ga wanda za a ba lambar.",
@@ -939,7 +952,9 @@
       "doneHelp": "An gama: yana buɗe jerin membobi.",
       "nameFieldHelp": "Wanda za a ba lambar. Za su ga sunan idan sun karanta ta.",
       "groupNameFieldHelp": "Suna don rukunin. Duk wanda ya karanta lambar zai gan shi.",
-      "shareHelp": "Yana aika mahaɗin gayyatar a saƙo, ko ya kwafa shi."
+      "shareHelp": "Yana aika mahaɗin gayyatar a saƙo, ko ya kwafa shi.",
+      "privileges_one": "Izini {{count, number}}",
+      "privileges_other": "Izini {{count, number}}"
     },
     "newLanguage": {
       "theOrganization": "ƙungiyar",
@@ -985,13 +1000,13 @@
       "stages": {
         "language": "Harshe",
         "content": "Abun ciki",
-        "pieces": "Raba gutsure-gutsure",
+        "pieces": "Raba sassa-sassa",
         "material": "Kayan bincike",
         "flow": "Tsarin bita",
         "people": "Mutane",
         "languageHelp": "Harshen da suke fassara zuwa gare shi: sunansa, daga jerin harsuna ko yadda aka rubuta. Ana iya haɗa shi da jerin daga baya.",
         "contentHelp": "Abin da za su fassara: Littafi Mai Tsarki, ko wani abu dabam, kamar labarai ko waƙoƙi.",
-        "piecesHelp": "Yadda ake raba shi gutsure-gutsure ƙanana isassu don a naɗa a kuma duba ɗaya bayan ɗaya.",
+        "piecesHelp": "Yadda ake raba shi sassa-sassa ƙanana isassu don a naɗa a kuma duba ɗaya bayan ɗaya.",
         "materialHelp": "Littattafai Masu Tsarki, jagororin nazari da bayanan da masu fassara da masu dubawa za su samu a kusa da su.",
         "flowHelp": "Dubawar da naɗi yake bi kafin a amince da shi, da abin da mutanen kowace dubawa suke gani.",
         "peopleHelp": "Sannan ku gayyaci mutane: masu fassara, masu dubawa da sauransu, kowa da lambar da zai karanta.",
@@ -1011,6 +1026,11 @@
       "toChecksHelp": "Yana nuna dubawarsa, don ku tsara kowace ɗaya.",
       "startAgainAsk": "A sake farawa daga {{flow}}?",
       "startAgain": "Sake farawa",
+      "leaveAsk": "Fita ba tare da ƙara {{language}} ba?",
+      "keepGoing": "Ci gaba",
+      "keepGoingHelp": "Yana mayar da kai shafin da kake, da amsoshinka a ajiye.",
+      "leave": "Fita",
+      "leaveHelp": "Yana fita ba tare da ƙara harshen ba. Amsoshinka a nan za su ɓace.",
       "material": {
         "question": "Me zai taimaki tawagar {{language}}?",
         "onHelp": "Tawagar {{language}} za ta samu. Taɓa don a bar shi.",
@@ -1319,7 +1339,7 @@
       "keepIt": "Bar shi",
       "whichPart": "Wane sashe na Littafi Mai Tsarki?",
       "viewOnly": "Masu tsara harsuna kaɗai ne za su iya canja abin da suke fassarawa.",
-      "keepEarlier": "Gutsuttsuran da ba su canja ba za su riƙe naɗe-naɗensu. Abin da aka naɗa a gutsuren da ya canja ana ajiye shi a ƙarƙashin \"Sassan da suka gabata\" a sababbin gutsuttsuran.",
+      "keepEarlier": "Gutsuttsuran da ba su canja ba za su riƙe naɗe-naɗensu. Abin da aka naɗa a sashen da ya canja ana ajiye shi a ƙarƙashin \"Sassan da suka gabata\" a sababbin sassan.",
       "partHelp": "Suna fassara wannan sashe na Littafi Mai Tsarki.",
       "chooseBooksHelp": "Ku zaɓi littattafan ɗaya bayan ɗaya, a ƙasa.",
       "bookOnHelp": "An zaɓa. Taɓa don cire shi.",
@@ -1390,7 +1410,6 @@
       "passagesCovered_one": "Nassi {{count, number}} da aka rufe",
       "passagesCovered_other": "Nassosi {{count, number}} da aka rufe",
       "keyWords": "Muhimman kalmomi",
-      "keyTerms": "Muhimman kalmomi",
       "keyTermsSub_one": "Kalma {{count, number}} · {{rendered}} da kalmar {{language}}",
       "keyTermsSub_other": "Kalmomi {{count, number}} · {{rendered}} da kalmar {{language}}",
       "writtenHere": "An rubuta a nan, don wannan harshe",
@@ -1428,7 +1447,6 @@
       "nextHelp": "Yana riƙe wannan hanyar dubawa, sannan ya ci gaba zuwa tambaya ta gaba."
     },
     "invite": {
-      "somethingElse": "Wani abu daban",
       "cannotTitle": "Masu iya gayyata a nan kaɗai ne za su iya nuna lamba",
       "cannotBody": "Ku roƙi wani da ke gudanar da tawagar {{language}} ya gayyaci masu fassararku."
     },
@@ -1792,8 +1810,8 @@
       "skip": "Tsallake bayanin",
       "stepLabel": "Mataki na {{step, number}} cikin {{total, number}}",
       "pieces": {
-        "title": "Tawagarku tana naɗa kaya gutsure-gutsure",
-        "text": "Ana tsara kaya cikin foldoji, mutane kuma suna naɗa gutsuttsuran da ke ciki. Ga labarai, an tsara su cikin rukunoni.",
+        "title": "Tawagarku tana naɗa kaya sassa-sassa",
+        "text": "Ana tsara kaya cikin foldoji, mutane kuma suna naɗa sassan da ke ciki. Ga labarai, an tsara su cikin rukunoni.",
         "began": "Yadda abubuwa suka fara",
         "river": "Dalilin da kogin yake da faɗi",
         "fire": "Wuta ta farko",
@@ -1802,12 +1820,12 @@
       },
       "bible": {
         "title": "Littafi Mai Tsarki yana da littattafai, babobi da ayoyi",
-        "text": "Kowane littafi foldar ne. A ciki, ana yanka littafin gutsure-gutsure don naɗawa, kuma kowace aya tana nuna wuri a cikin naɗin.",
+        "text": "Kowane littafi foldar ne. A ciki, ana yanka littafin sassa-sassa don naɗawa, kuma kowace aya tana nuna wuri a cikin naɗin.",
         "chapterVerses": "{{book}} {{chapter}} · ayoyi 1 zuwa {{last}}"
       },
       "places": {
         "title": "Ana iya yanka littafi ɗaya a wurare daban-daban",
-        "text": "Ga {{book}} ta hanyoyi uku. Ayoyi iri ɗaya, gutsuttsura daban-daban.",
+        "text": "Ga {{book}} ta hanyoyi uku. Ayoyi iri ɗaya, sassa daban-daban.",
         "byChapter": "Babi-babi",
         "fia": "Nassosin FIA",
         "unfoldingWord": "Gutsuttsuran unfoldingWord"
@@ -1845,19 +1863,19 @@
       "waitsLabel": "{{book}} yana jiran a raba shi",
       "notInIt": "{{book}} ba ya ciki",
       "waits": "{{book}} yana jira har sai mai gudanarwa ya raba shi",
-      "label_one": "{{book}} a gutsure {{count, number}}",
-      "label_other": "{{book}} a gutsuttsura {{count, number}}",
-      "caption_one": "{{book}}: gutsure {{count, number}}",
-      "caption_other": "{{book}}: gutsuttsura {{count, number}}",
-      "help": "Kowane tubali gutsure ɗaya ne da za a naɗa; faɗinsa gwargwadon ayoyinsa."
+      "label_one": "{{book}} a sashe {{count, number}}",
+      "label_other": "{{book}} a sassa {{count, number}}",
+      "caption_one": "{{book}}: sashe {{count, number}}",
+      "caption_other": "{{book}}: sassa {{count, number}}",
+      "help": "Kowane tubali sashe ɗaya ne da za a naɗa; faɗinsa gwargwadon ayoyinsa."
     },
     "way": {
       "inUse": "Ana amfani da shi a nan",
-      "previewHelp": "Kowane gutsuren da {{way}} yake yanka littafi zuwa gare shi.",
+      "previewHelp": "Kowane sashen da {{way}} yake yanka littafi zuwa gare shi.",
       "comesWith": "Yana zuwa da jagororin nazari na {{pattern}}",
       "previewLabel": "Duba farko {{way}}",
-      "pickHelp": "Yana zaɓar wannan hanyar yanka shi gutsure-gutsure.",
-      "barHelp": "Sandan yana nuna yadda wannan hanya take yanka {{book}}: kowane tubali gutsure ɗaya ne, faɗinsa gwargwadon ayoyinsa."
+      "pickHelp": "Yana zaɓar wannan hanyar yanka shi sassa-sassa.",
+      "barHelp": "Sandan yana nuna yadda wannan hanya take yanka {{book}}: kowane tubali sashe ɗaya ne, faɗinsa gwargwadon ayoyinsa."
     },
     "preview": {
       "useThis": "Yi amfani da wannan",
@@ -1875,6 +1893,7 @@
       "hereDetail": "Harshen da kuke canjawa kullum yana canjawa.",
       "cannotChange": "Ba za ku iya canja wannan ba",
       "otherDetail": "Ku zaɓe shi don canja {{language}} haka nan. Idan kun bar shi, {{language}} zai riƙe samfurin yadda yake.",
+      "otherDetailRedo": "Ku zaɓe shi don raba {{book}} haka nan ga {{language}}, a kuma motsa naɗe-naɗensa haka. Idan kun bar shi, {{language}} zai riƙe {{book}} yadda yake.",
       "everyLanguage": "Kowane harshe da ke amfani da shi zai canja.",
       "someLanguages": "Harsunan da kuka bari za su riƙe samfurin yadda yake. Waɗanda kuka zaɓa za su sami nasu kwafin da wannan canji."
     },
@@ -1885,7 +1904,11 @@
       "titleBook": "Za a sake raba {{book}}",
       "bodyNumbering": "Duk abin da aka naɗa aka yi masa bita a sassan da suka canja zai koma \"Sassan da suka gabata\" a ƙarƙashin sababbin, da alamar gargaɗi, kuma za a buƙaci a sake yin sa. Wannan ya haɗa da naɗe-naɗen da ke kan wayar wani da ba a daidaita ba tukuna.",
       "bodyBook": "Duk abin da aka naɗa aka yi masa bita a tsofaffin sassan {{book}} zai koma \"Sassan da suka gabata\" a ƙarƙashin sababbin, da alamar gargaɗi, kuma za a buƙaci a sake yin sa. Wannan ya haɗa da naɗe-naɗen da ke kan wayar wani da ba a daidaita ba tukuna.",
-      "nothingDeleted": "Ba a goge komai ba."
+      "bodyRecorded_one": "Sashe {{count, number}} na {{book}} yana da naɗe-naɗe a wannan wayar. Duk abin da aka naɗa aka yi masa bita a tsofaffin sassan {{book}} zai koma \"Sassan da suka gabata\" a ƙarƙashin sababbin, da alamar gargaɗi, kuma za a buƙaci a sake yin sa. Wannan ya haɗa da naɗe-naɗen da ke kan wayar wani da ba a daidaita ba tukuna.",
+      "bodyRecorded_other": "Sassa {{count, number}} na {{book}} suna da naɗe-naɗe a wannan wayar. Duk abin da aka naɗa aka yi masa bita a tsofaffin sassan {{book}} zai koma \"Sassan da suka gabata\" a ƙarƙashin sababbin, da alamar gargaɗi, kuma za a buƙaci a sake yin sa. Wannan ya haɗa da naɗe-naɗen da ke kan wayar wani da ba a daidaita ba tukuna.",
+      "nothingDeleted": "Ba a goge komai ba.",
+      "bodyNoneHere": "Babu abin da aka naɗa a {{book}} da ya iso wannan wayar. Naɗe-naɗen da ke kan wayar wani da ba a daidaita ba tukuna za su koma \"Sassan da suka gabata\" a ƙarƙashin sababbin, da alamar gargaɗi, kuma za a buƙaci a sake yin su.",
+      "alsoLanguages": "{{book}} zai canja haka nan ga {{languages}}, haka ma naɗe-naɗensu."
     },
     "numbering": {
       "ignore": "To, a ƙyale",
@@ -1901,7 +1924,7 @@
     },
     "book": {
       "breakDifferently": "Raba ta wata hanya",
-      "breakDifferentlyHelp": "Zaɓi wata hanyar yanka wannan littafi gutsure-gutsure.",
+      "breakDifferentlyHelp": "Zaɓi wata hanyar yanka wannan littafi sassa-sassa.",
       "namedToast": "{{language}} yana kiransa {{name}}.",
       "brokenUp": "An raba",
       "ownWay": "Hanyarsa ta kansa",
@@ -1914,8 +1937,8 @@
       "breakUp": "Raba {{book}}",
       "changeQuestion": "Canja yadda aka raba {{book}}",
       "question": "Yaya za a raba {{book}}?",
-      "nowEachPiece": "Yanzu: {{way}}. Ana naɗa kowane gutsure shi kaɗai.",
-      "eachPiece": "Ana naɗa kowane gutsure shi kaɗai.",
+      "nowEachPiece": "Yanzu: {{way}}. Ana naɗa kowane sashe shi kaɗai.",
+      "eachPiece": "Ana naɗa kowane sashe shi kaɗai.",
       "connectForWays": "Ku haɗa intanet don loda hanyoyin raba shi.",
       "alsoUsedOne": "Ana amfani da shi a {{name}} ma. A canja {{book}} don wanne daga cikinsu?",
       "alsoUsedTwo": "Ana amfani da shi a {{first}} da {{second}} ma. A canja {{book}} don wanne daga cikinsu?",
@@ -2105,6 +2128,9 @@
       "noBibleChip": "Babu Littafi Mai Tsarki",
       "chapterChip": "Babi {{n}}",
       "key": "Layukan ɗigo-ɗigo suna nuna inda wasu Littattafai Masu Tsarki suke fara sashe (Littattafai {{total}} na Turanci, daga OpenBible.info). Taɓa ɗaya don fara sashe a can, ko taɓa kowace aya.",
+      "restored": "Daftarinka na {{when}}",
+      "startFromNow": "Sake farawa",
+      "startFromNowHelp": "Yana mayar da sassan da littafin yake da su yanzu, maimakon daftarinka. Sokewa yana dawo da daftarin.",
       "loadingText": "Ana ɗauko kalmomin {{book}}…",
       "noText": "Littattafan ƙungiyar ba su da kalmomin {{book}}, don haka ayoyinsa suna nuna a matsayin lambobi.",
       "chapterHead": "Babi {{n}}",
@@ -2190,10 +2216,10 @@
       "done_other": "An gama · sassa {{count, number}}"
     },
     "division": {
-      "way_one": "{{way}} · gutsure {{count, number}}",
-      "way_other": "{{way}} · gutsuttsura {{count, number}}",
-      "own_one": "Hanyarsa ta kansa · gutsure {{count, number}}",
-      "own_other": "Hanyarsa ta kansa · gutsuttsura {{count, number}}"
+      "way_one": "{{way}} · sashe {{count, number}}",
+      "way_other": "{{way}} · sassa {{count, number}}",
+      "own_one": "Hanyarsa ta kansa · sashe {{count, number}}",
+      "own_other": "Hanyarsa ta kansa · sassa {{count, number}}"
     }
   },
   "canon": {
@@ -2214,7 +2240,7 @@
     "unnamedOrg": "Ƙungiya",
     "listJoin": ", ",
     "quoted": "“{{text}}”",
-    "languageRenderings": "Fassarorin {{language}}",
+    "languageRenderings": "Kalmomin {{language}}",
     "levels": {
       "org": "Ƙungiya",
       "language": "Harshe"
@@ -2222,27 +2248,27 @@
     "privileges": {
       "manageStructure": {
         "label": "Kula da Tsarin Ƙungiya",
-        "desc": "Canja tsarin ƙungiya a cikin iyakarsu (harsuna)"
+        "desc": "Ƙara da canza harsuna inda matsayinsu ke aiki"
       },
       "inviteMembers": {
-        "label": "Gayyaci Membobi",
-        "desc": "Gayyaci mutane a cikin iyakarsu"
+        "label": "Gayyaci mutane",
+        "desc": "Gayyatar mutane inda matsayinsu ke aiki"
       },
       "manageRoles": {
-        "label": "Kula da Matsayai",
-        "desc": "Ƙirƙira da gyara matsayai a cikin iyakarsu"
+        "label": "Yi da canja matsayai",
+        "desc": "Yin da canza matsayi inda matsayinsu ke aiki"
       },
       "manageTemplates": {
         "label": "Kula da Samfuran Abun Ciki",
-        "desc": "Yi da gyara samfuran abun ciki a cikin iyakarsu"
+        "desc": "Yin da canza samfuran abun ciki inda matsayinsu ke aiki"
       },
       "shapeTemplates": {
         "label": "Tsara Samfuran Abun Ciki",
         "desc": "Raba littattafai zuwa nassosi, sa musu suna, da wallafa waɗannan canje-canje don harshensu"
       },
       "manageReference": {
-        "label": "Kula da Kayan Bincike",
-        "desc": "Yi da gyara kayan bincike a cikin iyakarsu"
+        "label": "Zaɓi Littattafai Masu Tsarki da jagorori",
+        "desc": "Yin da canza kayan bayani inda matsayinsu ke aiki"
       },
       "manageFlows": {
         "label": "Kula da Tsare-tsaren Bita",
@@ -2250,35 +2276,35 @@
       },
       "manageTeams": {
         "label": "Kula da Tawagogin Bita",
-        "desc": "Yi da gyara tawagogin bita (rukunoni) a cikin iyakarsu"
+        "desc": "Yin da canza ƙungiyoyin bita inda matsayinsu ke aiki"
       },
       "assignWork": {
-        "label": "Ba da Aiki",
-        "desc": "Roƙi kowa a cikin iyakarsu ya naɗa ko ya yi bitar nassi"
+        "label": "Ba da aiki",
+        "desc": "Neman kowa inda matsayinsu ke aiki ya naɗa ko ya yi bitar sashe"
       },
       "overrideCheckpoints": {
-        "label": "Wuce Shingayen Dubawa",
+        "label": "Bari aiki ya wuce dubawar da aka kulle",
         "desc": "Wuce da nassi daga shingen dubawa, tare da rubuta dalili"
       },
       "translate": {
-        "label": "Fassara",
+        "label": "Naɗa",
         "desc": "Naɗa da gyara fassarori (ku kashe don hana, misali, mashawarta yin daftari)"
       },
       "fillReference": {
-        "label": "Cika Kayan Bincike",
+        "label": "Ƙara bayanai da muhimman kalmomi",
         "desc": "Ƙara muhimman kalmomi, bayanai, da kayan bincike"
       },
       "sendToReviewers": {
-        "label": "Nemi Bita",
+        "label": "Nemi dubawa",
         "desc": "Roƙi abokan aiki, ko wani a wajen manhajar ta mahaɗi, su yi bita"
       },
       "review": {
-        "label": "Bita",
+        "label": "Duba naɗe-naɗe",
         "desc": "Yi bitoci, da naɗa dubawar da ta faru a wajen manhajar"
       },
       "viewStatus": {
-        "label": "Duba Matsayi",
-        "desc": "Ga taswira da tarihin nassosi don karantawa kawai a cikin iyakarsu"
+        "label": "Ga aikin kowa",
+        "desc": "Ganin taswira da bayanan sassa, ba tare da canza su ba, inda matsayinsu ke aiki"
       }
     },
     "privilegeGroups": {
@@ -2348,21 +2374,21 @@
     "roles": {
       "title": "Matsayai",
       "addRole": "Matsayi",
-      "introOrg": "Matsayai rukunonin izinai ne ba tare da tsayayyar iyaka ba. Ana zaɓar iyaka lokacin ba wa memba matsayi. Ana iya ba da matsayan da aka ƙirƙira a nan a kowane mataki.",
-      "introLanguage": "Matsayai rukunonin izinai ne ba tare da tsayayyar iyaka ba. Ana zaɓar iyaka lokacin ba wa memba matsayi. An ayyana matsayai don dukan ƙungiyar, don haka a nan kallo kawai ake yi. Ku gyara su daga Shafin Ƙungiya.",
+      "introOrg": "Matsayi shi ne abin da mutum zai iya yi. Inda zai iya yin sa ana zaɓa lokacin da aka ba shi matsayin: a kowane harshe, ko a ɗaya.",
+      "introLanguage": "Matsayi shi ne abin da mutum zai iya yi. Matsayi na dukan ƙungiyar ne, don haka a nan kallo kawai za ka iya. Canza su daga Gidan ƙungiya.",
       "loading": "Ana loda matsayai…",
       "empty": "Babu matsayai tukuna",
       "emptySub": "Ku yi ɗaya don kowace hanyar da mutane suke taimakawa: abin da za su iya yi, ba inda ba.",
       "definedAtOrg": "An ayyana a Ƙungiya",
-      "inheritedSub": "Kallo kawai · ku gyara daga matakin da aka ayyana shi",
+      "inheritedSub": "Kallo kawai · canza shi daga Gidan ƙungiya",
       "members_one": "Memba {{count, number}}",
       "members_other": "Membobi {{count, number}}",
-      "privileges_one": "Izini {{count, number}}",
-      "privileges_other": "Izinai {{count, number}}",
       "addRoleHelp": "Yana yin sabon matsayi: rukunin abubuwan da mutanensa za su iya yi.",
       "ownRoleHelp": "Yana buɗe abin da mutanensa za su iya yi, da waɗanda suke da shi. Alamar tauraro: ƙungiyarku ce ta yi shi.",
       "builtInRoleHelp": "Yana buɗe abin da mutanensa za su iya yi, da waɗanda suke da shi. Yana zuwa tare da manhajar.",
-      "inheritedRoleHelp": "Yana nuna abin da mutanensa za su iya yi. Ku canja shi daga Shafin Ƙungiya."
+      "inheritedRoleHelp": "Yana nuna abin da mutanensa za su iya yi. Ku canja shi daga Shafin Ƙungiya.",
+      "privileges_one": "Izini {{count, number}}",
+      "privileges_other": "Izini {{count, number}}"
     },
     "roleEditor": {
       "title": "Matsayi",
@@ -2374,7 +2400,7 @@
       "aNewRole": "Sabon matsayi",
       "people_one": "Mutum {{count, number}}",
       "people_other": "Mutane {{count, number}}",
-      "inheritedBody": "An ayyana a matakin ƙungiya. Ku gyara shi daga Shafin Ƙungiya.",
+      "inheritedBody": "An yi shi don dukan ƙungiyar. Canza shi daga Gidan ƙungiya.",
       "noPermission": "Ba ku da izinin gyara wannan matsayi.",
       "nameLabel": "Me ake kiransa?",
       "namePlaceholder": "misali Mai fassarar baya",
@@ -2465,7 +2491,7 @@
       "noneChosen": "Ba a zaɓi tsari ba tukuna",
       "noReviews": "Babu bita: an gama da zarar an naɗa",
       "title": "Tsare-tsaren Bita",
-      "addFlow": "Tsari",
+      "addFlow": "Sabon tsari",
       "noLanguages": "Babu harsuna tukuna",
       "noLanguagesSub": "Ku ƙara harshe, sannan ku zaɓi yadda ake duba nassosinsa.",
       "languageUses": "{{language}} yana amfani da",
@@ -2480,9 +2506,10 @@
       "nowUses": "{{language}} yanzu yana amfani da {{flow}}.",
       "addFlowHelp": "Yana yin sabon tsari: dubawar da nassi zai samu, bi da bi.",
       "openFlowHelp": "Yana buɗe shi, don gani ko canja matakansa.",
+      "editChecks": "Gyara dubawa da mutane",
+      "editChecksHelp": "Yana buɗe dubawar {{language}} ta kanta: tsarinsu, wanda ke yin kowanne, da abin da kowanne ke nunawa.",
       "saveAsFlowHelp": "Yana ajiye dubawar wannan harshe a matsayin tsari a ɗakin karatunku, don sauran harsuna.",
       "flowCardHelp": "Yana buɗe shi, don gani ko canja matakansa. Alamar kulle: dole a fara wuce wannan mataki.",
-      "inUseHelp": "Wannan harshe yana duba nassosinsa ta wannan hanya yanzu.",
       "useHelp": "Dubawarsa za ta zama ta {{language}}. Kuna iya canja su daga baya.",
       "stepsLabel": "Matakai",
       "stepsHelp": "Dubawa, daga hagu zuwa dama. Waɗanda aka tara a kan juna suna faruwa tare. Alamar kulle: dole a fara wuce wannan mataki.",
@@ -2518,7 +2545,7 @@
       "descriptionPlaceholder": "Amfaninsa, a layi ɗaya",
       "noChecks": "Babu dubawa: an gama da zarar an naɗa",
       "usedHere": "{{language}} yana amfani da shi. Canje-canje suna shafar nassosinsa nan take; ba abin da aka riga aka naɗa da zai ɓace.",
-      "usedNote": "Harsunan da ke amfani da shi suna komawa kowace sabuwar siga. Matakai shawarar tsari ne; mataki da aka kulle kaɗai ne dole a fara wuce shi.",
+      "usedNote": "Harsunan da suka ɗauki waɗannan dubawa suna da nasu kwafi: canza wannan tsari ba ya canza ko ɗaya daga cikinsu. Matakai shawarar tsari ne; mataki da aka kulle kaɗai ne dole a fara wuce shi.",
       "kindsSub": "Iri-iri kalmomin ƙungiyarku ne. Ku ƙara naku idan waɗannan ba su dace ba.",
       "newKindLabel": "Sabon iri",
       "newKindPlaceholder": "Sabon iri, misali Bitar Dattawa",
@@ -2548,7 +2575,6 @@
       "concepts_other": "Ma'anoni {{count, number}}",
       "addLanguageFirst": "Ku fara ƙara harshe",
       "libraryOrg": "Ɗakin karatu · ƙungiyarku",
-      "new": "Sabo",
       "libraryEmpty": "Babu komai a ɗakin karatunku tukuna. Ku bi ko ku kwafi abin da wasu ƙungiyoyi suke rabawa, ko ku wallafa naku.",
       "writeGuide": "Rubuta jagora",
       "writeGuideSub": "Matakai da rubutu da sauti, hotuna, taswirori da muhimman kalmomi",
@@ -2575,10 +2601,15 @@
       "biblesHelp": "Yana buɗe Littattafai Masu Tsarki da masu fassara suke ji da karantawa, da waɗanda aka ba da shawararsu.",
       "guidesNotesHelp": "Yana buɗe jagororin nazari da bayanan da masu fassara suke samu, da waɗanda aka ba da shawararsu.",
       "keyTermsHelp": "Yana buɗe kowace ma'ana da yadda wannan harshe yake faɗinta.",
-      "newHelp": "Yana fara sabon kaya a ɗakin karatunku.",
       "libraryItemHelp": "Yana buɗe shi: abin da ke cikinsa, da yadda ake raba shi.",
       "openMaterialHelp": "Yana buɗe shi, don karantawa ko canja shi.",
-      "openLockedHelp": "Yana buɗe shi. A kulle: masu kula da kayan bincike kaɗai ne za su iya canja shi."
+      "openLockedHelp": "Yana buɗe shi. A kulle: masu kula da kayan bincike kaɗai ne za su iya canja shi.",
+      "add": {
+        "here": "Ka’idoji, taƙaitaccen bayani ko tambayoyi",
+        "hereSub": "Ana rubuta shi a nan, sashe-sashe; tambayoyin bita suna zuwa wani nau’in bita",
+        "byVerses": "Bayani da aka sanya ta ayoyi",
+        "byVersesSub": "Yana shiga ɗakin karatu, kuma yana kai wa sassan da ayoyinsa ko sassan samfurinsa suke ciki"
+      }
     },
     "material": {
       "editTitle": "Gyara Kaya",
@@ -2683,7 +2714,7 @@
       "pickPartHelp": "Yana haɗa wannan sashe: masu fassara za su samu shi a can."
     },
     "keyTerms": {
-      "noLanguageRendering": "Babu fassarar {{language}} tukuna",
+      "noLanguageRendering": "Babu kalmar {{language}} tukuna",
       "title": "Muhimman Kalmomi",
       "chooseLanguage": "Ku fara zaɓar harshe",
       "added": "An ƙara {{term}}.",
@@ -2691,18 +2722,18 @@
       "search": "Nemi kalmomi",
       "empty": "Babu muhimman kalmomi tukuna",
       "emptySubCanAdd": "Ku ƙara kalma tare da yadda wannan harshe yake faɗinta, da lokacin amfani da ita.",
-      "emptySub": "Kalmomin da tawagarku ta ƙara suna bayyana a nan tare da fassarorinsu.",
+      "emptySub": "Kalmomin da ƙungiyarku ta ƙara suna nan, tare da kalmar harshenku ga kowacce.",
       "inPassage": "A wannan nassi",
       "otherTerms": "Wasu kalmomi",
       "allTerms": "Dukan kalmomi",
       "noOther": "Babu wasu kalmomi.",
-      "intro": "Ma'anoni suna zuwa daga jerin da aka raba (kamar muhimman kalmomin FIA) ko naku. {{language}} yana riƙe fassarorinsa da dalilansu.",
+      "intro": "Muhimman kalmomi suna zuwa daga jerin da aka raba (kamar muhimman kalmomin FIA) ko naku. {{language}} tana riƙe da kalmarta ga kowacce, da dalilan.",
       "newKeyTerm": "Sabuwar muhimmiyar kalma",
-      "newSub": "Ana ƙara ta a muhimman kalmomin {{language}}, tare da fassararta ta farko.",
+      "newSub": "An ƙara shi cikin muhimman kalmomin {{language}}, tare da kalmarsa ta farko.",
       "addTerm": "Ƙara Kalma",
       "termPlaceholder": "Kalmar asali, misali alheri (charis)",
       "meaningPlaceholder": "Ma'ana, a taƙaice",
-      "renderingPlaceholder": "Fassarar {{language}}",
+      "renderingPlaceholder": "Kalmar {{language}}",
       "contextPlaceholder": "Lokacin amfani da ita, da dalili",
       "newTermHelp": "Yana ƙara ma'ana, tare da yadda {{language}} yake faɗinta.",
       "openTermHelp": "Yana buɗe ta: abin da take nufi, yadda tawagarku take faɗinta, da dalili.",
@@ -2715,7 +2746,7 @@
       "tied": "An haɗa {{term}} da daftarinku.",
       "added": "An ƙara “{{rendering}}”.",
       "changeRecorded": "An rubuta canjin.",
-      "firstRendering": "Fassara ta farko: {{rendering}}.",
+      "firstRendering": "Kalma ta farko: {{rendering}}.",
       "fiaSub": "Muhimmiyar kalmar FIA · {{language}}",
       "sub": "Muhimmiyar kalmar {{language}}",
       "noMeaning": "Ba a rubuta ma'ana ba tukuna.",
@@ -2726,10 +2757,10 @@
       "tiedBody": "Masu bita za su ga wannan kalma da dalilinku.",
       "tieBody": "Don masu bita su san cewa wannan kalma ta tsara {{passage}}.",
       "inLanguage": "A {{language}}",
-      "noRendering": "Ba a fassara ta ba tukuna",
+      "noRendering": "Babu kalma tukuna",
       "addHow": "Ku ƙara yadda {{language}} yake faɗin wannan, da lokacin amfani da ita.",
-      "adjustOrAdd": "Daidaita ko ƙara fassara",
-      "addRendering": "Ƙara fassara",
+      "adjustOrAdd": "Canza ko ƙara kalma",
+      "addRendering": "Ƙara kalma",
       "details": "Cikakken bayani",
       "why": "Dalilin da aka fassara ta haka",
       "changes_one": "Canji {{count, number}}",
@@ -2740,7 +2771,7 @@
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "An rubuta a matsayin ɓangaren {{passage}}, kuma an haɗa da daftarinku.",
       "adjustSub": "Ana rubuta kowane canji tare da dalilinku.",
-      "newRendering": "Sabuwar fassara (ba dole ba)",
+      "newRendering": "Sabuwar kalma (na zaɓi)",
       "whenToUse": "Lokacin amfani da ita",
       "sayWhy": "Faɗi dalili",
       "orTypeWhy": "Ko ku rubuta abin da ya canja, da dalili",
@@ -2766,7 +2797,7 @@
       "signingIn": "Ana shiga…",
       "askedOrg": "An nemi {{org}}",
       "askedUnknown": "An nemi ƙungiyar",
-      "sentBody": "Za ku shiga kai tsaye idan sun amince. Kuna iya rufe manhajar; za mu sanar da ku.",
+      "sentBody": "Kuna iya rufe manhajar. Idan kuka sake buɗe ta, za ku shiga kai tsaye idan sun amince.",
       "savedOnDevice": "An ajiye a wannan na'ura"
     },
     "termsLine": {
@@ -2790,13 +2821,21 @@
       "v2SameEmail": "Kuna da asusu a nan da wannan imel tuni. Ku shiga da kalmar sirrin da kuke amfani da ita a nan."
     },
     "signIn": {
-      "tagline": "Gudanar da fassarar Littafi Mai Tsarki — daga daftari zuwa amincewa",
       "joinTitle": "Ku shiga don haɗuwa",
       "joinBody": "An ajiye gayyatarku. Za ku haɗu da zarar kun shiga.",
+      "askTitle": "Ku shiga, sannan ku nemi shiga tawagar {{language}}",
       "namePlaceholder": "Imel ko sunan shiga",
+      "nameHint": "Sunan shiga ba shi da sarari: haruffa, lambobi da layuka, kamar nyibol-deng-482.",
+      "nameHelp": "Imel ɗinka, ko sunan shigarka, kamar nyibol-deng-482.",
+      "passwordHelp": "Kalmar sirrin wannan asusu.",
+      "buttonHelp": "Yana shigar da kai da sunan da kalmar sirrin da ke sama.",
       "button": "Shiga",
+      "cantSignIn": "Ba za ku iya shiga ba?",
+      "cantSignInHelp": "Yana nuna hanyoyin shiga da ba sa bukatar kalmar sirri.",
+      "stuckTitle": "Ku roƙi wani a tawagarku ya nuna muku lambar shiga, sannan ku taɓa Karanta lamba.",
+      "writeTo": "Rubuta zuwa {{email}}",
+      "writeToHelp": "Yana buɗe imel zuwa gare mu, don taimako wajen shiga.",
       "scanCode": "Karanta lamba",
-      "scanHint": "Gayyata, ko lamba daga wanda ke taimaka muku shiga",
       "noAccount": "Ba ku da asusu?",
       "browse": "Duba ayyukan jama'a",
       "switchPersona": "Sauya mutum",
@@ -2851,6 +2890,7 @@
       "listed": "An lissafa a fili",
       "cardLabel": "{{name}}, {{percent}}",
       "recorded": "An naɗa",
+      "signInToAsk": "Shiga don nema",
       "emptyTitle": "Ba a lissafa komai ba tukuna",
       "emptySub": "Ƙungiyoyi suna bayyana a nan idan sun lissafa aikinsu a fili.",
       "signInHelp": "Ku shiga asusunku, sannan kuna iya neman haɗuwa da ƙungiya.",
@@ -2878,13 +2918,16 @@
       "scanHint": "Ba a buƙatar imel ko kalmar sirri. Gayyatar tana buɗe muku asusu kuma ta sa ku cikin tawagar.",
       "failed": "An kasa buɗe asusun. Ku sake gwadawa.",
       "confirmHelp": "Ku sake rubuta kalmar sirri iri ɗaya, don tabbatar da cewa daidai ce.",
+      "emailHelp": "Za mu aika hanyar haɗi nan. Buɗe ta don kammala asusunka.",
+      "passwordHelp": "Haruffa 6 ko fiye. Da ita kake shiga.",
+      "buttonHelp": "Yana ƙirƙirar asusunka kuma ya aika hanyar haɗi zuwa imel ɗinka.",
       "scanInviteHelp": "Yana buɗe kyamara. Gayyatar tana buɗe muku asusu: ba a buƙatar imel."
     },
     "scan": {
       "title": "Karanta lamba",
       "subSignIn": "Lamba daga wanda ke taimaka muku shiga",
       "subGuest": "Ba a buƙatar imel ko kalmar sirri",
-      "subMember": "Gayyatar ta ƙunshi ƙungiya, matsayi, da iyaka",
+      "subMember": "Gayyatar tana faɗin wace ƙungiya, matsayi da harshe",
       "notCode": "Wannan ba lambar LangQuest ba ce.",
       "notQr": "Wannan lambar QR ba lambar LangQuest ba ce.",
       "cameraOff": "An kashe izinin kyamara. Kuna iya liƙa lambar a ƙasa.",
@@ -2892,6 +2935,8 @@
       "haveAccount": "Ina da asusu tuni",
       "notMe": "Ba {{name}} ba ne? Ku fara fita",
       "notYou": "Ba ku ba ne? Ku fara fita",
+      "joinWhenConnected": "Shiga idan an haɗa",
+      "joinWhenConnectedHelp": "Shiga yana bukatar haɗi. Wannan zai kunna da kansa idan akwai haɗi.",
       "hintPoint": "Ku nuna kyamara ga lambar",
       "hintRead": "An karanta lamba",
       "hintTap": "Taɓa Karanta don amfani da kyamara",
@@ -2935,6 +2980,7 @@
       "expiredOrUsed": "Wannan lamba ta ƙare ko an riga an yi amfani da ita. Ku nemi sabuwa.",
       "codeBusy": "An kasa amfani da wannan lamba. Ku sake gwadawa.",
       "scanElseHelp": "Yana barin wannan lamba, ya sake buɗe kyamarar karanta lamba.",
+      "signOutHelp": "Yana buɗe fita, domin wanda aka yi wannan lambar dominsa ya shiga a wannan na’ura.",
       "buttonHelp": "Yana shigar da ku a wannan na'ura da wannan lamba. Babu abin da za a rubuta.",
       "cancelHelp": "Ba a shiga ba. Koma kyamarar karanta lamba."
     },
@@ -2977,7 +3023,8 @@
       "licenseLabel": "Wa zai iya amfani da aikinku",
       "readyTitle": "A shirye don amfani",
       "readyBody": "Za ku sami matsayai na yau da kullum da hanyar dubawa ta yau da kullum don nassosi. Na gaba, za mu ƙara harshenku na farko da tawagarku tare.",
-      "nameHelp": "Sunan ƙungiyarku, yadda tawagoginku za su gan shi."
+      "nameHelp": "Sunan ƙungiyarku, yadda tawagoginku za su gan shi.",
+      "buttonHelp": "Yana ƙirƙirar ƙungiyar. Daga nan za ka ƙara harshenka na farko."
     },
     "request": {
       "notSent": "Ba a aika ba",
@@ -2988,20 +3035,21 @@
       "askOrg": "Nemi {{org}}",
       "askUnknown": "Nemi ƙungiyar",
       "askToJoin": "Nemi shiga",
-      "askIntro": "Za su shigar da ku, kuma za ku je kai tsaye zuwa aikinku.",
+      "askIntro": "Wani mai kula a can zai ga buƙatarku. Idan sun bar ku ku shiga, za ku je kai tsaye zuwa aikinku.",
       "messageLabel": "Ku faɗi wani abu (ba dole ba)",
       "messagePlaceholder": "Ko su wane ne ku, kuma wace tawaga",
       "searchPlaceholder": "Suna ko harshe",
-      "askRowLabel": "Roƙi {{org}} ta shigar da ku",
-      "asking": "Ana nema…",
       "noMatch": "Babu ƙungiya ko harshen da ya dace da “{{query}}”.",
-      "notHere": "Ba ya nan? Ku roƙi wani a tawagarku ya nuna muku lambarsa.",
-      "noneListed": "Ba a lissafa wata ƙungiya ba tukuna. Ku roƙi wani a tawagarku ya nuna muku lambarsa.",
+      "notHere": "Ba ya nan? Karanta lambarsu",
+      "noneListed": "Ba a lissafa wata ƙungiya ba tukuna.",
+      "loadFailedTitle": "An kasa loda jerin",
+      "loadFailedSub": "Ku sake gwadawa idan kuna da haɗi, ko ku karanta lamba daga wani a tawagarku.",
+      "tryAgainHelp": "Yana sake neman jerin.",
       "backHelp": "Koma zuwa hanyoyin haɗuwa da tawagarku.",
       "doneHelp": "Koma farko. Amsarsu za ta bayyana a can idan ta zo.",
-      "askHelp": "Yana aika buƙatarku. Wani mai kula a can zai bar ku ku shiga.",
+      "askHelp": "Yana aika buƙatarku zuwa wani mai kula a can.",
       "messageHelp": "Wani mai kula a can zai karanta wannan tare da buƙatarku.",
-      "rowHelp": "Yana aika wa wannan ƙungiya buƙatarku ta haɗuwa."
+      "rowHelp": "Yana buɗe buƙatarku zuwa wannan ƙungiya, don aikawa tare da saƙo idan kuna so."
     },
     "welcome": {
       "roles": {
@@ -3099,11 +3147,15 @@
       "movingSub": "Ɗayan shafin zai ajiye abin da yake da shi ya koma gefe.",
       "elsewhereSub": "Yana aiki a shafi ɗaya a lokaci guda, don naɗe-naɗenku da canje-canjenku su kasance a wuri ɗaya. Ku yi amfani da shi a nan, ko ku koma ɗayan shafin.",
       "useHere": "Yi amfani da shi a nan",
-      "useHereHelp": "Yana kawo LangQuest zuwa wannan shafi. Ɗayan shafin yana ajiye aikinsa ya koma gefe."
+      "useHereHelp": "Yana kawo LangQuest zuwa wannan shafi. Ɗayan shafin yana ajiye aikinsa ya koma gefe.",
+      "otherRecording": "Ɗayan shafin yana naɗi",
+      "otherRecordingSub": "Da farko ka dakatar da naɗi a can, sannan ka sake gwadawa.",
+      "cancelMoveHelp": "Yana daina jira. LangQuest zai zauna a ɗayan shafin."
     },
     "lock": {
-      "wait": "Gwaje-gwaje sun yi yawa. Ku jira kaɗan, sannan ku sake gwadawa.",
       "wrong": "Wannan zanen ba daidai ba ne.",
+      "waitFor_one": "Gwaje-gwaje sun yi yawa. Ku sake gwadawa bayan minti {{count, number}}, ko ku karanta lambar shiga daga wani a tawagarku.",
+      "waitFor_other": "Gwaje-gwaje sun yi yawa. Ku sake gwadawa bayan mintuna {{count, number}}, ko ku karanta lambar shiga daga wani a tawagarku.",
       "notMe": "Ba hotona ba ne",
       "notMeHelp": "Yana komawa ga hotunan.",
       "pictureHelp": "Kun fita daga wannan waya? Taɓa hotonku, sannan ku zana zanenku. Ba a buƙatar intanet."
@@ -3121,6 +3173,7 @@
     "update": {
       "restarting": "Ana sake kunnawa…",
       "ready": "Sabuntawa ta shirya — taɓa don sake kunnawa",
+      "afterRecording": "Sabuntawa a shirye · zai sake farawa idan ka daina rikodi",
       "downloading": "Ana sauke sabuntawa…",
       "downloadingPercent": "Ana sauke sabuntawa… {{percent}}",
       "webReady": "Sabuwar sigar LangQuest ta shirya. Ku sake loda shafin don amfani da ita.",
@@ -3257,8 +3310,11 @@
       "setPasswordSub": "Idan wasu mutane suna amfani da wannan na'ura",
       "notifications": "Sanarwa",
       "notificationsSub": "Ji labarin buƙatu da sharhi",
-      "notificationsOn": "Sanarwa tana kunne.",
+      "notificationsBlocked": "An kashe a saitunan wannan waya",
       "notificationsFailed": "An kasa kunna sanarwa. Ku sake gwadawa idan an haɗa.",
+      "notificationsOffNeedsConnection": "Kashe su yana bukatar haɗi. Sake gwadawa idan an haɗa.",
+      "openPhoneSettings": "Buɗe saitunan wannan waya",
+      "openPhoneSettingsHelp": "Yana buɗe saitunan wannan waya, wurin da kaɗai yanzu zai iya ba LangQuest izinin sanarwa.",
       "switchOrg": "Sauya Ƙungiya",
       "switchActive": "{{org}} (mai aiki)",
       "switchOrStart": "{{org}} · ko ku kafa sabuwa",
@@ -3267,6 +3323,7 @@
       "syncRefused": "Wannan asusu ba zai iya daidaita wannan ƙungiya ba",
       "syncPending_one": "Canji {{count, number}} yana jiran a aika",
       "syncPending_other": "Canje-canje {{count, number}} suna jiran a aika",
+      "syncPendingMixed": "{{total, number}} na jiran aikawa · rikodi: {{recordings, number}}",
       "syncLive": "Kai tsaye: canje-canje suna isowa yayin da suke faruwa",
       "syncOffline": "Babu intanet: ana riƙe aiki a wannan na'ura",
       "syncUpToDate": "Komai sabo ne",
@@ -3281,7 +3338,6 @@
       "deleteSub": "Asusunku da sunanku, har abada",
       "testing": "Gwaji",
       "personaSub": "Shiga a matsayin mai fassara, mai bita ko mai kula na gwaji",
-      "notificationsHelp": "Yana kunna sanarwa, don wannan na'ura ta sanar da ku game da buƙatu da sharhi.",
       "syncHelp": "Yana nuna abin da ke jiran a aika ko a sauke. Lamba tana nufin akwai canje-canje da ke jiran a aika.",
       "blockedHelp": "Yana nuna waɗanda kuka toshe, don cire toshewarsu.",
       "switchOrgHelp": "Yana buɗe ƙungiyoyinku, don sauyawa zuwa wata ko kafa sabuwa."
@@ -3302,6 +3358,7 @@
       "nameLabel": "Cikakken Suna",
       "shortPassword": "Ku zaɓi kalmar sirri mai haruffa 6 ko fiye.",
       "passwordNeedsConnection": "Sa kalmar sirri yana buƙatar haɗi.",
+      "nameSaved": "An adana sunan.",
       "passwordFailed": "An kasa sa kalmar sirri. Ku sake gwadawa.",
       "savedWithPassword": "An ajiye. Kuna iya shiga da sunan shigarku da wannan kalmar sirri.",
       "saved": "An ajiye bayanan kai. Za a daidaita idan an haɗa.",
@@ -3350,17 +3407,22 @@
       "signingOut": "Ana fita…",
       "button": "Fita",
       "notYet": "Ba tukuna ba",
+      "sending": "Ana aikawa…",
+      "seeWaiting": "Duba abin da ke jira",
+      "seeWaitingHelp": "Yana buɗe Daidaitawa: abin da ke jiran aikawa, bisa nassi, da Daidaita yanzu.",
       "question": "A fita?"
     },
     "delete": {
       "title": "Goge Asusu",
       "deleting": "Ana gogewa…",
       "button": "Goge Asusuna",
+      "buttonHelp": "Yana sake tambaya sau ɗaya, sannan ya goge wannan asusu har abada.",
       "sendFirstTitle": "Ku fara aika aikinku",
       "sendFirstBody": "Saura a aika: {{things}}. Ku goge asusunku bayan an daidaita su, don ƙungiyarku ta samu su.",
       "offlineTitle": "Ba ku da intanet",
       "offlineBody": "Ku haɗa intanet don goge asusunku.",
       "question": "A goge asusunku?",
+      "confirmTitle": "A goge asusun {{name}}?",
       "deleted": "Za a goge",
       "deletedSub": "Shigarku, imel, suna, sanarwa, toshewa da bayanan matsala. Za ku bar kowace ƙungiya.",
       "kept": "Ƙungiyarku za ta riƙe",
@@ -3372,6 +3434,7 @@
       "syncNow": "Daidaita yanzu",
       "refused": "Sabar ta ƙi wannan asusu don wannan ƙungiya.",
       "tooOld": "Ku sabunta manhajar don daidaitawa.",
+      "tooOldSends": "Wannan manhaja ta tsufa da yawa don karɓar sauye-sauyen ƙungiyarka. Aikinka har yanzu yana tafiya.",
       "waitingUpload": "yana jiran ɗorawa",
       "refusedByServer": "sabar ta ƙi",
       "latestConfirmed": "na ƙarshe da aka tabbatar",
@@ -3394,13 +3457,15 @@
         "live": "Kai tsaye",
         "checking": "An haɗa",
         "offline": "Babu intanet",
-        "refused": "Ba ya daidaitawa"
+        "refused": "Ba ya daidaitawa",
+        "tooOld": "Sabunta don karɓa"
       },
       "help": {
         "live": "Canje-canjen ƙungiyarka suna isowa nan take, kuma naka suna tafiya nan da nan.",
         "checking": "An haɗa, amma hanyar kai tsaye ba ta aiki, don haka wannan na'ura tana duba canje-canje bayan 'yan mintuna. Daidaita yanzu yana dubawa nan take.",
         "offline": "Babu haɗi. Duk abin da kake yi ana ajiye shi a wannan na'ura kuma zai tafi da kansa idan ka dawo kan intanet.",
         "refused": "Sabar ba ta karɓar canje-canje daga wannan na'ura. Aikinka yana nan a ajiye.",
+        "tooOld": "Wannan manhaja ta tsufa da yawa don karɓar sauye-sauyen ƙungiyarka. Sabunta ta daga shago.",
         "toReceive": "Rikodin wasu da wannan na'ura har yanzu take saukewa.",
         "refusedLine": "Canje-canjen da sabar ta ƙi karɓa, yawanci saboda izini ya canza. Suna nan a wannan na'ura; buɗe Cikakkun bayanai don ganin kowanne."
       },
@@ -3480,7 +3545,6 @@
       "sub": "Ƙamus · {{source}}",
       "openKeyTerm": "Buɗe muhimmiyar kalmar",
       "listen": "Saurara: {{term}}",
-      "standIn": "An kasa loda sautin — ana kunna madadinsa",
       "notKeyTerm": "Wannan kalma ba ta cikin muhimman kalmomin ƙungiyarku tukuna."
     },
     "callout": {
@@ -3493,10 +3557,6 @@
     "reader": {
       "addNoteOn": "Ƙara bayani a kan {{verse}}",
       "addNoteOnAt": "Ƙara bayani a kan {{verse}} a {{time}}",
-      "verse": "Aya ta {{verse}}",
-      "where": "{{title}} · aya ta {{verse}} · {{bible}}",
-      "whereAt": "{{title}} · aya ta {{verse}} · {{bible}} · {{time}}",
-      "noteAdded": "An ƙara bayani a kan {{verse}} — yana bin wannan nassi",
       "addNoteHelp": "Ku faɗi ko ku rubuta bayani a kan wannan aya. Yana zama tare da nassin."
     },
     "screen": {
@@ -3518,6 +3578,7 @@
       "stepDone": "An gama {{step}} · {{done, number}} cikin {{total, number}}",
       "allDone": "An gama kowane mataki",
       "backToGuide": "Koma ga jagorar",
+      "backTo": "Koma zuwa {{chip}}",
       "doneWithStep": "An gama da wannan mataki",
       "openWorkspace": "Buɗe wurin naɗawa",
       "recordFirstDraft": "Naɗa daftarin farko",
@@ -3660,13 +3721,14 @@
         "askedYou": "roƙo daga {{by}}",
         "askedYourTeam": "roƙo daga {{by}} ga tawagarku ta {{team}}",
         "askedYourReviewTeam": "roƙo daga {{by}} ga tawagarku ta bita",
-        "byLinkOver": "ta mahaɗi ta {{channel}}",
+        "byLinkOver": "manhajar ba ta aika ba · {{channel}}",
         "askedForChanges": "{{who}} na neman gyara",
         "answered": "An amsa sharhi — zai kammala da zarar mai bita ya ce Yana da kyau",
         "recordedBy": "An naɗa ta hannun {{who}}",
         "recorded": "An naɗa",
         "bestAfter": "Ya fi kyau bayan an amsa sharhin {{kind}}, don a yi shi a sigar da za ku riƙe",
-        "recordsItIn": "{{who}} na naɗa shi a {{language}} — sabon abun ciki, ba hukunci ba"
+        "recordsItIn": "{{who}} na naɗa shi a {{language}} — sabon abun ciki, ba hukunci ba",
+        "loggedStillWaits": "An rubuta \"Yana da kyau\" · har yanzu yana jiran dubawa a manhaja"
       },
       "channels": {
         "whatsapp": "WhatsApp",
@@ -3745,8 +3807,8 @@
         "text": "Rubutu",
         "rating": "1–5"
       },
-      "guestMessage": "Sannu {{name}} — don Allah za ku iya sauraron {{passage}} a {{language}} ku faɗa mana abin da kuka fahimta? Ba a buƙatar asusu:",
-      "guestMessageNoName": "Sannu — don Allah za ku iya sauraron {{passage}} a {{language}} ku faɗa mana abin da kuka fahimta? Ba a buƙatar asusu:"
+      "guestMessage": "Sannu {{name}} — don Allah za ku iya sauraron {{passage}} a {{language}} ku faɗa mana abin da kuka fahimta?",
+      "guestMessageNoName": "Sannu — don Allah za ku iya sauraron {{passage}} a {{language}} ku faɗa mana abin da kuka fahimta?"
     },
     "path": {
       "theCheck": "{{check}}",
@@ -3777,6 +3839,7 @@
       "fixSub": "Sannan zai koma ga dubawar",
       "status": {
         "movedPast": "an wuce",
+        "movedPastWhy": "an wuce · {{reason}}",
         "setAside": "an ajiye a gefe",
         "answered": "an amsa",
         "answeredBack": "an amsa · ta koma ga dubawa",
@@ -3886,11 +3949,13 @@
         "backTranslate": "Yi fassarar baya",
         "doCheck": "Yi {{check}}",
         "study": "Nazari",
-        "record": "Naɗa"
+        "record": "Naɗa",
+        "continueCheck": "Ci gaba da {{check}}"
       },
       "continueRecording": "Ci gaba da naɗawa",
       "askFor": "Nemi {{check}}",
       "movePastThis": "Wuce wannan shingen dubawa…",
+      "heldAt": "Yana jira a {{check}}, wanda dole ne ya wuce da farko",
       "skip": {
         "title": "A ajiye {{kind}} a gefe?",
         "sub": "Tsarin yana ba da shawarar wannan mataki. Ajiye shi a gefe ba laifi ba ne — ku faɗi dalili don mutum na gaba ya fahimta.",
@@ -3968,7 +4033,6 @@
       "someoneElseCheck": "{{kind}}: ku roƙi mutum, rukuni, ko wani a waje ta WhatsApp ko saƙon waya",
       "alreadyDid": "Mun riga mun yi wannan",
       "alreadyDidSub": "Ku faɗi yaushe da yadda {{check}} ya faru",
-      "notNowSub": "Ajiye {{check}} a gefe. Ku faɗi dalili",
       "newVersion": "Naɗa sabuwar siga",
       "newVersionSub": "Bitocin da aka yi zuwa yanzu suna zama tare da sigar da suka ji",
       "movePast": "Wuce shingen dubawa",
@@ -3980,7 +4044,9 @@
       "whatHelpsHelp": "Yana buɗe Littattafai Masu Tsarki, jagorori da sauran abubuwan taimako don wannan nassi.",
       "myself": "Zan yi wannan da kaina",
       "myselfSub": "{{kind}}: ku saurara ku yanke shawara yanzu",
-      "myselfMakesSub": "{{kind}}: ku nadi shi yanzu"
+      "myselfMakesSub": "{{kind}}: ku nadi shi yanzu",
+      "setAside": "Ajiye {{check}} a gefe",
+      "setAsideSub": "Faɗi dalili. Zai shiga cikin bayanan."
     },
     "published": {
       "askTitle": "Nemi dubawa",
@@ -4080,9 +4146,10 @@
       "titleRecord": "Roƙi wani ya naɗa",
       "titleKind": "Nemi {{kind}}",
       "titleReview": "Nemi bita",
-      "doneOutside": "An roƙi {{name}} · buƙatar tana cikin tarihi",
+      "doneOutside": "An ajiye a cikin bayanan, ba a aika ba. Ka aika wa {{name}} da kanka.",
       "doneTeam": "Zai bayyana a Aikina na {{name}}",
       "askName": "Roƙi {{name}}",
+      "saveRequest": "Ajiye roƙon",
       "chooseSomeone": "Zaɓi wani",
       "recordIt": "Naɗa shi",
       "recordSub": "Za su same shi a Aikina nasu, tare da asali da nazari a shirye.",
@@ -4091,11 +4158,9 @@
       "withoutApp": "Wani da ba shi da manhajar",
       "usuallyDoesThis": "Yawanci yana yin wannan",
       "nobody": "Babu wanda zai iya yin wannan a tawagar.",
-      "nobodyTryOutside": "Babu wanda zai iya yin wannan a tawagar. Ku gwada wani da ba shi da manhajar.",
       "guestName": "Sunansu — misali Fasto Garang",
       "phone": "Lambar waya",
-      "preview": "Duba farko na {{channel}}",
-      "previewNote": "An ajiye buƙatar a tarihi tare da sunansu da lambarsu. Aika mahaɗin mara-asusu daga manhajar bai shirya ba tukuna.",
+      "phoneNeeded": "Lambar waya · ana bukata",
       "directions": "Umarni · ba dole ba",
       "sayKeepInMind": "Ku faɗi abin da za a riƙe a zuciya",
       "sayListenFor": "Ku faɗi abin da za a saurara",
@@ -4105,12 +4170,15 @@
       "answerType": "Amsa: {{type}}",
       "addQuestion": "Ƙara tambaya",
       "sendHelp": "Yana aika buƙatar. Za su same ta a Aikina.",
-      "sendOutsideHelp": "Yana ajiye buƙatar a tarihi, tare da sunansu da lambarsu.",
+      "sendOutsideHelp": "Yana ajiye roƙon a cikin bayanan, da sunansu da lambarsu. Ba a aika musu komai ba.",
       "onTeamHelp": "Ku zaɓi wanda yake amfani da manhajar.",
-      "withoutAppHelp": "Ku roƙi wani ta WhatsApp ko saƙon waya maimakon haka.",
+      "withoutAppHelp": "Yana ajiye roƙo ga wanda ba shi da manhajar. Kai ne za ka aika masa saƙon.",
       "teamHelp": "Yana roƙon duk waɗanda ke kan wannan dubawa. Kowannensu zai iya yin ta.",
       "personHelp": "Yana zaɓar wannan mutum don a roƙa.",
       "phoneHelp": "Inda za a same su ta WhatsApp ko saƙon waya.",
+      "sendYourself": "Ka aika musu wannan da kanka, ta {{channel}}",
+      "shareMessage": "Raba saƙon",
+      "shareMessageHelp": "Yana buɗe zaɓin rabawa na wayarka da wannan saƙon. A burauza, yana kwafe shi.",
       "whatsappHelp": "Ku same su ta WhatsApp.",
       "smsHelp": "Ku same su ta saƙon waya.",
       "askSpecificHelp": "Ku rubuta tambaya da za su amsa, sannan ku ƙara ta.",
@@ -4124,7 +4192,9 @@
     },
     "versions": {
       "title": "Sigogi",
+      "whichDraft": "Wane daftari?",
       "newVersion": "Sabuwar siga",
+      "continueDraft": "Ci gaba da {{name}}",
       "yourDraft": "Daftarinka",
       "yourDrafts": "Daftarorinka",
       "published": "Waɗanda aka wallafa",
@@ -4161,6 +4231,7 @@
   "work": {
     "title": "Aikina",
     "loading": "Ana loda aikinku…",
+    "notReady": "Idan {{language}} yana da sassa da za a naɗa, aikinka zai bayyana a nan.",
     "askedBy": "roƙon {{name}}",
     "checkPassage": "Duba {{passage}}",
     "bell": {
@@ -4214,7 +4285,8 @@
       "wantsToJoin": "{{name}} na son shiga",
       "asked": "An nema {{when}}",
       "askedJustNow": "An nema yanzu nan",
-      "openHelp": "Yana buɗe buƙatarsu: ku zaɓi matsayi ku bar su su shiga."
+      "openHelp": "Yana buɗe buƙatarsu: ku zaɓi matsayi ku bar su su shiga.",
+      "connectToLetIn": "Haɗa da intanet don ka shigar da su"
     },
     "lead": {
       "getOrgReady": "Shirya {{org}}",
@@ -4272,7 +4344,11 @@
     "elsewhere": {
       "title": "Sabbin labarai a {{language}}",
       "sub_one": "Sabon labari {{count, number}} gare ku. Taɓa don komawa {{language}}.",
-      "sub_other": "Sababbin labarai {{count, number}} gare ku. Taɓa don komawa {{language}}."
+      "sub_other": "Sababbin labarai {{count, number}} gare ku. Taɓa don komawa {{language}}.",
+      "switched": "Yanzu a {{language}}",
+      "help": "Yana mayar da manhajar zuwa {{language}}.",
+      "back": "Koma {{language}}",
+      "backSub": "{{language}} ne a buɗe yanzu."
     },
     "again": {
       "title": "Sake naɗa {{passage}}",
@@ -4303,6 +4379,7 @@
       "notSaved": "Ba a ajiye ba: {{reason}}",
       "notSavedCode": "Ba a ajiye ba. Wani abu bai yi daidai ba (lamba {{code}}).",
       "dismissLabel": "{{message}} Kawar",
+      "close": "Rufe saƙon",
       "goesWhenConnected": "{{message}} Ƙungiyarka za ta samu idan wannan na'ura ta samu intanet."
     },
     "nav": {
@@ -4402,7 +4479,7 @@
       },
       "term": {
         "title": "Zaɓi kalma",
-        "sub": "Ma'anarta da yadda aka fassara ta za su buɗe a nan."
+        "sub": "Ma’anarta da kalmomin ƙungiyarku suna buɗewa a nan."
       },
       "language": {
         "title": "Zaɓi harshe",
@@ -4419,8 +4496,8 @@
       "subView": "Sharuɗɗan da ƙungiyarku take raba naɗe-naɗe da rubuce-rubucenta a ƙarƙashinsu.",
       "use": "Yi amfani da wannan lasisi",
       "opening": "Ana buɗewa…",
-      "yesOpenTo": "Ee, buɗe zuwa {{name}}",
-      "openTo": "Buɗe zuwa {{name}}",
+      "yesOpenTo": "Ee, buɗe: {{terms}}",
+      "openTo": "Buɗe: {{terms}}",
       "pickMoreOpen": "Zaɓi lasisin da ya fi buɗewa",
       "title": "Wa zai iya amfani da aikinku",
       "cannotUndo": "Ba za a iya janye wannan ba",
@@ -4441,6 +4518,8 @@
       "label": "Zane: haɗa aƙalla ɗigo {{n}}",
       "help": "Ja yatsa kan ɗigogin ba tare da ɗaga shi ba, ko taɓa su ɗaya bayan ɗaya sannan An gama. Haɗa aƙalla ɗigo {{n}}.",
       "dot": "Ɗigo {{n}}",
+      "dotsSoFar_one": "ɗigo {{count, number}}",
+      "dotsSoFar_other": "ɗigogi {{count, number}}",
       "picture": "Hoto {{n}}",
       "again": "Sake farawa",
       "againHelp": "Yana goge ɗigogin don sake fara zanen.",
@@ -4452,6 +4531,7 @@
     "turnOff": "Kashe taimako",
     "listen": "Saurara",
     "stop": "Tsaya",
+    "closeHint": "Yana rufe wannan bayani.",
     "line": "{{label}}. {{detail}}",
     "lineAfterSentence": "{{label}} {{detail}}",
     "details": {
@@ -4487,10 +4567,11 @@
       "explorer": "Yana buɗe mai binciken harsuna a sabon shafi: kowane harshe da inda ake magana da shi."
     },
     "sync": {
-      "live": "Ɗigo kore: an haɗa. Ana aika aikinku yayin da kuke yi. Taɓa don ganin abin da aka aika.",
-      "checking": "Ɗigo toka: ana neman haɗi. Aikinku yana zama a wannan na'ura har sai an aika shi.",
-      "offline": "Ɗigo ruwan ɗorawa: babu intanet. Aikinku yana zama a wannan na'ura, kuma za a aika shi da zarar an haɗa.",
-      "refused": "Ja: sabar ta ƙi wani abu. Taɓa don ganin mene ne, da abin da za a yi.",
+      "live": "Gajimare mai alamar daidai: an haɗa. Ana aika aikinka yayin da kake yi. Taɓa don ganin abin da aka aika.",
+      "checking": "Gajimare kawai: ana neman haɗi. Aikinka yana nan a wannan na’ura har sai an aika shi.",
+      "offline": "Gajimare da aka ketare: ba a haɗa ba. Aikinka yana nan a wannan na’ura, za a aika idan an haɗa.",
+      "refused": "Jan gajimare mai gargaɗi: sabar ta ƙi wani abu. Taɓa don ganin menene, da abin da za a yi.",
+      "tooOld": "Gajimare mai launin ruwan ɗorawa da kibiya ƙasa: wannan manhaja ta tsufa da yawa don karɓar sauye-sauyen ƙungiyarka. Taɓa don sabunta ta.",
       "withWaiting": "{{standing}} Lambar ita ce yawan abubuwan da ke jiran a aika.",
       "withReceiving": "{{standing}} Zoben yana juyawa yayin da ake sauke rikodin wasu zuwa wannan na’urar. Babu abin da ke jiran a aika."
     }
@@ -4668,10 +4749,13 @@
     "actions": {
       "openMembers": "Buɗe Membobi",
       "openPassage": "Buɗe nassin",
+      "openVersion": "Buɗe sigar",
+      "openReview": "Buɗe bitar",
       "closeReport": "Rufe ƙarar",
       "keep": "Bar shi",
-      "openPassageHelp": "Yana buɗe nassin da wannan ƙara take magana a kai.",
+      "openPassageHelp": "Yana buɗe abin da aka kai rahotonsa, don ka duba kafin ka yanke shawara.",
       "keepHelp": "Yana barin sa a tarihi, ya rufe ƙarar.",
+      "removeHelp": "Yana sake tambaya sau ɗaya, sannan ya cire shi daga rikodin a kowace na’ura.",
       "closeReportHelp": "Yana rufe ƙarar. Ba a cire kowa ba."
     },
     "hidden": {
@@ -4739,7 +4823,6 @@
       "timelineHelp": "Taɓa ko ku ja don zuwa wani lokaci. Lokutan: inda kuke, da tsawonsa."
     },
     "recorder": {
-      "permissionNeeded": "Ana buƙatar izinin makirufo.",
       "hidePartsHelp": "Ɓoye sassan.",
       "showPartsHelp": "Nuna kowane sashe, don ji ko goge shi.",
       "playAllHelp": "Ji duk abin da aka naɗa zuwa yanzu, sashe bayan sashe.",
@@ -4794,7 +4877,11 @@
       "movePartHelp": "Ku ja sama ko ƙasa don matsar da wannan sashe. Sashen da kuka matsar yana rasa ayarsa, don ku sake ba shi.",
       "moveUp": "Matsar sama",
       "moveDown": "Matsar ƙasa",
-      "undoHelp": "Yana janye canjinku na ƙarshe ga sassan. Ku sake taɓawa don komawa baya sosai."
+      "undoHelp": "Yana janye canjinku na ƙarshe ga sassan. Ku sake taɓawa don komawa baya sosai.",
+      "micOff": "LangQuest ba ya jin ka. Kunna makirufo don LangQuest a cikin Saituna.",
+      "micOffWeb": "LangQuest ba ya jin ka. Ba da izinin makirufo don wannan shafin a cikin burauzarka, sannan ka sake taɓa naɗi.",
+      "openSettings": "Buɗe Saituna",
+      "openSettingsHelp": "Yana buɗe saitunan wannan wayar don LangQuest. Kunna makirufo a can, sannan ka dawo."
     },
     "cleanUp": {
       "cleanUp": "Tsaftace",
@@ -4925,11 +5012,11 @@
       "notes": "Bayanai",
       "history": "Tarihi",
       "tied": "An haɗa da daftarinku.",
-      "noTerms": "Babu muhimmiyar kalmar da ta dace da asalin wannan nassi.",
-      "noRendering": "Ba a fassara ta ba tukuna",
+      "noTerms": "Babu muhimman kalmomi a wannan sashe.",
+      "noRendering": "Babu kalma tukuna",
       "termLabel": "{{term}}. {{rendered}}",
       "termLabelTied": "{{term}}. {{rendered}}. An haɗa da daftarinku",
-      "noLanguageRendering": "Babu fassarar {{language}} tukuna",
+      "noLanguageRendering": "Babu kalmar {{language}} tukuna",
       "tiedBadge": "An haɗa",
       "tying": "Ana haɗawa…",
       "tie": "Haɗa da daftarinku",
@@ -5167,8 +5254,8 @@
       "notHereSub": "Koma taswira don zaɓar wani.",
       "breakUp": "Raba {{book}}",
       "notBrokenUp": "Ba a raba {{book}} ba tukuna",
-      "chooseHow": "Ku zaɓi yadda za a yanka {{book}} gutsure-gutsure, babi-babi, nassosin FIA ko ta wata hanya. Sannan za a iya naɗa shi.",
-      "coordinatorDecides": "Mai gudanarwa ne zai yanke yadda za a yanka {{book}} gutsure-gutsure. Sannan za ku iya naɗa shi.",
+      "chooseHow": "Ku zaɓi yadda za a yanka {{book}} sassa-sassa, babi-babi, nassosin FIA ko ta wata hanya. Sannan za a iya naɗa shi.",
+      "coordinatorDecides": "Mai gudanarwa ne zai yanke yadda za a yanka {{book}} sassa-sassa. Sannan za ku iya naɗa shi.",
       "summary_one": "An naɗa nassi {{recorded}} cikin {{count, number}}",
       "summary_other": "An naɗa nassosi {{recorded}} cikin {{count, number}}",
       "summaryIn_one": "An naɗa nassi {{recorded}} cikin {{count, number}} a {{language}}",
@@ -5176,10 +5263,11 @@
       "key": "Ma'anar alamomi",
       "filterHelp": "Nuna wasu nassosi kaɗai, da cikakkiyar ma'anar alamomi.",
       "breakUpDifferently": "Raba ta wata hanya",
-      "breakUpDifferentlyHelp": "Canja yadda aka yanka wannan littafi gutsure-gutsure: babi-babi, nassosin FIA ko ta wata hanya.",
+      "breakUpDifferentlyHelp": "Canja yadda aka yanka wannan littafi sassa-sassa: babi-babi, nassosin FIA ko ta wata hanya.",
       "chapterTitle": "{{book}} {{n}}",
       "pickPart_one": "Sashe {{count, number}} — zaɓi ɗaya",
-      "pickPart_other": "Sassa {{count, number}} — zaɓi ɗaya"
+      "pickPart_other": "Sassa {{count, number}} — zaɓi ɗaya",
+      "outsideFilter": "A wajen tacewa"
     },
     "home": {
       "title": "Taswirar Nassosi",
@@ -5198,9 +5286,10 @@
       "noPassageMatch": "Babu nassin da ya dace — gwada sunan littafi, sannan babi",
       "oldTestament": "Tsohon Alkawari",
       "newTestament": "Sabon Alkawari",
+      "testamentCount": "{{name}} · {{n, number}}",
       "noBooks": "Babu littattafai a wannan harshe tukuna.",
       "findHelp": "Ku rubuta sunan littafi, sannan lambar babi don tsallakawa kai tsaye zuwa gare shi.",
-      "languageChipHelp": "Yana nuna taswirar wannan harshe."
+      "languageChipHelp": "Yana buɗe taswirar wannan harshe kuma ya mai da shi harshen da kake aiki da shi. Aikina ma yana bi."
     },
     "tones": {
       "done": "An gama",
@@ -5353,6 +5442,7 @@
       "ofPlan": "{{actual}} cikin {{expected}} na shiri",
       "ofPlanFinishes": "{{actual}} cikin {{expected}} na shiri · zai kammala {{date}}",
       "setTarget": "Ku sa buri a shafin harshe.",
+      "adminSets": "Wanda ke kula da wannan harshe ne ke saita burinsa.",
       "targetRange": "{{scope}} · {{from}} – {{to}}"
     },
     "paceAdvice": {
@@ -5531,7 +5621,8 @@
       "alertsHelp": "Yana nuna matsalolin da ke buƙatar wani ya kula. Lamba tana nufin yawansu."
     },
     "home": {
-      "catchUp": "Kamo sabar",
+      "refresh": "Sabunta",
+      "clusterFilter": "Rukuni",
       "alertsChip_one": "Faɗakarwa, {{count, number}} na buƙatar wani",
       "alertsChip_other": "Faɗakarwa, {{count, number}} na buƙatar wani",
       "allCountries": "Dukan ƙasashe",
@@ -5569,7 +5660,8 @@
       "noCountries": "Babu harshen da ke da ƙasa tukuna. Ku sa ɗaya a shafin kowane harshe.",
       "toLanguagesHelp": "Yana komawa shafin da ke da kowane harshe dalla-dalla.",
       "toActivityHelp": "Yana komawa shafin abin da ya isa sabar, rana bayan rana.",
-      "toMapHelp": "Yana komawa taswirar inda harsunan suke."
+      "toMapHelp": "Yana komawa taswirar inda harsunan suke.",
+      "openAlertsHelp": "Yana buɗe Faɗakarwa: abin da ke bukatar wani, da abin da za a yi."
     },
     "portfolio": {
       "activeDays": "Masu aiki (kwanaki 14 na ƙarshe)",
@@ -5776,12 +5868,13 @@
       "allClear": "Komai lafiya",
       "allClearBody": "Babu sautin da ya maƙale, matsalar inganci ko tsofaffin alƙaluma.",
       "whatToDo": "<b>Abin da za a yi:</b> {{action}}",
+      "adminSets": "Wanda ke kula da kowane harshe zai iya saita wannan a shafinsa.",
       "stuckRow": "{{recordings}} a cikin {{passages}}, mafi tsufa daga {{date}}",
       "refreshed": "an sabunta {{when}}",
       "stale": {
         "title": "Waɗannan alƙaluma ba na yanzu ba ne",
         "body": "An karanta su {{ago}}. Aikin da aka daidaita tun lokacin ba ya ciki.",
-        "action": "Ku sake loda shafin don kamowa."
+        "action": "Danna Sabunta a saman Rahotanni don ka kamo."
       },
       "stuck": {
         "title": "Sautin da aka naɗa ya maƙale a na'urori",
@@ -5873,6 +5966,8 @@
       "scopeHelp": "Abin da burin ya ƙunsa. Sannan ku sa kwanakin ku ajiye.",
       "startHelp": "Ranar da aka fara aiki zuwa ga burin.",
       "finishByHelp": "Ranar da ya kamata a cim ma burin.",
+      "suggestEnd": "Wata 18: {{date}}",
+      "suggestEndHelp": "Yana cike kammalawa wata 18 bayan farawa, da yau a matsayin farawa idan babu. Ba a ajiye komai har sai ka ajiye burin.",
       "saveTargetHelp": "Yana ajiye burin da kwanakinsa a sabar yanzu. Yana buƙatar haɗi.",
       "pickCountryHelp": "Yana zaɓar wannan ƙasa. Sannan Ajiye ƙasa yana riƙe ta.",
       "chosenCountryHelp": "Ƙasar da aka zaɓa yanzu, a rubutu mai kauri. Taɓa wata don canja ta."
@@ -6120,7 +6215,20 @@
       "doneRecordedHelp": "Yana sa {{what}} a tarihin nassin.",
       "looksGoodOffline": "Yana da kyau. {{name}} zai samu idan wannan na'ura ta samu intanet.",
       "feedbackOffline": "An adana ra'ayin. {{name}} zai samu idan wannan na'ura ta samu intanet.",
-      "helpWordsHelp": "Yana buɗe muhimman kalmomin wannan nassi, tare da kalmar tawagar ga kowacce da kuma ko wannan siga ta yi amfani da ita."
+      "helpWordsHelp": "Yana buɗe muhimman kalmomin wannan nassi, tare da kalmar tawagar ga kowacce da kuma ko wannan siga ta yi amfani da ita.",
+      "addedAtCheckpoint": "An ƙara {{kind}} cikin rikodin. Wurin dubawar har yanzu yana jiran dubawar da aka yi a cikin manhajar.",
+      "keptNotSent": "An ajiye bitarka a wannan wayar. Ba a aika ta ba tukuna.",
+      "notOnPhoneYet": "Naɗin bai zo wannan wayar ba tukuna. Zai kunnu a nan da zarar wayar ta haɗu da intanet.",
+      "previousQuestion": "Tambayar da ta gabata",
+      "previousQuestionHelp": "Yana komawa tambayar da ta gabata, don ka canza amsarka.",
+      "loggedCheckpoint": "Wannan dubawa wurin dubawa ne: idan aka rubuta ta nan, za ta shiga rikodin, amma dubawar da aka yi a cikin manhaja ce kaɗai ke buɗe matakan da ke biye.",
+      "notPlayedYet": "Ba ka kunna wannan sigar ba tukuna.",
+      "sendChangeTitle": "Aika abin da ya kamata a canza tare da \"Yana da kyau\"?",
+      "sendChangeSub": "Ka faɗi abin da ya kamata a canza, sannan ka zaɓi \"Yana da kyau\".",
+      "leaveItOut": "Kar a aika",
+      "leaveItOutHelp": "Yana aika \"Yana da kyau\" kaɗai. Abin da ka faɗa game da canje-canje ba zai shiga rikodi ba.",
+      "sendItToo": "Aika shi ma",
+      "sendItTooHelp": "Yana aika \"Yana da kyau\" tare da abin da ka faɗa, don mai fassara ma ya ji."
     },
     "guest": {
       "previewSub": "Duba farko · abin da wanda ba shi da manhajar yake gani",
@@ -6402,22 +6510,19 @@
     "rec": {
       "recommended": "An ba da shawara",
       "notRecommended": "Ba a ba da shawara ba",
-      "hiddenForLanguage": "An ɓoye don wannan harshe",
+      "notHere": "Ba a ba da shawara a nan ba",
       "forLanguage": "An ba da shawara don wannan harshe",
       "byOrganization": "Ƙungiyar ta ba da shawara",
       "stop": "Daina ba da shawara",
       "recommend": "Ba da shawara",
-      "follow": "Bi ƙungiya",
-      "hide": "Ɓoye",
+      "recommendHere": "Ba da shawara a nan",
+      "stopHere": "Daina ba da shawara a nan",
       "done": {
         "recommendedEverywhere": "An ba da shawarar {{name}} ga kowane harshe.",
         "recommendedHere": "An ba da shawarar {{name}} ga tawagar wannan harshe.",
         "stopped": "Ba a ba da shawarar {{name}} yanzu.",
-        "hidden": "An ɓoye {{name}} don wannan harshe.",
-        "follows": "{{name}} yana bin ƙungiyar a nan."
+        "stoppedHere": "Ba a ba da shawarar {{name}} ga ƙungiyar wannan harshe yanzu."
       },
-      "followHelp": "Wannan harshe yana komawa ga abin da ƙungiyar take ba da shawara.",
-      "hideHelp": "Tawagar wannan harshe ba za ta ƙara samun sa ba, ko da yake ƙungiyar tana ba da shawararsa.",
       "recommendLanguageHelp": "Tawagar wannan harshe tana samun sa a matsayin shawara.",
       "recommendOrgHelp": "Tawagar kowane harshe tana samun sa a matsayin shawara.",
       "stopLanguageHelp": "Tawagar wannan harshe ba za ta ƙara samun sa a matsayin shawara ba.",
@@ -6479,7 +6584,10 @@
       "introLanguage": "Abin da ake ba tawagar wannan harshe: shawarwarin ƙungiyar, tare da abin da kuka ƙara ko kuka ɓoye a nan. Masu fassara har yanzu za su iya zagaya kowane Littafi Mai Tsarki ta intanet.",
       "recommended": "An ba da shawara · {{n, number}}",
       "noneRecommended": "Ba a ba da shawarar wani Littafi Mai Tsarki a nan ba tukuna. Ku ƙara ɗaya, ko ku ba da shawarar ɗaya a ƙasa.",
-      "hidden": "An ɓoye don wannan harshe · {{n, number}}",
+      "noneRecommendedAdd": "Ba a ba da shawarar wani Littafi Mai Tsarki a nan ba tukuna. Ku ƙara ɗaya.",
+      "noneRecommendedBelow": "Ba a ba da shawarar wani Littafi Mai Tsarki a nan ba tukuna. Ku ba da shawarar ɗaya a ƙasa.",
+      "noneRecommendedYet": "Ba a ba da shawarar wani Littafi Mai Tsarki a nan ba tukuna.",
+      "hidden": "Ba a ba da shawara a nan ba · {{n, number}}",
       "notRecommended": "A ɗakin karatunku, ba a ba da shawara ba · {{n, number}}",
       "cardHelp": "Yana buɗe shi: rubutunsa, sautinsa, lokutan ayoyinsa da waɗanda aka ba su shawararsa."
     },
@@ -6500,7 +6608,6 @@
       "bibleBrainHelp": "Ku nemi Littattafai Masu Tsarki a Bible Brain bisa harshe.",
       "bibleHelp": "Yana nuna abin da yake da shi kafin ku ƙara shi.",
       "fromLangQuestHelp": "Yana nuna Littattafai Masu Tsarki da LangQuest yake da su a shirye don a bi.",
-      "readyHelp": "Yana ƙara shi a ɗakin karatunku kuma yana ba da shawararsa a nan.",
       "searchHelp": "Ku rubuta sunan harshe ko lambarsa don nemo Littattafai Masu Tsarkinsa.",
       "listed": "Harsunan da ke da Littafi Mai Tsarki a Bible Brain kaɗai ake nunawa.",
       "noMatch": "Babu harshe mai wannan suna da ke da Littafi Mai Tsarki a Bible Brain.",
@@ -6708,6 +6815,7 @@
       "all": "Dukan muhimman kalmomi",
       "hear": "Ji {{term}}",
       "hearHelp": "Yana kunna ayar da take ciki.",
+      "noVerseAudio": "Wannan Littafi Mai Tsarki ba shi da sauti na wannan aya.",
       "hearLabel": "Ji {{term}} a Littafi Mai Tsarki",
       "openHelp": "Abin da take nufi, yadda tawagarku take faɗinta, da dalili.",
       "termLabel": "{{term}}. {{refs}}",
@@ -6726,9 +6834,11 @@
       "added": "An ƙara {{term}}.",
       "addSub": "Kalmar da ya kamata tawagar ta riƙa faɗa haka kowane lokaci. Ana ƙara ta a muhimman kalmomin {{language}}.",
       "addWord": "Ƙara kalmar",
+      "addWordHelp": "Yana ƙara kalmar bayan ka faɗa ko ka rubuta yadda {{language}} ke faɗin ta.",
       "wordPlaceholder": "Kalmar a Littafi Mai Tsarki, misali makiyayi",
       "meaningPlaceholder": "Ma'anarta (ba dole ba)",
       "sayItIn": "Faɗe ta da {{language}}",
+      "howSays": "Yadda {{language}} ke faɗin sa",
       "allHelp": "Yana buɗe jerin dukan muhimman kalmomi a wannan harshe.",
       "typeHelp": "Ku rubuta yadda {{language}} yake faɗinta.",
       "addYourWord": "Ƙara kalmarku"
@@ -7031,7 +7141,9 @@
       "startHelp": "Yana maye gurbin dubawar da rukunin da aka shirya, don ku canja yadda kuke so.",
       "useHelp": "Yana maye gurbin dubawar {{language}} da waɗannan. Janye yana mayar da su.",
       "pickHelp": "Yana zaɓar sa. Sannan Yi amfani, a ƙasa, yana maye gurbin dubawar da tasa.",
-      "replaceAsk": "A maye gurbin dubawar {{language}} ta kanta da {{name}}?"
+      "replaceAsk": "A maye gurbin dubawar {{language}} ta kanta da {{name}}?",
+      "useThese": "Yi amfani da waɗannan dubawa",
+      "replaceOwnAsk": "A maye gurbin dubawar {{language}} ta kanta?"
     },
     "gone": "Wannan ba ya cikin dubawar harshen yanzu",
     "checkOf": "Dubawa ta {{n}} · {{language}}",
@@ -7081,6 +7193,8 @@
     "forTeam": "Don tawagar {{check}}",
     "forCheck": "Don {{check}}",
     "dragHelp": "Ku ja sama ko ƙasa don canja lokacin da wannan dubawa take zuwa.",
+    "moveUpHelp": "Wannan duba yana zuwa wuri ɗaya a gaba.",
+    "moveDownHelp": "Wannan duba yana zuwa wuri ɗaya a baya.",
     "addThisHelp": "Yana ƙara wannan dubawa bayan sauran.",
     "newCheckHelp": "Sunan sabuwar dubawa, idan ba ɗaya daga cikin waɗannan ba ce.",
     "addCheckHelp": "Ku zaɓi dubawar da ƙungiyarku ta sani, ko ku sa sunan sabuwa.",
@@ -7476,8 +7590,10 @@
     "dismiss": "Rufe",
     "dismissHelp": "Yana ɓoye wannan har sai sabon sigar ya fito.",
     "required": "Da fatan za a sabunta manhajar",
+    "requiredSub": "Rikodinka da canje-canjenka suna zuwa ga ƙungiyarka har yanzu. Babu sabon abu daga gare su da zai iso wannan waya har sai ka sabunta.",
+    "requiredBar": "Sabunta don samun aikin ƙungiyarka",
     "keepWorking": "Ci gaba da aiki",
-    "keepWorkingHelp": "Aikinka yana nan a wannan wayar, kuma za a aika shi bayan ka sabunta."
+    "keepWorkingHelp": "Yana rufe wannan yanzu. Kana iya ci gaba da rikodi; aikinka yana zuwa ga ƙungiyarka har yanzu."
   },
   "globalViewer": {
     "title": "Mai Kallo na Duniya",
@@ -7511,6 +7627,7 @@
     "onTitle": "Kuna iya karanta dukkan ƙungiyoyi",
     "onBody": "Kuna ganin abin da Mai Kallo ke gani. Ba za ku iya canza komai ba.",
     "search": "Ƙungiya ko harshe",
+    "searching": "Ana nema…",
     "openNowLabel": "{{name}}, a buɗe yanzu",
     "openHelp": "Yana buɗe wannan ƙungiya don karantawa.",
     "noneFound": "Babu ƙungiyar da ta dace.",

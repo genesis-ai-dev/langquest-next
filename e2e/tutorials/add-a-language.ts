@@ -94,7 +94,7 @@ export const addALanguage: Tutorial = {
       part: (page) => id(page, 'primary-action'),
       say: 'Tap Continue.',
       tap: true,
-      until: until('How should the Bible be broken up?'),
+      until: until('How should the Bible be divided?'),
       stay: 0.6
     },
     {

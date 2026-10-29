@@ -102,6 +102,14 @@ describe('before an outcome can be sent (REV-2, REV-3)', () => {
     expect(footHint(ready, { what: 'back translation', has: true })).toBeNull();
   });
 
+  it('a note made while listening says what to change too (decisions.md 149)', () => {
+    // Why: three notes said at moments of the recording sat over a greyed
+    // Send feedback that asked for the same thing again.
+    const noted = readiness(questions, { a: 'Yes', b: 'No' }, {}, '', null, 3);
+    expect(noted.saysWhat).toBe(true);
+    expect(footHint(noted)).toBeNull();
+  });
+
   it('saves only real answers, and skips only for questions still unanswered', () => {
     expect(cleanAnswers(questions, { a: ' Yes ', b: '', gone: 'x' })).toEqual({ a: 'Yes' });
     expect(cleanAnswers(questions, { b: ' ' })).toBeUndefined();
@@ -118,7 +126,7 @@ describe('before an outcome can be sent (REV-2, REV-3)', () => {
     const look = { term: (id: string) => (id === 't1' ? 'Shepherd' : undefined), versionN: (id: string) => (id === 'tk' ? 2 : undefined) };
     expect(noteAnchorText({ kind: 'passage' }, look)).toBe('Whole passage');
     expect(noteAnchorText({ kind: 'verse', verse: '4' }, look)).toBe('Verse 4');
-    expect(noteAnchorText({ kind: 'term', termId: 't1' }, look)).toBe('Key term · Shepherd');
+    expect(noteAnchorText({ kind: 'term', termId: 't1' }, look)).toBe('Key word · Shepherd');
     expect(noteAnchorText({ kind: 'version', takeId: 'tk' }, look)).toBe('Version 2');
   });
 });
@@ -137,7 +145,7 @@ describe('reviewing is three short steps: Listen, Questions, Decide (REV-0, SIMP
   it('Listen, Questions, Decide; Questions left out when there are none', () => {
     expect(labels({ questions: 2, logged: false, makes: false })).toEqual(['Listen', 'Questions', 'Decide']);
     expect(labels({ questions: 0, logged: false, makes: false })).toEqual(['Listen', 'Decide']);
-    expect(reviewStages({ questions: 2, logged: false, makes: false }).map((x) => x.icon)).toEqual(['listen', 'help', 'check']);
+    expect(reviewStages({ questions: 2, logged: false, makes: false }).map((x) => x.icon)).toEqual(['listen', 'list', 'check']);
   });
 
   it('a session that already happened decides the same way; a kind that makes content ends in Record it', () => {

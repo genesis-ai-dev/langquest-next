@@ -14,7 +14,7 @@ const tag = () => world().run.slice(-4);
 /** Open New language: its six steps, then Start (decision 146). */
 async function startNewLanguage(page: Page): Promise<void> {
   await text(page, 'New language or cluster').click();
-  await expectOnScreen(page, '6 steps', 'Language', 'Content', 'Split into pieces', 'Reference material', 'Review flow', 'People');
+  await expectOnScreen(page, '6 steps', 'Language', 'Content', 'Divide into sections', 'Reference material', 'Review flow', 'People');
   await primary(page).click();
 }
 
@@ -34,7 +34,7 @@ async function bibleStep(page: Page, opts: { way?: string | RegExp; scope?: stri
   await page.getByPlaceholder('NIV, Reina-Valera, Luther…').fill('World English');
   await text(page, 'World English Bible').click();
   await primary(page).click();
-  await expectOnScreen(page, 'How should the Bible be broken up?');
+  await expectOnScreen(page, 'How should the Bible be divided?');
   // "FIA passages" is LangQuest's (it comes with FIA's study guides); "FIA passages (English)" is the one Alpha follows.
   await text(page, opts.way ?? 'FIA passages').click();
   if (opts.scope) await text(page, opts.scope).click();
@@ -125,7 +125,8 @@ test('SETUP-011 Pick the language from the language list', async ({ page }) => {
   await expectNotOnScreen(page, 'Searching the language list…', 'Is it one of these?');
   await field(page, 'Its name').fill('Hadiyya');
   // The local language list is not seeded, so nothing is found: picking an entry needs the preview environment.
-  await expect.poll(() => screenText(page), { timeout: 30_000 }).toMatch(/Is it one of these\?|Nothing in the language list goes by that name\./);
+  // A section label is capitals on screen (innerText), so the match ignores case.
+  await expect.poll(() => screenText(page), { timeout: 30_000 }).toMatch(/Is it one of these\?|Nothing in the language list goes by that name\./i);
   if (/Nothing in the language list goes by that name\./.test(await screenText(page))) {
     await expectOnScreen(page, 'Not there? Continue anyway. It is added unlinked, and you can link it from its page later.');
     test.info().annotations.push({ type: 'note', description: 'The local language list returned nothing; picking an entry was not exercised.' });
@@ -146,7 +147,9 @@ test('SETUP-012 Add a language offline, unlinked, and link it later', async ({ p
   await materialStep(page);
   await expectOnScreen(page, 'How will recordings get checked?', 'Standard Bible Flow');
   await page.context().setOffline(true);
+  // ✕ asks before the answers are lost (decision 137).
   await back(page).click();
+  await text(page, 'Leave').click();
   await orgHome(page, w);
   await startNewLanguage(page);
   await field(page, 'Its name').fill(name);
@@ -196,7 +199,7 @@ test('SETUP-014 Choose which books a new language translates', async ({ page }) 
   await text(page, 'World English Bible').click();
   await primary(page).click();
   await text(page, 'FIA passages').click();
-  await expectOnScreen(page, '3 of 6 · Split into pieces', 'Which part of the Bible?', 'New Testament', 'Old Testament', 'Whole Bible', 'Choose books');
+  await expectOnScreen(page, '3 of 6 · Divide into sections', 'Which part of the Bible?', 'New Testament', 'Old Testament', 'Whole Bible', 'Choose books');
   await text(page, 'Choose books').click();
   await expectOnScreen(page, 'Mark', 'Luke');
   // A book chip says whether it is on (aria-pressed on the web).
@@ -215,7 +218,7 @@ test('SETUP-014 Choose which books a new language translates', async ({ page }) 
   await expectOnScreen(page, 'Not added', 'Choose at least one book.');
   // Back to the pieces and choose Mark and Luke: the checks, the flows, what helps, its languages.
   for (let i = 0; i < 4; i++) await text(page, 'Back').click();
-  await expectOnScreen(page, 'How should the Bible be broken up?');
+  await expectOnScreen(page, 'How should the Bible be divided?');
   await text(page, 'Mark').click();
   await text(page, 'Luke').click();
   await expect(page.getByRole('button', { name: 'Luke', exact: true }).locator('visible=true').first()).toHaveAttribute('aria-pressed', 'true');
@@ -241,7 +244,7 @@ test('SETUP-015 Numbering is chosen first, by Bible, by list or by questions', a
   await text(page, 'The Bible').click();
   await primary(page).click();
   // The ways are offered only after a numbering (decision 80).
-  await expectNotOnScreen(page, 'How should the Bible be broken up?');
+  await expectNotOnScreen(page, 'How should the Bible be divided?');
   await page.getByPlaceholder('NIV, Reina-Valera, Luther…').fill('zzzz');
   await expectOnScreen(page, 'Not found.');
   await text(page, 'Not listed? Answer a few questions').click();
@@ -257,8 +260,8 @@ test('SETUP-015 Numbering is chosen first, by Bible, by list or by questions', a
     'Russian Synodal (Orthodox)', '66 books', 'Malachi 3', 'Headings verse 1');
   await text(page, 'Like the Hebrew and Greek').click();
   await primary(page).click();
-  await expectOnScreen(page, 'How should the Bible be broken up?');
-  await text(page, 'How is material broken up?').click();
+  await expectOnScreen(page, 'How should the Bible be divided?');
+  await text(page, 'How is material divided?').click();
   await expectOnScreen(page, 'Skip the walk-through');
   await text(page, 'Skip the walk-through').click();
   await back(page).click();

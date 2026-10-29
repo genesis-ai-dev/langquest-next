@@ -1,6 +1,6 @@
 /**
  * Feedback on the tutorial videos (docs/tutorial-videos.md "Feedback",
- * decisions.md 185, migration *_tutorial_feedback.sql), as the comments job,
+ * decisions.md 186, migration *_tutorial_feedback.sql), as the comments job,
  * the app's Worker and the ops dashboard share it: what came in about a
  * video (a comment on YouTube, a code change merged into main, a note on
  * the dashboard), what Claude's nightly look suggests doing about it, and
@@ -78,7 +78,7 @@ export function issueOf(s: Suggestion, languageName: (code: string) => string): 
       ...(s.tutorial ? [`Video: ${s.tutorial}`, ''] : []),
       ...(answers.length ? ['What it answers:', '', ...answers] : []),
       ...(s.reason ? [`Accepted with: ${s.reason}`, ''] : []),
-      'Suggested by Claude and accepted on the ops dashboard (docs/tutorial-videos.md, decisions.md 185).'
+      'Suggested by Claude and accepted on the ops dashboard (docs/tutorial-videos.md, decisions.md 186).'
     ].join('\n')
   };
 }

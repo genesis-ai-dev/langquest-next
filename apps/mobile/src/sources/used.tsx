@@ -15,6 +15,7 @@ import { Ico } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { C, radius, space } from '../ui/theme';
 import { madeWithLine } from './model';
+import { a11yState } from '../ui/a11yModel';
 
 function kindName(kind: UsedReference['kind']): string {
   switch (kind) {
@@ -35,7 +36,7 @@ export function UsedLine(props: { ctx: Ctx; state: LanguageState; subject: { tak
   if (items.length === 0) return null;
   return (
     <View style={styles.box}>
-      <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ expanded: d.open }}
+      <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ expanded: d.open }, 'button')}
         accessibilityLabel={d.open ? t('sources.used.hideList', { line: madeWithLine(items) }) : t('sources.used.showList', { line: madeWithLine(items) })}
         style={({ pressed }) => [styles.line, pressed && { opacity: 0.7 }]}>
         <Ico name="book" size={16} color={C.muted} />

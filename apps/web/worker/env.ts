@@ -66,7 +66,7 @@ export interface Env {
   YOUTUBE_CLIENT_ID?: string;
   YOUTUBE_CLIENT_SECRET?: string;
   /**
-   * A Linear personal API key (decisions.md 185): a code change accepted on
+   * A Linear personal API key (decisions.md 186): a code change accepted on
    * the ops dashboard becomes a Linear issue, filed by the ops action or,
    * when Linear fails then, by the comments job. Optional: without it
    * accepted code changes wait, counted on the dashboard.

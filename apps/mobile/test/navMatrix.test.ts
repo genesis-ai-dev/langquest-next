@@ -61,8 +61,9 @@ describe('NAV home and tabs, per role', () => {
   });
 
   it('NAV-002 What the Map tab opens, per role', () => {
-    for (const who of ['ADMIN', 'COORD', 'LADMIN', 'VIEW'] as const) expect(mapScreenFor(as(who)), who).toBe('status_home');
-    for (const who of ['TRANS', 'REV', 'TREV', 'KEPT'] as const) expect(mapScreenFor(as(who)), who).toBe('map_home');
+    // Several languages to manage, or a viewer: the overview. One language, whatever the role: that language (UI audit, finding 82).
+    for (const who of ['ADMIN', 'COORD', 'VIEW'] as const) expect(mapScreenFor(as(who)), who).toBe('status_home');
+    for (const who of ['LADMIN', 'TRANS', 'REV', 'TREV', 'KEPT'] as const) expect(mapScreenFor(as(who)), who).toBe('map_home');
     for (const who of ['ADMIN', 'COORD', 'LADMIN', 'VIEW', 'TRANS', 'REV', 'TREV', 'KEPT'] as const) {
       expect(tabsFor(as(who)).find((t) => t.id === 'map')!.screen, who).toBe(mapScreenFor(as(who)));
     }
@@ -117,11 +118,11 @@ describe('NAV home and tabs, per role', () => {
 
 describe('MAP the map, per role', () => {
   it('MAP-001 All languages: the roles that land on Progress', () => {
-    for (const who of ['ADMIN', 'COORD', 'LADMIN', 'VIEW'] as const) expect(mapScreenFor(as(who)), who).toBe('status_home');
+    for (const who of ['ADMIN', 'COORD', 'VIEW'] as const) expect(mapScreenFor(as(who)), who).toBe('status_home');
   });
 
   it("MAP-010 The language map's header and Back: workers land on their language, COORD arrives from Progress", () => {
-    for (const who of ['TRANS', 'REV', 'TREV', 'KEPT'] as const) expect(mapScreenFor(as(who)), who).toBe('map_home');
+    for (const who of ['LADMIN', 'TRANS', 'REV', 'TREV', 'KEPT'] as const) expect(mapScreenFor(as(who)), who).toBe('map_home');
     expect(mapScreenFor(as('COORD'))).toBe('status_home');
   });
 

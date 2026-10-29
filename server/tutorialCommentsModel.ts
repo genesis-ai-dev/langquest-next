@@ -4,7 +4,7 @@ import { accessToken, newComments, outOfQuota, YouTubeError, type Client, type F
 import type { Channel } from './tutorialPublisher';
 
 /**
- * What the comments job does (server/tutorialComments.ts, decisions.md 185),
+ * What the comments job does (server/tutorialComments.ts, decisions.md 186),
  * with the database and Linear given in so a test can play them: it reads
  * the comments left since its last run on each connected channel and keeps
  * them as written, for Claude's nightly look (tutorial-review.yml) to put

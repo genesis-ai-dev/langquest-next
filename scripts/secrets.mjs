@@ -48,7 +48,7 @@ export const ADMIN_KEYS = ['ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_SUPABASE_TOKEN', 'AD
  * (.github/workflows/tutorials.yml), and is read on a laptop. YOUTUBE_CLIENT_ID and
  * YOUTUBE_CLIENT_SECRET are the OAuth client the tutorial channels are connected with and
  * published to (docs/tutorial-videos.md), for the app's Worker and its job. The comments job
- * (decisions.md 185) reads the comments with that client. LINEAR_API_KEY, a Linear personal
+ * (decisions.md 186) reads the comments with that client. LINEAR_API_KEY, a Linear personal
  * API key, is how the app's Worker and its comments job file an accepted code change in Linear.
  * CLAUDE_CODE_OAUTH_TOKEN signs Claude's nightly look at the videos' feedback
  * (.github/workflows/tutorial-review.yml) in to a Claude plan: made by `claude setup-token`,
@@ -64,7 +64,7 @@ export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET'];
  */
 export const OPTIONAL_KEYS = ['BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY'];
 
-/** The repository whose Actions secrets this script sets: the Gemini key and the Claude token, which no production system reads (decisions.md 183, 185). */
+/** The repository whose Actions secrets this script sets: the Gemini key and the Claude token, which no production system reads (decisions.md 183, 186). */
 export const GITHUB_REPO = 'genesis-ai-dev/langquest-next';
 
 /** LangQuest v2's production project, read (never written) by the v2 import and v2-sign-in (docs/v2-import.md). */
@@ -152,7 +152,7 @@ export function destinations(environment, values, ref, serviceRoleKey) {
         ...(values.V2_DATABASE_URL ? { V2_DATABASE_URL: values.V2_DATABASE_URL } : {}),
         // Connect YouTube and the publish job (decisions.md 180): both or neither, as one is no use alone.
         ...(values.YOUTUBE_CLIENT_ID && values.YOUTUBE_CLIENT_SECRET ? { YOUTUBE_CLIENT_ID: values.YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET: values.YOUTUBE_CLIENT_SECRET } : {}),
-        // An accepted code change to Linear (decisions.md 185).
+        // An accepted code change to Linear (decisions.md 186).
         ...(values.LINEAR_API_KEY ? { LINEAR_API_KEY: values.LINEAR_API_KEY } : {})
       },
       'invite-email': { INVITE_RELAY_SECRET: values.INVITE_RELAY_SECRET },

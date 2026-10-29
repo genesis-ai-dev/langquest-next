@@ -22,7 +22,7 @@ export async function saveRows(ctx: Ctx, rows: CheckRow[], message: string, befo
   try {
     specs = [...before, ...c.saveFlowSteps({ commandId: Crypto.randomUUID(), steps: stepsOf(rows) })];
   } catch (e) {
-    ctx.toast(t('common.notSaved', { reason: failureMessage('save checks', e) })); // i18n-ignore: log label
+    ctx.toast(t('common.notSaved', { reason: failureMessage('save checks', e) }), 'problem'); // i18n-ignore: log label
     return null;
   }
   try {

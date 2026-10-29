@@ -32,6 +32,8 @@ export { default as CircleHelp } from 'lucide-react-native/icons/circle-question
 export { default as ClipboardList } from 'lucide-react-native/icons/clipboard-list';
 export { default as Clock } from 'lucide-react-native/icons/clock';
 export { default as Cloud } from 'lucide-react-native/icons/cloud';
+export { default as CloudAlert } from 'lucide-react-native/icons/cloud-alert';
+export { default as CloudDownload } from 'lucide-react-native/icons/cloud-download';
 export { default as CloudCheck } from 'lucide-react-native/icons/cloud-check';
 export { default as CloudOff } from 'lucide-react-native/icons/cloud-off';
 export { default as Download } from 'lucide-react-native/icons/download';
@@ -58,6 +60,9 @@ export { default as Lightbulb } from 'lucide-react-native/icons/lightbulb';
 export { default as Link } from 'lucide-react-native/icons/link';
 export { default as List } from 'lucide-react-native/icons/list';
 export { default as Lock } from 'lucide-react-native/icons/lock';
+export { default as LockOpen } from 'lucide-react-native/icons/lock-open';
+export { default as Printer } from 'lucide-react-native/icons/printer';
+export { default as Copy } from 'lucide-react-native/icons/copy';
 export { default as MapIcon } from 'lucide-react-native/icons/map';
 export { default as MapPin } from 'lucide-react-native/icons/map-pin';
 export { default as Menu } from 'lucide-react-native/icons/menu';

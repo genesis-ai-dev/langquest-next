@@ -5,7 +5,7 @@ import type { GithubRun, OidcRule } from './githubOidc';
 /**
  * The door Claude's nightly look at the tutorial videos' feedback uses
  * (.github/workflows/tutorial-review.yml, docs/tutorial-videos.md
- * "Feedback", decisions.md 185): `GET /api/tutorial-review` is what is open
+ * "Feedback", decisions.md 186): `GET /api/tutorial-review` is what is open
  * (`ops_tutorial_review_state`), `POST` what the look made
  * (server/tutorialFeedback.ts `Review`, checked, then `ops_tutorial_reviewed`).
  *

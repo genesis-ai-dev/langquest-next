@@ -173,7 +173,7 @@ do $$ begin
 end $$;
 reset role;
 
--- Feedback on the videos (migration *_tutorial_feedback.sql, decisions.md 185): the comments job keeps
+-- Feedback on the videos (migration *_tutorial_feedback.sql, decisions.md 186): the comments job keeps
 -- each comment once, with the tutorial its video is a version of; a note comes from the dashboard; Claude's
 -- nightly look reads every open input and the suggestions so far, adds the code changes it found, each
 -- comment in English with a reply, what it looked at and suggests; a person accepts, edits or rejects

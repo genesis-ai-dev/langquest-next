@@ -19,6 +19,12 @@ export interface BookChangeSheet {
   here: string;
   /** The other languages the change reaches, by name. */
   others: string[];
+  /** The book was divided before: its work moves to Earlier sections (decision 74). */
+  redo: boolean;
+  /** The other languages chosen to change too, by name, for the warning that follows the choice. */
+  also: string[];
+  /** This language's sections of the book that have recordings on this phone; unknown where no language is open. */
+  recorded?: number;
   closeWarn(): void;
   confirmRedo(): void;
   closeAsk(): void;
@@ -30,7 +36,7 @@ export interface BookChangeSheet {
  * which languages it changes when the template is shared (decision 74), then
  * the change. `sheets` is what BookChangeSheets (parts.tsx) asks.
  */
-export function useBookChange(ctx: Ctx, c: { book: string; bookName: string; doc: TemplateDoc; item: LibraryItemView | null; redo: boolean; onDone: () => void }) {
+export function useBookChange(ctx: Ctx, c: { book: string; bookName: string; doc: TemplateDoc; item: LibraryItemView | null; redo: boolean; recorded?: number; onDone: () => void }) {
   const lib = useLibrary(ctx);
   const { users: rows } = useTemplateUsers(ctx);
   const sel = ctx.language.state?.template?.value;
@@ -38,6 +44,8 @@ export function useBookChange(ctx: Ctx, c: { book: string; bookName: string; doc
   const [warn, setWarn] = useState(false);
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
+  // The languages chosen, kept while the warning that names them is open.
+  const [chosen, setChosen] = useState<Set<string> | null>(null);
   const org = ctx.org.state;
   const users = sel ? templateUsersFor({
     users: rows, itemId: sel.itemId, nameOf: (id) => languageName(org, id),
@@ -56,30 +64,44 @@ export function useBookChange(ctx: Ctx, c: { book: string; bookName: string; doc
       setAsking(false);
       setWarn(false);
       setPending(null);
+      setChosen(null);
       c.onDone();
     } catch (e) {
       setBusy(false);
-      ctx.toast(failureMessage('break up a book', e));
+      ctx.toast(failureMessage('break up a book', e), 'problem');
     }
   }
   const here = () => new Set([ctx.language.languageId ?? '']);
   return {
     busy,
-    /** Divide the book as `way` does; `note` is the new version's note, `said` the toast. */
+    /**
+     * Divide the book as `way` does; `note` is the new version's note, `said`
+     * the toast. Which languages first, then one warning that names them all:
+     * the other way round, the warning spoke of this language only and the
+     * languages ticked after it went unmentioned (UI audit, finding 47).
+     */
     start(way: TemplateDoc, note: string, said: string) {
       const change = { way, note, said };
       setPending(change);
-      if (c.redo) setWarn(true);
-      else if (shared) setAsking(true);
+      setChosen(null);
+      if (shared) setAsking(true);
+      else if (c.redo) setWarn(true);
       else void apply(here(), change);
     },
     sheets: {
-      warn, asking, busy, users, bookName: c.bookName, here: ctx.language.languageId ?? '',
+      warn, asking, busy, users, bookName: c.bookName, here: ctx.language.languageId ?? '', redo: c.redo,
       others: users ? users.filter((u) => u.languageId !== ctx.language.languageId).map((u) => u.name) : [],
-      closeWarn: () => setWarn(false),
-      confirmRedo: () => { setWarn(false); if (shared) setAsking(true); else void apply(here()); },
+      also: chosen && users ? users.filter((u) => chosen.has(u.languageId) && u.languageId !== ctx.language.languageId).map((u) => u.name) : [],
+      ...(c.recorded !== undefined ? { recorded: c.recorded } : {}),
+      closeWarn: () => { setWarn(false); setChosen(null); },
+      confirmRedo: () => void apply(chosen ?? here()),
       closeAsk: () => setAsking(false),
-      apply: (chosen: Set<string>) => void apply(chosen)
+      apply: (picked: Set<string>) => {
+        if (!c.redo) { void apply(picked); return; }
+        setChosen(picked);
+        setAsking(false);
+        setWarn(true);
+      }
     } satisfies BookChangeSheet
   };
 }

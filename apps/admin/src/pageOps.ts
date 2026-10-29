@@ -63,7 +63,7 @@ export const OPS_SECTIONS = [
   { id: 'expiry', title: 'Expiry dates', src: 'Tokens, Apple certificates and profiles, and dates kept in apps/admin/expiry.json' },
   { id: 'capacity', title: 'Capacity and cost', src: 'Database and R2 growth against the plan, Cloudflare usage this month' },
   { id: 'tutorials', title: 'Tutorial videos', src: 'ops.youtube_channels and ops.tutorial_videos (decisions.md 180)' },
-  { id: 'videofeedback', title: 'Feedback on the videos', src: 'ops.tutorial_inputs and ops.tutorial_suggestions: comments, code changes and notes, and what Claude suggests each night (decisions.md 185)' }
+  { id: 'videofeedback', title: 'Feedback on the videos', src: 'ops.tutorial_inputs and ops.tutorial_suggestions: comments, code changes and notes, and what Claude suggests each night (decisions.md 186)' }
 ] as const;
 
 export const OPS_SCRIPT = String.raw`
@@ -310,7 +310,7 @@ Object.assign(RENDER, {
     ], d.waiting);
     return h;
   },
-  // What came in about the videos and what Claude's nightly look suggests (decisions.md 185): a person accepts, edits or rejects each.
+  // What came in about the videos and what Claude's nightly look suggests (decisions.md 186): a person accepts, edits or rejects each.
   videofeedback(d) {
     const out = (href, text) => '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
     const titles = new Map(d.videos.map((v) => [v.tutorial, v.title]));
@@ -425,7 +425,7 @@ document.addEventListener('click', (e) => {
   if (ver && confirm((ver.dataset.decision === 'grant' ? 'Grant' : 'Decline') + ' this blue check?')) perform({ kind: 'verification', id: ver.dataset.ver, decision: ver.dataset.decision }, ver);
 });
 
-// ---- feedback on the tutorial videos (decisions.md 185): a yes, a no with why, or the suggestion edited; a note for the next look ----
+// ---- feedback on the tutorial videos (decisions.md 186): a yes, a no with why, or the suggestion edited; a note for the next look ----
 document.addEventListener('click', (e) => {
   const sg = e.target.closest && e.target.closest('[data-sg]');
   if (sg) {

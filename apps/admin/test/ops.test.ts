@@ -370,7 +370,7 @@ describe('tutorial videos (decisions.md 180)', () => {
   });
 });
 
-describe('feedback on the tutorial videos (decisions.md 185)', () => {
+describe('feedback on the tutorial videos (decisions.md 186)', () => {
   const feedback = (over: Partial<Feedback> = {}): Feedback => ({ suggestions: [], inputs: [], waiting: 0, open: 0, unfiled: 0, last: null, videos: [], ...over });
 
   it('counts what the database sends as numbers', () => {

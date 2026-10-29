@@ -29,6 +29,7 @@ import type { Usage } from './useUsage';
 import { useChipMarks, usePassageSource, useSources, type PassageSources } from './useSources';
 import { choiceKey, chipLabel, copyrightLine, anchorClock } from './sourceText';
 import { useChoice, useOffer } from './useSourceChoice';
+import { a11yState } from '../ui/a11yModel';
 
 /** Faith Comes By Hearing's terms for Bible Brain (DBP) content. */
 const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
@@ -254,7 +255,7 @@ function VersionChip(props: { option: SourceOption; label: string; on: boolean; 
     : o.from === 'passage' ? t('sources.reader.fromPassage') : null;
   const spot = useHelpSpot(props.label, t('sources.reader.versionHelp'), props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ selected: props.on }, 'button')}
       accessibilityLabel={[o.name, from, ...props.marks].filter(Boolean).join(t('sources.listSeparator'))}
       style={({ pressed }) => [styles.chip, props.on && styles.chipOn, pressed && styles.pressed]}>
       <View>
@@ -305,7 +306,7 @@ function VerseRowView(props: {
   const spot = useHelpSpot(t('reference.bible.verse', { verse: row.key }), detail || undefined, acts ? props.onPress : undefined);
   const onTerm = helpOn ? undefined : props.onTerm;
   return (
-    <Pressable onPress={spot.id ? spot.onPress : props.onPress} accessibilityRole="button" accessibilityState={{ selected: props.here || props.selected }}
+    <Pressable onPress={spot.id ? spot.onPress : props.onPress} accessibilityRole="button" {...a11yState({ selected: props.here || props.selected }, 'button')}
       accessibilityLabel={t('sources.reader.verseLabel', { verse: row.key, text: row.text })} accessibilityHint={props.timed ? t('sources.reader.playsFromVerse') : undefined}
       style={({ pressed }) => [styles.verse, props.here && styles.playing, props.selected && styles.selected, pressed && styles.pressed]}>
       <Text style={[styles.verseNum, props.here && { color: C.primary }]}>{row.key}</Text>
@@ -333,7 +334,7 @@ const styles = StyleSheet.create({
   chipOn: { backgroundColor: C.primary, borderColor: C.primary },
   moreChip: { borderStyle: 'dashed', borderColor: withAlpha(C.primary, 0.5) },
   chipLabel: { fontSize: T.sm, fontWeight: '700' },
-  chipMarks: { fontSize: 12, fontWeight: '600' },
+  chipMarks: { fontSize: T.xs, fontWeight: '600' },
   card: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, padding: space.md, gap: space.sm },
   playerRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   textCard: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, paddingVertical: space.xs },

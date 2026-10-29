@@ -1,6 +1,6 @@
 /**
  * The comments on the tutorial videos, kept for Claude's nightly look
- * (docs/tutorial-videos.md "Feedback", decisions.md 185):
+ * (docs/tutorial-videos.md "Feedback", decisions.md 186):
  * server/tutorialCommentsModel.ts run by the job container each day at 23:50
  * UTC, after the publish job (apps/web/worker/jobsModel.ts;
  * scripts/build-jobs.mjs bundles this file). It reads each channel's refresh

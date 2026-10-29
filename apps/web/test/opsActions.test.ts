@@ -220,7 +220,7 @@ describe('tutorial videos on YouTube (decisions.md 180)', () => {
   });
 });
 
-describe('feedback on the tutorial videos (decisions.md 185)', () => {
+describe('feedback on the tutorial videos (decisions.md 186)', () => {
   it('takes a note on a video or none, and an answer to a suggestion, with their arguments checked', () => {
     expect(parseAction({ kind: 'tutorial-note', tutorial: 'record-a-passage', text: '  Says Save, shows Done.  ' }))
       .toEqual({ kind: 'tutorial-note', tutorial: 'record-a-passage', text: 'Says Save, shows Done.' });

@@ -43,7 +43,7 @@ describe('job runner', () => {
     expect(jobsDue(Date.UTC(2026, 9, 19, 23, 10))).toEqual([{ key: 'projection' }, { key: 'tutorial-intake' }]);
     expect(jobsDue(Date.UTC(2026, 9, 19, 13, 10))).toEqual([{ key: 'projection' }]);
     expect(JOBS['tutorial-intake']).toMatchObject({ job: 'tutorial_intake', entrypoint: ['node', 'intake.mjs'], timeLimitMs: 120 * 60_000 });
-    // The day's comments on the videos, after the publish job (decision 185).
+    // The day's comments on the videos, after the publish job (decision 186).
     expect(jobsDue(Date.UTC(2026, 9, 19, 23, 50))).toEqual([{ key: 'projection' }, { key: 'tutorial-comments' }]);
     expect(JOBS['tutorial-comments']).toMatchObject({ job: 'tutorial_comments', entrypoint: ['node', 'comments.mjs'], timeLimitMs: 60 * 60_000 });
     expect(JOBS['fold-canary']).toMatchObject({ job: 'fold_canary', entrypoint: ['node', 'canary.mjs'], timeLimitMs: 60 * 60_000 });

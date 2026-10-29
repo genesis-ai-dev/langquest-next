@@ -443,7 +443,7 @@ export function tutorialAlerts(t: Tutorials, now = Date.now()): Alert[] {
 
 const TUTORIALS_MIGRATION = 'Needs migration 20261028090000_tutorial_videos.sql on this database.';
 
-// ---- feedback on the tutorial videos (decisions.md 185) ------------------------------------------
+// ---- feedback on the tutorial videos (decisions.md 186) ------------------------------------------
 
 /**
  * What came in about the videos (comments on YouTube, changes merged into

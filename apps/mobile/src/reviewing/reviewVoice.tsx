@@ -25,6 +25,7 @@ import type { VoiceAnswer } from './capture';
 import { lift } from '../ui/shadow';
 import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
 import { useRecorder, type RecordedCard } from '../recording/useRecorder';
+import { MicRefused } from '../recording/micRefused';
 import { canSpeak, synth, Utterance } from './speech';
 
 // ---- speaking a line aloud ----------------------------------------------------------------
@@ -94,7 +95,7 @@ export function BigMic(props: {
       <Text style={styles.bigLabel} accessibilityLiveRegion="polite">
         {recording ? t('review.voice.recordingTime', { time: formatClock(elapsed * 1000) }) : rec.busy ? t('common.saving') : props.label}
       </Text>
-      {rec.error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{rec.error}</Text> : null}
+      {rec.micRefused ? <MicRefused message={rec.error} /> : rec.error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{rec.error}</Text> : null}
     </View>
   );
 }

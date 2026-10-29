@@ -518,13 +518,15 @@ Preconditions:
 Steps:
 1. Open the app. Switch `/version.json` to a new build.
 2. Hide the tab (switch to another) and show it again.
-3. Open P-NEW and start recording. Tap the banner.
+3. Open P-NEW and start recording. Read the bar.
 4. Stop recording. Tap the banner.
 
 Expected:
 - Step 2: the banner "A new version of LangQuest is ready. Reload to use
   it." appears once the tab is shown again.
-- Step 3: nothing happens; the recording carries on.
+- Step 3: while recording, the bar is quiet text, "Update ready · it
+  restarts when you stop recording", with nothing to tap; the recording
+  carries on (UI audit, finding 26).
 - Step 4: the page reloads (the leave question from WEB-015 shows first if
   work is waiting).
 

@@ -34,7 +34,7 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Badge, Banner, Card, Chip, ChipRow, ChipWrap, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle } from '../ui/kit';
+import { Badge, Banner, Card, Chip, ChipRow, ChipWrap, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useOpenDetail } from '../ui/useLayout';
 import { ImportRows } from '../imports/ImportRows';
@@ -119,7 +119,7 @@ async function actCommand(ctx: Ctx, where: string, build: () => EventSpec[], mes
   try {
     specs = build();
   } catch (e) {
-    ctx.toast(failure(where, e));
+    ctx.toast(failure(where, e), 'problem');
     return false;
   }
   try {
@@ -283,7 +283,7 @@ export function RoleEditor(ctx: Ctx) {
       ctx.toast(isNew ? t('config.roleEditor.created', { name: next.name }) : t('config.roleEditor.saved', { name: next.name }));
       ctx.back();
     } catch (e) {
-      ctx.toast(t('common.notSaved', { reason: failure('save role', e) }));
+      ctx.toast(t('common.notSaved', { reason: failure('save role', e) }), 'problem');
       setBusy(false);
     }
   }
@@ -322,7 +322,7 @@ export function RoleEditor(ctx: Ctx) {
             <Row key={`${h.profileId}-${JSON.stringify(h.scope)}`} icon="user"
               label={h.profileId === ctx.session.actorId ? t('common.you') : ctx.name(h.profileId)}
               sub={scopeName(h.scope, org)} help={t('config.roleEditor.personHelp')}
-              onPress={canAssign ? () => ctx.go('edit_member', { memberId: h.profileId }) : undefined} last={last} />
+              onPress={canAssign ? () => ctx.go('edit_member', { memberId: h.profileId, entry: h.entry, level: h.scope.level }) : undefined} last={last} />
           )} />
           {!readOnly ? <Field label={t('config.roleEditor.itsName')} value={label} onChangeText={setName} placeholder={t('config.roleEditor.itsNamePlaceholder')} autoCapitalize="words"
             help={t('config.roleEditor.renameHelp')} /> : null}
@@ -350,7 +350,7 @@ async function libraryAct(ctx: Ctx, where: string, action: () => Promise<unknown
   try {
     await action();
   } catch (e) {
-    ctx.toast(t('common.notSaved', { reason: libraryFailure(where, e) }));
+    ctx.toast(t('common.notSaved', { reason: libraryFailure(where, e) }), 'problem');
     return false;
   }
   ctx.toast(message);
@@ -588,7 +588,7 @@ export function FlowsHome(ctx: Ctx) {
       name = 'shared' in target ? target.shared.name : lib.item(target.itemId)?.name ?? doc.name;
       specs = copyFlowEvents(state, { name, doc, kinds });
     } catch (e) {
-      ctx.toast(t('common.notSaved', { reason: libraryFailure('use flow', e) })); // i18n-ignore: log label
+      ctx.toast(t('common.notSaved', { reason: libraryFailure('use flow', e) }), 'problem'); // i18n-ignore: log label
       setBusy(false);
       return;
     }
@@ -620,6 +620,11 @@ export function FlowsHome(ctx: Ctx) {
                 </Text>
               ) : null}
               <FlowStepsInline steps={current.steps} kinds={kinds} explain />
+              {/* The language's own checks and their people are changed there, not in a library flow (UI audit, finding 102). */}
+              {canManage ? (
+                <SmallBtn label={t('config.flows.editChecks')} icon="edit" tone="primary" help={t('config.flows.editChecksHelp', { language })}
+                  onPress={() => ctx.go('flow_editor', { languageId: ctx.language.languageId, steps: 'language' })} />
+              ) : null}
               {canManage && currentItem ? <SmallBtn label={t('config.flows.openFlow')} icon="edit" help={t('config.flows.openFlowHelp')} onPress={() => ctx.go('flow_editor', { itemId: currentItem.itemId })} /> : null}
               {canWrite && !current.itemId && current.chosen && current.steps.length ? (
                 <SmallBtn label={t('config.flows.addToFlows')} icon="plus" help={t('config.flows.saveAsFlowHelp')} onPress={() => ctx.go('flow_editor', { itemId: 'new', languageId: ctx.language.languageId })} />
@@ -646,12 +651,17 @@ export function FlowsHome(ctx: Ctx) {
                     </View>
                     {f.archived ? <Badge label={t('config.library.archivedBadge')} />
                       : updates[f.itemId] ? <Badge label={t('config.library.updateBadge')} tone="amber" /> : null}
-                    {on
-                      ? <SmallBtn label={t('config.flows.inUse')} icon="check" tone="primary" help={t('config.flows.inUseHelp')} onPress={() => {}} />
-                      : language && !f.archived ? <SmallBtn label={t('config.flows.use')} help={t('config.flows.useHelp', { language })} onPress={() => chooseFlow({ itemId: f.itemId })} disabled={!canManage || busy || !f.current} /> : null}
+                    {/* A mark, not a button: it does nothing (UI audit, finding 103). */}
+                    {on ? <Badge label={t('config.flows.inUse')} tone="brand" /> : null}
                   </View>
                   {/* Inside a card that opens, the card says what the steps mean. */}
                   <DocSteps doc={docs.get<FlowDoc>(f.current)} kinds={kinds} explain={!canManage} />
+                  {/* Use on its own line under the steps, apart from the title the card opens by. */}
+                  {!on && language && !f.archived ? (
+                    <View style={{ borderTopWidth: 1, borderTopColor: C.border, paddingTop: space.sm, marginTop: space.xs, alignItems: 'flex-start' }}>
+                      <SmallBtn label={t('config.flows.use')} help={t('config.flows.useHelp', { language })} onPress={() => chooseFlow({ itemId: f.itemId })} disabled={!canManage || busy || !f.current} />
+                    </View>
+                  ) : null}
                 </Card>
               </HelpRow>
             );
@@ -913,6 +923,7 @@ export function ReferenceHome(ctx: Ctx) {
   const termCount = useMemo(() => (state && languageId ? keyTermsFor(state).length : 0), [state, languageId]);
   // What translators are offered at this level (screens/reference.tsx).
   const offered = useMemo(() => recommendedFor(ctx.org.state?.recommendations, languageView ? state : null), [ctx.org.state, state, languageView]);
+  const [adding, setAdding] = useState(false);
   if (!state || !view) return <Screen header={<Header title={t('config.reference.title')} onBack={ctx.back} />}><EmptyState title={t('common.loading')} /></Screen>;
 
   const own = languageView && language ? language : null;
@@ -940,9 +951,20 @@ export function ReferenceHome(ctx: Ctx) {
     );
   };
 
+  // One way to make something (UI audit, finding 59): Add material, then which kind when there is more than one.
+  const mayWrite = canManage && lib.canWrite('material');
+  const addChoices: { key: string; icon: IconName; label: string; sub: string; go: () => void }[] = [
+    { key: 'here', icon: 'note', label: t('config.reference.add.here'), sub: t('config.reference.add.hereSub'), go: () => ctx.go('material_editor', params) },
+    ...(mayWrite ? [
+      { key: 'guide', icon: 'sparkle' as const, label: t('config.reference.writeGuide'), sub: t('config.reference.writeGuideSub'), go: () => ctx.go('guide_editor', params) },
+      { key: 'verses', icon: 'book' as const, label: t('config.reference.add.byVerses'), sub: t('config.reference.add.byVersesSub'), go: () => ctx.go('material_editor', { itemId: 'new', ...params }) }
+    ] : [])
+  ];
+  const add = () => (addChoices.length === 1 ? addChoices[0]!.go() : setAdding(true));
+
   return (
     <Screen header={<Header title={t('config.reference.title')} sub={own ?? orgName(ctx)} onBack={ctx.back} />}
-      footer={canManage ? <PrimaryBtn label={t('config.reference.addMaterial')} icon="plus" help={t('config.reference.addMaterialHelp')} onPress={() => ctx.go('material_editor', params)} /> : undefined}>
+      footer={canManage ? <PrimaryBtn label={t('config.reference.addMaterial')} icon="plus" help={t('config.reference.addMaterialHelp')} onPress={add} /> : undefined}>
       <Intro>{own ? t('config.reference.introLanguage', { language: own }) : t('config.reference.introOrg')}</Intro>
 
       <SectionLabel label={t('config.reference.offered')} />
@@ -956,15 +978,12 @@ export function ReferenceHome(ctx: Ctx) {
           onPress={languageId ? () => ctx.go('key_terms', { languageId }) : undefined} />
       </Group>
 
-      <SectionLabel label={withCount(t('config.reference.libraryOrg'), materials.length)}
-        action={canManage && lib.canWrite('material') ? <SmallBtn label={t('config.reference.new')} icon="plus" help={t('config.reference.newHelp')} onPress={() => ctx.go('material_editor', { itemId: 'new', ...params })} /> : undefined} />
+      <SectionLabel label={withCount(t('config.reference.libraryOrg'), materials.length)} />
       <Capped items={materials} render={libraryRow}
         empty={t('config.reference.libraryEmpty')} />
-      {canManage && lib.canWrite('material') ? <Group><Row icon="sparkle" label={t('config.reference.writeGuide')} sub={t('config.reference.writeGuideSub')} last
-        onPress={() => ctx.go('guide_editor', params)} /></Group> : null}
-      <ImportRows ctx={ctx} canManage={canManage && lib.canWrite('material')} orgName={orgName(ctx)} />
-      <MoveOffers ctx={ctx} kinds={['material']} canManage={canManage && lib.canWrite('material')} />
-      <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canManage && lib.canWrite('material')}
+      <ImportRows ctx={ctx} canManage={mayWrite} orgName={orgName(ctx)} />
+      <MoveOffers ctx={ctx} kinds={['material']} canManage={mayWrite} />
+      <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={mayWrite}
         detail={(s) => {
           const doc = docs.get(s.latest_hash);
           const what = libraryMaterialLine(doc, versificationNameOf(docs, doc), kinds);
@@ -992,6 +1011,14 @@ export function ReferenceHome(ctx: Ctx) {
           <Capped items={view.general} empty={t('config.reference.noGeneral')} render={generalRow} />
         </>
       ) : null}
+      <Sheet visible={adding} title={t('config.reference.addMaterial')} onClose={() => setAdding(false)}>
+        <Group>
+          {/* help-each: each row makes a different kind */}
+          {addChoices.map((c, i) => (
+            <Row key={c.key} icon={c.icon} label={c.label} sub={c.sub} last={i === addChoices.length - 1} help={c.sub} onPress={() => { setAdding(false); c.go(); }} />
+          ))}
+        </Group>
+      </Sheet>
     </Screen>
   );
 }
@@ -1013,7 +1040,7 @@ function OfferedRows(props: { ctx: Ctx; languageId: string | null; offered: Map<
   const open = ctx.language.languageId || null;
   return (
     <Group>
-      <Row icon="sound" label={t('config.reference.bibles')} sub={t('config.reference.biblesSub', { count: bibles })} help={t('config.reference.biblesHelp')} onPress={() => ctx.go('reference_bibles', params)} />
+      <Row icon="book" label={t('config.reference.bibles')} sub={t('config.reference.biblesSub', { count: bibles })} help={t('config.reference.biblesHelp')} onPress={() => ctx.go('reference_bibles', params)} />
       <Row icon="sparkle" label={t('config.reference.guidesNotes')} sub={`${t('config.reference.guidesRecommended', { count: guides })} · ${t('config.reference.notes', { count: notes })}`}
         help={t('config.reference.guidesNotesHelp')} onPress={() => ctx.go('reference_guides', params)} last={!open} />
       {open ? <Row icon="map" label={t('config.reference.coverage')} sub={t('config.reference.coverageSub', { language: languageName(ctx.org.state, open) })}
@@ -1409,7 +1436,7 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
     try {
       plan = planQuestionSetReviews(state!, it.itemId, material);
     } catch (e) {
-      ctx.toast(failure('use question set', e));
+      ctx.toast(failure('use question set', e), 'problem');
       return;
     }
     const kindLabel = kinds.find((x) => x.id === material.reviewKindId)?.name ?? material.reviewKindId;

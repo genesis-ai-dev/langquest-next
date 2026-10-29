@@ -296,7 +296,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         return hash;
       }
     },
-    // Claude's nightly look at the tutorial videos' feedback (tutorialReview.ts, decisions.md 185).
+    // Claude's nightly look at the tutorial videos' feedback (tutorialReview.ts, decisions.md 186).
     tutorialReview: {
       verify: githubOidcCached ??= githubOidc((input, init) => fetch(input, init)),
       state: async () => {

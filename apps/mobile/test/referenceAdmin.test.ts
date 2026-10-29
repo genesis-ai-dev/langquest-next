@@ -52,13 +52,14 @@ describe('recommendations at a level', () => {
   it('reads who recommends an item and what an admin may do, at each level', () => {
     const rows = ['bsb', 'fia', 'esv', 'web'].map((id) => {
       const r = recState(orgState.recommendations, language, atLane, id);
-      return [id, recLabel(r, atLane), recActions(r, atLane).map((a) => a.label).join()];
+      return [id, recLabel(r, atLane), recActions(r, atLane).map((a) => `${a.label}: ${a.id}`).join()];
     });
+    // One switch in a language (UI audit, finding 58): what reaches the team turns off, what does not turns on.
     expect(rows).toEqual([
-      ['bsb', 'Recommended by the organization', 'Hide'],
-      ['fia', 'Hidden for this language', 'Follow organization'],
-      ['esv', 'Recommended for this language', 'Stop recommending'],
-      ['web', 'Not recommended', 'Recommend']
+      ['bsb', 'Recommended by the organization', 'Stop recommending here: hide'],
+      ['fia', 'Not recommended here', 'Recommend here: inherit'],
+      ['esv', 'Recommended for this language', 'Stop recommending here: inherit'],
+      ['web', 'Not recommended', 'Recommend here: recommend']
     ]);
     const o = recState(orgState.recommendations, language, atOrg, 'fia');
     expect([recLabel(o, atOrg), recActions(o, atOrg)[0]!.id]).toEqual(['Recommended', 'stop']);

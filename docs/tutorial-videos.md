@@ -144,7 +144,7 @@ dashboard counts them for each channel.
 ## Feedback
 
 What people say about a video, and what changes in the app, come back to
-the videos (decision 185). Three kinds of input:
+the videos (decision 186). Three kinds of input:
 
 - **Comments** on the videos and channels. The comments job in the app's
   job container (`server/tutorialComments.ts`) reads each connected

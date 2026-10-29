@@ -29,7 +29,7 @@ describe('GitHub Actions workflows', () => {
     // with the Gemini key alone; the job container brings them in (decision 183).
     // tutorial-review.yml holds a Claude plan's token and reads and writes the
     // videos' feedback only through the Worker's /api/tutorial-review, which
-    // lets in that workflow on main by its OIDC token (decision 185).
+    // lets in that workflow on main by its OIDC token (decision 186).
     const scheduled = workflows.filter((w) => /^\s+schedule:\s*$/m.test(w.text)).map((w) => w.f).sort();
     expect(scheduled).toEqual(['guardrails.yml', 'release-branches.yml', 'tutorial-review.yml', 'tutorials.yml']);
   });

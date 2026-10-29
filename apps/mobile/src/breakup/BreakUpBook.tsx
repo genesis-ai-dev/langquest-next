@@ -52,7 +52,7 @@ export function BookHead(props: {
       await ctx.act([{ id: Crypto.randomUUID(), type: 'v1.BookNameSet', payload: { book, name: trimmed } } as EventSpec], t('breakup.book.namedToast', { language: props.language, name: trimmed }));
       setNaming(false);
     } catch (e) {
-      ctx.toast(failureMessage('book name', e));
+      ctx.toast(failureMessage('book name', e), 'problem');
     }
   }
   return (
@@ -120,6 +120,8 @@ function NameChoices(props: { rows: { name: string; from: string[] }[]; current:
 export function BreakUpBook(props: {
   ctx: Ctx; book: string; bookName: string; language: string; doc: TemplateDoc; item: LibraryItemView | null; redo: boolean; onClose: () => void; onOwn: () => void;
   apply?: (way: TemplateDoc, note: string, said: string) => void; self?: string | null; extra?: ReactNode;
+  /** The language's sections of the book recorded on this phone, for the warning (RedoSheet). */
+  recorded?: number;
 }) {
   const { ctx, book } = props;
   const code = useNumberingCode(ctx, props.doc);
@@ -130,7 +132,8 @@ export function BreakUpBook(props: {
   const [key, setKey] = useState<string | null>(null);
   const picked = offered.find((r) => r.choice.key === key) ?? null;
   const [peek, setPeek] = useState<WayRow | null>(null);
-  const change = useBookChange(ctx, { book, bookName: props.bookName, doc: props.doc, item: props.item, redo: props.redo, onDone: props.onClose });
+  const change = useBookChange(ctx, { book, bookName: props.bookName, doc: props.doc, item: props.item, redo: props.redo, onDone: props.onClose,
+    ...(props.recorded !== undefined ? { recorded: props.recorded } : {}) });
   // A phone's Back does what the header's arrow does: back to the book, or out when it is not broken up yet (decision 137).
   useHardwareBack(true, props.onClose);
 

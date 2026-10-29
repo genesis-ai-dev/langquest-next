@@ -36,7 +36,7 @@ export const JOBS = {
   // The films the nightly filming made on GitHub, brought into R2 and listed for Publish (server/tutorialIntake.ts):
   // most nights a few, the first full set about 705 of about 10 MB, each a download and an upload.
   'tutorial-intake': { job: 'tutorial_intake', entrypoint: ['node', 'intake.mjs'], timeLimitMs: 120 * 60_000 },
-  // The comments on the tutorial videos, kept for Claude's nightly look (server/tutorialComments.ts, decisions.md 185):
+  // The comments on the tutorial videos, kept for Claude's nightly look (server/tutorialComments.ts, decisions.md 186):
   // a day's comments, a page of 100 a call, and at most 20 Linear issues.
   'tutorial-comments': { job: 'tutorial_comments', entrypoint: ['node', 'comments.mjs'], timeLimitMs: 60 * 60_000 }
 } as const satisfies Record<string, JobSpec>;
@@ -58,7 +58,7 @@ export const JOB_TICK = '*/5 * * * *';
  * (23:00 to 00:00 UTC, decision 183 amended): the films the nightly filming
  * made (on GitHub from 20:10 UTC) come in at 23:10, and the videos still
  * waiting from a Publish go on at 23:40, on YouTube's allowance for that
- * Pacific day; the day's comments on the videos are read at 23:50 (185).
+ * Pacific day; the day's comments on the videos are read at 23:50 (186).
  */
 export function jobsDue(scheduledTime: number): { key: JobKey; all?: true }[] {
   const t = new Date(scheduledTime);

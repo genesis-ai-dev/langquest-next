@@ -20,6 +20,7 @@ import { dropDisguise, ICONS_HERE, wearDisguise } from './disguise';
 import { codeAllowed, digitsOnly, lookName, LOOKS, tileLabel, type Look } from './disguiseModel';
 import { DisguiseFace } from './faces';
 import { useDisguise } from './useDisguise';
+import { a11yState } from '../ui/a11yModel';
 
 /** Metro needs each picture named outright. */
 const PREVIEWS: Record<string, ImageSourcePropType> = {
@@ -70,7 +71,7 @@ function DisguiseSheet(props: { ctx: Ctx; step: Step; setStep: (s: Step | null) 
       ctx.toast(t('disguise.off'));
     } catch (e) {
       // i18n-ignore: log label
-      ctx.toast(failureMessage('drop disguise', e));
+      ctx.toast(failureMessage('drop disguise', e), 'problem');
     }
     close();
   }
@@ -80,7 +81,7 @@ function DisguiseSheet(props: { ctx: Ctx; step: Step; setStep: (s: Step | null) 
       ctx.toast(t('disguise.on', { name: lookName(look) }));
     } catch (e) {
       // i18n-ignore: log label
-      ctx.toast(failureMessage('wear disguise', e));
+      ctx.toast(failureMessage('wear disguise', e), 'problem');
     }
     close();
   }
@@ -128,7 +129,7 @@ function DisguiseSheet(props: { ctx: Ctx; step: Step; setStep: (s: Step | null) 
 function LookTile(props: { source: ImageSourcePropType; label: string; help: string; chosen: boolean; size: number; onPress: () => void }) {
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityLabel={props.label} accessibilityState={{ selected: props.chosen }}
+    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityLabel={props.label} {...a11yState({ selected: props.chosen }, 'radio')}
       style={({ pressed }) => [styles.tile, props.chosen && styles.tileChosen, pressed && { opacity: 0.7 }]}>
       <Image source={props.source} style={[styles.icon, { width: props.size, height: props.size, borderRadius: props.size * 0.23 }]} accessibilityIgnoresInvertColors />
       {props.chosen ? <View style={styles.check}><Ico name="check" size={14} color={C.white} strokeWidth={3} /></View> : null}

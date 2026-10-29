@@ -33,7 +33,7 @@ import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
-import { Badge, Banner, Card, Chip, ChipRow, EmptyState, Field, Group, Header, HelpInfo, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, SmallBtn } from '../ui/kit';
+import { Badge, Banner, Card, Chip, ChipRow, ChipWrap, EmptyState, Field, Group, Header, HelpInfo, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, SmallBtn } from '../ui/kit';
 import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
@@ -64,6 +64,7 @@ import { draftKey, dropDraft, guideHistoryKey, loadDraft, parseGuideHistory, sav
 import { editKey } from './draftModel';
 import { canPickFiles, FileProblem, keepPicked, mediaKindFor, pickFile, uploadDraftFiles, type PickKind } from './files';
 import { BLANK_METHOD, FIA_METHOD, methodFromDoc, type Method } from './methods';
+import { a11yState } from '../ui/a11yModel';
 
 /** A change to the draft; `what` names it for a screen reader ("Step 3 removed") when Undo takes it back. */
 type Dispatch = (a: DraftAction, what?: string) => void;
@@ -285,7 +286,7 @@ function Editor(props: {
       ctx.back();
     } catch (e) {
       // The draft stays on the device; publishing again picks up where this stopped.
-      ctx.toast(t('guides.editor.notPublished', { reason: failureMessage('publish guide', e) }));
+      ctx.toast(t('guides.editor.notPublished', { reason: failureMessage('publish guide', e) }), 'problem');
       setBusy(null);
     }
   }
@@ -304,15 +305,15 @@ function Editor(props: {
         help={t('guides.editor.publishHelp')} />}>
       {/* Forms keep the reading width; only the steps use the whole window, side by side. */}
       <View style={[{ gap: space.md }, panel === 'steps' ? null : s.reading]}>
-        {/* Tabs within the screen (kit ChipRow): they scroll sideways on a phone instead of shrinking. */}
+        {/* Tabs within the screen wrap (kit ChipWrap, decision 139): scrolled sideways, Glossary sat past a phone's edge (UI audit, finding 61). */}
         <View accessibilityRole="tablist">
-          <ChipRow>
+          <ChipWrap>
             {/* help-each: each tab shows a different part of the guide */}
             {PANELS.map((p) => (
               <Chip key={p.id} icon={p.icon} label={panelLabel(p.id)} on={panel === p.id} onPress={() => setPanel(p.id)} help={panelHelp(p.id)}
-                {...(counts[p.id] !== null ? { count: counts[p.id]! } : {})} />
+                {...(counts[p.id] ? { count: counts[p.id]! } : {})} />
             ))}
-          </ChipRow>
+          </ChipWrap>
         </View>
         {props.newer ? (
           <Banner icon="history" tone="amber" title={t('guides.editor.newer')} body={t('guides.editor.newerBody')} />
@@ -581,7 +582,7 @@ function StepRow(props: { step: DraftStep; index: number; count: number; on: boo
   const open = useHelpSpot(st.title || t('guides.steps.untitled'), t('guides.steps.openHelp'), props.onOpen);
   return (
     <View style={[s.stepRow, !props.last && s.rowBorder, props.on && { backgroundColor: C.light }]}>
-      <Pressable onPress={open.onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }}
+      <Pressable onPress={open.onPress} accessibilityRole="button" {...a11yState({ selected: props.on }, 'button')}
         accessibilityLabel={st.title ? t('guides.steps.rowLabel', { n, title: st.title, details: sub }) : t('guides.steps.rowLabelUntitled', { n, details: sub })}
         style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row }, pressed && s.pressed]}>
         <View style={s.stepNum}><Text style={[txt.sm, { fontWeight: '800', color: C.primary }]}>{formatNumber(n)}</Text></View>
@@ -659,7 +660,7 @@ function ToolBtn(props: { icon: LucideIcon; label: string; onPress: () => void; 
   const Icon = props.icon;
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={props.on !== undefined ? { expanded: props.on } : undefined}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label} {...a11yState(props.on !== undefined ? { expanded: props.on } : undefined, 'button')}
       style={({ pressed }) => [s.tool, props.on && { backgroundColor: C.light, borderColor: C.primary }, pressed && s.pressed]}>
       <Icon size={18} color={C.primary} strokeWidth={2.4} />
       <Text style={[txt.xsStrong, { color: C.primary }]}>{props.label}</Text>
@@ -699,7 +700,7 @@ function TextEditor(props: { draft: GuideDraft; text: string; onChange: (text: s
         <ToolBtn icon={List} label={t('guides.text.list')} help={t('guides.text.listHelp')} onPress={() => apply(listText(props.text, sel.current))} />
         <ToolBtn icon={TextQuote} label={t('guides.text.callout')} help={t('guides.text.calloutHelp')} on={tray === 'callout'} onPress={() => setTray(tray === 'callout' ? null : 'callout')} />
         <Pressable onPress={link.onPress} accessibilityRole="button" accessibilityLabel={t('guides.text.linkLabel')}
-          accessibilityState={{ expanded: tray === 'link' }} style={({ pressed }) => [s.tool, tray === 'link' && { backgroundColor: C.light, borderColor: C.primary }, pressed && s.pressed]}>
+          {...a11yState({ expanded: tray === 'link' }, 'button')} style={({ pressed }) => [s.tool, tray === 'link' && { backgroundColor: C.light, borderColor: C.primary }, pressed && s.pressed]}>
           <Ico name="link" size={18} color={C.primary} />
           <Text style={[txt.xsStrong, { color: C.primary }]}>{t('guides.text.link')}</Text>
           <HelpBadge spot={link} />
@@ -778,7 +779,7 @@ function AudioSlot(props: { ctx: Ctx; label: string; removeLabel: string; record
         <>
           <VoiceNote ctx={ctx} label={props.recordLabel} hash={null}
             onChange={(hash, card) => { if (hash) props.onChange({ hash, format: card?.format ?? 'm4a', ...(card ? { seconds: Math.round(card.durationMs / 1000) } : {}) }); }} />
-          {canPickFiles ? <SmallBtn label={t('guides.audio.upload')} icon="download" help={t('guides.audio.uploadHelp')} onPress={() => void upload()} /> : null}
+          {canPickFiles ? <SmallBtn label={t('guides.audio.upload')} icon="upload" help={t('guides.audio.uploadHelp')} onPress={() => void upload()} /> : null}
         </>
       )}
       {error ? <Text style={txt.error}>{error}</Text> : null}

@@ -15,7 +15,7 @@ import { issueOf, type Suggestion } from '../../../server/tutorialFeedback';
  * section 6, decisions.md 162): mark feedback seen or done, run a server
  * job now, grant or decline an organization's blue check (173), connect
  * a tutorial channel on YouTube and publish its videos (180), and add a note
- * on a tutorial video or answer Claude's suggestion for one (185). The dashboard's own Worker holds no writer's key; it
+ * on a tutorial video or answer Claude's suggestion for one (186). The dashboard's own Worker holds no writer's key; it
  * calls this entrypoint over a service binding with the person's own token,
  * and this Worker checks that token itself (a live session, a Global Viewer
  * on an `aal2` session) before acting with the service role. Every attempt
@@ -194,7 +194,7 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
 /**
  * A suggestion answered once. An accepted code change goes to Linear now
  * when the Worker has its key; when it has none, or Linear fails, the
- * suggestion stays accepted and the comments job files it (185).
+ * suggestion stays accepted and the comments job files it (186).
  */
 async function answerSuggestion(deps: ActionDeps, profileId: string, action: Extract<Action, { kind: 'tutorial-suggestion' }>, name: string, target: string): Promise<ActionResult> {
   const decided = await deps.decideSuggestion(action.id, DECIDED[action.decision], action.detail, action.reason, profileId);

@@ -102,7 +102,7 @@
     },
     "kinds": {
       "peer": {
-        "name": "同伴审核",
+        "name": "同伴检查",
         "usualReviewer": "另一位译者",
         "description": "另一位译者来听，看是否准确、说得是否自然。"
       },
@@ -309,8 +309,8 @@
     "workspace": "录音",
     "review_capture": "审核",
     "back_translation": "回译",
-    "key_terms": "关键术语",
-    "key_term_detail": "关键术语",
+    "key_terms": "关键词",
+    "key_term_detail": "关键词",
     "inbox_home": "收件箱",
     "settings_home": "我",
     "profile_edit": "编辑个人资料",
@@ -670,15 +670,12 @@
       "aTemplate": "一个模板",
       "applied": "已应用{{name}}",
       "noneApplied": "未应用",
-      "none": "无",
+      "inLibrary_other": "资料库中有 {{count, number}} 个",
       "noLanguages": "还没有语言",
-      "languages_other": "{{count, number}} 个语言",
       "templates": "内容模板",
       "reference": "参考资料",
-      "referenceSub": "{{study}} 份学习资料 · {{questions}} 个问题集 · {{terms}} 个关键术语",
       "flows": "审核流程",
       "roles": "角色",
-      "rolesSub_other": "这一级及以上共 {{count, number}} 个角色",
       "summary": {
         "templates": "内容模板",
         "referenceFirst": "参考资料",
@@ -690,16 +687,22 @@
       },
       "titleHelp": "显示只需设置一次、很少更改的内容：内容模板、参考资料、审核流程和角色。",
       "templatesHelp": "打开把工作划分成经段的各种方式，以及每个语言用的是哪一种。",
-      "referenceHelp": "打开提供给译者的圣经、学习指南、问题和关键术语。",
+      "referenceHelp": "打开提供给译者的圣经、学习指南、问题和关键词。",
       "flowsHelp": "打开检查录音的各种方式，以及每个语言用的是哪一种。",
-      "rolesHelp": "打开各个角色，以及每个角色允许做什么。"
+      "rolesHelp": "打开各个角色，以及每个角色允许做什么。",
+      "counts": {
+        "study_other": "{{count, number}} 份学习指南",
+        "questions_other": "{{count, number}} 组问题",
+        "terms_other": "{{count, number}} 个关键词"
+      },
+      "rolesSub_other": "{{count, number}} 个角色"
     },
     "people": {
       "title": "人员",
       "members": "成员",
-      "assignedHere_other": "{{count, number}} 人分配在这个语言",
-      "orgSub": "机构级 {{here}} 人 · 共 {{total}} 人",
-      "membersHelp": "打开人员和他们的角色，可以邀请人或更改角色。"
+      "orgSub": "所有语言 {{here}} · 共 {{total}}",
+      "membersHelp": "打开人员和他们的角色，可以邀请人或更改角色。",
+      "assignedHere_other": "{{count, number}} 人在这个语言有角色"
     },
     "home": {
       "title": "机构",
@@ -798,15 +801,16 @@
       "joined": "{{target}} · {{when}}加入",
       "count_other": "{{count, number}} 位成员",
       "invite": "邀请",
-      "introOrg": "在机构范围内分配的成员。展开下面的分组可以查看其他级别。",
-      "introLanguage": "在这个语言范围内分配的成员。展开下面的分组可以查看其他级别。",
+      "introOrg": "角色涵盖所有语言的人。打开下面的组查看每个语言自己的人。",
+      "introLanguage": "在这个语言有角色的人。打开下面的组查看其他人。",
       "sectionOrg": "机构成员 · {{total}}",
       "sectionLanguage": "语言成员 · {{total}}",
       "pending": "待处理",
-      "none": "这一级还没有分配成员。",
+      "none": "这里还没有人有角色。",
+      "connectToSee": "联网后可查看谁申请加入",
       "expandBy": "展开方式",
       "byLanguage": "按语言",
-      "higher": "更高级别 · 仅查看",
+      "higher": "所有语言 · 仅查看",
       "memberHelp": "打开他的角色及其适用范围，可以更改。",
       "lockedHelp": "你不能在这里更改这个人的角色。",
       "requestHelp": "想要加入。打开对方的申请：让他加入，或者拒绝。",
@@ -818,9 +822,9 @@
     "assign": {
       "noRoles": "这里没有可用的角色。",
       "where": "在哪里？",
-      "whereHelp": "这个人可以在哪里使用所选角色的权限。",
+      "whereHelp": "这个人可以在哪里做角色允许的事。",
       "language": "语言",
-      "languageHelp": "这项分配适用于哪个语言。",
+      "languageHelp": "这个角色用于哪个语言。",
       "noLanguages": "还没有语言。",
       "orgHelp": "这个角色适用于整个机构。",
       "languageLevelHelp": "这个角色只适用于一个语言，在下面选择。",
@@ -848,18 +852,18 @@
     },
     "member": {
       "isNow": "{{name}}现在是{{role}}",
-      "removedOrg": "已在机构级别移除{{name}}",
-      "removedLanguage": "已在语言级别移除{{name}}",
+      "removedOrg": "{{name}}在所有语言中已不再有角色",
+      "removedLanguage": "{{name}}在这个语言中已不再有角色",
       "declined": "已拒绝{{name}}的申请",
       "editTitle": "编辑成员",
       "notMember": "不是这里的成员",
       "notMemberSub": "这个人在这个机构中已经没有角色了。",
       "awaiting": "等待批准",
       "assignRole": "分配角色",
-      "saveAssignment": "保存分配",
+      "saveAssignment": "保存角色",
       "decline": "拒绝",
-      "introPending": "这个人创建了账号并申请加入。为他分配角色和范围，就能让他访问。",
-      "intro": "选择一个角色，然后选择这项分配适用的范围。范围可以是这一级或更低的级别。",
+      "introPending": "此人创建了账户并申请加入。选择他们的角色和适用范围，让他们加入。",
+      "intro": "选择一个角色，再选择适用范围。",
       "outranked": "{{name}}在这里的权限比你多，所以只有权限同样多的人才能更改。",
       "onlyManager": "只有 {{name}} 能管理角色",
       "onlyManagerYou": "只有你能管理角色",
@@ -878,6 +882,8 @@
       "howToLost": "{{name}}在新设备上打开 LangQuest，点按“扫码”，然后对准这里。只能用一次，一小时内有效。使用后，旧设备会退出登录。",
       "willSee": "{{name}}会在设置中看到是你帮他登录的。",
       "noEmail": "{{name}}没有邮箱。在新设备上，请给他出示登录码。",
+      "row": "帮{{name}}在新设备上登录",
+      "rowHelp": "为没有邮箱的人：打开生成登录码的页面。你要求之前不会生成登录码。",
       "lostSignOut": "旧设备丢失或被盗：让它退出登录",
       "lost": "旧设备丢失或被盗",
       "help": "帮他登录",
@@ -897,7 +903,6 @@
       "pickRole": "选择这个人应有的角色。不需要他的邮箱。",
       "alreadyTitle": "已经在团队中，只是换了新设备？",
       "alreadyBody": "在“成员”中打开他，点按“帮他登录”。再发一个新邀请会创建第二个账号。",
-      "privileges_other": "{{count, number}} 项权限",
       "noRoles": "还没有角色。",
       "createRole": "创建新角色",
       "one": "一个人",
@@ -914,6 +919,12 @@
       "orType": "或者输入这个代码",
       "shownOnceGroup_other": "只显示一次：离开这个页面后邀请码就没有了。在 {{date}} 之前，最多 {{count, number}} 人可以使用。",
       "shownOnceOne": "只显示一次：离开这个页面后邀请码就没有了。在 {{date}} 之前可以使用一次。",
+      "leaveAsk": "离开这个邀请码？",
+      "leaveBody": "{{name}}的邀请码无法再次显示。如果对方还没扫描，请新建一个。",
+      "stay": "留在邀请码页面",
+      "stayHelp": "让邀请码留在屏幕上，供对方扫描。",
+      "leave": "离开",
+      "leaveHelp": "返回。邀请码无法再次显示。",
       "share": "分享邀请",
       "couldNotShare": "无法分享。请改为输入上面的代码。",
       "toNameHelp": "继续填写这是给谁的。",
@@ -921,7 +932,8 @@
       "doneHelp": "完成：打开成员列表。",
       "nameFieldHelp": "这个邀请码是给谁的。对方扫码时会看到。",
       "groupNameFieldHelp": "这个组的名称。每个扫码的人都会看到。",
-      "shareHelp": "通过消息发送邀请链接，或者复制它。"
+      "shareHelp": "通过消息发送邀请链接，或者复制它。",
+      "privileges_other": "{{count, number}} 项权限"
     },
     "newLanguage": {
       "theOrganization": "机构",
@@ -966,13 +978,13 @@
       "stages": {
         "language": "语言",
         "content": "内容",
-        "pieces": "拆分成部分",
+        "pieces": "划分成段",
         "material": "参考资料",
         "flow": "审核流程",
         "people": "人员",
         "languageHelp": "他们要译成的语言：它的名称，从语言列表中找到或直接输入。以后可以关联到列表。",
         "contentHelp": "他们要翻译什么：圣经，或其他内容，比如故事或歌曲。",
-        "piecesHelp": "怎样把它拆分成足够小的部分，一次录一部分、查一部分。",
+        "piecesHelp": "怎样把它拆分成足够小的段，一次录一段、查一段。",
         "materialHelp": "译者和检查人员手边会有的圣经、学习指南和笔记。",
         "flowHelp": "录音在批准前要经过的检查，以及每项检查的人员能看到什么。",
         "peopleHelp": "然后邀请人员：译者、检查人员和其他人，每人扫一个邀请码。",
@@ -991,6 +1003,11 @@
       "toChecksHelp": "显示它的检查，逐项设置。",
       "startAgainAsk": "从{{flow}}重新开始？",
       "startAgain": "重新开始",
+      "leaveAsk": "不添加{{language}}就离开？",
+      "keepGoing": "继续",
+      "keepGoingHelp": "回到刚才的页面，你的回答都保留着。",
+      "leave": "离开",
+      "leaveHelp": "不添加语言就离开。你在这里的回答会丢失。",
       "material": {
         "question": "什么能帮助{{language}}的团队？",
         "onHelp": "{{language}}的团队会有它。点按可以去掉。",
@@ -1290,7 +1307,7 @@
       "keepIt": "保持不变",
       "whichPart": "翻译圣经的哪一部分？",
       "viewOnly": "只有负责设置语言的人可以更改要翻译的内容。",
-      "keepEarlier": "没有变化的部分会保留原来的录音。有变化的部分，上面录的内容会保留在新部分的“之前的部分”下。",
+      "keepEarlier": "没有变化的段会保留原来的录音。有变化的段，上面录的内容会保留在新段的“之前的段”下。",
       "partHelp": "他们翻译圣经的这一部分。",
       "chooseBooksHelp": "在下面逐卷选择书卷。",
       "bookOnHelp": "已选择。点按可以不选。",
@@ -1358,7 +1375,6 @@
       "noNotes": "还没有注释",
       "passagesCovered_other": "涵盖 {{count, number}} 个经段",
       "keyWords": "关键词",
-      "keyTerms": "关键术语",
       "keyTermsSub_other": "{{count, number}} 个词 · {{rendered}} 个已有{{language}}说法",
       "writtenHere": "在这里为这个语言撰写",
       "addMoreHelp": "查找圣经、学习指南、注释或关键词，提供给他们。",
@@ -1395,7 +1411,6 @@
       "nextHelp": "保留这种检查方式，然后进入下一个问题。"
     },
     "invite": {
-      "somethingElse": "其他",
       "cannotTitle": "只有可以在这里邀请的人才能出示邀请码",
       "cannotBody": "请负责{{language}}团队的人邀请你的译者。"
     },
@@ -1738,8 +1753,8 @@
       "skip": "跳过讲解",
       "stepLabel": "第 {{step, number}} 步，共 {{total, number}} 步",
       "pieces": {
-        "title": "你的团队一部分一部分地录资料",
-        "text": "资料被分放在文件夹里，大家录文件夹里的各个部分。这里是一些故事，分成了几个合集。",
+        "title": "你的团队一段一段地录资料",
+        "text": "资料被分放在文件夹里，大家录文件夹里的各段。这里是一些故事，分成了几个合集。",
         "began": "万物的起源",
         "river": "河为什么这么宽",
         "fire": "第一把火",
@@ -1748,12 +1763,12 @@
       },
       "bible": {
         "title": "圣经有书卷、章和节",
-        "text": "每卷书是一个文件夹。在里面，书卷被切成几部分来录，每一节在录音中标出一个位置。",
+        "text": "每卷书是一个文件夹。在里面，书卷被切成几段来录，每一节在录音中标出一个位置。",
         "chapterVerses": "{{book}} {{chapter}} · 第 1 至 {{last}} 节"
       },
       "places": {
         "title": "同一卷书可以在不同的地方切分",
-        "text": "这是{{book}}的三种分法。经节相同，部分不同。",
+        "text": "这是{{book}}的三种分法。经节相同，段不同。",
         "byChapter": "按章",
         "fia": "FIA 经段",
         "unfoldingWord": "unfoldingWord 分段"
@@ -1791,17 +1806,17 @@
       "waitsLabel": "{{book}}等待划分",
       "notInIt": "{{book}}不在其中",
       "waits": "{{book}}要等协调员划分",
-      "label_other": "{{book}}分为 {{count, number}} 个部分",
-      "caption_other": "{{book}}：{{count, number}} 个部分",
-      "help": "每个方块是一个要录音的部分，宽度和它的经节多少相当。"
+      "label_other": "{{book}}分为 {{count, number}} 段",
+      "caption_other": "{{book}}：{{count, number}} 段",
+      "help": "每个方块是一个要录音的段，宽度和它的经节多少相当。"
     },
     "way": {
       "inUse": "这里正在使用",
-      "previewHelp": "{{way}}把一卷书切成的每个部分。",
+      "previewHelp": "{{way}}把一卷书切成的每段。",
       "comesWith": "配有{{pattern}}学习指南",
       "previewLabel": "预览{{way}}",
       "pickHelp": "选择这种切分方式。",
-      "barHelp": "横条显示按这种方式切分的{{book}}：每个方块是一个部分，宽度和它的经节多少相当。"
+      "barHelp": "横条显示按这种方式切分的{{book}}：每个方块是一段，宽度和它的经节多少相当。"
     },
     "preview": {
       "useThis": "使用这个",
@@ -1818,6 +1833,7 @@
       "hereDetail": "你正在更改的语言一定会更改。",
       "cannotChange": "你不能更改这一个",
       "otherDetail": "勾选它，{{language}}也会做同样的更改。不勾选，{{language}}就保持模板原样。",
+      "otherDetailRedo": "勾选它，{{language}}的{{book}}也按同样方式划分，录音也同样移动。不勾选，{{language}}的{{book}}保持原样。",
       "everyLanguage": "所有使用它的语言都会更改。",
       "someLanguages": "你没有选的语言保持模板原样。你选的语言会得到一份带有这项更改的副本。"
     },
@@ -1828,7 +1844,10 @@
       "titleBook": "{{book}}将重新划分",
       "bodyNumbering": "在有变化的部分上录制和审核的所有内容，都会移到新部分下的“之前的部分”中，并带有警告标记，需要重新做。这也包括还在别人手机上、尚未同步的录音。",
       "bodyBook": "在{{book}}原来各部分上录制和审核的所有内容，都会移到新部分下的“之前的部分”中，并带有警告标记，需要重新做。这也包括还在别人手机上、尚未同步的录音。",
-      "nothingDeleted": "不会删除任何内容。"
+      "bodyRecorded_other": "{{book}}有 {{count, number}} 个部分在这部手机上有录音。在{{book}}原来各部分上录制和审核的所有内容，都会移到新部分下的“之前的部分”中，并带有警告标记，需要重新做。这也包括还在别人手机上、尚未同步的录音。",
+      "nothingDeleted": "不会删除任何内容。",
+      "bodyNoneHere": "这部手机上还没有{{book}}的录音。还在别人手机上、尚未同步的录音，会移到新部分下的“之前的部分”中，并带有警告标记，需要重新做。",
+      "alsoLanguages": "{{languages}}的{{book}}也会同样更改，它们的录音也一样。"
     },
     "numbering": {
       "ignore": "好的，忽略",
@@ -1843,7 +1862,7 @@
     },
     "book": {
       "breakDifferently": "换一种划分方式",
-      "breakDifferentlyHelp": "选择另一种方式把这卷书切分成几部分。",
+      "breakDifferentlyHelp": "选择另一种方式把这卷书切分成几段。",
       "namedToast": "{{language}}称它为{{name}}。",
       "brokenUp": "已划分",
       "ownWay": "自己的方式",
@@ -1856,8 +1875,8 @@
       "breakUp": "划分{{book}}",
       "changeQuestion": "更改{{book}}的划分方式",
       "question": "{{book}}要怎样划分？",
-      "nowEachPiece": "现在：{{way}}。每个部分单独录音。",
-      "eachPiece": "每个部分单独录音。",
+      "nowEachPiece": "现在：{{way}}。每段单独录音。",
+      "eachPiece": "每段单独录音。",
       "connectForWays": "联网后可以加载各种划分方式。",
       "alsoUsedOne": "{{name}}也在使用。要为哪些语言更改{{book}}？",
       "alsoUsedTwo": "{{first}}和{{second}}也在使用。要为哪些语言更改{{book}}？",
@@ -2038,6 +2057,9 @@
       "noBibleChip": "没有圣经",
       "chapterChip": "第{{n}}章",
       "key": "虚线表示其他圣经在哪里开始一段（{{total}}本英文圣经，来自 OpenBible.info）。点一条虚线在那里开始一段，或点任何一节。",
+      "restored": "你在{{when}}的草稿",
+      "startFromNow": "重新开始",
+      "startFromNowHelp": "恢复这卷书现在的各部分，替换你的草稿。撤销可找回草稿。",
       "loadingText": "正在获取{{book}}的经文…",
       "noText": "团队的圣经里没有{{book}}的经文，所以只显示节号。",
       "chapterHead": "第{{n}}章",
@@ -2117,8 +2139,8 @@
       "done_other": "完成 · {{count, number}}段"
     },
     "division": {
-      "way_other": "{{way}} · {{count, number}} 个部分",
-      "own_other": "自己的方式 · {{count, number}} 个部分"
+      "way_other": "{{way}} · {{count, number}} 段",
+      "own_other": "自己的方式 · {{count, number}} 段"
     }
   },
   "canon": {
@@ -2139,7 +2161,7 @@
     "unnamedOrg": "机构",
     "listJoin": "、",
     "quoted": "“{{text}}”",
-    "languageRenderings": "{{language}}译法",
+    "languageRenderings": "{{language}}说法",
     "levels": {
       "org": "机构",
       "language": "语言"
@@ -2147,27 +2169,27 @@
     "privileges": {
       "manageStructure": {
         "label": "管理机构结构",
-        "desc": "更改其范围内的机构结构（语言）"
+        "desc": "在其角色适用的范围内添加和更改语言"
       },
       "inviteMembers": {
-        "label": "邀请成员",
-        "desc": "邀请其范围内的人员"
+        "label": "邀请人员",
+        "desc": "在其角色适用的范围内邀请人"
       },
       "manageRoles": {
-        "label": "管理角色",
-        "desc": "创建和编辑其范围内的角色"
+        "label": "创建和更改角色",
+        "desc": "在其角色适用的范围内创建和更改角色"
       },
       "manageTemplates": {
         "label": "管理内容模板",
-        "desc": "制作和编辑其范围内的内容模板"
+        "desc": "在其角色适用的范围内创建和更改内容模板"
       },
       "shapeTemplates": {
         "label": "调整内容模板",
         "desc": "把书卷划分为经段、为经段命名，并为其语言发布这些更改"
       },
       "manageReference": {
-        "label": "管理参考资料",
-        "desc": "制作和编辑其范围内的参考资料"
+        "label": "选择圣经和指南",
+        "desc": "在其角色适用的范围内创建和更改参考资料"
       },
       "manageFlows": {
         "label": "管理审核流程",
@@ -2175,35 +2197,35 @@
       },
       "manageTeams": {
         "label": "管理审核团队",
-        "desc": "制作和编辑其范围内的审核团队（小组）"
+        "desc": "在其角色适用的范围内创建和更改审核团队"
       },
       "assignWork": {
         "label": "分配工作",
-        "desc": "请其范围内的任何人录制或审核经段"
+        "desc": "在其角色适用的范围内请任何人录制或审核段落"
       },
       "overrideCheckpoints": {
-        "label": "越过检查点",
+        "label": "让工作越过锁定的检查",
         "desc": "让经段越过检查点，并记录原因"
       },
       "translate": {
-        "label": "翻译",
+        "label": "录音",
         "desc": "录制和修改译文（关闭后，比如可以不让顾问起草）"
       },
       "fillReference": {
-        "label": "填写参考内容",
-        "desc": "添加关键术语、备注和参考内容"
+        "label": "添加备注和关键词",
+        "desc": "添加关键词、备注和参考内容"
       },
       "sendToReviewers": {
-        "label": "请求审核",
+        "label": "请求检查",
         "desc": "请队友或应用外的人通过链接进行审核"
       },
       "review": {
-        "label": "审核",
+        "label": "检查录音",
         "desc": "进行审核，并记录在应用外进行的检查"
       },
       "viewStatus": {
-        "label": "查看状态",
-        "desc": "以只读方式查看其范围内的地图和经段记录"
+        "label": "查看所有人的工作",
+        "desc": "在其角色适用的范围内查看地图和段落记录，但不能更改"
       }
     },
     "privilegeGroups": {
@@ -2230,7 +2252,7 @@
       },
       "keyTerms": {
         "code": "术语",
-        "name": "关键术语"
+        "name": "关键词"
       },
       "questions": {
         "code": "问题",
@@ -2269,19 +2291,19 @@
     "roles": {
       "title": "角色",
       "addRole": "角色",
-      "introOrg": "角色是一组权限，没有固定范围。给成员分配角色时再选择范围。在这里创建的角色可以在任何级别分配。",
-      "introLanguage": "角色是一组权限，没有固定范围。给成员分配角色时再选择范围。角色是为整个机构定义的，所以在这里只能查看。请在机构主页中编辑。",
+      "introOrg": "角色是一个人可以做的事。在哪里做，是在给人这个角色时选择的：所有语言，或其中一个。",
+      "introLanguage": "角色是一个人可以做的事。角色属于整个机构，所以这里只能查看。请从机构主页更改。",
       "loading": "正在加载角色……",
       "empty": "还没有角色",
       "emptySub": "为大家帮忙的每种方式各建一个角色：规定他们能做什么，而不是在哪里做。",
       "definedAtOrg": "在机构级别定义",
-      "inheritedSub": "仅查看 · 请在定义它的级别编辑",
+      "inheritedSub": "仅查看 · 请从机构主页更改",
       "members_other": "{{count, number}} 位成员",
-      "privileges_other": "{{count, number}} 项权限",
       "addRoleHelp": "创建新角色：规定拥有这个角色的人可以做哪些事。",
       "ownRoleHelp": "打开查看拥有它的人可以做什么，以及谁有这个角色。星号：由你的机构创建。",
       "builtInRoleHelp": "打开查看拥有它的人可以做什么，以及谁有这个角色。它是应用自带的。",
-      "inheritedRoleHelp": "显示拥有它的人可以做什么。请在“机构主页”中更改。"
+      "inheritedRoleHelp": "显示拥有它的人可以做什么。请在“机构主页”中更改。",
+      "privileges_other": "{{count, number}} 项权限"
     },
     "roleEditor": {
       "title": "角色",
@@ -2292,7 +2314,7 @@
       "newRole": "新角色",
       "aNewRole": "一个新角色",
       "people_other": "{{count, number}} 人",
-      "inheritedBody": "在机构级别定义。请在机构主页中编辑。",
+      "inheritedBody": "为整个机构创建。请从机构主页更改。",
       "noPermission": "你没有权限编辑这个角色。",
       "nameLabel": "它叫什么？",
       "namePlaceholder": "例如：回译人",
@@ -2382,7 +2404,7 @@
       "noneChosen": "还没有选择流程",
       "noReviews": "不审核：录完即完成",
       "title": "审核流程",
-      "addFlow": "流程",
+      "addFlow": "新建流程",
       "noLanguages": "还没有语言",
       "noLanguagesSub": "先添加一个语言，再选择它的经段要怎样检查。",
       "languageUses": "{{language}}使用",
@@ -2397,9 +2419,10 @@
       "nowUses": "{{language}}现在使用{{flow}}。",
       "addFlowHelp": "创建新流程：经段要按顺序做哪些检查。",
       "openFlowHelp": "打开它，可以查看或更改步骤。",
+      "editChecks": "编辑检查和人员",
+      "editChecksHelp": "打开{{language}}自己的检查：顺序、每项由谁做、每项显示什么。",
       "saveAsFlowHelp": "把这个语言的检查保存为资料库中的流程，供其他语言使用。",
       "flowCardHelp": "打开它，可以查看或更改步骤。锁：那一步必须先通过。",
-      "inUseHelp": "这个语言现在用这种方式检查经段。",
       "useHelp": "它的检查会成为{{language}}自己的检查。之后你可以更改。",
       "stepsLabel": "步骤",
       "stepsHelp": "各项检查，从左到右排列。叠在一起的同时进行。锁：那一步必须先通过。",
@@ -2435,7 +2458,7 @@
       "descriptionPlaceholder": "用一行字说明它的用途",
       "noChecks": "不检查：录完即完成",
       "usedHere": "{{language}}在使用它。更改会立即应用到它的经段；已经录好的内容不会丢失。",
-      "usedNote": "使用它的语言会换到每个新版本。步骤只是建议的顺序；只有锁定的步骤必须先通过。",
+      "usedNote": "采用了这些检查的语言各有自己的副本：修改这个流程不会改变其中任何一个。步骤只是建议的顺序；只有锁定的步骤必须先通过。",
       "kindsSub": "审核类型是你的机构自己的用语。如果这些不合适，可以添加你自己的。",
       "newKindLabel": "新的类型",
       "newKindPlaceholder": "新的类型，例如：长老审核",
@@ -2459,15 +2482,14 @@
       "introLanguage": "{{language}}自己的资料是在机构推荐的资料之外另加的，不会复制任何内容。译者会在录音页面的资料栏中看到它；审核人会看到对应审核类型的问题。",
       "introOrg": "供所有语言使用的资料放在你的资料库中，由机构推荐给各个语言。每个语言可以在自己的主页上添加自己的资料。",
       "offered": "提供给译者的资料",
-      "keyTermsSection": "关键术语",
-      "keyTermsRow": "关键术语",
+      "keyTermsSection": "关键词",
+      "keyTermsRow": "关键词",
       "concepts_other": "{{count, number}} 个概念",
       "addLanguageFirst": "请先添加一个语言",
       "libraryOrg": "资料库 · 你的机构",
-      "new": "新建",
       "libraryEmpty": "你的资料库中还没有内容。可以关注或复制其他机构分享的资料，也可以发布你自己的。",
       "writeGuide": "编写指南",
-      "writeGuideSub": "包含文字和音频、图片、地图和关键术语的步骤",
+      "writeGuideSub": "包含文字和音频、图片、地图和关键词的步骤",
       "studyMaterial": "学习资料",
       "noStudy": "这个语言没有在应用中编写的学习资料。",
       "blanks_other": "{{count, number}} 处待填",
@@ -2487,10 +2509,15 @@
       "biblesHelp": "打开译者听和读的圣经，以及推荐了哪些。",
       "guidesNotesHelp": "打开译者收到的学习指南和注释，以及推荐了哪些。",
       "keyTermsHelp": "打开每个概念，以及这个语言怎么说。",
-      "newHelp": "在你的资料库中新建资料。",
       "libraryItemHelp": "打开它：查看它包含什么，以及怎样分享。",
       "openMaterialHelp": "打开它，可以阅读或更改。",
-      "openLockedHelp": "打开它。已锁定：只有管理参考资料的人可以更改。"
+      "openLockedHelp": "打开它。已锁定：只有管理参考资料的人可以更改。",
+      "add": {
+        "here": "指南、简介或问题",
+        "hereSub": "在这里逐节编写；审核问题归入某一种审核",
+        "byVerses": "按经节放置的注释",
+        "byVersesSub": "放入资料库，并出现在其经节或模板部分所在的段落"
+      }
     },
     "material": {
       "editTitle": "编辑资料",
@@ -2594,41 +2621,41 @@
       "pickPartHelp": "链接这个部分：译者会在那里收到它。"
     },
     "keyTerms": {
-      "noLanguageRendering": "还没有{{language}}译法",
-      "title": "关键术语",
+      "noLanguageRendering": "还没有{{language}}说法",
+      "title": "关键词",
       "chooseLanguage": "请先选择一个语言",
       "added": "已添加{{term}}。",
       "newTerm": "新术语",
       "search": "搜索术语",
-      "empty": "还没有关键术语",
+      "empty": "还没有关键词",
       "emptySubCanAdd": "添加一个术语，写下这个语言怎么说，以及什么时候用。",
-      "emptySub": "团队添加的术语会和它们的译法一起显示在这里。",
+      "emptySub": "团队添加的词会显示在这里，并附上你们语言对每个词的说法。",
       "inPassage": "在这个经段中",
       "otherTerms": "其他术语",
       "allTerms": "所有术语",
       "noOther": "没有其他术语。",
-      "intro": "概念来自共享列表（比如 FIA 关键术语）或你自己的列表。{{language}}保留自己的译法以及这样译的原因。",
-      "newKeyTerm": "新的关键术语",
-      "newSub": "添加到{{language}}的关键术语中，并附上第一个译法。",
+      "intro": "关键词来自共享列表（如 FIA 关键词）或你们自己的列表。{{language}}为每个词保存自己的说法及其理由。",
+      "newKeyTerm": "新的关键词",
+      "newSub": "加入{{language}}的关键词，并附上第一个说法。",
       "addTerm": "添加术语",
       "termPlaceholder": "源术语，例如：恩典（charis）",
       "meaningPlaceholder": "简要说明意思",
-      "renderingPlaceholder": "{{language}}译法",
+      "renderingPlaceholder": "{{language}}说法",
       "contextPlaceholder": "什么时候用，为什么",
       "newTermHelp": "添加一个概念，并写下{{language}}怎么说。",
       "openTermHelp": "打开它：它的意思、你的团队怎么说，以及为什么。",
-      "openFiaTermHelp": "FIA 关键术语。打开查看它的意思、你的团队怎么说，以及为什么。",
+      "openFiaTermHelp": "FIA 关键词。打开查看它的意思、你的团队怎么说，以及为什么。",
       "renderingHelp": "{{language}}怎么说。"
     },
     "keyTerm": {
-      "title": "关键术语",
+      "title": "关键词",
       "gone": "这个术语已经不在这里了",
       "tied": "已将{{term}}关联到你的草稿。",
       "added": "已添加“{{rendering}}”。",
       "changeRecorded": "修改已记录。",
-      "firstRendering": "第一个译法：{{rendering}}。",
-      "fiaSub": "FIA 关键术语 · {{language}}",
-      "sub": "{{language}}关键术语",
+      "firstRendering": "第一个说法：{{rendering}}。",
+      "fiaSub": "FIA 关键词 · {{language}}",
+      "sub": "{{language}}关键词",
       "noMeaning": "还没有写意思。",
       "appearsIn": "出现在{{places}}",
       "everyPassage": "适用于每个经段",
@@ -2637,10 +2664,10 @@
       "tiedBody": "审核人会看到这个术语和你的理由。",
       "tieBody": "让审核人知道这个术语影响了{{passage}}。",
       "inLanguage": "在{{language}}中",
-      "noRendering": "还没有译法",
+      "noRendering": "还没有说法",
       "addHow": "添加{{language}}怎么说，以及什么时候用。",
-      "adjustOrAdd": "调整或添加译法",
-      "addRendering": "添加译法",
+      "adjustOrAdd": "修改或添加说法",
+      "addRendering": "添加说法",
       "details": "详细信息",
       "why": "为什么这样译",
       "changes_other": "{{count, number}} 次修改",
@@ -2650,7 +2677,7 @@
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "作为{{passage}}的一部分记录，并关联到你的草稿。",
       "adjustSub": "每次修改都会和你的理由一起记录下来。",
-      "newRendering": "新译法（选填）",
+      "newRendering": "新说法（可选）",
       "whenToUse": "什么时候用",
       "sayWhy": "说明原因",
       "orTypeWhy": "或者输入改了什么，以及为什么",
@@ -2676,7 +2703,7 @@
       "signingIn": "正在登录……",
       "askedOrg": "已向{{org}}申请",
       "askedUnknown": "已向机构申请",
-      "sentBody": "对方同意后，你就会直接进入。你可以关闭应用；我们会通知你。",
+      "sentBody": "你可以关闭应用。下次打开时，如果对方已同意，你就会直接进入。",
       "savedOnDevice": "已保存在本设备上"
     },
     "termsLine": {
@@ -2700,13 +2727,21 @@
       "v2SameEmail": "你在这里已经有用这个邮箱的账号。请用你在这里使用的密码登录。"
     },
     "signIn": {
-      "tagline": "协调圣经翻译——从草稿到批准",
       "joinTitle": "登录后加入",
       "joinBody": "你的邀请已保存。登录后就会立即加入。",
+      "askTitle": "登录后，申请加入{{language}}团队",
       "namePlaceholder": "邮箱或登录名",
+      "nameHint": "登录名不含空格：只有字母、数字和连字符，例如 nyibol-deng-482。",
+      "nameHelp": "你的邮箱，或你的登录名，例如 nyibol-deng-482。",
+      "passwordHelp": "这个账户的密码。",
+      "buttonHelp": "用上面的名字和密码登录。",
       "button": "登录",
+      "cantSignIn": "无法登录？",
+      "cantSignInHelp": "显示无需密码的登录方式。",
+      "stuckTitle": "请你的团队成员给你出示登录码，然后点“扫码”。",
+      "writeTo": "写信到 {{email}}",
+      "writeToHelp": "打开写给我们的邮件，请我们帮你登录。",
       "scanCode": "扫码",
-      "scanHint": "邀请码，或者帮你登录的人给你的登录码",
       "noAccount": "还没有账号？",
       "browse": "浏览公开的工作",
       "switchPersona": "切换身份",
@@ -2761,6 +2796,7 @@
       "listed": "已公开列出",
       "cardLabel": "{{name}}，{{percent}}",
       "recorded": "已录音",
+      "signInToAsk": "登录后申请",
       "emptyTitle": "还没有列出任何内容",
       "emptySub": "机构公开列出他们的工作后，会显示在这里。",
       "signInHelp": "登录后，你可以申请加入一个机构。",
@@ -2788,13 +2824,16 @@
       "scanHint": "不需要邮箱或密码。邀请会为你创建账号，并把你加入团队。",
       "failed": "无法创建账号。请重试。",
       "confirmHelp": "再输入一次同样的密码，确保没有输错。",
+      "emailHelp": "我们会把链接发到这里。打开它即可完成账户。",
+      "passwordHelp": "至少 6 个字符。登录时要用。",
+      "buttonHelp": "创建你的账户，并把链接发到你的邮箱。",
       "scanInviteHelp": "打开相机。邀请会为你创建账号：不需要邮箱。"
     },
     "scan": {
       "title": "扫码",
       "subSignIn": "帮你登录的人给你的登录码",
       "subGuest": "不需要邮箱或密码",
-      "subMember": "邀请包含机构、角色和范围",
+      "subMember": "邀请会说明机构、角色和语言",
       "notCode": "这不是 LangQuest 的代码。",
       "notQr": "这个二维码不是 LangQuest 的代码。",
       "cameraOff": "相机权限已关闭。你可以在下面粘贴代码。",
@@ -2802,6 +2841,8 @@
       "haveAccount": "我已经有账号了",
       "notMe": "不是{{name}}？请先退出登录",
       "notYou": "不是你？请先退出登录",
+      "joinWhenConnected": "联网后加入",
+      "joinWhenConnectedHelp": "加入需要联网。联网后此按钮会自动启用。",
       "hintPoint": "把相机对准代码",
       "hintRead": "已读取代码",
       "hintTap": "点按“扫描”使用相机",
@@ -2845,6 +2886,7 @@
       "expiredOrUsed": "这个代码已过期或已被使用。请重新索取一个。",
       "codeBusy": "暂时无法使用这个代码。请重试。",
       "scanElseHelp": "放弃这个代码，重新打开扫码。",
+      "signOutHelp": "打开退出登录，让这个登录码的主人在这台设备上登录。",
       "buttonHelp": "用这个代码在本设备上为你登录。什么都不用输入。",
       "cancelHelp": "不登录。回到扫码。"
     },
@@ -2887,7 +2929,8 @@
       "licenseLabel": "谁可以使用你的作品",
       "readyTitle": "可以使用了",
       "readyBody": "你会得到常用的角色和一种标准的经段检查方式。接下来，我们一起添加你的第一个语言和团队。",
-      "nameHelp": "你的机构的名称，你的团队会看到这个名称。"
+      "nameHelp": "你的机构的名称，你的团队会看到这个名称。",
+      "buttonHelp": "创建组织。接着添加你的第一种语言。"
     },
     "request": {
       "notSent": "未发送",
@@ -2898,20 +2941,21 @@
       "askOrg": "向{{org}}申请",
       "askUnknown": "向机构申请",
       "askToJoin": "申请加入",
-      "askIntro": "他们会让你加入，你就可以直接开始工作。",
+      "askIntro": "那里的管理员会看到你的申请。他们让你加入后，你就可以直接开始工作。",
       "messageLabel": "说点什么（选填）",
       "messagePlaceholder": "你是谁，属于哪个团队",
       "searchPlaceholder": "名称或语言",
-      "askRowLabel": "申请加入{{org}}",
-      "asking": "正在申请……",
       "noMatch": "没有与“{{query}}”匹配的机构或语言。",
-      "notHere": "找不到？请你的团队成员给你出示他们的代码。",
-      "noneListed": "还没有列出任何机构。请你的团队成员给你出示他们的代码。",
+      "notHere": "找不到？扫描他们的代码",
+      "noneListed": "还没有列出任何机构。",
+      "loadFailedTitle": "无法载入列表",
+      "loadFailedSub": "联网后再试，或扫描团队成员的代码。",
+      "tryAgainHelp": "重新请求列表。",
       "backHelp": "回到加入团队的各种方式。",
       "doneHelp": "回到开始页面。他们回复后会显示在那里。",
-      "askHelp": "发送你的申请。由那里的管理员让你加入。",
+      "askHelp": "把你的申请发给那里的管理员。",
       "messageHelp": "那里的管理员会和你的申请一起看到这段话。",
-      "rowHelp": "向这个机构发送你的加入申请。"
+      "rowHelp": "打开你给这个机构的申请，可以附上留言再发送。"
     },
     "welcome": {
       "roles": {
@@ -3007,11 +3051,14 @@
       "movingSub": "另一个标签页会保存它的内容，然后让出位置。",
       "elsewhereSub": "它一次只能在一个标签页中运行，这样你的录音和更改都保存在同一个地方。可以在这里使用，或者回到另一个标签页。",
       "useHere": "在这里使用",
-      "useHereHelp": "把 LangQuest 移到这个标签页。另一个标签页会保存它的工作，然后让出位置。"
+      "useHereHelp": "把 LangQuest 移到这个标签页。另一个标签页会保存它的工作，然后让出位置。",
+      "otherRecording": "另一个标签页正在录音",
+      "otherRecordingSub": "请先在那里停止录音，然后再试一次。",
+      "cancelMoveHelp": "停止等待。LangQuest 留在另一个标签页中。"
     },
     "lock": {
-      "wait": "尝试次数太多。请稍等一会儿再试。",
       "wrong": "图案不对。",
+      "waitFor_other": "尝试次数太多。请 {{count, number}} 分钟后再试，或扫描团队成员给你的登录码。",
       "notMe": "不是我的图片",
       "notMeHelp": "回到图片。",
       "pictureHelp": "在这部手机上退出过登录？ 点你的图片，然后画出你的图案。不需要网络。"
@@ -3029,6 +3076,7 @@
     "update": {
       "restarting": "正在重新启动……",
       "ready": "更新已就绪——点按重新启动",
+      "afterRecording": "更新已就绪 · 停止录音后可重启",
       "downloading": "正在下载更新……",
       "downloadingPercent": "正在下载更新……{{percent}}",
       "webReady": "LangQuest 的新版本已就绪。重新加载即可使用。",
@@ -3164,8 +3212,11 @@
       "setPasswordSub": "如果其他人也使用这台设备",
       "notifications": "通知",
       "notificationsSub": "接收关于请求和反馈的通知",
-      "notificationsOn": "通知已开启。",
+      "notificationsBlocked": "在这部手机的设置里已关闭",
       "notificationsFailed": "无法开启通知。请在联网后重试。",
+      "notificationsOffNeedsConnection": "关闭需要联网。联网后再试一次。",
+      "openPhoneSettings": "打开这部手机的设置",
+      "openPhoneSettingsHelp": "打开这部手机的设置，现在只有那里能允许 LangQuest 的通知。",
       "switchOrg": "切换机构",
       "switchActive": "{{org}}（当前）",
       "switchOrStart": "{{org}} · 或者新建一个",
@@ -3173,6 +3224,7 @@
       "sync": "同步",
       "syncRefused": "这个账号无法同步这个机构",
       "syncPending_other": "{{count, number}} 项更改等待发送",
+      "syncPendingMixed": "{{total, number}} 项待发送 · 录音：{{recordings, number}}",
       "syncLive": "实时：更改会随时送达",
       "syncOffline": "离线：工作保存在本设备上",
       "syncUpToDate": "已是最新",
@@ -3186,7 +3238,6 @@
       "deleteSub": "永久删除你的账号和名字",
       "testing": "测试",
       "personaSub": "以演示用的译者、审核人或管理员身份登录",
-      "notificationsHelp": "开启通知，让本设备提醒你有关请求和反馈的消息。",
       "syncHelp": "显示等待发送或下载的内容。数字表示有等待发送的更改。",
       "blockedHelp": "显示你屏蔽了谁，可以取消屏蔽。",
       "switchOrgHelp": "打开你的机构，可以切换到另一个，或者新建一个。"
@@ -3207,6 +3258,7 @@
       "nameLabel": "全名",
       "shortPassword": "请设置至少 6 个字符的密码。",
       "passwordNeedsConnection": "设置密码需要联网。",
+      "nameSaved": "名字已保存。",
       "passwordFailed": "无法设置密码。请重试。",
       "savedWithPassword": "已保存。你可以用你的登录名和这个密码登录。",
       "saved": "个人资料已保存。联网后会同步。",
@@ -3251,17 +3303,22 @@
       "signingOut": "正在退出登录……",
       "button": "退出登录",
       "notYet": "暂不退出",
+      "sending": "正在发送…",
+      "seeWaiting": "查看等待发送的内容",
+      "seeWaitingHelp": "打开同步：按经段列出等待发送的内容，以及立即同步。",
       "question": "要退出登录吗？"
     },
     "delete": {
       "title": "删除账号",
       "deleting": "正在删除……",
       "button": "删除我的账号",
+      "buttonHelp": "再确认一次，然后永久删除这个账号。",
       "sendFirstTitle": "请先发送你的工作",
       "sendFirstBody": "还要发送：{{things}}。请等它们同步完成后再删除账号，这样你的机构才能收到。",
       "offlineTitle": "你处于离线状态",
       "offlineBody": "请连接互联网后再删除账号。",
       "question": "要删除你的账号吗？",
+      "confirmTitle": "删除 {{name}} 的账号？",
       "deleted": "会被删除的",
       "deletedSub": "你的登录信息、邮箱、名字、通知、屏蔽设置和诊断信息。你会退出所有机构。",
       "kept": "由你的机构保留的",
@@ -3273,6 +3330,7 @@
       "syncNow": "立即同步",
       "refused": "服务器拒绝了这个账号访问这个机构。",
       "tooOld": "请更新应用后再同步。",
+      "tooOldSends": "这个应用版本太旧，收不到团队的更改。你自己的工作仍会发送出去。",
       "waitingUpload": "等待上传",
       "refusedByServer": "被服务器拒绝",
       "latestConfirmed": "最新确认",
@@ -3293,13 +3351,15 @@
         "live": "实时",
         "checking": "已连接",
         "offline": "离线",
-        "refused": "未同步"
+        "refused": "未同步",
+        "tooOld": "更新后才能接收"
       },
       "help": {
         "live": "团队的更改会即时到达，你的更改也会立刻发出。",
         "checking": "已连接，但实时通道中断，所以本设备每隔几分钟检查一次更改。“立即同步”会马上检查。",
         "offline": "没有网络连接。你所做的一切都保存在本设备上，重新联网后会自动发送。",
         "refused": "服务器不接受本设备的更改。你的工作仍保存在这里。",
+        "tooOld": "这个应用版本太旧，收不到团队的更改。请到应用商店更新。",
         "toReceive": "本设备仍在下载的他人录音。",
         "refusedLine": "服务器未接受的更改，通常是因为权限有变。它们留在本设备上；打开“详细信息”查看每一项。"
       },
@@ -3373,10 +3433,9 @@
     },
     "glossary": {
       "sub": "词汇表 · {{source}}",
-      "openKeyTerm": "打开关键术语",
+      "openKeyTerm": "打开关键词",
       "listen": "听：{{term}}",
-      "standIn": "无法加载音频——正在播放替代音频",
-      "notKeyTerm": "这个术语还不在你的机构的关键术语中。"
+      "notKeyTerm": "这个术语还不在你的机构的关键词中。"
     },
     "callout": {
       "action": "在这里停下",
@@ -3388,10 +3447,6 @@
     "reader": {
       "addNoteOn": "为{{verse}}添加备注",
       "addNoteOnAt": "在{{verse}}的 {{time}} 处添加备注",
-      "verse": "第 {{verse}} 节",
-      "where": "{{title}} · 第 {{verse}} 节 · {{bible}}",
-      "whereAt": "{{title}} · 第 {{verse}} 节 · {{bible}} · {{time}}",
-      "noteAdded": "已为{{verse}}添加备注——它会跟着这个经段",
       "addNoteHelp": "对这一节说或写一条备注。它会跟着这个经段。"
     },
     "screen": {
@@ -3413,6 +3468,7 @@
       "stepDone": "{{step}}已完成 · {{done, number}}/{{total, number}}",
       "allDone": "所有步骤都已完成",
       "backToGuide": "返回指南",
+      "backTo": "返回{{chip}}",
       "doneWithStep": "这一步完成",
       "openWorkspace": "打开录音页面",
       "recordFirstDraft": "录第一稿",
@@ -3549,13 +3605,14 @@
         "askedYou": "{{by}}请你做",
         "askedYourTeam": "{{by}}请你的{{team}}团队做",
         "askedYourReviewTeam": "{{by}}请你的审核团队做",
-        "byLinkOver": "通过{{channel}}发送链接",
+        "byLinkOver": "未由应用发送 · {{channel}}",
         "askedForChanges": "{{who}}要求修改",
         "answered": "已回应反馈——审核人说“没问题”后就会完成",
         "recordedBy": "由{{who}}录制",
         "recorded": "已录音",
         "bestAfter": "最好等{{kind}}的反馈得到回应后再做，这样是针对你要保留的版本",
-        "recordsItIn": "{{who}}用{{language}}把它录下来——这是新的内容，不是评判"
+        "recordsItIn": "{{who}}用{{language}}把它录下来——这是新的内容，不是评判",
+        "loggedStillWaits": "已登记为“没问题” · 仍在等待应用中的检查"
       },
       "channels": {
         "whatsapp": "WhatsApp",
@@ -3565,7 +3622,7 @@
         "passage": "整个经段",
         "aVersion": "一个版本",
         "verse": "第 {{verse}} 节",
-        "term": "关键术语 · {{term}}",
+        "term": "关键词 · {{term}}",
         "aTerm": "术语",
         "study": "学习",
         "studyAudioAt": "{{step}} · 音频 {{at}} 处"
@@ -3628,8 +3685,8 @@
         "text": "文字",
         "rating": "1–5"
       },
-      "guestMessage": "{{name}}你好——能请你听一下{{language}}的{{passage}}，告诉我们你听懂了什么吗？不需要账号：",
-      "guestMessageNoName": "你好——能请你听一下{{language}}的{{passage}}，告诉我们你听懂了什么吗？不需要账号："
+      "guestMessage": "{{name}}你好——能请你听一下{{language}}的{{passage}}，告诉我们你听懂了什么吗？",
+      "guestMessageNoName": "你好——能请你听一下{{language}}的{{passage}}，告诉我们你听懂了什么吗？"
     },
     "path": {
       "theCheck": "{{check}}",
@@ -3659,6 +3716,7 @@
       "fixSub": "然后再回到检查",
       "status": {
         "movedPast": "已越过",
+        "movedPastWhy": "已越过 · {{reason}}",
         "setAside": "已搁置",
         "answered": "已回应",
         "answeredBack": "已回复 · 退回检查",
@@ -3767,11 +3825,13 @@
         "backTranslate": "回译",
         "doCheck": "做{{check}}",
         "study": "学习",
-        "record": "录音"
+        "record": "录音",
+        "continueCheck": "继续{{check}}"
       },
       "continueRecording": "继续录音",
       "askFor": "请求{{check}}",
       "movePastThis": "越过这个检查点……",
+      "heldAt": "停在{{check}}，必须先通过",
       "skip": {
         "title": "要搁置{{kind}}吗？",
         "sub": "流程建议做这一步。搁置也可以——请说明原因，让下一个人明白。",
@@ -3849,7 +3909,6 @@
       "someoneElseCheck": "{{kind}}：请一个人、一个小组，或者通过 WhatsApp 或短信请团队外的人",
       "alreadyDid": "我们已经做过了",
       "alreadyDidSub": "说明{{check}}是什么时候、怎样进行的",
-      "notNowSub": "搁置{{check}}。请说明原因",
       "newVersion": "录制新版本",
       "newVersionSub": "目前的审核会保留在他们听过的版本上",
       "movePast": "越过检查点",
@@ -3861,7 +3920,9 @@
       "whatHelpsHelp": "打开这个经段的圣经、指南和其他帮助资料。",
       "myself": "我自己来做",
       "myselfSub": "{{kind}}：现在就听并作出决定",
-      "myselfMakesSub": "{{kind}}：现在就录"
+      "myselfMakesSub": "{{kind}}：现在就录",
+      "setAside": "搁置{{check}}",
+      "setAsideSub": "说明原因。这会记入记录。"
     },
     "published": {
       "askTitle": "请求检查",
@@ -3911,14 +3972,14 @@
       "inResponseTo": "回应来自{{who}}的{{kind}}",
       "recording": "录音",
       "details": "详细信息",
-      "keyTerms": "关键术语",
+      "keyTerms": "关键词",
       "termsTied_other": "已关联 {{count, number}} 个术语 · {{terms}}",
       "reviews": "这个版本的审核",
       "noReviews": "这个版本还没有审核。",
       "notes": "备注",
       "noteCount_other": "{{count, number}} 条备注",
       "inResponseHelp": "打开这个版本所回应的反馈。",
-      "termHelp": "打开这个关键术语：它的意思，以及你的团队怎么说。"
+      "termHelp": "打开这个关键词：它的意思，以及你的团队怎么说。"
     },
     "review": {
       "noReviews": "这个经段还没有审核。",
@@ -3954,9 +4015,10 @@
       "titleRecord": "请人录音",
       "titleKind": "请求{{kind}}",
       "titleReview": "请求审核",
-      "doneOutside": "已请{{name}} · 请求已写进记录",
+      "doneOutside": "已记入记录，未发送。请你自己发给{{name}}。",
       "doneTeam": "{{name}}会在“我的工作”中看到",
       "askName": "请{{name}}",
+      "saveRequest": "保存请求",
       "chooseSomeone": "选择一个人",
       "recordIt": "录下来",
       "recordSub": "他们会在“我的工作”中看到，源文本和学习内容都已准备好。",
@@ -3965,11 +4027,9 @@
       "withoutApp": "没有应用的人",
       "usuallyDoesThis": "通常负责这项",
       "nobody": "团队中没有人能做这项工作。",
-      "nobodyTryOutside": "团队中没有人能做这项工作。试试没有应用的人。",
       "guestName": "对方的名字——例如：王牧师",
       "phone": "电话号码",
-      "preview": "{{channel}}预览",
-      "previewNote": "请求会和对方的名字、号码一起写进记录。从应用中发送免账号链接的功能还没有准备好。",
+      "phoneNeeded": "电话号码 · 必填",
       "directions": "说明 · 选填",
       "sayKeepInMind": "说说需要注意什么",
       "sayListenFor": "说说要听什么",
@@ -3979,12 +4039,15 @@
       "answerType": "回答方式：{{type}}",
       "addQuestion": "添加问题",
       "sendHelp": "发送请求。对方会在“我的工作”中看到。",
-      "sendOutsideHelp": "把请求写进记录，附上对方的名字和电话号码。",
+      "sendOutsideHelp": "把请求连同对方的姓名和号码记入记录。不会向对方发送任何内容。",
       "onTeamHelp": "选择一个使用应用的人。",
-      "withoutAppHelp": "改为通过 WhatsApp 或短信请人。",
+      "withoutAppHelp": "为没有应用的人保存请求。消息由你自己发送。",
       "teamHelp": "请这项检查的所有人。其中任何人都可以做。",
       "personHelp": "选择请这个人。",
       "phoneHelp": "通过 WhatsApp 或短信联系对方的号码。",
+      "sendYourself": "请你自己通过{{channel}}发给对方",
+      "shareMessage": "分享这条消息",
+      "shareMessageHelp": "用这条消息打开手机的分享面板。在浏览器中会复制它。",
       "whatsappHelp": "通过 WhatsApp 联系对方。",
       "smsHelp": "通过短信联系对方。",
       "askSpecificHelp": "输入一个让对方回答的问题，然后添加。",
@@ -3998,7 +4061,9 @@
     },
     "versions": {
       "title": "版本",
+      "whichDraft": "哪份草稿？",
       "newVersion": "新版本",
+      "continueDraft": "继续{{name}}",
       "yourDraft": "你的草稿",
       "yourDrafts": "你的草稿",
       "published": "已发布",
@@ -4034,6 +4099,7 @@
   "work": {
     "title": "我的工作",
     "loading": "正在加载你的工作……",
+    "notReady": "{{language}}有了可录制的段落后，你的工作会显示在这里。",
     "askedBy": "由{{name}}请求",
     "checkPassage": "检查{{passage}}",
     "bell": {
@@ -4083,7 +4149,8 @@
       "wantsToJoin": "{{name}}想加入",
       "asked": "{{when}}申请",
       "askedJustNow": "刚刚申请",
-      "openHelp": "打开对方的申请：选择一个角色，让他加入。"
+      "openHelp": "打开对方的申请：选择一个角色，让他加入。",
+      "connectToLetIn": "联网后才能让他们加入"
     },
     "lead": {
       "getOrgReady": "为{{org}}做准备",
@@ -4136,7 +4203,11 @@
     },
     "elsewhere": {
       "title": "{{language}}有新动态",
-      "sub_other": "有 {{count, number}} 条与你有关。点按切换到{{language}}。"
+      "sub_other": "有 {{count, number}} 条与你有关。点按切换到{{language}}。",
+      "switched": "现在在{{language}}",
+      "help": "把应用切换到{{language}}。",
+      "back": "回到{{language}}",
+      "backSub": "现在打开的是{{language}}。"
     },
     "again": {
       "title": "重新录制{{passage}}",
@@ -4166,6 +4237,7 @@
       "notSaved": "未保存：{{reason}}",
       "notSavedCode": "未保存。出了点问题（代码 {{code}}）。",
       "dismissLabel": "{{message}}关闭",
+      "close": "关闭消息",
       "goesWhenConnected": "{{message}} 本设备联网后你的团队才会收到。"
     },
     "nav": {
@@ -4264,7 +4336,7 @@
       },
       "term": {
         "title": "选择一个术语",
-        "sub": "它的意思和译法会在这里打开。"
+        "sub": "它的意思和团队的说法会在这里打开。"
       },
       "language": {
         "title": "选择一种语言",
@@ -4281,8 +4353,8 @@
       "subView": "你的机构分享录音和文字所采用的条件。",
       "use": "使用这个许可协议",
       "opening": "正在放宽……",
-      "yesOpenTo": "是，放宽为{{name}}",
-      "openTo": "放宽为{{name}}",
+      "yesOpenTo": "是，放宽为：{{terms}}",
+      "openTo": "放宽为：{{terms}}",
       "pickMoreOpen": "选择更宽松的许可协议",
       "title": "谁可以使用你的作品",
       "cannotUndo": "此操作无法撤销",
@@ -4303,6 +4375,7 @@
       "label": "图案：至少连接 {{n}} 个点",
       "help": "手指不离开屏幕划过各点，或逐个点按后点“完成”。至少连接 {{n}} 个点。",
       "dot": "第 {{n}} 个点",
+      "dotsSoFar_other": "{{count, number}} 个点",
       "picture": "图片 {{n}}",
       "again": "重新开始",
       "againHelp": "清除这些点，重新开始画图案。",
@@ -4314,6 +4387,7 @@
     "turnOff": "关闭帮助",
     "listen": "收听",
     "stop": "停止",
+    "closeHint": "关闭这条说明。",
     "line": "{{label}}。{{detail}}",
     "lineAfterSentence": "{{label}}{{detail}}",
     "details": {
@@ -4349,10 +4423,11 @@
       "explorer": "在新标签页中打开语言浏览：所有语言，以及在哪里使用。"
     },
     "sync": {
-      "live": "绿点：已联网。你的工作会随时发送。点按查看发送了什么。",
-      "checking": "灰点：正在寻找网络连接。你的工作会保存在本设备上，直到发送出去。",
-      "offline": "黄点：离线。你的工作保存在本设备上，联网后就会发送。",
-      "refused": "红色：服务器拒绝了某些内容。点按查看是什么，以及该怎么做。",
+      "live": "带勾的云：已联网。你的工作会随时发送。点按查看发送了什么。",
+      "checking": "普通的云：正在寻找网络。发送之前，你的工作留在这台设备上。",
+      "offline": "划掉的云：离线。你的工作留在这台设备上，联网后发送。",
+      "refused": "带警告的红色云：服务器拒绝了某些内容。点按查看是什么，以及该怎么做。",
+      "tooOld": "琥珀色带向下箭头的云：这个应用版本太旧，收不到团队的更改。点按即可更新。",
       "withWaiting": "{{standing}}数字表示有多少项等待发送。",
       "withReceiving": "{{standing}} 他人的录音下载到此设备时，圆环会转动。没有等待发送的内容。"
     }
@@ -4521,10 +4596,13 @@
     "actions": {
       "openMembers": "打开成员",
       "openPassage": "打开经段",
+      "openVersion": "打开这个版本",
+      "openReview": "打开这次审阅",
       "closeReport": "关闭举报",
       "keep": "保留",
-      "openPassageHelp": "打开这条举报所涉及的经段。",
+      "openPassageHelp": "打开被举报的内容，让你先看再决定。",
       "keepHelp": "把它保留在记录中，并关闭举报。",
+      "removeHelp": "再确认一次，然后在每台设备上把它从记录中移除。",
       "closeReportHelp": "关闭举报。不会移除任何人。"
     },
     "hidden": {
@@ -4589,7 +4667,6 @@
       "timelineHelp": "点按或拖动可以跳到某个时间点。时间：你所在的位置，以及总时长。"
     },
     "recorder": {
-      "permissionNeeded": "需要麦克风权限。",
       "hidePartsHelp": "隐藏各段。",
       "showPartsHelp": "显示每一段，可以听或删除。",
       "playAllHelp": "按顺序一段一段地听目前录下的所有内容。",
@@ -4644,7 +4721,11 @@
       "movePartHelp": "上下拖动可以移动这一段。移动过的一段会去掉它的经节，方便你重新标注。",
       "moveUp": "上移",
       "moveDown": "下移",
-      "undoHelp": "撤销你对这些段落的上一个改动。再点一次可以继续往回。"
+      "undoHelp": "撤销你对这些段落的上一个改动。再点一次可以继续往回。",
+      "micOff": "LangQuest 听不到你的声音。请在“设置”中为 LangQuest 打开麦克风。",
+      "micOffWeb": "LangQuest 听不到你的声音。请在浏览器中允许此网站使用麦克风，然后再点一次录音。",
+      "openSettings": "打开设置",
+      "openSettingsHelp": "打开此手机上 LangQuest 的设置。在那里打开麦克风，然后返回。"
     },
     "cleanUp": {
       "cleanUp": "清理",
@@ -4760,30 +4841,30 @@
     },
     "tray": {
       "help": "帮助",
-      "helpHint": "这个经段的关键术语、学习内容、备注和历史记录",
+      "helpHint": "这个经段的关键词、学习内容、备注和历史记录",
       "helpSub": "团队对这个经段的了解。",
-      "keyTerms": "关键术语",
+      "keyTerms": "关键词",
       "studyPill": "{{pattern}}学习 {{done}}/{{total}}",
       "notes": "备注",
       "history": "历史记录",
       "tied": "已关联到你的草稿。",
-      "noTerms": "没有与这个经段的源文本匹配的关键术语。",
-      "noRendering": "还没有译法",
+      "noTerms": "这段经文里没有关键词。",
+      "noRendering": "还没有说法",
       "termLabel": "{{term}}。{{rendered}}",
       "termLabelTied": "{{term}}。{{rendered}}。已关联到你的草稿",
-      "noLanguageRendering": "还没有{{language}}译法",
+      "noLanguageRendering": "还没有{{language}}说法",
       "tiedBadge": "已关联",
       "tying": "正在关联……",
       "tie": "关联到你的草稿",
       "recordFirst": "请先录一个片段，然后才能把术语关联到你的草稿。",
-      "allTerms": "所有关键术语 →",
+      "allTerms": "所有关键词 →",
       "studyTitle": "{{pattern}}学习 · {{passage}}",
       "openStudy": "打开学习 →",
       "anchor": {
         "passage": "整个经段",
         "draft": "一份草稿",
         "verse": "第 {{verse}} 节",
-        "term": "关键术语",
+        "term": "关键词",
         "study": "学习"
       },
       "notesEmpty": "你在这里留下的备注会跟着经段——审核人和下一位译者都会看到。",
@@ -4794,15 +4875,15 @@
       "firstRecording": "第一次录音。",
       "saidInVoiceNote": "在语音备注中说明了。",
       "playWhatChanged": "播放{{version}}中改了什么",
-      "helpButtonHelp": "打开这个经段的关键术语、学习内容、备注和历史记录。",
-      "termsTabHelp": "显示这个经段中的关键术语，以及你的语言怎么说。",
+      "helpButtonHelp": "打开这个经段的关键词、学习内容、备注和历史记录。",
+      "termsTabHelp": "显示这个经段中的关键词，以及你的语言怎么说。",
       "studyTabHelp": "显示学习的各个步骤。数字表示已完成的步骤数和总步骤数。",
       "notesTabHelp": "显示团队对这个经段的备注。",
       "historyTabHelp": "显示到目前为止录过的每个版本，以及改了什么。",
-      "termHelp": "打开这个关键术语：它的意思，以及怎么说。",
-      "termTiedHelp": "已关联到你的草稿。打开这个关键术语：它的意思，以及怎么说。",
-      "tieHelp": "把这个关键术语标记为已在你的草稿中说出。关联后无法撤销。",
-      "allTermsHelp": "打开所有关键术语，而不只是这个经段的。",
+      "termHelp": "打开这个关键词：它的意思，以及怎么说。",
+      "termTiedHelp": "已关联到你的草稿。打开这个关键词：它的意思，以及怎么说。",
+      "tieHelp": "把这个关键词标记为已在你的草稿中说出。关联后无法撤销。",
+      "allTermsHelp": "打开所有关键词，而不只是这个经段的。",
       "studyBarHelp": "学习完成了多少。每一步都完成后会变成绿色。",
       "openStudyHelp": "打开这个经段的完整学习内容。",
       "addNoteHelp": "对这个经段留一条语音或文字备注。它会跟着这个经段。"
@@ -4990,8 +5071,8 @@
       "notHereSub": "回到地图选择另一卷。",
       "breakUp": "划分{{book}}",
       "notBrokenUp": "{{book}}还没有划分",
-      "chooseHow": "选择怎样把{{book}}切分成几部分：按章、按 FIA 经段或其他方式。然后就可以录音了。",
-      "coordinatorDecides": "由协调员决定怎样把{{book}}切分成几部分。然后你就可以录音了。",
+      "chooseHow": "选择怎样把{{book}}切分成几段：按章、按 FIA 经段或其他方式。然后就可以录音了。",
+      "coordinatorDecides": "由协调员决定怎样把{{book}}切分成几段。然后你就可以录音了。",
       "summary_other": "已录音 {{recorded}}/{{count, number}} 个经段",
       "summaryIn_other": "{{language}}已录音 {{recorded}}/{{count, number}} 个经段",
       "key": "图例",
@@ -4999,7 +5080,8 @@
       "breakUpDifferently": "换一种划分方式",
       "breakUpDifferentlyHelp": "更改这卷书的切分方式：按章、按 FIA 经段或其他方式。",
       "chapterTitle": "{{book}} {{n}}",
-      "pickPart_other": "{{count, number}} 个部分——选择一个"
+      "pickPart_other": "{{count, number}} 个部分——选择一个",
+      "outsideFilter": "不在筛选范围内"
     },
     "home": {
       "title": "经段地图",
@@ -5017,9 +5099,10 @@
       "noPassageMatch": "没有匹配的经段——请先输入书卷名，再输入章号",
       "oldTestament": "旧约",
       "newTestament": "新约",
+      "testamentCount": "{{name}} · {{n, number}}",
       "noBooks": "这个语言还没有书卷。",
       "findHelp": "输入书卷名，再输入章号，就能直接跳过去。",
-      "languageChipHelp": "显示这个语言的地图。"
+      "languageChipHelp": "打开这种语言的地图，并把它设为你工作的语言。我的工作也会跟着切换。"
     },
     "tones": {
       "done": "已完成",
@@ -5157,6 +5240,7 @@
       "ofPlan": "{{actual}}，计划为 {{expected}}",
       "ofPlanFinishes": "{{actual}}，计划为 {{expected}} · 预计 {{date}} 完成",
       "setTarget": "请在语言页面上设定目标。",
+      "adminSets": "由管理这种语言的人设定它的目标。",
       "targetRange": "{{scope}} · {{from}} – {{to}}"
     },
     "paceAdvice": {
@@ -5320,7 +5404,8 @@
       "alertsHelp": "显示需要人处理的问题。数字表示有多少个。"
     },
     "home": {
-      "catchUp": "与服务器同步最新数据",
+      "refresh": "刷新",
+      "clusterFilter": "语言组",
       "alertsChip_other": "提醒，{{count, number}} 项需要人处理",
       "allCountries": "所有国家",
       "loading": "正在加载报告……",
@@ -5354,7 +5439,8 @@
       "noCountries": "还没有语言设置国家。请在每个语言的页面上设置。",
       "toLanguagesHelp": "切换到详细列出所有语言的页面。",
       "toActivityHelp": "切换到逐日显示送到服务器内容的页面。",
-      "toMapHelp": "切换到显示各语言分布的地图。"
+      "toMapHelp": "切换到显示各语言分布的地图。",
+      "openAlertsHelp": "打开提醒：哪些事需要有人处理，以及该怎么做。"
     },
     "portfolio": {
       "activeDays": "活跃（最近 14 天）",
@@ -5540,12 +5626,13 @@
       "allClear": "一切正常",
       "allClearBody": "没有滞留的音频、完整性问题或过时的数据。",
       "whatToDo": "<b>怎么办：</b>{{action}}",
+      "adminSets": "管理每种语言的人可以在该语言的页面上设置。",
       "stuckRow": "{{passages}}中的{{recordings}}，最早的来自 {{date}}",
       "refreshed": "{{when}}已刷新",
       "stale": {
         "title": "这些数据不是最新的",
         "body": "这些数据是{{ago}}读取的。之后同步的工作没有包含在内。",
-        "action": "重新加载页面以获取最新数据。"
+        "action": "点报告顶部的“刷新”来更新。"
       },
       "stuck": {
         "title": "录好的音频滞留在设备上",
@@ -5630,6 +5717,8 @@
       "scopeHelp": "目标涵盖的范围。然后设置日期并保存。",
       "startHelp": "为这个目标开始工作的日期。",
       "finishByHelp": "应该达成目标的日期。",
+      "suggestEnd": "18 个月：{{date}}",
+      "suggestEndHelp": "填入开始后 18 个月的完成日期；开始日期为空时填入今天。保存目标之前不会保存任何内容。",
       "saveTargetHelp": "立即把目标及其日期保存到服务器。需要联网。",
       "pickCountryHelp": "选择这个国家。然后点按“保存国家”来保存。",
       "chosenCountryHelp": "当前选择的国家，以粗体显示。点按另一个可以更改。"
@@ -5692,7 +5781,7 @@
       "anchor": {
         "passage": "整个经段",
         "verse": "第 {{verse}} 节",
-        "term": "关键术语 · {{term}}",
+        "term": "关键词 · {{term}}",
         "someTerm": "术语",
         "version": "第 {{n}} 版",
         "aVersion": "一个版本",
@@ -5869,7 +5958,20 @@
       "doneRecordedHelp": "把{{what}}写进经段记录。",
       "looksGoodOffline": "没问题。本设备联网后 {{name}} 才会收到。",
       "feedbackOffline": "反馈已保存。本设备联网后 {{name}} 才会收到。",
-      "helpWordsHelp": "打开这个经段的关键词，显示团队对每个词的说法，以及这个版本有没有用它。"
+      "helpWordsHelp": "打开这个经段的关键词，显示团队对每个词的说法，以及这个版本有没有用它。",
+      "addedAtCheckpoint": "已将{{kind}}加入记录。这个关卡仍在等待在应用中完成的检查。",
+      "keptNotSent": "你的检查保存在这部手机上，还没有发送。",
+      "notOnPhoneYet": "这段录音还不在这部手机上。手机联网后就能在这里播放。",
+      "previousQuestion": "上一个问题",
+      "previousQuestionHelp": "回到上一个问题，修改你的回答。",
+      "loggedCheckpoint": "这项检查是一个关卡：在这里登记会写入记录，但只有在应用中完成的检查才能打开后面的步骤。",
+      "notPlayedYet": "你还没有播放这个版本。",
+      "sendChangeTitle": "要把需要修改的内容和“没问题”一起发送吗？",
+      "sendChangeSub": "你说了需要修改的地方，然后选择了“没问题”。",
+      "leaveItOut": "不发送",
+      "leaveItOutHelp": "只发送“没问题”。你说的修改意见不会记录。",
+      "sendItToo": "一起发送",
+      "sendItTooHelp": "连同你说的话一起发送“没问题”，让译者也能听到。"
     },
     "guest": {
       "previewSub": "预览 · 没有应用的人看到的样子",
@@ -6142,22 +6244,19 @@
     "rec": {
       "recommended": "推荐",
       "notRecommended": "不推荐",
-      "hiddenForLanguage": "对这个语言隐藏",
+      "notHere": "这里不推荐",
       "forLanguage": "推荐给这个语言",
       "byOrganization": "由机构推荐",
       "stop": "停止推荐",
       "recommend": "推荐",
-      "follow": "跟随机构",
-      "hide": "隐藏",
+      "recommendHere": "在这里推荐",
+      "stopHere": "在这里停止推荐",
       "done": {
         "recommendedEverywhere": "{{name}}已推荐给每个语言。",
         "recommendedHere": "{{name}}已推荐给这个语言的团队。",
         "stopped": "{{name}}已不再推荐。",
-        "hidden": "{{name}}已对这个语言隐藏。",
-        "follows": "{{name}}在这里跟随机构的设置。"
+        "stoppedHere": "{{name}}已不再推荐给这个语言的团队。"
       },
-      "followHelp": "这个语言恢复为机构推荐的设置。",
-      "hideHelp": "虽然机构推荐了它，这个语言的团队也不再收到它。",
       "recommendLanguageHelp": "这个语言的团队会收到它，作为推荐。",
       "recommendOrgHelp": "每个语言的团队都会收到它，作为推荐。",
       "stopLanguageHelp": "这个语言的团队不再收到它作为推荐。",
@@ -6219,7 +6318,10 @@
       "introLanguage": "提供给这个语言团队的圣经：机构的推荐，加上你在这里添加或隐藏的。译者仍然可以在线浏览任何圣经。",
       "recommended": "推荐 · {{n, number}}",
       "noneRecommended": "这里还没有推荐任何圣经。请添加一本，或者在下面推荐一本。",
-      "hidden": "对这个语言隐藏 · {{n, number}}",
+      "noneRecommendedAdd": "这里还没有推荐任何圣经。请添加一本。",
+      "noneRecommendedBelow": "这里还没有推荐任何圣经。请在下面推荐一本。",
+      "noneRecommendedYet": "这里还没有推荐任何圣经。",
+      "hidden": "这里不推荐 · {{n, number}}",
       "notRecommended": "在你的资料库中，未推荐 · {{n, number}}",
       "cardHelp": "打开它：查看文字、音频、经节时间点，以及推荐给了谁。"
     },
@@ -6240,7 +6342,6 @@
       "bibleBrainHelp": "在 Bible Brain 中按语言搜索圣经。",
       "bibleHelp": "在你添加之前，显示它包含什么。",
       "fromLangQuestHelp": "显示 LangQuest 准备好可以关注的圣经。",
-      "readyHelp": "把它添加到你的资料库，并在这里推荐。",
       "searchHelp": "输入语言的名称或代码，查找它的圣经。",
       "listed": "只列出在 Bible Brain 中有圣经的语言。",
       "noMatch": "没有这个名称的语言在 Bible Brain 中有圣经。",
@@ -6430,6 +6531,7 @@
       "all": "所有关键词",
       "hear": "听{{term}}",
       "hearHelp": "播放它所在的经节。",
+      "noVerseAudio": "这本圣经没有那节经文的音频。",
       "hearLabel": "在圣经中听{{term}}",
       "openHelp": "它的意思、你的团队怎么说，以及为什么。",
       "termLabel": "{{term}}。{{refs}}",
@@ -6448,9 +6550,11 @@
       "added": "已添加{{term}}。",
       "addSub": "团队每次都要用同样说法的词。它会添加到{{language}}的关键词中。",
       "addWord": "添加这个词",
+      "addWordHelp": "说出或输入{{language}}怎么说之后，才会添加这个词。",
       "wordPlaceholder": "圣经中的词，例如：牧人",
       "meaningPlaceholder": "它的意思（选填）",
       "sayItIn": "用{{language}}说",
+      "howSays": "{{language}}怎么说",
       "allHelp": "打开这个语言所有关键词的列表。",
       "typeHelp": "输入{{language}}怎么说。",
       "addYourWord": "添加你的说法"
@@ -6602,8 +6706,8 @@
       "findMore": "可以在“更多圣经”中找一本。",
       "verseLabel": "第 {{verse}} 节。{{text}}",
       "playsFromVerse": "从这一节开始播放",
-      "keyTerm": "{{term}}，关键术语",
-      "keyTermTied": "{{term}}，关键术语，已关联到你的草稿",
+      "keyTerm": "{{term}}，关键词",
+      "keyTermTied": "{{term}}，关键词，已关联到你的草稿",
       "builtIn": "内置文字，在你的机构推荐圣经之前作为备用。",
       "sharedBy": "由{{org}}分享。",
       "copyright": "{{abbr}}：{{line}}",
@@ -6737,7 +6841,9 @@
       "startHelp": "用一套现成的检查替换现有检查，之后可以随意修改。",
       "useHelp": "用这些替换{{language}}的检查。“撤销”可以恢复。",
       "pickHelp": "选择它。然后点按底部的“使用”，用它的检查替换现有检查。",
-      "replaceAsk": "用{{name}}替换{{language}}自己的检查？"
+      "replaceAsk": "用{{name}}替换{{language}}自己的检查？",
+      "useThese": "使用这些检查",
+      "replaceOwnAsk": "替换{{language}}自己的检查？"
     },
     "gone": "这项检查已不属于这个语言",
     "checkOf": "第 {{n}} 项检查 · {{language}}",
@@ -6786,6 +6892,8 @@
     "forTeam": "给{{check}}团队",
     "forCheck": "用于{{check}}",
     "dragHelp": "上下拖动，可以更改这项检查的先后顺序。",
+    "moveUpHelp": "这项检查往前挪一位。",
+    "moveDownHelp": "这项检查往后挪一位。",
     "addThisHelp": "在其他检查之后添加这项检查。",
     "newCheckHelp": "新检查的名称，如果不是这些中的任何一种。",
     "addCheckHelp": "选择你的机构已有的检查，或者为新检查命名。",
@@ -7157,8 +7265,10 @@
     "dismiss": "关闭",
     "dismissHelp": "隐藏此提示，直到有更新的版本。",
     "required": "请更新应用",
+    "requiredSub": "你的录音和更改仍会发送给团队。在你更新之前，团队的新内容不会到达这部手机。",
+    "requiredBar": "更新后才能收到团队的工作",
     "keepWorking": "继续工作",
-    "keepWorkingHelp": "你的工作会保留在这部手机上，更新后再发送。"
+    "keepWorkingHelp": "暂时关闭此页。你可以继续录音，你的工作仍会发送给团队。"
   },
   "globalViewer": {
     "title": "全局查看者",
@@ -7192,6 +7302,7 @@
     "onTitle": "你可以阅读所有机构",
     "onBody": "你看到的和查看者看到的一样。你不能更改任何内容。",
     "search": "机构或语言",
+    "searching": "正在搜索…",
     "openNowLabel": "{{name}}，现已打开",
     "openHelp": "打开这个机构来阅读。",
     "noneFound": "没有匹配的机构。",

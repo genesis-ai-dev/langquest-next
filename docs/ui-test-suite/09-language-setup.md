@@ -71,14 +71,18 @@ Expected:
 - After step 1 the header is "UI Test Org".
 - The top card says "2 languages · {n} members", where {n} is the number of
   people holding a role in ORG.
-- The main button "Invite people" shows.
+- The main button "Invite people" shows. (An organization with no language yet has "Add a language" as its main button instead, and "Invite people" as a row under People: UI audit, finding 50.)
 - Languages lists "Alpha" and "Bravo". Alpha's sub-line reads
   "Standard Bible Flow · {recorded} of {total} recorded · {done} done", or,
   before Alpha is on this device, "Open it to bring it onto this device".
 - The add row "New language" shows.
-- People shows "Members" with the sub "3 at org level · {total} total".
+- People shows "Members" with the sub "3 in every language · {total} in all".
 - "Setup" lists "Content templates", "Reference material", "Review flows",
-  "Roles" (sub "{n} roles at this level and above"). The name and licence
+  "Roles" (sub "{n} roles"). On Org home the first
+  three say what the organization's library holds ("{n} in the library"),
+  never one language's choice (UI audit, finding 51); on a language's page
+  they say what it uses ("FIA passages applied", "1 study guide · 2
+  question sets · 40 key words"). The name and licence
   are not in Setup: the card at the top has a pencil beside the name and the
   licence ("All rights reserved") under it (decision 138).
 - Step 5 opens Alpha's page ("Content template" is its first row), with a
@@ -318,7 +322,7 @@ Steps:
 3. Tap "The Bible". Choose the numbering: type "World English" under "Which
    Bible do you translate from?" and pick it. Pick "FIA passages" (LangQuest's, "Comes with FIA
    study guides"; not "FIA passages (English)", Alpha's) under "How
-   should the Bible be broken up?". Leave "New Testament" chosen. Tap
+   should the Bible be divided?". Leave "New Testament" chosen. Tap
    "Continue".
 4. Under "Which languages should Charlie {run}'s Bibles and study guides
    be in?" leave "English" ticked. Tap "Continue". Under "What will help
@@ -334,7 +338,7 @@ Steps:
 
 Expected:
 - New language opens on its six steps (decision 146): "6 steps", then
-  Language, Content, Split into pieces, Reference material, Review flow and
+  Language, Content, Divide into sections, Reference material, Review flow and
   People, each with a small picture, and "Start".
 - Every step after that has the six as a bar under the header, done ones
   ticked, its own lit and named: "1 of 6 · Language" … "6 of 6 · People".
@@ -490,7 +494,7 @@ Steps:
    extra books, "Protestant or evangelical".
 4. Tap "Choose another", then choose "Numbered like the Hebrew and Greek"
    style from "Choose the numbering".
-5. Tap the "How is material broken up?" link and step through it.
+5. Tap the "How is material divided?" link and step through it.
 
 Expected:
 - Step 2 says "Not found."
@@ -726,7 +730,9 @@ Steps:
 
 Expected:
 - Each question is its own screen, headed "Get Bravo ready" with "1 of 4"
-  … "4 of 4" and a ✕.
+  … "4 of 4" and a ✕. From "2 of 4" on, and on every page after the first
+  of a question, the footer has a quiet "Back" that goes one page or
+  question back, on iPhone and the web too (UI audit, finding 48).
 - No toast in Get ready has Undo: an answer is changed by answering again.
 - After step 2: toast "Bravo translates {what}." (to change it later, open
   "Content template" → "Which books", SETUP-024).
@@ -740,7 +746,7 @@ Expected:
   {flow title}?" with "Use {flow title}" and "Cancel" (as SETUP-044).
 - The local library has no Bible to tick at step 4.
 - Step 6 shows the chips "Translate", "Check", "Back-translate", "Help run
-  the team", "Something else"; "Making the code…", then "Ask them to scan
+  the team", "Other roles · n"; "Making the code…", then "Ask them to scan
   this" and a QR, and the quiet link "Share as a link". The code is made as
   soon as the screen opens.
 - Bravo's page now shows "Bravo" with the green status "Ready · 0
@@ -933,14 +939,21 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Open Get ready at question 4 for a language that is not ready yet
    (Alpha is ready, so it has no question 4).
-2. Tap "Something else".
+2. Tap "Other roles · n".
 3. Tap "Check".
+4. Tap "Something else: make a new role", call it "Elder …", turn on
+   "Record", and tap the primary button.
 
 Expected:
-- "Something else" reveals the other roles as chips and the dashed row
-  "Something else: make a new role" (ADMIN holds Manage roles).
+- The dashed row "Something else: make a new role" shows above the roles
+  (ADMIN holds Manage roles); "Other roles · n" reveals the other roles as
+  chips. Only the dashed row says "Something else" (finding 98, 2026-10-28:
+  the chip said "Something else" too).
 - Each role change makes a code for that role ("Making the code…", then the
   QR).
+- After step 4: toast "Elder … created.", back on question 4 with the new
+  role chosen (its chip on) and its code shown (finding 98: it came back
+  hidden, with the Translator code still showing).
 - Tapping "Done" goes back to the page.
 - A session without Invite at Alpha would see "Only people who can invite
   here can show a code" with "Ask someone who runs Alpha's team to invite
@@ -957,7 +970,7 @@ Steps:
 1. Add "Kilo" with nothing chosen. Answer question 1, then close at
    question 2.
 2. Question 3: "I'll choose the checks" → "Choose the checks" → "Add a
-   check" → "Community check". Go back; close.
+   check" → "Community check" → "Done"; close.
 3. Read its page. (ADMIN, COORD and VIEW hold organization-scope roles.)
 4. Tap "Invite your translators", then "Done".
 
@@ -965,7 +978,10 @@ Expected:
 - After step 2 Kilo is "Get Kilo ready" with "Invite your translators"
   current: organization-scope members do not make it ready.
 - Question 3 done this way comes back to question 3 ("In use · your own
-  steps") without opening question 4.
+  steps", chosen) without opening question 4. The checks page has "Done"
+  when opened from the question, and back on the question the footer reads
+  "Next" (finding 100, 2026-10-28: it still read "Choose the checks" and
+  opened the checks again).
 - Opening question 4 issues a code, and an issued invite counts: the page
   shows "Ready · 0 translators".
 - What helps them is never required (here it is already answered by the
@@ -1127,7 +1143,7 @@ Expected:
   the books with "{n} passages", and "Find a book".
 - "zzz" says "No book matches “zzz”."
 - "Luke" opens Luke ("Alpha · {n} passages"). Books waiting to be divided
-  are listed too, as "Waiting to be broken up", and open the ways to divide
+  are listed too, as "Waiting to be divided", and open the ways to divide
   them (decision 107).
 
 ### SETUP-036 Choose a different template for a language
@@ -1192,7 +1208,7 @@ Expected:
   "Something else".
 - Scripture asks what New language asks (decision 107): "Which Bible do you
   translate from?" with "Not listed? Answer a few questions", then "How
-  should the Bible be broken up?" with "Divide it your own way" first.
+  should the Bible be divided?" with "Divide it your own way" first.
 - The editor has no "Whole books" or "Chapters" choice; it says "Tap a book to choose how
   it's divided."
 - A book opens "Change how Genesis is broken up" with "Divide it your own
@@ -1258,8 +1274,8 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Oscar's page → "What will they record?": "The Bible", "Like most
    English Bibles", "FIA passages", "Whole Bible". Close Get ready with ✕.
-2. Map → Oscar → "Old Testament" → "Proverbs" → "Break up Proverbs".
-3. Tap "By chapter" → "Break up Proverbs" (and "Change it for this
+2. Map → Oscar → "Old Testament" → "Proverbs" → "Divide Proverbs".
+3. Tap "By chapter" → "Divide Proverbs" (and "Change it for this
    language" when other languages use the template).
 
 Expected:
@@ -1268,13 +1284,13 @@ Expected:
   divided from the map (decision 107). On a ready language, books that wait
   are also listed under "Content template" → "Each book's passages"
   (SETUP-035, decision 138).
-- "How should Proverbs be broken up?" with way cards ("By chapter" and
+- "How should Proverbs be divided?" with way cards ("By chapter" and
   others, each with a preview).
 - When another language uses the template, "Which languages should
   change?" lists Oscar fixed ("The one you're changing") and the others to
   tick, with "The languages you leave out keep the template as it is. The
   ones you choose get their own copy with this change."
-- Toast "Proverbs is broken up by chapter."; the book shows "Broken up".
+- Toast "Proverbs is divided by chapter."; the book shows "Divided".
 - Nothing is refused (the template version goes to the organization's
   library: ADMIN and COORD hold organization scope).
 
@@ -1286,21 +1302,28 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Alpha's page → "Content template" → "Each book's passages" → "Luke".
-   Tap "Break up differently".
+   Tap "Divide differently".
 2. Pick "By chapter". Tap "Change Luke".
 3. Tap "Keep it as it is". Repeat and tap "Change it anyway".
 4. Open Luke 15 on the map.
-5. "Each book's passages" → "Luke" → "Break up differently". Pick "FIA
+5. "Each book's passages" → "Luke" → "Divide differently". Pick "FIA
    passages", tap "Change Luke", then "Change it anyway".
 
 Expected:
 - "Change how Luke is broken up" with "Now: FIA passages. Each piece is
   recorded on its own."
 - "Change Luke" is disabled while the chosen way is the current one.
-- The sheet "Luke will be divided again" says the work moves to "Earlier
-  sections" and "Nothing is deleted.", with "Change it anyway" and "Keep it
-  as it is".
-- After the change, the toast "Luke is broken up by chapter." has no Undo.
+- The sheet "Luke will be divided again" counts the cost here: "{n} of
+  Luke's sections have recordings here. They move to "Earlier sections"…"
+  (red), or, when none has reached this phone, "Nothing recorded on Luke has
+  reached this phone yet…" (amber). It still asks either way (decision 74),
+  says "Nothing is deleted.", and has "Change it anyway" and "Keep it as it
+  is".
+- When other languages use the same template, "Which languages should
+  change?" comes first, each row saying its recordings on Luke move too;
+  the warning then names those languages, and its button reads "Change it
+  for {n} languages" (UI audit, findings 47 and 53).
+- After the change, the toast "Luke is divided by chapter." has no Undo.
   Luke 15 shows the warning mark and "Earlier sections" with P-CHECK's and
   P-SUBMITTED's recordings (decision 80).
 - Step 5 changes it back ("Luke is broken up into FIA passages."), with
@@ -1308,7 +1331,7 @@ Expected:
   book divided its own way has no ready-made way to pick again: it is drawn
   again with "Divide it your own way".
 
-Changed (2026-10-16, decision 134): no toast offers Undo; picking the earlier way again in "Break up differently" changes it back.
+Changed (2026-10-16, decision 134): no toast offers Undo; picking the earlier way again in "Divide differently" changes it back.
 
 ### SETUP-042 What a language calls a book, and what translators see
 Roles: ADMIN, TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -1362,12 +1385,17 @@ Steps:
 3. Read "From other organizations".
 
 Expected:
-- The header is "Review flows" with the sub "Alpha" and the action "Flow"
-  (decision 138: it was reached from More's "Every way to check").
+- The header is "Review flows" with the sub "Alpha" and the action "New
+  flow" (decision 138: it was reached from More's "Every way to check";
+  "Flow" until the UI audit, finding 103).
 - The card says "Alpha uses" and "Custom flow" (its checks were copied from
   Standard Bible Flow, decision 91), its steps (Peer Review, Back
-  Translation, Community Check, Consultant Check, Final Approval), and
-  "Add to your flows".
+  Translation, Community Check, Consultant Check, Final Approval), "Edit
+  checks and people" (opens Alpha's own checks, where who checks is chosen:
+  finding 102) and "Add to your flows".
+- A flow the language still follows (from before decision 91) shows an "In
+  use" badge, not a button; on the others "Use" sits on its own line under
+  the steps, apart from the card's title (finding 103).
 - "Your organization · 0" with "No flows here yet. Follow or copy one
   another organization shares, or make your own."
 - "From other organizations · {n}" lists LangQuest's flows with "LangQuest ·
@@ -1421,7 +1449,7 @@ Preconditions (in addition to the global ones):
 - Resets: adds a flow.
 
 Steps:
-1. Alpha's page → "Review flow" → "All review flows" → "Flow".
+1. Alpha's page → "Review flow" → "All review flows" → "New flow".
 2. Type "Community first {run}" in "Name" and a line in "Description".
 3. Tap "Add a step". Pick "Community Check".
 4. Add a step. Under "A new kind" type "Elder check". Tap "Add this kind",
@@ -1583,11 +1611,17 @@ Steps:
 1. Checks → "Community check". Turn on "Must pass". Go back.
 2. Open "Back translation". Tap "Same time as" (it reads "Peer check"),
    untick "Peer check", tap "Done"; then tick it again and "Done".
-3. Turn Community check's "Must pass" off again.
+3. Open "Community check". Tap "Move down", then "Move up". Turn its "Must
+   pass" off again.
 
 Expected:
 - Toast "Alpha's checks saved"; Community check's card shows the
-  lock ("Community check must pass before the next steps").
+  lock ("Community check must pass before the next steps"): closed and
+  amber when on, open when off, and the list ends with "🔒 = must pass
+  before the next steps" (UI audit, finding 105).
+- "Move down" makes it "Check 3 · Alpha", "Move up" "Check 2 · Alpha"
+  again: a tap does what the card's grip does by dragging (finding 101).
+  Dragging a card moves the cards it passes aside, each by its own height.
 - "Same time as" is a choice of any other checks (decision 130).
 - Back translation is "Check 1 · Alpha" while at the same time as Peer
   check, and "Check 2 · Alpha" on its own ("Same time as · No other
@@ -1680,17 +1714,20 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Open Alpha's page and tap "Review flow".
-2. Tap "Peer check → Final approval", then "Use Peer check → Final
-   approval".
+2. Tap "Peer check → Final approval", then "Use these checks".
 3. Tap "Peer check + back translation → Community check → Consultant check
-   → Final approval", then its "Use …" button.
+   → Final approval", then "Use these checks".
 4. Go back to Alpha's page.
 
 Expected:
 - Step 1: on top "Peer check + back translation → Community check →
   Consultant check → Final approval", "4 checks", who does each, and
   "Edit"; under it the ready-made flows, among them "Peer check → Final
-  approval"; last "All review flows".
+  approval" with "Quick Check" (its flow's name) in its line under; last
+  "All review flows". The footer button reads "Use these checks", and over
+  the language's own checks it asks "Replace Alpha’s own checks?" with the
+  checks under the question (UI audit, finding 104: the button carried the
+  whole chain).
 - Step 2: toast "Alpha now starts from Peer check → Final approval"; no
   question first (the checks were still as a ready-made flow made them,
   decision 134).
@@ -1722,24 +1759,28 @@ Expected:
   timings"), "Guides and notes" ("{n} recommended guides · {n} notes"),
   "Coverage" ("What reaches each passage in Alpha").
 - "Key terms" with "{n} concepts · Alpha renderings".
-- "Library · your organization · {n}" with "New", each row saying what it
+- "Library · your organization · {n}", each row saying what it
   is ("Study guide · {n} passages", "Bible", …) and its language or
   "Language not given".
-- "Write a guide" ("Steps with text and audio, pictures, maps and key
-  terms").
+- "Add material" asks which kind: "Guidelines, a brief or questions",
+  "Write a guide" ("Steps with text and audio, pictures, maps and key
+  words") and "A note placed by verses". (Changed 2026-10-28, UI audit
+  finding 59: one way to make something, where "New" and a "Write a guide"
+  row sat beside it. Someone who may not write the organization's library
+  has one kind, and Add material opens it.)
 - "Study material", "Review questions" (with "Question sets for the same
   kind add up…") and "General · Alpha".
 - "From other organizations" lists what others share (LangQuest's question
   sets and FIA's guides in five languages), with "Follow" and "Copy".
 
-### SETUP-050 Bibles: recommend, hide and follow the organization
+### SETUP-050 Bibles: recommend here, or stop
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
 - The organization recommends its English Bible to every language
   (fixture). A second Bible, {Bible 2}, is in the library, not recommended.
   Locally there is no Bible (no `source@1`): the test checks both levels'
-  intros and empty lists; Recommend, Hide and Follow organization run on
+  intros and empty lists; Recommend here and Stop recommending here run on
   the preview environment.
 - Resets: changes recommendations and changes them back.
 
@@ -1748,9 +1789,9 @@ Steps:
    {Bible 2}. Tap "Stop recommending" on it.
 2. Alpha's page → "Reference material" → "All reference material" →
    "Bibles".
-3. On the English Bible tap "Hide".
-4. In "Hidden for this language", tap "Follow organization".
-5. On {Bible 2} tap "Recommend".
+3. On the English Bible tap "Stop recommending here".
+4. In "Not recommended here", tap "Recommend here" on it.
+5. On {Bible 2} tap "Recommend here".
 6. On TRANS's device after Sync now, open a passage's Bible chip.
 
 Expected:
@@ -1759,15 +1800,21 @@ Expected:
   no Undo. The row's button turns into "Stop recommending", which takes it
   back ("{Bible 2} is no longer recommended.").
 - Language level: intro "What this language’s team is offered…";
-  sections "Recommended · {n}", "Hidden for this language · {n}", "In your
+  sections "Recommended · {n}", "Not recommended here · {n}", "In your
   library, not recommended · {n}".
-- Toasts, none with Undo: "{name} is hidden for this language.", "{name}
-  follows the organization here.", "{Bible 2} is recommended to this
-  language's team." Each row's button changes it back: "Follow
-  organization" after Hide, "Stop recommending" after Recommend.
+- Toasts, none with Undo: "{name} is no longer recommended to this
+  language's team.", "{name} is recommended to this language's team." (the
+  English Bible, then {Bible 2}). Each row has one button, which changes it
+  back: "Recommend here" after "Stop recommending here", and the other way.
 - TRANS is offered exactly the Bibles recommended for Alpha.
 
 Changed (2026-10-16, decision 134): no toast offers Undo; the row's own button ("Stop recommending", "Follow organization") changes it back.
+
+Changed (2026-10-28, UI audit finding 58, decision 185): one switch in a
+language, as on Get ready: "Recommend here" and "Stop recommending here"
+replace Hide, Follow organization, Recommend and Stop recommending; the
+section and badge read "Not recommended here" in place of "Hidden for this
+language".
 
 ### SETUP-051 Add a Bible
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1820,7 +1867,13 @@ Expected:
 - Each card names the item's language (decision 84).
 - A study guide opens the guide editor; anything else opens the material
   editor.
-- The footer offers "New note for translators".
+- The footer offers "New note for translators". It opens a note for the
+  organization's library to someone who may write the library; to a
+  language's own manager, a note written in that language; to anyone else,
+  nothing. "Write a guide" shows only to someone who may write the library,
+  and so does opening one of its guides in the guide editor. (Changed
+  2026-10-28, UI audit findings 54 and 55: a language lead was sent to an
+  empty editor, and told they may not write guides.)
 
 ### SETUP-053 Coverage and a passage's reference
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1862,12 +1915,14 @@ Preconditions (in addition to the global ones):
 - Resets: adds material.
 
 Steps:
-1. Alpha's Reference material → "Add material".
+1. Alpha's Reference material → "Add material" → "Guidelines, a brief or
+   questions".
 2. Leave "Translation Guidelines". Title it "Names in Luke {run}". Leave
    "Where it applies" on "Alpha". Fill "Body". Tap "Add material".
 3. Open it. Tap "Publish to library".
-4. "Add material" again → "Review Questions". Title it. Pick "For which
-   kind of review" "Peer Review". Add a question. Tap "Add material".
+4. "Add material" → "Guidelines, a brief or questions" again → "Review
+   Questions". Title it. Pick "For which kind of review" "Peer Review". Add
+   a question. Tap "Add material".
 6. As REV, open P-SUBMITTED → Review it.
 
 Expected:
@@ -1889,8 +1944,8 @@ Preconditions (in addition to the global ones):
 - Resets: adds library material.
 
 Steps:
-1. Reference material (organization) → "Library · your organization" →
-   "New".
+1. Reference material (organization) → "Add material" → "A note placed by
+   verses".
 2. Type the verses "LUK 15:11-32" and "LUKE fifteen".
 3. Fix the second line. Pick "Numbered as in". Tap "Done".
 4. Make a question set the same way, then tap "Use in reviews".
@@ -1917,7 +1972,7 @@ Preconditions (in addition to the global ones):
 - Resets: publishes a guide.
 
 Steps:
-1. Alpha's Reference material → "Write a guide".
+1. Alpha's Reference material → "Add material" → "Write a guide".
 2. Tap "Done" at once.
 3. Fix each item: title "The lost son {run}"; "Verses" LUK 15:11-32;
    "Numbered as in" English; "Start with these steps" → FIA (six steps).
@@ -2123,10 +2178,10 @@ Steps:
 Expected:
 - The Content template page offers "View" and "Each book's passages",
   never "Edit" (decision 138). Luke reads "Called Luke in Alpha" and
-  offers no "Break up differently". "View" opens the template read only:
+  offers no "Divide differently". "View" opens the template read only:
   no "Copy to change it", "Create template", "Done" or saved mark.
-- Review flows offers "Use" (Alpha's own checks) but no "Flow", "Follow",
-  "Copy" or "Add to your flows".
+- Review flows offers "Use" (Alpha's own checks) but no "New flow",
+  "Follow", "Copy" or "Add to your flows".
 - Content templates offers "View" but no "Options" or "Template"; a shared
   template's sheet offers no "Follow" or "Copy".
 - Nothing goes to the organization's stream to be refused (G10.2).
@@ -2147,18 +2202,19 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Alpha's page → "Reference material" → "All reference material" →
    "Bibles".
-2. "Hide" the organization's English Bible; then "Follow organization".
-3. "Recommend" a library Bible that is not recommended.
+2. "Stop recommending here" on the organization's English Bible; then
+   "Recommend here" on it.
+3. "Recommend here" on a library Bible that is not recommended.
 4. "Add a Bible" → "From LangQuest" → pick one → "Add and recommend".
 5. Open Sync.
 
 Expected:
 - "Bibles" reads "What this language’s team is offered".
-- Steps 2–3 work, each toast with no Undo ("… is hidden for this
-  language.", "… follows the organization here.", "… is recommended to this
-  language's team."): these are Alpha's own events. The row's button
-  changes each back ("Follow organization", "Stop recommending"). (No Bible
-  locally: preview environment.)
+- Steps 2–3 work, each toast with no Undo ("… is no longer recommended to
+  this language's team.", "… is recommended to this language's team."):
+  these are Alpha's own events. The row's one button changes each back
+  ("Recommend here", "Stop recommending here"). (No Bible locally: preview
+  environment.)
 - "Add a Bible" is not offered: it follows LangQuest's Bible or publishes
   Bible Brain's in the organization's library.
 
@@ -2175,8 +2231,9 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Alpha's page → "Reference material" → "All reference material". Look
-   for "Write a guide", the library's "New" and "Follow".
-2. Tap "Add material". Look for "Where it applies".
+   for "Write a guide" and "Follow".
+2. Tap "Add material": with one kind to make, it opens at once. Look for
+   "Where it applies".
 3. Make a note for Alpha. Tap "Add material".
 4. Open it. Look for "Publish to library".
 
@@ -2184,8 +2241,8 @@ Expected:
 - "Where it applies" is not offered (it needs organization-scope Manage
   reference), so the material is Alpha's own. Step 2 saves: "{title}
   added."
-- "Publish to library", "Write a guide", the library's "New", "Follow" and
-  "Copy" are not offered.
+- "Publish to library", "Write a guide", "A note placed by verses",
+  "Follow" and "Copy" are not offered.
 
 Fixed (2026-10-12): those publish library versions, which need
 organization scope; they now ask `mayWriteLibrary`.

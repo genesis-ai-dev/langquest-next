@@ -4,7 +4,7 @@ import { handleTutorialReview, REVIEW_RULE, type ReviewDeps } from '../worker/tu
 import { parseReview, ReviewError, type Review } from '../../../server/tutorialFeedback';
 import type { JobRun } from '../../../server/jobRuns';
 
-/** Claude's nightly look at the tutorial videos' feedback (decisions.md 185): who gets in, and what it may send. */
+/** Claude's nightly look at the tutorial videos' feedback (decisions.md 186): who gets in, and what it may send. */
 
 const NOW = Date.parse('2026-10-30T10:05:00Z');
 const RUN = 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/123456';

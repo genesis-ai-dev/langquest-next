@@ -1029,6 +1029,15 @@ export interface Update {
 }
 
 /**
+ * An update that wants nothing more of the person: a request done or
+ * withdrawn. The phone counts it as read and the server's Inbox drops it, so
+ * finished work stops counting on the bell and in "New in ‹language›".
+ */
+export function settledUpdate(u: Pick<Update, 'kind' | 'request'>): boolean {
+  return u.kind === 'request' && !!u.request && u.request.status !== 'open';
+}
+
+/**
  * What happened that concerns this person (INBOX-1, CORE-7): someone asked
  * them for something, reviewed a version they recorded, answered feedback
  * they gave, or did what they asked. Never their own acts. Newest first.

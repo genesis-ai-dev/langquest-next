@@ -18,10 +18,10 @@ test('SETUP-001 Org home shows the organization, its languages and its setup', a
   await orgHome(page, world());
   const w = world();
   // 8 people hold a role in ORG: ADMIN, COORD, LADMIN, TRANS, REV, TREV, VIEW, KEPT.
-  await expectOnScreen(page, '2 languages · 8 members', 'Invite people', 'Alpha', 'Bravo', 'New language', 'Members', '3 at org level · 8 total');
+  await expectOnScreen(page, '2 languages · 8 members', 'Invite people', 'Alpha', 'Bravo', 'New language', 'Members', '3 in every language · 8 in all');
   await expectOnScreen(page, /Alpha Standard Bible Flow · \d+ of \d+ recorded · \d+ done/);
   await setup(page);
-  await expectOnScreen(page, 'Content templates', 'Reference material', 'Review flows', 'Roles', '7 roles at this level and above', 'All rights reserved');
+  await expectOnScreen(page, 'Content templates', 'Reference material', 'Review flows', 'Roles', '7 roles', 'All rights reserved');
   // The name and licence are changed beside the name, not in Setup (decision 138).
   await expect(byId(page, 'org-rename')).toBeVisible();
   await expect(text(page, w.orgName).first()).toBeVisible();
@@ -44,7 +44,7 @@ test('SETUP-002 Only an organization admin renames the organization and changes 
   await expect(page.getByTestId('org-rename')).toHaveCount(0);
   await button(page, /^(License: )?All rights reserved/).click();
   await expectOnScreen(page, 'Who may use your work', 'Only an organization admin can change this.');
-  await expectNotOnScreen(page, 'Open to ', 'Pick a more open license');
+  await expectNotOnScreen(page, 'Open up: ', 'Pick a more open license');
 
   // LADMIN: Org home from Alpha's page, where Back would be (decision 138).
   const lead = await deviceFor(page.context().browser()!, w, 'LADMIN');
@@ -302,9 +302,16 @@ test('SETUP-022 Get a language ready, question by question @p0', async ({ page, 
   // The local library has no Bible (no source@1 is seeded): there is none to tick here.
   await primary(page).click();
   await expectOnScreen(page, '3 of 4', 'Who checks the recordings?', 'Suggested');
+  // The footer's Back steps to the question before, on every platform (finding 48), then Next comes back.
+  await button(page, 'Back').click();
+  await expectOnScreen(page, '2 of 4', 'Which languages should Bravo\'s Bibles and study guides be in?');
+  await primary(page).click();
+  await expectOnScreen(page, 'What will help them?');
+  await primary(page).click();
+  await expectOnScreen(page, '3 of 4', 'Who checks the recordings?');
   await primary(page).click();
   await expectToast(page, /checks the recordings\.$/);
-  await expectOnScreen(page, '4 of 4', 'Invite your translators', 'Translate', 'Check', 'Back-translate', 'Help run the team', 'Something else');
+  await expectOnScreen(page, '4 of 4', 'Invite your translators', 'Translate', 'Check', 'Back-translate', 'Help run the team', /Other roles · \d+/);
   await expectOnScreen(page, 'Ask them to scan this', 'Share as a link');
   await text(page, 'Done').click();
   await expectOnScreen(page, 'Bravo', 'Ready · 0 translators', 'Content template', 'Reference material', 'Review flow', 'People');
@@ -367,7 +374,7 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     await expect(primary(p)).toContainText('Keep it');
     await text(p, 'Whole Bible').click();
     await expect(primary(p)).toContainText('Use this');
-    await expectOnScreen(p, 'Pieces that stay the same keep their recordings. What was recorded on a piece that changes is kept under "Earlier sections" on the new pieces.');
+    await expectOnScreen(p, 'Sections that stay the same keep their recordings. What was recorded on a section that changes is kept under "Earlier sections" on the new sections.');
     await primary(p).click();
     await expectToast(p, /^Alpha translates .*\./);
     // No toast offers Undo (decision 134): the same step chooses the New Testament again.
@@ -438,14 +445,14 @@ test('SETUP-028 The "Reference material" page and "Add more"', async ({ page }) 
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
   await referenceMaterial(page);
-  await expectOnScreen(page, 'Reference material', 'Bibles', 'Study guides', 'Key words', 'Key terms', /\d+ words? · \d+ with a Alpha word/, 'Notes for translators');
+  await expectOnScreen(page, 'Reference material', 'Bibles', 'Study guides', 'Key words', /\d+ words? · \d+ with a Alpha word/, 'Notes for translators');
   // Last, the organization's whole shelf (decision 138), not a row in Add more.
   await expectOnScreen(page, 'No Bibles yet', 'No notes yet', 'Add more to offer some', /passages? covered/, 'All reference material');
   await text(page, 'Add more').click();
   await expectOnScreen(page, 'A Bible', 'A study guide', 'A note for translators', 'Key words');
   await expectNotOnScreen(page, 'Everything in your library');
   await text(page, 'Words to say the same way every time').click();
-  await expectOnScreen(page, 'Key Terms');
+  await expectOnScreen(page, 'Key Words');
 });
 
 test('SETUP-029 Invite your translators: other roles, and a new role', async ({ page }) => {
@@ -455,10 +462,20 @@ test('SETUP-029 Invite your translators: other roles, and a new role', async ({ 
   await openAsIn(page, w, 'ADMIN', november);
   await languagePage(page, w, 'November');
   await text(page, 'Invite your translators').click();
-  await expectOnScreen(page, '4 of 4', 'Translate', 'Something else');
-  await text(page, 'Something else').click();
-  await expectOnScreen(page, 'Something else: make a new role');
+  await expectOnScreen(page, '4 of 4', 'Translate', 'Something else: make a new role');
+  await text(page, /^Other roles · \d+$/).click();
+  await expect(text(page, /^Other roles · \d+$/)).toHaveCount(0);
   await text(page, 'Check').click();
+  await expectOnScreen(page, 'Ask them to scan this');
+  // A role made from here comes back chosen, with its code (finding 98).
+  const role = `Elder ${w.run.slice(-4)}`;
+  await text(page, 'Something else: make a new role').click();
+  await field(page, 'What is it called?').fill(role);
+  await page.getByRole('switch', { name: 'Record' }).locator('visible=true').first().click();
+  await primary(page).click();
+  await expectToast(page, `${role} created.`);
+  await expectOnScreen(page, '4 of 4', role);
+  await expect(page.getByRole('button', { name: role, exact: true }).locator('visible=true').first()).toHaveAttribute('aria-pressed', 'true');
   await expectOnScreen(page, 'Ask them to scan this');
   await text(page, 'Done').click();
   await expectOnScreen(page, 'Get November ready');
@@ -486,8 +503,10 @@ test('SETUP-030 What counts as ready', async ({ page }) => {
   await text(page, 'Add a check').click();
   await text(page, 'Community check').click();
   await expectToast(page, 'Kilo\'s checks saved');
-  await back(page).click();
+  // The editor's Done goes back, and the checks saved there are the answer: the footer moves on (finding 100).
+  await text(page, 'Done').click();
   await expectOnScreen(page, 'In use · your own steps');
+  await expect(primary(page)).toContainText('Next');
   await byId(page, 'header-close').click();
   // ADMIN, COORD and VIEW hold organization-scope roles: they do not make it ready.
   await expectOnScreen(page, 'Get Kilo ready');
@@ -681,7 +700,7 @@ test('SETUP-037 Make a Scripture template', async ({ page }) => {
   await text(page, 'King James Version').click();
   await expectOnScreen(page, 'Like most English Bibles');
   await primary(page).click();
-  await expectOnScreen(page, 'How should the Bible be broken up?', 'Divide it your own way', 'Book by book: read each one and choose where its sections start');
+  await expectOnScreen(page, 'How should the Bible be divided?', 'Divide it your own way', 'Book by book: read each one and choose where its sections start');
   await text(page, 'By chapter').click();
   await primary(page).click();
   await expect(primary(page)).toBeDisabled();
@@ -690,11 +709,11 @@ test('SETUP-037 Make a Scripture template', async ({ page }) => {
   await expectNotOnScreen(page, 'Whole books');
   // A book: your own way first, then the ready-made ways.
   await text(page, 'Genesis').click();
-  await expectOnScreen(page, 'Change how Genesis is broken up', 'Divide it your own way', 'Or pick a ready-made way', 'Rename or remove Genesis');
+  await expectOnScreen(page, 'Change how Genesis is divided', 'Divide it your own way', 'Or pick a ready-made way', 'Rename or remove Genesis');
   await text(page, 'OpenBible: usual sections').click();
   await button(page, 'Change Genesis').click();
   await expectToast(page, 'Genesis is divided.');
-  await expectOnScreen(page, /OpenBible: usual sections · \d+ pieces/);
+  await expectOnScreen(page, /OpenBible: usual sections · \d+ sections/);
   // Its name in the language, and taking it out.
   await text(page, 'Exodus').click();
   await text(page, 'Rename or remove Exodus').click();
@@ -777,14 +796,14 @@ test('SETUP-040 Divide a book that waits, for this language', async ({ page }) =
   if (!(await text(page, 'Old Testament').isVisible())) await text(page, 'Oscar').click();
   await text(page, 'Old Testament').click();
   await text(page, 'Proverbs').click();
-  await button(page, 'Break up Proverbs').click();
-  await expectOnScreen(page, 'How should Proverbs be broken up?', 'By chapter');
+  await button(page, 'Divide Proverbs').click();
+  await expectOnScreen(page, 'How should Proverbs be divided?', 'By chapter');
   await text(page, 'By chapter').click();
-  await button(page, 'Break up Proverbs').click();
+  await button(page, 'Divide Proverbs').click();
   const sheet = await screenText(page);
   if (sheet.includes('Which languages should change?')) await text(page, 'Change it for this language').click();
-  await expectToast(page, 'Proverbs is broken up by chapter.');
-  await expectOnScreen(page, 'Broken up');
+  await expectToast(page, 'Proverbs is divided by chapter.');
+  await expectOnScreen(page, 'Divided');
   await expectOrgSent(page, w);
   expect(await orgRefused(page, w)).toEqual([]);
 });
@@ -835,8 +854,8 @@ test('SETUP-059 The licence is shown to everyone who manages, changed by an orga
   await setup(page);
   await button(page, /^(License: )?All rights reserved/).click();
   await expectOnScreen(page, 'Who may use your work', 'Opening up is permanent: anyone who copies your work keeps these terms.');
-  await page.getByRole('radio', { name: /^CC BY 4\.0/ }).click();
-  await expect(button(page, 'Open to CC BY 4.0')).toBeVisible();
+  await page.getByRole('radio', { name: /CC BY 4\.0$/ }).click();
+  await expect(button(page, 'Open up: Any use, with credit')).toBeVisible();
   await expectOnScreen(page, 'People outside can hear your team', /Anyone will be able to listen to your recordings/);
   await closeSheet(page);
   await expectOnScreen(page, 'All rights reserved');
@@ -849,14 +868,14 @@ test('SETUP-060 The licence only opens, never closes', async ({ page }) => {
   await orgHome(page, w);
   await setup(page);
   await button(page, /^(License: )?All rights reserved/).click();
-  await page.getByRole('radio', { name: /^CC BY-NC-ND 4\.0/ }).click();
-  await button(page, 'Open to CC BY-NC-ND 4.0').click();
+  await page.getByRole('radio', { name: /CC BY-NC-ND 4\.0$/ }).click();
+  await button(page, 'Open up: Share unchanged, not for sale').click();
   await expectOnScreen(page, 'This can\'t be undone', 'You will not be able to close it again.', 'Back');
-  await button(page, 'Yes, open to CC BY-NC-ND 4.0').click();
+  await button(page, 'Yes, open up: Share unchanged, not for sale').click();
   await expectToast(page, 'Your work is now under CC BY-NC-ND 4.0.');
   await expectOrgSent(page, w);
   expect(await orgRefused(page, w)).toEqual([]);
   await button(page, /^(License: )?CC BY-NC-ND 4\.0/).click();
   await expectOnScreen(page, 'Your work is already more open than this');
-  await expect(button(page, /^Open to All rights reserved/)).toHaveCount(0);
+  await expect(button(page, /^Open up: /)).toHaveCount(0);
 });

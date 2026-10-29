@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildIndexes, foldOrg, languageInfo, languagePeople, languageProgress, LINES_VERSION, onlyEventsThatLeaveTheReport, ORG_STREAM, orgLicense, PERSON_ORG,
-  REDUCER_VERSION, REPORT_VERSION, reportInputs, unitTitle, updatesFor, type AnyEvent, type OrgState, type Update } from '@langquest-next/core';
+  REDUCER_VERSION, REPORT_VERSION, reportInputs, settledUpdate, unitTitle, updatesFor, type AnyEvent, type OrgState, type Update } from '@langquest-next/core';
 import { runSnapshotWorker, shouldWriteSnapshot, SNAPSHOT_SCHEDULE } from '@langquest-next/sync/server';
 import { SupabaseTransport } from '@langquest-next/sync';
 import { listStreams } from '@langquest-next/sync/server';
@@ -288,7 +288,8 @@ export async function runProjections(
     const state = snapshot.state;
     const idx = buildIndexes(state);
     const notifications = [...languagePeople(org, languageId).keys()].flatMap((profileId) =>
-      updatesFor(state, profileId, idx).map((update) => ({
+      // A request done or withdrawn leaves the Inbox: it wants nothing more (UI audit, findings 80 and 81).
+      updatesFor(state, profileId, idx).filter((update) => !settledUpdate(update)).map((update) => ({
         id: JSON.stringify([snapshot.orgId, languageId, profileId, update.id]),
         profile_id: profileId, kind: update.kind,
         title: `${UPDATE_TITLES[update.kind]}: ${unitTitle(state, update.unitId)}`,

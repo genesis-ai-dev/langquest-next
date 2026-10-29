@@ -11,7 +11,7 @@ import { t } from '../i18n';
 import { useLibrary, useLibraryDocs } from '../library/useLibrary';
 import { noteExpected } from '../diagnostics/report';
 import * as server from '../server/reference';
-import { recMessage, recWrite, refKindOf, type Level, type RecAction, type RecWrite, type RefKind } from './model';
+import { recMessage, recState, recWrite, refKindOf, type Level, type RecAction, type RecWrite, type RefKind } from './model';
 import type { TimingPublication } from '@langquest-next/core';
 import { referenceFailure } from './failureModel';
 import { publishTimingJob } from './referenceActions';
@@ -30,19 +30,20 @@ async function write(ctx: Ctx, w: RecWrite, message: string): Promise<boolean> {
   try {
     await ctx.org.append('v1.ReferenceRecommended', w.payload as { itemId: string; recommended: boolean });
   } catch (e) {
-    ctx.toast(t('common.notSaved', { reason: referenceFailure('recommend', e) }));
+    ctx.toast(t('common.notSaved', { reason: referenceFailure('recommend', e) }), 'problem');
     return false;
   }
   if (message) ctx.toast(message);
   return true;
 }
 
-/** Recommend, stop, hide or follow the organization; the same buttons offer the way back. */
+/** Recommend or stop, at the organization or in a language (`recToggle`); the same button offers the way back. */
 export function useRecommend(ctx: Ctx) {
   const [busy, setBusy] = useState(false);
   const run = useCallback(async (level: Level, itemId: string, name: string, action: RecAction, quiet = false) => {
     setBusy(true);
-    const ok = await write(ctx, recWrite(level, itemId, action), quiet ? '' : recMessage(name, action, level));
+    const before = recState(ctx.org.state?.recommendations, ctx.language.state, level, itemId);
+    const ok = await write(ctx, recWrite(level, itemId, action), quiet ? '' : recMessage(name, action, level, before));
     setBusy(false);
     return ok;
   }, [ctx]);

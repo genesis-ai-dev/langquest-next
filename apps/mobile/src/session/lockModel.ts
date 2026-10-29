@@ -76,6 +76,18 @@ export function addDot(dots: readonly number[], dot: number): number[] {
   return mid !== null && !dots.includes(mid) ? [...dots, mid, dot] : [...dots, dot];
 }
 
+/**
+ * The pattern once a finger starts to drag. A drag always starts a new one
+ * from the dot it began on, as on the Android lock screen: dots tapped before
+ * it (a thumb that landed and lifted) are let go, so a stray tap never makes
+ * a correct drawing fail (UI audit, finding 31). Tapping alone never drags,
+ * so tap, tap, Done still works.
+ */
+export function dotsAtDrag(dots: readonly number[], tapped: boolean, from: number | null): number[] {
+  if (!tapped) return [...dots];
+  return from === null ? [] : [from];
+}
+
 /** The dot under a point of a square pad `size` wide, or null between dots. */
 export function dotAt(x: number, y: number, size: number): number | null {
   const cell = size / 3;

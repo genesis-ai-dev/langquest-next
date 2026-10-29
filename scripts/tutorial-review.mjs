@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Claude's nightly look at the tutorial videos' feedback, around Claude
 // (.github/workflows/tutorial-review.yml, docs/tutorial-videos.md "Feedback",
-// decisions.md 185). Plain Node, no packages, so the workflow needs no
+// decisions.md 186). Plain Node, no packages, so the workflow needs no
 // `npm ci`.
 //
 //   node scripts/tutorial-review.mjs fetch <dir>   what is open (state.json) and what main changed since the last look (changes.json)

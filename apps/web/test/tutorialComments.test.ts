@@ -4,7 +4,7 @@ import { FILE_MAX, freshReport, tendComments, type CommentsDeps } from '../../..
 import { inputLink, issueOf, type FeedbackInput, type Suggestion } from '../../../server/tutorialFeedback';
 import { CHANNELS, newComments, type VideoComment } from '../../../server/youtube';
 
-/** The comments job (server/tutorialCommentsModel.ts, decisions.md 185) against a YouTube and Linear that answer by address, and its Linear issues. */
+/** The comments job (server/tutorialCommentsModel.ts, decisions.md 186) against a YouTube and Linear that answer by address, and its Linear issues. */
 
 const thread = (id: string, at: string, over: { channel?: string; videoId?: string | null; text?: string } = {}) => ({
   id, snippet: { videoId: over.videoId === null ? undefined : over.videoId ?? 'dQw4w9WgXcQ', totalReplyCount: 1,

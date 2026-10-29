@@ -309,8 +309,8 @@
     "workspace": "Rekam",
     "review_capture": "Periksa",
     "back_translation": "Terjemahkan Balik",
-    "key_terms": "Istilah Kunci",
-    "key_term_detail": "Istilah Kunci",
+    "key_terms": "Kata Kunci",
+    "key_term_detail": "Kata Kunci",
     "inbox_home": "Kotak Masuk",
     "settings_home": "Saya",
     "profile_edit": "Ubah Profil",
@@ -670,15 +670,12 @@
       "aTemplate": "Sebuah templat",
       "applied": "{{name}} diterapkan",
       "noneApplied": "Belum ada yang diterapkan",
-      "none": "Tidak ada",
+      "inLibrary_other": "{{count, number}} di perpustakaan",
       "noLanguages": "Belum ada bahasa",
-      "languages_other": "{{count, number}} bahasa",
       "templates": "Templat Isi",
       "reference": "Bahan Referensi",
-      "referenceSub": "{{study}} studi · {{questions}} kumpulan pertanyaan · {{terms}} istilah kunci",
       "flows": "Alur Pemeriksaan",
       "roles": "Peran",
-      "rolesSub_other": "{{count, number}} peran di tingkat ini dan di atasnya",
       "summary": {
         "templates": "Templat isi",
         "referenceFirst": "Bahan Referensi",
@@ -690,16 +687,22 @@
       },
       "titleHelp": "Menampilkan yang disiapkan sekali dan jarang berubah: templat isi, bahan referensi, alur pemeriksaan, dan peran.",
       "templatesHelp": "Membuka cara-cara membagi pekerjaan menjadi perikop, dan cara yang dipakai setiap bahasa.",
-      "referenceHelp": "Membuka Alkitab, panduan studi, pertanyaan, dan istilah kunci yang disediakan bagi penerjemah.",
+      "referenceHelp": "Membuka Alkitab, panduan studi, pertanyaan, dan kata kunci yang disediakan bagi penerjemah.",
       "flowsHelp": "Membuka cara-cara rekaman diperiksa, dan cara yang dipakai setiap bahasa.",
-      "rolesHelp": "Membuka peran-peran, dan apa yang boleh dilakukan seseorang dengan masing-masing peran."
+      "rolesHelp": "Membuka peran-peran, dan apa yang boleh dilakukan seseorang dengan masing-masing peran.",
+      "counts": {
+        "study_other": "{{count, number}} panduan belajar",
+        "questions_other": "{{count, number}} kumpulan pertanyaan",
+        "terms_other": "{{count, number}} kata kunci"
+      },
+      "rolesSub_other": "{{count, number}} peran"
     },
     "people": {
       "title": "Orang",
       "members": "Anggota",
-      "assignedHere_other": "{{count, number}} ditugaskan di bahasa ini",
-      "orgSub": "{{here}} di tingkat organisasi · {{total}} seluruhnya",
-      "membersHelp": "Membuka daftar orang dan peran mereka, untuk mengundang seseorang atau mengubah peran."
+      "orgSub": "{{here}} di semua bahasa · {{total}} seluruhnya",
+      "membersHelp": "Membuka daftar orang dan peran mereka, untuk mengundang seseorang atau mengubah peran.",
+      "assignedHere_other": "{{count, number}} punya peran di bahasa ini"
     },
     "home": {
       "title": "Organisasi",
@@ -798,15 +801,16 @@
       "joined": "{{target}} · bergabung {{when}}",
       "count_other": "{{count, number}} anggota",
       "invite": "Undang",
-      "introOrg": "Anggota yang ditugaskan di lingkup organisasi. Buka kelompok di bawah untuk tingkat lainnya.",
-      "introLanguage": "Anggota yang ditugaskan di lingkup bahasa untuk tampilan ini. Buka kelompok di bawah untuk tingkat lainnya.",
+      "introOrg": "Orang yang perannya mencakup semua bahasa. Buka grup di bawah untuk orang di setiap bahasa.",
+      "introLanguage": "Orang yang punya peran di bahasa ini. Buka grup di bawah untuk yang lain.",
       "sectionOrg": "Anggota organisasi · {{total}}",
       "sectionLanguage": "Anggota bahasa · {{total}}",
       "pending": "Menunggu",
-      "none": "Belum ada anggota yang ditugaskan di tingkat ini.",
+      "none": "Belum ada yang punya peran di sini.",
+      "connectToSee": "Hubungkan ke internet untuk melihat siapa yang minta bergabung",
       "expandBy": "Kelompokkan menurut",
       "byLanguage": "Menurut bahasa",
-      "higher": "Tingkat lebih tinggi · hanya lihat",
+      "higher": "Semua bahasa · hanya lihat",
       "memberHelp": "Membuka perannya dan tempat peran itu berlaku, untuk mengubahnya.",
       "lockedHelp": "Anda tidak boleh mengubah peran orang ini dari sini.",
       "requestHelp": "Ingin bergabung. Membuka permintaannya: izinkan masuk, atau tolak.",
@@ -818,9 +822,9 @@
     "assign": {
       "noRoles": "Tidak ada peran yang tersedia di sini.",
       "where": "Di mana?",
-      "whereHelp": "Di mana orang ini dapat memakai hak dari peran yang dipilih.",
+      "whereHelp": "Di mana orang ini bisa melakukan apa yang diizinkan perannya.",
       "language": "Bahasa",
-      "languageHelp": "Bahasa yang berlaku untuk penugasan ini.",
+      "languageHelp": "Untuk bahasa mana peran ini.",
       "noLanguages": "Belum ada bahasa.",
       "orgHelp": "Peran ini berlaku di seluruh organisasi.",
       "languageLevelHelp": "Peran ini berlaku di satu bahasa, yang dipilih di bawah.",
@@ -848,18 +852,18 @@
     },
     "member": {
       "isNow": "{{name}} sekarang {{role}}",
-      "removedOrg": "{{name}} dikeluarkan di tingkat organisasi",
-      "removedLanguage": "{{name}} dikeluarkan di tingkat bahasa",
+      "removedOrg": "{{name}} tidak lagi punya peran di semua bahasa",
+      "removedLanguage": "{{name}} tidak lagi punya peran di bahasa ini",
       "declined": "Permintaan {{name}} ditolak",
       "editTitle": "Ubah Anggota",
       "notMember": "Bukan anggota di sini",
       "notMemberSub": "Orang ini sudah tidak punya peran di organisasi ini.",
       "awaiting": "Menunggu persetujuan",
       "assignRole": "Beri Peran",
-      "saveAssignment": "Simpan Penugasan",
+      "saveAssignment": "Simpan peran",
       "decline": "Tolak",
-      "introPending": "Orang ini membuat akun dan meminta bergabung. Beri peran dan lingkup agar mereka mendapat akses.",
-      "intro": "Pilih peran, lalu pilih lingkup yang berlaku untuk penugasan ini. Lingkupnya bisa tingkat ini atau di bawahnya.",
+      "introPending": "Orang ini membuat akun dan minta bergabung. Pilih perannya dan di mana berlakunya untuk mengizinkannya masuk.",
+      "intro": "Pilih peran, lalu di mana berlakunya.",
       "outranked": "{{name}} memegang hak lebih banyak dari Anda di sini, jadi hanya orang dengan hak yang setara yang dapat mengubah ini.",
       "onlyManager": "Hanya {{name}} yang dapat mengelola peran",
       "onlyManagerYou": "Hanya Anda yang dapat mengelola peran",
@@ -878,6 +882,8 @@
       "howToLost": "Di perangkat barunya, {{name}} membuka LangQuest, mengetuk Pindai kode, lalu mengarahkannya ke sini. Kode ini berlaku sekali, selama satu jam. Memakainya akan mengeluarkan perangkat lamanya.",
       "willSee": "{{name}} akan melihat di Pengaturan bahwa Anda membantunya masuk.",
       "noEmail": "{{name}} tidak punya email. Di perangkat baru, tunjukkan kode masuk kepadanya.",
+      "row": "Bantu {{name}} masuk di perangkat baru",
+      "rowHelp": "Untuk yang tidak punya email: membuka halaman untuk membuat kode masuk. Tidak ada kode dibuat sampai Anda memintanya.",
       "lostSignOut": "Perangkat lamanya hilang atau dicuri: keluarkan perangkat itu",
       "lost": "Perangkat lamanya hilang atau dicuri",
       "help": "Bantu mereka masuk",
@@ -897,7 +903,6 @@
       "pickRole": "Pilih peran untuk orang ini. Anda tidak perlu email mereka.",
       "alreadyTitle": "Sudah ada di tim, dengan perangkat baru?",
       "alreadyBody": "Buka orang itu di Anggota dan ketuk Bantu mereka masuk. Undangan baru akan membuat akun kedua.",
-      "privileges_other": "{{count, number}} hak",
       "noRoles": "Belum ada peran.",
       "createRole": "Buat peran baru",
       "one": "Satu orang",
@@ -914,6 +919,12 @@
       "orType": "Atau ketik kode ini",
       "shownOnceGroup_other": "Hanya ditampilkan sekali: meninggalkan layar ini akan menghilangkan kodenya. Sampai {{count, number}} orang dapat memakainya, sampai {{date}}.",
       "shownOnceOne": "Hanya ditampilkan sekali: meninggalkan layar ini akan menghilangkan kodenya. Kode ini dapat dipakai sekali, sampai {{date}}.",
+      "leaveAsk": "Tinggalkan kode?",
+      "leaveBody": "Kode untuk {{name}} tidak bisa ditampilkan lagi. Jika mereka belum memindainya, buat yang baru.",
+      "stay": "Tetap di kode",
+      "stayHelp": "Menjaga kode tetap di layar, untuk mereka pindai.",
+      "leave": "Keluar",
+      "leaveHelp": "Kembali. Kode tidak bisa ditampilkan lagi.",
       "share": "Bagikan undangan",
       "couldNotShare": "Tidak dapat membagikannya. Ketik saja kode di atas.",
       "toNameHelp": "Lanjut ke: untuk siapa kode ini.",
@@ -921,7 +932,8 @@
       "doneHelp": "Selesai: membuka daftar anggota.",
       "nameFieldHelp": "Untuk siapa kode ini. Mereka melihatnya saat memindai.",
       "groupNameFieldHelp": "Nama untuk kelompok. Semua yang memindai melihatnya.",
-      "shareHelp": "Mengirim tautan undangan lewat pesan, atau menyalinnya."
+      "shareHelp": "Mengirim tautan undangan lewat pesan, atau menyalinnya.",
+      "privileges_other": "{{count, number}} izin"
     },
     "newLanguage": {
       "theOrganization": "organisasi",
@@ -966,13 +978,13 @@
       "stages": {
         "language": "Bahasa",
         "content": "Isi",
-        "pieces": "Bagi menjadi potongan",
+        "pieces": "Bagi menjadi bagian",
         "material": "Bahan referensi",
         "flow": "Alur pemeriksaan",
         "people": "Orang",
         "languageHelp": "Bahasa tujuan terjemahan mereka: namanya, dari daftar bahasa atau diketik. Bisa ditautkan ke daftar nanti.",
         "contentHelp": "Apa yang akan mereka terjemahkan: Alkitab, atau yang lain, seperti cerita atau lagu.",
-        "piecesHelp": "Cara isinya dibagi menjadi potongan yang cukup kecil untuk direkam dan diperiksa satu per satu.",
+        "piecesHelp": "Cara isinya dibagi menjadi bagian yang cukup kecil untuk direkam dan diperiksa satu per satu.",
         "materialHelp": "Alkitab, panduan studi, dan catatan yang ada di dekat penerjemah dan pemeriksa.",
         "flowHelp": "Pemeriksaan yang dilalui rekaman sebelum disetujui, dan apa yang dilihat orang-orang di setiap pemeriksaan.",
         "peopleHelp": "Lalu undang orang: penerjemah, pemeriksa, dan lainnya, masing-masing dengan kode untuk dipindai.",
@@ -991,6 +1003,11 @@
       "toChecksHelp": "Menampilkan pemeriksaannya, untuk menyiapkan masing-masing.",
       "startAgainAsk": "Mulai lagi dari {{flow}}?",
       "startAgain": "Mulai lagi",
+      "leaveAsk": "Keluar tanpa menambahkan {{language}}?",
+      "keepGoing": "Lanjutkan",
+      "keepGoingHelp": "Kembali ke halaman tadi, dengan jawaban Anda tetap tersimpan.",
+      "leave": "Keluar",
+      "leaveHelp": "Keluar tanpa menambahkan bahasa. Jawaban Anda di sini hilang.",
       "material": {
         "question": "Apa yang akan membantu tim {{language}}?",
         "onHelp": "Tim {{language}} akan memilikinya. Ketuk untuk tidak menyertakannya.",
@@ -1290,7 +1307,7 @@
       "keepIt": "Biarkan",
       "whichPart": "Bagian Alkitab yang mana?",
       "viewOnly": "Hanya orang yang mengatur bahasa yang dapat mengubah apa yang diterjemahkan.",
-      "keepEarlier": "Potongan yang tetap sama mempertahankan rekamannya. Apa yang direkam pada potongan yang berubah disimpan di bawah \"Potongan sebelumnya\" pada potongan yang baru.",
+      "keepEarlier": "Bagian yang tetap sama mempertahankan rekamannya. Apa yang direkam pada bagian yang berubah disimpan di bawah \"Bagian sebelumnya\" pada bagian yang baru.",
       "partHelp": "Mereka menerjemahkan bagian Alkitab ini.",
       "chooseBooksHelp": "Pilih kitab-kitabnya satu per satu, di bawah.",
       "bookOnHelp": "Dipilih. Ketuk untuk tidak memasukkannya.",
@@ -1358,7 +1375,6 @@
       "noNotes": "Belum ada catatan",
       "passagesCovered_other": "{{count, number}} perikop tercakup",
       "keyWords": "Kata kunci",
-      "keyTerms": "Istilah kunci",
       "keyTermsSub_other": "{{count, number}} kata · {{rendered}} dengan kata dalam {{language}}",
       "writtenHere": "Ditulis di sini, untuk bahasa ini",
       "addMoreHelp": "Cari Alkitab, panduan studi, catatan, atau kata kunci untuk disediakan bagi mereka.",
@@ -1395,7 +1411,6 @@
       "nextHelp": "Menyimpan cara memeriksa ini, lalu lanjut ke pertanyaan berikutnya."
     },
     "invite": {
-      "somethingElse": "Yang lain",
       "cannotTitle": "Hanya orang yang dapat mengundang di sini yang dapat menunjukkan kode",
       "cannotBody": "Minta orang yang memimpin tim {{language}} untuk mengundang penerjemah Anda."
     },
@@ -1738,8 +1753,8 @@
       "skip": "Lewati penjelasan",
       "stepLabel": "Langkah {{step, number}} dari {{total, number}}",
       "pieces": {
-        "title": "Tim Anda merekam bahan dalam potongan-potongan",
-        "text": "Bahan disusun dalam folder, dan orang-orang merekam potongan-potongan di dalamnya. Ini contoh cerita-cerita yang disusun dalam kumpulan.",
+        "title": "Tim Anda merekam bahan dalam bagian-bagian",
+        "text": "Bahan disusun dalam folder, dan orang-orang merekam bagian-bagian di dalamnya. Ini contoh cerita-cerita yang disusun dalam kumpulan.",
         "began": "Bagaimana semuanya bermula",
         "river": "Mengapa sungai itu lebar",
         "fire": "Api pertama",
@@ -1748,12 +1763,12 @@
       },
       "bible": {
         "title": "Alkitab punya kitab, pasal, dan ayat",
-        "text": "Setiap kitab adalah sebuah folder. Di dalamnya, kitab dibagi menjadi potongan untuk direkam, dan setiap ayat menandai satu tempat dalam rekaman.",
+        "text": "Setiap kitab adalah sebuah folder. Di dalamnya, kitab dibagi menjadi bagian untuk direkam, dan setiap ayat menandai satu tempat dalam rekaman.",
         "chapterVerses": "{{book}} {{chapter}} · ayat 1 sampai {{last}}"
       },
       "places": {
         "title": "Kitab yang sama bisa dibagi di tempat yang berbeda",
-        "text": "Ini {{book}} dengan tiga cara. Ayatnya sama, potongannya berbeda.",
+        "text": "Ini {{book}} dengan tiga cara. Ayatnya sama, bagiannya berbeda.",
         "byChapter": "Per pasal",
         "fia": "Perikop FIA",
         "unfoldingWord": "Potongan unfoldingWord"
@@ -1791,17 +1806,17 @@
       "waitsLabel": "{{book}} menunggu dibagi",
       "notInIt": "{{book}} tidak ada di dalamnya",
       "waits": "{{book}} menunggu sampai koordinator membaginya",
-      "label_other": "{{book}} dalam {{count, number}} potongan",
-      "caption_other": "{{book}}: {{count, number}} potongan",
-      "help": "Setiap blok adalah satu potongan untuk direkam, lebarnya sesuai banyaknya ayat."
+      "label_other": "{{book}} dalam {{count, number}} bagian",
+      "caption_other": "{{book}}: {{count, number}} bagian",
+      "help": "Setiap blok adalah satu bagian untuk direkam, lebarnya sesuai banyaknya ayat."
     },
     "way": {
       "inUse": "Dipakai di sini",
-      "previewHelp": "Setiap potongan yang dibuat {{way}} dari sebuah kitab.",
+      "previewHelp": "Setiap bagian yang dibuat {{way}} dari sebuah kitab.",
       "comesWith": "Disertai panduan studi {{pattern}}",
       "previewLabel": "Pratinjau {{way}}",
-      "pickHelp": "Memilih cara ini untuk membaginya menjadi potongan.",
-      "barHelp": "Batang ini menunjukkan {{book}} dibagi dengan cara ini: setiap blok adalah satu potongan, lebarnya sesuai banyaknya ayat."
+      "pickHelp": "Memilih cara ini untuk membaginya menjadi bagian.",
+      "barHelp": "Batang ini menunjukkan {{book}} dibagi dengan cara ini: setiap blok adalah satu bagian, lebarnya sesuai banyaknya ayat."
     },
     "preview": {
       "useThis": "Pakai ini",
@@ -1818,6 +1833,7 @@
       "hereDetail": "Bahasa yang sedang Anda ubah selalu ikut berubah.",
       "cannotChange": "Anda tidak dapat mengubah yang ini",
       "otherDetail": "Centang untuk mengubah {{language}} dengan cara yang sama. Jika dibiarkan, {{language}} tetap memakai templat seperti sekarang.",
+      "otherDetailRedo": "Centang untuk membagi {{book}} dengan cara yang sama untuk {{language}}, dan memindahkan rekamannya dengan cara yang sama. Jika dibiarkan, {{language}} tetap memakai {{book}} seperti sekarang.",
       "everyLanguage": "Semua bahasa yang memakainya ikut berubah.",
       "someLanguages": "Bahasa yang tidak Anda pilih tetap memakai templat seperti sekarang. Bahasa yang Anda pilih mendapat salinannya sendiri dengan perubahan ini."
     },
@@ -1828,7 +1844,10 @@
       "titleBook": "{{book}} akan dibagi ulang",
       "bodyNumbering": "Semua yang direkam dan diperiksa pada potongan yang berubah pindah ke \"Potongan sebelumnya\" di bawah potongan yang baru, diberi tanda peringatan, dan perlu dikerjakan ulang. Termasuk rekaman yang masih ada di ponsel seseorang dan belum tersinkron.",
       "bodyBook": "Semua yang direkam dan diperiksa pada potongan lama {{book}} pindah ke \"Potongan sebelumnya\" di bawah potongan yang baru, diberi tanda peringatan, dan perlu dikerjakan ulang. Termasuk rekaman yang masih ada di ponsel seseorang dan belum tersinkron.",
-      "nothingDeleted": "Tidak ada yang dihapus."
+      "bodyRecorded_other": "{{count, number}} potongan {{book}} punya rekaman di ponsel ini. Semua yang direkam dan diperiksa pada potongan lama {{book}} pindah ke \"Potongan sebelumnya\" di bawah potongan yang baru, diberi tanda peringatan, dan perlu dikerjakan ulang. Termasuk rekaman yang masih ada di ponsel seseorang dan belum tersinkron.",
+      "nothingDeleted": "Tidak ada yang dihapus.",
+      "bodyNoneHere": "Belum ada rekaman {{book}} yang sampai ke ponsel ini. Rekaman yang masih ada di ponsel seseorang dan belum tersinkron pindah ke \"Potongan sebelumnya\" di bawah potongan yang baru, diberi tanda peringatan, dan perlu dikerjakan ulang.",
+      "alsoLanguages": "{{book}} berubah dengan cara yang sama untuk {{languages}}, begitu juga rekamannya."
     },
     "numbering": {
       "ignore": "Oke, abaikan",
@@ -1843,7 +1862,7 @@
     },
     "book": {
       "breakDifferently": "Bagi dengan cara lain",
-      "breakDifferentlyHelp": "Pilih cara lain untuk membagi kitab ini menjadi potongan.",
+      "breakDifferentlyHelp": "Pilih cara lain untuk membagi kitab ini menjadi bagian.",
       "namedToast": "Dalam {{language}} kitab ini disebut {{name}}.",
       "brokenUp": "Sudah dibagi",
       "ownWay": "Cara sendiri",
@@ -1856,8 +1875,8 @@
       "breakUp": "Bagi {{book}}",
       "changeQuestion": "Ubah cara {{book}} dibagi",
       "question": "Bagaimana {{book}} sebaiknya dibagi?",
-      "nowEachPiece": "Sekarang: {{way}}. Setiap potongan direkam tersendiri.",
-      "eachPiece": "Setiap potongan direkam tersendiri.",
+      "nowEachPiece": "Sekarang: {{way}}. Setiap bagian direkam tersendiri.",
+      "eachPiece": "Setiap bagian direkam tersendiri.",
       "connectForWays": "Sambungkan untuk memuat cara-cara membaginya.",
       "alsoUsedOne": "Juga dipakai di {{name}}. Ubah {{book}} untuk yang mana?",
       "alsoUsedTwo": "Juga dipakai di {{first}} dan {{second}}. Ubah {{book}} untuk yang mana?",
@@ -2038,6 +2057,9 @@
       "noBibleChip": "Tidak ada Alkitab",
       "chapterChip": "Pasal {{n}}",
       "key": "Garis putus-putus menunjukkan di mana Alkitab lain memulai bagian ({{total}} Alkitab bahasa Inggris, dari OpenBible.info). Ketuk salah satunya untuk memulai bagian di sana, atau ketuk ayat mana saja.",
+      "restored": "Draf Anda dari {{when}}",
+      "startFromNow": "Mulai lagi",
+      "startFromNowHelp": "Mengembalikan potongan yang dimiliki kitab ini sekarang, menggantikan draf Anda. Urungkan mengembalikan draf.",
       "loadingText": "Memuat teks {{book}}…",
       "noText": "Alkitab tim tidak memiliki teks {{book}}, jadi ayat-ayatnya tampil sebagai angka.",
       "chapterHead": "Pasal {{n}}",
@@ -2117,8 +2139,8 @@
       "done_other": "Selesai · {{count, number}} bagian"
     },
     "division": {
-      "way_other": "{{way}} · {{count, number}} potongan",
-      "own_other": "Cara sendiri · {{count, number}} potongan"
+      "way_other": "{{way}} · {{count, number}} bagian",
+      "own_other": "Cara sendiri · {{count, number}} bagian"
     }
   },
   "canon": {
@@ -2139,7 +2161,7 @@
     "unnamedOrg": "Organisasi",
     "listJoin": ", ",
     "quoted": "“{{text}}”",
-    "languageRenderings": "Padanan {{language}}",
+    "languageRenderings": "Kata dalam {{language}}",
     "levels": {
       "org": "Organisasi",
       "language": "Bahasa"
@@ -2147,27 +2169,27 @@
     "privileges": {
       "manageStructure": {
         "label": "Kelola Struktur Organisasi",
-        "desc": "Mengubah struktur organisasi dalam lingkupnya (bahasa)"
+        "desc": "Menambah dan mengubah bahasa di tempat perannya berlaku"
       },
       "inviteMembers": {
-        "label": "Undang Anggota",
-        "desc": "Mengundang orang dalam lingkupnya"
+        "label": "Mengundang orang",
+        "desc": "Mengundang orang di tempat perannya berlaku"
       },
       "manageRoles": {
-        "label": "Kelola Peran",
-        "desc": "Membuat dan mengubah peran dalam lingkupnya"
+        "label": "Membuat dan mengubah peran",
+        "desc": "Membuat dan mengubah peran di tempat perannya berlaku"
       },
       "manageTemplates": {
         "label": "Kelola Templat Isi",
-        "desc": "Membuat dan mengubah templat isi dalam lingkupnya"
+        "desc": "Membuat dan mengubah templat konten di tempat perannya berlaku"
       },
       "shapeTemplates": {
         "label": "Bentuk Templat Isi",
         "desc": "Membagi kitab menjadi perikop, menamainya, dan menerbitkan perubahan itu untuk bahasanya"
       },
       "manageReference": {
-        "label": "Kelola Bahan Referensi",
-        "desc": "Membuat dan mengubah bahan referensi dalam lingkupnya"
+        "label": "Memilih Alkitab dan panduan",
+        "desc": "Membuat dan mengubah bahan rujukan di tempat perannya berlaku"
       },
       "manageFlows": {
         "label": "Kelola Alur Pemeriksaan",
@@ -2175,35 +2197,35 @@
       },
       "manageTeams": {
         "label": "Kelola Tim Pemeriksa",
-        "desc": "Membuat dan mengubah tim pemeriksa (kelompok) dalam lingkupnya"
+        "desc": "Membuat dan mengubah tim tinjauan di tempat perannya berlaku"
       },
       "assignWork": {
-        "label": "Tugaskan Pekerjaan",
-        "desc": "Meminta siapa pun dalam lingkupnya merekam atau memeriksa perikop"
+        "label": "Menugaskan pekerjaan",
+        "desc": "Meminta siapa pun di tempat perannya berlaku untuk merekam atau meninjau perikop"
       },
       "overrideCheckpoints": {
-        "label": "Lewati Titik Periksa",
+        "label": "Meloloskan pekerjaan melewati pemeriksaan yang terkunci",
         "desc": "Meloloskan perikop melewati titik periksa, dengan alasan yang dicatat"
       },
       "translate": {
-        "label": "Terjemahkan",
+        "label": "Merekam",
         "desc": "Merekam dan memperbaiki terjemahan (matikan, misalnya, agar konsultan tidak membuat draf)"
       },
       "fillReference": {
-        "label": "Isi Bahan Referensi",
-        "desc": "Menambah istilah kunci, catatan, dan isi referensi"
+        "label": "Menambah catatan dan kata kunci",
+        "desc": "Menambah kata kunci, catatan, dan isi referensi"
       },
       "sendToReviewers": {
-        "label": "Minta Pemeriksaan",
+        "label": "Meminta pemeriksaan",
         "desc": "Meminta rekan tim, atau orang di luar aplikasi lewat tautan, untuk memeriksa"
       },
       "review": {
-        "label": "Periksa",
+        "label": "Memeriksa rekaman",
         "desc": "Memberi pemeriksaan, dan mencatat pemeriksaan yang dilakukan di luar aplikasi"
       },
       "viewStatus": {
-        "label": "Lihat Status",
-        "desc": "Melihat peta dan riwayat perikop tanpa bisa mengubah, dalam lingkupnya"
+        "label": "Melihat pekerjaan semua orang",
+        "desc": "Melihat peta dan catatan perikop, tanpa mengubahnya, di tempat perannya berlaku"
       }
     },
     "privilegeGroups": {
@@ -2230,7 +2252,7 @@
       },
       "keyTerms": {
         "code": "KT",
-        "name": "Istilah Kunci"
+        "name": "Kata Kunci"
       },
       "questions": {
         "code": "Q",
@@ -2269,19 +2291,19 @@
     "roles": {
       "title": "Peran",
       "addRole": "Peran",
-      "introOrg": "Peran adalah kumpulan hak tanpa lingkup tetap. Lingkup dipilih saat memberikan peran kepada anggota. Peran yang dibuat di sini dapat diberikan di tingkat mana pun.",
-      "introLanguage": "Peran adalah kumpulan hak tanpa lingkup tetap. Lingkup dipilih saat memberikan peran kepada anggota. Peran ditetapkan untuk seluruh organisasi, jadi di sini hanya bisa dilihat. Ubah peran dari Beranda Organisasi.",
+      "introOrg": "Peran adalah apa yang boleh dilakukan seseorang. Di mana ia boleh melakukannya dipilih saat peran diberikan: di semua bahasa, atau di satu bahasa.",
+      "introLanguage": "Peran adalah apa yang boleh dilakukan seseorang. Peran milik seluruh organisasi, jadi di sini Anda hanya bisa melihat. Ubah dari Beranda Organisasi.",
       "loading": "Memuat peran…",
       "empty": "Belum ada peran",
       "emptySub": "Buat satu peran untuk setiap cara orang membantu: apa yang boleh mereka lakukan, bukan di mana.",
       "definedAtOrg": "Ditetapkan di Organisasi",
-      "inheritedSub": "Hanya lihat · ubah dari tingkat tempat peran ini ditetapkan",
+      "inheritedSub": "Hanya lihat · ubah dari Beranda Organisasi",
       "members_other": "{{count, number}} anggota",
-      "privileges_other": "{{count, number}} hak",
       "addRoleHelp": "Membuat peran baru: kumpulan hal yang boleh dilakukan orang yang memegangnya.",
       "ownRoleHelp": "Membuka apa yang boleh dilakukan pemegangnya, dan siapa yang memilikinya. Bintang: organisasi Anda yang membuatnya.",
       "builtInRoleHelp": "Membuka apa yang boleh dilakukan pemegangnya, dan siapa yang memilikinya. Peran ini bawaan aplikasi.",
-      "inheritedRoleHelp": "Menampilkan apa yang boleh dilakukan pemegangnya. Ubah dari Beranda Organisasi."
+      "inheritedRoleHelp": "Menampilkan apa yang boleh dilakukan pemegangnya. Ubah dari Beranda Organisasi.",
+      "privileges_other": "{{count, number}} izin"
     },
     "roleEditor": {
       "title": "Peran",
@@ -2292,7 +2314,7 @@
       "newRole": "Peran baru",
       "aNewRole": "Sebuah peran baru",
       "people_other": "{{count, number}} orang",
-      "inheritedBody": "Ditetapkan di tingkat organisasi. Ubah dari Beranda Organisasi.",
+      "inheritedBody": "Dibuat untuk seluruh organisasi. Ubah dari Beranda Organisasi.",
       "noPermission": "Anda tidak punya izin untuk mengubah peran ini.",
       "nameLabel": "Apa namanya?",
       "namePlaceholder": "misalnya Penerjemah balik",
@@ -2382,7 +2404,7 @@
       "noneChosen": "Belum ada alur yang dipilih",
       "noReviews": "Tanpa pemeriksaan: selesai setelah direkam",
       "title": "Alur Pemeriksaan",
-      "addFlow": "Alur",
+      "addFlow": "Alur baru",
       "noLanguages": "Belum ada bahasa",
       "noLanguagesSub": "Tambahkan bahasa, lalu pilih cara perikop-perikopnya diperiksa.",
       "languageUses": "{{language}} memakai",
@@ -2397,9 +2419,10 @@
       "nowUses": "{{language}} sekarang memakai {{flow}}.",
       "addFlowHelp": "Membuat alur baru: pemeriksaan apa yang dilalui perikop, secara berurutan.",
       "openFlowHelp": "Membukanya, untuk melihat atau mengubah tahap-tahapnya.",
+      "editChecks": "Ubah pemeriksaan dan orang",
+      "editChecksHelp": "Membuka pemeriksaan milik {{language}} sendiri: urutannya, siapa yang mengerjakan masing-masing, dan apa yang ditampilkan masing-masing.",
       "saveAsFlowHelp": "Menyimpan pemeriksaan bahasa ini sebagai alur di perpustakaan Anda, untuk bahasa lain.",
       "flowCardHelp": "Membukanya, untuk melihat atau mengubah tahap-tahapnya. Gembok: tahap itu harus lulus lebih dulu.",
-      "inUseHelp": "Bahasa ini sekarang memeriksa perikopnya dengan cara ini.",
       "useHelp": "Pemeriksaannya menjadi milik {{language}} sendiri. Anda dapat mengubahnya sesudahnya.",
       "stepsLabel": "Tahap",
       "stepsHelp": "Pemeriksaan, dari kiri ke kanan. Yang bertumpuk dilakukan bersamaan. Gembok: tahap itu harus lulus lebih dulu.",
@@ -2435,7 +2458,7 @@
       "descriptionPlaceholder": "Kegunaannya, dalam satu baris",
       "noChecks": "Tanpa pemeriksaan: selesai setelah direkam",
       "usedHere": "{{language}} memakainya. Perubahan langsung berlaku untuk perikop-perikopnya; tidak ada rekaman yang hilang.",
-      "usedNote": "Bahasa yang memakainya pindah ke setiap versi baru. Urutan tahap hanya saran; hanya tahap yang terkunci yang harus lulus lebih dulu.",
+      "usedNote": "Bahasa yang mengambil pemeriksaan ini punya salinannya sendiri: mengubah alur ini tidak mengubah satu pun dari mereka. Urutan tahap hanya saran; hanya tahap yang terkunci yang harus lulus lebih dulu.",
       "kindsSub": "Jenis-jenis ini adalah kosakata organisasi Anda. Tambahkan sendiri jika yang ada tidak cocok.",
       "newKindLabel": "Jenis baru",
       "newKindPlaceholder": "Jenis baru, misalnya Pemeriksaan Penatua",
@@ -2459,15 +2482,14 @@
       "introLanguage": "Bahan milik {{language}} sendiri melengkapi apa yang direkomendasikan organisasi; tidak ada yang disalin. Penerjemah melihatnya di panel tempat merekam; pemeriksa melihat pertanyaan untuk jenis pemeriksaan mereka.",
       "introOrg": "Bahan untuk semua bahasa ada di perpustakaan Anda, dan organisasi merekomendasikannya kepada bahasa-bahasa itu. Setiap bahasa menambahkan bahannya sendiri dari Berandanya.",
       "offered": "Apa yang disediakan bagi penerjemah",
-      "keyTermsSection": "Istilah kunci",
-      "keyTermsRow": "Istilah Kunci",
+      "keyTermsSection": "Kata kunci",
+      "keyTermsRow": "Kata Kunci",
       "concepts_other": "{{count, number}} konsep",
       "addLanguageFirst": "Tambahkan bahasa dulu",
       "libraryOrg": "Perpustakaan · organisasi Anda",
-      "new": "Baru",
       "libraryEmpty": "Belum ada apa-apa di perpustakaan Anda. Ikuti atau salin apa yang dibagikan organisasi lain, atau terbitkan milik Anda sendiri.",
       "writeGuide": "Tulis panduan",
-      "writeGuideSub": "Langkah-langkah dengan teks dan audio, gambar, peta, dan istilah kunci",
+      "writeGuideSub": "Langkah-langkah dengan teks dan audio, gambar, peta, dan kata kunci",
       "studyMaterial": "Bahan studi",
       "noStudy": "Belum ada bahan studi yang ditulis di aplikasi untuk bahasa ini.",
       "blanks_other": "{{count, number}} isian kosong",
@@ -2487,10 +2509,15 @@
       "biblesHelp": "Membuka Alkitab yang didengar dan dibaca penerjemah, dan mana yang direkomendasikan.",
       "guidesNotesHelp": "Membuka panduan studi dan catatan yang didapat penerjemah, dan mana yang direkomendasikan.",
       "keyTermsHelp": "Membuka setiap konsep dan cara bahasa ini mengucapkannya.",
-      "newHelp": "Memulai bahan baru di perpustakaan Anda.",
       "libraryItemHelp": "Membukanya: apa isinya, dan bagaimana bahan ini dibagikan.",
       "openMaterialHelp": "Membukanya, untuk dibaca atau diubah.",
-      "openLockedHelp": "Membukanya. Terkunci: hanya orang yang mengelola bahan referensi yang dapat mengubahnya."
+      "openLockedHelp": "Membukanya. Terkunci: hanya orang yang mengelola bahan referensi yang dapat mengubahnya.",
+      "add": {
+        "here": "Pedoman, ringkasan, atau pertanyaan",
+        "hereSub": "Ditulis di sini, bagian demi bagian; pertanyaan tinjauan masuk ke satu jenis tinjauan",
+        "byVerses": "Catatan yang ditempatkan menurut ayat",
+        "byVersesSub": "Masuk ke perpustakaan, dan menjangkau perikop tempat ayat atau bagian templatnya berada"
+      }
     },
     "material": {
       "editTitle": "Ubah Bahan",
@@ -2594,41 +2621,41 @@
       "pickPartHelp": "Menautkan bagian ini: penerjemah mendapatkannya di sana."
     },
     "keyTerms": {
-      "noLanguageRendering": "Belum ada padanan dalam {{language}}",
-      "title": "Istilah Kunci",
+      "noLanguageRendering": "Belum ada kata dalam {{language}}",
+      "title": "Kata Kunci",
       "chooseLanguage": "Pilih bahasa dulu",
       "added": "{{term}} ditambahkan.",
       "newTerm": "Istilah baru",
       "search": "Cari istilah",
-      "empty": "Belum ada istilah kunci",
+      "empty": "Belum ada kata kunci",
       "emptySubCanAdd": "Tambahkan istilah dengan cara bahasa ini mengucapkannya, dan kapan memakainya.",
-      "emptySub": "Istilah yang ditambahkan tim Anda muncul di sini bersama padanannya.",
+      "emptySub": "Kata yang ditambahkan tim Anda muncul di sini, dengan kata bahasa Anda untuk masing-masing.",
       "inPassage": "Dalam perikop ini",
       "otherTerms": "Istilah lain",
       "allTerms": "Semua istilah",
       "noOther": "Tidak ada istilah lain.",
-      "intro": "Konsep berasal dari daftar bersama (seperti istilah kunci FIA) atau daftar Anda sendiri. {{language}} menyimpan padanannya sendiri beserta alasannya.",
-      "newKeyTerm": "Istilah kunci baru",
-      "newSub": "Ditambahkan ke istilah kunci {{language}}, dengan padanan pertamanya.",
+      "intro": "Kata kunci berasal dari daftar bersama (seperti kata kunci FIA) atau milik Anda sendiri. {{language}} menyimpan katanya sendiri untuk masing-masing, beserta alasannya.",
+      "newKeyTerm": "Kata kunci baru",
+      "newSub": "Ditambahkan ke kata kunci {{language}}, dengan kata pertamanya.",
       "addTerm": "Tambah Istilah",
       "termPlaceholder": "Istilah sumber, misalnya kasih karunia (kharis)",
       "meaningPlaceholder": "Artinya, secara singkat",
-      "renderingPlaceholder": "Padanan dalam {{language}}",
+      "renderingPlaceholder": "Kata dalam {{language}}",
       "contextPlaceholder": "Kapan memakainya, dan mengapa",
       "newTermHelp": "Menambahkan konsep, beserta cara mengucapkannya dalam {{language}}.",
       "openTermHelp": "Membukanya: artinya, cara tim Anda mengucapkannya, dan alasannya.",
-      "openFiaTermHelp": "Istilah kunci FIA. Membuka artinya, cara tim Anda mengucapkannya, dan alasannya.",
+      "openFiaTermHelp": "Kata kunci FIA. Membuka artinya, cara tim Anda mengucapkannya, dan alasannya.",
       "renderingHelp": "Cara mengucapkannya dalam {{language}}."
     },
     "keyTerm": {
-      "title": "Istilah Kunci",
+      "title": "Kata Kunci",
       "gone": "Istilah ini sudah tidak ada",
       "tied": "{{term}} dikaitkan dengan draf Anda.",
       "added": "“{{rendering}}” ditambahkan.",
       "changeRecorded": "Perubahan dicatat.",
-      "firstRendering": "Padanan pertama: {{rendering}}.",
-      "fiaSub": "Istilah kunci FIA · {{language}}",
-      "sub": "Istilah kunci {{language}}",
+      "firstRendering": "Kata pertama: {{rendering}}.",
+      "fiaSub": "Kata kunci FIA · {{language}}",
+      "sub": "Kata kunci {{language}}",
       "noMeaning": "Belum ada arti yang ditulis.",
       "appearsIn": "Muncul di {{places}}",
       "everyPassage": "Berlaku untuk setiap perikop",
@@ -2637,10 +2664,10 @@
       "tiedBody": "Pemeriksa akan melihat istilah ini dan alasan Anda.",
       "tieBody": "Agar pemeriksa tahu istilah ini memengaruhi {{passage}}.",
       "inLanguage": "Dalam {{language}}",
-      "noRendering": "Belum ada padanan",
+      "noRendering": "Belum ada kata",
       "addHow": "Tambahkan cara {{language}} mengucapkan ini, dan kapan memakainya.",
-      "adjustOrAdd": "Sesuaikan atau tambah padanan",
-      "addRendering": "Tambah padanan",
+      "adjustOrAdd": "Ubah atau tambah kata",
+      "addRendering": "Tambah kata",
       "details": "Detail",
       "why": "Mengapa dipadankan seperti ini",
       "changes_other": "{{count, number}} perubahan",
@@ -2650,7 +2677,7 @@
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Dicatat sebagai bagian dari {{passage}}, dan dikaitkan dengan draf Anda.",
       "adjustSub": "Setiap perubahan dicatat dengan alasan Anda.",
-      "newRendering": "Padanan baru (tidak wajib)",
+      "newRendering": "Kata baru (opsional)",
       "whenToUse": "Kapan memakainya",
       "sayWhy": "Sebutkan alasannya",
       "orTypeWhy": "Atau ketik apa yang berubah, dan mengapa",
@@ -2676,7 +2703,7 @@
       "signingIn": "Masuk…",
       "askedOrg": "Sudah meminta ke {{org}}",
       "askedUnknown": "Sudah meminta ke organisasi",
-      "sentBody": "Anda langsung masuk begitu mereka menyetujui. Anda boleh menutup aplikasi; kami akan memberi tahu Anda.",
+      "sentBody": "Anda boleh menutup aplikasi. Lain kali Anda membukanya, Anda langsung masuk jika mereka sudah menyetujui.",
       "savedOnDevice": "Tersimpan di perangkat ini"
     },
     "termsLine": {
@@ -2700,13 +2727,21 @@
       "v2SameEmail": "Anda sudah punya akun di sini dengan email ini. Masuk dengan kata sandi yang Anda pakai di sini."
     },
     "signIn": {
-      "tagline": "Mengoordinasikan penerjemahan Alkitab — dari draf sampai disetujui",
       "joinTitle": "Masuk untuk bergabung",
       "joinBody": "Undangan Anda tersimpan. Anda akan bergabung begitu masuk.",
+      "askTitle": "Masuk, lalu minta bergabung dengan tim {{language}}",
       "namePlaceholder": "Email atau nama pengguna",
+      "nameHint": "Nama pengguna tidak memakai spasi: huruf, angka, dan tanda hubung, seperti nyibol-deng-482.",
+      "nameHelp": "Email Anda, atau nama pengguna Anda, seperti nyibol-deng-482.",
+      "passwordHelp": "Kata sandi untuk akun ini.",
+      "buttonHelp": "Memasukkan Anda dengan nama dan kata sandi di atas.",
       "button": "Masuk",
+      "cantSignIn": "Tidak bisa masuk?",
+      "cantSignInHelp": "Menunjukkan cara masuk yang tidak perlu kata sandi.",
+      "stuckTitle": "Minta seseorang di tim Anda menunjukkan kode masuk, lalu ketuk Pindai kode.",
+      "writeTo": "Tulis ke {{email}}",
+      "writeToHelp": "Membuka email kepada kami, untuk bantuan masuk.",
       "scanCode": "Pindai kode",
-      "scanHint": "Undangan, atau kode dari orang yang membantu Anda masuk",
       "noAccount": "Belum punya akun?",
       "browse": "Lihat karya publik",
       "switchPersona": "Ganti persona",
@@ -2761,6 +2796,7 @@
       "listed": "Ditampilkan untuk publik",
       "cardLabel": "{{name}}, {{percent}}",
       "recorded": "Direkam",
+      "signInToAsk": "Masuk untuk meminta",
       "emptyTitle": "Belum ada yang ditampilkan",
       "emptySub": "Organisasi muncul di sini saat mereka menampilkan karya mereka untuk publik.",
       "signInHelp": "Masuk, lalu Anda dapat meminta bergabung dengan organisasi.",
@@ -2788,13 +2824,16 @@
       "scanHint": "Tidak perlu email atau kata sandi. Undangan akan membuat akun Anda dan memasukkan Anda ke dalam tim.",
       "failed": "Tidak dapat membuat akun. Coba lagi.",
       "confirmHelp": "Ketik lagi kata sandi yang sama, untuk memastikan sudah benar.",
+      "emailHelp": "Kami mengirim tautan ke sini. Buka untuk menyelesaikan akun Anda.",
+      "passwordHelp": "6 karakter atau lebih. Anda masuk dengannya.",
+      "buttonHelp": "Membuat akun Anda dan mengirim tautan ke email Anda.",
       "scanInviteHelp": "Membuka kamera. Undangan akan membuat akun Anda: tidak perlu email."
     },
     "scan": {
       "title": "Pindai kode",
       "subSignIn": "Kode dari orang yang membantu Anda masuk",
       "subGuest": "Tidak perlu email atau kata sandi",
-      "subMember": "Undangan berisi organisasi, peran, dan lingkup",
+      "subMember": "Undangan menyebut organisasi, peran, dan bahasanya",
       "notCode": "Ini bukan kode LangQuest.",
       "notQr": "Kode QR ini bukan kode LangQuest.",
       "cameraOff": "Akses kamera mati. Anda dapat menempelkan kode di bawah.",
@@ -2802,6 +2841,8 @@
       "haveAccount": "Saya sudah punya akun",
       "notMe": "Bukan {{name}}? Keluar dulu",
       "notYou": "Bukan Anda? Keluar dulu",
+      "joinWhenConnected": "Bergabung saat terhubung",
+      "joinWhenConnectedHelp": "Bergabung perlu koneksi. Tombol ini aktif sendiri saat ada koneksi.",
       "hintPoint": "Arahkan kamera ke kode",
       "hintRead": "Kode terbaca",
       "hintTap": "Ketuk Pindai untuk memakai kamera",
@@ -2845,6 +2886,7 @@
       "expiredOrUsed": "Kode ini sudah kedaluwarsa atau sudah dipakai. Minta yang baru.",
       "codeBusy": "Kode ini tidak dapat dipakai. Silakan coba lagi.",
       "scanElseHelp": "Meninggalkan kode ini dan membuka pemindai lagi.",
+      "signOutHelp": "Membuka keluar akun, agar orang pemilik kode ini bisa masuk di perangkat ini.",
       "buttonHelp": "Memasukkan Anda di perangkat ini dengan kode ini. Tidak perlu mengetik.",
       "cancelHelp": "Tidak masuk. Kembali ke pemindai."
     },
@@ -2887,7 +2929,8 @@
       "licenseLabel": "Siapa yang boleh memakai karya Anda",
       "readyTitle": "Siap dipakai",
       "readyBody": "Anda akan mendapat peran-peran yang biasa dan cara standar untuk memeriksa perikop. Berikutnya, kita akan menambahkan bahasa dan tim pertama Anda bersama-sama.",
-      "nameHelp": "Nama organisasi Anda, seperti yang akan dilihat tim-tim Anda."
+      "nameHelp": "Nama organisasi Anda, seperti yang akan dilihat tim-tim Anda.",
+      "buttonHelp": "Membuat organisasi. Selanjutnya Anda menambahkan bahasa pertama."
     },
     "request": {
       "notSent": "Tidak terkirim",
@@ -2898,20 +2941,21 @@
       "askOrg": "Minta ke {{org}}",
       "askUnknown": "Minta ke organisasi",
       "askToJoin": "Minta bergabung",
-      "askIntro": "Mereka akan mengizinkan Anda masuk, dan Anda langsung menuju pekerjaan Anda.",
+      "askIntro": "Admin di sana akan melihat permintaan Anda. Saat mereka mengizinkan Anda masuk, Anda langsung menuju pekerjaan Anda.",
       "messageLabel": "Tulis sesuatu (tidak wajib)",
       "messagePlaceholder": "Siapa Anda, dan tim yang mana",
       "searchPlaceholder": "Nama atau bahasa",
-      "askRowLabel": "Minta {{org}} mengizinkan Anda masuk",
-      "asking": "Meminta…",
       "noMatch": "Tidak ada organisasi atau bahasa yang cocok dengan “{{query}}”.",
-      "notHere": "Tidak ada di sini? Minta seseorang di tim Anda menunjukkan kodenya.",
-      "noneListed": "Belum ada organisasi yang ditampilkan. Minta seseorang di tim Anda menunjukkan kodenya.",
+      "notHere": "Tidak ada di sini? Pindai kode mereka",
+      "noneListed": "Belum ada organisasi yang ditampilkan.",
+      "loadFailedTitle": "Daftar tidak dapat dimuat",
+      "loadFailedSub": "Coba lagi saat ada koneksi, atau pindai kode dari seseorang di tim Anda.",
+      "tryAgainHelp": "Meminta daftar lagi.",
       "backHelp": "Kembali ke cara-cara bergabung dengan tim Anda.",
       "doneHelp": "Kembali ke awal. Jawaban mereka muncul di sana saat datang.",
-      "askHelp": "Mengirim permintaan Anda. Admin di sana yang mengizinkan Anda masuk.",
+      "askHelp": "Mengirim permintaan Anda ke admin di sana.",
       "messageHelp": "Admin di sana membaca ini bersama permintaan Anda.",
-      "rowHelp": "Mengirim permintaan bergabung Anda ke organisasi ini."
+      "rowHelp": "Membuka permintaan Anda ke organisasi ini, untuk dikirim dengan pesan bila mau."
     },
     "welcome": {
       "roles": {
@@ -3007,11 +3051,14 @@
       "movingSub": "Tab lain menyimpan apa yang ada lalu mengalah.",
       "elsewhereSub": "LangQuest hanya bekerja di satu tab dalam satu waktu, agar rekaman dan perubahan Anda tetap di satu tempat. Pakai di sini, atau kembali ke tab lain.",
       "useHere": "Pakai di sini",
-      "useHereHelp": "Memindahkan LangQuest ke tab ini. Tab lain menyimpan pekerjaannya lalu mengalah."
+      "useHereHelp": "Memindahkan LangQuest ke tab ini. Tab lain menyimpan pekerjaannya lalu mengalah.",
+      "otherRecording": "Tab lain sedang merekam",
+      "otherRecordingSub": "Hentikan rekaman di sana dulu, lalu coba lagi.",
+      "cancelMoveHelp": "Berhenti menunggu. LangQuest tetap di tab lain."
     },
     "lock": {
-      "wait": "Terlalu banyak percobaan. Tunggu sebentar, lalu coba lagi.",
       "wrong": "Pola itu tidak benar.",
+      "waitFor_other": "Terlalu banyak percobaan. Coba lagi dalam {{count, number}} menit, atau pindai kode masuk dari seseorang di tim Anda.",
       "notMe": "Bukan gambar saya",
       "notMeHelp": "Kembali ke gambar-gambar.",
       "pictureHelp": "Keluar dari ponsel ini? Ketuk gambar Anda, lalu gambar pola Anda. Tidak perlu koneksi."
@@ -3029,6 +3076,7 @@
     "update": {
       "restarting": "Memulai ulang…",
       "ready": "Pembaruan siap — ketuk untuk memulai ulang",
+      "afterRecording": "Pembaruan siap · dimulai ulang saat Anda berhenti merekam",
       "downloading": "Mengunduh pembaruan…",
       "downloadingPercent": "Mengunduh pembaruan… {{percent}}",
       "webReady": "Versi baru LangQuest sudah siap. Muat ulang untuk memakainya.",
@@ -3164,8 +3212,11 @@
       "setPasswordSub": "Jika orang lain memakai perangkat ini",
       "notifications": "Notifikasi",
       "notificationsSub": "Dapat kabar tentang permintaan dan masukan",
-      "notificationsOn": "Notifikasi aktif.",
+      "notificationsBlocked": "Mati di pengaturan ponsel ini",
       "notificationsFailed": "Notifikasi tidak dapat diaktifkan. Coba lagi saat terhubung.",
+      "notificationsOffNeedsConnection": "Mematikannya perlu koneksi. Coba lagi saat terhubung.",
+      "openPhoneSettings": "Buka pengaturan ponsel ini",
+      "openPhoneSettingsHelp": "Membuka pengaturan ponsel ini, satu-satunya tempat yang kini bisa mengizinkan notifikasi LangQuest.",
       "switchOrg": "Ganti Organisasi",
       "switchActive": "{{org}} (aktif)",
       "switchOrStart": "{{org}} · atau mulai yang baru",
@@ -3173,6 +3224,7 @@
       "sync": "Sinkronisasi",
       "syncRefused": "Akun ini tidak dapat menyinkronkan organisasi ini",
       "syncPending_other": "{{count, number}} perubahan menunggu dikirim",
+      "syncPendingMixed": "{{total, number}} menunggu dikirim · rekaman: {{recordings, number}}",
       "syncLive": "Langsung: perubahan masuk saat terjadi",
       "syncOffline": "Offline: pekerjaan disimpan di perangkat ini",
       "syncUpToDate": "Sudah terbaru",
@@ -3186,7 +3238,6 @@
       "deleteSub": "Akun dan nama Anda, untuk selamanya",
       "testing": "Pengujian",
       "personaSub": "Masuk sebagai penerjemah, pemeriksa, atau admin contoh",
-      "notificationsHelp": "Mengaktifkan notifikasi, agar perangkat ini memberi tahu Anda tentang permintaan dan masukan.",
       "syncHelp": "Menampilkan apa yang menunggu dikirim atau diunduh. Angka berarti ada perubahan yang menunggu dikirim.",
       "blockedHelp": "Menampilkan siapa yang Anda blokir, untuk membuka blokirnya.",
       "switchOrgHelp": "Membuka organisasi-organisasi Anda, untuk berpindah ke yang lain atau memulai yang baru."
@@ -3207,6 +3258,7 @@
       "nameLabel": "Nama Lengkap",
       "shortPassword": "Pilih kata sandi 6 karakter atau lebih.",
       "passwordNeedsConnection": "Membuat kata sandi memerlukan koneksi.",
+      "nameSaved": "Nama disimpan.",
       "passwordFailed": "Kata sandi tidak dapat dibuat. Coba lagi.",
       "savedWithPassword": "Tersimpan. Anda dapat masuk dengan nama pengguna Anda dan kata sandi ini.",
       "saved": "Profil tersimpan. Akan disinkronkan saat Anda terhubung.",
@@ -3251,17 +3303,22 @@
       "signingOut": "Keluar…",
       "button": "Keluar",
       "notYet": "Belum",
+      "sending": "Mengirim…",
+      "seeWaiting": "Lihat yang menunggu",
+      "seeWaitingHelp": "Membuka Sinkronisasi: yang menunggu dikirim, per perikop, dan Sinkronkan sekarang.",
       "question": "Keluar?"
     },
     "delete": {
       "title": "Hapus Akun",
       "deleting": "Menghapus…",
       "button": "Hapus Akun Saya",
+      "buttonHelp": "Bertanya sekali lagi, lalu menghapus akun ini untuk selamanya.",
       "sendFirstTitle": "Kirim dulu pekerjaan Anda",
       "sendFirstBody": "Masih perlu dikirim: {{things}}. Hapus akun Anda setelah semuanya tersinkron, agar organisasi Anda menerimanya.",
       "offlineTitle": "Anda sedang offline",
       "offlineBody": "Sambungkan ke internet untuk menghapus akun Anda.",
       "question": "Hapus akun Anda?",
+      "confirmTitle": "Hapus akun {{name}}?",
       "deleted": "Dihapus",
       "deletedSub": "Data masuk, email, nama, notifikasi, blokir, dan data diagnostik Anda. Anda keluar dari semua organisasi.",
       "kept": "Disimpan oleh organisasi Anda",
@@ -3273,6 +3330,7 @@
       "syncNow": "Sinkronkan sekarang",
       "refused": "Server menolak akun ini untuk organisasi ini.",
       "tooOld": "Perbarui aplikasi untuk sinkronisasi.",
+      "tooOldSends": "Aplikasi ini terlalu lama untuk menerima perubahan tim Anda. Pekerjaan Anda sendiri tetap terkirim.",
       "waitingUpload": "menunggu diunggah",
       "refusedByServer": "ditolak oleh server",
       "latestConfirmed": "terakhir dikonfirmasi",
@@ -3293,13 +3351,15 @@
         "live": "Langsung",
         "checking": "Terhubung",
         "offline": "Luring",
-        "refused": "Tidak menyinkronkan"
+        "refused": "Tidak menyinkronkan",
+        "tooOld": "Perbarui untuk menerima"
       },
       "help": {
         "live": "Perubahan dari tim Anda langsung tiba, dan perubahan Anda langsung terkirim.",
         "checking": "Terhubung, tetapi saluran langsung terputus, jadi perangkat ini memeriksa perubahan setiap beberapa menit. Sinkronkan sekarang memeriksa saat itu juga.",
         "offline": "Tidak ada koneksi. Semua yang Anda lakukan disimpan di perangkat ini dan terkirim sendiri saat Anda kembali daring.",
         "refused": "Server tidak menerima perubahan dari perangkat ini. Pekerjaan Anda tetap tersimpan di sini.",
+        "tooOld": "Aplikasi ini terlalu lama untuk menerima perubahan tim Anda. Perbarui dari toko aplikasi.",
         "toReceive": "Rekaman dari orang lain yang masih diunduh perangkat ini.",
         "refusedLine": "Perubahan yang tidak diterima server, biasanya karena izin berubah. Tetap ada di perangkat ini; buka Detail untuk melihat masing-masing."
       },
@@ -3373,10 +3433,9 @@
     },
     "glossary": {
       "sub": "Daftar istilah · {{source}}",
-      "openKeyTerm": "Buka istilah kunci",
+      "openKeyTerm": "Buka kata kunci",
       "listen": "Dengarkan: {{term}}",
-      "standIn": "Audio tidak dapat dimuat — memutar audio pengganti",
-      "notKeyTerm": "Istilah ini belum ada di istilah kunci organisasi Anda."
+      "notKeyTerm": "Istilah ini belum ada di kata kunci organisasi Anda."
     },
     "callout": {
       "action": "Berhenti di sini",
@@ -3388,10 +3447,6 @@
     "reader": {
       "addNoteOn": "Tambah catatan pada {{verse}}",
       "addNoteOnAt": "Tambah catatan pada {{verse}} di {{time}}",
-      "verse": "Ayat {{verse}}",
-      "where": "{{title}} · ayat {{verse}} · {{bible}}",
-      "whereAt": "{{title}} · ayat {{verse}} · {{bible}} · {{time}}",
-      "noteAdded": "Catatan ditambahkan pada {{verse}} — catatan ini ikut bersama perikop ini",
       "addNoteHelp": "Ucapkan atau ketik catatan pada ayat ini. Catatan ini tetap bersama perikopnya."
     },
     "screen": {
@@ -3413,6 +3468,7 @@
       "stepDone": "{{step}} selesai · {{done, number}} dari {{total, number}}",
       "allDone": "Semua langkah sudah selesai",
       "backToGuide": "Kembali ke panduan",
+      "backTo": "Kembali ke {{chip}}",
       "doneWithStep": "Selesai dengan langkah ini",
       "openWorkspace": "Buka tempat merekam",
       "recordFirstDraft": "Rekam draf pertama",
@@ -3549,13 +3605,14 @@
         "askedYou": "{{by}} meminta Anda",
         "askedYourTeam": "{{by}} meminta tim {{team}} Anda",
         "askedYourReviewTeam": "{{by}} meminta tim pemeriksa Anda",
-        "byLinkOver": "lewat tautan di {{channel}}",
+        "byLinkOver": "tidak dikirim oleh aplikasi · {{channel}}",
         "askedForChanges": "{{who}} meminta perubahan",
         "answered": "Masukan dijawab — selesai setelah pemeriksa mengatakan Sudah baik",
         "recordedBy": "Direkam oleh {{who}}",
         "recorded": "Direkam",
         "bestAfter": "Sebaiknya setelah masukan {{kind}} dijawab, agar dikerjakan pada versi yang Anda pertahankan",
-        "recordsItIn": "{{who}} merekamnya dalam {{language}} — isi baru, bukan penilaian"
+        "recordsItIn": "{{who}} merekamnya dalam {{language}} — isi baru, bukan penilaian",
+        "loggedStillWaits": "Dicatat \"Sudah baik\" · masih menunggu pemeriksaan di aplikasi"
       },
       "channels": {
         "whatsapp": "WhatsApp",
@@ -3565,7 +3622,7 @@
         "passage": "Seluruh perikop",
         "aVersion": "Sebuah versi",
         "verse": "Ayat {{verse}}",
-        "term": "Istilah kunci · {{term}}",
+        "term": "Kata kunci · {{term}}",
         "aTerm": "istilah",
         "study": "Studi",
         "studyAudioAt": "{{step}} · audio di {{at}}"
@@ -3628,8 +3685,8 @@
         "text": "Teks",
         "rating": "1–5"
       },
-      "guestMessage": "Halo {{name}} — bisakah Anda mendengarkan {{passage}} dalam {{language}} dan memberi tahu kami apa yang Anda pahami? Tidak perlu akun:",
-      "guestMessageNoName": "Halo — bisakah Anda mendengarkan {{passage}} dalam {{language}} dan memberi tahu kami apa yang Anda pahami? Tidak perlu akun:"
+      "guestMessage": "Halo {{name}} — bisakah Anda mendengarkan {{passage}} dalam {{language}} dan memberi tahu kami apa yang Anda pahami?",
+      "guestMessageNoName": "Halo — bisakah Anda mendengarkan {{passage}} dalam {{language}} dan memberi tahu kami apa yang Anda pahami?"
     },
     "path": {
       "theCheck": "{{check}}",
@@ -3659,6 +3716,7 @@
       "fixSub": "Lalu dikembalikan ke pemeriksaan",
       "status": {
         "movedPast": "dilewati",
+        "movedPastWhy": "dilewati · {{reason}}",
         "setAside": "ditunda",
         "answered": "dijawab",
         "answeredBack": "sudah dijawab · kembali ke pemeriksaan",
@@ -3767,11 +3825,13 @@
         "backTranslate": "Terjemahkan balik",
         "doCheck": "Lakukan {{check}}",
         "study": "Studi",
-        "record": "Rekam"
+        "record": "Rekam",
+        "continueCheck": "Lanjutkan {{check}}"
       },
       "continueRecording": "Lanjutkan merekam",
       "askFor": "Minta {{check}}",
       "movePastThis": "Lewati titik periksa ini…",
+      "heldAt": "Menunggu di {{check}}, yang harus lolos dulu",
       "skip": {
         "title": "Tunda {{kind}}?",
         "sub": "Alur menyarankan tahap ini. Menundanya tidak apa-apa — sebutkan alasannya agar orang berikutnya mengerti.",
@@ -3849,7 +3909,6 @@
       "someoneElseCheck": "{{kind}}: minta seseorang, sebuah kelompok, atau orang luar lewat WhatsApp atau SMS",
       "alreadyDid": "Kami sudah melakukan ini",
       "alreadyDidSub": "Sebutkan kapan dan bagaimana {{check}} dilakukan",
-      "notNowSub": "Tunda {{check}}. Sebutkan alasannya",
       "newVersion": "Rekam versi baru",
       "newVersionSub": "Pemeriksaan sejauh ini tetap pada versi yang mereka dengar",
       "movePast": "Lewati titik periksa",
@@ -3861,7 +3920,9 @@
       "whatHelpsHelp": "Membuka Alkitab, panduan, dan bantuan lain untuk perikop ini.",
       "myself": "Saya kerjakan sendiri",
       "myselfSub": "{{kind}}: dengarkan dan putuskan sekarang",
-      "myselfMakesSub": "{{kind}}: rekam sekarang"
+      "myselfMakesSub": "{{kind}}: rekam sekarang",
+      "setAside": "Sisihkan {{check}}",
+      "setAsideSub": "Sebutkan alasannya. Ini masuk ke catatan."
     },
     "published": {
       "askTitle": "Minta pemeriksaan",
@@ -3911,14 +3972,14 @@
       "inResponseTo": "Menanggapi {{kind}} dari {{who}}",
       "recording": "Rekaman",
       "details": "Detail",
-      "keyTerms": "Istilah kunci",
+      "keyTerms": "Kata kunci",
       "termsTied_other": "{{count, number}} istilah terkait · {{terms}}",
       "reviews": "Pemeriksaan versi ini",
       "noReviews": "Belum ada pemeriksaan untuk versi ini.",
       "notes": "Catatan",
       "noteCount_other": "{{count, number}} catatan",
       "inResponseHelp": "Membuka masukan yang dijawab versi ini.",
-      "termHelp": "Membuka istilah kunci ini: artinya dan cara tim Anda mengucapkannya."
+      "termHelp": "Membuka kata kunci ini: artinya dan cara tim Anda mengucapkannya."
     },
     "review": {
       "noReviews": "Belum ada pemeriksaan untuk perikop ini.",
@@ -3954,9 +4015,10 @@
       "titleRecord": "Minta seseorang merekam",
       "titleKind": "Minta {{kind}}",
       "titleReview": "Minta pemeriksaan",
-      "doneOutside": "Sudah meminta {{name}} · permintaannya tercatat di riwayat",
+      "doneOutside": "Tersimpan di catatan, tidak terkirim. Kirim sendiri ke {{name}}.",
       "doneTeam": "{{name}} akan melihatnya di Pekerjaan Saya mereka",
       "askName": "Minta {{name}}",
+      "saveRequest": "Simpan permintaan",
       "chooseSomeone": "Pilih seseorang",
       "recordIt": "Rekam",
       "recordSub": "Mereka akan menemukannya di Pekerjaan Saya mereka, dengan sumber dan studi yang sudah siap.",
@@ -3965,11 +4027,9 @@
       "withoutApp": "Seseorang tanpa aplikasi",
       "usuallyDoesThis": "Biasanya melakukan ini",
       "nobody": "Tidak ada seorang pun di tim yang dapat melakukan ini.",
-      "nobodyTryOutside": "Tidak ada seorang pun di tim yang dapat melakukan ini. Coba seseorang tanpa aplikasi.",
       "guestName": "Nama mereka — misalnya Pendeta Yohanes",
       "phone": "Nomor telepon",
-      "preview": "Pratinjau {{channel}}",
-      "previewNote": "Permintaan disimpan di riwayat dengan nama dan nomor mereka. Mengirim tautan tanpa akun dari aplikasi belum tersedia.",
+      "phoneNeeded": "Nomor telepon · wajib",
       "directions": "Petunjuk · tidak wajib",
       "sayKeepInMind": "Sebutkan apa yang perlu diingat",
       "sayListenFor": "Sebutkan apa yang perlu diperhatikan saat mendengar",
@@ -3979,12 +4039,15 @@
       "answerType": "Jawaban: {{type}}",
       "addQuestion": "Tambah pertanyaan",
       "sendHelp": "Mengirim permintaan. Mereka menemukannya di Pekerjaan Saya.",
-      "sendOutsideHelp": "Menyimpan permintaan di riwayat, dengan nama dan nomor mereka.",
+      "sendOutsideHelp": "Menyimpan permintaan di catatan, dengan nama dan nomornya. Tidak ada yang dikirim kepadanya.",
       "onTeamHelp": "Pilih seseorang yang memakai aplikasi.",
-      "withoutAppHelp": "Minta seseorang lewat WhatsApp atau SMS saja.",
+      "withoutAppHelp": "Menyimpan permintaan untuk orang tanpa aplikasi. Anda sendiri yang mengirim pesannya.",
       "teamHelp": "Meminta semua orang di pemeriksaan ini. Siapa pun dari mereka boleh mengerjakannya.",
       "personHelp": "Memilih orang ini untuk diminta.",
       "phoneHelp": "Nomor untuk menghubungi mereka lewat WhatsApp atau SMS.",
+      "sendYourself": "Kirim ini sendiri kepada mereka, lewat {{channel}}",
+      "shareMessage": "Bagikan pesan",
+      "shareMessageHelp": "Membuka lembar berbagi ponsel Anda dengan pesan ini. Di peramban, menyalinnya.",
       "whatsappHelp": "Hubungi mereka lewat WhatsApp.",
       "smsHelp": "Hubungi mereka lewat SMS.",
       "askSpecificHelp": "Ketik pertanyaan untuk mereka jawab, lalu tambahkan.",
@@ -3998,7 +4061,9 @@
     },
     "versions": {
       "title": "Versi",
+      "whichDraft": "Draf yang mana?",
       "newVersion": "Versi baru",
+      "continueDraft": "Lanjutkan {{name}}",
       "yourDraft": "Draf Anda",
       "yourDrafts": "Draf-draf Anda",
       "published": "Diterbitkan",
@@ -4034,6 +4099,7 @@
   "work": {
     "title": "Pekerjaan Saya",
     "loading": "Memuat pekerjaan Anda…",
+    "notReady": "Setelah {{language}} punya perikop untuk direkam, pekerjaan Anda muncul di sini.",
     "askedBy": "diminta oleh {{name}}",
     "checkPassage": "Periksa {{passage}}",
     "bell": {
@@ -4083,7 +4149,8 @@
       "wantsToJoin": "{{name}} ingin bergabung",
       "asked": "Diajukan {{when}}",
       "askedJustNow": "Baru saja diajukan",
-      "openHelp": "Membuka permintaannya: pilih peran dan izinkan mereka masuk."
+      "openHelp": "Membuka permintaannya: pilih peran dan izinkan mereka masuk.",
+      "connectToLetIn": "Hubungkan ke internet untuk menerima mereka"
     },
     "lead": {
       "getOrgReady": "Siapkan {{org}}",
@@ -4136,7 +4203,11 @@
     },
     "elsewhere": {
       "title": "Kabar baru di {{language}}",
-      "sub_other": "{{count, number}} kabar untuk Anda. Ketuk untuk pindah ke {{language}}."
+      "sub_other": "{{count, number}} kabar untuk Anda. Ketuk untuk pindah ke {{language}}.",
+      "switched": "Sekarang di {{language}}",
+      "help": "Memindahkan aplikasi ke {{language}}.",
+      "back": "Kembali ke {{language}}",
+      "backSub": "{{language}} sedang terbuka."
     },
     "again": {
       "title": "Rekam {{passage}} lagi",
@@ -4166,6 +4237,7 @@
       "notSaved": "Tidak tersimpan: {{reason}}",
       "notSavedCode": "Tidak tersimpan. Terjadi kesalahan (kode {{code}}).",
       "dismissLabel": "{{message}} Tutup",
+      "close": "Tutup pesan",
       "goesWhenConnected": "{{message}} Tim Anda menerimanya saat perangkat ini terhubung."
     },
     "nav": {
@@ -4264,7 +4336,7 @@
       },
       "term": {
         "title": "Pilih istilah",
-        "sub": "Arti dan padanannya terbuka di sini."
+        "sub": "Artinya dan kata-kata tim Anda terbuka di sini."
       },
       "language": {
         "title": "Pilih bahasa",
@@ -4281,8 +4353,8 @@
       "subView": "Syarat yang dipakai organisasi Anda untuk membagikan rekaman dan tulisannya.",
       "use": "Pakai lisensi ini",
       "opening": "Membuka…",
-      "yesOpenTo": "Ya, buka dengan {{name}}",
-      "openTo": "Buka dengan {{name}}",
+      "yesOpenTo": "Ya, buka: {{terms}}",
+      "openTo": "Buka: {{terms}}",
       "pickMoreOpen": "Pilih lisensi yang lebih terbuka",
       "title": "Siapa yang boleh memakai karya Anda",
       "cannotUndo": "Ini tidak dapat diurungkan",
@@ -4303,6 +4375,7 @@
       "label": "Pola: hubungkan setidaknya {{n}} titik",
       "help": "Geser jari melewati titik-titik tanpa mengangkatnya, atau ketuk satu per satu lalu Selesai. Hubungkan setidaknya {{n}} titik.",
       "dot": "Titik {{n}}",
+      "dotsSoFar_other": "{{count, number}} titik",
       "picture": "Gambar {{n}}",
       "again": "Mulai lagi",
       "againHelp": "Menghapus titik-titik untuk memulai pola lagi.",
@@ -4314,6 +4387,7 @@
     "turnOff": "Matikan bantuan",
     "listen": "Dengarkan",
     "stop": "Berhenti",
+    "closeHint": "Menutup penjelasan ini.",
     "line": "{{label}}. {{detail}}",
     "lineAfterSentence": "{{label}} {{detail}}",
     "details": {
@@ -4349,10 +4423,11 @@
       "explorer": "Membuka penjelajah bahasa di tab baru: setiap bahasa dan di mana bahasa itu dipakai."
     },
     "sync": {
-      "live": "Titik hijau: terhubung. Pekerjaan Anda dikirim selagi Anda bekerja. Ketuk untuk melihat apa yang sudah dikirim.",
-      "checking": "Titik abu-abu: mencari koneksi. Pekerjaan Anda tetap di perangkat ini sampai terkirim.",
-      "offline": "Titik kuning: offline. Pekerjaan Anda tetap di perangkat ini dan dikirim begitu Anda terhubung.",
-      "refused": "Merah: server menolak sesuatu. Ketuk untuk melihat apa, dan apa yang perlu dilakukan.",
+      "live": "Awan dengan tanda centang: terhubung. Pekerjaan Anda dikirim sambil jalan. Ketuk untuk melihat yang sudah terkirim.",
+      "checking": "Awan polos: mencari koneksi. Pekerjaan Anda tetap di perangkat ini sampai terkirim.",
+      "offline": "Awan dicoret: luring. Pekerjaan Anda tetap di perangkat ini dan dikirim setelah terhubung.",
+      "refused": "Awan merah dengan peringatan: server menolak sesuatu. Ketuk untuk melihat apa, dan apa yang harus dilakukan.",
+      "tooOld": "Awan kuning dengan panah ke bawah: aplikasi ini terlalu lama untuk menerima perubahan tim Anda. Ketuk untuk memperbaruinya.",
       "withWaiting": "{{standing}} Angkanya menunjukkan berapa banyak yang menunggu dikirim.",
       "withReceiving": "{{standing}} Cincin berputar selama rekaman dari orang lain diunduh ke perangkat ini. Tidak ada yang menunggu dikirim."
     }
@@ -4521,10 +4596,13 @@
     "actions": {
       "openMembers": "Buka Anggota",
       "openPassage": "Buka perikop",
+      "openVersion": "Buka versinya",
+      "openReview": "Buka tinjauannya",
       "closeReport": "Tutup laporan",
       "keep": "Biarkan",
-      "openPassageHelp": "Membuka perikop yang dibahas dalam laporan ini.",
+      "openPassageHelp": "Membuka yang dilaporkan, agar Anda bisa melihatnya sebelum memutuskan.",
       "keepHelp": "Membiarkannya tetap di riwayat dan menutup laporan.",
+      "removeHelp": "Bertanya sekali lagi, lalu mengeluarkannya dari catatan di setiap perangkat.",
       "closeReportHelp": "Menutup laporan. Tidak ada yang dikeluarkan."
     },
     "hidden": {
@@ -4589,7 +4667,6 @@
       "timelineHelp": "Ketuk atau tarik untuk pindah ke suatu saat. Waktunya: posisi Anda, dan panjang rekamannya."
     },
     "recorder": {
-      "permissionNeeded": "Izin mikrofon diperlukan.",
       "hidePartsHelp": "Sembunyikan bagian-bagiannya.",
       "showPartsHelp": "Tampilkan setiap bagian, untuk didengar atau dihapus.",
       "playAllHelp": "Dengarkan semua yang sudah direkam, satu bagian demi satu bagian.",
@@ -4644,7 +4721,11 @@
       "movePartHelp": "Tarik ke atas atau ke bawah untuk memindahkan bagian ini. Bagian yang dipindah kehilangan ayatnya, supaya Anda bisa memberinya lagi.",
       "moveUp": "Pindah ke atas",
       "moveDown": "Pindah ke bawah",
-      "undoHelp": "Membatalkan perubahan terakhir Anda pada bagian-bagian. Ketuk lagi untuk mundur lebih jauh."
+      "undoHelp": "Membatalkan perubahan terakhir Anda pada bagian-bagian. Ketuk lagi untuk mundur lebih jauh.",
+      "micOff": "LangQuest tidak bisa mendengar Anda. Nyalakan mikrofon untuk LangQuest di Pengaturan.",
+      "micOffWeb": "LangQuest tidak bisa mendengar Anda. Izinkan mikrofon untuk situs ini di browser Anda, lalu ketuk rekam lagi.",
+      "openSettings": "Buka Pengaturan",
+      "openSettingsHelp": "Membuka pengaturan ponsel ini untuk LangQuest. Nyalakan mikrofon di sana, lalu kembali."
     },
     "cleanUp": {
       "cleanUp": "Bersihkan",
@@ -4760,30 +4841,30 @@
     },
     "tray": {
       "help": "Bantuan",
-      "helpHint": "Istilah kunci, studi, catatan, dan riwayat untuk perikop ini",
+      "helpHint": "Kata kunci, studi, catatan, dan riwayat untuk perikop ini",
       "helpSub": "Apa yang diketahui tim tentang perikop ini.",
-      "keyTerms": "Istilah kunci",
+      "keyTerms": "Kata kunci",
       "studyPill": "Studi {{pattern}} {{done}}/{{total}}",
       "notes": "Catatan",
       "history": "Riwayat",
       "tied": "Dikaitkan dengan draf Anda.",
-      "noTerms": "Tidak ada istilah kunci yang cocok dengan sumber perikop ini.",
-      "noRendering": "Belum ada padanan",
+      "noTerms": "Tidak ada kata kunci di perikop ini.",
+      "noRendering": "Belum ada kata",
       "termLabel": "{{term}}. {{rendered}}",
       "termLabelTied": "{{term}}. {{rendered}}. Dikaitkan dengan draf Anda",
-      "noLanguageRendering": "Belum ada padanan dalam {{language}}",
+      "noLanguageRendering": "Belum ada kata dalam {{language}}",
       "tiedBadge": "Terkait",
       "tying": "Mengaitkan…",
       "tie": "Kaitkan dengan draf Anda",
       "recordFirst": "Rekam dulu satu bagian; lalu Anda dapat mengaitkan istilah dengan draf Anda.",
-      "allTerms": "Semua istilah kunci →",
+      "allTerms": "Semua kata kunci →",
       "studyTitle": "Studi {{pattern}} · {{passage}}",
       "openStudy": "Buka studi →",
       "anchor": {
         "passage": "Seluruh perikop",
         "draft": "Sebuah draf",
         "verse": "Ayat {{verse}}",
-        "term": "Istilah kunci",
+        "term": "Kata kunci",
         "study": "Studi"
       },
       "notesEmpty": "Catatan yang Anda tinggalkan di sini ikut bersama perikop — pemeriksa dan penerjemah berikutnya akan melihatnya.",
@@ -4794,15 +4875,15 @@
       "firstRecording": "Rekaman pertama.",
       "saidInVoiceNote": "Diucapkan dalam catatan suara.",
       "playWhatChanged": "Putar apa yang berubah di {{version}}",
-      "helpButtonHelp": "Membuka istilah kunci, studi, catatan, dan riwayat untuk perikop ini.",
-      "termsTabHelp": "Menampilkan istilah kunci dalam perikop ini dan cara bahasa Anda mengucapkannya.",
+      "helpButtonHelp": "Membuka kata kunci, studi, catatan, dan riwayat untuk perikop ini.",
+      "termsTabHelp": "Menampilkan kata kunci dalam perikop ini dan cara bahasa Anda mengucapkannya.",
       "studyTabHelp": "Menampilkan langkah-langkah studi. Angkanya adalah langkah yang selesai dari seluruhnya.",
       "notesTabHelp": "Menampilkan catatan tim pada perikop ini.",
       "historyTabHelp": "Menampilkan setiap versi yang sudah direkam, dan apa yang berubah.",
-      "termHelp": "Membuka istilah kunci ini: artinya dan cara mengucapkannya.",
-      "termTiedHelp": "Dikaitkan dengan draf Anda. Membuka istilah kunci ini: artinya dan cara mengucapkannya.",
-      "tieHelp": "Menandai istilah kunci ini sudah diucapkan dalam draf Anda. Kaitan tidak dapat diurungkan.",
-      "allTermsHelp": "Membuka semua istilah kunci, bukan hanya yang ada di perikop ini.",
+      "termHelp": "Membuka kata kunci ini: artinya dan cara mengucapkannya.",
+      "termTiedHelp": "Dikaitkan dengan draf Anda. Membuka kata kunci ini: artinya dan cara mengucapkannya.",
+      "tieHelp": "Menandai kata kunci ini sudah diucapkan dalam draf Anda. Kaitan tidak dapat diurungkan.",
+      "allTermsHelp": "Membuka semua kata kunci, bukan hanya yang ada di perikop ini.",
       "studyBarHelp": "Seberapa banyak studi yang sudah selesai. Berubah hijau saat semua langkah selesai.",
       "openStudyHelp": "Membuka seluruh studi untuk perikop ini.",
       "addNoteHelp": "Tinggalkan catatan pada perikop ini, dengan suara atau diketik. Catatan ini ikut bersama perikopnya."
@@ -4990,16 +5071,17 @@
       "notHereSub": "Kembali ke peta untuk memilih yang lain.",
       "breakUp": "Bagi {{book}}",
       "notBrokenUp": "{{book}} belum dibagi",
-      "chooseHow": "Pilih cara {{book}} dibagi menjadi potongan-potongan: per pasal, per perikop FIA, atau cara lain. Lalu kitab itu bisa direkam.",
-      "coordinatorDecides": "Seorang koordinator menentukan cara {{book}} dibagi menjadi potongan-potongan. Lalu Anda bisa merekamnya.",
+      "chooseHow": "Pilih cara {{book}} dibagi menjadi bagian-bagian: per pasal, per perikop FIA, atau cara lain. Lalu kitab itu bisa direkam.",
+      "coordinatorDecides": "Seorang koordinator menentukan cara {{book}} dibagi menjadi bagian-bagian. Lalu Anda bisa merekamnya.",
       "summary_other": "{{recorded}} dari {{count, number}} perikop direkam",
       "summaryIn_other": "{{recorded}} dari {{count, number}} perikop direkam dalam {{language}}",
       "key": "Keterangan",
       "filterHelp": "Tampilkan hanya sebagian perikop, dan keterangan lengkap.",
       "breakUpDifferently": "Bagi dengan cara lain",
-      "breakUpDifferentlyHelp": "Ubah cara kitab ini dibagi menjadi potongan-potongan: per pasal, per perikop FIA, atau cara lain.",
+      "breakUpDifferentlyHelp": "Ubah cara kitab ini dibagi menjadi bagian-bagian: per pasal, per perikop FIA, atau cara lain.",
       "chapterTitle": "{{book}} {{n}}",
-      "pickPart_other": "{{count, number}} bagian — pilih satu"
+      "pickPart_other": "{{count, number}} bagian — pilih satu",
+      "outsideFilter": "Di luar saringan"
     },
     "home": {
       "title": "Peta Perikop",
@@ -5017,9 +5099,10 @@
       "noPassageMatch": "Tidak ada perikop yang cocok — coba nama kitab, lalu pasal",
       "oldTestament": "Perjanjian Lama",
       "newTestament": "Perjanjian Baru",
+      "testamentCount": "{{name}} · {{n, number}}",
       "noBooks": "Belum ada kitab dalam bahasa ini.",
       "findHelp": "Ketik nama kitab, lalu nomor pasal untuk langsung ke sana.",
-      "languageChipHelp": "Menampilkan peta bahasa ini."
+      "languageChipHelp": "Membuka peta bahasa ini dan menjadikannya bahasa kerja Anda. Pekerjaan Saya ikut berganti."
     },
     "tones": {
       "done": "Selesai",
@@ -5157,6 +5240,7 @@
       "ofPlan": "{{actual}} dari rencana {{expected}}",
       "ofPlanFinishes": "{{actual}} dari rencana {{expected}} · selesai {{date}}",
       "setTarget": "Tetapkan target di halaman bahasa.",
+      "adminSets": "Orang yang mengelola bahasa ini yang menetapkan targetnya.",
       "targetRange": "{{scope}} · {{from}} – {{to}}"
     },
     "paceAdvice": {
@@ -5320,7 +5404,8 @@
       "alertsHelp": "Menampilkan masalah yang perlu ditangani. Angka menunjukkan jumlahnya."
     },
     "home": {
-      "catchUp": "Perbarui dari server",
+      "refresh": "Muat ulang",
+      "clusterFilter": "Kelompok",
       "alertsChip_other": "Peringatan, {{count, number}} perlu ditangani",
       "allCountries": "Semua negara",
       "loading": "Memuat laporan…",
@@ -5354,7 +5439,8 @@
       "noCountries": "Belum ada bahasa yang punya negara. Tetapkan di halaman masing-masing bahasa.",
       "toLanguagesHelp": "Pindah ke halaman yang merinci setiap bahasa.",
       "toActivityHelp": "Pindah ke halaman berisi apa yang sampai ke server, hari demi hari.",
-      "toMapHelp": "Pindah ke peta lokasi bahasa-bahasa."
+      "toMapHelp": "Pindah ke peta lokasi bahasa-bahasa.",
+      "openAlertsHelp": "Membuka Peringatan: yang butuh seseorang, dan apa yang harus dilakukan."
     },
     "portfolio": {
       "activeDays": "Aktif (14 hari terakhir)",
@@ -5540,12 +5626,13 @@
       "allClear": "Semua aman",
       "allClearBody": "Tidak ada audio yang tertahan, masalah keutuhan, atau angka yang usang.",
       "whatToDo": "<b>Yang perlu dilakukan:</b> {{action}}",
+      "adminSets": "Orang yang mengelola setiap bahasa dapat mengaturnya di halamannya.",
       "stuckRow": "{{recordings}} dalam {{passages}}, yang tertua dari {{date}}",
       "refreshed": "diperbarui {{when}}",
       "stale": {
         "title": "Angka-angka ini bukan yang terbaru",
         "body": "Angka ini dibaca {{ago}}. Pekerjaan yang tersinkron sejak itu tidak termasuk.",
-        "action": "Muat ulang halaman untuk memperbarui."
+        "action": "Tekan Muat ulang di atas Laporan untuk mengejar ketertinggalan."
       },
       "stuck": {
         "title": "Audio yang direkam tertahan di perangkat",
@@ -5630,6 +5717,8 @@
       "scopeHelp": "Apa yang dicakup target. Lalu atur tanggalnya dan simpan.",
       "startHelp": "Hari dimulainya pekerjaan menuju target.",
       "finishByHelp": "Hari target harus tercapai.",
+      "suggestEnd": "18 bulan: {{date}}",
+      "suggestEndHelp": "Mengisi tanggal selesai 18 bulan setelah mulai, dan hari ini sebagai mulai jika kosong. Tidak ada yang disimpan sampai Anda menyimpan target.",
       "saveTargetHelp": "Menyimpan target dan tanggalnya ke server sekarang. Memerlukan koneksi.",
       "pickCountryHelp": "Memilih negara ini. Lalu ketuk Simpan negara untuk menyimpannya.",
       "chosenCountryHelp": "Negara yang dipilih sekarang, dicetak tebal. Ketuk yang lain untuk menggantinya."
@@ -5692,7 +5781,7 @@
       "anchor": {
         "passage": "Seluruh perikop",
         "verse": "Ayat {{verse}}",
-        "term": "Istilah kunci · {{term}}",
+        "term": "Kata kunci · {{term}}",
         "someTerm": "istilah",
         "version": "Versi {{n}}",
         "aVersion": "Sebuah versi",
@@ -5869,7 +5958,20 @@
       "doneRecordedHelp": "Memasukkan {{what}} ke riwayat perikop.",
       "looksGoodOffline": "Sudah baik. {{name}} menerimanya saat perangkat ini terhubung.",
       "feedbackOffline": "Masukan disimpan. {{name}} menerimanya saat perangkat ini terhubung.",
-      "helpWordsHelp": "Membuka kata kunci dalam perikop ini, dengan kata tim untuk masing-masing, dan apakah versi ini memakainya."
+      "helpWordsHelp": "Membuka kata kunci dalam perikop ini, dengan kata tim untuk masing-masing, dan apakah versi ini memakainya.",
+      "addedAtCheckpoint": "{{kind}} ditambahkan ke catatan. Titik periksa masih menunggu pemeriksaan yang dilakukan di aplikasi.",
+      "keptNotSent": "Tinjauan Anda disimpan di ponsel ini. Belum dikirim.",
+      "notOnPhoneYet": "Rekaman belum ada di ponsel ini. Rekaman diputar di sini setelah ponsel online.",
+      "previousQuestion": "Pertanyaan sebelumnya",
+      "previousQuestionHelp": "Kembali ke pertanyaan sebelumnya untuk mengubah jawaban Anda.",
+      "loggedCheckpoint": "Pemeriksaan ini adalah titik periksa: dicatat di sini, ia masuk catatan, tetapi hanya pemeriksaan di aplikasi yang membuka langkah sesudahnya.",
+      "notPlayedYet": "Anda belum memutar versi ini.",
+      "sendChangeTitle": "Kirim apa yang perlu diubah bersama \"Sudah baik\"?",
+      "sendChangeSub": "Anda menyebut apa yang perlu diubah, lalu memilih \"Sudah baik\".",
+      "leaveItOut": "Jangan sertakan",
+      "leaveItOutHelp": "Hanya mengirim \"Sudah baik\". Yang Anda katakan tentang perubahan tidak masuk catatan.",
+      "sendItToo": "Kirim juga",
+      "sendItTooHelp": "Mengirim \"Sudah baik\" bersama yang Anda katakan, agar penerjemah juga mendengarnya."
     },
     "guest": {
       "previewSub": "Pratinjau · yang dilihat orang tanpa aplikasi",
@@ -6142,22 +6244,19 @@
     "rec": {
       "recommended": "Direkomendasikan",
       "notRecommended": "Tidak direkomendasikan",
-      "hiddenForLanguage": "Disembunyikan untuk bahasa ini",
+      "notHere": "Tidak direkomendasikan di sini",
       "forLanguage": "Direkomendasikan untuk bahasa ini",
       "byOrganization": "Direkomendasikan oleh organisasi",
       "stop": "Berhenti merekomendasikan",
       "recommend": "Rekomendasikan",
-      "follow": "Ikuti organisasi",
-      "hide": "Sembunyikan",
+      "recommendHere": "Rekomendasikan di sini",
+      "stopHere": "Berhenti merekomendasikan di sini",
       "done": {
         "recommendedEverywhere": "{{name}} direkomendasikan untuk setiap bahasa.",
         "recommendedHere": "{{name}} direkomendasikan untuk tim bahasa ini.",
         "stopped": "{{name}} tidak lagi direkomendasikan.",
-        "hidden": "{{name}} disembunyikan untuk bahasa ini.",
-        "follows": "{{name}} mengikuti organisasi di sini."
+        "stoppedHere": "{{name}} tidak lagi direkomendasikan untuk tim bahasa ini."
       },
-      "followHelp": "Bahasa ini kembali ke apa yang direkomendasikan organisasi.",
-      "hideHelp": "Tim bahasa ini tidak lagi mendapatkannya, meskipun organisasi merekomendasikannya.",
       "recommendLanguageHelp": "Tim bahasa ini mendapatkannya sebagai rekomendasi.",
       "recommendOrgHelp": "Tim setiap bahasa mendapatkannya sebagai rekomendasi.",
       "stopLanguageHelp": "Tim bahasa ini tidak lagi mendapatkannya sebagai rekomendasi.",
@@ -6219,7 +6318,10 @@
       "introLanguage": "Apa yang disediakan bagi tim bahasa ini: rekomendasi organisasi, ditambah apa yang Anda tambahkan atau sembunyikan di sini. Penerjemah tetap dapat menjelajahi Alkitab mana pun secara online.",
       "recommended": "Direkomendasikan · {{n, number}}",
       "noneRecommended": "Belum ada Alkitab yang direkomendasikan di sini. Tambahkan satu, atau rekomendasikan satu di bawah.",
-      "hidden": "Disembunyikan untuk bahasa ini · {{n, number}}",
+      "noneRecommendedAdd": "Belum ada Alkitab yang direkomendasikan di sini. Tambahkan satu.",
+      "noneRecommendedBelow": "Belum ada Alkitab yang direkomendasikan di sini. Rekomendasikan satu di bawah.",
+      "noneRecommendedYet": "Belum ada Alkitab yang direkomendasikan di sini.",
+      "hidden": "Tidak direkomendasikan di sini · {{n, number}}",
       "notRecommended": "Ada di perpustakaan Anda, tidak direkomendasikan · {{n, number}}",
       "cardHelp": "Membukanya: teks, audio, penanda waktu ayat, dan untuk siapa Alkitab ini direkomendasikan."
     },
@@ -6240,7 +6342,6 @@
       "bibleBrainHelp": "Cari Alkitab di Bible Brain menurut bahasa.",
       "bibleHelp": "Menampilkan isinya sebelum Anda menambahkannya.",
       "fromLangQuestHelp": "Menampilkan Alkitab yang sudah disiapkan LangQuest untuk diikuti.",
-      "readyHelp": "Menambahkannya ke perpustakaan Anda dan merekomendasikannya di sini.",
       "searchHelp": "Ketik nama atau kode bahasa untuk menemukan Alkitabnya.",
       "listed": "Hanya bahasa yang punya Alkitab di Bible Brain yang ditampilkan.",
       "noMatch": "Tidak ada bahasa dengan nama itu yang punya Alkitab di Bible Brain.",
@@ -6430,6 +6531,7 @@
       "all": "Semua kata kunci",
       "hear": "Dengarkan {{term}}",
       "hearHelp": "Memutar ayat tempat kata itu muncul.",
+      "noVerseAudio": "Alkitab ini tidak punya audio untuk ayat itu.",
       "hearLabel": "Dengarkan {{term}} dalam Alkitab",
       "openHelp": "Artinya, cara tim Anda mengucapkannya, dan alasannya.",
       "termLabel": "{{term}}. {{refs}}",
@@ -6448,9 +6550,11 @@
       "added": "{{term}} ditambahkan.",
       "addSub": "Kata yang harus diucapkan tim dengan cara yang sama setiap kali. Kata ini ditambahkan ke kata kunci {{language}}.",
       "addWord": "Tambahkan kata ini",
+      "addWordHelp": "Menambahkan kata setelah Anda mengucapkan atau mengetik cara {{language}} mengatakannya.",
       "wordPlaceholder": "Kata dalam Alkitab, misalnya gembala",
       "meaningPlaceholder": "Artinya (tidak wajib)",
       "sayItIn": "Ucapkan dalam {{language}}",
+      "howSays": "Cara {{language}} mengatakannya",
       "allHelp": "Membuka daftar semua kata kunci dalam bahasa ini.",
       "typeHelp": "Ketik cara mengucapkannya dalam {{language}}.",
       "addYourWord": "Tambahkan kata Anda"
@@ -6602,8 +6706,8 @@
       "findMore": "Cari di Alkitab Lain.",
       "verseLabel": "Ayat {{verse}}. {{text}}",
       "playsFromVerse": "Memutar dari ayat ini",
-      "keyTerm": "{{term}}, istilah kunci",
-      "keyTermTied": "{{term}}, istilah kunci, dikaitkan dengan draf Anda",
+      "keyTerm": "{{term}}, kata kunci",
+      "keyTermTied": "{{term}}, kata kunci, dikaitkan dengan draf Anda",
       "builtIn": "Teks bawaan, pilihan terakhir sampai organisasi Anda merekomendasikan Alkitab.",
       "sharedBy": "Dibagikan oleh {{org}}.",
       "copyright": "{{abbr}}: {{line}}",
@@ -6737,7 +6841,9 @@
       "startHelp": "Mengganti pemeriksaan dengan kumpulan siap pakai, untuk diubah sesuka Anda.",
       "useHelp": "Mengganti pemeriksaan {{language}} dengan yang ini. Urungkan mengembalikannya.",
       "pickHelp": "Memilihnya. Lalu ketuk Pakai di bagian bawah untuk mengganti pemeriksaan dengan pemeriksaannya.",
-      "replaceAsk": "Ganti pemeriksaan milik {{language}} sendiri dengan {{name}}?"
+      "replaceAsk": "Ganti pemeriksaan milik {{language}} sendiri dengan {{name}}?",
+      "useThese": "Pakai pemeriksaan ini",
+      "replaceOwnAsk": "Ganti pemeriksaan milik {{language}} sendiri?"
     },
     "gone": "Ini bukan lagi salah satu pemeriksaan bahasa ini",
     "checkOf": "Pemeriksaan {{n}} · {{language}}",
@@ -6786,6 +6892,8 @@
     "forTeam": "Untuk tim {{check}}",
     "forCheck": "Untuk {{check}}",
     "dragHelp": "Tarik ke atas atau ke bawah untuk mengubah urutan pemeriksaan ini.",
+    "moveUpHelp": "Pemeriksaan ini datang satu tempat lebih awal.",
+    "moveDownHelp": "Pemeriksaan ini datang satu tempat lebih lambat.",
     "addThisHelp": "Menambahkan pemeriksaan ini setelah yang lain.",
     "newCheckHelp": "Nama pemeriksaan baru, jika bukan salah satu dari ini.",
     "addCheckHelp": "Pilih pemeriksaan yang sudah dikenal organisasi Anda, atau beri nama yang baru.",
@@ -7157,8 +7265,10 @@
     "dismiss": "Tutup",
     "dismissHelp": "Menyembunyikan ini sampai versi yang lebih baru keluar.",
     "required": "Harap perbarui aplikasi",
+    "requiredSub": "Rekaman dan perubahan Anda tetap terkirim ke tim. Tidak ada yang baru dari mereka yang sampai ke ponsel ini sampai Anda memperbarui.",
+    "requiredBar": "Perbarui untuk menerima pekerjaan tim Anda",
     "keepWorking": "Tetap bekerja",
-    "keepWorkingHelp": "Pekerjaan Anda tetap di ponsel ini dan dikirim setelah Anda memperbarui."
+    "keepWorkingHelp": "Menutup ini untuk sekarang. Anda bisa terus merekam; pekerjaan Anda tetap terkirim ke tim."
   },
   "globalViewer": {
     "title": "Pengamat Global",
@@ -7192,6 +7302,7 @@
     "onTitle": "Anda bisa membaca semua organisasi",
     "onBody": "Anda melihat apa yang dilihat Pengamat. Anda tidak bisa mengubah apa pun.",
     "search": "Organisasi atau bahasa",
+    "searching": "Mencari…",
     "openNowLabel": "{{name}}, terbuka sekarang",
     "openHelp": "Membuka organisasi ini untuk dibaca.",
     "noneFound": "Tidak ada organisasi yang cocok.",

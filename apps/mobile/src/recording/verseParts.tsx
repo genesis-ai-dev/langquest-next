@@ -41,9 +41,10 @@ import { helpBinRow, opensAbove, rowKeys, type RecordTarget, type SlotRow } from
 import { partIndexAfter } from './dragModel';
 import { useDragRows } from './useDragRows';
 import { lift } from '../ui/shadow';
+import { a11yState } from '../ui/a11yModel';
 
 /** A range's size, so "49–50" or "100–105" sits whole inside the space beside its part. */
-const rangeFit = (text: string) => ({ fontSize: text.length <= 5 ? T.sm : T.xs - 1, letterSpacing: -0.3 });
+const rangeFit = (text: string) => ({ fontSize: text.length <= 5 ? T.sm : T.xs, letterSpacing: -0.3 });
 const HOLD_MS = 420;
 
 export function VerseParts(props: {
@@ -309,7 +310,7 @@ function PartRow(props: {
         {l ? (
           // The same verse as the part above is drawn hollow and grey: one verse said in pieces.
           <View style={[styles.badge, l.kind === 'join' && styles.badgeSame]}>
-            <Text style={[l.s === l.e ? styles.badgeText : [styles.badgeRange, rangeFit(spanShort(props.verses, l.s, l.e))], l.kind === 'join' && { color: C.dark }]} numberOfLines={1}>{spanShort(props.verses, l.s, l.e)}</Text>
+            <Text style={[l.s === l.e ? styles.badgeText : [styles.badgeRange, rangeFit(spanShort(props.verses, l.s, l.e))], l.kind === 'join' && { color: C.dark }]} numberOfLines={1} maxFontSizeMultiplier={1.5}>{spanShort(props.verses, l.s, l.e)}</Text>
             {l.kind === 'set' ? <View style={styles.pin} /> : null}
           </View>
         ) : (
@@ -325,7 +326,7 @@ function PartRow(props: {
         <HelpBadge spot={play} />
       </Pressable>
       {/* Its bars and length choose it: what is said next replaces it. A screen reader opens its bin from here. */}
-      <Pressable onPress={choose.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: props.chosen }}
+      <Pressable onPress={choose.onPress} disabled={props.disabled} accessibilityRole="button" {...a11yState({ selected: props.chosen }, 'button')}
         accessibilityLabel={t('recording.recorder.recordOver', { part: name })}
         accessibilityActions={props.disabled ? [] : [{ name: 'delete', label: t('recording.deleteItem', { item: name }) }]}
         onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'delete') props.onOpen(1); }}
@@ -357,7 +358,7 @@ export function VerseTile(props: { verses: string[]; label: PartLabel; same: boo
   return (
     <HelpInfo label={spanName(props.verses, l.s, l.e)} detail={props.same ? t('recording.verses.tileSameHelp') : t('recording.verses.tileHelp')}>
       <View style={[styles.badge, props.same && styles.badgeSame]}>
-        <Text style={l.s === l.e ? styles.badgeText : [styles.badgeRange, rangeFit(spanShort(props.verses, l.s, l.e))]} numberOfLines={1}>{spanShort(props.verses, l.s, l.e)}</Text>
+        <Text style={l.s === l.e ? styles.badgeText : [styles.badgeRange, rangeFit(spanShort(props.verses, l.s, l.e))]} numberOfLines={1} maxFontSizeMultiplier={1.5}>{spanShort(props.verses, l.s, l.e)}</Text>
       </View>
     </HelpInfo>
   );
@@ -410,7 +411,7 @@ function VerseSheet(props: {
 function VerseCell(props: { part: string; name: string; text: string; selected: boolean; ends: boolean; ok: boolean; link: boolean; disabled: boolean; onPress: () => void }) {
   const spot = useHelpSpot(props.name, props.selected ? t('recording.verses.pickedHelp', { part: props.part }) : t('recording.verses.pickHelp', { part: props.part }), props.onPress);
   return (
-    <Pressable disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: props.selected, disabled: !props.ok }}
+    <Pressable disabled={props.disabled} accessibilityRole="button" {...a11yState({ selected: props.selected, disabled: !props.ok }, 'button')}
       accessibilityLabel={props.name} onPress={spot.onPress}
       style={({ pressed }) => [styles.verse, props.selected && (props.ends ? styles.verseOn : styles.verseIn), !props.ok && ps.off, pressed && ps.pressed]}>
       <Text style={[styles.verseText, props.selected && props.ends && { color: C.white }]}>{props.text}</Text>
@@ -423,7 +424,7 @@ function VerseCell(props: { part: string; name: string; text: string; selected: 
 function Tool(props: { label: string; help: string; on: boolean; disabled: boolean; onPress: () => void }) {
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: props.on, disabled: props.disabled }}
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" {...a11yState({ selected: props.on, disabled: props.disabled }, 'button')}
       style={({ pressed }) => [styles.tool, props.on && styles.toolOn, props.disabled && ps.off, pressed && ps.pressed]}>
       <Text style={[txt.body, { fontWeight: '700', color: props.on ? C.primary : C.dark }]}>{props.label}</Text>
       <HelpBadge spot={spot} />
@@ -444,7 +445,7 @@ const styles = StyleSheet.create({
   gutter: { width: VERSE_GUTTER, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderColor: C.border },
   // A part's own verse: a soft grey tile with a dark number, so the labels stay quiet beside the parts.
   // Narrow enough for a range ("49–50") to sit inside the 64-point space beside its part.
-  badge: { minWidth: 44, maxWidth: VERSE_GUTTER - 6, height: 44, paddingHorizontal: 4, borderRadius: radius.md + 2, backgroundColor: TINT.gray, alignItems: 'center', justifyContent: 'center' },
+  badge: { minWidth: 44, maxWidth: VERSE_GUTTER - 6, minHeight: 44, paddingHorizontal: 4, borderRadius: radius.md + 2, backgroundColor: TINT.gray, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontSize: 20, fontWeight: '700', color: C.dark },
   badgeRange: { fontSize: T.base, fontWeight: '700', color: C.dark },
   // More of the verse above: grey like an empty space, but solid and darker, so it reads as labelled.

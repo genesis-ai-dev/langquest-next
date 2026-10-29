@@ -152,6 +152,21 @@ export function field(page: Page, label: string | RegExp): Locator {
     .or(visible(page.getByPlaceholder(label, { exact: typeof label === 'string' })).first()).first();
 }
 
+/**
+ * A passage's row in a book's list, which shows 25 rows at a time (UI audit,
+ * finding 122): taps "Show N more" until the row shows.
+ */
+export async function bookRow(page: Page, name: RegExp): Promise<Locator> {
+  const row = visible(page.getByRole('button', { name })).first();
+  const more = visible(page.getByRole('button', { name: /^Show \d+ more · / })).last();
+  for (let i = 0; i < 20; i++) {
+    await row.or(more).first().waitFor();
+    if (await row.isVisible()) return row;
+    await more.click();
+  }
+  return row;
+}
+
 export const byId = (page: Page, id: string): Locator => visible(page.getByTestId(id)).last();
 export const tab = (page: Page, id: 'work' | 'map' | 'reports' | 'manage' | 'inbox' | 'me'): Locator => byId(page, `tab-${id}`);
 export const primary = (page: Page): Locator => byId(page, 'primary-action');

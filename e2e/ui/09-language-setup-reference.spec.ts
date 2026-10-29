@@ -28,10 +28,13 @@ for (const who of ['ADMIN', 'COORD'] as const) {
     await alphaReference(p, who);
     await expectOnScreen(p, 'Alpha', 'Add material', 'Alpha\'s own material adds to what the organization recommends; nothing is copied.',
       'Bibles', /\d+ recommended · text, audio, offline use and timings/, 'Guides and notes', /\d+ recommended guides? · \d+ notes?/,
-      'Coverage', 'What reaches each passage in Alpha', 'Key Terms', /\d+ concepts? · Alpha renderings/, /Library · your organization · \d+/i,
-      'Write a guide', 'Steps with text and audio, pictures, maps and key terms', /Study material · \d+/i, /Review questions · \d+/i,
-      'Question sets for the same kind add up', /General · Alpha · \d+/i);
+      'Coverage', 'What reaches each passage in Alpha', 'Key Words', /\d+ concepts? · Alpha words/, /Library · your organization · \d+/i,
+      /Study material · \d+/i, /Review questions · \d+/i, 'Question sets for the same kind add up', /General · Alpha · \d+/i);
     await expectOnScreen(p, /Study guides · English/);
+    // One way to make something (UI audit, finding 59): Add material asks which kind.
+    await primary(p).click();
+    await expectOnScreen(p, 'Guidelines, a brief or questions', 'Write a guide', 'Steps with text and audio, pictures, maps and key words', 'A note placed by verses');
+    await closeSheet(p);
     if (d) await d.context.close();
   });
 }
@@ -50,8 +53,8 @@ test('SETUP-050 Bibles: the organization\'s and a language\'s', async ({ page })
   await referenceLibrary(page);
   await text(page, 'Bibles').click();
   await expectOnScreen(page, 'What this language’s team is offered', /Recommended · \d+/i);
-  // No Bible is in the local library: Recommend, Hide and Follow organization need the preview environment.
-  await expectOnScreen(page, /No Bible is recommended here yet\.|Hidden for this language/);
+  // No Bible is in the local library: Recommend here and Stop recommending here need the preview environment.
+  await expectOnScreen(page, /No Bible is recommended here yet\.|Not recommended here/);
 });
 
 test('SETUP-051 Add a Bible', async ({ page }) => {
@@ -112,6 +115,7 @@ test('SETUP-054 Write a note and a question set', async ({ page, browser }) => {
   const title = `Names in Luke ${w.run.slice(-4)}`;
   await alphaReference(page);
   await primary(page).click();
+  await text(page, 'Guidelines, a brief or questions').click();
   await expectOnScreen(page, 'What kind', 'Translation Guidelines', 'Review Questions', 'Where it applies', 'Alpha', 'All languages');
   await field(page, 'Title').fill(title);
   await page.getByPlaceholder('Guidance for Body…').fill('Say each name the same way in every passage.');
@@ -123,10 +127,11 @@ test('SETUP-054 Write a note and a question set', async ({ page, browser }) => {
   await back(page).click();
   // A question set for the peer check.
   await primary(page).click();
+  await text(page, 'Guidelines, a brief or questions').click();
   await text(page, 'Review Questions').click();
   await field(page, 'Title').fill(`Peer questions ${w.run.slice(-4)}`);
-  // The kinds of review are listed by their kind names here ("Peer Review").
-  await text(page, 'Peer Review').click();
+  // The kinds of review are listed by their kind names here ("Peer Check").
+  await text(page, 'Peer Check').click();
   await page.getByPlaceholder('The question').first().fill('Does it sound natural?');
   await primary(page).click();
   await expectToast(page, `Peer questions ${w.run.slice(-4)} added.`);
@@ -143,7 +148,8 @@ test('SETUP-055 Library material: verses and numbering', async ({ page }) => {
   await orgHome(page, w);
   await setup(page);
   await text(page, 'Reference material').click();
-  await button(page, 'New').click();
+  await primary(page).click();
+  await text(page, 'A note placed by verses').click();
   await expectOnScreen(page, /Verses|verses/);
   const verses = page.getByLabel(/Verses/).or(page.getByPlaceholder(/RUT 1:1-16|LUK/)).first();
   await verses.fill('LUK 15:11-32\nLUKE fifteen');
@@ -156,6 +162,7 @@ test('SETUP-056 Write a guide and publish it', async ({ page }) => {
   const w = world();
   const title = `The lost son ${w.run.slice(-4)}`;
   await alphaReference(page);
+  await primary(page).click();
   await text(page, 'Write a guide').click();
   await expectOnScreen(page, 'Write a guide', 'Details', 'Steps', 'Media', 'Glossary');
   await button(page, 'Done').click();
@@ -186,6 +193,7 @@ test('SETUP-056 Write a guide and publish it', async ({ page }) => {
 
 test('SETUP-057 Edit a guide; a draft is kept', async ({ page }) => {
   await alphaReference(page);
+  await primary(page).click();
   await text(page, 'Write a guide').click();
   await field(page, 'Title').fill('Draft kept');
   // Kept on this device a moment after the change: the saved mark turns into a check.
@@ -193,6 +201,7 @@ test('SETUP-057 Edit a guide; a draft is kept', async ({ page }) => {
   // Back leaves at once and publishes nothing; writing a guide again opens the draft as it was left.
   await back(page).click();
   await expect(byId(page, 'toast')).toHaveCount(0);
+  await primary(page).click();
   await text(page, 'Write a guide').click();
   await expect(field(page, 'Title')).toHaveValue('Draft kept');
   await expect(byId(page, 'saved-mark')).toHaveAttribute('aria-label', 'Saved');

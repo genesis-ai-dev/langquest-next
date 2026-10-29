@@ -18,6 +18,7 @@ export const styles = StyleSheet.create({
   together: { flexDirection: 'row', gap: space.sm },
   bar: { width: 3, borderRadius: 2, backgroundColor: C.soft, marginVertical: space.lg },
   sameTime: { fontSize: 13, fontWeight: '800', color: C.soft, paddingHorizontal: space.xs },
+  legend: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.xs },
   quiet: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, minHeight: 48 },
   quietText: { fontSize: 17, fontWeight: '700', color: C.muted },
   tick: { width: 28, height: 28, borderRadius: radius.sm, borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },

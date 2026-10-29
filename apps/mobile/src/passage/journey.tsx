@@ -26,6 +26,7 @@ import {
   currentStepId, kindLineText, lastReviewOn, ledTo, madeAfter, oldKindLineText, oldStepState, oldStepSummary, pathState, reviewMark,
   stepSummary, versionCaption, type NameFn, type PathState
 } from './recordTextModel';
+import { a11yState } from '../ui/a11yModel';
 
 /** A step's mark, as a screen reader says it. */
 function pathA11y(state: PathState): string {
@@ -214,7 +215,7 @@ export function Journey(props: {
 function StepHead(props: { name: string; summary: string; open: boolean; onPress: () => void; children: ReactNode }) {
   const spot = useHelpSpot(props.name, props.open ? t('help.details.disclosureOpen') : t('help.details.disclosure'), props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ expanded: props.open }} accessibilityLabel={`${props.name}. ${props.summary}`}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ expanded: props.open }, 'button')} accessibilityLabel={`${props.name}. ${props.summary}`}
       style={({ pressed }) => [styles.stepHead, pressed && styles.pressed]}>
       {props.children}
       <HelpBadge spot={spot} inset />
@@ -337,7 +338,7 @@ function VersionDot(props: { title: string; on: boolean; onPress: () => void }) 
   const spot = useHelpSpot(props.title, t('passage.journey.showVersionHelp'), props.onPress);
   return (
     <Pressable onPress={spot.onPress} hitSlop={10} accessibilityRole="tab" accessibilityLabel={props.title}
-      accessibilityState={{ selected: props.on }} style={styles.dotTap}>
+      {...a11yState({ selected: props.on }, 'tab')} style={styles.dotTap}>
       <View style={[styles.dot, props.on && { width: 18, backgroundColor: C.primary }]} />
       <HelpBadge spot={spot} />
     </Pressable>
@@ -362,7 +363,7 @@ function Flip(props: { icon: 'left' | 'right'; label: string; hidden: boolean; d
   if (props.hidden) return <View style={{ width: target.min }} />;
   return (
     <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
-      accessibilityState={{ disabled: props.disabled }}
+      {...a11yState({ disabled: props.disabled }, 'button')}
       style={({ pressed }) => [styles.flip, props.disabled && { opacity: 0.25 }, pressed && styles.pressed]}>
       <Ico name={props.icon} size={22} color={C.dark} />
       <HelpBadge spot={spot} />

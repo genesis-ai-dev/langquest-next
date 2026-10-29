@@ -22,6 +22,7 @@ import type { useRecorder } from './useRecorder';
 import { loopStatus, type LoopNoun, type LoopPhase } from './splitModel';
 import { mmss } from './workspaceModel';
 import { LiveParts } from './LiveParts';
+import { MicRefused } from './micRefused';
 import { liveKept } from './livePartsModel';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { useHardwareBack } from '../ui/useHardwareBack';
@@ -134,7 +135,7 @@ export function RecordingView(props: {
           <LiveParts session={session} tone="onRed" paused={rec.vadPaused} editing={stopped} onDrop={rec.dropPart} onMoved={rec.notePart} />
         </View>
       )}
-      {rec.error ? <Text style={styles.error} accessibilityRole="alert">{rec.error}</Text> : null}
+      {rec.micRefused ? <MicRefused message={rec.error} /> : rec.error ? <Text style={styles.error} accessibilityRole="alert">{rec.error}</Text> : null}
       <ConfirmDelete visible={asking !== null} name={props.title} title={t('recording.recorder.discardAsk')} confirmLabel={t('recording.recorder.discardConfirm')}
         sub={asking ? t('recording.parts.groupSub', { count: asking.count, length: mmss(asking.ms) }) : ''}
         onClose={() => setAsking(null)} onConfirm={() => { setAsking(null); props.onDiscard(); }} />

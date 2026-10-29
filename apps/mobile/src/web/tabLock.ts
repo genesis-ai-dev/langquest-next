@@ -5,8 +5,11 @@
  * holds a Web Lock owns the database; another tab says so and offers "Use
  * here", which asks the holder over a BroadcastChannel to step aside. The
  * holder reloads into a "moved" page that never opens the database, which
- * frees the pool, and its lock passes to the asking tab. Pure: the browser
- * parts come in as `TabDeps`, so the protocol is tested without one.
+ * frees the pool, and its lock passes to the asking tab. A holder in the
+ * middle of a recording says it is busy instead, since its open session lives
+ * in the page; the asking tab stops waiting and says so, and waiting can
+ * always be cancelled. Pure: the browser parts come in as `TabDeps`, so the
+ * protocol is tested without one.
  */
 export type TabState =
   /** Asking for the lock. */
@@ -18,22 +21,27 @@ export type TabState =
   /** This tab gave it to another. */
   | 'moved'
   /** Asked the holder to step aside; waiting for the lock. */
-  | 'waiting';
+  | 'waiting'
+  /** Asked the holder, which is recording and stays: stop there first. */
+  | 'busy';
 
 export interface TabDeps {
   /** `navigator.locks.request`; the callback's promise holds the lock until it settles. */
-  request(name: string, opts: { ifAvailable?: boolean }, callback: (lock: unknown) => Promise<void>): Promise<void>;
+  request(name: string, opts: { ifAvailable?: boolean; signal?: AbortSignal }, callback: (lock: unknown) => Promise<void>): Promise<void>;
   post(message: string): void;
   listen(handler: (message: string) => void): () => void;
   /** A flag that survives this tab's reload (sessionStorage). */
   movedFlag: { get(): boolean; set(): void; clear(): void };
   reload(): void;
+  /** This tab is recording, or holds a recording session not yet saved: it must not step aside. */
+  busy?(): boolean;
   /** Wait this long (setTimeout); injected so tests need not. */
   wait?(ms: number): Promise<void>;
 }
 
 export const LOCK_NAME = 'langquest-database';
 const TAKE = 'take';
+const BUSY = 'busy';
 
 /**
  * A reloaded page can start before the browser has let go of the lock its
@@ -44,16 +52,26 @@ const TAKE = 'take';
 export const RELOAD_SETTLE_MS = 2000;
 const RETRY_MS = 250;
 
-export function startTab(deps: TabDeps, onState: (s: TabState) => void): { useHere(): void; stop(): void } {
+export function startTab(deps: TabDeps, onState: (s: TabState) => void): { useHere(): void; cancel(): void; stop(): void } {
   let unlisten = () => {};
+  /** While asking: the holder's answer, and a way to stop waiting for the lock. */
+  let asking: { abort: AbortController; unlisten: () => void } | null = null;
+  const stopAsking = () => {
+    if (!asking) return;
+    asking.unlisten();
+    asking.abort.abort();
+    asking = null;
+  };
   let stopped = false;
   /** Lets go of the lock this tab holds (stop). */
   let release = () => {};
   const wait = deps.wait ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const hold = (): Promise<void> => {
+    if (asking) { asking.unlisten(); asking = null; }
     onState('ready');
     unlisten = deps.listen((message) => {
       if (message !== TAKE) return;
+      if (deps.busy?.()) { deps.post(BUSY); return; }
       deps.movedFlag.set();
       deps.reload();
     });
@@ -84,13 +102,31 @@ export function startTab(deps: TabDeps, onState: (s: TabState) => void): { useHe
   }
   return {
     useHere() {
+      stopAsking();
+      const abort = new AbortController();
+      asking = {
+        abort,
+        unlisten: deps.listen((message) => {
+          if (message !== BUSY || asking?.abort !== abort) return;
+          stopAsking();
+          onState('busy');
+        })
+      };
       onState('waiting');
       deps.post(TAKE);
-      void deps.request(LOCK_NAME, {}, () => hold());
+      // Aborted when the holder says it is busy, or on Cancel: the request then fails, and nothing is held.
+      void deps.request(LOCK_NAME, { signal: abort.signal }, () => hold()).catch(() => undefined);
+    },
+    /** Stop waiting for the other tab, which keeps LangQuest. */
+    cancel() {
+      if (!asking) return;
+      stopAsking();
+      onState('elsewhere');
     },
     /** Stop listening and let go of the lock, so whatever asks next (this page mounted again, or another tab) gets it. */
     stop() {
       stopped = true;
+      stopAsking();
       unlisten();
       release();
     }

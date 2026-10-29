@@ -1,7 +1,7 @@
 import type { Fetch } from './youtube';
 
 /**
- * Filing an issue in Linear from a server job (decisions.md 185), as
+ * Filing an issue in Linear from a server job (decisions.md 186), as
  * scripts/nightly-report.mjs does from GitHub: in the LangQuest Next team,
  * left unassigned for triage. The key is a Linear personal API key
  * (LINEAR_API_KEY in .env.production, given to the job by the app's Worker).

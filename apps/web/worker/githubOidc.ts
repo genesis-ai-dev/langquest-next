@@ -1,6 +1,6 @@
 /**
  * Who a GitHub Actions run is, from the OpenID Connect token GitHub gives a
- * job with `id-token: write` (decisions.md 185). The token is signed with
+ * job with `id-token: write` (decisions.md 186). The token is signed with
  * GitHub's keys and names the repository, the workflow file and the branch
  * it ran from, so a route can let in one workflow on main and nothing else,
  * with no shared secret in GitHub: a branch, a fork or another workflow gets

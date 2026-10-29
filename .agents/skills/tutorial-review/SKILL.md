@@ -7,7 +7,7 @@ license: MIT
 # The nightly look at the tutorial videos' feedback
 
 Every night a workflow hands you what is open about the tutorial videos
-(docs/tutorial-videos.md "Feedback", decisions.md 185). You put each new
+(docs/tutorial-videos.md "Feedback", decisions.md 186). You put each new
 comment into English with a reply, find the changes to the app that make a
 video wrong, and suggest what to do. A person on the team then accepts,
 edits or rejects each suggestion on the ops dashboard. Nothing you write is

@@ -46,9 +46,10 @@ function fetchGuideFile(orgId: string, ref: StoredFile, store: BlobStore): Promi
 /**
  * The URI to play or show: the stored file when it is on the device (asking
  * the server for it once), else the URL. `waiting` while a stored file is
- * being read or fetched and there is no URL to use meanwhile.
+ * being read or fetched and there is no URL to use meanwhile; `failed` when
+ * that fetch failed (offline) and there is no URL either.
  */
-export function useStudyFileUri(orgId: string | null | undefined, file: StudyFile | undefined, url: string | undefined): { uri: string | undefined; waiting: boolean } {
+export function useStudyFileUri(orgId: string | null | undefined, file: StudyFile | undefined, url: string | undefined): { uri: string | undefined; waiting: boolean; failed: boolean } {
   const ref = storedFileOf(file);
   const [store, setStore] = useState<BlobStore | null>(null);
   const [, bump] = useState(0);
@@ -78,8 +79,8 @@ export function useStudyFileUri(orgId: string | null | undefined, file: StudyFil
     return () => { live = false; };
   }, [store, ref?.hash, orgId]); // eslint-disable-line react-hooks/exhaustive-deps -- keyed by the file's hash: a new ref for the same file does not fetch again
 
-  if (!ref) return { uri: url, waiting: false };
+  if (!ref) return { uri: url, waiting: false, failed: false };
   const local = store?.has(ref.hash) ? store.uriFor(ref) : null;
-  if (local) return { uri: local, waiting: false };
-  return { uri: url, waiting: !url && !failed };
+  if (local) return { uri: local, waiting: false, failed: false };
+  return { uri: url, waiting: !url && !failed, failed: !url && failed };
 }

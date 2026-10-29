@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { AUDIENCE, API, changesOf, CHANGES_MAX, prOf, runUrl, withRun } from './tutorial-review.mjs';
 import { REVIEW_PATH, REVIEW_RULE } from '../apps/web/worker/tutorialReview';
 
-/** The scripts around Claude's nightly look at the tutorial videos' feedback (decisions.md 185). */
+/** The scripts around Claude's nightly look at the tutorial videos' feedback (decisions.md 186). */
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
 
