@@ -95,6 +95,25 @@ h3.part { font-size: 15px; color: var(--ink); margin: 18px 0 4px; padding-top: 1
 [data-help] { text-decoration: underline dotted var(--muted); text-underline-offset: 3px; cursor: help; }
 #tip { position: fixed; z-index: 10; max-width: 340px; padding: 8px 10px; border-radius: 8px; background: var(--ink); color: var(--bg); font-size: 13px; font-weight: 400; line-height: 1.4; pointer-events: none; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
 @media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
+td button { white-space: nowrap; }
+/* A phone: the header scrolls away, and each table row is a block of its own, each value under its column's name. */
+@media (max-width: 640px) {
+  header { position: static; }
+  .bar { padding: 10px 12px; gap: 8px; }
+  .bar h1 { flex-basis: 100%; font-size: 18px; }
+  main { padding: 12px 8px 48px; }
+  section.card { padding: 12px; }
+  .scroll table, .scroll tbody, .scroll tr, .scroll td { display: block; }
+  .scroll thead { display: none; }
+  .scroll tr { padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .scroll tr:last-child { border-bottom: 0; }
+  .scroll td, .scroll td.n { border: 0; padding: 2px 0; text-align: start; white-space: normal; overflow-wrap: break-word; }
+  .scroll td[data-h] { position: relative; padding-inline-start: 40%; }
+  .scroll td[data-h]::before { content: attr(data-h); position: absolute; inset-inline-start: 0; width: 38%; color: var(--muted); font-size: 12px; line-height: 1.6; }
+  .scroll td:first-child { padding-inline-start: 0; }
+  .scroll td:first-child::before { content: none; }
+  .scroll td:empty { display: none; }
+}
 </style>
 </head>
 <body>
@@ -172,7 +191,7 @@ const reviewSpan = (r) => r && r.count ? num(r.count) + ' reviews ' + since(r.si
 function table(cols, rows) {
   if (!rows.length) return '<p class="muted">Nothing here.</p>';
   return '<div class="scroll"><table><thead><tr>' + cols.map((c) => '<th' + (c.n ? ' class="n"' : '') + '>' + esc(c.h) + '</th>').join('') + '</tr></thead><tbody>' +
-    rows.map((r) => '<tr>' + cols.map((c) => '<td' + (c.n ? ' class="n"' : '') + '>' + c.v(r) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>';
+    rows.map((r) => '<tr>' + cols.map((c) => '<td' + (c.n ? ' class="n"' : '') + (c.h ? ' data-h="' + esc(c.h) + '"' : '') + '>' + c.v(r) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>';
 }
 const short = (id) => id ? '<code title="' + esc(id) + '">' + esc(String(id).slice(0, 8)) + '</code>' : '–';
 

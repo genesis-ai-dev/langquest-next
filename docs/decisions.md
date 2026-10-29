@@ -8683,6 +8683,19 @@ Reverse if: YouTube's limits or review make publishing this way
 impractical, or partners need the videos where YouTube is blocked (then
 next.langquest.org serves the same files).
 
+Amended (2026-10-29, Caleb Koster): each channel has a day's limit of its
+own as well as the project's 100, counted over the last 24 hours and lower
+for a new channel. Caleb's first Publish (242 videos, 2026-10-29) put up 10
+in Arabic and stopped: YouTube said Arabic's channel was at its limit
+(`uploadLimitExceeded`), and the job took that as the project's day. Now
+only that channel waits for the next run and the others go on; the project's
+`quotaExceeded` still stops the run. The job puts up English first, then
+French, as Caleb asked (they matter most), then each other language in turn
+by its place in the plan; it had gone by language code, so Arabic went
+first. A video chosen more than a day ago counts as stuck on the dashboard
+only while its channel has put up nothing in that time, since a hundred a
+day across fifteen channels takes a week by design.
+
 ## 181. A part with lots of background noise wears an orange warning, measured on the device from its loudness and the room between its words
 
 Date: 2026-10-28 · By: Caleb Koster · Status: accepted

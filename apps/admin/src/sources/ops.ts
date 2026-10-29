@@ -422,7 +422,11 @@ export function tutorialsOf(row: TutorialsRow): Tutorials {
 
 /** Codes that mean a channel must be connected again before its videos can go up. */
 const RECONNECT = /^youtube_(invalid_grant|not_connected|unauthorized|forbidden)/;
-/** A chosen video still not up after this long has met more than YouTube's daily limit. */
+/**
+ * A chosen video still not up after this long, on a channel that put none up
+ * in that time, is stuck. YouTube lets a channel put up only so many a day, so
+ * a long queue that moves is not.
+ */
 export const PUBLISH_DUE_HOURS = 30;
 
 export function tutorialAlerts(t: Tutorials, now = Date.now()): Alert[] {
@@ -434,7 +438,9 @@ export function tutorialAlerts(t: Tutorials, now = Date.now()): Alert[] {
     ...t.channels.filter((c) => c.brandFailed && RECONNECT.test(c.brandFailed)).map((c) => c.language)
   ])];
   if (reconnect.length) out.push({ level: 'problem', text: `YouTube refused the ${reconnect.join(', ')} ${reconnect.length === 1 ? 'channel' : 'channels'}: connect again (Tutorial videos).` });
-  const stuck = t.waiting.filter((w) => w.chosenAt && !(w.failed && RECONNECT.test(w.failed)) && now - Date.parse(w.chosenAt) > PUBLISH_DUE_HOURS * 3_600_000).length;
+  const due = PUBLISH_DUE_HOURS * 3_600_000;
+  const moving = new Set(t.channels.filter((c) => c.latestAt && now - Date.parse(c.latestAt) <= due).map((c) => c.language as string));
+  const stuck = t.waiting.filter((w) => w.chosenAt && !(w.failed && RECONNECT.test(w.failed)) && now - Date.parse(w.chosenAt) > due && !moving.has(w.language)).length;
   const held = t.channels.reduce((n, c) => n + (c.held ?? 0), 0);
   if (held) out.push({ level: 'watch', text: `${plural(held, 'comment')} held for review on YouTube: approve or remove in YouTube Studio (Tutorial videos).` });
   if (stuck) out.push({ level: 'problem', text: `${plural(stuck, 'tutorial video')} chosen more than ${PUBLISH_DUE_HOURS} hours ago ${stuck === 1 ? 'is' : 'are'} still not on YouTube (Tutorial videos).` });

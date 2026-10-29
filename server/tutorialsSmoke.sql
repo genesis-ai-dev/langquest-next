@@ -315,4 +315,18 @@ do $$ begin
   assert (select every from diag.job_schedule where job = 'tutorial_review') = interval '1 day', 'so is Claude''s look';
 end $$;
 
+-- The order the job puts them up in (migration *_tutorial_publish_order.sql): English, then French,
+-- then the other languages' videos in turn, by their place in the plan.
+set local role service_role;
+select public.ops_youtube_connected('UCDdH4nGZOzkE4cAsk43qhog', 'fr', 'LangQuest - Français', '1//refresh-fr-0123456789', '0d000000-0000-0000-0000-0000000000aa', 'made');
+select public.ops_tutorial_made('key-words', 'es', repeat('f', 64), 'Palabras clave', 'Cómo marcar palabras.', 'Traductores', 5, 60, 9000000);
+do $$ declare v jsonb; begin
+  perform public.ops_tutorials_approve(jsonb_build_array(jsonb_build_array('record-a-passage', 'es', repeat('b', 64)),
+    jsonb_build_array('key-words', 'es', repeat('f', 64))), '0d000000-0000-0000-0000-0000000000aa');
+  v := public.ops_tutorials_due(10);
+  assert (select string_agg((x->>'language') || ' ' || (x->>'tutorial'), ', ' order by n) from jsonb_array_elements(v) with ordinality t(x, n))
+    = 'en record-a-passage, fr record-a-passage, es key-words, es record-a-passage', 'English, then French, then the rest by place: %', v;
+end $$;
+reset role;
+
 rollback;

@@ -4,25 +4,35 @@ import { brandOf, channelAbout, CHANNELS } from '../../../server/youtube';
 
 /** The publish job (server/tutorialPublisher.ts, decisions.md 180) against a YouTube that answers by address. */
 
-const fresh = (): PublishReport => ({ branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, outOfQuota: false, firstError: null });
+const fresh = (): PublishReport => ({ branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, outOfQuota: false, channelsFull: 0, firstError: null });
 const video = (tutorial: string, over: Partial<Due> = {}): Due => ({
   tutorial, language: 'es', sha256: 'a'.repeat(64), title: tutorial, description: 'd', playlist: 'Traductores', bytes: 5,
   channelId: CHANNELS.es, replaces: null, ...over
 });
 
-function youtube(options: { uploads?: number; tokenRefused?: string; channel?: string } = {}) {
+/**
+ * `uploads`: how many the project may put up before YouTube's day is out; `perChannel`: how many each
+ * channel may (its access token is its refresh token's); `brandRefused`: a language YouTube will not
+ * take for a channel.
+ */
+function youtube(options: { uploads?: number; perChannel?: number; tokenRefused?: string; channel?: string; brandRefused?: string } = {}) {
   const calls: string[] = [];
   const sent: Record<string, unknown>[] = [];
   let uploaded = 0;
+  const byChannel = new Map<string, number>();
   const fetcher = async (input: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
     const path = input.split('?')[0]!.replace('https://www.googleapis.com', '');
     calls.push(`${method} ${path}`);
     if (input === 'https://oauth2.googleapis.com/token') {
-      return options.tokenRefused ? Response.json({ error: options.tokenRefused }, { status: 400 }) : Response.json({ access_token: 'ya29' });
+      const refresh = new URLSearchParams(String(init?.body)).get('refresh_token');
+      return options.tokenRefused ? Response.json({ error: options.tokenRefused }, { status: 400 }) : Response.json({ access_token: `ya29 ${refresh}` });
     }
     if (path === '/upload/youtube/v3/videos') {
-      if (uploaded >= (options.uploads ?? 100)) return Response.json({ error: { errors: [{ reason: 'uploadLimitExceeded' }] } }, { status: 400 });
+      const channel = new Headers(init?.headers).get('authorization') ?? '';
+      if (uploaded >= (options.uploads ?? 100)) return Response.json({ error: { errors: [{ reason: 'quotaExceeded' }] } }, { status: 403 });
+      if ((byChannel.get(channel) ?? 0) >= (options.perChannel ?? 100)) return Response.json({ error: { errors: [{ reason: 'uploadLimitExceeded' }] } }, { status: 400 });
+      byChannel.set(channel, (byChannel.get(channel) ?? 0) + 1);
       return new Response(null, { headers: { location: 'https://upload.example/session' } });
     }
     if (input === 'https://upload.example/session') return Response.json({ id: `video${String(++uploaded).padStart(6, '0')}` });
@@ -31,7 +41,11 @@ function youtube(options: { uploads?: number; tokenRefused?: string; channel?: s
     }
     if (path === '/upload/youtube/v3/channelBanners/insert') return Response.json({ url: 'https://yt3.example/banner' });
     if (path === '/youtube/v3/channels') {
-      sent.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      const body = JSON.parse(String(init?.body)) as { brandingSettings: { channel: { defaultLanguage?: string } } };
+      sent.push(body);
+      if (options.brandRefused && body.brandingSettings.channel.defaultLanguage === options.brandRefused) {
+        return Response.json({ error: { errors: [{ reason: 'brandingValidationError' }] } }, { status: 400 });
+      }
       return Response.json({});
     }
     if (path === '/youtube/v3/channelSections') return Response.json(method === 'GET' ? { items: [] } : {});
@@ -93,11 +107,25 @@ describe('the publish job', () => {
     ]);
   });
 
-  it('stops at YouTube\'s day of uploads, keeping why, and leaves the rest for tomorrow', async () => {
+  it('stops at YouTube\'s day for the project, keeping why, and leaves the rest for tomorrow', async () => {
     const yt = youtube({ uploads: 1 });
     const d = deps([video('a'), video('b'), video('c')], yt);
-    expect(await publishTutorials(d.deps, fresh())).toMatchObject({ published: 1, failed: 1, outOfQuota: true, firstError: 'youtube_uploadLimitExceeded' });
-    expect(d.marks).toEqual(['a video000001', 'b failed youtube_uploadLimitExceeded']);
+    expect(await publishTutorials(d.deps, fresh())).toMatchObject({ published: 1, failed: 1, outOfQuota: true, firstError: 'youtube_quotaExceeded' });
+    expect(d.marks).toEqual(['a video000001', 'b failed youtube_quotaExceeded']);
+  });
+
+  it('leaves a channel at its own day\'s limit to wait, with its videos not failed, and goes on with the others', async () => {
+    // Arabic's first morning: ten up, then YouTube took no more on that channel, and the run stopped for every language.
+    const yt = youtube({ perChannel: 1 });
+    const ar = (tutorial: string) => video(tutorial, { language: 'ar', channelId: CHANNELS.ar });
+    const en = (tutorial: string) => video(tutorial, { language: 'en', channelId: CHANNELS.en });
+    const d = deps([ar('a'), ar('b'), ar('c'), en('a'), en('b')], yt, { [CHANNELS.ar]: '1//ar', [CHANNELS.en]: '1//en' });
+    expect(await publishTutorials(d.deps, fresh())).toMatchObject({
+      due: 4, published: 2, failed: 0, channelsFull: 2, outOfQuota: false, firstError: 'youtube_uploadLimitExceeded'
+    });
+    // Each channel is tried until it is full, and its other videos are left for the next run.
+    expect(d.marks).toEqual(['a video000001', 'a video000002']);
+    expect(yt.calls.filter((c) => c === 'POST /upload/youtube/v3/videos')).toHaveLength(4);
   });
 
   it('fails a channel whose token Google took back, and goes on with the others', async () => {
@@ -138,6 +166,17 @@ describe('the publish job', () => {
     const again = youtube();
     await publishTutorials(deps([], again, undefined, [es]).deps, fresh());
     expect(again.calls).toEqual(['POST https://oauth2.googleapis.com/token', 'GET /youtube/v3/commentThreads', 'GET /youtube/v3/commentThreads']);
+  });
+
+  it('puts a channel\'s description and banner on without its language when YouTube refuses the language', async () => {
+    const yt = youtube({ brandRefused: 'es' });
+    const es: Channel = { channelId: CHANNELS.es, language: 'es', branded: null };
+    const d = deps([], yt, undefined, [es]);
+    expect(await publishTutorials(d.deps, fresh())).toMatchObject({ branded: 1, brandFailed: 0 });
+    expect(yt.sent).toEqual([
+      { id: CHANNELS.es, brandingSettings: { channel: { keywords: 'LangQuest', country: 'MX', description: channelAbout('es'), defaultLanguage: 'es' }, image: { bannerExternalUrl: 'https://yt3.example/banner' } } },
+      { id: CHANNELS.es, brandingSettings: { channel: { keywords: 'LangQuest', country: 'MX', description: channelAbout('es') }, image: { bannerExternalUrl: 'https://yt3.example/banner' } } }
+    ]);
   });
 
   it('leaves a channel alone when its token is for another, and still puts the videos up', async () => {

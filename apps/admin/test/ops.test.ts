@@ -367,6 +367,10 @@ describe('tutorial videos (decisions.md 180)', () => {
     expect(tutorialAlerts(t([waiting({ chosenAt: hoursAgo(31), failed: 'youtube_uploadLimitExceeded' })]), NOW)).toEqual([
       { level: 'problem', text: '1 tutorial video chosen more than 30 hours ago is still not on YouTube (Tutorial videos).' }
     ]);
+    // A long queue on a channel that put videos up today is waiting its turn, not stuck.
+    const es = { language: 'es', channelId: CHANNELS.es, title: null, connectedAt: hoursAgo(50), section: 'made', branded: true, brandFailed: null, held: 0, videos: 10 } as const;
+    expect(tutorialAlerts({ channels: [{ ...es, latestAt: hoursAgo(5) }], waiting: [waiting({ chosenAt: hoursAgo(31) })] }, NOW)).toEqual([]);
+    expect(tutorialAlerts({ channels: [{ ...es, latestAt: hoursAgo(31) }], waiting: [waiting({ chosenAt: hoursAgo(31) })] }, NOW)).toHaveLength(1);
   });
 });
 

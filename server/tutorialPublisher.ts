@@ -1,5 +1,5 @@
 import {
-  accessToken, brandChannel, brandOf, heldComments, outOfQuota, placeInPlaylist, playlistFor, retire, uploadVideo, YouTubeError,
+  accessToken, brandChannel, brandOf, channelFull, heldComments, outOfQuota, placeInPlaylist, playlistFor, retire, uploadVideo, YouTubeError,
   type ChannelLanguage, type Client, type Fetch
 } from './youtube';
 
@@ -18,7 +18,9 @@ import {
  * YouTube allows 100 uploads a day for the whole Google Cloud project, all
  * channels together, and 10,000 units for everything else (a video and its
  * playlist place cost about 100). Out of either, the run stops and the rest
- * wait for the next day's run.
+ * wait for the next day's run. Each channel has its own limit too, lower for
+ * a new channel (Arabic's first morning stopped at 10): a channel that
+ * reaches it waits, and the others go on.
  */
 
 /** One version due, as `ops_tutorials_due` answers it. */
@@ -77,12 +79,16 @@ export interface PublishReport {
   incomplete: number;
   /** Out of the day's uploads or units: the rest wait for tomorrow. */
   outOfQuota: boolean;
+  /** Channels that reached their own day's limit: their videos wait, the others went on. */
+  channelsFull: number;
   /** The first failure's code, for the job run. */
   firstError: string | null;
 }
 
 /** Most a run takes on: YouTube's day of uploads. */
 export const DAY_UPLOADS = 100;
+/** How many due versions are asked for at once: enough to reach every language past the channels that are full. */
+const ASKED = 500;
 
 /** A code that fits the database's columns, from anything thrown. */
 export const failureCode = (e: unknown) => (e instanceof YouTubeError ? e.code : e instanceof Error ? e.name.replace(/[^A-Za-z0-9_]/g, '').slice(0, 80) || 'Error' : 'unknown');
@@ -93,25 +99,27 @@ export const failureCode = (e: unknown) => (e instanceof YouTubeError ? e.code :
  * day's uploads are tried.
  */
 export async function publishTutorials(deps: PublisherDeps, report: PublishReport): Promise<PublishReport> {
-  const tried = new Set<string>();
-  const key = (v: Due) => `${v.tutorial}/${v.language}/${v.sha256}`;
-  const run: Run = { tokens: new Map(), playlists: new Map() };
+  const run: Run = { tokens: new Map(), playlists: new Map(), tried: new Set(), full: new Set() };
   await tendChannels(deps, run, report);
-  while (!report.outOfQuota && !deps.stopping() && tried.size < DAY_UPLOADS) {
-    const due = (await deps.due(DAY_UPLOADS)).filter((v) => !tried.has(key(v))).slice(0, DAY_UPLOADS - tried.size);
+  while (!report.outOfQuota && !deps.stopping() && run.tried.size < DAY_UPLOADS) {
+    const due = (await deps.due(ASKED)).filter((v) => !run.tried.has(key(v)) && !run.full.has(v.channelId));
     if (!due.length) break;
-    for (const v of due) tried.add(key(v));
-    report.due += due.length;
     await publishSome(deps, run, due, report);
   }
   return report;
 }
+
+const key = (v: Due) => `${v.tutorial}/${v.language}/${v.sha256}`;
 
 interface Run {
   /** Per channel: its access token (an hour's, asked again past 45 minutes) or why there is none. */
   tokens: Map<string, { token: string; at: number } | { failed: string }>;
   /** Per channel and title: the playlist's id. */
   playlists: Map<string, string>;
+  /** The versions tried this run, each once. */
+  tried: Set<string>;
+  /** The channels at their own day's limit. */
+  full: Set<string>;
 }
 
 /** A channel's access token for this run: asked again past 45 minutes, and never again once Google refused it. */
@@ -182,7 +190,10 @@ async function publishSome(deps: PublisherDeps, run: Run, due: Due[], report: Pu
   };
 
   for (const video of due) {
-    if (deps.stopping()) break;
+    if (deps.stopping() || run.tried.size >= DAY_UPLOADS) break;
+    if (run.full.has(video.channelId)) continue;
+    run.tried.add(key(video));
+    report.due += 1;
     let youtubeId: string;
     let access: string;
     try {
@@ -192,6 +203,13 @@ async function publishSome(deps: PublisherDeps, run: Run, due: Due[], report: Pu
         title: video.title, description: video.description, language: video.language, file, replacing: video.replaces !== null
       });
     } catch (e) {
+      if (channelFull(e)) {
+        // Not the video's failure: it goes up when the channel may upload again.
+        run.full.add(video.channelId);
+        report.channelsFull += 1;
+        report.firstError ??= failureCode(e);
+        continue;
+      }
       await fail(video, e);
       if (outOfQuota(e)) {
         report.outOfQuota = true;

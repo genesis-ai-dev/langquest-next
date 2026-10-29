@@ -151,8 +151,15 @@ export class YouTubeError extends Error {
   get code(): string { return `youtube_${this.reason.replace(/[^A-Za-z0-9_]/g, '').slice(0, 60) || this.status}`; }
 }
 
-/** Out of today's allowance: nothing more goes up until midnight Pacific. */
-export const outOfQuota = (e: unknown) => e instanceof YouTubeError && /quota|uploadLimit|rateLimit/i.test(e.reason);
+/** Out of the project's units for today: nothing more is done until midnight Pacific. */
+export const outOfQuota = (e: unknown) => e instanceof YouTubeError && /quota|rateLimit/i.test(e.reason);
+
+/**
+ * The channel has put up as many videos as YouTube lets it in a day (its own
+ * limit, lower for a new channel, counted over the last 24 hours): only that
+ * channel waits, the others go on.
+ */
+export const channelFull = (e: unknown) => e instanceof YouTubeError && e.reason === 'uploadLimitExceeded';
 
 async function answer<T>(response: Response): Promise<T> {
   if (response.ok) return (response.status === 204 ? undefined : await response.json()) as T;
@@ -308,13 +315,20 @@ export async function brandChannel(fetcher: Fetch, token: string, language: Chan
   // replaces them all; its name is left out, which only Google's account pages change.
   const kept = { ...channel.brandingSettings?.channel };
   delete kept['title'];
-  await answer(await fetcher(`${API}/channels?part=brandingSettings`, {
+  delete kept['defaultLanguage'];
+  const put = (settings: Record<string, unknown>) => fetcher(`${API}/channels?part=brandingSettings`, {
     method: 'PUT', headers: json(token),
-    body: JSON.stringify({
-      id: channel.id,
-      brandingSettings: { channel: { ...kept, description: channelAbout(language), defaultLanguage: language }, image: { bannerExternalUrl: uploaded.url } }
-    })
-  }));
+    body: JSON.stringify({ id: channel.id, brandingSettings: { channel: settings, image: { bannerExternalUrl: uploaded.url } } })
+  });
+  const settings = { ...kept, description: channelAbout(language) };
+  try {
+    await answer(await put({ ...settings, defaultLanguage: language }));
+  } catch (e) {
+    // YouTube refused Hausa's channel (brandingValidationError, 2026-10-29), and a language it does not
+    // offer is the likeliest cause: the description and banner go on without saying the language.
+    if (!(e instanceof YouTubeError && e.reason === 'brandingValidationError')) throw e;
+    await answer(await put(settings));
+  }
   await setOtherChannels(fetcher, token, language);
 }
 
