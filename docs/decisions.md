@@ -3830,6 +3830,23 @@ organization may be left with no admin. The language, its work and its
 audio stay, and the memberships can be given again. It refuses a copy the
 import still keeps up to date.
 
+Amended (2026-10-29, Caleb Koster): work from a v2 phone that was offline
+for weeks waits for its audio, and audio that reaches v2 late still comes
+over. A partner asked whether work made offline for weeks comes over. Two
+waits of a week were counted from the wrong moment. A version waited for
+its files a week from the asset's `created_at`, which is the phone's clock
+when it recorded, so for a phone back after three weeks the wait was over
+before its rows reached v2, and a version came over without the parts
+whose audio was still going up, then again with them. And a file the
+import missed was never asked for after a week, even once v2 had it, so
+audio a phone sent more than a week after its rows never came over. Now
+the wait counts from the segment's `uploaded_at` (v2's server clock, set
+when the row arrives), and a missed file is asked for again once v2's
+`audio_uploaded_at` for it is later than the miss: on the pass that sees
+it arrive, and by every whole read until it is copied (`looksFor`). Only
+files v2 says it has are asked for again, so the 15-minute pass does not
+go back to asking for the 10,000 absent ones (amended 2026-10-20).
+
 ## 95. The app's UI tests run on Maestro on phones and Playwright on the web; Jev stays for journeys judged by outcome
 
 Date: 2026-10-12 · By: Carl Sauder · Status: partly superseded by 102

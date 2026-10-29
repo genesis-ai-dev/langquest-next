@@ -106,7 +106,7 @@ export function restReader(src: RestSource): V2Reader {
       // project's own quest and asset ids instead, a slice at a time.
       const [placements, contents, votes] = await Promise.all([
         bySlices<V2Placement>(quests.map((q) => q.id), 100, (ids) => byOffset(`quest_asset_link?select=quest_id,asset_id,active,visible,order_index,metadata,created_at&quest_id=in.(${ids})&order=quest_id,asset_id`)),
-        bySlices<V2Content>(assets.map((a) => a.id), 150, (ids) => byOffset(`asset_content_link?select=id,asset_id,text,audio,languoid_id,source_language_id,active,order_index,created_at&asset_id=in.(${ids})&order=id`)),
+        bySlices<V2Content>(assets.map((a) => a.id), 150, (ids) => byOffset(`asset_content_link?select=id,asset_id,text,audio,languoid_id,source_language_id,active,order_index,created_at,uploaded_at,audio_uploaded_at&asset_id=in.(${ids})&order=id`)),
         bySlices<V2Vote>(assets.map((a) => a.id), 150, (ids) => byOffset(`vote?select=id,asset_id,polarity,comment,creator_id,active,created_at,last_updated&asset_id=in.(${ids})&order=id`))
       ]);
       return {

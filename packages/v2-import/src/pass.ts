@@ -5,7 +5,7 @@ import { shownName } from './board';
 import { LIBRARY_ORG, libraryFact, orgFacts } from './orgFacts';
 import type { V2Reader, V2ProjectSummary } from './reader';
 import { reconcile, type Fact, type LedgerEntry } from './reconcile';
-import { bucketName, type V2ProjectRows } from './rows';
+import { bucketName, isoTime, type V2ProjectRows } from './rows';
 import type { LogLine, Plan, PlanOrg, Progress, Target } from './target';
 
 /**
@@ -143,13 +143,17 @@ export async function sync(deps: PassDeps, opts: { all?: boolean; projects?: str
  * one missing under an hour, on every pass, since a phone's upload can
  * trail its rows; one missing up to a week, only in the nightly whole read
  * (or a transfer someone started for the project), so about once a day: on 2026-10-20 the 15-minute pass asked again for some
- * 10,000 absent files every time and took 10 of its 15 minutes. Older, no.
+ * 10,000 absent files every time and took 10 of its 15 minutes. Older, no, unless v2 says it has the file
+ * now (`arrivedAt`, its `audio_uploaded_at`) and got it after the import missed it: a phone that sent its
+ * rows weeks before its audio. Then the pass that sees it arrive asks, and every whole read until it is copied.
  */
-export function looksFor(known: CopiedFile | { missingSince: string } | undefined, now: number, whole: boolean): boolean {
+export function looksFor(known: CopiedFile | { missingSince: string } | undefined, now: number, whole: boolean, arrivedAt?: number): boolean {
   if (!known) return true;
   if (!('missingSince' in known)) return false;
-  const age = now - Date.parse(known.missingSince);
-  return age < TRAILING_MS || (whole && age < RECHECK_MS);
+  const missed = Date.parse(known.missingSince);
+  const age = now - missed;
+  if (age < TRAILING_MS || (whole && age < RECHECK_MS)) return true;
+  return arrivedAt !== undefined && arrivedAt > missed && (whole || now - arrivedAt < TRAILING_MS);
 }
 
 /**
@@ -424,7 +428,8 @@ class Run {
     let storedNow = 0;
     const map = new Map<string, CopiedFile>();
     for (const [name, f] of known) if (!('missingSince' in f)) map.set(name, f);
-    const todo = names.filter((n) => looksFor(known.get(n), this.now(), this.whole));
+    const arrived = arrivals(rows);
+    const todo = names.filter((n) => looksFor(known.get(n), this.now(), this.whole, arrived.get(n)));
     const found: { name: string; file: CopiedFile | null }[] = [];
     let saved = 0;
     let converted = 0;
@@ -534,6 +539,20 @@ const n = (x: number) => x.toLocaleString('en-US');
 /** Every bucket file a project's live segments name. */
 function namesIn(rows: V2ProjectRows): string[] {
   return [...new Set(rows.contents.filter((c) => c.active).flatMap((c) => (c.audio ?? []).map(bucketName)).filter((x): x is string => !!x))];
+}
+
+/** When v2's storage had each file, by name, as its live segments say (`audio_uploaded_at`); the latest when two name one. */
+function arrivals(rows: V2ProjectRows): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const c of rows.contents) {
+    const at = c.active && c.audio_uploaded_at ? Date.parse(isoTime(c.audio_uploaded_at)) : NaN;
+    if (Number.isNaN(at)) continue;
+    for (const raw of c.audio ?? []) {
+      const name = bucketName(raw);
+      if (name && at > (out.get(name) ?? -Infinity)) out.set(name, at);
+    }
+  }
+  return out;
 }
 
 /**

@@ -92,6 +92,10 @@ export interface V2Content {
   active: boolean;
   order_index: number;
   created_at: string;
+  /** When v2's server got the segment (its own clock, set on insert); `created_at` is the phone's. */
+  uploaded_at?: string | null;
+  /** When v2's server had every file `audio` names (its own clock, from its storage); null until then. */
+  audio_uploaded_at?: string | null;
 }
 
 export interface V2Vote {
