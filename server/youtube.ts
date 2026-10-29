@@ -403,7 +403,7 @@ export async function newComments(fetcher: Fetch, token: string, channelId: stri
 
 /**
  * The channel trailer's name among the videos (e2e/tutorials/trailer,
- * decisions.md 188): filmed and published as a video is, first in the
+ * decisions.md 189): filmed and published as a video is, first in the
  * playlist for everyone, and once up it is what the channel shows people who
  * have not subscribed.
  */

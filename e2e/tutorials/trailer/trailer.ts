@@ -1,5 +1,5 @@
 // The channel trailer in the nightly filming (README.md, nightly.ts,
-// decisions.md 188): what it says, its look, and its words on YouTube.
+// decisions.md 189): what it says, its look, and its words on YouTube.
 // Like a video's (look.ts), the look is what the screens it shows say, made
 // steady, here with what the film is made of: its page, its renderer, its
 // capture, its score and its words in the language. The film is made again

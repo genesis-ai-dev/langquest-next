@@ -167,7 +167,7 @@ dashboard counts them for each channel.
 ## The trailer
 
 Each channel greets people who have not subscribed with a 48-second film of
-the app in its language (decision 188, `e2e/tutorials/trailer/README.md`):
+the app in its language (decision 189, `e2e/tutorials/trailer/README.md`):
 the October 2026 team film "From the ground up" made again from today's
 screens, with its score. It is filmed with the videos each night and made
 again only when its screens or its parts change, like a video. It goes up as

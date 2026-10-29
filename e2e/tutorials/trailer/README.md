@@ -2,7 +2,7 @@
 
 A 48-second film about LangQuest Next, in each app language, that each
 YouTube channel shows to people who have not subscribed yet (decisions.md
-188, `docs/tutorial-videos.md`). It is the October 2026 team film "From the
+189, `docs/tutorial-videos.md`). It is the October 2026 team film "From the
 ground up", made again on today's app: the same score and timeline, with the
 app's own screens in the six steps.
 

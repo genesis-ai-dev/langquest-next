@@ -329,7 +329,7 @@ do $$ declare v jsonb; begin
 end $$;
 reset role;
 
--- Each channel's trailer (migration *_youtube_channel_trailer.sql, decisions.md 188): the job reads the
+-- Each channel's trailer (migration *_youtube_channel_trailer.sql, decisions.md 189): the job reads the
 -- video the language's newest trailer became, so a channel whose trailer was not set gets it next run.
 set local role service_role;
 select public.ops_tutorial_made('trailer', 'es', repeat('9', 64), 'LangQuest Next · Escucha. Habla.', 'Cada uno merece un lugar seguro.', 'Todos', 0, 48, 5000000);

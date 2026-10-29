@@ -10,7 +10,7 @@ import {
  * order, and the database is told which YouTube video it became as soon as
  * it is up, so a later failure never puts it up twice. A new version takes
  * the old one's place in its playlist, and the old one is unlisted with a
- * line pointing to the new one. The trailer (decisions.md 188) goes first in
+ * line pointing to the new one. The trailer (decisions.md 189) goes first in
  * its playlist and becomes the channel's trailer, the video the channel
  * shows people who have not subscribed. Before any video, each channel that does not
  * yet look as it should (its description, language, banner and list of the
@@ -44,7 +44,7 @@ export interface Channel {
   channelId: string;
   language: ChannelLanguage;
   branded: string | null;
-  /** The YouTube video the language's newest trailer became, once one is up (decisions.md 188). */
+  /** The YouTube video the language's newest trailer became, once one is up (decisions.md 189). */
   trailer?: string | null;
 }
 

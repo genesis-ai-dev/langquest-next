@@ -76,6 +76,14 @@ export interface Fact {
   gone?: boolean;
   /** Taken back because someone here decided so, never because of v2: the dashboard's Leave out, or a link that moved a person. */
   withdraw?: boolean;
+  /**
+   * When v2's server got what statement `n` says, by its own clock, keyed as
+   * the access-token API asks (`review:<reviewId>`, `file:<hash>`,
+   * `segment:<hash>`; decisions.md 188); null where v2 has no stamp. Kept
+   * beside the log, never said in it, so a change is kept again without a
+   * new statement.
+   */
+  stamps?: (n: number) => Record<string, string | null>;
 }
 
 /** What the import last said about one fact. */
@@ -99,6 +107,8 @@ export interface LedgerEntry {
    */
   undo?: Said[];
   withdrawn: boolean;
+  /** Digest of the stamps last kept for it (`Fact.stamps`): different ones are kept again. */
+  stamped?: string;
 }
 
 /** What the import has said about another fact, as of this point in the pass. */
@@ -110,6 +120,15 @@ export interface Reconciled {
   entries: Map<string, LedgerEntry>;
   /** Which entry each event belongs to, so a refused event leaves its entry unsaved. */
   owner: Map<string, string>;
+  /** v2's stamps to keep, before the events they are about are appended (`Fact.stamps`). */
+  stamps: Stamp[];
+}
+
+/** One time v2's server stamped on something the import brought over, in one language. */
+export interface Stamp {
+  streamId: string;
+  key: string;
+  at: string;
 }
 
 export interface ReconcileContext {
@@ -141,8 +160,19 @@ export function reconcile(facts: readonly Fact[], ledger: ReadonlyMap<string, Le
   const events: AnyEvent[] = [];
   const entries = new Map<string, LedgerEntry>();
   const owner = new Map<string, string>();
+  const stamps: Stamp[] = [];
   const seen = new Set<string>();
   const look: Look = (key) => entries.get(key) ?? ledger.get(key);
+
+  /** The entry with the fact's stamps for statement `n` kept, when they are not the ones it kept last. */
+  const stamped = (fact: Fact, entry: LedgerEntry, n: number): LedgerEntry | null => {
+    if (!fact.stamps) return null;
+    const now = fact.stamps(n);
+    const digest = hash53(canonical(now));
+    if (entry.stamped === digest) return null;
+    for (const [key, at] of Object.entries(now)) if (at) stamps.push({ streamId: entry.streamId, key, at });
+    return { ...entry, stamped: digest };
+  };
 
   const emit = (entry: LedgerEntry, n: number, said: Said[], actorId: string, at: number, verb: 'say' | 'unsay'): LedgerEntry => {
     const wall = Math.max(Math.min(at, ctx.now), entry.hlc ? decodeHlc(entry.hlc).wallMs + 1 : 0);
@@ -177,24 +207,30 @@ export function reconcile(facts: readonly Fact[], ledger: ReadonlyMap<string, Le
       continue;
     }
     const digest = fact.value !== undefined ? hash53(canonical(fact.value)) : digestOf(fact.say({ n: 0, lastSaid: null }, look));
-    if (prior && !prior.withdrawn && (prior.digest === digest || (fact.restate === false && prior.digest !== ''))) continue;
+    if (prior && !prior.withdrawn && (prior.digest === digest || (fact.restate === false && prior.digest !== ''))) {
+      // Said already, but v2 may have stamped it since (audio that reached v2 later), or it was said before stamps were kept.
+      const restamped = prior.lastSaid !== null ? stamped(fact, prior, prior.lastSaid) : null;
+      if (restamped) entries.set(fact.key, restamped);
+      continue;
+    }
     const s = { n: base.n + 1, lastSaid: base.lastSaid };
     const said = prior?.withdrawn && fact.resay ? fact.resay(s) : fact.say(s, look);
     // Nothing to say yet (a review of a version that has not come over): as if held.
     if (said.length === 0) continue;
     const undo = fact.unsay === 'redact' ? undefined : fact.unsay({ n: s.n + 1, lastSaid: s.n });
     const { undo: _old, ...rest } = emit(base, s.n, said, fact.actorId, at, 'say');
-    entries.set(fact.key, { ...rest, digest, ...(undo ? { undo } : {}) });
+    const entry = { ...rest, digest, ...(undo ? { undo } : {}) };
+    entries.set(fact.key, stamped(fact, entry, s.n) ?? entry);
   }
 
   // Facts the import said that are no longer stated at all: kept, unless they are the dashboard's to drop.
-  if (!ctx.takeBackAbsent) return { events, entries, owner };
+  if (!ctx.takeBackAbsent) return { events, entries, owner, stamps };
   const drops = typeof ctx.takeBackAbsent === 'function' ? ctx.takeBackAbsent : () => true;
   for (const entry of ledger.values()) {
     if (seen.has(entry.key) || entry.withdrawn || !drops(entry.key)) continue;
     entries.set(entry.key, takeBack(null, entry, ctx.now));
   }
-  return { events, entries, owner };
+  return { events, entries, owner, stamps };
 
   function takeBack(fact: Fact | null, entry: LedgerEntry, at: number): LedgerEntry {
     const s = { n: entry.n + 1, lastSaid: entry.lastSaid };

@@ -1,4 +1,4 @@
--- Each YouTube channel's trailer (decisions.md 188, e2e/tutorials/trailer):
+-- Each YouTube channel's trailer (decisions.md 189, e2e/tutorials/trailer):
 -- the publish job's list of the connected channels also says which YouTube
 -- video the language's newest trailer became, so a channel's look includes
 -- it and a trailer that could not be set as the channel's is set on the next
