@@ -192,8 +192,10 @@ signs in here everything they did is already theirs.
 
 A version waits until every file in it has reached v2's bucket (v2 stamps
 `audio_uploaded_at`), so a half-uploaded publish does not become a version;
-after seven days it comes over with what has arrived, and the report lists
-the rest.
+seven days after v2's server got its rows (`uploaded_at`, the server's
+clock, not the phone's `created_at`), it comes over with what has arrived,
+and the report lists the rest. A phone offline for weeks sends rows recorded
+weeks ago, so a wait counted from the recording was over before it began.
 
 ## 5. Keeping up with v2
 
@@ -222,7 +224,9 @@ the rest.
   file names) never download it again. A file v2 does not have is asked
   for on every pass for its first hour, since a phone's upload can trail
   its rows, then only by the whole read or a transfer someone starts, for
-  a week (decisions.md 94).
+  a week (decisions.md 94). Once v2 says it has the file after that
+  (`audio_uploaded_at` later than the miss), it is asked for again: on the
+  pass that sees it arrive, and by every whole read until it is copied.
 - **Audio phones may not play.** v2 took any file a team uploaded, and
   some Every Language teams uploaded whole chapters as MP3 (573 files in
   33 projects on 2026-10-23, 16 of them WebM). A recording here is

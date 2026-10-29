@@ -218,11 +218,14 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
     const lost: string[] = [];
     let waiting = false;
     for (const c of contentsOf.get(a.id) ?? []) {
+      // The wait counts from when v2's server got the segment, not from when the phone recorded it:
+      // a phone offline for weeks sends its rows with its audio still to go.
+      const since = Math.max(Date.parse(at(a.created_at)), c.uploaded_at ? Date.parse(at(c.uploaded_at)) : -Infinity);
       for (const raw of c.audio ?? []) {
         const name = bucketName(raw);
         const file = name ? ctx.files.get(name) : undefined;
         if (file) cards.push({ hash: file.hash, durationMs: file.durationMs, ...(file.format === 'wav' ? { format: 'wav' as const } : {}) });
-        else if (name && ctx.now - Date.parse(at(a.created_at)) < (ctx.waitMs ?? WAIT_MS)) waiting = true;
+        else if (name && ctx.now - since < (ctx.waitMs ?? WAIT_MS)) waiting = true;
         else lost.push(raw);
       }
     }
