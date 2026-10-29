@@ -9,8 +9,8 @@
 //   npx tsx e2e/tutorials/translate-lines.ts [language ...]
 //   TUTORIAL_TRANSLATE_SHOW=1 npx tsx e2e/tutorials/translate-lines.ts es   (what Gemini is asked)
 //
-// GEMINI_API_KEY is sent when it is set, as in gemini-voice.mjs.
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+// GEMINI_API_KEY is sent when it is set, and what Gemini counted is kept, as in gemini-voice.mjs.
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { UI_LANGUAGES } from '@langquest-next/core';
 import { TUTORIALS } from './all';
@@ -126,8 +126,20 @@ for (;;) {
   job = await call(`${API}/${name}`);
 }
 
+const replies = (job.response ?? job.metadata?.output)?.inlinedResponses?.inlinedResponses ?? [];
+const used = { model: MODEL, requests: replies.length, in: 0, out: 0, thinking: 0 };
+for (const reply of replies) {
+  const u = reply.response?.usageMetadata;
+  used.in += u?.promptTokenCount ?? 0;
+  used.out += u?.candidatesTokenCount ?? 0;
+  used.thinking += u?.thoughtsTokenCount ?? 0;
+}
+const usage = process.env['TUTORIAL_GEMINI_USAGE'] ?? path.join('e2e', 'results', 'tutorials', 'gemini-usage.jsonl');
+mkdirSync(path.dirname(usage), { recursive: true });
+appendFileSync(usage, `${JSON.stringify(used)}\n`);
+
 const problems: string[] = [];
-for (const reply of (job.response ?? job.metadata?.output)?.inlinedResponses?.inlinedResponses ?? []) {
+for (const reply of replies) {
   const j = jobs[Number(reply.metadata?.key)];
   if (!j) continue;
   const text = reply.response?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? '').join('') ?? '';

@@ -10,6 +10,11 @@
 // (put-in-release.ts), so a night that changes nothing says nothing.
 //
 //   npx tsx e2e/tutorials/make-readings.ts [language ...]
+//   npx tsx e2e/tutorials/make-readings.ts --grace     only Grace's pieces, the same in every language
+//
+// The pieces are kept too (speech/pieces, in each language's voice in the
+// release), so a reading made again from the same words costs nothing; Grace's,
+// French in every language, are said once for all fifteen (tutorials.yml).
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -27,6 +32,21 @@ const BREATH = 0.45;
 const root = path.join('e2e', 'results', 'tutorials', 'speech');
 const pieceFile = (who: Reading['who'], words: string) =>
   path.join(root, 'pieces', `${createHash('sha256').update(`${VOICES[who]}\n${words}`).digest('hex').slice(0, 16)}.wav`);
+
+/** Says these pieces in one run of the voice: Gemini's batch jobs are what costs. */
+function say(who: Reading['who'], missing: Map<string, string>): void {
+  if (!missing.size) return;
+  console.log(`${missing.size} pieces for ${who} (${VOICES[who]})`);
+  execFileSync('node', [path.join('e2e', 'tutorials', 'gemini-voice.mjs'), ...[...missing].flat()], {
+    stdio: 'inherit', env: { ...process.env, TUTORIAL_TTS_VOICE: VOICES[who] }
+  });
+}
+
+if (process.argv.includes('--grace')) {
+  const words = Object.values(READINGS).filter((r) => r.who === 'grace').flatMap((r) => r.parts.flat());
+  say('grace', new Map(words.filter((w) => !existsSync(pieceFile('grace', w))).map((w) => [pieceFile('grace', w), w])));
+  process.exit(0);
+}
 
 const wanted = process.argv.slice(2);
 const languages = wanted.length ? wanted : UI_LANGUAGES.map((l) => l.code);
@@ -56,11 +76,7 @@ for (const who of ['grace', 'ruth'] as const) {
       for (const words of piecesOf(code, r).flat()) if (!existsSync(pieceFile(who, words))) missing.set(pieceFile(who, words), words);
     }
   }
-  if (!missing.size) continue;
-  console.log(`${missing.size} pieces for ${who} (${VOICES[who]})`);
-  execFileSync('node', [path.join('e2e', 'tutorials', 'gemini-voice.mjs'), ...[...missing].flat()], {
-    stdio: 'inherit', env: { ...process.env, TUTORIAL_TTS_VOICE: VOICES[who] }
-  });
+  say(who, missing);
 }
 
 /** A piece as 16-bit mono samples at 24 kHz, quicker or slower as the reading asks. */

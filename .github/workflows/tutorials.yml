@@ -70,8 +70,42 @@ jobs:
             gh release create tutorials --repo "$GITHUB_REPOSITORY" --prerelease --latest=false --title "Tutorial videos" \
               --notes "Each tutorial video's newest film in each app language, made each night by .github/workflows/tutorials.yml (docs/tutorial-videos.md)."
 
-  film:
+  # Grace reads the same French in every language's films (readings.ts): her
+  # pieces are said here once for all of them, before the languages' jobs,
+  # and kept in the release (pieces-grace.tgz), instead of once in each job.
+  grace:
     needs: languages
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Grace's pieces, said once for every language
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          mkdir -p e2e/results/tutorials
+          if gh release download tutorials -D "$RUNNER_TEMP" -p pieces-grace.tgz; then tar xzf "$RUNNER_TEMP/pieces-grace.tgz" -C e2e/results/tutorials; fi
+          status=0
+          npx tsx e2e/tutorials/make-readings.ts --grace || status=$?
+          # What Gemini said is kept, even when it did not say every piece.
+          if [ -f e2e/results/tutorials/gemini-usage.jsonl ] && [ -d e2e/results/tutorials/speech/pieces ]; then
+            tar czf "$RUNNER_TEMP/pieces-grace.tgz" -C e2e/results/tutorials speech/pieces
+            gh release upload tutorials "$RUNNER_TEMP/pieces-grace.tgz" --clobber
+          fi
+          exit "$status"
+      - name: What Gemini counted
+        if: always()
+        run: node e2e/tutorials/gemini-usage.mjs | tee -a "$GITHUB_STEP_SUMMARY"
+
+  film:
+    needs: [languages, grace]
+    # Without Grace's pieces (Gemini refused them) each language says its own.
+    if: ${{ !cancelled() && needs.languages.result == 'success' }}
     runs-on: ubuntu-latest
     # The first night of a language films all 47 videos.
     timeout-minutes: 300
@@ -127,6 +161,11 @@ jobs:
           mkdir -p "$RUNNER_TEMP/release" e2e/results/tutorials
           gh release download tutorials -D "$RUNNER_TEMP/release" -p "manifest-$LANGUAGE.json" -p "voice-$LANGUAGE.tgz" || true
           if [ -f "$RUNNER_TEMP/release/voice-$LANGUAGE.tgz" ]; then tar xzf "$RUNNER_TEMP/release/voice-$LANGUAGE.tgz" -C e2e/results/tutorials; fi
+          if gh release download tutorials -D "$RUNNER_TEMP" -p pieces-grace.tgz; then tar xzf "$RUNNER_TEMP/pieces-grace.tgz" -C e2e/results/tutorials; fi
+          # The trailer records Grace's reading from the English night in every language (trailer/capture.ts).
+          if [ "$LANGUAGE" != en ] && gh release download tutorials -D "$RUNNER_TEMP" -p voice-en.tgz; then
+            tar xzf "$RUNNER_TEMP/voice-en.tgz" -C e2e/results/tutorials speech/en || true
+          fi
           ls "$RUNNER_TEMP/release"
       # A line no one has translated yet (a script's new line, what Ruth says in
       # the readings) is translated here by Gemini, so the language is still
@@ -162,6 +201,10 @@ jobs:
       - name: Put the new films in the release
         if: ${{ !cancelled() }}
         run: npx tsx e2e/tutorials/put-in-release.ts "$LANGUAGE" "$RUNNER_TEMP/out"
+      # Tokens in, out and thinking for each model, to set against the bill in AI Studio.
+      - name: What Gemini counted
+        if: always()
+        run: node e2e/tutorials/gemini-usage.mjs | tee -a "$GITHUB_STEP_SUMMARY"
       # A step that could not finish leaves the screen as it was (failed-*.png) and its words (failed-*.txt).
       - name: Keep the logs and each step's picture
         if: always()

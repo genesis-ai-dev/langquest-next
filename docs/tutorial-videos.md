@@ -58,6 +58,14 @@ than one asked to be unhurried. Jobs of more than about 100 lines come back
 with many lines turned down ("Precondition check failed"), so
 `gemini-voice.mjs` sends 100 at a time and sends the turned-down lines again.
 
+What Gemini counts for each batch job (tokens in, out and thinking) goes into
+`e2e/results/tutorials/gemini-usage.jsonl`, and each job's summary on GitHub
+adds it up by model (`gemini-usage.mjs`), to set against the bill in AI Studio.
+The first filming in all fifteen languages (29 October 2026) stopped on
+"prepayment credits are depleted" after about 8 hours of speech from CA$50 of
+prepaid credit, where Google's list price (25 audio tokens a second, US$4.50 a
+million in a batch) comes to about US$4: the counts are there to find out why.
+
 What the speaker says into the microphone (`readings.ts`) is parts with a
 long pause after each, since the app's recorder ends a part after a second of
 quiet (`splitter.ts`), and a part said as two pieces has a breath between
@@ -111,8 +119,11 @@ the job keeps the file as `lines-<language>`, to commit), and `nightly.ts`:
 
 `put-in-release.ts` then puts the new films in the release (public, a
 pre-release), then the manifest, then the language's voice
-(`voice-<language>.tgz`, so a line is said once), and takes out the films the
-manifest no longer names. A language's job that fails files it in Linear.
+(`voice-<language>.tgz`: its lines, its readings and the pieces they are made
+of, so a line is said once), and takes out the films the manifest no longer
+names. Grace's pieces are the same French in every language, so the workflow
+says them once, before the languages' jobs, and keeps them in
+`pieces-grace.tgz`. A language's job that fails files it in Linear.
 The workflow holds the Gemini key (`GEMINI_API_KEY`, a repository secret
 that `npm run secrets -- production` sets from `.env.production`) and no
 production key.
@@ -152,6 +163,17 @@ of the other channels. The publish job puts these on whenever they change
 (`server/youtube.ts` `brandChannel`, decision 184); the picture is set by
 hand. Comments that may be inappropriate are held for review, and the ops
 dashboard counts them for each channel.
+
+## The trailer
+
+Each channel greets people who have not subscribed with a 48-second film of
+the app in its language (decision 189, `e2e/tutorials/trailer/README.md`):
+the October 2026 team film "From the ground up" made again from today's
+screens, with its score. It is filmed with the videos each night and made
+again only when its screens or its parts change, like a video. It goes up as
+the video `trailer`, first in the playlist for everyone, and the publish job
+makes it the channel's trailer. Its count ("1,000,000+ audio clips") and the
+day it was so are `CLIPS` and `AS_OF` in `e2e/tutorials/trailer/trailer.ts`.
 
 ## Downloads
 

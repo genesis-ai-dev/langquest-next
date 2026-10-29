@@ -1,5 +1,5 @@
 import {
-  accessToken, brandChannel, brandOf, channelFull, heldComments, outOfQuota, placeInPlaylist, playlistFor, retire, uploadVideo, YouTubeError,
+  accessToken, brandChannel, brandOf, channelFull, heldComments, outOfQuota, placeInPlaylist, playlistFor, retire, TRAILER, uploadVideo, YouTubeError,
   type ChannelLanguage, type Client, type Fetch
 } from './youtube';
 
@@ -10,7 +10,9 @@ import {
  * order, and the database is told which YouTube video it became as soon as
  * it is up, so a later failure never puts it up twice. A new version takes
  * the old one's place in its playlist, and the old one is unlisted with a
- * line pointing to the new one. Before any video, each channel that does not
+ * line pointing to the new one. The trailer (decisions.md 189) goes first in
+ * its playlist and becomes the channel's trailer, the video the channel
+ * shows people who have not subscribed. Before any video, each channel that does not
  * yet look as it should (its description, language, banner and list of the
  * others: youtube.ts `brandChannel`) is brought up to date, and the comments
  * YouTube holds for review on each are counted for the dashboard.
@@ -42,6 +44,8 @@ export interface Channel {
   channelId: string;
   language: ChannelLanguage;
   branded: string | null;
+  /** The YouTube video the language's newest trailer became, once one is up (decisions.md 189). */
+  trailer?: string | null;
 }
 
 export interface PublisherDeps {
@@ -154,9 +158,9 @@ async function tendChannels(deps: PublisherDeps, run: Run, report: PublishReport
     try {
       token = await tokenFor(deps, run, channel.channelId);
       const banner = await deps.banner(channel.language);
-      const brand = await brandOf(channel.language, banner);
+      const brand = await brandOf(channel.language, banner, channel.trailer);
       if (brand !== channel.branded) {
-        await brandChannel(deps.fetcher, token, channel.language, banner);
+        await brandChannel(deps.fetcher, token, channel.language, banner, channel.trailer ?? undefined);
         await deps.branded(channel, brand, null);
         report.branded += 1;
       }
@@ -194,13 +198,14 @@ async function publishSome(deps: PublisherDeps, run: Run, due: Due[], report: Pu
     if (run.full.has(video.channelId)) continue;
     run.tried.add(key(video));
     report.due += 1;
+    const trailer = video.tutorial === TRAILER;
     let youtubeId: string;
     let access: string;
     try {
       access = await token(video.channelId);
       const file = await deps.file(video);
       youtubeId = await uploadVideo(deps.fetcher, access, {
-        title: video.title, description: video.description, language: video.language, file, replacing: video.replaces !== null
+        title: video.title, description: video.description, language: video.language, file, replacing: video.replaces !== null, synthetic: !trailer
       });
     } catch (e) {
       if (channelFull(e)) {
@@ -223,7 +228,13 @@ async function publishSome(deps: PublisherDeps, run: Run, due: Due[], report: Pu
       const key = `${video.channelId}\n${video.playlist}`;
       let playlistId = playlists.get(key);
       if (!playlistId) playlists.set(key, (playlistId = await playlistFor(deps.fetcher, access, video.playlist, video.language)));
-      await placeInPlaylist(deps.fetcher, access, playlistId, youtubeId, video.replaces ?? undefined);
+      await placeInPlaylist(deps.fetcher, access, playlistId, youtubeId, video.replaces ?? undefined, trailer);
+      // The channel's trailer at once; when that fails, the next run's look of the channel includes it (tendChannels).
+      if (trailer) {
+        const banner = await deps.banner(video.language);
+        await brandChannel(deps.fetcher, access, video.language, banner, youtubeId);
+        await deps.branded({ channelId: video.channelId, language: video.language, branded: null }, await brandOf(video.language, banner, youtubeId), null);
+      }
       if (video.replaces) {
         await retire(deps.fetcher, access, video.replaces, youtubeId, video.language);
         report.replaced += 1;

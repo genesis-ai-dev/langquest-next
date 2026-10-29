@@ -18,12 +18,15 @@ const video = (tutorial: string, over: Partial<Due> = {}): Due => ({
 function youtube(options: { uploads?: number; perChannel?: number; tokenRefused?: string; channel?: string; brandRefused?: string } = {}) {
   const calls: string[] = [];
   const sent: Record<string, unknown>[] = [];
+  /** Every JSON body sent, by call. */
+  const bodies: { call: string; body: unknown }[] = [];
   let uploaded = 0;
   const byChannel = new Map<string, number>();
   const fetcher = async (input: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
     const path = input.split('?')[0]!.replace('https://www.googleapis.com', '');
     calls.push(`${method} ${path}`);
+    if (typeof init?.body === 'string' && init.body.startsWith('{')) bodies.push({ call: `${method} ${path}`, body: JSON.parse(init.body) });
     if (input === 'https://oauth2.googleapis.com/token') {
       const refresh = new URLSearchParams(String(init?.body)).get('refresh_token');
       return options.tokenRefused ? Response.json({ error: options.tokenRefused }, { status: 400 }) : Response.json({ access_token: `ya29 ${refresh}` });
@@ -62,7 +65,7 @@ function youtube(options: { uploads?: number; perChannel?: number; tokenRefused?
     if (path === '/youtube/v3/videos') return Response.json({ id: 'oldvideo001' });
     return new Response('{}', { status: 404 });
   };
-  return { calls, sent, fetcher };
+  return { calls, sent, bodies, fetcher };
 }
 
 const BANNER = new Uint8Array([137, 80, 78, 71]);
@@ -96,6 +99,38 @@ describe('the publish job', () => {
     // One token and one look for the playlist, kept for the second video.
     expect(yt.calls.filter((c) => c.includes('oauth2'))).toHaveLength(1);
     expect(yt.calls.filter((c) => c === 'GET /youtube/v3/playlists')).toHaveLength(1);
+  });
+
+  it('puts the trailer first in its playlist and makes it the channel\'s trailer, without a computer\'s voice', async () => {
+    const yt = youtube();
+    const d = deps([video('record-a-passage'), video('trailer', { playlist: 'Todos' })], yt);
+    expect(await publishTutorials(d.deps, fresh())).toMatchObject({ published: 2, incomplete: 0 });
+    const body = (call: string, n: number) => yt.bodies.filter((b) => b.call === call)[n]?.body;
+    expect(body('POST /upload/youtube/v3/videos', 0)).toMatchObject({ status: { containsSyntheticMedia: true } });
+    expect(body('POST /upload/youtube/v3/videos', 1)).toMatchObject({ status: { containsSyntheticMedia: false } });
+    expect(body('POST /youtube/v3/playlistItems', 0)).toEqual({ snippet: { playlistId: 'PLtrad', resourceId: { kind: 'youtube#video', videoId: 'video000001' } } });
+    expect(body('POST /youtube/v3/playlistItems', 1)).toEqual({ snippet: { playlistId: 'PLnew', resourceId: { kind: 'youtube#video', videoId: 'video000002' }, position: 0 } });
+    // The channel's other settings and look stay as they were, with the trailer named.
+    expect(yt.sent).toEqual([{
+      id: CHANNELS.es,
+      brandingSettings: {
+        channel: { keywords: 'LangQuest', country: 'MX', description: channelAbout('es'), unsubscribedTrailer: 'video000002', defaultLanguage: 'es' },
+        image: { bannerExternalUrl: 'https://yt3.example/banner' }
+      }
+    }]);
+    // And the look put on the channel is the one with its trailer, so the next run leaves it.
+    expect(d.marks).toEqual(['record-a-passage video000001', 'trailer video000002', 'es branded']);
+  });
+
+  it('makes a trailer that is up the channel\'s on the next run when that failed, and then leaves it', async () => {
+    const yt = youtube();
+    const es: Channel = { channelId: CHANNELS.es, language: 'es', branded: await brandOf('es', BANNER), trailer: 'video000009' };
+    expect(await publishTutorials(deps([], yt, undefined, [es]).deps, fresh())).toMatchObject({ branded: 1, brandFailed: 0 });
+    expect(yt.sent[0]).toMatchObject({ brandingSettings: { channel: { unsubscribedTrailer: 'video000009' } } });
+    expect(es.branded).toBe(await brandOf('es', BANNER, 'video000009'));
+    const again = youtube();
+    await publishTutorials(deps([], again, undefined, [es]).deps, fresh());
+    expect(again.sent).toEqual([]);
   });
 
   it('puts a new version in the old one\'s place and unlists the old one', async () => {

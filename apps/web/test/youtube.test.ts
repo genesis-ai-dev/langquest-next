@@ -97,14 +97,14 @@ describe('Connect', () => {
 });
 
 describe('Publish', () => {
-  it('uploads a video public, not for kids, marked as a computer\'s voice, telling subscribers only of a first version', async () => {
+  it('uploads a video public, not for kids, marked when its voice is a computer\'s, telling subscribers only of a first version', async () => {
     const f = google((c) => {
       if (c.url.startsWith('https://www.googleapis.com/upload/youtube/v3/videos?')) return new Response(null, { status: 200, headers: { location: 'https://upload.example/session/1' } });
       if (c.url === 'https://upload.example/session/1') return Response.json({ id: 'NEWvideo000' });
       return undefined;
     });
     const bytes = new Uint8Array([1, 2, 3]);
-    expect(await uploadVideo(f, 'at', { title: 'Grabar un pasaje', description: 'Cómo grabar.', language: 'es', file: { body: bytes, bytes: 3 }, replacing: true })).toBe('NEWvideo000');
+    expect(await uploadVideo(f, 'at', { title: 'Grabar un pasaje', description: 'Cómo grabar.', language: 'es', file: { body: bytes, bytes: 3 }, replacing: true, synthetic: true })).toBe('NEWvideo000');
     const [start, put] = f.calls;
     expect(new URL(start!.url).searchParams.get('notifySubscribers')).toBe('false');
     expect(start!.headers['x-upload-content-length']).toBe('3');
@@ -117,7 +117,7 @@ describe('Publish', () => {
 
   it('tells the project\'s day used up from a channel\'s', async () => {
     const f = google(() => Response.json({ error: { code: 400, errors: [{ reason: 'uploadLimitExceeded' }] } }, { status: 400 }));
-    const e = await uploadVideo(f, 'at', { title: 't', description: 'd', language: 'en', file: { body: new Uint8Array(1), bytes: 1 }, replacing: false }).catch((x: unknown) => x);
+    const e = await uploadVideo(f, 'at', { title: 't', description: 'd', language: 'en', file: { body: new Uint8Array(1), bytes: 1 }, replacing: false, synthetic: true }).catch((x: unknown) => x);
     expect(e).toBeInstanceOf(YouTubeError);
     expect((e as YouTubeError).code).toBe('youtube_uploadLimitExceeded');
     expect(channelFull(e)).toBe(true);
@@ -139,7 +139,7 @@ describe('Publish', () => {
     expect(f.calls.at(-1)!.body).toEqual({ snippet: { title: 'Revisores', defaultLanguage: 'es' }, status: { privacyStatus: 'public' } });
   });
 
-  it('puts a new version in the old one\'s place in the playlist, and a first version at the end', async () => {
+  it('puts a new version in the old one\'s place in the playlist, a first version at the end, and the trailer first', async () => {
     const f = google((c) => {
       if (c.method === 'GET' && c.url.includes('/playlistItems?')) return Response.json({ items: [{ id: 'ITEMold', snippet: { position: 4 } }] });
       if (c.method === 'POST' && c.url.includes('/playlistItems?part=snippet')) return Response.json({ id: 'ITEMnew' });
@@ -154,6 +154,10 @@ describe('Publish', () => {
     await placeInPlaylist(f, 'at', 'P2', 'NEWvideo000');
     expect(f.calls.map((c) => c.method)).toEqual(['POST']);
     expect(f.calls[0]!.body).toEqual({ snippet: { playlistId: 'P2', resourceId: { kind: 'youtube#video', videoId: 'NEWvideo000' } } });
+    // The trailer goes first.
+    f.calls.length = 0;
+    await placeInPlaylist(f, 'at', 'P2', 'NEWvideo000', undefined, true);
+    expect(f.calls[0]!.body).toEqual({ snippet: { playlistId: 'P2', resourceId: { kind: 'youtube#video', videoId: 'NEWvideo000' }, position: 0 } });
   });
 
   it('unlists the old version with a first line to the new one, keeping the rest of it', async () => {
