@@ -16,6 +16,7 @@ import {
   useWorld, waitForApp, type AccountKey
 } from './support';
 import type { UiWorld } from './fixture';
+import { psql } from './pass-helpers';
 
 const world = useWorld();
 test.beforeEach(async ({ context }) => { await quietDevServer(context); });
@@ -699,6 +700,68 @@ test('ACCT-051 In a list, one row takes the help numbers', async ({ page }) => {
   await expect(chapters.first()).toBeVisible();
   await byId(page, 'header-help').click();
   await expect(page.getByTestId('help-number').locator('visible=true')).toHaveCount(0);
+});
+
+/** A baseline or progressive JPEG's width and height, from its frame header. */
+function jpegSize(bytes: Buffer): { width: number; height: number } {
+  for (let i = 2; i + 9 < bytes.length;) {
+    if (bytes[i] !== 0xff) throw new Error(`not a JPEG marker at ${i}`);
+    const marker = bytes[i + 1]!;
+    if (marker === 0xc0 || marker === 0xc2) return { height: bytes.readUInt16BE(i + 5), width: bytes.readUInt16BE(i + 7) };
+    i += 2 + bytes.readUInt16BE(i + 2);
+  }
+  throw new Error('no frame header');
+}
+
+test('ACCT-058 Feedback carries a picture of their own', async ({ page }) => {
+  await openAs(page, world(), 'TRANS');
+  await openMe(page);
+  // Larger than the app sends: 2400 × 1200, drawn here as a PNG.
+  const png = await page.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 2400;
+    c.height = 1200;
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#227744';
+    g.fillRect(0, 0, 2400, 1200);
+    g.fillStyle = '#ffffff';
+    g.font = 'bold 240px sans-serif';
+    g.fillText('ACCT-058', 300, 700);
+    return c.toDataURL('image/png').split(',')[1]!;
+  });
+  const picture = { name: 'photo.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') };
+  await byId(page, 'header-help').click();
+  await byId(page, 'help-feedback').click();
+  const add = byId(page, 'feedback-picture');
+  await expect(add).toHaveAccessibleName(/^Add a picture/, { timeout: 15_000 });
+  const choose = async () => {
+    const chooser = page.waitForEvent('filechooser');
+    await add.click();
+    await (await chooser).setFiles(picture);
+  };
+  await choose();
+  const preview = byId(page, 'feedback-picture-preview');
+  await expect(preview).toBeVisible();
+  await expect(add).toHaveAccessibleName(/^Choose another picture/);
+  // In its own shape, as wide as the sheet.
+  const box = (await preview.boundingBox())!;
+  expect(box.width / box.height).toBeCloseTo(2, 1);
+  await button(page, 'Remove the picture').click();
+  await expect(page.getByTestId('feedback-picture-preview')).toHaveCount(0);
+  await expect(add).toHaveAccessibleName(/^Add a picture/);
+  await choose();
+  await expect(preview).toBeVisible();
+  const words = `The photo shows it (${Date.now()})`;
+  await byId(page, 'feedback-body').fill(words);
+  await expect(primary(page)).toHaveAccessibleName('Send');
+  await primary(page).click();
+  await expectToast(page, 'Sent. Thank you!');
+  // On the server: the words and the picture, a JPEG no longer than 1600 px, within 1 MB.
+  const sent = await psql(`select encode(picture, 'base64') from diag.feedback where body = '${words}'`);
+  const jpeg = Buffer.from(sent.replace(/\s+/g, ''), 'base64');
+  expect(jpeg.subarray(0, 3).toString('hex')).toBe('ffd8ff');
+  expect(jpeg.length).toBeLessThanOrEqual(1_000_000);
+  expect(jpegSize(jpeg)).toEqual({ width: 1600, height: 800 });
 });
 
 // ---- Signing out ---------------------------------------------------------------------------------

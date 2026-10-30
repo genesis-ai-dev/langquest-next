@@ -981,7 +981,6 @@
       "noWays": "No ways to check to choose from yet.",
       "notAdded": "Not added",
       "inviteLater": "Invite {{language}}'s translators from its page later.",
-      "later": "Later",
       "making": {
         "title": "Setting up {{language}}",
         "passages": "Getting the passages",
@@ -996,7 +995,6 @@
       "continueHelp": "On to the next question.",
       "addHelp": "Adds {{language}} with these answers. Then you can invite its translators.",
       "backHelp": "Back one page. What you chose stays chosen.",
-      "laterHelp": "Skips this for now. Invite its translators from its page later.",
       "stages": {
         "language": "Language",
         "content": "Content",
@@ -1037,7 +1035,8 @@
         "offHelp": "Left out. Tap so {{language}}’s team has it.",
         "nothing": "No Bibles or study guides in {{languages}} yet"
       },
-      "teamLanguages": "Which languages do {{language}}'s translators use?"
+      "teamLanguages": "Which languages do {{language}}'s translators use?",
+      "doneHelp": "Finishes setting up {{language}}. You can invite its translators from its page later."
     },
     "offers": {
       "guides": "{{name}}'s study guides",
@@ -1288,8 +1287,6 @@
       "linkCopied": "Invite link copied. Paste it into a message.",
       "couldNotShare": "Could not share it. Show the code instead.",
       "shareLink": "Share as a link",
-      "someoneElse": "Someone else",
-      "showCode": "Show the code to scan",
       "whatWillTheyDo": "What will they do?",
       "otherRoles": "Other roles · {{total}}",
       "newRole": "Something else: make a new role",
@@ -1301,10 +1298,6 @@
       "scopeLanguageHelp": "They join this language's team.",
       "scopeOrgHelp": "They join the whole organization: every language in it.",
       "shareLinkHelp": "Sends the code as a link in a message, or copies it.",
-      "someoneElseHelp": "Back to choose what someone else will do, for another code.",
-      "showCodeChecksHelp": "Makes a code that puts whoever scans it on the checks ticked.",
-      "showCodeNoChecksHelp": "Makes the code. They can be put on checks later, on each check’s page.",
-      "backToRolesHelp": "Back to the roles.",
       "whichChecks": "Which checks will they do?",
       "checkOnHelp": "They will be on this check. Tap to take it off.",
       "checkOffHelp": "Tap to put them on this check.",
@@ -1313,7 +1306,6 @@
       "whatTheyMayDo": "What they may do",
       "hideMayDoHelp": "Hides what this role lets them do.",
       "showMayDoHelp": "Shows what {{people}} may do, and where.",
-      "invite": "Invite",
       "inviteHelp": "Makes a code for {{people}} to scan.",
       "everyLanguage": "In every language",
       "onlyIn": "Only in {{language}}"
@@ -2129,7 +2121,25 @@
         "hebrew": "Hebrew",
         "korean": "Korean"
       },
-      "chooseFromListHelp": "Every numbering, each with three facts that tell them apart."
+      "chooseFromListHelp": "Every numbering, each with three facts that tell them apart.",
+      "why": {
+        "question": "Bibles number verses differently",
+        "english": "English Bible",
+        "hebrew": "Hebrew Bible",
+        "verse": "{{book}} {{chapter}}:{{verse}}",
+        "bibleA11y": "{{bible}}: {{chapters}}. The same verse is {{verse}}.",
+        "match": "The same verse can have another number. LangQuest needs your Bible's numbering, so the numbers match."
+      },
+      "how": {
+        "question": "Find your Bible's numbering",
+        "find": "Pick your Bible",
+        "findSub": "NIV, Reina-Valera, Luther…",
+        "findHelp": "Find the Bible your team translates from. LangQuest knows how it numbers verses.",
+        "quiz": "Take the quiz",
+        "quizSub": "A few questions, with your Bible open",
+        "list": "Choose the numbering",
+        "listSub": "If you know it already"
+      }
     },
     "own": {
       "title": "Divide it your own way",
@@ -2974,7 +2984,10 @@
       "scanQrHelp": "Opens the camera. Point it at the code.",
       "pasteHelp": "Paste a code or link here. It is read as soon as it is whole.",
       "clearInviteHelp": "Forgets this invite on this device.",
-      "notNowHelp": "Forgets this invite and goes back to your work."
+      "notNowHelp": "Forgets this invite and goes back to your work.",
+      "whoJoins": "Who is joining?",
+      "someoneNew": "Someone new",
+      "someoneNewHelp": "For someone not on this phone yet: a new account. Next, type their name."
     },
     "signInKey": {
       "notGuestTitle": "This is a sign-in code",
@@ -4033,7 +4046,8 @@
       "listeners": "Listeners",
       "liveIn": "Live in {{channel}} · {{version}}",
       "listenerCount": "Listener feedback: {{count, number}}",
-      "askedOffline": "Asked {{target}}. They get it when this device is connected."
+      "askedOffline": "Asked {{target}}. They get it when this device is connected.",
+      "askForAgain": "Ask for the {{check}} again"
     },
     "else": {
       "title": "Something else?",
@@ -4069,7 +4083,8 @@
       "doneHelp": "Goes back to the passage.",
       "pickCheckHelp": "Picks this check to ask for. Under it: the people who do it.",
       "someoneElseHelp": "Ask a different person, a team, or someone without the app.",
-      "notNowHelp": "Ask later. The version stays published."
+      "notNowHelp": "Ask later. The version stays published.",
+      "askTargetAgain": "Ask {{target}} again"
     },
     "keep": {
       "title": "Keep it as it is?",
@@ -4196,7 +4211,14 @@
       "answerTypeHelp": "Changes how they answer: yes or no, in words, or 1 to 5.",
       "addQuestionHelp": "Adds your question to the ones they answer.",
       "removeQuestionHelp": "Takes this question off.",
-      "openCheckHelp": "Opens {{check}}, where you change its questions."
+      "openCheckHelp": "Opens {{check}}, where you change its questions.",
+      "last": {
+        "good": "{{name}} checked version {{version}}: looks good",
+        "changes": "{{name}} checked version {{version}}: needs changes",
+        "answered": "{{name}} checked version {{version}}: needs changes, answered in version {{answer}}",
+        "kept": "{{name}} checked version {{version}}: needs changes, kept as it is",
+        "recorded": "{{name}} did this for version {{version}}"
+      }
     },
     "resources": {
       "sourceAudio": "Source audio"
@@ -4868,7 +4890,7 @@
       "leave": "Done",
       "leaveHelp": "Stops recording and keeps the parts as their boxes show.",
       "stopped": "Stopped",
-      "stoppedHelp": "Tap a part to hear it. Drag its edges to move where it starts and ends. The × drops it. Done keeps the parts as their boxes show; the red button records more.",
+      "stoppedHelp": "Tap a part to hear it. Drag its edges to move where it starts and ends. The × drops it. Done keeps the parts as their boxes show; the red button records more. A + boxes the room where there is no part.",
       "startEarlier": "Start earlier",
       "startLater": "Start later",
       "endEarlier": "End earlier",
@@ -4895,7 +4917,8 @@
       "micOff": "LangQuest cannot hear you. Turn on the microphone for LangQuest in Settings.",
       "micOffWeb": "LangQuest cannot hear you. Allow the microphone for this site in your browser, then tap record again.",
       "openSettings": "Open Settings",
-      "openSettingsHelp": "Opens this phone's settings for LangQuest. Turn on the microphone there, then come back."
+      "openSettingsHelp": "Opens this phone's settings for LangQuest. Turn on the microphone there, then come back.",
+      "addPart": "Add a part here"
     },
     "cleanUp": {
       "cleanUp": "Clean up",
@@ -7601,14 +7624,20 @@
       "idea": "An idea: something that would make LangQuest better for you.",
       "body": "Say it in your own words, in any language.",
       "screenshot": "Sends a picture of the screen you were on. Off until you turn it on.",
-      "profile": "Sends your name and how you sign in, so the LangQuest team knows who wrote. Off until you turn it on."
+      "profile": "Sends your name and how you sign in, so the LangQuest team knows who wrote. Off until you turn it on.",
+      "picture": "Choose a photo, or a screenshot of something else, to send with your words.",
+      "removePicture": "Takes the picture off what you send."
     },
     "toast": {
       "sent": "Sent. Thank you!",
       "saved": "Saved. It is sent when you are connected.",
       "savedUntilSignIn": "Saved. It is sent after you sign in.",
-      "voiceTooLong": "Too long: a voice note can be up to 2 minutes."
-    }
+      "voiceTooLong": "Too long: a voice note can be up to 2 minutes.",
+      "pictureFailed": "That picture could not be opened. Try another one."
+    },
+    "addPicture": "Add a picture",
+    "otherPicture": "Choose another picture",
+    "removePicture": "Remove the picture"
   },
   "appVersion": {
     "available": "New version available",

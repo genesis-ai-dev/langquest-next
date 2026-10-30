@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { languageLines, recordTimeline } from '@langquest-next/core';
 import { pathSteps } from '../src/passage/pathModel';
 import {
-  askButtonLabel, askForLabel, currentCheck, doCheckButton, elseMove, elseOptions, historyAction, historyMove, listenerLabel, listenersLine, mainMove, nothingToAsk, passageNoteFor,
+  askButtonLabel, askForLabel, currentCheck, doCheckButton, elseMove, elseOptions, historyAction, historyMove, lastCheckLine, listenerLabel, listenersLine, mainMove, nothingToAsk, passageNoteFor,
   nextAfterDone, recordCan, recordModel, recordPathInput, rowBar, rowMove, sentText, stepMove, stepSheet, studyLine, studyPathInfo,
   usualTargets, type RecordMain
 } from '../src/passage/recordModel';
@@ -252,6 +252,19 @@ describe('the ask page and its words', () => {
     expect(askButtonLabel({ target: { profileId: ID.REV }, kindId: 'peer', kinds: r.kinds, name: w.nameFor('TRANS') })).toBe(t('passage.published.askTarget', { target: 'Rita Reviewer' }));
     expect(askButtonLabel({ target: undefined, kindId: 'peer', kinds: r.kinds, name: w.nameFor('TRANS') })).toBe(askForLabel('peer', r.kinds));
     expect(askForLabel('peer', r.kinds)).toBe(t('passage.page.askFor', { check: 'peer check' }));
+  });
+
+  it('says "again" and shows the last check when one was already done (LAN-200)', () => {
+    const r = record('TRANS', 'P-NEEDS');
+    const name = w.nameFor('TRANS');
+    expect(askForLabel('peer', r.kinds, r.p)).toBe(t('passage.page.askForAgain', { check: 'peer check' }));
+    expect(askButtonLabel({ target: { profileId: ID.REV }, kindId: 'peer', kinds: r.kinds, name, p: r.p })).toBe(t('passage.published.askTargetAgain', { target: 'Rita Reviewer' }));
+    expect(lastCheckLine(r.p, 'peer', name)).toBe(t('passage.ask.last.changes', { name: 'Rita Reviewer', version: '1' }));
+    // A check nobody did yet has no line, and the plain label.
+    expect(lastCheckLine(r.p, 'bt', name)).toBeNull();
+    expect(askForLabel('bt', r.kinds, r.p)).toBe(askForLabel('bt', r.kinds));
+    const done = record('TRANS', 'P-BT');
+    expect(lastCheckLine(done.p, 'peer', name)).toBe(t('passage.ask.last.good', { name: 'Rita Reviewer', version: '1' }));
   });
 
   it('says why there is nothing to ask for, and what was sent', () => {

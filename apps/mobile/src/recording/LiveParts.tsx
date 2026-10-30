@@ -17,10 +17,15 @@
 //
 // With the silence switch on (decision 194) the silence between parts has
 // a dashed box of its own, its number in an outlined pill, growing after the
-// last part until the next is said. Stopped, a tap plays it; it has no
-// edges or × of its own, as it always fills the room between its parts.
+// last part until the next is said. Stopped, a tap plays it and its × drops
+// it (LAN-199); it has no edges, as it always fills the room between its
+// parts.
+//
+// Stopped, with the switch off, a + sits in room that no box covers, and a
+// tap on it boxes that room as a part (LAN-199). The first time a phone
+// stops, two fingertips spread over the waveform to show the pinch.
 import { memo, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { PanResponder, Platform, StyleSheet, View, type AccessibilityActionEvent, type GestureResponderEvent } from 'react-native';
+import { Animated, Easing, PanResponder, Platform, StyleSheet, View, type AccessibilityActionEvent, type GestureResponderEvent } from 'react-native';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Text } from '../ui/text';
 import { t } from '../i18n';
@@ -31,8 +36,10 @@ import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../aud
 import { cutWav, deleteRecorderFile } from '../audio/wavCut';
 import { playable } from '../audio/levelStore';
 import { noteExpected } from '../diagnostics/report';
-import { clampFrames, LIVE_BARS, liveBars, liveBoxes, liveClip, liveHeight, type LiveBar, type LiveBox, type LiveState } from './livePartsModel';
+import { clampFrames, LIVE_BARS, liveBars, liveBoxes, liveClip, liveGaps, liveHeight, type LiveBar, type LiveBox, type LiveGap, type LiveState } from './livePartsModel';
 import type { RecordingSession } from './recordingSession';
+import { usePinchHint } from './usePinchHint';
+import { useReduceMotion } from '../ui/useReduceMotion';
 import { mmss, partLabel } from './model';
 
 type Tone = 'onRed' | 'onCard';
@@ -54,7 +61,7 @@ const TONES: Record<Tone, { bar: Record<LiveBar['kind'], string>; band: string; 
   }
 };
 
-const EMPTY: LiveState = { db: [], quiet: [], count: 0, parts: [], open: null, chunks: {}, first: 1, hole: null, insert: null, seams: [], frameMs: 46.4, lastAt: null, silence: false };
+const EMPTY: LiveState = { db: [], quiet: [], count: 0, parts: [], open: null, chunks: {}, first: 1, hole: null, insert: null, seams: [], frameMs: 46.4, lastAt: null, silence: false, droppedSilences: [] };
 const noSession = () => () => undefined;
 
 /** The × in a box's corner. */
@@ -67,6 +74,10 @@ const SLOP = 6;
 const NUDGE_MS = 250;
 /** A silence's box stands this far inside the parts' boxes beside it, so the two borders do not run together. */
 const SILENCE_INSET = 2;
+/** A + shows only in room this wide on screen, so it never covers a box's edge; nearer, smaller room shows its own. */
+const ADD_ROOM = XS + 16;
+/** A silence's × shows only on a box this wide on screen, so it never lands on a part's. */
+const SILENCE_X_ROOM = XS + 8;
 const boxKey = (b: Pick<LiveBox, 'index' | 'silence'>) => `${b.silence ? 's' : 'p'}${b.index}`;
 
 export function LiveParts(props: {
@@ -76,6 +87,10 @@ export function LiveParts(props: {
   onDrop?: (index: number) => void;
   /** A box's edge was let go where it now is. */
   onMoved?: (index: number) => void;
+  /** A silence's ×: the silence after part `after` goes (LAN-199). */
+  onDropSilence?: (after: number) => void;
+  /** A + in room no box covers: a box there (LAN-199). */
+  onAdd?: (gap: LiveGap) => void;
 }) {
   const session = props.session;
   const s = useSyncExternalStore(session?.subscribe ?? noSession, session?.snapshot ?? (() => EMPTY));
@@ -97,10 +112,13 @@ export function LiveParts(props: {
   const bars = liveBars(s, frames, end, !editing);
   const boxes = size.w ? liveBoxes(s, frames, end, !editing) : [];
   const bw = size.w / frames;
+  const adds = editing && !s.silence && size.w ? addSpots(liveGaps(s), end - frames, bw, size) : [];
+  const silenceXs = editing ? boxes.filter((b) => b.silence && !b.open && visibleWidth(b, bw, size) >= SILENCE_X_ROOM) : [];
+  const hint = usePinchHint(editing && boxes.length > 0);
 
   // The gesture handler is made once; it reads what is drawn now from here.
-  const now = useRef({ s, session, editing, frames, end, bw, size, boxes, props, player });
-  now.current = { s, session, editing, frames, end, bw, size, boxes, props, player };
+  const now = useRef({ s, session, editing, frames, end, bw, size, boxes, adds, silenceXs, props, player, hint });
+  now.current = { s, session, editing, frames, end, bw, size, boxes, adds, silenceXs, props, player, hint };
   const gestures = useGestures(now, setFrames, setLooked);
 
   const playing = player.at;
@@ -137,11 +155,24 @@ export function LiveParts(props: {
         ))}
       </View>
       {editing ? boxes.filter((b) => !b.silence).map((b) => <BoxTools key={`tools-${b.index}`} box={b} bw={bw} size={size} ink={ink} />) : null}
+      {silenceXs.map((b) => <BoxTools key={`tools-${boxKey(b)}`} box={b} bw={bw} size={size} ink={ink} />)}
+      {adds.map((a) => (
+        <View key={`add-${a.gap.chunk}-${a.gap.from}`} testID="live-add" pointerEvents="none" style={[styles.add, { left: a.cx - XS / 2, top: a.cy - XS / 2, borderColor: ink.mark }]}>
+          <Ico name="plus" size={14} color={ink.mark} strokeWidth={3} />
+        </View>
+      ))}
       {editing ? boxes.map((b) => (
         <BoxForReader key={`a11y-${boxKey(b)}`} box={b} bw={bw} s={s} onPlay={() => player.play(s, b)}
-          onDrop={() => props.onDrop?.(b.index)}
+          onDrop={() => { player.stop(); if (b.silence) props.onDropSilence?.(b.index); else props.onDrop?.(b.index); }}
           onNudge={(edge, ms) => { const p = s.parts[b.index]!; session?.edge(b.index, edge, (edge === 'from' ? p.from : p.to!) + ms / s.frameMs); props.onMoved?.(b.index); }} />
       )) : null}
+      {adds.map((a) => (
+        <View key={`a11y-add-${a.gap.chunk}-${a.gap.from}`} pointerEvents="none" accessible accessibilityRole="button" accessibilityLabel={t('recording.recorder.addPart')}
+          onAccessibilityTap={() => props.onAdd?.(a.gap)} accessibilityActions={[{ name: 'activate' }]}
+          onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'activate') props.onAdd?.(a.gap); }}
+          style={[styles.reader, { left: a.left, width: a.right - a.left }]} />
+      ))}
+      {hint.show ? <PinchHint color={ink.mark} onDone={hint.done} /> : null}
       {headAt !== null && headAt >= 0 && headAt <= size.w ? <View pointerEvents="none" style={[styles.head, { left: headAt - 1, backgroundColor: ink.mark }]} /> : null}
       {editing && s.count > frames ? (
         <View pointerEvents="none" style={[styles.track, { backgroundColor: ink.band }]}>
@@ -165,14 +196,14 @@ const BarSlot = memo(function BarSlot(props: { level: number; quiet: number | nu
   );
 });
 
-/** A stopped box's handles: its edges, and the × that drops it. Drawn only; the waveform takes the touches. */
+/** A stopped box's handles: its edges, and the × that drops it; a silence's has only the ×. Drawn only; the waveform takes the touches. */
 function BoxTools(props: { box: LiveBox; bw: number; size: { w: number; h: number }; ink: (typeof TONES)[Tone] }) {
   const { box, bw, size, ink } = props;
-  const x0 = box.from * bw, x1 = box.to * bw;
+  const [x0, x1] = boxEdges(box, bw);
   const x = dropSpot(x0, x1, size);
   return (
     <>
-      {[x0, x1].map((ex, i) => ex >= 0 && ex <= size.w ? <View key={i} pointerEvents="none" style={[styles.handle, { left: ex - 3.5, top: size.h / 2 - 16, backgroundColor: ink.mark }]} /> : null)}
+      {box.silence ? null : [x0, x1].map((ex, i) => ex >= 0 && ex <= size.w ? <View key={i} pointerEvents="none" style={[styles.handle, { left: ex - 3.5, top: size.h / 2 - 16, backgroundColor: ink.mark }]} /> : null)}
       <View pointerEvents="none" style={[styles.drop, { left: x.cx - XS / 2, top: x.cy - XS / 2, backgroundColor: ink.mark }]}>
         <Ico name="close" size={14} color={ink.markText} strokeWidth={3} />
       </View>
@@ -180,14 +211,16 @@ function BoxTools(props: { box: LiveBox; bw: number; size: { w: number; h: numbe
   );
 }
 
-/** A box as a screen reader finds it: a button that plays the part, with its edges and drop as actions; a silence's only plays. */
+/** A box as a screen reader finds it: a button that plays the part, with its edges and drop as actions; a silence's plays and drops. */
 function BoxForReader(props: { box: LiveBox; bw: number; s: LiveState; onPlay: () => void; onDrop: () => void; onNudge: (edge: 'from' | 'to', ms: number) => void }) {
   if (props.box.silence) {
     const clip = liveClip(props.s, props.box);
+    const label = partLabel(props.box.n - 1);
     return (
       <View pointerEvents="none" accessible accessibilityRole="button" onAccessibilityTap={props.onPlay}
-        accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'activate') props.onPlay(); }}
-        accessibilityLabel={t('recording.recorder.silenceLength', { part: partLabel(props.box.n - 1), length: mmss(clip ? clip.toMs - clip.fromMs : 0) })}
+        accessibilityActions={[{ name: 'activate' }, { name: 'drop', label: t('recording.deleteItem', { item: label }) }]}
+        onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'activate') props.onPlay(); else if (e.nativeEvent.actionName === 'drop') props.onDrop(); }}
+        accessibilityLabel={t('recording.recorder.silenceLength', { part: label, length: mmss(clip ? clip.toMs - clip.fromMs : 0) })}
         style={[styles.reader, { left: Math.max(0, props.box.from * props.bw), width: Math.max(6, (props.box.to - props.box.from) * props.bw) }]} />
     );
   }
@@ -215,6 +248,27 @@ function BoxForReader(props: { box: LiveBox; bw: number; s: LiveState; onPlay: (
   );
 }
 
+/** Where a box's sides are on screen; a silence's stand inside its parts'. */
+function boxEdges(b: LiveBox, bw: number): [number, number] {
+  return b.silence ? [b.from * bw + SILENCE_INSET, b.to * bw - SILENCE_INSET] : [b.from * bw, b.to * bw];
+}
+
+/** How much of a box is on screen. */
+function visibleWidth(b: LiveBox, bw: number, size: { w: number }): number {
+  const [x0, x1] = boxEdges(b, bw);
+  return Math.min(x1, size.w) - Math.max(x0, 0);
+}
+
+type AddSpot = { gap: LiveGap; left: number; right: number; cx: number; cy: number };
+
+/** Where each gap's + sits: in the middle of the gap as far as it is on screen, on the row of the ×s, where there is room for it. */
+function addSpots(gaps: LiveGap[], first: number, bw: number, size: { w: number; h: number }): AddSpot[] {
+  return gaps.flatMap((gap) => {
+    const left = Math.max(0, (gap.from - first) * bw), right = Math.min(size.w, (gap.to - first) * bw);
+    return right - left >= ADD_ROOM ? [{ gap, left, right, cx: (left + right) / 2, cy: size.h - XS / 2 - 4 }] : [];
+  });
+}
+
 /** Where a box's × sits: its bottom-right corner, or under the middle of a box too narrow for that. */
 function dropSpot(x0: number, x1: number, size: { w: number; h: number }): { cx: number; cy: number } {
   const right = Math.min(x1, size.w), left = Math.max(x0, 0);
@@ -222,15 +276,18 @@ function dropSpot(x0: number, x1: number, size: { w: number; h: number }): { cx:
   return { cx: wide ? right - XS / 2 - 4 : (left + right) / 2, cy: size.h - XS / 2 - 4 };
 }
 
-type Hit = { kind: 'drop'; index: number } | { kind: 'box'; index: number; silence?: boolean } | { kind: 'edge'; index: number; edge: 'from' | 'to' } | { kind: 'pan' };
+type Hit = { kind: 'drop'; index: number; silence?: boolean } | { kind: 'add'; gap: LiveGap } | { kind: 'box'; index: number; silence?: boolean } | { kind: 'edge'; index: number; edge: 'from' | 'to' } | { kind: 'pan' };
 
-/** What a finger landing at `x`, `y` takes hold of on a stopped waveform: a part's ×, edge or box, then a silence's box. */
-function hitTest(x: number, y: number, boxes: LiveBox[], bw: number, size: { w: number; h: number }, s: LiveState): Hit {
+/** What a finger landing at `x`, `y` takes hold of on a stopped waveform: a ×, a +, then a part's edge or box, then a silence's box. */
+function hitTest(x: number, y: number, boxes: LiveBox[], bw: number, size: { w: number; h: number }, s: LiveState, silenceXs: LiveBox[], adds: AddSpot[]): Hit {
   const done = boxes.filter((b) => !b.open && !b.silence);
-  for (const b of done) {
-    const { cx, cy } = dropSpot(b.from * bw, b.to * bw, size);
-    if (Math.hypot(x - cx, y - cy) <= XS / 2 + 8) return { kind: 'drop', index: b.index };
+  const near = (cx: number, cy: number) => Math.hypot(x - cx, y - cy) <= XS / 2 + 8;
+  for (const b of [...done, ...silenceXs]) {
+    const { cx, cy } = dropSpot(...boxEdges(b, bw), size);
+    if (near(cx, cy)) return { kind: 'drop', index: b.index, ...(b.silence ? { silence: true } : {}) };
   }
+  const add = adds.find((a) => near(a.cx, a.cy));
+  if (add) return { kind: 'add', gap: add.gap };
   let best: { index: number; edge: 'from' | 'to'; d: number } | null = null;
   for (const b of done) {
     const reach = Math.min(EDGE_REACH, Math.max(6, ((b.to - b.from) * bw) / 3));
@@ -248,13 +305,15 @@ function hitTest(x: number, y: number, boxes: LiveBox[], bw: number, size: { w: 
 
 type Now = { current: {
   s: LiveState; session: RecordingSession | null; editing: boolean; frames: number; end: number; bw: number; size: { w: number; h: number };
-  boxes: LiveBox[]; props: { onDrop?: (index: number) => void; onMoved?: (index: number) => void }; player: ReturnType<typeof useBoxPlayer>;
+  boxes: LiveBox[]; adds: AddSpot[]; silenceXs: LiveBox[]; player: ReturnType<typeof useBoxPlayer>; hint: { show: boolean; done: () => void };
+  props: { onDrop?: (index: number) => void; onMoved?: (index: number) => void; onDropSilence?: (after: number) => void; onAdd?: (gap: LiveGap) => void };
 } };
 
 /**
  * Two fingers pinch nearer or farther, keeping what is under them in place.
  * Stopped, one finger takes an edge, a box (a tap plays it), its × (a tap
- * drops it), or slides the window back and forth over the session.
+ * drops it), a + (a tap adds a box), or slides the window back and forth
+ * over the session.
  */
 function useGestures(now: Now, setFrames: (n: number) => void, setLooked: (f: number) => void) {
   const drag = useRef<{ hit: Hit; x0: number; moved: number; end0: number; edge0: number } | null>(null);
@@ -273,11 +332,12 @@ function useGestures(now: Now, setFrames: (n: number) => void, setLooked: (f: nu
     onStartShouldSetPanResponder: (e) => e.nativeEvent.touches.length === 2 || now.current.editing,
     onMoveShouldSetPanResponder: (e) => e.nativeEvent.touches.length === 2 || now.current.editing,
     onPanResponderGrant: (e) => {
+      if (now.current.hint.show) now.current.hint.done();
       if (e.nativeEvent.touches.length >= 2) { startPinch(e); return; }
       pinch.current = null;
       const n = now.current;
       if (!n.editing) { drag.current = null; return; }
-      const hit = hitTest(e.nativeEvent.locationX, e.nativeEvent.locationY, n.boxes, n.bw, n.size, n.s);
+      const hit = hitTest(e.nativeEvent.locationX, e.nativeEvent.locationY, n.boxes, n.bw, n.size, n.s, n.silenceXs, n.adds);
       const p = 'index' in hit ? n.s.parts[hit.index] : undefined;
       drag.current = { hit, x0: e.nativeEvent.pageX, moved: 0, end0: n.end, edge0: hit.kind === 'edge' && p ? (hit.edge === 'from' ? p.from : p.to ?? p.from) : 0 };
     },
@@ -311,7 +371,11 @@ function useGestures(now: Now, setFrames: (n: number) => void, setLooked: (f: nu
       pinch.current = null;
       const n = now.current;
       if (!d || !n.editing) return;
-      if (d.hit.kind === 'drop' && d.moved < 8) { n.player.stop(); n.props.onDrop?.(d.hit.index); }
+      if (d.hit.kind === 'drop' && d.moved < 8) {
+        n.player.stop();
+        if (d.hit.silence) n.props.onDropSilence?.(d.hit.index);
+        else n.props.onDrop?.(d.hit.index);
+      } else if (d.hit.kind === 'add' && d.moved < 8) n.props.onAdd?.(d.hit.gap);
       else if (d.hit.kind === 'box' && d.moved <= SLOP) n.player.play(n.s, d.hit);
       else if (d.hit.kind === 'edge') n.props.onMoved?.(d.hit.index);
     },
@@ -384,7 +448,43 @@ function useBoxPlayer(editing: boolean) {
   return { at, play, stop };
 }
 
+/**
+ * Two fingertips spreading apart over the middle of the waveform, twice,
+ * then gone: how to bring it nearer. With reduced motion they stand apart a
+ * moment instead. Pictures only, and a screen reader does not find them.
+ */
+function PinchHint(props: { color: string; onDone: () => void }) {
+  const still = useReduceMotion();
+  const spread = useRef(new Animated.Value(0)).current;
+  const done = useRef(props.onDone);
+  done.current = props.onDone;
+  useEffect(() => {
+    spread.setValue(still ? 1 : 0);
+    const once = Animated.sequence([
+      Animated.delay(250),
+      Animated.timing(spread, { toValue: 1, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.delay(350),
+      Animated.timing(spread, { toValue: 0, duration: 0, useNativeDriver: true })
+    ]);
+    const run = still ? Animated.delay(2500) : Animated.loop(once, { iterations: 2 });
+    run.start(({ finished }) => { if (finished) done.current(); });
+    return () => run.stop();
+  }, [still, spread]);
+  const tip = (side: -1 | 1) => ({
+    transform: [{ translateX: spread.interpolate({ inputRange: [0, 1], outputRange: [side * 12, side * 64] }) }],
+    opacity: spread.interpolate({ inputRange: [0, 0.1, 0.9, 1], outputRange: [0.4, 1, 1, 0.6] })
+  });
+  return (
+    <View testID="live-pinch-hint" pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={styles.hint}>
+      {([-1, 1] as const).map((side) => (
+        <Animated.View key={side} style={[styles.tip, { borderColor: props.color, backgroundColor: withAlpha(props.color, 0.3) }, tip(side)]} />
+      ))}
+    </View>
+  );
+}
+
 const PILL = 20;
+const TIP = 30;
 const styles = StyleSheet.create({
   // Time runs left to right in every language.
   fill: { flex: 1, minHeight: 56, position: 'relative', direction: 'ltr' },
@@ -400,6 +500,9 @@ const styles = StyleSheet.create({
   seam: { position: 'absolute', top: PILL + 6, bottom: 4, width: 0, borderLeftWidth: 1, borderStyle: 'dashed' },
   handle: { position: 'absolute', width: 7, height: 32, borderRadius: 3.5 },
   drop: { position: 'absolute', width: XS, height: XS, borderRadius: XS / 2, alignItems: 'center', justifyContent: 'center' },
+  add: { position: 'absolute', width: XS, height: XS, borderRadius: XS / 2, borderWidth: 2, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
+  hint: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  tip: { position: 'absolute', width: TIP, height: TIP, borderRadius: TIP / 2, borderWidth: 2 },
   reader: { position: 'absolute', top: 0, bottom: 0 },
   head: { position: 'absolute', top: 0, bottom: 0, width: 2.5 },
   track: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 3, borderRadius: 2 },

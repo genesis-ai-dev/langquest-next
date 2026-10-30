@@ -46,7 +46,6 @@ import type { StudyGuide as Guide } from '../study/guides';
 import { useStudyGuide } from '../study/useStudyGuides';
 import { studyProgress, type StudyProgress } from '../study/progress';
 import { stepLine } from '../study/studyText';
-import { GuideEditorScreen } from '../guides/GuideEditor';
 import { space, TINT } from '../ui/theme';
 import { NoteStepContext } from '../checks/noteStep';
 
@@ -247,10 +246,6 @@ const s = StyleSheet.create({
   doneLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }
 });
 
-// ---- Write a guide (app only): the guide editor, guides/GuideEditor.tsx -------------------
+// Write a guide (app only) is screens/guideEditor.tsx: it loads when first opened.
 
-export function GuideEditor(ctx: Ctx) {
-  return <GuideEditorScreen ctx={ctx} />;
-}
-
-export const contracts = contractsFor('study_guide', 'study_step', 'guide_editor');
+export const contracts = contractsFor('study_guide', 'study_step');

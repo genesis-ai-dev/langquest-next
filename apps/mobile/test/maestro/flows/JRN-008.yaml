@@ -44,16 +44,11 @@ tags:
 # Step 3: a group code for Translator in Alpha.
 - scrollUntilVisible:
     element:
-      id: "invite-role-Translators-invite"
+      id: "invite-role-Translators"
     direction: UP
     centerElement: true
 - tapOn:
-    id: "invite-role-Translators-invite"
-- runFlow:
-    when:
-      visible: "Which checks will they do\\?"
-    commands:
-      - tapOn: "Show the code to scan"
+    id: "invite-role-Translators"
 - extendedWaitUntil:
     visible: "Ask them to scan this"
     timeout: 30000

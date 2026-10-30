@@ -959,7 +959,6 @@
       "noWays": "还没有可以选择的检查方式。",
       "notAdded": "未添加",
       "inviteLater": "以后可以在{{language}}的页面上邀请它的译者。",
-      "later": "以后再说",
       "making": {
         "title": "正在设置{{language}}",
         "passages": "正在获取经段",
@@ -974,7 +973,6 @@
       "continueHelp": "进入下一个问题。",
       "addHelp": "按这些回答添加{{language}}。然后你可以邀请它的译者。",
       "backHelp": "返回上一页。你选好的内容会保留。",
-      "laterHelp": "暂时跳过。以后可以在它的页面上邀请它的译者。",
       "stages": {
         "language": "语言",
         "content": "内容",
@@ -1014,7 +1012,8 @@
         "offHelp": "已去掉。点按让{{language}}的团队有它。",
         "nothing": "还没有{{languages}}的圣经或学习指南"
       },
-      "teamLanguages": "{{language}}的译者使用哪些语言？"
+      "teamLanguages": "{{language}}的译者使用哪些语言？",
+      "doneHelp": "完成{{language}}的设置。之后可以从它的页面邀请译者。"
     },
     "offers": {
       "guides": "{{name}}的学习指南",
@@ -1256,8 +1255,6 @@
       "linkCopied": "邀请链接已复制。把它粘贴到消息里。",
       "couldNotShare": "无法分享。请改为出示代码。",
       "shareLink": "以链接分享",
-      "someoneElse": "其他人",
-      "showCode": "出示代码供扫码",
       "whatWillTheyDo": "他们要做什么？",
       "otherRoles": "其他角色 · {{total}}",
       "newRole": "其他：创建新角色",
@@ -1269,10 +1266,6 @@
       "scopeLanguageHelp": "他们加入这个语言的团队。",
       "scopeOrgHelp": "他们加入整个机构：其中的每个语言。",
       "shareLinkHelp": "把邀请码作为链接通过消息发送，或者复制它。",
-      "someoneElseHelp": "返回为另一个人选择要做什么，生成另一个邀请码。",
-      "showCodeChecksHelp": "生成邀请码，扫码的人会加入打勾的检查。",
-      "showCodeNoChecksHelp": "生成邀请码。以后可以在每项检查的页面上把他们加入检查。",
-      "backToRolesHelp": "返回角色。",
       "whichChecks": "他们要做哪些检查？",
       "checkOnHelp": "他们会做这项检查。点按可以去掉。",
       "checkOffHelp": "点按让他们做这项检查。",
@@ -1281,7 +1274,6 @@
       "whatTheyMayDo": "他们可以做什么",
       "hideMayDoHelp": "隐藏这个角色允许他们做的事。",
       "showMayDoHelp": "显示{{people}}可以做什么，以及在哪里做。",
-      "invite": "邀请",
       "inviteHelp": "生成邀请码让{{people}}扫码。",
       "everyLanguage": "在所有语言中",
       "onlyIn": "只在{{language}}中"
@@ -2054,7 +2046,25 @@
         "hebrew": "希伯来语",
         "korean": "韩语"
       },
-      "chooseFromListHelp": "所有编号方式，每种都有三个区分它们的特点。"
+      "chooseFromListHelp": "所有编号方式，每种都有三个区分它们的特点。",
+      "why": {
+        "question": "不同的圣经，经节编号不一样",
+        "english": "英文圣经",
+        "hebrew": "希伯来文圣经",
+        "verse": "{{book}} {{chapter}}:{{verse}}",
+        "bibleA11y": "{{bible}}：{{chapters}}。同一节经文是 {{verse}}。",
+        "match": "同一节经文可能有另一个编号。LangQuest 需要知道你的圣经的编号方式，编号才会一致。"
+      },
+      "how": {
+        "question": "找到你的圣经的编号方式",
+        "find": "选择你的圣经",
+        "findSub": "和合本、新译本、NIV……",
+        "findHelp": "找到你的团队翻译所依据的圣经。LangQuest 知道它怎样给经节编号。",
+        "quiz": "回答几个问题",
+        "quizSub": "几个问题，请打开你的圣经",
+        "list": "选择编号方式",
+        "listSub": "如果你已经知道"
+      }
     },
     "own": {
       "title": "按你自己的方式划分",
@@ -2876,7 +2886,10 @@
       "scanQrHelp": "打开相机。把它对准代码。",
       "pasteHelp": "在这里粘贴代码或链接。粘贴完整后会立即读取。",
       "clearInviteHelp": "在本设备上清除这个邀请。",
-      "notNowHelp": "清除这个邀请，回到你的工作。"
+      "notNowHelp": "清除这个邀请，回到你的工作。",
+      "whoJoins": "谁要加入？",
+      "someoneNew": "新的人",
+      "someoneNewHelp": "给还不在这部手机上的人：一个新账号。接下来输入他们的名字。"
     },
     "signInKey": {
       "notGuestTitle": "这是一个登录码",
@@ -3905,7 +3918,8 @@
       "listeners": "听众",
       "liveIn": "已在 {{channel}} 发布 · {{version}}",
       "listenerCount": "听众反馈：{{count, number}}",
-      "askedOffline": "已请 {{target}}。本设备联网后对方才会收到。"
+      "askedOffline": "已请 {{target}}。本设备联网后对方才会收到。",
+      "askForAgain": "再次请求{{check}}"
     },
     "else": {
       "title": "其他情况？",
@@ -3941,7 +3955,8 @@
       "doneHelp": "回到经段。",
       "pickCheckHelp": "选择要请求这项检查。下面是负责这项检查的人。",
       "someoneElseHelp": "请另一个人、一个团队，或者没有应用的人。",
-      "notNowHelp": "以后再请求。这个版本仍然是已发布的。"
+      "notNowHelp": "以后再请求。这个版本仍然是已发布的。",
+      "askTargetAgain": "再请{{target}}"
     },
     "keep": {
       "title": "要保持原样吗？",
@@ -4061,7 +4076,14 @@
       "answerTypeHelp": "更改回答方式：是或否、用文字，或者 1 到 5。",
       "addQuestionHelp": "把你的问题加到对方要回答的问题中。",
       "removeQuestionHelp": "移除这个问题。",
-      "openCheckHelp": "打开{{check}}，在那里更改它的问题。"
+      "openCheckHelp": "打开{{check}}，在那里更改它的问题。",
+      "last": {
+        "good": "{{name}} 检查了第 {{version}} 版：没问题",
+        "changes": "{{name}} 检查了第 {{version}} 版：需要修改",
+        "answered": "{{name}} 检查了第 {{version}} 版：需要修改，已在第 {{answer}} 版回应",
+        "kept": "{{name}} 检查了第 {{version}} 版：需要修改，已保持原样",
+        "recorded": "{{name}} 已为第 {{version}} 版完成"
+      }
     },
     "resources": {
       "sourceAudio": "源音频"
@@ -4708,7 +4730,7 @@
       "leave": "完成",
       "leaveHelp": "停止录音，按方框所示保留各段。",
       "stopped": "已停止",
-      "stoppedHelp": "点按一段即可收听。拖动它的边缘来调整开始和结束的位置。× 会去掉这一段。“完成”按方框所示保留各段；红色按钮继续录音。",
+      "stoppedHelp": "点按一段即可收听。拖动它的边缘来调整开始和结束的位置。× 会去掉这一段。“完成”按方框所示保留各段；红色按钮继续录音。点 + 可把没有段的地方框成一段。",
       "startEarlier": "提前开始",
       "startLater": "推后开始",
       "endEarlier": "提前结束",
@@ -4735,7 +4757,8 @@
       "micOff": "LangQuest 听不到你的声音。请在“设置”中为 LangQuest 打开麦克风。",
       "micOffWeb": "LangQuest 听不到你的声音。请在浏览器中允许此网站使用麦克风，然后再点一次录音。",
       "openSettings": "打开设置",
-      "openSettingsHelp": "打开此手机上 LangQuest 的设置。在那里打开麦克风，然后返回。"
+      "openSettingsHelp": "打开此手机上 LangQuest 的设置。在那里打开麦克风，然后返回。",
+      "addPart": "在这里添加一段"
     },
     "cleanUp": {
       "cleanUp": "清理",
@@ -7272,14 +7295,20 @@
       "idea": "想法：能让 LangQuest 对你更好用的东西。",
       "body": "用你自己的话说，任何语言都可以。",
       "screenshot": "发送你刚才所在屏幕的图片。你打开之前一直是关闭的。",
-      "profile": "发送你的名字和登录方式，让 LangQuest 团队知道是谁写的。你打开之前一直是关闭的。"
+      "profile": "发送你的名字和登录方式，让 LangQuest 团队知道是谁写的。你打开之前一直是关闭的。",
+      "picture": "选一张照片，或其他内容的截图，和你的文字一起发送。",
+      "removePicture": "从你要发送的内容中移除这张图片。"
     },
     "toast": {
       "sent": "已发送。谢谢你！",
       "saved": "已保存。联网后会发送。",
       "savedUntilSignIn": "已保存。登录后会发送。",
-      "voiceTooLong": "太长了：语音留言最长 2 分钟。"
-    }
+      "voiceTooLong": "太长了：语音留言最长 2 分钟。",
+      "pictureFailed": "无法打开这张图片。请换一张试试。"
+    },
+    "addPicture": "添加图片",
+    "otherPicture": "换一张图片",
+    "removePicture": "移除图片"
   },
   "appVersion": {
     "available": "有新版本",

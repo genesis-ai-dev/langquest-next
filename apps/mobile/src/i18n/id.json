@@ -959,7 +959,6 @@
       "noWays": "Belum ada cara memeriksa yang bisa dipilih.",
       "notAdded": "Tidak ditambahkan",
       "inviteLater": "Undang penerjemah {{language}} dari halamannya nanti.",
-      "later": "Nanti",
       "making": {
         "title": "Menyiapkan {{language}}",
         "passages": "Mengambil perikop",
@@ -974,7 +973,6 @@
       "continueHelp": "Lanjut ke pertanyaan berikutnya.",
       "addHelp": "Menambahkan {{language}} dengan jawaban-jawaban ini. Lalu Anda dapat mengundang penerjemahnya.",
       "backHelp": "Mundur satu halaman. Yang sudah Anda pilih tetap terpilih.",
-      "laterHelp": "Melewati ini untuk sekarang. Undang penerjemahnya nanti dari halamannya.",
       "stages": {
         "language": "Bahasa",
         "content": "Isi",
@@ -1014,7 +1012,8 @@
         "offHelp": "Tidak disertakan. Ketuk agar tim {{language}} memilikinya.",
         "nothing": "Belum ada Alkitab atau panduan studi dalam bahasa {{languages}}"
       },
-      "teamLanguages": "Bahasa apa saja yang dipakai penerjemah {{language}}?"
+      "teamLanguages": "Bahasa apa saja yang dipakai penerjemah {{language}}?",
+      "doneHelp": "Menyelesaikan penyiapan {{language}}. Anda bisa mengundang penerjemahnya dari halamannya nanti."
     },
     "offers": {
       "guides": "panduan studi {{name}}",
@@ -1256,8 +1255,6 @@
       "linkCopied": "Tautan undangan disalin. Tempelkan ke dalam pesan.",
       "couldNotShare": "Tidak dapat membagikannya. Tunjukkan kodenya saja.",
       "shareLink": "Bagikan sebagai tautan",
-      "someoneElse": "Orang lain",
-      "showCode": "Tunjukkan kode untuk dipindai",
       "whatWillTheyDo": "Apa yang akan mereka lakukan?",
       "otherRoles": "Peran lain · {{total}}",
       "newRole": "Yang lain: buat peran baru",
@@ -1269,10 +1266,6 @@
       "scopeLanguageHelp": "Mereka bergabung dengan tim bahasa ini.",
       "scopeOrgHelp": "Mereka bergabung dengan seluruh organisasi: setiap bahasa di dalamnya.",
       "shareLinkHelp": "Mengirim kode sebagai tautan lewat pesan, atau menyalinnya.",
-      "someoneElseHelp": "Kembali untuk memilih apa yang akan dilakukan orang lain, untuk kode berikutnya.",
-      "showCodeChecksHelp": "Membuat kode yang memasukkan siapa pun yang memindainya ke pemeriksaan yang dicentang.",
-      "showCodeNoChecksHelp": "Membuat kodenya. Mereka bisa dimasukkan ke pemeriksaan nanti, di halaman setiap pemeriksaan.",
-      "backToRolesHelp": "Kembali ke peran.",
       "whichChecks": "Pemeriksaan mana yang akan mereka lakukan?",
       "checkOnHelp": "Mereka akan ada di pemeriksaan ini. Ketuk untuk mengeluarkan mereka.",
       "checkOffHelp": "Ketuk untuk memasukkan mereka ke pemeriksaan ini.",
@@ -1281,7 +1274,6 @@
       "whatTheyMayDo": "Apa yang boleh mereka lakukan",
       "hideMayDoHelp": "Menyembunyikan apa yang boleh mereka lakukan dengan peran ini.",
       "showMayDoHelp": "Menampilkan apa yang boleh dilakukan {{people}}, dan di mana.",
-      "invite": "Undang",
       "inviteHelp": "Membuat kode untuk dipindai {{people}}.",
       "everyLanguage": "Di setiap bahasa",
       "onlyIn": "Hanya di {{language}}"
@@ -2054,7 +2046,25 @@
         "hebrew": "Ibrani",
         "korean": "Korea"
       },
-      "chooseFromListHelp": "Semua penomoran, masing-masing dengan tiga ciri yang membedakannya."
+      "chooseFromListHelp": "Semua penomoran, masing-masing dengan tiga ciri yang membedakannya.",
+      "why": {
+        "question": "Setiap Alkitab bisa menomori ayat dengan cara berbeda",
+        "english": "Alkitab bahasa Inggris",
+        "hebrew": "Alkitab Ibrani",
+        "verse": "{{book}} {{chapter}}:{{verse}}",
+        "bibleA11y": "{{bible}}: {{chapters}}. Ayat yang sama adalah {{verse}}.",
+        "match": "Ayat yang sama bisa punya nomor lain. LangQuest perlu penomoran Alkitab Anda supaya nomornya sama."
+      },
+      "how": {
+        "question": "Temukan penomoran Alkitab Anda",
+        "find": "Pilih Alkitab Anda",
+        "findSub": "TB, BIS, NIV…",
+        "findHelp": "Temukan Alkitab yang dipakai tim Anda untuk menerjemahkan. LangQuest tahu cara Alkitab itu menomori ayat.",
+        "quiz": "Jawab kuisnya",
+        "quizSub": "Beberapa pertanyaan, dengan Alkitab Anda terbuka",
+        "list": "Pilih penomorannya",
+        "listSub": "Kalau Anda sudah tahu"
+      }
     },
     "own": {
       "title": "Bagi dengan cara Anda sendiri",
@@ -2876,7 +2886,10 @@
       "scanQrHelp": "Membuka kamera. Arahkan ke kode.",
       "pasteHelp": "Tempelkan kode atau tautan di sini. Kode dibaca begitu lengkap.",
       "clearInviteHelp": "Melupakan undangan ini di perangkat ini.",
-      "notNowHelp": "Melupakan undangan ini dan kembali ke pekerjaan Anda."
+      "notNowHelp": "Melupakan undangan ini dan kembali ke pekerjaan Anda.",
+      "whoJoins": "Siapa yang bergabung?",
+      "someoneNew": "Orang baru",
+      "someoneNewHelp": "Untuk orang yang belum ada di ponsel ini: akun baru. Lalu, ketik namanya."
     },
     "signInKey": {
       "notGuestTitle": "Ini kode masuk",
@@ -3905,7 +3918,8 @@
       "listeners": "Pendengar",
       "liveIn": "Terbit di {{channel}} · {{version}}",
       "listenerCount": "Masukan pendengar: {{count, number}}",
-      "askedOffline": "Diminta kepada {{target}}. Mereka menerimanya saat perangkat ini terhubung."
+      "askedOffline": "Diminta kepada {{target}}. Mereka menerimanya saat perangkat ini terhubung.",
+      "askForAgain": "Minta {{check}} lagi"
     },
     "else": {
       "title": "Ada yang lain?",
@@ -3941,7 +3955,8 @@
       "doneHelp": "Kembali ke perikop.",
       "pickCheckHelp": "Memilih pemeriksaan ini untuk diminta. Di bawahnya: orang-orang yang melakukannya.",
       "someoneElseHelp": "Minta orang lain, sebuah tim, atau seseorang tanpa aplikasi.",
-      "notNowHelp": "Minta nanti. Versi ini tetap diterbitkan."
+      "notNowHelp": "Minta nanti. Versi ini tetap diterbitkan.",
+      "askTargetAgain": "Minta {{target}} lagi"
     },
     "keep": {
       "title": "Biarkan apa adanya?",
@@ -4061,7 +4076,14 @@
       "answerTypeHelp": "Mengubah cara mereka menjawab: ya atau tidak, dengan kata-kata, atau 1 sampai 5.",
       "addQuestionHelp": "Menambahkan pertanyaan Anda ke pertanyaan yang mereka jawab.",
       "removeQuestionHelp": "Mengeluarkan pertanyaan ini.",
-      "openCheckHelp": "Membuka {{check}}, tempat Anda mengubah pertanyaannya."
+      "openCheckHelp": "Membuka {{check}}, tempat Anda mengubah pertanyaannya.",
+      "last": {
+        "good": "{{name}} memeriksa versi {{version}}: sudah baik",
+        "changes": "{{name}} memeriksa versi {{version}}: perlu perubahan",
+        "answered": "{{name}} memeriksa versi {{version}}: perlu perubahan, dijawab di versi {{answer}}",
+        "kept": "{{name}} memeriksa versi {{version}}: perlu perubahan, dibiarkan seperti adanya",
+        "recorded": "{{name}} melakukan ini untuk versi {{version}}"
+      }
     },
     "resources": {
       "sourceAudio": "Audio sumber"
@@ -4708,7 +4730,7 @@
       "leave": "Selesai",
       "leaveHelp": "Menghentikan rekaman dan menyimpan bagian seperti yang ditunjukkan kotaknya.",
       "stopped": "Berhenti",
-      "stoppedHelp": "Ketuk bagian untuk mendengarnya. Seret tepinya untuk memindahkan awal dan akhirnya. Tanda × membuangnya. Selesai menyimpan bagian seperti yang ditunjukkan kotaknya; tombol merah merekam lagi.",
+      "stoppedHelp": "Ketuk bagian untuk mendengarnya. Seret tepinya untuk memindahkan awal dan akhirnya. Tanda × membuangnya. Selesai menyimpan bagian seperti yang ditunjukkan kotaknya; tombol merah merekam lagi. Tanda + memberi kotak pada bagian yang belum punya kotak.",
       "startEarlier": "Mulai lebih awal",
       "startLater": "Mulai lebih lambat",
       "endEarlier": "Selesai lebih awal",
@@ -4735,7 +4757,8 @@
       "micOff": "LangQuest tidak bisa mendengar Anda. Nyalakan mikrofon untuk LangQuest di Pengaturan.",
       "micOffWeb": "LangQuest tidak bisa mendengar Anda. Izinkan mikrofon untuk situs ini di browser Anda, lalu ketuk rekam lagi.",
       "openSettings": "Buka Pengaturan",
-      "openSettingsHelp": "Membuka pengaturan ponsel ini untuk LangQuest. Nyalakan mikrofon di sana, lalu kembali."
+      "openSettingsHelp": "Membuka pengaturan ponsel ini untuk LangQuest. Nyalakan mikrofon di sana, lalu kembali.",
+      "addPart": "Tambahkan bagian di sini"
     },
     "cleanUp": {
       "cleanUp": "Bersihkan",
@@ -7272,14 +7295,20 @@
       "idea": "Ide: sesuatu yang membuat LangQuest lebih baik untuk Anda.",
       "body": "Katakan dengan kata-kata Anda sendiri, dalam bahasa apa pun.",
       "screenshot": "Mengirim gambar layar tempat Anda berada. Mati sampai Anda menyalakannya.",
-      "profile": "Mengirim nama Anda dan cara Anda masuk, agar tim LangQuest tahu siapa yang menulis. Mati sampai Anda menyalakannya."
+      "profile": "Mengirim nama Anda dan cara Anda masuk, agar tim LangQuest tahu siapa yang menulis. Mati sampai Anda menyalakannya.",
+      "picture": "Pilih foto, atau tangkapan layar dari hal lain, untuk dikirim bersama kata-kata Anda.",
+      "removePicture": "Menghapus gambar dari yang Anda kirim."
     },
     "toast": {
       "sent": "Terkirim. Terima kasih!",
       "saved": "Tersimpan. Dikirim saat Anda terhubung.",
       "savedUntilSignIn": "Tersimpan. Dikirim setelah Anda masuk.",
-      "voiceTooLong": "Terlalu panjang: catatan suara paling lama 2 menit."
-    }
+      "voiceTooLong": "Terlalu panjang: catatan suara paling lama 2 menit.",
+      "pictureFailed": "Gambar itu tidak bisa dibuka. Coba yang lain."
+    },
+    "addPicture": "Tambahkan gambar",
+    "otherPicture": "Pilih gambar lain",
+    "removePicture": "Hapus gambar"
   },
   "appVersion": {
     "available": "Versi baru tersedia",

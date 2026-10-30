@@ -19,7 +19,7 @@ import { SavedMark } from '../ui/SavedMark';
 import { txt } from '../ui/textStyles';
 import { feedbackSource, versionTitle, type PassageView } from '../passage/passageView';
 import { AskCheckCard, TheyAnswer } from '../passage/askParts';
-import { askButtonLabel, doCheckButton } from '../passage/recordModel';
+import { askButtonLabel, doCheckButton, lastCheckLine } from '../passage/recordModel';
 import type { UsualTarget } from '../passage/sendTarget';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
@@ -88,7 +88,7 @@ export function PublishScreen(props: {
     </View>
   ) : next ? (
     <View style={{ gap: space.xs }}>
-      <PrimaryBtn label={askButtonLabel({ target: nextTarget, kindId: next.kindId, kinds: v.kinds, name: ctx.name })} icon="send" busy={props.busy} disabled={blocked}
+      <PrimaryBtn label={askButtonLabel({ target: nextTarget, kindId: next.kindId, kinds: v.kinds, name: ctx.name, p: v.p })} icon="send" busy={props.busy} disabled={blocked}
         help={nextTarget ? t('recording.publish.sendHelp', { version: title }) : t('recording.publish.askHelp', { version: title })}
         onPress={() => done(nextTarget ? { kindId: next.kindId, questions } : { someoneElse: next.kindId })} />
       <QuietLinks items={[
@@ -129,7 +129,7 @@ export function PublishScreen(props: {
           {kinds.map((k) => (
             <HelpRow key={k.kindId} of="ask.check">
               <AskCheckCard ctx={ctx} kindId={k.kindId} name={checkName(k.kindId, v.kinds)} on={k.kindId === next.kindId} radio={kinds.length > 1}
-                people={checkPeople(v.state, k.kindId).filter((id) => id !== ctx.session.actorId)} onPress={() => setKindId(k.kindId)} />
+                people={checkPeople(v.state, k.kindId).filter((id) => id !== ctx.session.actorId)} last={lastCheckLine(v.p, k.kindId, ctx.name)} onPress={() => setKindId(k.kindId)} />
             </HelpRow>
           ))}
           {nextTarget ? <TheyAnswer asked={questionsForKind(v.state, next.kindId)} questions={questions} setQuestions={setQuestions} /> : null}

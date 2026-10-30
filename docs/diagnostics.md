@@ -273,14 +273,16 @@ minutes); the report is an account change (it waits
 offline and goes as its author, like a profile change) and arrives in
 `diag.feedback` with the **install id** above, so its phone's records are
 one lookup away. A screenshot and the person's name and email come only when
-they turn those switches on. `public.feedback_submit` is the one way in
+they turn those switches on, and a picture of their own only when they add
+one (LAN-198). `public.feedback_submit` is the one way in
 (signed in, 20 a day per account); `diag.feedback()` and
-`diag.feedback_screenshot()` and `diag.feedback_voice()` are for `diag_reader`:
+`diag.feedback_screenshot()`, `diag.feedback_picture()` and `diag.feedback_voice()` are for `diag_reader`:
 
 ```sh
 npm run diag -- feedback --days 30                # newest first, with each install id
 npm run diag -- feedback --install <installId>    # one phone's
 npm run diag -- feedback --shot <feedbackId>      # saves its screenshot as feedback-<id>.jpg
+npm run diag -- feedback --picture <feedbackId>   # saves the picture they chose as feedback-<id>-picture.jpg
 npm run diag -- feedback --voice <feedbackId>     # saves its voice note as feedback-<id>.m4a (or .wav)
 npm run diag -- timeline <installId> --days 2     # then what that phone recorded
 ```

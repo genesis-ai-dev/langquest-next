@@ -113,8 +113,8 @@ Preconditions (in addition to the global ones):
 Steps:
 1. ADMIN: Alpha's page → "People" → "Invite".
 2. Read the screen.
-3. On "Translators" tap "Invite". Under "Which checks will they do?" tick
-   nothing and tap "Show the code to scan".
+3. Leave "Translators" picked and nothing ticked under "Which checks will
+   they do?".
 4. Tap "Share as a link" and keep the link.
 5. Second device: Sign In → "Scan a code" → paste the link.
 6. Type the name "UI Joiner {run}". Tap "Join".
@@ -127,19 +127,18 @@ Expected:
   inviting?", then "In which language?" with "Alpha" (chosen: the open
   language) and "Bravo" (from a language's Members an invite is at a
   language; "All of them" is offered from Org home's "Invite people"), then
-  a card per role, "Translators", "Checkers", "Back-translators", "Team
-  leads", each with its line, "What they may do" and its own "Invite", no
-  radio buttons (decision 146); "Other roles · 3"; the dashed "Something
-  else: make a new role". (UI audit, finding 93, 2026-10-28: the language
-  came after the cards, so a card's Invite could be tapped before it was
-  seen, and from Org home it started on "All of them".)
+  the dashed "Something else: make a new role", then one page (LAN-195): a
+  tile per role, "Translators", "Checkers", "Back-translators", "Team
+  leads", as radio buttons with "Translators" picked; "Other roles · 3";
+  "What they may do"; and the picked role's code right under them. (UI
+  audit, finding 93, 2026-10-28: the language comes before the roles.)
 - The group code is the first way offered (decisions 71, 146). A role that
-  does checks is asked "Which checks will they do?" first; ticking none
-  skips it.
+  does checks shows "Which checks will they do?" above its code; ticking a
+  check makes the code that puts them on it, and tapping another role
+  changes the code on the same page.
 - Step 3: "{who} · Alpha" ("Translators · Alpha"), "Making the code…", then
   "Ask them to scan this", a QR, and "No password needed. Works for a whole
-  group."; "Done", "Share as a link", "By email", "One person, by name" and
-  "Someone else".
+  group."; "Done", "Share as a link", "By email" and "One person, by name".
 - Step 4: the share sheet, or the toast "Invite link copied. Paste it into
   a message."
 - Steps 5–6: the card names UI Test Org and the role; a group code asks for
@@ -270,8 +269,8 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Org home → "Invite people".
 2. Under "In which language?" tap "Bravo".
-3. On "Translators" tap "Invite" (and "Show the code to scan" if it asks
-   which checks). Tap "One person, by name", name someone, Continue.
+3. Leave "Translators" picked. Tap "One person, by name", name someone,
+   Continue.
 4. Read the role line on step 3; check the invite's scope on the server.
 
 Expected:
@@ -317,8 +316,7 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Turn the network off.
-2. Alpha's members → "Invite" → "Translators" → "Invite" → "Show the code
-   to scan".
+2. Alpha's members → "Invite" → tap "Checkers".
 3. Tap "One person, by name" → a name → "Continue".
 
 Expected:
@@ -779,8 +777,7 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Alpha's page → "People" → "Invite". Read the roles.
-2. On "Team leads" tap "Invite" (and "Show the code to scan" if asked which
-   checks).
+2. Tap "Team leads".
 3. Tap "One person, by name", then Back. Read the role list.
 4. Back in Members, open TRANS. Read "What will they do?" and "Where?".
 5. Choose "Reviewer". Tap "Save role".

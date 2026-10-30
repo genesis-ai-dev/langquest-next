@@ -39,6 +39,18 @@ export const getALanguageReady: Tutorial = {
       screen: 'get_ready',
       part: (page) => id(page, 'primary-action'),
       tap: true,
+      until: (page) => words(page, 'Bibles number verses differently').waitFor({ timeout: 10_000 }),
+      stay: 0.6
+    },
+    {
+      screen: 'get_ready',
+      part: (page) => words(page, 'Bibles number verses differently'),
+      say: 'Bibles number some verses differently, so LangQuest needs to know which Bible your team uses.'
+    },
+    {
+      screen: 'get_ready',
+      part: (page) => id(page, 'primary-action'),
+      tap: true,
       until: (page) => words(page, 'Like most English Bibles').waitFor({ timeout: 10_000 }),
       stay: 0.6
     },

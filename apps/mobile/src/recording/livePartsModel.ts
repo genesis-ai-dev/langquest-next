@@ -23,6 +23,14 @@
 // no stop between them, the two side by side in the passage, and at least
 // MIN_SILENCE_MS long. While recording, the silence after the last part
 // grows until the next is said, when its chunk is still open.
+//
+// Once stopped (Caleb, 2026-10-30; LAN-199) every box can go: a silence's ×
+// drops that silence alone. A box stretches over a dropped neighbour's sound
+// as far as its chunk reaches, and never over another box. A + in room no
+// box covers adds a box there; an added box is a part like any said, so
+// silences are boxed around it too. The room is kept for this
+// (ROOM_KEPT_MS): with the switch off, a chunk stays open through a pause
+// of up to half a minute.
 
 /** Frames shown before any pinch: about 6 s. */
 export const LIVE_BARS = 128;
@@ -35,6 +43,13 @@ export const LIVE_COLUMNS = 128;
 export const FRAME_PUBLISH_MS = 90;
 /** The shortest a part's box can be dragged to: about a fifth of a second. */
 export const MIN_PART_FRAMES = 4;
+/**
+ * With the silence switch off, the microphone keeps the room this long after
+ * the last part ended (chunks.ts keepRoom; LAN-199), so the boxes of a pause
+ * between parts can be stretched over or added to. A longer pause closes the
+ * chunk, so a phone left listening does not write the room for ever.
+ */
+export const ROOM_KEPT_MS = 30_000;
 /** A part's head can reach back this far (splitter.ts maxHeadMs plus its margin); sound newer than this may still be claimed. */
 const CLAIM_MS = 3300;
 /** Sound counts as out of the room this many dB above the room's quiet level. */
@@ -82,7 +97,7 @@ export interface LiveState {
   quiet: (number | null)[];
   /** Frames heard. */
   count: number;
-  /** In the order they were said. */
+  /** In the order they were said, and then added with a + (LAN-199). */
   parts: LivePart[];
   open: LivePart | null;
   chunks: Record<string, LiveChunk>;
@@ -97,6 +112,8 @@ export interface LiveState {
   lastAt: number | null;
   /** The silence switch (decision 194): the silence between parts is boxed too, and kept as parts of its own. */
   silence: boolean;
+  /** Silences dropped with their × (LAN-199), by the parts either side (`silenceKey`). */
+  droppedSilences: string[];
 }
 
 /** The silence between two parts said one after the other (decision 194), in frames of the session. */
@@ -114,6 +131,8 @@ export interface LiveSilence {
 export type LiveBar = { db: number; quiet: number | null; kind: 'kept' | 'open' | 'room' | 'heard' | 'lost' };
 /** A box on the waveform: a part's (`index` is the part), or with `silence` the silence after part `index`. */
 export interface LiveBox { index: number; n: number; from: number; to: number; open: boolean; silence?: boolean }
+/** Room kept in a written chunk that no box covers (LAN-199): where a + adds a box, in frames of the session. */
+export interface LiveGap { chunk: string; from: number; to: number }
 /** A place the session fills in the passage, with its number: a kept part, a dropped part's free place (`index` null), or a silence. */
 export interface LivePlace { index: number | null; n: number; silence?: LiveSilence }
 /**
@@ -124,12 +143,21 @@ export interface LivePlace { index: number | null; n: number; silence?: LiveSile
 export interface KeptPart { id: string | null; chunk: string; uri: string | null; fromMs: number; toMs: number; levels: number[]; silence?: boolean }
 
 export function liveStart(firstPart: number, silence = false): LiveState {
-  return { db: [], quiet: [], count: 0, parts: [], open: null, chunks: {}, first: firstPart, hole: null, insert: null, seams: [], frameMs: FRAME_MS_GUESS, lastAt: null, silence };
+  return { db: [], quiet: [], count: 0, parts: [], open: null, chunks: {}, first: firstPart, hole: null, insert: null, seams: [], frameMs: FRAME_MS_GUESS, lastAt: null, silence, droppedSilences: [] };
 }
 
-/** The silence switch flipped (decision 194): every silence between parts is boxed, or none. */
+/** The silence switch flipped (decision 194): every silence between parts is boxed, or none; turning it on boxes the dropped ones again. */
 export function liveSilenceSwitch(s: LiveState, on: boolean): LiveState {
-  return s.silence === on ? s : { ...s, silence: on };
+  return s.silence === on ? s : { ...s, silence: on, ...(on ? { droppedSilences: [] } : {}) };
+}
+
+/**
+ * Whether the microphone keeps the room now (chunks.ts keepRoom): always
+ * with the silence switch on; off, while a part is said (`endedAgoMs` null)
+ * and until ROOM_KEPT_MS after the last one ended.
+ */
+export function keepRoomNow(silence: boolean, endedAgoMs: number | null): boolean {
+  return silence || endedAgoMs === null || endedAgoMs < ROOM_KEPT_MS;
 }
 
 const toDb = (energy: number) => Math.max(-60, Math.min(0, 20 * Math.log10(Math.max(energy, 1e-6))));
@@ -217,6 +245,9 @@ function sideBySide(orders: number[], a: number, b: number): boolean {
   return b > a && !orders.some((o) => o > a && o < b);
 }
 
+/** A silence by the parts either side of it, kept when the parts' edges move. */
+const silenceKey = (after: number, before: number) => `${after}-${before}`;
+
 /** Where a chunk's file is still being written: what is said next goes into it. */
 const chunkOpen = (s: LiveState, chunk: string | undefined) => !!chunk && !!s.chunks[chunk] && s.chunks[chunk]!.ms === null;
 
@@ -239,6 +270,7 @@ export function liveSilences(s: LiveState, recording = false): LiveSilence[] {
     // Both in one chunk: the part being said goes into the last one's chunk only while it is open.
     if (b.p.to === null ? !chunkOpen(s, a.p.chunk) : b.p.chunk !== a.p.chunk) continue;
     if (b.p.from - a.p.to < min || stopBetween(a.p.to, b.p.from) || !sideBySide(orders, a.p.order, b.p.order)) continue;
+    if (b.p.to !== null && s.droppedSilences.includes(silenceKey(a.index, b.index))) continue;
     // Frames and the file's milliseconds agree only to a frame: the cut itself must be long enough too.
     if (a.p.toMs !== undefined && b.p.fromMs !== undefined && b.p.fromMs - a.p.toMs < MIN_SILENCE_MS) continue;
     out.push({ after: a.index, before: b.index, from: a.p.to, to: b.p.from, open: false });
@@ -275,14 +307,17 @@ export function liveKeptCount(s: LiveState): number {
   return s.parts.filter((p) => !p.dropped && p.to !== null).length + liveSilences(s).length;
 }
 
-/** Where a part's edge may go: within its chunk's room, never into another part. Null until its chunk is written. */
+/** The frames a written chunk holds. The frame clock and the file's milliseconds agree only to a hair: a hair is not a frame. */
+function chunkFrames(s: LiveState, c: LiveChunk): { lo: number; hi: number } {
+  return { lo: Math.max(0, Math.ceil(c.at - 1e-3)), hi: Math.floor(c.at + (c.ms ?? 0) / s.frameMs + 1e-3) };
+}
+
+/** Where a part's edge may go: within its chunk's room, over a dropped part's sound too, never into another part. Null until its chunk is written. */
 export function liveEdgeRange(s: LiveState, index: number): { lo: number; hi: number } | null {
   const p = s.parts[index];
   const c = p?.chunk ? s.chunks[p.chunk] : undefined;
   if (!p || p.to === null || !c || c.ms === null) return null;
-  // The frame clock and the file's milliseconds agree only to a hair: a hair is not a frame.
-  let lo = Math.max(0, Math.ceil(c.at - 1e-3));
-  let hi = Math.floor(c.at + c.ms / s.frameMs + 1e-3);
+  let { lo, hi } = chunkFrames(s, c);
   for (const o of s.parts) {
     if (o === p || o.dropped) continue;
     const oTo = o.to ?? s.count;
@@ -312,6 +347,82 @@ export function liveDrop(s: LiveState, index: number): LiveState {
   const p = s.parts[index];
   if (!p || p.dropped || p.to === null) return s;
   return { ...s, parts: s.parts.map((x, i) => (i === index ? { ...x, dropped: true } : x)), hole: p.order, insert: null };
+}
+
+/** Drop the silence after part `after` with its × (LAN-199): the parts either side stay, and the numbers after it close up. */
+export function liveDropSilence(s: LiveState, after: number): LiveState {
+  const q = liveSilences(s).find((x) => x.after === after && x.before !== null);
+  return q ? { ...s, droppedSilences: [...s.droppedSilences, silenceKey(q.after, q.before!)] } : s;
+}
+
+/**
+ * The room kept but in no box (LAN-199), oldest first: the gaps between the
+ * boxes in each written chunk, and before the first and after the last, at
+ * least MIN_PART_FRAMES long. Where two chunks hold the same frames, the
+ * earlier chunk has them. None while a part is being said.
+ */
+export function liveGaps(s: LiveState): LiveGap[] {
+  if (s.open) return [];
+  const taken = s.parts.filter((p) => !p.dropped && p.to !== null).map((p) => ({ from: p.from, to: p.to! })).sort((a, b) => a.from - b.from);
+  const chunks = Object.entries(s.chunks).filter(([, c]) => c.ms !== null).sort(([, a], [, b]) => a.at - b.at);
+  const out: LiveGap[] = [];
+  let before = 0;
+  for (const [chunk, c] of chunks) {
+    const range = chunkFrames(s, c);
+    let at = Math.max(range.lo, before);
+    const hi = Math.min(range.hi, s.count);
+    for (const p of taken) {
+      if (p.to <= at) continue;
+      if (p.from >= hi) break;
+      if (p.from - at >= MIN_PART_FRAMES) out.push({ chunk, from: at, to: p.from });
+      at = Math.max(at, p.to);
+    }
+    if (hi - at >= MIN_PART_FRAMES) out.push({ chunk, from: at, to: hi });
+    before = Math.max(before, hi);
+  }
+  return out;
+}
+
+/**
+ * Where a box added at frames `from`..`to` goes in the passage (LAN-199):
+ * right after the part before it in time, or, with none, right before the
+ * part after it. A dropped part's free place there is filled.
+ */
+function addedPlace(s: LiveState, from: number, to: number): { order: number; hole: number | null; insert: number | null } {
+  const kept = s.parts.filter((p) => !p.dropped && p.to !== null);
+  const before = kept.filter((p) => p.to! <= from).sort((a, b) => b.to! - a.to!)[0];
+  const after = kept.filter((p) => p.from >= to).sort((a, b) => a.from - b.from)[0];
+  const orders = places(s).map((p) => p.order).sort((a, b) => a - b);
+  const fill = { order: s.hole!, hole: null, insert: s.insert };
+  if (before) {
+    const next = orders.find((o) => o > before.order);
+    if (next !== undefined && next === s.hole) return fill;
+    const order = next === undefined ? before.order + 1 : (before.order + next) / 2;
+    // Said parts that were following on from the part before it follow on from it now.
+    return { order, hole: s.hole, insert: s.insert === before.order ? order : s.insert };
+  }
+  if (after) {
+    const prev = [...orders].reverse().find((o) => o < after.order);
+    if (prev !== undefined && prev === s.hole) return fill;
+    return { order: prev === undefined ? after.order - 1 : (prev + after.order) / 2, hole: s.hole, insert: s.insert };
+  }
+  return s.hole !== null ? fill : { order: nextOrder(s).order, hole: null, insert: s.insert };
+}
+
+/**
+ * Add a box over frames `from`..`to` of a gap (LAN-199): a part like any
+ * said, kept as a voice (the silence switch boxes the room around it), with
+ * `id` for the journal. Only where liveGaps still has room for it.
+ */
+export function liveAdd(s: LiveState, gap: LiveGap, id?: string): LiveState {
+  const c = s.chunks[gap.chunk];
+  const from = Math.round(gap.from), to = Math.round(gap.to);
+  if (!c || c.ms === null || to - from < MIN_PART_FRAMES) return s;
+  if (!liveGaps(s).some((g) => g.chunk === gap.chunk && g.from <= from && g.to >= to)) return s;
+  const ms = (frames: number) => Math.max(0, Math.min(c.ms!, (frames - c.at) * s.frameMs));
+  const { order, hole, insert } = addedPlace(s, from, to);
+  const added: LivePart = { order, from, to, chunk: gap.chunk, fromMs: ms(from), toMs: ms(to), ...(id ? { id } : {}) };
+  return { ...s, parts: [...s.parts, added], hole, insert };
 }
 
 /** Where a box is in its chunk's file: a part's, or a silence's between its two parts (decision 194). Null until it can be cut. */

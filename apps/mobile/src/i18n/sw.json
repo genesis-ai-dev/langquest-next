@@ -981,7 +981,6 @@
       "noWays": "Bado hakuna njia za kukagua za kuchagua.",
       "notAdded": "Haijaongezwa",
       "inviteLater": "Waalike watafsiri wa {{language}} kutoka kwenye ukurasa wake baadaye.",
-      "later": "Baadaye",
       "making": {
         "title": "Inaandaa {{language}}",
         "passages": "Inapata vifungu",
@@ -996,7 +995,6 @@
       "continueHelp": "Endelea kwenye swali linalofuata.",
       "addHelp": "Huongeza {{language}} kwa majibu haya. Kisha unaweza kuwaalika watafsiri wake.",
       "backHelp": "Rudi ukurasa mmoja. Ulichochagua kinabaki kimechaguliwa.",
-      "laterHelp": "Huruka hili kwa sasa. Waalike watafsiri wake kutoka ukurasa wake baadaye.",
       "stages": {
         "language": "Lugha",
         "content": "Maudhui",
@@ -1037,7 +1035,8 @@
         "offHelp": "Imeachwa nje. Gusa ili timu ya {{language}} iwe nayo.",
         "nothing": "Bado hakuna Biblia wala miongozo ya kujifunza kwa {{languages}}"
       },
-      "teamLanguages": "Watafsiri wa {{language}} wanatumia lugha zipi?"
+      "teamLanguages": "Watafsiri wa {{language}} wanatumia lugha zipi?",
+      "doneHelp": "Inamaliza kuandaa {{language}}. Unaweza kuwaalika watafsiri wake kutoka ukurasa wake baadaye."
     },
     "offers": {
       "guides": "miongozo ya kujifunza ya {{name}}",
@@ -1288,8 +1287,6 @@
       "linkCopied": "Kiungo cha mwaliko kimenakiliwa. Kibandike kwenye ujumbe.",
       "couldNotShare": "Imeshindwa kukishiriki. Onyesha msimbo badala yake.",
       "shareLink": "Shiriki kama kiungo",
-      "someoneElse": "Mtu mwingine",
-      "showCode": "Onyesha msimbo wa kusoma",
       "whatWillTheyDo": "Watafanya nini?",
       "otherRoles": "Majukumu mengine · {{total}}",
       "newRole": "Kitu kingine: tengeneza jukumu jipya",
@@ -1301,10 +1298,6 @@
       "scopeLanguageHelp": "Wanajiunga na timu ya lugha hii.",
       "scopeOrgHelp": "Wanajiunga na shirika zima: kila lugha iliyomo.",
       "shareLinkHelp": "Hutuma msimbo kama kiungo kwa ujumbe, au hukinakili.",
-      "someoneElseHelp": "Rudi kuchagua mtu mwingine atafanya nini, kwa msimbo mwingine.",
-      "showCodeChecksHelp": "Hutengeneza msimbo unaomweka yeyote anayeusoma kwenye kaguzi zilizo na alama ya vema.",
-      "showCodeNoChecksHelp": "Hutengeneza msimbo. Wanaweza kuwekwa kwenye kaguzi baadaye, kwenye ukurasa wa kila ukaguzi.",
-      "backToRolesHelp": "Rudi kwenye majukumu.",
       "whichChecks": "Watafanya kaguzi zipi?",
       "checkOnHelp": "Watakuwa kwenye ukaguzi huu. Gusa ili kuwaondoa.",
       "checkOffHelp": "Gusa ili kuwaweka kwenye ukaguzi huu.",
@@ -1313,7 +1306,6 @@
       "whatTheyMayDo": "Wanachoruhusiwa kufanya",
       "hideMayDoHelp": "Huficha kile ambacho jukumu hili linawaruhusu kufanya.",
       "showMayDoHelp": "Huonyesha kile {{people}} wanachoruhusiwa kufanya, na wapi.",
-      "invite": "Alika",
       "inviteHelp": "Hutengeneza msimbo ili {{people}} wausome.",
       "everyLanguage": "Katika kila lugha",
       "onlyIn": "Katika {{language}} tu"
@@ -2129,7 +2121,25 @@
         "hebrew": "Kiebrania",
         "korean": "Kikorea"
       },
-      "chooseFromListHelp": "Kila mpangilio wa namba, kila mmoja ukiwa na mambo matatu yanayoitofautisha."
+      "chooseFromListHelp": "Kila mpangilio wa namba, kila mmoja ukiwa na mambo matatu yanayoitofautisha.",
+      "why": {
+        "question": "Biblia hazipangi namba za mistari kwa njia moja",
+        "english": "Biblia ya Kiingereza",
+        "hebrew": "Biblia ya Kiebrania",
+        "verse": "{{book}} {{chapter}}:{{verse}}",
+        "bibleA11y": "{{bible}}: {{chapters}}. Mstari huo huo ni {{verse}}.",
+        "match": "Mstari ule ule unaweza kuwa na namba nyingine. LangQuest inahitaji mpangilio wa namba wa Biblia yako, ili namba zilingane."
+      },
+      "how": {
+        "question": "Tafuta mpangilio wa namba wa Biblia yako",
+        "find": "Chagua Biblia yako",
+        "findSub": "NIV, Reina-Valera, Luther…",
+        "findHelp": "Tafuta Biblia ambayo timu yako inatafsiri kutoka kwayo. LangQuest inajua jinsi inavyopanga namba za mistari.",
+        "quiz": "Jibu maswali",
+        "quizSub": "Maswali machache, Biblia yako ikiwa wazi",
+        "list": "Chagua mpangilio wa namba",
+        "listSub": "Kama tayari unaujua"
+      }
     },
     "own": {
       "title": "Kigawe kwa njia yako",
@@ -2974,7 +2984,10 @@
       "scanQrHelp": "Hufungua kamera. Ielekeze kwenye msimbo.",
       "pasteHelp": "Bandika msimbo au kiungo hapa. Husomwa mara tu kinapokuwa kamili.",
       "clearInviteHelp": "Husahau mwaliko huu kwenye kifaa hiki.",
-      "notNowHelp": "Husahau mwaliko huu na kurudi kwenye kazi yako."
+      "notNowHelp": "Husahau mwaliko huu na kurudi kwenye kazi yako.",
+      "whoJoins": "Nani anajiunga?",
+      "someoneNew": "Mtu mpya",
+      "someoneNewHelp": "Kwa mtu ambaye bado hayupo kwenye simu hii: akaunti mpya. Kisha, andika jina lake."
     },
     "signInKey": {
       "notGuestTitle": "Huu ni msimbo wa kuingia",
@@ -4033,7 +4046,8 @@
       "listeners": "Wasikilizaji",
       "liveIn": "Imechapishwa kwenye {{channel}} · {{version}}",
       "listenerCount": "Maoni ya wasikilizaji: {{count, number}}",
-      "askedOffline": "Umemwomba {{target}}. Wataipata kifaa hiki kikiunganishwa."
+      "askedOffline": "Umemwomba {{target}}. Wataipata kifaa hiki kikiunganishwa.",
+      "askForAgain": "Omba {{check}} tena"
     },
     "else": {
       "title": "Kitu kingine?",
@@ -4069,7 +4083,8 @@
       "doneHelp": "Hurudi kwenye kifungu.",
       "pickCheckHelp": "Huchagua ukaguzi huu ili kuuomba. Chini yake: watu wanaoufanya.",
       "someoneElseHelp": "Mwombe mtu mwingine, timu, au mtu asiye na programu.",
-      "notNowHelp": "Omba baadaye. Toleo linabaki limechapishwa."
+      "notNowHelp": "Omba baadaye. Toleo linabaki limechapishwa.",
+      "askTargetAgain": "Omba {{target}} tena"
     },
     "keep": {
       "title": "Kiache kama kilivyo?",
@@ -4196,7 +4211,14 @@
       "answerTypeHelp": "Hubadilisha jinsi wanavyojibu: ndiyo au hapana, kwa maneno, au 1 hadi 5.",
       "addQuestionHelp": "Huongeza swali lako kwenye yale wanayojibu.",
       "removeQuestionHelp": "Huondoa swali hili.",
-      "openCheckHelp": "Hufungua {{check}}, ambapo unabadilisha maswali yake."
+      "openCheckHelp": "Hufungua {{check}}, ambapo unabadilisha maswali yake.",
+      "last": {
+        "good": "{{name}} alikagua toleo la {{version}}: iko sawa",
+        "changes": "{{name}} alikagua toleo la {{version}}: inahitaji marekebisho",
+        "answered": "{{name}} alikagua toleo la {{version}}: inahitaji marekebisho, yamejibiwa katika toleo la {{answer}}",
+        "kept": "{{name}} alikagua toleo la {{version}}: inahitaji marekebisho, imeachwa kama ilivyo",
+        "recorded": "{{name}} alifanya hili kwa toleo la {{version}}"
+      }
     },
     "resources": {
       "sourceAudio": "Sauti ya chanzo"
@@ -4868,7 +4890,7 @@
       "leave": "Imekamilika",
       "leaveHelp": "Husimamisha kurekodi na kuhifadhi sehemu kama visanduku vyake vinavyoonyesha.",
       "stopped": "Imesimama",
-      "stoppedHelp": "Gusa sehemu ili uisikilize. Buruta kingo zake ili kusogeza inapoanzia na inapoishia. Alama × huiondoa. Imekamilika huhifadhi sehemu kama visanduku vyake vinavyoonyesha; kitufe chekundu hurekodi zaidi.",
+      "stoppedHelp": "Gusa sehemu ili uisikilize. Buruta kingo zake ili kusogeza inapoanzia na inapoishia. Alama × huiondoa. Imekamilika huhifadhi sehemu kama visanduku vyake vinavyoonyesha; kitufe chekundu hurekodi zaidi. Alama + inaweka kisanduku mahali pasipo na sehemu.",
       "startEarlier": "Anza mapema",
       "startLater": "Anza baadaye",
       "endEarlier": "Maliza mapema",
@@ -4895,7 +4917,8 @@
       "micOff": "LangQuest haiwezi kukusikia. Washa maikrofoni kwa LangQuest kwenye Mipangilio.",
       "micOffWeb": "LangQuest haiwezi kukusikia. Ruhusu maikrofoni kwa tovuti hii kwenye kivinjari chako, kisha gusa rekodi tena.",
       "openSettings": "Fungua Mipangilio",
-      "openSettingsHelp": "Hufungua mipangilio ya simu hii kwa LangQuest. Washa maikrofoni hapo, kisha urudi."
+      "openSettingsHelp": "Hufungua mipangilio ya simu hii kwa LangQuest. Washa maikrofoni hapo, kisha urudi.",
+      "addPart": "Ongeza sehemu hapa"
     },
     "cleanUp": {
       "cleanUp": "Safisha",
@@ -7601,14 +7624,20 @@
       "idea": "Wazo: kitu kitakachofanya LangQuest iwe bora kwako.",
       "body": "Sema kwa maneno yako mwenyewe, kwa lugha yoyote.",
       "screenshot": "Hutuma picha ya skrini uliyokuwa. Imezimwa hadi uiwashe.",
-      "profile": "Hutuma jina lako na jinsi unavyoingia, ili timu ya LangQuest ijue nani aliandika. Imezimwa hadi uiwashe."
+      "profile": "Hutuma jina lako na jinsi unavyoingia, ili timu ya LangQuest ijue nani aliandika. Imezimwa hadi uiwashe.",
+      "picture": "Chagua picha, au picha ya skrini ya kitu kingine, uitume pamoja na maneno yako.",
+      "removePicture": "Huondoa picha kwenye unachotuma."
     },
     "toast": {
       "sent": "Imetumwa. Asante!",
       "saved": "Imehifadhiwa. Itatumwa ukiunganishwa.",
       "savedUntilSignIn": "Imehifadhiwa. Itatumwa baada ya kuingia.",
-      "voiceTooLong": "Ni ndefu mno: ujumbe wa sauti unaweza kuwa hadi dakika 2."
-    }
+      "voiceTooLong": "Ni ndefu mno: ujumbe wa sauti unaweza kuwa hadi dakika 2.",
+      "pictureFailed": "Picha hiyo haikuweza kufunguliwa. Jaribu nyingine."
+    },
+    "addPicture": "Ongeza picha",
+    "otherPicture": "Chagua picha nyingine",
+    "removePicture": "Ondoa picha"
   },
   "appVersion": {
     "available": "Toleo jipya linapatikana",
