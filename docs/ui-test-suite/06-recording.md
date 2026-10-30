@@ -1009,6 +1009,29 @@ Expected:
 - Step 3 takes both new parts back in one tap; step 4 puts both back.
 - A part said between two pieces of one verse is labelled as more of that verse, so the piece after it keeps its verse.
 
+### REC-057 The silence switch boxes the pauses between parts and keeps them as parts
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- Luke 12:35-48, called P-S below, is not started (a world of its own on the web, `06-recording-silence.spec.ts`).
+
+Steps:
+1. Open P-S and tap "Record" (or the Record step row).
+2. Tap the red button, then the switch right of it (a flat line in a dashed box, "Silence as parts").
+3. Speak for 3 seconds, pause, twice.
+4. Tap the red button ("Stop recording").
+5. Tap the switch, then tap it again.
+6. Tap the dashed box between the two parts.
+7. Tap the check, "Done".
+
+Expected:
+- While a session is open the switch sits right of the red button, where Done is once it is left; it is off the first time, and the phone or browser keeps it as it was left (decision 193).
+- After step 3 the pause between the parts has a dashed box with its number in an outlined pill, 2, and the second part is 3. The pause after the last part grows, numbered 4, until something is said.
+- After step 4 the boxes are 1, 2 (dashed) and 3; nothing grows after the last part, and the dashed box has no handles and no ×.
+- Step 5 takes the dashed box away (the parts are 1 and 2), then brings it back.
+- Step 6 plays the pause, as recorded, never turned up.
+- After step 7 the card reads "Parts 1–3" with "3 parts"; Part 2 is the pause, its bars flat.
+
 ## Microphone setup
 
 ### REC-045 Set up the microphone by ear (retired)

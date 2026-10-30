@@ -7,8 +7,10 @@ import Foundation
  * starts, with up to padMs of the room before the part's head, and closes
  * padMs after the last part in it ended, so a part's edges can be moved out
  * into the room around it until the session is left, while a long silence
- * is never written. The module does the writing, in this order for each
- * frame: the ring, the open chunk's file, the splitter, then these actions.
+ * is never written. While the silence switch is on (`keepRoom`, decision
+ * 192) a chunk stays open through every pause until the detector stops. The
+ * module does the writing, in this order for each frame: the ring, the open
+ * chunk's file, the splitter, then these actions.
  */
 final class Chunks {
     enum Action: Equatable {
@@ -42,6 +44,8 @@ final class Chunks {
     private var kept = 0
     /// When the last part ended (ms, the splitter's clock): the chunk keeps padMs after it.
     private var endedAt = -Double.infinity
+    /// The silence switch (decision 193): an open chunk does not close after a part; the module sets it whenever it changes.
+    var keepRoom = false
 
     init(frameMs: Double, sampleRate: Int) {
         self.frameMs = frameMs
@@ -79,7 +83,7 @@ final class Chunks {
         case .none:
             break
         }
-        if open && partFrom == nil && now - endedAt >= Chunks.padMs { out.append(close()) }
+        if open && partFrom == nil && !keepRoom && now - endedAt >= Chunks.padMs { out.append(close()) }
         return out
     }
 

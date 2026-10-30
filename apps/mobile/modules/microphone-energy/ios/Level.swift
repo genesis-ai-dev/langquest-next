@@ -20,7 +20,7 @@ final class Level: @unchecked Sendable {
 
     /// levelModel.ts LEVEL.
     struct Options {
-        let targetLufs: Double, maxBoostDb: Double, minChangeDb: Double, ceilingDb: Double, lookaheadS: Double, releaseS: Double
+        let targetLufs: Double, maxBoostDb: Double, minChangeDb: Double, voicelessDb: Double, ceilingDb: Double, lookaheadS: Double, releaseS: Double
         let passes: Int
 
         init(_ o: [String: Double]) throws {
@@ -29,6 +29,7 @@ final class Level: @unchecked Sendable {
                 return v
             }
             targetLufs = try num("targetLufs"); maxBoostDb = try num("maxBoostDb"); minChangeDb = try num("minChangeDb")
+            voicelessDb = try num("voicelessDb")
             ceilingDb = try num("ceilingDb"); lookaheadS = try num("lookaheadS"); releaseS = try num("releaseS")
             passes = Int(try num("passes"))
         }
@@ -54,7 +55,7 @@ final class Level: @unchecked Sendable {
         let meter = Meter(rate: DeepFilter.rate, frames: length)
         try blocks(x, length) { a in meter.add(a) }
         let m = meter.measured()
-        var gain = Level.playGain(m.lufs, o)
+        var gain = Level.playGain(m.lufs, m.noiseDb, o)
         var answer: [String: Any] = ["peakDb": m.peakDb, "amps": m.amps, "gainDb": gain, "written": false]
         if let lufs = m.lufs { answer["lufs"] = lufs }
         if let noise = m.noiseDb { answer["noiseDb"] = noise }
@@ -114,8 +115,9 @@ final class Level: @unchecked Sendable {
     }
 
     /// loudnessModel.ts playGainDb.
-    static func playGain(_ lufs: Double?, _ o: Options) -> Double {
+    static func playGain(_ lufs: Double?, _ noiseDb: Double?, _ o: Options) -> Double {
         guard let lufs else { return 0 }
+        if let noiseDb, lufs - noiseDb < o.voicelessDb { return 0 }
         return min(o.maxBoostDb, o.targetLufs - lufs)
     }
 

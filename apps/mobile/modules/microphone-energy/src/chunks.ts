@@ -6,7 +6,10 @@
 // and closes once `padMs` has passed after the last part in it ended. Parts
 // close together share a chunk; a long silence is never written, so storage
 // grows with speech, not with time. Only the ring (a few seconds) is held in
-// memory.
+// memory. While the silence switch is on (`keepRoom`, decision 193) a chunk
+// stays open through every pause until the detector stops, so the silence
+// between parts is on storage whole and can be kept as parts of its own;
+// storage then grows with time.
 //
 // Pure, like splitter.ts: the modules do the writing, in this order for each
 // frame: the ring, the open chunk's file, the splitter, then these actions.
@@ -46,6 +49,8 @@ export class Chunks {
   private endedAt = -Infinity;
   private readonly frameMs: number;
   private readonly sampleRate: number;
+  /** The silence switch (decision 193): an open chunk does not close after a part; the module sets it whenever it changes. */
+  keepRoom = false;
 
   constructor(frameMs: number, sampleRate: number) {
     this.frameMs = frameMs;
@@ -81,7 +86,7 @@ export class Chunks {
       this.partFrom = null;
       this.endedAt = now - action.trimMs;
     }
-    if (this.open && this.partFrom === null && now - this.endedAt >= CHUNK.padMs) out.push(this.close());
+    if (this.open && this.partFrom === null && !this.keepRoom && now - this.endedAt >= CHUNK.padMs) out.push(this.close());
     return out;
   }
 

@@ -14,9 +14,10 @@ const ROOM = -52;
 interface Chunk { at: number; length: number; kept: boolean | null; parts: { from: number; to: number }[] }
 
 /** Run levels through a splitter and the chunks; every chunk as frames of the session (where it starts, how long). */
-function keep(levels: number[], stopAt = levels.length): { chunks: Chunk[]; written: number } {
+function keep(levels: number[], stopAt = levels.length, keepRoom = false): { chunks: Chunk[]; written: number } {
   const s = new Splitter(FRAME_MS, null);
   const c = new Chunks(FRAME_MS, SAMPLE_RATE);
+  c.keepRoom = keepRoom;
   const chunks: Chunk[] = [];
   let open: Chunk | null = null;
   let written = 0;
@@ -67,6 +68,33 @@ describe('what of a session is kept (chunks.ts)', () => {
     const levels = [...frames(30, ROOM), ...frames(2, -20), ...frames(30, ROOM), ...frames(2, -20), ...frames(30, ROOM)];
     const { written } = keep(levels);
     expect(written).toBeLessThan(frames(4 * 2 + 2 + 2 + 3, 0).length);
+  });
+
+  it('keeps the whole silence between parts while the silence switch is on (decision 193)', () => {
+    const levels = [...frames(30, ROOM), ...frames(2, -20), ...frames(30, ROOM), ...frames(2, -20), ...frames(30, ROOM)];
+    const { chunks, written } = keep(levels, levels.length, true);
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0]!.parts).toHaveLength(2);
+    // From the room before the first part to the stop: the 30 s between the parts are all in the file.
+    const [a, b] = chunks[0]!.parts;
+    expect(chunks[0]!.at).toBeLessThanOrEqual(a!.from);
+    expect(b!.from - a!.to).toBeGreaterThan(frames(29, 0).length);
+    expect(written).toBe(levels.length - chunks[0]!.at);
+  });
+
+  it('closes the chunk as before once the switch is turned off', () => {
+    const levels = [...frames(4, ROOM), ...frames(2, -20), ...frames(30, ROOM)];
+    const s = new Splitter(FRAME_MS, null);
+    const c = new Chunks(FRAME_MS, SAMPLE_RATE);
+    c.keepRoom = true;
+    let closedAt: number | null = null;
+    const off = frames(4 + 2 + 10, 0).length;
+    levels.forEach((db, f) => {
+      if (f === off) c.keepRoom = false;
+      for (const a of c.step(FRAME_SAMPLES, s.step(energy(db), (f + 1) * FRAME_MS), (f + 1) * FRAME_MS)) if (a.type === 'close') closedAt ??= f;
+    });
+    // Long past its part's room: it closes on the first frame after the switch goes off.
+    expect(closedAt).toBe(off);
   });
 
   it('deletes a chunk that only heard a tap', () => {

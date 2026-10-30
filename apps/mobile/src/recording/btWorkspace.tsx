@@ -77,6 +77,7 @@ import { useStudyGuide } from '../study/useStudyGuides';
 import { studyProgress } from '../study/progress';
 import { GuideNav, GuideStep } from '../study/guide';
 import { a11yState } from '../ui/a11yModel';
+import { SilenceSwitch } from './silenceSwitch';
 
 export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; kind: KindDef; of: Version }) {
   const { state, unitId, languageId, p } = v;
@@ -292,6 +293,8 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   const partLabel = partN ? [t('backTranslation.part', { n: partN }), partVerse].filter(Boolean).join(' · ') : '';
   const playerTitle = partN ? [t('backTranslation.barTitle', { language: v.language, n: of.n, part: partN }), partVerse].filter(Boolean).join(' · ') : t('backTranslation.barTitleNoPart', { language: v.language, n: of.n });
 
+  // The silence switch sits where Done is while a session is open (decision 193).
+  const silence = <SilenceSwitch on={rec.silence} onToggle={() => rec.setSilence(!rec.silence)} />;
   return (
     <Screen fixed
       header={wide
@@ -303,7 +306,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
         <View style={styles.footer}>
           <Text style={[txt.sm, styles.footLabel, { color: TINT.redText }]} numberOfLines={2}>{partLabel}…</Text>
           <RecordButton recording onPress={() => void loop.toggle()} />
-          <View style={styles.footSide} />
+          <View style={styles.footSide}>{silence}</View>
         </View>
       ) : (
         <View style={styles.footer}>
@@ -316,7 +319,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
           <BigRecord disabled={blocked || rec.failureCount > 0 || !part} part={partN} onPress={() => void loop.toggle()} />
           <View style={styles.footSide}>
             {/* A session open but stopped (decision 129) has the recording view's Done. */}
-            {session ? null : <PublishBtn disabled={pieces.length === 0 || blocked || rec.failureCount > 0} onPress={() => setConfirming(true)} />}
+            {session ? silence : <PublishBtn disabled={pieces.length === 0 || blocked || rec.failureCount > 0} onPress={() => setConfirming(true)} />}
           </View>
         </View>
       )}>

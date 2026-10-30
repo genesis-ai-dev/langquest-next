@@ -770,7 +770,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} />}
       footer={recorderLine ? undefined : (
         <RecorderFooter count={list.length} nextIndex={sessionIndex} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
-          publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} undo={undoRedo} />
+          publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} undo={undoRedo}
+          silence={{ on: rec.silence, onToggle: () => rec.setSilence(!rec.silence) }} />
       )}>
       <SplitPane memoryKey="workspace" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM} onFraction={setSplit}
         topStyle={styles.refPane} bottomStyle={styles.wsRecordPane}

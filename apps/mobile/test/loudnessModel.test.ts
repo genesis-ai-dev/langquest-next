@@ -1,4 +1,4 @@
-import { gatedLoudness, isNoisy, kWeighting, loudnessMeter, MAX_BOOST_DB, mono16, NOISY_DB, packSound, playGainDb, roomAsPlayed, roomDb, soundOf, TARGET_LUFS, unpackSound } from '../src/audio/loudnessModel';
+import { gatedLoudness, isNoisy, kWeighting, loudnessMeter, MAX_BOOST_DB, mono16, NOISY_DB, packSound, playGainDb, roomAsPlayed, roomDb, soundOf, TARGET_LUFS, unpackSound, VOICELESS_DB } from '../src/audio/loudnessModel';
 
 const RATE = 44100;
 
@@ -131,10 +131,24 @@ describe('the noise warning (decision 181)', () => {
 
 describe('the loudness a part plays at (decision 182)', () => {
   it('turns a part up or down to −16 LUFS, up by at most MAX_BOOST_DB, and leaves a silent one alone', () => {
-    expect(playGainDb({ lufs: -26 })).toBe(10);
-    expect(playGainDb({ lufs: -9 })).toBe(-7);
-    expect(playGainDb({ lufs: TARGET_LUFS - MAX_BOOST_DB - 6 })).toBe(MAX_BOOST_DB);
-    expect(playGainDb({ lufs: null })).toBe(0);
+    expect(playGainDb({ lufs: -26, noiseDb: -60 })).toBe(10);
+    expect(playGainDb({ lufs: -9, noiseDb: null })).toBe(-7);
+    expect(playGainDb({ lufs: TARGET_LUFS - MAX_BOOST_DB - 6, noiseDb: -80 })).toBe(MAX_BOOST_DB);
+    expect(playGainDb({ lufs: null, noiseDb: -60 })).toBe(0);
+  });
+
+  it('leaves a part that holds only the room as recorded, so its hiss is never turned up (decision 193)', () => {
+    expect(playGainDb({ lufs: -55, noiseDb: -55 - VOICELESS_DB + 0.1 })).toBe(0);
+    expect(playGainDb({ lufs: -55, noiseDb: -55 - VOICELESS_DB })).toBe(MAX_BOOST_DB);
+    // A silence kept as a part: room alone, however quiet or loud, plays as it is and shows no noise warning.
+    for (const db of [-70, -55, -35]) {
+      const room = measure(noise(2, db, 9));
+      expect(playGainDb(room)).toBe(0);
+      expect(isNoisy(room)).toBe(db > NOISY_DB);
+    }
+    // Words in the same room are a voice: turned up.
+    const said = measure(plus(speech(0.05), noise(4.25, -55, 9)));
+    expect(playGainDb(said)).toBeGreaterThan(0);
   });
 
   it('draws the same measure from what a phone hands over as from the meter', () => {

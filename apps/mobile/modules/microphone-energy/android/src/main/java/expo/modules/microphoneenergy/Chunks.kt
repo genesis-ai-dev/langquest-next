@@ -12,8 +12,10 @@ import kotlin.math.roundToInt
  * starts, with up to PAD_MS of the room before the part's head, and closes
  * PAD_MS after the last part in it ended, so a part's edges can be moved out
  * into the room around it until the session is left, while a long silence
- * is never written. The module does the writing, in this order for each
- * frame: the ring, the open chunk's file, the splitter, then these actions.
+ * is never written. While the silence switch is on (`keepRoom`, decision
+ * 192) a chunk stays open through every pause until the detector stops. The
+ * module does the writing, in this order for each frame: the ring, the open
+ * chunk's file, the splitter, then these actions.
  */
 class Chunks(private val frameMs: Double, private val sampleRate: Int) {
   sealed class Action {
@@ -45,6 +47,8 @@ class Chunks(private val frameMs: Double, private val sampleRate: Int) {
   private var kept = 0
   /** When the last part ended (ms, the splitter's clock): the chunk keeps PAD_MS after it. */
   private var endedAt = Double.NEGATIVE_INFINITY
+  /** The silence switch (decision 193): an open chunk does not close after a part; the module sets it whenever it changes. */
+  var keepRoom = false
 
   /** One frame of `samples` samples, heard at `now` (ms), and what the splitter said of it. */
   fun step(samples: Int, action: Splitter.Action?, now: Double): List<Action> {
@@ -71,7 +75,7 @@ class Chunks(private val frameMs: Double, private val sampleRate: Int) {
       partFrom = null
       endedAt = now - action.trimMs
     }
-    if (open && partFrom == null && now - endedAt >= PAD_MS) out.add(close())
+    if (open && partFrom == null && !keepRoom && now - endedAt >= PAD_MS) out.add(close())
     return out
   }
 

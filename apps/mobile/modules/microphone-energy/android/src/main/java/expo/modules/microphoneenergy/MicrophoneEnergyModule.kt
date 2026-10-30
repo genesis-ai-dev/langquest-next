@@ -66,6 +66,8 @@ class MicrophoneEnergyModule : Module() {
   private var remembered: Splitter.Heard? = null
   /** The splitter's clock: frames heard, as time. */
   private var clockMs = 0.0
+  /** The silence switch (decision 193): chunks keep the room between parts while it is on. */
+  private var keepRoom = false
 
   override fun definition() = ModuleDefinition {
     Name("MicrophoneEnergy")
@@ -195,8 +197,9 @@ class MicrophoneEnergyModule : Module() {
     audioRecord = null
   }
   
-  /** Only what the device heard last time is read; the old detector's settings are ignored (LAN-82). */
+  /** What the device heard last time (LAN-82) and the silence switch (decision 193); the old detector's settings are ignored. */
   private fun configureVAD(config: Map<String, Any?>) = synchronized(configLock) {
+    (config["keepRoom"] as? Boolean)?.let { keepRoom = it; chunks?.keepRoom = it }
     @Suppress("UNCHECKED_CAST")
     val heard = config["heard"] as? Map<String, Any?> ?: return@synchronized
     val room = (heard["room"] as? Number)?.toDouble()
@@ -209,7 +212,7 @@ class MicrophoneEnergyModule : Module() {
     synchronized(configLock) {
       vadEnabled = true
       val sp = splitter ?: Splitter(FRAME_MS, remembered).also { splitter = it }
-      if (chunks == null) chunks = Chunks(FRAME_MS, sampleRate)
+      (chunks ?: Chunks(FRAME_MS, sampleRate).also { chunks = it }).keepRoom = keepRoom
       sp.pauseListening()
       // What the model heard before (a source playing) is not this stretch's.
       resampler = null; speechChunks.reset(); speechModel?.reset(); lastScore = 0.0
