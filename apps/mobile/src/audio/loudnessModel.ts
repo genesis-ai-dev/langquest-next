@@ -19,6 +19,14 @@ export const MAX_BOOST_DB = 24;
  * −45 marked over half of them, too many for "lots of background noise".
  */
 export const NOISY_DB = -40;
+/**
+ * A part whose loudness stands less than this over its room holds no voice
+ * to bring up (decision 194): a silence kept as a part, or a voice lost in
+ * the room. It plays as recorded, so its hiss is never turned up. Room alone
+ * measured 3.5 dB at most (white, pink and brown noise, mains hum, a fan);
+ * speech 6 dB over its room, 5.6 dB at least.
+ */
+export const VOICELESS_DB = 5;
 
 /** The room is read in slices this long: short enough to fall between words. */
 const SLICE_S = 0.025;
@@ -176,10 +184,11 @@ export function roomDb(slices: readonly number[]): number | null {
 /**
  * How much a part is turned up (or down) to play at TARGET_LUFS (decision
  * 182): never up by more than MAX_BOOST_DB, and not at all when nothing in
- * it is loud enough to measure.
+ * it is loud enough to measure or it holds only the room (VOICELESS_DB).
  */
-export function playGainDb(m: Pick<Loudness, 'lufs'>): number {
-  return m.lufs === null ? 0 : Math.min(MAX_BOOST_DB, TARGET_LUFS - m.lufs);
+export function playGainDb(m: Pick<Loudness, 'lufs' | 'noiseDb'>): number {
+  if (m.lufs === null || (m.noiseDb !== null && m.lufs - m.noiseDb < VOICELESS_DB)) return 0;
+  return Math.min(MAX_BOOST_DB, TARGET_LUFS - m.lufs);
 }
 
 /** How loud the room between words is as the part plays (playGainDb); null when either is unknown. */

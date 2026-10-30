@@ -20,7 +20,7 @@
 // it fell short (nextGain), at most PASSES times in all; that reading ends
 // within 1 dB of it (Apple Podcasts asks for ±1 dB), and one with ordinary
 // peaks needs a single pass.
-import { loudnessMeter, MAX_BOOST_DB, playGainDb, TARGET_LUFS, type Loudness, type Measured } from './loudnessModel';
+import { loudnessMeter, MAX_BOOST_DB, playGainDb, TARGET_LUFS, VOICELESS_DB, type Loudness, type Measured } from './loudnessModel';
 
 /** No sample plays louder than this, dBFS (Apple Podcasts' and the options doc's −1 dB). */
 export const CEILING_DB = -1;
@@ -37,6 +37,7 @@ export const PASSES = 3;
 export const LEVEL = {
   targetLufs: TARGET_LUFS,
   maxBoostDb: MAX_BOOST_DB,
+  voicelessDb: VOICELESS_DB,
   minChangeDb: MIN_CHANGE_DB,
   ceilingDb: CEILING_DB,
   lookaheadS: LOOKAHEAD_S,
@@ -45,7 +46,7 @@ export const LEVEL = {
 };
 
 /** Whether a part plays from a copy: turned by MIN_CHANGE_DB or more. */
-export function needsCopy(m: Pick<Loudness, 'lufs'>): boolean {
+export function needsCopy(m: Pick<Loudness, 'lufs' | 'noiseDb'>): boolean {
   return Math.abs(playGainDb(m)) >= MIN_CHANGE_DB;
 }
 

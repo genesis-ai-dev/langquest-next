@@ -54,14 +54,14 @@ const kept = new Map<string, Film>(
     .map((f) => [f.tutorial, f])
 );
 
-/** make-videos.ts for these videos; which ended well. */
-function makeVideos(videos: string[], dry: boolean): Set<string> {
+/** make-videos.ts for these videos; which ended well. `alone`: one video at a time. */
+function makeVideos(videos: string[], dry: boolean, alone = dry): Set<string> {
   const report = path.join(results, `nightly-${language}-${dry ? 'dry' : 'film'}.jsonl`);
   rmSync(report, { force: true });
   spawnSync('npx', ['tsx', path.join('e2e', 'tutorials', 'make-videos.ts'), ...(dry ? ['--dry'] : []), '--language', language!, ...videos], {
     stdio: 'inherit',
     // A dry run one video at a time: two films at once share the database, and each would see the other's work.
-    env: { ...process.env, TUTORIAL_REPORT: report, TUTORIAL_AT_ONCE: dry ? '1' : process.env['TUTORIAL_AT_ONCE'] ?? '2' }
+    env: { ...process.env, TUTORIAL_REPORT: report, TUTORIAL_AT_ONCE: alone ? '1' : process.env['TUTORIAL_AT_ONCE'] ?? '2' }
   });
   const lines = existsSync(report) ? readFileSync(report, 'utf8').split('\n').filter(Boolean) : [];
   return new Set(lines.map((l) => JSON.parse(l) as { id: string; ok: boolean }).filter((r) => r.ok).map((r) => r.id));
@@ -74,6 +74,13 @@ const stepsOf = (id: string) => {
 
 // make-videos.ts with no video named makes them all: when only the trailer is named, none is tried.
 const tried = ids.length ? makeVideos(ids, true) : new Set<string>();
+// A dry run that failed is tried once more, as a film is below: the local stack now and then answers
+// a call with an error under load (save_profile: "An invalid response was received from the upstream server").
+const untried = ids.filter((id) => !tried.has(id));
+if (untried.length) {
+  console.log(`${language}: ${untried.length} failed, tried once more: ${untried.join(' ')}`);
+  for (const id of makeVideos(untried, true)) tried.add(id);
+}
 const looks = new Map([...tried].map((id) => [id, lookOf(stepsOf(id), language)]));
 // A film framed as films no longer are (FRAME) is made again whatever its look: no need to try it twice.
 const stale = (id: string) => kept.has(id) && kept.get(id)!.frame !== FRAME;
@@ -94,6 +101,13 @@ const changed = ids.filter((id) => looks.has(id) && (named || stale(id) || kept.
 console.log(`${language}: ${tried.size} of ${ids.length} tried (${triedAgain} tries again), ${changed.length} to film: ${changed.join(' ') || 'none'}`);
 
 const filmed = changed.length ? makeVideos(changed, false) : new Set<string>();
+// A film that failed although its dry run passed is filmed once more, alone: two films at once share the
+// stack, and a slow answer or a screen drawn again under a tap fails one now and then.
+const missed = changed.filter((id) => !filmed.has(id));
+if (missed.length) {
+  console.log(`${language}: ${missed.length} to film again, alone: ${missed.join(' ')}`);
+  for (const id of makeVideos(missed, false, true)) filmed.add(id);
+}
 const lines = language === 'en' ? {} : JSON.parse(readFileSync(path.join('e2e', 'tutorials', 'lines', `${language}.json`), 'utf8')) as Record<string, string>;
 const say = (english: string) => (language === 'en' ? english : lines[english] ?? english);
 const order = Object.keys(TUTORIALS);

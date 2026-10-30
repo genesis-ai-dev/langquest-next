@@ -14,6 +14,11 @@
 // pane's status row says what is happening. While recording it is hidden
 // from screen readers; stopped, each box is a button with its actions.
 // `tone` is the ground it sits on: the red recording pane, or a white card.
+//
+// With the silence switch on (decision 194) the silence between parts has
+// a dashed box of its own, its number in an outlined pill, growing after the
+// last part until the next is said. Stopped, a tap plays it; it has no
+// edges or × of its own, as it always fills the room between its parts.
 import { memo, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { PanResponder, Platform, StyleSheet, View, type AccessibilityActionEvent, type GestureResponderEvent } from 'react-native';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
@@ -26,27 +31,30 @@ import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../aud
 import { cutWav, deleteRecorderFile } from '../audio/wavCut';
 import { playable } from '../audio/levelStore';
 import { noteExpected } from '../diagnostics/report';
-import { clampFrames, LIVE_BARS, liveBars, liveBoxes, liveHeight, type LiveBar, type LiveBox, type LiveState } from './livePartsModel';
+import { clampFrames, LIVE_BARS, liveBars, liveBoxes, liveClip, liveHeight, type LiveBar, type LiveBox, type LiveState } from './livePartsModel';
 import type { RecordingSession } from './recordingSession';
 import { mmss, partLabel } from './model';
 
 type Tone = 'onRed' | 'onCard';
 const LOST_ON_RED = '#7F1D1D';
 
-const TONES: Record<Tone, { bar: Record<LiveBar['kind'], string>; band: string; box: string; boxFill: string; open: string; openFill: string; pill: string; pillOpen: string; pillText: string; pillOpenText: string; mark: string; markText: string }> = {
+const TONES: Record<Tone, { bar: Record<LiveBar['kind'], string>; band: string; box: string; boxFill: string; open: string; openFill: string; pill: string; pillOpen: string; pillText: string; pillOpenText: string; mark: string; markText: string;
+  /** A silence's box (decision 194): dashed, its number in an outlined pill. */ silence: string; silenceOpen: string; silenceFill: string }> = {
   onRed: {
     bar: { kept: C.white, open: C.white, room: withAlpha(C.white, 0.35), heard: withAlpha(C.white, 0.6), lost: LOST_ON_RED },
     band: withAlpha(C.white, 0.14), box: withAlpha(C.white, 0.8), boxFill: withAlpha(C.white, 0.1), open: C.white, openFill: withAlpha(C.white, 0.18),
-    pill: withAlpha(C.white, 0.85), pillOpen: C.white, pillText: C.red, pillOpenText: C.red, mark: C.white, markText: C.red
+    pill: withAlpha(C.white, 0.85), pillOpen: C.white, pillText: C.red, pillOpenText: C.red, mark: C.white, markText: C.red,
+    silence: withAlpha(C.white, 0.85), silenceOpen: C.white, silenceFill: withAlpha(C.white, 0.03)
   },
   onCard: {
     bar: { kept: C.primary, open: C.primary, room: C.faint, heard: C.muted, lost: C.red },
     band: withAlpha(C.faint, 0.35), box: C.primary, boxFill: withAlpha(C.primary, 0.08), open: C.red, openFill: withAlpha(C.red, 0.06),
-    pill: C.primary, pillOpen: C.red, pillText: C.white, pillOpenText: C.white, mark: C.primary, markText: C.white
+    pill: C.primary, pillOpen: C.red, pillText: C.white, pillOpenText: C.white, mark: C.primary, markText: C.white,
+    silence: C.primary, silenceOpen: C.red, silenceFill: 'transparent'
   }
 };
 
-const EMPTY: LiveState = { db: [], quiet: [], count: 0, parts: [], open: null, chunks: {}, first: 1, hole: null, insert: null, seams: [], frameMs: 46.4, lastAt: null };
+const EMPTY: LiveState = { db: [], quiet: [], count: 0, parts: [], open: null, chunks: {}, first: 1, hole: null, insert: null, seams: [], frameMs: 46.4, lastAt: null, silence: false };
 const noSession = () => () => undefined;
 
 /** The × in a box's corner. */
@@ -57,6 +65,9 @@ const EDGE_REACH = 16;
 const SLOP = 6;
 /** A screen reader's "start earlier" moves an edge this far. */
 const NUDGE_MS = 250;
+/** A silence's box stands this far inside the parts' boxes beside it, so the two borders do not run together. */
+const SILENCE_INSET = 2;
+const boxKey = (b: Pick<LiveBox, 'index' | 'silence'>) => `${b.silence ? 's' : 'p'}${b.index}`;
 
 export function LiveParts(props: {
   session: RecordingSession | null; tone: Tone; paused?: boolean;
@@ -84,7 +95,7 @@ export function LiveParts(props: {
   const player = useBoxPlayer(editing);
   const ink = TONES[props.tone];
   const bars = liveBars(s, frames, end, !editing);
-  const boxes = size.w ? liveBoxes(s, frames, end) : [];
+  const boxes = size.w ? liveBoxes(s, frames, end, !editing) : [];
   const bw = size.w / frames;
 
   // The gesture handler is made once; it reads what is drawn now from here.
@@ -92,8 +103,8 @@ export function LiveParts(props: {
   now.current = { s, session, editing, frames, end, bw, size, boxes, props, player };
   const gestures = useGestures(now, setFrames, setLooked);
 
-  const playing = player.at && player.at.index < s.parts.length ? player.at : null;
-  const headAt = playing ? (s.parts[playing.index]!.from + playing.ms / s.frameMs - (end - frames)) * bw : null;
+  const playing = player.at;
+  const headAt = playing ? (playing.from + playing.ms / s.frameMs - (end - frames)) * bw : null;
   return (
     <View testID="live-parts" style={[styles.fill, props.paused && { opacity: 0.5 }]} onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
       {...(editing ? {} : { importantForAccessibility: 'no-hide-descendants' as const, accessibilityElementsHidden: true })} {...gestures.panHandlers}>
@@ -101,16 +112,23 @@ export function LiveParts(props: {
         const x = (f - (end - frames)) * bw;
         return x > 0 && x < size.w ? <View key={`seam-${f}`} pointerEvents="none" style={[styles.seam, { left: x, borderColor: ink.band }]} /> : null;
       })}
-      {boxes.map((b) => (
-        <View key={b.index} testID={`live-part-${b.n}`} pointerEvents="none" style={[styles.part, {
+      {boxes.map((b) => b.silence ? (
+        <View key={boxKey(b)} testID={`live-silence-${b.n}`} pointerEvents="none" style={[styles.part, styles.silence, {
+          left: b.from * bw + SILENCE_INSET, width: Math.max(6, (b.to - b.from) * bw - 2 * SILENCE_INSET),
+          borderColor: b.open ? ink.silenceOpen : ink.silence, backgroundColor: ink.silenceFill
+        }]} />
+      ) : (
+        <View key={boxKey(b)} testID={`live-part-${b.n}`} pointerEvents="none" style={[styles.part, {
           left: b.from * bw, width: Math.max(6, (b.to - b.from) * bw),
           borderColor: b.open ? ink.open : ink.box, backgroundColor: b.open ? ink.openFill : ink.boxFill, borderWidth: b.open ? 2.5 : 1.5
         }]} />
       ))}
-      {/* Each number stays in sight while any of its box is. */}
+      {/* Each number stays in sight while any of its box is; a silence's is outlined. */}
       {boxes.map((b) => (
-        <View key={`n-${b.index}`} pointerEvents="none" style={[styles.pill, { left: Math.max(b.from * bw, 0) + 3, backgroundColor: b.open ? ink.pillOpen : ink.pill }]}>
-          <Text style={[styles.pillText, { color: b.open ? ink.pillOpenText : ink.pillText }]} maxFontSizeMultiplier={1.3}>{formatNumber(b.n)}</Text>
+        <View key={`n-${boxKey(b)}`} pointerEvents="none" style={[styles.pill, b.silence
+          ? [styles.silencePill, { left: Math.max(b.from * bw, 0) + 3 + SILENCE_INSET, borderColor: b.open ? ink.silenceOpen : ink.silence }]
+          : { left: Math.max(b.from * bw, 0) + 3, backgroundColor: b.open ? ink.pillOpen : ink.pill }]}>
+          <Text style={[styles.pillText, { color: b.silence ? (b.open ? ink.silenceOpen : ink.silence) : b.open ? ink.pillOpenText : ink.pillText }]} maxFontSizeMultiplier={1.3}>{formatNumber(b.n)}</Text>
         </View>
       ))}
       <View style={styles.bars} pointerEvents="none">
@@ -118,9 +136,9 @@ export function LiveParts(props: {
           <BarSlot key={i} level={percent(bar.db)} quiet={bar.quiet === null ? null : percent(bar.quiet)} color={ink.bar[bar.kind]} band={ink.band} />
         ))}
       </View>
-      {editing ? boxes.map((b) => <BoxTools key={`tools-${b.index}`} box={b} bw={bw} size={size} ink={ink} />) : null}
+      {editing ? boxes.filter((b) => !b.silence).map((b) => <BoxTools key={`tools-${b.index}`} box={b} bw={bw} size={size} ink={ink} />) : null}
       {editing ? boxes.map((b) => (
-        <BoxForReader key={`a11y-${b.index}`} box={b} bw={bw} s={s} onPlay={() => player.play(s, b.index)}
+        <BoxForReader key={`a11y-${boxKey(b)}`} box={b} bw={bw} s={s} onPlay={() => player.play(s, b)}
           onDrop={() => props.onDrop?.(b.index)}
           onNudge={(edge, ms) => { const p = s.parts[b.index]!; session?.edge(b.index, edge, (edge === 'from' ? p.from : p.to!) + ms / s.frameMs); props.onMoved?.(b.index); }} />
       )) : null}
@@ -162,8 +180,17 @@ function BoxTools(props: { box: LiveBox; bw: number; size: { w: number; h: numbe
   );
 }
 
-/** A box as a screen reader finds it: a button that plays the part, with its edges and drop as actions. */
+/** A box as a screen reader finds it: a button that plays the part, with its edges and drop as actions; a silence's only plays. */
 function BoxForReader(props: { box: LiveBox; bw: number; s: LiveState; onPlay: () => void; onDrop: () => void; onNudge: (edge: 'from' | 'to', ms: number) => void }) {
+  if (props.box.silence) {
+    const clip = liveClip(props.s, props.box);
+    return (
+      <View pointerEvents="none" accessible accessibilityRole="button" onAccessibilityTap={props.onPlay}
+        accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'activate') props.onPlay(); }}
+        accessibilityLabel={t('recording.recorder.silenceLength', { part: partLabel(props.box.n - 1), length: mmss(clip ? clip.toMs - clip.fromMs : 0) })}
+        style={[styles.reader, { left: Math.max(0, props.box.from * props.bw), width: Math.max(6, (props.box.to - props.box.from) * props.bw) }]} />
+    );
+  }
   const p = props.s.parts[props.box.index]!;
   const label = partLabel(props.box.n - 1);
   const actions = [
@@ -195,11 +222,11 @@ function dropSpot(x0: number, x1: number, size: { w: number; h: number }): { cx:
   return { cx: wide ? right - XS / 2 - 4 : (left + right) / 2, cy: size.h - XS / 2 - 4 };
 }
 
-type Hit = { kind: 'drop' | 'box'; index: number } | { kind: 'edge'; index: number; edge: 'from' | 'to' } | { kind: 'pan' };
+type Hit = { kind: 'drop'; index: number } | { kind: 'box'; index: number; silence?: boolean } | { kind: 'edge'; index: number; edge: 'from' | 'to' } | { kind: 'pan' };
 
-/** What a finger landing at `x`, `y` takes hold of on a stopped waveform. */
+/** What a finger landing at `x`, `y` takes hold of on a stopped waveform: a part's ×, edge or box, then a silence's box. */
 function hitTest(x: number, y: number, boxes: LiveBox[], bw: number, size: { w: number; h: number }, s: LiveState): Hit {
-  const done = boxes.filter((b) => !b.open);
+  const done = boxes.filter((b) => !b.open && !b.silence);
   for (const b of done) {
     const { cx, cy } = dropSpot(b.from * bw, b.to * bw, size);
     if (Math.hypot(x - cx, y - cy) <= XS / 2 + 8) return { kind: 'drop', index: b.index };
@@ -214,7 +241,9 @@ function hitTest(x: number, y: number, boxes: LiveBox[], bw: number, size: { w: 
   }
   if (best) return { kind: 'edge', index: best.index, edge: best.edge };
   const inside = done.find((b) => x >= b.from * bw && x <= b.to * bw);
-  return inside ? { kind: 'box', index: inside.index } : { kind: 'pan' };
+  if (inside) return { kind: 'box', index: inside.index };
+  const silent = boxes.find((b) => b.silence && !b.open && x >= b.from * bw && x <= b.to * bw);
+  return silent ? { kind: 'box', index: silent.index, silence: true } : { kind: 'pan' };
 }
 
 type Now = { current: {
@@ -283,7 +312,7 @@ function useGestures(now: Now, setFrames: (n: number) => void, setLooked: (f: nu
       const n = now.current;
       if (!d || !n.editing) return;
       if (d.hit.kind === 'drop' && d.moved < 8) { n.player.stop(); n.props.onDrop?.(d.hit.index); }
-      else if (d.hit.kind === 'box' && d.moved <= SLOP) n.player.play(n.s, d.hit.index);
+      else if (d.hit.kind === 'box' && d.moved <= SLOP) n.player.play(n.s, d.hit);
       else if (d.hit.kind === 'edge') n.props.onMoved?.(d.hit.index);
     },
     onPanResponderTerminate: () => { drag.current = null; pinch.current = null; },
@@ -292,12 +321,13 @@ function useGestures(now: Now, setFrames: (n: number) => void, setLooked: (f: nu
 }
 
 /**
- * Plays one stopped box: the part cut from its chunk where the box is now,
- * so what is heard is what leaving would keep. One at a time, like every
- * other player (audioSession.ts); the cut copy goes when it stops.
+ * Plays one stopped box: the part (or silence) cut from its chunk where the
+ * box is now, so what is heard is what leaving would keep. One at a time,
+ * like every other player (audioSession.ts); the cut copy goes when it stops.
+ * `at` is where it is playing: the box, the frame it starts on, and how far in.
  */
 function useBoxPlayer(editing: boolean) {
-  const [at, setAt] = useState<{ index: number; ms: number } | null>(null);
+  const [at, setAt] = useState<{ key: string; from: number; ms: number } | null>(null);
   const current = useRef<{ player: AudioPlayer; uri: string } | null>(null);
   const run = useRef(0);
   const stop = () => {
@@ -315,20 +345,20 @@ function useBoxPlayer(editing: boolean) {
   useEffect(() => registerPlayback(() => stopRef.current()), []);
   useEffect(() => { if (!editing) stopRef.current(); }, [editing]);
   useEffect(() => () => stopRef.current(), []);
-  const play = (s: LiveState, index: number) => {
-    const p = s.parts[index];
-    const c = p?.chunk ? s.chunks[p.chunk] : undefined;
-    if (!p || !c || p.fromMs === undefined || p.toMs === undefined) return;
-    const was = at?.index;
+  const play = (s: LiveState, box: Pick<LiveBox, 'index' | 'silence'>) => {
+    const clip = liveClip(s, box);
+    if (!clip) return;
+    const key = boxKey(box);
+    const was = at?.key;
     stopAudioPlayback();
-    if (was === index) return; // a second tap stops it
+    if (was === key) return; // a second tap stops it
     const mine = ++run.current;
     // A phone's chunk is its file; the web's is a blob once written.
-    const from = c.uri ?? (Platform.OS === 'web' ? null : p.chunk!);
+    const from = clip.uri ?? (Platform.OS === 'web' ? null : clip.chunk);
     if (!from) return;
     void (async () => {
       try {
-        const uri = await cutWav(from, p.fromMs!, p.toMs!);
+        const uri = await cutWav(from, clip.fromMs, clip.toMs);
         if (run.current !== mine) { deleteRecorderFile(uri); return; }
         // At even loudness, as the part will play once kept (levelStore.ts, decision 182).
         const heard = await playable(null, uri);
@@ -341,9 +371,9 @@ function useBoxPlayer(editing: boolean) {
           // The web's player may stop at the end without saying it just finished.
           const atEnd = status.duration > 0 && status.currentTime >= status.duration - 0.03 && !status.playing;
           if (status.didJustFinish || status.error || atEnd) { stopRef.current(); return; }
-          setAt({ index, ms: status.currentTime * 1000 });
+          setAt({ key, from: clip.from, ms: status.currentTime * 1000 });
         });
-        setAt({ index, ms: 0 });
+        setAt({ key, from: clip.from, ms: 0 });
         player.play();
       } catch (e) {
         noteExpected('live parts: play a box', e);
@@ -359,6 +389,8 @@ const styles = StyleSheet.create({
   // Time runs left to right in every language.
   fill: { flex: 1, minHeight: 56, position: 'relative', direction: 'ltr' },
   part: { position: 'absolute', top: 0, bottom: 0, borderRadius: radius.md, overflow: 'hidden' },
+  silence: { borderWidth: 2, borderStyle: 'dashed' },
+  silencePill: { backgroundColor: 'transparent', borderWidth: 1.5 },
   pill: { position: 'absolute', top: 3, minWidth: PILL, minHeight: PILL, borderRadius: 5, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
   pillText: { fontSize: T.xs, fontWeight: '800', lineHeight: 16 },
   bars: { position: 'absolute', left: 0, right: 0, top: PILL + 6, bottom: 4, flexDirection: 'row' },
