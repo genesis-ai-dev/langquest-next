@@ -20,6 +20,8 @@ import { deriveKinds, passageSummary } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { edgeFor, type ScreenId } from '../shell/flow';
 import { t } from '../i18n';
+import { useLabels } from '../library/useLabels';
+import { itemName } from '../library/labelsModel';
 import { formatNumber, formatPercent } from '../i18n/format';
 import { BookOfflineLine, DownloadButton, FillBanner } from '../sync/offline';
 
@@ -466,7 +468,9 @@ export function MapHome(ctx: Ctx) {
   const language = languageId ? languageName(ctx.org.state, languageId) : t('map.home.title');
   const outline = isOutline(entries, waiting);
   const sel = state?.template?.value;
-  const templateName = sel ? libraryItemView(ctx.org.state?.library ?? {}, sel.itemId)?.name : undefined;
+  const labels = useLabels();
+  const templateItem = sel ? libraryItemView(ctx.org.state?.library ?? {}, sel.itemId) : null;
+  const templateName = templateItem ? itemName(labels, templateItem) : undefined;
   // What the header used to say under the title: in the Filter sheet now.
   const about = state ? [outline ? t('map.home.ownOutline') : templateName, flowLabel(state)].filter(Boolean).join(' · ') : '';
   // Workers land here from the Map tab; everyone else came from the overview or a language home.

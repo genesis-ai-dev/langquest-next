@@ -4,6 +4,7 @@ import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
 import type { Ctx } from '../shell/ctx';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
+import { useLabels } from '../library/useLabels';
 import { failureMessage } from '../diagnostics/report';
 import { nameSets, type NameSet } from './bookNamesModel';
 
@@ -18,9 +19,10 @@ export function useBookNameSets(ctx: Ctx) {
   const docs = useLibraryDocs(lib.orgId, [...own.map((it) => it.current), ...others.map((s) => s.latest_hash)], { deps: false });
   const ownKey = own.map((it) => `${it.itemId}@${it.current}`).join();
   const othersKey = others.map((s) => `${s.org_id}/${s.item_id}@${s.latest_hash}`).join();
-  const sets = useMemo(() => nameSets(own.map((it) => ({ it, doc: docs.get(it.current) })), others.map((s) => ({ s, doc: docs.get(s.latest_hash) }))),
+  const labels = useLabels();
+  const sets = useMemo(() => nameSets(own.map((it) => ({ it, doc: docs.get(it.current) })), others.map((s) => ({ s, doc: docs.get(s.latest_hash) })), labels),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the keys say when the items change, docs.get when documents arrive
-    [ownKey, othersKey, docs.get]);
+    [ownKey, othersKey, docs.get, labels]);
   return { lib, sets, loading: !shared.loaded };
 }
 
