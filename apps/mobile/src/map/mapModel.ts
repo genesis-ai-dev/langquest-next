@@ -285,18 +285,24 @@ export interface BookSummary {
   mine: number;
 }
 
-export function summarizeBooks(entries: Entry[], filter: MapFilter, forYou: Set<string>, waiting: string[] = []): BookSummary[] {
+/**
+ * The Map's books, in canon order. `nameOf` is what the language calls a
+ * book (core `bookNameOf`, decision 193), when it says; else the book has
+ * its name in the language showing.
+ */
+export function summarizeBooks(entries: Entry[], filter: MapFilter, forYou: Set<string>, waiting: string[] = [], nameOf?: (bookId: string) => string | undefined): BookSummary[] {
   const by = new Map<string, BookSummary>();
+  const named = (book: CanonBook) => nameOf?.(book.id) || book.name;
   for (const id of waiting) {
     const book = canonBook(id);
-    if (book) by.set(book.id, { key: book.id, waiting: true, book, name: book.name, group: book.group, total: 0, recorded: 0, done: 0, feedback: 0, matching: 0, mine: 0 });
+    if (book) by.set(book.id, { key: book.id, waiting: true, book, name: named(book), group: book.group, total: 0, recorded: 0, done: 0, feedback: 0, matching: 0, mine: 0 });
   }
   for (const e of entries) {
     const book = canonBook(e.place.bookId) ?? null;
     const key = book?.id ?? OTHER;
     let row = by.get(key);
     if (!row) {
-      row = { key, book, name: book?.name ?? t('map.other'), group: book?.group ?? t('map.other'), total: 0, recorded: 0, done: 0, feedback: 0, matching: 0, mine: 0 };
+      row = { key, book, name: book ? named(book) : t('map.other'), group: book?.group ?? t('map.other'), total: 0, recorded: 0, done: 0, feedback: 0, matching: 0, mine: 0 };
       by.set(key, row);
     }
     row.total++;

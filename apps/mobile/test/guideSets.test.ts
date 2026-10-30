@@ -190,6 +190,10 @@ describe('the language a team’s reference material is in', () => {
     expect(choices[3]).toEqual({ language: 'amh', sets: [], words: [], bibles: 0, bibleIds: [], other: 0 });
     // Swahili is one language whether FIA or Bible Brain wrote it.
     expect(languageChoices(sets, [bible], ['swa']).filter((c) => sameLanguage(c.language, 'swa'))).toHaveLength(1);
+    // A language the library names the books in says so, and is listed for it (decision 193).
+    const named = languageChoices(sets, [bible], [], ['npi', 'swa']);
+    expect(named.find((c) => c.language === 'npi')).toEqual({ language: 'npi', sets: [], words: [], bibles: 0, bibleIds: [], other: 0, names: true });
+    expect(named.find((c) => sameLanguage(c.language, 'swa'))).toMatchObject({ bibles: 1, names: true });
   });
 
   it('counts every Bible a team could add: the library’s, each once, and Bible Brain’s that the library lacks', () => {

@@ -39,22 +39,23 @@ async function createAccountAndOrg(page: Page, email: string): Promise<void> {
   await vis(page, `input[aria-label="What's it called?"]`).fill('Smoke Org');
   await button(page, 'Create Organization').click();
   await button(page, /Add a language/).click({ timeout: 60_000 });
-  // New Language shows its six steps first (decision 146): its name, what they record and how it is
-  // broken up, the language of its Bibles and guides and what they will have, its review flow and its
-  // checks (each with the suggestion picked), then inviting, which can wait.
+  // New Language shows its six steps first (decision 146): its name and the languages its translators
+  // use (decision 193), what they record and how it is broken up, what they will have in those languages,
+  // its review flow and its checks (each with the suggestion picked), then inviting, which can wait.
   await button(page, 'Start').click({ timeout: 60_000 });
   await vis(page, 'input[aria-label="Its name"]').fill('Dinka');
   await vis(page, 'input[aria-label="Its code, if it has one"]').fill('din');
   await button(page, 'Continue').click();
+  await expect(page.getByText(/translators use\?/).first()).toBeVisible({ timeout: 60_000 });
+  await button(page, 'Continue').click({ timeout: 60_000 });
   // One question a screen (decision 80): the Bible, its numbering (from the list here), how it is divided.
   await button(page, 'Continue').click({ timeout: 60_000 });
   await button(page, 'Choose from the list').click({ timeout: 60_000 });
   await page.getByText('Like most English Bibles', { exact: true }).locator('visible=true').first().click({ timeout: 60_000 });
   await button(page, 'Continue').click({ timeout: 60_000 });
   await button(page, 'Continue').click({ timeout: 60_000 });
-  // The language of its Bibles and study guides, on its own page (decision 84), then what they will have.
-  await expect(page.getByText(/Bibles and study guides be in\?/).first()).toBeVisible({ timeout: 60_000 });
-  await button(page, 'Continue').click({ timeout: 60_000 });
+  // What they will have, in the languages its translators use.
+  await expect(page.getByText(/What will help .*team\?/).first()).toBeVisible({ timeout: 60_000 });
   await button(page, 'Continue').click({ timeout: 60_000 });
   // Its review flow, then its checks; adding it ends on inviting.
   await expect(page.getByText('How will recordings get checked?').first()).toBeVisible({ timeout: 60_000 });

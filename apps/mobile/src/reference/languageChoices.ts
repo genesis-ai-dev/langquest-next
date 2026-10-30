@@ -21,18 +21,21 @@ export interface LanguageChoice {
   bibleIds: string[];
   /** Study guides and notes outside a set. */
   other: number;
+  /** Whether the library names the Bible's books in it (decision 193). */
+  names?: boolean;
 }
 
 const blank = (language: string): LanguageChoice => ({ language, sets: [], words: [], bibles: 0, bibleIds: [], other: 0 });
-const amount = (c: LanguageChoice) => c.sets.reduce((n, s) => n + s.passages, 0) * 10 + c.bibles * 5 + c.words.length + c.other;
+const amount = (c: LanguageChoice) => c.sets.reduce((n, s) => n + s.passages, 0) * 10 + c.bibles * 5 + c.words.length + c.other + (c.names ? 1 : 0);
 
 /**
  * One choice per language anything is in, the most to read first; `keep`
  * (the language chosen now, the reader's, English) are listed even with
  * nothing in them, after the rest. `docs` are the documents of everything
- * outside the sets, Bibles and guides alike.
+ * outside the sets, Bibles and guides alike; `named`, the languages the
+ * library has book names in.
  */
-export function languageChoices(sets: readonly GuideSet[], docs: readonly (LibraryDoc | null)[], keep: readonly string[]): LanguageChoice[] {
+export function languageChoices(sets: readonly GuideSet[], docs: readonly (LibraryDoc | null)[], keep: readonly string[], named: readonly string[] = []): LanguageChoice[] {
   const out: LanguageChoice[] = [];
   const at = (language: string) => {
     let c = out.find((x) => sameLanguage(x.language, language));
@@ -58,6 +61,7 @@ export function languageChoices(sets: readonly GuideSet[], docs: readonly (Libra
       c.bibles++;
     } else if (doc.format !== 'material@1' || doc.kind !== 'questions') at(language).other++;
   }
+  for (const language of named) at(language).names = true;
   const sorted = out.sort((a, b) => amount(b) - amount(a) || a.language.localeCompare(b.language));
   for (const language of keep) if (language && !sorted.some((c) => sameLanguage(c.language, language))) sorted.push(blank(language));
   return sorted;

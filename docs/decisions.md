@@ -2650,6 +2650,11 @@ language keeps its own overrides on top of a shared template instead.
 Amended (2026-10-09, Caleb Koster): decision 80 puts the numbering first, for the whole Bible, and replaces the warning that recordings on old pieces "will no longer show": expired sections that overlap current ones stay reachable under "Earlier sections".
 
 Amended (2026-10-12, Caleb Koster): decision 93 drops the choice of what the books a way leaves out get when the template is made (they wait, and are divided from the map), adds dividing a book your own way, and has naming a book offer what the language's Bibles and the organization's other languages call it.
+
+Amended (2026-10-30, Caleb Koster): a language's names for the books can
+also come whole from a library set of book names in one language
+(`v1.BookNamesSelected`, decision 193); a book's own `v1.BookNameSet` stays
+on top of it.
 ## 75. Nobody is added without joining, nobody grants more than they hold, and one id names one event
 
 Date: 2026-10-09 · By: Carl Sauder · Status: accepted
@@ -3238,6 +3243,12 @@ template is picked before the team's languages are asked (Caleb's setup
 order). LangQuest's own flows and templates say no language until the
 library seed gives them one.
 
+
+Amended (2026-10-30, Caleb Koster): New language now asks the team's
+languages right after the language's name (decision 193), so template
+choices in New language and Get ready are narrowed as flows are: templates
+in the team's languages or saying none, and the one in use, the rest one
+tap away.
 ## 85. The passage list pages, picks passages by id, and includes any part of one passage
 
 Date: 2026-10-12 · By: Carl Sauder · Status: accepted
@@ -6529,7 +6540,7 @@ account, which 112 turned down for diagnostics.
 
 ## 146. New language shows its six steps first, asks for reference material before the review flow, sets its checks up on their own pages, and its invite can put people on checks
 
-Date: 2026-10-20 · By: Caleb Koster · Status: accepted
+Date: 2026-10-20 · By: Caleb Koster · Status: partly superseded by 193
 
 Reason: Caleb (2026-10-19): New language felt like an endless set of steps
 with no idea of what comes next; its custom review setup still had a switch
@@ -8945,3 +8956,422 @@ and in History) needs new state in core and a reducer version; finding 8
 and 107 (help and questions spoken on phones) wait on Caleb's choice.
 Reverse if: people find the extra asks slow on work they do every day, or
 partners expect the demo's flow where it differs here.
+
+## 186. Claude looks each night at what came in about the tutorial videos and suggests changes; a person accepts, edits or rejects each on the ops dashboard
+
+Date: 2026-10-29 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-29, thread "Plan tutorial videos and keep them
+current") asked for an AI such as Claude to weigh, for each video, every
+input not yet answered (comments on YouTube, code changes, notes the team
+leaves on the ops dashboard) and suggest changes to its screens, script or
+voice, to the app's code (to Linear), or a new video, with the inputs and
+suggestions on the dashboard for a developer to accept, edit or reject. He
+chose GitHub Actions signed in to his Claude plan over a routine in his own
+account, so the system is in the open for the team: any developer can see
+it, and replace the token with their own plan's if his has trouble. Decided:
+- **Inputs and suggestions are rows in `ops`** (migration
+  `20261029120000_tutorial_feedback.sql`): `ops.tutorial_inputs` (a
+  comment, a code change or a note), `ops.tutorial_suggestions` (script,
+  screen, voice, code or new) with the inputs each answers, and one
+  `ops.tutorial_reviews` row per look. Only the service role writes them;
+  the dashboard reads `diag.ops_tutorial_feedback`. An input is open until
+  Claude looks at it, or while a suggestion that answers it waits.
+  Inputs and answered suggestions over a year old are taken out.
+- **The comments job only reads** (`server/tutorialComments.ts`, job
+  container, 23:50 UTC): each connected channel's new comments become
+  inputs. Making sense of them is the look's. It also files in Linear the
+  accepted code changes the Worker could not, 20 a night at most.
+- **The look runs on GitHub Actions on a Claude plan**
+  (`.github/workflows/tutorial-review.yml`, 10:00 UTC):
+  `anthropics/claude-code-action` with `CLAUDE_CODE_OAUTH_TOKEN` from
+  `claude setup-token`, kept encrypted in `.env.production` and set as a
+  repository secret by `npm run secrets`. It uses the plan's five-hour and
+  weekly limits, not an API bill; Caleb chose no cap, as he does not use
+  the plan at that hour. Claude follows the `tutorial-review` skill.
+- **No production key in GitHub.** The workflow reads what is open and
+  sends its look through the app Worker (`/api/tutorial-review`), which
+  lets in only this workflow on main by the OpenID Connect token GitHub
+  signs for the job: issuer, audience, repository, `workflow_ref` and `ref`
+  checked against GitHub's keys (`apps/web/worker/githubOidc.ts`). No
+  shared secret to leak or rotate.
+- **Comments are untrusted.** Anyone can write one, so Claude gets no
+  network, no token and no shell beyond reading git; its one output is a
+  file the Worker checks (`parseReview`, `server/tutorialFeedback.ts`) and
+  the database checks again; and nothing it suggests happens without a
+  person. The replies it writes are shown to copy into Studio, never posted.
+- **Code changes come in through the look**, from the changes merged into
+  main since the last one, and only where a video's words or steps no
+  longer fit; a screen that only looks different is filmed again by the
+  nightly filming (183).
+- **The dashboard decides** (Tutorial videos → Feedback and suggestions;
+  162 amended): Accept, Edit, or Reject with why, which the next look reads
+  before suggesting the same again; Add a note. An accepted code change
+  becomes a Linear issue.
+- **Not yet:** making an accepted script, screen, voice or new-video change
+  is by hand. Building it as a pull request with a preview film is a later
+  change.
+Reverse if: the looks eat into the plan's limits when people need them;
+more suggestions are rejected than accepted for weeks (then keep the
+inputs and drop the suggestions); or GitHub changes what its OIDC tokens
+say.
+
+## 187. Every tutorial video can be downloaded from LangQuest, by a link that lasts and from a page of them all; YouTube's descriptions give both
+
+Date: 2026-10-29 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-29, thread "Plan tutorial videos and keep them
+current") asked that every video be available to download from LangQuest,
+with download links to LangQuest on the videos on YouTube, kept up to date
+along with the videos. The pipeline plan had promised it (real downloads and
+links that never break), and nothing had been built. YouTube offers no file
+to keep: its offline download works in about 125 countries, stays inside the
+YouTube app and needs it to reconnect every 48 hours, and some countries
+block YouTube. Decided:
+- **A lasting download link per video and language**:
+  `next.langquest.org/v/<language>/<video>.mp4`
+  (`apps/web/worker/tutorialVideos.ts` `handleDownload`) goes on to the
+  newest version a person chose with Publish (`ops_tutorial_download`), as a
+  file to keep (`?download` on the R2 file, named
+  `langquest-<video>-<language>.mp4`). While none is chosen, or when the
+  database cannot say, it opens the language's videos page. Like the watch
+  links (decision 183) it is asked about at most every five minutes.
+- **The chosen version, not the uploaded one**: Publish is the person's
+  choice (decision 180); a download follows it at once instead of waiting for
+  YouTube's 100 uploads a day, which takes a week for the first full set. A
+  new version can be downloaded before YouTube has it.
+- **A page of them all**: `next.langquest.org/videos`
+  (`apps/web/worker/videosPage.ts`, `ops_tutorial_list`) in the reader's
+  language (`?lang=`, else the browser's), grouped by who each video is for,
+  each with Download and its size, Play (the file in the phone's own player,
+  so no YouTube is needed) and Watch on YouTube once a version is up. Written
+  by the Worker like the review and connect pages, its words in the 15
+  catalogs of `apps/web/worker/i18n/`; cached five minutes.
+- **YouTube gives both**: each video's description has a download line under
+  the app's address (`e2e/tutorials/playlists.ts` `youtubeText`), and each
+  channel's description links the page (`server/youtube.ts` `channelAbout`),
+  in the channel's language (`WORDS.download`, `WORDS.allVideos`). A
+  description is set when a version is uploaded and never changes after, so
+  the link had to be one that outlives versions. Changing the channel's
+  description changes its look, and the publish job puts it on each channel
+  once.
+- **Nothing in the app changes**: the help mode play button and Me's videos
+  from the pipeline plan are a later change, with the store answers it
+  needs.
+Reverse if: R2's egress stops being free and downloads cost more than they
+help; or the videos move to a host that gives lasting files itself.
+
+## 188. The access-token API gives the server's time of arrival as `uploadedAt`, read from the database's own stamp on each event and file, and LangQuest v2's as `v2UploadedAt`
+
+Date: 2026-10-29 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-29, thread "Give partners server upload times via
+API") said partners need the time LangQuest's server received the content
+and the recording files, through the API. Every time the API gave was a
+phone's clock (`submittedAt`, a review's `at`, `askedAt`, `updatedAt`), so a
+phone that was offline for a week showed last week. The server already had
+the times: the database stamps every event as it is appended
+(`public.events.received_at`, default `now()`, never overwritten, and the
+log refuses UPDATE), and every stored file has a `v1.BlobStored` that only
+the server appends, on its own clock (69). Nothing needed backfilling: both
+hold for everything since the databases were reset (63). Decided:
+- **`uploadedAt` beside the phone's time** on `version` and `versions`
+  (the first publish of the take to arrive), `reviews`, `requests` and
+  `releases`, from `received_times` (migration
+  `20261029160000_received_times.sql`, service role only). It reads one
+  stream's rows through the indexes the log has: `events_type_idx` for a
+  take's `v1.TakeSubmitted`, `events_entity_idx` for a review or request,
+  the id for a release. No index is added, since one would lock the log
+  while it builds (161).
+- **A file's `uploadedAt`** on `audio`, `approvedAudio` and a review's
+  `voiceNotes` is its `v1.BlobStored`, already in the language's records,
+  so files cost no lookup. It is null while the server holds no good copy,
+  which is honest about a version published before its parts finished
+  uploading.
+- **Asked once a page and remembered.** `apps/web/worker/agent/view.ts`
+  builds each item with `uploadedAt: null` and stamps the page with one
+  question (`Receipts`). The organization's object keeps the answers
+  (`RECEIPTS_KEPT` in `agent/org.ts`): a stamp never changes, so a partner
+  reading the same passages again costs the database nothing. A failed
+  lookup fails a read (502, try again) rather than answer null, and a
+  write's read-back answers `passage: null` rather than an error a client
+  would retry.
+- **Not in core.** The stamp stays out of the fold: a phone's pending
+  event has none, and one event carrying two values would break the
+  fold's idempotence and order-independence (PLAN.md section 4).
+- **v2's own server time too, as `v2UploadedAt`.** Caleb, the same day:
+  "the time that content was uploaded to the v2 db shouldn't be lost, but
+  we should also capture when info was brought into next ... This is for
+  billing purposes so the partners know how much to pay their
+  translators." For work the import brought over, `uploadedAt` is when
+  the import appended it, and v2's `created_at`, which becomes
+  `submittedAt`, is a phone's. v2's server stamped each segment and vote
+  as it arrived (`uploaded_at`) and each segment's audio
+  (`audio_uploaded_at`). The import keeps those stamps in
+  `v2_import.stamps`, by language and by the key the API asks, before it
+  appends the events they are about, and again when they change
+  (`Fact.stamps` and the ledger's `stamped` in
+  `packages/v2-import/src/reconcile.ts`). The first whole read after this
+  merges (03:15 UTC) keeps them for work that came over before. They stay
+  beside the log, not in it: they are v2's record, not something anyone
+  did here, and a pass may correct one. Retiring the import, which drops
+  the `v2_import` schema (94), must keep this table. The API gives `v2UploadedAt` on a file (when v2
+  had its audio), a review (its newest vote's stamp) and a version (the
+  newest stamp on its parts' segments and audio: when v2 had all of it),
+  and null for work made in Next or where v2 has no stamp. The Worker asks
+  for them only for work the import made (its clock names the import's
+  device) and asks again after a while for one not kept yet
+  (`V2_RECHECK_MS` in `agent/org.ts`).
+Rejected: R2's own object dates, since an upload is an idempotent overwrite
+(a phone's retry moves it) and the copy into R2 on 2026-10-07 reset them;
+a `receivedSince` filter on the passage list, which the change feed (101)
+already answers in the order LangQuest received things; and v2's stamps in
+the log as a new event type, which every phone would fold for a value only
+partners read.
+Reverse if: a language's `v1.TakeSubmitted` scan shows in the database's
+statement times (then a partial index on the take id, built concurrently);
+or partners need the stamp in the change feed or webhooks too.
+
+## 189. Each YouTube channel's trailer is a 48-second film of today's app in its language, made each night when it changes, and the publish job sets it
+
+Date: 2026-10-29 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-29, thread "Plan tutorial videos and keep them
+current") asked for the team film "From the ground up" to be made again with
+today's screens, in each app language, as each channel's landing video, and
+for its count to say over a million. Decided:
+- **Made from the app, as the videos are** (`e2e/tutorials/trailer/`): a
+  capture opens the app in the film's language as the UI tests do and keeps
+  Chrome's screencast frames with when each moment starts and where its parts
+  are; a page draws every frame from the time alone, on the original's
+  timeline and score, cropping those frames into cards; Chromium renders it,
+  four moments to a frame for motion blur. No editor and no hand-made screens,
+  so the film stays true as the app changes, and the fifteen languages are
+  one script.
+- **Its own words** (`words.json`): nineteen lines in the fifteen app
+  languages. The count is a round number passed, "1,000,000+" as of
+  2026-10-29 (`CLIPS`, `AS_OF` in `trailer.ts`).
+- **Made again only when it changed** (decision 183): its look is the words
+  of the seven screens it shows, made steady by `look.ts`, with its page,
+  renderer, capture, score and words; a new look is captured again and made
+  when it holds. It goes into the release and the manifest as the video
+  `trailer`, so the intake, Publish, the downloads and the links to the other
+  languages take it as they take a video.
+- **The channel's trailer**: once it is up, the publish job puts it first in
+  the playlist for everyone and sets it as the trailer for people who have
+  not subscribed (`brandingSettings.channel.unsubscribedTrailer`,
+  `server/youtube.ts` `brandChannel`), keeping the channel's other settings.
+  A channel's look (decision 184) includes its trailer once one is up
+  (`ops_youtube_channels` says which video the newest became), so a trailer
+  that could not be set at once is set on the next run. It goes up without YouTube's "altered or synthetic" label, which the videos
+  carry for their made voices: the trailer has no voice, only the score and
+  the app's own screens.
+- **The original's score** (`score.m4a`, 48 seconds, copied without
+  encoding it again): the film's timing is built on its beats.
+Reverse if: YouTube drops channel trailers or the API's setting for them; or
+the trailer's look changes most nights without the app changing, which would
+spend a channel's uploads.
+
+## 190. A workflow says what only a person can fix in an annotation titled "Needs you", and the ops dashboard lists it under Needs attention
+
+Date: 2026-10-29 · By: Caleb Koster · Status: accepted
+
+Reason: on 2026-10-29 Gemini's prepaid credit ran out partway through the
+first filming of the tutorial videos in all fifteen languages. The ops
+dashboard said only that the "tutorials" workflow failed, and Caleb found out
+from Claude hours later. He asked (thread "Plan tutorial videos and keep them
+current") that a problem like the Gemini billing account, or the Claude token
+missing, show on the ops dashboard. Decided:
+- **The workflow names the problem**: a script that gets a refusal only a
+  person can fix writes it down (`e2e/tutorials/needs-you.mjs`: Gemini's 402
+  or "prepayment credits are depleted", a key refused or missing), and the
+  job's last step says each once as an error annotation titled "Needs you:
+  <what>", its message ending with the page that fixes it.
+  `tutorial-review.yml` does the same for a Claude token that is missing, or
+  that Claude's own answer says was refused. A refusal is said only when the
+  answer says it; anything else stays a plain failure.
+- **The dashboard reads it from GitHub** (`apps/admin/src/sources/github.ts`):
+  for the latest failed run of each workflow on `main`, the annotations of
+  its first three failed jobs (every tutorials job says the same account's
+  problem). Each "Needs you" is a problem under Needs attention, with an Open
+  link, in place of the plain "failed" line. The next run that works takes
+  it away. Only the repository's own runs are read (a push, a schedule, a run
+  by hand): a pull request from a fork can name its branch `main`, and its
+  words never reach staff.
+Rejected: a table and an endpoint the workflow reports to with GitHub's OIDC
+token (as `tutorial-review.yml` sends its look), since the run already holds
+the words and its failure, and a second store could disagree with GitHub's;
+Linear issues alone, since the nightly report files a failure, not its
+cause; reading the jobs' logs, which are large and unstructured.
+Reverse if: GitHub stops keeping annotations, or a problem needs to show
+while the run that met it is not the latest.
+
+## 191. Tutorial videos are wide (16:9), never Shorts; a description says what the video shows in one line, then its links; each channel's home page has a row of the other channels and one for each playlist
+
+Date: 2026-10-30 · By: Caleb Koster · Status: accepted
+
+Reason: on 2026-10-29 Caleb found the channels' video descriptions a mess
+(the voice written out line by line, no space between the links), their
+links not clickable, and a channel's page showing a single video and no
+way to the other languages. The cause was the films' shape: a phone's
+video was filmed on a tall 1080x1920 page, and YouTube makes any tall video
+under three minutes a Short. 44 of the English channel's 45 videos were
+Shorts: links in a Short's description are never clickable (since
+2023-08-31), Shorts are listed on their own tab, and the channel's Videos
+tab held only the one wide film (See reports on the web). Decided:
+- **Every film is wide** (`e2e/tutorials/compose.ts`): the phone on the
+  right of a 1920x1080 page, the app's mark and the video's title on the
+  left; a film of the web stays in its window under the title. Wide videos
+  are listed as videos, keep their links, and can be a channel's rows and
+  trailer.
+- **A description is read at a glance** (`e2e/tutorials/playlists.ts`
+  `youtubeText`): the first sentence the voice says ("Here's how to record
+  a passage."), then, each group apart: the download link, the page of
+  every video and the app; then the same video in each other language.
+  Never the voice line by line.
+- **Every film is made again once** (`FRAME` in the release's manifest):
+  a film without it is filmed again whatever its look, so the first night
+  after the merge films every video in every language, and each new version
+  replaces its Short as Publish puts it up. Only a video's newest version
+  goes up (`ops_tutorials_due`, migration `*_tutorial_newest_due.sql`): a
+  tall version chosen before is not put up once a wide one is made.
+- **A channel's home page** (`server/youtube.ts` `setHome`), as BibleProject
+  and others lay theirs out: under the trailer, a row of the other 14
+  LangQuest channels, then a row for each of its playlists, everyone's
+  first (`server/youtubePlaylists.ts` `HOME_ORDER`). The publish job
+  brings the rows up to date each run (2 of the day's 10,000 units when
+  nothing changed); Connect lays them out at once.
+What stays: a description's links are clickable only on a channel with
+YouTube's advanced features (support.google.com/youtube/answer/9890437),
+English and French on this date; the links under a channel's name can only
+be set in YouTube Studio, not through the API.
+Rejected: keeping tall films over three minutes (most videos are shorter,
+and padding them wastes people's time); filming each video twice, tall for
+Shorts and wide for the channel (twice the uploads, against YouTube's 100 a
+day, and a Short still cannot link anywhere); a channel's own links in its
+description in place of the channels row (YouTube shows a description
+cut to one line).
+Reverse if: YouTube lets a Short's description link out, or people watch
+the videos mostly on phones held upright and ask for tall ones.
+
+## 192. Tutorial videos go up as soon as they are filmed: the filming tells the app, the intake chooses the wide films itself, and the publish follows each intake
+
+Date: 2026-10-30 · By: Caleb Koster · Status: accepted
+
+Reason: on 2026-10-30 Caleb saw the ops dashboard waiting for him to tick
+the new videos before they went up, and asked: "I want everything,
+including the updated YouTube pages, published as soon as everything is
+ready. We won't wait for a scheduled time". Until now a night's films
+waited for the intake at 23:10 UTC, then for a person's Publish (180), then
+for the publish run at 23:40 UTC (183, amended): up to a day behind the
+filming, and never without a person. Decided:
+- **The filming says when its films are in.** Each language's job in
+  `tutorials.yml`, once its new films are in the release, posts to the
+  app Worker's `/api/tutorial-filmed` (`e2e/tutorials/films-in.mjs`,
+  `apps/web/worker/tutorialFilmed.ts`), which starts the intake. Only that
+  workflow, run from main, gets in, with the OIDC token GitHub gives the
+  job, as for the nightly look (186): the workflow still holds no key to
+  production. The first job of each run says it too, for films a run
+  before it put in without saying (one cut off, or one from before this).
+  An intake already running takes the films in once more when it ends.
+- **The intake chooses the wide films itself** (`ops_tutorial_made`
+  `p_choose`, migration `*_tutorial_choose_on_intake.sql`): a film made
+  wide (191) is chosen for YouTube as it is listed, with a time and nobody's
+  name, so no Publish is needed. A tall film left from before, whose refilm
+  failed, would go up as a Short, so it still waits for a person's Publish,
+  which stays on the dashboard for that and for putting one up again.
+- **The publish follows each intake** (`AFTER` in
+  `apps/web/worker/jobsModel.ts`); if it is running, it runs once more when
+  it ends. A run that makes a playlist gives it its row on the channel's
+  home page at the end of the same run, not the next.
+- **One scheduled time, as YouTube's day begins**: an intake at five past
+  midnight in California (07:05 UTC in summer time, 08:05 in winter), with
+  the publish after it, takes in what the filming could not say and puts
+  up what the day before had no room for. The intake at 23:10 UTC and the
+  publish at 23:40 UTC are gone. The filming keeps its 20:10 UTC start.
+What stays: YouTube's limits (180, amended): 100 uploads a day for the
+project and a lower limit for each new channel, so replacing every video
+in every language still takes over a week; the publish goes on with the
+rest each day.
+Rejected: choosing every film, tall ones too (a tall one goes up as a
+Short, whose links cannot be clicked, 191); an intake every hour in place of
+the filming saying so (most runs would find nothing, and each publish after
+it spends units looking at every channel); keeping the intake and the publish
+at 23:00 to 00:00 UTC (183, amended): Caleb asked for no scheduled time,
+and that hour delayed a night's films by up to a day.
+Reverse if: films go up that should not have (then the intake stops
+choosing and Publish is the way again), or the publish runs after each
+language spend so much of YouTube's day on looking at the channels that
+videos wait for it.
+
+Amended (2026-10-30, Caleb Koster): a tick from before this went live no
+longer puts a video up (migration `*_tutorial_old_ticks.sql`). Caleb's
+Publish of 2026-10-29 chose tall films; where a video's wide film did not
+come out that night (some Spanish ones), its tall one was still chosen and
+newest, so the publish would have put it up as a Short. Such a choice now
+counts as none: the job skips it, the dashboard lists the video as not
+chosen, and a person's Publish can choose it again. No row is changed.
+
+## 193. A content template has no language: Bible book names are library items, one per language, that a language picks; and New language asks the languages its translators use right after the name
+
+Date: 2026-10-30 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked (2026-10-29) whether a Nepali translator's next task
+says "Matthew 1:1-17" or "मत्ती 1:1-17". It said Matthew: LangQuest's
+templates name every book in English, and a language had other names only
+by an admin renaming its books one at a time (`v1.BookNameSet`, 74). Caleb
+(2026-10-30): book names belong to the content template, not the app; New
+language should name the language, then decide which languages its
+translators use (Hindi, Swahili), and that choice should decide what is
+offered next, with search beyond. He rejected putting every language's names
+in one template ("stuffing", templates grow with every app language) and
+asked for linking as FIA does: one guide collection per language, grouped
+as one set (84). He chose "Build it" on that design. So:
+- **Book names are a library kind**, `names`, with documents `names@1`
+  (`{ name, description, language, books: [{ book, name }] }`, core
+  `libraryDocs.ts`), one item per language ("Bible book names (Nepali)").
+  A template says which books there are and how each is divided, in no
+  language, so one template serves every language. LangQuest publishes one
+  for each of the app's 15 languages (`langquest.names.<code>`; English from
+  `library/books.eng.json`, the others from `library/names/<code>.json`,
+  taken from the app's catalogs, decision 81). An organization can copy one
+  to change a name, or publish its own for a language that has none.
+- **A language uses one**: `v1.BookNamesSelected { itemId, docHash,
+  language, names }`, a register in its stream (manage_templates). It
+  carries every name, as a template's units come as events (36), because
+  the server's projection pass builds Inbox titles from the language's
+  events alone (`unitTitle`) and a phone need not hold the document. Core
+  `bookNameOf` reads a book's own name (`v1.BookNameSet`, which stays on
+  top), else the set's, else the template's. Passage titles, the Map's book
+  list and a book's map use it; a book a set leaves out keeps the
+  template's name. `REDUCER_VERSION` is 21.
+- **New language asks the translators' languages right after the name**
+  (the reference language page of 84, now asked "Which languages do X's
+  translators use?" as the second page of the Language step), then content,
+  pieces, reference material, review flow and people. A language with book
+  names says so on that page. Adding the language picks the set in the
+  first of those languages that has one (the organization's own before
+  another's, followed first when it is another organization's); with none,
+  the template's names stand.
+- **Template choices follow the team's languages** in New language and Get
+  ready (`useTranslate`): templates in those languages or saying none, and
+  the one in use; the rest one tap away ("Templates in other languages").
+  LangQuest's templates say no language, so they are offered to every team.
+- **A language's book names are changed from its content template page**:
+  a "Book names" row under a Bible template opens the set in use, the sets
+  in the team's languages, then every other language's (`get_ready` step
+  `names`, `templates/BookNamesPage.tsx`), and a newer version of the set in
+  use when there is one. Existing languages keep their names until an admin
+  picks a set there.
+Older app builds store the new event as invalid and keep showing the
+template's names until they update; their server checks accept it from
+this migration on (`*_book_names.sql`). Production gets LangQuest's sets
+with the next hosted library seed.
+Rejected: showing each person's app language when the team named nothing
+(Caleb: names come from the template's side, not the app); one template
+carrying every language's names (Caleb: it grows with every language);
+fifteen copies of each template, one per language (a fix to FIA's passages
+would have to land fifteen times).
+Reverse if: teams need two languages' names at once (then the event takes a
+fallback list), or a set and a template disagree often enough about which
+books exist that names need to live with the template after all.

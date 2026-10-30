@@ -1,5 +1,6 @@
 // The language a team's Bibles and study guides are in, on a page of its own
-// (decision 84): New language asks it as a step, and What will help them
+// (decision 84): New language asks it right after the language's name, as
+// the languages its translators use (decision 193), and What will help them
 // asks it first. Each language says what is there to read in it (a guide
 // set's passages, Bibles, other guides), so the admin sees the gaps before
 // choosing; any other language with Bibles or guides can be found by typing
@@ -32,7 +33,8 @@ function whatIsThere(c: LanguageChoice, bibles: number): string {
     ...c.sets.map((s) => t('referenceLanguage.setPassages', { name: guideShortName(s.name), count: s.passages })),
     ...c.words.map((w) => t('referenceLanguage.setWords', { name: w.name, count: w.words })),
     ...(bibles ? [t('referenceLanguage.bibles', { count: bibles })] : []),
-    ...(c.other ? [t('referenceLanguage.otherGuides', { count: c.other })] : [])
+    ...(c.other ? [t('referenceLanguage.otherGuides', { count: c.other })] : []),
+    ...(c.names ? [t('referenceLanguage.bookNames')] : [])
   ];
   return parts.length ? parts.join(' · ') : t('referenceLanguage.nothing');
 }
@@ -49,6 +51,8 @@ export function ReferenceLanguagePage(props: {
   loading?: boolean;
   /** Under the list: what will be offered, in New language. */
   children?: ReactNode;
+  /** The question, when it is about more than reference material: New language asks the languages the translators use (decision 193). */
+  question?: string;
 }) {
   const reader = readerLanguage();
   const [searching, setSearching] = useState(false);
@@ -84,7 +88,7 @@ export function ReferenceLanguagePage(props: {
   };
   return (
     <View style={{ gap: 14 }}>
-      <Question>{t('referenceLanguage.question', { language: props.team })}</Question>
+      <Question>{props.question ?? t('referenceLanguage.question', { language: props.team })}</Question>
       {ordered.map((c) => (
         <HelpRow key={c.language} of="referenceLanguage.language">
           <RadioRow icon="globe" label={label(c.language)} on={on(c.language)} onPress={() => toggle(c.language)} subLines={4} many

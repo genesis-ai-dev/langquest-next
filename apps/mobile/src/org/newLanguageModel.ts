@@ -36,12 +36,18 @@ export function startingSpecs(input: { commandId: string; flow: { name: string; 
     : fresh.saveFlowSteps({ commandId, steps: [] });
 }
 
+/** The language, two pages: its name, then the languages its translators use (decision 193). */
+export type LanguagePage = 'name' | 'team';
+/** Reference material: what the team will have, and the languages it is in when someone changes them there. */
 export type MaterialPage = 'languages' | 'material';
 export type FlowPage = 'pick' | 'checks';
 
+type Pages = { languagePage: LanguagePage; materialPage: MaterialPage; flowPage: FlowPage };
+
 /** Where Back goes from a step: a page of this step's question first, then the step before. */
-export function backTarget(step: number, pages: { materialPage: MaterialPage; flowPage: FlowPage }): { step?: number; materialPage?: MaterialPage; flowPage?: FlowPage } {
-  if (step === 3 && pages.materialPage === 'material') return { materialPage: 'languages' };
+export function backTarget(step: number, pages: Pages): { step?: number } & Partial<Pages> {
+  if (step === 1 && pages.languagePage === 'team') return { languagePage: 'name' };
+  if (step === 3 && pages.materialPage === 'languages') return { materialPage: 'material' };
   if (step === 4 && pages.flowPage === 'checks') return { flowPage: 'pick' };
   return { step: step - 1 };
 }

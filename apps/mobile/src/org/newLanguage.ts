@@ -1,6 +1,6 @@
 import {
-  CommandError, emptyLanguageState, isTemplateDoc, privilegesFor,
-  type EventPayloads, type EventSpec, type LanguageState, type LibraryDoc, type OrgState
+  CommandError, emptyLanguageState, isTemplateDoc, privilegesFor, selectBookNamesSpec,
+  type EventPayloads, type EventSpec, type LanguageState, type LibraryDoc, type NamesDoc, type OrgState
 } from '@langquest-next/core';
 import { draftSpecsFor } from '../checks/languageDraftModel';
 import { clusterEvents, type ClusterEvent } from '../clusters/model';
@@ -80,13 +80,15 @@ type NewLanguageInput = {
    */
   checks: readonly EventSpec[];
   offers: Offer[];
+  /** The book names it starts with (decision 193): an item here, or another organization's, followed first. */
+  bookNames?: { itemId: string | null; shared: SharedItem | null; name: string; docHash: string; doc: NamesDoc } | null;
 };
 
 /**
- * Add a language (ORG-2, decisions 63, 71, 76, 84, 91, 146): listed in the
- * organization's stream first, then its own stream starts with the
- * template, its checks as they were set up before it existed, and what
- * its team is offered.
+ * Add a language (ORG-2, decisions 63, 71, 76, 84, 91, 146, 193): listed in
+ * the organization's stream first, then its own stream starts with the
+ * template, its book names, its checks as they were set up before it
+ * existed, and what its team is offered.
  * The new language has no members yet, so its first events go in under
  * org-scope privileges. What helps is never required and a language can be
  * added offline: an offer that could not be followed is named, not fatal.
@@ -144,6 +146,17 @@ export async function createLanguages(input: NewLanguageInput & {
       setSays.push(...chooseSetLanguage(held, itemId, null).says);
     } else offered.push(itemId);
   }
+  // Its book names, followed first when they are another organization's; without them its template's names stand.
+  let namesItem: string | null = null;
+  if (input.bookNames) {
+    try {
+      namesItem = input.bookNames.itemId ?? await deps.adopt(input.bookNames.shared!);
+    } catch (e) {
+      // i18n-ignore: a diagnostics label (noteExpected), never shown
+      deps.note('new language book names', e);
+      notOffered.push(input.bookNames.name);
+    }
+  }
   const made: { languageId: string; name: string }[] = [];
   for (const [i, one] of input.languages.entries()) {
     await deps.onPart(input.each ? `language:${i}` : 'listing');
@@ -166,7 +179,9 @@ export async function createLanguages(input: NewLanguageInput & {
     await deps.syncOrg().catch((e: unknown) => deps.note('new language listing', e));
     if (!input.each) await deps.onPart('saving');
     const also = (input.alsoReads ?? []).map((language, i): EventSpec => ({ id: `${languageId}:reads:${i}`, type: 'v1.ReferenceLanguageAdded', payload: { language, added: true } }));
-    await deps.appendToLanguage(languageId, [...plan.specs, ...offerSpecs(languageId, offered, setSays, input.org?.recommendations), ...also]);
+    const names = namesItem && input.bookNames
+      ? [selectBookNamesSpec({ commandId: `${languageId}:names`, itemId: namesItem, docHash: input.bookNames.docHash, doc: input.bookNames.doc })] : [];
+    await deps.appendToLanguage(languageId, [...plan.specs, ...names, ...offerSpecs(languageId, offered, setSays, input.org?.recommendations), ...also]);
     input.done?.set(one.key, { languageId, name: languageName });
     made.push({ languageId, name: languageName });
   }
