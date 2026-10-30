@@ -16,7 +16,7 @@ import {
 } from './icons';
 import { Fragment, isValidElement, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  AccessibilityInfo, ActivityIndicator, Animated, Easing, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
+  AccessibilityInfo, ActivityIndicator, Animated, Easing, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
   type StyleProp, type TextStyle, type ViewStyle
 } from 'react-native';
 import { Text } from './text';
@@ -32,6 +32,7 @@ import { markedParts } from './textMatch';
 import { C, measure, onColor, radius, space, target, TINT, type as T } from './theme';
 import { useLayout, useOpenDetail } from './useLayout';
 import { useReduceMotion } from './useReduceMotion';
+import { useKeyboardCover } from './useKeyboardCover';
 import { kindIcon } from './kindIcon';
 import { txt } from './textStyles';
 import { FooterHeightContext } from './useLayout';
@@ -144,37 +145,26 @@ export function Screen(props: {
 }
 
 /**
- * Keeps its contents above the on-screen keyboard. iOS keeps the
- * KeyboardAvoidingView it always had. Android draws edge to edge (Expo
- * 54 on), so the window no longer shrinks for the keyboard and the
- * footer and lower fields sat under it: here the view measures where it
- * is on screen when the keyboard opens and pads its bottom by the part
- * the keyboard covers. Re-measured on layout, so a window that does
- * shrink is not padded twice.
+ * Keeps its contents above the on-screen keyboard: the view measures where
+ * it is on screen when the keyboard opens and pads its bottom by the part
+ * the keyboard covers (useKeyboardCover.ts). React Native's
+ * KeyboardAvoidingView, which iOS had, measures the view from its parent,
+ * as if it started at the top of the screen; a screen starts below the
+ * status bar, so on an iPhone the keyboard still covered most of the
+ * footer's main button. Android draws edge to edge (Expo 54 on), so its
+ * window no longer shrinks for the keyboard either. Without the keyboard
+ * the view keeps its own bottom padding (help mode's room for Send
+ * feedback, which KeyboardAvoidingView set to nothing).
  */
 function KeyboardSafe(props: { style?: StyleProp<ViewStyle>; children: ReactNode }) {
-  if (Platform.OS !== 'android') {
-    return <KeyboardAvoidingView style={props.style} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>{props.children}</KeyboardAvoidingView>;
-  }
-  return <AndroidKeyboardSafe {...props} />;
+  if (Platform.OS === 'web') return <View style={props.style}>{props.children}</View>;
+  return <PhoneKeyboardSafe {...props} />;
 }
 
-function AndroidKeyboardSafe(props: { style?: StyleProp<ViewStyle>; children: ReactNode }) {
-  const view = useRef<View>(null);
-  const keyboardTop = useRef<number | null>(null);
-  const [covered, setCovered] = useState(0);
-  const remeasure = () => {
-    const top = keyboardTop.current;
-    if (top === null) { setCovered(0); return; }
-    view.current?.measureInWindow((_x, y, _w, h) => setCovered(Math.max(0, Math.round(y + h - top))));
-  };
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', (e) => { keyboardTop.current = e.endCoordinates.screenY; remeasure(); });
-    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardTop.current = null; setCovered(0); });
-    return () => { show.remove(); hide.remove(); };
-  }, []);
+function PhoneKeyboardSafe(props: { style?: StyleProp<ViewStyle>; children: ReactNode }) {
+  const keyboard = useKeyboardCover();
   return (
-    <View ref={view} style={[props.style, covered ? { paddingBottom: covered } : null]} onLayout={remeasure}>
+    <View ref={keyboard.ref} style={[props.style, keyboard.covered ? { paddingBottom: keyboard.covered } : null]} onLayout={keyboard.onLayout}>
       {props.children}
     </View>
   );

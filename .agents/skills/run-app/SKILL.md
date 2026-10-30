@@ -100,7 +100,8 @@ Shrink with `sips -Z 800` before viewing.
 - **The dev tools gear** sits over the top-right header button: tap the left
   part of the button by `point`.
 - **Keyboard:** `hideKeyboard` works on Android; on iOS tap a static label
-  instead. Footer buttons sit behind the keyboard until it hides.
+  instead. Footer buttons stay above the keyboard (kit's KeyboardSafe); one
+  under it is a bug.
 - **The red dev error banner** at the bottom covers the tab bar; tap its ✕.
 - `maestro --device … hierarchy` lists everything on screen, for example an
   invite code to type on the other device.
