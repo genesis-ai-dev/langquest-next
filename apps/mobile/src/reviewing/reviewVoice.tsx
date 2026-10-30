@@ -6,12 +6,12 @@
 // useRecorder (the clip lands in the blob store and is named only by the
 // review that keeps it, decision 30); playback follows audioSession.ts, so
 // starting one stops every other player.
-import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import type { AudioLanguage } from '../audio/audioTally';
 import { Text } from '../ui/text';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audio/audioSession';
+import { createRecordingPlayer, unlockRecordingPlayer, type RecordingPlayer } from '../audio/recordingPlayer';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
@@ -105,7 +105,7 @@ export function BigMic(props: {
 export function PlayChip(props: { ctx: Ctx; clip: VoiceAnswer; label: string; tone?: 'green' | 'amber' | 'brand' }) {
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState('');
-  const player = useRef<AudioPlayer | null>(null);
+  const player = useRef<RecordingPlayer | null>(null);
   const stop = () => { player.current?.remove(); player.current = null; setPlaying(false); };
   useEffect(() => registerPlayback(stop), []);
   useEffect(() => () => { player.current?.remove(); player.current = null; }, [props.clip.hash]);
@@ -114,16 +114,17 @@ export function PlayChip(props: { ctx: Ctx; clip: VoiceAnswer; label: string; to
   async function toggle() {
     if (playing) { stop(); return; }
     stopAudioPlayback();
+    unlockRecordingPlayer();
     setError('');
     const uri = props.ctx.language.blobs.uriFor({ hash: props.clip.hash, format: props.clip.format });
     if (!uri) { setError(t('review.voice.notOnDevice')); return; }
     try {
       await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });
-      const p = createAudioPlayer({ uri });
+      const p = createRecordingPlayer(uri);
       player.current = p;
       p.addListener('playbackStatusUpdate', (st) => {
         if (player.current !== p) return;
-        if (st.didJustFinish) stop();
+        if (st.didJustFinish || st.refused) stop();
       });
       p.play();
       setPlaying(true);

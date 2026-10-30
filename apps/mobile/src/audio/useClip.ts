@@ -3,17 +3,21 @@
 // so each screen draws the control the design shows. It plays a passage's
 // cards one after another as one recording, or one file by `uri`, follows
 // audioSession.ts (starting one player stops every other), and streams a
-// card that is on the server but not on this device while online.
+// card that is on the server but not on this device while online. On the web
+// a file plays through the one element a tap unlocked (recordingPlayer.web.ts).
+// It says which part plays and how far into it (nowPlaying.ts), for the
+// part's row to show.
 import { isStored } from '@langquest-next/core';
-import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
 import { audioFormat } from './audioFormat';
-import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
+import { playerInRow, registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import { t } from '../i18n';
 import { noteExpected, reportError } from '../diagnostics/report';
 import { countAudio } from './audioTally';
 import type { LanguageHandle } from '../sync/useLanguage';
 import { cardSeconds } from './clipTime';
+import { createRecordingPlayer, unlockRecordingPlayer, type RecordingPlayer } from './recordingPlayer';
+import { clearNowPlaying, pauseNowPlaying, tellNowPlaying } from './nowPlaying';
 
 export interface Clip {
   playing: boolean;
@@ -37,7 +41,9 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
   const [at, setAt] = useState(0);
   const [clipLength, setClipLength] = useState(0);
   const [, refresh] = useState(0);
-  const player = useRef<AudioPlayer | null>(null);
+  /** Who says what plays (nowPlaying.ts): this clip, the same object while it is on screen. */
+  const [owner] = useState(() => ({}));
+  const player = useRef<RecordingPlayer | null>(null);
   const generation = useRef(0);
   const wants = useRef(false);
   const indexRef = useRef(0);
@@ -49,6 +55,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
     generation.current++;
     wants.current = false;
     player.current?.pause();
+    pauseNowPlaying(owner);
     setPlaying(false);
   };
   useEffect(() => language.blobs.store?.onChange(() => refresh((n) => n + 1)), [language.blobs.store]);
@@ -68,8 +75,9 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
       wants.current = false;
       player.current?.remove();
       player.current = null;
+      clearNowPlaying(owner);
     };
-  }, [signature]);
+  }, [signature, owner]);
 
   const count = uriProp ? 1 : hashes.length;
   const lengths = uriProp ? [clipLength] : cardSeconds(language, hashes);
@@ -84,12 +92,12 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
     if (!wants.current || generation.current !== run) return;
     player.current?.remove();
     player.current = null;
-    if (i >= count) { wants.current = false; setPlaying(false); setIndex(0); indexRef.current = 0; setAt(0); return; }
+    if (i >= count) { wants.current = false; setPlaying(false); setIndex(0); indexRef.current = 0; setAt(0); clearNowPlaying(owner); return; }
     setIndex(i); indexRef.current = i;
     const lang = live.current.language;
     let uri = live.current.uri;
-    if (!uri) {
-      const hash = live.current.hashes[i]!;
+    const hash = uri ? null : live.current.hashes[i]!;
+    if (!uri && hash) {
       const ref = lang.state ? { hash, format: audioFormat(lang.state, hash) } : null;
       uri = (ref && lang.blobs.uriFor(ref)) || undefined;
       if (!uri && ref && lang.state && isStored(lang.state, hash)) {
@@ -104,24 +112,28 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
     }
     if (!uri) { wants.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); countAudio(lang, 'playNotHere'); return; }
     try {
-      const p = createAudioPlayer({ uri });
+      const p = createRecordingPlayer(uri, playerInRow(i, count));
       player.current = p;
       p.addListener('playbackStatusUpdate', (status) => {
         if (player.current !== p) return;
         if (status.error) {
-          wants.current = false; p.remove(); player.current = null; setPlaying(false);
+          wants.current = false; p.remove(); player.current = null; setPlaying(false); clearNowPlaying(owner);
           setError(t('common.audioCouldNotLoad'));
           countAudio(lang, 'playFail');
           return;
         }
+        // The browser would not start it without a tap: it waits there, for Play to go on from it.
+        if (status.refused) { wants.current = false; setPlaying(false); tellNowPlaying(owner, hash, { ...status, playing: false }); countAudio(lang, 'playFail'); return; }
         if (status.duration > 0) setClipLength(status.duration);
         setAt(status.currentTime);
-        if (status.didJustFinish && player.current === p) void playFrom(i + 1, 0, run);
+        tellNowPlaying(owner, hash, status);
+        // On with the run playing now: Play after a pause started a run of its own, and the next part is part of it.
+        if (status.didJustFinish && player.current === p) void playFrom(i + 1, 0, generation.current);
       });
       if (from > 0) await p.seekTo(from);
       if (generation.current === run && wants.current) p.play();
     } catch (err) {
-      wants.current = false; player.current?.remove(); player.current = null; setPlaying(false);
+      wants.current = false; player.current?.remove(); player.current = null; setPlaying(false); clearNowPlaying(owner);
       countAudio(lang, 'playFail');
       setError(t('common.audioCouldNotPlay', { code: reportError('simple clip create', err) }));
     }
@@ -131,6 +143,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
     if (opts?.disabled || !available) return;
     if (wants.current) { halt(); return; }
     stopAudioPlayback();
+    unlockRecordingPlayer();
     const run = ++generation.current;
     wants.current = true;
     setPlaying(true);

@@ -9576,3 +9576,57 @@ in different languages).
 Reverse if: organizations need to name their own items in several
 languages from the app (then a page for a language's names), or the sets
 grow big enough that reading them once a session is too slow.
+
+## 196. The ETEN Summit page is a static page in the web export's public files, and it alone may frame YouTube's no-cookie player
+
+Date: 2026-10-30 · By: Ryder Wishart · Status: accepted
+
+Reason: ETEN's Innovation Lab asked each featured tool for a landing page
+for the 2026 Summit's virtual tools lounge (10–12 November), with a short
+demo video, and Ryder wanted the LangQuest page at next.langquest.org/eten
+with the film embedded from YouTube. It is a plain HTML page in
+`apps/mobile/public/eten/`, like `singapore-pcrt-2026/`: the web export
+copies it and the Worker's assets serve it, so it needs no Worker code
+and no app build. The site's policy (58, `apps/mobile/scripts/webHeaders.mjs`)
+frames nothing, so `_headers` gives `/eten/*` its own block: it detaches
+the site's Content-Security-Policy and sets the same one plus
+`frame-src https://www.youtube-nocookie.com` (Cloudflare applies the
+detach before the block's own value; checked on `wrangler dev`, and
+`apps/web/test/securityHeaders.test.ts` holds the block). Every other
+path keeps the policy unchanged.
+Rejected: a Worker-made page like `/videos` (187), which would add code to
+the Worker for a page that never changes on its own; allowing YouTube
+frames site-wide (the app has no use for them).
+Reverse if: the page needs to play where YouTube is blocked (then the
+film's file beside it, played in a `<video>`, as `/videos` does), or
+another page wants frames (then one policy for public pages, not one
+block per page).
+
+## 197. A part's row shows that it is playing, and how far, whichever player plays it: a band crosses the row from the left, and its play button turns solid with a pause
+
+Date: 2026-10-30 · By: Caleb Koster · Status: accepted
+
+Reason: with Play all on, no one could tell which part was playing or
+how far into it (Caleb, 2026-10-30, after Jasmine's Play all report: "there
+should really be a playback progress bar that moves across the card as it
+plays"). Each part's row has its own player and lit its bars only when its
+own button played it; Play all on the parts card and the player above a
+version's parts played the same recordings without the rows knowing. So
+the players that play parts (`useClip`, `ClipPlayer`) say which recording
+they play and where in it (`audio/nowPlaying.ts`), the newest player's
+word standing, and each part's row reads it for its own recording
+(`usePlayingPart.ts`), in the recorder, the parts with verses, and a
+version's parts:
+- **A tinted band, with a line along its bottom, crosses the row** from
+  the left as the part plays (`recording/playingFill.tsx`). It runs on
+  between the player's reports at the speed the recording plays, so a
+  two-second part moves smoothly, and it stays where a pause left it.
+- **The play button is solid primary with a white pause** while the part
+  plays, whoever plays it, and pressing it pauses that player.
+- **Play all's card head and a version's card** show the band for the
+  whole recording.
+The partner demo shows a playing take by its button and waveform only;
+this goes further at Caleb's ask, on every row that plays a part. The
+round play buttons for notes and feedback (`AudioClip`) are unchanged.
+Reverse if: people take the band for something else (a selection, a
+level), or it distracts while recording.
