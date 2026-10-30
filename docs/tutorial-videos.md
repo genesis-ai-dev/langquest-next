@@ -119,7 +119,8 @@ the job keeps the file as `lines-<language>`, to commit), and `nightly.ts`:
 2. compares each video's look (`look.ts`) with the look of the film the
    repository's `tutorials` release keeps, tries a video that looks changed
    again (a screen read mid-change can look different once), and films again
-   only the videos whose look changed, or that have no film yet;
+   only the videos whose look changed, or that have no film yet, two at a
+   time; a film that fails is filmed once more, alone;
 3. writes the language's manifest, the films that did not change and the
    new ones, each with what YouTube shows (`playlists.ts`) and its look.
 
