@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
+import { noteExpected } from '../diagnostics/report';
 import * as server from '../server/library';
 import { webFiles } from '../web/webFiles';
 
@@ -24,6 +25,14 @@ const DIR = WEB ? null : new Directory(Paths.document, 'library');
 const memory = new Map<string, LibraryDoc>();
 const listeners = new Set<() => void>();
 const outboxKey = (orgId: string) => `library-outbox:${orgId}`;
+/**
+ * A document made here, in the page's saved keys, where the browser cannot
+ * write files: Safari before 26 has no way to write one from a page, and a
+ * private window may have no file storage at all (LAN-194). Only documents
+ * made here go there, so the outbox can still send them after a reload;
+ * fetched ones stay in memory, as the server has them.
+ */
+const webKey = (hash: string) => `library-doc:${hash}`;
 
 function ensureDir() {
   if (DIR && !DIR.exists) DIR.create({ intermediates: true, idempotent: true });
@@ -60,10 +69,15 @@ export function cachedDoc(hash: string | null | undefined): LibraryDoc | null {
 
 async function fromDisk(hash: string): Promise<LibraryDoc | null> {
   if (WEB) {
-    const bytes = await WEB.read(`${hash}.json`);
-    if (!bytes) return null;
-    const doc = await admit(hash, new TextDecoder().decode(bytes));
-    if (!doc) await WEB.remove(`${hash}.json`);
+    // A browser that cannot read its files has none of them: the document comes from the server.
+    const bytes = await WEB.read(`${hash}.json`).catch(() => null);
+    const text = bytes ? new TextDecoder().decode(bytes) : await AsyncStorage.getItem(webKey(hash));
+    if (!text) return null;
+    const doc = await admit(hash, text);
+    if (!doc) {
+      await WEB.remove(`${hash}.json`).catch(() => undefined);
+      await AsyncStorage.removeItem(webKey(hash));
+    }
     return doc;
   }
   if (!DIR) return null;
@@ -76,9 +90,16 @@ async function fromDisk(hash: string): Promise<LibraryDoc | null> {
   return doc;
 }
 
-async function toDisk(hash: string, text: string): Promise<void> {
+/** Keep a document's text; `made` (made here, not yet on the server) falls back to the page's saved keys on the web. */
+async function toDisk(hash: string, text: string, made = false): Promise<void> {
   if (WEB) {
-    await WEB.write(`${hash}.json`, new TextEncoder().encode(text));
+    try {
+      await WEB.write(`${hash}.json`, new TextEncoder().encode(text));
+    } catch (e) {
+      if (!made) throw e;
+      noteExpected('library document kept in saved keys', e);
+      await AsyncStorage.setItem(webKey(hash), text);
+    }
     return;
   }
   if (!DIR) return;
@@ -90,7 +111,7 @@ async function toDisk(hash: string, text: string): Promise<void> {
 /** Keep a document made here, and queue it for the server. */
 export async function keepNewDoc(orgId: string, text: string, hash: string): Promise<void> {
   if (!(await admit(hash, text))) throw new Error('The document did not match its name.');
-  await toDisk(hash, text);
+  await toDisk(hash, text, true);
   const raw = await AsyncStorage.getItem(outboxKey(orgId));
   const queued: string[] = raw ? JSON.parse(raw) : [];
   if (!queued.includes(hash)) await AsyncStorage.setItem(outboxKey(orgId), JSON.stringify([...queued, hash]));
@@ -140,6 +161,9 @@ export async function flushOutbox(orgId: string): Promise<number> {
  * fetched by its own hash when a passage reads it. `deps: false` fetches
  * only the documents named.
  */
+/** The browser refused to write a document once: the rest of this visit keeps them in memory only. */
+let diskRefused = false;
+
 export async function loadDocs(orgId: string, hashes: (string | null | undefined)[], opts: { deps?: boolean } = {}): Promise<Map<string, LibraryDoc>> {
   const out = new Map<string, LibraryDoc>();
   let want = [...new Set(hashes.filter((h): h is string => !!h))];
@@ -169,8 +193,15 @@ export async function loadDocs(orgId: string, hashes: (string | null | undefined
       for (const row of rows) {
         const doc = await admit(row.hash, row.body);
         if (!doc) continue;
-        await toDisk(row.hash, row.body);
         out.set(row.hash, doc);
+        // The copy on disk is for being offline. A browser that cannot write files still shows every
+        // document from memory; stopping here showed one Bible of many on New language's step 4 (LAN-194).
+        if (!diskRefused) {
+          await toDisk(row.hash, row.body).catch((e: unknown) => {
+            diskRefused = true;
+            noteExpected('library documents on disk', e);
+          });
+        }
       }
     }
     const next = new Set<string>();

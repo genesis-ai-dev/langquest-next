@@ -35,10 +35,10 @@ import { noteExpected } from '../diagnostics/report';
 import { BibleError, bibleDetail, biblesIn, bibleSearchAvailable, heldDetail, type BibleDetail, type BibleSummary } from '../sources/bibleBrainAdmin';
 import { coverageSummary, itemReaches } from '../reference/coverage';
 import {
-  biblebrainItemId, offlineLine, orgLevelCan, recActions, recLabel, recOn, recState, recTone,
+  offlineLine, orgLevelCan, recActions, recLabel, recOn, recState, recTone,
   sourceFacts, sourceFromBible, sourceSummary, testamentLines, timingsNeeded, type Level
 } from '../reference/model';
-import { bibleBrainDescription, bibleBrainIds, bibleLine, offeredBibleLanguages, providerName, readySources, splitBibles } from '../reference/biblesModel';
+import { bibleBrainIds, bibleLine, offeredBibleLanguages, providerName, readySources, splitBibles } from '../reference/biblesModel';
 import { withoutEmpty } from '../reference/offeredLanguagesModel';
 import { timingsOffer, bookTimingLine, failReason, jobView, publicationLine, timedBookCount, type JobOutcome } from '../reference/timingsModel';
 import { KIND_FILTERS, activeFilterCount, filterGuides, filterOptions, guideItems, guideLine, guideRows, kindFilterLabel, type KindFilter } from '../reference/guidesModel';
@@ -48,7 +48,7 @@ import {
 } from '../reference/passagesModel';
 import { usePassages } from '../reference/usePassages';
 import { useRecommend, useRefItems, useTimingJobs, useTimingPublisher, type TimingJob } from '../reference/useReference';
-import { publishTimingJob, requestTimings, versificationHash } from '../reference/referenceActions';
+import { addBibleBrainSource, publishTimingJob, requestTimings } from '../reference/referenceActions';
 import { levelOf, referenceFailure } from '../reference/failureModel';
 import { teamLanguage } from '../reference/languages';
 import { termsInText } from '../recording/workspaceModel';
@@ -244,12 +244,7 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
   async function addBibleBrain(d: BibleDetail) {
     setBusy(true);
     try {
-      const itemId = biblebrainItemId(d.bibleId);
-      if (!lib.item(itemId)?.current) {
-        const v11n = await versificationHash(lib, 'eng', sharedV.rows);
-        // i18n-ignore: the item's description is stored in the organization's library (its event log)
-        await lib.publish({ kind: 'material', itemId, name: d.name, description: bibleBrainDescription(d.languageName), doc: sourceFromBible(d, v11n) });
-      }
+      const itemId = await addBibleBrainSource(lib, d, sharedV.rows);
       await rec.run(level, itemId, d.name, 'recommend');
       props.onClose();
     } catch (e) {

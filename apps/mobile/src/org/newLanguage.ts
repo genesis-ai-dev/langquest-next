@@ -22,8 +22,11 @@ export interface NewOne { key: string; name: string; code: string; languoidId: s
 /** The cluster new languages go in: one already here, or a new one with its name; and languages already here it takes in. */
 export interface ClusterTarget { clusterId: string; name?: string; existing?: readonly string[] }
 
-/** Something a new language's team is offered from the start: an item here, or one another organization shares. */
-export interface Offer { itemId: string | null; shared: SharedItem | null; name: string; label: string; set?: GuideSet; member?: SetMember }
+/**
+ * Something a new language's team is offered from the start: an item here, one another organization shares,
+ * or a Bible Brain Bible, added to the library when the language is made (LAN-194).
+ */
+export interface Offer { itemId: string | null; shared: SharedItem | null; name: string; label: string; set?: GuideSet; member?: SetMember; bibleBrain?: { bibleId: string } }
 
 /** One thing New language can give a new team, on its Reference material step (decision 146): a Bible, a set of study guides, key words (decision 172), a note. */
 export type MaterialChoice = Offer & { key: string; kind: 'source' | 'guide' | 'words' | 'note'; sub: string };
@@ -58,6 +61,8 @@ export interface NewLanguageDeps {
   loadDoc: (hash: string) => Promise<LibraryDoc | undefined>;
   /** Use another organization's item here: followed with automatic updates, or copied when its owner does not allow following. */
   adopt: (shared: SharedItem) => Promise<string>;
+  /** A Bible Brain Bible as this organization's library item (`addBibleBrainSource`); returns its item id. */
+  addBibleBrain?: (bibleId: string) => Promise<string>;
   applySpecs: (itemId: string, opts: { docHash: string; into: LanguageState; books?: string[] }) => Promise<EventSpec[]>;
   appendOrg: <T extends 'v1.LanguageAdded' | 'v1.LanguageCodeSet' | ClusterEvent['type']>(type: T, payload: EventPayloads[T]) => Promise<void>;
   syncOrg: () => Promise<void>;
@@ -133,7 +138,7 @@ export async function createLanguages(input: NewLanguageInput & {
     let itemId = o.itemId;
     if (!itemId) {
       try {
-        itemId = await deps.adopt(o.shared!);
+        itemId = o.bibleBrain ? await deps.addBibleBrain!(o.bibleBrain.bibleId) : await deps.adopt(o.shared!);
       } catch (e) {
         // i18n-ignore: a diagnostics label (noteExpected), never shown
         deps.note('new language offer', e);
