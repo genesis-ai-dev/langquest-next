@@ -7298,14 +7298,20 @@
       "idea": "想法：能让 LangQuest 对你更好用的东西。",
       "body": "用你自己的话说，任何语言都可以。",
       "screenshot": "发送你刚才所在屏幕的图片。你打开之前一直是关闭的。",
-      "profile": "发送你的名字和登录方式，让 LangQuest 团队知道是谁写的。你打开之前一直是关闭的。"
+      "profile": "发送你的名字和登录方式，让 LangQuest 团队知道是谁写的。你打开之前一直是关闭的。",
+      "picture": "选一张照片，或其他内容的截图，和你的文字一起发送。",
+      "removePicture": "从你要发送的内容中移除这张图片。"
     },
     "toast": {
       "sent": "已发送。谢谢你！",
       "saved": "已保存。联网后会发送。",
       "savedUntilSignIn": "已保存。登录后会发送。",
-      "voiceTooLong": "太长了：语音留言最长 2 分钟。"
-    }
+      "voiceTooLong": "太长了：语音留言最长 2 分钟。",
+      "pictureFailed": "无法打开这张图片。请换一张试试。"
+    },
+    "addPicture": "添加图片",
+    "otherPicture": "换一张图片",
+    "removePicture": "移除图片"
   },
   "appVersion": {
     "available": "有新版本",

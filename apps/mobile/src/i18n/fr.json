@@ -7948,14 +7948,20 @@
       "idea": "Une idée : quelque chose qui rendrait LangQuest meilleur pour vous.",
       "body": "Dites-le avec vos mots, dans n’importe quelle langue.",
       "screenshot": "Envoie une image de l’écran où vous étiez. Désactivé tant que vous ne l’activez pas.",
-      "profile": "Envoie votre nom et votre façon de vous connecter, pour que l’équipe LangQuest sache qui a écrit. Désactivé tant que vous ne l’activez pas."
+      "profile": "Envoie votre nom et votre façon de vous connecter, pour que l’équipe LangQuest sache qui a écrit. Désactivé tant que vous ne l’activez pas.",
+      "picture": "Choisissez une photo, ou une capture d’écran d’autre chose, à envoyer avec vos mots.",
+      "removePicture": "Retire l’image de ce que vous envoyez."
     },
     "toast": {
       "sent": "Envoyé. Merci !",
       "saved": "Sauvegardé. C’est envoyé quand vous êtes connecté.",
       "savedUntilSignIn": "Sauvegardé. C’est envoyé après votre connexion.",
-      "voiceTooLong": "Trop long : une note vocale peut durer jusqu’à 2 minutes."
-    }
+      "voiceTooLong": "Trop long : une note vocale peut durer jusqu’à 2 minutes.",
+      "pictureFailed": "Impossible d’ouvrir cette image. Essayez-en une autre."
+    },
+    "addPicture": "Ajouter une image",
+    "otherPicture": "Choisir une autre image",
+    "removePicture": "Retirer l’image"
   },
   "appVersion": {
     "available": "Nouvelle version disponible",

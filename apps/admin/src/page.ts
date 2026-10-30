@@ -642,7 +642,8 @@ const RENDER = {
       (f.voice_format ? '<p><button class="link" data-voice="' + esc(f.id) + '">Play the voice note' + (f.voice_ms ? ' (' + ms(f.voice_ms) + ')' : '') + '</button></p>' : '') +
       (f.shared_name || f.shared_email ? '<p><small>From ' + esc([f.shared_name, f.shared_email].filter(Boolean).join(', ')) + ' (shared by them)</small></p>' : '') +
       (f.install_id ? '<p><button type="button" class="link" data-install="' + esc(f.install_id) + '" data-fb-id="' + esc(f.id) + '">Show this phone\\'s diagnostics</button></p><div class="diag-inline" id="diag-' + esc(f.id) + '" hidden></div>' : '') +
-      (f.has_screenshot ? '<p><button class="link" data-shot="' + esc(f.id) + '">Show screenshot</button></p>' : '') +
+      (f.has_screenshot ? '<p><button class="link" data-shot="' + esc(f.id) + '" data-what="screenshot">Show screenshot</button></p>' : '') +
+      (f.has_picture ? '<p><button class="link" data-shot="' + esc(f.id) + '" data-what="picture">Show picture</button></p>' : '') +
       '<p>' + (f.status !== 'seen' && f.status !== 'done' ? '<button type="button" data-fb="' + esc(f.id) + '" data-status="seen">Seen</button> ' : '') +
       (f.status !== 'done' ? '<button type="button" data-fb="' + esc(f.id) + '" data-status="done">Done</button>' : '<button type="button" data-fb="' + esc(f.id) + '" data-status="new">Open again</button>') + '</p></div>').join('');
   }
@@ -680,31 +681,32 @@ document.addEventListener('click', (e) => {
 });
 
 function wireScreenshots() {
-  // Show and hide, under the button; the picture is fetched once and kept while the page is open.
+  // Show and hide, under the button; the screenshot (or the picture the person chose) is fetched once and kept while the page is open.
   for (const b of document.querySelectorAll('[data-shot]')) {
     let img = null;
+    const what = b.dataset.what === 'picture' ? 'picture' : 'screenshot';
     b.setAttribute('aria-expanded', 'false');
     b.addEventListener('click', async () => {
       if (img) {
         img.hidden = !img.hidden;
-        b.textContent = img.hidden ? 'Show screenshot' : 'Hide screenshot';
+        b.textContent = (img.hidden ? 'Show ' : 'Hide ') + what;
         b.setAttribute('aria-expanded', String(!img.hidden));
         return;
       }
       b.disabled = true;
       try {
         const t = await token();
-        const res = await fetch('/ops/api/feedback/' + encodeURIComponent(b.dataset.shot) + '/screenshot', { headers: { authorization: 'Bearer ' + t } });
+        const res = await fetch('/ops/api/feedback/' + encodeURIComponent(b.dataset.shot) + '/' + what, { headers: { authorization: 'Bearer ' + t } });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         img = document.createElement('img');
-        img.alt = 'Screenshot sent with this feedback';
+        img.alt = what === 'picture' ? 'Picture chosen by the person who sent this feedback' : 'Screenshot sent with this feedback';
         img.title = 'Click to hide';
         img.src = URL.createObjectURL(await res.blob());
         img.addEventListener('click', () => b.click());
         b.closest('p').after(img);
-        b.textContent = 'Hide screenshot';
+        b.textContent = 'Hide ' + what;
         b.setAttribute('aria-expanded', 'true');
-      } catch (err) { b.textContent = 'Could not load the screenshot (' + err.message + ')'; }
+      } catch (err) { b.textContent = 'Could not load the ' + what + ' (' + err.message + ')'; }
       b.disabled = false;
     });
   }

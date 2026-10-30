@@ -7298,14 +7298,20 @@
       "idea": "Ide: sesuatu yang membuat LangQuest lebih baik untuk Anda.",
       "body": "Katakan dengan kata-kata Anda sendiri, dalam bahasa apa pun.",
       "screenshot": "Mengirim gambar layar tempat Anda berada. Mati sampai Anda menyalakannya.",
-      "profile": "Mengirim nama Anda dan cara Anda masuk, agar tim LangQuest tahu siapa yang menulis. Mati sampai Anda menyalakannya."
+      "profile": "Mengirim nama Anda dan cara Anda masuk, agar tim LangQuest tahu siapa yang menulis. Mati sampai Anda menyalakannya.",
+      "picture": "Pilih foto, atau tangkapan layar dari hal lain, untuk dikirim bersama kata-kata Anda.",
+      "removePicture": "Menghapus gambar dari yang Anda kirim."
     },
     "toast": {
       "sent": "Terkirim. Terima kasih!",
       "saved": "Tersimpan. Dikirim saat Anda terhubung.",
       "savedUntilSignIn": "Tersimpan. Dikirim setelah Anda masuk.",
-      "voiceTooLong": "Terlalu panjang: catatan suara paling lama 2 menit."
-    }
+      "voiceTooLong": "Terlalu panjang: catatan suara paling lama 2 menit.",
+      "pictureFailed": "Gambar itu tidak bisa dibuka. Coba yang lain."
+    },
+    "addPicture": "Tambahkan gambar",
+    "otherPicture": "Pilih gambar lain",
+    "removePicture": "Hapus gambar"
   },
   "appVersion": {
     "available": "Versi baru tersedia",

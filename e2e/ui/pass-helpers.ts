@@ -79,7 +79,8 @@ function dbContainer(): string {
   return `supabase_db_${id}`;
 }
 
-function psql(sql: string): Promise<string> {
+/** One query on the local database as postgres, for what PostgREST does not show (`diag`): rows by line, columns by `|`. */
+export function psql(sql: string): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile('docker', ['exec', dbContainer(), 'psql', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-qAt', '-F', '|', '-c', sql],
       { encoding: 'utf8', timeout: 20_000 }, (error, stdout, stderr) => {

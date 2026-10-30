@@ -6,27 +6,30 @@
 // explains: it turns help off, takes the window as the person saw it, and
 // opens a sheet to say, type or both what is wrong or what would help. The
 // screenshot and the person's name and email each go only if they turn them
-// on. Saved as an account change, it goes when the phone is online.
+// on. A picture of their own (a photo, or a screenshot of something else) can
+// go too: chosen from the phone's files and made smaller (LAN-198,
+// pictureFile.ts). Saved as an account change, it goes when the phone is online.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, PanResponder, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { Chip, ChipWrap, Field, Group, HELP_FOOT_ROOM, Ico, PrimaryBtn, Row, Sheet } from '../ui/kit';
+import { Chip, ChipWrap, Field, GhostBtn, Group, HELP_FOOT_ROOM, Ico, PrimaryBtn, Row, Sheet } from '../ui/kit';
 import { VoiceNote } from '../audio/voiceNote';
 import { HelpLit } from '../helpMode/helpBadge';
 import { useHelpMode } from '../helpMode/useHelpMode';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { ownName } from '../account/accountText';
-import { failureMessage } from '../diagnostics/report';
+import { failureMessage, noteExpected } from '../diagnostics/report';
 import { t } from '../i18n';
 import { lift } from '../ui/shadow';
 import { C, onColor, radius, space } from '../ui/theme';
 import { captureWindow } from './capture';
 import { adoptWaitingFeedback, sendFeedback } from './feedbackData';
 import {
-  bodyPlaceholder, FEEDBACK_KINDS, feedbackReady, kindLabel, pillPlace, profileChoice, sentMessage, voiceTooLong,
+  bodyPlaceholder, FEEDBACK_KINDS, feedbackReady, kindLabel, pillPlace, previewSize, profileChoice, sentMessage, voiceTooLong,
   type FeedbackKind, type Shot, type VoiceRef
 } from './feedbackModel';
+import { choosePicture, shrinkPicture, type ChosenPicture } from './pictureFile';
 
 /** Two frames: the dimming has gone from the screen before it is taken. */
 const afterPaint = () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
@@ -125,17 +128,52 @@ function FeedbackSheet(props: { ctx: Ctx; screen: string; shot: Shot | null; sig
   const [voice, setVoice] = useState<VoiceRef | null>(null);
   const [withShot, setWithShot] = useState(false);
   const [withProfile, setWithProfile] = useState(false);
+  const [picture, setPicture] = useState<ChosenPicture | null>(null);
+  /** A chosen picture being made smaller: Send waits for it. */
+  const shrinking = useRef<Promise<string | null> | null>(null);
   const [busy, setBusy] = useState(false);
   const profile = props.signedIn;
   const ready = feedbackReady(kind, body, voice);
+
+  async function choose() {
+    try {
+      const chosen = await choosePicture();
+      if (!chosen) return;
+      shrinking.current = null;
+      setPicture(chosen);
+    } catch (e) {
+      noteExpected('feedback: choose picture', e);
+      ctx.toast(t('feedback.toast.pictureFailed'), 'problem');
+    }
+  }
+
+  // Shown on the sheet: one that does not fit yet is taken from there as a smaller JPEG.
+  function shown(chosen: ChosenPicture, view: View, size: Size) {
+    if (chosen.base64) return;
+    const taking = shrinkPicture(view, size).catch((e: unknown) => { noteExpected('feedback: shrink picture', e); return null; });
+    shrinking.current = taking;
+    void taking.then((base64) => {
+      if (shrinking.current !== taking) return;
+      shrinking.current = null;
+      if (base64) { setPicture((p) => (p === chosen ? { ...chosen, base64 } : p)); return; }
+      setPicture((p) => (p === chosen ? null : p));
+      ctx.toast(t('feedback.toast.pictureFailed'), 'problem');
+    });
+  }
+
+  function removePicture() {
+    shrinking.current = null;
+    setPicture(null);
+  }
 
   async function send() {
     if (voiceTooLong(voice)) { ctx.toast(t('feedback.toast.voiceTooLong')); return; }
     if (!feedbackReady(kind, body, voice)) return;
     setBusy(true);
     try {
+      const chosen = picture?.base64 ?? (picture && shrinking.current ? await shrinking.current : null);
       const sent = await sendFeedback(props.signedIn ? me : null, {
-        kind, body, voice, shareProfile: withProfile && profile, shot: withShot && shot ? shot.base64 : null, screen: props.screen
+        kind, body, voice, shareProfile: withProfile && profile, shot: withShot && shot ? shot.base64 : null, picture: chosen, screen: props.screen
       });
       ctx.toast(sentMessage(sent, props.signedIn));
       props.onClose();
@@ -158,18 +196,57 @@ function FeedbackSheet(props: { ctx: Ctx; screen: string; shot: Shot | null; sig
       <Field value={body} onChangeText={setBody} placeholder={bodyPlaceholder(kind)} multiline testID="feedback-body" help={t('feedback.help.body')} />
       <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={voice?.hash ?? null}
         onChange={(hash, card) => setVoice(hash && card ? { hash, format: card.format, durationMs: card.durationMs } : null)} />
-      {shot || profile ? (
-        <Group>
-          {shot ? (
-            <Row testID="feedback-screenshot" label={t('feedback.addScreenshot')} role="switch" checked={withShot} onPress={() => setWithShot((v) => !v)}
-              help={t('feedback.help.screenshot')} last={!profile}
-              leading={<Image source={{ uri: `data:image/jpeg;base64,${shot.base64}` }} style={[styles.thumb, { height: Math.round((THUMB * shot.height) / shot.width) }]}
-                accessibilityIgnoresInvertColors />} />
-          ) : null}
-          {profile ? <ProfileSwitch ctx={ctx} on={withProfile} onToggle={() => setWithProfile((v) => !v)} /> : null}
-        </Group>
-      ) : null}
+      <Group>
+        {shot ? (
+          <Row testID="feedback-screenshot" label={t('feedback.addScreenshot')} role="switch" checked={withShot} onPress={() => setWithShot((v) => !v)}
+            help={t('feedback.help.screenshot')}
+            leading={<Image source={{ uri: `data:image/jpeg;base64,${shot.base64}` }} style={[styles.thumb, { height: Math.round((THUMB * shot.height) / shot.width) }]}
+              accessibilityIgnoresInvertColors />} />
+        ) : null}
+        <Row testID="feedback-picture" icon="media" label={picture ? t('feedback.otherPicture') : t('feedback.addPicture')}
+          onPress={() => void choose()} help={t('feedback.help.picture')} last={!picture && !profile} />
+        {picture ? (
+          <PicturePreview key={picture.uri} picture={picture} last={!profile} onShown={(view, size) => shown(picture, view, size)} onRemove={removePicture} />
+        ) : null}
+        {profile ? <ProfileSwitch ctx={ctx} on={withProfile} onToggle={() => setWithProfile((v) => !v)} /> : null}
+      </Group>
     </Sheet>
+  );
+}
+
+/** The tallest a chosen picture shows on the sheet. */
+const PREVIEW_HEIGHT = 360;
+
+/** The chosen picture, as wide as the sheet, and the way to take it off the report. */
+function PicturePreview(props: { picture: ChosenPicture; last: boolean; onShown: (view: View, size: Size) => void; onRemove: () => void }) {
+  const frame = useRef<View>(null);
+  const [width, setWidth] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+  const size = width > 0 ? previewSize(props.picture, width, PREVIEW_HEIGHT) : null;
+  const told = useRef(false);
+  const onShown = useRef(props.onShown);
+  onShown.current = props.onShown;
+  useEffect(() => {
+    if (!loaded || !size || told.current) return;
+    told.current = true;
+    // A frame more, so the picture is drawn before it is taken.
+    requestAnimationFrame(() => { if (frame.current) onShown.current(frame.current, size); });
+  }, [loaded, size]);
+  return (
+    <View style={[styles.preview, !props.last && styles.previewBorder]}
+      onLayout={(e) => setWidth(Math.max(0, e.nativeEvent.layout.width - 2 * space.md))}>
+      {size ? (
+        <View style={[styles.pictureClip, size]}>
+          {/* Not collapsed away on Android, so it can be taken as the smaller JPEG. */}
+          <View ref={frame} collapsable={false} style={size}>
+            <Image testID="feedback-picture-preview" source={{ uri: props.picture.uri }} style={size} resizeMode="contain"
+              onLoad={() => setLoaded(true)} accessibilityIgnoresInvertColors />
+          </View>
+        </View>
+      ) : null}
+      <GhostBtn label={t('feedback.removePicture')} icon="trash" tone="red" full={false} onPress={props.onRemove}
+        help={t('feedback.help.removePicture')} />
+    </View>
   );
 }
 
@@ -196,5 +273,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.full, backgroundColor: onColor.green, borderWidth: 2, borderColor: C.white, ...lift({ opacity: 0.3, radius: 14, y: 5, elevation: 6 })
   },
   pillText: { fontSize: 16, fontWeight: '800', color: C.white, flexShrink: 1 },
-  thumb: { width: THUMB, borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: C.bg }
+  thumb: { width: THUMB, borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: C.bg },
+  preview: { padding: space.md, gap: space.md, alignItems: 'center' },
+  previewBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border },
+  pictureClip: { borderRadius: radius.sm, overflow: 'hidden', backgroundColor: C.bg }
 });

@@ -7623,14 +7623,20 @@
       "idea": "An idea: something that would make LangQuest better for you.",
       "body": "Say it in your own words, in any language.",
       "screenshot": "Sends a picture of the screen you were on. Off until you turn it on.",
-      "profile": "Sends your name and how you sign in, so the LangQuest team knows who wrote. Off until you turn it on."
+      "profile": "Sends your name and how you sign in, so the LangQuest team knows who wrote. Off until you turn it on.",
+      "picture": "Choose a photo, or a screenshot of something else, to send with your words.",
+      "removePicture": "Takes the picture off what you send."
     },
     "toast": {
       "sent": "Sent. Thank you!",
       "saved": "Saved. It is sent when you are connected.",
       "savedUntilSignIn": "Saved. It is sent after you sign in.",
-      "voiceTooLong": "Too long: a voice note can be up to 2 minutes."
-    }
+      "voiceTooLong": "Too long: a voice note can be up to 2 minutes.",
+      "pictureFailed": "That picture could not be opened. Try another one."
+    },
+    "addPicture": "Add a picture",
+    "otherPicture": "Choose another picture",
+    "removePicture": "Remove the picture"
   },
   "appVersion": {
     "available": "New version available",

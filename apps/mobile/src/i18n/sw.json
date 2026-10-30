@@ -7623,14 +7623,20 @@
       "idea": "Wazo: kitu kitakachofanya LangQuest iwe bora kwako.",
       "body": "Sema kwa maneno yako mwenyewe, kwa lugha yoyote.",
       "screenshot": "Hutuma picha ya skrini uliyokuwa. Imezimwa hadi uiwashe.",
-      "profile": "Hutuma jina lako na jinsi unavyoingia, ili timu ya LangQuest ijue nani aliandika. Imezimwa hadi uiwashe."
+      "profile": "Hutuma jina lako na jinsi unavyoingia, ili timu ya LangQuest ijue nani aliandika. Imezimwa hadi uiwashe.",
+      "picture": "Chagua picha, au picha ya skrini ya kitu kingine, uitume pamoja na maneno yako.",
+      "removePicture": "Huondoa picha kwenye unachotuma."
     },
     "toast": {
       "sent": "Imetumwa. Asante!",
       "saved": "Imehifadhiwa. Itatumwa ukiunganishwa.",
       "savedUntilSignIn": "Imehifadhiwa. Itatumwa baada ya kuingia.",
-      "voiceTooLong": "Ni ndefu mno: ujumbe wa sauti unaweza kuwa hadi dakika 2."
-    }
+      "voiceTooLong": "Ni ndefu mno: ujumbe wa sauti unaweza kuwa hadi dakika 2.",
+      "pictureFailed": "Picha hiyo haikuweza kufunguliwa. Jaribu nyingine."
+    },
+    "addPicture": "Ongeza picha",
+    "otherPicture": "Chagua picha nyingine",
+    "removePicture": "Ondoa picha"
   },
   "appVersion": {
     "available": "Toleo jipya linapatikana",

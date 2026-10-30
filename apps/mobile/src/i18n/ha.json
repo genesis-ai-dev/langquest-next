@@ -7623,14 +7623,20 @@
       "idea": "Shawara: wani abu da zai sa LangQuest ya fi muku kyau.",
       "body": "Faɗa da kalmominku, da kowane harshe.",
       "screenshot": "Yana aika hoton allon da kuke kai. A kashe yake har sai kun kunna shi.",
-      "profile": "Yana aika sunanku da yadda kuke shiga, don ƙungiyar LangQuest ta san wanda ya rubuta. A kashe yake har sai kun kunna shi."
+      "profile": "Yana aika sunanku da yadda kuke shiga, don ƙungiyar LangQuest ta san wanda ya rubuta. A kashe yake har sai kun kunna shi.",
+      "picture": "Zaɓi hoto, ko hoton allo na wani abu dabam, don aika shi tare da kalmominku.",
+      "removePicture": "Yana cire hoton daga abin da kuke aikawa."
     },
     "toast": {
       "sent": "An aika. Na gode!",
       "saved": "An ajiye. Za a aika idan kuna da intanet.",
       "savedUntilSignIn": "An ajiye. Za a aika bayan kun shiga.",
-      "voiceTooLong": "Ya yi tsawo: saƙon murya zai iya kai har minti 2."
-    }
+      "voiceTooLong": "Ya yi tsawo: saƙon murya zai iya kai har minti 2.",
+      "pictureFailed": "Ba a iya buɗe wannan hoton ba. Gwada wani."
+    },
+    "addPicture": "Ƙara hoto",
+    "otherPicture": "Zaɓi wani hoto",
+    "removePicture": "Cire hoton"
   },
   "appVersion": {
     "available": "Akwai sabon sigar",

@@ -111,7 +111,7 @@ every type.
 | Messages | Other in-app messages (review comments, join request messages, feedback sent from help mode) | Yes | No | Optional | App functionality |
 | Audio | Voice or sound recordings | Yes | No | Required | App functionality |
 | App activity | Other user-generated content (reviews, notes, answers, reports of content or people, blocked people, which Bibles and guides were used for a version or review) | Yes | No | Required | App functionality |
-| Photos and videos | Photos (pictures and maps an admin adds to a study guide; a screenshot of the app someone chooses to add to feedback) | Yes | No | Optional | App functionality |
+| Photos and videos | Photos (pictures and maps an admin adds to a study guide; a screenshot of the app, or a picture of their own, someone chooses to add to feedback) | Yes | No | Optional | App functionality |
 | Photos and videos | Videos (films an admin adds to a study guide) | Yes | No | Optional | App functionality |
 | Audio | Other audio files (step and glossary audio an admin uploads to a study guide) | Yes | No | Optional | App functionality |
 | App info and performance | Crash logs | Yes | No | Optional (Settings switch) | App functionality, Analytics |
@@ -211,9 +211,12 @@ the LangQuest team only (`diag.feedback`, read by support), never to the
 organization, and carries the random install ID diagnostics use. Two switches,
 both off until the person turns them on, add a screenshot of the app's own
 screen and their name and email (or sign-in name), which the server reads from
-the account itself. These are types already declared: the words are "Other
+the account itself. "Add a picture" sends one picture they choose (a photo,
+or a screenshot of something else) through the phone's own file picker, as a
+JPEG of at most 1 MB; the app sees only that file and asks for no permission
+(no `READ_MEDIA_IMAGES`). These are types already declared: the words are "Other
 in-app messages", the voice note "Voice or sound recordings", the screenshot
-"Photos", the name, email and install ID
+and the chosen picture "Photos", the name, email and install ID
 their own rows, all optional and for app functionality; nothing is shared. If
 the team ever emails someone back about their feedback, "Developer
 communications" must be added to Email address's purposes first.

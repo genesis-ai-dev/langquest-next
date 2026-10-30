@@ -9,7 +9,7 @@
 //   npm run diag -- v2                                   the v2 import, per project
 //   npm run diag -- error <E-XXXXXX>
 //   npm run diag -- timeline <installId> [--days 2]
-//   npm run diag -- feedback [--days 30] [--install <id>] [--shot <feedbackId>] [--voice <feedbackId>]
+//   npm run diag -- feedback [--days 30] [--install <id>] [--shot <feedbackId>] [--picture <feedbackId>] [--voice <feedbackId>]
 //   npm run diag -- --hosted …    the same against the hosted database
 //
 // Reads through the `diag` schema only, as `diag_reader` on a hosted
@@ -231,10 +231,13 @@ function personReport(profileId: string): void {
 interface Feedback {
   id: string; created_at: string; kind: 'bug' | 'idea'; body: string; status: string; install_id: string;
   context: Record<string, string>; has_screenshot: boolean; shared_name: string | null; shared_email: string | null;
-  voice_format: 'm4a' | 'wav' | null; voice_ms: number | null;
+  voice_format: 'm4a' | 'wav' | null; voice_ms: number | null; has_picture?: boolean;
 }
 
-/** Feedback from help mode, newest first; `--shot <id>` and `--voice <id>` save one report's screenshot or voice note beside you. */
+/**
+ * Feedback from help mode, newest first; `--shot <id>`, `--picture <id>` and `--voice <id>` save one report's
+ * screenshot, chosen picture (LAN-198) or voice note beside you.
+ */
 function feedbackReport(): void {
   const voice = flag('voice');
   if (voice) {
@@ -246,11 +249,12 @@ function feedbackReport(): void {
     console.log(`saved ${file}`);
     return;
   }
-  const shot = flag('shot');
+  const picture = flag('picture');
+  const shot = picture ?? flag('shot');
   if (shot) {
-    const b64 = query<string | null>(`select to_jsonb(encode(diag.feedback_screenshot(:'id'::uuid), 'base64'))`, { id: shot });
-    if (!b64) throw new Error(`Feedback ${shot} has no screenshot.`);
-    const file = `feedback-${shot}.jpg`;
+    const b64 = query<string | null>(`select to_jsonb(encode(diag.feedback_${picture ? 'picture' : 'screenshot'}(:'id'::uuid), 'base64'))`, { id: shot });
+    if (!b64) throw new Error(`Feedback ${shot} has no ${picture ? 'picture' : 'screenshot'}.`);
+    const file = `feedback-${shot}${picture ? '-picture' : ''}.jpg`;
     writeFileSync(file, Buffer.from(b64.replace(/\s+/g, ''), 'base64'));
     console.log(`saved ${file}`);
     return;
@@ -269,6 +273,7 @@ function feedbackReport(): void {
       `## ${f.kind === 'bug' ? 'Problem' : 'Idea'} · ${f.created_at} · ${f.status}${who}`,
       [`id ${f.id}`, `install ${f.install_id}`, c.screen, [c.os, c.osVersion].filter(Boolean).join(' '), c.model,
         `app ${c.runtimeVersion ?? '?'} (${c.channel ?? '?'})`, c.uiLanguage, f.has_screenshot ? `screenshot: --shot ${f.id}` : undefined,
+        f.has_picture ? `picture: --picture ${f.id}` : undefined,
         f.voice_format ? `voice note ${Math.round((f.voice_ms ?? 0) / 1000)} s: --voice ${f.id}` : undefined]
         .filter(Boolean).join(' · '),
       '',
