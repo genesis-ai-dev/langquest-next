@@ -74,6 +74,13 @@ const stepsOf = (id: string) => {
 
 // make-videos.ts with no video named makes them all: when only the trailer is named, none is tried.
 const tried = ids.length ? makeVideos(ids, true) : new Set<string>();
+// A dry run that failed is tried once more, as a film is below: the local stack now and then answers
+// a call with an error under load (save_profile: "An invalid response was received from the upstream server").
+const untried = ids.filter((id) => !tried.has(id));
+if (untried.length) {
+  console.log(`${language}: ${untried.length} failed, tried once more: ${untried.join(' ')}`);
+  for (const id of makeVideos(untried, true)) tried.add(id);
+}
 const looks = new Map([...tried].map((id) => [id, lookOf(stepsOf(id), language)]));
 // A film framed as films no longer are (FRAME) is made again whatever its look: no need to try it twice.
 const stale = (id: string) => kept.has(id) && kept.get(id)!.frame !== FRAME;

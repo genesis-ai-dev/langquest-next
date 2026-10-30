@@ -112,7 +112,8 @@ English and French first, five at a time), a runner starts the local stack and t
 do, has Gemini translate any line the language lacks (`translate-lines.ts`;
 the job keeps the file as `lines-<language>`, to commit), and `nightly.ts`:
 
-1. tries every video for the public without voice or film, one at a time,
+1. tries every video for the public without voice or film, one at a time
+   (a video whose try fails is tried once more),
    keeping each step's screen as text once it stops changing and nothing
    on it is saving, without the toast (`steps/NN.txt`, Playwright's
    accessibility tree);
