@@ -122,6 +122,16 @@ interface TemplateSelection {
   books?: string[];
 }
 
+/** The book names a language uses (v1.BookNamesSelected): a library item's version and the names it holds. */
+export interface BookNamesSelection {
+  itemId: string;
+  docHash: string;
+  /** ISO 639-3 code of the language the names are in. */
+  language: string;
+  /** USFM code -> name. */
+  names: Record<string, string>;
+}
+
 /** The flow a language uses (v1.FlowSelected); `flowId` is its steps' prefix. */
 export interface FlowSelection {
   flowId: string;
@@ -165,6 +175,8 @@ export interface LanguageState extends RecordState, ReferenceState {
   hiddenUnits: Record<string, Register<boolean>>;
   /** USFM book -> what this language calls it (v1.BookNameSet, decision 74); absent in older snapshots. */
   bookNames?: Record<string, Register<string>>;
+  /** The library book names the language uses (v1.BookNamesSelected, decision 193); absent in older snapshots. */
+  bookNamesFrom?: Register<BookNamesSelection> | null;
   flow: Register<FlowSelection> | null;
   teams: Record<string, ReviewTeam>;
   /** kindId -> help key (`item:<id>` or `material:<id>`) -> linked (v1.CheckHelpSet); absent in older snapshots. */

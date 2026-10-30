@@ -1,6 +1,7 @@
 // "Add a language", for admins: Samuel adds Selani to Riverside Translation
-// Team. Its name, the Bible it translates from and how it is split, reference
-// material and checks as suggested; inviting its people is its own video.
+// Team. Its name and the languages its translators use, the Bible it
+// translates from and how it is split, reference material and checks as
+// suggested; inviting its people is its own video.
 import type { Page } from 'playwright';
 import type { Tutorial } from './tutorial';
 import { recordAPassage } from './record-a-passage';
@@ -51,6 +52,19 @@ export const addALanguage: Tutorial = {
       say: "Type the language's name. If it shows in the language list, tap it. If not, go on, and link it later.",
       type: NAME,
       stay: 1.5
+    },
+    {
+      screen: 'new_language',
+      part: (page) => id(page, 'primary-action'),
+      say: 'Tap Continue.',
+      tap: true,
+      until: until(/translators use\?$/),
+      stay: 0.6
+    },
+    {
+      screen: 'new_language',
+      part: (page) => words(page, /translators use\?$/),
+      say: 'Next, the languages your translators use. The ones you need are already chosen.'
     },
     {
       screen: 'new_language',
@@ -109,26 +123,13 @@ export const addALanguage: Tutorial = {
       part: (page) => id(page, 'primary-action'),
       say: 'Tap Continue.',
       tap: true,
-      until: until(/Bibles and study guides be in\?/),
-      stay: 0.6
-    },
-    {
-      screen: 'new_language',
-      part: (page) => words(page, /Bibles and study guides be in\?/),
-      say: 'Next, the languages of the Bibles and study guides your team will hear. The ones you need are already chosen.'
-    },
-    {
-      screen: 'new_language',
-      part: (page) => id(page, 'primary-action'),
-      say: 'Tap Continue.',
-      tap: true,
       until: until(/What will help .*’s team\?/),
       stay: 0.8
     },
     {
       screen: 'new_language',
       part: (page) => id(page, 'primary-action'),
-      say: 'And again, to keep what is suggested.',
+      say: 'Then Continue again, to keep the Bibles and study guides that are suggested.',
       tap: true,
       until: until('How will recordings get checked?'),
       stay: 0.6

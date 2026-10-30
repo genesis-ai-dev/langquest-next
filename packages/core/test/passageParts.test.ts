@@ -37,11 +37,11 @@ describe('a language cut by passage', () => {
     // and stays in memory whole defeats keeping a big language on disk.
     const shared = new Set([
       'units', 'blobs', 'audioFormats', 'appliedEventIds', 'invalidEvents', 'redactions', 'template', 'templateHistory',
-      'hiddenUnits', 'bookNames', 'flow', 'teams', 'checkHelps', 'stepLinks', 'externalValues', 'materials', 'keyTerms',
+      'hiddenUnits', 'bookNames', 'bookNamesFrom', 'flow', 'teams', 'checkHelps', 'stepLinks', 'externalValues', 'materials', 'keyTerms',
       'reviewKinds', 'flowSteps', 'removedSteps', 'languageReferences', 'referenceLanguage'
     ]);
     const cut = new Set(PASSAGE_PARTS.map((p) => p.map as string));
-    for (const key of Object.keys({ ...emptyLanguageState(), templateHistory: {}, bookNames: {}, checkHelps: {}, referenceLanguage: null })) {
+    for (const key of Object.keys({ ...emptyLanguageState(), templateHistory: {}, bookNames: {}, bookNamesFrom: null, checkHelps: {}, referenceLanguage: null })) {
       expect(shared.has(key) || cut.has(key), key).toBe(true);
       expect(shared.has(key) && cut.has(key), key).toBe(false);
     }

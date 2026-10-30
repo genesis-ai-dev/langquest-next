@@ -2,11 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { foldLanguage as fold } from '../src/reducer';
 import { emptyLanguageState, type LanguageState } from '../src/state';
-import { asTemplateV2, templateBooks, validateDoc, withDeps, type TemplateDocV1, type TemplateDocV2 } from '../src/libraryDocs';
-import { selectTemplateSpecs, templateUnits } from '../src/libraryApply';
+import { asTemplateV2, templateBooks, validateDoc, withDeps, type NamesDoc, type TemplateDocV1, type TemplateDocV2 } from '../src/libraryDocs';
+import { selectBookNamesSpec, selectTemplateSpecs, templateUnits } from '../src/libraryApply';
 import { bookParts, emptyBooks, goesWith, partCount, sameParts, verseNumbering, wayCovers, withBookBrokenUp, withEmptyBooksFilled } from '../src/breakup';
 import { booksWaiting, buildIndexes, languagePassages } from '../src/indexes';
-import { unitPlace, unitTitle } from '../src/passage';
+import { bookNameOf, unitPlace, unitTitle } from '../src/passage';
 import type { VersificationDoc } from '../src/versification';
 import type { AnyEvent } from '../src/events';
 import type { EventSpec } from '../src/commands';
@@ -153,6 +153,25 @@ describe('book names in the language', () => {
     // A passage the template named keeps its own name.
     expect(unitTitle(state, 'bible/LUK.15.1-10')).toBe('The lost sheep and coin');
     expect(unitPlace(state, 'bible/LUK.15.11-32').bookLabel).toBe('Luqaas');
+  });
+
+  it('names books from the library book names the language uses, under its own name for a book (decision 193)', () => {
+    let state = emptyLanguageState();
+    state = apply(state, selectTemplateSpecs(state, { commandId: 'c1', itemId: 'bible', docHash: H('1'), doc: withBookBrokenUp(later, 'LUK', fia), versification: eng }), 10);
+    const nepali: NamesDoc = { format: 'names@1', name: 'Bible book names (Nepali)', description: '', language: 'npi', books: [{ book: 'LUK', name: 'लूका' }], deps: [] };
+    expect(validateDoc(nepali)).toBeNull();
+    state = apply(state, [selectBookNamesSpec({ commandId: 'b1', itemId: 'langquest.names.npi', docHash: H('9'), doc: nepali })], 20);
+    expect(state.bookNamesFrom?.value).toMatchObject({ itemId: 'langquest.names.npi', language: 'npi', names: { LUK: 'लूका' } });
+    expect(unitTitle(state, 'bible/LUK.15.11-32')).toBe('लूका 15:11–32');
+    expect(unitPlace(state, 'bible/LUK.15.11-32').bookLabel).toBe('लूका');
+    expect(bookNameOf(state, 'LUK')).toBe('लूका');
+    // A book the names leave out keeps the template's name.
+    expect(bookNameOf(state, 'JHN')).toBeUndefined();
+    // A passage the template named keeps its own name.
+    expect(unitTitle(state, 'bible/LUK.15.1-10')).toBe('The lost sheep and coin');
+    // The language's own name for one book stays on top.
+    state = apply(state, [{ id: 'n1', type: 'v1.BookNameSet', payload: { book: 'LUK', name: 'Luqaas' } } as EventSpec], 30);
+    expect(unitTitle(state, 'bible/LUK.15.11-32')).toBe('Luqaas 15:11–32');
   });
 });
 

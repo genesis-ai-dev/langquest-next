@@ -318,15 +318,16 @@ Steps:
    then tap "Start". Leave "One language" chosen under "What are you
    adding?".
 2. Type "Charlie {run}" in "Its name". Do not pick a list entry. Type
-   "chr" in "Its code, if it has one". Tap "Continue".
+   "chr" in "Its code, if it has one". Tap "Continue". Under "Which
+   languages do Charlie {run}'s translators use?" leave "English" ticked.
+   Tap "Continue".
 3. Tap "The Bible". Choose the numbering: type "World English" under "Which
    Bible do you translate from?" and pick it. Pick "FIA passages" (LangQuest's, "Comes with FIA
    study guides"; not "FIA passages (English)", Alpha's) under "How
    should the Bible be divided?". Leave "New Testament" chosen. Tap
    "Continue".
-4. Under "Which languages should Charlie {run}'s Bibles and study guides
-   be in?" leave "English" ticked. Tap "Continue". Under "What will help
-   Charlie {run}'s team?" leave what is ticked. Tap "Continue".
+4. Under "What will help Charlie {run}'s team?" leave what is ticked. Tap
+   "Continue".
 5. Leave the first card ("Standard Bible Flow", "Suggested · from
    LangQuest") chosen under "How will recordings get checked?". Tap
    "Continue". On "Charlie {run}'s checks" tap "Add Charlie {run}".
@@ -594,28 +595,29 @@ Expected:
   added to the library: the checks are the language's own.
 - Step 8: the Community check's card says "Bible text" by a struck eye.
 
-### SETUP-019 The language of a new team's Bibles and guides
+### SETUP-019 The languages a new team's translators use, right after its name
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
-- None. (Leave with ✕ at the end.)
+- The library is seeded (G2). (Leave with ✕ at the end.)
 
 Steps:
-1. Org home → "New language" → "Start". Finish the steps up to how the
-   Bible is broken up.
-2. Read "Which languages should …".
+1. Org home → "New language" → "Start". Type "Lima {run}" in "Its name"
+   and tap "Continue".
+2. Read "Which languages do …".
 3. Tap "Another language" and search "French".
-4. Tap "Continue".
+4. Tap "Continue". Choose the Bible and FIA passages as in SETUP-010.
 
 Expected:
-- The question is "Which languages should {language}'s Bibles and study
-  guides be in?", with no sentence under it; as many languages as the
-  team reads can be ticked (decision 130).
+- Step 2 is still "1 of 6 · Language" (decision 193). The question is
+  "Which languages do Lima {run}'s translators use?", with no sentence
+  under it; as many languages as the team uses can be ticked (decision
+  130).
 - Each choice says what is in it, for example "FIA guides for {n} passages
-  · {n} Bibles · {n} other guides or notes".
+  · {n} Bibles · {n} other guides or notes · Book names".
 - The app's own language is marked as yours and chosen first when it has
   anything; otherwise English (decision 84).
-- Step 4: "What will help {language}'s team?" under the chip "Bibles and
+- Step 4: "What will help Lima {run}'s team?" under the chip "Bibles and
   guides in English · Change", with FIA's study guides in English ticked
   (decision 146).
 
@@ -677,10 +679,11 @@ Steps:
    name".
 3. Type "Kilo {run}" in "Add a language" and tap "Add “Kilo {run}”" (the
    local language list finds nothing). Tap "Bravo" under "Already in UI
-   Test Org". Tap "Continue".
+   Test Org". Tap "Continue", and "Continue" under the translators'
+   languages.
 4. Choose the Bible and FIA passages as in SETUP-010. Tap "Continue" under
-   the Bibles' language and what will help, then under "How will
-   recordings get checked?". Tap "Add Cluster {run}".
+   what will help, then under "How will recordings get checked?". Tap "Add
+   Cluster {run}".
 5. Wait for "Time to invite people" and tap "Later".
 6. Open Org home. Open the "Cluster {run}" heading if it is closed (groups
    start closed past 20 languages), then tap it to fold it, then tap "⋯"
