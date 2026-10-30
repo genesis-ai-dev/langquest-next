@@ -6647,6 +6647,18 @@ Reverse if: admins skip the overview so often it is only in the way, or
 teams need checks set up before reference material is known; then the order
 can change without touching the draft, which works for any step order.
 
+Amended (2026-10-30, Caleb Koster): Reference material lists Bible Brain's
+Bibles in the team's languages too, after the library's and unticked, so it
+holds every Bible the language page counted (decision 84, amended
+2026-10-19); Caleb asked that it show "all translations available in
+biblebrain" (LAN-194). One that is ticked becomes a library item as Add a
+Bible makes it (`addBibleBrainSource`), when the language is added; one
+that cannot be added then is named, like any offer. The same day: the web
+had shown one Bible of many on that page in a browser that cannot save
+files (Safari before 26, a private window), because loading library
+documents stopped at the first it could not save. Fetched documents now
+stay in memory when saving fails.
+
 ## 147. The server cuts each language's snapshot by passage and keeps every passage's line, and a phone's first download fills the passages in behind the Map
 
 Date: 2026-10-20 · By: Carl Sauder · Status: accepted
