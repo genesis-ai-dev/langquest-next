@@ -34,7 +34,6 @@ export interface QuizQuestion {
   notSure?: QuizOption;
 }
 
-
 /**
  * What a found Bible or a quiz answer means: the numbering, or the nearest one
  * LangQuest offers, with a note when it is only near or nothing fits.
@@ -46,11 +45,6 @@ export function resolveNumbering(code: NumberingCode, nearest: NumberingCode | u
   if (code === 'lxx' || (code === 'custom' && nearest === 'lxx')) return { code: null, note: t('breakup.numberingStep.notes.notOffered') };
   return { code: null, note: t('breakup.numberingStep.notes.notSure') };
 }
-
-/** Shown before anything is typed: Bibles many teams translate from. */
-export const COMMON_BIBLES = ['NIV', 'KJV', 'RVR1960', 'LSG', 'RUSSYN'];
-
-export { KNOWN_BIBLES } from './numberingBibles';
 
 /**
  * The quiz, one question a screen: a short title, something to look at (a
@@ -171,5 +165,8 @@ export function factsOf(doc: { maxVerses: Record<string, number[]> } | null | un
   };
 }
 
-/** "Russian Synodal · 77 books (Orthodox)" -> "Russian Synodal (Orthodox)": the books are shown beside it. */
-export const shortName = (name: string) => name.replace(/ · \d+ books/, '');
+/**
+ * "Russian Synodal · 77 books (Orthodox)" -> "Russian Synodal (Orthodox)": the books are shown beside it. The
+ * count is the part after " · " with a digit in it, so the names in other languages shorten too (decision 195).
+ */
+export const shortName = (name: string) => name.replace(/ · [^·(（]*\p{Nd}[^·(（]*?(?=\s*[(（]|$)/u, '');
