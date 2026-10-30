@@ -37,6 +37,10 @@ async function bibleStep(page: Page, opts: { way?: string | RegExp; scope?: stri
   await expectOnScreen(page, /What will .* translate\?/);
   await text(page, 'The Bible').click();
   await primary(page).click();
+  // Why the numbering matters, then three ways to find it (LAN-193).
+  await expectOnScreen(page, 'Bibles number verses differently');
+  await primary(page).click();
+  await button(page, /^Pick your Bible/).click();
   await expectOnScreen(page, 'Which Bible do you translate from?');
   await page.getByPlaceholder('NIV, Reina-Valera, Luther…').fill('World English');
   await text(page, 'World English Bible').click();
@@ -98,15 +102,14 @@ test('SETUP-010 Create a language end to end @p0', async ({ page }) => {
   await expect(primary(page)).toContainText(`Add ${name}`);
   await primary(page).click();
   await expectToast(page, `${name} added to ${w.orgName}.`);
-  await expectOnScreen(page, '6 of 6 · People', 'Time to invite people', 'Translators', 'Checkers', 'Later');
-  // Each role is a card with what it lets them do, one tap open, and its own Invite (decision 146).
+  await expectOnScreen(page, '6 of 6 · People', 'Time to invite people', 'Translators', 'Checkers', 'Done');
+  // One page (LAN-195): a tile per role, Translators picked, what it lets them do one tap open, and its code under them.
+  await expect(page.getByTestId('invite-role-Translators').locator('visible=true').first()).toHaveAttribute('aria-checked', 'true');
   await text(page, 'What they may do').click();
   await expectOnScreen(page, 'Record', 'Ask for checks', `Only in ${name}`);
-  await page.getByRole('button', { name: 'Invite', exact: true }).locator('visible=true').first().click();
-  // Translators check too (decision 91): the code can put them on some of its checks first.
+  // Translators check too (decision 91): ticking a check makes the code that puts them on it.
   await expectOnScreen(page, 'Which checks will they do?', 'Peer check', 'Community check');
-  await text(page, 'Peer check').click();
-  await primary(page).click();
+  await page.getByRole('button', { name: 'Peer check', exact: true }).locator('visible=true').first().click();
   // The code is made on the server: Share as a link shows once it is.
   await expectOnScreen(page, 'Translators', 'Peer check', 'Ask them to scan this', 'Share as a link');
   await text(page, 'Done').click();
@@ -168,7 +171,7 @@ test('SETUP-012 Add a language offline, unlinked, and link it later', async ({ p
   await finish(page);
   // Offline it is added unlinked; what needs the server to be offered is named, to offer later (decisions 71, 76).
   await expectToast(page, new RegExp(`^${name} added to ${w.orgName}\\.( Offer .* under Reference material once you are online\\.)?`));
-  await text(page, 'Later').click();
+  await button(page, 'Done').click();
   await page.context().setOffline(false);
   await languagePage(page, w, name);
   await text(page, 'Languages').click();
@@ -205,6 +208,10 @@ test('SETUP-014 Choose which books a new language translates', async ({ page }) 
   await nameStep(page, name);
   await text(page, 'The Bible').click();
   await primary(page).click();
+  // Why the numbering matters, then three ways to find it (LAN-193).
+  await expectOnScreen(page, 'Bibles number verses differently');
+  await primary(page).click();
+  await button(page, /^Pick your Bible/).click();
   await page.getByPlaceholder('NIV, Reina-Valera, Luther…').fill('World English');
   await text(page, 'World English Bible').click();
   await primary(page).click();
@@ -235,7 +242,7 @@ test('SETUP-014 Choose which books a new language translates', async ({ page }) 
   await expect(page.getByRole('button', { name: 'John', exact: true }).locator('visible=true').first()).toHaveAttribute('aria-pressed', 'false');
   await primary(page).click();
   await finish(page);
-  await text(page, 'Later').click();
+  await button(page, 'Done').click();
   await tab(page, 'map').click();
   await text(page, name).click().catch(() => undefined);
   const map = await screenText(page);
@@ -253,8 +260,13 @@ test('SETUP-015 Numbering is chosen first, by Bible, by list or by questions', a
   await nameStep(page, `Numbers ${tag()}`);
   await text(page, 'The Bible').click();
   await primary(page).click();
-  // The ways are offered only after a numbering (decision 80).
+  // The ways are offered only after a numbering (decision 80). First why it matters: Malachi 4:1 in one Bible is 3:19 in another.
   await expectNotOnScreen(page, 'How should the Bible be divided?');
+  await expectOnScreen(page, 'Bibles number verses differently', 'Malachi 4:1', 'Malachi 3:19');
+  await primary(page).click();
+  // Then three ways to find it, none under the Bibles (LAN-193).
+  await expectOnScreen(page, "Find your Bible's numbering", 'Pick your Bible', 'Take the quiz', 'Choose the numbering');
+  await button(page, /^Pick your Bible/).click();
   await page.getByPlaceholder('NIV, Reina-Valera, Luther…').fill('zzzz');
   await expectOnScreen(page, 'Not found.');
   await text(page, 'Not listed? Answer a few questions').click();
@@ -265,7 +277,7 @@ test('SETUP-015 Numbering is chosen first, by Bible, by list or by questions', a
   await button(page, 'The heading has no number').click();
   await expectOnScreen(page, /Like .*/, 'Verse numbers in LangQuest will match your Bible.', 'Choose another');
   await text(page, 'Choose another').click();
-  await text(page, 'Choose from the list').click();
+  await button(page, /^Choose the numbering/).click();
   await expectOnScreen(page, 'Choose the numbering', 'Like most English Bibles', 'Like the Hebrew and Greek', 'Like the Latin Vulgate (Catholic)', 'Russian Synodal',
     'Russian Synodal (Orthodox)', '66 books', 'Malachi 3', 'Headings verse 1');
   await text(page, 'Like the Hebrew and Greek').click();
@@ -353,7 +365,7 @@ test('SETUP-018 A new language\'s checks are set up on their own pages before it
   await expect(primary(page)).toContainText(`Add ${name}`);
   await primary(page).click();
   await expect(text(page, 'Time to invite people')).toBeVisible({ timeout: 60_000 });
-  await text(page, 'Later').click();
+  await button(page, 'Done').click();
   await languagePage(page, w, name);
   await expectOnScreen(page, /Peer check \+ back translation → Community check \+ retelling → Consultant check/i);
   await expectNotOnScreen(page, 'Final approval');
@@ -388,17 +400,18 @@ test('SETUP-019 The languages a new team\'s translators use, right after its nam
   await byId(page, 'header-close').click();
 });
 
-test('SETUP-020 New language\'s invite step, or later', async ({ page }) => {
+test('SETUP-020 New language\'s invite step shows the translators\' code at once', async ({ page }) => {
   const w = world();
   const name = `India ${tag()}`;
   await openAs(page, w, 'ADMIN');
   await addLanguage(page, w, name);
-  await text(page, 'Later').click();
+  // One page (LAN-195): Translators is picked and its code is made without another tap.
+  await expect(page.getByTestId('invite-role-Translators').locator('visible=true').first()).toHaveAttribute('aria-checked', 'true');
+  await expectOnScreen(page, `Translators`, 'Ask them to scan this', 'Share as a link');
+  await button(page, 'Done').click();
   await languagePage(page, w, name);
-  await expectOnScreen(page, `Get ${name} ready`, 'Invite your translators');
-  await expect(primary(page)).toContainText('Invite your translators');
-  await tab(page, 'work').click();
-  await expectOnScreen(page, `Get ${name} ready · 3 of 4`, 'Invite your translators', 'Choose');
+  // An issued invite counts, as from Get ready's question 4.
+  await expect.poll(async () => { await syncNow(page); return screenText(page); }, { timeout: 60_000 }).toContain('Ready · 0 translators');
 });
 
 test('SETUP-021 Only organization-scope setters add languages', async ({ page, browser }) => {
@@ -406,7 +419,7 @@ test('SETUP-021 Only organization-scope setters add languages', async ({ page, b
   const name = `Juliet ${tag()}`;
   await openAs(page, w, 'COORD');
   await addLanguage(page, w, name);
-  await text(page, 'Later').click();
+  await button(page, 'Done').click();
   await orgHome(page, w);
   await expect(text(page, name)).toBeVisible();
 
@@ -447,7 +460,7 @@ test('SETUP-074 A cluster of a new language and one already here, then ungrouped
   await primary(page).click();
   await expect(text(page, 'Time to invite people')).toBeVisible({ timeout: 60_000 });
   await expectToast(page, `1 language added to ${w.orgName}, in ${cluster}.`);
-  await text(page, 'Later').click();
+  await button(page, 'Done').click();
   // Org home: the cluster is a heading over its languages, then those in none (decision 108, amended 2026-10-20).
   await orgHome(page, w);
   const heading = button(page, `${cluster}. 2 languages`);

@@ -1,4 +1,4 @@
--- Feedback from help mode (migration *_feedback.sql, decisions.md 145). Run by
+-- Feedback from help mode (migrations *_feedback.sql and *_feedback_picture.sql, decisions.md 145). Run by
 -- `npm run db:test`. Repeatable; every write rolls back.
 \set ON_ERROR_STOP on
 begin;
@@ -75,6 +75,28 @@ begin
   end;
 end $$;
 
+-- 3c. A picture they chose (LAN-198), from another account so the first one's day count stays: kept beside
+--     the screenshot; one that is not a JPEG is refused; a phone that sends none calls it as before.
+select set_config('request.jwt.claim.sub', 'f0000000-0000-0000-0000-00000000000b', true);
+do $$
+declare r record;
+begin
+  perform public.feedback_submit('f1000000-0000-0000-0000-000000000004', 'bug', 'See the photo', 'inst-2', '{}', false, pg_temp.jpeg(),
+    null, null, null, pg_temp.jpeg());
+  select * into r from diag.feedback where id = 'f1000000-0000-0000-0000-000000000004';
+  if r.picture <> '\xffd8ffe000104a464946'::bytea or r.screenshot is null then raise exception 'picture not kept: %', r; end if;
+  begin
+    perform public.feedback_submit(gen_random_uuid(), 'bug', 'x', 'inst-2', '{}', false, null, null, null, null,
+      encode('\x89504e470d0a1a0a'::bytea, 'base64'));
+    raise exception 'took a picture that is not a JPEG';
+  exception when sqlstate '22023' then null;
+  end;
+  perform public.feedback_submit(p_id => 'f1000000-0000-0000-0000-000000000005', p_kind => 'idea', p_body => 'No picture', p_install => 'inst-2',
+    p_context => '{}', p_share_profile => false, p_screenshot => null, p_voice => null, p_voice_format => null, p_voice_ms => null);
+  if (select picture from diag.feedback where id = 'f1000000-0000-0000-0000-000000000005') is not null then raise exception 'a picture from nowhere'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'f0000000-0000-0000-0000-00000000000a', true);
+
 -- 4. What it refuses: a kind, an empty or long body, a bad install id, a picture that is not a JPEG.
 do $$
 declare
@@ -137,6 +159,9 @@ begin
   if diag.feedback_screenshot('f1000000-0000-0000-0000-000000000002') <> '\xffd8ffe000104a464946'::bytea then
     raise exception 'screenshot reader';
   end if;
+  if (select has_picture from diag.feedback() f where f.id = 'f1000000-0000-0000-0000-000000000004') is not true
+     or r.has_picture then raise exception 'reader: has_picture'; end if;
+  if diag.feedback_picture('f1000000-0000-0000-0000-000000000004') <> '\xffd8ffe000104a464946'::bytea then raise exception 'picture reader'; end if;
   begin
     perform * from diag.feedback;
     raise exception 'diag_reader read the table directly';

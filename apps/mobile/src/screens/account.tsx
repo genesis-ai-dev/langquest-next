@@ -697,6 +697,9 @@ export function OrgSwitcher(ctx: Ctx) {
         );
       })}
       {!rows.length && !error ? <EmptyState icon="building" title={t('account.orgs.loading')} /> : null}
+      {/* App only: someone already in an organization joins another with this account, by its code or from the list (LAN-197). */}
+      <OrgWay icon="qr" label={t('entry.intent.scanTitle')} sub={t('entry.intent.scanSub')} help={t('entry.intent.scanHelp')} onPress={() => ctx.go('scan_qr')} />
+      <OrgWay icon="search" label={t('entry.intent.findTitle')} sub={t('entry.intent.findSub')} help={t('entry.intent.findHelp')} onPress={() => ctx.go('request_access', { from: 'org_switcher' })} />
       {/* App only: someone already in an organization starts another, and is its Organization Admin. */}
       <Card onPress={() => ctx.go('create_org')} accessibilityLabel={t('account.orgs.newOrg')} help={t('account.orgs.newOrgHelp')}>
         <View style={styles.profile}>
@@ -708,6 +711,21 @@ export function OrgSwitcher(ctx: Ctx) {
         </View>
       </Card>
     </Screen>
+  );
+}
+
+/** Another way into an organization, under the ones this person is in: a card like New organization's. */
+function OrgWay(props: { icon: IconName; label: string; sub: string; help: string; onPress: () => void }) {
+  return (
+    <Card onPress={props.onPress} accessibilityLabel={`${props.label}. ${props.sub}`} help={props.help}>
+      <View style={styles.profile}>
+        <View style={styles.tile}><Ico name={props.icon} size={24} color={C.primary} /></View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[txt.body, { fontWeight: '600', color: C.primary }]}>{props.label}</Text>
+          <Text style={txt.xs}>{props.sub}</Text>
+        </View>
+      </View>
+    </Card>
   );
 }
 

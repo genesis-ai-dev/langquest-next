@@ -1,6 +1,7 @@
 // Feedback from help mode (decisions.md 145), the parts with no I/O: what
-// makes a report ready to send, how big its screenshot is, what waits on a
-// phone before anyone has signed in, and what the sheet and its toasts say.
+// makes a report ready to send, how big its screenshot and a chosen picture
+// are, what waits on a phone before anyone has signed in, and what the sheet
+// and its toasts say.
 import { t } from '../i18n';
 import { signInName } from '../auth/accounts';
 
@@ -17,6 +18,16 @@ export const SHOT_QUALITY = 0.6;
 
 /** A screenshot: a JPEG as base64, with its size (capture.ts, capture.web.ts). */
 export interface Shot { base64: string; width: number; height: number }
+
+/**
+ * A picture the person chose (LAN-198): a JPEG no longer than PICTURE_SIDE
+ * on either side and no bigger than PICTURE_BYTES, inside what the server
+ * takes (1 MiB). The words of a screenshot of another app still read.
+ */
+export const PICTURE_SIDE = 1600;
+export const PICTURE_BYTES = 1_000_000;
+/** Tried in turn until the picture is small enough. */
+export const PICTURE_QUALITIES: readonly number[] = [0.7, 0.5, 0.35];
 
 /** Longer than a slow phone takes to draw its window, short enough that the sheet still opens promptly. */
 export const CAPTURE_MS = 4000;
@@ -38,6 +49,8 @@ export interface FeedbackPayload {
   shareProfile: boolean;
   /** A screenshot waits beside it on the phone (feedbackShots.ts), under the report's id. */
   shot: boolean;
+  /** So does a picture the person chose (LAN-198). */
+  picture?: boolean;
   /** Said rather than (or as well as) typed. */
   voice?: VoiceRef | null;
 }
@@ -76,6 +89,31 @@ export function shotSize(window: { width: number; height: number }, scale: numbe
   const full = Math.max(1, Math.round(window.width * scale));
   const width = Math.min(SHOT_WIDTH, full);
   return { width, height: Math.max(1, Math.round((width * window.height) / Math.max(1, window.width))) };
+}
+
+/** A picture's size once made smaller: its shape, no side longer than `maxSide`, never larger than it was. */
+export function pictureSize(natural: { width: number; height: number }, maxSide = PICTURE_SIDE): { width: number; height: number } {
+  const longer = Math.max(natural.width, natural.height, 1);
+  const scale = Math.min(1, maxSide / longer);
+  return { width: Math.max(1, Math.round(natural.width * scale)), height: Math.max(1, Math.round(natural.height * scale)) };
+}
+
+/** How many bytes some base64 holds. */
+export function base64Bytes(base64: string): number {
+  const pad = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+  return Math.floor((base64.length * 3) / 4) - pad;
+}
+
+/** A JPEG (its first bytes FF D8 FF are "/9j/" in base64) no bigger than PICTURE_BYTES: what the server takes. */
+export function pictureFits(base64: string): boolean {
+  return base64.startsWith('/9j/') && base64Bytes(base64) <= PICTURE_BYTES;
+}
+
+/** The chosen picture on the sheet: as wide as `width`, never taller than `maxHeight`, in its own shape. */
+export function previewSize(picture: { width: number; height: number }, width: number, maxHeight: number): { width: number; height: number } {
+  const ratio = picture.height / Math.max(1, picture.width);
+  const height = Math.min(maxHeight, width * ratio);
+  return { width: Math.round(height / ratio), height: Math.round(height) };
 }
 
 /** A report written before anyone signed in on this phone: sent as whoever signs in next. */
