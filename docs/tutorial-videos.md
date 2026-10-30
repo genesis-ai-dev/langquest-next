@@ -35,7 +35,7 @@ GEMINI_API_KEY`); run with it as `npx dotenvx run -f .env.production -fk
 | --- | --- |
 | `all.ts`, `<id>.ts` | the scripts: who is signed in, the world they start from, each step (what is lit, what is said, what is tapped) |
 | `film.ts` | plays one script against the web export and keeps every frame with its time, when each line is said, what the speaker says into the microphone and what the app plays aloud |
-| `compose.ts` | puts a film together as a wide (16:9) MP4: the frames in a phone beside the app's mark and the title (or in a browser window under the title, for web videos), the camera moving in on what each step lights, and the sound evened to -16 LUFS |
+| `compose.ts` | puts a film together as a wide (16:9) MP4: the frames in a phone beside the app's mark and the title (or in a browser window under the title, for web videos), the camera moving in on what each step lights (then 2560x1440, so YouTube makes its sharper versions), and the sound evened to -16 LUFS |
 | `camera.ts` | where the camera looks: in on each lit part (its words about twice their size), back out to the whole page where a step lights nothing, at the start and at the end |
 | `frame-check.ts` | a new film's stills, one while each line is said, looked at by Gemini for what is drawn wrong |
 | `gemini-voice.mjs` | says lines with Gemini's text-to-speech, through the Batch API |

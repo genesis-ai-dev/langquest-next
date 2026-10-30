@@ -9358,7 +9358,13 @@ leaves out a shot under a second, so it moves only when the part moves. A
 move takes 0.8 s and starts just before the part is lit. A part inside a
 card with its own edge is lit with the card (`film.ts` `light`), so the
 light no longer cuts through a card's border and leaves a dimmed line of it
-showing (Caleb's still of the lit Record step). `FRAME` is `zoomed`, so
+showing (Caleb's still of the lit Record step), and a list that scrolls up
+and down scrolls the part into view before it is lit (a list that hid what
+overflowed sideways was held still, so the light and the camera pointed
+below the screen). A zoomed video is made at 2560x1440: Caleb saw the
+uploaded videos play at 240p, and our 1080p file was fine (checked), but
+YouTube makes its sharper versions (VP9) only of an upload of 1440p or
+more. `FRAME` is `zoomed`, so
 every video in every language is filmed again once; the English and French
 videos already up are replaced, about a day of YouTube's daily limit. The
 trailer, drawn by its own page, keeps its film (`TRAILER_FRAME`). Rejected: filming the phone bigger and cutting the

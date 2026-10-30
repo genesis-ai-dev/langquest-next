@@ -65,8 +65,10 @@ const moves = toPage
     box: f.box && { x: SX + f.box.x * toPage.x, y: SY + f.box.y * toPage.y, width: f.box.width * toPage.x, height: f.box.height * toPage.y }
   })), end, { width: W, height: H }, { x: SX, y: SY, width: SW, height: SH })
   : [];
-// A camera that moves in films a page drawn twice as big, so what it shows close up stays sharp.
+// A camera that moves in films a page drawn twice as big, so what it shows close up stays sharp, and
+// makes a 1440p video: YouTube makes its sharper versions (VP9) of a video uploaded at 1440p or more.
 const K = moves.length ? 2 : 1;
+const OUT = K > 1 ? { width: 2560, height: 1440 } : { width: W, height: H };
 // Beside the phone: the app's mark and name over the title, as on the channels' banners (banners.ts).
 const mark = readFileSync(path.join('apps', 'mobile', 'assets', 'icon.png')).toString('base64');
 
@@ -125,7 +127,16 @@ await browser.close();
 const list = film.frames.flatMap((f, i) => [`file '${f.file}'`, `duration ${Math.max((film.frames[i + 1]?.t ?? end) - f.t, 0.001).toFixed(4)}`]);
 writeFileSync(path.join(work, 'frames.txt'), [...list, `file '${film.frames.at(-1)!.file}'`].join('\n') + '\n');
 
-const inputs = ['-f', 'concat', '-safe', '0', '-i', path.join(work, 'frames.txt'), '-i', path.join(work, 'page.png'), '-i', path.join(work, 'mask.png')];
+// The page and the mask as one raw frame each, played over and over 30 times a second: a picture
+// read again for every frame (a PNG 3840 wide) took three times as long.
+const raw = (png: string, format: string) => {
+  const file = png.replace(/\.png$/, '.nut');
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', png, '-pix_fmt', format, '-c:v', 'rawvideo', '-f', 'nut', file]);
+  return ['-stream_loop', '-1', '-r', '30', '-i', file];
+};
+// A frame of another size (the screencast now and then sends one twice as big) is scaled like the rest, not
+// a reason to start the filters again, which put the camera back at the start and cut the video short.
+const inputs = ['-reinit_filter', '0', '-f', 'concat', '-safe', '0', '-i', path.join(work, 'frames.txt'), ...raw(path.join(work, 'page.png'), 'yuv420p'), ...raw(path.join(work, 'mask.png'), 'gray')];
 const chains: string[] = [];
 const mix: string[] = [];
 let n = 3;
@@ -151,15 +162,12 @@ for (const [j, h] of (film.heard ?? []).entries()) {
   chains.push(`[${n++}:a]aresample=48000,atrim=${h.from.toFixed(3)}:${h.to.toFixed(3)},asetpts=PTS-STARTPTS,adelay=${Math.round(a * 1000)}:all=1,volume='if(${duck(a, a + h.to - h.from)},0.22,0.85)':eval=frame[h${j}]`);
   mix.push(`[h${j}]`);
 }
-// The page and the mask are read once and held (loop), not read again for every frame, 30 frames a second.
-const held = 'loop=loop=-1:size=1:start=0,fps=30';
 // zoompan crops the view (x, y, and the page's width over the zoom) from the page and scales it to the video's size,
 // a frame for each frame it is given.
 const view = (side: 'x' | 'y' | 'width') => viewExpression(moves, side, { width: W, height: H });
-const camera = K > 1 ? `,zoompan=z='${W}/(${view('width')})':x='${K}*(${view('x')})':y='${K}*(${view('y')})':d=1:s=${W}x${H}:fps=30` : '';
-const video = `[1:v]format=yuv420p,${held}[p];[2:v]format=gray,scale=${K * SW}:${K * SH},${held}[m];` +
-  `[0:v]fps=30,scale=${K * SW}:${K * SH}:flags=lanczos,format=yuva420p[s];[s][m]alphamerge[sm];` +
-  `[p][sm]overlay=${K * SX}:${K * SY}:shortest=1:format=yuv420${camera},format=yuv420p[v]`;
+const camera = K > 1 ? `,zoompan=z='${W}/(${view('width')})':x='${K}*(${view('x')})':y='${K}*(${view('y')})':d=1:s=${OUT.width}x${OUT.height}:fps=30` : '';
+const video = `[0:v]fps=30,scale=${K * SW}:${K * SH}:flags=lanczos,format=yuva420p[s];[s][2:v]alphamerge[sm];` +
+  `[1:v][sm]overlay=${K * SX}:${K * SY}:shortest=1:format=yuv420${camera},format=yuv420p[v]`;
 const audio = `${chains.join(';')};${mix.join('')}amix=inputs=${mix.length}:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,apad,` +
   `atrim=0:${end.toFixed(2)},afade=t=out:st=${(end - 1.2).toFixed(2)}:d=1.2[a]`;
 execFileSync('ffmpeg', ['-y', '-v', 'error', ...inputs, '-filter_complex', `${video};${audio}`, '-map', '[v]', '-map', '[a]',

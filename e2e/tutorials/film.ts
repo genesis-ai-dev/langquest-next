@@ -187,18 +187,27 @@ async function handlesOf(parts: Locator | Locator[]): Promise<ElementHandle[]> {
   return Promise.all((Array.isArray(parts) ? parts : [parts]).map(async (p) => {
     await p.waitFor({ state: 'visible', timeout: 30_000 });
     const handle = (await p.elementHandle())!;
-    // A box that hides what overflows is no scroller a finger can move: it stays as it was
-    // (right to left, it would show a part cut off on the left and shift the whole panel).
+    // A box that hides what overflows one way is no scroller a finger can move that way: it stays
+    // as it was that way (right to left, it would show a part cut off on the left and shift the
+    // whole panel). A list that scrolls up and down, and hides what overflows sideways, still
+    // scrolls the part into view, so the light and the camera find it on the screen.
     const held = await handle.evaluateHandle((e) => {
-      const kept: { box: Element; x: number; y: number }[] = [];
+      const kept: { box: Element; x?: number; y?: number }[] = [];
       for (let box = e.parentElement; box; box = box.parentElement) {
         const style = getComputedStyle(box);
-        if (/hidden|clip/.test(style.overflowX + style.overflowY)) kept.push({ box, x: box.scrollLeft, y: box.scrollTop });
+        const x = /hidden|clip/.test(style.overflowX) ? box.scrollLeft : undefined;
+        const y = /hidden|clip/.test(style.overflowY) ? box.scrollTop : undefined;
+        if (x !== undefined || y !== undefined) kept.push({ box, x, y });
       }
       return kept;
     });
     await p.scrollIntoViewIfNeeded();
-    await held.evaluate((kept) => { for (const k of kept) { k.box.scrollLeft = k.x; k.box.scrollTop = k.y; } });
+    await held.evaluate((kept) => {
+      for (const k of kept) {
+        if (k.x !== undefined) k.box.scrollLeft = k.x;
+        if (k.y !== undefined) k.box.scrollTop = k.y;
+      }
+    });
     await held.dispose();
     return handle;
   }));
@@ -384,9 +393,11 @@ async function play(step: Step, index: number): Promise<void> {
   let lit: Box | null = null;
   if (parts) {
     await page.evaluate(light, await handlesOf(parts));
-    lit = await page.evaluate(litBox);
-    focus.push({ t: now(), box: lit });
+    const t = now();
     await sleep(350);
+    // Where the light is once the screen has settled (a list still scrolling the part into view).
+    lit = await page.evaluate(litBox);
+    focus.push({ t, box: lit });
   } else {
     focus.push({ t: now(), box: null });
   }
