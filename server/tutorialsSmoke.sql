@@ -329,6 +329,20 @@ do $$ declare v jsonb; begin
 end $$;
 reset role;
 
+-- Only a video's newest version goes up (migration *_tutorial_newest_due.sql, decisions.md 191): a chosen
+-- version not up yet waits no longer once a newer one is made, and the newer one goes up once it is chosen.
+update ops.tutorial_videos set made_at = now() - interval '1 day' where sha256 = repeat('f', 64);
+set local role service_role;
+select public.ops_tutorial_made('key-words', 'es', repeat('7', 64), 'Palabras clave', 'Así se marcan las palabras.', 'Traductores', 5, 60, 9000000);
+do $$ declare v jsonb; begin
+  v := public.ops_tutorials_due(10);
+  assert not exists (select 1 from jsonb_array_elements(v) x where x->>'tutorial' = 'key-words'), 'the older chosen version waits no longer: %', v;
+  perform public.ops_tutorials_approve(jsonb_build_array(jsonb_build_array('key-words', 'es', repeat('7', 64))), '0d000000-0000-0000-0000-0000000000aa');
+  v := public.ops_tutorials_due(10);
+  assert exists (select 1 from jsonb_array_elements(v) x where x->>'tutorial' = 'key-words' and x->>'sha256' = repeat('7', 64)), 'the newest goes up once chosen: %', v;
+end $$;
+reset role;
+
 -- Each channel's trailer (migration *_youtube_channel_trailer.sql, decisions.md 189): the job reads the
 -- video the language's newest trailer became, so a channel whose trailer was not set gets it next run.
 set local role service_role;

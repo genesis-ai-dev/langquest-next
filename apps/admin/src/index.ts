@@ -11,6 +11,7 @@ import { appStoreSection } from './sources/appstore';
 import { expoSection } from './sources/expo';
 import { googlePlaySection } from './sources/googleplay';
 import { codeSection } from './sources/github';
+import { filmingSection } from './sources/filming';
 import { supabaseSection } from './sources/supabase';
 import { containerSection } from './sources/container';
 import { expirySection } from './sources/expiry';
@@ -56,7 +57,8 @@ const PROVIDERS: Record<string, (env: Env) => Promise<Section>> = {
   capacity: (env) => capacitySection(env),
   releases: (env) => releasesSection(env),
   adoption: (env) => adoptionSection(env),
-  container: (env) => containerSection(env)
+  container: (env) => containerSection(env),
+  filming: (env) => filmingSection(env)
 };
 
 /** The sections read as diag_reader in one connection, with what each says when that connection fails. */

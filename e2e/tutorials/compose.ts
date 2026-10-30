@@ -1,8 +1,11 @@
 // Puts a filmed tutorial together (film.json from film.ts) as an MP4: the
-// frames in a phone on a 1080x1920 page (or, filmed wide, a browser window on
-// a 1920x1080 page) under the video's title, the voice's lines where they were
-// said, the speaker's recordings where they were spoken and what the app played
-// aloud, both quieter under the voice, evened to -16 LUFS.
+// frames on a wide 1920x1080 page, in a phone beside the app's mark and the
+// video's title (or, filmed wide, in a browser window under the title), the
+// voice's lines where they were said, the speaker's recordings where they were
+// spoken and what the app played aloud, both quieter under the voice, evened
+// to -16 LUFS. Never a tall page: YouTube makes a tall video under three
+// minutes a Short, whose links cannot be clicked and which the channel lists
+// apart from its videos (decisions.md 191).
 //
 //   npx tsx e2e/tutorials/compose.ts <film folder> <out.mp4>
 //
@@ -36,18 +39,20 @@ const sizeOf = (file: string) =>
 // A phone's screen is filmed tall; a computer's (what is done on the web) wide.
 const [fw, fh] = sizeOf(film.frames[0]!.file) as [number, number];
 const WIDE = fw > fh;
-const W = WIDE ? 1920 : 1080;
-const H = WIDE ? 1080 : 1920;
+const W = 1920;
+const H = 1080;
 // Where the screen goes on the page, and how big: a window's page scaled from 2560x1600 under its
-// title bar, or a phone's screen scaled from 860x1864 inside its bezel.
-const SW = WIDE ? 1472 : 757;
-const SH = WIDE ? 920 : 1640;
+// title bar, or a phone's screen scaled from 860x1864 inside its bezel, on the right, as tall as the page allows.
+const SW = WIDE ? 1472 : 452;
+const SH = WIDE ? 920 : 980;
 const BAR = 38;
-const BEZEL = 22;
-const PX = WIDE ? (W - SW) / 2 : (W - SW - 2 * BEZEL) / 2;
-const PY = WIDE ? 112 : 212;
+const BEZEL = 16;
+const PX = WIDE ? (W - SW) / 2 : 1400 - (SW + 2 * BEZEL) / 2;
+const PY = WIDE ? 112 : (H - SH - 2 * BEZEL) / 2;
 const SX = WIDE ? PX : PX + BEZEL;
 const SY = WIDE ? PY + BAR : PY + BEZEL;
+// Beside the phone: the app's mark and name over the title, as on the channels' banners (banners.ts).
+const mark = readFileSync(path.join('apps', 'mobile', 'assets', 'icon.png')).toString('base64');
 
 const INK = 'rgb(30 26 60)';
 const page = `<!doctype html><html><head><meta charset="utf-8"><style>
@@ -55,17 +60,23 @@ const page = `<!doctype html><html><head><meta charset="utf-8"><style>
   body { background: linear-gradient(rgb(244 241 252), rgb(232 227 246)); position: relative;
     font-family: Inter, "Noto Sans", "Noto Sans Ethiopic", "Noto Sans Arabic", "Noto Sans Bengali", "Noto Sans Devanagari",
       "Noto Sans Myanmar", "Noto Sans Thai", "Noto Sans CJK SC", "WenQuanYi Zen Hei", sans-serif; font-weight: 600; }
-  h1 { position: absolute; left: 48px; right: 48px; top: ${WIDE ? 30 : 84}px; margin: 0; text-align: center;
-    color: ${INK}; font-size: ${WIDE ? 50 : 58}px; line-height: 1.2; white-space: nowrap; }
+  h1 { margin: 0; color: ${INK}; }
+  .top h1 { position: absolute; left: 48px; right: 48px; top: 30px; text-align: center; font-size: 50px; line-height: 1.2; white-space: nowrap; }
+  .side { position: absolute; left: 150px; width: 860px; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; gap: 40px; }
+  .side h1 { font-size: 88px; line-height: 1.12; font-weight: 700; overflow-wrap: break-word; }
+  .app { display: flex; align-items: center; gap: 22px; color: rgb(94 86 140); font-size: 44px; font-weight: 700; }
+  .app img { width: 76px; height: 76px; border-radius: 18px; }
   .phone { position: absolute; left: ${PX}px; top: ${PY}px; width: ${SW + 2 * BEZEL}px; height: ${SH + 2 * BEZEL}px;
-    border-radius: 72px; background: rgb(28 25 46); }
+    border-radius: 56px; background: rgb(28 25 46); box-shadow: 0 24px 60px rgb(30 26 60 / 0.25); }
   .window { position: absolute; left: ${PX - 1}px; top: ${PY - 1}px; width: ${SW + 2}px; height: ${BAR + SH + 2}px;
     border-radius: 14px; background: rgb(206 202 222); }
   .bar { position: absolute; left: ${PX}px; top: ${PY}px; width: ${SW}px; height: ${BAR + 14}px;
     border-radius: 13px 13px 0 0; background: rgb(236 233 245); }
   .dot { position: absolute; top: ${PY + BAR / 2 - 6}px; width: 12px; height: 12px; border-radius: 6px; }
-</style></head><body>
-  <h1 id="title"></h1>
+</style></head><body class="${WIDE ? 'top' : ''}">
+  ${WIDE
+    ? '<h1 id="title" dir="auto"></h1>'
+    : `<div class="side"><div class="app" dir="ltr"><img src="data:image/png;base64,${mark}" alt="">LangQuest</div><h1 id="title" dir="auto"></h1></div>`}
   ${WIDE
     ? `<div class="window"></div><div class="bar"></div>${['rgb(237 106 94)', 'rgb(245 191 79)', 'rgb(98 197 84)']
       .map((c, i) => `<div class="dot" style="left:${PX + 16 + i * 22}px;background:${c}"></div>`).join('')}`
@@ -73,17 +84,21 @@ const page = `<!doctype html><html><head><meta charset="utf-8"><style>
 </body></html>`;
 // Where the screen shows through: the phone's screen rounded, or the window's page with square top corners.
 const mask = `<!doctype html><html><body style="margin:0;background:#000;width:${SW}px;height:${SH}px;overflow:hidden">
-  <div style="width:${SW}px;height:${SH}px;background:#fff;border-radius:${WIDE ? '0 0 13px 13px' : '52px'}"></div></body></html>`;
+  <div style="width:${SW}px;height:${SH}px;background:#fff;border-radius:${WIDE ? '0 0 13px 13px' : '40px'}"></div></body></html>`;
 
 const browser = await chromium.launch();
 const tab = await browser.newPage({ viewport: { width: W, height: H } });
 await tab.setContent(page);
 await tab.locator('#title').evaluate((el, title) => {
   el.textContent = title;
-  // A long title gets smaller, to fit the page.
+  // A long title gets smaller, to fit the page: on one line over a window, on three at most beside a phone.
+  // (No function is named in here: what tsx adds to name one is not in the page.)
   let size = parseFloat(getComputedStyle(el).fontSize);
-  while (el.scrollWidth > el.clientWidth && size > 20) el.style.fontSize = `${(size -= 2)}px`;
+  while ((el.scrollWidth > el.clientWidth || (el.closest('.side') && el.scrollHeight / parseFloat(getComputedStyle(el).lineHeight) > 3.2)) && size > 20) {
+    el.style.fontSize = `${(size -= 2)}px`;
+  }
 }, film.title);
+await tab.evaluate(() => document.fonts.ready);
 await tab.screenshot({ path: path.join(work, 'page.png') });
 await tab.setViewportSize({ width: SW, height: SH });
 await tab.setContent(mask);

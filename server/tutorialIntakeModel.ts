@@ -39,6 +39,8 @@ export interface Film {
   position: number;
   /** The film's screens and words as text, hashed: what the filming compares to see a video changed. */
   look: string;
+  /** How it was framed and described (e2e/tutorials/playlists.ts FRAME); none before films were wide (decisions.md 191). */
+  frame?: string;
 }
 
 export interface Manifest {
@@ -69,6 +71,7 @@ export function filmProblem(film: unknown): string | null {
   if (!plain(f['playlist'], 150)) return 'playlist';
   if (!whole(f['position'], 0, 10000)) return 'position';
   if (typeof f['look'] !== 'string' || !SHA256.test(f['look'])) return 'look';
+  if (f['frame'] !== undefined && (typeof f['frame'] !== 'string' || !/^[a-z0-9-]{1,20}$/.test(f['frame']))) return 'frame';
   return null;
 }
 

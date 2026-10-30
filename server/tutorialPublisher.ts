@@ -1,5 +1,5 @@
 import {
-  accessToken, brandChannel, brandOf, channelFull, heldComments, outOfQuota, placeInPlaylist, playlistFor, retire, TRAILER, uploadVideo, YouTubeError,
+  accessToken, brandChannel, brandOf, channelFull, heldComments, outOfQuota, placeInPlaylist, playlistFor, retire, setHome, TRAILER, uploadVideo, YouTubeError,
   type ChannelLanguage, type Client, type Fetch
 } from './youtube';
 
@@ -13,9 +13,11 @@ import {
  * line pointing to the new one. The trailer (decisions.md 189) goes first in
  * its playlist and becomes the channel's trailer, the video the channel
  * shows people who have not subscribed. Before any video, each channel that does not
- * yet look as it should (its description, language, banner and list of the
- * others: youtube.ts `brandChannel`) is brought up to date, and the comments
- * YouTube holds for review on each are counted for the dashboard.
+ * yet look as it should (its description, language and banner: youtube.ts
+ * `brandChannel`) is brought up to date, its home page gets a row for each
+ * playlist it has and one of the other channels (`setHome`, decisions.md
+ * 191), and the comments YouTube holds for review on each are counted for
+ * the dashboard.
  *
  * YouTube allows 100 uploads a day for the whole Google Cloud project, all
  * channels together, and 10,000 units for everything else (a video and its
@@ -148,8 +150,10 @@ async function tokenFor(deps: PublisherDeps, { tokens }: Run, channelId: string)
 }
 
 /**
- * Each channel whose look is not the one it should have gets it, and its
- * held comments are counted; what fails waits for the next run.
+ * Each channel whose look is not the one it should have gets it, its home
+ * page's rows are brought up to date (a playlist made by yesterday's uploads
+ * gets its row), and its held comments are counted; what fails waits for the
+ * next run.
  */
 async function tendChannels(deps: PublisherDeps, run: Run, report: PublishReport): Promise<void> {
   for (const channel of await deps.channels()) {
@@ -172,6 +176,13 @@ async function tendChannels(deps: PublisherDeps, run: Run, report: PublishReport
       // The channel keeps which field YouTube refused, when it says, so the dashboard shows it.
       await deps.branded(channel, null, e instanceof YouTubeError ? e.codeWhere : code);
       continue;
+    }
+    try {
+      await setHome(deps.fetcher, token, channel.language);
+    } catch (e) {
+      report.firstError ??= failureCode(e);
+      report.outOfQuota ||= outOfQuota(e);
+      if (report.outOfQuota) return;
     }
     try {
       const held = await heldComments(deps.fetcher, token, channel.channelId);

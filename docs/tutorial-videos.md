@@ -35,7 +35,7 @@ GEMINI_API_KEY`); run with it as `npx dotenvx run -f .env.production -fk
 | --- | --- |
 | `all.ts`, `<id>.ts` | the scripts: who is signed in, the world they start from, each step (what is lit, what is said, what is tapped) |
 | `film.ts` | plays one script against the web export and keeps every frame with its time, when each line is said, what the speaker says into the microphone and what the app plays aloud |
-| `compose.ts` | puts a film together as an MP4: the frames in a phone (or a browser window, for web videos) under the title, and the sound evened to -16 LUFS |
+| `compose.ts` | puts a film together as a wide (16:9) MP4: the frames in a phone beside the app's mark and the title (or in a browser window under the title, for web videos), and the sound evened to -16 LUFS |
 | `gemini-voice.mjs` | says lines with Gemini's text-to-speech, through the Batch API |
 | `translate-lines.ts` | translates each video's title and lines into `lines/<language>.json` |
 | `readings.ts`, `make-readings.ts` | what the people in the videos say, and saying it into WAV files |
@@ -44,7 +44,7 @@ GEMINI_API_KEY`); run with it as `npx dotenvx run -f .env.production -fk
 | `look.ts` | a video's look: each step's screen as text, with what changes from run to run taken out, hashed |
 | `nightly.ts`, `put-in-release.ts` | the nightly filming of one language, and putting what it made in the `tutorials` release |
 | `banners.ts` | each channel's banner, drawn by the browser into the web app's `public/youtube` |
-| `playlists.ts` | what YouTube shows: the title, the lines said as the description with links to the same video in the other languages, and the playlist of who it is for |
+| `playlists.ts` | what YouTube shows: the title, a description of one line and its links, and the playlist of who it is for |
 
 ## Voice
 
@@ -130,6 +130,9 @@ of, so a line is said once), and takes out the films the manifest no longer
 names. Grace's pieces are the same French in every language, so the workflow
 says them once, before the languages' jobs, and keeps them in
 `pieces-grace.tgz`. A language's job that fails files it in Linear.
+The ops dashboard's Tutorial videos → Filming shows where a run is: each
+language waiting its turn, filming (and on which step), done or failed,
+with a link to its log.
 The workflow holds the Gemini key (`GEMINI_API_KEY`, a repository secret
 that `npm run secrets -- production` sets from `.env.production`) and no
 production key.
@@ -161,6 +164,31 @@ section, where a person watches it and chooses to put it up; the publish job
 uploads it. Connecting the channels and publishing are in `docs/admin.md`
 ("Tutorial videos on YouTube").
 
+Every video is wide (16:9), never tall (decision 191): YouTube makes a tall
+video under three minutes a Short, whose links cannot be clicked and which a
+channel lists apart from its videos. A video's description is read at a
+glance: the first sentence its voice says ("Here's how to record a
+passage."), then its links, each group apart with a blank line between:
+
+```
+Here's how to record a passage.
+
+Download this video: https://next.langquest.org/v/en/record-a-passage.mp4
+Watch or download every video: https://next.langquest.org/videos?lang=en
+LangQuest: https://next.langquest.org
+
+This video in other languages:
+Español: https://next.langquest.org/v/es/record-a-passage
+...
+```
+
+YouTube makes a description's links clickable only on a channel with its
+advanced features (Studio → Settings → Channel → Feature eligibility). A
+video's description is written when it is filmed and put on when it is
+uploaded; a film from before decision 191 (tall, its voice written out) is
+filmed again once, whatever its look (`FRAME` in `playlists.ts` and in the
+release's manifest), and only a video's newest version goes up.
+
 A video's description ends with a link to the same video in each other
 language it is made in: `https://next.langquest.org/v/<language>/<video>`,
 which the app's Worker sends on to that video's newest version on YouTube,
@@ -169,11 +197,16 @@ description never needs changing when a newer version replaces one.
 
 Each channel looks like LangQuest's in its own language: a description of
 what the videos are with a link to the videos page (below) and the app's
-address, its language set, a banner with
-the app's mark and "Tutorial videos" (`banners.ts` draws them), and a list
-of the other channels. The publish job puts these on whenever they change
-(`server/youtube.ts` `brandChannel`, decision 184); the picture is set by
-hand. Comments that may be inappropriate are held for review, and the ops
+address, its language set, and a banner with
+the app's mark and "Tutorial videos" (`banners.ts` draws them). The publish
+job puts these on whenever they change (`server/youtube.ts` `brandChannel`,
+decision 184); the picture is set by hand. Its home page is laid out as
+BibleProject's and other channels' are (`setHome`, decision 191): under the
+trailer, a row of the other 14 LangQuest channels, then a row for each of
+its playlists, everyone's first (`server/youtubePlaylists.ts`). The publish
+job brings the rows up to date each run, so a playlist made by a day's
+uploads has its row the next day. The links under a channel's name can only
+be set in YouTube Studio. Comments that may be inappropriate are held for review, and the ops
 dashboard counts them for each channel.
 
 ## The trailer

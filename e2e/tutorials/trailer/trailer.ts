@@ -7,9 +7,9 @@
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { TRAILER } from '../../../server/youtube';
+import { TRAILER, WORDS, type ChannelLanguage } from '../../../server/youtube';
 import { lookOf } from '../look';
-import { youtubeText } from '../playlists';
+import { firstSentence, youtubeText } from '../playlists';
 
 export const TRAILER_DIR = path.join('e2e', 'tutorials', 'trailer');
 
@@ -43,11 +43,9 @@ export function trailerLook(language: string, captureDir: string): string {
 
 const unaccented = (s: string) => s.replace(/\*/g, '');
 
-/** The trailer's title and description on YouTube: the app's name and its line, then what the film says, in order. */
+/** The trailer's title and description on YouTube: the app's name and its line, then what the channel's videos are (decisions.md 191). */
 export function trailerText(language: string): { title: string; description: string } {
   const w = TRAILER_WORDS[language];
   if (!w) throw new Error(`no trailer words for ${language} in words.json`);
-  const count = `${new Intl.NumberFormat(language).format(CLIPS)}+ ${w.clips.replace('{year}', new Intl.NumberFormat(language, { useGrouping: false }).format(2026))}`;
-  const said = [count, w.safe, w.rebuilt, w.forWhom, w.listen, w.speak, w.offline, w.heard, w.kept, w.decides, w.stays, w.contribution].map(unaccented);
-  return youtubeText(`LangQuest Next · ${unaccented(w.tagline)}`, said, { language, tutorial: TRAILER });
+  return youtubeText(`LangQuest Next · ${unaccented(w.tagline)}`, firstSentence((WORDS[language as ChannelLanguage] ?? WORDS.en).about), { language, tutorial: TRAILER });
 }

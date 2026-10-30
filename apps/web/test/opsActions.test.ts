@@ -120,6 +120,7 @@ function google(channel: { id: string; title: string }, section: Response = Resp
     if (input === 'https://oauth2.googleapis.com/revoke') return new Response(null, { status: 200 });
     if (input.includes('/channels?')) return Response.json({ items: [{ id: channel.id, snippet: { title: channel.title } }] });
     if (input.includes('/channelSections?') && method === 'GET') return section;
+    if (input.includes('/playlists?') && method === 'GET') return Response.json({ items: [] });
     if (input.includes('/channelSections?')) return Response.json({ id: 'section' });
     return new Response('{}', { status: 404 });
   };
@@ -162,7 +163,7 @@ describe('tutorial videos on YouTube (decisions.md 180)', () => {
     expect(d.rows).toEqual([{ profileId: VIEWER, action: 'youtube_start', target: 'youtube', result: 'ok' }]);
   });
 
-  it('connects the LangQuest channel chosen, its token kept and its list of the other channels made', async () => {
+  it('connects the LangQuest channel chosen, its token kept and its home page laid out', async () => {
     const { youtube, calls } = google({ id: CHANNELS.es, title: 'LangQuest - Español' });
     const d = deps({ youtube });
     const state = await signState(CLIENT.clientSecret, VIEWER, NOW - 60_000);
@@ -171,6 +172,7 @@ describe('tutorial videos on YouTube (decisions.md 180)', () => {
       'POST https://oauth2.googleapis.com/token',
       'GET https://www.googleapis.com/youtube/v3/channels',
       'GET https://www.googleapis.com/youtube/v3/channelSections',
+      'GET https://www.googleapis.com/youtube/v3/playlists',
       'POST https://www.googleapis.com/youtube/v3/channelSections'
     ]);
     expect(d.done).toEqual([`connect es ${CHANNELS.es} LangQuest - Español 1//refresh-0123456789 by ${VIEWER} section made`]);

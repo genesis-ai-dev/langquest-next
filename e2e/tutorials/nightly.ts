@@ -2,7 +2,8 @@
 // .github/workflows/tutorials.yml): every video is tried first without voice
 // or film (--dry), its screens' words are compared with those of the film
 // the release keeps (look.ts), and only the videos that look different, or
-// have no film yet, are filmed again. What the release should hold
+// have no film yet, are filmed again, as is every film framed or described
+// as films no longer are (playlists.ts FRAME). What the release should hold
 // afterwards goes into <out>: each new film under its release name, and the
 // language's manifest (server/tutorialIntakeModel.ts), which keeps the films
 // that did not change. The intake job brings the new ones into R2 for Publish.
@@ -24,7 +25,7 @@ import { filmName, manifestName, readManifest, type Film } from '../../server/tu
 import { TRAILER, type ChannelLanguage } from '../../server/youtube';
 import { GROUPS, TUTORIALS } from './all';
 import { lookOf, tryAgain } from './look';
-import { PLAYLISTS, youtubeText } from './playlists';
+import { firstSentence, FRAME, PLAYLISTS, youtubeText } from './playlists';
 import { TRAILER_DIR, trailerLook, trailerText } from './trailer/trailer';
 
 const args = process.argv.slice(2);
@@ -74,9 +75,11 @@ const stepsOf = (id: string) => {
 // make-videos.ts with no video named makes them all: when only the trailer is named, none is tried.
 const tried = ids.length ? makeVideos(ids, true) : new Set<string>();
 const looks = new Map([...tried].map((id) => [id, lookOf(stepsOf(id), language)]));
+// A film framed as films no longer are (FRAME) is made again whatever its look: no need to try it twice.
+const stale = (id: string) => kept.has(id) && kept.get(id)!.frame !== FRAME;
 // A video that looks changed is tried again, at most twice (look.ts tryAgain).
 const seen = new Map([...looks].map(([id, look]) => [id, [look]]));
-const unsure = () => (named ? [] : [...seen].filter(([id, tries]) => tryAgain(tries, kept.get(id)?.look)).map(([id]) => id));
+const unsure = () => (named ? [] : [...seen].filter(([id, tries]) => !stale(id) && tryAgain(tries, kept.get(id)?.look)).map(([id]) => id));
 let triedAgain = 0;
 for (let again = unsure(); again.length; again = unsure()) {
   triedAgain += again.length;
@@ -87,7 +90,7 @@ for (let again = unsure(); again.length; again = unsure()) {
   }
 }
 for (const [id, tries] of seen) looks.set(id, tries[tries.length - 1]!);
-const changed = ids.filter((id) => looks.has(id) && (named || kept.get(id)?.look !== looks.get(id)));
+const changed = ids.filter((id) => looks.has(id) && (named || stale(id) || kept.get(id)?.look !== looks.get(id)));
 console.log(`${language}: ${tried.size} of ${ids.length} tried (${triedAgain} tries again), ${changed.length} to film: ${changed.join(' ') || 'none'}`);
 
 const filmed = changed.length ? makeVideos(changed, false) : new Set<string>();
@@ -100,10 +103,11 @@ for (const id of filmed) {
   const sha256 = createHash('sha256').update(readFileSync(mp4)).digest('hex');
   const seconds = Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', mp4], { encoding: 'utf8' }));
   const who = GROUPS.find((g) => g.videos.includes(tutorial))!.who;
-  const text = youtubeText(say(tutorial.title), tutorial.steps.flatMap((s) => (s.say ? [say(s.say)] : [])), { language, tutorial: id, ...(tutorial.notIn ? { notIn: tutorial.notIn } : {}) });
+  const opening = tutorial.steps.find((s) => s.say)?.say;
+  const text = youtubeText(say(tutorial.title), opening ? firstSentence(say(opening)) : '', { language, tutorial: id, ...(tutorial.notIn ? { notIn: tutorial.notIn } : {}) });
   kept.set(id, {
     tutorial: id, sha256, bytes: readFileSync(mp4).length, seconds: Math.max(1, Math.round(seconds)), ...text,
-    playlist: PLAYLISTS[language]![who], position: order.indexOf(id), look: looks.get(id)!
+    playlist: PLAYLISTS[language]![who], position: order.indexOf(id), look: looks.get(id)!, frame: FRAME
   });
   copyFileSync(mp4, path.join(outDir, filmName(language, id, sha256)));
 }
@@ -112,15 +116,17 @@ for (const id of filmed) {
 function trailer(): boolean {
   const dir = path.join('e2e', 'results', 'trailer', language!);
   const film = kept.get(TRAILER)?.look;
+  const framed = !kept.has(TRAILER) || kept.get(TRAILER)!.frame === FRAME;
   const tries: string[] = [];
   do {
     const capture = spawnSync('npx', ['tsx', path.join(TRAILER_DIR, 'capture.ts'), dir], { stdio: 'inherit', env: { ...process.env, TUTORIAL_LANGUAGE: language } });
     if (capture.status !== 0) return false;
     tries.push(trailerLook(language!, dir));
-  } while (!trailerNamed && tryAgain(tries, film));
+  } while (!trailerNamed && framed && tryAgain(tries, film));
   const look = tries[tries.length - 1]!;
-  console.log(`${language}: the trailer ${look === film && !trailerNamed ? 'looks as it did' : 'to make'}${tries.length > 1 ? ` (${tries.length} captures)` : ''}`);
-  if (look === film && !trailerNamed) return true;
+  const same = look === film && framed && !trailerNamed;
+  console.log(`${language}: the trailer ${same ? 'looks as it did' : 'to make'}${tries.length > 1 ? ` (${tries.length} captures)` : ''}`);
+  if (same) return true;
   const mp4 = path.join(dir, `${TRAILER}-${language}.mp4`);
   const render = spawnSync('npx', ['tsx', path.join(TRAILER_DIR, 'render.ts'), '--lang', language!, '--capture', dir, '--out', mp4, '--sub', '4'], { stdio: 'inherit' });
   if (render.status !== 0 || !existsSync(mp4)) return false;
@@ -129,7 +135,7 @@ function trailer(): boolean {
   // First in the playlist for everyone, and the channel's trailer once it is up (server/tutorialPublisher.ts).
   kept.set(TRAILER, {
     tutorial: TRAILER, sha256, bytes: readFileSync(mp4).length, seconds: Math.max(1, Math.round(seconds)), ...trailerText(language!),
-    playlist: PLAYLISTS[language!]!.everyone, position: 0, look
+    playlist: PLAYLISTS[language!]!.everyone, position: 0, look, frame: FRAME
   });
   copyFileSync(mp4, path.join(outDir!, filmName(language!, TRAILER, sha256)));
   return true;

@@ -9261,3 +9261,51 @@ Linear issues alone, since the nightly report files a failure, not its
 cause; reading the jobs' logs, which are large and unstructured.
 Reverse if: GitHub stops keeping annotations, or a problem needs to show
 while the run that met it is not the latest.
+
+## 191. Tutorial videos are wide (16:9), never Shorts; a description says what the video shows in one line, then its links; each channel's home page has a row of the other channels and one for each playlist
+
+Date: 2026-10-30 · By: Caleb Koster · Status: accepted
+
+Reason: on 2026-10-29 Caleb found the channels' video descriptions a mess
+(the voice written out line by line, no space between the links), their
+links not clickable, and a channel's page showing a single video and no
+way to the other languages. The cause was the films' shape: a phone's
+video was filmed on a tall 1080x1920 page, and YouTube makes any tall video
+under three minutes a Short. 44 of the English channel's 45 videos were
+Shorts: links in a Short's description are never clickable (since
+2023-08-31), Shorts are listed on their own tab, and the channel's Videos
+tab held only the one wide film (See reports on the web). Decided:
+- **Every film is wide** (`e2e/tutorials/compose.ts`): the phone on the
+  right of a 1920x1080 page, the app's mark and the video's title on the
+  left; a film of the web stays in its window under the title. Wide videos
+  are listed as videos, keep their links, and can be a channel's rows and
+  trailer.
+- **A description is read at a glance** (`e2e/tutorials/playlists.ts`
+  `youtubeText`): the first sentence the voice says ("Here's how to record
+  a passage."), then, each group apart: the download link, the page of
+  every video and the app; then the same video in each other language.
+  Never the voice line by line.
+- **Every film is made again once** (`FRAME` in the release's manifest):
+  a film without it is filmed again whatever its look, so the first night
+  after the merge films every video in every language, and each new version
+  replaces its Short as Publish puts it up. Only a video's newest version
+  goes up (`ops_tutorials_due`, migration `*_tutorial_newest_due.sql`): a
+  tall version chosen before is not put up once a wide one is made.
+- **A channel's home page** (`server/youtube.ts` `setHome`), as BibleProject
+  and others lay theirs out: under the trailer, a row of the other 14
+  LangQuest channels, then a row for each of its playlists, everyone's
+  first (`server/youtubePlaylists.ts` `HOME_ORDER`). The publish job
+  brings the rows up to date each run (2 of the day's 10,000 units when
+  nothing changed); Connect lays them out at once.
+What stays: a description's links are clickable only on a channel with
+YouTube's advanced features (support.google.com/youtube/answer/9890437),
+English and French on this date; the links under a channel's name can only
+be set in YouTube Studio, not through the API.
+Rejected: keeping tall films over three minutes (most videos are shorter,
+and padding them wastes people's time); filming each video twice, tall for
+Shorts and wide for the channel (twice the uploads, against YouTube's 100 a
+day, and a Short still cannot link anywhere); a channel's own links in its
+description in place of the channels row (YouTube shows a description
+cut to one line).
+Reverse if: YouTube lets a Short's description link out, or people watch
+the videos mostly on phones held upright and ask for tall ones.

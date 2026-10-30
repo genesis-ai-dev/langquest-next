@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { byWorker, cloudflareAlerts, cloudflareSection } from '../src/sources/cloudflare';
 import { clientAlerts, databaseAlerts, diagSections, errorText, jobsSection, mediaType, v2Section, type Clients, type JobRow, type V2Project } from '../src/sources/diag';
 import { expoAlerts, expoFrom } from '../src/sources/expo';
+import { filmingRun, filmingSection, filmJobs, type Filming } from '../src/sources/filming';
 import { APP_BUILD_PATHS, changesApp, codeAlerts, codeSection, latestPerWorkflow, needsYouOf, type Code } from '../src/sources/github';
 import { SQLSTATE, errorGroups, httpErrorsSql, pathShape, pgErrorsSql, projectsOf, supabaseAlerts, supabaseSection } from '../src/sources/supabase';
 
@@ -216,6 +217,46 @@ describe('code and deploys', () => {
     const s = await codeSection({ GITHUB_REPO: 'o/r', APP_URL: 'https://next.langquest.org' }, fetcher);
     expect(s.data).toMatchObject({ behind: 2, appChanged: true, main: { title: 'Merge pull request #9' } });
     expect(s.alerts[0]?.level).toBe('problem');
+  });
+});
+
+describe('filming', () => {
+  // As GitHub answered for run 7 on 2026-10-29: five languages filming, the rest waiting their turn.
+  const run = (id: number, status: string, event = 'push') => ({ id, status, conclusion: status === 'completed' ? 'failure' : null, head_sha: 'aaaaaaaaaaaa', created_at: hAgo(1), html_url: `https://github.com/o/r/actions/runs/${id}`, event, run_number: id });
+  const job = (name: string, status: string, conclusion: string | null = null, steps: { name: string; status: string; conclusion: string | null; started_at?: string }[] = []) =>
+    ({ name, status, conclusion, started_at: hAgo(1), completed_at: status === 'completed' ? hAgo(0.5) : null, html_url: `https://github.com/o/r/actions/runs/7/job/${name}`, steps });
+  const filming = { name: 'Try every video, and film the ones that changed', status: 'in_progress', conclusion: null, started_at: hAgo(0.9) };
+
+  it('shows the run filming now, not the one held behind it', () => {
+    // A run filming says queued while some of its languages wait; the next run is pending until it ends.
+    const { run: now, queued } = filmingRun([run(8, 'pending'), run(7, 'queued'), run(6, 'completed', 'schedule')]);
+    expect([now?.id, queued]).toEqual([7, 1]);
+    expect(filmingRun([run(6, 'completed', 'schedule')])).toMatchObject({ run: { id: 6 }, queued: 0 });
+    expect(filmingRun([run(9, 'in_progress', 'pull_request')]).run).toBeNull();
+  });
+
+  it("says where each language is, failed first, and the step one filming is on", () => {
+    const jobs = filmJobs([
+      job('languages', 'completed', 'success'), job('grace', 'completed', 'success'),
+      job('film (en)', 'in_progress', null, [{ name: 'Set up job', status: 'completed', conclusion: 'success' }, filming]),
+      job('film (ha)', 'queued'), job('film (fr)', 'completed', 'success'), job('film (ar)', 'completed', 'failure')
+    ]);
+    expect(jobs.map((j) => [j.language ?? j.job, j.state])).toEqual([
+      ['languages', 'done'], ['grace', 'done'], ['ar', 'failed'], ['en', 'running'], ['ha', 'waiting'], ['fr', 'done']
+    ]);
+    expect(jobs[3]).toMatchObject({ step: filming.name, stepAt: filming.started_at });
+    // GitHub stamps a waiting job as started when it is made.
+    expect(jobs[4]?.startedAt).toBeNull();
+  });
+
+  it("reads the workflow's runs and the jobs of the one filming", async () => {
+    const fetcher = routes([
+      ['/actions/workflows/tutorials.yml/runs', { workflow_runs: [run(8, 'pending'), run(7, 'queued')] }],
+      ['/actions/runs/7/jobs', { jobs: [job('grace', 'completed', 'success'), job('film (zh-Hans)', 'in_progress', null, [filming])] }]
+    ]);
+    const s = await filmingSection({ GITHUB_REPO: 'o/r' }, fetcher);
+    expect(s.alerts).toEqual([]);
+    expect(s.data as Filming).toMatchObject({ run: { number: 7, status: 'queued', url: 'https://github.com/o/r/actions/runs/7' }, queued: 1, jobs: [{ job: 'grace' }, { language: 'zh-Hans', state: 'running' }] });
   });
 });
 

@@ -123,6 +123,7 @@ the page loads to exactly one section.
 | Storage and backups | Supabase's backups and point-in-time recovery, R2's size (`r2StorageAdaptiveGroups`), files lost on phones, the nightly R2 check | `DIAG_DATABASE_URL`; `ADMIN_SUPABASE_TOKEN` with read access to database backups; `ADMIN_CLOUDFLARE_TOKEN` |
 | Expiry dates | each provider token's end date where its provider reports one (Cloudflare, GitHub), Apple's certificates and provisioning profiles, and the dates in `apps/admin/expiry.json` | the tokens; the file needs nothing |
 | Capacity and cost | the database's size and growth (the fold canary records sizes nightly) against its provisioned disk (`SUPABASE_DB_LIMIT_GB`, 64 GB), R2's growth, and this month's Workers, Durable Object and R2 usage against the plan's allowance (`apps/admin/src/sources/storage.ts` `ALLOWANCE`) | `DIAG_DATABASE_URL`; `ADMIN_CLOUDFLARE_TOKEN` |
+| Filming (Tutorial videos) | GitHub: the run of `.github/workflows/tutorials.yml` on `main` filming now (a run held behind it is counted, not shown), or the latest, and each job of it: Grace's pieces, then each app language waiting its turn (five film at once), filming with the step it is on, done or failed, when it started, how long it took, and its log. No alerts: a failed run is said under Code and deploys | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
 | Code and deploys | `main` on GitHub, the latest run of each workflow on `main`, and the commit `next.langquest.org/version.json` says it serves. A web app still behind `main` 45 minutes after a merge that changed a file it is built from (its watch paths, `docs/cloudflare.md`) is a problem: the deploy failed (as every Workers Build did from 2026-10-16 to 10-19). A failed run of this repository's own (a push, a schedule or a run by hand) that says what only a person can fix, in an annotation titled "Needs you: …" (Gemini's credit or key for the tutorial videos, `e2e/tutorials/needs-you.mjs`; the Claude token of `tutorial-review.yml`), is a problem with an Open link to the page that fixes it; the next run that works takes it away. A pull request's runs are never read for it | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
 | Cloudflare | each Worker's requests, errors and CPU over the last day (GraphQL Analytics), its latest deploy and its latest Workers Build | `ADMIN_CLOUDFLARE_TOKEN` |
 | Supabase | for LangQuest Next (`SUPABASE_PROJECTS`; v2 is left off): project status, each service's health, Edge Functions, and counts from the day's logs (API 5xx, Edge Function 5xx, Postgres errors, Auth 5xx), with the errors grouped: a Postgres error by its SQLSTATE (named), role, client and the RPC a PostgREST call named; a server error by method, the path's first parts (ids hidden) and status. Never a log message, which can quote what someone typed | `ADMIN_SUPABASE_TOKEN` |
@@ -291,11 +292,16 @@ their ids are in `server/youtube.ts`.
 - **Connect**, once per channel. Google's page opens: sign in with the
   account that owns the channels and choose that language's channel. Back
   on the dashboard the channel shows as connected, and its home page gets a
-  list of the other LangQuest channels. Google sends the person back to
+  row of the other LangQuest channels and one for each of its playlists
+  (decision 191; the publish job keeps them up to date). Google sends the person back to
   `/ops/api/youtube/callback`, which must be the OAuth client's redirect
   address. Connect again when a channel's videos fail with a sign-in code
   such as `youtube_invalid_grant`; the dashboard says so under Needs
   attention.
+- **Filming** shows where the filming on GitHub is: each language waiting
+  its turn, filming (and on which step), done or failed, with a Log link to
+  its job. It starts at 20:10 UTC and whenever a change to the videos is
+  merged into main.
 - **Watch** a video before choosing it: it opens the file the filming made.
   New films come in each day at 23:10 UTC, from the nightly filming on
   GitHub (`tutorial_intake` in Server jobs; `docs/tutorial-videos.md`, Each
@@ -309,11 +315,14 @@ their ids are in `server/youtube.ts`.
   its place in the playlist, and the old one is unlisted with a link to the
   new. The job's runs are in Server jobs (`tutorial_publish`).
 - **How each channel looks** is the publish job's too: before any video,
-  each channel whose description, language, banner or list of the other
-  channels differs from what `server/youtube.ts` says (`WORDS`, and the
-  banners in `apps/mobile/public/youtube`, made by
-  `npx tsx e2e/tutorials/banners.ts`) gets them, about 150 of the day's
-  10,000 units each. The channels table shows "on" once it has them.
+  each channel whose description, language or banner differs from what
+  `server/youtube.ts` says (`WORDS`, and the banners in
+  `apps/mobile/public/youtube`, made by `npx tsx e2e/tutorials/banners.ts`)
+  gets them, about 150 of the day's 10,000 units each. The channels table
+  shows "on" once it has them. Each run also brings the home page's rows up
+  to date (the other channels, then each playlist: `setHome`, decision 191):
+  2 units a channel when nothing changed, 50 for each row put or taken
+  away. A row someone adds by hand in Studio gives way to these.
   A look YouTube refuses (`brandingValidationError`, Hausa's on 2026-10-29)
   is tried without its language, then without the channel's own settings
   (its keywords, its country); one still refused shows the field YouTube

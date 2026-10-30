@@ -11,6 +11,7 @@
  * unlisted with a line pointing to the new one, so its comments stay
  * readable (the plan's "What YouTube allows").
  */
+import { HOME_ORDER, PLAYLISTS } from './youtubePlaylists';
 
 /** Each app language's channel (Caleb made them on 2026-10-28; handles @LangQuestApp and @LangQuestApp-<code>). */
 export const CHANNELS = {
@@ -255,20 +256,58 @@ export async function revoke(fetcher: Fetch, token: string): Promise<void> {
   });
 }
 
+interface Section { id: string; snippet: { type: string; title?: string; position: number }; contentDetails?: { channels?: string[]; playlists?: string[] } }
+interface Row { type: 'multipleChannels' | 'singlePlaylist'; title?: string; ids: string[] }
+
 /**
- * "Other LangQuest channels" on a channel's home page, as BibleProject's
- * channels list theirs: a section of the other 14, made once and brought up
- * to date on each Connect. 50 or 51 units of the day's 10,000.
+ * A channel's home page (decisions.md 191), laid out as BibleProject and other
+ * channels lay out theirs: under the trailer, a row of the other LangQuest
+ * channels, then a row for each of the channel's playlists in HOME_ORDER,
+ * everyone's first. Only the rows that differ are put or taken away, so a
+ * channel already laid out costs 2 units of the day's 10,000; each row put
+ * or taken away costs 50. A playlist with no video yet has no row until it
+ * has one. Rows people added by hand in Studio give way to these.
  */
-export async function setOtherChannels(fetcher: Fetch, token: string, language: ChannelLanguage): Promise<'made' | 'updated'> {
-  const title = WORDS[language].otherChannels;
-  const channels = (Object.keys(CHANNELS) as ChannelLanguage[]).filter((l) => l !== language).map((l) => CHANNELS[l]);
-  const have = await answer<{ items?: { id: string; snippet: { type: string; title?: string } }[] }>(
-    await fetcher(`${API}/channelSections?part=snippet&mine=true`, { headers: json(token) }));
-  const mine = have.items?.find((s) => s.snippet.type === 'multipleChannels' && s.snippet.title === title);
-  const body = { ...(mine ? { id: mine.id } : {}), snippet: { type: 'multipleChannels', title }, contentDetails: { channels } };
-  await answer(await fetcher(`${API}/channelSections?part=snippet,contentDetails`, { method: mine ? 'PUT' : 'POST', headers: json(token), body: JSON.stringify(body) }));
-  return mine ? 'updated' : 'made';
+export async function setHome(fetcher: Fetch, token: string, language: ChannelLanguage): Promise<'made' | 'updated'> {
+  const have = ((await answer<{ items?: Section[] }>(
+    await fetcher(`${API}/channelSections?part=snippet,contentDetails&mine=true`, { headers: json(token) }))).items ?? [])
+    .sort((a, b) => a.snippet.position - b.snippet.position);
+  const lists = new Map<string, string>();
+  let page = '';
+  do {
+    const got = await answer<{ items?: { id: string; snippet: { title: string } }[]; nextPageToken?: string }>(
+      await fetcher(`${API}/playlists?part=snippet&mine=true&maxResults=50${page ? `&pageToken=${encodeURIComponent(page)}` : ''}`, { headers: json(token) }));
+    for (const p of got.items ?? []) if (!lists.has(p.snippet.title)) lists.set(p.snippet.title, p.id);
+    page = got.nextPageToken ?? '';
+  } while (page);
+  const want: Row[] = [
+    { type: 'multipleChannels', title: WORDS[language].otherChannels, ids: (Object.keys(CHANNELS) as ChannelLanguage[]).filter((l) => l !== language).map((l) => CHANNELS[l]) },
+    ...HOME_ORDER.flatMap((who): Row[] => {
+      const id = lists.get(PLAYLISTS[language][who]);
+      return id ? [{ type: 'singlePlaylist', ids: [id] }] : [];
+    })
+  ];
+  const same = (row: Row, section: Section, position: number) =>
+    section.snippet.type === row.type && section.snippet.position === position && (row.title === undefined || section.snippet.title === row.title) &&
+    JSON.stringify((row.type === 'multipleChannels' ? section.contentDetails?.channels : section.contentDetails?.playlists) ?? []) === JSON.stringify(row.ids);
+  let made = false;
+  for (let position = 0; position < Math.max(want.length, have.length); position += 1) {
+    const row = want[position];
+    const section = have[position];
+    if (row && section && same(row, section, position)) continue;
+    if (!row) {
+      await answer(await fetcher(`${API}/channelSections?id=${encodeURIComponent(section!.id)}`, { method: 'DELETE', headers: json(token) }));
+      continue;
+    }
+    const body = {
+      ...(section ? { id: section.id } : {}),
+      snippet: { type: row.type, position, ...(row.title ? { title: row.title } : {}) },
+      contentDetails: row.type === 'multipleChannels' ? { channels: row.ids } : { playlists: row.ids }
+    };
+    await answer(await fetcher(`${API}/channelSections?part=snippet,contentDetails`, { method: section ? 'PUT' : 'POST', headers: json(token), body: JSON.stringify(body) }));
+    made ||= !section;
+  }
+  return made ? 'made' : 'updated';
 }
 
 // ---- The channel itself ---------------------------------------------------------------------------
@@ -346,7 +385,6 @@ export async function brandChannel(fetcher: Fetch, token: string, language: Chan
       await answer(await put({ description: settings.description, ...(shown ? { unsubscribedTrailer: shown } : {}) }));
     }
   }
-  await setOtherChannels(fetcher, token, language);
 }
 
 /** At most this many held comments are counted on a channel; more read as this many. */
