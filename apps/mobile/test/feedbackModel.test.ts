@@ -1,10 +1,10 @@
 // Feedback from help mode (decisions.md 145): when a report may be sent, how
-// big its screenshot is, what waits before anyone signs in, and what the
-// sheet and its toasts say.
+// big its screenshot and a chosen picture are, what waits before anyone
+// signs in, and what the sheet and its toasts say.
 import { describe, expect, it } from 'vitest';
 import {
-  feedbackReady, GUEST_LIMIT, MAX_FEEDBACK_CHARS, MAX_VOICE_MS, parseWaiting, PILL_MARGIN, pillPlace, profileChoice, sentMessage, SHOT_WIDTH, shotSize,
-  voiceTooLong, withWaiting, type FeedbackPayload, type VoiceRef, type WaitingFeedback
+  base64Bytes, feedbackReady, GUEST_LIMIT, MAX_FEEDBACK_CHARS, MAX_VOICE_MS, parseWaiting, PICTURE_BYTES, PICTURE_SIDE, pictureFits, pictureSize,
+  PILL_MARGIN, pillPlace, previewSize, profileChoice, sentMessage, SHOT_WIDTH, shotSize, voiceTooLong, withWaiting, type FeedbackPayload, type VoiceRef, type WaitingFeedback
 } from '../src/feedback/feedbackModel';
 
 const payload: FeedbackPayload = { kind: 'bug', body: 'It froze', installId: 'inst', context: {}, shareProfile: false, shot: false };
@@ -57,6 +57,31 @@ describe('the screenshot', () => {
 
   it('is never drawn wider than the window\'s own pixels', () => {
     expect(shotSize({ width: 320, height: 640 }, 1)).toEqual({ width: 320, height: 640 });
+  });
+});
+
+describe('a picture the person chose (LAN-198)', () => {
+  it('is made no longer than PICTURE_SIDE on either side, in its own shape, and never larger', () => {
+    expect(pictureSize({ width: 4032, height: 3024 })).toEqual({ width: PICTURE_SIDE, height: 1200 });
+    expect(pictureSize({ width: 1179, height: 2556 })).toEqual({ width: Math.round((1179 * PICTURE_SIDE) / 2556), height: PICTURE_SIDE });
+    expect(pictureSize({ width: 800, height: 600 })).toEqual({ width: 800, height: 600 });
+  });
+
+  it('goes only as a JPEG no bigger than the server takes', () => {
+    const jpeg = (bytes: number) => Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(bytes - 3)]).toString('base64');
+    expect(base64Bytes(jpeg(1000))).toBe(1000);
+    expect(base64Bytes(jpeg(1001))).toBe(1001);
+    expect(pictureFits(jpeg(PICTURE_BYTES))).toBe(true);
+    expect(pictureFits(jpeg(PICTURE_BYTES + 1))).toBe(false);
+    // A PNG starts 89 50 4E 47.
+    expect(pictureFits(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 0]).toString('base64'))).toBe(false);
+    // The server takes at most 1 MiB.
+    expect(PICTURE_BYTES).toBeLessThanOrEqual(1048576);
+  });
+
+  it('shows as wide as the sheet, or narrower when it would be too tall', () => {
+    expect(previewSize({ width: 1600, height: 1200 }, 400, 360)).toEqual({ width: 400, height: 300 });
+    expect(previewSize({ width: 1179, height: 2556 }, 400, 360)).toEqual({ width: Math.round(360 * 1179 / 2556), height: 360 });
   });
 });
 

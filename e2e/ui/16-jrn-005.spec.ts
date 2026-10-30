@@ -37,6 +37,8 @@ test('JRN-005 A coordinator gets a language ready and starts its team @p0 @wide'
     // Step 2, question 1: the Bible, broken up as FIA passages (the New Testament).
     await coord.getByRole('radio', { name: /^The Bible/ }).click();
     await primary(coord).click();
+    // Why the numbering matters (LAN-193); then what Alpha uses leads the ways to find it.
+    await primary(coord).click();
     await coord.getByRole('radio', { name: /^Like most English Bibles/ }).click();
     await primary(coord).click();
     await coord.getByRole('radio', { name: /^FIA passages \(English\)\./ }).click();
