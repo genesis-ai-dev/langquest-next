@@ -9,7 +9,8 @@
 # more arguments if wanted: `--only ENGESV,HINOVBSI`, or `--full HINOVBSI` to
 # read every chapter of a Bible that fits no numbering. A whole survey is about
 # 80,000 calls at 4 a second; a run stops starting Bibles after 300 minutes and
-# the next carries on from where it stopped (the cache below).
+# the next carries on from where it stopped (the cache below). A sample of 40
+# Bibles runs first, so a survey that misreads Bible Brain fails in minutes.
 #
 # The Bible Brain key (BIBLE_BRAIN_ACCESS_KEY, from .env.production through
 # `npm run secrets -- production`) is the one the app's reference material
@@ -39,7 +40,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The first 40 Bibles Bible Brain lists, in a few minutes: a survey that
+  # misreads Bible Brain shows here, not five hours later.
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HAS_KEY: ${{ secrets.BIBLE_BRAIN_ACCESS_KEY != '' }}
+    steps:
+      - name: Without the Bible Brain key, say so
+        if: env.HAS_KEY != 'true'
+        run: |
+          echo "::error title=Needs you%3A Bible Brain key::The Bible survey has no BIBLE_BRAIN_ACCESS_KEY. Run npm run secrets -- production, which copies it from .env.production. https://github.com/${{ github.repository }}/blob/main/docs/breaking-up-the-bible.md#bibles-from-bible-brain"
+          exit 1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Survey 40 Bibles
+        env:
+          BIBLE_BRAIN_ACCESS_KEY: ${{ secrets.BIBLE_BRAIN_ACCESS_KEY }}
+        run: npx tsx scripts/bible-survey.ts --out bible-sample --limit 40
+      - name: Summary
+        if: always()
+        run: cat bible-sample/*.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: bible-sample
+          path: bible-sample/
+          if-no-files-found: ignore
+
   survey:
+    needs: sample
     runs-on: ubuntu-latest
     timeout-minutes: 330
     env:
