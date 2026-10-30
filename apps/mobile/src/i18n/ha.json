@@ -1036,7 +1036,8 @@
         "onHelp": "Tawagar {{language}} za ta samu. Taɓa don a bar shi.",
         "offHelp": "An bar shi. Taɓa don tawagar {{language}} ta samu.",
         "nothing": "Babu Littattafai Masu Tsarki ko jagororin nazari cikin {{languages}} tukuna"
-      }
+      },
+      "teamLanguages": "Waɗanne harsuna masu fassarar {{language}} suke amfani da su?"
     },
     "offers": {
       "guides": "jagororin nazari na {{name}}",
@@ -1976,7 +1977,9 @@
       "ownNote": "Kowane littafi yana jira har a raba shi. Buɗe shi daga taswira ko Aikina, karanta shi a cikin Littafi Mai Tsarki ka zaɓi inda sassansa suke farawa, ko ka fara daga hanyar da aka shirya.",
       "outlineHelp": "Yana zaɓar wannan fasali: foldojinsa da abin da za a naɗa a cikinsu.",
       "bibleHelp": "Tawagarku tana fassara Littafi Mai Tsarki. Na gaba shi ne yadda ake ƙidaya ayoyinsa.",
-      "elseHelp": "Tawagarku tana naɗa wani abu daban, an jera shi cikin foldoji."
+      "elseHelp": "Tawagarku tana naɗa wani abu daban, an jera shi cikin foldoji.",
+      "otherLanguages": "Samfura a wasu harsuna",
+      "otherLanguagesDetail": "Yana nuna waɗanda aka rubuta da harsunan da wannan ƙungiya ba ta amfani da su."
     },
     "errors": {
       "noTemplate": "Wannan harshe ba shi da samfuri tukuna.",
@@ -7116,7 +7119,20 @@
     "listed": "Harsunan da ke da Littafi Mai Tsarki ko jagororin nazari kaɗai ake nunawa.",
     "noMatch": "Babu harshe mai wannan suna da ke da Littafi Mai Tsarki ko jagororin nazari tukuna.",
     "setWords_one": "{{name}} (kalma {{count, number}})",
-    "setWords_other": "{{name}} (kalmomi {{count, number}})"
+    "setWords_other": "{{name}} (kalmomi {{count, number}})",
+    "bookNames": "Sunayen littattafai"
+  },
+  "bookNames": {
+    "title": "Sunayen littattafai",
+    "rowHelp": "Yadda ake kiran littattafan Littafi Mai Tsarki a nassoshin wannan harshe. Yana buɗe sunayen da yake amfani da su da sauran da ake da su.",
+    "templates": "Kamar yadda samfurin abun ciki ya kira su",
+    "optionHelp": "Waɗannan sunaye za su bayyana a nassoshin wannan harshe idan ka taɓa Yi amfani.",
+    "optionViewHelp": "Wanda ke kula da samfurin abun ciki na wannan harshe zai iya zaɓar waɗannan sunaye.",
+    "otherLanguages": "Sauran harsuna",
+    "use": "Yi amfani da {{name}}",
+    "nowUses": "{{language}} yanzu yana amfani da {{name}}.",
+    "newer": "Yi amfani da sabon juyi",
+    "newerHelp": "Yana nuna sunayen kamar yadda aka canza su na ƙarshe."
   },
   "checks": {
     "title": "Dubawa",

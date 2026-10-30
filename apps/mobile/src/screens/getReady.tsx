@@ -66,6 +66,7 @@ import { TranslateQuestion } from '../breakup/TranslateStep';
 import { useTranslate } from '../breakup/useTranslate';
 import { NumberingNote, RedoSheet } from '../breakup/parts';
 import { ContentTemplatePage } from '../templates/ContentTemplatePage';
+import { BookNamesPage } from '../templates/BookNamesPage';
 import { ReviewFlowPage } from '../checks/ReviewFlowPage';
 import { useVerseNumbering } from '../breakup/useBreakup';
 
@@ -78,6 +79,8 @@ export function GetReady(ctx: Ctx) {
   }
   // A ready language's three picks (decision 138): what it uses, its other options, and the organization's shelf.
   if (step === 'template') return <ContentTemplatePage ctx={ctx} />;
+  // What the language calls the books (decision 193), from its content template's page.
+  if (step === 'names') return <BookNamesPage ctx={ctx} />;
   if (step === 'helps') return <HelpsPage ctx={ctx} />;
   if (step === 'flow') return <ReviewFlowPage ctx={ctx} />;
   const n = Number(step);
@@ -147,7 +150,8 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
   const state = ctx.language.state!;
   const languageId = ctx.language.languageId;
   const sel = state.template?.value;
-  const tq = useTranslate(ctx, languageId);
+  // Templates in the team's languages, or saying none (decision 193).
+  const tq = useTranslate(ctx, languageId, teamLanguages(ctx.org.state, state, languageId));
   const lib = tq.ways.lib;
   const [scope, setScope] = useState<LanguageScope | null>(null);
   const [chosen, setChosen] = useState<Set<string> | null>(null);

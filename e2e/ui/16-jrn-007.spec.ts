@@ -44,6 +44,10 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   await primary(page).click();
   await page.getByPlaceholder('e.g. Hadiyya').fill('Journey Language');
   await primary(page).click();
+  // The languages its translators use, right after its name (decision 193). As many as the team reads (decision 130): English is ticked already.
+  await expect(text(page, "Which languages do Journey Language's translators use?")).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: /^English/ })).toBeChecked();
+  await primary(page).click();
   await page.getByRole('radio', { name: 'The Bible' }).click();
   await primary(page).click();
   await page.getByRole('radio', { name: 'New International Version (2011)' }).click();
@@ -51,9 +55,7 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   await expect(page.getByRole('radio', { name: /^FIA passages\./ })).toBeVisible();
   await page.getByRole('radio', { name: /^FIA passages\./ }).click();
   await primary(page).click();
-  // Reference material before the review flow (decision 146). As many languages as the team reads (decision 130): English is ticked already.
-  await expect(page.getByRole('checkbox', { name: /^English/ })).toBeChecked();
-  await primary(page).click();
+  // Reference material before the review flow (decision 146), in those languages.
   await expect(text(page, 'What will help Journey Language’s team?')).toBeVisible();
   await primary(page).click();
   await expect(text(page, 'How will recordings get checked?')).toBeVisible();

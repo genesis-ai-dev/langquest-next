@@ -1,7 +1,8 @@
 // A language's content template (decision 138): the one it uses on top, with
 // its books, version and edit; the organization's others to choose from under
 // it; and, last, the organization's whole shelf (Content templates). Opened
-// from the language's page as get_ready `step: 'template'`.
+// from the language's page as get_ready `step: 'template'`. A Bible template
+// links to the language's book names under it (decision 193).
 import { languageName, progressOf, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import { useMemo, useState } from 'react';
 import { Text } from '../ui/text';
@@ -15,6 +16,7 @@ import { HelpRow } from '../helpMode/helpBadge';
 import { sourceLine } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
 import { PickCard, RadioRow } from '../admin/admin';
+import { languageLabel } from '../admin/adminModel';
 import { bookRows, choiceLine, libraryChoices, partWords, recordedCount, setAsideCount, STARTER_TEMPLATE, templateOf, withWaitingBooks, type LibraryChoice } from './contentTemplatesModel';
 import { choiceInUse, languageSummary, languageVersionView, lower, pickerLists, pickerNote } from './model';
 import { usePickTemplate } from './usePickTemplate';
@@ -72,6 +74,9 @@ export function ContentTemplatePage({ ctx }: { ctx: Ctx }) {
     ...(canManage && sel ? [{ label: editable ? t('common.edit') : t('content.library.view'), help: editable ? t('content.language.editTemplateHelp') : t('content.library.viewHelp'),
       onPress: () => ctx.go('template_editor', { itemId: sel.itemId }) }] : [])
   ];
+  // The book names it uses (decision 193): the set's name, else the template's own.
+  const namesUsed = state.bookNamesFrom?.value;
+  const bookNamesLine = namesUsed ? lib.item(namesUsed.itemId)?.name ?? languageLabel(namesUsed.language) : t('bookNames.templates');
   const changing = !!pick && !choiceInUse(pick, sel);
   const option = (c: LibraryChoice) => (
     <HelpRow key={c.key} of="getReady.template.option">
@@ -107,6 +112,12 @@ export function ContentTemplatePage({ ctx }: { ctx: Ctx }) {
           ) : null}
         </PickCard>
       ) : <Banner icon="template" title={t('content.noTemplate')} body={canManage ? t('getReady.template.chooseOne') : t('content.language.whoeverChooses', { language })} />}
+      {doc?.bible ? (
+        <Group>
+          <Row icon="book" label={t('bookNames.title')} sub={bookNamesLine} help={t('bookNames.rowHelp')} last
+            onPress={() => ctx.go('get_ready', { languageId, step: 'names' })} />
+        </Group>
+      ) : null}
       {data.setAside > 0 ? (
         <Banner icon="history" title={t('content.language.setAsideTitle', { count: data.setAside })}
           body={t('content.language.setAsideBody', { count: data.setAside, language })} />

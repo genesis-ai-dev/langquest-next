@@ -144,6 +144,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.UnitAdded': 'manage_templates',
   'v1.UnitHidden': ['manage_templates', 'shape_templates'],
   'v1.BookNameSet': 'manage_templates',
+  'v1.BookNamesSelected': 'manage_templates',
   'v1.FlowSelected': 'manage_flows',
   'v1.FlowStepSet': 'manage_flows',
   'v1.FlowStepRemoved': 'manage_flows',
@@ -195,9 +196,10 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
 };
 
 /** The privilege that manages each kind of library item. */
-const LIBRARY_PRIVILEGE: Record<'template' | 'flow' | 'material' | 'versification', Privilege> = {
+const LIBRARY_PRIVILEGE: Record<'template' | 'flow' | 'material' | 'versification' | 'names', Privilege> = {
   template: 'manage_templates',
   versification: 'manage_templates',
+  names: 'manage_templates',
   flow: 'manage_flows',
   material: 'manage_reference'
 };

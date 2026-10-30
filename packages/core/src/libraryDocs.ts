@@ -4,8 +4,8 @@ import { parseRef, type VersificationDoc } from './versification';
 /**
  * Library documents (docs/decisions.md 36).
  *
- * Content templates, review flows, reference material and versifications
- * are published as immutable documents named by the SHA-256 of their
+ * Content templates, review flows, reference material, versifications and
+ * book names are published as immutable documents named by the SHA-256 of their
  * canonical JSON. The log never carries a document, only its hash: a
  * version is published by naming one (`v1.LibraryVersionPublished`), a
  * language uses one by naming it, and every device fetches what it names.
@@ -17,8 +17,8 @@ import { parseRef, type VersificationDoc } from './versification';
  * client and in SQL, over the same canonical text.
  */
 
-export type LibraryKind = 'template' | 'flow' | 'material' | 'versification';
-export const LIBRARY_KINDS: readonly LibraryKind[] = ['template', 'flow', 'material', 'versification'];
+export type LibraryKind = 'template' | 'flow' | 'material' | 'versification' | 'names';
+export const LIBRARY_KINDS: readonly LibraryKind[] = ['template', 'flow', 'material', 'versification', 'names'];
 
 /** How a level's parts read in lists (TPL-9). */
 export type LevelDisplay = 'reference' | 'name' | 'both';
@@ -366,6 +366,26 @@ export interface SourceDoc {
   deps: string[];
 }
 
+/**
+ * What the books of the Bible are called in one language (decision 193):
+ * "Bible book names (Nepali)". A content template says which books there
+ * are and how each is divided, in no language; a language uses one of
+ * these for the names its people read (`v1.BookNamesSelected`), so one
+ * template serves every language and a new language of names is one more
+ * document, never a longer template. One per language, as FIA's guides are
+ * one collection per language.
+ */
+export interface NamesDoc {
+  format: 'names@1';
+  name: string;
+  description: string;
+  /** ISO 639-3 language the names are in ("npi"). */
+  language: string;
+  /** USFM code -> name, in canon order; a book left out keeps the template's name. */
+  books: { book: string; name: string }[];
+  deps: string[];
+}
+
 /** One book of a source: per chapter its verses (open text), its audio and the verse timings for that audio. */
 export interface SourceBookDoc {
   format: 'sourceBook@1';
@@ -403,7 +423,8 @@ export interface TimingDoc {
   deps: string[];
 }
 
-export type LibraryDoc = TemplateDocV1 | TemplateDocV2 | FlowDoc | StudyDoc | StudyDoc2 | CollectionDoc | MaterialDoc | SourceDoc | SourceBookDoc | TimingDoc | VersificationDoc;
+export type LibraryDoc = TemplateDocV1 | TemplateDocV2 | FlowDoc | StudyDoc | StudyDoc2 | CollectionDoc | MaterialDoc | SourceDoc | SourceBookDoc | TimingDoc | VersificationDoc
+  | NamesDoc;
 
 /** The library kind a document is published under. */
 export function kindOfDoc(doc: LibraryDoc): LibraryKind {
@@ -411,6 +432,7 @@ export function kindOfDoc(doc: LibraryDoc): LibraryKind {
     case 'template@1': case 'template@2': return 'template';
     case 'flow@1': return 'flow';
     case 'versification@1': return 'versification';
+    case 'names@1': return 'names';
     default: return 'material';
   }
 }
@@ -665,6 +687,15 @@ export function validateDoc(value: unknown): string | null {
         typeof g['startMs'] === 'number' && typeof g['endMs'] === 'number' && (g['endMs'] as number) >= (g['startMs'] as number))) {
         return 'segments need verseStart, verseEnd, startMs and endMs';
       }
+      break;
+    }
+    case 'names@1': {
+      if (!str(d['name']) || typeof d['description'] !== 'string' || !str(d['language'])) return 'book names need a name, a description and a language';
+      if (!Array.isArray(d['books']) || !(d['books'] as unknown[]).every((b) => isObj(b) && /^[A-Z0-9]{3}$/.test(String(b['book'])) && str(b['name']))) {
+        return 'books need a USFM code and a name';
+      }
+      const books = (d['books'] as { book: string }[]).map((b) => b.book);
+      if (new Set(books).size !== books.length) return 'a book is named twice';
       break;
     }
     case 'versification@1':

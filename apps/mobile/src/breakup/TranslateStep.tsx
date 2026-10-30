@@ -46,6 +46,9 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
   const fiaV11n = q.ways.v11nOf(wayDoc(WAY_ITEMS[0]));
   const nDocs = useLibraryDocs(props.ctx.language.orgId, q.ways.numberings.map((n) => n.hash));
   const factsFor = (n: NumberingChoice) => factsOf(nDocs.get<VersificationDoc>(n.hash));
+  // Templates written in languages the team does not use wait one tap away (decision 193).
+  const otherLanguages = q.hiddenLanguages > 0
+    ? <QuietLink icon="globe" label={t('breakup.translate.otherLanguages')} detail={t('breakup.translate.otherLanguagesDetail')} onPress={q.showEveryLanguage} /> : null;
 
   if (q.page === 'find') {
     return <FindBiblePage numberings={q.ways.numberings} usedIn={q.ways.usedInByNumbering} onPick={q.choose} onQuiz={() => q.setPage('quiz')} onList={() => q.setPage('list')} />;
@@ -83,6 +86,7 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
           </HelpRow>
         ))}
         {q.ways.rows.length === 0 ? <Text style={txt.smMuted}>{q.ways.loaded ? t('breakup.translate.nothingYet') : t('common.loading')}</Text> : null}
+        {otherLanguages}
         <QuietLink icon="help" label={t('breakup.translate.howBrokenUp')} detail={t('breakup.translate.howBrokenUpDetail')} onPress={() => setLesson(true)} />
         <LessonSheet visible={lesson} onClose={() => setLesson(false)} wayDoc={wayDoc} v11n={fiaV11n} />
         <PreviewSheet key={peek?.choice.key ?? 'none'} visible={!!peek} name={peek?.choice.name ?? ''} doc={q.ways.docOf(peek?.choice)} v11n={q.ways.v11nOf(q.ways.docOf(peek?.choice))}
@@ -112,6 +116,7 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
               </View>
             </>
           ) : <Text style={txt.smMuted}>{t('breakup.translate.noneReady')}</Text>}
+          {otherLanguages}
           {props.canMake ? <QuietLink icon="plus" label={t('breakup.translate.makeOwn')} detail={t('breakup.translate.makeOwnDetail')} onPress={makeOwn} /> : null}
         </>
       ) : null}
