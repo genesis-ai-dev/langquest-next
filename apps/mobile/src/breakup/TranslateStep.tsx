@@ -12,6 +12,7 @@ import { View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
+import { choiceName } from '../templates/contentTemplatesModel';
 import { Chip, SectionLabel } from '../ui/kit';
 import { HelpRow } from '../helpMode/helpBadge';
 import { txt } from '../ui/textStyles';
@@ -51,7 +52,7 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
     ? <QuietLink icon="globe" label={t('breakup.translate.otherLanguages')} detail={t('breakup.translate.otherLanguagesDetail')} onPress={q.showEveryLanguage} /> : null;
 
   if (q.page === 'find') {
-    return <FindBiblePage numberings={q.ways.numberings} usedIn={q.ways.usedInByNumbering} onPick={q.choose} onQuiz={() => q.setPage('quiz')} onList={() => q.setPage('list')} />;
+    return <FindBiblePage numberings={q.ways.numberings} usedIn={q.ways.usedInByNumbering} languages={q.languages} onPick={q.choose} onQuiz={() => q.setPage('quiz')} onList={() => q.setPage('list')} />;
   }
   if (q.page === 'quiz') {
     return <QuizPage numberings={q.ways.numberings} trail={q.quizTrail} setTrail={q.setQuizTrail} onDone={(c, note) => q.choose(c, undefined, note)} onList={() => q.setPage('list')} />;
@@ -92,7 +93,7 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
         {otherLanguages}
         <QuietLink icon="help" label={t('breakup.translate.howBrokenUp')} detail={t('breakup.translate.howBrokenUpDetail')} onPress={() => setLesson(true)} />
         <LessonSheet visible={lesson} onClose={() => setLesson(false)} wayDoc={wayDoc} v11n={fiaV11n} />
-        <PreviewSheet key={peek?.choice.key ?? 'none'} visible={!!peek} name={peek?.choice.name ?? ''} doc={q.ways.docOf(peek?.choice)} v11n={q.ways.v11nOf(q.ways.docOf(peek?.choice))}
+        <PreviewSheet key={peek?.choice.key ?? 'none'} visible={!!peek} name={peek ? choiceName(peek.choice) : ''} doc={q.ways.docOf(peek?.choice)} v11n={q.ways.v11nOf(q.ways.docOf(peek?.choice))}
           onClose={() => setPeek(null)} onUse={peek ? () => { q.setKey(peek.choice.key); setPeek(null); } : undefined} />
       </>
     );
@@ -113,7 +114,7 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
               <View style={{ gap: space.xs }}>
                 {q.outlines.map((c) => (
                   <HelpRow key={c.key} of="breakup.outline">
-                    <Chip label={c.name} on={q.outline === c} help={t('breakup.translate.outlineHelp')} onPress={() => q.setOutlineKey(c.key)} />
+                    <Chip label={choiceName(c)} on={q.outline === c} help={t('breakup.translate.outlineHelp')} onPress={() => q.setOutlineKey(c.key)} />
                   </HelpRow>
                 ))}
               </View>

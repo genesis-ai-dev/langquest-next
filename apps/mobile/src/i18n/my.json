@@ -1732,6 +1732,10 @@
       "waits": "ကျမ်းစောင်တိုင်းသည် ညှိနှိုင်းရေးမှူးက ပိုင်းခြားသည်အထိ စောင့်သည်",
       "named_other": "{{parts}} {{count, number}} ခု",
       "parts_other": "အပိုင်း {{count, number}} ခု",
+      "passage_other": "ကျမ်းပိုဒ် {{count, number}} ပိုဒ်",
+      "chapter_other": "အခန်းကြီး {{count, number}} ခန်း",
+      "chunk_other": "အပိုင်းငယ် {{count, number}} ခု",
+      "section_other": "အပိုင်း {{count, number}} ခု",
       "inBooks": "{{books}} တွင် {{pieces}}",
       "books_other": "ကျမ်းစောင် {{count, number}} စောင်"
     },

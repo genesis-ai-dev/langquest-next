@@ -1732,6 +1732,10 @@
       "waits": "แต่ละเล่มรอจนกว่าผู้ประสานงานจะแบ่ง",
       "named_other": "{{count, number}} {{parts}}",
       "parts_other": "{{count, number}} ส่วน",
+      "passage_other": "{{count, number}} ตอน",
+      "chapter_other": "{{count, number}} บท",
+      "chunk_other": "{{count, number}} ช่วง",
+      "section_other": "{{count, number}} ส่วน",
       "inBooks": "{{pieces}} ใน {{books}}",
       "books_other": "{{count, number}} เล่ม"
     },

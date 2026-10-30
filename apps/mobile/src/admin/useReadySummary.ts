@@ -7,6 +7,8 @@ import { t } from '../i18n';
 import type { PendingRequest } from '../invites/invites';
 import { useJoinRequestList } from '../invites/useJoinRequestList';
 import { useLibraryDocs } from '../library/useLibrary';
+import { useLabels } from '../library/useLabels';
+import { itemName } from '../library/labelsModel';
 import { guideSets, setReach } from '../reference/guideSets';
 import { docLanguage } from '../reference/languages';
 import { checksLine, guideShortName, helpsSummary, invitedTo, languageLabel, languageTranslators, plainRoleChoices, readiness, recordSummary, translatorsOf, type Readiness, type RoleInfo } from './adminModel';
@@ -32,9 +34,11 @@ export function useReadySummary(ctx: Ctx): ReadySummary {
   // Recommended items and the library's own material (guides and notes reach the team unless hidden).
   const offeredHashes = [...offered.keys(), ...libraryItems(org?.library ?? {}, 'material').map((it) => it.itemId)].map((id) => libraryItemView(org?.library ?? {}, id)?.current);
   const docs = useLibraryDocs(orgId, [sel?.docHash, ...offeredHashes], { deps: false });
+  const labels = useLabels();
   return useMemo(() => {
     const templateDoc = docs.get<TemplateDoc>(sel?.docHash);
-    const templateName = sel ? libraryItemView(org?.library ?? {}, sel.itemId)?.name ?? templateDoc?.name : undefined;
+    const templateItem = sel ? libraryItemView(org?.library ?? {}, sel.itemId) : null;
+    const templateName = templateItem ? itemName(labels, templateItem) : templateDoc?.name;
     const bibles: string[] = [];
     const guides: (string | { name: string; language: string })[] = [];
     let notes = 0;
@@ -73,7 +77,7 @@ export function useReadySummary(ctx: Ctx): ReadySummary {
       r.done[3] ? (team.length ? t('admin.ready.translators', { count: team.length }) : t('admin.ready.invited')) : undefined
     ];
     return { languageId, name: languageName(org, languageId), readiness: r, lines, team };
-  }, [docs, sel, org, state, offered, languageId]);
+  }, [docs, sel, org, state, offered, languageId, labels]);
 }
 
 /**

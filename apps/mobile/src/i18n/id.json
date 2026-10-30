@@ -1732,6 +1732,10 @@
       "waits": "Setiap kitab menunggu sampai koordinator membaginya",
       "named_other": "{{count, number}} {{parts}}",
       "parts_other": "{{count, number}} bagian",
+      "passage_other": "{{count, number}} perikop",
+      "chapter_other": "{{count, number}} pasal",
+      "chunk_other": "{{count, number}} potongan",
+      "section_other": "{{count, number}} bagian",
       "inBooks": "{{pieces}} dalam {{books}}",
       "books_other": "{{count, number}} kitab"
     },

@@ -22,7 +22,7 @@ import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { Pressable, View } from 'react-native';
 import { Text } from '../ui/text';
 import QRCode from 'react-native-qrcode-svg';
-import type { LibraryChoice } from '../templates/contentTemplatesModel';
+import { choiceName, type LibraryChoice } from '../templates/contentTemplatesModel';
 import { deriveKinds, kindOf, licenseText } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { t, Trans } from '../i18n';
@@ -42,6 +42,8 @@ import { useOpenDetail, useOrgInChrome } from '../ui/useLayout';
 import { edgeFor } from '../shell/flow';
 import { loadDocs } from '../library/docStore';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
+import { useLabels } from '../library/useLabels';
+import { itemName } from '../library/labelsModel';
 import {
   assignableLevels, booksInScope, changeMembership, grantableLanguages, groupBelow, inviteScope, LANGUAGE_SCOPES, languageScopeLabel, levelLabel,
   mayGrantAt, membersAbove, membersAt, memberEntries, parseLevel, progressLine, removeMembership, reviewEligible,
@@ -209,18 +211,20 @@ function HomeSetup(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; languageI
   const can = ctx.session.can;
   const params = { level: props.level, ...(props.languageId ? { languageId: props.languageId } : {}) };
   // Only the open language is on this phone; the others are their own streams (decision 63).
+  const labels = useLabels();
   const counts = useMemo(() => {
     if (!state || !ctx.language.languageId) return { study: 0, questions: 0, terms: 0, template: null as string | null, flow: null as string | null };
     const mats = materialsFor(state);
     const template = state.template?.value;
+    const templateItem = template ? libraryItemView(ctx.org.state?.library ?? {}, template.itemId) : null;
     return {
       study: mats.filter((m) => m.kind === 'fia_study').length,
       questions: mats.filter((m) => m.kind === 'questions').length,
       terms: keyTermsFor(state).length,
-      template: template ? libraryItemView(ctx.org.state?.library ?? {}, template.itemId)?.name ?? t('org.setup.aTemplate') : null,
+      template: template ? (templateItem ? itemName(labels, templateItem) : t('org.setup.aTemplate')) : null,
       flow: state.flow ? deriveFlow(state).name : null
     };
-  }, [state, ctx.language.languageId, ctx.org.state]);
+  }, [state, ctx.language.languageId, ctx.org.state, labels]);
   // At the organization, what its library holds: the open language's choices, said there, read as every language's (UI audit, finding 51).
   const library = ctx.org.state?.library ?? {};
   const inLibrary = (kind: LibraryKind) => t('org.setup.inLibrary', { count: libraryItems(library, kind).filter((i) => !i.archived).length });
@@ -1977,16 +1981,17 @@ export function NewLanguage(ctx: Ctx) {
     const on = flow === e;
     const from = flowFrom(e.c);
     // A long description would push the rest off the screen: then its number of checks says enough.
-    const sub = e === chk.first ? t('org.newLanguage.suggested', { from }) : e.doc.description && e.doc.description.length <= 60 ? e.doc.description : `${flowSub(e.doc.steps)} · ${from}`;
+    const about = e.c.label?.description ?? e.doc.description;
+    const sub = e === chk.first ? t('org.newLanguage.suggested', { from }) : about && about.length <= 60 ? about : `${flowSub(e.doc.steps)} · ${from}`;
     return (
       <HelpRow key={e.c.key} of="newLanguage.way">
-        <ChoiceCard on={on} icon="flow" title={e.c.name} sub={sub} subOrg={flowSource(e.c)} help={t('getReady.checks.wayHelp')} onPress={() => setFlowKey(e.c.key)}>
+        <ChoiceCard on={on} icon="flow" title={choiceName(e.c)} sub={sub} subOrg={flowSource(e.c)} help={t('getReady.checks.wayHelp')} onPress={() => setFlowKey(e.c.key)}>
           {on && e.doc.steps.length ? <NumberedSteps items={e.doc.steps.map((st) => ({ label: stepTitle(st.kindIds, chk.kindsOf(e.doc)), lock: !!st.checkpoint }))} /> : null}
         </ChoiceCard>
       </HelpRow>
     );
   };
-  const startingFrom = choosing ? t('getReady.checks.illChoose') : flow?.c.name ?? '';
+  const startingFrom = choosing ? t('getReady.checks.illChoose') : flow ? choiceName(flow.c) : '';
   return (
     <Screen header={header()} bodyStyle={bodyStyle}
       footer={<>

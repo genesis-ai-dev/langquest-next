@@ -1787,9 +1787,17 @@
       "named_other": "{{count, number}} {{parts}}",
       "parts_one": "{{count, number}} हिस्सा",
       "parts_other": "{{count, number}} हिस्से",
+      "passage_one": "{{count, number}} अंश",
+      "passage_other": "{{count, number}} अंश",
+      "chapter_one": "{{count, number}} अध्याय",
+      "chapter_other": "{{count, number}} अध्याय",
+      "chunk_one": "{{count, number}} खंड",
+      "chunk_other": "{{count, number}} खंड",
+      "section_one": "{{count, number}} भाग",
+      "section_other": "{{count, number}} भाग",
       "inBooks": "{{books}} में {{pieces}}",
       "books_one": "{{count, number}} पुस्तक",
-      "books_other": "{{count, number}} पुस्तकें"
+      "books_other": "{{count, number}} पुस्तकों"
     },
     "emptyBooks": {
       "two": "{{first}}, {{second}}",

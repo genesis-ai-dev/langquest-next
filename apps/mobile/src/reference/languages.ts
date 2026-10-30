@@ -6,6 +6,7 @@
 import { languageInfo, type LanguageState, type LibraryDoc, type OrgState } from '@langquest-next/core';
 import { currentLanguage, t, type UiLanguage } from '../i18n';
 import { joinAnd, languageLabel } from '../admin/adminModel';
+import { sameCodes, sameLanguage } from './languageCodesModel';
 
 /** The app's languages as material writes them: the code it is usually written with first. */
 const CONTENT_CODES: Record<UiLanguage, readonly string[]> = {
@@ -13,26 +14,7 @@ const CONTENT_CODES: Record<UiLanguage, readonly string[]> = {
   hi: ['hin'], bn: ['ben'], ne: ['npi', 'nep'], id: ['ind'], 'zh-Hans': ['cmn', 'zho'], th: ['tha'], my: ['mya']
 };
 
-/**
- * Codes a reader takes for one language: a macrolanguage and the language
- * most people mean by it (FIA writes Swahili `swa`, Bible Brain `swh`).
- */
-const SAME: readonly (readonly string[])[] = [
-  ['swa', 'swh'], ['arb', 'ara'], ['npi', 'nep'], ['cmn', 'zho'], ['fas', 'pes'], ['msa', 'zsm']
-];
-
-/** Every code a reader takes for this language: the code itself first, then the others it is taken for. */
-export function sameCodes(code: string): string[] {
-  const c = code.toLowerCase();
-  return [c, ...(SAME.find((g) => g.includes(c)) ?? []).filter((x) => x !== c)];
-}
-
-/** Do two codes name the same language for a reader? */
-export function sameLanguage(a: string | null | undefined, b: string | null | undefined): boolean {
-  if (!a || !b) return false;
-  const x = a.toLowerCase(), y = b.toLowerCase();
-  return x === y || SAME.some((g) => g.includes(x) && g.includes(y));
-}
+export { sameCodes, sameLanguage };
 
 /** The language the app is showing, as material writes it ("fra"). */
 export function readerLanguage(ui: UiLanguage = currentLanguage()): string {
