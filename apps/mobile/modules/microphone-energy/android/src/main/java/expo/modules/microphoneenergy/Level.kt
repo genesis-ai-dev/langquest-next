@@ -45,6 +45,7 @@ class Level(private val context: () -> Context?) {
   /** levelModel.ts LEVEL. */
   class Options(o: Map<String, Any?>) {
     val targetLufs = num(o, "targetLufs"); val maxBoostDb = num(o, "maxBoostDb"); val minChangeDb = num(o, "minChangeDb")
+    val voicelessDb = num(o, "voicelessDb")
     val ceilingDb = num(o, "ceilingDb"); val lookaheadS = num(o, "lookaheadS"); val releaseS = num(o, "releaseS")
     val passes = num(o, "passes").toInt()
 
@@ -65,7 +66,7 @@ class Level(private val context: () -> Context?) {
       val meter = Meter(DeepFilter.RATE, length.toLong())
       blocks(x, length) { a, n -> meter.add(a, n) }
       val m = meter.measured()
-      var gain = playGain(m.lufs, o)
+      var gain = playGain(m.lufs, m.noiseDb, o)
       // A silent part has no loudness and no room: those are left out, as the iPhone leaves them.
       val answer = hashMapOf<String, Any>("peakDb" to m.peakDb, "amps" to m.amps.toList(), "gainDb" to gain, "written" to false)
       m.lufs?.let { answer["lufs"] = it }
@@ -128,7 +129,10 @@ class Level(private val context: () -> Context?) {
     private const val BLOCK = 65536
 
     /** loudnessModel.ts playGainDb. */
-    fun playGain(lufs: Double?, o: Options): Double = if (lufs == null) 0.0 else min(o.maxBoostDb, o.targetLufs - lufs)
+    fun playGain(lufs: Double?, noiseDb: Double?, o: Options): Double {
+      if (lufs == null || (noiseDb != null && lufs - noiseDb < o.voicelessDb)) return 0.0
+      return min(o.maxBoostDb, o.targetLufs - lufs)
+    }
 
     /** levelModel.ts nextGain. */
     fun nextGain(gainDb: Double, outLufs: Double?, pass: Int, o: Options): Double? {

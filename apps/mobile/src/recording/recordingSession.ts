@@ -1,4 +1,4 @@
-import { framePublishDue, liveChunkDone, liveDrop, liveEdge, liveFrame, livePartEnd, livePartStart, liveSeam, liveStart, type LiveState } from './livePartsModel';
+import { framePublishDue, liveChunkDone, liveDrop, liveEdge, liveFrame, livePartEnd, livePartStart, liveSeam, liveSilenceSwitch, liveStart, type LiveState } from './livePartsModel';
 
 /**
  * One recording session's parts (LAN-82), from the moment recording starts
@@ -24,8 +24,8 @@ export class RecordingSession {
   private readonly frames = new Set<() => void>();
   private readonly partsChanged: () => void;
 
-  constructor(firstPart: number, onParts: () => void) {
-    this.state = liveStart(firstPart);
+  constructor(firstPart: number, onParts: () => void, silence = false) {
+    this.state = liveStart(firstPart, silence);
     this.shown = this.state;
     this.partsChanged = onParts;
   }
@@ -69,4 +69,6 @@ export class RecordingSession {
   chunkDone(chunk: string, uri: string, ms: number) { this.set(liveChunkDone(this.state, chunk, uri, ms), true); }
   edge(index: number, edge: 'from' | 'to', frame: number) { this.set(liveEdge(this.state, index, edge, frame), true); }
   drop(index: number) { this.set(liveDrop(this.state, index), true); }
+  /** The silence switch (decision 194): the boxes and their numbers change at once. */
+  setSilence(on: boolean) { this.set(liveSilenceSwitch(this.state, on), true); }
 }

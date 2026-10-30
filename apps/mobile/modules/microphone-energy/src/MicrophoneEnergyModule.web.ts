@@ -48,6 +48,8 @@ let chunkCount = 0;
 let vadEnabled = false;
 /** What this device heard last time, until a session's splitter hears for itself. */
 let remembered: HeardLevels | null = null;
+/** The silence switch (decision 194): chunks keep the room between parts while it is on. */
+let keepRoom = false;
 let splitter: Splitter | null = null;
 /** The splitter's clock: frames heard, as time. The page's clock jumps when frames arrive in bursts. */
 let clock = 0;
@@ -234,7 +236,10 @@ export default {
     await c?.ctx.close();
   },
   /** Only what the device heard last time is read; the splitter needs no setting (LAN-82). */
-  async configureVAD(config: VADConfig) { if (config.heard) remembered = config.heard; },
+  async configureVAD(config: VADConfig) {
+    if (config.heard) remembered = config.heard;
+    if (config.keepRoom !== undefined) { keepRoom = config.keepRoom; if (chunks) chunks.keepRoom = keepRoom; }
+  },
   /** As on the phones, what was heard while the detector was off never heads a part. */
   async enableVAD() {
     await pending;
@@ -248,6 +253,7 @@ export default {
     lastScore = 0;
     if (!splitter) splitter = new Splitter(frameMs(), remembered);
     chunks ??= new Chunks(frameMs(), rate);
+    chunks.keepRoom = keepRoom;
     splitter.pauseListening();
   },
   async disableVAD() {

@@ -57,6 +57,8 @@ public class MicrophoneEnergyModule: Module {
     private var splitter: Splitter?
     /// What this device heard last time, until a session's splitter hears for itself.
     private var remembered: Splitter.Heard?
+    /// The silence switch (decision 194): chunks keep the room between parts while it is on.
+    private var keepRoom = false
     /// The splitter's clock: frames heard, as time.
     private var clockMs = 0.0
     
@@ -208,10 +210,11 @@ public class MicrophoneEnergyModule: Module {
         do { try AVAudioSession.sharedInstance().setActive(false) } catch {}
     }
     
-    /// Only what the device heard last time is read; the old detector's settings are ignored (LAN-82).
+    /// What the device heard last time (LAN-82) and the silence switch (decision 194); the old detector's settings are ignored.
     private func configureVAD(config: [String: Any?]) {
         configLock.lock()
         defer { configLock.unlock() }
+        if let on = config["keepRoom"] as? Bool { keepRoom = on; chunks?.keepRoom = on }
         guard let heard = config["heard"] as? [String: Any],
               let room = (heard["room"] as? NSNumber)?.doubleValue,
               let voice = (heard["voice"] as? NSNumber)?.doubleValue,
@@ -305,6 +308,7 @@ public class MicrophoneEnergyModule: Module {
         if vadEnabled {
             if splitter == nil { splitter = Splitter(frameMs: frameMs, remembered: remembered) }
             if chunks == nil { chunks = Chunks(frameMs: frameMs, sampleRate: Int(sampleRate)) }
+            chunks?.keepRoom = keepRoom
             if let sp = splitter, let ch = chunks {
                 let action = sp.step(energy: Double(normalizedAmplitude), now: clockMs, speech: scoreSpeech(bufferCopy))
                 handleSplit(sp, action)
