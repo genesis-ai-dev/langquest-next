@@ -33,6 +33,19 @@ describe('the camera', () => {
     expect(shotOf(null, page, phone)).toEqual({ x: 0, y: 0, width: page.width });
   });
 
+  it('never films an empty screen: a tab under a short page is shown from further out, with the page', () => {
+    const tab = { x: 1290, y: 960, width: 110, height: 66 };
+    // The page's heading and card at the top, the tabs at the bottom, nothing between.
+    const short: [number, number][] = [[60, 360], [960, 1026]];
+    const close = shotOf(tab, page, phone);
+    const shot = shotOf(tab, page, phone, short);
+    // Here that is the whole page: a shot that would still cut a little off the top shows the screen whole.
+    expect(shot).toEqual({ x: 0, y: 0, width: page.width });
+    expect(close.y).toBeGreaterThan(360);
+    // A tab under a full page is shown as close as ever.
+    expect(shotOf(tab, page, phone, [[60, 1026]])).toEqual(close);
+  });
+
   it('holds the title first, moves to each part as it is lit, and goes back out at the end', () => {
     const top = { x: 1190, y: 100, width: 420, height: 80 };
     const bottom = { x: 1190, y: 900, width: 420, height: 80 };

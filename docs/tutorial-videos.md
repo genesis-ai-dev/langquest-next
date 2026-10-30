@@ -34,9 +34,9 @@ GEMINI_API_KEY`); run with it as `npx dotenvx run -f .env.production -fk
 | File | What it does |
 | --- | --- |
 | `all.ts`, `<id>.ts` | the scripts: who is signed in, the world they start from, each step (what is lit, what is said, what is tapped) |
-| `film.ts` | plays one script against the web export and keeps every frame with its time, when each line is said, what the speaker says into the microphone and what the app plays aloud |
-| `compose.ts` | puts a film together as a wide (16:9) MP4: the frames in a phone beside the app's mark and the title (or in a browser window under the title, for web videos), the camera moving in on what each step lights (then 2560x1440, so YouTube makes its sharper versions), and the sound evened to -16 LUFS |
-| `camera.ts` | where the camera looks: in on each lit part (its words about twice their size), back out to the whole page where a step lights nothing, at the start and at the end |
+| `film.ts` | plays one script against the web export and keeps every frame with its time, when each line is said, what the speaker says into the microphone and what the app plays aloud; it lights each step's part with a ring around its whole button or card that never crosses the words beside it |
+| `compose.ts` | puts a film together as a wide (16:9) MP4: the frames in a phone beside the app's mark and the title (or in a browser window under the title, for web videos), the camera moving in on what each step lights (then 2560x1440, so YouTube makes its sharper versions, and the title fades while the camera is in), and the sound evened to -16 LUFS |
+| `camera.ts` | where the camera looks: in on each lit part (its words about twice their size), further out where a close shot would be mostly empty screen, back out to the whole page where a step lights nothing, at the start and at the end |
 | `frame-check.ts` | a new film's stills, one while each line is said, looked at by Gemini for what is drawn wrong |
 | `gemini-voice.mjs` | says lines with Gemini's text-to-speech, through the Batch API |
 | `translate-lines.ts` | translates each video's title and lines into `lines/<language>.json` |
@@ -212,9 +212,9 @@ Español: https://next.langquest.org/v/es/record-a-passage
 YouTube makes a description's links clickable only on a channel with its
 advanced features (Studio → Settings → Channel → Feature eligibility). A
 video's description is written when it is filmed and put on when it is
-uploaded; a film from before decision 191 (tall, its voice written out), or
-from before the camera moved in on what each step lights, is filmed again
-once, whatever its look (`FRAME` in `playlists.ts` and in the release's
+uploaded; a film from before decision 191 (tall, its voice written out),
+from before the camera moved in on what each step lights, or with the first
+zoomed night's ring, is filmed again once, whatever its look (`FRAME` in `playlists.ts` and in the release's
 manifest), and only a video's newest version goes up.
 
 A video's description ends with a link to the same video in each other

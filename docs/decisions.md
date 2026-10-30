@@ -9465,6 +9465,31 @@ trailer, drawn by its own page, keeps its film (`TRAILER_FRAME`). Rejected: film
 title (a title beside the phone is what makes the page wide, decided above);
 a second, magnified copy of the part beside the phone (two places to look).
 
+Amended (2026-10-30, Caleb Koster): the ring and the camera after the first
+zoomed night. The frame check (decision 192) held 217 of the first 219
+zoomed films in English, French, Spanish, Portuguese and Arabic, most for
+the ring: it crossed a field's label, a card's second line or the next
+row's words, or went around the words in a button but not the button. Now
+(`film.ts` `light`) words, an icon or a field that a script lights is lit
+with the button or card drawn around it (not a bar or a sheet that reaches
+the screen's edge, nor a box bigger than a sixth of the screen); what the
+ring would touch is taken in when it is small and belongs to the part (a
+label above it, a second line below), or when the ring has no room;
+anything else (the next row, another card) stays out, and the ring moves in
+onto the part's own edge, never onto its words. The camera never films an
+empty screen (`camera.ts`): where half a close shot or more would be one
+stretch of empty screen (a tab under a short page, a button at the foot of
+an empty one, which Gemini called "a blank screen"), it steps back, to the
+whole page when it would nearly be. The title and the app's mark fade out as the
+camera first moves in and back as it goes out at the end, so the ends of
+the title's words never show at the edge of a close shot. `FRAME` is
+`zoomed-ring`, so every video is filmed again. The frame check is told that
+what a team wrote or named (role names such as "Organization Admin", review
+steps, templates, notes) may be in English in any language, and that a tab
+may be lit on the way to what the voice says to open. Rejected: a looser
+frame check (the ring problems it found were real, as Caleb's own still
+was).
+
 ## 192. Tutorial videos go up as soon as they are filmed: the filming tells the app, the intake chooses the wide films itself, and the publish follows each intake
 
 Date: 2026-10-30 · By: Caleb Koster · Status: accepted
