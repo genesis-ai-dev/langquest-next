@@ -70,7 +70,7 @@ describe('what of a session is kept (chunks.ts)', () => {
     expect(written).toBeLessThan(frames(4 * 2 + 2 + 2 + 3, 0).length);
   });
 
-  it('keeps the whole silence between parts while the silence switch is on (decision 193)', () => {
+  it('keeps the whole silence between parts while the silence switch is on (decision 194)', () => {
     const levels = [...frames(30, ROOM), ...frames(2, -20), ...frames(30, ROOM), ...frames(2, -20), ...frames(30, ROOM)];
     const { chunks, written } = keep(levels, levels.length, true);
     expect(chunks).toHaveLength(1);

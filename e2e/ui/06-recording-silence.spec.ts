@@ -1,5 +1,5 @@
 // 06 · Recording: the silence switch (docs/ui-test-suite/06-recording.md
-// REC-057, decision 193), in a world of its own so P-S is untouched for
+// REC-057, decision 194), in a world of its own so P-S is untouched for
 // 06-recording.spec.ts. The tone microphone speaks for a set time, then is
 // silent, so each pause between parts is a known stretch of quiet.
 import { expectParts, expectUploaded, installMicControl, leaveSession, mic, openWorkspace, recordButton, say, stopRecording, useFileWorld } from './06-recording-helpers';

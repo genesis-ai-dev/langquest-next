@@ -69,6 +69,6 @@ export class RecordingSession {
   chunkDone(chunk: string, uri: string, ms: number) { this.set(liveChunkDone(this.state, chunk, uri, ms), true); }
   edge(index: number, edge: 'from' | 'to', frame: number) { this.set(liveEdge(this.state, index, edge, frame), true); }
   drop(index: number) { this.set(liveDrop(this.state, index), true); }
-  /** The silence switch (decision 193): the boxes and their numbers change at once. */
+  /** The silence switch (decision 194): the boxes and their numbers change at once. */
   setSilence(on: boolean) { this.set(liveSilenceSwitch(this.state, on), true); }
 }

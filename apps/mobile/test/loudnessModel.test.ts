@@ -137,7 +137,7 @@ describe('the loudness a part plays at (decision 182)', () => {
     expect(playGainDb({ lufs: null, noiseDb: -60 })).toBe(0);
   });
 
-  it('leaves a part that holds only the room as recorded, so its hiss is never turned up (decision 193)', () => {
+  it('leaves a part that holds only the room as recorded, so its hiss is never turned up (decision 194)', () => {
     expect(playGainDb({ lufs: -55, noiseDb: -55 - VOICELESS_DB + 0.1 })).toBe(0);
     expect(playGainDb({ lufs: -55, noiseDb: -55 - VOICELESS_DB })).toBe(MAX_BOOST_DB);
     // A silence kept as a part: room alone, however quiet or loud, plays as it is and shows no noise warning.

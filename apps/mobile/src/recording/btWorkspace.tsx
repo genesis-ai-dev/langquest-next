@@ -293,7 +293,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   const partLabel = partN ? [t('backTranslation.part', { n: partN }), partVerse].filter(Boolean).join(' · ') : '';
   const playerTitle = partN ? [t('backTranslation.barTitle', { language: v.language, n: of.n, part: partN }), partVerse].filter(Boolean).join(' · ') : t('backTranslation.barTitleNoPart', { language: v.language, n: of.n });
 
-  // The silence switch sits where Done is while a session is open (decision 193).
+  // The silence switch sits where Done is while a session is open (decision 194).
   const silence = <SilenceSwitch on={rec.silence} onToggle={() => rec.setSilence(!rec.silence)} />;
   return (
     <Screen fixed

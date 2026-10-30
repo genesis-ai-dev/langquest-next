@@ -8,16 +8,17 @@ import { languageChoices } from './languageChoices';
 
 /**
  * What the organization has and others share, as guide sets and the
- * languages to choose from; `keep` are listed even when nothing is in them.
+ * languages to choose from; `keep` are listed even when nothing is in them,
+ * and `named` (languages with book names, decision 193) say so.
  */
-export function useReferenceLanguages(ctx: Ctx, keep: readonly string[]) {
+export function useReferenceLanguages(ctx: Ctx, keep: readonly string[], named: readonly string[] = []) {
   const lib = useLibrary(ctx);
   const shared = useSharedItems('material', lib.orgId);
   const own = lib.items('material').filter((it) => it.current && !it.archived);
   const library = ctx.org.state?.library ?? {};
   const others = shared.rows.filter((s) => s.latest_hash && !library[followerItemId(library, s.org_id, s.item_id)]);
   const docs = useLibraryDocs(lib.orgId, [...own.map((it) => it.current), ...others.map((s) => s.latest_hash)], { deps: false });
-  const keepKey = keep.join(',');
+  const keepKey = `${keep.join(',')}/${named.join(',')}`;
   const sets = guideSets(own.map((it) => ({ it, doc: docs.get(it.current) })), others.map((s) => ({ s, doc: docs.get(s.latest_hash) })));
   const setKeys = new Set(sets.map((s) => s.key));
   const rest: (LibraryDoc | null)[] = [
@@ -27,6 +28,6 @@ export function useReferenceLanguages(ctx: Ctx, keep: readonly string[]) {
   // Documents arrive after their items: count those in, or a Bible that loads late is never counted.
   const signature = [sets.map((s) => `${s.key}:${s.members.length}`).join(), rest.length, rest.filter(Boolean).length, keepKey].join('|');
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the signature says when they change
-  const choices = useMemo(() => languageChoices(sets, rest, keep), [signature]);
+  const choices = useMemo(() => languageChoices(sets, rest, keep, named), [signature]);
   return { sets, choices, loading: !shared.loaded };
 }

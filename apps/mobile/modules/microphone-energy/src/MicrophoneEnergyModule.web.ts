@@ -48,7 +48,7 @@ let chunkCount = 0;
 let vadEnabled = false;
 /** What this device heard last time, until a session's splitter hears for itself. */
 let remembered: HeardLevels | null = null;
-/** The silence switch (decision 193): chunks keep the room between parts while it is on. */
+/** The silence switch (decision 194): chunks keep the room between parts while it is on. */
 let keepRoom = false;
 let splitter: Splitter | null = null;
 /** The splitter's clock: frames heard, as time. The page's clock jumps when frames arrive in bursts. */

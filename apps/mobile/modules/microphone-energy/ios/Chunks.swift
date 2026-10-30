@@ -44,7 +44,7 @@ final class Chunks {
     private var kept = 0
     /// When the last part ended (ms, the splitter's clock): the chunk keeps padMs after it.
     private var endedAt = -Double.infinity
-    /// The silence switch (decision 193): an open chunk does not close after a part; the module sets it whenever it changes.
+    /// The silence switch (decision 194): an open chunk does not close after a part; the module sets it whenever it changes.
     var keepRoom = false
 
     init(frameMs: Double, sampleRate: Int) {

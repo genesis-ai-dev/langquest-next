@@ -11,7 +11,7 @@
 // list: the map is books (grouped, with progress), then a chapter grid per
 // book, plus search and filters that narrow to counts first (ADR-009).
 // Progress is several counts, never one number (ADR-004).
-import { languageName, libraryItemView, percent, progressOf, unitTitle, type KindDef, type LanguageProgress, type PassageGlance, type LanguageState } from '@langquest-next/core';
+import { bookNameOf, languageName, libraryItemView, percent, progressOf, unitTitle, usfmOf, type KindDef, type LanguageProgress, type PassageGlance, type LanguageState } from '@langquest-next/core';
 import { useDeferredValue, useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
@@ -447,7 +447,9 @@ export function MapHome(ctx: Ctx) {
   const entries = useMemo(() => (state ? languageEntries(state, ctx.language.lines) : []), [state, ctx.language.lines]);
   // Books not broken up yet (decision 74), by the app's book id.
   const waiting = useMemo(() => (state ? waitingBooks(state) : []), [state]);
-  const books = useMemo(() => summarizeBooks(entries, filter, forYou, waiting), [entries, filter, forYou, waiting]);
+  // What the language calls each book (decision 193), else its name in the language showing.
+  const books = useMemo(() => summarizeBooks(entries, filter, forYou, waiting, state ? (id) => bookNameOf(state, usfmOf(id)) : undefined),
+    [entries, filter, forYou, waiting, state]);
   // The team's Bibles numbering verses differently is worth one note (decision 74); it may be put away.
   const numbering = useVerseNumbering(ctx);
   // Sections whose divisions changed since work was recorded on them (decision 80).
@@ -662,7 +664,7 @@ export function BookMap(ctx: Ctx) {
   const chapters = useMemo(() => (book ? chapterTiles(book, entries, forYou, filter) : []), [book, entries, forYou, filter]);
 
   const language = languageId ? languageName(ctx.org.state, languageId) : '';
-  const title = book?.name ?? t('map.other');
+  const title = (book && state ? bookNameOf(state, usfmOf(book.id)) : undefined) ?? book?.name ?? t('map.other');
   const recordedCount = entries.filter((e) => e.s.recorded).length;
   const crumbs = [{ label: language || t('map.home.title'), onPress: () => ctx.go('map_home', languageId ? { languageId } : undefined) }, { label: title }];
   // Breaking up publishes the language's template in the organization's library, so the link shows only to

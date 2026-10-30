@@ -1059,7 +1059,8 @@
         "onHelp": "El equipo de {{language}} lo tendrá. Toca para dejarlo fuera.",
         "offHelp": "Dejado fuera. Toca para que el equipo de {{language}} lo tenga.",
         "nothing": "Todavía no hay Biblias ni guías de estudio en {{languages}}"
-      }
+      },
+      "teamLanguages": "¿Qué idiomas usan los traductores de {{language}}?"
     },
     "offers": {
       "guides": "las guías de estudio de {{name}}",
@@ -2039,7 +2040,9 @@
       "ownNote": "Cada libro espera hasta que se divida. Ábrelo desde el mapa o Mi trabajo, léelo en una Biblia y elige dónde empiezan sus secciones, o empieza con una forma ya hecha.",
       "outlineHelp": "Elige este esquema: sus carpetas y lo que se graba en ellas.",
       "bibleHelp": "Tu equipo traduce la Biblia. Después viene cómo se numeran sus versículos.",
-      "elseHelp": "Tu equipo graba otra cosa, ordenada en carpetas."
+      "elseHelp": "Tu equipo graba otra cosa, ordenada en carpetas.",
+      "otherLanguages": "Plantillas en otros idiomas",
+      "otherLanguagesDetail": "Muestra las escritas en idiomas que este equipo no usa."
     },
     "errors": {
       "noTemplate": "Este idioma todavía no tiene plantilla.",
@@ -7417,7 +7420,20 @@
     "noMatch": "Ningún idioma con ese nombre tiene Biblias ni guías de estudio todavía.",
     "setWords_one": "{{name}} ({{count, number}} palabra)",
     "setWords_many": "{{name}} ({{count, number}} palabras)",
-    "setWords_other": "{{name}} ({{count, number}} palabras)"
+    "setWords_other": "{{name}} ({{count, number}} palabras)",
+    "bookNames": "Nombres de los libros"
+  },
+  "bookNames": {
+    "title": "Nombres de los libros",
+    "rowHelp": "Cómo se llaman los libros de la Biblia en los pasajes de este idioma. Abre los nombres que usa y los demás que hay.",
+    "templates": "Como los nombra la plantilla de contenido",
+    "optionHelp": "Estos nombres aparecen en los pasajes de este idioma cuando tocas Usar.",
+    "optionViewHelp": "Quien gestiona la plantilla de contenido de este idioma puede elegir estos nombres.",
+    "otherLanguages": "Otros idiomas",
+    "use": "Usar {{name}}",
+    "nowUses": "{{language}} ahora usa {{name}}.",
+    "newer": "Usar la versión más reciente",
+    "newerHelp": "Muestra los nombres tal como se cambiaron por última vez."
   },
   "checks": {
     "title": "Verificaciones",

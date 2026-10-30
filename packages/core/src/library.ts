@@ -72,6 +72,15 @@ export interface LibraryWorkEvents {
    */
   'v1.BookNameSet': { book: string; name: string };
   /**
+   * The book names a language uses: a version of a library `names` item
+   * (decision 193), with every name it holds (USFM code -> name) copied in,
+   * so the server and a phone without the library name passages the same
+   * way. `language` is the ISO 639-3 code the names are in. A book's own
+   * v1.BookNameSet stays on top; a book the item leaves out keeps the
+   * template's name. Register.
+   */
+  'v1.BookNamesSelected': { itemId: string; docHash: string; language: string; names: Record<string, string> };
+  /**
    * The flow a language uses. `flowId` is its steps' prefix: a library
    * flow's version (`libraryFlowId`, with the item, version and name), or
    * `custom` for steps edited by hand.

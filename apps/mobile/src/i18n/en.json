@@ -1036,7 +1036,8 @@
         "onHelp": "{{language}}’s team will have it. Tap to leave it out.",
         "offHelp": "Left out. Tap so {{language}}’s team has it.",
         "nothing": "No Bibles or study guides in {{languages}} yet"
-      }
+      },
+      "teamLanguages": "Which languages do {{language}}'s translators use?"
     },
     "offers": {
       "guides": "{{name}}'s study guides",
@@ -1976,7 +1977,9 @@
       "ownNote": "Every book waits until it's divided. Open it from the map or My Work, read it in a Bible and choose where its sections start, or start from a ready-made way.",
       "outlineHelp": "Picks this outline: its folders and what to record in them.",
       "bibleHelp": "Your team translates the Bible. Next comes how its verses are numbered.",
-      "elseHelp": "Your team records something else, sorted into folders."
+      "elseHelp": "Your team records something else, sorted into folders.",
+      "otherLanguages": "Templates in other languages",
+      "otherLanguagesDetail": "Shows those written in languages this team does not use."
     },
     "errors": {
       "noTemplate": "This language has no template yet.",
@@ -7119,7 +7122,20 @@
     "listed": "Only languages with Bibles or study guides are listed.",
     "noMatch": "No language by that name has Bibles or study guides yet.",
     "setWords_one": "{{name}} ({{count, number}} word)",
-    "setWords_other": "{{name}} ({{count, number}} words)"
+    "setWords_other": "{{name}} ({{count, number}} words)",
+    "bookNames": "Book names"
+  },
+  "bookNames": {
+    "title": "Book names",
+    "rowHelp": "What the books of the Bible are called in this language's passages. Opens the names it uses and the others there are.",
+    "templates": "As the content template names them",
+    "optionHelp": "These names show on this language's passages once you tap Use.",
+    "optionViewHelp": "Whoever manages this language's content template can choose these names.",
+    "otherLanguages": "Other languages",
+    "use": "Use {{name}}",
+    "nowUses": "{{language}} now uses {{name}}.",
+    "newer": "Use the newer version",
+    "newerHelp": "Shows the names as they were last changed."
   },
   "checks": {
     "title": "Checks",

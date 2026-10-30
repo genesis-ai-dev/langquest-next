@@ -978,9 +978,9 @@ export function unitPlace(state: LanguageState, unitId: string): UnitPlace {
     }
   }
   const canon = bookId ? BIBLE_BOOKS.findIndex((b) => b.itemId === bookId) : -1;
-  // What the language calls the book (decision 74), else its template's name for it (the book unit's label).
+  // What the language calls the book (decisions 74, 193), else its template's name for it (the book unit's label).
   const lib = libraryUnitRange(unitId);
-  const ownBook = lib ? state.bookNames?.[lib.book]?.value || state.units[state.units[unitId]?.parentUnitId ?? unitId]?.label : undefined;
+  const ownBook = lib ? bookNameOf(state, lib.book) || state.units[state.units[unitId]?.parentUnitId ?? unitId]?.label : undefined;
   return {
     bookId,
     bookLabel: ownBook ?? (canon >= 0 ? BIBLE_BOOKS[canon]!.label : state.units[state.units[unitId]?.parentUnitId ?? '']?.label ?? 'Other'),
@@ -997,14 +997,25 @@ export function unitTitle(state: LanguageState, unitId: string): string {
 }
 
 /**
+ * What a language calls a Bible book (USFM code), or undefined when it uses
+ * its template's name: its own name for the book (`v1.BookNameSet`, decision
+ * 74), else the name in the library book names it uses
+ * (`v1.BookNamesSelected`, decision 193).
+ */
+export function bookNameOf(state: LanguageState, book: string): string | undefined {
+  return state.bookNames?.[book]?.value || state.bookNamesFrom?.value.names[book] || undefined;
+}
+
+/**
  * A library Bible unit's label with the language's own name for its book
- * (`v1.BookNameSet`, decision 74): the template's book name at the start of
- * the label is swapped for it ("Genesis 3" -> "1 Moses 3"). A passage the
- * template named itself ("The lost son") keeps its name.
+ * (`bookNameOf`): the template's book name at the start of the label is
+ * swapped for it ("Genesis 3" -> "1 Moses 3", "Matthew 1:1-17" -> "मत्ती
+ * 1:1-17"). A passage the template named itself ("The lost son") keeps its
+ * name.
  */
 export function withBookName(state: LanguageState, unitId: string, label: string): string {
   const r = libraryUnitRange(unitId);
-  const own = r ? state.bookNames?.[r.book]?.value : undefined;
+  const own = r ? bookNameOf(state, r.book) : undefined;
   if (!r || !own) return label;
   const templateName = state.units[`${unitId.slice(0, unitId.indexOf('/'))}/${r.book}`]?.label;
   if (!templateName) return label;

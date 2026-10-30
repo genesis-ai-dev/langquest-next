@@ -1059,7 +1059,8 @@
         "onHelp": "L’équipe de {{language}} l’aura. Touchez pour le laisser de côté.",
         "offHelp": "Laissé de côté. Touchez pour que l’équipe de {{language}} l’ait.",
         "nothing": "Pas encore de Bibles ni de guides d’étude en {{languages}}"
-      }
+      },
+      "teamLanguages": "Quelles langues les traducteurs de {{language}} utilisent-ils ?"
     },
     "offers": {
       "guides": "les guides d’étude de {{name}}",
@@ -2039,7 +2040,9 @@
       "ownNote": "Chaque livre attend d'être découpé. Ouvrez-le depuis la carte ou Mon travail, lisez-le dans une Bible et choisissez où commencent ses sections, ou partez d'une façon toute prête.",
       "outlineHelp": "Choisit ce plan : ses dossiers et ce qu’il faut y enregistrer.",
       "bibleHelp": "Votre équipe traduit la Bible. Ensuite vient la façon dont ses versets sont numérotés.",
-      "elseHelp": "Votre équipe enregistre autre chose, classé en dossiers."
+      "elseHelp": "Votre équipe enregistre autre chose, classé en dossiers.",
+      "otherLanguages": "Modèles dans d’autres langues",
+      "otherLanguagesDetail": "Affiche ceux écrits dans des langues que cette équipe n’utilise pas."
     },
     "errors": {
       "noTemplate": "Cette langue n’a pas encore de modèle.",
@@ -7417,7 +7420,20 @@
     "noMatch": "Aucune langue de ce nom n’a encore de Bibles ni de guides d’étude.",
     "setWords_one": "{{name}} ({{count, number}} mot)",
     "setWords_many": "{{name}} ({{count, number}} mots)",
-    "setWords_other": "{{name}} ({{count, number}} mots)"
+    "setWords_other": "{{name}} ({{count, number}} mots)",
+    "bookNames": "Noms des livres"
+  },
+  "bookNames": {
+    "title": "Noms des livres",
+    "rowHelp": "Le nom des livres de la Bible dans les passages de cette langue. Ouvre les noms qu’elle utilise et les autres disponibles.",
+    "templates": "Comme le modèle de contenu les nomme",
+    "optionHelp": "Ces noms s’affichent dans les passages de cette langue quand vous touchez Utiliser.",
+    "optionViewHelp": "La personne qui gère le modèle de contenu de cette langue peut choisir ces noms.",
+    "otherLanguages": "Autres langues",
+    "use": "Utiliser {{name}}",
+    "nowUses": "{{language}} utilise maintenant {{name}}.",
+    "newer": "Utiliser la version la plus récente",
+    "newerHelp": "Affiche les noms tels qu’ils ont été modifiés en dernier."
   },
   "checks": {
     "title": "Vérifications",

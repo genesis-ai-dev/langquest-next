@@ -66,7 +66,7 @@ class MicrophoneEnergyModule : Module() {
   private var remembered: Splitter.Heard? = null
   /** The splitter's clock: frames heard, as time. */
   private var clockMs = 0.0
-  /** The silence switch (decision 193): chunks keep the room between parts while it is on. */
+  /** The silence switch (decision 194): chunks keep the room between parts while it is on. */
   private var keepRoom = false
 
   override fun definition() = ModuleDefinition {
@@ -197,7 +197,7 @@ class MicrophoneEnergyModule : Module() {
     audioRecord = null
   }
   
-  /** What the device heard last time (LAN-82) and the silence switch (decision 193); the old detector's settings are ignored. */
+  /** What the device heard last time (LAN-82) and the silence switch (decision 194); the old detector's settings are ignored. */
   private fun configureVAD(config: Map<String, Any?>) = synchronized(configLock) {
     (config["keepRoom"] as? Boolean)?.let { keepRoom = it; chunks?.keepRoom = it }
     @Suppress("UNCHECKED_CAST")

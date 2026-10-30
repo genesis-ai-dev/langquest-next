@@ -328,7 +328,7 @@ export function RecorderBar(props: { count: number; phase: LoopPhase; disabled: 
  */
 export function RecorderFooter(props: { count: number; phase: LoopPhase; recordDisabled: boolean; publishDisabled: boolean; onRecord: () => void; onPublish: () => void; nextIndex?: number;
   undo: UndoRedoProps;
-  /** The silence switch, shown where Done is while a session is open (decision 193). */ silence?: { on: boolean; onToggle: () => void } }) {
+  /** The silence switch, shown where Done is while a session is open (decision 194). */ silence?: { on: boolean; onToggle: () => void } }) {
   const recording = loopRecording(props.phase);
   // A session open but stopped (decision 129) still has the recording view's Done.
   const session = props.phase !== 'off';

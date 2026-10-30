@@ -14,7 +14,7 @@
 // stay, and the next part said fills it, as the parts list's bin does
 // (LAN-83). Pure: the session store feeds it the module's events.
 //
-// With the silence switch on (Caleb, 2026-10-30; decision 193) the silence
+// With the silence switch on (Caleb, 2026-10-30; decision 194) the silence
 // between two parts is boxed too, and leaving the session keeps it as a part
 // of its own, in its place between them. A silence box is never edited
 // itself: it always fills the room between the two parts beside it, so it
@@ -95,11 +95,11 @@ export interface LiveState {
   seams: number[];
   frameMs: number;
   lastAt: number | null;
-  /** The silence switch (decision 193): the silence between parts is boxed too, and kept as parts of its own. */
+  /** The silence switch (decision 194): the silence between parts is boxed too, and kept as parts of its own. */
   silence: boolean;
 }
 
-/** The silence between two parts said one after the other (decision 193), in frames of the session. */
+/** The silence between two parts said one after the other (decision 194), in frames of the session. */
 export interface LiveSilence {
   /** The part said before it; it sits right after that part in the passage. */
   after: number;
@@ -118,7 +118,7 @@ export interface LiveBox { index: number; n: number; from: number; to: number; o
 export interface LivePlace { index: number | null; n: number; silence?: LiveSilence }
 /**
  * A part as it is cut when the session is left, with the levels its box
- * shows (dB a frame), for its bars. A silence (decision 193) is cut from the
+ * shows (dB a frame), for its bars. A silence (decision 194) is cut from the
  * chunk its two parts share, and has no journal entry (`id` null).
  */
 export interface KeptPart { id: string | null; chunk: string; uri: string | null; fromMs: number; toMs: number; levels: number[]; silence?: boolean }
@@ -127,7 +127,7 @@ export function liveStart(firstPart: number, silence = false): LiveState {
   return { db: [], quiet: [], count: 0, parts: [], open: null, chunks: {}, first: firstPart, hole: null, insert: null, seams: [], frameMs: FRAME_MS_GUESS, lastAt: null, silence };
 }
 
-/** The silence switch flipped (decision 193): every silence between parts is boxed, or none. */
+/** The silence switch flipped (decision 194): every silence between parts is boxed, or none. */
 export function liveSilenceSwitch(s: LiveState, on: boolean): LiveState {
   return s.silence === on ? s : { ...s, silence: on };
 }
@@ -221,7 +221,7 @@ function sideBySide(orders: number[], a: number, b: number): boolean {
 const chunkOpen = (s: LiveState, chunk: string | undefined) => !!chunk && !!s.chunks[chunk] && s.chunks[chunk]!.ms === null;
 
 /**
- * The silences boxed while the switch is on (decision 193), in the order
+ * The silences boxed while the switch is on (decision 194), in the order
  * they were heard. `recording`: the silence after the last part grows while
  * the microphone listens; stopped, nothing grows.
  */
@@ -314,7 +314,7 @@ export function liveDrop(s: LiveState, index: number): LiveState {
   return { ...s, parts: s.parts.map((x, i) => (i === index ? { ...x, dropped: true } : x)), hole: p.order, insert: null };
 }
 
-/** Where a box is in its chunk's file: a part's, or a silence's between its two parts (decision 193). Null until it can be cut. */
+/** Where a box is in its chunk's file: a part's, or a silence's between its two parts (decision 194). Null until it can be cut. */
 export function liveClip(s: LiveState, box: Pick<LiveBox, 'index' | 'silence'>): { chunk: string; uri: string | null; fromMs: number; toMs: number; from: number } | null {
   const p = s.parts[box.index];
   if (!p?.chunk) return null;
@@ -365,7 +365,7 @@ export function liveBars(s: LiveState, frames = LIVE_BARS, end = s.count, record
     const hi = Math.min(p.to ?? now, end), lo = Math.max(p.from, first);
     for (let f = lo; f < hi; f++) owner[f - first] ??= p;
   }
-  // Sound in a silence box is kept with it (decision 193): heard, never lost.
+  // Sound in a silence box is kept with it (decision 194): heard, never lost.
   const silent: boolean[] = new Array(Math.max(0, end - first));
   for (const q of liveSilences(s, recording)) {
     for (let f = Math.max(q.from, first); f < Math.min(q.to, end); f++) silent[f - first] = true;
@@ -395,7 +395,7 @@ export function liveBars(s: LiveState, frames = LIVE_BARS, end = s.count, record
 
 /**
  * The parts with a box in the `frames` frames before `end`, and the
- * silences boxed between them (decision 193): where each starts and ends,
+ * silences boxed between them (decision 194): where each starts and ends,
  * in frames from the window's start.
  */
 export function liveBoxes(s: LiveState, frames = LIVE_BARS, end = s.count, recording = true): LiveBox[] {

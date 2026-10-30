@@ -1,5 +1,5 @@
 // The silence switch beside the big red button while a recording session is
-// open (decision 193), where Done sits once it is left. Its picture is what
+// open (decision 194), where Done sits once it is left. Its picture is what
 // it does: speech bars either side of a flat line in a dashed box, as a
 // silence's box looks on the waveform; the switch beside it says on or off.
 // The phone keeps it (silenceSetting.ts).

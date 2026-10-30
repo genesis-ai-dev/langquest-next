@@ -95,6 +95,8 @@ import { memberIn, startingLanguage } from '../reference/languageChoices';
 import { docLanguage, languagesLine, readerLanguage, sameLanguage, teamLanguages } from '../reference/languages';
 import { ReferenceLanguagePage } from '../reference/ReferenceLanguagePage';
 import { useReferenceLanguages } from '../reference/useReferenceLanguages';
+import { useBookNameSets } from '../templates/useBookNames';
+import { namesFor } from '../templates/bookNamesModel';
 import { ReadyChecklist } from '../admin/ready';
 import { howItWorks, plainRoleHelp } from '../admin/readyText';
 import { usePendingRequests, usePlainRoles, useReadySummary } from '../admin/useReadySummary';
@@ -1534,22 +1536,25 @@ export function NewLanguage(ctx: Ctx) {
   // Opened from a cluster's page, one language already in it.
   const fromCluster = ctx.params['clusterId'] ?? null;
   const {
-    step, setStep, name, setName, code, setCode, picked, setPicked, many, setMany, joins, setJoins, newCluster, setNewCluster,
+    step, setStep, languagePage, setLanguagePage, name, setName, code, setCode, picked, setPicked, many, setMany, joins, setJoins, newCluster, setNewCluster,
     clusterTitle, setClusterTitle, batch, setBatch, existing, setExisting, madeRef, scope, setScope, chosenBooks, setChosenBooks,
     materialPage, setMaterialPage, ticked, setTicked, flowPage, setFlowPage, flowKey, setFlowKey, moreFlows, setMoreFlows,
     startAgain, setStartAgain, making, setMaking, created, setCreated, busy, setBusy, error, setError, readsPicked, setReadsPicked
   } = useNewLanguage(fromCluster);
   const search = useLanguoidSearch(name, !picked);
   const mayGroup = mayManageClusters(ctx.org.state, ctx.session.actorId);
-  // What it translates and how the Bible is broken up (decision 74); what other languages here use comes first.
-  const tq = useTranslate(ctx, null);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
-  // The language its Bibles and study guides are in, a step of its own (decision 84): the admin's own when there is anything in it, else English.
+  // The languages its translators use, asked right after its name (decisions 84, 193): the admin's own when there is
+  // anything in it, else English. Its Bibles, guides, templates, flows and book names follow them.
   const reader = readerLanguage();
-  const refs = useReferenceLanguages(ctx, [...(readsPicked ?? []), reader, 'eng']);
+  const names = useBookNameSets(ctx);
+  const named = useMemo(() => [...new Set(names.sets.map((n) => n.doc.language))], [names.sets]);
+  const refs = useReferenceLanguages(ctx, [...(readsPicked ?? []), reader, 'eng'], named);
   // The languages its Bibles and guides may be in, the main one first (decision 130).
   const readsAll = readsPicked ?? [startingLanguage(refs.choices, reader)];
   const reads = readsAll[0]!;
+  // What it translates and how the Bible is broken up (decision 74), from templates in those languages or saying none.
+  const tq = useTranslate(ctx, null, readsAll);
   // Flows in the languages the team reads, or saying none (decision 84, amended 2026-10-20): asked on the page before.
   const chk = useCheckChoices(ctx, state?.flow?.value.itemId ?? null, kinds, readsAll);
   const material = useNewLanguageOffers(ctx, readsAll, refs.sets);
@@ -1638,6 +1643,8 @@ export function NewLanguage(ctx: Ctx) {
     try {
       const made = await createLanguages({
         org: ctx.org.state, actorId: ctx.session.actorId, reads, alsoReads: readsAll.slice(1), scope, chosenBooks, checks, offers,
+        // Its book names: the library's in the first of its translators' languages that has some (decision 193).
+        bookNames: tq.doc?.bible ? namesFor(names.sets, readsAll) : null,
         languages: list, each: many, done: madeRef.current,
         cluster: target ? { ...target, ...(many ? { existing: [...existing] } : {}) } : null
       }, {
@@ -1700,15 +1707,18 @@ export function NewLanguage(ctx: Ctx) {
   function goBack() {
     if (making) { ctx.toast(t('org.newLanguage.making.wait', { language: title })); return; }
     if (step === 2 && tq.retreat()) return;
-    const to = backTarget(step, { materialPage, flowPage });
+    const to = backTarget(step, { languagePage, materialPage, flowPage });
+    if (to.languagePage) setLanguagePage(to.languagePage);
     if (to.materialPage) setMaterialPage(to.materialPage);
     if (to.flowPage) setFlowPage(to.flowPage);
     if (to.step !== undefined) setStep(to.step);
   }
-  const back = step > 1 && step < 5 ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', help: t('org.newLanguage.backHelp'), onPress: goBack }]} /> : null;
+  const onName = step === 1 && languagePage === 'name';
+  const back = (step > 1 && step < 5) || (step === 1 && !onName)
+    ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', help: t('org.newLanguage.backHelp'), onPress: goBack }]} /> : null;
   // A phone's Back goes one page back, as the Back under each page does (decision 137). While it is being added, it says to wait, as ✕ does.
   // From the first page it leaves, asking first as ✕ does when something was typed.
-  useHardwareBack(!!making || (step > 1 && step < 5) || (step === 1 && entered), () => (step === 1 && !making ? leave() : goBack()));
+  useHardwareBack(!!making || (step > 1 && step < 5) || (step === 1 && (entered || !onName)), () => (onName && !making ? leave() : goBack()));
   const bodyStyle = { paddingHorizontal: 20, gap: 14 } as const;
 
   // The overview: the six stages, one after another, then Start.
@@ -1725,7 +1735,21 @@ export function NewLanguage(ctx: Ctx) {
     return <NewLanguageInvite ctx={ctx} languages={created.languages} cluster={created.cluster} top={<StageBar stage="people" />} />;
   }
 
-  // Reference material: the languages it is in, then what its team will have in them.
+  // The languages its translators use, right after its name (decision 193): what the next steps offer follows them.
+  if (step === 1 && languagePage === 'team') {
+    return (
+      <Screen header={header()} bodyStyle={bodyStyle}
+        footer={<>
+          <PrimaryBtn label={t('org.continue')} icon="right" disabled={refs.loading} help={t('org.newLanguage.continueHelp')} onPress={() => setStep(2)} />
+          {back}
+        </>}>
+        <ReferenceLanguagePage team={title} choices={refs.choices} value={readsAll} first={[startingLanguage(refs.choices, reader)]} onChange={setReadsPicked}
+          loading={refs.loading} question={t('org.newLanguage.teamLanguages', { language: title })} />
+      </Screen>
+    );
+  }
+
+  // Reference material: what its team will have, in its translators' languages; those can be changed from here too.
   if (step === 3) {
     return (
       <Screen header={header()} bodyStyle={bodyStyle}
@@ -1735,7 +1759,7 @@ export function NewLanguage(ctx: Ctx) {
             onPress={() => (materialPage === 'languages' && material.may ? setMaterialPage('material') : setStep(4))} />
           {back}
         </>}>
-        {materialPage === 'languages' ? (
+        {materialPage === 'languages' || !material.may ? (
           <ReferenceLanguagePage team={title} choices={refs.choices} value={readsAll} first={[startingLanguage(refs.choices, reader)]} onChange={setReadsPicked} loading={refs.loading} />
         ) : (
           <MaterialPicker team={title} languages={readsAll} items={material.items} on={isOn} loading={material.loading}
@@ -1760,7 +1784,7 @@ export function NewLanguage(ctx: Ctx) {
       <Screen header={header()} bodyStyle={bodyStyle}
         footer={onlyExisting
           ? <PrimaryBtn label={t('clusters.newLanguage.make')} icon="layers" busy={busy} disabled={!clusterTitle.trim()} onPress={() => void groupOnly()} />
-          : <PrimaryBtn label={t('org.continue')} icon="right" disabled={!ready1} help={t('org.newLanguage.continueHelp')} onPress={() => setStep(2)} />}>
+          : <PrimaryBtn label={t('org.continue')} icon="right" disabled={!ready1} help={t('org.newLanguage.continueHelp')} onPress={() => setLanguagePage('team')} />}>
         {mayGroup ? (
           <>
             {/* One language, or a cluster of several (decision 108): asked first, with one language picked. */}
@@ -1871,7 +1895,7 @@ export function NewLanguage(ctx: Ctx) {
         footer={<>
           {tq.showContinue ? <PrimaryBtn label={t('org.continue')} icon="right" disabled={tq.last ? !tq.ready : !tq.canContinue} help={t('org.newLanguage.continueHelp')}
             onPress={() => { if (!tq.advance()) setStep(3); }} /> : null}
-          <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', help: t('org.newLanguage.backHelp'), onPress: () => { if (!tq.retreat()) setStep(1); } }]} />
+          <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', help: t('org.newLanguage.backHelp'), onPress: goBack }]} />
         </>}>
         <TranslateQuestion ctx={ctx} t={tq} lang={title} canMake={ctx.session.can('manage_templates')} onMake={() => ctx.go('template_editor', { new: '1', kind: 'outline' })} />
         {doc?.bible && tq.page === 'ways' ? (

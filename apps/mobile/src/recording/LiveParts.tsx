@@ -15,7 +15,7 @@
 // from screen readers; stopped, each box is a button with its actions.
 // `tone` is the ground it sits on: the red recording pane, or a white card.
 //
-// With the silence switch on (decision 193) the silence between parts has
+// With the silence switch on (decision 194) the silence between parts has
 // a dashed box of its own, its number in an outlined pill, growing after the
 // last part until the next is said. Stopped, a tap plays it; it has no
 // edges or × of its own, as it always fills the room between its parts.
@@ -39,7 +39,7 @@ type Tone = 'onRed' | 'onCard';
 const LOST_ON_RED = '#7F1D1D';
 
 const TONES: Record<Tone, { bar: Record<LiveBar['kind'], string>; band: string; box: string; boxFill: string; open: string; openFill: string; pill: string; pillOpen: string; pillText: string; pillOpenText: string; mark: string; markText: string;
-  /** A silence's box (decision 193): dashed, its number in an outlined pill. */ silence: string; silenceOpen: string; silenceFill: string }> = {
+  /** A silence's box (decision 194): dashed, its number in an outlined pill. */ silence: string; silenceOpen: string; silenceFill: string }> = {
   onRed: {
     bar: { kept: C.white, open: C.white, room: withAlpha(C.white, 0.35), heard: withAlpha(C.white, 0.6), lost: LOST_ON_RED },
     band: withAlpha(C.white, 0.14), box: withAlpha(C.white, 0.8), boxFill: withAlpha(C.white, 0.1), open: C.white, openFill: withAlpha(C.white, 0.18),

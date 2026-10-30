@@ -1036,7 +1036,8 @@
         "onHelp": "Timu ya {{language}} itakuwa nayo. Gusa ili kuiacha nje.",
         "offHelp": "Imeachwa nje. Gusa ili timu ya {{language}} iwe nayo.",
         "nothing": "Bado hakuna Biblia wala miongozo ya kujifunza kwa {{languages}}"
-      }
+      },
+      "teamLanguages": "Watafsiri wa {{language}} wanatumia lugha zipi?"
     },
     "offers": {
       "guides": "miongozo ya kujifunza ya {{name}}",
@@ -1976,7 +1977,9 @@
       "ownNote": "Kila kitabu kinasubiri hadi kigawanywe. Kifungue kutoka kwenye ramani au Kazi Yangu, kisome katika Biblia na uchague mahali sehemu zake zinapoanza, au anza na njia iliyo tayari.",
       "outlineHelp": "Huchagua muhtasari huu: folda zake na cha kurekodi ndani yake.",
       "bibleHelp": "Timu yako inatafsiri Biblia. Kinachofuata ni jinsi mistari yake inavyopewa namba.",
-      "elseHelp": "Timu yako inarekodi kitu kingine, kilichopangwa katika folda."
+      "elseHelp": "Timu yako inarekodi kitu kingine, kilichopangwa katika folda.",
+      "otherLanguages": "Violezo katika lugha nyingine",
+      "otherLanguagesDetail": "Huonyesha vile vilivyoandikwa kwa lugha ambazo timu hii haitumii."
     },
     "errors": {
       "noTemplate": "Lugha hii bado haina kiolezo.",
@@ -7119,7 +7122,20 @@
     "listed": "Lugha zenye Biblia au miongozo ya kujifunza pekee ndizo zinaonyeshwa.",
     "noMatch": "Hakuna lugha kwa jina hilo yenye Biblia au miongozo ya kujifunza bado.",
     "setWords_one": "{{name}} (neno {{count, number}})",
-    "setWords_other": "{{name}} (maneno {{count, number}})"
+    "setWords_other": "{{name}} (maneno {{count, number}})",
+    "bookNames": "Majina ya vitabu"
+  },
+  "bookNames": {
+    "title": "Majina ya vitabu",
+    "rowHelp": "Vitabu vya Biblia vinavyoitwa katika vifungu vya lugha hii. Hufungua majina inayotumia na mengine yaliyopo.",
+    "templates": "Kama kiolezo cha maudhui kinavyoviita",
+    "optionHelp": "Majina haya yanaonekana kwenye vifungu vya lugha hii ukigusa Tumia.",
+    "optionViewHelp": "Anayesimamia kiolezo cha maudhui cha lugha hii anaweza kuchagua majina haya.",
+    "otherLanguages": "Lugha nyingine",
+    "use": "Tumia {{name}}",
+    "nowUses": "{{language}} sasa inatumia {{name}}.",
+    "newer": "Tumia toleo jipya zaidi",
+    "newerHelp": "Huonyesha majina kama yalivyobadilishwa mara ya mwisho."
   },
   "checks": {
     "title": "Kaguzi",

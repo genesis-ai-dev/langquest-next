@@ -1025,7 +1025,7 @@ Steps:
 7. Tap the check, "Done".
 
 Expected:
-- While a session is open the switch sits right of the red button, where Done is once it is left; it is off the first time, and the phone or browser keeps it as it was left (decision 193).
+- While a session is open the switch sits right of the red button, where Done is once it is left; it is off the first time, and the phone or browser keeps it as it was left (decision 194).
 - After step 3 the pause between the parts has a dashed box with its number in an outlined pill, 2, and the second part is 3. The pause after the last part grows, numbered 4, until something is said.
 - After step 4 the boxes are 1, 2 (dashed) and 3; nothing grows after the last part, and the dashed box has no handles and no ×.
 - Step 5 takes the dashed box away (the parts are 1 and 2), then brings it back.

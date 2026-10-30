@@ -214,7 +214,7 @@ describe('editing a stopped session (livePartsModel.ts)', () => {
   });
 });
 
-describe('the silence switch (livePartsModel.ts, decision 193)', () => {
+describe('the silence switch (livePartsModel.ts, decision 194)', () => {
   /** Two parts in one chunk with 16 frames (0.7 s) of room between them, its file written; the switch on. */
   function twoParts(): LiveState {
     let s = say(liveStart(1, true), 'c1', 20);

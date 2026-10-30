@@ -6,7 +6,7 @@
 // and closes once `padMs` has passed after the last part in it ended. Parts
 // close together share a chunk; a long silence is never written, so storage
 // grows with speech, not with time. Only the ring (a few seconds) is held in
-// memory. While the silence switch is on (`keepRoom`, decision 193) a chunk
+// memory. While the silence switch is on (`keepRoom`, decision 194) a chunk
 // stays open through every pause until the detector stops, so the silence
 // between parts is on storage whole and can be kept as parts of its own;
 // storage then grows with time.
@@ -49,7 +49,7 @@ export class Chunks {
   private endedAt = -Infinity;
   private readonly frameMs: number;
   private readonly sampleRate: number;
-  /** The silence switch (decision 193): an open chunk does not close after a part; the module sets it whenever it changes. */
+  /** The silence switch (decision 194): an open chunk does not close after a part; the module sets it whenever it changes. */
   keepRoom = false;
 
   constructor(frameMs: number, sampleRate: number) {

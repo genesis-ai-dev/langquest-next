@@ -14,7 +14,7 @@ export type VADConfig = {
   /** What this device heard last time (splitter.ts, LAN-82): parts split by the room and the voice, with no setting. */
   heard?: HeardLevels;
   /**
-   * The silence switch (decision 193): while on, a session's chunk stays open
+   * The silence switch (decision 194): while on, a session's chunk stays open
    * through every pause until the detector stops (chunks.ts), so the room
    * between parts is kept whole. Left out, it stays as it was.
    */

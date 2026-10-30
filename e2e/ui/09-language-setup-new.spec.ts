@@ -18,11 +18,18 @@ async function startNewLanguage(page: Page): Promise<void> {
   await primary(page).click();
 }
 
-/** Step 1: the name (and a code), then Continue. */
+/** Step 1, its second page: the languages its translators use, as suggested (decision 193). */
+async function teamStep(page: Page): Promise<void> {
+  await expectOnScreen(page, /Which languages do .*translators use\?/);
+  await primary(page).click();
+}
+
+/** Step 1: the name (and a code), then Continue; then its translators' languages. */
 async function nameStep(page: Page, name: string, code?: string): Promise<void> {
   await field(page, 'Its name').fill(name);
   if (code) await field(page, 'Its code, if it has one').fill(code);
   await primary(page).click();
+  await teamStep(page);
 }
 
 /** Step 2: the Bible, numbered like World English, then a way (FIA passages by default), then Continue. */
@@ -42,10 +49,8 @@ async function bibleStep(page: Page, opts: { way?: string | RegExp; scope?: stri
   await primary(page).click();
 }
 
-/** Reference material as suggested: its languages, then what its team will have in them. */
+/** Reference material as suggested: what its team will have in its translators' languages. */
 async function materialStep(page: Page): Promise<void> {
-  await expectOnScreen(page, /Bibles and study guides be in\?/);
-  await primary(page).click();
   await expectOnScreen(page, /What will help .*’s team\?/);
   await primary(page).click();
 }
@@ -75,13 +80,16 @@ test('SETUP-010 Create a language end to end @p0', async ({ page }) => {
   await orgHome(page, w);
   await startNewLanguage(page);
   await expectOnScreen(page, 'New language', '1 of 6 · Language');
-  await nameStep(page, name, 'chr');
+  await field(page, 'Its name').fill(name);
+  await field(page, 'Its code, if it has one').fill('chr');
+  await primary(page).click();
+  // The languages its translators use come right after its name (decision 193).
+  await expectOnScreen(page, '1 of 6 · Language', `Which languages do ${name}'s translators use?`);
+  await primary(page).click();
   await expectOnScreen(page, '2 of 6 · Content');
   await bibleStep(page);
-  // Reference material comes before the review flow (decision 146): its languages, then what the team will have.
-  await expectOnScreen(page, '4 of 6 · Reference material', `Which languages should ${name}'s Bibles and study guides be in?`);
-  await primary(page).click();
-  await expectOnScreen(page, `What will help ${name}’s team?`, 'Bibles and guides in English', 'Study guides', /FIA's study guides in English/);
+  // Reference material comes before the review flow (decision 146), in those languages.
+  await expectOnScreen(page, '4 of 6 · Reference material', `What will help ${name}’s team?`, 'Bibles and guides in English', 'Study guides', /FIA's study guides in English/);
   await primary(page).click();
   await expectOnScreen(page, '5 of 6 · Review flow', 'How will recordings get checked?', 'Standard Bible Flow', /Suggested · from /);
   await primary(page).click();
@@ -155,6 +163,7 @@ test('SETUP-012 Add a language offline, unlinked, and link it later', async ({ p
   await field(page, 'Its name').fill(name);
   await expectOnScreen(page, 'Can\'t search the language list', 'You can still add it. It is added unlinked; link it from its page once you are online.', 'Try again');
   await primary(page).click();
+  await teamStep(page);
   await bibleStep(page, { way: 'FIA passages (English)' });
   await finish(page);
   // Offline it is added unlinked; what needs the server to be offered is named, to offer later (decisions 71, 76).
@@ -183,6 +192,7 @@ test('SETUP-013 A repeated language is warned about, not refused', async ({ page
   await expectOnScreen(page, warning);
   await expect(primary(page)).toBeEnabled();
   await primary(page).click();
+  await teamStep(page);
   await expectOnScreen(page, '2 of 6 · Content');
 });
 
@@ -216,8 +226,8 @@ test('SETUP-014 Choose which books a new language translates', async ({ page }) 
   await primary(page).click();
   await primary(page).click();
   await expectOnScreen(page, 'Not added', 'Choose at least one book.');
-  // Back to the pieces and choose Mark and Luke: the checks, the flows, what helps, its languages.
-  for (let i = 0; i < 4; i++) await text(page, 'Back').click();
+  // Back to the pieces and choose Mark and Luke: the checks, the flows, what helps.
+  for (let i = 0; i < 3; i++) await text(page, 'Back').click();
   await expectOnScreen(page, 'How should the Bible be divided?');
   await text(page, 'Mark').click();
   await text(page, 'Luke').click();
@@ -354,23 +364,25 @@ test('SETUP-018 A new language\'s checks are set up on their own pages before it
   await expectOnScreen(page, 'Checks', 'Community check', 'Bible text');
 });
 
-test('SETUP-019 The language of a new team\'s Bibles and guides', async ({ page }) => {
+test('SETUP-019 The languages a new team\'s translators use, right after its name', async ({ page }) => {
   const w = world();
   const name = `Lima ${tag()}`;
   await openAs(page, w, 'ADMIN');
   await orgHome(page, w);
   await startNewLanguage(page);
-  await nameStep(page, name);
-  await bibleStep(page);
-  // As many languages as the team reads; each line says what LangQuest has in it, with no sentence above (decision 130).
-  await expectOnScreen(page, `Which languages should ${name}'s Bibles and study guides be in?`);
+  await field(page, 'Its name').fill(name);
+  await primary(page).click();
+  // As many languages as the team reads, asked right after its name (decision 193); each line says what LangQuest has
+  // in it, its book names too, with no sentence above (decision 130).
+  await expectOnScreen(page, '1 of 6 · Language', `Which languages do ${name}'s translators use?`);
   await expectNotOnScreen(page, 'reads best');
-  await expectOnScreen(page, 'English', /FIA guides for \d+ passages?/);
+  await expectOnScreen(page, 'English', /FIA guides for \d+ passages?.*Book names/);
   await text(page, 'Another language').click();
   await page.getByPlaceholder('Search for a language').fill('French');
   await expectOnScreen(page, /French/);
-  // Then what the team will have in its languages, the suggestion ticked (decision 146).
   await primary(page).click();
+  await bibleStep(page);
+  // Then what the team will have in its languages, the suggestion ticked (decision 146).
   await expectOnScreen(page, `What will help ${name}’s team?`, 'Bibles and guides in English');
   await expect(page.getByRole('checkbox', { name: /FIA's study guides in English/ }).locator('visible=true').first()).toBeChecked();
   await byId(page, 'header-close').click();
@@ -426,6 +438,7 @@ test('SETUP-074 A cluster of a new language and one already here, then ungrouped
   await button(page, 'Bravo').click();
   await expectOnScreen(page, 'Its languages · 2', 'Languages already here keep everything they have. The new one is set up in the next steps.');
   await primary(page).click();
+  await teamStep(page);
   await bibleStep(page);
   await materialStep(page);
   await expectOnScreen(page, 'How will recordings get checked?', `For the new language in ${cluster}. It can change its own later.`);

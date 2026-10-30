@@ -47,7 +47,7 @@ class Chunks(private val frameMs: Double, private val sampleRate: Int) {
   private var kept = 0
   /** When the last part ended (ms, the splitter's clock): the chunk keeps PAD_MS after it. */
   private var endedAt = Double.NEGATIVE_INFINITY
-  /** The silence switch (decision 193): an open chunk does not close after a part; the module sets it whenever it changes. */
+  /** The silence switch (decision 194): an open chunk does not close after a part; the module sets it whenever it changes. */
   var keepRoom = false
 
   /** One frame of `samples` samples, heard at `now` (ms), and what the splitter said of it. */

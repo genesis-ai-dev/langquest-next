@@ -21,7 +21,7 @@ export const MAX_BOOST_DB = 24;
 export const NOISY_DB = -40;
 /**
  * A part whose loudness stands less than this over its room holds no voice
- * to bring up (decision 193): a silence kept as a part, or a voice lost in
+ * to bring up (decision 194): a silence kept as a part, or a voice lost in
  * the room. It plays as recorded, so its hiss is never turned up. Room alone
  * measured 3.5 dB at most (white, pink and brown noise, mains hum, a fan);
  * speech 6 dB over its room, 5.6 dB at least.

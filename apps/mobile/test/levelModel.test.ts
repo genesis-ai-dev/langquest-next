@@ -63,7 +63,7 @@ describe('which parts play from a copy (decision 182)', () => {
     expect(needsCopy({ lufs: null, noiseDb: null })).toBe(false);
   });
 
-  it('plays a part that holds only the room as it is (decision 193)', () => {
+  it('plays a part that holds only the room as it is (decision 194)', () => {
     expect(needsCopy({ lufs: -50, noiseDb: -52 })).toBe(false);
     expect(needsCopy({ lufs: -50, noiseDb: -60 })).toBe(true);
     // A silence kept as a part: room recorded quietly, far under −16 LUFS, is not turned up.

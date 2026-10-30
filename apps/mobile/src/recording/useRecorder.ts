@@ -148,7 +148,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
    */
   const session = useRef<RecordingSession | null>(null);
   const [sessionOpen, setSessionOpen] = useState(false);
-  /** The silence switch (decision 193): the silence between parts boxed as parts of its own. The phone keeps it (silenceSetting.ts). */
+  /** The silence switch (decision 194): the silence between parts boxed as parts of its own. The phone keeps it (silenceSetting.ts). */
   const [silence, setSilenceShown] = useState(silencePartsOn);
   const silenceRef = useRef(silence);
   /** Bumped when the session's parts change, so the screen redraws its count and the next part's number. */
