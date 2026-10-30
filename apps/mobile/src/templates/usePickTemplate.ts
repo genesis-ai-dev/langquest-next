@@ -1,7 +1,7 @@
 // Using a template for a language: the steps behind the picker's button.
 import { useState } from 'react';
 import { languageName, type LanguageState } from '@langquest-next/core';
-import type { LibraryChoice } from './contentTemplatesModel';
+import { choiceName, type LibraryChoice } from './contentTemplatesModel';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { failureMessage } from '../diagnostics/report';
@@ -26,7 +26,7 @@ export function usePickTemplate(ctx: Ctx, lib: Lib, state: LanguageState | null,
       const specs = await lib.applySpecs(itemId, { docHash: c.hash, ...(books ? { books } : {}) });
       // ctx.act says "Not saved" and why itself; stay here to try again.
       try {
-        await ctx.act(specs, t('content.picker.nowUses', { language, name: c.name }));
+        await ctx.act(specs, t('content.picker.nowUses', { language, name: choiceName(c) }));
       } catch { return; }
       after();
     } catch (e) {

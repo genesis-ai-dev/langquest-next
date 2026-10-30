@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import {
   canonicalJson, FIA_PERICOPES, foldOrg, libraryItemView, referencedDocs, templateUnits, validateEvent,
-  type CollectionDoc, type FlowDoc, type MaterialDoc, type TemplateDoc, type VersificationDoc
+  type CollectionDoc, type FlowDoc, type LabelsDoc, type MaterialDoc, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { buildLibrary, onlyItems, seedEvents, SEED_ORG } from './library-seed';
 
@@ -49,6 +49,25 @@ describe('LangQuest library seed', { timeout: 60_000 }, () => {
     expect(build.items.some((i) => i.itemId.startsWith('langquest.questions.'))).toBe(false);
     expect(new Set(build.items.map((i) => i.itemId)).size).toBe(build.items.length);
     expect(build.items.every((i) => /^langquest\.[a-z0-9._-]+$/.test(i.itemId))).toBe(true);
+  });
+
+  it('names its templates, numberings, flows and book names in each of the app\'s other languages (decision 195)', () => {
+    const sets = build.items.filter((i) => i.kind === 'labels');
+    expect(sets.map((i) => i.itemId)).toEqual(['spa', 'por', 'fra', 'arb', 'swa', 'hau', 'amh', 'hin', 'ben', 'npi', 'ind', 'cmn', 'tha', 'mya'].map((c) => `langquest.labels.${c}`));
+    const hindi = new Map((doc(item('langquest.labels.hin').docHash) as LabelsDoc).items.map((i) => [i.itemId, i]));
+    expect(hindi.get('langquest.bible.chapters')?.name).toBe('अध्याय के अनुसार');
+    expect(hindi.get('langquest.bible.chapters.org-66')?.name).toBe('अध्याय के अनुसार');
+    expect(hindi.get('langquest.numbering.eng-66')?.name).toBe('अधिकतर अंग्रेज़ी बाइबलों जैसी · 66 पुस्तकें');
+    expect(hindi.get('langquest.flow.quick_check')).toEqual({ itemId: 'langquest.flow.quick_check', name: 'त्वरित जाँच', description: 'एक साथी सुनता है, फिर समन्वयक मंज़ूरी देता है।' });
+    expect(hindi.get('langquest.names.npi')?.name).toBe('बाइबल की पुस्तकों के नाम (नेपाली)');
+    // Reference material keeps its own name: the app names it in the language showing.
+    expect(hindi.has('langquest.fia.hin')).toBe(false);
+    for (const set of sets) {
+      const d = doc(set.docHash) as LabelsDoc;
+      const ids = new Set(d.items.map((i) => i.itemId));
+      expect(build.items.filter((i) => ['template', 'versification', 'flow', 'names'].includes(i.kind) && !ids.has(i.itemId)).map((i) => i.itemId)).toEqual([]);
+      expect(d.items.every((i) => build.items.some((b) => b.itemId === i.itemId))).toBe(true);
+    }
   });
 
   it('converts versification counts to numbers', () => {
