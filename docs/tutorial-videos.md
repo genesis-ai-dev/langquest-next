@@ -35,7 +35,9 @@ GEMINI_API_KEY`); run with it as `npx dotenvx run -f .env.production -fk
 | --- | --- |
 | `all.ts`, `<id>.ts` | the scripts: who is signed in, the world they start from, each step (what is lit, what is said, what is tapped) |
 | `film.ts` | plays one script against the web export and keeps every frame with its time, when each line is said, what the speaker says into the microphone and what the app plays aloud |
-| `compose.ts` | puts a film together as a wide (16:9) MP4: the frames in a phone beside the app's mark and the title (or in a browser window under the title, for web videos), and the sound evened to -16 LUFS |
+| `compose.ts` | puts a film together as a wide (16:9) MP4: the frames in a phone beside the app's mark and the title (or in a browser window under the title, for web videos), the camera moving in on what each step lights, and the sound evened to -16 LUFS |
+| `camera.ts` | where the camera looks: in on each lit part (its words about twice their size), back out to the whole page where a step lights nothing, at the start and at the end |
+| `frame-check.ts` | a new film's stills, one while each line is said, looked at by Gemini for what is drawn wrong |
 | `gemini-voice.mjs` | says lines with Gemini's text-to-speech, through the Batch API |
 | `translate-lines.ts` | translates each video's title and lines into `lines/<language>.json` |
 | `readings.ts`, `make-readings.ts` | what the people in the videos say, and saying it into WAV files |
@@ -122,8 +124,19 @@ the job keeps the file as `lines-<language>`, to commit), and `nightly.ts`:
    again (a screen read mid-change can look different once), and films again
    only the videos whose look changed, or that have no film yet, two at a
    time; a film that fails is filmed once more, alone;
-3. writes the language's manifest, the films that did not change and the
-   new ones, each with what YouTube shows (`playlists.ts`) and its look.
+3. looks at each new film as someone who pauses it would (`frame-check.ts`):
+   a still while each line is said, and the first and the last, as the video
+   shows them, go to Gemini (`gemini-flash-latest`) in one request a film,
+   which says what is wrong in each: a line or a box's edge left outside the
+   lit part or cut through, words cut off or on top of each other, a blank,
+   loading or error screen, words not in the language. A film with something
+   wrong, or whose stills could not be looked at, is held: it is not put in
+   the release, the video keeps its last film, and the job fails, with what
+   is wrong under "Held by the frame check" on the run's summary and the
+   stills in its `tutorials-<language>` artifact (`check/`, `check.json`);
+4. writes the language's manifest, the films that did not change and the
+   new ones that passed, each with what YouTube shows (`playlists.ts`) and
+   its look.
 
 `put-in-release.ts` then puts the new films in the release (public, a
 pre-release), then the manifest, then the language's voice
@@ -135,9 +148,9 @@ says them once, before the languages' jobs, and keeps them in
 The ops dashboard's Tutorial videos → Filming shows where a run is: each
 language waiting its turn, filming (and on which step), done or failed,
 with a link to its log.
-The workflow holds the Gemini key (`GEMINI_API_KEY`, a repository secret
-that `npm run secrets -- production` sets from `.env.production`) and no
-production key.
+The workflow holds the Gemini key (`GEMINI_API_KEY`, for the voice and the
+frame check, a repository secret that `npm run secrets -- production` sets
+from `.env.production`) and no production key.
 
 Videos go up as soon as they are filmed (decision 192). Once a language's
 new films are in the release, its job tells the app's Worker
@@ -199,9 +212,10 @@ Español: https://next.langquest.org/v/es/record-a-passage
 YouTube makes a description's links clickable only on a channel with its
 advanced features (Studio → Settings → Channel → Feature eligibility). A
 video's description is written when it is filmed and put on when it is
-uploaded; a film from before decision 191 (tall, its voice written out) is
-filmed again once, whatever its look (`FRAME` in `playlists.ts` and in the
-release's manifest), and only a video's newest version goes up.
+uploaded; a film from before decision 191 (tall, its voice written out), or
+from before the camera moved in on what each step lights, is filmed again
+once, whatever its look (`FRAME` in `playlists.ts` and in the release's
+manifest), and only a video's newest version goes up.
 
 A video's description ends with a link to the same video in each other
 language it is made in: `https://next.langquest.org/v/<language>/<video>`,

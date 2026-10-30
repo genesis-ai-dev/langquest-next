@@ -9344,6 +9344,27 @@ cut to one line).
 Reverse if: YouTube lets a Short's description link out, or people watch
 the videos mostly on phones held upright and ask for tall ones.
 
+Amended (2026-10-30, Caleb Koster): the camera moves in. Caleb found the
+wide videos "really blurry, difficult to see": the phone's screen is 452
+pixels of the page's 1920, so the app's words are about 16 pixels tall, and
+fewer on a phone or at a lower quality. He approved a sample of Record a
+passage. Each step's lit part, where and when it was lit, is in the film
+(`film.ts`, `focus` in `film.json`), and `compose.ts` draws the page twice as
+big and moves a camera over it (ffmpeg's `zoompan`, from `camera.ts`): in on
+the part, at most 2.2 times, so its words are about twice their size; back
+out to the whole page where a step lights nothing, for the title at the
+start and at the end. It holds still for a part already in the shot and
+leaves out a shot under a second, so it moves only when the part moves. A
+move takes 0.8 s and starts just before the part is lit. A part inside a
+card with its own edge is lit with the card (`film.ts` `light`), so the
+light no longer cuts through a card's border and leaves a dimmed line of it
+showing (Caleb's still of the lit Record step). `FRAME` is `zoomed`, so
+every video in every language is filmed again once; the English and French
+videos already up are replaced, about a day of YouTube's daily limit. The
+trailer, drawn by its own page, keeps its film (`TRAILER_FRAME`). Rejected: filming the phone bigger and cutting the
+title (a title beside the phone is what makes the page wide, decided above);
+a second, magnified copy of the part beside the phone (two places to look).
+
 ## 192. Tutorial videos go up as soon as they are filmed: the filming tells the app, the intake chooses the wide films itself, and the publish follows each intake
 
 Date: 2026-10-30 · By: Caleb Koster · Status: accepted
@@ -9401,6 +9422,27 @@ come out that night (some Spanish ones), its tall one was still chosen and
 newest, so the publish would have put it up as a Short. Such a choice now
 counts as none: the job skips it, the dashboard lists the video as not
 chosen, and a person's Publish can choose it again. No row is changed.
+
+Amended (2026-10-30, Caleb Koster): a new film goes up only once its stills
+look right. Caleb paused videos and found mistakes in many (a line of a
+card's border left dimmed outside the lit box) and asked that every paused
+frame be looked at by AI, in the filming, efficiently. `nightly.ts` sends
+each film made that night to Gemini (`frame-check.ts`,
+`gemini-flash-latest`): a still in the middle of each line said, where the
+part is lit and the camera is in, and the first and the last, 1280 wide,
+all of a film's stills in one request (about 15,000 tokens, under a cent).
+A film with something wrong, or whose stills could not be looked at, is
+held: it does not go in the release, the video keeps its last film (on
+YouTube too), the language's job fails and so is filed in Linear, and the
+run's summary lists what is wrong at which moment, with the stills in the
+job's artifact. Rejected: every frame (30 a second; the stills are what a
+viewer pauses on, and a mistake between them is on screen for a moment);
+Gemini's Batch API (half the price, but its requests are capped at 20 MB
+inline, a night's stills are more, and it waits minutes); Claude (the
+filming already holds a Gemini key and pays per token; Claude in Actions
+signs in with a person's plan). Reverse if: the check holds films that are
+right more than now and then (then it reports without holding), or misses
+what people find.
 
 ## 193. A content template has no language: Bible book names are library items, one per language, that a language picks; and New language asks the languages its translators use right after the name
 
