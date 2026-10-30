@@ -17,7 +17,8 @@ import {
  * `brandChannel`) is brought up to date, its home page gets a row for each
  * playlist it has and one of the other channels (`setHome`, decisions.md
  * 191), and the comments YouTube holds for review on each are counted for
- * the dashboard.
+ * the dashboard. A channel that got a new playlist during the run gets its
+ * row at the end of the same run (decisions.md 192).
  *
  * YouTube allows 100 uploads a day for the whole Google Cloud project, all
  * channels together, and 10,000 units for everything else (a video and its
@@ -105,12 +106,21 @@ export const failureCode = (e: unknown) => (e instanceof YouTubeError ? e.code :
  * day's uploads are tried.
  */
 export async function publishTutorials(deps: PublisherDeps, report: PublishReport): Promise<PublishReport> {
-  const run: Run = { tokens: new Map(), playlists: new Map(), tried: new Set(), full: new Set() };
+  const run: Run = { tokens: new Map(), playlists: new Map(), tried: new Set(), full: new Set(), newPlaylists: new Map() };
   await tendChannels(deps, run, report);
   while (!report.outOfQuota && !deps.stopping() && run.tried.size < DAY_UPLOADS) {
     const due = (await deps.due(ASKED)).filter((v) => !run.tried.has(key(v)) && !run.full.has(v.channelId));
     if (!due.length) break;
     await publishSome(deps, run, due, report);
+  }
+  for (const [channelId, language] of run.newPlaylists) {
+    if (report.outOfQuota) break;
+    try {
+      await setHome(deps.fetcher, await tokenFor(deps, run, channelId), language);
+    } catch (e) {
+      report.firstError ??= failureCode(e);
+      report.outOfQuota ||= outOfQuota(e);
+    }
   }
   return report;
 }
@@ -126,6 +136,8 @@ interface Run {
   tried: Set<string>;
   /** The channels at their own day's limit. */
   full: Set<string>;
+  /** The channels that got a playlist this run, whose home pages want its row. */
+  newPlaylists: Map<string, ChannelLanguage>;
 }
 
 /** A channel's access token for this run: asked again past 45 minutes, and never again once Google refused it. */
@@ -239,7 +251,10 @@ async function publishSome(deps: PublisherDeps, run: Run, due: Due[], report: Pu
     try {
       const key = `${video.channelId}\n${video.playlist}`;
       let playlistId = playlists.get(key);
-      if (!playlistId) playlists.set(key, (playlistId = await playlistFor(deps.fetcher, access, video.playlist, video.language)));
+      if (!playlistId) {
+        playlistId = await playlistFor(deps.fetcher, access, video.playlist, video.language, () => run.newPlaylists.set(video.channelId, video.language));
+        playlists.set(key, playlistId);
+      }
       await placeInPlaylist(deps.fetcher, access, playlistId, youtubeId, video.replaces ?? undefined, trailer);
       // The channel's trailer at once; when that fails, the next run's look of the channel includes it (tendChannels).
       if (trailer) {

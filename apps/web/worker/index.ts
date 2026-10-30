@@ -312,6 +312,11 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         return hash;
       }
     },
+    // The filming saying its films are in: the intake starts, and the publish after it (tutorialFilmed.ts, decisions.md 192).
+    tutorialFilmed: {
+      verify: githubOidcCached ??= githubOidc((input, init) => fetch(input, init)),
+      intake: () => env.JOBS.get(env.JOBS.idFromName('tutorial-intake')).run({ again: true })
+    },
     // Claude's nightly look at the tutorial videos' feedback (tutorialReview.ts, decisions.md 186).
     tutorialReview: {
       verify: githubOidcCached ??= githubOidc((input, init) => fetch(input, init)),

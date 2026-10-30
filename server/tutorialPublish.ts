@@ -1,9 +1,10 @@
 /**
- * The tutorial videos a Publish on the ops dashboard chose, put up on YouTube
- * (docs/tutorial-videos.md, decisions.md 180): server/tutorialPublisher.ts
- * run by the job container, started by Publish and each day at 23:40 UTC
- * while chosen videos wait (apps/web/worker/jobsModel.ts; scripts/build-jobs.mjs
- * bundles this file). It reads each MP4 from the Worker (API_URL), each
+ * The tutorial videos chosen for YouTube, by the intake as it takes them in
+ * or by a Publish on the ops dashboard, put up (docs/tutorial-videos.md,
+ * decisions.md 180, 192): server/tutorialPublisher.ts run by the job
+ * container, started by Publish and at the end of each intake, which runs
+ * when the filming's films are in and at five past midnight in California
+ * (apps/web/worker/jobsModel.ts; scripts/build-jobs.mjs bundles this file). It reads each MP4 from the Worker (API_URL), each
  * channel's refresh token from Vault, and records a `tutorial_publish` job
  * run: `branded` and `brand_failed` (channels brought up to date first),
  * `held` (comments held for review, on all channels),

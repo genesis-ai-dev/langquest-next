@@ -1,5 +1,5 @@
 import {
-  deadRun, entrypointFor, exitCodeOf, HEAP_LIMIT_MB, heartbeat, HEARTBEAT_MS, isJobKey, JOB_TICK, jobEnv, JOBS, jobsDue, stillOwesWholeRead, STOPPED_EARLY
+  AFTER, deadRun, entrypointFor, exitCodeOf, HEAP_LIMIT_MB, heartbeat, HEARTBEAT_MS, isJobKey, JOB_TICK, jobEnv, JOBS, jobsDue, stillOwesWholeRead, STOPPED_EARLY
 } from '../worker/jobsModel';
 
 /**
@@ -35,13 +35,18 @@ describe('job runner', () => {
     expect(jobsDue(Date.UTC(2026, 9, 19, 4, 35))).toEqual([{ key: 'projection' }, { key: 'blob-reconcile' }]);
     expect(jobsDue(Date.UTC(2026, 9, 19, 5, 5))).toEqual([{ key: 'projection' }]);
     expect(jobsDue(Date.UTC(2026, 9, 19, 16, 35))).toEqual([{ key: 'projection' }]);
-    // The tutorial jobs, in the hour when the fewest people on earth are at work: videos still waiting from a Publish.
-    expect(jobsDue(Date.UTC(2026, 9, 19, 23, 40))).toEqual([{ key: 'projection' }, { key: 'tutorial-publish' }]);
-    expect(jobsDue(Date.UTC(2026, 9, 19, 8, 10))).toEqual([{ key: 'projection' }]);
+    // The filming starts the intake when its films are in, and each intake's end starts the publish (decision 192).
+    expect(AFTER).toEqual({ 'tutorial-intake': 'tutorial-publish' });
+    // One more intake as YouTube's day begins at midnight in California, for films the filming could not say
+    // were in, and the publish after it for what the day before had no room for: 07:05 UTC in summer time,
+    // 08:05 UTC in winter time, never both.
+    expect(jobsDue(Date.UTC(2026, 9, 19, 7, 5))).toEqual([{ key: 'projection' }, { key: 'tutorial-intake' }]);
+    expect(jobsDue(Date.UTC(2026, 9, 19, 8, 5))).toEqual([{ key: 'projection' }]);
+    expect(jobsDue(Date.UTC(2026, 10, 2, 8, 5))).toEqual([{ key: 'projection' }, { key: 'tutorial-intake' }]);
+    expect(jobsDue(Date.UTC(2026, 10, 2, 7, 5))).toEqual([{ key: 'projection' }]);
+    expect(jobsDue(Date.UTC(2026, 9, 19, 23, 10))).toEqual([{ key: 'projection' }]);
+    expect(jobsDue(Date.UTC(2026, 9, 19, 23, 40))).toEqual([{ key: 'projection' }]);
     expect(JOBS['tutorial-publish']).toMatchObject({ job: 'tutorial_publish', entrypoint: ['node', 'publish.mjs'], timeLimitMs: 150 * 60_000 });
-    // The films the nightly filming made on GitHub (from 20:10 UTC).
-    expect(jobsDue(Date.UTC(2026, 9, 19, 23, 10))).toEqual([{ key: 'projection' }, { key: 'tutorial-intake' }]);
-    expect(jobsDue(Date.UTC(2026, 9, 19, 13, 10))).toEqual([{ key: 'projection' }]);
     expect(JOBS['tutorial-intake']).toMatchObject({ job: 'tutorial_intake', entrypoint: ['node', 'intake.mjs'], timeLimitMs: 120 * 60_000 });
     // The day's comments on the videos, after the publish job (decision 186).
     expect(jobsDue(Date.UTC(2026, 9, 19, 23, 50))).toEqual([{ key: 'projection' }, { key: 'tutorial-comments' }]);

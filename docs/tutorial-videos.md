@@ -137,12 +137,21 @@ The workflow holds the Gemini key (`GEMINI_API_KEY`, a repository secret
 that `npm run secrets -- production` sets from `.env.production`) and no
 production key.
 
-At 23:10 UTC the intake job in the app's job container
-(`server/tutorialIntake.ts`) reads each language's manifest, and puts each
-film R2 lacks there through the Worker, checking its hash; the ops dashboard
-then lists it for Publish. A run by hand: Run now on the dashboard's Server jobs
-(`tutorial-intake`), or the workflow's Run workflow on GitHub, with languages
-and videos to film.
+Videos go up as soon as they are filmed (decision 192). Once a language's
+new films are in the release, its job tells the app's Worker
+(`e2e/tutorials/films-in.mjs` posts to `/api/tutorial-filmed`, with the OIDC
+token GitHub gives the job, so the workflow holds no production key), and
+the intake job in the app's job container (`server/tutorialIntake.ts`)
+starts: it reads each language's manifest, puts each film R2 lacks there
+through the Worker, checking its hash, and lists it on the ops dashboard,
+chosen for YouTube when it is wide (a tall film left from before waits for
+a person's Publish). The publish job starts as the intake ends. An intake
+already running takes the films in once more when it ends. The first job of
+each run tells the Worker too, for films an earlier run put in without
+saying, and the intake also runs at five past midnight in California, as
+YouTube's day of uploads begins, with the publish after it. A run by hand:
+Run now on the dashboard's Server jobs (`tutorial-intake`), or the
+workflow's Run workflow on GitHub, with languages and videos to film.
 
 A change the look does not see (a new sound, a colour) is filmed by running
 the workflow by hand with that video named, which films it whatever its
@@ -160,8 +169,9 @@ names it.
 
 Each app language has its own YouTube channel (decision 180). A version filmed
 is kept in R2 by its hash and listed on the ops dashboard's Tutorial videos
-section, where a person watches it and chooses to put it up; the publish job
-uploads it. Connecting the channels and publishing are in `docs/admin.md`
+section, chosen to go up as it comes in (decision 192); the publish job
+uploads it. A person's Publish puts up a film the intake does not choose (a
+tall one from before decision 191). Connecting the channels and publishing are in `docs/admin.md`
 ("Tutorial videos on YouTube").
 
 Every video is wide (16:9), never tall (decision 191): YouTube makes a tall
@@ -204,8 +214,8 @@ decision 184); the picture is set by hand. Its home page is laid out as
 BibleProject's and other channels' are (`setHome`, decision 191): under the
 trailer, a row of the other 14 LangQuest channels, then a row for each of
 its playlists, everyone's first (`server/youtubePlaylists.ts`). The publish
-job brings the rows up to date each run, so a playlist made by a day's
-uploads has its row the next day. The links under a channel's name can only
+job brings the rows up to date each run, and a playlist a run makes gets its
+row at the end of that run. The links under a channel's name can only
 be set in YouTube Studio. Comments that may be inappropriate are held for review, and the ops
 dashboard counts them for each channel.
 
@@ -228,7 +238,7 @@ countries, keeps the video inside the YouTube app, and needs it to reconnect
 every 48 hours; some countries block YouTube.
 
 - **A link that lasts:** `https://next.langquest.org/v/<language>/<video>.mp4`
-  gives the newest version a person chose with Publish, as a file named
+  gives the newest version chosen (as it came in, or with Publish), as a file named
   `langquest-<video>-<language>.mp4`. It follows each new version by itself,
   so it never needs changing. While none is chosen in that language it opens
   the videos page. Each video's description on YouTube gives it, under the
@@ -239,7 +249,7 @@ every 48 hours; some countries block YouTube.
   player, no YouTube needed) and, once it is up, Watch on YouTube. Each
   channel's description links it. The Worker writes it
   (`apps/web/worker/videosPage.ts`, words in `apps/web/worker/i18n/`).
-- **Chosen, not uploaded:** a download is the version Publish chose, at once,
+- **Chosen, not uploaded:** a download is the version chosen, at once,
   without waiting for YouTube's 100 uploads a day; so a new version can be
   downloaded a day or more before YouTube has it. The files are the ones R2
   keeps for the publish job (`/api/tutorials/...`, by hash, kept for good).

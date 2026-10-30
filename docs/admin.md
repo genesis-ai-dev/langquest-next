@@ -302,15 +302,18 @@ their ids are in `server/youtube.ts`.
   its turn, filming (and on which step), done or failed, with a Log link to
   its job. It starts at 20:10 UTC and whenever a change to the videos is
   merged into main.
-- **Watch** a video before choosing it: it opens the file the filming made.
-  New films come in each day at 23:10 UTC, from the nightly filming on
-  GitHub (`tutorial_intake` in Server jobs; `docs/tutorial-videos.md`, Each
-  night); Run now starts the intake at once.
-- **Publish** the ones chosen. The publish job starts at once, and again at
-  23:40 UTC each day while chosen videos wait: YouTube takes 100 uploads a
-  day for all channels together, and fewer from one new channel (Arabic's
-  stopped at 10), so a channel at its own limit waits for the next run
-  while the others go on. English goes first, then French, then the other
+- **Watch** a video: it opens the file the filming made. New films come in
+  as soon as each language's filming puts them in the release, and at five
+  past midnight in California (`tutorial_intake` in Server jobs;
+  `docs/tutorial-videos.md`, Each night); Run now starts the intake at once.
+  A wide film is chosen as it comes in, and the publish job starts as the
+  intake ends, so nobody needs to press Publish (decision 192).
+- **Publish** puts up the ones ticked: a tall film from before decision 191
+  that the intake did not choose, or one to put up again. The publish job
+  starts at once, after each intake, and at five past midnight in California
+  while chosen videos wait: YouTube takes 100 uploads a day for all channels
+  together, and fewer from one new channel (Arabic's stopped at 10), so a
+  channel at its own limit waits for the next run while the others go on. English goes first, then French, then the other
   languages in turn (decision 180). A new version of a video already up takes
   its place in the playlist, and the old one is unlisted with a link to the
   new. The job's runs are in Server jobs (`tutorial_publish`).

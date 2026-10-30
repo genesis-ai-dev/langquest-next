@@ -3,11 +3,13 @@
 // films first, then the manifest that names them, so the intake job never
 // reads a manifest naming a film that is not there yet; then the voice they
 // were said in, for the next night; last it deletes that language's films
-// the manifest no longer names. Uses gh, with GH_TOKEN.
+// the manifest no longer names. Uses gh, with GH_TOKEN. It says how many
+// films it put in as the step's `films` output, so the workflow tells the
+// app's Worker only when there are new ones (films-in.mjs, decisions.md 192).
 //
 //   npx tsx e2e/tutorials/put-in-release.ts fr <out dir>
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { filmName, manifestName, readManifest, TUTORIALS_TAG } from '../../server/tutorialIntakeModel';
 import type { ChannelLanguage } from '../../server/youtube';
@@ -50,3 +52,4 @@ const assets = gh('release', 'view', TUTORIALS_TAG, '--json', 'assets', '--jq', 
 const old = assets.filter((a) => a.startsWith(prefix) && a.endsWith('.mp4') && !named.has(a));
 for (const name of old) gh('release', 'delete-asset', TUTORIALS_TAG, name, '--yes');
 console.log(`${language}: ${films.length} films put in the release, ${old.length} older ones taken out`);
+if (process.env['GITHUB_OUTPUT']) appendFileSync(process.env['GITHUB_OUTPUT'], `films=${films.length}\n`);
