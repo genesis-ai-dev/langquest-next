@@ -64,12 +64,12 @@ describe('the Bible Brain numbering survey', () => {
     expect(lastVerseOf([])).toBe(0);
   });
 
-  it('surveys one Bible from Bible Brain: its book list, then the chapters chosen, from its text', async () => {
+  it('surveys one Bible from Bible Brain: its book list and book names, then the chapters chosen, from its text', async () => {
     const calls: string[] = [];
     const get = async (path: string) => {
       calls.push(path);
       if (path === '/bibles/HINOVB/book') {
-        return { status: 200, body: { data: Object.entries(systems.eng).slice(0, 66).map(([book, list]) => ({ book_id: book, chapters: list.map((_, i) => i + 1), testament: NT.has(book) ? 'NT' : 'OT' })) } };
+        return { status: 200, body: { data: Object.entries(systems.eng).slice(0, 66).map(([book, list]) => ({ book_id: book, name: book === 'GEN' ? 'उत्पत्ति' : book, chapters: list.map((_, i) => i + 1), testament: NT.has(book) ? 'NT' : 'OT' })) } };
       }
       const m = /^\/bibles\/filesets\/(\w+)\/(\w{3})\/(\d+)$/.exec(path);
       if (!m) return { status: 404, body: null };
@@ -82,6 +82,9 @@ describe('the Bible Brain numbering survey', () => {
     };
     const s = await surveyOne(get, row, systems, false);
     expect(s).toMatchObject({ bibleId: 'HINOVB', vname: 'पवित्र बाइबिल', iso: 'hin', numbering: 'eng', partial: false, books: 66, deuterocanon: false, missing: 0 });
+    // Its book names, in its own language, come with the book list.
+    expect(s!.bookNames!['GEN']).toBe('उत्पत्ति');
+    expect(Object.keys(s!.bookNames!)).toHaveLength(66);
     expect(calls.filter((c) => c.includes('/HINOVBN_ET/')).length).toBeGreaterThan(0);
     expect(calls.filter((c) => c.includes('/HINOVBO_ET/')).length).toBeGreaterThan(0);
     expect(await surveyOne(get, { abbr: 'XYZAUD', filesets: { 'dbp-prod': [{ id: 'XYZN1DA', type: 'audio', size: 'NT' }] } }, systems, false)).toBeNull();

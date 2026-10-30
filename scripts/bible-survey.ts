@@ -48,6 +48,8 @@ export interface Surveyed extends Verdict {
   missing: number;
   /** For --full: the last verse of every chapter. */
   lastVerses?: Record<string, number[]>;
+  /** Each book's name as this Bible gives it, in its own language ("उत्पत्ति"), for every book Bible Brain lists. */
+  bookNames?: Record<string, string>;
   /** Why it could not be surveyed. */
   failed?: string;
 }
@@ -149,6 +151,12 @@ export async function surveyOne(
   const whole = (['OT', 'NT'] as const).every((t) => !text[t] || coverage(sizeOf(text[t])).whole || sizeOf(text[t]) === 'C');
   const listed = await get(`/bibles/${encodeURIComponent(bibleId)}/book`);
   if (listed.status !== 200) return { ...base, numbering: 'custom', partial: !whole, books: 0, deuterocanon: false, read: 0, missing: 0, failed: `book list: ${listed.status}` };
+  const bookNames: Record<string, string> = {};
+  for (const b of rows(listed.body)) {
+    const book = String(b['book_id'] ?? '');
+    const name = typeof b['name'] === 'string' ? b['name'].trim() : '';
+    if (/^[A-Z0-9]{3}$/.test(book) && name) bookNames[book] = name;
+  }
   const books = rows(listed.body).flatMap((b) => {
     const book = String(b['book_id'] ?? '');
     const chapters = Array.isArray(b['chapters']) ? Math.max(0, ...(b['chapters'] as unknown[]).map(Number).filter(Number.isInteger)) : 0;
@@ -180,6 +188,7 @@ export async function surveyOne(
     partial,
     books: books.length,
     deuterocanon: books.some((b) => !BOOKS_66.has(b.book)),
+    ...(Object.keys(bookNames).length ? { bookNames } : {}),
     read: plan.length,
     missing,
     ...(full ? {
