@@ -7,8 +7,8 @@
 // opens a sheet to say, type or both what is wrong or what would help. The
 // screenshot and the person's name and email each go only if they turn them
 // on. A picture of their own (a photo, or a screenshot of something else) can
-// go too: chosen from the phone's files and made smaller (LAN-198,
-// pictureFile.ts). Saved as an account change, it goes when the phone is online.
+// go too, on Android and the web: chosen from the phone's files and made
+// smaller (LAN-198, pictureFile.ts). Saved as an account change, it goes when the phone is online.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, PanResponder, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
@@ -29,7 +29,7 @@ import {
   bodyPlaceholder, FEEDBACK_KINDS, feedbackReady, kindLabel, pillPlace, previewSize, profileChoice, sentMessage, voiceTooLong,
   type FeedbackKind, type Shot, type VoiceRef
 } from './feedbackModel';
-import { choosePicture, shrinkPicture, type ChosenPicture } from './pictureFile';
+import { canChoosePicture, choosePicture, shrinkPicture, type ChosenPicture } from './pictureFile';
 
 /** Two frames: the dimming has gone from the screen before it is taken. */
 const afterPaint = () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
@@ -196,20 +196,24 @@ function FeedbackSheet(props: { ctx: Ctx; screen: string; shot: Shot | null; sig
       <Field value={body} onChangeText={setBody} placeholder={bodyPlaceholder(kind)} multiline testID="feedback-body" help={t('feedback.help.body')} />
       <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={voice?.hash ?? null}
         onChange={(hash, card) => setVoice(hash && card ? { hash, format: card.format, durationMs: card.durationMs } : null)} />
-      <Group>
-        {shot ? (
-          <Row testID="feedback-screenshot" label={t('feedback.addScreenshot')} role="switch" checked={withShot} onPress={() => setWithShot((v) => !v)}
-            help={t('feedback.help.screenshot')}
-            leading={<Image source={{ uri: `data:image/jpeg;base64,${shot.base64}` }} style={[styles.thumb, { height: Math.round((THUMB * shot.height) / shot.width) }]}
-              accessibilityIgnoresInvertColors />} />
-        ) : null}
-        <Row testID="feedback-picture" icon="media" label={picture ? t('feedback.otherPicture') : t('feedback.addPicture')}
-          onPress={() => void choose()} help={t('feedback.help.picture')} last={!picture && !profile} />
-        {picture ? (
-          <PicturePreview key={picture.uri} picture={picture} last={!profile} onShown={(view, size) => shown(picture, view, size)} onRemove={removePicture} />
-        ) : null}
-        {profile ? <ProfileSwitch ctx={ctx} on={withProfile} onToggle={() => setWithProfile((v) => !v)} /> : null}
-      </Group>
+      {shot || canChoosePicture || profile ? (
+        <Group>
+          {shot ? (
+            <Row testID="feedback-screenshot" label={t('feedback.addScreenshot')} role="switch" checked={withShot} onPress={() => setWithShot((v) => !v)}
+              help={t('feedback.help.screenshot')} last={!canChoosePicture && !profile}
+              leading={<Image source={{ uri: `data:image/jpeg;base64,${shot.base64}` }} style={[styles.thumb, { height: Math.round((THUMB * shot.height) / shot.width) }]}
+                accessibilityIgnoresInvertColors />} />
+          ) : null}
+          {canChoosePicture ? (
+            <Row testID="feedback-picture" icon="media" label={picture ? t('feedback.otherPicture') : t('feedback.addPicture')}
+              onPress={() => void choose()} help={t('feedback.help.picture')} last={!picture && !profile} />
+          ) : null}
+          {picture ? (
+            <PicturePreview key={picture.uri} picture={picture} last={!profile} onShown={(view, size) => shown(picture, view, size)} onRemove={removePicture} />
+          ) : null}
+          {profile ? <ProfileSwitch ctx={ctx} on={withProfile} onToggle={() => setWithProfile((v) => !v)} /> : null}
+        </Group>
+      ) : null}
     </Sheet>
   );
 }

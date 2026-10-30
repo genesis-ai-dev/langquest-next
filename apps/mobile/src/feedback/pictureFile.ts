@@ -1,15 +1,19 @@
 // A picture the person chooses to send with a report (LAN-198, decisions.md
 // 145 amended): one image, through the phone's own file picker, so the app
 // sees only that file and asks for no permission. Android's picker lists
-// the phone's photos and other images; an iPhone's is the Files app (its
-// Photos app needs a picker the store build does not have yet). A JPEG that
+// the phone's photos and other images. iPhones do not offer it: Apple's
+// App Privacy answers would need Photos or Videos, and no change may force
+// a new store declaration until Caleb decides to add it. A JPEG that
 // already fits goes as it is. Anything else (a PNG screenshot, a large
 // photo, HEIC) is shown on the sheet and taken from there as a smaller JPEG
 // by shrinkPicture, with the same react-native-view-shot that takes the
 // screenshot. The web picks and shrinks in the browser (pictureFile.web.ts).
 import { File } from 'expo-file-system';
-import { Image, PixelRatio, type View } from 'react-native';
+import { Image, PixelRatio, Platform, type View } from 'react-native';
 import { CAPTURE_MS, PICTURE_BYTES, PICTURE_QUALITIES, pictureFits, pictureSize } from './feedbackModel';
+
+/** Whether this phone offers Add a picture: Android, whose store answers already cover photos; not iPhones. */
+export const canChoosePicture = Platform.OS === 'android';
 
 /** A picture the person chose: where to show it from, its size, and the JPEG to send once it fits. */
 export interface ChosenPicture { uri: string; width: number; height: number; base64: string | null }

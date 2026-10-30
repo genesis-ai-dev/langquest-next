@@ -211,9 +211,10 @@ the LangQuest team only (`diag.feedback`, read by support), never to the
 organization, and carries the random install ID diagnostics use. Two switches,
 both off until the person turns them on, add a screenshot of the app's own
 screen and their name and email (or sign-in name), which the server reads from
-the account itself. "Add a picture" sends one picture they choose (a photo,
-or a screenshot of something else) through the phone's own file picker, as a
-JPEG of at most 1 MB; the app sees only that file and asks for no permission
+the account itself. On Android and the web, "Add a picture" sends one
+picture they choose (a photo, or a screenshot of something else) through the
+phone's own file picker, as a JPEG of at most 1 MB (iPhones do not offer it:
+Apple's App Privacy answers would need Photos or Videos, decisions.md 145); the app sees only that file and asks for no permission
 (no `READ_MEDIA_IMAGES`). These are types already declared: the words are "Other
 in-app messages", the voice note "Voice or sound recordings", the screenshot
 and the chosen picture "Photos", the name, email and install ID

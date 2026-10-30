@@ -6601,11 +6601,11 @@ account, which 112 turned down for diagnostics.
 
 Amended (2026-10-30, Caleb Koster; LAN-198): Caleb asked to attach a
 separate picture or video to feedback, and chose pictures now, videos later.
-The sheet has "Add a picture" (`feedback/pictureFile.ts`): one image chosen
-through the phone's own file picker (`File.pickFileAsync` in
-expo-file-system, already in every build: Android's document picker, which
-lists the phone's photos; an iPhone's Files app), or the browser's file
-chooser on the web. The app sees only that file and asks for no permission.
+The sheet has "Add a picture" (`feedback/pictureFile.ts`) on Android and
+the web: one image chosen through the phone's own file picker
+(`File.pickFileAsync` in expo-file-system, already in every build;
+Android's document picker lists the phone's photos), or the browser's file
+chooser. The app sees only that file and asks for no permission.
 It goes as a JPEG of at most 1600 px on its longer side and 1 MB: a JPEG
 that already fits goes as it is; on a phone anything else is shown on the
 sheet and taken from there with react-native-view-shot, and the web draws
@@ -6614,13 +6614,14 @@ it on a canvas. It waits beside the report like the screenshot
 read through `diag.feedback_picture()` (migration
 `20261030173000_feedback_picture.sql`; `feedback_submit` gains
 `p_picture`, sent only when there is one). No store build: nothing native
-changes, so phones get it with an update. Opening an iPhone's Photos app
-directly needs a native picker and a store build; it comes with videos.
-Stores: this is the person's own photo, not a picture of the app, so the
-Apple answer above changes: App Privacy needs Photos or Videos (User
-Content, linked to the person, App Functionality, no tracking), added in
-App Store Connect when this is merged (it ships as an update). Google Play: Photos is already
-declared (optional, App functionality); no answer changes.
+changes, so phones get it with an update. Stores: no change may force a
+new store declaration, so the answers stay as they are. Google Play
+already declares Photos (optional, App functionality), so Android offers
+the picture. On an iPhone this is the person's own photo, not a picture of
+the app, so Apple's App Privacy would need Photos or Videos (User
+Content); iPhones do not offer Add a picture (`canChoosePicture`) until
+Caleb decides to add that answer. Videos, and an iPhone picker that opens
+the Photos app, need a store build and come later.
 
 ## 146. New language shows its six steps first, asks for reference material before the review flow, sets its checks up on their own pages, and its invite can put people on checks
 

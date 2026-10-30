@@ -7,6 +7,9 @@ import type { View } from 'react-native';
 import { PICTURE_QUALITIES, pictureFits, pictureSize } from './feedbackModel';
 import type { ChosenPicture } from './pictureFile';
 
+/** The web is in no store, so it always offers Add a picture. */
+export const canChoosePicture = true;
+
 export function choosePicture(): Promise<ChosenPicture | null> {
   return new Promise((resolve, reject) => {
     const input = document.createElement('input');
