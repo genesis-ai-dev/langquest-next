@@ -7,7 +7,7 @@ import { templateBooks, type NumberingClash, type TemplateDoc, type Versificatio
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
-import { bookNameOf } from '../templates/contentTemplatesModel';
+import { bookNameOf, choiceName } from '../templates/contentTemplatesModel';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
@@ -69,14 +69,14 @@ export function WayCard(props: {
     row.inUse ? t('breakup.way.inUse') : usedLine(row.usedIn),
     doc ? (props.oneBook ? '' : countLine(doc, props.v11n)) : t('common.loading')
   ].filter(Boolean);
-  const preview = useHelpSpot(t('common.preview'), t('breakup.way.previewHelp', { way: row.choice.name }), props.onPreview);
+  const preview = useHelpSpot(t('common.preview'), t('breakup.way.previewHelp', { way: choiceName(row.choice) }), props.onPreview);
   const goes = doc?.format === 'template@2' ? doc.goesWith?.pattern : undefined;
   // Picking it, and what its bar of pieces means (rule 3), where the bar shows a book cut up.
   const barBook = row.later && !props.oneBook ? null : props.oneBook ?? SAMPLE_BOOK;
   const help = [t('breakup.way.pickHelp'),
     barBook && doc && piecesOf(doc, barBook, props.v11n).length > 0 ? t('breakup.way.barHelp', { book: bookNameOf(barBook) }) : null].filter(Boolean).join(' ');
   return (
-    <ChoiceCard on={props.on} icon={row.later ? 'clock' : 'book'} title={row.choice.name} sub={lines.join(' · ')} onPress={props.onPress} help={help}>
+    <ChoiceCard on={props.on} icon={row.later ? 'clock' : 'book'} title={choiceName(row.choice)} sub={lines.join(' · ')} onPress={props.onPress} help={help}>
       <View style={styles.indent}>
         {goes ? (
           <View style={styles.goes}>
@@ -86,9 +86,10 @@ export function WayCard(props: {
         ) : null}
         {row.later && !props.oneBook ? null : <PieceBar doc={doc} v11n={props.v11n} book={props.oneBook ?? SAMPLE_BOOK} />}
         {row.later ? null : (
-          <Pressable onPress={preview.onPress} accessibilityRole="button" accessibilityLabel={t('breakup.way.previewLabel', { way: row.choice.name })} style={({ pressed }) => [styles.peek, pressed && { opacity: 0.6 }]}>
+          <Pressable onPress={preview.onPress} accessibilityRole="button" accessibilityLabel={t('breakup.way.previewLabel', { way: choiceName(row.choice) })} style={({ pressed }) => [styles.peek, pressed && { opacity: 0.6 }]}>
             <Ico name="search" size={16} color={C.primary} />
-            <Text style={[txt.sm, { color: C.primary, fontWeight: '700' }]}>{t('common.preview')}</Text>
+            {/* The words get the row's width, not just what they measured: Android cut "पहले देखें" to "पहले" (decision 139). */}
+            <Text style={[txt.sm, styles.peekLabel]}>{t('common.preview')}</Text>
             <HelpBadge spot={preview} />
           </Pressable>
         )}
@@ -334,7 +335,8 @@ const styles = StyleSheet.create({
   piece: { backgroundColor: C.primary, opacity: 0.85, borderRadius: 3, minWidth: 1, flexBasis: 0, flexShrink: 1 },
   waitBar: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.faint, borderRadius: radius.sm, paddingHorizontal: space.sm, paddingVertical: space.xs },
   goes: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  peek: { flexDirection: 'row', alignItems: 'center', gap: space.xs, alignSelf: 'flex-start', minHeight: 32 },
+  peek: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 32 },
+  peekLabel: { color: C.primary, fontWeight: '700', flexGrow: 1, flexShrink: 1 },
   list: { backgroundColor: C.card, borderRadius: radius.lg, borderWidth: 1, borderColor: C.border },
   listRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.md, paddingVertical: space.sm, borderBottomWidth: 1, borderBottomColor: C.border, minHeight: 44 },
   num: { width: 26, height: 26, borderRadius: 13, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },

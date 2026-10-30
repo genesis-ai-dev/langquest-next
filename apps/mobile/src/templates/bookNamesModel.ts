@@ -5,6 +5,7 @@
 // (`v1.BookNamesSelected`). Pure, so it is tested.
 import type { LanguageState, LibraryDoc, LibraryItemView, NamesDoc } from '@langquest-next/core';
 import type { SharedItem } from '../library/model';
+import { itemName, NO_LABELS, sharedName, type Labels } from '../library/labelsModel';
 import { sameLanguage } from '../reference/languages';
 
 /** A set of book names someone here can pick: this organization's own (or one it follows), or another's it shares. */
@@ -22,16 +23,20 @@ export interface NameSet {
 
 const isNames = (doc: LibraryDoc | null | undefined): doc is NamesDoc => doc?.format === 'names@1';
 
-/** Every set there is: the organization's own first, then what others share, each once its document has arrived. */
+/**
+ * Every set there is: the organization's own first, then what others share, each once its document has arrived,
+ * named as the language showing calls them (decision 195).
+ */
 export function nameSets(
   own: readonly { it: LibraryItemView; doc: LibraryDoc | null | undefined }[],
-  others: readonly { s: SharedItem; doc: LibraryDoc | null | undefined }[]
+  others: readonly { s: SharedItem; doc: LibraryDoc | null | undefined }[],
+  labels: Labels = NO_LABELS
 ): NameSet[] {
   const mine = own.flatMap(({ it, doc }) => (it.current && isNames(doc) ? [{
-    key: it.itemId, itemId: it.itemId, shared: null, name: it.name, from: it.subscription?.sourceOrgName ?? null, docHash: it.current, doc
+    key: it.itemId, itemId: it.itemId, shared: null, name: itemName(labels, it), from: it.subscription?.sourceOrgName ?? null, docHash: it.current, doc
   }] : []));
   const theirs = others.flatMap(({ s, doc }) => (isNames(doc) ? [{
-    key: `${s.org_id}/${s.item_id}`, itemId: null, shared: s, name: s.name, from: s.org_name, docHash: s.latest_hash, doc
+    key: `${s.org_id}/${s.item_id}`, itemId: null, shared: s, name: sharedName(labels, s), from: s.org_name, docHash: s.latest_hash, doc
   }] : []));
   return [...mine, ...theirs];
 }

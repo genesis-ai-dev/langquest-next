@@ -19,6 +19,7 @@ import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
+import { choiceName } from '../templates/contentTemplatesModel';
 import { formatDayTime, formatNumber } from '../i18n/format';
 import { Field, Group, Header, Ico, LinkBtn, PrimaryBtn, QuietLinks, Row, Screen, Sheet, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
@@ -298,8 +299,8 @@ export function DivideOwnWay(props: {
             const fromStarts = startsOfWay(ways.docOf(r.choice), book, props.v11n);
             return (
               <HelpRow key={r.choice.key} of="breakup.fromWay">
-                <Row icon="book" label={r.choice.name} sub={t('breakup.own.sections', { count: fromStarts.size })} last={i === offered.length - 1}
-                  help={t('breakup.own.fromRowHelp')} onPress={() => { setPanel(null); replace(fromStarts, t('breakup.own.startedFrom', { book: bookName, way: r.choice.name })); }} />
+                <Row icon="book" label={choiceName(r.choice)} sub={t('breakup.own.sections', { count: fromStarts.size })} last={i === offered.length - 1}
+                  help={t('breakup.own.fromRowHelp')} onPress={() => { setPanel(null); replace(fromStarts, t('breakup.own.startedFrom', { book: bookName, way: choiceName(r.choice) })); }} />
               </HelpRow>
             );
           })}

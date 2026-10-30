@@ -9,6 +9,7 @@ import { useMemo } from 'react';
 import { libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplatesModel';
 import type { Ctx } from '../shell/ctx';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
+import { useLabels } from '../library/useLabels';
 import { STARTER_FLOW } from '../org/orgAdmin';
 import { flowTitle, recordKind, type RecordKind } from './adminModel';
 import { inLanguages } from '../reference/languages';
@@ -22,7 +23,8 @@ export function useRecordChoices(ctx: Ctx, inUseItemId: string | null | undefine
   const libItems = lib.items;
   const library = ctx.org.state?.library;
   const shared = useSharedItems('template', lib.orgId);
-  const choices = useMemo(() => libraryChoices(library ?? {}, libItems('template'), shared.rows, STARTER_TEMPLATE.name), [library, libItems, shared.rows]);
+  const labels = useLabels();
+  const choices = useMemo(() => libraryChoices(library ?? {}, libItems('template'), shared.rows, STARTER_TEMPLATE.name, labels), [library, libItems, shared.rows, labels]);
   const docs = useLibraryDocs(lib.orgId, [...choices.map((c) => c.hash), ...extraHashes]);
   const current = choices.find((c) => c.source === 'ours' && c.item.itemId === inUseItemId) ?? null;
   const kindOf = (c: LibraryChoice | null | undefined): RecordKind | null => (c ? recordKind(docs.get<TemplateDoc>(c.hash)) : null);
@@ -51,7 +53,8 @@ export function useCheckChoices(ctx: Ctx, inUseItemId: string | null | undefined
   const libItems = lib.items;
   const library = ctx.org.state?.library;
   const shared = useSharedItems('flow', lib.orgId);
-  const choices = useMemo(() => libraryChoices(library ?? {}, libItems('flow'), shared.rows, STARTER_FLOW.name), [library, libItems, shared.rows]);
+  const labels = useLabels();
+  const choices = useMemo(() => libraryChoices(library ?? {}, libItems('flow'), shared.rows, STARTER_FLOW.name, labels), [library, libItems, shared.rows, labels]);
   const docs = useLibraryDocs(lib.orgId, choices.map((c) => c.hash));
   const current = choices.find((c) => c.source === 'ours' && c.item.itemId === inUseItemId) ?? null;
   const entries = choices.map((c) => ({ c, doc: docs.get<FlowDoc>(c.hash) })).filter((e): e is FlowEntry => !!e.doc)
