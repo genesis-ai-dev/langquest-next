@@ -58,6 +58,7 @@ without contradicting PLAN.md.
 | `property-based-testing` | trailofbits/skills | CC BY-SA 4.0 | Property catalogue (idempotence, commutativity, invariants) matching the reducer tests. |
 | `security-review` | getsentry/skills | CC BY-SA 4.0 (folder LICENSE) | High-confidence security review derived from the OWASP Cheat Sheet Series. |
 | `supabase`, `supabase-postgres-best-practices` | supabase/agent-skills | MIT | Installed before this review; official. |
+| `scenario-kinetic-film` | Anthropic Explorations (zip, 2026-10-30) | not stated; bundled fonts (Archivo, Instrument Sans, JetBrains Mono) are OFL | Kinetic-typography launch films built as code: a spec of scene blocks on a beat grid, rendered with Playwright and ffmpeg, checked frame by frame for dynamism. Music, sound kit and key art come from Scenario MCP. Not from a GitHub source, so it is not in `skills-lock.json`; it is copied into `.agents/skills/` as shipped. Shared with the Aquilla repo so both products use one promo method. Needs Node with Playwright, ffmpeg, Python 3 with `numpy` and `opencv-python-headless`. |
 
 ### Attribution
 

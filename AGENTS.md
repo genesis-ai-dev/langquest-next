@@ -206,6 +206,10 @@ Project skills, written for this app (use these first):
 - `infrastructure-as-code`: hosted settings, secrets and env files live in the repo, never only in a dashboard.
 - `tutorial-review`: the nightly look at the tutorial videos' comments, changes and notes, and what to suggest.
 
+Third-party skill for promo films:
+
+- `scenario-kinetic-film`: a launch film or teaser in kinetic typography, built as code and rendered to video; music, sound effects and pictures come from Scenario MCP. Use it for LangQuest promo videos.
+
 Third-party skills, by task:
 
 - Design and structure: `codebase-design`, `domain-modeling`,
