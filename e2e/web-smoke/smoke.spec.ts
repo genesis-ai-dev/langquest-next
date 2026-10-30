@@ -241,3 +241,26 @@ test('storage that will not open shows one code that stays', async ({ page }) =>
   expect(await code.innerText()).toBe(first);
   expect(reports).toHaveLength(1);
 });
+
+// A reload can open before the browser has let go of the page before's files
+// (seen on CI's Chromium under load): that first failed open reloads once
+// and opens, rather than showing the storage screen.
+test('a first open that finds the files still held reloads once and opens', async ({ page }) => {
+  const reports: string[] = [];
+  page.on('console', (m) => { if (m.text().includes('] open storage:')) reports.push(m.text()); });
+  // The first page's SQLite worker refuses every open, as one finding the files still held does; the reloaded page's opens.
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('smoke-held')) return;
+    sessionStorage.setItem('smoke-held', '1');
+    class Held extends EventTarget {
+      postMessage(m: { id: number }) {
+        setTimeout(() => this.dispatchEvent(new MessageEvent('message', { data: { id: m.id, error: 'NoModificationAllowedError: Access Handles cannot be created if there is another open Access Handle' } })));
+      }
+      terminate() {}
+    }
+    (window as unknown as { Worker: unknown }).Worker = Held;
+  });
+  await start(page);
+  await expect(page.getByText(/^Code for your team: /)).toHaveCount(0);
+  expect(reports).toEqual([]);
+});
