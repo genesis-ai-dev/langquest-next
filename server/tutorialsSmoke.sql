@@ -399,4 +399,29 @@ do $$ begin
 end $$;
 reset role;
 
+-- A tick from before the films were wide puts nothing up (migration *_tutorial_old_ticks.sql, decisions.md 192
+-- amended): the job skips it, the dashboard shows it as not chosen, and Publish can choose it again.
+set local role service_role;
+select public.ops_tutorial_made('give-each-part-its-verse', 'es', repeat('6', 64), 'Versículos', 'Cada parte, su versículo.', 'Traductores', 9, 40, 4000000);
+select public.ops_tutorials_approve(jsonb_build_array(jsonb_build_array('give-each-part-its-verse', 'es', repeat('6', 64))), '0d000000-0000-0000-0000-0000000000aa');
+reset role;
+update ops.tutorial_videos set chosen_at = timestamptz '2026-10-29 04:15:00+00' where sha256 = repeat('6', 64);
+set local role service_role;
+do $$ declare v jsonb; begin
+  v := public.ops_tutorials_due(500);
+  assert not exists (select 1 from jsonb_array_elements(v) x where x->>'sha256' = repeat('6', 64)), 'an old tick goes nowhere: %', v;
+  assert public.ops_tutorials_approve(jsonb_build_array(jsonb_build_array('give-each-part-its-verse', 'es', repeat('6', 64))),
+    '0d000000-0000-0000-0000-0000000000aa') = 1, 'Publish chooses it again';
+  v := public.ops_tutorials_due(500);
+  assert exists (select 1 from jsonb_array_elements(v) x where x->>'sha256' = repeat('6', 64)), 'chosen again, it goes up: %', v;
+end $$;
+reset role;
+update ops.tutorial_videos set chosen_at = timestamptz '2026-10-29 04:15:00+00' where sha256 = repeat('6', 64);
+set local role diag_reader;
+do $$ declare w jsonb; begin
+  select x into w from jsonb_array_elements(diag.ops_tutorials()->'waiting') x where x->>'sha256' = repeat('6', 64);
+  assert w is not null and w->'chosenAt' = 'null'::jsonb, 'the dashboard shows an old tick as not chosen: %', w;
+end $$;
+reset role;
+
 rollback;
