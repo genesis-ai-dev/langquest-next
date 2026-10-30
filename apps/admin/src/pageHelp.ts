@@ -21,7 +21,7 @@ export const GROUP_HELP: Record<string, string> = {
   support: 'Work waiting on LangQuest staff: content reports (the Terms promise action within 24 hours), suspensions, deletions, feedback from the help button, and what was done from this page.',
   access: 'Who can see every organization (Global Viewers), limits that refused requests, other apps connected through tokens, device sign-ins, webhooks and review links, and what stops working on a date.',
   stores: 'How the app does in the stores: Android crash and freeze rates as Google Play measures them, App Store review state and builds, and recent reviews.',
-  tutorials: 'The how-to videos on YouTube, one channel for each app language: where tonight\'s filming is, which channels are connected, the videos made and not up yet (Watch one before choosing it), Publish, which puts the chosen ones up, 100 a day, and what Claude suggests each night from the comments, the code changes and the team\'s notes, to accept, edit or reject.'
+  tutorials: 'The how-to videos on YouTube, one channel for each app language: where tonight\'s filming is, which channels are connected, the videos made and not up yet (each wide one is chosen as it comes in and goes up at once), Publish, which puts up the ones ticked, 100 a day, and what Claude suggests each night from the comments, the code changes and the team\'s notes, to accept, edit or reject.'
 };
 
 /** Each part of a section (one source's answer), on its sub-heading. */
@@ -54,7 +54,7 @@ export const SECTION_HELP: Record<string, string> = {
   appstore: 'iOS versions in review, builds Apple processed, TestFlight crash reports, and recent reviews.',
   v2: 'The import from LangQuest v2: each v2 project\'s latest transfer, and whether it finished, stopped part way or failed.',
   lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
-  filming: 'Where the filming is: the run of tutorials.yml on GitHub filming now, or the latest. It starts at 20:10 UTC each night and when a change to the videos is merged into main; five languages film at once, each trying every video and filming only those that changed. Log opens a language\'s job on GitHub. New films show under Not on YouTube yet after the 23:10 UTC intake.',
+  filming: 'Where the filming is: the run of tutorials.yml on GitHub filming now, or the latest. It starts at 20:10 UTC each night and when a change to the videos is merged into main; five languages film at once, each trying every video and filming only those that changed. Log opens a language\'s job on GitHub. As each language finishes, its new films come in, and the wide ones go up on YouTube at once.',
   tutorials: 'Each app language\'s YouTube channel and whether LangQuest may post to it, and every video made that is not on YouTube yet: ready to choose, or chosen and waiting for its turn.',
   videofeedback: 'What came in about the videos (comments on YouTube, code changes merged into main, notes left here) and what Claude suggests doing about it each night: a change to a video\'s script, screens or voice, to the app\'s code, or a new video. Accept, edit or reject each; an accepted code change goes to Linear. Reply to comments in YouTube Studio.'
 };
@@ -208,8 +208,8 @@ export const HELP: Record<string, string> = {
   'languages waiting': 'App languages waiting their turn: five film at once.',
   'languages failed': 'App languages whose job failed. Open its Log; a failure only a person can fix also shows under Needs attention.',
   'channels connected': 'Channels LangQuest may post to: someone pressed Connect and chose that channel on Google\'s page.',
-  'ready to publish': 'Videos made (new, or changed since the one on YouTube) that nobody has chosen yet. Watch them, then Publish.',
-  'chosen, going up': 'Videos chosen with Publish that are not up yet. YouTube takes 100 a day for all channels together; the rest go up on a later day at 23:40 UTC.',
+  'ready to publish': 'Videos made that are not chosen yet: a tall one from before the videos were wide, whose new wide film did not work, which would go up as a Short. Wait for the next filming, or Watch it, then Publish.',
+  'chosen, going up': 'Videos chosen, as they came in or with Publish, that are not up yet. YouTube takes 100 a day for all channels together; the rest go up after midnight in California, when YouTube\'s day begins.',
   'videos on YouTube': 'Videos up on all channels together, each counted once however many versions it has had.',
   Channels: 'Each app language\'s channel. Connect again when its videos fail with a sign-in code such as youtube_invalid_grant.',
   'Not on YouTube yet': 'Each video\'s newest version that is not up. A new version of one already up replaces it: it takes its place in the playlist, and the old one is unlisted with a link to the new.',

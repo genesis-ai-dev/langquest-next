@@ -43,6 +43,12 @@ export const JOBS = {
 
 export type JobKey = keyof typeof JOBS;
 
+/**
+ * The job a run's end starts (decisions.md 192): the films an intake took in
+ * go up at once, not at the next scheduled time.
+ */
+export const AFTER: Partial<Record<JobKey, JobKey>> = { 'tutorial-intake': 'tutorial-publish' };
+
 export const isJobKey = (name: string | undefined): name is JobKey => !!name && Object.hasOwn(JOBS, name);
 
 /** The Worker's cron that starts jobs (wrangler.jsonc triggers): every five minutes. */
@@ -54,11 +60,12 @@ export const JOB_TICK = '*/5 * * * *';
  * (the workflow's 03:17, on the nearest tick); the fold canary at 04:05 UTC
  * and the R2 reconciliation at 04:35, after the import's whole read and
  * apart from each other so a night never runs three heavy jobs at once. The
- * tutorial jobs run in the hour when the fewest people on earth are at work
- * (23:00 to 00:00 UTC, decision 183 amended): the films the nightly filming
- * made (on GitHub from 20:10 UTC) come in at 23:10, and the videos still
- * waiting from a Publish go on at 23:40, on YouTube's allowance for that
- * Pacific day; the day's comments on the videos are read at 23:50 (186).
+ * tutorial jobs (decision 192): the filming starts the intake itself when its
+ * films are in (tutorialFilmed.ts), and the publish follows each intake
+ * (AFTER). One more intake at five past midnight in California, when
+ * YouTube's day of uploads and units begins, takes in what the filming could
+ * not say, and the publish after it puts up what the day before had no room
+ * for. The day's comments on the videos are read at 23:50 UTC (186).
  */
 export function jobsDue(scheduledTime: number): { key: JobKey; all?: true }[] {
   const t = new Date(scheduledTime);
@@ -67,11 +74,14 @@ export function jobsDue(scheduledTime: number): { key: JobKey; all?: true }[] {
   if (minute % 15 === 0) due.push(t.getUTCHours() === 3 && minute === 15 ? { key: 'v2-import', all: true } : { key: 'v2-import' });
   if (t.getUTCHours() === 4 && minute === 5) due.push({ key: 'fold-canary' });
   if (t.getUTCHours() === 4 && minute === 35) due.push({ key: 'blob-reconcile' });
-  if (t.getUTCHours() === 23 && minute === 10) due.push({ key: 'tutorial-intake' });
-  if (t.getUTCHours() === 23 && minute === 40) due.push({ key: 'tutorial-publish' });
+  if (pacificHour(t) === 0 && minute === 5) due.push({ key: 'tutorial-intake' });
   if (t.getUTCHours() === 23 && minute === 50) due.push({ key: 'tutorial-comments' });
   return due;
 }
+
+/** The hour in California, where YouTube's day begins; its minutes are UTC's. */
+const PACIFIC = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', hourCycle: 'h23' });
+export const pacificHour = (t: Date) => Number(PACIFIC.formatToParts(t).find((p) => p.type === 'hour')!.value);
 
 /**
  * The command for a run of the v2 import: `--all` when a whole read is

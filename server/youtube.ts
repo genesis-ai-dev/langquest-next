@@ -499,8 +499,8 @@ export async function uploadVideo(fetcher: Fetch, token: string, video: NewVideo
   return done.id;
 }
 
-/** The channel's playlist with this title, made when there is none. */
-export async function playlistFor(fetcher: Fetch, token: string, title: string, language: ChannelLanguage): Promise<string> {
+/** The channel's playlist with this title, made when there is none (and `made` is told). */
+export async function playlistFor(fetcher: Fetch, token: string, title: string, language: ChannelLanguage, made?: () => void): Promise<string> {
   let page = '';
   do {
     const got = await answer<{ items?: { id: string; snippet: { title: string } }[]; nextPageToken?: string }>(
@@ -509,11 +509,12 @@ export async function playlistFor(fetcher: Fetch, token: string, title: string, 
     if (found) return found.id;
     page = got.nextPageToken ?? '';
   } while (page);
-  const made = await answer<{ id: string }>(await fetcher(`${API}/playlists?part=snippet,status`, {
+  const playlist = await answer<{ id: string }>(await fetcher(`${API}/playlists?part=snippet,status`, {
     method: 'POST', headers: json(token),
     body: JSON.stringify({ snippet: { title, defaultLanguage: language }, status: { privacyStatus: 'public' } })
   }));
-  return made.id;
+  made?.();
+  return playlist.id;
 }
 
 /**

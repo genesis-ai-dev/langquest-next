@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { filmName, filmProblem, readManifest, takeInFilms, type Film, type IntakeReport } from '../../../server/tutorialIntakeModel';
+import { chosenOnIntake, filmName, filmProblem, readManifest, takeInFilms, type Film, type IntakeReport } from '../../../server/tutorialIntakeModel';
 import type { ChannelLanguage } from '../../../server/youtube';
 
 /** The intake job (server/tutorialIntakeModel.ts) against a release and an R2 kept in memory. */
@@ -116,6 +116,11 @@ describe('a film in a manifest', () => {
     expect(readManifest('es', { language: 'es', films: [good, { ...good, bytes: -1 }] })).toEqual({ films: [good], refused: 1 });
     expect(readManifest('es', { language: 'es' })).toEqual({ films: [], refused: 1 });
     expect(readManifest('es', 'not json')).toEqual({ films: [], refused: 1 });
+  });
+
+  it('is chosen for YouTube as it comes in when it was made wide, and a tall one left from before waits for a person (decision 192)', () => {
+    expect(chosenOnIntake({ ...good, frame: 'wide' })).toBe(true);
+    expect(chosenOnIntake(good)).toBe(false);
   });
 
   it('is named in the release by its language, video and hash, so a newer one never takes an older one\'s name', () => {

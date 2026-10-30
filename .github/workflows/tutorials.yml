@@ -4,11 +4,14 @@
 # the repository's `tutorials` release keeps are filmed again
 # (e2e/tutorials/nightly.ts), against the same local stack and web export as
 # the UI tests. The new films and the language's manifest go into the
-# release, which is public, and the app's job container brings them into R2
-# for the ops dashboard's Publish at 23:10 UTC (server/tutorialIntake.ts).
+# release, which is public, and each language's job then tells the app's
+# Worker they are in (films-in.mjs): its job container brings them into R2,
+# chooses the wide ones for YouTube and puts them up at once (decision 192).
 #
 # This workflow holds the Gemini key, for the voice, and no production key:
-# it writes only to this repository's release (scripts/workflows.test.ts).
+# it writes only to this repository's release, and reaches the app only
+# through the Worker's /api/tutorial-filmed, which lets in this workflow on
+# main by its GitHub OIDC token (scripts/workflows.test.ts).
 # A late or dropped run only leaves the videos as they were a day longer.
 # Each language's job files its failure in Linear, as the guardrails
 # nightly jobs do (scripts/nightly-report.mjs).
@@ -17,9 +20,9 @@ name: tutorials
 on:
   schedule:
     # 20:10 UTC: five languages at a time, each about 50 minutes on a night
-    # without new films, so all fifteen are in the release for the intake at
-    # 23:10, the hour when the fewest people on earth are at work (decision 183,
-    # amended).
+    # without new films, the hour when the fewest people on earth are at work
+    # (decision 183, amended); each language's films go up as soon as they are
+    # in (decision 192).
     - cron: '10 20 * * *'
   # A change to the scripts or to how they are filmed is filmed when it is
   # merged into main, not at the next 20:10.
@@ -35,9 +38,11 @@ on:
         description: Only these videos, by id, separated by spaces, filmed whether or not they look changed (empty for every one that changed)
         default: ''
 
-# The release's files; nothing else.
+# The release's files, and the OIDC token that says to the app's Worker this
+# is the filming; nothing else.
 permissions:
   contents: write
+  id-token: write
 
 # One night at a time: two runs would both put a language's films in the release.
 concurrency:
@@ -63,6 +68,14 @@ jobs:
     steps:
       - id: list
         run: echo "list=$(node -e 'console.log(JSON.stringify((process.env.ASKED || process.env.NIGHTLY_LANGUAGES).split(",").map((l) => l.trim()).filter(Boolean)))')" >> "$GITHUB_OUTPUT"
+      # Films a run before this one put in the release without saying so (one
+      # cut off, or one from before the Worker listened) go up now, not at midnight.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        if: ${{ github.ref == 'refs/heads/main' }}
+        with: { sparse-checkout: e2e/tutorials }
+      - name: Tell LangQuest the films already in the release
+        if: ${{ github.ref == 'refs/heads/main' }}
+        run: node e2e/tutorials/films-in.mjs
       # Made once, before the languages' jobs start together: a pre-release, so it is never the repository's latest.
       - name: The tutorials release
         run: |
@@ -204,8 +217,13 @@ jobs:
         # VIDEOS is split into ids on purpose.
         run: npx tsx e2e/tutorials/nightly.ts --language "$LANGUAGE" --release "$RUNNER_TEMP/release" --out "$RUNNER_TEMP/out" $VIDEOS
       - name: Put the new films in the release
+        id: release
         if: ${{ !cancelled() }}
         run: npx tsx e2e/tutorials/put-in-release.ts "$LANGUAGE" "$RUNNER_TEMP/out"
+      # The intake takes them in and the publish puts them up on YouTube now (decision 192).
+      - name: Tell LangQuest the new films are in
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && steps.release.outputs.films != '' && steps.release.outputs.films != '0' }}
+        run: node e2e/tutorials/films-in.mjs
       # A refusal only a person can fix, for the ops dashboard's Needs attention (needs-you.mjs).
       - name: What needs a person
         if: always()

@@ -3,7 +3,7 @@
 -- out of Vault, records a video and marks one published; diag_reader reads the
 -- dashboard's summary, never a token; the intake that lists the nightly
 -- films is a daily job, as are the read of the videos' comments and Claude's
--- look at them. Run by
+-- look at them, and it chooses the wide ones itself. Run by
 -- `npm run db:test`. Every write rolls back.
 \set ON_ERROR_STOP on
 begin;
@@ -354,6 +354,48 @@ do $$ declare v jsonb; begin
   v := public.ops_youtube_channels();
   assert (select x->>'trailer' from jsonb_array_elements(v) x where x->>'language' = 'es') = 'Tr41l3r_es0', 'Spanish has its trailer: %', v;
   assert (select x->'trailer' from jsonb_array_elements(v) x where x->>'language' = 'en') = 'null'::jsonb, 'English has none: %', v;
+end $$;
+reset role;
+
+-- Films go up as soon as they are filmed (migration *_tutorial_choose_on_intake.sql, decisions.md 192): the
+-- intake chooses a wide film itself, as it lists it or later, with nobody's name; never one already up.
+set local role service_role;
+do $$ declare v jsonb; begin
+  assert public.ops_tutorial_made('find-your-way-around', 'es', repeat('3', 64), 'Ubícate', 'Por dónde ir.', 'Todos', 1, 40, 4000000, true),
+    'a wide film is new';
+  v := public.ops_tutorials_due(10);
+  assert exists (select 1 from jsonb_array_elements(v) x where x->>'tutorial' = 'find-your-way-around'), 'it goes up without a Publish: %', v;
+  -- A tall film, listed by an intake before this one, waits; the next intake that finds it wide chooses it.
+  assert public.ops_tutorial_made('join-your-team', 'es', repeat('4', 64), 'Únete', 'Cómo unirte.', 'Todos', 2, 40, 4000000), 'new';
+  v := public.ops_tutorials_due(10);
+  assert not exists (select 1 from jsonb_array_elements(v) x where x->>'tutorial' = 'join-your-team'), 'a tall film waits for a person: %', v;
+  assert not public.ops_tutorial_made('join-your-team', 'es', repeat('4', 64), 'Únete', 'Cómo unirte.', 'Todos', 2, 40, 4000000, true), 'not new';
+  v := public.ops_tutorials_due(10);
+  assert exists (select 1 from jsonb_array_elements(v) x where x->>'tutorial' = 'join-your-team'), 'chosen when it comes in wide: %', v;
+  perform public.ops_tutorial_published('find-your-way-around', 'es', repeat('3', 64), 'Ub1cat3_es0', null);
+end $$;
+reset role;
+do $$ begin
+  assert (select chosen_at is not null and chosen_by is null from ops.tutorial_videos where sha256 = repeat('3', 64)), 'chosen by the intake, by nobody';
+  begin
+    update ops.tutorial_videos set chosen_at = null, chosen_by = '0d000000-0000-0000-0000-0000000000aa' where sha256 = repeat('4', 64);
+    raise exception 'a chooser without a time was accepted';
+  exception when check_violation then null;
+  end;
+end $$;
+-- One already up is not chosen again.
+update ops.tutorial_videos set chosen_at = null where sha256 = repeat('3', 64);
+set local role service_role;
+select public.ops_tutorial_made('find-your-way-around', 'es', repeat('3', 64), 'Ubícate', 'Por dónde ir.', 'Todos', 1, 40, 4000000, true);
+reset role;
+do $$ begin
+  assert (select chosen_at is null from ops.tutorial_videos where sha256 = repeat('3', 64)), 'one up is not chosen again';
+  begin
+    set local role authenticated;
+    perform public.ops_tutorial_made('join-your-team', 'es', repeat('5', 64), 'Únete', 'x', 'Todos', 2, 40, 1, true);
+    raise exception 'a signed-in person listed a film';
+  exception when insufficient_privilege then null;
+  end;
 end $$;
 reset role;
 

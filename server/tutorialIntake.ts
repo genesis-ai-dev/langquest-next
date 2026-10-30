@@ -1,8 +1,10 @@
 /**
  * The films the nightly filming made on GitHub, brought into R2 and listed
  * on the ops dashboard (docs/tutorial-videos.md): server/tutorialIntakeModel.ts
- * run by the job container each day at 23:10 UTC, after the filming
- * (apps/web/worker/jobsModel.ts; scripts/build-jobs.mjs bundles this file).
+ * run by the job container when the filming says it has new films, and each
+ * day at 00:05 Pacific (apps/web/worker/jobsModel.ts, tutorialFilmed.ts;
+ * scripts/build-jobs.mjs bundles this file). A wide film is chosen for
+ * YouTube as it is listed, and the publish job follows (decisions.md 192).
  * It reads the manifests from the repository's public `tutorials` release,
  * puts each film R2 lacks through the Worker (API_URL) and records a
  * `tutorial_intake` job run: `languages`, `films`, `brought`, `listed` and
@@ -12,7 +14,7 @@
  */
 import { createClient } from '@supabase/supabase-js';
 import { errorClassOf, jobRunSink, noJobRuns } from './jobRuns';
-import { filmName, intakeCode, manifestName, takeInFilms, TUTORIALS_RELEASE, type Film, type IntakeReport } from './tutorialIntakeModel';
+import { chosenOnIntake, filmName, intakeCode, manifestName, takeInFilms, TUTORIALS_RELEASE, type Film, type IntakeReport } from './tutorialIntakeModel';
 
 const url = process.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
 const key = process.env['SUPABASE_SERVICE_ROLE_KEY'];
@@ -66,7 +68,7 @@ try {
     made: async (language, film) => {
       const { data, error: e } = await service.rpc('ops_tutorial_made', {
         p_tutorial: film.tutorial, p_language: language, p_sha256: film.sha256, p_title: film.title, p_description: film.description,
-        p_playlist: film.playlist, p_position: film.position, p_seconds: film.seconds, p_bytes: film.bytes
+        p_playlist: film.playlist, p_position: film.position, p_seconds: film.seconds, p_bytes: film.bytes, p_choose: chosenOnIntake(film)
       });
       if (e) throw Object.assign(new Error(`ops_tutorial_made: ${e.message}`), { name: `made_${e.code ?? 'error'}` });
       return data === true;
