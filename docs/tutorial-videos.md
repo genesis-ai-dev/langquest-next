@@ -171,7 +171,9 @@ Each app language has its own YouTube channel (decision 180). A version filmed
 is kept in R2 by its hash and listed on the ops dashboard's Tutorial videos
 section, chosen to go up as it comes in (decision 192); the publish job
 uploads it. A person's Publish puts up a film the intake does not choose (a
-tall one from before decision 191). Connecting the channels and publishing are in `docs/admin.md`
+tall one from before decision 191); a choice made before the intake chose
+films itself counts as none, so no tall film goes up as a Short unless a
+person chooses it again. Connecting the channels and publishing are in `docs/admin.md`
 ("Tutorial videos on YouTube").
 
 Every video is wide (16:9), never tall (decision 191): YouTube makes a tall

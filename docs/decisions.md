@@ -9383,6 +9383,14 @@ choosing and Publish is the way again), or the publish runs after each
 language spend so much of YouTube's day on looking at the channels that
 videos wait for it.
 
+Amended (2026-10-30, Caleb Koster): a tick from before this went live no
+longer puts a video up (migration `*_tutorial_old_ticks.sql`). Caleb's
+Publish of 2026-10-29 chose tall films; where a video's wide film did not
+come out that night (some Spanish ones), its tall one was still chosen and
+newest, so the publish would have put it up as a Short. Such a choice now
+counts as none: the job skips it, the dashboard lists the video as not
+chosen, and a person's Publish can choose it again. No row is changed.
+
 ## 193. A switch beside the red button boxes the silence between parts too, and leaving the session keeps each silence as a part of its own
 
 Date: 2026-10-30 · By: Caleb Koster · Status: accepted
