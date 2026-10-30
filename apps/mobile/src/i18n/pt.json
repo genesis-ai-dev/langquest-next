@@ -1059,7 +1059,8 @@
         "onHelp": "A equipe de {{language}} vai ter isto. Toque para deixar de fora.",
         "offHelp": "Deixado de fora. Toque para a equipe de {{language}} ter isto.",
         "nothing": "Ainda não há Bíblias nem guias de estudo em {{languages}}"
-      }
+      },
+      "teamLanguages": "Quais idiomas os tradutores de {{language}} usam?"
     },
     "offers": {
       "guides": "os guias de estudo de {{name}}",
@@ -2039,7 +2040,9 @@
       "ownNote": "Cada livro espera até ser dividido. Abra-o pelo mapa ou Meu trabalho, leia-o numa Bíblia e escolha onde começam suas seções, ou comece de uma forma pronta.",
       "outlineHelp": "Escolhe esta estrutura: as pastas e o que gravar nelas.",
       "bibleHelp": "A sua equipe traduz a Bíblia. Depois vem como os versículos são numerados.",
-      "elseHelp": "A sua equipe grava outra coisa, organizada em pastas."
+      "elseHelp": "A sua equipe grava outra coisa, organizada em pastas.",
+      "otherLanguages": "Modelos em outros idiomas",
+      "otherLanguagesDetail": "Mostra os escritos em idiomas que esta equipe não usa."
     },
     "errors": {
       "noTemplate": "Este idioma ainda não tem modelo.",
@@ -7414,7 +7417,20 @@
     "noMatch": "Nenhum idioma com esse nome tem Bíblias ou guias de estudo ainda.",
     "setWords_one": "{{name}} ({{count, number}} palavra)",
     "setWords_many": "{{name}} ({{count, number}} de palavras)",
-    "setWords_other": "{{name}} ({{count, number}} palavras)"
+    "setWords_other": "{{name}} ({{count, number}} palavras)",
+    "bookNames": "Nomes dos livros"
+  },
+  "bookNames": {
+    "title": "Nomes dos livros",
+    "rowHelp": "Como os livros da Bíblia são chamados nas passagens deste idioma. Abre os nomes que ele usa e os outros que existem.",
+    "templates": "Como o modelo de conteúdo os chama",
+    "optionHelp": "Esses nomes aparecem nas passagens deste idioma quando você toca em Usar.",
+    "optionViewHelp": "Quem gerencia o modelo de conteúdo deste idioma pode escolher esses nomes.",
+    "otherLanguages": "Outros idiomas",
+    "use": "Usar {{name}}",
+    "nowUses": "{{language}} agora usa {{name}}.",
+    "newer": "Usar a versão mais nova",
+    "newerHelp": "Mostra os nomes como foram alterados pela última vez."
   },
   "checks": {
     "title": "Verificações",

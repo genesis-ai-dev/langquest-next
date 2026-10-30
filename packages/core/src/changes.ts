@@ -122,6 +122,7 @@ export function touchedBy(state: LanguageState, event: AnyEvent): Touch {
     case 'v1.RecordingAdded':
     case 'v1.StudyStepMarked':
     case 'v1.BookNameSet':
+    case 'v1.BookNamesSelected':
     case 'v1.CheckHelpSet':
     case 'v1.VersionReleased':
     case 'v1.ExternalValueSet':

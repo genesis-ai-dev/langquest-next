@@ -1,7 +1,7 @@
 import type { EventPayloads } from './events';
 import type { EventSpec } from './commands';
 import { unitPrefixOf } from './indexes';
-import { templateBooks, type CollectionDoc, type FlowDoc, type MaterialDoc, type StudyDoc, type TemplateDoc } from './libraryDocs';
+import { templateBooks, type CollectionDoc, type FlowDoc, type MaterialDoc, type NamesDoc, type StudyDoc, type TemplateDoc } from './libraryDocs';
 import { flowStepPrefix } from './record';
 import type { LanguageState } from './state';
 import {
@@ -168,6 +168,18 @@ export function selectTemplateSpecs(
     if (inVersion.has(unitId) && isHidden) specs.push({ id: next(), type: 'v1.UnitHidden', payload: { unitId, hidden: false } } as EventSpec);
   }
   return specs;
+}
+
+/**
+ * Use a version of a library book-names item for a language (decision 193):
+ * one event that carries every name, so nothing that reads the language
+ * needs the document.
+ */
+export function selectBookNamesSpec(c: { commandId: string; itemId: string; docHash: string; doc: NamesDoc }): EventSpec {
+  return {
+    id: `${c.commandId}:0`, type: 'v1.BookNamesSelected',
+    payload: { itemId: c.itemId, docHash: c.docHash, language: c.doc.language, names: Object.fromEntries(c.doc.books.map((b) => [b.book, b.name])) }
+  } as EventSpec;
 }
 
 /** The step prefix of one version of a library flow: `${itemId}~${first 12 of the hash}`. */

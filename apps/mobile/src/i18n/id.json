@@ -1013,7 +1013,8 @@
         "onHelp": "Tim {{language}} akan memilikinya. Ketuk untuk tidak menyertakannya.",
         "offHelp": "Tidak disertakan. Ketuk agar tim {{language}} memilikinya.",
         "nothing": "Belum ada Alkitab atau panduan studi dalam bahasa {{languages}}"
-      }
+      },
+      "teamLanguages": "Bahasa apa saja yang dipakai penerjemah {{language}}?"
     },
     "offers": {
       "guides": "panduan studi {{name}}",
@@ -1913,7 +1914,9 @@
       "ownNote": "Setiap kitab menunggu sampai dibagi. Buka dari peta atau Pekerjaan Saya, baca dalam sebuah Alkitab dan pilih di mana bagian-bagiannya dimulai, atau mulai dari cara yang sudah jadi.",
       "outlineHelp": "Memilih kerangka ini: folder-foldernya dan apa yang direkam di dalamnya.",
       "bibleHelp": "Tim Anda menerjemahkan Alkitab. Berikutnya: cara ayat-ayatnya dinomori.",
-      "elseHelp": "Tim Anda merekam hal lain, disusun dalam folder."
+      "elseHelp": "Tim Anda merekam hal lain, disusun dalam folder.",
+      "otherLanguages": "Templat dalam bahasa lain",
+      "otherLanguagesDetail": "Menampilkan yang ditulis dalam bahasa yang tidak dipakai tim ini."
     },
     "errors": {
       "noTemplate": "Bahasa ini belum punya templat.",
@@ -6818,7 +6821,20 @@
     "rowHelp": "Menambahkan bahasa ini untuk Alkitab dan panduan tim, atau menghapusnya. Barisnya menyebut isinya.",
     "listed": "Hanya bahasa yang punya Alkitab atau panduan belajar yang ditampilkan.",
     "noMatch": "Belum ada bahasa dengan nama itu yang punya Alkitab atau panduan belajar.",
-    "setWords_other": "{{name}} ({{count, number}} kata)"
+    "setWords_other": "{{name}} ({{count, number}} kata)",
+    "bookNames": "Nama kitab"
+  },
+  "bookNames": {
+    "title": "Nama kitab",
+    "rowHelp": "Sebutan kitab-kitab Alkitab di perikop bahasa ini. Membuka nama yang dipakainya dan nama lain yang ada.",
+    "templates": "Seperti yang disebut templat isi",
+    "optionHelp": "Nama-nama ini muncul di perikop bahasa ini setelah Anda mengetuk Pakai.",
+    "optionViewHelp": "Orang yang mengelola templat isi bahasa ini dapat memilih nama-nama ini.",
+    "otherLanguages": "Bahasa lain",
+    "use": "Pakai {{name}}",
+    "nowUses": "{{language}} sekarang memakai {{name}}.",
+    "newer": "Pakai versi yang lebih baru",
+    "newerHelp": "Menampilkan nama seperti terakhir kali diubah."
   },
   "checks": {
     "title": "Pemeriksaan",
