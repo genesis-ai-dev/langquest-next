@@ -246,7 +246,7 @@ Steps:
 6. Manage → Setup → Roles → "Role":
    - Name it "Community Checker".
    - Turn on "Check recordings" only, and save.
-7. Manage → "Invite people": open "Other roles", choose the language, then tap Community Checker's "Invite" (and "Show the code to scan" if it asks which checks).
+7. Manage → "Invite people": open "Other roles", choose the language, then tap Community Checker (its code shows on the same page; tick no checks).
 8. (Decision 91: Review teams are gone.) Manage → Journey Language → "Review flow" → "Edit" (Checks, decision 138): the Standard Bible Flow's checks are the language's own. Until its translators are invited the page is the Get ready checklist, where they show under "Who checks the recordings?" ("In use · your own steps").
 9. Me → More settings → Switch Organization: check that only Journey Org is listed (the account has no other).
 

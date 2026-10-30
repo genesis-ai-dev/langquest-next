@@ -289,6 +289,8 @@ test('SETUP-022 Get a language ready, question by question @p0', async ({ page, 
   await expect(byId(page, 'header-close')).toBeVisible();
   await text(page, 'The Bible').click();
   await primary(page).click();
+  // Why the numbering matters (LAN-193); then what Alpha uses leads the ways to find it.
+  await primary(page).click();
   await text(page, 'Like most English Bibles').click();
   await primary(page).click();
   await text(page, 'FIA passages').click();
@@ -335,6 +337,8 @@ test('SETUP-023 ADMIN My Work leads with "Get ‹language› ready · n of 4"', 
   await text(page, 'Choose').click();
   await expectOnScreen(page, 'Get Mike ready', '1 of 4');
   await text(page, 'The Bible').click();
+  await primary(page).click();
+  // Why the numbering matters (LAN-193); then what Alpha uses leads the ways to find it.
   await primary(page).click();
   await text(page, 'Like most English Bibles').click();
   await primary(page).click();
@@ -489,6 +493,8 @@ test('SETUP-030 What counts as ready', async ({ page }) => {
   // Question 1, then leave at question 2.
   await text(page, 'What will they record?').click();
   await text(page, 'The Bible').click();
+  await primary(page).click();
+  // Why the numbering matters (LAN-193); then what Alpha uses leads the ways to find it.
   await primary(page).click();
   await text(page, 'Like most English Bibles').click();
   await primary(page).click();
@@ -695,7 +701,11 @@ test('SETUP-037 Make a Scripture template', async ({ page }) => {
   await button(page, 'Template').click();
   await expectOnScreen(page, 'What will languages record with it?', 'Scripture', 'Books and chapters of the Bible, divided into passages as teams go.', 'Something else');
   await text(page, 'Scripture').click();
-  // The questions New language asks (decision 107): the Bible translated from, then how it is divided, your own way first.
+  // The questions New language asks (decision 107): why the numbering matters and the ways to find it (LAN-193),
+  // the Bible translated from, then how it is divided, your own way first.
+  await expectOnScreen(page, 'Bibles number verses differently');
+  await primary(page).click();
+  await button(page, /^Pick your Bible/).click();
   await expectOnScreen(page, 'Which Bible do you translate from?', 'Not listed? Answer a few questions');
   await text(page, 'King James Version').click();
   await expectOnScreen(page, 'Like most English Bibles');
@@ -777,6 +787,8 @@ test('SETUP-040 Divide a book that waits, for this language', async ({ page }) =
   await languagePage(page, w, 'Oscar');
   await text(page, 'What will they record?').click();
   await text(page, 'The Bible').click();
+  await primary(page).click();
+  // Why the numbering matters (LAN-193); then what Alpha uses leads the ways to find it.
   await primary(page).click();
   await text(page, 'Like most English Bibles').click();
   await primary(page).click();
