@@ -1,14 +1,15 @@
 /**
  * Which numbering each of Bible Brain's Bibles uses (docs/breaking-up-the-bible.md,
  * "Bibles from Bible Brain"): for every Bible with text, its books and their
- * chapters, then the last verse of about forty chapters where the standard
- * numberings part (scripts/bibleSurvey.ts chooses them). A Bible that every
+ * chapters, then the last verse of about fifty chapters (each testament chosen
+ * alone) where the standard numberings part (scripts/bibleSurvey.ts chooses them). A Bible that every
  * chapter read agrees with one numbering gets that numbering; one that none
  * fits is custom, with the nearest and where it parts from it.
  *
  *   npm run bibles:survey -- [--out <dir>] [--resume <survey.json>] [--only ENGESV,HINOVBSI]
  *                            [--limit <n>] [--rate <calls a second>] [--minutes <n>]
  *   npm run bibles:survey -- --full HINOVBSI [--out <dir>]   every chapter of these Bibles
+ *   npm run bibles:survey -- --write-numberings <survey.json>   the Bibles Find your Bible offers
  *
  * Needs BIBLE_BRAIN_ACCESS_KEY; GitHub runs it with the repository's secret
  * (.github/workflows/bible-survey.yml). The app's reference material uses the
@@ -214,6 +215,58 @@ export async function surveyOne(
   };
 }
 
+/**
+ * A Bible Find your Bible offers from Bible Brain (apps/web/worker/bibleNumberings.ts):
+ * its id, numbering, name, name in its own language ('' when the same or none), ISO 639-3 and language.
+ */
+export type NumberedBible = readonly [bibleId: string, numbering: System, name: string, vname: string, iso: string, language: string];
+
+/** The numbering a New Testament alone cannot tell from the one a tie names (bibleSurvey.ts verdict). */
+const NT_TWIN: Partial<Record<System, System>> = { org: 'lxx', rsc: 'rso' };
+
+/** Where a Bible parts from English numbering as the KJV, ESV, NASB and NKJV do too (decision 198). */
+const ENGLISH_SPLIT = (d: Difference) => (d.at === '2CO 13' && d.saw === 13) || (d.at === 'REV 12' && d.saw === 17);
+
+/**
+ * The numbering Find your Bible gives a surveyed Bible, or null when it
+ * offers none: the one it fits, when no other offered one fits as well
+ * (a Gospel alone fits them all); or English for a Bible that parts from
+ * English only at 2 Corinthians 13 (13 verses) or Revelation 12 (17), as
+ * English Bibles themselves do. The Septuagint is not offered (decision 80).
+ */
+export function numberingFor(b: Surveyed): System | null {
+  if (b.failed) return null;
+  if (b.numbering === 'custom') return b.nearest === 'eng' && b.differences?.length && b.differences.every(ENGLISH_SPLIT) ? 'eng' : null;
+  if (b.numbering === 'lxx') return null;
+  const twin = NT_TWIN[b.numbering];
+  return (b.alsoFits ?? []).some((s) => s !== 'lxx' && s !== twin) ? null : b.numbering;
+}
+
+/** Every Bible Find your Bible offers from a survey, by id. */
+export function numberedBibles(s: Survey): NumberedBible[] {
+  return s.bibles.flatMap((b) => {
+    const numbering = numberingFor(b);
+    if (!numbering) return [];
+    const vname = b.vname && b.vname !== b.name ? b.vname : '';
+    return [[b.bibleId, numbering, b.name, vname, b.iso, b.language] as const];
+  }).sort((a, b) => (a[0] < b[0] ? -1 : 1));
+}
+
+/** apps/web/worker/bibleNumberings.ts, from a survey. */
+export function numberingsModule(s: Survey): string {
+  return [
+    '// The Bibles Find your Bible offers from Bible Brain, each with its numbering',
+    '// (decision 198). Written by `npm run bibles:survey -- --write-numberings',
+    "// <survey.json>` from the bible-survey workflow's artifact (survey of",
+    `// ${s.startedAt.slice(0, 10)}); not edited by hand.`,
+    '// [Bible Brain id, numbering, name, name in its own language, ISO 639-3, language]',
+    'export const NUMBERED_BIBLES: readonly (readonly [string, string, string, string, string, string])[] = [',
+    ...numberedBibles(s).map((b, i, all) => `  ${JSON.stringify(b)}${i < all.length - 1 ? ',' : ''}`),
+    '];',
+    ''
+  ].join('\n');
+}
+
 /** The app's languages (packages/core uiLanguages.ts), by the ISO 639-3 codes Bible Brain files their Bibles under. */
 const APP_LANGUAGES: [string, string[]][] = [
   ['English', ['eng']], ['Spanish', ['spa']], ['Portuguese', ['por']], ['French', ['fra']], ['Arabic', ['arb', 'ara']],
@@ -300,6 +353,14 @@ async function main(argv: string[]) {
     const i = argv.indexOf(`--${name}`);
     return i >= 0 ? argv[i + 1] : undefined;
   };
+  const write = value('write-numberings');
+  if (write) {
+    const into = fileURLToPath(new URL('../apps/web/worker/bibleNumberings.ts', import.meta.url));
+    const survey = JSON.parse(readFileSync(write, 'utf8')) as Survey;
+    writeFileSync(into, numberingsModule(survey));
+    console.log(`${numberedBibles(survey).length} of ${survey.bibles.length} Bibles written to apps/web/worker/bibleNumberings.ts`);
+    return;
+  }
   const key = process.env['BIBLE_BRAIN_ACCESS_KEY'];
   if (!key) throw new Error('BIBLE_BRAIN_ACCESS_KEY is not set');
   const out = value('out') ?? 'bible-survey';

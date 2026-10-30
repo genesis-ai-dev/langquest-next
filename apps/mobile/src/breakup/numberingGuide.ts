@@ -20,6 +20,8 @@ export interface KnownBible {
   checked: boolean;
   /** For a mix: how it differs, in plain words. */
   note?: string;
+  /** A Bible Brain Bible: its language's ISO 639-3 code (`language` then holds Bible Brain's English name for it). */
+  iso?: string;
 }
 
 export interface QuizOption { label: string; /** A big button's face: "23", "Yes". */ tile?: string; next?: string; to?: NumberingCode }

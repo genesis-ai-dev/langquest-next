@@ -1,9 +1,10 @@
 # Which numbering each of Bible Brain's Bibles uses (scripts/bible-survey.ts,
 # docs/breaking-up-the-bible.md "Bibles from Bible Brain"): every Bible with
-# text, its books and chapters, then the last verse of about forty chapters
+# text, its books and chapters, then the last verse of about fifty chapters
 # where the standard numberings part. The result (survey.json, and survey.md
-# to read) is this run's artifact and its summary; a person or Claude turns it
-# into the list New language offers (apps/mobile/src/breakup/numberingBibles.ts).
+# to read) is this run's artifact and its summary; `npm run bibles:survey --
+# --write-numberings survey.json` turns it into the list Find your Bible offers
+# (apps/web/worker/bibleNumberings.ts, decision 198).
 #
 # It runs when the survey itself changes, and by hand (Run workflow), with
 # more arguments if wanted: `--only ENGESV,HINOVBSI`, or `--full HINOVBSI` to

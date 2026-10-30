@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { report, surveyOne, type Survey } from './bible-survey';
+import { numberedBibles, numberingFor, numberingsModule, report, surveyOne, type Survey, type Surveyed } from './bible-survey';
 import { chapterKey, chaptersToRead, expected, fits, lastVerseOf, lastVersesOf, SYSTEMS, verdict, type LastVerses, type System } from './bibleSurvey';
 
 const systems = Object.fromEntries(SYSTEMS.map((s) => [
@@ -113,5 +113,27 @@ describe('the Bible Brain numbering survey', () => {
     expect(text).toContain('| eng | REV 12 17 not 18 | 2 | HINOVB, XYZABC |');
     expect(text).toContain('| eng | 2CO 13 13 not 14, REV 12 17 not 18 | 1 | XYZDEF |');
     expect(text).toContain('- XYZDEF Xyz 2 (Xyz, xyz, partial): nearest eng; REV 12 17 not 18, 2CO 13 13 not 14');
+  });
+  it('gives Find your Bible the numbering each Bible fits alone, or English for an English split (decision 198)', () => {
+    const b = (v: Partial<Surveyed>): Surveyed => ({ bibleId: 'ABCDEF', name: 'Abc', iso: 'abc', language: 'Abc', text: {}, partial: false, books: 66, deuterocanon: false, read: 40, missing: 0, numbering: 'eng', ...v });
+    expect(numberingFor(b({}))).toBe('eng');
+    expect(numberingFor(b({ numbering: 'rsc' }))).toBe('rsc');
+    // A New Testament alone fits its twin as well; any other tie is not told apart.
+    expect(numberingFor(b({ numbering: 'org', alsoFits: ['lxx'] }))).toBe('org');
+    expect(numberingFor(b({ numbering: 'rsc', alsoFits: ['rso'] }))).toBe('rsc');
+    expect(numberingFor(b({ numbering: 'eng', alsoFits: ['org', 'lxx'] }))).toBeNull();
+    // 2 Corinthians 13 at 13 or Revelation 12 at 17, as English Bibles have them, is English; anything else is not.
+    expect(numberingFor(b({ numbering: 'custom', nearest: 'eng', differences: [{ at: 'REV 12', saw: 17, expected: 18 }, { at: '2CO 13', saw: 13, expected: 14 }] }))).toBe('eng');
+    expect(numberingFor(b({ numbering: 'custom', nearest: 'eng', differences: [{ at: 'REV 12', saw: 17, expected: 18 }, { at: 'PSA 3', saw: 9, expected: 8 }] }))).toBeNull();
+    expect(numberingFor(b({ numbering: 'custom', nearest: 'rsc', differences: [{ at: 'REV 12', saw: 17, expected: 18 }] }))).toBeNull();
+    expect(numberingFor(b({ numbering: 'lxx' }))).toBeNull();
+    expect(numberingFor(b({ failed: 'no text' }))).toBeNull();
+
+    const survey: Survey = {
+      startedAt: '2026-10-30T19:00:00Z', done: true, listed: 3, withoutText: 0,
+      bibles: [b({ bibleId: 'THATSV', name: 'Thai Standard', vname: 'ฉบับมาตรฐาน', iso: 'tha', language: 'Thai' }), b({ bibleId: 'ENGKJV', name: 'KJV', vname: 'KJV' }), b({ bibleId: 'ZZZ', numbering: 'lxx' })]
+    };
+    expect(numberedBibles(survey)).toEqual([['ENGKJV', 'eng', 'KJV', '', 'abc', 'Abc'], ['THATSV', 'eng', 'Thai Standard', 'ฉบับมาตรฐาน', 'tha', 'Thai']]);
+    expect(numberingsModule(survey)).toContain('["THATSV","eng","Thai Standard","ฉบับมาตรฐาน","tha","Thai"]\n];');
   });
 });

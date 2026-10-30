@@ -258,9 +258,10 @@ hand, so a survey reads them: `npm run bibles:survey`
 
 For each Bible with text, the survey reads its book list (how many chapters
 each book has: Malachi 3 or 4, Joel 3 or 4) and the last verse of about
-forty chapters (`scripts/bibleSurvey.ts` `chaptersToRead`): first the
-fewest in which any two standard numberings differ at least four times,
-then thirty more spread over the other chapters where numberings part,
+forty chapters of the Old Testament and thirteen of the New, each
+testament planned on its own (`scripts/bibleSurvey.ts` `chaptersToRead`):
+first the fewest in which any two standard numberings differ at least four
+times, then more spread over the other chapters where numberings part,
 since that is where a Bible's own numbering parts from them too. A Bible
 that agrees with one numbering in every chapter read gets it; a New
 Testament alone cannot tell the Hebrew numbering from the Greek, or the
@@ -275,3 +276,14 @@ the same key, so the survey goes at 4 calls a second and waits when Bible
 Brain asks it to; a run stops starting Bibles after five hours and the
 next run carries on. What it finds is the run's artifact (`survey.json`)
 and summary (`survey.md`).
+
+What the survey finds reaches Find your Bible through the Worker:
+`npm run bibles:survey -- --write-numberings survey.json` writes
+`apps/web/worker/bibleNumberings.ts`, the Bibles with a numbering the app
+offers. A Bible that parts from English only at 2 Corinthians 13 (13
+verses, like the NRSV) or Revelation 12 (17, like the KJV and ESV) is
+English. The Worker adds each Bible's numbering to Bible Brain's list for
+a language and finds numbered Bibles by what is typed
+(`/api/bible/numbered?q=`). The page lists the team's languages' Bibles
+first, the app's own before Bible Brain's, and keeps the app's 49 for
+offline.
