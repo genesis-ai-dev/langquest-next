@@ -95,11 +95,15 @@ test('REC-058 Stopped, any box can go, a box stretches over a dropped one, and a
   await expect(part(2)).toHaveCount(0);
   const one = (await part(1).boundingBox())!;
   const three = (await part(3).boundingBox())!;
-  const adds = await byId(page, 'live-add').all();
-  const spots = await Promise.all(adds.map((a) => a.boundingBox()));
-  const between = spots.find((b) => b && b.x > one.x + one.width && b.x + b.width < three.x)!;
-  expect(between, 'a + where part 2 was').toBeTruthy();
-  await page.mouse.click(between.x + between.width / 2, between.y + between.height / 2);
+  // Every + on screen (byId keeps only the last), looked at until the one in the gap is there.
+  let between: { x: number; y: number; width: number; height: number } | null = null;
+  await expect.poll(async () => {
+    const spots = await Promise.all((await page.getByTestId('live-add').locator('visible=true').all()).map((a) => a.boundingBox()));
+    between = spots.find((b) => b && b.x > one.x + one.width && b.x + b.width < three.x) ?? null;
+    return between !== null;
+  }, { message: 'a + where part 2 was' }).toBe(true);
+  const spot = between!;
+  await page.mouse.click(spot.x + spot.width / 2, spot.y + spot.height / 2);
   await expect(part(2)).toBeVisible();
   // Dropped again, part 1's end stretches over its sound, and stops at part 3's edge.
   await tapCorner(page, part(2));
