@@ -618,6 +618,26 @@ test('AUTH-033 A signed-in member joins with "Join as"', async ({ page }) => {
   await expectWelcome(page, { first: 'Nadia', sentence: `You're a Translator on the Alpha team at ${world().orgName}.`, nothingToRemember: false });
 });
 
+test('AUTH-061 Someone in an organization joins another by its code, with their own account', async ({ page }) => {
+  // A fresh account in the test organization alone (LAN-197): signing out to scan made a new account with no email.
+  const sam = await newAccount(world(), 'Sam Second');
+  await redeemAs(sam.sb, (await issueInvite(world(), base())).token);
+  const invite = await issueInvite(world(), base(), { issuer: 'OWNER2', org: 'org2', label: null });
+  await openNew(page, world(), sam);
+  await expectTabs(page, ['work', 'map', 'me']);
+  await tab(page, 'me').click();
+  await text(page, 'More settings').click();
+  await text(page, 'Switch Organization').click();
+  await expect(button(page, /^Find your organization/)).toBeVisible();
+  await button(page, /^Scan their code/).click();
+  await paste(page, PASTE, invite.link);
+  await expect(button(page, 'Join as Sam Second')).toBeVisible();
+  await expect(button(page, 'Join')).toHaveCount(0);
+  await button(page, 'Join as Sam Second').click();
+  await expectWelcome(page, { invitedBy: world().accounts.OWNER2.name, first: 'Sam', sentence: `You're a Translator on ${world().org2Name}.`, nothingToRemember: false });
+  expect(await memberOf(sam.sb)).toEqual(expect.arrayContaining([world().orgId, world().org2Id]));
+});
+
 test('AUTH-034 "Not {me}? Sign out first" keeps the invite for the next person', async ({ page }) => {
   const invite = await issueInvite(world(), base());
   await openFresh(page, world(), 'TRANS', { path: `/invite#org=${invite.orgId}&token=${invite.token}` });

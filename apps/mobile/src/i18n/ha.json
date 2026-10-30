@@ -2983,7 +2983,10 @@
       "scanQrHelp": "Yana buɗe kyamara. Ku nuna ta ga lambar.",
       "pasteHelp": "Ku liƙa lamba ko mahaɗi a nan. Ana karanta shi da zarar ya cika.",
       "clearInviteHelp": "Yana share wannan gayyata daga wannan na'ura.",
-      "notNowHelp": "Yana share wannan gayyata, ya koma aikinku."
+      "notNowHelp": "Yana share wannan gayyata, ya koma aikinku.",
+      "whoJoins": "Wa zai shiga?",
+      "someoneNew": "Sabon mutum",
+      "someoneNewHelp": "Ga wanda bai riga ya kasance a wannan wayar ba: sabon asusu. Sannan, rubuta sunansa."
     },
     "signInKey": {
       "notGuestTitle": "Wannan lambar shiga ce",

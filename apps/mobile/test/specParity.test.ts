@@ -57,6 +57,8 @@ const APP_ONLY: Record<string, string> = {
   'create_account->terms_privacy': 'the terms are one tap away before an account exists, as under Sign In',
   'scan_qr->terms_privacy': 'joining by invite makes an account, so its terms are one tap away there too (decisions.md 59)',
   'org_switcher->create_org': 'someone already in an organization starts another from Switch Organization (the demo only offers it before joining one)',
+  'org_switcher->scan_qr': "someone already in an organization joins another, or another language, by its code with their own account; signing out to scan made a new account with no email (LAN-197)",
+  'org_switcher->request_access': 'someone already in an organization asks to join a listed one with their own account (LAN-197)',
   'settings_home->delete_account': 'app stores require deleting an account from inside the app (decisions.md 46)',
   'intent_chooser->delete_account': 'someone who never joined an organization can delete their account too',
   'delete_account->sign_in': 'a deleted account is signed out',

@@ -2983,7 +2983,10 @@
       "scanQrHelp": "Hufungua kamera. Ielekeze kwenye msimbo.",
       "pasteHelp": "Bandika msimbo au kiungo hapa. Husomwa mara tu kinapokuwa kamili.",
       "clearInviteHelp": "Husahau mwaliko huu kwenye kifaa hiki.",
-      "notNowHelp": "Husahau mwaliko huu na kurudi kwenye kazi yako."
+      "notNowHelp": "Husahau mwaliko huu na kurudi kwenye kazi yako.",
+      "whoJoins": "Nani anajiunga?",
+      "someoneNew": "Mtu mpya",
+      "someoneNewHelp": "Kwa mtu ambaye bado hayupo kwenye simu hii: akaunti mpya. Kisha, andika jina lake."
     },
     "signInKey": {
       "notGuestTitle": "Huu ni msimbo wa kuingia",

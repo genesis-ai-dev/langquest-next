@@ -2889,7 +2889,10 @@
       "scanQrHelp": "打开相机。把它对准代码。",
       "pasteHelp": "在这里粘贴代码或链接。粘贴完整后会立即读取。",
       "clearInviteHelp": "在本设备上清除这个邀请。",
-      "notNowHelp": "清除这个邀请，回到你的工作。"
+      "notNowHelp": "清除这个邀请，回到你的工作。",
+      "whoJoins": "谁要加入？",
+      "someoneNew": "新的人",
+      "someoneNewHelp": "给还不在这部手机上的人：一个新账号。接下来输入他们的名字。"
     },
     "signInKey": {
       "notGuestTitle": "这是一个登录码",

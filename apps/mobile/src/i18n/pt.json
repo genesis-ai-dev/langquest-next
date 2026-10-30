@@ -3077,7 +3077,10 @@
       "scanQrHelp": "Abre a câmera. Aponte para o código.",
       "pasteHelp": "Cole um código ou link aqui. Ele é lido assim que estiver completo.",
       "clearInviteHelp": "Esquece este convite neste aparelho.",
-      "notNowHelp": "Esquece este convite e volta para o seu trabalho."
+      "notNowHelp": "Esquece este convite e volta para o seu trabalho.",
+      "whoJoins": "Quem vai entrar?",
+      "someoneNew": "Outra pessoa",
+      "someoneNewHelp": "Para alguém que ainda não está neste telefone: uma conta nova. Depois, digite o nome da pessoa."
     },
     "signInKey": {
       "notGuestTitle": "Este é um código de acesso",

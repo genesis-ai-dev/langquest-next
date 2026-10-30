@@ -2983,7 +2983,10 @@
       "scanQrHelp": "Opens the camera. Point it at the code.",
       "pasteHelp": "Paste a code or link here. It is read as soon as it is whole.",
       "clearInviteHelp": "Forgets this invite on this device.",
-      "notNowHelp": "Forgets this invite and goes back to your work."
+      "notNowHelp": "Forgets this invite and goes back to your work.",
+      "whoJoins": "Who is joining?",
+      "someoneNew": "Someone new",
+      "someoneNewHelp": "For someone not on this phone yet: a new account. Next, type their name."
     },
     "signInKey": {
       "notGuestTitle": "This is a sign-in code",

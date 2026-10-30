@@ -2889,7 +2889,10 @@
       "scanQrHelp": "Membuka kamera. Arahkan ke kode.",
       "pasteHelp": "Tempelkan kode atau tautan di sini. Kode dibaca begitu lengkap.",
       "clearInviteHelp": "Melupakan undangan ini di perangkat ini.",
-      "notNowHelp": "Melupakan undangan ini dan kembali ke pekerjaan Anda."
+      "notNowHelp": "Melupakan undangan ini dan kembali ke pekerjaan Anda.",
+      "whoJoins": "Siapa yang bergabung?",
+      "someoneNew": "Orang baru",
+      "someoneNewHelp": "Untuk orang yang belum ada di ponsel ini: akun baru. Lalu, ketik namanya."
     },
     "signInKey": {
       "notGuestTitle": "Ini kode masuk",

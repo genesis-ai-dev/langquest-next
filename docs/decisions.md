@@ -8127,6 +8127,18 @@ Reverse if: people forget their pattern more often than they come back with
 it (then offer a helper's code first), or a locked phone is opened by
 someone it does not belong to (then a larger grid, or a server-held key).
 
+Amended (2026-10-30, Caleb Koster): someone with an account could not join
+another organization or language with it by scanning. Signed in, nothing
+led to the scanner, so people signed out to scan, and Scan's Join made a
+new account with no email (LAN-197). Switch Organization now offers "Scan
+their code" and "Find your organization" (the cards of Join your team)
+above New organization, and Scan, joining as the account signed in, adds it
+to that organization too. Signed out on a phone where people signed out
+before, Scan shows their pictures under "Who is joining?": tap yours, draw
+the pattern, and the invite joins that account; "Someone new" makes a new
+one, and "I already have an account" still signs in with a password first.
+Pictures, never names, as above.
+
 ## 169. An account writes at most 20,000 events or 100 MB dated any one day, a person's stream holds each event once, and a language's member reads only their languages' templates
 
 Date: 2026-10-26 · By: Carl Sauder · Status: accepted
