@@ -7,7 +7,8 @@
 #
 # It runs when the survey itself changes, and by hand (Run workflow), with
 # more arguments if wanted: `--only ENGESV,HINOVBSI`, or `--full HINOVBSI` to
-# read every chapter of a Bible that fits no numbering. A whole survey is about
+# read every chapter of a Bible that fits no numbering (or list it in
+# scripts/bible-survey-full.txt, which the full job reads). A whole survey is about
 # 80,000 calls at 4 a second; a run stops starting Bibles after 300 minutes and
 # the next carries on from where it stopped (the cache below). A sample of 40
 # Bibles runs first, so a survey that misreads Bible Brain fails in minutes.
@@ -24,6 +25,7 @@ on:
     paths:
       - scripts/bible-survey.ts
       - scripts/bibleSurvey.ts
+      - scripts/bible-survey-full.txt
       - .github/workflows/bible-survey.yml
   workflow_dispatch:
     inputs:
@@ -114,4 +116,33 @@ jobs:
         with:
           name: bible-survey
           path: bible-survey/
+          if-no-files-found: ignore
+
+  # Every chapter of the Bibles listed in scripts/bible-survey-full.txt, the
+  # ones a new numbering is built from (a whole Bible is about 1,200 calls,
+  # five minutes). Nothing listed, nothing read.
+  full:
+    needs: sample
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Every chapter of the listed Bibles
+        env:
+          BIBLE_BRAIN_ACCESS_KEY: ${{ secrets.BIBLE_BRAIN_ACCESS_KEY }}
+        run: |
+          ids=$(sed 's/#.*//' scripts/bible-survey-full.txt | tr -s '[:space:]' ',' | sed 's/^,//; s/,$//')
+          if [ -z "$ids" ]; then echo "No Bibles listed in scripts/bible-survey-full.txt"; exit 0; fi
+          npx tsx scripts/bible-survey.ts --out bible-full --full "$ids"
+      - name: Summary
+        if: always()
+        run: cat bible-full/*.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: bible-full
+          path: bible-full/
           if-no-files-found: ignore
