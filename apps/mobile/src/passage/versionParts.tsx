@@ -22,6 +22,8 @@ import { cardDurations } from '../recording/workspaceModel';
 import { mmss, partLabel } from '../recording/model';
 import { styles as ps } from '../recording/blockStyles';
 import { useClip } from '../audio/useClip';
+import { usePlayingPart } from '../audio/usePlayingPart';
+import { PlayingFill } from '../recording/playingFill';
 import { VerseTile } from '../recording/verseParts';
 import { type readPartVerses, spanName } from '../recording/verseModel';
 import { C, radius, space, target } from '../ui/theme';
@@ -69,12 +71,15 @@ function PartRow(props: {
 }) {
   const name = partLabel(props.index);
   const clip = useClip(props.ctx.language, [props.hash]);
+  // Lit by the player above as well as by its own button.
+  const heard = usePlayingPart(props.hash, clip);
   const l = props.row.label;
   const said = l ? t(props.row.same ? 'recording.verses.labelSame' : 'recording.verses.label', { part: name, verses: spanName(props.verses, l.s, l.e) }) : name;
-  const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: name }) : t('recording.player.playTitle', { title: said });
-  const play = useHelpSpot(playLabel, t('passage.versions.partHelp'), clip.toggle);
+  const playLabel = heard.playing ? t('recording.recorder.pausePart', { part: name }) : t('recording.player.playTitle', { title: said });
+  const play = useHelpSpot(playLabel, t('passage.versions.partHelp'), heard.toggle);
   return (
     <View style={[styles.row, props.index > 0 && styles.rowBorder]}>
+      {heard.now ? <PlayingFill at={heard.now.at} length={heard.now.length} playing={heard.now.playing} /> : null}
       {props.numbered ? (
         <View style={styles.gutter} accessible={false} importantForAccessibility="no-hide-descendants">
           {l ? <VerseTile verses={props.verses} label={l} same={props.row.same} /> : null}
@@ -82,7 +87,9 @@ function PartRow(props: {
       ) : null}
       <Pressable onPress={play.onPress} disabled={!clip.available} accessibilityRole="button" accessibilityLabel={playLabel}
         style={({ pressed }) => [styles.play, !clip.available && ps.off, pressed && ps.pressed]}>
-        <View style={styles.playDot}><Ico name={clip.playing ? 'pause' : 'play'} size={14} color={C.primary} strokeWidth={2.6} fill={C.primary} /></View>
+        <View style={[styles.playDot, heard.playing && styles.playDotOn]}>
+          <Ico name={heard.playing ? 'pause' : 'play'} size={14} color={heard.playing ? C.white : C.primary} strokeWidth={2.6} fill={heard.playing ? C.white : C.primary} />
+        </View>
         <Text style={[txt.body, { flex: 1, fontWeight: '600', color: C.dark }]} numberOfLines={1}>{name}</Text>
         <Text style={txt.smMuted}>{mmss(props.durationMs)}</Text>
         <HelpBadge spot={play} />
@@ -99,5 +106,7 @@ const styles = StyleSheet.create({
   gutter: { width: 64, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderColor: C.border, paddingVertical: space.xs },
   play: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, minHeight: target.row },
   playDot: { width: 32, height: 32, borderRadius: 16, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
+  // The part playing, whichever player plays it.
+  playDotOn: { backgroundColor: C.primary },
   error: { width: '100%', paddingHorizontal: space.md, paddingBottom: space.sm }
 });

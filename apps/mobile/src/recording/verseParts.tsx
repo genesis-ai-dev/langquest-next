@@ -36,6 +36,8 @@ import { useBars } from '../audio/useBars';
 import { PartNotesMark } from '../passage/PartNotes';
 import { CleanUpMark } from './NoiseMark';
 import { useClip } from '../audio/useClip';
+import { usePlayingPart } from '../audio/usePlayingPart';
+import { PlayingFill } from './playingFill';
 import { inVerseGutter, partIs, spanName, spanShort, VERSE_GUTTER } from './verseModel';
 import { helpBinRow, opensAbove, rowKeys, type RecordTarget, type SlotRow } from './workspaceModel';
 import { partIndexAfter } from './dragModel';
@@ -286,9 +288,10 @@ function PartRow(props: {
 }) {
   const name = props.name;
   const clip = useClip(props.ctx.language, [props.part.hash], { disabled: props.disabled });
+  const heard = usePlayingPart(props.part.hash, clip);
   const bars = useBars(props.ctx.language, props.part.hash);
-  const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: name }) : t('recording.player.playTitle', { title: name });
-  const play = useHelpSpot(playLabel, undefined, clip.toggle);
+  const playLabel = heard.playing ? t('recording.recorder.pausePart', { part: name }) : t('recording.player.playTitle', { title: name });
+  const play = useHelpSpot(playLabel, undefined, heard.toggle);
   const choose = useHelpSpot(t('recording.recorder.recordOver', { part: name }), t('recording.recorder.recordOverHelp'), props.onChoose);
   const l = props.label;
   const verses = l ? spanName(props.verses, l.s, l.e) : null;
@@ -300,6 +303,7 @@ function PartRow(props: {
       {...(props.hint ? { hint: true, onHinted: props.onHinted } : {})} helpBin={props.helpBin}>
     <View style={[styles.row, !props.first && styles.rowBorder, props.fresh && styles.fresh, (props.flash || props.chosen) && { backgroundColor: C.light }, props.editing && styles.editing,
       props.lifted && styles.liftedRow]}>
+      {heard.now ? <PlayingFill at={heard.now.at} length={heard.now.length} playing={heard.now.playing} /> : null}
       <Pressable ref={props.gutterRef} onPress={tap.onPress} onLongPress={tap.id ? undefined : props.onHold} delayLongPress={HOLD_MS}
         disabled={props.disabled} accessibilityRole="button"
         accessibilityLabel={l ? t(l.kind === 'join' ? 'recording.verses.labelSame' : 'recording.verses.label', { part: name, verses }) : t('recording.verses.labelEmpty', { part: name })}
@@ -322,7 +326,9 @@ function PartRow(props: {
       </Pressable>
       <Pressable onPress={play.onPress} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={playLabel}
         style={({ pressed }) => [styles.playTap, (!clip.available || props.disabled) && ps.off, pressed && ps.pressed]}>
-        <View style={styles.playDot}><Ico name={clip.playing ? 'pause' : 'play'} size={16} color={C.primary} strokeWidth={2.6} fill={C.primary} /></View>
+        <View style={[styles.playDot, heard.playing && styles.playDotOn]}>
+          <Ico name={heard.playing ? 'pause' : 'play'} size={16} color={heard.playing ? C.white : C.primary} strokeWidth={2.6} fill={heard.playing ? C.white : C.primary} />
+        </View>
         <HelpBadge spot={play} />
       </Pressable>
       {/* Its bars and length choose it: what is said next replaces it. A screen reader opens its bin from here. */}
@@ -331,7 +337,7 @@ function PartRow(props: {
         accessibilityActions={props.disabled ? [] : [{ name: 'delete', label: t('recording.deleteItem', { item: name }) }]}
         onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'delete') props.onOpen(1); }}
         style={({ pressed }) => [styles.play, pressed && ps.pressed]}>
-        <PartBars bars={bars} progress={clip.playing ? (clip.total > 0 ? clip.elapsed / clip.total : 0) : null} />
+        <PartBars bars={bars} progress={heard.share} />
         <Text style={styles.length}>{mmss(props.part.durationMs)}</Text>
         {props.chosen ? <ChosenMic /> : null}
         <HelpBadge spot={choose} />
@@ -463,6 +469,8 @@ const styles = StyleSheet.create({
   list: { marginLeft: 1, marginBottom: 1 },
   inCard: { marginRight: EDGE + 1 },
   playDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
+  // The part playing, whichever player plays it.
+  playDotOn: { backgroundColor: C.primary },
   gap: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 56, paddingLeft: space.md, paddingRight: space.xs,
     borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: TINT.amber },
   gapBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: target.min, paddingHorizontal: space.md, borderRadius: radius.md, backgroundColor: C.card },

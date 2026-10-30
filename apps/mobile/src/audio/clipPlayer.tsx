@@ -4,7 +4,8 @@
 // passage's cards one after another as one recording, like AudioClip, and
 // shows where in the whole recording it is. A file on this device plays at
 // even loudness (levelStore.ts, decision 182), and on the web through the
-// one element a tap unlocked (recordingPlayer.web.ts).
+// one element a tap unlocked (recordingPlayer.web.ts). It says which part
+// plays and how far into it (nowPlaying.ts), for the parts' rows under it.
 import { isStored, recordedDurationMs } from '@langquest-next/core';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PanResponder, Platform, Pressable, StyleSheet, View, type AccessibilityActionEvent, type LayoutChangeEvent } from 'react-native';
@@ -30,6 +31,7 @@ const SEEK_ONLY = () => undefined;
 import { clock } from './clipTime';
 import { playable, prepare } from './levelStore';
 import { createRecordingPlayer, unlockRecordingPlayer, type RecordingPlayer } from './recordingPlayer';
+import { clearNowPlaying, pauseNowPlaying, tellNowPlaying } from './nowPlaying';
 
 /** Each card's length in seconds, from the recording that holds it (0 when unknown). */
 function cardSeconds(language: LanguageHandle, hashes: string[]): number[] {
@@ -66,6 +68,8 @@ export function ClipPlayer(props: {
   const [at, setAt] = useState(0);
   const [clipLength, setClipLength] = useState(0);
   const [, refresh] = useState(0);
+  /** Who says what plays (nowPlaying.ts): this player, the same object while it is on screen. */
+  const [owner] = useState(() => ({}));
   const player = useRef<RecordingPlayer | null>(null);
   const generation = useRef(0);
   const wants = useRef(false);
@@ -90,6 +94,7 @@ export function ClipPlayer(props: {
     generation.current++;
     wants.current = false;
     player.current?.pause();
+    pauseNowPlaying(owner);
     setPlaying(false);
   };
   useEffect(() => props.language.blobs.store?.onChange(() => refresh((n) => n + 1)), [props.language.blobs.store]);
@@ -108,8 +113,9 @@ export function ClipPlayer(props: {
       wants.current = false;
       player.current?.remove();
       player.current = null;
+      clearNowPlaying(owner);
     };
-  }, [signature]);
+  }, [signature, owner]);
 
   const count = props.uri ? 1 : props.hashes.length;
   const lengths = props.uri ? [clipLength] : cardSeconds(props.language, props.hashes);
@@ -125,7 +131,7 @@ export function ClipPlayer(props: {
     if (!wants.current || generation.current !== run) return;
     player.current?.remove();
     player.current = null;
-    if (i >= count) { wants.current = false; setPlaying(false); setIndex(0); indexRef.current = 0; setAt(0); return; }
+    if (i >= count) { wants.current = false; setPlaying(false); setIndex(0); indexRef.current = 0; setAt(0); clearNowPlaying(owner); return; }
     setIndex(i); indexRef.current = i;
     const language = languageRef.current;
     let uri = props.uri;
@@ -153,22 +159,23 @@ export function ClipPlayer(props: {
       p.addListener('playbackStatusUpdate', (status) => {
         if (player.current !== p) return;
         if (status.error) {
-          wants.current = false; p.remove(); player.current = null; setPlaying(false);
+          wants.current = false; p.remove(); player.current = null; setPlaying(false); clearNowPlaying(owner);
           setError(t('common.audioCouldNotLoad'));
           countAudio(language, 'playFail');
           return;
         }
         // The browser would not start it without a tap: it waits there, for Play to go on from it.
-        if (status.refused) { wants.current = false; setPlaying(false); countAudio(language, 'playFail'); return; }
+        if (status.refused) { wants.current = false; setPlaying(false); tellNowPlaying(owner, hash, { ...status, playing: false }); countAudio(language, 'playFail'); return; }
         if (status.duration > 0) setClipLength(status.duration);
         setAt(status.currentTime);
+        tellNowPlaying(owner, hash, status);
         // On with the run playing now: Play after a pause started a run of its own, and the next part is part of it.
         if (status.didJustFinish && player.current === p) void playFrom(i + 1, 0, generation.current);
       });
       if (from > 0) await p.seekTo(from);
       if (generation.current === run && wants.current) p.play();
     } catch (err) {
-      wants.current = false; player.current?.remove(); player.current = null; setPlaying(false);
+      wants.current = false; player.current?.remove(); player.current = null; setPlaying(false); clearNowPlaying(owner);
       countAudio(language, 'playFail');
       setError(t('common.audioCouldNotPlay', { code: reportError('clip player create', err) }));
     }
