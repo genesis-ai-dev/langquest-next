@@ -87,6 +87,8 @@ describe('the Bible Brain numbering survey', () => {
     expect(Object.keys(s!.bookNames!)).toHaveLength(66);
     expect(calls.filter((c) => c.includes('/HINOVBN_ET/')).length).toBeGreaterThan(0);
     expect(calls.filter((c) => c.includes('/HINOVBO_ET/')).length).toBeGreaterThan(0);
+    // A whole Bible reads the New Testament chapters a New Testament alone would.
+    expect(calls).toEqual(expect.arrayContaining(['/bibles/filesets/HINOVBN_ET/2CO/13', '/bibles/filesets/HINOVBN_ET/REV/12']));
     expect(await surveyOne(get, { abbr: 'XYZAUD', filesets: { 'dbp-prod': [{ id: 'XYZN1DA', type: 'audio', size: 'NT' }] } }, systems, false)).toBeNull();
   });
 

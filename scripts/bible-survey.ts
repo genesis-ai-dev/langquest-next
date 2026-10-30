@@ -56,7 +56,16 @@ export interface Surveyed extends Verdict {
   bookNames?: Record<string, string>;
   /** Why it could not be surveyed. */
   failed?: string;
+  /** How its chapters were chosen (PLAN); missing on the first survey of 2026-10-30. */
+  plan?: number;
 }
+
+/**
+ * 2: each testament planned alone. The first survey planned a whole Bible
+ * as one, which read one New Testament chapter (Romans 16) where a New
+ * Testament alone reads thirteen; --resume surveys those Bibles again.
+ */
+const PLAN = 2;
 
 export interface Survey {
   startedAt: string;
@@ -165,13 +174,16 @@ export async function surveyOne(
     const book = String(b['book_id'] ?? '');
     const chapters = Array.isArray(b['chapters']) ? Math.max(0, ...(b['chapters'] as unknown[]).map(Number).filter(Number.isInteger)) : 0;
     const t = testamentOf(b['testament']);
-    return /^[A-Z0-9]{3}$/.test(book) && chapters > 0 && text[t] ? [{ book, chapters, fileset: text[t]! }] : [];
+    return /^[A-Z0-9]{3}$/.test(book) && chapters > 0 && text[t] ? [{ book, chapters, testament: t, fileset: text[t]! }] : [];
   });
   // A text that lacks a testament's books it lists is partial too.
   const partial = !whole || books.length === 0;
   const plan = full
     ? books.flatMap((b) => Array.from({ length: b.chapters }, (_, i) => ({ book: b.book, chapter: i + 1 })))
-    : chaptersToRead(systems, books);
+    // Each testament is planned alone, so a whole Bible reads the same New
+    // Testament chapters as a New Testament on its own (2 Corinthians 13,
+    // Revelation 12), and the two can be compared.
+    : (['OT', 'NT'] as const).flatMap((t) => chaptersToRead(systems, books.filter((b) => b.testament === t)));
   const filesetOf = new Map(books.map((b) => [b.book, b.fileset]));
   const lastVerse: Record<string, number> = {};
   let missing = 0;
@@ -195,6 +207,7 @@ export async function surveyOne(
     bookNames,
     read: plan.length,
     missing,
+    plan: PLAN,
     ...(full ? {
       lastVerses: Object.fromEntries(books.map((b) => [b.book, Array.from({ length: b.chapters }, (_, i) => lastVerse[chapterKey(b.book, i + 1)] ?? 0)]))
     } : {})
@@ -300,8 +313,9 @@ async function main(argv: string[]) {
   const resume = value('resume');
   const before: Survey | null = resume && existsSync(resume) ? JSON.parse(readFileSync(resume, 'utf8')) as Survey : null;
   const survey: Survey = { startedAt: before?.startedAt ?? new Date().toISOString(), done: false, listed: 0, withoutText: 0, bibles: before?.bibles ?? [] };
-  // A Bible that failed, or was surveyed before book names were kept, is surveyed again.
-  survey.bibles = survey.bibles.filter((b) => !b.failed && b.bookNames);
+  // A Bible that failed, was surveyed before book names were kept, or had both testaments
+  // planned as one (PLAN), is surveyed again.
+  survey.bibles = survey.bibles.filter((b) => !b.failed && b.bookNames && (b.plan === PLAN || !(b.text.OT && b.text.NT)));
   const have = new Set(survey.bibles.map((b) => b.bibleId));
   mkdirSync(out, { recursive: true });
   const save = () => {
