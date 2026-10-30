@@ -26,7 +26,6 @@
 // stops, two fingertips spread over the waveform to show the pinch.
 import { memo, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Animated, Easing, PanResponder, Platform, StyleSheet, View, type AccessibilityActionEvent, type GestureResponderEvent } from 'react-native';
-import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Text } from '../ui/text';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
@@ -35,6 +34,7 @@ import { C, radius, type as T, withAlpha } from '../ui/theme';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audio/audioSession';
 import { cutWav, deleteRecorderFile } from '../audio/wavCut';
 import { playable } from '../audio/levelStore';
+import { createRecordingPlayer, unlockRecordingPlayer, type RecordingPlayer } from '../audio/recordingPlayer';
 import { noteExpected } from '../diagnostics/report';
 import { clampFrames, LIVE_BARS, liveBars, liveBoxes, liveClip, liveGaps, liveHeight, type LiveBar, type LiveBox, type LiveGap, type LiveState } from './livePartsModel';
 import type { RecordingSession } from './recordingSession';
@@ -392,7 +392,7 @@ function useGestures(now: Now, setFrames: (n: number) => void, setLooked: (f: nu
  */
 function useBoxPlayer(editing: boolean) {
   const [at, setAt] = useState<{ key: string; from: number; ms: number } | null>(null);
-  const current = useRef<{ player: AudioPlayer; uri: string } | null>(null);
+  const current = useRef<{ player: RecordingPlayer; uri: string } | null>(null);
   const run = useRef(0);
   const stop = () => {
     run.current++;
@@ -416,6 +416,7 @@ function useBoxPlayer(editing: boolean) {
     const was = at?.key;
     stopAudioPlayback();
     if (was === key) return; // a second tap stops it
+    unlockRecordingPlayer();
     const mine = ++run.current;
     // A phone's chunk is its file; the web's is a blob once written.
     const from = clip.uri ?? (Platform.OS === 'web' ? null : clip.chunk);
@@ -428,13 +429,13 @@ function useBoxPlayer(editing: boolean) {
         const heard = await playable(null, uri);
         if (run.current !== mine) { deleteRecorderFile(uri); return; }
         await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });
-        const player = createAudioPlayer({ uri: heard }, { updateInterval: 50 });
+        const player = createRecordingPlayer(heard, { updateInterval: 50 });
         current.current = { player, uri };
         player.addListener('playbackStatusUpdate', (status) => {
           if (current.current?.player !== player) return;
           // The web's player may stop at the end without saying it just finished.
           const atEnd = status.duration > 0 && status.currentTime >= status.duration - 0.03 && !status.playing;
-          if (status.didJustFinish || status.error || atEnd) { stopRef.current(); return; }
+          if (status.didJustFinish || status.error || status.refused || atEnd) { stopRef.current(); return; }
           setAt({ key, from: clip.from, ms: status.currentTime * 1000 });
         });
         setAt({ key, from: clip.from, ms: 0 });

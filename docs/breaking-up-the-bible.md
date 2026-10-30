@@ -251,7 +251,7 @@ language's unit prefix, so every other part keeps its id and its work.
 
 The Bibles "Which Bible do you translate from?" lists are to be every Bible
 we can reach, Bible Brain's included, each with the numbering it uses
-(Caleb, 2026-10-30; decision 197). Nobody checks two thousand Bibles by
+(Caleb, 2026-10-30; decision 198). Nobody checks two thousand Bibles by
 hand, so a survey reads them: `npm run bibles:survey`
 (`scripts/bible-survey.ts`), run by GitHub with the Bible Brain key
 (`.github/workflows/bible-survey.yml`, Run workflow).
