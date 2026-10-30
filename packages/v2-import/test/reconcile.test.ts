@@ -144,6 +144,20 @@ describe('reconcile', () => {
     expect(again.stamps).toEqual([{ streamId: 'p1', key: 'review:review:q1:rev#2', at: '2025-03-09T00:00:00.000Z' }]);
   });
 
+  it('keeps a stamp two facts share once, the earliest: one upsert may not touch a row twice (decisions.md 188)', () => {
+    // Two recordings that use the same audio file, as v2 lets a team do; each names the file's stamps.
+    const recording = (key: string, uploadedAt: string): Fact => ({
+      ...note(key), key, value: key,
+      stamps: () => ({ 'file:abc': uploadedAt, [`segment:${key}`]: uploadedAt })
+    });
+    const r = reconcile([recording('r1', '2025-03-09T00:00:00.000Z'), recording('r2', '2025-03-02T00:00:00.000Z')], new Map(), ctx);
+    expect(r.stamps).toEqual([
+      { streamId: 'p1', key: 'file:abc', at: '2025-03-02T00:00:00.000Z' },
+      { streamId: 'p1', key: 'segment:r1', at: '2025-03-09T00:00:00.000Z' },
+      { streamId: 'p1', key: 'segment:r2', at: '2025-03-02T00:00:00.000Z' }
+    ]);
+  });
+
   it('refuses a fact said twice in one pass', () => {
     expect(() => reconcile([renamed('a'), renamed('b')], new Map(), ctx)).toThrow(/said twice/);
   });
