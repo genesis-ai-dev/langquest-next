@@ -15,9 +15,11 @@ import { C, TINT } from '../ui/theme';
 import { HelpRow } from '../helpMode/helpBadge';
 import { sourceLine } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
+import { useLabels } from '../library/useLabels';
+import { itemName } from '../library/labelsModel';
 import { PickCard, RadioRow } from '../admin/admin';
 import { languageLabel } from '../admin/adminModel';
-import { bookRows, choiceLine, libraryChoices, partWords, recordedCount, setAsideCount, STARTER_TEMPLATE, templateOf, withWaitingBooks, type LibraryChoice } from './contentTemplatesModel';
+import { bookRows, choiceLine, choiceName, libraryChoices, partWords, recordedCount, setAsideCount, STARTER_TEMPLATE, templateOf, withWaitingBooks, type LibraryChoice } from './contentTemplatesModel';
 import { choiceInUse, languageSummary, languageVersionView, lower, pickerLists, pickerNote } from './model';
 import { usePickTemplate } from './usePickTemplate';
 import { useRunner } from './useRunner';
@@ -32,7 +34,8 @@ export function ContentTemplatePage({ ctx }: { ctx: Ctx }) {
   const libItems = lib.items;
   const library = ctx.org.state?.library;
   const shared = useSharedItems('template', lib.orgId);
-  const choices = useMemo(() => libraryChoices(library ?? {}, libItems('template'), shared.rows, STARTER_TEMPLATE.name), [library, libItems, shared.rows]);
+  const labels = useLabels();
+  const choices = useMemo(() => libraryChoices(library ?? {}, libItems('template'), shared.rows, STARTER_TEMPLATE.name, labels), [library, libItems, shared.rows, labels]);
   const sel = templateOf(state);
   const [picked, setPicked] = useState<string | null>(null);
   const [limit, setLimit] = useState(8);
@@ -76,11 +79,12 @@ export function ContentTemplatePage({ ctx }: { ctx: Ctx }) {
   ];
   // The book names it uses (decision 193): the set's name, else the template's own.
   const namesUsed = state.bookNamesFrom?.value;
-  const bookNamesLine = namesUsed ? lib.item(namesUsed.itemId)?.name ?? languageLabel(namesUsed.language) : t('bookNames.templates');
+  const namesItem = namesUsed ? lib.item(namesUsed.itemId) : null;
+  const bookNamesLine = namesUsed ? (namesItem ? itemName(labels, namesItem) : languageLabel(namesUsed.language)) : t('bookNames.templates');
   const changing = !!pick && !choiceInUse(pick, sel);
   const option = (c: LibraryChoice) => (
     <HelpRow key={c.key} of="getReady.template.option">
-      <RadioRow icon={c.source === 'ours' ? 'template' : 'globe'} label={c.name} sub={choiceLine(c, sourceLine)} on={picked === c.key}
+      <RadioRow icon={c.source === 'ours' ? 'template' : 'globe'} label={choiceName(c)} sub={choiceLine(c, sourceLine)} on={picked === c.key}
         help={canManage ? t('content.picker.cardHelp') : t('getReady.template.optionViewHelp')} onPress={() => { if (canManage) setPicked(picked === c.key ? null : c.key); }} />
     </HelpRow>
   );
@@ -89,7 +93,7 @@ export function ContentTemplatePage({ ctx }: { ctx: Ctx }) {
       footer={changing && pick ? (
         <>
           <Text style={txt.smMuted}>{pickerNote({ hasCurrent: !!sel, recorded: data.recorded, language, currentParts: lower(words.many), pick })}</Text>
-          <PrimaryBtn label={t('content.picker.use', { name: pick.name })} icon="check" busy={busy} disabled={!canManage} onPress={() => void use(pick)} />
+          <PrimaryBtn label={t('content.picker.use', { name: choiceName(pick) })} icon="check" busy={busy} disabled={!canManage} onPress={() => void use(pick)} />
         </>
       ) : undefined}>
       {sel ? (

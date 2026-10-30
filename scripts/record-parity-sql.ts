@@ -225,7 +225,7 @@ const roles: Role[] = ['owner', 'coordinator', 'translator', 'reviewer', 'viewer
 // Events whose privilege depends on the payload: try each value that matters.
 const withKinds = events.flatMap((e): AnyEvent[] => {
   if ((LIBRARY_EVENT_TYPES as readonly string[]).includes(e.type)) {
-    return ['template', 'flow', 'material', 'versification', 'names', 'song'].map((kind) => ({ ...e, payload: { ...e.payload, kind } }) as AnyEvent);
+    return ['template', 'flow', 'material', 'versification', 'names', 'labels', 'song'].map((kind) => ({ ...e, payload: { ...e.payload, kind } }) as AnyEvent);
   }
   if (e.type === 'v1.MaterialDefined') return ['questions', 'tmf'].map((kind) => ({ ...e, payload: { ...e.payload, kind } }) as AnyEvent);
   if (e.type === 'v1.ReviewRecorded') return ['app', 'link', 'logged'].map((via) => ({ ...e, payload: { ...e.payload, via } }) as AnyEvent);

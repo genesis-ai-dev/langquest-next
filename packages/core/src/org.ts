@@ -196,12 +196,14 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
 };
 
 /** The privilege that manages each kind of library item. */
-const LIBRARY_PRIVILEGE: Record<'template' | 'flow' | 'material' | 'versification' | 'names', Privilege> = {
+const LIBRARY_PRIVILEGE: Record<'template' | 'flow' | 'material' | 'versification' | 'names' | 'labels', Privilege> = {
   template: 'manage_templates',
   versification: 'manage_templates',
   names: 'manage_templates',
   flow: 'manage_flows',
-  material: 'manage_reference'
+  material: 'manage_reference',
+  // What the organization's items are called in other languages: every kind's, so whoever runs the organization.
+  labels: 'manage_structure'
 };
 
 /** The privilege one concrete event needs, resolving payload-dependent cases. */
