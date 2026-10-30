@@ -3,7 +3,7 @@ import { vi } from 'vitest';
 const setMode = vi.hoisted(() => vi.fn());
 vi.mock('expo-audio', () => ({ setAudioModeAsync: setMode }));
 import {
-  holdMicrophone, registerPlayback, setSessionAudioMode, stopAudioPlayback
+  holdMicrophone, playerInRow, registerPlayback, setSessionAudioMode, stopAudioPlayback
 } from '../src/audio/audioSession';
 
 describe('source playback and microphone coordination', () => {
@@ -58,5 +58,10 @@ describe('source playback and microphone coordination', () => {
       .rejects.toThrow('interrupted');
     await expect(setSessionAudioMode({ allowsRecording: true }))
       .resolves.toBeUndefined();
+  });
+
+  it('keeps the session active after every recording of Play all but the last, so iOS does not stop the next one as it loads', () => {
+    expect([0, 1, 2].map((i) => playerInRow(i, 3).keepAudioSessionActive ?? false)).toEqual([true, true, false]);
+    expect(playerInRow(0, 1).keepAudioSessionActive ?? false).toBe(false);
   });
 });

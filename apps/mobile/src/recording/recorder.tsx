@@ -47,6 +47,8 @@ import { lift } from '../ui/shadow';
 import { PartMark, RecordBtn } from './blocks';
 import { styles as ps } from './blockStyles';
 import { useClip } from '../audio/useClip';
+import { usePlayingPart } from '../audio/usePlayingPart';
+import { PlayingFill } from './playingFill';
 import { VerseParts } from './verseParts';
 import { SilenceSwitch } from './silenceSwitch';
 import { a11yState } from '../ui/a11yModel';
@@ -124,6 +126,10 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
     <View style={styles.cardBox}>
       <View style={styles.cardFace} pointerEvents="none" />
       <View style={[styles.head, props.open && styles.headOpen]}>
+        {/* How far Play all is through every part; the part playing shows it again in its row. */}
+        {clip.playing || clip.elapsed > 0 ? (
+          <PlayingFill at={clip.elapsed} length={clip.total} playing={clip.playing} style={props.open ? styles.headFillOpen : styles.headFill} />
+        ) : null}
         <PartMark state="done" />
         <Pressable onPress={toggle.onPress} accessibilityRole="button" {...a11yState({ expanded: props.open }, 'button')} accessibilityLabel={t('recording.recorder.groupLabel', { title: props.title, sub: props.sub })}
           style={({ pressed }) => [{ flex: 1, minHeight: target_.min, justifyContent: 'center', paddingLeft: space.xs + 2 }, pressed && ps.pressed]}>
@@ -208,17 +214,21 @@ function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; ch
   open: SwipeSide; onOpen: (side: SwipeSide) => void; hint: boolean; onHinted: () => void; helpBin: boolean }) {
   const label = partLabel(props.n - 1);
   const clip = useClip(props.ctx.language, [props.part.hash], { disabled: props.disabled });
+  const heard = usePlayingPart(props.part.hash, clip);
   const bars = useBars(props.ctx.language, props.part.hash);
-  const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: label }) : t('recording.player.playTitle', { title: label });
-  const play = useHelpSpot(clip.playing ? t('common.pause') : t('recording.player.playTitle', { title: label }), undefined, clip.toggle);
+  const playLabel = heard.playing ? t('recording.recorder.pausePart', { part: label }) : t('recording.player.playTitle', { title: label });
+  const play = useHelpSpot(heard.playing ? t('common.pause') : t('recording.player.playTitle', { title: label }), undefined, heard.toggle);
   const choose = useHelpSpot(t('recording.recorder.recordOver', { part: label }), t('recording.recorder.recordOverHelp'), props.onChoose);
   return (
     <SwipeRow name={label} disabled={props.disabled} open={props.open} onOpen={props.onOpen} onDelete={() => props.onDelete(props.part.hash, label)} last={props.last}
       {...(props.hint ? { hint: true, onHinted: props.onHinted } : {})} helpBin={props.helpBin}>
     <View style={[styles.partRow, !props.first && styles.rowBorder, props.fresh && styles.fresh, props.chosen && styles.chosenRow, props.lifted && styles.liftedRow]}>
+      {heard.now ? <PlayingFill at={heard.now.at} length={heard.now.length} playing={heard.now.playing} /> : null}
       <Pressable onPress={play.onPress} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={playLabel}
         style={({ pressed }) => [styles.playTap, (!clip.available || props.disabled) && ps.off, pressed && ps.pressed]}>
-        <View style={styles.playDot}><Ico name={clip.playing ? 'pause' : 'play'} size={16} color={C.primary} strokeWidth={2.6} fill={C.primary} /></View>
+        <View style={[styles.playDot, heard.playing && styles.playDotOn]}>
+          <Ico name={heard.playing ? 'pause' : 'play'} size={16} color={heard.playing ? C.white : C.primary} strokeWidth={2.6} fill={heard.playing ? C.white : C.primary} />
+        </View>
         <HelpBadge spot={play} />
       </Pressable>
       <Pressable onPress={choose.onPress} disabled={props.disabled} accessibilityRole="button" {...a11yState({ selected: props.chosen }, 'button')}
@@ -226,7 +236,7 @@ function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; ch
         accessibilityActions={props.disabled ? [] : [{ name: 'delete', label: t('recording.deleteItem', { item: label }) }]}
         onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'delete') props.onOpen(1); }}
         style={({ pressed }) => [styles.partPlay, pressed && ps.pressed]}>
-        <PartBars bars={bars} progress={clip.playing ? (clip.total > 0 ? clip.elapsed / clip.total : 0) : null} />
+        <PartBars bars={bars} progress={heard.share} />
         <Text style={styles.length}>{mmss(props.part.durationMs)}</Text>
         {props.chosen ? <ChosenMic /> : null}
         <HelpBadge spot={choose} />
@@ -361,6 +371,9 @@ const styles = StyleSheet.create({
   underCard: { marginRight: EDGE - space.lg },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 56, paddingLeft: space.md, paddingRight: space.xs, marginRight: EDGE },
   // Open, a band under its buttons keeps the first + mark's target clear of them.
+  // Inside the card face's round corners: all four while the parts are hidden, the top two over them.
+  headFill: { borderRadius: radius.lg },
+  headFillOpen: { borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
   headOpen: { paddingTop: space.xs, paddingBottom: EDGE, borderBottomWidth: 1, borderColor: C.border },
   // The rows sit inside the card's border; the list itself reaches past its right edge for the + marks.
   list: { marginLeft: 1, marginBottom: 1 },
@@ -368,6 +381,8 @@ const styles = StyleSheet.create({
   rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   playTap: { paddingLeft: space.sm, paddingRight: space.xs, minWidth: target_.min, minHeight: target_.min, alignItems: 'center', justifyContent: 'center' },
   playDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
+  // The part playing, whichever player plays it.
+  playDotOn: { backgroundColor: C.primary },
   length: { fontSize: T.sm, color: C.muted, fontVariant: ['tabular-nums'] },
   title: { fontSize: T.base, fontWeight: '800', color: C.dark },
   iconTap: { width: target_.min, height: target_.min, alignItems: 'center', justifyContent: 'center' },
