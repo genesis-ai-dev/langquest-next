@@ -45,7 +45,7 @@ export function docLanguage(doc: LibraryDoc | null | undefined): string | null {
   switch (doc.format) {
     case 'source@1': case 'study@1': case 'study@2': return doc.language || null;
     case 'collection@1': case 'material@1': return doc.language || null;
-    case 'flow@1': case 'template@1': case 'template@2': return doc.language || null;
+    case 'flow@1': case 'template@1': case 'template@2': case 'names@1': return doc.language || null;
     default: return null;
   }
 }

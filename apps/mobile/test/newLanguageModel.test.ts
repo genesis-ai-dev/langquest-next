@@ -31,9 +31,12 @@ describe('new language wizard rules', () => {
       .toEqual(fresh.copyFlow({ commandId: 'c', name: 'Quick', kinds: DEFAULT_KINDS, steps }));
   });
   it('goes back one page of a step first, then a step', () => {
-    expect(backTarget(3, { materialPage: 'material', flowPage: 'pick' })).toEqual({ materialPage: 'languages' });
-    expect(backTarget(4, { materialPage: 'languages', flowPage: 'checks' })).toEqual({ flowPage: 'pick' });
-    expect(backTarget(3, { materialPage: 'languages', flowPage: 'pick' })).toEqual({ step: 2 });
+    const at = { languagePage: 'team', materialPage: 'material', flowPage: 'pick' } as const;
+    expect(backTarget(1, at)).toEqual({ languagePage: 'name' });
+    expect(backTarget(2, at)).toEqual({ step: 1 });
+    expect(backTarget(3, { ...at, materialPage: 'languages' })).toEqual({ materialPage: 'material' });
+    expect(backTarget(4, { ...at, flowPage: 'checks' })).toEqual({ flowPage: 'pick' });
+    expect(backTarget(3, at)).toEqual({ step: 2 });
   });
   it('words the toast by how many and what was not offered', () => {
     const base = { count: 2, first: 'Dinka', org: 'O', cluster: 'C' };
