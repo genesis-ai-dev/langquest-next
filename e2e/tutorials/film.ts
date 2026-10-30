@@ -3,8 +3,9 @@
 // from the UI tests' fixture, with the tutorial's made-up names, signed in as
 // the tutorial's person, at phone size. Chrome's screencast keeps every frame
 // with the time it was drawn, and the film notes when each line is said, when
-// the speaker starts speaking and what the app plays aloud, so the video can
-// be put together afterwards with its sound (compose.ts).
+// the speaker starts speaking, what the app plays aloud and what each step
+// lit (where the camera moves in), so the video can be put together
+// afterwards with its sound (compose.ts).
 //
 //   TUTORIAL_TTS="<command> <args>" TUTORIAL_SPEECH=<dir> npx tsx e2e/tutorials/film.ts record-a-passage [out]
 //
@@ -27,6 +28,7 @@ import { installTutorialMic } from './mic';
 import { installPlaybackTap } from './playback';
 import { findInFilmLanguage } from './ui';
 import { WORLD_VOICES } from './voices';
+import type { Focus } from './camera';
 import type { Box, Step } from './tutorial';
 
 // TUTORIAL_LANGUAGE: the app's language for the film (one of apps/mobile/src/i18n), and the voice's.
@@ -89,7 +91,10 @@ function voiceLines(all: string[]): Map<string, { file: string; seconds: number 
 /**
  * Light some elements as one box and dim the rest, as help mode does; null
  * takes the light away. The box follows the elements while they move (a bar
- * that comes and goes over the screen pushes everything down).
+ * that comes and goes over the screen pushes everything down). An element
+ * inside a card that draws its own edge (a lit step's border) is lit with its
+ * card, so the light never cuts through the card's edge and leaves a line of
+ * it dimmed outside (Caleb found one on 2026-10-30).
  */
 function light(els: Node[] | null): void {
   const w = window as unknown as { __lit?: Node[]; __litLoop?: boolean };
@@ -110,8 +115,21 @@ function light(els: Node[] | null): void {
     document.body.appendChild(el);
   }
   const box = el;
+  /** The element's box, or its card's: the nearest boxes around it that draw an edge, each at most 24 points bigger on a side. */
+  const withCard = (e: Element) => {
+    let r = e.getBoundingClientRect();
+    for (let a = e.parentElement; a && a !== document.body; a = a.parentElement) {
+      const o = a.getBoundingClientRect();
+      if (o.left < r.left - 24 || o.top < r.top - 24 || o.right > r.right + 24 || o.bottom > r.bottom + 24) break;
+      const s = getComputedStyle(a);
+      const edge = ['Top', 'Right', 'Bottom', 'Left'].some((side) =>
+        parseFloat(s.getPropertyValue(`border-${side.toLowerCase()}-width`)) > 0 && !/^(transparent|rgba\(.*,\s*0\))$/.test(s.getPropertyValue(`border-${side.toLowerCase()}-color`)));
+      if (edge || s.boxShadow !== 'none') r = o;
+    }
+    return r;
+  };
   const place = () => {
-    const shown = (w.__lit ?? []).filter((e) => e.isConnected).map((e) => (e as Element).getBoundingClientRect()).filter((r) => r.width > 0);
+    const shown = (w.__lit ?? []).filter((e) => e.isConnected).map((e) => withCard(e as Element)).filter((r) => r.width > 0);
     if (shown.length) {
       const pad = 6;
       const x = Math.max(4, Math.min(...shown.map((r) => r.left)) - pad);
@@ -169,24 +187,39 @@ async function handlesOf(parts: Locator | Locator[]): Promise<ElementHandle[]> {
   return Promise.all((Array.isArray(parts) ? parts : [parts]).map(async (p) => {
     await p.waitFor({ state: 'visible', timeout: 30_000 });
     const handle = (await p.elementHandle())!;
-    // A box that hides what overflows is no scroller a finger can move: it stays as it was
-    // (right to left, it would show a part cut off on the left and shift the whole panel).
+    // A box that hides what overflows one way is no scroller a finger can move that way: it stays
+    // as it was that way (right to left, it would show a part cut off on the left and shift the
+    // whole panel). A list that scrolls up and down, and hides what overflows sideways, still
+    // scrolls the part into view, so the light and the camera find it on the screen.
     const held = await handle.evaluateHandle((e) => {
-      const kept: { box: Element; x: number; y: number }[] = [];
+      const kept: { box: Element; x?: number; y?: number }[] = [];
       for (let box = e.parentElement; box; box = box.parentElement) {
         const style = getComputedStyle(box);
-        if (/hidden|clip/.test(style.overflowX + style.overflowY)) kept.push({ box, x: box.scrollLeft, y: box.scrollTop });
+        const x = /hidden|clip/.test(style.overflowX) ? box.scrollLeft : undefined;
+        const y = /hidden|clip/.test(style.overflowY) ? box.scrollTop : undefined;
+        if (x !== undefined || y !== undefined) kept.push({ box, x, y });
       }
       return kept;
     });
     await p.scrollIntoViewIfNeeded();
-    await held.evaluate((kept) => { for (const k of kept) { k.box.scrollLeft = k.x; k.box.scrollTop = k.y; } });
+    await held.evaluate((kept) => {
+      for (const k of kept) {
+        if (k.x !== undefined) k.box.scrollLeft = k.x;
+        if (k.y !== undefined) k.box.scrollTop = k.y;
+      }
+    });
     await held.dispose();
     return handle;
   }));
 }
 
 const centre = (b: Box) => ({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
+
+/** Where the light is on the screen, as it was placed. */
+function litBox(): Box {
+  const r = document.getElementById('tutorial-light')!.getBoundingClientRect();
+  return { x: r.left, y: r.top, width: r.width, height: r.height };
+}
 
 /** The part of an element that shows: its box cut by the screen and by each box around it that hides what overflows. */
 function shownBox(element: Element): Box {
@@ -324,6 +357,8 @@ await sleep(800);
 
 const said: { t: number; file: string; seconds: number; words: string }[] = [];
 const spoken: { t: number; file: string }[] = [];
+// What each step lit, when: the camera moves in on it (camera.ts); null, a step that lights nothing, shows the whole screen.
+const focus: Focus[] = [];
 
 /** The finger presses at `from`, moves to `to` (if anywhere), and lets go; `until` holds it down until it resolves. */
 async function press(from: { x: number; y: number }, to: { x: number; y: number } | null, until?: () => Promise<unknown>): Promise<void> {
@@ -355,9 +390,16 @@ async function play(step: Step, index: number): Promise<void> {
   if (step.first) await step.first(page);
   const parts = step.part?.(page);
   const target = parts ? (Array.isArray(parts) ? parts[0]! : parts) : null;
+  let lit: Box | null = null;
   if (parts) {
     await page.evaluate(light, await handlesOf(parts));
+    const t = now();
     await sleep(350);
+    // Where the light is once the screen has settled (a list still scrolling the part into view).
+    lit = await page.evaluate(litBox);
+    focus.push({ t, box: lit });
+  } else {
+    focus.push({ t: now(), box: null });
   }
   if (step.say) {
     const line = lines.get(step.say)!;
@@ -378,6 +420,11 @@ async function play(step: Step, index: number): Promise<void> {
         // Onto the other part's place, a little past its top or bottom edge, as a finger lets go of a row.
         const other = (await step.drag.to(page).boundingBox())!;
         to = { x: at.x, y: at.y + other.y - b.y + (other.y < b.y ? -8 : 8) };
+      }
+      // The camera takes in where the finger lets go, too.
+      if (lit) {
+        const [x, y] = [Math.min(lit.x, to.x - 24), Math.min(lit.y, to.y - 24)];
+        focus.push({ t: now(), box: { x, y, width: Math.max(lit.x + lit.width, to.x + 24) - x, height: Math.max(lit.y + lit.height, to.y + 24) - y } });
       }
       await press(at, to);
     } else {
@@ -432,6 +479,6 @@ const heard = played
   .filter((p) => p.at >= t0 && audio.has(p.id) && p.to > p.from)
   .map((p) => ({ t: clock(p.at), file: audio.get(p.id)!, from: p.from, to: p.to }));
 writeFileSync(path.join(out, 'film.json'), JSON.stringify({
-  tutorial: tutorial.id, title: inLanguage(tutorial.title), language: LANGUAGE, end, frames, said, spoken, heard
+  tutorial: tutorial.id, title: inLanguage(tutorial.title), language: LANGUAGE, end, viewport, frames, said, spoken, heard, focus
 }, null, 1));
 console.log(`${tutorial.title}: ${frames.length} frames, ${end.toFixed(1)} s, ${said.length} lines, ${heard.length} played → ${out}`);

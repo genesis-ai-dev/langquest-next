@@ -7,6 +7,9 @@
 // afterwards goes into <out>: each new film under its release name, and the
 // language's manifest (server/tutorialIntakeModel.ts), which keeps the films
 // that did not change. The intake job brings the new ones into R2 for Publish.
+// Each new film is first looked at as someone who pauses it would
+// (frame-check.ts): one with something wrong keeps its last film, and what is
+// wrong goes on the run's summary.
 // The channel's trailer (trailer/README.md) goes the same way: its screens
 // captured, and the film made again when its look changed.
 //
@@ -15,17 +18,18 @@
 // Videos named are filmed whatever their look ("trailer" for the trailer;
 // naming only others leaves it as it was). <dir> holds the release's
 // manifest-fr.json when there is one. Needs what make-videos.ts needs. Exits
-// 1 when a video could not be tried or filmed; the rest still go out, and a
-// video that failed keeps its last film.
+// 1 when a video could not be tried, filmed or passed by the frame check; the
+// rest still go out, and a video that failed keeps its last film.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { filmName, manifestName, readManifest, type Film } from '../../server/tutorialIntakeModel';
 import { TRAILER, type ChannelLanguage } from '../../server/youtube';
 import { GROUPS, TUTORIALS } from './all';
+import { checkFilm, problemLines } from './frame-check';
 import { lookOf, tryAgain } from './look';
-import { firstSentence, FRAME, PLAYLISTS, youtubeText } from './playlists';
+import { firstSentence, FRAME, PLAYLISTS, TRAILER_FRAME, youtubeText } from './playlists';
 import { TRAILER_DIR, trailerLook, trailerText } from './trailer/trailer';
 
 const args = process.argv.slice(2);
@@ -108,10 +112,34 @@ if (missed.length) {
   console.log(`${language}: ${missed.length} to film again, alone: ${missed.join(' ')}`);
   for (const id of makeVideos(missed, false, true)) filmed.add(id);
 }
+// Each new film's stills looked at, four films at a time (frame-check.ts). A film with something wrong, or one
+// that could not be looked at, is held: it is not put up, and the video keeps its last film until a night's is right.
+const held = new Map<string, string[]>();
+const toCheck = [...filmed];
+await Promise.all([0, 1, 2, 3].map(async () => {
+  for (let id = toCheck.shift(); id; id = toCheck.shift()) {
+    try {
+      const found = problemLines(await checkFilm(path.join(results, 'films', language!, id), path.join(results, language!, `${id}.mp4`), language!));
+      if (found.length) held.set(id, found);
+    } catch (error) {
+      held.set(id, [`The stills could not be looked at: ${error instanceof Error ? error.message : String(error)}`]);
+    }
+  }
+}));
+if (held.size) {
+  const escape = (s: string) => s.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+  const summary = [`### Held by the frame check (${language})`, '', ...[...held].flatMap(([id, found]) => [`- **${id}**`, ...found.map((f) => `  - ${f}`)]), ''];
+  if (process.env['GITHUB_STEP_SUMMARY']) appendFileSync(process.env['GITHUB_STEP_SUMMARY'], `${summary.join('\n')}\n`);
+  for (const [id, found] of held) {
+    console.log(`${language}: ${id} held by the frame check:\n  ${found.join('\n  ')}`);
+    if (process.env['GITHUB_ACTIONS']) console.log(`::warning title=${escape(`Frame check: ${id} (${language})`).replace(/:/g, '%3A').replace(/,/g, '%2C')}::${escape(found.join('\n'))}`);
+  }
+}
 const lines = language === 'en' ? {} : JSON.parse(readFileSync(path.join('e2e', 'tutorials', 'lines', `${language}.json`), 'utf8')) as Record<string, string>;
 const say = (english: string) => (language === 'en' ? english : lines[english] ?? english);
 const order = Object.keys(TUTORIALS);
 for (const id of filmed) {
+  if (held.has(id)) continue;
   const tutorial = TUTORIALS[id]!;
   const mp4 = path.join(results, language, `${id}.mp4`);
   const sha256 = createHash('sha256').update(readFileSync(mp4)).digest('hex');
@@ -130,7 +158,7 @@ for (const id of filmed) {
 function trailer(): boolean {
   const dir = path.join('e2e', 'results', 'trailer', language!);
   const film = kept.get(TRAILER)?.look;
-  const framed = !kept.has(TRAILER) || kept.get(TRAILER)!.frame === FRAME;
+  const framed = !kept.has(TRAILER) || kept.get(TRAILER)!.frame === TRAILER_FRAME;
   const tries: string[] = [];
   do {
     const capture = spawnSync('npx', ['tsx', path.join(TRAILER_DIR, 'capture.ts'), dir], { stdio: 'inherit', env: { ...process.env, TUTORIAL_LANGUAGE: language } });
@@ -149,7 +177,7 @@ function trailer(): boolean {
   // First in the playlist for everyone, and the channel's trailer once it is up (server/tutorialPublisher.ts).
   kept.set(TRAILER, {
     tutorial: TRAILER, sha256, bytes: readFileSync(mp4).length, seconds: Math.max(1, Math.round(seconds)), ...trailerText(language!),
-    playlist: PLAYLISTS[language!]!.everyone, position: 0, look, frame: FRAME
+    playlist: PLAYLISTS[language!]!.everyone, position: 0, look, frame: TRAILER_FRAME
   });
   copyFileSync(mp4, path.join(outDir!, filmName(language!, TRAILER, sha256)));
   return true;
@@ -159,5 +187,6 @@ const trailerMade = !named || trailerNamed ? trailer() : true;
 const films = [...kept.values()].sort((a, b) => a.position - b.position);
 writeFileSync(path.join(outDir, manifestName(language)), `${JSON.stringify({ language, films }, null, 2)}\n`);
 const failed = [...ids.filter((id) => !tried.has(id) || (changed.includes(id) && !filmed.has(id))), ...(trailerMade ? [] : [TRAILER])];
-console.log(`${language}: ${filmed.size} filmed, ${films.length} in the manifest${failed.length ? `, failed: ${failed.join(' ')}` : ''}`);
-if (failed.length) process.exit(1);
+console.log(`${language}: ${filmed.size - held.size} filmed, ${films.length} in the manifest${failed.length ? `, failed: ${failed.join(' ')}` : ''}` +
+  `${held.size ? `, held by the frame check: ${[...held.keys()].join(' ')}` : ''}`);
+if (failed.length || held.size) process.exit(1);

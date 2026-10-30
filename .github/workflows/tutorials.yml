@@ -8,10 +8,13 @@
 # Worker they are in (films-in.mjs): its job container brings them into R2,
 # chooses the wide ones for YouTube and puts them up at once (decision 192).
 #
-# This workflow holds the Gemini key, for the voice, and no production key:
-# it writes only to this repository's release, and reaches the app only
-# through the Worker's /api/tutorial-filmed, which lets in this workflow on
-# main by its GitHub OIDC token (scripts/workflows.test.ts).
+# Each new film's stills are looked at by Gemini first (frame-check.ts), and a
+# film with something wrong is held, with what is wrong on the run's summary.
+#
+# This workflow holds the Gemini key, for the voice and the frame check, and
+# no production key: it writes only to this repository's release, and
+# reaches the app only through the Worker's /api/tutorial-filmed, which lets
+# in this workflow on main by its GitHub OIDC token (scripts/workflows.test.ts).
 # A late or dropped run only leaves the videos as they were a day longer.
 # Each language's job files its failure in Linear, as the guardrails
 # nightly jobs do (scripts/nightly-report.mjs).
@@ -232,7 +235,8 @@ jobs:
       - name: What Gemini counted
         if: always()
         run: node e2e/tutorials/gemini-usage.mjs | tee -a "$GITHUB_STEP_SUMMARY"
-      # A step that could not finish leaves the screen as it was (failed-*.png) and its words (failed-*.txt).
+      # A step that could not finish leaves the screen as it was (failed-*.png) and its words (failed-*.txt);
+      # the frame check, each film's check.json and the stills it found something wrong in (frame-check.ts).
       - name: Keep the logs and each step's picture
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -242,6 +246,8 @@ jobs:
             e2e/results/tutorials/films/*/*/log.txt
             e2e/results/tutorials/films/*/*/steps/*
             e2e/results/tutorials/films/*/*/failed-*
+            e2e/results/tutorials/films/*/*/check.json
+            e2e/results/tutorials/films/*/*/check/*
           if-no-files-found: ignore
       - name: Tell Linear
         if: always()
