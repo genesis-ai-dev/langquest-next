@@ -34,10 +34,20 @@ export function bibleBrainBible(b: { bibleId: string; name: string; vname?: stri
   return { name: b.vname || b.name, abbr: b.bibleId, language: b.languageName, iso: b.language, numbering: b.numbering as NumberingCode, checked: true };
 }
 
-/** Bible Brain Bibles as Find your Bible lists them: the numbered ones, whole Bibles before a testament alone. */
+/**
+ * Bible Brain Bibles as Find your Bible lists them: the numbered ones, whole
+ * Bibles before a testament alone, and one of a name in a language (Bible
+ * Brain lists the Nepali Contemporary Version twice).
+ */
 export function bibleBrainBibles(list: readonly (Parameters<typeof bibleBrainBible>[0] & { text?: { OT?: string; NT?: string } })[]): KnownBible[] {
   const whole = (b: (typeof list)[number]) => (b.text?.OT && b.text.NT ? 0 : 1);
-  return [...list].sort((a, b) => whole(a) - whole(b)).map(bibleBrainBible).filter((b): b is KnownBible => !!b);
+  const seen = new Set<string>();
+  return [...list].sort((a, b) => whole(a) - whole(b)).map(bibleBrainBible).filter((b): b is KnownBible => {
+    const key = b && `${b.iso}:${b.name.toLowerCase()}`;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /** One of the app's Bibles and a Bible Brain one are the same: the KJV and ENGKJV in English, or the same name. */

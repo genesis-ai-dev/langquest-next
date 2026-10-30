@@ -69,6 +69,8 @@ describe('finding a Bible\'s numbering (decision 80)', () => {
     const nt = { ...thai, bibleId: 'THANTV', vname: '', name: 'Thai New Testament', text: { NT: 'THANTVN_ET' } };
     const whole = { ...thai, text: { OT: 'THATSVO_ET', NT: 'THATSVN_ET' } };
     expect(bibleBrainBibles([nt, { ...thai, bibleId: 'THAX', numbering: undefined }, whole]).map((b) => b.abbr)).toEqual(['THATSV', 'THANTV']);
+    // One of a name in a language: the whole Bible.
+    expect(bibleBrainBibles([{ ...nt, vname: 'ฉบับมาตรฐาน' }, whole]).map((b) => b.abbr)).toEqual(['THATSV']);
     // A Thai team sees Thai Bibles first, though the app has none of its own.
     expect(firstBibles(['tha'], bibleBrainBibles([nt, whole])).map((b) => b.abbr)).toEqual(['THATSV', 'THANTV', ...COMMON_BIBLES]);
     // The app's KJV and Bible Brain's ENGKJV are one Bible, and so are two of one name; the app's comes first.
