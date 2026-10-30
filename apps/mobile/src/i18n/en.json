@@ -4024,7 +4024,8 @@
       "listeners": "Listeners",
       "liveIn": "Live in {{channel}} · {{version}}",
       "listenerCount": "Listener feedback: {{count, number}}",
-      "askedOffline": "Asked {{target}}. They get it when this device is connected."
+      "askedOffline": "Asked {{target}}. They get it when this device is connected.",
+      "askForAgain": "Ask for the {{check}} again"
     },
     "else": {
       "title": "Something else?",
@@ -4060,7 +4061,8 @@
       "doneHelp": "Goes back to the passage.",
       "pickCheckHelp": "Picks this check to ask for. Under it: the people who do it.",
       "someoneElseHelp": "Ask a different person, a team, or someone without the app.",
-      "notNowHelp": "Ask later. The version stays published."
+      "notNowHelp": "Ask later. The version stays published.",
+      "askTargetAgain": "Ask {{target}} again"
     },
     "keep": {
       "title": "Keep it as it is?",
@@ -4187,7 +4189,14 @@
       "answerTypeHelp": "Changes how they answer: yes or no, in words, or 1 to 5.",
       "addQuestionHelp": "Adds your question to the ones they answer.",
       "removeQuestionHelp": "Takes this question off.",
-      "openCheckHelp": "Opens {{check}}, where you change its questions."
+      "openCheckHelp": "Opens {{check}}, where you change its questions.",
+      "last": {
+        "good": "{{name}} checked version {{version}}: looks good",
+        "changes": "{{name}} checked version {{version}}: needs changes",
+        "answered": "{{name}} checked version {{version}}: needs changes, answered in version {{answer}}",
+        "kept": "{{name}} checked version {{version}}: needs changes, kept as it is",
+        "recorded": "{{name}} did this for version {{version}}"
+      }
     },
     "resources": {
       "sourceAudio": "Source audio"

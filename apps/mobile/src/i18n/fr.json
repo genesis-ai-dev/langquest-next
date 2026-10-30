@@ -4148,7 +4148,8 @@
       "listeners": "Auditeurs",
       "liveIn": "En ligne dans {{channel}} · {{version}}",
       "listenerCount": "Retours d'auditeurs : {{count, number}}",
-      "askedOffline": "Demandé à {{target}}. Ils le reçoivent quand cet appareil sera connecté."
+      "askedOffline": "Demandé à {{target}}. Ils le reçoivent quand cet appareil sera connecté.",
+      "askForAgain": "Redemander la {{check}}"
     },
     "else": {
       "title": "Autre chose ?",
@@ -4184,7 +4185,8 @@
       "doneHelp": "Revient au passage.",
       "pickCheckHelp": "Choisit cette vérification à demander. En dessous : les personnes qui la font.",
       "someoneElseHelp": "Demandez à une autre personne, à une équipe, ou à quelqu’un sans l’application.",
-      "notNowHelp": "Demandez plus tard. La version reste publiée."
+      "notNowHelp": "Demandez plus tard. La version reste publiée.",
+      "askTargetAgain": "Redemander à {{target}}"
     },
     "keep": {
       "title": "Le garder tel quel ?",
@@ -4318,7 +4320,14 @@
       "answerTypeHelp": "Change la façon de répondre : oui ou non, avec des mots, ou de 1 à 5.",
       "addQuestionHelp": "Ajoute votre question à celles auxquelles ils répondent.",
       "removeQuestionHelp": "Retire cette question.",
-      "openCheckHelp": "Ouvre {{check}}, où vous changez ses questions."
+      "openCheckHelp": "Ouvre {{check}}, où vous changez ses questions.",
+      "last": {
+        "good": "{{name}} a vérifié la version {{version}} : c’est bon",
+        "changes": "{{name}} a vérifié la version {{version}} : à modifier",
+        "answered": "{{name}} a vérifié la version {{version}} : à modifier, réponse dans la version {{answer}}",
+        "kept": "{{name}} a vérifié la version {{version}} : à modifier, gardée telle quelle",
+        "recorded": "{{name}} l’a fait pour la version {{version}}"
+      }
     },
     "resources": {
       "sourceAudio": "Audio source"

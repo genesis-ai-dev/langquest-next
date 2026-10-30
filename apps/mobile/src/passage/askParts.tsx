@@ -20,8 +20,12 @@ import { a11yState } from '../ui/a11yModel';
 
 const newId = () => Crypto.randomUUID();
 
-/** One of the checks that happen next, on the ask page: pick it to ask for it (decision 91). */
-export function AskCheckCard(props: { ctx: Ctx; kindId: string; name: string; on: boolean; radio: boolean; people: string[]; onPress: () => void }) {
+/**
+ * One of the checks that happen next, on the ask page: pick it to ask for it
+ * (decision 91). `last`: what happened the last time it was done here, so a
+ * check asked for again never looks as if it was never done (LAN-200).
+ */
+export function AskCheckCard(props: { ctx: Ctx; kindId: string; name: string; on: boolean; radio: boolean; people: string[]; last?: string | null; onPress: () => void }) {
   const { on } = props;
   const spot = useHelpSpot(props.name, t('passage.published.pickCheckHelp'), props.onPress);
   return (
@@ -30,6 +34,12 @@ export function AskCheckCard(props: { ctx: Ctx; kindId: string; name: string; on
       <View style={styles.askIcon}><Ico name={kindIcon(props.kindId)} size={24} color={C.primary} /></View>
       <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
         <Text style={[txt.body, { fontWeight: '800', fontSize: 19 }]}>{props.name}</Text>
+        {props.last ? (
+          <View style={styles.last}>
+            <Ico name="check" size={16} color={C.green} strokeWidth={3} />
+            <Text style={[txt.sm, { flex: 1 }]}>{props.last}</Text>
+          </View>
+        ) : null}
         <PeopleLine ctx={props.ctx} people={props.people} />
       </View>
       {props.radio ? <View style={[styles.radio, on && { borderColor: C.primary }]}>{on ? <View style={styles.radioDot} /> : null}</View> : null}
@@ -91,6 +101,7 @@ export function TheyAnswer(props: {
 const styles = StyleSheet.create({
   askCard: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, borderRadius: radius.xl, borderWidth: 2, borderColor: C.primary, backgroundColor: C.card },
   askIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
+  last: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   btnRow: { flexDirection: 'row', gap: space.sm },
   radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: C.primary },
   radio: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center' }

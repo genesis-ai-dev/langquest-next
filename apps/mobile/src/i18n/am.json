@@ -4024,7 +4024,8 @@
       "listeners": "አድማጮች",
       "liveIn": "በ{{channel}} ላይ ታትሟል · {{version}}",
       "listenerCount": "የአድማጮች አስተያየት፦ {{count, number}}",
-      "askedOffline": "{{target}} ተጠይቀዋል። ይህ መሣሪያ ሲገናኝ ይደርሳቸዋል።"
+      "askedOffline": "{{target}} ተጠይቀዋል። ይህ መሣሪያ ሲገናኝ ይደርሳቸዋል።",
+      "askForAgain": "{{check}} እንደገና ይጠይቁ"
     },
     "else": {
       "title": "ሌላ ነገር?",
@@ -4060,7 +4061,8 @@
       "doneHelp": "ወደ ክፍሉ ይመለሳል።",
       "pickCheckHelp": "የሚጠየቀውን ይህን ፍተሻ ይመርጣል። ከሥሩ፦ የሚያከናውኑት ሰዎች።",
       "someoneElseHelp": "ሌላ ሰውን፣ ቡድንን ወይም መተግበሪያው የሌለውን ሰው ይጠይቁ።",
-      "notNowHelp": "በኋላ ይጠይቁ። ስሪቱ እንደታተመ ይቆያል።"
+      "notNowHelp": "በኋላ ይጠይቁ። ስሪቱ እንደታተመ ይቆያል።",
+      "askTargetAgain": "{{target}}ን እንደገና ይጠይቁ"
     },
     "keep": {
       "title": "እንዳለ ያቆዩታል?",
@@ -4187,7 +4189,14 @@
       "answerTypeHelp": "እንዴት እንደሚመልሱ ይቀይራል፦ አዎ ወይም አይ፣ በቃላት፣ ወይም ከ1 እስከ 5።",
       "addQuestionHelp": "ጥያቄዎን ከሚመልሷቸው ጥያቄዎች ጋር ያክላል።",
       "removeQuestionHelp": "ይህን ጥያቄ ያስወግዳል።",
-      "openCheckHelp": "{{check}}ን ይከፍታል፤ ጥያቄዎቹን እዚያ ይቀይራሉ።"
+      "openCheckHelp": "{{check}}ን ይከፍታል፤ ጥያቄዎቹን እዚያ ይቀይራሉ።",
+      "last": {
+        "good": "{{name}} ስሪት {{version}}ን አረጋግጧል፦ ጥሩ ነው",
+        "changes": "{{name}} ስሪት {{version}}ን አረጋግጧል፦ ለውጥ ያስፈልገዋል",
+        "answered": "{{name}} ስሪት {{version}}ን አረጋግጧል፦ ለውጥ ያስፈልገዋል፤ በስሪት {{answer}} ምላሽ ተሰጥቷል",
+        "kept": "{{name}} ስሪት {{version}}ን አረጋግጧል፦ ለውጥ ያስፈልገዋል፤ እንዳለ ተቀምጧል",
+        "recorded": "{{name}} ይህን ለስሪት {{version}} አድርጓል"
+      }
     },
     "resources": {
       "sourceAudio": "የምንጩ ድምፅ"

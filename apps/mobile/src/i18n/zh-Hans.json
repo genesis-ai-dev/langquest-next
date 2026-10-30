@@ -3900,7 +3900,8 @@
       "listeners": "听众",
       "liveIn": "已在 {{channel}} 发布 · {{version}}",
       "listenerCount": "听众反馈：{{count, number}}",
-      "askedOffline": "已请 {{target}}。本设备联网后对方才会收到。"
+      "askedOffline": "已请 {{target}}。本设备联网后对方才会收到。",
+      "askForAgain": "再次请求{{check}}"
     },
     "else": {
       "title": "其他情况？",
@@ -3936,7 +3937,8 @@
       "doneHelp": "回到经段。",
       "pickCheckHelp": "选择要请求这项检查。下面是负责这项检查的人。",
       "someoneElseHelp": "请另一个人、一个团队，或者没有应用的人。",
-      "notNowHelp": "以后再请求。这个版本仍然是已发布的。"
+      "notNowHelp": "以后再请求。这个版本仍然是已发布的。",
+      "askTargetAgain": "再请{{target}}"
     },
     "keep": {
       "title": "要保持原样吗？",
@@ -4056,7 +4058,14 @@
       "answerTypeHelp": "更改回答方式：是或否、用文字，或者 1 到 5。",
       "addQuestionHelp": "把你的问题加到对方要回答的问题中。",
       "removeQuestionHelp": "移除这个问题。",
-      "openCheckHelp": "打开{{check}}，在那里更改它的问题。"
+      "openCheckHelp": "打开{{check}}，在那里更改它的问题。",
+      "last": {
+        "good": "{{name}} 检查了第 {{version}} 版：没问题",
+        "changes": "{{name}} 检查了第 {{version}} 版：需要修改",
+        "answered": "{{name}} 检查了第 {{version}} 版：需要修改，已在第 {{answer}} 版回应",
+        "kept": "{{name}} 检查了第 {{version}} 版：需要修改，已保持原样",
+        "recorded": "{{name}} 已为第 {{version}} 版完成"
+      }
     },
     "resources": {
       "sourceAudio": "源音频"

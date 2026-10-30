@@ -44,7 +44,7 @@ import { useDraft } from '../drafts/useDraft';
 import { draftKey } from '../drafts/draftModel';
 import { SavedMark } from '../ui/SavedMark';
 import { useSaveStatus } from '../ui/useSaveStatus';
-import { doCheckButton, goesWhenConnected, nextAfterDone, recordCan, sentText, usualTargets, askButtonLabel } from '../passage/recordModel';
+import { doCheckButton, goesWhenConnected, lastCheckLine, nextAfterDone, recordCan, sentText, usualTargets, askButtonLabel } from '../passage/recordModel';
 import { nobodyElseReviews, sendTargetLabel } from '../passage/recordTextModel';
 import { sendToInput, type UsualTarget } from '../passage/sendTarget';
 import { AskCheckCard } from '../passage/askParts';
@@ -544,7 +544,7 @@ function PublishSheet(props: {
     </View>
   ) : next ? (
     <View style={{ gap: space.xs }}>
-      <PrimaryBtn label={askButtonLabel({ target: nextTarget, kindId: next.kindId, kinds: v.kinds, name: ctx.name })} icon="send" busy={props.busy}
+      <PrimaryBtn label={askButtonLabel({ target: nextTarget, kindId: next.kindId, kinds: v.kinds, name: ctx.name, p: v.p })} icon="send" busy={props.busy}
         help={nextTarget ? t('backTranslation.sendHelp', { what: props.what }) : t('backTranslation.askHelp', { what: props.what })}
         onPress={() => finish(nextTarget ? { kindId: next.kindId, questions: [] } : { someoneElse: next.kindId })} />
       <QuietLinks items={[
@@ -574,7 +574,7 @@ function PublishSheet(props: {
           {kinds.map((k) => (
             <HelpRow key={k.kindId} of="ask.check">
               <AskCheckCard ctx={ctx} kindId={k.kindId} name={checkName(k.kindId, v.kinds)} on={k.kindId === next.kindId} radio={kinds.length > 1}
-                people={checkPeople(v.state, k.kindId).filter((id) => id !== ctx.session.actorId)} onPress={() => setKindId(k.kindId)} />
+                people={checkPeople(v.state, k.kindId).filter((id) => id !== ctx.session.actorId)} last={lastCheckLine(v.p, k.kindId, ctx.name)} onPress={() => setKindId(k.kindId)} />
             </HelpRow>
           ))}
         </View>

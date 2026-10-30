@@ -4024,7 +4024,8 @@
       "listeners": "Masu saurare",
       "liveIn": "Ana samu a {{channel}} · {{version}}",
       "listenerCount": "Ra'ayoyin masu saurare: {{count, number}}",
-      "askedOffline": "An roƙi {{target}}. Za su samu idan wannan na'ura ta samu intanet."
+      "askedOffline": "An roƙi {{target}}. Za su samu idan wannan na'ura ta samu intanet.",
+      "askForAgain": "Sake neman {{check}}"
     },
     "else": {
       "title": "Wani abu daban?",
@@ -4060,7 +4061,8 @@
       "doneHelp": "Yana komawa nassin.",
       "pickCheckHelp": "Yana zaɓar wannan dubawa don a nema. A ƙarƙashinta: mutanen da suke yin ta.",
       "someoneElseHelp": "Ku roƙi wani mutum daban, tawaga, ko wani da ba shi da manhajar.",
-      "notNowHelp": "Ku roƙa daga baya. Sigar tana nan a wallafe."
+      "notNowHelp": "Ku roƙa daga baya. Sigar tana nan a wallafe.",
+      "askTargetAgain": "Sake roƙon {{target}}"
     },
     "keep": {
       "title": "A bar shi yadda yake?",
@@ -4187,7 +4189,14 @@
       "answerTypeHelp": "Yana canja yadda za su amsa: ee ko a'a, da kalmomi, ko 1 zuwa 5.",
       "addQuestionHelp": "Yana ƙara tambayarku cikin waɗanda za su amsa.",
       "removeQuestionHelp": "Yana cire wannan tambaya.",
-      "openCheckHelp": "Yana buɗe {{check}}, inda kuke canja tambayoyinsa."
+      "openCheckHelp": "Yana buɗe {{check}}, inda kuke canja tambayoyinsa.",
+      "last": {
+        "good": "{{name}} ya duba siga ta {{version}}: yana da kyau",
+        "changes": "{{name}} ya duba siga ta {{version}}: yana buƙatar gyara",
+        "answered": "{{name}} ya duba siga ta {{version}}: yana buƙatar gyara, an amsa a siga ta {{answer}}",
+        "kept": "{{name}} ya duba siga ta {{version}}: yana buƙatar gyara, an bar shi yadda yake",
+        "recorded": "{{name}} ya yi wannan don siga ta {{version}}"
+      }
     },
     "resources": {
       "sourceAudio": "Sautin asali"

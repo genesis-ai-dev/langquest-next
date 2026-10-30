@@ -4520,7 +4520,8 @@
       "listeners": "المستمعون",
       "liveIn": "منشور في {{channel}} · {{version}}",
       "listenerCount": "ملاحظات المستمعين: {{count, number}}",
-      "askedOffline": "طُلب من {{target}}. يصلهم عندما يتصل هذا الجهاز."
+      "askedOffline": "طُلب من {{target}}. يصلهم عندما يتصل هذا الجهاز.",
+      "askForAgain": "اطلب {{check}} مرة أخرى"
     },
     "else": {
       "title": "شيء آخر؟",
@@ -4556,7 +4557,8 @@
       "doneHelp": "يعود إلى المقطع.",
       "pickCheckHelp": "يختار هذا الفحص لتطلبه. تحته: الأشخاص الذين يقومون به.",
       "someoneElseHelp": "اطلب من شخص آخر، أو فريق، أو شخص ليس لديه التطبيق.",
-      "notNowHelp": "اطلب لاحقًا. تبقى النسخة منشورة."
+      "notNowHelp": "اطلب لاحقًا. تبقى النسخة منشورة.",
+      "askTargetAgain": "اطلب من {{target}} مرة أخرى"
     },
     "keep": {
       "title": "هل تبقيه كما هو؟",
@@ -4711,7 +4713,14 @@
       "answerTypeHelp": "يغيّر طريقة إجابتهم: نعم أو لا، أو بالكلمات، أو من 1 إلى 5.",
       "addQuestionHelp": "يضيف سؤالك إلى الأسئلة التي يجيبون عنها.",
       "removeQuestionHelp": "يزيل هذا السؤال.",
-      "openCheckHelp": "يفتح {{check}}، حيث تغيّر أسئلته."
+      "openCheckHelp": "يفتح {{check}}، حيث تغيّر أسئلته.",
+      "last": {
+        "good": "راجع {{name}} النسخة {{version}}: يبدو جيدًا",
+        "changes": "راجع {{name}} النسخة {{version}}: يحتاج إلى تعديلات",
+        "answered": "راجع {{name}} النسخة {{version}}: يحتاج إلى تعديلات، وتمت الإجابة في النسخة {{answer}}",
+        "kept": "راجع {{name}} النسخة {{version}}: يحتاج إلى تعديلات، وأُبقيت كما هي",
+        "recorded": "قام {{name}} بهذا للنسخة {{version}}"
+      }
     },
     "resources": {
       "sourceAudio": "صوت المصدر"

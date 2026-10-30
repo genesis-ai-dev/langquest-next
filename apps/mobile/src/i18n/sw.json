@@ -4024,7 +4024,8 @@
       "listeners": "Wasikilizaji",
       "liveIn": "Imechapishwa kwenye {{channel}} · {{version}}",
       "listenerCount": "Maoni ya wasikilizaji: {{count, number}}",
-      "askedOffline": "Umemwomba {{target}}. Wataipata kifaa hiki kikiunganishwa."
+      "askedOffline": "Umemwomba {{target}}. Wataipata kifaa hiki kikiunganishwa.",
+      "askForAgain": "Omba {{check}} tena"
     },
     "else": {
       "title": "Kitu kingine?",
@@ -4060,7 +4061,8 @@
       "doneHelp": "Hurudi kwenye kifungu.",
       "pickCheckHelp": "Huchagua ukaguzi huu ili kuuomba. Chini yake: watu wanaoufanya.",
       "someoneElseHelp": "Mwombe mtu mwingine, timu, au mtu asiye na programu.",
-      "notNowHelp": "Omba baadaye. Toleo linabaki limechapishwa."
+      "notNowHelp": "Omba baadaye. Toleo linabaki limechapishwa.",
+      "askTargetAgain": "Omba {{target}} tena"
     },
     "keep": {
       "title": "Kiache kama kilivyo?",
@@ -4187,7 +4189,14 @@
       "answerTypeHelp": "Hubadilisha jinsi wanavyojibu: ndiyo au hapana, kwa maneno, au 1 hadi 5.",
       "addQuestionHelp": "Huongeza swali lako kwenye yale wanayojibu.",
       "removeQuestionHelp": "Huondoa swali hili.",
-      "openCheckHelp": "Hufungua {{check}}, ambapo unabadilisha maswali yake."
+      "openCheckHelp": "Hufungua {{check}}, ambapo unabadilisha maswali yake.",
+      "last": {
+        "good": "{{name}} alikagua toleo la {{version}}: iko sawa",
+        "changes": "{{name}} alikagua toleo la {{version}}: inahitaji marekebisho",
+        "answered": "{{name}} alikagua toleo la {{version}}: inahitaji marekebisho, yamejibiwa katika toleo la {{answer}}",
+        "kept": "{{name}} alikagua toleo la {{version}}: inahitaji marekebisho, imeachwa kama ilivyo",
+        "recorded": "{{name}} alifanya hili kwa toleo la {{version}}"
+      }
     },
     "resources": {
       "sourceAudio": "Sauti ya chanzo"

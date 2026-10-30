@@ -4148,7 +4148,8 @@
       "listeners": "Ouvintes",
       "liveIn": "Publicado em {{channel}} · {{version}}",
       "listenerCount": "Comentários de ouvintes: {{count, number}}",
-      "askedOffline": "Pedido a {{target}}. Chega quando este aparelho estiver conectado."
+      "askedOffline": "Pedido a {{target}}. Chega quando este aparelho estiver conectado.",
+      "askForAgain": "Pedir a {{check}} de novo"
     },
     "else": {
       "title": "Outra coisa?",
@@ -4184,7 +4185,8 @@
       "doneHelp": "Volta para a passagem.",
       "pickCheckHelp": "Escolhe esta verificação para pedir. Abaixo dela: as pessoas que a fazem.",
       "someoneElseHelp": "Peça a outra pessoa, a uma equipe, ou a alguém sem o aplicativo.",
-      "notNowHelp": "Peça depois. A versão continua publicada."
+      "notNowHelp": "Peça depois. A versão continua publicada.",
+      "askTargetAgain": "Pedir a {{target}} de novo"
     },
     "keep": {
       "title": "Manter como está?",
@@ -4318,7 +4320,14 @@
       "answerTypeHelp": "Muda como a pessoa responde: sim ou não, com palavras, ou de 1 a 5.",
       "addQuestionHelp": "Adiciona a sua pergunta às que a pessoa responde.",
       "removeQuestionHelp": "Tira esta pergunta.",
-      "openCheckHelp": "Abre {{check}}, onde você muda as perguntas."
+      "openCheckHelp": "Abre {{check}}, onde você muda as perguntas.",
+      "last": {
+        "good": "{{name}} verificou a versão {{version}}: está bom",
+        "changes": "{{name}} verificou a versão {{version}}: precisa de mudanças",
+        "answered": "{{name}} verificou a versão {{version}}: precisa de mudanças, respondidas na versão {{answer}}",
+        "kept": "{{name}} verificou a versão {{version}}: precisa de mudanças, mantida como está",
+        "recorded": "{{name}} fez isto para a versão {{version}}"
+      }
     },
     "resources": {
       "sourceAudio": "Áudio do texto-fonte"

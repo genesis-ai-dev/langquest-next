@@ -3900,7 +3900,8 @@
       "listeners": "Pendengar",
       "liveIn": "Terbit di {{channel}} · {{version}}",
       "listenerCount": "Masukan pendengar: {{count, number}}",
-      "askedOffline": "Diminta kepada {{target}}. Mereka menerimanya saat perangkat ini terhubung."
+      "askedOffline": "Diminta kepada {{target}}. Mereka menerimanya saat perangkat ini terhubung.",
+      "askForAgain": "Minta {{check}} lagi"
     },
     "else": {
       "title": "Ada yang lain?",
@@ -3936,7 +3937,8 @@
       "doneHelp": "Kembali ke perikop.",
       "pickCheckHelp": "Memilih pemeriksaan ini untuk diminta. Di bawahnya: orang-orang yang melakukannya.",
       "someoneElseHelp": "Minta orang lain, sebuah tim, atau seseorang tanpa aplikasi.",
-      "notNowHelp": "Minta nanti. Versi ini tetap diterbitkan."
+      "notNowHelp": "Minta nanti. Versi ini tetap diterbitkan.",
+      "askTargetAgain": "Minta {{target}} lagi"
     },
     "keep": {
       "title": "Biarkan apa adanya?",
@@ -4056,7 +4058,14 @@
       "answerTypeHelp": "Mengubah cara mereka menjawab: ya atau tidak, dengan kata-kata, atau 1 sampai 5.",
       "addQuestionHelp": "Menambahkan pertanyaan Anda ke pertanyaan yang mereka jawab.",
       "removeQuestionHelp": "Mengeluarkan pertanyaan ini.",
-      "openCheckHelp": "Membuka {{check}}, tempat Anda mengubah pertanyaannya."
+      "openCheckHelp": "Membuka {{check}}, tempat Anda mengubah pertanyaannya.",
+      "last": {
+        "good": "{{name}} memeriksa versi {{version}}: sudah baik",
+        "changes": "{{name}} memeriksa versi {{version}}: perlu perubahan",
+        "answered": "{{name}} memeriksa versi {{version}}: perlu perubahan, dijawab di versi {{answer}}",
+        "kept": "{{name}} memeriksa versi {{version}}: perlu perubahan, dibiarkan seperti adanya",
+        "recorded": "{{name}} melakukan ini untuk versi {{version}}"
+      }
     },
     "resources": {
       "sourceAudio": "Audio sumber"

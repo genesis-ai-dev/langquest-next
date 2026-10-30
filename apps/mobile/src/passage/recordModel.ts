@@ -12,7 +12,8 @@ import {
 import { edgeFor, type ScreenId } from '../shell/flow';
 import { t } from '../i18n';
 import type { IconName } from '../ui/kit';
-import { andList, kindInSentence, versionTitle, when } from './passageView';
+import { andList, feedbackSource, kindInSentence, versionTitle, when } from './passageView';
+import { formatNumber } from '../i18n/format';
 import { studySummary, type StudyProgress } from '../study/progress';
 import { edgeAllowed, type Session } from '../shell/session';
 import { checkName, stepTitle } from '../admin/adminModel';
@@ -173,7 +174,7 @@ export function recordModel(o: {
     // Nobody else could be asked: the author does it, and asking stays under Something else? (decisions.md 178).
     main = check(openCheck.kindId);
   } else if (nextKind && can.ask) {
-    main = { id: 'ask', label: t('passage.page.askFor', { check: kindInSentence(nameOf(nextKind.kindId)) }), icon: 'send', kindId: nextKind.kindId };
+    main = { id: 'ask', label: askForLabel(nextKind.kindId, kinds, p), icon: 'send', kindId: nextKind.kindId };
   } else if (openCheck) {
     main = check(openCheck.kindId);
   }
@@ -460,15 +461,48 @@ export function goesWhenConnected(message: string, offline: boolean): string {
   return offline ? t('shell.toast.goesWhenConnected', { message }) : message;
 }
 
-/** The ask page's main button: ask the usual people, or ask for the check by name. */
-export function askButtonLabel(o: { target: UsualTarget | undefined; kindId: string; kinds: KindDef[]; name: NameFn }): string {
-  return o.target ? t('passage.published.askTarget', { target: sendTargetLabel(o.target, o.name) })
-    : t('passage.page.askFor', { check: kindInSentence(checkName(o.kindId, o.kinds)) });
+/**
+ * The ask page's main button: ask the usual people, or ask for the check by
+ * name; "again" once the check was done here before (LAN-200).
+ */
+export function askButtonLabel(o: { target: UsualTarget | undefined; kindId: string; kinds: KindDef[]; name: NameFn; p?: Pick<PassageState, 'reviews'> }): string {
+  if (!o.target) return askForLabel(o.kindId, o.kinds, o.p);
+  const target = sendTargetLabel(o.target, o.name);
+  return o.p && lastReview(o.p, o.kindId) ? t('passage.published.askTargetAgain', { target }) : t('passage.published.askTarget', { target });
 }
 
-/** The Versions page's "Ask for the …" button label. */
-export function askForLabel(kindId: string, kinds: KindDef[]): string {
-  return t('passage.page.askFor', { check: kindInSentence(checkName(kindId, kinds)) });
+/** "Ask for the peer check", or "Ask for the peer check again" once it was done here before (LAN-200). */
+export function askForLabel(kindId: string, kinds: KindDef[], p?: Pick<PassageState, 'reviews'>): string {
+  const check = kindInSentence(checkName(kindId, kinds));
+  return p && lastReview(p, kindId) ? t('passage.page.askForAgain', { check }) : t('passage.page.askFor', { check });
+}
+
+/**
+ * The last review of a check on this passage, whatever it said and however
+ * it was given: a review through a link that the step does not count is
+ * still a check that was done (LAN-200).
+ */
+export function lastReview(p: Pick<PassageState, 'reviews'>, kindId: string): ReviewView | undefined {
+  return [...p.reviews].reverse().find((r) => r.kindId === kindId);
+}
+
+/**
+ * Where a check is asked for, what happened the last time it was done here
+ * (LAN-200): "Dana checked version 1: needs changes, answered in version 2".
+ * Null when it was never done.
+ */
+export function lastCheckLine(p: Pick<PassageState, 'reviews' | 'versions'>, kindId: string, name: NameFn): string | null {
+  const r = lastReview(p, kindId);
+  if (!r) return null;
+  const who = feedbackSource(r, name);
+  const version = formatNumber(r.versionN);
+  if (r.outcome === 'looks_good') return t('passage.ask.last.good', { name: who, version });
+  if (r.outcome === 'recorded') return t('passage.ask.last.recorded', { name: who, version });
+  if (r.response?.decision === 'kept') return t('passage.ask.last.kept', { name: who, version });
+  const answer = r.response?.decision === 'revised' ? p.versions.find((v) => v.takeId === r.response!.revisedTakeId)?.n : undefined;
+  return answer !== undefined
+    ? t('passage.ask.last.answered', { name: who, version, answer: formatNumber(answer) })
+    : t('passage.ask.last.changes', { name: who, version });
 }
 
 /** What the ask page says when there is no next check to ask for. */
