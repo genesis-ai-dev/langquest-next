@@ -11,6 +11,7 @@ import type { Ctx } from '../shell/ctx';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
+import { choiceName } from '../templates/contentTemplatesModel';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
 import { Banner, EmptyState, Field, Group, Header, Ico, KindIcon, PrimaryBtn, Row, Screen, Sheet } from '../ui/kit';
@@ -262,11 +263,11 @@ function FlowsSheet(props: { ctx: Ctx; visible: boolean; kinds: KindDef[]; langu
   const on = chk.entries.find((e) => e.c.key === picked) ?? null;
   return (
     <Sheet visible={props.visible} title={t('checks.flows.title')} sub={t('checks.flows.sub', { language: props.language })} onClose={props.onClose}
-      footer={on ? <PrimaryBtn label={t('checks.flows.use', { name: on.c.name })} help={t('checks.flows.useHelp', { language: props.language })} onPress={() => props.onUse(on, chk.kindsOf(on.doc))} /> : undefined}>
+      footer={on ? <PrimaryBtn label={t('checks.flows.use', { name: choiceName(on.c) })} help={t('checks.flows.useHelp', { language: props.language })} onPress={() => props.onUse(on, chk.kindsOf(on.doc))} /> : undefined}>
       {chk.entries.length === 0 ? <Text style={txt.smMuted}>{chk.loaded ? t('getReady.checks.noWays') : t('common.loading')}</Text> : null}
       {chk.entries.map((e) => (
         <HelpRow key={e.c.key} of="checks.flow">
-          <ChoiceCard on={picked === e.c.key} icon="flow" title={e.c.name} sub={checksLine(e.doc.steps, chk.kindsOf(e.doc))} help={t('checks.flows.pickHelp')} onPress={() => setPicked(e.c.key)} />
+          <ChoiceCard on={picked === e.c.key} icon="flow" title={choiceName(e.c)} sub={checksLine(e.doc.steps, chk.kindsOf(e.doc))} help={t('checks.flows.pickHelp')} onPress={() => setPicked(e.c.key)} />
         </HelpRow>
       ))}
     </Sheet>
@@ -348,7 +349,7 @@ export function ChecksContent({ ctx, undo, startFrom = true }: { ctx: Ctx; undo:
           ctx.toast(t('common.notSaved', { reason: failureMessage('use flow', err) }), 'problem'); // i18n-ignore: log label
           return;
         }
-        const said = t('checks.flows.used', { name: e.c.name, language });
+        const said = t('checks.flows.used', { name: choiceName(e.c), language });
         void ctx.act(specs, said).then(() => undo.did(previous, said), () => {});
       }} />
     </>

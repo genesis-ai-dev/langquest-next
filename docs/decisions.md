@@ -9375,3 +9375,117 @@ would have to land fifteen times).
 Reverse if: teams need two languages' names at once (then the event takes a
 fallback list), or a set and a template disagree often enough about which
 books exist that names need to live with the template after all.
+
+## 194. A switch beside the red button boxes the silence between parts too, and leaving the session keeps each silence as a part of its own
+
+Date: 2026-10-30 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked (2026-10-30, thread "Show silence as segments while
+recording") for a switch in the red recording view that also captures the
+silence between speech as parts of its own, boxed while it is on and not
+while it is off, and plain to tell apart from speech once the parts are in
+the list. He chose the design from five mockups ("Go").
+- **The switch** sits in the footer right of the big red button while a
+  session is open, where Done is once it is left (`silenceSwitch.tsx`): a
+  picture of speech bars either side of a flat line in a dashed box, and a
+  switch, with no words (help mode explains it). The phone keeps it
+  (`silenceSetting.ts`, `recording:silence-parts:v1`), and it can be
+  flipped at any time in a session, recording or stopped.
+- **A silence's box** is dashed, its number in an outlined pill, and it takes
+  a part's number in passage order, so the speech after it is numbered on
+  (`livePartsModel.ts` `liveSilences`, `liveNumbered`). While recording,
+  the silence after the last part grows until the next is said. Stopped, a
+  tap plays it; it has no edges or × of its own, since it always fills the
+  room between the two parts beside it: it follows their edges, and goes
+  when either is dropped. Leaving the session cuts it from the chunk like a
+  part (`liveKept`) and it goes into the list as an ordinary part, its bars
+  read from its file, so they lie flat.
+- **Only silence kept whole is boxed**: two parts said one after the other
+  in one chunk, with no stop between them, side by side in the passage, and
+  half a second apart at least (`MIN_SILENCE_MS`, the least the room is
+  read in). Not the room before the first part or after the last. While the
+  switch is on the microphone module keeps the chunk open through every
+  pause (`chunks.ts` `keepRoom`, amending 129), so every pause in a stretch
+  is on storage; a gap from before the switch was turned on, spread over two
+  chunks, is not boxed rather than boxed with its middle missing.
+- **A silence plays as recorded**, never turned up to −16 LUFS (182,
+  amended): a part that is only room is not given its loudness. So it shows
+  no noise warning (181) unless the room itself is loud.
+- Storage and memory: with the switch on, a phone writes the whole stretch
+  (about 5 MB a minute as a WAV, as 129 says of speech) until the session is
+  left, and the web holds it in the page, about 11 MB a minute, until a stop.
+- A silence has no journal entry while the session is open, so a phone
+  that crashes mid-session gets its speech parts back (129) but not the
+  silences between them.
+- The chunk change and the loudness line are native, so this ships in a
+  store build, not an OTA update.
+Rejected: a silence with handles of its own (two edges to drag where one
+part's end and the next's start already are); boxing the room before the
+first part and after the last (it is not between anything); keeping only
+the 2 s of room on each side of speech that chunks already kept (a pause
+over 4 s would lose its middle).
+Reverse if: people turn it on and lose track of which parts are speech, the
+whole stretch fills a low-end phone's storage or the web's memory in long
+sessions, or a recording with a voice in it is played unboosted as room.
+
+## 195. LangQuest's library items have names in each of the app's languages, kept in the library as one `labels` item per language; New language counts in the language showing and lists the translators' Bibles first
+
+Date: 2026-10-30 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-30) went through New language with the app in
+Hindi and asked whether it read right for a Hindi user. It mixed Hindi
+with English: LangQuest's own names ("Standard Bible Flow", "By chapter",
+"Like most English Bibles · 66 books", "FIA passages", "Bible book names
+(Nepali)") came in English, the counts said "2,376 passages", Find your
+Bible listed English Bibles before the Hindi one, and on his Android phone
+the Preview button showed "पहले" of "पहले देखें". He said "Yes please" to
+fixing all of it in one change. So:
+- **What an item is called in a language is a library kind**, `labels`,
+  with documents `labels@1` (`{ name, description, language, items: [{
+  itemId, name, description? }] }`, core `libraryDocs.ts`), one item per
+  language, as book names are (193). LangQuest publishes one for each of
+  the app's 14 other languages (`langquest.labels.<code>`, "Library names
+  (Hindi)", from `library/labels/<code>.json`), naming its templates, ways
+  to break up the Bible, numberings, review flows and book name sets, and
+  the flows' descriptions. The seed fails when one of those has no name in
+  a language, so a new item gets its names when it is added. Whoever runs
+  an organization (`manage_structure`) publishes its sets, since they name
+  every kind.
+- **A set names its own organization's items only**, so no one renames
+  another's.
+- **Only what a screen shows changes.** The phone reads the sets in the
+  language showing once a session and keeps them for the next start,
+  offline too (`library/labels.ts`, `labelsModel.ts`). An item another
+  organization shares, or one this organization follows, shows its name
+  there; an item an organization made or copied keeps the name it was
+  given. Events, copies and every comparison carry the published name, so
+  a team that changes its app language changes nothing in its data.
+- **Names that are brands or published titles stay as they are**: FIA,
+  unfoldingWord, OpenBible.info, and Bibles' own titles ("New International
+  Version"); a set leaves them in when only part of a name is translated
+  ("FIA अंश").
+- **New language's counts are in the language showing**: "2,376 अंश",
+  "1,189 अध्याय" (`breakup.count.passage`, `chapter`, `chunk`, `section`
+  in every catalog); a template's own word for its pieces is shown as the
+  template writes it.
+- **Find your Bible lists up to three Bibles in each of the translators'
+  languages first** (the languages New language asks right after the
+  name, 193), then the common ones; Search finds the rest. The list of
+  Bibles loads with that page (`knownBiblesModel.ts`), not with the web
+  app's first visit, which this and 194 together took past its budget (123).
+- **The Preview button's words take the card's width** (`breakup/parts.tsx`),
+  as 139 says of a label beside other things, so Android does not cut them
+  when it measures Devanagari short.
+Older app builds never ask for `labels` items (shared items are listed by
+kind) and keep showing the English names; their server checks accept the
+new kind from this migration on (`*_library_labels.sql`). Production gets
+the sets with the next hosted library seed.
+Rejected: the names in the app's catalogs (only LangQuest's items could
+have them, they would change only with an app release, and the library
+is not app code, 36); one copy of each item per language (fifteen copies
+of every template and flow, as 193 rejected for book names); writing the
+name in the language showing into events (people on one team use the app
+in different languages).
+Reverse if: organizations need to name their own items in several
+languages from the app (then a page for a language's names), or the sets
+grow big enough that reading them once a session is too slow.

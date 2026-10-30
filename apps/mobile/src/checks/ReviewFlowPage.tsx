@@ -9,6 +9,7 @@ import { useMemo, useState } from 'react';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
+import { choiceName } from '../templates/contentTemplatesModel';
 import { deriveKinds } from '../i18n/coreText';
 import { indexesFor } from '../sync/indexes';
 import { Group, Header, PrimaryBtn, Row, Screen } from '../ui/kit';
@@ -77,7 +78,7 @@ export function ReviewFlowPage({ ctx }: { ctx: Ctx }) {
       </PickCard>
       {options.map((e) => (
         <HelpRow key={e.c.key} of="getReady.flow.option">
-          <RadioRow icon="people" label={nameOf(e)} sub={[e.c.name, flowSub(e.doc.steps)].filter(Boolean).join(' · ')} on={picked === e.c.key}
+          <RadioRow icon="people" label={nameOf(e)} sub={[choiceName(e.c), flowSub(e.doc.steps)].filter(Boolean).join(' · ')} on={picked === e.c.key}
             help={canUse ? t('checks.flows.pickHelp') : t('getReady.flow.optionViewHelp')} onPress={() => { if (canUse) setPicked(picked === e.c.key ? null : e.c.key); }} />
         </HelpRow>
       ))}

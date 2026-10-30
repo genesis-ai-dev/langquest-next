@@ -10,6 +10,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplatesModel';
 import type { Ctx } from '../shell/ctx';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
+import { useLabels } from '../library/useLabels';
+import { sharedName } from '../library/labelsModel';
 import { noteExpected } from '../diagnostics/report';
 import { templateUsers } from '../server/library';
 import { bookNames } from '../server/languages';
@@ -65,7 +67,8 @@ export function useWays(ctx: Ctx, forLanguage: string | null, numbering?: string
   const libItems = lib.items;
   const library = ctx.org.state?.library;
   const shared = useSharedItems('template', lib.orgId);
-  const choices = useMemo(() => libraryChoices(library ?? {}, libItems('template'), shared.rows, STARTER_TEMPLATE.name), [library, libItems, shared.rows]);
+  const labels = useLabels();
+  const choices = useMemo(() => libraryChoices(library ?? {}, libItems('template'), shared.rows, STARTER_TEMPLATE.name, labels), [library, libItems, shared.rows, labels]);
   const docs = useLibraryDocs(lib.orgId, choices.map((c) => c.hash));
   const getDoc = docs.get;
   const { users } = useTemplateUsers(ctx);
@@ -100,8 +103,8 @@ export function useWays(ctx: Ctx, forLanguage: string | null, numbering?: string
   const numberingRows = useSharedItems('versification', lib.orgId);
   const numberings = useMemo(() => Object.entries(NUMBERING_ITEMS).flatMap(([code, itemId]) => {
     const row = numberingRows.rows.find((r) => r.org_id === 'langquest' && r.item_id === itemId);
-    return row ? [{ code, itemId, name: row.name, description: row.description, hash: row.latest_hash }] : [];
-  }), [numberingRows.rows]);
+    return row ? [{ code, itemId, name: sharedName(labels, row), description: row.description, hash: row.latest_hash }] : [];
+  }), [numberingRows.rows, labels]);
   return { lib, rows, choices, docOf, v11nOf, way, numberings, usedInByNumbering: usedByNumbering, loaded: shared.loaded, error: shared.error };
 }
 
