@@ -624,6 +624,8 @@ test('AUTH-061 Someone in an organization joins another by its code, with their 
   await redeemAs(sam.sb, (await issueInvite(world(), base())).token);
   const invite = await issueInvite(world(), base(), { issuer: 'OWNER2', org: 'org2', label: null });
   await openNew(page, world(), sam);
+  // A first sign-in on this account, in an organization: the welcome comes first (ADR-022).
+  await button(page, 'Get started').click({ timeout: 60_000 });
   await expectTabs(page, ['work', 'map', 'me']);
   await tab(page, 'me').click();
   await text(page, 'More settings').click();
