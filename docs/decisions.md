@@ -8722,6 +8722,11 @@ first. A video chosen more than a day ago counts as stuck on the dashboard
 only while its channel has put up nothing in that time, since a hundred a
 day across fifteen channels takes a week by design.
 
+Amended (2026-10-30, Caleb Koster): a person's Publish is no longer needed
+for a wide film: the intake chooses it as it takes it in, and the publish
+follows each intake (192). Publish stays for a tall film and for putting a
+video up again.
+
 ## 181. A part with lots of background noise wears an orange warning, measured on the device from its loudness and the room between its words
 
 Date: 2026-10-28 · By: Caleb Koster · Status: accepted
@@ -8913,6 +8918,11 @@ commit. A change to the scripts or to how they are filmed is filmed when it
 is merged into main, rather than at the next 20:10: a fix to the filming
 should not wait a day, or for a person to press Run workflow, since the
 agents that work on the videos cannot start or re-run a workflow.
+
+Amended (2026-10-30, Caleb Koster): the intake no longer waits for 23:10
+UTC: the filming tells the app when each language's films are in, and the
+intake runs then, with the publish after it; the one scheduled intake is at
+five past midnight in California, as YouTube's day begins (192).
 
 ## 184. The publish job keeps each YouTube channel's description, banner and list of the others; held comments are counted on the dashboard and moderated in Studio
 
@@ -9309,3 +9319,53 @@ description in place of the channels row (YouTube shows a description
 cut to one line).
 Reverse if: YouTube lets a Short's description link out, or people watch
 the videos mostly on phones held upright and ask for tall ones.
+
+## 192. Tutorial videos go up as soon as they are filmed: the filming tells the app, the intake chooses the wide films itself, and the publish follows each intake
+
+Date: 2026-10-30 · By: Caleb Koster · Status: accepted
+
+Reason: on 2026-10-30 Caleb saw the ops dashboard waiting for him to tick
+the new videos before they went up, and asked: "I want everything,
+including the updated YouTube pages, published as soon as everything is
+ready. We won't wait for a scheduled time". Until now a night's films
+waited for the intake at 23:10 UTC, then for a person's Publish (180), then
+for the publish run at 23:40 UTC (183, amended): up to a day behind the
+filming, and never without a person. Decided:
+- **The filming says when its films are in.** Each language's job in
+  `tutorials.yml`, once its new films are in the release, posts to the
+  app Worker's `/api/tutorial-filmed` (`e2e/tutorials/films-in.mjs`,
+  `apps/web/worker/tutorialFilmed.ts`), which starts the intake. Only that
+  workflow, run from main, gets in, with the OIDC token GitHub gives the
+  job, as for the nightly look (186): the workflow still holds no key to
+  production. The first job of each run says it too, for films a run
+  before it put in without saying (one cut off, or one from before this).
+  An intake already running takes the films in once more when it ends.
+- **The intake chooses the wide films itself** (`ops_tutorial_made`
+  `p_choose`, migration `*_tutorial_choose_on_intake.sql`): a film made
+  wide (191) is chosen for YouTube as it is listed, with a time and nobody's
+  name, so no Publish is needed. A tall film left from before, whose refilm
+  failed, would go up as a Short, so it still waits for a person's Publish,
+  which stays on the dashboard for that and for putting one up again.
+- **The publish follows each intake** (`AFTER` in
+  `apps/web/worker/jobsModel.ts`); if it is running, it runs once more when
+  it ends. A run that makes a playlist gives it its row on the channel's
+  home page at the end of the same run, not the next.
+- **One scheduled time, as YouTube's day begins**: an intake at five past
+  midnight in California (07:05 UTC in summer time, 08:05 in winter), with
+  the publish after it, takes in what the filming could not say and puts
+  up what the day before had no room for. The intake at 23:10 UTC and the
+  publish at 23:40 UTC are gone. The filming keeps its 20:10 UTC start.
+What stays: YouTube's limits (180, amended): 100 uploads a day for the
+project and a lower limit for each new channel, so replacing every video
+in every language still takes over a week; the publish goes on with the
+rest each day.
+Rejected: choosing every film, tall ones too (a tall one goes up as a
+Short, whose links cannot be clicked, 191); an intake every hour in place of
+the filming saying so (most runs would find nothing, and each publish after
+it spends units looking at every channel); keeping the intake and the publish
+at 23:00 to 00:00 UTC (183, amended): Caleb asked for no scheduled time,
+and that hour delayed a night's films by up to a day.
+Reverse if: films go up that should not have (then the intake stops
+choosing and Publish is the way again), or the publish runs after each
+language spend so much of YouTube's day on looking at the channels that
+videos wait for it.

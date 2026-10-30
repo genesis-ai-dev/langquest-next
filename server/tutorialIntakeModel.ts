@@ -43,6 +43,13 @@ export interface Film {
   frame?: string;
 }
 
+/**
+ * Whether the intake chooses a film for YouTube itself (decisions.md 192):
+ * every film made wide is; a tall one left from before (decisions.md 191),
+ * whose refilm failed, would go up as a Short and waits for a person's Publish.
+ */
+export const chosenOnIntake = (film: Film) => film.frame !== undefined;
+
 export interface Manifest {
   language: ChannelLanguage;
   films: Film[];

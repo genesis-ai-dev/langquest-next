@@ -20,6 +20,7 @@ type Section = { id: string; snippet: { type: string; position: number; title?: 
  */
 function youtube(options: { uploads?: number; perChannel?: number; tokenRefused?: string; channel?: string; brandRefused?: string; fieldRefused?: string; sections?: Section[] } = {}) {
   const sections = options.sections ?? [];
+  const lists = [{ id: 'PLtrad', snippet: { title: 'Traductores' } }];
   const calls: string[] = [];
   const sent: Record<string, unknown>[] = [];
   /** Every JSON body sent, by call. */
@@ -70,8 +71,11 @@ function youtube(options: { uploads?: number; perChannel?: number; tokenRefused?
       if (q.get('moderationStatus') !== 'heldForReview') return Response.json({ items: [] });
       return Response.json(q.get('pageToken') ? { items: [{ id: 'c3' }] } : { items: [{ id: 'c1' }, { id: 'c2' }], nextPageToken: 'p2' });
     }
-    if (path === '/youtube/v3/playlists' && method === 'GET') return Response.json({ items: [{ id: 'PLtrad', snippet: { title: 'Traductores' } }] });
-    if (path === '/youtube/v3/playlists') return Response.json({ id: 'PLnew' });
+    if (path === '/youtube/v3/playlists' && method === 'GET') return Response.json({ items: lists });
+    if (path === '/youtube/v3/playlists') {
+      lists.push({ id: 'PLnew', snippet: { title: (JSON.parse(String(init?.body)) as { snippet: { title: string } }).snippet.title } });
+      return Response.json({ id: 'PLnew' });
+    }
     if (path === '/youtube/v3/playlistItems' && method === 'GET') return Response.json({ items: [{ id: 'old-item', snippet: { position: 3 } }] });
     if (path === '/youtube/v3/playlistItems') return method === 'DELETE' ? new Response(null, { status: 204 }) : Response.json({ id: 'item' });
     if (path === '/youtube/v3/videos' && method === 'GET') return Response.json({ items: [{ id: 'oldvideo001', snippet: { title: 't', description: 'old' }, status: {} }] });
@@ -222,6 +226,19 @@ describe('the publish job', () => {
     expect(again.calls).toEqual([
       'POST https://oauth2.googleapis.com/token', 'GET /youtube/v3/channelSections', 'GET /youtube/v3/playlists', 'GET /youtube/v3/commentThreads', 'GET /youtube/v3/commentThreads'
     ]);
+  });
+
+  it('gives a playlist the run made its row on the home page before the run ends (decision 192)', async () => {
+    const rows: Section[] = [];
+    const yt = youtube({ sections: rows });
+    const es: Channel = { channelId: CHANNELS.es, language: 'es', branded: await brandOf('es', BANNER) };
+    const d = deps([video('do-a-check', { playlist: 'Revisores y consultores' })], yt, undefined, [es]);
+    expect(await publishTutorials(d.deps, fresh())).toMatchObject({ published: 1, incomplete: 0, firstError: null });
+    expect(rows.map((r) => r.contentDetails.playlists ?? 'channels')).toEqual(['channels', ['PLtrad'], ['PLnew']]);
+    // A run that made none looks at the home page once, before its videos.
+    const again = youtube({ sections: rows });
+    await publishTutorials(deps([video('record-a-passage')], again, undefined, [es]).deps, fresh());
+    expect(again.calls.filter((c) => c === 'GET /youtube/v3/channelSections')).toHaveLength(1);
   });
 
   it('puts a channel\'s description and banner on without its language when YouTube refuses the language', async () => {
