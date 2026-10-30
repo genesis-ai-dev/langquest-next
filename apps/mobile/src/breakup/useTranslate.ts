@@ -9,9 +9,15 @@ import { useRecordChoices } from '../admin/useChoices';
 import { baseWay, WAY_ITEMS, wayOf, type WayRow } from './model';
 import { useWays } from './useBreakup';
 import { adoptWay } from './breakupActions';
+import { docLanguage, inLanguages } from '../reference/languages';
 
-/** The state of the question, and `resolve()`: the item and version the language will use. */
-export function useTranslate(ctx: Ctx, forLanguage: string | null) {
+/**
+ * The state of the question, and `resolve()`: the item and version the
+ * language will use. `languages` are the team's (decision 193): templates in
+ * them or saying none are offered, and the one in use; the rest are one tap
+ * away (`showEveryLanguage`).
+ */
+export function useTranslate(ctx: Ctx, forLanguage: string | null, languages?: readonly string[]) {
   // The language's numbering: what its template is numbered in, until the admin chooses another.
   const [numberingCode, setNumberingCode] = useState<string | null>(null);
   const here = forLanguage && forLanguage === ctx.language.languageId ? ctx.language.state?.template?.value : null;
@@ -19,7 +25,10 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null) {
   const hereDoc = hereDocs.get<TemplateDoc>(here?.docHash);
   const hereCode = hereDoc?.bible ? hereDocs.get<VersificationDoc>(hereDoc.bible.versification)?.code ?? null : null;
   const code = numberingCode ?? hereCode;
-  const ways = useWays(ctx, forLanguage, code);
+  const [everyLanguage, setEveryLanguage] = useState(false);
+  const readable = (doc: TemplateDoc | null | undefined) => everyLanguage || !languages || inLanguages(docLanguage(doc), languages);
+  const allWays = useWays(ctx, forLanguage, code);
+  const ways = { ...allWays, rows: allWays.rows.filter((r) => r.inUse || readable(allWays.docOf(r.choice))) };
   // The LangQuest way the language uses now ("langquest.bible.fia"), whatever its numbering.
   const hereItem = here ? ways.lib.item(here.itemId) : null;
   const hereFrom = hereItem?.subscription ? { orgId: hereItem.subscription.sourceOrgId, itemId: hereItem.subscription.sourceItemId } : hereItem?.copiedFrom ?? null;
@@ -29,7 +38,9 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null) {
   const [key, setKey] = useState<string | null>(null);
   const [outlineKey, setOutlineKey] = useState<string | null>(null);
   const { choices: recChoices, kindOf } = rec;
-  const outlines = useMemo(() => recChoices.filter((c) => kindOf(c) === 'outline'), [recChoices, kindOf]);
+  const allOutlines = useMemo(() => recChoices.filter((c) => kindOf(c) === 'outline'), [recChoices, kindOf]);
+  const outlines = allOutlines.filter((c) => c === rec.current || readable(rec.docs.get<TemplateDoc>(c.hash)));
+  const hiddenLanguages = allWays.rows.length - ways.rows.length + allOutlines.length - outlines.length;
   // Already in use here: start from what the language has.
   const inUse = ways.rows.find((r) => r.inUse) ?? null;
   const outlineInUse = outlines.find((c) => c === rec.current) ?? null;
@@ -90,6 +101,7 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null) {
     : page === 'numbered' ? !!numbering : page === 'ways' ? ready : false;
   return {
     ways, rec, what: shownWhat, setWhat, row, setKey, outlines, outline, setOutlineKey, empty, doc, v11n, resolve,
+    hiddenLanguages, showEveryLanguage: () => setEveryLanguage(true),
     numbering, setNumbering: (c: string) => { setNumberingCode(c); setKey(null); }, numberingChanged: !!hereCode && !!code && code !== hereCode,
     ready, page, found, choose, advance, retreat, canContinue, quizTrail, setQuizTrail,
     setPage: (p: TranslatePage) => { if (p === 'quiz') setQuizTrail([QUIZ.start]); setPage(p); },

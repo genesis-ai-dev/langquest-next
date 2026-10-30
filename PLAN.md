@@ -170,7 +170,7 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.ClusterNamed` | clusterId, name | register per cluster: making one and renaming it; a cluster is a name on some languages, not a level (decision 108) |
 | `v1.LanguageClusterSet` | languageId, clusterId, inCluster | register per (language, cluster): a tag, so a language may be in several clusters or none; a cluster none is in is gone (decision 108) |
 | `v1.ReferenceRecommended` | itemId, recommended | register per item; recommended to every language (decision 62) |
-| `v1.LibraryItemDefined` | itemId, kind (template, flow, material, versification, source, sourceBook, timing…), name, description, copiedFrom? | kind and copiedFrom earliest wins, name and description registers (docs/library.md) |
+| `v1.LibraryItemDefined` | itemId, kind (template, flow, material, versification, names, source, sourceBook, timing…), name, description, copiedFrom? | kind and copiedFrom earliest wins, name and description registers (docs/library.md) |
 | `v1.LibraryVersionPublished` | itemId, kind, docHash, note? | grow-only per (item, hash), earliest wins; numbered by clock |
 | `v1.LibrarySharingSet` / `v1.LibraryItemArchived` | itemId, kind, shared, subscribable / archived | register per item; subscribable implies shared |
 | `v1.LibrarySubscribed` / `v1.LibraryPinned` | itemId, kind, sourceOrgId, sourceOrgName, sourceItemId, name, autoUpdate, active / docHash | register per item; the server writes the pin for automatic updates |
@@ -184,6 +184,7 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.UnitAdded` | unitId, parentUnitId, kind, label, order | grow-only set |
 | `v1.UnitHidden` | unitId, hidden | register per unit; a part the template's version no longer has |
 | `v1.BookNameSet` | book, name | register per book (USFM); what this language calls a Bible book, whatever its template calls it (decision 74) |
+| `v1.BookNamesSelected` | itemId, docHash, language, names | register; the library book names (one set per language) this language uses, every name carried in; a book's own `BookNameSet` stays on top (decision 193) |
 | `v1.FlowSelected` | flowId, itemId, docHash, name | register; the selector emits kinds and `FlowStepSet` under `<flowId>/` |
 | `v1.FlowStepSet` / `v1.FlowStepRemoved` | stepId, order, kindIds[], checkpoint / stepId | register per step; removal is add-wins; kinds in one step run in parallel, a checkpoint is the only gate |
 | `v1.ReviewKindDefined` | kindId, name, description?, usualReviewer?, withholdsContext?, produces? | register per kind; overrides the shipped kind of the same id |

@@ -155,6 +155,18 @@ naming one offers what the language's Bibles call it (their `source@1`
 books) and what the organization's other languages call it
 (`language_book_names(p_org, p_book)`, demo ADR-042).
 
+## Book names
+
+A template names no language (decision 193). What a language's people read
+the books as comes from an item of kind `names`, one per language
+(`names@1`: `{ name, description, language, books: [{ book, name }] }`),
+as FIA's guides are one collection per language. A language uses one with
+`v1.BookNamesSelected`, which carries every name, so the server and a
+phone without the document name passages alike. Core `bookNameOf` reads a
+book's own `v1.BookNameSet` first, then the set, then the template's name.
+New language picks the set in the first of the translators' languages that
+has one; the content template page's Book names row changes it.
+
 ## Versification
 
 `packages/core/src/versification.ts` reimplements the pivot method of
