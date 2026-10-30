@@ -98,7 +98,7 @@ test('SETUP-010 Create a language end to end @p0', async ({ page }) => {
   await expect(primary(page)).toContainText(`Add ${name}`);
   await primary(page).click();
   await expectToast(page, `${name} added to ${w.orgName}.`);
-  await expectOnScreen(page, '6 of 6 · People', 'Time to invite people', 'Translators', 'Checkers', 'Later');
+  await expectOnScreen(page, '6 of 6 · People', 'Time to invite people', 'Translators', 'Checkers', 'Done');
   // Each role is a card with what it lets them do, one tap open, and its own Invite (decision 146).
   await text(page, 'What they may do').click();
   await expectOnScreen(page, 'Record', 'Ask for checks', `Only in ${name}`);
@@ -168,7 +168,7 @@ test('SETUP-012 Add a language offline, unlinked, and link it later', async ({ p
   await finish(page);
   // Offline it is added unlinked; what needs the server to be offered is named, to offer later (decisions 71, 76).
   await expectToast(page, new RegExp(`^${name} added to ${w.orgName}\\.( Offer .* under Reference material once you are online\\.)?`));
-  await text(page, 'Later').click();
+  await button(page, 'Done').click();
   await page.context().setOffline(false);
   await languagePage(page, w, name);
   await text(page, 'Languages').click();
@@ -235,7 +235,7 @@ test('SETUP-014 Choose which books a new language translates', async ({ page }) 
   await expect(page.getByRole('button', { name: 'John', exact: true }).locator('visible=true').first()).toHaveAttribute('aria-pressed', 'false');
   await primary(page).click();
   await finish(page);
-  await text(page, 'Later').click();
+  await button(page, 'Done').click();
   await tab(page, 'map').click();
   await text(page, name).click().catch(() => undefined);
   const map = await screenText(page);
@@ -353,7 +353,7 @@ test('SETUP-018 A new language\'s checks are set up on their own pages before it
   await expect(primary(page)).toContainText(`Add ${name}`);
   await primary(page).click();
   await expect(text(page, 'Time to invite people')).toBeVisible({ timeout: 60_000 });
-  await text(page, 'Later').click();
+  await button(page, 'Done').click();
   await languagePage(page, w, name);
   await expectOnScreen(page, /Peer check \+ back translation → Community check \+ retelling → Consultant check/i);
   await expectNotOnScreen(page, 'Final approval');
@@ -393,7 +393,7 @@ test('SETUP-020 New language\'s invite step, or later', async ({ page }) => {
   const name = `India ${tag()}`;
   await openAs(page, w, 'ADMIN');
   await addLanguage(page, w, name);
-  await text(page, 'Later').click();
+  await button(page, 'Done').click();
   await languagePage(page, w, name);
   await expectOnScreen(page, `Get ${name} ready`, 'Invite your translators');
   await expect(primary(page)).toContainText('Invite your translators');
@@ -406,7 +406,7 @@ test('SETUP-021 Only organization-scope setters add languages', async ({ page, b
   const name = `Juliet ${tag()}`;
   await openAs(page, w, 'COORD');
   await addLanguage(page, w, name);
-  await text(page, 'Later').click();
+  await button(page, 'Done').click();
   await orgHome(page, w);
   await expect(text(page, name)).toBeVisible();
 
@@ -447,7 +447,7 @@ test('SETUP-074 A cluster of a new language and one already here, then ungrouped
   await primary(page).click();
   await expect(text(page, 'Time to invite people')).toBeVisible({ timeout: 60_000 });
   await expectToast(page, `1 language added to ${w.orgName}, in ${cluster}.`);
-  await text(page, 'Later').click();
+  await button(page, 'Done').click();
   // Org home: the cluster is a heading over its languages, then those in none (decision 108, amended 2026-10-20).
   await orgHome(page, w);
   const heading = button(page, `${cluster}. 2 languages`);

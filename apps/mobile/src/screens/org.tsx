@@ -2045,7 +2045,7 @@ function NewLanguageInvite(props: { ctx: Ctx; languages: { languageId: string; n
       header={(back) => <Header title={t('org.home.newLanguage')} sub={names} onBack={back} />}
       label={(scope) => t('admin.invite.teamLabel', { name: scope.label })} onDone={ctx.back}
       disabled={may ? undefined : t('org.newLanguage.inviteLater', { language: names })}
-      later={{ label: t('org.newLanguage.later'), help: t('org.newLanguage.laterHelp'), onPress: ctx.back }}
+      done={{ help: t('org.newLanguage.doneHelp', { language: names }), onPress: ctx.back }}
       {...(ctx.session.can('manage_roles') ? { onNewRole: () => ctx.go('role_editor', { roleId: 'new' }) } : {})} />
   );
 }

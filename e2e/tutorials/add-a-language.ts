@@ -162,7 +162,7 @@ export const addALanguage: Tutorial = {
     },
     {
       screen: 'new_language',
-      part: (page) => [words(page, 'Time to invite people'), button(page, 'Later')],
+      part: (page) => [words(page, 'Time to invite people'), button(page, 'Done')],
       say: `${NAME} is added. Last, invite its people, now or later.`,
       stay: 2
     }

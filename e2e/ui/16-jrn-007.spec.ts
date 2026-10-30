@@ -67,7 +67,7 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   await expect(text(page, /^(Setting up Journey Language|Getting the passages|Getting the review steps|Saving Journey Language's passages)/)).toBeVisible();
   await expectToast(page, `Journey Language added to ${orgName}.`);
   await expect(text(page, 'Time to invite people')).toBeVisible();
-  await button(page, 'Later').click();
+  await button(page, 'Done').click();
   // The Map shows the books in scope.
   await tab(page, 'map').click();
   const journey = page.getByRole('button', { name: /^Journey Language: .*Open its map/ }).locator('visible=true').first();

@@ -981,7 +981,6 @@
       "noWays": "No ways to check to choose from yet.",
       "notAdded": "Not added",
       "inviteLater": "Invite {{language}}'s translators from its page later.",
-      "later": "Later",
       "making": {
         "title": "Setting up {{language}}",
         "passages": "Getting the passages",
@@ -996,7 +995,6 @@
       "continueHelp": "On to the next question.",
       "addHelp": "Adds {{language}} with these answers. Then you can invite its translators.",
       "backHelp": "Back one page. What you chose stays chosen.",
-      "laterHelp": "Skips this for now. Invite its translators from its page later.",
       "stages": {
         "language": "Language",
         "content": "Content",
@@ -1037,7 +1035,8 @@
         "offHelp": "Left out. Tap so {{language}}’s team has it.",
         "nothing": "No Bibles or study guides in {{languages}} yet"
       },
-      "teamLanguages": "Which languages do {{language}}'s translators use?"
+      "teamLanguages": "Which languages do {{language}}'s translators use?",
+      "doneHelp": "Finishes setting up {{language}}. You can invite its translators from its page later."
     },
     "offers": {
       "guides": "{{name}}'s study guides",

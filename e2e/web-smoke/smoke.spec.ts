@@ -61,7 +61,7 @@ async function createAccountAndOrg(page: Page, email: string): Promise<void> {
   await expect(page.getByText('How will recordings get checked?').first()).toBeVisible({ timeout: 60_000 });
   await button(page, 'Continue').click({ timeout: 60_000 });
   await button(page, 'Add Dinka').click({ timeout: 60_000 });
-  await button(page, 'Later').click({ timeout: 60_000 });
+  await button(page, 'Done').click({ timeout: 60_000 });
   // A new language leads My Work with its Get ready card (decision 71): "Get Dinka ready · 1 of 4".
   await expect(page.getByText(/^Get Dinka ready/).first()).toBeVisible({ timeout: 60_000 });
 }

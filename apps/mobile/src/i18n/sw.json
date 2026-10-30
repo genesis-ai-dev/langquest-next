@@ -981,7 +981,6 @@
       "noWays": "Bado hakuna njia za kukagua za kuchagua.",
       "notAdded": "Haijaongezwa",
       "inviteLater": "Waalike watafsiri wa {{language}} kutoka kwenye ukurasa wake baadaye.",
-      "later": "Baadaye",
       "making": {
         "title": "Inaandaa {{language}}",
         "passages": "Inapata vifungu",
@@ -996,7 +995,6 @@
       "continueHelp": "Endelea kwenye swali linalofuata.",
       "addHelp": "Huongeza {{language}} kwa majibu haya. Kisha unaweza kuwaalika watafsiri wake.",
       "backHelp": "Rudi ukurasa mmoja. Ulichochagua kinabaki kimechaguliwa.",
-      "laterHelp": "Huruka hili kwa sasa. Waalike watafsiri wake kutoka ukurasa wake baadaye.",
       "stages": {
         "language": "Lugha",
         "content": "Maudhui",
@@ -1037,7 +1035,8 @@
         "offHelp": "Imeachwa nje. Gusa ili timu ya {{language}} iwe nayo.",
         "nothing": "Bado hakuna Biblia wala miongozo ya kujifunza kwa {{languages}}"
       },
-      "teamLanguages": "Watafsiri wa {{language}} wanatumia lugha zipi?"
+      "teamLanguages": "Watafsiri wa {{language}} wanatumia lugha zipi?",
+      "doneHelp": "Inamaliza kuandaa {{language}}. Unaweza kuwaalika watafsiri wake kutoka ukurasa wake baadaye."
     },
     "offers": {
       "guides": "miongozo ya kujifunza ya {{name}}",

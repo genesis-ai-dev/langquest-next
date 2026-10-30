@@ -959,7 +959,6 @@
       "noWays": "Belum ada cara memeriksa yang bisa dipilih.",
       "notAdded": "Tidak ditambahkan",
       "inviteLater": "Undang penerjemah {{language}} dari halamannya nanti.",
-      "later": "Nanti",
       "making": {
         "title": "Menyiapkan {{language}}",
         "passages": "Mengambil perikop",
@@ -974,7 +973,6 @@
       "continueHelp": "Lanjut ke pertanyaan berikutnya.",
       "addHelp": "Menambahkan {{language}} dengan jawaban-jawaban ini. Lalu Anda dapat mengundang penerjemahnya.",
       "backHelp": "Mundur satu halaman. Yang sudah Anda pilih tetap terpilih.",
-      "laterHelp": "Melewati ini untuk sekarang. Undang penerjemahnya nanti dari halamannya.",
       "stages": {
         "language": "Bahasa",
         "content": "Isi",
@@ -1014,7 +1012,8 @@
         "offHelp": "Tidak disertakan. Ketuk agar tim {{language}} memilikinya.",
         "nothing": "Belum ada Alkitab atau panduan studi dalam bahasa {{languages}}"
       },
-      "teamLanguages": "Bahasa apa saja yang dipakai penerjemah {{language}}?"
+      "teamLanguages": "Bahasa apa saja yang dipakai penerjemah {{language}}?",
+      "doneHelp": "Menyelesaikan penyiapan {{language}}. Anda bisa mengundang penerjemahnya dari halamannya nanti."
     },
     "offers": {
       "guides": "panduan studi {{name}}",

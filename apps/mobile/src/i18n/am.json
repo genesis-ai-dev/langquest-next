@@ -981,7 +981,6 @@
       "noWays": "እስካሁን የሚመረጥ የመፈተሻ መንገድ የለም።",
       "notAdded": "አልታከለም",
       "inviteLater": "የ{{language}} ተርጓሚዎችን በኋላ ከገጹ ይጋብዙ።",
-      "later": "በኋላ",
       "making": {
         "title": "{{language}}ን በማዘጋጀት ላይ",
         "passages": "ክፍሎቹን በማምጣት ላይ",
@@ -996,7 +995,6 @@
       "continueHelp": "ወደ ቀጣዩ ጥያቄ ይቀጥላል።",
       "addHelp": "{{language}}ን በእነዚህ መልሶች ያክላል። ከዚያ ተርጓሚዎቹን መጋበዝ ይችላሉ።",
       "backHelp": "አንድ ገጽ ወደ ኋላ ይመለሳል። የመረጡት እንደተመረጠ ይቆያል።",
-      "laterHelp": "ይህን ለአሁን ይዘላል። ተርጓሚዎቹን በኋላ ከገጹ ይጋብዙ።",
       "stages": {
         "language": "ቋንቋ",
         "content": "ይዘት",
@@ -1037,7 +1035,8 @@
         "offHelp": "ተትቷል። የ{{language}} ቡድን እንዲኖረው ይንኩ።",
         "nothing": "እስካሁን በ{{languages}} መጽሐፍ ቅዱስም ሆነ የጥናት መመሪያ የለም"
       },
-      "teamLanguages": "የ{{language}} ተርጓሚዎች የትኞቹን ቋንቋዎች ይጠቀማሉ?"
+      "teamLanguages": "የ{{language}} ተርጓሚዎች የትኞቹን ቋንቋዎች ይጠቀማሉ?",
+      "doneHelp": "{{language}}ን ማዘጋጀት ያጠናቅቃል። ተርጓሚዎቹን በኋላ ከገጹ መጋበዝ ይችላሉ።"
     },
     "offers": {
       "guides": "የ{{name}} የጥናት መመሪያዎች",

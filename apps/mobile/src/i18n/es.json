@@ -1003,7 +1003,6 @@
       "noWays": "Todavía no hay formas de revisar para elegir.",
       "notAdded": "No se agregó",
       "inviteLater": "Más tarde, invita a los traductores de {{language}} desde su página.",
-      "later": "Más tarde",
       "making": {
         "title": "Preparando {{language}}",
         "passages": "Obteniendo los pasajes",
@@ -1018,7 +1017,6 @@
       "continueHelp": "Pasa a la siguiente pregunta.",
       "addHelp": "Agrega {{language}} con estas respuestas. Luego puedes invitar a sus traductores.",
       "backHelp": "Vuelve una página atrás. Lo que elegiste sigue elegido.",
-      "laterHelp": "Salta esto por ahora. Más tarde, invita a sus traductores desde su página.",
       "stages": {
         "language": "Idioma",
         "content": "Contenido",
@@ -1060,7 +1058,8 @@
         "offHelp": "Dejado fuera. Toca para que el equipo de {{language}} lo tenga.",
         "nothing": "Todavía no hay Biblias ni guías de estudio en {{languages}}"
       },
-      "teamLanguages": "¿Qué idiomas usan los traductores de {{language}}?"
+      "teamLanguages": "¿Qué idiomas usan los traductores de {{language}}?",
+      "doneHelp": "Termina de configurar {{language}}. Puedes invitar a sus traductores desde su página más tarde."
     },
     "offers": {
       "guides": "las guías de estudio de {{name}}",

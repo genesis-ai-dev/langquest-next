@@ -53,8 +53,8 @@ export function InviteSomeone(props: {
   disabled?: string;
   /** New language's first look at inviting (decision 146): "Time to invite people" over the roles. */
   welcome?: boolean;
-  /** Under the roles: New language's Later. */
-  later?: { label: string; help: string; onPress: () => void };
+  /** Under the roles: New language's Done, its last step's way out (LAN-196). */
+  done?: { help: string; onPress: () => void };
   /** Under the header on every page: New language's stages. */
   top?: ReactNode;
 }) {
@@ -178,7 +178,7 @@ export function InviteSomeone(props: {
 
   return (
     <Screen header={props.header(ctx.back, scope)} bodyStyle={styles.body}
-      footer={props.later ? <QuietLinks items={[{ label: props.later.label, icon: 'clock', help: props.later.help, onPress: props.later.onPress }]} /> : undefined}>
+      footer={props.done ? <PrimaryBtn label={t('common.done')} icon="check" help={props.done.help} onPress={props.done.onPress} /> : undefined}>
       {props.top}
       {props.welcome ? (
         <View style={styles.welcome}>

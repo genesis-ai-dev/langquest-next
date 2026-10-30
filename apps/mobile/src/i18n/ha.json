@@ -981,7 +981,6 @@
       "noWays": "Babu hanyoyin dubawa da za a zaɓa tukuna.",
       "notAdded": "Ba a ƙara ba",
       "inviteLater": "Ku gayyaci masu fassarar {{language}} daga shafinsa daga baya.",
-      "later": "Daga baya",
       "making": {
         "title": "Ana shirya {{language}}",
         "passages": "Ana samo nassosi",
@@ -996,7 +995,6 @@
       "continueHelp": "Ci gaba zuwa tambaya ta gaba.",
       "addHelp": "Yana ƙara {{language}} da waɗannan amsoshi. Sannan kuna iya gayyatar masu fassararsa.",
       "backHelp": "Koma shafi ɗaya baya. Abin da kuka zaɓa yana nan a zaɓe.",
-      "laterHelp": "Yana tsallake wannan a yanzu. Ku gayyaci masu fassararsa daga shafinsa daga baya.",
       "stages": {
         "language": "Harshe",
         "content": "Abun ciki",
@@ -1037,7 +1035,8 @@
         "offHelp": "An bar shi. Taɓa don tawagar {{language}} ta samu.",
         "nothing": "Babu Littattafai Masu Tsarki ko jagororin nazari cikin {{languages}} tukuna"
       },
-      "teamLanguages": "Waɗanne harsuna masu fassarar {{language}} suke amfani da su?"
+      "teamLanguages": "Waɗanne harsuna masu fassarar {{language}} suke amfani da su?",
+      "doneHelp": "Yana kammala shirya {{language}}. Za ka iya gayyato masu fassararta daga shafinta daga baya."
     },
     "offers": {
       "guides": "jagororin nazari na {{name}}",
