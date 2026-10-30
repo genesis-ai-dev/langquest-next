@@ -51,7 +51,7 @@ describe('LangQuest library seed', { timeout: 60_000 }, () => {
     expect(build.items.every((i) => /^langquest\.[a-z0-9._-]+$/.test(i.itemId))).toBe(true);
   });
 
-  it('names its templates, numberings, flows and book names in each of the app\'s other languages (decision 194)', () => {
+  it('names its templates, numberings, flows and book names in each of the app\'s other languages (decision 195)', () => {
     const sets = build.items.filter((i) => i.kind === 'labels');
     expect(sets.map((i) => i.itemId)).toEqual(['spa', 'por', 'fra', 'arb', 'swa', 'hau', 'amh', 'hin', 'ben', 'npi', 'ind', 'cmn', 'tha', 'mya'].map((c) => `langquest.labels.${c}`));
     const hindi = new Map((doc(item('langquest.labels.hin').docHash) as LabelsDoc).items.map((i) => [i.itemId, i]));

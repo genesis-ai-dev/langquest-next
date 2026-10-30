@@ -1,5 +1,5 @@
 // What other organizations' library items are called in the language the
-// app shows (labels.ts, decision 194).
+// app shows (labels.ts, decision 195).
 import { useEffect, useState } from 'react';
 import { readerLanguage } from '../reference/languages';
 import { labelsNow, loadLabels, onLabels } from './labels';

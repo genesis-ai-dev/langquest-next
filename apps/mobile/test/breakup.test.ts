@@ -63,7 +63,7 @@ describe('the ways to break up the Bible, in the order an admin sees them', () =
     expect(emptyLine(fia)).toBe('Romans, Hebrews and 2 more');
   });
 
-  it('counts in the language showing, not in English (decision 194)', () => {
+  it('counts in the language showing, not in English (decision 195)', () => {
     addCatalog('hi', JSON.parse(fs.readFileSync(path.resolve(__dirname, '../src/i18n/hi.json'), 'utf8')));
     showLanguage('hi');
     try {

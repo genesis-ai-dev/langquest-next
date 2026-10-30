@@ -1,5 +1,5 @@
 // What other organizations' library items are called in the language the app
-// shows (decision 194). LangQuest publishes its templates, numberings, flows
+// shows (decision 195). LangQuest publishes its templates, numberings, flows
 // and book names with English names, and one `labels` item per language
 // ("Library names (Hindi)") says what each is called there. A shared item,
 // or one this organization follows, shows that name; an item this

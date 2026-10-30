@@ -13,6 +13,12 @@ type VADResult = {
 export type VADConfig = {
   /** What this device heard last time (splitter.ts, LAN-82): parts split by the room and the voice, with no setting. */
   heard?: HeardLevels;
+  /**
+   * The silence switch (decision 194): while on, a session's chunk stays open
+   * through every pause until the detector stops (chunks.ts), so the room
+   * between parts is kept whole. Left out, it stays as it was.
+   */
+  keepRoom?: boolean;
 };
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions

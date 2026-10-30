@@ -90,7 +90,7 @@ describe('documents', () => {
     expect(validateDoc({ ...list, pattern: 3 })).toMatch(/pattern/);
   });
 
-  it('name an organization\'s own items in one language, each item once (decision 194)', () => {
+  it('name an organization\'s own items in one language, each item once (decision 195)', () => {
     const hindi: LabelsDoc = {
       format: 'labels@1', name: 'Library names (Hindi)', description: '', language: 'hin',
       items: [{ itemId: 'langquest.bible.chapters', name: 'अध्याय के अनुसार' }, { itemId: 'langquest.flow.quick_check', name: 'त्वरित जाँच', description: 'एक साथी सुनता है।' }],

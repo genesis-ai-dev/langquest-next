@@ -13,7 +13,7 @@ export function SyncEffects(props: { orgId: string; orgPulled: boolean; refused:
   // Web: warn before the tab closes with work still to send (storageGate.tsx).
   useLeaveGuard(!props.refused && (status.pending > 0 || status.pendingUp > 0) || status.orgPending > 0);
   useLibraryUpload(props.orgId, props.orgPulled);
-  // What LangQuest's templates and flows are called in the language showing (decision 194).
+  // What LangQuest's templates and flows are called in the language showing (decision 195).
   useLabelsLoad(props.orgId);
   return null;
 }

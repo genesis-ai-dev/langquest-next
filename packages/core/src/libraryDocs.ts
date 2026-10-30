@@ -389,7 +389,7 @@ export interface NamesDoc {
 
 /**
  * What an organization's own library items are called in one language
- * (decision 194): "Library names (Hindi)". The items keep the names they
+ * (decision 195): "Library names (Hindi)". The items keep the names they
  * were published with; a reader whose app shows this language sees these
  * instead, wherever the item is offered or followed. A set names only the
  * items of the organization that publishes it, so no one renames another's.

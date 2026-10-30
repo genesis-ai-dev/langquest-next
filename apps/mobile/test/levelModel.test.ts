@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CEILING_DB, LEVEL, levelPart, limiter, LOOKAHEAD_S, needsCopy, nextGain, PASSES } from '../src/audio/levelModel';
-import { loudnessMeter, MAX_BOOST_DB, playGainDb, TARGET_LUFS } from '../src/audio/loudnessModel';
+import { loudnessMeter, MAX_BOOST_DB, playGainDb, TARGET_LUFS, VOICELESS_DB } from '../src/audio/loudnessModel';
 
 const RATE = 48000;
 const CEILING = 10 ** (CEILING_DB / 20);
@@ -13,6 +13,13 @@ function random(seed: number) {
 
 function tone(seconds: number, peak: number, hz = 220): Float32Array {
   return Float32Array.from({ length: Math.round(seconds * RATE) }, (_, i) => peak * Math.sin((2 * Math.PI * hz * i) / RATE));
+}
+
+/** A tone said as words: on for a quarter of a second, off for a quarter, over a little room noise. A steady tone is only room (VOICELESS_DB). */
+function words(seconds: number, peak: number, hz = 220): Float32Array {
+  const next = random(3);
+  return Float32Array.from({ length: Math.round(seconds * RATE) }, (_, i) =>
+    (Math.floor((i / RATE) * 4) % 2 === 0 ? peak * Math.sin((2 * Math.PI * hz * i) / RATE) : 0) + peak * 0.003 * (next() * 2 - 1));
 }
 
 /** Speech-like: words that swell and fade, each with a short syllable seven times as loud, over a little room noise. */
@@ -38,25 +45,34 @@ function level(x: Float32Array, gainDb: number, block = 4096): Float32Array {
   return out;
 }
 
-function lufs(x: Float32Array): number {
+function measure(x: Float32Array) {
   const m = loudnessMeter(RATE, x.length);
   m.add(x);
-  return m.measured().lufs!;
+  return m.measured();
 }
+const lufs = (x: Float32Array) => measure(x).lufs!;
 
 const peakOf = (x: Float32Array) => x.reduce((p, v) => Math.max(p, Math.abs(v)), 0);
 
 describe('which parts play from a copy (decision 182)', () => {
   it('copies a part half a decibel or more from −16 LUFS, and plays the rest as they are', () => {
-    expect(needsCopy({ lufs: TARGET_LUFS - 0.4 })).toBe(false);
-    expect(needsCopy({ lufs: TARGET_LUFS + 0.4 })).toBe(false);
-    expect(needsCopy({ lufs: TARGET_LUFS - 0.5 })).toBe(true);
-    expect(needsCopy({ lufs: -9 })).toBe(true);
-    expect(needsCopy({ lufs: null })).toBe(false);
+    expect(needsCopy({ lufs: TARGET_LUFS - 0.4, noiseDb: -60 })).toBe(false);
+    expect(needsCopy({ lufs: TARGET_LUFS + 0.4, noiseDb: -60 })).toBe(false);
+    expect(needsCopy({ lufs: TARGET_LUFS - 0.5, noiseDb: -60 })).toBe(true);
+    expect(needsCopy({ lufs: -9, noiseDb: null })).toBe(true);
+    expect(needsCopy({ lufs: null, noiseDb: null })).toBe(false);
+  });
+
+  it('plays a part that holds only the room as it is (decision 194)', () => {
+    expect(needsCopy({ lufs: -50, noiseDb: -52 })).toBe(false);
+    expect(needsCopy({ lufs: -50, noiseDb: -60 })).toBe(true);
+    // A silence kept as a part: room recorded quietly, far under −16 LUFS, is not turned up.
+    const next = random(5);
+    expect(levelPart(Float32Array.from({ length: RATE * 2 }, () => 0.002 * (next() * 2 - 1)), RATE).copy).toBeNull();
   });
 
   it('hands the phones every number they need', () => {
-    expect(LEVEL).toMatchObject({ targetLufs: TARGET_LUFS, maxBoostDb: MAX_BOOST_DB, ceilingDb: CEILING_DB });
+    expect(LEVEL).toMatchObject({ targetLufs: TARGET_LUFS, maxBoostDb: MAX_BOOST_DB, voicelessDb: VOICELESS_DB, ceilingDb: CEILING_DB });
   });
 });
 
@@ -75,15 +91,15 @@ describe('a copy at even loudness (decision 182)', () => {
   });
 
   it('needs one pass for a part with ordinary peaks', () => {
-    const x = tone(2, 0.02);
-    const { copy } = levelPart(x, RATE);
-    expect(copy!.gainDb).toBeCloseTo(playGainDb({ lufs: lufs(x) }), 9);
+    const x = words(2, 0.04);
+    const { measured, copy } = levelPart(x, RATE);
+    expect(copy!.gainDb).toBeCloseTo(playGainDb(measured), 9);
     expect(lufs(copy!.samples)).toBeCloseTo(TARGET_LUFS, 1);
   });
 
   it('makes no copy of a part already at −16 LUFS, or of silence', () => {
-    const x = tone(2, 0.02);
-    const at = level(x, playGainDb({ lufs: lufs(x) }) - 0.2);
+    const x = words(2, 0.04);
+    const at = level(x, playGainDb(measure(x)) - 0.2);
     expect(levelPart(at, RATE).copy).toBeNull();
     expect(levelPart(new Float32Array(RATE), RATE).copy).toBeNull();
   });
@@ -122,7 +138,7 @@ describe('the limiter (decision 182)', () => {
 
   it('falls short of −16 LUFS where it holds peaks down', () => {
     const x = speech(6, 0.15);
-    const gain = playGainDb({ lufs: lufs(x) });
+    const gain = playGainDb(measure(x));
     // Turned up whole, its syllables would go over the ceiling.
     expect(peakOf(x) * 10 ** (gain / 20)).toBeGreaterThan(1.4 * CEILING);
     expect(lufs(level(x, gain))).toBeLessThan(TARGET_LUFS - 2);

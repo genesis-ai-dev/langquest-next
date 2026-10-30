@@ -48,6 +48,7 @@ import { PartMark, RecordBtn } from './blocks';
 import { styles as ps } from './blockStyles';
 import { useClip } from '../audio/useClip';
 import { VerseParts } from './verseParts';
+import { SilenceSwitch } from './silenceSwitch';
 import { a11yState } from '../ui/a11yModel';
 
 export interface Part { hash: string; durationMs?: number;
@@ -326,7 +327,8 @@ export function RecorderBar(props: { count: number; phase: LoopPhase; disabled: 
  * While recording, Done is the recording view's check, so the footer has none, as in back translation.
  */
 export function RecorderFooter(props: { count: number; phase: LoopPhase; recordDisabled: boolean; publishDisabled: boolean; onRecord: () => void; onPublish: () => void; nextIndex?: number;
-  undo: UndoRedoProps }) {
+  undo: UndoRedoProps;
+  /** The silence switch, shown where Done is while a session is open (decision 194). */ silence?: { on: boolean; onToggle: () => void } }) {
   const recording = loopRecording(props.phase);
   // A session open but stopped (decision 129) still has the recording view's Done.
   const session = props.phase !== 'off';
@@ -338,7 +340,7 @@ export function RecorderFooter(props: { count: number; phase: LoopPhase; recordD
       </View>
       <RecordBtn size={72} recording={recording} disabled={props.recordDisabled} onPress={props.onRecord} />
       <View style={styles.sideBox}>
-        {session ? null : (
+        {session ? (props.silence ? <SilenceSwitch on={props.silence.on} onToggle={props.silence.onToggle} /> : null) : (
           <Pressable testID="publish-button" onPress={publish.onPress} disabled={props.publishDisabled} accessibilityRole="button" accessibilityLabel={t('common.done')} {...a11yState({ disabled: props.publishDisabled }, 'button')}
             style={({ pressed }) => [styles.publish, props.publishDisabled && { opacity: 0.45 }, pressed && ps.pressed]}>
             <Text style={styles.publishLabel}>{t('common.done')}</Text>

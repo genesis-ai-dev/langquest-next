@@ -27,7 +27,7 @@ const share = (item: string, name: string, org = 'langquest'): SharedItem => ({
 });
 const chapters = share('langquest.bible.chapters', 'By chapter');
 
-describe("other organizations' items in the language showing (decision 194)", () => {
+describe("other organizations' items in the language showing (decision 195)", () => {
   const labels = labelsIn([{ orgId: 'langquest', doc: hindi }, { orgId: 'langquest', doc: nepali }], 'hin');
 
   it('reads the sets in that language, each naming only its own organization\'s items', () => {

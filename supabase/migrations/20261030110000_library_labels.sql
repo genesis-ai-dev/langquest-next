@@ -1,5 +1,5 @@
 -- What an organization's library items are called in other languages
--- (decisions.md 194).
+-- (decisions.md 195).
 --
 --   library kind `labels`, document `labels@1` { name, description, language, items: [{ itemId, name, description? }], deps }
 --

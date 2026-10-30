@@ -195,6 +195,6 @@ export function factsOf(doc: { maxVerses: Record<string, number[]> } | null | un
 
 /**
  * "Russian Synodal · 77 books (Orthodox)" -> "Russian Synodal (Orthodox)": the books are shown beside it. The
- * count is the part after " · " with a digit in it, so the names in other languages shorten too (decision 194).
+ * count is the part after " · " with a digit in it, so the names in other languages shorten too (decision 195).
  */
 export const shortName = (name: string) => name.replace(/ · [^·(（]*\p{Nd}[^·(（]*?(?=\s*[(（]|$)/u, '');

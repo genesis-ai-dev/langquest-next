@@ -47,7 +47,7 @@ describe('finding a Bible\'s numbering (decision 80)', () => {
     expect(factsOf(read('org'))).toMatchObject({ malachi: 3, headings: true });
   });
 
-  it("lists Bibles in the translators' languages first, then the common ones (decision 194)", () => {
+  it("lists Bibles in the translators' languages first, then the common ones (decision 195)", () => {
     expect(firstBibles().map((b) => b.abbr)).toEqual(COMMON_BIBLES);
     expect(firstBibles(['hin', 'ara']).map((b) => b.abbr)).toEqual(['HINOV', 'AVD', ...COMMON_BIBLES]);
     // A few in each language, and none twice.

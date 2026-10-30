@@ -204,7 +204,7 @@ export const STARTER_TEMPLATE = { orgId: 'langquest', name: 'FIA passages (Engli
 /**
  * A template (or versification) someone can use: one of this organization's, or one another organization shares.
  * `name` is the one it was published with, for events and matching; `label`, when there is one, is what the
- * reader's language calls it (decision 194), shown by `choiceName`.
+ * reader's language calls it (decision 195), shown by `choiceName`.
  */
 export type LibraryChoice =
   | { key: string; source: 'ours'; item: LibraryItemView; name: string; hash: string; label?: Label }

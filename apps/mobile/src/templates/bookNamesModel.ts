@@ -25,7 +25,7 @@ const isNames = (doc: LibraryDoc | null | undefined): doc is NamesDoc => doc?.fo
 
 /**
  * Every set there is: the organization's own first, then what others share, each once its document has arrived,
- * named as the language showing calls them (decision 194).
+ * named as the language showing calls them (decision 195).
  */
 export function nameSets(
   own: readonly { it: LibraryItemView; doc: LibraryDoc | null | undefined }[],

@@ -368,7 +368,7 @@ export function buildLibrary(opts: { fiaDirs?: string[]; fiaTerms?: string; exam
     } satisfies CollectionDoc);
   }
 
-  // 7. What LangQuest's items are called in the app's other languages (decision 194), one set
+  // 7. What LangQuest's items are called in the app's other languages (decision 195), one set
   // per language: from labels/<code>.json, by the English name (and description) each item is
   // published with. A template, numbering, flow or set of book names with no name there stops
   // the build; reference material keeps its own (the app names it in the language showing).

@@ -1,5 +1,5 @@
 // The names other organizations give their library items in the language
-// the app shows (labelsModel.ts, decision 194): the `labels` sets they
+// the app shows (labelsModel.ts, decision 195): the `labels` sets they
 // share, read once a session and kept on the phone for the next start,
 // offline too. Screens read them with useLabels.
 import AsyncStorage from '@react-native-async-storage/async-storage';
