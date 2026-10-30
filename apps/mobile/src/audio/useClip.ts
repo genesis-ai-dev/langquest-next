@@ -4,18 +4,19 @@
 // cards one after another as one recording, or one file by `uri`, follows
 // audioSession.ts (starting one player stops every other), and streams a
 // card that is on the server but not on this device while online. A file
-// on this device plays at even loudness (levelStore.ts, decision 182).
+// on this device plays at even loudness (levelStore.ts, decision 182), and
+// on the web through the one element a tap unlocked (recordingPlayer.web.ts).
 import { isStored } from '@langquest-next/core';
-import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
 import { audioFormat } from './audioFormat';
-import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
+import { playerInRow, registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import { t } from '../i18n';
 import { noteExpected, reportError } from '../diagnostics/report';
 import { countAudio } from './audioTally';
 import type { LanguageHandle } from '../sync/useLanguage';
 import { cardSeconds } from './clipTime';
 import { playable, prepare } from './levelStore';
+import { createRecordingPlayer, unlockRecordingPlayer, type RecordingPlayer } from './recordingPlayer';
 
 export interface Clip {
   playing: boolean;
@@ -39,7 +40,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
   const [at, setAt] = useState(0);
   const [clipLength, setClipLength] = useState(0);
   const [, refresh] = useState(0);
-  const player = useRef<AudioPlayer | null>(null);
+  const player = useRef<RecordingPlayer | null>(null);
   const generation = useRef(0);
   const wants = useRef(false);
   const indexRef = useRef(0);
@@ -109,7 +110,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
     if (generation.current !== run || !wants.current) return;
     prepare(lang, live.current.hashes[i + 1]);
     try {
-      const p = createAudioPlayer({ uri });
+      const p = createRecordingPlayer(uri, playerInRow(i, count));
       player.current = p;
       p.addListener('playbackStatusUpdate', (status) => {
         if (player.current !== p) return;
@@ -119,9 +120,12 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
           countAudio(lang, 'playFail');
           return;
         }
+        // The browser would not start it without a tap: it waits there, for Play to go on from it.
+        if (status.refused) { wants.current = false; setPlaying(false); countAudio(lang, 'playFail'); return; }
         if (status.duration > 0) setClipLength(status.duration);
         setAt(status.currentTime);
-        if (status.didJustFinish && player.current === p) void playFrom(i + 1, 0, run);
+        // On with the run playing now: Play after a pause started a run of its own, and the next part is part of it.
+        if (status.didJustFinish && player.current === p) void playFrom(i + 1, 0, generation.current);
       });
       if (from > 0) await p.seekTo(from);
       if (generation.current === run && wants.current) p.play();
@@ -136,6 +140,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
     if (opts?.disabled || !available) return;
     if (wants.current) { halt(); return; }
     stopAudioPlayback();
+    unlockRecordingPlayer();
     const run = ++generation.current;
     wants.current = true;
     setPlaying(true);

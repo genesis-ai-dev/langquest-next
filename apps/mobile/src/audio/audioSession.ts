@@ -22,6 +22,18 @@ export function holdMicrophone(on: boolean): void {
  */
 export const LISTEN_PLAYER = { keepAudioSessionActive: true } as const;
 
+/**
+ * Options for the player of recording `index` of `count` played one after
+ * another (Play all). On iOS expo-audio turns the session off 100 ms after a
+ * player ends unless another is playing by then, and turning it off stops
+ * a next recording still loading (expo-audio 57's deactivateSession), so
+ * Play all could stop between parts. Every player but the last keeps the
+ * session active; the last lets it go, so other apps' sound comes back.
+ */
+export function playerInRow(index: number, count: number): { keepAudioSessionActive?: boolean } {
+  return index + 1 < count ? LISTEN_PLAYER : {};
+}
+
 /** Serialize playback/recording mode changes, including rapid press/release. */
 export function setSessionAudioMode(
   mode: Parameters<typeof setAudioModeAsync>[0]
