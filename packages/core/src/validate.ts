@@ -164,6 +164,11 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('unitId') ?? bool('hidden');
     case 'v1.BookNameSet':
       return str('book', 'name') ?? (/^[A-Z0-9]{3}$/.test(p['book'] as string) ? null : 'book must be a USFM book code');
+    case 'v1.BookNamesSelected':
+      return str('itemId', 'language') ?? (hash(p['docHash']) ? null : 'docHash must be a SHA-256 hex digest') ??
+        (/^[a-z0-9-]{2,40}$/.test(p['language'] as string) ? null : 'language must be a language code') ??
+        (isObject(p['names']) && Object.entries(p['names'] as Record<string, unknown>).every(([b, n]) => /^[A-Z0-9]{3}$/.test(b) && typeof n === 'string' && n.length > 0)
+          ? null : 'names must map USFM book codes to names');
     case 'v1.FlowSelected':
       return str('flowId') ?? (/[/@\s]/.test(p['flowId'] as string) ? 'flowId may not contain /, @ or spaces' : null) ??
         optStr('itemId', 'name') ?? (p['docHash'] === undefined || hash(p['docHash']) ? null : 'docHash must be a SHA-256 hex digest');
