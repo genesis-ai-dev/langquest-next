@@ -1740,6 +1740,10 @@
       "waits": "每卷书都要等协调员划分",
       "named_other": "{{count, number}} 个{{parts}}",
       "parts_other": "{{count, number}} 个部分",
+      "passage_other": "{{count, number}} 个经段",
+      "chapter_other": "{{count, number}} 章",
+      "chunk_other": "{{count, number}} 个小段",
+      "section_other": "{{count, number}} 个段落",
       "inBooks": "{{books}}中的{{pieces}}",
       "books_other": "{{count, number}} 卷书"
     },

@@ -16,7 +16,7 @@ import { GhostBtn, Ico, SearchField, type IconName } from '../ui/kit';
 import { ChoiceCard, Question, RadioRow } from '../admin/admin';
 import { C, radius, space, TINT, type as T } from '../ui/theme';
 import {
-  bibleLanguage, COMMON_BIBLES, KNOWN_BIBLES, QUIZ, resolveNumbering, shortName, type KnownBible, type NumberingCode, type NumberingFacts, type QuizOption
+  bibleLanguage, firstBibles, KNOWN_BIBLES, QUIZ, resolveNumbering, shortName, type KnownBible, type NumberingCode, type NumberingFacts, type QuizOption
 } from './numberingGuide';
 
 export interface NumberingChoice {
@@ -81,10 +81,14 @@ function OtherWay(props: { icon: IconName; label: string; onPress: () => void; d
   );
 }
 
-/** Which Bible do you translate from? Typing finds it; what other languages here use comes first. */
+/**
+ * Which Bible do you translate from? Typing finds it; what other languages here use comes first, then the
+ * Bibles in the team's `languages`.
+ */
 export function FindBiblePage(props: {
   numberings: NumberingChoice[];
   usedIn: Record<string, string[]>;
+  languages?: readonly string[];
   onPick: (code: string, from?: string, note?: string) => void;
   onQuiz: () => void;
   onList: () => void;
@@ -96,8 +100,8 @@ export function FindBiblePage(props: {
   const shown = useMemo(() => {
     const typed = q.trim().toLowerCase();
     if (typed) return KNOWN_BIBLES.filter((b) => `${b.name} ${b.abbr} ${b.language} ${bibleLanguage(b.language)}`.toLowerCase().includes(typed)).slice(0, 20);
-    return all ? KNOWN_BIBLES : COMMON_BIBLES.map((a) => KNOWN_BIBLES.find((b) => b.abbr === a)!).filter(Boolean);
-  }, [q, all]);
+    return all ? KNOWN_BIBLES : firstBibles(props.languages);
+  }, [q, all, props.languages]);
   const choose = (b: KnownBible) => {
     const r = resolveNumbering(b.numbering, b.nearest, offered);
     if (r.code) { setNote(''); props.onPick(r.code, b.name, r.note); } else setNote(r.note ?? '');

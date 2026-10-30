@@ -8,6 +8,7 @@ import {
 } from '../src/breakup/model';
 import type { LibraryChoice } from '../src/templates/contentTemplatesModel';
 import { publishOps, subscribeOps, type LibraryOp, type SharedItem } from '../src/library/model';
+import { addCatalog, showLanguage } from '../src/i18n';
 
 const H = (c: string) => c.repeat(64);
 let seq = 0;
@@ -60,6 +61,18 @@ describe('the ways to break up the Bible, in the order an admin sees them', () =
     expect(countLine(chapters, eng)).toBe('20 chapters');
     expect(countLine(later, eng)).toBe('Each book waits until a coordinator breaks it up');
     expect(emptyLine(fia)).toBe('Romans, Hebrews and 2 more');
+  });
+
+  it('counts in the language showing, not in English (decision 194)', () => {
+    addCatalog('hi', JSON.parse(fs.readFileSync(path.resolve(__dirname, '../src/i18n/hi.json'), 'utf8')));
+    showLanguage('hi');
+    try {
+      expect(countLine(fia, eng)).toBe('1 पुस्तक में 4 अंश');
+      expect(countLine(chapters, eng)).toBe('20 अध्याय');
+    } finally {
+      showLanguage('en');
+    }
+    expect(countLine(chapters, eng)).toBe('20 chapters');
   });
 
   it('draws a book as its pieces, each as long as its verses', () => {

@@ -37,7 +37,7 @@ import { isLocalUrl, LOCAL_URL, supabaseKey } from './local-supabase';
 import {
   bookOrder, canonicalJson, convertWay, DEFAULT_KINDS, encodeHlc, FIA_PERICOPES, FLOWS, kindOfDoc, missingMappings, numberingOf, ORG_STREAM, paratextMappings, parseRef,
   USFM_BOOKS, usfmOf, validateDoc, withDeps,
-  type AnyEvent, type CollectionDoc, type FlowDoc, type LibraryDoc, type LibraryKind, type NamesDoc, type StudyDoc,
+  type AnyEvent, type CollectionDoc, type FlowDoc, type LabelsDoc, type LibraryDoc, type LibraryKind, type NamesDoc, type StudyDoc,
   type TemplateBook, type TemplateDocV1, type TemplateDocV2, type VersificationDoc
 } from '@langquest-next/core';
 import { FIA_ATTRIBUTION, fiaLanguages, fiaPericope, fiaStudyDoc } from './fia-adapter';
@@ -366,6 +366,28 @@ export function buildLibrary(opts: { fiaDirs?: string[]; fiaTerms?: string; exam
     publish('langquest.examples.eng', title, description, {
       format: 'collection@1', title, description, language: 'eng', versification: eng, entries: inOrder, deps: []
     } satisfies CollectionDoc);
+  }
+
+  // 7. What LangQuest's items are called in the app's other languages (decision 194), one set
+  // per language: from labels/<code>.json, by the English name (and description) each item is
+  // published with. A template, numbering, flow or set of book names with no name there stops
+  // the build; reference material keeps its own (the app names it in the language showing).
+  const named = [...items];
+  for (const n of BOOK_NAMES.filter((b) => b.code !== 'eng')) {
+    const file = readJson(join(LIBRARY, 'labels', `${n.code}.json`)) as { names: Record<string, string>; descriptions: Record<string, string> };
+    const missing = [...new Set(named.filter((it) => it.kind !== 'material' && !file.names[it.name]).map((it) => it.name))];
+    if (missing.length) throw new Error(`library/labels/${n.code}.json has no name for ${missing.join(', ')}`);
+    const name = `Library names (${n.name})`;
+    const description = `What LangQuest's templates, numberings, review flows and book names are called in ${n.name}.`;
+    publish(`langquest.labels.${n.code}`, name, description, {
+      format: 'labels@1', name, description, language: n.code,
+      items: named.flatMap((it) => {
+        const label = file.names[it.name];
+        const about = file.descriptions[it.description];
+        return label ? [{ itemId: it.itemId, name: label, ...(about ? { description: about } : {}) }] : [];
+      }),
+      deps: []
+    } satisfies LabelsDoc);
   }
 
   return { documents: [...documents.values()], items };

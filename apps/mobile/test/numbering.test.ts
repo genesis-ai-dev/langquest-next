@@ -1,7 +1,7 @@
 import { baseWay, NUMBERING_ITEMS } from '../src/breakup/model';
 import fs from 'node:fs';
 import path from 'node:path';
-import { COMMON_BIBLES, factsOf, KNOWN_BIBLES, QUIZ, resolveNumbering } from '../src/breakup/numberingGuide';
+import { COMMON_BIBLES, factsOf, firstBibles, KNOWN_BIBLES, QUIZ, resolveNumbering } from '../src/breakup/numberingGuide';
 
 const offered = Object.keys(NUMBERING_ITEMS);
 
@@ -45,5 +45,16 @@ describe('finding a Bible\'s numbering (decision 80)', () => {
     };
     expect(factsOf(read('eng'))).toMatchObject({ malachi: 4, headings: false });
     expect(factsOf(read('org'))).toMatchObject({ malachi: 3, headings: true });
+  });
+
+  it("lists Bibles in the translators' languages first, then the common ones (decision 194)", () => {
+    expect(firstBibles().map((b) => b.abbr)).toEqual(COMMON_BIBLES);
+    expect(firstBibles(['hin', 'ara']).map((b) => b.abbr)).toEqual(['HINOV', 'AVD', ...COMMON_BIBLES]);
+    // A few in each language, and none twice.
+    const english = firstBibles(['eng']).map((b) => b.abbr);
+    expect(english.slice(0, 3)).toEqual(['KJV', 'NIV', 'ESV']);
+    expect(new Set(english).size).toBe(english.length);
+    expect(english.length).toBe(3 + COMMON_BIBLES.filter((a) => !english.slice(0, 3).includes(a)).length);
+    expect(firstBibles(['xyz']).map((b) => b.abbr)).toEqual(COMMON_BIBLES);
   });
 });

@@ -16,6 +16,7 @@ import { BIBLE_BOOKS, FIA_PERICOPES, type BibleBook } from '@langquest-next/core
 import { bookName } from '../i18n/coreText';
 import { currentLanguage, t } from '../i18n';
 import type { SharedItem } from '../library/model';
+import { itemLabel, NO_LABELS, sharedLabel, type Label, type Labels } from '../library/labelsModel';
 
 export type { BibleBook };
 
@@ -200,10 +201,17 @@ export function recordedCount(lines: PassageLines): number {
 // i18n-ignore: LangQuest's starter by its library name, matched against what LangQuest shares
 export const STARTER_TEMPLATE = { orgId: 'langquest', name: 'FIA passages (English)' } as const;
 
-/** A template (or versification) someone can use: one of this organization's, or one another organization shares. */
+/**
+ * A template (or versification) someone can use: one of this organization's, or one another organization shares.
+ * `name` is the one it was published with, for events and matching; `label`, when there is one, is what the
+ * reader's language calls it (decision 194), shown by `choiceName`.
+ */
 export type LibraryChoice =
-  | { key: string; source: 'ours'; item: LibraryItemView; name: string; hash: string }
-  | { key: string; source: 'shared'; shared: SharedItem; name: string; hash: string };
+  | { key: string; source: 'ours'; item: LibraryItemView; name: string; hash: string; label?: Label }
+  | { key: string; source: 'shared'; shared: SharedItem; name: string; hash: string; label?: Label };
+
+/** What a choice is called in the language showing. */
+export const choiceName = (c: LibraryChoice) => c.label?.name ?? c.name;
 
 /**
  * What to choose from, in order: this organization's items (made here,
@@ -212,16 +220,17 @@ export type LibraryChoice =
  * first among those.
  */
 export function libraryChoices(
-  library: Record<string, LibraryItemState>, ours: LibraryItemView[], shared: SharedItem[], preferred?: string
+  library: Record<string, LibraryItemState>, ours: LibraryItemView[], shared: SharedItem[], preferred?: string, labels: Labels = NO_LABELS
 ): LibraryChoice[] {
+  const labelled = (label: Label | null) => (label ? { label } : {});
   const own: LibraryChoice[] = ours
     .filter((it) => !it.archived && it.current)
-    .map((item) => ({ key: `ours:${item.itemId}`, source: 'ours', item, name: item.name, hash: item.current! }));
+    .map((item) => ({ key: `ours:${item.itemId}`, source: 'ours', item, name: item.name, hash: item.current!, ...labelled(itemLabel(labels, item)) }));
   const rank = (s: SharedItem) => (s.org_id === STARTER_TEMPLATE.orgId ? (s.name === preferred ? 0 : 1) : 2);
   const others: LibraryChoice[] = shared
     .filter((s) => !library[followerItemId(library, s.org_id, s.item_id)] && s.latest_hash)
     .sort((a, b) => rank(a) - rank(b) || a.org_name.localeCompare(b.org_name) || a.name.localeCompare(b.name))
-    .map((s) => ({ key: `shared:${s.org_id}/${s.item_id}`, source: 'shared', shared: s, name: s.name, hash: s.latest_hash }));
+    .map((s) => ({ key: `shared:${s.org_id}/${s.item_id}`, source: 'shared', shared: s, name: s.name, hash: s.latest_hash, ...labelled(sharedLabel(labels, s)) }));
   return [...own, ...others];
 }
 

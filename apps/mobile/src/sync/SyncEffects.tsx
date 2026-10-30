@@ -1,3 +1,4 @@
+import { useLabelsLoad } from '../library/useLabels';
 import { useLibraryUpload } from '../library/useLibraryFollow';
 import { useLeaveGuard } from '../web/useLeaveGuard';
 import { useSyncStatus } from './useSyncStatus';
@@ -12,5 +13,7 @@ export function SyncEffects(props: { orgId: string; orgPulled: boolean; refused:
   // Web: warn before the tab closes with work still to send (storageGate.tsx).
   useLeaveGuard(!props.refused && (status.pending > 0 || status.pendingUp > 0) || status.orgPending > 0);
   useLibraryUpload(props.orgId, props.orgPulled);
+  // What LangQuest's templates and flows are called in the language showing (decision 194).
+  useLabelsLoad(props.orgId);
   return null;
 }

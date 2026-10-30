@@ -100,7 +100,7 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null, languages?: r
   const canContinue = page === 'what' ? (shownWhat === 'bible' || (shownWhat === 'else' && !!outline))
     : page === 'numbered' ? !!numbering : page === 'ways' ? ready : false;
   return {
-    ways, rec, what: shownWhat, setWhat, row, setKey, outlines, outline, setOutlineKey, empty, doc, v11n, resolve,
+    ways, rec, what: shownWhat, setWhat, row, setKey, outlines, outline, setOutlineKey, empty, doc, v11n, resolve, languages,
     hiddenLanguages, showEveryLanguage: () => setEveryLanguage(true),
     numbering, setNumbering: (c: string) => { setNumberingCode(c); setKey(null); }, numberingChanged: !!hereCode && !!code && code !== hereCode,
     ready, page, found, choose, advance, retreat, canContinue, quizTrail, setQuizTrail,
