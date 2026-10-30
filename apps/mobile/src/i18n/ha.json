@@ -4889,7 +4889,7 @@
       "leave": "An gama",
       "leaveHelp": "Yana tsayar da naɗi kuma yana ajiye sassan kamar yadda akwatunansu suka nuna.",
       "stopped": "An tsaya",
-      "stoppedHelp": "Taɓa sashe don ka ji shi. Ja gefunansa don ka matsar da inda yake farawa da inda yake ƙarewa. Alamar × tana cire shi. An gama yana ajiye sassan kamar yadda akwatunansu suka nuna; maɓallin ja yana ƙara naɗawa.",
+      "stoppedHelp": "Taɓa sashe don ka ji shi. Ja gefunansa don ka matsar da inda yake farawa da inda yake ƙarewa. Alamar × tana cire shi. An gama yana ajiye sassan kamar yadda akwatunansu suka nuna; maɓallin ja yana ƙara naɗawa. Alamar + tana sa akwati a wurin da babu sashe.",
       "startEarlier": "Fara da wuri",
       "startLater": "Fara daga baya",
       "endEarlier": "Gama da wuri",
@@ -4916,7 +4916,8 @@
       "micOff": "LangQuest ba ya jin ka. Kunna makirufo don LangQuest a cikin Saituna.",
       "micOffWeb": "LangQuest ba ya jin ka. Ba da izinin makirufo don wannan shafin a cikin burauzarka, sannan ka sake taɓa naɗi.",
       "openSettings": "Buɗe Saituna",
-      "openSettingsHelp": "Yana buɗe saitunan wannan wayar don LangQuest. Kunna makirufo a can, sannan ka dawo."
+      "openSettingsHelp": "Yana buɗe saitunan wannan wayar don LangQuest. Kunna makirufo a can, sannan ka dawo.",
+      "addPart": "Ƙara sashe a nan"
     },
     "cleanUp": {
       "cleanUp": "Tsaftace",

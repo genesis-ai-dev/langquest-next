@@ -5045,7 +5045,7 @@
       "leave": "Pronto",
       "leaveHelp": "Para a gravação e guarda as partes como as caixas mostram.",
       "stopped": "Parado",
-      "stoppedHelp": "Toque em uma parte para ouvi-la. Arraste as bordas para mudar onde ela começa e termina. O × a remove. Pronto guarda as partes como as caixas mostram; o botão vermelho grava mais.",
+      "stoppedHelp": "Toque em uma parte para ouvi-la. Arraste as bordas para mudar onde ela começa e termina. O × a remove. Pronto guarda as partes como as caixas mostram; o botão vermelho grava mais. Um + põe numa caixa o espaço onde não há nenhuma parte.",
       "startEarlier": "Começar antes",
       "startLater": "Começar depois",
       "endEarlier": "Terminar antes",
@@ -5072,7 +5072,8 @@
       "micOff": "O LangQuest não consegue ouvir você. Ative o microfone para o LangQuest em Ajustes.",
       "micOffWeb": "O LangQuest não consegue ouvir você. Permita o microfone para este site no seu navegador e toque em gravar de novo.",
       "openSettings": "Abrir Ajustes",
-      "openSettingsHelp": "Abre os ajustes deste telefone para o LangQuest. Ative o microfone lá e volte."
+      "openSettingsHelp": "Abre os ajustes deste telefone para o LangQuest. Ative o microfone lá e volte.",
+      "addPart": "Adicionar uma parte aqui"
     },
     "cleanUp": {
       "cleanUp": "Limpar",

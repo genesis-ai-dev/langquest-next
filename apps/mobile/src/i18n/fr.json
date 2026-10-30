@@ -5045,7 +5045,7 @@
       "leave": "Terminé",
       "leaveHelp": "Arrête l’enregistrement et garde les parties telles que leurs cadres les montrent.",
       "stopped": "Arrêté",
-      "stoppedHelp": "Touchez une partie pour l’écouter. Faites glisser ses bords pour déplacer son début et sa fin. Le × la retire. Terminé garde les parties telles que leurs cadres les montrent ; le bouton rouge enregistre la suite.",
+      "stoppedHelp": "Touchez une partie pour l’écouter. Faites glisser ses bords pour déplacer son début et sa fin. Le × la retire. Terminé garde les parties telles que leurs cadres les montrent ; le bouton rouge enregistre la suite. Un + encadre l’espace où il n’y a aucune partie.",
       "startEarlier": "Commencer plus tôt",
       "startLater": "Commencer plus tard",
       "endEarlier": "Finir plus tôt",
@@ -5072,7 +5072,8 @@
       "micOff": "LangQuest ne peut pas vous entendre. Activez le micro pour LangQuest dans les Réglages.",
       "micOffWeb": "LangQuest ne peut pas vous entendre. Autorisez le micro pour ce site dans votre navigateur, puis touchez de nouveau Enregistrer.",
       "openSettings": "Ouvrir les Réglages",
-      "openSettingsHelp": "Ouvre les réglages de ce téléphone pour LangQuest. Activez-y le micro, puis revenez."
+      "openSettingsHelp": "Ouvre les réglages de ce téléphone pour LangQuest. Activez-y le micro, puis revenez.",
+      "addPart": "Ajouter une partie ici"
     },
     "cleanUp": {
       "cleanUp": "Nettoyer",

@@ -4733,7 +4733,7 @@
       "leave": "Selesai",
       "leaveHelp": "Menghentikan rekaman dan menyimpan bagian seperti yang ditunjukkan kotaknya.",
       "stopped": "Berhenti",
-      "stoppedHelp": "Ketuk bagian untuk mendengarnya. Seret tepinya untuk memindahkan awal dan akhirnya. Tanda × membuangnya. Selesai menyimpan bagian seperti yang ditunjukkan kotaknya; tombol merah merekam lagi.",
+      "stoppedHelp": "Ketuk bagian untuk mendengarnya. Seret tepinya untuk memindahkan awal dan akhirnya. Tanda × membuangnya. Selesai menyimpan bagian seperti yang ditunjukkan kotaknya; tombol merah merekam lagi. Tanda + memberi kotak pada bagian yang belum punya kotak.",
       "startEarlier": "Mulai lebih awal",
       "startLater": "Mulai lebih lambat",
       "endEarlier": "Selesai lebih awal",
@@ -4760,7 +4760,8 @@
       "micOff": "LangQuest tidak bisa mendengar Anda. Nyalakan mikrofon untuk LangQuest di Pengaturan.",
       "micOffWeb": "LangQuest tidak bisa mendengar Anda. Izinkan mikrofon untuk situs ini di browser Anda, lalu ketuk rekam lagi.",
       "openSettings": "Buka Pengaturan",
-      "openSettingsHelp": "Membuka pengaturan ponsel ini untuk LangQuest. Nyalakan mikrofon di sana, lalu kembali."
+      "openSettingsHelp": "Membuka pengaturan ponsel ini untuk LangQuest. Nyalakan mikrofon di sana, lalu kembali.",
+      "addPart": "Tambahkan bagian di sini"
     },
     "cleanUp": {
       "cleanUp": "Bersihkan",

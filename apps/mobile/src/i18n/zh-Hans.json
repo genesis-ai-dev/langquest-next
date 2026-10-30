@@ -4733,7 +4733,7 @@
       "leave": "完成",
       "leaveHelp": "停止录音，按方框所示保留各段。",
       "stopped": "已停止",
-      "stoppedHelp": "点按一段即可收听。拖动它的边缘来调整开始和结束的位置。× 会去掉这一段。“完成”按方框所示保留各段；红色按钮继续录音。",
+      "stoppedHelp": "点按一段即可收听。拖动它的边缘来调整开始和结束的位置。× 会去掉这一段。“完成”按方框所示保留各段；红色按钮继续录音。点 + 可把没有段的地方框成一段。",
       "startEarlier": "提前开始",
       "startLater": "推后开始",
       "endEarlier": "提前结束",
@@ -4760,7 +4760,8 @@
       "micOff": "LangQuest 听不到你的声音。请在“设置”中为 LangQuest 打开麦克风。",
       "micOffWeb": "LangQuest 听不到你的声音。请在浏览器中允许此网站使用麦克风，然后再点一次录音。",
       "openSettings": "打开设置",
-      "openSettingsHelp": "打开此手机上 LangQuest 的设置。在那里打开麦克风，然后返回。"
+      "openSettingsHelp": "打开此手机上 LangQuest 的设置。在那里打开麦克风，然后返回。",
+      "addPart": "在这里添加一段"
     },
     "cleanUp": {
       "cleanUp": "清理",

@@ -1027,10 +1027,32 @@ Steps:
 Expected:
 - While a session is open the switch sits right of the red button, where Done is once it is left; it is off the first time, and the phone or browser keeps it as it was left (decision 194).
 - After step 3 the pause between the parts has a dashed box with its number in an outlined pill, 2, and the second part is 3. The pause after the last part grows, numbered 4, until something is said.
-- After step 4 the boxes are 1, 2 (dashed) and 3; nothing grows after the last part, and the dashed box has no handles and no ×.
+- After step 4 the boxes are 1, 2 (dashed) and 3; nothing grows after the last part, and the dashed box has no handles (its × is REC-058).
 - Step 5 takes the dashed box away (the parts are 1 and 2), then brings it back.
 - Step 6 plays the pause, as recorded, never turned up.
 - After step 7 the card reads "Parts 1–3" with "3 parts"; Part 2 is the pause, its bars flat.
+
+### REC-058 Stopped, any box can go, a box stretches over a dropped one, and a + adds a box
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- Luke 12:49-59, called P-T below, is not started (the silence switch's world on the web, `06-recording-silence.spec.ts`).
+
+Steps:
+1. Open P-T and tap "Record". Tap the red button, speak for 3 seconds and pause for 2, three times, then tap the red button ("Stop recording").
+2. Turn the silence switch on, then tap the × on the dashed box between Parts 1 and 3.
+3. Turn the switch off. Tap the × on Part 2.
+4. Tap the + in the room where Part 2 was.
+5. Tap the × on Part 2 again, then drag Part 1's right edge to the right, past where Part 2 was.
+6. Tap the check, "Done".
+
+Expected:
+- The first time a phone stops a session, two fingertips spread apart over the waveform twice, then go (pinch to bring it nearer); a touch ends them early. The web shows none.
+- After step 2 the pause goes alone: the boxes are 1, 2 (the second part), 3 (dashed) and 4. Turning the switch on again later boxes every pause again.
+- With the switch off, a + sits in each stretch of room that no box covers and that is wide enough on screen (pinch nearer for a narrow one), on the row of the ×s; with the switch on there is none.
+- After step 3 Part 2's room is free and has a +. Step 4 boxes that room as Part 2, in its old place; it is a part like any said (with the switch on, the pauses either side of it are boxed).
+- In step 5 Part 1's edge passes over the dropped part's sound and stops at Part 3's edge: boxes never overlap.
+- After step 6 the card reads "Parts 1–2" with "2 parts"; Part 1 holds the sound it was stretched over.
 
 ## Microphone setup
 

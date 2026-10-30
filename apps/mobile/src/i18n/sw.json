@@ -4889,7 +4889,7 @@
       "leave": "Imekamilika",
       "leaveHelp": "Husimamisha kurekodi na kuhifadhi sehemu kama visanduku vyake vinavyoonyesha.",
       "stopped": "Imesimama",
-      "stoppedHelp": "Gusa sehemu ili uisikilize. Buruta kingo zake ili kusogeza inapoanzia na inapoishia. Alama × huiondoa. Imekamilika huhifadhi sehemu kama visanduku vyake vinavyoonyesha; kitufe chekundu hurekodi zaidi.",
+      "stoppedHelp": "Gusa sehemu ili uisikilize. Buruta kingo zake ili kusogeza inapoanzia na inapoishia. Alama × huiondoa. Imekamilika huhifadhi sehemu kama visanduku vyake vinavyoonyesha; kitufe chekundu hurekodi zaidi. Alama + inaweka kisanduku mahali pasipo na sehemu.",
       "startEarlier": "Anza mapema",
       "startLater": "Anza baadaye",
       "endEarlier": "Maliza mapema",
@@ -4916,7 +4916,8 @@
       "micOff": "LangQuest haiwezi kukusikia. Washa maikrofoni kwa LangQuest kwenye Mipangilio.",
       "micOffWeb": "LangQuest haiwezi kukusikia. Ruhusu maikrofoni kwa tovuti hii kwenye kivinjari chako, kisha gusa rekodi tena.",
       "openSettings": "Fungua Mipangilio",
-      "openSettingsHelp": "Hufungua mipangilio ya simu hii kwa LangQuest. Washa maikrofoni hapo, kisha urudi."
+      "openSettingsHelp": "Hufungua mipangilio ya simu hii kwa LangQuest. Washa maikrofoni hapo, kisha urudi.",
+      "addPart": "Ongeza sehemu hapa"
     },
     "cleanUp": {
       "cleanUp": "Safisha",

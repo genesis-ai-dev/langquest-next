@@ -4889,7 +4889,7 @@
       "leave": "Done",
       "leaveHelp": "Stops recording and keeps the parts as their boxes show.",
       "stopped": "Stopped",
-      "stoppedHelp": "Tap a part to hear it. Drag its edges to move where it starts and ends. The × drops it. Done keeps the parts as their boxes show; the red button records more.",
+      "stoppedHelp": "Tap a part to hear it. Drag its edges to move where it starts and ends. The × drops it. Done keeps the parts as their boxes show; the red button records more. A + boxes the room where there is no part.",
       "startEarlier": "Start earlier",
       "startLater": "Start later",
       "endEarlier": "End earlier",
@@ -4916,7 +4916,8 @@
       "micOff": "LangQuest cannot hear you. Turn on the microphone for LangQuest in Settings.",
       "micOffWeb": "LangQuest cannot hear you. Allow the microphone for this site in your browser, then tap record again.",
       "openSettings": "Open Settings",
-      "openSettingsHelp": "Opens this phone's settings for LangQuest. Turn on the microphone there, then come back."
+      "openSettingsHelp": "Opens this phone's settings for LangQuest. Turn on the microphone there, then come back.",
+      "addPart": "Add a part here"
     },
     "cleanUp": {
       "cleanUp": "Clean up",

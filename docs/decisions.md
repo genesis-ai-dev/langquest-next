@@ -5402,6 +5402,24 @@ chunk stays open through every pause until the microphone stops (a stop, or
 the source playing), so the room between parts is written whole and kept
 as parts of its own. Off, chunks open and close as above.
 
+Amended (2026-10-30, Caleb Koster; LAN-199): Caleb asked that a box stretch
+over a neighbour whose box was dropped, and that a box be added between
+boxes or either side of them. Both need the room between parts, so with the
+silence switch off a chunk now also stays open through a pause, up to 30 s
+after the last part ended (`ROOM_KEPT_MS`, `keepRoomNow` in
+`livePartsModel.ts`); past that the app turns the module's `keepRoom` off
+and the chunk closes, so a phone left listening does not write the room for
+ever. That is no native change. Storage grows with speech plus at most 30 s
+of room a pause (about 2.6 MB as a WAV). A box's edge moves over a dropped
+part's sound up to the next box, never into it. Stopped, with the switch
+off, a + in room no box covers adds a box over that room (`liveGaps`,
+`liveAdd`): a part like any said, journalled like one, placed in the
+passage right after the part before it in time (or right before the part
+after it), and filling a dropped part's free place there. The first time a
+phone stops a session, two fingertips spread over the waveform to show the
+pinch (`usePinchHint.ts`). A store build from before 194 ignores
+`keepRoom`, so its boxes still reach only the 2 s of room.
+
 ## 130. Each step says what is on the screen of whoever does it, the recording too, with hearing and reading apart
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -9549,3 +9567,14 @@ over 4 s would lose its middle).
 Reverse if: people turn it on and lose track of which parts are speech, the
 whole stretch fills a low-end phone's storage or the web's memory in long
 sessions, or a recording with a voice in it is played unboosted as room.
+
+Amended (2026-10-30, Caleb Koster; LAN-199): Caleb asked to remove silence
+boxes one at a time. Stopped, a silence's box has a × (where it is wide
+enough on screen; a screen reader has it as an action): it drops that
+silence alone, the parts either side stay, and the numbers after it close
+up (`liveDropSilence`). Turning the switch on again boxes every silence
+again. A box added with a + (129, amended) is kept as a voice whatever is
+in it, so the silence between it and the parts beside it is boxed too. The
++ shows only with the switch off. Since the room is now kept with the
+switch off as well (up to 30 s after a part), turning the switch on after a
+stop boxes that stretch's pauses.
