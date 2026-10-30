@@ -826,6 +826,31 @@ Expected:
   it does. The app does not open the chapter.
 - Step 3: the dimming and numbers go.
 
+### ACCT-058 Feedback carries a picture of their own
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions: None. A picture larger than 1600 px on its longer side (on
+the web a PNG of 2400 × 1200 px; on a phone a photo or a PNG screenshot).
+
+Steps:
+1. On Me, tap the "?" in the header, then the green "Send feedback".
+2. Tap "Add a picture" and choose the picture.
+3. Tap "Remove the picture".
+4. Tap "Add a picture" and choose it again. Type a few words and tap "Send".
+
+Expected:
+- Step 1: the Feedback sheet opens. Under the words and "Say it" is "Add a
+  picture" (LAN-198), whatever the screenshot and name switches show.
+- Step 2: the picture shows on the sheet in its own shape, as wide as the
+  sheet (never taller than 360 pt), with a red "Remove the picture" under it.
+  The row now reads "Choose another picture". On a phone the picker is the
+  system's own (Android lists the phone's photos; an iPhone opens Files) and
+  the app asks for no permission.
+- Step 3: the picture goes and the row reads "Add a picture" again.
+- Step 4: "Sent. Thank you!" The report on the server (`diag.feedback`) has
+  the words and a picture: a JPEG of at most 1 MB, no longer than 1600 px on
+  either side (`npm run diag -- feedback --picture <id>`).
+
 ---
 
 ## Signing out

@@ -2,9 +2,11 @@
 // 146), as a function of library rows, documents, guide sets and the team's
 // languages. The hook in useNewLanguageOffers.ts gathers those; no rendering.
 import type { LibraryDoc, SourceDoc } from '@langquest-next/core';
+import type { BibleSummary } from '../sources/bibleBrain';
 import { t } from '../i18n';
 import { guideShortName, languageLabel } from '../admin/adminModel';
 import type { SharedItem } from '../library/model';
+import { providerName } from '../reference/biblesModel';
 import { refKindOf } from '../reference/model';
 import { isWordSet, setName, type GuideSet } from '../reference/guideSets';
 import { memberIn } from '../reference/languageChoices';
@@ -45,13 +47,23 @@ export interface OfferInput {
   sets: readonly GuideSet[];
   /** The languages the team reads, the main one first. */
   readsAll: readonly string[];
+  /** Bible Brain's Bibles in those languages, as far as it has answered. */
+  bibleBrain?: readonly BibleSummary[];
+}
+
+/** The Bible Brain editions these documents are, by id. */
+function bibleBrainIdsOf(docs: readonly (LibraryDoc | null)[]): Set<string> {
+  return new Set(docs.flatMap((d) => (d?.format === 'source@1' && d.provider.kind === 'biblebrain' ? [d.provider.bibleId] : [])));
 }
 
 /**
  * Every offer, in the order shown (Bibles, guide sets, then the rest), and
  * the keys ticked until someone changes them: one Bible (the organization's
  * own first, the World English Bible first of those), one set of guides
- * (FIA's first) and the key words that go with it.
+ * (FIA's first) and the key words that go with it. After the library's
+ * Bibles come Bible Brain's that the library does not have, so the list
+ * holds every Bible the language page counted (decision 130 amended
+ * 2026-10-19, LAN-194); none of them is ticked.
  */
 export function newLanguageOffers(input: OfferInput): { items: MaterialChoice[]; suggested: Set<string> } {
   const { own, others, sets, readsAll } = input;
@@ -88,7 +100,14 @@ export function newLanguageOffers(input: OfferInput): { items: MaterialChoice[];
     const kind = kindOfDoc(doc);
     return kind && inTeam(doc) && !inSets.has(sharedKey(s)) ? [row(sharedKey(s), null, s, s.name, doc, kind, s.org_name)] : [];
   });
-  const items = [...ownRows.filter((x) => x.kind === 'source'), ...sharedRows.filter((x) => x.kind === 'source'), ...setRows,
+  const held = bibleBrainIdsOf([...own.map((it) => (it.current ? input.doc(it.current) : null)), ...others.map((s) => input.doc(s.latest_hash!))]);
+  const brainRows: MaterialChoice[] = (input.bibleBrain ?? [])
+    .filter((b, i, all) => !held.has(b.bibleId) && all.findIndex((x) => x.bibleId === b.bibleId) === i)
+    .map((b) => ({
+      key: `biblebrain:${b.bibleId}`, kind: 'source' as const, itemId: null, shared: null, bibleBrain: { bibleId: b.bibleId }, name: b.name,
+      label: bibleOffer(b.name), sub: [languagesLine([b.language]), providerName('biblebrain')].join(' · ')
+    }));
+  const items = [...ownRows.filter((x) => x.kind === 'source'), ...sharedRows.filter((x) => x.kind === 'source'), ...brainRows, ...setRows,
     ...ownRows.filter((x) => x.kind !== 'source'), ...sharedRows.filter((x) => x.kind !== 'source')];
   const firstBy = (list: MaterialChoice[], rank: (n: string) => number) => [...list].sort((a, b) => rank(a.name) - rank(b.name))[0];
   const bible = firstBy(ownRows.filter((x) => x.kind === 'source'), webRank) ?? firstBy(sharedRows.filter((x) => x.kind === 'source'), webRank);

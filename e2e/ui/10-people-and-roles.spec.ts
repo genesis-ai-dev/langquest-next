@@ -151,7 +151,7 @@ test('PEOPLE-003 Invite by group code, and the person joins on a second device @
   await openAs(page, w, 'ADMIN');
   await alphaMembers(page, w);
   await button(page, 'Invite').click();
-  // Step 2: who, as a card per role with its own Invite, in which language; the group code is the first way offered (decisions 71, 146).
+  // Step 2: one page (LAN-195): who, as a tile per role, Translators already picked, in which language; its group code under them (decisions 71, 146).
   await expect(text(page, 'Invite someone')).toBeVisible();
   await expect(text(page, 'Alpha')).toBeVisible();
   await expectInOrder(page, 'Who are you inviting?', 'Translators', 'Checkers', 'Back-translators', 'Team leads');
@@ -159,7 +159,8 @@ test('PEOPLE-003 Invite by group code, and the person joins on a second device @
   await expect.soft(text(page, 'Other roles · 3')).toBeVisible();
   await expect(text(page, 'Something else: make a new role')).toBeVisible();
   await expectInOrder(page, 'In which language?', 'Alpha', 'Bravo');
-  await expect(page.getByRole('radio')).toHaveCount(0);
+  await expect(page.getByTestId('invite-role-Translators').locator('visible=true').first()).toHaveAttribute('aria-checked', 'true');
+  await expectInOrder(page, 'Team leads', 'Translators · Alpha', 'Ask them to scan this');
 
   await inviteRole(page, 'Translators');
   await expect(text(page, 'Translators · Alpha')).toBeVisible();
@@ -169,7 +170,6 @@ test('PEOPLE-003 Invite by group code, and the person joins on a second device @
   await expect(text(page, 'No password needed. Works for a whole group.')).toBeVisible();
   await expect(page.locator('svg').locator('visible=true').first()).toBeVisible();
   await expect(primary(page)).toHaveText(/Done/);
-  await expect(text(page, 'Someone else')).toBeVisible();
   groupLink = await sharedLink(page, 'Share as a link');
   expect(groupLink).toMatch(/\/invite#org=.*&token=[0-9a-f]{64}$/);
 
@@ -431,8 +431,7 @@ test('PEOPLE-010 No code is made offline', async ({ page }) => {
   await button(page, 'Invite').click();
   await expect(text(page, 'Who are you inviting?')).toBeVisible();
   await page.context().setOffline(true);
-  await page.getByTestId('invite-role-Translators').locator('visible=true').first().getByRole('button', { name: 'Invite', exact: true }).click();
-  await primary(page).click();
+  await page.getByTestId('invite-role-Checkers').locator('visible=true').first().click();
   await expect(text(page, 'No code was made. Try again when connected.')).toBeVisible();
   await text(page, 'One person, by name').click();
   await field(page, 'Name').fill('Offline person');

@@ -2972,6 +2972,16 @@ Reverse if: teams need one section made of two separate ranges (Daniel
 3:19–23 with 3:91–97) often enough; then a section holds a list of ranges,
 and every reader of a section's verses learns to read one.
 
+Amended (2026-10-30, Caleb Koster): the quiz was easy to miss, at the
+bottom of the page under every Bible. Before any Bible, a page now shows
+why the numbering is asked (Malachi 4:1 in an English Bible is Malachi
+3:19 in a Hebrew Bible), and the next page offers the three ways side by
+side: pick your Bible, take the quiz, or choose the numbering (LAN-193,
+Caleb). "Choose another" and the numbering's chip go back to the three
+ways. A numbering that other languages here use ("Like most English
+Bibles · Used in Alpha") leads those three ways, one tap from done, as it
+had led the Bibles before.
+
 ## 81. The app's words come from catalogs in the app, in the language chosen on the device or the phone's; English is the source
 
 Date: 2026-10-09 · By: Caleb Koster · Status: accepted
@@ -5394,6 +5404,24 @@ chunk stays open through every pause until the microphone stops (a stop, or
 the source playing), so the room between parts is written whole and kept
 as parts of its own. Off, chunks open and close as above.
 
+Amended (2026-10-30, Caleb Koster; LAN-199): Caleb asked that a box stretch
+over a neighbour whose box was dropped, and that a box be added between
+boxes or either side of them. Both need the room between parts, so with the
+silence switch off a chunk now also stays open through a pause, up to 30 s
+after the last part ended (`ROOM_KEPT_MS`, `keepRoomNow` in
+`livePartsModel.ts`); past that the app turns the module's `keepRoom` off
+and the chunk closes, so a phone left listening does not write the room for
+ever. That is no native change. Storage grows with speech plus at most 30 s
+of room a pause (about 2.6 MB as a WAV). A box's edge moves over a dropped
+part's sound up to the next box, never into it. Stopped, with the switch
+off, a + in room no box covers adds a box over that room (`liveGaps`,
+`liveAdd`): a part like any said, journalled like one, placed in the
+passage right after the part before it in time (or right before the part
+after it), and filling a dropped part's free place there. The first time a
+phone stops a session, two fingertips spread over the waveform to show the
+pinch (`usePinchHint.ts`). A store build from before 194 ignores
+`keepRoom`, so its boxes still reach only the 2 s of room.
+
 ## 130. Each step says what is on the screen of whoever does it, the recording too, with hearing and reading apart
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -6571,6 +6599,30 @@ Reverse if: people need to send feedback before they can sign in (a report
 that sign-in itself fails would wait); that needs a way in without an
 account, which 112 turned down for diagnostics.
 
+Amended (2026-10-30, Caleb Koster; LAN-198): Caleb asked to attach a
+separate picture or video to feedback, and chose pictures now, videos later.
+The sheet has "Add a picture" (`feedback/pictureFile.ts`) on Android and
+the web: one image chosen through the phone's own file picker
+(`File.pickFileAsync` in expo-file-system, already in every build;
+Android's document picker lists the phone's photos), or the browser's file
+chooser. The app sees only that file and asks for no permission.
+It goes as a JPEG of at most 1600 px on its longer side and 1 MB: a JPEG
+that already fits goes as it is; on a phone anything else is shown on the
+sheet and taken from there with react-native-view-shot, and the web draws
+it on a canvas. It waits beside the report like the screenshot
+(`<id>-picture.jpg`) and is kept in its own column, `diag.feedback.picture`,
+read through `diag.feedback_picture()` (migration
+`20261030173000_feedback_picture.sql`; `feedback_submit` gains
+`p_picture`, sent only when there is one). No store build: nothing native
+changes, so phones get it with an update. Stores: no change may force a
+new store declaration, so the answers stay as they are. Google Play
+already declares Photos (optional, App functionality), so Android offers
+the picture. On an iPhone this is the person's own photo, not a picture of
+the app, so Apple's App Privacy would need Photos or Videos (User
+Content); iPhones do not offer Add a picture (`canChoosePicture`) until
+Caleb decides to add that answer. Videos, and an iPhone picker that opens
+the Photos app, need a store build and come later.
+
 ## 146. New language shows its six steps first, asks for reference material before the review flow, sets its checks up on their own pages, and its invite can put people on checks
 
 Date: 2026-10-20 · By: Caleb Koster · Status: partly superseded by 193
@@ -6638,6 +6690,36 @@ opens, which is what counts the language as ready).
 Reverse if: admins skip the overview so often it is only in the way, or
 teams need checks set up before reference material is known; then the order
 can change without touching the draft, which works for any step order.
+
+Amended (2026-10-30, Caleb Koster): Reference material lists Bible Brain's
+Bibles in the team's languages too, after the library's and unticked, so it
+holds every Bible the language page counted (decision 84, amended
+2026-10-19); Caleb asked that it show "all translations available in
+biblebrain" (LAN-194). One that is ticked becomes a library item as Add a
+Bible makes it (`addBibleBrainSource`), when the language is added; one
+that cannot be added then is named, like any offer. The same day: the web
+had shown one Bible of many on that page in a browser that cannot save
+files (Safari before 26, a private window), because loading library
+documents stopped at the first it could not save. Fetched documents now
+stay in memory when saving fails.
+
+Amended (2026-10-30, Caleb Koster; LAN-195): inviting is one page. Caleb
+found the role invites confusing (a card per role with its own Invite
+button, then a page for checks, then another for the code) and said yes to
+a drawing of one page. The page opens with Translators picked and their code
+already below, since most invites are for translators; the roles are tiles,
+two to a row, one picked at a time, with "Other roles" for the rest and
+New role first, set apart; what the picked role lets them do is one tap
+open under the tiles; the checks it can be put on are chips under that, and
+the code is made again once the ticks stop changing (`invites/invite.tsx`).
+Share as a link, by email and one person by name are the quiet links under
+Done, for the role picked. The page is the same from Manage, from Members
+and at New language's last step, which now shows the translators' code at
+once. Because the code is made as the page opens, New language counts
+"Invite your translators" as done (an invite was issued, `invitedTo` in
+`admin/ready.tsx`), as Get ready's invite question already did; counting
+only invites someone used is a later change if admins find that wrong. No
+new event or migration.
 
 ## 147. The server cuts each language's snapshot by passage and keeps every passage's line, and a phone's first download fills the passages in behind the Map
 
@@ -8107,6 +8189,18 @@ Reverse if: people forget their pattern more often than they come back with
 it (then offer a helper's code first), or a locked phone is opened by
 someone it does not belong to (then a larger grid, or a server-held key).
 
+Amended (2026-10-30, Caleb Koster): someone with an account could not join
+another organization or language with it by scanning. Signed in, nothing
+led to the scanner, so people signed out to scan, and Scan's Join made a
+new account with no email (LAN-197). Switch Organization now offers "Scan
+their code" and "Find your organization" (the cards of Join your team)
+above New organization, and Scan, joining as the account signed in, adds it
+to that organization too. Signed out on a phone where people signed out
+before, Scan shows their pictures under "Who is joining?": tap yours, draw
+the pattern, and the invite joins that account; "Someone new" makes a new
+one, and "I already have an account" still signs in with a password first.
+Pictures, never names, as above.
+
 ## 169. An account writes at most 20,000 events or 100 MB dated any one day, a person's stream holds each event once, and a language's member reads only their languages' templates
 
 Date: 2026-10-26 · By: Carl Sauder · Status: accepted
@@ -9565,6 +9659,17 @@ over 4 s would lose its middle).
 Reverse if: people turn it on and lose track of which parts are speech, the
 whole stretch fills a low-end phone's storage or the web's memory in long
 sessions, or a recording with a voice in it is played unboosted as room.
+
+Amended (2026-10-30, Caleb Koster; LAN-199): Caleb asked to remove silence
+boxes one at a time. Stopped, a silence's box has a × (where it is wide
+enough on screen; a screen reader has it as an action): it drops that
+silence alone, the parts either side stay, and the numbers after it close
+up (`liveDropSilence`). Turning the switch on again boxes every silence
+again. A box added with a + (129, amended) is kept as a voice whatever is
+in it, so the silence between it and the parts beside it is boxed too.
+The + shows only with the switch off. Since the room is now kept with the
+switch off as well (up to 30 s after a part), turning the switch on after a
+stop boxes that stretch's pauses.
 
 ## 195. LangQuest's library items have names in each of the app's languages, kept in the library as one `labels` item per language; New language counts in the language showing and lists the translators' Bibles first
 

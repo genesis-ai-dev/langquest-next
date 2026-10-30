@@ -32,4 +32,25 @@ describe('the recording session (recordingSession.ts)', () => {
     expect(told.mock.calls.length).toBe(before + 1);
     expect(parts).toHaveBeenCalledTimes(1);
   });
+
+  it('adds a box with a + and drops a silence with its ×, telling the screen of each (LAN-199)', () => {
+    const parts = vi.fn();
+    const session = new RecordingSession(1, parts, true);
+    let heard = 0;
+    const hear = (n: number, db: number) => { for (let i = 0; i < n; i++) session.frame(10 ** (db / 20), -46, ++heard * MS); };
+    hear(10, -52);
+    for (const from of [10, 52]) {
+      session.partStart(undefined);
+      hear(26, -20);
+      session.partEnd({ chunk: 'c1', fromMs: from * MS, toMs: (from + 26) * MS });
+      hear(16, -52);
+    }
+    session.chunkDone('c1', 'file:///c1.wav', heard * MS);
+    parts.mockClear();
+    session.dropSilence(0);
+    expect(session.snapshot().droppedSilences).toEqual(['0-1']);
+    session.add({ chunk: 'c1', from: 78, to: 94 }, 'added');
+    expect(session.snapshot().parts.at(-1)).toMatchObject({ id: 'added', from: 78, to: 94, chunk: 'c1' });
+    expect(parts).toHaveBeenCalledTimes(2);
+  });
 });

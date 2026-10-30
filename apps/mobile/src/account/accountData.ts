@@ -9,16 +9,19 @@ import { dropVoice, voiceForServer } from '../feedback/voiceBytes';
 import type { VoiceRef } from '../feedback/feedbackModel';
 
 /**
- * One queued change to the server. Feedback carries its screenshot and voice
- * note, kept on the phone beside it until it has gone (decisions.md 145).
+ * One queued change to the server. Feedback carries its screenshot, a
+ * picture the person chose and a voice note, kept on the phone beside it
+ * until it has gone (decisions.md 145).
  */
 async function deliver(actorId: string, action: AccountAction): Promise<void> {
   if (action.kind !== 'feedback') return server.deliverAccountAction(actorId, action);
   const shot = action.payload['shot'] === true ? await readShot(action.id) : null;
+  const picture = action.payload['picture'] === true ? await readShot(action.id, 'picture') : null;
   const voiceRef = (action.payload['voice'] ?? null) as VoiceRef | null;
   const voice = voiceRef ? await voiceForServer(voiceRef) : null;
-  await server.deliverAccountAction(actorId, action, { screenshot: shot, voice });
+  await server.deliverAccountAction(actorId, action, { screenshot: shot, picture, voice });
   if (shot) await dropShot(action.id);
+  if (picture) await dropShot(action.id, 'picture');
   if (voiceRef) await dropVoice(voiceRef);
 }
 

@@ -299,6 +299,10 @@ export const EDGES: Edge[] = [
   e('scan_qr', 'sign_out_confirm'),
   e('explore_home', 'request_access'),
   e('request_access', 'scan_qr'), // Not here? Scan their code (UI audit, finding 69)
+  e('org_switcher', 'scan_qr'), // Scan their code: join another organization or language with this account (LAN-197)
+  e('scan_qr', 'org_switcher', 'back'),
+  e('org_switcher', 'request_access'), // Find your organization, with this account (LAN-197)
+  e('request_access', 'org_switcher', 'back'),
   e('inbox_home', 'members_list', undefined, 'assigner'),
   e('create_account', 'terms_privacy', undefined, 'guest'),
   e('scan_qr', 'terms_privacy', undefined, 'guest'),

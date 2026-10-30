@@ -92,6 +92,8 @@ import { TranslateQuestion } from '../breakup/TranslateStep';
 import { useTranslate } from '../breakup/useTranslate';
 import { InviteSomeone } from '../invites/invite';
 import { refKindOf } from '../reference/model';
+import { addBibleBrainSource } from '../reference/referenceActions';
+import { bibleDetail } from '../sources/bibleBrainAdmin';
 import type { GuideSet } from '../reference/guideSets';
 import { memberIn, startingLanguage } from '../reference/languageChoices';
 import { docLanguage, languagesLine, readerLanguage, sameLanguage, teamLanguages } from '../reference/languages';
@@ -1537,6 +1539,8 @@ export function InviteQr(ctx: Ctx) {
 export function NewLanguage(ctx: Ctx) {
   const state = ctx.language.state;
   const lib = useLibrary(ctx);
+  // A Bible Brain Bible ticked on Reference material is numbered in LangQuest's English versification when added.
+  const versifications = useSharedItems('versification', lib.orgId);
   // Opened from a cluster's page, one language already in it.
   const fromCluster = ctx.params['clusterId'] ?? null;
   const {
@@ -1655,6 +1659,7 @@ export function NewLanguage(ctx: Ctx) {
         resolveTemplate: () => tq.resolve(),
         loadDoc: async (hash) => (await loadDocs(lib.orgId, [hash])).get(hash) ?? undefined,
         adopt: (shared) => (shared.subscribable ? lib.subscribe(shared, true) : lib.copy(shared)),
+        addBibleBrain: async (bibleId) => addBibleBrainSource(lib, await bibleDetail(bibleId), versifications.rows),
         applySpecs: (itemId, opts) => lib.applySpecs(itemId, opts),
         appendOrg: (type, payload) => ctx.org.append(type, payload),
         syncOrg: () => ctx.org.sync(),
@@ -2050,7 +2055,7 @@ function NewLanguageInvite(props: { ctx: Ctx; languages: { languageId: string; n
       header={(back) => <Header title={t('org.home.newLanguage')} sub={names} onBack={back} />}
       label={(scope) => t('admin.invite.teamLabel', { name: scope.label })} onDone={ctx.back}
       disabled={may ? undefined : t('org.newLanguage.inviteLater', { language: names })}
-      later={{ label: t('org.newLanguage.later'), help: t('org.newLanguage.laterHelp'), onPress: ctx.back }}
+      done={{ help: t('org.newLanguage.doneHelp', { language: names }), onPress: ctx.back }}
       {...(ctx.session.can('manage_roles') ? { onNewRole: () => ctx.go('role_editor', { roleId: 'new' }) } : {})} />
   );
 }

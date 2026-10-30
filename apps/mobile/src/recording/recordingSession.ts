@@ -1,13 +1,14 @@
-import { framePublishDue, liveChunkDone, liveDrop, liveEdge, liveFrame, livePartEnd, livePartStart, liveSeam, liveSilenceSwitch, liveStart, type LiveState } from './livePartsModel';
+import { framePublishDue, liveAdd, liveChunkDone, liveDrop, liveDropSilence, liveEdge, liveFrame, livePartEnd, livePartStart, liveSeam, liveSilenceSwitch, liveStart, type LiveGap, type LiveState } from './livePartsModel';
 
 /**
  * One recording session's parts (LAN-82), from the moment recording starts
  * until the session is left: the levels the microphone heard, each part's
- * box, and the edges the person moved or the parts they dropped once
- * recording stopped (livePartsModel.ts). The microphone's frames arrive about
- * twenty times a second and land here, not in a screen's state, so only the
- * waveform redraws for them (`subscribe`); a screen that shows the count or
- * the next part's number listens for the parts alone (`onParts`).
+ * box, and, once recording stopped, the edges the person moved, the parts
+ * and silences they dropped and the boxes they added (livePartsModel.ts).
+ * The microphone's frames arrive about twenty times a second and land
+ * here, not in a screen's state, so only the waveform redraws for them
+ * (`subscribe`); a screen that shows the count or the next part's number
+ * listens for the parts alone (`onParts`).
  *
  * The waveform is told about frames at about ten a second (FRAME_PUBLISH_MS),
  * not twenty: the eye cannot tell, and the bars cost a render each. Every
@@ -69,6 +70,10 @@ export class RecordingSession {
   chunkDone(chunk: string, uri: string, ms: number) { this.set(liveChunkDone(this.state, chunk, uri, ms), true); }
   edge(index: number, edge: 'from' | 'to', frame: number) { this.set(liveEdge(this.state, index, edge, frame), true); }
   drop(index: number) { this.set(liveDrop(this.state, index), true); }
+  /** A silence's × (LAN-199): that silence goes, and the numbers after it close up. */
+  dropSilence(after: number) { this.set(liveDropSilence(this.state, after), true); }
+  /** A + in a gap (LAN-199): a box over it, a part like any said. */
+  add(gap: LiveGap, id?: string) { this.set(liveAdd(this.state, gap, id), true); }
   /** The silence switch (decision 194): the boxes and their numbers change at once. */
   setSilence(on: boolean) { this.set(liveSilenceSwitch(this.state, on), true); }
 }

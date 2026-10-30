@@ -17,7 +17,7 @@ import { Chip, SectionLabel } from '../ui/kit';
 import { HelpRow } from '../helpMode/helpBadge';
 import { txt } from '../ui/textStyles';
 import { useLibraryDocs } from '../library/useLibrary';
-import { FindBiblePage, NumberingChosenPage, NumberingContext, NumberingListPage, QuizPage, type NumberingChoice } from './NumberingStep';
+import { FindBiblePage, FindWaysPage, NumberingChosenPage, NumberingContext, NumberingListPage, QuizPage, WhyNumberingPage, type NumberingChoice } from './NumberingStep';
 import { factsOf } from './numberingGuide';
 import { ChoiceCard, Question, QuietLink } from '../admin/admin';
 import { space } from '../ui/theme';
@@ -52,14 +52,20 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
     ? <QuietLink icon="globe" label={t('breakup.translate.otherLanguages')} detail={t('breakup.translate.otherLanguagesDetail')} onPress={q.showEveryLanguage} /> : null;
 
   if (q.page === 'find') {
-    return <FindBiblePage numberings={q.ways.numberings} usedIn={q.ways.usedInByNumbering} languages={q.languages} onPick={q.choose} onQuiz={() => q.setPage('quiz')} onList={() => q.setPage('list')} />;
+    return <FindBiblePage numberings={q.ways.numberings} languages={q.languages} onPick={q.choose} onQuiz={() => q.setPage('quiz')} onList={() => q.setPage('list')} />;
   }
   if (q.page === 'quiz') {
     return <QuizPage numberings={q.ways.numberings} trail={q.quizTrail} setTrail={q.setQuizTrail} onDone={(c, note) => q.choose(c, undefined, note)} onList={() => q.setPage('list')} />;
   }
   if (q.page === 'list') return <NumberingListPage numberings={q.ways.numberings} factsFor={factsFor} onPick={(c) => q.choose(c)} />;
+  // Why the numbering matters, then three ways to find it, none buried under the Bibles (LAN-193).
+  if (q.page === 'why') return <WhyNumberingPage />;
+  if (q.page === 'how') {
+    return <FindWaysPage numberings={q.ways.numberings} usedIn={q.ways.usedInByNumbering} onPick={(c) => q.choose(c)}
+      onFind={() => q.setPage('find')} onQuiz={() => q.setPage('quiz')} onList={() => q.setPage('list')} />;
+  }
   if (q.page === 'numbered' && q.numbering) {
-    return <NumberingChosenPage choice={q.numbering} facts={factsFor(q.numbering)} {...q.found} onChange={() => q.setPage('find')} />;
+    return <NumberingChosenPage choice={q.numbering} facts={factsFor(q.numbering)} {...q.found} onChange={() => q.setPage('how')} />;
   }
   if (q.page === 'ways' || q.page === 'numbered') {
     // Your own way comes first and stands apart (design principle 12, decision 107): every book waits until
@@ -69,7 +75,7 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
     const ready = q.ways.rows.filter((r) => !r.later);
     return (
       <>
-        {q.numbering ? <NumberingContext choice={q.numbering} onPress={() => q.setPage('find')} /> : null}
+        {q.numbering ? <NumberingContext choice={q.numbering} onPress={() => q.setPage('how')} /> : null}
         <Question>{t('breakup.translate.howBible')}</Question>
         {own ? (
           <ChoiceCard own on={q.row === own} icon="edit" title={t('breakup.own.title')} sub={t('breakup.translate.ownSub')} onPress={() => q.setKey(own.choice.key)}>

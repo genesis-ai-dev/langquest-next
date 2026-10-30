@@ -1086,3 +1086,22 @@ Expected:
 - "What is LangQuest?" opens on "1 of 3".
 - "Done" returns to Me.
 - The back arrow on "1 of 3" also returns to Me.
+
+### AUTH-061 Someone in an organization joins another by its code, with their own account
+Roles: NEW · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions (in addition to the global ones):
+- A new account in the test organization only, and a group invite to UI
+  Second Org.
+
+Steps:
+1. Me → "More settings" → "Switch Organization".
+2. Tap "Scan their code" and paste the invite.
+3. Tap "Join as {name}".
+
+Expected:
+- Switch Organization offers "Scan their code" and "Find your
+  organization" above "New organization" (LAN-197).
+- The scan page offers "Join as {name}", not a new account.
+- The welcome says "You're a Translator on UI Second Org.", and the account
+  is a member of both organizations.

@@ -1003,7 +1003,6 @@
       "noWays": "Ainda não há formas de verificação para escolher.",
       "notAdded": "Não foi adicionado",
       "inviteLater": "Convide os tradutores de {{language}} mais tarde, na página dele.",
-      "later": "Mais tarde",
       "making": {
         "title": "Preparando {{language}}",
         "passages": "Obtendo as passagens",
@@ -1018,7 +1017,6 @@
       "continueHelp": "Vai para a próxima pergunta.",
       "addHelp": "Adiciona {{language}} com estas respostas. Depois você pode convidar os tradutores.",
       "backHelp": "Volta uma página. O que você escolheu continua escolhido.",
-      "laterHelp": "Pula isto por enquanto. Convide os tradutores pela página do idioma depois.",
       "stages": {
         "language": "Idioma",
         "content": "Conteúdo",
@@ -1060,7 +1058,8 @@
         "offHelp": "Deixado de fora. Toque para a equipe de {{language}} ter isto.",
         "nothing": "Ainda não há Bíblias nem guias de estudo em {{languages}}"
       },
-      "teamLanguages": "Quais idiomas os tradutores de {{language}} usam?"
+      "teamLanguages": "Quais idiomas os tradutores de {{language}} usam?",
+      "doneHelp": "Conclui a configuração de {{language}}. Você pode convidar os tradutores dela pela página dela depois."
     },
     "offers": {
       "guides": "os guias de estudo de {{name}}",
@@ -1320,8 +1319,6 @@
       "linkCopied": "Link do convite copiado. Cole em uma mensagem.",
       "couldNotShare": "Não foi possível compartilhar. Mostre o código em vez disso.",
       "shareLink": "Compartilhar como link",
-      "someoneElse": "Outra pessoa",
-      "showCode": "Mostrar o código para ler",
       "whatWillTheyDo": "O que eles vão fazer?",
       "otherRoles": "Outras funções · {{total}}",
       "newRole": "Outra coisa: criar uma nova função",
@@ -1333,10 +1330,6 @@
       "scopeLanguageHelp": "A pessoa entra na equipe deste idioma.",
       "scopeOrgHelp": "A pessoa entra na organização inteira: em todos os idiomas dela.",
       "shareLinkHelp": "Envia o código como link numa mensagem, ou copia.",
-      "someoneElseHelp": "Volta para escolher o que outra pessoa vai fazer, para outro código.",
-      "showCodeChecksHelp": "Cria um código que coloca quem o ler nas verificações marcadas.",
-      "showCodeNoChecksHelp": "Cria o código. A pessoa pode ser colocada em verificações depois, na página de cada verificação.",
-      "backToRolesHelp": "Volta para as funções.",
       "whichChecks": "Quais verificações a pessoa vai fazer?",
       "checkOnHelp": "A pessoa vai fazer esta verificação. Toque para tirar.",
       "checkOffHelp": "Toque para colocar a pessoa nesta verificação.",
@@ -1345,7 +1338,6 @@
       "whatTheyMayDo": "O que podem fazer",
       "hideMayDoHelp": "Esconde o que esta função permite fazer.",
       "showMayDoHelp": "Mostra o que {{people}} podem fazer, e onde.",
-      "invite": "Convidar",
       "inviteHelp": "Cria um código para {{people}} lerem.",
       "everyLanguage": "Em todos os idiomas",
       "onlyIn": "Só em {{language}}"
@@ -2204,7 +2196,25 @@
         "hebrew": "Hebraico",
         "korean": "Coreano"
       },
-      "chooseFromListHelp": "Todas as numerações, cada uma com três dados que as diferenciam."
+      "chooseFromListHelp": "Todas as numerações, cada uma com três dados que as diferenciam.",
+      "why": {
+        "question": "As Bíblias numeram os versículos de formas diferentes",
+        "english": "Bíblia em inglês",
+        "hebrew": "Bíblia hebraica",
+        "verse": "{{book}} {{chapter}}:{{verse}}",
+        "bibleA11y": "{{bible}}: {{chapters}}. O mesmo versículo é {{verse}}.",
+        "match": "O mesmo versículo pode ter outro número. O LangQuest precisa da numeração da sua Bíblia para que os números correspondam."
+      },
+      "how": {
+        "question": "Encontre a numeração da sua Bíblia",
+        "find": "Escolha sua Bíblia",
+        "findSub": "NVI, Almeida, NTLH…",
+        "findHelp": "Encontre a Bíblia da qual sua equipe traduz. O LangQuest sabe como ela numera os versículos.",
+        "quiz": "Faça o questionário",
+        "quizSub": "Algumas perguntas, com sua Bíblia aberta",
+        "list": "Escolha a numeração",
+        "listSub": "Se você já sabe qual é"
+      }
     },
     "own": {
       "title": "Divida do seu jeito",
@@ -3072,7 +3082,10 @@
       "scanQrHelp": "Abre a câmera. Aponte para o código.",
       "pasteHelp": "Cole um código ou link aqui. Ele é lido assim que estiver completo.",
       "clearInviteHelp": "Esquece este convite neste aparelho.",
-      "notNowHelp": "Esquece este convite e volta para o seu trabalho."
+      "notNowHelp": "Esquece este convite e volta para o seu trabalho.",
+      "whoJoins": "Quem vai entrar?",
+      "someoneNew": "Outra pessoa",
+      "someoneNewHelp": "Para alguém que ainda não está neste telefone: uma conta nova. Depois, digite o nome da pessoa."
     },
     "signInKey": {
       "notGuestTitle": "Este é um código de acesso",
@@ -4161,7 +4174,8 @@
       "listeners": "Ouvintes",
       "liveIn": "Publicado em {{channel}} · {{version}}",
       "listenerCount": "Comentários de ouvintes: {{count, number}}",
-      "askedOffline": "Pedido a {{target}}. Chega quando este aparelho estiver conectado."
+      "askedOffline": "Pedido a {{target}}. Chega quando este aparelho estiver conectado.",
+      "askForAgain": "Pedir a {{check}} de novo"
     },
     "else": {
       "title": "Outra coisa?",
@@ -4197,7 +4211,8 @@
       "doneHelp": "Volta para a passagem.",
       "pickCheckHelp": "Escolhe esta verificação para pedir. Abaixo dela: as pessoas que a fazem.",
       "someoneElseHelp": "Peça a outra pessoa, a uma equipe, ou a alguém sem o aplicativo.",
-      "notNowHelp": "Peça depois. A versão continua publicada."
+      "notNowHelp": "Peça depois. A versão continua publicada.",
+      "askTargetAgain": "Pedir a {{target}} de novo"
     },
     "keep": {
       "title": "Manter como está?",
@@ -4331,7 +4346,14 @@
       "answerTypeHelp": "Muda como a pessoa responde: sim ou não, com palavras, ou de 1 a 5.",
       "addQuestionHelp": "Adiciona a sua pergunta às que a pessoa responde.",
       "removeQuestionHelp": "Tira esta pergunta.",
-      "openCheckHelp": "Abre {{check}}, onde você muda as perguntas."
+      "openCheckHelp": "Abre {{check}}, onde você muda as perguntas.",
+      "last": {
+        "good": "{{name}} verificou a versão {{version}}: está bom",
+        "changes": "{{name}} verificou a versão {{version}}: precisa de mudanças",
+        "answered": "{{name}} verificou a versão {{version}}: precisa de mudanças, respondidas na versão {{answer}}",
+        "kept": "{{name}} verificou a versão {{version}}: precisa de mudanças, mantida como está",
+        "recorded": "{{name}} fez isto para a versão {{version}}"
+      }
     },
     "resources": {
       "sourceAudio": "Áudio do texto-fonte"
@@ -5028,7 +5050,7 @@
       "leave": "Pronto",
       "leaveHelp": "Para a gravação e guarda as partes como as caixas mostram.",
       "stopped": "Parado",
-      "stoppedHelp": "Toque em uma parte para ouvi-la. Arraste as bordas para mudar onde ela começa e termina. O × a remove. Pronto guarda as partes como as caixas mostram; o botão vermelho grava mais.",
+      "stoppedHelp": "Toque em uma parte para ouvi-la. Arraste as bordas para mudar onde ela começa e termina. O × a remove. Pronto guarda as partes como as caixas mostram; o botão vermelho grava mais. Um + põe numa caixa o espaço onde não há nenhuma parte.",
       "startEarlier": "Começar antes",
       "startLater": "Começar depois",
       "endEarlier": "Terminar antes",
@@ -5055,7 +5077,8 @@
       "micOff": "O LangQuest não consegue ouvir você. Ative o microfone para o LangQuest em Ajustes.",
       "micOffWeb": "O LangQuest não consegue ouvir você. Permita o microfone para este site no seu navegador e toque em gravar de novo.",
       "openSettings": "Abrir Ajustes",
-      "openSettingsHelp": "Abre os ajustes deste telefone para o LangQuest. Ative o microfone lá e volte."
+      "openSettingsHelp": "Abre os ajustes deste telefone para o LangQuest. Ative o microfone lá e volte.",
+      "addPart": "Adicionar uma parte aqui"
     },
     "cleanUp": {
       "cleanUp": "Limpar",
@@ -7930,14 +7953,20 @@
       "idea": "Uma ideia: algo que deixaria o LangQuest melhor para você.",
       "body": "Diga com suas próprias palavras, em qualquer idioma.",
       "screenshot": "Envia uma imagem da tela em que você estava. Desligado até você ligar.",
-      "profile": "Envia seu nome e como você entra, para a equipe do LangQuest saber quem escreveu. Desligado até você ligar."
+      "profile": "Envia seu nome e como você entra, para a equipe do LangQuest saber quem escreveu. Desligado até você ligar.",
+      "picture": "Escolha uma foto, ou uma captura de tela de outra coisa, para enviar com suas palavras.",
+      "removePicture": "Tira a imagem do que você envia."
     },
     "toast": {
       "sent": "Enviado. Obrigado!",
       "saved": "Salvo. É enviado quando você estiver conectado.",
       "savedUntilSignIn": "Salvo. É enviado depois que você entrar.",
-      "voiceTooLong": "Longo demais: uma mensagem de voz pode ter até 2 minutos."
-    }
+      "voiceTooLong": "Longo demais: uma mensagem de voz pode ter até 2 minutos.",
+      "pictureFailed": "Não foi possível abrir essa imagem. Tente outra."
+    },
+    "addPicture": "Adicionar uma imagem",
+    "otherPicture": "Escolher outra imagem",
+    "removePicture": "Remover a imagem"
   },
   "appVersion": {
     "available": "Nova versão disponível",

@@ -172,9 +172,9 @@ test('PASS-019 Record a fix', async ({ browser }) => {
   await expect(byId(page, 'record-button')).toBeVisible();
   await recordOnePart(page);
   await byId(page, 'publish-button').click();
-  // Answered feedback keeps the check open (decisions.md 96): Done offers the peer check again.
+  // Answered feedback keeps the check open (decisions.md 96): Done offers the peer check again, and says so (LAN-200).
   expect((await screenText(page)).toLowerCase()).toContain('next check peer check');
-  await expect(byId(page, 'primary-action')).toHaveText('Ask the Peer check team');
+  await expect(byId(page, 'primary-action')).toHaveText('Ask the Peer check team again');
   await button(page, 'Send later').click();
   await toast(page, 'Version 2 published.');
   await expect(header(page)).toHaveText(L);
@@ -424,7 +424,8 @@ test('PASS-053 A check logged afterwards never clears a checkpoint', async ({ br
   await refreshRecord(page, world(), 'P-CHECK');
   // Fixed (2026-10-12): the row no longer reads "looks good" for a logged check at a checkpoint.
   expect((await teamRows(page)).slice(3)).toEqual(['Consultant check, next', 'Final approval, after the consultant check']);
-  expect(await mainButton(page)).toBe('Ask for the consultant check');
+  // It still happened, so it is asked for again (LAN-200).
+  expect(await mainButton(page)).toBe('Ask for the consultant check again');
 });
 
 test('PASS-054 Move past a checkpoint, with a reason @p0', async ({ browser }) => {

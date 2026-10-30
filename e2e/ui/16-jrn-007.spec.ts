@@ -50,6 +50,10 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   await primary(page).click();
   await page.getByRole('radio', { name: 'The Bible' }).click();
   await primary(page).click();
+  // Why the numbering matters, then three ways to find it (LAN-193).
+  await expect(text(page, 'Bibles number verses differently')).toBeVisible();
+  await primary(page).click();
+  await button(page, /^Pick your Bible/).click();
   await page.getByRole('radio', { name: 'New International Version (2011)' }).click();
   await primary(page).click();
   await expect(page.getByRole('radio', { name: /^FIA passages\./ })).toBeVisible();
@@ -67,7 +71,7 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   await expect(text(page, /^(Setting up Journey Language|Getting the passages|Getting the review steps|Saving Journey Language's passages)/)).toBeVisible();
   await expectToast(page, `Journey Language added to ${orgName}.`);
   await expect(text(page, 'Time to invite people')).toBeVisible();
-  await button(page, 'Later').click();
+  await button(page, 'Done').click();
   // The Map shows the books in scope.
   await tab(page, 'map').click();
   const journey = page.getByRole('button', { name: /^Journey Language: .*Open its map/ }).locator('visible=true').first();
@@ -95,11 +99,8 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   if (await others.isVisible().catch(() => false)) await others.click();
   const journeyScope = page.getByRole('button', { name: 'Journey Language' }).locator('visible=true');
   if (await journeyScope.count()) await journeyScope.first().click();
-  // Its card's own Invite (decision 146); a role that checks may be put on some checks first, none here.
-  await page.getByTestId('invite-role-Community Checker').locator('visible=true').first().getByRole('button', { name: 'Invite', exact: true }).click();
-  const asked = text(page, 'Which checks will they do?');
-  await expect(asked.or(text(page, 'Ask them to scan this'))).toBeVisible();
-  if (await asked.isVisible()) await primary(page).click();
+  // Its tile, and its code on the same page (LAN-195); a role that checks may be put on some checks, none here.
+  await page.getByTestId('invite-role-Community Checker').locator('visible=true').first().click();
   await expect(text(page, 'Ask them to scan this')).toBeVisible();
   await expect(text(page, /^Community Checker/)).toBeVisible();
   await button(page, 'Done').click();

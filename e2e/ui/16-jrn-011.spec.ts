@@ -87,7 +87,7 @@ test('JRN-011 One passage from first recording to done, across every role @p0', 
     await trans.getByPlaceholder('Or type it').locator('visible=true').first().fill('Said verse 5 more plainly');
     await button(trans, 'Done').click();
     // The answered check goes back to the peer check team (decided 2026-10-13: answering keeps it open): Done asks them again.
-    await button(trans, 'Ask the Peer check team').click();
+    await button(trans, 'Ask the Peer check team again').click();
     await expectToast(trans, /Sent to the Peer check team/);
 
     // Step 5: REV's peer check on Version 2: looks good.

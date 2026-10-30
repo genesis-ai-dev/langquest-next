@@ -1003,7 +1003,6 @@
       "noWays": "Todavía no hay formas de revisar para elegir.",
       "notAdded": "No se agregó",
       "inviteLater": "Más tarde, invita a los traductores de {{language}} desde su página.",
-      "later": "Más tarde",
       "making": {
         "title": "Preparando {{language}}",
         "passages": "Obteniendo los pasajes",
@@ -1018,7 +1017,6 @@
       "continueHelp": "Pasa a la siguiente pregunta.",
       "addHelp": "Agrega {{language}} con estas respuestas. Luego puedes invitar a sus traductores.",
       "backHelp": "Vuelve una página atrás. Lo que elegiste sigue elegido.",
-      "laterHelp": "Salta esto por ahora. Más tarde, invita a sus traductores desde su página.",
       "stages": {
         "language": "Idioma",
         "content": "Contenido",
@@ -1060,7 +1058,8 @@
         "offHelp": "Dejado fuera. Toca para que el equipo de {{language}} lo tenga.",
         "nothing": "Todavía no hay Biblias ni guías de estudio en {{languages}}"
       },
-      "teamLanguages": "¿Qué idiomas usan los traductores de {{language}}?"
+      "teamLanguages": "¿Qué idiomas usan los traductores de {{language}}?",
+      "doneHelp": "Termina de configurar {{language}}. Puedes invitar a sus traductores desde su página más tarde."
     },
     "offers": {
       "guides": "las guías de estudio de {{name}}",
@@ -1320,8 +1319,6 @@
       "linkCopied": "Enlace de invitación copiado. Pégalo en un mensaje.",
       "couldNotShare": "No se pudo compartir. Mejor muestra el código.",
       "shareLink": "Compartir como enlace",
-      "someoneElse": "Otra persona",
-      "showCode": "Mostrar el código para escanear",
       "whatWillTheyDo": "¿Qué va a hacer?",
       "otherRoles": "Otros roles · {{total}}",
       "newRole": "Otra cosa: crear un rol nuevo",
@@ -1333,10 +1330,6 @@
       "scopeLanguageHelp": "Se une al equipo de este idioma.",
       "scopeOrgHelp": "Se une a toda la organización: a todos sus idiomas.",
       "shareLinkHelp": "Envía el código como enlace en un mensaje, o lo copia.",
-      "someoneElseHelp": "Vuelve para elegir qué hará otra persona, para otro código.",
-      "showCodeChecksHelp": "Crea un código que pone a quien lo escanee en las verificaciones marcadas.",
-      "showCodeNoChecksHelp": "Crea el código. Más tarde se le puede poner en verificaciones, en la página de cada verificación.",
-      "backToRolesHelp": "Vuelve a los roles.",
       "whichChecks": "¿Qué verificaciones va a hacer?",
       "checkOnHelp": "Hará esta verificación. Toca para quitarla.",
       "checkOffHelp": "Toca para que haga esta verificación.",
@@ -1345,7 +1338,6 @@
       "whatTheyMayDo": "Lo que puede hacer",
       "hideMayDoHelp": "Oculta lo que este rol le permite hacer.",
       "showMayDoHelp": "Muestra lo que pueden hacer {{people}}, y dónde.",
-      "invite": "Invitar",
       "inviteHelp": "Crea un código para que {{people}} lo escaneen.",
       "everyLanguage": "En todos los idiomas",
       "onlyIn": "Solo en {{language}}"
@@ -2204,7 +2196,25 @@
         "hebrew": "Hebreo",
         "korean": "Coreano"
       },
-      "chooseFromListHelp": "Todas las numeraciones, cada una con tres datos que las distinguen."
+      "chooseFromListHelp": "Todas las numeraciones, cada una con tres datos que las distinguen.",
+      "why": {
+        "question": "Las Biblias numeran los versículos de forma distinta",
+        "english": "Biblia en inglés",
+        "hebrew": "Biblia hebrea",
+        "verse": "{{book}} {{chapter}}:{{verse}}",
+        "bibleA11y": "{{bible}}: {{chapters}}. El mismo versículo es {{verse}}.",
+        "match": "El mismo versículo puede tener otro número. LangQuest necesita la numeración de tu Biblia para que los números coincidan."
+      },
+      "how": {
+        "question": "Encuentra la numeración de tu Biblia",
+        "find": "Elige tu Biblia",
+        "findSub": "Reina-Valera, NVI, DHH…",
+        "findHelp": "Encuentra la Biblia de la que traduce tu equipo. LangQuest sabe cómo numera los versículos.",
+        "quiz": "Haz el cuestionario",
+        "quizSub": "Unas preguntas, con tu Biblia abierta",
+        "list": "Elige la numeración",
+        "listSub": "Si ya la conoces"
+      }
     },
     "own": {
       "title": "Divídelo a tu manera",
@@ -3072,7 +3082,10 @@
       "scanQrHelp": "Abre la cámara. Apúntala al código.",
       "pasteHelp": "Pega aquí un código o un enlace. Se lee en cuanto está completo.",
       "clearInviteHelp": "Olvida esta invitación en este dispositivo.",
-      "notNowHelp": "Olvida esta invitación y vuelve a tu trabajo."
+      "notNowHelp": "Olvida esta invitación y vuelve a tu trabajo.",
+      "whoJoins": "¿Quién se une?",
+      "someoneNew": "Alguien nuevo",
+      "someoneNewHelp": "Para alguien que aún no está en este teléfono: una cuenta nueva. Después, escribe su nombre."
     },
     "signInKey": {
       "notGuestTitle": "Este es un código para iniciar sesión",
@@ -4161,7 +4174,8 @@
       "listeners": "Oyentes",
       "liveIn": "Publicado en {{channel}} · {{version}}",
       "listenerCount": "Comentarios de oyentes: {{count, number}}",
-      "askedOffline": "Se lo pediste a {{target}}. Le llega cuando este dispositivo tenga conexión."
+      "askedOffline": "Se lo pediste a {{target}}. Le llega cuando este dispositivo tenga conexión.",
+      "askForAgain": "Pedir la {{check}} otra vez"
     },
     "else": {
       "title": "¿Otra cosa?",
@@ -4197,7 +4211,8 @@
       "doneHelp": "Vuelve al pasaje.",
       "pickCheckHelp": "Elige esta verificación para pedirla. Debajo: las personas que la hacen.",
       "someoneElseHelp": "Pídeselo a otra persona, a un equipo o a alguien sin la app.",
-      "notNowHelp": "Pídelo más tarde. La versión sigue publicada."
+      "notNowHelp": "Pídelo más tarde. La versión sigue publicada.",
+      "askTargetAgain": "Pedir a {{target}} otra vez"
     },
     "keep": {
       "title": "¿Dejarlo como está?",
@@ -4331,7 +4346,14 @@
       "answerTypeHelp": "Cambia cómo responde: sí o no, con palabras, o del 1 al 5.",
       "addQuestionHelp": "Agrega tu pregunta a las que responde.",
       "removeQuestionHelp": "Quita esta pregunta.",
-      "openCheckHelp": "Abre {{check}}, donde cambias sus preguntas."
+      "openCheckHelp": "Abre {{check}}, donde cambias sus preguntas.",
+      "last": {
+        "good": "{{name}} revisó la versión {{version}}: está bien",
+        "changes": "{{name}} revisó la versión {{version}}: necesita cambios",
+        "answered": "{{name}} revisó la versión {{version}}: necesita cambios, respondidos en la versión {{answer}}",
+        "kept": "{{name}} revisó la versión {{version}}: necesita cambios, se dejó como está",
+        "recorded": "{{name}} hizo esto para la versión {{version}}"
+      }
     },
     "resources": {
       "sourceAudio": "Audio fuente"
@@ -5028,7 +5050,7 @@
       "leave": "Listo",
       "leaveHelp": "Detiene la grabación y guarda las partes como las muestran sus recuadros.",
       "stopped": "Detenido",
-      "stoppedHelp": "Toca una parte para escucharla. Arrastra sus bordes para mover dónde empieza y termina. La × la quita. Listo guarda las partes como las muestran sus recuadros; el botón rojo graba más.",
+      "stoppedHelp": "Toca una parte para escucharla. Arrastra sus bordes para mover dónde empieza y termina. La × la quita. Listo guarda las partes como las muestran sus recuadros; el botón rojo graba más. Un + pone un recuadro en el espacio donde no hay ninguna parte.",
       "startEarlier": "Empezar antes",
       "startLater": "Empezar después",
       "endEarlier": "Terminar antes",
@@ -5055,7 +5077,8 @@
       "micOff": "LangQuest no puede oírte. Activa el micrófono para LangQuest en Ajustes.",
       "micOffWeb": "LangQuest no puede oírte. Permite el micrófono para este sitio en tu navegador y vuelve a tocar grabar.",
       "openSettings": "Abrir Ajustes",
-      "openSettingsHelp": "Abre los ajustes de este teléfono para LangQuest. Activa allí el micrófono y vuelve."
+      "openSettingsHelp": "Abre los ajustes de este teléfono para LangQuest. Activa allí el micrófono y vuelve.",
+      "addPart": "Añadir una parte aquí"
     },
     "cleanUp": {
       "cleanUp": "Limpiar",
@@ -7930,14 +7953,20 @@
       "idea": "Una idea: algo que haría LangQuest mejor para ti.",
       "body": "Dilo con tus propias palabras, en cualquier idioma.",
       "screenshot": "Envía una imagen de la pantalla en la que estabas. Apagado hasta que lo enciendas.",
-      "profile": "Envía tu nombre y cómo inicias sesión, para que el equipo de LangQuest sepa quién escribió. Apagado hasta que lo enciendas."
+      "profile": "Envía tu nombre y cómo inicias sesión, para que el equipo de LangQuest sepa quién escribió. Apagado hasta que lo enciendas.",
+      "picture": "Elige una foto, o una captura de pantalla de otra cosa, para enviarla con tus palabras.",
+      "removePicture": "Quita la imagen de lo que envías."
     },
     "toast": {
       "sent": "Enviado. ¡Gracias!",
       "saved": "Guardado. Se envía cuando tengas conexión.",
       "savedUntilSignIn": "Guardado. Se envía cuando inicies sesión.",
-      "voiceTooLong": "Demasiado largo: una nota de voz puede durar hasta 2 minutos."
-    }
+      "voiceTooLong": "Demasiado largo: una nota de voz puede durar hasta 2 minutos.",
+      "pictureFailed": "No se pudo abrir esa imagen. Prueba con otra."
+    },
+    "addPicture": "Añadir una imagen",
+    "otherPicture": "Elegir otra imagen",
+    "removePicture": "Quitar la imagen"
   },
   "appVersion": {
     "available": "Nueva versión disponible",

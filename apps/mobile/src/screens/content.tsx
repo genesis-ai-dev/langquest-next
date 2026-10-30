@@ -542,7 +542,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
   const draft = useTemplateDraft(ctx, lib, null);
   const start = form ?? draft.value?.form;
   // Back from the first question leaves Scripture; otherwise it goes back a question.
-  const backOut = () => { if ((tq.page === 'find' && !tq.numbering) || tq.page === 'what' || !tq.retreat()) setBible(false); };
+  const backOut = () => { if ((tq.page === 'why' && !tq.numbering) || tq.page === 'what' || !tq.retreat()) setBible(false); };
   // A phone's Back does the same as the header's arrow (decision 137).
   useHardwareBack(bible && !start, backOut);
   // The sidebar names the organization on a desktop; the subtitle then need not.
@@ -550,7 +550,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
   if (start) return <TemplateEditorForm ctx={ctx} lib={lib} item={null} initial={start} draft={draft} />;
   if (!draft.loaded) return <Screen header={<Header title={t('content.newTemplate.title')} {...(sub ? { sub } : {})} onBack={ctx.back} />}>{null}</Screen>;
 
-  const scripture = () => { tq.setWhat('bible'); tq.setPage(tq.numbering ? 'numbered' : 'find'); setBible(true); };
+  const scripture = () => { tq.setWhat('bible'); tq.setPage(tq.numbering ? 'numbered' : 'why'); setBible(true); };
   const begin = () => {
     if (!tq.doc?.bible) return;
     // The way's books and how it divides them, its levels and numbering; the name and purpose are the admin's own.
