@@ -292,7 +292,8 @@ their ids are in `server/youtube.ts`.
 - **Connect**, once per channel. Google's page opens: sign in with the
   account that owns the channels and choose that language's channel. Back
   on the dashboard the channel shows as connected, and its home page gets a
-  list of the other LangQuest channels. Google sends the person back to
+  row of the other LangQuest channels and one for each of its playlists
+  (decision 191; the publish job keeps them up to date). Google sends the person back to
   `/ops/api/youtube/callback`, which must be the OAuth client's redirect
   address. Connect again when a channel's videos fail with a sign-in code
   such as `youtube_invalid_grant`; the dashboard says so under Needs
@@ -314,11 +315,14 @@ their ids are in `server/youtube.ts`.
   its place in the playlist, and the old one is unlisted with a link to the
   new. The job's runs are in Server jobs (`tutorial_publish`).
 - **How each channel looks** is the publish job's too: before any video,
-  each channel whose description, language, banner or list of the other
-  channels differs from what `server/youtube.ts` says (`WORDS`, and the
-  banners in `apps/mobile/public/youtube`, made by
-  `npx tsx e2e/tutorials/banners.ts`) gets them, about 150 of the day's
-  10,000 units each. The channels table shows "on" once it has them.
+  each channel whose description, language or banner differs from what
+  `server/youtube.ts` says (`WORDS`, and the banners in
+  `apps/mobile/public/youtube`, made by `npx tsx e2e/tutorials/banners.ts`)
+  gets them, about 150 of the day's 10,000 units each. The channels table
+  shows "on" once it has them. Each run also brings the home page's rows up
+  to date (the other channels, then each playlist: `setHome`, decision 191):
+  2 units a channel when nothing changed, 50 for each row put or taken
+  away. A row someone adds by hand in Studio gives way to these.
   A look YouTube refuses (`brandingValidationError`, Hausa's on 2026-10-29)
   is tried without its language, then without the channel's own settings
   (its keywords, its country); one still refused shows the field YouTube

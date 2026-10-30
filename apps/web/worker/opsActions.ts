@@ -4,7 +4,7 @@ import { serviceClient, type Env } from './env';
 import { claimsVerifier, sessionLiveCheck } from './identity';
 import { isJobKey, type JobKey } from './jobsModel';
 import {
-  CALLBACK_PATH, consentUrl, exchangeCode, languageOfChannel, myChannel, readState, revoke, setOtherChannels, signState, YouTubeError,
+  CALLBACK_PATH, consentUrl, exchangeCode, languageOfChannel, myChannel, readState, revoke, setHome, signState, YouTubeError,
   type ChannelLanguage, type Client, type Fetch
 } from '../../../server/youtube';
 import { LinearError, linearIssues } from '../../../server/linear';
@@ -244,7 +244,7 @@ async function youtubeConnect(deps: ActionDeps, yt: YouTube, profileId: string, 
     await deps.record({ profileId, action: 'youtube_connect', target: channel.id.slice(0, 100), result: 'refused', detail: 'not_ours' });
     return { ok: false, status: 400, error: `${channel.title} is not one of the LangQuest channels. Press Connect again and choose a LangQuest channel.` };
   }
-  const section = await setOtherChannels(yt.fetcher, accessToken, language).catch((e: unknown) => codeOf(e));
+  const section = await setHome(yt.fetcher, accessToken, language).catch((e: unknown) => codeOf(e));
   await deps.connectChannel({ channelId: channel.id, language, title: channel.title, refreshToken, by: profileId, section });
   await deps.record({ profileId, action: 'youtube_connect', target: channel.id, result: 'ok', detail: language });
   return { ok: true, result: language };

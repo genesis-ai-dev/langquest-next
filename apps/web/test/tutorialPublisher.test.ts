@@ -10,12 +10,16 @@ const video = (tutorial: string, over: Partial<Due> = {}): Due => ({
   channelId: CHANNELS.es, replaces: null, ...over
 });
 
+type Section = { id: string; snippet: { type: string; position: number; title?: string }; contentDetails: { channels?: string[]; playlists?: string[] } };
+
 /**
  * `uploads`: how many the project may put up before YouTube's day is out; `perChannel`: how many each
  * channel may (its access token is its refresh token's); `brandRefused`: a language YouTube will not
- * take for a channel; `fieldRefused`: a setting of the channel's it will not take back, by its name.
+ * take for a channel; `fieldRefused`: a setting of the channel's it will not take back, by its name;
+ * `sections`: the rows on the channel's home page, kept from one run to the next.
  */
-function youtube(options: { uploads?: number; perChannel?: number; tokenRefused?: string; channel?: string; brandRefused?: string; fieldRefused?: string } = {}) {
+function youtube(options: { uploads?: number; perChannel?: number; tokenRefused?: string; channel?: string; brandRefused?: string; fieldRefused?: string; sections?: Section[] } = {}) {
+  const sections = options.sections ?? [];
   const calls: string[] = [];
   const sent: Record<string, unknown>[] = [];
   /** Every JSON body sent, by call. */
@@ -54,7 +58,13 @@ function youtube(options: { uploads?: number; perChannel?: number; tokenRefused?
       }
       return Response.json({});
     }
-    if (path === '/youtube/v3/channelSections') return Response.json(method === 'GET' ? { items: [] } : {});
+    if (path === '/youtube/v3/channelSections') {
+      if (method === 'GET') return Response.json({ items: sections });
+      const body = JSON.parse(String(init?.body)) as Section;
+      if (method === 'POST') sections.push({ ...body, id: `row${sections.length}` });
+      else sections.splice(sections.findIndex((s) => s.id === body.id), 1, body);
+      return Response.json(body);
+    }
     if (path === '/youtube/v3/commentThreads') {
       const q = new URL(input).searchParams;
       if (q.get('moderationStatus') !== 'heldForReview') return Response.json({ items: [] });
@@ -184,13 +194,19 @@ describe('the publish job', () => {
     expect(asked).toBe(3);
   });
 
-  it('first puts each channel\'s description, language, banner and list of the others on, once, and counts its held comments', async () => {
-    const yt = youtube();
+  it('first puts each channel\'s description, language, banner and home page on, once, and counts its held comments', async () => {
+    const rows: Section[] = [];
+    const yt = youtube({ sections: rows });
     const es: Channel = { channelId: CHANNELS.es, language: 'es', branded: null };
     const d = deps([video('record-a-passage')], yt, undefined, [es]);
     expect(await publishTutorials(d.deps, fresh())).toMatchObject({ branded: 1, brandFailed: 0, held: 3, published: 1 });
-    expect(yt.calls.slice(1, 6)).toEqual([
-      'GET /youtube/v3/channels', 'POST /upload/youtube/v3/channelBanners/insert', 'PUT /youtube/v3/channels', 'GET /youtube/v3/channelSections', 'POST /youtube/v3/channelSections'
+    expect(yt.calls.slice(1, 8)).toEqual([
+      'GET /youtube/v3/channels', 'POST /upload/youtube/v3/channelBanners/insert', 'PUT /youtube/v3/channels',
+      'GET /youtube/v3/channelSections', 'GET /youtube/v3/playlists', 'POST /youtube/v3/channelSections', 'POST /youtube/v3/channelSections'
+    ]);
+    // The other channels, then its one playlist so far (decisions.md 191).
+    expect(rows.map((r) => [r.snippet.type, r.snippet.position, r.contentDetails.playlists ?? r.contentDetails.channels!.length])).toEqual([
+      ['multipleChannels', 0, 14], ['singlePlaylist', 1, ['PLtrad']]
     ]);
     // Its other settings kept; its name, which only Google's account pages change, left out.
     expect(yt.sent[0]).toEqual({
@@ -201,9 +217,11 @@ describe('the publish job', () => {
     expect(es.branded).toBe(await brandOf('es', BANNER));
 
     // The next run changes nothing on the channel, and counts again.
-    const again = youtube();
+    const again = youtube({ sections: rows });
     await publishTutorials(deps([], again, undefined, [es]).deps, fresh());
-    expect(again.calls).toEqual(['POST https://oauth2.googleapis.com/token', 'GET /youtube/v3/commentThreads', 'GET /youtube/v3/commentThreads']);
+    expect(again.calls).toEqual([
+      'POST https://oauth2.googleapis.com/token', 'GET /youtube/v3/channelSections', 'GET /youtube/v3/playlists', 'GET /youtube/v3/commentThreads', 'GET /youtube/v3/commentThreads'
+    ]);
   });
 
   it('puts a channel\'s description and banner on without its language when YouTube refuses the language', async () => {
