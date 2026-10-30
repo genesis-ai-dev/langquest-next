@@ -724,8 +724,9 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Open Bravo's page. Tap "What will they record?".
-2. Tap "The Bible", choose the numbering "Numbered like most English
-   Bibles", choose "FIA passages", leave "New Testament". Tap "Next".
+2. Tap "The Bible", then "Continue" on "Bibles number verses differently".
+   Choose the numbering "Like most English Bibles" (used in Alpha), choose
+   "FIA passages", leave "New Testament". Tap "Next".
 3. On the language page of the Bibles and guides, leave "English". Tap
    "Next".
 4. On "What will help them?", tick one Bible under "Bibles they

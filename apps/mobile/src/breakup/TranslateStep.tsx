@@ -52,7 +52,7 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
     ? <QuietLink icon="globe" label={t('breakup.translate.otherLanguages')} detail={t('breakup.translate.otherLanguagesDetail')} onPress={q.showEveryLanguage} /> : null;
 
   if (q.page === 'find') {
-    return <FindBiblePage numberings={q.ways.numberings} usedIn={q.ways.usedInByNumbering} languages={q.languages} onPick={q.choose} onQuiz={() => q.setPage('quiz')} onList={() => q.setPage('list')} />;
+    return <FindBiblePage numberings={q.ways.numberings} languages={q.languages} onPick={q.choose} onQuiz={() => q.setPage('quiz')} onList={() => q.setPage('list')} />;
   }
   if (q.page === 'quiz') {
     return <QuizPage numberings={q.ways.numberings} trail={q.quizTrail} setTrail={q.setQuizTrail} onDone={(c, note) => q.choose(c, undefined, note)} onList={() => q.setPage('list')} />;
@@ -60,7 +60,10 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
   if (q.page === 'list') return <NumberingListPage numberings={q.ways.numberings} factsFor={factsFor} onPick={(c) => q.choose(c)} />;
   // Why the numbering matters, then three ways to find it, none buried under the Bibles (LAN-193).
   if (q.page === 'why') return <WhyNumberingPage />;
-  if (q.page === 'how') return <FindWaysPage onFind={() => q.setPage('find')} onQuiz={() => q.setPage('quiz')} onList={() => q.setPage('list')} />;
+  if (q.page === 'how') {
+    return <FindWaysPage numberings={q.ways.numberings} usedIn={q.ways.usedInByNumbering} onPick={(c) => q.choose(c)}
+      onFind={() => q.setPage('find')} onQuiz={() => q.setPage('quiz')} onList={() => q.setPage('list')} />;
+  }
   if (q.page === 'numbered' && q.numbering) {
     return <NumberingChosenPage choice={q.numbering} facts={factsFor(q.numbering)} {...q.found} onChange={() => q.setPage('how')} />;
   }

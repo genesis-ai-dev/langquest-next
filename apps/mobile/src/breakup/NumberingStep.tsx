@@ -86,13 +86,9 @@ function OtherWay(props: { icon: IconName; label: string; onPress: () => void; d
   );
 }
 
-/**
- * Which Bible do you translate from? Typing finds it; what other languages here use comes first, then the
- * Bibles in the team's `languages`.
- */
+/** Which Bible do you translate from? Typing finds it; the Bibles in the team's `languages` come first. */
 export function FindBiblePage(props: {
   numberings: NumberingChoice[];
-  usedIn: Record<string, string[]>;
   languages?: readonly string[];
   onPick: (code: string, from?: string, note?: string) => void;
   onQuiz: () => void;
@@ -105,16 +101,9 @@ export function FindBiblePage(props: {
     const r = resolveNumbering(b.numbering, b.nearest, offered);
     if (r.code) { setNote(''); props.onPick(r.code, b.name, r.note); } else setNote(r.note ?? '');
   };
-  const used = Object.entries(props.usedIn).map(([code, langs]) => ({ n: props.numberings.find((x) => x.code === code), langs })).filter((x) => x.n);
   return (
     <>
       <Question>{t('breakup.numberingStep.find.question')}</Question>
-      {used.map(({ n, langs }) => (
-        <HelpRow key={n!.code} of="numbering.used">
-          <ChoiceCard on={false} icon="people" title={shortName(n!.name)} sub={t('breakup.usedIn.one', { name: langs.join(t('admin.list.separator')) })}
-            help={t('breakup.numberingStep.find.usedHelp')} onPress={() => props.onPick(n!.code)} />
-        </HelpRow>
-      ))}
       <SearchField value={q} onChangeText={setQ} placeholder={t('breakup.numberingStep.find.placeholder')} help={t('breakup.numberingStep.find.searchHelp')} />
       {note ? <Text style={[txt2.note]}>{note}</Text> : null}
       <Suspense fallback={null}>
@@ -311,11 +300,28 @@ export function WhyNumberingPage() {
   );
 }
 
-/** Three ways to find the numbering, side by side and none of them buried (LAN-193): by the Bible, with the quiz, or from the list. */
-export function FindWaysPage(props: { onFind: () => void; onQuiz: () => void; onList: () => void }) {
+/**
+ * Three ways to find the numbering, side by side and none of them buried (LAN-193): by the Bible, with the
+ * quiz, or from the list. A numbering other languages here use comes first, one tap from done.
+ */
+export function FindWaysPage(props: {
+  numberings: NumberingChoice[];
+  usedIn: Record<string, string[]>;
+  onPick: (code: string) => void;
+  onFind: () => void;
+  onQuiz: () => void;
+  onList: () => void;
+}) {
+  const used = Object.entries(props.usedIn).map(([code, langs]) => ({ n: props.numberings.find((x) => x.code === code), langs })).filter((x) => x.n);
   return (
     <>
       <Question>{t('breakup.numberingStep.how.question')}</Question>
+      {used.map(({ n, langs }) => (
+        <HelpRow key={n!.code} of="numbering.used">
+          <ChoiceCard on={false} icon="people" title={shortName(n!.name)} sub={t('breakup.usedIn.one', { name: langs.join(t('admin.list.separator')) })}
+            help={t('breakup.numberingStep.find.usedHelp')} onPress={() => props.onPick(n!.code)} />
+        </HelpRow>
+      ))}
       <ChoiceCard chevron on={false} icon="book" title={t('breakup.numberingStep.how.find')} sub={t('breakup.numberingStep.how.findSub')}
         help={t('breakup.numberingStep.how.findHelp')} onPress={props.onFind} />
       <ChoiceCard chevron on={false} icon="help" title={t('breakup.numberingStep.how.quiz')} sub={t('breakup.numberingStep.how.quizSub')}

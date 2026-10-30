@@ -2978,7 +2978,9 @@ why the numbering is asked (Malachi 4:1 in an English Bible is Malachi
 3:19 in a Hebrew Bible), and the next page offers the three ways side by
 side: pick your Bible, take the quiz, or choose the numbering (LAN-193,
 Caleb). "Choose another" and the numbering's chip go back to the three
-ways.
+ways. A numbering that other languages here use ("Like most English
+Bibles · Used in Alpha") leads those three ways, one tap from done, as it
+had led the Bibles before.
 
 ## 81. The app's words come from catalogs in the app, in the language chosen on the device or the phone's; English is the source
 
@@ -6616,8 +6618,8 @@ changes, so phones get it with an update. Opening an iPhone's Photos app
 directly needs a native picker and a store build; it comes with videos.
 Stores: this is the person's own photo, not a picture of the app, so the
 Apple answer above changes: App Privacy needs Photos or Videos (User
-Content, linked to the person, App Functionality, no tracking), which Caleb
-accepted when he chose pictures now. Google Play: Photos is already
+Content, linked to the person, App Functionality, no tracking), added in
+App Store Connect when this is merged (it ships as an update). Google Play: Photos is already
 declared (optional, App functionality); no answer changes.
 
 ## 146. New language shows its six steps first, asks for reference material before the review flow, sets its checks up on their own pages, and its invite can put people on checks

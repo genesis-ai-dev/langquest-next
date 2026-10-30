@@ -208,6 +208,10 @@ test('SETUP-014 Choose which books a new language translates', async ({ page }) 
   await nameStep(page, name);
   await text(page, 'The Bible').click();
   await primary(page).click();
+  // Why the numbering matters, then three ways to find it (LAN-193).
+  await expectOnScreen(page, 'Bibles number verses differently');
+  await primary(page).click();
+  await button(page, /^Pick your Bible/).click();
   await page.getByPlaceholder('NIV, Reina-Valera, Luther…').fill('World English');
   await text(page, 'World English Bible').click();
   await primary(page).click();
