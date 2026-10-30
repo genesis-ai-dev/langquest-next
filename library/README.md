@@ -2,7 +2,7 @@
 
 What the official LangQuest organization (`langquest`) publishes for every
 other organization to copy or subscribe to: versifications, content
-templates, review flows, question sets, FIA study material and sources to
+templates, Bible book names, review flows, question sets, FIA study material and sources to
 read and hear (Bibles with text and audio). None of it
 ships in the app. `scripts/library-seed.ts` builds it into library documents
 and publishes them; `docs/library.md` explains items, versions and documents.
@@ -14,6 +14,7 @@ and publishes them; `docs/library.md` explains items, versions and documents.
 | `versifications/*.json` | The six standard systems: `org`, `eng`, `lxx`, `vul`, `rso`, `rsc` (Copenhagen Alliance JSON) | Frontier's versification-tool, MIT. Do not edit; replace from upstream. |
 | `versifications/paratext/*.vrs` | The same six systems as Paratext ships them | SIL's libpalaso, MIT. The seed adds the mapping lines the JSON files lost (a verse that holds two Original verses is two lines; a JSON object keeps one; 96 lines, decision 80). Do not edit; replace from upstream. |
 | `books.eng.json` | English names for every book any of them lists, deuterocanon included | Written for this repo. |
+| `names/<code>.json` | The 66 books' names in each of the app's other 14 languages (`npi` Nepali, `hin` Hindi, `swa` Swahili and the rest), by USFM code | The app's own catalogs (`apps/mobile/src/i18n`, `books.*`), machine translations Caleb approved on 2026-10-10 (decision 81). |
 | `fia/pericope_*.json` | FIA API pericopes, as the API returns them (`{ "pericope": … }`) | fia.bible; © 2025 Word Collective, CC BY-SA 4.0 (as stated on FIA's Aquifer releases, e.g. github.com/BibleAquifer/FIATranslationGuide). Every guide's `source` carries that attribution, and adaptations must stay CC BY-SA. `pericope_gen-p2.json` is the copy the app used to bundle. |
 | `fia/pericopes.tsv` | FIA's passage list from its API (`list_content.py` in genesis-ai-dev/fia, 2026-10-09): 2,376 passages in 46 books, in FIA's order | fia.bible; © 2025 Word Collective, CC BY-SA 4.0 |
 | `divisions/unfoldingword-chunks.json` | Where each chunk starts, every book, from unfoldingWord's Unlocked Literal Bible (`api.unfoldingword.org/bible/txt/1/<book>/chunks.json`, fetched 2026-10-08) | unfoldingWord; the ULB is CC BY-SA 4.0 (the chunk files state no licence of their own), attributed in the template's description |
@@ -46,6 +47,9 @@ Item ids are `langquest.<kind>.<slug>`:
   `docs/breaking-up-the-bible.md`). The older
   `langquest.template.*` items above are kept as they are for the languages
   that use them.
+- `langquest.names.<code>` (`names@1`, decision 193): "Bible book names
+  (Nepali)" and so on, one per app language: English from
+  `books.eng.json`, the others from `names/<code>.json`.
 - `langquest.flow.<id>`: each core flow, carrying the review kinds it uses.
 - `langquest.fia.<language>`: "FIA study guides (English)" and so on, one
   collection per language FIA renders, whose entries are `study@1`

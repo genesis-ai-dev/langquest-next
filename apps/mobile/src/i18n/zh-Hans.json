@@ -1013,7 +1013,8 @@
         "onHelp": "{{language}}的团队会有它。点按可以去掉。",
         "offHelp": "已去掉。点按让{{language}}的团队有它。",
         "nothing": "还没有{{languages}}的圣经或学习指南"
-      }
+      },
+      "teamLanguages": "{{language}}的译者使用哪些语言？"
     },
     "offers": {
       "guides": "{{name}}的学习指南",
@@ -1913,7 +1914,9 @@
       "ownNote": "每卷书都要等划分后才能录制。从地图或“我的工作”打开它，在一本圣经中阅读，选择各段从哪里开始，或从现成的方式开始。",
       "outlineHelp": "选择这个大纲：它的文件夹，以及里面要录的内容。",
       "bibleHelp": "你的团队翻译圣经。接下来选择经节如何编号。",
-      "elseHelp": "你的团队录制其他内容，按文件夹分类。"
+      "elseHelp": "你的团队录制其他内容，按文件夹分类。",
+      "otherLanguages": "其他语言的模板",
+      "otherLanguagesDetail": "显示用这个团队不使用的语言写的模板。"
     },
     "errors": {
       "noTemplate": "这个语言还没有模板。",
@@ -6818,7 +6821,20 @@
     "rowHelp": "为团队的圣经和指南添加这种语言，或去掉它。这一行说明其中有什么。",
     "listed": "只列出有圣经或学习指南的语言。",
     "noMatch": "还没有这个名称的语言有圣经或学习指南。",
-    "setWords_other": "{{name}}（{{count, number}} 个词）"
+    "setWords_other": "{{name}}（{{count, number}} 个词）",
+    "bookNames": "书卷名称"
+  },
+  "bookNames": {
+    "title": "书卷名称",
+    "rowHelp": "这种语言的经段里圣经各卷书的名称。打开它使用的名称和其他可用的名称。",
+    "templates": "按内容模板的名称",
+    "optionHelp": "点“使用”后，这些名称会显示在这种语言的经段上。",
+    "optionViewHelp": "管理这种语言内容模板的人可以选择这些名称。",
+    "otherLanguages": "其他语言",
+    "use": "使用{{name}}",
+    "nowUses": "{{language}}现在使用{{name}}。",
+    "newer": "使用较新的版本",
+    "newerHelp": "按最后一次修改后的样子显示名称。"
   },
   "checks": {
     "title": "检查",
