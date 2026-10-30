@@ -7,13 +7,16 @@ import { canonicalJson } from '@langquest-next/core';
  * server functions, AsyncStorage, the file system and the hash function.
  */
 const fake = vi.hoisted(() => ({
+  os: 'ios' as 'ios' | 'web',
+  /** The browser's files, when `os` is web: null when it cannot read them, and writes refused when `writes` is false. */
+  web: { files: new Map<string, Uint8Array>(), writes: true, reads: true },
   storage: new Map<string, string>(),
   disk: new Map<string, string>(),
   put: vi.fn<(orgId: string, text: string) => Promise<{ data: string | null; error: { message: string } | null }>>(),
   get: vi.fn<(orgId: string, hashes: string[]) => Promise<{ data: { hash: string; body: string }[] | null; error: { message: string } | null }>>()
 }));
 
-vi.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
+vi.mock('react-native', () => ({ Platform: { get OS() { return fake.os; } } }));
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
     getItem: async (k: string) => fake.storage.get(k) ?? null,
@@ -37,7 +40,15 @@ vi.mock('expo-file-system', () => ({
     delete() { fake.disk.delete(this.path); }
   }
 }));
-vi.mock('../src/web/webFiles', () => ({ webFiles: () => null }));
+vi.mock('../src/web/webFiles', () => ({
+  // Safari before 26 opens the origin file system but has no createWritable; a private window may refuse it all.
+  webFiles: () => ({
+    read: async (name: string) => { if (!fake.web.reads) throw new DOMException('no file system', 'SecurityError'); return fake.web.files.get(name) ?? null; },
+    write: async (name: string, bytes: Uint8Array) => { if (!fake.web.writes) throw new TypeError('createWritable is not a function'); fake.web.files.set(name, bytes); },
+    remove: async (name: string) => { fake.web.files.delete(name); }
+  })
+}));
+vi.mock('../src/diagnostics/report', () => ({ noteExpected: vi.fn() }));
 vi.mock('../src/server/library', () => ({ putDocument: fake.put, getDocuments: fake.get }));
 
 const sha = (text: string) => createHash('sha256').update(text).digest('hex');
@@ -61,6 +72,8 @@ const OUTBOX = 'library-outbox:org1';
 const queued = () => JSON.parse(fake.storage.get(OUTBOX) ?? '[]') as string[];
 
 beforeEach(() => {
+  fake.os = 'ios';
+  fake.web = { files: new Map(), writes: true, reads: true };
   fake.storage.clear();
   fake.disk.clear();
   fake.put.mockReset();
@@ -227,5 +240,41 @@ describe('loadDocs', () => {
     const out = await again.loadDocs('org1', [t.hash], { deps: false });
     expect([...out.keys()]).toEqual([t.hash]);
     expect(fake.get).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('a browser that cannot keep files (LAN-194)', () => {
+  it('still shows every document fetched, from memory, and tells the screens', async () => {
+    const s = await store();
+    const v = await s.prepareDoc(versification);
+    const t1 = await s.prepareDoc(timing(v.hash));
+    const t2 = await s.prepareDoc({ ...timing(v.hash), chapter: 2 });
+    fake.os = 'web';
+    fake.web.writes = false;
+    const again = await store();
+    const heard = vi.fn();
+    again.onDocs(heard);
+    const bodies: Record<string, string> = { [t1.hash]: t1.text, [t2.hash]: t2.text, [v.hash]: v.text };
+    fake.get.mockImplementation(async (_org, hashes) => ({ data: hashes.filter((h) => bodies[h]).map((h) => ({ hash: h, body: bodies[h]! })), error: null }));
+    const out = await again.loadDocs('org1', [t1.hash, t2.hash]);
+    expect([...out.keys()].sort()).toEqual([t1.hash, t2.hash, v.hash].sort());
+    expect(again.cachedDoc(t2.hash)).not.toBeNull();
+    expect(heard).toHaveBeenCalled();
+    // Fetched documents are not put in the page's saved keys: the server has them.
+    expect([...fake.storage.keys()].filter((k) => k.startsWith('library-doc:'))).toEqual([]);
+  });
+
+  it('keeps a document made here in the saved keys, and sends it after a reload', async () => {
+    fake.os = 'web';
+    fake.web.writes = false;
+    const s = await store();
+    const v = await s.prepareDoc(versification);
+    await s.keepNewDoc('org1', v.text, v.hash);
+    expect(fake.storage.get(`library-doc:${v.hash}`)).toBe(v.text);
+    // A reload: memory is empty, the file system still refuses.
+    fake.web.reads = false;
+    const again = await store();
+    expect(await again.flushOutbox('org1')).toBe(1);
+    expect(queued()).toEqual([]);
   });
 });

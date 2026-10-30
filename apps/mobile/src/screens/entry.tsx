@@ -160,8 +160,10 @@ function CantSignIn() {
  * Someone who signed out of this phone taps their picture, draws their
  * pattern and is back in, with no connection (decisions.md 168). Nobody is
  * named: a phone that is taken shows how many signed out here, never who.
+ * `beforeSignIn` runs as the pattern is checked: Scan keeps the invite for
+ * whoever signs in (LAN-197).
  */
-function PatternSignIn(props: { people: { actorId: string; picture: number }[] }) {
+function PatternSignIn(props: { people: { actorId: string; picture: number }[]; beforeSignIn?: () => Promise<void> }) {
   const [who, setWho] = useState<{ actorId: string; picture: number } | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -175,6 +177,7 @@ function PatternSignIn(props: { people: { actorId: string; picture: number }[] }
     setBusy(true);
     setError('');
     try {
+      if (isPattern(dots)) await props.beforeSignIn?.();
       const result = isPattern(dots) ? await signBackIn('pattern', patternSecret(dots), { actorId: who.actorId }) : { kind: 'wrong' as const };
       // In: App opens the app as them, and this screen goes.
       if (result.kind === 'ok') return;
@@ -577,6 +580,9 @@ export function ScanQr(ctx: Ctx) {
   const me = useDisplayNames(ctx.session.actorId)[ctx.session.actorId]
     ?? signInName(ctx.session.email) ?? ctx.session.email?.split('@')[0] ?? null;
   const joining = invite.status.kind === 'joining';
+  // People who signed out of this phone join with their own account: a picture and its pattern (LAN-197).
+  const people = usePatternPeople();
+  const choosing = guest && !!held && !dead && !alreadyIn && !signinCode && people.length > 0;
 
   async function joinNamed() {
     setError('');
@@ -601,7 +607,8 @@ export function ScanQr(ctx: Ctx) {
           <PrimaryBtn label={joining ? t('entry.shared.joining') : t('entry.shared.joinAs', { name: firstName(named) || named })} icon="check" busy={joining} disabled={joining}
             help={t('entry.scan.joinAsHelp')} onPress={() => void joinNamed()} />
         ) : (
-          <PrimaryBtn label={t('entry.shared.join')} icon="check" disabled={joining} help={t('entry.scan.joinHelp')}
+          <PrimaryBtn label={choosing ? t('entry.scan.someoneNew') : t('entry.shared.join')} icon={choosing ? 'plus' : 'check'} disabled={joining}
+            help={choosing ? t('entry.scan.someoneNewHelp') : t('entry.scan.joinHelp')}
             // A group invite's label names the group, not the person: they type their own name
             // (an empty name, so no earlier visit's name carries over).
             onPress={() => ctx.go('create_account', { as: 'new', name: '' })} />
@@ -663,6 +670,12 @@ export function ScanQr(ctx: Ctx) {
                 </View>
               </View>
             </Card>
+          ) : null}
+          {choosing ? (
+            <>
+              <SectionLabel label={t('entry.scan.whoJoins')} />
+              <PatternSignIn people={people} beforeSignIn={() => invite.choose('next-account')} />
+            </>
           ) : null}
           {/* A new person joins through the server, so say so before they type a name (docs/invites-and-accounts.md flow E). */}
           {offline ? <Banner icon="cloud" title={t('entry.invite.needsConnection')} /> : null}
@@ -969,11 +982,13 @@ export function RequestAccess(ctx: Ctx) {
   if (requestId) {
     const failed = request?.status === 'failed';
     const orgName = target?.orgName;
+    // Someone already in an organization asked from Switch Organization goes back there (LAN-197).
+    const done = () => (ctx.params['from'] === 'org_switcher' ? ctx.go('org_switcher') : ctx.go('intent_chooser'));
     return (
       <Screen
-        header={<Header title={failed ? t('entry.request.notSent') : t('entry.request.asked')} onBack={() => ctx.go('intent_chooser')} />}
-        footer={failed ? <GhostBtn label={t('common.back')} help={t('entry.request.backHelp')} onPress={() => ctx.go('intent_chooser')} />
-          : <PrimaryBtn label={t('common.done')} help={t('entry.request.doneHelp')} onPress={() => ctx.go('intent_chooser')} />}
+        header={<Header title={failed ? t('entry.request.notSent') : t('entry.request.asked')} onBack={done} />}
+        footer={failed ? <GhostBtn label={t('common.back')} help={t('entry.request.backHelp')} onPress={done} />
+          : <PrimaryBtn label={t('common.done')} help={t('entry.request.doneHelp')} onPress={done} />}
       >
         <EmptyState icon={failed ? 'close' : 'clock'}
           title={failed ? t('entry.request.requestNotSent') : orgName ? t('entry.shared.askedOrg', { org: orgName }) : t('entry.shared.askedUnknown')}

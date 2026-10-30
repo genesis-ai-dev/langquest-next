@@ -52,7 +52,7 @@ import { CheckNotes } from '../passage/checkNotes';
 import { useVersesHeld } from '../passage/useVerses';
 import { pathSteps, teamSteps, type PathStep, type TeamStep } from '../passage/pathModel';
 import {
-  askButtonLabel, askForLabel, currentCheck, elseMove, elseOptions, heldAtCheckpoint, historyAction, historyHelp, historyMove, listenerLabel, listenersLine, mainMove,
+  askButtonLabel, askForLabel, currentCheck, lastCheckLine, elseMove, elseOptions, heldAtCheckpoint, historyAction, historyHelp, historyMove, listenerLabel, listenersLine, mainMove,
   nothingToAsk, passageNoteFor, recordCan, recordModel, recordPathInput, rowBar, rowButtons, rowMove, sentText,
   stepMove, stepSheet, studyLine, studyPathInfo, teamStepsOpen, usualTargets, waitingOnAnswer,
   type ElseOption, type RecordMain, type RecordMove, type SheetRow
@@ -458,7 +458,7 @@ export function PassageRecord(ctx: Ctx) {
       <Screen header={<Header title={t('passage.published.askTitle')} sub={v.title} onBack={close} close />}
         footer={nextKind && can.ask ? (
           <View style={{ gap: space.xs }}>
-            <PrimaryBtn label={askButtonLabel({ target: nextTarget, kindId: nextKind.kindId, kinds, name: ctx.name })} icon="send"
+            <PrimaryBtn label={askButtonLabel({ target: nextTarget, kindId: nextKind.kindId, kinds, name: ctx.name, p })} icon="send"
               help={nextTarget ? t('passage.ask.sendHelp') : t('passage.page.mainHelp.ask')}
               onPress={() => { close(); sendTo(nextKind.kindId, askQuestions); setAskQuestions([]); }} />
             <QuietLinks items={[
@@ -473,7 +473,7 @@ export function PassageRecord(ctx: Ctx) {
             {nextKinds.map((k) => (
               <HelpRow key={k.kindId} of="ask.check">
                 <AskCheckCard ctx={ctx} kindId={k.kindId} name={checkName(k.kindId, kinds)} on={k.kindId === nextKind.kindId} radio={nextKinds.length > 1}
-                  people={checkPeople(v.state, k.kindId).filter((id) => id !== me)} onPress={() => setAskKindId(k.kindId)} />
+                  people={checkPeople(v.state, k.kindId).filter((id) => id !== me)} last={lastCheckLine(p, k.kindId, ctx.name)} onPress={() => setAskKindId(k.kindId)} />
               </HelpRow>
             ))}
             {/* With someone to send it to, the questions they'll answer, and more to add. With nobody yet, the button opens Someone else, which has them. */}
@@ -564,7 +564,7 @@ export function PassageRecord(ctx: Ctx) {
     return (
       <>
         <VersionsPage ctx={ctx} v={v} canRecord={can.record} go={go} onBack={() => setPage('path')} history={history} pick={picking}
-          {...(nextKind && can.ask ? { ask: { label: askForLabel(nextKind.kindId, kinds), onPress: () => setPage('ask') } } : {})} />
+          {...(nextKind && can.ask ? { ask: { label: askForLabel(nextKind.kindId, kinds, p), onPress: () => setPage('ask') } } : {})} />
         {sheets}
       </>
     );

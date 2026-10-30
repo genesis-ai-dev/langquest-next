@@ -207,6 +207,8 @@ export function v2Section(projects: V2Project[]): Section<{ projects: V2Project[
 export interface Feedback {
   id: string; created_at: string; kind: 'bug' | 'idea'; body: string; status: 'new' | 'seen' | 'done' | null;
   install_id: string | null; context: Record<string, string> | null; has_screenshot: boolean;
+  /** A picture the person chose (LAN-198); absent before that migration. */
+  has_picture?: boolean;
   /** A voice note, when there is one; `body` may then be empty. */
   voice_format: 'm4a' | 'wav' | null; voice_ms: number | null;
   /** Null unless the person chose to share them with staff. */
@@ -222,6 +224,7 @@ export const FEEDBACK_SQL = `select coalesce(jsonb_agg(to_jsonb(f) order by f.cr
 from diag.feedback($1::interval) f`;
 
 export const SCREENSHOT_SQL = `select diag.feedback_screenshot($1::uuid) as v`;
+export const PICTURE_SQL = `select diag.feedback_picture($1::uuid) as v`;
 export const VOICE_SQL = `select diag.feedback_voice($1::uuid) as v`;
 
 /** What a feedback file is, from its first bytes: the app sends JPEG screenshots and m4a or WAV voice notes. */
