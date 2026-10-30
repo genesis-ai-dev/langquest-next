@@ -111,6 +111,14 @@ describe('secrets', () => {
     expect(FILE_KEYS).toContain('CLAUDE_CODE_OAUTH_TOKEN');
   });
 
+  it('gives GitHub the Bible Brain key for the survey of its numberings, and the app\'s Worker keeps it too', () => {
+    const wanted = destinations('production', { ...values, BIBLE_BRAIN_ACCESS_KEY: 'bb' }, 'ref', 'k');
+    expect(wanted.github).toEqual({ BIBLE_BRAIN_ACCESS_KEY: 'bb' });
+    expect(wanted.workers.app).toMatchObject({ BIBLE_BRAIN_ACCESS_KEY: 'bb' });
+    expect(destinations('preview', { ...values, BIBLE_BRAIN_ACCESS_KEY: 'bb' }, 'ref', 'k').github).toEqual({});
+    expect(read('.github/workflows/bible-survey.yml')).toContain('secrets.BIBLE_BRAIN_ACCESS_KEY');
+  });
+
   it('gives the webhook poke one secret at both ends and the Worker\'s own address, only when the file has it', () => {
     const sql = read(WEBHOOK_MIGRATION);
     const wanted = destinations('preview', { ...values, WEBHOOK_POKE_SECRET: 'poke' }, 'abc', 'k');

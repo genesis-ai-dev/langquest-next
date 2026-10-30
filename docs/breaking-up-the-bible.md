@@ -242,3 +242,32 @@ lists, per book, the parts whose verses differ from the same numbers in
 English (`renumbered`); their unit ids carry the numbering
 (`2CO.13~org`), and the same way in another numbering keeps the
 language's unit prefix, so every other part keeps its id and its work.
+
+## Bibles from Bible Brain
+
+The Bibles "Which Bible do you translate from?" lists are to be every Bible
+we can reach, Bible Brain's included, each with the numbering it uses
+(Caleb, 2026-10-30; decision 196). Nobody checks two thousand Bibles by
+hand, so a survey reads them: `npm run bibles:survey`
+(`scripts/bible-survey.ts`), run by GitHub with the Bible Brain key
+(`.github/workflows/bible-survey.yml`, Run workflow).
+
+For each Bible with text, the survey reads its book list (how many chapters
+each book has: Malachi 3 or 4, Joel 3 or 4) and the last verse of about
+forty chapters (`scripts/bibleSurvey.ts` `chaptersToRead`): first the
+fewest in which any two standard numberings differ at least four times,
+then thirty more spread over the other chapters where numberings part,
+since that is where a Bible's own numbering parts from them too. A Bible
+that agrees with one numbering in every chapter read gets it; a New
+Testament alone cannot tell the Hebrew numbering from the Greek, or the
+two Russian ones apart, and gets the commoner, with the others noted. A
+Bible that agrees with none is custom: the report names the nearest and
+every place it parts from it. `--full <Bible>` then reads every chapter of
+it; when several Bibles part the same way, that is a numbering to add to
+`library/versifications`, with its mapping to the others.
+
+A whole survey is about 80,000 calls. The app's reference material uses
+the same key, so the survey goes at 4 calls a second and waits when Bible
+Brain asks it to; a run stops starting Bibles after five hours and the
+next run carries on. What it finds is the run's artifact (`survey.json`)
+and summary (`survey.md`).

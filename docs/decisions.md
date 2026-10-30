@@ -9579,3 +9579,45 @@ in different languages).
 Reverse if: organizations need to name their own items in several
 languages from the app (then a page for a language's names), or the sets
 grow big enough that reading them once a session is too slow.
+
+## 196. Which numbering each of Bible Brain's Bibles uses is found by a survey of its text, run by GitHub with the Bible Brain key
+
+Date: 2026-10-30 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-30) found that "Which Bible do you translate from?"
+lists 49 Bibles checked by hand (80), none of them in Hausa, Bengali,
+Nepali, Thai or Burmese, though the app speaks those languages. He asked
+for every Bible we can reach, Bible Brain's included, each with its
+numbering found by a script that surveys its books, chapters and verses,
+and for a numbering to be added when Bibles part from all of ours. So:
+- **`npm run bibles:survey`** (`scripts/bible-survey.ts`) reads, for every
+  Bible Bible Brain has text for, its book list and the last verse of about
+  forty chapters: the fewest in which any two standard numberings differ
+  at least four times, then thirty more spread over the other places where
+  numberings part (`scripts/bibleSurvey.ts`, tested). A Bible that agrees
+  with one numbering in every chapter read gets it; one that agrees with
+  none is custom, reported with the nearest and every place it parts.
+  `--full` reads every chapter of one Bible, for when several part alike
+  and a numbering is to be added (`library/versifications`, with its
+  mapping). This is the hand check of 80 done by a script, at Bible
+  Brain's scale.
+- **GitHub runs it** (`.github/workflows/bible-survey.yml`) when the
+  survey changes and by hand, with `BIBLE_BRAIN_ACCESS_KEY` as a
+  repository secret (`npm run secrets -- production` sets it, like the
+  Gemini key), so anyone on the team sees and reruns it, and no one needs
+  the key on their own machine. It is not a production job (141): it
+  reads Bible Brain and writes an artifact, nothing else.
+- **It goes slowly** (4 calls a second, waiting when Bible Brain says 429)
+  because the app's reference material uses the same key; a run stops
+  after five hours and the next carries on from the cache.
+How the list reaches New language is the next change, with the screen
+(LAN-193).
+Rejected: reading every chapter of every Bible (about two million calls,
+weeks at a rate the key can bear, to learn little more than the places
+numberings are known to part); trusting Bible Brain's own versification
+field (not given for most Bibles, and not checked against their text); a
+server job in the Worker's container (it would need somewhere to put a
+result that people review and commit).
+Reverse if: custom Bibles turn up that part from every numbering only
+outside the chapters read (then read more, or every chapter, for them), or
+Bible Brain offers each Bible's versification checked against its text.

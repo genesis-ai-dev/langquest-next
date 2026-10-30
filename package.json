@@ -52,6 +52,7 @@
     "publisher-import": "tsx scripts/publisher-import.ts",
     "v2": "node scripts/with-local-keys.mjs tsx server/v2.ts",
     "library:seed": "tsx scripts/library-seed.ts",
+    "bibles:survey": "tsx scripts/bible-survey.ts",
     "sample:org": "tsx scripts/sample-org.ts",
     "ui:fixture": "tsx scripts/ui-fixture.ts",
     "languoids": "tsx scripts/languoids.ts",
