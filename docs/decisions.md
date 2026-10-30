@@ -6700,6 +6700,24 @@ files (Safari before 26, a private window), because loading library
 documents stopped at the first it could not save. Fetched documents now
 stay in memory when saving fails.
 
+Amended (2026-10-30, Caleb Koster; LAN-195): inviting is one page. Caleb
+found the role invites confusing (a card per role with its own Invite
+button, then a page for checks, then another for the code) and said yes to
+a drawing of one page. The page opens with Translators picked and their code
+already below, since most invites are for translators; the roles are tiles,
+two to a row, one picked at a time, with "Other roles" for the rest and
+New role first, set apart; what the picked role lets them do is one tap
+open under the tiles; the checks it can be put on are chips under that, and
+the code is made again once the ticks stop changing (`invites/invite.tsx`).
+Share as a link, by email and one person by name are the quiet links under
+Done, for the role picked. The page is the same from Manage, from Members
+and at New language's last step, which now shows the translators' code at
+once. Because the code is made as the page opens, New language counts
+"Invite your translators" as done (an invite was issued, `invitedTo` in
+`admin/ready.tsx`), as Get ready's invite question already did; counting
+only invites someone used is a later change if admins find that wrong. No
+new event or migration.
+
 ## 147. The server cuts each language's snapshot by passage and keeps every passage's line, and a phone's first download fills the passages in behind the Map
 
 Date: 2026-10-20 · By: Carl Sauder · Status: accepted

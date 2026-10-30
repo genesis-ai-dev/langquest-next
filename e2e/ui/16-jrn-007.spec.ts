@@ -99,11 +99,8 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   if (await others.isVisible().catch(() => false)) await others.click();
   const journeyScope = page.getByRole('button', { name: 'Journey Language' }).locator('visible=true');
   if (await journeyScope.count()) await journeyScope.first().click();
-  // Its card's own Invite (decision 146); a role that checks may be put on some checks first, none here.
-  await page.getByTestId('invite-role-Community Checker').locator('visible=true').first().getByRole('button', { name: 'Invite', exact: true }).click();
-  const asked = text(page, 'Which checks will they do?');
-  await expect(asked.or(text(page, 'Ask them to scan this'))).toBeVisible();
-  if (await asked.isVisible()) await primary(page).click();
+  // Its tile, and its code on the same page (LAN-195); a role that checks may be put on some checks, none here.
+  await page.getByTestId('invite-role-Community Checker').locator('visible=true').first().click();
   await expect(text(page, 'Ask them to scan this')).toBeVisible();
   await expect(text(page, /^Community Checker/)).toBeVisible();
   await button(page, 'Done').click();

@@ -332,9 +332,8 @@ Steps:
    LangQuest") chosen under "How will recordings get checked?". Tap
    "Continue". On "Charlie {run}'s checks" tap "Add Charlie {run}".
 6. Wait until "Time to invite people" shows.
-7. On "Translators" tap "What they may do", then its "Invite". Under
-   "Which checks will they do?" tick "Peer check" and tap "Show the code to
-   scan". Tap "Done".
+7. With "Translators" picked, tap "What they may do". Under "Which checks
+   will they do?" tick "Peer check". Tap "Done".
 8. Open Org home.
 
 Expected:
@@ -351,10 +350,11 @@ Expected:
   button is "Add Charlie {run}".
 - While it is made, see SETUP-016 for the progress screen.
 - Toast "Charlie {run} added to UI Test Org."
-- "Time to invite people" has a card per role ("Translators", "Checkers",
-  "Back-translators", "Team leads"), each with its line, "What they may do"
-  (open: the role's switches that are on, and "Only in Charlie {run}") and
-  its own "Invite"; no radio buttons; "Later" under them.
+- "Time to invite people" is one page (LAN-195): a tile per role
+  ("Translators", "Checkers", "Back-translators", "Team leads") as radio
+  buttons with "Translators" picked, "What they may do" (open: the picked
+  role's switches that are on, and "Only in Charlie {run}"), its checks to
+  tick, and its code under them; "Done" at the foot.
 - After step 7, "Translators" with a "Peer check" tag, "Ask them to scan
   this", a QR code and "Share as a link" show once the server has made the
   code.
@@ -584,7 +584,7 @@ Steps:
 4. "Add a check" → "Retelling".
 5. Tap "Community check" → "Same time as" → tick "Retelling" → "Done".
 6. Tap "Bible" and switch "Text" off. Go back twice.
-7. Tap "Add Hotel {run}". Tap "Later". Open its page.
+7. Tap "Add Hotel {run}". Tap "Done". Open its page.
 8. Open "Who checks the recordings?" → "I'll choose the checks" → "Choose
    the checks".
 
@@ -627,7 +627,7 @@ Expected:
   guides in English · Change", with FIA's study guides in English ticked
   (decision 146).
 
-### SETUP-020 New language's invite step, or later
+### SETUP-020 New language's invite step shows the translators' code at once
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
@@ -635,16 +635,14 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Add a language "India {run}" (SETUP-010 steps 1–6).
-2. On "Invite someone", tap "Later".
+2. On "Time to invite people", wait for "Share as a link", then tap "Done".
 3. Open its page.
 
 Expected:
-- "Later" goes back without making a code.
-- The page is "Get India {run} ready": "What will they record?", "What will
-  help them?" and "Who checks the recordings?" are done; "Invite your
-  translators" is current and is the main button.
-- On My Work (with India {run} open) the card reads "Get India {run} ready
-  · 3 of 4" with "Invite your translators" and "Choose".
+- Step 2: "Translators" is picked and its code is made without another
+  tap (LAN-195).
+- The page shows "Ready · 0 translators" once the organization's stream
+  has synced: an issued invite counts, as from Get ready's question 4.
 
 ### SETUP-021 Only organization-scope setters add languages
 Roles: COORD, LADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -690,7 +688,7 @@ Steps:
 4. Choose the Bible and FIA passages as in SETUP-010. Tap "Continue" under
    what will help, then under "How will recordings get checked?". Tap "Add
    Cluster {run}".
-5. Wait for "Time to invite people" and tap "Later".
+5. Wait for "Time to invite people" and tap "Done".
 6. Open Org home. Open the "Cluster {run}" heading if it is closed (groups
    start closed past 20 languages), then tap it to fold it, then tap "⋯"
    ("Open Cluster {run}") on it.

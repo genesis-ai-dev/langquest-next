@@ -34,19 +34,14 @@ tags:
     element: "${LANG_A}"
     direction: DOWN
 - tapOn: "${LANG_A}"
-# A role's card has its own Invite (decision 146); a role that checks is asked which checks first.
+# One page (LAN-195): a role's tile shows its code on the same page; a role that checks shows its checks above it, none ticked.
 - scrollUntilVisible:
     element:
-      id: "invite-role-Translators-invite"
+      id: "invite-role-Translators"
     direction: UP
     centerElement: true
 - tapOn:
-    id: "invite-role-Translators-invite"
-- runFlow:
-    when:
-      visible: "Which checks will they do\\?"
-    commands:
-      - tapOn: "Show the code to scan"
+    id: "invite-role-Translators"
 - tapOn: "One person, by name"
 - assertVisible: "Invite by QR"
 - tapOn: "e.g. Nyibol Deng"

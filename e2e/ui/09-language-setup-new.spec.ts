@@ -103,14 +103,13 @@ test('SETUP-010 Create a language end to end @p0', async ({ page }) => {
   await primary(page).click();
   await expectToast(page, `${name} added to ${w.orgName}.`);
   await expectOnScreen(page, '6 of 6 · People', 'Time to invite people', 'Translators', 'Checkers', 'Done');
-  // Each role is a card with what it lets them do, one tap open, and its own Invite (decision 146).
+  // One page (LAN-195): a tile per role, Translators picked, what it lets them do one tap open, and its code under them.
+  await expect(page.getByTestId('invite-role-Translators').locator('visible=true').first()).toHaveAttribute('aria-checked', 'true');
   await text(page, 'What they may do').click();
   await expectOnScreen(page, 'Record', 'Ask for checks', `Only in ${name}`);
-  await page.getByRole('button', { name: 'Invite', exact: true }).locator('visible=true').first().click();
-  // Translators check too (decision 91): the code can put them on some of its checks first.
+  // Translators check too (decision 91): ticking a check makes the code that puts them on it.
   await expectOnScreen(page, 'Which checks will they do?', 'Peer check', 'Community check');
-  await text(page, 'Peer check').click();
-  await primary(page).click();
+  await page.getByRole('button', { name: 'Peer check', exact: true }).locator('visible=true').first().click();
   // The code is made on the server: Share as a link shows once it is.
   await expectOnScreen(page, 'Translators', 'Peer check', 'Ask them to scan this', 'Share as a link');
   await text(page, 'Done').click();
@@ -397,17 +396,18 @@ test('SETUP-019 The languages a new team\'s translators use, right after its nam
   await byId(page, 'header-close').click();
 });
 
-test('SETUP-020 New language\'s invite step, or later', async ({ page }) => {
+test('SETUP-020 New language\'s invite step shows the translators\' code at once', async ({ page }) => {
   const w = world();
   const name = `India ${tag()}`;
   await openAs(page, w, 'ADMIN');
   await addLanguage(page, w, name);
+  // One page (LAN-195): Translators is picked and its code is made without another tap.
+  await expect(page.getByTestId('invite-role-Translators').locator('visible=true').first()).toHaveAttribute('aria-checked', 'true');
+  await expectOnScreen(page, `Translators`, 'Ask them to scan this', 'Share as a link');
   await button(page, 'Done').click();
   await languagePage(page, w, name);
-  await expectOnScreen(page, `Get ${name} ready`, 'Invite your translators');
-  await expect(primary(page)).toContainText('Invite your translators');
-  await tab(page, 'work').click();
-  await expectOnScreen(page, `Get ${name} ready · 3 of 4`, 'Invite your translators', 'Choose');
+  // An issued invite counts, as from Get ready's question 4.
+  await expect.poll(async () => { await syncNow(page); return screenText(page); }, { timeout: 60_000 }).toContain('Ready · 0 translators');
 });
 
 test('SETUP-021 Only organization-scope setters add languages', async ({ page, browser }) => {
