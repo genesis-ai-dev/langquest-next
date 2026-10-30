@@ -2049,7 +2049,25 @@
         "hebrew": "Ibrani",
         "korean": "Korea"
       },
-      "chooseFromListHelp": "Semua penomoran, masing-masing dengan tiga ciri yang membedakannya."
+      "chooseFromListHelp": "Semua penomoran, masing-masing dengan tiga ciri yang membedakannya.",
+      "why": {
+        "question": "Setiap Alkitab bisa menomori ayat dengan cara berbeda",
+        "english": "Alkitab bahasa Inggris",
+        "hebrew": "Alkitab Ibrani",
+        "verse": "{{book}} {{chapter}}:{{verse}}",
+        "bibleA11y": "{{bible}}: {{chapters}}. Ayat yang sama adalah {{verse}}.",
+        "match": "Ayat yang sama bisa punya nomor lain. LangQuest perlu penomoran Alkitab Anda supaya nomornya sama."
+      },
+      "how": {
+        "question": "Temukan penomoran Alkitab Anda",
+        "find": "Pilih Alkitab Anda",
+        "findSub": "TB, BIS, NIV…",
+        "findHelp": "Temukan Alkitab yang dipakai tim Anda untuk menerjemahkan. LangQuest tahu cara Alkitab itu menomori ayat.",
+        "quiz": "Jawab kuisnya",
+        "quizSub": "Beberapa pertanyaan, dengan Alkitab Anda terbuka",
+        "list": "Pilih penomorannya",
+        "listSub": "Kalau Anda sudah tahu"
+      }
     },
     "own": {
       "title": "Bagi dengan cara Anda sendiri",

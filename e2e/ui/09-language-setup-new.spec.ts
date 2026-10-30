@@ -37,6 +37,10 @@ async function bibleStep(page: Page, opts: { way?: string | RegExp; scope?: stri
   await expectOnScreen(page, /What will .* translate\?/);
   await text(page, 'The Bible').click();
   await primary(page).click();
+  // Why the numbering matters, then three ways to find it (LAN-193).
+  await expectOnScreen(page, 'Bibles number verses differently');
+  await primary(page).click();
+  await button(page, /^Pick your Bible/).click();
   await expectOnScreen(page, 'Which Bible do you translate from?');
   await page.getByPlaceholder('NIV, Reina-Valera, Luther…').fill('World English');
   await text(page, 'World English Bible').click();
@@ -253,8 +257,13 @@ test('SETUP-015 Numbering is chosen first, by Bible, by list or by questions', a
   await nameStep(page, `Numbers ${tag()}`);
   await text(page, 'The Bible').click();
   await primary(page).click();
-  // The ways are offered only after a numbering (decision 80).
+  // The ways are offered only after a numbering (decision 80). First why it matters: Malachi 4:1 in one Bible is 3:19 in another.
   await expectNotOnScreen(page, 'How should the Bible be divided?');
+  await expectOnScreen(page, 'Bibles number verses differently', 'Malachi 4:1', 'Malachi 3:19');
+  await primary(page).click();
+  // Then three ways to find it, none under the Bibles (LAN-193).
+  await expectOnScreen(page, "Find your Bible's numbering", 'Pick your Bible', 'Take the quiz', 'Choose the numbering');
+  await button(page, /^Pick your Bible/).click();
   await page.getByPlaceholder('NIV, Reina-Valera, Luther…').fill('zzzz');
   await expectOnScreen(page, 'Not found.');
   await text(page, 'Not listed? Answer a few questions').click();
@@ -265,7 +274,7 @@ test('SETUP-015 Numbering is chosen first, by Bible, by list or by questions', a
   await button(page, 'The heading has no number').click();
   await expectOnScreen(page, /Like .*/, 'Verse numbers in LangQuest will match your Bible.', 'Choose another');
   await text(page, 'Choose another').click();
-  await text(page, 'Choose from the list').click();
+  await button(page, /^Choose the numbering/).click();
   await expectOnScreen(page, 'Choose the numbering', 'Like most English Bibles', 'Like the Hebrew and Greek', 'Like the Latin Vulgate (Catholic)', 'Russian Synodal',
     'Russian Synodal (Orthodox)', '66 books', 'Malachi 3', 'Headings verse 1');
   await text(page, 'Like the Hebrew and Greek').click();

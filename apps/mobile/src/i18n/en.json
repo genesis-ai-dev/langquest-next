@@ -2120,7 +2120,25 @@
         "hebrew": "Hebrew",
         "korean": "Korean"
       },
-      "chooseFromListHelp": "Every numbering, each with three facts that tell them apart."
+      "chooseFromListHelp": "Every numbering, each with three facts that tell them apart.",
+      "why": {
+        "question": "Bibles number verses differently",
+        "english": "English Bible",
+        "hebrew": "Hebrew Bible",
+        "verse": "{{book}} {{chapter}}:{{verse}}",
+        "bibleA11y": "{{bible}}: {{chapters}}. The same verse is {{verse}}.",
+        "match": "The same verse can have another number. LangQuest needs your Bible's numbering, so the numbers match."
+      },
+      "how": {
+        "question": "Find your Bible's numbering",
+        "find": "Pick your Bible",
+        "findSub": "NIV, Reina-Valera, Luther…",
+        "findHelp": "Find the Bible your team translates from. LangQuest knows how it numbers verses.",
+        "quiz": "Take the quiz",
+        "quizSub": "A few questions, with your Bible open",
+        "list": "Choose the numbering",
+        "listSub": "If you know it already"
+      }
     },
     "own": {
       "title": "Divide it your own way",

@@ -2120,7 +2120,25 @@
         "hebrew": "Kiebrania",
         "korean": "Kikorea"
       },
-      "chooseFromListHelp": "Kila mpangilio wa namba, kila mmoja ukiwa na mambo matatu yanayoitofautisha."
+      "chooseFromListHelp": "Kila mpangilio wa namba, kila mmoja ukiwa na mambo matatu yanayoitofautisha.",
+      "why": {
+        "question": "Biblia hazipangi namba za mistari kwa njia moja",
+        "english": "Biblia ya Kiingereza",
+        "hebrew": "Biblia ya Kiebrania",
+        "verse": "{{book}} {{chapter}}:{{verse}}",
+        "bibleA11y": "{{bible}}: {{chapters}}. Mstari huo huo ni {{verse}}.",
+        "match": "Mstari ule ule unaweza kuwa na namba nyingine. LangQuest inahitaji mpangilio wa namba wa Biblia yako, ili namba zilingane."
+      },
+      "how": {
+        "question": "Tafuta mpangilio wa namba wa Biblia yako",
+        "find": "Chagua Biblia yako",
+        "findSub": "NIV, Reina-Valera, Luther…",
+        "findHelp": "Tafuta Biblia ambayo timu yako inatafsiri kutoka kwayo. LangQuest inajua jinsi inavyopanga namba za mistari.",
+        "quiz": "Jibu maswali",
+        "quizSub": "Maswali machache, Biblia yako ikiwa wazi",
+        "list": "Chagua mpangilio wa namba",
+        "listSub": "Kama tayari unaujua"
+      }
     },
     "own": {
       "title": "Kigawe kwa njia yako",

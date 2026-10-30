@@ -50,6 +50,10 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   await primary(page).click();
   await page.getByRole('radio', { name: 'The Bible' }).click();
   await primary(page).click();
+  // Why the numbering matters, then three ways to find it (LAN-193).
+  await expect(text(page, 'Bibles number verses differently')).toBeVisible();
+  await primary(page).click();
+  await button(page, /^Pick your Bible/).click();
   await page.getByRole('radio', { name: 'New International Version (2011)' }).click();
   await primary(page).click();
   await expect(page.getByRole('radio', { name: /^FIA passages\./ })).toBeVisible();

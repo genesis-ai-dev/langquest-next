@@ -2191,7 +2191,25 @@
         "hebrew": "Hebraico",
         "korean": "Coreano"
       },
-      "chooseFromListHelp": "Todas as numerações, cada uma com três dados que as diferenciam."
+      "chooseFromListHelp": "Todas as numerações, cada uma com três dados que as diferenciam.",
+      "why": {
+        "question": "As Bíblias numeram os versículos de formas diferentes",
+        "english": "Bíblia em inglês",
+        "hebrew": "Bíblia hebraica",
+        "verse": "{{book}} {{chapter}}:{{verse}}",
+        "bibleA11y": "{{bible}}: {{chapters}}. O mesmo versículo é {{verse}}.",
+        "match": "O mesmo versículo pode ter outro número. O LangQuest precisa da numeração da sua Bíblia para que os números correspondam."
+      },
+      "how": {
+        "question": "Encontre a numeração da sua Bíblia",
+        "find": "Escolha sua Bíblia",
+        "findSub": "NVI, Almeida, NTLH…",
+        "findHelp": "Encontre a Bíblia da qual sua equipe traduz. O LangQuest sabe como ela numera os versículos.",
+        "quiz": "Faça o questionário",
+        "quizSub": "Algumas perguntas, com sua Bíblia aberta",
+        "list": "Escolha a numeração",
+        "listSub": "Se você já sabe qual é"
+      }
     },
     "own": {
       "title": "Divida do seu jeito",

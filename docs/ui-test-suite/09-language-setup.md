@@ -489,15 +489,21 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Org home → "New language". Name it. Continue. Tap "The Bible".
+   Continue past "Bibles number verses differently", then tap "Pick your
+   Bible".
 2. Type "zzzz" under "Which Bible do you translate from?".
 3. Tap "Not listed? Answer a few questions". Answer: Psalm 23 "{book} 23",
    "The heading has no number", Malachi 4, Romans 16 ends with verse 27, no
    extra books, "Protestant or evangelical".
-4. Tap "Choose another", then choose "Numbered like the Hebrew and Greek"
-   style from "Choose the numbering".
+4. Tap "Choose another", then "Choose the numbering", and choose
+   "Numbered like the Hebrew and Greek".
 5. Tap the "How is material divided?" link and step through it.
 
 Expected:
+- Before any Bible, "Bibles number verses differently" shows Malachi 4:1 in
+  an English Bible and Malachi 3:19 in a Hebrew Bible; then "Find your
+  Bible's numbering" offers "Pick your Bible", "Take the quiz" and "Choose
+  the numbering" (LAN-193).
 - Step 2 says "Not found."
 - The quiz asks one question at a time ("Question n") and ends on "Like
   {bible}" with "Verse numbers in LangQuest will match your Bible." and
@@ -1209,7 +1215,8 @@ Expected:
 - "What will languages record with it?" offers "Scripture" ("Books and
   chapters of the Bible, divided into passages as teams go.") and
   "Something else".
-- Scripture asks what New language asks (decision 107): "Which Bible do you
+- Scripture asks what New language asks (decision 107): "Bibles number
+  verses differently", "Pick your Bible", then "Which Bible do you
   translate from?" with "Not listed? Answer a few questions", then "How
   should the Bible be divided?" with "Divide it your own way" first.
 - The editor has no "Whole books" or "Chapters" choice; it says "Tap a book to choose how

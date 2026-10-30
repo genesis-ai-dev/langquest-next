@@ -73,8 +73,8 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null, languages?: r
   const numbering = ways.numberings.find((n) => n.code === code) ?? null;
   const ready = shownWhat === 'bible' ? !!code && !!row && !!doc : shownWhat === 'else' ? !!outline : false;
 
-  // One question a screen (decision 80): what they translate, then the numbering (found, asked, or listed,
-  // then shown), then how it is divided. The screen holding these asks `advance` and `retreat` first.
+  // One question a screen (decision 80): what they translate, then the numbering (why it matters, the three
+  // ways to find it, found, asked, or listed, then shown), then how it is divided. The screen holding these asks `advance` and `retreat` first.
   const [page, setPage] = useState<TranslatePage>('what');
   const [found, setFound] = useState<{ from?: string; note?: string }>({});
   const [quizTrail, setQuizTrail] = useState<string[]>([QUIZ.start]);
@@ -85,20 +85,22 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null, languages?: r
     setPage('numbered');
   };
   const advance = (): boolean => {
-    if (page === 'what' && shownWhat === 'bible') { setPage(numbering ? 'numbered' : 'find'); return true; }
+    if (page === 'what' && shownWhat === 'bible') { setPage(numbering ? 'numbered' : 'why'); return true; }
+    if (page === 'why') { setPage('how'); return true; }
     if (page === 'numbered') { setPage('ways'); return true; }
     return false;
   };
   const retreat = (): boolean => {
     if (page === 'ways') { setPage('numbered'); return true; }
     if (page === 'numbered') { setPage('what'); return true; }
-    if (page === 'find') { setPage(numbering ? 'numbered' : 'what'); return true; }
+    if (page === 'why') { setPage('what'); return true; }
+    if (page === 'how') { setPage(numbering ? 'numbered' : 'why'); return true; }
     if (page === 'quiz' && quizTrail.length > 1) { setQuizTrail((q) => q.slice(0, -1)); return true; }
-    if (page === 'quiz' || page === 'list') { setPage('find'); return true; }
+    if (page === 'find' || page === 'quiz' || page === 'list') { setPage('how'); return true; }
     return false;
   };
   const canContinue = page === 'what' ? (shownWhat === 'bible' || (shownWhat === 'else' && !!outline))
-    : page === 'numbered' ? !!numbering : page === 'ways' ? ready : false;
+    : page === 'why' ? true : page === 'numbered' ? !!numbering : page === 'ways' ? ready : false;
   return {
     ways, rec, what: shownWhat, setWhat, row, setKey, outlines, outline, setOutlineKey, empty, doc, v11n, resolve,
     hiddenLanguages, showEveryLanguage: () => setEveryLanguage(true),
@@ -106,10 +108,10 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null, languages?: r
     ready, page, found, choose, advance, retreat, canContinue, quizTrail, setQuizTrail,
     setPage: (p: TranslatePage) => { if (p === 'quiz') setQuizTrail([QUIZ.start]); setPage(p); },
     /** Pages answered by tapping a choice have no Continue. */
-    showContinue: page === 'what' || page === 'numbered' || page === 'ways',
+    showContinue: page === 'what' || page === 'why' || page === 'numbered' || page === 'ways',
     /** The last page: what follows belongs to the screen holding the question. */
     last: page === 'ways' || (page === 'what' && shownWhat === 'else')
   };
 }
 
-export type TranslatePage = 'what' | 'find' | 'quiz' | 'list' | 'numbered' | 'ways';
+export type TranslatePage = 'what' | 'why' | 'how' | 'find' | 'quiz' | 'list' | 'numbered' | 'ways';

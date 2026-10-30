@@ -260,6 +260,53 @@ export function NumberingContext(props: { choice: NumberingChoice; onPress: () =
   );
 }
 
+/**
+ * Why the numbering is asked, drawn (LAN-193): Malachi in two Bibles, with 4 chapters and with 3, and the
+ * same verse numbered 4:1 in one and 3:19 in the other.
+ */
+export function WhyNumberingPage() {
+  const book = bookName('mal');
+  const bible = (name: string, chapters: number, verse: [number, number]) => {
+    const said = t('breakup.numberingStep.why.verse', { book, chapter: formatNumber(verse[0]), verse: formatNumber(verse[1]) });
+    return (
+      <View style={styles.tile} accessible accessibilityLabel={t('breakup.numberingStep.why.bibleA11y', {
+        bible: name, chapters: t('breakup.numberingStep.facts.malachiHas', { book, count: chapters }), verse: said
+      })}>
+        <Ico name="book" size={22} color={C.primary} />
+        <Text style={styles.tileValue}>{name}</Text>
+        <View style={styles.bars}>{Array.from({ length: chapters }, (_, i) => <View key={i} style={[styles.bar, i + 1 === verse[0] && styles.barHere]} />)}</View>
+        <Text style={styles.tileLabel}>{t('breakup.numberingStep.facts.chapters', { count: chapters })}</Text>
+        <Text style={styles.verse}>{said}</Text>
+      </View>
+    );
+  };
+  return (
+    <>
+      <Question>{t('breakup.numberingStep.why.question')}</Question>
+      <View style={styles.tiles}>
+        {bible(t('breakup.numberingStep.why.english'), 4, [4, 1])}
+        {bible(t('breakup.numberingStep.why.hebrew'), 3, [3, 19])}
+      </View>
+      <Text style={txt2.muted}>{t('breakup.numberingStep.why.match')}</Text>
+    </>
+  );
+}
+
+/** Three ways to find the numbering, side by side and none of them buried (LAN-193): by the Bible, with the quiz, or from the list. */
+export function FindWaysPage(props: { onFind: () => void; onQuiz: () => void; onList: () => void }) {
+  return (
+    <>
+      <Question>{t('breakup.numberingStep.how.question')}</Question>
+      <ChoiceCard chevron on={false} icon="book" title={t('breakup.numberingStep.how.find')} sub={t('breakup.numberingStep.how.findSub')}
+        help={t('breakup.numberingStep.how.findHelp')} onPress={props.onFind} />
+      <ChoiceCard chevron on={false} icon="help" title={t('breakup.numberingStep.how.quiz')} sub={t('breakup.numberingStep.how.quizSub')}
+        help={t('breakup.numberingStep.find.quizHelp')} onPress={props.onQuiz} />
+      <ChoiceCard chevron on={false} icon="list" title={t('breakup.numberingStep.how.list')} sub={t('breakup.numberingStep.how.listSub')}
+        help={t('breakup.numberingStep.chooseFromListHelp')} onPress={props.onList} />
+    </>
+  );
+}
+
 /** The digits of the small drawn page: part of a picture, not text to read (below the 13 point floor on purpose). */
 const PICTURE_DIGIT = 11;
 
@@ -301,5 +348,7 @@ const styles = StyleSheet.create({
   done: { alignItems: 'center', marginTop: space.md },
   context: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 48, borderRadius: radius.full, backgroundColor: C.light, paddingHorizontal: space.md, alignSelf: 'flex-start' },
   contextText: { flexShrink: 1, fontSize: T.sm, fontWeight: '700', color: C.dark },
-  contextChange: { fontSize: T.sm, fontWeight: '800', color: C.primary }
+  contextChange: { fontSize: T.sm, fontWeight: '800', color: C.primary },
+  barHere: { backgroundColor: C.amber },
+  verse: { fontSize: T.sm, fontWeight: '800', color: TINT.amberText, backgroundColor: TINT.amber, borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 2, overflow: 'hidden' }
 });

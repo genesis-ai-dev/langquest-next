@@ -695,7 +695,11 @@ test('SETUP-037 Make a Scripture template', async ({ page }) => {
   await button(page, 'Template').click();
   await expectOnScreen(page, 'What will languages record with it?', 'Scripture', 'Books and chapters of the Bible, divided into passages as teams go.', 'Something else');
   await text(page, 'Scripture').click();
-  // The questions New language asks (decision 107): the Bible translated from, then how it is divided, your own way first.
+  // The questions New language asks (decision 107): why the numbering matters and the ways to find it (LAN-193),
+  // the Bible translated from, then how it is divided, your own way first.
+  await expectOnScreen(page, 'Bibles number verses differently');
+  await primary(page).click();
+  await button(page, /^Pick your Bible/).click();
   await expectOnScreen(page, 'Which Bible do you translate from?', 'Not listed? Answer a few questions');
   await text(page, 'King James Version').click();
   await expectOnScreen(page, 'Like most English Bibles');

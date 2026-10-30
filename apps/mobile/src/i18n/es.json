@@ -2191,7 +2191,25 @@
         "hebrew": "Hebreo",
         "korean": "Coreano"
       },
-      "chooseFromListHelp": "Todas las numeraciones, cada una con tres datos que las distinguen."
+      "chooseFromListHelp": "Todas las numeraciones, cada una con tres datos que las distinguen.",
+      "why": {
+        "question": "Las Biblias numeran los versículos de forma distinta",
+        "english": "Biblia en inglés",
+        "hebrew": "Biblia hebrea",
+        "verse": "{{book}} {{chapter}}:{{verse}}",
+        "bibleA11y": "{{bible}}: {{chapters}}. El mismo versículo es {{verse}}.",
+        "match": "El mismo versículo puede tener otro número. LangQuest necesita la numeración de tu Biblia para que los números coincidan."
+      },
+      "how": {
+        "question": "Encuentra la numeración de tu Biblia",
+        "find": "Elige tu Biblia",
+        "findSub": "Reina-Valera, NVI, DHH…",
+        "findHelp": "Encuentra la Biblia de la que traduce tu equipo. LangQuest sabe cómo numera los versículos.",
+        "quiz": "Haz el cuestionario",
+        "quizSub": "Unas preguntas, con tu Biblia abierta",
+        "list": "Elige la numeración",
+        "listSub": "Si ya la conoces"
+      }
     },
     "own": {
       "title": "Divídelo a tu manera",

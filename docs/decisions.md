@@ -2972,6 +2972,14 @@ Reverse if: teams need one section made of two separate ranges (Daniel
 3:19–23 with 3:91–97) often enough; then a section holds a list of ranges,
 and every reader of a section's verses learns to read one.
 
+Amended (2026-10-30, Caleb Koster): the quiz was easy to miss, at the
+bottom of the page under every Bible. Before any Bible, a page now shows
+why the numbering is asked (Malachi 4:1 in an English Bible is Malachi
+3:19 in a Hebrew Bible), and the next page offers the three ways side by
+side: pick your Bible, take the quiz, or choose the numbering (LAN-193,
+Caleb). "Choose another" and the numbering's chip go back to the three
+ways.
+
 ## 81. The app's words come from catalogs in the app, in the language chosen on the device or the phone's; English is the source
 
 Date: 2026-10-09 · By: Caleb Koster · Status: accepted

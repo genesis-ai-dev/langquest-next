@@ -2191,7 +2191,25 @@
         "hebrew": "Hébreu",
         "korean": "Coréen"
       },
-      "chooseFromListHelp": "Toutes les numérotations, chacune avec trois caractéristiques qui les distinguent."
+      "chooseFromListHelp": "Toutes les numérotations, chacune avec trois caractéristiques qui les distinguent.",
+      "why": {
+        "question": "Les Bibles ne numérotent pas toutes les versets de la même façon",
+        "english": "Bible anglaise",
+        "hebrew": "Bible hébraïque",
+        "verse": "{{book}} {{chapter}}:{{verse}}",
+        "bibleA11y": "{{bible}} : {{chapters}}. Le même verset est {{verse}}.",
+        "match": "Le même verset peut avoir un autre numéro. LangQuest a besoin de la numérotation de votre Bible pour que les numéros correspondent."
+      },
+      "how": {
+        "question": "Trouvez la numérotation de votre Bible",
+        "find": "Choisissez votre Bible",
+        "findSub": "Louis Segond, Semeur, Parole de Vie…",
+        "findHelp": "Trouvez la Bible à partir de laquelle votre équipe traduit. LangQuest sait comment elle numérote les versets.",
+        "quiz": "Répondez au questionnaire",
+        "quizSub": "Quelques questions, avec votre Bible ouverte",
+        "list": "Choisissez la numérotation",
+        "listSub": "Si vous la connaissez déjà"
+      }
     },
     "own": {
       "title": "Le découper à votre façon",

@@ -86,6 +86,27 @@ export const addALanguage: Tutorial = {
       part: (page) => id(page, 'primary-action'),
       say: 'Then Continue.',
       tap: true,
+      until: until('Bibles number verses differently'),
+      stay: 0.6
+    },
+    {
+      screen: 'new_language',
+      part: (page) => words(page, 'Bibles number verses differently'),
+      say: 'Bibles number some verses differently, so LangQuest needs to know which Bible your team uses.'
+    },
+    {
+      screen: 'new_language',
+      part: (page) => id(page, 'primary-action'),
+      say: 'Tap Continue.',
+      tap: true,
+      until: until("Find your Bible's numbering"),
+      stay: 0.6
+    },
+    {
+      screen: 'new_language',
+      part: (page) => words(page, 'Pick your Bible'),
+      say: 'There are three ways to find it. Tap Pick your Bible.',
+      tap: true,
       until: until('Which Bible do you translate from?'),
       stay: 0.6
     },

@@ -2120,7 +2120,25 @@
         "hebrew": "Ibrananci",
         "korean": "Koreanci"
       },
-      "chooseFromListHelp": "Kowane tsarin ƙidaya, kowanne da abubuwa uku da suke bambanta su."
+      "chooseFromListHelp": "Kowane tsarin ƙidaya, kowanne da abubuwa uku da suke bambanta su.",
+      "why": {
+        "question": "Littattafai Masu Tsarki ba sa ƙidaya ayoyi iri ɗaya",
+        "english": "Littafi Mai Tsarki na Turanci",
+        "hebrew": "Littafi Mai Tsarki na Ibrananci",
+        "verse": "{{book}} {{chapter}}:{{verse}}",
+        "bibleA11y": "{{bible}}: {{chapters}}. Aya ɗaya ce {{verse}}.",
+        "match": "Aya ɗaya na iya samun wata lamba. LangQuest yana buƙatar tsarin ƙidaya na Littafi Mai Tsarki naku, don lambobin su dace."
+      },
+      "how": {
+        "question": "Nemo tsarin ƙidaya na Littafi Mai Tsarki naku",
+        "find": "Zaɓi Littafi Mai Tsarki naku",
+        "findSub": "NIV, Reina-Valera, Luther…",
+        "findHelp": "Nemo Littafi Mai Tsarki da ƙungiyarku ke fassarawa daga gare shi. LangQuest ya san yadda yake ƙidaya ayoyi.",
+        "quiz": "Amsa tambayoyin",
+        "quizSub": "'Yan tambayoyi, tare da Littafi Mai Tsarki naku a buɗe",
+        "list": "Zaɓi tsarin ƙidaya",
+        "listSub": "Idan kun riga kun san shi"
+      }
     },
     "own": {
       "title": "Raba shi yadda kake so",

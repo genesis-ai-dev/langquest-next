@@ -2049,7 +2049,25 @@
         "hebrew": "希伯来语",
         "korean": "韩语"
       },
-      "chooseFromListHelp": "所有编号方式，每种都有三个区分它们的特点。"
+      "chooseFromListHelp": "所有编号方式，每种都有三个区分它们的特点。",
+      "why": {
+        "question": "不同的圣经，经节编号不一样",
+        "english": "英文圣经",
+        "hebrew": "希伯来文圣经",
+        "verse": "{{book}} {{chapter}}:{{verse}}",
+        "bibleA11y": "{{bible}}：{{chapters}}。同一节经文是 {{verse}}。",
+        "match": "同一节经文可能有另一个编号。LangQuest 需要知道你的圣经的编号方式，编号才会一致。"
+      },
+      "how": {
+        "question": "找到你的圣经的编号方式",
+        "find": "选择你的圣经",
+        "findSub": "和合本、新译本、NIV……",
+        "findHelp": "找到你的团队翻译所依据的圣经。LangQuest 知道它怎样给经节编号。",
+        "quiz": "回答几个问题",
+        "quizSub": "几个问题，请打开你的圣经",
+        "list": "选择编号方式",
+        "listSub": "如果你已经知道"
+      }
     },
     "own": {
       "title": "按你自己的方式划分",
