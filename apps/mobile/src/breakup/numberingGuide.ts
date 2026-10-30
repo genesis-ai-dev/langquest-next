@@ -7,8 +7,6 @@
 import { bookName } from '../i18n/coreText';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { sameLanguage } from '../reference/languageCodesModel';
-import { KNOWN_BIBLES } from './numberingBibles';
 
 export type NumberingCode = 'eng' | 'org' | 'lxx' | 'vul' | 'rsc' | 'rso' | 'custom' | 'unknown';
 
@@ -36,7 +34,6 @@ export interface QuizQuestion {
   notSure?: QuizOption;
 }
 
-
 /**
  * What a found Bible or a quiz answer means: the numbering, or the nearest one
  * LangQuest offers, with a note when it is only near or nothing fits.
@@ -47,31 +44,6 @@ export function resolveNumbering(code: NumberingCode, nearest: NumberingCode | u
   if (code === 'custom' && has(nearest)) return { code: nearest!, note: t('breakup.numberingStep.notes.mixes') };
   if (code === 'lxx' || (code === 'custom' && nearest === 'lxx')) return { code: null, note: t('breakup.numberingStep.notes.notOffered') };
   return { code: null, note: t('breakup.numberingStep.notes.notSure') };
-}
-
-/** Shown before anything is typed: Bibles many teams translate from. */
-export const COMMON_BIBLES = ['NIV', 'KJV', 'RVR1960', 'LSG', 'RUSSYN'];
-
-export { KNOWN_BIBLES };
-
-/** A listed Bible's language as material writes it ("hin"), by the English name the list keeps. */
-const BIBLE_LANGUAGE_CODES: Record<string, string> = {
-  English: 'eng', Spanish: 'spa', French: 'fra', Portuguese: 'por', Swahili: 'swa', Arabic: 'arb', Amharic: 'amh', Hindi: 'hin',
-  Indonesian: 'ind', Chinese: 'cmn', German: 'deu', Russian: 'rus', Greek: 'ell', Latin: 'lat', Hebrew: 'heb', Korean: 'kor'
-};
-
-/** How many of one language's Bibles come before the common ones. */
-const PER_LANGUAGE = 3;
-
-/**
- * Shown before anything is typed: the Bibles in the team's languages, in
- * the team's order (a Hindi team sees the Hindi O.V. first), then the ones
- * many teams translate from.
- */
-export function firstBibles(languages: readonly string[] = []): KnownBible[] {
-  const inTeam = languages.flatMap((l) => KNOWN_BIBLES.filter((b) => sameLanguage(BIBLE_LANGUAGE_CODES[b.language], l)).slice(0, PER_LANGUAGE));
-  const common = COMMON_BIBLES.map((a) => KNOWN_BIBLES.find((b) => b.abbr === a)).filter((b): b is KnownBible => !!b);
-  return [...new Set([...inTeam, ...common])];
 }
 
 /**

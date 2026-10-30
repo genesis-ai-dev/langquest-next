@@ -1,7 +1,8 @@
 import { baseWay, NUMBERING_ITEMS } from '../src/breakup/model';
 import fs from 'node:fs';
 import path from 'node:path';
-import { COMMON_BIBLES, factsOf, firstBibles, KNOWN_BIBLES, QUIZ, resolveNumbering } from '../src/breakup/numberingGuide';
+import { factsOf, QUIZ, resolveNumbering } from '../src/breakup/numberingGuide';
+import { COMMON_BIBLES, firstBibles, KNOWN_BIBLES } from '../src/breakup/knownBiblesModel';
 
 const offered = Object.keys(NUMBERING_ITEMS);
 

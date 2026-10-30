@@ -9560,7 +9560,9 @@ fixing all of it in one change. So:
   template writes it.
 - **Find your Bible lists up to three Bibles in each of the translators'
   languages first** (the languages New language asks right after the
-  name, 193), then the common ones; Search finds the rest.
+  name, 193), then the common ones; Search finds the rest. The list of
+  Bibles loads with that page (`knownBiblesModel.ts`), not with the web
+  app's first visit, which this and 194 together took past its budget (123).
 - **The Preview button's words take the card's width** (`breakup/parts.tsx`),
   as 139 says of a label beside other things, so Android does not cut them
   when it measures Devanagari short.

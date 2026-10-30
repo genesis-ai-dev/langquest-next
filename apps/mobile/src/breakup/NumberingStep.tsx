@@ -4,7 +4,7 @@
 // find the Bible the team translates from, or answer a few questions with
 // it open, or (one tap deeper) choose from the list. The result is shown
 // as three facts that tell the numberings apart at a glance.
-import { useMemo, useState, type ReactNode } from 'react';
+import { Suspense, useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { bookName } from '../i18n/coreText';
 import { formatNumber } from '../i18n/format';
@@ -15,9 +15,14 @@ import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { GhostBtn, Ico, SearchField, type IconName } from '../ui/kit';
 import { ChoiceCard, Question, RadioRow } from '../admin/admin';
 import { C, radius, space, TINT, type as T } from '../ui/theme';
+import { readModule, registerLoader } from '../shell/lazyModules';
 import {
-  bibleLanguage, firstBibles, KNOWN_BIBLES, QUIZ, resolveNumbering, shortName, type KnownBible, type NumberingCode, type NumberingFacts, type QuizOption
+  bibleLanguage, QUIZ, resolveNumbering, shortName, type KnownBible, type NumberingCode, type NumberingFacts, type QuizOption
 } from './numberingGuide';
+
+// The Bibles to find load with this page, not with the web app's first visit (decision 123).
+const loadBibles = () => import('./knownBiblesModel');
+registerLoader(loadBibles);
 
 export interface NumberingChoice {
   code: string;
@@ -94,14 +99,8 @@ export function FindBiblePage(props: {
   onList: () => void;
 }) {
   const [q, setQ] = useState('');
-  const [all, setAll] = useState(false);
   const [note, setNote] = useState('');
   const offered = props.numberings.map((n) => n.code);
-  const shown = useMemo(() => {
-    const typed = q.trim().toLowerCase();
-    if (typed) return KNOWN_BIBLES.filter((b) => `${b.name} ${b.abbr} ${b.language} ${bibleLanguage(b.language)}`.toLowerCase().includes(typed)).slice(0, 20);
-    return all ? KNOWN_BIBLES : firstBibles(props.languages);
-  }, [q, all, props.languages]);
   const choose = (b: KnownBible) => {
     const r = resolveNumbering(b.numbering, b.nearest, offered);
     if (r.code) { setNote(''); props.onPick(r.code, b.name, r.note); } else setNote(r.note ?? '');
@@ -118,20 +117,36 @@ export function FindBiblePage(props: {
       ))}
       <SearchField value={q} onChangeText={setQ} placeholder={t('breakup.numberingStep.find.placeholder')} help={t('breakup.numberingStep.find.searchHelp')} />
       {note ? <Text style={[txt2.note]}>{note}</Text> : null}
-      <View style={{ gap: space.sm }}>
-        {shown.map((b) => (
-          <HelpRow key={b.abbr} of="numbering.bible">
-            <RadioRow icon="book" label={b.name} sub={bibleLanguage(b.language)} on={false} help={t('breakup.numberingStep.find.bibleHelp')} onPress={() => choose(b)} />
-          </HelpRow>
-        ))}
-        {!q.trim() && !all ? <GhostBtn label={t('breakup.numberingStep.find.showAll', { count: KNOWN_BIBLES.length })} icon="down" help={t('breakup.numberingStep.find.showAllHelp')} onPress={() => setAll(true)} /> : null}
-        {q.trim() && shown.length === 0 ? <Text style={txt2.muted}>{t('breakup.numberingStep.find.notFound')}</Text> : null}
-      </View>
+      <Suspense fallback={null}>
+        <FoundBibles q={q} languages={props.languages} onChoose={choose} />
+      </Suspense>
       <View style={{ gap: space.sm, marginTop: space.sm }}>
         <OtherWay icon="help" label={t('breakup.numberingStep.find.quiz')} detail={t('breakup.numberingStep.find.quizHelp')} onPress={props.onQuiz} />
         <OtherWay icon="list" label={t('breakup.numberingStep.chooseFromList')} detail={t('breakup.numberingStep.chooseFromListHelp')} onPress={props.onList} />
       </View>
     </>
+  );
+}
+
+/** The Bibles typing finds, or before anything is typed the team's and the common ones, with Show all. */
+function FoundBibles(props: { q: string; languages?: readonly string[]; onChoose: (b: KnownBible) => void }) {
+  const { KNOWN_BIBLES, firstBibles } = readModule(loadBibles);
+  const [all, setAll] = useState(false);
+  const typed = props.q.trim().toLowerCase();
+  const shown = useMemo(() => {
+    if (typed) return KNOWN_BIBLES.filter((b) => `${b.name} ${b.abbr} ${b.language} ${bibleLanguage(b.language)}`.toLowerCase().includes(typed)).slice(0, 20);
+    return all ? KNOWN_BIBLES : firstBibles(props.languages);
+  }, [KNOWN_BIBLES, firstBibles, typed, all, props.languages]);
+  return (
+    <View style={{ gap: space.sm }}>
+      {shown.map((b) => (
+        <HelpRow key={b.abbr} of="numbering.bible">
+          <RadioRow icon="book" label={b.name} sub={bibleLanguage(b.language)} on={false} help={t('breakup.numberingStep.find.bibleHelp')} onPress={() => props.onChoose(b)} />
+        </HelpRow>
+      ))}
+      {!typed && !all ? <GhostBtn label={t('breakup.numberingStep.find.showAll', { count: KNOWN_BIBLES.length })} icon="down" help={t('breakup.numberingStep.find.showAllHelp')} onPress={() => setAll(true)} /> : null}
+      {typed && shown.length === 0 ? <Text style={txt2.muted}>{t('breakup.numberingStep.find.notFound')}</Text> : null}
+    </View>
   );
 }
 
