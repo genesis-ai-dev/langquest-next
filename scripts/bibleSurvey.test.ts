@@ -90,16 +90,26 @@ describe('the Bible Brain numbering survey', () => {
     expect(await surveyOne(get, { abbr: 'XYZAUD', filesets: { 'dbp-prod': [{ id: 'XYZN1DA', type: 'audio', size: 'NT' }] } }, systems, false)).toBeNull();
   });
 
-  it('reports how many Bibles have each numbering, and where each custom one parts', () => {
+  it('reports how many Bibles have each numbering, the app\'s languages, and where custom ones part, alone and in groups', () => {
+    const bible = { text: {}, partial: false, books: 27, deuterocanon: false, read: 13, missing: 0 };
+    const rev = [{ at: 'REV 12', saw: 17, expected: 18 }];
     const survey: Survey = {
-      startedAt: '2026-10-30T19:00:00Z', done: true, listed: 3, withoutText: 1,
+      startedAt: '2026-10-30T19:00:00Z', done: true, listed: 5, withoutText: 1,
       bibles: [
-        { bibleId: 'ENGKJV', name: 'King James', iso: 'eng', language: 'English', text: {}, numbering: 'eng', partial: false, books: 66, deuterocanon: false, read: 40, missing: 0 },
-        { bibleId: 'XYZABC', name: 'Xyz', iso: 'xyz', language: 'Xyz', text: {}, numbering: 'custom', nearest: 'eng', differences: [{ at: 'REV 12', saw: 18, expected: 17 }], partial: false, books: 66, deuterocanon: false, read: 40, missing: 0 }
+        { ...bible, bibleId: 'ENGKJV', name: 'King James', iso: 'eng', language: 'English', numbering: 'eng' },
+        { ...bible, bibleId: 'HINOVB', name: 'Hindi O.V.', iso: 'hin', language: 'Hindi', numbering: 'custom', nearest: 'eng', differences: rev },
+        { ...bible, bibleId: 'XYZABC', name: 'Xyz', iso: 'xyz', language: 'Xyz', numbering: 'custom', nearest: 'eng', differences: rev },
+        { ...bible, bibleId: 'XYZDEF', name: 'Xyz 2', iso: 'xyz', language: 'Xyz', numbering: 'custom', nearest: 'eng', differences: [...rev, { at: '2CO 13', saw: 13, expected: 14 }], partial: true }
       ]
     };
     const text = report(survey);
     expect(text).toContain('| eng | 1 |');
-    expect(text).toContain('XYZABC Xyz (Xyz, xyz): nearest eng; REV 12 18 not 17');
+    expect(text).toContain('| custom | 3 |');
+    expect(text).toContain('| Hindi | 1 | custom 1 |');
+    expect(text).toContain('| Hausa | 0 |  |');
+    expect(text).toContain('| REV 12 17 not 18 (eng) | 3 |');
+    expect(text).toContain('| eng | REV 12 17 not 18 | 2 | HINOVB, XYZABC |');
+    expect(text).toContain('| eng | 2CO 13 13 not 14, REV 12 17 not 18 | 1 | XYZDEF |');
+    expect(text).toContain('- XYZDEF Xyz 2 (Xyz, xyz, partial): nearest eng; REV 12 17 not 18, 2CO 13 13 not 14');
   });
 });

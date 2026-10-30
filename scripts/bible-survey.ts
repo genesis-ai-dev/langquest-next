@@ -22,7 +22,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chooseFilesets, coverage, versesOf, type DbpFileset, type Testaments } from '../apps/web/worker/bible';
 import {
   chapterKey, chaptersToRead, fits, lastVerseOf, lastVersesOf, SYSTEMS, verdict,
-  type LastVerses, type System, type Verdict
+  type Difference, type LastVerses, type System, type Verdict
 } from './bibleSurvey';
 
 const VERSIFICATIONS = fileURLToPath(new URL('../library/versifications/', import.meta.url));
@@ -48,7 +48,11 @@ export interface Surveyed extends Verdict {
   missing: number;
   /** For --full: the last verse of every chapter. */
   lastVerses?: Record<string, number[]>;
-  /** Each book's name as this Bible gives it, in its own language ("उत्पत्ति"), for every book Bible Brain lists. */
+  /**
+   * Each book's name as this Bible gives it, in its own language ("उत्पत्ति"),
+   * for every book Bible Brain lists. Missing only from a survey made before
+   * names were kept; --resume surveys those Bibles again.
+   */
   bookNames?: Record<string, string>;
   /** Why it could not be surveyed. */
   failed?: string;
@@ -188,7 +192,7 @@ export async function surveyOne(
     partial,
     books: books.length,
     deuterocanon: books.some((b) => !BOOKS_66.has(b.book)),
-    ...(Object.keys(bookNames).length ? { bookNames } : {}),
+    bookNames,
     read: plan.length,
     missing,
     ...(full ? {
@@ -197,25 +201,83 @@ export async function surveyOne(
   };
 }
 
-/** The survey in a few lines a person reads: how many in each numbering, and every custom one. */
+/** The app's languages (packages/core uiLanguages.ts), by the ISO 639-3 codes Bible Brain files their Bibles under. */
+const APP_LANGUAGES: [string, string[]][] = [
+  ['English', ['eng']], ['Spanish', ['spa']], ['Portuguese', ['por']], ['French', ['fra']], ['Arabic', ['arb', 'ara']],
+  ['Swahili', ['swh', 'swa']], ['Hausa', ['hau']], ['Amharic', ['amh']], ['Hindi', ['hin']], ['Bengali', ['ben']],
+  ['Nepali', ['npi', 'nep']], ['Indonesian', ['ind']], ['Chinese', ['cmn', 'zho']], ['Thai', ['tha']], ['Burmese', ['mya']]
+];
+
+const EACH_CUSTOM = '## Custom, each one';
+
+/** How many of each, most first, as "eng 3, custom 1". */
+const tally = (keys: string[]) => {
+  const n = new Map<string, number>();
+  for (const k of keys) n.set(k, (n.get(k) ?? 0) + 1);
+  return [...n].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+};
+
+const differenceText = (d: Difference) => `${d.at} ${d.saw} not ${d.expected}`;
+
+/**
+ * The survey in a few lines a person reads: how many in each numbering, the
+ * app's languages, where custom Bibles part from their nearest numbering
+ * (one place at a time, then Bibles that part in exactly the same places,
+ * which is where a new numbering would come from), and every custom one.
+ */
 export function report(s: Survey): string {
-  const counts = new Map<string, number>();
-  for (const b of s.bibles) if (!b.failed) counts.set(b.numbering, (counts.get(b.numbering) ?? 0) + 1);
-  const custom = s.bibles.filter((b) => b.numbering === 'custom' && !b.failed);
+  const surveyed = s.bibles.filter((b) => !b.failed);
+  const custom = surveyed.filter((b) => b.numbering === 'custom');
   const failed = s.bibles.filter((b) => b.failed);
+  const fitsAll = surveyed.filter((b) => (b.alsoFits?.length ?? 0) === SYSTEMS.length - 1).length;
+  const places = tally(custom.flatMap((b) => (b.differences ?? []).map((d) => `${differenceText(d)} (${b.nearest})`)));
+  const groups = new Map<string, Surveyed[]>();
+  for (const b of custom) {
+    const key = `${b.nearest} | ${(b.differences ?? []).map(differenceText).sort().join(', ')}`;
+    groups.set(key, [...(groups.get(key) ?? []), b]);
+  }
+  const bigGroups = [...groups].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+  const TOP = 25;
   return [
     `# Bible Brain numbering survey`,
     '',
     `Started ${s.startedAt}${s.finishedAt ? `, finished ${s.finishedAt}` : ''}${s.done ? '' : ' (not finished: run again with --resume)'}.`,
     `${s.listed} Bibles listed, ${s.withoutText} without text, ${s.bibles.length} surveyed.`,
+    ...(fitsAll ? [`${fitsAll} have too little text to tell any numbering from another; they count as eng.`] : []),
     '',
     '| Numbering | Bibles |',
     '| --- | --- |',
-    ...[...counts].sort((a, b) => b[1] - a[1]).map(([n, c]) => `| ${n} | ${c} |`),
+    ...tally(surveyed.map((b) => b.numbering)).map(([n, c]) => `| ${n} | ${c} |`),
     '',
-    `## Custom (${custom.length}): nearest numbering and where each parts from it`,
+    `## The app's languages`,
     '',
-    ...custom.map((b) => `- ${b.bibleId} ${b.name} (${b.language}, ${b.iso}${b.partial ? ', partial' : ''}): nearest ${b.nearest}; ${(b.differences ?? []).slice(0, 8).map((d) => `${d.at} ${d.saw} not ${d.expected}`).join(', ')}${(b.differences?.length ?? 0) > 8 ? `, and ${b.differences!.length - 8} more` : ''}`),
+    '| Language | Bibles | Numberings |',
+    '| --- | --- | --- |',
+    ...APP_LANGUAGES.map(([name, isos]) => {
+      const here = surveyed.filter((b) => isos.includes(b.iso));
+      return `| ${name} | ${here.length} | ${tally(here.map((b) => b.numbering)).map(([n, c]) => `${n} ${c}`).join(', ')} |`;
+    }),
+    '',
+    `## Where custom Bibles part from their nearest numbering`,
+    '',
+    '| Place: verses in the Bible, not in the numbering | Bibles |',
+    '| --- | --- |',
+    ...places.slice(0, TOP).map(([p, c]) => `| ${p} | ${c} |`),
+    ...(places.length > TOP ? ['', `And ${places.length - TOP} more places.`] : []),
+    '',
+    `## Custom Bibles that part in exactly the same places`,
+    '',
+    '| Nearest | Where they part | Bibles | For example |',
+    '| --- | --- | --- | --- |',
+    ...bigGroups.slice(0, TOP).map(([key, list]) => {
+      const [nearest, where] = key.split(' | ') as [string, string];
+      return `| ${nearest} | ${where.length > 160 ? `${where.slice(0, 160)}…` : where} | ${list.length} | ${list.slice(0, 3).map((b) => b.bibleId).join(', ')} |`;
+    }),
+    ...(bigGroups.length > TOP ? ['', `And ${bigGroups.length - TOP} more groups, ${bigGroups.slice(TOP).reduce((n, [, l]) => n + l.length, 0)} Bibles.`] : []),
+    '',
+    `${EACH_CUSTOM} (${custom.length}): nearest numbering and where each parts from it`,
+    '',
+    ...custom.map((b) => `- ${b.bibleId} ${b.name} (${b.language}, ${b.iso}${b.partial ? ', partial' : ''}): nearest ${b.nearest}; ${(b.differences ?? []).slice(0, 8).map(differenceText).join(', ')}${(b.differences?.length ?? 0) > 8 ? `, and ${b.differences!.length - 8} more` : ''}`),
     ...(failed.length ? ['', `## Not surveyed (${failed.length})`, '', ...failed.map((b) => `- ${b.bibleId} ${b.name}: ${b.failed}`)] : [])
   ].join('\n') + '\n';
 }
@@ -238,8 +300,9 @@ async function main(argv: string[]) {
   const resume = value('resume');
   const before: Survey | null = resume && existsSync(resume) ? JSON.parse(readFileSync(resume, 'utf8')) as Survey : null;
   const survey: Survey = { startedAt: before?.startedAt ?? new Date().toISOString(), done: false, listed: 0, withoutText: 0, bibles: before?.bibles ?? [] };
-  const have = new Set(survey.bibles.filter((b) => !b.failed).map((b) => b.bibleId));
-  survey.bibles = survey.bibles.filter((b) => !b.failed);
+  // A Bible that failed, or was surveyed before book names were kept, is surveyed again.
+  survey.bibles = survey.bibles.filter((b) => !b.failed && b.bookNames);
+  const have = new Set(survey.bibles.map((b) => b.bibleId));
   mkdirSync(out, { recursive: true });
   const save = () => {
     writeFileSync(join(out, full ? 'full.json' : 'survey.json'), JSON.stringify(survey, null, 1) + '\n');
@@ -274,7 +337,7 @@ async function main(argv: string[]) {
   survey.done = !stopped;
   if (survey.done) survey.finishedAt = new Date().toISOString();
   save();
-  console.log(report(survey).split('\n').slice(0, 14).join('\n'));
+  console.log(report(survey).split(EACH_CUSTOM)[0]);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
