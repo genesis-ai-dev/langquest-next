@@ -4,6 +4,7 @@
 import type { Page } from 'playwright';
 import type { Tutorial } from './tutorial';
 import { recordAPassage } from './record-a-passage';
+import { uiText } from './ui';
 import { button, id, shows } from './workspace';
 
 const tab = (page: Page, name: string) => page.getByRole('tab', { name }).locator('visible=true').first();
@@ -91,7 +92,7 @@ export const workWithoutInternet: Tutorial = {
     {
       screen: 'workspace',
       part: (page) => id(page, 'saved-mark'),
-      say: 'Your recording is kept on this phone.',
+      say: 'This tick means your recording is kept on this phone.',
       help: 'saved.draftHelp'
     },
     {
@@ -100,16 +101,12 @@ export const workWithoutInternet: Tutorial = {
       say: 'This bar says what is waiting to upload.'
     },
     {
-      screen: 'workspace',
-      part: (page) => id(page, 'upload-bar'),
-      say: 'When the internet comes back, it uploads by itself. There is nothing to do.'
-    },
-    {
-      // Back online after the line, so the bar is seen saying it is all uploaded before it goes.
+      // Back online as the line starts, so the bar goes up while it is said; then it is all uploaded, and goes.
       screen: 'workspace',
       first: (page) => page.context().setOffline(false),
       part: (page) => id(page, 'upload-bar'),
-      until: (page) => page.getByText('All uploaded', { exact: true }).locator('visible=true').first().waitFor({ timeout: 60_000 }),
+      say: 'When the internet comes back, it uploads by itself. There is nothing to do.',
+      until: (page) => page.waitForFunction((offline) => !(document.querySelector('[data-testid="upload-bar"]')?.textContent ?? '').includes(offline), uiText('account.sync.standing.offline'), { timeout: 60_000 }),
       stay: 2.5
     }
   ]

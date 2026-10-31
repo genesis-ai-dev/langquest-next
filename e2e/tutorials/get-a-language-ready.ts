@@ -113,7 +113,8 @@ export const getALanguageReady: Tutorial = {
     },
     {
       screen: 'get_ready',
-      part: (page) => words(page, 'Ask them to scan this'),
+      // The code's whole card, its title too, as in Invite your team.
+      part: (page) => words(page, 'Ask them to scan this').locator('../..'),
       say: 'Last, invite the translators. They scan this code, or you share a link.'
     },
     {

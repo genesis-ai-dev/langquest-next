@@ -5,7 +5,7 @@ import type { Page } from 'playwright';
 import type { Tutorial } from './tutorial';
 import { recordAPassage } from './record-a-passage';
 import { asIs, escape } from './ui';
-import { button } from './workspace';
+import { button, toastGone } from './workspace';
 
 // A library item's name as written; in another language the app adds the item's language after it ("(English)").
 const toggle = (page: Page, name: string) =>
@@ -55,7 +55,9 @@ export const chooseReferenceMaterial: Tutorial = {
       part: (page) => toggle(page, 'Example study guides'),
       say: 'Turn on more study guides,',
       tap: true,
-      stay: 0.8
+      stay: 0.8,
+      // The note that it is recommended covers the next switch: the wait for it to go is left out.
+      offCamera: toastGone
     },
     {
       screen: 'reference_home',
@@ -63,7 +65,8 @@ export const chooseReferenceMaterial: Tutorial = {
       say: 'and key words, with what each one means.',
       tap: true,
       until: (page) => button(page, 'Use English').waitFor({ timeout: 10_000 }),
-      stay: 0.8
+      stay: 0.8,
+      offCamera: toastGone
     },
     {
       screen: 'reference_home',
@@ -71,7 +74,8 @@ export const chooseReferenceMaterial: Tutorial = {
       say: 'They come in several languages. Pick the one the team reads best.',
       tap: true,
       until: (page) => button(page, 'Use English').waitFor({ state: 'hidden', timeout: 10_000 }),
-      stay: 1
+      stay: 1,
+      offCamera: toastGone
     },
     {
       screen: 'reference_home',

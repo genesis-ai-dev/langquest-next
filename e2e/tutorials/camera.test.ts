@@ -25,11 +25,14 @@ describe('the camera', () => {
     const bottom = shot.y + (shot.width * page.height) / page.width;
     expect(bottom).toBeGreaterThan(phone.y + phone.height);
     expect(bottom).toBeLessThan(page.height);
-    // A tall part is shown less close, whole; nothing lit shows the whole page.
-    const list = shotOf({ x: 1190, y: 200, width: 420, height: 600 }, page, phone);
+    // A tall part is shown less close, whole; one that would take most of the screen's height into the shot, and
+    // nothing lit, show the whole page (with the title, not an empty page beside the phone).
+    const list = shotOf({ x: 1190, y: 200, width: 420, height: 450 }, page, phone);
     expect(list.width).toBeGreaterThan(shot.width);
+    expect(list.width).toBeLessThan(page.width);
     expect(list.y).toBeLessThanOrEqual(200);
-    expect(list.y + (list.width * page.height) / page.width).toBeGreaterThanOrEqual(800);
+    expect(list.y + (list.width * page.height) / page.width).toBeGreaterThanOrEqual(650);
+    expect(shotOf({ x: 1190, y: 200, width: 420, height: 600 }, page, phone)).toEqual({ x: 0, y: 0, width: page.width });
     expect(shotOf(null, page, phone)).toEqual({ x: 0, y: 0, width: page.width });
   });
 

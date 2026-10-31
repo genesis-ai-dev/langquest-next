@@ -63,12 +63,14 @@ export const lookAroundWithoutAnAccount: Tutorial = {
     },
     {
       screen: 'explore_home',
-      part: (page) => [words(page, 'All rights reserved · Only your organization'), words(page, 'CC BY 4.0 · Any use, with credit')],
+      // One card's: both together would take in the card between them.
+      part: (page) => words(page, 'All rights reserved · Only your organization'),
       say: 'It says how its organization lets others use the recordings.'
     },
     {
       screen: 'explore_home',
-      part: (page) => card(page, 'C').getByText(/\d+%$/).last(),
+      // The bar over the share recorded (its words are the card's, and would light the whole card).
+      part: (page) => card(page, 'C').getByText(/\d+%$/).last().locator('xpath=../preceding-sibling::*[1]'),
       say: 'And how much of it is recorded.'
     },
     {
