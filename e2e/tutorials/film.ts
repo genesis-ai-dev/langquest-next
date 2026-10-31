@@ -91,26 +91,29 @@ function voiceLines(all: string[]): Map<string, { file: string; seconds: number 
 /**
  * Light some elements as one box and dim the rest, as help mode does; null
  * takes the light away. The box follows the elements while they move (a bar
- * that comes and goes over the screen pushes everything down). An element
- * inside a card that draws its own edge (a lit step's border) is lit with its
- * card, so the light never cuts through the card's edge and leaves a line of
- * it dimmed outside (Caleb found one on 2026-10-30).
+ * that comes and goes over the screen pushes everything down).
  *
- * Words, an icon or a field that a script lights is lit with the button or
- * card drawn around it (not a bar or a sheet that reaches the screen's edge,
- * nor a box bigger than a sixth of the screen), so the ring goes around the
- * button, not through it. And the ring never crosses what sits beside it
- * (decisions.md 191): words, an icon, a field or a box's edge that the ring
- * would touch is taken into the box when it is small (a field's label above
- * it, a card's second line below), or when the ring has no room between the
- * two (a link at the end of a sentence takes in the sentence); otherwise the
- * ring moves in, onto the lit part's own edge, so it stops short of it.
- * Gemini's frame check found the ring across such words in nearly every film
- * of the first zoomed night.
+ * Where the ring goes (decisions.md 191): around the button or card the lit
+ * part is in (the nearest one tapped as one, or drawn with an edge or a fill
+ * of its own, up to a third of the screen), or failing that around each box
+ * around it in turn, the first it fits without crossing anything. On each
+ * side the ring stands 6 points off where it can; where that would cross
+ * words, an icon or an edge, it stands nearer or further, or right on an edge
+ * so the edge is hidden under it (a row inside a card, a field's own border,
+ * a tab at the foot of the screen). An edge just outside or just inside the
+ * ring would show as a second line beside it, so the ring moves on or off it.
+ * A box drawn round the button or card and little bigger, or as tall and not
+ * much wider (a field's box round the field and its icon, a row's card round
+ * the row and its handle), is lit with it.
+ * Gemini's frame check held nearly every film of 2026-10-31 for a ring
+ * through a card, the words beside it, or a tab's name.
  */
 function light(els: Node[] | null): void {
   type Side = { l: number; t: number; r: number; b: number };
-  const w = window as unknown as { __lit?: Node[]; __litLoop?: boolean; __clear?: { key: string; at: number; grow: Side; room: Side; rows: [number, number][] } };
+  /** Something a viewer sees: a line of words or an icon (edge null), or an edge across (h) or up and down (v) of `box`. */
+  type Thing = Side & { edge: 'h' | 'v' | null; box?: Side };
+  type Clear = { key: string; at: number; off: Side; rows: [number, number][] };
+  const w = window as unknown as { __lit?: Node[]; __litLoop?: boolean; __clear?: Clear };
   let el = document.getElementById('tutorial-light');
   w.__lit = els ?? [];
   w.__clear = undefined;
@@ -129,18 +132,25 @@ function light(els: Node[] | null): void {
     document.body.appendChild(el);
   }
   const box = el;
-  // The ring is 7 points wide outside the box; the box stands 6 points off the lit part where there is room,
-  // takes in at most 48 points more on a side (200 when the ring has no room at all), and moves in at most 8
-  // points onto the part's own edge, never onto its words.
+  // The ring is 7 points wide outside the box. The box stands 6 points off the lit part where it can, at most 16, and
+  // at most 7 in on the part (the ring then lies on the part's own edge). A line nearer than 8 points beside the ring
+  // reads as a second edge.
   const RING = 7;
   const PAD = 6;
-  const MORE = 48;
-  const MOST = 200;
-  const IN = 8;
+  const OFF = 16;
+  const NEAR = 8;
+  const SIDES = ['l', 't', 'r', 'b'] as const;
+  const screen = innerWidth * innerHeight;
   const clear = /^(transparent|rgba\(.*,\s*0\))$/;
   const of = (d: DOMRect): Side => ({ l: d.left, t: d.top, r: d.right, b: d.bottom });
-  const edged = (s: CSSStyleDeclaration) => ['top', 'right', 'bottom', 'left'].some((side) =>
-    parseFloat(s.getPropertyValue(`border-${side}-width`)) > 0 && !clear.test(s.getPropertyValue(`border-${side}-color`)));
+  const area = (o: Side) => Math.max(0, o.r - o.l) * Math.max(0, o.b - o.t);
+  const cut = (x: Side, y: Side): Side => ({ l: Math.max(x.l, y.l), t: Math.max(x.t, y.t), r: Math.min(x.r, y.r), b: Math.min(x.b, y.b) });
+  const meets = (x: Side, y: Side) => x.l < y.r && x.r > y.l && x.t < y.b && x.b > y.t;
+  const join = (all: Side[]): Side => ({ l: Math.min(...all.map((o) => o.l)), t: Math.min(...all.map((o) => o.t)), r: Math.max(...all.map((o) => o.r)), b: Math.max(...all.map((o) => o.b)) });
+  const edged = (s: CSSStyleDeclaration) => SIDES.some((k) => {
+    const side = { l: 'left', t: 'top', r: 'right', b: 'bottom' }[k];
+    return parseFloat(s.getPropertyValue(`border-${side}-width`)) > 0 && !clear.test(s.getPropertyValue(`border-${side}-color`));
+  });
   const fillUnder = (e: Element | null): string => {
     for (let a = e; a; a = a.parentElement) {
       const c = getComputedStyle(a).backgroundColor;
@@ -151,155 +161,223 @@ function light(els: Node[] | null): void {
   /** A box a viewer sees: an edge, a shadow, or a fill other than what is behind it. */
   const drawn = (e: Element, s: CSSStyleDeclaration) =>
     edged(s) || s.boxShadow !== 'none' || (!clear.test(s.backgroundColor) && s.backgroundColor !== fillUnder(e.parentElement));
-  const atEdge = (o: Side) => o.l <= 0.5 || o.t <= 0.5 || o.r >= innerWidth - 0.5 || o.b >= innerHeight - 0.5;
-  const big = (o: Side) => (o.r - o.l) * (o.b - o.t) > (innerWidth * innerHeight) / 6;
-  /**
-   * The element's box, or the button or card drawn around it: the nearest drawn box (itself or around it) that is
-   * no bigger than a sixth of the screen and does not reach its edge, then each drawn box around that one at most 24
-   * points bigger on a side.
-   */
-  const withCard = (e: Element): Side => {
-    let r = of(e.getBoundingClientRect());
-    let found = drawn(e, getComputedStyle(e));
-    for (let a = e.parentElement; a && a !== document.body; a = a.parentElement) {
-      const o = of(a.getBoundingClientRect());
-      if (atEdge(o) || big(o)) break;
-      if (found && (o.l < r.l - 24 || o.t < r.t - 24 || o.r > r.r + 24 || o.b > r.b + 24)) break;
-      if (drawn(a, getComputedStyle(a))) {
-        r = o;
-        found = true;
-      }
-    }
-    return r;
-  };
-  const lit = () => (w.__lit ?? []).filter((e) => e.isConnected);
   const control = (a: Element) => ['button', 'a', 'input', 'select', 'textarea'].includes(a.tagName.toLowerCase()) ||
     ['button', 'link', 'tab', 'checkbox', 'radio', 'switch', 'menuitem', 'option'].includes(a.getAttribute('role') ?? '') ||
     (a.getAttribute('tabindex') ?? '-1') !== '-1';
-  /** Inside a button, row or card of its own (one that is not around the lit part). */
-  const elsewhere = (e: Element): boolean => {
-    const parts = lit();
-    for (let a: Element | null = e; a && !parts.some((p) => a!.contains(p)); a = a.parentElement) {
-      if (parts.some((p) => p.contains(a))) return false;
-      if (control(a) || drawn(a, getComputedStyle(a))) return true;
-    }
-    return false;
-  };
-  /**
-   * What a viewer sees as a thing on the screen: words, a field, a picture or icon, or a drawn box (not one as big as
-   * half the screen), not under something else. A thing apart is a box of its own, or what is in one (the next row,
-   * another card, a button beside the lit one); the rest labels or belongs to the lit part (a field's label, a line
-   * under a heading, the start of the sentence a link ends).
-   */
-  const things = (): (Side & { box: boolean; apart: boolean })[] => {
-    const out: (Side & { box: boolean; apart: boolean })[] = [];
-    for (const e of document.body.querySelectorAll('*')) {
-      if (e.id.startsWith('tutorial-') || (e instanceof SVGElement && e.tagName.toLowerCase() !== 'svg')) continue;
-      const d = e.getBoundingClientRect();
-      if (d.width < 1 || d.height < 1 || d.right <= 0 || d.bottom <= 0 || d.left >= innerWidth || d.top >= innerHeight) continue;
-      const tag = e.tagName.toLowerCase();
-      const s = getComputedStyle(e);
-      if (s.visibility !== 'visible' || parseFloat(s.opacity) < 0.05) continue;
-      const words = [...e.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim() !== '');
-      const small = words || ['input', 'textarea', 'img', 'svg', 'canvas', 'video'].includes(tag);
-      const box = !small && d.width * d.height < 0.5 * innerWidth * innerHeight && drawn(e, s);
-      if (!small && !box) continue;
-      const hit = document.elementFromPoint(Math.min(Math.max(d.left + d.width / 2, 0), innerWidth - 1), Math.min(Math.max(d.top + d.height / 2, 0), innerHeight - 1));
-      if (!hit || !(e.contains(hit) || hit.contains(e))) continue;
-      out.push({ ...of(d), box, apart: box || elsewhere(e) });
+  const lit = () => (w.__lit ?? []).filter((e): e is Element => e.isConnected && e instanceof Element);
+
+  /** The boxes to try the ring around, smallest first: the button or card each lit part is in, then each box around them. */
+  const tries = (parts: Element[]): Side[] => {
+    const own = parts.map((e) => {
+      let found: Element | undefined;
+      for (let a: Element | null = e; a && a !== document.body; a = a.parentElement) {
+        const o = of(a.getBoundingClientRect());
+        if (area(o) > screen / 3) break;
+        if (found) {
+          // A box drawn round it that is little bigger, or as tall and not much wider (a field's box round the field
+          // and its icon, a row's card round the row and its handle), is lit with it.
+          const f = of(found.getBoundingClientRect());
+          const tall = o.t >= f.t - 24 && o.b <= f.b + 24;
+          if (!(tall && ((o.l >= f.l - 24 && o.r <= f.r + 24) || f.r - f.l >= 0.6 * (o.r - o.l)))) break;
+          if (drawn(a, getComputedStyle(a))) found = a;
+        } else if (control(a) || drawn(a, getComputedStyle(a))) found = a;
+      }
+      return found ?? e;
+    });
+    const out = [join(own.map((e) => of(e.getBoundingClientRect())))];
+    // Each part's box one level out, together (two rows of a list: the rows' cards, then the list), and so on out.
+    for (let level = own; ;) {
+      level = [...new Set(level.map((e) => e.parentElement!))];
+      if (level.some((e) => !e || e === document.body)) break;
+      const o = join([...level.map((e) => of(e.getBoundingClientRect())), out[0]!]);
+      if (area(o) > screen / 2) break;
+      const last = out.at(-1)!;
+      if (SIDES.some((k) => Math.abs(o[k] - last[k]) >= 1)) out.push(o);
     }
     return out;
   };
+
   /**
-   * How far the box grows past the lit part on each side to take in what the ring would touch, and the room left on
-   * each side for the ring; and where on the screen something shows, top to bottom (the camera never films an empty
-   * screen: camera.ts).
+   * What a viewer sees on the screen, cut where a box around it hides what overflows: each line of words, each icon,
+   * picture and field's words, and each edge of a drawn box (not one half the screen or bigger); and where on the
+   * screen something shows, top to bottom (the camera never films an empty screen: camera.ts).
    */
-  const clearance = (u0: Side): { grow: Side; room: Side; rows: [number, number][] } => {
-    const all = things();
+  const look = (): { things: Thing[]; rows: [number, number][] } => {
+    const things: Thing[] = [];
+    const filled: Side[] = [];
+    const clips = new Map<Element, Side>();
+    const whole = { l: 0, t: 0, r: innerWidth, b: innerHeight };
+    const clipOf = (e: Element | null): Side => {
+      if (!e || e === document.body) return whole;
+      let c = clips.get(e);
+      if (!c) {
+        c = clipOf(e.parentElement);
+        const s = getComputedStyle(e);
+        if (s.overflowX !== 'visible' || s.overflowY !== 'visible') {
+          const o = of(e.getBoundingClientRect());
+          c = cut(c, { l: s.overflowX !== 'visible' ? o.l : -Infinity, t: s.overflowY !== 'visible' ? o.t : -Infinity, r: s.overflowX !== 'visible' ? o.r : Infinity, b: s.overflowY !== 'visible' ? o.b : Infinity });
+        }
+        clips.set(e, c);
+      }
+      return c;
+    };
+    const ours = (e: Element) => !!e.closest('[id^="tutorial-"]');
+    const showing = (s: CSSStyleDeclaration) => s.visibility === 'visible' && parseFloat(s.opacity) >= 0.05;
+    /** Not under something else: what is at the point is the element, or in it. */
+    const seen = (e: Element, x: number, y: number) => {
+      const hit = document.elementFromPoint(Math.min(Math.max(x, 0), innerWidth - 1), Math.min(Math.max(y, 0), innerHeight - 1));
+      return !!hit && (e.contains(hit) || hit.contains(e));
+    };
+    /** Adds what shows of `d` inside `clip`; a line of words or an icon only where it is not under something else. */
+    const add = (e: Element, clip: Side, d: Side, edge: Thing['edge'], box?: Side) => {
+      const s = cut(d, clip);
+      if (s.r - s.l < 0.5 || s.b - s.t < 0.5) return;
+      if (!edge && !seen(e, (s.l + s.r) / 2, (s.t + s.b) / 2)) return;
+      things.push({ ...s, edge, box });
+    };
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const range = document.createRange();
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const e = n.parentElement;
+      if (!e || !(n.textContent ?? '').trim() || ours(e) || !showing(getComputedStyle(e))) continue;
+      range.selectNodeContents(n);
+      for (const d of range.getClientRects()) if (d.width >= 1 && d.height >= 1) add(e, clipOf(e), of(d), null);
+    }
+    for (const e of document.body.querySelectorAll('*')) {
+      if (ours(e) || (e instanceof SVGElement && e.tagName.toLowerCase() !== 'svg')) continue;
+      const d = of(e.getBoundingClientRect());
+      if (d.r - d.l < 1 || d.b - d.t < 1 || d.r <= 0 || d.b <= 0 || d.l >= innerWidth || d.t >= innerHeight) continue;
+      const tag = e.tagName.toLowerCase();
+      const s = getComputedStyle(e);
+      if (!showing(s)) continue;
+      const clip = clipOf(e.parentElement);
+      if (['svg', 'img', 'canvas', 'video'].includes(tag)) {
+        add(e, clip, d, null);
+        continue;
+      }
+      if (tag === 'input' || tag === 'textarea') {
+        const px = (p: string) => parseFloat(s.getPropertyValue(p)) || 0;
+        if ((e as HTMLInputElement).value || (e as HTMLInputElement).placeholder) {
+          add(e, clip, { l: d.l + px('padding-left') + px('border-left-width'), t: d.t + px('padding-top') + px('border-top-width'), r: d.r - px('padding-right') - px('border-right-width'), b: d.b - px('padding-bottom') - px('border-bottom-width') }, null);
+        }
+      }
+      if (area(d) >= screen / 2 || d.r - d.l < 4 || d.b - d.t < 4 || !drawn(e, s)) continue;
+      filled.push(d);
+      // Each edge that shows (a point just inside it is the box or in it): a side with a border, as thick as it, or
+      // every side of a box with a fill or a shadow of its own, one point thick.
+      const solid = s.boxShadow !== 'none' || (!clear.test(s.backgroundColor) && s.backgroundColor !== fillUnder(e.parentElement));
+      const width = (side: string) => {
+        const bw = parseFloat(s.getPropertyValue(`border-${side}-width`)) || 0;
+        return bw > 0 && !clear.test(s.getPropertyValue(`border-${side}-color`)) ? Math.max(bw, 1) : solid ? 1 : 0;
+      };
+      const [mx, my] = [(d.l + d.r) / 2, (d.t + d.b) / 2];
+      const [wt, wb, wl, wr] = [width('top'), width('bottom'), width('left'), width('right')];
+      if (wt && seen(e, mx, d.t + 1.5)) add(e, clip, { l: d.l, t: d.t, r: d.r, b: d.t + wt }, 'h', d);
+      if (wb && seen(e, mx, d.b - 1.5)) add(e, clip, { l: d.l, t: d.b - wb, r: d.r, b: d.b }, 'h', d);
+      if (wl && seen(e, d.l + 1.5, my)) add(e, clip, { l: d.l, t: d.t, r: d.l + wl, b: d.b }, 'v', d);
+      if (wr && seen(e, d.r - 1.5, my)) add(e, clip, { l: d.r - wr, t: d.t, r: d.r, b: d.b }, 'v', d);
+    }
     const rows: [number, number][] = [];
-    for (const r of [...all].sort((a, b) => a.t - b.t)) {
+    for (const r of [...things.filter((t) => !t.edge), ...filled].sort((a, b) => a.t - b.t)) {
       const [t, b] = [Math.round(Math.max(r.t, 0)), Math.round(Math.min(r.b, innerHeight))];
+      if (b <= t) continue;
       const last = rows.at(-1);
       if (last && t <= last[1] + 4) last[1] = Math.max(last[1], b);
       else rows.push([t, b]);
     }
-    const meets = (x: Side, y: Side) => x.l < y.r && x.r > y.l && x.t < y.b && x.b > y.t;
-    const within = (x: Side, y: Side) => x.l >= y.l - 1 && x.t >= y.t - 1 && x.r <= y.r + 1 && x.b <= y.b + 1;
-    const join = (x: Side, y: Side) => ({ l: Math.min(x.l, y.l), t: Math.min(x.t, y.t), r: Math.max(x.r, y.r), b: Math.max(x.b, y.b) });
-    const past = (g: Side) => Math.max(u0.l - g.l, u0.t - g.t, g.r - u0.r, g.b - u0.b);
-    /** Each side's gap to a thing left out beside it (Infinity when it is not beside that side). */
-    const gaps = (r: Side, u: Side): Side => {
-      const across = r.t < u.b && r.b > u.t;
-      const along = r.l < u.r && r.r > u.l;
-      return {
-        l: across && r.r <= u.l + 1 ? u.l - r.r : Infinity,
-        r: across && r.l >= u.r - 1 ? r.l - u.r : Infinity,
-        t: along && r.b <= u.t + 1 ? u.t - r.b : Infinity,
-        b: along && r.t >= u.b - 1 ? r.t - u.b : Infinity
-      };
-    };
-    /** How far the ring may move in on each side before it meets the part's own words and icons (a box's own edge it may cover). */
-    const inset = (u: Side): Side => {
-      const own = all.filter((r) => within(r, u) && !(r.box && within(u, r)));
-      const side = (f: (r: Side) => number) => Math.min(IN, ...own.map(f));
-      return { l: side((r) => r.l - u.l), t: side((r) => r.t - u.t), r: side((r) => u.r - r.r), b: side((r) => u.b - r.b) };
-    };
-    let u = { ...u0 };
-    let left: (Side & { box: boolean; apart: boolean })[] = [];
-    for (let round = 0; round < 8; round++) {
-      const reach = PAD + RING;
-      const band = { l: u.l - reach, t: u.t - reach, r: u.r + reach, b: u.b + reach };
-      let grew = false;
-      left = [];
-      for (const r of all) {
-        if (!meets(r, band) || within(r, u) || within(u, r)) continue;
-        const g = join(u, r);
-        // A thing apart beside the lit part (the next row, another card) stays out; one that spills out of it comes in.
-        if (past(g) > MORE || (r.apart && !meets(r, u))) left.push(r);
-        else {
-          u = g;
-          grew = true;
-        }
-      }
-      if (!grew) {
-        // A thing so close that the ring cannot pass between it and the part's own words is taken in too.
-        const room = inset(u);
-        const tight = left.find((r) => {
-          if (r.apart) return false;
-          const gap = gaps(r, u);
-          return (['l', 't', 'r', 'b'] as const).some((k) => RING + 1 - gap[k] > Math.max(room[k], 0)) && past(join(u, r)) <= MOST;
-        });
-        if (tight) {
-          u = join(u, tight);
-          grew = true;
-        }
-      }
-      if (!grew) break;
-    }
-    const most = inset(u);
-    const room = { l: PAD, t: PAD, r: PAD, b: PAD };
-    for (const r of left) {
-      const gap = gaps(r, u);
-      for (const k of ['l', 't', 'r', 'b'] as const) room[k] = Math.min(room[k], gap[k] - RING - 1);
-    }
-    for (const k of ['l', 't', 'r', 'b'] as const) room[k] = Math.floor(Math.max(room[k], -Math.max(most[k], 0)));
-    return { grow: { l: u0.l - u.l, t: u0.t - u.t, r: u.r - u0.r, b: u.b - u0.b }, room, rows };
+    return { things, rows };
   };
+
+  /**
+   * The ring around `c`, as how far it stands off each side (in on the part when below 0), and what it would cross on
+   * each side: `bad` counts words, icons and edges it crosses, and edges left just beside it; `worse` a side off the
+   * screen.
+   */
+  const fit = (c: Side, things: Thing[]): { off: Side; bad: number; worse: number } => {
+    const reach = OFF + RING + NEAR;
+    const near = things.filter((t) => meets(t, { l: c.l - reach, t: c.t - reach, r: c.r + reach, b: c.b + reach }));
+    const off: Side = { l: PAD, t: PAD, r: PAD, b: PAD };
+    const judge = (k: (typeof SIDES)[number]): [number, number] => {
+      const i = { l: c.l - off.l, t: c.t - off.t, r: c.r + off.r, b: c.b + off.b };
+      const o = { l: i.l - RING, t: i.t - RING, r: i.r + RING, b: i.b + RING };
+      const band = { l: { ...o, r: i.l }, t: { ...o, b: i.t }, r: { ...o, l: i.r }, b: { ...o, t: i.b } }[k];
+      const across = k === 't' || k === 'b';
+      let bad = 0;
+      for (const t of near) {
+        if (!t.edge) {
+          if (meets(t, band)) bad++;
+          continue;
+        }
+        if ((t.edge === 'h') === across) {
+          // An edge along this side: under the ring, or clear of it.
+          const [lo, hi, bLo, bHi] = across ? [t.t, t.b, band.t, band.b] : [t.l, t.r, band.l, band.r];
+          const along = across ? Math.min(t.r, band.r) - Math.max(t.l, band.l) : Math.min(t.b, band.b) - Math.max(t.t, band.t);
+          if (along <= 2) continue;
+          // Hidden under the ring: only the lit part's own edge (or the line it shares with the row beside it), or the
+          // edge of a box the ring goes into (its card's), not that of a box apart beside it, lost into the ring.
+          const own = Math.min(Math.abs(lo - c[k]), Math.abs(hi - c[k])) <= 2;
+          const into = !!t.box && Math.min(t.box.r, i.r) - Math.max(t.box.l, i.l) >= 4 && Math.min(t.box.b, i.b) - Math.max(t.box.t, i.t) >= 4;
+          if ((own || into) && lo >= bLo - 0.5 && hi <= bHi + 0.5) continue;
+          if (hi > bLo && lo < bHi) { bad++; continue; }
+          // Beside the ring: outside it (the band's outer edge), or just inside (its inner edge).
+          const [outer, inner] = { l: [band.l, band.r], t: [band.t, band.b], r: [band.r, band.l], b: [band.b, band.t] }[k] as [number, number];
+          const outward = k === 'l' || k === 't' ? -1 : 1;
+          const gapOut = outward < 0 ? outer - hi : lo - outer;
+          const gapIn = outward < 0 ? lo - inner : inner - hi;
+          if ((gapOut >= 0 && gapOut < NEAR) || (gapIn >= 0 && gapIn < 3)) bad++;
+        } else {
+          // An edge across this side goes through the ring, unless it stops under it (a line ending at a card's edge).
+          if (across ? t.l <= i.l || t.r >= i.r : t.t <= i.t || t.b >= i.b) continue;
+          const [lo, hi, bLo, bHi] = across ? [t.t, t.b, band.t, band.b] : [t.l, t.r, band.l, band.r];
+          if (lo < bLo && hi > bHi) bad++;
+        }
+      }
+      const outside = (k === 'l' && o.l < 0) || (k === 't' && o.t < 0) || (k === 'r' && o.r > innerWidth) || (k === 'b' && o.b > innerHeight);
+      return [bad, outside ? 2 : 0];
+    };
+    // Each side in turn takes the place where the ring as a whole crosses least (where one side stands decides whether
+    // an edge goes through another), nearest 6 points off; three times round.
+    const total = (): [number, number] => SIDES.map((k) => judge(k)).reduce(([a, b], [x, y]) => [a + x, b + y], [0, 0]);
+    for (let round = 0; round < 3; round++) {
+      for (const k of SIDES) {
+        let best = { v: off[k], s: [Infinity, Infinity, Infinity] };
+        for (let v = -RING; v <= OFF; v++) {
+          off[k] = v;
+          const [bad, worse] = total();
+          // Nearest 6 points off, rather in (onto the part's own edge) than far out.
+          const s = [bad, worse, v <= PAD ? PAD - v : 2 * (v - PAD) + 0.5];
+          if (s[0]! < best.s[0]! || (s[0] === best.s[0] && (s[1]! < best.s[1]! || (s[1] === best.s[1] && s[2]! < best.s[2]!)))) best = { v, s };
+        }
+        off[k] = best.v;
+      }
+    }
+    const judged = SIDES.map((k) => judge(k));
+    return { off, bad: judged.reduce((n, [b]) => n + b, 0), worse: judged.reduce((n, [, x]) => n + x, 0) };
+  };
+
   const place = () => {
-    const shown = lit().map((e) => withCard(e as Element)).filter((r) => r.r - r.l > 0);
-    if (!shown.length) return;
-    const u0 = { l: Math.min(...shown.map((r) => r.l)), t: Math.min(...shown.map((r) => r.t)), r: Math.max(...shown.map((r) => r.r)), b: Math.max(...shown.map((r) => r.b)) };
+    const parts = lit();
+    if (!parts.length) return;
+    const all = tries(parts);
+    const first = all[0]!;
+    if (first.r - first.l <= 0) return;
     // What is around the part is looked at again when the part moves, and every quarter second.
-    const key = [u0.l, u0.t, u0.r, u0.b].map(Math.round).join(',');
-    if (!w.__clear || w.__clear.key !== key || performance.now() - w.__clear.at > 250) w.__clear = { key, at: performance.now(), ...clearance(u0) };
-    const { grow, room } = w.__clear;
-    // The ring stays on the screen.
-    const x = Math.max(RING + 1, u0.l - grow.l - room.l);
-    const y = Math.max(RING + 1, u0.t - grow.t - room.t);
-    const right = Math.min(innerWidth - RING - 1, u0.r + grow.r + room.r);
-    const bottom = Math.min(innerHeight - RING - 1, u0.b + grow.b + room.b);
-    const at = { left: `${x}px`, top: `${y}px`, width: `${Math.max(right - x, 0)}px`, height: `${Math.max(bottom - y, 0)}px` };
+    const key = SIDES.map((k) => Math.round(first[k])).join(',');
+    if (!w.__clear || w.__clear.key !== key || performance.now() - w.__clear.at > 250) {
+      const { things, rows } = look();
+      // The first box the ring fits around without crossing anything; failing that, the one where it crosses least.
+      let chosen: { c: Side; off: Side; bad: number; worse: number } | undefined;
+      for (const c of all) {
+        const f = { c, ...fit(c, things) };
+        if (!chosen || f.bad < chosen.bad || (f.bad === chosen.bad && f.worse < chosen.worse)) chosen = f;
+        if (!f.bad) break;
+      }
+      const { c, off } = chosen!;
+      // Kept as how far the ring stands off the first box tried, so it follows the part as it moves until looked at again.
+      w.__clear = { key, at: performance.now(), rows, off: { l: first.l - (c.l - off.l), t: first.t - (c.t - off.t), r: c.r + off.r - first.r, b: c.b + off.b - first.b } };
+    }
+    const { off } = w.__clear;
+    const at = { left: `${first.l - off.l}px`, top: `${first.t - off.t}px`, width: `${Math.max(first.r - first.l + off.l + off.r, 0)}px`, height: `${Math.max(first.b - first.t + off.t + off.b, 0)}px` };
     if (box.style.left !== at.left || box.style.top !== at.top || box.style.width !== at.width || box.style.height !== at.height) Object.assign(box.style, at);
   };
   place();
@@ -458,6 +536,16 @@ await page.addInitScript((lang) => {
   const listed = synth.getVoices.bind(synth);
   synth.getVoices = () => { const voices = listed(); return voices.length ? voices : [voice]; };
 }, LANGUAGE);
+// A phone draws no browser focus outline round the field being typed in (the frame check found one in two films).
+await page.addInitScript(() => {
+  const add = () => {
+    const style = document.createElement('style');
+    style.textContent = 'input:focus, textarea:focus, input:focus-visible, textarea:focus-visible { outline: none !important; }';
+    document.head.appendChild(style);
+  };
+  if (document.head) add();
+  else document.addEventListener('DOMContentLoaded', add);
+});
 // The language picked in this browser (apps/mobile/src/i18n/choice.web.ts), until the video picks another.
 if (LANGUAGE !== 'en') await page.addInitScript((code) => { if (localStorage.getItem('ui-language:v1') === null) localStorage.setItem('ui-language:v1', code); }, LANGUAGE);
 // The scripts' English is looked for in the app's language.

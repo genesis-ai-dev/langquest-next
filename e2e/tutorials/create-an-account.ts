@@ -75,7 +75,8 @@ export const createAnAccount: Tutorial = {
     },
     {
       screen: 'intent_chooser',
-      part: (page) => page.getByText('Join your team', { exact: true }).locator('visible=true').first(),
+      // The ways on: with their invite, or a new organization.
+      part: (page) => [button(page, /^Scan their code/), button(page, /^Start a new one/)],
       say: "You're in. Now join your team with their invite, or start a new organization.",
       stay: 2
     }

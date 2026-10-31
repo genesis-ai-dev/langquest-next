@@ -1,10 +1,10 @@
 // Where a tutorial video's camera looks (compose.ts). A phone's screen fills a
 // quarter of the page, so its words are small: the camera moves in on the part
 // each step lights, as far as the part lets it (ZOOM_MOST at most), and back
-// out to the whole page where a step lights nothing, at the start with the
-// title, and at the end. It holds still where it can: a part that already
-// shows in the shot is not chased, and a shot that would last under a second
-// is left out. It never films an empty screen: a part with nothing around it
+// out to the whole page where a step lights nothing, at the start, and at the
+// end, with the title beside the phone whenever it is out (titleShows). It
+// holds still where it can: a part that already shows in the shot is not
+// chased, and a shot that would last under a second is left out. It never films an empty screen: a part with nothing around it
 // (a tab under a short page, a button at the foot of an empty one) is shown
 // from further out, with what is on the screen above it.
 import type { Box } from './tutorial';
@@ -109,6 +109,23 @@ export function cameraPath(focus: Focus[], end: number, page: Size, screen: Box)
   }
   if (!same(at, whole)) moves.push({ at: Math.max(end - CLOSE, free), for: MOVE, to: whole });
   return moves;
+}
+
+/**
+ * When the title beside the phone shows (compose.ts): whenever the camera is out on the whole page, so a whole shot
+ * in the middle of a video (a step that lights nothing, a part at the foot of an empty screen) has its title, not an
+ * empty page beside the phone. Each stretch fades in as the camera goes out (`from`, over `in` seconds; the first
+ * stretch shows from the start) and out as it next goes in (`to`, over half a second; null at the end).
+ */
+export function titleShows(moves: Move[], page: Size): { from: number; in: number; to: number | null }[] {
+  const out = (v: View) => v.width >= page.width - 1;
+  const shown: { from: number; in: number; to: number | null }[] = [{ from: 0, in: 0, to: null }];
+  for (const m of moves) {
+    const last = shown.at(-1)!;
+    if (out(m.to) && last.to !== null) shown.push({ from: m.at, in: m.for, to: null });
+    else if (!out(m.to) && last.to === null) last.to = m.at;
+  }
+  return shown;
 }
 
 const n = (v: number) => (Math.round(v * 1000) / 1000).toString();

@@ -55,7 +55,9 @@ export const inviteYourTeam: Tutorial = {
     },
     {
       screen: 'invite_member',
-      part: (page) => [words(page, 'Ask them to scan this'), page.locator('svg').locator('visible=true').first()],
+      // The code's whole card, its title too, by the words under the code (the first picture on the screen is
+      // the back arrow): the words, then the code with its words, then the card.
+      part: (page) => words(page, 'Ask them to scan this').locator('../..'),
       say: 'Ask them to scan this code with their phone. One code works for your whole group, and nobody needs a password.'
     },
     {
@@ -65,7 +67,9 @@ export const inviteYourTeam: Tutorial = {
     },
     {
       screen: 'invite_member',
-      part: (page) => [words(page, 'By email'), words(page, 'One person, by name')],
+      // The other ways together: one person's is under the two beside each other, so a ring round it and By email
+      // alone would cross Share as a link.
+      part: (page) => [words(page, 'Share as a link'), words(page, 'One person, by name')],
       say: 'You can also invite someone by email, or one person by name.'
     },
     {

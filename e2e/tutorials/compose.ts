@@ -16,7 +16,7 @@ import { chromium } from 'playwright';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { cameraPath, CLOSE, viewExpression, type Focus } from './camera';
+import { cameraPath, titleShows, viewExpression, type Focus } from './camera';
 
 type Film = {
   title: string;
@@ -119,7 +119,7 @@ await tab.locator('#title').evaluate((el, title) => {
 }, film.title);
 await tab.evaluate(() => document.fonts.ready);
 // A camera that moves in fades the title (and the app's mark) out as it goes, so the ends of its words never show at
-// the edge of a close shot, and back in as it goes out at the end: the title is a picture of its own over the page.
+// the edge of a close shot, and back in whenever it goes out: the title is a picture of its own over the page.
 const heading = tab.locator(WIDE ? '#title' : '.side');
 const title = K > 1 ? await heading.evaluate((el) => {
   const boxes = (el.id === 'title' ? [el] : [...el.children]).map((c) => c.getBoundingClientRect());
@@ -186,14 +186,16 @@ for (const [j, h] of (film.heard ?? []).entries()) {
 // a frame for each frame it is given.
 const view = (side: 'x' | 'y' | 'width') => viewExpression(moves, side, { width: W, height: H });
 const camera = K > 1 ? `,zoompan=z='${W}/(${view('width')})':x='${K}*(${view('x')})':y='${K}*(${view('y')})':d=1:s=${OUT.width}x${OUT.height}:fps=30` : '';
-// The title goes as the camera first moves in and comes back as it goes out at the end (not as it steps back to the
-// whole page before then). Each overlay is off while its title is not seen, so it costs nothing then.
-const [first, last] = [moves[0], moves.at(-1)];
-const back = last && Math.max(last.at, end - CLOSE);
-const titled = title && first && last && back
-  ? `[3:v]split[ta][tb];[ta]fade=t=out:st=${first.at.toFixed(2)}:d=0.5:alpha=1[tout];[tb]fade=t=in:st=${back.toFixed(2)}:d=${last.for.toFixed(2)}:alpha=1[tin];` +
-    `[1:v][tout]overlay=${K * title.x}:${K * title.y}:enable='lte(t,${(first.at + 0.5).toFixed(2)})'[pt];` +
-    `[pt][tin]overlay=${K * title.x}:${K * title.y}:enable='gte(t,${back.toFixed(2)})'[page];`
+// The title goes as the camera moves in and comes back whenever it goes out to the whole page (titleShows), so a
+// whole shot in the middle has its title too, not an empty page beside the phone (the frame check found three).
+// Each stretch is an overlay of its own, off while it is not seen, so it costs nothing then.
+const shows = titleShows(moves, { width: W, height: H });
+const titled = title && moves.length
+  ? `[3:v]split=${shows.length}${shows.map((_, i) => `[t${i}]`).join('')};` + shows.map((w, i) => {
+    const fades = [w.from > 0 ? `fade=t=in:st=${w.from.toFixed(2)}:d=${w.in.toFixed(2)}:alpha=1` : '', w.to !== null ? `fade=t=out:st=${w.to.toFixed(2)}:d=0.5:alpha=1` : ''].filter(Boolean);
+    const on = w.to === null ? `gte(t,${w.from.toFixed(2)})` : `between(t,${w.from.toFixed(2)},${(w.to + 0.5).toFixed(2)})`;
+    return `[t${i}]${fades.join(',') || 'null'}[f${i}];[${i ? `p${i - 1}` : '1:v'}][f${i}]overlay=${K * title.x}:${K * title.y}:enable='${on}'[${i === shows.length - 1 ? 'page' : `p${i}`}];`;
+  }).join('')
   : '';
 const video = `${titled}[0:v]fps=30,scale=${K * SW}:${K * SH}:flags=lanczos,format=yuva420p[s];[s][2:v]alphamerge[sm];` +
   `[${titled ? 'page' : '1:v'}][sm]overlay=${K * SX}:${K * SY}:shortest=1:format=yuv420${camera},format=yuv420p[v]`;
