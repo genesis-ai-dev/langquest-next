@@ -219,10 +219,26 @@ describe('the Bible routes', () => {
     const res = await call('/api/bible/bibles?lang=eng');
     expect(res.body.bibles).toEqual([
       { bibleId: 'ENGESV', name: 'English Standard Version®', abbreviation: 'ESV', language: 'eng', languageName: 'English',
-        text: { OT: 'ENGESVO_ET', NT: 'ENGESVN_ET' }, audio: { OT: 'ENGESVO1DA', NT: 'ENGESVN1DA' }, timestamps: { OT: true, NT: false } },
+        text: { OT: 'ENGESVO_ET', NT: 'ENGESVN_ET' }, audio: { OT: 'ENGESVO1DA', NT: 'ENGESVN1DA' }, timestamps: { OT: true, NT: false }, numbering: 'eng' },
       { bibleId: 'ENGWEB', name: 'World English Bible', abbreviation: 'WEB', language: 'eng', languageName: 'English',
         text: { OT: 'ENGWEBO_ET', NT: 'ENGWEBN_ET' }, audio: { NT: 'ENGWEBN2DA' }, timestamps: { OT: false, NT: true } }
     ]);
+  });
+
+  it('finds Bibles by name, language or id with the numbering the survey found, without asking Bible Brain', async () => {
+    const { up, call } = setup();
+    const kjv = await call('/api/bible/numbered?q=ENGKJV');
+    expect(kjv.status).toBe(200);
+    expect(kjv.body.bibles[0]).toEqual({ bibleId: 'ENGKJV', name: 'King James Version', language: 'eng', languageName: 'English: USA', numbering: 'eng' });
+    // Every word, in any field: a Thai Bible by its language and its name in Thai.
+    const thai = (await call('/api/bible/numbered?q=thai standard')).body.bibles;
+    expect(thai.map((b: { bibleId: string }) => b.bibleId)).toContain('THATSV');
+    expect(thai.find((b: { bibleId: string }) => b.bibleId === 'THATSV')).toMatchObject({ vname: 'เวอร์ชั่นไทยมาตรฐาน', numbering: 'eng' });
+    expect((await call('/api/bible/numbered?q=bible')).body.bibles).toHaveLength(20);
+    expect((await call('/api/bible/numbered?q=x')).status).toBe(400);
+    // A Bible that fits none of the numberings offered is not found (ENGWEB has the deuterocanon numbered its own way).
+    expect((await call('/api/bible/numbered?q=ENGWEB')).body.bibles.map((b: { bibleId: string }) => b.bibleId)).not.toContain('ENGWEB');
+    expect(up.calls).toEqual([]);
   });
 
   it('describes one Bible: books, copyright, and whether /download allows its text and audio', async () => {

@@ -11,6 +11,8 @@
  * since FCBH signs them for about a day.
  */
 
+import { NUMBERED_BIBLES } from './bibleNumberings';
+
 const DBP = 'https://4.dbt.io/api';
 /** Our own cache namespace; bump to drop every cached answer. */
 const CACHE_ROOT = 'https://bible-cache.langquest.internal/v1';
@@ -29,7 +31,24 @@ interface BibleSummary {
   text: Testaments;
   audio: Testaments;
   timestamps: { OT: boolean; NT: boolean };
+  /** Its numbering, as the survey of its text found it (bibleNumberings.ts, decision 198); none when it offers none. */
+  numbering?: string;
 }
+
+/** A Bible Find your Bible finds by name (`/numbered?q=`), with the numbering the survey found. */
+interface NumberedBible {
+  bibleId: string;
+  name: string;
+  /** Its name in its own language, when Bible Brain has another. */
+  vname?: string;
+  language: string;
+  languageName: string;
+  numbering: string;
+}
+
+const NUMBERING = new Map(NUMBERED_BIBLES.map((b) => [b[0], b[1]]));
+/** How many Bibles one search answers with. */
+const FOUND = 20;
 
 interface BibleDetail extends BibleSummary {
   books: { book: string; name: string; chapters: number; testament: Testament }[];
@@ -187,6 +206,7 @@ type Route =
   | { name: 'languages' }
   | { name: 'allLanguages' }
   | { name: 'bibles' }
+  | { name: 'numbered' }
   | { name: 'bible'; bibleId: string }
   | { name: 'text' | 'audio' | 'timestamps'; fileset: string; book: string; chapter: number };
 
@@ -194,6 +214,7 @@ function matchRoute(path: string): Route | null {
   if (path === '/languages') return { name: 'languages' };
   if (path === '/languages/all') return { name: 'allLanguages' };
   if (path === '/bibles') return { name: 'bibles' };
+  if (path === '/numbered') return { name: 'numbered' };
   let m = /^\/bibles\/([^/]+)$/.exec(path);
   if (m) return ID.test(m[1]!) ? { name: 'bible', bibleId: m[1]! } : null;
   m = /^\/(text|audio|timestamps)\/([^/]+)\/([^/]+)\/(\d{1,3})$/.exec(path);
@@ -208,6 +229,25 @@ function json(status: number, body: unknown, maxAge = 0): Response {
     status,
     headers: { 'content-type': 'application/json', 'cache-control': maxAge > 0 ? `private, max-age=${maxAge}` : 'private, no-store' }
   });
+}
+
+/**
+ * The surveyed Bibles whose id, name or language holds every word of `query`
+ * ("hindi o.v.", "ENGKJV"), the id itself first. No call to Bible Brain: the
+ * list is the survey's (bibleNumberings.ts).
+ */
+export function numbered(query: string): NumberedBible[] {
+  const q = query.trim().toLowerCase();
+  if (q.length < 2 || q.length > 60) throw new Answer(400, 'Search with at least two letters.');
+  const words = q.split(/\s+/);
+  const hits = NUMBERED_BIBLES.filter(([id, , name, vname, iso, language]) => {
+    const text = `${id} ${name} ${vname} ${iso} ${language}`.toLowerCase();
+    return words.every((w) => text.includes(w));
+  });
+  const exact = hits.filter((b) => b[0].toLowerCase() === q);
+  return [...exact, ...hits.filter((b) => !exact.includes(b))].slice(0, FOUND).map(([bibleId, numbering, name, vname, language, languageName]) => ({
+    bibleId, name, ...(vname ? { vname } : {}), language, languageName, numbering
+  }));
 }
 
 class BibleBrain {
@@ -231,6 +271,7 @@ class BibleBrain {
       case 'languages': return { body: { languages: await this.languages(q.get('q') ?? '') }, maxAge: 3600 };
       case 'allLanguages': return { body: { languages: await this.allLanguages() }, maxAge: 3600 };
       case 'bibles': return { body: { bibles: await this.bibles(q.get('lang') ?? '') }, maxAge: 3600 };
+      case 'numbered': return { body: { bibles: numbered(q.get('q') ?? '') }, maxAge: 3600 };
       case 'bible': return { body: { bible: await this.bible(route.bibleId) }, maxAge: 3600 };
       case 'text': return { body: { verses: await this.text(route.fileset, route.book, route.chapter) }, maxAge: 3600 };
       case 'timestamps': {
@@ -382,7 +423,8 @@ class BibleBrain {
       languageName: String(b['language'] ?? b['iso'] ?? ''),
       text,
       audio,
-      timestamps: { OT: !!audio.OT && stamped.has(audio.OT), NT: !!audio.NT && stamped.has(audio.NT) }
+      timestamps: { OT: !!audio.OT && stamped.has(audio.OT), NT: !!audio.NT && stamped.has(audio.NT) },
+      ...(NUMBERING.has(bibleId) ? { numbering: NUMBERING.get(bibleId)! } : {})
     };
   }
 
