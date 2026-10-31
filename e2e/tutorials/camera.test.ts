@@ -1,4 +1,4 @@
-import { cameraPath, shotOf, viewExpression, ZOOM_MOST, type Move } from './camera';
+import { cameraPath, shotOf, titleShows, viewExpression, ZOOM_MOST, type Move } from './camera';
 
 /** Where a tutorial video's camera looks (camera.ts, compose.ts). */
 
@@ -54,6 +54,20 @@ describe('the camera', () => {
     expect(moves.at(-1)!.to).toEqual({ x: 0, y: 0, width: page.width });
     // Moves never overlap, so each starts from where the last one left the camera.
     for (const [i, m] of moves.slice(1).entries()) expect(m.at).toBeGreaterThanOrEqual(moves[i]!.at + moves[i]!.for);
+  });
+
+  it('shows the title whenever it is out on the whole page, in the middle as at the start and the end', () => {
+    const close = { x: 1100, y: 300, width: page.width / 2 };
+    const whole = { x: 0, y: 0, width: page.width };
+    const moves: Move[] = [
+      { at: 1.2, for: 0.8, to: close }, { at: 6, for: 0.8, to: { ...close, y: 500 } }, { at: 12, for: 0.8, to: whole },
+      { at: 15, for: 0.8, to: close }, { at: 20, for: 0.8, to: whole }
+    ];
+    expect(titleShows(moves, page)).toEqual([
+      { from: 0, in: 0, to: 1.2 }, { from: 12, in: 0.8, to: 15 }, { from: 20, in: 0.8, to: null }
+    ]);
+    // A video the camera never moves in on keeps its title throughout.
+    expect(titleShows([], page)).toEqual([{ from: 0, in: 0, to: null }]);
   });
 
   it('holds still for a part already in the shot, and leaves out a shot too short to see', () => {

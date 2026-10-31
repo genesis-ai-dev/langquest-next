@@ -51,6 +51,7 @@ export function promptOf(title: string, code: string): string {
     'While the voice talks about a part of the screen, that part has a white and purple ring around it and the rest of the screen is dimmed on purpose. A white ring opening out is a finger\'s tap; a round white dot is a finger held down. The people, teams and languages have made-up names, and Bible text may be in English in every language.',
     'What the team wrote or named in the app is theirs, not the app\'s, and may be in English in every language: role names (Organization Admin, Translator, Coordinator), the names of review steps, templates and reference material, and people\'s questions, notes, reasons and study guides. So may words a language commonly takes from English (Offline, Online, OK, WhatsApp).',
     'When the voice says to open something, the ring may be on the first thing to tap on the way to it (a tab at the bottom).',
+    'The ring is lit before the tap: a tab, option or switch the voice names is not selected yet. A ring around a tab in the bar at the foot of the screen runs off the screen\'s bottom edge. A step that lights nothing shows the whole phone, not dimmed and with no ring, with the title beside it.',
     'Find what a careful viewer would see as a mistake in a still:',
     '- a line, border or edge of a box showing just outside the purple ring, doubled beside it, or cut by it; a ring that cuts through a card, a button or words instead of going around them',
     '- the ring around something other than what the voice names',

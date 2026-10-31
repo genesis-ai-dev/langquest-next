@@ -34,8 +34,8 @@ GEMINI_API_KEY`); run with it as `npx dotenvx run -f .env.production -fk
 | File | What it does |
 | --- | --- |
 | `all.ts`, `<id>.ts` | the scripts: who is signed in, the world they start from, each step (what is lit, what is said, what is tapped) |
-| `film.ts` | plays one script against the web export and keeps every frame with its time, when each line is said, what the speaker says into the microphone and what the app plays aloud; it lights each step's part with a ring around its whole button or card that never crosses the words beside it |
-| `compose.ts` | puts a film together as a wide (16:9) MP4: the frames in a phone beside the app's mark and the title (or in a browser window under the title, for web videos), the camera moving in on what each step lights (then 2560x1440, so YouTube makes its sharper versions, and the title fades while the camera is in), and the sound evened to -16 LUFS |
+| `film.ts` | plays one script against the web export and keeps every frame with its time, when each line is said, what the speaker says into the microphone and what the app plays aloud; it lights each step's part with a ring around its whole button, row or card, standing off it, or on its edge, where it crosses no words, icon or edge beside it (the nearest box out that it fits around, otherwise) |
+| `compose.ts` | puts a film together as a wide (16:9) MP4: the frames in a phone beside the app's mark and the title (or in a browser window under the title, for web videos), the camera moving in on what each step lights (then 2560x1440, so YouTube makes its sharper versions, and the title fades while the camera is in and comes back whenever it is out on the whole page), and the sound evened to -16 LUFS |
 | `camera.ts` | where the camera looks: in on each lit part (its words about twice their size), further out where a close shot would be mostly empty screen, back out to the whole page where a step lights nothing, at the start and at the end |
 | `frame-check.ts` | a new film's stills, one while each line is said, looked at by Gemini for what is drawn wrong |
 | `gemini-voice.mjs` | says lines with Gemini's text-to-speech, through the Batch API |
@@ -99,9 +99,11 @@ A script is written once, in English. In another language:
   `'Save'` or `/^Parts 1–4, 4 parts · /` is looked up in the English catalog
   and becomes what the film language's catalog says, with its values (numbers
   in that language's digits, names as written) in their places, or the
-  English. Names that are data rather than the app's words (a library item,
-  a person) stay as written; `asIs()` marks one the catalogs would otherwise
-  translate.
+  English. LangQuest's own library items (Standard Bible Flow, FIA passages,
+  a numbering) are found by what `library/labels` calls them in that language,
+  as the app shows them (decision 195). Names that are data rather than the
+  app's words (a team's own item, a person) stay as written; `asIs()` marks
+  one the catalogs would otherwise translate.
 - `notIn` on a script skips a language it cannot be made in ("Choose the
   app's language" switches to Arabic, so it is not made in Arabic).
 

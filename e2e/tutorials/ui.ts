@@ -64,10 +64,32 @@ let appLines: Line[] | undefined;
 let filmLines: Map<string, string> | undefined;
 /** The film catalog's own lines, with the plural forms English has no line for ("_few" in Arabic). */
 const filmLine = (key: string) => (filmLines ??= new Map(flatten(catalogs.film))).get(key);
+
+// The code each of the app's languages has in library/labels (CONTENT_CODES in apps/mobile/src/reference/languages.ts).
+const LABELS_CODE: Record<string, string> = {
+  es: 'spa', pt: 'por', fr: 'fra', ar: 'arb', sw: 'swa', ha: 'hau', am: 'amh', hi: 'hin', bn: 'ben', ne: 'npi', id: 'ind', 'zh-Hans': 'cmn', th: 'tha', my: 'mya'
+};
+/**
+ * What LangQuest's library items are called in the film's language (decision 195), as lines
+ * keyed `library.<English>`: the screen shows "Circuit biblique standard" for Standard Bible
+ * Flow. A numbering shows its name before " · " ("Like most English Bibles"), so that is a line too.
+ */
+function libraryLines(): [string, string][] {
+  const code = LABELS_CODE[FILM_LANGUAGE];
+  if (!code) return [];
+  const file = JSON.parse(readFileSync(path.join('library', 'labels', `${code}.json`), 'utf8')) as { names: Record<string, string>; descriptions: Record<string, string> };
+  return Object.entries({ ...file.names, ...file.descriptions }).flatMap(([en, theirs]) => {
+    const [short, shortTheirs] = [en.split(' · ')[0]!, theirs.split(' · ')[0]!];
+    return [[en, theirs], ...(short !== en ? [[short, shortTheirs]] : [])] as [string, string][];
+  });
+}
+
 function lines(): Line[] {
   if (appLines) return appLines;
   const film = (filmLines ??= new Map(flatten(catalogs.film)));
-  appLines = flatten(catalogs.en ?? catalogs.film).flatMap(([key, en]) => {
+  const library = libraryLines();
+  for (const [en, theirs] of library) film.set(`library.${en}`, theirs);
+  appLines = [...flatten(catalogs.en ?? catalogs.film), ...library.map(([en]): [string, string] => [`library.${en}`, en])].flatMap(([key, en]) => {
     const words = untagged(en).trim();
     const theirs = film.get(key);
     if (!words || theirs === undefined) return [];

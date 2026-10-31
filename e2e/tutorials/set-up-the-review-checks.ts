@@ -41,7 +41,8 @@ export const setUpTheReviewChecks: Tutorial = {
     },
     {
       screen: 'flows_home',
-      part: (page) => page.getByRole('radio').locator('visible=true').first(),
+      // Lumari's own flow: the card with Edit in it (the ready-made ones under it are the radios).
+      part: (page) => button(page, 'Edit').locator('..'),
       say: "These are Lumari's checks. Under them are other ready-made ways to check. To change Lumari's own, tap Edit.",
     },
     {

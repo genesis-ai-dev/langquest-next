@@ -9490,6 +9490,32 @@ may be lit on the way to what the voice says to open. Rejected: a looser
 frame check (the ring problems it found were real, as Caleb's own still
 was).
 
+Amended (2026-10-31, Caleb Koster): the ring again, after the first night
+on the rules above. The frame check held 45 of the 47 English films and 41
+of the 44 French, again mostly for the ring: it cut through a card and left
+the card's edge or corners showing just outside it, left a row's icon or
+handle outside, or went around a bar, a heading or two rows where the voice
+named one. The rules said what to take in; the ring now looks at what the
+screen shows (`film.ts` `light`): every line of words, icon, field and
+drawn edge, cut where a list hides it, as a viewer sees it. It goes around
+the button or card the part is in, with a box drawn round it and little
+bigger (a search field's box with its icon, a row's card with its handle),
+or else around the nearest box out from it that it fits. On each side it
+stands 6 points off where it can, and nearer, further or right on an edge
+where that would cross words, an icon or an edge; it hides only the part's
+own edge or the edge of a box it goes into, and never leaves an edge just
+inside or outside it. The title comes back whenever the camera is out on
+the whole page (`camera.ts` `titleShows`), not only at the end: a step
+that lit nothing in the middle left the left of the page empty ("zoomed
+out with the left side blank"). A field's focus outline is hidden in films
+("a black outline around the text"). Four scripts lit the wrong thing
+after the app changed (review checks, a new account's two ways in, a
+language's settings, the invite's code and its other ways). The frame
+check is told that the ring is lit before the tap, and that a ring around
+a tab in the bar at the foot of the screen runs off its bottom edge.
+`FRAME` stays `zoomed-ring`: held films are not in the release, so they
+are filmed again anyway.
+
 ## 192. Tutorial videos go up as soon as they are filmed: the filming tells the app, the intake chooses the wide films itself, and the publish follows each intake
 
 Date: 2026-10-30 · By: Caleb Koster · Status: accepted
