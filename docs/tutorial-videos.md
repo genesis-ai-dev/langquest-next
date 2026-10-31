@@ -99,9 +99,11 @@ A script is written once, in English. In another language:
   `'Save'` or `/^Parts 1–4, 4 parts · /` is looked up in the English catalog
   and becomes what the film language's catalog says, with its values (numbers
   in that language's digits, names as written) in their places, or the
-  English. Names that are data rather than the app's words (a library item,
-  a person) stay as written; `asIs()` marks one the catalogs would otherwise
-  translate.
+  English. LangQuest's own library items (Standard Bible Flow, FIA passages,
+  a numbering) are found by what `library/labels` calls them in that language,
+  as the app shows them (decision 195). Names that are data rather than the
+  app's words (a team's own item, a person) stay as written; `asIs()` marks
+  one the catalogs would otherwise translate.
 - `notIn` on a script skips a language it cannot be made in ("Choose the
   app's language" switches to Arabic, so it is not made in Arabic).
 
