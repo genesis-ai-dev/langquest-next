@@ -22,6 +22,20 @@ export interface BibleSummary {
   text: Testaments;
   audio: Testaments;
   timestamps: { OT: boolean; NT: boolean };
+  /** Its numbering, as the survey of its text found it (decision 198); none when it fits none offered. */
+  numbering?: string;
+}
+
+/** A Bible the survey numbered, found by name (Find your Bible, decision 198). */
+export interface NumberedBible {
+  bibleId: string;
+  name: string;
+  /** Its name in its own language, when Bible Brain has another. */
+  vname?: string;
+  /** ISO 639-3. */
+  language: string;
+  languageName: string;
+  numbering: string;
 }
 
 export interface BibleDetail extends BibleSummary {
@@ -136,6 +150,11 @@ export class BibleBrainClient {
 
   bibles(lang: string): Promise<BibleSummary[]> {
     return this.fresh<{ bibles: BibleSummary[] }>(`bibles:${lang}`, `bibles?lang=${encodeURIComponent(lang)}`).then((r) => r.bibles);
+  }
+
+  /** The surveyed Bibles whose id, name or language holds every word typed; kept, so a search seen once answers offline. */
+  numbered(q: string): Promise<NumberedBible[]> {
+    return this.fresh<{ bibles: NumberedBible[] }>(`numbered:${q.trim().toLowerCase()}`, `numbered?q=${encodeURIComponent(q.trim())}`).then((r) => r.bibles);
   }
 
   bible(bibleId: string): Promise<BibleDetail> {
