@@ -931,7 +931,7 @@ function InviteStep({ ctx, lang, header, next, back }: StepProps) {
   const [more, setMore] = useState(false);
   const may = ctx.session.can('invite_members') && mayGrantAt(ctx.org.state, ctx.session.actorId, scope);
   const roleId = roles.choices.find((c) => c.id === choice)?.roleId ?? roles.others.find((r) => r.id === choice)?.id ?? null;
-  const invite = useGroupInvite(ctx.language.orgId, may ? roleId : null, may ? scope : null, t('admin.invite.teamLabel', { name: lang }));
+  const invite = useGroupInvite(ctx.language.orgId, may ? roleId : null, may ? scope : null, t('admin.invite.teamLabel', { name: lang }), { pull: ctx.org.sync });
   const uri = invite && 'uri' in invite ? invite.uri : null;
   // A role made from here ("Something else: make a new role") comes back chosen, its code shown, as on Invite someone.
   const rolesBefore = useRef<Set<string> | null>(null);
