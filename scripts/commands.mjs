@@ -77,6 +77,7 @@ export const GROUPS = [
       'publisher-import': "importers for organizations' own material: list, grant, revoke, step (docs/publisher-imports.md)",
       v2: 'the LangQuest v2 import: the board, a sync, a dry run',
       'library:seed': "publish the LangQuest organization's library",
+      'bibles:survey': "which numbering each of Bible Brain's Bibles uses (needs its key)",
       'sample:org': 'a sample organization the team can join',
       'ui:fixture': "the UI test suite's fixture world, on the local server",
       languoids: 'the languoid explorer, preview and apply',
