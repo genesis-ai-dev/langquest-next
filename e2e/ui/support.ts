@@ -277,8 +277,14 @@ export async function openPassage(page: Page, world: UiWorld, key: keyof UiWorld
   await expect(search.or(lang).first()).toBeVisible({ timeout: 60_000 });
   if (!(await search.isVisible())) await lang.click();
   await search.fill(label.replace(/^Luke /, 'Luke '));
-  await visible(page.getByText(label, { exact: false })).first().click();
-  await expect(text(page, label, false)).toBeVisible();
+  // The passage is open when its title is the screen's heading; the row's own words are no sign of it.
+  // Under load the list can move between finding the row and the tap landing (the search filters a
+  // beat behind the field), so a tap that opened nothing is made again on the row where it is now.
+  const heading = visible(page.getByRole('heading', { name: label })).first();
+  await expect(async () => {
+    if (!(await heading.isVisible())) await visible(page.getByText(label, { exact: false })).first().click({ timeout: 5_000 });
+    await expect(heading).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 30_000 });
 }
 
 /**
