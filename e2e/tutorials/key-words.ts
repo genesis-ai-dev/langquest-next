@@ -50,7 +50,8 @@ export const keyWords: Tutorial = {
     },
     {
       screen: 'workspace',
-      part: (page) => page.getByText('Where it is here', { exact: true }).locator('visible=true').first(),
+      // The heading and the card of verses under it (the word is marked in each): the word's line, its verse, the card.
+      part: (page) => [page.getByText('Where it is here', { exact: true }).locator('visible=true').first(), page.getByText('fox', { exact: true }).locator('visible=true').first().locator('xpath=ancestor::div[3]')],
       say: 'It shows where the word is in this passage.'
     },
     {

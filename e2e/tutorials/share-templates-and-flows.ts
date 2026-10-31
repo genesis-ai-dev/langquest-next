@@ -5,7 +5,7 @@
 import type { Page } from 'playwright';
 import type { Tutorial } from './tutorial';
 import { recordAPassage } from './record-a-passage';
-import { button } from './workspace';
+import { button, toastGone } from './workspace';
 
 const FLOW = 'Riverside flow';
 const shared = (page: Page, name: string) => page.getByRole('button', { name, exact: true }).locator('visible=true').nth(2);
@@ -84,7 +84,9 @@ export const shareTemplatesAndFlows: Tutorial = {
       part: (page) => page.getByRole('switch', { name: 'Share with other organizations' }).locator('visible=true').first(),
       say: 'Turn on Share with other organizations. They can see it and copy it.',
       tap: true,
-      stay: 1
+      stay: 1,
+      // The note that it is shared covers the next switch: the wait for it to go is left out.
+      offCamera: toastGone
     },
     {
       screen: 'flow_editor',

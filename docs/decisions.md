@@ -9516,6 +9516,47 @@ a tab in the bar at the foot of the screen runs off its bottom edge.
 `FRAME` stays `zoomed-ring`: held films are not in the release, so they
 are filmed again anyway.
 
+Amended (2026-10-31, Caleb Koster): the ring a third time, after the night
+on the rules above passed only 3 of the 47 English films, 2 French and 4
+Spanish. Most holds came from four things. A field's words were taken to
+fill the whole field, so a ring that could not stand inside a field went
+round the whole form and through the labels above its fields ("cuts
+through the label 'Password'"); a field's words are now as wide and as
+high as they show. A ring that crossed something tried each box further
+out, up to a list, the bar at the foot of the screen or both buttons in
+the corner; it now never takes a box much bigger (1.6 times) than the
+part's own when that box has other things to tap in it (a link and the
+sentence it ends are still lit together), and a bar round another button
+with words is not taken as the part's own box (Skip beside Next question).
+Its corners were always the same, so a card's rounder or squarer corners
+showed past it ("the green corners of the Looks good button show outside
+the ring"); they are now as round as the box's, stood off as far as the
+ring. A border within 14 points of the ring, inside or out, reads as a
+second ring ("a border line doubled just inside the ring") and is kept
+clear of it, as an edge where a fill stops is within 8 points outside and
+3 inside; words outside it stay 2 points clear, and words between it and
+the part (a heading just above a card) count as crossed, since the ring
+would go round them too. Where the ring cannot miss
+everything, it stands beside an edge rather than across it, and it stands
+as far off a part on one side as on the other where that crosses nothing
+more (tight on one side, it reads as cutting into the part). It never goes
+round a bar from one side of the screen to the other (the bar round the
+main button), and a part under a button that floats over a list is
+scrolled to the list's middle first. A part that leaves the screen (the
+upload bar once all is uploaded) takes its ring with it, and a part as
+tall as most of the screen
+is shown on the whole page with the title (`camera.ts`), not as the whole
+phone with an empty page beside it. A video whose setup leaves the app
+still loading waits for its first part (a blank phone in the first still),
+and a note at the foot of the screen that would cover the next part is
+waited out off camera. A dozen scripts lit more or less than their line
+names, or said what the screen does not show (Note, not Add a note here;
+Next: decide, not Next); the frame check is told what the app draws itself
+(a thin purple border round the card for the next thing to do, a quoted
+verse's purple line, help mode's dimming). What it found in the app
+itself, not in the films, goes to the team as app bugs; a film that shows
+one stays held until the app is fixed.
+
 ## 192. Tutorial videos go up as soon as they are filmed: the filming tells the app, the intake chooses the wide films itself, and the publish follows each intake
 
 Date: 2026-10-30 · By: Caleb Koster · Status: accepted

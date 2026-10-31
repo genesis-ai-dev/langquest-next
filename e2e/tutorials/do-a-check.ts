@@ -59,7 +59,7 @@ export const doACheck: Tutorial = {
     {
       screen: 'review_capture',
       part: (page) => id(page, 'primary-action'),
-      say: "When you've heard it all, tap Next.",
+      say: "When you've heard it all, tap Next: decide.",
       tap: true,
       until: (page) => button(page, 'Needs changes').waitFor({ timeout: 10_000 }),
       stay: 0.8

@@ -23,7 +23,8 @@ export const createAnAccount: Tutorial = {
   steps: [
     {
       screen: 'sign_in',
-      part: (page) => [field(page, 'Email or sign-in name'), field(page, 'Password')],
+      // The way in as a whole: the fields with their names, and Sign In.
+      part: (page) => [page.getByText('Email or sign-in name', { exact: true }).locator('visible=true').first(), button(page, 'Sign In')],
       say: "Here's how to get into LangQuest. If you already have an account, sign in here."
     },
     {
