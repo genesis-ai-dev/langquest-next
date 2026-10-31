@@ -82,8 +82,12 @@ export const getALanguageReady: Tutorial = {
     },
     {
       screen: 'get_ready',
+      part: (page) => [page.getByRole('checkbox').locator('visible=true').first(), page.getByRole('checkbox').locator('visible=true').nth(2)],
+      say: 'Second, what will help them: the languages of their Bibles and guides, and which ones they see.'
+    },
+    {
+      screen: 'get_ready',
       part: (page) => id(page, 'primary-action'),
-      say: 'Second, what will help them: the languages of their Bibles and guides, and which ones they see.',
       tap: true,
       until: (page) => words(page, 'What will help them?').waitFor({ timeout: 10_000 }),
       stay: 0.8

@@ -19,8 +19,8 @@ export const useTheHelp: Tutorial = {
       stay: 0.8
     },
     {
+      // The whole screen, where every number shows (two numbers lit made a thin ring through the cards).
       screen: 'my_work',
-      part: (page) => [page.getByTestId('help-number').locator('visible=true').first(), page.getByTestId('help-number').locator('visible=true').nth(5)],
       say: 'Each part of the screen gets a number.'
     },
     {

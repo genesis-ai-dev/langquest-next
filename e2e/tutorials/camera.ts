@@ -4,11 +4,16 @@
 // out to the whole page where a step lights nothing, at the start with the
 // title, and at the end. It holds still where it can: a part that already
 // shows in the shot is not chased, and a shot that would last under a second
-// is left out.
+// is left out. It never films an empty screen: a part with nothing around it
+// (a tab under a short page, a button at the foot of an empty one) is shown
+// from further out, with what is on the screen above it.
 import type { Box } from './tutorial';
 
-/** Where a step looked, from film.ts: the lit part at the moment it was lit (on the screen, in points), or null for the whole screen. */
-export interface Focus { t: number; box: Box | null }
+/**
+ * Where a step looked, from film.ts: the lit part at the moment it was lit (on the screen, in points), or null for the
+ * whole screen; and where on the screen something showed then (words, icons, fields, boxes), top to bottom.
+ */
+export interface Focus { t: number; box: Box | null; rows?: [number, number][] }
 /** What the camera shows: a piece of the page as wide as the page's shape allows at this width. */
 export interface View { x: number; y: number; width: number }
 /** The camera moves to a view, starting at `at` seconds into the video and taking `for` seconds. */
@@ -19,6 +24,10 @@ interface Size { width: number; height: number }
 export const ZOOM_MOST = 2.2;
 /** At most this much of the shot's width, and of its height, is the lit part. */
 const FILL = { width: 0.85, height: 0.75 };
+/** A close shot with a stretch of empty screen this much of its height, or more, is taken from further out. */
+const EMPTY = 0.5;
+/** A shot taken from further out that would still cut a little off the screen shows it whole instead. */
+const NEARLY_WHOLE = 1.25;
 /** The camera keeps a little of the page around the screen (the phone's edge), never more. */
 const MARGIN = 28;
 const MOVE = 0.8;
@@ -28,30 +37,48 @@ const LEAD = 0.35;
 const OPEN = 1.2;
 /** A shot that would last less than this is left out. */
 const HOLD = 1;
-/** The camera goes back out to the whole page this long before the end. */
-const CLOSE = 1.6;
+/** The camera goes back out to the whole page this long before the end (and the title comes back: compose.ts). */
+export const CLOSE = 1.6;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
 
 /**
  * The shot of one lit part, on a page `page` big with the app's screen at `screen`: as close as the part allows,
  * on its middle, held to the screen and the page. A screen narrower (or shorter) than the shot stays in its middle.
+ * Where half the shot's height or more is one stretch of empty screen (nothing in `rows`, on the page), it is taken
+ * from further out.
  */
-export function shotOf(box: Box | null, page: Size, screen: Box): View {
+export function shotOf(box: Box | null, page: Size, screen: Box, rows: [number, number][] = []): View {
   if (!box) return { x: 0, y: 0, width: page.width };
-  const zoom = clamp(Math.min((FILL.width * page.width) / box.width, (FILL.height * page.height) / box.height), 1, ZOOM_MOST);
-  const width = page.width / zoom;
-  const height = page.height / zoom;
   const along = (middle: number, size: number, from: number, length: number, all: number) => {
     const [lo, hi] = [from - MARGIN, from + length + MARGIN];
     const centre = hi - lo <= size ? (lo + hi) / 2 : clamp(middle, lo + size / 2, hi - size / 2);
     return clamp(centre - size / 2, 0, all - size);
   };
-  return {
-    x: along(box.x + box.width / 2, width, screen.x, screen.width, page.width),
-    y: along(box.y + box.height / 2, height, screen.y, screen.height, page.height),
-    width
+  const at = (zoom: number): View => {
+    const width = page.width / zoom;
+    return {
+      x: along(box.x + box.width / 2, width, screen.x, screen.width, page.width),
+      y: along(box.y + box.height / 2, page.height / zoom, screen.y, screen.height, page.height),
+      width
+    };
   };
+  /** The longest stretch of the screen in the shot with nothing on it, as a share of the screen in the shot. */
+  const emptiest = (view: View) => {
+    const [top, bottom] = [Math.max(view.y, screen.y), Math.min(view.y + (view.width * page.height) / page.width, screen.y + screen.height)];
+    if (bottom <= top) return 0;
+    let [longest, from] = [0, top];
+    for (const [a, b] of [...rows].sort((p, q) => p[0] - q[0])) {
+      if (b <= from || a >= bottom) continue;
+      longest = Math.max(longest, a - from);
+      from = Math.max(from, Math.min(b, bottom));
+    }
+    return Math.max(longest, bottom - from) / (bottom - top);
+  };
+  let zoom = clamp(Math.min((FILL.width * page.width) / box.width, (FILL.height * page.height) / box.height), 1, ZOOM_MOST);
+  let shot = at(zoom);
+  while (rows.length && zoom > 1 && emptiest(shot) >= EMPTY) shot = at((zoom = zoom * 0.9 < NEARLY_WHOLE ? 1 : zoom * 0.9));
+  return shot;
 }
 
 const same = (a: View, b: View) => Math.abs(a.x - b.x) < 1 && Math.abs(a.y - b.y) < 1 && Math.abs(a.width - b.width) < 1;
@@ -73,7 +100,7 @@ export function cameraPath(focus: Focus[], end: number, page: Size, screen: Box)
   let free = OPEN;
   const held = focus.filter((f, i) => (focus[i + 1]?.t ?? end - CLOSE) - f.t >= HOLD);
   for (const f of held) {
-    const to = shotOf(f.box, page, screen);
+    const to = shotOf(f.box, page, screen, f.rows);
     if (same(at, to) || (f.box && keeps(at, to, f.box, page))) continue;
     const start = Math.max(f.t - LEAD, free);
     if (start + MOVE > end - CLOSE) break;
