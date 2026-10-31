@@ -2,7 +2,7 @@ import { baseWay, NUMBERING_ITEMS } from '../src/breakup/model';
 import fs from 'node:fs';
 import path from 'node:path';
 import { factsOf, QUIZ, resolveNumbering } from '../src/breakup/numberingGuide';
-import { COMMON_BIBLES, firstBibles, KNOWN_BIBLES } from '../src/breakup/knownBiblesModel';
+import { bibleBrainBible, bibleBrainBibles, COMMON_BIBLES, firstBibles, KNOWN_BIBLES, withBibleBrain } from '../src/breakup/knownBiblesModel';
 
 const offered = Object.keys(NUMBERING_ITEMS);
 
@@ -57,5 +57,31 @@ describe('finding a Bible\'s numbering (decision 80)', () => {
     expect(new Set(english).size).toBe(english.length);
     expect(english.length).toBe(3 + COMMON_BIBLES.filter((a) => !english.slice(0, 3).includes(a)).length);
     expect(firstBibles(['xyz']).map((b) => b.abbr)).toEqual(COMMON_BIBLES);
+  });
+
+  it("lists Bible Brain's numbered Bibles beside the app's, once each (decision 198)", () => {
+    const thai = { bibleId: 'THATSV', name: 'Thai Standard Version', vname: 'ฉบับมาตรฐาน', language: 'tha', languageName: 'Thai', numbering: 'eng' };
+    expect(bibleBrainBible(thai)).toEqual({ name: 'ฉบับมาตรฐาน', abbr: 'THATSV', language: 'Thai', iso: 'tha', numbering: 'eng', checked: true });
+    // No numbering, or one the app does not offer for a Bible: not listed.
+    expect(bibleBrainBible({ ...thai, numbering: undefined })).toBeNull();
+    expect(bibleBrainBible({ ...thai, numbering: 'custom' })).toBeNull();
+    // Whole Bibles before a testament alone, unnumbered ones left out.
+    const nt = { ...thai, bibleId: 'THANTV', vname: '', name: 'Thai New Testament', text: { NT: 'THANTVN_ET' } };
+    const whole = { ...thai, text: { OT: 'THATSVO_ET', NT: 'THATSVN_ET' } };
+    expect(bibleBrainBibles([nt, { ...thai, bibleId: 'THAX', numbering: undefined }, whole]).map((b) => b.abbr)).toEqual(['THATSV', 'THANTV']);
+    // One of a name in a language: the whole Bible.
+    expect(bibleBrainBibles([{ ...nt, vname: 'ฉบับมาตรฐาน' }, whole]).map((b) => b.abbr)).toEqual(['THATSV']);
+    // A Thai team sees Thai Bibles first, though the app has none of its own.
+    expect(firstBibles(['tha'], bibleBrainBibles([nt, whole])).map((b) => b.abbr)).toEqual(['THATSV', 'THANTV', ...COMMON_BIBLES]);
+    // The app's KJV and Bible Brain's ENGKJV are one Bible, and so are two of one name; the app's comes first.
+    const english = (bibleId: string, name: string) => bibleBrainBible({ bibleId, name, language: 'eng', languageName: 'English', numbering: 'eng' })!;
+    const known = KNOWN_BIBLES.filter((b) => b.language === 'English');
+    const brain = [english('ENGKJV', 'KJV 1769'), english('ENGESV', 'English Standard Version'), english('ENGASV', 'American Standard Version')];
+    expect(withBibleBrain(known, brain).map((b) => b.abbr)).toEqual([...known.map((b) => b.abbr), 'ENGASV']);
+    // The same letters in another language are another Bible.
+    expect(withBibleBrain(known, [{ ...english('SPANIV', 'NIV'), name: 'Nueva', language: 'Spanish', iso: 'spa' }]).map((b) => b.abbr)).toContain('SPANIV');
+    // Hindi (hin) and Swahili under either code: Bible Brain writes swh.
+    const swahili = bibleBrainBible({ bibleId: 'SWHNEN', name: 'Neno', language: 'swh', languageName: 'Swahili', numbering: 'eng' })!;
+    expect(firstBibles(['swa'], [swahili]).map((b) => b.abbr)).toContain('SWHNEN');
   });
 });

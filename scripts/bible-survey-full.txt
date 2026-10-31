@@ -1,0 +1,14 @@
+# Bibles the bible-survey workflow reads every chapter of (its full job), one
+# Bible Brain id a line; # starts a note. These are the ones a new numbering
+# would be built from (docs/breaking-up-the-bible.md, "Bibles from Bible Brain").
+#
+# 2026-10-30: about 35 Bibles have English chapters but count Psalm titles as
+# verse 1. One or two of each group the survey found:
+INDASV   # Indonesian (with INDALAO, SDADPI)
+ACEIBS   # Aceh (with DTPBSM, GORLAI)
+DAND33   # Danish (with BAMLSB, INDALA)
+SWESFB   # Swedish (with CESK13, SWESFV)
+NORNBS   # Norwegian
+RMLNEW   # Baltic Romani
+# A control: the KJV, which the survey found English but for Revelation 12.
+ENGKJV

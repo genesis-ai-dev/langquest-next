@@ -16,6 +16,10 @@ import { GhostBtn, Ico, SearchField, type IconName } from '../ui/kit';
 import { ChoiceCard, Question, RadioRow } from '../admin/admin';
 import { C, radius, space, TINT, type as T } from '../ui/theme';
 import { readModule, registerLoader } from '../shell/lazyModules';
+import { languageLabel } from '../admin/adminModel';
+import { sameCodes } from '../reference/languages';
+import { useBibleBrainSummaries } from '../sources/useBibleBrainBibles';
+import { useNumberedBibles } from '../sources/useNumberedBibles';
 import {
   bibleLanguage, QUIZ, resolveNumbering, shortName, type KnownBible, type NumberingCode, type NumberingFacts, type QuizOption
 } from './numberingGuide';
@@ -117,26 +121,45 @@ export function FindBiblePage(props: {
   );
 }
 
-/** The Bibles typing finds, or before anything is typed the team's and the common ones, with Show all. */
+/**
+ * The Bibles typing finds, or before anything is typed the team's and the
+ * common ones, with Show all. Bible Brain's numbered Bibles (decision 198)
+ * join the app's own: those in the team's languages first, and any typing finds.
+ */
 function FoundBibles(props: { q: string; languages?: readonly string[]; onChoose: (b: KnownBible) => void }) {
-  const { KNOWN_BIBLES, firstBibles } = readModule(loadBibles);
+  const { KNOWN_BIBLES, firstBibles, bibleBrainBibles, withBibleBrain } = readModule(loadBibles);
   const [all, setAll] = useState(false);
   const typed = props.q.trim().toLowerCase();
+  const team = useBibleBrainSummaries((props.languages ?? []).flatMap(sameCodes));
+  const found = useNumberedBibles(props.q);
   const shown = useMemo(() => {
-    if (typed) return KNOWN_BIBLES.filter((b) => `${b.name} ${b.abbr} ${b.language} ${bibleLanguage(b.language)}`.toLowerCase().includes(typed)).slice(0, 20);
-    return all ? KNOWN_BIBLES : firstBibles(props.languages);
-  }, [KNOWN_BIBLES, firstBibles, typed, all, props.languages]);
+    if (typed) {
+      const known = KNOWN_BIBLES.filter((b) => `${b.name} ${b.abbr} ${b.language} ${bibleLanguage(b.language)}`.toLowerCase().includes(typed));
+      return withBibleBrain(known, bibleBrainBibles(found)).slice(0, FOUND);
+    }
+    return all ? KNOWN_BIBLES : firstBibles(props.languages, bibleBrainBibles(team));
+  }, [KNOWN_BIBLES, firstBibles, bibleBrainBibles, withBibleBrain, typed, all, props.languages, team, found]);
   return (
     <View style={{ gap: space.sm }}>
       {shown.map((b) => (
-        <HelpRow key={b.abbr} of="numbering.bible">
-          <RadioRow icon="book" label={b.name} sub={bibleLanguage(b.language)} on={false} help={t('breakup.numberingStep.find.bibleHelp')} onPress={() => props.onChoose(b)} />
+        <HelpRow key={b.iso ? `bb:${b.abbr}` : b.abbr} of="numbering.bible">
+          <RadioRow icon="book" label={b.name} sub={rowLanguage(b)} on={false} help={t('breakup.numberingStep.find.bibleHelp')} onPress={() => props.onChoose(b)} />
         </HelpRow>
       ))}
       {!typed && !all ? <GhostBtn label={t('breakup.numberingStep.find.showAll', { count: KNOWN_BIBLES.length })} icon="down" help={t('breakup.numberingStep.find.showAllHelp')} onPress={() => setAll(true)} /> : null}
       {typed && shown.length === 0 ? <Text style={txt2.muted}>{t('breakup.numberingStep.find.notFound')}</Text> : null}
     </View>
   );
+}
+
+/** How many Bibles typing shows at most. */
+const FOUND = 20;
+
+/** A Bible's language, in the language showing: a Bible Brain one's by its code, else Bible Brain's English name for it. */
+function rowLanguage(b: KnownBible): string {
+  if (!b.iso) return bibleLanguage(b.language);
+  const named = languageLabel(b.iso);
+  return named === b.iso.toUpperCase() ? b.language : named;
 }
 
 /** The quiz, one question a screen, with the team's Bible open. */
