@@ -34,7 +34,8 @@ export const inviteYourTeam: Tutorial = {
     },
     {
       screen: 'invite_member',
-      part: (page) => page.getByRole('button', { name: 'Lumari', exact: true }).locator('visible=true').first(),
+      // Every language to choose from is lit while the voice says to choose one; the finger taps the first, Lumari.
+      part: (page) => ['Lumari', 'Kitara', 'All of them'].map((name) => page.getByRole('button', { name, exact: true }).locator('visible=true').first()),
       say: 'Choose the language they will work in.',
       tap: true,
       stay: 0.6

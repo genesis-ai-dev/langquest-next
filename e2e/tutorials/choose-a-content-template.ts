@@ -60,8 +60,13 @@ export const chooseAContentTemplate: Tutorial = {
     },
     {
       screen: 'templates_home',
+      // The question it asks again, lit with its answers while the voice talks about them; Next is tapped after.
+      part: (page) => [words(page, 'What will Lumari translate?'), radios(page).first(), radios(page).last()],
+      say: 'It asks the same questions as when the language was added. Keep what stays the same.'
+    },
+    {
+      screen: 'templates_home',
       part: (page) => id(page, 'primary-action'),
-      say: 'It asks the same questions as when the language was added. Keep what stays the same.',
       tap: true,
       stay: 0.6
     },
