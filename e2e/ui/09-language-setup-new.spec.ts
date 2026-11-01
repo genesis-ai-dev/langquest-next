@@ -365,14 +365,17 @@ test('SETUP-018 A new language\'s checks are set up on their own pages before it
   await expect(primary(page)).toContainText(`Add ${name}`);
   await primary(page).click();
   await expect(text(page, 'Time to invite people')).toBeVisible({ timeout: 60_000 });
+  // The translators' code is made as the page opens, and a code that is made makes the language ready (decision 146,
+  // amended for LAN-195): its page is a ready language's.
+  await expect(button(page, 'Share as a link')).toBeVisible({ timeout: 60_000 });
   await button(page, 'Done').click();
   await languagePage(page, w, name);
-  await expectOnScreen(page, /Peer check \+ back translation → Community check \+ retelling → Consultant check/i);
+  await expectOnScreen(page, 'Ready · 0 translators', /Peer check \+ back translation → Community check \+ retelling → Consultant check/i);
   await expectNotOnScreen(page, 'Final approval');
-  // What was set before it existed is the language's own now: its Checks say the Community check hides the Bible's text.
-  await text(page, 'Who checks the recordings?').click();
-  await text(page, 'I\'ll choose the checks').click();
-  await primary(page).click();
+  // What was set before it existed is the language's own now: its Review flow's checks say the Community check hides
+  // the Bible's text.
+  await text(page, 'Review flow').click();
+  await text(page, 'Edit').click();
   await expectOnScreen(page, 'Checks', 'Community check', 'Bible text');
 });
 

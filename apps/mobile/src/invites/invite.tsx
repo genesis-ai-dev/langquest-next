@@ -116,7 +116,7 @@ export function InviteSomeone(props: {
   }, [want]);
   const making = !!want && !!ready[want];
   const made = useGroupInvite(ctx.language.orgId, making ? chosen?.roleId ?? null : null, making && scope ? scope.scope : null,
-    scope ? props.label(scope) : '', settled);
+    scope ? props.label(scope) : '', { checks: settled, pull: ctx.org.sync });
   // While a tick waits to settle, the code on screen would not put them on it: it shows as being made.
   const invite = sameChecks(checks, settled) ? made : null;
   const uri = invite && 'uri' in invite ? invite.uri : null;
