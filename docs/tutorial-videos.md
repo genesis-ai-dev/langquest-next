@@ -119,7 +119,8 @@ A script is written once, in English. In another language:
 `.github/workflows/tutorials.yml` keeps the videos current (decision 183).
 At 20:10 UTC, and when a change to `e2e/tutorials` or the workflow is
 merged into main, for each language in its `NIGHTLY_LANGUAGES` (all fifteen,
-English and French first, five at a time), a runner starts the local stack and the web export as the UI tests
+English and French first, five at a time; English alone from 2026-11-01
+until Caleb has looked at the spotlight films), a runner starts the local stack and the web export as the UI tests
 do, has Gemini translate any line the language lacks (`translate-lines.ts`;
 the job keeps the file as `lines-<language>`, to commit), and `nightly.ts`:
 

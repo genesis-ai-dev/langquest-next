@@ -9042,6 +9042,12 @@ UTC: the filming tells the app when each language's films are in, and the
 intake runs then, with the publish after it; the one scheduled intake is at
 five past midnight in California, as YouTube's day begins (192).
 
+Amended (2026-11-01, Caleb Koster): English alone is filmed for now
+(`NIGHTLY_LANGUAGES: en`). The spotlight (decision 191) films every video
+again, and Caleb looks at the English films before the other fourteen
+languages are filmed; they come back, English and French first, when he
+says the English ones look right.
+
 ## 184. The publish job keeps each YouTube channel's description, banner and list of the others; held comments are counted on the dashboard and moderated in Studio
 
 Date: 2026-10-28 · By: Caleb Koster · Status: accepted
