@@ -584,9 +584,9 @@ Steps:
 4. "Add a check" → "Retelling".
 5. Tap "Community check" → "Same time as" → tick "Retelling" → "Done".
 6. Tap "Bible" and switch "Text" off. Go back twice.
-7. Tap "Add Hotel {run}". Tap "Done". Open its page.
-8. Open "Who checks the recordings?" → "I'll choose the checks" → "Choose
-   the checks".
+7. Tap "Add Hotel {run}". When "Share as a link" shows, tap "Done". Open
+   its page.
+8. Open "Review flow" → "Edit".
 
 Expected:
 - The checks start from Standard Bible Flow's (decision 91), with no
@@ -596,6 +596,8 @@ Expected:
   "Helps", "Must pass", "Same time as" (any other checks, ticked), "Remove
   this check". Removing asks first.
 - After step 6 the Community check's card says "Bible text" by a struck eye.
+- The translators' code is made as the invite step opens, so the language
+  is ready (decision 146, amended): its page says "Ready · 0 translators".
 - Its page's "Review flow" reads "Peer check + back translation → Community
   check + retelling → Consultant check", without Final approval. Nothing is
   added to the library: the checks are the language's own.
