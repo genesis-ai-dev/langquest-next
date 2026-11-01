@@ -46,8 +46,8 @@ export const chooseAContentTemplate: Tutorial = {
     },
     {
       screen: 'templates_home',
-      // The first radio is the one in use.
-      part: (page) => [radios(page).nth(1), radios(page).last()],
+      // The one in use is the card above; every ready-made way below it is a radio.
+      part: (page) => [radios(page).first(), radios(page).last()],
       say: 'Below it are other ready-made ways to divide the Bible: by book, by chapter, or in sections. Tap one to use it instead.'
     },
     {

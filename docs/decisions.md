@@ -9580,6 +9580,23 @@ so every video, those already up with the ring too, is filmed again.
 Rejected: the camera's zoom alone with nothing lit (a small button among
 many is hard to find), and a fifth round on the ring.
 
+Amended (2026-11-01, Caleb Koster): the spotlight after its first night.
+35 of the 46 English films passed Claude's frame check; 5 were held for
+where the light went. Several parts lit as one box cut a button between
+them (the filter's chips where they wrap, By email beside Share as a link);
+a part's handle was lit with its whole row; a play button was lit as its
+tap area, as tall as the row and past the card on the last row; and three
+scripts lit less than the voice names (the heading of a request to join,
+the microphone row above the typing box, the first ready-made template).
+Now (`film.ts` `light`) several parts lit as one box take in whole each
+button, line of words or icon its edge would cut, up to a third of the
+screen, so a box that wraps differently in another language cuts nothing
+either; a slider (a part's handle) is a button of its own; a button with no
+box of its own whose words and icons are all on one box it holds is lit as
+that box (the play button's round face); and the three scripts light what
+the voice names. `FRAME` stays, so only the held videos, and any whose
+screens changed, are filmed again.
+
 ## 192. Tutorial videos go up as soon as they are filmed: the filming tells the app, the intake chooses the wide films itself, and the publish follows each intake
 
 Date: 2026-10-30 · By: Caleb Koster · Status: accepted
