@@ -131,8 +131,10 @@ test('REC-004 Record parts with voice detection @p0', async ({ page, browser }) 
   await m.mode('tone');
   await recordButton(page).click();
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
-  // The recording view names the part being said; the footer holds Undo and Redo, out of the way while recording (decision 133).
-  await expect(page.getByLabel(/^Part 1\. /)).toBeVisible();
+  // The recording view names no part (decision 124, amended 2026-11-01): it says how the recording stands, and its boxes
+  // carry the numbers. The footer holds Undo and Redo, out of the way while recording (decision 133).
+  await expect(page.getByLabel('Listening for you. 0 parts so far')).toBeVisible();
+  await expect(page.getByLabel(/^Part \d+\. /)).toHaveCount(0);
   await expect(text(page, 'Listening for you · pause between parts')).toBeVisible();
   await expect(publishButton(page)).toHaveCount(0);
   for (const [i, ms] of [4000, 4000, 3000].entries()) {
@@ -140,16 +142,18 @@ test('REC-004 Record parts with voice detection @p0', async ({ page, browser }) 
     await expect(text(page, 'Recording…')).toBeVisible();
     await page.waitForTimeout(ms); // sleep: N s of speech, the product's own threshold
     await m.speak(false);
-    // After the pause the card counts it, and the next part is lit. The product's rule is 2 s of quiet by the audio's
-    // clock; the test allows for a slow runner (CPU load stretches the detector's turn), so the wait is a ceiling, not the point.
+    // After the pause the recording view counts it, and its box carries its number. The product's rule is 2 s of quiet by the
+    // audio's clock; the test allows for a slow runner (CPU load stretches the detector's turn), so the wait is a ceiling, not the point.
     await expectParts(page, i + 1, 10_000);
-    await expect(page.getByLabel(new RegExp(`^Part ${i + 2}\\. `))).toBeVisible();
+    await expect(byId(page, `live-part-${i + 1}`)).toBeVisible();
     await expect(text(page, 'Listening for you · pause between parts')).toBeVisible();
   }
   // Stopping keeps the session open (decision 129): its parts are boxes to hear, move or drop, and nothing is saved until the recording view's Done.
   await stopRecording(page);
   for (const n of [1, 2, 3]) await expect(byId(page, `live-part-${n}`)).toBeVisible();
-  await expect(page.getByLabel(/^Part 4\. /)).toBeVisible();
+  // Stopped, nothing names the next part: the status says how many are kept.
+  await expect(page.getByLabel('3 parts so far')).toBeVisible();
+  await expect(page.getByLabel(/^Part \d+\. /)).toHaveCount(0);
   await expect(publishButton(page)).toHaveCount(0);
   await leaveSession(page);
   await expect(page.getByRole('button', { name: /^Parts 1–3, 3 parts · \d+:\d\d$/ })).toBeVisible();
@@ -1050,16 +1054,17 @@ test('REC-053 A stopped session: hear a part, move its edge, drop one, carry on,
   for (let i = 1; i <= 8; i++) await page.mouse.move(one.x + one.width - 2 + i * 5, y);
   await page.mouse.up();
   await expect.poll(async () => (await part(1).boundingBox())?.width ?? 0, { message: 'part 1 is longer' }).toBeGreaterThan(one.width + 5);
-  // Part 3's ×: it goes, and its place and number stay for what is said next.
+  // Part 3's ×: it goes, and its number stays for what is said next.
   const three = (await part(3).boundingBox())!;
   await page.mouse.click(three.x + three.width - 15, three.y + three.height - 15);
   await expect(part(3)).toHaveCount(0);
-  await expect(page.getByLabel(/^Part 3\. /)).toBeVisible();
+  await expect(page.getByLabel('2 parts so far')).toBeVisible();
   // Carrying on fills it.
   await recordButton(page).click();
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
   await say(page, 3000, 0);
   await expectParts(page, 3, 10_000);
+  await expect(part(3)).toBeVisible();
   // Done keeps the parts as their boxes stand, and only then are they saved.
   await leaveSession(page);
   await expect(page.getByRole('button', { name: /^Parts 1–3, 3 parts · 0:\d\d$/ })).toBeVisible();
