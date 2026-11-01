@@ -62,9 +62,15 @@ async function createAccountAndOrg(page: Page, email: string): Promise<void> {
   await expect(page.getByText('How will recordings get checked?').first()).toBeVisible({ timeout: 60_000 });
   await button(page, 'Continue').click({ timeout: 60_000 });
   await button(page, 'Add Dinka').click({ timeout: 60_000 });
+  // Inviting opens with the translators' code already made (decision 146, amended for LAN-195): Share as a link
+  // shows once the server has made it and this browser has it.
+  await expect(button(page, 'Share as a link')).toBeVisible({ timeout: 60_000 });
   await button(page, 'Done').click({ timeout: 60_000 });
-  // A new language leads My Work with its Get ready card (decision 71): "Get Dinka ready · 1 of 4".
-  await expect(page.getByText(/^Get Dinka ready/).first()).toBeVisible({ timeout: 60_000 });
+  // A template, checks and an invite: Dinka is ready, so My Work offers no Get ready card and leads with its
+  // first passage (decision 71).
+  await expect(page.getByText('A good place to start', { exact: true }).locator('visible=true').first()).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole('heading', { name: 'Matthew 1:1–17' }).locator('visible=true').first()).toBeVisible();
+  await expect(page.getByText(/^Get Dinka ready/)).toHaveCount(0);
 }
 
 /** Every file the app's own stores hold in this site's private files (apps/mobile/src/web/webFiles.ts). */
@@ -107,11 +113,28 @@ async function openContext(browserName: string, open: () => Promise<BrowserConte
   return { context, done: async () => { await context.close(); rmSync(dir, { recursive: true, force: true }); } };
 }
 
+/**
+ * The browser the long test opened, traced until it ends. A test that fails
+ * or runs out of time keeps its trace with the results (trace.zip in the
+ * web-smoke-results artifact): the config's `trace` never reaches a context
+ * the test opens itself, and a timeout leaves no screen in the error.
+ */
+let traced: { context: BrowserContext; done: () => Promise<void> } | null = null;
+test.afterEach(async ({}, info) => {
+  const open = traced;
+  traced = null;
+  if (!open) return;
+  await open.context.tracing.stop({ path: info.outputPath('trace.zip') }).catch(() => {});
+  await open.done().catch(() => {});
+});
+
 test('a new organization on the web, from sign-up to sign-out', async ({ browser, browserName, playwright }, info) => {
   const use = info.project.use;
   const { context, done } = await openContext(browserName,
     () => browser.newContext(use),
     (dir) => playwright.webkit.launchPersistentContext(dir, { ...use, baseURL: use.baseURL }));
+  await context.tracing.start({ screenshots: true, snapshots: true });
+  traced = { context, done };
   const page = await context.newPage();
   const phone = info.project.name === 'chromium-phone';
   const mic = info.project.name.startsWith('chromium') && !phone;
@@ -210,6 +233,8 @@ test('a new organization on the web, from sign-up to sign-out', async ({ browser
   }
 
   expect(await csp(), 'Content Security Policy refusals').toEqual([]);
+  traced = null;
+  await context.tracing.stop();
   await done();
 });
 

@@ -15,8 +15,18 @@ const NO_CHECKS: readonly string[] = [];
  * RPC as Invite by QR) and kept while the screen is up, so switching back to
  * a role shows the code already made. Offline, it says so, and Try again
  * asks once more (UI audit, finding 95).
+ *
+ * The server writes the invite into the organization's stream, and an issued
+ * invite answers "Invite your translators" (decision 146, amended). `pull`
+ * brings it to this phone before the code shows, so the phone that made it
+ * counts it at once: otherwise My Work, right after Done, led with "Get
+ * ‹language› ready" and swapped it for the next passage a moment later, when
+ * the stream caught up. A pull that fails still shows the code.
  */
-export function useGroupInvite(orgId: string, roleId: string | null, scope: Scope | null, label: string, checks: readonly string[] = NO_CHECKS): InviteState {
+export function useGroupInvite(orgId: string, roleId: string | null, scope: Scope | null, label: string,
+  opts: { checks?: readonly string[]; pull?: () => Promise<unknown> } = {}): InviteState {
+  const checks = opts.checks ?? NO_CHECKS;
+  const pull = opts.pull;
   const [made, setMade] = useState<Record<string, InviteState>>({});
   const [tries, setTries] = useState(0);
   // A code that puts people on checks (decisions.md 146) is another code.
@@ -25,6 +35,8 @@ export function useGroupInvite(orgId: string, roleId: string | null, scope: Scop
     if (!key || !roleId || !scope || made[key]) return;
     let live = true;
     void issueInvite(orgId, roleId, scope, { label, maxUses: GROUP_USES, ...(checks.length ? { checks } : {}) })
+      // Pulled even when the screen has gone: My Work, where Done leads, reads the invite too.
+      .then(async (inv) => { if (pull) await pull().catch(() => {}); return inv; })
       .then((inv) => { if (live) setMade((m) => ({ ...m, [key]: { uri: inviteUri(orgId, inv.token, APP_URL) } })); })
       .catch((e: unknown) => {
         // Offline or refused by the server: its words say which.
