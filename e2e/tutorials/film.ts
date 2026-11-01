@@ -106,10 +106,12 @@ function light(els: Node[] | null): void {
   /** Something a viewer sees: a line of words or an icon (edge null), or an edge across (h) or up and down (v). */
   type Thing = Side & { edge: 'h' | 'v' | null };
   type Clear = { key: string; at: number; off: Side; rows: [number, number][]; round: string };
-  const w = window as unknown as { __lit?: Node[]; __litLoop?: boolean; __clear?: Clear };
+  type Grown = { key: string; at: number; c: Side; grown: boolean };
+  const w = window as unknown as { __lit?: Node[]; __litLoop?: boolean; __clear?: Clear; __grown?: Grown };
   let el = document.getElementById('tutorial-light');
   w.__lit = els ?? [];
   w.__clear = undefined;
+  w.__grown = undefined;
   if (!els) {
     if (el) el.style.opacity = '0';
     return;
@@ -149,7 +151,7 @@ function light(els: Node[] | null): void {
   const drawn = (e: Element, s: CSSStyleDeclaration) =>
     edged(s) || s.boxShadow !== 'none' || (!clear.test(s.backgroundColor) && s.backgroundColor !== fillUnder(e.parentElement));
   const control = (a: Element) => ['button', 'a', 'input', 'select', 'textarea'].includes(a.tagName.toLowerCase()) ||
-    ['button', 'link', 'tab', 'checkbox', 'radio', 'switch', 'menuitem', 'option'].includes(a.getAttribute('role') ?? '') ||
+    ['button', 'link', 'tab', 'checkbox', 'radio', 'switch', 'menuitem', 'option', 'slider'].includes(a.getAttribute('role') ?? '') ||
     (a.getAttribute('tabindex') ?? '-1') !== '-1';
   const lit = () => (w.__lit ?? []).filter((e): e is Element => e.isConnected && e instanceof Element);
 
@@ -158,6 +160,24 @@ function light(els: Node[] | null): void {
     const s = getComputedStyle(e);
     const d = e.getBoundingClientRect();
     return ['top-left', 'top-right', 'bottom-right', 'bottom-left'].map((k) => Math.min(parseFloat(s.getPropertyValue(`border-${k}-radius`)) || 0, d.width / 2, d.height / 2));
+  };
+  /**
+   * A button with no box of its own whose words and icons are all on one box it holds (a part's play button: a round
+   * face on a tap area as tall as the row, and taller on the last row): that face. Otherwise the button itself.
+   */
+  const face = (e: Element): Element => {
+    if (!control(e) || drawn(e, getComputedStyle(e))) return e;
+    const shows: Node[] = [...e.querySelectorAll('svg, img')].filter((x) => x.getBoundingClientRect().width > 0);
+    const words = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
+    for (let n = words.nextNode(); n; n = words.nextNode()) if ((n.textContent ?? '').trim()) shows.push(n);
+    if (!shows.length) return e;
+    let best: Element | undefined;
+    for (const d of e.querySelectorAll('*')) {
+      const r = d.getBoundingClientRect();
+      if (r.width < 4 || r.height < 4 || !drawn(d, getComputedStyle(d)) || !shows.every((x) => d.contains(x))) continue;
+      if (!best || area(of(r)) > area(of(best.getBoundingClientRect()))) best = d;
+    }
+    return best ?? e;
   };
   /**
    * What is lit: the button or card each lit part is in, together; how round its corners are (the one box's, the least
@@ -183,7 +203,7 @@ function light(els: Node[] | null): void {
           if (drawn(a, getComputedStyle(a))) found = a;
         } else if (control(a) || drawn(a, getComputedStyle(a))) found = a;
       }
-      return found ?? e;
+      return face(found ?? e);
     });
     // What shows of each: a part a list hides (a header scrolled up under the panel above it) is not lit.
     const seen = found.map((e) => shown(e)).filter((o) => o.r - o.l >= 1 && o.b - o.t >= 1);
@@ -198,6 +218,10 @@ function light(els: Node[] | null): void {
         if (drawn(a, getComputedStyle(a)) && o.l >= c.l - 24 && o.t >= c.t - 24 && o.r <= c.r + 24 && o.b <= c.b + 24) c = join([c, o]);
       }
     }
+    // Several parts lit as one box take in whole what its edge would cut between them (chips that wrap, By email
+    // beside Share as a link and One person under them): the box is no longer one of theirs.
+    const taken = found.length > 1 ? takeIn(c, found) : { c, grown: false };
+    c = taken.c;
     const round = [0, 1, 2, 3].map((i) => Math.min(...found.map((e) => corners(e)[i]!)));
     // A corner on a rounder box's corner (the first or last rows of a rounded list) is as round as that box's.
     for (let a = found[0]!.parentElement; a && a !== document.body; a = a.parentElement) {
@@ -210,7 +234,63 @@ function light(els: Node[] | null): void {
         if (Math.abs(x! - cx!) <= 3 && Math.abs(y! - cy!) <= 3) round[i] = Math.max(round[i]!, r);
       });
     }
-    return { c, round, boxed: found.every((e) => drawn(e, getComputedStyle(e))), found };
+    return { c, round, boxed: !taken.grown && found.every((e) => drawn(e, getComputedStyle(e))), found };
+  };
+
+  /**
+   * The box `c` round several lit parts, grown to take in whole each button, line of words or icon its edge would cut
+   * (part of it in the box, part out), until it cuts none; never past a third of the screen. Looked at again when the
+   * box moves, and every quarter second.
+   */
+  const takeIn = (c: Side, found: Element[]): { c: Side; grown: boolean } => {
+    const key = SIDES.map((k) => Math.round(c[k])).join(',');
+    if (w.__grown && w.__grown.key === key && performance.now() - w.__grown.at < 250) return w.__grown;
+    const ours = (e: Element) => !!e.closest('[id^="tutorial-"]');
+    const showing = (e: Element) => e.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) ?? true;
+    /** Not under something else: what is at the middle of `o` is the element, or in it. */
+    const seen = (e: Element, o: Side) => {
+      const hit = document.elementFromPoint(Math.min(Math.max((o.l + o.r) / 2, 0), innerWidth - 1), Math.min(Math.max((o.t + o.b) / 2, 0), innerHeight - 1));
+      return !!hit && (e.contains(hit) || hit.contains(e));
+    };
+    const pieces: Side[] = [];
+    const add = (e: Element, o: Side) => {
+      if (o.r - o.l < 2 || o.b - o.t < 2 || area(o) > screen / 3 || (o.l <= 1 && o.r >= innerWidth - 1)) return;
+      if (seen(e, o)) pieces.push(o);
+    };
+    // A button (not one the lit parts are in, nor one in them) and an icon.
+    for (const e of document.body.querySelectorAll('*')) {
+      if (ours(e) || found.some((f) => e.contains(f) || f.contains(e))) continue;
+      const svg = e.tagName.toLowerCase() === 'svg';
+      if (!svg && !control(e)) continue;
+      if (showing(e)) add(e, shown(e));
+    }
+    // A line of words.
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const range = document.createRange();
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const e = n.parentElement;
+      if (!e || !(n.textContent ?? '').trim() || ours(e) || found.some((f) => f.contains(e)) || !showing(e)) continue;
+      range.selectNodeContents(n);
+      const clip = shown(e);
+      for (const d of range.getClientRects()) add(e, cut(of(d), clip));
+    }
+    let out = c;
+    let grown = false;
+    for (let again = true, i = 0; again && i < 8; i++) {
+      again = false;
+      for (const o of pieces) {
+        const both = cut(o, out);
+        if (both.r - both.l < 2 || both.b - both.t < 2) continue;
+        if (o.l >= out.l - 1 && o.t >= out.t - 1 && o.r <= out.r + 1 && o.b <= out.b + 1) continue;
+        if (o.l <= out.l && o.t <= out.t && o.r >= out.r && o.b >= out.b) continue;
+        const next = join([out, o]);
+        if (area(next) > screen / 3) continue;
+        out = next;
+        again = grown = true;
+      }
+    }
+    w.__grown = { key, at: performance.now(), c: out, grown };
+    return w.__grown;
   };
 
   /** Where `e` shows: its box cut by the screen and by each box around it that hides what overflows. */

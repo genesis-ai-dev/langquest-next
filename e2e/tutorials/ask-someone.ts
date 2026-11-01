@@ -41,7 +41,8 @@ export const askSomeone: Tutorial = {
     },
     {
       screen: 'ask_someone',
-      part: (page) => page.getByLabel('Or type them', { exact: true }).locator('visible=true').first(),
+      // Typed into the box (the first part); the microphone row above it is lit with it.
+      part: (page) => [page.getByLabel('Or type them', { exact: true }).locator('visible=true').first(), page.getByText('Say what to keep in mind', { exact: true }).locator('visible=true').first()],
       say: 'Say or type directions, if they help.',
       type: 'Please record this one next.',
       stay: 0.5

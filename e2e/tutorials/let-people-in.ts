@@ -30,7 +30,8 @@ export const letPeopleIn: Tutorial = {
     },
     {
       screen: 'edit_member',
-      part: (page) => page.getByText(/I read Lumari well/).locator('visible=true').first(),
+      // Who they are is the heading, what they wrote is under it.
+      part: (page) => [words(page, `${MOSES} wants to join`), page.getByText(/I read Lumari well/).locator('visible=true').first()],
       say: 'It says who they are, and what they wrote.'
     },
     {
