@@ -112,11 +112,12 @@ if (missed.length) {
   console.log(`${language}: ${missed.length} to film again, alone: ${missed.join(' ')}`);
   for (const id of makeVideos(missed, false, true)) filmed.add(id);
 }
-// Each new film's stills looked at, four films at a time (frame-check.ts). A film with something wrong, or one
-// that could not be looked at, is held: it is not put up, and the video keeps its last film until a night's is right.
+// Each new film's stills looked at, two films at a time (frame-check.ts): five languages film at once, on one
+// Claude plan. A film with something wrong, or one that could not be looked at, is held: it is not put up, and the
+// video keeps its last film until a night's is right.
 const held = new Map<string, string[]>();
 const toCheck = [...filmed];
-await Promise.all([0, 1, 2, 3].map(async () => {
+await Promise.all([0, 1].map(async () => {
   for (let id = toCheck.shift(); id; id = toCheck.shift()) {
     try {
       const found = problemLines(await checkFilm(path.join(results, 'films', language!, id), path.join(results, language!, `${id}.mp4`), language!));

@@ -3,4 +3,5 @@ export interface NeedsYou { title: string; text: string; link: string }
 export const NEEDS_YOU_FILE: string;
 export function needsYou(problem: NeedsYou): void;
 export function geminiNeedsYou(status: number, body: string): NeedsYou | null;
+export function claudeNeedsYou(text: string): NeedsYou | null;
 export function annotations(lines: readonly string[]): string[];

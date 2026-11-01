@@ -9653,6 +9653,30 @@ signs in with a person's plan). Reverse if: the check holds films that are
 right more than now and then (then it reports without holding), or misses
 what people find.
 
+Amended (2026-11-01, Caleb Koster): Claude looks at the stills, not Gemini.
+Google charged US$230 on the Gemini key in the week every language was
+filmed again (the ring, then the spotlight), and the frame check was about
+US$175 of it: six runs showed 2,879 films to `gemini-flash-latest` at its
+full price, and Gemini thought about as many tokens as it was sent (38
+million), billed as its answer, so a film cost about 6 US cents, not under
+one. Caleb asked to use the Claude plan's token the repository already
+holds for the look at the videos' feedback (`CLAUDE_CODE_OAUTH_TOKEN`,
+decision 186), with Sonnet. `frame-check.ts` runs Claude Code (its version
+pinned in `tutorials.yml`) as Sonnet thinking at high effort, with no
+tools, settings or MCP servers, and the same stills in one look a film; it
+counts against the plan's five-hour and weekly limits instead of a bill,
+and each language looks at two films at a time. Tried on 2026-11-01 on the
+stills Gemini held in run 19 and on clean spotlight screens: Sonnet found
+the cut-off words and, once the prompt asked it to check each heading
+against what the voice says, the wrong part number; it missed some ring
+outlines Gemini named (the ring is gone), and it found app glitches Gemini
+had passed (a Spanish role name broken mid-word, "1 listos"). The job's
+summary gives what Claude would cost on the API and what Gemini bills for
+the voice and translations. Rejected: Gemini's Batch API with less thinking
+(about a sixth of the price, still billed). Reverse if: the plan's limits
+stop the check or get in the way of the team's own use of Claude, or Sonnet
+holds films that are right more than now and then.
+
 ## 193. A content template has no language: Bible book names are library items, one per language, that a language picks; and New language asks the languages its translators use right after the name
 
 Date: 2026-10-30 · By: Caleb Koster · Status: accepted

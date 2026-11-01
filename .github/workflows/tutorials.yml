@@ -8,10 +8,11 @@
 # Worker they are in (films-in.mjs): its job container brings them into R2,
 # chooses the wide ones for YouTube and puts them up at once (decision 192).
 #
-# Each new film's stills are looked at by Gemini first (frame-check.ts), and a
+# Each new film's stills are looked at by Claude first (frame-check.ts), and a
 # film with something wrong is held, with what is wrong on the run's summary.
 #
-# This workflow holds the Gemini key, for the voice and the frame check, and
+# This workflow holds the Gemini key, for the voice and the translations, the
+# Claude plan's token, for the frame check (as in tutorial-review.yml), and
 # no production key: it writes only to this repository's release, and
 # reaches the app only through the Worker's /api/tutorial-filmed, which lets
 # in this workflow on main by its GitHub OIDC token (scripts/workflows.test.ts).
@@ -213,9 +214,15 @@ jobs:
           name: lines-${{ matrix.language }}
           path: ${{ runner.temp }}/lines
           if-no-files-found: ignore
+      # The frame check is Claude Code, as Sonnet, signed in with the Claude plan's token (frame-check.ts).
+      - name: Claude Code, for the frame check
+        run: npm install -g @anthropic-ai/claude-code@2.1.316
       - name: Try every video, and film the ones that changed
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # No updates, telemetry or error reports from Claude Code on the runner.
+          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
           VIDEOS: ${{ inputs.videos }}
         # VIDEOS is split into ids on purpose.
         run: npx tsx e2e/tutorials/nightly.ts --language "$LANGUAGE" --release "$RUNNER_TEMP/release" --out "$RUNNER_TEMP/out" $VIDEOS
@@ -231,8 +238,8 @@ jobs:
       - name: What needs a person
         if: always()
         run: node e2e/tutorials/needs-you.mjs
-      # Tokens in, out and thinking for each model, to set against the bill in AI Studio.
-      - name: What Gemini counted
+      # Tokens in, out and thinking for each model, and what Gemini bills for them, to set against the bill in AI Studio.
+      - name: What Gemini and Claude counted
         if: always()
         run: node e2e/tutorials/gemini-usage.mjs | tee -a "$GITHUB_STEP_SUMMARY"
       # A step that could not finish leaves the screen as it was (failed-*.png) and its words (failed-*.txt);
