@@ -739,8 +739,9 @@ test('REV-032 Say each part, then finish the back translation @p0', async ({ pag
   await primary(page).click();
   await button(page, 'Record part 1').click();
   await expect(button(page, 'Stop recording')).toBeVisible();
-  // The pane below the divider is the recording view (LAN-83): the part being said, the time and Done.
-  await expect(visible(page.getByLabel(/^Part 1\. (Recording…|Listening for you)/)).first()).toBeVisible();
+  // The pane below the divider is the recording view (LAN-83): how the recording stands, the time and Done. It names no
+  // part (decision 124, amended 2026-11-01); the source part is named on its player above.
+  await expect(visible(page.getByLabel(/^(Recording what you say|Listening for you\. \d+ pieces? so far)$/)).first()).toBeVisible();
   await expect(visible(page.getByLabel(/^Recorded for 0:\d\d$/)).first()).toBeVisible();
   await expect(button(page, 'Done')).toBeVisible();
   // The voice file speaks 1.5 s in every 4 s: stop once a piece has been heard, as sayPart does. Stopped before

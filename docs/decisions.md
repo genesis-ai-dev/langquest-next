@@ -5184,6 +5184,17 @@ Amended (2026-10-16, Caleb Koster): one part is deleted by sliding its row
 aside and tapping the bin it shows; the rows have no bin of their own
 (decision 136).
 
+Amended (2026-11-01, Caleb Koster): the recording view's top row names no
+part. It showed the number of the part to be recorded next, so after Stop it
+read "Part 2" over the one box numbered 1, and "Part 3" while Part 2 was said
+again; the tutorial frame check held three videos for it. Caleb chose to drop
+the title rather than make it name the parts just said: the boxes on the
+waveform are numbered, and that is enough. The row keeps the status
+(recording, listening, stopped), a deleted part's verses when one is filled,
+the time and Done; screen readers hear the status with how many parts are
+kept so far. In back translation the source part stays named above, on its
+player.
+
 ## 125. Parts split by the room and the voice the microphone hears, nothing said is thrown away, and there is no microphone setup
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
