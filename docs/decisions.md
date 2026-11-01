@@ -9042,6 +9042,12 @@ UTC: the filming tells the app when each language's films are in, and the
 intake runs then, with the publish after it; the one scheduled intake is at
 five past midnight in California, as YouTube's day begins (192).
 
+Amended (2026-11-01, Caleb Koster): English alone is filmed for now
+(`NIGHTLY_LANGUAGES: en`). The spotlight (decision 191) films every video
+again, and Caleb looks at the English films before the other fourteen
+languages are filmed; they come back, English and French first, when he
+says the English ones look right.
+
 ## 184. The publish job keeps each YouTube channel's description, banner and list of the others; held comments are counted on the dashboard and moderated in Studio
 
 Date: 2026-10-28 · By: Caleb Koster · Status: accepted
@@ -9516,6 +9522,64 @@ a tab in the bar at the foot of the screen runs off its bottom edge.
 `FRAME` stays `zoomed-ring`: held films are not in the release, so they
 are filmed again anyway.
 
+Amended (2026-10-31, Caleb Koster): the ring a third time, after the night
+on the rules above passed only 3 of the 47 English films, 2 French and 4
+Spanish. Most holds came from four things. A field's words were taken to
+fill the whole field, so a ring that could not stand inside a field went
+round the whole form and through the labels above its fields ("cuts
+through the label 'Password'"); a field's words are now as wide and as
+high as they show. A ring that crossed something tried each box further
+out, up to a list, the bar at the foot of the screen or both buttons in
+the corner; it now never takes a box much bigger (1.6 times) than the
+part's own when that box has other things to tap in it (a link and the
+sentence it ends are still lit together), and a bar round another button
+with words is not taken as the part's own box (Skip beside Next question).
+Its corners were always the same, so a card's rounder or squarer corners
+showed past it ("the green corners of the Looks good button show outside
+the ring"); they are now as round as the box's, stood off as far as the
+ring. A border within 14 points of the ring, inside or out, reads as a
+second ring ("a border line doubled just inside the ring") and is kept
+clear of it, as an edge where a fill stops is within 8 points outside and
+3 inside; words outside it stay 2 points clear, and words between it and
+the part (a heading just above a card) count as crossed, since the ring
+would go round them too. Where the ring cannot miss
+everything, it stands beside an edge rather than across it, and it stands
+as far off a part on one side as on the other where that crosses nothing
+more (tight on one side, it reads as cutting into the part). It never goes
+round a bar from one side of the screen to the other (the bar round the
+main button), and a part under a button that floats over a list is
+scrolled to the list's middle first. A part that leaves the screen (the
+upload bar once all is uploaded) takes its ring with it, and a part as
+tall as most of the screen
+is shown on the whole page with the title (`camera.ts`), not as the whole
+phone with an empty page beside it. A video whose setup leaves the app
+still loading waits for its first part (a blank phone in the first still),
+and a note at the foot of the screen that would cover the next part is
+waited out off camera. A dozen scripts lit more or less than their line
+names, or said what the screen does not show (Note, not Add a note here;
+Next: decide, not Next); the frame check is told what the app draws itself
+(a thin purple border round the card for the next thing to do, a quoted
+verse's purple line, help mode's dimming). What it found in the app
+itself, not in the films, goes to the team as app bugs; a film that shows
+one stays held until the app is fixed.
+
+Amended (2026-11-01, Caleb Koster): no ring; a spotlight. After the third
+round, the night's films passed 4 of the 47 English, 2 French, 7 Spanish
+and 5 Portuguese, again mostly for the ring: in most held videos one or two
+stills showed it through a card's edge, a badge or the row beside the part,
+or with square corners. Four rounds of placing a drawn ring each passed
+under a tenth of the films. Now nothing is drawn round the part (`film.ts`
+`light`): the rest of the screen dims and the part's own button, row or
+card stays bright, exactly to its own edge and with its own corners, so the
+dimming stops where the part does and crosses nothing beside it. A part
+with no box of its own (a line of words, an icon) is lit 6 points round,
+nearer on a side where that would take in other words, an icon or an edge.
+Which box is the part's own is decided as above. The frame check is told
+about the bright part instead of the ring. `FRAME` is `zoomed-spotlight`,
+so every video, those already up with the ring too, is filmed again.
+Rejected: the camera's zoom alone with nothing lit (a small button among
+many is hard to find), and a fifth round on the ring.
+
 ## 192. Tutorial videos go up as soon as they are filmed: the filming tells the app, the intake chooses the wide films itself, and the publish follows each intake
 
 Date: 2026-10-30 · By: Caleb Koster · Status: accepted
@@ -9594,6 +9658,30 @@ filming already holds a Gemini key and pays per token; Claude in Actions
 signs in with a person's plan). Reverse if: the check holds films that are
 right more than now and then (then it reports without holding), or misses
 what people find.
+
+Amended (2026-11-01, Caleb Koster): Claude looks at the stills, not Gemini.
+Google charged US$230 on the Gemini key in the week every language was
+filmed again (the ring, then the spotlight), and the frame check was about
+US$175 of it: six runs showed 2,879 films to `gemini-flash-latest` at its
+full price, and Gemini thought about as many tokens as it was sent (38
+million), billed as its answer, so a film cost about 6 US cents, not under
+one. Caleb asked to use the Claude plan's token the repository already
+holds for the look at the videos' feedback (`CLAUDE_CODE_OAUTH_TOKEN`,
+decision 186), with Sonnet. `frame-check.ts` runs Claude Code (its version
+pinned in `tutorials.yml`) as Sonnet thinking at high effort, with no
+tools, settings or MCP servers, and the same stills in one look a film; it
+counts against the plan's five-hour and weekly limits instead of a bill,
+and each language looks at two films at a time. Tried on 2026-11-01 on the
+stills Gemini held in run 19 and on clean spotlight screens: Sonnet found
+the cut-off words and, once the prompt asked it to check each heading
+against what the voice says, the wrong part number; it missed some ring
+outlines Gemini named (the ring is gone), and it found app glitches Gemini
+had passed (a Spanish role name broken mid-word, "1 listos"). The job's
+summary gives what Claude would cost on the API and what Gemini bills for
+the voice and translations. Rejected: Gemini's Batch API with less thinking
+(about a sixth of the price, still billed). Reverse if: the plan's limits
+stop the check or get in the way of the team's own use of Claude, or Sonnet
+holds films that are right more than now and then.
 
 ## 193. A content template has no language: Bible book names are library items, one per language, that a language picks; and New language asks the languages its translators use right after the name
 

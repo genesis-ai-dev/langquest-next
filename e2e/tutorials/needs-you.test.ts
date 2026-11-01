@@ -1,4 +1,4 @@
-import { annotations, geminiNeedsYou } from './needs-you.mjs';
+import { annotations, claudeNeedsYou, geminiNeedsYou } from './needs-you.mjs';
 
 describe('what only a person can fix, for the ops dashboard', () => {
   it("knows Gemini's refusals that need a person from those that pass", () => {
@@ -11,6 +11,14 @@ describe('what only a person can fix, for the ops dashboard', () => {
     expect(geminiNeedsYou(403, "Method doesn't allow unregistered callers (callers without established identity).")?.title).toBe('Gemini key');
     expect(geminiNeedsYou(429, 'RESOURCE_EXHAUSTED: Quota exceeded for requests per minute')).toBeNull();
     expect(geminiNeedsYou(400, '{"error":{"message":"Precondition check failed."}}')).toBeNull();
+  });
+
+  it("knows when Claude refused the plan's token for the frame check", () => {
+    // What Claude Code says without a token, and with one that expired.
+    expect(claudeNeedsYou('error Invalid API key · Please run /login')?.title).toBe('Claude token');
+    expect(claudeNeedsYou('401 {"type":"error","error":{"type":"authentication_error","message":"OAuth token has expired."}}')?.title).toBe('Claude token');
+    expect(claudeNeedsYou('529 Overloaded')).toBeNull();
+    expect(claudeNeedsYou("error Claude AI usage limit reached")).toBeNull();
   });
 
   it('says each once, as an annotation whose title and link the dashboard reads', () => {

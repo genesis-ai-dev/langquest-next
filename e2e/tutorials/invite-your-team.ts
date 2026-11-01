@@ -67,10 +67,10 @@ export const inviteYourTeam: Tutorial = {
     },
     {
       screen: 'invite_member',
-      // The other ways together: one person's is under the two beside each other, so a ring round it and By email
-      // alone would cross Share as a link.
+      // The other ways together, each named: one person's is under the two beside each other, so a ring round it and
+      // By email alone would cross Share as a link.
       part: (page) => [words(page, 'Share as a link'), words(page, 'One person, by name')],
-      say: 'You can also invite someone by email, or one person by name.'
+      say: 'So there are three ways: a link, an email, or one person by name.'
     },
     {
       screen: 'invite_member',

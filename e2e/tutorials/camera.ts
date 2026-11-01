@@ -26,6 +26,8 @@ export const ZOOM_MOST = 2.2;
 const FILL = { width: 0.85, height: 0.75 };
 /** A close shot with a stretch of empty screen this much of its height, or more, is taken from further out. */
 const EMPTY = 0.5;
+/** A shot with this much of the screen's height, or more, shows the whole page instead. */
+const TALL = 0.8;
 /** A shot taken from further out that would still cut a little off the screen shows it whole instead. */
 const NEARLY_WHOLE = 1.25;
 /** The camera keeps a little of the page around the screen (the phone's edge), never more. */
@@ -76,6 +78,9 @@ export function shotOf(box: Box | null, page: Size, screen: Box, rows: [number, 
     return Math.max(longest, bottom - from) / (bottom - top);
   };
   let zoom = clamp(Math.min((FILL.width * page.width) / box.width, (FILL.height * page.height) / box.height), 1, ZOOM_MOST);
+  // A shot with most of the screen's height in it is the whole phone with empty page either side: the whole page,
+  // with its title, instead.
+  if (page.height / zoom >= TALL * screen.height) return { x: 0, y: 0, width: page.width };
   let shot = at(zoom);
   while (rows.length && zoom > 1 && emptiest(shot) >= EMPTY) shot = at((zoom = zoom * 0.9 < NEARLY_WHOLE ? 1 : zoom * 0.9));
   return shot;

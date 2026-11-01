@@ -34,10 +34,10 @@ GEMINI_API_KEY`); run with it as `npx dotenvx run -f .env.production -fk
 | File | What it does |
 | --- | --- |
 | `all.ts`, `<id>.ts` | the scripts: who is signed in, the world they start from, each step (what is lit, what is said, what is tapped) |
-| `film.ts` | plays one script against the web export and keeps every frame with its time, when each line is said, what the speaker says into the microphone and what the app plays aloud; it lights each step's part with a ring around its whole button, row or card, standing off it, or on its edge, where it crosses no words, icon or edge beside it (the nearest box out that it fits around, otherwise) |
+| `film.ts` | plays one script against the web export and keeps every frame with its time, when each line is said, what the speaker says into the microphone and what the app plays aloud; it lights each step's part with a spotlight: the rest of the screen dims, and the part's whole button, row or card stays bright, exactly to its own edge and corners, so no line is drawn; a part with no box of its own (words, an icon) is lit 6 points round, nearer where that would take in other words or an edge |
 | `compose.ts` | puts a film together as a wide (16:9) MP4: the frames in a phone beside the app's mark and the title (or in a browser window under the title, for web videos), the camera moving in on what each step lights (then 2560x1440, so YouTube makes its sharper versions, and the title fades while the camera is in and comes back whenever it is out on the whole page), and the sound evened to -16 LUFS |
-| `camera.ts` | where the camera looks: in on each lit part (its words about twice their size), further out where a close shot would be mostly empty screen, back out to the whole page where a step lights nothing, at the start and at the end |
-| `frame-check.ts` | a new film's stills, one while each line is said, looked at by Gemini for what is drawn wrong |
+| `camera.ts` | where the camera looks: in on each lit part (its words about twice their size), further out where a close shot would be mostly empty screen, back out to the whole page where a step lights nothing or something most of the screen's height, at the start and at the end |
+| `frame-check.ts` | a new film's stills, one while each line is said, looked at by Claude (Sonnet, through Claude Code) for what is drawn wrong |
 | `gemini-voice.mjs` | says lines with Gemini's text-to-speech, through the Batch API |
 | `translate-lines.ts` | translates each video's title and lines into `lines/<language>.json` |
 | `readings.ts`, `make-readings.ts` | what the people in the videos say, and saying it into WAV files |
@@ -67,8 +67,15 @@ in an annotation titled "Needs you: Gemini credit" or "Needs you: Gemini key"
 link to AI Studio, until the next run works.
 
 What Gemini counts for each batch job (tokens in, out and thinking) goes into
-`e2e/results/tutorials/gemini-usage.jsonl`, and each job's summary on GitHub
-adds it up by model (`gemini-usage.mjs`), to set against the bill in AI Studio.
+`e2e/results/tutorials/gemini-usage.jsonl`, with a line for each film the
+frame check showed Claude, and each job's summary on GitHub adds it up by
+model (`gemini-usage.mjs`) with what Gemini bills for it at its batch list
+price, to set against the bill in AI Studio. Claude's lines are on the
+Claude plan and not billed; the summary gives what they would cost on the
+API beside them. Until 2026-11-01 the frame check was Gemini at its full
+price, thinking about as many tokens as it was sent: about US$175 of the
+US$230 Google charged in the week every language was filmed again, about
+6 US cents a film.
 The first filming in all fifteen languages (29 October 2026) stopped on
 "prepayment credits are depleted" after about 8 hours of speech from CA$50 of
 prepaid credit, where Google's list price (25 audio tokens a second, US$4.50 a
@@ -112,7 +119,8 @@ A script is written once, in English. In another language:
 `.github/workflows/tutorials.yml` keeps the videos current (decision 183).
 At 20:10 UTC, and when a change to `e2e/tutorials` or the workflow is
 merged into main, for each language in its `NIGHTLY_LANGUAGES` (all fifteen,
-English and French first, five at a time), a runner starts the local stack and the web export as the UI tests
+English and French first, five at a time; English alone from 2026-11-01
+until Caleb has looked at the spotlight films), a runner starts the local stack and the web export as the UI tests
 do, has Gemini translate any line the language lacks (`translate-lines.ts`;
 the job keeps the file as `lines-<language>`, to commit), and `nightly.ts`:
 
@@ -128,10 +136,12 @@ the job keeps the file as `lines-<language>`, to commit), and `nightly.ts`:
    time; a film that fails is filmed once more, alone;
 3. looks at each new film as someone who pauses it would (`frame-check.ts`):
    a still while each line is said, and the first and the last, as the video
-   shows them, go to Gemini (`gemini-flash-latest`) in one request a film,
-   which says what is wrong in each: a line or a box's edge left outside the
-   lit part or cut through, words cut off or on top of each other, a blank,
-   loading or error screen, words not in the language. A film with something
+   shows them, go to Claude (Claude Code as Sonnet, thinking at high effort,
+   with no tools) in one look a film, two films at a time, which says what
+   is wrong in each: a line or a box's edge left outside the lit part or cut
+   through, words cut off or on top of each other, a heading that does not
+   agree with what the voice says, a blank, loading or error screen, words
+   not in the language. A film with something
    wrong, or whose stills could not be looked at, is held: it is not put in
    the release, the video keeps its last film, and the job fails, with what
    is wrong under "Held by the frame check" on the run's summary and the
@@ -151,8 +161,11 @@ The ops dashboard's Tutorial videos → Filming shows where a run is: each
 language waiting its turn, filming (and on which step), done or failed,
 with a link to its log.
 The workflow holds the Gemini key (`GEMINI_API_KEY`, for the voice and the
-frame check, a repository secret that `npm run secrets -- production` sets
-from `.env.production`) and no production key.
+translations) and the Claude plan's token (`CLAUDE_CODE_OAUTH_TOKEN`, for
+the frame check; see [Feedback](#feedback)), repository secrets that `npm
+run secrets -- production` sets from `.env.production`, and no production
+key. When Claude refuses the token, the frame check holds the night's new
+films and the job says "Needs you: Claude token" for the ops dashboard.
 
 Videos go up as soon as they are filmed (decision 192). Once a language's
 new films are in the release, its job tells the app's Worker
@@ -215,8 +228,8 @@ YouTube makes a description's links clickable only on a channel with its
 advanced features (Studio → Settings → Channel → Feature eligibility). A
 video's description is written when it is filmed and put on when it is
 uploaded; a film from before decision 191 (tall, its voice written out),
-from before the camera moved in on what each step lights, or with the first
-zoomed night's ring, is filmed again once, whatever its look (`FRAME` in `playlists.ts` and in the release's
+from before the camera moved in on what each step lights, or with a ring
+drawn round each part rather than the spotlight, is filmed again once, whatever its look (`FRAME` in `playlists.ts` and in the release's
 manifest), and only a video's newest version goes up.
 
 A video's description ends with a link to the same video in each other
@@ -310,7 +323,8 @@ accepted change to a video is still done by hand. Inputs and answered
 suggestions over a year old are taken out.
 
 Claude signs in with a Claude plan, not an API key, and uses that plan's
-five-hour and weekly limits. The token, `CLAUDE_CODE_OAUTH_TOKEN`, is made
+five-hour and weekly limits, as the nightly filming's frame check does
+with the same token. The token, `CLAUDE_CODE_OAUTH_TOKEN`, is made
 by `claude setup-token` (`npx -y @anthropic-ai/claude-code setup-token`
 without the command installed), lasts a year, and is kept with `npm run
 env:update -- production CLAUDE_CODE_OAUTH_TOKEN`; `npm run secrets --
