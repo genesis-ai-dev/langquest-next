@@ -48,19 +48,19 @@ export function promptOf(title: string, code: string): string {
   return [
     `These are stills from a LangQuest tutorial video, "${title}", with the app in ${language}, at the moments a viewer might pause it.`,
     'Each shows the app on a phone (or in a browser window) on a pale page, with the title beside it at the start and the end; in between the camera is zoomed in, so the page, the title and the phone are cut off at the picture\'s edges on purpose.',
-    'While the voice talks about a part of the screen, that part has a white and purple ring around it and the rest of the screen is dimmed on purpose. A white ring opening out is a finger\'s tap; a round white dot is a finger held down. The people, teams and languages have made-up names, and Bible text may be in English in every language.',
+    'While the voice talks about a part of the screen, the rest of the screen is dimmed on purpose and that part stays bright: the bright area is the part\'s own button or card, or a little round words or an icon. A white ring opening out is a finger\'s tap; a round white dot is a finger held down. The people, teams and languages have made-up names, and Bible text may be in English in every language.',
     'What the team wrote or named in the app is theirs, not the app\'s, and may be in English in every language: role names (Organization Admin, Translator, Coordinator), the names of review steps, templates and reference material, and people\'s questions, notes, reasons and study guides. So may words a language commonly takes from English (Offline, Online, OK, WhatsApp).',
-    'When the voice says to open something, the ring may be on the first thing to tap on the way to it (a tab at the bottom).',
-    'The ring is lit before the tap, so an option or switch the voice names may or may not be selected yet. A ring around a tab in the bar at the foot of the screen, or around anything else at the screen\'s edge, may run off that edge. A step that lights nothing shows the whole phone, not dimmed and with no ring, with the title beside it; so does a step that lights something tall, or something with mostly empty screen around it (the ring is then around it on the whole phone).',
-    'A list scrolls under the bars at the top and foot of the screen, so its words may be cut where they meet a bar. A progress bar may be nearly empty. The app itself draws a thin purple border round the card for the next thing to do, and a purple line down the left of a quoted verse; neither is the ring. While the question mark is on, the app itself dims the screen and puts a number on each part.',
+    'When the voice says to open something, the bright part may be the first thing to tap on the way to it (a tab at the bottom).',
+    'The part is lit before the tap, so an option or switch the voice names may or may not be selected yet. A step that lights nothing shows the whole phone, not dimmed, with the title beside it; so does a step that lights something tall, or something with mostly empty screen around it (it is then lit on the whole phone).',
+    'A list scrolls under the bars at the top and foot of the screen, so its words may be cut where they meet a bar. A progress bar may be nearly empty. The app itself draws a thin purple border round the card for the next thing to do, and a purple line down the left of a quoted verse. While the question mark is on, the app itself dims the screen and puts a number on each part.',
     'Find what a careful viewer would see as a mistake in a still:',
-    '- a line, border or edge of a box showing just outside the purple ring, doubled beside it, or cut by it; a ring that cuts through a card, a button or words instead of going around them',
-    '- the ring around something other than what the voice names',
+    '- a bright area whose edge cuts through words, a button, a field or an icon (part of it bright and part dimmed); lighting some rows or part of a bigger card, list or sheet is meant',
+    '- a bright area on something other than what the voice names, or leaving out part of it',
     '- words cut off, clipped by an edge, on top of other words, or running out of their box',
     '- a blank screen, a spinner or loading state, an error message, a broken image or a missing icon',
     `- words of the app in another language than ${language} (other than the names, Bible text and the team's words above)`,
     '- anything else drawn wrong: misplaced, duplicated, half drawn, or a glitch.',
-    'Say nothing about what is meant to be there (the dimming, the rings, the zoom, the phone\'s frame). Report a mistake only when you can see it; say where it is and what it is, in one short English sentence each.',
+    'Say nothing about what is meant to be there (the dimming, the bright part, the taps, the zoom, the phone\'s frame). Report a mistake only when you can see it; say where it is and what it is, in one short English sentence each.',
     'Return a JSON array with one entry for each still that has a mistake: {"still": <its number>, "problems": [<sentence>, ...]}. Return [] when every still is right.'
   ].join('\n');
 }
