@@ -46,6 +46,8 @@ test('PASS-001 TRANS P-NEW: not started, asked of TRANS @p0', async ({ browser }
     "Peer check, once you're done", 'Back translation, same time', 'Community check, after the peer check',
     'Consultant check, after the community check', 'Final approval, after the consultant check'
   ]);
+  // Nothing to check yet: the cards do not open (LAN-127).
+  for (const row of ['Peer check', 'Back translation']) await expect(teamRow(page, row), row).toBeDisabled();
   expect(await mainButton(page)).toBe('Record');
   await byId(page, 'primary-action').click();
   await expect(byId(page, 'record-button'), 'the workspace').toBeVisible();

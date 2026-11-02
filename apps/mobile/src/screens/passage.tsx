@@ -367,7 +367,7 @@ export function PassageRecord(ctx: Ctx) {
     const mv = stepMove(st, { p, can, earlier: earlierHere, feedbackReview });
     return mv ? () => doMove(mv) : undefined;
   };
-  const canAct = teamStepsOpen(can);
+  const canAct = teamStepsOpen(can, p);
   const onTeamStep = (step: TeamStep): (() => void) | undefined => (canAct && !earlierHere ? () => setOpenStepId(step.stepId) : undefined);
   const passageNote = passageNoteFor(p, me);
   const extraFor = (st: PathStep): ReactNode => {

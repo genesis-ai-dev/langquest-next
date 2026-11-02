@@ -97,6 +97,8 @@ Expected:
   "after the consultant check" (a lock). The Peer check and Back translation
   cards show their people, "{REV}, {TREV}". Each card is spoken "{name},
   {status}" ("Peer check, once you're done").
+- Nothing is recorded yet, so no card opens: none has a chevron, and a tap
+  does nothing. Each status already says when its check comes (LAN-127).
 - The main button:
 
   | Role | Main button | Opens |
