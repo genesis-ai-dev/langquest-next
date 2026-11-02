@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 import { parseJsonc, wranglerFor } from './env-files.mjs';
 import {
-  ADMIN_KEYS, CRON_JOB, HYPERDRIVE_PLACEHOLDER, createdId, hyperdriveId, withHyperdriveId, FILE_KEYS, OPTIONAL_KEYS, PUSH_FUNCTION, REQUIRED_KEYS, RETIRED_FUNCTION_SECRETS, RETIRED_JOB, SCHEDULE_MIGRATION, WEBHOOK_MIGRATION, WORKERS, destinations, digest, drift, failure, queryRows, relayUrl, summarize, unknownKeys, vaultSql, workersIn
+  ADMIN_KEYS, CRON_JOB, EAS_KEYS, EAS_PROJECT, HYPERDRIVE_PLACEHOLDER, ONLY, createdId, hyperdriveId, withHyperdriveId, FILE_KEYS, OPTIONAL_KEYS, PUSH_FUNCTION, REQUIRED_KEYS, RETIRED_FUNCTION_SECRETS, RETIRED_JOB, SCHEDULE_MIGRATION, WEBHOOK_MIGRATION, WORKERS, destinations, digest, drift, easNames, failure, parseArgs, queryRows, relayUrl, summarize, unknownKeys, vaultSql, workersIn
 } from './secrets.mjs';
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
@@ -118,6 +118,51 @@ describe('secrets', () => {
     expect(wanted.workers.app).toMatchObject({ BIBLE_BRAIN_ACCESS_KEY: 'bb' });
     expect(destinations('preview', { ...values, BIBLE_BRAIN_ACCESS_KEY: 'bb' }, 'ref', 'k').github).toEqual({});
     expect(read('.github/workflows/bible-survey.yml')).toContain('secrets.BIBLE_BRAIN_ACCESS_KEY');
+  });
+
+  it('gives EAS the App Store key for the App Review step, from production\'s file only, and no other system gets it', () => {
+    const all = { ...values, APP_STORE_REVIEW_KEY: '{"issuerId":"i"}', GEMINI_API_KEY: 'g' };
+    const production = destinations('production', all, 'ref', 'k');
+    expect(production.eas).toEqual({ APP_STORE_REVIEW_KEY: '{"issuerId":"i"}' });
+    expect(destinations('preview', all, 'ref', 'k').eas).toEqual({});
+    expect(destinations('production', values, 'ref', 'k').eas).toEqual({});
+    const elsewhere = [production.github, production.functions, production.vault, ...Object.values(production.workers)];
+    for (const place of elsewhere) expect(Object.keys(place)).not.toContain('APP_STORE_REVIEW_KEY');
+    for (const key of EAS_KEYS) {
+      expect(FILE_KEYS).toContain(key);
+      expect(REQUIRED_KEYS).not.toContain(key);
+    }
+    // The EAS project is the app's, and its workflows read the key in EAS's production environment.
+    expect(JSON.parse(read(`${EAS_PROJECT}/app.json`)).expo.extra.eas.projectId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(read(`${EAS_PROJECT}/.eas/workflows/app-store-review.yml`)).toContain('environment: production');
+  });
+
+  it('reads the names, never the values, from what eas env:list prints', () => {
+    const printed = '\u001b[1mEnvironment: production\u001b[22m\n'
+      + '\u001b[1mEXPO_PUBLIC_SUPABASE_URL\u001b[22m=https://x.supabase.co\n'
+      + "APP_STORE_REVIEW_KEY=***** (This is a secret env variable that can only be accessed on EAS builder and can't be read in any UI. Learn more.)\n"
+      + 'not a variable\n';
+    expect(easNames(printed)).toEqual(['EXPO_PUBLIC_SUPABASE_URL', 'APP_STORE_REVIEW_KEY']);
+    expect(easNames('Environment: production\nNo variables found for this environment.\n')).toEqual([]);
+  });
+
+  it('takes --check or --yes, and --only eas to apply EAS alone, and flags anything else', () => {
+    expect(parseArgs(['production'])).toEqual({ environment: 'production', check: false, yes: false, only: null, unknown: null });
+    expect(parseArgs(['production', '--only', 'eas', '--check'])).toMatchObject({ only: 'eas', check: true, unknown: null });
+    expect(parseArgs(['production', '--only=eas', '--yes'])).toMatchObject({ only: 'eas', yes: true, unknown: null });
+    expect(parseArgs(['production', '--only'])).toMatchObject({ only: '' });
+    expect(parseArgs(['preview', '--force'])).toMatchObject({ unknown: '--force' });
+    expect(ONLY).toEqual(['eas']);
+    expect(read('scripts/commands.mjs')).toContain('secrets');
+  });
+
+  it('reports a missing EAS secret as behind, and no cron job when only EAS was compared', () => {
+    expect(summarize({ eas: { APP_STORE_REVIEW_KEY: 'set' } })).toEqual({
+      lines: ['  ✓ EAS secret APP_STORE_REVIEW_KEY (set; its value cannot be read back)'], behind: false
+    });
+    expect(summarize({ eas: { APP_STORE_REVIEW_KEY: 'missing' } })).toEqual({
+      lines: ['  + EAS secret APP_STORE_REVIEW_KEY (missing)'], behind: true
+    });
   });
 
   it('gives the webhook poke one secret at both ends and the Worker\'s own address, only when the file has it', () => {

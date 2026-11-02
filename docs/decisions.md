@@ -7548,6 +7548,38 @@ staged rollout or a wait in internal testing is worth the delay (then send
 to internal testing first and promote after a set time), or Apple starts
 taking a newer build into a version under review without losing its place.
 
+Amended (2026-11-02, Caleb Koster; LAN-209): the App Store step had never
+run, as its key was never made, and it would have stopped at the first
+rejection: Apple refuses a new review submission while a rejected one is
+open, and a rejection usually needs a person (an answer to Apple, a demo
+account, a fix to the listing). So a rejection now waits for a person
+instead of the newest build being sent again: while a submission has
+unresolved issues, or the newest build's version was rejected by Apple,
+taken out of review or refused as an invalid build, every run says so and
+sends nothing, until someone answers Apple in App Store Connect and
+resubmits or removes the version. The step sends only the newest build that
+Apple has processed and that is newer than the public one (never an
+internal-only one; a newer build still processing goes on a later run). It
+reads both of Apple's names for a version's state (`appVersionState` and the
+older `appStoreState`), so an approved version waiting for its release is
+never taken for one it may change. It reuses an empty draft submission or
+resumes its own, and holds when a draft holds anything else; it waits for
+Apple to mark the version ready for review and tries again while Apple is
+still settling a change. A version it makes is released on approval; one
+that already exists keeps the release setting someone gave it. The key is
+one secret, `APP_STORE_REVIEW_KEY` (`{"issuerId", "keyId", "privateKey"}`,
+App Manager; or an Admin's individual key, `{"keyId", "privateKey"}`, while
+App Store Connect's Integrations page fails for us, to be swapped for a
+team key once it opens), kept in `.env.production` like every other secret: `npm run
+secrets -- production`, or `--only eas`, which needs no Supabase or
+Cloudflare sign-in, puts it in EAS's production environment with secret
+visibility (`docs/environments.md`, The App Store key). It replaces
+`ASC_KEY_ID`, `ASC_ISSUER_ID` and `ASC_PRIVATE_KEY`, which were never set,
+and stays out of GitHub Actions, which holds no production key (decision
+141). Reverse the wait if: rejected versions are mostly passed by the next
+build unchanged, so that waiting for a person costs more than a second
+rejection.
+
 ## 158. Global Viewers read every organization, read-only, and only on a session verified with an authenticator
 
 Date: 2026-10-22 · By: Carl Sauder · Status: accepted

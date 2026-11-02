@@ -64,7 +64,7 @@ export const GROUPS = [
       'env:check': 'no plaintext secret or misplaced key in committed env files',
       'env:update': 'change one setting or secret in its file and commit it',
       'env:eas': 'compare or push an EAS environment to its committed file',
-      secrets: "apply one environment's secrets to Cloudflare and Supabase",
+      secrets: "apply one environment's secrets to Cloudflare, Supabase, GitHub and EAS (-- --only eas: EAS alone)",
     },
   },
   {
