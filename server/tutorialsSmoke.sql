@@ -424,4 +424,28 @@ do $$ declare w jsonb; begin
 end $$;
 reset role;
 
+-- What is up, for the job to put each channel's playlists in order (migration *_tutorials_up.sql, decisions.md
+-- 180 amended): each video's newest version up, its playlist and place, and the videos its older versions became.
+update ops.tutorial_videos set published_at = now() - interval '1 day' where language = 'en' and sha256 = repeat('a', 64);
+set local role service_role;
+do $$ declare v jsonb; x jsonb; begin
+  perform public.ops_tutorial_published('record-a-passage', 'en', repeat('e', 64), 'N3wV3rs10n0', null);
+  v := public.ops_tutorials_up();
+  assert jsonb_array_length(v) = 3, 'English''s one video and Spanish''s two; French has none up: %', v;
+  select e into x from jsonb_array_elements(v) e where e->>'language' = 'en';
+  assert x->>'youtubeId' = 'N3wV3rs10n0' and x->'older' = '["dQw4w9WgXcQ"]'::jsonb and x->>'playlist' = 'Translators'
+    and (x->>'position')::int = 29 and x->>'channelId' = 'UC8Ry8oFIPWzDygngMwvkBLQ', 'the newest English version, and the old one it replaced: %', x;
+  assert (select array_agg(e->>'tutorial') from jsonb_array_elements(v) e where e->>'language' = 'es') = array['trailer', 'find-your-way-around'],
+    'Spanish in the plan''s order, the trailer first: %', v;
+  assert (select bool_and(e->'older' = '[]'::jsonb) from jsonb_array_elements(v) e where e->>'language' = 'es'), 'nothing older in Spanish: %', v;
+end $$;
+reset role;
+do $$ begin
+  set local role authenticated;
+  perform public.ops_tutorials_up();
+  raise exception 'a signed-in person read what is up';
+exception when insufficient_privilege then null;
+end $$;
+reset role;
+
 rollback;

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { publishTutorials, type Channel, type Due, type PublishReport } from '../../../server/tutorialPublisher';
+import { publishTutorials, type Channel, type Due, type PublishReport, type Up } from '../../../server/tutorialPublisher';
 import { brandOf, channelAbout, CHANNELS } from '../../../server/youtube';
 
 /** The publish job (server/tutorialPublisher.ts, decisions.md 180) against a YouTube that answers by address. */
 
-const fresh = (): PublishReport => ({ branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, outOfQuota: false, channelsFull: 0, firstError: null });
+const fresh = (): PublishReport => ({ branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, tidied: 0, outOfQuota: false, channelsFull: 0, firstError: null });
 const video = (tutorial: string, over: Partial<Due> = {}): Due => ({
   tutorial, language: 'es', sha256: 'a'.repeat(64), title: tutorial, description: 'd', playlist: 'Traductores', bytes: 5,
   channelId: CHANNELS.es, replaces: null, ...over
@@ -16,9 +16,14 @@ type Section = { id: string; snippet: { type: string; position: number; title?: 
  * `uploads`: how many the project may put up before YouTube's day is out; `perChannel`: how many each
  * channel may (its access token is its refresh token's); `brandRefused`: a language YouTube will not
  * take for a channel; `fieldRefused`: a setting of the channel's it will not take back, by its name;
- * `sections`: the rows on the channel's home page, kept from one run to the next.
+ * `sections`: the rows on the channel's home page, kept from one run to the next; `entries`: the videos in
+ * each playlist, in order, by its id; `shown`: the videos anyone can find (public), the rest unlisted;
+ * `playlistLanguageRefused`: YouTube makes a playlist only without a language.
  */
-function youtube(options: { uploads?: number; perChannel?: number; tokenRefused?: string; channel?: string; brandRefused?: string; fieldRefused?: string; sections?: Section[] } = {}) {
+function youtube(options: {
+  uploads?: number; perChannel?: number; tokenRefused?: string; channel?: string; brandRefused?: string; fieldRefused?: string; sections?: Section[];
+  entries?: Record<string, string[]>; shown?: string[]; playlistLanguageRefused?: boolean;
+} = {}) {
   const sections = options.sections ?? [];
   const lists = [{ id: 'PLtrad', snippet: { title: 'Traductores' } }];
   const calls: string[] = [];
@@ -73,11 +78,34 @@ function youtube(options: { uploads?: number; perChannel?: number; tokenRefused?
     }
     if (path === '/youtube/v3/playlists' && method === 'GET') return Response.json({ items: lists });
     if (path === '/youtube/v3/playlists') {
+      if (options.playlistLanguageRefused && (JSON.parse(String(init?.body)) as { snippet: { defaultLanguage?: string } }).snippet.defaultLanguage) {
+        return Response.json({ error: { errors: [{ reason: 'localizationValidationError' }] } }, { status: 400 });
+      }
       lists.push({ id: 'PLnew', snippet: { title: (JSON.parse(String(init?.body)) as { snippet: { title: string } }).snippet.title } });
       return Response.json({ id: 'PLnew' });
     }
+    const query = new URL(input).searchParams;
+    const entries = options.entries;
+    if (entries && path === '/youtube/v3/playlistItems' && !query.get('videoId')) {
+      if (method === 'GET') {
+        const id = query.get('playlistId')!;
+        return Response.json({ items: (entries[id] ?? []).map((videoId, position) => ({ id: `${id}:${videoId}`, snippet: { position, resourceId: { videoId } } })) });
+      }
+      if (method === 'POST') {
+        const { snippet } = JSON.parse(String(init?.body)) as { snippet: { playlistId: string; resourceId: { videoId: string }; position?: number } };
+        const list = (entries[snippet.playlistId] ??= []);
+        list.splice(snippet.position ?? list.length, 0, snippet.resourceId.videoId);
+        return Response.json({ id: 'item' });
+      }
+      const [id, videoId] = query.get('id')!.split(':');
+      entries[id!]!.splice(entries[id!]!.indexOf(videoId!), 1);
+      return new Response(null, { status: 204 });
+    }
     if (path === '/youtube/v3/playlistItems' && method === 'GET') return Response.json({ items: [{ id: 'old-item', snippet: { position: 3 } }] });
     if (path === '/youtube/v3/playlistItems') return method === 'DELETE' ? new Response(null, { status: 204 }) : Response.json({ id: 'item' });
+    if (path === '/youtube/v3/videos' && method === 'GET' && query.get('part') === 'status') {
+      return Response.json({ items: query.get('id')!.split(',').map((id) => ({ id, status: { privacyStatus: options.shown?.includes(id) ? 'public' : 'unlisted' } })) });
+    }
     if (path === '/youtube/v3/videos' && method === 'GET') return Response.json({ items: [{ id: 'oldvideo001', snippet: { title: 't', description: 'old' }, status: {} }] });
     if (path === '/youtube/v3/videos') return Response.json({ id: 'oldvideo001' });
     return new Response('{}', { status: 404 });
@@ -87,7 +115,7 @@ function youtube(options: { uploads?: number; perChannel?: number; tokenRefused?
 
 const BANNER = new Uint8Array([137, 80, 78, 71]);
 
-function deps(due: Due[], yt: ReturnType<typeof youtube>, refresh: Record<string, string | null> = { [CHANNELS.es]: '1//es' }, channels: Channel[] = []) {
+function deps(due: Due[], yt: ReturnType<typeof youtube>, refresh: Record<string, string | null> = { [CHANNELS.es]: '1//es' }, channels: Channel[] = [], up: Up[] = []) {
   const marks: string[] = [];
   return {
     marks,
@@ -99,6 +127,7 @@ function deps(due: Due[], yt: ReturnType<typeof youtube>, refresh: Record<string
       branded: async (c: Channel, brand: string | null, failed: string | null) => { marks.push(`${c.language} ${brand ? 'branded' : `failed ${failed}`}`); c.branded = brand ?? c.branded; },
       held: async (c: Channel, count: number) => { marks.push(`${c.language} held ${count}`); },
       due: async () => due,
+      up: async () => up,
       refreshToken: async (channelId: string) => refresh[channelId] ?? null,
       file: async () => ({ body: new Response('video').body!, bytes: 5 }),
       published: async (v: Due, id: string | null, failed: string | null) => { marks.push(`${v.tutorial} ${id ?? `failed ${failed}`}`); },
@@ -275,6 +304,66 @@ describe('the publish job', () => {
     expect(await publishTutorials(d.deps, fresh())).toMatchObject({ branded: 0, brandFailed: 1, published: 1, firstError: 'youtube_wrong_channel' });
     expect(yt.sent).toEqual([]);
     expect(d.marks).toEqual(['es failed youtube_wrong_channel', 'record-a-passage video000001']);
+  });
+
+  it('makes a playlist without its language when YouTube refuses the language for one', async () => {
+    // Why: the Hausa channel never got a playlist, and the run of 2026-11-02 first failed with localizationValidationError.
+    const yt = youtube({ playlistLanguageRefused: true });
+    const d = deps([video('do-a-check', { playlist: 'Revisores y consultores' })], yt);
+    expect(await publishTutorials(d.deps, fresh())).toMatchObject({ published: 1, incomplete: 0, firstError: null });
+    expect(yt.bodies.filter((b) => b.call === 'POST /youtube/v3/playlists').map((b) => b.body)).toEqual([
+      { snippet: { title: 'Revisores y consultores', defaultLanguage: 'es' }, status: { privacyStatus: 'public' } },
+      { snippet: { title: 'Revisores y consultores' }, status: { privacyStatus: 'public' } }
+    ]);
+    expect(yt.bodies.find((b) => b.call === 'POST /youtube/v3/playlistItems')?.body).toMatchObject({ snippet: { playlistId: 'PLnew' } });
+  });
+
+  describe('puts each channel\'s playlists in order before its uploads', () => {
+    const es = async (): Promise<Channel> => ({ channelId: CHANNELS.es, language: 'es', branded: await brandOf('es', BANNER) });
+    const up = (tutorial: string, position: number, youtubeId: string, older: string[] = [], playlist = 'Traductores'): Up =>
+      ({ tutorial, language: 'es', channelId: CHANNELS.es, playlist, position, youtubeId, older });
+    const all = [up('trailer', 0, 'Tr41l3r_es0'), up('a', 1, 'aaaaaaaaaa1', ['aaaaaaaaaa0']), up('b', 2, 'bbbbbbbbbb1'), up('c', 3, 'cccccccccc1')];
+
+    it('puts a video an upload left out in its place, takes an old version\'s entry out and unlists an old version still showing', async () => {
+      const entries = { PLtrad: ['Tr41l3r_es0', 'aaaaaaaaaa0', 'cccccccccc1'] };
+      const yt = youtube({ entries, shown: ['aaaaaaaaaa0'] });
+      expect(await publishTutorials(deps([], yt, undefined, [await es()], all).deps, fresh())).toMatchObject({ tidied: 4, incomplete: 0, firstError: null });
+      expect(entries.PLtrad).toEqual(['Tr41l3r_es0', 'aaaaaaaaaa1', 'bbbbbbbbbb1', 'cccccccccc1']);
+      expect(yt.bodies.filter((b) => b.call === 'POST /youtube/v3/playlistItems').map((b) => b.body)).toEqual([
+        { snippet: { playlistId: 'PLtrad', resourceId: { kind: 'youtube#video', videoId: 'aaaaaaaaaa1' }, position: 1 } },
+        { snippet: { playlistId: 'PLtrad', resourceId: { kind: 'youtube#video', videoId: 'bbbbbbbbbb1' }, position: 2 } }
+      ]);
+      // The old version unlisted, with its line to the new one.
+      expect(yt.bodies.find((b) => b.call === 'PUT /youtube/v3/videos')?.body).toMatchObject({
+        status: { privacyStatus: 'unlisted' }, snippet: { description: expect.stringContaining('https://youtu.be/aaaaaaaaaa1') as unknown }
+      });
+    });
+
+    it('only looks at a channel already in order', async () => {
+      const yt = youtube({ entries: { PLtrad: ['Tr41l3r_es0', 'aaaaaaaaaa1', 'bbbbbbbbbb1', 'cccccccccc1'] } });
+      expect(await publishTutorials(deps([], yt, undefined, [await es()], all).deps, fresh())).toMatchObject({ tidied: 0, incomplete: 0, firstError: null });
+      expect(yt.calls.filter((c) => !c.startsWith('GET') && /playlist|videos/.test(c))).toEqual([]);
+      expect(yt.calls.filter((c) => c === 'GET /youtube/v3/playlistItems' || c === 'GET /youtube/v3/videos')).toHaveLength(2);
+    });
+
+    it('makes the playlist a channel never got, puts its videos in, and gives it its row on the home page', async () => {
+      const rows: Section[] = [];
+      const entries: Record<string, string[]> = {};
+      const yt = youtube({ entries, sections: rows, playlistLanguageRefused: true });
+      const check = [up('do-a-check', 5, 'dddddddddd1', [], 'Revisores y consultores'), up('answer-feedback', 6, 'eeeeeeeeee1', [], 'Revisores y consultores')];
+      expect(await publishTutorials(deps([], yt, undefined, [await es()], check).deps, fresh())).toMatchObject({ tidied: 2, incomplete: 0, firstError: null });
+      expect(entries['PLnew']).toEqual(['dddddddddd1', 'eeeeeeeeee1']);
+      expect(rows.map((r) => r.contentDetails.playlists ?? 'channels')).toEqual(['channels', ['PLtrad'], ['PLnew']]);
+    });
+
+    it('counts a channel it could not put in order, and goes on', async () => {
+      const yt = youtube({ entries: { PLtrad: [] }, shown: ['aaaaaaaaaa0'] });
+      const d = deps([video('record-a-passage')], yt, undefined, [await es()], all);
+      const failing = d.deps.fetcher;
+      d.deps.fetcher = async (input: string, init?: RequestInit) =>
+        input.includes('/videos?part=status') ? Response.json({ error: { errors: [{ reason: 'backendError' }] } }, { status: 503 }) : failing(input, init);
+      expect(await publishTutorials(d.deps, fresh())).toMatchObject({ incomplete: 1, published: 1, firstError: 'youtube_backendError' });
+    });
   });
 
   it('leaves a channel Google no longer lets in, and says why', async () => {
