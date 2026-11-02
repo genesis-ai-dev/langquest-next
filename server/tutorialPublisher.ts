@@ -1,6 +1,6 @@
 import {
-  accessToken, brandChannel, brandOf, channelFull, heldComments, outOfQuota, placeInPlaylist, playlistFor, retire, setHome, TRAILER, uploadVideo, YouTubeError,
-  type ChannelLanguage, type Client, type Fetch
+  accessToken, addToPlaylist, brandChannel, brandOf, channelFull, entriesOf, heldComments, outOfQuota, placeInPlaylist, playlistFor, playlistsOf, publicOf,
+  removeEntry, retire, setHome, TRAILER, uploadVideo, YouTubeError, type ChannelLanguage, type Client, type Fetch
 } from './youtube';
 
 /**
@@ -18,7 +18,9 @@ import {
  * playlist it has and one of the other channels (`setHome`, decisions.md
  * 191), and the comments YouTube holds for review on each are counted for
  * the dashboard. A channel that got a new playlist during the run gets its
- * row at the end of the same run (decisions.md 192).
+ * row at the end of the same run (decisions.md 192). Each channel's
+ * playlists are put in order too (`tidyChannel`): what an upload left undone,
+ * its playlist place or its old version unlisted, is done on the next run.
  *
  * YouTube allows 100 uploads a day for the whole Google Cloud project, all
  * channels together, and 10,000 units for everything else (a video and its
@@ -42,6 +44,19 @@ export interface Due {
   replaces: string | null;
 }
 
+/** A video's newest version up on YouTube, and the older ones it replaced, as `ops_tutorials_up` answers it. */
+export interface Up {
+  tutorial: string;
+  language: ChannelLanguage;
+  channelId: string;
+  playlist: string;
+  /** Its place among the language's videos, the plan's order. */
+  position: number;
+  youtubeId: string;
+  /** The YouTube videos its older versions became. */
+  older: string[];
+}
+
 /** A connected channel, and the look last put on it (youtube.ts `brandOf`), as `ops_youtube_channels` answers it. */
 export interface Channel {
   channelId: string;
@@ -62,6 +77,8 @@ export interface PublisherDeps {
   /** How many comments the channel holds for review. */
   held(channel: Channel, count: number): Promise<void>;
   due(limit: number): Promise<Due[]>;
+  /** Every video up, on every connected channel. */
+  up(): Promise<Up[]>;
   /** The channel's refresh token from Vault; null when it was never connected. */
   refreshToken(channelId: string): Promise<string | null>;
   /** The MP4 as the Worker serves it from R2. */
@@ -82,8 +99,10 @@ export interface PublishReport {
   published: number;
   replaced: number;
   failed: number;
-  /** Up, but its playlist place or the old version's line did not work: counted in the job run, with its code if it was the first. */
+  /** Up, but its playlist place or the old version's line did not work, or a channel's playlists could not be put in order: counted in the job run, with its code if it was the first. */
   incomplete: number;
+  /** Put right on the channels: a video put in its playlist, an old version's entry taken out or the old version unlisted. */
+  tidied: number;
   /** Out of the day's uploads or units: the rest wait for tomorrow. */
   outOfQuota: boolean;
   /** Channels that reached their own day's limit: their videos wait, the others went on. */
@@ -168,6 +187,12 @@ async function tokenFor(deps: PublisherDeps, { tokens }: Run, channelId: string)
  * next run.
  */
 async function tendChannels(deps: PublisherDeps, run: Run, report: PublishReport): Promise<void> {
+  let up: Up[] = [];
+  try {
+    up = await deps.up();
+  } catch (e) {
+    report.firstError ??= failureCode(e);
+  }
   for (const channel of await deps.channels()) {
     if (deps.stopping() || report.outOfQuota) return;
     let token: string;
@@ -190,6 +215,14 @@ async function tendChannels(deps: PublisherDeps, run: Run, report: PublishReport
       continue;
     }
     try {
+      await tidyChannel(deps, token, channel, up.filter((v) => v.channelId === channel.channelId), report);
+    } catch (e) {
+      report.incomplete += 1;
+      report.firstError ??= failureCode(e);
+      report.outOfQuota ||= outOfQuota(e);
+      if (report.outOfQuota) return;
+    }
+    try {
       await setHome(deps.fetcher, token, channel.language);
     } catch (e) {
       report.firstError ??= failureCode(e);
@@ -203,6 +236,51 @@ async function tendChannels(deps: PublisherDeps, run: Run, report: PublishReport
     } catch (e) {
       report.firstError ??= failureCode(e);
       report.outOfQuota ||= outOfQuota(e);
+    }
+  }
+}
+
+/**
+ * A channel's playlists made to hold what is up on it: each video's newest
+ * version in its playlist, in the plan's order (the trailer first), no older
+ * version in any, and every older version unlisted (`retire`). An upload's
+ * later steps that did not work (a playlist YouTube would not make, YouTube
+ * busy for a moment) are done this way on the next run: on 2026-11-02 the
+ * Hausa channel had no playlist and an old version still showing, and seven
+ * other channels had a video outside its playlist. A channel already in
+ * order costs a unit for its playlists, one for each playlist's entries and
+ * one for each 50 older versions; each thing put right costs 50. The
+ * playlist it makes gets its home page row from `setHome`, which comes next.
+ */
+async function tidyChannel(deps: PublisherDeps, token: string, channel: Channel, mine: Up[], report: PublishReport): Promise<void> {
+  if (!mine.length) return;
+  const lists = await playlistsOf(deps.fetcher, token);
+  const older = new Set(mine.flatMap((v) => v.older));
+  const place = new Map(mine.map((v) => [v.youtubeId, v.tutorial === TRAILER ? -1 : v.position]));
+  for (const title of new Set(mine.map((v) => v.playlist))) {
+    const known = lists.get(title);
+    const playlistId = known ?? await playlistFor(deps.fetcher, token, title, channel.language);
+    const entries = known ? await entriesOf(deps.fetcher, token, playlistId) : [];
+    for (const entry of entries.filter((e) => older.has(e.videoId))) {
+      await removeEntry(deps.fetcher, token, entry.id);
+      entries.splice(entries.indexOf(entry), 1);
+      report.tidied += 1;
+    }
+    for (const video of mine.filter((v) => v.playlist === title).sort((a, b) => place.get(a.youtubeId)! - place.get(b.youtubeId)!)) {
+      if (entries.some((e) => e.videoId === video.youtubeId)) continue;
+      // Before the first entry that comes after it in the plan's order; at the end when none does (or only videos put there by hand).
+      const at = entries.findIndex((e) => (place.get(e.videoId) ?? Infinity) > place.get(video.youtubeId)!);
+      await addToPlaylist(deps.fetcher, token, playlistId, video.youtubeId, at < 0 ? undefined : at);
+      entries.splice(at < 0 ? entries.length : at, 0, { id: '', videoId: video.youtubeId, position: at });
+      report.tidied += 1;
+    }
+  }
+  const showing = await publicOf(deps.fetcher, token, [...older]);
+  for (const video of mine) {
+    for (const old of video.older) {
+      if (!showing.has(old)) continue;
+      await retire(deps.fetcher, token, old, video.youtubeId, channel.language);
+      report.tidied += 1;
     }
   }
 }

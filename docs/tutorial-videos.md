@@ -248,7 +248,15 @@ BibleProject's and other channels' are (`setHome`, decision 191): under the
 trailer, a row of the other 14 LangQuest channels, then a row for each of
 its playlists, everyone's first (`server/youtubePlaylists.ts`). The publish
 job brings the rows up to date each run, and a playlist a run makes gets its
-row at the end of that run. The links under a channel's name can only
+row at the end of that run. None of it shows while the channel's Home tab
+is off, a switch in YouTube Studio (Customization, Home tab) that the API
+cannot set; it was off on all 15 channels on 2026-11-01. Each run also puts
+every channel's playlists in order before its uploads (`tidyChannel` in
+`server/tutorialPublisher.ts`, decision 180 amended): each video's newest
+version in its playlist in the plan's order, no older version in one, and
+every older version unlisted, so a step an upload left undone is done the
+next day. A playlist YouTube will not take in the channel's language
+(Hausa) is made without one. The links under a channel's name can only
 be set in YouTube Studio. Comments that may be inappropriate are held for review, and the ops
 dashboard counts them for each channel.
 
