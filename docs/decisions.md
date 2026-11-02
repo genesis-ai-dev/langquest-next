@@ -8848,6 +8848,23 @@ for a wide film: the intake chooses it as it takes it in, and the publish
 follows each intake (192). Publish stays for a tall film and for putting a
 video up again.
 
+Amended (2026-11-02, Caleb Koster): a video's playlist place and its old
+version's unlisting were tried once, right after its upload, and a step that
+did not work stayed undone. On 2026-11-02 the Hausa channel had no playlist,
+so none of its videos was in one and an old version of a video still showed
+beside the new one, and seven other channels each had a video outside its
+playlist. YouTube would not make Hausa's playlist in Hausa: the run's first
+error was `localizationValidationError`, which YouTube gives only for a
+playlist's or a channel's language, and every channel's look had gone on.
+Others were YouTube busy for a moment (`SERVICE_UNAVAILABLE`, 2026-10-29 to
+11-01). Now a playlist YouTube will not take in its language
+is made without one, and each run, before its uploads, puts every channel's
+playlists in order from what the database says is up (`ops_tutorials_up`):
+each video's newest version in its playlist in the plan's order, no older
+version in one, and every older version unlisted. A channel in order costs a
+few units of the day's 10,000; each thing put right costs 50, and the job
+run counts them (`tidied`).
+
 ## 181. A part with lots of background noise wears an orange warning, measured on the device from its loudness and the room between its words
 
 Date: 2026-10-28 · By: Caleb Koster · Status: accepted
