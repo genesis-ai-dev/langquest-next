@@ -15,6 +15,8 @@ export function useNewLanguage(fromCluster: string | null) {
   const [code, setCode] = useState('');
   // Picked from the language list (docs/languoids.md); none leaves it unlinked, to link from its page later.
   const [picked, setPicked] = useState<LanguoidHit | null>(null);
+  // The name the last pick filled in: a name the person typed is kept when they pick (LAN-141).
+  const [filled, setFilled] = useState<string | null>(null);
   // One language, or a cluster of several (decision 108, demo ADR-045).
   const [many, setMany] = useState(false);
   // One language: the cluster it joins (an id, NEW_CLUSTER, or none), and a new one's name.
@@ -46,7 +48,7 @@ export function useNewLanguage(fromCluster: string | null) {
   // The languages its translators use, picked: its Bibles, guides, templates, flows and book names follow them. None until someone does.
   const [readsPicked, setReadsPicked] = useState<string[] | null>(null);
   return {
-    step, setStep, languagePage, setLanguagePage, name, setName, code, setCode, picked, setPicked, many, setMany, joins, setJoins, newCluster, setNewCluster,
+    step, setStep, languagePage, setLanguagePage, name, setName, code, setCode, picked, setPicked, filled, setFilled, many, setMany, joins, setJoins, newCluster, setNewCluster,
     clusterTitle, setClusterTitle, batch, setBatch, existing, setExisting, madeRef, scope, setScope, chosenBooks, setChosenBooks,
     materialPage, setMaterialPage, ticked, setTicked, flowPage, setFlowPage, flowKey, setFlowKey, moreFlows, setMoreFlows,
     startAgain, setStartAgain, making, setMaking, created, setCreated, busy, setBusy, error, setError, readsPicked, setReadsPicked

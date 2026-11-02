@@ -58,3 +58,29 @@ export function hitLine(h: LanguoidHit): string {
 
 /** How many matches one search shows, closest first; they scroll in a box of their own. */
 export const LANGUOID_RESULTS = 50;
+
+/** Lower case, without accents: how names are compared while typing. */
+const fold = (s: string) => s.trim().normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+
+/**
+ * New language's name after a language is picked from the list (LAN-141).
+ * The name field is also what the list is searched for, so a name that is
+ * empty, the one the last pick filled in, or the start of the picked
+ * language's name (typed to find it) becomes the picked language's name. A
+ * name of the person's own ("New Testament in French") is kept.
+ */
+export function nameAfterPick(typed: string, filled: string | null, hit: Pick<LanguoidHit, 'name'>): string {
+  const name = fold(typed);
+  if (!name || (filled !== null && name === fold(filled))) return hit.name;
+  return fold(hit.name).startsWith(name) ? hit.name : typed;
+}
+
+/**
+ * What the language list is searched for in New language: the name typed,
+ * or, while the name is the person's own with the last picked language's
+ * name in it ("New Testament in French"), that language's name, so Change
+ * lists it again instead of nothing (LAN-141).
+ */
+export function languoidQuery(name: string, filled: string | null): string {
+  return filled !== null && fold(name) !== fold(filled) && fold(name).includes(fold(filled)) ? filled : name;
+}

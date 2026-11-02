@@ -61,7 +61,7 @@ import { contractsFor } from '../shell/screenContracts';
 import { languageFigures } from '../org/orgFigures';
 import { LanguoidPicker } from '../org/languoidPicker';
 import { useLanguoidName, useLanguoidSearch } from '../org/useLanguoids';
-import type { LanguoidHit } from '../org/languoidModel';
+import { languoidQuery, nameAfterPick, type LanguoidHit } from '../org/languoidModel';
 import { edgeAllowed } from '../shell/session';
 import { shareText } from '../ui/share';
 import { C, radius, space, target, tile, TINT } from '../ui/theme';
@@ -1544,12 +1544,13 @@ export function NewLanguage(ctx: Ctx) {
   // Opened from a cluster's page, one language already in it.
   const fromCluster = ctx.params['clusterId'] ?? null;
   const {
-    step, setStep, languagePage, setLanguagePage, name, setName, code, setCode, picked, setPicked, many, setMany, joins, setJoins, newCluster, setNewCluster,
+    step, setStep, languagePage, setLanguagePage, name, setName, code, setCode, picked, setPicked, filled, setFilled, many, setMany, joins, setJoins, newCluster, setNewCluster,
     clusterTitle, setClusterTitle, batch, setBatch, existing, setExisting, madeRef, scope, setScope, chosenBooks, setChosenBooks,
     materialPage, setMaterialPage, ticked, setTicked, flowPage, setFlowPage, flowKey, setFlowKey, moreFlows, setMoreFlows,
     startAgain, setStartAgain, making, setMaking, created, setCreated, busy, setBusy, error, setError, readsPicked, setReadsPicked
   } = useNewLanguage(fromCluster);
-  const search = useLanguoidSearch(name, !picked);
+  // A name of the person's own with the picked language in it searches for that language, so Change finds it again (LAN-141).
+  const search = useLanguoidSearch(languoidQuery(name, filled), !picked);
   const mayGroup = mayManageClusters(ctx.org.state, ctx.session.actorId);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   // The languages its translators use, asked right after its name (decisions 84, 193): the admin's own when there is
@@ -1864,7 +1865,9 @@ export function NewLanguage(ctx: Ctx) {
             {mayGroup ? <Question>{t('org.newLanguage.called')}</Question> : null}
             <Field label={t('org.itsName')} value={name} onChangeText={setName} placeholder={t('org.newLanguage.namePlaceholder')} autoCapitalize="words"
               help={t('org.newLanguage.nameHelp')} />
-            <LanguoidPicker search={search} picked={picked} onPick={(h) => { setPicked(h); if (h) setName(h.name); }}
+            <LanguoidPicker search={search} picked={picked}
+              // Picking fills the name only while it is empty, the last pick's, or typed to find it: a name of the person's own stays (LAN-141).
+              onPick={(h) => { setPicked(h); if (h) { const next = nameAfterPick(name, filled, h); setName(next); setFilled(next === h.name ? h.name : filled ?? h.name); } }}
               unlisted={t('org.newLanguage.unlisted')} unreachable={t('org.newLanguage.unreachable')} />
             {picked ? null : <Field label={t('org.newLanguage.codeLabel')} value={code} onChangeText={setCode} placeholder={t('org.newLanguage.codePlaceholder')} autoCapitalize="none" />}
             {mayGroup ? (
