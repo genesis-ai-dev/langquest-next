@@ -96,6 +96,8 @@ test('AUTH-001 The Sign In screen offers two ways in', async ({ page }) => {
   // The fields keep their names once typing starts (UI audit, finding 35).
   await expect(text(page, 'Email or sign-in name')).toBeVisible();
   await expect(field(page, 'Email or sign-in name')).toBeVisible();
+  // In a browser the cursor starts in the first field, so typing can start at once (LAN-138).
+  await expect(field(page, 'Email or sign-in name')).toBeFocused();
   const password = field(page, 'Password');
   await expect(password).toHaveAttribute('type', 'password');
   await expect(button(page, SIGN_IN)).toBeDisabled();

@@ -114,7 +114,9 @@ export function SignIn(ctx: Ctx) {
       ) : null}
       {/* Two ways in that never combine (the demo's ADR-031): the fields, or a code. */}
       <Card>
-        <Field label={t('entry.signIn.namePlaceholder')} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" help={t('entry.signIn.nameHelp')} />
+        {/* In a browser the cursor starts here, so typing can start at once (LAN-138). A phone keeps its keyboard down: it would cover the other ways in. */}
+        <Field label={t('entry.signIn.namePlaceholder')} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" help={t('entry.signIn.nameHelp')}
+          autoFocus={Platform.OS === 'web'} />
         {/* The button stays off until this can be an email or a sign-in name: say why. */}
         {nameNeedsFix(email) ? <Text style={txt.error}>{t('entry.signIn.nameHint')}</Text> : null}
         <Field label={t('entry.fields.password')} value={password} onChangeText={setPassword} secure autoCapitalize="none" help={t('entry.signIn.passwordHelp')}

@@ -763,6 +763,8 @@ export function Field(props: {
   accessibilityLabel?: string;
   /** What help mode says to type here and what it is for, where the label does not say it. */
   help?: string;
+  /** The field takes the cursor when the screen opens, so typing can start at once. */
+  autoFocus?: boolean;
 }) {
   const name = props.label ?? props.accessibilityLabel ?? props.placeholder ?? '';
   const spot = useHelpSpot(name, props.help ?? t('help.details.field'), TYPE_HERE);
@@ -774,6 +776,7 @@ export function Field(props: {
         accessibilityLabel={props.label ?? props.accessibilityLabel ?? props.placeholder}
         {...(props.onSubmit && !props.multiline ? { onSubmitEditing: props.onSubmit, returnKeyType: 'go' as const } : {})}
         {...(props.testID ? { testID: props.testID } : {})}
+        {...(props.autoFocus ? { autoFocus: true } : {})}
         multiline={props.multiline} secureTextEntry={props.secure} keyboardType={props.keyboardType} autoCapitalize={props.autoCapitalize}
         style={[styles.field, inputDirection(), props.multiline && { minHeight: 88, textAlignVertical: 'top', paddingTop: 14 }, props.style]} />
       <HelpCover spot={spot} label={name} />

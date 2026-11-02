@@ -63,6 +63,7 @@ Expected:
 - Then "or", then "Scan a code".
 - Then "Don't have an account?" with "Create Account", and "Browse public work".
 - No "Sign in to join" banner shows.
+- On the web, the cursor is in "Email or sign-in name" when the page opens, so typing starts at once (LAN-138). On a phone the keyboard stays down until a field is tapped.
 - On a preview build, "Switch persona" does not show.
 - No tab bar shows.
 - At 360×800 (most low-end Android phones), with no pictures of people signed out here, "Scan a code" and "Create Account" are on screen without scrolling. When pictures show, the scroll bar shows that there is more (UI audit, finding 27).
