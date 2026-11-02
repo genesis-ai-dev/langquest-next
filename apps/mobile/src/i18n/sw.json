@@ -4441,6 +4441,8 @@
     "person": {
       "showId": "{{name}}. Onyesha kitambulisho",
       "noName": "Bado hakuna jina",
+      "someone": "Mtu fulani",
+      "someoneInSentence": "mtu fulani",
       "id": "Kitambulisho {{id}}",
       "anonymous": "{{shape}} {{color}}",
       "colors": {

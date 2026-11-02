@@ -4588,6 +4588,8 @@
     "person": {
       "showId": "{{name}}. Mostrar ID",
       "noName": "Todavía no tiene nombre",
+      "someone": "Alguien",
+      "someoneInSentence": "alguien",
       "id": "ID {{id}}",
       "anonymous": "{{shape}} {{color}}",
       "colors": {

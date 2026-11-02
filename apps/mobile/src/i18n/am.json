@@ -4441,6 +4441,8 @@
     "person": {
       "showId": "{{name}}። መለያ ቁጥሩን ያሳዩ",
       "noName": "እስካሁን ስም አልተሰጠም",
+      "someone": "አንድ ሰው",
+      "someoneInSentence": "አንድ ሰው",
       "id": "መለያ {{id}}",
       "anonymous": "{{color}} {{shape}}",
       "colors": {

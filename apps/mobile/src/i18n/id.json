@@ -4294,6 +4294,8 @@
     "person": {
       "showId": "{{name}}. Tampilkan ID",
       "noName": "Belum ada nama",
+      "someone": "Seseorang",
+      "someoneInSentence": "seseorang",
       "id": "ID {{id}}",
       "anonymous": "{{shape}} {{color}}",
       "colors": {

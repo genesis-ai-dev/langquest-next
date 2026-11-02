@@ -5029,6 +5029,8 @@
     "person": {
       "showId": "{{name}}. اعرض المعرّف",
       "noName": "لم يُحدَّد اسم بعد",
+      "someone": "شخص ما",
+      "someoneInSentence": "شخص ما",
       "id": "المعرّف {{id}}",
       "anonymous": "{{shape}} {{color}}",
       "colors": {

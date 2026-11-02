@@ -4441,6 +4441,8 @@
     "person": {
       "showId": "{{name}}. Nuna lambar shaida",
       "noName": "Ba a sa suna ba tukuna",
+      "someone": "Wani",
+      "someoneInSentence": "wani",
       "id": "Lamba {{id}}",
       "anonymous": "{{shape}} {{color}}",
       "colors": {

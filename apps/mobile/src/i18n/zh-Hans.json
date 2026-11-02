@@ -4294,6 +4294,8 @@
     "person": {
       "showId": "{{name}}。显示 ID",
       "noName": "还没有设置名字",
+      "someone": "某人",
+      "someoneInSentence": "某人",
       "id": "ID {{id}}",
       "anonymous": "{{color}}{{shape}}",
       "colors": {

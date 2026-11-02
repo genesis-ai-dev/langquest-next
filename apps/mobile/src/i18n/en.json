@@ -4441,6 +4441,8 @@
     "person": {
       "showId": "{{name}}. Show id",
       "noName": "No name set yet",
+      "someone": "Someone",
+      "someoneInSentence": "someone",
       "id": "ID {{id}}",
       "anonymous": "{{color}} {{shape}}",
       "colors": {

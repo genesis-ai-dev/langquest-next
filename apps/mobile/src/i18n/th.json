@@ -4294,6 +4294,8 @@
     "person": {
       "showId": "{{name}} แสดง ID",
       "noName": "ยังไม่ได้ตั้งชื่อ",
+      "someone": "ใครบางคน",
+      "someoneInSentence": "ใครบางคน",
       "id": "ID {{id}}",
       "anonymous": "{{shape}}{{color}}",
       "colors": {

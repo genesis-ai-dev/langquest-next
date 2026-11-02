@@ -4441,6 +4441,8 @@
     "person": {
       "showId": "{{name}}। ID दिखाएँ",
       "noName": "अभी कोई नाम नहीं",
+      "someone": "कोई",
+      "someoneInSentence": "कोई",
       "id": "ID {{id}}",
       "anonymous": "{{color}} {{shape}}",
       "colors": {

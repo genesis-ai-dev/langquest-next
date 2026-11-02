@@ -4294,6 +4294,8 @@
     "person": {
       "showId": "{{name}}။ ID ပြရန်",
       "noName": "အမည် မသတ်မှတ်ရသေးပါ",
+      "someone": "တစ်စုံတစ်ယောက်",
+      "someoneInSentence": "တစ်စုံတစ်ယောက်",
       "id": "ID {{id}}",
       "anonymous": "{{color}} {{shape}}",
       "colors": {
