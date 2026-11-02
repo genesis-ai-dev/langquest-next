@@ -1,5 +1,5 @@
 // SETUP: New language, from Org home (docs/ui-test-suite/09-language-setup.md,
-// SETUP-010 to SETUP-021, SETUP-075 to SETUP-078). Its six steps show first
+// SETUP-010 to SETUP-021, SETUP-075 to SETUP-079). Its six steps show first
 // (decision 146): Start opens the first. Every test adds its own language, named with a
 // run tag, so they leave each other's alone; the world is this file's own.
 import type { Page } from '@playwright/test';
@@ -489,4 +489,30 @@ test('SETUP-074 A cluster of a new language and one already here, then ungrouped
   await expect(text(page, 'Bravo')).toBeVisible();
   await expect(text(page, name)).toBeVisible();
   await expect(text(page, cluster)).toHaveCount(0);
+});
+
+test('SETUP-079 A cluster of languages already here, made from Manage', async ({ page }) => {
+  // Grouping languages already here has its own row on Manage, not only a choice inside New language (LAN-140).
+  const w = world();
+  const cluster = `Group ${tag()}`;
+  await openAs(page, w, 'ADMIN');
+  await orgHome(page, w);
+  await text(page, 'New cluster').click();
+  // Straight to the cluster's name and its languages: there is nothing new to set up, so no six steps first.
+  await expectOnScreen(page, 'What are you adding?', "The cluster's name", 'Its languages · 0');
+  await expect(primary(page)).toContainText('Make the cluster');
+  await expect(primary(page)).toBeDisabled();
+  await field(page, "The cluster's name").fill(cluster);
+  // A cluster always holds a language: named but empty, it is not made yet.
+  await expect(primary(page)).toBeDisabled();
+  await button(page, 'Alpha').click();
+  await button(page, 'Bravo').click();
+  await expectOnScreen(page, 'Its languages · 2', 'Nothing new to set up: languages already here keep everything they have.');
+  await primary(page).click();
+  await expectToast(page, `${cluster} made, with 2 languages.`);
+  await expectOnScreen(page, 'Cluster · 2 languages', 'Alpha', 'Bravo');
+  // Ungrouped again, so the file's later tests find Alpha and Bravo in no cluster.
+  await button(page, 'Ungroup').click();
+  await button(page, 'Ungroup').click();
+  await expectToast(page, `${cluster} ungrouped. Its languages are still here.`);
 });

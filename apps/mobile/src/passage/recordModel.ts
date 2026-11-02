@@ -59,8 +59,13 @@ export function recordCan(s: Session): RecordCan {
   };
 }
 
-/** May "Then the team" rows open their step sheet? Only for someone who can do something there. */
-export function teamStepsOpen(can: RecordCan): boolean {
+/**
+ * May "Then the team" rows open their step sheet? Only for someone who can do
+ * something there, and only once a version is published: before that there is
+ * nothing to check, and each row's status already says when it comes (LAN-127).
+ */
+export function teamStepsOpen(can: RecordCan, p?: Pick<PassageState, 'versions'>): boolean {
+  if (p && p.versions.length === 0) return false;
   return can.ask || can.log || can.review;
 }
 

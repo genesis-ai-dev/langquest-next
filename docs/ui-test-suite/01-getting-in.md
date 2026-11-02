@@ -63,6 +63,7 @@ Expected:
 - Then "or", then "Scan a code".
 - Then "Don't have an account?" with "Create Account", and "Browse public work".
 - No "Sign in to join" banner shows.
+- On the web, the cursor is in "Email or sign-in name" when the page opens, so typing starts at once (LAN-138). On a phone the keyboard stays down until a field is tapped.
 - On a preview build, "Switch persona" does not show.
 - No tab bar shows.
 - At 360×800 (most low-end Android phones), with no pictures of people signed out here, "Scan a code" and "Create Account" are on screen without scrolling. When pictures show, the scroll bar shows that there is more (UI audit, finding 27).
@@ -565,6 +566,35 @@ Expected:
   - "You're a Translator on UI Admin Org."
 - No "Nothing to remember" banner shows, because TRANS has an email.
 - Step 4 opens My Work in UI Admin Org. Me → "Switch Organization" (on Me now that TRANS is in two) lists UI Test Org and UI Admin Org.
+
+### AUTH-062 "Make an account with email" joins the new account
+Roles: GUEST · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+After scanning, the third way in (LAN-137): an email and password made now,
+and the invite joins that account, as "I already have an account" does one
+made before.
+
+Preconditions (in addition to the global ones):
+- Signed out. A new invite for the Translator role in UI Admin Org, as in
+  AUTH-030, is to hand. An email address nobody has used.
+
+Steps:
+1. Tap "Scan a code" and paste the link.
+2. Tap "Make an account with email".
+3. Type the new email, "secret12" and "secret12", and tap "Create Account".
+
+Expected:
+- Step 1 offers "I already have an account" and "Make an account with
+  email" under the Join button.
+- Step 2 opens Create Account with the banner "Make your account to join" /
+  "Your invite is saved. You'll join as soon as you're signed in to this
+  account.", and no "Scan an invite".
+- Step 3 joins with no further tap: "{ADMIN's name} invited you" and
+  "You're a Translator on UI Admin Org." The new account is a member of UI
+  Admin Org on the server.
+- Where the server sends a link to confirm the email first, "Account
+  created" says to open it and sign in on this device, and that the invite
+  is saved; signing in then joins.
 
 ### AUTH-031 A held invite survives a restart
 Roles: GUEST, TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto

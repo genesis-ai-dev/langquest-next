@@ -29,7 +29,13 @@ export interface DragRows {
   grip: (key: string) => PanResponderInstance['panHandlers'];
   /** Each row's view, so the list can scroll to it. */
   ref: (key: string) => (v: View | null) => void;
+  /** The grip last tapped without a drag, and when: it shows how to move its row (LAN-132). */
+  tapped: { key: string; at: number } | null;
 }
+
+/** A touch on a grip that moved less than this, for less than TAP_MS, was a tap, not a drag. */
+const TAP_MOVE = 6;
+const TAP_MS = 500;
 
 /**
  * Rows that can be dragged by a grip. `keys` are every row's, in order (rows
@@ -44,7 +50,8 @@ export function useDragRows(keys: readonly string[], enabled: boolean, onDrop: (
   const boxes = useRef(new Map<string, RowBox>());
   const [drag, setDrag] = useState<{ key: string; dy: number } | null>(null);
   // The gesture's own movement and what the pane scrolled under it since it began.
-  const live = useRef({ key: '', moved: 0, scrolled: 0, fingerY: 0 });
+  const live = useRef({ key: '', moved: 0, scrolled: 0, fingerY: 0, at: 0 });
+  const [tapped, setTapped] = useState<{ key: string; at: number } | null>(null);
   const latest = useRef({ enabled, onDrop, scroll, keys });
   latest.current = { enabled, onDrop, scroll, keys };
   /** The laid-out rows still on the card (a deleted part's row is gone). */
@@ -85,7 +92,9 @@ export function useDragRows(keys: readonly string[], enabled: boolean, onDrop: (
     stopScrolling();
     const key = live.current.key;
     const dy = live.current.moved + live.current.scrolled;
-    live.current = { key: '', moved: 0, scrolled: 0, fingerY: 0 };
+    const tap = drop && !!key && Math.abs(live.current.moved) < TAP_MOVE && live.current.scrolled === 0 && Date.now() - live.current.at < TAP_MS;
+    live.current = { key: '', moved: 0, scrolled: 0, fingerY: 0, at: 0 };
+    if (tap) setTapped({ key, at: Date.now() });
     latest.current.scroll?.hold(false);
     setDrag(null);
     if (!drop || !key) return;
@@ -103,7 +112,7 @@ export function useDragRows(keys: readonly string[], enabled: boolean, onDrop: (
         onPanResponderTerminationRequest: () => false,
         onShouldBlockNativeResponder: () => true,
         onPanResponderGrant: (_e, g) => {
-          live.current = { key, moved: 0, scrolled: 0, fingerY: g.y0 };
+          live.current = { key, moved: 0, scrolled: 0, fingerY: g.y0, at: Date.now() };
           latest.current.scroll?.hold(true);
           setDrag({ key, dy: 0 });
         },
@@ -129,6 +138,7 @@ export function useDragRows(keys: readonly string[], enabled: boolean, onDrop: (
       boxes.current.set(key, { key, y, h: height });
     },
     grip,
+    tapped,
     ref: (key) => (v) => { if (v) views.current.set(key, v); else views.current.delete(key); }
   };
 }

@@ -66,8 +66,8 @@ test('JRN-002 A translator answers feedback: one fix, one kept with a reason @p0
   await button(page, 'Done').click();
   await expect(primary(page)).toBeEnabled();
 
-  // Step 7: published (Send later: nobody asked yet); the record moves on.
-  await button(page, 'Send later').click();
+  // Step 7: published (nobody asked yet); the record moves on.
+  await button(page, "Done, don't ask anyone").click();
   await expectToast(page, 'Version 2 published.');
   await expect(button(page, /^1\. Record\. Version 2/)).toBeVisible();
   await expect(button(page, 'Hear the feedback')).toHaveCount(0);

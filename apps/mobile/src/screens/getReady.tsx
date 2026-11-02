@@ -469,6 +469,10 @@ function ReferenceLanguageStep({ ctx, lang, header, back, onDone }: StepProps & 
   const values = picked ?? current;
   const value = values[0]!;
   const refs = useReferenceLanguages(ctx, [...values, readerLanguage(), 'eng']);
+  // The question names Bibles only for a language that translates one (LAN-143).
+  const tplHash = state.template?.value?.docHash;
+  const tpl = useLibraryDocs(ctx.language.orgId, [tplHash], { deps: false }).get(tplHash);
+  const bible = tpl && isTemplateDoc(tpl) ? !!tpl.bible : undefined;
   const may = ctx.session.can('manage_reference');
   const [busy, setBusy] = useState(false);
 
@@ -513,7 +517,8 @@ function ReferenceLanguageStep({ ctx, lang, header, back, onDone }: StepProps & 
       <PrimaryBtn label={t('common.next')} icon="right" busy={busy} help={t('getReady.language.nextHelp')} onPress={() => void save()} />
       <StepBack onPress={back} />
     </>}>
-      <ReferenceLanguagePage team={lang} choices={refs.choices} value={values} first={current} onChange={setPicked} loading={refs.loading} />
+      <ReferenceLanguagePage team={lang} choices={refs.choices} value={values} first={current} onChange={setPicked} loading={refs.loading}
+        {...(bible === undefined ? {} : { bible })} />
       {!may ? <Banner icon="lock" title={t('common.viewOnly')} body={t('getReady.helps.viewOnly')} /> : null}
     </Screen>
   );

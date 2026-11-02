@@ -60,7 +60,8 @@ export interface HelpRowAt {
  * of lists the part is in, the outermost first.
  */
 export type HelpLit =
-  | { kind: 'part'; part: string; mark: HelpMark; clip?: string; rows?: readonly HelpRowAt[] }
+  | { kind: 'part'; part: string; mark: HelpMark; clip?: string; rows?: readonly HelpRowAt[];
+    /** Dim and unnumbered while help is on; tapped, it still explains itself (HelpQuiet). */ quiet?: boolean }
   | { kind: 'lit'; clip?: string }
   | { kind: 'clip' };
 

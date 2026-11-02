@@ -634,7 +634,7 @@ Steps:
 3. On the record, tap the next check's card, then "Something else?".
 
 Expected:
-- Step 1: Done's main button reads "Do the peer check", with "Ask someone" and "Send later" under it.
+- Step 1: Done's main button reads "Do the peer check", with "Ask someone" and "Done, don't ask anyone" under it.
 - Step 2: the version is published and the review opens on it: "Version 1 · recorded by you". The toast reads "Looks good · on the record", and the record shows the Peer check "looks good".
 - Step 3: the record's main button does the next check ("Back-translate it"); its sheet offers that first, with "Ask someone" beside it. "Something else?" does not offer "I'll do this myself" again.
 
@@ -705,7 +705,7 @@ Steps:
 1. Tap "Done" and read the sheet.
 
 Expected:
-- A reviewer without Send to reviewers or Assign work is not invited to ask: the sheet has no "Next check", and its only button is "Finish the back translation". Someone who may ask gets "Ask {usual people}" (or "Ask for the {check}") with "Send later" under it (decision 127).
+- A reviewer without Send to reviewers or Assign work is not invited to ask: the sheet has no "Next check", and its only button is "Finish the back translation". Someone who may ask gets "Ask {usual people}" (or "Ask for the {check}") with "Done, don't ask anyone" under it (decision 127).
 
 Changed (2026-10-15, decision 127): the published page after publishing is gone; asking for the next check is on Done itself.
 
@@ -852,12 +852,12 @@ Steps:
 3. Delete the part with verse 18 (or the last part) and record it again, slower: speak for 4 seconds, pause, stop.
 4. Tap "Done".
 5. Look at the Done screen.
-6. Tap "Send later".
+6. Tap "Done, don't ask anyone".
 
 Expected:
 - Step 1 opens the workspace with sub "Recording Version 2", on the "Earlier" chip, with REV's needs-changes review highlighted in amber.
 - Version 1's parts are in the card, and "These are Version 1's parts. Record a new part or delete one to publish a new version." shows until something changes.
-- Step 5: the row already reads "What changed" with "“Revised after the Peer check feedback.”" (prefilled, so the buttons are enabled), and a green check line "Answers the Peer check feedback from {REV-name}". Under "Next check" is the Peer check, and the main button asks for it ("Ask {usual people}", which publishes and asks in one tap), with "Send later" under it.
+- Step 5: the row already reads "What changed" with "“Revised after the Peer check feedback.”" (prefilled, so the buttons are enabled), and a green check line "Answers the Peer check feedback from {REV-name}". Under "Next check" is the Peer check, and the main button asks for it ("Ask {usual people}", which publishes and asks in one tap), with "Done, don't ask anyone" under it.
 - Step 6 shows "Version 2 published." and returns to the record.
 - Afterwards, the feedback is answered: the record no longer shows "Hear the feedback", and the review shows "{TRANS-name} revised it · {when}" with "Open Version 2".
 - REV, on a second device after Sync now, sees the update and can review Version 2; its Listen page shows "What changed in Version 2: Revised after the Peer check feedback.".
@@ -871,7 +871,7 @@ Preconditions:
 
 Steps:
 1. Open P-Q2, "Hear the feedback", "Record a fix".
-2. Record a part, "Done", "Send later".
+2. Record a part, "Done", "Done, don't ask anyone".
 3. Go online and wait 30 seconds.
 
 Expected:
@@ -977,7 +977,7 @@ Preconditions:
 
 Steps:
 1. TRANS: open P-Q1, "Hear the feedback", "Record a fix".
-2. Change a part, "Done", "Send later".
+2. Change a part, "Done", "Done, don't ask anyone".
 
 Expected:
 - The Done screen lists one "Answers the Peer check feedback from {REV-name}" line for each open feedback on Version 1 (only the unanswered one here).

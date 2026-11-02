@@ -744,6 +744,8 @@
       "languageHelp": "Abre su página: prepáralo, ve su trabajo y su gente.",
       "licenseHelp": "La licencia del trabajo de tu equipo. Configuración dice qué permite.",
       "newLanguageHelp": "Agrega un idioma a la organización, o un grupo de idiomas relacionados.",
+      "newCluster": "Grupo nuevo",
+      "newClusterHelp": "Agrupa idiomas que ya están aquí bajo un nombre. Nada de ellos cambia.",
       "roleHelp": "Tu rol en esta organización. Decide lo que puedes hacer aquí.",
       "clusterGroupHelp": "Los idiomas de este grupo. Toca para mostrarlos u ocultarlos.",
       "looseGroupHelp": "Los idiomas que no están en ningún grupo. Toca para mostrarlos u ocultarlos.",
@@ -872,7 +874,7 @@
       "sent": "Invitación enviada a {{address}} como {{role}}",
       "cannot": "Solo quienes pueden invitar miembros pueden invitar aquí.",
       "byEmail": "Por correo",
-      "byName": "Una persona, por nombre",
+      "byName": "Por nombre: una persona o un grupo",
       "emailTitle": "Invitar por correo",
       "send": "Enviar la invitación",
       "emailLabel": "Dirección de correo",
@@ -3024,9 +3026,12 @@
     },
     "createAccount": {
       "title": "Crear cuenta",
+      "joinTitle": "Crea tu cuenta para unirte",
+      "joinBody": "Tu invitación está guardada. Te unirás en cuanto inicies sesión con esta cuenta.",
       "button": "Crear cuenta",
       "createdTitle": "Cuenta creada",
       "createdSub": "Abre el enlace que enviamos a {{email}} y luego inicia sesión. Cuando estés listo, puedes crear una organización, pedir unirte a una o escanear una invitación.",
+      "createdSubJoining": "Abre el enlace que enviamos a {{email}} y luego inicia sesión en este dispositivo. Tu invitación está guardada: te unes al equipo en cuanto lo hagas.",
       "emailPlaceholder": "tu@ejemplo.com",
       "passwordPlaceholder": "Elige una contraseña (6 caracteres o más)",
       "confirmLabel": "Confirmar contraseña",
@@ -3052,6 +3057,7 @@
       "cameraOff": "El acceso a la cámara está desactivado. Puedes pegar el código abajo.",
       "joinAsYou": "Unirme con mi cuenta",
       "haveAccount": "Ya tengo una cuenta",
+      "emailAccount": "Crear una cuenta con correo",
       "notMe": "¿No eres {{name}}? Primero cierra sesión",
       "notYou": "¿No eres tú? Primero cierra sesión",
       "joinWhenConnected": "Unirse al tener conexión",
@@ -3075,6 +3081,7 @@
       "joinAsHelp": "Te une al equipo en este dispositivo como la persona que nombra la invitación.",
       "joinHelp": "Después, escribe tu nombre. Así quedas en el equipo.",
       "haveAccountHelp": "Primero inicia sesión. Te unes al equipo en cuanto lo hagas.",
+      "emailAccountHelp": "Primero un correo y una contraseña propios. Te unes al equipo en cuanto inicias sesión.",
       "joinAsMeHelp": "Agrega esta cuenta a la organización de la invitación.",
       "notMeHelp": "Abre Cerrar sesión, para que la persona correcta pueda unirse en este dispositivo.",
       "stopCameraHelp": "Apaga la cámara.",
@@ -4565,8 +4572,8 @@
       "cannotOpenHere": "Eso no se puede abrir desde aquí.",
       "noPermission": "No tienes permiso para abrir eso.",
       "backAgainToLeave": "Pulsa Atrás otra vez para salir de LangQuest",
-      "languageExplorer": "Explorador de idiomas",
-      "languageExplorerNewTab": "Explorador de idiomas, se abre en una pestaña nueva",
+      "languageExplorer": "Idiomas del mundo y sus códigos",
+      "languageExplorerNewTab": "Idiomas del mundo y sus códigos, se abre en una pestaña nueva",
       "tabBadge": "{{tab}}, {{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4588,6 +4595,8 @@
     "person": {
       "showId": "{{name}}. Mostrar ID",
       "noName": "Todavía no tiene nombre",
+      "someone": "Alguien",
+      "someoneInSentence": "alguien",
       "id": "ID {{id}}",
       "anonymous": "{{shape}} {{color}}",
       "colors": {
@@ -4745,7 +4754,7 @@
       "manage": "Los idiomas, las personas y los ajustes de tu organización.",
       "inbox": "Lo que pasó y te concierne: solicitudes, comentarios, personas que piden unirse.",
       "me": "Tu nombre, este dispositivo y tus ajustes.",
-      "explorer": "Abre el explorador de idiomas en una pestaña nueva: todos los idiomas y dónde se hablan."
+      "explorer": "Abre en una pestaña nueva una lista de los idiomas del mundo: los códigos de cada uno y dónde se habla. No son los idiomas de tu organización."
     },
     "sync": {
       "live": "Nube con una marca: con conexión. Tu trabajo se envía a medida que avanzas. Toca para ver lo que se envió.",
@@ -5156,8 +5165,8 @@
       "finishHelp": "Termina la {{version}}: el equipo puede escucharla.",
       "sendHelp": "Termina la {{version}} y se la envía para esta verificación. La encuentran en Mi trabajo.",
       "askHelp": "Termina la {{version}} y luego eliges a quién pedírselo.",
-      "sendLater": "Enviar más tarde",
-      "sendLaterHelp": "Termina la {{version}} sin pedírselo a nadie todavía. El equipo puede escucharla.",
+      "doneAskNobody": "Listo, no pedir a nadie",
+      "doneAskNobodyHelp": "Termina la {{version}} sin pedírselo a nadie. El equipo puede escucharla, y cualquiera que revise puede comprobarla.",
       "nextCheck": "Siguiente verificación",
       "checkNowHelp": "Termina la {{version}} y abre la siguiente verificación para que la hagas tú ahora."
     },
@@ -5265,6 +5274,7 @@
       "spaceSetHelp": "El anillo significa que elegiste este versículo. Mantén pulsado para elegir otro, o ninguno.",
       "pickHelp": "Da este versículo a {{part}}. Luego toca uno posterior para abarcar varios versículos.",
       "pickedHelp": "Relleno: {{part}} tiene este versículo. Toca uno posterior para abarcar varios versículos.",
+      "doneHelp": "Cierra los versículos de {{part}}. Lo que elegiste ya está guardado; Deshacer lo revierte.",
       "autoHelp": "La app calcula el versículo de esta parte según las partes de alrededor.",
       "noneHelp": "Deja esta parte sin versículo.",
       "tileHelp": "El versículo que dice esta parte.",
@@ -6709,7 +6719,7 @@
     "finishWhat": "Terminar la {{what}}",
     "doneHelp": "Cuando todas las partes estén dichas: termínala y envíala a la verificación que la escucha después.",
     "notesForCheck_other": "{{count, number}} notas para la {{check}}",
-    "sendLaterHelp": "Termina la {{what}} sin pedírselo a nadie todavía. El equipo puede escucharla.",
+    "doneAskNobodyHelp": "Termina la {{what}} sin pedírselo a nadie. El equipo puede escucharla, y cualquiera que revise puede comprobarla.",
     "chips": {
       "version": "Versión {{n}}"
     },
@@ -7385,6 +7395,7 @@
   },
   "referenceLanguage": {
     "question": "¿En qué idiomas deben estar las Biblias y guías de estudio de {{language}}?",
+    "questionAny": "¿En qué idiomas debe estar el material de referencia de {{language}}?",
     "setPassages_one": "Guías de {{name}} para {{count, number}} pasaje",
     "setPassages_many": "Guías de {{name}} para {{count, number}} de pasajes",
     "setPassages_other": "Guías de {{name}} para {{count, number}} pasajes",
@@ -7841,6 +7852,7 @@
       "note_other": "Los idiomas que ya están aquí conservan todo lo que tienen. Los {{count, number}} nuevos se configuran juntos en los pasos siguientes.",
       "onlyExisting": "No hay nada nuevo que configurar: los idiomas que ya están aquí conservan todo lo que tienen.",
       "make": "Crear el grupo",
+      "makeHelp": "Crea el grupo con los idiomas de arriba. Primero ponle un nombre y agrega al menos un idioma.",
       "made_one": "{{cluster}} creado, con {{count, number}} idioma.",
       "made_many": "{{cluster}} creado, con {{count, number}} idiomas.",
       "made_other": "{{cluster}} creado, con {{count, number}} idiomas.",

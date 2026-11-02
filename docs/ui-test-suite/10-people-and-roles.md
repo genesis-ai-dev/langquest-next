@@ -138,7 +138,7 @@ Expected:
   changes the code on the same page.
 - Step 3: "{who} · Alpha" ("Translators · Alpha"), "Making the code…", then
   "Ask them to scan this", a QR, and "No password needed. Works for a whole
-  group."; "Done", "Share as a link", "By email" and "One person, by name".
+  group."; "Done", "Share as a link", "By email" and "By name: a person or a group".
 - Step 4: the share sheet, or the toast "Invite link copied. Paste it into
   a message."
 - Steps 5–6: the card names UI Test Org and the role; a group code asks for
@@ -269,7 +269,7 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Org home → "Invite people".
 2. Under "In which language?" tap "Bravo".
-3. Leave "Translators" picked. Tap "One person, by name", name someone,
+3. Leave "Translators" picked. Tap "By name: a person or a group", name someone,
    Continue.
 4. Read the role line on step 3; check the invite's scope on the server.
 
@@ -317,7 +317,7 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Turn the network off.
 2. Alpha's members → "Invite" → tap "Checkers".
-3. Tap "One person, by name" → a name → "Continue".
+3. Tap "By name: a person or a group" → a name → "Continue".
 
 Expected:
 - Step 2: "No code was made. Try again when connected."
@@ -755,7 +755,7 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Org home → "Invite people". Read "Who are you inviting?" and "Other
    roles".
-2. On "Team leads" tap "Invite". Tap "One person, by name", then Back. Read
+2. On "Team leads" tap "Invite". Tap "By name: a person or a group", then Back. Read
    the role list.
 3. Org home → Members → VIEW. Read "What will they do?".
 
@@ -778,7 +778,7 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Alpha's page → "People" → "Invite". Read the roles.
 2. Tap "Team leads".
-3. Tap "One person, by name", then Back. Read the role list.
+3. Tap "By name: a person or a group", then Back. Read the role list.
 4. Back in Members, open TRANS. Read "What will they do?" and "Where?".
 5. Choose "Reviewer". Tap "Save role".
 6. Open TRANS again. Choose "Translator". Tap "Save role".
