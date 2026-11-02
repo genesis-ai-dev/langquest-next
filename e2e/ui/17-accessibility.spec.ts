@@ -499,6 +499,7 @@ test('A11Y-019 every interface language fills the key screens without gaps', asy
     problems.push(...await gaps(page, code, 'the recording workspace'));
     cutWords.push(...await cut(page, code, 'the recording workspace'));
     // A check's choices open on a passage with a version to check (LAN-127): P-SUBMITTED's peer check.
+    await home(page);
     await openPassage(page, w, 'P-SUBMITTED');
     await text(page, words['admin.kinds.peer.step']!).click();
     await expect(byId(page, 'sheet-close')).toBeVisible();
