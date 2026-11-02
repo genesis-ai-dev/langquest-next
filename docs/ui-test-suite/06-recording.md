@@ -1078,6 +1078,31 @@ Expected:
 - In step 5 Part 1's edge passes over the dropped part's sound and stops at Part 3's edge: boxes never overlap.
 - After step 6 the card reads "Parts 1–2" with "2 parts"; Part 1 holds the sound it was stretched over.
 
+### REC-060 Verses, a place opened beside a part and playing back never take a part away
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+LAN-125: a part went missing on an iPhone after one session was cut into
+three parts, a verse range was given, a + was tapped and parts were played.
+Only a delete takes a part off the list.
+
+Preconditions:
+- Luke 13:1-9, called P-NEW below, is not started (the silence switch's world on the web, `06-recording-silence.spec.ts`).
+
+Steps:
+1. Open P-NEW and tap "Record". Tap the red button, speak for 2 seconds and pause for 2, three times, then stop and tap "Done".
+2. Hold Part 1's verse space, tap "Verse 1" and "Done". Hold Part 2's, tap "Verse 2" then "Verse 3", and tap "Done".
+3. Tap the + on the line below Part 2 ("Record a new part before Part 3").
+4. Tap play on Parts 1, 2 and 4 in turn, pausing each.
+5. Tap "Record Part 3 here" to close the place again.
+6. Reload the page and open P-NEW again ("Continue recording").
+
+Expected:
+- After step 1 the card counts 3 parts, and the draft on the device holds three recordings.
+- After step 2 Part 1 reads "Verse 1" and Part 2 "Verses 2–3". (Had Part 1 no verse, verse 1 would be left out, and a place for it would stand before Part 2: decision 82.)
+- After step 3 the place "Record Part 3 here" is chosen, Part 2 still reads "Verses 2–3", and the last part is Part 4.
+- After step 5 the card counts 3 parts again, with their verses, and the draft holds the same three recordings in the same order.
+- After step 6 the same: 3 parts, Part 2 "Verses 2–3", no open place.
+
 ## Microphone setup
 
 ### REC-045 Set up the microphone by ear (retired)
