@@ -265,7 +265,7 @@ Expected:
 - A player for the whole version, titled "Version 1", with the sub "3 parts · 0:11 · recorded with the {abbr} Bible" (the Bible's abbreviation, when one is offered).
 - A row "Say something about it" with the sub "Optional · the team hears it with this version". The row has no amber border.
 - "Next check", with a card for each check that comes next ("Peer check" and "Back translation", decision 91) and its people (in the fixture "Trevor Both, Rita Reviewer"). No sentence explains publishing.
-- The footer offers "Ask {usual target}" (in the fixture "Ask the Peer check team"), enabled, then quiet links "Someone else" and "Send later".
+- The footer offers "Ask {usual target}" (in the fixture "Ask the Peer check team"), enabled, then the quiet link "Someone else", then "Done, don't ask anyone", a button of its own (LAN-136).
 - Step 3 publishes Version 1 and asks for the peer check in one write: the toast reads "Sent to {target} — anyone on it will see it on My Work" (a team) or "Sent to {target} — they will see it on My Work" (a person), with no Undo: the asking is taken back from History ("Withdraw"), the version is not (decision 134).
 - It returns to the record's path; there is no "Version 1 published" page.
 - The draft is gone from Versions and history; Version 1 is listed under "Published" with "Latest".
@@ -317,7 +317,7 @@ Steps:
 2. Tap the row "Say something about it".
 3. In the sheet "Say something about it" (sub "Anything the team should know. They hear it with this version."), tap "Say it", speak for 3 seconds, tap to stop.
 4. Tap "Done".
-5. Tap "Send later".
+5. Tap "Done, don't ask anyone".
 
 Expected:
 - After step 4 the row reads "What you said about it" with the sub "Voice note", and its icon is a green check.
@@ -356,13 +356,13 @@ Steps:
 4. Tap "Done".
 5. Look at the row under the player, and at the footer.
 6. Tap the row, type "Added verse 9 again, slower", tap "Done".
-7. Tap "Send later".
+7. Tap "Done, don't ask anyone".
 
 Expected:
 - Step 1 opens the workspace with sub "Recording Version 2" and Version 1's parts already in the card.
 - Step 2 shows "These are Version 1's parts. Record a new part or delete one to publish a new version.", and "Done" is disabled.
 - After step 3 that line is gone, the card counts one more part, and "Done" is enabled.
-- Step 5: the row reads "Say what changed" with the sub "Needed · since Version 1, so the team knows what to listen for", with an amber border. The footer's "Ask …" is disabled, and "Send later" does nothing.
+- Step 5: the row reads "Say what changed" with the sub "Needed · since Version 1, so the team knows what to listen for", with an amber border. The footer's "Ask …" and "Done, don't ask anyone" are disabled.
 - The sheet opened in step 6 is titled "What changed?" with the sub "Since Version 1. The team hears it with this version.", and its voice button reads "Say what changed".
 - After step 6 the row reads "What changed" with "“Added verse 9 again, slower”", and the footer's "Ask …" is enabled.
 - Step 7 shows "Version 2 published." and returns to the record.
@@ -380,7 +380,7 @@ Steps:
 1. Open P-Q2's Versions and history and tap "Edit" on Version 1 (it opens Version 1's parts).
 2. Record one more part, then tap "Done".
 3. Tap "Say what changed", tap "Say what changed" in the sheet, speak for 3 seconds, stop, tap "Done".
-4. Tap "Send later".
+4. Tap "Done, don't ask anyone".
 
 Expected:
 - After step 3 the row reads "What changed" with the sub "Voice note", and the footer's "Ask …" is enabled with nothing typed.
@@ -636,7 +636,7 @@ Expected:
 - The workspace stays responsive: the lit card and meter keep moving, and taps answer within half a second, through all ten minutes.
 - Part 1 plays from start to end without gaps.
 - "Show the parts" lists every part and scrolls smoothly.
-- "Done" then "Send later" succeeds, and REV on a second device can play the whole version after Sync now.
+- "Done" then "Done, don't ask anyone" succeeds, and REV on a second device can play the whole version after Sync now.
 - Resets: P-Q4 now has Version 1.
 
 ### REC-031 Tapping record and stop very fast
@@ -687,7 +687,7 @@ Preconditions:
 Steps:
 1. Open P-Q1's workspace and record two more parts.
 2. Delete one part, then tap the Undo arrow.
-3. Tap "Done", then "Send later".
+3. Tap "Done", then "Done, don't ask anyone".
 4. Turn airplane mode off and wait 30 seconds.
 
 Expected:
@@ -705,7 +705,7 @@ Preconditions:
 - Online. A passage with a draft ready to publish (for example P-Q3).
 
 Steps:
-1. Tap "Done", then "Send later".
+1. Tap "Done", then "Done, don't ask anyone".
 2. Read the record and the sync mark.
 
 Expected:
@@ -1117,7 +1117,7 @@ Preconditions:
 
 Steps:
 1. Open P-T and tap "Record" (or the Record step row).
-2. Record two parts and tap "Done", then "Send later".
+2. Record two parts and tap "Done", then "Done, don't ask anyone".
 
 Expected:
 - The workspace and Done behave exactly as for TRANS (REC-004, REC-011).

@@ -4867,8 +4867,8 @@
       "finishHelp": "Menyelesaikan {{version}}: tim bisa mendengarnya.",
       "sendHelp": "Menyelesaikan {{version}} dan mengirimnya kepada mereka untuk pemeriksaan ini. Mereka melihatnya di Pekerjaan Saya.",
       "askHelp": "Menyelesaikan {{version}}, lalu Anda memilih siapa yang diminta.",
-      "sendLater": "Kirim nanti",
-      "sendLaterHelp": "Menyelesaikan {{version}} tanpa meminta siapa pun dulu. Tim bisa mendengarnya.",
+      "doneAskNobody": "Selesai, jangan minta siapa pun",
+      "doneAskNobodyHelp": "Menyelesaikan {{version}} tanpa meminta siapa pun. Tim bisa mendengarnya, dan siapa pun yang meninjau bisa memeriksanya.",
       "nextCheck": "Pemeriksaan berikutnya",
       "checkNowHelp": "Menyelesaikan {{version}}, lalu membuka pemeriksaan berikutnya untuk Anda kerjakan sendiri sekarang."
     },
@@ -6220,7 +6220,7 @@
     "finishWhat": "Selesaikan {{what}}",
     "doneHelp": "Setelah semua bagian diucapkan: selesaikan dan kirim ke pemeriksaan yang mendengarkannya berikutnya.",
     "notesForCheck_other": "{{count, number}} catatan untuk {{check}}",
-    "sendLaterHelp": "Menyelesaikan {{what}} tanpa meminta siapa pun dulu. Tim bisa mendengarnya.",
+    "doneAskNobodyHelp": "Menyelesaikan {{what}} tanpa meminta siapa pun. Tim bisa mendengarnya, dan siapa pun yang meninjau bisa memeriksanya.",
     "chips": {
       "version": "Versi {{n}}"
     },

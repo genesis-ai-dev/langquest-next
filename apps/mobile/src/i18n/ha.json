@@ -5035,8 +5035,8 @@
       "finishHelp": "Yana gama {{version}}: tawagar za ta iya jin ta.",
       "sendHelp": "Yana gama {{version}}, ya aika musu ita don wannan dubawa. Za su same ta a Aikina.",
       "askHelp": "Yana gama {{version}}, sannan ku zaɓi wanda za ku roƙa.",
-      "sendLater": "Aika daga baya",
-      "sendLaterHelp": "Yana gama {{version}} ba tare da kun roƙi kowa ba tukuna. Tawagar za ta iya jin ta.",
+      "doneAskNobody": "An gama, kada a roƙi kowa",
+      "doneAskNobodyHelp": "Yana gama {{version}} ba tare da kun roƙi kowa ba. Tawagar za ta iya jin ta, kuma duk wanda ke dubawa zai iya duba ta.",
       "nextCheck": "Duba na gaba",
       "checkNowHelp": "Yana gama {{version}}, sannan ya buɗe duba na gaba don ku yi shi da kanku yanzu."
     },
@@ -6488,7 +6488,7 @@
     "finishWhat": "Gama {{what}}",
     "doneHelp": "Idan an faɗi kowane sashe: ku gama shi, ku aika shi zuwa dubawar da za ta saurare shi na gaba.",
     "notesForCheck_other": "Bayanai {{count, number}} don {{check}}",
-    "sendLaterHelp": "Yana gama {{what}} ba tare da kun roƙi kowa ba tukuna. Tawagar za ta iya jin sa.",
+    "doneAskNobodyHelp": "Yana gama {{what}} ba tare da kun roƙi kowa ba. Tawagar za ta iya jin sa, kuma duk wanda ke dubawa zai iya duba sa.",
     "chips": {
       "version": "Siga ta {{n}}"
     },

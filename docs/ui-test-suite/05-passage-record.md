@@ -28,7 +28,7 @@ fixture world and the role matrix hold for every test here.
 - Since decision 127 the recorder's "Publish" is "Done". Done opens a last
   look at the version whose main button asks the next check's usual people
   and publishes in the same tap ("Ask the Peer check team"); "Someone else"
-  and "Send later" finish it too. There is no "Version N published" page:
+  and "Done, don't ask anyone" finish it too. There is no "Version N published" page:
   every way out lands on the record's path (06 REC-011).
 - Since decision 134 no toast offers Undo. A toast says what happened, with
   a close ✕, for about 3.5 s. What is done here is taken back from
@@ -311,11 +311,11 @@ Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 Steps:
 1. Open P-Q1 (Luke 13:10-17). Tap "Record".
 2. Record one part and tap "Done" (06 REC does it step by step).
-3. On the Done screen, tap "Send later".
+3. On the Done screen, tap "Done, don't ask anyone".
 
 Expected:
 - "Record" opens the recording workspace for Luke 13:10-17.
-- "Send later" publishes Version 1 and asks nobody: the toast reads
+- "Done, don't ask anyone" publishes Version 1 and asks nobody: the toast reads
   "Version 1 published.", and the app returns to the record's path. There
   is no "Version 1 published" page (decision 127).
 - The path's "Record" is done ("Version 1 · {m:ss}"), and so is "Done"
@@ -346,7 +346,7 @@ Expected:
   then "Back translation" with the same. The first is picked; with more
   than one they are radios.
 - The footer holds "Ask the Peer check team", then the quiet links "Someone
-  else" and "Send later".
+  else" and "Done, don't ask anyone".
 - Tapping the button publishes Version 1 and asks, in one write. The app
   returns to the path and shows "Sent to the Peer check team — anyone on it
   will see it on My Work". The toast has no Undo. The "Peer check" card
@@ -382,11 +382,11 @@ Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 Steps:
 1. Record a new version of any of TRANS's passages that has an unasked
    next check, and tap "Done".
-2. On the Done screen, tap "Send later".
+2. On the Done screen, tap "Done, don't ask anyone".
 3. Read the footer.
 
 Expected:
-- "Send later" publishes the version and asks nobody: the toast reads
+- "Done, don't ask anyone" publishes the version and asks nobody: the toast reads
   "Version {n} published.", and the app returns to the path.
 - The main button now reads "Ask for the {check}". Tapping it opens the
   ask page (PASS-015), with the header "Ask for a check" and ✕. No
@@ -456,7 +456,7 @@ Expected:
   read "looks good".
 - TREV is offered the next check: the sheet's "Next check" holds the
   Community check, with "Ask {target}" (then "Someone else" and "Send
-  later") or "Ask for the community check" (then "Send later").
+  later") or "Ask for the community check" (then "Done, don't ask anyone").
 - Fixed (2026-10-12): the page after publishing showed "Next, ask for a
   check" with the Community Check card to someone who cannot ask. Done now
   lists checks only for someone who can ask.
@@ -491,7 +491,7 @@ Preconditions (in addition to the global ones):
 Steps:
 1. On P-NEEDS's feedback page, tap "Record a fix".
 2. Record a part for Version 2 and tap "Done" (06 REC).
-3. Tap "Send later". Open the "Peer check" card.
+3. Tap "Done, don't ask anyone". Open the "Peer check" card.
 
 Expected:
 - The workspace opens on P-NEEDS, tied to REV's review.
@@ -499,7 +499,7 @@ Expected:
   check feedback.", so its buttons are enabled. "Next check" is the Peer
   check again, with "Ask the Peer check team": answered feedback keeps the
   check open (decided 2026-10-13, decisions.md 96).
-- "Send later" shows "Version 2 published." and returns to the record.
+- "Done, don't ask anyone" shows "Version 2 published." and returns to the record.
 - On the path, "Hear the feedback" and "Fix it…" are gone.
 - In the sheet, the Peer check is marked "Feedback answered".
 - "Versions and history" → "History" lists "Revised after Peer Review".

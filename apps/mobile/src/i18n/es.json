@@ -5203,8 +5203,8 @@
       "finishHelp": "Termina la {{version}}: el equipo puede escucharla.",
       "sendHelp": "Termina la {{version}} y se la envía para esta verificación. La encuentran en Mi trabajo.",
       "askHelp": "Termina la {{version}} y luego eliges a quién pedírselo.",
-      "sendLater": "Enviar más tarde",
-      "sendLaterHelp": "Termina la {{version}} sin pedírselo a nadie todavía. El equipo puede escucharla.",
+      "doneAskNobody": "Listo, no pedir a nadie",
+      "doneAskNobodyHelp": "Termina la {{version}} sin pedírselo a nadie. El equipo puede escucharla, y cualquiera que revise puede comprobarla.",
       "nextCheck": "Siguiente verificación",
       "checkNowHelp": "Termina la {{version}} y abre la siguiente verificación para que la hagas tú ahora."
     },
@@ -6756,7 +6756,7 @@
     "finishWhat": "Terminar la {{what}}",
     "doneHelp": "Cuando todas las partes estén dichas: termínala y envíala a la verificación que la escucha después.",
     "notesForCheck_other": "{{count, number}} notas para la {{check}}",
-    "sendLaterHelp": "Termina la {{what}} sin pedírselo a nadie todavía. El equipo puede escucharla.",
+    "doneAskNobodyHelp": "Termina la {{what}} sin pedírselo a nadie. El equipo puede escucharla, y cualquiera que revise puede comprobarla.",
     "chips": {
       "version": "Versión {{n}}"
     },

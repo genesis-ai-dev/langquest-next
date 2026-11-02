@@ -66,12 +66,12 @@ export async function sayEachPart(page: Page, parts: number): Promise<void> {
 }
 
 /**
- * The workspace's Done, then on its last look either "Send later" (published,
+ * The workspace's Done, then on its last look either "Done, don't ask anyone" (published,
  * nobody asked) or, with no check next, "Finish Version N" (decision 127).
  */
 export async function publishVersion(page: Page, n: number): Promise<void> {
   await byId(page, 'publish-button').click();
-  await button(page, 'Send later').or(button(page, `Finish Version ${n}`)).first().click();
+  await button(page, "Done, don't ask anyone").or(button(page, `Finish Version ${n}`)).first().click();
 }
 
 /** Open the bell on My Work. */

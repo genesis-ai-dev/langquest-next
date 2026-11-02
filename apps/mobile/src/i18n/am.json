@@ -5035,8 +5035,8 @@
       "finishHelp": "{{version}}ን ይጨርሳል፦ ቡድኑ ሊሰማው ይችላል።",
       "sendHelp": "{{version}}ን ይጨርሳል፣ ለዚህ ፍተሻም ወደ እነሱ ይልከዋል። በ«ሥራዬ» ላይ ያገኙታል።",
       "askHelp": "{{version}}ን ይጨርሳል፣ ከዚያ ማንን እንደሚጠይቁ ይመርጣሉ።",
-      "sendLater": "በኋላ ይላኩ",
-      "sendLaterHelp": "ማንንም ገና ሳይጠይቁ {{version}}ን ይጨርሳል። ቡድኑ ሊሰማው ይችላል።",
+      "doneAskNobody": "ተጠናቋል፣ ማንንም አይጠይቁ",
+      "doneAskNobodyHelp": "ማንንም ሳይጠይቁ {{version}}ን ይጨርሳል። ቡድኑ ሊሰማው ይችላል፣ የሚገመግም ማንኛውም ሰው ሊፈትሸው ይችላል።",
       "nextCheck": "ቀጣዩ ፍተሻ",
       "checkNowHelp": "{{version}}ን ይጨርሳል፣ ከዚያ ቀጣዩን ፍተሻ አሁን ራስዎ እንዲያደርጉት ይከፍታል።"
     },
@@ -6488,7 +6488,7 @@
     "finishWhat": "{{what}}ን ይጨርሱ",
     "doneHelp": "እያንዳንዱ ቁራጭ ሲነገር፦ ይጨርሱትና ቀጥሎ ወደሚያዳምጠው ፍተሻ ይላኩት።",
     "notesForCheck_other": "ለ{{check}} {{count, number}} ማስታወሻዎች",
-    "sendLaterHelp": "ማንንም ገና ሳይጠይቁ {{what}}ን ይጨርሳል። ቡድኑ ሊሰማው ይችላል።",
+    "doneAskNobodyHelp": "ማንንም ሳይጠይቁ {{what}}ን ይጨርሳል። ቡድኑ ሊሰማው ይችላል፣ የሚገመግም ማንኛውም ሰው ሊፈትሸው ይችላል።",
     "chips": {
       "version": "ስሪት {{n}}"
     },

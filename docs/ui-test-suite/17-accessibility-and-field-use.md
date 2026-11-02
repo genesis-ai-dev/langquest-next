@@ -301,7 +301,7 @@ Roles: TRANS · Priority: P2 · Platforms: Android · Run: Device
 Preconditions: A mid-range Android phone at the brightness it picks automatically, outdoors in direct sun.
 
 Steps:
-1. Record a passage, tap "Done", then "Send later".
+1. Record a passage, tap "Done", then "Done, don't ask anyone".
 2. Find a passage on the map.
 
 Expected:
@@ -436,14 +436,14 @@ Steps:
 1. Cold-start the app.
 2. Open the Map, Luke, then a passage.
 3. Record for 5 minutes in one session, with pauses.
-4. Tap "Done", then "Send later".
+4. Tap "Done", then "Done, don't ask anyone".
 
 Expected:
 - The cold start reaches My Work within 5 seconds of the splash.
 - Scrolling the map and the chapters does not stutter visibly.
 - The level meter keeps moving during the 5-minute recording.
 - No parts are lost. The part count matches the pauses.
-- Done and "Send later" complete without an "Application not responding" dialog.
+- Done and "Done, don't ask anyone" complete without an "Application not responding" dialog.
 
 ### A11Y-022 One-handed use on a large phone
 Roles: TRANS, REV · Priority: P2 · Platforms: iOS, Android · Run: Manual

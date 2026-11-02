@@ -4867,8 +4867,8 @@
       "finishHelp": "完成{{version}}：团队就能听到。",
       "sendHelp": "完成{{version}}，并发送给他们做这项检查。他们会在“我的工作”中看到。",
       "askHelp": "完成{{version}}，然后由你选择请谁。",
-      "sendLater": "以后再发送",
-      "sendLaterHelp": "完成{{version}}，暂时不请任何人。团队可以听到。",
+      "doneAskNobody": "完成，不请任何人",
+      "doneAskNobodyHelp": "完成{{version}}，不请任何人。团队可以听到，任何审阅者都可以检查。",
       "nextCheck": "下一项检查",
       "checkNowHelp": "完成{{version}}，然后打开下一项检查，由你现在自己来做。"
     },
@@ -6220,7 +6220,7 @@
     "finishWhat": "完成{{what}}",
     "doneHelp": "每一段都说完后：完成它，并把它送去接下来要听它的检查。",
     "notesForCheck_other": "{{count, number}} 条给{{check}}的备注",
-    "sendLaterHelp": "完成{{what}}，暂时不请任何人。团队可以听到。",
+    "doneAskNobodyHelp": "完成{{what}}，不请任何人。团队可以听到，任何审阅者都可以检查。",
     "chips": {
       "version": "第 {{n}} 版"
     },

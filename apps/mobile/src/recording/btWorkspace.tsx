@@ -33,7 +33,7 @@ import { HelpBadge, HelpClip, HelpRow } from '../helpMode/helpBadge';
 import { currentLocale, t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Banner, Field, Header, Ico, IconBtn, PrimaryBtn, QuietLinks, Screen, SectionLabel, Sheet, type IconName } from '../ui/kit';
+import { Banner, Field, GhostBtn, Header, Ico, IconBtn, PrimaryBtn, QuietLinks, Screen, SectionLabel, Sheet, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
 import { passageCrumbs, type PassageView } from '../passage/passageView';
@@ -533,24 +533,29 @@ function PublishSheet(props: {
   const finish = (ask: DoneAsk) => { if (!props.busy) props.onPublish(props.extra, ask); };
   // Nobody else could be asked: Done does the next check now, and asking stays one tap away (decisions.md 178).
   const checkNow = next && !nextTarget && props.next?.selfCheck ? doCheckButton(v.kind(next.kindId), v.kinds) : null;
+  // Finishing without asking is a choice as ordinary as asking: a button of its own (LAN-136).
+  const askNobody = (
+    <GhostBtn label={t('recording.publish.doneAskNobody')} icon="check" disabled={props.busy}
+      help={t('backTranslation.doneAskNobodyHelp', { what: props.what })} onPress={() => finish(null)} />
+  );
   const footer = next && checkNow ? (
     <View style={{ gap: space.xs }}>
       <PrimaryBtn label={checkNow.label} icon={checkNow.icon} busy={props.busy}
         help={t('backTranslation.checkNowHelp', { what: props.what })} onPress={() => finish({ checkNow: next.kindId })} />
       <QuietLinks items={[
-        { label: t('passage.record.actions.askSomeone'), icon: 'people' as const, help: t('passage.page.actionHelp.ask'), onPress: () => finish({ someoneElse: next.kindId }) },
-        { label: t('recording.publish.sendLater'), icon: 'clock' as const, help: t('backTranslation.sendLaterHelp', { what: props.what }), onPress: () => finish(null) }
+        { label: t('passage.record.actions.askSomeone'), icon: 'people' as const, help: t('passage.page.actionHelp.ask'), onPress: () => finish({ someoneElse: next.kindId }) }
       ]} />
+      {askNobody}
     </View>
   ) : next ? (
     <View style={{ gap: space.xs }}>
       <PrimaryBtn label={askButtonLabel({ target: nextTarget, kindId: next.kindId, kinds: v.kinds, name: ctx.name, p: v.p })} icon="send" busy={props.busy}
         help={nextTarget ? t('backTranslation.sendHelp', { what: props.what }) : t('backTranslation.askHelp', { what: props.what })}
         onPress={() => finish(nextTarget ? { kindId: next.kindId, questions: [] } : { someoneElse: next.kindId })} />
-      <QuietLinks items={[
-        ...(nextTarget ? [{ label: t('passage.published.someoneElse'), icon: 'people' as const, help: t('passage.published.someoneElseHelp'), onPress: () => finish({ someoneElse: next.kindId }) }] : []),
-        { label: t('recording.publish.sendLater'), icon: 'clock' as const, help: t('backTranslation.sendLaterHelp', { what: props.what }), onPress: () => finish(null) }
-      ]} />
+      {nextTarget ? <QuietLinks items={[
+        { label: t('passage.published.someoneElse'), icon: 'people' as const, help: t('passage.published.someoneElseHelp'), onPress: () => finish({ someoneElse: next.kindId }) }
+      ]} /> : null}
+      {askNobody}
     </View>
   ) : <PrimaryBtn label={t('backTranslation.finishWhat', { what: props.what })} icon="check" busy={props.busy} onPress={() => finish(null)} />;
   return (

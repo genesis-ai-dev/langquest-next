@@ -25,10 +25,10 @@ async function openDone(page: Page): Promise<void> {
   await expect(text(page, 'Next check')).toBeVisible({ timeout: 30_000 });
 }
 
-/** Done, then Send later: Version `n` is published and nobody is asked yet. */
+/** Done, then "Done, don't ask anyone": Version `n` is published and nobody is asked yet. */
 async function publishLater(page: Page, n = 1): Promise<void> {
   await openDone(page);
-  await button(page, 'Send later').click();
+  await button(page, "Done, don't ask anyone").click();
   await toast(page, `Version ${n} published.`);
 }
 
@@ -97,7 +97,7 @@ test('PASS-012 Done, then asking: the check\'s people are picked @p0', async ({ 
   expect(all).toMatch(/Peer check (\w\w )*(Rita Reviewer, Trevor Both|Trevor Both, Rita Reviewer) Back translation/);
   await expect(byId(page, 'primary-action')).toHaveText('Ask the Peer check team');
   await expect(button(page, 'Someone else')).toBeVisible();
-  await expect(button(page, 'Send later')).toBeVisible();
+  await expect(button(page, "Done, don't ask anyone")).toBeVisible();
   // One tap publishes Version 1 and asks.
   await byId(page, 'primary-action').click();
   await toast(page, 'Sent to the Peer check team — anyone on it will see it on My Work');
@@ -131,7 +131,7 @@ test('PASS-014 Done, then send later', async ({ browser }) => {
   const L = label('P-Q3');
   const page = await recordAs(browser, world(), 'TRANS', 'P-Q3');
   await recordAndDone(page);
-  await button(page, 'Send later').click();
+  await button(page, "Done, don't ask anyone").click();
   await toast(page, 'Version 1 published.');
   await expect(header(page)).toHaveText(L);
   expect(await mainButton(page)).toBe('Ask for the peer check');

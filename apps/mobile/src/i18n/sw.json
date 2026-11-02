@@ -5035,8 +5035,8 @@
       "finishHelp": "Humaliza {{version}}: timu inaweza kulisikia.",
       "sendHelp": "Humaliza {{version}} na kuwatumia kwa ajili ya ukaguzi huu. Watalipata kwenye Kazi Yangu.",
       "askHelp": "Humaliza {{version}}, kisha unachagua wa kumwomba.",
-      "sendLater": "Tuma baadaye",
-      "sendLaterHelp": "Humaliza {{version}} bila kumwomba mtu yeyote bado. Timu inaweza kulisikia.",
+      "doneAskNobody": "Imekamilika, usimwombe mtu yeyote",
+      "doneAskNobodyHelp": "Humaliza {{version}} bila kumwomba mtu yeyote. Timu inaweza kulisikia, na yeyote anayekagua anaweza kulikagua.",
       "nextCheck": "Ukaguzi unaofuata",
       "checkNowHelp": "Humaliza {{version}}, kisha hufungua ukaguzi unaofuata ili uufanye mwenyewe sasa."
     },
@@ -6488,7 +6488,7 @@
     "finishWhat": "Maliza {{what}}",
     "doneHelp": "Kila sehemu ikishasemwa: imalize na uitume kwenye ukaguzi utakaoisikiliza baadaye.",
     "notesForCheck_other": "Madokezo {{count, number}} kwa {{check}}",
-    "sendLaterHelp": "Humaliza {{what}} bila kumwomba mtu yeyote bado. Timu inaweza kuisikia.",
+    "doneAskNobodyHelp": "Humaliza {{what}} bila kumwomba mtu yeyote. Timu inaweza kuisikia, na yeyote anayekagua anaweza kuikagua.",
     "chips": {
       "version": "Toleo la {{n}}"
     },

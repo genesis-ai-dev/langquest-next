@@ -371,7 +371,7 @@ test('REC-011 Done, then ask the usual people for the peer check @p0', async ({ 
   await expect(primary(page)).toHaveText(/^Ask /);
   await expect(primary(page)).toBeEnabled();
   await expect(button(page, 'Someone else')).toBeVisible();
-  await expect(button(page, 'Send later')).toBeVisible();
+  await expect(button(page, "Done, don't ask anyone")).toBeVisible();
   const target = (await primary(page).innerText()).trim().replace(/^Ask /, '');
   // One tap publishes and asks; the asking is taken back from History (Withdraw), not the toast (decision 134).
   await primary(page).click();
@@ -451,14 +451,14 @@ test('REC-014 Say something about Version 1 by voice', async ({ page }) => {
   await expect(button(page, 'Play voice note')).toBeVisible();
   await button(page, 'Done').click();
   await expect(button(page, 'What you said about it. Voice note')).toBeVisible();
-  // Send later: done, and nobody asked yet.
-  await button(page, 'Send later').click();
+  // "Done, don't ask anyone": done, and nobody asked yet.
+  await button(page, "Done, don't ask anyone").click();
   await expectToast(page, 'Version 1 published.');
   await expectUploaded(page, w);
   const s = await onServer(w, 'P-Q2');
   expect(s.versions).toHaveLength(1);
   expect(s.versions[0]!.changeBlobHash, 'the voice note goes with Version 1').toBeTruthy();
-  expect(s.p.openRequests.filter((r) => r.what === 'review'), 'Send later asks nobody').toHaveLength(0);
+  expect(s.p.openRequests.filter((r) => r.what === 'review'), 'Done without asking asks nobody').toHaveLength(0);
   // The record asks later; its Versions and history plays the version with its note.
   await expect(primary(page)).toHaveText('Ask for the peer check');
   await button(page, 'Versions and history').click();
@@ -517,7 +517,7 @@ test('REC-016 Version 2 needs "what changed" @p0', async ({ page }) => {
   await button(page, 'Done').click();
   await expect(button(page, 'What changed. “Added verse 9 again, slower”')).toBeVisible();
   await expect(primary(page)).toBeEnabled();
-  await button(page, 'Send later').click();
+  await button(page, "Done, don't ask anyone").click();
   await expectToast(page, 'Version 2 published.');
   await expectUploaded(page, w);
   await button(page, 'Versions and history').click();
@@ -552,7 +552,7 @@ test('REC-017 What changed can be said instead of typed', async ({ page }) => {
   await button(page, 'Done').click();
   await expect(button(page, 'What changed. Voice note')).toBeVisible();
   await expect(primary(page)).toBeEnabled();
-  await button(page, 'Send later').click();
+  await button(page, "Done, don't ask anyone").click();
   await expectToast(page, 'Version 2 published.');
   await expectUploaded(page, w);
   const v = (await onServer(w, 'P-Q2')).versions;
@@ -732,7 +732,7 @@ test('REC-033 Record and publish in airplane mode @p0', async ({ page, context }
   await undoButton(page).click();
   await expectParts(page, 4);
   await publishButton(page).click();
-  await button(page, 'Send later').click();
+  await button(page, "Done, don't ask anyone").click();
   await expectToast(page, 'Version 1 published.');
   await expect(page.getByRole('heading', { name: label })).toBeVisible();
   const waiting = (await deviceLog(page, w.languages.A.orgId, w.languages.A.languageId)).filter((r) => r.status === 'pending');
@@ -1272,7 +1272,7 @@ test('REC-052 A translator-reviewer records and publishes', async ({ page }) => 
   await recordSaid(page, [3000, 3000]);
   await publishButton(page).click();
   await expect(primary(page)).toHaveText(/^Ask /);
-  await button(page, 'Send later').click();
+  await button(page, "Done, don't ask anyone").click();
   await expectToast(page, 'Version 1 published.');
   await expectUploaded(page, w);
   const v = (await onServer(w, 'P-T')).versions;

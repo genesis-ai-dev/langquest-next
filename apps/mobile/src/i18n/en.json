@@ -5035,8 +5035,8 @@
       "finishHelp": "Finishes {{version}}: the team can hear it.",
       "sendHelp": "Finishes {{version}} and sends it to them for this check. They find it on My Work.",
       "askHelp": "Finishes {{version}}, then you choose who to ask.",
-      "sendLater": "Send later",
-      "sendLaterHelp": "Finishes {{version}} without asking anyone yet. The team can hear it.",
+      "doneAskNobody": "Done, don't ask anyone",
+      "doneAskNobodyHelp": "Finishes {{version}} without asking anyone. The team can hear it, and anyone who reviews can check it.",
       "nextCheck": "Next check",
       "checkNowHelp": "Finishes {{version}}, then opens the next check for you to do now."
     },
@@ -6488,7 +6488,7 @@
     "finishWhat": "Finish the {{what}}",
     "doneHelp": "When every part is said: finish it and send it to the check that listens to it next.",
     "notesForCheck_other": "{{count, number}} notes for the {{check}}",
-    "sendLaterHelp": "Finishes the {{what}} without asking anyone yet. The team can hear it.",
+    "doneAskNobodyHelp": "Finishes the {{what}} without asking anyone. The team can hear it, and anyone who reviews can check it.",
     "chips": {
       "version": "Version {{n}}"
     },

@@ -23,7 +23,7 @@ else should do this".
 **Done since decision 127.** The recorder's and back translation's
 "Publish" is "Done". Done's main button asks the next check's usual people
 and publishes in the same tap ("Ask the Peer check team"); "Someone else"
-publishes and opens Ask someone, and "Send later" publishes and asks nobody
+publishes and opens Ask someone, and "Done, don't ask anyone" publishes and asks nobody
 ("Version N published."). With no check to ask for, the main button is
 "Finish Version N" (or "Finish the back translation"). There is no page
 after publishing: every way out lands on the record.
@@ -94,13 +94,13 @@ Steps:
 4. Tap "Record a fix".
 5. In the workspace, check that the Earlier chip is open with the review highlighted.
 6. Record one new part (6 seconds). Slide Version 1's first part aside and tap its bin ("Delete Part 1"), then tap "Done".
-7. On the Done screen, open "What changed", empty it, tap "Done"; then say or type "Slowed verse 18", tap "Done", then "Send later".
+7. On the Done screen, open "What changed", empty it, tap "Done"; then say or type "Slowed verse 18", tap "Done", then "Done, don't ask anyone".
 8. Open the bell again. Open the feedback on P-SUBMITTED, then tap "Hear the feedback".
 9. Tap "Keep it, say why". Type "The speed matches how elders tell it", then tap "Keep it".
 
 Expected:
 - Step 6:
-  - "What changed" starts from a first draft, "Revised after the {check} feedback.", which the translator may change. Emptied, the main button ("Ask the Peer check team") is disabled, and "Send later" does nothing, until something is said.
+  - "What changed" starts from a first draft, "Revised after the {check} feedback.", which the translator may change. Emptied, the main button ("Ask the Peer check team") and "Done, don't ask anyone" are disabled until something is said.
   - The check line reads "Answers the peer check feedback from {REV's name}".
   - Fixed (2026-10-13): the Publish screen (now Done), "Hear the feedback", the workspace's Earlier and the Inbox name the kind ("Peer Review"), not the check ("Peer check"), against decision 91's one word on every screen.
 - Step 7: the toast reads "Version 2 published.", and the app returns to the record. On the record:
@@ -160,7 +160,7 @@ Roles: TREV, TRANS · Priority: P1 · Platforms: iOS, Android · Run: Auto
 Preconditions: P-Q4 is asked of TREV to record.
 
 Steps:
-1. Device 1 (TREV): record P-Q4 Version 1, tap "Done", then "Send later".
+1. Device 1 (TREV): record P-Q4 Version 1, tap "Done", then "Done, don't ask anyone".
 2. COORD (any device): open P-Q4, tap its "Peer check" card, then "Send to someone else", and ask TREV by name. Asked, TREV's own version's check reads "Do the peer check" on the record; unasked, it waits on the check's sheet as "Review it myself" (decision 178).
 3. Device 1 (TREV): sync. On the passage record, tap "Do the peer check". Play it, then tap "Looks good".
 4. Device 2 (TRANS): record P-Q3 Version 1, tap "Done", then "Ask the Peer check team".
@@ -388,7 +388,7 @@ Expected:
 Roles: TRANS, REV · Priority: P0 · Platforms: iOS, Android · Run: Device
 
 Steps:
-1. Turn on airplane mode. As TRANS, record P-Q2, tap "Done", then "Send later".
+1. Turn on airplane mode. As TRANS, record P-Q2, tap "Done", then "Done, don't ask anyone".
 2. Me → Sign out.
 3. Read the message, then tap "Sign Out".
 4. Sign in as REV on the same phone. This needs a connection, so turn off airplane mode first.
