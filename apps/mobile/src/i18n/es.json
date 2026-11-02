@@ -5312,6 +5312,7 @@
       "spaceSetHelp": "El anillo significa que elegiste este versículo. Mantén pulsado para elegir otro, o ninguno.",
       "pickHelp": "Da este versículo a {{part}}. Luego toca uno posterior para abarcar varios versículos.",
       "pickedHelp": "Relleno: {{part}} tiene este versículo. Toca uno posterior para abarcar varios versículos.",
+      "doneHelp": "Cierra los versículos de {{part}}. Lo que elegiste ya está guardado; Deshacer lo revierte.",
       "autoHelp": "La app calcula el versículo de esta parte según las partes de alrededor.",
       "noneHelp": "Deja esta parte sin versículo.",
       "tileHelp": "El versículo que dice esta parte.",

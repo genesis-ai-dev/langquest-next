@@ -944,6 +944,9 @@ test('REC-041 Tap a part\'s space to give it the next verse', async ({ page }) =
   await verseSpace(page, 1).click();
   await expect(verseSpace(page, 1)).toHaveAttribute('aria-label', 'Part 1, Verse 22');
   await expect(byId(page, 'toast')).toHaveCount(0);
+  // The first tap is followed by a picture of the hold, once on this device: a fingertip holds the space while a ring fills (LAN-133).
+  await expect(byId(page, 'verse-hold-hint')).toHaveCount(1);
+  await expect(byId(page, 'verse-hold-hint')).toHaveCount(0, { timeout: 10_000 });
   await verseSpace(page, 2).click();
   await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, Verse 23');
   // The label shows at once, but Undo's step is kept once the change is saved: on a slow machine an early Undo took back Part 1's
@@ -956,6 +959,7 @@ test('REC-041 Tap a part\'s space to give it the next verse', async ({ page }) =
   await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, Verse 23');
   await verseSpace(page, 2).click();
   await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, Verse 22, same as the part above');
+  await expect(byId(page, 'verse-hold-hint'), 'the hold is shown once').toHaveCount(0);
   await expectUploaded(page, w);
   // On the record: a second device reads the same marks.
   const client = await clientAs(w, 'TRANS', 'A');
@@ -983,6 +987,14 @@ test('REC-042 Hold a part to choose its verses, Auto, None or Delete', async ({ 
   await button(page, 'None').click();
   await set({ mark: 'none' });
   await expect(byId(page, 'toast')).toHaveCount(0);
+  // The way out is Done, which keeps what was picked: no ✕ to read as Cancel (LAN-134).
+  await page.getByRole('button', { name: /^Verse 25$/ }).click();
+  await set({ mark: 'set', from: '13:25', to: '13:25' });
+  await expect(byId(page, 'sheet-close')).toHaveCount(0);
+  await byId(page, 'sheet').getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(button(page, 'None')).toBeHidden();
+  await expect(verseSpace(page, 3)).toHaveAccessibleName(/^Part 3, Verse 25/);
+  await holdPart(page, 3);
   await button(page, 'Delete Part 3').click();
   await expectParts(page, parts - 1);
   await undoButton(page).click();

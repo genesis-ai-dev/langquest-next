@@ -5142,6 +5142,7 @@
       "spaceSetHelp": "The ring means you chose this verse. Hold to choose another, or none.",
       "pickHelp": "Gives {{part}} this verse. Then tap a later one to cover several verses.",
       "pickedHelp": "Filled: {{part}} has this verse. Tap a later one to cover several verses.",
+      "doneHelp": "Closes {{part}}'s verses. What you picked is already kept; Undo takes it back.",
       "autoHelp": "The app works out this part's verse from the parts around it.",
       "noneHelp": "Leaves this part without a verse.",
       "tileHelp": "The verse this part says.",

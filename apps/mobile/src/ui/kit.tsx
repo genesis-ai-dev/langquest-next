@@ -992,7 +992,9 @@ export function Banner(props: { icon: IconName; title: string; body?: string; to
 export function Sheet(props: { visible: boolean; title: string; sub?: string; onClose: () => void; children: ReactNode; footer?: ReactNode;
   /** Beside the title, before ? and ✕: the saved mark of what the sheet keeps as you go (SavedMark.tsx). */ action?: ReactNode;
   /** A phone's Back in a sheet of several steps: the step before, as its own Back does (decision 137). Else Back closes it. */
-  onBack?: () => void }) {
+  onBack?: () => void;
+  /** No ✕: a sheet whose every tap is already kept ends with its own Done in the footer, so nothing reads as Cancel (LAN-134). */
+  noClose?: boolean }) {
   const insets = useSafeAreaInsets();
   const wide = useLayout().kind !== 'phone';
   const host = useHelpHost(props.visible);
@@ -1013,7 +1015,7 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
             </View>
             {props.action}
             <HelpToggle testID="sheet-help" />
-            <IconBtn testID="sheet-close" name="close" label={t('common.close')} help={t('help.details.closeSheet')} onPress={props.onClose} bg={C.card} color={C.muted} />
+            {props.noClose ? null : <IconBtn testID="sheet-close" name="close" label={t('common.close')} help={t('help.details.closeSheet')} onPress={props.onClose} bg={C.card} color={C.muted} />}
           </View>
           <HelpClip style={{ flexShrink: 1 }}>
             <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: space.md, paddingHorizontal: space.xl, paddingBottom: space.lg }} keyboardShouldPersistTaps="handled">

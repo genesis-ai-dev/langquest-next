@@ -865,7 +865,8 @@ Steps:
 
 Expected:
 - Each part has an empty space on its left (accessibility label "Part 1, no verse yet", hint "Tap to give it the next verse. Hold to choose.").
-- Step 2: Part 1 shows 22 in a soft grey tile. No toast: a verse is plain to see and easy to change again (Caleb, 2026-10-16).
+- Step 2: Part 1 shows 22 in a soft grey tile. No toast: a verse is plain to see and easy to change again (Caleb, 2026-10-16). The first tap on this phone or browser is followed by a picture of the hold, with no words: a fingertip holds Part 1's space while a ring fills round it, twice, then it is gone; it does not show again (LAN-133).
+- Pressing and holding any space fills the same ring until the part's verses open.
 - Step 3: Part 2 shows 23.
 - Step 4: Part 2's space is empty again; Part 1 keeps 22.
 - Step 5: the first tap gives 23; tapping the number then makes Part 2 the same verse as the part above (label "Part 2, Verse 22, same as the part above"), shown hollow and grey.
@@ -882,14 +883,16 @@ Steps:
 2. In the sheet "Part 3", tap verse 25, then verse 26.
 3. Tap "Auto".
 4. Tap "None".
-5. Tap "Delete Part 3", then the Undo arrow left of the red button.
+5. Tap verse 25, then "Done". Hold Part 3's space again.
+6. Tap "Delete Part 3", then the Undo arrow left of the red button.
 
 Expected:
-- Step 1 opens a sheet titled "Part 3" with the passage's verses as chips, and "Auto", "None" and "Delete Part 3".
+- Step 1 opens a sheet titled "Part 3" with the passage's verses as chips, "Auto", "None" and "Delete Part 3", and "Done" at the bottom. It has no ✕, which would read as Cancel (LAN-134).
 - Each tap applies at once, with no toast: step 2 ends with Part 3 as verses 25–26.
 - Step 3 lets the app work it out from the neighbours.
 - Step 4 clears it.
-- Step 5 deletes the part and Undo restores it.
+- Step 5: "Done" closes the sheet and Part 3 keeps verse 25.
+- Step 6 deletes the part and Undo restores it.
 - A later part whose label no longer fits after a chosen verse loses its label instead of breaking the order.
 
 ### REC-043 Slide down the spaces to number many parts

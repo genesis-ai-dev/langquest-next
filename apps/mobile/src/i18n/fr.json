@@ -5312,6 +5312,7 @@
       "spaceSetHelp": "L’anneau signifie que vous avez choisi ce verset. Maintenez pour en choisir un autre, ou aucun.",
       "pickHelp": "Donne ce verset à {{part}}. Touchez ensuite un verset plus loin pour couvrir plusieurs versets.",
       "pickedHelp": "Plein : {{part}} a ce verset. Touchez un verset plus loin pour couvrir plusieurs versets.",
+      "doneHelp": "Ferme les versets de {{part}}. Ce que vous avez choisi est déjà gardé ; Annuler le reprend.",
       "autoHelp": "L’application trouve le verset de cette partie d’après les parties autour.",
       "noneHelp": "Laisse cette partie sans verset.",
       "tileHelp": "Le verset que dit cette partie.",

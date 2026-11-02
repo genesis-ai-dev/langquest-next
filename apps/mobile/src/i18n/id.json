@@ -4972,6 +4972,7 @@
       "spaceSetHelp": "Lingkaran berarti Anda memilih ayat ini. Tahan untuk memilih yang lain, atau tanpa ayat.",
       "pickHelp": "Memberi {{part}} ayat ini. Lalu ketuk ayat sesudahnya untuk mencakup beberapa ayat.",
       "pickedHelp": "Terisi: {{part}} punya ayat ini. Ketuk ayat sesudahnya untuk mencakup beberapa ayat.",
+      "doneHelp": "Menutup ayat {{part}}. Yang Anda pilih sudah tersimpan; Urungkan mengembalikannya.",
       "autoHelp": "Aplikasi menentukan ayat bagian ini dari bagian-bagian di sekitarnya.",
       "noneHelp": "Membiarkan bagian ini tanpa ayat.",
       "tileHelp": "Ayat yang diucapkan bagian ini.",

@@ -5312,6 +5312,7 @@
       "spaceSetHelp": "O anel quer dizer que você escolheu este versículo. Segure para escolher outro, ou nenhum.",
       "pickHelp": "{{part}} recebe este versículo. Depois toque em um mais adiante para cobrir vários versículos.",
       "pickedHelp": "Cheio: {{part}} tem este versículo. Toque em um mais adiante para cobrir vários versículos.",
+      "doneHelp": "Fecha os versículos de {{part}}. O que você escolheu já está guardado; Desfazer volta atrás.",
       "autoHelp": "O app descobre o versículo desta parte pelas partes ao redor.",
       "noneHelp": "Deixa esta parte sem versículo.",
       "tileHelp": "O versículo que esta parte diz.",

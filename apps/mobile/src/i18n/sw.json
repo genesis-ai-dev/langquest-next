@@ -5142,6 +5142,7 @@
       "spaceSetHelp": "Duara linamaanisha ulichagua mstari huu. Shikilia ili kuchagua mwingine, au usichague wowote.",
       "pickHelp": "Huipa {{part}} mstari huu. Kisha gusa mstari wa baadaye ili kufunika mistari kadhaa.",
       "pickedHelp": "Imejazwa: {{part}} ina mstari huu. Gusa mstari wa baadaye ili kufunika mistari kadhaa.",
+      "doneHelp": "Hufunga mistari ya {{part}}. Ulichochagua tayari kimehifadhiwa; Tendua hukirudisha.",
       "autoHelp": "Programu inapata mstari wa sehemu hii kutoka sehemu zilizo karibu nayo.",
       "noneHelp": "Huiacha sehemu hii bila mstari.",
       "tileHelp": "Mstari ambao sehemu hii inasema.",
