@@ -87,6 +87,17 @@ describe('adding a language (ORG-2, decisions 63, 76, 84, 91)', () => {
     expect(offline.language[0]!.specs.some((s) => s.type === 'v1.BookNamesSelected')).toBe(false);
   });
 
+  it("adds a ticked Bible Brain Bible to the library and offers it; one it could not add is named (LAN-194)", async () => {
+    const added: string[] = [];
+    const { deps, language } = app({ addBibleBrain: async (bibleId) => { added.push(bibleId); return `biblebrain.${bibleId.toLowerCase()}`; } });
+    const offers: Offer[] = [{ itemId: null, shared: null, name: 'NIV', label: 'New International Version', bibleBrain: { bibleId: 'ENGNIV' } }];
+    await createLanguage(input({ offers }), deps);
+    expect(added).toEqual(['ENGNIV']);
+    expect(language[0]!.specs.filter((s) => s.type === 'v1.ReferenceSet').map((s) => s.payload)).toEqual([{ itemId: 'biblebrain.engniv', state: 'recommended' }]);
+    const offline = app({ addBibleBrain: async () => { throw new Error('offline'); } });
+    expect((await createLanguage(input({ offers }), offline.deps)).notOffered).toEqual(['New International Version']);
+  });
+
   it('typed in rather than picked from the list, it stays unlinked', async () => {
     const { deps, org } = app();
     await createLanguage(input({ languoidId: null }), deps);

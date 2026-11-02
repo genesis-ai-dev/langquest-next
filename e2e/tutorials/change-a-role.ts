@@ -62,7 +62,7 @@ export const changeARole: Tutorial = {
     {
       screen: 'edit_member',
       part: (page) => id(page, 'primary-action'),
-      say: 'Tap Save Assignment.',
+      say: 'Tap Save role.',
       tap: true,
       until: (page) => id(page, 'toast').waitFor({ timeout: 30_000 }),
       stay: 1.5

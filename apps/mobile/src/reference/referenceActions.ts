@@ -8,8 +8,10 @@ import { cachedDoc, hashOf, keepNewDoc, loadDocs } from '../library/docStore';
 import type { SharedItem } from '../library/model';
 import type { useLibrary } from '../library/useLibrary';
 import * as server from '../server/reference';
-import { BibleError } from '../sources/bibleBrainAdmin';
+import { BibleError, type BibleDetail } from '../sources/bibleBrainAdmin';
+import { bibleBrainDescription } from './biblesModel';
 import { referenceFailure, serverRefusal } from './failureModel';
+import { biblebrainItemId, sourceFromBible } from './model';
 import { timingPublication, type TimingPublication, type TimingResultRow } from '@langquest-next/core';
 
 /**
@@ -26,6 +28,22 @@ export async function versificationHash(lib: ReturnType<typeof useLibrary>, code
   if (!row) throw new CommandError(t('reference.errors.noVersification', { code: code.toUpperCase() }));
   await lib.subscribe(row, true);
   return row.latest_hash;
+}
+
+/**
+ * A Bible Brain Bible in this organization's library: published as a source
+ * the first time, numbered in English like every Bible Brain source, and the
+ * same item every time after. Returns its item id. Add a Bible and New
+ * language's Reference material (LAN-194) both add Bibles this way.
+ */
+export async function addBibleBrainSource(lib: ReturnType<typeof useLibrary>, d: BibleDetail, versifications: SharedItem[]): Promise<string> {
+  const itemId = biblebrainItemId(d.bibleId);
+  if (!lib.item(itemId)?.current) {
+    const v11n = await versificationHash(lib, 'eng', versifications);
+    // i18n-ignore: the item's description is stored in the organization's library (its event log)
+    await lib.publish({ kind: 'material', itemId, name: d.name, description: bibleBrainDescription(d.languageName), doc: sourceFromBible(d, v11n) });
+  }
+  return itemId;
 }
 
 /** Ask for verse timings for some books of one source's audio. One open job per audio is enough; asking again returns it. */

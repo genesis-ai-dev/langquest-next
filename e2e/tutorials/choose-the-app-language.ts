@@ -37,7 +37,7 @@ export const chooseTheAppLanguage: Tutorial = {
     },
     {
       screen: 'settings_home',
-      part: (page) => [page.getByRole('radio').locator('visible=true').first(), page.getByRole('radio').locator('visible=true').nth(4)],
+      part: (page) => page.getByRole('radio').locator('visible=true').first(),
       say: 'There are fifteen languages. The first one follows the language of your phone.'
     },
     {
@@ -49,8 +49,8 @@ export const chooseTheAppLanguage: Tutorial = {
       stay: 1.5
     },
     {
+      // The whole screen, turned around.
       screen: 'my_work',
-      part: (page) => page.getByRole('tablist').locator('visible=true').first(),
       say: 'Arabic reads from right to left, so the whole app turns around.'
     },
     {

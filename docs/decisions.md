@@ -2465,6 +2465,15 @@ over a strip across every screen (it cost height and said nothing a header
 could not) and over a tab of its own (on a wide window it sat beside a
 sidebar line that did the same, and a phone had only the tab).
 
+Amended (2026-11-02, Caleb Koster): help numbers what matters first (LAN-135,
+decision 199). Carl counted about 20 numbers on the recording list and asked
+for the few that matter. Parts that repeat what a row already says or only
+show something (a part's bars, verse marks and grip, a place between parts,
+the bin, the divider, reference chips not chosen, the Bible pane while
+recording) are quiet (`HelpQuiet` in `helpBadge.tsx`): dim and unnumbered,
+and a tap on one still explains it, as rows that do not speak for their list
+do. The recording screen numbers 7 parts (REC-059).
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: partly superseded by 79
@@ -2971,6 +2980,16 @@ Bibles numbered like the Hebrew are not offered yet.
 Reverse if: teams need one section made of two separate ranges (Daniel
 3:19–23 with 3:91–97) often enough; then a section holds a list of ranges,
 and every reader of a section's verses learns to read one.
+
+Amended (2026-10-30, Caleb Koster): the quiz was easy to miss, at the
+bottom of the page under every Bible. Before any Bible, a page now shows
+why the numbering is asked (Malachi 4:1 in an English Bible is Malachi
+3:19 in a Hebrew Bible), and the next page offers the three ways side by
+side: pick your Bible, take the quiz, or choose the numbering (LAN-193,
+Caleb). "Choose another" and the numbering's chip go back to the three
+ways. A numbering that other languages here use ("Like most English
+Bibles · Used in Alpha") leads those three ways, one tap from done, as it
+had led the Bibles before.
 
 ## 81. The app's words come from catalogs in the app, in the language chosen on the device or the phone's; English is the source
 
@@ -4662,6 +4681,12 @@ rows at a time. With no clusters the list is one list, as before. Map and
 Reports keep their cluster chips: they filter one list, so nothing there
 reads as a language (`clusters/model.ts` `languageGroups`).
 
+Amended (2026-11-02, Caleb Koster): grouping languages already here has a
+row of its own on Manage, New cluster (LAN-140, decision 199). It opens New
+language on the cluster's name and its languages, past the six steps, and
+"Make the cluster" waits for a name and a language: a cluster still always
+holds one.
+
 ## 109. A listening app keeps playing the approved version, hears changes by webhook, and the team sees its listeners on the passage
 
 Date: 2026-10-14 · By: Ryder Wishart · Status: partly superseded by 131
@@ -5174,6 +5199,17 @@ Amended (2026-10-16, Caleb Koster): one part is deleted by sliding its row
 aside and tapping the bin it shows; the rows have no bin of their own
 (decision 136).
 
+Amended (2026-11-01, Caleb Koster): the recording view's top row names no
+part. It showed the number of the part to be recorded next, so after Stop it
+read "Part 2" over the one box numbered 1, and "Part 3" while Part 2 was said
+again; the tutorial frame check held three videos for it. Caleb chose to drop
+the title rather than make it name the parts just said: the boxes on the
+waveform are numbered, and that is enough. The row keeps the status
+(recording, listening, stopped), a deleted part's verses when one is filled,
+the time and Done; screen readers hear the status with how many parts are
+kept so far. In back translation the source part stays named above, on its
+player.
+
 ## 125. Parts split by the room and the voice the microphone hears, nothing said is thrown away, and there is no microphone setup
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -5316,6 +5352,10 @@ The passage's "Then the team" checks are cards again, each with its state,
 status and people and space around it: PR 72 had made them one-line rows
 and PR 92 stacked names under them with no room between.
 
+Amended (2026-11-02, Caleb Koster): "Send later" is now "Done, don't ask
+anyone", a button of its own under the asking links (LAN-136, decision
+199): it finishes the version and asks nobody, which "later" did not say.
+
 ## 128. A review goes on the one passage it is about
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -5393,6 +5433,24 @@ Amended (2026-10-30, Caleb Koster): with the silence switch on (194) a
 chunk stays open through every pause until the microphone stops (a stop, or
 the source playing), so the room between parts is written whole and kept
 as parts of its own. Off, chunks open and close as above.
+
+Amended (2026-10-30, Caleb Koster; LAN-199): Caleb asked that a box stretch
+over a neighbour whose box was dropped, and that a box be added between
+boxes or either side of them. Both need the room between parts, so with the
+silence switch off a chunk now also stays open through a pause, up to 30 s
+after the last part ended (`ROOM_KEPT_MS`, `keepRoomNow` in
+`livePartsModel.ts`); past that the app turns the module's `keepRoom` off
+and the chunk closes, so a phone left listening does not write the room for
+ever. That is no native change. Storage grows with speech plus at most 30 s
+of room a pause (about 2.6 MB as a WAV). A box's edge moves over a dropped
+part's sound up to the next box, never into it. Stopped, with the switch
+off, a + in room no box covers adds a box over that room (`liveGaps`,
+`liveAdd`): a part like any said, journalled like one, placed in the
+passage right after the part before it in time (or right before the part
+after it), and filling a dropped part's free place there. The first time a
+phone stops a session, two fingertips spread over the waveform to show the
+pinch (`usePinchHint.ts`). A store build from before 194 ignores
+`keepRoom`, so its boxes still reach only the 2 s of room.
 
 ## 130. Each step says what is on the screen of whoever does it, the recording too, with hearing and reading apart
 
@@ -5881,6 +5939,11 @@ does. The slide itself was checked, not changed: on a device that never saw
 it, the first recording's parts slide once and it is kept as seen; builds 22
 and 23 and every update since carry it, so a phone that recorded on any of
 them has had its one showing.
+
+Amended (2026-11-02, Caleb Koster): the grip is six dots, not three lines
+(LAN-132, decision 199). Carl found people read three lines as a menu and
+tapped them; a tap on the grip now bounces its arrows to show it drags up
+and down, and nothing moves.
 
 ## 137. Android's Back goes one step back, inside a screen's steps too, and leaves the app only from the first screen
 
@@ -6571,6 +6634,30 @@ Reverse if: people need to send feedback before they can sign in (a report
 that sign-in itself fails would wait); that needs a way in without an
 account, which 112 turned down for diagnostics.
 
+Amended (2026-10-30, Caleb Koster; LAN-198): Caleb asked to attach a
+separate picture or video to feedback, and chose pictures now, videos later.
+The sheet has "Add a picture" (`feedback/pictureFile.ts`) on Android and
+the web: one image chosen through the phone's own file picker
+(`File.pickFileAsync` in expo-file-system, already in every build;
+Android's document picker lists the phone's photos), or the browser's file
+chooser. The app sees only that file and asks for no permission.
+It goes as a JPEG of at most 1600 px on its longer side and 1 MB: a JPEG
+that already fits goes as it is; on a phone anything else is shown on the
+sheet and taken from there with react-native-view-shot, and the web draws
+it on a canvas. It waits beside the report like the screenshot
+(`<id>-picture.jpg`) and is kept in its own column, `diag.feedback.picture`,
+read through `diag.feedback_picture()` (migration
+`20261030173000_feedback_picture.sql`; `feedback_submit` gains
+`p_picture`, sent only when there is one). No store build: nothing native
+changes, so phones get it with an update. Stores: no change may force a
+new store declaration, so the answers stay as they are. Google Play
+already declares Photos (optional, App functionality), so Android offers
+the picture. On an iPhone this is the person's own photo, not a picture of
+the app, so Apple's App Privacy would need Photos or Videos (User
+Content); iPhones do not offer Add a picture (`canChoosePicture`) until
+Caleb decides to add that answer. Videos, and an iPhone picker that opens
+the Photos app, need a store build and come later.
+
 ## 146. New language shows its six steps first, asks for reference material before the review flow, sets its checks up on their own pages, and its invite can put people on checks
 
 Date: 2026-10-20 · By: Caleb Koster · Status: partly superseded by 193
@@ -6638,6 +6725,36 @@ opens, which is what counts the language as ready).
 Reverse if: admins skip the overview so often it is only in the way, or
 teams need checks set up before reference material is known; then the order
 can change without touching the draft, which works for any step order.
+
+Amended (2026-10-30, Caleb Koster): Reference material lists Bible Brain's
+Bibles in the team's languages too, after the library's and unticked, so it
+holds every Bible the language page counted (decision 84, amended
+2026-10-19); Caleb asked that it show "all translations available in
+biblebrain" (LAN-194). One that is ticked becomes a library item as Add a
+Bible makes it (`addBibleBrainSource`), when the language is added; one
+that cannot be added then is named, like any offer. The same day: the web
+had shown one Bible of many on that page in a browser that cannot save
+files (Safari before 26, a private window), because loading library
+documents stopped at the first it could not save. Fetched documents now
+stay in memory when saving fails.
+
+Amended (2026-10-30, Caleb Koster; LAN-195): inviting is one page. Caleb
+found the role invites confusing (a card per role with its own Invite
+button, then a page for checks, then another for the code) and said yes to
+a drawing of one page. The page opens with Translators picked and their code
+already below, since most invites are for translators; the roles are tiles,
+two to a row, one picked at a time, with "Other roles" for the rest and
+New role first, set apart; what the picked role lets them do is one tap
+open under the tiles; the checks it can be put on are chips under that, and
+the code is made again once the ticks stop changing (`invites/invite.tsx`).
+Share as a link, by email and one person by name are the quiet links under
+Done, for the role picked. The page is the same from Manage, from Members
+and at New language's last step, which now shows the translators' code at
+once. Because the code is made as the page opens, New language counts
+"Invite your translators" as done (an invite was issued, `invitedTo` in
+`admin/ready.tsx`), as Get ready's invite question already did; counting
+only invites someone used is a later change if admins find that wrong. No
+new event or migration.
 
 ## 147. The server cuts each language's snapshot by passage and keeps every passage's line, and a phone's first download fills the passages in behind the Map
 
@@ -8107,6 +8224,18 @@ Reverse if: people forget their pattern more often than they come back with
 it (then offer a helper's code first), or a locked phone is opened by
 someone it does not belong to (then a larger grid, or a server-held key).
 
+Amended (2026-10-30, Caleb Koster): someone with an account could not join
+another organization or language with it by scanning. Signed in, nothing
+led to the scanner, so people signed out to scan, and Scan's Join made a
+new account with no email (LAN-197). Switch Organization now offers "Scan
+their code" and "Find your organization" (the cards of Join your team)
+above New organization, and Scan, joining as the account signed in, adds it
+to that organization too. Signed out on a phone where people signed out
+before, Scan shows their pictures under "Who is joining?": tap yours, draw
+the pattern, and the invite joins that account; "Someone new" makes a new
+one, and "I already have an account" still signs in with a password first.
+Pictures, never names, as above.
+
 ## 169. An account writes at most 20,000 events or 100 MB dated any one day, a person's stream holds each event once, and a language's member reads only their languages' templates
 
 Date: 2026-10-26 · By: Carl Sauder · Status: accepted
@@ -8634,6 +8763,9 @@ Reverse if: teams rely on checks being done by someone other than the
 recorder (then a check, or a checkpoint, could say "not by its recorder"),
 or people on teams check their own work instead of asking.
 
+Amended (2026-11-02, Caleb Koster): Done's "Send later" above is now "Done,
+don't ask anyone" (LAN-136, decision 199).
+
 ## 179. Clean up runs DeepFilterNet 3 on the phone, and the person hears each part both ways before picking
 
 Date: 2026-10-28 · By: Caleb Koster · Status: accepted
@@ -8742,6 +8874,23 @@ Amended (2026-10-30, Caleb Koster): a person's Publish is no longer needed
 for a wide film: the intake chooses it as it takes it in, and the publish
 follows each intake (192). Publish stays for a tall film and for putting a
 video up again.
+
+Amended (2026-11-02, Caleb Koster): a video's playlist place and its old
+version's unlisting were tried once, right after its upload, and a step that
+did not work stayed undone. On 2026-11-02 the Hausa channel had no playlist,
+so none of its videos was in one and an old version of a video still showed
+beside the new one, and seven other channels each had a video outside its
+playlist. YouTube would not make Hausa's playlist in Hausa: the run's first
+error was `localizationValidationError`, which YouTube gives only for a
+playlist's or a channel's language, and every channel's look had gone on.
+Others were YouTube busy for a moment (`SERVICE_UNAVAILABLE`, 2026-10-29 to
+11-01). Now a playlist YouTube will not take in its language
+is made without one, and each run, before its uploads, puts every channel's
+playlists in order from what the database says is up (`ops_tutorials_up`):
+each video's newest version in its playlist in the plan's order, no older
+version in one, and every older version unlisted. A channel in order costs a
+few units of the day's 10,000; each thing put right costs 50, and the job
+run counts them (`tidied`).
 
 ## 181. A part with lots of background noise wears an orange warning, measured on the device from its loudness and the room between its words
 
@@ -8947,6 +9096,12 @@ Amended (2026-10-30, Caleb Koster): the intake no longer waits for 23:10
 UTC: the filming tells the app when each language's films are in, and the
 intake runs then, with the publish after it; the one scheduled intake is at
 five past midnight in California, as YouTube's day begins (192).
+
+Amended (2026-11-01, Caleb Koster): English alone is filmed for now
+(`NIGHTLY_LANGUAGES: en`). The spotlight (decision 191) films every video
+again, and Caleb looks at the English films before the other fourteen
+languages are filmed; they come back, English and French first, when he
+says the English ones look right.
 
 ## 184. The publish job keeps each YouTube channel's description, banner and list of the others; held comments are counted on the dashboard and moderated in Studio
 
@@ -9371,6 +9526,147 @@ trailer, drawn by its own page, keeps its film (`TRAILER_FRAME`). Rejected: film
 title (a title beside the phone is what makes the page wide, decided above);
 a second, magnified copy of the part beside the phone (two places to look).
 
+Amended (2026-10-30, Caleb Koster): the ring and the camera after the first
+zoomed night. The frame check (decision 192) held 217 of the first 219
+zoomed films in English, French, Spanish, Portuguese and Arabic, most for
+the ring: it crossed a field's label, a card's second line or the next
+row's words, or went around the words in a button but not the button. Now
+(`film.ts` `light`) words, an icon or a field that a script lights is lit
+with the button or card drawn around it (not a bar or a sheet that reaches
+the screen's edge, nor a box bigger than a sixth of the screen); what the
+ring would touch is taken in when it is small and belongs to the part (a
+label above it, a second line below), or when the ring has no room;
+anything else (the next row, another card) stays out, and the ring moves in
+onto the part's own edge, never onto its words. The camera never films an
+empty screen (`camera.ts`): where half a close shot or more would be one
+stretch of empty screen (a tab under a short page, a button at the foot of
+an empty one, which Gemini called "a blank screen"), it steps back, to the
+whole page when it would nearly be. The title and the app's mark fade out as the
+camera first moves in and back as it goes out at the end, so the ends of
+the title's words never show at the edge of a close shot. `FRAME` is
+`zoomed-ring`, so every video is filmed again. The frame check is told that
+what a team wrote or named (role names such as "Organization Admin", review
+steps, templates, notes) may be in English in any language, and that a tab
+may be lit on the way to what the voice says to open. Rejected: a looser
+frame check (the ring problems it found were real, as Caleb's own still
+was).
+
+Amended (2026-10-31, Caleb Koster): the ring again, after the first night
+on the rules above. The frame check held 45 of the 47 English films and 41
+of the 44 French, again mostly for the ring: it cut through a card and left
+the card's edge or corners showing just outside it, left a row's icon or
+handle outside, or went around a bar, a heading or two rows where the voice
+named one. The rules said what to take in; the ring now looks at what the
+screen shows (`film.ts` `light`): every line of words, icon, field and
+drawn edge, cut where a list hides it, as a viewer sees it. It goes around
+the button or card the part is in, with a box drawn round it and little
+bigger (a search field's box with its icon, a row's card with its handle),
+or else around the nearest box out from it that it fits. On each side it
+stands 6 points off where it can, and nearer, further or right on an edge
+where that would cross words, an icon or an edge; it hides only the part's
+own edge or the edge of a box it goes into, and never leaves an edge just
+inside or outside it. The title comes back whenever the camera is out on
+the whole page (`camera.ts` `titleShows`), not only at the end: a step
+that lit nothing in the middle left the left of the page empty ("zoomed
+out with the left side blank"). A field's focus outline is hidden in films
+("a black outline around the text"). Four scripts lit the wrong thing
+after the app changed (review checks, a new account's two ways in, a
+language's settings, the invite's code and its other ways). The frame
+check is told that the ring is lit before the tap, and that a ring around
+a tab in the bar at the foot of the screen runs off its bottom edge.
+`FRAME` stays `zoomed-ring`: held films are not in the release, so they
+are filmed again anyway.
+
+Amended (2026-10-31, Caleb Koster): the ring a third time, after the night
+on the rules above passed only 3 of the 47 English films, 2 French and 4
+Spanish. Most holds came from four things. A field's words were taken to
+fill the whole field, so a ring that could not stand inside a field went
+round the whole form and through the labels above its fields ("cuts
+through the label 'Password'"); a field's words are now as wide and as
+high as they show. A ring that crossed something tried each box further
+out, up to a list, the bar at the foot of the screen or both buttons in
+the corner; it now never takes a box much bigger (1.6 times) than the
+part's own when that box has other things to tap in it (a link and the
+sentence it ends are still lit together), and a bar round another button
+with words is not taken as the part's own box (Skip beside Next question).
+Its corners were always the same, so a card's rounder or squarer corners
+showed past it ("the green corners of the Looks good button show outside
+the ring"); they are now as round as the box's, stood off as far as the
+ring. A border within 14 points of the ring, inside or out, reads as a
+second ring ("a border line doubled just inside the ring") and is kept
+clear of it, as an edge where a fill stops is within 8 points outside and
+3 inside; words outside it stay 2 points clear, and words between it and
+the part (a heading just above a card) count as crossed, since the ring
+would go round them too. Where the ring cannot miss
+everything, it stands beside an edge rather than across it, and it stands
+as far off a part on one side as on the other where that crosses nothing
+more (tight on one side, it reads as cutting into the part). It never goes
+round a bar from one side of the screen to the other (the bar round the
+main button), and a part under a button that floats over a list is
+scrolled to the list's middle first. A part that leaves the screen (the
+upload bar once all is uploaded) takes its ring with it, and a part as
+tall as most of the screen
+is shown on the whole page with the title (`camera.ts`), not as the whole
+phone with an empty page beside it. A video whose setup leaves the app
+still loading waits for its first part (a blank phone in the first still),
+and a note at the foot of the screen that would cover the next part is
+waited out off camera. A dozen scripts lit more or less than their line
+names, or said what the screen does not show (Note, not Add a note here;
+Next: decide, not Next); the frame check is told what the app draws itself
+(a thin purple border round the card for the next thing to do, a quoted
+verse's purple line, help mode's dimming). What it found in the app
+itself, not in the films, goes to the team as app bugs; a film that shows
+one stays held until the app is fixed.
+
+Amended (2026-11-01, Caleb Koster): no ring; a spotlight. After the third
+round, the night's films passed 4 of the 47 English, 2 French, 7 Spanish
+and 5 Portuguese, again mostly for the ring: in most held videos one or two
+stills showed it through a card's edge, a badge or the row beside the part,
+or with square corners. Four rounds of placing a drawn ring each passed
+under a tenth of the films. Now nothing is drawn round the part (`film.ts`
+`light`): the rest of the screen dims and the part's own button, row or
+card stays bright, exactly to its own edge and with its own corners, so the
+dimming stops where the part does and crosses nothing beside it. A part
+with no box of its own (a line of words, an icon) is lit 6 points round,
+nearer on a side where that would take in other words, an icon or an edge.
+Which box is the part's own is decided as above. The frame check is told
+about the bright part instead of the ring. `FRAME` is `zoomed-spotlight`,
+so every video, those already up with the ring too, is filmed again.
+Rejected: the camera's zoom alone with nothing lit (a small button among
+many is hard to find), and a fifth round on the ring.
+
+Amended (2026-11-01, Caleb Koster): the spotlight after its first night.
+35 of the 46 English films passed Claude's frame check; 5 were held for
+where the light went. Several parts lit as one box cut a button between
+them (the filter's chips where they wrap, By email beside Share as a link);
+a part's handle was lit with its whole row; a play button was lit as its
+tap area, as tall as the row and past the card on the last row; and three
+scripts lit less than the voice names (the heading of a request to join,
+the microphone row above the typing box, the first ready-made template).
+Now (`film.ts` `light`) several parts lit as one box take in whole each
+button, line of words or icon its edge would cut, up to a third of the
+screen, so a box that wraps differently in another language cuts nothing
+either; a slider (a part's handle) is a button of its own; a button with no
+box of its own whose words and icons are all on one box it holds is lit as
+that box (the play button's round face); and the three scripts light what
+the voice names. `FRAME` stays, so only the held videos, and any whose
+screens changed, are filmed again.
+
+Amended (2026-11-01, Caleb Koster): the spotlight's second night. Of the
+10 English films made again with it, 4 passed. A part's row was lit with
+its whole list: the + on the line between two parts is a small round face
+on a tap area as tall as a row, so taking in the tap area cut the next
+row's verse space, and taking that in cut the next +, down the list. Now
+a button is taken in by what shows of it (its own box, or the face it
+shows; one with neither by its words and icons alone), and a button's box
+the edge only grazes, by under a quarter of its height or width, is not
+cut. Invite your team lights every language while the voice says to
+choose one, and the content template lights the question it asks again
+before Next is tapped. Two holds were Claude reading the app wrongly, so
+the frame check's prompt now says what a passage's step marks mean (a
+grey skip-forward sign is a check set aside) and that the recording
+clock counts the silence a part is cut from.
+
 ## 192. Tutorial videos go up as soon as they are filmed: the filming tells the app, the intake chooses the wide films itself, and the publish follows each intake
 
 Date: 2026-10-30 · By: Caleb Koster · Status: accepted
@@ -9449,6 +9745,30 @@ filming already holds a Gemini key and pays per token; Claude in Actions
 signs in with a person's plan). Reverse if: the check holds films that are
 right more than now and then (then it reports without holding), or misses
 what people find.
+
+Amended (2026-11-01, Caleb Koster): Claude looks at the stills, not Gemini.
+Google charged US$230 on the Gemini key in the week every language was
+filmed again (the ring, then the spotlight), and the frame check was about
+US$175 of it: six runs showed 2,879 films to `gemini-flash-latest` at its
+full price, and Gemini thought about as many tokens as it was sent (38
+million), billed as its answer, so a film cost about 6 US cents, not under
+one. Caleb asked to use the Claude plan's token the repository already
+holds for the look at the videos' feedback (`CLAUDE_CODE_OAUTH_TOKEN`,
+decision 186), with Sonnet. `frame-check.ts` runs Claude Code (its version
+pinned in `tutorials.yml`) as Sonnet thinking at high effort, with no
+tools, settings or MCP servers, and the same stills in one look a film; it
+counts against the plan's five-hour and weekly limits instead of a bill,
+and each language looks at two films at a time. Tried on 2026-11-01 on the
+stills Gemini held in run 19 and on clean spotlight screens: Sonnet found
+the cut-off words and, once the prompt asked it to check each heading
+against what the voice says, the wrong part number; it missed some ring
+outlines Gemini named (the ring is gone), and it found app glitches Gemini
+had passed (a Spanish role name broken mid-word, "1 listos"). The job's
+summary gives what Claude would cost on the API and what Gemini bills for
+the voice and translations. Rejected: Gemini's Batch API with less thinking
+(about a sixth of the price, still billed). Reverse if: the plan's limits
+stop the check or get in the way of the team's own use of Claude, or Sonnet
+holds films that are right more than now and then.
 
 ## 193. A content template has no language: Bible book names are library items, one per language, that a language picks; and New language asks the languages its translators use right after the name
 
@@ -9566,6 +9886,17 @@ Reverse if: people turn it on and lose track of which parts are speech, the
 whole stretch fills a low-end phone's storage or the web's memory in long
 sessions, or a recording with a voice in it is played unboosted as room.
 
+Amended (2026-10-30, Caleb Koster; LAN-199): Caleb asked to remove silence
+boxes one at a time. Stopped, a silence's box has a × (where it is wide
+enough on screen; a screen reader has it as an action): it drops that
+silence alone, the parts either side stay, and the numbers after it close
+up (`liveDropSilence`). Turning the switch on again boxes every silence
+again. A box added with a + (129, amended) is kept as a voice whatever is
+in it, so the silence between it and the parts beside it is boxed too.
+The + shows only with the switch off. Since the room is now kept with the
+switch off as well (up to 30 s after a part), turning the switch on after a
+stop boxes that stretch's pauses.
+
 ## 195. LangQuest's library items have names in each of the app's languages, kept in the library as one `labels` item per language; New language counts in the language showing and lists the translators' Bibles first
 
 Date: 2026-10-30 · By: Caleb Koster · Status: accepted
@@ -9627,3 +9958,173 @@ in different languages).
 Reverse if: organizations need to name their own items in several
 languages from the app (then a page for a language's names), or the sets
 grow big enough that reading them once a session is too slow.
+
+## 196. The ETEN Summit page is a static page in the web export's public files, and it alone may frame YouTube's no-cookie player
+
+Date: 2026-10-30 · By: Ryder Wishart · Status: accepted
+
+Reason: ETEN's Innovation Lab asked each featured tool for a landing page
+for the 2026 Summit's virtual tools lounge (10–12 November), with a short
+demo video, and Ryder wanted the LangQuest page at next.langquest.org/eten
+with the film embedded from YouTube. It is a plain HTML page in
+`apps/mobile/public/eten/`, like `singapore-pcrt-2026/`: the web export
+copies it and the Worker's assets serve it, so it needs no Worker code
+and no app build. The site's policy (58, `apps/mobile/scripts/webHeaders.mjs`)
+frames nothing, so `_headers` gives `/eten/*` its own block: it detaches
+the site's Content-Security-Policy and sets the same one plus
+`frame-src https://www.youtube-nocookie.com` (Cloudflare applies the
+detach before the block's own value; checked on `wrangler dev`, and
+`apps/web/test/securityHeaders.test.ts` holds the block). Every other
+path keeps the policy unchanged.
+Rejected: a Worker-made page like `/videos` (187), which would add code to
+the Worker for a page that never changes on its own; allowing YouTube
+frames site-wide (the app has no use for them).
+Reverse if: the page needs to play where YouTube is blocked (then the
+film's file beside it, played in a `<video>`, as `/videos` does), or
+another page wants frames (then one policy for public pages, not one
+block per page).
+
+## 197. A part's row shows that it is playing, and how far, whichever player plays it: a band crosses the row from the left, and its play button turns solid with a pause
+
+Date: 2026-10-30 · By: Caleb Koster · Status: accepted
+
+Reason: with Play all on, no one could tell which part was playing or
+how far into it (Caleb, 2026-10-30, after Jasmine's Play all report: "there
+should really be a playback progress bar that moves across the card as it
+plays"). Each part's row has its own player and lit its bars only when its
+own button played it; Play all on the parts card and the player above a
+version's parts played the same recordings without the rows knowing. So
+the players that play parts (`useClip`, `ClipPlayer`) say which recording
+they play and where in it (`audio/nowPlaying.ts`), the newest player's
+word standing, and each part's row reads it for its own recording
+(`usePlayingPart.ts`), in the recorder, the parts with verses, and a
+version's parts:
+- **A tinted band, with a line along its bottom, crosses the row** from
+  the left as the part plays (`recording/playingFill.tsx`). It runs on
+  between the player's reports at the speed the recording plays, so a
+  two-second part moves smoothly, and it stays where a pause left it.
+- **The play button is solid primary with a white pause** while the part
+  plays, whoever plays it, and pressing it pauses that player.
+- **Play all's card head and a version's card** show the band for the
+  whole recording.
+The partner demo shows a playing take by its button and waveform only;
+this goes further at Caleb's ask, on every row that plays a part. The
+round play buttons for notes and feedback (`AudioClip`) are unchanged.
+Reverse if: people take the band for something else (a selection, a
+level), or it distracts while recording.
+
+## 198. Which numbering each of Bible Brain's Bibles uses is found by a survey of its text, run by GitHub with the Bible Brain key
+
+Date: 2026-10-30 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-30) found that "Which Bible do you translate from?"
+lists 49 Bibles checked by hand (80), none of them in Hausa, Bengali,
+Nepali, Thai or Burmese, though the app speaks those languages. He asked
+for every Bible we can reach, Bible Brain's included, each with its
+numbering found by a script that surveys its books, chapters and verses,
+and for a numbering to be added when Bibles part from all of ours. So:
+- **`npm run bibles:survey`** (`scripts/bible-survey.ts`) reads, for every
+  Bible Bible Brain has text for, its book list and the last verse of about
+  forty chapters of the Old Testament and thirteen of the New, each
+  testament planned on its own: the fewest in which any two standard
+  numberings differ at least four times, then more spread over the other
+  places where numberings part (`scripts/bibleSurvey.ts`, tested). A Bible that agrees
+  with one numbering in every chapter read gets it; one that agrees with
+  none is custom, reported with the nearest and every place it parts.
+  `--full` reads every chapter of one Bible, for when several part alike
+  and a numbering is to be added (`library/versifications`, with its
+  mapping). This is the hand check of 80 done by a script, at Bible
+  Brain's scale.
+- **GitHub runs it** (`.github/workflows/bible-survey.yml`) when the
+  survey changes and by hand, with `BIBLE_BRAIN_ACCESS_KEY` as a
+  repository secret (`npm run secrets -- production` sets it, like the
+  Gemini key), so anyone on the team sees and reruns it, and no one needs
+  the key on their own machine. It is not a production job (141): it
+  reads Bible Brain and writes an artifact, nothing else.
+- **It goes slowly** (4 calls a second, waiting when Bible Brain says 429)
+  because the app's reference material uses the same key; a run stops
+  after five hours and the next carries on from the cache.
+- **A Bible one verse off English is English.** Of 1,778 Bibles with
+  text, 743 part from English numbering only where 2 Corinthians 13 ends
+  at verse 13 (as the NRSV ends it) or Revelation 12 at 17 (as the
+  KJV, ESV, NASB and NKJV do). English Bibles that the app already calls
+  English (80) part there too, so these get English as well. A Bible that
+  parts anywhere else is left out until a numbering for it is added.
+- **The list is the Worker's, not the app's.** `npm run bibles:survey --
+  --write-numberings <survey.json>` writes the numbered Bibles to
+  `apps/web/worker/bibleNumberings.ts` (about 1,500 Bibles, 140 KB, too
+  big for the web app's first visit, 123). Bible Brain's rows for a
+  language (`/api/bible/bibles`) carry each Bible's `numbering`, and
+  `/api/bible/numbered?q=` finds numbered Bibles by name, language or id
+  from that file alone, with no call to Bible Brain. A Bible with no
+  numbering, or a tie the survey cannot break (a Gospel alone fits them
+  all), is not offered.
+- **Find your Bible lists both** (`knownBiblesModel.ts`): before anything
+  is typed, the team's languages' Bibles, the app's 49 first and then
+  Bible Brain's (whole Bibles before a testament alone), up to three a
+  language, then the common ones; typing finds the app's and Bible
+  Brain's, each once. The 49 stay in the app, so the page works offline;
+  Bible Brain's show once seen, since the phone keeps each answer.
+Rejected: reading every chapter of every Bible (about two million calls,
+weeks at a rate the key can bear, to learn little more than the places
+numberings are known to part); trusting Bible Brain's own versification
+field (not given for most Bibles, and not checked against their text); a
+server job in the Worker's container (it would need somewhere to put a
+result that people review and commit).
+Reverse if: custom Bibles turn up that part from every numbering only
+outside the chapters read (then read more, or every chapter, for them), or
+Bible Brain offers each Bible's versification checked against its text.
+
+## 199. Carl's UI review: a grip of dots, holds and grips that show what they do, "Done, don't ask anyone", fewer help numbers, and doors of their own for a cluster and an email account
+
+Date: 2026-11-02 · By: Caleb Koster · Status: accepted
+
+Reason: Carl reviewed the app and filed LAN-125 to LAN-144 (Linear label
+"UI Review"). Caleb (2026-11-02) asked for the list fixed, each issue's
+Expected followed unless it goes against a product decision or the partner
+demo, with before and after screenshots. What changes an earlier entry or
+adds a way of working:
+- **The part grip is six dots** (LAN-132, amends 136): three lines read as
+  a menu, so people tapped them and nothing happened. A tap on the grip,
+  with no drag, now bounces the arrows on it (`useDragRows` `tapped`,
+  `slots.tsx` `PartGrip` `nudge`).
+- **Holding a verse space shows itself** (LAN-133): the first tap on one,
+  once per phone or browser, shows a fingertip holding it while the hold's
+  ring fills, twice (`recording/useHoldHint.ts`), as the swipe hint shows
+  the bin (136); every hold fills the ring as it is held. The verse sheet
+  ends with Done, not ✕ (LAN-134): each tap in it is kept as it is made, so
+  a ✕ read as Cancel.
+- **"Done, don't ask anyone"** (LAN-136, amends 127 and 178) replaces "Send
+  later", as a button of its own under Ask someone and Someone else: the
+  version is finished and nobody is asked, which is what it did.
+- **Help numbers what matters first** (LAN-135, amends 71): parts that
+  repeat or only show something are quiet (`HelpQuiet`), dim and
+  unnumbered, and a tap still explains them; the recording screen numbers 7.
+- **New cluster** (LAN-140, amends 108) is a row on Manage that opens New
+  language on the cluster's name and its languages, without the six steps.
+  A cluster still holds at least one language.
+- **After scanning, a third way in** (LAN-137): "Make an account with
+  email" keeps the invite for the next account to sign in, as "I already
+  have an account" does, and opens Create Account, which says the invite is
+  saved and leaves out its own "Scan an invite".
+- **A person whose name is not known yet is "someone"** (LAN-129), never
+  their picture's colour and shape, and the app asks the directory again, a
+  few times, while a member has no name.
+- **The Bible pane's player stays put and the words follow its voice**
+  (LAN-130, LAN-131): the words scroll under a fixed header and player; a
+  scroll by hand stops the following until the verse playing is back in
+  sight or play is pressed again (`helps/useFollowVerse.ts`).
+- **A passage's check cards open once there is a version to check**
+  (LAN-127), and its latest version plays on the passage itself (LAN-128).
+Caleb has a card open on each of four of these (six dots or three lines;
+the third way in after scanning; an empty cluster; whether a picture and
+pattern stay required, LAN-139, left as they are); the recommended answer
+is what is built, and another answer changes it.
+Considered: words on the grip (the row was cleared of words in 136); a
+"Send later" that reminds (the product has no due dates); a cluster made
+empty and filled from each language's page (the clusters chip on a
+language's page already adds it to one, and an empty cluster shows nowhere
+on Manage).
+Reverse if: people drag parts less, or take the hint or the bounce for a
+fault; people miss help on the quiet parts; or Manage's two add rows read
+as one too many.

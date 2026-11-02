@@ -26,10 +26,11 @@ export const watchLink = (language: string, tutorial: string) => `${APP_LINK}/v/
  * How a film is framed and described (decisions.md 191): wide, beside its
  * title (compose.ts), the camera moving in on what each step lights
  * (camera.ts), with a description of one line and its links. A film the
- * release keeps from before (tall, or wide with the phone small all through)
- * is made again whatever its look.
+ * release keeps from before (tall, wide with the phone small all through, or
+ * zoomed with a ring drawn round each part, not the spotlight) is made again
+ * whatever its look.
  */
-export const FRAME = 'zoomed';
+export const FRAME = 'zoomed-spotlight';
 /** How the trailer is framed: wide (decisions.md 191). trailer/render.ts draws it, not compose.ts, so the camera changes no trailer. */
 export const TRAILER_FRAME = 'wide';
 

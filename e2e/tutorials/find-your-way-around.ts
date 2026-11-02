@@ -16,7 +16,8 @@ export const findYourWayAround: Tutorial = {
   steps: [
     {
       screen: 'my_work',
-      part: (page) => [page.getByRole('heading', { name: 'My Work' }).locator('visible=true').first(), id(page, 'primary-action')],
+      // The card for what to do next (with the heading, the ring would go round the buttons beside it too).
+      part: (page) => id(page, 'primary-action').locator('xpath=..'),
       say: "Here's a quick look around. My Work shows what to do next, and who asked you."
     },
     {

@@ -100,7 +100,7 @@ describe('secrets', () => {
     expect(OPTIONAL_KEYS).toContain('LINEAR_API_KEY');
   });
 
-  it('gives GitHub the Gemini key for the nightly filming and the Claude token for the nightly look, from production\'s file only, and nothing else', () => {
+  it('gives GitHub the Gemini key for the nightly filming and the Claude token for the nightly look and frame check, from production\'s file only, and nothing else', () => {
     expect(destinations('production', { ...values, GEMINI_API_KEY: 'g' }, 'ref', 'k').github).toEqual({ GEMINI_API_KEY: 'g' });
     expect(destinations('production', { ...values, GEMINI_API_KEY: 'g', CLAUDE_CODE_OAUTH_TOKEN: 'sk-oat' }, 'ref', 'k').github)
       .toEqual({ GEMINI_API_KEY: 'g', CLAUDE_CODE_OAUTH_TOKEN: 'sk-oat' });
@@ -108,7 +108,16 @@ describe('secrets', () => {
     expect(destinations('production', values, 'ref', 'k').github).toEqual({});
     expect(read('.github/workflows/tutorials.yml')).toContain('secrets.GEMINI_API_KEY');
     expect(read('.github/workflows/tutorial-review.yml')).toContain('secrets.CLAUDE_CODE_OAUTH_TOKEN');
+    expect(read('.github/workflows/tutorials.yml')).toContain('CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}');
     expect(FILE_KEYS).toContain('CLAUDE_CODE_OAUTH_TOKEN');
+  });
+
+  it('gives GitHub the Bible Brain key for the survey of its numberings, and the app\'s Worker keeps it too', () => {
+    const wanted = destinations('production', { ...values, BIBLE_BRAIN_ACCESS_KEY: 'bb' }, 'ref', 'k');
+    expect(wanted.github).toEqual({ BIBLE_BRAIN_ACCESS_KEY: 'bb' });
+    expect(wanted.workers.app).toMatchObject({ BIBLE_BRAIN_ACCESS_KEY: 'bb' });
+    expect(destinations('preview', { ...values, BIBLE_BRAIN_ACCESS_KEY: 'bb' }, 'ref', 'k').github).toEqual({});
+    expect(read('.github/workflows/bible-survey.yml')).toContain('secrets.BIBLE_BRAIN_ACCESS_KEY');
   });
 
   it('gives the webhook poke one secret at both ends and the Worker\'s own address, only when the file has it', () => {

@@ -6,7 +6,7 @@ import type { Env } from './env';
 import { page, SECURITY_HEADERS } from './page';
 import { LEVELS, settle, type Level, type Section } from './section';
 import { cloudflareSection } from './sources/cloudflare';
-import { diagSections, errorText, lookup, mediaType, SCREENSHOT_SQL, VOICE_SQL } from './sources/diag';
+import { diagSections, errorText, lookup, mediaType, PICTURE_SQL, SCREENSHOT_SQL, VOICE_SQL } from './sources/diag';
 import { appStoreSection } from './sources/appstore';
 import { expoSection } from './sources/expo';
 import { googlePlaySection } from './sources/googleplay';
@@ -152,12 +152,12 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       return json({ error: errorText(e) }, 502);
     }
   }
-  // A feedback's screenshot or voice note, kept in the database; its type comes from its bytes, and anything else is refused.
-  const file = /^feedback\/([^/]+)\/(screenshot|voice)$/.exec(section);
+  // A feedback's screenshot, chosen picture or voice note, kept in the database; its type comes from its bytes, and anything else is refused.
+  const file = /^feedback\/([^/]+)\/(screenshot|picture|voice)$/.exec(section);
   if (file) {
     if (!UUID.test(file[1]!)) return json({ error: 'Not a feedback id' }, 400);
     try {
-      const bytes = await withDiag(diagConnection(env), (query) => query<Uint8Array | null>(file[2] === 'voice' ? VOICE_SQL : SCREENSHOT_SQL, [file[1]!]));
+      const bytes = await withDiag(diagConnection(env), (query) => query<Uint8Array | null>(file[2] === 'voice' ? VOICE_SQL : file[2] === 'picture' ? PICTURE_SQL : SCREENSHOT_SQL, [file[1]!]));
       if (!bytes) return json({ error: `No ${file[2]}` }, 404);
       const type = mediaType(bytes);
       if (!type || (file[2] === 'voice') !== type.startsWith('audio/')) return json({ error: 'Not a file this page shows' }, 415);

@@ -89,17 +89,29 @@ function voiceLines(all: string[]): Map<string, { file: string; seconds: number 
 // ---- what is drawn over the app ---------------------------------------------------------
 
 /**
- * Light some elements as one box and dim the rest, as help mode does; null
- * takes the light away. The box follows the elements while they move (a bar
- * that comes and goes over the screen pushes everything down). An element
- * inside a card that draws its own edge (a lit step's border) is lit with its
- * card, so the light never cuts through the card's edge and leaves a line of
- * it dimmed outside (Caleb found one on 2026-10-30).
+ * Light some elements and dim the rest, as help mode does; null takes the light away. The light follows the
+ * elements while they move (a bar that comes and goes over the screen pushes everything down).
+ *
+ * Where the light goes (decisions.md 191): the button or card the lit part is in (the nearest one tapped as one, or
+ * drawn with an edge or a fill of its own, up to a third of the screen), with a box drawn round it and little bigger
+ * (a field's box round the field and its icon, a row's card round the row and its handle). The light is exactly that
+ * box, with its corners, so the dimming stops where the part's own edge is and draws no line of its own: nothing
+ * outside it is cut and nothing in it is hidden. A part with no box of its own (a line of words, an icon) has the
+ * light 6 points round it, nearer on a side where that would take in other words, an icon or an edge.
+ * Gemini's frame check held nearly every film of 2026-10-31 for a drawn ring through a card, the words beside it,
+ * or with square corners; four rounds of placing the ring better each passed under a tenth of the films.
  */
 function light(els: Node[] | null): void {
-  const w = window as unknown as { __lit?: Node[]; __litLoop?: boolean };
+  type Side = { l: number; t: number; r: number; b: number };
+  /** Something a viewer sees: a line of words or an icon (edge null), or an edge across (h) or up and down (v). */
+  type Thing = Side & { edge: 'h' | 'v' | null };
+  type Clear = { key: string; at: number; off: Side; rows: [number, number][]; round: string };
+  type Grown = { key: string; at: number; c: Side; grown: boolean };
+  const w = window as unknown as { __lit?: Node[]; __litLoop?: boolean; __clear?: Clear; __grown?: Grown };
   let el = document.getElementById('tutorial-light');
   w.__lit = els ?? [];
+  w.__clear = undefined;
+  w.__grown = undefined;
   if (!els) {
     if (el) el.style.opacity = '0';
     return;
@@ -108,36 +120,345 @@ function light(els: Node[] | null): void {
     el = document.createElement('div');
     el.id = 'tutorial-light';
     Object.assign(el.style, {
-      position: 'fixed', zIndex: '2147483646', pointerEvents: 'none', borderRadius: '18px', opacity: '0',
-      boxShadow: '0 0 0 3px rgba(255,255,255,0.95), 0 0 0 7px #6847c6, 0 0 0 100vmax rgba(24,18,52,0.5)',
-      transition: 'opacity 220ms ease'
+      position: 'fixed', zIndex: '2147483646', pointerEvents: 'none', borderRadius: '0px', opacity: '0',
+      boxShadow: '0 0 0 100vmax rgba(24,18,52,0.55)', transition: 'opacity 220ms ease'
     });
     document.body.appendChild(el);
   }
   const box = el;
-  /** The element's box, or its card's: the nearest boxes around it that draw an edge, each at most 24 points bigger on a side. */
-  const withCard = (e: Element) => {
-    let r = e.getBoundingClientRect();
-    for (let a = e.parentElement; a && a !== document.body; a = a.parentElement) {
-      const o = a.getBoundingClientRect();
-      if (o.left < r.left - 24 || o.top < r.top - 24 || o.right > r.right + 24 || o.bottom > r.bottom + 24) break;
-      const s = getComputedStyle(a);
-      const edge = ['Top', 'Right', 'Bottom', 'Left'].some((side) =>
-        parseFloat(s.getPropertyValue(`border-${side.toLowerCase()}-width`)) > 0 && !/^(transparent|rgba\(.*,\s*0\))$/.test(s.getPropertyValue(`border-${side.toLowerCase()}-color`)));
-      if (edge || s.boxShadow !== 'none') r = o;
+  // Round a part with no box of its own, the light stands 6 points off where it can.
+  const PAD = 6;
+  const SIDES = ['l', 't', 'r', 'b'] as const;
+  const screen = innerWidth * innerHeight;
+  const clear = /^(transparent|rgba\(.*,\s*0\))$/;
+  const of = (d: DOMRect): Side => ({ l: d.left, t: d.top, r: d.right, b: d.bottom });
+  const area = (o: Side) => Math.max(0, o.r - o.l) * Math.max(0, o.b - o.t);
+  const cut = (x: Side, y: Side): Side => ({ l: Math.max(x.l, y.l), t: Math.max(x.t, y.t), r: Math.min(x.r, y.r), b: Math.min(x.b, y.b) });
+  const meets = (x: Side, y: Side) => x.l < y.r && x.r > y.l && x.t < y.b && x.b > y.t;
+  const join = (all: Side[]): Side => ({ l: Math.min(...all.map((o) => o.l)), t: Math.min(...all.map((o) => o.t)), r: Math.max(...all.map((o) => o.r)), b: Math.max(...all.map((o) => o.b)) });
+  const edged = (s: CSSStyleDeclaration) => SIDES.some((k) => {
+    const side = { l: 'left', t: 'top', r: 'right', b: 'bottom' }[k];
+    return parseFloat(s.getPropertyValue(`border-${side}-width`)) > 0 && !clear.test(s.getPropertyValue(`border-${side}-color`));
+  });
+  const fillUnder = (e: Element | null): string => {
+    for (let a = e; a; a = a.parentElement) {
+      const c = getComputedStyle(a).backgroundColor;
+      if (!clear.test(c)) return c;
     }
-    return r;
+    return 'rgb(255, 255, 255)';
   };
+  /** A box a viewer sees: an edge, a shadow, or a fill other than what is behind it. */
+  const drawn = (e: Element, s: CSSStyleDeclaration) =>
+    edged(s) || s.boxShadow !== 'none' || (!clear.test(s.backgroundColor) && s.backgroundColor !== fillUnder(e.parentElement));
+  const control = (a: Element) => ['button', 'a', 'input', 'select', 'textarea'].includes(a.tagName.toLowerCase()) ||
+    ['button', 'link', 'tab', 'checkbox', 'radio', 'switch', 'menuitem', 'option', 'slider'].includes(a.getAttribute('role') ?? '') ||
+    (a.getAttribute('tabindex') ?? '-1') !== '-1';
+  const lit = () => (w.__lit ?? []).filter((e): e is Element => e.isConnected && e instanceof Element);
+
+  /** How round each corner of `e` is (top left, top right, bottom right, bottom left), no more than half its size. */
+  const corners = (e: Element): number[] => {
+    const s = getComputedStyle(e);
+    const d = e.getBoundingClientRect();
+    return ['top-left', 'top-right', 'bottom-right', 'bottom-left'].map((k) => Math.min(parseFloat(s.getPropertyValue(`border-${k}-radius`)) || 0, d.width / 2, d.height / 2));
+  };
+  /**
+   * A button with no box of its own whose words and icons are all on one box it holds (a part's play button: a round
+   * face on a tap area as tall as the row, and taller on the last row): that face. Otherwise the button itself.
+   */
+  const face = (e: Element): Element => {
+    if (!control(e) || drawn(e, getComputedStyle(e))) return e;
+    const shows: Node[] = [...e.querySelectorAll('svg, img')].filter((x) => x.getBoundingClientRect().width > 0);
+    const words = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
+    for (let n = words.nextNode(); n; n = words.nextNode()) if ((n.textContent ?? '').trim()) shows.push(n);
+    if (!shows.length) return e;
+    let best: Element | undefined;
+    for (const d of e.querySelectorAll('*')) {
+      const r = d.getBoundingClientRect();
+      if (r.width < 4 || r.height < 4 || !drawn(d, getComputedStyle(d)) || !shows.every((x) => d.contains(x))) continue;
+      if (!best || area(of(r)) > area(of(best.getBoundingClientRect()))) best = d;
+    }
+    return best ?? e;
+  };
+  /**
+   * What is lit: the button or card each lit part is in, together; how round its corners are (the one box's, the least
+   * round of several); and whether each has a box a viewer sees.
+   */
+  const own = (parts: Element[]): { c: Side; round: number[]; boxed: boolean; found: Element[] } => {
+    const found = parts.map((e) => {
+      let found: Element | undefined;
+      for (let a: Element | null = e; a && a !== document.body; a = a.parentElement) {
+        const o = of(a.getBoundingClientRect());
+        if (area(o) > screen / 3) break;
+        if (found) {
+          // A box drawn round it that is little bigger, or as tall and not much wider (a field's box round the field
+          // and its icon, a row's card round the row and its handle), is lit with it; never one with another button
+          // that has words (the bar at the foot of a screen round Skip and Next question), nor one from one side of the
+          // screen to the other (the bar round the main button).
+          if (o.l <= 1 && o.r >= innerWidth - 1) break;
+          const f = of(found.getBoundingClientRect());
+          const tall = o.t >= f.t - 24 && o.b <= f.b + 24;
+          if (!(tall && ((o.l >= f.l - 24 && o.r <= f.r + 24) || f.r - f.l >= 0.6 * (o.r - o.l)))) break;
+          const inside = found;
+          if ([...a.querySelectorAll('*')].some((x) => control(x) && !inside.contains(x) && !x.contains(inside) && !!(x.textContent ?? '').trim() && x.getBoundingClientRect().width > 0)) break;
+          if (drawn(a, getComputedStyle(a))) found = a;
+        } else if (control(a) || drawn(a, getComputedStyle(a))) found = a;
+      }
+      return face(found ?? e);
+    });
+    // What shows of each: a part a list hides (a header scrolled up under the panel above it) is not lit.
+    const seen = found.map((e) => shown(e)).filter((o) => o.r - o.l >= 1 && o.b - o.t >= 1);
+    let c = seen.length ? join(seen) : join(found.map((e) => of(e.getBoundingClientRect())));
+    // A card the lit parts nearly fill (the Bible's card with its play button, lit with the verses under it) is lit
+    // whole, not cut across; never a bar from one side of the screen to the other (the bar round the main button).
+    for (const f of found) {
+      for (let a = f.parentElement; a && a !== document.body; a = a.parentElement) {
+        const o = shown(a);
+        if (area(o) > screen / 3) break;
+        if (o.l <= 1 && o.r >= innerWidth - 1) continue;
+        if (drawn(a, getComputedStyle(a)) && o.l >= c.l - 24 && o.t >= c.t - 24 && o.r <= c.r + 24 && o.b <= c.b + 24) c = join([c, o]);
+      }
+    }
+    // Several parts lit as one box take in whole what its edge would cut between them (chips that wrap, By email
+    // beside Share as a link and One person under them): the box is no longer one of theirs.
+    const taken = found.length > 1 ? takeIn(c, found) : { c, grown: false };
+    c = taken.c;
+    const round = [0, 1, 2, 3].map((i) => Math.min(...found.map((e) => corners(e)[i]!)));
+    // A corner on a rounder box's corner (the first or last rows of a rounded list) is as round as that box's.
+    for (let a = found[0]!.parentElement; a && a !== document.body; a = a.parentElement) {
+      const o = of(a.getBoundingClientRect());
+      if (area(o) > screen / 2) break;
+      if (!drawn(a, getComputedStyle(a))) continue;
+      const at = [[o.l, o.t, c.l, c.t], [o.r, o.t, c.r, c.t], [o.r, o.b, c.r, c.b], [o.l, o.b, c.l, c.b]];
+      corners(a).forEach((r, i) => {
+        const [x, y, cx, cy] = at[i]!;
+        if (Math.abs(x! - cx!) <= 3 && Math.abs(y! - cy!) <= 3) round[i] = Math.max(round[i]!, r);
+      });
+    }
+    return { c, round, boxed: !taken.grown && found.every((e) => drawn(e, getComputedStyle(e))), found };
+  };
+
+  /**
+   * The box `c` round several lit parts, grown to take in whole each button, line of words or icon its edge would cut
+   * (part of it in the box, part out), until it cuts none; never past a third of the screen. Looked at again when the
+   * box moves, and every quarter second.
+   */
+  const takeIn = (c: Side, found: Element[]): { c: Side; grown: boolean } => {
+    const key = SIDES.map((k) => Math.round(c[k])).join(',');
+    if (w.__grown && w.__grown.key === key && performance.now() - w.__grown.at < 250) return w.__grown;
+    const ours = (e: Element) => !!e.closest('[id^="tutorial-"]');
+    const showing = (e: Element) => e.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) ?? true;
+    /** Not under something else: what is at the middle of `o` is the element, or in it. */
+    const seen = (e: Element, o: Side) => {
+      const hit = document.elementFromPoint(Math.min(Math.max((o.l + o.r) / 2, 0), innerWidth - 1), Math.min(Math.max((o.t + o.b) / 2, 0), innerHeight - 1));
+      return !!hit && (e.contains(hit) || hit.contains(e));
+    };
+    /** `box`: a button's own box or the face it shows, rather than a line of words or an icon. */
+    const pieces: (Side & { box?: boolean })[] = [];
+    const add = (e: Element, o: Side, box = false) => {
+      if (o.r - o.l < 2 || o.b - o.t < 2 || area(o) > screen / 3 || (o.l <= 1 && o.r >= innerWidth - 1)) return;
+      if (seen(e, o)) pieces.push(box ? { ...o, box } : o);
+    };
+    // A button (not one the lit parts are in, nor one in them) and an icon. A button is what a viewer sees of it: its
+    // own box, or the round face or card it shows (the + on the line between two parts is a small round face on a tap
+    // area as tall as a row); one with neither is only its words and icons, each looked at on its own.
+    for (const e of document.body.querySelectorAll('*')) {
+      if (ours(e) || found.some((f) => e.contains(f) || f.contains(e))) continue;
+      const svg = e.tagName.toLowerCase() === 'svg';
+      if (!svg && !control(e)) continue;
+      if (!showing(e)) continue;
+      const shows = svg ? e : face(e);
+      if (svg || shows !== e || drawn(e, getComputedStyle(e))) add(shows, shown(shows), !svg);
+    }
+    // A line of words.
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const range = document.createRange();
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const e = n.parentElement;
+      if (!e || !(n.textContent ?? '').trim() || ours(e) || found.some((f) => f.contains(e)) || !showing(e)) continue;
+      range.selectNodeContents(n);
+      const clip = shown(e);
+      for (const d of range.getClientRects()) add(e, cut(of(d), clip));
+    }
+    let out = c;
+    let grown = false;
+    for (let again = true, i = 0; again && i < 8; i++) {
+      again = false;
+      for (const o of pieces) {
+        const both = cut(o, out);
+        if (both.r - both.l < 2 || both.b - both.t < 2) continue;
+        if (o.l >= out.l - 1 && o.t >= out.t - 1 && o.r <= out.r + 1 && o.b <= out.b + 1) continue;
+        if (o.l <= out.l && o.t <= out.t && o.r >= out.r && o.b >= out.b) continue;
+        // A button's box the edge only grazes, by under a quarter of its height or width, is not cut: the edge crosses
+        // its margin (a part's verse space, as tall as its row, once the + on the line above is taken in).
+        if (o.box && (both.b - both.t < (o.b - o.t) / 4 || both.r - both.l < (o.r - o.l) / 4)) continue;
+        const next = join([out, o]);
+        if (area(next) > screen / 3) continue;
+        out = next;
+        again = grown = true;
+      }
+    }
+    w.__grown = { key, at: performance.now(), c: out, grown };
+    return w.__grown;
+  };
+
+  /** Where `e` shows: its box cut by the screen and by each box around it that hides what overflows. */
+  const shown = (e: Element): Side => {
+    let o = cut(of(e.getBoundingClientRect()), { l: 0, t: 0, r: innerWidth, b: innerHeight });
+    for (let a = e.parentElement; a && a !== document.body; a = a.parentElement) {
+      const s = getComputedStyle(a);
+      if (s.overflowX === 'visible' && s.overflowY === 'visible') continue;
+      const r = of(a.getBoundingClientRect());
+      o = cut(o, { l: s.overflowX !== 'visible' ? r.l : -Infinity, t: s.overflowY !== 'visible' ? r.t : -Infinity, r: s.overflowX !== 'visible' ? r.r : Infinity, b: s.overflowY !== 'visible' ? r.b : Infinity });
+    }
+    return o;
+  };
+
+  /** How far what is in the lit boxes shows past them on each side (a count on a button's corner). */
+  const spill = (found: Element[], c: Side): Side => {
+    const g: Side = { l: 0, t: 0, r: 0, b: 0 };
+    for (const f of found) {
+      for (const d of f.querySelectorAll('*')) {
+        if (d.closest('[id^="tutorial-"]') || !(d.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) ?? true)) continue;
+        const o = shown(d);
+        if (o.r - o.l < 2 || o.b - o.t < 2) continue;
+        g.l = Math.max(g.l, c.l - o.l);
+        g.t = Math.max(g.t, c.t - o.t);
+        g.r = Math.max(g.r, o.r - c.r);
+        g.b = Math.max(g.b, o.b - c.b);
+      }
+    }
+    for (const k of SIDES) if (g[k] <= 2) g[k] = 0;
+    return g;
+  };
+
+  /**
+   * What a viewer sees on the screen, cut where a box around it hides what overflows: each line of words, each icon,
+   * picture and field's words, and each edge of a drawn box (not one half the screen or bigger); and where on the
+   * screen something shows, top to bottom (the camera never films an empty screen: camera.ts).
+   */
+  const look = (): { things: Thing[]; rows: [number, number][] } => {
+    const things: Thing[] = [];
+    const filled: Side[] = [];
+    const clips = new Map<Element, Side>();
+    const whole = { l: 0, t: 0, r: innerWidth, b: innerHeight };
+    const clipOf = (e: Element | null): Side => {
+      if (!e || e === document.body) return whole;
+      let c = clips.get(e);
+      if (!c) {
+        c = clipOf(e.parentElement);
+        const s = getComputedStyle(e);
+        if (s.overflowX !== 'visible' || s.overflowY !== 'visible') {
+          const o = of(e.getBoundingClientRect());
+          c = cut(c, { l: s.overflowX !== 'visible' ? o.l : -Infinity, t: s.overflowY !== 'visible' ? o.t : -Infinity, r: s.overflowX !== 'visible' ? o.r : Infinity, b: s.overflowY !== 'visible' ? o.b : Infinity });
+        }
+        clips.set(e, c);
+      }
+      return c;
+    };
+    const ours = (e: Element) => !!e.closest('[id^="tutorial-"]');
+    const showing = (s: CSSStyleDeclaration) => s.visibility === 'visible' && parseFloat(s.opacity) >= 0.05;
+    /** Not under something else: what is at the point is the element, or in it. */
+    const seen = (e: Element, x: number, y: number) => {
+      const hit = document.elementFromPoint(Math.min(Math.max(x, 0), innerWidth - 1), Math.min(Math.max(y, 0), innerHeight - 1));
+      return !!hit && (e.contains(hit) || hit.contains(e));
+    };
+    /** Adds what shows of `d` inside `clip`; a line of words or an icon only where it is not under something else. */
+    const add = (e: Element, clip: Side, d: Side, edge: Thing['edge']) => {
+      const s = cut(d, clip);
+      if (s.r - s.l < 0.5 || s.b - s.t < 0.5) return;
+      if (!edge && !seen(e, (s.l + s.r) / 2, (s.t + s.b) / 2)) return;
+      things.push({ ...s, edge });
+    };
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const range = document.createRange();
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const e = n.parentElement;
+      if (!e || !(n.textContent ?? '').trim() || ours(e) || !showing(getComputedStyle(e))) continue;
+      range.selectNodeContents(n);
+      for (const d of range.getClientRects()) if (d.width >= 1 && d.height >= 1) add(e, clipOf(e), of(d), null);
+    }
+    for (const e of document.body.querySelectorAll('*')) {
+      if (ours(e) || (e instanceof SVGElement && e.tagName.toLowerCase() !== 'svg')) continue;
+      const d = of(e.getBoundingClientRect());
+      if (d.r - d.l < 1 || d.b - d.t < 1 || d.r <= 0 || d.b <= 0 || d.l >= innerWidth || d.t >= innerHeight) continue;
+      const tag = e.tagName.toLowerCase();
+      const s = getComputedStyle(e);
+      if (!showing(s)) continue;
+      const clip = clipOf(e.parentElement);
+      if (['svg', 'img', 'canvas', 'video'].includes(tag)) {
+        add(e, clip, d, null);
+        continue;
+      }
+      if ((tag === 'input' || tag === 'textarea') && ((e as HTMLInputElement).value || (e as HTMLInputElement).placeholder)) add(e, clip, d, null);
+      if (area(d) >= screen / 2 || d.r - d.l < 4 || d.b - d.t < 4 || !drawn(e, s)) continue;
+      filled.push(d);
+      // Each side of a drawn box that shows (a point just inside it is the box or in it), one point thick.
+      const [mx, my] = [(d.l + d.r) / 2, (d.t + d.b) / 2];
+      if (seen(e, mx, d.t + 1.5)) add(e, clip, { l: d.l, t: d.t, r: d.r, b: d.t + 1 }, 'h');
+      if (seen(e, mx, d.b - 1.5)) add(e, clip, { l: d.l, t: d.b - 1, r: d.r, b: d.b }, 'h');
+      if (seen(e, d.l + 1.5, my)) add(e, clip, { l: d.l, t: d.t, r: d.l + 1, b: d.b }, 'v');
+      if (seen(e, d.r - 1.5, my)) add(e, clip, { l: d.r - 1, t: d.t, r: d.r, b: d.b }, 'v');
+    }
+    const rows: [number, number][] = [];
+    for (const r of [...things.filter((t) => !t.edge), ...filled].sort((a, b) => a.t - b.t)) {
+      const [t, b] = [Math.round(Math.max(r.t, 0)), Math.round(Math.min(r.b, innerHeight))];
+      if (b <= t) continue;
+      const last = rows.at(-1);
+      if (last && t <= last[1] + 4) last[1] = Math.max(last[1], b);
+      else rows.push([t, b]);
+    }
+    return { things, rows };
+  };
+
+  /**
+   * How far the light stands off a part with no box of its own, on each side: 6 points, or nearer where the strip
+   * between the part and the light's edge would take in other words, an icon, or an edge (the light's edge would cut it).
+   */
+  const roomRound = (c: Side, things: Thing[]): Side => {
+    const off: Side = { l: PAD, t: PAD, r: PAD, b: PAD };
+    const inPart = (t: Thing) => (t.l + t.r) / 2 > c.l && (t.l + t.r) / 2 < c.r && (t.t + t.b) / 2 > c.t && (t.t + t.b) / 2 < c.b;
+    const others = things.filter((t) => !inPart(t));
+    for (const k of SIDES) {
+      for (let v = PAD; v >= 0; v--) {
+        const lit = { l: c.l - (k === 'l' ? v : 0), t: c.t - (k === 't' ? v : 0), r: c.r + (k === 'r' ? v : 0), b: c.b + (k === 'b' ? v : 0) };
+        const strip = { l: { ...lit, r: c.l }, t: { ...lit, b: c.t }, r: { ...lit, l: c.r }, b: { ...lit, t: c.b } }[k];
+        off[k] = v;
+        if (v === 0 || !others.some((t) => meets(t, strip))) break;
+      }
+    }
+    return off;
+  };
+
   const place = () => {
-    const shown = (w.__lit ?? []).filter((e) => e.isConnected).map((e) => withCard(e as Element)).filter((r) => r.width > 0);
-    if (shown.length) {
-      const pad = 6;
-      const x = Math.max(4, Math.min(...shown.map((r) => r.left)) - pad);
-      const y = Math.max(4, Math.min(...shown.map((r) => r.top)) - pad);
-      const right = Math.min(innerWidth - 4, Math.max(...shown.map((r) => r.right)) + pad);
-      const bottom = Math.min(innerHeight - 4, Math.max(...shown.map((r) => r.bottom)) + pad);
-      const at = { left: `${x}px`, top: `${y}px`, width: `${right - x}px`, height: `${bottom - y}px` };
-      if (box.style.left !== at.left || box.style.top !== at.top || box.style.width !== at.width || box.style.height !== at.height) Object.assign(box.style, at);
+    const parts = lit();
+    // A part gone from the screen (a bar that goes once all is uploaded) takes its light with it.
+    if (!parts.length) {
+      if ((w.__lit ?? []).length && box.style.opacity !== '0') box.style.opacity = '0';
+      return;
+    }
+    const { c, round, boxed, found } = own(parts);
+    if (c.r - c.l <= 0) return;
+    // What is around the part is looked at again when the part moves, and every quarter second.
+    const key = SIDES.map((k) => Math.round(c[k])).join(',');
+    if (!w.__clear || w.__clear.key !== key || performance.now() - w.__clear.at > 250) {
+      const { things, rows } = look();
+      // A count or a mark on the part's corner that shows past its box is lit with it, the light then 6 points round both.
+      const g = spill(found, c);
+      const grown = SIDES.some((k) => g[k] > 0);
+      const room = boxed && !grown ? { l: 0, t: 0, r: 0, b: 0 } : roomRound({ l: c.l - g.l, t: c.t - g.t, r: c.r + g.r, b: c.b + g.b }, things);
+      const off: Side = { l: g.l + room.l, t: g.t + room.t, r: g.r + room.r, b: g.b + room.b };
+      if (grown) round.fill(0);
+      // The light's corners as round as the box's, stood off as far as the light (a card's corner never shows past it).
+      const r = (i: number, side: number) => `${Math.round(Math.max(0, round[i]! + side))}px`;
+      const corner = [[off.l, off.t], [off.r, off.t], [off.r, off.b], [off.l, off.b]].map(([x, y], i) => `${r(i, x!)} ${r(i, y!)}`);
+      w.__clear = { key, at: performance.now(), rows, round: corner.join(','), off };
+    }
+    const { off, round: corner } = w.__clear;
+    const at = { left: `${c.l - off.l}px`, top: `${c.t - off.t}px`, width: `${Math.max(c.r - c.l + off.l + off.r, 0)}px`, height: `${Math.max(c.b - c.t + off.t + off.b, 0)}px` };
+    if (box.style.left !== at.left || box.style.top !== at.top || box.style.width !== at.width || box.style.height !== at.height) Object.assign(box.style, at);
+    const [tl, tr, br, bl] = corner.split(',');
+    if (box.style.borderTopLeftRadius !== tl || box.style.borderTopRightRadius !== tr || box.style.borderBottomRightRadius !== br || box.style.borderBottomLeftRadius !== bl) {
+      Object.assign(box.style, { borderTopLeftRadius: tl, borderTopRightRadius: tr, borderBottomRightRadius: br, borderBottomLeftRadius: bl });
     }
   };
   place();
@@ -202,6 +523,34 @@ async function handlesOf(parts: Locator | Locator[]): Promise<ElementHandle[]> {
       return kept;
     });
     await p.scrollIntoViewIfNeeded();
+    // On the screen, but the light's place cut off by the list's edge (the row a word is in, under the bar at the foot
+    // of the list) or under something floating over the list (a button): to the middle of the list. The light's place
+    // is the part and 8 points round it (it stands 6 off a part with no box of its own), so a part that shows whole with
+    // that room stays where it is (the Bible's card above the verses lit with it stays in sight).
+    await handle.evaluate((e) => {
+      const ROOM = 8;
+      let scroller = e.parentElement;
+      while (scroller && !/auto|scroll/.test(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
+      if (!scroller) return;
+      const list = scroller;
+      const [r, l] = [e.getBoundingClientRect(), list.getBoundingClientRect()];
+      const [top, bottom] = [Math.max(l.top, 0), Math.min(l.bottom, innerHeight)];
+      const cut = (r.bottom + ROOM > bottom && list.scrollTop + list.clientHeight < list.scrollHeight - 1) || (r.top - ROOM < top && list.scrollTop > 0);
+      // Only what draws something there floats over it: the strip a divider is taken by reaches over the list's
+      // foot, but draws nothing there.
+      const clear = /^(transparent|rgba\(.*,\s*0\))$/;
+      const draws = (h: Element) => {
+        const s = getComputedStyle(h);
+        return !clear.test(s.backgroundColor) || s.boxShadow !== 'none' || !!(h.textContent ?? '').trim() || h instanceof SVGElement || h instanceof HTMLImageElement ||
+          ['top', 'right', 'bottom', 'left'].some((k) => parseFloat(s.getPropertyValue(`border-${k}-width`)) > 0 && !clear.test(s.getPropertyValue(`border-${k}-color`)));
+      };
+      const under = [r.top - ROOM, r.top + r.height / 2, r.bottom + ROOM].some((y) => {
+        if (y < top || y > bottom) return false;
+        const hit = document.elementFromPoint(r.left + r.width / 2, y);
+        return !!hit && !list.contains(hit) && !hit.contains(list) && !hit.closest('[id^="tutorial-"]') && draws(hit);
+      });
+      if (cut || under) e.scrollIntoView({ block: 'center' });
+    });
     await held.evaluate((kept) => {
       for (const k of kept) {
         if (k.x !== undefined) k.box.scrollLeft = k.x;
@@ -215,10 +564,11 @@ async function handlesOf(parts: Locator | Locator[]): Promise<ElementHandle[]> {
 
 const centre = (b: Box) => ({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
 
-/** Where the light is on the screen, as it was placed. */
-function litBox(): Box {
+/** Where the light is on the screen, as it was placed, and where on the screen something shows (as the light last looked). */
+function litBox(): { box: Box; rows: [number, number][] } {
   const r = document.getElementById('tutorial-light')!.getBoundingClientRect();
-  return { x: r.left, y: r.top, width: r.width, height: r.height };
+  const rows = (window as unknown as { __clear?: { rows: [number, number][] } }).__clear?.rows ?? [];
+  return { box: { x: r.left, y: r.top, width: r.width, height: r.height }, rows };
 }
 
 /** The part of an element that shows: its box cut by the screen and by each box around it that hides what overflows. */
@@ -295,6 +645,16 @@ await page.addInitScript((lang) => {
   const listed = synth.getVoices.bind(synth);
   synth.getVoices = () => { const voices = listed(); return voices.length ? voices : [voice]; };
 }, LANGUAGE);
+// A phone draws no browser focus outline round the field being typed in (the frame check found one in two films).
+await page.addInitScript(() => {
+  const add = () => {
+    const style = document.createElement('style');
+    style.textContent = 'input:focus, textarea:focus, input:focus-visible, textarea:focus-visible { outline: none !important; }';
+    document.head.appendChild(style);
+  };
+  if (document.head) add();
+  else document.addEventListener('DOMContentLoaded', add);
+});
 // The language picked in this browser (apps/mobile/src/i18n/choice.web.ts), until the video picks another.
 if (LANGUAGE !== 'en') await page.addInitScript((code) => { if (localStorage.getItem('ui-language:v1') === null) localStorage.setItem('ui-language:v1', code); }, LANGUAGE);
 // The scripts' English is looked for in the app's language.
@@ -320,6 +680,9 @@ await page.waitForFunction(() => !!(globalThis as { __langquestLog?: unknown }).
 if (tutorial.before) {
   await tutorial.before(page, { say: async (n) => { await say(n); await sleep(speech[n]!.seconds * 1000); } }, world)
     .catch(async (error: unknown) => { await keepFailure('failed-before'); throw error; });
+  // A video never opens on a screen still loading (a blank phone): the first step's part shows first.
+  const first = tutorial.steps[0]?.first ? undefined : tutorial.steps[0]?.part?.(page);
+  if (first) await (Array.isArray(first) ? first : [first])[0]!.waitFor({ state: 'visible', timeout: 30_000 }).catch(() => undefined);
 } else {
   const first = tutorial.steps.find((s) => s.part)?.part?.(page);
   if (first) await handlesOf(first).catch(async (error: unknown) => { await keepFailure('failed-start'); throw error; });
@@ -396,8 +759,9 @@ async function play(step: Step, index: number): Promise<void> {
     const t = now();
     await sleep(350);
     // Where the light is once the screen has settled (a list still scrolling the part into view).
-    lit = await page.evaluate(litBox);
-    focus.push({ t, box: lit });
+    const seen = await page.evaluate(litBox);
+    lit = seen.box;
+    focus.push({ t, box: lit, rows: seen.rows });
   } else {
     focus.push({ t: now(), box: null });
   }

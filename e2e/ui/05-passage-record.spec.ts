@@ -46,6 +46,8 @@ test('PASS-001 TRANS P-NEW: not started, asked of TRANS @p0', async ({ browser }
     "Peer check, once you're done", 'Back translation, same time', 'Community check, after the peer check',
     'Consultant check, after the community check', 'Final approval, after the consultant check'
   ]);
+  // Nothing to check yet: the cards do not open (LAN-127).
+  for (const row of ['Peer check', 'Back translation']) await expect(teamRow(page, row), row).toBeDisabled();
   expect(await mainButton(page)).toBe('Record');
   await byId(page, 'primary-action').click();
   await expect(byId(page, 'record-button'), 'the workspace').toBeVisible();
@@ -67,7 +69,8 @@ test('PASS-003 TRANS P-SUBMITTED: Version 1, Peer check asked of REV @p0', async
   const page = await recordAs(browser, world(), 'TRANS', 'P-SUBMITTED');
   // The worked study comes first, passed ("–"): recording has started.
   await expect(pathStep(page, 'Study')).toHaveAttribute('aria-label', /^1\. Study\. .+ guide · 0 of \d+ steps$/, { timeout: 30_000 });
-  expect(await screenText(page)).toMatch(/Record Version 1 · \d+:\d\d Done Published .+ · asked Rita Reviewer/);
+  // Version 1 plays on the passage itself, under Record (LAN-128).
+  expect(await screenText(page)).toMatch(/Record Version 1 · \d+:\d\d Version 1 \d+:\d\d \d+:\d\d 10 Done Published .+ · asked Rita Reviewer/);
   expect(await teamRows(page)).toEqual([
     `Peer check, asked ${rev}`, 'Back translation, same time', 'Community check, after the peer check',
     'Consultant check, after the community check', 'Final approval, after the consultant check'
@@ -150,6 +153,8 @@ test('PASS-008 TRANS P-DONE: every check complete @p0', async ({ browser }) => {
 test('PASS-009 VIEW The viewer\'s record is read-only', async ({ browser }) => {
   const page = await recordAs(browser, world(), 'VIEW', 'P-SUBMITTED');
   expect(await mainButton(page)).toBeNull();
+  // The passage is heard on the passage itself, not only through Record (LAN-128).
+  await expect(button(page, 'Play Version 1')).toBeVisible();
   for (const row of ['Peer check', 'Community check', 'Final approval']) await expect(teamRow(page, row), row).toBeDisabled();
   await pathStep(page, 'Record').click();
   await expect(header(page)).toHaveText('Version 1');
@@ -233,7 +238,8 @@ test('PASS-026 TRANS Something else? on a passage nobody has recorded', async ({
   expect(all).toContain('Add a note');
   expect(all).toContain('What helps here');
   expect(all, 'no offline card here').not.toMatch(/Keep offline|Not kept on this device/);
-  expect(all).toContain('Each check under "Then the team" has its own options too: tap it on the path.');
+  // Nothing recorded yet, so the checks under "Then the team" do not open (LAN-127): the line that says to tap them is not here.
+  expect(all).not.toContain('Each check under "Then the team" has its own options too');
   expect(all).toContain('Say it instead A voice note on this passage. Your team hears it here.');
 });
 

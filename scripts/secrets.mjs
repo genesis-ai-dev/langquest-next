@@ -51,7 +51,8 @@ export const ADMIN_KEYS = ['ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_SUPABASE_TOKEN', 'AD
  * (decisions.md 186) reads the comments with that client. LINEAR_API_KEY, a Linear personal
  * API key, is how the app's Worker and its comments job file an accepted code change in Linear.
  * CLAUDE_CODE_OAUTH_TOKEN signs Claude's nightly look at the videos' feedback
- * (.github/workflows/tutorial-review.yml) in to a Claude plan: made by `claude setup-token`,
+ * (.github/workflows/tutorial-review.yml) and the nightly filming's frame check (tutorials.yml,
+ * e2e/tutorials/frame-check.ts) in to a Claude plan: made by `claude setup-token`,
  * it lasts a year, and production's goes to this repository's GitHub Actions secrets. Anyone
  * on the team can replace it with their own plan's.
  */
@@ -163,10 +164,12 @@ export function destinations(environment, values, ref, serviceRoleKey) {
       } : {})
     },
     hyperdrive: environment === 'production' && values.DIAG_DATABASE_URL ? { connectionString: values.DIAG_DATABASE_URL } : null,
-    // The nightly filming's voice (.github/workflows/tutorials.yml) and Claude's nightly look at the videos'
-    // feedback (tutorial-review.yml). Never a production key: scripts/workflows.test.ts.
+    // The nightly filming's voice and frame check (.github/workflows/tutorials.yml), Claude's nightly look at
+    // the videos' feedback (tutorial-review.yml) and the survey of Bible Brain's numberings (bible-survey.yml).
+    // Never a production key: scripts/workflows.test.ts.
     github: environment === 'production' ? {
       ...(values.GEMINI_API_KEY ? { GEMINI_API_KEY: values.GEMINI_API_KEY } : {}),
+      ...(values.BIBLE_BRAIN_ACCESS_KEY ? { BIBLE_BRAIN_ACCESS_KEY: values.BIBLE_BRAIN_ACCESS_KEY } : {}),
       ...(values.CLAUDE_CODE_OAUTH_TOKEN ? { CLAUDE_CODE_OAUTH_TOKEN: values.CLAUDE_CODE_OAUTH_TOKEN } : {})
     } : {},
     // Read with Deno.env.get in supabase/functions. The relay URL is public

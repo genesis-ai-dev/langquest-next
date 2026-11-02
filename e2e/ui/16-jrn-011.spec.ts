@@ -87,7 +87,7 @@ test('JRN-011 One passage from first recording to done, across every role @p0', 
     await trans.getByPlaceholder('Or type it').locator('visible=true').first().fill('Said verse 5 more plainly');
     await button(trans, 'Done').click();
     // The answered check goes back to the peer check team (decided 2026-10-13: answering keeps it open): Done asks them again.
-    await button(trans, 'Ask the Peer check team').click();
+    await button(trans, 'Ask the Peer check team again').click();
     await expectToast(trans, /Sent to the Peer check team/);
 
     // Step 5: REV's peer check on Version 2: looks good.
@@ -110,7 +110,7 @@ test('JRN-011 One passage from first recording to done, across every role @p0', 
     await expect(text(rev, /Version 2/)).toBeVisible();
     await sayEachPart(rev, 3);
     await button(rev, 'Done').click();
-    await button(rev, 'Finish the back translation').or(button(rev, 'Send later')).first().click();
+    await button(rev, 'Finish the back translation').or(button(rev, "Done, don't ask anyone")).first().click();
     await expectToast(rev, 'Back translation published.');
 
     // Step 7: TRANS logs the Community Check: Already happened, looks good, at Village church.

@@ -53,7 +53,7 @@ import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { screenTitle } from '../shell/flow';
-import { HelpBadge, HelpClip } from '../helpMode/helpBadge';
+import { HelpBadge, HelpClip, HelpQuiet } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { indexesFor } from '../sync/indexes';
@@ -71,7 +71,7 @@ import { RecordingView } from '../recording/RecordingView';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { VerseTile } from '../recording/verseParts';
 import {
-  backTranslationDraftKey, canPublish, cardDurations, cleanUpNoteOf, clearListSpecs, draftToOpen, labelAt, marksKeepingLabels, marksOf, movedList,
+  backTranslationDraftKey, canPublish, cardDurations, cleanUpNoteOf, clearListSpecs, draftToOpen, labelAt, marksForSaid, marksKeepingLabels, marksOf, movedList,
   removeCardSpecs, restoreSpecs, sameCards, slotRows, targetNumber,
   changedParts, historyFits, parsePartsHistory, partsHistoryKey,
   type CleanUpNote, type PartsHistory, type PartsSnap, type RecordTarget, type SlotRow,
@@ -288,26 +288,11 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     const commandId = Crypto.randomUUID();
     try {
       specs = commands(state, idx).keepTake({ commandId, unitId, cardHashes: list, actorId: me, parentTakeId: parentNow() });
-      // A part recorded into a gap takes the next verse, so it fills the gap;
-      // in a deleted or replaced part's place, the first takes that part's verses and the rest are more of them.
-      const aimMark = aim.kind === 'end' ? undefined : aim.mark;
+      // The verses of what was said in a place: its own, or none (workspaceModel `marksForSaid`, decisions.md 124).
       const verses = verseKeysRef.current;
       if (insertBefore && verses.length > 0) {
-        const fresh = new Set(pending);
-        let marks: PartMark[];
-        if (aim.kind === 'gap' && aim.insert) {
-          // Said between two parts: it has no verses yet, and the parts around it keep theirs.
-          const old = list.filter((h) => !fresh.has(h));
-          marks = marksKeepingLabels({ list: old, marks: partMarksFor(state, unitId, old, verses) }, list, verses.length);
-        } else {
-          let first = true;
-          marks = partMarksFor(state, unitId, list, verses).map((m, i) => {
-            if (!fresh.has(list[i]!) || m) return m;
-            const mark: PartMark = aimMark ? (first ? aimMark : { t: 'join' }) : { t: 'next' };
-            first = false;
-            return mark;
-          });
-        }
+        const marks = marksForSaid(list, partMarksFor(state, unitId, list, verses), new Set(pending), aim.kind === 'end' ? undefined : aim.mark,
+          verses.length, aim.kind === 'gap' && !!aim.insert);
         specs = [...specs, ...commands(state, idx).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards: list, marks, verses })];
       }
     } catch (e) {
@@ -766,8 +751,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const recorderLine = split >= 1;
   return (
     <Screen fixed
-      header={<Header title={v.title} sub={recordingSub} crumbs={passageCrumbs(ctx, v, screenTitle('workspace'))} onBack={ctx.back} close
-        action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} />}
+      // Help numbers go to the few parts that matter here (LAN-135): the header's stay dim and explain when tapped.
+      header={<HelpQuiet><Header title={v.title} sub={recordingSub} crumbs={passageCrumbs(ctx, v, screenTitle('workspace'))} onBack={ctx.back} close
+        action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} /></HelpQuiet>}
       footer={recorderLine ? undefined : (
         <RecorderFooter count={list.length} nextIndex={sessionIndex} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
           publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} undo={undoRedo}
@@ -782,16 +768,21 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
             <RefChips items={chips} value={chip} onChange={openChip} />
             {chip === 'guide' && study ? <GuideNav ctx={ctx} sp={study} index={step} onIndex={setStep} /> : null}
             <HelpClip style={{ flex: 1 }}>
+              {/* The Bible scrolls its own words under a player that stays put (LAN-130). */}
+              {/* While help is on, only its play button takes a number here; the verses explain when tapped (LAN-135). */}
+              {chip === 'bible' ? (
+                <HelpQuiet>
+                <BiblePane ctx={ctx} v={v} bible={bible} terms={unitTerms} tied={tied} canNote={!recording} selected={verse} onSelect={setVerse}
+                  hear={shows.bibleAudio} read={shows.bibleText} scroll={styles.paneBody}
+                  footer={<ReferenceRecordings ctx={ctx} unitId={unitId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
+                  {...(recording ? {} : {
+                    onTerm: (termId: string) => ctx.go('key_term_detail', { ...scope, termId, ...(draft ? { draftId: draft.takeId } : {}) }),
+                    onMoreBibles: () => ctx.go('bible_explore', scope)
+                  })} />
+                </HelpQuiet>
+              ) : (
               <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.paneBody} keyboardShouldPersistTaps="handled">
-                {chip === 'bible' ? (
-                  <BiblePane ctx={ctx} v={v} bible={bible} terms={unitTerms} tied={tied} canNote={!recording} selected={verse} onSelect={setVerse}
-                    hear={shows.bibleAudio} read={shows.bibleText}
-                    footer={<ReferenceRecordings ctx={ctx} unitId={unitId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
-                    {...(recording ? {} : {
-                      onTerm: (termId: string) => ctx.go('key_term_detail', { ...scope, termId, ...(draft ? { draftId: draft.takeId } : {}) }),
-                      onMoreBibles: () => ctx.go('bible_explore', scope)
-                    })} />
-                ) : chip === 'guide' && study && guide ? (
+                {chip === 'guide' && study && guide ? (
                   <>
                     <GuideStep key={study.steps[step]!.step.id} ctx={ctx} v={v} guide={guide} status={study.steps[step]!} spoken={!shows.guideText && shows.guideAudio} read={shows.guideText}
                       canContribute={!recording} onTerm={(termId) => ctx.go('key_term_detail', { ...scope, termId, ...(draft ? { draftId: draft.takeId } : {}) })} />
@@ -809,12 +800,13 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                   <EarlierPane ctx={ctx} v={v} from={revising ? (s) => s === revising.kindId || earlierFrom(s) : earlierFrom} {...(revising ? { focusReviewId: revising.id } : {})} />
                 ) : null}
               </ScrollView>
+              )}
             </HelpClip>
           </View>
         )}
         bottom={({ compact, open, height, room }) => session ? (
           // While recording, the pane is the recording view: what is being said, the waveform, and an X back to the parts.
-          <RecordingView rec={rec} phase={loop.phase} title={partLabel(sessionIndex)} partNumber={targetN} count={list.length + rec.sessionKept} noun="part" onLeave={() => void loop.finish()} onResume={loop.resumeNow} onStop={loop.stop} onDiscard={() => void loop.discard()}
+          <RecordingView rec={rec} phase={loop.phase} partNumber={targetN} count={list.length + rec.sessionKept} noun="part" onLeave={() => void loop.finish()} onResume={loop.resumeNow} onStop={loop.stop} onDiscard={() => void loop.discard()}
             {...(slotTile ? { tile: slotTile } : {})} />
         ) : compact ? (
           <RecorderBar count={list.length} nextIndex={nextIndex} phase={loop.phase} disabled={saving || rec.failureCount > 0} onRecord={record} onOpen={open} undo={undoRedo} />

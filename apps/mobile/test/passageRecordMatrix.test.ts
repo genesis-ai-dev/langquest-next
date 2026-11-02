@@ -56,7 +56,7 @@ function record(who: WorldRole, k: WorldPassage, reviewDrafts?: ReadonlySet<stri
     path: steps.map((st, i) => `${i + 1}. ${st.title}. ${st.sub}`),
     /** Each "Then the team" row as it is spoken: "Peer check, looks good". */
     team: teamSteps(input).map((st) => `${st.name}, ${st.status}`),
-    teamOpens: teamStepsOpen(can),
+    teamOpens: teamStepsOpen(can, p),
     waiting: waitingOnAnswer({ p, kinds, answersMine: model.answersMine, name: nameFn }),
     sheet: sheetOf,
     /** "Something else?": its sub-title, each way forward as "label sub", and the note tiles. */
@@ -90,6 +90,8 @@ describe('the passage record, per role (05-passage-record.md)', () => {
         "Peer check, once you're done", 'Back translation, same time', 'Community check, after the peer check',
         'Consultant check, after the community check', 'Final approval, after the consultant check'
       ]);
+      // Nothing is recorded yet, so no check can be chosen: the rows say when each comes and do not open (LAN-127).
+      expect(r.teamOpens, who).toBe(false);
     }
     expect(each(roles, (who) => record(who, 'P-NEW').main)).toEqual({
       TRANS: 'Record', REV: null, TREV: 'Record', COORD: 'Record', LADMIN: 'Record', VIEW: null

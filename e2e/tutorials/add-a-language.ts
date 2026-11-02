@@ -35,7 +35,8 @@ export const addALanguage: Tutorial = {
     },
     {
       screen: 'new_language',
-      part: (page) => [words(page, 'Language'), words(page, 'People')],
+      // The six steps, from the first to the last with what is under it: the box the two are in.
+      part: (page) => page.locator('div').filter({ has: page.getByText('Language', { exact: true }) }).filter({ has: page.getByText('People', { exact: true }) }).filter({ visible: true }).last(),
       say: 'There are six steps: its name, what it translates, how that is split into passages, reference material, how recordings get checked, and its people.'
     },
     {
@@ -85,6 +86,27 @@ export const addALanguage: Tutorial = {
       screen: 'new_language',
       part: (page) => id(page, 'primary-action'),
       say: 'Then Continue.',
+      tap: true,
+      until: until('Bibles number verses differently'),
+      stay: 0.6
+    },
+    {
+      screen: 'new_language',
+      part: (page) => words(page, 'Bibles number verses differently'),
+      say: 'Bibles number some verses differently, so LangQuest needs to know which Bible your team uses.'
+    },
+    {
+      screen: 'new_language',
+      part: (page) => id(page, 'primary-action'),
+      say: 'Tap Continue.',
+      tap: true,
+      until: until("Find your Bible's numbering"),
+      stay: 0.6
+    },
+    {
+      screen: 'new_language',
+      part: (page) => words(page, 'Pick your Bible'),
+      say: 'There are three ways to find it. Tap Pick your Bible.',
       tap: true,
       until: until('Which Bible do you translate from?'),
       stay: 0.6
@@ -162,7 +184,7 @@ export const addALanguage: Tutorial = {
     },
     {
       screen: 'new_language',
-      part: (page) => [words(page, 'Time to invite people'), button(page, 'Later')],
+      part: (page) => [words(page, 'Time to invite people'), button(page, 'Done')],
       say: `${NAME} is added. Last, invite its people, now or later.`,
       stay: 2
     }

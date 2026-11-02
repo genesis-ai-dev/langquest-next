@@ -39,6 +39,18 @@ export const getALanguageReady: Tutorial = {
       screen: 'get_ready',
       part: (page) => id(page, 'primary-action'),
       tap: true,
+      until: (page) => words(page, 'Bibles number verses differently').waitFor({ timeout: 10_000 }),
+      stay: 0.6
+    },
+    {
+      screen: 'get_ready',
+      part: (page) => words(page, 'Bibles number verses differently'),
+      say: 'Bibles number some verses differently, so LangQuest needs to know which Bible your team uses.'
+    },
+    {
+      screen: 'get_ready',
+      part: (page) => id(page, 'primary-action'),
+      tap: true,
       until: (page) => words(page, 'Like most English Bibles').waitFor({ timeout: 10_000 }),
       stay: 0.6
     },
@@ -70,8 +82,12 @@ export const getALanguageReady: Tutorial = {
     },
     {
       screen: 'get_ready',
+      part: (page) => [page.getByRole('checkbox').locator('visible=true').first(), page.getByRole('checkbox').locator('visible=true').nth(2)],
+      say: 'Second, what will help them: the languages of their Bibles and guides, and which ones they see.'
+    },
+    {
+      screen: 'get_ready',
       part: (page) => id(page, 'primary-action'),
-      say: 'Second, what will help them: the languages of their Bibles and guides, and which ones they see.',
       tap: true,
       until: (page) => words(page, 'What will help them?').waitFor({ timeout: 10_000 }),
       stay: 0.8
@@ -97,7 +113,8 @@ export const getALanguageReady: Tutorial = {
     },
     {
       screen: 'get_ready',
-      part: (page) => words(page, 'Ask them to scan this'),
+      // The code's whole card, its title too, as in Invite your team.
+      part: (page) => words(page, 'Ask them to scan this').locator('../..'),
       say: 'Last, invite the translators. They scan this code, or you share a link.'
     },
     {

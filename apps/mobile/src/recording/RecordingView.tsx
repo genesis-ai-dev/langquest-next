@@ -1,9 +1,10 @@
 // The recorder pane while recording (Caleb, 2026-10-16): the pane below the
 // divider turns into the recording view, red from start to stop, as the
-// back translation's was (the VadTakeover panel it replaces). Its top row says what is being
-// recorded (the part, and its verses when it is said again in a deleted
-// part's place) and has a check, Done, that leaves the session, keeping
-// every part as its box stands, and goes back to the parts; the
+// back translation's was (the VadTakeover panel it replaces). Its top row says how
+// the recording stands (recording, listening, stopped; with a deleted part's verses
+// when it is said again in that part's place) and has a check, Done, that leaves the
+// session, keeping every part as its box stands, and goes back to the parts. It names
+// no part: the boxes carry the numbers (Caleb, 2026-11-01). The
 // rest is the live waveform, each kept part boxed and numbered as it is
 // said (LiveParts.tsx, the "Recordings getting cut off" thread's). Stop stays in the footer,
 // and stopping keeps the session open (LAN-82): the boxes can be heard,
@@ -68,9 +69,7 @@ function Elapsed(props: { running: boolean; color: string }) {
 
 export function RecordingView(props: {
   rec: Recorder; phase: LoopPhase;
-  /** What is being recorded: "Part 3". */
-  title: string;
-  /** Its number: the waveform numbers the parts kept from the one recording when the view opened. */
+  /** The number the first part said here takes: the waveform numbers the parts kept from it. */
   partNumber: number;
   /** How many are kept so far, and what they are called, for the status a screen reader hears. */
   count: number; noun: LoopNoun;
@@ -106,10 +105,8 @@ export function RecordingView(props: {
       <View style={styles.head}>
         <IconBtn name="close" label={t('recording.recorder.discard')} help={t('recording.recorder.discardHelp')} bg="transparent" color={fg} size={target.min} onPress={discard} />
         {props.tile ? <View style={styles.tile}>{props.tile}</View> : null}
-        <HelpInfo style={{ flex: 1, minWidth: 0 }} label={`${props.title}. ${status}`} detail={listening ? t('recording.vad.statusPausedHelp') : stopped ? t('recording.recorder.stoppedHelp') : t('recording.recorder.nextRecordingHelp')}>
-          <View accessible accessibilityLabel={t('recording.recorder.nextLabel', { part: props.title, status })}>
-            <Text style={[styles.title, { color: fg }]} numberOfLines={2}>{props.title}</Text>
-          </View>
+        {/* No part is named here (Caleb, 2026-11-01): after Stop the next part's number read as the one just said. The boxes number the parts. */}
+        <HelpInfo style={{ flex: 1, minWidth: 0 }} label={status} detail={listening ? t('recording.vad.statusPausedHelp') : stopped ? t('recording.recorder.stoppedHelp') : t('recording.recorder.nextRecordingHelp')}>
           {/* Read politely as it changes, with how many are kept so far (the waveform's boxes show it; screen readers hear it). */}
           <View style={styles.statusRow} accessible accessibilityLiveRegion="polite" accessibilityLabel={loopStatus(props.phase, rec.vadCapturing, props.count, props.noun)}>
             {listening ? <Ico name="pause" size={14} color={fg} /> : stopped ? <View style={styles.stop} /> : <PulsingDot on={capturing} />}
@@ -132,11 +129,12 @@ export function RecordingView(props: {
       ) : (
         <View style={styles.wave}>
           {/* Stopped, the status row's help says what the boxes do. */}
-          <LiveParts session={session} tone="onRed" paused={rec.vadPaused} editing={stopped} onDrop={rec.dropPart} onMoved={rec.notePart} />
+          <LiveParts session={session} tone="onRed" paused={rec.vadPaused} editing={stopped} onDrop={rec.dropPart} onMoved={rec.notePart}
+            onDropSilence={rec.dropSilence} onAdd={rec.addPart} />
         </View>
       )}
       {rec.micRefused ? <MicRefused message={rec.error} /> : rec.error ? <Text style={styles.error} accessibilityRole="alert">{rec.error}</Text> : null}
-      <ConfirmDelete visible={asking !== null} name={props.title} title={t('recording.recorder.discardAsk')} confirmLabel={t('recording.recorder.discardConfirm')}
+      <ConfirmDelete visible={asking !== null} name="" title={t('recording.recorder.discardAsk')} confirmLabel={t('recording.recorder.discardConfirm')}
         sub={asking ? t('recording.parts.groupSub', { count: asking.count, length: mmss(asking.ms) }) : ''}
         onClose={() => setAsking(null)} onConfirm={() => { setAsking(null); props.onDiscard(); }} />
     </View>
@@ -147,9 +145,8 @@ const styles = StyleSheet.create({
   panel: { flex: 1, paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: space.md, gap: space.sm },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.sm + 2, minHeight: 56 },
   tile: { borderRadius: radius.md + 2, backgroundColor: withAlpha(C.white, 0.9) },
-  title: { fontSize: T.lg, fontWeight: '800' },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  status: { fontSize: T.sm, fontWeight: '600' },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  status: { fontSize: T.base, fontWeight: '700' },
   wave: { flex: 1, minHeight: 56, paddingBottom: space.xs },
   paused: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   resume: { minHeight: target.min, paddingHorizontal: space.lg, borderRadius: radius.full, backgroundColor: TINT.redText, flexDirection: 'row', alignItems: 'center', gap: space.sm },

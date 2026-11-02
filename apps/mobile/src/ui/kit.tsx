@@ -753,6 +753,8 @@ export function Field(props: {
   accessibilityLabel?: string;
   /** What help mode says to type here and what it is for, where the label does not say it. */
   help?: string;
+  /** The field takes the cursor when the screen opens, so typing can start at once. */
+  autoFocus?: boolean;
 }) {
   const name = props.label ?? props.accessibilityLabel ?? props.placeholder ?? '';
   const spot = useHelpSpot(name, props.help ?? t('help.details.field'), TYPE_HERE);
@@ -764,6 +766,7 @@ export function Field(props: {
         accessibilityLabel={props.label ?? props.accessibilityLabel ?? props.placeholder}
         {...(props.onSubmit && !props.multiline ? { onSubmitEditing: props.onSubmit, returnKeyType: 'go' as const } : {})}
         {...(props.testID ? { testID: props.testID } : {})}
+        {...(props.autoFocus ? { autoFocus: true } : {})}
         multiline={props.multiline} secureTextEntry={props.secure} keyboardType={props.keyboardType} autoCapitalize={props.autoCapitalize}
         style={[styles.field, inputDirection(), props.multiline && { minHeight: 88, textAlignVertical: 'top', paddingTop: 14 }, props.style]} />
       <HelpCover spot={spot} label={name} />
@@ -979,7 +982,9 @@ export function Banner(props: { icon: IconName; title: string; body?: string; to
 export function Sheet(props: { visible: boolean; title: string; sub?: string; onClose: () => void; children: ReactNode; footer?: ReactNode;
   /** Beside the title, before ? and ✕: the saved mark of what the sheet keeps as you go (SavedMark.tsx). */ action?: ReactNode;
   /** A phone's Back in a sheet of several steps: the step before, as its own Back does (decision 137). Else Back closes it. */
-  onBack?: () => void }) {
+  onBack?: () => void;
+  /** No ✕: a sheet whose every tap is already kept ends with its own Done in the footer, so nothing reads as Cancel (LAN-134). */
+  noClose?: boolean }) {
   const insets = useSafeAreaInsets();
   const wide = useLayout().kind !== 'phone';
   const host = useHelpHost(props.visible);
@@ -1000,7 +1005,7 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
             </View>
             {props.action}
             <HelpToggle testID="sheet-help" />
-            <IconBtn testID="sheet-close" name="close" label={t('common.close')} help={t('help.details.closeSheet')} onPress={props.onClose} bg={C.card} color={C.muted} />
+            {props.noClose ? null : <IconBtn testID="sheet-close" name="close" label={t('common.close')} help={t('help.details.closeSheet')} onPress={props.onClose} bg={C.card} color={C.muted} />}
           </View>
           <HelpClip style={{ flexShrink: 1 }}>
             <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: space.md, paddingHorizontal: space.xl, paddingBottom: space.lg }} keyboardShouldPersistTaps="handled">

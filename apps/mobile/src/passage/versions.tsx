@@ -23,6 +23,7 @@ import { failureMessage } from '../diagnostics/report';
 import { cardDurations, sameCards } from '../recording/workspaceModel';
 import { mmss, totalMs } from '../recording/model';
 import { useClip } from '../audio/useClip';
+import { PlayingFill } from '../recording/playingFill';
 import { Text } from '../ui/text';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
@@ -166,6 +167,7 @@ function ItemCard(props: {
   );
   return (
     <View style={styles.card}>
+      {clip.playing || clip.elapsed > 0 ? <PlayingFill at={clip.elapsed} length={clip.total} playing={clip.playing} style={{ borderRadius: radius.lg - 1 }} /> : null}
       <View style={styles.head}>
         <Pressable onPress={play.onPress} disabled={!clip.available} accessibilityRole="button" accessibilityLabel={playLabel}
           style={({ pressed }) => [styles.play, !clip.available && { opacity: 0.4 }, pressed && { opacity: 0.7 }]}>

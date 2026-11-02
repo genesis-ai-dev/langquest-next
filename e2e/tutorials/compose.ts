@@ -16,7 +16,7 @@ import { chromium } from 'playwright';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { cameraPath, viewExpression, type Focus } from './camera';
+import { cameraPath, titleShows, viewExpression, type Focus } from './camera';
 
 type Film = {
   title: string;
@@ -62,7 +62,8 @@ const toPage = film.viewport && { x: SW / film.viewport.width, y: SH / film.view
 const moves = toPage
   ? cameraPath((film.focus ?? []).map((f) => ({
     t: f.t,
-    box: f.box && { x: SX + f.box.x * toPage.x, y: SY + f.box.y * toPage.y, width: f.box.width * toPage.x, height: f.box.height * toPage.y }
+    box: f.box && { x: SX + f.box.x * toPage.x, y: SY + f.box.y * toPage.y, width: f.box.width * toPage.x, height: f.box.height * toPage.y },
+    rows: f.rows?.map(([a, b]) => [SY + a * toPage.y, SY + b * toPage.y] as [number, number])
   })), end, { width: W, height: H }, { x: SX, y: SY, width: SW, height: SH })
   : [];
 // A camera that moves in films a page drawn twice as big, so what it shows close up stays sharp, and
@@ -117,7 +118,25 @@ await tab.locator('#title').evaluate((el, title) => {
   }
 }, film.title);
 await tab.evaluate(() => document.fonts.ready);
+// A camera that moves in fades the title (and the app's mark) out as it goes, so the ends of its words never show at
+// the edge of a close shot, and back in whenever it goes out: the title is a picture of its own over the page.
+const heading = tab.locator(WIDE ? '#title' : '.side');
+const title = K > 1 ? await heading.evaluate((el) => {
+  const boxes = (el.id === 'title' ? [el] : [...el.children]).map((c) => c.getBoundingClientRect());
+  const [x, y] = [Math.floor(Math.min(...boxes.map((b) => b.left))), Math.floor(Math.min(...boxes.map((b) => b.top)))];
+  return { x, y, width: Math.ceil(Math.max(...boxes.map((b) => b.right))) - x, height: Math.ceil(Math.max(...boxes.map((b) => b.bottom))) - y };
+}) : undefined;
+if (title) await heading.evaluate((el) => { el.style.visibility = 'hidden'; });
 await tab.screenshot({ path: path.join(work, 'page.png') });
+if (title) {
+  await heading.evaluate((el) => {
+    el.style.visibility = 'visible';
+    document.documentElement.style.background = 'transparent';
+    document.body.style.background = 'transparent';
+    for (const other of document.body.children) if (other !== el) (other as HTMLElement).style.visibility = 'hidden';
+  });
+  await tab.screenshot({ path: path.join(work, 'title.png'), clip: title, omitBackground: true });
+}
 await tab.setViewportSize({ width: SW, height: SH });
 await tab.setContent(mask);
 await tab.screenshot({ path: path.join(work, 'mask.png') });
@@ -136,10 +155,11 @@ const raw = (png: string, format: string) => {
 };
 // A frame of another size (the screencast now and then sends one twice as big) is scaled like the rest, not
 // a reason to start the filters again, which put the camera back at the start and cut the video short.
-const inputs = ['-reinit_filter', '0', '-f', 'concat', '-safe', '0', '-i', path.join(work, 'frames.txt'), ...raw(path.join(work, 'page.png'), 'yuv420p'), ...raw(path.join(work, 'mask.png'), 'gray')];
+const inputs = ['-reinit_filter', '0', '-f', 'concat', '-safe', '0', '-i', path.join(work, 'frames.txt'), ...raw(path.join(work, 'page.png'), 'yuv420p'), ...raw(path.join(work, 'mask.png'), 'gray'),
+  ...(title ? raw(path.join(work, 'title.png'), 'yuva420p') : [])];
 const chains: string[] = [];
 const mix: string[] = [];
-let n = 3;
+let n = title ? 4 : 3;
 for (const [i, s] of film.said.entries()) {
   inputs.push('-i', s.file);
   chains.push(`[${n++}:a]aresample=48000,adelay=${Math.round(s.t * 1000)}:all=1[v${i}]`);
@@ -166,8 +186,19 @@ for (const [j, h] of (film.heard ?? []).entries()) {
 // a frame for each frame it is given.
 const view = (side: 'x' | 'y' | 'width') => viewExpression(moves, side, { width: W, height: H });
 const camera = K > 1 ? `,zoompan=z='${W}/(${view('width')})':x='${K}*(${view('x')})':y='${K}*(${view('y')})':d=1:s=${OUT.width}x${OUT.height}:fps=30` : '';
-const video = `[0:v]fps=30,scale=${K * SW}:${K * SH}:flags=lanczos,format=yuva420p[s];[s][2:v]alphamerge[sm];` +
-  `[1:v][sm]overlay=${K * SX}:${K * SY}:shortest=1:format=yuv420${camera},format=yuv420p[v]`;
+// The title goes as the camera moves in and comes back whenever it goes out to the whole page (titleShows), so a
+// whole shot in the middle has its title too, not an empty page beside the phone (the frame check found three).
+// Each stretch is an overlay of its own, off while it is not seen, so it costs nothing then.
+const shows = titleShows(moves, { width: W, height: H });
+const titled = title && moves.length
+  ? `[3:v]split=${shows.length}${shows.map((_, i) => `[t${i}]`).join('')};` + shows.map((w, i) => {
+    const fades = [w.from > 0 ? `fade=t=in:st=${w.from.toFixed(2)}:d=${w.in.toFixed(2)}:alpha=1` : '', w.to !== null ? `fade=t=out:st=${w.to.toFixed(2)}:d=0.5:alpha=1` : ''].filter(Boolean);
+    const on = w.to === null ? `gte(t,${w.from.toFixed(2)})` : `between(t,${w.from.toFixed(2)},${(w.to + 0.5).toFixed(2)})`;
+    return `[t${i}]${fades.join(',') || 'null'}[f${i}];[${i ? `p${i - 1}` : '1:v'}][f${i}]overlay=${K * title.x}:${K * title.y}:enable='${on}'[${i === shows.length - 1 ? 'page' : `p${i}`}];`;
+  }).join('')
+  : '';
+const video = `${titled}[0:v]fps=30,scale=${K * SW}:${K * SH}:flags=lanczos,format=yuva420p[s];[s][2:v]alphamerge[sm];` +
+  `[${titled ? 'page' : '1:v'}][sm]overlay=${K * SX}:${K * SY}:shortest=1:format=yuv420${camera},format=yuv420p[v]`;
 const audio = `${chains.join(';')};${mix.join('')}amix=inputs=${mix.length}:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,apad,` +
   `atrim=0:${end.toFixed(2)},afade=t=out:st=${(end - 1.2).toFixed(2)}:d=1.2[a]`;
 execFileSync('ffmpeg', ['-y', '-v', 'error', ...inputs, '-filter_complex', `${video};${audio}`, '-map', '[v]', '-map', '[a]',

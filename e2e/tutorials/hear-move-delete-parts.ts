@@ -19,7 +19,8 @@ export const hearMoveDeleteParts: Tutorial = {
   steps: [
     {
       screen: 'workspace',
-      part: (page) => [button(page, /^Parts 1–4, 4 parts · /), ...partRow(page, 4)],
+      // The header can sit under the reference above the divider: the rows from the first to the last.
+      part: (page) => [button(page, /^Parts 1–4, 4 parts · /), ...partRow(page, 1), ...partRow(page, 4)],
       say: "Here's how to hear and fix your parts. Each row is one part of your recording.",
       stay: 0.3
     },

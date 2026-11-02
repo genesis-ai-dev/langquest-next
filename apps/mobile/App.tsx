@@ -36,7 +36,6 @@ import { FeedbackHost } from './src/feedback/FeedbackSheet';
 import { txt } from './src/ui/textStyles';
 import { installGlobalHandlers, reportError } from './src/diagnostics/report';
 import { t } from './src/i18n';
-import { personLook } from './src/ui/people';
 import { navRef, type StackParams } from './src/shell/nav';
 import { useNav } from './src/shell/useNav';
 import * as Account from './src/screens/account';
@@ -113,6 +112,7 @@ const loadReference = () => import('./src/screens/reference');
 const loadReports = () => import('./src/screens/reports');
 const loadSources = () => import('./src/screens/sources');
 const loadGlobalViewer = () => import('./src/screens/globalViewer');
+const loadGuideEditor = () => import('./src/screens/guideEditor');
 
 const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   sign_in: Entry.SignIn, terms_privacy: Entry.TermsPrivacy, explore_home: Entry.ExploreHome, create_account: Entry.CreateAccount,
@@ -123,7 +123,7 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   passage_record: Passage.PassageRecord, version_detail: Passage.VersionDetail, review_detail: Passage.ReviewDetail,
   ask_someone: Passage.AskSomeone,
   guest_review: Review.GuestReview, add_record: Review.AddRecord, review_capture: Review.ReviewCapture,
-  study_guide: Study.StudyGuide, study_step: Study.StudyStep, guide_editor: Study.GuideEditor,
+  study_guide: Study.StudyGuide, study_step: Study.StudyStep, guide_editor: lazyScreen(loadGuideEditor, 'GuideEditor'),
   workspace: Translate.Workspace, back_translation: Translate.BackTranslation,
   key_terms: lazyScreen(loadConfig, 'KeyTerms'), key_term_detail: lazyScreen(loadConfig, 'KeyTermDetail'),
   inbox_home: Account.InboxHome, settings_home: Account.SettingsHome, profile_edit: Account.ProfileEdit,
@@ -442,7 +442,16 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // Read names again when someone joins, or a new member shows as a placeholder until restart.
   // Keyed on the state, not its members: the fold adds members in place (OrgHandle.state).
   const memberIds = useMemo(() => Object.keys(liveOrg.state?.members ?? {}).sort().join(','), [liveOrg.state]);
-  const people = useDisplayNames(props.actorId, memberIds);
+  // A member still without a name (the directory read before they joined, or before this account did) is asked for
+  // again a few times, further apart each time (LAN-129).
+  const [askedAgain, setAskedAgain] = useState(0);
+  const people = useDisplayNames(props.actorId, `${memberIds}#${askedAgain}`);
+  const unnamed = useMemo(() => memberIds.split(',').some((id) => id && id !== props.actorId && !(id in people)), [memberIds, people, props.actorId]);
+  useEffect(() => {
+    if (!unnamed || askedAgain >= 4) return;
+    const timer = setTimeout(() => setAskedAgain((n) => n + 1), 15_000 * (askedAgain + 1));
+    return () => clearTimeout(timer);
+  }, [unnamed, askedAgain]);
   const [devOpen, setDevOpen] = useState(false);
   const onboarding = useOnboarding(props.actorId, props.signedIn);
   // Someone from v2 is welcomed back to their work instead (demo ADR-043).
@@ -468,7 +477,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // Names: the signed-in person is always "you" (CORE-6).
   const name = useCallback((id: string, lower = false) => {
     if (id === props.actorId) return lower ? t('shell.youInSentence') : t('common.you');
-    return people[id] ?? viewedNames[id] ?? personLook(id).name;
+    // A person whose name this account cannot see is "someone", never their picture's colour and shape (LAN-129).
+    return people[id] ?? viewedNames[id] ?? t(lower ? 'shell.person.someoneInSentence' : 'shell.person.someone');
   }, [people, viewedNames, props.actorId]);
   const inbox = useInbox({ language, actorId: props.actorId, orgId: props.orgId, session, blocks, signedIn: props.signedIn });
 

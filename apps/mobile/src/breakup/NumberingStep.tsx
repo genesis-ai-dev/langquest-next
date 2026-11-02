@@ -16,6 +16,10 @@ import { GhostBtn, Ico, SearchField, type IconName } from '../ui/kit';
 import { ChoiceCard, Question, RadioRow } from '../admin/admin';
 import { C, radius, space, TINT, type as T } from '../ui/theme';
 import { readModule, registerLoader } from '../shell/lazyModules';
+import { languageLabel } from '../admin/adminModel';
+import { sameCodes } from '../reference/languages';
+import { useBibleBrainSummaries } from '../sources/useBibleBrainBibles';
+import { useNumberedBibles } from '../sources/useNumberedBibles';
 import {
   bibleLanguage, QUIZ, resolveNumbering, shortName, type KnownBible, type NumberingCode, type NumberingFacts, type QuizOption
 } from './numberingGuide';
@@ -86,13 +90,9 @@ function OtherWay(props: { icon: IconName; label: string; onPress: () => void; d
   );
 }
 
-/**
- * Which Bible do you translate from? Typing finds it; what other languages here use comes first, then the
- * Bibles in the team's `languages`.
- */
+/** Which Bible do you translate from? Typing finds it; the Bibles in the team's `languages` come first. */
 export function FindBiblePage(props: {
   numberings: NumberingChoice[];
-  usedIn: Record<string, string[]>;
   languages?: readonly string[];
   onPick: (code: string, from?: string, note?: string) => void;
   onQuiz: () => void;
@@ -105,16 +105,9 @@ export function FindBiblePage(props: {
     const r = resolveNumbering(b.numbering, b.nearest, offered);
     if (r.code) { setNote(''); props.onPick(r.code, b.name, r.note); } else setNote(r.note ?? '');
   };
-  const used = Object.entries(props.usedIn).map(([code, langs]) => ({ n: props.numberings.find((x) => x.code === code), langs })).filter((x) => x.n);
   return (
     <>
       <Question>{t('breakup.numberingStep.find.question')}</Question>
-      {used.map(({ n, langs }) => (
-        <HelpRow key={n!.code} of="numbering.used">
-          <ChoiceCard on={false} icon="people" title={shortName(n!.name)} sub={t('breakup.usedIn.one', { name: langs.join(t('admin.list.separator')) })}
-            help={t('breakup.numberingStep.find.usedHelp')} onPress={() => props.onPick(n!.code)} />
-        </HelpRow>
-      ))}
       <SearchField value={q} onChangeText={setQ} placeholder={t('breakup.numberingStep.find.placeholder')} help={t('breakup.numberingStep.find.searchHelp')} />
       {note ? <Text style={[txt2.note]}>{note}</Text> : null}
       <Suspense fallback={null}>
@@ -128,26 +121,45 @@ export function FindBiblePage(props: {
   );
 }
 
-/** The Bibles typing finds, or before anything is typed the team's and the common ones, with Show all. */
+/**
+ * The Bibles typing finds, or before anything is typed the team's and the
+ * common ones, with Show all. Bible Brain's numbered Bibles (decision 198)
+ * join the app's own: those in the team's languages first, and any typing finds.
+ */
 function FoundBibles(props: { q: string; languages?: readonly string[]; onChoose: (b: KnownBible) => void }) {
-  const { KNOWN_BIBLES, firstBibles } = readModule(loadBibles);
+  const { KNOWN_BIBLES, firstBibles, bibleBrainBibles, withBibleBrain } = readModule(loadBibles);
   const [all, setAll] = useState(false);
   const typed = props.q.trim().toLowerCase();
+  const team = useBibleBrainSummaries((props.languages ?? []).flatMap(sameCodes));
+  const found = useNumberedBibles(props.q);
   const shown = useMemo(() => {
-    if (typed) return KNOWN_BIBLES.filter((b) => `${b.name} ${b.abbr} ${b.language} ${bibleLanguage(b.language)}`.toLowerCase().includes(typed)).slice(0, 20);
-    return all ? KNOWN_BIBLES : firstBibles(props.languages);
-  }, [KNOWN_BIBLES, firstBibles, typed, all, props.languages]);
+    if (typed) {
+      const known = KNOWN_BIBLES.filter((b) => `${b.name} ${b.abbr} ${b.language} ${bibleLanguage(b.language)}`.toLowerCase().includes(typed));
+      return withBibleBrain(known, bibleBrainBibles(found)).slice(0, FOUND);
+    }
+    return all ? KNOWN_BIBLES : firstBibles(props.languages, bibleBrainBibles(team));
+  }, [KNOWN_BIBLES, firstBibles, bibleBrainBibles, withBibleBrain, typed, all, props.languages, team, found]);
   return (
     <View style={{ gap: space.sm }}>
       {shown.map((b) => (
-        <HelpRow key={b.abbr} of="numbering.bible">
-          <RadioRow icon="book" label={b.name} sub={bibleLanguage(b.language)} on={false} help={t('breakup.numberingStep.find.bibleHelp')} onPress={() => props.onChoose(b)} />
+        <HelpRow key={b.iso ? `bb:${b.abbr}` : b.abbr} of="numbering.bible">
+          <RadioRow icon="book" label={b.name} sub={rowLanguage(b)} on={false} help={t('breakup.numberingStep.find.bibleHelp')} onPress={() => props.onChoose(b)} />
         </HelpRow>
       ))}
       {!typed && !all ? <GhostBtn label={t('breakup.numberingStep.find.showAll', { count: KNOWN_BIBLES.length })} icon="down" help={t('breakup.numberingStep.find.showAllHelp')} onPress={() => setAll(true)} /> : null}
       {typed && shown.length === 0 ? <Text style={txt2.muted}>{t('breakup.numberingStep.find.notFound')}</Text> : null}
     </View>
   );
+}
+
+/** How many Bibles typing shows at most. */
+const FOUND = 20;
+
+/** A Bible's language, in the language showing: a Bible Brain one's by its code, else Bible Brain's English name for it. */
+function rowLanguage(b: KnownBible): string {
+  if (!b.iso) return bibleLanguage(b.language);
+  const named = languageLabel(b.iso);
+  return named === b.iso.toUpperCase() ? b.language : named;
 }
 
 /** The quiz, one question a screen, with the team's Bible open. */
@@ -279,6 +291,70 @@ export function NumberingContext(props: { choice: NumberingChoice; onPress: () =
   );
 }
 
+/**
+ * Why the numbering is asked, drawn (LAN-193): Malachi in two Bibles, with 4 chapters and with 3, and the
+ * same verse numbered 4:1 in one and 3:19 in the other.
+ */
+export function WhyNumberingPage() {
+  const book = bookName('mal');
+  const bible = (name: string, chapters: number, verse: [number, number]) => {
+    const said = t('breakup.numberingStep.why.verse', { book, chapter: formatNumber(verse[0]), verse: formatNumber(verse[1]) });
+    return (
+      <View style={styles.tile} accessible accessibilityLabel={t('breakup.numberingStep.why.bibleA11y', {
+        bible: name, chapters: t('breakup.numberingStep.facts.malachiHas', { book, count: chapters }), verse: said
+      })}>
+        <Ico name="book" size={22} color={C.primary} />
+        <Text style={styles.tileValue}>{name}</Text>
+        <View style={styles.bars}>{Array.from({ length: chapters }, (_, i) => <View key={i} style={[styles.bar, i + 1 === verse[0] && styles.barHere]} />)}</View>
+        <Text style={styles.tileLabel}>{t('breakup.numberingStep.facts.chapters', { count: chapters })}</Text>
+        <Text style={styles.verse}>{said}</Text>
+      </View>
+    );
+  };
+  return (
+    <>
+      <Question>{t('breakup.numberingStep.why.question')}</Question>
+      <View style={styles.tiles}>
+        {bible(t('breakup.numberingStep.why.english'), 4, [4, 1])}
+        {bible(t('breakup.numberingStep.why.hebrew'), 3, [3, 19])}
+      </View>
+      <Text style={txt2.muted}>{t('breakup.numberingStep.why.match')}</Text>
+    </>
+  );
+}
+
+/**
+ * Three ways to find the numbering, side by side and none of them buried (LAN-193): by the Bible, with the
+ * quiz, or from the list. A numbering other languages here use comes first, one tap from done.
+ */
+export function FindWaysPage(props: {
+  numberings: NumberingChoice[];
+  usedIn: Record<string, string[]>;
+  onPick: (code: string) => void;
+  onFind: () => void;
+  onQuiz: () => void;
+  onList: () => void;
+}) {
+  const used = Object.entries(props.usedIn).map(([code, langs]) => ({ n: props.numberings.find((x) => x.code === code), langs })).filter((x) => x.n);
+  return (
+    <>
+      <Question>{t('breakup.numberingStep.how.question')}</Question>
+      {used.map(({ n, langs }) => (
+        <HelpRow key={n!.code} of="numbering.used">
+          <ChoiceCard on={false} icon="people" title={shortName(n!.name)} sub={t('breakup.usedIn.one', { name: langs.join(t('admin.list.separator')) })}
+            help={t('breakup.numberingStep.find.usedHelp')} onPress={() => props.onPick(n!.code)} />
+        </HelpRow>
+      ))}
+      <ChoiceCard chevron on={false} icon="book" title={t('breakup.numberingStep.how.find')} sub={t('breakup.numberingStep.how.findSub')}
+        help={t('breakup.numberingStep.how.findHelp')} onPress={props.onFind} />
+      <ChoiceCard chevron on={false} icon="help" title={t('breakup.numberingStep.how.quiz')} sub={t('breakup.numberingStep.how.quizSub')}
+        help={t('breakup.numberingStep.find.quizHelp')} onPress={props.onQuiz} />
+      <ChoiceCard chevron on={false} icon="list" title={t('breakup.numberingStep.how.list')} sub={t('breakup.numberingStep.how.listSub')}
+        help={t('breakup.numberingStep.chooseFromListHelp')} onPress={props.onList} />
+    </>
+  );
+}
+
 /** The digits of the small drawn page: part of a picture, not text to read (below the 13 point floor on purpose). */
 const PICTURE_DIGIT = 11;
 
@@ -320,5 +396,7 @@ const styles = StyleSheet.create({
   done: { alignItems: 'center', marginTop: space.md },
   context: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 48, borderRadius: radius.full, backgroundColor: C.light, paddingHorizontal: space.md, alignSelf: 'flex-start' },
   contextText: { flexShrink: 1, fontSize: T.sm, fontWeight: '700', color: C.dark },
-  contextChange: { fontSize: T.sm, fontWeight: '800', color: C.primary }
+  contextChange: { fontSize: T.sm, fontWeight: '800', color: C.primary },
+  barHere: { backgroundColor: C.amber },
+  verse: { fontSize: T.sm, fontWeight: '800', color: TINT.amberText, backgroundColor: TINT.amber, borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 2, overflow: 'hidden' }
 });

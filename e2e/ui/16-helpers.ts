@@ -10,8 +10,8 @@ import {
 /**
  * The parts card's count ("Parts 1–3, 3 parts", or "Version 1, 5 parts"
  * while they are still the version's), or 0 before the first part. While
- * recording the card gives way to the recording view, whose title is the
- * part being said ("Part 4. Recording…"): three are kept.
+ * recording the card gives way to the recording view, whose status says how
+ * many are kept ("Listening for you. 3 parts so far"; 0 while a part is being said).
  */
 export async function partsCount(page: Page): Promise<number> {
   // Only what is on screen now: a lookup that waits for an absent card makes a recording overrun its stop.
@@ -21,10 +21,10 @@ export async function partsCount(page: Page): Promise<number> {
     return m ? Number(m[1]) : 0;
   }
   if (!(await page.getByRole('button', { name: 'Done', exact: true }).locator('visible=true').count())) return 0;
-  const live = page.getByLabel(/^Part \d+\. /).locator('visible=true').first();
+  const live = page.getByLabel(/\d+ parts? so far$/).locator('visible=true').first();
   if (!(await live.count())) return 0;
-  const n = (await live.getAttribute('aria-label').catch(() => null))?.match(/^Part (\d+)\. /);
-  return n ? Number(n[1]) - 1 : 0;
+  const n = /(\d+) parts? so far$/.exec((await live.getAttribute('aria-label').catch(() => null)) ?? '');
+  return n ? Number(n[1]) : 0;
 }
 
 /**
@@ -66,12 +66,12 @@ export async function sayEachPart(page: Page, parts: number): Promise<void> {
 }
 
 /**
- * The workspace's Done, then on its last look either "Send later" (published,
+ * The workspace's Done, then on its last look either "Done, don't ask anyone" (published,
  * nobody asked) or, with no check next, "Finish Version N" (decision 127).
  */
 export async function publishVersion(page: Page, n: number): Promise<void> {
   await byId(page, 'publish-button').click();
-  await button(page, 'Send later').or(button(page, `Finish Version ${n}`)).first().click();
+  await button(page, "Done, don't ask anyone").or(button(page, `Finish Version ${n}`)).first().click();
 }
 
 /** Open the bell on My Work. */

@@ -1,7 +1,7 @@
 // Avatar U. Local and remote playback, paused before recording starts. A
-// file on this device plays at even loudness (levelStore.ts, decision 182).
+// file on this device plays at even loudness (levelStore.ts, decision 182),
+// and on the web through the one element a tap unlocked (recordingPlayer.web.ts).
 import { isStored } from '@langquest-next/core';
-import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Text } from '../ui/text';
@@ -12,9 +12,10 @@ import { txt } from '../ui/textStyles';
 import { noteExpected, reportError } from '../diagnostics/report';
 import { countAudio } from './audioTally';
 import { C, target } from '../ui/theme';
-import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
+import { playerInRow, registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import { audioFormat } from './audioFormat';
 import { playable, prepare } from './levelStore';
+import { createRecordingPlayer, unlockRecordingPlayer, type RecordingPlayer } from './recordingPlayer';
 
 // A player failure is a fault (native audio): it is reported and said without its message.
 export function AudioClip(props: {
@@ -28,7 +29,7 @@ export function AudioClip(props: {
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState('');
   const [, refresh] = useState(0);
-  const player = useRef<AudioPlayer | null>(null);
+  const player = useRef<RecordingPlayer | null>(null);
   const generation = useRef(0);
   const wantsPlayback = useRef(false);
   const signature = props.uri ?? props.hashes.join(':');
@@ -75,6 +76,7 @@ export function AudioClip(props: {
       player.current?.pause(); setPlaying(false); return;
     }
     stopAudioPlayback();
+    unlockRecordingPlayer();
     const run = generation.current;
     wantsPlayback.current = true;
     setPlaying(true);
@@ -93,9 +95,12 @@ export function AudioClip(props: {
       }
       const next = async (index: number) => {
         if (!wantsPlayback.current) return;
+        // Each part is its own run: Play after a pause goes on from the part it was in.
+        const run = generation.current;
         player.current?.remove();
         player.current = null;
-        if (index >= (props.uri ? 1 : props.hashes.length)) {
+        const count = props.uri ? 1 : props.hashes.length;
+        if (index >= count) {
           wantsPlayback.current = false; setPlaying(false); return;
         }
         const hash = props.hashes[index]!;
@@ -117,7 +122,7 @@ export function AudioClip(props: {
         if (generation.current !== run || !wantsPlayback.current) return;
         if (!props.uri) prepare(language, props.hashes[index + 1]);
         try {
-          const p = createAudioPlayer({ uri });
+          const p = createRecordingPlayer(uri, playerInRow(index, count));
           player.current = p;
           p.addListener('playbackStatusUpdate', (status) => {
             if (player.current !== p) return;
@@ -128,6 +133,8 @@ export function AudioClip(props: {
               countAudio(language, 'playFail');
               return;
             }
+            // The browser would not start it without a tap: it waits there, for Play to go on from it.
+            if (status.refused) { wantsPlayback.current = false; setPlaying(false); countAudio(language, 'playFail'); return; }
             if (status.didJustFinish && player.current === p) void next(index + 1);
           });
           p.play();

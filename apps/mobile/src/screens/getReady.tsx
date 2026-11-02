@@ -469,6 +469,10 @@ function ReferenceLanguageStep({ ctx, lang, header, back, onDone }: StepProps & 
   const values = picked ?? current;
   const value = values[0]!;
   const refs = useReferenceLanguages(ctx, [...values, readerLanguage(), 'eng']);
+  // The question names Bibles only for a language that translates one (LAN-143).
+  const tplHash = state.template?.value?.docHash;
+  const tpl = useLibraryDocs(ctx.language.orgId, [tplHash], { deps: false }).get(tplHash);
+  const bible = tpl && isTemplateDoc(tpl) ? !!tpl.bible : undefined;
   const may = ctx.session.can('manage_reference');
   const [busy, setBusy] = useState(false);
 
@@ -513,7 +517,8 @@ function ReferenceLanguageStep({ ctx, lang, header, back, onDone }: StepProps & 
       <PrimaryBtn label={t('common.next')} icon="right" busy={busy} help={t('getReady.language.nextHelp')} onPress={() => void save()} />
       <StepBack onPress={back} />
     </>}>
-      <ReferenceLanguagePage team={lang} choices={refs.choices} value={values} first={current} onChange={setPicked} loading={refs.loading} />
+      <ReferenceLanguagePage team={lang} choices={refs.choices} value={values} first={current} onChange={setPicked} loading={refs.loading}
+        {...(bible === undefined ? {} : { bible })} />
       {!may ? <Banner icon="lock" title={t('common.viewOnly')} body={t('getReady.helps.viewOnly')} /> : null}
     </Screen>
   );
@@ -931,7 +936,7 @@ function InviteStep({ ctx, lang, header, next, back }: StepProps) {
   const [more, setMore] = useState(false);
   const may = ctx.session.can('invite_members') && mayGrantAt(ctx.org.state, ctx.session.actorId, scope);
   const roleId = roles.choices.find((c) => c.id === choice)?.roleId ?? roles.others.find((r) => r.id === choice)?.id ?? null;
-  const invite = useGroupInvite(ctx.language.orgId, may ? roleId : null, may ? scope : null, t('admin.invite.teamLabel', { name: lang }));
+  const invite = useGroupInvite(ctx.language.orgId, may ? roleId : null, may ? scope : null, t('admin.invite.teamLabel', { name: lang }), { pull: ctx.org.sync });
   const uri = invite && 'uri' in invite ? invite.uri : null;
   // A role made from here ("Something else: make a new role") comes back chosen, its code shown, as on Invite someone.
   const rolesBefore = useRef<Set<string> | null>(null);

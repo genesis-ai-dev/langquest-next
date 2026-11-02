@@ -46,8 +46,8 @@ export const chooseAContentTemplate: Tutorial = {
     },
     {
       screen: 'templates_home',
-      // The first radio is the one in use.
-      part: (page) => [radios(page).nth(1), radios(page).last()],
+      // The one in use is the card above; every ready-made way below it is a radio.
+      part: (page) => [radios(page).first(), radios(page).last()],
       say: 'Below it are other ready-made ways to divide the Bible: by book, by chapter, or in sections. Tap one to use it instead.'
     },
     {
@@ -60,8 +60,13 @@ export const chooseAContentTemplate: Tutorial = {
     },
     {
       screen: 'templates_home',
+      // The question it asks again, lit with its answers while the voice talks about them; Next is tapped after.
+      part: (page) => [words(page, 'What will Lumari translate?'), radios(page).first(), radios(page).last()],
+      say: 'It asks the same questions as when the language was added. Keep what stays the same.'
+    },
+    {
+      screen: 'templates_home',
       part: (page) => id(page, 'primary-action'),
-      say: 'It asks the same questions as when the language was added. Keep what stays the same.',
       tap: true,
       stay: 0.6
     },

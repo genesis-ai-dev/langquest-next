@@ -272,14 +272,7 @@ export async function setHome(fetcher: Fetch, token: string, language: ChannelLa
   const have = ((await answer<{ items?: Section[] }>(
     await fetcher(`${API}/channelSections?part=snippet,contentDetails&mine=true`, { headers: json(token) }))).items ?? [])
     .sort((a, b) => a.snippet.position - b.snippet.position);
-  const lists = new Map<string, string>();
-  let page = '';
-  do {
-    const got = await answer<{ items?: { id: string; snippet: { title: string } }[]; nextPageToken?: string }>(
-      await fetcher(`${API}/playlists?part=snippet&mine=true&maxResults=50${page ? `&pageToken=${encodeURIComponent(page)}` : ''}`, { headers: json(token) }));
-    for (const p of got.items ?? []) if (!lists.has(p.snippet.title)) lists.set(p.snippet.title, p.id);
-    page = got.nextPageToken ?? '';
-  } while (page);
+  const lists = await playlistsOf(fetcher, token);
   const want: Row[] = [
     { type: 'multipleChannels', title: WORDS[language].otherChannels, ids: (Object.keys(CHANNELS) as ChannelLanguage[]).filter((l) => l !== language).map((l) => CHANNELS[l]) },
     ...HOME_ORDER.flatMap((who): Row[] => {
@@ -499,22 +492,82 @@ export async function uploadVideo(fetcher: Fetch, token: string, video: NewVideo
   return done.id;
 }
 
-/** The channel's playlist with this title, made when there is none (and `made` is told). */
-export async function playlistFor(fetcher: Fetch, token: string, title: string, language: ChannelLanguage, made?: () => void): Promise<string> {
+/** The channel's playlists by title (a title twice: the first). A unit for each 50. */
+export async function playlistsOf(fetcher: Fetch, token: string): Promise<Map<string, string>> {
+  const lists = new Map<string, string>();
   let page = '';
   do {
     const got = await answer<{ items?: { id: string; snippet: { title: string } }[]; nextPageToken?: string }>(
       await fetcher(`${API}/playlists?part=snippet&mine=true&maxResults=50${page ? `&pageToken=${encodeURIComponent(page)}` : ''}`, { headers: json(token) }));
-    const found = got.items?.find((p) => p.snippet.title === title);
-    if (found) return found.id;
+    for (const p of got.items ?? []) if (!lists.has(p.snippet.title)) lists.set(p.snippet.title, p.id);
     page = got.nextPageToken ?? '';
   } while (page);
-  const playlist = await answer<{ id: string }>(await fetcher(`${API}/playlists?part=snippet,status`, {
-    method: 'POST', headers: json(token),
-    body: JSON.stringify({ snippet: { title, defaultLanguage: language }, status: { privacyStatus: 'public' } })
+  return lists;
+}
+
+/**
+ * The channel's playlist with this title, made when there is none (and `made`
+ * is told). It is made in the channel's language, and without one when
+ * YouTube refuses that language for a playlist: the Hausa channel never got
+ * a playlist, though its videos went up in Hausa, and the publish job's
+ * first error on 2026-11-02 was localizationValidationError, which YouTube
+ * gives only for a playlist's or a channel's language (decisions.md 180).
+ */
+export async function playlistFor(fetcher: Fetch, token: string, title: string, language: ChannelLanguage, made?: () => void): Promise<string> {
+  const found = (await playlistsOf(fetcher, token)).get(title);
+  if (found) return found;
+  const make = async (snippet: Record<string, string>) => answer<{ id: string }>(await fetcher(`${API}/playlists?part=snippet,status`, {
+    method: 'POST', headers: json(token), body: JSON.stringify({ snippet, status: { privacyStatus: 'public' } })
   }));
+  let playlist: { id: string };
+  try {
+    playlist = await make({ title, defaultLanguage: language });
+  } catch (e) {
+    if (!(e instanceof YouTubeError && e.reason === 'localizationValidationError')) throw e;
+    playlist = await make({ title });
+  }
   made?.();
   return playlist.id;
+}
+
+/** One entry of a playlist: its own id, the video in it, and its place from 0. */
+export interface Entry { id: string; videoId: string; position: number }
+
+/** A playlist's entries in order. A unit for each 50. */
+export async function entriesOf(fetcher: Fetch, token: string, playlistId: string): Promise<Entry[]> {
+  const entries: Entry[] = [];
+  let page = '';
+  do {
+    const got = await answer<{ items?: { id: string; snippet: { position: number; resourceId: { videoId: string } } }[]; nextPageToken?: string }>(
+      await fetcher(`${API}/playlistItems?part=snippet&playlistId=${encodeURIComponent(playlistId)}&maxResults=50${page ? `&pageToken=${encodeURIComponent(page)}` : ''}`, { headers: json(token) }));
+    for (const i of got.items ?? []) entries.push({ id: i.id, videoId: i.snippet.resourceId.videoId, position: i.snippet.position });
+    page = got.nextPageToken ?? '';
+  } while (page);
+  return entries.sort((a, b) => a.position - b.position);
+}
+
+/** Puts a video in a playlist, at a place from 0, or at the end. 50 units. */
+export async function addToPlaylist(fetcher: Fetch, token: string, playlistId: string, videoId: string, position?: number): Promise<void> {
+  await answer(await fetcher(`${API}/playlistItems?part=snippet`, {
+    method: 'POST', headers: json(token),
+    body: JSON.stringify({ snippet: { playlistId, resourceId: { kind: 'youtube#video', videoId }, ...(position === undefined ? {} : { position }) } })
+  }));
+}
+
+/** Takes one entry out of its playlist. 50 units. */
+export async function removeEntry(fetcher: Fetch, token: string, entryId: string): Promise<void> {
+  await answer(await fetcher(`${API}/playlistItems?id=${encodeURIComponent(entryId)}`, { method: 'DELETE', headers: json(token) }));
+}
+
+/** Which of these videos anyone can find on the channel (public, not unlisted). A video gone is not among them. A unit for each 50. */
+export async function publicOf(fetcher: Fetch, token: string, ids: string[]): Promise<Set<string>> {
+  const shown = new Set<string>();
+  for (let i = 0; i < ids.length; i += 50) {
+    const got = await answer<{ items?: { id: string; status: { privacyStatus: string } }[] }>(
+      await fetcher(`${API}/videos?part=status&id=${ids.slice(i, i + 50).map(encodeURIComponent).join(',')}`, { headers: json(token) }));
+    for (const v of got.items ?? []) if (v.status.privacyStatus === 'public') shown.add(v.id);
+  }
+  return shown;
 }
 
 /**
@@ -529,11 +582,8 @@ export async function placeInPlaylist(fetcher: Fetch, token: string, playlistId:
       await fetcher(`${API}/playlistItems?part=snippet&playlistId=${encodeURIComponent(playlistId)}&videoId=${encodeURIComponent(replacing)}`, { headers: json(token) }));
     old = got.items?.[0];
   }
-  await answer(await fetcher(`${API}/playlistItems?part=snippet`, {
-    method: 'POST', headers: json(token),
-    body: JSON.stringify({ snippet: { playlistId, resourceId: { kind: 'youtube#video', videoId }, ...(old ? { position: old.snippet.position } : first ? { position: 0 } : {}) } })
-  }));
-  if (old) await answer(await fetcher(`${API}/playlistItems?id=${encodeURIComponent(old.id)}`, { method: 'DELETE', headers: json(token) }));
+  await addToPlaylist(fetcher, token, playlistId, videoId, old ? old.snippet.position : first ? 0 : undefined);
+  if (old) await removeEntry(fetcher, token, old.id);
 }
 
 /**

@@ -45,6 +45,7 @@ import { useLayout, useOpenDetail } from '../ui/useLayout';
 import { tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications/notifications';
 import { notificationTarget, openAfterSwitch } from '../notifications/notificationTarget';
 import { personLook } from '../ui/people';
+import { usePerson } from '../ui/usePerson';
 import { noteExpected, failureMessage } from '../diagnostics/report';
 import { ReportActions } from '../moderation/reportSheet';
 import { contractsFor } from '../shell/screenContracts';
@@ -182,7 +183,7 @@ export function InboxHome(ctx: Ctx) {
     if (decided[r.id]) continue;
     items.push({
       id: `join:${r.id}`, icon: 'people', title: t('account.inbox.joinRequest'), read: false,
-      body: t('account.inbox.askedToJoin', { name: r.name ?? names[r.profileId] ?? personLook(r.profileId).name, org: orgName }),
+      body: t('account.inbox.askedToJoin', { name: r.name ?? names[r.profileId] ?? t('shell.person.someone'), org: orgName }),
       time: formatShortDate(r.createdAt), onPress: () => setOpenRequest(r), help: t('account.inbox.joinHelp')
     });
   }
@@ -345,7 +346,7 @@ export function InboxHome(ctx: Ctx) {
         {openRequest ? (
           <View style={styles.requestBody}>
             <Text style={txt.body}>
-              {t('account.inbox.askedToJoin', { name: openRequest.name ?? names[openRequest.profileId] ?? personLook(openRequest.profileId).name, org: orgName })}
+              {t('account.inbox.askedToJoin', { name: openRequest.name ?? names[openRequest.profileId] ?? t('shell.person.someone'), org: orgName })}
             </Text>
             {openRequest.message ? <Text style={[txt.sm, { fontStyle: 'italic' }]}>"{openRequest.message}"</Text> : null}
           </View>
@@ -553,6 +554,7 @@ function SwitchOrgRow(props: { ctx: Ctx; orgName: string; several: boolean; last
  */
 function BlockedPeople(props: { ctx: Ctx; onClose: () => void }) {
   const { ctx } = props;
+  const person = usePerson();
   // The list as the sheet opened, so a row keeps its place when its button is used.
   const [listed] = useState(() => ctx.blocks.ids);
   async function set(id: string, blocked: boolean) {
@@ -572,7 +574,7 @@ function BlockedPeople(props: { ctx: Ctx; onClose: () => void }) {
             const blocked = ctx.blocks.has(id);
             return (
               <HelpRow key={id} of="account.blockedPerson">
-                <Row leading={<PersonAvatar look={personLook(id, ctx.name(id))} size={36} />} label={ctx.name(id)}
+                <Row leading={<PersonAvatar look={person(id)} size={36} />} label={ctx.name(id)}
                   {...(blocked ? {} : { sub: t('account.blocked.unblocked') })} last={i === all.length - 1}
                   right={blocked
                     ? <SmallBtn label={t('account.blocked.unblock')} help={t('account.blocked.unblockHelp')} onPress={() => void set(id, false)} />
@@ -697,6 +699,9 @@ export function OrgSwitcher(ctx: Ctx) {
         );
       })}
       {!rows.length && !error ? <EmptyState icon="building" title={t('account.orgs.loading')} /> : null}
+      {/* App only: someone already in an organization joins another with this account, by its code or from the list (LAN-197). */}
+      <OrgWay icon="qr" label={t('entry.intent.scanTitle')} sub={t('entry.intent.scanSub')} help={t('entry.intent.scanHelp')} onPress={() => ctx.go('scan_qr')} />
+      <OrgWay icon="search" label={t('entry.intent.findTitle')} sub={t('entry.intent.findSub')} help={t('entry.intent.findHelp')} onPress={() => ctx.go('request_access', { from: 'org_switcher' })} />
       {/* App only: someone already in an organization starts another, and is its Organization Admin. */}
       <Card onPress={() => ctx.go('create_org')} accessibilityLabel={t('account.orgs.newOrg')} help={t('account.orgs.newOrgHelp')}>
         <View style={styles.profile}>
@@ -708,6 +713,21 @@ export function OrgSwitcher(ctx: Ctx) {
         </View>
       </Card>
     </Screen>
+  );
+}
+
+/** Another way into an organization, under the ones this person is in: a card like New organization's. */
+function OrgWay(props: { icon: IconName; label: string; sub: string; help: string; onPress: () => void }) {
+  return (
+    <Card onPress={props.onPress} accessibilityLabel={`${props.label}. ${props.sub}`} help={props.help}>
+      <View style={styles.profile}>
+        <View style={styles.tile}><Ico name={props.icon} size={24} color={C.primary} /></View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[txt.body, { fontWeight: '600', color: C.primary }]}>{props.label}</Text>
+          <Text style={txt.xs}>{props.sub}</Text>
+        </View>
+      </View>
+    </Card>
   );
 }
 

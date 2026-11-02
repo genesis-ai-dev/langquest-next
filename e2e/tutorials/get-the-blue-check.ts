@@ -54,7 +54,8 @@ export const getTheBlueCheck: Tutorial = {
     },
     {
       screen: 'org_home',
-      part: (page) => page.getByText(/^A blue check means the LangQuest team has verified/).locator('visible=true').first(),
+      // The words with the blue check beside them.
+      part: (page) => page.getByText(/^A blue check means the LangQuest team has verified/).locator('visible=true').first().locator('xpath=..'),
       say: 'A blue check means the LangQuest team has checked your organization is who it says.'
     },
     {

@@ -197,7 +197,7 @@ export function HelpModeProvider(props: { children: ReactNode }) {
     }
     let seen = false;
     for (const l of store.lit.values()) {
-      if (l.what.kind !== 'part' || store.first.has(l.what.part) || !speaks(l.what.rows, store.rows)) continue;
+      if (l.what.kind !== 'part' || l.what.quiet || store.first.has(l.what.part) || !speaks(l.what.rows, store.rows)) continue;
       if (!inSight(l)) continue;
       if (!seen && store.frame - store.lastSeen > BURST) store.burst = store.frame;
       store.first.set(l.what.part, { seen: store.burst, rect: l.rect });
@@ -336,7 +336,7 @@ function HelpLayer(props: {
     const within = l.what.clip ? clips.get(l.what.clip) : undefined;
     const rect = clipRect(local(l.rect), within);
     const part = partOf(l.what);
-    const quiet = !speaks(rowsOf(l.what), store.rows) && part !== props.current;
+    const quiet = (!speaks(rowsOf(l.what), store.rows) || (l.what.kind === 'part' && !!l.what.quiet)) && part !== props.current;
     if (rect) lit.push({ rect, part, mark: l.what.kind === 'part' ? l.what.mark : null, quiet });
   }
   const at = props.current ? lit.find((l) => l.part === props.current)?.rect ?? null : null;

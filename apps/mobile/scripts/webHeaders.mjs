@@ -14,6 +14,14 @@
 //   word catalogs in /i18n, which the app asks for with the build's id
 //   (?v=, catalogs.web.ts) so a new build fetches new words; the page and
 //   version.json are always checked.
+// - The ETEN Summit page (public/eten/, decisions.md 196) may frame YouTube's
+//   no-cookie player and nothing else: its block detaches the policy above
+//   and sets the same one with that one frame source. Cloudflare applies
+//   `! Header` before the block's own value, so the page gets one policy,
+//   not two.
+
+/** The one frame source the ETEN Summit page needs: YouTube's player that sets no cookies until played. */
+export const ETEN_FRAME_SOURCE = 'https://www.youtube-nocookie.com';
 
 export function headersFor({ supabaseUrl }) {
   const supabase = new URL(supabaseUrl);
@@ -34,6 +42,7 @@ export function headersFor({ supabaseUrl }) {
     "form-action 'self'",
     "frame-ancestors 'none'"
   ].join('; ');
+  const etenCsp = `${csp}; frame-src ${ETEN_FRAME_SOURCE}`;
   return `/*
   Content-Security-Policy: ${csp}
   Strict-Transport-Security: max-age=31536000; includeSubDomains
@@ -59,5 +68,9 @@ export function headersFor({ supabaseUrl }) {
 
 /.well-known/apple-app-site-association
   Content-Type: application/json
+
+/eten/*
+  ! Content-Security-Policy
+  Content-Security-Policy: ${etenCsp}
 `;
 }
