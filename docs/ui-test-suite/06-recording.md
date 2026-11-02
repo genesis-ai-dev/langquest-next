@@ -901,7 +901,7 @@ Steps:
 2. In the sheet "Part 3", tap verse 25, then verse 26.
 3. Tap "Auto".
 4. Tap "None".
-5. Tap verse 25, then "Done". Hold Part 3's space again.
+5. Tap "Auto", then "Done". Hold Part 3's space again.
 6. Tap "Delete Part 3", then the Undo arrow left of the red button.
 
 Expected:
@@ -909,7 +909,7 @@ Expected:
 - Each tap applies at once, with no toast: step 2 ends with Part 3 as verses 25–26.
 - Step 3 lets the app work it out from the neighbours.
 - Step 4 clears it.
-- Step 5: "Done" closes the sheet and Part 3 keeps verse 25.
+- Step 5: "Done" closes the sheet and Part 3 keeps the verses Auto gave it. (A verse picked past a gap would leave the verses between out, as a place of its own before it.)
 - Step 6 deletes the part and Undo restores it.
 - A later part whose label no longer fits after a chosen verse loses its label instead of breaking the order.
 

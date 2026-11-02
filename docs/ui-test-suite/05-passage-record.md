@@ -144,7 +144,8 @@ Expected:
 - When FIA's study guide for this passage is offered, "Study" shows first,
   as passed ("–"), with the sub "{pattern} guide · {done} of {n} steps". It
   is passed because recording has started.
-- "Record" is done, with the sub "Version 1 · {m:ss}". The "Done" step is
+- "Record" is done, with the sub "Version 1 · {m:ss}", and Version 1's
+  player under it (LAN-128). The "Done" step is
   done too, with the sub "Published {when} · asked {REV}" ("Published just
   now" when it is new; it read "Published Just now", REC-012).
 - "Then the team": "Peer check" reads "asked {REV}", "Back translation"
@@ -690,8 +691,8 @@ Expected:
 - Tiles: "Add a note" (everyone but VIEW) and "What helps here" (everyone).
 - No offline card: whether the passage comes along offline is the line at
   the top of the passage (PASS-035, decision 166).
-- The footnote reads "Each check under "Then the team" has its own options
-  too: tap it on the path."
+- No footnote "Each check under "Then the team" has its own options too":
+  with nothing recorded, the checks do not open yet (LAN-127).
 - The footer "Say it instead", with "A voice note on this passage. Your team
   hears it here.", shows for everyone but VIEW.
 

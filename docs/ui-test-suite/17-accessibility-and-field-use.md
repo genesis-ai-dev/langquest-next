@@ -398,8 +398,9 @@ Expected:
 - Scripts render with the right font: Ethiopic, Devanagari, Bengali, Thai and Myanmar, with no tofu (□).
 
 Web: the test picks each language from Me → Language and reads My Work, the
-passage record (with a check's choices and Something else?), the workspace
-and Me as TRANS, and REV's back translation
+passage record (with Something else?), the workspace, a check's choices on
+P-SUBMITTED (a passage with no version has none, LAN-127) and Me as TRANS,
+and REV's back translation
 (Review it's Listen needs a request to REV that A11Y-015 uses up), on a
 360 pt wide phone. It fails on a raw key in any text or spoken name, on any
 whole text that is an English catalog word the language translates, and on

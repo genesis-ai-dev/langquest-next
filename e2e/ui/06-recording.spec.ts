@@ -1004,12 +1004,13 @@ test('REC-042 Hold a part to choose its verses, Auto, None or Delete', async ({ 
   await set({ mark: 'none' });
   await expect(byId(page, 'toast')).toHaveCount(0);
   // The way out is Done, which keeps what was picked: no ✕ to read as Cancel (LAN-134).
-  await page.getByRole('button', { name: /^Verse 25$/ }).click();
-  await set({ mark: 'set', from: '13:25', to: '13:25' });
+  await button(page, 'Auto').click();
+  await set({ mark: 'next' });
   await expect(byId(page, 'sheet-close')).toHaveCount(0);
   await byId(page, 'sheet').getByRole('button', { name: 'Done', exact: true }).click();
   await expect(button(page, 'None')).toBeHidden();
-  await expect(verseSpace(page, 3)).toHaveAccessibleName(/^Part 3, Verse 25/);
+  await expect(verseSpace(page, 3)).toHaveAccessibleName(/^Part 3, Verses? /);
+  expect((await marks()).at(-1)?.payload).toMatchObject({ mark: 'next' });
   await holdPart(page, 3);
   await button(page, 'Delete Part 3').click();
   await expectParts(page, parts - 1);
