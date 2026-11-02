@@ -6,7 +6,7 @@
 import { useContext, useEffect, useId, useMemo, useRef, type ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { HelpLit, HelpRowAt, HelpSpot } from './helpContext';
-import { HelpClipContext, HelpContext, HelpHostContext, HelpLayerContext, HelpRowContext, useHelpOn } from './useHelpMode';
+import { HelpClipContext, HelpContext, HelpHostContext, HelpLayerContext, HelpQuietContext, HelpRowContext, useHelpOn } from './useHelpMode';
 
 /** Tell the help layer where the view holding this ref is: when it is laid out, and as often as help mode measures (measureModel.ts) while help is on. */
 function useLit(what: HelpLit | null, id: string) {
@@ -35,9 +35,10 @@ export function HelpBadge(props: { spot: HelpSpot<unknown>; inset?: boolean }) {
   const id = useId();
   const clip = useContext(HelpClipContext);
   const rows = useContext(HelpRowContext);
+  const quiet = useContext(HelpQuietContext);
   const part = props.spot.id;
-  const what = useMemo<HelpLit | null>(() => (part ? { kind: 'part', part, mark: props.inset ? 'inset' : 'corner', ...(clip ? { clip } : {}), ...(rows ? { rows } : {}) } : null),
-    [part, props.inset, clip, rows]);
+  const what = useMemo<HelpLit | null>(() => (part ? { kind: 'part', part, mark: props.inset ? 'inset' : 'corner', ...(clip ? { clip } : {}), ...(rows ? { rows } : {}), ...(quiet ? { quiet } : {}) } : null),
+    [part, props.inset, clip, rows, quiet]);
   const lit = useLit(what, id);
   return part ? <View ref={lit.ref} onLayout={lit.onLayout} collapsable={false} style={styles.box} pointerEvents="none" /> : null;
 }
@@ -66,6 +67,20 @@ export function HelpRow(props: { of: string; children: ReactNode }) {
   const outer = useContext(HelpRowContext);
   const rows = useMemo<readonly HelpRowAt[]>(() => [...(outer ?? []), { of: props.of, row }], [outer, props.of, row]);
   return <HelpRowContext.Provider value={rows}>{props.children}</HelpRowContext.Provider>;
+}
+
+/**
+ * A busy screen's secondary parts (LAN-135): while help is on they stay dim
+ * and unnumbered, as a list's other rows do, and a tap on one still explains
+ * it. So the numbers go to the few parts that matter most on that screen.
+ * `HelpLoud` inside it numbers a part again.
+ */
+export function HelpQuiet(props: { children: ReactNode }) {
+  return <HelpQuietContext.Provider value={true}>{props.children}</HelpQuietContext.Provider>;
+}
+
+export function HelpLoud(props: { children: ReactNode }) {
+  return <HelpQuietContext.Provider value={false}>{props.children}</HelpQuietContext.Provider>;
 }
 
 /**

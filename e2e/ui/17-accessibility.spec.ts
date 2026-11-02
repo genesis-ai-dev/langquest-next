@@ -488,12 +488,7 @@ test('A11Y-019 every interface language fills the key screens without gaps', asy
     await expect(primary(page)).toBeVisible();
     problems.push(...await gaps(page, code, 'the passage record'));
     cutWords.push(...await cut(page, code, 'the passage record'));
-    // A check's choices and Something else?: the screens where long words met side-by-side buttons.
-    await text(page, words['admin.kinds.peer.step']!).click();
-    await expect(byId(page, 'sheet-close')).toBeVisible();
-    cutWords.push(...await cut(page, code, "a check's choices"));
-    await byId(page, 'sheet-close').click();
-    await expect(byId(page, 'sheet-close')).toBeHidden();
+    // Something else?, and below a check's choices: the screens where long words met side-by-side buttons.
     await button(page, words['passage.else.title']!).click();
     await expect(byId(page, 'header-close')).toBeVisible();
     cutWords.push(...await cut(page, code, 'Something else?'));
@@ -503,6 +498,14 @@ test('A11Y-019 every interface language fills the key screens without gaps', asy
     await expect(byId(page, 'record-button')).toBeVisible();
     problems.push(...await gaps(page, code, 'the recording workspace'));
     cutWords.push(...await cut(page, code, 'the recording workspace'));
+    // A check's choices open on a passage with a version to check (LAN-127): P-SUBMITTED's peer check.
+    await home(page);
+    await openPassage(page, w, 'P-SUBMITTED');
+    await text(page, words['admin.kinds.peer.step']!).click();
+    await expect(byId(page, 'sheet-close')).toBeVisible();
+    cutWords.push(...await cut(page, code, "a check's choices"));
+    await byId(page, 'sheet-close').click();
+    await expect(byId(page, 'sheet-close')).toBeHidden();
     await home(page);
     await tab(page, 'me').click();
     await expect(button(page, new RegExp(`^${esc(words['uiLanguage.row']!)}`))).toBeVisible();

@@ -301,7 +301,7 @@ Roles: TRANS · Priority: P2 · Platforms: Android · Run: Device
 Preconditions: A mid-range Android phone at the brightness it picks automatically, outdoors in direct sun.
 
 Steps:
-1. Record a passage, tap "Done", then "Send later".
+1. Record a passage, tap "Done", then "Done, don't ask anyone".
 2. Find a passage on the map.
 
 Expected:
@@ -398,8 +398,9 @@ Expected:
 - Scripts render with the right font: Ethiopic, Devanagari, Bengali, Thai and Myanmar, with no tofu (□).
 
 Web: the test picks each language from Me → Language and reads My Work, the
-passage record (with a check's choices and Something else?), the workspace
-and Me as TRANS, and REV's back translation
+passage record (with Something else?), the workspace, a check's choices on
+P-SUBMITTED (a passage with no version has none, LAN-127) and Me as TRANS,
+and REV's back translation
 (Review it's Listen needs a request to REV that A11Y-015 uses up), on a
 360 pt wide phone. It fails on a raw key in any text or spoken name, on any
 whole text that is an English catalog word the language translates, and on
@@ -436,14 +437,14 @@ Steps:
 1. Cold-start the app.
 2. Open the Map, Luke, then a passage.
 3. Record for 5 minutes in one session, with pauses.
-4. Tap "Done", then "Send later".
+4. Tap "Done", then "Done, don't ask anyone".
 
 Expected:
 - The cold start reaches My Work within 5 seconds of the splash.
 - Scrolling the map and the chapters does not stutter visibly.
 - The level meter keeps moving during the 5-minute recording.
 - No parts are lost. The part count matches the pauses.
-- Done and "Send later" complete without an "Application not responding" dialog.
+- Done and "Done, don't ask anyone" complete without an "Application not responding" dialog.
 
 ### A11Y-022 One-handed use on a large phone
 Roles: TRANS, REV · Priority: P2 · Platforms: iOS, Android · Run: Manual

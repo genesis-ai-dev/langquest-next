@@ -718,6 +718,8 @@
       "languageHelp": "Membuka halamannya: siapkan bahasanya, lihat pekerjaan dan orang-orangnya.",
       "licenseHelp": "Lisensi yang berlaku untuk pekerjaan tim Anda. Pengaturan menjelaskan apa yang diizinkannya.",
       "newLanguageHelp": "Menambahkan bahasa ke organisasi, atau rumpun bahasa-bahasa yang berkerabat.",
+      "newCluster": "Rumpun baru",
+      "newClusterHelp": "Mengelompokkan bahasa yang sudah ada di sini di bawah satu nama. Tidak ada yang berubah pada bahasa itu.",
       "roleHelp": "Peran Anda di organisasi ini. Peran ini menentukan apa yang boleh Anda lakukan di sini.",
       "clusterGroupHelp": "Bahasa-bahasa dalam rumpun ini. Ketuk untuk menampilkan atau menyembunyikannya.",
       "looseGroupHelp": "Bahasa-bahasa yang tidak masuk rumpun mana pun. Ketuk untuk menampilkan atau menyembunyikannya.",
@@ -836,7 +838,7 @@
       "sent": "Undangan dikirim ke {{address}} sebagai {{role}}",
       "cannot": "Hanya orang yang dapat mengundang anggota yang dapat mengundang di sini.",
       "byEmail": "Lewat email",
-      "byName": "Satu orang, dengan nama",
+      "byName": "Dengan nama: satu orang atau kelompok",
       "emailTitle": "Undang lewat email",
       "send": "Kirim undangan",
       "emailLabel": "Alamat email",
@@ -2828,9 +2830,12 @@
     },
     "createAccount": {
       "title": "Buat Akun",
+      "joinTitle": "Buat akun Anda untuk bergabung",
+      "joinBody": "Undangan Anda tersimpan. Anda akan bergabung begitu masuk ke akun ini.",
       "button": "Buat Akun",
       "createdTitle": "Akun dibuat",
       "createdSub": "Buka tautan yang kami kirim ke {{email}}, lalu masuk. Setelah siap, Anda dapat membuat organisasi, meminta bergabung dengan organisasi, atau memindai undangan.",
+      "createdSubJoining": "Buka tautan yang kami kirim ke {{email}}, lalu masuk di perangkat ini. Undangan Anda tersimpan: Anda bergabung dengan tim begitu masuk.",
       "emailPlaceholder": "anda@contoh.com",
       "passwordPlaceholder": "Pilih kata sandi (6 karakter atau lebih)",
       "confirmLabel": "Konfirmasi kata sandi",
@@ -2856,6 +2861,7 @@
       "cameraOff": "Akses kamera mati. Anda dapat menempelkan kode di bawah.",
       "joinAsYou": "Gabung sebagai Anda",
       "haveAccount": "Saya sudah punya akun",
+      "emailAccount": "Buat akun dengan email",
       "notMe": "Bukan {{name}}? Keluar dulu",
       "notYou": "Bukan Anda? Keluar dulu",
       "joinWhenConnected": "Bergabung saat terhubung",
@@ -2879,6 +2885,7 @@
       "joinAsHelp": "Bergabung dengan tim di perangkat ini sebagai orang yang disebut dalam undangan.",
       "joinHelp": "Berikutnya, ketik nama Anda. Lalu Anda masuk ke dalam tim.",
       "haveAccountHelp": "Masuk dulu. Anda bergabung dengan tim begitu Anda masuk.",
+      "emailAccountHelp": "Email dan kata sandi Anda sendiri dulu. Anda bergabung dengan tim begitu Anda masuk.",
       "joinAsMeHelp": "Menambahkan akun ini ke organisasi dalam undangan.",
       "notMeHelp": "Membuka halaman keluar, agar orang yang tepat dapat bergabung di perangkat ini.",
       "stopCameraHelp": "Mematikan kamera.",
@@ -4273,8 +4280,8 @@
       "cannotOpenHere": "Itu tidak dapat dibuka dari sini.",
       "noPermission": "Anda tidak punya izin untuk membukanya.",
       "backAgainToLeave": "Tekan Kembali sekali lagi untuk keluar dari LangQuest",
-      "languageExplorer": "Penjelajah bahasa",
-      "languageExplorerNewTab": "Penjelajah bahasa, terbuka di tab baru",
+      "languageExplorer": "Bahasa-bahasa dunia dan kodenya",
+      "languageExplorerNewTab": "Bahasa-bahasa dunia dan kodenya, terbuka di tab baru",
       "tabBadge": "{{tab}}, {{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4294,6 +4301,8 @@
     "person": {
       "showId": "{{name}}. Tampilkan ID",
       "noName": "Belum ada nama",
+      "someone": "Seseorang",
+      "someoneInSentence": "seseorang",
       "id": "ID {{id}}",
       "anonymous": "{{shape}} {{color}}",
       "colors": {
@@ -4449,7 +4458,7 @@
       "manage": "Bahasa, orang, dan pengaturan organisasi Anda.",
       "inbox": "Hal-hal yang menyangkut Anda: permintaan, masukan, orang yang minta bergabung.",
       "me": "Nama Anda, perangkat ini, dan pengaturan Anda.",
-      "explorer": "Membuka penjelajah bahasa di tab baru: setiap bahasa dan di mana bahasa itu dipakai."
+      "explorer": "Membuka daftar bahasa-bahasa dunia di tab baru: kode setiap bahasa dan di mana bahasa itu dipakai. Ini bukan bahasa-bahasa organisasi Anda."
     },
     "sync": {
       "live": "Awan dengan tanda centang: terhubung. Pekerjaan Anda dikirim sambil jalan. Ketuk untuk melihat yang sudah terkirim.",
@@ -4828,8 +4837,8 @@
       "finishHelp": "Menyelesaikan {{version}}: tim bisa mendengarnya.",
       "sendHelp": "Menyelesaikan {{version}} dan mengirimnya kepada mereka untuk pemeriksaan ini. Mereka melihatnya di Pekerjaan Saya.",
       "askHelp": "Menyelesaikan {{version}}, lalu Anda memilih siapa yang diminta.",
-      "sendLater": "Kirim nanti",
-      "sendLaterHelp": "Menyelesaikan {{version}} tanpa meminta siapa pun dulu. Tim bisa mendengarnya.",
+      "doneAskNobody": "Selesai, jangan minta siapa pun",
+      "doneAskNobodyHelp": "Menyelesaikan {{version}} tanpa meminta siapa pun. Tim bisa mendengarnya, dan siapa pun yang meninjau bisa memeriksanya.",
       "nextCheck": "Pemeriksaan berikutnya",
       "checkNowHelp": "Menyelesaikan {{version}}, lalu membuka pemeriksaan berikutnya untuk Anda kerjakan sendiri sekarang."
     },
@@ -4933,6 +4942,7 @@
       "spaceSetHelp": "Lingkaran berarti Anda memilih ayat ini. Tahan untuk memilih yang lain, atau tanpa ayat.",
       "pickHelp": "Memberi {{part}} ayat ini. Lalu ketuk ayat sesudahnya untuk mencakup beberapa ayat.",
       "pickedHelp": "Terisi: {{part}} punya ayat ini. Ketuk ayat sesudahnya untuk mencakup beberapa ayat.",
+      "doneHelp": "Menutup ayat {{part}}. Yang Anda pilih sudah tersimpan; Urungkan mengembalikannya.",
       "autoHelp": "Aplikasi menentukan ayat bagian ini dari bagian-bagian di sekitarnya.",
       "noneHelp": "Membiarkan bagian ini tanpa ayat.",
       "tileHelp": "Ayat yang diucapkan bagian ini.",
@@ -6181,7 +6191,7 @@
     "finishWhat": "Selesaikan {{what}}",
     "doneHelp": "Setelah semua bagian diucapkan: selesaikan dan kirim ke pemeriksaan yang mendengarkannya berikutnya.",
     "notesForCheck_other": "{{count, number}} catatan untuk {{check}}",
-    "sendLaterHelp": "Menyelesaikan {{what}} tanpa meminta siapa pun dulu. Tim bisa mendengarnya.",
+    "doneAskNobodyHelp": "Menyelesaikan {{what}} tanpa meminta siapa pun. Tim bisa mendengarnya, dan siapa pun yang meninjau bisa memeriksanya.",
     "chips": {
       "version": "Versi {{n}}"
     },
@@ -6799,6 +6809,7 @@
   },
   "referenceLanguage": {
     "question": "Dalam bahasa apa saja Alkitab dan panduan belajar {{language}}?",
+    "questionAny": "Dalam bahasa apa saja bahan rujukan {{language}}?",
     "setPassages_other": "Panduan {{name}} untuk {{count, number}} perikop",
     "bibles_other": "{{count, number}} Alkitab",
     "otherGuides_other": "{{count, number}} panduan atau catatan lain",
@@ -7201,6 +7212,7 @@
       "note_other": "Bahasa yang sudah ada tetap menyimpan semua yang dimilikinya. {{count, number}} bahasa baru disiapkan bersama di langkah berikutnya.",
       "onlyExisting": "Tidak ada yang baru untuk disiapkan: bahasa yang sudah ada tetap menyimpan semua yang dimilikinya.",
       "make": "Buat rumpun",
+      "makeHelp": "Membuat rumpun dengan bahasa-bahasa di atas. Beri nama dan tambahkan setidaknya satu bahasa dulu.",
       "made_other": "{{cluster}} dibuat, dengan {{count, number}} bahasa.",
       "forNew_other": "Untuk {{count, number}} bahasa baru di {{cluster}}. Masing-masing bisa mengubah miliknya nanti.",
       "added_other": "{{count, number}} bahasa ditambahkan ke {{org}}, di {{cluster}}.",

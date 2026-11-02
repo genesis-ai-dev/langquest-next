@@ -165,7 +165,7 @@ test('PEOPLE-003 Invite by group code, and the person joins on a second device @
   await inviteRole(page, 'Translators');
   await expect(text(page, 'Translators · Alpha')).toBeVisible();
   await expect(text(page, 'By email')).toBeVisible();
-  await expect(text(page, 'One person, by name')).toBeVisible();
+  await expect(text(page, 'By name: a person or a group')).toBeVisible();
   await expect(text(page, 'Ask them to scan this')).toBeVisible();
   await expect(text(page, 'No password needed. Works for a whole group.')).toBeVisible();
   await expect(page.locator('svg').locator('visible=true').first()).toBeVisible();
@@ -278,7 +278,7 @@ test('PEOPLE-006 Invite one person by name, and they join @p0', async ({ page, b
   await alphaMembers(page, w);
   await button(page, 'Invite').click();
   await inviteRole(page, 'Checkers');
-  await text(page, 'One person, by name').click();
+  await text(page, 'By name: a person or a group').click();
   // The role is carried over, so step 1 is skipped.
   await expect(text(page, 'Invite by QR')).toBeVisible();
   await expect(text(page, 'Reviewer')).toBeVisible();
@@ -376,7 +376,7 @@ test('PEOPLE-008 Invite by QR targets the language chosen on Invite someone', as
   // A role's card, then its code, where the other ways to invite are (decision 146).
   await inviteRole(page, 'Translators');
   await expect(text(page, 'Translators · Bravo')).toBeVisible();
-  await text(page, 'One person, by name').click();
+  await text(page, 'By name: a person or a group').click();
   await expect(text(page, 'Step 2 of 3 — Name')).toBeVisible();
   await field(page, 'Name').fill(`Bravo person ${run()}`);
   await primary(page).click();
@@ -433,7 +433,7 @@ test('PEOPLE-010 No code is made offline', async ({ page }) => {
   await page.context().setOffline(true);
   await page.getByTestId('invite-role-Checkers').locator('visible=true').first().click();
   await expect(text(page, 'No code was made. Try again when connected.')).toBeVisible();
-  await text(page, 'One person, by name').click();
+  await text(page, 'By name: a person or a group').click();
   await field(page, 'Name').fill('Offline person');
   await primary(page).click();
   await expect(text(page, 'No code was made')).toBeVisible();
@@ -934,7 +934,7 @@ test('PEOPLE-029 A coordinator cannot grant Organization Admin @p0', async ({ pa
   await inviteRole(page, 'Team leads');
   const link = await sharedLink(page, 'Share as a link');
   expect((await inviteRow(link))['role_id']).toBe('coordinator');
-  await text(page, 'One person, by name').click();
+  await text(page, 'By name: a person or a group').click();
   await back(page).click();
   await expect(text(page, 'Step 1 of 3 — Role')).toBeVisible();
   const qrRoles = await page.getByRole('radio').locator('visible=true').allInnerTexts();
@@ -978,7 +978,7 @@ test('PEOPLE-030 A language lead grants only what they hold, only at their langu
   const row = await inviteRow(link);
   expect(row['role_id']).toBe(w.roles.languageLead);
   expect(row['scope']).toEqual({ level: 'language', languageId: w.languages.A.languageId });
-  await text(page, 'One person, by name').click();
+  await text(page, 'By name: a person or a group').click();
   await back(page).click();
   await expect(text(page, 'Step 1 of 3 — Role')).toBeVisible();
   const qrRoles = (await page.getByRole('radio').locator('visible=true').allInnerTexts()).map((s) => s.replace(/\s+/g, ' '));

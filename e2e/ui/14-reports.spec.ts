@@ -98,7 +98,7 @@ test('RPT-002 Never on a phone, and not without an organization @wide', async ({
   await openReports(page);
   await page.setViewportSize({ width: 700, height: 900 });
   // Known issue (2026-10-12): nothing moves the app off Reports when the window narrows (App.tsx).
-  await expect(text(page, 'Language explorer'), 'the sidebar goes at phone width').toBeHidden();
+  await expect(text(page, 'World languages and codes'), 'the sidebar goes at phone width').toBeHidden();
   await expect.soft(tab(page, 'work'), 'the bottom bar of a phone screen').toBeVisible({ timeout: 10_000 });
   await expect.soft(title(page), 'a screen a phone has, not Reports').not.toHaveText('Overview');
   expect.soft(await tabsShown(page)).toEqual(['work', 'map', 'me']);
