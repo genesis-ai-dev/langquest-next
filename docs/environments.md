@@ -47,9 +47,10 @@ and production also `DIAG_DATABASE_URL` (read on a laptop by
 `npm run diag -- --hosted`, and by the admin page's Worker through the
 Hyperdrive config `npm run secrets` makes from it). Production may
 also hold the ops dashboard's `ADMIN_*` keys: one read-only token per
-provider, each optional (`docs/admin.md`). It may also hold
-`BIBLE_BRAIN_ACCESS_KEY`, Faith Comes By Hearing's key for the Worker's
-Bible routes (`docs/reference-material.md`). That one is optional: it is not
+provider, each optional (`docs/admin.md`), and `APP_STORE_REVIEW_KEY`,
+the key that sends new iPhone builds to App Review (The App Store key,
+below). It may also hold `BIBLE_BRAIN_ACCESS_KEY`, Faith Comes By
+Hearing's key for the Worker's Bible routes (`docs/reference-material.md`). That one is optional: it is not
 in the Worker's `secrets.required`, so a deploy never waits for it, and
 until a person sets it (`npm run env:update -- <env> BIBLE_BRAIN_ACCESS_KEY`,
 then `npm run secrets -- <env>`) the Bible routes answer 503.
@@ -69,6 +70,7 @@ declares:
 | admin Worker (production only) | each provider token or key (`ADMIN_*`) when the file has them (`docs/admin.md`). Never the service-role key |
 | Hyperdrive `langquest-next-diag` (production only) | `DIAG_DATABASE_URL`, as the config's connection; the first run makes the config and writes its id into `apps/admin/wrangler.jsonc` to commit (`docs/admin.md`) |
 | GitHub Actions secrets of this repository (production only) | `GEMINI_API_KEY` when the file has it, for the nightly filming of the tutorial videos (`.github/workflows/tutorials.yml`, `docs/tutorial-videos.md`); `CLAUDE_CODE_OAUTH_TOKEN` when it has it, a Claude plan's sign-in for the nightly look at the videos' feedback (`.github/workflows/tutorial-review.yml`, `docs/tutorial-videos.md` "Feedback"). Never a production key (`scripts/workflows.test.ts`); needs `gh` signed in |
+| EAS's `production` environment (production only) | `APP_STORE_REVIEW_KEY` when the file has it, as a variable with secret visibility, which only EAS's jobs and builds can read: the App Review step of the EAS workflows (The App Store key, below). Needs `eas` signed in (`npx eas login`) |
 | Edge Function secrets | `INVITE_RELAY_SECRET`, `PUSH_DELIVERY_SECRET` (once `PROJECTION_WORKER_SECRET`, which this unsets), `INVITE_RELAY_URL` (public, derived from the Worker's name) |
 | Vault | `langquest_project_url`, `langquest_push_delivery_secret`; with `WEBHOOK_POKE_SECRET`, also `langquest_webhook_poke_secret` and `langquest_dashboard_url` (public, the app's Worker's route) |
 | pg_cron | the push-delivery job: its migration (`20261026170400_push_delivery_when_waiting.sql`) schedules it, calling the function only when something is waiting, only where Vault already has the secrets, and leaves the projection pass to the Worker's job container, so this runs that migration again |
@@ -103,7 +105,7 @@ never deploys over preview or production.
 | Task | Command |
 | --- | --- |
 | Set one value | `npm run env:update -- <env> KEY ['value']`: `EXPO_PUBLIC_*` goes plain into the app's file and on to EAS; anything else is encrypted into `.env.<env>` (asks for the value, hidden, when it is left out) |
-| Apply secrets | `npm run secrets -- <env>` (shows what differs, asks); `--check` only compares |
+| Apply secrets | `npm run secrets -- <env>` (shows what differs, asks); `--check` only compares; `--only eas` does either for EAS's secrets alone, with no Supabase or Cloudflare sign-in |
 | Push the app's file to EAS | `npm run env:eas -- push <env>` |
 | Deploy a Worker by hand | `npm run web:deploy[:preview]`, `npm run email:deploy[:preview]` |
 | Create the R2 buckets the Worker binds | `npm run r2:buckets -- <env>` |
@@ -130,6 +132,59 @@ Global Viewers need (docs/global-viewers.md).
 `npm run secrets` compares Supabase values by digest. Worker secrets cannot be
 read back, so it only checks that they exist, and sets them again on every
 apply.
+
+## The App Store key
+
+`APP_STORE_REVIEW_KEY` is how `scripts/app-store-review.mjs` sends each new
+iPhone build to App Review (decisions.md 157): an App Store Connect API team
+key with the App Manager role, the least role that can submit for review.
+It is one JSON value, `{"issuerId", "keyId", "privateKey"}`, the last being
+the text of the key's `.p8` file, the same shape as the ops dashboard's
+`ADMIN_APP_STORE_KEY` (`docs/admin.md`). It lives encrypted in
+`.env.production`, and `npm run secrets` puts it in EAS's production
+environment, the only place that reads it: the hourly
+`.eas/workflows/app-store-review.yml` and the `review_ios` job of
+`deploy-to-testers.yml`. It never goes to GitHub, which holds no production
+key (decisions.md 141, `scripts/workflows.test.ts`). Without it the step
+says "no App Store Connect key yet" and succeeds, and iPhone builds wait in
+TestFlight for a person to send them.
+
+To make it, once, as an Admin or the Account Holder of the Apple developer
+team that owns the app (team `GW63HDZ4G9`, app `6812492008`):
+
+1. App Store Connect > Users and Access > Integrations > App Store Connect
+   API > Team Keys. If it shows Request Access instead, the Account Holder
+   clicks it once.
+2. Generate API Key (the + button): Name `LangQuest App Review`, Access
+   App Manager. Generate.
+3. Download API Key. Apple offers the file once:
+   `~/Downloads/AuthKey_<key id>.p8`. The Key ID is in the key's row, the
+   Issuer ID above the list.
+4. Store the three together, put them in EAS (signed in with
+   `npx eas login`), then delete the file:
+
+   ```
+   npm run env:update -- production APP_STORE_REVIEW_KEY "$(jq -cn --arg i <issuer id> --arg k <key id> --rawfile p ~/Downloads/AuthKey_<key id>.p8 '{issuerId: $i, keyId: $k, privateKey: $p}')"
+   npm run secrets -- production --only eas
+   rm ~/Downloads/AuthKey_<key id>.p8
+   ```
+
+5. See what the step would do, without sending anything:
+   `npx dotenvx run -f .env.production -fk .env.keys --quiet -- node scripts/app-store-review.mjs --dry-run`.
+
+Each run prints one line, which starts with what it did:
+
+| Line | Means |
+| --- | --- |
+| `submit:` | no review was open, so the newest build Apple has processed went to App Review, on its own App Store version, released as soon as Apple approves it |
+| `wait:` | a review is waiting or under way, or an approved version is not out yet; the newest build waits in TestFlight and goes on a later run |
+| `held:` | Apple rejected the version, or a draft submission in App Store Connect holds something else. Someone reads Apple's message in App Store Connect (App Review), answers it there, and resubmits or removes the version; after that the step goes on by itself |
+| `stuck:` | the newest build's version number belongs to a version already out, which Apple takes only once, so the run fails. Two store builds of merges in the same minute, or a second build of one merge, share a number; the next store build brings a new one |
+| `none:` | nothing newer than the public build, or nothing processed yet |
+
+It never cancels or changes a review, and never deletes anything. To
+replace the key, make a new one the same way, store and apply it, then
+revoke the old one in the same list.
 
 ## Setting up preview (once)
 

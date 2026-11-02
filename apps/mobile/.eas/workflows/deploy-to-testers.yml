@@ -6,9 +6,11 @@
 # production review (decisions.md 157): on Android straight to the production
 # track with a full rollout (eas.json, submit.production), where a newer build
 # replaces one waiting for review; on iOS to TestFlight, and then to App
-# Review when no review is open (scripts/app-store-review.mjs; while one is,
-# the build waits in TestFlight and app-store-review.yml sends the newest
-# when it ends). Each build is public as soon as Google or Apple approves it.
+# Review when no review is open (scripts/app-store-review.mjs, which
+# app-store-review.yml runs every hour, sending the newest build once Apple
+# has processed it; while a review is open, or after a rejection, the build
+# waits in TestFlight). Each build is public as soon as Google or Apple
+# approves it.
 # Each platform's last job tells Linear its lane is out (scripts/linear-sync.mjs,
 # decisions.md 53); LINEAR_API_KEY is an EAS variable on `production`. A failed
 # job reports nothing: the deploy watchdog routine finds the issue left in

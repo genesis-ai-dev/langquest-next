@@ -103,10 +103,13 @@ next launch), and any other change builds a new binary and sends it to
 production review (decisions.md 157). On Android the build goes straight to
 the production track with a full rollout, and a newer build replaces one
 that waits for review. On iOS the build goes to TestFlight, and then to App
-Review when no review is open (`scripts/app-store-review.mjs`); while a
-review is open, it waits in TestFlight, and `.eas/workflows/app-store-review.yml`
-sends the newest waiting build every hour once the review ends. Apple and
-Google release a build as soon as they approve it. Each store build's version
+Review when no review is open (`scripts/app-store-review.mjs`):
+`.eas/workflows/app-store-review.yml` sends the newest build Apple has
+processed, within the hour. While a review is open, or after Apple rejects
+a version until someone answers Apple in App Store Connect, the build waits
+in TestFlight. That step needs the App Store key in EAS, once
+(`docs/environments.md`, The App Store key). Apple and Google release a
+build as soon as they approve it. Each store build's version
 number is the time of its merge (`app.config.js`). It needs the GitHub repository connected to the EAS project
 once, with its base directory set to `apps/mobile` (expo.dev, project
 settings, GitHub). The manual commands below remain for other channels and
