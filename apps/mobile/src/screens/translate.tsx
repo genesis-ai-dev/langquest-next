@@ -782,16 +782,18 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
             <RefChips items={chips} value={chip} onChange={openChip} />
             {chip === 'guide' && study ? <GuideNav ctx={ctx} sp={study} index={step} onIndex={setStep} /> : null}
             <HelpClip style={{ flex: 1 }}>
+              {/* The Bible scrolls its own words under a player that stays put (LAN-130). */}
+              {chip === 'bible' ? (
+                <BiblePane ctx={ctx} v={v} bible={bible} terms={unitTerms} tied={tied} canNote={!recording} selected={verse} onSelect={setVerse}
+                  hear={shows.bibleAudio} read={shows.bibleText} scroll={styles.paneBody}
+                  footer={<ReferenceRecordings ctx={ctx} unitId={unitId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
+                  {...(recording ? {} : {
+                    onTerm: (termId: string) => ctx.go('key_term_detail', { ...scope, termId, ...(draft ? { draftId: draft.takeId } : {}) }),
+                    onMoreBibles: () => ctx.go('bible_explore', scope)
+                  })} />
+              ) : (
               <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.paneBody} keyboardShouldPersistTaps="handled">
-                {chip === 'bible' ? (
-                  <BiblePane ctx={ctx} v={v} bible={bible} terms={unitTerms} tied={tied} canNote={!recording} selected={verse} onSelect={setVerse}
-                    hear={shows.bibleAudio} read={shows.bibleText}
-                    footer={<ReferenceRecordings ctx={ctx} unitId={unitId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
-                    {...(recording ? {} : {
-                      onTerm: (termId: string) => ctx.go('key_term_detail', { ...scope, termId, ...(draft ? { draftId: draft.takeId } : {}) }),
-                      onMoreBibles: () => ctx.go('bible_explore', scope)
-                    })} />
-                ) : chip === 'guide' && study && guide ? (
+                {chip === 'guide' && study && guide ? (
                   <>
                     <GuideStep key={study.steps[step]!.step.id} ctx={ctx} v={v} guide={guide} status={study.steps[step]!} spoken={!shows.guideText && shows.guideAudio} read={shows.guideText}
                       canContribute={!recording} onTerm={(termId) => ctx.go('key_term_detail', { ...scope, termId, ...(draft ? { draftId: draft.takeId } : {}) })} />
@@ -809,6 +811,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                   <EarlierPane ctx={ctx} v={v} from={revising ? (s) => s === revising.kindId || earlierFrom(s) : earlierFrom} {...(revising ? { focusReviewId: revising.id } : {})} />
                 ) : null}
               </ScrollView>
+              )}
             </HelpClip>
           </View>
         )}

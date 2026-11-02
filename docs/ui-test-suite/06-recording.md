@@ -779,6 +779,8 @@ Expected:
 - Step 3 plays from verse 25 (if the Bible has verse timings) and selects the verse.
 - Step 4 shows the toast "Note added." Verse 25 then shows "● 1", and the "Notes" chip's count goes up by one.
 - Step 5: "Add a note here" is gone while recording. It comes back after stop.
+- The player stays at the top of the pane: only the verses under it scroll (LAN-130). The back translation's Bible chip is the same.
+- While it plays, the verse being read is scrolled into view when it reaches the edge of what shows. Scrolling by hand stops that until the verse being read is back in view or play is pressed again (LAN-131).
 - The copyright line and "Bible Brain terms" show under the verses when the Bible comes from Bible Brain.
 - Web run: skipped when the world offers no Bible, as REC-036.
 

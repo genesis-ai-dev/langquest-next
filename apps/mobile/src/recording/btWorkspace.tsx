@@ -333,11 +333,14 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
             <RefChips items={topChips} value={top} onChange={setTop} />
             {top === 'guide' && study ? <GuideNav ctx={ctx} sp={study} index={gStep} onIndex={setGuideStep} /> : null}
             <HelpClip style={{ flex: 1 }}>
+              {/* The Bible scrolls its own words under a player that stays put (LAN-130). */}
+              {top === 'bible' ? (
+                <BiblePane ctx={ctx} v={v} bible={bible} terms={unitTerms} canNote={!recording} selected={verse} onSelect={setVerse} hear={shows.bibleAudio} read={shows.bibleText}
+                  scroll={styles.paneBody} />
+              ) : (
               <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.paneBody}
                 accessibilityLabel={partN ? t('backTranslation.listenToPart', { n: of.n, part: partN }) : t('backTranslation.listenTo', { n: of.n })}>
-                {top === 'bible' ? (
-                  <BiblePane ctx={ctx} v={v} bible={bible} terms={unitTerms} canNote={!recording} selected={verse} onSelect={setVerse} hear={shows.bibleAudio} read={shows.bibleText} />
-                ) : top === 'guide' && study && guide ? (
+                {top === 'guide' && study && guide ? (
                   <GuideStep key={study.steps[gStep]!.step.id} ctx={ctx} v={v} guide={guide} status={study.steps[gStep]!} spoken={shows.guideAudio} read={shows.guideText} canContribute={!recording} />
                 ) : top === 'terms' ? (
                   <KeyWordsPane ctx={ctx} v={v} terms={unitTerms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} bibleLanguage={bible.option?.language} draftTakeId={undefined} canTie={false} disabled={blocked}
@@ -363,6 +366,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
                   </>
                 )}
               </ScrollView>
+              )}
             </HelpClip>
           </View>
         )}
