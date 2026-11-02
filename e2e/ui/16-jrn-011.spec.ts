@@ -110,7 +110,7 @@ test('JRN-011 One passage from first recording to done, across every role @p0', 
     await expect(text(rev, /Version 2/)).toBeVisible();
     await sayEachPart(rev, 3);
     await button(rev, 'Done').click();
-    await button(rev, 'Finish the back translation').or(button(rev, 'Send later')).first().click();
+    await button(rev, 'Finish the back translation').or(button(rev, "Done, don't ask anyone")).first().click();
     await expectToast(rev, 'Back translation published.');
 
     // Step 7: TRANS logs the Community Check: Already happened, looks good, at Village church.

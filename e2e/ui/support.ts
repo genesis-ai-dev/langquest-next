@@ -273,7 +273,8 @@ export async function openPassage(page: Page, world: UiWorld, key: keyof UiWorld
   // Admins land on All languages; workers on their language's map. Wait for one of the two
   // before choosing: a device that has just signed in may show neither yet.
   const lang = text(page, 'Alpha');
-  const search = visible(page.getByRole('searchbox')).or(visible(page.getByPlaceholder(/Search|Find/))).first();
+  // The field by its test id too, so the passage opens in any interface language (A11Y-019).
+  const search = visible(page.getByRole('searchbox')).or(visible(page.getByPlaceholder(/Search|Find/))).or(visible(page.getByTestId('map-search'))).first();
   await expect(search.or(lang).first()).toBeVisible({ timeout: 60_000 });
   if (!(await search.isVisible())) await lang.click();
   await search.fill(label.replace(/^Luke /, 'Luke '));

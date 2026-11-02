@@ -731,6 +731,8 @@
       "languageHelp": "Hufungua ukurasa wake: iandae, ona kazi yake na watu wake.",
       "licenseHelp": "Leseni ambayo kazi ya timu yako iko chini yake. Maandalizi yanaeleza inaruhusu nini.",
       "newLanguageHelp": "Huongeza lugha kwenye shirika, au kundi la lugha zinazohusiana.",
+      "newCluster": "Kundi jipya",
+      "newClusterHelp": "Huweka lugha zilizopo hapa chini ya jina moja. Hakuna kinachobadilika ndani yake.",
       "roleHelp": "Jukumu lako katika shirika hili. Linaamua unachoruhusiwa kufanya hapa.",
       "clusterGroupHelp": "Lugha za kundi hili. Gusa ili kuzionyesha au kuzificha.",
       "looseGroupHelp": "Lugha ambazo haziko katika kundi lolote. Gusa ili kuzionyesha au kuzificha.",
@@ -854,7 +856,7 @@
       "sent": "Mwaliko umetumwa kwa {{address}} kama {{role}}",
       "cannot": "Watu wanaoweza kualika wanachama tu ndio wanaweza kualika hapa.",
       "byEmail": "Kwa barua pepe",
-      "byName": "Mtu mmoja, kwa jina",
+      "byName": "Kwa jina: mtu au kikundi",
       "emailTitle": "Alika kwa barua pepe",
       "send": "Tuma mwaliko",
       "emailLabel": "Anwani ya barua pepe",
@@ -2926,9 +2928,12 @@
     },
     "createAccount": {
       "title": "Fungua Akaunti",
+      "joinTitle": "Fungua akaunti yako ili kujiunga",
+      "joinBody": "Mwaliko wako umehifadhiwa. Utajiunga mara tu utakapoingia kwenye akaunti hii.",
       "button": "Fungua Akaunti",
       "createdTitle": "Akaunti imefunguliwa",
       "createdSub": "Fungua kiungo tulichotuma kwa {{email}}, kisha uingie. Unaweza kuunda shirika, kuomba kujiunga na moja, au kusoma mwaliko ukiwa tayari.",
+      "createdSubJoining": "Fungua kiungo tulichotuma kwa {{email}}, kisha uingie kwenye kifaa hiki. Mwaliko wako umehifadhiwa: utajiunga na timu mara tu utakapoingia.",
       "emailPlaceholder": "wewe@mfano.com",
       "passwordPlaceholder": "Chagua nenosiri (herufi 6 au zaidi)",
       "confirmLabel": "Thibitisha nenosiri",
@@ -2954,6 +2959,7 @@
       "cameraOff": "Ruhusa ya kamera imezimwa. Unaweza kubandika msimbo hapa chini.",
       "joinAsYou": "Jiunge kama wewe",
       "haveAccount": "Tayari nina akaunti",
+      "emailAccount": "Fungua akaunti kwa barua pepe",
       "notMe": "Si {{name}}? Toka kwanza",
       "notYou": "Si wewe? Toka kwanza",
       "joinWhenConnected": "Jiunge ukiwa na mtandao",
@@ -2977,6 +2983,7 @@
       "joinAsHelp": "Hujiunga na timu kwenye kifaa hiki kama mtu ambaye mwaliko unamtaja.",
       "joinHelp": "Kisha, andika jina lako. Baada ya hapo uko kwenye timu.",
       "haveAccountHelp": "Ingia kwanza. Utajiunga na timu mara tu utakapoingia.",
+      "emailAccountHelp": "Kwanza barua pepe na nenosiri lako mwenyewe. Utajiunga na timu mara tu utakapoingia.",
       "joinAsMeHelp": "Huongeza akaunti hii kwenye shirika lililo katika mwaliko.",
       "notMeHelp": "Hufungua Toka, ili mtu sahihi ajiunge kwenye kifaa hiki.",
       "stopCameraHelp": "Huzima kamera.",
@@ -4419,8 +4426,8 @@
       "cannotOpenHere": "Hicho hakiwezi kufunguliwa kutoka hapa.",
       "noPermission": "Huna ruhusa ya kufungua hicho.",
       "backAgainToLeave": "Bonyeza Rudi tena ili kutoka LangQuest",
-      "languageExplorer": "Kichunguzi cha lugha",
-      "languageExplorerNewTab": "Kichunguzi cha lugha, kinafunguka kwenye kichupo kipya",
+      "languageExplorer": "Lugha za dunia na misimbo yake",
+      "languageExplorerNewTab": "Lugha za dunia na misimbo yake, inafunguka kwenye kichupo kipya",
       "tabBadge": "{{tab}}, {{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4441,6 +4448,8 @@
     "person": {
       "showId": "{{name}}. Onyesha kitambulisho",
       "noName": "Bado hakuna jina",
+      "someone": "Mtu fulani",
+      "someoneInSentence": "mtu fulani",
       "id": "Kitambulisho {{id}}",
       "anonymous": "{{shape}} {{color}}",
       "colors": {
@@ -4597,7 +4606,7 @@
       "manage": "Lugha, watu na mipangilio ya shirika lako.",
       "inbox": "Yaliyotokea yanayokuhusu: maombi, maoni, watu wanaoomba kujiunga.",
       "me": "Jina lako, kifaa hiki na mipangilio yako.",
-      "explorer": "Hufungua kichunguzi cha lugha kwenye kichupo kipya: kila lugha na mahali inapozungumzwa."
+      "explorer": "Hufungua orodha ya lugha za dunia kwenye kichupo kipya: misimbo ya kila lugha na mahali inapozungumzwa. Hizi si lugha za shirika lako."
     },
     "sync": {
       "live": "Wingu lenye alama ya vema: umeunganishwa. Kazi yako inatumwa unapoendelea. Gusa uone kilichotumwa.",
@@ -5035,8 +5044,8 @@
       "finishHelp": "Humaliza {{version}}: timu inaweza kulisikia.",
       "sendHelp": "Humaliza {{version}} na kuwatumia kwa ajili ya ukaguzi huu. Watalipata kwenye Kazi Yangu.",
       "askHelp": "Humaliza {{version}}, kisha unachagua wa kumwomba.",
-      "sendLater": "Tuma baadaye",
-      "sendLaterHelp": "Humaliza {{version}} bila kumwomba mtu yeyote bado. Timu inaweza kulisikia.",
+      "doneAskNobody": "Imekamilika, usimwombe mtu yeyote",
+      "doneAskNobodyHelp": "Humaliza {{version}} bila kumwomba mtu yeyote. Timu inaweza kulisikia, na yeyote anayekagua anaweza kulikagua.",
       "nextCheck": "Ukaguzi unaofuata",
       "checkNowHelp": "Humaliza {{version}}, kisha hufungua ukaguzi unaofuata ili uufanye mwenyewe sasa."
     },
@@ -5142,6 +5151,7 @@
       "spaceSetHelp": "Duara linamaanisha ulichagua mstari huu. Shikilia ili kuchagua mwingine, au usichague wowote.",
       "pickHelp": "Huipa {{part}} mstari huu. Kisha gusa mstari wa baadaye ili kufunika mistari kadhaa.",
       "pickedHelp": "Imejazwa: {{part}} ina mstari huu. Gusa mstari wa baadaye ili kufunika mistari kadhaa.",
+      "doneHelp": "Hufunga mistari ya {{part}}. Ulichochagua tayari kimehifadhiwa; Tendua hukirudisha.",
       "autoHelp": "Programu inapata mstari wa sehemu hii kutoka sehemu zilizo karibu nayo.",
       "noneHelp": "Huiacha sehemu hii bila mstari.",
       "tileHelp": "Mstari ambao sehemu hii inasema.",
@@ -6488,7 +6498,7 @@
     "finishWhat": "Maliza {{what}}",
     "doneHelp": "Kila sehemu ikishasemwa: imalize na uitume kwenye ukaguzi utakaoisikiliza baadaye.",
     "notesForCheck_other": "Madokezo {{count, number}} kwa {{check}}",
-    "sendLaterHelp": "Humaliza {{what}} bila kumwomba mtu yeyote bado. Timu inaweza kuisikia.",
+    "doneAskNobodyHelp": "Humaliza {{what}} bila kumwomba mtu yeyote. Timu inaweza kuisikia, na yeyote anayekagua anaweza kuikagua.",
     "chips": {
       "version": "Toleo la {{n}}"
     },
@@ -7139,6 +7149,7 @@
   },
   "referenceLanguage": {
     "question": "Biblia na miongozo ya kujifunza ya {{language}} iwe katika lugha zipi?",
+    "questionAny": "Vifaa vya marejeo vya {{language}} viwe katika lugha zipi?",
     "setPassages_one": "Miongozo ya {{name}} kwa kifungu {{count, number}}",
     "setPassages_other": "Miongozo ya {{name}} kwa vifungu {{count, number}}",
     "bibles_one": "Biblia {{count, number}}",
@@ -7568,6 +7579,7 @@
       "note_other": "Lugha zilizopo hapa zinabaki na kila kitu walicho nacho. Lugha mpya {{count, number}} zinaandaliwa pamoja katika hatua zinazofuata.",
       "onlyExisting": "Hakuna jipya la kuandaa: lugha zilizopo hapa zinabaki na kila kitu walicho nacho.",
       "make": "Unda kundi",
+      "makeHelp": "Huunda kundi pamoja na lugha zilizo juu. Kwanza lipe jina na uongeze angalau lugha moja.",
       "made_one": "{{cluster}} limeundwa, likiwa na lugha {{count, number}}.",
       "made_other": "{{cluster}} limeundwa, likiwa na lugha {{count, number}}.",
       "forNew_one": "Kwa lugha mpya ya {{cluster}}. Inaweza kubadilisha yake baadaye.",

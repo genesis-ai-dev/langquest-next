@@ -214,7 +214,7 @@ test('PEOPLE-037 A coordinator cannot make or change roles', async ({ page }) =>
   await text(page, /^Other roles · \d+$/).click();
   await expect(text(page, 'Something else: make a new role')).toHaveCount(0);
   await inviteRole(page, 'Translators');
-  await text(page, 'One person, by name').click();
+  await text(page, 'By name: a person or a group').click();
   await back(page).click();
   await expect(text(page, 'Step 1 of 3 — Role')).toBeVisible();
   await expect(text(page, 'Create a new role')).toHaveCount(0);

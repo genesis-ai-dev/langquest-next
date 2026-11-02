@@ -18,6 +18,9 @@ export const HelpRowContext = createContext<readonly HelpRowAt[] | undefined>(un
 /** The area that parts inside it scroll in, by its lit id (see HelpClip). */
 export const HelpClipContext = createContext<string | undefined>(undefined);
 
+/** Parts drawn here stay dim and unnumbered while help is on, and still explain when tapped (see HelpQuiet). */
+export const HelpQuietContext = createContext(false);
+
 export const HelpContext = createContext<HelpMode | null>(null);
 
 /**

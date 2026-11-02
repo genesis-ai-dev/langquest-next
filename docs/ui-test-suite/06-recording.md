@@ -146,7 +146,7 @@ Steps:
 Expected:
 - Step 1 plays the three parts one after another, without gaps longer than half a second between them.
 - Step 2 pauses playback.
-- In step 3, each part is a row that reads as a voice message: its verse space on the left (decision 82), a play button, the part's sound as bars with its length ("0:04", "0:04", "0:03"), and the grip (three lines) at the right end. No row shows a name or a bin: a part is deleted by sliding its row aside to its bin, or from the sheet that holding its verse space opens ("Delete Part 2"; decision 82).
+- In step 3, each part is a row that reads as a voice message: its verse space on the left (decision 82), a play button, the part's sound as bars with its length ("0:04", "0:04", "0:03"), and the grip (six dots, decision 136 as amended for LAN-132) at the right end. No row shows a name or a bin: a part is deleted by sliding its row aside to its bin, or from the sheet that holding its verse space opens ("Delete Part 2"; decision 82).
 - Step 4 plays Part 2 only, its bars filling from the left as it plays.
 - Step 5 folds the rows into the card and opens them again.
 - No playback starts the microphone. The record button stays "Record".
@@ -265,7 +265,7 @@ Expected:
 - A player for the whole version, titled "Version 1", with the sub "3 parts · 0:11 · recorded with the {abbr} Bible" (the Bible's abbreviation, when one is offered).
 - A row "Say something about it" with the sub "Optional · the team hears it with this version". The row has no amber border.
 - "Next check", with a card for each check that comes next ("Peer check" and "Back translation", decision 91) and its people (in the fixture "Trevor Both, Rita Reviewer"). No sentence explains publishing.
-- The footer offers "Ask {usual target}" (in the fixture "Ask the Peer check team"), enabled, then quiet links "Someone else" and "Send later".
+- The footer offers "Ask {usual target}" (in the fixture "Ask the Peer check team"), enabled, then the quiet link "Someone else", then "Done, don't ask anyone", a button of its own (LAN-136).
 - Step 3 publishes Version 1 and asks for the peer check in one write: the toast reads "Sent to {target} — anyone on it will see it on My Work" (a team) or "Sent to {target} — they will see it on My Work" (a person), with no Undo: the asking is taken back from History ("Withdraw"), the version is not (decision 134).
 - It returns to the record's path; there is no "Version 1 published" page.
 - The draft is gone from Versions and history; Version 1 is listed under "Published" with "Latest".
@@ -317,7 +317,7 @@ Steps:
 2. Tap the row "Say something about it".
 3. In the sheet "Say something about it" (sub "Anything the team should know. They hear it with this version."), tap "Say it", speak for 3 seconds, tap to stop.
 4. Tap "Done".
-5. Tap "Send later".
+5. Tap "Done, don't ask anyone".
 
 Expected:
 - After step 4 the row reads "What you said about it" with the sub "Voice note", and its icon is a green check.
@@ -356,13 +356,13 @@ Steps:
 4. Tap "Done".
 5. Look at the row under the player, and at the footer.
 6. Tap the row, type "Added verse 9 again, slower", tap "Done".
-7. Tap "Send later".
+7. Tap "Done, don't ask anyone".
 
 Expected:
 - Step 1 opens the workspace with sub "Recording Version 2" and Version 1's parts already in the card.
 - Step 2 shows "These are Version 1's parts. Record a new part or delete one to publish a new version.", and "Done" is disabled.
 - After step 3 that line is gone, the card counts one more part, and "Done" is enabled.
-- Step 5: the row reads "Say what changed" with the sub "Needed · since Version 1, so the team knows what to listen for", with an amber border. The footer's "Ask …" is disabled, and "Send later" does nothing.
+- Step 5: the row reads "Say what changed" with the sub "Needed · since Version 1, so the team knows what to listen for", with an amber border. The footer's "Ask …" and "Done, don't ask anyone" are disabled.
 - The sheet opened in step 6 is titled "What changed?" with the sub "Since Version 1. The team hears it with this version.", and its voice button reads "Say what changed".
 - After step 6 the row reads "What changed" with "“Added verse 9 again, slower”", and the footer's "Ask …" is enabled.
 - Step 7 shows "Version 2 published." and returns to the record.
@@ -380,7 +380,7 @@ Steps:
 1. Open P-Q2's Versions and history and tap "Edit" on Version 1 (it opens Version 1's parts).
 2. Record one more part, then tap "Done".
 3. Tap "Say what changed", tap "Say what changed" in the sheet, speak for 3 seconds, stop, tap "Done".
-4. Tap "Send later".
+4. Tap "Done, don't ask anyone".
 
 Expected:
 - After step 3 the row reads "What changed" with the sub "Voice note", and the footer's "Ask …" is enabled with nothing typed.
@@ -636,7 +636,7 @@ Expected:
 - The workspace stays responsive: the lit card and meter keep moving, and taps answer within half a second, through all ten minutes.
 - Part 1 plays from start to end without gaps.
 - "Show the parts" lists every part and scrolls smoothly.
-- "Done" then "Send later" succeeds, and REV on a second device can play the whole version after Sync now.
+- "Done" then "Done, don't ask anyone" succeeds, and REV on a second device can play the whole version after Sync now.
 - Resets: P-Q4 now has Version 1.
 
 ### REC-031 Tapping record and stop very fast
@@ -687,7 +687,7 @@ Preconditions:
 Steps:
 1. Open P-Q1's workspace and record two more parts.
 2. Delete one part, then tap the Undo arrow.
-3. Tap "Done", then "Send later".
+3. Tap "Done", then "Done, don't ask anyone".
 4. Turn airplane mode off and wait 30 seconds.
 
 Expected:
@@ -705,7 +705,7 @@ Preconditions:
 - Online. A passage with a draft ready to publish (for example P-Q3).
 
 Steps:
-1. Tap "Done", then "Send later".
+1. Tap "Done", then "Done, don't ask anyone".
 2. Read the record and the sync mark.
 
 Expected:
@@ -779,6 +779,8 @@ Expected:
 - Step 3 plays from verse 25 (if the Bible has verse timings) and selects the verse.
 - Step 4 shows the toast "Note added." Verse 25 then shows "● 1", and the "Notes" chip's count goes up by one.
 - Step 5: "Add a note here" is gone while recording. It comes back after stop.
+- The player stays at the top of the pane: only the verses under it scroll (LAN-130). The back translation's Bible chip is the same.
+- While it plays, the verse being read is scrolled into view when it reaches the edge of what shows. Scrolling by hand stops that until the verse being read is back in view or play is pressed again (LAN-131).
 - The copyright line and "Bible Brain terms" show under the verses when the Bible comes from Bible Brain.
 - Web run: skipped when the world offers no Bible, as REC-036.
 
@@ -865,11 +867,28 @@ Steps:
 
 Expected:
 - Each part has an empty space on its left (accessibility label "Part 1, no verse yet", hint "Tap to give it the next verse. Hold to choose.").
-- Step 2: Part 1 shows 22 in a soft grey tile. No toast: a verse is plain to see and easy to change again (Caleb, 2026-10-16).
+- Step 2: Part 1 shows 22 in a soft grey tile. No toast: a verse is plain to see and easy to change again (Caleb, 2026-10-16). The first tap on this phone or browser is followed by a picture of the hold, with no words: a fingertip holds Part 1's space while a ring fills round it, twice, then it is gone; it does not show again (LAN-133).
+- Pressing and holding any space fills the same ring until the part's verses open.
 - Step 3: Part 2 shows 23.
 - Step 4: Part 2's space is empty again; Part 1 keeps 22.
 - Step 5: the first tap gives 23; tapping the number then makes Part 2 the same verse as the part above (label "Part 2, Verse 22, same as the part above"), shown hollow and grey.
 - Labels are on the record (`v1.CardVerseSet`): a second device shows the same numbers after Sync now.
+
+### REC-059 Help numbers only the parts that matter on the recording screen
+Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- REC-041's draft.
+
+Steps:
+1. In the workspace, tap the ?.
+2. Tap Part 1's grip.
+3. Tap the ? again.
+
+Expected:
+- Step 1 numbers at most seven parts (LAN-135): the open reference tab, its play button, the first part's verse space and play button, the part recorded next, Record and Done. The rest (Back, the saved mark, the other tabs, the verses, the divider, the parts card's head, a part's bars, marks and grip, the + marks, the bin, Undo and Redo) stay dim and unnumbered.
+- Step 2 explains the grip ("Move Part 1. …") instead of acting, as a dim row of a list does.
+- Step 3 turns help off: no numbers show.
 
 ### REC-042 Hold a part to choose its verses, Auto, None or Delete
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -882,14 +901,16 @@ Steps:
 2. In the sheet "Part 3", tap verse 25, then verse 26.
 3. Tap "Auto".
 4. Tap "None".
-5. Tap "Delete Part 3", then the Undo arrow left of the red button.
+5. Tap "Auto", then "Done". Hold Part 3's space again.
+6. Tap "Delete Part 3", then the Undo arrow left of the red button.
 
 Expected:
-- Step 1 opens a sheet titled "Part 3" with the passage's verses as chips, and "Auto", "None" and "Delete Part 3".
+- Step 1 opens a sheet titled "Part 3" with the passage's verses as chips, "Auto", "None" and "Delete Part 3", and "Done" at the bottom. It has no ✕, which would read as Cancel (LAN-134).
 - Each tap applies at once, with no toast: step 2 ends with Part 3 as verses 25–26.
 - Step 3 lets the app work it out from the neighbours.
 - Step 4 clears it.
-- Step 5 deletes the part and Undo restores it.
+- Step 5: "Done" closes the sheet and Part 3 keeps the verses Auto gave it. (A verse picked past a gap would leave the verses between out, as a place of its own before it.)
+- Step 6 deletes the part and Undo restores it.
 - A later part whose label no longer fits after a chosen verse loses its label instead of breaking the order.
 
 ### REC-043 Slide down the spaces to number many parts
@@ -981,11 +1002,12 @@ Preconditions:
 - TRANS's draft of P-S has three parts (REC-053), labelled verses 35, 36 and 37 (tap each space once).
 
 Steps:
-1. Press the grip (three lines) at the right end of Part 3's row and drag it up above Part 1, then let go.
+1. Tap the grip (six dots) at the right end of Part 3's row. Then press it and drag it up above Part 1, then let go.
 2. Tap the Undo arrow left of the red button.
 3. Tap the Redo arrow beside it.
 
 Expected:
+- The tap moves nothing: the dots turn to arrows pointing up and down, which bounce twice, then are dots again (LAN-132).
 - While dragging, the part is lifted with a shadow and the parts it passes move out of its way; the + marks between parts are hidden. No toast shows when it is dropped.
 - After step 1 the moved part is Part 1 with no verse ("Part 1, no verse yet"), so it can be labelled again; the others keep theirs: Part 2 is verse 35, Part 3 verse 36. Verse 37 now shows as a place left for later.
 - After step 2 the parts are back in their order, Part 3 is verse 37 again, and the moved part is shaded.
@@ -1056,6 +1078,31 @@ Expected:
 - In step 5 Part 1's edge passes over the dropped part's sound and stops at Part 3's edge: boxes never overlap.
 - After step 6 the card reads "Parts 1–2" with "2 parts"; Part 1 holds the sound it was stretched over.
 
+### REC-060 Verses, a place opened beside a part and playing back never take a part away
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+LAN-125: a part went missing on an iPhone after one session was cut into
+three parts, a verse range was given, a + was tapped and parts were played.
+Only a delete takes a part off the list.
+
+Preconditions:
+- Luke 13:1-9, called P-NEW below, is not started (the silence switch's world on the web, `06-recording-silence.spec.ts`).
+
+Steps:
+1. Open P-NEW and tap "Record". Tap the red button, speak for 2 seconds and pause for 2, three times, then stop and tap "Done".
+2. Hold Part 1's verse space, tap "Verse 1" and "Done". Hold Part 2's, tap "Verse 2" then "Verse 3", and tap "Done".
+3. Tap the + on the line below Part 2 ("Record a new part before Part 3").
+4. Tap play on Parts 1, 2 and 4 in turn, pausing each.
+5. Tap "Record Part 3 here" to close the place again.
+6. Reload the page and open P-NEW again ("Continue recording").
+
+Expected:
+- After step 1 the card counts 3 parts, and the draft on the device holds three recordings.
+- After step 2 Part 1 reads "Verse 1" and Part 2 "Verses 2–3". (Had Part 1 no verse, verse 1 would be left out, and a place for it would stand before Part 2: decision 82.)
+- After step 3 the place "Record Part 3 here" is chosen, Part 2 still reads "Verses 2–3", and the last part is Part 4.
+- After step 5 the card counts 3 parts again, with their verses, and the draft holds the same three recordings in the same order.
+- After step 6 the same: 3 parts, Part 2 "Verses 2–3", no open place.
+
 ## Microphone setup
 
 ### REC-045 Set up the microphone by ear (retired)
@@ -1117,7 +1164,7 @@ Preconditions:
 
 Steps:
 1. Open P-T and tap "Record" (or the Record step row).
-2. Record two parts and tap "Done", then "Send later".
+2. Record two parts and tap "Done", then "Done, don't ask anyone".
 
 Expected:
 - The workspace and Done behave exactly as for TRANS (REC-004, REC-011).
