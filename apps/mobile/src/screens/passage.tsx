@@ -370,7 +370,15 @@ export function PassageRecord(ctx: Ctx) {
   const canAct = teamStepsOpen(can, p);
   const onTeamStep = (step: TeamStep): (() => void) | undefined => (canAct && !earlierHere ? () => setOpenStepId(step.stepId) : undefined);
   const passageNote = passageNoteFor(p, me);
+  // The latest version can be heard on the passage itself, by anyone who may see it, not only through Record (LAN-128).
+  const listen = p.latest ? (
+    <ClipPlayer language={ctx.language} hashes={p.latest.cardHashes} title={versionTitle(p.latest.n)} bare />
+  ) : null;
   const extraFor = (st: PathStep): ReactNode => {
+    if (st.kind === 'record' && listen) {
+      const note = st.state === 'current' && passageNote ? <NotePill ctx={ctx} note={passageNote} /> : null;
+      return note ? <View style={{ gap: space.sm }}>{listen}{note}</View> : listen;
+    }
     if (st.state !== 'current') return null;
     if (st.kind === 'record' && passageNote) return <NotePill ctx={ctx} note={passageNote} />;
     if (st.kind === 'feedback' && st.review) return <FeedbackPill ctx={ctx} review={st.review} />;

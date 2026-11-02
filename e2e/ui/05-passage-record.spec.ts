@@ -152,6 +152,8 @@ test('PASS-008 TRANS P-DONE: every check complete @p0', async ({ browser }) => {
 test('PASS-009 VIEW The viewer\'s record is read-only', async ({ browser }) => {
   const page = await recordAs(browser, world(), 'VIEW', 'P-SUBMITTED');
   expect(await mainButton(page)).toBeNull();
+  // The passage is heard on the passage itself, not only through Record (LAN-128).
+  await expect(button(page, 'Play Version 1')).toBeVisible();
   for (const row of ['Peer check', 'Community check', 'Final approval']) await expect(teamRow(page, row), row).toBeDisabled();
   await pathStep(page, 'Record').click();
   await expect(header(page)).toHaveText('Version 1');

@@ -275,6 +275,9 @@ Steps:
 
 Expected:
 - No main button on any of them.
+- The "Record" step holds a player for the latest version ("Play Version 1"),
+  so the passage is heard on the passage itself, without Record (LAN-128).
+  Everyone who can see the passage has it, once a version is published.
 - "Record" and "Done", once ticked, open the version page. Steps not done
   do nothing.
 - "Then the team" cards do nothing.
