@@ -71,7 +71,7 @@ import { RecordingView } from '../recording/RecordingView';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { VerseTile } from '../recording/verseParts';
 import {
-  backTranslationDraftKey, canPublish, cardDurations, cleanUpNoteOf, clearListSpecs, draftToOpen, labelAt, marksKeepingLabels, marksOf, movedList,
+  backTranslationDraftKey, canPublish, cardDurations, cleanUpNoteOf, clearListSpecs, draftToOpen, labelAt, marksForSaid, marksKeepingLabels, marksOf, movedList,
   removeCardSpecs, restoreSpecs, sameCards, slotRows, targetNumber,
   changedParts, historyFits, parsePartsHistory, partsHistoryKey,
   type CleanUpNote, type PartsHistory, type PartsSnap, type RecordTarget, type SlotRow,
@@ -288,26 +288,11 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     const commandId = Crypto.randomUUID();
     try {
       specs = commands(state, idx).keepTake({ commandId, unitId, cardHashes: list, actorId: me, parentTakeId: parentNow() });
-      // A part recorded into a gap takes the next verse, so it fills the gap;
-      // in a deleted or replaced part's place, the first takes that part's verses and the rest are more of them.
-      const aimMark = aim.kind === 'end' ? undefined : aim.mark;
+      // The verses of what was said in a place: its own, or none (workspaceModel `marksForSaid`, decisions.md 124).
       const verses = verseKeysRef.current;
       if (insertBefore && verses.length > 0) {
-        const fresh = new Set(pending);
-        let marks: PartMark[];
-        if (aim.kind === 'gap' && aim.insert) {
-          // Said between two parts: it has no verses yet, and the parts around it keep theirs.
-          const old = list.filter((h) => !fresh.has(h));
-          marks = marksKeepingLabels({ list: old, marks: partMarksFor(state, unitId, old, verses) }, list, verses.length);
-        } else {
-          let first = true;
-          marks = partMarksFor(state, unitId, list, verses).map((m, i) => {
-            if (!fresh.has(list[i]!) || m) return m;
-            const mark: PartMark = aimMark ? (first ? aimMark : { t: 'join' }) : { t: 'next' };
-            first = false;
-            return mark;
-          });
-        }
+        const marks = marksForSaid(list, partMarksFor(state, unitId, list, verses), new Set(pending), aim.kind === 'end' ? undefined : aim.mark,
+          verses.length, aim.kind === 'gap' && !!aim.insert);
         specs = [...specs, ...commands(state, idx).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards: list, marks, verses })];
       }
     } catch (e) {
