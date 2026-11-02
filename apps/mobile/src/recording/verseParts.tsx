@@ -20,7 +20,7 @@ import {
 } from '@langquest-next/core';
 import type { Ctx } from '../shell/ctx';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
+import { HelpBadge, HelpQuiet, HelpRow } from '../helpMode/helpBadge';
 import { isRtl, t } from '../i18n';
 import { HelpInfo, Ico, IconBtn, PrimaryBtn, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
@@ -346,6 +346,8 @@ function PartRow(props: {
         <HelpBadge spot={play} />
       </Pressable>
       {/* Its bars and length choose it: what is said next replaces it. A screen reader opens its bin from here. */}
+      {/* It and the marks and grip after it are secondary while help is on: dim and unnumbered, and a tap still explains (LAN-135). */}
+      <HelpQuiet>
       <Pressable onPress={choose.onPress} disabled={props.disabled} accessibilityRole="button" {...a11yState({ selected: props.chosen }, 'button')}
         accessibilityLabel={t('recording.recorder.recordOver', { part: name })}
         accessibilityActions={props.disabled ? [] : [{ name: 'delete', label: t('recording.deleteItem', { item: name }) }]}
@@ -361,6 +363,7 @@ function PartRow(props: {
       {/* What the checks said about this part (decisions.md 149). */}
       <PartNotesMark hash={props.part.hash} label={name} />
       {props.grip}
+      </HelpQuiet>
       <View style={styles.edge} />
     </View>
     </SwipeRow>

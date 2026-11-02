@@ -967,6 +967,22 @@ test('REC-041 Tap a part\'s space to give it the next verse', async ({ page }) =
   expect(marks, 'the marks are on the server').toBeGreaterThanOrEqual(2);
 });
 
+test('REC-059 Help numbers only the parts that matter on the recording screen', async ({ page }) => {
+  const w = world();
+  await openAs(page, w, 'TRANS');
+  await openWorkspace(page, w, 'P-Q3', 'Continue recording');
+  await byId(page, 'header-help').last().click();
+  const numbers = page.getByTestId('help-number').locator('visible=true');
+  await expect(numbers.first()).toBeVisible();
+  // About 24 numbers before (LAN-135): now the reference's tab and play, a part's verse space and play, the next part, Record and Done.
+  expect(await numbers.count()).toBeLessThanOrEqual(7);
+  // A dim part still explains itself instead of acting.
+  await page.getByLabel('Move Part 1', { exact: true }).locator('visible=true').first().click();
+  await expect(button(page, /^Move Part 1\. /)).toBeVisible();
+  await byId(page, 'header-help').last().click();
+  await expect(numbers).toHaveCount(0);
+});
+
 test('REC-042 Hold a part to choose its verses, Auto, None or Delete', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'TRANS');

@@ -874,6 +874,22 @@ Expected:
 - Step 5: the first tap gives 23; tapping the number then makes Part 2 the same verse as the part above (label "Part 2, Verse 22, same as the part above"), shown hollow and grey.
 - Labels are on the record (`v1.CardVerseSet`): a second device shows the same numbers after Sync now.
 
+### REC-059 Help numbers only the parts that matter on the recording screen
+Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- REC-041's draft.
+
+Steps:
+1. In the workspace, tap the ?.
+2. Tap Part 1's grip.
+3. Tap the ? again.
+
+Expected:
+- Step 1 numbers at most seven parts (LAN-135): the open reference tab, its play button, the first part's verse space and play button, the part recorded next, Record and Done. The rest (Back, the saved mark, the other tabs, the verses, the divider, the parts card's head, a part's bars, marks and grip, the + marks, the bin, Undo and Redo) stay dim and unnumbered.
+- Step 2 explains the grip ("Move Part 1. …") instead of acting, as a dim row of a list does.
+- Step 3 turns help off: no numbers show.
+
 ### REC-042 Hold a part to choose its verses, Auto, None or Delete
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 

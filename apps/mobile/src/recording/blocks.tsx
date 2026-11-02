@@ -6,7 +6,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { Text } from '../ui/text';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
+import { HelpBadge, HelpLoud, HelpQuiet, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Ico, Sheet, type IconName } from '../ui/kit';
@@ -38,14 +38,15 @@ export function RefChips<T extends string>(props: { items: ChipItem<T>[]; value:
   if (props.items.length < 2) return null;
   return (
     <ScrollView ref={scroll} horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chips} accessibilityRole="tablist">
-      {/* help-each: each tab shows something different */}
+      {/* help-each: each tab shows something different. The open one takes a number; the others stay dim and explain when tapped (LAN-135). */}
       {props.items.map((it) => (
         <View key={it.id} onLayout={(e) => {
           const x = e.nativeEvent.layout.x;
           xs.current[it.id] = x;
           if (it.id === props.value && x > space.lg) scroll.current?.scrollTo({ x: x - space.lg, animated: false });
         }}>
-          <RefChip item={it} on={it.id === props.value} onPress={() => props.onChange(it.id)} />
+          {it.id === props.value ? <RefChip item={it} on onPress={() => props.onChange(it.id)} />
+            : <HelpQuiet><RefChip item={it} on={false} onPress={() => props.onChange(it.id)} /></HelpQuiet>}
         </View>
       ))}
     </ScrollView>
@@ -124,7 +125,9 @@ export function MiniPlayer(props: {
   return (
     <View style={[!props.bare && styles.mini, props.style]}>
       <View style={styles.miniRow}>
-        <PlayBtn playing={props.playing} available={props.available} label={t('recording.player.playTitle', { title: props.title })} onPress={props.onToggle} {...(props.none ? { none: true } : {})} />
+        {/* Play takes a number while help is on, wherever the player sits; the rest stay dim and explain when tapped (LAN-135). */}
+        <HelpLoud><PlayBtn playing={props.playing} available={props.available} label={t('recording.player.playTitle', { title: props.title })} onPress={props.onToggle} {...(props.none ? { none: true } : {})} /></HelpLoud>
+        <HelpQuiet>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.miniTitle} numberOfLines={2}>{props.title}</Text>
           {props.under ?? (props.sub ? <Text style={txt.smMuted}>{props.sub}</Text> : null)}
@@ -132,6 +135,7 @@ export function MiniPlayer(props: {
         {props.right}
         <Back10 onPress={props.onBack10} disabled={props.backDisabled ?? !props.available} />
         {props.onNote ? <RoundBtn icon="note" word={t('recording.player.note')} label={t('recording.player.addNoteHere')} hint={t('recording.player.noteHelp')} tone="amber" onPress={props.onNote} /> : null}
+        </HelpQuiet>
       </View>
       {props.error ? <Text accessibilityRole="alert" style={txt.error}>{props.error}</Text> : null}
     </View>

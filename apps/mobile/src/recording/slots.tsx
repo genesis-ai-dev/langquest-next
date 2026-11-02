@@ -12,7 +12,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Animated, Pressable, StyleSheet, View, type PanResponderInstance } from 'react-native';
 import { Text } from '../ui/text';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpQuiet } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { Ico } from '../ui/kit';
 import { txt } from '../ui/textStyles';
@@ -56,7 +56,8 @@ export function GapSlot(props: { n: number; tile?: ReactNode; chosen: boolean; d
           {props.chosen ? <Text style={txt.smMuted}>{t('recording.recorder.recordingNext')}</Text> : null}
         </View>
         {props.tile ?? null}
-        <HelpBadge spot={spot} />
+        {/* A place not chosen is secondary while help is on (LAN-135): the one recorded into next takes a number. */}
+        {props.chosen ? <HelpBadge spot={spot} /> : <HelpQuiet><HelpBadge spot={spot} /></HelpQuiet>}
       </Pressable>
     </View>
   );
@@ -75,7 +76,8 @@ export function InsertMark(props: { n: number; before: string; onPress: () => vo
       <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('recording.recorder.recordBefore', { part: props.before })}
         style={({ pressed }) => [styles.markTap, pressed && { transform: [{ scale: 1.25 }] }]}>
         <View style={styles.mark}><Ico name="plus" size={12} color={C.muted} strokeWidth={3} /></View>
-        <HelpBadge spot={spot} />
+        {/* Secondary while help is on: dim and unnumbered, and a tap still explains (LAN-135). */}
+        <HelpQuiet><HelpBadge spot={spot} /></HelpQuiet>
       </Pressable>
     </View>
   );
