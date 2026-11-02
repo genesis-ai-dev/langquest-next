@@ -161,13 +161,16 @@ function roleName(ctx: Ctx, roleId: string): string {
 // one collapsed "Setup" card, never nested deeper than that.
 
 /** A home section: label, a card of rows, and an add row. Always open (ADR-029). */
-function HomeSection(props: { label: string; add?: { label: string; onPress: () => void; help?: string } | undefined; children?: ReactNode }) {
+type AddRow = { label: string; onPress: () => void; help?: string; icon?: IconName };
+
+function HomeSection(props: { label: string; add?: AddRow | undefined; more?: AddRow | undefined; children?: ReactNode }) {
   return (
     <View>
       <SectionLabel label={props.label} />
       <Group>
         {props.children}
-        {props.add ? <Row icon="plus" label={props.add.label} help={props.add.help} onPress={props.add.onPress} last /> : null}
+        {props.add ? <Row icon="plus" label={props.add.label} help={props.add.help} onPress={props.add.onPress} last={!props.more} /> : null}
+        {props.more ? <Row icon={props.more.icon ?? 'plus'} label={props.more.label} help={props.more.help} onPress={props.more.onPress} last /> : null}
       </Group>
     </View>
   );
@@ -315,6 +318,9 @@ export function OrgHome(ctx: Ctx) {
   // With clusters, the languages are grouped under them, then those in none (decision 108, amended 2026-10-20).
   const groups = languageGroups(v.org, v.languages);
   const addLanguage = mayAdd ? { label: t('org.home.newLanguageOrCluster'), help: t('org.home.newLanguageHelp'), onPress: () => ctx.go('new_language') } : undefined;
+  // Languages already here grouped under a name, without adding one (LAN-140): its own row, not found only inside New language.
+  const addCluster: AddRow | undefined = mayAdd && v.languages.length > 0
+    ? { label: t('org.home.newCluster'), help: t('org.home.newClusterHelp'), icon: 'layers', onPress: () => ctx.go('new_language', { cluster: 'new' }) } : undefined;
   // With no language yet, adding the first is the one big button: an invite then has no work to bring anyone to (UI audit, finding 50).
   const firstLanguage = v.languages.length === 0 && !!addLanguage;
   const invite = canInvite ? () => ctx.go('invite_member', { level: 'org' }) : undefined;
@@ -349,12 +355,17 @@ export function OrgHome(ctx: Ctx) {
                 <OrgLanguageGroup ctx={ctx} v={v} group={g} openAtFirst={v.languages.length <= GROUPS_OPEN_UP_TO} />
               </HelpRow>
             ))}
-            {addLanguage ? <Group><Row icon="plus" label={addLanguage.label} help={addLanguage.help} onPress={addLanguage.onPress} last /></Group> : null}
+            {addLanguage ? (
+              <Group>
+                <Row icon="plus" label={addLanguage.label} help={addLanguage.help} onPress={addLanguage.onPress} last={!addCluster} />
+                {addCluster ? <Row icon="layers" label={addCluster.label} help={addCluster.help} onPress={addCluster.onPress} last /> : null}
+              </Group>
+            ) : null}
           </View>
         </View>
       ) : (
         <>
-          <HomeSection label={t('org.home.languagesTitle')} add={firstLanguage ? undefined : addLanguage}>
+          <HomeSection label={t('org.home.languagesTitle')} add={firstLanguage ? undefined : addLanguage} more={firstLanguage ? undefined : addCluster}>
             {v.languages.length === 0 ? (
               <View style={{ padding: space.lg }}><Text style={txt.smMuted}>{t('org.home.noLanguages')}</Text></View>
             ) : null}
@@ -1543,12 +1554,14 @@ export function NewLanguage(ctx: Ctx) {
   const versifications = useSharedItems('versification', lib.orgId);
   // Opened from a cluster's page, one language already in it.
   const fromCluster = ctx.params['clusterId'] ?? null;
+  // Opened as New cluster from Manage (LAN-140).
+  const clusterFirst = ctx.params['cluster'] === 'new';
   const {
     step, setStep, languagePage, setLanguagePage, name, setName, code, setCode, picked, setPicked, filled, setFilled, many, setMany, joins, setJoins, newCluster, setNewCluster,
     clusterTitle, setClusterTitle, batch, setBatch, existing, setExisting, madeRef, scope, setScope, chosenBooks, setChosenBooks,
     materialPage, setMaterialPage, ticked, setTicked, flowPage, setFlowPage, flowKey, setFlowKey, moreFlows, setMoreFlows,
     startAgain, setStartAgain, making, setMaking, created, setCreated, busy, setBusy, error, setError, readsPicked, setReadsPicked
-  } = useNewLanguage(fromCluster);
+  } = useNewLanguage(fromCluster, clusterFirst);
   // A name of the person's own with the picked language in it searches for that language, so Change finds it again (LAN-141).
   const search = useLanguoidSearch(languoidQuery(name, filled), !picked);
   const mayGroup = mayManageClusters(ctx.org.state, ctx.session.actorId);
@@ -1702,7 +1715,7 @@ export function NewLanguage(ctx: Ctx) {
   }
   const header = (action?: ReactNode) => (
     <View style={{ backgroundColor: C.bg }}>
-      <Header title={t('org.home.newLanguage')} sub={step > 1 ? title : undefined} onBack={leave} close {...(action ? { action } : {})} />
+      <Header title={many ? t('org.home.newCluster') : t('org.home.newLanguage')} sub={step > 1 ? title : undefined} onBack={leave} close {...(action ? { action } : {})} />
       <View style={{ paddingHorizontal: 20, paddingBottom: space.sm }}>
         <StageBar stage={stage} />
       </View>
@@ -1790,11 +1803,13 @@ export function NewLanguage(ctx: Ctx) {
       setName('');
       setCode('');
     };
-    const onlyExisting = many && batch.length === 0 && existing.size > 0;
+    // No new language in the cluster: nothing to set up, so it is made here once it has a name and a language (LAN-140).
+    const onlyExisting = many && batch.length === 0;
     return (
       <Screen header={header()} bodyStyle={bodyStyle}
         footer={onlyExisting
-          ? <PrimaryBtn label={t('clusters.newLanguage.make')} icon="layers" busy={busy} disabled={!clusterTitle.trim()} onPress={() => void groupOnly()} />
+          ? <PrimaryBtn label={t('clusters.newLanguage.make')} icon="layers" busy={busy} disabled={!clusterTitle.trim() || existing.size === 0}
+            help={t('clusters.newLanguage.makeHelp')} onPress={() => void groupOnly()} />
           : <PrimaryBtn label={t('org.continue')} icon="right" disabled={!ready1} help={t('org.newLanguage.continueHelp')} onPress={() => setLanguagePage('team')} />}>
         {mayGroup ? (
           <>

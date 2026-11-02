@@ -7,8 +7,9 @@ import type { LanguageScope } from './orgAdmin';
 import type { Making, NewOne } from './newLanguage';
 import type { FlowPage, LanguagePage, MaterialPage } from './newLanguageModel';
 
-export function useNewLanguage(fromCluster: string | null) {
-  const [step, setStep] = useState(0);
+export function useNewLanguage(fromCluster: string | null, clusterFirst = false) {
+  // Opened as New cluster from Manage (LAN-140): straight to the cluster's name and its languages, past the six steps.
+  const [step, setStep] = useState(clusterFirst ? 1 : 0);
   // The language's step, two pages: its name, then the languages its translators use (decision 193).
   const [languagePage, setLanguagePage] = useState<LanguagePage>('name');
   const [name, setName] = useState('');
@@ -18,7 +19,7 @@ export function useNewLanguage(fromCluster: string | null) {
   // The name the last pick filled in: a name the person typed is kept when they pick (LAN-141).
   const [filled, setFilled] = useState<string | null>(null);
   // One language, or a cluster of several (decision 108, demo ADR-045).
-  const [many, setMany] = useState(false);
+  const [many, setMany] = useState(clusterFirst);
   // One language: the cluster it joins (an id, NEW_CLUSTER, or none), and a new one's name.
   const [joins, setJoins] = useState<string | null>(fromCluster);
   const [newCluster, setNewCluster] = useState('');
