@@ -53,6 +53,8 @@ export function ReferenceLanguagePage(props: {
   children?: ReactNode;
   /** The question, when it is about more than reference material: New language asks the languages the translators use (decision 193). */
   question?: string;
+  /** Whether the language translates a Bible: the question names Bibles only then (LAN-143). */
+  bible?: boolean;
 }) {
   const reader = readerLanguage();
   const [searching, setSearching] = useState(false);
@@ -88,7 +90,7 @@ export function ReferenceLanguagePage(props: {
   };
   return (
     <View style={{ gap: 14 }}>
-      <Question>{props.question ?? t('referenceLanguage.question', { language: props.team })}</Question>
+      <Question>{props.question ?? t(props.bible === false ? 'referenceLanguage.questionAny' : 'referenceLanguage.question', { language: props.team })}</Question>
       {ordered.map((c) => (
         <HelpRow key={c.language} of="referenceLanguage.language">
           <RadioRow icon="globe" label={label(c.language)} on={on(c.language)} onPress={() => toggle(c.language)} subLines={4} many

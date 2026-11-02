@@ -175,7 +175,7 @@ test('PASS-019 Record a fix', async ({ browser }) => {
   // Answered feedback keeps the check open (decisions.md 96): Done offers the peer check again, and says so (LAN-200).
   expect((await screenText(page)).toLowerCase()).toContain('next check peer check');
   await expect(byId(page, 'primary-action')).toHaveText('Ask the Peer check team again');
-  await button(page, 'Send later').click();
+  await button(page, "Done, don't ask anyone").click();
   await toast(page, 'Version 2 published.');
   await expect(header(page)).toHaveText(L);
   const path = await screenText(page);
