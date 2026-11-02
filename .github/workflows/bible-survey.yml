@@ -1,0 +1,149 @@
+# Which numbering each of Bible Brain's Bibles uses (scripts/bible-survey.ts,
+# docs/breaking-up-the-bible.md "Bibles from Bible Brain"): every Bible with
+# text, its books and chapters, then the last verse of about fifty chapters
+# where the standard numberings part. The result (survey.json, and survey.md
+# to read) is this run's artifact and its summary; `npm run bibles:survey --
+# --write-numberings survey.json` turns it into the list Find your Bible offers
+# (apps/web/worker/bibleNumberings.ts, decision 198).
+#
+# It runs when the survey itself changes, and by hand (Run workflow), with
+# more arguments if wanted: `--only ENGESV,HINOVBSI`, or `--full HINOVBSI` to
+# read every chapter of a Bible that fits no numbering (or list it in
+# scripts/bible-survey-full.txt, which the full job reads). A whole survey is about
+# 80,000 calls at 4 a second; a run stops starting Bibles after 300 minutes and
+# the next carries on from where it stopped (the cache below). A sample of 40
+# Bibles runs first, so a survey that misreads Bible Brain fails in minutes.
+#
+# The Bible Brain key (BIBLE_BRAIN_ACCESS_KEY, from .env.production through
+# `npm run secrets -- production`) is the one the app's reference material
+# uses, which is why the survey is paced. Without it the run fails with an
+# annotation titled "Needs you: Bible Brain key" (decision 190). It holds no
+# production key (scripts/workflows.test.ts).
+name: bible-survey
+
+on:
+  pull_request:
+    paths:
+      - scripts/bible-survey.ts
+      - scripts/bibleSurvey.ts
+      - scripts/bible-survey-full.txt
+      - .github/workflows/bible-survey.yml
+  workflow_dispatch:
+    inputs:
+      args:
+        description: 'More arguments: --only ENGESV,HINOVBSI or --full HINOVBSI'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bible-survey
+  cancel-in-progress: true
+
+jobs:
+  # The first 40 Bibles Bible Brain lists, in a few minutes: a survey that
+  # misreads Bible Brain shows here, not five hours later.
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HAS_KEY: ${{ secrets.BIBLE_BRAIN_ACCESS_KEY != '' }}
+    steps:
+      - name: Without the Bible Brain key, say so
+        if: env.HAS_KEY != 'true'
+        run: |
+          echo "::error title=Needs you%3A Bible Brain key::The Bible survey has no BIBLE_BRAIN_ACCESS_KEY. Run npm run secrets -- production, which copies it from .env.production. https://github.com/${{ github.repository }}/blob/main/docs/breaking-up-the-bible.md#bibles-from-bible-brain"
+          exit 1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Survey 40 Bibles
+        env:
+          BIBLE_BRAIN_ACCESS_KEY: ${{ secrets.BIBLE_BRAIN_ACCESS_KEY }}
+        run: npx tsx scripts/bible-survey.ts --out bible-sample --limit 40
+      - name: Summary
+        if: always()
+        run: cat bible-sample/*.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: bible-sample
+          path: bible-sample/
+          if-no-files-found: ignore
+
+  survey:
+    needs: sample
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      HAS_KEY: ${{ secrets.BIBLE_BRAIN_ACCESS_KEY != '' }}
+    steps:
+      - name: Without the Bible Brain key, say so
+        if: env.HAS_KEY != 'true'
+        # A block, since YAML takes the colon after the secret's name for a key.
+        run: |
+          echo "::error title=Needs you%3A Bible Brain key::The Bible survey has no BIBLE_BRAIN_ACCESS_KEY. Run npm run secrets -- production, which copies it from .env.production. https://github.com/${{ github.repository }}/blob/main/docs/breaking-up-the-bible.md#bibles-from-bible-brain"
+          exit 1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      # Where the last run stopped; a run with --only or --full starts afresh.
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        if: inputs.args == ''
+        with:
+          path: bible-survey/survey.json
+          key: bible-survey-${{ github.run_id }}
+          restore-keys: bible-survey-
+      - name: Survey
+        env:
+          BIBLE_BRAIN_ACCESS_KEY: ${{ secrets.BIBLE_BRAIN_ACCESS_KEY }}
+          ARGS: ${{ inputs.args }}
+        # ARGS is split into words on purpose: it holds the flags given by hand.
+        run: npx tsx scripts/bible-survey.ts --out bible-survey --resume bible-survey/survey.json --minutes 300 $ARGS
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        if: always() && inputs.args == '' && hashFiles('bible-survey/survey.json') != ''
+        with:
+          path: bible-survey/survey.json
+          key: bible-survey-${{ github.run_id }}
+      - name: Summary
+        if: always()
+        run: cat bible-survey/*.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: bible-survey
+          path: bible-survey/
+          if-no-files-found: ignore
+
+  # Every chapter of the Bibles listed in scripts/bible-survey-full.txt, the
+  # ones a new numbering is built from (a whole Bible is about 1,200 calls,
+  # five minutes). Nothing listed, nothing read.
+  full:
+    needs: sample
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Every chapter of the listed Bibles
+        env:
+          BIBLE_BRAIN_ACCESS_KEY: ${{ secrets.BIBLE_BRAIN_ACCESS_KEY }}
+        run: |
+          ids=$(sed 's/#.*//' scripts/bible-survey-full.txt | tr -s '[:space:]' ',' | sed 's/^,//; s/,$//')
+          if [ -z "$ids" ]; then echo "No Bibles listed in scripts/bible-survey-full.txt"; exit 0; fi
+          npx tsx scripts/bible-survey.ts --out bible-full --full "$ids"
+      - name: Summary
+        if: always()
+        run: cat bible-full/*.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: bible-full
+          path: bible-full/
+          if-no-files-found: ignore

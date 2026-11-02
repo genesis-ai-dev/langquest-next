@@ -51,14 +51,15 @@ export const readBiblesBesideAPassage: Tutorial = {
     {
       screen: 'workspace',
       part: (page) => button(page, 'Add a note here'),
-      say: 'Tap Add a note here to keep a note on that verse.',
+      say: 'Tap Note to keep a note on that verse.',
       tap: true,
       until: (page) => field(page, 'Or type it').waitFor({ timeout: 10_000 }),
       stay: 0.6
     },
     {
       screen: 'workspace',
-      part: (page) => field(page, 'Or type it'),
+      // The field first: it is what is typed in.
+      part: (page) => [field(page, 'Or type it'), button(page, 'Say it')],
       say: 'Say it, or type it.',
       type: 'Ask the elders how we say fox',
       stay: 0.4

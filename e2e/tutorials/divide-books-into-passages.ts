@@ -100,7 +100,8 @@ export const divideBooksIntoPassages: Tutorial = {
     },
     {
       screen: 'book_map',
-      part: (page) => page.getByText(/ of 31 passages$/).locator('visible=true').first(),
+      // Its first two rows of passages.
+      part: (page) => [page.getByTestId(/^row-.+-1$/).locator('visible=true').first(), page.getByTestId(/^row-.+-8$/).locator('visible=true').first()],
       say: 'Proverbs has its passages now, ready to record.',
       stay: 2
     }

@@ -36,6 +36,18 @@ export function geminiNeedsYou(status, body) {
   return null;
 }
 
+/**
+ * What Claude Code's refusal of the frame check (frame-check.ts) needs a person
+ * for, from its error: the Claude plan's token missing, expired or revoked.
+ * The same words as tutorial-review.yml's check of its own look.
+ */
+export function claudeNeedsYou(text) {
+  if (/authentication_error|invalid api key|oauth token (has expired|has been revoked)|invalid bearer token|not logged in|please run \/login/i.test(text)) {
+    return { title: 'Claude token', text: "Claude refused CLAUDE_CODE_OAUTH_TOKEN, or the workflow has none, so the tutorial videos' frame check could not look at the night's new films and held them. Run claude setup-token, then npm run env:update -- production CLAUDE_CODE_OAUTH_TOKEN and npm run secrets -- production.", link: 'https://github.com/genesis-ai-dev/langquest-next/blob/main/docs/tutorial-videos.md#feedback' };
+  }
+  return null;
+}
+
 /** A GitHub workflow command's property and message, escaped as the runner reads them. */
 const escapeData = (s) => s.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
 const escapeProperty = (s) => escapeData(s).replace(/:/g, '%3A').replace(/,/g, '%2C');

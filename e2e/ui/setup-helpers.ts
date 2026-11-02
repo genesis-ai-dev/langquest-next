@@ -14,10 +14,17 @@ export async function orgHome(page: Page, world: UiWorld): Promise<void> {
   await expect(text(page, world.orgName)).toBeVisible();
 }
 
-/** A language's page, from Org home's Languages. */
+/**
+ * A language's page, from Org home's Languages: open once its Back shows. The row's name is on Org home too, so it
+ * alone never said the page opened. A tap made while the app still routes after opening can open nothing (the row
+ * took focus and Org home stayed, SETUP-022 on CI 2026-11-01; a Map tap undone the same way, SETUP-040): tapped until it holds.
+ */
 export async function languagePage(page: Page, world: UiWorld, name: string): Promise<void> {
   await orgHome(page, world);
-  await rowNamed(page, name).click();
+  await expect(async () => {
+    if (!(await back(page).isVisible())) await rowNamed(page, name).click({ timeout: 5_000 });
+    await expect(back(page)).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 60_000 });
   await expect(text(page, name)).toBeVisible();
 }
 

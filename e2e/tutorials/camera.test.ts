@@ -1,4 +1,4 @@
-import { cameraPath, shotOf, viewExpression, ZOOM_MOST, type Move } from './camera';
+import { cameraPath, shotOf, titleShows, viewExpression, ZOOM_MOST, type Move } from './camera';
 
 /** Where a tutorial video's camera looks (camera.ts, compose.ts). */
 
@@ -25,12 +25,28 @@ describe('the camera', () => {
     const bottom = shot.y + (shot.width * page.height) / page.width;
     expect(bottom).toBeGreaterThan(phone.y + phone.height);
     expect(bottom).toBeLessThan(page.height);
-    // A tall part is shown less close, whole; nothing lit shows the whole page.
-    const list = shotOf({ x: 1190, y: 200, width: 420, height: 600 }, page, phone);
+    // A tall part is shown less close, whole; one that would take most of the screen's height into the shot, and
+    // nothing lit, show the whole page (with the title, not an empty page beside the phone).
+    const list = shotOf({ x: 1190, y: 200, width: 420, height: 450 }, page, phone);
     expect(list.width).toBeGreaterThan(shot.width);
+    expect(list.width).toBeLessThan(page.width);
     expect(list.y).toBeLessThanOrEqual(200);
-    expect(list.y + (list.width * page.height) / page.width).toBeGreaterThanOrEqual(800);
+    expect(list.y + (list.width * page.height) / page.width).toBeGreaterThanOrEqual(650);
+    expect(shotOf({ x: 1190, y: 200, width: 420, height: 600 }, page, phone)).toEqual({ x: 0, y: 0, width: page.width });
     expect(shotOf(null, page, phone)).toEqual({ x: 0, y: 0, width: page.width });
+  });
+
+  it('never films an empty screen: a tab under a short page is shown from further out, with the page', () => {
+    const tab = { x: 1290, y: 960, width: 110, height: 66 };
+    // The page's heading and card at the top, the tabs at the bottom, nothing between.
+    const short: [number, number][] = [[60, 360], [960, 1026]];
+    const close = shotOf(tab, page, phone);
+    const shot = shotOf(tab, page, phone, short);
+    // Here that is the whole page: a shot that would still cut a little off the top shows the screen whole.
+    expect(shot).toEqual({ x: 0, y: 0, width: page.width });
+    expect(close.y).toBeGreaterThan(360);
+    // A tab under a full page is shown as close as ever.
+    expect(shotOf(tab, page, phone, [[60, 1026]])).toEqual(close);
   });
 
   it('holds the title first, moves to each part as it is lit, and goes back out at the end', () => {
@@ -41,6 +57,20 @@ describe('the camera', () => {
     expect(moves.at(-1)!.to).toEqual({ x: 0, y: 0, width: page.width });
     // Moves never overlap, so each starts from where the last one left the camera.
     for (const [i, m] of moves.slice(1).entries()) expect(m.at).toBeGreaterThanOrEqual(moves[i]!.at + moves[i]!.for);
+  });
+
+  it('shows the title whenever it is out on the whole page, in the middle as at the start and the end', () => {
+    const close = { x: 1100, y: 300, width: page.width / 2 };
+    const whole = { x: 0, y: 0, width: page.width };
+    const moves: Move[] = [
+      { at: 1.2, for: 0.8, to: close }, { at: 6, for: 0.8, to: { ...close, y: 500 } }, { at: 12, for: 0.8, to: whole },
+      { at: 15, for: 0.8, to: close }, { at: 20, for: 0.8, to: whole }
+    ];
+    expect(titleShows(moves, page)).toEqual([
+      { from: 0, in: 0, to: 1.2 }, { from: 12, in: 0.8, to: 15 }, { from: 20, in: 0.8, to: null }
+    ]);
+    // A video the camera never moves in on keeps its title throughout.
+    expect(titleShows([], page)).toEqual([{ from: 0, in: 0, to: null }]);
   });
 
   it('holds still for a part already in the shot, and leaves out a shot too short to see', () => {

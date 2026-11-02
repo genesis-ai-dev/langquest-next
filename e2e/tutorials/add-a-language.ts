@@ -35,7 +35,8 @@ export const addALanguage: Tutorial = {
     },
     {
       screen: 'new_language',
-      part: (page) => [words(page, 'Language'), words(page, 'People')],
+      // The six steps, from the first to the last with what is under it: the box the two are in.
+      part: (page) => page.locator('div').filter({ has: page.getByText('Language', { exact: true }) }).filter({ has: page.getByText('People', { exact: true }) }).filter({ visible: true }).last(),
       say: 'There are six steps: its name, what it translates, how that is split into passages, reference material, how recordings get checked, and its people.'
     },
     {

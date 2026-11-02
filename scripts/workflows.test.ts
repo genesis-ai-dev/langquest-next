@@ -26,7 +26,8 @@ describe('GitHub Actions workflows', () => {
     // public (decisions.md 155); it holds a GitHub App token for this
     // repository only, and a late or dropped run only keeps a branch longer.
     // tutorials.yml films the tutorial videos into this repository's release
-    // with the Gemini key alone; the job container brings them in (decision 183).
+    // with the Gemini key and the Claude plan's token alone (the voice, and
+    // the frame check); the job container brings them in (decision 183).
     // tutorial-review.yml holds a Claude plan's token and reads and writes the
     // videos' feedback only through the Worker's /api/tutorial-review, which
     // lets in that workflow on main by its OIDC token (decision 186).
