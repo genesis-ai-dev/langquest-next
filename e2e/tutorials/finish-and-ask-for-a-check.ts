@@ -53,8 +53,8 @@ export const finishAndAskForACheck: Tutorial = {
     },
     {
       screen: 'workspace',
-      part: (page) => [button(page, 'Someone else'), button(page, 'Send later')],
-      say: 'Tap Someone else to choose another person. Send later keeps your version without asking anyone yet.'
+      part: (page) => [button(page, 'Someone else'), button(page, "Done, don't ask anyone")],
+      say: "Tap Someone else to choose another person. Or tap Done, don't ask anyone: your version is finished, and nobody is asked."
     },
     {
       screen: 'workspace',

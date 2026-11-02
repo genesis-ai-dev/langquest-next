@@ -108,8 +108,11 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Raised to 4.85 MB when the UI audit's fixes across the app (the audit of
 // 2026-10-28, decision 185) took it 13 KB past 4.75 MB partway through (4.76
 // MB then): what they add is screens' code, and a first visit stays under its
-// own budget.
-const TOTAL_BUDGET_BYTES = 4.85 * 1024 * 1024;
+// own budget. Raised to 4.9 MB when the fixes from Carl's UI review
+// (LAN-125 to LAN-144, 2026-11-02) took it 2 KB past 4.85 MB: they too are
+// screens' code (a Bible pane that follows the voice, hints, New cluster, a
+// third way to join), and a first visit stays under its own budget.
+const TOTAL_BUDGET_BYTES = 4.9 * 1024 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the

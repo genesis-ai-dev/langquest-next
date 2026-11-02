@@ -48,7 +48,7 @@ import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { screenTitle } from '../shell/flow';
-import { HelpBadge, HelpClip } from '../helpMode/helpBadge';
+import { HelpBadge, HelpClip, HelpQuiet } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { indexesFor } from '../sync/indexes';
@@ -692,8 +692,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const recorderLine = split >= 1;
   return (
     <Screen fixed
-      header={<Header title={v.title} sub={recordingSub} crumbs={passageCrumbs(ctx, v, screenTitle('workspace'))} onBack={ctx.back} close
-        action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} />}
+      // Help numbers go to the few parts that matter here (LAN-135): the header's stay dim and explain when tapped.
+      header={<HelpQuiet><Header title={v.title} sub={recordingSub} crumbs={passageCrumbs(ctx, v, screenTitle('workspace'))} onBack={ctx.back} close
+        action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} /></HelpQuiet>}
       footer={recorderLine ? undefined : (
         <RecorderFooter count={list.length} nextIndex={sessionIndex} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
           publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} undo={undoRedo} />
@@ -707,16 +708,21 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
             <RefChips items={chips} value={chip} onChange={openChip} />
             {chip === 'guide' && study ? <GuideNav ctx={ctx} sp={study} index={step} onIndex={setStep} /> : null}
             <HelpClip style={{ flex: 1 }}>
+              {/* The Bible scrolls its own words under a player that stays put (LAN-130). */}
+              {/* While help is on, only its play button takes a number here; the verses explain when tapped (LAN-135). */}
+              {chip === 'bible' ? (
+                <HelpQuiet>
+                <BiblePane ctx={ctx} v={v} bible={bible} terms={unitTerms} tied={tied} canNote={!recording} selected={verse} onSelect={setVerse}
+                  hear={shows.bibleAudio} read={shows.bibleText} scroll={styles.paneBody}
+                  footer={<ReferenceRecordings ctx={ctx} unitId={unitId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
+                  {...(recording ? {} : {
+                    onTerm: (termId: string) => ctx.go('key_term_detail', { ...scope, termId, ...(draft ? { draftId: draft.takeId } : {}) }),
+                    onMoreBibles: () => ctx.go('bible_explore', scope)
+                  })} />
+                </HelpQuiet>
+              ) : (
               <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.paneBody} keyboardShouldPersistTaps="handled">
-                {chip === 'bible' ? (
-                  <BiblePane ctx={ctx} v={v} bible={bible} terms={unitTerms} tied={tied} canNote={!recording} selected={verse} onSelect={setVerse}
-                    hear={shows.bibleAudio} read={shows.bibleText}
-                    footer={<ReferenceRecordings ctx={ctx} unitId={unitId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
-                    {...(recording ? {} : {
-                      onTerm: (termId: string) => ctx.go('key_term_detail', { ...scope, termId, ...(draft ? { draftId: draft.takeId } : {}) }),
-                      onMoreBibles: () => ctx.go('bible_explore', scope)
-                    })} />
-                ) : chip === 'guide' && study && guide ? (
+                {chip === 'guide' && study && guide ? (
                   <>
                     <GuideStep key={study.steps[step]!.step.id} ctx={ctx} v={v} guide={guide} status={study.steps[step]!} spoken={!shows.guideText && shows.guideAudio} read={shows.guideText}
                       canContribute={!recording} onTerm={(termId) => ctx.go('key_term_detail', { ...scope, termId, ...(draft ? { draftId: draft.takeId } : {}) })} />
@@ -734,6 +740,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                   <EarlierPane ctx={ctx} v={v} from={revising ? (s) => s === revising.kindId || earlierFrom(s) : earlierFrom} {...(revising ? { focusReviewId: revising.id } : {})} />
                 ) : null}
               </ScrollView>
+              )}
             </HelpClip>
           </View>
         )}

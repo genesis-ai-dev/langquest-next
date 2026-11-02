@@ -11,7 +11,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { AccessibilityInfo, Animated, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
+import { HelpBadge, HelpQuiet, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { Ico } from '../ui/kit';
 import { C, radius } from '../ui/theme';
@@ -171,7 +171,8 @@ export function SwipeRow(props: {
               <Pressable onPress={bin.onPress} accessibilityRole="button" accessibilityLabel={t('recording.deleteItem', { item: props.name })}
                 style={({ pressed }) => [styles.bin, pressed && { opacity: 0.8 }]}>
                 <Ico name="trash" size={22} color={C.white} />
-                <HelpBadge spot={bin} />
+                {/* Secondary while help is on: dim and unnumbered, and a tap still explains (LAN-135). */}
+                <HelpQuiet><HelpBadge spot={bin} /></HelpQuiet>
               </Pressable>
             </HelpRow>
           ) : (

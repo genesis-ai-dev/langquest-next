@@ -1,7 +1,7 @@
 // The language list's search results as the add-language picker shows them
 // (src/org/languoidModel.ts, docs/languoids.md).
 import { describe, expect, it } from 'vitest';
-import { hitLine, languoidHits, type LanguoidRow } from '../src/org/languoidModel';
+import { hitLine, languoidHits, languoidQuery, nameAfterPick, type LanguoidRow } from '../src/org/languoidModel';
 
 const row = (r: Partial<LanguoidRow>): LanguoidRow => ({
   id: 'id', name: 'Name', level: 'language', parent_name: null, matched_alias_name: null, matched_alias_type: null, iso_code: null, glottocode: null, ...r
@@ -35,5 +35,26 @@ describe('language list matches', () => {
   it('names no family for a language Glottolog could not classify', () => {
     const [gelao] = languoidHits([row({ name: 'Gelao', iso_code: 'gio', parent_name: 'Bookkeeping' })]);
     expect(hitLine(gelao!)).toBe('GIO');
+  });
+});
+
+describe('New language keeps a name of its own (LAN-141)', () => {
+  const french = { name: 'French' };
+  it('fills an empty name, a search for the language, and the name the last pick filled in', () => {
+    expect(nameAfterPick('', null, french)).toBe('French');
+    expect(nameAfterPick('fre', null, french)).toBe('French');
+    expect(nameAfterPick('Français', null, { name: 'Français' })).toBe('Français');
+    expect(nameAfterPick('francais', null, { name: 'Français' })).toBe('Français');
+    expect(nameAfterPick('French', 'French', { name: 'Cajun French' })).toBe('Cajun French');
+  });
+  it('keeps a name the person typed', () => {
+    expect(nameAfterPick('New Testament in French', 'French', french)).toBe('New Testament in French');
+    expect(nameAfterPick('Our French team', null, french)).toBe('Our French team');
+  });
+  it('searches the picked language again while the name is the person\'s own with it in', () => {
+    expect(languoidQuery('fre', null)).toBe('fre');
+    expect(languoidQuery('French', 'French')).toBe('French');
+    expect(languoidQuery('New Testament in French', 'French')).toBe('French');
+    expect(languoidQuery('German', 'French')).toBe('German');
   });
 });

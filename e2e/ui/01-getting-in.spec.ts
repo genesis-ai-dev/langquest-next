@@ -96,6 +96,8 @@ test('AUTH-001 The Sign In screen offers two ways in', async ({ page }) => {
   // The fields keep their names once typing starts (UI audit, finding 35).
   await expect(text(page, 'Email or sign-in name')).toBeVisible();
   await expect(field(page, 'Email or sign-in name')).toBeVisible();
+  // In a browser the cursor starts in the first field, so typing can start at once (LAN-138).
+  await expect(field(page, 'Email or sign-in name')).toBeFocused();
   const password = field(page, 'Password');
   await expect(password).toHaveAttribute('type', 'password');
   await expect(button(page, SIGN_IN)).toBeDisabled();
@@ -556,6 +558,32 @@ test('AUTH-030 "I already have an account" joins after signing in', async ({ pag
   await expect(text(page, world().orgName, false)).toBeVisible();
   await expect(text(page, world().org2Name, false)).toBeVisible();
   expect(await memberOf((await signIn(world(), 'TRANS')).sb)).toContain(world().org2Id);
+});
+
+test('AUTH-062 "Make an account with email" joins the new account', async ({ page }) => {
+  // The third way in after scanning (LAN-137): an email account made now, and the invite joins it as it does one already made.
+  const invite = await issueInvite(world(), base(), { issuer: 'OWNER2', org: 'org2', label: 'Translator Two' });
+  const email = newAddress(world());
+  await openSignedOut(page);
+  await openScan(page);
+  await paste(page, PASTE, invite.link);
+  await expect(button(page, 'I already have an account')).toBeVisible();
+  await button(page, 'Make an account with email').click();
+  await expect(text(page, 'Make your account to join')).toBeVisible();
+  await expect(text(page, "Your invite is saved. You'll join as soon as you're signed in to this account.")).toBeVisible();
+  // It has an invite already: scanning one is not offered here.
+  await expect(button(page, 'Scan an invite')).toHaveCount(0);
+  await field(page, 'Email').fill(email);
+  await field(page, 'Password').fill('secret12');
+  await field(page, 'Confirm password').fill('secret12');
+  await button(page, 'Create Account').click();
+  // The local server signs a new account straight in: it joins with no further tap.
+  await expect.poll(() => screenText(page), { timeout: 60_000 }).toContain(`You're a Translator on ${world().org2Name}.`);
+  await expect(text(page, `${world().accounts.OWNER2.name} invited you`)).toBeVisible();
+  const sb = anon();
+  const { error } = await sb.auth.signInWithPassword({ email, password: 'secret12' });
+  expect(error).toBeNull();
+  expect(await memberOf(sb)).toContain(world().org2Id);
 });
 
 test('AUTH-031 A held invite survives a restart', async ({ page, context }) => {
