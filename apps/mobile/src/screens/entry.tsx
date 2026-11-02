@@ -484,17 +484,21 @@ function EmailAccount(ctx: Ctx) {
   const { busy, error, checkEmail, run } = useAuthStep();
   const ready = createAccountReady(email, password, confirm);
   const create = () => run(() => createAccountWithEmail(email, password, { acceptTerms: ctx.acceptTerms, toast: ctx.toast, isDev: ctx.isDev }));
+  // Come from a scanned invite (LAN-137): it is kept, and joins this account once it is signed in.
+  const joining = ctx.invite.held?.claim.kind === 'next-account';
 
   if (checkEmail) {
     return (
       <Screen header={<Header title={t('entry.createAccount.title')} onBack={ctx.back} />}>
-        <EmptyState icon="check" title={t('entry.createAccount.createdTitle')} sub={t('entry.createAccount.createdSub', { email: email.trim() })} />
+        <EmptyState icon="check" title={t('entry.createAccount.createdTitle')}
+          sub={t(joining ? 'entry.createAccount.createdSubJoining' : 'entry.createAccount.createdSub', { email: email.trim() })} />
       </Screen>
     );
   }
 
   return (
     <Screen header={<Header title={t('entry.createAccount.title')} onBack={ctx.back} />}>
+      {joining ? <Banner icon="people" title={t('entry.createAccount.joinTitle')} body={t('entry.createAccount.joinBody')} /> : null}
       <Field label={t('entry.fields.email')} value={email} onChangeText={setEmail} placeholder={t('entry.createAccount.emailPlaceholder')} keyboardType="email-address" autoCapitalize="none"
         help={t('entry.createAccount.emailHelp')} />
       <Field label={t('entry.fields.password')} value={password} onChangeText={setPassword} placeholder={t('entry.createAccount.passwordPlaceholder')} secure autoCapitalize="none"
@@ -507,9 +511,14 @@ function EmailAccount(ctx: Ctx) {
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
       <PrimaryBtn label={busy ? t('entry.shared.creating') : t('entry.createAccount.button')} help={t('entry.createAccount.buttonHelp')} onPress={() => void create()} disabled={!ready || busy} />
       <TermsLink ctx={ctx} i18nKey="entry.termsLine.creating" />
-      <OrDivider />
-      <GhostBtn label={t('entry.createAccount.scanInvite')} icon="qr" help={t('entry.createAccount.scanInviteHelp')} onPress={() => ctx.go('scan_qr')} />
-      <Text style={[txt.xs, { textAlign: 'center' }]}>{t('entry.createAccount.scanHint')}</Text>
+      {/* With an invite already kept, scanning one is not the other way in. */}
+      {joining ? null : (
+        <>
+          <OrDivider />
+          <GhostBtn label={t('entry.createAccount.scanInvite')} icon="qr" help={t('entry.createAccount.scanInviteHelp')} onPress={() => ctx.go('scan_qr')} />
+          <Text style={[txt.xs, { textAlign: 'center' }]}>{t('entry.createAccount.scanHint')}</Text>
+        </>
+      )}
     </Screen>
   );
 }
@@ -616,6 +625,8 @@ export function ScanQr(ctx: Ctx) {
             onPress={() => ctx.go('create_account', { as: 'new', name: '' })} />
         )}
         <GhostBtn label={t('entry.scan.haveAccount')} disabled={joining} help={t('entry.scan.haveAccountHelp')} onPress={() => void invite.choose('next-account').then(() => ctx.go('sign_in'))} />
+        {/* A new account with an email and password, then the invite joins it, as it does an account already made (LAN-137). */}
+        <GhostBtn label={t('entry.scan.emailAccount')} disabled={joining} help={t('entry.scan.emailAccountHelp')} onPress={() => void invite.choose('next-account').then(() => ctx.go('create_account'))} />
       </>
     ) : (
       <>
