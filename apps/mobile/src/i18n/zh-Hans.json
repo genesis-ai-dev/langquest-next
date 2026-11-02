@@ -718,6 +718,8 @@
       "languageHelp": "打开它的页面：做好准备工作，查看它的工作和人员。",
       "licenseHelp": "你的团队的工作所用的许可协议。“设置”中说明了它允许什么。",
       "newLanguageHelp": "给机构添加一个语言，或者一个由相关语言组成的语言群。",
+      "newCluster": "新语言群",
+      "newClusterHelp": "把这里已有的语言归到一个名字下。它们本身不会有任何改变。",
       "roleHelp": "你在这个机构中的角色。它决定你在这里可以做什么。",
       "clusterGroupHelp": "这个语言群里的语言。点一下可以显示或隐藏。",
       "looseGroupHelp": "不在任何语言群中的语言。点一下可以显示或隐藏。",
@@ -836,7 +838,7 @@
       "sent": "已向 {{address}} 发送邀请，角色是{{role}}",
       "cannot": "只有可以邀请成员的人才能在这里邀请。",
       "byEmail": "通过邮箱",
-      "byName": "按名字邀请一个人",
+      "byName": "按名字：一个人或一组人",
       "emailTitle": "通过邮箱邀请",
       "send": "发送邀请",
       "emailLabel": "邮箱地址",
@@ -2828,9 +2830,12 @@
     },
     "createAccount": {
       "title": "创建账号",
+      "joinTitle": "创建账号后加入",
+      "joinBody": "你的邀请已保存。登录这个账号后就会立即加入。",
       "button": "创建账号",
       "createdTitle": "账号已创建",
       "createdSub": "请打开我们发到 {{email}} 的链接，然后登录。准备好后，你可以创建机构、申请加入一个机构，或者扫描邀请码。",
+      "createdSubJoining": "请打开我们发到 {{email}} 的链接，然后在这台设备上登录。你的邀请已保存：登录后就会立即加入团队。",
       "emailPlaceholder": "you@example.com",
       "passwordPlaceholder": "设置密码（至少 6 个字符）",
       "confirmLabel": "确认密码",
@@ -2856,6 +2861,7 @@
       "cameraOff": "相机权限已关闭。你可以在下面粘贴代码。",
       "joinAsYou": "以你自己的身份加入",
       "haveAccount": "我已经有账号了",
+      "emailAccount": "用邮箱创建账号",
       "notMe": "不是{{name}}？请先退出登录",
       "notYou": "不是你？请先退出登录",
       "joinWhenConnected": "联网后加入",
@@ -2879,6 +2885,7 @@
       "joinAsHelp": "在本设备上，以邀请中写明的那个人的身份加入团队。",
       "joinHelp": "接下来输入你的名字。然后你就加入团队了。",
       "haveAccountHelp": "请先登录。登录后你就会立即加入团队。",
+      "emailAccountHelp": "先用你自己的邮箱和密码。登录后你就会立即加入团队。",
       "joinAsMeHelp": "把这个账号加入邀请中的机构。",
       "notMeHelp": "打开退出登录，让对的人在本设备上加入。",
       "stopCameraHelp": "关闭相机。",
@@ -4273,8 +4280,8 @@
       "cannotOpenHere": "这里无法打开它。",
       "noPermission": "你没有权限打开它。",
       "backAgainToLeave": "再按一次返回即可退出 LangQuest",
-      "languageExplorer": "语言浏览",
-      "languageExplorerNewTab": "语言浏览，在新标签页中打开",
+      "languageExplorer": "世界语言及其代码",
+      "languageExplorerNewTab": "世界语言及其代码，在新标签页中打开",
       "tabBadge": "{{tab}}，{{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4294,6 +4301,8 @@
     "person": {
       "showId": "{{name}}。显示 ID",
       "noName": "还没有设置名字",
+      "someone": "某人",
+      "someoneInSentence": "某人",
       "id": "ID {{id}}",
       "anonymous": "{{color}}{{shape}}",
       "colors": {
@@ -4449,7 +4458,7 @@
       "manage": "你的机构的语言、人员和设置。",
       "inbox": "与你有关的事：请求、反馈、申请加入的人。",
       "me": "你的名字、本设备和你的设置。",
-      "explorer": "在新标签页中打开语言浏览：所有语言，以及在哪里使用。"
+      "explorer": "在新标签页中打开世界语言列表：每种语言的代码，以及在哪里使用。这些不是你们组织的语言。"
     },
     "sync": {
       "live": "带勾的云：已联网。你的工作会随时发送。点按查看发送了什么。",
@@ -4828,8 +4837,8 @@
       "finishHelp": "完成{{version}}：团队就能听到。",
       "sendHelp": "完成{{version}}，并发送给他们做这项检查。他们会在“我的工作”中看到。",
       "askHelp": "完成{{version}}，然后由你选择请谁。",
-      "sendLater": "以后再发送",
-      "sendLaterHelp": "完成{{version}}，暂时不请任何人。团队可以听到。",
+      "doneAskNobody": "完成，不请任何人",
+      "doneAskNobodyHelp": "完成{{version}}，不请任何人。团队可以听到，任何审阅者都可以检查。",
       "nextCheck": "下一项检查",
       "checkNowHelp": "完成{{version}}，然后打开下一项检查，由你现在自己来做。"
     },
@@ -4933,6 +4942,7 @@
       "spaceSetHelp": "圆圈表示这一节是你选的。长按可以选择其他经节，或者不选。",
       "pickHelp": "给{{part}}这一节。然后点按后面的某一节，可以涵盖几节经文。",
       "pickedHelp": "实心：{{part}}是这一节。点按后面的某一节，可以涵盖几节经文。",
+      "doneHelp": "关闭{{part}}的经节。你选的已经保存；撤销可以收回。",
       "autoHelp": "应用根据前后的段，判断这一段是哪一节。",
       "noneHelp": "让这一段不对应任何经节。",
       "tileHelp": "这一段说的经节。",
@@ -6181,7 +6191,7 @@
     "finishWhat": "完成{{what}}",
     "doneHelp": "每一段都说完后：完成它，并把它送去接下来要听它的检查。",
     "notesForCheck_other": "{{count, number}} 条给{{check}}的备注",
-    "sendLaterHelp": "完成{{what}}，暂时不请任何人。团队可以听到。",
+    "doneAskNobodyHelp": "完成{{what}}，不请任何人。团队可以听到，任何审阅者都可以检查。",
     "chips": {
       "version": "第 {{n}} 版"
     },
@@ -6799,6 +6809,7 @@
   },
   "referenceLanguage": {
     "question": "{{language}}的圣经和学习指南应使用哪些语言？",
+    "questionAny": "{{language}}的参考资料应使用哪些语言？",
     "setPassages_other": "{{name}}指南涵盖 {{count, number}} 个经段",
     "bibles_other": "{{count, number}} 本圣经",
     "otherGuides_other": "另有 {{count, number}} 份指南或笔记",
@@ -7201,6 +7212,7 @@
       "note_other": "已在这里的语言保留它们已有的一切。{{count, number}} 种新语言会在接下来的步骤中一起设置。",
       "onlyExisting": "没有需要新设置的：已在这里的语言保留它们已有的一切。",
       "make": "创建语言群",
+      "makeHelp": "用上面的语言创建语言群。请先命名，并至少加入一个语言。",
       "made_other": "已创建 {{cluster}}，包含 {{count, number}} 种语言。",
       "forNew_other": "用于 {{cluster}} 中的 {{count, number}} 种新语言。之后每种语言都可以修改自己的设置。",
       "added_other": "已将 {{count, number}} 种语言添加到 {{org}}，在 {{cluster}} 中。",

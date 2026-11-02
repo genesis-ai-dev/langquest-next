@@ -136,7 +136,8 @@ function ExplorerLink() {
       accessibilityLabel={t('shell.nav.languageExplorerNewTab')}
       style={({ pressed }) => [styles.sideItem, { marginTop: space.md }, pressed && { opacity: 0.6 }]}>
       <Ico name="globe" size={22} color={C.muted} />
-      <Text style={[txt.body, { flex: 1, fontWeight: '600', color: C.dark }]} numberOfLines={1}>{t('shell.nav.languageExplorer')}</Text>
+      {/* Two lines: "World languages and codes" says what it is only whole (LAN-144). */}
+      <Text style={[txt.body, { flex: 1, fontWeight: '600', color: C.dark }]} numberOfLines={2}>{t('shell.nav.languageExplorer')}</Text>
       <HelpBadge spot={spot} inset />
     </Pressable>
   );

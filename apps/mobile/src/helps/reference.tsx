@@ -6,8 +6,8 @@
 // say yours, add a word), notes, and everything recorded so far.
 import { commands, keyTermsFor, notePart, noteHelp, RECORD_STEP, replyOf, type KeyTermView, type KeyWordDoc, type NoteAnchor, type PassageNote, type PassageState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useMemo, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
@@ -48,6 +48,7 @@ import { KeyWordSheet } from '../keyTerms/lazySheets';
 import { ListWordRow } from '../keyTerms/KeyWordRows';
 import { ownTermId, shortName, type KeyWordList, type WordHere } from '../keyTerms/listsModel';
 import { a11yState } from '../ui/a11yModel';
+import { useFollowVerse } from './useFollowVerse';
 
 const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
 
@@ -65,6 +66,12 @@ export function BiblePane(props: {
   /** What the step shows (decisions.md 130): the player when heard, the verses' words when read; numbers alone otherwise. */
   hear?: boolean;
   read?: boolean;
+  /**
+   * The pane scrolls itself, with this padding: the player stays at its top
+   * and only the words under it scroll (LAN-130), following the verse being
+   * read (LAN-131). Else the pane is part of a page that scrolls.
+   */
+  scroll?: StyleProp<ViewStyle>;
 }) {
   const { ctx, v, bible } = props;
   const hear = props.hear ?? true;
@@ -98,13 +105,15 @@ export function BiblePane(props: {
     : bible.audioAbsent ? t('recording.player.notOnDeviceYet')
       : src?.loading || !src ? t('common.loading') : src.textProblem;
   const selectedRow = props.selected ? src?.rows?.find((r) => r.key === props.selected) ?? null : null;
+  const scrollRef = useRef<ScrollView>(null);
+  const follow = useFollowVerse({ playing: player.playing, verse: player.started ? player.current?.key : undefined, scroll: scrollRef });
   // Under the chosen verse: what a note there is on, with the moment when it is playing there (UI audit, finding 42).
   const noteHereLabel = (key: string) => {
     const at = player.started && player.current?.key === key ? mmss(player.ms) : null;
     return at ? t('study.reader.addNoteOnAt', { verse: key, time: at }) : t('study.reader.addNoteOn', { verse: key });
   };
-  return (
-    <View style={{ gap: space.md }}>
+  const top = (
+    <>
       {props.header}
       {hear ? (
         <MiniPlayer title={v.title} sub={bible.line()} playing={player.playing} available={bible.hasAudio && !player.loading} none={!bible.hasAudio && !bible.passage.notOnDevice && !bible.audioAbsent}
@@ -120,6 +129,10 @@ export function BiblePane(props: {
       ) : many ? (
         <View style={styles.under}><BiblePick label={abbr} onPress={() => setPicking(true)} /></View>
       ) : null}
+    </>
+  );
+  const words = (
+    <>
       {src?.rows && !read ? (
         <VerseDots>
           {src.rows.map((row) => (
@@ -130,7 +143,7 @@ export function BiblePane(props: {
           ))}
         </VerseDots>
       ) : src?.rows ? (
-        <View style={{ gap: space.xs }}>
+        <View style={{ gap: space.xs }} onLayout={follow.onList}>
           {src.rows.map((row) => {
             const here = player.started && player.current?.key === row.key;
             const sel = props.selected === row.key;
@@ -138,7 +151,8 @@ export function BiblePane(props: {
             const parts = markTerms(row.text, terms);
             const termIds = parts.flatMap((p) => (p.termId ? [p.termId] : []));
             return (
-              <HelpRow key={row.key} of="reference.verse">
+              <View key={row.key} onLayout={follow.onRow(row.key)}>
+              <HelpRow of="reference.verse">
                 <Verse row={row} here={here} selected={sel} notes={n} onPress={() => tap(row)} timed={bible.hasAudio && bible.timed}
                   {...(sel && props.canNote ? { below: <AddNoteHere label={noteHereLabel(row.key)} onPress={note} /> } : {})}
                   terms={termIds.length === 0 ? null : props.onTerm ? 'open' : 'marked'} tied={termIds.some((id) => props.tied?.has(id))}>
@@ -153,6 +167,7 @@ export function BiblePane(props: {
                   })}
                 </Verse>
               </HelpRow>
+              </View>
             );
           })}
         </View>
@@ -170,6 +185,10 @@ export function BiblePane(props: {
         </View>
       ) : null}
       {props.footer}
+    </>
+  );
+  const sheets = (
+    <>
       {picking ? <BibleSheet ctx={ctx} bible={bible} onClose={() => setPicking(false)} {...(props.onMoreBibles ? { onMoreBibles: () => { setPicking(false); props.onMoreBibles!(); } } : {})} /> : null}
       {noting ? (
         <NoteSheet ctx={ctx} v={v} title={noting.verse ? t('reference.notes.noteOnRef', { verse: noting.verse }) : t('common.addNote')}
@@ -177,6 +196,25 @@ export function BiblePane(props: {
           anchor={noting.verse ? { kind: 'verse', verse: noting.verse, ...(abbr ? { translation: abbr } : {}), ...(noting.at ? { at: noting.at } : {}) } : { kind: 'passage' }}
           onClose={() => setNoting(null)} />
       ) : null}
+    </>
+  );
+  if (props.scroll) {
+    return (
+      <View style={{ flex: 1 }}>
+        {props.header || hear || many ? <View style={[props.scroll, { flexGrow: 0, paddingBottom: space.sm }]}>{top}</View> : null}
+        <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={[props.scroll, { paddingTop: 0 }]} keyboardShouldPersistTaps="handled"
+          onLayout={follow.onLayout} onScroll={follow.onScroll} onScrollBeginDrag={follow.onScrollBeginDrag} scrollEventThrottle={64}>
+          {words}
+        </ScrollView>
+        {sheets}
+      </View>
+    );
+  }
+  return (
+    <View style={{ gap: space.md }}>
+      {top}
+      {words}
+      {sheets}
     </View>
   );
 }

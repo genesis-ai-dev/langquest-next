@@ -12,7 +12,7 @@
 // grouped by verse (Caleb, 2026-10-10): one list, as before. The numbering
 // is core's (verses.ts); this file only draws it and passes on what was tapped.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Easing, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import {
   derivePartVerses, markForSpan, settlePartMarks, skippedVerses, tapPart, withPartMark,
@@ -20,9 +20,9 @@ import {
 } from '@langquest-next/core';
 import type { Ctx } from '../shell/ctx';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
+import { HelpBadge, HelpQuiet, HelpRow } from '../helpMode/helpBadge';
 import { isRtl, t } from '../i18n';
-import { HelpInfo, Ico, IconBtn, Sheet } from '../ui/kit';
+import { HelpInfo, Ico, IconBtn, PrimaryBtn, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
 import { mmss, partLabel } from './model';
@@ -32,6 +32,8 @@ import { ChosenMic, EDGE, GapSlot, InsertMark, PartGrip } from './slots';
 import { SwipeRow, type SwipeSide } from './swipeRow';
 import { PartBars } from './partBars';
 import { useSwipeHint } from './useSwipeHint';
+import { useHoldHint } from './useHoldHint';
+import { useReduceMotion } from '../ui/useReduceMotion';
 import { useBars } from '../audio/useBars';
 import { PartNotesMark } from '../passage/PartNotes';
 import { useClip } from '../audio/useClip';
@@ -188,6 +190,8 @@ export function VerseParts(props: {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- arm, begin and hit read only refs (latest, slide), so the first draw's copies stay right
 
+  // The first tap is followed by a picture of the hold, which opens a part's verses (LAN-133).
+  const holdHint = useHoldHint();
   const tap = (i: number) => {
     // The press that ended a slide is not a tap too.
     if (disabled || Date.now() - slide.current.endedAt < 400) return;
@@ -195,6 +199,7 @@ export function VerseParts(props: {
     if (!r.ok) { setShake(i); setTimeout(() => setShake(-1), 400); return; }
     const l = r.labels[i]!;
     save(r.marks, partIs(partLabel(i), verses, l.s, l.e, r.how === 'join' || r.how === 'joinFallback'));
+    holdHint.tapped(i);
   };
 
   const ghost = (i: number): { text: string; join: boolean } | null => {
@@ -241,9 +246,10 @@ export function VerseParts(props: {
               hint={hint.show && k === firstPart} onHinted={hint.done} helpBin={k === binRow}
               chosen={target.kind === 'over' && target.index === i} onChoose={() => props.onChoose({ kind: 'over', index: i })}
               flash={flash.has(part.hash)} shake={shake === i} editing={sheet?.i === i} disabled={disabled} fresh={props.fresh.has(part.hash)} lifted={lifted}
-              grip={<PartGrip part={nameOf(i)} handlers={drag.grip(key)} disabled={disabled} canUp={i > 0} canDown={i < parts.length - 1} at={i + 1} of={parts.length}
+              grip={<PartGrip part={nameOf(i)} handlers={drag.grip(key)} disabled={disabled} canUp={i > 0} canDown={i < parts.length - 1} at={i + 1} of={parts.length} nudge={drag.tapped?.key === key ? drag.tapped.at : undefined}
                 onStep={(by) => props.onMove(i, i + by)} />}
               gutterRef={(v) => { if (v) refs.current.set(i, v); else refs.current.delete(i); }}
+              holdHint={holdHint.at === i} onHoldHinted={holdHint.done}
               onTap={() => tap(i)} onHold={() => { if (!disabled) setSheet({ i, anchor: null }); }} />
           );
         })();
@@ -284,6 +290,8 @@ function PartRow(props: {
   open: SwipeSide; onOpen: (side: SwipeSide) => void; hint: boolean; onHinted: () => void;
   /** While help is on, it stands open on its bin (workspaceModel helpBinRow). */
   helpBin: boolean;
+  /** The first tap's follow-up: a fingertip holds its verse space (LAN-133). */
+  holdHint: boolean; onHoldHinted: () => void;
 }) {
   const name = props.name;
   const clip = useClip(props.ctx.language, [props.part.hash], { disabled: props.disabled });
@@ -295,6 +303,7 @@ function PartRow(props: {
   const l = props.label;
   const verses = l ? spanName(props.verses, l.s, l.e) : null;
   // Its line says what the tile shows (hollow: more of the verse above; the ring: chosen by hand), and the hold and the slide.
+  const held = useRef(new Animated.Value(0)).current;
   const tap = useHelpSpot(l ? (l.kind === 'join' ? t('recording.verses.giveNext', { part: name }) : t('recording.verses.giveAbove', { part: name })) : t('recording.verses.giveVerse', { part: name }),
     t(!l ? 'recording.verses.spaceEmptyHelp' : l.kind === 'join' ? 'recording.verses.spaceSameHelp' : l.kind === 'set' ? 'recording.verses.spaceSetHelp' : 'recording.verses.spaceHelp'), props.onTap);
   return (
@@ -304,6 +313,9 @@ function PartRow(props: {
       props.lifted && styles.liftedRow]}>
       {heard.now ? <PlayingFill at={heard.now.at} length={heard.now.length} playing={heard.now.playing} /> : null}
       <Pressable ref={props.gutterRef} onPress={tap.onPress} onLongPress={tap.id ? undefined : props.onHold} delayLongPress={HOLD_MS}
+        // A press held fills a ring round the space, so holding shows that it does something (LAN-133).
+        onPressIn={() => { if (!tap.id && !props.disabled) Animated.timing(held, { toValue: 1, duration: HOLD_MS, easing: Easing.linear, useNativeDriver: true }).start(); }}
+        onPressOut={() => { held.stopAnimation(); held.setValue(0); }}
         disabled={props.disabled} accessibilityRole="button"
         accessibilityLabel={l ? t(l.kind === 'join' ? 'recording.verses.labelSame' : 'recording.verses.label', { part: name, verses }) : t('recording.verses.labelEmpty', { part: name })}
         accessibilityHint={l ? (l.kind === 'join' ? t('recording.verses.hintSame') : t('recording.verses.hintLabelled')) : t('recording.verses.hintEmpty')}
@@ -321,6 +333,8 @@ function PartRow(props: {
             <Text style={[styles.ghostText, props.ghost?.join && { fontSize: T.sm }]}>{props.ghost?.text ?? '·'}</Text>
           </View>
         )}
+        <HoldRing progress={held} />
+        {props.holdHint ? <HoldHint onDone={props.onHoldHinted} /> : null}
         <HelpBadge spot={tap} />
       </Pressable>
       <Pressable onPress={play.onPress} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={playLabel}
@@ -331,6 +345,8 @@ function PartRow(props: {
         <HelpBadge spot={play} />
       </Pressable>
       {/* Its bars and length choose it: what is said next replaces it. A screen reader opens its bin from here. */}
+      {/* It and the marks and grip after it are secondary while help is on: dim and unnumbered, and a tap still explains (LAN-135). */}
+      <HelpQuiet>
       <Pressable onPress={choose.onPress} disabled={props.disabled} accessibilityRole="button" {...a11yState({ selected: props.chosen }, 'button')}
         accessibilityLabel={t('recording.recorder.recordOver', { part: name })}
         accessibilityActions={props.disabled ? [] : [{ name: 'delete', label: t('recording.deleteItem', { item: name }) }]}
@@ -344,9 +360,52 @@ function PartRow(props: {
       {/* What the checks said about this part (decisions.md 149). */}
       <PartNotesMark hash={props.part.hash} label={name} />
       {props.grip}
+      </HelpQuiet>
       <View style={styles.edge} />
     </View>
     </SwipeRow>
+  );
+}
+
+/** The ring a hold fills round a verse space: empty at the press, full as the part's verses open. */
+function HoldRing(props: { progress: Animated.Value }) {
+  return (
+    <Animated.View pointerEvents="none" style={[styles.holdRing, {
+      opacity: props.progress.interpolate({ inputRange: [0, 0.1, 1], outputRange: [0, 0.5, 1] }),
+      transform: [{ scale: props.progress.interpolate({ inputRange: [0, 1], outputRange: [0.75, 1] }) }]
+    }]} />
+  );
+}
+
+/**
+ * A fingertip holding the verse space while the hold's ring fills, twice,
+ * then gone: holding opens the part's verses (LAN-133). With reduced motion
+ * the fingertip and the full ring stand a moment instead. Pictures only, and
+ * a screen reader does not find them: it hears "Hold to choose" and has the
+ * Choose verses action.
+ */
+function HoldHint(props: { onDone: () => void }) {
+  const still = useReduceMotion();
+  const fill = useRef(new Animated.Value(0)).current;
+  const done = useRef(props.onDone);
+  done.current = props.onDone;
+  useEffect(() => {
+    fill.setValue(still ? 1 : 0);
+    const once = Animated.sequence([
+      Animated.delay(300),
+      Animated.timing(fill, { toValue: 1, duration: 800, easing: Easing.linear, useNativeDriver: true }),
+      Animated.delay(400),
+      Animated.timing(fill, { toValue: 0, duration: 0, useNativeDriver: true })
+    ]);
+    const run = still ? Animated.delay(2500) : Animated.loop(once, { iterations: 2 });
+    run.start(({ finished }) => { if (finished) done.current(); });
+    return () => run.stop();
+  }, [still, fill]);
+  return (
+    <View testID="verse-hold-hint" pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={styles.holdHint}>
+      <HoldRing progress={fill} />
+      <Animated.View style={[styles.tip, { transform: [{ scale: fill.interpolate({ inputRange: [0, 0.1, 1], outputRange: [1.15, 0.9, 0.9] }) }] }]} />
+    </View>
   );
 }
 
@@ -380,7 +439,9 @@ function VerseSheet(props: {
   const mark = marks[i];
   const autoOk = derivePartVerses(withPartMark(marks, i, { t: 'next' }), count).ok;
   return (
-    <Sheet visible title={partLabel(i)} onClose={props.onClose}>
+    // Every tap is kept as it is made (Undo takes it back), so the way out is Done, not a ✕ that reads as Cancel (LAN-134).
+    <Sheet visible title={partLabel(i)} onClose={props.onClose} noClose
+      footer={<PrimaryBtn label={t('common.done')} icon="check" help={t('recording.verses.doneHelp', { part: partLabel(i) })} onPress={props.onClose} />}>
       <View style={styles.grid}>
         {verses.map((_, v) => {
           const range = anchor !== null && v > anchor;
@@ -446,6 +507,9 @@ const styles = StyleSheet.create({
   liftedRow: { backgroundColor: C.card, borderRadius: radius.md, ...lift({ opacity: 0.18, radius: 12, y: 4, elevation: 6 }) },
 
   gutter: { width: VERSE_GUTTER, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderColor: C.border },
+  holdRing: { position: 'absolute', width: 54, height: 54, borderRadius: radius.md + 7, borderWidth: 3, borderColor: C.primary },
+  holdHint: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  tip: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: C.primary, backgroundColor: withAlpha(C.primary, 0.3) },
   // A part's own verse: a soft grey tile with a dark number, so the labels stay quiet beside the parts.
   // Narrow enough for a range ("49–50") to sit inside the 64-point space beside its part.
   badge: { minWidth: 44, maxWidth: VERSE_GUTTER - 6, minHeight: 44, paddingHorizontal: 4, borderRadius: radius.md + 2, backgroundColor: TINT.gray, alignItems: 'center', justifyContent: 'center' },

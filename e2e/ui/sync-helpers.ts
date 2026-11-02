@@ -162,7 +162,7 @@ export async function addNote(page: Page, world: UiWorld, key: PassageKey, words
 
 /**
  * Record `parts` parts with the voice file (one part about every four
- * seconds) and publish them as the next version: Done, then "Send later"
+ * seconds) and publish them as the next version: Done, then "Done, don't ask anyone"
  * (or "Finish Version N" when no check is next). Leaves the passage's record showing.
  */
 export async function recordAndPublish(page: Page, world: UiWorld, key: PassageKey, parts = 2, opts: { enter?: () => Promise<void> } = {}): Promise<void> {
@@ -200,7 +200,7 @@ export async function recordAndPublish(page: Page, world: UiWorld, key: PassageK
   await button(page, 'Done').click();
   await expect(page.getByText('Stopped', { exact: true }).locator('visible=true')).toHaveCount(0);
   await byId(page, 'publish-button').click();
-  await button(page, 'Send later').or(button(page, /^Finish Version \d+$/)).first().click();
+  await button(page, "Done, don't ask anyone").or(button(page, /^Finish Version \d+$/)).first().click();
   await expect(byId(page, 'toast')).toContainText(/^Version \d+ published\./);
 }
 

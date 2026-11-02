@@ -14,7 +14,7 @@ import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Field, Header, Ico, PrimaryBtn, QuietLinks, Screen, SectionLabel, Sheet } from '../ui/kit';
+import { Field, GhostBtn, Header, Ico, PrimaryBtn, QuietLinks, Screen, SectionLabel, Sheet } from '../ui/kit';
 import { SavedMark } from '../ui/SavedMark';
 import { txt } from '../ui/textStyles';
 import { feedbackSource, versionTitle, type PassageView } from '../passage/passageView';
@@ -77,24 +77,29 @@ export function PublishScreen(props: {
   };
   // Nobody else could be asked: Done does the next check now, and asking stays one tap away (decisions.md 178).
   const checkNow = next && !nextTarget && props.next?.selfCheck ? doCheckButton(v.kind(next.kindId), v.kinds) : null;
+  // Finishing without asking is a choice as ordinary as asking: a button of its own, named for what it does (LAN-136).
+  const askNobody = (
+    <GhostBtn label={t('recording.publish.doneAskNobody')} icon="check" disabled={blocked || props.busy}
+      help={t('recording.publish.doneAskNobodyHelp', { version: title })} onPress={() => done(null)} />
+  );
   const footer = next && checkNow ? (
     <View style={{ gap: space.xs }}>
       <PrimaryBtn label={checkNow.label} icon={checkNow.icon} busy={props.busy} disabled={blocked}
         help={t('recording.publish.checkNowHelp', { version: title })} onPress={() => done({ checkNow: next.kindId })} />
       <QuietLinks items={[
-        { label: t('passage.record.actions.askSomeone'), icon: 'people' as const, help: t('passage.page.actionHelp.ask'), onPress: () => { if (!blocked && !props.busy) done({ someoneElse: next.kindId }); } },
-        { label: t('recording.publish.sendLater'), icon: 'clock' as const, help: t('recording.publish.sendLaterHelp', { version: title }), onPress: () => { if (!blocked && !props.busy) done(null); } }
+        { label: t('passage.record.actions.askSomeone'), icon: 'people' as const, help: t('passage.page.actionHelp.ask'), onPress: () => { if (!blocked && !props.busy) done({ someoneElse: next.kindId }); } }
       ]} />
+      {askNobody}
     </View>
   ) : next ? (
     <View style={{ gap: space.xs }}>
       <PrimaryBtn label={askButtonLabel({ target: nextTarget, kindId: next.kindId, kinds: v.kinds, name: ctx.name, p: v.p })} icon="send" busy={props.busy} disabled={blocked}
         help={nextTarget ? t('recording.publish.sendHelp', { version: title }) : t('recording.publish.askHelp', { version: title })}
         onPress={() => done(nextTarget ? { kindId: next.kindId, questions } : { someoneElse: next.kindId })} />
-      <QuietLinks items={[
-        ...(nextTarget ? [{ label: t('passage.published.someoneElse'), icon: 'people' as const, help: t('passage.published.someoneElseHelp'), onPress: () => { if (!blocked && !props.busy) done({ someoneElse: next.kindId }); } }] : []),
-        { label: t('recording.publish.sendLater'), icon: 'clock' as const, help: t('recording.publish.sendLaterHelp', { version: title }), onPress: () => { if (!blocked && !props.busy) done(null); } }
-      ]} />
+      {nextTarget ? <QuietLinks items={[
+        { label: t('passage.published.someoneElse'), icon: 'people' as const, help: t('passage.published.someoneElseHelp'), onPress: () => { if (!blocked && !props.busy) done({ someoneElse: next.kindId }); } }
+      ]} /> : null}
+      {askNobody}
     </View>
   ) : (
     <PrimaryBtn label={t('recording.publish.finish', { version: title })} icon="check" busy={props.busy} disabled={blocked}
