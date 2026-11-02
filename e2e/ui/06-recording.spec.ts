@@ -1149,6 +1149,11 @@ test('REC-055 Drag a part by its grip; it loses its verse, the others keep their
   }
   await expect(verseSpace(page, 3)).toHaveAttribute('aria-label', 'Part 3, Verse 37');
   const order = await lastComposed(page, w, 'P-S');
+  // A tap on the grip moves nothing: it bounces arrows up and down, how the part moves (LAN-132).
+  await page.getByLabel('Move Part 3', { exact: true }).locator('visible=true').first().click();
+  await expect(byId(page, 'part-grip-nudge')).toHaveCount(1);
+  await expect(byId(page, 'part-grip-nudge')).toHaveCount(0);
+  expect(await lastComposed(page, w, 'P-S'), 'a tap moves nothing').toEqual(order);
   await dragPart(page, 3, 1);
   await expect.poll(() => lastComposed(page, w, 'P-S')).toEqual([order[2], order[0], order[1]]);
   await expect(verseSpace(page, 1)).toHaveAttribute('aria-label', 'Part 1, no verse yet');

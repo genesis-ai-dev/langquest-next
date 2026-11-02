@@ -247,7 +247,7 @@ export function VerseParts(props: {
               hint={hint.show && k === firstPart} onHinted={hint.done} helpBin={k === binRow}
               chosen={target.kind === 'over' && target.index === i} onChoose={() => props.onChoose({ kind: 'over', index: i })}
               flash={flash.has(part.hash)} shake={shake === i} editing={sheet?.i === i} disabled={disabled} fresh={props.fresh.has(part.hash)} lifted={lifted}
-              grip={<PartGrip part={nameOf(i)} handlers={drag.grip(key)} disabled={disabled} canUp={i > 0} canDown={i < parts.length - 1} at={i + 1} of={parts.length}
+              grip={<PartGrip part={nameOf(i)} handlers={drag.grip(key)} disabled={disabled} canUp={i > 0} canDown={i < parts.length - 1} at={i + 1} of={parts.length} nudge={drag.tapped?.key === key ? drag.tapped.at : undefined}
                 onStep={(by) => props.onMove(i, i + by)} />}
               gutterRef={(v) => { if (v) refs.current.set(i, v); else refs.current.delete(i); }}
               holdHint={holdHint.at === i} onHoldHinted={holdHint.done}

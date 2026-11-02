@@ -146,7 +146,7 @@ Steps:
 Expected:
 - Step 1 plays the three parts one after another, without gaps longer than half a second between them.
 - Step 2 pauses playback.
-- In step 3, each part is a row that reads as a voice message: its verse space on the left (decision 82), a play button, the part's sound as bars with its length ("0:04", "0:04", "0:03"), and the grip (three lines) at the right end. No row shows a name or a bin: a part is deleted by sliding its row aside to its bin, or from the sheet that holding its verse space opens ("Delete Part 2"; decision 82).
+- In step 3, each part is a row that reads as a voice message: its verse space on the left (decision 82), a play button, the part's sound as bars with its length ("0:04", "0:04", "0:03"), and the grip (six dots, decision 136 as amended for LAN-132) at the right end. No row shows a name or a bin: a part is deleted by sliding its row aside to its bin, or from the sheet that holding its verse space opens ("Delete Part 2"; decision 82).
 - Step 4 plays Part 2 only, its bars filling from the left as it plays.
 - Step 5 folds the rows into the card and opens them again.
 - No playback starts the microphone. The record button stays "Record".
@@ -984,11 +984,12 @@ Preconditions:
 - TRANS's draft of P-S has three parts (REC-053), labelled verses 35, 36 and 37 (tap each space once).
 
 Steps:
-1. Press the grip (three lines) at the right end of Part 3's row and drag it up above Part 1, then let go.
+1. Tap the grip (six dots) at the right end of Part 3's row. Then press it and drag it up above Part 1, then let go.
 2. Tap the Undo arrow left of the red button.
 3. Tap the Redo arrow beside it.
 
 Expected:
+- The tap moves nothing: the dots turn to arrows pointing up and down, which bounce twice, then are dots again (LAN-132).
 - While dragging, the part is lifted with a shadow and the parts it passes move out of its way; the + marks between parts are hidden. No toast shows when it is dropped.
 - After step 1 the moved part is Part 1 with no verse ("Part 1, no verse yet"), so it can be labelled again; the others keep theirs: Part 2 is verse 35, Part 3 verse 36. Verse 37 now shows as a place left for later.
 - After step 2 the parts are back in their order, Part 3 is verse 37 again, and the moved part is shaded.

@@ -194,7 +194,7 @@ function PlainParts(props: { ctx: Ctx; parts: Part[]; disabled: boolean; onDelet
             open={!props.disabled && !drag.dragging && open?.key === key ? open.side : 0} onOpen={(side) => setOpen(side ? { key, side } : null)}
             hint={hint.show && k === firstPart} onHinted={hint.done} helpBin={k === binRow}
             fresh={props.fresh.has(parts[r.index]!.hash)} lifted={lifted}
-            grip={<PartGrip part={name} handlers={drag.grip(key)} disabled={props.disabled} canUp={r.index > 0} canDown={r.index < parts.length - 1} at={r.index + 1} of={parts.length}
+            grip={<PartGrip part={name} handlers={drag.grip(key)} disabled={props.disabled} canUp={r.index > 0} canDown={r.index < parts.length - 1} at={r.index + 1} of={parts.length} nudge={drag.tapped?.key === key ? drag.tapped.at : undefined}
               onStep={(by) => props.onMove(r.index, r.index + by)} />}
             chosen={target.kind === 'over' && target.index === r.index} onChoose={() => props.onChoose({ kind: 'over', index: r.index })} />
         );
