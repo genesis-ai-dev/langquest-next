@@ -191,11 +191,12 @@ it said "An error has occurred, try again later" and went back to Apps
 for an Admin, as [other Admins report](https://developer.apple.com/forums/thread/811711)),
 try Safari in a private window first. Failing that, an individual key does
 the same job: your name (top right) > Edit Profile > Individual API Key >
-Generate, then download it. It has no Issuer ID, so leave `issuerId` out,
-and the step signs as that user (`"sub": "user"`):
+Generate, then download it (`~/Downloads/ApiKey_<key id>.p8`). It has no
+Issuer ID, so leave `issuerId` out, and the step signs as that user
+(`"sub": "user"`):
 
 ```
-npm run env:update -- production APP_STORE_REVIEW_KEY "$(jq -cn --arg k <key id> --rawfile p ~/Downloads/AuthKey_<key id>.p8 '{keyId: $k, privateKey: $p}')"
+npm run env:update -- production APP_STORE_REVIEW_KEY "$(jq -cn --arg k <key id> --rawfile p ~/Downloads/ApiKey_<key id>.p8 '{keyId: $k, privateKey: $p}')"
 ```
 
 An individual key acts with its user's role and apps, and stops working
