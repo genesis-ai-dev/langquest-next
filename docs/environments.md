@@ -186,6 +186,22 @@ It never cancels or changes a review, and never deletes anything. To
 replace the key, make a new one the same way, store and apply it, then
 revoke the old one in the same list.
 
+When the Integrations page will not open (in October and November 2026
+it said "An error has occurred, try again later" and went back to Apps
+for an Admin, as [other Admins report](https://developer.apple.com/forums/thread/811711)),
+try Safari in a private window first. Failing that, an individual key does
+the same job: your name (top right) > Edit Profile > Individual API Key >
+Generate, then download it. It has no Issuer ID, so leave `issuerId` out,
+and the step signs as that user (`"sub": "user"`):
+
+```
+npm run env:update -- production APP_STORE_REVIEW_KEY "$(jq -cn --arg k <key id> --rawfile p ~/Downloads/AuthKey_<key id>.p8 '{keyId: $k, privateKey: $p}')"
+```
+
+An individual key acts with its user's role and apps, and stops working
+if that user leaves the team or loses the role, so replace it with a team
+key once the Integrations page opens.
+
 ## Setting up preview (once)
 
 1. **Git.** Create `develop` from `main`, make it the default branch (so pull

@@ -382,7 +382,10 @@ describe('the App Manager key', () => {
     const broken = `{"issuerId":"i","keyId":"k","privateKey":"${pem.trim()}"}`;
     expect(reviewKey({ APP_STORE_REVIEW_KEY: broken })?.privateKey.trim()).toBe(pem.trim());
     expect(() => reviewKey({ APP_STORE_REVIEW_KEY: pem })).toThrow(/is not the JSON/);
-    expect(() => reviewKey({ APP_STORE_REVIEW_KEY: JSON.stringify({ keyId: 'k', privateKey: pem }) })).toThrow(/lacks issuerId/);
+    // An individual key has no issuer.
+    expect(reviewKey({ APP_STORE_REVIEW_KEY: JSON.stringify({ keyId: 'k', privateKey: pem }) })).toEqual({ keyId: 'k', privateKey: pem });
+    expect(() => reviewKey({ APP_STORE_REVIEW_KEY: JSON.stringify({ issuerId: '', keyId: 'k', privateKey: pem }) })).toThrow(/issuerId is empty/);
+    expect(() => reviewKey({ APP_STORE_REVIEW_KEY: JSON.stringify({ issuerId: 'i', privateKey: pem }) })).toThrow(/lacks keyId/);
     expect(() => reviewKey({ APP_STORE_REVIEW_KEY: JSON.stringify({ issuerId: 'i', keyId: 'k', privateKey: 'not a key' }) })).toThrow(/not the text of an App Store Connect \.p8 key/);
   });
 
@@ -392,6 +395,15 @@ describe('the App Manager key', () => {
     const [head, body, sig] = jwt.split('.');
     expect(JSON.parse(Buffer.from(head, 'base64url').toString())).toEqual({ alg: 'ES256', kid: 'K1', typ: 'JWT' });
     expect(JSON.parse(Buffer.from(body, 'base64url').toString())).toEqual({ iss: 'I1', iat: 1000, exp: 1900, aud: 'appstoreconnect-v1' });
+    expect(verify('sha256', Buffer.from(`${head}.${body}`), { key: publicKey, dsaEncoding: 'ieee-p1363' }, Buffer.from(sig, 'base64url'))).toBe(true);
+  });
+
+  it('signs an individual key\'s token with "sub": "user" and no issuer, as Apple asks', () => {
+    const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+    const jwt = token({ keyId: 'K2', privateKey: privateKey.export({ type: 'pkcs8', format: 'pem' }) as string }, 1_000_000);
+    const [head, body, sig] = jwt.split('.');
+    expect(JSON.parse(Buffer.from(head, 'base64url').toString())).toEqual({ alg: 'ES256', kid: 'K2', typ: 'JWT' });
+    expect(JSON.parse(Buffer.from(body, 'base64url').toString())).toEqual({ sub: 'user', iat: 1000, exp: 1900, aud: 'appstoreconnect-v1' });
     expect(verify('sha256', Buffer.from(`${head}.${body}`), { key: publicKey, dsaEncoding: 'ieee-p1363' }, Buffer.from(sig, 'base64url'))).toBe(true);
   });
 

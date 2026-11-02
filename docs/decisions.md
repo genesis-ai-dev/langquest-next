@@ -7568,7 +7568,9 @@ Apple to mark the version ready for review and tries again while Apple is
 still settling a change. A version it makes is released on approval; one
 that already exists keeps the release setting someone gave it. The key is
 one secret, `APP_STORE_REVIEW_KEY` (`{"issuerId", "keyId", "privateKey"}`,
-App Manager), kept in `.env.production` like every other secret: `npm run
+App Manager; or an Admin's individual key, `{"keyId", "privateKey"}`, while
+App Store Connect's Integrations page fails for us, to be swapped for a
+team key once it opens), kept in `.env.production` like every other secret: `npm run
 secrets -- production`, or `--only eas`, which needs no Supabase or
 Cloudflare sign-in, puts it in EAS's production environment with secret
 visibility (`docs/environments.md`, The App Store key). It replaces

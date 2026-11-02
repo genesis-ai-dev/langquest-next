@@ -17,9 +17,11 @@
 //   node scripts/app-store-review.mjs             look, and send when it is time
 //   node scripts/app-store-review.mjs --dry-run   look, and say what it would do
 //
-// It needs an App Store Connect API key with the App Manager role, as
-// APP_STORE_REVIEW_KEY: the JSON {"issuerId", "keyId", "privateKey"} (the
-// .p8 file's text). It is a secret in .env.production, and
+// It needs an App Store Connect API key, as APP_STORE_REVIEW_KEY: the JSON
+// {"issuerId", "keyId", "privateKey"} (the .p8 file's text) of a team key
+// with the App Manager role, or {"keyId", "privateKey"} of an individual
+// key, which acts as the Admin or App Manager who made it. It is a secret
+// in .env.production, and
 // `npm run secrets -- production --only eas` puts it in EAS's production
 // environment, where the workflows read it (docs/environments.md, "The App
 // Store key"). The app is eas.json's ascAppId.
@@ -179,20 +181,23 @@ export function nextStep({ submissions = [], versions = [], newest = null, proce
 export function token({ keyId, issuerId, privateKey }, now = Date.now()) {
   const part = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
   const head = part({ alg: 'ES256', kid: keyId, typ: 'JWT' });
-  const body = part({ iss: issuerId, iat: Math.floor(now / 1000), exp: Math.floor(now / 1000) + 900, aud: 'appstoreconnect-v1' });
+  // A team key names its issuer; an individual key has none and says "user" instead (Apple's "Generating Tokens for API Requests").
+  const who = issuerId ? { iss: issuerId } : { sub: 'user' };
+  const body = part({ ...who, iat: Math.floor(now / 1000), exp: Math.floor(now / 1000) + 900, aud: 'appstoreconnect-v1' });
   const sig = sign('sha256', Buffer.from(`${head}.${body}`), { key: createPrivateKey(privateKey), dsaEncoding: 'ieee-p1363' });
   return `${head}.${body}.${sig.toString('base64url')}`;
 }
 
 /**
- * The key from APP_STORE_REVIEW_KEY, or null while there is none. A value
- * that is there but is not the key throws, so a bad key fails the job
- * instead of quietly waiting.
+ * The key from APP_STORE_REVIEW_KEY, or null while there is none: a team
+ * key with its issuerId, or an individual key without one. A value that is
+ * there but is not a key throws, so a bad key fails the job instead of
+ * quietly waiting.
  */
 export function reviewKey(env) {
   const raw = env.APP_STORE_REVIEW_KEY?.trim();
   if (!raw) return null;
-  const shape = 'the JSON {"issuerId", "keyId", "privateKey"} that docs/environments.md ("The App Store key") describes';
+  const shape = 'the JSON {"issuerId", "keyId", "privateKey"} (or {"keyId", "privateKey"} for an individual key) that docs/environments.md ("The App Store key") describes';
   let parsed;
   try {
     parsed = JSON.parse(raw);
@@ -202,15 +207,18 @@ export function reviewKey(env) {
   }
   // The .p8 file's text keeps its line breaks; a copy that turned them into "\n" is put back.
   const privateKey = typeof parsed?.privateKey === 'string' ? parsed.privateKey.replaceAll('\\n', '\n') : '';
-  if (typeof parsed?.issuerId !== 'string' || !parsed.issuerId || typeof parsed?.keyId !== 'string' || !parsed.keyId || !privateKey) {
-    throw new Error(`APP_STORE_REVIEW_KEY is not ${shape}: it lacks ${['issuerId', 'keyId', 'privateKey'].filter((k) => !parsed?.[k]).join(', ') || 'a field'}`);
+  if (typeof parsed?.keyId !== 'string' || !parsed.keyId || !privateKey) {
+    throw new Error(`APP_STORE_REVIEW_KEY is not ${shape}: it lacks ${['keyId', 'privateKey'].filter((k) => !parsed?.[k]).join(', ') || 'a field'}`);
+  }
+  if (parsed.issuerId !== undefined && (typeof parsed.issuerId !== 'string' || !parsed.issuerId)) {
+    throw new Error(`APP_STORE_REVIEW_KEY is not ${shape}: its issuerId is empty`);
   }
   try {
     createPrivateKey(privateKey);
   } catch {
     throw new Error('APP_STORE_REVIEW_KEY\'s privateKey is not the text of an App Store Connect .p8 key');
   }
-  return { issuerId: parsed.issuerId, keyId: parsed.keyId, privateKey };
+  return parsed.issuerId ? { issuerId: parsed.issuerId, keyId: parsed.keyId, privateKey } : { keyId: parsed.keyId, privateKey };
 }
 
 /** An answer from App Store Connect that was not a success, with Apple's error codes and reasons. */
