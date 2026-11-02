@@ -9608,6 +9608,21 @@ that box (the play button's round face); and the three scripts light what
 the voice names. `FRAME` stays, so only the held videos, and any whose
 screens changed, are filmed again.
 
+Amended (2026-11-01, Caleb Koster): the spotlight's second night. Of the
+10 English films made again with it, 4 passed. A part's row was lit with
+its whole list: the + on the line between two parts is a small round face
+on a tap area as tall as a row, so taking in the tap area cut the next
+row's verse space, and taking that in cut the next +, down the list. Now
+a button is taken in by what shows of it (its own box, or the face it
+shows; one with neither by its words and icons alone), and a button's box
+the edge only grazes, by under a quarter of its height or width, is not
+cut. Invite your team lights every language while the voice says to
+choose one, and the content template lights the question it asks again
+before Next is tapped. Two holds were Claude reading the app wrongly, so
+the frame check's prompt now says what a passage's step marks mean (a
+grey skip-forward sign is a check set aside) and that the recording
+clock counts the silence a part is cut from.
+
 ## 192. Tutorial videos go up as soon as they are filmed: the filming tells the app, the intake chooses the wide films itself, and the publish follows each intake
 
 Date: 2026-10-30 · By: Caleb Koster · Status: accepted

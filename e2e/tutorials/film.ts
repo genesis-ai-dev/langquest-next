@@ -252,17 +252,22 @@ function light(els: Node[] | null): void {
       const hit = document.elementFromPoint(Math.min(Math.max((o.l + o.r) / 2, 0), innerWidth - 1), Math.min(Math.max((o.t + o.b) / 2, 0), innerHeight - 1));
       return !!hit && (e.contains(hit) || hit.contains(e));
     };
-    const pieces: Side[] = [];
-    const add = (e: Element, o: Side) => {
+    /** `box`: a button's own box or the face it shows, rather than a line of words or an icon. */
+    const pieces: (Side & { box?: boolean })[] = [];
+    const add = (e: Element, o: Side, box = false) => {
       if (o.r - o.l < 2 || o.b - o.t < 2 || area(o) > screen / 3 || (o.l <= 1 && o.r >= innerWidth - 1)) return;
-      if (seen(e, o)) pieces.push(o);
+      if (seen(e, o)) pieces.push(box ? { ...o, box } : o);
     };
-    // A button (not one the lit parts are in, nor one in them) and an icon.
+    // A button (not one the lit parts are in, nor one in them) and an icon. A button is what a viewer sees of it: its
+    // own box, or the round face or card it shows (the + on the line between two parts is a small round face on a tap
+    // area as tall as a row); one with neither is only its words and icons, each looked at on its own.
     for (const e of document.body.querySelectorAll('*')) {
       if (ours(e) || found.some((f) => e.contains(f) || f.contains(e))) continue;
       const svg = e.tagName.toLowerCase() === 'svg';
       if (!svg && !control(e)) continue;
-      if (showing(e)) add(e, shown(e));
+      if (!showing(e)) continue;
+      const shows = svg ? e : face(e);
+      if (svg || shows !== e || drawn(e, getComputedStyle(e))) add(shows, shown(shows), !svg);
     }
     // A line of words.
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
@@ -283,6 +288,9 @@ function light(els: Node[] | null): void {
         if (both.r - both.l < 2 || both.b - both.t < 2) continue;
         if (o.l >= out.l - 1 && o.t >= out.t - 1 && o.r <= out.r + 1 && o.b <= out.b + 1) continue;
         if (o.l <= out.l && o.t <= out.t && o.r >= out.r && o.b >= out.b) continue;
+        // A button's box the edge only grazes, by under a quarter of its height or width, is not cut: the edge crosses
+        // its margin (a part's verse space, as tall as its row, once the + on the line above is taken in).
+        if (o.box && (both.b - both.t < (o.b - o.t) / 4 || both.r - both.l < (o.r - o.l) / 4)) continue;
         const next = join([out, o]);
         if (area(next) > screen / 3) continue;
         out = next;
