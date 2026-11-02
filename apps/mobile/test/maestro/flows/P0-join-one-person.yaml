@@ -42,7 +42,7 @@ tags:
     centerElement: true
 - tapOn:
     id: "invite-role-Translators"
-- tapOn: "One person, by name"
+- tapOn: "By name: a person or a group"
 - assertVisible: "Invite by QR"
 - tapOn: "e.g. Nyibol Deng"
 - inputText: "Ana Test"

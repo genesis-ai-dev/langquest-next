@@ -836,7 +836,7 @@
       "sent": "已向 {{address}} 发送邀请，角色是{{role}}",
       "cannot": "只有可以邀请成员的人才能在这里邀请。",
       "byEmail": "通过邮箱",
-      "byName": "按名字邀请一个人",
+      "byName": "按名字：一个人或一组人",
       "emailTitle": "通过邮箱邀请",
       "send": "发送邀请",
       "emailLabel": "邮箱地址",

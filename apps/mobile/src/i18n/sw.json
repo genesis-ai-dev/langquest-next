@@ -854,7 +854,7 @@
       "sent": "Mwaliko umetumwa kwa {{address}} kama {{role}}",
       "cannot": "Watu wanaoweza kualika wanachama tu ndio wanaweza kualika hapa.",
       "byEmail": "Kwa barua pepe",
-      "byName": "Mtu mmoja, kwa jina",
+      "byName": "Kwa jina: mtu au kikundi",
       "emailTitle": "Alika kwa barua pepe",
       "send": "Tuma mwaliko",
       "emailLabel": "Anwani ya barua pepe",

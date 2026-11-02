@@ -559,7 +559,7 @@ test('WEB-022 Sharing without a share sheet copies instead', async ({ page, cont
   await text(page, 'People').click();
   await button(page, 'Invite').click();
   await inviteRole(page, 'Translators');
-  await text(page, 'One person, by name').click();
+  await text(page, 'By name: a person or a group').click();
   await field(page, 'Name').fill('Web Share Person');
   await primary(page).click();
   await expect(text(page, 'Step 3 of 3 — QR code')).toBeVisible({ timeout: 30_000 });

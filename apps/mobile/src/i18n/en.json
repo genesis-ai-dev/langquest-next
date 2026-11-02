@@ -854,7 +854,7 @@
       "sent": "Invite sent to {{address}} as {{role}}",
       "cannot": "Only people who can invite members can invite here.",
       "byEmail": "By email",
-      "byName": "One person, by name",
+      "byName": "By name: a person or a group",
       "emailTitle": "Invite by email",
       "send": "Send the invite",
       "emailLabel": "Email address",

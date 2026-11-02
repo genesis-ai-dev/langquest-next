@@ -836,7 +836,7 @@
       "sent": "Undangan dikirim ke {{address}} sebagai {{role}}",
       "cannot": "Hanya orang yang dapat mengundang anggota yang dapat mengundang di sini.",
       "byEmail": "Lewat email",
-      "byName": "Satu orang, dengan nama",
+      "byName": "Dengan nama: satu orang atau kelompok",
       "emailTitle": "Undang lewat email",
       "send": "Kirim undangan",
       "emailLabel": "Alamat email",

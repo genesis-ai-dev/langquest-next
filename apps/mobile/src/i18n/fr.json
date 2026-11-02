@@ -872,7 +872,7 @@
       "sent": "Invitation envoyée à {{address}} comme {{role}}",
       "cannot": "Seules les personnes qui peuvent inviter des membres peuvent inviter ici.",
       "byEmail": "Par e-mail",
-      "byName": "Une personne, par son nom",
+      "byName": "Par nom : une personne ou un groupe",
       "emailTitle": "Inviter par e-mail",
       "send": "Envoyer l’invitation",
       "emailLabel": "Adresse e-mail",
