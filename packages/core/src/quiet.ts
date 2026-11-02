@@ -12,7 +12,7 @@ import type { EventType } from './events';
  * `buildIndexes` (units, template, hidden units), `recordIndexes` (takes,
  * submissions, reviews, departures, requests and their undo/withdraw marks,
  * teams, review kinds, flow selection and steps, step links) and
- * `state.bookNames`. An event type is listed only when its reducer case
+ * `state.bookNames` and `state.bookNamesFrom`. An event type is listed only when its reducer case
  * writes none of those fields. What each one writes instead:
  * - `RecordingAdded` recordings, `BlobStored`/`BlobInvalidated` blobs,
  *   `AudioFormatSet` audioFormats, `CardVerseSet` cardVerses,

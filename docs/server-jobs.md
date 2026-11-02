@@ -28,6 +28,9 @@ Now, on a hosted project (decisions 141, 142):
 | v2 import | job container `JobRunner` v2-import | 4 GiB | 15 min, whole at 03:15 UTC | the Worker's job tick |
 | Fold canary: three languages folded afresh, compared with their snapshot and passage lines (`server/foldCanary.ts`) | job container `JobRunner` fold-canary | 4 GiB | daily, 04:05 UTC | the Worker's job tick |
 | R2 reconciliation without hashing, missing and orphaned files counted (`server/reconcileJob.ts`) | job container `JobRunner` blob-reconcile | 4 GiB | daily, 04:35 UTC | the Worker's job tick |
+| Tutorial videos chosen by the intake or on the ops dashboard, put up on YouTube (`server/tutorialPublish.ts`, decisions 180, 192) | job container `JobRunner` tutorial-publish | 4 GiB | after each intake, and on Publish | the end of an intake run (`AFTER`); the dashboard's Publish |
+| Tutorial films the nightly filming on GitHub made, brought into R2, the wide ones chosen for YouTube (`server/tutorialIntake.ts`, decisions 183, 192) | job container `JobRunner` tutorial-intake | 4 GiB | when the filming's films are in, and daily at 00:05 Pacific | `/api/tutorial-filmed` from `tutorials.yml`; the Worker's job tick |
+| Comments on the tutorial videos, kept for Claude's nightly look; accepted code changes filed in Linear (`server/tutorialComments.ts`, decision 186) | job container `JobRunner` tutorial-comments | 4 GiB | daily, 23:50 UTC | the Worker's job tick |
 | Push delivery | Edge Function `push-delivery` | 256 MB | 1 min | pg_cron |
 | Reports | Durable Object `OrgSnapshot`, rendering stored report inputs | 128 MB isolate | on request | HTTP |
 | The agent API, MCP, review links, webhooks | Durable Object `OrgSnapshot`, reading each passage's records from the server's cut, never a whole language (decision 147) | 128 MB isolate | on request | HTTP |
@@ -89,7 +92,7 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
 ## 4. The shape
 
 - **One image**, `apps/web/jobs/Dockerfile`: Node 24 and one bundle per
-  job (`projections.mjs`, `v2.mjs`, `canary.mjs`, `reconcile.mjs`), built by `scripts/build-jobs.mjs`
+  job (`projections.mjs`, `v2.mjs`, `canary.mjs`, `reconcile.mjs`, `publish.mjs`, `intake.mjs`), built by `scripts/build-jobs.mjs`
   before every deploy and before `wrangler dev`. No npm package is
   installed: the dependency tree is never beside the service key. Its
   system packages are psql, which the import reads people's names with,

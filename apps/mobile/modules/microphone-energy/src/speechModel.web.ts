@@ -43,8 +43,6 @@ async function load(): Promise<SpeechModel> {
   if (!res.ok || res.headers.get('content-type')?.includes('text/html')) throw new Error(`${MODEL} is not in this build`);
   const bytes = new Uint8Array(await res.arrayBuffer());
   const ort = await runtime();
-  ort.env.wasm.wasmPaths = '/ort/';
-  ort.env.wasm.numThreads = 1;
   const session = await ort.InferenceSession.create(bytes);
   const sr = new ort.Tensor('int64', BigInt64Array.from([BigInt(SILERO.sampleRate)]), []);
   const zero = () => new ort.Tensor('float32', new Float32Array(2 * 128), [2, 1, 128]);
@@ -59,15 +57,20 @@ async function load(): Promise<SpeechModel> {
   };
 }
 
-/** onnxruntime-web's own script, which sets `window.ort`. */
-function runtime(): Promise<Ort> {
+/** onnxruntime-web's own script, which sets `window.ort`; Clean up's model runs on it too (cleanUp.web.ts). */
+export function runtime(): Promise<Ort> {
   const w = window as unknown as { ort?: Ort };
-  if (w.ort) return Promise.resolve(w.ort);
+  const ready = (ort: Ort) => {
+    ort.env.wasm.wasmPaths = '/ort/';
+    ort.env.wasm.numThreads = 1;
+    return ort;
+  };
+  if (w.ort) return Promise.resolve(ready(w.ort));
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = RUNTIME;
     script.async = true;
-    script.onload = () => (w.ort ? resolve(w.ort) : reject(new Error('onnxruntime-web did not load')));
+    script.onload = () => (w.ort ? resolve(ready(w.ort)) : reject(new Error('onnxruntime-web did not load')));
     script.onerror = () => reject(new Error(`${RUNTIME} could not load`));
     document.head.appendChild(script);
   });

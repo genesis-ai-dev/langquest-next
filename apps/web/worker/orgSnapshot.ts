@@ -7,7 +7,7 @@ import { AgentOrg, type AgentQuery, type AgentWrite, type OrgAccess } from './ag
 import type { Grant } from './agent/tokens';
 import type { LinkReviewInput, LinkSpec, ReviewLink } from './agent/view';
 import { WebhookDispatcher } from './agent/dispatch';
-import { supabaseAgentStore, type WebhookRecord } from './agent/store';
+import { receivedTimes, supabaseAgentStore, type WebhookRecord } from './agent/store';
 import { COALESCE_MS } from './agent/webhooks';
 import { readPath } from './blobs';
 import { SqlCache, type SqlStore } from './sqlCache';
@@ -204,7 +204,8 @@ export class OrgSnapshot extends DurableObject<Env> {
           return { url: `${this.origin}${path}`, expiresAt };
         },
         webhooks: this.dispatcherFor(orgId),
-        records: (languageId, fresh) => this.readRecords(orgId, languageId, fresh)
+        records: (languageId, fresh) => this.readRecords(orgId, languageId, fresh),
+        received: (languageId, keys) => receivedTimes(serviceClient(this.env), orgId, languageId, keys)
       });
     }
     return this.agent;

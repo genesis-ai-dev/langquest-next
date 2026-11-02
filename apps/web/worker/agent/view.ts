@@ -38,12 +38,15 @@ export interface PassageSummary {
   /**
    * The version this token hears: the latest shared for review with `read`,
    * the approved one with `read:published` alone. Null when there is none.
+   * `submittedAt` is the publishing phone's clock; `uploadedAt` the server's,
+   * when the publish reached it (decisions.md 188); `v2UploadedAt`, for a
+   * version brought over from LangQuest v2, when v2's server had all of it.
    */
-  version: { n: number; takeId: string; submittedAt: string; durationMs: number } | null;
+  version: { n: number; takeId: string; submittedAt: string; uploadedAt: string | null; v2UploadedAt: string | null; durationMs: number } | null;
   /** The newest version every step approved on its own (core approvedVersion); what a listening app should play. */
   approvedVersion: { n: number; takeId: string } | null;
   /** Where a version is live, one entry per channel (core releasesOf). */
-  releases: { channel: string; versionN: number; takeId: string; url?: string; at: string }[];
+  releases: { channel: string; versionN: number; takeId: string; url?: string; at: string; uploadedAt: string | null }[];
   /** Listener feedback on `version`. */
   listenerFeedback: { looksGood: number; needsChanges: number };
   /** The newest thing that happened to the passage's versions or reviews. */
@@ -57,6 +60,10 @@ export interface AudioCard {
   /** Plays without a token until `expiresAt` (Range supported); ask for the passage again for a fresh one. */
   url: string;
   expiresAt: string;
+  /** When the server stored the file; null while the phone has not uploaded it yet (decisions.md 188). */
+  uploadedAt: string | null;
+  /** For audio brought over from LangQuest v2: when v2's server had the file. Null for audio made here, or where v2 kept no time. */
+  v2UploadedAt: string | null;
 }
 
 export interface ReviewOut {
@@ -65,11 +72,16 @@ export interface ReviewOut {
   outcome: 'looks_good' | 'needs_changes' | 'recorded';
   via: 'app' | 'link' | 'logged';
   versionN: number;
+  /** The reviewer's clock: the phone's, or LangQuest's for one given by link. */
   at: string;
+  /** When the server received it (decisions.md 188). */
+  uploadedAt: string | null;
+  /** For a review brought over from LangQuest v2: when v2's server got the newest of its votes. */
+  v2UploadedAt: string | null;
   comment?: string;
   givenBy?: string;
-  /** Voice notes, each with where in the version it is about (`atMs`) when the reviewer said. */
-  voiceNotes?: { url: string; expiresAt: string; durationMs: number; atMs?: number }[];
+  /** Voice notes, each with where in the version it is about (`atMs`) when the reviewer said, and when the server stored its file. */
+  voiceNotes?: { url: string; expiresAt: string; durationMs: number; atMs?: number; uploadedAt: string | null }[];
 }
 
 export interface PassageDetail extends PassageSummary {
@@ -89,8 +101,8 @@ export interface PassageDetail extends PassageSummary {
    * the token's person, or to a review team they are in; a review of its
    * `kindId` answers it.
    */
-  requests?: { requestId: string; what: 'record' | 'review'; kindId?: string; kind?: string; forYou: boolean; team?: string; note?: string; askedAt: string }[];
-  versions?: { n: number; takeId: string; submittedAt: string }[];
+  requests?: { requestId: string; what: 'record' | 'review'; kindId?: string; kind?: string; forYou: boolean; team?: string; note?: string; askedAt: string; uploadedAt: string | null }[];
+  versions?: { n: number; takeId: string; submittedAt: string; uploadedAt: string | null; v2UploadedAt: string | null }[];
   /**
    * With `read`: `approvedVersion`'s cards, so a listening app keeps playing what it
    * published while a newer recording is in review. Empty when nothing is approved.
@@ -116,6 +128,63 @@ export const isRefusal = (x: unknown): x is Refusal => typeof x === 'object' && 
 /** Signs a read link for an object key; the Worker's own `readPath`, absolute. */
 export type Signer = (key: string) => Promise<{ url: string; expiresAt: number }>;
 
+/**
+ * When the server received what an answer names (decisions.md 188), by key:
+ * `submitted:<takeId>` for a version (its first publish to arrive),
+ * `review:<reviewId>`, `request:<requestId>`, and `event:<eventId>` for
+ * anything else. Each is the database's own stamp on the event
+ * (`public.events.received_at`, read by `received_times`), as ISO text; a
+ * key with no row is left out. Asked once for a whole page.
+ *
+ * For work brought over from LangQuest v2, `v2:` keys ask what the import
+ * kept of v2's own stamps: `v2:review:<reviewId>`, `v2:file:<hash>` (when
+ * v2 had the audio) and `v2:segment:<hash>` (when it got the segment that
+ * names the file).
+ */
+export type Receipts = (keys: readonly string[]) => Promise<ReadonlyMap<string, string>>;
+
+/**
+ * What one answer asks `Receipts` for: each item is built with its times
+ * null, named here by its keys, and stamped once every passage of the page
+ * is built, with one question for them all.
+ */
+class Arrivals {
+  private readonly wants: [string, (at: string) => void][] = [];
+
+  /** The item's `uploadedAt`, from the key's time. */
+  want(key: string, item: { uploadedAt: string | null }): void {
+    this.on(key, (at) => { item.uploadedAt = at; });
+  }
+
+  /** The key's time, if it has one, to `use`. */
+  on(key: string, use: (at: string) => void): void {
+    this.wants.push([key, use]);
+  }
+
+  async stamp(received: Receipts): Promise<void> {
+    if (!this.wants.length) return;
+    const at = await received([...new Set(this.wants.map(([key]) => key))]);
+    for (const [key, use] of this.wants) {
+      const t = at.get(key);
+      if (t !== undefined) use(t);
+    }
+  }
+}
+
+/** The v2 import's device (`DEVICE` in packages/v2-import reconcile.ts): its events' clocks name it. */
+const V2_IMPORT = 'v2import';
+const byImport = (hlc: string) => decodeHlc(hlc).nodeId === V2_IMPORT;
+
+/** A version the import brought over: when v2 had all of it, the newest of v2's stamps on its parts' segments and audio. */
+function wantV2Version(arrivals: Arrivals, ver: Version, item: { v2UploadedAt: string | null }): void {
+  if (!byImport(ver.hlc)) return;
+  for (const hash of ver.cardHashes) {
+    for (const key of [`v2:segment:${hash}`, `v2:file:${hash}`]) {
+      arrivals.on(key, (at) => { if (!item.v2UploadedAt || at > item.v2UploadedAt) item.v2UploadedAt = at; });
+    }
+  }
+}
+
 /** A whole chapter has null verses; a whole book, null chapters too. A range may end in a later chapter. */
 export interface PassageReference {
   book: string;
@@ -140,6 +209,17 @@ export function referenceOf(unitId: string): PassageReference | null {
 
 const wallOf = (hlc: string): number => Number(hlc.slice(0, hlc.indexOf(':')));
 const iso = (hlc: string) => new Date(wallOf(hlc)).toISOString();
+
+/**
+ * When the server stored a file's bytes: its v1.BlobStored, which only the
+ * server appends, stamped with the server's clock (decisions.md 69 and 188).
+ * Null while no upload has been confirmed, or after the server found the
+ * bytes wrong or gone.
+ */
+const fileUploadedAt = (state: LanguageState, hash: string): string | null => {
+  const b = state.blobs[hash];
+  return b?.stored ? iso(b.hlc) : null;
+};
 
 const refuse = (status: number, code: string, error: string): Refusal => ({ status, code, error });
 
@@ -210,10 +290,10 @@ function summarize(grant: Grant, state: LanguageState, s: PassageState): Passage
     reference: referenceOf(s.unitId),
     status: statusOf(s),
     version: v
-      ? { n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc), durationMs: v.cardHashes.reduce((t, h) => t + (recordedCard(state, h)?.durationMs ?? 0), 0) }
+      ? { n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc), uploadedAt: null, v2UploadedAt: null, durationMs: v.cardHashes.reduce((t, h) => t + (recordedCard(state, h)?.durationMs ?? 0), 0) }
       : null,
     approvedVersion: approved ? { n: approved.n, takeId: approved.takeId } : null,
-    releases: releases.map((r) => ({ channel: r.channel, versionN: r.versionN, takeId: r.takeId, at: iso(r.hlc), ...(r.url !== undefined ? { url: r.url } : {}) })),
+    releases: releases.map((r) => ({ channel: r.channel, versionN: r.versionN, takeId: r.takeId, at: iso(r.hlc), ...(r.url !== undefined ? { url: r.url } : {}), uploadedAt: null })),
     listenerFeedback: {
       looksGood: onVersion.filter((r) => r.outcome === 'looks_good').length,
       needsChanges: onVersion.filter((r) => r.outcome === 'needs_changes').length
@@ -284,7 +364,7 @@ export function parsePassageQuery(raw: { status?: unknown; changedSince?: unknow
  * never whole in the object's memory.
  */
 export async function passagesFor(
-  grant: Grant, orgId: string, languageId: string, records: LanguageRecords, q: PassageListQuery, sign: Signer
+  grant: Grant, orgId: string, languageId: string, records: LanguageRecords, q: PassageListQuery, sign: Signer, received: Receipts
 ): Promise<{ passages: PassageListItem[]; nextAfter: string | null } | Refusal> {
   const teamOnly = q.include.filter((i) => TEAM_ONLY.includes(i));
   if (teamOnly.length && !canRead(grant, true)) return refuse(403, 'scope', `${teamOnly.join(' and ')} need the read scope; read:published shows approved passages only.`);
@@ -294,6 +374,7 @@ export async function passagesFor(
   const wanted = q.filter.unitIds ? new Set(q.filter.unitIds) : null;
   const include = new Set(q.include);
   const passages: PassageListItem[] = [];
+  const arrivals = new Arrivals();
   let nextAfter: string | null = null;
   // A language held whole hands back the same state for every slice: index it once.
   const indexes = new WeakMap<LanguageState, ReturnType<typeof buildIndexes>>();
@@ -310,15 +391,16 @@ export async function passagesFor(
         nextAfter = passages[passages.length - 1]!.unitId;
         break scan;
       }
-      passages.push(await passageOut(grant, orgId, languageId, state, s, sum, include, sign));
+      passages.push(await passageOut(grant, orgId, languageId, state, s, sum, include, sign, arrivals));
     }
   }
+  await arrivals.stamp(received);
   return { passages, nextAfter };
 }
 
 /** One passage with everything the token may see; the list with every include, for one unit. */
 export async function passageFor(
-  grant: Grant, orgId: string, languageId: string, records: LanguageRecords, unitId: string, sign: Signer
+  grant: Grant, orgId: string, languageId: string, records: LanguageRecords, unitId: string, sign: Signer, received: Receipts
 ): Promise<PassageDetail | Refusal> {
   if (positionIn(records.passages, unitId) < 0) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
   const state = await records.view([unitId]);
@@ -327,25 +409,40 @@ export async function passageFor(
   const s = derivePassage(state, unitId, idx);
   if (!visible(grant, s)) return refuse(404, 'no_passage', 'There is no approved passage with that id in this language.');
   const include = new Set<PassageInclude>(canRead(grant, true) ? PASSAGE_INCLUDES : PASSAGE_INCLUDES.filter((i) => !TEAM_ONLY.includes(i)));
-  return (await passageOut(grant, orgId, languageId, state, s, summarize(grant, state, s), include, sign)) as PassageDetail;
+  const arrivals = new Arrivals();
+  const out = (await passageOut(grant, orgId, languageId, state, s, summarize(grant, state, s), include, sign, arrivals)) as PassageDetail;
+  await arrivals.stamp(received);
+  return out;
 }
 
 async function passageOut(
   grant: Grant, orgId: string, languageId: string, state: LanguageState, s: PassageState, sum: PassageSummary,
-  include: ReadonlySet<PassageInclude>, sign: Signer
+  include: ReadonlySet<PassageInclude>, sign: Signer, arrivals: Arrivals
 ): Promise<PassageListItem> {
   const out: PassageListItem = { ...sum };
+  const v = heard(grant, s);
+  if (out.version && v) {
+    arrivals.want(`submitted:${out.version.takeId}`, out.version);
+    wantV2Version(arrivals, v, out.version);
+  }
+  // A passage the import brought over may hold v2's audio in any version, a later one made here too.
+  const fromV2 = s.versions.some((ver) => byImport(ver.hlc));
+  for (const r of out.releases) {
+    const reg = state.releases?.[r.takeId]?.[r.channel];
+    if (reg) arrivals.want(`event:${reg.eventId}`, r);
+  }
   const link = async (hash: string, format: string) => {
     const l = await sign(`${orgId}/${languageId}/${hash}.${format}`);
     return { url: l.url, expiresAt: new Date(l.expiresAt).toISOString() };
   };
-  const v = heard(grant, s);
   const audioOf = async (ver: Version | null) => {
     const audio: AudioCard[] = [];
     for (const hash of ver?.cardHashes ?? []) {
       const card = recordedCard(state, hash);
       const format = card?.format ?? 'wav';
-      audio.push({ hash, format, durationMs: card?.durationMs ?? 0, ...(await link(hash, format)) });
+      const item: AudioCard = { hash, format, durationMs: card?.durationMs ?? 0, ...(await link(hash, format)), uploadedAt: fileUploadedAt(state, hash), v2UploadedAt: null };
+      if (fromV2) arrivals.on(`v2:file:${hash}`, (at) => { item.v2UploadedAt = at; });
+      audio.push(item);
     }
     return audio;
   };
@@ -356,7 +453,9 @@ async function passageOut(
     out.reviews = [];
     for (const r of s.reviews) {
       if (!all && (r.kindId !== LISTENER_KIND || r.takeId !== v?.takeId)) continue;
-      const review: ReviewOut = { kindId: r.kindId, kind: kindOf(state, r.kindId).name, outcome: r.outcome, via: r.via, versionN: r.versionN, at: iso(r.hlc) };
+      const review: ReviewOut = { kindId: r.kindId, kind: kindOf(state, r.kindId).name, outcome: r.outcome, via: r.via, versionN: r.versionN, at: iso(r.hlc), uploadedAt: null, v2UploadedAt: null };
+      arrivals.want(`review:${r.id}`, review);
+      if (byImport(r.hlc)) arrivals.on(`v2:review:${r.id}`, (at) => { review.v2UploadedAt = at; });
       if (r.comment !== undefined) review.comment = r.comment;
       if (r.givenBy !== undefined) review.givenBy = r.givenBy;
       // Voice notes: one in commentBlobHash (the app's; m4a unless the log says otherwise, decisions.md 77), and
@@ -367,7 +466,9 @@ async function passageOut(
       ];
       if (notes.length) {
         review.voiceNotes = [];
-        for (const n of notes) review.voiceNotes.push({ ...(await link(n.hash, n.format ?? 'wav')), durationMs: n.durationMs, ...(n.atMs !== undefined ? { atMs: n.atMs } : {}) });
+        for (const n of notes) {
+          review.voiceNotes.push({ ...(await link(n.hash, n.format ?? 'wav')), durationMs: n.durationMs, ...(n.atMs !== undefined ? { atMs: n.atMs } : {}), uploadedAt: fileUploadedAt(state, n.hash) });
+        }
       }
       out.reviews.push(review);
     }
@@ -382,15 +483,26 @@ async function passageOut(
     });
   }
   if (include.has('requests')) {
-    out.requests = s.openRequests.map((r) => ({
-      requestId: r.id, what: r.what,
-      ...(r.kindId ? { kindId: r.kindId, kind: kindOf(state, r.kindId).name } : {}),
-      forYou: r.profileId === grant.profileId || (r.team?.memberIds.includes(grant.profileId) ?? false),
-      ...(r.team ? { team: r.team.name } : {}), ...(r.note ? { note: r.note } : {}),
-      askedAt: iso(r.hlc)
-    }));
+    out.requests = s.openRequests.map((r) => {
+      const request: NonNullable<PassageDetail['requests']>[number] = {
+        requestId: r.id, what: r.what,
+        ...(r.kindId ? { kindId: r.kindId, kind: kindOf(state, r.kindId).name } : {}),
+        forYou: r.profileId === grant.profileId || (r.team?.memberIds.includes(grant.profileId) ?? false),
+        ...(r.team ? { team: r.team.name } : {}), ...(r.note ? { note: r.note } : {}),
+        askedAt: iso(r.hlc), uploadedAt: null
+      };
+      arrivals.want(`request:${r.id}`, request);
+      return request;
+    });
   }
-  if (include.has('versions')) out.versions = s.versions.map((ver) => ({ n: ver.n, takeId: ver.takeId, submittedAt: iso(ver.hlc) }));
+  if (include.has('versions')) {
+    out.versions = s.versions.map((ver) => {
+      const version: NonNullable<PassageDetail['versions']>[number] = { n: ver.n, takeId: ver.takeId, submittedAt: iso(ver.hlc), uploadedAt: null, v2UploadedAt: null };
+      arrivals.want(`submitted:${ver.takeId}`, version);
+      wantV2Version(arrivals, ver, version);
+      return version;
+    });
+  }
   return out;
 }
 
@@ -773,7 +885,7 @@ export interface LinkView {
   kind: { id: string; name: string; description: string };
   counts: boolean;
   version: number;
-  audio: AudioCard[];
+  audio: Omit<AudioCard, 'v2UploadedAt'>[];
   expiresAt: string;
   open: boolean;
 }
@@ -784,13 +896,13 @@ export async function linkView(link: ReviewLink, org: OrgState, state: LanguageS
   const v = s.versions.find((x) => x.takeId === link.takeId);
   if (!v) return refuse(404, 'gone', 'This passage is no longer here.');
   const open = linkIsOpen(link, org, now);
-  const audio: AudioCard[] = [];
+  const audio: LinkView['audio'] = [];
   // A closed link plays nothing: revoking it is how a sharer takes the audio back.
   for (const hash of open ? v.cardHashes : []) {
     const card = recordedCard(state, hash);
     const format = card?.format ?? 'wav';
     const l = await sign(`${link.orgId}/${link.languageId}/${hash}.${format}`);
-    audio.push({ hash, format, durationMs: card?.durationMs ?? 0, url: l.url, expiresAt: new Date(l.expiresAt).toISOString() });
+    audio.push({ hash, format, durationMs: card?.durationMs ?? 0, url: l.url, expiresAt: new Date(l.expiresAt).toISOString(), uploadedAt: fileUploadedAt(state, hash) });
   }
   const kind = kindOf(state, link.kindId);
   return {

@@ -15,6 +15,7 @@ import { Ico } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { C, radius, space, TINT, withAlpha } from '../ui/theme';
 import { useRecorder, type RecordedCard } from './useRecorder';
+import { MicRefused } from './micRefused';
 
 export function BigVoice(props: {
   ctx: Ctx;
@@ -74,7 +75,7 @@ export function BigVoice(props: {
         {recording ? t('recording.listening', { time: clock(elapsed) }) : rec.busy ? t('common.saving') : props.label}
       </Text>
       {recording ? <Text style={txt.xs}>{t('recording.bigVoice.tapToStop')}</Text> : null}
-      {rec.error ? <Text style={[txt.xs, { color: TINT.redText }]}>{rec.error}</Text> : null}
+      {rec.micRefused ? <MicRefused message={rec.error} /> : rec.error ? <Text style={[txt.xs, { color: TINT.redText }]}>{rec.error}</Text> : null}
     </View>
   );
 }

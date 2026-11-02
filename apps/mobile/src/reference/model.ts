@@ -43,7 +43,7 @@ export function recState(orgRecs: Record<string, Register<boolean>> | undefined,
 /** "Recommended by the organization", "Hidden for this language", for a line or badge. */
 export function recLabel(r: RecState, level: Level): string {
   if (level.kind === 'org') return r.org ? t('reference.rec.recommended') : t('reference.rec.notRecommended');
-  if (r.language === 'hidden') return t('reference.rec.hiddenForLanguage');
+  if (r.language === 'hidden') return t('reference.rec.notHere');
   if (r.effective === 'language') return t('reference.rec.forLanguage');
   if (r.effective === 'organization') return t('reference.rec.byOrganization');
   return t('reference.rec.notRecommended');
@@ -62,12 +62,24 @@ export function recOn(r: RecState): boolean {
 
 export type RecAction = 'recommend' | 'stop' | 'hide' | 'inherit';
 
-/** What an admin may do at this level: the organization recommends or stops; a language recommends, hides or follows the organization. */
+/**
+ * The one switch an admin has at this level, as Get ready's switches are
+ * (UI audit, finding 58): recommended or not. The organization recommends
+ * or stops. A language turns off what reaches it (hidden when the
+ * organization recommends it), and turns on what does not (following the
+ * organization again when it recommends it, else recommended here).
+ */
+export function recToggle(r: RecState, level: Level): RecAction {
+  if (level.kind === 'org') return r.org ? 'stop' : 'recommend';
+  if (recOn(r)) return r.org ? 'hide' : 'inherit';
+  return r.org ? 'inherit' : 'recommend';
+}
+
+/** The switch as a button: what it does, in one pair of words at each level. */
 export function recActions(r: RecState, level: Level): { id: RecAction; label: string }[] {
-  if (level.kind === 'org') return [r.org ? { id: 'stop', label: t('reference.rec.stop') } : { id: 'recommend', label: t('reference.rec.recommend') }];
-  if (r.language === 'hidden') return [{ id: 'inherit', label: t('reference.rec.follow') }];
-  if (r.language === 'recommended') return [{ id: 'inherit', label: r.org ? t('reference.rec.follow') : t('reference.rec.stop') }];
-  return [r.org ? { id: 'hide', label: t('reference.rec.hide') } : { id: 'recommend', label: t('reference.rec.recommend') }];
+  const on = level.kind === 'org' ? r.org : recOn(r);
+  const label = level.kind === 'org' ? (on ? t('reference.rec.stop') : t('reference.rec.recommend')) : (on ? t('reference.rec.stopHere') : t('reference.rec.recommendHere'));
+  return [{ id: recToggle(r, level), label }];
 }
 
 /** The write an action makes: an organization event, or an event in the language's own log. */
@@ -87,14 +99,11 @@ export function recUndo(r: RecState, level: Level, itemId: string): RecWrite {
   return { to: 'language', languageId: level.languageId, type: 'v1.ReferenceSet', payload: { itemId, state: r.language ?? 'inherit' } };
 }
 
-/** What the toast says after an action. */
-export function recMessage(name: string, action: RecAction, level: Level): string {
-  switch (action) {
-    case 'recommend': return level.kind === 'org' ? t('reference.rec.done.recommendedEverywhere', { name }) : t('reference.rec.done.recommendedHere', { name });
-    case 'stop': return t('reference.rec.done.stopped', { name });
-    case 'hide': return t('reference.rec.done.hidden', { name });
-    case 'inherit': return t('reference.rec.done.follows', { name });
-  }
+/** What the toast says after an action, from what it was before: recommended now, or no longer. */
+export function recMessage(name: string, action: RecAction, level: Level, before: RecState): string {
+  if (level.kind === 'org') return action === 'recommend' ? t('reference.rec.done.recommendedEverywhere', { name }) : t('reference.rec.done.stopped', { name });
+  const nowOn = action === 'recommend' || (action === 'inherit' && !recOn(before));
+  return nowOn ? t('reference.rec.done.recommendedHere', { name }) : t('reference.rec.done.stoppedHere', { name });
 }
 
 // ---- what kind of reference an item is -------------------------------------------

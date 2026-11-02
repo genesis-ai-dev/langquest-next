@@ -193,7 +193,8 @@ export function SwipeRow(props: {
 const styles = StyleSheet.create({
   box: { overflow: 'hidden' },
   last: { borderBottomLeftRadius: radius.lg - 1, borderBottomRightRadius: radius.lg - 1 },
-  under: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.red, flexDirection: 'row', justifyContent: 'space-between' },
+  // Left to right in every language: the row slides by screen distance, so the bin it shows is the one on that side.
+  under: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.red, flexDirection: 'row', justifyContent: 'space-between', direction: 'ltr' },
   bin: { width: BIN, alignItems: 'center', justifyContent: 'center' },
   face: { backgroundColor: C.card }
 });

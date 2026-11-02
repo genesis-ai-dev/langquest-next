@@ -5,7 +5,7 @@ import {
 import {
   backTranslationDraftKey, canPublish, cardDurations, draftToOpen, markTerms, mmss, parseBackTranslationDraft, removeCardSpecs,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, withoutPart, withPart, workingCards, slotRows, targetNumber,
-  changedParts, helpBinRow, historyFits, marksAfterMove, marksKeepingLabels, marksOf, movedList, opensAbove, parsePartsHistory, restoreSpecs,
+  changedParts, cleanUpNoteOf, helpBinRow, historyFits, marksAfterMove, marksKeepingLabels, marksOf, movedList, opensAbove, parsePartsHistory, restoreSpecs,
   type PartsSnap
 } from '../src/recording/workspaceModel';
 import { didStep, emptyHistory, redoStep, undoStep } from '../src/ui/undoModel';
@@ -435,6 +435,52 @@ describe('what an undo or redo shows (Caleb, 2026-10-16)', () => {
     });
     const set = specs.filter((x) => x.type === 'v1.CardVerseSet').map((x) => (x.payload as { hash: string; mark: string }));
     expect(set).toEqual([expect.objectContaining({ hash: 'a', mark: 'next' }), expect.objectContaining({ hash: 'b', mark: 'set' })]);
+  });
+});
+
+describe('Clean up in the undo history (decision 179)', () => {
+  const clean = { use: 'cleaned', cleanedHash: 'a2', cleanedFormat: 'm4a', tool: 'dfn3', limitDb: 12 } as const;
+  /** A draft of a and b, with a's cleaned sound in a's place, as Clean up leaves it. */
+  function cleaned() {
+    const h = history();
+    h.record('a');
+    h.record('b');
+    h.run(h.cmd().keepTake({ commandId: 'k1', unitId: 'passage', cardHashes: ['a', 'b'], actorId: 'me' }));
+    const before: PartsSnap = { list: ['a', 'b'], marks: [null, null], cleanUps: { a: null } };
+    const after: PartsSnap = { list: ['a2', 'b'], marks: [null, null], cleanUps: { a: clean } };
+    h.run(h.cmd().cleanUpParts({ commandId: 'c1', unitId: 'passage', actorId: 'me', cardHashes: ['a', 'b'], tool: 'dfn3', limitDb: 12,
+      parts: [{ hash: 'a', use: 'cleaned', cleaned: { hash: 'a2', format: 'm4a' } }] }));
+    return { h, before, after };
+  }
+  const restore = (st: ReturnType<ReturnType<typeof history>['state']>, to: PartsSnap, from: PartsSnap, commandId = 'u1') =>
+    restoreSpecs(st, buildIndexes(st), { commandId, unitId: 'passage', actorId: 'me', to, from, verses: [], parentTakeId: passage(st).drafts[0]!.takeId, draftTakeId: passage(st).drafts[0]!.takeId }).specs;
+
+  it('Undo puts the part as recorded back and takes the note away; Redo brings both back', () => {
+    // Why: "Undo takes the pick back, like any other change" (Caleb's mockup 20), and Clean up may be offered for the part again.
+    const { h, before, after } = cleaned();
+    expect(cleanUpNoteOf(h.state(), 'passage', 'a')).toEqual(clean);
+    h.run(restore(h.state(), before, after));
+    expect(passage(h.state()).drafts[0]!.cardHashes).toEqual(['a', 'b']);
+    expect(cleanUpNoteOf(h.state(), 'passage', 'a')).toBeNull();
+    expect(cardDurations(h.state(), 'passage').get('a2')).toBe(7200);
+    h.run(restore(h.state(), after, before, 'r1'));
+    expect(passage(h.state()).drafts[0]!.cardHashes).toEqual(['a2', 'b']);
+    expect(cleanUpNoteOf(h.state(), 'passage', 'a')).toEqual(clean);
+  });
+
+  it('leaves a note changed since the step as it is now', () => {
+    const { h, before, after } = cleaned();
+    h.run([{ id: 'other', type: 'v1.CardCleanUpSet', payload: { unitId: 'passage', hash: 'a', use: 'original', tool: 'dfn3' } }], 'them');
+    expect(restore(h.state(), before, after).filter((x) => x.type === 'v1.CardCleanUpSet')).toEqual([]);
+  });
+
+  it('keeps the notes in the stored history, and shades a part whose note changed', () => {
+    const { before, after } = cleaned();
+    const step = didStep(emptyHistory, { before, after, what: 'Part 1 cleaned up.' });
+    expect(parsePartsHistory(JSON.stringify(step))).toEqual(step);
+    expect(parsePartsHistory(JSON.stringify({ done: [{ before: { ...before, cleanUps: { a: { use: 'loud' } } }, after }], undone: [] }))).toEqual(emptyHistory);
+    const kept: PartsSnap = { list: ['a', 'b'], marks: [null, null], cleanUps: { a: { use: 'original', tool: 'dfn3' } } };
+    expect(changedParts(before, kept)).toEqual(['a']);
   });
 });
 

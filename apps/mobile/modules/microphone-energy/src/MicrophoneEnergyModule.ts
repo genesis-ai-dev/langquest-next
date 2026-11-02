@@ -13,6 +13,12 @@ type VADResult = {
 export type VADConfig = {
   /** What this device heard last time (splitter.ts, LAN-82): parts split by the room and the voice, with no setting. */
   heard?: HeardLevels;
+  /**
+   * The silence switch (decision 194): while on, a session's chunk stays open
+   * through every pause until the detector stops (chunks.ts), so the room
+   * between parts is kept whole. Left out, it stays as it was.
+   */
+  keepRoom?: boolean;
 };
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -39,7 +45,26 @@ export type MicrophoneEnergyModuleEvents = {
   }) => void;
   /** A session's chunk is written: the WAV at `uri` holds `duration` ms, the room around its parts included. */
   onChunkComplete: (payload: { chunk: string; uri: string; duration: number }) => void;
+  /** How far Clean up has got with part `id` (decision 179), 0 to 1. */
+  onCleanUpProgress: (e: { id: string; done: number }) => void;
 };
+
+/**
+ * A cleaned part (decision 179): its length, and in each of the slices its
+ * bars are drawn in (deepFilter.ts BAR_SLICES) how many samples and the sums
+ * of x*x, x*y and y*y, x the part as recorded and y the cleaned sound
+ * ([n, xx, xy, yy], deepFilter.ts SliceSums).
+ */
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+export type CleanedPart = { durationMs: number; sums: number[][] };
+
+/**
+ * What `level` heard in a recording (loudnessModel.ts Measured, decision
+ * 182) and what it did: the gain the copy was made with, and whether one was
+ * written. An iPhone leaves out `lufs` and `noiseDb` where they are unknown.
+ */
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+export type LevelAnswer = { lufs?: number | null; peakDb: number; noiseDb?: number | null; amps: number[]; gainDb: number; written: boolean };
 
 declare class MicrophoneEnergyModule extends NativeModule<MicrophoneEnergyModuleEvents> {
   /**
@@ -56,6 +81,20 @@ declare class MicrophoneEnergyModule extends NativeModule<MicrophoneEnergyModule
   stopSegment(): Promise<string | null>;
   /** A finished WAV part re-encoded as AAC (`.m4a`) beside it; the WAV is left for the caller. Phones only. */
   encodeAac(uri: string): Promise<string>;
+  /** Clean up (decision 179): DeepFilterNet3 over the part at `uri`, kept as `id` until it is forgotten. Parts are cleaned one at a time. */
+  cleanUp(id: string, uri: string): Promise<CleanedPart>;
+  /** The cleaned part with `limitDb` of it as recorded mixed back in (none when null): a WAV to hear, or with `keep` the file to keep (AAC on phones, WAV on the web). */
+  cleanUpMix(id: string, limitDb: number | null, keep: boolean): Promise<{ uri: string; format: 'wav' | 'm4a' }>;
+  /** Done with the part: its work stops and its files go. A kept file is the caller's, and stays. */
+  cleanUpForget(id: string): Promise<void>;
+  /**
+   * Even loudness (decision 182): the recording at `uri` read at 48 kHz and
+   * measured as loudnessModel.ts measures; with `out`, when it is to be
+   * turned by `options.minChangeDb` or more, its copy at the loudness asked
+   * for, peaks held at the ceiling, written there as a 16-bit WAV. `options`
+   * is levelModel.ts LEVEL. Recordings are taken one at a time. Phones only.
+   */
+  level(uri: string, out: string | null, options: Record<string, number>): Promise<LevelAnswer>;
 }
 
 // This call loads the native module object from the JSI.

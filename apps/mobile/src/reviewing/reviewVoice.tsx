@@ -6,12 +6,13 @@
 // useRecorder (the clip lands in the blob store and is named only by the
 // review that keeps it, decision 30); playback follows audioSession.ts, so
 // starting one stops every other player.
-import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import type { AudioLanguage } from '../audio/audioTally';
 import { Text } from '../ui/text';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audio/audioSession';
+import { playable } from '../audio/levelStore';
+import { createRecordingPlayer, unlockRecordingPlayer, type RecordingPlayer } from '../audio/recordingPlayer';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
@@ -24,6 +25,7 @@ import type { VoiceAnswer } from './capture';
 import { lift } from '../ui/shadow';
 import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
 import { useRecorder, type RecordedCard } from '../recording/useRecorder';
+import { MicRefused } from '../recording/micRefused';
 import { canSpeak, synth, Utterance } from './speech';
 
 // ---- speaking a line aloud ----------------------------------------------------------------
@@ -93,7 +95,7 @@ export function BigMic(props: {
       <Text style={styles.bigLabel} accessibilityLiveRegion="polite">
         {recording ? t('review.voice.recordingTime', { time: formatClock(elapsed * 1000) }) : rec.busy ? t('common.saving') : props.label}
       </Text>
-      {rec.error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{rec.error}</Text> : null}
+      {rec.micRefused ? <MicRefused message={rec.error} /> : rec.error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{rec.error}</Text> : null}
     </View>
   );
 }
@@ -104,8 +106,10 @@ export function BigMic(props: {
 export function PlayChip(props: { ctx: Ctx; clip: VoiceAnswer; label: string; tone?: 'green' | 'amber' | 'brand' }) {
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState('');
-  const player = useRef<AudioPlayer | null>(null);
-  const stop = () => { player.current?.remove(); player.current = null; setPlaying(false); };
+  const player = useRef<RecordingPlayer | null>(null);
+  // Bumped by every tap and stop, so a play still waiting for its file is let go.
+  const asked = useRef(0);
+  const stop = () => { asked.current++; player.current?.remove(); player.current = null; setPlaying(false); };
   useEffect(() => registerPlayback(stop), []);
   useEffect(() => () => { player.current?.remove(); player.current = null; }, [props.clip.hash]);
   const [bg, fill, fg] = props.tone === 'amber' ? [TINT.amber, onColor.amber, TINT.amberText]
@@ -113,19 +117,24 @@ export function PlayChip(props: { ctx: Ctx; clip: VoiceAnswer; label: string; to
   async function toggle() {
     if (playing) { stop(); return; }
     stopAudioPlayback();
+    unlockRecordingPlayer();
     setError('');
-    const uri = props.ctx.language.blobs.uriFor({ hash: props.clip.hash, format: props.clip.format });
-    if (!uri) { setError(t('review.voice.notOnDevice')); return; }
+    const file = props.ctx.language.blobs.uriFor({ hash: props.clip.hash, format: props.clip.format });
+    if (!file) { setError(t('review.voice.notOnDevice')); return; }
+    const mine = ++asked.current;
+    setPlaying(true);
     try {
+      // At even loudness (levelStore.ts, decision 182).
+      const uri = await playable(props.clip.hash, file);
       await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });
-      const p = createAudioPlayer({ uri });
+      if (asked.current !== mine) return;
+      const p = createRecordingPlayer(uri);
       player.current = p;
       p.addListener('playbackStatusUpdate', (st) => {
         if (player.current !== p) return;
-        if (st.didJustFinish) stop();
+        if (st.didJustFinish || st.refused) stop();
       });
       p.play();
-      setPlaying(true);
     } catch (e) {
       stop();
       setError(t('common.audioCouldNotPlay', { code: reportError('review clip play', e) }));

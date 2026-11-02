@@ -1,5 +1,5 @@
 import {
-  deadRun, entrypointFor, exitCodeOf, HEAP_LIMIT_MB, heartbeat, HEARTBEAT_MS, isJobKey, JOB_TICK, jobEnv, JOBS, jobsDue, stillOwesWholeRead, STOPPED_EARLY
+  AFTER, deadRun, entrypointFor, exitCodeOf, HEAP_LIMIT_MB, heartbeat, HEARTBEAT_MS, isJobKey, JOB_TICK, jobEnv, JOBS, jobsDue, stillOwesWholeRead, STOPPED_EARLY
 } from '../worker/jobsModel';
 
 /**
@@ -12,7 +12,10 @@ import {
 describe('job runner', () => {
   const mark = { startedAt: 1_000 };
   const db = { SUPABASE_URL: 'https://x.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'service' };
-  const v2 = { ...db, API_URL: 'https://next.langquest.org', V2_IMPORT_ENABLED: 'true', V2_SUPABASE_ANON_KEY: 'anon', V2_DATABASE_URL: 'postgres://ro' };
+  const v2 = {
+    ...db, API_URL: 'https://next.langquest.org', V2_IMPORT_ENABLED: 'true', V2_SUPABASE_ANON_KEY: 'anon', V2_DATABASE_URL: 'postgres://ro',
+    YOUTUBE_CLIENT_ID: 'client.apps.googleusercontent.com', YOUTUBE_CLIENT_SECRET: 'shh'
+  };
 
   it('starts the pass every tick, the import every 15 minutes, and a whole read at 03:15 UTC', () => {
     // Why: the workflows ran the pass every 10 minutes (now 5, as the Edge pass did),
@@ -32,6 +35,22 @@ describe('job runner', () => {
     expect(jobsDue(Date.UTC(2026, 9, 19, 4, 35))).toEqual([{ key: 'projection' }, { key: 'blob-reconcile' }]);
     expect(jobsDue(Date.UTC(2026, 9, 19, 5, 5))).toEqual([{ key: 'projection' }]);
     expect(jobsDue(Date.UTC(2026, 9, 19, 16, 35))).toEqual([{ key: 'projection' }]);
+    // The filming starts the intake when its films are in, and each intake's end starts the publish (decision 192).
+    expect(AFTER).toEqual({ 'tutorial-intake': 'tutorial-publish' });
+    // One more intake as YouTube's day begins at midnight in California, for films the filming could not say
+    // were in, and the publish after it for what the day before had no room for: 07:05 UTC in summer time,
+    // 08:05 UTC in winter time, never both.
+    expect(jobsDue(Date.UTC(2026, 9, 19, 7, 5))).toEqual([{ key: 'projection' }, { key: 'tutorial-intake' }]);
+    expect(jobsDue(Date.UTC(2026, 9, 19, 8, 5))).toEqual([{ key: 'projection' }]);
+    expect(jobsDue(Date.UTC(2026, 10, 2, 8, 5))).toEqual([{ key: 'projection' }, { key: 'tutorial-intake' }]);
+    expect(jobsDue(Date.UTC(2026, 10, 2, 7, 5))).toEqual([{ key: 'projection' }]);
+    expect(jobsDue(Date.UTC(2026, 9, 19, 23, 10))).toEqual([{ key: 'projection' }]);
+    expect(jobsDue(Date.UTC(2026, 9, 19, 23, 40))).toEqual([{ key: 'projection' }]);
+    expect(JOBS['tutorial-publish']).toMatchObject({ job: 'tutorial_publish', entrypoint: ['node', 'publish.mjs'], timeLimitMs: 150 * 60_000 });
+    expect(JOBS['tutorial-intake']).toMatchObject({ job: 'tutorial_intake', entrypoint: ['node', 'intake.mjs'], timeLimitMs: 120 * 60_000 });
+    // The day's comments on the videos, after the publish job (decision 186).
+    expect(jobsDue(Date.UTC(2026, 9, 19, 23, 50))).toEqual([{ key: 'projection' }, { key: 'tutorial-comments' }]);
+    expect(JOBS['tutorial-comments']).toMatchObject({ job: 'tutorial_comments', entrypoint: ['node', 'comments.mjs'], timeLimitMs: 60 * 60_000 });
     expect(JOBS['fold-canary']).toMatchObject({ job: 'fold_canary', entrypoint: ['node', 'canary.mjs'], timeLimitMs: 60 * 60_000 });
     expect(JOBS['blob-reconcile']).toMatchObject({ job: 'blob_reconcile', entrypoint: ['node', 'reconcile.mjs'], timeLimitMs: 120 * 60_000 });
   });
@@ -40,6 +59,19 @@ describe('job runner', () => {
     expect(jobEnv('fold-canary', v2)).toEqual({ env: { ...db, LANGQUEST_JOB: 'fold-canary', NODE_OPTIONS: '--max-old-space-size=3072' } });
     expect(jobEnv('blob-reconcile', v2)).toEqual({ env: { ...db, LANGQUEST_JOB: 'blob-reconcile', NODE_OPTIONS: '--max-old-space-size=3072', API_URL: 'https://next.langquest.org' } });
     expect(jobEnv('blob-reconcile', { ...v2, API_URL: undefined })).toEqual({ refuse: expect.stringContaining('API_URL') });
+  });
+
+  it('hands the tutorial intake the database and the Worker\'s address, and nothing of YouTube\'s', () => {
+    expect(jobEnv('tutorial-intake', v2)).toEqual({ env: { ...db, LANGQUEST_JOB: 'tutorial-intake', NODE_OPTIONS: '--max-old-space-size=3072', API_URL: 'https://next.langquest.org' } });
+    expect(jobEnv('tutorial-intake', { ...v2, API_URL: undefined })).toEqual({ refuse: expect.stringContaining('API_URL') });
+  });
+
+  it('hands the comments job the YouTube client and Linear\'s key when it is set, and stays off without the client', () => {
+    const youtube = { YOUTUBE_CLIENT_ID: 'client.apps.googleusercontent.com', YOUTUBE_CLIENT_SECRET: 'shh' };
+    const base = { ...db, LANGQUEST_JOB: 'tutorial-comments', NODE_OPTIONS: '--max-old-space-size=3072', ...youtube };
+    expect(jobEnv('tutorial-comments', v2)).toEqual({ env: base });
+    expect(jobEnv('tutorial-comments', { ...v2, LINEAR_API_KEY: 'lin' })).toEqual({ env: { ...base, LINEAR_API_KEY: 'lin' } });
+    expect(jobEnv('tutorial-comments', { ...v2, YOUTUBE_CLIENT_SECRET: undefined })).toEqual({ skip: 'disabled' });
   });
 
   it('keeps each run inside its time limit, and every limit inside the platform\'s six hours', () => {

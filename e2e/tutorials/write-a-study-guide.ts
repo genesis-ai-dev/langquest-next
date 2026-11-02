@@ -42,6 +42,14 @@ export const writeAStudyGuide: Tutorial = {
       part: (page) => button(page, 'All reference material'),
       say: 'and All reference material.',
       tap: true,
+      until: (page) => button(page, 'Add material').waitFor({ timeout: 30_000 }),
+      stay: 0.6
+    },
+    {
+      // One way to make something: Add material, then which kind (UI audit, finding 59).
+      screen: 'reference_home',
+      part: (page) => button(page, 'Add material'),
+      tap: true,
       until: (page) => page.getByText('Write a guide', { exact: true }).locator('visible=true').first().waitFor({ timeout: 30_000 }),
       stay: 0.6
     },

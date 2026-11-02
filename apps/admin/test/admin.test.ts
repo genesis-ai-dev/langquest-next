@@ -193,7 +193,8 @@ describe('the API', () => {
 
   it('calls only /ops/api from the page', async () => {
     const html = await (await handle(new Request('https://next.langquest.org/ops-dashboard'), fullEnv)).text();
-    expect(html).not.toMatch(/['"]\/api\//);
+    // Only links to the app's public tutorial videos, opened in a tab of their own to watch, leave it (decisions.md 180).
+    expect(html).not.toMatch(/['"]\/api\/(?!tutorials\/)/);
     expect(html).toContain("'/ops/api/");
   });
 

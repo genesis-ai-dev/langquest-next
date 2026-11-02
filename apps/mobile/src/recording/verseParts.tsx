@@ -21,7 +21,7 @@ import {
 import type { Ctx } from '../shell/ctx';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
-import { t } from '../i18n';
+import { isRtl, t } from '../i18n';
 import { HelpInfo, Ico, IconBtn, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
@@ -34,16 +34,19 @@ import { PartBars } from './partBars';
 import { useSwipeHint } from './useSwipeHint';
 import { useBars } from '../audio/useBars';
 import { PartNotesMark } from '../passage/PartNotes';
+import { CleanUpMark } from './NoiseMark';
 import { useClip } from '../audio/useClip';
-import { partIs, spanName, spanShort } from './verseModel';
+import { usePlayingPart } from '../audio/usePlayingPart';
+import { PlayingFill } from './playingFill';
+import { inVerseGutter, partIs, spanName, spanShort, VERSE_GUTTER } from './verseModel';
 import { helpBinRow, opensAbove, rowKeys, type RecordTarget, type SlotRow } from './workspaceModel';
 import { partIndexAfter } from './dragModel';
 import { useDragRows } from './useDragRows';
 import { lift } from '../ui/shadow';
+import { a11yState } from '../ui/a11yModel';
 
-const GUTTER = 64;
 /** A range's size, so "49–50" or "100–105" sits whole inside the space beside its part. */
-const rangeFit = (text: string) => ({ fontSize: text.length <= 5 ? T.sm : T.xs - 1, letterSpacing: -0.3 });
+const rangeFit = (text: string) => ({ fontSize: text.length <= 5 ? T.sm : T.xs, letterSpacing: -0.3 });
 const HOLD_MS = 420;
 
 export function VerseParts(props: {
@@ -99,7 +102,7 @@ export function VerseParts(props: {
   // phone the responder system carries it; on the web, pointer events do,
   // since a Pressable keeps mouse presses from the responder system there.
   const box = useRef<View>(null);
-  const boxLeft = useRef(0);
+  const boxSpan = useRef({ left: 0, width: 0 });
   const rects = useRef<Map<number, { y: number; h: number }>>(new Map());
   const refs = useRef<Map<number, View>>(new Map());
   const slide = useRef<{ armed: boolean; startY: number; last: number; marks: PartMark[] | null; base: PartMark[]; endedAt: number }>(
@@ -109,7 +112,7 @@ export function VerseParts(props: {
   const latest = useRef({ marks, count, disabled, helpOn, save: (_m: PartMark[], _t: string) => {} });
   latest.current = { marks, count, disabled, helpOn, save };
   const measure = () => {
-    box.current?.measureInWindow((x) => { boxLeft.current = x; });
+    box.current?.measureInWindow((x, _y, w) => { boxSpan.current = { left: x, width: w }; });
     for (const [i, view] of refs.current) view.measureInWindow((_x, y, _w, h) => rects.current.set(i, { y, h }));
   };
   const rowAt = (y: number) => { for (const [i, r] of rects.current) if (y >= r.y && y < r.y + r.h) return i; return -1; };
@@ -128,7 +131,7 @@ export function VerseParts(props: {
   };
   const arm = (x: number, y: number) => {
     measure();
-    slide.current = { ...slide.current, armed: !latest.current.disabled && !latest.current.helpOn && x - boxLeft.current >= 0 && x - boxLeft.current < GUTTER, startY: y, last: -1, marks: null };
+    slide.current = { ...slide.current, armed: !latest.current.disabled && !latest.current.helpOn && inVerseGutter(x, boxSpan.current.left, boxSpan.current.width, isRtl()), startY: y, last: -1, marks: null };
   };
   const begin = () => {
     const sl = slide.current;
@@ -218,7 +221,7 @@ export function VerseParts(props: {
   const binRow = helpBinRow(rows);
 
   return (
-    <View ref={box} style={styles.list} onLayout={() => box.current?.measureInWindow((x) => { boxLeft.current = x; })} {...(Platform.OS === 'web' ? {} : responder.panHandlers)}>
+    <View ref={box} style={styles.list} onLayout={() => box.current?.measureInWindow((x, _y, w) => { boxSpan.current = { left: x, width: w }; })} {...(Platform.OS === 'web' ? {} : responder.panHandlers)}>
       {rows.map((r, k) => {
         const key = keys[k]!;
         const moved = drag.offset(key);
@@ -285,9 +288,10 @@ function PartRow(props: {
 }) {
   const name = props.name;
   const clip = useClip(props.ctx.language, [props.part.hash], { disabled: props.disabled });
+  const heard = usePlayingPart(props.part.hash, clip);
   const bars = useBars(props.ctx.language, props.part.hash);
-  const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: name }) : t('recording.player.playTitle', { title: name });
-  const play = useHelpSpot(playLabel, undefined, clip.toggle);
+  const playLabel = heard.playing ? t('recording.recorder.pausePart', { part: name }) : t('recording.player.playTitle', { title: name });
+  const play = useHelpSpot(playLabel, undefined, heard.toggle);
   const choose = useHelpSpot(t('recording.recorder.recordOver', { part: name }), t('recording.recorder.recordOverHelp'), props.onChoose);
   const l = props.label;
   const verses = l ? spanName(props.verses, l.s, l.e) : null;
@@ -299,6 +303,7 @@ function PartRow(props: {
       {...(props.hint ? { hint: true, onHinted: props.onHinted } : {})} helpBin={props.helpBin}>
     <View style={[styles.row, !props.first && styles.rowBorder, props.fresh && styles.fresh, (props.flash || props.chosen) && { backgroundColor: C.light }, props.editing && styles.editing,
       props.lifted && styles.liftedRow]}>
+      {heard.now ? <PlayingFill at={heard.now.at} length={heard.now.length} playing={heard.now.playing} /> : null}
       <Pressable ref={props.gutterRef} onPress={tap.onPress} onLongPress={tap.id ? undefined : props.onHold} delayLongPress={HOLD_MS}
         disabled={props.disabled} accessibilityRole="button"
         accessibilityLabel={l ? t(l.kind === 'join' ? 'recording.verses.labelSame' : 'recording.verses.label', { part: name, verses }) : t('recording.verses.labelEmpty', { part: name })}
@@ -309,7 +314,7 @@ function PartRow(props: {
         {l ? (
           // The same verse as the part above is drawn hollow and grey: one verse said in pieces.
           <View style={[styles.badge, l.kind === 'join' && styles.badgeSame]}>
-            <Text style={[l.s === l.e ? styles.badgeText : [styles.badgeRange, rangeFit(spanShort(props.verses, l.s, l.e))], l.kind === 'join' && { color: C.dark }]} numberOfLines={1}>{spanShort(props.verses, l.s, l.e)}</Text>
+            <Text style={[l.s === l.e ? styles.badgeText : [styles.badgeRange, rangeFit(spanShort(props.verses, l.s, l.e))], l.kind === 'join' && { color: C.dark }]} numberOfLines={1} maxFontSizeMultiplier={1.5}>{spanShort(props.verses, l.s, l.e)}</Text>
             {l.kind === 'set' ? <View style={styles.pin} /> : null}
           </View>
         ) : (
@@ -321,20 +326,24 @@ function PartRow(props: {
       </Pressable>
       <Pressable onPress={play.onPress} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={playLabel}
         style={({ pressed }) => [styles.playTap, (!clip.available || props.disabled) && ps.off, pressed && ps.pressed]}>
-        <View style={styles.playDot}><Ico name={clip.playing ? 'pause' : 'play'} size={16} color={C.primary} strokeWidth={2.6} fill={C.primary} /></View>
+        <View style={[styles.playDot, heard.playing && styles.playDotOn]}>
+          <Ico name={heard.playing ? 'pause' : 'play'} size={16} color={heard.playing ? C.white : C.primary} strokeWidth={2.6} fill={heard.playing ? C.white : C.primary} />
+        </View>
         <HelpBadge spot={play} />
       </Pressable>
       {/* Its bars and length choose it: what is said next replaces it. A screen reader opens its bin from here. */}
-      <Pressable onPress={choose.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: props.chosen }}
+      <Pressable onPress={choose.onPress} disabled={props.disabled} accessibilityRole="button" {...a11yState({ selected: props.chosen }, 'button')}
         accessibilityLabel={t('recording.recorder.recordOver', { part: name })}
         accessibilityActions={props.disabled ? [] : [{ name: 'delete', label: t('recording.deleteItem', { item: name }) }]}
         onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'delete') props.onOpen(1); }}
         style={({ pressed }) => [styles.play, pressed && ps.pressed]}>
-        <PartBars bars={bars} progress={clip.playing ? (clip.total > 0 ? clip.elapsed / clip.total : 0) : null} />
+        <PartBars bars={bars} progress={heard.share} />
         <Text style={styles.length}>{mmss(props.part.durationMs)}</Text>
         {props.chosen ? <ChosenMic /> : null}
         <HelpBadge spot={choose} />
       </Pressable>
+      {/* Tried in Clean up and kept as recorded (decision 179), or noisy (decision 181). */}
+      <CleanUpMark ctx={props.ctx} hash={props.part.hash} disabled={props.disabled} part={name} kept={props.part.kept} cleanUp={props.part.cleanUp} />
       {/* What the checks said about this part (decisions.md 149). */}
       <PartNotesMark hash={props.part.hash} label={name} />
       {props.grip}
@@ -355,7 +364,7 @@ export function VerseTile(props: { verses: string[]; label: PartLabel; same: boo
   return (
     <HelpInfo label={spanName(props.verses, l.s, l.e)} detail={props.same ? t('recording.verses.tileSameHelp') : t('recording.verses.tileHelp')}>
       <View style={[styles.badge, props.same && styles.badgeSame]}>
-        <Text style={l.s === l.e ? styles.badgeText : [styles.badgeRange, rangeFit(spanShort(props.verses, l.s, l.e))]} numberOfLines={1}>{spanShort(props.verses, l.s, l.e)}</Text>
+        <Text style={l.s === l.e ? styles.badgeText : [styles.badgeRange, rangeFit(spanShort(props.verses, l.s, l.e))]} numberOfLines={1} maxFontSizeMultiplier={1.5}>{spanShort(props.verses, l.s, l.e)}</Text>
       </View>
     </HelpInfo>
   );
@@ -408,7 +417,7 @@ function VerseSheet(props: {
 function VerseCell(props: { part: string; name: string; text: string; selected: boolean; ends: boolean; ok: boolean; link: boolean; disabled: boolean; onPress: () => void }) {
   const spot = useHelpSpot(props.name, props.selected ? t('recording.verses.pickedHelp', { part: props.part }) : t('recording.verses.pickHelp', { part: props.part }), props.onPress);
   return (
-    <Pressable disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: props.selected, disabled: !props.ok }}
+    <Pressable disabled={props.disabled} accessibilityRole="button" {...a11yState({ selected: props.selected, disabled: !props.ok }, 'button')}
       accessibilityLabel={props.name} onPress={spot.onPress}
       style={({ pressed }) => [styles.verse, props.selected && (props.ends ? styles.verseOn : styles.verseIn), !props.ok && ps.off, pressed && ps.pressed]}>
       <Text style={[styles.verseText, props.selected && props.ends && { color: C.white }]}>{props.text}</Text>
@@ -421,7 +430,7 @@ function VerseCell(props: { part: string; name: string; text: string; selected: 
 function Tool(props: { label: string; help: string; on: boolean; disabled: boolean; onPress: () => void }) {
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: props.on, disabled: props.disabled }}
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" {...a11yState({ selected: props.on, disabled: props.disabled }, 'button')}
       style={({ pressed }) => [styles.tool, props.on && styles.toolOn, props.disabled && ps.off, pressed && ps.pressed]}>
       <Text style={[txt.body, { fontWeight: '700', color: props.on ? C.primary : C.dark }]}>{props.label}</Text>
       <HelpBadge spot={spot} />
@@ -439,10 +448,10 @@ const styles = StyleSheet.create({
   lifted: { zIndex: 10 },
   liftedRow: { backgroundColor: C.card, borderRadius: radius.md, ...lift({ opacity: 0.18, radius: 12, y: 4, elevation: 6 }) },
 
-  gutter: { width: GUTTER, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderColor: C.border },
+  gutter: { width: VERSE_GUTTER, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderColor: C.border },
   // A part's own verse: a soft grey tile with a dark number, so the labels stay quiet beside the parts.
   // Narrow enough for a range ("49–50") to sit inside the 64-point space beside its part.
-  badge: { minWidth: 44, maxWidth: GUTTER - 6, height: 44, paddingHorizontal: 4, borderRadius: radius.md + 2, backgroundColor: TINT.gray, alignItems: 'center', justifyContent: 'center' },
+  badge: { minWidth: 44, maxWidth: VERSE_GUTTER - 6, minHeight: 44, paddingHorizontal: 4, borderRadius: radius.md + 2, backgroundColor: TINT.gray, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontSize: 20, fontWeight: '700', color: C.dark },
   badgeRange: { fontSize: T.base, fontWeight: '700', color: C.dark },
   // More of the verse above: grey like an empty space, but solid and darker, so it reads as labelled.
@@ -460,6 +469,8 @@ const styles = StyleSheet.create({
   list: { marginLeft: 1, marginBottom: 1 },
   inCard: { marginRight: EDGE + 1 },
   playDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
+  // The part playing, whichever player plays it.
+  playDotOn: { backgroundColor: C.primary },
   gap: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 56, paddingLeft: space.md, paddingRight: space.xs,
     borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: TINT.amber },
   gapBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: target.min, paddingHorizontal: space.md, borderRadius: radius.md, backgroundColor: C.card },

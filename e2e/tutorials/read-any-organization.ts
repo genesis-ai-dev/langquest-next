@@ -5,6 +5,7 @@ import type { Page } from 'playwright';
 import type { Tutorial } from './tutorial';
 import { recordAPassage } from './record-a-passage';
 import { button, id } from './workspace';
+import { projectionPass } from '../ui/pass-helpers';
 import { serviceClient } from '../ui/people-helpers';
 import { totp } from '../ui/totp';
 
@@ -17,12 +18,15 @@ let key = '';
 export const readAnyOrganization: Tutorial = {
   id: 'read-any-organization',
   title: 'Read any organization as a Global Viewer',
+  staff: true,
   as: 'NOORG',
   names: recordAPassage.names,
-  // As `npm run global-viewer -- grant` does.
+  // As `npm run global-viewer -- grant` does. Then a projection pass, so the list names Riverside's
+  // language and its figures count the world's recordings, as they do once the server's pass has run.
   prepare: async (world) => {
     const { data, error } = await serviceClient().rpc('global_viewer_grant', { p_email: world.accounts.NOORG.email, p_by: 'Tutorial', p_note: 'Tutorial' });
     if (error || data !== 'granted') throw new Error(`Global Viewer for ${world.accounts.NOORG.email}: ${error?.message ?? String(data)}`);
+    await projectionPass();
   },
   // Every film's world has organizations of the same names; the list shows this world's.
   before: async (page, _mic, world) => {

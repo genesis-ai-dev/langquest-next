@@ -8,13 +8,20 @@ export const id = (page: Page, testId: string): Locator => page.getByTestId(test
 export const button = (page: Page, name: string | RegExp): Locator =>
   page.getByRole('button', { name, exact: typeof name === 'string' }).locator('visible=true').last();
 export const shows = (page: Page, testId: string): Promise<void> => id(page, testId).waitFor({ state: 'visible', timeout: 30_000 });
+/** Waits for the note at the foot of the screen (a toast) to show, if it does, and go: a step's offCamera, where it would cover the next part. */
+export const toastGone = async (page: Page): Promise<void> => {
+  const toast = page.getByTestId('toast');
+  await toast.waitFor({ timeout: 3_000 }).catch(() => undefined);
+  await toast.waitFor({ state: 'hidden', timeout: 20_000 });
+};
 /** A part's verse space (its label says the part and its verse). */
 export const verseSpace = (page: Page, n: number): Locator =>
   page.getByRole('button', { name: new RegExp(`^Part ${n}, (no verse yet|Verses? )`) }).locator('visible=true').first();
 /** A part's row: its verse space, play button, bars and handle. */
 export const partRow = (page: Page, n: number): Locator[] =>
   [verseSpace(page, n), page.getByLabel(`Move Part ${n}`, { exact: true }).locator('visible=true').first()];
-export const divider = (page: Page): Locator => page.getByRole('slider', { name: 'Divider between reference and your recording' });
+/** The divider's grip (the bar it is dragged by; the divider itself is as wide as the screen and reaches over both panes). */
+export const divider = (page: Page): Locator => page.getByRole('slider', { name: 'Divider between reference and your recording' }).locator('xpath=./div/div').first();
 
 /**
  * From My Work, the passage Daniel asked for (Luke 13:31-35), recorded from
@@ -38,4 +45,6 @@ export async function recordOffCamera(page: Page, mic: Mic, parts: number): Prom
   await page.waitForFunction((e) => e?.getAttribute('aria-disabled') !== 'true', await play.elementHandle({ timeout: 60_000 }), { timeout: 60_000 });
   await page.getByText('All uploaded').waitFor({ timeout: 60_000 }).catch(() => undefined);
   await id(page, 'upload-bar').waitFor({ state: 'hidden', timeout: 60_000 });
+  // The count can read right before the last part comes in: counted again once every part is kept.
+  await button(page, new RegExp(`^Parts 1–${parts}, ${parts} parts · `)).waitFor({ timeout: 10_000 });
 }

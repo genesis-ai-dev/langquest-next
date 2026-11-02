@@ -104,6 +104,9 @@ export function buildStep11Fixture(): AnyEvent[] {
   emit('dA', 'lead', 'v1.UnitHidden', { unitId: 'langquest.fia-eng/LUK.2.1-7', hidden: true });
   emit('dA', 'lead', 'v1.BookNameSet', { book: 'LUK', name: 'Luka' });
   emit('dE', 'lead2', 'v1.BookNameSet', { book: 'LUK', name: 'Luqaas' });
+  // Library book names (decision 193): two admins pick different ones offline; one register.
+  emit('dA', 'lead', 'v1.BookNamesSelected', { itemId: 'langquest.names.npi', docHash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', language: 'npi', names: { LUK: 'लूका', JHN: 'यूहन्ना' } });
+  emit('dE', 'lead2', 'v1.BookNamesSelected', { itemId: 'langquest.names.hin', docHash: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', language: 'hin', names: { LUK: 'लूका' } });
   emit('dB', 't1', 'v1.ResponseRecorded', { takeId: 'take2', respondsToTakeId: 'take1', note: 'Re-recorded card 2; kept the rest.' });
   // A voice note's format, said once by the device that has the file (decisions.md 77).
   emit('dW', 't1', 'v1.AudioFormatSet', { hash: 'vn1', format: 'wav' });

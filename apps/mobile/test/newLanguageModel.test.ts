@@ -31,9 +31,12 @@ describe('new language wizard rules', () => {
       .toEqual(fresh.copyFlow({ commandId: 'c', name: 'Quick', kinds: DEFAULT_KINDS, steps }));
   });
   it('goes back one page of a step first, then a step', () => {
-    expect(backTarget(3, { materialPage: 'material', flowPage: 'pick' })).toEqual({ materialPage: 'languages' });
-    expect(backTarget(4, { materialPage: 'languages', flowPage: 'checks' })).toEqual({ flowPage: 'pick' });
-    expect(backTarget(3, { materialPage: 'languages', flowPage: 'pick' })).toEqual({ step: 2 });
+    const at = { languagePage: 'team', materialPage: 'material', flowPage: 'pick' } as const;
+    expect(backTarget(1, at)).toEqual({ languagePage: 'name' });
+    expect(backTarget(2, at)).toEqual({ step: 1 });
+    expect(backTarget(3, { ...at, materialPage: 'languages' })).toEqual({ materialPage: 'material' });
+    expect(backTarget(4, { ...at, flowPage: 'checks' })).toEqual({ flowPage: 'pick' });
+    expect(backTarget(3, at)).toEqual({ step: 2 });
   });
   it('words the toast by how many and what was not offered', () => {
     const base = { count: 2, first: 'Dinka', org: 'O', cluster: 'C' };
@@ -52,7 +55,7 @@ describe('offer ranking', () => {
   });
 });
 
-const doc = (format: string, name: string, language: string, extra: object = {}) => ({ format, name, language, ...extra }) as unknown as LibraryDoc;
+const doc = (format: string, name: string, language: string, extra: object = {}) => ({ format, name, language, ...(format === 'source@1' ? { provider: { kind: 'library' } } : {}), ...extra }) as unknown as LibraryDoc;
 const shared = (item_id: string, name: string, org_name: string) => ({ org_id: 'langquest', item_id, name, org_name, latest_hash: `s-${item_id}` }) as unknown as SharedItem;
 
 describe('newLanguageOffers', () => {
@@ -91,6 +94,16 @@ describe('newLanguageOffers', () => {
   it('offers material in any of the languages the team reads', () => {
     const r = newLanguageOffers({ own: [], others, doc: (h) => docs[h] ?? null, sets: [], readsAll: ['eng', 'fra'] });
     expect(r.items.map((x) => x.key)).toContain('langquest/fra');
+  });
+  it("lists Bible Brain's Bibles after the library's, once each, none ticked, leaving out ones the library has (LAN-194)", () => {
+    const brain = (bibleId: string, name: string) => ({ bibleId, name, abbreviation: bibleId, language: 'eng', languageName: 'English' }) as never;
+    const linked = { ...docs, h1: doc('source@1', 'Berean', 'eng', { provider: { kind: 'biblebrain', bibleId: 'ENGBSB' } }) };
+    const r = newLanguageOffers({ own, others, doc: (h) => linked[h] ?? null, sets, readsAll: ['eng'],
+      bibleBrain: [brain('ENGBSB', 'Berean Standard Bible'), brain('ENGNIV', 'New International Version'), brain('ENGNIV', 'New International Version')] });
+    const keys = r.items.map((x) => x.key);
+    expect(keys.slice(0, 4)).toEqual(['bsb', 'web', 'langquest/web', 'biblebrain:ENGNIV']);
+    expect(r.items.find((x) => x.key === 'biblebrain:ENGNIV')).toMatchObject({ kind: 'source', itemId: null, shared: null, bibleBrain: { bibleId: 'ENGNIV' } });
+    expect([...r.suggested].sort()).toEqual(['set:fia', 'web']);
   });
 });
 

@@ -95,11 +95,12 @@ export function stopHelpAudio() {
 
 type Played = 'done' | 'failed' | 'stopped';
 
-function playOne(uri: string, run: number): Promise<Played> {
+/** `more`: another line follows, so the session stays active when this one ends (audio/audioSession.ts playerInRow, which help sits below). */
+function playOne(uri: string, run: number, more: boolean): Promise<Played> {
   return new Promise((resolve) => {
     if (run !== generation) { resolve('stopped'); return; }
     try {
-      const p = createAudioPlayer({ uri });
+      const p = createAudioPlayer({ uri }, more ? { keepAudioSessionActive: true } : {});
       player = p;
       const unregister = registerPlayback(stopHelpAudio);
       const stopped = () => { unregister(); resolve('stopped'); };
@@ -148,8 +149,8 @@ export async function sayRecorded(...lines: string[]): Promise<boolean> {
   const [have, hashes] = await Promise.all([recorded(language), Promise.all(words.map((w) => lineHash(language, w)))]);
   if (run !== generation) return true;
   if (!hashes.every((h) => have.has(h))) return false;
-  for (const h of hashes) {
-    const played = await playOne(await localCopy(language, h), run);
+  for (const [i, h] of hashes.entries()) {
+    const played = await playOne(await localCopy(language, h), run, i + 1 < hashes.length);
     if (played === 'failed') return false;
     if (played === 'stopped') return true;
   }

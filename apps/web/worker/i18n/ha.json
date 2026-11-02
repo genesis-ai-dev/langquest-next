@@ -132,5 +132,16 @@
       "release": "Faɗi inda aka wallafa siga (a cikin manhaja ko a shafin yanar gizo), ko inda aka sauke ta",
       "externalValues": "Ajiye ƙimomin manhajar tare da harsunanku, da sunanku. LangQuest yana riƙe su kuma ba ya taɓa amfani da su"
     }
+  },
+  "videos": {
+    "pageTitle": "Bidiyoyi · LangQuest",
+    "language": "Harshe",
+    "title": "Bidiyoyin LangQuest",
+    "play": "Kunna",
+    "download": "Sauke",
+    "youtube": "Kalla a YouTube",
+    "size": "MB {{mb}}",
+    "none": "Babu bidiyoyi a wannan harshe tukuna.",
+    "failed": "Bidiyoyin ba su loda ba. Sake loda shafin don sake gwadawa."
   }
 }

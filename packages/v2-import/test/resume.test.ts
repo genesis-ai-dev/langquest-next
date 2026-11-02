@@ -89,4 +89,15 @@ describe('a file v2 did not have', () => {
     expect(looksFor(missing(6 * 24 * HOUR), now, true)).toBe(true);
     expect(looksFor(missing(8 * 24 * HOUR), now, true)).toBe(false);
   });
+
+  it('is asked for again, however long ago it was missed, once v2 says it has it since', () => {
+    // Why: a phone that sent its rows, then went offline for weeks before its audio went up (2026-10-29).
+    const old = missing(30 * 24 * HOUR);
+    expect(looksFor(old, now, false, now - 10 * 60_000)).toBe(true);
+    // The 15-minute passes after its first hour leave it to the whole read, which asks until it is copied.
+    expect(looksFor(old, now, false, now - 2 * HOUR)).toBe(false);
+    expect(looksFor(old, now, true, now - 20 * 24 * HOUR)).toBe(true);
+    // v2 had it before the import missed it: nothing new to look for.
+    expect(looksFor(old, now, true, now - 31 * 24 * HOUR)).toBe(false);
+  });
 });

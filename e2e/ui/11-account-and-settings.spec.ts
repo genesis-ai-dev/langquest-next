@@ -16,6 +16,7 @@ import {
   useWorld, waitForApp, type AccountKey
 } from './support';
 import type { UiWorld } from './fixture';
+import { psql } from './pass-helpers';
 
 const world = useWorld();
 test.beforeEach(async ({ context }) => { await quietDevServer(context); });
@@ -123,7 +124,8 @@ test('ACCT-003 Each row on Me opens its screen, and Back returns', async ({ page
     await backToMe();
   };
   await opens(world().accounts.TRANS.name, 'Edit Profile');
-  await opens('Ready for offline', 'Sync');
+  // Titled by the row that opened it (UI audit, finding 120).
+  await opens('Ready for offline', 'Ready for offline');
   await row(page, 'How LangQuest works').click();
   await expect(heading(page, 'What is LangQuest?')).toBeVisible();
   await expect(text(page, /^1 of \d+$/)).toBeVisible();
@@ -414,7 +416,16 @@ test('ACCT-020 Setting a password needs a connection', async ({ page }) => {
   await primary(page).click();
   await expect(text(page, 'Setting a password needs a connection.')).toBeVisible();
   await expect(heading(page, 'Edit Profile')).toBeVisible();
-  await back(page).click();
+  // A new name with it is kept on the device, and the error says so (UI audit, finding 117).
+  const name = world().accounts.KEPT.name;
+  await field(page, 'Full Name').fill(`${name} Two`);
+  await primary(page).click();
+  await expect(text(page, 'Name saved. Setting a password needs a connection.')).toBeVisible();
+  await field(page, 'Full Name').fill(name);
+  await field(page, 'Password (optional)').fill('');
+  await primary(page).click();
+  await expect(heading(page, 'More settings')).toBeVisible();
+  await expect(text(page, name)).toBeVisible();
   await expect(row(page, 'Set a password')).toBeVisible();
 });
 
@@ -580,8 +591,8 @@ test('ACCT-031 The language chip on Sign In', async ({ page }) => {
   await reloaded;
   await expect(button(page, say(fr, 'uiLanguage.chipLabel', { language: 'Français' }))).toBeVisible({ timeout: 120_000 });
   const who = world().accounts.TRANS;
-  await page.getByPlaceholder(say(fr, 'entry.signIn.namePlaceholder')).fill(who.email);
-  await page.getByPlaceholder(say(fr, 'entry.fields.password')).fill(who.password!);
+  await field(page, say(fr, 'entry.signIn.namePlaceholder')).fill(who.email);
+  await field(page, say(fr, 'entry.fields.password')).fill(who.password!);
   await primary(page).click();
   await expect(tab(page, 'me')).toBeVisible({ timeout: 60_000 });
   await expect(tab(page, 'me')).toHaveAttribute('aria-label', say(fr, 'account.me.title'));
@@ -691,6 +702,68 @@ test('ACCT-051 In a list, one row takes the help numbers', async ({ page }) => {
   await expect(page.getByTestId('help-number').locator('visible=true')).toHaveCount(0);
 });
 
+/** A baseline or progressive JPEG's width and height, from its frame header. */
+function jpegSize(bytes: Buffer): { width: number; height: number } {
+  for (let i = 2; i + 9 < bytes.length;) {
+    if (bytes[i] !== 0xff) throw new Error(`not a JPEG marker at ${i}`);
+    const marker = bytes[i + 1]!;
+    if (marker === 0xc0 || marker === 0xc2) return { height: bytes.readUInt16BE(i + 5), width: bytes.readUInt16BE(i + 7) };
+    i += 2 + bytes.readUInt16BE(i + 2);
+  }
+  throw new Error('no frame header');
+}
+
+test('ACCT-058 Feedback carries a picture of their own', async ({ page }) => {
+  await openAs(page, world(), 'TRANS');
+  await openMe(page);
+  // Larger than the app sends: 2400 × 1200, drawn here as a PNG.
+  const png = await page.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 2400;
+    c.height = 1200;
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#227744';
+    g.fillRect(0, 0, 2400, 1200);
+    g.fillStyle = '#ffffff';
+    g.font = 'bold 240px sans-serif';
+    g.fillText('ACCT-058', 300, 700);
+    return c.toDataURL('image/png').split(',')[1]!;
+  });
+  const picture = { name: 'photo.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') };
+  await byId(page, 'header-help').click();
+  await byId(page, 'help-feedback').click();
+  const add = byId(page, 'feedback-picture');
+  await expect(add).toHaveAccessibleName(/^Add a picture/, { timeout: 15_000 });
+  const choose = async () => {
+    const chooser = page.waitForEvent('filechooser');
+    await add.click();
+    await (await chooser).setFiles(picture);
+  };
+  await choose();
+  const preview = byId(page, 'feedback-picture-preview');
+  await expect(preview).toBeVisible();
+  await expect(add).toHaveAccessibleName(/^Choose another picture/);
+  // In its own shape, as wide as the sheet.
+  const box = (await preview.boundingBox())!;
+  expect(box.width / box.height).toBeCloseTo(2, 1);
+  await button(page, 'Remove the picture').click();
+  await expect(page.getByTestId('feedback-picture-preview')).toHaveCount(0);
+  await expect(add).toHaveAccessibleName(/^Add a picture/);
+  await choose();
+  await expect(preview).toBeVisible();
+  const words = `The photo shows it (${Date.now()})`;
+  await byId(page, 'feedback-body').fill(words);
+  await expect(primary(page)).toHaveAccessibleName('Send');
+  await primary(page).click();
+  await expectToast(page, 'Sent. Thank you!');
+  // On the server: the words and the picture, a JPEG no longer than 1600 px, within 1 MB.
+  const sent = await psql(`select encode(picture, 'base64') from diag.feedback where body = '${words}'`);
+  const jpeg = Buffer.from(sent.replace(/\s+/g, ''), 'base64');
+  expect(jpeg.subarray(0, 3).toString('hex')).toBe('ffd8ff');
+  expect(jpeg.length).toBeLessThanOrEqual(1_000_000);
+  expect(jpegSize(jpeg)).toEqual({ width: 1600, height: 800 });
+});
+
 // ---- Signing out ---------------------------------------------------------------------------------
 
 test('ACCT-040 On the web, sign-out waits for work to send @p0', async ({ browser }) => {
@@ -704,6 +777,12 @@ test('ACCT-040 On the web, sign-out waits for work to send @p0', async ({ browse
   await expect(text(page, 'Not yet')).toBeVisible();
   await expect(text(page, 'Still to send: 1 change. This device is offline. Sign out once they have synced so they are not stranded here.')).toBeVisible();
   await expect(primary(page)).toBeDisabled();
+  // A way forward: what is waiting, with Sync now (UI audit, finding 115). Offline, nothing says it is sending.
+  await expect(text(page, 'Sending…')).toHaveCount(0);
+  await button(page, 'See what is waiting').click();
+  await expect(heading(page, 'Sync')).toBeVisible();
+  await back(page).click();
+  await expect(text(page, 'Not yet')).toBeVisible();
   await button(page, 'Cancel').click();
   await expect(heading(page, 'Me')).toBeVisible();
   await button(page, 'Sign out').click();
@@ -745,6 +824,14 @@ async function openDelete(page: Page) {
   await expect(heading(page, 'Delete Account')).toBeVisible();
 }
 
+/** Delete My Account is a red quiet button under Cancel, and asks once more by name (UI audit, finding 112). */
+const deleteButton = (page: Page) => button(page, 'Delete My Account');
+async function confirmDelete(page: Page) {
+  await deleteButton(page).click();
+  await expect(text(page, /^Delete .+’s account\?$/)).toBeVisible();
+  await deleteButton(page).click();
+}
+
 test('ACCT-044 The Delete Account screen says what goes and what stays @p0', async ({ page }) => {
   const { world: w, who } = await newOneWorld();
   await openAs(page, w, who.key);
@@ -756,12 +843,17 @@ test('ACCT-044 The Delete Account screen says what goes and what stays @p0', asy
   await expect(text(page, 'Kept by your organization')).toBeVisible();
   await expect(text(page, 'Recordings, reviews and notes you made stay part of its work, without your name.')).toBeVisible();
   await expect(text(page, 'This cannot be undone. To use LangQuest again you would create a new account.')).toBeVisible();
-  await expect(primary(page)).toHaveAccessibleName('Delete My Account');
-  await expect(primary(page)).toBeEnabled({ timeout: 30_000 });
+  await expect(primary(page)).toHaveAccessibleName('Cancel');
+  await expect(deleteButton(page)).toBeEnabled({ timeout: 30_000 });
   const all = await screenText(page);
   expect(all).not.toMatch(/You're offline|Send your work first/);
   await expect(tab(page, 'me')).toBeHidden();
+  // Deleting asks once more, by name; Cancel there keeps the account.
+  await deleteButton(page).click();
+  await expect(text(page, /^Delete .+’s account\?$/)).toBeVisible();
   await button(page, 'Cancel').click();
+  await expect(text(page, /^Delete .+’s account\?$/)).toBeHidden();
+  await primary(page).click();
   await expect(heading(page, 'More settings')).toBeVisible();
 });
 
@@ -773,10 +865,10 @@ test('ACCT-045 Deleting needs a connection @p0', async ({ page }) => {
   await openDelete(page);
   await expect(text(page, "You're offline")).toBeVisible({ timeout: 30_000 });
   await expect(text(page, 'Connect to the internet to delete your account.')).toBeVisible();
-  await expect(primary(page)).toBeDisabled();
+  await expect(deleteButton(page)).toBeDisabled();
   await offline(page, false);
   await expect(text(page, "You're offline")).toBeHidden({ timeout: 45_000 });
-  await expect(primary(page)).toBeEnabled();
+  await expect(deleteButton(page)).toBeEnabled();
 });
 
 test('ACCT-046 Deleting waits for work to send @p0', async ({ page }) => {
@@ -789,13 +881,13 @@ test('ACCT-046 Deleting waits for work to send @p0', async ({ page }) => {
   await expect(text(page, 'Send your work first')).toBeVisible();
   await expect(text(page, 'Still to send: 1 change. Delete your account once they have synced, so your organization gets them.')).toBeVisible();
   await expect(text(page, "You're offline")).toHaveCount(0);
-  await expect(primary(page)).toBeDisabled();
+  await expect(deleteButton(page)).toBeDisabled();
   await offline(page, false);
   await expectSent(page, w, 'A', 45_000);
   await back(page).click();
   await row(page, 'Delete account').click();
   await expect(text(page, 'Send your work first')).toBeHidden();
-  await expect(primary(page)).toBeEnabled();
+  await expect(deleteButton(page)).toBeEnabled();
 });
 
 test('ACCT-048 A server error on delete keeps you signed in', async ({ page }) => {
@@ -803,11 +895,12 @@ test('ACCT-048 A server error on delete keeps you signed in', async ({ page }) =
   await page.route('**/rest/v1/rpc/delete_my_account', (r) => r.fulfill({ status: 500, contentType: 'application/json', body: '{"message":"boom"}' }));
   await openAs(page, w, who.key);
   await openDelete(page);
-  await expect(primary(page)).toBeEnabled({ timeout: 30_000 });
-  await primary(page).click();
+  await expect(deleteButton(page)).toBeEnabled({ timeout: 30_000 });
+  await confirmDelete(page);
+  // The sheet closes, so the error shows on the screen rather than behind it.
   await expect(text(page, /^Something went wrong \(code [^)]+\)\. Nothing was lost\.$/)).toBeVisible();
   await expect(heading(page, 'Delete Account')).toBeVisible();
-  await expect(primary(page)).toBeEnabled();
+  await expect(deleteButton(page)).toBeEnabled();
 });
 
 test('ACCT-049 Deleting from "Join your team"', async ({ browser }) => {
@@ -823,9 +916,9 @@ test('ACCT-049 Deleting from "Join your team"', async ({ browser }) => {
   await back(page).click();
   await expect(text(page, 'Join your team')).toBeVisible();
   await button(page, 'Delete account').click();
-  await expect(primary(page)).toBeEnabled({ timeout: 30_000 });
+  await expect(deleteButton(page)).toBeEnabled({ timeout: 30_000 });
   const reloaded = page.waitForEvent('load');
-  await primary(page).click();
+  await confirmDelete(page);
   await reloaded;
   await expect(text(page, 'Create Account')).toBeVisible({ timeout: 120_000 });
   // NEW-2 can no longer sign in.

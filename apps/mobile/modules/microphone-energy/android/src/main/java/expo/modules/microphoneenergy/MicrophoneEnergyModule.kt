@@ -28,6 +28,10 @@ class MicrophoneEnergyModule : Module() {
   private var recordingScope: CoroutineScope? = null
   private var writeScope: CoroutineScope? = null
   private val encodeScope = CoroutineScope(Dispatchers.Default)
+  /** Clean up (CleanUp.kt, decision 179): DeepFilterNet3 on a part, one at a time. */
+  private val cleanUp = CleanUp { appContext.reactContext }
+  /** Even loudness (Level.kt, decision 182): a recording measured and its copy to play written, one at a time. */
+  private val level = Level { appContext.reactContext }
   // Meter events go to the main thread without the capture loop waiting for it.
   private val main = Handler(Looper.getMainLooper())
   private val configLock = Any()
@@ -62,10 +66,12 @@ class MicrophoneEnergyModule : Module() {
   private var remembered: Splitter.Heard? = null
   /** The splitter's clock: frames heard, as time. */
   private var clockMs = 0.0
+  /** The silence switch (decision 194): chunks keep the room between parts while it is on. */
+  private var keepRoom = false
 
   override fun definition() = ModuleDefinition {
     Name("MicrophoneEnergy")
-    Events("onEnergyResult", "onError", "onSegmentComplete", "onSegmentStart", "onChunkComplete")
+    Events("onEnergyResult", "onError", "onSegmentComplete", "onSegmentStart", "onChunkComplete", "onCleanUpProgress")
     
     AsyncFunction("prepareSpeech") { promise: Promise -> CoroutineScope(Dispatchers.IO).launch { speech() }; promise.resolve(null) }
     AsyncFunction("startEnergyDetection") { promise: Promise -> startEnergyDetection(promise) }
@@ -88,6 +94,28 @@ class MicrophoneEnergyModule : Module() {
         } catch (e: Exception) {
           promise.reject("ENCODE_ERROR", "Could not convert the recording: ${e.message}", e)
         }
+      }
+    }
+    AsyncFunction("cleanUp") { id: String, uri: String, promise: Promise ->
+      var told = -1.0
+      cleanUp.clean(id, uri, { done ->
+        if (done >= 1 || done - told >= 0.02) {
+          told = done
+          main.post { sendEvent("onCleanUpProgress", mapOf("id" to id, "done" to done)) }
+        }
+      }) { result, e ->
+        if (e != null) promise.reject("CLEAN_UP_ERROR", "Could not clean up the part: ${e.message}", e) else promise.resolve(result)
+      }
+    }
+    AsyncFunction("cleanUpMix") { id: String, limitDb: Double?, keep: Boolean, promise: Promise ->
+      cleanUp.mix(id, limitDb, keep) { result, e ->
+        if (e != null) promise.reject("CLEAN_UP_ERROR", "Could not write the cleaned part: ${e.message}", e) else promise.resolve(result)
+      }
+    }
+    AsyncFunction("cleanUpForget") { id: String -> cleanUp.forget(id) }
+    AsyncFunction("level") { uri: String, out: String?, options: Map<String, Any?>, promise: Promise ->
+      level.level(uri, out, options) { result, e ->
+        if (e != null) promise.reject("LEVEL_ERROR", "Could not even out the recording: ${e.message}", e) else promise.resolve(result)
       }
     }
   }
@@ -169,8 +197,9 @@ class MicrophoneEnergyModule : Module() {
     audioRecord = null
   }
   
-  /** Only what the device heard last time is read; the old detector's settings are ignored (LAN-82). */
+  /** What the device heard last time (LAN-82) and the silence switch (decision 194); the old detector's settings are ignored. */
   private fun configureVAD(config: Map<String, Any?>) = synchronized(configLock) {
+    (config["keepRoom"] as? Boolean)?.let { keepRoom = it; chunks?.keepRoom = it }
     @Suppress("UNCHECKED_CAST")
     val heard = config["heard"] as? Map<String, Any?> ?: return@synchronized
     val room = (heard["room"] as? Number)?.toDouble()
@@ -183,7 +212,7 @@ class MicrophoneEnergyModule : Module() {
     synchronized(configLock) {
       vadEnabled = true
       val sp = splitter ?: Splitter(FRAME_MS, remembered).also { splitter = it }
-      if (chunks == null) chunks = Chunks(FRAME_MS, sampleRate)
+      (chunks ?: Chunks(FRAME_MS, sampleRate).also { chunks = it }).keepRoom = keepRoom
       sp.pauseListening()
       // What the model heard before (a source playing) is not this stretch's.
       resampler = null; speechChunks.reset(); speechModel?.reset(); lastScore = 0.0

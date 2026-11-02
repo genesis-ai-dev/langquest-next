@@ -132,5 +132,16 @@
       "release": "Menyebutkan di mana sebuah versi diterbitkan (tayang di aplikasi atau situs), atau diturunkan",
       "externalValues": "Menyimpan nilai milik aplikasi itu sendiri bersama bahasa-bahasa Anda, atas nama Anda. LangQuest menyimpannya dan tidak pernah bertindak berdasarkan nilai itu"
     }
+  },
+  "videos": {
+    "pageTitle": "Video · LangQuest",
+    "language": "Bahasa",
+    "title": "Video LangQuest",
+    "play": "Putar",
+    "download": "Unduh",
+    "youtube": "Tonton di YouTube",
+    "size": "{{mb}} MB",
+    "none": "Belum ada video dalam bahasa ini.",
+    "failed": "Video tidak termuat. Muat ulang halaman untuk mencoba lagi."
   }
 }

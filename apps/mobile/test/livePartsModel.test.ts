@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   clampFrames, FRAME_PUBLISH_MS, framePublishDue, LIVE_BARS, LIVE_COLUMNS, MAX_LIVE_FRAMES, MIN_LIVE_FRAMES, MIN_PART_FRAMES, liveBars, liveBoxes, liveChunkDone, liveDrop, liveEdge,
-  liveEdgeRange, liveFrame, liveKept, liveKeptCount, liveNext, livePartEnd, livePartStart, liveSeam, liveStart, type LiveState
+  liveClip, liveEdgeRange, liveFrame, liveKept, liveKeptCount, liveNext, livePartEnd, livePartStart, liveSeam, liveSilenceSwitch, liveStart, MIN_SILENCE_MS, type LiveState,
+  keepRoomNow, liveAdd, liveDropSilence, liveGaps, liveNumbered, ROOM_KEPT_MS
 } from '../src/recording/livePartsModel';
 
 // A recording session's parts (LAN-82): fed the microphone module's events
@@ -211,5 +212,217 @@ describe('editing a stopped session (livePartsModel.ts)', () => {
     for (let at = 0; at < 60_000; at += MS) if (framePublishDue(shown, at)) { shown = at; told++; }
     expect(told / 60).toBeGreaterThan(9);
     expect(told / 60).toBeLessThan(12);
+  });
+});
+
+describe('the silence switch (livePartsModel.ts, decision 194)', () => {
+  /** Two parts in one chunk with 16 frames (0.7 s) of room between them, its file written; the switch on. */
+  function twoParts(): LiveState {
+    let s = say(liveStart(1, true), 'c1', 20);
+    s = say(s, 'c1', 20, 22, 0);
+    return liveChunkDone(s, 'c1', 'file:///c1.wav', (s.count - s.chunks['c1']!.at) * MS);
+  }
+  const shown = (s: LiveState, recording = false) => liveBoxes(s, s.count, s.count, recording).map((b) => [b.silence ? 'silence' : 'part', b.n]);
+
+  it('boxes the silence between two parts as a part of its own, numbered between them; off, as before', () => {
+    const s = twoParts();
+    expect(shown(s)).toEqual([['part', 1], ['part', 3], ['silence', 2]]);
+    const q = liveBoxes(s, s.count, s.count, false).find((b) => b.silence)!;
+    expect([q.from, q.to]).toEqual([s.parts[0]!.to, s.parts[1]!.from]);
+    expect(liveKeptCount(s)).toBe(3);
+    expect(liveNext(s)).toBe(4);
+    const off = liveSilenceSwitch(s, false);
+    expect(shown(off)).toEqual([['part', 1], ['part', 2]]);
+    expect(liveKeptCount(off)).toBe(2);
+    expect(liveSilenceSwitch(off, false)).toBe(off);
+  });
+
+  it('keeps the silence in its place, cut from the chunk between its two parts, with its own levels', () => {
+    const s = twoParts();
+    const kept = liveKept(s);
+    expect(kept.map((k) => !!k.silence)).toEqual([false, true, false]);
+    expect(kept[1]).toMatchObject({ id: null, chunk: 'c1', uri: 'file:///c1.wav', fromMs: kept[0]!.toMs, toMs: kept[2]!.fromMs });
+    expect(kept[1]!.toMs - kept[1]!.fromMs).toBeGreaterThanOrEqual(MIN_SILENCE_MS);
+    expect(kept[1]!.levels).toHaveLength(16);
+    expect(kept[1]!.levels.every((db) => Math.abs(db + 52) < 0.01)).toBe(true);
+    expect(liveClip(s, { index: 0, silence: true })).toMatchObject({ fromMs: kept[0]!.toMs, toMs: kept[2]!.fromMs, from: s.parts[0]!.to });
+    expect(liveClip(s, { index: 1, silence: true })).toBeNull();
+  });
+
+  it('follows its parts when their edges are dragged, as it always fills the room between them', () => {
+    let s = twoParts();
+    s = liveEdge(s, 0, 'to', s.parts[0]!.to! + 3);
+    s = liveEdge(s, 1, 'from', s.parts[1]!.from - 2);
+    const q = liveBoxes(s, s.count, s.count, false).find((b) => b.silence)!;
+    expect([q.from, q.to]).toEqual([s.parts[0]!.to, s.parts[1]!.from]);
+    expect(liveKept(s)[1]).toMatchObject({ fromMs: s.parts[0]!.toMs, toMs: s.parts[1]!.fromMs });
+    // Dragged until less than MIN_SILENCE_MS is left, it is no longer a part.
+    s = liveEdge(s, 0, 'to', s.parts[1]!.from - 5);
+    expect(shown(s)).toEqual([['part', 1], ['part', 2]]);
+  });
+
+  it('boxes no silence across two chunks, a stop, a dropped part, or between parts apart in the passage', () => {
+    // Across chunks: the room between them was never all kept.
+    let s = say(twoParts(), 'c2', 10, 22, 60);
+    expect(shown(s).filter(([k]) => k === 'silence')).toHaveLength(1);
+    // A stop between them.
+    let t = say(liveStart(1, true), 'c1', 20);
+    t = liveSeam(t);
+    t = say(t, 'c1', 20, 22, 10);
+    expect(shown(t)).toEqual([['part', 1], ['part', 2]]);
+    // Beside a dropped part: the silences either side go with it.
+    let u = say(twoParts(), 'c1', 20, 22, 0);
+    expect(shown(u).filter(([k]) => k === 'silence')).toHaveLength(2);
+    u = liveDrop(u, 1);
+    expect(liveBoxes(u, u.count, u.count, false).some((b) => b.silence)).toBe(false);
+    // The dropped part's place filled by a part said later: it is not beside the one said before it.
+    u = say(u, 'c1', 20, 22, 0);
+    expect(liveBoxes(u, u.count, u.count, false).filter((b) => b.silence).map((b) => b.index)).toEqual([]);
+  });
+
+  it('boxes no silence shorter than MIN_SILENCE_MS', () => {
+    let s = say(liveStart(1, true), 'c1', 20, 12);
+    s = say(s, 'c1', 20, 22, 0);
+    expect(s.parts[1]!.from - s.parts[0]!.to!).toBeLessThan(MIN_SILENCE_MS / MS);
+    expect(shown(s)).toEqual([['part', 1], ['part', 2]]);
+  });
+
+  it('while recording, grows the silence after the last part until the next is said, and takes its number', () => {
+    let s = say(liveStart(1, true), 'c1', 20);
+    s = feed(s, frames(10, -52));
+    expect(liveBoxes(s, s.count, s.count, true).find((b) => b.silence)).toMatchObject({ n: 2, open: true, from: s.parts[0]!.to, to: s.count });
+    expect(liveNext(s, true)).toBe(2);
+    // Stopped, nothing grows: the silence after the last part is not kept.
+    expect(shown(s)).toEqual([['part', 1]]);
+    expect(liveKept(s).filter((k) => k.silence)).toEqual([]);
+    // The next part starts: the silence closes where it starts, and the part takes the number after it.
+    s = livePartStart(s, MS);
+    s = feed(s, frames(5, -20));
+    expect(liveBoxes(s, s.count, s.count, true).map((b) => [b.silence ? 'silence' : 'part', b.n, b.open])).toEqual([['part', 1, false], ['part', 3, true], ['silence', 2, false]]);
+    expect(liveNext(s, true)).toBe(3);
+  });
+
+  it('grows nothing once the last part\'s chunk is closed (the switch was off), or with the switch off', () => {
+    let s = say(liveStart(1, true), 'c1', 20);
+    s = liveChunkDone(s, 'c1', 'file:///c1.wav', (s.count - s.chunks['c1']!.at) * MS);
+    s = feed(s, frames(10, -52));
+    expect(shown(s, true)).toEqual([['part', 1]]);
+    let t = say(liveStart(1), 'c1', 20);
+    t = feed(t, frames(10, -52));
+    expect(shown(t, true)).toEqual([['part', 1]]);
+    expect(liveNext(t, true)).toBe(2);
+  });
+
+  it('shows sound in a silence box as kept with it, never as lost', () => {
+    const cough = (on: boolean) => {
+      let s = say(liveStart(1, on), 'c1', 20, 12);
+      s = feed(s, frames(4, -30));
+      s = feed(s, frames(12, -52));
+      s = say(s, 'c1', 20, 80, 0);
+      return liveBars(s, s.count, s.count, false).map((b) => b.kind);
+    };
+    expect(cough(false)).toContain('lost');
+    expect(cough(true).filter((k) => k === 'lost')).toHaveLength(0);
+  });
+});
+
+describe('boxes edited freely once stopped (livePartsModel.ts, LAN-199)', () => {
+  /** Parts in one chunk, its file written: 10 frames of room, part (20 + 6), 16 of room, part, and `tail` frames of room. */
+  function parts(n: number, on = false, tail = 16): LiveState {
+    let s = say(liveStart(1, on), 'c1', 20);
+    for (let k = 1; k < n; k++) s = say(s, 'c1', 20, k === n - 1 ? tail + 6 : 22, 0);
+    return liveChunkDone(s, 'c1', 'file:///c1.wav', (s.count - s.chunks['c1']!.at) * MS);
+  }
+  const numbers = (s: LiveState) => liveNumbered(s).map((p) => (p.silence ? `s${p.n}` : `${p.index}:${p.n}`));
+  const spans = (s: LiveState) => liveGaps(s).map((g) => [g.from, g.to]);
+
+  it('stretches a box over a dropped neighbour\'s sound, never over another box', () => {
+    let s = parts(3);
+    const [, b, c] = s.parts;
+    expect(liveEdgeRange(s, 0)!.hi).toBe(b!.from);
+    s = liveDrop(s, 1);
+    expect(liveEdgeRange(s, 0)!.hi).toBe(c!.from);
+    s = liveEdge(s, 0, 'to', 10_000);
+    expect(s.parts[0]!.to).toBe(c!.from);
+    expect(liveKept(s)[0]!.toMs).toBeCloseTo(c!.fromMs!, 0);
+  });
+
+  it('finds the room no box covers in each written chunk, before, between and after the boxes', () => {
+    const s = parts(2);
+    expect(spans(s)).toEqual([[0, 10], [36, 52], [78, 94]]);
+    // A dropped part's sound is room again; a chunk still being written has none.
+    expect(spans(liveDrop(s, 0))).toEqual([[0, 52], [78, 94]]);
+    expect(liveGaps(say(liveStart(1), 'c1', 20))).toEqual([]);
+    // Where two chunks hold the same frames, the earlier one has them.
+    let t = say(s, 'c2', 10, 22, 4);
+    t = liveChunkDone(t, 'c2', 'file:///c2.wav', (t.count - t.chunks['c2']!.at) * MS);
+    expect(t.chunks['c2']!.at).toBeLessThan(94);
+    expect(liveGaps(t).filter((g) => g.chunk === 'c2').map((g) => g.from)).toEqual([94, t.parts[2]!.to]);
+  });
+
+  it('adds a box with a +, a part like any said, numbered in its place in time', () => {
+    let s = parts(2);
+    s = liveAdd(s, { chunk: 'c1', from: 36, to: 52 }, 'added');
+    expect(numbers(s)).toEqual(['0:1', '2:2', '1:3']);
+    expect(spans(s)).toEqual([[0, 10], [78, 94]]);
+    expect(liveKept(s)[1]).toMatchObject({ id: 'added', chunk: 'c1', uri: 'file:///c1.wav' });
+    expect(liveKept(s)[1]!.fromMs).toBeCloseTo(36 * MS, 5);
+    expect(liveKept(s)[1]!.toMs).toBeCloseTo(52 * MS, 5);
+    // Not over another box, not shorter than MIN_PART_FRAMES, not outside the room kept.
+    expect(liveAdd(s, { chunk: 'c1', from: 40, to: 50 })).toBe(s);
+    expect(liveAdd(s, { chunk: 'c1', from: 0, to: MIN_PART_FRAMES - 1 })).toBe(s);
+    expect(liveAdd(s, { chunk: 'c1', from: 80, to: 200 })).toBe(s);
+    // Before the first box, it goes first.
+    s = liveAdd(s, { chunk: 'c1', from: 0, to: 10 });
+    expect(numbers(s)).toEqual(['3:1', '0:2', '2:3', '1:4']);
+    // Its edges move like any part's, and what is said next comes after everything.
+    expect(liveEdgeRange(s, 2)).toEqual({ lo: 36, hi: 52 });
+    s = say(liveSeam(s), 'c2', 10, 22, 30);
+    expect(numbers(s).at(-1)).toBe('4:5');
+  });
+
+  it('fills a dropped part\'s free place, and what is said next follows on after it', () => {
+    let s = liveDrop(parts(2), 0);
+    expect(liveNext(s)).toBe(1);
+    s = liveAdd(s, { chunk: 'c1', from: 10, to: 36 });
+    expect(numbers(s)).toEqual(['2:1', '1:2']);
+    expect(liveNext(s)).toBe(3);
+    // A place filled by speech: a box added after it keeps the parts said next following on.
+    let t = say(liveDrop(parts(2), 1), 'c2', 10, 22, 30);
+    t = liveChunkDone(t, 'c2', 'file:///c2.wav', (t.count - t.chunks['c2']!.at) * MS);
+    const gap = liveGaps(t).find((g) => g.chunk === 'c2' && g.from === t.parts[2]!.to)!;
+    t = liveAdd(t, gap);
+    t = say(liveSeam(t), 'c3', 10, 22, 30);
+    expect(numbers(t)).toEqual(['0:1', '2:2', '3:3', '4:4']);
+  });
+
+  it('boxes the silence around an added box, as around a part said', () => {
+    let s = parts(2, false, 34);
+    s = liveAdd(s, { chunk: 'c1', from: 90, to: 112 });
+    s = liveSilenceSwitch(s, true);
+    expect(numbers(s)).toEqual(['0:1', 's2', '1:3', 's4', '2:5']);
+    expect(liveKept(s).map((k) => !!k.silence)).toEqual([false, true, false, true, false]);
+  });
+
+  it('drops one silence with its ×: the numbers close up, and turning the switch on boxes it again', () => {
+    let s = parts(3, true);
+    expect(numbers(s)).toEqual(['0:1', 's2', '1:3', 's4', '2:5']);
+    s = liveDropSilence(s, 0);
+    expect(numbers(s)).toEqual(['0:1', '1:2', 's3', '2:4']);
+    expect(liveKeptCount(s)).toBe(4);
+    expect(liveKept(s).filter((k) => k.silence)).toHaveLength(1);
+    expect(liveDropSilence(s, 0)).toBe(s);
+    expect(liveDropSilence(s, 2)).toBe(s);
+    // It stays dropped while its parts' edges move.
+    s = liveEdge(s, 0, 'to', s.parts[0]!.to! - 2);
+    expect(numbers(s)).toEqual(['0:1', '1:2', 's3', '2:4']);
+    expect(numbers(liveSilenceSwitch(liveSilenceSwitch(s, false), true))).toEqual(['0:1', 's2', '1:3', 's4', '2:5']);
+  });
+
+  it('keeps the room through a pause of up to ROOM_KEPT_MS, and always with the silence switch on', () => {
+    expect(keepRoomNow(false, null)).toBe(true);
+    expect(keepRoomNow(false, ROOM_KEPT_MS - 1)).toBe(true);
+    expect(keepRoomNow(false, ROOM_KEPT_MS)).toBe(false);
+    expect(keepRoomNow(true, 10 * ROOM_KEPT_MS)).toBe(true);
   });
 });

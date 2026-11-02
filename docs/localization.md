@@ -103,8 +103,9 @@ the date in its `approved` field.
   Worker writes the invite in that catalog (English when it has none). The
   password reset email's words are there too (`passwordResetContent`), ready
   for Forgot password.
-- The shared review link page (`/r/<code>`) and the connect page
-  (`/connect`) are written by the web Worker (`apps/web/worker/i18n/`). They
+- The shared review link page (`/r/<code>`), the connect page
+  (`/connect`) and the tutorial videos page (`/videos`) are written by the
+  web Worker (`apps/web/worker/i18n/`). They
   follow `?lang=`, then the browser's languages (approved catalogs only),
   then English, and offer every language in a picker at the top.
 - `apps/web/test/pages.test.ts` and `apps/invite-email/test/message.test.ts`

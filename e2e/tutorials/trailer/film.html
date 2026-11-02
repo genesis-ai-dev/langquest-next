@@ -1,0 +1,1032 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<!-- The channel trailer (README.md). Every frame is a pure function of t:
+     render.ts loads this page with window.FILM (words, the capture's marks
+     and frames, fonts) and calls __seek(t) for each frame it keeps. The
+     picture follows the score's timeline: the count (0-5 s), the safe place
+     (5-8), rebuilt (8-12), the name (12-15.3), six steps on today's app
+     (16-36.3), the count again (36.4-42) and the end card (42-48). -->
+<style id="fonts"></style>
+<style>
+  :root {
+    --ink: #1C1440; --accent: #6B48C8; --soft: #8B6FE8; --bg: #F4F2FA;
+    --night: #0a0912; --moon: #f4f2fe; --lilac: #a495ff; --red: #ED4243;
+    --sans: "Film Sans", "Film Script", sans-serif;
+    --mono: "Film Mono", monospace;
+    --small: var(--mono);
+  }
+  html.script { --small: var(--sans); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--night); }
+  body { font-family: var(--sans); -webkit-font-smoothing: antialiased; color: var(--moon); }
+  .layer { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; }
+  .a { position: absolute; }
+  .w { display: inline-block; white-space: pre; will-change: transform, filter, opacity; }
+  .acc { color: var(--lilac); }
+
+  #night { background: radial-gradient(ellipse 60% 70% at 50% 50%, #221b3d 0%, #15112a 45%, #0a0912 80%); }
+  #cv { position: absolute; left: 0; top: 0; }
+  #gl { position: absolute; left: 0; top: 0; overflow: visible; }
+  .count { font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1; white-space: nowrap;
+    text-shadow: 0 0 28px rgba(164,149,255,.55), 0 0 2px rgba(164,149,255,.4); }
+  .count .z { opacity: .22; }
+  .center { left: 0; width: 1920px; text-align: center; }
+  .say { font-weight: 800; letter-spacing: -0.035em; line-height: 1.04; text-wrap: balance; }
+  html.script .say, html.script .head, html.script .count { letter-spacing: 0; }
+  html.script .say { line-height: 1.3; }
+  .lede { font-weight: 500; color: #dcd7f7; letter-spacing: -0.01em; }
+  .label { font-family: var(--small); font-weight: 500; letter-spacing: .26em; text-transform: uppercase; color: var(--lilac); white-space: nowrap; }
+  html.script .label { letter-spacing: 0; text-transform: none; font-weight: 600; }
+  #lockup { display: flex; align-items: center; gap: 52px; transform-origin: 0 0; white-space: nowrap; direction: ltr; }
+  .mark { font-weight: 800; letter-spacing: -0.045em; line-height: 1; }
+  #lockup svg, .mini svg { display: block; overflow: visible; }
+
+  #day { background: var(--bg); }
+  #day::before { content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(circle 430px at 360px 880px, rgba(139,111,232,.22), transparent 70%),
+      radial-gradient(circle 560px at 1420px 260px, rgba(139,111,232,.12), transparent 70%); }
+  #day::after { content: ""; position: absolute; inset: 0; opacity: .5;
+    background-image: radial-gradient(rgba(28,20,64,.07) 1px, transparent 1.6px); background-size: 28px 28px; }
+  .ink { position: absolute; inset: 0; color: var(--ink); }
+  .ink .acc { color: var(--accent); }
+  .paper { color: #fff; }
+  .paper .acc { color: #ffd6cf; }
+  #flood { background: var(--red); }
+  .mini { position: absolute; display: flex; align-items: center; gap: calc(52px * 32 / 165); direction: ltr; white-space: nowrap; }
+  .mini .mark { font-size: 32px; }
+  .counter { font-family: var(--mono); font-size: 26px; letter-spacing: .12em; color: #8a84a8; white-space: nowrap; }
+  .paper .counter, .paper .rl { color: rgba(255,255,255,.75); }
+  .head { font-weight: 800; letter-spacing: -0.05em; line-height: .96; text-wrap: balance; }
+  html.script .head { line-height: 1.22; }
+  /* Myanmar stacks its signs above and below the line: more room, or one line's touch the next's. */
+  html[lang="my"] .head, html[lang="my"] .say { line-height: 1.45; }
+  .rl { font-family: var(--small); font-size: 22px; letter-spacing: .16em; text-transform: uppercase; color: #9a94b8; white-space: nowrap;
+    transform: translateX(-50%); }
+  html.script .rl { letter-spacing: 0; text-transform: none; font-size: 24px; font-weight: 600; }
+  .rl.on { color: var(--accent); font-weight: 700; }
+  .paper .rl.on { color: #fff; }
+  .cap { font-family: var(--small); font-size: 22px; letter-spacing: .2em; text-transform: uppercase; color: #8a84a8; white-space: nowrap; }
+  html.script .cap { letter-spacing: 0; text-transform: none; font-size: 26px; font-weight: 600; }
+  .paper .cap { color: rgba(255,255,255,.85); }
+  .cap.live { color: var(--accent); }
+  .stays { font-size: 26px; font-weight: 500; color: #6e6890; white-space: nowrap; display: flex; align-items: center; gap: 12px; }
+
+  .pane { position: absolute; overflow: hidden; border-radius: 28px; background: #fff;
+    box-shadow: 0 40px 90px -20px rgba(28,20,64,.38), 0 8px 22px rgba(28,20,64,.12), 0 0 0 1px rgba(28,20,64,.10); }
+  .pane img { position: absolute; left: 0; top: 0; }
+  .touch { position: absolute; width: 74px; height: 74px; margin: -37px 0 0 -37px; border-radius: 50%;
+    background: rgba(255,255,255,.38); border: 3px solid rgba(107,72,200,.95);
+    box-shadow: 0 8px 22px rgba(28,20,64,.28); }
+  .ripple { position: absolute; border-radius: 50%; border: 3px solid rgba(107,72,200,.8); }
+  #edge { position: absolute; left: 0; width: 1920px; height: 2px; z-index: 3; margin-top: -1px;
+    background: linear-gradient(90deg, rgba(196,186,255,0), rgba(222,216,255,.95) 50%, rgba(196,186,255,0));
+    box-shadow: 0 0 26px 7px rgba(164,149,255,.42), 0 18px 40px rgba(10,9,18,.35); }
+</style>
+</head>
+<body>
+<div id="night" class="layer">
+  <canvas id="cv" width="1920" height="1080"></canvas>
+  <div id="count" class="a count center"></div>
+  <div id="clips" class="a lede center"></div>
+  <div id="asof" class="a label center"></div>
+  <div id="safe" class="a say center"></div>
+  <div id="rebuilt" class="a say center"></div>
+  <svg id="gl" width="1920" height="1080" viewBox="0 0 1920 1080"></svg>
+  <div id="lockup" class="a"></div>
+  <div id="forWhom" class="a label center"></div>
+  <div id="ocount" class="a count"></div>
+  <div id="oclips" class="a lede"></div>
+  <div id="oasof" class="a label"></div>
+  <div id="olegend" class="a label"></div>
+  <div id="tagline" class="a say center"></div>
+  <div id="url" class="a label center"></div>
+  <div id="contrib" class="a lede center"></div>
+</div>
+<div id="day" class="layer">
+  <div id="inkA" class="ink"></div>
+  <svg id="rings" class="layer" width="1920" height="1080"></svg>
+  <div id="flood" class="layer"><div id="inkB" class="ink paper"></div></div>
+  <div id="panes" class="layer"></div>
+  <div id="touches" class="layer"></div>
+</div>
+<div id="edge"></div>
+<script>
+'use strict';
+const F = window.FILM;
+const Wd = F.words;
+const LANG = F.lang;
+const RTL = LANG === 'ar';
+const SCRIPT = !['en', 'es', 'fr', 'pt', 'sw', 'ha', 'id'].includes(LANG);
+const SEGMENTED = ['th', 'my', 'zh-Hans'].includes(LANG);
+document.documentElement.lang = LANG;
+if (SCRIPT) document.documentElement.classList.add('script');
+document.getElementById('fonts').textContent = F.fontCss || '';
+
+// ---- time helpers --------------------------------------------------------------------------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const P = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, p) => a + (b - a) * p;
+const expo = (p) => (p >= 1 ? 1 : 1 - Math.pow(2, -10 * p));
+const cubicIO = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
+const cubicI = (p) => p * p * p;
+const hash = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+const $ = (id) => document.getElementById(id);
+const X = (x, w = 0) => (RTL ? 1920 - x - w : x); // a left edge, mirrored for right-to-left
+
+// ---- words ---------------------------------------------------------------------------------
+// Numbers in a locale Chromium has that writes them as the language does, and the date from Node (render.ts).
+const NUMBERS = F.numbers;
+const nf = new Intl.NumberFormat(NUMBERS);
+const nf2 = new Intl.NumberFormat(NUMBERS, { minimumIntegerDigits: 2 });
+const ZERO = nf.format(0);
+const fill = (s, vars) => s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+const YEAR = new Intl.NumberFormat(NUMBERS, { useGrouping: false }).format(2026);
+const DATE = F.date;
+const CLIPS = F.clips;
+
+function tokens(text) {
+  // Only breaking spaces part words: a no-break space keeps French "ligne ?" on one line.
+  // A long word joined by a hyphen may break after it ("Berminggu-minggu"); a short part stays ("Faites-le").
+  if (!SEGMENTED) return text.split(/([ \t\n]+)/).filter(Boolean).flatMap((w) => w.match(/^\p{L}{4,}-(?=\p{L}{4,})|.+/gu));
+  const seg = new Intl.Segmenter(LANG === 'zh-Hans' ? 'zh' : LANG, { granularity: 'word' });
+  const out = [];
+  for (const { segment, isWordLike } of seg.segment(text)) {
+    if (/^\s+$/.test(segment)) { out.push(' '); continue; }
+    if (!isWordLike && out.length && out[out.length - 1] !== ' ') out[out.length - 1] += segment;
+    else out.push(segment);
+  }
+  return out;
+}
+/** Fills el with one span per word ("*...*" is the accent) and returns the spans. */
+function say(el, text) {
+  el.textContent = '';
+  const spans = [];
+  let accent = false;
+  for (const piece of text.split('*')) {
+    for (const tok of tokens(piece)) {
+      if (/^\s+$/.test(tok)) { el.appendChild(document.createTextNode(' ')); continue; }
+      const s = document.createElement('span');
+      s.className = 'w' + (accent ? ' acc' : '');
+      s.textContent = tok;
+      el.appendChild(s);
+      spans.push(s);
+    }
+    accent = !accent;
+  }
+  el._w = spans;
+  return spans;
+}
+/** Words land: blur 14 to 0 and rise 34 to 0 on expo-out, one after another; and leave before `out`. */
+function land(el, t, t0, o = {}) {
+  const { stagger = 0.055, dur = 0.8, rise = 34, blur = 14, out = Infinity, outDur = 0.3, fade = 1 } = o;
+  const spans = el._w || [el];
+  spans.forEach((s, i) => {
+    const lt = t - t0 - i * stagger;
+    const e = expo(clamp(lt / dur));
+    let op = clamp(lt / (dur * 0.35)) * fade;
+    let y = rise * (1 - e);
+    let b = blur * (1 - e);
+    if (t > out - outDur) {
+      const q = cubicI(P(t, out - outDur, out));
+      op *= 1 - q; y -= 18 * q; b += 9 * q;
+    }
+    s.style.opacity = op.toFixed(4);
+    s.style.transform = `translateY(${y.toFixed(2)}px)`;
+    s.style.filter = b > 0.05 ? `blur(${b.toFixed(2)}px)` : 'none';
+  });
+}
+function lineCount(el) { return new Set((el._w || []).map((s) => Math.round(s.offsetTop))).size; }
+/** Whether the first of several lines holds a single word ("Every / version kept."); the accent alone on the last
+ *  ("Then just / speak.") is how the headlines read. */
+function lone(el) {
+  const words = el._w || [];
+  if (SEGMENTED || words.length < 3) return false;
+  const top = Math.round(words[0].offsetTop);
+  return Math.round(words[1].offsetTop) !== top;
+}
+/** The largest size from `size` down at which el keeps to maxLines and no word is wider than maxW, without a word
+ *  alone on the first line when 28 px less still allows that. */
+function fit(el, size, maxW, maxLines) {
+  el.style.width = maxW + 'px';
+  const fits = (s) => { el.style.fontSize = s + 'px'; return lineCount(el) <= maxLines && (el._w || []).every((w) => w.offsetWidth <= maxW); };
+  let first = 0;
+  for (let s = size; s >= 28; s -= 2) {
+    if (!fits(s)) continue;
+    first ||= s;
+    if (!lone(el)) return s;
+    // Balanced lines can leave the first word alone ("Every / version kept."); filled ones may not.
+    el.style.textWrap = 'wrap';
+    if (fits(s) && !lone(el)) return s;
+    el.style.textWrap = '';
+    if (s <= first - 28) break;
+  }
+  if (first) { fits(first); return first; }
+  el.style.fontSize = '28px';
+  return 28;
+}
+function show(el, on) { el.style.display = on ? '' : 'none'; }
+
+/** A count with its leading zeros dimmed, as seven digits, and the "+" of a round number passed (plus is its opacity). */
+function countHtml(v, plus = 0) {
+  const s = new Intl.NumberFormat(NUMBERS, { minimumIntegerDigits: 7 }).format(Math.round(v));
+  let i = 0;
+  // The first digit that is not zero, in the language's own digits (Bengali, Myanmar...): \d is only 0-9.
+  const nz = s.search(new RegExp(`[^${ZERO}\\P{Nd}]`, 'u'));
+  i = nz < 0 ? s.length - 1 : nz;
+  return `<span class="z">${s.slice(0, i)}</span>${s.slice(i)}<span style="opacity:${plus.toFixed(3)}">+</span>`;
+}
+
+// ---- the glyph -----------------------------------------------------------------------------
+// apps/mobile/assets/logo.svg, in its 1536x1024 source units; the check cuts a gap through the tallest bar.
+const BARS = [{ x: 385, w: 111, y: 465, h: 192 }, { x: 531, w: 111, y: 374, h: 342 }, { x: 677, w: 113, y: 273, h: 487 }];
+const CHECK = 'M738 518 L878 652 L1124 415';
+const GX = 780.5, GY = 516.5, GW = 792; // centre and width of the glyph (bars to the end of the check)
+let maskN = 0;
+function glyphSvg(fill, w) {
+  const id = 'gap' + maskN++;
+  const k = w / GW;
+  return `<svg width="${w}" height="${(487 * k).toFixed(2)}" viewBox="385 273 792 487">
+    <defs><mask id="${id}" maskUnits="userSpaceOnUse" x="0" y="0" width="1536" height="1024">
+      <rect width="1536" height="1024" fill="white"/><path d="${CHECK}" fill="none" stroke="black" stroke-width="150" stroke-linecap="round" stroke-linejoin="round"/></mask></defs>
+    <g fill="${fill}" mask="url(#${id})">${BARS.map((b) => `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="${b.w / 2}"/>`).join('')}</g>
+    <path d="${CHECK}" fill="none" stroke="${fill}" stroke-width="106" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+$('gl').innerHTML = `<defs><mask id="stageGap" maskUnits="userSpaceOnUse" x="-4000" y="-4000" width="12000" height="12000">
+  <rect x="-4000" y="-4000" width="12000" height="12000" fill="white"/>
+  <path id="sgap" d="${CHECK}" pathLength="1" fill="none" stroke="black" stroke-width="150" stroke-linecap="round" stroke-linejoin="round"/></mask></defs>
+  <g id="gg"><g fill="#f4f2fe" mask="url(#stageGap)">${BARS.map((b, i) => `<rect id="sb${i}" x="${b.x}" width="${b.w}"/>`).join('')}</g>
+  <path id="schk" d="${CHECK}" pathLength="1" fill="none" stroke="#f4f2fe" stroke-width="106" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+/** Draws the stage glyph centred at (cx, cy), k film px per source unit; grow[i] how far each bar is up, m how far the
+ *  bars have moved from standing on a line to the logo, c how much of the check is drawn. */
+function stageGlyph(on, cx, cy, k, grow, m, c, base = 760) {
+  const g = $('gl');
+  show(g, on);
+  if (!on) return;
+  $('gg').setAttribute('transform', `translate(${cx} ${cy}) scale(${k}) translate(${-GX} ${-GY})`);
+  BARS.forEach((b, i) => {
+    const h = Math.max(0.001, b.h * grow[i]);
+    const y = lerp(base - h, b.y, m);
+    const r = $('sb' + i);
+    r.setAttribute('y', y); r.setAttribute('height', h); r.setAttribute('rx', Math.min(b.w / 2, h / 2));
+  });
+  for (const id of ['schk', 'sgap']) {
+    $(id).setAttribute('stroke-dasharray', `${c} 2`);
+    $(id).style.opacity = c > 0.002 ? 1 : 0;
+  }
+}
+
+// ---- the capture ---------------------------------------------------------------------------
+const C = F.capture;
+const VW = C.viewport.width, VH = C.viewport.height;
+const MARK = Object.fromEntries(C.marks.map((m) => [m.name, m]));
+const mk = (name) => { const m = MARK[name]; if (!m) throw new Error('no mark ' + name); return m; };
+const box = (name, part) => { const b = mk(name).boxes[part]; if (!b) throw new Error(`no box ${name}.${part}`); return b; };
+const takes = {};
+for (const f of C.frames) (takes[f.take] ||= []).push(f);
+for (const k in takes) takes[k].sort((a, b) => a.t - b.t);
+/** The frame on screen at capture time ct. */
+function frameAt(take, ct) {
+  const fs = takes[take];
+  let lo = 0, hi = fs.length - 1, best = 0;
+  while (lo <= hi) { const mid = (lo + hi) >> 1; if (fs[mid].t <= ct) { best = mid; lo = mid + 1; } else hi = mid - 1; }
+  return F.frameBase + fs[best].file;
+}
+const at = (name, dt = 0) => ({ take: mk(name).take, ct: mk(name).t + dt });
+
+// ---- the six steps -------------------------------------------------------------------------
+const ACTS = [
+  { key: 'listen', t0: 16.0, t1: 19.0 },
+  { key: 'speak', t0: 19.0, t1: 23.0 },
+  { key: 'offline', t0: 23.0, t1: 27.0 },
+  { key: 'heard', t0: 27.0, t1: 30.0 },
+  { key: 'kept', t0: 30.0, t1: 33.0 },
+  { key: 'decides', t0: 33.0, t1: 36.3 },
+];
+const COL = { cx: 1350, maxW: 800, maxH: 660, cy: 486, gap: 18 };
+// Each act's cards come in a little before its beat and go a little after the next one's, so the column is never empty.
+const IN = 0.18, OUT = 0.1;
+const RAIL_Y = 944;
+const railX = (i) => X(190 + i * 308);
+
+/** Lays crops out as a column of panes in the right-hand column: their film rects and scale. */
+function column(crops, maxH = COL.maxH) {
+  const total = crops.reduce((a, c) => a + c[3], 0);
+  const s = Math.min(COL.maxW / VW, (maxH - COL.gap * (crops.length - 1)) / total);
+  const H = total * s + COL.gap * (crops.length - 1);
+  let y = COL.cy - H / 2;
+  const w = VW * s;
+  const x = X(COL.cx - w / 2, w) ;
+  return { s, rects: crops.map((c) => { const r = { x, y, w, h: c[3] * s, crop: c }; y += r.h + COL.gap; return r; }) };
+}
+/** Where a point of the phone's screen lands on film, in a rect showing crop at scale s. */
+const onFilm = (r, s, px, py) => ({ x: r.x + (px - r.crop[0]) * s, y: r.y + (py - r.crop[1]) * s });
+const mid = (b) => [b.x + b.width / 2, b.y + b.height / 2];
+
+let L = {}; // layouts, computed once the fonts are in
+function layoutActs() {
+  // 1 Listen: the Bible for the passage, from its tabs to the verses.
+  const bible = box('listen', 'bible'), divider = box('listen', 'divider');
+  L.listen = column([[0, bible.y - 8, VW, divider.y - 6 - (bible.y - 8)]]);
+  L.listen.play = mid(box('listen', 'play'));
+  L.listen.tap = ACTS[0].t0 + 0.98;
+  L.listen.click = mk('listen-playing').t - 0.3;
+  // 2 Speak: the record controls open into the live recording panel.
+  const rec = box('speak', 'record'), parts = box('speak-recording', 'parts');
+  const open = [0, parts.y - 72, VW, VH - (parts.y - 72)];
+  L.speak = column([open], 720);
+  L.speak.idleTop = rec.y - 22;
+  L.speak.mic = mid(rec);
+  L.speak.tap = ACTS[1].t0 + 0.48;
+  {
+    // The red starts from the mic where it was pressed.
+    const { s, rects: [full] } = L.speak;
+    const idleH = (VH - L.speak.idleTop) * s;
+    const p = onFilm({ ...full, y: COL.cy - idleH / 2, crop: [0, L.speak.idleTop] }, s, ...L.speak.mic);
+    L.speak.flood = { x: p.x, y: p.y + enter(L.speak.tap, 19.06, 23.0).dy };
+  }
+  // 3 Offline: the upload bar and the three parts kept on the phone.
+  const bar = box('offline', 'bar'), group = box('offline', 'group'), last = box('offline', 'last');
+  L.offline = column([[0, 0, VW, bar.y + bar.height + 4], [0, group.y - 18, VW, last.y + last.height + 4 - (group.y - 18)]]);
+  // 4 Heard: who checks it next, asked; then the passage with the team asked.
+  const first = box('heard', 'first'), lastR = box('heard', 'last'), ask = box('heard', 'ask');
+  L.heard = column([[0, first.y - 44, VW, lastR.y + lastR.height + 12 - (first.y - 44)], [0, ask.y - 12, VW, ask.height + 24]]);
+  L.heard.ask = mid(ask);
+  L.heard.tap = ACTS[3].t0 + 1.0;
+  const device = box('heard-asked', 'device'), peer = box('heard-asked', 'peer');
+  L.asked = column([[0, device.y - 10, VW, peer.y + peer.height + 12 - (device.y - 10)]]);
+  // 5 Kept: a passage that has been through every check, its version, then down to its history.
+  const ver = box('kept', 'version'), hist = box('kept', 'history');
+  const KEPT_H = 330;
+  L.kept = column([[0, 0, VW, KEPT_H]]);
+  L.kept.from = Math.max(0, ver.y - 30);
+  L.kept.to = Math.min(VH - KEPT_H, Math.max(L.kept.from, hist.y - 30));
+  // 6 Decides: who may use the work, the pick moving down the licenses, the list following it.
+  const DECIDES_H = 360;
+  L.decides = column([[0, 0, VW, DECIDES_H]]);
+  L.decides.tops = [0, 1, 2].map((i) => {
+    const first = box(`decides-${i}`, 'first'), n = box(`decides-${i}`, 'next');
+    return Math.min(VH - DECIDES_H, Math.max(first.y - 6, n.y + n.height + 12 - DECIDES_H));
+  });
+  L.decides.taps = [0, 1].map((i) => ({ t: ACTS[5].t0 + 1.0 + i * 1.0, at: mid(box(`decides-${i}`, 'next')), from: i }));
+}
+
+// ---- the light layer's words, drawn twice: dark ink, and white on the red of recording ----------
+function railSvg() {
+  return `<svg class="a" style="left:0;top:0" width="1920" height="1080">
+    <line class="rbase" x1="${railX(0)}" x2="${railX(5)}" y1="${RAIL_Y}" y2="${RAIL_Y}" stroke-width="3" stroke-linecap="round"/>
+    <line class="rfill" x1="${railX(0)}" y1="${RAIL_Y}" y2="${RAIL_Y}" stroke-width="3" stroke-linecap="round"/>
+    ${ACTS.map((_, i) => `<circle class="rhalo" data-i="${i}" cx="${railX(i)}" cy="${RAIL_Y}" r="24"/><circle class="rdot" data-i="${i}" cx="${railX(i)}" cy="${RAIL_Y}" r="10" stroke-width="2.5"/>`).join('')}
+  </svg>`;
+}
+const MINI = 32 / 165; // the name in the corner, as a share of its size on the night
+function buildInk(root, paper) {
+  const fillInk = paper ? '#ffffff' : '#1C1440';
+  root.innerHTML = `
+    <div class="mini" style="top:0">${glyphSvg(fillInk, 239 * MINI)}<div class="mark">LangQuest <span class="acc">Next</span></div></div>
+    <div class="a counter" style="top:62px"></div>
+    ${railSvg()}
+    ${Wd.rail.map((r, i) => `<div class="a rl" data-i="${i}" style="left:${railX(i)}px;top:${RAIL_Y + 30}px">${r}</div>`).join('')}
+    ${ACTS.map((a) => `<div class="a head" data-act="${a.key}"></div>`).join('')}
+    <div class="a cap" data-cap="speak"></div>
+    ${[1, 6, 13, 21, 23].map((n, i) => `<div class="a cap${i === 4 ? ' live' : ''}" data-day="${i}"></div>`).join('')}
+    <div class="a stays"></div>`;
+  const q = (s) => root.querySelector(s);
+  const mini = q('.mini');
+  mini.querySelector('.mark').style.color = fillInk;
+  const rb = q('.rbase'), rf = q('.rfill');
+  rb.setAttribute('stroke', paper ? 'rgba(255,255,255,.35)' : '#d9d4ec');
+  rf.setAttribute('stroke', paper ? '#ffffff' : '#6B48C8');
+  root.querySelectorAll('.rdot').forEach((d) => { d.setAttribute('stroke', paper ? '#fff' : '#cfc8e6'); });
+  root.querySelectorAll('.rhalo').forEach((d) => { d.setAttribute('fill', paper ? 'rgba(255,255,255,.22)' : 'rgba(107,72,200,.16)'); });
+  for (const a of ACTS) say(q(`[data-act="${a.key}"]`), Wd[a.key]);
+  say(q('[data-cap="speak"]'), '● ' + Wd.keptHere.replace(/\*/g, ''));
+  [1, 6, 13, 21, 23].forEach((n, i) => say(q(`[data-day="${i}"]`), fill(i === 4 ? Wd.backInRange : Wd.noSignal, { n: nf.format(n) })));
+  const st = q('.stays');
+  st.innerHTML = `<svg width="22" height="26" viewBox="0 0 22 26" fill="none" stroke="${paper ? '#fff' : '#6e6890'}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="11" width="18" height="13" rx="3"/><path d="M6 11V7a5 5 0 0 1 10 0v4"/></svg><span></span>`;
+  say(st.querySelector('span'), Wd.stays);
+  st._w = [st];
+}
+function layoutInk(root) {
+  const q = (s) => root.querySelector(s);
+  const mini = q('.mini');
+  mini.style.left = X(76, mini.offsetWidth) + 'px';
+  mini.style.top = 73 - mini.offsetHeight / 2 + 'px';
+  const counter = q('.counter');
+  counter.style[RTL ? 'left' : 'right'] = '80px';
+  // Headlines: the left column, vertically centred on the card.
+  const maxW = 1350 - 400 - 60 - 140; // up to the widest card's edge
+  for (const a of ACTS) {
+    const el = q(`[data-act="${a.key}"]`);
+    fit(el, SCRIPT ? 104 : 118, maxW, 3);
+    el.style.left = X(140, maxW) + 'px';
+    el.style.textAlign = RTL ? 'right' : 'left';
+    el.dir = RTL ? 'rtl' : 'ltr';
+    el.style.top = COL.cy - 40 - el.offsetHeight / 2 + 'px';
+  }
+  const speakHead = q('[data-act="speak"]');
+  const cap = q('[data-cap="speak"]');
+  const capW = COL.cx - L.speak.rects[0].w / 2 - 140 - 48; // from the margin up to the phone
+  const capSize = SCRIPT ? 26 : 22;
+  cap.style.fontSize = capSize + 'px';
+  cap.style.fontSize = Math.min(capSize, (capSize * capW) / Math.max(1, cap.offsetWidth)) + 'px';
+  cap.style.left = X(140, cap.offsetWidth) + 'px';
+  cap.style.top = speakHead.offsetTop + speakHead.offsetHeight + 34 + 'px';
+  const offHead = q('[data-act="offline"]');
+  const dayW = COL.cx - L.offline.rects[0].w / 2 - 140 - 48; // from the margin up to the cards
+  root.querySelectorAll('[data-day]').forEach((d) => {
+    const size = SCRIPT ? 38 : 36;
+    d.style.fontSize = size + 'px';
+    d.style.fontSize = Math.min(size, (size * dayW) / Math.max(1, d.offsetWidth)) + 'px';
+    d.style.left = X(140, d.offsetWidth) + 'px';
+    d.style.top = offHead.offsetTop + offHead.offsetHeight + 40 + 'px';
+  });
+  const dr = L.decides.rects[0];
+  const st = q('.stays');
+  st.style.left = dr.x + dr.w / 2 - st.offsetWidth / 2 + 'px';
+  st.style.top = dr.y + dr.h + 30 + 'px';
+}
+function seekInk(root, t) {
+  const q = (s) => root.querySelector(s);
+  const ai = ACTS.findIndex((a) => t < a.t1);
+  const act = ACTS[ai < 0 ? 5 : ai];
+  const idx = ai < 0 ? 5 : ai;
+  q('.counter').textContent = `${nf2.format(idx + 1)} / ${nf2.format(6)}`;
+  // The rail: the line runs on to the step that has started.
+  const prev = idx === 0 ? 0 : idx - 1;
+  const pl = expo(P(t, act.t0, act.t0 + 0.6));
+  q('.rfill').setAttribute('x2', lerp(railX(prev), railX(idx), idx === 0 ? 1 : pl));
+  root.querySelectorAll('.rdot').forEach((d) => {
+    const i = +d.dataset.i;
+    const on = i < idx || (i === idx && pl > 0.5) || (idx === 0 && i === 0);
+    const cur = i === idx;
+    const grow = cur ? expo(P(t, act.t0 + 0.15, act.t0 + 0.6)) : 0;
+    d.setAttribute('r', 9 + 5 * grow);
+    const paper = root.classList.contains('paper');
+    d.setAttribute('fill', on ? (paper ? '#fff' : '#6B48C8') : (paper ? 'rgba(255,255,255,.2)' : '#ffffff'));
+    if (on) d.setAttribute('stroke', paper ? '#fff' : '#6B48C8');
+  });
+  root.querySelectorAll('.rhalo').forEach((d) => { d.style.opacity = +d.dataset.i === idx ? expo(P(t, act.t0 + 0.15, act.t0 + 0.6)) : 0; });
+  root.querySelectorAll('.rl').forEach((d) => d.classList.toggle('on', +d.dataset.i === idx));
+  for (const a of ACTS) {
+    const el = q(`[data-act="${a.key}"]`);
+    const on = t > a.t0 - 0.1 && t < a.t1 + 0.05;
+    show(el, on);
+    if (on) land(el, t, a.t0 + 0.06, { out: a.t1 === 36.3 ? Infinity : a.t1, outDur: 0.28 });
+  }
+  const cap = q('[data-cap="speak"]');
+  show(cap, t > 19.5 && t < 23.05);
+  land(cap, t, 20.05, { out: 23.0, stagger: 0.03 });
+  const days = DAYS;
+  root.querySelectorAll('[data-day]').forEach((d) => {
+    const i = +d.dataset.day;
+    const on = t > days[i] - 0.05 && t < (days[i + 1] ?? 27.0) + 0.05;
+    show(d, on);
+    if (on) land(d, t, days[i], { out: days[i + 1] ?? 27.0, outDur: 0.12, dur: 0.45, rise: 16, stagger: 0.02 });
+  });
+  const st = q('.stays');
+  show(st, t > 34.0);
+  land(st, t, 34.25, { dur: 0.7, rise: 18 });
+}
+
+// ---- panes: the app's own screens -----------------------------------------------------------
+// Offline's days, on the beat: four with no signal, then back in range, everything up by 26.5.
+const DAYS = [23.1, 23.6, 24.1, 24.6, 25.5];
+const PANES = [];
+function pane() {
+  const el = document.createElement('div');
+  el.className = 'pane';
+  const img = document.createElement('img');
+  img.width = VW; img.height = VH;
+  el.appendChild(img);
+  $('panes').appendChild(el);
+  const p = { el, img, src: '' };
+  PANES.push(p);
+  return p;
+}
+const pending = [];
+/** Shows the frame `src` cropped to `crop` in film rect r at scale s; o is opacity, dy a rise, b a blur. */
+function put(p, r, s, crop, src, o = 1, dy = 0, b = 0, sc = 1) {
+  show(p.el, o > 0.001);
+  if (o <= 0.001) return;
+  const el = p.el.style;
+  el.left = r.x + 'px'; el.top = r.y + 'px'; el.width = r.w + 'px'; el.height = r.h + 'px';
+  el.opacity = o.toFixed(4);
+  el.transform = `translateY(${dy.toFixed(2)}px) scale(${sc.toFixed(4)})`;
+  el.filter = b > 0.05 ? `blur(${b.toFixed(2)}px)` : 'none';
+  p.img.style.width = VW * s + 'px';
+  p.img.style.height = VH * s + 'px';
+  p.img.style.transform = `translate(${(-crop[0] * s).toFixed(2)}px, ${(-crop[1] * s).toFixed(2)}px)`;
+  if (p.src !== src) { p.src = src; p.img.src = src; pending.push(p.img.decode().catch(() => undefined)); }
+}
+/** How a card comes in (from t0) and goes (by t1): opacity, rise and blur. */
+function enter(t, t0, t1) {
+  const e = expo(P(t, t0, t0 + 0.7));
+  let o = clamp((t - t0) / 0.25), dy = 46 * (1 - e), b = 12 * (1 - e), sc = 1;
+  if (t > t1 - 0.28) { const q = cubicI(P(t, t1 - 0.28, t1)); o *= 1 - q; dy -= 22 * q; b += 10 * q; sc = 1 - 0.02 * q; }
+  return { o, dy, b, sc };
+}
+const src = (a) => frameAt(a.take, a.ct);
+
+const TOUCH = [0, 1, 2].map(() => {
+  const ring = document.createElement('div'); ring.className = 'ripple'; $('touches').appendChild(ring);
+  const dot = document.createElement('div'); dot.className = 'touch'; $('touches').appendChild(dot);
+  return { dot, ring };
+});
+/** A finger: fades in near its target, presses (0.88) on the beat, and lets go with a ripple. */
+function touch(n, t, tp, x, y) {
+  const { dot, ring } = TOUCH[n];
+  const lt = t - tp;
+  const on = lt > -0.42 && lt < 0.5;
+  show(dot, on); show(ring, on && lt > 0);
+  if (!on) return;
+  const inn = expo(P(lt, -0.42, -0.12));
+  const press = lt < 0 ? 1 : lt < 0.08 ? lerp(1, 0.88, lt / 0.08) : lerp(0.88, 1, expo(P(lt, 0.08, 0.3)));
+  const away = P(lt, 0.18, 0.5);
+  dot.style.left = x + 'px'; dot.style.top = y + 'px';
+  dot.style.opacity = (inn * (1 - away)).toFixed(3);
+  dot.style.transform = `scale(${((1.25 - 0.25 * inn) * press + 0.15 * away).toFixed(4)})`;
+  const rr = 30 + 60 * expo(P(lt, 0, 0.5));
+  Object.assign(ring.style, { left: x - rr + 'px', top: y - rr + 'px', width: 2 * rr + 'px', height: 2 * rr + 'px', opacity: (0.7 * (1 - P(lt, 0.05, 0.5))).toFixed(3) });
+}
+
+/** A mask over a pane, for this frame only. */
+function fade(p, mask) { p.el.style.webkitMaskImage = mask; p.el.style.maskImage = mask; }
+function seekDay(t) {
+  for (const p of PANES) { show(p.el, false); fade(p, ''); }
+  for (const n of [0, 1, 2]) touch(n, t, -10, 0, 0);
+  $('rings').innerHTML = '';
+  let k = 0;
+  const next = () => PANES[k++] || pane();
+
+  // 1 Listen
+  const A = (i) => ({ on: t >= ACTS[i].t0 - IN - 0.02 && t < ACTS[i].t1 + OUT + 0.02, m: enter(t, ACTS[i].t0 - IN, ACTS[i].t1 + OUT) });
+  {
+    const { on, m } = A(0);
+    if (on) {
+      const { s, rects: [r] } = L.listen;
+      const a = t < L.listen.tap ? at('listen') : { take: mk('listen').take, ct: L.listen.click + (t - L.listen.tap) };
+      const p = next();
+      put(p, r, s, r.crop, src(a), m.o, m.dy, m.b, m.sc);
+      fade(p, `linear-gradient(to bottom, #000 calc(100% - 90px), transparent)`);
+      const pp = onFilm(r, s, ...L.listen.play);
+      touch(0, t, L.listen.tap, pp.x, pp.y + m.dy);
+      // Sound going out: rings close round the card from the tap.
+      if (t > L.listen.tap) {
+        const fadeIn = P(t, L.listen.tap, L.listen.tap + 0.4) * m.o;
+        let svg = '';
+        for (let i = 0; i < 3; i++) {
+          const d = ((t - L.listen.tap) * 60 + i * 30) % 90;
+          const op = 0.45 * (1 - d / 90) * fadeIn;
+          svg += `<rect x="${r.x - d}" y="${r.y + m.dy - d}" width="${r.w + 2 * d}" height="${r.h + 2 * d}" rx="${28 + d}" fill="none" stroke="rgba(107,72,200,${op.toFixed(3)})" stroke-width="2"/>`;
+        }
+        $('rings').innerHTML = svg;
+      }
+    }
+  }
+  // 2 Speak
+  let micNow = null;
+  {
+    const { on, m } = A(1);
+    if (on) {
+      const { s, rects: [full] } = L.speak;
+      const g = expo(P(t, L.speak.tap + 0.07, L.speak.tap + 0.62));
+      const top = lerp(L.speak.idleTop, full.crop[1], g);
+      const idleH = (VH - L.speak.idleTop) * s;
+      const h = (VH - top) * s;
+      const y = lerp(COL.cy - idleH / 2, full.y, g);
+      const r = { x: full.x, y, w: full.w, h, crop: [0, top, VW, VH - top] };
+      const rec = mk('speak-recording').t;
+      const ct = t < L.speak.tap ? mk('speak').t : t < 21.48 ? rec + 0.2 + (t - L.speak.tap) : t < 22.48 ? rec + 10.3 + (t - 21.48) : rec + 25 + (t - 22.48);
+      put(next(), r, s, r.crop, src({ take: mk('speak').take, ct }), m.o, m.dy, m.b, m.sc);
+      const mp = onFilm(r, s, ...L.speak.mic);
+      micNow = { x: mp.x, y: mp.y + m.dy };
+      touch(1, t, L.speak.tap, micNow.x, micNow.y);
+    }
+  }
+  // 3 Offline: still for weeks, the column pushing in slowly; back in range, everything goes up by 26.5.
+  {
+    const { on, m } = A(2);
+    if (on) {
+      const { s, rects } = L.offline;
+      const back = DAYS[4];
+      const speed = Math.max(1, (mk('uploaded').t - mk('online').t + 0.15) / (26.5 - back));
+      const ct = t < back ? mk('offline').t : mk('online').t + (t - back) * speed;
+      const push = lerp(1, 1.05, cubicIO(P(t, ACTS[2].t0 - IN, ACTS[2].t1)));
+      const t0 = ACTS[2].t0 - IN;
+      rects.forEach((r, i) => put(next(), r, s, r.crop, src({ take: mk('offline').take, ct }), m.o * clamp((t - t0 - i * 0.08) / 0.25), m.dy + 10 * i * (1 - expo(P(t, t0, t0 + 0.8))), m.b, m.sc * push));
+    }
+  }
+  // 4 Heard: the next check picked and asked; the asked card comes in as the first ones go.
+  {
+    const { on } = A(3);
+    if (on) {
+      const { s, rects } = L.heard;
+      const m = enter(t, ACTS[3].t0 - IN, L.heard.tap + 0.3);
+      rects.forEach((r) => put(next(), r, s, r.crop, src(at('heard')), m.o, m.dy, m.b, m.sc));
+      const ap = onFilm(rects[1], s, ...L.heard.ask);
+      touch(2, t, L.heard.tap, ap.x, ap.y + m.dy);
+      const a = L.asked;
+      const n = enter(t, L.heard.tap + 0.05, ACTS[3].t1 + OUT);
+      put(next(), a.rects[0], a.s, a.rects[0].crop, src(at('heard-asked', -0.8 + Math.max(0, t - L.heard.tap - 0.05))), n.o, n.dy, n.b, n.sc);
+    }
+  }
+  // 5 Kept: the version, then down to its history.
+  {
+    const { on, m } = A(4);
+    if (on) {
+      const { s, rects: [r0] } = L.kept;
+      const y = lerp(L.kept.from, L.kept.to, cubicIO(P(t, 30.45, 31.9)));
+      const p = next();
+      put(p, r0, s, [0, y, VW, r0.crop[3]], src(at('kept')), m.o, m.dy, m.b, m.sc);
+      fade(p, `linear-gradient(to bottom, #000 calc(100% - 90px), transparent)`);
+    }
+  }
+  // 6 Decides: two picks down the licenses, the list following the one picked.
+  {
+    const { on } = A(5);
+    if (on) {
+      const m = enter(t, ACTS[5].t0 - IN, 1e9);
+      const taps = L.decides.taps;
+      const state = taps.filter((x) => t >= x.t + 0.06).length;
+      const { s, rects: [r] } = L.decides;
+      const tops = L.decides.tops;
+      const last = state ? taps[state - 1].t + 0.06 : 0;
+      const y = state ? lerp(tops[state - 1], tops[state], cubicIO(P(t, last + 0.1, last + 0.55))) : tops[0];
+      const p = next();
+      put(p, r, s, [0, y, VW, r.crop[3]], src(at(`decides-${state}`)), m.o, m.dy, m.b, m.sc);
+      fade(p, `linear-gradient(to bottom, transparent, #000 ${y > tops[0] + 4 ? 36 : 0}px, #000 calc(100% - 60px), transparent)`);
+      taps.forEach((x, i) => {
+        const fp = onFilm({ ...r, crop: [0, tops[x.from]] }, s, ...x.at);
+        touch(i, t, x.t, fp.x, fp.y + m.dy);
+      });
+    }
+  }
+
+  // The red of recording, flooding out from the mic, and back into it as the step ends.
+  const fl = $('flood');
+  const on = t >= L.speak.tap && t < 23.0;
+  show(fl, on);
+  if (on) {
+    const back = cubicIO(P(t, 22.55, 23.0));
+    const c = back > 0 && micNow ? micNow : L.speak.flood;
+    const R = 2300 * expo(P(t, L.speak.tap, L.speak.tap + 0.75)) * (1 - back);
+    fl.style.clipPath = `circle(${R.toFixed(1)}px at ${c.x.toFixed(1)}px ${c.y.toFixed(1)}px)`;
+    seekInk($('inkB'), t);
+  }
+  seekInk($('inkA'), t);
+}
+
+// ---- the night: count, safe place, rebuilt, the name; the count again and the end ------------
+const cv = $('cv'), g = cv.getContext('2d');
+const WAVE = Array.from({ length: 120 }, (_, i) => {
+  const a = Math.abs(Math.sin(i * 0.37) * Math.sin(i * 0.113 + 1.3)) * (0.55 + 0.45 * hash(i)) + 0.12 * hash(i + 99);
+  return { x: 362 + i * 10.05, h: 12 + 94 * clamp(a, 0.08, 1) };
+});
+const WAVE_Y = 632;
+const SLOT = (i) => ({ x: 960 - 3.5 * 20 + (i % 8) * 20, y: 442 + Math.floor(i / 8) * 22.4 });
+const HORIZON = 800;
+const ORDER = Array.from({ length: 120 }, (_, i) => i).sort((a, b) => hash(a + 7) - hash(b + 7));
+const LANDX = (i) => 330 + (1260 * ORDER.indexOf(i)) / 119;
+const quad = (a, c, b, p) => ({ x: (1 - p) * (1 - p) * a.x + 2 * (1 - p) * p * c.x + p * p * b.x, y: (1 - p) * (1 - p) * a.y + 2 * (1 - p) * p * c.y + p * p * b.y });
+function pill(x, y, w, h, color) {
+  const r = Math.min(w, h) / 2;
+  g.fillStyle = color;
+  g.beginPath(); g.roundRect(x - w / 2, y - h / 2, w, h, r); g.fill();
+}
+const GRID = { cols: 40, rows: 25, pitch: 17.5, size: 12.5, y0: 256 };
+const GRID_X0 = RTL ? 140 : 1080;
+const GRID_RANK = (() => {
+  const cells = [];
+  for (let c = 0; c < GRID.cols; c++) for (let r = 0; r < GRID.rows; r++) cells.push({ c, r, key: r + 2.6 * hash(c * 7.3 + 1) + 0.001 * c });
+  cells.sort((a, b) => a.key - b.key);
+  const rank = {};
+  cells.forEach((cell, i) => { rank[cell.c + ',' + cell.r] = i; });
+  return rank;
+})();
+
+function drawNight(t) {
+  g.clearRect(0, 0, 1920, 1080);
+  // The waveform drawn by its playhead (0.15-1.95), then each bar a clip flying into the phone (5.1-7.0), which
+  // holds them, full and still, to 8.
+  const head = lerp(362, 1560, P(t, 0.15, 1.95));
+  if (t < 8.05) {
+    WAVE.forEach((b, i) => {
+      if (b.x > head + 2) return;
+      const pop = expo(P(head - b.x, 0, 60));
+      const s0 = 5.1 + i * 0.008, dur = 0.9;
+      const p = P(t, s0, s0 + dur);
+      const slot = SLOT(i);
+      if (p <= 0) { pill(b.x, WAVE_Y, 4.6, b.h * pop, 'rgba(164,149,255,0.9)'); return; }
+      const e = cubicIO(p);
+      const ctrl = { x: (b.x + slot.x) / 2, y: Math.min(WAVE_Y, slot.y) - 120 - 90 * hash(i + 3) };
+      const pt = quad({ x: b.x, y: WAVE_Y }, ctrl, slot, e);
+      const shrink = expo(P(p, 0, 0.3));
+      const leave = t > 8.0 ? 0 : 1;
+      if (leave) pill(pt.x, pt.y, lerp(4.6, 9, shrink), lerp(b.h, 9, shrink), `rgba(${Math.round(lerp(164, 196, e))},${Math.round(lerp(149, 186, e))},255,0.95)`);
+    });
+    if (t < 1.95 + 0.4 && t > 0.1) {
+      const o = 1 - P(t, 1.95, 2.35);
+      const grd = g.createRadialGradient(head, WAVE_Y, 0, head, WAVE_Y, 26);
+      grd.addColorStop(0, `rgba(255,255,255,${0.95 * o})`); grd.addColorStop(0.3, `rgba(196,186,255,${0.6 * o})`); grd.addColorStop(1, 'rgba(164,149,255,0)');
+      g.fillStyle = grd; g.beginPath(); g.arc(head, WAVE_Y, 26, 0, Math.PI * 2); g.fill();
+    }
+  }
+  // The phone that keeps them.
+  const phoneIn = expo(P(t, 5.45, 6.15)), phoneOut = P(t, 8.0, 8.45);
+  if (t > 5.4 && t < 8.5) {
+    const o = phoneIn * (1 - phoneOut);
+    const sc = lerp(0.94, 1, phoneIn) * lerp(1, 0.9, phoneOut);
+    g.save(); g.translate(960, 600); g.scale(sc, sc); g.translate(-960, -600);
+    const glow = g.createRadialGradient(960, 600, 20, 960, 600, 360);
+    glow.addColorStop(0, `rgba(120,96,230,${0.28 * o})`); glow.addColorStop(1, 'rgba(120,96,230,0)');
+    g.fillStyle = glow; g.fillRect(560, 200, 800, 800);
+    g.strokeStyle = `rgba(164,149,255,${o})`; g.lineWidth = 3.5;
+    g.beginPath(); g.roundRect(860, 400, 200, 400, 30); g.stroke();
+    g.fillStyle = `rgba(164,149,255,${o})`; g.beginPath(); g.arc(960, 418, 4, 0, Math.PI * 2); g.fill();
+    g.restore();
+  }
+  // Rebuilt: the dots fall from the phone and spread along the ground (8-9.4).
+  if (t >= 8.0 && t < 10.0) {
+    for (let i = 0; i < 120; i++) {
+      const slot = SLOT(i);
+      const row = Math.floor(i / 8);
+      const s0 = 8.0 + (14 - row) * 0.045 + 0.05 * hash(i + 11);
+      const p = P(t, s0, s0 + 0.78);
+      const land = { x: LANDX(i), y: HORIZON };
+      const e = cubicIO(p);
+      // Out over the top and down, fanning to the ground.
+      const pt = p <= 0 ? slot : quad(slot, { x: lerp(slot.x, land.x, 0.85), y: slot.y - 50 - 40 * hash(i + 5) }, land, e);
+      const fade = 1 - P(t, s0 + 0.78, s0 + 0.9);
+      if (fade <= 0) continue;
+      pill(pt.x, pt.y, 9 * lerp(1, 0.7, p), 9 * lerp(1, 0.7, p), `rgba(196,186,255,${0.95 * fade})`);
+    }
+  }
+  // The ground: a line of light the logo's bars rise from (8.3-12.2), and again at the end (42-43.2).
+  const horizon = (y, x0, x1, o) => {
+    if (o <= 0) return;
+    const lg = g.createLinearGradient(x0, 0, x1, 0);
+    lg.addColorStop(0, 'rgba(164,149,255,0)'); lg.addColorStop(0.5, `rgba(196,186,255,${0.8 * o})`); lg.addColorStop(1, 'rgba(164,149,255,0)');
+    g.fillStyle = lg; g.fillRect(x0, y - 1, x1 - x0, 2);
+    const glow = g.createRadialGradient(960, y, 0, 960, y, 520);
+    glow.addColorStop(0, `rgba(120,96,230,${0.22 * o})`); glow.addColorStop(1, 'rgba(120,96,230,0)');
+    g.save(); g.translate(960, y); g.scale(1, 0.3); g.translate(-960, -y);
+    g.fillStyle = glow; g.fillRect(400, y - 520, 1120, 1040); g.restore();
+  };
+  if (t > 8.3 && t < 12.3) {
+    const draw = expo(P(t, 8.3, 9.3));
+    const half = 640 * draw;
+    horizon(HORIZON, 960 - half, 960 + half, 1 - P(t, 11.7, 12.2));
+  }
+  if (t > 41.95 && t < 43.3) {
+    const draw = expo(P(t, 42.0, 42.6));
+    horizon(560, 960 - 520 * draw, 960 + 520 * draw, 1 - P(t, 42.85, 43.25));
+  }
+  // The count again: one square for every thousand clips.
+  if (t > 36.3 && t < 42.1) {
+    const v = CLIPS * Math.pow(P(t, 36.5, 39.65), 1.25);
+    const n = Math.floor(v / 1000);
+    const o = expo(P(t, 36.35, 36.9)) * (1 - P(t, 41.55, 41.95));
+    const sweep = lerp(-0.3, 1.3, cubicIO(P(t, 40.0, 41.0)));
+    for (let c = 0; c < GRID.cols; c++) for (let r = 0; r < GRID.rows; r++) {
+      const rank = GRID_RANK[c + ',' + r];
+      const x = GRID_X0 + c * GRID.pitch, y = GRID.y0 + (GRID.rows - 1 - r) * GRID.pitch;
+      const u = (c / (GRID.cols - 1)) * 0.7 + (r / (GRID.rows - 1)) * 0.3;
+      const shine = t > 40.0 && t < 41.05 ? Math.exp(-Math.pow((u - sweep) / 0.07, 2)) : 0;
+      if (rank < n) {
+        const fresh = clamp(1 - (n - rank) / 40);
+        const R = Math.round(lerp(lerp(139, 214, fresh), 255, shine * 0.85));
+        const G = Math.round(lerp(lerp(111, 204, fresh), 255, shine * 0.85));
+        g.fillStyle = `rgba(${R},${G},255,${o})`;
+      } else g.fillStyle = `rgba(164,149,255,${0.1 * o})`;
+      g.beginPath(); g.roundRect(x, y, GRID.size, GRID.size, 2.5); g.fill();
+    }
+  }
+}
+
+let LOCK = null; // the name's place: the glyph's centre and size, and the whole lockup's box
+function layoutNight() {
+  const count = $('count');
+  count.innerHTML = countHtml(CLIPS, 1);
+  count.style.fontSize = '296px';
+  count.style.fontSize = Math.min(296, (296 * 1560) / Math.max(1, measure(count))) + 'px';
+  count.style.top = 408 - count.offsetHeight / 2 + 'px';
+  $('clips').textContent = fill(Wd.clips, { year: YEAR }).replace(/\*/g, '');
+  say($('clips'), $('clips').textContent);
+  $('clips').style.fontSize = SCRIPT ? '36px' : '40px';
+  $('clips').style.top = 767 - $('clips').offsetHeight / 2 + 'px';
+  say($('asof'), fill(Wd.asOf, { date: DATE }));
+  $('asof').style.fontSize = SCRIPT ? '28px' : '26px';
+  $('asof').style.top = 826 - $('asof').offsetHeight / 2 + 'px';
+  for (const [id, key, y] of [['safe', 'safe', 258], ['rebuilt', 'rebuilt', 290]]) {
+    const el = $(id);
+    say(el, Wd[key]);
+    el.style.left = '160px';
+    fit(el, SCRIPT ? 84 : 92, 1600, key === 'safe' ? 1 : 2);
+    el.style.width = '1600px';
+    el.style.top = y - el.offsetHeight / 2 + 'px';
+    el.dir = RTL ? 'rtl' : 'ltr';
+  }
+  // The name, centred: the glyph and LangQuest Next.
+  const lock = $('lockup');
+  lock.innerHTML = `${glyphSvg('#f4f2fe', 239)}<div class="mark">LangQuest <span class="acc">Next</span></div>`;
+  lock.querySelector('.mark').style.fontSize = '165px';
+  lock.querySelector('.mark').style.color = '#f4f2fe';
+  const w = lock.offsetWidth, h = lock.offsetHeight;
+  lock.style.left = 960 - w / 2 + 'px';
+  lock.style.top = 540 - h / 2 + 'px';
+  const gr = lock.querySelector('svg').getBoundingClientRect(), lr = lock.getBoundingClientRect();
+  LOCK = { x: 960 - w / 2, y: 540 - h / 2, w, h, k: 239 / GW };
+  LOCK.gx = LOCK.x + (gr.left - lr.left) + gr.width / 2;
+  LOCK.gy = LOCK.y + (gr.top - lr.top) + gr.height / 2;
+  say($('forWhom'), Wd.forWhom);
+  $('forWhom').style.fontSize = SCRIPT ? '28px' : '22px';
+  $('forWhom').style.top = 693 - $('forWhom').offsetHeight / 2 + 'px';
+  // The count again, in the left column, the grid on the right.
+  const oc = $('ocount');
+  oc.innerHTML = countHtml(CLIPS, 1);
+  oc.style.fontSize = '190px';
+  oc.style.fontSize = Math.min(190, (190 * 860) / Math.max(1, measure(oc))) + 'px';
+  oc.style.left = X(140, oc.offsetWidth) + 'px';
+  oc.style.top = 368 - oc.offsetHeight / 2 + 'px';
+  const ol = $('oclips');
+  say(ol, fill(Wd.clips, { year: YEAR }));
+  ol.style.fontSize = SCRIPT ? '36px' : '40px';
+  ol.style.lineHeight = SCRIPT ? '1.45' : '1.2';
+  ol.style.width = '760px';
+  ol.style.textWrap = 'balance';
+  ol.style.left = X(140, 760) + 'px';
+  ol.style.textAlign = RTL ? 'right' : 'left';
+  ol.dir = RTL ? 'rtl' : 'ltr';
+  ol.style.top = '510px';
+  const oa = $('oasof');
+  say(oa, fill(Wd.asOf, { date: DATE }));
+  oa.style.fontSize = SCRIPT ? '26px' : '22px';
+  oa.style.left = X(140, oa.offsetWidth) + 'px';
+  oa.style.top = 510 + ol.offsetHeight + 34 + 'px';
+  const leg = $('olegend');
+  leg.innerHTML = `<span style="display:inline-block;width:16px;height:16px;border-radius:3px;background:#8B6FE8;vertical-align:-1px;margin-${RTL ? 'left' : 'right'}:12px"></span><span>${fill(Wd.square, { one: nf.format(1), n: nf.format(1000) })}</span>`;
+  leg.style.fontSize = SCRIPT ? '26px' : '22px';
+  leg.style.color = 'var(--lilac)';
+  leg.dir = RTL ? 'rtl' : 'ltr';
+  leg.style.left = X(140, leg.offsetWidth) + 'px';
+  leg.style.top = oa.offsetTop + oa.offsetHeight + 22 + 'px';
+  leg._w = [leg];
+  // The end card.
+  const tg = $('tagline');
+  say(tg, Wd.tagline);
+  tg.style.left = '160px';
+  fit(tg, SCRIPT ? 54 : 58, 1600, 1);
+  tg.style.width = '1600px';
+  tg.style.top = 678 - tg.offsetHeight / 2 + 'px';
+  tg.dir = RTL ? 'rtl' : 'ltr';
+  $('url').textContent = 'langquest.org';
+  $('url').style.fontSize = '30px';
+  $('url').style.fontFamily = 'var(--mono)';
+  $('url').style.letterSpacing = '.08em';
+  $('url').style.textTransform = 'none';
+  $('url').style.top = 777 - $('url').offsetHeight / 2 + 'px';
+  $('url')._w = [$('url')];
+  say($('contrib'), Wd.contribution);
+  $('contrib').style.fontSize = SCRIPT ? '26px' : '24px';
+  $('contrib').style.color = '#8f86c8';
+  $('contrib').style.top = 975 - $('contrib').offsetHeight / 2 + 'px';
+  for (const el of [$('count'), $('ocount')]) el._w = [el];
+}
+function measure(el) { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect().width; }
+
+function seekNight(t) {
+  drawNight(t);
+  // The count (0-4.9).
+  const count = $('count');
+  show(count, t < 5.0);
+  if (t < 5.0) {
+    count.innerHTML = countHtml(CLIPS * Math.pow(P(t, 0.15, 1.95), 1.6), expo(P(t, 1.95, 2.3)));
+    count._w = [count];
+    land(count, t, 0.0, { dur: 0.5, out: 4.95, outDur: 0.45, blur: 8, rise: 10 });
+  }
+  show($('clips'), t > 0.9 && t < 5.0); land($('clips'), t, 1.0, { out: 4.95, outDur: 0.4, stagger: 0.04 });
+  show($('asof'), t > 1.4 && t < 5.0); land($('asof'), t, 1.5, { out: 4.95, outDur: 0.4, stagger: 0.04 });
+  show($('safe'), t > 4.95 && t < 8.05); land($('safe'), t, 5.0, { out: 8.0, outDur: 0.35 });
+  show($('rebuilt'), t > 7.95 && t < 12.0); land($('rebuilt'), t, 8.05, { out: 11.95, outDur: 0.4 });
+  // The bars rise from the ground, gather into the glyph and its check (9.98-12.4), and it takes its place in the name.
+  const lock = $('lockup');
+  const mark = lock.querySelector('.mark');
+  const lockSvg = lock.querySelector('svg');
+  let stage = false;
+  if (t > 9.9 && t < 13.1) {
+    const grow = [9.98, 10.48, 10.98].map((b) => expo(P(t, b, b + 0.42)));
+    const m = cubicIO(P(t, 11.75, 12.3));
+    const c = cubicIO(P(t, 12.0, 12.42));
+    const toCentre = cubicIO(P(t, 11.75, 12.3));
+    const toName = cubicIO(P(t, 12.5, 13.05));
+    const k0 = 0.477;
+    const cx = lerp(960, LOCK.gx, toName);
+    const cy = lerp(lerp(HORIZON - (760 - GY) * k0, 540, toCentre), LOCK.gy, toName);
+    const k = lerp(k0, LOCK.k, toName);
+    stageGlyph(true, cx, cy, k, grow, m, c);
+    stage = true;
+  }
+  // The end: bars on a line, then the name, its line, the address and who made it.
+  if (t > 41.95 && t < 43.25) {
+    const grow = [42.1, 42.3, 42.5].map((b) => expo(P(t, b, b + 0.35)));
+    const m = cubicIO(P(t, 42.75, 43.1));
+    const c = cubicIO(P(t, 42.85, 43.2));
+    const lift = cubicIO(P(t, 42.75, 43.2));
+    const k0 = 0.2;
+    const k = lerp(k0, LOCK.k, lift);
+    const cx = lerp(960, LOCK.gx, lift);
+    const cy = lerp(560 - (760 - GY) * k0, LOCK.gy - 108, lift);
+    stageGlyph(true, cx, cy, k, grow, m, c);
+    stage = true;
+  }
+  if (!stage) stageGlyph(false);
+  const nameOn = (t >= 13.05 && t < 15.7) || t >= 43.2;
+  const wordOn = (t >= 12.55 && t < 15.7) || t >= 42.95;
+  show(lock, wordOn);
+  if (wordOn) {
+    lockSvg.style.opacity = nameOn ? 1 : 0;
+    // The name comes in behind the glyph as it moves over.
+    const t0 = t < 20 ? 12.78 : 43.0;
+    const e = expo(P(t, t0, t0 + 0.75));
+    mark.style.opacity = clamp((t - t0) / 0.3).toFixed(3);
+    mark.style.filter = e < 0.995 ? `blur(${(16 * (1 - e)).toFixed(2)}px)` : 'none';
+    mark.style.transform = `translateX(${(60 * (1 - e)).toFixed(2)}px)`;
+    // To the corner as the day comes up (15.0-15.55).
+    let tf = '';
+    if (t < 20) {
+      const f = cubicIO(P(t, 15.0, 15.55));
+      const sigma = lerp(1, MINI, f);
+      const mini = { x: RTL ? 1920 - 76 - LOCK.w * MINI : 76, y: 73 - (LOCK.h * MINI) / 2 };
+      const dx = lerp(0, mini.x - LOCK.x, f), dy = lerp(0, mini.y - LOCK.y, f);
+      tf = `translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px) scale(${sigma.toFixed(4)})`;
+    } else tf = 'translateY(-108px)';
+    lock.style.transform = tf;
+  }
+  show($('forWhom'), t > 13.2 && t < 15.2); land($('forWhom'), t, 13.35, { out: 15.05, outDur: 0.3, stagger: 0.03 });
+  // The count again (36.4-42).
+  const oc = $('ocount');
+  show(oc, t > 36.3 && t < 42.0);
+  if (t > 36.3 && t < 42.0) {
+    oc.innerHTML = countHtml(CLIPS * Math.pow(P(t, 36.5, 39.65), 1.25), expo(P(t, 39.65, 40.0)));
+    land(oc, t, 36.4, { dur: 0.6, out: 41.95, outDur: 0.4, blur: 10, rise: 18 });
+  }
+  for (const [id, t0] of [['oclips', 36.7], ['oasof', 37.0], ['olegend', 37.3]]) {
+    show($(id), t > t0 - 0.05 && t < 42.0);
+    land($(id), t, t0, { out: 41.95, outDur: 0.4, stagger: 0.035 });
+  }
+  show($('tagline'), t > 43.5); land($('tagline'), t, 43.6);
+  show($('url'), t > 44.0); land($('url'), t, 44.1, { rise: 18 });
+  show($('contrib'), t > 44.4); land($('contrib'), t, 44.5, { rise: 14, stagger: 0.03 });
+}
+
+// ---- the whole --------------------------------------------------------------------------------
+function seek(t) {
+  pending.length = 0;
+  const night = $('night'), day = $('day');
+  const dayOn = t >= 15.2 && t < 36.4;
+  show(day, dayOn);
+  // The day comes up from the bottom (15.2-15.65), and the night comes back down over it (36.0-36.4), a line of light
+  // at the edge.
+  const up = cubicIO(P(t, 15.2, 15.65)), down = cubicIO(P(t, 36.0, 36.4));
+  if (dayOn) {
+    day.style.clipPath = up < 1 ? `inset(${((1 - up) * 100).toFixed(3)}% 0 0 0)` : 'none';
+    day.style.filter = down > 0 ? `blur(${(8 * down).toFixed(2)}px)` : 'none';
+    seekDay(t);
+  }
+  const nightOn = t < 15.66 || t >= 36.0;
+  show(night, nightOn);
+  night.style.zIndex = t >= 36.0 ? 2 : 0;
+  day.style.zIndex = 1;
+  night.style.clipPath = t >= 36.0 && down < 1 ? `inset(0 0 ${((1 - down) * 100).toFixed(3)}% 0)` : 'none';
+  if (nightOn) seekNight(t);
+  const edge = $('edge');
+  const wiping = (t > 15.2 && up < 1) || (t > 36.0 && down < 1);
+  show(edge, wiping);
+  if (wiping) edge.style.top = (t < 20 ? (1 - up) * 1080 : down * 1080).toFixed(2) + 'px';
+}
+
+window.__ready = (async () => {
+  // Every face before anything is measured: a face no element has used yet is not loaded by then, and the
+  // headlines would be fitted in the fallback's widths (an Amharic headline of two lines drawn in three).
+  await Promise.all([...document.fonts].map((f) => f.load()));
+  await document.fonts.ready;
+  layoutActs();
+  buildInk($('inkA'), false);
+  buildInk($('inkB'), true);
+  layoutInk($('inkA'));
+  layoutInk($('inkB'));
+  layoutNight();
+  return true;
+})();
+window.__seek = async (t) => {
+  await window.__ready;
+  seek(t);
+  await Promise.all(pending);
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+};
+</script>
+</body>
+</html>

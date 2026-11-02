@@ -109,10 +109,10 @@ Steps:
 6. Tap the check, "Done".
 
 Expected:
-- After step 1 the button turns to a stop button (accessibility label "Stop recording"), and the recording view's title reads "Part 1". The Undo and Redo arrows left of the red button are out of the way while it records (decision 133).
+- After step 1 the button turns to a stop button (accessibility label "Stop recording"), and the red recording view opens with no part named at its top (decision 124, amended 2026-11-01). The Undo and Redo arrows left of the red button are out of the way while it records (decision 133).
 - The lit card reads "Listening for you · pause between parts" while silent, and "Recording…" with a moving level meter while speaking.
 - Each pause ends a part. Within 2 seconds of each pause the card above counts it: "Part 1", then "Parts 1–2", then "Parts 1–3", and the lit card moves to the next part number.
-- After step 5 the session is still open (decision 129): the pane says "Stopped", the waveform shows the three parts boxed and numbered, the title reads "Part 4", the button reads "Record", and the footer has no "Done" (the recording view's check is the only one).
+- After step 5 the session is still open (decision 129): the pane says "Stopped", the waveform shows the three parts boxed and numbered 1, 2 and 3, its status reads "3 parts so far" to a screen reader, the button reads "Record", and the footer has no "Done" (the recording view's check is the only one).
 - After step 6 the card reads "Parts 1–3" with "3 parts · 0:1x" (about 11 seconds in total), and the footer reads "Part 4" in grey.
 - The footer's "Done" is enabled.
 - The saved mark in the header ends on its check ("Saved") once the parts are kept.
@@ -123,6 +123,8 @@ Expected:
 Decided (2026-10-13), the docs were stale: decision 71's amendment of 2026-10-08 ("the recording workspace, Publish, the study and microphone setup now follow the agreed images") makes the lit part card and its meter the agreed recording view; the full-screen voice-detection panel (`VadPanel`) is back translation's. This test checks the lit card and the meter.
 
 Changed (2026-10-16, decision 124): while recording, the pane below the divider is the red recording view (`RecordingView.tsx`) in the workspace and in back translation alike: its top row names the part being said ("Part 2", with its verses when it fills a place), the time and a check, Done; the live waveform fills the rest. Its label reads "Part 2. Recording…" or "Part 2. Listening for you · pause between parts"; the parts card returns when recording stops.
+
+Changed (2026-11-01, decision 124 amended): the recording view's top row names no part. After Stop it named the next part to record ("Part 2" over the box numbered 1), so it read as the wrong number. The top row now says how the recording stands (recording, listening, stopped) beside the time and Done, and the boxes carry the numbers. Screen readers hear "Listening for you. 3 parts so far", and the tests count parts from that while the card is away.
 
 Changed (2026-10-16, decision 129): Stop no longer ends the session. Its parts stay boxes on the waveform, to hear, move or drop (REC-053), and are cut and saved, in order, when the session is left: Done, leaving the screen, or on a phone the next launch after a crash.
 
@@ -1008,6 +1010,51 @@ Expected:
 - After step 2 the card is open, whatever the split, with the first new part in view. The two new parts are Parts 2 and 3, faintly red-shaded until the next recording, with no verses; the parts around them keep theirs. Undo's label reads "Undo: New recording".
 - Step 3 takes both new parts back in one tap; step 4 puts both back.
 - A part said between two pieces of one verse is labelled as more of that verse, so the piece after it keeps its verse.
+
+### REC-057 The silence switch boxes the pauses between parts and keeps them as parts
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- Luke 12:35-48, called P-S below, is not started (a world of its own on the web, `06-recording-silence.spec.ts`).
+
+Steps:
+1. Open P-S and tap "Record" (or the Record step row).
+2. Tap the red button, then the switch right of it (a flat line in a dashed box, "Silence as parts").
+3. Speak for 3 seconds, pause, twice.
+4. Tap the red button ("Stop recording").
+5. Tap the switch, then tap it again.
+6. Tap the dashed box between the two parts.
+7. Tap the check, "Done".
+
+Expected:
+- While a session is open the switch sits right of the red button, where Done is once it is left; it is off the first time, and the phone or browser keeps it as it was left (decision 194).
+- After step 3 the pause between the parts has a dashed box with its number in an outlined pill, 2, and the second part is 3. The pause after the last part grows, numbered 4, until something is said.
+- After step 4 the boxes are 1, 2 (dashed) and 3; nothing grows after the last part, and the dashed box has no handles (its × is REC-058).
+- Step 5 takes the dashed box away (the parts are 1 and 2), then brings it back.
+- Step 6 plays the pause, as recorded, never turned up.
+- After step 7 the card reads "Parts 1–3" with "3 parts"; Part 2 is the pause, its bars flat.
+
+### REC-058 Stopped, any box can go, a box stretches over a dropped one, and a + adds a box
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- Luke 12:49-59, called P-T below, is not started (the silence switch's world on the web, `06-recording-silence.spec.ts`).
+
+Steps:
+1. Open P-T and tap "Record". Tap the red button, speak for 3 seconds and pause for 2, three times, then tap the red button ("Stop recording").
+2. Turn the silence switch on, then tap the × on the dashed box between Parts 1 and 3.
+3. Turn the switch off. Tap the × on Part 2.
+4. Tap the + in the room where Part 2 was.
+5. Tap the × on Part 2 again, then drag Part 1's right edge to the right, past where Part 2 was.
+6. Tap the check, "Done".
+
+Expected:
+- The first time a phone stops a session, two fingertips spread apart over the waveform twice, then go (pinch to bring it nearer); a touch ends them early. The web shows none.
+- After step 2 the pause goes alone: the boxes are 1, 2 (the second part), 3 (dashed) and 4. Turning the switch on again later boxes every pause again.
+- With the switch off, a + sits in each stretch of room that no box covers and that is wide enough on screen (pinch nearer for a narrow one), on the row of the ×s; with the switch on there is none.
+- After step 3 Part 2's room is free and has a +. Step 4 boxes that room as Part 2, in its old place; it is a part like any said (with the switch on, the pauses either side of it are boxed).
+- In step 5 Part 1's edge passes over the dropped part's sound and stops at Part 3's edge: boxes never overlap.
+- After step 6 the card reads "Parts 1–2" with "2 parts"; Part 1 holds the sound it was stretched over.
 
 ## Microphone setup
 

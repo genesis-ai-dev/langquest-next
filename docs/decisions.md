@@ -2633,6 +2633,11 @@ language keeps its own overrides on top of a shared template instead.
 Amended (2026-10-09, Caleb Koster): decision 80 puts the numbering first, for the whole Bible, and replaces the warning that recordings on old pieces "will no longer show": expired sections that overlap current ones stay reachable under "Earlier sections".
 
 Amended (2026-10-12, Caleb Koster): decision 93 drops the choice of what the books a way leaves out get when the template is made (they wait, and are divided from the map), adds dividing a book your own way, and has naming a book offer what the language's Bibles and the organization's other languages call it.
+
+Amended (2026-10-30, Caleb Koster): a language's names for the books can
+also come whole from a library set of book names in one language
+(`v1.BookNamesSelected`, decision 193); a book's own `v1.BookNameSet` stays
+on top of it.
 ## 75. Nobody is added without joining, nobody grants more than they hold, and one id names one event
 
 Date: 2026-10-09 · By: Carl Sauder · Status: accepted
@@ -2950,6 +2955,16 @@ Reverse if: teams need one section made of two separate ranges (Daniel
 3:19–23 with 3:91–97) often enough; then a section holds a list of ranges,
 and every reader of a section's verses learns to read one.
 
+Amended (2026-10-30, Caleb Koster): the quiz was easy to miss, at the
+bottom of the page under every Bible. Before any Bible, a page now shows
+why the numbering is asked (Malachi 4:1 in an English Bible is Malachi
+3:19 in a Hebrew Bible), and the next page offers the three ways side by
+side: pick your Bible, take the quiz, or choose the numbering (LAN-193,
+Caleb). "Choose another" and the numbering's chip go back to the three
+ways. A numbering that other languages here use ("Like most English
+Bibles · Used in Alpha") leads those three ways, one tap from done, as it
+had led the Bibles before.
+
 ## 81. The app's words come from catalogs in the app, in the language chosen on the device or the phone's; English is the source
 
 Date: 2026-10-09 · By: Caleb Koster · Status: accepted
@@ -3221,6 +3236,12 @@ template is picked before the team's languages are asked (Caleb's setup
 order). LangQuest's own flows and templates say no language until the
 library seed gives them one.
 
+
+Amended (2026-10-30, Caleb Koster): New language now asks the team's
+languages right after the language's name (decision 193), so template
+choices in New language and Get ready are narrowed as flows are: templates
+in the team's languages or saying none, and the one in use, the rest one
+tap away.
 ## 85. The passage list pages, picks passages by id, and includes any part of one passage
 
 Date: 2026-10-12 · By: Carl Sauder · Status: accepted
@@ -3812,6 +3833,23 @@ last. It is the service role's append, which no grant rule stops, so the
 organization may be left with no admin. The language, its work and its
 audio stay, and the memberships can be given again. It refuses a copy the
 import still keeps up to date.
+
+Amended (2026-10-29, Caleb Koster): work from a v2 phone that was offline
+for weeks waits for its audio, and audio that reaches v2 late still comes
+over. A partner asked whether work made offline for weeks comes over. Two
+waits of a week were counted from the wrong moment. A version waited for
+its files a week from the asset's `created_at`, which is the phone's clock
+when it recorded, so for a phone back after three weeks the wait was over
+before its rows reached v2, and a version came over without the parts
+whose audio was still going up, then again with them. And a file the
+import missed was never asked for after a week, even once v2 had it, so
+audio a phone sent more than a week after its rows never came over. Now
+the wait counts from the segment's `uploaded_at` (v2's server clock, set
+when the row arrives), and a missed file is asked for again once v2's
+`audio_uploaded_at` for it is later than the miss: on the pass that sees
+it arrive, and by every whole read until it is copied (`looksFor`). Only
+files v2 says it has are asked for again, so the 15-minute pass does not
+go back to asking for the 10,000 absent ones (amended 2026-10-20).
 
 ## 95. The app's UI tests run on Maestro on phones and Playwright on the web; Jev stays for journeys judged by outcome
 
@@ -5129,6 +5167,17 @@ Amended (2026-10-16, Caleb Koster): one part is deleted by sliding its row
 aside and tapping the bin it shows; the rows have no bin of their own
 (decision 136).
 
+Amended (2026-11-01, Caleb Koster): the recording view's top row names no
+part. It showed the number of the part to be recorded next, so after Stop it
+read "Part 2" over the one box numbered 1, and "Part 3" while Part 2 was said
+again; the tutorial frame check held three videos for it. Caleb chose to drop
+the title rather than make it name the parts just said: the boxes on the
+waveform are numbered, and that is enough. The row keeps the status
+(recording, listening, stopped), a deleted part's verses when one is filled,
+the time and Done; screen readers hear the status with how many parts are
+kept so far. In back translation the source part stays named above, on its
+player.
+
 ## 125. Parts split by the room and the voice the microphone hears, nothing said is thrown away, and there is no microphone setup
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -5343,6 +5392,29 @@ Reverse if: people lose parts by leaving a stopped session open (the app
 killed in the background on a phone without its journal entry), the 2 s of
 room is too little to reach a cut-off word, or the web's in-page session
 loses work people expected kept.
+
+Amended (2026-10-30, Caleb Koster): with the silence switch on (194) a
+chunk stays open through every pause until the microphone stops (a stop, or
+the source playing), so the room between parts is written whole and kept
+as parts of its own. Off, chunks open and close as above.
+
+Amended (2026-10-30, Caleb Koster; LAN-199): Caleb asked that a box stretch
+over a neighbour whose box was dropped, and that a box be added between
+boxes or either side of them. Both need the room between parts, so with the
+silence switch off a chunk now also stays open through a pause, up to 30 s
+after the last part ended (`ROOM_KEPT_MS`, `keepRoomNow` in
+`livePartsModel.ts`); past that the app turns the module's `keepRoom` off
+and the chunk closes, so a phone left listening does not write the room for
+ever. That is no native change. Storage grows with speech plus at most 30 s
+of room a pause (about 2.6 MB as a WAV). A box's edge moves over a dropped
+part's sound up to the next box, never into it. Stopped, with the switch
+off, a + in room no box covers adds a box over that room (`liveGaps`,
+`liveAdd`): a part like any said, journalled like one, placed in the
+passage right after the part before it in time (or right before the part
+after it), and filling a dropped part's free place there. The first time a
+phone stops a session, two fingertips spread over the waveform to show the
+pinch (`usePinchHint.ts`). A store build from before 194 ignores
+`keepRoom`, so its boxes still reach only the 2 s of room.
 
 ## 130. Each step says what is on the screen of whoever does it, the recording too, with hearing and reading apart
 
@@ -5881,6 +5953,25 @@ Reverse if: people expect Back on a tab's page to leave the app, as before,
 or find stepping back through a long task slower than they want (✕ still
 leaves it at once).
 
+Amended (2026-10-28, Caleb Koster): iOS follows the same rule as far as a
+swipe can. While a step registered with `useHardwareBack` is open, the
+screen's back swipe is off (`useSwipeBackOff`, iOS only), so only the
+header's arrow goes back, one step, and no swipe pops the screen past its
+steps. Task screens (`TASK_SCREENS` in `shell/chromeModel.ts`: recording,
+back translation, reviewing, a study, Get ready, New language, Ask someone)
+take the swipe only from the screen's edge, so a drag on a waveform or a
+slider is never a Back. From the UI audit Caleb asked to have fixed
+(findings 4 and 16).
+
+Amended (2026-10-28, Caleb Koster): two ✕s no longer leave at once,
+because what they leave cannot be had again. New language's ✕ (and Back on
+its first step) asks "Leave without adding ‹language›?" once a name or an
+answer is in, with Keep going first (`org.tsx`, finding 45). The sign-in
+code page for someone with no email asks "Leave the code?" before its Back
+or Android's Back throws away a code nobody has scanned, since the code
+cannot be shown again; Done, which says they have it, leaves at once
+(finding 96). Every other ✕ still leaves a task at once.
+
 ## 138. One name for each thing on a language's page: its pick under each, the others and the organization's shelf behind it, and no More
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -6173,6 +6264,17 @@ Amended (2026-10-24, Caleb Koster): ffmpeg joins psql as the image's system
 packages, for the v2 import's conversion of MP3 and WebM to M4A (94). Built
 locally, the image grows from about 320 MB to 710 MB; with half a CPU it
 converts a 20-minute chapter in about 27 seconds.
+
+Amended (2026-10-28, Caleb Koster): the tutorial videos are filmed each
+night in GitHub Actions (`.github/workflows/tutorials.yml`, 183), a
+scheduled workflow, which this entry keeps from production jobs. It is not
+one: it holds the Gemini key and the repository's own token, no production
+key, and writes only to the repository's public `tutorials` release, from
+which the job container's `tutorial-intake` takes the films into R2.
+Filming needs the local stack and a browser, which a runner has and the
+job container does not, and a late or dropped run only leaves the videos as
+they were a day longer. `scripts/workflows.test.ts` lists it among the
+scheduled workflows.
 
 ## 142. The projection pass stores what each language's report is made from, and the dashboard renders reports from it without folding
 
@@ -6491,9 +6593,33 @@ Reverse if: people need to send feedback before they can sign in (a report
 that sign-in itself fails would wait); that needs a way in without an
 account, which 112 turned down for diagnostics.
 
+Amended (2026-10-30, Caleb Koster; LAN-198): Caleb asked to attach a
+separate picture or video to feedback, and chose pictures now, videos later.
+The sheet has "Add a picture" (`feedback/pictureFile.ts`) on Android and
+the web: one image chosen through the phone's own file picker
+(`File.pickFileAsync` in expo-file-system, already in every build;
+Android's document picker lists the phone's photos), or the browser's file
+chooser. The app sees only that file and asks for no permission.
+It goes as a JPEG of at most 1600 px on its longer side and 1 MB: a JPEG
+that already fits goes as it is; on a phone anything else is shown on the
+sheet and taken from there with react-native-view-shot, and the web draws
+it on a canvas. It waits beside the report like the screenshot
+(`<id>-picture.jpg`) and is kept in its own column, `diag.feedback.picture`,
+read through `diag.feedback_picture()` (migration
+`20261030173000_feedback_picture.sql`; `feedback_submit` gains
+`p_picture`, sent only when there is one). No store build: nothing native
+changes, so phones get it with an update. Stores: no change may force a
+new store declaration, so the answers stay as they are. Google Play
+already declares Photos (optional, App functionality), so Android offers
+the picture. On an iPhone this is the person's own photo, not a picture of
+the app, so Apple's App Privacy would need Photos or Videos (User
+Content); iPhones do not offer Add a picture (`canChoosePicture`) until
+Caleb decides to add that answer. Videos, and an iPhone picker that opens
+the Photos app, need a store build and come later.
+
 ## 146. New language shows its six steps first, asks for reference material before the review flow, sets its checks up on their own pages, and its invite can put people on checks
 
-Date: 2026-10-20 · By: Caleb Koster · Status: accepted
+Date: 2026-10-20 · By: Caleb Koster · Status: partly superseded by 193
 
 Reason: Caleb (2026-10-19): New language felt like an endless set of steps
 with no idea of what comes next; its custom review setup still had a switch
@@ -6558,6 +6684,36 @@ opens, which is what counts the language as ready).
 Reverse if: admins skip the overview so often it is only in the way, or
 teams need checks set up before reference material is known; then the order
 can change without touching the draft, which works for any step order.
+
+Amended (2026-10-30, Caleb Koster): Reference material lists Bible Brain's
+Bibles in the team's languages too, after the library's and unticked, so it
+holds every Bible the language page counted (decision 84, amended
+2026-10-19); Caleb asked that it show "all translations available in
+biblebrain" (LAN-194). One that is ticked becomes a library item as Add a
+Bible makes it (`addBibleBrainSource`), when the language is added; one
+that cannot be added then is named, like any offer. The same day: the web
+had shown one Bible of many on that page in a browser that cannot save
+files (Safari before 26, a private window), because loading library
+documents stopped at the first it could not save. Fetched documents now
+stay in memory when saving fails.
+
+Amended (2026-10-30, Caleb Koster; LAN-195): inviting is one page. Caleb
+found the role invites confusing (a card per role with its own Invite
+button, then a page for checks, then another for the code) and said yes to
+a drawing of one page. The page opens with Translators picked and their code
+already below, since most invites are for translators; the roles are tiles,
+two to a row, one picked at a time, with "Other roles" for the rest and
+New role first, set apart; what the picked role lets them do is one tap
+open under the tiles; the checks it can be put on are chips under that, and
+the code is made again once the ticks stop changing (`invites/invite.tsx`).
+Share as a link, by email and one person by name are the quiet links under
+Done, for the role picked. The page is the same from Manage, from Members
+and at New language's last step, which now shows the translators' code at
+once. Because the code is made as the page opens, New language counts
+"Invite your translators" as done (an invite was issued, `invitedTo` in
+`admin/ready.tsx`), as Get ready's invite question already did; counting
+only invites someone used is a later change if admins find that wrong. No
+new event or migration.
 
 ## 147. The server cuts each language's snapshot by passage and keeps every passage's line, and a phone's first download fills the passages in behind the Map
 
@@ -7183,6 +7339,16 @@ matter (then show it again after some days), or the In-App Updates question
 is settled, or Google's page stops showing the version (then Android asks
 the phone, with In-App Updates).
 
+Amended (2026-10-28, Caleb Koster): after Keep working, the app no longer
+looks as if the server were at fault. The sync standing has its own
+`tooOld` (`sync/syncStanding.ts`, after a refused account and before
+refused events): the header's cloud turns amber with a down arrow ("Update
+to receive"), and the Sync screen offers Update, which opens the store
+page, where Sync now was. Its words say the person's own work still goes
+out only below the minimum version; a server that refuses the app's
+protocol (LQ001) takes nothing, and it says to update. From the UI audit
+Caleb asked to have fixed (findings 24 and 119).
+
 ## 155. While a new build is in store review, the public build keeps getting every merge as an OTA update from a release branch
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted
@@ -7468,6 +7634,16 @@ Reverse if: toasts that stay longer get in people's way more than they help
 (reports of toasts covering work), or people with reduce motion on miss the
 countdown; then the runner's settings can go and the app's stay.
 
+Amended (2026-10-28, Caleb Koster): a toast that says something went wrong
+(a save refused, a fault with its code) is a problem toast
+(`ctx.toast(message, 'problem')`, `ui/toastModel.ts`): an amber warning
+instead of the green check, no bar, and it stays until closed, so its words
+and the code a person reads out to support are never gone first; a screen
+reader hears it as an alert. While a sheet is open, the sheet on top draws
+the toast (`ui/toastLayer.ts`), as one drawn by the screen was hidden under
+it. `test/toastModel.test.ts` fails on a failure toast that is not a
+problem toast. From the UI audit Caleb asked to have fixed (finding 20).
+
 ## 160. Staff see LangQuest's operations on one signed-in page, a Worker of its own that reads diagnostics as diag_reader
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted
@@ -7654,6 +7830,15 @@ declining an organization's blue check request that waits for staff
 `verification_decline`. Granting is a staff call about an organization's
 identity, not a change to its work; revoking stays in the script
 (`npm run org-verification -- revoke`).
+
+Amended (2026-10-29, Caleb Koster): two more kinds, for the feedback on the
+tutorial videos (decision 186): `tutorial-note`, a note about a video or one
+not made yet, recorded as `tutorial_note`; and `tutorial-suggestion`, a
+suggestion Claude made accepted, edited (its text, before a yes or no) or
+rejected (with why), recorded as `suggestion_accepted`, `suggestion_edited`
+or `suggestion_rejected`. They change only that feedback, never an
+organization's work. Accepting a code change also files it in Linear when
+the app Worker has `LINEAR_API_KEY`.
 
 ## 163. A pull request's guardrails run in about the time of its slowest test job, not of its setup
 
@@ -7998,6 +8183,18 @@ Reverse if: people forget their pattern more often than they come back with
 it (then offer a helper's code first), or a locked phone is opened by
 someone it does not belong to (then a larger grid, or a server-held key).
 
+Amended (2026-10-30, Caleb Koster): someone with an account could not join
+another organization or language with it by scanning. Signed in, nothing
+led to the scanner, so people signed out to scan, and Scan's Join made a
+new account with no email (LAN-197). Switch Organization now offers "Scan
+their code" and "Find your organization" (the cards of Join your team)
+above New organization, and Scan, joining as the account signed in, adds it
+to that organization too. Signed out on a phone where people signed out
+before, Scan shows their pictures under "Who is joining?": tap yours, draw
+the pattern, and the invite joins that account; "Someone new" makes a new
+one, and "I already have an account" still signs in with a password first.
+Pictures, never names, as above.
+
 ## 169. An account writes at most 20,000 events or 100 MB dated any one day, a person's stream holds each event once, and a language's member reads only their languages' templates
 
 Date: 2026-10-26 · By: Carl Sauder · Status: accepted
@@ -8144,6 +8341,15 @@ and notepad stay and the icon goes, or the reverse), people lose their codes
 (then a way back through sign-in is needed, which the disguise must not show),
 or typing the code after every permission prompt or share drives people to
 turn it off (then leaving for a few seconds does not lock).
+
+Amended (2026-10-29, Caleb Koster): no tutorial video, channel trailer,
+YouTube reply or nightly suggestion shows or explains the disguise, or how to
+turn it on or open it. Telling the stores is not teaching the public: a public
+how-to teaches anyone who picks up the phone to see through it. The web app
+the videos are filmed on draws no App icon row (`DisguiseRow.web.tsx`),
+`e2e/tutorials/no-disguise.test.ts` fails on a video that names or lights it,
+and the nightly look at the videos' feedback is refused whole when a reply or
+suggestion names it (`server/tutorialFeedback.ts`, decision 186).
 
 ## 172. FIA's key words are a key-word list per language, picked apart from FIA's guides, shown where a passage links or says them, and every reference list can be searched
 
@@ -8515,3 +8721,1295 @@ to bring it back:
 Reverse if: teams rely on checks being done by someone other than the
 recorder (then a check, or a checkpoint, could say "not by its recorder"),
 or people on teams check their own work instead of asking.
+
+## 179. Clean up runs DeepFilterNet 3 on the phone, and the person hears each part both ways before picking
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-28, thread "Choose voice protection and audio cleanup
+tools") said go on Clean up with "the slider rather than the 3 buttons"
+(his mockups 11 to 20). Decision 176 made the record; this is the tool and
+the screens.
+- **DeepFilterNet 3 on the device, never a server.** Partners record
+  offline for months, so noise removal runs where the part is: an 8.6 MB
+  ONNX model (`models/deepfilter.onnx`, MIT license) in the
+  microphone module beside the speech model, run by the same ONNX Runtime
+  (1.22.0, 135), and served at `/models` on the web, where its code is a
+  chunk of its own that loads when a part is first cleaned. No new
+  dependency. It took a steady hiss from −35 to under −75 dB in our tests.
+- **One arithmetic, three copies.** `deepFilter.ts` (the feature
+  extraction, the model's runs and the resynthesis) is ported line for
+  line to Kotlin and Swift; `test/deepFilter.test.ts` holds the TypeScript,
+  and the Kotlin was checked against it to the bit. A part is cleaned in
+  runs of 10 seconds with 3 seconds to settle and 1 to cross-fade, so a
+  long part never sits in memory whole; the part and its cleaned sound wait
+  in the phone's cache as 48 kHz floats until the sheet closes.
+- **The slider mixes, it does not clean again.** The sound kept is
+  g·recorded + (1 − g)·cleaned with g = 10^(−limit/20): the slider's place p
+  is a limit of 6·8^p dB (6 at Less, 12 where it starts, no limit at More),
+  so moving it costs a mix, not a run of the model. The module hands back
+  per-slice sums, so the two-tone bars (amber noise around the purple voice)
+  follow the slider without reading audio. The note keeps `limitDb`.
+- **Where it is.** The parts card's bin became a ⋯ with Clean up and
+  Delete every part. The sheet offers the parts `mayCleanUp` allows: for one
+  part, the part as recorded and the cleaned sound with Use or Not used;
+  for several, the slider on top and Original or Cleaned for each. The
+  button keeps every pick in one change (core `cleanUpParts`: one draft for
+  all the cleaned sounds) and the undo history keeps each note
+  (`PartsSnap.cleanUps`), so Undo takes the picks back and nothing asks
+  "Are you sure?". A part kept as recorded wears a grey ear saying who
+  tried it and when.
+- **The kept file is a recording's file.** On a phone it is AAC, as parts
+  are (106); a browser has no AAC encoder, so the web keeps WAV.
+- The native code is new, so this ships in a store build, not an OTA
+  update (the runtime is fingerprinted). The iPhone module's podspec moved
+  to the module's root (`expo-module.config.json` `podspecPath`), because
+  CocoaPods does not follow the `ios/models` symlink it used: the phone
+  check on 2026-10-28 found the models bundle empty, in this build and in
+  a dev build from 2026-10-26, so iPhones have most likely split parts by
+  level alone since 135 (the speech model was missing and the module fell
+  back without a word). From this build on, the bundle holds both models.
+Reverse if: cleaning takes longer than people will wait on the phones we
+support (2 GB Android phones, 30 parts in a passage), voices come out
+damaged in languages we did not test, the 8.6 MB matters for downloads, or
+people want a whole book cleaned at once.
+
+## 180. Tutorial videos go on YouTube, one channel per app language, connected once from the ops dashboard; a person's Publish chooses what goes up
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-27 and 2026-10-28, thread "Plan tutorial videos and
+keep them current") chose a YouTube channel for each app language, as
+BibleProject has, one Publish press on the ops dashboard to put new videos
+up, and YouTube's API only, never a browser driven for it. He made the 15
+channels and the OAuth client (`docs/tutorial-videos.md`).
+- **One channel per app language**, made by hand: YouTube's API cannot make
+  one. Their ids are in `server/youtube.ts`. Each is connected once from the
+  dashboard: Google's page asks which channel, and its refresh token goes
+  into Vault (`youtube_refresh_<channel>`), which only the service role reads
+  back. The state Google carries is signed with the OAuth client's secret
+  and names who pressed Connect, so nothing is kept while they are on
+  Google's page and only they can finish, within 15 minutes. A channel that
+  is not one of LangQuest's is refused and its token handed back.
+- **A person chooses what goes up.** Each version filmed is kept in R2 by
+  its hash (`tutorials/<language>/<tutorial>/<sha256>.mp4`, served publicly
+  at `/api/tutorials/…`) and recorded (`ops_tutorial_made`). The dashboard
+  lists each video's newest version not on YouTube, with Watch, and a Global
+  Viewer on an aal2 session chooses which go up (OpsActions, 162). A video
+  changed by mistake never goes public by itself.
+- **The publish job runs in the job container (141)**, started by Publish
+  and at 08:10 UTC each day while chosen videos wait. YouTube allows the
+  project 100 uploads a day for all channels together, and 10,000 units for
+  the rest (a video and its playlist place cost about 100), so the first
+  full set of about 705 takes a week. Each video is recorded as up the
+  moment it is, so a later failure never puts it up twice.
+- **YouTube cannot replace a video's file**, so a new version is a new
+  video: it takes the old one's place in its playlist, and the old one is
+  unlisted with a first line linking the new, so its links and comments
+  keep working. A replacement does not notify subscribers.
+- **An upload says what it is**: public, not made for kids, and marked as
+  synthetic media, since the voice is a computer's (177).
+Reverse if: YouTube's limits or review make publishing this way
+impractical, or partners need the videos where YouTube is blocked (then
+next.langquest.org serves the same files).
+
+Amended (2026-10-29, Caleb Koster): each channel has a day's limit of its
+own as well as the project's 100, counted over the last 24 hours and lower
+for a new channel. Caleb's first Publish (242 videos, 2026-10-29) put up 10
+in Arabic and stopped: YouTube said Arabic's channel was at its limit
+(`uploadLimitExceeded`), and the job took that as the project's day. Now
+only that channel waits for the next run and the others go on; the project's
+`quotaExceeded` still stops the run. The job puts up English first, then
+French, as Caleb asked (they matter most), then each other language in turn
+by its place in the plan; it had gone by language code, so Arabic went
+first. A video chosen more than a day ago counts as stuck on the dashboard
+only while its channel has put up nothing in that time, since a hundred a
+day across fifteen channels takes a week by design.
+
+Amended (2026-10-30, Caleb Koster): a person's Publish is no longer needed
+for a wide film: the intake chooses it as it takes it in, and the publish
+follows each intake (192). Publish stays for a tall film and for putting a
+video up again.
+
+## 181. A part with lots of background noise wears an orange warning, measured on the device from its loudness and the room between its words
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb's go on Clean up (2026-10-28, 179) took in the warning in his
+mockup 12: a noisy part shows an orange triangle, and a tap shows the noise
+and offers Clean up for that part. The options doc said the line would be
+picked from real recordings, starting near −45 dB.
+- **What counts as noisy.** The room between words, heard as it would be
+  with the part at −16 LUFS (Apple Podcasts' level, Caleb 2026-10-27),
+  louder than −40 dB (`loudnessModel.ts` `NOISY_DB`). Loudness is
+  BS.1770's (K-weighted, gated). The room is the 5th percentile of the
+  part's 25 ms slices, each slice's spread about its own middle so an
+  offset is not taken for noise. On 118 parts of read recordings (FLEURS
+  and LibriVox) cut as the recorder cuts them (140 ms before the first
+  word, 300 ms after the last), it read at most 5.8 dB over the noise in
+  Silero's speech-free stretches (19 parts in 20 at or under it), and
+  about 3 dB under it at the middle.
+  The first try, a tenth of 50 ms slices, read up to 25 dB high in parts
+  with few pauses.
+- **The line.** On the 105 FLEURS parts (Hausa, Yoruba, Vietnamese and
+  Mandarin, read by native speakers outside a studio), −45 dB marked 54 %,
+  −40 marks 26 % and −35 marks 11 %. A warning that says "lots of background
+  noise" should not be on half of everything, so the line is −40. The
+  trial's part 4, whose noise rose to −38 dB when it was turned up, is
+  over it, and a café 5 dB under the voice is −25.
+- **Where it is measured.** On the phone that records a part, from its WAV
+  while it is encoded to AAC (`useRecorder`), kept by the hash of its audio
+  on that phone (`loudnessStore.ts`); the web decodes any part. A phone has
+  no AAC decoder in JavaScript, so on a phone a part recorded elsewhere, or
+  before this change, has no measure and no warning: only a measured part
+  is marked. The measure is never synced or sent. This is JavaScript only,
+  so it reaches the builds that have Clean up (179) as an OTA update.
+- **What it shows.** The triangle sits where the grey ear does. A part kept
+  as recorded shows the ear instead, and a part `mayCleanUp` refuses (a
+  cleaned part) shows neither. The note shows the part's bars, amber around
+  the purple of the voice (each bar with twice the room's power taken out,
+  since the room is read at its quiet end), and "Clean up Part N", which
+  opens 179's sheet for that part alone.
+Reverse if: partners' own parts show the line marks too many or too few,
+people learn to ignore the triangle, or phones need every part measured
+(the player that turns parts up to −16 LUFS will decode AAC on phones, and
+can measure there).
+
+Amended (2026-10-28, Caleb Koster): a phone now measures any part it has,
+AAC included, in the microphone module (182), so a part recorded on
+another device or before this change wears the warning too once the phone
+shows it. That reaches phones with the store build that brings 182.
+
+## 182. Every recording people make plays at −16 LUFS, from a copy made on the device the first time it plays
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb's go on the audio work (2026-10-28, thread "Build audio
+clean up in the app") took in loudness evened on every part by default,
+with no button, at −16 LUFS (Apple Podcasts' level, Caleb 2026-10-27).
+Partners record on different phones, at different distances from the
+mouth, so a reviewer turning the volume up and down between parts is the
+common case.
+- **A copy plays, the recording never changes.** What is uploaded, synced
+  and reviewed stays as it was recorded (or cleaned, 179). The player plays
+  a copy turned by `playGainDb` (`loudnessModel.ts`): −16 minus the part's
+  loudness, never more than 24 dB up (`MAX_BOOST_DB`), since a part that
+  quiet is mostly a phone held far away and turning it up further mostly
+  turns up the room. A part within half a decibel of −16, or a silent one,
+  plays as it is (`levelModel.ts` `needsCopy`). The noise warning (181)
+  now reads the room as the part plays (`roomAsPlayed`), with that cap.
+- **Peaks held at −1 dB.** Turned up whole, a quiet part's loud syllables
+  would clip. A limiter (`levelModel.ts` `limiter`) looks 5 ms ahead and
+  bends the gain down before a peak, so no sample goes over −1 dBFS and the
+  gain never steps, which would click; it comes back over 100 ms. Holding
+  peaks down takes loudness with it (a reading with syllables 20 dB over
+  its loudness came out 2.7 dB short), so the copy is measured as it is
+  made and made again turned up by what it fell short, at most 3 times in
+  all; that reading ends within 1 dB of −16.
+- **Made on the device, the first time it plays.** Nothing is uploaded and
+  no event is written: every device that plays a part makes its own copy,
+  and the measure is kept by the hash of the audio, as 181 keeps it. A
+  phone writes a 16-bit WAV to its cache (`levelCopy.ts`, at most 150 MB,
+  oldest first; the phone may clear it, and a copy is made again when the
+  part next plays). The web keeps a WAV blob in the page's memory (48 MB),
+  since a browser's player cannot turn a sound up and Safari on an iPhone
+  ignores its volume. While one part plays, the next one's copy is made.
+  If a copy cannot be made, the recording itself plays.
+- **The phones run it natively.** A phone's JavaScript is too slow for
+  every sample of a part, so the meter and the limiter are ported line for
+  line to Kotlin and Swift (`Level.kt`, `Level.swift`, in the microphone
+  module); `test/levelModel.test.ts` holds the TypeScript, and both ports
+  were checked against it on seven test recordings (44.1 and 48 kHz, quiet,
+  loud, peaky, short and silent), the same samples to the bit. The module
+  decodes AAC too, so phones now measure parts they did not record (181).
+- **What plays at even loudness**: parts, voice notes and spoken feedback,
+  wherever they play (`levelStore.ts` `playable`), and Clean up's previews
+  and the parts heard while recording, as passing copies of which only the
+  last four are kept. Source audio, reference material, Bible audio and
+  help play as they are: they are mastered by whoever published them. A
+  part streamed from the server plays as it is until it is on the device.
+- The native code is new, so this ships in a store build, not an OTA
+  update.
+Reverse if: people hear the limiter (a pumping or a dulled voice), the
+first play of a long part waits noticeably on the phones we support, or
+partners want parts played as recorded (then a switch in settings, not a
+button on each part).
+
+Amended (2026-10-30, Caleb Koster): a part whose loudness stands less than
+5 dB over its own room (`VOICELESS_DB`) is room alone, a silence kept as a
+part (194) or a voice lost in the room, and plays as recorded: turned up by
+up to 24 dB, it would play its hiss as loud as a voice. Room alone measured
+3.5 dB at most (white, pink and brown noise, mains hum, a fan); speech 6 dB
+over its room, 5.6 dB at least. `Level.kt` and `Level.swift` take the same
+line from `LEVEL`, so this too ships in a store build.
+
+## 183. Tutorial videos are filmed each night on GitHub, only those whose screens changed, and the job container brings them in
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-28, thread "Plan tutorial videos and keep them
+current") asked for the whole pipeline running and chose "GitHub films,
+Cloudflare publishes": the filming runs where the local stack and a browser
+are, with the Gemini key alone, and production's keys stay in production
+(141, amended today).
+- **Only what changed is filmed again.** Each night every video is tried
+  without voice or film, one at a time, on a fresh local stack, and each
+  step's screen is read out as text (Playwright's accessibility tree), once
+  it stops changing and without the toast. With what changes from run to
+  run though the app did not taken out (made-up addresses, sign-in keys,
+  numbers, times, upload status, the order of names in a line and of
+  things side by side: `e2e/tutorials/look.ts`), the steps hash to the
+  video's look. A video is filmed again when its look differs from its last film's,
+  or it has no film. A video that looks changed is tried again, up to twice,
+  and is filmed when two tries agree on the new look or the third still
+  differs. On 2026-10-28, two runs of all 47 English videos read the same for
+  41 before the words were read once steady, without the toast, with things
+  side by side sorted and after a projection pass; with them, 46 of 47 read
+  the same, and the 47th ("Record a passage") read as before on the next two
+  tries. The same day, on main with Clean up, seven videos looked changed
+  (the ⋯ menu that replaced a bin), and two of them read differently on a
+  second try: a part still saving, and a passage heard a moment earlier
+  kept on the device or not yet. Since then a step is read once nothing on
+  it is saving, and the app's words about saving, uploading and keeping on
+  the device are taken out in the film's language (from its catalog); all
+  seven then read the same. Videos for LangQuest staff (the Global Viewer's) are never filmed
+  each night or put on YouTube: the channels are for the public (Caleb,
+  2026-10-28).
+- **The release is the hand-over.** The repository is public, so its
+  `tutorials` release (a pre-release, never the latest) holds each video's
+  newest film in each language, named by its hash; a manifest per language
+  with what YouTube shows (the title, the lines said as the description,
+  the playlist of who it is for: `e2e/tutorials/playlists.ts`) and each
+  film's look; and each language's voice, so a line is paid for once. New
+  films go up before the manifest that names them, older ones come out
+  after (`e2e/tutorials/put-in-release.ts`).
+- **Each description links to the same video in every other language**
+  it is made in (Caleb, 2026-10-28), by a link to the app's Worker,
+  `next.langquest.org/v/<language>/<video>`, which goes on to that video's
+  newest version on YouTube, or to the language's channel while none is up
+  (`ops_tutorial_watch`). A replaced version never leaves stale links
+  behind, and no description is edited after upload, which would cost 50
+  of YouTube's 10,000 daily units for each of up to 690 videos.
+- **The intake job brings them in** (`server/tutorialIntake.ts`, the job
+  container at 13:10 UTC): each film R2 lacks is downloaded, its hash
+  checked, put through the Worker's service-only `PUT /api/tutorials/…`,
+  which R2 checks again, and listed (`ops_tutorial_made`). The dashboard
+  shows it for Publish (180); nothing filmed goes public without a person.
+- **English each night to begin with** (`NIGHTLY_LANGUAGES`); a language
+  joins once its voice can be made (Gemini's batch voice needs the paid
+  tier). The Gemini key reaches GitHub through `npm run secrets --
+  production`, from `.env.production`. Each language's job files a failure
+  in Linear, as the guardrails nightly jobs do.
+Reverse if: the look misses changes people notice in the films, or flags
+changes nobody can see often enough to burden Publish; or the runners
+cannot film reliably (then the job container gets a browser and the stack).
+
+Amended (2026-10-29, Caleb Koster): the tutorial runs moved to the hour when
+the fewest people on earth are at work, as Caleb asked: many of the people
+who use the app are in Nepal, Nigeria, Thailand and India. By population
+and time zone, 23:00 to 00:00 UTC has about 100 million people in working
+hours (9 to 5) out of 7 billion: the Americas' west in the afternoon and
+Australia's morning (India 4:30 AM, Nepal 4:45 AM, Thailand 6 AM, Nigeria
+midnight). The publish run at 08:10 UTC had had about 5.9 billion, and the
+intake at 13:10 UTC about 2.3 billion. The intake now
+runs at 23:10 UTC and the publish job's daily run (180) at 23:40 UTC, on
+YouTube's allowance for that Pacific day; the filming, on GitHub's machines
+and touching nothing live, starts at 20:10 UTC so a night's films are in the
+release by the intake. Every app language is now filmed each night, English
+and French first (Caleb, 2026-10-29: every language is checked for changes
+and the changed videos are filmed on the same night), since the Gemini key
+is on Tier 1, which the batch voice needs. Five languages film at a time,
+each about 50 minutes on a night without new films, so all fifteen finish
+before the intake. A first night for a language, which films every video,
+can finish after the intake; its films then come in the next day. So that
+a line no one has translated yet (a script's new line, or what Ruth says in
+the readings, which no language had) never stops a language, the job has
+Gemini translate it first (`translate-lines.ts`, the same machine
+translation as the committed lines, decision 81) and keeps the file to
+commit. A change to the scripts or to how they are filmed is filmed when it
+is merged into main, rather than at the next 20:10: a fix to the filming
+should not wait a day, or for a person to press Run workflow, since the
+agents that work on the videos cannot start or re-run a workflow.
+
+Amended (2026-10-30, Caleb Koster): the intake no longer waits for 23:10
+UTC: the filming tells the app when each language's films are in, and the
+intake runs then, with the publish after it; the one scheduled intake is at
+five past midnight in California, as YouTube's day begins (192).
+
+Amended (2026-11-01, Caleb Koster): English alone is filmed for now
+(`NIGHTLY_LANGUAGES: en`). The spotlight (decision 191) films every video
+again, and Caleb looks at the English films before the other fourteen
+languages are filmed; they come back, English and French first, when he
+says the English ones look right.
+
+## 184. The publish job keeps each YouTube channel's description, banner and list of the others; held comments are counted on the dashboard and moderated in Studio
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-28, thread "Plan tutorial videos and keep them
+current") asked that each channel be set up in its own language, with its
+own look, a description and links to the other language channels, and that
+inappropriate comments be held for review.
+- **The publish job sets each channel's look** (180, `server/youtube.ts`
+  `brandChannel`): a description in the channel's language with the app's
+  address (`WORDS`, machine translations as the app's catalogs are, 81),
+  the channel's language, a banner with the app's mark and "Tutorial
+  videos" in that language (`apps/mobile/public/youtube`, drawn by
+  `e2e/tutorials/banners.ts`), and the list of the other 14 channels. The
+  channel's other settings are sent back as they were. It runs before any
+  upload, only for a channel whose hash of all of these (`brandOf`)
+  differs from the one last put on it, so it costs about 150 of the day's
+  10,000 units once, and again only when the words or a banner change.
+  The picture is the one thing YouTube's API cannot set; it is set by hand
+  in Studio (`docs/admin.md`).
+- **Held comments are counted, not moderated, on the dashboard.** Each
+  channel holds comments that may be inappropriate (a Studio setting, set
+  by hand). The publish job counts each channel's held comments once a day
+  (up to 500), and the dashboard shows each count linked to that channel's
+  comments in Studio, with a line in Needs attention when any wait.
+  Approving and removing stay in Studio, as moderating stays out of the
+  dashboard (162).
+Reverse if: YouTube's API stops taking a channel's description, language
+or banner; or held comments come often enough that going through Studio
+channel by channel is a burden (then the dashboard approves and removes).
+
+Amended (2026-10-29, Caleb Koster): YouTube refused Hausa's look
+(`brandingValidationError`) with its language and again without it, and
+kept only that code, so nobody could see why. A refused look now goes on
+without the channel's own settings as well (its keywords and country, sent
+back unchanged until now and cleared then), keeping only the description and
+the trailer; one still refused keeps the field YouTube named beside the code
+(`ops.youtube_channels.brand_failed`), never YouTube's message.
+
+## 185. The UI audit's fixes: a screen says what it waits for, asks before what cannot be undone, and opens a thing where the same thing opens elsewhere
+
+Date: 2026-10-28 · By: Caleb Koster · Status: accepted
+
+Reason: a UI audit of the app (127 findings, each reproduced on the web
+export and judged) found screens that said untrue things, did something
+other than what they showed, or threw work away without asking. Caleb
+(2026-10-28): "Please fix all of these issues." Most fixes follow rules
+already recorded (one name per thing, 138; status indicators tell the
+truth; touch targets; no explanatory text, as help on each element); the
+ones below change what a screen does, beyond the partner demo or an
+earlier entry, and are kept on purpose:
+- **Asking before what cannot be undone.** Delete Account's big button is
+  Cancel; "Delete My Account" is a red ghost button that asks once more by
+  name (`public/delete-account.html` says so). The Inbox's report sheet
+  leads with opening what was reported (the version, the review or the
+  passage), and Remove is a red ghost button after it. Looks good asks
+  before sending words that asked for changes. New language's ✕ and the
+  sign-in code page ask before leaving (137 amended).
+- **The same thing opens the same way.** An Inbox request for a check
+  opens the check, as My Work's row does (`work/homeModel.ts`
+  `updateTarget`; flow edges from the Inbox to review and back
+  translation). A request done or withdrawn leaves the Inbox and the bell,
+  on the phone and in the server's Inbox rows (core `settledUpdate`,
+  `server/projectionWorker.ts`). "New in ‹language›" and a language chip on
+  the Map say that they switch the whole app, and a toast says "Now in
+  ‹language›". Someone with a manage role in one language gets that
+  language's map from the Map tab, not a Progress list of one.
+- **Saying what it waits for.** My Work says when the language is not on
+  this phone yet or has no passages, instead of "Nothing is waiting on
+  you". The path draws a check set aside and a checkpoint moved past (with
+  its reason) apart from one that passed, and a step behind a locked
+  checkpoint waits for it. Asking someone without the app saves the
+  request and then offers their message to send yourself, since the app
+  sends nothing. Signing out with work waiting shows it sending and opens
+  Sync to see what waits. One "waiting to send" number everywhere. A failed
+  password change keeps the renamed name and says so.
+- **Notifications are a switch** that turns off as well as on, and when the
+  phone's settings block them it says so and offers the phone's settings.
+- **The sync icon has a glyph per standing** (tick, plain, crossed out,
+  warning, down arrow for too old), not colour alone.
+- **Finding a passage.** A book lists 25 passages at a time with Show
+  more; Filter is in the book's header and the key sits above the chapter
+  tiles; on a phone the sub-line names the language; with a filter on,
+  chapters outside it are grey and open a sheet instead of a passage; each
+  testament's chip counts its matches, and the map opens on the one that
+  has them. "Divide differently" opens the chooser at once and is offered
+  only to those who may write the organization's library (as MAP-023).
+- **Help mode.** On the web, Listen shows only when the browser has a voice
+  for the app's language (`helpContext.ts` `voiceFor`), and the tooltip
+  tells a screen reader that a tap closes it. Fields and primary buttons
+  with the kit's stock help get their own words; a ratchet in
+  `test/helpMode.test.ts` holds the count still left (96) and lets it only
+  fall.
+Not done here: finding 92 (removed content leaves a trace for its author
+and in History) needs new state in core and a reducer version; finding 8
+and 107 (help and questions spoken on phones) wait on Caleb's choice.
+Reverse if: people find the extra asks slow on work they do every day, or
+partners expect the demo's flow where it differs here.
+
+## 186. Claude looks each night at what came in about the tutorial videos and suggests changes; a person accepts, edits or rejects each on the ops dashboard
+
+Date: 2026-10-29 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-29, thread "Plan tutorial videos and keep them
+current") asked for an AI such as Claude to weigh, for each video, every
+input not yet answered (comments on YouTube, code changes, notes the team
+leaves on the ops dashboard) and suggest changes to its screens, script or
+voice, to the app's code (to Linear), or a new video, with the inputs and
+suggestions on the dashboard for a developer to accept, edit or reject. He
+chose GitHub Actions signed in to his Claude plan over a routine in his own
+account, so the system is in the open for the team: any developer can see
+it, and replace the token with their own plan's if his has trouble. Decided:
+- **Inputs and suggestions are rows in `ops`** (migration
+  `20261029120000_tutorial_feedback.sql`): `ops.tutorial_inputs` (a
+  comment, a code change or a note), `ops.tutorial_suggestions` (script,
+  screen, voice, code or new) with the inputs each answers, and one
+  `ops.tutorial_reviews` row per look. Only the service role writes them;
+  the dashboard reads `diag.ops_tutorial_feedback`. An input is open until
+  Claude looks at it, or while a suggestion that answers it waits.
+  Inputs and answered suggestions over a year old are taken out.
+- **The comments job only reads** (`server/tutorialComments.ts`, job
+  container, 23:50 UTC): each connected channel's new comments become
+  inputs. Making sense of them is the look's. It also files in Linear the
+  accepted code changes the Worker could not, 20 a night at most.
+- **The look runs on GitHub Actions on a Claude plan**
+  (`.github/workflows/tutorial-review.yml`, 10:00 UTC):
+  `anthropics/claude-code-action` with `CLAUDE_CODE_OAUTH_TOKEN` from
+  `claude setup-token`, kept encrypted in `.env.production` and set as a
+  repository secret by `npm run secrets`. It uses the plan's five-hour and
+  weekly limits, not an API bill; Caleb chose no cap, as he does not use
+  the plan at that hour. Claude follows the `tutorial-review` skill.
+- **No production key in GitHub.** The workflow reads what is open and
+  sends its look through the app Worker (`/api/tutorial-review`), which
+  lets in only this workflow on main by the OpenID Connect token GitHub
+  signs for the job: issuer, audience, repository, `workflow_ref` and `ref`
+  checked against GitHub's keys (`apps/web/worker/githubOidc.ts`). No
+  shared secret to leak or rotate.
+- **Comments are untrusted.** Anyone can write one, so Claude gets no
+  network, no token and no shell beyond reading git; its one output is a
+  file the Worker checks (`parseReview`, `server/tutorialFeedback.ts`) and
+  the database checks again; and nothing it suggests happens without a
+  person. The replies it writes are shown to copy into Studio, never posted.
+- **Code changes come in through the look**, from the changes merged into
+  main since the last one, and only where a video's words or steps no
+  longer fit; a screen that only looks different is filmed again by the
+  nightly filming (183).
+- **The dashboard decides** (Tutorial videos → Feedback and suggestions;
+  162 amended): Accept, Edit, or Reject with why, which the next look reads
+  before suggesting the same again; Add a note. An accepted code change
+  becomes a Linear issue.
+- **Not yet:** making an accepted script, screen, voice or new-video change
+  is by hand. Building it as a pull request with a preview film is a later
+  change.
+Reverse if: the looks eat into the plan's limits when people need them;
+more suggestions are rejected than accepted for weeks (then keep the
+inputs and drop the suggestions); or GitHub changes what its OIDC tokens
+say.
+
+## 187. Every tutorial video can be downloaded from LangQuest, by a link that lasts and from a page of them all; YouTube's descriptions give both
+
+Date: 2026-10-29 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-29, thread "Plan tutorial videos and keep them
+current") asked that every video be available to download from LangQuest,
+with download links to LangQuest on the videos on YouTube, kept up to date
+along with the videos. The pipeline plan had promised it (real downloads and
+links that never break), and nothing had been built. YouTube offers no file
+to keep: its offline download works in about 125 countries, stays inside the
+YouTube app and needs it to reconnect every 48 hours, and some countries
+block YouTube. Decided:
+- **A lasting download link per video and language**:
+  `next.langquest.org/v/<language>/<video>.mp4`
+  (`apps/web/worker/tutorialVideos.ts` `handleDownload`) goes on to the
+  newest version a person chose with Publish (`ops_tutorial_download`), as a
+  file to keep (`?download` on the R2 file, named
+  `langquest-<video>-<language>.mp4`). While none is chosen, or when the
+  database cannot say, it opens the language's videos page. Like the watch
+  links (decision 183) it is asked about at most every five minutes.
+- **The chosen version, not the uploaded one**: Publish is the person's
+  choice (decision 180); a download follows it at once instead of waiting for
+  YouTube's 100 uploads a day, which takes a week for the first full set. A
+  new version can be downloaded before YouTube has it.
+- **A page of them all**: `next.langquest.org/videos`
+  (`apps/web/worker/videosPage.ts`, `ops_tutorial_list`) in the reader's
+  language (`?lang=`, else the browser's), grouped by who each video is for,
+  each with Download and its size, Play (the file in the phone's own player,
+  so no YouTube is needed) and Watch on YouTube once a version is up. Written
+  by the Worker like the review and connect pages, its words in the 15
+  catalogs of `apps/web/worker/i18n/`; cached five minutes.
+- **YouTube gives both**: each video's description has a download line under
+  the app's address (`e2e/tutorials/playlists.ts` `youtubeText`), and each
+  channel's description links the page (`server/youtube.ts` `channelAbout`),
+  in the channel's language (`WORDS.download`, `WORDS.allVideos`). A
+  description is set when a version is uploaded and never changes after, so
+  the link had to be one that outlives versions. Changing the channel's
+  description changes its look, and the publish job puts it on each channel
+  once.
+- **Nothing in the app changes**: the help mode play button and Me's videos
+  from the pipeline plan are a later change, with the store answers it
+  needs.
+Reverse if: R2's egress stops being free and downloads cost more than they
+help; or the videos move to a host that gives lasting files itself.
+
+## 188. The access-token API gives the server's time of arrival as `uploadedAt`, read from the database's own stamp on each event and file, and LangQuest v2's as `v2UploadedAt`
+
+Date: 2026-10-29 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-29, thread "Give partners server upload times via
+API") said partners need the time LangQuest's server received the content
+and the recording files, through the API. Every time the API gave was a
+phone's clock (`submittedAt`, a review's `at`, `askedAt`, `updatedAt`), so a
+phone that was offline for a week showed last week. The server already had
+the times: the database stamps every event as it is appended
+(`public.events.received_at`, default `now()`, never overwritten, and the
+log refuses UPDATE), and every stored file has a `v1.BlobStored` that only
+the server appends, on its own clock (69). Nothing needed backfilling: both
+hold for everything since the databases were reset (63). Decided:
+- **`uploadedAt` beside the phone's time** on `version` and `versions`
+  (the first publish of the take to arrive), `reviews`, `requests` and
+  `releases`, from `received_times` (migration
+  `20261029160000_received_times.sql`, service role only). It reads one
+  stream's rows through the indexes the log has: `events_type_idx` for a
+  take's `v1.TakeSubmitted`, `events_entity_idx` for a review or request,
+  the id for a release. No index is added, since one would lock the log
+  while it builds (161).
+- **A file's `uploadedAt`** on `audio`, `approvedAudio` and a review's
+  `voiceNotes` is its `v1.BlobStored`, already in the language's records,
+  so files cost no lookup. It is null while the server holds no good copy,
+  which is honest about a version published before its parts finished
+  uploading.
+- **Asked once a page and remembered.** `apps/web/worker/agent/view.ts`
+  builds each item with `uploadedAt: null` and stamps the page with one
+  question (`Receipts`). The organization's object keeps the answers
+  (`RECEIPTS_KEPT` in `agent/org.ts`): a stamp never changes, so a partner
+  reading the same passages again costs the database nothing. A failed
+  lookup fails a read (502, try again) rather than answer null, and a
+  write's read-back answers `passage: null` rather than an error a client
+  would retry.
+- **Not in core.** The stamp stays out of the fold: a phone's pending
+  event has none, and one event carrying two values would break the
+  fold's idempotence and order-independence (PLAN.md section 4).
+- **v2's own server time too, as `v2UploadedAt`.** Caleb, the same day:
+  "the time that content was uploaded to the v2 db shouldn't be lost, but
+  we should also capture when info was brought into next ... This is for
+  billing purposes so the partners know how much to pay their
+  translators." For work the import brought over, `uploadedAt` is when
+  the import appended it, and v2's `created_at`, which becomes
+  `submittedAt`, is a phone's. v2's server stamped each segment and vote
+  as it arrived (`uploaded_at`) and each segment's audio
+  (`audio_uploaded_at`). The import keeps those stamps in
+  `v2_import.stamps`, by language and by the key the API asks, before it
+  appends the events they are about, and again when they change
+  (`Fact.stamps` and the ledger's `stamped` in
+  `packages/v2-import/src/reconcile.ts`). The first whole read after this
+  merges (03:15 UTC) keeps them for work that came over before. They stay
+  beside the log, not in it: they are v2's record, not something anyone
+  did here, and a pass may correct one. Retiring the import, which drops
+  the `v2_import` schema (94), must keep this table. The API gives `v2UploadedAt` on a file (when v2
+  had its audio), a review (its newest vote's stamp) and a version (the
+  newest stamp on its parts' segments and audio: when v2 had all of it),
+  and null for work made in Next or where v2 has no stamp. The Worker asks
+  for them only for work the import made (its clock names the import's
+  device) and asks again after a while for one not kept yet
+  (`V2_RECHECK_MS` in `agent/org.ts`).
+Rejected: R2's own object dates, since an upload is an idempotent overwrite
+(a phone's retry moves it) and the copy into R2 on 2026-10-07 reset them;
+a `receivedSince` filter on the passage list, which the change feed (101)
+already answers in the order LangQuest received things; and v2's stamps in
+the log as a new event type, which every phone would fold for a value only
+partners read.
+Reverse if: a language's `v1.TakeSubmitted` scan shows in the database's
+statement times (then a partial index on the take id, built concurrently);
+or partners need the stamp in the change feed or webhooks too.
+
+## 189. Each YouTube channel's trailer is a 48-second film of today's app in its language, made each night when it changes, and the publish job sets it
+
+Date: 2026-10-29 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-29, thread "Plan tutorial videos and keep them
+current") asked for the team film "From the ground up" to be made again with
+today's screens, in each app language, as each channel's landing video, and
+for its count to say over a million. Decided:
+- **Made from the app, as the videos are** (`e2e/tutorials/trailer/`): a
+  capture opens the app in the film's language as the UI tests do and keeps
+  Chrome's screencast frames with when each moment starts and where its parts
+  are; a page draws every frame from the time alone, on the original's
+  timeline and score, cropping those frames into cards; Chromium renders it,
+  four moments to a frame for motion blur. No editor and no hand-made screens,
+  so the film stays true as the app changes, and the fifteen languages are
+  one script.
+- **Its own words** (`words.json`): nineteen lines in the fifteen app
+  languages. The count is a round number passed, "1,000,000+" as of
+  2026-10-29 (`CLIPS`, `AS_OF` in `trailer.ts`).
+- **Made again only when it changed** (decision 183): its look is the words
+  of the seven screens it shows, made steady by `look.ts`, with its page,
+  renderer, capture, score and words; a new look is captured again and made
+  when it holds. It goes into the release and the manifest as the video
+  `trailer`, so the intake, Publish, the downloads and the links to the other
+  languages take it as they take a video.
+- **The channel's trailer**: once it is up, the publish job puts it first in
+  the playlist for everyone and sets it as the trailer for people who have
+  not subscribed (`brandingSettings.channel.unsubscribedTrailer`,
+  `server/youtube.ts` `brandChannel`), keeping the channel's other settings.
+  A channel's look (decision 184) includes its trailer once one is up
+  (`ops_youtube_channels` says which video the newest became), so a trailer
+  that could not be set at once is set on the next run. It goes up without YouTube's "altered or synthetic" label, which the videos
+  carry for their made voices: the trailer has no voice, only the score and
+  the app's own screens.
+- **The original's score** (`score.m4a`, 48 seconds, copied without
+  encoding it again): the film's timing is built on its beats.
+Reverse if: YouTube drops channel trailers or the API's setting for them; or
+the trailer's look changes most nights without the app changing, which would
+spend a channel's uploads.
+
+## 190. A workflow says what only a person can fix in an annotation titled "Needs you", and the ops dashboard lists it under Needs attention
+
+Date: 2026-10-29 · By: Caleb Koster · Status: accepted
+
+Reason: on 2026-10-29 Gemini's prepaid credit ran out partway through the
+first filming of the tutorial videos in all fifteen languages. The ops
+dashboard said only that the "tutorials" workflow failed, and Caleb found out
+from Claude hours later. He asked (thread "Plan tutorial videos and keep them
+current") that a problem like the Gemini billing account, or the Claude token
+missing, show on the ops dashboard. Decided:
+- **The workflow names the problem**: a script that gets a refusal only a
+  person can fix writes it down (`e2e/tutorials/needs-you.mjs`: Gemini's 402
+  or "prepayment credits are depleted", a key refused or missing), and the
+  job's last step says each once as an error annotation titled "Needs you:
+  <what>", its message ending with the page that fixes it.
+  `tutorial-review.yml` does the same for a Claude token that is missing, or
+  that Claude's own answer says was refused. A refusal is said only when the
+  answer says it; anything else stays a plain failure.
+- **The dashboard reads it from GitHub** (`apps/admin/src/sources/github.ts`):
+  for the latest failed run of each workflow on `main`, the annotations of
+  its first three failed jobs (every tutorials job says the same account's
+  problem). Each "Needs you" is a problem under Needs attention, with an Open
+  link, in place of the plain "failed" line. The next run that works takes
+  it away. Only the repository's own runs are read (a push, a schedule, a run
+  by hand): a pull request from a fork can name its branch `main`, and its
+  words never reach staff.
+Rejected: a table and an endpoint the workflow reports to with GitHub's OIDC
+token (as `tutorial-review.yml` sends its look), since the run already holds
+the words and its failure, and a second store could disagree with GitHub's;
+Linear issues alone, since the nightly report files a failure, not its
+cause; reading the jobs' logs, which are large and unstructured.
+Reverse if: GitHub stops keeping annotations, or a problem needs to show
+while the run that met it is not the latest.
+
+## 191. Tutorial videos are wide (16:9), never Shorts; a description says what the video shows in one line, then its links; each channel's home page has a row of the other channels and one for each playlist
+
+Date: 2026-10-30 · By: Caleb Koster · Status: accepted
+
+Reason: on 2026-10-29 Caleb found the channels' video descriptions a mess
+(the voice written out line by line, no space between the links), their
+links not clickable, and a channel's page showing a single video and no
+way to the other languages. The cause was the films' shape: a phone's
+video was filmed on a tall 1080x1920 page, and YouTube makes any tall video
+under three minutes a Short. 44 of the English channel's 45 videos were
+Shorts: links in a Short's description are never clickable (since
+2023-08-31), Shorts are listed on their own tab, and the channel's Videos
+tab held only the one wide film (See reports on the web). Decided:
+- **Every film is wide** (`e2e/tutorials/compose.ts`): the phone on the
+  right of a 1920x1080 page, the app's mark and the video's title on the
+  left; a film of the web stays in its window under the title. Wide videos
+  are listed as videos, keep their links, and can be a channel's rows and
+  trailer.
+- **A description is read at a glance** (`e2e/tutorials/playlists.ts`
+  `youtubeText`): the first sentence the voice says ("Here's how to record
+  a passage."), then, each group apart: the download link, the page of
+  every video and the app; then the same video in each other language.
+  Never the voice line by line.
+- **Every film is made again once** (`FRAME` in the release's manifest):
+  a film without it is filmed again whatever its look, so the first night
+  after the merge films every video in every language, and each new version
+  replaces its Short as Publish puts it up. Only a video's newest version
+  goes up (`ops_tutorials_due`, migration `*_tutorial_newest_due.sql`): a
+  tall version chosen before is not put up once a wide one is made.
+- **A channel's home page** (`server/youtube.ts` `setHome`), as BibleProject
+  and others lay theirs out: under the trailer, a row of the other 14
+  LangQuest channels, then a row for each of its playlists, everyone's
+  first (`server/youtubePlaylists.ts` `HOME_ORDER`). The publish job
+  brings the rows up to date each run (2 of the day's 10,000 units when
+  nothing changed); Connect lays them out at once.
+What stays: a description's links are clickable only on a channel with
+YouTube's advanced features (support.google.com/youtube/answer/9890437),
+English and French on this date; the links under a channel's name can only
+be set in YouTube Studio, not through the API.
+Rejected: keeping tall films over three minutes (most videos are shorter,
+and padding them wastes people's time); filming each video twice, tall for
+Shorts and wide for the channel (twice the uploads, against YouTube's 100 a
+day, and a Short still cannot link anywhere); a channel's own links in its
+description in place of the channels row (YouTube shows a description
+cut to one line).
+Reverse if: YouTube lets a Short's description link out, or people watch
+the videos mostly on phones held upright and ask for tall ones.
+
+Amended (2026-10-30, Caleb Koster): the camera moves in. Caleb found the
+wide videos "really blurry, difficult to see": the phone's screen is 452
+pixels of the page's 1920, so the app's words are about 16 pixels tall, and
+fewer on a phone or at a lower quality. He approved a sample of Record a
+passage. Each step's lit part, where and when it was lit, is in the film
+(`film.ts`, `focus` in `film.json`), and `compose.ts` draws the page twice as
+big and moves a camera over it (ffmpeg's `zoompan`, from `camera.ts`): in on
+the part, at most 2.2 times, so its words are about twice their size; back
+out to the whole page where a step lights nothing, for the title at the
+start and at the end. It holds still for a part already in the shot and
+leaves out a shot under a second, so it moves only when the part moves. A
+move takes 0.8 s and starts just before the part is lit. A part inside a
+card with its own edge is lit with the card (`film.ts` `light`), so the
+light no longer cuts through a card's border and leaves a dimmed line of it
+showing (Caleb's still of the lit Record step), and a list that scrolls up
+and down scrolls the part into view before it is lit (a list that hid what
+overflowed sideways was held still, so the light and the camera pointed
+below the screen). A zoomed video is made at 2560x1440: Caleb saw the
+uploaded videos play at 240p, and our 1080p file was fine (checked), but
+YouTube makes its sharper versions (VP9) only of an upload of 1440p or
+more. `FRAME` is `zoomed`, so
+every video in every language is filmed again once; the English and French
+videos already up are replaced, about a day of YouTube's daily limit. The
+trailer, drawn by its own page, keeps its film (`TRAILER_FRAME`). Rejected: filming the phone bigger and cutting the
+title (a title beside the phone is what makes the page wide, decided above);
+a second, magnified copy of the part beside the phone (two places to look).
+
+Amended (2026-10-30, Caleb Koster): the ring and the camera after the first
+zoomed night. The frame check (decision 192) held 217 of the first 219
+zoomed films in English, French, Spanish, Portuguese and Arabic, most for
+the ring: it crossed a field's label, a card's second line or the next
+row's words, or went around the words in a button but not the button. Now
+(`film.ts` `light`) words, an icon or a field that a script lights is lit
+with the button or card drawn around it (not a bar or a sheet that reaches
+the screen's edge, nor a box bigger than a sixth of the screen); what the
+ring would touch is taken in when it is small and belongs to the part (a
+label above it, a second line below), or when the ring has no room;
+anything else (the next row, another card) stays out, and the ring moves in
+onto the part's own edge, never onto its words. The camera never films an
+empty screen (`camera.ts`): where half a close shot or more would be one
+stretch of empty screen (a tab under a short page, a button at the foot of
+an empty one, which Gemini called "a blank screen"), it steps back, to the
+whole page when it would nearly be. The title and the app's mark fade out as the
+camera first moves in and back as it goes out at the end, so the ends of
+the title's words never show at the edge of a close shot. `FRAME` is
+`zoomed-ring`, so every video is filmed again. The frame check is told that
+what a team wrote or named (role names such as "Organization Admin", review
+steps, templates, notes) may be in English in any language, and that a tab
+may be lit on the way to what the voice says to open. Rejected: a looser
+frame check (the ring problems it found were real, as Caleb's own still
+was).
+
+Amended (2026-10-31, Caleb Koster): the ring again, after the first night
+on the rules above. The frame check held 45 of the 47 English films and 41
+of the 44 French, again mostly for the ring: it cut through a card and left
+the card's edge or corners showing just outside it, left a row's icon or
+handle outside, or went around a bar, a heading or two rows where the voice
+named one. The rules said what to take in; the ring now looks at what the
+screen shows (`film.ts` `light`): every line of words, icon, field and
+drawn edge, cut where a list hides it, as a viewer sees it. It goes around
+the button or card the part is in, with a box drawn round it and little
+bigger (a search field's box with its icon, a row's card with its handle),
+or else around the nearest box out from it that it fits. On each side it
+stands 6 points off where it can, and nearer, further or right on an edge
+where that would cross words, an icon or an edge; it hides only the part's
+own edge or the edge of a box it goes into, and never leaves an edge just
+inside or outside it. The title comes back whenever the camera is out on
+the whole page (`camera.ts` `titleShows`), not only at the end: a step
+that lit nothing in the middle left the left of the page empty ("zoomed
+out with the left side blank"). A field's focus outline is hidden in films
+("a black outline around the text"). Four scripts lit the wrong thing
+after the app changed (review checks, a new account's two ways in, a
+language's settings, the invite's code and its other ways). The frame
+check is told that the ring is lit before the tap, and that a ring around
+a tab in the bar at the foot of the screen runs off its bottom edge.
+`FRAME` stays `zoomed-ring`: held films are not in the release, so they
+are filmed again anyway.
+
+Amended (2026-10-31, Caleb Koster): the ring a third time, after the night
+on the rules above passed only 3 of the 47 English films, 2 French and 4
+Spanish. Most holds came from four things. A field's words were taken to
+fill the whole field, so a ring that could not stand inside a field went
+round the whole form and through the labels above its fields ("cuts
+through the label 'Password'"); a field's words are now as wide and as
+high as they show. A ring that crossed something tried each box further
+out, up to a list, the bar at the foot of the screen or both buttons in
+the corner; it now never takes a box much bigger (1.6 times) than the
+part's own when that box has other things to tap in it (a link and the
+sentence it ends are still lit together), and a bar round another button
+with words is not taken as the part's own box (Skip beside Next question).
+Its corners were always the same, so a card's rounder or squarer corners
+showed past it ("the green corners of the Looks good button show outside
+the ring"); they are now as round as the box's, stood off as far as the
+ring. A border within 14 points of the ring, inside or out, reads as a
+second ring ("a border line doubled just inside the ring") and is kept
+clear of it, as an edge where a fill stops is within 8 points outside and
+3 inside; words outside it stay 2 points clear, and words between it and
+the part (a heading just above a card) count as crossed, since the ring
+would go round them too. Where the ring cannot miss
+everything, it stands beside an edge rather than across it, and it stands
+as far off a part on one side as on the other where that crosses nothing
+more (tight on one side, it reads as cutting into the part). It never goes
+round a bar from one side of the screen to the other (the bar round the
+main button), and a part under a button that floats over a list is
+scrolled to the list's middle first. A part that leaves the screen (the
+upload bar once all is uploaded) takes its ring with it, and a part as
+tall as most of the screen
+is shown on the whole page with the title (`camera.ts`), not as the whole
+phone with an empty page beside it. A video whose setup leaves the app
+still loading waits for its first part (a blank phone in the first still),
+and a note at the foot of the screen that would cover the next part is
+waited out off camera. A dozen scripts lit more or less than their line
+names, or said what the screen does not show (Note, not Add a note here;
+Next: decide, not Next); the frame check is told what the app draws itself
+(a thin purple border round the card for the next thing to do, a quoted
+verse's purple line, help mode's dimming). What it found in the app
+itself, not in the films, goes to the team as app bugs; a film that shows
+one stays held until the app is fixed.
+
+Amended (2026-11-01, Caleb Koster): no ring; a spotlight. After the third
+round, the night's films passed 4 of the 47 English, 2 French, 7 Spanish
+and 5 Portuguese, again mostly for the ring: in most held videos one or two
+stills showed it through a card's edge, a badge or the row beside the part,
+or with square corners. Four rounds of placing a drawn ring each passed
+under a tenth of the films. Now nothing is drawn round the part (`film.ts`
+`light`): the rest of the screen dims and the part's own button, row or
+card stays bright, exactly to its own edge and with its own corners, so the
+dimming stops where the part does and crosses nothing beside it. A part
+with no box of its own (a line of words, an icon) is lit 6 points round,
+nearer on a side where that would take in other words, an icon or an edge.
+Which box is the part's own is decided as above. The frame check is told
+about the bright part instead of the ring. `FRAME` is `zoomed-spotlight`,
+so every video, those already up with the ring too, is filmed again.
+Rejected: the camera's zoom alone with nothing lit (a small button among
+many is hard to find), and a fifth round on the ring.
+
+Amended (2026-11-01, Caleb Koster): the spotlight after its first night.
+35 of the 46 English films passed Claude's frame check; 5 were held for
+where the light went. Several parts lit as one box cut a button between
+them (the filter's chips where they wrap, By email beside Share as a link);
+a part's handle was lit with its whole row; a play button was lit as its
+tap area, as tall as the row and past the card on the last row; and three
+scripts lit less than the voice names (the heading of a request to join,
+the microphone row above the typing box, the first ready-made template).
+Now (`film.ts` `light`) several parts lit as one box take in whole each
+button, line of words or icon its edge would cut, up to a third of the
+screen, so a box that wraps differently in another language cuts nothing
+either; a slider (a part's handle) is a button of its own; a button with no
+box of its own whose words and icons are all on one box it holds is lit as
+that box (the play button's round face); and the three scripts light what
+the voice names. `FRAME` stays, so only the held videos, and any whose
+screens changed, are filmed again.
+
+Amended (2026-11-01, Caleb Koster): the spotlight's second night. Of the
+10 English films made again with it, 4 passed. A part's row was lit with
+its whole list: the + on the line between two parts is a small round face
+on a tap area as tall as a row, so taking in the tap area cut the next
+row's verse space, and taking that in cut the next +, down the list. Now
+a button is taken in by what shows of it (its own box, or the face it
+shows; one with neither by its words and icons alone), and a button's box
+the edge only grazes, by under a quarter of its height or width, is not
+cut. Invite your team lights every language while the voice says to
+choose one, and the content template lights the question it asks again
+before Next is tapped. Two holds were Claude reading the app wrongly, so
+the frame check's prompt now says what a passage's step marks mean (a
+grey skip-forward sign is a check set aside) and that the recording
+clock counts the silence a part is cut from.
+
+## 192. Tutorial videos go up as soon as they are filmed: the filming tells the app, the intake chooses the wide films itself, and the publish follows each intake
+
+Date: 2026-10-30 · By: Caleb Koster · Status: accepted
+
+Reason: on 2026-10-30 Caleb saw the ops dashboard waiting for him to tick
+the new videos before they went up, and asked: "I want everything,
+including the updated YouTube pages, published as soon as everything is
+ready. We won't wait for a scheduled time". Until now a night's films
+waited for the intake at 23:10 UTC, then for a person's Publish (180), then
+for the publish run at 23:40 UTC (183, amended): up to a day behind the
+filming, and never without a person. Decided:
+- **The filming says when its films are in.** Each language's job in
+  `tutorials.yml`, once its new films are in the release, posts to the
+  app Worker's `/api/tutorial-filmed` (`e2e/tutorials/films-in.mjs`,
+  `apps/web/worker/tutorialFilmed.ts`), which starts the intake. Only that
+  workflow, run from main, gets in, with the OIDC token GitHub gives the
+  job, as for the nightly look (186): the workflow still holds no key to
+  production. The first job of each run says it too, for films a run
+  before it put in without saying (one cut off, or one from before this).
+  An intake already running takes the films in once more when it ends.
+- **The intake chooses the wide films itself** (`ops_tutorial_made`
+  `p_choose`, migration `*_tutorial_choose_on_intake.sql`): a film made
+  wide (191) is chosen for YouTube as it is listed, with a time and nobody's
+  name, so no Publish is needed. A tall film left from before, whose refilm
+  failed, would go up as a Short, so it still waits for a person's Publish,
+  which stays on the dashboard for that and for putting one up again.
+- **The publish follows each intake** (`AFTER` in
+  `apps/web/worker/jobsModel.ts`); if it is running, it runs once more when
+  it ends. A run that makes a playlist gives it its row on the channel's
+  home page at the end of the same run, not the next.
+- **One scheduled time, as YouTube's day begins**: an intake at five past
+  midnight in California (07:05 UTC in summer time, 08:05 in winter), with
+  the publish after it, takes in what the filming could not say and puts
+  up what the day before had no room for. The intake at 23:10 UTC and the
+  publish at 23:40 UTC are gone. The filming keeps its 20:10 UTC start.
+What stays: YouTube's limits (180, amended): 100 uploads a day for the
+project and a lower limit for each new channel, so replacing every video
+in every language still takes over a week; the publish goes on with the
+rest each day.
+Rejected: choosing every film, tall ones too (a tall one goes up as a
+Short, whose links cannot be clicked, 191); an intake every hour in place of
+the filming saying so (most runs would find nothing, and each publish after
+it spends units looking at every channel); keeping the intake and the publish
+at 23:00 to 00:00 UTC (183, amended): Caleb asked for no scheduled time,
+and that hour delayed a night's films by up to a day.
+Reverse if: films go up that should not have (then the intake stops
+choosing and Publish is the way again), or the publish runs after each
+language spend so much of YouTube's day on looking at the channels that
+videos wait for it.
+
+Amended (2026-10-30, Caleb Koster): a tick from before this went live no
+longer puts a video up (migration `*_tutorial_old_ticks.sql`). Caleb's
+Publish of 2026-10-29 chose tall films; where a video's wide film did not
+come out that night (some Spanish ones), its tall one was still chosen and
+newest, so the publish would have put it up as a Short. Such a choice now
+counts as none: the job skips it, the dashboard lists the video as not
+chosen, and a person's Publish can choose it again. No row is changed.
+
+Amended (2026-10-30, Caleb Koster): a new film goes up only once its stills
+look right. Caleb paused videos and found mistakes in many (a line of a
+card's border left dimmed outside the lit box) and asked that every paused
+frame be looked at by AI, in the filming, efficiently. `nightly.ts` sends
+each film made that night to Gemini (`frame-check.ts`,
+`gemini-flash-latest`): a still in the middle of each line said, where the
+part is lit and the camera is in, and the first and the last, 1280 wide,
+all of a film's stills in one request (about 15,000 tokens, under a cent).
+A film with something wrong, or whose stills could not be looked at, is
+held: it does not go in the release, the video keeps its last film (on
+YouTube too), the language's job fails and so is filed in Linear, and the
+run's summary lists what is wrong at which moment, with the stills in the
+job's artifact. Rejected: every frame (30 a second; the stills are what a
+viewer pauses on, and a mistake between them is on screen for a moment);
+Gemini's Batch API (half the price, but its requests are capped at 20 MB
+inline, a night's stills are more, and it waits minutes); Claude (the
+filming already holds a Gemini key and pays per token; Claude in Actions
+signs in with a person's plan). Reverse if: the check holds films that are
+right more than now and then (then it reports without holding), or misses
+what people find.
+
+Amended (2026-11-01, Caleb Koster): Claude looks at the stills, not Gemini.
+Google charged US$230 on the Gemini key in the week every language was
+filmed again (the ring, then the spotlight), and the frame check was about
+US$175 of it: six runs showed 2,879 films to `gemini-flash-latest` at its
+full price, and Gemini thought about as many tokens as it was sent (38
+million), billed as its answer, so a film cost about 6 US cents, not under
+one. Caleb asked to use the Claude plan's token the repository already
+holds for the look at the videos' feedback (`CLAUDE_CODE_OAUTH_TOKEN`,
+decision 186), with Sonnet. `frame-check.ts` runs Claude Code (its version
+pinned in `tutorials.yml`) as Sonnet thinking at high effort, with no
+tools, settings or MCP servers, and the same stills in one look a film; it
+counts against the plan's five-hour and weekly limits instead of a bill,
+and each language looks at two films at a time. Tried on 2026-11-01 on the
+stills Gemini held in run 19 and on clean spotlight screens: Sonnet found
+the cut-off words and, once the prompt asked it to check each heading
+against what the voice says, the wrong part number; it missed some ring
+outlines Gemini named (the ring is gone), and it found app glitches Gemini
+had passed (a Spanish role name broken mid-word, "1 listos"). The job's
+summary gives what Claude would cost on the API and what Gemini bills for
+the voice and translations. Rejected: Gemini's Batch API with less thinking
+(about a sixth of the price, still billed). Reverse if: the plan's limits
+stop the check or get in the way of the team's own use of Claude, or Sonnet
+holds films that are right more than now and then.
+
+## 193. A content template has no language: Bible book names are library items, one per language, that a language picks; and New language asks the languages its translators use right after the name
+
+Date: 2026-10-30 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked (2026-10-29) whether a Nepali translator's next task
+says "Matthew 1:1-17" or "मत्ती 1:1-17". It said Matthew: LangQuest's
+templates name every book in English, and a language had other names only
+by an admin renaming its books one at a time (`v1.BookNameSet`, 74). Caleb
+(2026-10-30): book names belong to the content template, not the app; New
+language should name the language, then decide which languages its
+translators use (Hindi, Swahili), and that choice should decide what is
+offered next, with search beyond. He rejected putting every language's names
+in one template ("stuffing", templates grow with every app language) and
+asked for linking as FIA does: one guide collection per language, grouped
+as one set (84). He chose "Build it" on that design. So:
+- **Book names are a library kind**, `names`, with documents `names@1`
+  (`{ name, description, language, books: [{ book, name }] }`, core
+  `libraryDocs.ts`), one item per language ("Bible book names (Nepali)").
+  A template says which books there are and how each is divided, in no
+  language, so one template serves every language. LangQuest publishes one
+  for each of the app's 15 languages (`langquest.names.<code>`; English from
+  `library/books.eng.json`, the others from `library/names/<code>.json`,
+  taken from the app's catalogs, decision 81). An organization can copy one
+  to change a name, or publish its own for a language that has none.
+- **A language uses one**: `v1.BookNamesSelected { itemId, docHash,
+  language, names }`, a register in its stream (manage_templates). It
+  carries every name, as a template's units come as events (36), because
+  the server's projection pass builds Inbox titles from the language's
+  events alone (`unitTitle`) and a phone need not hold the document. Core
+  `bookNameOf` reads a book's own name (`v1.BookNameSet`, which stays on
+  top), else the set's, else the template's. Passage titles, the Map's book
+  list and a book's map use it; a book a set leaves out keeps the
+  template's name. `REDUCER_VERSION` is 21.
+- **New language asks the translators' languages right after the name**
+  (the reference language page of 84, now asked "Which languages do X's
+  translators use?" as the second page of the Language step), then content,
+  pieces, reference material, review flow and people. A language with book
+  names says so on that page. Adding the language picks the set in the
+  first of those languages that has one (the organization's own before
+  another's, followed first when it is another organization's); with none,
+  the template's names stand.
+- **Template choices follow the team's languages** in New language and Get
+  ready (`useTranslate`): templates in those languages or saying none, and
+  the one in use; the rest one tap away ("Templates in other languages").
+  LangQuest's templates say no language, so they are offered to every team.
+- **A language's book names are changed from its content template page**:
+  a "Book names" row under a Bible template opens the set in use, the sets
+  in the team's languages, then every other language's (`get_ready` step
+  `names`, `templates/BookNamesPage.tsx`), and a newer version of the set in
+  use when there is one. Existing languages keep their names until an admin
+  picks a set there.
+Older app builds store the new event as invalid and keep showing the
+template's names until they update; their server checks accept it from
+this migration on (`*_book_names.sql`). Production gets LangQuest's sets
+with the next hosted library seed.
+Rejected: showing each person's app language when the team named nothing
+(Caleb: names come from the template's side, not the app); one template
+carrying every language's names (Caleb: it grows with every language);
+fifteen copies of each template, one per language (a fix to FIA's passages
+would have to land fifteen times).
+Reverse if: teams need two languages' names at once (then the event takes a
+fallback list), or a set and a template disagree often enough about which
+books exist that names need to live with the template after all.
+
+## 194. A switch beside the red button boxes the silence between parts too, and leaving the session keeps each silence as a part of its own
+
+Date: 2026-10-30 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked (2026-10-30, thread "Show silence as segments while
+recording") for a switch in the red recording view that also captures the
+silence between speech as parts of its own, boxed while it is on and not
+while it is off, and plain to tell apart from speech once the parts are in
+the list. He chose the design from five mockups ("Go").
+- **The switch** sits in the footer right of the big red button while a
+  session is open, where Done is once it is left (`silenceSwitch.tsx`): a
+  picture of speech bars either side of a flat line in a dashed box, and a
+  switch, with no words (help mode explains it). The phone keeps it
+  (`silenceSetting.ts`, `recording:silence-parts:v1`), and it can be
+  flipped at any time in a session, recording or stopped.
+- **A silence's box** is dashed, its number in an outlined pill, and it takes
+  a part's number in passage order, so the speech after it is numbered on
+  (`livePartsModel.ts` `liveSilences`, `liveNumbered`). While recording,
+  the silence after the last part grows until the next is said. Stopped, a
+  tap plays it; it has no edges or × of its own, since it always fills the
+  room between the two parts beside it: it follows their edges, and goes
+  when either is dropped. Leaving the session cuts it from the chunk like a
+  part (`liveKept`) and it goes into the list as an ordinary part, its bars
+  read from its file, so they lie flat.
+- **Only silence kept whole is boxed**: two parts said one after the other
+  in one chunk, with no stop between them, side by side in the passage, and
+  half a second apart at least (`MIN_SILENCE_MS`, the least the room is
+  read in). Not the room before the first part or after the last. While the
+  switch is on the microphone module keeps the chunk open through every
+  pause (`chunks.ts` `keepRoom`, amending 129), so every pause in a stretch
+  is on storage; a gap from before the switch was turned on, spread over two
+  chunks, is not boxed rather than boxed with its middle missing.
+- **A silence plays as recorded**, never turned up to −16 LUFS (182,
+  amended): a part that is only room is not given its loudness. So it shows
+  no noise warning (181) unless the room itself is loud.
+- Storage and memory: with the switch on, a phone writes the whole stretch
+  (about 5 MB a minute as a WAV, as 129 says of speech) until the session is
+  left, and the web holds it in the page, about 11 MB a minute, until a stop.
+- A silence has no journal entry while the session is open, so a phone
+  that crashes mid-session gets its speech parts back (129) but not the
+  silences between them.
+- The chunk change and the loudness line are native, so this ships in a
+  store build, not an OTA update.
+Rejected: a silence with handles of its own (two edges to drag where one
+part's end and the next's start already are); boxing the room before the
+first part and after the last (it is not between anything); keeping only
+the 2 s of room on each side of speech that chunks already kept (a pause
+over 4 s would lose its middle).
+Reverse if: people turn it on and lose track of which parts are speech, the
+whole stretch fills a low-end phone's storage or the web's memory in long
+sessions, or a recording with a voice in it is played unboosted as room.
+
+Amended (2026-10-30, Caleb Koster; LAN-199): Caleb asked to remove silence
+boxes one at a time. Stopped, a silence's box has a × (where it is wide
+enough on screen; a screen reader has it as an action): it drops that
+silence alone, the parts either side stay, and the numbers after it close
+up (`liveDropSilence`). Turning the switch on again boxes every silence
+again. A box added with a + (129, amended) is kept as a voice whatever is
+in it, so the silence between it and the parts beside it is boxed too.
+The + shows only with the switch off. Since the room is now kept with the
+switch off as well (up to 30 s after a part), turning the switch on after a
+stop boxes that stretch's pauses.
+
+## 195. LangQuest's library items have names in each of the app's languages, kept in the library as one `labels` item per language; New language counts in the language showing and lists the translators' Bibles first
+
+Date: 2026-10-30 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-30) went through New language with the app in
+Hindi and asked whether it read right for a Hindi user. It mixed Hindi
+with English: LangQuest's own names ("Standard Bible Flow", "By chapter",
+"Like most English Bibles · 66 books", "FIA passages", "Bible book names
+(Nepali)") came in English, the counts said "2,376 passages", Find your
+Bible listed English Bibles before the Hindi one, and on his Android phone
+the Preview button showed "पहले" of "पहले देखें". He said "Yes please" to
+fixing all of it in one change. So:
+- **What an item is called in a language is a library kind**, `labels`,
+  with documents `labels@1` (`{ name, description, language, items: [{
+  itemId, name, description? }] }`, core `libraryDocs.ts`), one item per
+  language, as book names are (193). LangQuest publishes one for each of
+  the app's 14 other languages (`langquest.labels.<code>`, "Library names
+  (Hindi)", from `library/labels/<code>.json`), naming its templates, ways
+  to break up the Bible, numberings, review flows and book name sets, and
+  the flows' descriptions. The seed fails when one of those has no name in
+  a language, so a new item gets its names when it is added. Whoever runs
+  an organization (`manage_structure`) publishes its sets, since they name
+  every kind.
+- **A set names its own organization's items only**, so no one renames
+  another's.
+- **Only what a screen shows changes.** The phone reads the sets in the
+  language showing once a session and keeps them for the next start,
+  offline too (`library/labels.ts`, `labelsModel.ts`). An item another
+  organization shares, or one this organization follows, shows its name
+  there; an item an organization made or copied keeps the name it was
+  given. Events, copies and every comparison carry the published name, so
+  a team that changes its app language changes nothing in its data.
+- **Names that are brands or published titles stay as they are**: FIA,
+  unfoldingWord, OpenBible.info, and Bibles' own titles ("New International
+  Version"); a set leaves them in when only part of a name is translated
+  ("FIA अंश").
+- **New language's counts are in the language showing**: "2,376 अंश",
+  "1,189 अध्याय" (`breakup.count.passage`, `chapter`, `chunk`, `section`
+  in every catalog); a template's own word for its pieces is shown as the
+  template writes it.
+- **Find your Bible lists up to three Bibles in each of the translators'
+  languages first** (the languages New language asks right after the
+  name, 193), then the common ones; Search finds the rest. The list of
+  Bibles loads with that page (`knownBiblesModel.ts`), not with the web
+  app's first visit, which this and 194 together took past its budget (123).
+- **The Preview button's words take the card's width** (`breakup/parts.tsx`),
+  as 139 says of a label beside other things, so Android does not cut them
+  when it measures Devanagari short.
+Older app builds never ask for `labels` items (shared items are listed by
+kind) and keep showing the English names; their server checks accept the
+new kind from this migration on (`*_library_labels.sql`). Production gets
+the sets with the next hosted library seed.
+Rejected: the names in the app's catalogs (only LangQuest's items could
+have them, they would change only with an app release, and the library
+is not app code, 36); one copy of each item per language (fifteen copies
+of every template and flow, as 193 rejected for book names); writing the
+name in the language showing into events (people on one team use the app
+in different languages).
+Reverse if: organizations need to name their own items in several
+languages from the app (then a page for a language's names), or the sets
+grow big enough that reading them once a session is too slow.
+
+## 196. The ETEN Summit page is a static page in the web export's public files, and it alone may frame YouTube's no-cookie player
+
+Date: 2026-10-30 · By: Ryder Wishart · Status: accepted
+
+Reason: ETEN's Innovation Lab asked each featured tool for a landing page
+for the 2026 Summit's virtual tools lounge (10–12 November), with a short
+demo video, and Ryder wanted the LangQuest page at next.langquest.org/eten
+with the film embedded from YouTube. It is a plain HTML page in
+`apps/mobile/public/eten/`, like `singapore-pcrt-2026/`: the web export
+copies it and the Worker's assets serve it, so it needs no Worker code
+and no app build. The site's policy (58, `apps/mobile/scripts/webHeaders.mjs`)
+frames nothing, so `_headers` gives `/eten/*` its own block: it detaches
+the site's Content-Security-Policy and sets the same one plus
+`frame-src https://www.youtube-nocookie.com` (Cloudflare applies the
+detach before the block's own value; checked on `wrangler dev`, and
+`apps/web/test/securityHeaders.test.ts` holds the block). Every other
+path keeps the policy unchanged.
+Rejected: a Worker-made page like `/videos` (187), which would add code to
+the Worker for a page that never changes on its own; allowing YouTube
+frames site-wide (the app has no use for them).
+Reverse if: the page needs to play where YouTube is blocked (then the
+film's file beside it, played in a `<video>`, as `/videos` does), or
+another page wants frames (then one policy for public pages, not one
+block per page).
+
+## 197. A part's row shows that it is playing, and how far, whichever player plays it: a band crosses the row from the left, and its play button turns solid with a pause
+
+Date: 2026-10-30 · By: Caleb Koster · Status: accepted
+
+Reason: with Play all on, no one could tell which part was playing or
+how far into it (Caleb, 2026-10-30, after Jasmine's Play all report: "there
+should really be a playback progress bar that moves across the card as it
+plays"). Each part's row has its own player and lit its bars only when its
+own button played it; Play all on the parts card and the player above a
+version's parts played the same recordings without the rows knowing. So
+the players that play parts (`useClip`, `ClipPlayer`) say which recording
+they play and where in it (`audio/nowPlaying.ts`), the newest player's
+word standing, and each part's row reads it for its own recording
+(`usePlayingPart.ts`), in the recorder, the parts with verses, and a
+version's parts:
+- **A tinted band, with a line along its bottom, crosses the row** from
+  the left as the part plays (`recording/playingFill.tsx`). It runs on
+  between the player's reports at the speed the recording plays, so a
+  two-second part moves smoothly, and it stays where a pause left it.
+- **The play button is solid primary with a white pause** while the part
+  plays, whoever plays it, and pressing it pauses that player.
+- **Play all's card head and a version's card** show the band for the
+  whole recording.
+The partner demo shows a playing take by its button and waveform only;
+this goes further at Caleb's ask, on every row that plays a part. The
+round play buttons for notes and feedback (`AudioClip`) are unchanged.
+Reverse if: people take the band for something else (a selection, a
+level), or it distracts while recording.
+
+## 198. Which numbering each of Bible Brain's Bibles uses is found by a survey of its text, run by GitHub with the Bible Brain key
+
+Date: 2026-10-30 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-30) found that "Which Bible do you translate from?"
+lists 49 Bibles checked by hand (80), none of them in Hausa, Bengali,
+Nepali, Thai or Burmese, though the app speaks those languages. He asked
+for every Bible we can reach, Bible Brain's included, each with its
+numbering found by a script that surveys its books, chapters and verses,
+and for a numbering to be added when Bibles part from all of ours. So:
+- **`npm run bibles:survey`** (`scripts/bible-survey.ts`) reads, for every
+  Bible Bible Brain has text for, its book list and the last verse of about
+  forty chapters of the Old Testament and thirteen of the New, each
+  testament planned on its own: the fewest in which any two standard
+  numberings differ at least four times, then more spread over the other
+  places where numberings part (`scripts/bibleSurvey.ts`, tested). A Bible that agrees
+  with one numbering in every chapter read gets it; one that agrees with
+  none is custom, reported with the nearest and every place it parts.
+  `--full` reads every chapter of one Bible, for when several part alike
+  and a numbering is to be added (`library/versifications`, with its
+  mapping). This is the hand check of 80 done by a script, at Bible
+  Brain's scale.
+- **GitHub runs it** (`.github/workflows/bible-survey.yml`) when the
+  survey changes and by hand, with `BIBLE_BRAIN_ACCESS_KEY` as a
+  repository secret (`npm run secrets -- production` sets it, like the
+  Gemini key), so anyone on the team sees and reruns it, and no one needs
+  the key on their own machine. It is not a production job (141): it
+  reads Bible Brain and writes an artifact, nothing else.
+- **It goes slowly** (4 calls a second, waiting when Bible Brain says 429)
+  because the app's reference material uses the same key; a run stops
+  after five hours and the next carries on from the cache.
+- **A Bible one verse off English is English.** Of 1,778 Bibles with
+  text, 743 part from English numbering only where 2 Corinthians 13 ends
+  at verse 13 (as the NRSV ends it) or Revelation 12 at 17 (as the
+  KJV, ESV, NASB and NKJV do). English Bibles that the app already calls
+  English (80) part there too, so these get English as well. A Bible that
+  parts anywhere else is left out until a numbering for it is added.
+- **The list is the Worker's, not the app's.** `npm run bibles:survey --
+  --write-numberings <survey.json>` writes the numbered Bibles to
+  `apps/web/worker/bibleNumberings.ts` (about 1,500 Bibles, 140 KB, too
+  big for the web app's first visit, 123). Bible Brain's rows for a
+  language (`/api/bible/bibles`) carry each Bible's `numbering`, and
+  `/api/bible/numbered?q=` finds numbered Bibles by name, language or id
+  from that file alone, with no call to Bible Brain. A Bible with no
+  numbering, or a tie the survey cannot break (a Gospel alone fits them
+  all), is not offered.
+- **Find your Bible lists both** (`knownBiblesModel.ts`): before anything
+  is typed, the team's languages' Bibles, the app's 49 first and then
+  Bible Brain's (whole Bibles before a testament alone), up to three a
+  language, then the common ones; typing finds the app's and Bible
+  Brain's, each once. The 49 stay in the app, so the page works offline;
+  Bible Brain's show once seen, since the phone keeps each answer.
+Rejected: reading every chapter of every Bible (about two million calls,
+weeks at a rate the key can bear, to learn little more than the places
+numberings are known to part); trusting Bible Brain's own versification
+field (not given for most Bibles, and not checked against their text); a
+server job in the Worker's container (it would need somewhere to put a
+result that people review and commit).
+Reverse if: custom Bibles turn up that part from every numbering only
+outside the chapters read (then read more, or every chapter, for them), or
+Bible Brain offers each Bible's versification checked against its text.

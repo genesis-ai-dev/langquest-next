@@ -73,6 +73,31 @@ describe('adding a language (ORG-2, decisions 63, 76, 84, 91)', () => {
     expect(language[0]!.specs.filter((s) => s.type === 'v1.ReferenceSet').map((s) => s.payload)).toEqual([{ itemId: 'web', state: 'recommended' }]);
   });
 
+  it('starts with the book names chosen for its translators, followed first when another organization shares them (decision 193)', async () => {
+    const { deps, language } = app();
+    const nepali = { format: 'names@1' as const, name: 'Bible book names (Nepali)', description: '', language: 'npi', books: [{ book: 'LUK', name: 'लूका' }], deps: [] };
+    const made = await createLanguage(input({ bookNames: { itemId: null, shared: shared('langquest.names.npi'), name: nepali.name, docHash: 'c'.repeat(64), doc: nepali } }), deps);
+    const names = language[0]!.specs.filter((s) => s.type === 'v1.BookNamesSelected');
+    expect(names.map((s) => s.payload)).toEqual([{ itemId: 'followed:langquest.names.npi', docHash: 'c'.repeat(64), language: 'npi', names: { LUK: 'लूका' } }]);
+    expect(names[0]!.id.startsWith(`${made.languageId}:`)).toBe(true);
+    // Names that could not be followed are named, and the template's names stand.
+    const offline = app({ adopt: async () => { throw new Error('offline'); } });
+    const without = await createLanguage(input({ bookNames: { itemId: null, shared: shared('langquest.names.npi'), name: nepali.name, docHash: 'c'.repeat(64), doc: nepali } }), offline.deps);
+    expect(without.notOffered).toEqual([nepali.name]);
+    expect(offline.language[0]!.specs.some((s) => s.type === 'v1.BookNamesSelected')).toBe(false);
+  });
+
+  it("adds a ticked Bible Brain Bible to the library and offers it; one it could not add is named (LAN-194)", async () => {
+    const added: string[] = [];
+    const { deps, language } = app({ addBibleBrain: async (bibleId) => { added.push(bibleId); return `biblebrain.${bibleId.toLowerCase()}`; } });
+    const offers: Offer[] = [{ itemId: null, shared: null, name: 'NIV', label: 'New International Version', bibleBrain: { bibleId: 'ENGNIV' } }];
+    await createLanguage(input({ offers }), deps);
+    expect(added).toEqual(['ENGNIV']);
+    expect(language[0]!.specs.filter((s) => s.type === 'v1.ReferenceSet').map((s) => s.payload)).toEqual([{ itemId: 'biblebrain.engniv', state: 'recommended' }]);
+    const offline = app({ addBibleBrain: async () => { throw new Error('offline'); } });
+    expect((await createLanguage(input({ offers }), offline.deps)).notOffered).toEqual(['New International Version']);
+  });
+
   it('typed in rather than picked from the list, it stays unlinked', async () => {
     const { deps, org } = app();
     await createLanguage(input({ languoidId: null }), deps);

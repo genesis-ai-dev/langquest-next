@@ -132,5 +132,16 @@
       "release": "Sema toleo limechapishwa wapi (linapatikana katika programu au tovuti), au limeondolewa",
       "externalValues": "Hifadhi thamani za programu yenyewe pamoja na lugha zako, kwa niaba yako. LangQuest inazihifadhi na haizitumii kamwe"
     }
+  },
+  "videos": {
+    "pageTitle": "Video · LangQuest",
+    "language": "Lugha",
+    "title": "Video za LangQuest",
+    "play": "Cheza",
+    "download": "Pakua",
+    "youtube": "Tazama kwenye YouTube",
+    "size": "MB {{mb}}",
+    "none": "Bado hakuna video katika lugha hii.",
+    "failed": "Video hazikupakia. Pakia upya ukurasa ili ujaribu tena."
   }
 }

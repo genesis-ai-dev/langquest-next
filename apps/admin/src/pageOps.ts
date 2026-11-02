@@ -26,7 +26,8 @@ export const GROUPS = [
   { id: 'people', title: 'People and organizations', src: 'Counted, never named: accounts, activity, organizations, joining', wide: true, parts: ['people'] },
   { id: 'support', title: 'Support', src: 'Content reports, suspensions, deletions, feedback, and what was done from this page', wide: true, parts: ['support', 'feedback'] },
   { id: 'access', title: 'Access and integrations', src: 'Global Viewers, limits hit, tokens, device grants, webhooks, review links, and what expires', parts: ['security', 'integrations', 'expiry'] },
-  { id: 'stores', title: 'App stores', src: 'Google Play vitals and reviews, App Store review state, builds and reviews', parts: ['googleplay', 'appstore'] }
+  { id: 'stores', title: 'App stores', src: 'Google Play vitals and reviews, App Store review state, builds and reviews', parts: ['googleplay', 'appstore'] },
+  { id: 'tutorials', title: 'Tutorial videos', src: 'Filming now, each app language\'s YouTube channel, the videos made and not up yet, Publish, and what Claude suggests from comments, code changes and notes', wide: true, parts: ['filming', 'tutorials', 'videofeedback'] }
 ] as const;
 
 /** Sub-headings where a source's own title would repeat its section's, or say too little inside it. */
@@ -35,14 +36,14 @@ export const PART_TITLES: Record<string, string> = {
   expo: 'EAS builds and updates', adoption: 'Update adoption', jobs: 'Jobs', cron: 'pg_cron', push: 'Push delivery and Inbox', v2: 'v2 import',
   database: 'Health', dbdetail: 'Where the space goes', supabase: 'Supabase project', cloudflare: 'Cloudflare Workers', worker: 'App Worker routes, last 24 h',
   storage: 'Storage and backups', capacity: 'Capacity and cost', support: 'Queue', feedback: 'Feedback', security: 'Global Viewers and limits',
-  integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store'
+  integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', filming: 'Filming', tutorials: 'Channels and videos', videofeedback: 'Feedback and suggestions'
 };
 
 /** Read as diag_reader in one call (/ops/api/ops). */
-export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security'] as const;
+export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials', 'videofeedback'] as const;
 
 /** Each from its own call (/ops/api/<id>), like the providers. */
-export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption'] as const;
+export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'filming'] as const;
 
 export const OPS_SECTIONS = [
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true },
@@ -60,7 +61,10 @@ export const OPS_SECTIONS = [
   { id: 'support', title: 'Support queue', src: 'Content reports, suspensions, account deletions, open feedback' },
   { id: 'security', title: 'Security and limits', src: 'Global Viewers, limits hit, new credentials' },
   { id: 'expiry', title: 'Expiry dates', src: 'Tokens, Apple certificates and profiles, and dates kept in apps/admin/expiry.json' },
-  { id: 'capacity', title: 'Capacity and cost', src: 'Database and R2 growth against the plan, Cloudflare usage this month' }
+  { id: 'capacity', title: 'Capacity and cost', src: 'Database and R2 growth against the plan, Cloudflare usage this month' },
+  { id: 'filming', title: 'Filming', src: 'GitHub: the run of tutorials.yml on main filming now, or the latest, and each language\'s job (decisions.md 183)' },
+  { id: 'tutorials', title: 'Tutorial videos', src: 'ops.youtube_channels and ops.tutorial_videos (decisions.md 180)' },
+  { id: 'videofeedback', title: 'Feedback on the videos', src: 'ops.tutorial_inputs and ops.tutorial_suggestions: comments, code changes and notes, and what Claude suggests each night (decisions.md 186)' }
 ] as const;
 
 export const OPS_SCRIPT = String.raw`
@@ -69,6 +73,8 @@ const installLink = (id) => id ? '<button class="link" data-q="' + esc(id) + '">
 const share = (a, b) => b ? ((a / b) * 100).toFixed(1) + '%' : '–';
 const hours = (msv) => msv === null || msv === undefined ? '–' : ms(Number(msv));
 const ageOf = (iso) => iso ? ago(iso) : '–';
+/** An app language's name in English ('zh-Hans', Simplified Chinese), from the browser. */
+const languageName = (code) => { try { return new Intl.DisplayNames(['en'], { type: 'language' }).of(code) || code; } catch { return code; } };
 
 Object.assign(RENDER, {
   safety(d) {
@@ -275,23 +281,166 @@ Object.assign(RENDER, {
       ]) + '<p class="muted">Container time is not in the analytics this page reads: see the Cloudflare dashboard.</p>';
     }
     return h;
+  },
+  // The run of tutorials.yml filming now, or the latest (sources/filming.ts): where each language's job is.
+  filming(d) {
+    if (!d.run) return '<p class="muted">No filming run on main yet.</p>';
+    const films = d.jobs.filter((j) => j.language);
+    const count = (state) => films.filter((j) => j.state === state).length;
+    const running = d.run.status !== 'completed';
+    const by = { push: 'a merge into main', schedule: 'the nightly schedule', workflow_dispatch: 'Run workflow on GitHub' }[d.run.event] || d.run.event;
+    let h = '<div class="stats">' + stat(count('done') + ' of ' + films.length, 'languages done', '', running ? NOW : 'run ' + d.run.number) +
+      stat(num(count('running')), 'languages filming now', '', NOW) + stat(num(count('waiting')), 'languages waiting', '', NOW) +
+      stat(num(count('failed')), 'languages failed', count('failed') ? 'bad' : '', running ? NOW : 'run ' + d.run.number) + '</div>';
+    h += '<p><a href="' + esc(d.run.url) + '" target="_blank" rel="noopener">Run ' + num(d.run.number) + '</a>, started by ' + esc(by) + ' ' + when(d.run.at) + ' on <code>' + esc(d.run.sha) + '</code>: ' +
+      '<span class="' + (running ? 'warn' : d.run.conclusion === 'success' ? 'good' : 'bad') + '">' + esc(running ? 'filming' : d.run.conclusion || d.run.status) + '</span>' +
+      (d.queued ? ' · ' + num(d.queued) + ' more ' + (d.queued === 1 ? 'run waits' : 'runs wait') + ' behind it' : '') + '</p>';
+    if (running && !films.length) h += '<p class="muted">The languages start once Grace\'s pieces are said.</p>';
+    const name = (j) => j.language ? esc(languageName(j.language)) + ' <small><code>' + esc(j.language) + '</code></small>' : j.job === 'grace' ? 'Grace\'s pieces <small>(every language)</small>' : esc(j.job);
+    const now = (j) => j.state === 'running' ? '<span class="warn">' + (j.language ? 'filming' : 'running') + '</span>' + (j.step ? '<br><small>' + esc(j.step) + (j.stepAt ? ', ' + esc(ago(j.stepAt)) : '') + '</small>' : '')
+      : j.state === 'done' ? '<span class="good">done</span>' : j.state === 'failed' ? '<span class="bad">failed</span>' : '<span class="muted">' + esc(j.state === 'waiting' ? 'waiting its turn' : j.state) + '</span>';
+    const took = (j) => !j.startedAt ? '–' : j.finishedAt ? ms(Date.parse(j.finishedAt) - Date.parse(j.startedAt)) : ms(Date.now() - Date.parse(j.startedAt)) + ' so far';
+    h += table([
+      { h: 'Language', v: name }, { h: 'Now', v: now }, { h: 'Started', v: (j) => j.startedAt ? when(j.startedAt) : '–' }, { h: 'Took', n: true, v: took },
+      { h: '', v: (j) => j.url ? '<a href="' + esc(j.url) + '" target="_blank" rel="noopener">Log</a>' : '' }
+    ], d.jobs.filter((j) => j.language || j.job === 'grace' || j.state !== 'done'));
+    return h;
+  },
+  tutorials(d) {
+    const connected = d.channels.filter((c) => c.connectedAt).length;
+    const ready = d.waiting.filter((w) => !w.chosenAt);
+    const up = d.channels.reduce((n, c) => n + c.videos, 0);
+    let h = '<div class="stats">' + stat(connected + ' of ' + d.channels.length, 'channels connected', connected < d.channels.length ? 'warn' : '', NOW) +
+      stat(num(ready.length), 'ready to publish', ready.length ? 'warn' : '', NOW) + stat(num(d.waiting.length - ready.length), 'chosen, going up', '', 'YouTube takes 100 a day') +
+      stat(num(up), 'videos on YouTube', '', ALL_TIME) + '</div>';
+    h += '<h3>Channels</h3><p class="muted">Connect opens Google\'s page: sign in with the account that owns the channels and choose that language\'s channel.</p>' + table([
+      { h: 'Language', v: (c) => esc(languageName(c.language)) },
+      { h: 'Channel', v: (c) => '<a href="https://www.youtube.com/channel/' + esc(c.channelId) + '" target="_blank" rel="noopener noreferrer">' + esc(c.title || 'Open on YouTube') + '</a>' },
+      { h: 'Connected', v: (c) => c.connectedAt ? when(c.connectedAt) + (c.section && c.section !== 'made' && c.section !== 'updated' ? '<br><small class="warn">Other channels list: ' + esc(c.section) + '</small>' : '') : '<span class="muted">not yet</span>' },
+      { h: 'Description and banner', v: (c) => c.branded ? 'on' + (c.brandFailed ? '<br><small class="warn">Last change: ' + esc(c.brandFailed) + '</small>' : '') : c.brandFailed ? '<span class="warn">' + esc(c.brandFailed) + '</span>' : c.connectedAt ? '<span class="muted">at the next publish run</span>' : '' },
+      { h: 'Videos up', n: true, v: (c) => num(c.videos) },
+      { h: 'Held comments', n: true, v: (c) => c.held ? '<a class="warn" href="https://studio.youtube.com/channel/' + esc(c.channelId) + '/comments/inbox" target="_blank" rel="noopener noreferrer">' + num(c.held) + '</a>' : c.held === 0 ? '0' : '' },
+      { h: '', v: (c) => '<button data-yt-connect="' + esc(c.language) + '">' + (c.connectedAt ? 'Connect again' : 'Connect') + '</button>' }
+    ], d.channels);
+    h += '<h3>Not on YouTube yet</h3>';
+    if (ready.length) h += '<p><label><input type="checkbox" data-yt-all> All ' + num(ready.length) + ' ready</label> <button data-yt-publish disabled>Publish</button></p>';
+    h += table([
+      { h: '', v: (w) => w.chosenAt ? '' : '<input type="checkbox" data-yt-item data-t="' + esc(w.tutorial) + '" data-l="' + esc(w.language) + '" data-s="' + esc(w.sha256) + '" aria-label="Choose ' + esc(w.title) + '">' },
+      { h: 'Language', v: (w) => esc(languageName(w.language)) },
+      { h: 'Video', v: (w) => esc(w.title) + '<br><small>' + esc(w.playlist) + (w.replaces ? ' · replaces <a href="https://youtu.be/' + esc(w.replaces) + '" target="_blank" rel="noopener noreferrer">' + esc(w.replaces) + '</a>' : '') + '</small>' },
+      { h: 'Length', n: true, v: (w) => Math.floor(w.seconds / 60) + ':' + String(w.seconds % 60).padStart(2, '0') },
+      { h: 'Made', v: (w) => when(w.madeAt) },
+      { h: 'State', v: (w) => !w.chosenAt ? '<span class="warn">ready</span>' : w.failed ? '<span class="bad">' + esc(w.failed) + '</span><br><small>' + when(w.failedAt) + '</small>' : 'chosen ' + when(w.chosenAt) },
+      { h: '', v: (w) => '<a href="/api/tutorials/' + esc(w.language) + '/' + esc(w.tutorial) + '/' + esc(w.sha256) + '.mp4" target="_blank" rel="noopener">Watch</a>' }
+    ], d.waiting);
+    return h;
+  },
+  // What came in about the videos and what Claude's nightly look suggests (decisions.md 186): a person accepts, edits or rejects each.
+  videofeedback(d) {
+    const out = (href, text) => '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
+    const titles = new Map(d.videos.map((v) => [v.tutorial, v.title]));
+    const video = (t) => t ? esc(titles.get(t) || t) : '';
+    // server/tutorialFeedback.ts inputLink
+    const link = (i) => i.kind === 'comment' ? (i.youtubeId && i.ref ? 'https://www.youtube.com/watch?v=' + i.youtubeId + '&lc=' + i.ref : 'https://studio.youtube.com')
+      : i.kind === 'code' ? (i.pr ? 'https://github.com/genesis-ai-dev/langquest-next/pull/' + i.pr : i.ref ? 'https://github.com/genesis-ai-dev/langquest-next/commit/' + i.ref : null) : null;
+    const where = (i) => i.kind === 'comment' ? 'Comment' + (i.language ? ', ' + esc(languageName(i.language)) : '') : i.kind === 'code' ? 'Code change' + (i.pr ? ' #' + i.pr : '') : 'Note';
+    const said = (i) => esc(i.english || i.text) + (i.kind === 'comment' && i.english && i.language !== 'en' ? '<details><summary>As written</summary>' + esc(i.text) + '</details>' : '');
+    const answers = (s) => s.inputs.length ? '<ul>' + s.inputs.map((i) => '<li><small>' + where(i) + ' · ' + when(i.at) + (link(i) ? ' · ' + out(link(i), 'open') : '') + '</small><br>' + said(i) +
+      (i.reply ? '<br><small>Reply suggested: ' + esc(i.replyEnglish || i.reply) + '</small>' + (i.language !== 'en' ? '<details><summary>In ' + esc(languageName(i.language)) + '</summary>' + esc(i.reply) + '</details>' : '') : '') + '</li>').join('') + '</ul>' : '';
+    let h = '<div class="stats">' + stat(num(d.open), 'suggestions waiting', d.open ? 'warn' : '', NOW) + stat(num(d.waiting), 'not looked at yet', '', 'Claude looks at 10:00 UTC') +
+      stat(num(d.unfiled), 'not in Linear yet', d.unfiled ? 'warn' : '', NOW) +
+      stat(d.last ? when(d.last.at) : 'never', 'last look', '', d.last ? num(d.last.looked) + ' looked at, ' + num(d.last.suggested) + ' suggested' : '') + '</div>';
+    if (d.last) h += '<p class="muted">' + out(d.last.runUrl, 'The last look\'s run on GitHub') + ', up to ' + out('https://github.com/genesis-ai-dev/langquest-next/commit/' + d.last.sha, '<code>' + esc(d.last.sha.slice(0, 8)) + '</code>') + '.</p>';
+    h += '<h3>Suggestions</h3>';
+    h += d.suggestions.length ? d.suggestions.map((s) => '<div class="fb"><span class="tag">' + esc(SUGGESTION_KINDS[s.kind] || s.kind) + '</span>' +
+      (s.decision ? '<span class="tag ' + (s.decision === 'accepted' ? 'good' : '') + '">' + esc(s.decision) + '</span>' : '<span class="tag bad">waiting</span>') +
+      '<small>' + (s.tutorial ? video(s.tutorial) + ' · ' : '') + 'suggested ' + when(s.madeAt) + (s.editedAt ? ' · edited ' + when(s.editedAt) : '') + (s.decidedAt ? ' · ' + esc(s.decision) + ' ' + when(s.decidedAt) : '') + '</small>' +
+      '<p><b>' + esc(s.title) + '</b></p><p class="setup">' + esc(s.detail) + '</p>' + answers(s) +
+      (s.reason ? '<p><small>' + (s.decision === 'rejected' ? 'Why not: ' : 'Note: ') + esc(s.reason) + '</small></p>' : '') +
+      (s.issue ? '<p><small>Linear: ' + out(s.issueUrl, esc(s.issue)) + '</small></p>' : s.kind === 'code' && s.decision === 'accepted' ? '<p><small class="muted">Linear: tonight, with the comments job</small></p>' : '') +
+      (s.decision ? '' : '<p><button type="button" data-sg="' + esc(s.id) + '" data-decision="accept" data-kind="' + esc(s.kind) + '">Accept</button> ' +
+        '<button type="button" data-sg="' + esc(s.id) + '" data-decision="reject">Reject</button></p>' +
+        '<details><summary>Edit</summary><label for="sg-' + esc(s.id) + '">What to change</label><textarea id="sg-' + esc(s.id) + '" maxlength="4000" rows="6">' + esc(s.detail) + '</textarea>' +
+        '<p><button type="button" data-sg="' + esc(s.id) + '" data-decision="edit">Save</button></p></details>') +
+      '</div>').join('') : '<p class="muted">Nothing here.</p>';
+    h += '<h3>What came in</h3>' + table([
+      { h: 'When', v: (i) => when(i.at) },
+      { h: 'Kind', v: (i) => where(i) },
+      { h: 'Video', v: (i) => video(i.tutorial) },
+      { h: 'What it says', v: (i) => said(i) },
+      { h: 'Reply suggested', v: (i) => i.reply ? esc(i.replyEnglish || i.reply) + (i.language !== 'en' ? '<details><summary>In ' + esc(languageName(i.language)) + '</summary>' + esc(i.reply) + '</details>' : '') : '' },
+      { h: 'Claude\'s answer', v: (i) => i.lookedAt ? esc(i.outcome || '') : '<span class="muted">at the next look</span>' },
+      { h: '', v: (i) => link(i) ? out(link(i), i.kind === 'comment' ? 'Reply on YouTube' : 'Open') : '' }
+    ], d.inputs);
+    h += '<h3>Add a note</h3><label for="note-video">Video</label><select id="note-video"><option value="">None: a new video, or all of them</option>' +
+      d.videos.map((v) => '<option value="' + esc(v.tutorial) + '">' + esc(v.title) + '</option>').join('') + '</select>' +
+      '<label for="note-text">Note</label><textarea id="note-text" maxlength="2000" rows="3"></textarea><p><button type="button" data-note>Add note</button></p>';
+    return h;
   }
 });
 
 // ---- the few actions (decisions.md 162): the app Worker checks the person again and records each ----
-async function perform(action, button) {
+async function post(action) {
   const t = await token();
-  if (!t) { showSignIn(); return; }
+  if (!t) { showSignIn(); throw new Error('Signed out'); }
+  const res = await fetch('/ops/api/actions', { method: 'POST', headers: { authorization: 'Bearer ' + t, 'content-type': 'application/json' }, body: JSON.stringify(action) });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || ('HTTP ' + res.status));
+  return body;
+}
+const SUGGESTION_KINDS = { script: 'Script', screen: 'Screens', voice: 'Voice', code: 'App code', new: 'New video' };
+const DECIDED = { accepted: 'Accepted.', 'accepted:waiting': 'Accepted. The comments job puts it in Linear tonight.', rejected: 'Rejected.', edited: 'Saved.' };
+const PUBLISHED = {
+  started: 'Going up on YouTube now, 100 a day.', running: 'A run is going; it takes them too, or the next daily run does.',
+  disabled: 'Chosen, but publishing is off here (no YouTube client).'
+};
+async function perform(action, button) {
   if (button) button.disabled = true;
   try {
-    const res = await fetch('/ops/api/actions', { method: 'POST', headers: { authorization: 'Bearer ' + t, 'content-type': 'application/json' }, body: JSON.stringify(action) });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || ('HTTP ' + res.status));
+    const body = await post(action);
     say(action.kind === 'run' ? (body.result === 'started' ? 'Started ' + action.key + '.' : action.key + ' was ' + body.result + '; nothing started.')
-      : action.kind === 'verification' ? 'Blue check ' + body.result + '.' : 'Feedback marked ' + body.result + '.');
+      : action.kind === 'verification' ? 'Blue check ' + body.result + '.'
+      : action.kind === 'tutorials-publish' ? num(action.items.length) + ' chosen. ' + (PUBLISHED[body.result] || body.result)
+      : action.kind === 'tutorial-note' ? 'Note added. Claude looks at it at the next look.'
+      : action.kind === 'tutorial-suggestion' ? (DECIDED[body.result] || (body.result.startsWith('accepted:') ? 'Accepted, and filed in Linear as ' + body.result.slice(9) + '.' : body.result))
+      : 'Feedback marked ' + body.result + '.');
     load(false);
-  } catch (err) { say(err.message, 'red'); if (button) button.disabled = false; }
+  } catch (err) { if (err.message !== 'Signed out') say(err.message, 'red'); if (button) button.disabled = false; }
 }
+
+// ---- tutorial videos (decisions.md 180): Connect goes to Google and back; Publish chooses what goes up ----
+async function connectYouTube(button) {
+  button.disabled = true;
+  try { location.assign((await post({ kind: 'youtube-start' })).result); }
+  catch (err) { if (err.message !== 'Signed out') say(err.message, 'red'); button.disabled = false; }
+}
+/** Back from Google's page: the callback put its answer after the #, which never reaches a server; hand it on with this person's token. */
+async function finishYouTube() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (!h.has('youtube-code') && !h.has('youtube-error')) return;
+  history.replaceState(history.state, '', location.pathname + location.search);
+  if (!h.has('youtube-code')) { say('Google did not connect the channel (' + h.get('youtube-error') + ').', 'red'); return; }
+  say('Connecting the channel…');
+  try { say('Connected the ' + (await post({ kind: 'youtube-connect', code: h.get('youtube-code'), state: h.get('youtube-state') || '' })).result + ' channel.'); }
+  catch (err) { if (err.message !== 'Signed out') say(err.message, 'red'); }
+}
+const chosenVideos = () => [...document.querySelectorAll('[data-yt-item]:checked')].map((b) => [b.dataset.t, b.dataset.l, b.dataset.s]);
+function countChosen() {
+  const n = chosenVideos().length;
+  const b = document.querySelector('[data-yt-publish]');
+  if (b) { b.disabled = n === 0; b.textContent = n ? 'Publish ' + num(n) : 'Publish'; }
+}
+document.addEventListener('change', (e) => {
+  if (e.target.matches && e.target.matches('[data-yt-all]')) for (const b of document.querySelectorAll('[data-yt-item]')) b.checked = e.target.checked;
+  if (e.target.matches && e.target.matches('[data-yt-all], [data-yt-item]')) countChosen();
+});
+document.addEventListener('click', (e) => {
+  const c = e.target.closest && e.target.closest('[data-yt-connect]');
+  if (c) connectYouTube(c);
+  const p = e.target.closest && e.target.closest('[data-yt-publish]');
+  const items = p ? chosenVideos() : [];
+  if (items.length && confirm('Publish ' + items.length + (items.length === 1 ? ' video' : ' videos') + ' on YouTube? Each goes up public; YouTube takes 100 a day.')) perform({ kind: 'tutorials-publish', items }, p);
+});
 document.addEventListener('click', (e) => {
   const run = e.target.closest && e.target.closest('[data-run]');
   if (run && confirm('Run ' + run.dataset.run + ' now?')) perform({ kind: 'run', key: run.dataset.run }, run);
@@ -299,6 +448,30 @@ document.addEventListener('click', (e) => {
   if (fb) perform({ kind: 'feedback', id: fb.dataset.fb, status: fb.dataset.status }, fb);
   const ver = e.target.closest && e.target.closest('[data-ver]');
   if (ver && confirm((ver.dataset.decision === 'grant' ? 'Grant' : 'Decline') + ' this blue check?')) perform({ kind: 'verification', id: ver.dataset.ver, decision: ver.dataset.decision }, ver);
+});
+
+// ---- feedback on the tutorial videos (decisions.md 186): a yes, a no with why, or the suggestion edited; a note for the next look ----
+document.addEventListener('click', (e) => {
+  const sg = e.target.closest && e.target.closest('[data-sg]');
+  if (sg) {
+    const id = sg.dataset.sg, d = sg.dataset.decision;
+    if (d === 'accept' && confirm('Accept this suggestion?' + (sg.dataset.kind === 'code' ? ' It goes to Linear.' : ''))) perform({ kind: 'tutorial-suggestion', id, decision: 'accept', detail: null, reason: null }, sg);
+    if (d === 'reject') {
+      const reason = prompt('Why not? Claude reads this before suggesting it again. (You may leave it empty.)', '');
+      if (reason !== null) perform({ kind: 'tutorial-suggestion', id, decision: 'reject', detail: null, reason: reason.slice(0, 500) }, sg);
+    }
+    if (d === 'edit') {
+      const detail = (document.getElementById('sg-' + id) || {}).value || '';
+      if (detail.trim()) perform({ kind: 'tutorial-suggestion', id, decision: 'edit', detail, reason: null }, sg);
+      else say('Write what to change before saving.', 'red');
+    }
+  }
+  const note = e.target.closest && e.target.closest('[data-note]');
+  if (note) {
+    const text = ($('note-text') || {}).value || '';
+    if (text.trim()) perform({ kind: 'tutorial-note', tutorial: ($('note-video') || {}).value || null, text }, note);
+    else say('Write the note first.', 'red');
+  }
 });
 
 // ---- one install's diagnostics, readable --------------------------------------------------

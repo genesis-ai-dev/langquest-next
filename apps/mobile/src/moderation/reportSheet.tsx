@@ -74,7 +74,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
       ctx.toast(alsoBlock ? t('moderation.toast.reportedAndBlocked', { name: who }) : reportedMessage(sent));
       props.onClose();
     } catch (e) {
-      ctx.toast(failureMessage('report content', e));
+      ctx.toast(failureMessage('report content', e), 'problem');
     } finally {
       setBusy(false);
     }
@@ -86,7 +86,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
       ctx.toast(blocked ? t('moderation.toast.unblocked', { name: who }) : t('moderation.toast.blocked', { name: who }));
       props.onClose();
     } catch (e) {
-      ctx.toast(failureMessage('block person', e));
+      ctx.toast(failureMessage('block person', e), 'problem');
     }
   }
 
@@ -102,7 +102,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
     } catch (e) {
       // Offline or refused: the server's answer says which.
       noteExpected('remove content', e);
-      ctx.toast(looksOffline(e) ? t('moderation.toast.notRemovedOffline') : t('moderation.toast.notRemovedRefused'));
+      ctx.toast(looksOffline(e) ? t('moderation.toast.notRemovedOffline') : t('moderation.toast.notRemovedRefused'), 'problem');
     } finally {
       setBusy(false);
     }
@@ -175,6 +175,11 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
   );
 }
 
+/** What Open shows: the version or review itself, else the passage that holds it. */
+function openLabel(kind: ReportTarget['kind']): string {
+  return kind === 'version' ? t('moderation.actions.openVersion') : kind === 'review' ? t('moderation.actions.openReview') : t('moderation.actions.openPassage');
+}
+
 /**
  * A moderator's choices for an open report: look at it, take it out of the
  * record (asked once more, as from the flag), or keep it. A report about a
@@ -198,7 +203,7 @@ export function ReportActions(props: { ctx: Ctx; target: ReportTarget; onDone: (
       props.onDone();
     } catch (e) {
       noteExpected(`report ${what}`, e);
-      ctx.toast(looksOffline(e) ? t('moderation.toast.notSavedOffline') : t('moderation.toast.notSavedRefused'));
+      ctx.toast(looksOffline(e) ? t('moderation.toast.notSavedOffline') : t('moderation.toast.notSavedRefused'), 'problem');
     } finally {
       setBusy(false);
     }
@@ -214,12 +219,13 @@ export function ReportActions(props: { ctx: Ctx; target: ReportTarget; onDone: (
   }
   return (
     <>
+      {/* Look first: opening what was reported leads, and removing, which no phone can undo, is a quieter red button (UI audit, finding 113). */}
       {target.kind === 'person' ? (
         <PrimaryBtn label={t('moderation.actions.openMembers')} icon="people" onPress={props.onOpen} />
       ) : (
         <>
-          <PrimaryBtn label={t('moderation.removeFromRecord')} icon="trash" tone="red" disabled={busy} onPress={() => setConfirming(true)} />
-          {target.unitId ? <GhostBtn label={t('moderation.actions.openPassage')} help={t('moderation.actions.openPassageHelp')} onPress={props.onOpen} /> : null}
+          {target.unitId ? <PrimaryBtn label={openLabel(target.kind)} help={t('moderation.actions.openPassageHelp')} onPress={props.onOpen} /> : null}
+          <GhostBtn label={t('moderation.removeFromRecord')} icon="trash" tone="red" help={t('moderation.actions.removeHelp')} disabled={busy} onPress={() => setConfirming(true)} />
         </>
       )}
       <GhostBtn label={target.kind === 'person' ? t('moderation.actions.closeReport') : t('moderation.actions.keep')} disabled={busy}

@@ -132,5 +132,16 @@
       "release": "Dizer onde uma versão está publicada (ativa em um aplicativo ou site), ou retirada",
       "externalValues": "Guardar os valores do próprio aplicativo junto com os seus idiomas, em seu nome. O LangQuest os guarda e nunca age com base neles"
     }
+  },
+  "videos": {
+    "pageTitle": "Vídeos · LangQuest",
+    "language": "Idioma",
+    "title": "Vídeos do LangQuest",
+    "play": "Reproduzir",
+    "download": "Baixar",
+    "youtube": "Assistir no YouTube",
+    "size": "{{mb}} MB",
+    "none": "Ainda não há vídeos neste idioma.",
+    "failed": "Os vídeos não carregaram. Recarregue a página para tentar de novo."
   }
 }

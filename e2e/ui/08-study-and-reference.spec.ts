@@ -206,8 +206,7 @@ test('STUDY-005 Reviewers see the next step, not "Done"', async ({ page }) => {
   await expect(button(page, 'Done with this step')).toHaveCount(0);
   await expect(button(page, 'Record the first draft')).toHaveCount(0);
   await expect(button(page, 'Open the recording workspace')).toHaveCount(0);
-  // REV may answer (REV holds Review): a question offers "Answer".
-  await button(page, /^1\.\s*What do you like in this story\?$/).click();
+  // REV may answer (REV holds Review): a question offers "Answer" without a tap on it first (finding 39).
   await expect(button(page, 'Answer')).toBeVisible();
   // On a step nobody has done, the footer moves on instead of "Done with this step".
   await openLabel(page, JOHN);
@@ -243,9 +242,8 @@ test('STUDY-007 Answer a question in the guide, by voice', async ({ page }) => {
   await openStudy(page);
   await stepBar(page, 1).click();
   await button(page, /^Step 1: Hear and Heart/).click();
+  // A tap on the question answers it, as its Answer button does.
   await button(page, /^1\.\s*What do you like in this story\?$/).click();
-  await expect(button(page, 'Answer')).toBeVisible();
-  await button(page, 'Answer').click();
   await expect(text(page, 'Your answer')).toBeVisible();
   await expect(text(page, 'It stays with the passage, and reviewers see it with the study.')).toBeVisible();
   await expect(button(page, 'Add your answer')).toBeDisabled();
@@ -308,12 +306,12 @@ test('STUDY-010 Glossary words in the guide', async ({ page }) => {
   // Its recording plays: the player's button turns to Pause.
   await button(page, `Play Listen: ${GLOSSARY_WORD}`).click();
   await expect(button(page, `Pause Listen: ${GLOSSARY_WORD}`)).toBeVisible();
-  await expect(text(page, 'Couldn\'t load the audio — playing a stand-in')).toHaveCount(0);
+  await expect(text(page, 'Couldn\'t load the recording')).toHaveCount(0);
   // The organization has no key term of that name, so the footer says so and is not a button.
   const keyTerms = Object.values((await langAs(world(), 'TRANS')).getState().keyTerms as Record<string, { term: string }>);
   expect(keyTerms.map((k) => k.term), 'the world has no key term of that name').not.toContain(GLOSSARY_WORD);
-  await expect(text(page, 'This term isn\'t in your organization\'s key terms yet.')).toBeVisible();
-  await expect(button(page, 'Open the key term')).toHaveCount(0);
+  await expect(text(page, 'This term isn\'t in your organization\'s key words yet.')).toBeVisible();
+  await expect(button(page, 'Open the key word')).toHaveCount(0);
 });
 
 test('STUDY-012 The study\'s other chips', async ({ page }) => {
@@ -405,12 +403,11 @@ test('STUDY-017 Key words in the workspace', async ({ page }) => {
   await expect(button(page, /^heaven\. Luke 15:18, 21/)).toBeVisible();
   await expect(button(page, 'Add a key word')).toBeVisible();
   await expect(button(page, 'All key words')).toBeVisible();
-  await button(page, 'Hear heaven in the Bible').click();
-  await expect(tabChip(page, 'Bible')).toHaveAttribute('aria-selected', 'true');
-  await tabChip(page, 'Key words').click();
+  // The world's Bible (the built-in BSB) has no verse timings, so no word offers to play its verse (finding 41).
+  await expect(button(page, 'Hear heaven in the Bible')).toHaveCount(0);
   await button(page, /^heaven\. /).click();
   await expect(text(page, 'heaven')).toBeVisible();
-  await expect(text(page, 'Alpha key term')).toBeVisible();
+  await expect(text(page, 'Alpha key word')).toBeVisible();
 });
 
 test('STUDY-018 Say your word for a key word', async ({ page }) => {
@@ -436,14 +433,14 @@ test('STUDY-018 Say your word for a key word', async ({ page }) => {
 
 for (const who of ['REV', 'VIEW'] as const) {
   test(`STUDY-019 ${who} Reviewers and viewers cannot change key words`, async ({ page, browser }) => {
-    const forbidden = /^(Say yours|Say your word for .+|Add a key word|New term|Tie to your draft|Adjust or add a rendering|Add a rendering)$/;
+    const forbidden = /^(Say yours|Say your word for .+|Add a key word|New term|Tie to your draft|Change or add a word|Add a word)$/;
     const d = await device(browser, world(), who);
     await openStudy(d.page);
     await tabChip(d.page, 'Key words').click();
     await expect(button(d.page, /^heaven\. /)).toBeVisible();
     await expect(visible(d.page.getByRole('button', { name: forbidden }))).toHaveCount(0);
     await button(d.page, /^heaven\. /).click();
-    await expect(text(d.page, 'Alpha key term')).toBeVisible();
+    await expect(text(d.page, 'Alpha key word')).toBeVisible();
     await expect(visible(d.page.getByRole('button', { name: forbidden }))).toHaveCount(0);
     await d.context.close();
     void page;
@@ -455,7 +452,7 @@ test('STUDY-020 The Key Terms list', async ({ page }) => {
   await openWorkspace(page);
   await tabChip(page, 'Key words').click();
   await button(page, 'All key words').click();
-  await expect(text(page, 'Key Terms')).toBeVisible();
+  await expect(text(page, 'Key Words')).toBeVisible();
   await expect(text(page, `${world().passages['P-SUBMITTED'].label} · Alpha`)).toBeVisible();
   await expect(button(page, 'New term')).toBeVisible();
   await expect(text(page, /^In this passage · \d+$/)).toBeVisible();
@@ -478,11 +475,11 @@ test('STUDY-021 A new term from the Key Terms list', async ({ page }) => {
   await tabChip(page, 'Key words').click();
   await button(page, 'All key words').click();
   await button(page, 'New term').click();
-  await expect(text(page, 'New key term')).toBeVisible();
-  await expect(text(page, 'Added to Alpha\'s key terms, with its first rendering.')).toBeVisible();
+  await expect(text(page, 'New key word')).toBeVisible();
+  await expect(text(page, 'Added to Alpha\'s key words, with its first word.')).toBeVisible();
   await field(page, 'Source term, e.g. grace (charis)').fill('compassion');
   await expect(button(page, 'Add Term')).toBeDisabled();
-  await field(page, 'Alpha rendering').fill('imbabazi');
+  await field(page, 'Alpha word').fill('imbabazi');
   await field(page, 'When to use it, and why').fill('When the father sees the son');
   await button(page, 'Add Term').click();
   await sawToast(page, 'compassion added.');
@@ -495,7 +492,7 @@ test('STUDY-022 Nobody may add terms without Fill reference', async ({ page }) =
   await openStudy(page);
   await tabChip(page, 'Key words').click();
   await button(page, /^heaven\. /).click();
-  await expect(text(page, 'Alpha key term')).toBeVisible();
+  await expect(text(page, 'Alpha key word')).toBeVisible();
   await expect(button(page, 'New term')).toHaveCount(0);
 });
 
@@ -507,13 +504,13 @@ test('STUDY-023 A key term\'s page', async ({ page }) => {
   await tabChip(page, 'Key words').click();
   await button(page, /^heaven\. /).click();
   await expect(text(page, 'heaven')).toBeVisible();
-  await expect(text(page, 'Alpha key term')).toBeVisible();
+  await expect(text(page, 'Alpha key word')).toBeVisible();
   await expect(text(page, 'God\'s dwelling, or God himself')).toBeVisible();
   await expect(text(page, /^(Appears in .+|Applies to every passage)$/)).toBeVisible();
   await expect(button(page, 'Tie to your draft')).toBeVisible();
   await expect(text(page, `So reviewers know this term shaped ${world().passages['P-SUBMITTED'].label}.`)).toBeVisible();
   await expect(text(page, 'In Alpha')).toBeVisible();
-  await expect(button(page, 'Adjust or add a rendering')).toBeVisible();
+  await expect(button(page, 'Change or add a word')).toBeVisible();
   // The draft goes to the server, so a teammate's device (and STUDY-025) sees it.
   await expectSent(page, world());
 });
@@ -567,16 +564,16 @@ test('STUDY-026 Adjust or add a rendering, with why', async ({ page }) => {
   await openWorkspace(page);
   await tabChip(page, 'Key words').click();
   await button(page, /^heaven\. /).click();
-  await button(page, 'Adjust or add a rendering').click();
+  await button(page, 'Change or add a word').click();
   await expect(text(page, 'Alpha · “heaven”')).toBeVisible();
   await expect(text(page, `Recorded as part of ${world().passages['P-SUBMITTED'].label}, and tied to your draft.`)).toBeVisible();
   await expect(button(page, 'Add your word')).toBeDisabled();
-  await field(page, 'New rendering (optional)').fill('ijuru ry\'Imana');
+  await field(page, 'New word (optional)').fill('ijuru ry\'Imana');
   await field(page, 'When to use it').fill('Only for God\'s dwelling');
   await speakInto(page, 'Say why', 4000);
   await button(page, 'Add your word').click();
   await sawToast(page, 'Added “ijuru ry\'Imana”.');
-  await button(page, 'Adjust or add a rendering').click();
+  await button(page, 'Change or add a word').click();
   await field(page, 'Or type what changed, and why').fill('Elders prefer the older word');
   await button(page, 'Add your word').click();
   await sawToast(page, 'Change recorded.');
@@ -598,7 +595,7 @@ test('STUDY-028 The Bible chip in the workspace', async ({ page }) => {
   await button(page, /^Verse 15:20\. /).click();
   // The key word in the text opens its page.
   await visible(page.getByRole('link', { name: /^heaven, key word/ })).first().click();
-  await expect(text(page, 'Alpha key term')).toBeVisible();
+  await expect(text(page, 'Alpha key word')).toBeVisible();
   await byId(page, 'header-back').click();
   await tabChip(page, 'Bible').click();
   expect(await screenText(page)).toMatch(/BSB: /);
@@ -659,8 +656,10 @@ test('STUDY-031 Add to My Bibles, then Remove', async ({ page }) => {
   await openOwnBible(page);
   await expect(text(page, `${OWN_BIBLE} · eng`)).toBeVisible();
   await expect(text(page, 'Can be kept offline')).toBeVisible();
+  // It opens at the passage's chapter (Luke 15), not chapter 1.
+  await expect(text(page, 'Chapter 15')).toBeVisible();
   await button(page, 'Next chapter').click();
-  await expect(text(page, 'Chapter 2')).toBeVisible();
+  await expect(text(page, 'Chapter 16')).toBeVisible();
   await button(page, 'Add to My Bibles').click();
   await sawToast(page, `${OWN_BIBLE} added to My Bibles`);
   await expect(text(page, /^Recording Version \d+$/)).toBeVisible();
@@ -708,8 +707,9 @@ test('STUDY-033 More Bibles without Bible Brain', async ({ page }) => {
 
 test('STUDY-034 "Next chapter" stops at the last chapter', async ({ page }) => {
   await openOwnBible(page);
-  // Luke has 24 chapters in this Bible's numbering.
-  for (let n = 2; n <= 24; n++) {
+  // Luke has 24 chapters in this Bible's numbering; it opens at the passage's, 15.
+  await expect(text(page, 'Chapter 15')).toBeVisible();
+  for (let n = 16; n <= 24; n++) {
     await button(page, 'Next chapter').click();
     await expect(text(page, `Chapter ${n}`)).toBeVisible();
   }

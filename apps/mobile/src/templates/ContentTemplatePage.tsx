@@ -1,7 +1,8 @@
 // A language's content template (decision 138): the one it uses on top, with
 // its books, version and edit; the organization's others to choose from under
 // it; and, last, the organization's whole shelf (Content templates). Opened
-// from the language's page as get_ready `step: 'template'`.
+// from the language's page as get_ready `step: 'template'`. A Bible template
+// links to the language's book names under it (decision 193).
 import { languageName, progressOf, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import { useMemo, useState } from 'react';
 import { Text } from '../ui/text';
@@ -14,8 +15,11 @@ import { C, TINT } from '../ui/theme';
 import { HelpRow } from '../helpMode/helpBadge';
 import { sourceLine } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
+import { useLabels } from '../library/useLabels';
+import { itemName } from '../library/labelsModel';
 import { PickCard, RadioRow } from '../admin/admin';
-import { bookRows, choiceLine, libraryChoices, partWords, recordedCount, setAsideCount, STARTER_TEMPLATE, templateOf, withWaitingBooks, type LibraryChoice } from './contentTemplatesModel';
+import { languageLabel } from '../admin/adminModel';
+import { bookRows, choiceLine, choiceName, libraryChoices, partWords, recordedCount, setAsideCount, STARTER_TEMPLATE, templateOf, withWaitingBooks, type LibraryChoice } from './contentTemplatesModel';
 import { choiceInUse, languageSummary, languageVersionView, lower, pickerLists, pickerNote } from './model';
 import { usePickTemplate } from './usePickTemplate';
 import { useRunner } from './useRunner';
@@ -30,7 +34,8 @@ export function ContentTemplatePage({ ctx }: { ctx: Ctx }) {
   const libItems = lib.items;
   const library = ctx.org.state?.library;
   const shared = useSharedItems('template', lib.orgId);
-  const choices = useMemo(() => libraryChoices(library ?? {}, libItems('template'), shared.rows, STARTER_TEMPLATE.name), [library, libItems, shared.rows]);
+  const labels = useLabels();
+  const choices = useMemo(() => libraryChoices(library ?? {}, libItems('template'), shared.rows, STARTER_TEMPLATE.name, labels), [library, libItems, shared.rows, labels]);
   const sel = templateOf(state);
   const [picked, setPicked] = useState<string | null>(null);
   const [limit, setLimit] = useState(8);
@@ -72,10 +77,14 @@ export function ContentTemplatePage({ ctx }: { ctx: Ctx }) {
     ...(canManage && sel ? [{ label: editable ? t('common.edit') : t('content.library.view'), help: editable ? t('content.language.editTemplateHelp') : t('content.library.viewHelp'),
       onPress: () => ctx.go('template_editor', { itemId: sel.itemId }) }] : [])
   ];
+  // The book names it uses (decision 193): the set's name, else the template's own.
+  const namesUsed = state.bookNamesFrom?.value;
+  const namesItem = namesUsed ? lib.item(namesUsed.itemId) : null;
+  const bookNamesLine = namesUsed ? (namesItem ? itemName(labels, namesItem) : languageLabel(namesUsed.language)) : t('bookNames.templates');
   const changing = !!pick && !choiceInUse(pick, sel);
   const option = (c: LibraryChoice) => (
     <HelpRow key={c.key} of="getReady.template.option">
-      <RadioRow icon={c.source === 'ours' ? 'template' : 'globe'} label={c.name} sub={choiceLine(c, sourceLine)} on={picked === c.key}
+      <RadioRow icon={c.source === 'ours' ? 'template' : 'globe'} label={choiceName(c)} sub={choiceLine(c, sourceLine)} on={picked === c.key}
         help={canManage ? t('content.picker.cardHelp') : t('getReady.template.optionViewHelp')} onPress={() => { if (canManage) setPicked(picked === c.key ? null : c.key); }} />
     </HelpRow>
   );
@@ -84,7 +93,7 @@ export function ContentTemplatePage({ ctx }: { ctx: Ctx }) {
       footer={changing && pick ? (
         <>
           <Text style={txt.smMuted}>{pickerNote({ hasCurrent: !!sel, recorded: data.recorded, language, currentParts: lower(words.many), pick })}</Text>
-          <PrimaryBtn label={t('content.picker.use', { name: pick.name })} icon="check" busy={busy} disabled={!canManage} onPress={() => void use(pick)} />
+          <PrimaryBtn label={t('content.picker.use', { name: choiceName(pick) })} icon="check" busy={busy} disabled={!canManage} onPress={() => void use(pick)} />
         </>
       ) : undefined}>
       {sel ? (
@@ -107,6 +116,12 @@ export function ContentTemplatePage({ ctx }: { ctx: Ctx }) {
           ) : null}
         </PickCard>
       ) : <Banner icon="template" title={t('content.noTemplate')} body={canManage ? t('getReady.template.chooseOne') : t('content.language.whoeverChooses', { language })} />}
+      {doc?.bible ? (
+        <Group>
+          <Row icon="book" label={t('bookNames.title')} sub={bookNamesLine} help={t('bookNames.rowHelp')} last
+            onPress={() => ctx.go('get_ready', { languageId, step: 'names' })} />
+        </Group>
+      ) : null}
       {data.setAside > 0 ? (
         <Banner icon="history" title={t('content.language.setAsideTitle', { count: data.setAside })}
           body={t('content.language.setAsideBody', { count: data.setAside, language })} />

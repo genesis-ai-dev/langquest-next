@@ -11,8 +11,10 @@ import { t } from '../i18n';
 const LIBRARY_PRIVILEGE: Record<LibraryKind, Privilege> = {
   template: 'manage_templates',
   versification: 'manage_templates',
+  names: 'manage_templates',
   flow: 'manage_flows',
-  material: 'manage_reference'
+  material: 'manage_reference',
+  labels: 'manage_structure'
 };
 
 /**

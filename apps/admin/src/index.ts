@@ -1,15 +1,17 @@
 import { access, bearer } from './auth';
 import { API_BASE, PAGE_PATH } from './paths';
+import { ACTION_BYTES, youtubeCallback } from './youtube';
 import { diagConnection, withDiag } from './db';
 import type { Env } from './env';
 import { page, SECURITY_HEADERS } from './page';
 import { LEVELS, settle, type Level, type Section } from './section';
 import { cloudflareSection } from './sources/cloudflare';
-import { diagSections, errorText, lookup, mediaType, SCREENSHOT_SQL, VOICE_SQL } from './sources/diag';
+import { diagSections, errorText, lookup, mediaType, PICTURE_SQL, SCREENSHOT_SQL, VOICE_SQL } from './sources/diag';
 import { appStoreSection } from './sources/appstore';
 import { expoSection } from './sources/expo';
 import { googlePlaySection } from './sources/googleplay';
 import { codeSection } from './sources/github';
+import { filmingSection } from './sources/filming';
 import { supabaseSection } from './sources/supabase';
 import { containerSection } from './sources/container';
 import { expirySection } from './sources/expiry';
@@ -55,12 +57,13 @@ const PROVIDERS: Record<string, (env: Env) => Promise<Section>> = {
   capacity: (env) => capacitySection(env),
   releases: (env) => releasesSection(env),
   adoption: (env) => adoptionSection(env),
-  container: (env) => containerSection(env)
+  container: (env) => containerSection(env),
+  filming: (env) => filmingSection(env)
 };
 
 /** The sections read as diag_reader in one connection, with what each says when that connection fails. */
 const DIAG_IDS = ['jobs', 'clients', 'database', 'v2', 'feedback'] as const;
-const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security'] as const;
+const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials'] as const;
 
 const unreachable = (e: unknown): Section => ({ state: 'error', alerts: [], error: `Could not reach the database as diag_reader: ${errorText(e)}`, checkedAt: new Date().toISOString() });
 
@@ -79,14 +82,14 @@ async function opsAnswer(env: Env): Promise<Record<string, Section>> {
  * "Needs attention" shows, as JSON for whatever reads it without the page
  * (docs/ops-dashboard-plan.md 5.1).
  */
-async function attention(env: Env, fresh: boolean): Promise<{ checkedAt: string; urgent: number; problems: number; watch: number; items: { level: Level; text: string; section: string }[] }> {
+async function attention(env: Env, fresh: boolean): Promise<{ checkedAt: string; urgent: number; problems: number; watch: number; items: { level: Level; text: string; link?: string; section: string }[] }> {
   const [diag, ops, ...providers] = await Promise.all([
     diagAnswer(env), opsAnswer(env),
     ...Object.entries(PROVIDERS).map(([id, run]) => memo(id, fresh, () => settle(id, () => run(env))).then((s) => [id, s] as const))
   ]);
   const all: (readonly [string, Section])[] = [...Object.entries(diag), ...Object.entries(ops), ...(providers as (readonly [string, Section])[])];
   const items = all.flatMap(([section, s]) => [
-    ...s.alerts.map((a) => ({ level: a.level, text: a.text, section })),
+    ...s.alerts.map((a) => ({ level: a.level, text: a.text, ...(a.link ? { link: a.link } : {}), section })),
     ...(s.state === 'error' ? [{ level: 'watch' as const, text: `Could not read: ${s.error ?? 'unknown'}`, section }] : [])
   ]).sort((a, b) => LEVELS.indexOf(a.level) - LEVELS.indexOf(b.level));
   const count = (level: Level) => items.filter((i) => i.level === level).length;
@@ -111,13 +114,15 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     const { success } = await env.ADMIN_RATE_LIMIT.limit({ key: request.headers.get('cf-connecting-ip') ?? 'unknown' });
     if (!success) return json({ error: 'Too many requests; wait a minute.' }, 429);
   }
+  // Google sends the person back here from Connect YouTube (decisions.md 180), without the page's token.
+  if (url.pathname === `${API_BASE}youtube/callback`) return youtubeCallback(url);
   const who = await access(request, env);
   if (!who.ok) return json({ error: who.error, ...(who.need ? { need: who.need } : {}) }, who.status);
 
   if (acting) {
     if (!env.APP_ACTIONS) return json({ error: 'Actions are not connected here (APP_ACTIONS).' }, 503);
     const text = await request.text();
-    if (text.length > 1000) return json({ error: 'Too large' }, 413);
+    if (text.length > ACTION_BYTES) return json({ error: 'Too large' }, 413);
     let body: unknown;
     try { body = JSON.parse(text); } catch { return json({ error: 'Not JSON' }, 400); }
     const done = await env.APP_ACTIONS.perform(bearer(request) ?? '', body);
@@ -147,12 +152,12 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       return json({ error: errorText(e) }, 502);
     }
   }
-  // A feedback's screenshot or voice note, kept in the database; its type comes from its bytes, and anything else is refused.
-  const file = /^feedback\/([^/]+)\/(screenshot|voice)$/.exec(section);
+  // A feedback's screenshot, chosen picture or voice note, kept in the database; its type comes from its bytes, and anything else is refused.
+  const file = /^feedback\/([^/]+)\/(screenshot|picture|voice)$/.exec(section);
   if (file) {
     if (!UUID.test(file[1]!)) return json({ error: 'Not a feedback id' }, 400);
     try {
-      const bytes = await withDiag(diagConnection(env), (query) => query<Uint8Array | null>(file[2] === 'voice' ? VOICE_SQL : SCREENSHOT_SQL, [file[1]!]));
+      const bytes = await withDiag(diagConnection(env), (query) => query<Uint8Array | null>(file[2] === 'voice' ? VOICE_SQL : file[2] === 'picture' ? PICTURE_SQL : SCREENSHOT_SQL, [file[1]!]));
       if (!bytes) return json({ error: `No ${file[2]}` }, 404);
       const type = mediaType(bytes);
       if (!type || (file[2] === 'voice') !== type.startsWith('audio/')) return json({ error: 'Not a file this page shows' }, 415);

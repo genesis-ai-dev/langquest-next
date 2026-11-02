@@ -111,7 +111,7 @@ every type.
 | Messages | Other in-app messages (review comments, join request messages, feedback sent from help mode) | Yes | No | Optional | App functionality |
 | Audio | Voice or sound recordings | Yes | No | Required | App functionality |
 | App activity | Other user-generated content (reviews, notes, answers, reports of content or people, blocked people, which Bibles and guides were used for a version or review) | Yes | No | Required | App functionality |
-| Photos and videos | Photos (pictures and maps an admin adds to a study guide; a screenshot of the app someone chooses to add to feedback) | Yes | No | Optional | App functionality |
+| Photos and videos | Photos (pictures and maps an admin adds to a study guide; a screenshot of the app, or a picture of their own, someone chooses to add to feedback) | Yes | No | Optional | App functionality |
 | Photos and videos | Videos (films an admin adds to a study guide) | Yes | No | Optional | App functionality |
 | Audio | Other audio files (step and glossary audio an admin uploads to a study guide) | Yes | No | Optional | App functionality |
 | App info and performance | Crash logs | Yes | No | Optional (Settings switch) | App functionality, Analytics |
@@ -175,6 +175,28 @@ ID, with the INTERNET and ACCESS_NETWORK_STATE permissions), which would
 add "Device or other IDs", collected and shared with Microsoft. Check for it
 before raising the version.
 
+Clean up (decisions.md 179) takes background noise out of a part on the
+phone, when the person asks for it: DeepFilterNet 3, an 8.6 MB file in the
+app beside the speech model, run by the same ONNX Runtime (1.22.0, so the
+telemetry above stays out). It removes noise from the person's own
+recording; it makes no new content, so "No AI-generated content" above
+still holds. The cleaned part is uploaded like any other part, as the same
+kind of voice recording, so the "Voice or sound recordings" answer is
+unchanged. It needs no permission and sends nothing of its own, so no Play
+Console answer changes.
+
+The noise warning (decisions.md 181) measures how loud a part is and how
+loud the room is between its words, on the device that recorded or plays
+it. The numbers stay on that device and are never sent, so no Play Console
+answer changes.
+
+Even loudness (decisions.md 182) plays each recording people make in the
+app (parts, voice notes, spoken feedback) from a copy turned up or down to
+one level, made on the device the first time it plays and kept in that
+device's cache (on the web, in the page's memory). The recording itself is
+never changed, the copy is never uploaded, and nothing new is sent or
+collected, so no Play Console answer changes.
+
 Bible text and audio (docs/reference-material.md, decisions.md 62) come
 from Faith Comes By Hearing's Bible Brain through our Worker, which holds the
 key and sends Bible Brain no user data; phones then download the audio from
@@ -189,9 +211,13 @@ the LangQuest team only (`diag.feedback`, read by support), never to the
 organization, and carries the random install ID diagnostics use. Two switches,
 both off until the person turns them on, add a screenshot of the app's own
 screen and their name and email (or sign-in name), which the server reads from
-the account itself. These are types already declared: the words are "Other
+the account itself. On Android and the web, "Add a picture" sends one
+picture they choose (a photo, or a screenshot of something else) through the
+phone's own file picker, as a JPEG of at most 1 MB (iPhones do not offer it:
+Apple's App Privacy answers would need Photos or Videos, decisions.md 145); the app sees only that file and asks for no permission
+(no `READ_MEDIA_IMAGES`). These are types already declared: the words are "Other
 in-app messages", the voice note "Voice or sound recordings", the screenshot
-"Photos", the name, email and install ID
+and the chosen picture "Photos", the name, email and install ID
 their own rows, all optional and for app functionality; nothing is shared. If
 the team ever emails someone back about their feedback, "Developer
 communications" must be added to Email address's purposes first.

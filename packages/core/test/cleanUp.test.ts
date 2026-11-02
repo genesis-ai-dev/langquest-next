@@ -63,6 +63,26 @@ describe('a cleaned part (decisions.md 176)', () => {
     expect(() => clean(fold(base()), ['a', 'b'], 'b')).toThrow(CommandError);
   });
 
+  it('several parts at once: one draft holds every cleaned sound, and a part kept as recorded gets only its note', () => {
+    const before = fold([...base(), ev('v1.CardVerseSet', { unitId: 'luke1', hash: 'b', mark: 'next' })]);
+    const specs = commands(before).cleanUpParts({
+      commandId: 'all', unitId: 'luke1', actorId: 't1', cardHashes: ['a', 'b'], tool: 'dfn3', limitDb: 12,
+      parts: [{ hash: 'a', use: 'cleaned', cleaned: { hash: 'a2', format: 'm4a' } }, { hash: 'b', use: 'original' }]
+    });
+    expect(specs.filter((s) => s.type === 'v1.TakeComposed')).toHaveLength(1);
+    const after = apply(before, specs);
+    expect(after.invalidEvents).toEqual({});
+    expect(after.takes[derivePassage(after, 'luke1').draftTakeId!]?.cardHashes).toEqual(['a2', 'b']);
+    expect(after.cardVerses['luke1']?.['a2']?.value).toEqual({ mark: 'set', from: '1:1', to: '1:2' });
+    expect(cleanUpOf(after, 'luke1', 'b')?.value).toMatchObject({ use: 'original', limitDb: 12 });
+    const kept = commands(before).cleanUpParts({ commandId: 'none', unitId: 'luke1', actorId: 't1', cardHashes: ['a', 'b'], tool: 'dfn3', parts: [{ hash: 'b', use: 'original' }] });
+    expect(kept.map((s) => s.type)).toEqual(['v1.CardCleanUpSet']);
+    const twice = [{ hash: 'a', use: 'original' as const }, { hash: 'a', use: 'original' as const }];
+    expect(() => commands(before).cleanUpParts({ commandId: 'x', unitId: 'luke1', actorId: 't1', cardHashes: ['a', 'b'], tool: 'dfn3', parts: twice })).toThrow(CommandError);
+    const same = [{ hash: 'a', use: 'cleaned' as const, cleaned: { hash: 'c', format: 'm4a' as const } }, { hash: 'b', use: 'cleaned' as const, cleaned: { hash: 'c', format: 'm4a' as const } }];
+    expect(() => commands(before).cleanUpParts({ commandId: 'y', unitId: 'luke1', actorId: 't1', cardHashes: ['a', 'b'], tool: 'dfn3', parts: same })).toThrow(CommandError);
+  });
+
   it('kept as recorded saves only the note, and may be tried again', () => {
     const before = fold(base());
     const specs = commands(before).cleanUpPart({ commandId: 'keep', unitId: 'luke1', actorId: 't1', cardHashes: ['a', 'b'], hash: 'a', tool: 'dfn3', use: 'original' });

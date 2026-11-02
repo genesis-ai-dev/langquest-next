@@ -3,7 +3,7 @@
 // and kept in chunks with the room around them by chunks.ts (LAN-82), and
 // 16-bit WAV files delivered as blob: URIs. renderAudio (export and editing)
 // is native-only and fails loudly.
-import type { MicrophoneEnergyModuleEvents, VADConfig } from './MicrophoneEnergyModule';
+import type { CleanedPart, MicrophoneEnergyModuleEvents, VADConfig } from './MicrophoneEnergyModule';
 import {
   assemble, DEFAULT_PREROLL_MS, encodeWav, FRAME_SAMPLES, peakEnergy, prerollFrames, SAMPLE_RATE
 } from './vadCore';
@@ -12,7 +12,7 @@ import { Chunks, ringFrames } from './chunks';
 import { frameScore, Resampler, SpeechChunks } from './speech';
 import { loadSpeechModel, type SpeechModel } from './speechModel.web';
 
-export type { VADConfig, MicrophoneEnergyModuleEvents } from './MicrophoneEnergyModule';
+export type { CleanedPart, VADConfig, MicrophoneEnergyModuleEvents } from './MicrophoneEnergyModule';
 
 type Events = MicrophoneEnergyModuleEvents;
 const listeners = new Map<keyof Events, Set<(...args: never[]) => void>>();
@@ -48,6 +48,8 @@ let chunkCount = 0;
 let vadEnabled = false;
 /** What this device heard last time, until a session's splitter hears for itself. */
 let remembered: HeardLevels | null = null;
+/** The silence switch (decision 194): chunks keep the room between parts while it is on. */
+let keepRoom = false;
 let splitter: Splitter | null = null;
 /** The splitter's clock: frames heard, as time. The page's clock jumps when frames arrive in bursts. */
 let clock = 0;
@@ -234,7 +236,10 @@ export default {
     await c?.ctx.close();
   },
   /** Only what the device heard last time is read; the splitter needs no setting (LAN-82). */
-  async configureVAD(config: VADConfig) { if (config.heard) remembered = config.heard; },
+  async configureVAD(config: VADConfig) {
+    if (config.heard) remembered = config.heard;
+    if (config.keepRoom !== undefined) { keepRoom = config.keepRoom; if (chunks) chunks.keepRoom = keepRoom; }
+  },
   /** As on the phones, what was heard while the detector was off never heads a part. */
   async enableVAD() {
     await pending;
@@ -248,6 +253,7 @@ export default {
     lastScore = 0;
     if (!splitter) splitter = new Splitter(frameMs(), remembered);
     chunks ??= new Chunks(frameMs(), rate);
+    chunks.keepRoom = keepRoom;
     splitter.pauseListening();
   },
   async disableVAD() {
@@ -275,5 +281,19 @@ export default {
   },
   async renderAudio(): Promise<string> {
     throw new Error('Audio export is not implemented on web.');
+  },
+  /** Clean up (cleanUp.web.ts, decision 179), in a chunk of its own, loaded when a part is first cleaned. */
+  async cleanUp(id: string, uri: string): Promise<CleanedPart> {
+    return (await import('./cleanUp.web')).cleanUp(id, uri, (done) => emit('onCleanUpProgress', { id, done }));
+  },
+  async cleanUpMix(id: string, limitDb: number | null, keep: boolean): Promise<{ uri: string; format: 'wav' | 'm4a' }> {
+    return (await import('./cleanUp.web')).cleanUpMix(id, limitDb, keep);
+  },
+  async cleanUpForget(id: string): Promise<void> {
+    (await import('./cleanUp.web')).cleanUpForget(id);
+  },
+  /** The web evens out loudness in the app (levelCopy.web.ts, decision 182), with no module call. */
+  async level(): Promise<never> {
+    throw new Error('Even loudness runs in the app on web.');
   }
 };

@@ -10,8 +10,8 @@ import {
 /**
  * The parts card's count ("Parts 1–3, 3 parts", or "Version 1, 5 parts"
  * while they are still the version's), or 0 before the first part. While
- * recording the card gives way to the recording view, whose title is the
- * part being said ("Part 4. Recording…"): three are kept.
+ * recording the card gives way to the recording view, whose status says how
+ * many are kept ("Listening for you. 3 parts so far"; 0 while a part is being said).
  */
 export async function partsCount(page: Page): Promise<number> {
   // Only what is on screen now: a lookup that waits for an absent card makes a recording overrun its stop.
@@ -21,10 +21,10 @@ export async function partsCount(page: Page): Promise<number> {
     return m ? Number(m[1]) : 0;
   }
   if (!(await page.getByRole('button', { name: 'Done', exact: true }).locator('visible=true').count())) return 0;
-  const live = page.getByLabel(/^Part \d+\. /).locator('visible=true').first();
+  const live = page.getByLabel(/\d+ parts? so far$/).locator('visible=true').first();
   if (!(await live.count())) return 0;
-  const n = (await live.getAttribute('aria-label').catch(() => null))?.match(/^Part (\d+)\. /);
-  return n ? Number(n[1]) - 1 : 0;
+  const n = /(\d+) parts? so far$/.exec((await live.getAttribute('aria-label').catch(() => null)) ?? '');
+  return n ? Number(n[1]) : 0;
 }
 
 /**
@@ -99,12 +99,14 @@ export async function passageRow(page: Page, label: string, language = 'Alpha'):
   // The Map tab may come back where it was left: take the deepest of these that shows.
   const ways = [
     page.getByRole('button', { name: new RegExp(`^Chapter ${chapter}:`) }),
+    // A book's passages show 25 at a time (UI audit, finding 122): more of them, before leaving the book.
+    page.getByRole('button', { name: /^Show \d+ more · / }),
     page.getByRole('button', { name: /^Luke\./ }),
     page.getByRole('button', { name: new RegExp(`^${language}: .*Open its map`) })
   ].map((l) => l.locator('visible=true').first());
-  for (let i = 0; i < 8 && !(await row.isVisible()); i++) {
+  for (let i = 0; i < 12 && !(await row.isVisible()); i++) {
     const [first, ...rest] = [row, ...ways];
-    await first!.or(rest[0]!).or(rest[1]!).or(rest[2]!).first().waitFor({ timeout: 5_000 }).catch(() => {});
+    await first!.or(rest[0]!).or(rest[1]!).or(rest[2]!).or(rest[3]!).first().waitFor({ timeout: 5_000 }).catch(() => {});
     if (await row.isVisible()) break;
     for (const way of ways) {
       if (await way.isVisible()) { await way.click(); break; }

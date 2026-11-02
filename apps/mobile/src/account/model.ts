@@ -38,8 +38,11 @@ export function speed(bytesPerSecond: number): string {
  * (decisions.md 166), and nothing waiting may be hidden behind "Live".
  */
 export function syncSummary(p: { refused: string | null; pending: number; recordings?: number; live: boolean; online: boolean | null; lastSync: string }): string {
+  const recordings = p.recordings ?? 0;
+  // The same total the sync icon and the badges show (iconCounts), with the recordings in it named (UI audit, finding 118).
   return p.refused ? t('account.more.syncRefused')
-    : (p.recordings ?? 0) > 0 ? t('uploads.barRecordings', { count: p.recordings! })
+    : recordings > 0 && p.pending > 0 ? t('account.more.syncPendingMixed', { total: p.pending + recordings, recordings })
+    : recordings > 0 ? t('uploads.barRecordings', { count: recordings })
     : p.pending > 0 ? t('account.more.syncPending', { count: p.pending })
     : p.online === false ? t('account.more.syncOffline')
     : p.live ? t('account.more.syncLive')

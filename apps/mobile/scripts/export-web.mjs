@@ -53,10 +53,12 @@ execFileSync('npx', ['dotenvx', 'run', '-f', `.env.${env}`, '--strict', '--', 'n
 fs.writeFileSync(path.join(dist, 'version.json'), `${JSON.stringify({ build })}\n`);
 
 // The speech model and the runtime it needs (modules/microphone-energy/src/speechModel.web.ts,
-// decision 135): served as files, loaded when the microphone first opens, so
-// they are in neither JavaScript budget below. NO_SPEECH_MODEL=1 leaves them
-// out, for the UI tests, whose microphones are tones: their parts are timed
-// by level, as without a model (e2e/ui-web.sh, e2e/web-smoke.sh).
+// decision 135), and Clean up's DeepFilterNet3 on the same runtime
+// (cleanUp.web.ts, decision 179): served as files, loaded when the
+// microphone first opens or a part is first cleaned, so they are in neither
+// JavaScript budget below. NO_SPEECH_MODEL=1 leaves them out, for the UI
+// tests, whose microphones are tones: their parts are timed by level, as
+// without a model (e2e/ui-web.sh, e2e/web-smoke.sh).
 if (process.env.NO_SPEECH_MODEL !== '1') {
   const ortDist = path.dirname(createRequire(import.meta.url).resolve('onnxruntime-web'));
   fs.mkdirSync(path.join(dist, 'ort'), { recursive: true });
@@ -64,7 +66,9 @@ if (process.env.NO_SPEECH_MODEL !== '1') {
     fs.copyFileSync(path.join(ortDist, name), path.join(dist, 'ort', name));
   }
   fs.mkdirSync(path.join(dist, 'models'), { recursive: true });
-  fs.copyFileSync(path.join(app, 'modules/microphone-energy/models/silero_vad_16k_op15.onnx'), path.join(dist, 'models', 'silero_vad_16k_op15.onnx'));
+  for (const name of ['silero_vad_16k_op15.onnx', 'deepfilter.onnx']) {
+    fs.copyFileSync(path.join(app, 'modules/microphone-energy/models', name), path.join(dist, 'models', name));
+  }
 }
 
 // The other languages' words, fetched by a browser when someone picks one
@@ -105,7 +109,11 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Lowered to 4.75 MB when icons came one file each (src/ui/icons.ts) instead
 // of through lucide's entry, which brought all 1,800-odd: 6.54 MB to 4.54 MB
 // in all (performance-audit-2026-10-26.md item 1, decision 123 amended).
-const TOTAL_BUDGET_BYTES = 4.75 * 1024 * 1024;
+// Raised to 4.85 MB when the UI audit's fixes across the app (the audit of
+// 2026-10-28, decision 185) took it 13 KB past 4.75 MB partway through (4.76
+// MB then): what they add is screens' code, and a first visit stays under its
+// own budget.
+const TOTAL_BUDGET_BYTES = 4.85 * 1024 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the

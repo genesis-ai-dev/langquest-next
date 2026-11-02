@@ -1,5 +1,5 @@
 import type { JobRun } from '../../../server/jobRuns';
-import { HEARTBEAT_MS, JOBS, STOPPED_EARLY, type RunMark } from '../worker/jobsModel';
+import { HEARTBEAT_MS, JOBS, STOPPED_EARLY, type JobKey, type RunMark } from '../worker/jobsModel';
 
 /**
  * The job runner's Durable Object (worker/jobs.ts, decision 141) against
@@ -68,13 +68,19 @@ class FakeStorage {
   async deleteAlarm() { this.alarm = null; }
 }
 
+/** What a run's end asked of the other jobs' objects (jobsModel.ts AFTER): each object by name, and how. */
+const followed: { name: string; opts: unknown }[] = [];
 const env = {
   SUPABASE_URL: 'https://x.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'service', API_URL: 'https://next.langquest.org',
-  V2_IMPORT_ENABLED: 'true', V2_SUPABASE_ANON_KEY: 'anon'
+  V2_IMPORT_ENABLED: 'true', V2_SUPABASE_ANON_KEY: 'anon',
+  JOBS: {
+    idFromName: (name: string) => name,
+    get: (name: string) => ({ run: async (opts: unknown) => { followed.push({ name, opts }); return 'started'; } })
+  }
 };
 
 /** One job's object, as the platform holds it: storage and container outlive any instance of the object. */
-function job(name: 'projection' | 'v2-import') {
+function job(name: JobKey) {
   const storage = new FakeStorage();
   const container = new FakeContainer();
   const ctx = {
@@ -96,6 +102,7 @@ function job(name: 'projection' | 'v2-import') {
 
 beforeEach(() => {
   rows.length = 0;
+  followed.length = 0;
   vi.useFakeTimers({ toFake: ['Date', 'setTimeout'] });
   vi.setSystemTime(Date.parse('2026-10-21T03:15:00Z'));
 });
@@ -196,6 +203,46 @@ describe('the job runner object', () => {
     await settle();
     expect(rows).toEqual([expect.objectContaining({ errorClass: 'killed:137' })]);
     expect(storage.alarm).toBeNull();
+  });
+
+  it('runs once more when asked while going, then starts the job that follows it (decision 192)', async () => {
+    // Why: the filming says its films are in as each language ends; films that come in while the intake runs go up that night too.
+    const { container, object, settle } = job('tutorial-intake');
+    const o = object();
+    expect(await o.run()).toBe('started');
+    expect(await o.run({ again: true })).toBe('running');
+    expect(await o.run({ again: true })).toBe('running');
+    container.exit(0);
+    await settle();
+    expect(container.starts).toHaveLength(2);
+    expect(followed).toEqual([]);
+    container.exit(1);
+    await settle();
+    expect(container.starts).toHaveLength(2);
+    expect(followed).toEqual([{ name: 'tutorial-publish', opts: { again: true } }]);
+  });
+
+  it('starts nothing after a job nothing follows', async () => {
+    const { container, object, settle } = job('projection');
+    await object().run();
+    container.exit(0);
+    await settle();
+    expect(followed).toEqual([]);
+    expect(container.starts).toHaveLength(1);
+  });
+
+  it('starts the run asked for once when a tick finds the end nobody watched', async () => {
+    const { container, drop, object, settle } = job('tutorial-intake');
+    const o = object();
+    await o.run();
+    await o.run({ again: true });
+    drop();
+    container.exit(0);
+    const later = object();
+    await settle();
+    // Recording the end starts the one more it was asked for; the tick's own start finds it going.
+    expect(await later.run()).toBe('running');
+    expect(container.starts).toHaveLength(2);
   });
 
   it('sends SIGTERM at the time limit and keeps beating until the run ends', async () => {

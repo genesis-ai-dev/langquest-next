@@ -14,16 +14,20 @@ import { t } from '../i18n';
 import { useReadOnly } from '../session/useReadOnly';
 import { getRecordingJournal, liveParts } from './recordingJournal';
 import { RecordingSession } from './recordingSession';
-import { framePublishDue, liveKept, liveKeptCount, liveNext } from './livePartsModel';
+import { framePublishDue, keepRoomNow, liveKept, liveKeptCount, liveNext, type LiveGap } from './livePartsModel';
+import { keepSilenceParts, loadSilenceParts, silencePartsOn } from './silenceSetting';
 import { cutWav, deleteRecorderFile } from '../audio/wavCut';
 import { barsOfFile } from '../audio/barsOfFile';
 import { barsFromLevels } from '../audio/barsModel';
 import { rememberBars } from '../audio/barsStore';
+import { loudnessOfFile } from '../audio/loudnessOfFile';
+import { rememberSound } from '../audio/loudnessStore';
 import { noteExpected } from '../diagnostics/report';
 import { cachedHeardLevels, keepHeardLevels, loadHeardLevels } from '../mic/heardLevels';
 import type { JournalTarget } from './recordingJournalModel';
 import { storableRecording } from '../web/webAudio';
-import { claimVad, MicrophoneRefused, recorderProblem, vadOwner, activity } from './recorderState';
+import { holdTab } from '../web/tabBusy';
+import { claimVad, MicrophoneRefused, recorderProblem, vadOwner, startActivity } from './recorderState';
 import { recorderFaultCode, type RecorderFailure, type RecorderStage } from './recorderFaultModel';
 import { countAudio, type AudioLanguage } from '../audio/audioTally';
 
@@ -109,6 +113,8 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
   const [vadCapturing, setVadCapturing] = useState(false);
   const [manualOn, setManualOn] = useState(false);
   const [error, setError] = useState('');
+  /** The last failure was the microphone refused: shown with a way to turn it on (MicRefused). */
+  const [micRefused, setMicRefused] = useState(false);
   const [working, setWorking] = useState(0);
   const [failureCount, setFailureCount] = useState(0);
   const mounted = useRef(true);
@@ -142,12 +148,18 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
    */
   const session = useRef<RecordingSession | null>(null);
   const [sessionOpen, setSessionOpen] = useState(false);
+  /** The silence switch (decision 194): the silence between parts boxed as parts of its own. The phone keeps it (silenceSetting.ts). */
+  const [silence, setSilenceShown] = useState(silencePartsOn);
+  const silenceRef = useRef(silence);
+  /** What the microphone was last told of keeping the room (chunks.ts keepRoom), and when the last part ended (null while one is said). */
+  const roomKept = useRef(true);
+  const lastEnded = useRef<number | null>(null);
   /** Bumped when the session's parts change, so the screen redraws its count and the next part's number. */
   const [, setPartsSeen] = useState(0);
   const ending = useRef<Promise<void> | null>(null);
   const fail = useCallback((stage: RecorderStage, e: unknown, failed: RecorderFailure = null) => {
     const said = recorderProblem(stage, e, failed, languageRef.current);
-    if (mounted.current) setError(said);
+    if (mounted.current) { setError(said); setMicRefused(recorderFaultCode(e) === 'perm'); }
   }, []);
   const count = useCallback((counter: Parameters<typeof countAudio>[1], by = 1) => countAudio(languageRef.current, counter, by), []);
   const work = useCallback((delta: number) => {
@@ -174,6 +186,8 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
             // Its bars for the list of parts: a session's part brings them from the levels it showed; a
             // take, or a part found again after a restart, reads them from the WAV before a phone encodes it (barsStore.ts).
             const bars = file.bars ?? (file.format === 'wav' ? await barsOfFile(file.uri, 'wav').catch(() => null) : null);
+            // Its loudness and the room between its words, read from the WAV while a phone encodes it (loudnessStore.ts, decision 181).
+            const measuring = file.format === 'wav' ? loudnessOfFile(file.uri, 'wav').catch(() => null) : Promise.resolve(null);
             // A phone keeps AAC, about a fifth of the WAV (decisions.md 106). The
             // journal names the AAC copy before the WAV goes, so a restart finds
             // one of them; if encoding fails, the WAV is kept as it is.
@@ -183,6 +197,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
                 file.uri = await MicrophoneEnergy.encodeAac(wav);
                 file.format = 'm4a';
                 await journal.put({ ...entry(), stage: 'recorded' });
+                await measuring;
                 deleteQuietly(wav);
               } catch (e) {
                 const code = recorderFaultCode(e) === 'nospace' ? 'nospace' : 'encode';
@@ -195,6 +210,8 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
               journal.put({ ...entry(), stage: 'recorded', hash: ref.hash, size }));
             if (wavKept) count('wavKept');
             if (bars) rememberBars(ref.hash, bars);
+            const sound = await measuring;
+            if (sound) rememberSound(ref.hash, sound);
             file.card = { id: file.id, ref, size, durationMs: entry().durationMs };
           }
         }
@@ -215,10 +232,30 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
 
   // Parts split by what the microphone hears, the room and the voice (LAN-82): nothing to set.
   // The device's last levels let a session's first words be judged before it has heard for itself.
+  // The module keeps the room between parts whole (chunks.ts keepRoom): with the silence switch on for its silences,
+  // and off for boxes to stretch over it or be added in it, until a pause passes ROOM_KEPT_MS (keepRoomNow; LAN-199).
   const vadConfig = useCallback(async () => {
     const heard = cachedHeardLevels() ?? await loadHeardLevels();
-    return heard ? { heard } : {};
+    roomKept.current = true;
+    lastEnded.current = null;
+    return { ...(heard ? { heard } : {}), keepRoom: true };
   }, []);
+
+  /** Tell a listening microphone to keep the room, or to stop keeping it from the next frame. */
+  const keepRoom = useCallback((on: boolean) => {
+    if (roomKept.current === on || !vadActive.current) return;
+    roomKept.current = on;
+    MicrophoneEnergy.configureVAD({ keepRoom: on }).catch((e: unknown) => fail('vad', e));
+  }, [fail]);
+
+  /** The silence switch: the boxes change at once, and the microphone keeps the room from now on. */
+  const setSilence = useCallback((on: boolean) => {
+    silenceRef.current = on;
+    setSilenceShown(on);
+    keepSilenceParts(on);
+    session.current?.setSilence(on);
+    if (on) keepRoom(true);
+  }, [keepRoom]);
 
   /**
    * After stop is tapped: wait while the voice is still above the room, up to
@@ -241,6 +278,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     wanted.current = true;
     stopAudioPlayback();
     setError('');
+    setMicRefused(false);
     work(1);
     const start = (async () => {
       let stage: RecorderStage = 'start';
@@ -385,11 +423,12 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     if (readOnly) { setError(t('globalViewer.readOnly')); return Promise.resolve(); }
     stopAudioPlayback();
     setError('');
+    setMicRefused(false);
     work(1);
     // The session carries on where it stopped; a new one starts with the first tap.
     if (session.current) session.current.seam();
     else {
-      session.current = new RecordingSession(1, () => { if (mounted.current) setPartsSeen((n) => n + 1); });
+      session.current = new RecordingSession(1, () => { if (mounted.current) setPartsSeen((n) => n + 1); }, silenceRef.current);
       setSessionOpen(true);
     }
     const start = (async () => {
@@ -434,6 +473,18 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
       .catch((e: unknown) => noteExpected('recorder: journal part', e, recorderFaultCode(e)));
   }, []);
 
+  /** The × on a silence's box (LAN-199): it goes alone. A silence has no journal entry. */
+  const dropSilence = useCallback((after: number) => { session.current?.dropSilence(after); }, []);
+
+  /** A + in room no box covers (LAN-199): a box over it, journalled like a part said. */
+  const addPart = useCallback((gap: LiveGap) => {
+    const s = session.current;
+    if (!s) return;
+    const before = s.snapshot().parts.length;
+    s.add(gap, Crypto.randomUUID());
+    if (s.snapshot().parts.length > before) notePart(before);
+  }, [notePart]);
+
   /** The × on a part's box: it goes, its place and number stay for what is said next. */
   const dropPart = useCallback((index: number) => {
     const s = session.current;
@@ -474,7 +525,8 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
             const target = targetRef.current;
             if (!WEB && target) await journal.put({ id, uri, format: 'wav', durationMs: Math.round(durationMs), stage: 'recorded', target });
             liveParts.delete(id);
-            cut.push({ id, uri, format: 'wav', durationMs, bars: barsFromLevels(k.levels) });
+            // A silence's bars are read from its file (deliver), as its room's own level: the meter's loudest samples would stand it a fifth of the way up.
+            cut.push({ id, uri, format: 'wav', durationMs, bars: k.silence ? null : barsFromLevels(k.levels) });
           } catch (e) {
             failed = true;
             liveParts.delete(id);
@@ -522,17 +574,25 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
   const busy = working > 0;
   useEffect(() => {
     if (!(manualOn || vadOn || busy)) return;
-    const token = Symbol('recorder');
-    activity.add(token);
-    return () => { activity.delete(token); };
+    return startActivity();
   }, [manualOn, vadOn, busy]);
 
   const retryFailed = useCallback(async () => {
     const files = failures.current.splice(0);
     setFailureCount(0);
     setError('');
+    setMicRefused(false);
     for (const file of files) await deliver(file);
   }, [deliver]);
+
+  // The switch as this phone left it: read once, before record is likely tapped.
+  useEffect(() => {
+    void loadSilenceParts().then((on) => {
+      if (!mounted.current || session.current || silenceRef.current === on) return;
+      silenceRef.current = on;
+      setSilenceShown(on);
+    });
+  }, []);
 
   useEffect(() => {
     mounted.current = true;
@@ -545,17 +605,23 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
       MicrophoneEnergy.addListener('onSegmentStart', (e) => {
         if (vadOwner !== self) return;
         setVadCapturing(true);
-        if (!manualSegment.current) session.current?.partStart(e.headMs);
+        if (manualSegment.current) return;
+        lastEnded.current = null;
+        keepRoom(true);
+        session.current?.partStart(e.headMs);
       }),
       MicrophoneEnergy.addListener('onEnergyResult', (e) => {
         level.current = e.energy;
-        if (vadOwner === self && !manualSegment.current) session.current?.frame(e.energy, e.quiet, e.timestamp);
+        if (vadOwner !== self || manualSegment.current) return;
+        session.current?.frame(e.energy, e.quiet, e.timestamp);
+        if (roomKept.current && !keepRoomNow(silenceRef.current, lastEnded.current === null ? null : Date.now() - lastEnded.current)) keepRoom(false);
       }),
       MicrophoneEnergy.addListener('onSegmentComplete', (e) => {
         if (e.heard) keepHeardLevels(e.heard);
         // A hold-to-record take is delivered by manualUp, not here.
         if (vadOwner !== self || manualSegment.current) return;
         setVadCapturing(false);
+        lastEnded.current = Date.now();
         const s = session.current;
         // A session's part is a box in its chunk until the session is left (endSession).
         if (e.chunk && e.fromMs !== undefined && e.toMs !== undefined) {
@@ -592,7 +658,27 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
         subscriptions.forEach((subscription) => subscription.remove());
       });
     };
-  }, [count, deliver, endSession, fail, manualUp, notePart, stopVad, self]);
+  }, [count, deliver, endSession, fail, keepRoom, manualUp, notePart, stopVad, self]);
+
+  // The microphone turned on in Settings (or the browser's site settings): the refusal clears by itself on the way back.
+  useEffect(() => {
+    if (!micRefused) return;
+    const clear = () => { if (mounted.current) { setError(''); setMicRefused(false); } };
+    if (WEB) {
+      let status: PermissionStatus | null = null;
+      navigator.permissions?.query({ name: 'microphone' as PermissionName })
+        .then((s) => { status = s; s.onchange = () => { if (s.state === 'granted') clear(); }; })
+        .catch((e: unknown) => noteExpected('recorder: permission', e));
+      return () => { if (status) status.onchange = null; };
+    }
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      AudioModule.getRecordingPermissionsAsync()
+        .then((p) => { if (p.granted) clear(); })
+        .catch((e: unknown) => noteExpected('recorder: permission', e));
+    });
+    return () => sub.remove();
+  }, [micRefused]);
 
   // Hands-free recording means nobody touches the screen: keep it on, as v2
   // did, or the phone's screen timeout sends the app away and ends the session.
@@ -604,27 +690,31 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     return () => { deactivateKeepAwake(tag).catch((e: unknown) => noteExpected('recorder: keep awake', e)); };
   }, [microphoneOn]);
 
-  // Web: closing the tab mid-take loses it (its audio lives in the page until it stops), so say so first.
+  // Web: closing the tab mid-take loses it (its audio lives in the page until it stops), so say so first;
+  // and another tab asking for LangQuest is told this one is busy rather than reloading it away (tabLock.ts).
   const recording = manualOn || vadOn || sessionOpen || working > 0;
   useEffect(() => {
     if (!WEB || !recording) return;
     const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
     window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
+    const release = holdTab();
+    return () => { window.removeEventListener('beforeunload', warn); release(); };
   }, [recording]);
 
   const snap = session.current?.snapshot();
   return {
-    vadOn, vadPaused, vadCapturing, manualOn, error,
+    vadOn, vadPaused, vadCapturing, manualOn, error, micRefused,
     busy, failureCount, retryFailed,
     toggleVad, stopVad, pauseVad, resumeVad, manualDown, manualUp,
     /** A session is open: recording, or stopped with its parts still boxes to hear, move or drop. */
     sessionOpen,
     session: session.current,
     /** The number the next part of the session takes, and how many it keeps so far. */
-    sessionNext: snap ? liveNext(snap) : null,
+    sessionNext: snap ? liveNext(snap, vadOn && !vadPaused) : null,
     sessionKept: snap ? liveKeptCount(snap) : 0,
-    endSession, discardSession, dropPart, notePart
+    endSession, discardSession, dropPart, notePart, dropSilence, addPart,
+    /** The silence switch, as the phone keeps it, and the way to flip it. */
+    silence, setSilence
   };
 }
 

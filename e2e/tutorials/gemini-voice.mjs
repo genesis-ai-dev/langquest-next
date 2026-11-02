@@ -17,12 +17,20 @@
 // A batch request has no place for a delivery style ("unhurried", which the
 // Interactions API takes), so the voice speaks at its own pace, a little
 // quicker; words put before the line to ask for one are read aloud.
-import { mkdirSync, writeFileSync } from 'node:fs';
+//
+// What Gemini counted for each job goes on a line of JSON in
+// TUTORIAL_GEMINI_USAGE (e2e/results/tutorials/gemini-usage.jsonl), which
+// gemini-usage.mjs adds up for the night, to set against the bill. A refusal
+// only a person can fix (no credit, a key refused) is said on the ops
+// dashboard (needs-you.mjs).
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { geminiNeedsYou, needsYou } from './needs-you.mjs';
 
 const MODEL = process.env.TUTORIAL_TTS_MODEL ?? 'gemini-3.8-flash-tts';
 const VOICE = process.env.TUTORIAL_TTS_VOICE ?? 'Sulafat';
 const API = 'https://generativelanguage.googleapis.com/v1beta';
+const USAGE = process.env.TUTORIAL_GEMINI_USAGE ?? path.join('e2e', 'results', 'tutorials', 'gemini-usage.jsonl');
 
 const args = process.argv.slice(2);
 const lines = [];
@@ -36,14 +44,18 @@ const headers = { 'content-type': 'application/json' };
 if (process.env.GEMINI_API_KEY) headers['x-goog-api-key'] = process.env.GEMINI_API_KEY;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** The JSON reply to a request, tried again while Gemini is busy. */
+/** The JSON reply to a request, tried again while Gemini is busy; a refusal only a person can fix goes to the ops dashboard (needs-you.mjs). */
 async function call(url, init) {
   let lastError = '';
   for (let attempt = 1; attempt <= 6; attempt++) {
     const res = await fetch(url, { headers, ...init });
     if (res.ok) return res.json();
-    lastError = `${res.status} ${(await res.text()).slice(0, 300)}`;
-    if (res.status !== 429 && res.status < 500) break;
+    const body = await res.text();
+    lastError = `${res.status} ${body.slice(0, 300)}`;
+    // Google has said "credits are depleted" with 429 as well as 402: no try again gets past it.
+    const problem = geminiNeedsYou(res.status, body);
+    if (problem) needsYou(problem);
+    if (problem || (res.status !== 429 && res.status < 500)) break;
     await sleep(2000 * 2 ** attempt);
   }
   throw new Error(lastError);
@@ -82,6 +94,15 @@ async function sayInOneJob(group) {
     job = await call(`${API}/${name}`);
   }
   const replies = (job.response ?? job.metadata?.output)?.inlinedResponses?.inlinedResponses ?? [];
+  const used = { model: MODEL, requests: replies.length, in: 0, out: 0, thinking: 0 };
+  for (const reply of replies) {
+    const u = reply.response?.usageMetadata;
+    used.in += u?.promptTokenCount ?? 0;
+    used.out += u?.candidatesTokenCount ?? 0;
+    used.thinking += u?.thoughtsTokenCount ?? 0;
+  }
+  mkdirSync(path.dirname(USAGE), { recursive: true });
+  appendFileSync(USAGE, `${JSON.stringify(used)}\n`);
   for (const reply of replies) {
     const line = group[Number(reply.metadata?.key)];
     if (!line) continue;

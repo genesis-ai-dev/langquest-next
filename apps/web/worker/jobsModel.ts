@@ -29,10 +29,25 @@ export const JOBS = {
   // Three languages folded afresh and compared with their stored snapshot and lines (server/foldCanary.ts, ops dashboard plan 5.4).
   'fold-canary': { job: 'fold_canary', entrypoint: ['node', 'canary.mjs'], timeLimitMs: 60 * 60_000 },
   // The R2 reconciliation without hashing every object (server/reconcileJob.ts, plan 5.6).
-  'blob-reconcile': { job: 'blob_reconcile', entrypoint: ['node', 'reconcile.mjs'], timeLimitMs: 120 * 60_000 }
+  'blob-reconcile': { job: 'blob_reconcile', entrypoint: ['node', 'reconcile.mjs'], timeLimitMs: 120 * 60_000 },
+  // The tutorial videos the ops dashboard's Publish chose, put up on YouTube (server/tutorialPublish.ts, decisions.md 180):
+  // at most YouTube's 100 uploads a day, each a download and an upload of about 15 MB.
+  'tutorial-publish': { job: 'tutorial_publish', entrypoint: ['node', 'publish.mjs'], timeLimitMs: 150 * 60_000 },
+  // The films the nightly filming made on GitHub, brought into R2 and listed for Publish (server/tutorialIntake.ts):
+  // most nights a few, the first full set about 705 of about 10 MB, each a download and an upload.
+  'tutorial-intake': { job: 'tutorial_intake', entrypoint: ['node', 'intake.mjs'], timeLimitMs: 120 * 60_000 },
+  // The comments on the tutorial videos, kept for Claude's nightly look (server/tutorialComments.ts, decisions.md 186):
+  // a day's comments, a page of 100 a call, and at most 20 Linear issues.
+  'tutorial-comments': { job: 'tutorial_comments', entrypoint: ['node', 'comments.mjs'], timeLimitMs: 60 * 60_000 }
 } as const satisfies Record<string, JobSpec>;
 
 export type JobKey = keyof typeof JOBS;
+
+/**
+ * The job a run's end starts (decisions.md 192): the films an intake took in
+ * go up at once, not at the next scheduled time.
+ */
+export const AFTER: Partial<Record<JobKey, JobKey>> = { 'tutorial-intake': 'tutorial-publish' };
 
 export const isJobKey = (name: string | undefined): name is JobKey => !!name && Object.hasOwn(JOBS, name);
 
@@ -44,7 +59,13 @@ export const JOB_TICK = '*/5 * * * *';
  * import every 15 minutes, and at 03:15 UTC a whole read of every project
  * (the workflow's 03:17, on the nearest tick); the fold canary at 04:05 UTC
  * and the R2 reconciliation at 04:35, after the import's whole read and
- * apart from each other so a night never runs three heavy jobs at once.
+ * apart from each other so a night never runs three heavy jobs at once. The
+ * tutorial jobs (decision 192): the filming starts the intake itself when its
+ * films are in (tutorialFilmed.ts), and the publish follows each intake
+ * (AFTER). One more intake at five past midnight in California, when
+ * YouTube's day of uploads and units begins, takes in what the filming could
+ * not say, and the publish after it puts up what the day before had no room
+ * for. The day's comments on the videos are read at 23:50 UTC (186).
  */
 export function jobsDue(scheduledTime: number): { key: JobKey; all?: true }[] {
   const t = new Date(scheduledTime);
@@ -53,8 +74,14 @@ export function jobsDue(scheduledTime: number): { key: JobKey; all?: true }[] {
   if (minute % 15 === 0) due.push(t.getUTCHours() === 3 && minute === 15 ? { key: 'v2-import', all: true } : { key: 'v2-import' });
   if (t.getUTCHours() === 4 && minute === 5) due.push({ key: 'fold-canary' });
   if (t.getUTCHours() === 4 && minute === 35) due.push({ key: 'blob-reconcile' });
+  if (pacificHour(t) === 0 && minute === 5) due.push({ key: 'tutorial-intake' });
+  if (t.getUTCHours() === 23 && minute === 50) due.push({ key: 'tutorial-comments' });
   return due;
 }
+
+/** The hour in California, where YouTube's day begins; its minutes are UTC's. */
+const PACIFIC = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', hourCycle: 'h23' });
+export const pacificHour = (t: Date) => Number(PACIFIC.formatToParts(t).find((p) => p.type === 'hour')!.value);
 
 /**
  * The command for a run of the v2 import: `--all` when a whole read is
@@ -173,7 +200,7 @@ export function deadRun(key: JobKey, mark: RunMark | undefined, exit: Exit, now:
   };
 }
 
-/** What the Worker hands a job's container: the database for both, and v2's keys and the Worker's address for the import. */
+/** What the Worker hands a job's container: the database for every job, v2's keys and the Worker's address for the import, and the OAuth client for publishing. */
 export interface JobSettings {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
@@ -182,6 +209,9 @@ export interface JobSettings {
   V2_IMPORT_CONCURRENCY?: string | undefined;
   V2_SUPABASE_ANON_KEY?: string | undefined;
   V2_DATABASE_URL?: string | undefined;
+  YOUTUBE_CLIENT_ID?: string | undefined;
+  YOUTUBE_CLIENT_SECRET?: string | undefined;
+  LINEAR_API_KEY?: string | undefined;
 }
 
 /**
@@ -200,6 +230,22 @@ export function jobEnv(key: JobKey, s: JobSettings): { env: Record<string, strin
   if (key === 'projection' || key === 'fold-canary') return { env };
   // The reconciliation lists R2 through the Worker.
   if (key === 'blob-reconcile') return s.API_URL ? { env: { ...env, API_URL: s.API_URL } } : { refuse: 'blob reconcile: API_URL not set on the Worker' };
+  // Publishing reads the videos from the Worker and needs the OAuth client to use a channel's refresh token.
+  // Until the client is in .env.production it stays off, as the import does before its switch.
+  if (key === 'tutorial-publish') {
+    if (!s.YOUTUBE_CLIENT_ID || !s.YOUTUBE_CLIENT_SECRET) return { skip: 'disabled' };
+    if (!s.API_URL) return { refuse: 'tutorial publish: API_URL not set on the Worker' };
+    return { env: { ...env, API_URL: s.API_URL, YOUTUBE_CLIENT_ID: s.YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET: s.YOUTUBE_CLIENT_SECRET } };
+  }
+  // The comments job reads the channels with the OAuth client: off until it is set. Linear is optional:
+  // without it accepted code changes wait on the dashboard.
+  if (key === 'tutorial-comments') {
+    if (!s.YOUTUBE_CLIENT_ID || !s.YOUTUBE_CLIENT_SECRET) return { skip: 'disabled' };
+    return { env: { ...env, YOUTUBE_CLIENT_ID: s.YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET: s.YOUTUBE_CLIENT_SECRET,
+      ...(s.LINEAR_API_KEY ? { LINEAR_API_KEY: s.LINEAR_API_KEY } : {}) } };
+  }
+  // The intake reads the public release itself and puts the films through the Worker.
+  if (key === 'tutorial-intake') return s.API_URL ? { env: { ...env, API_URL: s.API_URL } } : { refuse: 'tutorial intake: API_URL not set on the Worker' };
   if (s.V2_IMPORT_ENABLED !== 'true') return { skip: 'disabled' };
   const missing = (['API_URL', 'V2_SUPABASE_ANON_KEY'] as const).filter((k) => !s[k]);
   if (missing.length) return { refuse: `v2 import: ${missing.join(', ')} not set on the Worker (npm run secrets)` };

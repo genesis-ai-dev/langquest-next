@@ -2,7 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { jobRunSink } from '../../../server/jobRuns';
 import type { Env } from './env';
 import {
-  deadRun, entrypointFor, exitCodeOf, heartbeat, HEARTBEAT_MS, isJobKey, jobEnv, JOBS, stillOwesWholeRead, type Exit, type JobKey, type RunMark
+  AFTER, deadRun, entrypointFor, exitCodeOf, heartbeat, HEARTBEAT_MS, isJobKey, jobEnv, JOBS, stillOwesWholeRead, type Exit, type JobKey, type RunMark
 } from './jobsModel';
 
 /** How long to wait for a stopped container to say how it ended. */
@@ -56,9 +56,11 @@ export class JobRunner extends DurableObject<Env> {
   /**
    * Start the job unless a run is under way. `all` owes the import a whole
    * read: it is kept until a run starts with it, so a tick that finds a run
-   * going leaves it for the next. Answers once the start is issued.
+   * going leaves it for the next. `again` asks a run under way for one more
+   * when it ends (the filming's films came in while the intake ran). Answers
+   * once the start is issued.
    */
-  async run(opts: { all?: boolean } = {}): Promise<'started' | 'running' | 'disabled'> {
+  async run(opts: { all?: boolean; again?: boolean } = {}): Promise<'started' | 'running' | 'disabled'> {
     const key = this.key;
     const settings = jobEnv(key, { ...this.env, SUPABASE_URL: this.env.JOBS_SUPABASE_URL ?? this.env.SUPABASE_URL, API_URL: this.env.JOBS_API_URL ?? this.env.API_URL });
     if ('skip' in settings) return 'disabled';
@@ -66,18 +68,23 @@ export class JobRunner extends DurableObject<Env> {
     if (opts.all) await this.ctx.storage.put('allDue', true);
     const container = this.container;
     if (container.running) {
+      if (opts.again) await this.ctx.storage.put('againDue', true);
       await this.ensureHeartbeat();
       return 'running';
     }
-    // A run that ended between beats is recorded before the next starts.
+    // A run that ended between beats is recorded before the next starts; one more it was asked for starts there.
     if (await this.ctx.storage.get<RunMark>('run')) await this.recordEnd();
+    if (container.running) return 'running';
+    await this.ctx.storage.delete('againDue');
     const all = (await this.ctx.storage.get<boolean>('allDue')) === true;
     await this.ctx.storage.put<RunMark>('run', all ? { startedAt: Date.now(), all: true } : { startedAt: Date.now() });
     container.start({ entrypoint: entrypointFor(key, all), env: settings.env, enableInternet: true });
     if (all) await this.ctx.storage.delete('allDue');
     await container.setInactivityTimeout(JOBS[key].timeLimitMs);
     await this.ctx.storage.setAlarm(Date.now() + HEARTBEAT_MS);
-    this.watch();
+    // Started from the end of the run before (`next`): its watcher is still busy, and watches this one when done.
+    if (this.watching) this.watchNext = true;
+    else this.watch();
     return 'started';
   }
 
@@ -118,6 +125,8 @@ export class JobRunner extends DurableObject<Env> {
 
   /** Whether this instance already waits on the run's monitor. */
   private watching = false;
+  /** A run started while the watcher was still recording the one before. */
+  private watchNext = false;
   /** The end being recorded, so two ends (a watcher and a beat or tick) are recorded one after the other. */
   private ending: Promise<void> = Promise.resolve();
 
@@ -125,13 +134,21 @@ export class JobRunner extends DurableObject<Env> {
    * Record how the run ends while this instance is alive: a resolved monitor
    * is exit 0, a rejected one carries the code. Once per instance: each
    * minute's beat used to add a watcher, and a killed run got a row from each.
+   * A run started while the last one's end was being recorded (`next`) is
+   * watched once that is done.
    */
   private watch(): void {
     if (this.watching) return;
     this.watching = true;
     this.ctx.waitUntil(this.container.monitor()
       .then(() => this.stopped(0), (error: unknown) => this.stopped(exitCodeOf(error)))
-      .finally(() => { this.watching = false; }));
+      .finally(() => {
+        this.watching = false;
+        if (this.watchNext) {
+          this.watchNext = false;
+          this.watch();
+        }
+      }));
   }
 
   /** A stopped container still says how it ended when asked; if it does not soon, the end is recorded without a code. */
@@ -156,8 +173,32 @@ export class JobRunner extends DurableObject<Env> {
     // A whole read cut off (a deploy's rollout, a kill) is owed to the next tick, not to the next night.
     if (stillOwesWholeRead(mark, exit)) await this.ctx.storage.put('allDue', true);
     const row = deadRun(this.key, mark, exit, Date.now());
-    if (!row) return;
-    console.error(`job ${this.key} died: ${row.errorClass}`);
-    await jobRunSink(this.env.SUPABASE_URL, this.env.SUPABASE_SERVICE_ROLE_KEY)(row);
+    try {
+      if (row) {
+        console.error(`job ${this.key} died: ${row.errorClass}`);
+        await jobRunSink(this.env.SUPABASE_URL, this.env.SUPABASE_SERVICE_ROLE_KEY)(row);
+      }
+    } finally {
+      await this.next();
+    }
+  }
+
+  /**
+   * After a run: the one more it was asked for, or else the job that follows
+   * it (jobsModel.ts AFTER, decisions.md 192), which, if it is going, runs
+   * once more when it ends, so what this run made is never left for its
+   * next scheduled time.
+   */
+  private async next(): Promise<void> {
+    try {
+      if (await this.ctx.storage.get<boolean>('againDue')) {
+        await this.run();
+        return;
+      }
+      const after = AFTER[this.key];
+      if (after) await this.env.JOBS.get(this.env.JOBS.idFromName(after)).run({ again: true });
+    } catch (e) {
+      console.error(`job ${this.key}: what follows it did not start`, e);
+    }
   }
 }

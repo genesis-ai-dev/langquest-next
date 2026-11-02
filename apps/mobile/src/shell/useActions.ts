@@ -17,8 +17,8 @@ import type { LanguageHandle } from '../sync/useLanguage';
 export function useActions(language: LanguageHandle) {
   const showToast = useRef<(spec: ToastSpec) => void>(() => {});
   const registerToast = useCallback((show: (spec: ToastSpec) => void) => { showToast.current = show; }, []);
-  const toast = useCallback((message: string) => {
-    const spec: ToastSpec = { id: Date.now(), message };
+  const toast = useCallback((message: string, tone?: 'problem') => {
+    const spec: ToastSpec = { id: Date.now(), message, ...(tone ? { tone } : {}) };
     showToast.current(spec);
   }, []);
   const languageRef = useRef(language);
@@ -28,7 +28,7 @@ export function useActions(language: LanguageHandle) {
       await languageRef.current.run(specs);
     } catch (e) {
       // Core's refusal in words; anything else is a fault, with its code.
-      toast(e instanceof CommandError ? t('shell.toast.notSaved', { reason: commandErrorText(e) }) : t('shell.toast.notSavedCode', { code: reportError('save change', e) }));
+      toast(e instanceof CommandError ? t('shell.toast.notSaved', { reason: commandErrorText(e) }) : t('shell.toast.notSavedCode', { code: reportError('save change', e) }), 'problem');
       throw e;
     }
     toast(message);

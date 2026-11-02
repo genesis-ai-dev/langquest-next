@@ -35,6 +35,10 @@ public class MicrophoneEnergyModule: Module {
     private var chunks: Chunks?
     /// Is this sound speech? (Speech.swift, decision 135): loaded once, before the microphone opens; nil where it cannot load, and parts split by levels alone.
     private var speechModel: SpeechModel?
+    /// Clean up (CleanUp.swift, decision 179): DeepFilterNet3 on a part, one at a time.
+    private let cleanUp = CleanUp()
+    /// Even loudness (Level.swift, decision 182): a recording measured and its copy to play written, one at a time.
+    private let level = Level()
     private var speechTried = false
     private let speechQueue = DispatchQueue(label: "MicrophoneEnergy.speech")
     private var resampler: Resampler?
@@ -53,12 +57,14 @@ public class MicrophoneEnergyModule: Module {
     private var splitter: Splitter?
     /// What this device heard last time, until a session's splitter hears for itself.
     private var remembered: Splitter.Heard?
+    /// The silence switch (decision 194): chunks keep the room between parts while it is on.
+    private var keepRoom = false
     /// The splitter's clock: frames heard, as time.
     private var clockMs = 0.0
     
     public func definition() -> ModuleDefinition {
         Name("MicrophoneEnergy")
-        Events("onEnergyResult", "onError", "onSegmentComplete", "onSegmentStart", "onChunkComplete")
+        Events("onEnergyResult", "onError", "onSegmentComplete", "onSegmentStart", "onChunkComplete", "onCleanUpProgress")
         
         AsyncFunction("prepareSpeech") { () -> Void in self.speechQueue.async { self.loadSpeech() } }
         AsyncFunction("startEnergyDetection") { () -> Void in try await self.startEnergyDetection() }
@@ -69,6 +75,21 @@ public class MicrophoneEnergyModule: Module {
         AsyncFunction("startSegment") { (options: [String: Any?]?) -> Void in try self.startSegment(options: options) }
         AsyncFunction("stopSegment") { () -> String? in return try self.stopSegment() }
         AsyncFunction("encodeAac") { (uri: String) -> String in try AacEncoder.encode(uri: uri) }
+        AsyncFunction("cleanUp") { (id: String, uri: String) async throws -> [String: Any] in
+            var told = -1.0
+            return try await self.cleanUp.clean(id: id, uri: uri) { done in
+                if done < 1 && done - told < 0.02 { return }
+                told = done
+                DispatchQueue.main.async { self.sendEvent("onCleanUpProgress", ["id": id, "done": done]) }
+            }
+        }
+        AsyncFunction("cleanUpMix") { (id: String, limitDb: Double?, keep: Bool) async throws -> [String: Any] in
+            try await self.cleanUp.mix(id: id, limitDb: limitDb, keep: keep)
+        }
+        AsyncFunction("cleanUpForget") { (id: String) -> Void in self.cleanUp.forget(id: id) }
+        AsyncFunction("level") { (uri: String, out: String?, options: [String: Double]) async throws -> [String: Any] in
+            try await self.level.level(uri: uri, out: out, options: try Level.Options(options))
+        }
     }
     
     /// On speechQueue: the speech model, loaded once by whichever asks first (prepareSpeech, or the microphone opening).
@@ -189,10 +210,11 @@ public class MicrophoneEnergyModule: Module {
         do { try AVAudioSession.sharedInstance().setActive(false) } catch {}
     }
     
-    /// Only what the device heard last time is read; the old detector's settings are ignored (LAN-82).
+    /// What the device heard last time (LAN-82) and the silence switch (decision 194); the old detector's settings are ignored.
     private func configureVAD(config: [String: Any?]) {
         configLock.lock()
         defer { configLock.unlock() }
+        if let on = config["keepRoom"] as? Bool { keepRoom = on; chunks?.keepRoom = on }
         guard let heard = config["heard"] as? [String: Any],
               let room = (heard["room"] as? NSNumber)?.doubleValue,
               let voice = (heard["voice"] as? NSNumber)?.doubleValue,
@@ -286,6 +308,7 @@ public class MicrophoneEnergyModule: Module {
         if vadEnabled {
             if splitter == nil { splitter = Splitter(frameMs: frameMs, remembered: remembered) }
             if chunks == nil { chunks = Chunks(frameMs: frameMs, sampleRate: Int(sampleRate)) }
+            chunks?.keepRoom = keepRoom
             if let sp = splitter, let ch = chunks {
                 let action = sp.step(energy: Double(normalizedAmplitude), now: clockMs, speech: scoreSpeech(bufferCopy))
                 handleSplit(sp, action)

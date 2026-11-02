@@ -74,6 +74,17 @@ final class SpeechChunks {
 /// A frame's score: the surest chunk that ended in it, or the last chunk's when none did.
 func frameScore(_ scores: [Double], _ last: Double) -> Double { scores.max() ?? last }
 
+/// A model the module ships (models/README.md), from its resource bundle.
+func modelPath(_ name: String) -> String? {
+    let bundles = [Bundle.main, Bundle(for: SpeechModel.self)]
+    return bundles.lazy.compactMap { b -> String? in
+        if let url = b.url(forResource: "MicrophoneEnergyModels", withExtension: "bundle"), let models = Bundle(url: url) {
+            return models.path(forResource: name, ofType: "onnx")
+        }
+        return b.path(forResource: name, ofType: "onnx")
+    }.first
+}
+
 /**
  * Silero VAD (models/README.md) through ONNX Runtime: scores one chunk as
  * speech, 0..1, carrying its state from chunk to chunk. One thread; it runs
@@ -109,14 +120,7 @@ final class SpeechModel {
 
     /// The model from the module's resources; nil where it cannot load, and parts split by levels alone.
     static func load() -> SpeechModel? {
-        let bundles = [Bundle.main, Bundle(for: SpeechModel.self)]
-        let path = bundles.lazy.compactMap { b -> String? in
-            if let url = b.url(forResource: "MicrophoneEnergyModels", withExtension: "bundle"), let models = Bundle(url: url) {
-                return models.path(forResource: "silero_vad_16k_op15", ofType: "onnx")
-            }
-            return b.path(forResource: "silero_vad_16k_op15", ofType: "onnx")
-        }.first
-        guard let path else { NSLog("MicrophoneEnergy: speech model not found; parts split by levels alone"); return nil }
+        guard let path = modelPath("silero_vad_16k_op15") else { NSLog("MicrophoneEnergy: speech model not found; parts split by levels alone"); return nil }
         do {
             let env = try ORTEnv(loggingLevel: .warning)
             let options = try ORTSessionOptions()

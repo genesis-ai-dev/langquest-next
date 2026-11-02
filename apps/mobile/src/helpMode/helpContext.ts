@@ -231,3 +231,24 @@ export function helpLine(label: string, detail?: string): string {
   if (!more) return name;
   return endsSentence(name) ? t('help.lineAfterSentence', { label: name, detail: more }) : t('help.line', { label: name, detail: more });
 }
+
+/**
+ * The browser voice that speaks the app's language, or none (UI audit,
+ * finding 109): a browser with no Hausa voice would read Hausa words in
+ * English, so the play button shows only when one matches. Simplified
+ * Chinese takes a mainland or Singapore voice, never Hong Kong's or Taiwan's.
+ */
+export function voiceFor<V extends { lang: string }>(locale: string, voices: readonly V[]): V | undefined {
+  const tag = (lang: string) => lang.replace(/_/g, '-').toLowerCase();
+  const want = tag(locale);
+  const exact = voices.find((v) => tag(v.lang) === want);
+  if (exact) return exact;
+  if (want === 'zh-hans') {
+    return voices.find((v) => {
+      const parts = tag(v.lang).split('-');
+      return ['zh', 'cmn'].includes(parts[0]) && !parts.some((p) => ['hant', 'tw', 'hk', 'mo'].includes(p));
+    });
+  }
+  const base = want.split('-')[0];
+  return voices.find((v) => tag(v.lang) === base) ?? voices.find((v) => tag(v.lang).split('-')[0] === base);
+}

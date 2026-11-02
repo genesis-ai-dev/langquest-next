@@ -5,13 +5,14 @@
 // 2026-10-16; opened again when the pane is small, it takes the room it
 // needs), the next part lit, the one-line bar when the
 // reference has the screen, and the footer with the big red button and
-// Done. A part slides either way to its bin (swipeRow.tsx), and the card
-// has one bin for them all. A deleted part leaves the lit next part in its
+// Done. A part slides either way to its bin (swipeRow.tsx), and the card's
+// ⋯ has Clean up (decision 179) and a delete for them all. A deleted part leaves the lit next part in its
 // place, so what is said next goes there (LAN-83). When the passage has
 // verses, each part in the card has a space beside it to tap a verse in
 // (verseParts.tsx, decisions.md 82). Each part reads as a voice message:
-// play, its bars and length, and a grip at its right end to drag it up or
-// down; a + on the card's right edge at each line opens a place there to
+// play, its bars and length (an orange warning after them when it has lots
+// of background noise, decision 181), and a grip at its right end to drag
+// it up or down; a + on the card's right edge at each line opens a place there to
 // record into, and the parts just recorded are shaded until the next
 // recording (Caleb, 2026-10-16).
 import { useState, type ReactNode } from 'react';
@@ -22,7 +23,7 @@ import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { HelpInfo, Ico, IconBtn } from '../ui/kit';
+import { HelpInfo, Ico } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { loopRecording, type LoopPhase } from './splitModel';
 import { C, radius, space, target as target_, TINT, type as T, withAlpha } from '../ui/theme';
@@ -35,6 +36,9 @@ import { PartBars } from './partBars';
 import { useSwipeHint } from './useSwipeHint';
 import { useBars } from '../audio/useBars';
 import { PartNotesMark } from '../passage/PartNotes';
+import type { Kept } from './KeptMark';
+import { CleanUpMark } from './NoiseMark';
+import { PartsMenu } from './partsMenu';
 import { UndoRedo, type UndoRedoProps } from '../ui/undoRedo';
 import { helpBinRow, opensAbove, rowKeys } from './workspaceModel';
 import { partIndexAfter } from './dragModel';
@@ -43,9 +47,15 @@ import { lift } from '../ui/shadow';
 import { PartMark, RecordBtn } from './blocks';
 import { styles as ps } from './blockStyles';
 import { useClip } from '../audio/useClip';
+import { usePlayingPart } from '../audio/usePlayingPart';
+import { PlayingFill } from './playingFill';
 import { VerseParts } from './verseParts';
+import { SilenceSwitch } from './silenceSwitch';
+import { a11yState } from '../ui/a11yModel';
 
-export interface Part { hash: string; durationMs?: number }
+export interface Part { hash: string; durationMs?: number;
+  /** Tried in Clean up and kept as recorded: by whom, and when (decision 179). */ kept?: Kept;
+  /** Opens Clean up for this part alone; given while it may be cleaned, for its noise warning (decision 181). */ cleanUp?: () => void }
 
 /** The recorder pane: the parts and their gaps, where the next part goes, and the next part at the end. */
 export function RecorderPane(props: {
@@ -55,6 +65,8 @@ export function RecorderPane(props: {
   title?: string;
   /** Delete every part, to start over (asks first). */
   onDeleteAll?: () => void;
+  /** Open Clean up for the parts it is offered for (decision 179). */
+  onCleanUp?: () => void;
   /** Give the recorder the room to show its parts (the card opened while the pane is small). */
   onRoom?: () => void;
   /** The card's rows (parts and gaps) and where the next part goes (LAN-83). */
@@ -89,7 +101,7 @@ export function RecorderPane(props: {
           ) : undefined} ctx={props.ctx} parts={parts} title={props.title ?? recorderLines(rows.length).group} sub={lines.groupSub(totalMs(parts.map((p) => p.durationMs)))}
           open={expanded} onToggle={toggle} disabled={props.disabled} onDelete={props.onDelete} rows={rows} target={props.target} onChoose={props.onChoose}
           onMove={props.onMove} fresh={props.fresh} show={props.show ?? null}
-          {...(props.onDeleteAll ? { onDeleteAll: props.onDeleteAll } : {})} />
+          {...(props.onDeleteAll ? { onDeleteAll: props.onDeleteAll } : {})} {...(props.onCleanUp ? { onCleanUp: props.onCleanUp } : {})} />
       ) : null}
       <View style={styles.underCard}>
         <NextCard label={partLabel(endN - 1)} chosen={atEnd} disabled={props.disabled} onChoose={() => props.onChoose({ kind: 'end' })}
@@ -100,7 +112,7 @@ export function RecorderPane(props: {
 }
 
 function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string; open: boolean; onToggle: () => void; disabled: boolean; onDelete: (hash: string, label: string) => void;
-  onDeleteAll?: () => void;
+  onDeleteAll?: () => void; onCleanUp?: () => void;
   rows: SlotRow[]; target: RecordTarget; onChoose: (to: RecordTarget) => void;
   onMove: (from: number, to: number) => void; fresh: ReadonlySet<string>; show: { hash: string; at: number } | null;
   /** The parts with their verse spaces, in place of the plain rows. */
@@ -109,14 +121,17 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
   const toggle = useHelpSpot(props.title, props.open ? t('recording.recorder.hidePartsHelp') : t('recording.recorder.showPartsHelp'), props.onToggle);
   const playLabel = clip.playing ? t('common.pause') : t('recording.player.playTitle', { title: props.title });
   const play = useHelpSpot(playLabel, t('recording.recorder.playAllHelp'), clip.toggle);
-  const onDeleteAll = props.onDeleteAll;
   return (
     // The card's box reaches past its right edge, for the + marks that hang off it (slots.tsx EDGE); the card is drawn inside.
     <View style={styles.cardBox}>
       <View style={styles.cardFace} pointerEvents="none" />
       <View style={[styles.head, props.open && styles.headOpen]}>
+        {/* How far Play all is through every part; the part playing shows it again in its row. */}
+        {clip.playing || clip.elapsed > 0 ? (
+          <PlayingFill at={clip.elapsed} length={clip.total} playing={clip.playing} style={props.open ? styles.headFillOpen : styles.headFill} />
+        ) : null}
         <PartMark state="done" />
-        <Pressable onPress={toggle.onPress} accessibilityRole="button" accessibilityState={{ expanded: props.open }} accessibilityLabel={t('recording.recorder.groupLabel', { title: props.title, sub: props.sub })}
+        <Pressable onPress={toggle.onPress} accessibilityRole="button" {...a11yState({ expanded: props.open }, 'button')} accessibilityLabel={t('recording.recorder.groupLabel', { title: props.title, sub: props.sub })}
           style={({ pressed }) => [{ flex: 1, minHeight: target_.min, justifyContent: 'center', paddingLeft: space.xs + 2 }, pressed && ps.pressed]}>
           <Text style={styles.title}>{props.title}</Text>
           <Text style={txt.smMuted}>{props.sub}</Text>
@@ -127,8 +142,9 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
           <Ico name={clip.playing ? 'pause' : 'play'} size={22} color={C.primary} strokeWidth={2.6} fill={C.primary} />
           <HelpBadge spot={play} />
         </Pressable>
-        {onDeleteAll ? (
-          <IconBtn name="trash" label={t('recording.recorder.deleteAll')} help={t('recording.recorder.deleteAllHelp')} bg="transparent" color={C.muted} size={target_.min} disabled={props.disabled} onPress={onDeleteAll} />
+        {/* The ⋯ took the place of the card's bin (decision 179): Clean up, and Delete every part. */}
+        {props.onDeleteAll || props.onCleanUp ? (
+          <PartsMenu disabled={props.disabled} {...(props.onCleanUp ? { onCleanUp: props.onCleanUp } : {})} {...(props.onDeleteAll ? { onDeleteAll: props.onDeleteAll } : {})} />
         ) : null}
         <Pressable onPress={toggle.onPress} accessibilityRole="button" accessibilityLabel={props.open ? t('recording.recorder.hideParts') : t('recording.recorder.showParts')} style={({ pressed }) => [styles.iconTap, pressed && ps.pressed]}>
           <Ico name={props.open ? 'down' : 'right'} size={22} color={C.muted} />
@@ -198,29 +214,35 @@ function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; ch
   open: SwipeSide; onOpen: (side: SwipeSide) => void; hint: boolean; onHinted: () => void; helpBin: boolean }) {
   const label = partLabel(props.n - 1);
   const clip = useClip(props.ctx.language, [props.part.hash], { disabled: props.disabled });
+  const heard = usePlayingPart(props.part.hash, clip);
   const bars = useBars(props.ctx.language, props.part.hash);
-  const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: label }) : t('recording.player.playTitle', { title: label });
-  const play = useHelpSpot(clip.playing ? t('common.pause') : t('recording.player.playTitle', { title: label }), undefined, clip.toggle);
+  const playLabel = heard.playing ? t('recording.recorder.pausePart', { part: label }) : t('recording.player.playTitle', { title: label });
+  const play = useHelpSpot(heard.playing ? t('common.pause') : t('recording.player.playTitle', { title: label }), undefined, heard.toggle);
   const choose = useHelpSpot(t('recording.recorder.recordOver', { part: label }), t('recording.recorder.recordOverHelp'), props.onChoose);
   return (
     <SwipeRow name={label} disabled={props.disabled} open={props.open} onOpen={props.onOpen} onDelete={() => props.onDelete(props.part.hash, label)} last={props.last}
       {...(props.hint ? { hint: true, onHinted: props.onHinted } : {})} helpBin={props.helpBin}>
     <View style={[styles.partRow, !props.first && styles.rowBorder, props.fresh && styles.fresh, props.chosen && styles.chosenRow, props.lifted && styles.liftedRow]}>
+      {heard.now ? <PlayingFill at={heard.now.at} length={heard.now.length} playing={heard.now.playing} /> : null}
       <Pressable onPress={play.onPress} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={playLabel}
         style={({ pressed }) => [styles.playTap, (!clip.available || props.disabled) && ps.off, pressed && ps.pressed]}>
-        <View style={styles.playDot}><Ico name={clip.playing ? 'pause' : 'play'} size={16} color={C.primary} strokeWidth={2.6} fill={C.primary} /></View>
+        <View style={[styles.playDot, heard.playing && styles.playDotOn]}>
+          <Ico name={heard.playing ? 'pause' : 'play'} size={16} color={heard.playing ? C.white : C.primary} strokeWidth={2.6} fill={heard.playing ? C.white : C.primary} />
+        </View>
         <HelpBadge spot={play} />
       </Pressable>
-      <Pressable onPress={choose.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: props.chosen }}
+      <Pressable onPress={choose.onPress} disabled={props.disabled} accessibilityRole="button" {...a11yState({ selected: props.chosen }, 'button')}
         accessibilityLabel={t('recording.recorder.recordOver', { part: label })}
         accessibilityActions={props.disabled ? [] : [{ name: 'delete', label: t('recording.deleteItem', { item: label }) }]}
         onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'delete') props.onOpen(1); }}
         style={({ pressed }) => [styles.partPlay, pressed && ps.pressed]}>
-        <PartBars bars={bars} progress={clip.playing ? (clip.total > 0 ? clip.elapsed / clip.total : 0) : null} />
+        <PartBars bars={bars} progress={heard.share} />
         <Text style={styles.length}>{mmss(props.part.durationMs)}</Text>
         {props.chosen ? <ChosenMic /> : null}
         <HelpBadge spot={choose} />
       </Pressable>
+      {/* Tried in Clean up and kept as recorded (decision 179), or noisy (decision 181). */}
+      <CleanUpMark ctx={props.ctx} hash={props.part.hash} disabled={props.disabled} part={label} kept={props.part.kept} cleanUp={props.part.cleanUp} />
       {/* What the checks said about this part (decisions.md 149). */}
       <PartNotesMark hash={props.part.hash} label={label} />
       {props.grip}
@@ -315,7 +337,8 @@ export function RecorderBar(props: { count: number; phase: LoopPhase; disabled: 
  * While recording, Done is the recording view's check, so the footer has none, as in back translation.
  */
 export function RecorderFooter(props: { count: number; phase: LoopPhase; recordDisabled: boolean; publishDisabled: boolean; onRecord: () => void; onPublish: () => void; nextIndex?: number;
-  undo: UndoRedoProps }) {
+  undo: UndoRedoProps;
+  /** The silence switch, shown where Done is while a session is open (decision 194). */ silence?: { on: boolean; onToggle: () => void } }) {
   const recording = loopRecording(props.phase);
   // A session open but stopped (decision 129) still has the recording view's Done.
   const session = props.phase !== 'off';
@@ -327,8 +350,8 @@ export function RecorderFooter(props: { count: number; phase: LoopPhase; recordD
       </View>
       <RecordBtn size={72} recording={recording} disabled={props.recordDisabled} onPress={props.onRecord} />
       <View style={styles.sideBox}>
-        {session ? null : (
-          <Pressable testID="publish-button" onPress={publish.onPress} disabled={props.publishDisabled} accessibilityRole="button" accessibilityLabel={t('common.done')} accessibilityState={{ disabled: props.publishDisabled }}
+        {session ? (props.silence ? <SilenceSwitch on={props.silence.on} onToggle={props.silence.onToggle} /> : null) : (
+          <Pressable testID="publish-button" onPress={publish.onPress} disabled={props.publishDisabled} accessibilityRole="button" accessibilityLabel={t('common.done')} {...a11yState({ disabled: props.publishDisabled }, 'button')}
             style={({ pressed }) => [styles.publish, props.publishDisabled && { opacity: 0.45 }, pressed && ps.pressed]}>
             <Text style={styles.publishLabel}>{t('common.done')}</Text>
             <HelpBadge spot={publish} />
@@ -348,6 +371,9 @@ const styles = StyleSheet.create({
   underCard: { marginRight: EDGE - space.lg },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 56, paddingLeft: space.md, paddingRight: space.xs, marginRight: EDGE },
   // Open, a band under its buttons keeps the first + mark's target clear of them.
+  // Inside the card face's round corners: all four while the parts are hidden, the top two over them.
+  headFill: { borderRadius: radius.lg },
+  headFillOpen: { borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
   headOpen: { paddingTop: space.xs, paddingBottom: EDGE, borderBottomWidth: 1, borderColor: C.border },
   // The rows sit inside the card's border; the list itself reaches past its right edge for the + marks.
   list: { marginLeft: 1, marginBottom: 1 },
@@ -355,6 +381,8 @@ const styles = StyleSheet.create({
   rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   playTap: { paddingLeft: space.sm, paddingRight: space.xs, minWidth: target_.min, minHeight: target_.min, alignItems: 'center', justifyContent: 'center' },
   playDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
+  // The part playing, whichever player plays it.
+  playDotOn: { backgroundColor: C.primary },
   length: { fontSize: T.sm, color: C.muted, fontVariant: ['tabular-nums'] },
   title: { fontSize: T.base, fontWeight: '800', color: C.dark },
   iconTap: { width: target_.min, height: target_.min, alignItems: 'center', justifyContent: 'center' },

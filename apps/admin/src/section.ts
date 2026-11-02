@@ -22,6 +22,8 @@ export const LEVELS: readonly Level[] = ['urgent', 'problem', 'watch'];
 export interface Alert {
   level: Level;
   text: string;
+  /** The page to act on it: the page that fixes it, or the failed run. */
+  link?: string;
 }
 
 export interface Section<T = unknown> {

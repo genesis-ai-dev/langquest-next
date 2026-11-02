@@ -10,7 +10,7 @@ sets and FIA study material. Decision 36 in `docs/decisions.md` says why.
 
 ## Items and versions
 
-An item is one of four kinds:
+An item is one of six kinds:
 
 | Kind | Documents | Managed with |
 | --- | --- | --- |
@@ -18,6 +18,8 @@ An item is one of four kinds:
 | `flow` | `flow@1` | Manage Review Flows |
 | `material` | `study@1`, `study@2`, `collection@1`, `material@1` (a key-word list is `material@1` of kind `key_terms`, decision 172) | Manage Reference Material (guides: Write a guide) |
 | `versification` | `versification@1` (Copenhagen Alliance JSON) | Manage Content Templates |
+| `names` | `names@1` (a language's names for the Bible's books, decision 193) | Manage Content Templates |
+| `labels` | `labels@1` (what an organization's items are called in one language, decision 195) | Manage Org Structure |
 
 A version is an immutable JSON **document** named by the SHA-256 of its
 canonical text (`canonicalJson` in `packages/core/src/libraryDocs.ts`: keys
@@ -154,6 +156,29 @@ calls a book is `v1.BookNameSet`, read by `unitTitle` and `unitPlace`;
 naming one offers what the language's Bibles call it (their `source@1`
 books) and what the organization's other languages call it
 (`language_book_names(p_org, p_book)`, demo ADR-042).
+
+## Book names
+
+A template names no language (decision 193). What a language's people read
+the books as comes from an item of kind `names`, one per language
+(`names@1`: `{ name, description, language, books: [{ book, name }] }`),
+as FIA's guides are one collection per language. A language uses one with
+`v1.BookNamesSelected`, which carries every name, so the server and a
+phone without the document name passages alike. Core `bookNameOf` reads a
+book's own `v1.BookNameSet` first, then the set, then the template's name.
+New language picks the set in the first of the translators' languages that
+has one; the content template page's Book names row changes it.
+
+## Names in the app's languages
+
+LangQuest publishes its items with English names, and one item of kind
+`labels` per language says what each is called there (decision 195;
+`labels@1`: `{ name, description, language, items: [{ itemId, name,
+description? }] }`, "Library names (Hindi)"). A set names only its own
+organization's items. The phone reads the sets in the language showing once
+a session (`apps/mobile/src/library/labels.ts`), and a shared or followed
+item shows that name; an organization's own items and its copies keep
+theirs. Events and comparisons always carry the published name.
 
 ## Versification
 

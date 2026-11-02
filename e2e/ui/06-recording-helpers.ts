@@ -133,8 +133,9 @@ export const partsSub = (count: number): RegExp => new RegExp(`^${count} parts? 
 
 /**
  * How many parts the card counts now (0 when there is no card). While
- * recording, the card gives way to the recording view, whose title is the
- * part being said at the end ("Part 4. Recording…": three are kept).
+ * recording, the card gives way to the recording view, whose status says how
+ * many are kept ("Listening for you. 3 parts so far"; 0 while a part is being
+ * said, so poll it).
  */
 export async function partCount(page: Page): Promise<number> {
   const group = page.getByRole('button', { name: /^(Parts? 1(–\d+)?|Version \d+), \d+ parts? · / }).locator('visible=true').first();
@@ -143,10 +144,10 @@ export async function partCount(page: Page): Promise<number> {
     return m ? Number(m[1]) : 0;
   }
   if (!(await page.getByRole('button', { name: 'Done', exact: true }).locator('visible=true').count())) return 0;
-  const live = page.getByLabel(/^Part \d+\. /).locator('visible=true').first();
+  const live = page.getByLabel(/\d+ parts? so far$/).locator('visible=true').first();
   if (!(await live.count())) return 0;
-  const n = /^Part (\d+)\. /.exec((await live.getAttribute('aria-label').catch(() => null)) ?? '');
-  return n ? Number(n[1]) - 1 : 0;
+  const n = /(\d+) parts? so far$/.exec((await live.getAttribute('aria-label').catch(() => null)) ?? '');
+  return n ? Number(n[1]) : 0;
 }
 
 /** The parts a draft already has, once its card has drawn (the workspace opens before the card shows; 0 read too soon is not the count). */

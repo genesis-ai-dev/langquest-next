@@ -69,7 +69,7 @@ button.primary { min-height: 48px; background: var(--primary); border-color: var
 button.link { border: 0; background: none; color: var(--primary); padding: 0; min-height: 0; font-weight: 600; cursor: pointer; text-align: start; }
 form.signin { max-width: 420px; margin: 48px auto; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
 label { display:block; font-weight:600; margin: 14px 0 6px; }
-input[type=email], input[type=password], input[type=search], input[type=text] { width:100%; min-height:44px; padding: 8px 12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); font:inherit; }
+input[type=email], input[type=password], input[type=search], input[type=text], textarea, select { width:100%; min-height:44px; padding: 8px 12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); font:inherit; }
 .notice { padding: 12px 14px; border-radius: 10px; background: var(--bg); margin: 12px 0; }
 .notice.red { color: var(--red); background: var(--redbg); }
 .setup { white-space: pre-line; }
@@ -95,6 +95,25 @@ h3.part { font-size: 15px; color: var(--ink); margin: 18px 0 4px; padding-top: 1
 [data-help] { text-decoration: underline dotted var(--muted); text-underline-offset: 3px; cursor: help; }
 #tip { position: fixed; z-index: 10; max-width: 340px; padding: 8px 10px; border-radius: 8px; background: var(--ink); color: var(--bg); font-size: 13px; font-weight: 400; line-height: 1.4; pointer-events: none; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
 @media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
+td button { white-space: nowrap; }
+/* A phone: the header scrolls away, and each table row is a block of its own, each value under its column's name. */
+@media (max-width: 640px) {
+  header { position: static; }
+  .bar { padding: 10px 12px; gap: 8px; }
+  .bar h1 { flex-basis: 100%; font-size: 18px; }
+  main { padding: 12px 8px 48px; }
+  section.card { padding: 12px; }
+  .scroll table, .scroll tbody, .scroll tr, .scroll td { display: block; }
+  .scroll thead { display: none; }
+  .scroll tr { padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .scroll tr:last-child { border-bottom: 0; }
+  .scroll td, .scroll td.n { border: 0; padding: 2px 0; text-align: start; white-space: normal; overflow-wrap: break-word; }
+  .scroll td[data-h] { position: relative; padding-inline-start: 40%; }
+  .scroll td[data-h]::before { content: attr(data-h); position: absolute; inset-inline-start: 0; width: 38%; color: var(--muted); font-size: 12px; line-height: 1.6; }
+  .scroll td:first-child { padding-inline-start: 0; }
+  .scroll td:first-child::before { content: none; }
+  .scroll td:empty { display: none; }
+}
 </style>
 </head>
 <body>
@@ -172,7 +191,7 @@ const reviewSpan = (r) => r && r.count ? num(r.count) + ' reviews ' + since(r.si
 function table(cols, rows) {
   if (!rows.length) return '<p class="muted">Nothing here.</p>';
   return '<div class="scroll"><table><thead><tr>' + cols.map((c) => '<th' + (c.n ? ' class="n"' : '') + '>' + esc(c.h) + '</th>').join('') + '</tr></thead><tbody>' +
-    rows.map((r) => '<tr>' + cols.map((c) => '<td' + (c.n ? ' class="n"' : '') + '>' + c.v(r) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>';
+    rows.map((r) => '<tr>' + cols.map((c) => '<td' + (c.n ? ' class="n"' : '') + (c.h ? ' data-h="' + esc(c.h) + '"' : '') + '>' + c.v(r) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>';
 }
 const short = (id) => id ? '<code title="' + esc(id) + '">' + esc(String(id).slice(0, 8)) + '</code>' : '–';
 
@@ -391,7 +410,7 @@ function attention() {
   for (const g of SECTIONS) for (const part of g.parts) {
     const s = results[part];
     if (!s) continue;
-    for (const a of s.alerts || []) items.push({ level: a.level, text: a.text, where: g.title, id: g.id });
+    for (const a of s.alerts || []) items.push({ level: a.level, text: a.text, link: a.link, where: g.title, id: g.id });
     if (s.state === 'error') items.push({ level: 'watch', text: 'Could not read: ' + s.error, where: g.title, id: g.id });
   }
   const loading = PARTS.filter((p) => !results[p]).length;
@@ -400,7 +419,9 @@ function attention() {
   const el = $('attention-pill');
   el.className = 'pill ' + (top || (loading ? 'wait' : 'ok'));
   el.textContent = top ? LEVELS.filter((l) => c[l] > 0).map((l) => LEVEL[l].count(c[l])).join(', ') : loading ? 'Checking…' : 'All clear';
-  const item = (i) => '<li><span class="dot ' + i.level + '"></span><span>' + esc(tidy(i.text)) + ' <button type="button" class="link where" data-goto="' + esc(i.id) + '">' + esc(i.where) + '</button></span></li>';
+  // A link only to https pages: an alert's link comes from what a workflow wrote (apps/admin/src/sources/github.ts).
+  const fix = (i) => String(i.link || '').startsWith('https://') ? ' <a href="' + esc(i.link) + '" target="_blank" rel="noopener">Open</a>' : '';
+  const item = (i) => '<li><span class="dot ' + i.level + '"></span><span>' + esc(tidy(i.text)) + fix(i) + ' <button type="button" class="link where" data-goto="' + esc(i.id) + '">' + esc(i.where) + '</button></span></li>';
   $('attention-list').innerHTML = items.length
     ? LEVELS.map((l) => {
       const at = items.filter((i) => (i.level in LEVEL ? i.level : 'watch') === l);
@@ -621,7 +642,8 @@ const RENDER = {
       (f.voice_format ? '<p><button class="link" data-voice="' + esc(f.id) + '">Play the voice note' + (f.voice_ms ? ' (' + ms(f.voice_ms) + ')' : '') + '</button></p>' : '') +
       (f.shared_name || f.shared_email ? '<p><small>From ' + esc([f.shared_name, f.shared_email].filter(Boolean).join(', ')) + ' (shared by them)</small></p>' : '') +
       (f.install_id ? '<p><button type="button" class="link" data-install="' + esc(f.install_id) + '" data-fb-id="' + esc(f.id) + '">Show this phone\\'s diagnostics</button></p><div class="diag-inline" id="diag-' + esc(f.id) + '" hidden></div>' : '') +
-      (f.has_screenshot ? '<p><button class="link" data-shot="' + esc(f.id) + '">Show screenshot</button></p>' : '') +
+      (f.has_screenshot ? '<p><button class="link" data-shot="' + esc(f.id) + '" data-what="screenshot">Show screenshot</button></p>' : '') +
+      (f.has_picture ? '<p><button class="link" data-shot="' + esc(f.id) + '" data-what="picture">Show picture</button></p>' : '') +
       '<p>' + (f.status !== 'seen' && f.status !== 'done' ? '<button type="button" data-fb="' + esc(f.id) + '" data-status="seen">Seen</button> ' : '') +
       (f.status !== 'done' ? '<button type="button" data-fb="' + esc(f.id) + '" data-status="done">Done</button>' : '<button type="button" data-fb="' + esc(f.id) + '" data-status="new">Open again</button>') + '</p></div>').join('');
   }
@@ -659,31 +681,32 @@ document.addEventListener('click', (e) => {
 });
 
 function wireScreenshots() {
-  // Show and hide, under the button; the picture is fetched once and kept while the page is open.
+  // Show and hide, under the button; the screenshot (or the picture the person chose) is fetched once and kept while the page is open.
   for (const b of document.querySelectorAll('[data-shot]')) {
     let img = null;
+    const what = b.dataset.what === 'picture' ? 'picture' : 'screenshot';
     b.setAttribute('aria-expanded', 'false');
     b.addEventListener('click', async () => {
       if (img) {
         img.hidden = !img.hidden;
-        b.textContent = img.hidden ? 'Show screenshot' : 'Hide screenshot';
+        b.textContent = (img.hidden ? 'Show ' : 'Hide ') + what;
         b.setAttribute('aria-expanded', String(!img.hidden));
         return;
       }
       b.disabled = true;
       try {
         const t = await token();
-        const res = await fetch('/ops/api/feedback/' + encodeURIComponent(b.dataset.shot) + '/screenshot', { headers: { authorization: 'Bearer ' + t } });
+        const res = await fetch('/ops/api/feedback/' + encodeURIComponent(b.dataset.shot) + '/' + what, { headers: { authorization: 'Bearer ' + t } });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         img = document.createElement('img');
-        img.alt = 'Screenshot sent with this feedback';
+        img.alt = what === 'picture' ? 'Picture chosen by the person who sent this feedback' : 'Screenshot sent with this feedback';
         img.title = 'Click to hide';
         img.src = URL.createObjectURL(await res.blob());
         img.addEventListener('click', () => b.click());
         b.closest('p').after(img);
-        b.textContent = 'Hide screenshot';
+        b.textContent = 'Hide ' + what;
         b.setAttribute('aria-expanded', 'true');
-      } catch (err) { b.textContent = 'Could not load the screenshot (' + err.message + ')'; }
+      } catch (err) { b.textContent = 'Could not load the ' + what + ' (' + err.message + ')'; }
       b.disabled = false;
     });
   }
@@ -804,6 +827,7 @@ async function start() {
   $('signin').hidden = true; $('mfa').hidden = true; say('');
   $('board').hidden = false; $('refresh').hidden = false; $('signout').hidden = false; $('expand-all').hidden = false; $('collapse-all').hidden = false;
   if (!$('grid').children.length) layout();
+  await finishYouTube();
   const deep = /^\\/ops-dashboard\\/org\\/([^/]+)$/.exec(location.pathname);
   if (deep) openOrg(decodeURIComponent(deep[1]), false);
   await load(false);

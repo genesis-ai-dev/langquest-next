@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { type AnyEvent, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import { OfflineError, ServerError, SupabaseTransport } from '@langquest-next/sync';
 import type { CopiedFile } from './map';
-import type { LedgerEntry } from './reconcile';
+import type { LedgerEntry, Stamp } from './reconcile';
 
 /**
  * This app's side of the import: the plan the board saved, the ledger, the
@@ -23,6 +23,8 @@ export interface Target {
   move(projectId: string, orgId: string, languageId: string, by: string): Promise<void>;
   ledger(scope: string): Promise<Map<string, LedgerEntry>>;
   putLedger(scope: string, entries: LedgerEntry[]): Promise<void>;
+  /** Keep when v2's server got what the import brings over, for the access-token API (decisions.md 188); a key kept again takes the new time. */
+  putStamps(orgId: string, stamps: Stamp[]): Promise<void>;
   /** Files by v2 name: copied, or missing from v2's bucket since when. */
   files(names: string[]): Promise<Map<string, CopiedFile | { missingSince: string }>>;
   putFiles(files: { name: string; file: CopiedFile | null }[]): Promise<void>;
@@ -224,6 +226,9 @@ export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target
     },
     async putLedger(scope, entries) {
       for (let i = 0; i < entries.length; i += 2000) await rpc('v2_import_ledger_put', { p_scope: scope, p_entries: entries.slice(i, i + 2000) });
+    },
+    async putStamps(orgId, stamps) {
+      for (let i = 0; i < stamps.length; i += 2000) await rpc('v2_import_stamps_put', { p_org: orgId, p_stamps: stamps.slice(i, i + 2000) });
     },
 
     async files(names) {

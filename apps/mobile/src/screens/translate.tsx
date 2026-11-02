@@ -21,6 +21,11 @@
 // (LAN-83). While the parts are still a version's, the card is named for it. Done is its own screen inside this one, so
 // nothing recorded or offered is lost on the way. Parts split by what the
 // microphone hears, the room and the voice, with nothing to set (LAN-82).
+// The card's ⋯ opens Clean up, which takes background noise out of the
+// parts on this phone; the person hears each part both ways and picks, and
+// a part kept as recorded wears a grey ear (decision 179). A part with lots
+// of background noise wears an orange warning that opens Clean up for it
+// alone (decision 181).
 // Parts are dragged up and down by a grip (the moved part loses its verses,
 // to be labelled again), a mark on the line between two parts opens a place
 // there to record into, the parts just recorded are shaded until the next
@@ -38,8 +43,8 @@
 // listen to the latest version and what you save is content for the next
 // check, not a version.
 import {
-  checkShows, commands, derivePartVerses, derivePassage, draftsBy, keyTermsForUnit, partMarksFor, RECORD_STEP, skippedVerses, versesInChapter, type PartLabel,
-  type EventSpec, type KeyWordDoc, type KindDef, type LanguageState, type PartMark, type PassageNote, type Version
+  checkShows, cleanUpOf, commands, decodeHlc, derivePartVerses, derivePassage, draftsBy, keyTermsForUnit, partMarksFor, RECORD_STEP, skippedVerses, versesInChapter, type PartLabel,
+  type CleanUpChoice, type EventSpec, type KeyWordDoc, type KindDef, type LanguageState, type PartMark, type PassageNote, type Version
 } from '@langquest-next/core';
 import type { KeyWordList } from '../keyTerms/listsModel';
 import * as Crypto from 'expo-crypto';
@@ -58,7 +63,7 @@ import { ReferenceRecordings, SourcePlayer } from '../passage/passageSourceAudio
 import { feedbackSource, passageCrumbs, versionTitle, type PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
 import { useBackTranslationDraft } from '../recording/useBackTranslationDraft';
-import { CardList, RecordButton, SaveProblem, type ListedCard } from '../recording/parts';
+import { CardList, RecordButton, RecorderProblem, SaveProblem, type ListedCard } from '../recording/parts';
 import { SplitPane } from '../recording/SplitPane';
 import { MIN_BOTTOM, MIN_BOTTOM_RECORDING, rememberedSplit } from '../recording/splitModel';
 import { useListenLoop } from '../recording/useListenLoop';
@@ -66,10 +71,10 @@ import { RecordingView } from '../recording/RecordingView';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { VerseTile } from '../recording/verseParts';
 import {
-  backTranslationDraftKey, canPublish, cardDurations, clearListSpecs, draftToOpen, labelAt, marksKeepingLabels, marksOf, movedList,
+  backTranslationDraftKey, canPublish, cardDurations, cleanUpNoteOf, clearListSpecs, draftToOpen, labelAt, marksKeepingLabels, marksOf, movedList,
   removeCardSpecs, restoreSpecs, sameCards, slotRows, targetNumber,
   changedParts, historyFits, parsePartsHistory, partsHistoryKey,
-  type PartsHistory, type PartsSnap, type RecordTarget, type SlotRow,
+  type CleanUpNote, type PartsHistory, type PartsSnap, type RecordTarget, type SlotRow,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, workingCards
 } from '../recording/workspaceModel';
 import { DragScrollContext } from '../recording/useDragRows';
@@ -99,6 +104,9 @@ import { draftKey } from '../drafts/draftModel';
 import { SavedMark } from '../ui/SavedMark';
 import { useSaveStatus } from '../ui/useSaveStatus';
 import { RecorderBar, RecorderFooter, RecorderPane, type Part } from '../recording/recorder';
+import { CleanUpSheet, type CleanUpPart } from '../recording/CleanUpSheet';
+import { CLEAN_UP_TOOL, cleanUpOffer } from '../recording/cleanUpModel';
+import { formatDay } from '../i18n/format';
 import type { UndoRedoProps } from '../ui/undoRedo';
 import { BibleBar, BiblePane, EarlierPane, KeyWordsPane, NotesPane, RequestNote } from '../helps/reference';
 import { useBible } from '../helps/useBible';
@@ -119,6 +127,9 @@ import { anyFrom, fromFilter } from '../checks/showsModel';
  * parts, where what is said has no verses yet.
  */
 type Aim = { kind: 'end' } | { kind: 'gap'; before: string; mark?: PartMark; insert?: true } | { kind: 'over'; hash: string; n: number; mark?: PartMark };
+
+/** Clean up's sheet while it is closed. */
+const NO_PARTS: CleanUpPart[] = [];
 
 /** Said to a screen reader where a toast used to say it: the change shows on the card. */
 const say = (message: string) => AccessibilityInfo.announceForAccessibility(message);
@@ -358,7 +369,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       return true;
     } catch (e) {
       setCleared(wasCleared);
-      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: change parts', e) }));
+      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: change parts', e) }), 'problem');
       return false;
     } finally { if (!quiet) setWorking(false); }
   }
@@ -417,6 +428,38 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     await change(specs, { before, after }, t('translate.partMoved', { part: partLabel(from), place: partLabel(to) }));
   }
 
+  // ---- Clean up (decision 179) ----
+  // The ⋯ on the card opens it for the parts it is offered for, as they were
+  // when it opened; the picks become one change, which Undo takes back.
+  const [cleaningUp, setCleaningUp] = useState<{ parts: CleanUpPart[]; before: number } | null>(null);
+  async function keepCleanUp(choices: CleanUpChoice[], limitDb: number | null): Promise<boolean> {
+    if (blocked || choices.length === 0) return false;
+    const how = { tool: CLEAN_UP_TOOL, ...(limitDb === null ? {} : { limitDb }) };
+    let specs: EventSpec[];
+    try {
+      specs = commands(state, idx).cleanUpParts({ commandId: Crypto.randomUUID(), unitId, actorId: me, cardHashes: list, parentTakeId: parentNow(), parts: choices, ...how });
+    } catch (e) {
+      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: clean up', e) }), 'problem');
+      return false;
+    }
+    const before = snapNow();
+    const swap = new Map(choices.flatMap((c) => (c.use === 'cleaned' ? [[c.hash, c.cleaned.hash] as const] : [])));
+    const notes = (pick: (c: CleanUpChoice) => CleanUpNote | null) => Object.fromEntries(choices.map((c) => [c.hash, pick(c)]));
+    const after: PartsSnap = {
+      list: list.map((h) => swap.get(h) ?? h), marks: before.marks,
+      cleanUps: notes((c) => (c.use === 'cleaned' ? { use: 'cleaned', cleanedHash: c.cleaned.hash, cleanedFormat: c.cleaned.format, ...how } : { use: 'original', ...how }))
+    };
+    const one = choices.length === 1 ? choices[0]! : null;
+    const name = one ? cleaningUp?.parts.find((p) => p.hash === one.hash)?.label ?? partLabel(list.indexOf(one.hash)) : '';
+    const message = !one ? t('translate.partsCleaned', { count: choices.length })
+      : one.use === 'cleaned' ? t('translate.partCleaned', { part: name }) : t('translate.partKept', { part: name });
+    if (!await change(specs, { before: { ...before, cleanUps: notes((c) => cleanUpNoteOf(state, unitId, c.hash)) }, after }, message)) return false;
+    // The cleaned sounds go up now, and show as a new recording does.
+    ctx.language.triggerUpload();
+    setJustSaid(new Set([...swap.values()]));
+    return true;
+  }
+
   // ---- undo and redo (Caleb, 2026-10-16) ----
   // Every change to the parts on this screen can be taken back and brought
   // back again while it is open: each is written as new events that put the
@@ -454,7 +497,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         : which === 'undo' ? t('common.undone') : t('translate.redone'));
     } catch (e) {
       setCleared(wasCleared);
-      ctx.toast(t(which === 'undo' ? 'common.notUndone' : 'common.notSaved', { reason: failureMessage(`workspace: ${which}`, e) }));
+      ctx.toast(t(which === 'undo' ? 'common.notUndone' : 'common.notSaved', { reason: failureMessage(`workspace: ${which}`, e) }), 'problem');
     } finally { setWorking(false); }
   }
 
@@ -518,7 +561,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     try {
       specs = commands(state, idx).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards, marks: next, verses: verseKeys });
     } catch (e) {
-      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: verse labels', e) }));
+      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: verse labels', e) }), 'problem');
       return;
     }
     if (specs.length === 0) return;
@@ -590,10 +633,10 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     if (c === 'guide' && guideItem) usage.open(guideItem);
   };
   const chips: ChipItem<RefChip>[] = chipIds.map((c) => ({
-    bible: { id: 'bible' as const, label: t('translate.chips.bible'), icon: 'listen' as const, hint: t('translate.chips.bibleHint') },
+    bible: { id: 'bible' as const, label: t('translate.chips.bible'), icon: 'book' as const, hint: t('translate.chips.bibleHint') },
     guide: { id: 'guide' as const, label: t('translate.chips.guide'), icon: 'star' as const, hint: t('translate.chips.guideHint') },
     terms: { id: 'terms' as const, label: t('translate.chips.terms'), icon: 'key' as const, hint: t('translate.chips.termsHint') },
-    notes: { id: 'notes' as const, label: t('translate.chips.notes'), icon: 'chat' as const, count: notes.length, hint: t('translate.chips.notesHint') },
+    notes: { id: 'notes' as const, label: t('translate.chips.notes'), icon: 'note' as const, count: notes.length, hint: t('translate.chips.notesHint') },
     earlier: { id: 'earlier' as const, label: t('translate.chips.earlier'), icon: 'clock' as const, hint: t('translate.chips.earlierHint') }
   })[c]);
 
@@ -630,7 +673,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name), offline);
       }
     } catch (e) {
-      ctx.toast(t('translate.notPublished', { reason: failureMessage('workspace: publish', e) }));
+      ctx.toast(t('translate.notPublished', { reason: failureMessage('workspace: publish', e) }), 'problem');
       return false;
     }
     setPublishing(true);
@@ -651,7 +694,16 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     finally { setPublishing(false); }
   }
 
-  const parts: Part[] = list.map((hash) => ({ hash, ...(durations.has(hash) ? { durationMs: durations.get(hash)! } : {}) }));
+  const offer = cleanUpOffer(state, unitId, list);
+  const offered = new Set(offer.offered);
+  const parts: Part[] = list.map((hash, i) => {
+    // Tried in Clean up and kept as recorded: the grey ear says who, and when (decision 179).
+    const note = cleanUpOf(state, unitId, hash);
+    const kept = note?.value.use === 'original' ? { by: ctx.name(note.value.actorId), when: formatDay(decodeHlc(note.hlc).wallMs) } : null;
+    // A noisy part's warning opens Clean up for it alone (decision 181).
+    return { hash, ...(durations.has(hash) ? { durationMs: durations.get(hash)! } : {}), ...(kept ? { kept } : {}),
+      ...(offered.has(i) ? { cleanUp: () => openCleanUp([i]) } : {}) };
+  });
   // The parts card's rows (parts, and gaps a part can be recorded into) and where the next part goes (LAN-83).
   const verseLabels = verseKeys.length > 0 ? derivePartVerses(marks, verseKeys.length).labels : [];
   const dataGaps = skippedVerses(verseLabels).map((g) => ({ before: g.before, label: { s: g.s, e: g.e, kind: 'set' as const } }));
@@ -664,6 +716,13 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const targetN = targetNumber(rows, target);
   rowsRef.current = rows;
   const nextIndex = targetN - 1;
+  // The ⋯ opens Clean up for every part it is offered for; a noisy part's warning, for that part alone.
+  const openCleanUp = (which: readonly number[] = offer.offered) => {
+    if (blocked) return;
+    const names = new Map(rows.flatMap((r) => (r.kind === 'part' ? [[r.index, partLabel(r.n - 1)] as const] : [])));
+    setCleaningUp({ parts: which.map((i) => ({ hash: list[i]!, label: names.get(i) ?? partLabel(i), ...(parts[i]?.durationMs !== undefined ? { durationMs: parts[i].durationMs } : {}) })),
+      before: which === offer.offered ? offer.before.length : 0 });
+  };
   // While a session is open its parts are not in the list yet (LAN-82): the next one's number is the session's.
   const sessionIndex = (rec.sessionNext ?? targetN) - 1;
   // The verses the next part takes, for the recording view's title.
@@ -674,7 +733,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const problem = rec.failureCount > 0
     ? <SaveProblem message={rec.error || t('translate.partNotSaved')} retryLabel={t('translate.retrySaving')} busy={rec.busy} onRetry={() => void rec.retryFailed()} />
     : composeError ? <SaveProblem message={composeError} onRetry={() => setComposeError('')} />
-    : rec.error ? <SaveProblem message={rec.error} /> : null;
+    : rec.error ? <RecorderProblem rec={rec} /> : null;
   const record = () => void loop.toggle();
   const scope = { unitId, languageId };
   const lastDone = history.done[history.done.length - 1];
@@ -711,7 +770,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} />}
       footer={recorderLine ? undefined : (
         <RecorderFooter count={list.length} nextIndex={sessionIndex} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
-          publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} undo={undoRedo} />
+          publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} undo={undoRedo}
+          silence={{ on: rec.silence, onToggle: () => rec.setSilence(!rec.silence) }} />
       )}>
       <SplitPane memoryKey="workspace" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM} onFraction={setSplit}
         topStyle={styles.refPane} bottomStyle={styles.wsRecordPane}
@@ -739,7 +799,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                   </>
                 ) : chip === 'terms' ? (
                   <KeyWordsPane ctx={ctx} v={v} terms={trayTerms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} bibleLanguage={bible.option?.language} draftTakeId={draft?.takeId} canTie={canTie} disabled={blocked}
-                    onHear={(key) => { setChip('bible'); if (key) { setVerse(key); bible.playVerse(key); } }}
+                    canHear={chipIds.includes('bible') && bible.timed && !bible.audioAbsent}
+                    onHear={(key) => { if (!bible.playVerse(key)) return false; setChip('bible'); setVerse(key); return true; }}
                     allTerms={() => ctx.go('key_terms', scope)}
                     {...(recording ? {} : { onWordPage: (list: KeyWordList, word: KeyWordDoc) => ctx.go('key_term_detail', { ...scope, listId: list.itemId, wordId: word.id, ...(draft ? { draftId: draft.takeId } : {}) }) })} />
                 ) : chip === 'notes' ? (
@@ -753,7 +814,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         )}
         bottom={({ compact, open, height, room }) => session ? (
           // While recording, the pane is the recording view: what is being said, the waveform, and an X back to the parts.
-          <RecordingView rec={rec} phase={loop.phase} title={partLabel(sessionIndex)} partNumber={targetN} count={list.length + rec.sessionKept} noun="part" onLeave={() => void loop.finish()} onResume={loop.resumeNow} onStop={loop.stop} onDiscard={() => void loop.discard()}
+          <RecordingView rec={rec} phase={loop.phase} partNumber={targetN} count={list.length + rec.sessionKept} noun="part" onLeave={() => void loop.finish()} onResume={loop.resumeNow} onStop={loop.stop} onDiscard={() => void loop.discard()}
             {...(slotTile ? { tile: slotTile } : {})} />
         ) : compact ? (
           <RecorderBar count={list.length} nextIndex={nextIndex} phase={loop.phase} disabled={saving || rec.failureCount > 0} onRecord={record} onOpen={open} undo={undoRedo} />
@@ -764,6 +825,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                 {problem}
                 <RecorderPane ctx={ctx} parts={parts} phase={loop.phase} capturing={rec.vadCapturing} small={height < 360} disabled={blocked}
                   onDelete={(h, label) => void remove(h, label)} onDeleteAll={() => setAskingAll(true)} onRoom={room} onResume={loop.resumeNow}
+                  {...(offer.offered.length > 0 ? { onCleanUp: () => openCleanUp() } : {})}
                   {...(recorderGroupTitle ? { title: recorderGroupTitle } : {})}
                   rows={rows} target={target} onChoose={choose} onMove={(from, to) => void move(from, to)} fresh={justSaid} show={show}
                   verses={{ keys: verseKeys, marks, onMarks: setMarks }} />
@@ -774,6 +836,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       <ConfirmDelete visible={askingAll} name={recorderLines(list.length).group} title={t('recording.recorder.deleteAllAsk')} confirmLabel={t('recording.recorder.deleteAll')}
         sub={t('recording.parts.groupSub', { count: list.length, length: mmss(totalMs(parts.map((x) => x.durationMs))) })}
         onClose={() => setAskingAll(false)} onConfirm={() => { setAskingAll(false); void removeAll(); }} />
+      <CleanUpSheet ctx={ctx} open={!!cleaningUp} parts={cleaningUp?.parts ?? NO_PARTS} before={cleaningUp?.before ?? 0} onClose={() => setCleaningUp(null)} onUse={keepCleanUp} />
     </Screen>
   );
 }

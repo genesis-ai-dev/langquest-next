@@ -57,6 +57,21 @@ export interface Env {
    * wait for the cron, at most ten minutes.
    */
   WEBHOOK_POKE_SECRET?: string;
+  /**
+   * The OAuth client the tutorial channels are connected with and their
+   * videos published (docs/tutorial-videos.md, decisions.md 180). Optional
+   * (`npm run secrets`): without them Connect YouTube says it is not set up
+   * and the publish job stays off.
+   */
+  YOUTUBE_CLIENT_ID?: string;
+  YOUTUBE_CLIENT_SECRET?: string;
+  /**
+   * A Linear personal API key (decisions.md 186): a code change accepted on
+   * the ops dashboard becomes a Linear issue, filed by the ops action or,
+   * when Linear fails then, by the comments job. Optional: without it
+   * accepted code changes wait, counted on the dashboard.
+   */
+  LINEAR_API_KEY?: string;
 }
 
 let shared: { url: string; key: string; client: SupabaseClient } | undefined;
