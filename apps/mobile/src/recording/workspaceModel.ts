@@ -361,6 +361,32 @@ export function movedList<T>(list: readonly T[], from: number, to: number): T[] 
 }
 
 /**
+ * The verse marks once parts are said into a place (decisions.md 124): in a
+ * gap or a deleted or replaced part's place, the first part said takes that
+ * place's verses (`place`) and the rest are more of them. Said between two
+ * parts (`insert`), or in a place with no verses (a part that had none, said
+ * again), the parts said have none either, unless they sit inside one verse
+ * said in pieces, and the parts around keep theirs (`marksKeepingLabels`).
+ * A place with no verses once gave the next verse: Part 2 said again, in a
+ * passage with no verses yet, became "Verse 15" (the Answer feedback video,
+ * 2026-11-02). `marks` are the parts' marks as kept, in `list`'s order; `fresh` the parts just said.
+ */
+export function marksForSaid(list: readonly string[], marks: readonly PartMark[], fresh: ReadonlySet<string>, place: PartMark | undefined,
+  count: number, insert = false): PartMark[] {
+  if (insert || !place) {
+    const old = list.flatMap((h, i) => (fresh.has(h) ? [] : [{ h, m: marks[i] ?? null }]));
+    return marksKeepingLabels({ list: old.map((o) => o.h), marks: old.map((o) => o.m) }, list, count);
+  }
+  let first = true;
+  return marks.map((m, i) => {
+    if (!fresh.has(list[i]!) || m) return m;
+    const mark: PartMark = first ? place : { t: 'join' };
+    first = false;
+    return mark;
+  });
+}
+
+/**
  * The verse marks of a list after a change, keeping what every part showed
  * before it: a mark that read its verses from the part above ("the next
  * verse", "the same verse") names them instead when the part above is no
