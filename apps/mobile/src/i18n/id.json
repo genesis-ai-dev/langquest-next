@@ -6841,6 +6841,7 @@
   },
   "referenceLanguage": {
     "question": "Dalam bahasa apa saja Alkitab dan panduan belajar {{language}}?",
+    "questionAny": "Dalam bahasa apa saja bahan rujukan {{language}}?",
     "setPassages_other": "Panduan {{name}} untuk {{count, number}} perikop",
     "bibles_other": "{{count, number}} Alkitab",
     "otherGuides_other": "{{count, number}} panduan atau catatan lain",

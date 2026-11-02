@@ -6841,6 +6841,7 @@
   },
   "referenceLanguage": {
     "question": "{{language}} ၏ သမ္မာကျမ်းစာများနှင့် လေ့လာရေး လမ်းညွှန်များ မည်သည့်ဘာသာစကားများဖြင့် ရှိသင့်သနည်း။",
+    "questionAny": "{{language}} ၏ ကိုးကားစရာများ မည်သည့်ဘာသာစကားများဖြင့် ရှိသင့်သနည်း။",
     "setPassages_other": "ကျမ်းပိုဒ် {{count, number}} ခုအတွက် {{name}} လမ်းညွှန်",
     "bibles_other": "သမ္မာကျမ်းစာ {{count, number}} စောင်",
     "otherGuides_other": "အခြား လမ်းညွှန် သို့မဟုတ် မှတ်စု {{count, number}} ခု",

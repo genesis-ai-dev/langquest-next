@@ -7139,6 +7139,7 @@
   },
   "referenceLanguage": {
     "question": "{{language}}-এর বাইবেল ও অধ্যয়ন নির্দেশিকা কোন কোন ভাষায় হবে?",
+    "questionAny": "{{language}}-এর সহায়ক উপকরণ কোন কোন ভাষায় হবে?",
     "setPassages_one": "{{count, number}}টি অংশের জন্য {{name}} নির্দেশিকা",
     "setPassages_other": "{{count, number}}টি অংশের জন্য {{name}} নির্দেশিকা",
     "bibles_one": "{{count, number}}টি বাইবেল",

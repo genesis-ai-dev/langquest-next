@@ -7139,6 +7139,7 @@
   },
   "referenceLanguage": {
     "question": "Which languages should {{language}}'s Bibles and study guides be in?",
+    "questionAny": "Which languages should {{language}}'s reference material be in?",
     "setPassages_one": "{{name}} guides for {{count, number}} passage",
     "setPassages_other": "{{name}} guides for {{count, number}} passages",
     "bibles_one": "{{count, number}} Bible",

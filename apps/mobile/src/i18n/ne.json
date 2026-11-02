@@ -7139,6 +7139,7 @@
   },
   "referenceLanguage": {
     "question": "{{language}} का बाइबल र अध्ययन निर्देशिकाहरू कुन कुन भाषामा हुनुपर्छ?",
+    "questionAny": "{{language}} का सन्दर्भ सामग्री कुन कुन भाषामा हुनुपर्छ?",
     "setPassages_one": "{{count, number}} खण्डका लागि {{name}} निर्देशिका",
     "setPassages_other": "{{count, number}} खण्डहरूका लागि {{name}} निर्देशिका",
     "bibles_one": "{{count, number}} बाइबल",

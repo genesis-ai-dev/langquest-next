@@ -8331,6 +8331,7 @@
   },
   "referenceLanguage": {
     "question": "بأي اللغات يجب أن تكون أناجيل وأدلة دراسة {{language}}؟",
+    "questionAny": "بأي اللغات يجب أن تكون المواد المرجعية لـ{{language}}؟",
     "setPassages_zero": "أدلة {{name}} لـ {{count, number}} مقطع",
     "setPassages_one": "أدلة {{name}} لمقطع واحد",
     "setPassages_two": "أدلة {{name}} لمقطعين",

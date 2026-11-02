@@ -1769,7 +1769,8 @@ export function NewLanguage(ctx: Ctx) {
           {back}
         </>}>
         {materialPage === 'languages' || !material.may ? (
-          <ReferenceLanguagePage team={title} choices={refs.choices} value={readsAll} first={[startingLanguage(refs.choices, reader)]} onChange={setReadsPicked} loading={refs.loading} />
+          <ReferenceLanguagePage team={title} choices={refs.choices} value={readsAll} first={[startingLanguage(refs.choices, reader)]} onChange={setReadsPicked} loading={refs.loading}
+            bible={!!doc?.bible} />
         ) : (
           <MaterialPicker team={title} languages={readsAll} items={material.items} on={isOn} loading={material.loading}
             onToggle={(key) => setTicked((cur) => ({ ...cur, [key]: !isOn(key) }))} onLanguages={() => setMaterialPage('languages')} />

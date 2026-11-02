@@ -7139,6 +7139,7 @@
   },
   "referenceLanguage": {
     "question": "{{language}} की बाइबलें और अध्ययन गाइड किन भाषाओं में हों?",
+    "questionAny": "{{language}} की संदर्भ सामग्री किन भाषाओं में हो?",
     "setPassages_one": "{{count, number}} अंश के लिए {{name}} गाइड",
     "setPassages_other": "{{count, number}} अंशों के लिए {{name}} गाइड",
     "bibles_one": "{{count, number}} बाइबल",

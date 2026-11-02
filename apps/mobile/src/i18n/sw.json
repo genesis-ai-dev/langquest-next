@@ -7139,6 +7139,7 @@
   },
   "referenceLanguage": {
     "question": "Biblia na miongozo ya kujifunza ya {{language}} iwe katika lugha zipi?",
+    "questionAny": "Vifaa vya marejeo vya {{language}} viwe katika lugha zipi?",
     "setPassages_one": "Miongozo ya {{name}} kwa kifungu {{count, number}}",
     "setPassages_other": "Miongozo ya {{name}} kwa vifungu {{count, number}}",
     "bibles_one": "Biblia {{count, number}}",

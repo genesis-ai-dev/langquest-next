@@ -7437,6 +7437,7 @@
   },
   "referenceLanguage": {
     "question": "Dans quelles langues doivent être les Bibles et guides d’étude de {{language}} ?",
+    "questionAny": "Dans quelles langues doivent être les documents de référence de {{language}} ?",
     "setPassages_one": "Guides {{name}} pour {{count, number}} passage",
     "setPassages_many": "Guides {{name}} pour {{count, number}} de passages",
     "setPassages_other": "Guides {{name}} pour {{count, number}} passages",

@@ -7139,6 +7139,7 @@
   },
   "referenceLanguage": {
     "question": "Da waɗanne harsuna ya kamata Littattafai Masu Tsarki da jagororin nazari na {{language}} su kasance?",
+    "questionAny": "Da waɗanne harsuna ya kamata kayan nassoshi na {{language}} su kasance?",
     "setPassages_one": "Jagororin {{name}} don nassi {{count, number}}",
     "setPassages_other": "Jagororin {{name}} don nassosi {{count, number}}",
     "bibles_one": "Littafi Mai Tsarki {{count, number}}",

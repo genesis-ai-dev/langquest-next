@@ -7139,6 +7139,7 @@
   },
   "referenceLanguage": {
     "question": "የ{{language}} መጽሐፍ ቅዱሶችና የጥናት መመሪያዎች በየትኞቹ ቋንቋዎች ይሁኑ?",
+    "questionAny": "የ{{language}} ማጣቀሻ ጽሑፎች በየትኞቹ ቋንቋዎች ይሁኑ?",
     "setPassages_one": "የ{{name}} መመሪያዎች ለ{{count, number}} ክፍል",
     "setPassages_other": "የ{{name}} መመሪያዎች ለ{{count, number}} ክፍሎች",
     "bibles_one": "{{count, number}} መጽሐፍ ቅዱስ",
