@@ -5,7 +5,7 @@ import {
 import {
   backTranslationDraftKey, canPublish, cardDurations, draftToOpen, markTerms, mmss, parseBackTranslationDraft, removeCardSpecs,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, withoutPart, withPart, workingCards, slotRows, targetNumber,
-  changedParts, helpBinRow, historyFits, marksAfterMove, marksKeepingLabels, marksOf, movedList, opensAbove, parsePartsHistory, restoreSpecs,
+  changedParts, helpBinRow, historyFits, marksAfterMove, marksForSaid, marksKeepingLabels, marksOf, movedList, opensAbove, parsePartsHistory, restoreSpecs,
   type PartsSnap
 } from '../src/recording/workspaceModel';
 import { didStep, emptyHistory, redoStep, undoStep } from '../src/ui/undoModel';
@@ -453,5 +453,34 @@ describe('recording between two parts (Caleb, 2026-10-16)', () => {
     const before = { list: ['a', 'b', 'c', 'd'], marks: [next, next, next, { t: 'join' }] as PartMark[] };
     const marks = marksKeepingLabels(before, ['a', 'b', 'c', 'x', 'y', 'd'], 5);
     expect(derivePartVerses(marks, 5).labels.map((l) => l && l.s + 1)).toEqual([1, 2, 3, 3, 3, 3]);
+  });
+});
+
+describe('the verses of what is said in a place (decisions.md 124)', () => {
+  const next: PartMark = { t: 'next' };
+  const labels = (marks: PartMark[], count = 10) => derivePartVerses(marks, count).labels.map((l) => l && l.s + 1);
+
+  it('gives a part said again no verse when the part it replaced had none', () => {
+    // Why: in the Answer feedback video (2026-11-02), Part 2 of a passage with no verses yet, said again, became "Verse 15".
+    const marks = marksForSaid(['a', 'x', 'c'], [null, null, null], new Set(['x']), undefined, 10);
+    expect(marks).toEqual([null, null, null]);
+  });
+
+  it('gives the first part said in a place that place\'s verses, and the rest more of them', () => {
+    const place: PartMark = { t: 'set', s: 1, e: 2 };
+    const marks = marksForSaid(['a', 'x', 'y', 'c'], [next, null, null, next], new Set(['x', 'y']), place, 10);
+    expect(labels(marks)).toEqual([1, 2, 2, 4]);
+  });
+
+  it('leaves the parts around a place with no verses as they were', () => {
+    // Part 2 had no verse between verses 1 and 3; what replaced it has none, and verse 3 stays verse 3.
+    const before: PartMark[] = [next, null, { t: 'set', s: 2, e: 2 }];
+    const marks = marksForSaid(['a', 'x', 'c'], before, new Set(['x']), undefined, 10);
+    expect(labels(marks)).toEqual([1, null, 3]);
+  });
+
+  it('makes a part said inside a verse said in pieces more of that verse', () => {
+    const marks = marksForSaid(['a', 'x', 'c'], [next, null, { t: 'join' }], new Set(['x']), undefined, 10, true);
+    expect(labels(marks)).toEqual([1, 1, 1]);
   });
 });
