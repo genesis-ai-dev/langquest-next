@@ -4419,8 +4419,8 @@
       "cannotOpenHere": "That can't be opened from here.",
       "noPermission": "You don't have permission to open that.",
       "backAgainToLeave": "Press Back again to leave LangQuest",
-      "languageExplorer": "Language explorer",
-      "languageExplorerNewTab": "Language explorer, opens in a new tab",
+      "languageExplorer": "World languages and codes",
+      "languageExplorerNewTab": "World languages and codes, opens in a new tab",
       "tabBadge": "{{tab}}, {{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4597,7 +4597,7 @@
       "manage": "Your organization's languages, people and settings.",
       "inbox": "What happened that concerns you: requests, feedback, people asking to join.",
       "me": "Your name, this device and your settings.",
-      "explorer": "Opens the language explorer in a new tab: every language and where it is spoken."
+      "explorer": "Opens a list of the world's languages in a new tab: each one's codes and where it is spoken. These are not your organization's languages."
     },
     "sync": {
       "live": "Cloud with a tick: connected. Your work is sent as you go. Tap to see what was sent.",

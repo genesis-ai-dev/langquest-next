@@ -4419,8 +4419,8 @@
       "cannotOpenHere": "Hicho hakiwezi kufunguliwa kutoka hapa.",
       "noPermission": "Huna ruhusa ya kufungua hicho.",
       "backAgainToLeave": "Bonyeza Rudi tena ili kutoka LangQuest",
-      "languageExplorer": "Kichunguzi cha lugha",
-      "languageExplorerNewTab": "Kichunguzi cha lugha, kinafunguka kwenye kichupo kipya",
+      "languageExplorer": "Lugha za dunia na misimbo yake",
+      "languageExplorerNewTab": "Lugha za dunia na misimbo yake, inafunguka kwenye kichupo kipya",
       "tabBadge": "{{tab}}, {{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4597,7 +4597,7 @@
       "manage": "Lugha, watu na mipangilio ya shirika lako.",
       "inbox": "Yaliyotokea yanayokuhusu: maombi, maoni, watu wanaoomba kujiunga.",
       "me": "Jina lako, kifaa hiki na mipangilio yako.",
-      "explorer": "Hufungua kichunguzi cha lugha kwenye kichupo kipya: kila lugha na mahali inapozungumzwa."
+      "explorer": "Hufungua orodha ya lugha za dunia kwenye kichupo kipya: misimbo ya kila lugha na mahali inapozungumzwa. Hizi si lugha za shirika lako."
     },
     "sync": {
       "live": "Wingu lenye alama ya vema: umeunganishwa. Kazi yako inatumwa unapoendelea. Gusa uone kilichotumwa.",

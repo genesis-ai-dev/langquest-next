@@ -4565,8 +4565,8 @@
       "cannotOpenHere": "Eso no se puede abrir desde aquí.",
       "noPermission": "No tienes permiso para abrir eso.",
       "backAgainToLeave": "Pulsa Atrás otra vez para salir de LangQuest",
-      "languageExplorer": "Explorador de idiomas",
-      "languageExplorerNewTab": "Explorador de idiomas, se abre en una pestaña nueva",
+      "languageExplorer": "Idiomas del mundo y sus códigos",
+      "languageExplorerNewTab": "Idiomas del mundo y sus códigos, se abre en una pestaña nueva",
       "tabBadge": "{{tab}}, {{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4745,7 +4745,7 @@
       "manage": "Los idiomas, las personas y los ajustes de tu organización.",
       "inbox": "Lo que pasó y te concierne: solicitudes, comentarios, personas que piden unirse.",
       "me": "Tu nombre, este dispositivo y tus ajustes.",
-      "explorer": "Abre el explorador de idiomas en una pestaña nueva: todos los idiomas y dónde se hablan."
+      "explorer": "Abre en una pestaña nueva una lista de los idiomas del mundo: los códigos de cada uno y dónde se habla. No son los idiomas de tu organización."
     },
     "sync": {
       "live": "Nube con una marca: con conexión. Tu trabajo se envía a medida que avanzas. Toca para ver lo que se envió.",

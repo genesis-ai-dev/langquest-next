@@ -4419,8 +4419,8 @@
       "cannotOpenHere": "Ba za a iya buɗe wannan daga nan ba.",
       "noPermission": "Ba ku da izinin buɗe wannan.",
       "backAgainToLeave": "Danna Koma sake don fita daga LangQuest",
-      "languageExplorer": "Mai zagaya harsuna",
-      "languageExplorerNewTab": "Mai zagaya harsuna, yana buɗewa a sabon shafi",
+      "languageExplorer": "Harsunan duniya da lambobinsu",
+      "languageExplorerNewTab": "Harsunan duniya da lambobinsu, yana buɗewa a sabon shafi",
       "tabBadge": "{{tab}}, {{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4597,7 +4597,7 @@
       "manage": "Harsuna, mutane da saitunan ƙungiyarku.",
       "inbox": "Abin da ya faru da ya shafe ku: buƙatu, sharhi, mutanen da ke son shiga.",
       "me": "Sunanku, wannan na'ura da saitunanku.",
-      "explorer": "Yana buɗe mai binciken harsuna a sabon shafi: kowane harshe da inda ake magana da shi."
+      "explorer": "Yana buɗe jerin harsunan duniya a sabon shafi: lambobin kowane harshe da inda ake magana da shi. Waɗannan ba harsunan ƙungiyarku ba ne."
     },
     "sync": {
       "live": "Gajimare mai alamar daidai: an haɗa. Ana aika aikinka yayin da kake yi. Taɓa don ganin abin da aka aika.",

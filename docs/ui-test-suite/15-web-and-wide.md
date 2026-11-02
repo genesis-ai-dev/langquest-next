@@ -68,7 +68,7 @@ Expected:
   "Reports", "Manage", "Me"; VIEW "Map", "Reports", "Inbox", "Me".
 - VIEW's "Inbox" has a red count badge; a screen reader reads "Inbox, {n}".
   A count over 99 shows "99+".
-- Below the tabs, "Language explorer" (WEB-005).
+- Below the tabs, "World languages and codes" (WEB-005).
 
 ### WEB-004 Resizing keeps your place
 Roles: TRANS · Priority: P2 · Platforms: Web · Run: Auto
@@ -93,8 +93,9 @@ Roles: TRANS · Priority: P2 · Platforms: Web (1280 px), iPad · Run: Auto
 Preconditions: None.
 
 Steps:
-1. In the sidebar, find "Language explorer" (screen reader: "Language
-   explorer, opens in a new tab").
+1. In the sidebar, find "World languages and codes" (screen reader: "World
+   languages and codes, opens in a new tab"). Its name says it is a list of
+   the world's languages, not the organization's (LAN-144).
 2. Click it.
 3. Run on an iPad at desktop width.
 
@@ -103,7 +104,7 @@ Expected:
   unchanged.
 - The new tab does not take the app's place (it does not open the app's
   database, WEB-012).
-- Step 3: no "Language explorer" on the iPad.
+- Step 3: no "World languages and codes" on the iPad.
 
 ### WEB-006 The Inbox and what it opens, side by side
 Roles: TRANS · Priority: P1 · Platforms: Web (1280 px), iPad landscape at 1100+ · Run: Auto

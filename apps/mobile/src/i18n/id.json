@@ -4273,8 +4273,8 @@
       "cannotOpenHere": "Itu tidak dapat dibuka dari sini.",
       "noPermission": "Anda tidak punya izin untuk membukanya.",
       "backAgainToLeave": "Tekan Kembali sekali lagi untuk keluar dari LangQuest",
-      "languageExplorer": "Penjelajah bahasa",
-      "languageExplorerNewTab": "Penjelajah bahasa, terbuka di tab baru",
+      "languageExplorer": "Bahasa-bahasa dunia dan kodenya",
+      "languageExplorerNewTab": "Bahasa-bahasa dunia dan kodenya, terbuka di tab baru",
       "tabBadge": "{{tab}}, {{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4449,7 +4449,7 @@
       "manage": "Bahasa, orang, dan pengaturan organisasi Anda.",
       "inbox": "Hal-hal yang menyangkut Anda: permintaan, masukan, orang yang minta bergabung.",
       "me": "Nama Anda, perangkat ini, dan pengaturan Anda.",
-      "explorer": "Membuka penjelajah bahasa di tab baru: setiap bahasa dan di mana bahasa itu dipakai."
+      "explorer": "Membuka daftar bahasa-bahasa dunia di tab baru: kode setiap bahasa dan di mana bahasa itu dipakai. Ini bukan bahasa-bahasa organisasi Anda."
     },
     "sync": {
       "live": "Awan dengan tanda centang: terhubung. Pekerjaan Anda dikirim sambil jalan. Ketuk untuk melihat yang sudah terkirim.",

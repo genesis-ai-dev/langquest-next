@@ -81,7 +81,7 @@ test('WEB-001 Phone width: the bottom bar', async ({ page, browser }) => {
   const bar = await tab(page, 'work').boundingBox();
   expect(bar!.y).toBeGreaterThan(844 - 120);
   for (const [id, label] of [['work', 'Work'], ['map', 'Map'], ['me', 'Me']] as const) await expect(tab(page, id)).toContainText(label);
-  await expect(text(page, 'Language explorer')).toBeHidden();
+  await expect(text(page, 'World languages and codes')).toBeHidden();
   await expect(page.getByRole('link').locator('visible=true')).toHaveCount(0);
   const view = await deviceAs(browser, w, 'VIEW', { width: 390, height: 844 });
   await expect(tab(view.page, 'map')).toBeVisible({ timeout: 60_000 });
@@ -123,7 +123,7 @@ test('WEB-003 Desktop width: the sidebar @wide', async ({ page, browser }) => {
   expect(map!.y).toBeGreaterThan(work!.y);
   await expect(text(page, w.orgName)).toBeVisible();
   await expect(text(page, w.accounts.ADMIN.name)).toBeVisible();
-  const explorer = page.getByRole('link', { name: 'Language explorer, opens in a new tab' }).or(page.getByRole('button', { name: 'Language explorer, opens in a new tab' }));
+  const explorer = page.getByRole('link', { name: 'World languages and codes, opens in a new tab' }).or(page.getByRole('button', { name: 'World languages and codes, opens in a new tab' }));
   await expect(explorer.locator('visible=true').first()).toBeVisible();
   const view = await wideAs(browser, w, 'VIEW');
   await expect(tab(view.page, 'map')).toBeVisible({ timeout: 60_000 });
@@ -150,7 +150,7 @@ test('WEB-004 Resizing keeps your place @wide', async ({ page }) => {
   await expect.poll(() => tabsShown(page)).toEqual([]);
   await page.setViewportSize({ width: 1280, height: 900 });
   await here();
-  await expect(text(page, 'Language explorer')).toBeVisible();
+  await expect(text(page, 'World languages and codes')).toBeVisible();
 });
 
 test('WEB-005 Language explorer opens in a new tab @wide', async ({ page, context }) => {
@@ -159,7 +159,7 @@ test('WEB-005 Language explorer opens in a new tab @wide', async ({ page, contex
   await expect(tab(page, 'work')).toBeVisible({ timeout: 60_000 });
   const before = page.url();
   const opened = context.waitForEvent('page');
-  await page.getByText('Language explorer', { exact: true }).locator('visible=true').first().click();
+  await page.getByText('World languages and codes', { exact: true }).locator('visible=true').first().click();
   const explorer = await opened;
   await explorer.waitForLoadState();
   expect(new URL(explorer.url()).pathname).toBe('/languages');

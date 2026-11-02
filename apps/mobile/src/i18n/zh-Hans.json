@@ -4273,8 +4273,8 @@
       "cannotOpenHere": "这里无法打开它。",
       "noPermission": "你没有权限打开它。",
       "backAgainToLeave": "再按一次返回即可退出 LangQuest",
-      "languageExplorer": "语言浏览",
-      "languageExplorerNewTab": "语言浏览，在新标签页中打开",
+      "languageExplorer": "世界语言及其代码",
+      "languageExplorerNewTab": "世界语言及其代码，在新标签页中打开",
       "tabBadge": "{{tab}}，{{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4449,7 +4449,7 @@
       "manage": "你的机构的语言、人员和设置。",
       "inbox": "与你有关的事：请求、反馈、申请加入的人。",
       "me": "你的名字、本设备和你的设置。",
-      "explorer": "在新标签页中打开语言浏览：所有语言，以及在哪里使用。"
+      "explorer": "在新标签页中打开世界语言列表：每种语言的代码，以及在哪里使用。这些不是你们组织的语言。"
     },
     "sync": {
       "live": "带勾的云：已联网。你的工作会随时发送。点按查看发送了什么。",
