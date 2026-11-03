@@ -41,7 +41,7 @@ const ALLOWED: Record<string, string> = {
   'timing_jobs.done': 'a count of items a background timing job has finished, not a verdict on translation work',
   'api_device_grants.approved_at': 'when a person approved a device sign-in for the API, not an approval of work',
   'org_verification_requests.status': "where an organization's blue check request stands, the server's own state (decisions.md 173), not a status of work",
-  'ops.user_issues.verdict': 'what the watch for user issues decided about a kind of failure the app reported (filed, known or noise; decisions.md 202), not a status of work',
+  'ops.user_issues.verdict': 'what the watch for user issues decided about a kind of failure the app reported (filed, known, noise or fixed; decisions.md 202), not a status of work',
 };
 
 describe('invariant 5: no stored status', () => {

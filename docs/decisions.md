@@ -10318,3 +10318,30 @@ the privacy page names them as service providers.
 Reverse if: what it files is mostly noise after a week (then tighten what
 is handed over), or problems still go unseen for a day (then look at the
 assignment and the phone alerts first).
+
+Amended (2026-11-03, Caleb Koster): closed stays closed. The first run
+filed LAN-220 for a problem a pull request merged after the reports had
+already fixed (Play all, PR 295), and Caleb asked that issues the team has
+dealt with not come back, and that the ops dashboard say which pull request
+dealt with each. Decided (migration `20261103204500_user_issues_fixed.sql`):
+- **Already fixed** is a fourth verdict. Claude reads main's merges (the
+  checkout is 600 commits deep, `git log` and `git merge-base` only) and,
+  when one merged after every report fixes the kind, says `fixed` with the
+  pull request's number: nothing is filed.
+- **Linear decides open or closed.** Each run reads the state of every
+  issue the watch filed or commented on; closed there (Live, Canceled,
+  Duplicate; not Outage) closes its kinds, with the pull request linked on
+  the issue or the merge naming it, and marks what was sent from help mode
+  about it done. Opened again there, it is open again.
+- **Back only after the fix.** A fixed kind is handed over again only for
+  people who hit it more than a day after the fix, at least twice as many
+  as when last looked at (and two). Claude tells builds from before the fix
+  (it stays closed) from a fix that did not hold (the script reopens the
+  issue to Todo). Kinds now say the build (a browser's commit, a phone's
+  update or store build), since phones never send an app version.
+- **The ops dashboard's User issues section** (`diag.ops_user_issues()`)
+  lists each issue with its state in Linear and the pull request that fixed
+  it, and the kinds found already fixed.
+Considered: a list of closed kinds kept by hand (it would go stale, and
+Linear already says what is done); reopening on any new report (old phones
+and tabs keep reporting a fixed problem for days).

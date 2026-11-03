@@ -3,8 +3,10 @@
 -- from help mode come out as kinds, leaving out development builds, the
 -- ignored accounts, ideas and finished feedback, and never naming who sent
 -- anything; a kind is handed over once, and again only when twice as many
--- people hit it; only the service role reads or writes it. Run by
--- `npm run db:test`. Every write rolls back.
+-- people hit it; a kind found fixed, or whose issue closed in Linear, comes
+-- back only for people after the fix (migration *_user_issues_fixed.sql);
+-- only the service role reads or writes it, and the ops dashboard reads its
+-- list. Run by `npm run db:test`. Every write rolls back.
 \set ON_ERROR_STOP on
 begin;
 
@@ -93,7 +95,7 @@ begin
       jsonb_build_object('key', 'job:blob_reconcile:failing', 'verdict', 'known', 'issue', 'LAN-12', 'issueUrl', 'https://linear.app/x/issue/LAN-12', 'people', 0, 'count', 3),
       jsonb_build_object('key', 'worker:blobs_get:5xx', 'verdict', 'known', 'issue', 'LAN-12', 'issueUrl', 'https://linear.app/x/issue/LAN-12', 'people', 0, 'count', 6)),
     'grew', '[]'::jsonb));
-  assert v = '{"looked":5,"grew":0}'::jsonb, 'five looked at: %', v;
+  assert v = '{"looked":5,"grew":0,"closed":0,"reopened":0}'::jsonb, 'five looked at: %', v;
 
   v := public.ops_user_issue_watch();
   select array_agg(e->>'key') into keys from jsonb_array_elements(v->'look') e;
@@ -128,7 +130,7 @@ begin
   v := public.ops_user_issues_looked(jsonb_build_object('sha', repeat('b', 40), 'runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/124/attempts/2',
     'looked', '[]'::jsonb, 'grew', jsonb_build_array(jsonb_build_object('key', 'error:TypeError@record:-', 'people', 5, 'count', 5),
       jsonb_build_object('key', 'auth:sign_in:refused:invalid_credentials', 'people', 4, 'count', 4))));
-  assert v = '{"looked":0,"grew":1}'::jsonb, 'noise does not grow, it is looked at again: %', v;
+  assert v = '{"looked":0,"grew":1,"closed":0,"reopened":0}'::jsonb, 'noise does not grow, it is looked at again: %', v;
   assert jsonb_array_length(public.ops_user_issue_watch()->'grew') = 0, 'counted again from the new number';
 end $$;
 reset role;
@@ -171,6 +173,128 @@ do $$ begin
   assert exists (select 1 from diag.job_schedule where job = 'user_issue_look' and every is null), 'and so is the look';
 end $$;
 
+-- The build each problem came from: a browser's commit, a phone's update or store build.
+do $$ begin
+  assert ops.user_issue_build('{"os":"web","runtimeVersion":"4df4afdeaf0f99"}') = 'web 4df4afdeaf0f', 'a browser''s commit';
+  assert ops.user_issue_build('{"os":"ios","embedded":"yes","runtimeVersion":"2026.1030.1319","updateId":"x"}') = 'ios store build 2026.103', 'a store build';
+  assert ops.user_issue_build('{"os":"android","embedded":"no","updateId":"1a2b3c4d-5e6f"}') = 'android update 1a2b3c4d', 'an update';
+  assert ops.user_issue_build('{"os":"ios"}') = 'ios ?' and ops.user_issue_build('{}') = '? ?', 'unknown';
+end $$;
+
+-- Closing the loop (as the owner, to read the table between calls). Claude finds the downloads
+-- already fixed by a pull request that merged after the reports; the issue LAN-300 closes in
+-- Linear, opens again, and closes for good.
+do $$
+declare v jsonb; c timestamptz;
+begin
+  v := public.ops_user_issue_watch();
+  assert v->'issues' @> '[{"issue":"LAN-300","state":null,"closed":false},{"issue":"LAN-12","state":null,"closed":false}]'::jsonb
+    and jsonb_array_length(v->'issues') = 2, 'the issues to read in Linear';
+
+  v := public.ops_user_issues_looked(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/126',
+    'looked', jsonb_build_array(jsonb_build_object('key', 'transfer:down:source:failOther', 'verdict', 'fixed', 'people', 0, 'count', 3,
+      'title', 'Reference audio does not download', 'fixedBy', 295, 'fixedAt', now() - interval '30 minutes', 'note', 'PR 295 merged after the reports.'))));
+  assert v = '{"looked":1,"grew":0,"closed":0,"reopened":0}'::jsonb, 'one found fixed';
+  assert (select verdict = 'fixed' and issue is null and closed_at is null and fixed_by = 295 from ops.user_issues where key = 'transfer:down:source:failOther'),
+    'fixed with no issue';
+  v := public.ops_user_issue_watch();
+  assert not exists (select 1 from jsonb_array_elements(v->'look') e where e->>'key' = 'transfer:down:source:failOther'), 'not looked at again';
+
+  -- LAN-300 closes in Linear (Live), fixed by PR 312; LAN-12 only moves along.
+  v := public.ops_user_issues_looked(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/127',
+    'states', jsonb_build_array(
+      jsonb_build_object('issue', 'LAN-300', 'state', 'Live', 'closed', true, 'closedAt', now() - interval '5 minutes', 'fixedBy', 312, 'fixedAt', now() - interval '10 minutes',
+        'title', 'Recordings vanish on save'),
+      jsonb_build_object('issue', 'LAN-12', 'state', 'In Progress', 'closed', false))));
+  assert v = '{"looked":0,"grew":0,"closed":1,"reopened":0}'::jsonb, 'one closed, one only moved';
+  assert (select bool_and(verdict = 'fixed' and closed_at is not null and fixed_by = 312 and people = 0 and issue_state = 'Live') and count(*) = 2
+    from ops.user_issues where issue = 'LAN-300'), 'its two kinds fixed';
+  assert (select bool_and(verdict = 'known' and issue_state = 'In Progress') from ops.user_issues where issue = 'LAN-12'), 'the open one keeps its verdict';
+  assert (select done_at is not null from diag.feedback where id = '0d000000-0000-4000-8000-0000000000f1'), 'what was sent about it is done';
+  v := public.ops_user_issue_watch();
+  assert v->'issues' @> '[{"issue":"LAN-300","state":"Live","closed":true}]'::jsonb, 'read as closed';
+  assert v->'grew' = '[]'::jsonb, 'a closed issue does not grow';
+  assert not exists (select 1 from jsonb_array_elements(v->'look') e where e->>'key' = 'error:TypeError@record:-'), 'nor comes back before the fix is a day old';
+
+  -- Someone opens it again in Linear, then it closes again with no pull request named.
+  v := public.ops_user_issues_looked(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/128',
+    'states', jsonb_build_array(jsonb_build_object('issue', 'LAN-300', 'state', 'Todo', 'closed', false))));
+  assert v = '{"looked":0,"grew":0,"closed":0,"reopened":1}'::jsonb, 'reopened';
+  assert (select bool_and(verdict = 'filed' and closed_at is null and fixed_by is null and fixed_at is null and issue_state = 'Todo')
+    from ops.user_issues where issue = 'LAN-300'), 'filed again';
+  perform public.ops_user_issues_looked(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/129',
+    'states', jsonb_build_array(jsonb_build_object('issue', 'LAN-300', 'state', 'Live', 'closed', true, 'closedAt', now() - interval '2 minutes'))));
+  select closed_at into c from ops.user_issues where key = 'error:TypeError@record:-';
+  assert (select fixed_by is null and fixed_at = c from ops.user_issues where key = 'error:TypeError@record:-'), 'no PR named: fixed when it closed';
+
+  -- A fix must say when.
+  begin
+    perform public.ops_user_issues_looked(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/1',
+      'looked', jsonb_build_array(jsonb_build_object('key', 'device:lostRecordings', 'verdict', 'fixed', 'people', 0, 'count', 1))));
+    raise exception 'a fix without its time was taken';
+  exception when check_violation then null;
+  end;
+end $$;
+
+-- Two days on: the closed error comes back with the people after the fix; one person more on the
+-- fixed downloads is not enough, two are, with their builds.
+update ops.user_issues set fixed_at = now() - interval '2 days' where key in ('transfer:down:source:failOther', 'error:TypeError@record:-');
+do $$
+declare v jsonb; x jsonb;
+begin
+  v := public.ops_user_issue_watch();
+  assert not exists (select 1 from jsonb_array_elements(v->'look') e where e->>'key' = 'transfer:down:source:failOther'), 'one person after the fix is not enough';
+  select e into x from jsonb_array_elements(v->'look') e where e->>'key' = 'error:TypeError@record:-';
+  assert (x->>'peopleAfterFix')::int = 5 and x->'before'->>'verdict' = 'fixed' and x->'before'->>'issue' = 'LAN-300' and x->'before'->>'state' = 'Live'
+    and x->'before'->>'closedAt' is not null, 'the closed error, back with what was decided';
+end $$;
+insert into diag.installs (install_id, profile_id, context) values ('ui-f', 'ui-p7', '{"os":"web","runtimeVersion":"0123456789abcdef"}');
+insert into diag.records (id, install_id, delivered_by, kind, at, received_at, n, t)
+values ('ui-j1', 'ui-f', 'ui-p7', 'transfer', now(), now(), '{"count":2,"failOther":2}', '{"dir":"down","src":"source"}');
+do $$
+declare v jsonb; x jsonb; c timestamptz;
+begin
+  v := public.ops_user_issue_watch();
+  select e into x from jsonb_array_elements(v->'look') e where e->>'key' = 'transfer:down:source:failOther';
+  assert (x->>'peopleAfterFix')::int = 2 and x->'before'->>'verdict' = 'fixed' and (x->'before'->>'fixedBy')::int = 295 and x->'before'->>'issue' is null
+    and x->'apps' @> '[{"app":"web 0123456789ab","installs":1}]'::jsonb and x->'platforms' = '{"android":1,"web":1}'::jsonb, 'back after the fix';
+
+  -- Claude: the error's people ran builds from before the fix. It stays closed, counted from 5.
+  select closed_at into c from ops.user_issues where key = 'error:TypeError@record:-';
+  v := public.ops_user_issues_looked(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/130',
+    'looked', jsonb_build_array(jsonb_build_object('key', 'error:TypeError@record:-', 'verdict', 'fixed', 'issue', 'LAN-300',
+      'issueUrl', 'https://linear.app/x/issue/LAN-300', 'people', 5, 'count', 5, 'fixedBy', 312, 'fixedAt', now() - interval '2 days'))));
+  assert (select verdict = 'fixed' and closed_at = c and people = 5 and issue_state = 'Live' from ops.user_issues where key = 'error:TypeError@record:-'),
+    'closed as it was';
+  v := public.ops_user_issue_watch();
+  assert not exists (select 1 from jsonb_array_elements(v->'look') e where e->>'key' = 'error:TypeError@record:-'), 'not again until 10 after the fix';
+end $$;
+
+-- The ops dashboard's list: one row per issue, open first, with the PR that fixed it; noise left out.
+grant diag_reader to postgres;
+do $$
+declare v jsonb; x jsonb;
+begin
+  set local role diag_reader;
+  v := diag.ops_user_issues();
+  reset role;
+  assert (v->>'open')::int = 1 and (v->>'closed')::int = 1 and (v->>'fixed')::int = 1, 'one of each';
+  assert v->'issues'->0->>'issue' = 'LAN-12' and v->'issues'->0->>'state' = 'In Progress' and jsonb_array_length(v->'issues'->0->'keys') = 2, 'open first';
+  select e into x from jsonb_array_elements(v->'issues') e where e->>'issue' = 'LAN-300';
+  assert x->>'verdict' = 'fixed' and x->>'state' = 'Live' and (x->>'fixedBy')::int = 312 and x->>'closedAt' is not null
+    and x->>'issueUrl' = 'https://linear.app/x/issue/LAN-300' and x->>'title' = 'Recordings vanish on save', 'the closed one, with its title in Linear';
+  select e into x from jsonb_array_elements(v->'issues') e where e->'keys' = '["transfer:down:source:failOther"]'::jsonb;
+  assert x->>'issue' is null and (x->>'fixedBy')::int = 295 and x->>'title' = 'Reference audio does not download', 'found fixed';
+  assert jsonb_array_length(v->'issues') = 3 and v::text not like '%ui-p%' and v::text not like '%secret%', 'no noise, never who';
+end $$;
+
+-- Kinds found fixed are taken out 90 days after they were looked at, like noise.
+update ops.user_issues set looked_at = now() - interval '91 days' where key = 'transfer:down:source:failOther';
+select public.ops_user_issues_looked(jsonb_build_object('runUrl', 'https://github.com/genesis-ai-dev/langquest-next/actions/runs/131')) is not null as looked;
+do $$ begin
+  assert not exists (select 1 from ops.user_issues where key = 'transfer:down:source:failOther'), 'old fixed taken out';
+end $$;
+
 -- Nobody else reads or writes it.
 do $$ begin
   set local role authenticated;
@@ -186,7 +310,6 @@ do $$ begin
 exception when insufficient_privilege then null;
 end $$;
 reset role;
-grant diag_reader to postgres;
 do $$ begin
   set local role diag_reader;
   perform 1 from ops.user_issues;
