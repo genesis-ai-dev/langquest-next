@@ -1,5 +1,6 @@
 import { summarizeReports, type OrgReportsResponse } from '@langquest-next/core';
 import { handleBible, type BibleDeps } from './bible';
+import { handleSourceAudio } from './sourceAudio';
 import { handleBlobs, type BlobDeps } from './blobs';
 import { handleHelpAudio } from './helpAudio';
 import { handleTutorialVideo } from './tutorialVideos';
@@ -90,6 +91,7 @@ export async function handleApi(request: Request, deps: ApiDeps): Promise<Respon
 async function answer(request: Request, deps: ApiDeps): Promise<Response> {
   const url = new URL(request.url);
   if (url.pathname.startsWith('/api/bible/')) return handleBible(request, { key: undefined, ...deps.bible, profileOf: deps.profileOf });
+  if (url.pathname === '/api/source-audio') return handleSourceAudio(request, { profileOf: deps.profileOf });
   if (url.pathname === '/api/blobs' || url.pathname.startsWith('/api/blobs/') || url.pathname.startsWith('/api/blob-urls/')) {
     return deps.blobs ? handleBlobs(request, { ...deps.blobs, profileOf: deps.profileOf }) : json(503, { error: 'File storage is not set up here.' });
   }
