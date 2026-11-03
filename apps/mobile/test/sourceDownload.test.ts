@@ -168,7 +168,7 @@ describe('download in a browser', () => {
   });
   beforeEach(() => { asked.length = 0; });
 
-  it('asks the Worker for the library link (the page may not read the source itself, decisions.md 200) and stores the bytes verified', async () => {
+  it('asks the Worker for the library link (the page may not read the source itself, decisions.md 201) and stores the bytes verified', async () => {
     fake.platform = 'web';
     const { download } = await offline();
     const store = fakeStore();

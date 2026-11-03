@@ -1,5 +1,5 @@
 // A source's audio kept in a browser comes through the Worker (decisions.md
-// 200). The page may read only its own site and Supabase (the content
+// 201). The page may read only its own site and Supabase (the content
 // security policy, scripts/webHeaders.mjs), and the hosts sources use allow
 // no other site's reads, so a browser asking them itself always failed.
 // Phones download from the source's own link, as before.

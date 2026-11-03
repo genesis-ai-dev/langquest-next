@@ -6,7 +6,7 @@
 //   (blob:); Supabase over HTTPS and its realtime socket; study images, and
 //   Bible audio (a source's recordings, such as openbible.com's), from
 //   anywhere on HTTPS. Only playing: a source's audio kept offline comes
-//   through the Worker (decisions.md 200), since connect-src names no other
+//   through the Worker (decisions.md 201), since connect-src names no other
 //   host. react-native-web writes its styles at run time, so inline styles
 //   are allowed; inline scripts are not.
 // - No cross-origin isolation headers: the app uses expo-sqlite's async API

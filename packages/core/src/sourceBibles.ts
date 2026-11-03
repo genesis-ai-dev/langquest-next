@@ -69,7 +69,7 @@ export function sourceAudioFile(bible: SourceBible, item: SourceChapter): string
 }
 
 /**
- * The hosts a library source's audio may come from (decisions.md 200). A
+ * The hosts a library source's audio may come from (decisions.md 201). A
  * browser cannot read them itself (the page's content security policy, and
  * OpenBible allows no other site's reads), so the Worker fetches a file for
  * it, and only from these.

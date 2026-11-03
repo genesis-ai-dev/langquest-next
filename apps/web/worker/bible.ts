@@ -291,7 +291,7 @@ class BibleBrain {
 
   /**
    * A chapter's audio file itself, for a browser keeping it offline
-   * (decisions.md 200): the page cannot read FCBH's links itself. Only a
+   * (decisions.md 201): the page cannot read FCBH's links itself. Only a
    * fileset FCBH lets us download, and nothing is kept on the way.
    */
   async file(fileset: string, book: string, chapter: number): Promise<Response> {

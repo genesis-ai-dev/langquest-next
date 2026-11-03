@@ -38,7 +38,7 @@ describe('organization source Bibles', () => {
       .toBe('https://openbible.com/audio/msb_frederick_surrey/MSB_41_Mrk_001_FS.mp3');
   });
 
-  it('names its audio only on a host the Worker fetches for a browser (decisions.md 200)', () => {
+  it('names its audio only on a host the Worker fetches for a browser (decisions.md 201)', () => {
     for (const bible of SOURCE_BIBLES) {
       expect(isSourceAudioUrl(sourceAudioUrl(bible, sourceChapters('bible@1/rev-22')[0]!))).toBe(true);
     }

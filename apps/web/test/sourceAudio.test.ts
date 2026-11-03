@@ -3,7 +3,7 @@ import { handleSourceAudio } from '../worker/sourceAudio';
 
 /**
  * A library source's audio, fetched by the Worker for a browser that cannot
- * read it itself (decisions.md 200): signed in, GET, and only from a host
+ * read it itself (decisions.md 201): signed in, GET, and only from a host
  * library sources use (core SOURCE_AUDIO_HOSTS).
  */
 

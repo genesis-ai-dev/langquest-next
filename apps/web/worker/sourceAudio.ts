@@ -1,7 +1,7 @@
 import { isSourceAudioUrl } from '@langquest-next/core';
 
 /**
- * A source's audio for a browser to keep offline (decisions.md 200). The
+ * A source's audio for a browser to keep offline (decisions.md 201). The
  * page may read only its own site and Supabase (the content security policy,
  * apps/mobile/scripts/webHeaders.mjs), and OpenBible allows no other site's
  * reads, so every chapter a browser tried to keep failed before it left the

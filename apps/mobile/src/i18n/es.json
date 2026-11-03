@@ -351,7 +351,9 @@
     "settings_more": "Más ajustes",
     "check_editor": "Verificación",
     "cluster_home": "Grupo",
-    "global_viewer": "Observador global"
+    "global_viewer": "Observador global",
+    "forgot_password": "Olvidé mi contraseña",
+    "new_password": "Contraseña nueva"
   },
   "native": {
     "microphone": "LangQuest graba tu voz para traducir pasajes.",
@@ -2963,7 +2965,9 @@
       "failed": "No se pudo iniciar sesión. Inténtalo de nuevo.",
       "scanCodeHelp": "Abre la cámara, para unirte con una invitación o iniciar sesión con el código de alguien que te ayuda.",
       "createAccountHelp": "Abre un formulario para tu correo y una contraseña nueva.",
-      "browseHelp": "Ve el trabajo de traducción que las organizaciones comparten públicamente. No necesitas cuenta."
+      "browseHelp": "Ve el trabajo de traducción que las organizaciones comparten públicamente. No necesitas cuenta.",
+      "forgot": "¿Olvidaste tu contraseña?",
+      "forgotHelp": "Abre una página donde recibes un enlace por correo para elegir una contraseña nueva."
     },
     "terms": {
       "title": "Términos y privacidad",
@@ -3291,6 +3295,36 @@
       "notMe": "No es mi imagen",
       "notMeHelp": "Vuelve a las imágenes.",
       "pictureHelp": "¿Cerraste sesión en este teléfono? Toca tu imagen y luego dibuja tu patrón. No hace falta conexión."
+    },
+    "forgot": {
+      "title": "Olvidé mi contraseña",
+      "emailHelp": "El correo con el que inicias sesión. El enlace llega ahí.",
+      "send": "Enviar enlace",
+      "sendAgain": "Enviar de nuevo",
+      "sending": "Enviando…",
+      "sendHelp": "Envía por correo un enlace para elegir una contraseña nueva. Necesita conexión.",
+      "sentTitle": "Revisa tu correo",
+      "sentBody": "Si {{email}} tiene una cuenta de LangQuest, va en camino un enlace para elegir una contraseña nueva.",
+      "failed": "No se pudo enviar el enlace. Inténtalo de nuevo.",
+      "noEmailTitle": "Esta cuenta no tiene correo",
+      "noEmailBody": "Alguien de tu equipo puede mostrarte un código para iniciar sesión."
+    },
+    "newPassword": {
+      "title": "Contraseña nueva",
+      "fieldHelp": "Escribe la contraseña con la que iniciarás sesión de ahora en adelante. El ojo muestra lo que escribiste.",
+      "button": "Iniciar sesión",
+      "buttonHelp": "Hace que esta sea tu contraseña e inicia tu sesión. Necesita conexión.",
+      "changeButton": "Cambiar contraseña",
+      "changing": "Cambiando…",
+      "changeHelp": "Hace que esta sea la contraseña de la cuenta. Necesita conexión.",
+      "expired": "Este enlace venció o ya se usó.",
+      "newLink": "Enviar un enlace nuevo",
+      "newLinkHelp": "Abre Olvidé mi contraseña, para recibir un enlace nuevo por correo.",
+      "failed": "No se pudo cambiar la contraseña. Inténtalo de nuevo.",
+      "signInFailed": "Tu contraseña nueva ya está puesta. Inicia sesión con ella.",
+      "changedTitle": "Contraseña cambiada",
+      "changedBody": "De ahora en adelante, {{email}} inicia sesión con la contraseña nueva.",
+      "doneHelp": "Vuelve a tu pantalla de inicio."
     }
   },
   "account": {
@@ -4590,7 +4624,9 @@
       "showMore_other": "Mostrar {{count, number}} más · quedan {{left}}",
       "onOlderVersion": "en {{version}}",
       "orTypeReason": "O escribe la razón",
-      "reasonFootnote": "Esto queda en el registro del pasaje con tu nombre. Se puede deshacer después; el registro guarda las dos cosas."
+      "reasonFootnote": "Esto queda en el registro del pasaje con tu nombre. Se puede deshacer después; el registro guarda las dos cosas.",
+      "showPassword": "Mostrar contraseña",
+      "hidePassword": "Ocultar contraseña"
     },
     "person": {
       "showId": "{{name}}. Mostrar ID",
@@ -4745,7 +4781,8 @@
       "done": "Terminado aquí: vuelve atrás.",
       "undo": "Vuelve a poner lo que había antes.",
       "tryAgain": "Lo intenta una vez más.",
-      "quickReason": "Usa esto como tu razón. Igual puedes cambiar las palabras."
+      "quickReason": "Usa esto como tu razón. Igual puedes cambiar las palabras.",
+      "showPassword": "Muestra la contraseña que escribiste, para revisarla. Vuelve a tocar para ocultarla."
     },
     "tabs": {
       "work": "Lo que sigue: tu próximo pasaje y lo que espera por ti.",

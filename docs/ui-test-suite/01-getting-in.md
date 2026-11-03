@@ -1,7 +1,8 @@
 # 01 Getting in
 
 Signing in, creating an account, the terms, browsing public work, invites,
-a helper's sign-in code, the welcome and "What is LangQuest?". IDs `AUTH`.
+a helper's sign-in code, Forgot password, the welcome and "What is
+LangQuest?". IDs `AUTH`.
 The test template, the global preconditions G1 to G10, the fixture and the
 accounts are in [the README](README.md).
 
@@ -56,7 +57,8 @@ Expected:
 - "LangQuest" shows beside a small logo, on one line.
 - The fields come first, each named above it, so the name stays once typing starts:
   - "Email or sign-in name"
-  - "Password", hidden as it is typed
+  - "Password", hidden as it is typed, with "Show password" inside it
+  - "Forgot password?"
   - "Sign In", disabled
   - "Can't sign in?"
   - "By signing in you accept the Terms of Use and Privacy Policy"
@@ -1014,6 +1016,97 @@ Steps:
 Expected:
 - The scanner shows, with the subtitle "No email or password needed".
 - Nobody is signed in. The code still works afterwards.
+
+## Forgot password
+
+Forgot password (decisions.md 200, [invites-and-accounts.md](../invites-and-accounts.md)
+flow G). The link in the email is `https://<app host>/signin#reset=<64 hex>`
+(or `langquestnext://signin?reset=<64 hex>`); it works once, for an hour.
+Auto runs make the code as the `password-reset` function does
+(`password_reset_begin`) and open its link, since no email is read; asking
+for a link is answered by a stand-in for the function, since a local server
+has no email set up.
+
+### AUTH-063 Forgot password asks for a link by email
+Roles: GUEST · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions (in addition to the global ones):
+- Signed out. Auto: the function's answer is a stand-in that says sent.
+
+Steps:
+1. Type TRANS's email in "Email or sign-in name". Tap "Forgot password?".
+2. Tap "Send link".
+3. Turn the network off and tap "Send again".
+
+Expected:
+- "Forgot password?" sits under the password field.
+- Step 1: "Forgot Password" opens with "Email" already holding TRANS's email, and "Send link".
+- Step 2: the banner "Check your email" / "If {TRANS's email} has a LangQuest account, a link to choose a new password is on its way.", and the button reads "Send again". The request carries the address and the app's language.
+- Step 3: "Not connected. Try again when you are online."
+- Back returns to Sign In.
+
+### AUTH-064 A sign-in name has no email to send a link to
+Roles: GUEST · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions (in addition to the global ones):
+- Signed out.
+
+Steps:
+1. Type KEPT's sign-in name in "Email or sign-in name". Tap "Forgot password?".
+2. Tap "Scan a code".
+
+Expected:
+- Step 1: the banner "This account has no email" / "Someone on your team can show you a code to sign in", and "Scan a code". No "Send link".
+- Step 2: the scanner opens.
+
+### AUTH-065 A Forgot password link sets a new password and signs in
+Roles: GUEST, NEW · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions (in addition to the global ones):
+- An account with its own email and no organization (Auto: a fresh one).
+- Signed out. A Forgot password link for that account.
+
+Steps:
+1. Open the link.
+2. Type a new password of 4 characters, then of 10. Tap the eye.
+3. Tap "Sign in".
+4. Sign out, and sign in with the new password; then try the old one.
+
+Expected:
+- Step 1: "New Password", one password field, "Sign in" (disabled), and the terms line.
+- Step 2: "The password needs 6 or more characters." while it is short; then "Sign in" is enabled. The eye shows the password and its label becomes "Hide password".
+- Step 3: "Join your team" opens, signed in. The link is gone from the address bar.
+- Step 4: the new password signs in; the old one says "Wrong email, sign-in name or password."
+
+### AUTH-066 A Forgot password link used twice, or after an hour
+Roles: GUEST · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions (in addition to the global ones):
+- A link that was used (AUTH-065's), and one more than an hour old.
+
+Steps:
+1. Open each link, type a password of 6 or more and tap "Sign in".
+2. Tap "Send a new link".
+
+Expected:
+- Step 1: "This link has expired or was already used." and "Send a new link" instead of "Sign in". Nobody is signed in.
+- Step 2: "Forgot Password" opens.
+
+### AUTH-067 Every password field shows and hides what was typed
+Roles: GUEST · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions (in addition to the global ones):
+- Signed out.
+
+Steps:
+1. Type a password on Sign In. Tap the eye beside it, then again.
+2. Create Account: type a password in both fields. Tap the eye beside "Confirm password".
+
+Expected:
+- Each password field has an eye button inside it, at the end, at least 48 pt.
+- Step 1: the password shows as typed and the button is "Hide password"; again, it is hidden and the button is "Show password".
+- Step 2: only the confirm field shows its text; the other stays hidden.
+- With help on, the eye has a number of its own and says "Shows the password you typed, to check it. Tap again to hide it."
 
 ## Welcome
 

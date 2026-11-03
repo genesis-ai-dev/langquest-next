@@ -29,6 +29,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   intent_chooser: { rpcs:['my_organizations'],reads:['join_requests'] },
   request_access: { rpcs:['create_join_request','listed_organizations','listed_organizations_search'] },
   scan_qr: { emits:['v1.TermsAccepted'],rpcs:['preview_invite','redeem_invite_v2','my_organizations','record_user_event'] },
+  // Forgot password goes through the password-reset Edge Function only (decision 200); a new password signs in and accepts the terms.
+  new_password: { emits:['v1.TermsAccepted'],rpcs:['record_user_event'] },
   explore_home: { reads:['public_languages'] },
   // People asking to join show under a coordinator's Get ready card (decision 71).
   my_work: { reads:['highlightsFor','waitingOn','derivePassage','upNext','recommendedFor','join_requests','profiles'] },

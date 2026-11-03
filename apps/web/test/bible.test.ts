@@ -280,7 +280,7 @@ describe('the Bible routes', () => {
     expect(up.calls).toEqual(expect.arrayContaining(['/download/ENGESVN1DA/MAT/1', '/bibles/filesets/ENGESVN1DA/MAT/1']));
   });
 
-  it('passes a chapter\'s file to a browser to keep, only when /download allows it, and keeps nothing (decisions.md 200)', async () => {
+  it('passes a chapter\'s file to a browser to keep, only when /download allows it, and keeps nothing (decisions.md 201)', async () => {
     const { up, cache, call } = setup();
     const file = async (path: string, token: string | null = 'good') => {
       const deps: ApiDeps = { profileOf: async (t) => (t === 'good' ? 'p1' : null), reports: async () => null, bible: { key: KEY, fetch: up.fetch, cache, now: () => NOW } };

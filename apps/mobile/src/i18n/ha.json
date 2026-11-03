@@ -349,7 +349,9 @@
     "settings_more": "Ƙarin saituna",
     "check_editor": "Dubawa",
     "cluster_home": "Rukuni",
-    "global_viewer": "Mai Kallo na Duniya"
+    "global_viewer": "Mai Kallo na Duniya",
+    "forgot_password": "Kalmar Sirri da Aka Manta",
+    "new_password": "Sabuwar Kalmar Sirri"
   },
   "native": {
     "microphone": "LangQuest yana naɗar muryarku don fassara nassosi.",
@@ -2865,7 +2867,9 @@
       "failed": "An kasa shiga. Ku sake gwadawa.",
       "scanCodeHelp": "Yana buɗe kyamara, don shiga da gayyata ko shiga da lambar mai taimaka muku.",
       "createAccountHelp": "Yana buɗe fom don imel ɗinku da sabuwar kalmar sirri.",
-      "browseHelp": "Ku ga ayyukan fassara da ƙungiyoyi suke rabawa a fili. Ba a buƙatar asusu."
+      "browseHelp": "Ku ga ayyukan fassara da ƙungiyoyi suke rabawa a fili. Ba a buƙatar asusu.",
+      "forgot": "Kun manta kalmar sirri?",
+      "forgotHelp": "Yana buɗe shafin da za ku sami mahaɗi ta imel don zaɓar sabuwar kalmar sirri."
     },
     "terms": {
       "title": "Sharuɗɗa da Sirri",
@@ -3190,6 +3194,36 @@
       "notMe": "Ba hotona ba ne",
       "notMeHelp": "Yana komawa ga hotunan.",
       "pictureHelp": "Kun fita daga wannan waya? Taɓa hotonku, sannan ku zana zanenku. Ba a buƙatar intanet."
+    },
+    "forgot": {
+      "title": "Kalmar Sirri da Aka Manta",
+      "emailHelp": "Imel ɗin da kuke shiga da shi. Mahaɗin zai je can.",
+      "send": "Aika mahaɗi",
+      "sendAgain": "Sake aikawa",
+      "sending": "Ana aikawa…",
+      "sendHelp": "Yana aika mahaɗi ta imel don zaɓar sabuwar kalmar sirri. Yana buƙatar intanet.",
+      "sentTitle": "Ku duba imel ɗinku",
+      "sentBody": "Idan {{email}} yana da asusun LangQuest, mahaɗi don zaɓar sabuwar kalmar sirri yana kan hanya.",
+      "failed": "An kasa aika mahaɗin. Ku sake gwadawa.",
+      "noEmailTitle": "Wannan asusu ba shi da imel",
+      "noEmailBody": "Wani a tawagarku zai iya nuna muku lambar shiga."
+    },
+    "newPassword": {
+      "title": "Sabuwar Kalmar Sirri",
+      "fieldHelp": "Ku rubuta kalmar sirrin da za ku riƙa shiga da ita daga yanzu. Alamar ido tana nuna abin da kuka rubuta.",
+      "button": "Shiga",
+      "buttonHelp": "Yana mai da wannan kalmar sirrinku, kuma yana shigar da ku. Yana buƙatar intanet.",
+      "changeButton": "Canja kalmar sirri",
+      "changing": "Ana canjawa…",
+      "changeHelp": "Yana mai da wannan kalmar sirrin asusun. Yana buƙatar intanet.",
+      "expired": "Wannan mahaɗi ya ƙare ko an riga an yi amfani da shi.",
+      "newLink": "Aika sabon mahaɗi",
+      "newLinkHelp": "Yana buɗe shafin Kalmar Sirri da Aka Manta, don samun sabon mahaɗi ta imel.",
+      "failed": "An kasa canja kalmar sirri. Ku sake gwadawa.",
+      "signInFailed": "Sabuwar kalmar sirrinku ta shirya. Ku shiga da ita.",
+      "changedTitle": "An canja kalmar sirri",
+      "changedBody": "Daga yanzu, {{email}} zai shiga da sabuwar kalmar sirri.",
+      "doneHelp": "Koma babban shafinku."
     }
   },
   "account": {
@@ -4443,7 +4477,9 @@
       "showMore_other": "Nuna ƙari {{count, number}} · saura {{left}}",
       "onOlderVersion": "a kan {{version}}",
       "orTypeReason": "Ko ku rubuta dalilin",
-      "reasonFootnote": "Wannan zai shiga tarihin nassin tare da sunanku. Ana iya janye shi daga baya; tarihin zai riƙe duka biyun."
+      "reasonFootnote": "Wannan zai shiga tarihin nassin tare da sunanku. Ana iya janye shi daga baya; tarihin zai riƙe duka biyun.",
+      "showPassword": "Nuna kalmar sirri",
+      "hidePassword": "Ɓoye kalmar sirri"
     },
     "person": {
       "showId": "{{name}}. Nuna lambar shaida",
@@ -4597,7 +4633,8 @@
       "done": "An gama a nan: yana komawa.",
       "undo": "Yana mayar da abin da yake nan a da.",
       "tryAgain": "Yana sake gwadawa sau ɗaya.",
-      "quickReason": "Yana amfani da wannan a matsayin dalilinku. Har yanzu kuna iya canja kalmomin."
+      "quickReason": "Yana amfani da wannan a matsayin dalilinku. Har yanzu kuna iya canja kalmomin.",
+      "showPassword": "Yana nuna kalmar sirrin da kuka rubuta, don ku duba ta. Sake taɓawa don ɓoye ta."
     },
     "tabs": {
       "work": "Abin da za ku yi na gaba: nassinku na gaba, da abin da ke jiran ku.",

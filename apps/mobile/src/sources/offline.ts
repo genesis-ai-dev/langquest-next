@@ -15,7 +15,7 @@
 // bounded (`SOURCE_CACHE_BYTES`): files outside the scope go first, oldest
 // first, and nothing new is fetched past the cap. Like every transfer, this
 // waits while the microphone is open and while offline. A browser gets the
-// files through the Worker (throughWorker.ts, decisions.md 200).
+// files through the Worker (throughWorker.ts, decisions.md 201).
 import type { SourceDoc } from '@langquest-next/core';
 import { classifyTransferFailure } from '@langquest-next/sync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
