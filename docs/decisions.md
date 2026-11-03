@@ -1598,6 +1598,14 @@ Amended (2026-10-15, Carl Sauder): the export is now a main file and one
 file per screen module that loads when opened, and the budget is two: 5.7
 MiB for what a first visit loads, 6.5 MiB for all of it (123).
 
+Amended (2026-11-03, Caleb Koster): iOS claims the domains again.
+`ios.associatedDomains` is back in `app.json` for both hosts, so an iPhone
+opens invite, sign-in and Forgot password links (`/invite`, `/signin`) in
+the app, as Android does. Ryder Wishart found Associated Domains already
+enabled on `com.frontierrnd.langquestnext`; Caleb asked for it in the next
+iPhone store build, which is a native change, so phones on older builds
+keep opening the web app.
+
 ## 59. Joining by invite needs no password, and whoever can invite you can get you back in
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted

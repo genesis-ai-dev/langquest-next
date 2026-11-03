@@ -18,6 +18,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.frontierrnd.langquestnext",
       "buildNumber": "4",
+      "associatedDomains": [
+        "applinks:next.langquest.org",
+        "applinks:next-preview.langquest.org"
+      ],
       "infoPlist": {
         "NSMicrophoneUsageDescription": "LangQuest records your voice to translate passages.",
         "ITSAppUsesNonExemptEncryption": false,
