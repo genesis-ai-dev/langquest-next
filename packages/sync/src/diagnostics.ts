@@ -338,7 +338,8 @@ function httpStatusIn(message: string): number | null {
 export function classifyTransferFailure(error: unknown): FailureClass {
   const name = error instanceof Error ? error.name : '';
   const message = error instanceof Error ? error.message : '';
-  if (name === 'OfflineError' || /network|fetch failed|failed to fetch|timed out|timeout|unable to resolve|offline|hostname could not be found|could not connect|failed to connect|connection (?:was lost|reset|refused|abort)|internet connection/i.test(message)) return 'offline';
+  // Safari's "Load failed" is Chrome's "Failed to fetch"; `\b` keeps our "Download failed (404)" out.
+  if (name === 'OfflineError' || /network|fetch failed|failed to fetch|\bload failed\b|timed out|timeout|unable to resolve|offline|hostname could not be found|could not connect|failed to connect|connection (?:was lost|reset|refused|abort)|internet connection/i.test(message)) return 'offline';
   if (/is gone from this device|no bytes for .* in this browser/i.test(message)) return 'gone';
   if (/hash mismatch/i.test(message)) return 'hash';
   if (/no space|not enough space|isn.t enough space|disk|ENOSPC|storage full|quota/i.test(message)) return 'disk';
