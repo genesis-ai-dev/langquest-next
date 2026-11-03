@@ -4,8 +4,8 @@
 // states marked as well as coloured, and the quiet "Filter" link that keeps
 // the filters and the full key one tap deeper. Every press goes through help
 // mode.
-import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { Text } from '../ui/text';
 import type { ChapterStage } from '../reference/canon';
 import { useHelpSpot } from '../helpMode/useHelpMode';
@@ -74,6 +74,28 @@ function bookLine(p: { total: number; recorded: number; count?: string }, shown:
     t('map.parts.countHelp', { shown, recorded: formatNumber(p.recorded), total: formatNumber(p.total) })].join(' ');
 }
 
+/** The book names' column of one list: as wide as its widest name, so every bar starts in one place. */
+const NameColumn = createContext<{ width: number; fit: (e: LayoutChangeEvent) => void } | null>(null);
+
+/**
+ * A list of books whose bars line up: each name is as wide as the widest one
+ * ("1 Thessalonians" no longer pushes its bar right of the others'). The
+ * widest still takes at most half the row and wraps there (LAN-56).
+ */
+export function BookColumn(props: { children: ReactNode }) {
+  const [width, setWidth] = useState(0);
+  const column = useMemo(() => ({
+    width, fit: (e: LayoutChangeEvent) => { const w = Math.ceil(e.nativeEvent.layout.width); setWidth((x) => (w > x ? w : x)); }
+  }), [width]);
+  return <NameColumn.Provider value={column}>{props.children}</NameColumn.Provider>;
+}
+
+/** A book's name, as wide as the widest in its list (BookColumn). */
+function BookName(props: { name: string }) {
+  const column = useContext(NameColumn);
+  return <Text onLayout={column?.fit} style={[styles.bookName, column?.width ? { minWidth: column.width } : null]}>{props.name}</Text>;
+}
+
 /**
  * One book: its name, a bar, and "25/97" (demo Map). A book nobody started
  * shows an empty bar and no count. Done passages lead the bar in green.
@@ -91,7 +113,7 @@ export function BookBar(props: {
     return (
       <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
         style={({ pressed }) => [styles.book, !props.last && styles.bookBorder, pressed && styles.pressed]}>
-        <Text style={styles.bookName}>{props.name}</Text>
+        <BookName name={props.name} />
         <Text style={[styles.waiting]}>{t('map.waiting')}</Text>
         <HelpBadge spot={spot} />
       </Pressable>
@@ -101,7 +123,7 @@ export function BookBar(props: {
     <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
       {...a11yState(props.current ? { selected: true } : undefined, 'button', 'current')}
       style={({ pressed }) => [styles.book, !props.last && styles.bookBorder, props.current && { backgroundColor: C.light }, pressed && styles.pressed]}>
-      <Text style={styles.bookName}>{props.name}</Text>
+      <BookName name={props.name} />
       <View style={styles.track}>
         <View style={{ width: pct(props.done), backgroundColor: C.green }} />
         <View style={{ width: pct(props.recorded - props.done), backgroundColor: C.primary }} />
