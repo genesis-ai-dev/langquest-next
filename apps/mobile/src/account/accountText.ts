@@ -189,6 +189,20 @@ export function signInCodeErrorText(message: string): string {
 }
 
 /**
+ * Why Forgot password failed, from the password-reset function's code
+ * (supabase/functions/password-reset, auth/passwordReset.ts); `fallback`
+ * for anything else.
+ */
+export function resetErrorText(code: string, fallback: string): string {
+  switch (code) {
+    case 'offline': return t('common.notConnected');
+    case 'expired': return t('entry.newPassword.expired');
+    case 'unavailable': return fallback;
+    default: return authErrorText({ code }, fallback);
+  }
+}
+
+/**
  * Why a saved account change was turned down. The account outbox keeps the
  * server's English reason (accountData.ts); these are the ones its functions
  * raise (supabase/migrations: create_join_request, save_profile,

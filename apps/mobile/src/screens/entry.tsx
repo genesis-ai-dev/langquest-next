@@ -18,7 +18,7 @@ import {
   type ListedOrganization
 } from '../account/accountData';
 import { firstName, outboxErrorText, VISION_STEPS } from '../account/accountText';
-import { signInName } from '../auth/accounts';
+import { isSignInName, signInName } from '../auth/accounts';
 import { globalViewerLine } from '../account/globalViewerText';
 import { useGlobalViewer } from '../account/useGlobalViewer';
 import { licenseText } from '../i18n/coreText';
@@ -27,7 +27,7 @@ import { formatPercent } from '../i18n/format';
 import { inviteCard, scanVerdict } from '../invites/heldInvite';
 import { parseKey } from '../invites/inviteCode';
 import type { Ctx } from '../shell/ctx';
-import { createAccountWithEmail, signInWithEmail, signInWithKey, waitText } from '../auth/signInFlow';
+import { askResetLink, createAccountWithEmail, resetPassword, signInWithEmail, signInWithKey, waitText } from '../auth/signInFlow';
 import { queueJoinRequest } from '../auth/joinRequest';
 import { useAuthStep } from '../auth/useSignIn';
 import { createAccountReady, MIN_PASSWORD } from '../auth/model';
@@ -121,6 +121,8 @@ export function SignIn(ctx: Ctx) {
         {nameNeedsFix(email) ? <Text style={txt.error}>{t('entry.signIn.nameHint')}</Text> : null}
         <Field label={t('entry.fields.password')} value={password} onChangeText={setPassword} secure autoCapitalize="none" help={t('entry.signIn.passwordHelp')}
           onSubmit={() => { if (ready && !busy) void submit(); }} />
+        <LinkBtn label={t('entry.signIn.forgot')} help={t('entry.signIn.forgotHelp')} style={{ alignSelf: 'flex-end' }}
+          onPress={() => ctx.go('forgot_password', email.trim() ? { email: email.trim() } : undefined)} />
         {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
         <PrimaryBtn label={busy ? t('entry.shared.signingIn') : t('entry.signIn.button')} help={t('entry.signIn.buttonHelp')} onPress={() => void submit()} disabled={!ready || busy} />
         <LinkBtn label={t('entry.signIn.cantSignIn')} help={t('entry.signIn.cantSignInHelp')} expanded={stuck} onPress={() => setStuck(!stuck)}
@@ -143,10 +145,9 @@ export function SignIn(ctx: Ctx) {
 }
 
 /**
- * Can't sign in? Nobody can reset their own password yet
- * (docs/invites-and-accounts.md, flow G), so this names the ways in that need
- * none: a code from someone on their team, scanned with Scan a code below,
- * or writing to us.
+ * Can't sign in? The ways in that need no password: a code from someone on
+ * their team, scanned with Scan a code below, or writing to us. A forgotten
+ * password has its own link, Forgot password?, under the field.
  */
 function CantSignIn() {
   return (
@@ -225,6 +226,128 @@ function useNow(until: number): number {
     return () => clearInterval(tick);
   }, [until]);
   return now;
+}
+
+// ---- Forgot password (docs/invites-and-accounts.md flow G, decision 200) ---------------------
+
+/**
+ * Someone who forgot their password asks for a link, sent to their own
+ * email; it opens New password. The answer is the same whether or not the
+ * address has an account (supabase/functions/password-reset). A looked-after
+ * account has no email: its sign-in name gets the way back it already has, a
+ * code from someone helping them (flow F).
+ */
+export function ForgotPassword(ctx: Ctx) {
+  const given = ctx.params['email'] ?? '';
+  const [email, setEmail] = useState(given);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [noEmail, setNoEmail] = useState(() => !given.includes('@') && isSignInName(given));
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const typed = email.trim();
+  const sent = sentTo !== null && sentTo === typed.toLowerCase();
+
+  async function send() {
+    setError('');
+    if (!typed.includes('@')) {
+      if (isSignInName(typed)) setNoEmail(true);
+      else setError(t('entry.errors.badEmail'));
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await askResetLink(typed);
+      if (result.kind === 'error') setError(result.text);
+      else setSentTo(typed.toLowerCase());
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Screen header={<Header title={t('entry.forgot.title')} onBack={ctx.back} />}>
+      <Field label={t('entry.fields.email')} value={email} placeholder={t('entry.createAccount.emailPlaceholder')} keyboardType="email-address" autoCapitalize="none"
+        help={t('entry.forgot.emailHelp')} onSubmit={() => { if (typed && !busy) void send(); }}
+        onChangeText={(v) => { setEmail(v); setError(''); setNoEmail(false); }} />
+      {noEmail ? (
+        <>
+          <Banner icon="people" title={t('entry.forgot.noEmailTitle')} body={t('entry.forgot.noEmailBody')} />
+          <GhostBtn label={t('entry.signIn.scanCode')} icon="qr" help={t('entry.signIn.scanCodeHelp')} onPress={() => ctx.go('scan_qr')} />
+        </>
+      ) : (
+        <>
+          {sent ? <Banner icon="check" tone="green" title={t('entry.forgot.sentTitle')} body={t('entry.forgot.sentBody', { email: sentTo })} /> : null}
+          {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
+          <PrimaryBtn label={busy ? t('entry.forgot.sending') : sent ? t('entry.forgot.sendAgain') : t('entry.forgot.send')} icon="send" help={t('entry.forgot.sendHelp')}
+            busy={busy} disabled={!typed || busy} onPress={() => void send()} />
+        </>
+      )}
+    </Screen>
+  );
+}
+
+/**
+ * A Forgot password link opened (useIncoming, or pasted on Scan a code):
+ * type the new password, and it is set and this phone signed in. Signed in
+ * already as that account, the phone stays signed in with the new password;
+ * as someone else, their sign-in is left alone and only the password
+ * changes. Setting it signs the account's other phones out (Supabase Auth);
+ * their unsent work waits there until they sign in again.
+ */
+export function NewPassword(ctx: Ctx) {
+  const code = ctx.params['code'] ?? '';
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(() => /^[0-9a-f]{64}$/.test(code) ? '' : t('entry.newPassword.expired'));
+  const [expired, setExpired] = useState(() => !/^[0-9a-f]{64}$/.test(code));
+  const [busy, setBusy] = useState(false);
+  const [changedFor, setChangedFor] = useState<string | null>(null);
+  const guest = ctx.session.isGuest;
+  const ready = password.length >= MIN_PASSWORD && !busy && !expired;
+
+  // Opened from a link, there is nothing under this screen: Back leads where
+  // the person would otherwise be, Sign In or their home (as Scan a code does).
+  const alone = () => !(navRef.isReady() && navRef.canGoBack());
+  const leave = () => { if (!alone()) ctx.back(); else if (guest) ctx.go('sign_in'); else ctx.home(); };
+
+  async function choose() {
+    setBusy(true);
+    setError('');
+    try {
+      const result = await resetPassword(code, password, guest ? null : ctx.session.actorId, { acceptTerms: ctx.acceptTerms, toast: ctx.toast, isDev: ctx.isDev });
+      if (result.kind === 'changed') setChangedFor(result.email);
+      else if (result.kind === 'expired') { setExpired(true); setError(result.text); }
+      else if (result.kind === 'error') setError(result.text);
+      // Signed out, the new session starts the app over as this account; signed in, the same account carries on at home.
+      else if (!guest) ctx.home();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (changedFor) {
+    return (
+      <Screen header={<Header title={t('entry.newPassword.title')} onBack={leave} />}
+        footer={<PrimaryBtn label={t('common.done')} icon="check" help={t('entry.newPassword.doneHelp')} onPress={() => ctx.home()} />}>
+        <Banner icon="check" tone="green" title={t('entry.newPassword.changedTitle')} body={t('entry.newPassword.changedBody', { email: changedFor })} />
+      </Screen>
+    );
+  }
+  return (
+    <Screen header={<Header title={t('entry.newPassword.title')} onBack={leave} />}>
+      <Field value={password} onChangeText={setPassword} placeholder={t('entry.createAccount.passwordPlaceholder')}
+        secure autoCapitalize="none" help={t('entry.newPassword.fieldHelp')} onSubmit={() => { if (ready) void choose(); }} />
+      {/* The placeholder that says so is gone once typing starts: say why the button stays off. */}
+      {password.length > 0 && password.length < MIN_PASSWORD ? <Text style={txt.error}>{t('entry.createAccount.tooShort')}</Text> : null}
+      {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
+      {expired ? (
+        <GhostBtn label={t('entry.newPassword.newLink')} icon="send" help={t('entry.newPassword.newLinkHelp')} onPress={() => ctx.go('forgot_password')} />
+      ) : (
+        <PrimaryBtn label={busy ? (guest ? t('entry.shared.signingIn') : t('entry.newPassword.changing')) : guest ? t('entry.newPassword.button') : t('entry.newPassword.changeButton')} icon="check"
+          help={guest ? t('entry.newPassword.buttonHelp') : t('entry.newPassword.changeHelp')} busy={busy} disabled={!ready} onPress={() => void choose()} />
+      )}
+      {guest && !expired ? <TermsLink ctx={ctx} i18nKey="entry.termsLine.signingIn" /> : null}
+    </Screen>
+  );
 }
 
 /** The line that says doing this accepts the terms, with the terms one tap away (ADR-022). */
@@ -571,6 +694,7 @@ export function ScanQr(ctx: Ctx) {
     if (!key) { setError(t('entry.scan.notCode')); return false; }
     setError('');
     if (key.kind === 'signin') { setSigninCode(key.code); return true; }
+    if (key.kind === 'reset') { ctx.go('new_password', { code: key.code }); return true; }
     setSigninCode(null);
     await invite.scan(key);
     return true;
@@ -1102,4 +1226,4 @@ const styles = StyleSheet.create({
   heroTile: { width: 64, height: 64, borderRadius: 24 }
 });
 
-export const contracts = contractsFor('sign_in', 'create_account', 'terms_privacy', 'vision', 'intent_chooser', 'create_org', 'explore_home', 'request_access', 'scan_qr');
+export const contracts = contractsFor('sign_in', 'create_account', 'terms_privacy', 'vision', 'intent_chooser', 'create_org', 'explore_home', 'request_access', 'scan_qr', 'forgot_password', 'new_password');
