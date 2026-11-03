@@ -62,6 +62,10 @@ describe('sanitizeDiag: the allowlist is the only way in', () => {
     expect(sanitizeDiag({ id: 'r', kind: 'load', at: 1, streamId: 'p1' })?.streamId).toBeUndefined();
     expect(sanitizeContext({ os: 'android', model: 'SM-A105F', ...({ email: 'a@b.c' } as object) })).toEqual({ os: 'android', model: 'SM-A105F' });
   });
+
+  it('keeps the store build a phone sends as its app version, so a report names it', () => {
+    expect(sanitizeContext({ os: 'ios', appVersion: '2026.1030.1319 (48)' })).toEqual({ os: 'ios', appVersion: '2026.1030.1319 (48)' });
+  });
 });
 
 describe('classifyTransferFailure', () => {
