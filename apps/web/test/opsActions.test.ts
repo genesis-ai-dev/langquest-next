@@ -173,6 +173,7 @@ describe('tutorial videos on YouTube (decisions.md 180)', () => {
       'GET https://www.googleapis.com/youtube/v3/channels',
       'GET https://www.googleapis.com/youtube/v3/channelSections',
       'GET https://www.googleapis.com/youtube/v3/playlists',
+      'POST https://www.googleapis.com/youtube/v3/channelSections',
       'POST https://www.googleapis.com/youtube/v3/channelSections'
     ]);
     expect(d.done).toEqual([`connect es ${CHANNELS.es} LangQuest - Español 1//refresh-0123456789 by ${VIEWER} section made`]);

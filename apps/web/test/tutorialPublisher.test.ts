@@ -233,13 +233,13 @@ describe('the publish job', () => {
     const es: Channel = { channelId: CHANNELS.es, language: 'es', branded: null };
     const d = deps([video('record-a-passage')], yt, undefined, [es]);
     expect(await publishTutorials(d.deps, fresh())).toMatchObject({ branded: 1, brandFailed: 0, held: 3, published: 1 });
-    expect(yt.calls.slice(1, 8)).toEqual([
+    expect(yt.calls.slice(1, 9)).toEqual([
       'GET /youtube/v3/channels', 'POST /upload/youtube/v3/channelBanners/insert', 'PUT /youtube/v3/channels',
-      'GET /youtube/v3/channelSections', 'GET /youtube/v3/playlists', 'POST /youtube/v3/channelSections', 'POST /youtube/v3/channelSections'
+      'GET /youtube/v3/channelSections', 'GET /youtube/v3/playlists', 'POST /youtube/v3/channelSections', 'POST /youtube/v3/channelSections', 'POST /youtube/v3/channelSections'
     ]);
-    // The other channels, then its one playlist so far (decisions.md 191).
+    // The other channels in two rows of 7, then its one playlist so far (decisions.md 191).
     expect(rows.map((r) => [r.snippet.type, r.snippet.position, r.contentDetails.playlists ?? r.contentDetails.channels!.length])).toEqual([
-      ['multipleChannels', 0, 14], ['singlePlaylist', 1, ['PLtrad']]
+      ['multipleChannels', 0, 7], ['multipleChannels', 1, 7], ['singlePlaylist', 2, ['PLtrad']]
     ]);
     // Its other settings kept; its name, which only Google's account pages change, left out.
     expect(yt.sent[0]).toEqual({
@@ -263,7 +263,7 @@ describe('the publish job', () => {
     const es: Channel = { channelId: CHANNELS.es, language: 'es', branded: await brandOf('es', BANNER) };
     const d = deps([video('do-a-check', { playlist: 'Revisores y consultores' })], yt, undefined, [es]);
     expect(await publishTutorials(d.deps, fresh())).toMatchObject({ published: 1, incomplete: 0, firstError: null });
-    expect(rows.map((r) => r.contentDetails.playlists ?? 'channels')).toEqual(['channels', ['PLtrad'], ['PLnew']]);
+    expect(rows.map((r) => r.contentDetails.playlists ?? 'channels')).toEqual(['channels', 'channels', ['PLtrad'], ['PLnew']]);
     // A run that made none looks at the home page once, before its videos.
     const again = youtube({ sections: rows });
     await publishTutorials(deps([video('record-a-passage')], again, undefined, [es]).deps, fresh());
@@ -353,7 +353,7 @@ describe('the publish job', () => {
       const check = [up('do-a-check', 5, 'dddddddddd1', [], 'Revisores y consultores'), up('answer-feedback', 6, 'eeeeeeeeee1', [], 'Revisores y consultores')];
       expect(await publishTutorials(deps([], yt, undefined, [await es()], check).deps, fresh())).toMatchObject({ tidied: 2, incomplete: 0, firstError: null });
       expect(entries['PLnew']).toEqual(['dddddddddd1', 'eeeeeeeeee1']);
-      expect(rows.map((r) => r.contentDetails.playlists ?? 'channels')).toEqual(['channels', ['PLtrad'], ['PLnew']]);
+      expect(rows.map((r) => r.contentDetails.playlists ?? 'channels')).toEqual(['channels', 'channels', ['PLtrad'], ['PLnew']]);
     });
 
     it('counts a channel it could not put in order, and goes on', async () => {
