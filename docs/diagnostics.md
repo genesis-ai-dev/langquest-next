@@ -291,6 +291,63 @@ npm run diag -- timeline <installId> --days 2     # then what that phone recorde
 Kept a year, and deleted with the account. Seen and done are set from the
 admin page (`public.feedback_set_status`, service role).
 
+## The watch for user issues
+
+Nobody has to remember to look (decisions.md 202). Every 15 minutes
+`.github/workflows/user-issues.yml` asks the app's Worker what is new
+(`GET /api/user-issues`, which lets in only that workflow on main by its
+GitHub OIDC token; `apps/web/worker/userIssues.ts`). The database
+(`public.ops_user_issue_watch`, migration `*_user_issues.sql`) groups the
+last 7 days into **kinds**, named by the records' code-like tags:
+
+| Family | A kind, for example | From |
+| --- | --- | --- |
+| `error` | `error:TypeError@record:-` | an error record: name, where, code |
+| `sync` | `sync:error:pull:57014:ServerError`, `sync:unrenewed` | syncs that failed, were refused, too old or could not renew |
+| `transfer` | `transfer:down:source:failOther` | file transfers that failed, not offline |
+| `auth` | `auth:redeem:expired:-` | sign-in, joining and account changes that ended badly |
+| `expected` | `expected:<where>:<name>:<code>` | failures already shown to the person, from 10 |
+| `audio` | `audio:saveFail` | recording and playback failures |
+| `fill` | `fill:fallback:no_cut` | first downloads that fell back or started over |
+| `device` | `device:lostRecordings`, `device:uploadWaitingOverADay` | work lost or stuck on a phone |
+| `job` | `job:projection:failing` | a server job failing three times running, or stopped |
+| `worker` | `worker:blobs_get:5xx` | a Worker route answering 5xx at least 5 times in a day |
+| `feedback` | `feedback:<id>` | a problem sent from help mode (bugs, not ideas) |
+
+Development builds and the accounts in `ops.watch_ignored` (the store
+review account and Claude's production test account; an operator adds
+others with SQL) are left out. A kind is
+handed over when someone hit it in the last day and it was never looked at,
+at most 20 at a time, problems from help mode first.
+
+When something is new, Claude (`anthropics/claude-code-action`, the plan
+token of the tutorial review) reads the kinds and the team's Linear issues,
+follows the `user-issues` skill, and writes what it decided: a new problem,
+one the team already has, or noise. `scripts/user-issues.mjs` then files
+each new problem in Linear's LangQuest Next team with the label **User
+issue**, assigned to the Linear user named in the workflow, and comments on
+an issue that a known kind belongs to. Then it tells the Worker what was
+done (`POST`), kept in `ops.user_issues`, so each kind is looked at once. A
+kind comes back when at least twice as many people (and two more) hit it: a
+filed one as a comment on its issue with the new numbers, noise to be
+judged again. Server kinds come back after a week; noise is forgotten after
+90 days.
+
+An issue says what went wrong in plain words, what the watch counted
+(people, installs, platforms, app versions, first and last seen), the
+person's own words for a problem from help mode (an email address taken
+out), and, in its Agent notes, the kinds' keys (how later runs find it),
+a few install ids for `npm run diag -- --hosted timeline <installId>`, the
+newest stack, and where Claude thinks it comes from in the code. The
+repository is public, so the workflow's log says only counts, keys and
+issue ids.
+
+The watch's runs are the ops dashboard's `user_issue_watch` job (it is
+stale after an hour without one) and `user_issue_look`. Without
+`CLAUDE_CODE_OAUTH_TOKEN`, or with one Claude refuses, a run fails with
+"Needs you: Claude token". To run it by hand: Actions → user-issues → Run
+workflow.
+
 ## Not built yet
 
 - **A phone that never reaches the server** delivers nothing. A "send

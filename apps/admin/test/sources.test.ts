@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { byWorker, cloudflareAlerts, cloudflareSection } from '../src/sources/cloudflare';
 import { clientAlerts, databaseAlerts, diagSections, errorText, jobsSection, mediaType, v2Section, type Clients, type JobRow, type V2Project } from '../src/sources/diag';
 import { expoAlerts, expoFrom } from '../src/sources/expo';
 import { filmingRun, filmingSection, filmJobs, type Filming } from '../src/sources/filming';
-import { APP_BUILD_PATHS, changesApp, codeAlerts, codeSection, latestPerWorkflow, needsYouOf, type Code } from '../src/sources/github';
+import { APP_BUILD_PATHS, changesApp, codeAlerts, codeSection, FREQUENT_WORKFLOWS, latestPerWorkflow, needsYouOf, type Code } from '../src/sources/github';
 import { SQLSTATE, errorGroups, httpErrorsSql, pathShape, pgErrorsSql, projectsOf, supabaseAlerts, supabaseSection } from '../src/sources/supabase';
 
 const NOW = Date.parse('2026-10-19T22:00:00Z');
@@ -205,6 +205,20 @@ describe('code and deploys', () => {
     const s = await codeSection({ GITHUB_REPO: 'o/r', APP_URL: 'https://next.langquest.org' }, fetcher);
     expect((s.data as Code).needsYou.map((n) => n.what)).toEqual(['Gemini credit']);
     expect(s.alerts.map((a) => a.level)).toEqual(['problem', 'watch']);
+  });
+
+  it('reads a workflow that runs every few minutes on its own, so it does not crowd out the rest', async () => {
+    const watch = (id: number, conclusion: string) => ({ id, name: 'user-issues', path: '.github/workflows/user-issues.yml', status: 'completed', conclusion, head_sha: 'eeeeeeeeee', created_at: hAgo(id / 100), html_url: `u${id}`, event: 'schedule', run_number: id });
+    const guardrails = { id: 5, name: 'guardrails', path: '.github/workflows/guardrails.yml', status: 'completed', conclusion: 'success', head_sha: 'aaaaaaaaaa', created_at: hAgo(5), html_url: 'u5', event: 'push', run_number: 5 };
+    const fetcher = routes([
+      ['/version.json', { build: 'fedcba987654' }],
+      ['/commits/main', { sha: 'fedcba9876543210', commit: { message: 'x', committer: { date: hAgo(3) } } }],
+      ['/actions/workflows/user-issues.yml/runs', { workflow_runs: [watch(1, 'success')] }],
+      ['/actions/runs', { workflow_runs: [watch(2, 'failure'), watch(3, 'success'), guardrails] }]
+    ]);
+    const s = await codeSection({ GITHUB_REPO: 'o/r', APP_URL: 'https://next.langquest.org' }, fetcher);
+    expect((s.data as Code).runs.map((r) => [r.workflow, r.number])).toEqual([['user-issues', 1], ['guardrails', 5]]);
+    expect(FREQUENT_WORKFLOWS.every((f) => existsSync(new URL(`../../../.github/workflows/${f}`, import.meta.url)))).toBe(true);
   });
 
   it('compares the served commit with main through GitHub', async () => {
