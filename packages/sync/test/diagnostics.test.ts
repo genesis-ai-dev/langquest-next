@@ -87,6 +87,9 @@ describe('classifyTransferFailure', () => {
     expect(classifyTransferFailure(new Error("There isn't enough space to save the file"))).toBe('disk');
     expect(classifyTransferFailure(new Error('A server with the specified hostname could not be found.'))).toBe('offline');
     expect(classifyTransferFailure(new Error('Failed to connect to /10.0.2.2'))).toBe('offline');
+    // Safari's fetch failure; our own "Download failed (404)" stays an answer.
+    expect(classifyTransferFailure(new TypeError('Load failed'))).toBe('offline');
+    expect(classifyTransferFailure(new Error('Download failed (500)'))).toBe('http5xx');
     // A hash in the text is not a status.
     expect(classifyTransferFailure(new Error('hash mismatch for 413abc: got 404def'))).toBe('hash');
   });
