@@ -1,10 +1,12 @@
 import { summarizeReports, type OrgReportsResponse } from '@langquest-next/core';
 import { handleBible, type BibleDeps } from './bible';
+import { handleSourceAudio } from './sourceAudio';
 import { handleBlobs, type BlobDeps } from './blobs';
 import { handleHelpAudio } from './helpAudio';
 import { handleTutorialVideo } from './tutorialVideos';
 import { handleTutorialReview, REVIEW_PATH, type ReviewDeps } from './tutorialReview';
 import { FILMED_PATH, handleTutorialFilmed, type FilmedDeps } from './tutorialFilmed';
+import { handleUserIssues, USER_ISSUES_PATH, type UserIssuesDeps } from './userIssues';
 import { handleLanguoids, type LanguoidDeps } from './languoids';
 import { handleAgentApi, type AgentDeps } from './agent/http';
 
@@ -35,6 +37,8 @@ export interface ApiDeps {
   tutorialReview?: ReviewDeps;
   /** The filming saying its films are in (`/api/tutorial-filmed`, tutorialFilmed.ts); without it that route answers 503. */
   tutorialFilmed?: FilmedDeps;
+  /** The watch for user issues (`/api/user-issues`, userIssues.ts); without it that route answers 503. */
+  userIssues?: UserIssuesDeps;
 }
 
 const NO_STORE = { 'cache-control': 'private, no-store' };
@@ -90,12 +94,14 @@ export async function handleApi(request: Request, deps: ApiDeps): Promise<Respon
 async function answer(request: Request, deps: ApiDeps): Promise<Response> {
   const url = new URL(request.url);
   if (url.pathname.startsWith('/api/bible/')) return handleBible(request, { key: undefined, ...deps.bible, profileOf: deps.profileOf });
+  if (url.pathname === '/api/source-audio') return handleSourceAudio(request, { profileOf: deps.profileOf });
   if (url.pathname === '/api/blobs' || url.pathname.startsWith('/api/blobs/') || url.pathname.startsWith('/api/blob-urls/')) {
     return deps.blobs ? handleBlobs(request, { ...deps.blobs, profileOf: deps.profileOf }) : json(503, { error: 'File storage is not set up here.' });
   }
   if (url.pathname.startsWith('/api/help-audio/')) return handleHelpAudio(request, deps.blobs?.bucket);
   if (url.pathname.startsWith('/api/tutorials/')) return handleTutorialVideo(request, deps.blobs);
   if (url.pathname === REVIEW_PATH) return deps.tutorialReview ? handleTutorialReview(request, deps.tutorialReview) : json(503, { error: 'The tutorial review is not set up here.' });
+  if (url.pathname === USER_ISSUES_PATH) return deps.userIssues ? handleUserIssues(request, deps.userIssues) : json(503, { error: 'The watch for user issues is not set up here.' });
   if (url.pathname === FILMED_PATH) return deps.tutorialFilmed ? handleTutorialFilmed(request, deps.tutorialFilmed) : json(503, { error: 'The tutorial intake is not set up here.' });
   if (url.pathname === '/api/languoids') {
     return deps.languoids ? handleLanguoids(request, deps.languoids) : json(503, { error: 'The language list is not set up here.' });

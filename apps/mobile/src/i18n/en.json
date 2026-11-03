@@ -349,7 +349,9 @@
     "settings_more": "More settings",
     "check_editor": "Check",
     "cluster_home": "Cluster",
-    "global_viewer": "Global Viewer"
+    "global_viewer": "Global Viewer",
+    "forgot_password": "Forgot Password",
+    "new_password": "New Password"
   },
   "native": {
     "microphone": "LangQuest records your voice to translate passages.",
@@ -2865,7 +2867,9 @@
       "failed": "Could not sign in. Try again.",
       "scanCodeHelp": "Opens the camera, to join with an invite or sign in with a helper's code.",
       "createAccountHelp": "Opens a form for your email and a new password.",
-      "browseHelp": "See translation work that organizations share publicly. No account needed."
+      "browseHelp": "See translation work that organizations share publicly. No account needed.",
+      "forgot": "Forgot password?",
+      "forgotHelp": "Opens a page where you get a link by email to choose a new password."
     },
     "terms": {
       "title": "Terms & Privacy",
@@ -3190,6 +3194,36 @@
       "notMe": "Not my picture",
       "notMeHelp": "Goes back to the pictures.",
       "pictureHelp": "Signed out of this phone? Tap your picture, then draw your pattern. No connection needed."
+    },
+    "forgot": {
+      "title": "Forgot Password",
+      "emailHelp": "The email you sign in with. The link goes there.",
+      "send": "Send link",
+      "sendAgain": "Send again",
+      "sending": "Sending…",
+      "sendHelp": "Emails a link for choosing a new password. Needs a connection.",
+      "sentTitle": "Check your email",
+      "sentBody": "If {{email}} has a LangQuest account, a link to choose a new password is on its way.",
+      "failed": "Could not send the link. Try again.",
+      "noEmailTitle": "This account has no email",
+      "noEmailBody": "Someone on your team can show you a code to sign in."
+    },
+    "newPassword": {
+      "title": "New Password",
+      "fieldHelp": "Type the password you will sign in with from now on. The eye shows what you typed.",
+      "button": "Sign in",
+      "buttonHelp": "Makes this your password and signs you in. Needs a connection.",
+      "changeButton": "Change password",
+      "changing": "Changing…",
+      "changeHelp": "Makes this the account's password. Needs a connection.",
+      "expired": "This link has expired or was already used.",
+      "newLink": "Send a new link",
+      "newLinkHelp": "Opens Forgot Password, to get a new link by email.",
+      "failed": "Could not change the password. Try again.",
+      "signInFailed": "Your new password is set. Sign in with it.",
+      "changedTitle": "Password changed",
+      "changedBody": "{{email}} signs in with the new password from now on.",
+      "doneHelp": "Back to your home page."
     }
   },
   "account": {
@@ -4443,7 +4477,9 @@
       "showMore_other": "Show {{count, number}} more · {{left}} left",
       "onOlderVersion": "on {{version}}",
       "orTypeReason": "Or type the reason",
-      "reasonFootnote": "This goes in the passage's record with your name. It can be undone later; the record keeps both."
+      "reasonFootnote": "This goes in the passage's record with your name. It can be undone later; the record keeps both.",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password"
     },
     "person": {
       "showId": "{{name}}. Show id",
@@ -4597,7 +4633,8 @@
       "done": "Finished here: goes back.",
       "undo": "Puts back what was there before.",
       "tryAgain": "Tries once more.",
-      "quickReason": "Uses this as your reason. You can still change the words."
+      "quickReason": "Uses this as your reason. You can still change the words.",
+      "showPassword": "Shows the password you typed, to check it. Tap again to hide it."
     },
     "tabs": {
       "work": "What to do next: your next passage, and what waits on you.",

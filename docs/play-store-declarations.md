@@ -89,7 +89,9 @@ Expected rating: about Teen / 12+ with "Users Interact".
 | Delete some data without deleting the account | No. Account data is deleted with the account; an organization's work belongs to it, and requests about it go to its admins |
 
 Data types. **Shared: No for every type.** Our processors (Supabase,
-Expo, Cloudflare) are service providers, not sharing in Play's terms.
+Expo, Cloudflare, and Anthropic and Linear for the watch for user issues,
+which read diagnostics and feedback to find and track problems for us;
+decisions.md 202) are service providers, not sharing in Play's terms.
 Work an organization chooses to list publicly or release under an open
 license is the organization's own action. So is connecting another app or an
 AI agent with an access token (docs/agent-api.md, decisions.md 72): a person

@@ -13,7 +13,7 @@ import { getJson, hoursAgo, ok, type Alert, type Section } from '../section';
 
 interface Commit { sha: string; commit: { message: string; committer: { date: string } | null } }
 interface Compare { status: string; ahead_by: number; behind_by: number; files?: { filename: string }[] }
-interface Runs { workflow_runs: { id: number; name: string | null; status: string | null; conclusion: string | null; head_sha: string; created_at: string; html_url: string; event: string; run_number: number }[] }
+interface Runs { workflow_runs: { id: number; name: string | null; path?: string; status: string | null; conclusion: string | null; head_sha: string; created_at: string; html_url: string; event: string; run_number: number }[] }
 interface Jobs { jobs: { id: number; conclusion: string | null }[] }
 interface Annotation { title: string | null; message: string; annotation_level: string }
 
@@ -57,6 +57,14 @@ export function changesApp(files: readonly { filename: string }[] | undefined): 
   if (files.some((f) => APP_BUILD_PATHS.some((p) => (p.endsWith('/') ? f.filename.startsWith(p) : f.filename === p)))) return true;
   return files.length >= COMPARE_FILE_LIMIT ? null : false;
 }
+
+/**
+ * Workflows that run every few minutes, read on their own: in the list of
+ * main's latest runs they would leave out every other workflow. The watch for
+ * user issues runs every 15 minutes (decisions.md 202).
+ */
+export const FREQUENT_WORKFLOWS = ['user-issues.yml'];
+const frequent = (r: { path?: string }) => FREQUENT_WORKFLOWS.some((f) => (r.path ?? '').startsWith(`.github/workflows/${f}`));
 
 /** How long a merge may take to reach the web app before it counts as stuck: the export alone takes a few minutes. */
 export const DEPLOY_GRACE_H = 0.75;
@@ -145,9 +153,11 @@ export async function codeSection(env: GitHubEnv & { APP_URL: string }, fetcher:
   const live = fetcher(liveUrl, { signal: AbortSignal.timeout(8000) })
     .then(async (r) => (r.ok ? { build: String(((await r.json()) as { build?: unknown }).build ?? '') || null } : { build: null, error: `HTTP ${r.status}` }))
     .catch((e: unknown) => ({ build: null, error: e instanceof Error ? e.name : 'no answer' }));
-  const [head, runs, liveBuild] = await Promise.all([
+  const [head, runs, frequentRuns, liveBuild] = await Promise.all([
     gh<Commit>('/commits/main', 'GitHub main'),
     gh<Runs>('/actions/runs?branch=main&per_page=40', 'GitHub Actions'),
+    Promise.all(FREQUENT_WORKFLOWS.map((f) => gh<Runs>(`/actions/workflows/${f}/runs?branch=main&per_page=1`, 'GitHub Actions')
+      .then((r) => r.workflow_runs, () => []))).then((r) => r.flat()),
     live
   ]);
   let behind: number | null = null;
@@ -158,7 +168,7 @@ export async function codeSection(env: GitHubEnv & { APP_URL: string }, fetcher:
     behind = compare?.ahead_by ?? null;
     appChanged = compare ? changesApp(compare.files) : null;
   }
-  const latest = latestPerWorkflow(runs.workflow_runs);
+  const latest = latestPerWorkflow([...runs.workflow_runs.filter((r) => !frequent(r)), ...frequentRuns].sort((a, b) => b.created_at.localeCompare(a.created_at)));
   // A failed run's first few failed jobs, read for what only a person can fix; a source that cannot read them keeps the plain failure.
   const needsYou = (await Promise.all(latest.filter((r) => failedRun(r) && OWN_EVENTS.has(r.event)).map(async (run) => {
     const jobs = await gh<Jobs>(`/actions/runs/${run.id}/jobs?filter=latest&per_page=100`, 'GitHub jobs').catch(() => ({ jobs: [] }));

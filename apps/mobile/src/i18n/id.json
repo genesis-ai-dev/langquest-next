@@ -347,7 +347,9 @@
     "settings_more": "Pengaturan lain",
     "check_editor": "Pemeriksaan",
     "cluster_home": "Rumpun",
-    "global_viewer": "Pengamat Global"
+    "global_viewer": "Pengamat Global",
+    "forgot_password": "Lupa Kata Sandi",
+    "new_password": "Kata Sandi Baru"
   },
   "native": {
     "microphone": "LangQuest merekam suara Anda untuk menerjemahkan perikop.",
@@ -2767,7 +2769,9 @@
       "failed": "Tidak dapat masuk. Coba lagi.",
       "scanCodeHelp": "Membuka kamera, untuk bergabung dengan undangan atau masuk dengan kode dari orang yang membantu Anda.",
       "createAccountHelp": "Membuka formulir untuk email Anda dan kata sandi baru.",
-      "browseHelp": "Lihat pekerjaan penerjemahan yang dibagikan organisasi untuk publik. Tidak perlu akun."
+      "browseHelp": "Lihat pekerjaan penerjemahan yang dibagikan organisasi untuk publik. Tidak perlu akun.",
+      "forgot": "Lupa kata sandi?",
+      "forgotHelp": "Membuka halaman tempat Anda mendapat tautan lewat email untuk memilih kata sandi baru."
     },
     "terms": {
       "title": "Ketentuan & Privasi",
@@ -3089,6 +3093,36 @@
       "notMe": "Bukan gambar saya",
       "notMeHelp": "Kembali ke gambar-gambar.",
       "pictureHelp": "Keluar dari ponsel ini? Ketuk gambar Anda, lalu gambar pola Anda. Tidak perlu koneksi."
+    },
+    "forgot": {
+      "title": "Lupa Kata Sandi",
+      "emailHelp": "Email yang Anda pakai untuk masuk. Tautannya dikirim ke sana.",
+      "send": "Kirim tautan",
+      "sendAgain": "Kirim lagi",
+      "sending": "Mengirim…",
+      "sendHelp": "Mengirim tautan lewat email untuk memilih kata sandi baru. Memerlukan koneksi.",
+      "sentTitle": "Periksa email Anda",
+      "sentBody": "Jika {{email}} punya akun LangQuest, tautan untuk memilih kata sandi baru sedang dikirim.",
+      "failed": "Tidak dapat mengirim tautan. Coba lagi.",
+      "noEmailTitle": "Akun ini tidak punya email",
+      "noEmailBody": "Seseorang di tim Anda dapat menunjukkan kode kepada Anda untuk masuk."
+    },
+    "newPassword": {
+      "title": "Kata Sandi Baru",
+      "fieldHelp": "Ketik kata sandi yang akan Anda pakai untuk masuk mulai sekarang. Ikon mata menampilkan yang Anda ketik.",
+      "button": "Masuk",
+      "buttonHelp": "Menjadikan ini kata sandi Anda, lalu memasukkan Anda. Memerlukan koneksi.",
+      "changeButton": "Ubah kata sandi",
+      "changing": "Mengubah…",
+      "changeHelp": "Menjadikan ini kata sandi akun. Memerlukan koneksi.",
+      "expired": "Tautan ini sudah kedaluwarsa atau sudah dipakai.",
+      "newLink": "Kirim tautan baru",
+      "newLinkHelp": "Membuka Lupa Kata Sandi, untuk mendapat tautan baru lewat email.",
+      "failed": "Tidak dapat mengubah kata sandi. Coba lagi.",
+      "signInFailed": "Kata sandi baru Anda sudah dibuat. Masuk dengan kata sandi itu.",
+      "changedTitle": "Kata sandi diubah",
+      "changedBody": "Mulai sekarang {{email}} masuk dengan kata sandi baru.",
+      "doneHelp": "Kembali ke layar utama Anda."
     }
   },
   "account": {
@@ -4296,7 +4330,9 @@
       "showMore_other": "Tampilkan {{count, number}} lagi · sisa {{left}}",
       "onOlderVersion": "pada {{version}}",
       "orTypeReason": "Atau ketik alasannya",
-      "reasonFootnote": "Ini masuk ke riwayat perikop dengan nama Anda. Nanti bisa diurungkan; riwayat menyimpan keduanya."
+      "reasonFootnote": "Ini masuk ke riwayat perikop dengan nama Anda. Nanti bisa diurungkan; riwayat menyimpan keduanya.",
+      "showPassword": "Tampilkan kata sandi",
+      "hidePassword": "Sembunyikan kata sandi"
     },
     "person": {
       "showId": "{{name}}. Tampilkan ID",
@@ -4449,7 +4485,8 @@
       "done": "Selesai di sini: kembali.",
       "undo": "Mengembalikan yang ada sebelumnya.",
       "tryAgain": "Mencoba sekali lagi.",
-      "quickReason": "Memakai ini sebagai alasan Anda. Anda masih dapat mengubah kata-katanya."
+      "quickReason": "Memakai ini sebagai alasan Anda. Anda masih dapat mengubah kata-katanya.",
+      "showPassword": "Menampilkan kata sandi yang Anda ketik, untuk memeriksanya. Ketuk lagi untuk menyembunyikannya."
     },
     "tabs": {
       "work": "Apa yang dikerjakan berikutnya: perikop Anda berikutnya, dan yang menunggu Anda.",

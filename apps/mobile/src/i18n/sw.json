@@ -349,7 +349,9 @@
     "settings_more": "Mipangilio zaidi",
     "check_editor": "Ukaguzi",
     "cluster_home": "Kundi",
-    "global_viewer": "Mtazamaji wa Kimataifa"
+    "global_viewer": "Mtazamaji wa Kimataifa",
+    "forgot_password": "Umesahau Nenosiri",
+    "new_password": "Nenosiri Jipya"
   },
   "native": {
     "microphone": "LangQuest hurekodi sauti yako ili kutafsiri vifungu.",
@@ -2865,7 +2867,9 @@
       "failed": "Imeshindwa kuingia. Jaribu tena.",
       "scanCodeHelp": "Hufungua kamera, ili ujiunge kwa mwaliko au uingie kwa msimbo wa msaidizi.",
       "createAccountHelp": "Hufungua fomu ya barua pepe yako na nenosiri jipya.",
-      "browseHelp": "Ona kazi za tafsiri ambazo mashirika yanashiriki hadharani. Hakuna akaunti inayohitajika."
+      "browseHelp": "Ona kazi za tafsiri ambazo mashirika yanashiriki hadharani. Hakuna akaunti inayohitajika.",
+      "forgot": "Umesahau nenosiri?",
+      "forgotHelp": "Hufungua ukurasa ambapo unapata kiungo kwa barua pepe ili uchague nenosiri jipya."
     },
     "terms": {
       "title": "Masharti na Faragha",
@@ -3190,6 +3194,36 @@
       "notMe": "Si picha yangu",
       "notMeHelp": "Inarudi kwenye picha.",
       "pictureHelp": "Ulitoka kwenye simu hii? Gusa picha yako, kisha uchore mchoro wako. Huhitaji mtandao."
+    },
+    "forgot": {
+      "title": "Umesahau Nenosiri",
+      "emailHelp": "Barua pepe unayoingia nayo. Kiungo kinatumwa huko.",
+      "send": "Tuma kiungo",
+      "sendAgain": "Tuma tena",
+      "sending": "Inatuma…",
+      "sendHelp": "Hutuma kiungo kwa barua pepe ili uchague nenosiri jipya. Inahitaji mtandao.",
+      "sentTitle": "Angalia barua pepe yako",
+      "sentBody": "Ikiwa {{email}} ina akaunti ya LangQuest, kiungo cha kuchagua nenosiri jipya kiko njiani.",
+      "failed": "Imeshindwa kutuma kiungo. Jaribu tena.",
+      "noEmailTitle": "Akaunti hii haina barua pepe",
+      "noEmailBody": "Mtu wa timu yako anaweza kukuonyesha msimbo wa kuingia."
+    },
+    "newPassword": {
+      "title": "Nenosiri Jipya",
+      "fieldHelp": "Andika nenosiri utakaloingia nalo kuanzia sasa. Jicho huonyesha ulichoandika.",
+      "button": "Ingia",
+      "buttonHelp": "Hufanya hili kuwa nenosiri lako na kukuingiza. Inahitaji mtandao.",
+      "changeButton": "Badilisha nenosiri",
+      "changing": "Inabadilisha…",
+      "changeHelp": "Hufanya hili kuwa nenosiri la akaunti. Inahitaji mtandao.",
+      "expired": "Kiungo hiki kimeisha muda au tayari kimetumika.",
+      "newLink": "Tuma kiungo kipya",
+      "newLinkHelp": "Hufungua Umesahau Nenosiri, ili upate kiungo kipya kwa barua pepe.",
+      "failed": "Imeshindwa kubadilisha nenosiri. Jaribu tena.",
+      "signInFailed": "Nenosiri lako jipya limewekwa. Ingia nalo.",
+      "changedTitle": "Nenosiri limebadilishwa",
+      "changedBody": "Kuanzia sasa, {{email}} inaingia kwa nenosiri jipya.",
+      "doneHelp": "Hurudi kwenye skrini yako kuu."
     }
   },
   "account": {
@@ -4443,7 +4477,9 @@
       "showMore_other": "Onyesha {{count, number}} zaidi · zimebaki {{left}}",
       "onOlderVersion": "kwenye {{version}}",
       "orTypeReason": "Au andika sababu",
-      "reasonFootnote": "Hii inaingia kwenye kumbukumbu za kifungu pamoja na jina lako. Inaweza kutenduliwa baadaye; kumbukumbu huhifadhi vyote viwili."
+      "reasonFootnote": "Hii inaingia kwenye kumbukumbu za kifungu pamoja na jina lako. Inaweza kutenduliwa baadaye; kumbukumbu huhifadhi vyote viwili.",
+      "showPassword": "Onyesha nenosiri",
+      "hidePassword": "Ficha nenosiri"
     },
     "person": {
       "showId": "{{name}}. Onyesha kitambulisho",
@@ -4597,7 +4633,8 @@
       "done": "Umemaliza hapa: hurudi.",
       "undo": "Hurudisha kilichokuwepo awali.",
       "tryAgain": "Hujaribu mara nyingine.",
-      "quickReason": "Hutumia hii kama sababu yako. Bado unaweza kubadilisha maneno."
+      "quickReason": "Hutumia hii kama sababu yako. Bado unaweza kubadilisha maneno.",
+      "showPassword": "Huonyesha nenosiri ulilioandika, ili ulikague. Gusa tena ili kulificha."
     },
     "tabs": {
       "work": "Cha kufanya kinachofuata: kifungu chako kinachofuata, na kinachokusubiri.",

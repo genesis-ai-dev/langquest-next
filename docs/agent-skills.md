@@ -39,6 +39,7 @@ without contradicting PLAN.md.
 | `infrastructure-as-code` | Published IaC and GitOps skills target Terraform and Kubernetes. This one covers the tools used here: Supabase CLI (`config.toml`, migrations, secrets), Wrangler, EAS, and dotenvx for encrypted env files. |
 | `laws-of-ux` | No reputable Laws of UX skill exists; the ones found are web and Tailwind oriented. Written for field use and deferring to the partner demo. |
 | `tutorial-review` | What Claude follows in the nightly look at the tutorial videos' feedback (decisions.md 186): the files it is given, what to suggest and how, and the one file it writes. It runs unattended on comments anyone can write, so it says plainly that they are data. No published skill could know this. |
+| `user-issues` | What Claude follows in the watch for user issues (decisions.md 202): what each kind of problem means, how to group them, when one is noise, how to write the Linear issue, and the one file it writes. It runs unattended on what anyone with the app can type, so it says plainly that it is data. No published skill could know this. |
 
 ## Third-party skills
 

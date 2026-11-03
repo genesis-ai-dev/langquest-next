@@ -26,6 +26,17 @@ describe('SupabaseTransport error classification', () => {
     await expect(failingWith({ message: 'TypeError: Failed to fetch' }).pull('org1', 'p1', 0, 1)).rejects.toBeInstanceOf(OfflineError);
   });
 
+  it("reads Safari's wording for a lost connection as offline, not as a server that did not answer", async () => {
+    // Why: supabase-js passes Safari's fetch failure on as "TypeError: Load
+    // failed" with no code and status 0. Read as a ServerError, an iPhone or
+    // Mac browser losing signal for a moment was logged as `pull:-:ServerError`
+    // and its sync stopped with an error (field snapshot, 2026-11-03).
+    await expect(failingWith({ message: 'TypeError: Load failed', code: '' }).pull('org1', 'p1', 0, 1)).rejects.toBeInstanceOf(OfflineError);
+    await expect(failingWith({ message: 'TypeError: Load failed', code: '' }).append([])).rejects.toBeInstanceOf(OfflineError);
+    // Words that only contain it are not it.
+    expect(await failingWith({ message: 'Download failed (404)', code: '' }).pull('org1', 'p1', 0, 1).catch((e: unknown) => e)).toBeInstanceOf(ServerError);
+  });
+
   it('a sign-in that could not be renewed is offline, and says which kind', async () => {
     // Why: sessionSafeFetch.ts stops a request that would go out as no one
     // with a network-failure text, so it stays queued; diagnostics must still

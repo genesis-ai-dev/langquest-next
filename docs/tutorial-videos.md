@@ -332,7 +332,7 @@ accepted change to a video is still done by hand. A comment, with its
 English and suggested reply, is taken out 30 days after it was posted, and
 one older is never copied: YouTube's rule for what an API client keeps about
 other people, as the privacy policy says (`/privacy#youtube`; an hourly
-pg_cron job, migration `20261103010000_tutorial_comments_30_days.sql`). The
+pg_cron job, migration `20261103190500_tutorial_comments_30_days.sql`). The
 suggestions stay without it. Code changes, notes and answered suggestions
 over a year old are taken out.
 

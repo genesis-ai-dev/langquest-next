@@ -16,8 +16,9 @@ let initialLinkRead = false;
 
 /**
  * What arrives from outside the screens: a link that opens the app (a scan,
- * docs/invites-and-accounts.md flow D), an invite nobody has claimed yet, an
- * invite that will never work, and a tapped push.
+ * docs/invites-and-accounts.md flow D, or a Forgot password email, flow G),
+ * an invite nobody has claimed yet, an invite that will never work, and a
+ * tapped push.
  */
 export function useIncoming(o: {
   nav: Nav; invite: InviteHandle; signedIn: boolean; onboardingLoaded: boolean; actorId: string; orgId: string; homeIsWork: boolean;
@@ -32,6 +33,8 @@ export function useIncoming(o: {
       if (!key) return;
       forgetKeyInAddress();
       if (key.kind === 'signin') { resetNav({ screen: 'scan_qr', params: { code: url } }); return; }
+      // A Forgot password link (flow G): choose the new password, signed in or not.
+      if (key.kind === 'reset') { resetNav({ screen: 'new_password', params: { code: key.code } }); return; }
       void scanInvite(key).then(() => resetNav({ screen: 'scan_qr' }));
     };
     if (!initialLinkRead) {
