@@ -28,8 +28,19 @@ of these kinds, each with a fixed list of fields (`DIAG_SCHEMA`):
 | `auth` | Signing in and staying in | what was tried (`sign_in`, `sign_up`, `code`, `v2`, `redeem`, `join`, `renew`, `ended`, `courier`, `outbox`, `route`, `delete`, `org_list`), how it ended, an Auth error code, SQLSTATE or our own code; ms, HTTP status, attempt, ages; for a hand-over, how much another person's sign-in left to send, never who; a sign-in from the phone's lock (decisions.md 168) is `sign_in` with action `lock_pattern` or `lock_password` |
 
 Every delivery also sends the phone's context: install id, OS and version,
-model (Android), runtime version, EAS update id and channel, whether the
-embedded bundle is running, reducer and protocol versions.
+model (Android), the store build installed (`appVersion`: the store's
+version and the build number, `2026.1030.1319 (48)`, since 2026-11-03),
+runtime version, EAS update id and channel, whether the embedded bundle is
+running, reducer and protocol versions. Feedback carries the same.
+
+Every report line about a phone names its build the way support asks it
+(`buildLabel`, `scripts/diagSignals.ts`): `build 48 (2026.1030.1319) · OTA
+update 01a1827 (production)`, or `no OTA update` when it runs the store
+build's own code. The update is cut to the seven characters the app shows
+under Sync, Details, so it matches what a person reads out. A phone from
+before the store build was sent shows `build ? (runtime fede04f0)`: its
+runtime names the store builds it can be, and only EAS's build list says
+which.
 
 **Web builds:** a browser has no expo-updates, so a record's
 `runtimeVersion` is the commit the web build was made from (its
@@ -201,7 +212,7 @@ npm run diag -- jobs                               # the server's own jobs; --jo
 npm run diag -- inbox "LangQuest Sample"          # push delivery for an organization
 npm run diag -- v2                                 # the v2 import, per project
 npm run diag -- error E-7K2Q01                     # the code a person read out
-npm run diag -- timeline <installId> --days 3      # one phone, in order
+npm run diag -- timeline <installId> --days 3      # one phone and its build, then its records in order
 ```
 
 Without `DIAG_DATABASE_URL` it reads the local database. For the hosted
