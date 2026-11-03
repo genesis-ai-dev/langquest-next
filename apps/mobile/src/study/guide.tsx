@@ -4,8 +4,8 @@
 // moment) when it has audio, its text with glossary words dotted-underlined
 // (tap for the meaning), pictures and maps as cards where the text links or
 // names them and the rest after it (picturesModel.ts, LAN-222), and its
-// callouts ("Stop here." on amber). Any part takes a note or an answer (STUDY-7). Nothing
-// here depends on which method wrote the guide.
+// callouts ("Stop here." on amber). Any part takes a note or an answer
+// (STUDY-7). Nothing here depends on which method wrote the guide.
 import { keyTermsFor, type CalloutKind, type KeyWordDoc, type PassageNote } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
