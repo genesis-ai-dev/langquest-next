@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { jobNeeds, matches, pullRequestJobs, readRulesets, requiredContexts } from './github-rules.mjs';
+import { ACTIONS_PERMISSIONS, jobNeeds, matches, pullRequestJobs, readRulesets, requiredContexts } from './github-rules.mjs';
 
 /**
  * main takes a merge only when the guardrails `gate` job is green
@@ -67,5 +67,16 @@ describe('matching a ruleset on GitHub', () => {
     expect(matches({ a: 1, b: [{ c: 2 }] }, { a: 1, id: 9, b: [{ c: 2, d: 3 }] })).toBe(true);
     expect(matches({ a: 1, b: [{ c: 2 }] }, { a: 1, b: [{ c: 3 }] })).toBe(false);
     expect(matches({ b: [1, 2] }, { b: [1] })).toBe(false);
+  });
+});
+
+describe('what workflows may do with their built-in token', () => {
+  it('lets them open pull requests (the draft fixes of the watch for user issues), and nothing merges on an approval', () => {
+    expect(JSON.parse(readFileSync(ACTIONS_PERMISSIONS, 'utf8'))).toEqual({ can_approve_pull_request_reviews: true });
+    expect(main.rules.map((r: { type: string }) => r.type)).not.toContain('pull_request');
+  });
+
+  it('runs guardrails when a draft is marked Ready for review', () => {
+    expect(guardrails).toMatch(/^ {2}pull_request:\n(?: {4}#.*\n)* {4}types: \[opened, synchronize, reopened, ready_for_review\]$/m);
   });
 });

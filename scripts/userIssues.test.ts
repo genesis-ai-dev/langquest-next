@@ -1,7 +1,11 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
-  API, AUDIENCE, checkDecisions, factsOf, FAMILIES, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, LIMITS, linearClient,
-  lookedOf, mergesOf, PREFIX, redact, statesToSend, when
+  API, AUDIENCE, branchComment, checkDecisions, checkFix, checkResults, factsOf, FAMILIES, FIX_LIMITS, FIX_MAX, fixBody, fixBranch, fixComment,
+  fixRefusal, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, LIMITS, linearClient, lookedOf, mergesOf, noFixComment, oldPathsOf, pathsOf,
+  PREFIX, redact, statesToSend, when
 } from './user-issues.mjs';
 import { USER_ISSUES_PATH, USER_ISSUES_RULE } from '../apps/web/worker/userIssues';
 import * as model from '../server/userIssues';
@@ -34,7 +38,7 @@ describe('user-issues.mjs', () => {
     const yml = read(file);
     expect(yml).toContain('id-token: write');
     expect(yml).toContain('node scripts/user-issues.mjs fetch .user-issues');
-    expect(yml).toContain('node scripts/user-issues.mjs file .user-issues');
+    expect(yml).toContain('node "$RUNNER_TEMP/watch/user-issues.mjs" file .user-issues');
     expect(existsSync(new URL('../.agents/skills/user-issues/SKILL.md', import.meta.url))).toBe(true);
   });
 
@@ -48,9 +52,45 @@ describe('user-issues.mjs', () => {
     expect(claude).not.toMatch(/show_full_output|display_report/);
     // Scheduled runs start as the merge queue, which the action refuses otherwise.
     expect(claude).toContain('allowed_bots: github-merge-queue');
+    // Before Claude, from the checkout; after Claude, from the copy made before it.
     expect(steps.filter((s) => s.includes('LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}')).map((s) => /run: (.+)/.exec(s)?.[1])).toEqual([
-      'node scripts/user-issues.mjs fetch .user-issues', 'node scripts/user-issues.mjs file .user-issues'
+      'node scripts/user-issues.mjs fetch .user-issues', 'node "$RUNNER_TEMP/watch/user-issues.mjs" file .user-issues',
+      'node scripts/user-issues.mjs fix-context .user-issues "$ISSUE"', 'node scripts/user-issues.mjs fix-open .user-issues "$ISSUE"'
     ]);
+  });
+
+  it('writes a draft fix in jobs that trust each other less: Claude with no key, the checks with none, the push running nothing of it', () => {
+    const yml = read('.github/workflows/user-issues.yml');
+    const jobs = Object.fromEntries(yml.slice(yml.search(/^jobs:$/m)).split(/^ {2}(?=[\w-]+:$)/m).slice(1).map((b) => [b.match(/^([\w-]+):/)![1], b]));
+    expect(Object.keys(jobs)).toEqual(['watch', 'fix', 'check', 'open']);
+    const perms = (job: string) => /^ {4}permissions:\n((?: {6}.+\n)+)/m.exec(jobs[job]!)?.[1]?.trim().split(/\n\s*/);
+    expect(yml).toMatch(/^permissions:\n {2}contents: read\n\n/m);
+    expect(perms('watch')).toEqual(['contents: read', 'id-token: write']);
+    expect(perms('fix')).toEqual(['contents: read']);
+    expect(perms('check')).toEqual(['contents: read']);
+    expect(perms('open')).toEqual(['contents: write', 'pull-requests: write']);
+    // No checkout before Claude or the patch's code keeps a token on disk.
+    for (const job of ['watch', 'fix', 'check']) expect(jobs[job]!.match(/actions\/checkout@/g)?.length, job).toBe(jobs[job]!.match(/persist-credentials: false/g)?.length);
+    const fix = jobs['fix']!.split(/\n {6}- /);
+    const claude = fix.find((s) => s.includes('anthropics/claude-code-action'))!;
+    expect(claude).toContain('--allowedTools "Read,Glob,Grep,Edit,Write,Bash(git log:*),Bash(git show:*),Bash(git diff:*)"');
+    expect(claude).not.toMatch(/LINEAR_API_KEY|show_full_output|display_report/);
+    // The key reads the issue before Claude; the patch is taken with the scripts and repository copied before it.
+    expect(fix.findIndex((s) => s.includes('LINEAR_API_KEY'))).toBeLessThan(fix.indexOf(claude));
+    expect(fix.findIndex((s) => s.includes('cp -a .git "$RUNNER_TEMP/base.git"'))).toBeLessThan(fix.indexOf(claude));
+    expect(jobs['fix']).toContain('GIT_DIR: ${{ runner.temp }}/base.git');
+    const watchSteps = jobs['watch']!.split(/\n {6}- /);
+    const look = watchSteps.findIndex((s) => s.includes('anthropics/claude-code-action'));
+    expect(watchSteps.findIndex((s) => s.includes('cp -a .git "$RUNNER_TEMP/base.git"'))).toBeLessThan(look);
+    expect(watchSteps.find((s) => s.includes('file .user-issues'))).toContain('GIT_DIR: ${{ runner.temp }}/base.git');
+    expect(jobs['fix']).toContain('run: node "$RUNNER_TEMP/watch/user-issues.mjs" fix-patch .user-issues');
+    expect(jobs['fix']).toContain('max-parallel: 1');
+    // The checks hold no secret; the paths are refused before anything of the patch runs.
+    expect(jobs['check']).not.toMatch(/secrets\.|cache:/);
+    expect(jobs['check']!.indexOf('fix-paths')).toBeLessThan(jobs['check']!.indexOf('npm ci'));
+    // The push runs nothing of the patch.
+    expect(jobs['open']).not.toMatch(/\bnpm\b|\bnpx\b|vitest|claude-code-action/);
+    expect(jobs['open']).not.toContain('CLAUDE_CODE_OAUTH_TOKEN');
   });
 
   it('names kinds as the Worker and the database do', () => {
@@ -296,5 +336,69 @@ describe('Linear', () => {
     expect(await api.issue('LAN-404')).toBeNull();
     const refused = linearClient('lin_key', (async () => Response.json({ errors: [{ message: 'Authentication required', extensions: { code: 'AUTHENTICATION_ERROR' } }] }, { status: 401 })) as unknown as typeof fetch);
     await expect(refused.issue('LAN-1')).rejects.toThrow('Linear AUTHENTICATION_ERROR: Authentication required');
+  });
+});
+
+describe('a draft fix for each new issue', () => {
+  const git = (cwd: string, ...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8' });
+
+  it('reads the paths git lists for a patch, both sides of a rename and binary files', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'fix-'));
+    try {
+      git(dir, 'init', '-q');
+      writeFileSync(join(dir, 'a.ts'), 'export const a = 1;\n'.repeat(20));
+      writeFileSync(join(dir, 'old name.ts'), 'export const b = 2;\n'.repeat(20));
+      git(dir, 'add', '-A');
+      git(dir, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'base');
+      writeFileSync(join(dir, 'a.ts'), 'export const a = 3;\n'.repeat(20));
+      git(dir, 'mv', 'old name.ts', 'new name.ts');
+      writeFileSync(join(dir, 'pic.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 1, 2]));
+      git(dir, 'add', '-A');
+      const patch = git(dir, 'diff', '--cached', '--binary', '-M');
+      writeFileSync(join(dir, 'fix.patch'), patch);
+      expect(pathsOf(git(dir, 'apply', '--numstat', '-z', 'fix.patch')).sort()).toEqual(['a.ts', 'new name.ts', 'pic.png']);
+      // git lists only where a rename goes; where it came from is read from the patch.
+      expect(oldPathsOf(patch).sort()).toEqual(['a.ts', 'old name.ts']);
+      expect(oldPathsOf('diff --git a/x b/x\n--- "a/.github/\\tx"\n+++ b/x\n')).toEqual(['"a/.github/\\tx"']);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses a change to how the repository builds and deploys, its packages, secrets, agents or the watch, and one too big to review', () => {
+    expect(fixRefusal(['apps/mobile/src/recording/recorder.ts', 'apps/mobile/test/recorder.test.ts'], 4000)).toBeNull();
+    for (const p of ['.github/workflows/guardrails.yml', '.githooks/pre-commit', 'package.json', 'apps/mobile/package.json', 'package-lock.json', '.env.production',
+      'apps/mobile/.env.preview', '.npmrc', '.agents/skills/user-issues/SKILL.md', '.claude/settings.json', 'AGENTS.md', 'CLAUDE.md', 'scripts/user-issues.mjs',
+      'scripts/linear-sync.mjs', '.git/config', 'apps/.git/hooks/pre-commit', '../outside.ts', '/etc/passwd', '.user-issues/issue.json', '"a/.github/\\tx"']) {
+      expect(fixRefusal(['apps/mobile/src/a.ts', p], 100), p).toMatch(/which a draft fix may not$/);
+    }
+    expect(fixRefusal([], 0)).toBe('it changes nothing');
+    expect(fixRefusal(Array.from({ length: FIX_LIMITS.files + 1 }, (_, i) => `apps/mobile/src/f${i}.ts`), 100)).toMatch(/more than 30$/);
+    expect(fixRefusal(['apps/mobile/src/a.ts'], FIX_LIMITS.bytes + 1)).toMatch(/more than 300$/);
+  });
+
+  it('takes Claude\'s summary or its reason for none, cut and without addresses, and only fixed words from the checks', () => {
+    expect(checkFix({ summary: 'Saves the part before closing. Ask a@b.org', tests: 'recorder.test.ts' })).toEqual({ summary: 'Saves the part before closing. Ask [address]', tests: 'recorder.test.ts', noFix: '' });
+    expect(checkFix({ noFix: 'Needs a store build.' }).noFix).toBe('Needs a store build.');
+    expect(checkFix({}).noFix).toBe('Claude wrote no summary of a change.');
+    expect(checkFix(null).noFix).toBe('Claude wrote no summary of a change.');
+    expect(checkFix({ summary: 'x'.repeat(5000) }).summary).toHaveLength(FIX_LIMITS.summary);
+    expect(checkResults({ typecheck: 'passed', tests: 'none' })).toEqual({ typecheck: 'passed', tests: 'none' });
+    expect(checkResults({ typecheck: 'passed **really**', tests: 1 })).toEqual({ typecheck: 'not run', tests: 'not run' });
+    expect(FIX_MAX).toBe(3);
+    expect(fixBranch('LAN-230')).toBe('user-issue/lan-230');
+  });
+
+  it('opens a pull request that links the issue, says what ran and that its checks wait for a person, and tells the issue', () => {
+    const issue = { identifier: 'LAN-230', url: 'https://linear.app/frontierrandd/issue/LAN-230' };
+    const body = fixBody(issue, { summary: 'Saves the part before closing.', tests: 'recorder.test.ts', noFix: '' }, { typecheck: 'passed', tests: 'failed' }, RUN);
+    expect(body).toContain('A draft fix for [LAN-230](https://linear.app/frontierrandd/issue/LAN-230)');
+    expect(body).toContain('Saves the part before closing.\n\n**Tests:** recorder.test.ts');
+    expect(body).toContain(`**In the workflow:** typecheck passed; tests **failed** ([run](${RUN})).`);
+    expect(body).toContain('CI runs when a person marks this pull request Ready for review.');
+    expect(fixComment({ number: 330, url: 'https://github.com/genesis-ai-dev/langquest-next/pull/330' }, { typecheck: 'passed', tests: 'none' }))
+      .toBe('**Claude wrote a draft fix:** [PR 330](https://github.com/genesis-ai-dev/langquest-next/pull/330).\n\nTypecheck passed; no tests near the change.\n\nReview it, then mark it Ready for review on GitHub to run CI and merge it.');
+    expect(noFixComment('Needs a store build.', RUN)).toBe(`**Claude looked for a fix and wrote none.** Needs a store build.\n\nThe watch for user issues: ${RUN}`);
+    expect(branchComment('user-issue/lan-230', RUN)).toContain('[Open it](https://github.com/genesis-ai-dev/langquest-next/compare/main...user-issue/lan-230?expand=1)');
   });
 });
