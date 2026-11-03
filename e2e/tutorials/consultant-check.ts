@@ -52,7 +52,8 @@ export const consultantCheck: Tutorial = {
     },
     {
       screen: 'review_capture',
-      part: (page) => radio(page, '4'),
+      // The whole scale is lit, its words under it too; the finger taps 4 (the first part named).
+      part: (page) => [radio(page, '4'), radio(page, '1'), radio(page, '5'), words(page, '1 · not at all'), words(page, '5 · very well')],
       say: 'Answer each question. This one goes from one to five.',
       tap: true,
       stay: 0.4
@@ -66,7 +67,7 @@ export const consultantCheck: Tutorial = {
     },
     {
       screen: 'review_capture',
-      part: (page) => radio(page, 'Yes'),
+      part: (page) => [radio(page, 'Yes'), radio(page, 'No')],
       say: 'This one is yes or no.',
       tap: true,
       stay: 0.4
