@@ -847,12 +847,14 @@ Expected:
 - Toast "Alpha translates {what}.", with no Undo.
 - Step 4 puts the New Testament back (the same toast, with the New
   Testament), and every P-* passage keeps its work.
-- Back on Alpha's page the "Content template" row reads "Bible stories ·
-  New Testament". Nothing is refused.
+- Back on Alpha's page the "Content template" row reads "FIA passages
+  (English) · New Testament". Nothing is refused.
 
 Changed (2026-10-16, decision 134): no toast offers Undo; choosing the earlier books again in "They record" changes it back.
 
 Changed (2026-10-16, decision 138): "They record" is now "Content template" → "Which books".
+
+Changed (2026-11-02, decision 138): the "Content template" row names the template as its own page does, not what it divides the work into ("Bible stories").
 
 ### SETUP-025 A new numbering on a language with work warns first
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Manual
