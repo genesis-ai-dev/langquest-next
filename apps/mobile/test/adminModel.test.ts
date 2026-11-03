@@ -106,6 +106,8 @@ describe('what they record, in plain words', () => {
     expect(scopeLabel('custom', ['ACT', 'LUK'])).toBe('Luke and Acts');
     expect(scopeLabel('custom', ['GEN', 'ACT', 'LUK'])).toBe('3 books');
     expect(recordSummary(doc, ['LUK', 'ACT'])).toBe('Bible stories · New Testament');
+    // The template by its own name where it has one, as its page names it (decision 138).
+    expect(recordSummary(doc, ['LUK', 'ACT'], 'FIA passages (English)')).toBe('FIA passages (English) · New Testament');
     expect(recordSummary({ ...bible('books'), structure: 'outline', outline: [] }, undefined, 'Health lessons')).toBe('Health lessons');
   });
 });
