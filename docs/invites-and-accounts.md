@@ -206,8 +206,9 @@ Sign In → signed in, with nothing to type; their Settings says who helped.
 **G. Lost password (own email).** Sign In → **Forgot password?** → their
 email → **Send link**. The `password-reset` function emails a one-time link
 (`/signin#reset=<code>`) through the Cloudflare email worker, in the
-language the app showed; it opens **New password** in the app (Android's app
-links) or the web app, where the new password is set and they are signed
+language the app showed; it opens **New password** in the app (app links,
+iPhone ones since decisions.md 58 was amended on 2026-11-03) or the web app,
+where the new password is set and they are signed
 in. It works once, for an hour. The answer is the same whether or not the
 address has an account; an address unknown here is passed to LangQuest v2,
 which sends its own reset email (decisions.md 200). A sign-in name has no
