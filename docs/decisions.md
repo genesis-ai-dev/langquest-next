@@ -9293,6 +9293,25 @@ more suggestions are rejected than accepted for weeks (then keep the
 inputs and drop the suggestions); or GitHub changes what its OIDC tokens
 say.
 
+Amended (2026-11-03, Caleb Koster): comments are kept 30 days, not a year.
+Google's audit for more YouTube API quota (Caleb, 2026-11-02, thread "Plan
+tutorial videos and keep them current") checks how we keep YouTube data,
+and YouTube's developer policies let an API client keep what it reads about
+other people for 30 days before it must read it again or delete it. Caleb
+said yes (2026-11-03) to one change that makes us pass: a comment, with its
+English and suggested reply, is taken out 30 days after it was posted,
+whether or not Claude has looked at it or a suggestion that answers it
+waits (the suggestion stays without it); one older is never copied, and the
+comments job reads back no further (`KEPT_DAYS`). An hourly pg_cron job
+takes them out (migration `20261103190500_tutorial_comments_30_days.sql`),
+so a stopped comments job or look keeps nothing longer. The privacy policy
+gains a part on our YouTube channels (`/privacy#youtube`: YouTube's Terms
+of Service and Google's Privacy Policy, what we copy, Claude, the 30 days,
+how to take away a channel's access), and the videos page (187) links it.
+Code changes, notes and answered suggestions keep their year. A comment
+Claude has not looked at within 30 days, because the look stopped running,
+is lost to it.
+
 ## 187. Every tutorial video can be downloaded from LangQuest, by a link that lasts and from a page of them all; YouTube's descriptions give both
 
 Date: 2026-10-29 · By: Caleb Koster · Status: accepted
@@ -10299,6 +10318,62 @@ the privacy page names them as service providers.
 Reverse if: what it files is mostly noise after a week (then tighten what
 is handed over), or problems still go unseen for a day (then look at the
 assignment and the phone alerts first).
+
+Amended (2026-11-03, Caleb Koster): closed stays closed. The first run
+filed LAN-220 for a problem a pull request merged after the reports had
+already fixed (Play all, PR 295), and Caleb asked that issues the team has
+dealt with not come back, and that the ops dashboard say which pull request
+dealt with each. Decided (migration `20261103204500_user_issues_fixed.sql`):
+- **Already fixed** is a fourth verdict. Claude reads main's merges (the
+  checkout is 600 commits deep, `git log` and `git merge-base` only) and,
+  when one merged after every report fixes the kind, says `fixed` with the
+  pull request's number: nothing is filed.
+- **Linear decides open or closed.** Each run reads the state of every
+  issue the watch filed or commented on; closed there (Live, Canceled,
+  Duplicate; not Outage) closes its kinds, with the pull request linked on
+  the issue or the merge naming it, and marks what was sent from help mode
+  about it done. Opened again there, it is open again.
+- **Back only after the fix.** A fixed kind is handed over again only for
+  people who hit it more than a day after the fix, at least twice as many
+  as when last looked at (and two). Claude tells builds from before the fix
+  (it stays closed) from a fix that did not hold (the script reopens the
+  issue to Todo). Kinds now say the build (a browser's commit, a phone's
+  update or store build), since phones never send an app version.
+- **The ops dashboard's User issues section** (`diag.ops_user_issues()`)
+  lists each issue with its state in Linear and the pull request that fixed
+  it, and the kinds found already fixed.
+Considered: a list of closed kinds kept by hand (it would go stale, and
+Linear already says what is done); reopening on any new report (old phones
+and tabs keep reporting a fixed problem for days).
+
+Amended (2026-11-03, Caleb Koster): a draft fix with each new issue. Caleb
+chose (2026-11-03, thread "Auto-detect and fix user issues") that Claude
+opens a fix pull request right away with each new issue, not after a
+developer has looked at it, so a developer reviews the issue and its fix
+together. Decided (`.github/workflows/user-issues.yml`, the skill's "Writing
+a draft fix"):
+- **At most three a run**, each a draft pull request on
+  `user-issue/<issue>`, titled with the issue's id and linked on it. Claude
+  may answer that there is no fix, and the issue says why.
+- **What people wrote shapes the code, so the jobs trust each other less as
+  they go.** Claude edits with no key and no shell; the job that runs the
+  patch's code (typecheck, the nearest tests) holds no key and only reads;
+  the job that pushes and opens the pull request runs nothing of it. A
+  patch that changes how the repository builds, tests or deploys
+  (`.github/`, hooks, packages, `.env*`, agents' instructions, the watch) is
+  refused. Steps that hold a key after Claude run the scripts as they were
+  before Claude ran.
+- **Its checks wait for a person.** The pull request is opened with the
+  built-in token, which starts no checks, and guardrails run when a person
+  marks it Ready for review (`ready_for_review`). Guardrails hold the Expo
+  and Docker tokens, which code written from a stranger's words must not
+  reach before someone has read it. Opening pull requests with the built-in
+  token is a repository setting kept in `.github/actions-permissions.json`
+  (`npm run github:rules`).
+Considered: the Claude GitHub App's token, whose pull requests start checks
+at once (the guardrails would run unread code with their tokens); one job
+for all of it (Claude can write in the checkout, including `.git`, and a
+later step would run what it wrote with the keys).
 
 ## 203. A study step shows the pictures and maps its text asks for, linked or not, and the rest after its text
 

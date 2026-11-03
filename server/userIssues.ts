@@ -28,9 +28,11 @@ export const KEY = new RegExp(`^(${FAMILIES.join('|')}):[A-Za-z0-9 _.:()/#@-]{1,
  * What the look decided about a kind. `filed`: a new Linear issue. `known`:
  * an issue the team already had (a comment was added to it). `noise`: nothing
  * to fix (one person's wrong password, a phone of the store's review); the
- * watch asks again only when twice as many people hit it.
+ * watch asks again only when twice as many people hit it. `fixed`: every hit
+ * came before a change merged into main that fixes it (its pull request);
+ * nothing is filed, and it comes back only when people hit it after the fix.
  */
-export const VERDICTS = ['filed', 'known', 'noise'] as const;
+export const VERDICTS = ['filed', 'known', 'noise', 'fixed'] as const;
 export type Verdict = (typeof VERDICTS)[number];
 
 /** A kind as `ops_user_issue_watch` hands it over. */
@@ -48,13 +50,27 @@ export interface WatchKind {
   lastAt: string | null;
   /** People by platform (`web`, `ios`, `android`). */
   platforms: Record<string, number>;
+  /**
+   * The builds that hit it, by installs (`ops.user_issue_build`): `web <commit>`
+   * for a browser, `<os> update <id>` for a phone's over-the-air update,
+   * `<os> store build <runtime>` for a store build's own code.
+   */
   apps: { app: string; installs: number }[];
   /** A few installs that hit it, for `npm run diag -- timeline <id>`. */
   installIds: string[];
   /** The newest stack seen for an error: frames only, no message (diagnostics.md). */
   stack: string | null;
-  /** What an earlier look decided, when it is looked at again because it grew. */
-  before: { verdict: Verdict; issue: string | null; people: number; lookedAt: string } | null;
+  /**
+   * What an earlier look decided, when it is looked at again: noise that grew,
+   * or a kind fixed (`fixedBy`, the pull request, merged at `fixedAt`) or whose
+   * issue closed (`closedAt`, its Linear `state`) that people hit after the fix.
+   */
+  before: {
+    verdict: Verdict; issue: string | null; issueUrl: string | null; people: number; lookedAt: string;
+    fixedBy: number | null; fixedAt: string | null; closedAt: string | null; state: string | null;
+  } | null;
+  /** For a kind fixed or closed: people who hit it more than a day after the fix (its `platforms`, `apps`, `installIds` and `stack` are theirs only). */
+  peopleAfterFix: number | null;
   /** A server job in trouble, or the Worker's 5xx answers. */
   server: Record<string, unknown> | null;
   /** A problem sent from help mode: never who sent it (no name or email). */
@@ -79,6 +95,8 @@ export interface Watch {
   active: number;
   look: WatchKind[];
   grew: GrownKind[];
+  /** Every Linear issue the watch filed or commented on in 180 days, with the state last read (the workflow reads them again each run). */
+  issues: { issue: string; state: string | null; closed: boolean }[];
 }
 
 /** At most this many kinds are handed to one look; the rest wait for the next run. */
@@ -99,13 +117,24 @@ const ISSUE_URL = /^https:\/\/linear\.app\/[A-Za-z0-9/_.-]{1,300}$/;
 const RUN = new RegExp(`^https://github\\.com/${REPOSITORY.replace('/', '\\/')}/actions/runs/[0-9]{1,20}(/attempts/[0-9]{1,5})?$`);
 /** No address may ride along in a note: the database keeps none (docs/diagnostics.md). */
 export const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
-export const LOOKED_MAX = { looked: 200, grew: 200 } as const;
+export const LOOKED_MAX = { looked: 200, grew: 200, states: 100 } as const;
+/** A Linear state's name (Backlog, In Progress, Live). */
+const STATE = /^[A-Za-z][A-Za-z0-9 ._()-]{0,59}$/;
+const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/;
 
 export interface Looked {
   sha: string;
   runUrl: string;
-  looked: { key: string; verdict: Verdict; issue: string | null; issueUrl: string | null; people: number; count: number; note: string | null }[];
+  looked: {
+    key: string; verdict: Verdict; issue: string | null; issueUrl: string | null; people: number; count: number; note: string | null;
+    /** What a person sees go wrong (filed or fixed), for the ops dashboard. */
+    title: string | null;
+    /** `fixed` only: the pull request on main that fixed it (when known), and when it merged or its issue closed. */
+    fixedBy: number | null; fixedAt: string | null;
+  }[];
   grew: { key: string; people: number; count: number }[];
+  /** Issues whose state in Linear changed since the watch last read it: closed (with the pull request that fixed it, when named) or open again. */
+  states: { issue: string; state: string; closed: boolean; closedAt: string | null; fixedBy: number | null; fixedAt: string | null; title: string | null }[];
 }
 
 export class LookedError extends Error {
@@ -136,6 +165,30 @@ function count(o: Obj, field: string, where: string): number {
   return v as number;
 }
 
+const absent = (v: unknown) => v === null || v === undefined;
+
+function pr(o: Obj, field: string, where: string): number | null {
+  const v = o[field];
+  if (absent(v)) return null;
+  if (!Number.isInteger(v) || (v as number) < 1 || (v as number) > 100_000_000) throw new LookedError(`${where}.${field}: a pull request's number`);
+  return v as number;
+}
+
+function time(o: Obj, field: string, where: string): string | null {
+  const v = o[field];
+  if (absent(v)) return null;
+  if (typeof v !== 'string' || !ISO.test(v) || Number.isNaN(Date.parse(v))) throw new LookedError(`${where}.${field}: a time (ISO 8601)`);
+  return v;
+}
+
+/** What a person sees go wrong, as a title: at most 200 characters and never an address. */
+function titleOf(o: Obj, where: string): string | null {
+  const v = o['title'];
+  if (absent(v) || v === '') return null;
+  if (typeof v !== 'string' || v.length > 200 || EMAIL.test(v)) throw new LookedError(`${where}.title: at most 200 characters, no address`);
+  return v;
+}
+
 /** What the workflow sent, checked; a LookedError says the first thing wrong. */
 export function parseLooked(input: unknown): Looked {
   if (!isObj(input)) throw new LookedError('not an object');
@@ -152,17 +205,46 @@ export function parseLooked(input: unknown): Looked {
     if (typeof verdict !== 'string' || !(VERDICTS as readonly string[]).includes(verdict)) throw new LookedError(`${where}.verdict: one of ${VERDICTS.join(', ')}`);
     const issue = l['issue'] ?? null;
     const issueUrl = l['issueUrl'] ?? null;
-    if (verdict === 'noise' ? issue !== null || issueUrl !== null : typeof issue !== 'string' || !ISSUE.test(issue) || typeof issueUrl !== 'string' || !ISSUE_URL.test(issueUrl)) {
-      throw new LookedError(`${where}.issue: ${verdict === 'noise' ? 'none for noise' : 'its Linear issue (LAN-12) and address'}`);
+    // Filed and known name their issue; noise none; fixed names one when it is a closed issue's kind.
+    const named = typeof issue === 'string' && ISSUE.test(issue) && typeof issueUrl === 'string' && ISSUE_URL.test(issueUrl);
+    const none = issue === null && issueUrl === null;
+    if (verdict === 'noise' ? !none : verdict === 'fixed' ? !named && !none : !named) {
+      throw new LookedError(`${where}.issue: ${verdict === 'noise' ? 'none for noise' : verdict === 'fixed' ? 'its closed issue (LAN-12) and address, or none' : 'its Linear issue (LAN-12) and address'}`);
     }
     const note = l['note'] === null || l['note'] === undefined || l['note'] === '' ? null : l['note'];
     if (note !== null && (typeof note !== 'string' || note.length > 500 || EMAIL.test(note))) throw new LookedError(`${where}.note: at most 500 characters, no address`);
-    return { key: k, verdict: verdict as Verdict, issue: issue as string | null, issueUrl: issueUrl as string | null, people: count(l, 'people', where), count: count(l, 'count', where), note: note as string | null };
+    const title = titleOf(l, where);
+    const fixedBy = pr(l, 'fixedBy', where);
+    const fixedAt = time(l, 'fixedAt', where);
+    if (verdict === 'fixed' ? fixedAt === null : fixedBy !== null || fixedAt !== null) {
+      throw new LookedError(`${where}.fixedAt: ${verdict === 'fixed' ? 'when the fix merged, for fixed' : 'only for fixed'}`);
+    }
+    return {
+      key: k, verdict: verdict as Verdict, issue: issue as string | null, issueUrl: issueUrl as string | null, people: count(l, 'people', where), count: count(l, 'count', where),
+      note: note as string | null, title, fixedBy, fixedAt
+    };
   });
   const grew = list(input, 'grew', LOOKED_MAX.grew).map((g, n) => {
     const where = `grew[${n}]`;
     if (!isObj(g)) throw new LookedError(`${where}: an object`);
     return { key: key(g, where), people: count(g, 'people', where), count: count(g, 'count', where) };
   });
-  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew };
+  const issues = new Set<string>();
+  const states = list(input, 'states', LOOKED_MAX.states).map((s, n) => {
+    const where = `states[${n}]`;
+    if (!isObj(s)) throw new LookedError(`${where}: an object`);
+    const issue = s['issue'];
+    if (typeof issue !== 'string' || !ISSUE.test(issue) || issues.has(issue)) throw new LookedError(`${where}.issue: a Linear issue (LAN-12), once`);
+    issues.add(issue);
+    const state = s['state'];
+    if (typeof state !== 'string' || !STATE.test(state)) throw new LookedError(`${where}.state: a Linear state's name`);
+    if (typeof s['closed'] !== 'boolean') throw new LookedError(`${where}.closed: true or false`);
+    const closed = s['closed'];
+    const closedAt = time(s, 'closedAt', where);
+    const fixedBy = pr(s, 'fixedBy', where);
+    const fixedAt = time(s, 'fixedAt', where);
+    if (!closed && (closedAt !== null || fixedBy !== null || fixedAt !== null)) throw new LookedError(`${where}: an open issue has no closedAt or fix`);
+    return { issue, state, closed, closedAt, fixedBy, fixedAt, title: titleOf(s, where) };
+  });
+  return { sha: input['sha'], runUrl: input['runUrl'], looked, grew, states };
 }

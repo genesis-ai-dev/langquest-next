@@ -8,7 +8,7 @@ import type { GithubRun, OidcRule } from './githubOidc';
  * docs/diagnostics.md "The watch for user issues", decisions.md 202):
  * `GET /api/user-issues` is what is new (`ops_user_issue_watch`), `POST` what
  * the workflow did about it (server/userIssues.ts `Looked`, checked, then
- * `ops_user_issues_looked`).
+ * `ops_user_issues_looked`), including the issues closed or reopened in Linear.
  *
  * Only that workflow, run from main, gets in, with the OpenID Connect token
  * GitHub gives the job (githubOidc.ts), as the tutorial review's door does
@@ -27,7 +27,7 @@ export const USER_ISSUES_MAX_BYTES = 512 * 1024;
 export interface UserIssuesDeps {
   verify(token: string, rule: OidcRule): Promise<GithubRun | null>;
   watch(): Promise<Watch>;
-  looked(looked: Looked): Promise<{ looked: number; grew: number }>;
+  looked(looked: Looked): Promise<{ looked: number; grew: number; closed?: number; reopened?: number }>;
   record(run: JobRun): Promise<void>;
   now(): number;
 }
@@ -72,11 +72,11 @@ export async function handleUserIssues(request: Request, deps: UserIssuesDeps): 
   // The run the token names is the run the workflow says it is.
   if (!looked.runUrl.includes(`/actions/runs/${run.runId}`)) return json(400, { error: 'runUrl: this run\'s address' });
   const done = await deps.looked(looked);
-  const verdicts = { filed: 0, known: 0, noise: 0 };
+  const verdicts = { filed: 0, known: 0, noise: 0, fixed: 0 };
   for (const l of looked.looked) verdicts[l.verdict] += 1;
   await deps.record({
     job: 'user_issue_look', startedAt: started, ms: deps.now() - started, outcome: 'ok',
-    n: { looked: done.looked, ...verdicts, grew: done.grew }
+    n: { looked: done.looked, ...verdicts, grew: done.grew, closed: done.closed ?? 0, reopened: done.reopened ?? 0 }
   });
   return json(200, done);
 }

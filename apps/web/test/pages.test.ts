@@ -100,6 +100,8 @@ describe('pages the Worker serves, in the reader’s language', () => {
     expect(html).not.toContain('href="/v/es/do-a-check"');
     expect(html).toContain('12,3 MB');
     expect(html).toContain('1:33');
+    // YouTube's API audit asks for the privacy policy beside the links to YouTube (decisions.md 186, amended).
+    expect(html).toContain('<a href="/privacy#youtube">Privacidad</a>');
   });
 
   it('keeps only videos the database described whole', () => {

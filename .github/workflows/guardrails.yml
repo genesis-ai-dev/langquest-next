@@ -71,6 +71,10 @@ name: guardrails
 
 on:
   pull_request:
+    # And Ready for review: a draft fix the watch for user issues opens with
+    # the built-in token starts no run, so its checks start when a person,
+    # having read it, marks it ready (decisions.md 202).
+    types: [opened, synchronize, reopened, ready_for_review]
   # The merge queue: main as it will be with the pull requests ahead in the
   # queue, before it merges (.github/rulesets/main.json).
   merge_group:

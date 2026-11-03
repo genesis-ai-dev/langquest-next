@@ -10,6 +10,12 @@
 // main.json requires one check, the guardrails `gate` job, which needs every
 // guardrails job that runs on a pull request; scripts/githubRules.test.ts
 // holds the two together.
+//
+// .github/actions-permissions.json is what this repository's workflows may
+// do with their built-in token: open pull requests, which the watch for user
+// issues does for its draft fixes (decisions.md 202). GitHub calls it
+// "Allow GitHub Actions to create and approve pull requests"; nothing here
+// needs an approval to merge (main.json).
 import { spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -17,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 export const RULESETS = join(root, '.github/rulesets');
+export const ACTIONS_PERMISSIONS = join(root, '.github/actions-permissions.json');
 
 /** Every ruleset file, by its name. */
 export function readRulesets(dir = RULESETS) {
@@ -95,6 +102,17 @@ function main() {
     if (!apply) continue;
     gh(current ? ['-X', 'PUT', `${repo}/${current.id}`, '--input', '-'] : ['-X', 'POST', repo, '--input', '-'], JSON.stringify(ruleset));
     console.log(`  done: ${verb}d`);
+  }
+  const actions = 'repos/{owner}/{repo}/actions/permissions/workflow';
+  const want = JSON.parse(readFileSync(ACTIONS_PERMISSIONS, 'utf8'));
+  if (matches(want, gh([actions]))) console.log('= workflow permissions (actions-permissions.json) are as the file says');
+  else {
+    changes += 1;
+    console.log(`~ workflow permissions (actions-permissions.json): update to ${JSON.stringify(want)}`);
+    if (apply) {
+      gh(['-X', 'PUT', actions, '--input', '-'], JSON.stringify(want));
+      console.log('  done: updated');
+    }
   }
   if (changes && !apply) console.log('\nNothing was changed. Run again with --apply to make these changes.');
 }

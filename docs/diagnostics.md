@@ -323,7 +323,10 @@ at most 20 at a time, problems from help mode first.
 When something is new, Claude (`anthropics/claude-code-action`, the plan
 token of the tutorial review) reads the kinds and the team's Linear issues,
 follows the `user-issues` skill, and writes what it decided: a new problem,
-one the team already has, or noise. `scripts/user-issues.mjs` then files
+one the team already has, noise, or already fixed. Already fixed means a
+pull request merged into main after the reports fixes it (Claude reads
+main's merges with `git log`, 600 commits deep): nothing is filed, and the
+kind keeps the pull request's number and when it merged. `scripts/user-issues.mjs` then files
 each new problem in Linear's LangQuest Next team with the label **User
 issue**, assigned to the Linear user named in the workflow, and comments on
 an issue that a known kind belongs to. Then it tells the Worker what was
@@ -333,14 +336,59 @@ filed one as a comment on its issue with the new numbers, noise to be
 judged again. Server kinds come back after a week; noise is forgotten after
 90 days.
 
+**Closed in Linear stays closed.** Every run reads the state of each issue
+the watch filed or commented on (180 days back) and sends what changed. An
+issue closed in Linear (Live, Canceled or Duplicate; not Outage, which says
+a deploy failed) closes its kinds too: they become already fixed, with the
+pull request linked on the issue (the newest) or the merge on main that
+names it, and a problem sent from help mode about it is marked done. An
+issue opened again in Linear is open for the watch again. A fixed kind, by
+Claude or by Linear, comes back only for people who hit it more than a day
+after the fix (time for browsers to reload and phones to take the update),
+at least twice as many as when it was last looked at and at least two.
+Claude then compares the builds they ran with the fix: builds from before
+it leave it closed; builds that have it mean the fix did not hold, and the
+script comments on the issue and moves it back to Todo. A build is a
+browser's commit (`web 4df4afdeaf0f`), a phone's update (`android update
+1a2b3c4d`) or store build (`ios store build 2026.103`): phones never send
+an app version.
+
+The ops dashboard's **User issues** section (`diag.ops_user_issues()`)
+lists every issue the watch filed or commented on and every kind it found
+already fixed, the last 90 days: its state in Linear, the pull request that
+fixed it and when, and the last look.
+
 An issue says what went wrong in plain words, what the watch counted
-(people, installs, platforms, app versions, first and last seen), the
+(people, installs, platforms, builds, first and last seen), the
 person's own words for a problem from help mode (an email address taken
 out), and, in its Agent notes, the kinds' keys (how later runs find it),
 a few install ids for `npm run diag -- --hosted timeline <installId>`, the
 newest stack, and where Claude thinks it comes from in the code. The
 repository is public, so the workflow's log says only counts, keys and
 issue ids.
+
+**A draft fix comes with each new issue** (at most three a run). After
+filing, the workflow hands each new issue back to Claude in a fresh checkout
+of main, following the skill's "Writing a draft fix": the smallest change
+that fixes it, with a test, or a reason why there is none (the cause is
+unclear, or it needs a person's decision, a store build or a dashboard).
+What people wrote shapes that code, so three jobs trust each other less as
+they go:
+
+| Job | Holds | Does |
+| --- | --- | --- |
+| `fix` | the Linear key, in a step before Claude; the Claude token | Claude edits the checkout with no shell but `git log`, `show` and `diff`; the patch is taken with the script and the repository copied before Claude ran |
+| `check` | no key; reads only | refuses a patch that changes `.github/`, hooks, packages, `.env*`, agents' instructions or the watch, then applies it, lets the git hooks rebuild what they rebuild, and runs typecheck and `vitest related` |
+| `open` | the Linear key; writes branches and pull requests | runs nothing of the patch: pushes it to `user-issue/<issue>`, opens it as a draft pull request titled with the issue's id, and links it on the issue with a comment |
+
+A pull request the built-in token opens starts no checks. Guardrails start
+when a person, having read the change, marks it Ready for review
+(`ready_for_review` in `guardrails.yml`); merging moves the issue on like any
+change whose commit names it. When there is no fix, the issue says why.
+Opening the pull request needs "Allow GitHub Actions to create and approve
+pull requests" (`.github/actions-permissions.json`, `npm run github:rules
+-- --apply`); without it the branch is pushed, the issue links it, and the
+run says "Needs you".
 
 The watch's runs are the ops dashboard's `user_issue_watch` job (it is
 stale after an hour without one) and `user_issue_look`. Without
