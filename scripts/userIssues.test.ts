@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import {
   API, AUDIENCE, checkDecisions, factsOf, FAMILIES, grewComment, issueDescription, KEY, keysIn, LABEL, LIMITS, linearClient,
-  lookedOf, PREFIX, redact
+  lookedOf, PREFIX, redact, when
 } from './user-issues.mjs';
 import { USER_ISSUES_PATH, USER_ISSUES_RULE } from '../apps/web/worker/userIssues';
 import * as model from '../server/userIssues';
@@ -59,7 +59,10 @@ describe('user-issues.mjs', () => {
     expect(LABEL).toBe(model.ISSUE_LABEL);
     expect(PREFIX).toBe(model.ISSUE_PREFIX);
     const sql = read('supabase/migrations/20261103180000_user_issues.sql');
-    expect(sql).toContain(`key ~ '^(${FAMILIES.join('|')}):[A-Za-z0-9 _.:()/#@-]{1,290}$'`);
+    // Postgres allows no repetition count over 255, so the table says the length on its own.
+    expect(sql).toContain(`check (length(key) <= 300 and key ~ '^(${FAMILIES.join('|')}):[A-Za-z0-9 _.:()/#@-]+$')`);
+    // A tag a record left out is a dash, which a key may hold; never a question mark.
+    expect(sql).not.toMatch(/coalesce\([rn]\.t->>'\w+', '\?'\)/);
   });
 });
 
@@ -76,6 +79,13 @@ describe('an issue in Linear', () => {
     expect(description).toContain('android 2, web 1 · app 2026.1030.1319 (3)');
     expect(description).not.toMatch(/@example\.com|x@y\.org/);
     expect(redact('a b@c.de, e')).toBe('a [address], e');
+  });
+
+  it('says times in Pacific, as the team reads them', () => {
+    expect(when('2026-11-03T09:30:00Z')).toBe('Nov 3, 1:30 AM PT');
+    expect(description).toContain('from the screen `record`');
+    expect(description).toContain('first Nov 1, 2:00 AM PT, last Nov 3, 1:30 AM PT');
+    expect(when(null)).toBe('?');
   });
 
   it('keeps the kinds, phones, stack and cause in its agent notes, where a later run finds the kinds', () => {

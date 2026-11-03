@@ -58,7 +58,9 @@ export function keysIn(description) {
   return [...new Set(keys)];
 }
 
-const when = (iso) => (iso ? `${iso.slice(0, 16).replace('T', ' ')} UTC` : '?');
+/** A time as the team reads it: Pacific (the team's own time zone). */
+const PACIFIC = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+export const when = (iso) => (iso && !Number.isNaN(Date.parse(iso)) ? `${PACIFIC.format(new Date(iso))} PT` : '?');
 const byCount = (o) => Object.entries(o ?? {}).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -81,13 +83,13 @@ export function factsOf(kind) {
     return [
       `**The server job \`${s.job ?? kind.key}\` ${kind.key.endsWith(':stopped') ? 'stopped running' : `failed ${plural(s.streak ?? kind.count, 'time')} running`}** · runs ${s.every ? `every ${s.every}` : 'when asked'}, on ${s.runsOn ?? '?'}`,
       `Last run ${when(s.lastAt)} (${s.lastOutcome ?? '?'}${s.lastErrorClass ? `, ${s.lastErrorClass}` : ''}) · last good run ${when(s.lastOkAt)}`
-    ].join('\n');
+    ].join('\n\n');
   }
   const apps = (kind.apps ?? []).map((a) => `${a.app} (${a.installs})`).join(', ');
   return [
     `**\`${kind.key}\`** · ${plural(kind.people, 'person', 'people')} in 7 days (${kind.peopleDay} in the last day) · ${plural(kind.installs, 'install')} · ${plural(kind.count, 'time')}`,
     `${byCount(kind.platforms).map(([p, n]) => `${p} ${n}`).join(', ') || '?'} · app ${apps || '?'} · first ${when(kind.firstAt)}, last ${when(kind.lastAt)}`
-  ].join('\n');
+  ].join('\n\n');
 }
 
 /** The part for agents: the kinds (how later runs find this issue), the phones, the stack, and what Claude found in the code. */

@@ -130,9 +130,11 @@ begin
       jsonb_build_object('key', 'auth:sign_in:refused:invalid_credentials', 'people', 4, 'count', 4))));
   assert v = '{"looked":0,"grew":1}'::jsonb, 'noise does not grow, it is looked at again: %', v;
   assert jsonb_array_length(public.ops_user_issue_watch()->'grew') = 0, 'counted again from the new number';
-  assert (select grew_at is not null and people = 5 from ops.user_issues where key = 'error:TypeError@record:-'), 'kept';
 end $$;
 reset role;
+do $$ begin
+  assert (select grew_at is not null and people = 5 from ops.user_issues where key = 'error:TypeError@record:-'), 'the new count kept';
+end $$;
 
 -- What a run may say: a run of this repository, and kinds, verdicts and issues the table takes.
 set local role service_role;

@@ -16,7 +16,7 @@
 
 create table if not exists ops.user_issues (
   -- The kind: its family, then the record's code-like tags (server/userIssues.ts KEY).
-  key text primary key check (key ~ '^(error|sync|transfer|auth|expected|audio|fill|device|job|worker|feedback):[A-Za-z0-9 _.:()/#@-]{1,290}$'),
+  key text primary key check (length(key) <= 300 and key ~ '^(error|sync|transfer|auth|expected|audio|fill|device|job|worker|feedback):[A-Za-z0-9 _.:()/#@-]+$'),
   -- filed: a new Linear issue; known: an issue the team already had; noise: nothing to fix.
   verdict text not null check (verdict in ('filed', 'known', 'noise')),
   issue text check (issue is null or issue ~ '^[A-Z]{1,10}-[0-9]{1,7}$'),
@@ -70,27 +70,27 @@ language sql stable set search_path = '' as $$
     from r, jsonb_each_text(r.n) e
     where r.kind in ('transfer', 'audio', 'device') and e.value ~ '^[0-9]{1,15}(\.[0-9]+)?$'
   )
-  select 'error:' || coalesce(r.t->>'name', '?') || '@' || coalesce(r.t->>'where', '?') || ':' || coalesce(r.t->>'code', '-'),
+  select 'error:' || coalesce(r.t->>'name', '-') || '@' || coalesce(r.t->>'where', '-') || ':' || coalesce(r.t->>'code', '-'),
          r.install_id, r.delivered_by, r.os, r.app, r.received_at, 1::numeric, r.org_id, r.stack
   from r where r.kind = 'error'
   union all
   select case when r.t->>'outcome' = 'error'
-           then 'sync:error:' || coalesce(r.t->>'phase', '?') || ':' || coalesce(r.t->>'code', '-') || ':' || coalesce(r.t->>'error', '-')
+           then 'sync:error:' || coalesce(r.t->>'phase', '-') || ':' || coalesce(r.t->>'code', '-') || ':' || coalesce(r.t->>'error', '-')
            else 'sync:' || (r.t->>'outcome') end,
          r.install_id, r.delivered_by, r.os, r.app, r.received_at, 1::numeric, r.org_id, null
   from r where r.kind = 'sync' and r.t->>'outcome' in ('error', 'refused', 'too_old', 'unrenewed')
   union all
-  select 'transfer:' || coalesce(n.t->>'dir', '?') || ':' || coalesce(n.t->>'src', '?') || ':' || n.field,
+  select 'transfer:' || coalesce(n.t->>'dir', '-') || ':' || coalesce(n.t->>'src', '-') || ':' || n.field,
          n.install_id, n.delivered_by, n.os, n.app, n.received_at, n.value, n.org_id, null
   from num n where n.kind = 'transfer' and n.field like 'fail%' and n.field <> 'failOffline' and n.value > 0
   union all
-  select 'auth:' || coalesce(r.t->>'op', '?') || ':' || coalesce(r.t->>'outcome', '?') || ':' || coalesce(r.t->>'code', '-'),
+  select 'auth:' || coalesce(r.t->>'op', '-') || ':' || coalesce(r.t->>'outcome', '-') || ':' || coalesce(r.t->>'code', '-'),
          r.install_id, r.delivered_by, r.os, r.app, r.received_at, 1::numeric, r.org_id, null
   from r where r.kind = 'auth'
-    and coalesce(r.t->>'outcome', '?') not in ('ok', 'offline', 'done', 'keep', 'home', 'needs_name', 'no_org')
-    and (coalesce(r.t->>'op', '?') <> 'route' or r.t->>'outcome' = 'org_unknown')
+    and coalesce(r.t->>'outcome', '-') not in ('ok', 'offline', 'done', 'keep', 'home', 'needs_name', 'no_org')
+    and (coalesce(r.t->>'op', '-') <> 'route' or r.t->>'outcome' = 'org_unknown')
   union all
-  select 'expected:' || coalesce(r.t->>'where', '?') || ':' || coalesce(r.t->>'name', '?') || ':' || coalesce(r.t->>'code', '-'),
+  select 'expected:' || coalesce(r.t->>'where', '-') || ':' || coalesce(r.t->>'name', '-') || ':' || coalesce(r.t->>'code', '-'),
          r.install_id, r.delivered_by, r.os, r.app, r.received_at,
          case when r.n->>'count' ~ '^[0-9]{1,9}$' then (r.n->>'count')::numeric else 1 end, r.org_id, null
   from r where r.kind = 'expected'
