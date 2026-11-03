@@ -288,7 +288,8 @@ every 48 hours; some countries block YouTube.
   chosen in the reader's language (or `?lang=`), grouped by who it is for,
   each with Download (and its size), Play (the file in the phone's own
   player, no YouTube needed) and, once it is up, Watch on YouTube. Each
-  channel's description links it. The Worker writes it
+  channel's description links it. Its foot links the privacy policy's
+  part on our YouTube channels (`/privacy#youtube`). The Worker writes it
   (`apps/web/worker/videosPage.ts`, words in `apps/web/worker/i18n/`).
 - **Chosen, not uploaded:** a download is the version chosen, at once,
   without waiting for YouTube's 100 uploads a day; so a new version can be
@@ -327,8 +328,13 @@ suggesting the same again. An accepted code change becomes a Linear issue,
 "Tutorial feedback: …": at once when the app's Worker has `LINEAR_API_KEY`,
 otherwise at the comments job's next run. The replies Claude suggests are
 shown to copy into YouTube Studio; nothing is posted by itself. Making an
-accepted change to a video is still done by hand. Inputs and answered
-suggestions over a year old are taken out.
+accepted change to a video is still done by hand. A comment, with its
+English and suggested reply, is taken out 30 days after it was posted, and
+one older is never copied: YouTube's rule for what an API client keeps about
+other people, as the privacy policy says (`/privacy#youtube`; an hourly
+pg_cron job, migration `20261103010000_tutorial_comments_30_days.sql`). The
+suggestions stay without it. Code changes, notes and answered suggestions
+over a year old are taken out.
 
 Claude signs in with a Claude plan, not an API key, and uses that plan's
 five-hour and weekly limits, as the nightly filming's frame check does

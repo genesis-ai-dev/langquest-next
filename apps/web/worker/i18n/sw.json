@@ -142,6 +142,7 @@
     "youtube": "Tazama kwenye YouTube",
     "size": "MB {{mb}}",
     "none": "Bado hakuna video katika lugha hii.",
-    "failed": "Video hazikupakia. Pakia upya ukurasa ili ujaribu tena."
+    "failed": "Video hazikupakia. Pakia upya ukurasa ili ujaribu tena.",
+    "privacy": "Faragha"
   }
 }

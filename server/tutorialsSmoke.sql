@@ -275,14 +275,25 @@ do $$ begin
     raise exception 'a new video named an old one';
   exception when check_violation then null;
   end;
-  -- An answered comment a year old is taken out on the next read.
-  update ops.tutorial_inputs set at = now() - interval '13 months' where ref = 'Ugcomment-thanks-02';
+  -- A comment is kept 30 days after it was posted (migration *_tutorial_comments_30_days.sql); a note a year.
+  update ops.tutorial_inputs set at = now() - interval '31 days' where ref = 'Ugcomment-thanks-02' or kind = 'note';
 end $$;
 set local role service_role;
-select public.ops_comments_read('en', 'UC8Ry8oFIPWzDygngMwvkBLQ', '[]'::jsonb);
+select public.ops_comments_read('en', 'UC8Ry8oFIPWzDygngMwvkBLQ', jsonb_build_array(
+  jsonb_build_object('id', 'Ugcomment-old-0004', 'videoId', 'dQw4w9WgXcQ', 'text', 'Too old to copy', 'publishedAt', now() - interval '31 days'),
+  jsonb_build_object('id', 'Ugcomment-open-005', 'videoId', 'dQw4w9WgXcQ', 'text', 'Where is the record button?', 'publishedAt', now() - interval '3 days')));
 reset role;
 do $$ begin
-  assert not exists (select 1 from ops.tutorial_inputs where ref = 'Ugcomment-thanks-02'), 'kept a year';
+  assert not exists (select 1 from ops.tutorial_inputs where ref = 'Ugcomment-thanks-02'), 'a comment is kept 30 days';
+  assert not exists (select 1 from ops.tutorial_inputs where ref = 'Ugcomment-old-0004'), 'a comment posted over 30 days ago is not copied';
+  assert exists (select 1 from ops.tutorial_inputs where kind = 'note'), 'a note is kept a year';
+  assert exists (select 1 from ops.tutorial_inputs where ref = 'Ugcomment-bug-0001'), 'a comment of 2 days stays';
+  -- One Claude has not looked at goes too, by the hourly job, and its suggestions stay.
+  update ops.tutorial_inputs set at = now() - interval '31 days' where ref in ('Ugcomment-open-005', 'Ugcomment-bug-0001');
+  assert ops.tutorial_comments_expire() = 2, 'the two comments over 30 days taken out';
+  assert not exists (select 1 from ops.tutorial_inputs where kind = 'comment'), 'no comment over 30 days old';
+  assert (select count(*) from ops.tutorial_suggestions) = 2, 'the suggestions stay without their comment';
+  assert (select command from cron.job where jobname = 'langquest-purge-tutorial-comments') like '%ops.tutorial_comments_expire()%', 'taken out each hour';
 end $$;
 set local role diag_reader;
 do $$ declare v jsonb := diag.ops_tutorial_feedback(); begin

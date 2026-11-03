@@ -9293,6 +9293,25 @@ more suggestions are rejected than accepted for weeks (then keep the
 inputs and drop the suggestions); or GitHub changes what its OIDC tokens
 say.
 
+Amended (2026-11-03, Caleb Koster): comments are kept 30 days, not a year.
+Google's audit for more YouTube API quota (Caleb, 2026-11-02, thread "Plan
+tutorial videos and keep them current") checks how we keep YouTube data,
+and YouTube's developer policies let an API client keep what it reads about
+other people for 30 days before it must read it again or delete it. Caleb
+said yes (2026-11-03) to one change that makes us pass: a comment, with its
+English and suggested reply, is taken out 30 days after it was posted,
+whether or not Claude has looked at it or a suggestion that answers it
+waits (the suggestion stays without it); one older is never copied, and the
+comments job reads back no further (`KEPT_DAYS`). An hourly pg_cron job
+takes them out (migration `20261103010000_tutorial_comments_30_days.sql`),
+so a stopped comments job or look keeps nothing longer. The privacy policy
+gains a part on our YouTube channels (`/privacy#youtube`: YouTube's Terms
+of Service and Google's Privacy Policy, what we copy, Claude, the 30 days,
+how to take away a channel's access), and the videos page (187) links it.
+Code changes, notes and answered suggestions keep their year. A comment
+Claude has not looked at within 30 days, because the look stopped running,
+is lost to it.
+
 ## 187. Every tutorial video can be downloaded from LangQuest, by a link that lasts and from a page of them all; YouTube's descriptions give both
 
 Date: 2026-10-29 · By: Caleb Koster · Status: accepted
