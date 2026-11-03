@@ -367,6 +367,29 @@ newest stack, and where Claude thinks it comes from in the code. The
 repository is public, so the workflow's log says only counts, keys and
 issue ids.
 
+**A draft fix comes with each new issue** (at most three a run). After
+filing, the workflow hands each new issue back to Claude in a fresh checkout
+of main, following the skill's "Writing a draft fix": the smallest change
+that fixes it, with a test, or a reason why there is none (the cause is
+unclear, or it needs a person's decision, a store build or a dashboard).
+What people wrote shapes that code, so three jobs trust each other less as
+they go:
+
+| Job | Holds | Does |
+| --- | --- | --- |
+| `fix` | the Linear key, in a step before Claude; the Claude token | Claude edits the checkout with no shell but `git log`, `show` and `diff`; the patch is taken with the script and the repository copied before Claude ran |
+| `check` | no key; reads only | refuses a patch that changes `.github/`, hooks, packages, `.env*`, agents' instructions or the watch, then applies it, lets the git hooks rebuild what they rebuild, and runs typecheck and `vitest related` |
+| `open` | the Linear key; writes branches and pull requests | runs nothing of the patch: pushes it to `user-issue/<issue>`, opens it as a draft pull request titled with the issue's id, and links it on the issue with a comment |
+
+A pull request the built-in token opens starts no checks. Guardrails start
+when a person, having read the change, marks it Ready for review
+(`ready_for_review` in `guardrails.yml`); merging moves the issue on like any
+change whose commit names it. When there is no fix, the issue says why.
+Opening the pull request needs "Allow GitHub Actions to create and approve
+pull requests" (`.github/actions-permissions.json`, `npm run github:rules
+-- --apply`); without it the branch is pushed, the issue links it, and the
+run says "Needs you".
+
 The watch's runs are the ops dashboard's `user_issue_watch` job (it is
 stale after an hour without one) and `user_issue_look`. Without
 `CLAUDE_CODE_OAUTH_TOKEN`, or with one Claude refuses, a run fails with

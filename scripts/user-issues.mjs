@@ -11,7 +11,18 @@
 //                                              problem, assigned to USER_ISSUES_ASSIGNEE, and a comment on each
 //                                              issue the team already had (reopened when it was closed) and on
 //                                              each that more people hit since; then tells the Worker what was
-//                                              done, so nothing is filed twice
+//                                              done, so nothing is filed twice; writes fixes=<the new issues' ids,
+//                                              as JSON> to GITHUB_OUTPUT, at most FIX_MAX
+//   node scripts/user-issues.mjs fix-context <dir> <issue>
+//                                              the Linear issue Claude writes a draft fix for (issue.json)
+//   node scripts/user-issues.mjs fix-patch <dir>
+//                                              after Claude: its change as a patch and its fix.json, checked, in <dir>/out
+//   node scripts/user-issues.mjs fix-paths <patch>
+//                                              refuses a patch that changes what a draft fix may not
+//   node scripts/user-issues.mjs fix-open <dir> <issue>
+//                                              pushes the checked patch to user-issue/<issue>, opens it as a draft
+//                                              pull request and links it on the issue; or says on the issue why
+//                                              there is none
 //
 // The Worker lets in this workflow on main, and nothing else, by the OpenID
 // Connect token GitHub gives the job (apps/web/worker/userIssues.ts).
@@ -280,6 +291,117 @@ export function statesToSend(known, issues, merges) {
   return out;
 }
 
+// ---- draft fixes (decisions.md 202, amended) ----------------------------------------------------
+//
+// Each new issue gets a draft pull request with Claude's fix, written in three jobs that trust
+// each other less as they go (.github/workflows/user-issues.yml): Claude edits a checkout with
+// no key and no shell; a job with no key applies the patch and runs the checks; a job that runs
+// nothing of the patch pushes it and opens the pull request. Its checks run when a person marks
+// it Ready for review, since what people wrote shaped the code.
+
+/** At most this many new issues get a draft fix in one run; the rest are only filed. */
+export const FIX_MAX = 3;
+/**
+ * What a draft fix may never change: how the repository builds, tests and deploys, its packages,
+ * its secrets, its agents' instructions, and the watch itself.
+ */
+export const FIX_REFUSED = [
+  /^\.github\//, /^\.githooks\//, /(^|\/)\.env/, /(^|\/)package(-lock)?\.json$/, /(^|\/)\.npmrc$/,
+  /^\.(agents|claude|hermes)\//, /^(AGENTS|CLAUDE)\.md$/, /^scripts\/(user-issues|linear-sync|tutorial-review)\.mjs$/, /^\.user-issues\//,
+  /(^|\/)\.git(\/|$)/
+];
+export const FIX_LIMITS = { files: 30, bytes: 300_000, summary: 3000, tests: 1000, noFix: 1000 };
+/** The checks the job with no key ran, as it may say them; anything else is "not run". */
+const CHECK_RESULTS = ['passed', 'failed', 'none'];
+const REPO = 'genesis-ai-dev/langquest-next';
+const FIX_BOT = { name: 'github-actions[bot]', email: '41898282+github-actions[bot]@users.noreply.github.com' };
+
+/** The branch a draft fix goes on. */
+export const fixBranch = (issue) => `user-issue/${issue.toLowerCase()}`;
+
+/** The paths `git apply --numstat -z` lists: one per change, both sides of a rename. */
+export function pathsOf(numstatZ) {
+  const parts = String(numstatZ).split('\0');
+  const out = [];
+  for (let i = 0; i < parts.length; i += 1) {
+    const m = /^(?:-|\d+)\t(?:-|\d+)\t(.*)$/s.exec(parts[i]);
+    if (!m) continue;
+    if (m[1]) out.push(m[1]);
+    else {
+      out.push(parts[i + 1], parts[i + 2]);
+      i += 2;
+    }
+  }
+  return out.filter(Boolean);
+}
+
+/**
+ * The paths a patch takes away from: renamed or copied from, and changed or deleted (git apply
+ * lists only where a rename goes). Quoted paths stay quoted, and fixRefusal refuses them.
+ */
+export function oldPathsOf(patch) {
+  const out = [];
+  for (const m of String(patch).matchAll(/^(?:(?:rename|copy) from |--- a\/)(.+)$/gm)) out.push(m[1]);
+  for (const m of String(patch).matchAll(/^--- (".+)$/gm)) out.push(m[1]);
+  return out;
+}
+
+/** Why a draft fix may not go on, or null: a path it may never change, or too much to review. */
+export function fixRefusal(paths, bytes) {
+  if (!paths.length) return 'it changes nothing';
+  const odd = (p) => p.startsWith('/') || /["\\\x00-\x1f]/.test(p) || p.split('/').includes('..');
+  const bad = paths.find((p) => odd(p) || FIX_REFUSED.some((r) => r.test(p)));
+  if (bad !== undefined) return `it changes ${bad}, which a draft fix may not`;
+  if (paths.length > FIX_LIMITS.files) return `it changes ${paths.length} files, more than ${FIX_LIMITS.files}`;
+  if (bytes > FIX_LIMITS.bytes) return `it is ${Math.round(bytes / 1000)} KB, more than ${FIX_LIMITS.bytes / 1000}`;
+  return null;
+}
+
+/**
+ * fix.json as Claude wrote it: what the change does and how it is tested, or why there is no
+ * fix. It goes into a public pull request, so addresses are taken out.
+ */
+export function checkFix(raw) {
+  const o = isObj(raw) ? raw : {};
+  const noFix = cut(text(o.noFix), FIX_LIMITS.noFix);
+  const summary = cut(text(o.summary), FIX_LIMITS.summary);
+  return { summary, tests: cut(text(o.tests), FIX_LIMITS.tests), noFix: noFix || (summary ? '' : 'Claude wrote no summary of a change.') };
+}
+
+/** check.json from the job with no key: only its fixed words, since the patch's own code ran there. */
+export function checkResults(raw) {
+  const o = isObj(raw) ? raw : {};
+  const one = (v) => (CHECK_RESULTS.includes(v) ? v : 'not run');
+  return { typecheck: one(o.typecheck), tests: one(o.tests) };
+}
+
+const said = (r, what) => ({ passed: `${what} passed`, failed: `${what} **failed**`, none: `no ${what} near the change`, 'not run': `${what} did not run` })[r];
+
+/** The draft pull request's body: Claude's words about the code, never what people wrote (they stay in Linear). */
+export function fixBody(issue, fix, checks, run) {
+  return [
+    `A draft fix for [${issue.identifier}](${issue.url}), written by Claude for the watch for user issues (docs/diagnostics.md, decisions.md 202). What people reported is on the issue in Linear.`,
+    '',
+    fix.summary,
+    ...(fix.tests ? ['', `**Tests:** ${fix.tests}`] : []),
+    '',
+    `**In the workflow:** ${said(checks.typecheck, 'typecheck')}; ${said(checks.tests, 'tests')} ([run](${run})).`,
+    '',
+    'CI runs when a person marks this pull request Ready for review. Read the change first: it was written from what people reported.'
+  ].join('\n');
+}
+
+/** What the issue is told: the draft fix, its checks and what to do; or why there is none. */
+export function fixComment(pr, checks) {
+  return [`**Claude wrote a draft fix:** [PR ${pr.number}](${pr.url}).`, '', `${said(checks.typecheck, 'Typecheck')}; ${said(checks.tests, 'tests')}.`, '', 'Review it, then mark it Ready for review on GitHub to run CI and merge it.'].join('\n');
+}
+export function noFixComment(reason, run) {
+  return [`**Claude looked for a fix and wrote none.** ${reason}`, '', `The watch for user issues: ${run}`].join('\n');
+}
+export function branchComment(branch, run) {
+  return [`**Claude wrote a draft fix**, on the branch \`${branch}\`, but GitHub did not let the workflow open its pull request.`, '', `[Open it](https://github.com/${REPO}/compare/main...${branch}?expand=1) as a draft, or turn on Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests" (\`npm run github:rules -- --apply\`).`, '', `The watch for user issues: ${run}`].join('\n');
+}
+
 // ---- Linear -----------------------------------------------------------------------------------------
 
 /** A Linear call that failed, by its code and a short message: never what was sent. */
@@ -366,6 +488,15 @@ export function linearClient(key, fetchImpl = fetch) {
         if (e instanceof LinearError && /not found|ENTITY_NOT_FOUND|INVALID_INPUT/i.test(e.message)) return null;
         throw e;
       }
+    },
+    /** One issue's title and description, for Claude to write a draft fix from. */
+    async full(identifier) {
+      const data = await gql(`query($id: String!) { issue(id: $id) { id identifier url title description } }`, { id: identifier });
+      return data.issue;
+    },
+    /** A link on an issue (a draft fix's pull request), shown with its title. */
+    async attach(issueId, url, title) {
+      await gql(`mutation($input: AttachmentCreateInput!) { attachmentCreate(input: $input) { success } }`, { input: { issueId, url, title } });
     },
     async create(input) {
       const data = await gql(`mutation($input: IssueCreateInput!) { issueCreate(input: $input) { issue { id identifier url } } }`, { input });
@@ -456,6 +587,7 @@ async function file(dir) {
   const assigneeId = process.env.USER_ISSUES_ASSIGNEE || undefined;
   const team = plan.file.length ? await api.team() : null;
   const merges = plan.fixed.length ? gitMerges() : null;
+  const fixes = [];
 
   for (const f of plan.file) {
     const kinds = f.keys.map((k) => kindOf.get(k));
@@ -471,6 +603,7 @@ async function file(dir) {
         issue = await api.create(input);
       }
       for (const k of kinds) looked.push(lookedOf(k, 'filed', issue, null, { title: f.title }));
+      if (fixes.length < FIX_MAX) fixes.push(issue.identifier);
       console.log(`filed ${issue.identifier}, priority ${f.priority}: ${f.keys.join(', ')}`);
     } catch (e) {
       failed += 1;
@@ -539,17 +672,131 @@ async function file(dir) {
     const done = await call('POST', { sha: headSha(), runUrl: run, looked, grew, states: [] });
     console.log(`told the Worker: ${done.looked} kinds looked at, ${done.grew} grown`);
   }
+  // The new issues Claude writes a draft fix for, in the jobs after this one.
+  output({ fixes: JSON.stringify(fixes) });
   if (failed) throw new Error(`${failed} Linear calls failed; their kinds come back next run`);
 }
 
+const git = (args, input) => execFileSync('git', args, { encoding: 'utf8', input, maxBuffer: 64 * 1024 * 1024 });
+
+/** The issue Claude writes a draft fix for: its title and description (what people wrote, addresses out). */
+async function fixContext(dir, id) {
+  if (!ISSUE_ID.test(id ?? '')) throw new Error(`not an issue: ${id}`);
+  mkdirSync(dir, { recursive: true });
+  const issue = await linearClient(linearKey()).full(id);
+  if (!issue) throw new Error(`${id} is not in Linear`);
+  writeFileSync(join(dir, 'issue.json'), JSON.stringify({ identifier: issue.identifier, url: issue.url, title: issue.title, description: redact(issue.description) }, null, 2));
+  console.log(`${id}: handed to Claude for a draft fix`);
+}
+
+/**
+ * After Claude: what it changed, as a patch, and its fix.json, checked, in FIX_OUT. Runs nothing
+ * of the change. The workflow runs it from a copy made before Claude, with GIT_DIR a copy of the
+ * repository made then too, so nothing Claude wrote in the checkout (its .git included) runs here.
+ */
+function fixPatch(dir) {
+  const out = process.env.FIX_OUT || join(dir, 'out');
+  mkdirSync(out, { recursive: true });
+  const path = join(dir, 'fix.json');
+  const small = existsSync(path) && readFileSync(path).length < 100_000;
+  const fix = checkFix(small ? (() => { try { return readJson(path); } catch { return {}; } })() : { noFix: 'Claude wrote no fix.json.' });
+  git(['add', '-A', '--', '.', `:(exclude)${dir}`]);
+  const patch = git(['diff', '--cached', '--binary']);
+  if (!fix.noFix && !patch) fix.noFix = 'Claude changed no file.';
+  writeFileSync(join(out, 'fix.json'), JSON.stringify(fix, null, 2));
+  if (!fix.noFix) writeFileSync(join(out, 'fix.patch'), patch);
+  console.log(fix.noFix ? 'no draft fix' : `a draft fix: ${patch.length} bytes`);
+}
+
+/** Refuses a patch that changes what a draft fix may not: the paths as git reads them, before it is applied. */
+function fixPaths(patchPath) {
+  const patch = readFileSync(patchPath);
+  const paths = [...new Set([...pathsOf(git(['apply', '--numstat', '-z', patchPath])), ...oldPathsOf(patch.toString('utf8'))])];
+  const reason = fixRefusal(paths, patch.length);
+  if (reason) throw new Error(`refused the draft fix: ${reason}`);
+  git(['apply', '--check', patchPath]);
+  console.log('the draft fix changes only what it may');
+}
+
+async function github(method, path, body) {
+  const res = await fetch(`https://api.github.com/repos/${REPO}${path}`, {
+    method,
+    headers: { authorization: `Bearer ${process.env.GITHUB_TOKEN}`, accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', ...(body ? { 'content-type': 'application/json' } : {}) },
+    ...(body ? { body: JSON.stringify(body) } : {})
+  });
+  const json = await res.json().catch(() => ({}));
+  return { status: res.status, json };
+}
+
+/**
+ * The draft fix, from the job that runs nothing of it: on its own branch, as a draft pull request
+ * linked on the issue; or the issue says why there is none. Never runs npm or the patch's code,
+ * and git runs no hook here (no npm install set one).
+ */
+async function fixOpen(dir, id) {
+  if (!ISSUE_ID.test(id ?? '')) throw new Error(`not an issue: ${id}`);
+  if (!process.env.GITHUB_TOKEN) throw new Error('No GITHUB_TOKEN: the job that opens the draft fix needs it.');
+  const api = linearClient(linearKey());
+  const run = runUrl(process.env);
+  const issue = await api.full(id);
+  if (!issue) throw new Error(`${id} is not in Linear`);
+  const fixPath = join(dir, 'fix', 'fix.json');
+  const fix = existsSync(fixPath) ? checkFix(readJson(fixPath)) : { noFix: 'The job that writes it failed.', summary: '', tests: '' };
+  // The checked patch (with what the hooks rebuild) when the checks ran, else Claude's own.
+  const patchPath = [join(dir, 'check', 'fix.patch'), join(dir, 'fix', 'fix.patch')].find((p) => existsSync(p));
+  const checkPath = join(dir, 'check', 'check.json');
+  const checks = checkResults(existsSync(checkPath) ? readJson(checkPath) : {});
+  let reason = fix.noFix || (patchPath ? null : 'Its patch is missing.');
+  if (!reason) {
+    try {
+      fixPaths(patchPath);
+    } catch (e) {
+      reason = e instanceof Error ? e.message : String(e);
+    }
+  }
+  if (reason) {
+    await api.comment(issue.id, noFixComment(reason, run));
+    console.log(`${id}: no draft fix (${reason.slice(0, 200)})`);
+    return;
+  }
+  const branch = fixBranch(id);
+  if (git(['ls-remote', '--heads', 'origin', branch]).trim()) {
+    console.log(`${id}: ${branch} is there already; nothing done`);
+    return;
+  }
+  const title = `${id}: ${String(issue.title ?? '').replace(PREFIX, '').slice(0, 120)}`;
+  git(['checkout', '-b', branch]);
+  git(['apply', '--index', patchPath]);
+  git(['-c', `user.name=${FIX_BOT.name}`, '-c', `user.email=${FIX_BOT.email}`, 'commit', '--no-verify', '-q', '-F', '-'],
+    `${title}
+
+${fix.summary}
+
+A draft fix Claude wrote for the watch for user issues: ${run}
+`);
+  git(['push', '-q', 'origin', `HEAD:refs/heads/${branch}`]);
+  const made = await github('POST', '/pulls', { title, head: branch, base: 'main', body: fixBody(issue, fix, checks, run), draft: true });
+  if (made.status !== 201) {
+    console.log(`::error title=Needs you%3A pull requests from Actions::GitHub answered ${made.status} (${String(made.json.message ?? '').slice(0, 200)}) to the draft fix for ${id}; the branch ${branch} is pushed. Turn on "Allow GitHub Actions to create and approve pull requests" with npm run github:rules -- --apply.`);
+    await api.comment(issue.id, branchComment(branch, run));
+    return;
+  }
+  const pr = { number: made.json.number, url: made.json.html_url };
+  await api.attach(issue.id, pr.url, `PR ${pr.number}: draft fix by Claude`);
+  await api.comment(issue.id, fixComment(pr, checks));
+  console.log(`${id}: draft fix PR ${pr.number}`);
+}
+
+const COMMANDS = { fetch: fetchWatch, file, 'fix-context': fixContext, 'fix-patch': fixPatch, 'fix-paths': fixPaths, 'fix-open': fixOpen };
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const [command, dir] = process.argv.slice(2);
-  if (!dir || (command !== 'fetch' && command !== 'file')) {
-    console.error('usage: node scripts/user-issues.mjs <fetch|file> <dir>');
+  const [command, dir, id] = process.argv.slice(2);
+  if (!dir || !Object.hasOwn(COMMANDS, command)) {
+    console.error(`usage: node scripts/user-issues.mjs <${Object.keys(COMMANDS).join('|')}> <dir or patch> [issue]`);
     process.exit(2);
   }
   try {
-    await (command === 'fetch' ? fetchWatch(dir) : file(dir));
+    await COMMANDS[command](dir, id);
   } catch (e) {
     console.error(`::error::${e instanceof Error ? e.message : e}`);
     process.exit(1);

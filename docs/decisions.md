@@ -10365,3 +10365,32 @@ dealt with each. Decided (migration `20261103204500_user_issues_fixed.sql`):
 Considered: a list of closed kinds kept by hand (it would go stale, and
 Linear already says what is done); reopening on any new report (old phones
 and tabs keep reporting a fixed problem for days).
+
+Amended (2026-11-03, Caleb Koster): a draft fix with each new issue. Caleb
+chose (2026-11-03, thread "Auto-detect and fix user issues") that Claude
+opens a fix pull request right away with each new issue, not after a
+developer has looked at it, so a developer reviews the issue and its fix
+together. Decided (`.github/workflows/user-issues.yml`, the skill's "Writing
+a draft fix"):
+- **At most three a run**, each a draft pull request on
+  `user-issue/<issue>`, titled with the issue's id and linked on it. Claude
+  may answer that there is no fix, and the issue says why.
+- **What people wrote shapes the code, so the jobs trust each other less as
+  they go.** Claude edits with no key and no shell; the job that runs the
+  patch's code (typecheck, the nearest tests) holds no key and only reads;
+  the job that pushes and opens the pull request runs nothing of it. A
+  patch that changes how the repository builds, tests or deploys
+  (`.github/`, hooks, packages, `.env*`, agents' instructions, the watch) is
+  refused. Steps that hold a key after Claude run the scripts as they were
+  before Claude ran.
+- **Its checks wait for a person.** The pull request is opened with the
+  built-in token, which starts no checks, and guardrails run when a person
+  marks it Ready for review (`ready_for_review`). Guardrails hold the Expo
+  and Docker tokens, which code written from a stranger's words must not
+  reach before someone has read it. Opening pull requests with the built-in
+  token is a repository setting kept in `.github/actions-permissions.json`
+  (`npm run github:rules`).
+Considered: the Claude GitHub App's token, whose pull requests start checks
+at once (the guardrails would run unread code with their tokens); one job
+for all of it (Claude can write in the checkout, including `.git`, and a
+later step would run what it wrote with the keys).
