@@ -2,7 +2,7 @@
 // code. Each times itself, tells diagnostics, accepts the terms for the
 // account it made or signed in, and answers what the screen shows. The
 // screen calls these through `useAuthStep` (useSignIn.ts).
-import { authErrorText, signInCodeErrorText } from '../account/accountText';
+import { authErrorText, resetErrorText, signInCodeErrorText } from '../account/accountText';
 import { recordAuth, recordAuthFailure, since } from '../diagnostics/authDiag';
 import { failureMessage, noteExpected, reportError } from '../diagnostics/report';
 import { t } from '../i18n';
@@ -16,6 +16,7 @@ import { recordHelp } from './signInHelp';
 import { signIn } from './signIn';
 import { signInAddress } from './accounts';
 import { signBackIn } from './signBackIn';
+import { askForResetLink, chooseNewPassword, ResetError } from './passwordReset';
 
 /** What a screen shows after trying to get in: the words for a refusal, done, or an address to confirm first. */
 export type AuthResult = { kind: 'error'; text: string } | { kind: 'done' } | { kind: 'check-email' };
@@ -126,5 +127,53 @@ export async function signInWithKey(code: string, host: AuthHost): Promise<AuthR
     // The function says "expired or already used" in its reply, as an invite does.
     recordAuthFailure('code', e, { ms: since(started) }, inviteOutcome);
     return { kind: 'error', text: e instanceof Error ? signInCodeErrorText(e.message) : t('common.tryWhenConnected') };
+  }
+}
+
+/**
+ * Forgot password: ask for a link by email (docs/invites-and-accounts.md
+ * flow G). The function answers alike whether or not the address has an
+ * account, so `done` only says the request went.
+ */
+export async function askResetLink(email: string): Promise<AuthResult> {
+  try {
+    await askForResetLink(email);
+    return { kind: 'done' };
+  } catch (e) {
+    if (!(e instanceof ResetError)) return { kind: 'error', text: failureMessage('ask for a reset link', e) };
+    noteExpected('ask for a reset link', e);
+    return { kind: 'error', text: resetErrorText(e.code, t('entry.forgot.failed')) };
+  }
+}
+
+/** What a new password from a Forgot password link came to: signed in, only changed (someone else is signed in here), a link that no longer works, or why not. */
+export type ResetResult = { kind: 'done' } | { kind: 'changed'; email: string } | { kind: 'expired'; text: string } | { kind: 'error'; text: string };
+
+/**
+ * Set the new password with the link's code, in one call that answers a
+ * session. Signed out, the phone signs in with it and accepts the terms, as
+ * Sign In does; signed in as that account, it keeps the fresh session (the
+ * new password ended the old one); signed in as someone else
+ * (`signedInAs`), their sign-in stays and only the password changes. The
+ * phone remembers the new password for signing back in offline (decisions.md
+ * 168).
+ */
+export async function resetPassword(code: string, password: string, signedInAs: string | null, host: AuthHost): Promise<ResetResult> {
+  try {
+    const done = await chooseNewPassword(code, password);
+    if (signedInAs && done.userId !== signedInAs) return { kind: 'changed', email: done.email };
+    const { data, error } = done.session ? await setSession(done.session) : await signInWithPassword(done.email, password);
+    if (error) {
+      noteExpected('sign in after a new password', error);
+      return { kind: 'error', text: authErrorText(error, t('entry.newPassword.signInFailed')) };
+    }
+    void rememberPassword(done.userId, done.email, password);
+    if (!signedInAs && data.user) await recordTerms(host, data.user.id);
+    return { kind: 'done' };
+  } catch (e) {
+    if (!(e instanceof ResetError)) return { kind: 'error', text: failureMessage('choose a new password', e) };
+    noteExpected('choose a new password', e);
+    const text = resetErrorText(e.code, t('entry.newPassword.failed'));
+    return e.code === 'expired' ? { kind: 'expired', text } : { kind: 'error', text };
   }
 }

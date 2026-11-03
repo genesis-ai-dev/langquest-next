@@ -66,10 +66,49 @@ export function invitationContent(p: InviteMessage, appUrl = '') {
   };
 }
 
+/** A Forgot password email to send (supabase/functions/password-reset): the account's address and its one-time code. */
+export interface ResetMessage {
+  email: string;
+  code: string;
+  expiresAt: string;
+  /** The app's language when they asked ("es", "zh-Hans"); the email is written in it. English when absent or unknown. */
+  locale?: string;
+}
+
+export function parseResetMessage(input: unknown, now = Date.now()): ResetMessage | null {
+  if (!input || typeof input !== 'object') return null;
+  const p = input as Record<string, unknown>;
+  if (typeof p.code !== 'string' || !/^[\da-f]{64}$/i.test(p.code)
+    || typeof p.email !== 'string' || p.email.length > 254
+    || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(p.email)
+    || typeof p.expiresAt !== 'string') return null;
+  const expiry = Date.parse(p.expiresAt);
+  // A link works for an hour (the function's MINUTES); anything much longer is not one of ours.
+  if (!Number.isFinite(expiry) || expiry <= now || expiry > now + 2 * 3_600_000) return null;
+  return { email: p.email.toLowerCase(), code: p.code.toLowerCase(), expiresAt: new Date(expiry).toISOString(),
+    ...(emailLanguage(p.locale) !== 'en' ? { locale: emailLanguage(p.locale) } : {}) };
+}
+
+/**
+ * The link in a Forgot password email: the app's sign-in address, so a
+ * phone with the app opens it there (app links already cover `/signin`) and
+ * anything else opens the web app; the code rides after the `#`. Without an
+ * address, the older `langquestnext://` link. The app's inviteCode.ts reads
+ * both.
+ */
+export function resetLink(code: string, appUrl = ''): string {
+  const base = appUrl.replace(/\/$/, '');
+  return base ? `${base}/signin#reset=${code}` : `langquestnext://signin?reset=${code}`;
+}
+
+/** The whole minutes left until `expiresAt`, as the email says them. */
+export function minutesLeft(expiresAt: string, now = Date.now()): number {
+  return Math.max(1, Math.round((Date.parse(expiresAt) - now) / 60_000));
+}
+
 /**
  * The email that lets someone choose a new password, in the language their
- * app showed when they asked. Not sent yet: Forgot password waits for deep
- * links (docs/invites-and-accounts.md); this is its words, ready for it.
+ * app showed when they asked (docs/invites-and-accounts.md flow G).
  */
 export function passwordResetContent(p: { email: string; link: string; minutes: number; locale?: string }) {
   const lang = emailLanguage(p.locale);

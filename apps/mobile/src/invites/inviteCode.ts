@@ -95,10 +95,24 @@ export function parseSignInKey(input: string): { code: string } | null {
   return m?.[1] ? { code: m[1].toLowerCase() } : null;
 }
 
-/** Every key the one scanner reads: an invite (link or bare code) or a sign-in key. */
-type ScannedKey = { kind: 'invite'; token: string; orgId?: string } | { kind: 'signin'; code: string };
+/**
+ * A Forgot password link (docs/invites-and-accounts.md flow G): the email
+ * Worker's `https://next.langquest.org/signin#reset=…`, which the app links
+ * on `/signin` already open in the app, or `langquestnext://signin?reset=…`.
+ * The code lets whoever holds it choose that account's new password once.
+ */
+export function parseResetKey(input: string): { code: string } | null {
+  const params = linkParams(input.trim(), 'signin');
+  const m = params === null ? null : /(?:^|&)reset=([0-9a-f]{64})(?:&|$)/i.exec(params);
+  return m?.[1] ? { code: m[1].toLowerCase() } : null;
+}
+
+/** Every key the one scanner reads: an invite (link or bare code), a sign-in key or a Forgot password link. */
+type ScannedKey = { kind: 'invite'; token: string; orgId?: string } | { kind: 'signin'; code: string } | { kind: 'reset'; code: string };
 
 export function parseKey(input: string): ScannedKey | null {
+  const reset = parseResetKey(input);
+  if (reset) return { kind: 'reset', ...reset };
   const signin = parseSignInKey(input);
   if (signin) return { kind: 'signin', ...signin };
   const invite = parseInvite(input);

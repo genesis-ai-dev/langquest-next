@@ -347,7 +347,9 @@
     "settings_more": "更多设置",
     "check_editor": "检查",
     "cluster_home": "语言群",
-    "global_viewer": "全局查看者"
+    "global_viewer": "全局查看者",
+    "forgot_password": "忘记密码",
+    "new_password": "新密码"
   },
   "native": {
     "microphone": "LangQuest 会录下你的声音，用来翻译经段。",
@@ -2767,7 +2769,9 @@
       "failed": "无法登录。请重试。",
       "scanCodeHelp": "打开相机，用邀请码加入，或者用帮你的人给的登录码登录。",
       "createAccountHelp": "打开表单，填写你的邮箱和新密码。",
-      "browseHelp": "查看各机构公开分享的翻译工作。不需要账号。"
+      "browseHelp": "查看各机构公开分享的翻译工作。不需要账号。",
+      "forgot": "忘记密码？",
+      "forgotHelp": "打开一个页面，你可以通过邮件收到链接，用来设置新密码。"
     },
     "terms": {
       "title": "条款和隐私",
@@ -3089,6 +3093,36 @@
       "notMe": "不是我的图片",
       "notMeHelp": "回到图片。",
       "pictureHelp": "在这部手机上退出过登录？ 点你的图片，然后画出你的图案。不需要网络。"
+    },
+    "forgot": {
+      "title": "忘记密码",
+      "emailHelp": "你登录用的邮箱。链接会发到这里。",
+      "send": "发送链接",
+      "sendAgain": "再次发送",
+      "sending": "正在发送……",
+      "sendHelp": "通过邮件发送一个用来设置新密码的链接。需要联网。",
+      "sentTitle": "请查看你的邮箱",
+      "sentBody": "如果 {{email}} 有 LangQuest 账号，设置新密码的链接正在发送中。",
+      "failed": "无法发送链接。请重试。",
+      "noEmailTitle": "这个账号没有邮箱",
+      "noEmailBody": "你团队里的人可以给你看一个登录码，让你登录。"
+    },
+    "newPassword": {
+      "title": "新密码",
+      "fieldHelp": "输入你以后登录要用的密码。点按眼睛图标可以看到你输入的内容。",
+      "button": "登录",
+      "buttonHelp": "把它设为你的密码，并为你登录。需要联网。",
+      "changeButton": "修改密码",
+      "changing": "正在修改……",
+      "changeHelp": "把它设为这个账号的密码。需要联网。",
+      "expired": "这个链接已过期或已被使用。",
+      "newLink": "发送新链接",
+      "newLinkHelp": "打开“忘记密码”，通过邮件获取新链接。",
+      "failed": "无法修改密码。请重试。",
+      "signInFailed": "你的新密码已设置好。请用它登录。",
+      "changedTitle": "密码已修改",
+      "changedBody": "从现在起，{{email}} 用新密码登录。",
+      "doneHelp": "回到你的主页。"
     }
   },
   "account": {
@@ -4296,7 +4330,9 @@
       "showMore_other": "再显示 {{count, number}} 项 · 还剩 {{left}} 项",
       "onOlderVersion": "针对{{version}}",
       "orTypeReason": "或者输入原因",
-      "reasonFootnote": "这条会连同你的名字写进经段记录。以后可以撤销；记录会把两次都保留下来。"
+      "reasonFootnote": "这条会连同你的名字写进经段记录。以后可以撤销；记录会把两次都保留下来。",
+      "showPassword": "显示密码",
+      "hidePassword": "隐藏密码"
     },
     "person": {
       "showId": "{{name}}。显示 ID",
@@ -4449,7 +4485,8 @@
       "done": "这里完成了：返回。",
       "undo": "恢复之前的内容。",
       "tryAgain": "再试一次。",
-      "quickReason": "用这个作为你的理由。你仍然可以修改文字。"
+      "quickReason": "用这个作为你的理由。你仍然可以修改文字。",
+      "showPassword": "显示你输入的密码，方便检查。再点一次可以隐藏。"
     },
     "tabs": {
       "work": "接下来要做什么：你的下一个经段，以及等着你处理的事。",

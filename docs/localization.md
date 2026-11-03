@@ -101,8 +101,8 @@ the date in its `approved` field.
 - Emails (`apps/invite-email/src/i18n/`) go in the sender's app language: the
   phone sends `locale` with an invite, `send-invite` passes it on, and the
   Worker writes the invite in that catalog (English when it has none). The
-  password reset email's words are there too (`passwordResetContent`), ready
-  for Forgot password.
+  Forgot password email (`passwordResetContent`) goes in the language the
+  app showed when it was asked for (decisions.md 200).
 - The shared review link page (`/r/<code>`), the connect page
   (`/connect`) and the tutorial videos page (`/videos`) are written by the
   web Worker (`apps/web/worker/i18n/`). They
