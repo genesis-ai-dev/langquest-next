@@ -142,6 +142,7 @@
     "youtube": "Tonton di YouTube",
     "size": "{{mb}} MB",
     "none": "Belum ada video dalam bahasa ini.",
-    "failed": "Video tidak termuat. Muat ulang halaman untuk mencoba lagi."
+    "failed": "Video tidak termuat. Muat ulang halaman untuk mencoba lagi.",
+    "privacy": "Privasi"
   }
 }

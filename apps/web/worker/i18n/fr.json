@@ -142,6 +142,7 @@
     "youtube": "Regarder sur YouTube",
     "size": "{{mb}} Mo",
     "none": "Pas encore de vidéos dans cette langue.",
-    "failed": "Les vidéos ne se sont pas chargées. Rechargez la page pour réessayer."
+    "failed": "Les vidéos ne se sont pas chargées. Rechargez la page pour réessayer.",
+    "privacy": "Confidentialité"
   }
 }

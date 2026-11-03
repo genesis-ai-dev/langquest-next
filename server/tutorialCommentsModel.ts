@@ -18,8 +18,13 @@ import type { Channel } from './tutorialPublisher';
 
 /** Most issues filed in Linear in a run. */
 export const FILE_MAX = 20;
-/** Comments are kept, and read, for this long (the migration's ops_comments_read takes out older ones). */
-export const KEPT_DAYS = 365;
+/**
+ * Comments are kept, and read back, for this long after they were posted:
+ * YouTube's rule for what an API client keeps about other people (decisions.md
+ * 186, amended; the privacy policy says so). The database takes out older ones
+ * each hour and never copies one (migration *_tutorial_comments_30_days.sql).
+ */
+export const KEPT_DAYS = 30;
 
 export interface CommentsDeps {
   fetcher: Fetch;
