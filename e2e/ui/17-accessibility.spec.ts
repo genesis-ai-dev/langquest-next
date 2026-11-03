@@ -150,7 +150,8 @@ async function walk(browser: Browser, w: UiWorld): Promise<ScreenAudit[]> {
     const { context, page } = await device(browser, 'COORD');
     await tab(page, 'manage').click();
     await text(page, 'Alpha').click();
-    await expect(text(page, /^Ready ·/)).toBeVisible();
+    // A new device's first language page: its status waits for the organization to arrive, as in 09-language-setup.
+    await expect(text(page, /^Ready ·/)).toBeVisible({ timeout: 60_000 });
     await audit(page, 'the language page (Alpha)', 'COORD');
     await tab(page, 'manage').click();
     await text(page, 'Members').click();
