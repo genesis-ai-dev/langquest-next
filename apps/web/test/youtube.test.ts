@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  accessToken, bannerPath, channelAbout, channelFull, CHANNELS, consentUrl, exchangeCode, languageOfChannel, myChannel, outOfQuota, placeInPlaylist, playlistFor,
+  accessToken, bannerPath, channelAbout, channelFull, CHANNELS, CHANNELS_PER_ROW, consentUrl, exchangeCode, languageOfChannel, myChannel, outOfQuota, placeInPlaylist, playlistFor,
   readState, retire, setHome, signState, uploadVideo, WORDS, YouTubeError, type Fetch
 } from '../../../server/youtube';
 
@@ -76,7 +76,7 @@ describe('Connect', () => {
     expect(await myChannel(f, 'at')).toEqual({ id: CHANNELS.es, title: 'LangQuest - Español' });
   });
 
-  it("lays out a channel's home page: the other 14 channels, then a row for each playlist it has, everyone's first (decisions.md 191)", async () => {
+  it("lays out a channel's home page: the other 14 channels in two rows of 7, then a row for each playlist it has, everyone's first (decisions.md 191)", async () => {
     type S = { id: string; snippet: { type: string; title?: string; position: number }; contentDetails?: { channels?: string[]; playlists?: string[] } };
     // As YouTube had it before: the channels row alone, and a row someone added in Studio.
     let sections: S[] = [
@@ -94,23 +94,27 @@ describe('Connect', () => {
     });
     expect(await setHome(f, 'at', 'es')).toBe('made');
     const writes = f.calls.filter((c) => c.method !== 'GET');
-    expect(writes.map((c) => c.method)).toEqual(['PUT', 'PUT', 'POST']);
+    expect(writes.map((c) => c.method)).toEqual(['PUT', 'PUT', 'POST', 'POST']);
     const others = (Object.keys(CHANNELS) as (keyof typeof CHANNELS)[]).filter((l) => l !== 'es').map((l) => CHANNELS[l]);
-    expect(writes[0]!.body).toEqual({ id: 's1', snippet: { type: 'multipleChannels', position: 0, title: 'Otros canales de LangQuest' }, contentDetails: { channels: others } });
     expect(others).toHaveLength(14);
-    expect(writes[1]!.body).toEqual({ id: 's9', snippet: { type: 'singlePlaylist', position: 1 }, contentDetails: { playlists: ['PLtodos'] } });
-    expect(writes[2]!.body).toEqual({ snippet: { type: 'singlePlaylist', position: 2 }, contentDetails: { playlists: ['PLtrad'] } });
+    // YouTube shows 12 of a row's channels, so 14 in one row left Chinese and Burmese out.
+    expect(writes[0]!.body).toEqual({ id: 's1', snippet: { type: 'multipleChannels', position: 0, title: 'Otros canales de LangQuest' }, contentDetails: { channels: others.slice(0, 7) } });
+    expect(writes[1]!.body).toEqual({ id: 's9', snippet: { type: 'multipleChannels', position: 1, title: 'Otros canales de LangQuest' }, contentDetails: { channels: others.slice(7) } });
+    expect(writes[2]!.body).toEqual({ snippet: { type: 'singlePlaylist', position: 2 }, contentDetails: { playlists: ['PLtodos'] } });
+    expect(writes[3]!.body).toEqual({ snippet: { type: 'singlePlaylist', position: 3 }, contentDetails: { playlists: ['PLtrad'] } });
+    for (const w of writes.slice(0, 2)) expect((w.body as { contentDetails: { channels: string[] } }).contentDetails.channels.length).toBeLessThanOrEqual(CHANNELS_PER_ROW);
 
     // Laid out already: two reads, nothing written. A row no longer wanted goes.
     sections = [
-      { id: 's1', snippet: { type: 'multipleChannels', title: 'Otros canales de LangQuest', position: 0 }, contentDetails: { channels: others } },
-      { id: 's9', snippet: { type: 'singlePlaylist', position: 1 }, contentDetails: { playlists: ['PLtodos'] } },
-      { id: 's20', snippet: { type: 'singlePlaylist', position: 2 }, contentDetails: { playlists: ['PLtrad'] } }
+      { id: 's1', snippet: { type: 'multipleChannels', title: 'Otros canales de LangQuest', position: 0 }, contentDetails: { channels: others.slice(0, 7) } },
+      { id: 's9', snippet: { type: 'multipleChannels', title: 'Otros canales de LangQuest', position: 1 }, contentDetails: { channels: others.slice(7) } },
+      { id: 's20', snippet: { type: 'singlePlaylist', position: 2 }, contentDetails: { playlists: ['PLtodos'] } },
+      { id: 's21', snippet: { type: 'singlePlaylist', position: 3 }, contentDetails: { playlists: ['PLtrad'] } }
     ];
     f.calls.length = 0;
     expect(await setHome(f, 'at', 'es')).toBe('updated');
     expect(f.calls.map((c) => c.method)).toEqual(['GET', 'GET']);
-    sections.push({ id: 's30', snippet: { type: 'singlePlaylist', position: 3 }, contentDetails: { playlists: ['PLother'] } });
+    sections.push({ id: 's30', snippet: { type: 'singlePlaylist', position: 4 }, contentDetails: { playlists: ['PLother'] } });
     f.calls.length = 0;
     await setHome(f, 'at', 'es');
     expect(f.calls.filter((c) => c.method !== 'GET')).toMatchObject([{ method: 'DELETE', url: expect.stringContaining('/channelSections?id=s30') }]);

@@ -259,11 +259,16 @@ export async function revoke(fetcher: Fetch, token: string): Promise<void> {
 interface Section { id: string; snippet: { type: string; title?: string; position: number }; contentDetails?: { channels?: string[]; playlists?: string[] } }
 interface Row { type: 'multipleChannels' | 'singlePlaylist'; title?: string; ids: string[] }
 
+/** The most channels YouTube shows in one row of a home page; the rest of a longer row never show (seen 2026-11-03: 12 of 14). */
+export const CHANNELS_PER_ROW = 12;
+
 /**
  * A channel's home page (decisions.md 191), laid out as BibleProject and other
- * channels lay out theirs: under the trailer, a row of the other LangQuest
+ * channels lay out theirs: under the trailer, two rows of the other LangQuest
  * channels, then a row for each of the channel's playlists in HOME_ORDER,
- * everyone's first. Only the rows that differ are put or taken away, so a
+ * everyone's first. YouTube shows only the first CHANNELS_PER_ROW of a row's
+ * channels, so the other 14 are split 7 and 7, in CHANNELS order, under the
+ * same title. Only the rows that differ are put or taken away, so a
  * channel already laid out costs 2 units of the day's 10,000; each row put
  * or taken away costs 50. A playlist with no video yet has no row until it
  * has one. Rows people added by hand in Studio give way to these.
@@ -273,8 +278,11 @@ export async function setHome(fetcher: Fetch, token: string, language: ChannelLa
     await fetcher(`${API}/channelSections?part=snippet,contentDetails&mine=true`, { headers: json(token) }))).items ?? [])
     .sort((a, b) => a.snippet.position - b.snippet.position);
   const lists = await playlistsOf(fetcher, token);
+  const others = (Object.keys(CHANNELS) as ChannelLanguage[]).filter((l) => l !== language).map((l) => CHANNELS[l]);
+  const rows = Math.ceil(others.length / CHANNELS_PER_ROW);
+  const perRow = Math.ceil(others.length / rows);
   const want: Row[] = [
-    { type: 'multipleChannels', title: WORDS[language].otherChannels, ids: (Object.keys(CHANNELS) as ChannelLanguage[]).filter((l) => l !== language).map((l) => CHANNELS[l]) },
+    ...Array.from({ length: rows }, (_, i): Row => ({ type: 'multipleChannels', title: WORDS[language].otherChannels, ids: others.slice(i * perRow, (i + 1) * perRow) })),
     ...HOME_ORDER.flatMap((who): Row[] => {
       const id = lists.get(PLAYLISTS[language][who]);
       return id ? [{ type: 'singlePlaylist', ids: [id] }] : [];
