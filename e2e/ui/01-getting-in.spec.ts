@@ -11,8 +11,8 @@ import type { Browser, Page } from '@playwright/test';
 import type { EventSpec } from '@langquest-next/core';
 import { randomUUID } from 'node:crypto';
 import {
-  anon, expireInvite, projectListing, unprojectListing, expireSignInCode, issueInvite, issueSignInCode, memberOf, newAccount, newAddress, openFresh, openNew, paste,
-  quiet, randomHex, redeemAs, settled, signInLink, signInWithForm
+  anon, expireInvite, expireResetCode, projectListing, unprojectListing, expireSignInCode, issueInvite, issueResetCode, issueSignInCode, memberOf, newAccount,
+  newAddress, openFresh, openNew, paste, quiet, randomHex, redeemAs, settled, signInLink, signInWithForm
 } from './auth-helpers';
 import { clientAs, send, signIn } from './fixture';
 import { back, button, byId, expect, expectToast, field, openSignedOut, primary, screenText, tab, tabsShown, test, text, useWorld } from './support';
@@ -100,6 +100,8 @@ test('AUTH-001 The Sign In screen offers two ways in', async ({ page }) => {
   await expect(field(page, 'Email or sign-in name')).toBeFocused();
   const password = field(page, 'Password');
   await expect(password).toHaveAttribute('type', 'password');
+  await expect(button(page, 'Show password')).toBeVisible();
+  await expect(button(page, 'Forgot password?')).toBeVisible();
   await expect(button(page, SIGN_IN)).toBeDisabled();
   await expect(page.getByRole('link', { name: /By signing in you accept the Terms of Use and Privacy Policy/ })).toBeVisible();
   await expect(text(page, 'or')).toBeVisible();
@@ -867,6 +869,130 @@ test('AUTH-045 Text that is not a code', async ({ page }) => {
     await expect(text(page, /^Invit/)).toBeHidden();
     await paste(page, PASTE, '');
   }
+});
+
+// ---- Forgot password -------------------------------------------------------------------
+
+const NEW_PASSWORD = 'Choose a password (6 or more characters)';
+
+test('AUTH-063 Forgot password asks for a link by email', async ({ page, context }) => {
+  await openSignedOut(page);
+  const who = world().accounts.TRANS;
+  // A local server has no email set up: a stand-in answers as the function does once it has sent.
+  const asked: unknown[] = [];
+  await page.route('**/functions/v1/password-reset', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    asked.push(route.request().postDataJSON());
+    await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ sent: true }) });
+  });
+  await field(page, 'Email or sign-in name').fill(who.email);
+  // Under the password field, above Sign In.
+  const y = async (l: ReturnType<typeof button>) => (await l.boundingBox())!.y;
+  expect(await y(button(page, 'Forgot password?'))).toBeGreaterThan(await y(field(page, 'Password')));
+  expect(await y(button(page, 'Forgot password?'))).toBeLessThan(await y(button(page, SIGN_IN)));
+  await button(page, 'Forgot password?').click();
+  await expect(text(page, 'Forgot Password')).toBeVisible();
+  await expect(field(page, 'Email')).toHaveValue(who.email);
+  await button(page, 'Send link').click();
+  await expect(text(page, 'Check your email')).toBeVisible();
+  await expect(text(page, `If ${who.email} has a LangQuest account, a link to choose a new password is on its way.`)).toBeVisible();
+  await expect(button(page, 'Send again')).toBeVisible();
+  expect(asked).toEqual([{ email: who.email, locale: 'en' }]);
+  await page.unrouteAll();
+  await settled(page);
+  await context.setOffline(true);
+  await button(page, 'Send again').click();
+  await expect(page.getByRole('alert').locator('visible=true').first()).toHaveText('Not connected. Try again when you are online.', { timeout: 60_000 });
+  await context.setOffline(false);
+  await back(page).click();
+  await onSignIn(page);
+});
+
+test('AUTH-064 A sign-in name has no email to send a link to', async ({ page }) => {
+  await openSignedOut(page);
+  await field(page, 'Email or sign-in name').fill(world().accounts.KEPT.signInName!);
+  await button(page, 'Forgot password?').click();
+  await expect(text(page, 'This account has no email')).toBeVisible();
+  await expect(text(page, 'Someone on your team can show you a code to sign in.')).toBeVisible();
+  await expect(button(page, 'Send link')).toHaveCount(0);
+  await button(page, 'Scan a code').click();
+  await expect(button(page, 'Scan QR code')).toBeVisible();
+});
+
+let usedReset = '';
+
+test('AUTH-065 A Forgot password link sets a new password and signs in @p0', async ({ page }) => {
+  const who = await newAccount(world(), 'Rita Reset');
+  const code = await issueResetCode(who.email);
+  await page.goto(`/signin#reset=${code}`);
+  await expect(text(page, 'New Password')).toBeVisible({ timeout: 120_000 });
+  const password = field(page, NEW_PASSWORD);
+  await expect(password).toHaveAttribute('type', 'password');
+  await expect(button(page, 'Sign in')).toBeDisabled();
+  await expect(page.getByRole('link', { name: /By signing in you accept the Terms of Use and Privacy Policy/ })).toBeVisible();
+  await password.fill('abcd');
+  await expect(text(page, 'The password needs 6 or more characters.')).toBeVisible();
+  const chosen = `new-${randomHex(5)}`;
+  await password.fill(chosen);
+  await expect(button(page, 'Sign in')).toBeEnabled();
+  await button(page, 'Show password').click();
+  await expect(password).not.toHaveAttribute('type', 'password');
+  await expect(button(page, 'Hide password')).toBeVisible();
+  await button(page, 'Sign in').click();
+  await expect(text(page, 'Join your team')).toBeVisible({ timeout: 60_000 });
+  expect(new URL(page.url()).hash).toBe('');
+  // The new password signs in; the old one no longer does.
+  expect((await anon().auth.signInWithPassword({ email: who.email, password: chosen })).error).toBeNull();
+  expect((await anon().auth.signInWithPassword({ email: who.email, password: who.password })).error?.code).toBe('invalid_credentials');
+  usedReset = code;
+});
+
+test('AUTH-066 A Forgot password link used twice, or after an hour', async ({ page }) => {
+  expect(usedReset, 'AUTH-065 leaves a used link').not.toBe('');
+  const who = await newAccount(world(), 'Otto Older');
+  const old = await issueResetCode(who.email);
+  await expireResetCode(old);
+  for (const code of [usedReset, old]) {
+    await page.goto(`/signin#reset=${code}`);
+    await field(page, NEW_PASSWORD).fill('long-enough-1', { timeout: 120_000 });
+    await button(page, 'Sign in').click();
+    await expect(page.getByRole('alert').locator('visible=true').first()).toHaveText('This link has expired or was already used.');
+    await expect(button(page, 'Sign in')).toHaveCount(0);
+    expect(await tabsShown(page)).toEqual([]);
+  }
+  expect((await anon().auth.signInWithPassword({ email: who.email, password: who.password })).error).toBeNull();
+  await button(page, 'Send a new link').click();
+  await expect(text(page, 'Forgot Password')).toBeVisible();
+});
+
+test('AUTH-067 Every password field shows and hides what was typed', async ({ page }) => {
+  await openSignedOut(page);
+  const password = field(page, 'Password');
+  await password.fill('secret-1');
+  const eye = button(page, 'Show password');
+  const box = (await eye.boundingBox())!;
+  expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(48);
+  await eye.click();
+  await expect(password).not.toHaveAttribute('type', 'password');
+  await expect(password).toHaveValue('secret-1');
+  await button(page, 'Hide password').click();
+  await expect(password).toHaveAttribute('type', 'password');
+  // With help on, the eye explains itself instead of acting.
+  await byId(page, 'header-help').click();
+  await button(page, 'Show password').click();
+  await expect(button(page, /^Show password\. Shows the password you typed, to check it\. Tap again to hide it\./)).toBeVisible();
+  await expect(password).toHaveAttribute('type', 'password');
+  await byId(page, 'header-help').click();
+  await button(page, 'Create Account').click();
+  const first = field(page, 'Password');
+  const confirm = field(page, 'Confirm password');
+  await first.fill('secret-22');
+  await confirm.fill('secret-22');
+  const eyes = page.getByRole('button', { name: 'Show password', exact: true }).locator('visible=true');
+  await expect(eyes).toHaveCount(2);
+  await eyes.nth(1).click();
+  await expect(confirm).not.toHaveAttribute('type', 'password');
+  await expect(first).toHaveAttribute('type', 'password');
 });
 
 // ---- Sign-in codes ---------------------------------------------------------------------

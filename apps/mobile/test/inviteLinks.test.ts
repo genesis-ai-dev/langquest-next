@@ -1,4 +1,4 @@
-import { inviteUri, parseInvite, parseKey, parseSignInKey, signInUri } from '../src/invites/inviteCode';
+import { inviteUri, parseInvite, parseKey, parseResetKey, parseSignInKey, signInUri } from '../src/invites/inviteCode';
 
 // One https link for invites and sign-in, opened by the app or the web app (decisions.md 54, amended).
 
@@ -37,5 +37,20 @@ describe('https links', () => {
     }
     expect(parseInvite(`http://localhost.example.org/invite#token=${token}`)).toBeNull();
     expect(parseInvite(`http://192.168.1.5:8097/invite#token=${token}`)).toBeNull();
+  });
+
+  // The email Worker's Forgot password link (apps/invite-email/src/message.ts resetLink), on the path app links already open.
+  it('reads a Forgot password link, which is never mistaken for a helper\'s code', () => {
+    const reset = 'c'.repeat(64);
+    expect(parseResetKey(`${app}/signin#reset=${reset}`)).toEqual({ code: reset });
+    expect(parseResetKey(`langquestnext://signin?reset=${reset}`)).toEqual({ code: reset });
+    expect(parseResetKey(`${app}/signin#reset=${reset.toUpperCase()}`)).toEqual({ code: reset });
+    expect(parseKey(`${app}/signin#reset=${reset}`)).toEqual({ kind: 'reset', code: reset });
+    expect(parseKey(`http://localhost:8097/signin#reset=${reset}`)).toEqual({ kind: 'reset', code: reset });
+    expect(parseSignInKey(`${app}/signin#reset=${reset}`)).toBeNull();
+    expect(parseResetKey(signInUri(code, app))).toBeNull();
+    expect(parseResetKey(`https://example.org/signin#reset=${reset}`)).toBeNull();
+    expect(parseResetKey(`${app}/signin#reset=${reset.slice(1)}`)).toBeNull();
+    expect(parseResetKey(`${app}/invite#reset=${reset}`)).toBeNull();
   });
 });

@@ -351,7 +351,9 @@
     "settings_more": "Autres réglages",
     "check_editor": "Vérification",
     "cluster_home": "Groupe",
-    "global_viewer": "Observateur global"
+    "global_viewer": "Observateur global",
+    "forgot_password": "Mot de passe oublié",
+    "new_password": "Nouveau mot de passe"
   },
   "native": {
     "microphone": "LangQuest enregistre votre voix pour traduire des passages.",
@@ -2963,7 +2965,9 @@
       "failed": "Connexion impossible. Réessayez.",
       "scanCodeHelp": "Ouvre l’appareil photo, pour rejoindre avec une invitation ou vous connecter avec le code de quelqu’un qui vous aide.",
       "createAccountHelp": "Ouvre un formulaire pour votre e-mail et un nouveau mot de passe.",
-      "browseHelp": "Voyez le travail de traduction que les organisations partagent publiquement. Pas besoin de compte."
+      "browseHelp": "Voyez le travail de traduction que les organisations partagent publiquement. Pas besoin de compte.",
+      "forgot": "Mot de passe oublié ?",
+      "forgotHelp": "Ouvre une page où vous recevez un lien par e-mail pour choisir un nouveau mot de passe."
     },
     "terms": {
       "title": "Conditions et confidentialité",
@@ -3291,6 +3295,36 @@
       "notMe": "Ce n'est pas mon image",
       "notMeHelp": "Revient aux images.",
       "pictureHelp": "Déconnecté de ce téléphone ? Touchez votre image, puis dessinez votre schéma. Pas besoin de connexion."
+    },
+    "forgot": {
+      "title": "Mot de passe oublié",
+      "emailHelp": "L’e-mail avec lequel vous vous connectez. Le lien y est envoyé.",
+      "send": "Envoyer le lien",
+      "sendAgain": "Renvoyer",
+      "sending": "Envoi…",
+      "sendHelp": "Envoie par e-mail un lien pour choisir un nouveau mot de passe. Il faut une connexion.",
+      "sentTitle": "Vérifiez vos e-mails",
+      "sentBody": "Si {{email}} a un compte LangQuest, un lien pour choisir un nouveau mot de passe est en route.",
+      "failed": "Impossible d’envoyer le lien. Réessayez.",
+      "noEmailTitle": "Ce compte n’a pas d’e-mail",
+      "noEmailBody": "Quelqu’un de votre équipe peut vous montrer un code pour vous connecter."
+    },
+    "newPassword": {
+      "title": "Nouveau mot de passe",
+      "fieldHelp": "Tapez le mot de passe avec lequel vous vous connecterez désormais. L’œil montre ce que vous avez tapé.",
+      "button": "Se connecter",
+      "buttonHelp": "En fait votre mot de passe et vous connecte. Il faut une connexion.",
+      "changeButton": "Changer le mot de passe",
+      "changing": "Changement…",
+      "changeHelp": "En fait le mot de passe du compte. Il faut une connexion.",
+      "expired": "Ce lien a expiré ou a déjà été utilisé.",
+      "newLink": "Envoyer un nouveau lien",
+      "newLinkHelp": "Ouvre Mot de passe oublié, pour recevoir un nouveau lien par e-mail.",
+      "failed": "Impossible de changer le mot de passe. Réessayez.",
+      "signInFailed": "Votre nouveau mot de passe est enregistré. Connectez-vous avec celui-ci.",
+      "changedTitle": "Mot de passe changé",
+      "changedBody": "Désormais, {{email}} se connecte avec le nouveau mot de passe.",
+      "doneHelp": "Retour à votre écran d’accueil."
     }
   },
   "account": {
@@ -4590,7 +4624,9 @@
       "showMore_other": "Afficher {{count, number}} de plus · {{left}} restants",
       "onOlderVersion": "sur {{version}}",
       "orTypeReason": "Ou écrivez la raison",
-      "reasonFootnote": "Ceci va dans l’historique du passage avec votre nom. Cela pourra être annulé plus tard ; l’historique garde les deux."
+      "reasonFootnote": "Ceci va dans l’historique du passage avec votre nom. Cela pourra être annulé plus tard ; l’historique garde les deux.",
+      "showPassword": "Afficher le mot de passe",
+      "hidePassword": "Masquer le mot de passe"
     },
     "person": {
       "showId": "{{name}}. Afficher l’identifiant",
@@ -4745,7 +4781,8 @@
       "done": "Terminé ici : revient en arrière.",
       "undo": "Remet ce qui était là avant.",
       "tryAgain": "Essaie encore une fois.",
-      "quickReason": "Utilise ceci comme raison. Vous pouvez encore changer les mots."
+      "quickReason": "Utilise ceci comme raison. Vous pouvez encore changer les mots.",
+      "showPassword": "Affiche le mot de passe que vous avez tapé, pour le vérifier. Touchez à nouveau pour le masquer."
     },
     "tabs": {
       "work": "Ce qu’il y a à faire ensuite : votre prochain passage, et ce qui vous attend.",

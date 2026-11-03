@@ -756,18 +756,28 @@ export function Field(props: {
 }) {
   const name = props.label ?? props.accessibilityLabel ?? props.placeholder ?? '';
   const spot = useHelpSpot(name, props.help ?? t('help.details.field'), TYPE_HERE);
+  // A password field has an eye that shows what was typed and hides it again (decision 200).
+  const [shown, setShown] = useState(false);
   return (
     <View style={{ gap: space.xs }}>
       {props.label ? <Text style={txt.xsStrong}>{props.label}</Text> : null}
-      <View>
-      <TextInput value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint} editable={!spot.id}
-        accessibilityLabel={props.label ?? props.accessibilityLabel ?? props.placeholder}
-        {...(props.onSubmit && !props.multiline ? { onSubmitEditing: props.onSubmit, returnKeyType: 'go' as const } : {})}
-        {...(props.testID ? { testID: props.testID } : {})}
-        {...(props.autoFocus ? { autoFocus: true } : {})}
-        multiline={props.multiline} secureTextEntry={props.secure} keyboardType={props.keyboardType} autoCapitalize={props.autoCapitalize}
-        style={[styles.field, inputDirection(), props.multiline && { minHeight: 88, textAlignVertical: 'top', paddingTop: 14 }, props.style]} />
-      <HelpCover spot={spot} label={name} />
+      <View style={props.secure ? styles.secureField : undefined}>
+        <View style={props.secure ? { flex: 1 } : undefined}>
+          <TextInput value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint} editable={!spot.id}
+            accessibilityLabel={props.label ?? props.accessibilityLabel ?? props.placeholder}
+            {...(props.onSubmit && !props.multiline ? { onSubmitEditing: props.onSubmit, returnKeyType: 'go' as const } : {})}
+            {...(props.testID ? { testID: props.testID } : {})}
+            {...(props.autoFocus ? { autoFocus: true } : {})}
+            multiline={props.multiline} secureTextEntry={props.secure && !shown} keyboardType={props.keyboardType} autoCapitalize={props.autoCapitalize}
+            {...(props.secure ? { autoCorrect: false } : {})}
+            style={[props.secure ? styles.secureInput : styles.field, inputDirection(), props.multiline && { minHeight: 88, textAlignVertical: 'top', paddingTop: 14 }, props.style]} />
+          <HelpCover spot={spot} label={name} />
+        </View>
+        {props.secure ? (
+          <IconBtn name={shown ? 'eyeOff' : 'eye'} label={shown ? t('shell.kit.hidePassword') : t('shell.kit.showPassword')}
+            help={t('help.details.showPassword')} onPress={() => setShown((v) => !v)} bg="transparent" color={C.muted}
+            {...(props.testID ? { testID: `${props.testID}-eye` } : {})} />
+        ) : null}
       </View>
     </View>
   );
@@ -1188,6 +1198,9 @@ const styles = StyleSheet.create({
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   field: { minHeight: target.primary, borderRadius: radius.lg, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, paddingHorizontal: space.lg, fontSize: T.base, color: C.dark },
   search: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: target.primary, borderRadius: radius.lg, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, paddingLeft: space.lg, paddingRight: space.xs },
+  // A password field: the box is the row, so the eye sits inside it, after the text.
+  secureField: { flexDirection: 'row', alignItems: 'center', minHeight: target.primary, borderRadius: radius.lg, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, paddingLeft: space.lg, paddingRight: space.xs },
+  secureInput: { minHeight: target.primary - 3, fontSize: T.base, color: C.dark },
   searchInput: { flex: 1, fontSize: T.base, color: C.dark, paddingVertical: space.md },
   searchFiltered: { paddingVertical: space.xs },
   searchInputBeside: { minWidth: target.min },
