@@ -169,7 +169,8 @@ function toError(error: { message: string; code?: string }, status?: number): Er
   if (error.code === '42501' || /not a member|permission denied|service role only|not authorized/i.test(error.message)) {
     return new NotAuthorizedError(error.message);
   }
-  if (/fetch failed|failed to fetch|network|ECONNREFUSED|ECONNRESET|ENOTFOUND|ETIMEDOUT|timed out/i.test(error.message)) {
+  // Safari says "Load failed" where Chrome says "Failed to fetch" ("Download failed" is ours, an answer).
+  if (/fetch failed|failed to fetch|\bload failed\b|network|ECONNREFUSED|ECONNRESET|ENOTFOUND|ETIMEDOUT|timed out/i.test(error.message)) {
     return new OfflineError(error.message);
   }
   return new ServerError(`${error.code ?? 'rpc'}: ${error.message}`, error.code || (status ? `http${status}` : undefined));

@@ -59,6 +59,7 @@ vi.mock('../src/diagnostics/diagnostics', () => ({
 vi.mock('../src/recording/recorderState', () => ({ isRecording: () => false }));
 vi.mock('../src/sources/bibleBrain', () => ({ BibleError: class extends Error {} }));
 vi.mock('../src/sources/store', () => ({ bibleBrain: null }));
+vi.mock('../src/reports/reportsServer', () => ({ reportsServer: { baseUrl: '', token: async () => 'tok' } }));
 
 interface FakeStore {
   present: Map<string, number>;
@@ -159,15 +160,43 @@ describe('download on a phone', () => {
 });
 
 describe('download in a browser', () => {
-  it('reads the bytes with fetch and stores them verified; a refusal is an error', async () => {
+  /** What the page asked the Worker for, with the bearer it sent. */
+  const asked: string[] = [];
+  const worker = (files: Record<string, string>) => vi.stubGlobal('fetch', async (path: string, init?: RequestInit) => {
+    asked.push(`${path} ${(init?.headers as Record<string, string> | undefined)?.authorization ?? '-'}`);
+    return path in files ? new Response(files[path]) : new Response('no', { status: 403 });
+  });
+  beforeEach(() => { asked.length = 0; });
+
+  it('asks the Worker for the library link (the page may not read the source itself, decisions.md 200) and stores the bytes verified', async () => {
     fake.platform = 'web';
     const { download } = await offline();
     const store = fakeStore();
-    vi.stubGlobal('fetch', async (url: string) => (url === 'https://x/ok' ? new Response('abc') : new Response('no', { status: 403 })));
+    worker({ '/api/source-audio?url=https%3A%2F%2Fx%2Fok': 'abc' });
     await download(store as never, 'k', 'https://x/ok', { expectHash: 'h:abc' });
     expect(store.present.get('h:abc')).toBe(3);
+    expect(asked).toEqual(['/api/source-audio?url=https%3A%2F%2Fx%2Fok Bearer tok']);
     await expect(download(store as never, 'k2', 'https://x/no', {})).rejects.toThrow('Download failed (403)');
     await expect(download(store as never, 'k3', 'https://x/ok', { expectHash: 'h:other' })).rejects.toThrow('hash mismatch for k3');
+  });
+
+  it('asks the Worker for a Bible Brain chapter by fileset, book and chapter, never its signed link', async () => {
+    fake.platform = 'web';
+    const { download } = await offline();
+    const store = fakeStore();
+    worker({ '/api/bible/file/ENGESVO1DA/GEN/1': 'gen' });
+    await download(store as never, 'bb:ENGESVO1DA:GEN:1', 'https://cdn.example/signed.mp3', { fileset: 'ENGESVO1DA', webPath: '/api/bible/file/ENGESVO1DA/GEN/1' });
+    expect(index()['bb:ENGESVO1DA:GEN:1']).toMatchObject({ hash: 'h:gen', fileset: 'ENGESVO1DA' });
+    expect(asked).toEqual(['/api/bible/file/ENGESVO1DA/GEN/1 Bearer tok']);
+  });
+
+  it('a phone still downloads from the link itself', async () => {
+    const { download } = await offline();
+    fake.served.set('https://x/phone', 'p');
+    worker({});
+    await download(fakeStore() as never, 'k', 'https://x/phone', { webPath: '/api/bible/file/F/GEN/1' });
+    expect(asked).toEqual([]);
+    expect(index()['k']).toMatchObject({ hash: 'h:p' });
   });
 });
 

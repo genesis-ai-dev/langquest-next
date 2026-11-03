@@ -68,6 +68,24 @@ export function sourceAudioFile(bible: SourceBible, item: SourceChapter): string
     `${AUDIO_BOOKS[index]}_${String(item.chapter).padStart(3, '0')}_FS.mp3`;
 }
 
+/**
+ * The hosts a library source's audio may come from (decisions.md 200). A
+ * browser cannot read them itself (the page's content security policy, and
+ * OpenBible allows no other site's reads), so the Worker fetches a file for
+ * it, and only from these.
+ */
+export const SOURCE_AUDIO_HOSTS: readonly string[] = ['openbible.com'];
+
+/** An https link on one of SOURCE_AUDIO_HOSTS, with no user name or password in it. */
+export function isSourceAudioUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && !u.username && !u.password && u.port === '' && SOURCE_AUDIO_HOSTS.includes(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function sourceAudioUrl(bible: SourceBible, item: SourceChapter): string {
-  return `https://openbible.com/audio/${bible.directory}/${sourceAudioFile(bible, item)}`;
+  return `https://${SOURCE_AUDIO_HOSTS[0]}/audio/${bible.directory}/${sourceAudioFile(bible, item)}`;
 }

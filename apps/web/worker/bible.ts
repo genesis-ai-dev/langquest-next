@@ -11,6 +11,7 @@
  * since FCBH signs them for about a day.
  */
 
+import { passAudioThrough } from './sourceAudio';
 import { NUMBERED_BIBLES } from './bibleNumberings';
 
 const DBP = 'https://4.dbt.io/api';
@@ -193,6 +194,7 @@ export async function handleBible(request: Request, deps: BibleDeps): Promise<Re
 
   const bible = new BibleBrain(key, deps);
   try {
+    if (route.name === 'file') return await bible.file(route.fileset, route.book, route.chapter);
     const { body, maxAge } = await bible.answer(route, url.searchParams);
     return bible.respond(200, body, maxAge);
   } catch (e) {
@@ -208,7 +210,7 @@ type Route =
   | { name: 'bibles' }
   | { name: 'numbered' }
   | { name: 'bible'; bibleId: string }
-  | { name: 'text' | 'audio' | 'timestamps'; fileset: string; book: string; chapter: number };
+  | { name: 'text' | 'audio' | 'timestamps' | 'file'; fileset: string; book: string; chapter: number };
 
 function matchRoute(path: string): Route | null {
   if (path === '/languages') return { name: 'languages' };
@@ -217,9 +219,9 @@ function matchRoute(path: string): Route | null {
   if (path === '/numbered') return { name: 'numbered' };
   let m = /^\/bibles\/([^/]+)$/.exec(path);
   if (m) return ID.test(m[1]!) ? { name: 'bible', bibleId: m[1]! } : null;
-  m = /^\/(text|audio|timestamps)\/([^/]+)\/([^/]+)\/(\d{1,3})$/.exec(path);
+  m = /^\/(text|audio|timestamps|file)\/([^/]+)\/([^/]+)\/(\d{1,3})$/.exec(path);
   if (m && ID.test(m[2]!) && BOOK.test(m[3]!) && Number(m[4]) >= 1) {
-    return { name: m[1] as 'text' | 'audio' | 'timestamps', fileset: m[2]!, book: m[3]!, chapter: Number(m[4]) };
+    return { name: m[1] as 'text' | 'audio' | 'timestamps' | 'file', fileset: m[2]!, book: m[3]!, chapter: Number(m[4]) };
   }
   return null;
 }
@@ -283,7 +285,19 @@ class BibleBrain {
         const a = await this.audio(route.fileset, route.book, route.chapter);
         return { body: a, maxAge: Math.max(0, Math.min(3600, Math.floor((Date.parse(a.expiresAt) - this.now()) / 1000) - 3600)) };
       }
+      case 'file': throw notFound();
     }
+  }
+
+  /**
+   * A chapter's audio file itself, for a browser keeping it offline
+   * (decisions.md 200): the page cannot read FCBH's links itself. Only a
+   * fileset FCBH lets us download, and nothing is kept on the way.
+   */
+  async file(fileset: string, book: string, chapter: number): Promise<Response> {
+    const a = await this.audio(fileset, book, chapter);
+    if (!a.offline) throw new Answer(403, 'This Bible can be heard here, but not kept.');
+    return passAudioThrough(this.fetchImpl, a.url);
   }
 
   // ---- upstream and cache --------------------------------------------------------------------
