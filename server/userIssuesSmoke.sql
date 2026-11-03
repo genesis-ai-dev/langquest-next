@@ -38,14 +38,14 @@ insert into diag.feedback (id, profile_id, kind, body, install_id, context, shar
   ('0d000000-0000-4000-8000-0000000000f2', 'ui-p2', 'idea', 'Add a dark mode', 'ui-b', '{}', null, null, null, null),
   ('0d000000-0000-4000-8000-0000000000f3', 'ui-review', 'bug', 'The review device', 'ui-rev', '{}', null, null, null, null),
   ('0d000000-0000-4000-8000-0000000000f4', 'ui-p2', 'bug', 'Already handled', 'ui-b', '{}', null, null, null, now());
--- A server job failing three times running, and the Worker's blobs route answering 5xx six times in a day.
+-- A server job failing three times running, and the Worker's blobs_get route answering 5xx six times in a day.
 insert into diag.job_runs (job, started_at, ms, outcome, error_class) values
   ('blob_reconcile', now() - interval '3 hours', 10, 'error', '57014'),
   ('blob_reconcile', now() - interval '2 hours', 10, 'error', '57014'),
   ('blob_reconcile', now() - interval '1 hour', 10, 'error', '57014');
 insert into diag.job_runs (job, started_at, ms, outcome, n) values
-  ('worker_requests', now() - interval '2 hours', 60000, 'partial', '{"blobs_2xx":40,"blobs_5xx":4}'),
-  ('worker_requests', now() - interval '1 hour', 60000, 'partial', '{"blobs_5xx":2,"reports_5xx":1}');
+  ('worker_requests', now() - interval '2 hours', 60000, 'partial', '{"blobs_get_2xx":40,"blobs_get_5xx":4}'),
+  ('worker_requests', now() - interval '1 hour', 60000, 'partial', '{"blobs_get_5xx":2,"reports_5xx":1}');
 
 set local role service_role;
 do $$
@@ -55,7 +55,7 @@ begin
   select array_agg(e->>'key' order by o) into keys from jsonb_array_elements(v->'look') with ordinality t(e, o);
   -- Help mode first, then the server, then the phones' kinds by people in the last day.
   assert keys[1] = 'feedback:0d000000-0000-4000-8000-0000000000f1', 'the bug report first: %', keys;
-  assert keys @> array['job:blob_reconcile:failing', 'worker:blobs:5xx'], 'the server''s trouble: %', keys;
+  assert keys @> array['job:blob_reconcile:failing', 'worker:blobs_get:5xx'], 'the server''s trouble: %', keys;
   assert (select max(o) from unnest(keys) with ordinality u(k, o) where k ~ '^(job|worker):')
        < (select min(o) from unnest(keys) with ordinality u(k, o) where k !~ '^(job|worker|feedback):'), 'then the server: %', keys;
   assert (select k from unnest(keys) with ordinality u(k, o) where k !~ '^(job|worker|feedback):' order by o limit 1) = 'error:TypeError@record:-',
@@ -76,8 +76,8 @@ begin
   assert (x->>'count')::int = 3, 'failures, not records, counted: %', x;
   select e into x from jsonb_array_elements(v->'look') e where e->>'key' = 'job:blob_reconcile:failing';
   assert (x->>'count')::int = 3 and x->'server'->>'lastErrorClass' = '57014' and (x->'server'->>'streak')::int = 3, 'the job: %', x;
-  select e into x from jsonb_array_elements(v->'look') e where e->>'key' = 'worker:blobs:5xx';
-  assert (x->>'count')::int = 6 and x->'server'->>'route' = 'blobs', 'the route: %', x;
+  select e into x from jsonb_array_elements(v->'look') e where e->>'key' = 'worker:blobs_get:5xx';
+  assert (x->>'count')::int = 6 and x->'server'->>'route' = 'blobs_get', 'the route: %', x;
   x := v->'look'->0->'feedback';
   assert x->>'body' = 'My recording vanished' and x->>'screen' = 'record' and x->>'os' = 'android' and x->>'uiLanguage' = 'fr'
     and (x->>'screenshot')::boolean and not (x->>'picture')::boolean and x->>'installId' = 'ui-a'
@@ -91,14 +91,14 @@ begin
       jsonb_build_object('key', 'error:TypeError@record:-', 'verdict', 'filed', 'issue', 'LAN-300', 'issueUrl', 'https://linear.app/x/issue/LAN-300', 'people', 2, 'count', 2),
       jsonb_build_object('key', 'auth:sign_in:refused:invalid_credentials', 'verdict', 'noise', 'people', 1, 'count', 1, 'note', 'A wrong password, once.'),
       jsonb_build_object('key', 'job:blob_reconcile:failing', 'verdict', 'known', 'issue', 'LAN-12', 'issueUrl', 'https://linear.app/x/issue/LAN-12', 'people', 0, 'count', 3),
-      jsonb_build_object('key', 'worker:blobs:5xx', 'verdict', 'known', 'issue', 'LAN-12', 'issueUrl', 'https://linear.app/x/issue/LAN-12', 'people', 0, 'count', 6)),
+      jsonb_build_object('key', 'worker:blobs_get:5xx', 'verdict', 'known', 'issue', 'LAN-12', 'issueUrl', 'https://linear.app/x/issue/LAN-12', 'people', 0, 'count', 6)),
     'grew', '[]'::jsonb));
   assert v = '{"looked":5,"grew":0}'::jsonb, 'five looked at: %', v;
 
   v := public.ops_user_issue_watch();
   select array_agg(e->>'key') into keys from jsonb_array_elements(v->'look') e;
   assert not keys && array['feedback:0d000000-0000-4000-8000-0000000000f1', 'error:TypeError@record:-', 'auth:sign_in:refused:invalid_credentials',
-    'job:blob_reconcile:failing', 'worker:blobs:5xx'], 'each looked at once: %', keys;
+    'job:blob_reconcile:failing', 'worker:blobs_get:5xx'], 'each looked at once: %', keys;
   assert keys @> array['transfer:down:source:failOther', 'device:lostRecordings', 'device:uploadWaitingOverADay', 'sync:error:pull:57014:ServerError'],
     'the rest still to look at: %', keys;
 end $$;

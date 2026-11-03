@@ -10238,3 +10238,64 @@ promise is the same on every platform, 58).
 Reverse if: the sources serve cross-site reads and the policy can name
 them, or the traffic through the Worker costs more than keeping the files
 would.
+
+## 202. A watch every 15 minutes hands new kinds of user problems to Claude, which files each real one in Linear, assigned to a developer
+
+Date: 2026-11-03 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-11-03, thread "Auto-detect and fix user issues") found
+problems people had hit for up to a week (reference audio that never
+downloaded in browsers, 201; no password reset, 200) that nobody had seen,
+because seeing them meant someone remembering to open the ops dashboard or
+`npm run diag`. He asked for developers to be told of each problem as it
+happens, by the problem coming to them. He chose to build it in two steps:
+first the watch and the alerts, to see a few days of what it files; fix
+pull requests come after, in a change of their own. Decided:
+- **Kinds, not records.** `ops_user_issue_watch()` (migration
+  `20261103180000_user_issues.sql`) groups 7 days of `diag.records` into
+  kinds named by the records' code-like tags (`error:<name>@<where>:<code>`,
+  `transfer:down:source:failOther`, `device:lostRecordings`; the families
+  are in `server/userIssues.ts`), adds server jobs failing or stopped and
+  the Worker's 5xx (`diag.job_runs`), and each problem sent from help mode
+  (`diag.feedback`, bugs only, never who sent it). Development builds and
+  the accounts in `ops.watch_ignored` (the store review account) are left
+  out. A kind is handed over when someone hit it in the last day and it was
+  never looked at, at most 20 at a time, help mode first.
+- **Looked at once.** `ops.user_issues` keeps what was decided about each
+  kind: filed (a new Linear issue), known (an issue the team had) or noise.
+  A kind comes back only when at least twice as many people hit it (and two
+  more): noise to be judged again, a filed one as a comment on its issue.
+  Server kinds come back after a week. Noise is forgotten after 90 days.
+- **GitHub Actions, every 15 minutes, holding no production key**
+  (`.github/workflows/user-issues.yml`): it reads the watch and says what it
+  did through the app Worker's `/api/user-issues`, which lets in only that
+  workflow on main by its OIDC token, as 186's door does
+  (`apps/web/worker/userIssues.ts`). Each read is a `user_issue_watch` job
+  run, so a watch that stops shows on the ops dashboard. Like 186, this is
+  an exception to 141's "no production job runs in GitHub Actions" that
+  keeps 141's reasons: GitHub holds no production key, a late or dropped
+  run only tells the team later, and a schedule GitHub switches off shows
+  as a stale `user_issue_watch` within the hour. Considered: the Worker's
+  own cron (it would need the Linear key, and Claude, in the Worker); a
+  `diag_reader` login in GitHub (141 keeps production logins out of it).
+  The workflow runs every 15 minutes, so the ops dashboard reads its runs
+  apart from the others' (`FREQUENT_WORKFLOWS`).
+- **Claude judges; the script files.** Only when something is new, Claude
+  (the plan token of 186) reads the kinds and the team's Linear issues and
+  follows the `user-issues` skill: group what is one problem, find it in the
+  code, and decide. What people wrote is untrusted, so Claude has no
+  network, no key and no shell beyond reading git; its one output is a file
+  that `scripts/user-issues.mjs` checks (a kind it was not handed, or names
+  twice, is dropped). The script alone holds `LINEAR_API_KEY`.
+- **Linear is the alert.** Each new issue is in the LangQuest Next team
+  with the label User issue, assigned to the Linear user named in the
+  workflow (Caleb), whose Linear app tells him on his phone. GitHub stays
+  code only, since the repository and its Actions logs are public: the logs
+  carry counts, keys and issue ids, never what a person wrote, and no
+  address goes into Linear. When in doubt, the skill files: a missed problem
+  is what this exists to stop.
+Anthropic (Claude) and Linear now handle what people send from help mode;
+the privacy page names them as service providers.
+Reverse if: what it files is mostly noise after a week (then tighten what
+is handed over), or problems still go unseen for a day (then look at the
+assignment and the phone alerts first).

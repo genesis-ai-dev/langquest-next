@@ -17,6 +17,12 @@ stuck.
 | `deploy-watchdog.md` | hourly | issue comments, and an issue for a hosted database behind main or a server job in trouble |
 | `do-memory-canary.md` (proposed, not running) | after each production Worker deploy | comments on LAN-33, and an issue when a large organization's Durable Object fails or is reset for memory |
 
+The watch for user issues is not a routine here: it runs in GitHub Actions
+every 15 minutes (`.github/workflows/user-issues.yml`, decisions.md 202) and
+files each new problem people hit, and each server job in trouble, as a
+Linear issue labeled User issue (`docs/diagnostics.md`). The watchdog's
+server-job issues overlap it.
+
 ## Guarded paths
 
 A change that touches one of these is never pushed to main by a routine. It

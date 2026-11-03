@@ -107,7 +107,7 @@ timeline <installId>`).
 1. **Group what is one problem.** A problem sent from help mode and an
    error its phone hit around the same time (`installKeys`) are often one
    issue; so are several keys with one cause (an upload failing with
-   `failHttp5xx` and the Worker's `blobs` route answering 5xx). Put them in
+   `failHttp5xx` and the Worker's `blobs_put` route answering 5xx). Put them in
    one issue's `keys`. Different problems stay apart, even on one phone.
 2. **Look for it in Linear.** An issue in linear.json that is the same
    problem (by its `keys`, its title or what it describes) makes this
