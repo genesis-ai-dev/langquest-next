@@ -1,5 +1,5 @@
 // The Android side of a phone's disguise (decisions.md 171), on top of
-// expo-alternate-app-icons, which makes one <activity-alias> per icon
+// expo-alternate-app-icons (./withAndroidAppIcons), which makes one <activity-alias> per icon
 // (".MainActivityCalculator1") with only the launcher filter and app.json's
 // intent filters. Two things it leaves out:
 //   1. A name under the icon. Each alias is labelled "Calculator" or "Notes"
@@ -10,7 +10,8 @@
 //      (langquestnext://invite, Scan a code's paste) and the dev client's.
 //      Every VIEW filter of .MainActivity is copied onto each alias.
 // Manifest mods run in reverse plugin order, so app.json lists this plugin
-// before expo-alternate-app-icons, for it to run after.
+// before ./plugins/withAndroidAppIcons (expo-alternate-app-icons' Android
+// steps), for it to run after.
 const fs = require('fs');
 const path = require('path');
 const { AndroidConfig, withAndroidManifest, withDangerousMod } = require('expo/config-plugins');

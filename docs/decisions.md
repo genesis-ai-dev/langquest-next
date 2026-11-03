@@ -8424,6 +8424,26 @@ the videos are filmed on draws no App icon row (`DisguiseRow.web.tsx`),
 and the nightly look at the videos' feedback is refused whole when a reply or
 suggestion names it (`server/tutorialFeedback.ts`, decision 186).
 
+Amended (2026-11-03, Caleb Koster): an iPhone build has no disguise. Apple
+refused iPhone build 48 twice on 2026-11-03 under App Review Guideline 2.5.19,
+the second time after Caleb's reply, for "functionality that allows users to
+change the app's icon to resemble a calculator or notes application", and
+asked for the feature and all code related to it to go. This goes further
+than "Reverse if" planned: the calculator and notepad go on iPhone too, not
+only the icon, so that the rejection stops holding back every iPhone build
+(few people use the app yet), and Caleb appeals to the App Review Board. The
+iPhone app has no App icon row and no lock (`src/disguise/*.ios.ts(x)`, as the
+web's), no other icons (`./plugins/withAndroidAppIcons` runs only
+expo-alternate-app-icons' Android steps) and not its native module
+(`expo.autolinking.ios.exclude` in `apps/mobile/package.json`);
+`test/disguiseIphone.test.ts` holds it. An iPhone that wore a disguise on
+build 45 opens on LangQuest once it updates, and what that build kept (look,
+note, the code's hash) is cleared, so a later build cannot put it back on by
+itself. Android's build is unchanged (`expo prebuild` writes the same Android
+project), and the iPhone pictures stay in `assets/disguise`. Reverse if: the
+App Review Board allows the icons (then the iPhone gets the disguise back,
+and the App Review notes describe it again).
+
 ## 172. FIA's key words are a key-word list per language, picked apart from FIA's guides, shown where a passage links or says them, and every reference list can be searched
 
 Date: 2026-10-26 · By: Caleb Koster · Status: accepted

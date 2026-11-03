@@ -71,12 +71,13 @@ describe('codes', () => {
 describe('the looks', () => {
   const ROOT = join(import.meta.dirname, '..');
   const app = JSON.parse(readFileSync(join(ROOT, 'app.json'), 'utf8')) as { expo: { plugins: unknown[] } };
-  const declared = (app.expo.plugins.find((p) => Array.isArray(p) && p[0] === 'expo-alternate-app-icons') as [string, { name: string; ios: string; android: { foregroundImage: string } }[]])[1];
+  const declared = (app.expo.plugins.find((p) => Array.isArray(p) && p[0] === './plugins/withAndroidAppIcons') as [string, { name: string; android: { foregroundImage: string } }[]])[1];
 
   it('are five calculators and five notepads, each an icon app.json declares, with its pictures', () => {
     expect(LOOKS.filter((l) => l.kind === 'calculator')).toHaveLength(5);
     expect(LOOKS.filter((l) => l.kind === 'notes')).toHaveLength(5);
     expect(declared.map((d) => d.name)).toEqual(LOOKS.map((l) => l.icon));
+    // icon.png is the iPhone's picture: no iPhone build uses it while Apple refuses the icons (decisions.md 171, amended 2026-11-03), and it stays for the day one may.
     for (const look of LOOKS) {
       for (const file of ['icon.png', 'adaptive.png', 'preview.png']) expect(existsSync(join(ROOT, 'assets/disguise', look.id, file)), `${look.id}/${file}`).toBe(true);
     }
@@ -84,6 +85,6 @@ describe('the looks', () => {
 
   it('come after the plugin that names them on Android, so its manifest change runs last', () => {
     const names = app.expo.plugins.map((p) => (Array.isArray(p) ? p[0] : p));
-    expect(names.indexOf('./plugins/withDisguiseIcons')).toBeLessThan(names.indexOf('expo-alternate-app-icons'));
+    expect(names.indexOf('./plugins/withDisguiseIcons')).toBeLessThan(names.indexOf('./plugins/withAndroidAppIcons'));
   });
 });
