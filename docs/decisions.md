@@ -9718,16 +9718,6 @@ the frame check's prompt now says what a passage's step marks mean (a
 grey skip-forward sign is a check set aside) and that the recording
 clock counts the silence a part is cut from.
 
-Amended (2026-11-03, Caleb Koster): two rows of the other channels. Caleb
-found Chinese missing from the row on the English channel's home page, and
-"another missing too": Burmese. YouTube shows only the first 12 channels
-of a row (`CHANNELS_PER_ROW`), and the two were the 13th and 14th. The other
-14 are now two rows of 7 under the same title, in the order of `CHANNELS`
-(`setHome`). The first run after the change writes each channel's rows once,
-since every playlist row moves down one (50 units a row, at most 400 a
-channel); after that a run costs 2 units again. Rejected: one row of 12 and
-a second of 2 (lopsided).
-
 ## 192. Tutorial videos go up as soon as they are filmed: the filming tells the app, the intake chooses the wide films itself, and the publish follows each intake
 
 Date: 2026-10-30 · By: Caleb Koster · Status: accepted
