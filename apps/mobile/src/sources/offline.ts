@@ -14,7 +14,8 @@
 // files have no hash until downloaded. The sources share of the cache is
 // bounded (`SOURCE_CACHE_BYTES`): files outside the scope go first, oldest
 // first, and nothing new is fetched past the cap. Like every transfer, this
-// waits while the microphone is open and while offline.
+// waits while the microphone is open and while offline. A browser gets the
+// files through the Worker (throughWorker.ts, decisions.md 201).
 import type { SourceDoc } from '@langquest-next/core';
 import { classifyTransferFailure } from '@langquest-next/sync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -33,6 +34,7 @@ import { BibleError } from './bibleBrain';
 import { offlineAllowed, sourceEvictions, type SourceOption } from './model';
 import { audioFormatOf, bbKey, bookHashesFor, libAudioKey, offlineOptions, sourceHashes, wantedChapters, type AudioFormat, type Want } from './offlineModel';
 import { bibleBrain, type MyBible } from './store';
+import { bibleFilePath, fetchThroughWorker, libraryAudioPath } from './throughWorker';
 
 // The key and format helpers are offlineModel.ts's; other files still import them from here.
 export { audioFormatOf, bbKey, libAudioKey };
@@ -101,14 +103,17 @@ export async function playableUri(store: BlobStore, ref: BlobFile): Promise<stri
   });
 }
 
-/** Fetch one chapter's audio, hash it, and keep it under its hash. A known hash must match. Answers its size. */
-export async function download(store: BlobStore, key: string, url: string, opts: { expectHash?: string; fileset?: string; format?: AudioFormat }): Promise<number> {
+/**
+ * Fetch one chapter's audio, hash it, and keep it under its hash. A known
+ * hash must match. Answers its size. In a browser the Worker fetches it:
+ * `webPath`, or else the library link's own route (throughWorker.ts).
+ */
+export async function download(store: BlobStore, key: string, url: string, opts: { expectHash?: string; fileset?: string; format?: AudioFormat; webPath?: string }): Promise<number> {
   const format = opts.format ?? 'mp3';
   let bytes: Uint8Array<ArrayBuffer>;
   let staged: File | null = null;
   if (Platform.OS === 'web') {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Download failed (${res.status})`);
+    const res = await fetchThroughWorker(opts.webPath ?? libraryAudioPath(url));
     bytes = new Uint8Array(await res.arrayBuffer());
   } else {
     // A staging name nobody trusts; only a hashed file earns its place in the store.
@@ -149,7 +154,7 @@ export async function purgeFileset(store: BlobStore, fileset: string): Promise<n
 // ---- what the scope needs -------------------------------------------------------------------
 
 const checkedFilesets = new Set<string>();
-/** Links that failed this session (on the web, a host that does not allow cross-origin reads); not tried again until the app restarts. */
+/** Links that failed this session; not tried again until the app restarts. */
 const failedLinks = new Set<string>();
 
 export async function pass(language: LanguageHandle, org: OrgHandle, session: Session): Promise<void> {
@@ -233,7 +238,7 @@ export async function pass(language: LanguageHandle, org: OrgHandle, session: Se
         const link = await bibleBrain.audio(w.fileset, w.book, w.chapter, { offline: true });
         // Stream only from now on: nothing of it stays on the phone.
         if (!link.offline) { refused.add(w.fileset); await purgeFileset(store, w.fileset); continue; }
-        await fetchChapter(w.key, link.url, { fileset: w.fileset });
+        await fetchChapter(w.key, link.url, { fileset: w.fileset, webPath: bibleFilePath(w.fileset, w.book, w.chapter) });
       } else continue;
       fetched++;
       total += idx[w.key]?.bytes ?? 0;

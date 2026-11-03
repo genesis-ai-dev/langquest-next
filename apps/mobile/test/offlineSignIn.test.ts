@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { accessTokenFresh, afterAuthEvent, savedSession } from '../src/session/authState';
-import { answerAtOnceWhileOffline, NOT_RENEWED, renewalChanges, sessionSafeFetch, type RenewalChange, type RenewalWatch } from '../src/server/sessionSafeFetch';
+import { answerAtOnceWhileOffline, listenToRenewals, NOT_RENEWED, renewalChanges, sessionSafeFetch, type RenewalChange, type RenewalWatch } from '../src/server/sessionSafeFetch';
 import { signOutThisDevice } from '../src/server/signOut';
 import { signOutChosen, takeRefusal } from '../src/session/signOutCause';
 
@@ -264,6 +264,26 @@ describe('what field diagnostics hear about the sign-in (signOutCause.ts, renewa
       expect(changes.slice(3)).toEqual([{ outcome: 'http', status: 511 }, { outcome: 'ok', ms: expect.any(Number), sinceOkMs: expect.any(Number) }]);
     } finally {
       renewalChanges.delete(listen);
+    }
+  });
+
+  it('a renewal that fails before anyone listens is told to the first listener, once', async () => {
+    // Why: supabase-js renews as its client is made, before the app's first
+    // render listens (App.tsx), so a browser opened with no connection
+    // recorded only the recovery, 5 minutes later, and never why it waited.
+    listenToRenewals(() => undefined)(); // what earlier tests left unheard
+    const p = phone(now() - 60 * DAY, async () => { throw new TypeError('Load failed'); });
+    await settle(p.client.auth.getSession());
+    const first: RenewalChange[] = [];
+    const second: RenewalChange[] = [];
+    const offFirst = listenToRenewals((c) => { first.push(c); });
+    const offSecond = listenToRenewals((c) => { second.push(c); });
+    try {
+      expect(first).toEqual([{ outcome: 'offline' }]);
+      expect(second).toEqual([]);
+    } finally {
+      offFirst();
+      offSecond();
     }
   });
 });
