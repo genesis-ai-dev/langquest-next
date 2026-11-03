@@ -56,10 +56,34 @@ export type RenewalChange =
 /** Who hears a renewal change (diagnostics); module-wide, so the clients made in supabase.ts need no option for it. */
 export const renewalChanges = new Set<(change: RenewalChange) => void>();
 
+/**
+ * Changes told while nobody listened, oldest first, for the first listener
+ * (`listenToRenewals`). supabase-js renews an expired sign-in as soon as its
+ * client is made, before the app's first render starts listening, and a
+ * browser opened with no connection fails at once: that failure was never
+ * recorded, only the later recovery (field snapshot, 2026-11-03).
+ */
+const unheard: RenewalChange[] = [];
+const UNHEARD_MAX = 4;
+
 function tell(change: RenewalChange): void {
+  if (renewalChanges.size === 0) {
+    unheard.push(change);
+    if (unheard.length > UNHEARD_MAX) unheard.shift();
+    return;
+  }
   for (const listener of renewalChanges) {
     try { listener(change); } catch { /* a listener never breaks a renewal */ }
   }
+}
+
+/** Hear renewal changes, starting with any told before anyone listened. Returns the unsubscribe. */
+export function listenToRenewals(listener: (change: RenewalChange) => void): () => void {
+  renewalChanges.add(listener);
+  for (const change of unheard.splice(0)) {
+    try { listener(change); } catch { /* a listener never breaks a renewal */ }
+  }
+  return () => { renewalChanges.delete(listener); };
 }
 
 /** Track a renewal's result on its watch, telling listeners only when the state changes. */
