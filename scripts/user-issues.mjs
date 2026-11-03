@@ -3,12 +3,15 @@
 // docs/diagnostics.md "The watch for user issues", decisions.md 202). Plain
 // Node, no packages, so the workflow needs no `npm ci`.
 //
-//   node scripts/user-issues.mjs fetch <dir>   what is new (watch.json) and the team's issues in Linear
+//   node scripts/user-issues.mjs fetch <dir>   first tells the Worker which of its issues closed or opened again
+//                                              in Linear (with the pull request that fixed each, when named);
+//                                              then what is new (watch.json) and the team's issues in Linear
 //                                              (linear.json); writes look=<n> and grew=<n> to GITHUB_OUTPUT
 //   node scripts/user-issues.mjs file <dir>    decisions.json, as Claude wrote it: a Linear issue for each new
 //                                              problem, assigned to USER_ISSUES_ASSIGNEE, and a comment on each
-//                                              issue the team already had and on each that more people hit since;
-//                                              then tells the Worker what was done, so nothing is filed twice
+//                                              issue the team already had (reopened when it was closed) and on
+//                                              each that more people hit since; then tells the Worker what was
+//                                              done, so nothing is filed twice
 //
 // The Worker lets in this workflow on main, and nothing else, by the OpenID
 // Connect token GitHub gives the job (apps/web/worker/userIssues.ts).
@@ -39,6 +42,8 @@ const LINEAR_MAX = 300;
 const DESCRIPTION_MAX = 600;
 const OPS = 'https://next.langquest.org/ops-dashboard';
 const ISSUE_ID = new RegExp(`^${TEAM_KEY}-[0-9]{1,7}$`);
+/** A pull request of this repository, as Linear links it. */
+const PR_URL = /^https:\/\/github\.com\/genesis-ai-dev\/langquest-next\/pull\/([0-9]{1,8})(?:[/?#].*)?$/;
 const EMAIL = /[^\s@<>()[\]`,;:"']+@[^\s@<>()[\]`,;:"']+\.[A-Za-z]{2,}/g;
 
 // ---- what goes into Linear -----------------------------------------------------------------------
@@ -71,7 +76,7 @@ export function factsOf(kind) {
     const words = cut(f.body, 2000).split('\n').map((line) => `> ${line}`).join('\n');
     const media = [f.screenshot && 'a screenshot', f.picture && 'a picture', f.voiceMs !== null && f.voiceMs !== undefined && `a voice note (${Math.round(f.voiceMs / 1000)} s)`].filter(Boolean);
     return [
-      `**Sent from help mode** on ${when(f.at)}${f.screen ? `, from the screen \`${f.screen}\`` : ''} · ${f.os ?? '?'} · app ${f.app ?? '?'}${f.uiLanguage ? ` · app language ${f.uiLanguage}` : ''}`,
+      `**Sent from help mode** on ${when(f.at)}${f.screen ? `, from the screen \`${f.screen}\`` : ''} · ${f.app ?? f.os ?? '?'}${f.uiLanguage ? ` · app language ${f.uiLanguage}` : ''}`,
       '',
       words || '> (no words)',
       ...(media.length ? ['', `With ${media.join(' and ')}: [ops dashboard](${OPS}), Feedback.`] : [])
@@ -86,9 +91,13 @@ export function factsOf(kind) {
     ].join('\n\n');
   }
   const apps = (kind.apps ?? []).map((a) => `${a.app} (${a.installs})`).join(', ');
+  const fix = kind.before?.verdict === 'fixed' && kind.peopleAfterFix !== null && kind.peopleAfterFix !== undefined
+    ? [`**Again after the fix** (${kind.before.fixedBy ? `PR ${kind.before.fixedBy}, merged` : 'issue closed'} ${when(kind.before.fixedAt)}): ${plural(kind.peopleAfterFix, 'person', 'people')} more than a day after it; the platforms and builds below are theirs.`]
+    : [];
   return [
     `**\`${kind.key}\`** · ${plural(kind.people, 'person', 'people')} in 7 days (${kind.peopleDay} in the last day) · ${plural(kind.installs, 'install')} · ${plural(kind.count, 'time')}`,
-    `${byCount(kind.platforms).map(([p, n]) => `${p} ${n}`).join(', ') || '?'} · app ${apps || '?'} · first ${when(kind.firstAt)}, last ${when(kind.lastAt)}`
+    ...fix,
+    `${byCount(kind.platforms).map(([p, n]) => `${p} ${n}`).join(', ') || '?'} · builds ${apps || '?'} · first ${when(kind.firstAt)}, last ${when(kind.lastAt)}`
   ].join('\n\n');
 }
 
@@ -146,7 +155,7 @@ export function checkDecisions(decisions, watch, linear) {
   const filedBy = new Map();
   for (const i of linear.issues ?? []) for (const k of i.keys ?? []) if (!filedBy.has(k)) filedBy.set(k, i.identifier);
   const taken = new Set();
-  const out = { file: [], known: [], noise: [], dropped: [], undecided: [] };
+  const out = { file: [], known: [], noise: [], fixed: [], dropped: [], undecided: [] };
   const take = (keys, where) => {
     const list = Array.isArray(keys) ? keys : [];
     const bad = list.find((k) => typeof k !== 'string' || !handed.has(k) || taken.has(k));
@@ -177,6 +186,12 @@ export function checkDecisions(decisions, watch, linear) {
     const keys = take(k.keys, where);
     if (keys) out.known.push({ keys, issue: k.issue, comment: text(k.comment) });
   });
+  (Array.isArray(d.fixed) ? d.fixed : []).forEach((x, n) => {
+    const where = `fixed[${n}]`;
+    if (!isObj(x) || !Number.isInteger(x.pr) || x.pr < 1 || x.pr > 100_000_000) return out.dropped.push(`${where}: needs keys and pr, the number of the pull request on main that fixed it`);
+    const keys = take(x.keys, where);
+    if (keys) out.fixed.push({ keys, pr: x.pr, title: cut(text(x.title).replace(/\s+/g, ' ').replace(/^User issue:\s*/i, ''), LIMITS.title) || null, note: cut(text(x.note), LIMITS.note) || null });
+  });
   (Array.isArray(d.noise) ? d.noise : []).forEach((x, n) => {
     const where = `noise[${n}]`;
     if (!isObj(x)) return out.dropped.push(`${where}: an object with a key and a note`);
@@ -187,9 +202,82 @@ export function checkDecisions(decisions, watch, linear) {
   return out;
 }
 
-/** What the Worker is told about a kind: its verdict, its issue, and the counts it was judged at. */
-export function lookedOf(kind, verdict, issue, note = null) {
-  return { key: kind.key, verdict, issue: issue?.identifier ?? null, issueUrl: issue?.url ?? null, people: kind.people, count: kind.count, note };
+/**
+ * What the Worker is told about a kind: its verdict, its issue, and the counts
+ * it was judged at. A kind found fixed is counted from the fix: the people who
+ * hit it since (none for one just found fixed), so it comes back only when
+ * twice as many hit it after the fix.
+ */
+export function lookedOf(kind, verdict, issue, note = null, extra = {}) {
+  return {
+    key: kind.key, verdict, issue: issue?.identifier ?? null, issueUrl: issue?.url ?? null,
+    people: verdict === 'fixed' ? kind.peopleAfterFix ?? 0 : kind.people, count: kind.count, note,
+    title: extra.title ?? null, fixedBy: extra.fixedBy ?? null, fixedAt: extra.fixedAt ?? null
+  };
+}
+
+// ---- closed in Linear, and the pull requests on main -------------------------------------------
+
+/**
+ * Closed for the watch: done (Live), canceled or a duplicate. Not Outage:
+ * linear-sync moves an issue there when its deploy failed, so nothing is fixed.
+ */
+export const isClosed = (state) => state?.type === 'completed' || ((state?.type === 'canceled' || state?.type === 'duplicate') && state?.name !== 'Outage');
+
+/**
+ * The merges into main the checkout holds (`git log --merges`), newest first:
+ * each pull request's number, when it merged, and its message (where a LAN id
+ * the pull request names appears).
+ */
+export function mergesOf(log) {
+  const out = [];
+  for (const entry of String(log).split('\x1e')) {
+    const [at, subject, body = ''] = entry.trim().split('\x1f');
+    const pr = /^Merge pull request #([0-9]{1,8}) /.exec(subject ?? '')?.[1];
+    if (pr && at && !Number.isNaN(Date.parse(at))) out.push({ pr: Number(pr), at: new Date(at).toISOString(), text: `${subject}\n${body}` });
+  }
+  return {
+    /** When pull request `pr` merged into main, or null when this checkout does not hold it. */
+    at: (pr) => out.find((m) => m.pr === pr)?.at ?? null,
+    /** The newest merged pull request whose message names `issue` (LAN-12). */
+    naming: (issue) => out.find((m) => new RegExp(`\\b${issue}\\b`).test(m.text))?.pr ?? null
+  };
+}
+
+function gitMerges() {
+  try {
+    return mergesOf(execFileSync('git', ['log', '--merges', '--first-parent', '--format=%cI%x1f%s%x1f%b%x1e', 'HEAD'], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 }));
+  } catch {
+    return mergesOf('');
+  }
+}
+
+/**
+ * Which of the watch's issues changed in Linear since it last read them: each
+ * closed one with when it closed and the pull request that fixed it (the
+ * newest one Linear links, else the newest merge into main that names it) and
+ * when that merged; each open again; each whose state's name changed.
+ */
+export function statesToSend(known, issues, merges) {
+  const byId = new Map(issues.map((i) => [i.identifier, i]));
+  const out = [];
+  for (const k of known) {
+    const i = byId.get(k.issue);
+    if (!i) continue;
+    const closed = isClosed(i.state);
+    if (closed === Boolean(k.closed) && i.state.name === k.state) continue;
+    // Its title in Linear, for the ops dashboard: the team may rename it, and older rows have none.
+    const title = cut(String(i.title ?? '').replace(PREFIX, ''), 200) || null;
+    if (!closed) {
+      out.push({ issue: k.issue, state: i.state.name, closed: false, closedAt: null, fixedBy: null, fixedAt: null, title });
+      continue;
+    }
+    const linked = (i.attachments ?? []).map((a) => Number(PR_URL.exec(a.url ?? '')?.[1])).filter((n) => n > 0);
+    const fixedBy = linked.length ? Math.max(...linked) : merges.naming(k.issue);
+    const closedAt = i.completedAt ?? i.canceledAt ?? null;
+    out.push({ issue: k.issue, state: i.state.name, closed: true, closedAt, fixedBy: fixedBy ?? null, fixedAt: (fixedBy && merges.at(fixedBy)) || closedAt, title });
+  }
+  return out;
 }
 
 // ---- Linear -----------------------------------------------------------------------------------------
@@ -253,6 +341,22 @@ export function linearClient(key, fetchImpl = fetch) {
       } while (after && out.length < LINEAR_MAX);
       return out;
     },
+    /** The watch's issues by their ids (LAN-12): state, when closed, and the links on each (pull requests). */
+    async states(identifiers) {
+      const numbers = identifiers.map((id) => Number(id.split('-')[1])).filter((n) => Number.isInteger(n) && n > 0);
+      if (!numbers.length) return [];
+      const data = await gql(`query($key: String!, $numbers: [Float!]) {
+        issues(first: 100, filter: { team: { key: { eq: $key } }, number: { in: $numbers } }) {
+          nodes { identifier title state { name type } completedAt canceledAt attachments { nodes { url } } } } }`, { key: TEAM_KEY, numbers: numbers.slice(0, 100) });
+      return data.issues.nodes.map((i) => ({ identifier: i.identifier, title: i.title, state: i.state, completedAt: i.completedAt, canceledAt: i.canceledAt, attachments: i.attachments.nodes }));
+    },
+    /** Opens a closed issue again: the team's first not-started state (Todo). */
+    async reopen(issueId) {
+      const data = await gql(`query($key: String!) { workflowStates(filter: { team: { key: { eq: $key } }, type: { eq: "unstarted" } }) { nodes { id position } } }`, { key: TEAM_KEY });
+      const state = [...data.workflowStates.nodes].sort((a, b) => a.position - b.position)[0];
+      if (!state) throw new LinearError(`Linear: no not-started state in ${TEAM_KEY}`);
+      await gql(`mutation($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success } }`, { id: issueId, input: { stateId: state.id } });
+    },
     /** One issue by its id (LAN-12), or null when Linear has none. */
     async issue(identifier) {
       try {
@@ -309,10 +413,22 @@ function output(values) {
 }
 
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
+const headSha = () => execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 
 async function fetchWatch(dir) {
   mkdirSync(dir, { recursive: true });
-  const watch = await call('GET');
+  let watch = await call('GET');
+  // Issues closed in Linear are closed for the watch before anything is looked at, so a fixed
+  // problem is neither commented on as grown nor handed to Claude.
+  if (watch.issues?.length) {
+    const states = statesToSend(watch.issues, await linearClient(linearKey()).states(watch.issues.map((i) => i.issue)), gitMerges());
+    if (states.length) {
+      const done = await call('POST', { sha: headSha(), runUrl: runUrl(process.env), looked: [], grew: [], states });
+      for (const s of states) console.log(`${s.issue} is ${s.state} in Linear: ${s.closed ? `closed for the watch${s.fixedBy ? `, fixed by PR ${s.fixedBy}` : ''}` : 'open'}`);
+      console.log(`told the Worker: ${done.closed} closed, ${done.reopened} open again`);
+      watch = await call('GET');
+    }
+  }
   writeFileSync(join(dir, 'watch.json'), JSON.stringify(watch, null, 2));
   const busy = watch.look.length > 0 || watch.grew.length > 0;
   const issues = busy ? await linearClient(linearKey()).issues(new Date(Date.now() - LINEAR_DAYS * 86_400_000).toISOString()) : [];
@@ -339,6 +455,7 @@ async function file(dir) {
   let failed = 0;
   const assigneeId = process.env.USER_ISSUES_ASSIGNEE || undefined;
   const team = plan.file.length ? await api.team() : null;
+  const merges = plan.fixed.length ? gitMerges() : null;
 
   for (const f of plan.file) {
     const kinds = f.keys.map((k) => kindOf.get(k));
@@ -353,7 +470,7 @@ async function file(dir) {
         console.log(`::warning::could not assign to USER_ISSUES_ASSIGNEE (${e instanceof Error ? e.message : e}); filing unassigned`);
         issue = await api.create(input);
       }
-      for (const k of kinds) looked.push(lookedOf(k, 'filed', issue));
+      for (const k of kinds) looked.push(lookedOf(k, 'filed', issue, null, { title: f.title }));
       console.log(`filed ${issue.identifier}, priority ${f.priority}: ${f.keys.join(', ')}`);
     } catch (e) {
       failed += 1;
@@ -370,8 +487,11 @@ async function file(dir) {
         continue;
       }
       await api.comment(issue.id, knownComment(k, kinds, run));
+      // Pointed to again after it closed: the fix did not hold, so it is open again.
+      const reopen = isClosed(issue.state);
+      if (reopen) await api.reopen(issue.id);
       for (const kind of kinds) looked.push(lookedOf(kind, 'known', issue));
-      console.log(`known ${issue.identifier}: ${k.keys.join(', ')}`);
+      console.log(`known ${issue.identifier}${reopen ? ', reopened' : ''}: ${k.keys.join(', ')}`);
     } catch (e) {
       failed += 1;
       console.log(`::error::could not comment on ${k.issue}: ${e instanceof Error ? e.message : e}`);
@@ -380,6 +500,21 @@ async function file(dir) {
 
   for (const x of plan.noise) looked.push(lookedOf(kindOf.get(x.key), 'noise', null, x.note));
   if (plan.noise.length) console.log(`noise: ${plan.noise.map((x) => x.key).join(', ')}`);
+
+  // Already fixed by a pull request on main: nothing filed. A closed issue's kind keeps its issue.
+  for (const x of plan.fixed) {
+    const fixedAt = merges.at(x.pr);
+    if (!fixedAt) {
+      console.log(`::warning::PR ${x.pr} is not a merge into main in this checkout; ${x.keys.join(', ')} come back next run`);
+      continue;
+    }
+    for (const key of x.keys) {
+      const kind = kindOf.get(key);
+      const closed = kind.before?.verdict === 'fixed' && kind.before.issue ? { identifier: kind.before.issue, url: kind.before.issueUrl } : null;
+      looked.push(lookedOf(kind, 'fixed', closed, x.note, { title: x.title, fixedBy: x.pr, fixedAt }));
+    }
+    console.log(`fixed by PR ${x.pr}: ${x.keys.join(', ')}`);
+  }
 
   const byIssue = new Map();
   for (const g of watch.grew) byIssue.set(g.issue, [...(byIssue.get(g.issue) ?? []), g]);
@@ -401,8 +536,7 @@ async function file(dir) {
 
   // What was done goes back even when some of it failed, so it is not done twice.
   if (looked.length || grew.length) {
-    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-    const done = await call('POST', { sha, runUrl: run, looked, grew });
+    const done = await call('POST', { sha: headSha(), runUrl: run, looked, grew, states: [] });
     console.log(`told the Worker: ${done.looked} kinds looked at, ${done.grew} grown`);
   }
   if (failed) throw new Error(`${failed} Linear calls failed; their kinds come back next run`);

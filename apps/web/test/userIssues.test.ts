@@ -37,7 +37,20 @@ describe('what the workflow sends back', () => {
     expect(l.looked.map((x) => x.verdict)).toEqual(['filed', 'noise', 'known']);
     expect(l.looked[2]?.note).toBeNull();
     expect(l.grew).toEqual([{ key: 'transfer:down:source:failOther', people: 6, count: 40 }]);
-    expect(parseLooked({ sha: SHA, runUrl: `${RUN}/attempts/2` })).toEqual({ sha: SHA, runUrl: `${RUN}/attempts/2`, looked: [], grew: [] });
+    expect(parseLooked({ sha: SHA, runUrl: `${RUN}/attempts/2` })).toEqual({ sha: SHA, runUrl: `${RUN}/attempts/2`, looked: [], grew: [], states: [] });
+  });
+
+  it('takes a kind already fixed by a pull request, with or without the issue that closed, and issues that closed or opened again in Linear', () => {
+    const fixed = { key: 'audio:playFail', verdict: 'fixed', issue: null, issueUrl: null, people: 0, count: 8, note: 'Fixed by PR 295.', title: 'Play all stops after a few parts', fixedBy: 295, fixedAt: '2026-10-30T22:50:22.000Z' };
+    const closedKind = { ...fixed, key: 'transfer:down:source:failOther', issue: 'LAN-220', issueUrl: 'https://linear.app/frontierrandd/issue/LAN-220/x', people: 2, fixedBy: 312 };
+    const states = [
+      { issue: 'LAN-220', state: 'Live', closed: true, closedAt: '2026-11-03T21:00:00.000Z', fixedBy: 312, fixedAt: '2026-11-03T17:09:42.000Z', title: 'Play all stops' },
+      { issue: 'LAN-221', state: 'Todo', closed: false, closedAt: null, fixedBy: null, fixedAt: null, title: null },
+      { issue: 'LAN-222', state: 'Canceled', closed: true, closedAt: '2026-11-03T21:00:00.000Z', fixedBy: null, fixedAt: null, title: null }
+    ];
+    const l = parseLooked(looked({ looked: [fixed, closedKind] as Looked['looked'], grew: [], states }));
+    expect(l.looked.map((x) => [x.verdict, x.issue, x.fixedBy, x.title])).toEqual([['fixed', null, 295, 'Play all stops after a few parts'], ['fixed', 'LAN-220', 312, 'Play all stops after a few parts']]);
+    expect(l.states).toEqual(states);
   });
 
   it('says the first thing wrong', () => {
@@ -47,10 +60,21 @@ describe('what the workflow sends back', () => {
       [looked({ sha: 'main' }), 'sha: a commit on main'],
       [looked({ runUrl: 'https://github.com/someone/else/actions/runs/1' }), 'runUrl: a run of genesis-ai-dev/langquest-next'],
       [one({ key: 'nope' }), "looked[0].key: a kind's key"],
-      [one({ verdict: 'maybe' }), 'looked[0].verdict: one of filed, known, noise'],
+      [one({ verdict: 'maybe' }), 'looked[0].verdict: one of filed, known, noise, fixed'],
       [one({ issue: null, issueUrl: null }), 'looked[0].issue: its Linear issue (LAN-12) and address'],
       [one({ issueUrl: 'https://evil.example/LAN-220' }), 'looked[0].issue: its Linear issue (LAN-12) and address'],
       [one({ verdict: 'noise' }), 'looked[0].issue: none for noise'],
+      [one({ verdict: 'fixed', fixedBy: 312, fixedAt: '2026-11-03T17:09:42Z', issueUrl: null }), 'looked[0].issue: its closed issue (LAN-12) and address, or none'],
+      [one({ verdict: 'fixed', issue: null, issueUrl: null, fixedBy: 312 }), 'looked[0].fixedAt: when the fix merged, for fixed'],
+      [one({ fixedBy: 312, fixedAt: '2026-11-03T17:09:42Z' }), 'looked[0].fixedAt: only for fixed'],
+      [one({ verdict: 'fixed', issue: null, issueUrl: null, fixedBy: 0, fixedAt: '2026-11-03T17:09:42Z' }), "looked[0].fixedBy: a pull request's number"],
+      [one({ verdict: 'fixed', issue: null, issueUrl: null, fixedAt: 'yesterday' }), 'looked[0].fixedAt: a time (ISO 8601)'],
+      [one({ title: 'mail me@example.com' }), 'looked[0].title: at most 200 characters, no address'],
+      [looked({ states: [{ issue: 'LAN-1', state: 'Live', closed: 'yes' }] as unknown as Looked['states'] }), 'states[0].closed: true or false'],
+      [looked({ states: [{ issue: 'LAN-1', state: 'Todo', closed: false, closedAt: '2026-11-03T17:09:42Z' }] as unknown as Looked['states'] }), 'states[0]: an open issue has no closedAt or fix'],
+      [looked({ states: [{ issue: 'LAN-1', state: 'Live', closed: true }, { issue: 'LAN-1', state: 'Live', closed: true }] as unknown as Looked['states'] }), 'states[1].issue: a Linear issue (LAN-12), once'],
+      [looked({ states: [{ issue: 'LAN-1', state: '<b>', closed: true }] as unknown as Looked['states'] }), "states[0].state: a Linear state's name"],
+      [looked({ states: [{ issue: 'LAN-1', state: 'Live', closed: true, title: 'Mail a@b.org' }] as unknown as Looked['states'] }), 'states[0].title: at most 200 characters, no address'],
       [one({ note: 'ask someone@example.com' }), 'looked[0].note: at most 500 characters, no address'],
       [one({ note: 'x'.repeat(501) }), 'looked[0].note: at most 500 characters, no address'],
       [one({ people: -1 }), 'looked[0].people: a whole number'],
@@ -67,7 +91,7 @@ describe('what the workflow sends back', () => {
 });
 
 describe('/api/user-issues', () => {
-  const watch: Watch = { asOf: '2026-11-03T18:00:00Z', active: 12, look: [], grew: [] };
+  const watch: Watch = { asOf: '2026-11-03T18:00:00Z', active: 12, look: [], grew: [], issues: [] };
   function deps(over: Partial<UserIssuesDeps> = {}) {
     const runs: JobRun[] = [];
     const sent: Looked[] = [];
@@ -121,7 +145,7 @@ describe('/api/user-issues', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ looked: 3, grew: 1 });
     expect(sent).toHaveLength(1);
-    expect(runs).toEqual([{ job: 'user_issue_look', startedAt: NOW, ms: 0, outcome: 'ok', n: { looked: 3, filed: 1, known: 1, noise: 1, grew: 1 } }]);
+    expect(runs).toEqual([{ job: 'user_issue_look', startedAt: NOW, ms: 0, outcome: 'ok', n: { looked: 3, filed: 1, known: 1, noise: 1, fixed: 0, grew: 1, closed: 0, reopened: 0 } }]);
   });
 
   it('refuses what is wrong, names another run or is too big, and records the wrong one', async () => {

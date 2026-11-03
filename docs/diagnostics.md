@@ -323,7 +323,10 @@ at most 20 at a time, problems from help mode first.
 When something is new, Claude (`anthropics/claude-code-action`, the plan
 token of the tutorial review) reads the kinds and the team's Linear issues,
 follows the `user-issues` skill, and writes what it decided: a new problem,
-one the team already has, or noise. `scripts/user-issues.mjs` then files
+one the team already has, noise, or already fixed. Already fixed means a
+pull request merged into main after the reports fixes it (Claude reads
+main's merges with `git log`, 600 commits deep): nothing is filed, and the
+kind keeps the pull request's number and when it merged. `scripts/user-issues.mjs` then files
 each new problem in Linear's LangQuest Next team with the label **User
 issue**, assigned to the Linear user named in the workflow, and comments on
 an issue that a known kind belongs to. Then it tells the Worker what was
@@ -333,8 +336,30 @@ filed one as a comment on its issue with the new numbers, noise to be
 judged again. Server kinds come back after a week; noise is forgotten after
 90 days.
 
+**Closed in Linear stays closed.** Every run reads the state of each issue
+the watch filed or commented on (180 days back) and sends what changed. An
+issue closed in Linear (Live, Canceled or Duplicate; not Outage, which says
+a deploy failed) closes its kinds too: they become already fixed, with the
+pull request linked on the issue (the newest) or the merge on main that
+names it, and a problem sent from help mode about it is marked done. An
+issue opened again in Linear is open for the watch again. A fixed kind, by
+Claude or by Linear, comes back only for people who hit it more than a day
+after the fix (time for browsers to reload and phones to take the update),
+at least twice as many as when it was last looked at and at least two.
+Claude then compares the builds they ran with the fix: builds from before
+it leave it closed; builds that have it mean the fix did not hold, and the
+script comments on the issue and moves it back to Todo. A build is a
+browser's commit (`web 4df4afdeaf0f`), a phone's update (`android update
+1a2b3c4d`) or store build (`ios store build 2026.103`): phones never send
+an app version.
+
+The ops dashboard's **User issues** section (`diag.ops_user_issues()`)
+lists every issue the watch filed or commented on and every kind it found
+already fixed, the last 90 days: its state in Linear, the pull request that
+fixed it and when, and the last look.
+
 An issue says what went wrong in plain words, what the watch counted
-(people, installs, platforms, app versions, first and last seen), the
+(people, installs, platforms, builds, first and last seen), the
 person's own words for a problem from help mode (an email address taken
 out), and, in its Agent notes, the kinds' keys (how later runs find it),
 a few install ids for `npm run diag -- --hosted timeline <installId>`, the
