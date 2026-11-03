@@ -3,6 +3,7 @@ import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import Storage from 'expo-sqlite/kv-store';
 import { tryUnregisterNotifications } from '../notifications/notifications';
+import { CODE_KEY, LOOK_KEY, NOTES_KEY } from './disguiseKeys';
 import { lookById, type Look } from './disguiseModel';
 
 /**
@@ -11,11 +12,9 @@ import { lookById, type Look } from './disguiseModel';
  * and needs no connection. Which look is read at once, as the app starts,
  * so not one frame of LangQuest shows before it; the code is kept as a
  * salted hash in the Keychain or Keystore, never as typed. disguise.web.ts
- * is the browser's, which has none.
+ * is the browser's, which has none, and disguise.ios.ts an iPhone's, which
+ * has none either (amended 2026-11-03).
  */
-const LOOK_KEY = 'disguise-look';
-const NOTES_KEY = 'disguise-notes';
-const CODE_KEY = 'disguise-code';
 
 /** expo-alternate-app-icons, optional: a build made before it has no other icon, and keeps the lock alone. */
 const icons = requireOptionalNativeModule<{ setAlternateAppIcon(name: string | null): Promise<string | null> }>('ExpoAlternateAppIcons');

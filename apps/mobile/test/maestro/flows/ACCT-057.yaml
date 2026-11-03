@@ -3,12 +3,17 @@
 # code, typed on that calculator to put it on; then the app opens on the
 # calculator, the code opens LangQuest, and LangQuest's own tile takes it off.
 # Android closes the app each time its launcher entry changes, so the flow
-# opens it again; iOS says the icon changed instead.
+# opens it again. Android only: an iPhone build has no disguise (decisions.md
+# 171, amended 2026-11-03), so on iOS this flow fails at once.
 appId: com.frontierrnd.langquestnext
 name: "ACCT-057 A disguised phone opens on its calculator, and the code opens LangQuest"
 tags:
   - acct
+  - android-only
 ---
+- assertTrue:
+    condition: ${maestro.platform == 'android'}
+    label: "ACCT-057 needs Android: an iPhone build has no App icon row"
 - runFlow: ../common/launch.yaml
 - runFlow:
     file: ../common/sign-in.yaml
@@ -28,16 +33,7 @@ tags:
 - tapOn:
     id: "disguise-code"
 - inputText: "2468"
-- runFlow:
-    when:
-      platform: Android
-    commands:
-      - hideKeyboard
-- runFlow:
-    when:
-      platform: iOS
-    commands:
-      - tapOn: "Choose a code"
+- hideKeyboard
 - tapOn:
     id: "primary-action"
 - extendedWaitUntil:
@@ -47,18 +43,6 @@ tags:
 - tapOn: "4"
 - tapOn: "6"
 - tapOn: "8"
-- runFlow:
-    when:
-      platform: iOS
-    commands:
-      - extendedWaitUntil:
-          visible: "OK"
-          timeout: 20000
-      - tapOn: "OK"
-      - extendedWaitUntil:
-          visible: "App icon.*Calculator.*"
-          timeout: 20000
-      - assertNotVisible: "Notifications.*"
 # Leave the app, and open it again from the icon it has now.
 - pressKey: Home
 - launchApp:
@@ -91,26 +75,11 @@ tags:
 - tapOn:
     text: "LangQuest"
     index: 0
-- runFlow:
-    when:
-      platform: iOS
-    commands:
-      - extendedWaitUntil:
-          visible: "OK"
-          timeout: 20000
-      - tapOn: "OK"
-      - extendedWaitUntil:
-          visible: "App icon.*LangQuest.*"
-          timeout: 20000
-- runFlow:
-    when:
-      platform: Android
-    commands:
-      - launchApp:
-          clearState: false
-          stopApp: false
-      - extendedWaitUntil:
-          visible:
-            id: "tab-me"
-          timeout: 60000
-      - assertNotVisible: "Equals"
+- launchApp:
+    clearState: false
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      id: "tab-me"
+    timeout: 60000
+- assertNotVisible: "Equals"
