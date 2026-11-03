@@ -315,7 +315,8 @@ last 7 days into **kinds**, named by the records' code-like tags:
 | `feedback` | `feedback:<id>` | a problem sent from help mode (bugs, not ideas) |
 
 Development builds and the accounts in `ops.watch_ignored` (the store
-review account; an operator adds others with SQL) are left out. A kind is
+review account and Claude's production test account; an operator adds
+others with SQL) are left out. A kind is
 handed over when someone hit it in the last day and it was never looked at,
 at most 20 at a time, problems from help mode first.
 

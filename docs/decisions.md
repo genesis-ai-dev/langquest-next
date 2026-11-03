@@ -10258,8 +10258,8 @@ pull requests come after, in a change of their own. Decided:
   are in `server/userIssues.ts`), adds server jobs failing or stopped and
   the Worker's 5xx (`diag.job_runs`), and each problem sent from help mode
   (`diag.feedback`, bugs only, never who sent it). Development builds and
-  the accounts in `ops.watch_ignored` (the store review account) are left
-  out. A kind is handed over when someone hit it in the last day and it was
+  the accounts in `ops.watch_ignored` (the store review account and
+  Claude's production test account) are left out. A kind is handed over when someone hit it in the last day and it was
   never looked at, at most 20 at a time, help mode first.
 - **Looked at once.** `ops.user_issues` keeps what was decided about each
   kind: filed (a new Linear issue), known (an issue the team had) or noise.

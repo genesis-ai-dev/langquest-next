@@ -49,6 +49,11 @@ select u.id::text, 'The store review account (docs/play-store-declarations.md)'
 from auth.users u where lower(u.email::text) = 'playreview@frontierrnd.com'
 on conflict (profile_id) do nothing;
 
+insert into ops.watch_ignored (profile_id, note)
+select u.id::text, 'Claude''s production test account, org Claude testing'
+from auth.users u where u.id = '30763bbc-8dfe-4c6b-8fb8-ed0f73dbad61'::uuid
+on conflict (profile_id) do nothing;
+
 -- One row per failure a phone or browser reported since p_since, named by its kind's key:
 -- errors, sync errors and refusals, failed transfers (not the offline ones), sign-in and joining
 -- that ended badly, expected failures, recording and playback failures, fills that fell back or
