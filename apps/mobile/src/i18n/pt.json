@@ -351,7 +351,9 @@
     "settings_more": "Mais configurações",
     "check_editor": "Verificação",
     "cluster_home": "Grupo",
-    "global_viewer": "Observador global"
+    "global_viewer": "Observador global",
+    "forgot_password": "Esqueci a senha",
+    "new_password": "Nova senha"
   },
   "native": {
     "microphone": "O LangQuest grava a sua voz para traduzir passagens.",
@@ -2963,7 +2965,9 @@
       "failed": "Não foi possível entrar. Tente de novo.",
       "scanCodeHelp": "Abre a câmera, para participar com um convite ou entrar com o código de quem está ajudando.",
       "createAccountHelp": "Abre um formulário para o seu e-mail e uma senha nova.",
-      "browseHelp": "Veja trabalhos de tradução que as organizações compartilham publicamente. Não precisa de conta."
+      "browseHelp": "Veja trabalhos de tradução que as organizações compartilham publicamente. Não precisa de conta.",
+      "forgot": "Esqueceu a senha?",
+      "forgotHelp": "Abre uma página onde você recebe um link por e-mail para escolher uma senha nova."
     },
     "terms": {
       "title": "Termos e privacidade",
@@ -3291,6 +3295,36 @@
       "notMe": "Não é a minha imagem",
       "notMeHelp": "Volta para as imagens.",
       "pictureHelp": "Saiu deste aparelho? Toque na sua imagem e depois desenhe o seu padrão. Não precisa de internet."
+    },
+    "forgot": {
+      "title": "Esqueci a senha",
+      "emailHelp": "O e-mail com que você entra. O link vai para lá.",
+      "send": "Enviar link",
+      "sendAgain": "Enviar de novo",
+      "sending": "Enviando…",
+      "sendHelp": "Envia por e-mail um link para escolher uma senha nova. Precisa de conexão.",
+      "sentTitle": "Verifique o seu e-mail",
+      "sentBody": "Se {{email}} tiver uma conta no LangQuest, um link para escolher uma senha nova está a caminho.",
+      "failed": "Não foi possível enviar o link. Tente de novo.",
+      "noEmailTitle": "Esta conta não tem e-mail",
+      "noEmailBody": "Alguém da sua equipe pode mostrar a você um código para entrar."
+    },
+    "newPassword": {
+      "title": "Nova senha",
+      "fieldHelp": "Digite a senha com que você vai entrar de agora em diante. O olho mostra o que você digitou.",
+      "button": "Entrar",
+      "buttonHelp": "Torna esta a sua senha e faz você entrar. Precisa de conexão.",
+      "changeButton": "Mudar senha",
+      "changing": "Mudando…",
+      "changeHelp": "Torna esta a senha da conta. Precisa de conexão.",
+      "expired": "Este link expirou ou já foi usado.",
+      "newLink": "Enviar um link novo",
+      "newLinkHelp": "Abre Esqueci a senha, para receber um link novo por e-mail.",
+      "failed": "Não foi possível mudar a senha. Tente de novo.",
+      "signInFailed": "A sua nova senha já está pronta. Entre com ela.",
+      "changedTitle": "Senha mudada",
+      "changedBody": "De agora em diante, {{email}} entra com a nova senha.",
+      "doneHelp": "Volta para a sua tela inicial."
     }
   },
   "account": {
@@ -4590,7 +4624,9 @@
       "showMore_other": "Mostrar mais {{count, number}} · restam {{left}}",
       "onOlderVersion": "na {{version}}",
       "orTypeReason": "Ou digite o motivo",
-      "reasonFootnote": "Isto vai para a ficha da passagem com o seu nome. Pode ser desfeito depois; a ficha guarda as duas coisas."
+      "reasonFootnote": "Isto vai para a ficha da passagem com o seu nome. Pode ser desfeito depois; a ficha guarda as duas coisas.",
+      "showPassword": "Mostrar senha",
+      "hidePassword": "Esconder senha"
     },
     "person": {
       "showId": "{{name}}. Mostrar ID",
@@ -4745,7 +4781,8 @@
       "done": "Terminado aqui: volta.",
       "undo": "Traz de volta o que estava antes.",
       "tryAgain": "Tenta mais uma vez.",
-      "quickReason": "Usa isto como o seu motivo. Você ainda pode mudar as palavras."
+      "quickReason": "Usa isto como o seu motivo. Você ainda pode mudar as palavras.",
+      "showPassword": "Mostra a senha que você digitou, para conferir. Toque de novo para esconder."
     },
     "tabs": {
       "work": "O que fazer em seguida: a sua próxima passagem e o que espera por você.",

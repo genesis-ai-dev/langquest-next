@@ -158,8 +158,9 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   isolate (`worker_requests`: `<route>_<2xx…5xx>`, `<route>_429` for a rate
   limit's refusal, and the time taken as `<route>_lt100ms`, `_lt1s`,
   `_lt10s` or `_over10s`; routes include `device` and `links`, the two
-  rate-limited ones, and `ops`, the ops dashboard), and invitation email (`invite_email`, from
-  `send-invite`, with the email service's code).
+  rate-limited ones, and `ops`, the ops dashboard), invitation email (`invite_email`, from
+  `send-invite`, with the email service's code), and Forgot password email
+  (`password_reset_email`, from `password-reset`, likewise).
 - `diag.job_schedule` says how often each runs; `diag.jobs()` gives each
   job's runs, failures, failure streak, last success and `stale` (no run
   that was not an error for over twice its schedule); `diag.job_history`
