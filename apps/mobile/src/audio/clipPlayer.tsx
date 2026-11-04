@@ -6,6 +6,7 @@
 // even loudness (levelStore.ts, decision 182), and on the web through the
 // one element a tap unlocked (recordingPlayer.web.ts). It says which part
 // plays and how far into it (nowPlaying.ts), for the parts' rows under it.
+// Until sound comes, its button shows a spinner in place of Pause.
 import { isStored, recordedDurationMs } from '@langquest-next/core';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PanResponder, Platform, Pressable, StyleSheet, View, type AccessibilityActionEvent, type LayoutChangeEvent } from 'react-native';
@@ -19,17 +20,17 @@ import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Ico } from '../ui/kit';
+import { Ico, PlayGlyph } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { noteExpected, reportError } from '../diagnostics/report';
-import { countAudio } from './audioTally';
+import { countAudio, countWait } from './audioTally';
 import { C, radius, space, TINT, type as T } from '../ui/theme';
 import type { LanguageHandle } from '../sync/useLanguage';
 
 /** The timeline's press while help is on: it explains itself; it is moved by tapping and dragging when help is off. */
 const SEEK_ONLY = () => undefined;
 import { clock, lengthClock, UNKNOWN_LENGTH } from './clipTime';
-import { playable, prepare } from './levelStore';
+import { playable, prepare, READY_MS } from './levelStore';
 import { createRecordingPlayer, unlockRecordingPlayer, type RecordingPlayer } from './recordingPlayer';
 import { clearNowPlaying, pauseNowPlaying, tellNowPlaying } from './nowPlaying';
 
@@ -63,6 +64,9 @@ export function ClipPlayer(props: {
   bare?: boolean;
 }) {
   const [playing, setPlayingState] = useState(false);
+  /** Sound has come since the last tap on Play; until then the button spins. */
+  const [sounding, setSounding] = useState(false);
+  const tappedAt = useRef(0);
   const [error, setError] = useState('');
   const [index, setIndex] = useState(0);
   const [at, setAt] = useState(0);
@@ -93,6 +97,7 @@ export function ClipPlayer(props: {
   const halt = () => {
     generation.current++;
     wants.current = false;
+    tappedAt.current = 0;
     player.current?.pause();
     pauseNowPlaying(owner);
     setPlaying(false);
@@ -153,7 +158,7 @@ export function ClipPlayer(props: {
       }
     }
     if (!uri) { wants.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); countAudio(language, 'playNotHere'); return; }
-    uri = await playable(hash, uri);
+    uri = await playable(hash, uri, READY_MS);
     if (generation.current !== run || !wants.current) return;
     prepare(language, props.hashes[i + 1]);
     try {
@@ -169,6 +174,10 @@ export function ClipPlayer(props: {
         }
         // The browser would not start it without a tap: it waits there, for Play to go on from it.
         if (status.refused) { wants.current = false; setPlaying(false); tellNowPlaying(owner, hash, { ...status, playing: false }); countAudio(language, 'playFail'); return; }
+        if (status.playing) {
+          setSounding(true);
+          if (tappedAt.current) { countWait(language, Date.now() - tappedAt.current); tappedAt.current = 0; }
+        }
         if (status.duration > 0) setClipLength(status.duration);
         setAt(status.currentTime);
         tellNowPlaying(owner, hash, status);
@@ -191,6 +200,8 @@ export function ClipPlayer(props: {
     unlockRecordingPlayer();
     const run = ++generation.current;
     wants.current = true;
+    tappedAt.current = Date.now();
+    setSounding(false);
     setPlaying(true);
     setError('');
     props.onPlay?.();
@@ -334,7 +345,8 @@ export function ClipPlayer(props: {
         <Pressable onPress={play.onPress} {...(Platform.OS === 'web' ? { onKeyDown: onPlayKey } : {})} disabled={!available || props.disabled} accessibilityRole="button"
           accessibilityLabel={available ? playing ? t('common.pause') : t('recording.player.playTitle', { title: props.title }) : t('recording.player.notOnDevice')}
           style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, backgroundColor: available ? tone : C.faint, alignItems: 'center', justifyContent: 'center' }, pressed && styles.pressed]}>
-          <Ico name={available ? playing ? 'pause' : 'play' : 'download'} size={Math.round(size * 0.4)} color={C.white} />
+          {available ? <PlayGlyph playing={playing} loading={playing && !sounding && !loadingPaused.current} size={Math.round(size * 0.4)} color={C.white} />
+            : <Ico name="download" size={Math.round(size * 0.4)} color={C.white} />}
           <HelpBadge spot={play} />
         </Pressable>
         {props.onNote ? (

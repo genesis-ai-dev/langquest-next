@@ -7,22 +7,26 @@
 // on this device plays at even loudness (levelStore.ts, decision 182), and
 // on the web through the one element a tap unlocked (recordingPlayer.web.ts).
 // It says which part plays and how far into it (nowPlaying.ts), for the
-// part's row to show.
+// part's row to show, and while a tap waits for sound it says `loading`, for
+// the button to show a spinner in place of Pause (decision 182, amended
+// 2026-11-04).
 import { isStored } from '@langquest-next/core';
 import { useEffect, useRef, useState } from 'react';
 import { audioFormat } from './audioFormat';
 import { playerInRow, registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import { t } from '../i18n';
 import { noteExpected, reportError } from '../diagnostics/report';
-import { countAudio } from './audioTally';
+import { countAudio, countWait } from './audioTally';
 import type { LanguageHandle } from '../sync/useLanguage';
 import { cardSeconds } from './clipTime';
-import { playable, prepare } from './levelStore';
+import { playable, prepare, READY_MS } from './levelStore';
 import { createRecordingPlayer, unlockRecordingPlayer, type RecordingPlayer } from './recordingPlayer';
 import { clearNowPlaying, pauseNowPlaying, tellNowPlaying } from './nowPlaying';
 
 export interface Clip {
   playing: boolean;
+  /** Played, and no sound yet: its file is being got ready. */
+  loading: boolean;
   /** On this device, or on the server while online. */
   available: boolean;
   error: string;
@@ -38,6 +42,10 @@ export interface Clip {
 export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri?: string; onPlaying?: (on: boolean) => void; disabled?: boolean }): Clip {
   const uriProp = opts?.uri;
   const [playing, setPlayingState] = useState(false);
+  /** Sound has come since the last tap on Play. */
+  const [sounding, setSounding] = useState(false);
+  /** When Play was tapped, until sound comes (0 once it has, or nothing waits). */
+  const tappedAt = useRef(0);
   const [error, setError] = useState('');
   const [index, setIndex] = useState(0);
   const [at, setAt] = useState(0);
@@ -56,6 +64,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
   const halt = () => {
     generation.current++;
     wants.current = false;
+    tappedAt.current = 0;
     player.current?.pause();
     pauseNowPlaying(owner);
     setPlaying(false);
@@ -113,7 +122,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
       }
     }
     if (!uri) { wants.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); countAudio(lang, 'playNotHere'); return; }
-    uri = await playable(hash, uri);
+    uri = await playable(hash, uri, READY_MS);
     if (generation.current !== run || !wants.current) return;
     prepare(lang, live.current.hashes[i + 1]);
     try {
@@ -129,6 +138,7 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
         }
         // The browser would not start it without a tap: it waits there, for Play to go on from it.
         if (status.refused) { wants.current = false; setPlaying(false); tellNowPlaying(owner, hash, { ...status, playing: false }); countAudio(lang, 'playFail'); return; }
+        if (status.playing) heard(lang);
         if (status.duration > 0) setClipLength(status.duration);
         setAt(status.currentTime);
         tellNowPlaying(owner, hash, status);
@@ -151,6 +161,8 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
     unlockRecordingPlayer();
     const run = ++generation.current;
     wants.current = true;
+    tappedAt.current = Date.now();
+    setSounding(false);
     setPlaying(true);
     setError('');
     countAudio(language, 'plays');
@@ -193,8 +205,16 @@ export function useClip(language: LanguageHandle, hashes: string[], opts?: { uri
     await playFrom(i, within, run);
   }
 
+  /** The first sound since the tap: the spinner goes, and how long it took is tallied. */
+  function heard(lang: LanguageHandle) {
+    setSounding(true);
+    if (!tappedAt.current) return;
+    countWait(lang, Date.now() - tappedAt.current);
+    tappedAt.current = 0;
+  }
+
   return {
-    playing, available, error, elapsed, total,
+    playing, loading: playing && !sounding, available, error, elapsed, total,
     toggle: () => void toggle(), stop: halt, seekTo: (s) => void seekTo(s), back10: () => void seekTo(elapsed - 10)
   };
 }

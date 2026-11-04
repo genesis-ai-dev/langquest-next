@@ -88,6 +88,23 @@ export function Ico(props: { name: IconName; size?: number; color?: string; stro
   return isRtl() && MIRRORED.has(props.name) ? <View style={{ transform: [{ scaleX: -1 }] }}>{icon}</View> : icon;
 }
 
+/**
+ * A player's Play or Pause, or a spinner while the sound is being got ready
+ * (its copy at even loudness, a download): Pause shows only once it plays
+ * (decision 182, amended 2026-11-04).
+ */
+export function PlayGlyph(props: { playing: boolean; loading?: boolean; size?: number; color?: string; strokeWidth?: number; fill?: string }) {
+  const size = props.size ?? 20;
+  if (props.loading) {
+    return (
+      <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="small" color={props.color ?? C.dark} style={size < 20 ? { transform: [{ scale: Math.max(0.6, (size + 4) / 20) }] } : undefined} />
+      </View>
+    );
+  }
+  return <Ico name={props.playing ? 'pause' : 'play'} size={size} {...(props.color ? { color: props.color } : {})} {...(props.strokeWidth ? { strokeWidth: props.strokeWidth } : {})} {...(props.fill ? { fill: props.fill } : {})} />;
+}
+
 // ---- text ----------------------------------------------------------------------------
 
 // ---- layout ----------------------------------------------------------------------------
@@ -630,7 +647,8 @@ function QuietLink(props: { label: string; icon: IconName; onPress: () => void; 
 }
 
 export function IconBtn(props: { name: IconName; onPress: () => void; label: string; color?: string; bg?: string; size?: number; disabled?: boolean; testID?: string;
-  /** What help mode says it does. */ help?: string }) {
+  /** What help mode says it does. */ help?: string;
+  /** A spinner in place of the icon: what it starts is being got ready. */ busy?: boolean }) {
   const size = props.size ?? 48;
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   // On the web an icon names itself on hover, as a button with words would (UI audit, findings 75 and 76).
@@ -640,10 +658,10 @@ export function IconBtn(props: { name: IconName; onPress: () => void; label: str
   }, [props.label]);
   return (
     <Pressable ref={ref} {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
-      {...a11yState({ disabled: !!props.disabled }, 'button')} hitSlop={Math.max(0, (target.min - size) / 2)}
+      {...a11yState({ disabled: !!props.disabled, busy: !!props.busy }, 'button')} hitSlop={Math.max(0, (target.min - size) / 2)}
       style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: props.bg ?? C.bg },
         props.disabled && { opacity: 0.4 }, pressed && styles.pressed]}>
-      <Ico name={props.name} size={Math.round(size * 0.46)} color={props.color ?? C.dark} />
+      {props.busy ? <ActivityIndicator size="small" color={props.color ?? C.dark} /> : <Ico name={props.name} size={Math.round(size * 0.46)} color={props.color ?? C.dark} />}
       <HelpBadge spot={spot} />
     </Pressable>
   );

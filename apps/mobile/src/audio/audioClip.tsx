@@ -1,6 +1,7 @@
 // Avatar U. Local and remote playback, paused before recording starts. A
 // file on this device plays at even loudness (levelStore.ts, decision 182),
 // and on the web through the one element a tap unlocked (recordingPlayer.web.ts).
+// Until sound comes, its button shows a spinner in place of Pause.
 import { isStored } from '@langquest-next/core';
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
@@ -10,11 +11,11 @@ import { t } from '../i18n';
 import { IconBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { noteExpected, reportError } from '../diagnostics/report';
-import { countAudio } from './audioTally';
+import { countAudio, countWait } from './audioTally';
 import { C, target } from '../ui/theme';
 import { playerInRow, registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import { audioFormat } from './audioFormat';
-import { playable, prepare } from './levelStore';
+import { playable, prepare, READY_MS } from './levelStore';
 import { createRecordingPlayer, unlockRecordingPlayer, type RecordingPlayer } from './recordingPlayer';
 
 // A player failure is a fault (native audio): it is reported and said without its message.
@@ -27,6 +28,9 @@ export function AudioClip(props: {
   seekControls?: boolean;
 }) {
   const [playing, setPlaying] = useState(false);
+  /** Sound has come since the last tap on Play; until then the button spins. */
+  const [sounding, setSounding] = useState(false);
+  const tappedAt = useRef(0);
   const [error, setError] = useState('');
   const [, refresh] = useState(0);
   const player = useRef<RecordingPlayer | null>(null);
@@ -72,13 +76,15 @@ export function AudioClip(props: {
   async function toggle() {
     if (props.disabled) return;
     if (wantsPlayback.current) {
-      generation.current++; wantsPlayback.current = false;
+      generation.current++; wantsPlayback.current = false; tappedAt.current = 0;
       player.current?.pause(); setPlaying(false); return;
     }
     stopAudioPlayback();
     unlockRecordingPlayer();
     const run = generation.current;
     wantsPlayback.current = true;
+    tappedAt.current = Date.now();
+    setSounding(false);
     setPlaying(true);
     setError('');
     countAudio(props.language, 'plays');
@@ -118,7 +124,7 @@ export function AudioClip(props: {
           if (generation.current !== run || !wantsPlayback.current) return;
         }
         if (!uri) { wantsPlayback.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); countAudio(language, 'playNotHere'); return; }
-        uri = await playable(props.uri ? null : hash, uri);
+        uri = await playable(props.uri ? null : hash, uri, READY_MS);
         if (generation.current !== run || !wantsPlayback.current) return;
         if (!props.uri) prepare(language, props.hashes[index + 1]);
         try {
@@ -135,6 +141,10 @@ export function AudioClip(props: {
             }
             // The browser would not start it without a tap: it waits there, for Play to go on from it.
             if (status.refused) { wantsPlayback.current = false; setPlaying(false); countAudio(language, 'playFail'); return; }
+            if (status.playing) {
+              setSounding(true);
+              if (tappedAt.current) { countWait(language, Date.now() - tappedAt.current); tappedAt.current = 0; }
+            }
             if (status.didJustFinish && player.current === p) void next(index + 1);
           });
           p.play();
@@ -166,7 +176,7 @@ export function AudioClip(props: {
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         {props.seekControls ? <IconBtn name="restart" label={t('recording.player.rewindSource')} help={t('recording.player.back10Help')} size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(-10)} /> : null}
-        <IconBtn name={available ? playing ? 'pause' : 'play' : 'download'} size={target.primary} bg={C.light} color={C.primary}
+        <IconBtn name={available ? playing ? 'pause' : 'play' : 'download'} busy={playing && !sounding} size={target.primary} bg={C.light} color={C.primary}
           label={available ? playing ? t('common.pause') : props.label ?? t('recording.player.playAudio') : t('recording.player.notOnDevice')}
           help={t('recording.player.playHelp')} disabled={!available || props.disabled} onPress={() => void toggle()} />
         {props.seekControls ? <IconBtn name="skip" label={t('recording.player.forwardSource')} help={t('recording.player.forwardHelp')} size={target.min}
