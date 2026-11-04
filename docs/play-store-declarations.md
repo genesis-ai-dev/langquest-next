@@ -328,7 +328,7 @@ this block.
   "diagnostics": {
     "context": ["appVersion", "channel", "embedded", "installId", "model", "os", "osVersion", "protocolVersion", "reducerVersion", "runtimeVersion", "updateId"],
     "kinds": {
-      "audio": ["encodeFail", "interrupted", "micRefused", "playFail", "playNotHere", "plays", "saveFail", "startFail", "stopFail", "streamFail", "takeMs", "takes", "tooShort", "wavKept"],
+      "audio": ["encodeFail", "interrupted", "maxWaitMs", "micRefused", "playFail", "playNotHere", "plays", "saveFail", "startFail", "stopFail", "streamFail", "takeMs", "takes", "tooShort", "waitMs", "waits", "wavKept"],
       "auth": ["accountLeft", "action", "ageH", "attempt", "code", "eventsLeft", "ms", "op", "outcome", "pending", "sinceOkMs", "status", "uploadsLeft"],
       "checkpoint": ["kb", "ms", "path", "pruned", "seq"],
       "device": ["blobCacheMb", "blobsWanted", "dbMb", "diagDropped", "diagQueued", "freeDiskMb", "journalFailed", "journalPending", "localEvents", "lostFiles", "lostRecordings", "oldestUnsentMin", "streams", "totalDiskMb", "uploadsWaiting", "wantedStuckMin"],

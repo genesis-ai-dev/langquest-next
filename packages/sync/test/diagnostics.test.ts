@@ -203,6 +203,19 @@ describe('Diagnostics', () => {
     expect(store.records.find((r) => r.kind === 'expected' && r.t.code === 'PGRST301')?.n.count).toBe(1);
   });
 
+  it('adds how long plays waited for sound to the audio tally: how many, in all, and the longest', async () => {
+    const { store, diag } = make();
+    diag.audio({ orgId: 'o', streamId: 'p' }, 'plays', 3);
+    diag.audioWait({ orgId: 'o', streamId: 'p' }, 400.4);
+    diag.audioWait({ orgId: 'o', streamId: 'p' }, 9000);
+    diag.audioWait({ orgId: 'o', streamId: 'p' }, 1200);
+    diag.audioWait({ orgId: 'o', streamId: 'p' }, Number.NaN);
+    diag.audioWait({ orgId: 'o', streamId: 'p' }, -5);
+    diag.closeTallies();
+    await diag.settle();
+    expect(store.records.find((r) => r.kind === 'audio')).toMatchObject({ n: { plays: 3, waits: 3, waitMs: 10_600, maxWaitMs: 9000 } });
+  });
+
   it('counts records dropped to stay in bounds, once', async () => {
     // Why: weeks offline past 3000 records lost history silently.
     const store = new MemoryDiagStore();

@@ -23,7 +23,7 @@ import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpQuiet, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { HelpInfo, Ico } from '../ui/kit';
+import { HelpInfo, Ico, PlayGlyph } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { loopRecording, type LoopPhase } from './splitModel';
 import { C, radius, space, target as target_, TINT, type as T, withAlpha } from '../ui/theme';
@@ -141,7 +141,7 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
         </Pressable>
         <Pressable onPress={play.onPress} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={playLabel}
           style={({ pressed }) => [styles.iconTap, (!clip.available || props.disabled) && ps.off, pressed && ps.pressed]}>
-          <Ico name={clip.playing ? 'pause' : 'play'} size={22} color={C.primary} strokeWidth={2.6} fill={C.primary} />
+          <PlayGlyph playing={clip.playing} loading={clip.loading} size={22} color={C.primary} strokeWidth={2.6} fill={C.primary} />
           <HelpBadge spot={play} />
         </Pressable>
         {/* The ⋯ took the place of the card's bin (decision 179): Clean up, and Delete every part. */}
@@ -230,7 +230,7 @@ function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; ch
       <Pressable onPress={play.onPress} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={playLabel}
         style={({ pressed }) => [styles.playTap, (!clip.available || props.disabled) && ps.off, pressed && ps.pressed]}>
         <View style={[styles.playDot, heard.playing && styles.playDotOn]}>
-          <Ico name={heard.playing ? 'pause' : 'play'} size={16} color={heard.playing ? C.white : C.primary} strokeWidth={2.6} fill={heard.playing ? C.white : C.primary} />
+          <PlayGlyph playing={heard.playing} loading={heard.loading} size={16} color={heard.playing ? C.white : C.primary} strokeWidth={2.6} fill={heard.playing ? C.white : C.primary} />
         </View>
         <HelpBadge spot={play} />
       </Pressable>
