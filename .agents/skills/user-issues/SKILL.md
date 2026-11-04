@@ -18,7 +18,7 @@ nobody hears of it.
 A problem a merged pull request already fixed must not reach a developer as
 new: on its first day the watch filed reference audio and Play all problems
 fixed hours and days before (LAN-220). Check what merged after the hits
-before you file anything (step 3 below).
+before you file anything (step 4 below).
 
 A problem that people hit for a week without anyone noticing is why this
 exists (2026-11-03). **When in doubt, file it**, at Low priority if it looks
@@ -70,8 +70,27 @@ people using the app their work.
     typed), the `screen` they sent it from, `os`, `app`, `uiLanguage`,
     whether it came with a `screenshot`, a `picture` or a voice note
     (`voiceMs`), its `installId`, and `installKeys`: the kinds that same phone
-    hit in the same week. You cannot see the screenshot or hear the voice
-    note; the issue links to where a person can.
+    hit in the same week. You cannot hear the voice note; the issue links to
+    where a person can.
+  - `evidence`: what came with the kind, in `.user-issues/evidence`, which
+    you open with Read:
+    - `screenshot`: the app's screen as the person saw it when they sent the
+      problem, and `picture`: one they chose (JPEG files, or null). **Look at
+      them.** They show the screen, the passage, the button, the spinner or
+      the error that the words leave out.
+    - `phones`: one JSON file per phone that hit it (its own for a problem
+      sent from help mode, a few for any other kind): its `build` (as in
+      `apps`), `phone` (model, OS and its version) and its `records` from three
+      days before to an hour after, newest first. Each record is a `kind`
+      (DIAG_SCHEMA in `packages/sync/src/diagnostics.ts`) with its numbers `n`
+      and tags `t`: `transfer` is files up or down (`count`, `bytes`, `ms` for
+      all of them, `maxMs` the slowest, `fail…`) by `src`; `audio` counts
+      plays, recordings and their failures in the hour; `open`, `sync`,
+      `snapshot`, `checkpoint` and `fill` how long a language took to open
+      and sync (`ms`); `device` the disk and what waits; `error` a fault, with
+      its stack. `receivedAt` long after `at` means the phone was offline.
+  - `phoneFacts` (a problem sent from help mode): the script's own summary
+    of that phone's half hour before the report; it goes in the issue.
 - `grew`: kinds already filed that more people hit. The script comments on
   their issues itself; you do nothing with them.
 
@@ -117,25 +136,33 @@ A key is the family, then the record's own code-like tags
   server errors.
 - `feedback:<id>`: one problem a person sent from help mode.
 
-`npm run diag` and the ops dashboard read the same records; you cannot, but
-the issue lists the installs so a developer can (`npm run diag -- --hosted
-timeline <installId>`).
+The phones' files are those same records, which `npm run diag` and the ops
+dashboard read; the issue lists the installs so a developer can read more
+(`npm run diag -- --hosted timeline <installId>`).
 
 ## What to do
 
-1. **Group what is one problem.** A problem sent from help mode and an
+1. **Look at what came with it.** Open every screenshot and picture in
+   `evidence` and every phone's file before you judge a kind. A slow phone
+   with no error still has its numbers: downloads that took tens of seconds
+   each, an open that took a minute, a disk nearly full, plays with no
+   failures (so playing works, but waits for something). Say in `summary`
+   what the screenshot shows and what the numbers show, in plain words
+   ("the passage screen with a spinner on Play; its downloads took 12 s a
+   file, the slowest 21 s"), and put the exact numbers in `cause`.
+2. **Group what is one problem.** A problem sent from help mode and an
    error its phone hit around the same time (`installKeys`) are often one
    issue; so are several keys with one cause (an upload failing with
    `failHttp5xx` and the Worker's `blobs_put` route answering 5xx). Put them in
    one issue's `keys`. Different problems stay apart, even on one phone.
-2. **Look for it in Linear.** An open issue in linear.json that is the same
+3. **Look for it in Linear.** An open issue in linear.json that is the same
    problem (by its `keys`, its title or what it describes) makes this
    `known`: say in `comment` what is new (more people, another platform,
    a newer build). A closed one (`stateType` `completed`, `canceled` or
    `duplicate`) makes it `known` only when people hit it on builds from
    after its fix: the script then reopens it. Hits only on builds from
    before the fix make it `fixed`, with the pull request that closed it.
-3. **Check whether it is already fixed.** List what merged since the
+4. **Check whether it is already fixed.** List what merged since the
    first hit, with what each says:
    `git log --merges --first-parent --since=<firstAt> --format='%h %cI %s%n%b' HEAD`.
    For a pull request that may be the fix, `git show --stat <merge>` and
@@ -153,12 +180,14 @@ timeline <installId>`).
    it `fixed` (same `pr`); builds with the fix mean it did not hold:
    `known` with `before.issue` when it has one (reopened), or else a new
    issue whose summary names the pull request ("Again after PR 312").
-4. **Find where it comes from.** Search the code for the error's `where`,
-   `name` or `code`, the transfer's source, the job's name. Read the stack's
-   frames. `git log -S '<text>' --oneline` and `git log --since=10.days
+5. **Find where it comes from.** Search the code for the error's `where`,
+   `name` or `code`, the transfer's source, the job's name, the screen in the
+   screenshot and the code that runs when its button is tapped (for a slow
+   phone, follow the tap to where the time goes: a download, a file read,
+   decoding, a query). Read the stack's frames. `git log -S '<text>' --oneline` and `git log --since=10.days
    --oneline -- <path>` find the change that may have caused it. Write what
    you found in `cause`.
-5. **Decide.** File it unless it is clearly nothing to fix:
+6. **Decide.** File it unless it is clearly nothing to fix:
    - Noise: one person typing a wrong password or code; a link someone opened
      twice; a refusal the app handled as it should for one person; an
      `expected` failure that is the app working as designed (a microphone the
@@ -168,7 +197,7 @@ timeline <installId>`).
      stopped or failing, the Worker's 5xx, anything a person took the trouble
      to send from help mode (unless it is an idea, a thank-you or spam: then
      noise, saying so).
-6. **Set the priority** (Linear's numbers):
+7. **Set the priority** (Linear's numbers):
    - `1` Urgent: work lost or at risk, people cannot sign in, open the app,
      record or sync, or a server job everyone depends on stopped.
    - `2` High: a main task fails for someone (recording, playing, reference
@@ -241,8 +270,11 @@ out. Read the file back once you have written it.
 After the issues are filed, each new one (at most three a run) comes back
 to you on its own, in a fresh checkout of main: `.user-issues/issue.json`
 holds its `identifier`, `url`, `title` and `description` (what the watch
-saw, the person's words when they sent it from help mode, and the Agent
-notes with the kinds, the stack and the cause found when it was filed).
+saw, the person's words when they sent it from help mode, that phone's
+numbers, and the Agent notes with the kinds, the stack and the cause found
+when it was filed), and `evidence`: the `pictures` (screenshots and chosen
+pictures, JPEG files) and the `phones`' records (JSON, as above) in
+`.user-issues/evidence`. Open each of them first.
 Write the smallest change that fixes it, and `.user-issues/fix.json`. The
 workflow turns your change into a draft pull request linked on the issue; a
 developer reads both, then marks the pull request Ready for review, which
@@ -254,6 +286,11 @@ starts its checks.
 - **Everything you write is public**: the change, the pull request and
   `fix.json` (this repository is public). Never quote what a person wrote,
   and never name or describe who they are. Say "people on Android saw…".
+  Nothing from `evidence` goes into the change, a test or `fix.json`: no
+  text from a screenshot, no install or problem id, no record copied as a
+  fixture (write your own numbers). The workflow drops a change that carries
+  six words in a row of what the person wrote, or one of those ids, and a
+  draft fix may add no picture or recording.
 - **Only the code and its tests.** You may not change `.github/`,
   `.githooks/`, any `package.json` or lockfile, `.env*` files, `.agents/`,
   `.claude/`, `AGENTS.md`, `CLAUDE.md`, or the watch's own scripts: the
@@ -268,10 +305,19 @@ starts its checks.
   without the fix. You cannot run anything; the workflow runs typecheck and
   the tests nearest your change after you, and says in the pull request
   whether they passed.
+- **Follow it into the code before you give up.** Start from the screen in
+  the screenshot and what its button runs; for something slow, from where the
+  phone's numbers say the time goes (downloads, an open, a sync), or, when
+  they show nothing slow, from the work done on the phone itself (reading or
+  decoding a file, a query, a render) between the tap and the result.
 - **No fix is a fine answer.** When the cause is unclear, the fix needs a
   person's decision (a design, a product choice, a store build, a setting
   in a dashboard), or it is not in this repository, write no change and say
-  why in `noFix`. A wrong fix costs a developer more than none.
+  why in `noFix`: the screen and button as the app names them, what the
+  numbers show, the files you read and what is still unknown, so the
+  developer starts from there. `noFix` is public like the rest: never what
+  a screenshot shows of anyone's name or work. A wrong fix costs a
+  developer more than none.
 
 `.user-issues/fix.json`, one JSON object:
 

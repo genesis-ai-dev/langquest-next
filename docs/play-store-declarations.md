@@ -90,8 +90,8 @@ Expected rating: about Teen / 12+ with "Users Interact".
 
 Data types. **Shared: No for every type.** Our processors (Supabase,
 Expo, Cloudflare, and Anthropic and Linear for the watch for user issues,
-which read diagnostics and feedback to find and track problems for us;
-decisions.md 202) are service providers, not sharing in Play's terms.
+which read diagnostics and feedback, with its screenshots and pictures, to
+find, track and suggest fixes for problems for us; decisions.md 202) are service providers, not sharing in Play's terms.
 Work an organization chooses to list publicly or release under an open
 license is the organization's own action. So is connecting another app or an
 AI agent with an access token (docs/agent-api.md, decisions.md 72): a person
