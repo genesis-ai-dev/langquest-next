@@ -7625,6 +7625,38 @@ Developer Rejected with its build free to change. The step now does the
 same (`PATCH /v1/reviewSubmissionItems/{id}` with `removed: true`) and
 deletes nothing.
 
+Amended (2026-11-04, Caleb Koster; LAN-223): a new build waits while
+another is in review, on both stores, unless its pull request asks to
+replace it. Caleb asked that a merge never restart a review by itself, and
+that developers choose per pull request. On Google Play a newer production
+release sent during a review takes its place and starts the review over,
+so Android builds now go to the `internal` track (`eas.json`,
+`submit.internal`), and `scripts/play-review.mjs` sends the newest one to
+production review, with `releaseStatus: completed` as before, only when
+nothing is in review. It runs right after the upload and every hour
+(`.eas/workflows/app-store-review.yml`). Google's API cannot say whether a
+release is in review (it calls a release completed once sent), so the step
+compares the newest production release's version name with the version
+Play's public page shows, which changes only once Google approves; a
+release that the page does not show yet is in review, and while the page
+cannot be read the build waits. A release Google rejected looks the same,
+so the build waits until a person acts in Play Console. The step needs a
+Play service account key with "Release to production", `PLAY_REVIEW_KEY`
+in `.env.production`, which `npm run secrets -- production --only eas`
+puts in EAS's production environment (`docs/environments.md`, The Play
+key); until it is there, Android builds wait in internal testing for a
+person to promote them, and the step succeeds. A pull request labelled
+`store: replace review` asks for the opposite
+(`scripts/store-choice.mjs`, read from GitHub's public API by the merge
+commit, or by the minute a store version names): its Android build goes
+straight to production, and its iPhone build cancels a review that is
+waiting or under way (`PATCH /v1/reviewSubmissions/{id}` with `canceled:
+true`, which leaves the version Developer Rejected) and takes that
+version's place. A label that cannot be read means wait. Internal testers
+get each Android build before the public again. Reverse if: reviews are
+fast enough that a restarted one costs less than a build that waits, then
+send every build straight to production again.
+
 ## 158. Global Viewers read every organization, read-only, and only on a session verified with an authenticator
 
 Date: 2026-10-22 · By: Carl Sauder · Status: accepted

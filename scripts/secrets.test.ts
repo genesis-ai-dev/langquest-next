@@ -120,14 +120,14 @@ describe('secrets', () => {
     expect(read('.github/workflows/bible-survey.yml')).toContain('secrets.BIBLE_BRAIN_ACCESS_KEY');
   });
 
-  it('gives EAS the App Store key for the App Review step, from production\'s file only, and no other system gets it', () => {
-    const all = { ...values, APP_STORE_REVIEW_KEY: '{"issuerId":"i"}', GEMINI_API_KEY: 'g' };
+  it('gives EAS the store keys for the App Review and Play review steps, from production\'s file only, and no other system gets them', () => {
+    const all = { ...values, APP_STORE_REVIEW_KEY: '{"issuerId":"i"}', PLAY_REVIEW_KEY: '{"client_email":"c"}', GEMINI_API_KEY: 'g' };
     const production = destinations('production', all, 'ref', 'k');
-    expect(production.eas).toEqual({ APP_STORE_REVIEW_KEY: '{"issuerId":"i"}' });
+    expect(production.eas).toEqual({ APP_STORE_REVIEW_KEY: '{"issuerId":"i"}', PLAY_REVIEW_KEY: '{"client_email":"c"}' });
     expect(destinations('preview', all, 'ref', 'k').eas).toEqual({});
     expect(destinations('production', values, 'ref', 'k').eas).toEqual({});
     const elsewhere = [production.github, production.functions, production.vault, ...Object.values(production.workers)];
-    for (const place of elsewhere) expect(Object.keys(place)).not.toContain('APP_STORE_REVIEW_KEY');
+    for (const place of elsewhere) for (const key of EAS_KEYS) expect(Object.keys(place)).not.toContain(key);
     for (const key of EAS_KEYS) {
       expect(FILE_KEYS).toContain(key);
       expect(REQUIRED_KEYS).not.toContain(key);
