@@ -9,7 +9,7 @@ import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Ico } from '../ui/kit';
+import { Ico, PlayGlyph } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { styles as ps } from '../recording/blockStyles';
@@ -61,7 +61,7 @@ export function OurWord(props: { ctx: Ctx; hash: string; term: string; language:
     <Pressable onPress={spot.onPress} disabled={!clip.available} accessibilityRole="button"
       accessibilityLabel={clip.playing ? t('reference.keyWords.pauseYourWord', { term: props.term }) : t('reference.keyWords.playYourWord', { term: props.term })}
       style={({ pressed }) => [styles.ourWord, !clip.available && ps.off, pressed && ps.pressed]}>
-      <Ico name={clip.playing ? 'pause' : 'play'} size={12} color={TINT.greenText} fill={TINT.greenText} />
+      <PlayGlyph playing={clip.playing} loading={clip.loading} size={12} color={TINT.greenText} fill={TINT.greenText} />
       <Text style={[txt.xsStrong, { color: TINT.greenText, flexShrink: 1 }]}>{t('keyTerms.search.ourWord', { language: props.language })}</Text>
       <HelpBadge spot={spot} />
     </Pressable>

@@ -15,7 +15,7 @@ import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Field, Ico, LinkBtn, PrimaryBtn, SectionLabel, Sheet } from '../ui/kit';
+import { Field, Ico, LinkBtn, PlayGlyph, PrimaryBtn, SectionLabel, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { versionTitle, when, type PassageView } from '../passage/passageView';
 import { markTerms } from '../recording/workspaceModel';
@@ -535,7 +535,7 @@ function YourWord(props: { ctx: Ctx; hash: string; term: string }) {
     <Pressable onPress={spot.onPress} disabled={!clip.available} accessibilityRole="button"
       accessibilityLabel={clip.playing ? t('reference.keyWords.pauseYourWord', { term: props.term }) : t('reference.keyWords.playYourWord', { term: props.term })}
       style={({ pressed }) => [styles.wordBtn, !clip.available && ps.off, pressed && ps.pressed]}>
-      <Ico name={clip.playing ? 'pause' : 'play'} size={14} color={TINT.greenText} strokeWidth={3} fill={TINT.greenText} />
+      <PlayGlyph playing={clip.playing} loading={clip.loading} size={14} color={TINT.greenText} strokeWidth={3} fill={TINT.greenText} />
       <Text style={styles.yourWord}>{t('reference.keyWords.yourWord')}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
@@ -725,7 +725,7 @@ function NoteItem(props: { ctx: Ctx; note: PassageNote; label: string; older?: s
 function VoiceClip(props: { ctx: Ctx; hash: string; sub: string }) {
   const clip = useClip(props.ctx.language, [props.hash]);
   return (
-    <MiniPlayer title={clip.total ? mmss(clip.total * 1000) : t('common.voiceNote')} sub={props.sub} playing={clip.playing} available={clip.available}
+    <MiniPlayer title={clip.total ? mmss(clip.total * 1000) : t('common.voiceNote')} sub={props.sub} playing={clip.playing} loading={clip.loading} available={clip.available}
       onToggle={clip.toggle} onBack10={clip.back10} backDisabled={!clip.available || clip.elapsed <= 0} {...(clip.error ? { error: clip.error } : {})} />
   );
 }
@@ -901,7 +901,7 @@ function EarlierRow(props: { ctx: Ctx; item: EarlierItem; last: boolean }) {
   }
   return (
     <View style={[it.focus && styles.focus, !props.last && ps.rowBorder]}>
-      <PlayRow title={it.title} sub={`${it.sub}${length}`} playing={clip.playing} available={clip.available} onToggle={clip.toggle}
+      <PlayRow title={it.title} sub={`${it.sub}${length}`} playing={clip.playing} loading={clip.loading} available={clip.available} onToggle={clip.toggle}
         last {...(clip.error ? { error: clip.error } : {})} />
       {it.text ? <Text style={[txt.sm, styles.earlierText]}>{t('reference.earlier.quoted', { text: it.text })}</Text> : null}
     </View>

@@ -11,14 +11,14 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import type { AudioLanguage } from '../audio/audioTally';
 import { Text } from '../ui/text';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audio/audioSession';
-import { playable } from '../audio/levelStore';
+import { playable, READY_MS } from '../audio/levelStore';
 import { createRecordingPlayer, unlockRecordingPlayer, type RecordingPlayer } from '../audio/recordingPlayer';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatClock } from '../i18n/format';
-import { Ico, type IconName } from '../ui/kit';
+import { Ico, PlayGlyph, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { reportError } from '../diagnostics/report';
 import type { VoiceAnswer } from './capture';
@@ -105,6 +105,8 @@ export function BigMic(props: {
 /** "Their answer · 0:14" as a pill that plays: green for something said, amber for feedback. */
 export function PlayChip(props: { ctx: Ctx; clip: VoiceAnswer; label: string; tone?: 'green' | 'amber' | 'brand' }) {
   const [playing, setPlaying] = useState(false);
+  /** Sound has come since the last tap; until then the chip spins. */
+  const [sounding, setSounding] = useState(false);
   const [error, setError] = useState('');
   const player = useRef<RecordingPlayer | null>(null);
   // Bumped by every tap and stop, so a play still waiting for its file is let go.
@@ -122,16 +124,18 @@ export function PlayChip(props: { ctx: Ctx; clip: VoiceAnswer; label: string; to
     const file = props.ctx.language.blobs.uriFor({ hash: props.clip.hash, format: props.clip.format });
     if (!file) { setError(t('review.voice.notOnDevice')); return; }
     const mine = ++asked.current;
+    setSounding(false);
     setPlaying(true);
     try {
-      // At even loudness (levelStore.ts, decision 182).
-      const uri = await playable(props.clip.hash, file);
+      // At even loudness (levelStore.ts, decision 182), or as recorded while its copy is still being made.
+      const uri = await playable(props.clip.hash, file, READY_MS);
       await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });
       if (asked.current !== mine) return;
       const p = createRecordingPlayer(uri);
       player.current = p;
       p.addListener('playbackStatusUpdate', (st) => {
         if (player.current !== p) return;
+        if (st.playing) setSounding(true);
         if (st.didJustFinish || st.refused) stop();
       });
       p.play();
@@ -148,7 +152,7 @@ export function PlayChip(props: { ctx: Ctx; clip: VoiceAnswer; label: string; to
         accessibilityLabel={playing ? t('review.voice.pauseClip', { label: props.label, length }) : t('review.voice.playClip', { label: props.label, length })}
         style={({ pressed }) => [styles.chip, { backgroundColor: bg }, pressed && styles.pressed]}>
         <View style={[styles.chipPlay, { backgroundColor: fill }]}>
-          <Ico name={playing ? 'pause' : 'play'} size={22} color={C.white} />
+          <PlayGlyph playing={playing} loading={playing && !sounding} size={22} color={C.white} />
         </View>
         <Text style={[styles.chipLabel, { color: fg }]}>{props.label} · {length}</Text>
         <HelpBadge spot={spot} />

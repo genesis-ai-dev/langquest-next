@@ -16,7 +16,7 @@ import type { Ctx } from '../shell/ctx';
 import type { ScreenId } from '../shell/flow';
 import { t } from '../i18n';
 import { indexesFor } from '../sync/indexes';
-import { Badge, Header, IconBtn, Ico, PrimaryBtn, QuietLinks, Screen, SectionLabel, SmallBtn } from '../ui/kit';
+import { Badge, Header, IconBtn, Ico, PlayGlyph, PrimaryBtn, QuietLinks, Screen, SectionLabel, SmallBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { versionTitle, when, type PassageView } from './passageView';
 import { failureMessage } from '../diagnostics/report';
@@ -171,7 +171,7 @@ function ItemCard(props: {
       <View style={styles.head}>
         <Pressable onPress={play.onPress} disabled={!clip.available} accessibilityRole="button" accessibilityLabel={playLabel}
           style={({ pressed }) => [styles.play, !clip.available && { opacity: 0.4 }, pressed && { opacity: 0.7 }]}>
-          <Ico name={clip.playing ? 'pause' : 'play'} size={20} color={C.primary} strokeWidth={2.6} fill={C.primary} />
+          <PlayGlyph playing={clip.playing} loading={clip.loading} size={20} color={C.primary} strokeWidth={2.6} fill={C.primary} />
           <HelpBadge spot={play} />
         </Pressable>
         {props.onOpen ? (
