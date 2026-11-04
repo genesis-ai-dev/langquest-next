@@ -3733,7 +3733,7 @@
     },
     "record": {
       "unknownKind": "Pagrepaso",
-      "theTeam": "ang pangkat ng {{team}}",
+      "theTeam": "pangkat ng {{team}}",
       "aReviewer": "Isang tagarepaso",
       "aReviewerInSentence": "isang tagarepaso",
       "theTranslator": "ang tagasalin",
@@ -3741,7 +3741,7 @@
         "saidByVoice": "Sinabi sa boses",
         "voiceNote": "Ipinaliwanag sa isang voice note."
       },
-      "waitingOn": "Hinihintay si {{name}}",
+      "waitingOn": "Hinihintay: {{name}}",
       "waiting": "Naghihintay",
       "hero": {
         "done": "Tapos na",
@@ -3775,7 +3775,7 @@
       "whoOnVersion": "{{who}} sa {{version}}",
       "actions": {
         "reviewNow": "Repasuhin ito ngayon",
-        "sendTo": "Ipadala sa {{target}}",
+        "sendTo": "Ipadala: {{target}}",
         "askAgain": "Humiling muli",
         "sendElsewhere": "Ipadala sa iba",
         "askSomeone": "Magtanong sa isang tao",
@@ -3789,12 +3789,12 @@
         "askedYourTeam": "hiniling ni {{by}} sa iyong pangkat ng {{team}}",
         "askedYourReviewTeam": "hiniling ni {{by}} sa iyong pangkat na nagrerepaso",
         "byLinkOver": "hindi ipinadala ng app · {{channel}}",
-        "askedForChanges": "humiling si {{who}} ng mga pagbabago",
+        "askedForChanges": "humiling ng mga pagbabago: {{who}}",
         "answered": "Nasagot ang puna — mawawala kapag sinabi ng tagarepaso na Mukhang maayos",
         "recordedBy": "Ni-record ni {{who}}",
         "recorded": "Na-record",
         "bestAfter": "Pinakamainam pagkatapos masagot ang puna sa {{kind}}, para magawa ito sa bersiyong pananatilihin mo",
-        "recordsItIn": "Ire-record ito ni {{who}} sa {{language}} — bagong nilalaman, hindi hatol",
+        "recordsItIn": "{{who}} ang magre-record nito sa {{language}} — bagong nilalaman, hindi hatol",
         "loggedStillWaits": "Itinalang mukhang maayos · naghihintay pa rin ng pagsusuri sa app"
       },
       "channels": {
@@ -3913,7 +3913,7 @@
         "looksGood": "mukhang maayos",
         "needsChanges": "kailangang baguhin",
         "after": "pagkatapos ng {{check}}",
-        "askedWho": "hiniling kay {{who}}",
+        "askedWho": "hiniling: {{who}}",
         "asked": "hiniling",
         "next": "susunod",
         "afterDone": "kapag tapos ka na"
@@ -4036,7 +4036,7 @@
         "done": "Nilampasan ang checkpoint · nai-save ang dahilan"
       },
       "history": "Mga bersiyon at kasaysayan",
-      "waitingOnAnswer": "Hinihintay si {{name}} na sagutin ang puna sa {{kinds}}.",
+      "waitingOnAnswer": "Hinihintay: {{name}}, na sasagot sa puna sa {{kinds}}.",
       "study": "Pag-aaral sa {{pattern}}",
       "studyNotStarted": "Hindi pa nasisimulan",
       "openStudy": "Buksan ang pag-aaral",
