@@ -105,9 +105,9 @@ the production track with a full rollout, and a newer build replaces one
 that waits for review. On iOS the build goes to TestFlight, and then to App
 Review when no review is open (`scripts/app-store-review.mjs`):
 `.eas/workflows/app-store-review.yml` sends the newest build Apple has
-processed, within the hour. While a review is open, or after Apple rejects
-a version until someone answers Apple in App Store Connect, the build waits
-in TestFlight. That step needs the App Store key in EAS, once
+processed, within the hour. While a review is open the build waits in
+TestFlight; after Apple rejects a version, a newer build takes its place.
+That step needs the App Store key in EAS, once
 (`docs/environments.md`, The App Store key). Apple and Google release a
 build as soon as they approve it. Each store build's version
 number is the time of its merge (`app.config.js`). It needs the GitHub repository connected to the EAS project

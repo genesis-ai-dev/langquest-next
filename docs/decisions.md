@@ -7580,6 +7580,25 @@ and stays out of GitHub Actions, which holds no production key (decision
 build unchanged, so that waiting for a person costs more than a second
 rejection.
 
+Amended (2026-11-03, Caleb Koster; LAN-209): a newer build takes a rejected
+build's place by itself. Apple rejected build 48 twice (Guideline 2.5.19),
+and the fix was a newer build (PR 322), which the wait above held in
+TestFlight until someone removed build 48 from its rejected submission by
+hand. Caleb chose that a newer build replaces a rejected one and goes to
+review on its own. While a submission has unresolved issues and its version
+holds a build older than the newest processed one, the step takes that
+version out of the submission (`DELETE /v1/reviewSubmissionItems/{id}`, the
+API's form of Remove in App Store Connect), waits for Apple to close the
+submission, and sends the newest build on that version with the build's own
+version number, as for any rejected version; if Apple has not closed it
+yet, the next run sends it. The rejected build itself is still never sent
+again by itself: a person answers Apple and resubmits it, or a newer build
+comes. A rejected submission that holds anything besides that one version
+is left to a person, and Apple's message stays in App Store Connect for
+anyone who wants to answer it. Reverse if: Apple counts a replaced
+rejection against the account (a warning, or slower or stricter reviews),
+then wait for a person again.
+
 ## 158. Global Viewers read every organization, read-only, and only on a session verified with an authenticator
 
 Date: 2026-10-22 · By: Carl Sauder · Status: accepted
