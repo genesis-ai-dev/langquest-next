@@ -164,13 +164,15 @@ function fakeApple(world: World, { itemConflicts = 0, readyAfterLooks = 0, refus
       });
     }
     m = /^\/reviewSubmissionItems\/(.+)-(\d+)$/.exec(path);
-    if (m && init.method === 'DELETE') {
+    // Apple deletes no item that went to review (409 for build 48, 2026-11-04); the Remove button marks it removed.
+    if (m && init.method === 'DELETE') return refuse(409, 'STATE_ERROR.ENTITY_STATE_INVALID', 'Item was already submitted');
+    if (m && init.method === 'PATCH' && body.attributes?.removed) {
       const s = world.submissions.find((x) => x.id === m![1]);
       if (!s || !['UNRESOLVED_ISSUES', 'READY_FOR_REVIEW'].includes(s.state)) return refuse(409, 'ENTITY_ERROR', `submission ${m[1]} cannot lose items`);
       s.items.splice(Number(m[2]), 1);
       // Apple closes a rejected submission once its last item is gone.
       if (s.state === 'UNRESOLVED_ISSUES' && s.items.length === 0 && !closesLate) s.state = 'COMPLETE';
-      return answer(204, null);
+      return answer(200, { data: { type: 'reviewSubmissionItems', id: `${m[1]}-${m[2]}`, attributes: { state: 'REMOVED' } } });
     }
     return refuse(404, 'NOT_FOUND', `${route} is not something this step should call`);
   };
@@ -259,13 +261,14 @@ describe('a rejected build', () => {
   it('gives its place to a newer build: out of the rejected submission, then the newer build on its version, under the new number, to review', async () => {
     const { writes, result, said, world: after } = await step(rejected());
     expect(writes().map((c) => `${c.method} ${c.path.split('?')[0]}`)).toEqual([
-      'DELETE /reviewSubmissionItems/s-48-0',
+      'PATCH /reviewSubmissionItems/s-48-0',
       'PATCH /appStoreVersions/v-48',
       'PATCH /appStoreVersionLocalizations/v-48-en',
       'POST /reviewSubmissions',
       'POST /reviewSubmissionItems',
       'PATCH /reviewSubmissions/s-2'
     ]);
+    expect(writes()[0].body).toEqual({ type: 'reviewSubmissionItems', id: 's-48-0', attributes: { removed: true } });
     expect(writes()[1].body.attributes).toEqual({ versionString: '2026.1104.1700' });
     expect(writes()[1].body.relationships.build.data.id).toBe('b49');
     expect(result.action).toBe('submit');
@@ -291,7 +294,7 @@ describe('a rejected build', () => {
 
   it('waits for Apple to close the rejected submission, and sends the newer build on a later run when it has not', async () => {
     const { writes, result, waited } = await step(rejected(), { closesLate: true });
-    expect(writes().map((c) => `${c.method} ${c.path}`)).toEqual(['DELETE /reviewSubmissionItems/s-48-0']);
+    expect(writes().map((c) => `${c.method} ${c.path}`)).toEqual(['PATCH /reviewSubmissionItems/s-48-0']);
     expect(waited.filter((ms) => ms === READY_WAIT_MS)).toHaveLength(READY_LOOKS - 1);
     expect(result).toMatchObject({ action: 'wait', why: 'Apple has not closed the rejected submission yet, so build 49 goes on a later run' });
   });
@@ -492,12 +495,11 @@ describe('the App Manager key', () => {
 });
 
 describe('the step\'s code and workflows', () => {
-  it('has no way to cancel a review, and deletes only a rejected version\'s place in its rejected submission', () => {
+  it('has no way to cancel a review or delete anything, and removes only a rejected version from its rejected submission', () => {
     const source = read('scripts/app-store-review.mjs');
     expect(source).not.toMatch(/\bcanceled\b/);
-    const deletes = source.match(/'DELETE'[^\n]*/g) ?? [];
-    expect(deletes).toHaveLength(1);
-    expect(deletes[0]).toContain('/reviewSubmissionItems/');
+    expect(source).not.toMatch(/'DELETE'/);
+    expect(source.match(/removed: true/g)).toHaveLength(1);
   });
 
   it('runs every hour, and right after each new iPhone build reaches TestFlight, with the production key', () => {
