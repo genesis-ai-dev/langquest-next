@@ -369,10 +369,32 @@ lists every issue the watch filed or commented on and every kind it found
 already fixed, the last 90 days: its state in Linear, the pull request that
 fixed it and when, and the last look.
 
+**Claude sees what came with each problem** (decisions.md 202, amended
+2026-11-04). Before Claude looks, the step before it asks the Worker for
+two more things and keeps them in `.user-issues/evidence` on the runner:
+
+| Asked for | Answered by | What it is |
+| --- | --- | --- |
+| `GET /api/user-issues?media=<feedback id>` | `public.ops_user_issue_media` | the screenshot and the chosen picture of a problem sent from help mode (bugs only, sent in the last 30 days or already judged), as JPEG files |
+| `GET /api/user-issues?phone=<install>&at=<time>` | `public.ops_user_issue_phone` | that phone's build, model and OS, and its records from three days before the time to an hour after, newest first, at most 400, without organization or stream ids |
+
+The phones are each problem's own and up to two of every other kind's, at
+most 12 a run (`scripts/user-issues.mjs` `evidencePlan`). Claude opens the
+pictures and the records before it judges, and says what they show. For a
+problem sent from help mode the script also writes that phone's half hour
+before the report into the issue, from the records alone (`phoneFacts`):
+downloads and uploads with their count, size and seconds per file, plays and
+recordings, opens and syncs, the disk. The draft fix job asks for the same
+for the issue's problem and phones, by the ids in its Agent notes, with its
+own OpenID Connect token before Claude runs. None of it goes into a log or
+an artifact, and the patch step drops a draft fix that carries the
+person's words (six in a row) or one of those ids, since the repository is
+public; a draft fix may add no picture or recording.
+
 An issue says what went wrong in plain words, what the watch counted
 (people, installs, platforms, builds, first and last seen), the
 person's own words for a problem from help mode (an email address taken
-out), and, in its Agent notes, the kinds' keys (how later runs find it),
+out) with that phone's numbers, and, in its Agent notes, the kinds' keys (how later runs find it),
 a few install ids for `npm run diag -- --hosted timeline <installId>`, the
 newest stack, and where Claude thinks it comes from in the code. The
 repository is public, so the workflow's log says only counts, keys and

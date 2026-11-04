@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { handleUserIssues, USER_ISSUES_RULE, type UserIssuesDeps } from '../worker/userIssues';
 import { handleApi, type ApiDeps } from '../worker/api';
-import { KEY, LOOKED_MAX, LookedError, parseLooked, type Looked, type Watch } from '../../../server/userIssues';
+import { evidenceAsked, KEY, LOOKED_MAX, LookedError, parseLooked, type Looked, type Media, type Phone, type Watch } from '../../../server/userIssues';
 import type { JobRun } from '../../../server/jobRuns';
 
 /** The watch for user issues (decisions.md 202): who gets in, and what it may send back. */
@@ -92,12 +92,22 @@ describe('what the workflow sends back', () => {
 
 describe('/api/user-issues', () => {
   const watch: Watch = { asOf: '2026-11-03T18:00:00Z', active: 12, look: [], grew: [], issues: [] };
+  const FEEDBACK = '0d000000-0000-4000-8000-000000000001';
+  const INSTALL = 'eae9b9ed-7c59-41c5-9dc4-173b84a3860d';
+  const media: Media = { screenshot: '/9j/4A==', picture: null };
+  const phone: Phone = {
+    installId: INSTALL, build: 'android update 01a1a398', phone: { os: 'android', model: 'moto e' }, firstSeen: '2026-10-20T00:00:00Z', lastSeen: '2026-11-04T04:30:00Z',
+    from: '2026-11-01T04:29:00Z', to: '2026-11-04T05:29:00Z',
+    records: [{ at: '2026-11-04T04:28:00Z', receivedAt: '2026-11-04T04:29:00Z', kind: 'transfer', about: 'language', n: { count: 3, ms: 41000 }, t: { dir: 'down', src: 'lang' } }]
+  };
   function deps(over: Partial<UserIssuesDeps> = {}) {
     const runs: JobRun[] = [];
     const sent: Looked[] = [];
     const d: UserIssuesDeps = {
       verify: async (t, rule) => (t === 'good' && rule === USER_ISSUES_RULE ? { repository: 'genesis-ai-dev/langquest-next', workflowRef: USER_ISSUES_RULE.workflowRef, runId: '123456', runAttempt: '1', eventName: 'schedule' } : null),
       watch: async () => watch,
+      media: async (id) => (id === FEEDBACK ? media : null),
+      phone: async (install, at) => (install === INSTALL ? { ...phone, to: at ?? phone.to } : null),
       looked: async (l) => { sent.push(l); return { looked: l.looked.length, grew: l.grew.length }; },
       record: async (run) => { runs.push(run); },
       now: () => NOW,
@@ -131,6 +141,43 @@ describe('/api/user-issues', () => {
     expect(res.headers.get('cache-control')).toBe('private, no-store');
     expect(await res.json()).toEqual(watch);
     expect(runs).toEqual([{ job: 'user_issue_watch', startedAt: NOW, ms: 0, outcome: 'ok', n: { active: 12, look: 0, grew: 0 } }]);
+  });
+
+  it('hands over a problem\'s screenshot and picture, and a phone\'s records around a time, without recording them as runs', async () => {
+    const { d, runs } = deps();
+    const at = (q: string) => new Request(`https://next.langquest.org/api/user-issues?${q}`, { headers: { authorization: 'Bearer good' } });
+    const shot = await handleUserIssues(at(`media=${FEEDBACK}`), d);
+    expect(shot.status).toBe(200);
+    expect(shot.headers.get('cache-control')).toBe('private, no-store');
+    expect(await shot.json()).toEqual(media);
+    const records = await handleUserIssues(at(`phone=${INSTALL}&at=2026-11-04T04:29:00Z`), d);
+    expect(await records.json()).toEqual({ ...phone, to: '2026-11-04T04:29:00Z' });
+    expect((await handleUserIssues(at('media=0d000000-0000-4000-8000-0000000000ff'), d)).status).toBe(404);
+    expect((await handleUserIssues(at('phone=ui-nobody'), d)).status).toBe(404);
+    const bad = await handleUserIssues(at('phone=../../etc'), d);
+    expect(bad.status).toBe(400);
+    expect(await bad.json()).toEqual({ error: "phone: an install's id" });
+    const outside = new Request(`https://next.langquest.org/api/user-issues?media=${FEEDBACK}`, { headers: { authorization: 'Bearer stolen' } });
+    expect((await handleUserIssues(outside, d)).status).toBe(401);
+    expect(runs).toEqual([]);
+  });
+
+  it('reads what a GET asks for: the watch, a problem\'s pictures, or a phone, and says what is wrong', () => {
+    const q = (s: string) => evidenceAsked(new URLSearchParams(s));
+    expect(q('')).toBeNull();
+    expect(q(`media=${FEEDBACK}`)).toEqual({ media: FEEDBACK });
+    expect(q(`phone=${INSTALL}`)).toEqual({ phone: INSTALL, at: null });
+    expect(q('phone=ui-a&at=2026-11-04T04:29:00.000Z')).toEqual({ phone: 'ui-a', at: '2026-11-04T04:29:00.000Z' });
+    const wrong: [string, string][] = [
+      [`media=${FEEDBACK}&phone=ui-a`, 'media or phone, not both'],
+      ['media=LAN-224', 'media: the id of a problem sent from help mode'],
+      ['media=0D000000-0000-4000-8000-000000000001', 'media: the id of a problem sent from help mode'],
+      ['phone=', "phone: an install's id"],
+      ['phone=a b', "phone: an install's id"],
+      [`phone=${'x'.repeat(65)}`, "phone: an install's id"],
+      ['phone=ui-a&at=yesterday', 'at: a time (ISO 8601)']
+    ];
+    for (const [s, message] of wrong) expect(() => q(s), s).toThrow(new LookedError(message));
   });
 
   it('records a watch the database could not answer as failed', async () => {
