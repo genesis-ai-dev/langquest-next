@@ -559,7 +559,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
 
   if (bible) {
     return (
-      <Screen header={<Header title={t('content.newTemplate.title')} {...(sub ? { sub } : {})} onBack={backOut} />}
+      <Screen page={tq.pageId} header={<Header title={t('content.newTemplate.title')} {...(sub ? { sub } : {})} onBack={backOut} />}
         footer={tq.showContinue && tq.page !== 'what' ? (
           <PrimaryBtn label={t('org.continue')} icon="right" disabled={tq.page === 'ways' ? !tq.ready : !tq.canContinue} help={t('content.newTemplate.continueHelp')} onPress={() => { if (!tq.advance()) begin(); }} />
         ) : undefined}>
@@ -569,7 +569,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
   }
 
   return (
-    <Screen header={<Header title={t('content.newTemplate.title')} {...(sub ? { sub } : {})} onBack={ctx.back} />}>
+    <Screen page="start" header={<Header title={t('content.newTemplate.title')} {...(sub ? { sub } : {})} onBack={ctx.back} />}>
       <Text style={txt.body}>{t('content.newTemplate.what')}</Text>
       <Card onPress={scripture} accessibilityLabel={t('content.newTemplate.scripture')} help={t('content.newTemplate.scriptureHelp')}>
         <View style={styles.head}>

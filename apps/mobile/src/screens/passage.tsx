@@ -438,7 +438,7 @@ export function PassageRecord(ctx: Ctx) {
       return doMove(mv);
     };
     return (
-      <Screen header={<Header title={t('passage.else.title')} sub={[v.title, lit?.title ?? ''].filter(Boolean).join(' · ')} onBack={() => setPage('path')} close />}
+      <Screen page={page} header={<Header title={t('passage.else.title')} sub={[v.title, lit?.title ?? ''].filter(Boolean).join(' · ')} onBack={() => setPage('path')} close />}
         footer={can.note ? (
           <View style={{ gap: 2 }}>
             <PrimaryBtn label={t('passage.else.sayInstead')} icon="mic" help={t('passage.else.sayInsteadHelp')} onPress={() => setNoting('say')} />
@@ -463,7 +463,7 @@ export function PassageRecord(ctx: Ctx) {
   if (page === 'ask') {
     const close = () => setPage('path');
     return (
-      <Screen header={<Header title={t('passage.published.askTitle')} sub={v.title} onBack={close} close />}
+      <Screen page={page} header={<Header title={t('passage.published.askTitle')} sub={v.title} onBack={close} close />}
         footer={nextKind && can.ask ? (
           <View style={{ gap: space.xs }}>
             <PrimaryBtn label={askButtonLabel({ target: nextTarget, kindId: nextKind.kindId, kinds, name: ctx.name, p })} icon="send"
@@ -591,7 +591,7 @@ export function PassageRecord(ctx: Ctx) {
     </View>
   );
   return (
-    <Screen header={<Header title={v.title} sub={v.language} onBack={ctx.back} />} footer={footer}>
+    <Screen page={page} header={<Header title={v.title} sub={v.language} onBack={ctx.back} />} footer={footer}>
       {/* Whether this passage comes along without a connection, and the button that takes it along, first (decisions.md 61, 166). */}
       <PassageOfflineBar ctx={ctx} unitId={unitId} />
       {waiting ? <Text style={[txt.sm, { color: TINT.amberText }]}>{waiting}</Text> : null}
