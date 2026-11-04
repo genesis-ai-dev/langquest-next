@@ -7653,7 +7653,9 @@ straight to production, and its iPhone build cancels a review that is
 waiting or under way (`PATCH /v1/reviewSubmissions/{id}` with `canceled:
 true`, which leaves the version Developer Rejected) and takes that
 version's place. A label that cannot be read means wait. Internal testers
-get each Android build before the public again. Reverse if: reviews are
+get each Android build before the public again. The ops dashboard's
+Releases section draws where each build and update is now
+(`apps/admin/src/sources/pipeline.ts`, docs/admin.md). Reverse if: reviews are
 fast enough that a restarted one costs less than a build that waits, then
 send every build straight to production again.
 
