@@ -20,8 +20,12 @@ export const workWithoutInternet: Tutorial = {
   steps: [
     {
       screen: 'my_work',
+      say: "Here's how to keep working without internet, and make sure your team gets your work."
+    },
+    {
+      screen: 'my_work',
       part: (page) => cloud(page, /^Live/),
-      say: 'LangQuest works without internet. This cloud shows whether you are connected. A green dot means your work is sent as you go.',
+      say: 'This cloud shows whether you are connected. A green dot means your work is sent as you go.',
       help: 'help.sync.live'
     },
     {
@@ -35,7 +39,12 @@ export const workWithoutInternet: Tutorial = {
     {
       screen: 'settings_home',
       part: (page) => button(page, /^Ready for offline/),
-      say: 'Ready for offline shows how many passages this phone keeps, to work on anywhere.'
+      say: 'Look here before you lose the internet. Ready for offline shows how many passages are on this phone.'
+    },
+    {
+      screen: 'settings_home',
+      part: (page) => button(page, /^Ready for offline/),
+      say: 'Passages you were asked to work on come by themselves, but only while you have internet. Give them time to finish.'
     },
     {
       screen: 'settings_home',
@@ -91,21 +100,15 @@ export const workWithoutInternet: Tutorial = {
     },
     {
       screen: 'workspace',
-      part: (page) => id(page, 'saved-mark'),
-      say: 'This tick means your recording is kept on this phone.',
-      help: 'saved.draftHelp'
-    },
-    {
-      screen: 'workspace',
       part: (page) => id(page, 'upload-bar'),
-      say: 'This bar says what is waiting to upload.'
+      say: 'This bar says what is waiting to upload. Until it is sent, this phone holds the only copy, so do not delete the app.'
     },
     {
       // Back online as the line starts, so the bar goes up while it is said; then it is all uploaded, and goes.
       screen: 'workspace',
       first: (page) => page.context().setOffline(false),
       part: (page) => id(page, 'upload-bar'),
-      say: 'When the internet comes back, it uploads by itself. There is nothing to do.',
+      say: 'When the internet comes back, open LangQuest and leave it open until it says All uploaded.',
       until: (page) => page.waitForFunction((offline) => !(document.querySelector('[data-testid="upload-bar"]')?.textContent ?? '').includes(offline), uiText('account.sync.standing.offline'), { timeout: 60_000 }),
       stay: 2.5
     }

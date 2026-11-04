@@ -16,7 +16,7 @@ export const doACheck: Tutorial = {
     {
       screen: 'my_work',
       part: (page) => button(page, /^Check Luke 15:11–32/),
-      say: "Here's how to do a check. When someone asks you to check their work, it shows on My Work. Tap it to start.",
+      say: "Here's how to check a teammate's recording, and help them make it better. When someone asks you, it shows on My Work. Tap it to start.",
       tap: true,
       until: (page) => button(page, 'Listen, step 1 of 2').waitFor({ timeout: 30_000 }),
       stay: 0.8
@@ -29,7 +29,7 @@ export const doACheck: Tutorial = {
     {
       screen: 'review_capture',
       part: (page) => page.getByRole('button', { name: /^Play/ }).locator('visible=true').first(),
-      say: 'Listen to all of it first. Tap play.',
+      say: 'Listen to all of it first. Does it say what the passage says? Does it sound natural? Tap play.',
       tap: true,
       stay: 6
     },
@@ -96,7 +96,7 @@ export const doACheck: Tutorial = {
     {
       screen: 'review_capture',
       part: (page) => id(page, 'primary-action'),
-      say: 'Then tap Send feedback.',
+      say: 'Then tap Send feedback. Grace gets it as soon as this phone is connected.',
       tap: true,
       until: (page) => id(page, 'toast').waitFor({ timeout: 30_000 }),
       stay: 2

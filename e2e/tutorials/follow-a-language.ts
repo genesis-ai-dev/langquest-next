@@ -18,7 +18,7 @@ export const followALanguage: Tutorial = {
     {
       screen: 'my_work',
       part: (page) => page.getByRole('tab', { name: 'Map' }).locator('visible=true').first(),
-      say: "Here's how to see how far each language has come. Tap Map.",
+      say: "Here's how to see how far each language has come, and what is waiting on whom. Tap Map.",
       tap: true,
       until: (page) => lumari(page).waitFor({ timeout: 30_000 }),
       stay: 0.8
@@ -52,12 +52,12 @@ export const followALanguage: Tutorial = {
     {
       screen: 'map_home',
       part: (page) => [button(page, /^Feedback waiting/), button(page, /^Not recorded/)],
-      say: 'Feedback waiting, with reviewers, in review, done, or not recorded yet.'
+      say: 'Feedback waiting means a translator has something to answer. With reviewers means a reviewer still has to listen.'
     },
     {
       screen: 'map_home',
       part: (page) => button(page, /^In review/),
-      say: 'Tap In review.',
+      say: 'In review shows everything recorded and not done yet. Tap it.',
       tap: true,
       stay: 1.2
     },
@@ -72,7 +72,7 @@ export const followALanguage: Tutorial = {
     {
       screen: 'book_map',
       part: (page) => page.getByText(/^Luke 14:25–35/).locator('visible=true').first(),
-      say: 'Each passage says where it stands, and who it waits on. Tap one to open it.',
+      say: 'Each passage says where it stands, and who it waits on. If one is stuck, another video shows what to do: Move a passage along.',
       stay: 2
     }
   ]

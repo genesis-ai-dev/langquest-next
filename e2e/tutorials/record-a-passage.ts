@@ -19,13 +19,13 @@ export const recordAPassage: Tutorial = {
     {
       screen: 'my_work',
       part: (page) => [page.getByText(uiText('work.lead.nextForYou'), { exact: true }).locator('visible=true').first(), id(page, 'primary-action')],
-      say: "Here's how to record a passage. My Work shows what's next for you.",
+      say: "Here's how to record a passage, so your team can hear it in your language. My Work shows what's next for you.",
       stay: 0.3
     },
     {
       screen: 'my_work',
       part: (page) => id(page, 'primary-action'),
-      say: 'Daniel has asked you to record Luke thirteen, verses thirty-one to thirty-five. Tap Start.',
+      say: 'Daniel, your team leader, has asked you to record Luke thirteen, verses thirty-one to thirty-five. Tap Start.',
       help: 'work.lead.startHelp',
       tap: true,
       until: (page) => shows(page, 'path-step-record'),
@@ -58,8 +58,13 @@ export const recordAPassage: Tutorial = {
     {
       screen: 'workspace',
       part: (page) => id(page, 'record-button'),
-      say: "When you're ready, tap the red button and start speaking. Pause between parts: each part is kept by itself.",
-      help: 'recording.recordButton.recordHelp',
+      say: 'Pause between parts, so you can fix one without saying it all again.',
+      help: 'recording.recordButton.recordHelp'
+    },
+    {
+      screen: 'workspace',
+      part: (page) => id(page, 'record-button'),
+      say: "When you're ready, tap the red button and start speaking. The first time, your phone asks to use the microphone. Allow it.",
       tap: true,
       speak: 0
     },
@@ -81,13 +86,8 @@ export const recordAPassage: Tutorial = {
     },
     {
       screen: 'workspace',
-      part: (page) => id(page, 'live-parts'),
-      say: 'Each box is one part.'
-    },
-    {
-      screen: 'workspace',
       part: (page) => id(page, 'live-part-1'),
-      say: 'Tap a part to hear it.',
+      say: 'Each box is one part. Tap a part to hear it.',
       help: 'recording.recorder.stoppedHelp',
       tap: true,
       // The strip ends at the newest part, which can leave part of the first out of sight: the middle of what shows.
@@ -97,7 +97,7 @@ export const recordAPassage: Tutorial = {
     {
       screen: 'workspace',
       part: (page) => button(page, uiText('recording.recorder.leave')),
-      say: 'Tap the tick to keep your parts.',
+      say: 'Tap the tick to keep your parts. You can still say any part again. Another video shows how: Hear, move and delete parts.',
       help: 'recording.recorder.leaveHelp',
       tap: true,
       until: (page) => shows(page, 'publish-button'),
@@ -112,7 +112,7 @@ export const recordAPassage: Tutorial = {
     {
       screen: 'workspace',
       part: (page) => id(page, 'publish-button'),
-      say: 'When every part is recorded, tap Done to finish this version and send it to its next check. The next video shows how.',
+      say: 'When every part is recorded, tap Done to finish this version and send it to its next check. Another video shows how: Finish and ask for a check.',
       help: 'recording.recorder.doneHelp',
       stay: 1.2
     }
