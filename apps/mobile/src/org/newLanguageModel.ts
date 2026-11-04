@@ -52,6 +52,20 @@ export function backTarget(step: number, pages: Pages): { step?: number } & Part
   return { step: step - 1 };
 }
 
+/**
+ * The page of New language on screen: its step and that step's page (the
+ * question's, `question`, on step 2), or the language being added. The
+ * screen opens each new page at its top.
+ */
+export function pageOf(step: number, pages: Pages, question: string, making: boolean): string {
+  if (making) return 'making';
+  if (step === 1) return `1 ${pages.languagePage}`;
+  if (step === 2) return `2 ${question}`;
+  if (step === 3) return `3 ${pages.materialPage}`;
+  if (step === 4) return `4 ${pages.flowPage}`;
+  return String(step);
+}
+
 /** The toast after Continue: what was added, and what the chosen reference material could not be given. */
 export function addedToast(input: { many: boolean; count: number; first: string; org: string; cluster: string; notOffered: readonly string[] }, say: (key: string, params: Record<string, string | number>) => string): string {
   const { many, notOffered } = input;
