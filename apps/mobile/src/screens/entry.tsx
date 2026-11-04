@@ -309,7 +309,7 @@ export function Vision(ctx: Ctx) {
   // A phone's Back goes back a card, as the header's arrow does (decision 137).
   useHardwareBack(step > 0, () => setStep(step - 1));
   return (
-    <Screen
+    <Screen page={String(step)}
       header={<Header title={t('entry.vision.title')} sub={t('entry.vision.step', { current: step + 1, total: VISION_STEPS.length })} onBack={step === 0 ? ctx.back : () => setStep(step - 1)}
         {...(step > 0 ? { backHelp: t('entry.vision.backHelp') } : {})} />}
       footer={<PrimaryBtn label={last ? t('common.done') : t('common.next')} help={last ? t('help.details.done') : t('entry.vision.nextHelp')}
@@ -998,7 +998,7 @@ export function RequestAccess(ctx: Ctx) {
     // Someone already in an organization asked from Switch Organization goes back there (LAN-197).
     const done = () => (ctx.params['from'] === 'org_switcher' ? ctx.go('org_switcher') : ctx.go('intent_chooser'));
     return (
-      <Screen
+      <Screen page="asked"
         header={<Header title={failed ? t('entry.request.notSent') : t('entry.request.asked')} onBack={done} />}
         footer={failed ? <GhostBtn label={t('common.back')} help={t('entry.request.backHelp')} onPress={done} />
           : <PrimaryBtn label={t('common.done')} help={t('entry.request.doneHelp')} onPress={done} />}
@@ -1015,7 +1015,7 @@ export function RequestAccess(ctx: Ctx) {
   // One organization, and a message if they like.
   if (target) {
     return (
-      <Screen
+      <Screen page="ask"
         header={<Header title={target.orgName ? t('entry.request.askOrg', { org: target.orgName }) : t('entry.request.askUnknown')}
           {...(target.languageName ? { sub: target.languageName } : {})}
           onBack={given ? ctx.back : () => { setPicked(null); setError(''); }} />}
@@ -1032,7 +1032,7 @@ export function RequestAccess(ctx: Ctx) {
   const unloaded = refresh === 'stale' && listed.length === 0;
   // Find your organization (demo a-findOrg): the listed ones, each opening the form to ask it.
   return (
-    <Screen header={<Header title={t('entry.intent.findTitle')} onBack={ctx.back} />}>
+    <Screen page="find" header={<Header title={t('entry.intent.findTitle')} onBack={ctx.back} />}>
       {unloaded ? (
         <EmptyState icon="cloud" title={t('entry.request.loadFailedTitle')} sub={t('entry.request.loadFailedSub')}>
           <GhostBtn label={t('common.tryAgain')} icon="restart" help={t('entry.request.tryAgainHelp')} onPress={reload} />

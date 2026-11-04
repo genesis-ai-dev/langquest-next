@@ -14,7 +14,7 @@ import {
   ArrowLeft, ArrowUp, ArrowDown, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert,
   ChevronsUpDown, CloudAlert, CloudDownload, FileText, Eye, EyeOff, Menu, Bug, Lightbulb, Ellipsis, MessageCirclePlus, Reply
 } from './icons';
-import { Fragment, isValidElement, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, isValidElement, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import {
   AccessibilityInfo, ActivityIndicator, Animated, Easing, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
   type StyleProp, type TextStyle, type ViewStyle
@@ -105,6 +105,12 @@ export function Screen(props: {
   columnWidth?: number;
   /** Show the scroll bar, where what is below the fold is a way on (Sign In on a short phone). */
   scrollBar?: boolean;
+  /**
+   * Which page is on screen, where one screen shows a task's pages in turn
+   * (New language's steps, the pages of a question, an invite's steps): each
+   * new page opens at its top, not scrolled as far down as the page before.
+   */
+  page?: string;
 }) {
   // A wide window keeps the phone's reading width: the body sits in a
   // centred column and the footer's actions stop stretching (decisions.md 55).
@@ -119,6 +125,12 @@ export function Screen(props: {
   const helpOn = useHelpOn();
   // Something drawn on with a finger stops the body scrolling meanwhile (scrollHoldContext.ts).
   const [held, setHeld] = useState(false);
+  // Before the new page is drawn, so it never shows at the last page's scroll.
+  const body = useRef<ScrollView>(null);
+  const page = props.page;
+  useLayoutEffect(() => {
+    if (page !== undefined) body.current?.scrollTo({ y: 0, animated: false });
+  }, [page]);
   return (
     <KeyboardSafe style={[styles.screen, helpOn && { paddingBottom: HELP_FOOT_ROOM }]}>
       {props.header}
@@ -126,7 +138,7 @@ export function Screen(props: {
         {props.fixed ? (
           <View style={[{ flex: 1 }, column, props.bodyStyle]}>{props.children}</View>
         ) : (
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={!!props.scrollBar}
+          <ScrollView ref={body} style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={!!props.scrollBar}
             persistentScrollbar={!!props.scrollBar} scrollEnabled={!held}>
             <ScrollHoldContext.Provider value={setHeld}>{props.children}</ScrollHoldContext.Provider>
           </ScrollView>
