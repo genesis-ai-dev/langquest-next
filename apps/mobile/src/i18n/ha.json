@@ -89,7 +89,8 @@
       "id": "Indonesiyanci",
       "zhHans": "Sinanci (sauƙaƙaƙƙe)",
       "th": "Thai",
-      "my": "Burmanci"
+      "my": "Burmanci",
+      "tl": "Tagalog"
     }
   },
   "core": {
@@ -1232,7 +1233,8 @@
       "npi": "Nepalanci",
       "mya": "Burmanci",
       "tpi": "Tok Pisin",
-      "bis": "Bislama"
+      "bis": "Bislama",
+      "tgl": "Tagalog"
     },
     "helps": {
       "bibles_one": "Littafi Mai Tsarki na {{languages}}",

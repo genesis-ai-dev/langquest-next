@@ -6,7 +6,7 @@
 // translations, like the app's catalogs (decisions.md 81).
 
 import { UI_LANGUAGES } from '@langquest-next/core';
-import { APP_LINK, downloadLink, videosPath, WORDS, type ChannelLanguage } from '../../server/youtube';
+import { APP_LINK, CHANNELS, downloadLink, videosPath, WORDS } from '../../server/youtube';
 
 /** The playlists, kept where the publish job lays out each channel's home page too (server/youtubePlaylists.ts). */
 export { PLAYLISTS, type Who } from '../../server/youtubePlaylists';
@@ -50,7 +50,8 @@ export const OTHER_LANGUAGES: Record<string, string> = {
   id: 'Video ini dalam bahasa lain:',
   th: 'วิดีโอนี้ในภาษาอื่น:',
   my: 'ဤဗီဒီယိုကို အခြားဘာသာစကားများဖြင့်-',
-  'zh-Hans': '本视频的其他语言版本：'
+  'zh-Hans': '本视频的其他语言版本：',
+  tl: 'Ang video na ito sa ibang wika:'
 };
 
 const YOUTUBE_TITLE = 100;
@@ -59,7 +60,10 @@ const bytes = (text: string) => new TextEncoder().encode(text).length;
 // YouTube refuses < and > in a title or description.
 const plain = (text: string) => text.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
 
-/** A video, to link to itself in the other app languages it is made in (each by its own name, in the order the app lists them). */
+/**
+ * A video, to link to itself in the other app languages it is made in (each by its own name, in the order the app lists them).
+ * A language with no channel yet (Tagalog, LAN-223) gets no link: its link would lead nowhere.
+ */
 export interface Elsewhere {
   language: string;
   tutorial: string;
@@ -86,8 +90,8 @@ export function firstSentence(line: string): string {
  * for YouTube is cut.
  */
 export function youtubeText(title: string, summary: string, elsewhere?: Elsewhere): { title: string; description: string } {
-  const others = elsewhere ? UI_LANGUAGES.filter((l) => l.code !== elsewhere.language && !elsewhere.notIn?.includes(l.code)) : [];
-  const words = elsewhere ? WORDS[elsewhere.language as ChannelLanguage] ?? WORDS.en : undefined;
+  const others = elsewhere ? UI_LANGUAGES.filter((l) => l.code !== elsewhere.language && Object.hasOwn(CHANNELS, l.code) && !elsewhere.notIn?.includes(l.code)) : [];
+  const words = elsewhere ? WORDS[elsewhere.language as keyof typeof WORDS] ?? WORDS.en : undefined;
   const links = [
     ...(elsewhere && words ? [`${words.download} ${downloadLink(elsewhere.language, elsewhere.tutorial)}`, `${words.allVideos} ${APP_LINK}${videosPath(elsewhere.language)}`] : []),
     `LangQuest: ${APP_LINK}`

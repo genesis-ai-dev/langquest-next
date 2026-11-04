@@ -91,7 +91,8 @@
       "id": "Indonésien",
       "zhHans": "Chinois (simplifié)",
       "th": "Thaï",
-      "my": "Birman"
+      "my": "Birman",
+      "tl": "Tagalog"
     }
   },
   "core": {
@@ -1260,7 +1261,8 @@
       "npi": "Népalais",
       "mya": "Birman",
       "tpi": "Tok pisin",
-      "bis": "Bichelamar"
+      "bis": "Bichelamar",
+      "tgl": "Tagalog"
     },
     "helps": {
       "bibles_one": "Bible : {{languages}}",

@@ -91,7 +91,8 @@
       "id": "Indonesio",
       "zhHans": "Chino (simplificado)",
       "th": "Tailandés",
-      "my": "Birmano"
+      "my": "Birmano",
+      "tl": "Tagalo"
     }
   },
   "core": {
@@ -1260,7 +1261,8 @@
       "npi": "Nepalí",
       "mya": "Birmano",
       "tpi": "Tok pisin",
-      "bis": "Bislama"
+      "bis": "Bislama",
+      "tgl": "Tagalo"
     },
     "helps": {
       "bibles_one": "Biblia en {{languages}}",

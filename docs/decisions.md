@@ -3050,6 +3050,14 @@ by the database (the Inbox shows its own words by kind).
 Reverse if: translators need to change words between app releases (then the
 library localization), or people want their language to follow them to
 other devices (then an event in the person stream).
+Amended (2026-11-04, Caleb Koster): Tagalog (`tl`) is the sixteenth language
+(LAN-223), a machine translation released as approved, as the first fourteen
+were. Phones and browsers call it Filipino, so its locale is `fil` (iOS's
+folder, `Intl` dates, numbers and plurals) while Android's folder is
+`values-tl` and the library's code `tgl`. Its invite email, web pages, Bible
+book names, library labels and YouTube words come with it. It has no YouTube
+channel yet, so it stays out of `CHANNELS` (`server/youtube.ts`): no video
+description links to it and none is filmed in it until the channel exists.
 
 ## 82. A recorded part keeps how it relates to its neighbours, and its verse numbers are worked out down the list
 

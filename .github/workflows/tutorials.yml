@@ -56,8 +56,9 @@ concurrency:
 env:
   # The app languages filmed each night. English alone for now (Caleb,
   # 2026-11-01): the spotlight films every video again, and he looks at the
-  # English ones before the other fourteen are filmed; then they come back,
-  # English and French first: en,fr,es,pt,ar,sw,ha,am,hi,bn,ne,id,th,my,zh-Hans.
+  # English ones before the other fifteen are filmed; then they come back,
+  # English and French first: en,fr,es,pt,ar,sw,ha,am,hi,bn,ne,id,th,my,zh-Hans,tl
+  # (Tagalog once its channel is made, LAN-223).
   # A line is said by Gemini's batch voice, on its paid tier, the first time
   # it is filmed; the release keeps each language's voice
   # (voice-<language>.tgz), so it is never paid twice.

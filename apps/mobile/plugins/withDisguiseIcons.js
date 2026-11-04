@@ -20,7 +20,7 @@ const { AndroidConfig, withAndroidManifest, withDangerousMod } = require('expo/c
 const FOLDERS = {
   en: 'values', es: 'values-es', pt: 'values-pt', fr: 'values-fr', ar: 'values-ar', sw: 'values-sw', ha: 'values-ha',
   am: 'values-am', hi: 'values-hi', bn: 'values-bn', ne: 'values-ne', id: 'values-in', 'zh-Hans': 'values-b+zh+Hans',
-  th: 'values-th', my: 'values-my'
+  th: 'values-th', my: 'values-my', tl: 'values-tl'
 };
 
 const escape = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/'/g, "\\'").replace(/"/g, '\\"');

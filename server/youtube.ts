@@ -11,9 +11,13 @@
  * unlisted with a line pointing to the new one, so its comments stay
  * readable (the plan's "What YouTube allows").
  */
+import type { UiLanguage } from '@langquest-next/core';
 import { HOME_ORDER, PLAYLISTS } from './youtubePlaylists';
 
-/** Each app language's channel (Caleb made them on 2026-10-28; handles @LangQuestApp and @LangQuestApp-<code>). */
+/**
+ * Each app language's channel (Caleb made them on 2026-10-28; handles @LangQuestApp and @LangQuestApp-<code>).
+ * Tagalog has none yet (LAN-223): its videos wait for one, and no link points to it.
+ */
 export const CHANNELS = {
   en: 'UC8Ry8oFIPWzDygngMwvkBLQ',
   es: 'UCpZYy6RO9gLD__QuUDVaEYg',
@@ -46,9 +50,9 @@ export function languageOfChannel(channelId: string): ChannelLanguage | null {
  * banner (e2e/tutorials/banners.ts), the channel's description, and the
  * lines that lead to a video's download and to the page of all of them
  * (decisions.md 187). Machine translations, like the app's catalogs
- * (decisions.md 81).
+ * (decisions.md 81). Every app language has them, ready for its channel.
  */
-export const WORDS: Record<ChannelLanguage, { otherChannels: string; replacedBy: string; tagline: string; about: string; download: string; allVideos: string }> = {
+export const WORDS: Record<UiLanguage, { otherChannels: string; replacedBy: string; tagline: string; about: string; download: string; allVideos: string }> = {
   en: {
     otherChannels: 'Other LangQuest channels', replacedBy: 'Replaced by a newer video:', tagline: 'Tutorial videos',
     about: 'Short videos on how to use LangQuest, the free app for recording a Bible translation, checking it together and following its progress. One video for each task, kept up to date with the app.',
@@ -123,6 +127,11 @@ export const WORDS: Record<ChannelLanguage, { otherChannels: string; replacedBy:
     otherChannels: '其他 LangQuest 频道', replacedBy: '已由新视频取代：', tagline: '教程视频',
     about: 'LangQuest 使用教程短视频。LangQuest 是一款免费应用，用于录制圣经译文、一起审核并跟进进度。每项任务一个视频，随应用一同更新。',
     download: '下载本视频：', allVideos: '观看或下载全部视频：'
+  },
+  tl: {
+    otherChannels: 'Iba pang channel ng LangQuest', replacedBy: 'Pinalitan ng mas bagong video:', tagline: 'Mga video sa pagtuturo',
+    about: 'Maiikling video tungkol sa paggamit ng LangQuest, ang libreng app para i-record ang salin ng Bibliya, suriin ito nang magkakasama at sundan ang pag-usad nito. Isang video para sa bawat gawain, laging updated kasabay ng app.',
+    download: 'I-download ang video na ito:', allVideos: 'Panoorin o i-download ang bawat video:'
   }
 };
 

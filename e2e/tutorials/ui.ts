@@ -67,7 +67,7 @@ const filmLine = (key: string) => (filmLines ??= new Map(flatten(catalogs.film))
 
 // The code each of the app's languages has in library/labels (CONTENT_CODES in apps/mobile/src/reference/languages.ts).
 const LABELS_CODE: Record<string, string> = {
-  es: 'spa', pt: 'por', fr: 'fra', ar: 'arb', sw: 'swa', ha: 'hau', am: 'amh', hi: 'hin', bn: 'ben', ne: 'npi', id: 'ind', 'zh-Hans': 'cmn', th: 'tha', my: 'mya'
+  es: 'spa', pt: 'por', fr: 'fra', ar: 'arb', sw: 'swa', ha: 'hau', am: 'amh', hi: 'hin', bn: 'ben', ne: 'npi', id: 'ind', 'zh-Hans': 'cmn', th: 'tha', my: 'mya', tl: 'tgl'
 };
 /**
  * What LangQuest's library items are called in the film's language (decision 195), as lines

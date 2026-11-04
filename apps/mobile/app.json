@@ -201,7 +201,8 @@
             "id",
             "zh-Hans",
             "th",
-            "my"
+            "my",
+            "fil"
           ]
         }
       ],
@@ -233,7 +234,8 @@
       "id": "./locales/id.json",
       "zh-Hans": "./locales/zh-Hans.json",
       "th": "./locales/th.json",
-      "my": "./locales/my.json"
+      "my": "./locales/my.json",
+      "fil": "./locales/fil.json"
     }
   }
 }
