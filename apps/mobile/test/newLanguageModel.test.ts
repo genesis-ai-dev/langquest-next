@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addedToast, backTarget, draftPlan, startingSpecs, uniqueKinds } from '../src/org/newLanguageModel';
+import { addedToast, backTarget, draftPlan, pageOf, startingSpecs, uniqueKinds } from '../src/org/newLanguageModel';
 import { commands, DEFAULT_KINDS, emptyLanguageState, type LibraryDoc } from '@langquest-next/core';
 import type { SharedItem } from '../src/library/model';
 import type { GuideSet } from '../src/reference/guideSets';
@@ -37,6 +37,25 @@ describe('new language wizard rules', () => {
     expect(backTarget(3, { ...at, materialPage: 'languages' })).toEqual({ materialPage: 'material' });
     expect(backTarget(4, { ...at, flowPage: 'checks' })).toEqual({ flowPage: 'pick' });
     expect(backTarget(3, at)).toEqual({ step: 2 });
+  });
+  it('names every page apart, so each opens at its top', () => {
+    const at = { languagePage: 'name', materialPage: 'material', flowPage: 'pick' } as const;
+    const pages = [
+      pageOf(0, at, 'what', false),
+      pageOf(1, at, 'what', false),
+      pageOf(1, { ...at, languagePage: 'team' }, 'what', false),
+      ...(['what', 'why', 'how', 'numbered', 'ways'] as const).map((q) => pageOf(2, at, q, false)),
+      pageOf(3, at, 'ways', false),
+      pageOf(3, { ...at, materialPage: 'languages' }, 'ways', false),
+      pageOf(4, at, 'ways', false),
+      pageOf(4, { ...at, flowPage: 'checks' }, 'ways', false),
+      pageOf(4, { ...at, flowPage: 'checks' }, 'ways', true)
+    ];
+    expect(new Set(pages).size).toBe(pages.length);
+    // Divide into sections, then Reference material: a new page, which once opened as far down as the last was scrolled.
+    expect(pageOf(2, at, 'ways', false)).not.toBe(pageOf(3, at, 'ways', false));
+    // What only changes another step's page does not move this one.
+    expect(pageOf(3, at, 'ways', false)).toBe(pageOf(3, { ...at, languagePage: 'team', flowPage: 'checks' }, 'what', false));
   });
   it('words the toast by how many and what was not offered', () => {
     const base = { count: 2, first: 'Dinka', org: 'O', cluster: 'C' };
