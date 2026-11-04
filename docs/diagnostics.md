@@ -24,7 +24,7 @@ of these kinds, each with a fixed list of fields (`DIAG_SCHEMA`):
 | `device` | Each delivery | free and total disk (not on the web), audio cache size, files still wanted; files lost behind the app's back and unsent recordings among them (decision 92); takes mid-save and recoveries that failed; uploads waiting and the oldest unsent recording's age; the oldest wanted download's age; streams, events and database size held; diagnostics queued, and dropped past the 3000 bound |
 | `error` | A fault reaches `reportError` (`apps/mobile/src/diagnostics/report.ts`) | error class, where, the id shown to the person, fatal or not, a fixed code (a recorder's `nospace`, a SQLSTATE), stack frames |
 | `expected` | A failure already shown to the person (`noteExpected`), tallied per hour | where, error class, code; how many |
-| `audio` | Recording and playback, tallied per hour per language | takes and their total length, takes too short to keep, microphone refused, start, stop, save and compression failures, WAV kept, interruptions; plays, playback failures, taps on audio not yet on the phone, stream failures |
+| `audio` | Recording and playback, tallied per hour per language | takes and their total length, takes too short to keep, microphone refused, start, stop, save and compression failures, WAV kept, interruptions; plays, playback failures, taps on audio not yet on the phone, stream failures; plays that reached sound, how long they waited for it added up, and the longest wait (decision 182, amended 2026-11-04) |
 | `auth` | Signing in and staying in | what was tried (`sign_in`, `sign_up`, `code`, `v2`, `redeem`, `join`, `renew`, `ended`, `courier`, `outbox`, `route`, `delete`, `org_list`), how it ended, an Auth error code, SQLSTATE or our own code; ms, HTTP status, attempt, ages; for a hand-over, how much another person's sign-in left to send, never who; a sign-in from the phone's lock (decisions.md 168) is `sign_in` with action `lock_pattern` or `lock_password` |
 
 Every delivery also sends the phone's context: install id, OS and version,
@@ -369,10 +369,32 @@ lists every issue the watch filed or commented on and every kind it found
 already fixed, the last 90 days: its state in Linear, the pull request that
 fixed it and when, and the last look.
 
+**Claude sees what came with each problem** (decisions.md 202, amended
+2026-11-04). Before Claude looks, the step before it asks the Worker for
+two more things and keeps them in `.user-issues/evidence` on the runner:
+
+| Asked for | Answered by | What it is |
+| --- | --- | --- |
+| `GET /api/user-issues?media=<feedback id>` | `public.ops_user_issue_media` | the screenshot and the chosen picture of a problem sent from help mode (bugs only, sent in the last 30 days or already judged), as JPEG files |
+| `GET /api/user-issues?phone=<install>&at=<time>` | `public.ops_user_issue_phone` | that phone's build, model and OS, and its records from three days before the time to an hour after, newest first, at most 400, without organization or stream ids |
+
+The phones are each problem's own and up to two of every other kind's, at
+most 12 a run (`scripts/user-issues.mjs` `evidencePlan`). Claude opens the
+pictures and the records before it judges, and says what they show. For a
+problem sent from help mode the script also writes that phone's half hour
+before the report into the issue, from the records alone (`phoneFacts`):
+downloads and uploads with their count, size and seconds per file, plays and
+recordings, opens and syncs, the disk. The draft fix job asks for the same
+for the issue's problem and phones, by the ids in its Agent notes, with its
+own OpenID Connect token before Claude runs. None of it goes into a log or
+an artifact, and the patch step drops a draft fix that carries the
+person's words (six in a row) or one of those ids, since the repository is
+public; a draft fix may add no picture or recording.
+
 An issue says what went wrong in plain words, what the watch counted
 (people, installs, platforms, builds, first and last seen), the
 person's own words for a problem from help mode (an email address taken
-out), and, in its Agent notes, the kinds' keys (how later runs find it),
+out) with that phone's numbers, and, in its Agent notes, the kinds' keys (how later runs find it),
 a few install ids for `npm run diag -- --hosted timeline <installId>`, the
 newest stack, and where Claude thinks it comes from in the code. The
 repository is public, so the workflow's log says only counts, keys and

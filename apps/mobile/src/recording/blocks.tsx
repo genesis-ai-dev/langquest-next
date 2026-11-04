@@ -9,7 +9,7 @@ import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpLoud, HelpQuiet, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Ico, Sheet, type IconName } from '../ui/kit';
+import { Ico, PlayGlyph, Sheet, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { lift } from '../ui/shadow';
 import { C, space, target, TINT, type as T, withAlpha } from '../ui/theme';
@@ -97,7 +97,8 @@ export function Back10(props: { onPress: () => void; disabled?: boolean; tone?: 
 }
 
 /** The big round play button of a small player. */
-export function PlayBtn(props: { playing: boolean; available: boolean; label: string; onPress: () => void; size?: number; disabled?: boolean; none?: boolean }) {
+export function PlayBtn(props: { playing: boolean; available: boolean; label: string; onPress: () => void; size?: number; disabled?: boolean; none?: boolean;
+  /** Played, and no sound yet: a spinner in place of Pause. */ loading?: boolean }) {
   const size = props.size ?? target.min;
   const spot = useHelpSpot(props.playing ? t('common.pause') : props.label, t('recording.player.playHelp'), props.onPress);
   const off = !props.available || props.disabled;
@@ -106,7 +107,8 @@ export function PlayBtn(props: { playing: boolean; available: boolean; label: st
       accessibilityLabel={props.none ? t('recording.player.noAudio') : !props.available ? t('recording.player.notOnDevice') : props.playing ? t('common.pause') : props.label}
       style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, backgroundColor: off ? C.faint : C.primary, alignItems: 'center', justifyContent: 'center' },
         pressed && styles.pressed]}>
-      <Ico name={props.none ? 'play' : !props.available ? 'download' : props.playing ? 'pause' : 'play'} size={Math.round(size * 0.38)} color={C.white} strokeWidth={2.4} fill={props.available || props.none ? C.white : undefined} />
+      {props.available && !props.none ? <PlayGlyph playing={props.playing} loading={!!props.loading} size={Math.round(size * 0.38)} color={C.white} strokeWidth={2.4} fill={C.white} />
+        : <Ico name={props.none ? 'play' : 'download'} size={Math.round(size * 0.38)} color={C.white} strokeWidth={2.4} fill={props.none ? C.white : undefined} />}
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -118,7 +120,7 @@ export function PlayBtn(props: { playing: boolean; available: boolean; label: st
  */
 export function MiniPlayer(props: {
   title: string; sub?: string; playing: boolean; available: boolean; onToggle: () => void; onBack10: () => void; backDisabled?: boolean;
-  onNote?: () => void; right?: ReactNode; style?: object; bare?: boolean; error?: string; none?: boolean;
+  onNote?: () => void; right?: ReactNode; style?: object; bare?: boolean; error?: string; none?: boolean; loading?: boolean;
   /** In place of the line under the title: a picker beside the time, when there is a choice to make. */
   under?: ReactNode;
 }) {
@@ -126,7 +128,7 @@ export function MiniPlayer(props: {
     <View style={[!props.bare && styles.mini, props.style]}>
       <View style={styles.miniRow}>
         {/* Play takes a number while help is on, wherever the player sits; the rest stay dim and explain when tapped (LAN-135). */}
-        <HelpLoud><PlayBtn playing={props.playing} available={props.available} label={t('recording.player.playTitle', { title: props.title })} onPress={props.onToggle} {...(props.none ? { none: true } : {})} /></HelpLoud>
+        <HelpLoud><PlayBtn playing={props.playing} loading={!!props.loading} available={props.available} label={t('recording.player.playTitle', { title: props.title })} onPress={props.onToggle} {...(props.none ? { none: true } : {})} /></HelpLoud>
         <HelpQuiet>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.miniTitle} numberOfLines={2}>{props.title}</Text>
@@ -159,7 +161,7 @@ export function Dock(props: { title: string; sub: string; playing: boolean; avai
 // ---- rows and buttons --------------------------------------------------------------------
 
 /** A row in a card with a pale play tile at the left (Earlier): the tile plays, the row says what it is. */
-export function PlayRow(props: { title: string; sub: string; playing: boolean; available: boolean; onToggle: () => void; last?: boolean; error?: string }) {
+export function PlayRow(props: { title: string; sub: string; playing: boolean; available: boolean; onToggle: () => void; last?: boolean; error?: string; loading?: boolean }) {
   const spot = useHelpSpot(props.playing ? t('common.pause') : t('recording.player.playTitle', { title: props.title }), props.sub, props.onToggle);
   return (
     <Pressable onPress={spot.onPress} disabled={!props.available} accessibilityRole="button"
@@ -168,7 +170,8 @@ export function PlayRow(props: { title: string; sub: string; playing: boolean; a
         : t('recording.player.rowNotOnDevice', { title: props.title })}
       style={({ pressed }) => [styles.playRow, !props.last && styles.rowBorder, pressed && styles.pressed]}>
       <View style={styles.playTile}>
-        <Ico name={!props.available ? 'download' : props.playing ? 'pause' : 'play'} size={22} color={props.available ? C.primary : C.faint} strokeWidth={2.4} fill={props.available ? C.primary : undefined} />
+        {props.available ? <PlayGlyph playing={props.playing} loading={!!props.loading} size={22} color={C.primary} strokeWidth={2.4} fill={C.primary} />
+          : <Ico name="download" size={22} color={C.faint} strokeWidth={2.4} />}
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.rowTitle}>{props.title}</Text>

@@ -5,12 +5,16 @@
 // to three parts, and a first part whose even-loudness copy took long to
 // make could be too. One element, unlocked by the tap that starts playing,
 // may play every part after it. The newest player holds it; an older one
-// lets go, keeping where it was, and takes it back when it plays again.
+// lets go, keeping where it was, and takes it back when it plays again. It
+// says it is playing once sound has come (the element's 'playing'), not at
+// play(): a player shows a spinner until then.
 import type { RecordingPlayer, RecordingStatus } from './recordingPlayer';
 
 let shared: HTMLAudioElement | null = null;
 let holder: WebRecordingPlayer | null = null;
 let unlocked = false;
+/** The element is sounding: 'playing' came, and no pause, wait or new recording since. */
+let sounding = false;
 
 function element(): HTMLAudioElement {
   if (!shared) { shared = new Audio(); shared.preload = 'auto'; }
@@ -31,7 +35,7 @@ class WebRecordingPlayer implements RecordingPlayer {
   private get holding(): boolean { return holder === this; }
 
   private emit(extra: Partial<RecordingStatus> = {}) {
-    const status: RecordingStatus = { currentTime: this.currentTime, duration: this.duration, playing: this.holding && !element().paused,
+    const status: RecordingStatus = { currentTime: this.currentTime, duration: this.duration, playing: this.holding && sounding && !element().paused,
       didJustFinish: false, error: null, ...extra };
     for (const l of this.listeners) l(status);
   }
@@ -45,7 +49,9 @@ class WebRecordingPlayer implements RecordingPlayer {
     const mine = () => holder === this;
     el.ontimeupdate = () => { if (mine()) this.emit(); };
     el.onplay = () => { if (mine()) this.emit(); };
-    el.onpause = () => { if (mine()) this.emit(); };
+    el.onplaying = () => { sounding = true; if (mine()) this.emit(); };
+    el.onwaiting = () => { sounding = false; if (mine()) this.emit(); };
+    el.onpause = () => { sounding = false; if (mine()) this.emit(); };
     el.onloadedmetadata = () => {
       if (!mine()) return;
       this.length = finite(el.duration) || this.length;
@@ -56,6 +62,7 @@ class WebRecordingPlayer implements RecordingPlayer {
     // i18n-ignore: for the error report; the players show their own words (common.audioCouldNotLoad)
     el.onerror = () => { if (mine()) this.emit({ error: `Playback error (code ${el.error?.code ?? 0})`, playing: false }); };
     if (this.at > 0) this.seekWhenLoaded = this.at;
+    sounding = false;
     el.src = this.uri;
     return el;
   }

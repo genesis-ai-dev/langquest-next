@@ -7615,6 +7615,16 @@ anyone who wants to answer it. Reverse if: Apple counts a replaced
 rejection against the account (a warning, or slower or stricter reviews),
 then wait for a person again.
 
+Amended (2026-11-04, Caleb Koster; LAN-209): Apple deletes no item that
+went to review. The first two runs asked to delete build 48's item from its
+rejected submission, and Apple answered 409, "Item was already submitted",
+so nothing changed and build 50 waited. The Remove button on App Store
+Connect's App Review page marks the item removed instead: Caleb pressed it
+by hand that evening, Apple closed the submission, and the version became
+Developer Rejected with its build free to change. The step now does the
+same (`PATCH /v1/reviewSubmissionItems/{id}` with `removed: true`) and
+deletes nothing.
+
 ## 158. Global Viewers read every organization, read-only, and only on a session verified with an authenticator
 
 Date: 2026-10-22 · By: Carl Sauder · Status: accepted
@@ -9091,6 +9101,29 @@ up to 24 dB, it would play its hiss as loud as a voice. Room alone measured
 over its room, 5.6 dB at least. `Level.kt` and `Level.swift` take the same
 line from `LEVEL`, so this too ships in a store build.
 
+Amended (2026-11-04, Caleb Koster): a play waits for its copy at most half
+a second (`READY_MS`), then plays the part as recorded; the copy goes on
+and plays the next time. The first play of a part was the "Reverse if"
+case: Caleb, on a Galaxy A05 right after recording two-second parts
+(LAN-224), tapped Play on each and saw Pause for far longer than the part
+with no sound, and the same in Clean up; on the web with the processor
+slowed eight times, a part waited about a second and a part in Clean up
+13 seconds. Caleb chose all four of these on 2026-11-04:
+- **A spinner in place of Pause** until the first sound, in every player
+  of the recordings people make (`PlayGlyph` in `ui/kit.tsx`, `loading`
+  from `useClip`, AudioClip, ClipPlayer, the review chip). Tapping it stops,
+  as Pause would.
+- **Half a second, then as recorded.** Even loudness on a first play is
+  given up only when the phone is slow; the next play is even.
+- **The part tapped goes first.** Copies and measures (181) run one at a
+  time (`levelTurns.ts`), as the microphone module does them on one thread;
+  the part someone is waiting to hear goes ahead of the next part's copy
+  and the other rows' measures.
+- **How long plays wait is recorded**: the `audio` tally's `waits`,
+  `waitMs` and `maxWaitMs` (docs/diagnostics.md), so the watch for user
+  issues (202) shows them under a problem sent from a phone.
+JavaScript only, so it ships in an OTA update.
+
 ## 183. Tutorial videos are filmed each night on GitHub, only those whose screens changed, and the job container brings them in
 
 Date: 2026-10-28 · By: Caleb Koster · Status: accepted
@@ -10429,3 +10462,33 @@ Considered: the Claude GitHub App's token, whose pull requests start checks
 at once (the guardrails would run unread code with their tokens); one job
 for all of it (Claude can write in the checkout, including `.git`, and a
 later step would run what it wrote with the keys).
+
+Amended (2026-11-04, Caleb Koster): Claude sees what came with each problem.
+Caleb sent a problem from help mode with a screenshot (LAN-224, playback
+slow on a low-end Android phone); the watch handed Claude only his words
+and that a screenshot came with them, and his phone had no error, so the
+issue and the draft fix were guesses. He asked that Claude see the pictures
+people send and the phone's timings and diagnostics. Decided (migration
+`*_user_issue_evidence.sql`, docs/diagnostics.md):
+- **Two more reads at the Worker's door**, for the watch workflow only:
+  `?media=<feedback id>`, a problem's screenshot and chosen picture (bugs
+  sent in the last 30 days or already judged), and `?phone=<install>&at=`,
+  that phone's build, model, OS and records from three days before to an
+  hour after, without organization or stream ids. The steps before Claude,
+  in the watch and the draft fix jobs, fetch them for each problem and up to
+  two phones of every other kind (12 a run) and keep them on the runner.
+- **The issue carries the phone's numbers**, written by the script from the
+  records, not by Claude: the half hour before the report, with downloads'
+  count, size and seconds per file, plays, opens and syncs, the disk. Claude
+  says what the screenshot and the numbers show, and follows the tap into
+  the code before it answers that there is no fix.
+- **None of it reaches the public repository.** Nothing that came with a
+  problem goes into a log or an artifact; the patch step drops a draft fix
+  that carries six words in a row of what the person wrote or one of the
+  problem's or phones' ids, and a draft fix may add no picture or recording.
+  The privacy page says Claude looks at the pictures and reads the phone's
+  diagnostics (Play's data safety answers stand: Anthropic is a processor).
+Considered: a link to the ops dashboard in the issue (what it did; a
+developer had to look, and Claude never did); the whole timeline in the
+issue (too long to read on a phone, and Claude still could not see the
+screenshot); the voice note (Claude cannot hear it).

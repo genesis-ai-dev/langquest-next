@@ -1,6 +1,7 @@
 // Recording and playback counts for field diagnostics (docs/diagnostics.md):
-// the hourly `audio` tally, per language. Counts only; which passage, whose
-// voice and what was said are never part of it (decisions.md 39).
+// the hourly `audio` tally, per language. Counts and how long plays waited
+// for sound only; which passage, whose voice and what was said are never
+// part of it (decisions.md 39).
 import type { AudioCounter } from '@langquest-next/sync';
 import { diagnostics } from '../diagnostics/diagnostics';
 
@@ -16,8 +17,14 @@ export interface AudioLanguage {
  * on a tally of its own, with no ids rather than made-up ones.
  */
 export function countAudio(language: AudioLanguage | null | undefined, counter: AudioCounter, by = 1): void {
-  const where = language?.orgId
-    ? { orgId: language.orgId, ...(language.languageId ? { streamId: language.languageId } : {}) }
-    : {};
-  diagnostics.audio(where, counter, by);
+  diagnostics.audio(whereOf(language), counter, by);
+}
+
+/** A play reached sound `ms` after its tap (decision 182, amended 2026-11-04): on the open language's tally. */
+export function countWait(language: AudioLanguage | null | undefined, ms: number): void {
+  diagnostics.audioWait(whereOf(language), ms);
+}
+
+function whereOf(language: AudioLanguage | null | undefined): { orgId?: string; streamId?: string } {
+  return language?.orgId ? { orgId: language.orgId, ...(language.languageId ? { streamId: language.languageId } : {}) } : {};
 }

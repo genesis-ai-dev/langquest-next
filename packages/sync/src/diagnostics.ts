@@ -126,10 +126,14 @@ export const DIAG_SCHEMA = {
    * sign. Counts, so a pattern shows without one record per tap.
    */
   expected: { n: ['count'], t: { where: TOKEN, name: TOKEN, code: TOKEN } },
-  /** Recording and playback on this phone, tallied per hour per language. */
+  /**
+   * Recording and playback on this phone, tallied per hour per language.
+   * `waits` are plays that reached sound, `waitMs` and `maxWaitMs` how long
+   * from the tap to the first sound (decision 182, amended 2026-11-04).
+   */
   audio: {
     n: ['takes', 'takeMs', 'tooShort', 'micRefused', 'startFail', 'stopFail', 'saveFail', 'encodeFail', 'wavKept', 'interrupted',
-      'plays', 'playFail', 'playNotHere', 'streamFail'],
+      'plays', 'playFail', 'playNotHere', 'streamFail', 'waits', 'waitMs', 'maxWaitMs'],
     t: {}
   },
   /**
@@ -441,6 +445,18 @@ export class Diagnostics {
     const key = `audio|${where.orgId ?? ''}|${where.streamId ?? ''}`;
     const tally = this.openTally(key, { kind: 'audio', ...where, t: {} });
     tally.n[counter] = (tally.n[counter] ?? 0) + by;
+    this.closeIfOld(key, tally);
+  }
+
+  /** A play reached sound `ms` after its tap, on the hourly `audio` tally for a language. */
+  audioWait(where: { orgId?: string; streamId?: string }, ms: number): void {
+    if (!this.enabled || !Number.isFinite(ms) || ms < 0) return;
+    const key = `audio|${where.orgId ?? ''}|${where.streamId ?? ''}`;
+    const tally = this.openTally(key, { kind: 'audio', ...where, t: {} });
+    const wait = Math.round(ms);
+    tally.n.waits = (tally.n.waits ?? 0) + 1;
+    tally.n.waitMs = (tally.n.waitMs ?? 0) + wait;
+    tally.n.maxWaitMs = Math.max(tally.n.maxWaitMs ?? 0, wait);
     this.closeIfOld(key, tally);
   }
 

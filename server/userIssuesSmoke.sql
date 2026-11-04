@@ -295,11 +295,64 @@ do $$ begin
   assert not exists (select 1 from ops.user_issues where key = 'transfer:down:source:failOther'), 'old fixed taken out';
 end $$;
 
+-- What Claude may look at (migration *_user_issue_evidence.sql): a problem's screenshot and
+-- picture, and its phone's build and records around it, never who sent it or which organization.
+update diag.feedback set picture = '\xffd8ffe0'::bytea where id = '0d000000-0000-4000-8000-0000000000f1';
+insert into diag.feedback (id, created_at, profile_id, kind, body, install_id, screenshot) values
+  ('0d000000-0000-4000-8000-0000000000f5', now() - interval '40 days', 'ui-p2', 'bug', 'Long ago', 'ui-b', '\xffd8ff'::bytea),
+  ('0d000000-0000-4000-8000-0000000000f6', now(), 'ui-p2', 'idea', 'A picture of an idea', 'ui-b', '\xffd8ff'::bytea);
+insert into diag.records (id, install_id, delivered_by, org_id, stream_id, kind, at, received_at, n, t) values
+  ('ui-q1', 'ui-a', 'ui-p1', 'ui-org', 'ui-lang', 'transfer', now() - interval '10 minutes', now(), '{"count":4,"bytes":800000,"ms":48000,"maxMs":30000}', '{"dir":"down","src":"lang"}'),
+  ('ui-q2', 'ui-a', 'ui-p1', 'ui-org', '_org', 'sync', now() - interval '20 minutes', now(), '{"ms":900}', '{"outcome":"ok","phase":"pull"}'),
+  ('ui-q3', 'ui-a', 'ui-p1', null, null, 'audio', now() - interval '4 days', now(), '{"plays":1}', '{}');
+-- Judged by the watch, so its screenshot stays readable after 30 days.
+update diag.feedback set created_at = now() - interval '40 days' where id = '0d000000-0000-4000-8000-0000000000f1';
+set local role service_role;
+do $$
+declare v jsonb; x jsonb;
+begin
+  v := public.ops_user_issue_media('0d000000-0000-4000-8000-0000000000f1');
+  assert decode(v->>'screenshot', 'base64') = '\xffd8ff'::bytea and decode(v->>'picture', 'base64') = '\xffd8ffe0'::bytea, 'the screenshot and the picture: %', v;
+  assert v::text not like '%Secret%' and v::text not like '%secret@%' and v::text not like '%ui-p1%', 'never who';
+  assert public.ops_user_issue_media('0d000000-0000-4000-8000-0000000000f5') is null, 'not a problem from long ago the watch never judged';
+  assert public.ops_user_issue_media('0d000000-0000-4000-8000-0000000000f6') is null, 'not an idea';
+  assert public.ops_user_issue_media('0d000000-0000-4000-8000-0000000000ff') is null, 'nothing for a problem that is not there';
+
+  v := public.ops_user_issue_phone('ui-a', now());
+  assert v->>'installId' = 'ui-a' and v->>'build' = 'android ?' and v->'phone' = '{"os":"android","appVersion":"2026.1030.1319","channel":"production"}'::jsonb,
+    'the phone and its build: %', v->'phone';
+  assert jsonb_array_length(v->'records') = 8, 'the records of three days, not older: %', jsonb_array_length(v->'records');
+  assert (select bool_and((a->>'at')::timestamptz >= (b->>'at')::timestamptz)
+    from jsonb_array_elements(v->'records') with ordinality p(a, o) join jsonb_array_elements(v->'records') with ordinality q(b, o2) on o2 = o + 1), 'newest first';
+  select e into x from jsonb_array_elements(v->'records') e where e->>'kind' = 'transfer' and e->'t'->>'src' = 'lang';
+  assert (x->'n'->>'ms')::int = 48000 and x->>'about' = 'language' and x->>'receivedAt' is not null, 'a download''s timings: %', x;
+  select e into x from jsonb_array_elements(v->'records') e where e->>'kind' = 'sync';
+  assert x->>'about' = 'organization', 'the organization''s stream: %', x;
+  assert v::text not like '%ui-org%' and v::text not like '%ui-lang%' and v::text not like '%ui-p1%', 'no organization, language or account: %', v;
+  assert jsonb_array_length(public.ops_user_issue_phone('ui-a', now() - interval '3 days')->'records') = 1, 'around the time asked for';
+  assert public.ops_user_issue_phone('ui-nobody') is null, 'nothing for an install that is not there';
+end $$;
+reset role;
+
 -- Nobody else reads or writes it.
 do $$ begin
   set local role authenticated;
   perform public.ops_user_issue_watch();
   raise exception 'a signed-in person read the watch';
+exception when insufficient_privilege then null;
+end $$;
+reset role;
+do $$ begin
+  set local role authenticated;
+  perform public.ops_user_issue_media('0d000000-0000-4000-8000-0000000000f1');
+  raise exception 'a signed-in person read a screenshot';
+exception when insufficient_privilege then null;
+end $$;
+reset role;
+do $$ begin
+  set local role anon;
+  perform public.ops_user_issue_phone('ui-a');
+  raise exception 'anyone read a phone''s records';
 exception when insufficient_privilege then null;
 end $$;
 reset role;

@@ -14,7 +14,7 @@ import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { failureMessage } from '../diagnostics/report';
-import { HelpInfo, Ico, PrimaryBtn, ProgressBar, Sheet, type IconName } from '../ui/kit';
+import { HelpInfo, Ico, PlayGlyph, PrimaryBtn, ProgressBar, Sheet, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { C, radius, space, target, type as T } from '../ui/theme';
 import { useBars } from '../audio/useBars';
@@ -193,7 +193,7 @@ function PlayDot(props: { ctx: Ctx; title: string; hash?: string; uri?: string }
   return (
     <Pressable onPress={spot.onPress} disabled={!clip.available && !spot.id} accessibilityRole="button" accessibilityLabel={label}
       style={({ pressed }) => [styles.playTap, !clip.available && styles.off, pressed && styles.pressed]}>
-      <View style={styles.playDot}><Ico name={clip.playing ? 'pause' : 'play'} size={16} color={C.primary} strokeWidth={2.6} fill={C.primary} /></View>
+      <View style={styles.playDot}><PlayGlyph playing={clip.playing} loading={clip.loading} size={16} color={C.primary} strokeWidth={2.6} fill={C.primary} /></View>
       <HelpBadge spot={spot} />
     </Pressable>
   );
