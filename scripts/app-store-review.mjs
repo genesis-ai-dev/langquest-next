@@ -14,8 +14,10 @@
 // only the newest processed build that is newer than the public one, on an
 // App Store version of its own (the version number that app.config.js gave
 // the build), released as soon as Apple approves it. Its only writes are the
-// version, its "What's New", the review submission, and taking a rejected
-// version out of its rejected submission; it never cancels.
+// version, its "What's New", the review submission, and marking a rejected
+// version removed from its rejected submission, as the Remove button on
+// App Store Connect's App Review page does; it never deletes and never
+// cancels.
 //
 //   node scripts/app-store-review.mjs             look, and send when it is time
 //   node scripts/app-store-review.mjs --dry-run   look, and say what it would do
@@ -346,7 +348,8 @@ export async function takeOut(api, submission, version, { wait = sleep } = {}) {
   if (mine.length < items.data.length) {
     return `Apple rejected a submission that holds more than version ${version.string}. Someone removes or resubmits its items in App Store Connect (App Review), and the newest build goes on a later run`;
   }
-  for (const item of mine) await api('DELETE', `/reviewSubmissionItems/${item.id}`);
+  // Apple refuses to delete an item that went to review ("Item was already submitted"); it takes one marked removed.
+  for (const item of mine) await api('PATCH', `/reviewSubmissionItems/${item.id}`, { type: 'reviewSubmissionItems', id: item.id, attributes: { removed: true } });
   // Apple closes a submission once its last rejected item is gone; a moment later, at times.
   for (let looks = 1; looks <= READY_LOOKS; looks++) {
     if ((await api('GET', `/reviewSubmissions/${submission.id}`))?.data?.attributes?.state !== UNRESOLVED) break;

@@ -183,9 +183,10 @@ Each run prints a line that starts with what it found:
 | `stuck:` | the newest build's version number belongs to a version already out, which Apple takes only once, so the run fails. Two store builds of merges in the same minute, or a second build of one merge, share a number; the next store build brings a new one |
 | `none:` | nothing newer than the public build, or nothing processed yet |
 
-It never cancels or changes a review. The only thing it removes is a
-rejected version from its rejected submission, when a newer build takes its
-place. To
+It never cancels or changes a review, and never deletes anything. The only
+thing it removes is a rejected version from its rejected submission, when a
+newer build takes its place, as the Remove button on App Store Connect's App
+Review page does. To
 replace the key, make a new one the same way, store and apply it, then
 revoke the old one in the same list.
 

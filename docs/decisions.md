@@ -7599,6 +7599,16 @@ anyone who wants to answer it. Reverse if: Apple counts a replaced
 rejection against the account (a warning, or slower or stricter reviews),
 then wait for a person again.
 
+Amended (2026-11-04, Caleb Koster; LAN-209): Apple deletes no item that
+went to review. The first two runs asked to delete build 48's item from its
+rejected submission, and Apple answered 409, "Item was already submitted",
+so nothing changed and build 50 waited. The Remove button on App Store
+Connect's App Review page marks the item removed instead: Caleb pressed it
+by hand that evening, Apple closed the submission, and the version became
+Developer Rejected with its build free to change. The step now does the
+same (`PATCH /v1/reviewSubmissionItems/{id}` with `removed: true`) and
+deletes nothing.
+
 ## 158. Global Viewers read every organization, read-only, and only on a session verified with an authenticator
 
 Date: 2026-10-22 · By: Carl Sauder · Status: accepted
