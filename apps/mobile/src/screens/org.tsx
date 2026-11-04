@@ -82,7 +82,7 @@ import { UndoRedo } from '../ui/undoRedo';
 import { StageBar, StagesPath } from '../org/NewLanguageStages';
 import { stageOf } from '../org/stagesModel';
 import { MaterialPicker } from '../org/MaterialPicker';
-import { addedToast, backTarget, CHOOSE_STEPS, draftPlan, NEW_CLUSTER, startingSpecs } from '../org/newLanguageModel';
+import { addedToast, backTarget, CHOOSE_STEPS, draftPlan, NEW_CLUSTER, pageOf, startingSpecs } from '../org/newLanguageModel';
 import { appendOrgOps, linkLanguageCode, renameLanguage, renameOrg, setOrgLicense } from '../org/orgCommands';
 import { grantableRoles, membersByLanguage, mayInviteAt, mayInviteAtAll } from '../org/permissionsModel';
 import { useNewLanguage } from '../org/useNewLanguage';
@@ -1453,7 +1453,7 @@ export function InviteQr(ctx: Ctx) {
   // forwarded link could have altered. The name stays on this screen.
   const uri = invite ? inviteUri(ctx.language.orgId, invite.token, APP_URL) : '';
   return (
-    <Screen header={<Header title={t('org.qr.title')} sub={role ? role.name : t('org.qr.sub')}
+    <Screen page={String(step)} header={<Header title={t('org.qr.title')} sub={role ? role.name : t('org.qr.sub')}
       onBack={step === 1 && !invite ? () => setStep(0) : shown ? () => setLeaving(true) : ctx.back} />}
       footer={step < 2
         ? <PrimaryBtn label={t('org.continue')} disabled={!canAdvance} busy={busy} help={step === 0 ? t('org.qr.toNameHelp') : t('org.qr.makeCodeHelp')} onPress={() => void next()} />
@@ -1743,11 +1743,13 @@ export function NewLanguage(ctx: Ctx) {
   // From the first page it leaves, asking first as ✕ does when something was typed.
   useHardwareBack(!!making || (step > 1 && step < 5) || (step === 1 && (entered || !onName)), () => (onName && !making ? leave() : goBack()));
   const bodyStyle = { paddingHorizontal: 20, gap: 14 } as const;
+  // Every page opens at its top, not as far down as the page before was scrolled.
+  const page = pageOf(step, { languagePage, materialPage, flowPage }, tq.pageId, !!making);
 
   // The overview: the six stages, one after another, then Start.
   if (step === 0) {
     return (
-      <Screen header={<Header title={t('org.home.newLanguage')} sub={t('org.newLanguage.stagesCount', { count: 6 })} onBack={ctx.back} close />} bodyStyle={bodyStyle}
+      <Screen header={<Header title={t('org.home.newLanguage')} sub={t('org.newLanguage.stagesCount', { count: 6 })} onBack={ctx.back} close />} bodyStyle={bodyStyle} page={page}
         footer={<PrimaryBtn label={t('org.newLanguage.start')} icon="right" help={t('org.newLanguage.startHelp')} onPress={() => setStep(1)} />}>
         <StagesPath />
       </Screen>
@@ -1761,7 +1763,7 @@ export function NewLanguage(ctx: Ctx) {
   // The languages its translators use, right after its name (decision 193): what the next steps offer follows them.
   if (step === 1 && languagePage === 'team') {
     return (
-      <Screen header={header()} bodyStyle={bodyStyle}
+      <Screen header={header()} bodyStyle={bodyStyle} page={page}
         footer={<>
           <PrimaryBtn label={t('org.continue')} icon="right" disabled={refs.loading} help={t('org.newLanguage.continueHelp')} onPress={() => setStep(2)} />
           {back}
@@ -1775,7 +1777,7 @@ export function NewLanguage(ctx: Ctx) {
   // Reference material: what its team will have, in its translators' languages; those can be changed from here too.
   if (step === 3) {
     return (
-      <Screen header={header()} bodyStyle={bodyStyle}
+      <Screen header={header()} bodyStyle={bodyStyle} page={page}
         footer={<>
           <PrimaryBtn label={t('org.continue')} icon="right" disabled={materialPage === 'languages' && refs.loading} help={t('org.newLanguage.continueHelp')}
             // Someone who may not choose reference material is not asked what the team will have.
@@ -1806,7 +1808,7 @@ export function NewLanguage(ctx: Ctx) {
     // No new language in the cluster: nothing to set up, so it is made here once it has a name and a language (LAN-140).
     const onlyExisting = many && batch.length === 0;
     return (
-      <Screen header={header()} bodyStyle={bodyStyle}
+      <Screen header={header()} bodyStyle={bodyStyle} page={page}
         footer={onlyExisting
           ? <PrimaryBtn label={t('clusters.newLanguage.make')} icon="layers" busy={busy} disabled={!clusterTitle.trim() || existing.size === 0}
             help={t('clusters.newLanguage.makeHelp')} onPress={() => void groupOnly()} />
@@ -1919,7 +1921,7 @@ export function NewLanguage(ctx: Ctx) {
 
   if (step === 2) {
     return (
-      <Screen header={header()} bodyStyle={bodyStyle}
+      <Screen header={header()} bodyStyle={bodyStyle} page={page}
         footer={<>
           {tq.showContinue ? <PrimaryBtn label={t('org.continue')} icon="right" disabled={tq.last ? !tq.ready : !tq.canContinue} help={t('org.newLanguage.continueHelp')}
             onPress={() => { if (!tq.advance()) setStep(3); }} /> : null}
@@ -1967,7 +1969,7 @@ export function NewLanguage(ctx: Ctx) {
               : p === 'cluster' ? t('clusters.newLanguage.making.grouping', { cluster: many ? title : joins === NEW_CLUSTER ? newCluster.trim() : clusterName(ctx.org.state, joins ?? '') ?? '' })
                 : t('clusters.newLanguage.making.adding', { language: toMake[Number(p.slice('language:'.length))]?.name ?? '' });
     return (
-      <Screen header={header()} bodyStyle={bodyStyle}>
+      <Screen header={header()} bodyStyle={bodyStyle} page={page}>
         <Question>{t('org.newLanguage.making.title', { language: title })}</Question>
         <MovingBar height={8} />
         <WorkSteps items={making.parts.map((p, i) => ({ key: p, label: label(p), state: i < at ? 'done' : i === at ? 'now' : 'later' }))} />
@@ -1979,7 +1981,7 @@ export function NewLanguage(ctx: Ctx) {
   // Its checks, on the pages a ready language sets them up on (decision 146): opening one opens its page, on the draft.
   if (flowPage === 'checks' && draftContext) {
     return (
-      <Screen header={header(<UndoRedo {...undo.props} help={{ undo: t('checks.undoHelp'), redo: t('common.redoHelp') }} />)} bodyStyle={bodyStyle}
+      <Screen header={header(<UndoRedo {...undo.props} help={{ undo: t('checks.undoHelp'), redo: t('common.redoHelp') }} />)} bodyStyle={bodyStyle} page={page}
         footer={<>
           <PrimaryBtn label={t('org.newLanguage.addIt', { language: title })} icon="check" busy={busy}
             disabled={!tq.ready || !ready1} help={many ? t('clusters.newLanguage.addHelp', { cluster: title }) : t('org.newLanguage.addHelp', { language: title })}
@@ -2012,7 +2014,7 @@ export function NewLanguage(ctx: Ctx) {
   };
   const startingFrom = choosing ? t('getReady.checks.illChoose') : flow ? choiceName(flow.c) : '';
   return (
-    <Screen header={header()} bodyStyle={bodyStyle}
+    <Screen header={header()} bodyStyle={bodyStyle} page={page}
       footer={<>
         <PrimaryBtn label={t('org.continue')} icon="right" disabled={!flowChoice} help={t('org.newLanguage.toChecksHelp')} onPress={() => toChecks()} />
         {back}
