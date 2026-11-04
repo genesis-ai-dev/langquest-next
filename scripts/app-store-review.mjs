@@ -6,13 +6,18 @@
 // line, so this never cancels, changes or replaces what is in review: while
 // a review is waiting or under way, or a version is approved and not yet
 // out, the new build waits in TestFlight. When Apple rejects a version, a
-// person reads Apple's message and answers it in App Store Connect; this
-// waits for that, and never sends a rejected build again by itself. When
-// nothing is open, it sends only the newest processed build that is newer
-// than the public one, on an App Store version of its own (the version
-// number that app.config.js gave the build), released as soon as Apple
-// approves it. Its only writes are the version, its "What's New", and the
-// review submission; it never deletes and never cancels.
+// newer build takes its place (decision 157, amended 2026-11-03): the
+// rejected version leaves its rejected submission, takes the newer build and
+// its version number, and goes to review again. The rejected build itself is
+// never sent again by itself; a person answers Apple in App Store Connect
+// and resubmits it, or a newer build comes. When nothing is open, it sends
+// only the newest processed build that is newer than the public one, on an
+// App Store version of its own (the version number that app.config.js gave
+// the build), released as soon as Apple approves it. Its only writes are the
+// version, its "What's New", the review submission, and marking a rejected
+// version removed from its rejected submission, as the Remove button on
+// App Store Connect's App Review page does; it never deletes and never
+// cancels.
 //
 //   node scripts/app-store-review.mjs             look, and send when it is time
 //   node scripts/app-store-review.mjs --dry-run   look, and say what it would do
@@ -107,10 +112,11 @@ export function stateOf(resource) {
  * - `processing`: newer builds that Apple is still processing ({ number }).
  *
  * The action is `submit` (with the version to use, or null for a new one,
- * and the draft submission to use, or null for a new one), `none` (nothing
- * to send), `wait` (a review or release is on its way: try again later),
- * `held` (a person has to act in App Store Connect first) or `stuck` (this
- * build can never go).
+ * and the draft submission to use, or null for a new one), `replace` (Apple
+ * rejected the version in `submission`, and a newer build takes its place),
+ * `none` (nothing to send), `wait` (a review or release is on its way: try
+ * again later), `held` (a person has to act in App Store Connect first) or
+ * `stuck` (this build can never go).
  */
 export function nextStep({ submissions = [], versions = [], newest = null, processing = [] }) {
   const name = (v) => `version ${v.string}${Number.isFinite(v.build) ? ` (build ${v.build})` : ''}`;
@@ -139,13 +145,18 @@ export function nextStep({ submissions = [], versions = [], newest = null, proce
     if (busy.build === newest.number) return { action: 'none', why: `${name(busy)} is ${words(busy.state)}${until}${also}` };
     return { action: 'wait', why: `${name(busy)} is ${words(busy.state)}${until}, ${waits}` };
   }
-  // A rejection waits for a person: Apple's message needs an answer, and Apple takes no new submission while it is open.
+  // A rejection: Apple takes no new submission while it is open. A newer build takes the rejected one's
+  // place (decision 157, amended 2026-11-03); the rejected build itself waits for a person to answer Apple.
   const rejected = submissions.find((s) => s.state === UNRESOLVED);
   if (rejected) {
     const v = byId(rejected.versionId);
+    if (rejected.items === 0) return { action: 'wait', why: `Apple is closing a rejected submission that holds nothing now, ${waits}` };
+    if (v && Number.isFinite(v.build) && newest.number > v.build) {
+      return { action: 'replace', why: `Apple rejected ${name(v)}, and ${build} is newer, so ${build} takes its place: the rejected version leaves its submission and goes to review with ${build} (${newest.version})${also}`, submission: rejected, version: v };
+    }
     return {
       action: 'held',
-      why: `Apple rejected ${v ? name(v) : 'a submission'}. Someone reads Apple's message in App Store Connect (App Review) and answers it there, then resubmits or removes it; until then ${build} waits in TestFlight${also}`
+      why: `Apple rejected ${v ? name(v) : 'a submission'}. Someone answers Apple's message in App Store Connect (App Review) and resubmits it there, or a newer build takes its place by itself${also}`
     };
   }
   const metadata = versions.find((v) => v.state === METADATA_REJECTED);
@@ -326,6 +337,28 @@ async function settling(call, wait) {
 }
 
 /**
+ * Takes a rejected version out of its rejected submission, so that a newer
+ * build can take its place, and waits for Apple to close the submission.
+ * Returns why it did not, when the submission holds anything besides the
+ * version (someone's own work, left to them), or null.
+ */
+export async function takeOut(api, submission, version, { wait = sleep } = {}) {
+  const items = await all(api, `/reviewSubmissions/${submission.id}/items?include=appStoreVersion&limit=50`);
+  const mine = items.data.filter((i) => i.relationships?.appStoreVersion?.data?.id === version.id);
+  if (mine.length < items.data.length) {
+    return `Apple rejected a submission that holds more than version ${version.string}. Someone removes or resubmits its items in App Store Connect (App Review), and the newest build goes on a later run`;
+  }
+  // Apple refuses to delete an item that went to review ("Item was already submitted"); it takes one marked removed.
+  for (const item of mine) await api('PATCH', `/reviewSubmissionItems/${item.id}`, { type: 'reviewSubmissionItems', id: item.id, attributes: { removed: true } });
+  // Apple closes a submission once its last rejected item is gone; a moment later, at times.
+  for (let looks = 1; looks <= READY_LOOKS; looks++) {
+    if ((await api('GET', `/reviewSubmissions/${submission.id}`))?.data?.attributes?.state !== UNRESOLVED) break;
+    if (looks < READY_LOOKS) await wait(READY_WAIT_MS);
+  }
+  return null;
+}
+
+/**
  * Puts the newest build on its version (the open one, or a new one released
  * on approval), fills in "What's New" where it is empty, puts the version in
  * the draft submission (or a new one), waits for Apple to call it ready, and
@@ -381,10 +414,25 @@ export async function run({ env = process.env, args = [], appId, fetch: fetchImp
     return { action: 'wait', why: NO_KEY };
   }
   const api = client(key, { fetch: fetchImpl, wait });
-  const state = await look(api, appId);
-  const step = nextStep(state);
+  let state = await look(api, appId);
+  let step = nextStep(state);
   log(`${step.action}: ${step.why}.`);
-  if (step.action !== 'submit' || args.includes('--dry-run')) return step;
+  if (args.includes('--dry-run')) return step;
+  if (step.action === 'replace') {
+    const kept = await takeOut(api, step.submission, step.version, { wait });
+    if (kept) {
+      log(`held: ${kept}.`);
+      return { action: 'held', why: kept };
+    }
+    log(`Version ${step.version.string} (build ${step.version.build}) left its rejected submission.`);
+    const closing = step.submission.id;
+    state = await look(api, appId);
+    step = state.submissions.some((x) => x.id === closing && x.state === UNRESOLVED)
+      ? { action: 'wait', why: `Apple has not closed the rejected submission yet, so build ${state.newest?.number} goes on a later run` }
+      : nextStep(state);
+    log(`${step.action}: ${step.why}.`);
+  }
+  if (step.action !== 'submit') return step;
   const sent = await submit(api, appId, { newest: state.newest, version: step.version, draft: step.draft }, { wait });
   log(`Build ${state.newest.number} (${state.newest.version}) is ${sent ? words(sent) : 'sent'}, and goes public when Apple approves it.`);
   return { ...step, sent };

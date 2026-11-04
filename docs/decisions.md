@@ -1598,6 +1598,14 @@ Amended (2026-10-15, Carl Sauder): the export is now a main file and one
 file per screen module that loads when opened, and the budget is two: 5.7
 MiB for what a first visit loads, 6.5 MiB for all of it (123).
 
+Amended (2026-11-03, Caleb Koster): iOS claims the domains again.
+`ios.associatedDomains` is back in `app.json` for both hosts, so an iPhone
+opens invite, sign-in and Forgot password links (`/invite`, `/signin`) in
+the app, as Android does. Ryder Wishart found Associated Domains already
+enabled on `com.frontierrnd.langquestnext`; Caleb asked for it in the next
+iPhone store build, which is a native change, so phones on older builds
+keep opening the web app.
+
 ## 59. Joining by invite needs no password, and whoever can invite you can get you back in
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
@@ -7580,6 +7588,35 @@ and stays out of GitHub Actions, which holds no production key (decision
 build unchanged, so that waiting for a person costs more than a second
 rejection.
 
+Amended (2026-11-03, Caleb Koster; LAN-209): a newer build takes a rejected
+build's place by itself. Apple rejected build 48 twice (Guideline 2.5.19),
+and the fix was a newer build (PR 322), which the wait above held in
+TestFlight until someone removed build 48 from its rejected submission by
+hand. Caleb chose that a newer build replaces a rejected one and goes to
+review on its own. While a submission has unresolved issues and its version
+holds a build older than the newest processed one, the step takes that
+version out of the submission (`DELETE /v1/reviewSubmissionItems/{id}`, the
+API's form of Remove in App Store Connect), waits for Apple to close the
+submission, and sends the newest build on that version with the build's own
+version number, as for any rejected version; if Apple has not closed it
+yet, the next run sends it. The rejected build itself is still never sent
+again by itself: a person answers Apple and resubmits it, or a newer build
+comes. A rejected submission that holds anything besides that one version
+is left to a person, and Apple's message stays in App Store Connect for
+anyone who wants to answer it. Reverse if: Apple counts a replaced
+rejection against the account (a warning, or slower or stricter reviews),
+then wait for a person again.
+
+Amended (2026-11-04, Caleb Koster; LAN-209): Apple deletes no item that
+went to review. The first two runs asked to delete build 48's item from its
+rejected submission, and Apple answered 409, "Item was already submitted",
+so nothing changed and build 50 waited. The Remove button on App Store
+Connect's App Review page marks the item removed instead: Caleb pressed it
+by hand that evening, Apple closed the submission, and the version became
+Developer Rejected with its build free to change. The step now does the
+same (`PATCH /v1/reviewSubmissionItems/{id}` with `removed: true`) and
+deletes nothing.
+
 ## 158. Global Viewers read every organization, read-only, and only on a session verified with an authenticator
 
 Date: 2026-10-22 · By: Carl Sauder · Status: accepted
@@ -8423,6 +8460,26 @@ the videos are filmed on draws no App icon row (`DisguiseRow.web.tsx`),
 `e2e/tutorials/no-disguise.test.ts` fails on a video that names or lights it,
 and the nightly look at the videos' feedback is refused whole when a reply or
 suggestion names it (`server/tutorialFeedback.ts`, decision 186).
+
+Amended (2026-11-03, Caleb Koster): an iPhone build has no disguise. Apple
+refused iPhone build 48 twice on 2026-11-03 under App Review Guideline 2.5.19,
+the second time after Caleb's reply, for "functionality that allows users to
+change the app's icon to resemble a calculator or notes application", and
+asked for the feature and all code related to it to go. This goes further
+than "Reverse if" planned: the calculator and notepad go on iPhone too, not
+only the icon, so that the rejection stops holding back every iPhone build
+(few people use the app yet), and Caleb appeals to the App Review Board. The
+iPhone app has no App icon row and no lock (`src/disguise/*.ios.ts(x)`, as the
+web's), no other icons (`./plugins/withAndroidAppIcons` runs only
+expo-alternate-app-icons' Android steps) and not its native module
+(`expo.autolinking.ios.exclude` in `apps/mobile/package.json`);
+`test/disguiseIphone.test.ts` holds it. An iPhone that wore a disguise on
+build 45 opens on LangQuest once it updates, and what that build kept (look,
+note, the code's hash) is cleared, so a later build cannot put it back on by
+itself. Android's build is unchanged (`expo prebuild` writes the same Android
+project), and the iPhone pictures stay in `assets/disguise`. Reverse if: the
+App Review Board allows the icons (then the iPhone gets the disguise back,
+and the App Review notes describe it again).
 
 ## 172. FIA's key words are a key-word list per language, picked apart from FIA's guides, shown where a passage links or says them, and every reference list can be searched
 
@@ -10318,3 +10375,59 @@ the privacy page names them as service providers.
 Reverse if: what it files is mostly noise after a week (then tighten what
 is handed over), or problems still go unseen for a day (then look at the
 assignment and the phone alerts first).
+
+Amended (2026-11-03, Caleb Koster): closed stays closed. The first run
+filed LAN-220 for a problem a pull request merged after the reports had
+already fixed (Play all, PR 295), and Caleb asked that issues the team has
+dealt with not come back, and that the ops dashboard say which pull request
+dealt with each. Decided (migration `20261103204500_user_issues_fixed.sql`):
+- **Already fixed** is a fourth verdict. Claude reads main's merges (the
+  checkout is 600 commits deep, `git log` and `git merge-base` only) and,
+  when one merged after every report fixes the kind, says `fixed` with the
+  pull request's number: nothing is filed.
+- **Linear decides open or closed.** Each run reads the state of every
+  issue the watch filed or commented on; closed there (Live, Canceled,
+  Duplicate; not Outage) closes its kinds, with the pull request linked on
+  the issue or the merge naming it, and marks what was sent from help mode
+  about it done. Opened again there, it is open again.
+- **Back only after the fix.** A fixed kind is handed over again only for
+  people who hit it more than a day after the fix, at least twice as many
+  as when last looked at (and two). Claude tells builds from before the fix
+  (it stays closed) from a fix that did not hold (the script reopens the
+  issue to Todo). Kinds now say the build (a browser's commit, a phone's
+  update or store build), since phones never send an app version.
+- **The ops dashboard's User issues section** (`diag.ops_user_issues()`)
+  lists each issue with its state in Linear and the pull request that fixed
+  it, and the kinds found already fixed.
+Considered: a list of closed kinds kept by hand (it would go stale, and
+Linear already says what is done); reopening on any new report (old phones
+and tabs keep reporting a fixed problem for days).
+
+Amended (2026-11-03, Caleb Koster): a draft fix with each new issue. Caleb
+chose (2026-11-03, thread "Auto-detect and fix user issues") that Claude
+opens a fix pull request right away with each new issue, not after a
+developer has looked at it, so a developer reviews the issue and its fix
+together. Decided (`.github/workflows/user-issues.yml`, the skill's "Writing
+a draft fix"):
+- **At most three a run**, each a draft pull request on
+  `user-issue/<issue>`, titled with the issue's id and linked on it. Claude
+  may answer that there is no fix, and the issue says why.
+- **What people wrote shapes the code, so the jobs trust each other less as
+  they go.** Claude edits with no key and no shell; the job that runs the
+  patch's code (typecheck, the nearest tests) holds no key and only reads;
+  the job that pushes and opens the pull request runs nothing of it. A
+  patch that changes how the repository builds, tests or deploys
+  (`.github/`, hooks, packages, `.env*`, agents' instructions, the watch) is
+  refused. Steps that hold a key after Claude run the scripts as they were
+  before Claude ran.
+- **Its checks wait for a person.** The pull request is opened with the
+  built-in token, which starts no checks, and guardrails run when a person
+  marks it Ready for review (`ready_for_review`). Guardrails hold the Expo
+  and Docker tokens, which code written from a stranger's words must not
+  reach before someone has read it. Opening pull requests with the built-in
+  token is a repository setting kept in `.github/actions-permissions.json`
+  (`npm run github:rules`).
+Considered: the Claude GitHub App's token, whose pull requests start checks
+at once (the guardrails would run unread code with their tokens); one job
+for all of it (Claude can write in the checkout, including `.git`, and a
+later step would run what it wrote with the keys).

@@ -172,17 +172,21 @@ team that owns the app (team `GW63HDZ4G9`, app `6812492008`):
 5. See what the step would do, without sending anything:
    `npx dotenvx run -f .env.production -fk .env.keys --quiet -- node scripts/app-store-review.mjs --dry-run`.
 
-Each run prints one line, which starts with what it did:
+Each run prints a line that starts with what it found:
 
 | Line | Means |
 | --- | --- |
 | `submit:` | no review was open, so the newest build Apple has processed went to App Review, on its own App Store version, released as soon as Apple approves it |
 | `wait:` | a review is waiting or under way, or an approved version is not out yet; the newest build waits in TestFlight and goes on a later run |
-| `held:` | Apple rejected the version, or a draft submission in App Store Connect holds something else. Someone reads Apple's message in App Store Connect (App Review), answers it there, and resubmits or removes the version; after that the step goes on by itself |
+| `replace:` | Apple rejected a version, and a newer build is processed: the rejected version leaves its rejected submission and goes to review with the newer build and its version number (decisions.md 157, amended 2026-11-03). When Apple closes the submission a moment late, the next run sends it |
+| `held:` | Apple rejected the newest build itself, or a rejected or draft submission in App Store Connect holds something else. Someone reads Apple's message in App Store Connect (App Review), answers it there, and resubmits or removes the version, or the next store build takes its place; after that the step goes on by itself |
 | `stuck:` | the newest build's version number belongs to a version already out, which Apple takes only once, so the run fails. Two store builds of merges in the same minute, or a second build of one merge, share a number; the next store build brings a new one |
 | `none:` | nothing newer than the public build, or nothing processed yet |
 
-It never cancels or changes a review, and never deletes anything. To
+It never cancels or changes a review, and never deletes anything. The only
+thing it removes is a rejected version from its rejected submission, when a
+newer build takes its place, as the Remove button on App Store Connect's App
+Review page does. To
 replace the key, make a new one the same way, store and apply it, then
 revoke the old one in the same list.
 

@@ -16,6 +16,7 @@
  */
 export const GROUPS = [
   { id: 'lookup', title: 'Look up', src: 'An error code someone read out (E-…), an email or profile id, an install id, or an organization or language name', parts: [] },
+  { id: 'userissues', title: 'User issues', src: 'What the watch for user issues filed in Linear or found already fixed, each issue\'s state and the pull request that fixed it', wide: true, parts: ['userissues'] },
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true, parts: ['safety'] },
   { id: 'phones', title: 'Phones and browsers', src: 'What installs report, the builds they run and how often each crashes, and phones that are stuck or quiet', wide: true, parts: ['clients', 'fleet'] },
   { id: 'releases', title: 'Releases', src: 'main and its CI, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['code', 'releases', 'expo', 'adoption'] },
@@ -36,11 +37,12 @@ export const PART_TITLES: Record<string, string> = {
   expo: 'EAS builds and updates', adoption: 'Update adoption', jobs: 'Jobs', cron: 'pg_cron', push: 'Push delivery and Inbox', v2: 'v2 import',
   database: 'Health', dbdetail: 'Where the space goes', supabase: 'Supabase project', cloudflare: 'Cloudflare Workers', worker: 'App Worker routes, last 24 h',
   storage: 'Storage and backups', capacity: 'Capacity and cost', support: 'Queue', feedback: 'Feedback', security: 'Global Viewers and limits',
-  integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', filming: 'Filming', tutorials: 'Channels and videos', videofeedback: 'Feedback and suggestions'
+  integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', filming: 'Filming', tutorials: 'Channels and videos', videofeedback: 'Feedback and suggestions',
+  userissues: 'Problems people hit'
 };
 
 /** Read as diag_reader in one call (/ops/api/ops). */
-export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials', 'videofeedback'] as const;
+export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials', 'videofeedback', 'userissues'] as const;
 
 /** Each from its own call (/ops/api/<id>), like the providers. */
 export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'filming'] as const;
@@ -64,7 +66,8 @@ export const OPS_SECTIONS = [
   { id: 'capacity', title: 'Capacity and cost', src: 'Database and R2 growth against the plan, Cloudflare usage this month' },
   { id: 'filming', title: 'Filming', src: 'GitHub: the run of tutorials.yml on main filming now, or the latest, and each language\'s job (decisions.md 183)' },
   { id: 'tutorials', title: 'Tutorial videos', src: 'ops.youtube_channels and ops.tutorial_videos (decisions.md 180)' },
-  { id: 'videofeedback', title: 'Feedback on the videos', src: 'ops.tutorial_inputs and ops.tutorial_suggestions: comments, code changes and notes, and what Claude suggests each night (decisions.md 186)' }
+  { id: 'videofeedback', title: 'Feedback on the videos', src: 'ops.tutorial_inputs and ops.tutorial_suggestions: comments, code changes and notes, and what Claude suggests each night (decisions.md 186)' },
+  { id: 'userissues', title: 'User issues', src: 'ops.user_issues: what the watch filed in Linear, closed there, or found already fixed, with the pull request (decisions.md 202)' }
 ] as const;
 
 export const OPS_SCRIPT = String.raw`
@@ -376,6 +379,20 @@ Object.assign(RENDER, {
       d.videos.map((v) => '<option value="' + esc(v.tutorial) + '">' + esc(v.title) + '</option>').join('') + '</select>' +
       '<label for="note-text">Note</label><textarea id="note-text" maxlength="2000" rows="3"></textarea><p><button type="button" data-note>Add note</button></p>';
     return h;
+  },
+  // What the watch for user issues filed, closed or found already fixed, with the pull request (decisions.md 202).
+  userissues(d) {
+    const out = (href, text) => '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
+    const h = '<div class="stats">' + stat(num(d.open), 'open in Linear', d.open ? 'warn' : '', NOW) + stat(num(d.closed), 'closed in Linear', '', '90 days') +
+      stat(num(d.fixed), 'already fixed when seen', '', '90 days') + stat(num(d.noiseWeek), 'judged noise', '', LAST_WEEK) +
+      stat(d.last ? when(d.last.at) : 'never', 'last look', d.last && d.last.outcome !== 'ok' ? 'bad' : '', d.last ? d.last.outcome : '') + '</div>';
+    return h + table([
+      { h: 'Issue', v: (r) => r.issue ? out(r.issueUrl, esc(r.issue)) : '<span class="muted">not filed</span>' },
+      { h: 'What people hit', v: (r) => esc(r.title || r.keys[0]) + '<br><small>' + r.keys.slice(0, 3).map((k) => '<code>' + esc(k) + '</code>').join(' · ') + (r.keys.length > 3 ? ' …' : '') + '</small>' },
+      { h: 'In Linear', v: (r) => r.issue ? '<span class="' + (r.closedAt ? 'good' : 'warn') + '">' + esc(r.state || (r.closedAt ? 'closed' : 'open')) + '</span>' : '' },
+      { h: 'Fixed by', v: (r) => r.fixedBy ? out('https://github.com/genesis-ai-dev/langquest-next/pull/' + r.fixedBy, 'PR ' + esc(r.fixedBy)) + '<br><small>' + when(r.fixedAt) + '</small>' : r.closedAt ? '<span class="muted">no PR named</span>' : '' },
+      { h: 'Found', v: (r) => when(r.firstAt) }
+    ], d.issues);
   }
 });
 

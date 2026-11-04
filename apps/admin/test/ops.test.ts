@@ -6,8 +6,8 @@ import { containerAlerts, containerSection } from '../src/sources/container';
 import { lookup } from '../src/sources/diag';
 import { expiryAlerts, expirySection, keptByHand } from '../src/sources/expiry';
 import {
-  dbDetailAlerts, feedbackAlerts, feedbackOf, fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, tutorialAlerts, tutorialsOf, workerAlerts,
-  type DbDetail, type Feedback, type Fleet, type Safety, type Tutorials
+  dbDetailAlerts, feedbackAlerts, feedbackOf, fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, tutorialAlerts, tutorialsOf, userIssueAlerts,
+  userIssuesOf, workerAlerts, type DbDetail, type Feedback, type Fleet, type Safety, type Tutorials, type UserIssues
 } from '../src/sources/ops';
 import { CHANNELS } from '../../../server/youtube';
 import { isMerge, migrationsBehind, releaseAlerts, type Releases } from '../src/sources/releases';
@@ -236,6 +236,7 @@ describe('reading as diag_reader', () => {
     }
     expect(s.tutorials).toMatchObject({ state: 'off', setup: expect.stringContaining('20261028090000_tutorial_videos.sql') });
     expect(s.videofeedback).toMatchObject({ state: 'off', setup: expect.stringContaining('20261029120000_tutorial_feedback.sql') });
+    expect(s.userissues).toMatchObject({ state: 'off', setup: expect.stringContaining('20261103204500_user_issues_fixed.sql') });
   });
 
   it('looks a person up by email and answers with their id and installs, never the address', async () => {
@@ -394,5 +395,32 @@ describe('feedback on the tutorial videos (decisions.md 186)', () => {
     const row = feedback({ open: 1, videos: [{ tutorial: 'record-a-passage', title: 'Record a passage' }] });
     const s = await opsSections(fakeQuery([['ops_tutorial_feedback', row]]));
     expect(s.videofeedback).toMatchObject({ state: 'ok', data: { open: 1, videos: row.videos } });
+  });
+});
+
+describe('the watch for user issues (decisions.md 202)', () => {
+  const issues = (over: Partial<UserIssues> = {}): UserIssues => ({ issues: [], open: 0, closed: 0, fixed: 0, noiseWeek: 0, last: null, ...over });
+  const closed = {
+    issue: 'LAN-220', issueUrl: 'https://linear.app/frontierrandd/issue/LAN-220', title: 'Play all stops after a few recordings', verdict: 'fixed' as const,
+    state: 'Live', closedAt: hoursAgo(1), fixedBy: 312, fixedAt: hoursAgo(20), keys: ['error:NotAllowedError@playAll:-'], people: 0,
+    firstAt: hoursAgo(30), lookedAt: hoursAgo(1)
+  };
+
+  it('counts what the database sends as numbers', () => {
+    expect(userIssuesOf({ ...issues(), open: '2' as unknown as number, fixed: null as unknown as number })).toMatchObject({ open: 2, closed: 0, fixed: 0 });
+  });
+
+  it('says how many issues are open in Linear, and when a look failed', () => {
+    expect(userIssueAlerts(issues({ closed: 3, fixed: 1, last: { at: hoursAgo(1), outcome: 'ok', n: { looked: 2 } } }))).toEqual([]);
+    expect(userIssueAlerts(issues({ open: 1 }))).toEqual([{ level: 'watch', text: '1 user issue open in Linear (User issues).' }]);
+    expect(userIssueAlerts(issues({ open: 3, last: { at: hoursAgo(1), outcome: 'error', n: null } }))).toEqual([
+      { level: 'watch', text: '3 user issues open in Linear (User issues).' },
+      { level: 'problem', text: 'The watch for user issues failed to look at or file what it found (User issues).' }
+    ]);
+  });
+
+  it('reads diag.ops_user_issues into its section, with the pull request that fixed each', async () => {
+    const s = await opsSections(fakeQuery([['ops_user_issues', issues({ issues: [closed], closed: 1 })]]));
+    expect(s.userissues).toMatchObject({ state: 'ok', data: { closed: 1, issues: [{ issue: 'LAN-220', fixedBy: 312, state: 'Live' }] } });
   });
 });

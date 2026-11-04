@@ -3,12 +3,26 @@
 // docs/diagnostics.md "The watch for user issues", decisions.md 202). Plain
 // Node, no packages, so the workflow needs no `npm ci`.
 //
-//   node scripts/user-issues.mjs fetch <dir>   what is new (watch.json) and the team's issues in Linear
+//   node scripts/user-issues.mjs fetch <dir>   first tells the Worker which of its issues closed or opened again
+//                                              in Linear (with the pull request that fixed each, when named);
+//                                              then what is new (watch.json) and the team's issues in Linear
 //                                              (linear.json); writes look=<n> and grew=<n> to GITHUB_OUTPUT
 //   node scripts/user-issues.mjs file <dir>    decisions.json, as Claude wrote it: a Linear issue for each new
 //                                              problem, assigned to USER_ISSUES_ASSIGNEE, and a comment on each
-//                                              issue the team already had and on each that more people hit since;
-//                                              then tells the Worker what was done, so nothing is filed twice
+//                                              issue the team already had (reopened when it was closed) and on
+//                                              each that more people hit since; then tells the Worker what was
+//                                              done, so nothing is filed twice; writes fixes=<the new issues' ids,
+//                                              as JSON> to GITHUB_OUTPUT, at most FIX_MAX
+//   node scripts/user-issues.mjs fix-context <dir> <issue>
+//                                              the Linear issue Claude writes a draft fix for (issue.json)
+//   node scripts/user-issues.mjs fix-patch <dir>
+//                                              after Claude: its change as a patch and its fix.json, checked, in <dir>/out
+//   node scripts/user-issues.mjs fix-paths <patch>
+//                                              refuses a patch that changes what a draft fix may not
+//   node scripts/user-issues.mjs fix-open <dir> <issue>
+//                                              pushes the checked patch to user-issue/<issue>, opens it as a draft
+//                                              pull request and links it on the issue; or says on the issue why
+//                                              there is none
 //
 // The Worker lets in this workflow on main, and nothing else, by the OpenID
 // Connect token GitHub gives the job (apps/web/worker/userIssues.ts).
@@ -39,6 +53,8 @@ const LINEAR_MAX = 300;
 const DESCRIPTION_MAX = 600;
 const OPS = 'https://next.langquest.org/ops-dashboard';
 const ISSUE_ID = new RegExp(`^${TEAM_KEY}-[0-9]{1,7}$`);
+/** A pull request of this repository, as Linear links it. */
+const PR_URL = /^https:\/\/github\.com\/genesis-ai-dev\/langquest-next\/pull\/([0-9]{1,8})(?:[/?#].*)?$/;
 const EMAIL = /[^\s@<>()[\]`,;:"']+@[^\s@<>()[\]`,;:"']+\.[A-Za-z]{2,}/g;
 
 // ---- what goes into Linear -----------------------------------------------------------------------
@@ -71,7 +87,7 @@ export function factsOf(kind) {
     const words = cut(f.body, 2000).split('\n').map((line) => `> ${line}`).join('\n');
     const media = [f.screenshot && 'a screenshot', f.picture && 'a picture', f.voiceMs !== null && f.voiceMs !== undefined && `a voice note (${Math.round(f.voiceMs / 1000)} s)`].filter(Boolean);
     return [
-      `**Sent from help mode** on ${when(f.at)}${f.screen ? `, from the screen \`${f.screen}\`` : ''} · ${f.os ?? '?'} · app ${f.app ?? '?'}${f.uiLanguage ? ` · app language ${f.uiLanguage}` : ''}`,
+      `**Sent from help mode** on ${when(f.at)}${f.screen ? `, from the screen \`${f.screen}\`` : ''} · ${f.app ?? f.os ?? '?'}${f.uiLanguage ? ` · app language ${f.uiLanguage}` : ''}`,
       '',
       words || '> (no words)',
       ...(media.length ? ['', `With ${media.join(' and ')}: [ops dashboard](${OPS}), Feedback.`] : [])
@@ -86,9 +102,13 @@ export function factsOf(kind) {
     ].join('\n\n');
   }
   const apps = (kind.apps ?? []).map((a) => `${a.app} (${a.installs})`).join(', ');
+  const fix = kind.before?.verdict === 'fixed' && kind.peopleAfterFix !== null && kind.peopleAfterFix !== undefined
+    ? [`**Again after the fix** (${kind.before.fixedBy ? `PR ${kind.before.fixedBy}, merged` : 'issue closed'} ${when(kind.before.fixedAt)}): ${plural(kind.peopleAfterFix, 'person', 'people')} more than a day after it; the platforms and builds below are theirs.`]
+    : [];
   return [
     `**\`${kind.key}\`** · ${plural(kind.people, 'person', 'people')} in 7 days (${kind.peopleDay} in the last day) · ${plural(kind.installs, 'install')} · ${plural(kind.count, 'time')}`,
-    `${byCount(kind.platforms).map(([p, n]) => `${p} ${n}`).join(', ') || '?'} · app ${apps || '?'} · first ${when(kind.firstAt)}, last ${when(kind.lastAt)}`
+    ...fix,
+    `${byCount(kind.platforms).map(([p, n]) => `${p} ${n}`).join(', ') || '?'} · builds ${apps || '?'} · first ${when(kind.firstAt)}, last ${when(kind.lastAt)}`
   ].join('\n\n');
 }
 
@@ -146,7 +166,7 @@ export function checkDecisions(decisions, watch, linear) {
   const filedBy = new Map();
   for (const i of linear.issues ?? []) for (const k of i.keys ?? []) if (!filedBy.has(k)) filedBy.set(k, i.identifier);
   const taken = new Set();
-  const out = { file: [], known: [], noise: [], dropped: [], undecided: [] };
+  const out = { file: [], known: [], noise: [], fixed: [], dropped: [], undecided: [] };
   const take = (keys, where) => {
     const list = Array.isArray(keys) ? keys : [];
     const bad = list.find((k) => typeof k !== 'string' || !handed.has(k) || taken.has(k));
@@ -177,6 +197,12 @@ export function checkDecisions(decisions, watch, linear) {
     const keys = take(k.keys, where);
     if (keys) out.known.push({ keys, issue: k.issue, comment: text(k.comment) });
   });
+  (Array.isArray(d.fixed) ? d.fixed : []).forEach((x, n) => {
+    const where = `fixed[${n}]`;
+    if (!isObj(x) || !Number.isInteger(x.pr) || x.pr < 1 || x.pr > 100_000_000) return out.dropped.push(`${where}: needs keys and pr, the number of the pull request on main that fixed it`);
+    const keys = take(x.keys, where);
+    if (keys) out.fixed.push({ keys, pr: x.pr, title: cut(text(x.title).replace(/\s+/g, ' ').replace(/^User issue:\s*/i, ''), LIMITS.title) || null, note: cut(text(x.note), LIMITS.note) || null });
+  });
   (Array.isArray(d.noise) ? d.noise : []).forEach((x, n) => {
     const where = `noise[${n}]`;
     if (!isObj(x)) return out.dropped.push(`${where}: an object with a key and a note`);
@@ -187,9 +213,193 @@ export function checkDecisions(decisions, watch, linear) {
   return out;
 }
 
-/** What the Worker is told about a kind: its verdict, its issue, and the counts it was judged at. */
-export function lookedOf(kind, verdict, issue, note = null) {
-  return { key: kind.key, verdict, issue: issue?.identifier ?? null, issueUrl: issue?.url ?? null, people: kind.people, count: kind.count, note };
+/**
+ * What the Worker is told about a kind: its verdict, its issue, and the counts
+ * it was judged at. A kind found fixed is counted from the fix: the people who
+ * hit it since (none for one just found fixed), so it comes back only when
+ * twice as many hit it after the fix.
+ */
+export function lookedOf(kind, verdict, issue, note = null, extra = {}) {
+  return {
+    key: kind.key, verdict, issue: issue?.identifier ?? null, issueUrl: issue?.url ?? null,
+    people: verdict === 'fixed' ? kind.peopleAfterFix ?? 0 : kind.people, count: kind.count, note,
+    title: extra.title ?? null, fixedBy: extra.fixedBy ?? null, fixedAt: extra.fixedAt ?? null
+  };
+}
+
+// ---- closed in Linear, and the pull requests on main -------------------------------------------
+
+/**
+ * Closed for the watch: done (Live), canceled or a duplicate. Not Outage:
+ * linear-sync moves an issue there when its deploy failed, so nothing is fixed.
+ */
+export const isClosed = (state) => state?.type === 'completed' || ((state?.type === 'canceled' || state?.type === 'duplicate') && state?.name !== 'Outage');
+
+/**
+ * The merges into main the checkout holds (`git log --merges`), newest first:
+ * each pull request's number, when it merged, and its message (where a LAN id
+ * the pull request names appears).
+ */
+export function mergesOf(log) {
+  const out = [];
+  for (const entry of String(log).split('\x1e')) {
+    const [at, subject, body = ''] = entry.trim().split('\x1f');
+    const pr = /^Merge pull request #([0-9]{1,8}) /.exec(subject ?? '')?.[1];
+    if (pr && at && !Number.isNaN(Date.parse(at))) out.push({ pr: Number(pr), at: new Date(at).toISOString(), text: `${subject}\n${body}` });
+  }
+  return {
+    /** When pull request `pr` merged into main, or null when this checkout does not hold it. */
+    at: (pr) => out.find((m) => m.pr === pr)?.at ?? null,
+    /** The newest merged pull request whose message names `issue` (LAN-12). */
+    naming: (issue) => out.find((m) => new RegExp(`\\b${issue}\\b`).test(m.text))?.pr ?? null
+  };
+}
+
+function gitMerges() {
+  try {
+    return mergesOf(execFileSync('git', ['log', '--merges', '--first-parent', '--format=%cI%x1f%s%x1f%b%x1e', 'HEAD'], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 }));
+  } catch {
+    return mergesOf('');
+  }
+}
+
+/**
+ * Which of the watch's issues changed in Linear since it last read them: each
+ * closed one with when it closed and the pull request that fixed it (the
+ * newest one Linear links, else the newest merge into main that names it) and
+ * when that merged; each open again; each whose state's name changed.
+ */
+export function statesToSend(known, issues, merges) {
+  const byId = new Map(issues.map((i) => [i.identifier, i]));
+  const out = [];
+  for (const k of known) {
+    const i = byId.get(k.issue);
+    if (!i) continue;
+    const closed = isClosed(i.state);
+    if (closed === Boolean(k.closed) && i.state.name === k.state) continue;
+    // Its title in Linear, for the ops dashboard: the team may rename it, and older rows have none.
+    const title = cut(String(i.title ?? '').replace(PREFIX, ''), 200) || null;
+    if (!closed) {
+      out.push({ issue: k.issue, state: i.state.name, closed: false, closedAt: null, fixedBy: null, fixedAt: null, title });
+      continue;
+    }
+    const linked = (i.attachments ?? []).map((a) => Number(PR_URL.exec(a.url ?? '')?.[1])).filter((n) => n > 0);
+    const fixedBy = linked.length ? Math.max(...linked) : merges.naming(k.issue);
+    const closedAt = i.completedAt ?? i.canceledAt ?? null;
+    out.push({ issue: k.issue, state: i.state.name, closed: true, closedAt, fixedBy: fixedBy ?? null, fixedAt: (fixedBy && merges.at(fixedBy)) || closedAt, title });
+  }
+  return out;
+}
+
+// ---- draft fixes (decisions.md 202, amended) ----------------------------------------------------
+//
+// Each new issue gets a draft pull request with Claude's fix, written in three jobs that trust
+// each other less as they go (.github/workflows/user-issues.yml): Claude edits a checkout with
+// no key and no shell; a job with no key applies the patch and runs the checks; a job that runs
+// nothing of the patch pushes it and opens the pull request. Its checks run when a person marks
+// it Ready for review, since what people wrote shaped the code.
+
+/** At most this many new issues get a draft fix in one run; the rest are only filed. */
+export const FIX_MAX = 3;
+/**
+ * What a draft fix may never change: how the repository builds, tests and deploys, its packages,
+ * its secrets, its agents' instructions, and the watch itself.
+ */
+export const FIX_REFUSED = [
+  /^\.github\//, /^\.githooks\//, /(^|\/)\.env/, /(^|\/)package(-lock)?\.json$/, /(^|\/)\.npmrc$/,
+  /^\.(agents|claude|hermes)\//, /^(AGENTS|CLAUDE)\.md$/, /^scripts\/(user-issues|linear-sync|tutorial-review)\.mjs$/, /^\.user-issues\//,
+  /(^|\/)\.git(\/|$)/
+];
+export const FIX_LIMITS = { files: 30, bytes: 300_000, summary: 3000, tests: 1000, noFix: 1000 };
+/** The checks the job with no key ran, as it may say them; anything else is "not run". */
+const CHECK_RESULTS = ['passed', 'failed', 'none'];
+const REPO = 'genesis-ai-dev/langquest-next';
+const FIX_BOT = { name: 'github-actions[bot]', email: '41898282+github-actions[bot]@users.noreply.github.com' };
+
+/** The branch a draft fix goes on. */
+export const fixBranch = (issue) => `user-issue/${issue.toLowerCase()}`;
+
+/** The paths `git apply --numstat -z` lists: one per change, both sides of a rename. */
+export function pathsOf(numstatZ) {
+  const parts = String(numstatZ).split('\0');
+  const out = [];
+  for (let i = 0; i < parts.length; i += 1) {
+    const m = /^(?:-|\d+)\t(?:-|\d+)\t(.*)$/s.exec(parts[i]);
+    if (!m) continue;
+    if (m[1]) out.push(m[1]);
+    else {
+      out.push(parts[i + 1], parts[i + 2]);
+      i += 2;
+    }
+  }
+  return out.filter(Boolean);
+}
+
+/**
+ * The paths a patch takes away from: renamed or copied from, and changed or deleted (git apply
+ * lists only where a rename goes). Quoted paths stay quoted, and fixRefusal refuses them.
+ */
+export function oldPathsOf(patch) {
+  const out = [];
+  for (const m of String(patch).matchAll(/^(?:(?:rename|copy) from |--- a\/)(.+)$/gm)) out.push(m[1]);
+  for (const m of String(patch).matchAll(/^--- (".+)$/gm)) out.push(m[1]);
+  return out;
+}
+
+/** Why a draft fix may not go on, or null: a path it may never change, or too much to review. */
+export function fixRefusal(paths, bytes) {
+  if (!paths.length) return 'it changes nothing';
+  const odd = (p) => p.startsWith('/') || /["\\\x00-\x1f]/.test(p) || p.split('/').includes('..');
+  const bad = paths.find((p) => odd(p) || FIX_REFUSED.some((r) => r.test(p)));
+  if (bad !== undefined) return `it changes ${bad}, which a draft fix may not`;
+  if (paths.length > FIX_LIMITS.files) return `it changes ${paths.length} files, more than ${FIX_LIMITS.files}`;
+  if (bytes > FIX_LIMITS.bytes) return `it is ${Math.round(bytes / 1000)} KB, more than ${FIX_LIMITS.bytes / 1000}`;
+  return null;
+}
+
+/**
+ * fix.json as Claude wrote it: what the change does and how it is tested, or why there is no
+ * fix. It goes into a public pull request, so addresses are taken out.
+ */
+export function checkFix(raw) {
+  const o = isObj(raw) ? raw : {};
+  const noFix = cut(text(o.noFix), FIX_LIMITS.noFix);
+  const summary = cut(text(o.summary), FIX_LIMITS.summary);
+  return { summary, tests: cut(text(o.tests), FIX_LIMITS.tests), noFix: noFix || (summary ? '' : 'Claude wrote no summary of a change.') };
+}
+
+/** check.json from the job with no key: only its fixed words, since the patch's own code ran there. */
+export function checkResults(raw) {
+  const o = isObj(raw) ? raw : {};
+  const one = (v) => (CHECK_RESULTS.includes(v) ? v : 'not run');
+  return { typecheck: one(o.typecheck), tests: one(o.tests) };
+}
+
+const said = (r, what) => ({ passed: `${what} passed`, failed: `${what} **failed**`, none: `no ${what} near the change`, 'not run': `${what} did not run` })[r];
+
+/** The draft pull request's body: Claude's words about the code, never what people wrote (they stay in Linear). */
+export function fixBody(issue, fix, checks, run) {
+  return [
+    `A draft fix for [${issue.identifier}](${issue.url}), written by Claude for the watch for user issues (docs/diagnostics.md, decisions.md 202). What people reported is on the issue in Linear.`,
+    '',
+    fix.summary,
+    ...(fix.tests ? ['', `**Tests:** ${fix.tests}`] : []),
+    '',
+    `**In the workflow:** ${said(checks.typecheck, 'typecheck')}; ${said(checks.tests, 'tests')} ([run](${run})).`,
+    '',
+    'CI runs when a person marks this pull request Ready for review. Read the change first: it was written from what people reported.'
+  ].join('\n');
+}
+
+/** What the issue is told: the draft fix, its checks and what to do; or why there is none. */
+export function fixComment(pr, checks) {
+  return [`**Claude wrote a draft fix:** [PR ${pr.number}](${pr.url}).`, '', `${said(checks.typecheck, 'Typecheck')}; ${said(checks.tests, 'tests')}.`, '', 'Review it, then mark it Ready for review on GitHub to run CI and merge it.'].join('\n');
+}
+export function noFixComment(reason, run) {
+  return [`**Claude looked for a fix and wrote none.** ${reason}`, '', `The watch for user issues: ${run}`].join('\n');
+}
+export function branchComment(branch, run) {
+  return [`**Claude wrote a draft fix**, on the branch \`${branch}\`, but GitHub did not let the workflow open its pull request.`, '', `[Open it](https://github.com/${REPO}/compare/main...${branch}?expand=1) as a draft, or turn on Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests" (\`npm run github:rules -- --apply\`).`, '', `The watch for user issues: ${run}`].join('\n');
 }
 
 // ---- Linear -----------------------------------------------------------------------------------------
@@ -253,6 +463,22 @@ export function linearClient(key, fetchImpl = fetch) {
       } while (after && out.length < LINEAR_MAX);
       return out;
     },
+    /** The watch's issues by their ids (LAN-12): state, when closed, and the links on each (pull requests). */
+    async states(identifiers) {
+      const numbers = identifiers.map((id) => Number(id.split('-')[1])).filter((n) => Number.isInteger(n) && n > 0);
+      if (!numbers.length) return [];
+      const data = await gql(`query($key: String!, $numbers: [Float!]) {
+        issues(first: 100, filter: { team: { key: { eq: $key } }, number: { in: $numbers } }) {
+          nodes { identifier title state { name type } completedAt canceledAt attachments { nodes { url } } } } }`, { key: TEAM_KEY, numbers: numbers.slice(0, 100) });
+      return data.issues.nodes.map((i) => ({ identifier: i.identifier, title: i.title, state: i.state, completedAt: i.completedAt, canceledAt: i.canceledAt, attachments: i.attachments.nodes }));
+    },
+    /** Opens a closed issue again: the team's first not-started state (Todo). */
+    async reopen(issueId) {
+      const data = await gql(`query($key: String!) { workflowStates(filter: { team: { key: { eq: $key } }, type: { eq: "unstarted" } }) { nodes { id position } } }`, { key: TEAM_KEY });
+      const state = [...data.workflowStates.nodes].sort((a, b) => a.position - b.position)[0];
+      if (!state) throw new LinearError(`Linear: no not-started state in ${TEAM_KEY}`);
+      await gql(`mutation($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success } }`, { id: issueId, input: { stateId: state.id } });
+    },
     /** One issue by its id (LAN-12), or null when Linear has none. */
     async issue(identifier) {
       try {
@@ -262,6 +488,15 @@ export function linearClient(key, fetchImpl = fetch) {
         if (e instanceof LinearError && /not found|ENTITY_NOT_FOUND|INVALID_INPUT/i.test(e.message)) return null;
         throw e;
       }
+    },
+    /** One issue's title and description, for Claude to write a draft fix from. */
+    async full(identifier) {
+      const data = await gql(`query($id: String!) { issue(id: $id) { id identifier url title description } }`, { id: identifier });
+      return data.issue;
+    },
+    /** A link on an issue (a draft fix's pull request), shown with its title. */
+    async attach(issueId, url, title) {
+      await gql(`mutation($input: AttachmentCreateInput!) { attachmentCreate(input: $input) { success } }`, { input: { issueId, url, title } });
     },
     async create(input) {
       const data = await gql(`mutation($input: IssueCreateInput!) { issueCreate(input: $input) { issue { id identifier url } } }`, { input });
@@ -309,10 +544,22 @@ function output(values) {
 }
 
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
+const headSha = () => execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 
 async function fetchWatch(dir) {
   mkdirSync(dir, { recursive: true });
-  const watch = await call('GET');
+  let watch = await call('GET');
+  // Issues closed in Linear are closed for the watch before anything is looked at, so a fixed
+  // problem is neither commented on as grown nor handed to Claude.
+  if (watch.issues?.length) {
+    const states = statesToSend(watch.issues, await linearClient(linearKey()).states(watch.issues.map((i) => i.issue)), gitMerges());
+    if (states.length) {
+      const done = await call('POST', { sha: headSha(), runUrl: runUrl(process.env), looked: [], grew: [], states });
+      for (const s of states) console.log(`${s.issue} is ${s.state} in Linear: ${s.closed ? `closed for the watch${s.fixedBy ? `, fixed by PR ${s.fixedBy}` : ''}` : 'open'}`);
+      console.log(`told the Worker: ${done.closed} closed, ${done.reopened} open again`);
+      watch = await call('GET');
+    }
+  }
   writeFileSync(join(dir, 'watch.json'), JSON.stringify(watch, null, 2));
   const busy = watch.look.length > 0 || watch.grew.length > 0;
   const issues = busy ? await linearClient(linearKey()).issues(new Date(Date.now() - LINEAR_DAYS * 86_400_000).toISOString()) : [];
@@ -339,6 +586,8 @@ async function file(dir) {
   let failed = 0;
   const assigneeId = process.env.USER_ISSUES_ASSIGNEE || undefined;
   const team = plan.file.length ? await api.team() : null;
+  const merges = plan.fixed.length ? gitMerges() : null;
+  const fixes = [];
 
   for (const f of plan.file) {
     const kinds = f.keys.map((k) => kindOf.get(k));
@@ -353,7 +602,8 @@ async function file(dir) {
         console.log(`::warning::could not assign to USER_ISSUES_ASSIGNEE (${e instanceof Error ? e.message : e}); filing unassigned`);
         issue = await api.create(input);
       }
-      for (const k of kinds) looked.push(lookedOf(k, 'filed', issue));
+      for (const k of kinds) looked.push(lookedOf(k, 'filed', issue, null, { title: f.title }));
+      if (fixes.length < FIX_MAX) fixes.push(issue.identifier);
       console.log(`filed ${issue.identifier}, priority ${f.priority}: ${f.keys.join(', ')}`);
     } catch (e) {
       failed += 1;
@@ -370,8 +620,11 @@ async function file(dir) {
         continue;
       }
       await api.comment(issue.id, knownComment(k, kinds, run));
+      // Pointed to again after it closed: the fix did not hold, so it is open again.
+      const reopen = isClosed(issue.state);
+      if (reopen) await api.reopen(issue.id);
       for (const kind of kinds) looked.push(lookedOf(kind, 'known', issue));
-      console.log(`known ${issue.identifier}: ${k.keys.join(', ')}`);
+      console.log(`known ${issue.identifier}${reopen ? ', reopened' : ''}: ${k.keys.join(', ')}`);
     } catch (e) {
       failed += 1;
       console.log(`::error::could not comment on ${k.issue}: ${e instanceof Error ? e.message : e}`);
@@ -380,6 +633,21 @@ async function file(dir) {
 
   for (const x of plan.noise) looked.push(lookedOf(kindOf.get(x.key), 'noise', null, x.note));
   if (plan.noise.length) console.log(`noise: ${plan.noise.map((x) => x.key).join(', ')}`);
+
+  // Already fixed by a pull request on main: nothing filed. A closed issue's kind keeps its issue.
+  for (const x of plan.fixed) {
+    const fixedAt = merges.at(x.pr);
+    if (!fixedAt) {
+      console.log(`::warning::PR ${x.pr} is not a merge into main in this checkout; ${x.keys.join(', ')} come back next run`);
+      continue;
+    }
+    for (const key of x.keys) {
+      const kind = kindOf.get(key);
+      const closed = kind.before?.verdict === 'fixed' && kind.before.issue ? { identifier: kind.before.issue, url: kind.before.issueUrl } : null;
+      looked.push(lookedOf(kind, 'fixed', closed, x.note, { title: x.title, fixedBy: x.pr, fixedAt }));
+    }
+    console.log(`fixed by PR ${x.pr}: ${x.keys.join(', ')}`);
+  }
 
   const byIssue = new Map();
   for (const g of watch.grew) byIssue.set(g.issue, [...(byIssue.get(g.issue) ?? []), g]);
@@ -401,21 +669,134 @@ async function file(dir) {
 
   // What was done goes back even when some of it failed, so it is not done twice.
   if (looked.length || grew.length) {
-    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-    const done = await call('POST', { sha, runUrl: run, looked, grew });
+    const done = await call('POST', { sha: headSha(), runUrl: run, looked, grew, states: [] });
     console.log(`told the Worker: ${done.looked} kinds looked at, ${done.grew} grown`);
   }
+  // The new issues Claude writes a draft fix for, in the jobs after this one.
+  output({ fixes: JSON.stringify(fixes) });
   if (failed) throw new Error(`${failed} Linear calls failed; their kinds come back next run`);
 }
 
+const git = (args, input) => execFileSync('git', args, { encoding: 'utf8', input, maxBuffer: 64 * 1024 * 1024 });
+
+/** The issue Claude writes a draft fix for: its title and description (what people wrote, addresses out). */
+async function fixContext(dir, id) {
+  if (!ISSUE_ID.test(id ?? '')) throw new Error(`not an issue: ${id}`);
+  mkdirSync(dir, { recursive: true });
+  const issue = await linearClient(linearKey()).full(id);
+  if (!issue) throw new Error(`${id} is not in Linear`);
+  writeFileSync(join(dir, 'issue.json'), JSON.stringify({ identifier: issue.identifier, url: issue.url, title: issue.title, description: redact(issue.description) }, null, 2));
+  console.log(`${id}: handed to Claude for a draft fix`);
+}
+
+/**
+ * After Claude: what it changed, as a patch, and its fix.json, checked, in FIX_OUT. Runs nothing
+ * of the change. The workflow runs it from a copy made before Claude, with GIT_DIR a copy of the
+ * repository made then too, so nothing Claude wrote in the checkout (its .git included) runs here.
+ */
+function fixPatch(dir) {
+  const out = process.env.FIX_OUT || join(dir, 'out');
+  mkdirSync(out, { recursive: true });
+  const path = join(dir, 'fix.json');
+  const small = existsSync(path) && readFileSync(path).length < 100_000;
+  const fix = checkFix(small ? (() => { try { return readJson(path); } catch { return {}; } })() : { noFix: 'Claude wrote no fix.json.' });
+  git(['add', '-A', '--', '.', `:(exclude)${dir}`]);
+  const patch = git(['diff', '--cached', '--binary']);
+  if (!fix.noFix && !patch) fix.noFix = 'Claude changed no file.';
+  writeFileSync(join(out, 'fix.json'), JSON.stringify(fix, null, 2));
+  if (!fix.noFix) writeFileSync(join(out, 'fix.patch'), patch);
+  console.log(fix.noFix ? 'no draft fix' : `a draft fix: ${patch.length} bytes`);
+}
+
+/** Refuses a patch that changes what a draft fix may not: the paths as git reads them, before it is applied. */
+function fixPaths(patchPath) {
+  const patch = readFileSync(patchPath);
+  const paths = [...new Set([...pathsOf(git(['apply', '--numstat', '-z', patchPath])), ...oldPathsOf(patch.toString('utf8'))])];
+  const reason = fixRefusal(paths, patch.length);
+  if (reason) throw new Error(`refused the draft fix: ${reason}`);
+  git(['apply', '--check', patchPath]);
+  console.log('the draft fix changes only what it may');
+}
+
+async function github(method, path, body) {
+  const res = await fetch(`https://api.github.com/repos/${REPO}${path}`, {
+    method,
+    headers: { authorization: `Bearer ${process.env.GITHUB_TOKEN}`, accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', ...(body ? { 'content-type': 'application/json' } : {}) },
+    ...(body ? { body: JSON.stringify(body) } : {})
+  });
+  const json = await res.json().catch(() => ({}));
+  return { status: res.status, json };
+}
+
+/**
+ * The draft fix, from the job that runs nothing of it: on its own branch, as a draft pull request
+ * linked on the issue; or the issue says why there is none. Never runs npm or the patch's code,
+ * and git runs no hook here (no npm install set one).
+ */
+async function fixOpen(dir, id) {
+  if (!ISSUE_ID.test(id ?? '')) throw new Error(`not an issue: ${id}`);
+  if (!process.env.GITHUB_TOKEN) throw new Error('No GITHUB_TOKEN: the job that opens the draft fix needs it.');
+  const api = linearClient(linearKey());
+  const run = runUrl(process.env);
+  const issue = await api.full(id);
+  if (!issue) throw new Error(`${id} is not in Linear`);
+  const fixPath = join(dir, 'fix', 'fix.json');
+  const fix = existsSync(fixPath) ? checkFix(readJson(fixPath)) : { noFix: 'The job that writes it failed.', summary: '', tests: '' };
+  // The checked patch (with what the hooks rebuild) when the checks ran, else Claude's own.
+  const patchPath = [join(dir, 'check', 'fix.patch'), join(dir, 'fix', 'fix.patch')].find((p) => existsSync(p));
+  const checkPath = join(dir, 'check', 'check.json');
+  const checks = checkResults(existsSync(checkPath) ? readJson(checkPath) : {});
+  let reason = fix.noFix || (patchPath ? null : 'Its patch is missing.');
+  if (!reason) {
+    try {
+      fixPaths(patchPath);
+    } catch (e) {
+      reason = e instanceof Error ? e.message : String(e);
+    }
+  }
+  if (reason) {
+    await api.comment(issue.id, noFixComment(reason, run));
+    console.log(`${id}: no draft fix (${reason.slice(0, 200)})`);
+    return;
+  }
+  const branch = fixBranch(id);
+  if (git(['ls-remote', '--heads', 'origin', branch]).trim()) {
+    console.log(`${id}: ${branch} is there already; nothing done`);
+    return;
+  }
+  const title = `${id}: ${String(issue.title ?? '').replace(PREFIX, '').slice(0, 120)}`;
+  git(['checkout', '-b', branch]);
+  git(['apply', '--index', patchPath]);
+  git(['-c', `user.name=${FIX_BOT.name}`, '-c', `user.email=${FIX_BOT.email}`, 'commit', '--no-verify', '-q', '-F', '-'],
+    `${title}
+
+${fix.summary}
+
+A draft fix Claude wrote for the watch for user issues: ${run}
+`);
+  git(['push', '-q', 'origin', `HEAD:refs/heads/${branch}`]);
+  const made = await github('POST', '/pulls', { title, head: branch, base: 'main', body: fixBody(issue, fix, checks, run), draft: true });
+  if (made.status !== 201) {
+    console.log(`::error title=Needs you%3A pull requests from Actions::GitHub answered ${made.status} (${String(made.json.message ?? '').slice(0, 200)}) to the draft fix for ${id}; the branch ${branch} is pushed. Turn on "Allow GitHub Actions to create and approve pull requests" with npm run github:rules -- --apply.`);
+    await api.comment(issue.id, branchComment(branch, run));
+    return;
+  }
+  const pr = { number: made.json.number, url: made.json.html_url };
+  await api.attach(issue.id, pr.url, `PR ${pr.number}: draft fix by Claude`);
+  await api.comment(issue.id, fixComment(pr, checks));
+  console.log(`${id}: draft fix PR ${pr.number}`);
+}
+
+const COMMANDS = { fetch: fetchWatch, file, 'fix-context': fixContext, 'fix-patch': fixPatch, 'fix-paths': fixPaths, 'fix-open': fixOpen };
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const [command, dir] = process.argv.slice(2);
-  if (!dir || (command !== 'fetch' && command !== 'file')) {
-    console.error('usage: node scripts/user-issues.mjs <fetch|file> <dir>');
+  const [command, dir, id] = process.argv.slice(2);
+  if (!dir || !Object.hasOwn(COMMANDS, command)) {
+    console.error(`usage: node scripts/user-issues.mjs <${Object.keys(COMMANDS).join('|')}> <dir or patch> [issue]`);
     process.exit(2);
   }
   try {
-    await (command === 'fetch' ? fetchWatch(dir) : file(dir));
+    await COMMANDS[command](dir, id);
   } catch (e) {
     console.error(`::error::${e instanceof Error ? e.message : e}`);
     process.exit(1);

@@ -481,17 +481,50 @@ export function feedbackAlerts(f: Feedback): Alert[] {
 
 const FEEDBACK_MIGRATION = 'Needs migration 20261029120000_tutorial_feedback.sql on this database.';
 
+// ---- the watch for user issues (decisions.md 202) ------------------------------------------------
+
+/** One Linear issue the watch filed or commented on, or one kind it found already fixed (no issue). */
+export interface UserIssueRow {
+  issue: string | null; issueUrl: string | null; title: string | null; verdict: 'filed' | 'known' | 'fixed';
+  /** Its state in Linear as last read, and when it closed there. */
+  state: string | null; closedAt: string | null;
+  /** The pull request on main that fixed it, and when it merged. */
+  fixedBy: number | null; fixedAt: string | null;
+  keys: string[]; people: number; firstAt: string; lookedAt: string;
+}
+
+/** diag.ops_user_issues(): the last 90 days, open issues first; counts; the last look. */
+export interface UserIssues {
+  issues: UserIssueRow[];
+  open: number; closed: number; fixed: number; noiseWeek: number;
+  last: { at: string; outcome: string; n: Record<string, number> | null } | null;
+}
+
+export function userIssuesOf(row: UserIssues): UserIssues {
+  return { ...row, open: num(row.open), closed: num(row.closed), fixed: num(row.fixed), noiseWeek: num(row.noiseWeek) };
+}
+
+export function userIssueAlerts(u: UserIssues): Alert[] {
+  const out: Alert[] = [];
+  if (u.open) out.push({ level: 'watch', text: `${plural(u.open, 'user issue')} open in Linear (User issues).` });
+  if (u.last && u.last.outcome !== 'ok') out.push({ level: 'problem', text: 'The watch for user issues failed to look at or file what it found (User issues).' });
+  return out;
+}
+
+const USER_ISSUES_MIGRATION = 'Needs migration 20261103204500_user_issues_fixed.sql on this database.';
+
 // ---- one load ---------------------------------------------------------------------------------
 
 export interface OpsSections {
   fleet: Section; safety: Section; people: Section; cron: Section; dbdetail: Section;
   push: Section; worker: Section; integrations: Section; support: Section; security: Section; tutorials: Section; videofeedback: Section;
+  userissues: Section;
 }
 
 /** Every section above on one connection; each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
   const [fleet, rejected, arrivals, canary, pipeline, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
-    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback] = await Promise.all([
+    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues] = await Promise.all([
     part<Fleet>(query, FLEET_SQL),
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
@@ -514,7 +547,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<Support['actions']>(query, `select diag.ops_actions(15) as v`),
     part<VerificationRow[]>(query, `select diag.org_verification_requests() as v`),
     part<TutorialsRow>(query, `select diag.ops_tutorials() as v`),
-    part<Feedback>(query, `select diag.ops_tutorial_feedback() as v`)
+    part<Feedback>(query, `select diag.ops_tutorial_feedback() as v`),
+    part<UserIssues>(query, `select diag.ops_user_issues() as v`)
   ]);
 
   const routes = workerTotals.ok ? routeRows(workerTotals.value) : [];
@@ -572,6 +606,10 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     videofeedback: build([videofeedback], FEEDBACK_MIGRATION, () => {
       const f = feedbackOf(val(videofeedback));
       return ok(f, feedbackAlerts(f));
+    }),
+    userissues: build([userissues], USER_ISSUES_MIGRATION, () => {
+      const u = userIssuesOf(val(userissues));
+      return ok(u, userIssueAlerts(u));
     })
   };
 }

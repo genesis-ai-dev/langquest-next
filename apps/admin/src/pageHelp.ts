@@ -9,6 +9,7 @@
 
 /** Each section of the page (pageOps.ts GROUPS), on its title. */
 export const GROUP_HELP: Record<string, string> = {
+  userissues: 'Problems people hit in the app, as the watch for user issues found them every 15 minutes: each one it filed in Linear (assigned to a developer, whose phone tells them), its state there, and the pull request that fixed it; and those a merged pull request had already fixed, which it did not file. Close an issue in Linear and the watch stops; it reopens it only when people hit the problem on a build made after the fix.',
   lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
   safety: 'Whether people\'s work is reaching the server and being kept: work the server refused, how late work arrives, phones with a wrong clock, the nightly check that stored snapshots match a fresh fold, and languages the server has fallen behind on.',
   phones: 'Everything phones and browsers tell us about themselves: syncs, errors and crashes, files, recording, signing in, which builds they run and how often each crashes, and phones that are stuck or have gone quiet. Counts and codes only, never content.',
@@ -56,6 +57,7 @@ export const SECTION_HELP: Record<string, string> = {
   lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
   filming: 'Where the filming is: the run of tutorials.yml on GitHub filming now, or the latest. It starts at 20:10 UTC each night and when a change to the videos is merged into main; five languages film at once, each trying every video and filming only those that changed. Log opens a language\'s job on GitHub. As each language finishes, its new films come in, and the wide ones go up on YouTube at once.',
   tutorials: 'Each app language\'s YouTube channel and whether LangQuest may post to it, and every video made that is not on YouTube yet: ready to choose, or chosen and waiting for its turn.',
+  userissues: 'One row for each Linear issue the watch filed or added to, open ones first, and one for each problem it found already fixed. Fixed by is the pull request Linear links to the issue, or the newest merge into main that names it.',
   videofeedback: 'What came in about the videos (comments on YouTube, code changes merged into main, notes left here) and what Claude suggests doing about it each night: a change to a video\'s script, screens or voice, to the app\'s code, or a new video. Accept, edit or reject each; an accepted code change goes to Linear. Reply to comments in YouTube Studio.'
 };
 
@@ -214,6 +216,9 @@ export const HELP: Record<string, string> = {
   Channels: 'Each app language\'s channel. Connect again when its videos fail with a sign-in code such as youtube_invalid_grant.',
   'Not on YouTube yet': 'Each video\'s newest version that is not up. A new version of one already up replaces it: it takes its place in the playlist, and the old one is unlisted with a link to the new.',
   'Videos up': 'Videos on this channel now.',
+  'open in Linear': 'Issues the watch filed or added to that are not closed in Linear. Close one there (Live, Canceled or Duplicate) and the watch counts the problem again only from a day after the fix.',
+  'already fixed when seen': 'Problems the watch did not file because every report came before a pull request merged into main that fixes them.',
+  'judged noise': 'Kinds of failure Claude judged nothing to fix this week (one person\'s wrong password, a refusal the app handled). One comes back when twice as many people hit it.',
   'suggestions waiting': 'Suggestions Claude made that nobody has accepted, edited or rejected yet. Edit one to change what it says before accepting it.',
   'not looked at yet': 'Comments, code changes and notes Claude has not looked at yet. It looks each night at 10:00 UTC (tutorial-review.yml on GitHub).',
   'not in Linear yet': 'Accepted code changes not filed in Linear yet. They wait when Linear refused or there is no Linear key (LINEAR_API_KEY); the comments job files them each night at 23:50 UTC.',

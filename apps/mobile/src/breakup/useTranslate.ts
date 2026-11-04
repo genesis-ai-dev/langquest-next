@@ -106,6 +106,8 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null, languages?: r
     hiddenLanguages, showEveryLanguage: () => setEveryLanguage(true),
     numbering, setNumbering: (c: string) => { setNumberingCode(c); setKey(null); }, numberingChanged: !!hereCode && !!code && code !== hereCode,
     ready, page, found, choose, advance, retreat, canContinue, quizTrail, setQuizTrail,
+    /** The page on screen, down to the quiz's question: the screen holding the question opens each new one at its top. */
+    pageId: page === 'quiz' ? `quiz ${quizTrail[quizTrail.length - 1] ?? ''}` : page,
     setPage: (p: TranslatePage) => { if (p === 'quiz') setQuizTrail([QUIZ.start]); setPage(p); },
     /** Pages answered by tapping a choice have no Continue. */
     showContinue: page === 'what' || page === 'why' || page === 'numbered' || page === 'ways',

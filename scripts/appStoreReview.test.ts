@@ -12,9 +12,10 @@ import appConfig from '../apps/mobile/app.config.js';
  * The iPhone half of sending new builds to production review
  * (scripts/app-store-review.mjs, decisions.md 157): never cancel, change or
  * replace what is in review, let newer builds wait in TestFlight while a
- * review or release is on its way, leave a rejection to a person, and send
- * only the newest build when nothing is open. The step runs against a fake
- * App Store Connect that refuses what Apple refuses.
+ * review or release is on its way, let a newer build take a rejected one's
+ * place (and leave the rejected build itself to a person), and send only the
+ * newest build when nothing is open. The step runs against a fake App Store
+ * Connect that refuses what Apple refuses.
  */
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
@@ -29,7 +30,7 @@ interface World { versions: Version[]; builds: Build[]; submissions: Submission[
 interface Call { method: string; path: string; body?: any }
 
 /** Apple's API as far as this step uses it, with the refusals that matter: one unreleased version and one open submission at a time, no change to a version on its way. */
-function fakeApple(world: World, { itemConflicts = 0, readyAfterLooks = 0, refuseSubmit = false } = {}) {
+function fakeApple(world: World, { itemConflicts = 0, readyAfterLooks = 0, refuseSubmit = false, closesLate = false } = {}) {
   const calls: Call[] = [];
   const answer = (status: number, body: unknown) => ({ ok: status < 300, status, json: async () => body, text: async () => JSON.stringify(body) });
   const refuse = (status: number, code: string, detail: string, associated?: unknown) =>
@@ -150,6 +151,29 @@ function fakeApple(world: World, { itemConflicts = 0, readyAfterLooks = 0, refus
       const s = world.submissions.find((x) => x.id === m![1])!;
       return answer(200, { data: { type: 'reviewSubmissions', id: s.id, attributes: { state: s.state } } });
     }
+    m = /^\/reviewSubmissions\/([^/]+)\/items$/.exec(path);
+    if (m && init.method === 'GET') {
+      const s = world.submissions.find((x) => x.id === m![1])!;
+      return answer(200, {
+        data: s.items.map((item, i) => ({
+          type: 'reviewSubmissionItems',
+          id: `${s.id}-${i}`,
+          relationships: { appStoreVersion: { data: world.versions.some((v) => v.id === item) ? { type: 'appStoreVersions', id: item } : null } }
+        })),
+        links: {}
+      });
+    }
+    m = /^\/reviewSubmissionItems\/(.+)-(\d+)$/.exec(path);
+    // Apple deletes no item that went to review (409 for build 48, 2026-11-04); the Remove button marks it removed.
+    if (m && init.method === 'DELETE') return refuse(409, 'STATE_ERROR.ENTITY_STATE_INVALID', 'Item was already submitted');
+    if (m && init.method === 'PATCH' && body.attributes?.removed) {
+      const s = world.submissions.find((x) => x.id === m![1]);
+      if (!s || !['UNRESOLVED_ISSUES', 'READY_FOR_REVIEW'].includes(s.state)) return refuse(409, 'ENTITY_ERROR', `submission ${m[1]} cannot lose items`);
+      s.items.splice(Number(m[2]), 1);
+      // Apple closes a rejected submission once its last item is gone.
+      if (s.state === 'UNRESOLVED_ISSUES' && s.items.length === 0 && !closesLate) s.state = 'COMPLETE';
+      return answer(200, { data: { type: 'reviewSubmissionItems', id: `${m[1]}-${m[2]}`, attributes: { state: 'REMOVED' } } });
+    }
     return refuse(404, 'NOT_FOUND', `${route} is not something this step should call`);
   };
   const writes = () => calls.filter((c) => c.method !== 'GET');
@@ -206,12 +230,12 @@ describe('a build already in review', () => {
     expect(result.why).toContain('until someone releases it in App Store Connect');
   });
 
-  it('is never sent again over a rejection: the step waits for a person to answer Apple', async () => {
-    const world: World = { versions: [live45, { id: 'v-48', string: '2026.1030.1319', state: 'REJECTED', build: 'b48' }], builds, submissions: [{ id: 's-48', state: 'UNRESOLVED_ISSUES', items: ['v-48'] }] };
+  it('is never sent again over a rejection: with no newer build, the step waits for a person to answer Apple', async () => {
+    const world: World = { versions: [live45, { id: 'v-48', string: '2026.1030.1319', state: 'REJECTED', build: 'b48' }], builds: builds.slice(0, 2), submissions: [{ id: 's-48', state: 'UNRESOLVED_ISSUES', items: ['v-48'] }] };
     const { writes, result } = await step(world);
     expect(writes()).toEqual([]);
     expect(result.action).toBe('held');
-    expect(result.why).toMatch(/^Apple rejected version 2026\.1030\.1319 \(build 48\)\. Someone reads Apple's message in App Store Connect \(App Review\)/);
+    expect(result.why).toMatch(/^Apple rejected version 2026\.1030\.1319 \(build 48\)\. Someone answers Apple's message in App Store Connect \(App Review\) and resubmits it there, or a newer build takes its place by itself/);
     const metadata = await step({ versions: [live45, { id: 'v-48', string: '2026.1030.1319', state: 'METADATA_REJECTED', build: 'b48' }], builds, submissions: [] });
     expect(metadata.writes()).toEqual([]);
     expect(metadata.result.action).toBe('held');
@@ -224,6 +248,55 @@ describe('a build already in review', () => {
       expect(writes(), state).toEqual([]);
       expect(result.action, state).toBe('held');
     }
+  });
+});
+
+describe('a rejected build', () => {
+  const rejected = (items = ['v-48']): World => ({
+    versions: [live45, { id: 'v-48', string: '2026.1030.1319', state: 'REJECTED', build: 'b48' }],
+    builds,
+    submissions: [{ id: 's-48', state: 'UNRESOLVED_ISSUES', items }]
+  });
+
+  it('gives its place to a newer build: out of the rejected submission, then the newer build on its version, under the new number, to review', async () => {
+    const { writes, result, said, world: after } = await step(rejected());
+    expect(writes().map((c) => `${c.method} ${c.path.split('?')[0]}`)).toEqual([
+      'PATCH /reviewSubmissionItems/s-48-0',
+      'PATCH /appStoreVersions/v-48',
+      'PATCH /appStoreVersionLocalizations/v-48-en',
+      'POST /reviewSubmissions',
+      'POST /reviewSubmissionItems',
+      'PATCH /reviewSubmissions/s-2'
+    ]);
+    expect(writes()[0].body).toEqual({ type: 'reviewSubmissionItems', id: 's-48-0', attributes: { removed: true } });
+    expect(writes()[1].body.attributes).toEqual({ versionString: '2026.1104.1700' });
+    expect(writes()[1].body.relationships.build.data.id).toBe('b49');
+    expect(result.action).toBe('submit');
+    expect(said[0]).toBe('replace: Apple rejected version 2026.1030.1319 (build 48), and build 49 is newer, so build 49 takes its place: the rejected version leaves its submission and goes to review with build 49 (2026.1104.1700).');
+    expect(said).toContain('Version 2026.1030.1319 (build 48) left its rejected submission.');
+    expect(said.at(-1)).toBe('Build 49 (2026.1104.1700) is waiting for review, and goes public when Apple approves it.');
+    expect(after.submissions.find((x) => x.id === 's-48')).toMatchObject({ state: 'COMPLETE', items: [] });
+    expect(after.versions.find((v) => v.id === 'v-48')).toMatchObject({ string: '2026.1104.1700', build: 'b49', state: 'WAITING_FOR_REVIEW' });
+  });
+
+  it('only says so with --dry-run', async () => {
+    const { writes, result } = await step(rejected(), {}, ['--dry-run']);
+    expect(result.action).toBe('replace');
+    expect(writes()).toEqual([]);
+  });
+
+  it('leaves a rejected submission that holds anything else to a person', async () => {
+    const { writes, result } = await step(rejected(['v-48', 'in-app-event']));
+    expect(writes()).toEqual([]);
+    expect(result.action).toBe('held');
+    expect(result.why).toContain('holds more than version 2026.1030.1319');
+  });
+
+  it('waits for Apple to close the rejected submission, and sends the newer build on a later run when it has not', async () => {
+    const { writes, result, waited } = await step(rejected(), { closesLate: true });
+    expect(writes().map((c) => `${c.method} ${c.path}`)).toEqual(['PATCH /reviewSubmissionItems/s-48-0']);
+    expect(waited.filter((ms) => ms === READY_WAIT_MS)).toHaveLength(READY_LOOKS - 1);
+    expect(result).toMatchObject({ action: 'wait', why: 'Apple has not closed the rejected submission yet, so build 49 goes on a later run' });
   });
 });
 
@@ -335,6 +408,11 @@ describe('the next step', () => {
     expect(nextStep({ versions: [live], newest: null }).action).toBe('none');
   });
 
+  it('waits while Apple closes a rejected submission that someone emptied', () => {
+    expect(nextStep({ versions: [live], newest, submissions: [{ id: 's', state: 'UNRESOLVED_ISSUES', versionId: null, items: 0 }] }))
+      .toEqual({ action: 'wait', why: 'Apple is closing a rejected submission that holds nothing now, so build 49 waits in TestFlight and goes on a later run' });
+  });
+
   it('says which builds Apple is still processing', () => {
     expect(nextStep({ versions: [{ ...live, build: 49 }], newest, processing: [{ number: 50 }] }).why)
       .toBe('build 49 is not newer than the public build 49; build 50 is still processing at Apple');
@@ -417,10 +495,11 @@ describe('the App Manager key', () => {
 });
 
 describe('the step\'s code and workflows', () => {
-  it('has no way to cancel a review or delete anything', () => {
+  it('has no way to cancel a review or delete anything, and removes only a rejected version from its rejected submission', () => {
     const source = read('scripts/app-store-review.mjs');
     expect(source).not.toMatch(/\bcanceled\b/);
     expect(source).not.toMatch(/'DELETE'/);
+    expect(source.match(/removed: true/g)).toHaveLength(1);
   });
 
   it('runs every hour, and right after each new iPhone build reaches TestFlight, with the production key', () => {
