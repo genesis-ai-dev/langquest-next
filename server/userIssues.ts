@@ -144,6 +144,57 @@ export class LookedError extends Error {
   }
 }
 
+// ---- what Claude may look at besides the counts (GET /api/user-issues?media= | ?phone=) ---------
+
+/**
+ * A problem sent from help mode can come with a screenshot of the app and a
+ * picture the person chose, and every phone records how long its downloads,
+ * opens and syncs took. Claude looks at both before it judges a problem or
+ * writes a fix (decisions.md 202, amended 2026-11-04): `?media=<feedback id>`
+ * is the screenshot and picture (`ops_user_issue_media`, base64 JPEGs),
+ * `?phone=<install>&at=<time>` that phone's build and records from three days
+ * before the time to an hour after (`ops_user_issue_phone`). The workflow keeps
+ * them on its runner, never in a log, artifact or pull request.
+ */
+export interface Media { screenshot: string | null; picture: string | null }
+
+export interface PhoneRecord {
+  at: string; receivedAt: string; kind: string; update?: string; about?: 'organization' | 'language';
+  n: Record<string, number>; t: Record<string, string>; stack?: string;
+}
+
+export interface Phone {
+  installId: string;
+  /** As `apps` names it: `android update 01a1a398`, `ios store build 2026.103`, `web <commit>`. */
+  build: string;
+  phone: Partial<Record<'os' | 'osVersion' | 'model' | 'appVersion' | 'runtimeVersion' | 'updateId' | 'channel' | 'embedded', string>>;
+  firstSeen: string; lastSeen: string; from: string; to: string;
+  /** Newest first, at most 400. */
+  records: PhoneRecord[];
+}
+
+/** A problem sent from help mode is named by its id; an install by the app's random id (a UUID, or a token). */
+export const FEEDBACK_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+export const INSTALL_ID = /^[A-Za-z0-9_.-]{1,64}$/;
+
+export type EvidenceAsk = { media: string } | { phone: string; at: string | null };
+
+/** What a GET asks for besides what is new: null for the watch itself, or a LookedError for what is wrong. */
+export function evidenceAsked(params: URLSearchParams): EvidenceAsk | null {
+  const media = params.get('media');
+  const phone = params.get('phone');
+  if (media === null && phone === null) return null;
+  if (media !== null && phone !== null) throw new LookedError('media or phone, not both');
+  if (media !== null) {
+    if (!FEEDBACK_ID.test(media)) throw new LookedError('media: the id of a problem sent from help mode');
+    return { media };
+  }
+  if (!INSTALL_ID.test(phone ?? '')) throw new LookedError("phone: an install's id");
+  const at = params.get('at');
+  if (at !== null && (!ISO.test(at) || Number.isNaN(Date.parse(at)))) throw new LookedError('at: a time (ISO 8601)');
+  return { phone: phone as string, at };
+}
+
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 
