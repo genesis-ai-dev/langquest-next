@@ -8,8 +8,8 @@
 # replaces one waiting for review; on iOS to TestFlight, and then to App
 # Review when no review is open (scripts/app-store-review.mjs, which
 # app-store-review.yml runs every hour, sending the newest build once Apple
-# has processed it; while a review is open, or after a rejection, the build
-# waits in TestFlight). Each build is public as soon as Google or Apple
+# has processed it; while a review is open the build waits in TestFlight,
+# and after a rejection it takes the rejected build's place). Each build is public as soon as Google or Apple
 # approves it.
 # Each platform's last job tells Linear its lane is out (scripts/linear-sync.mjs,
 # decisions.md 53); LINEAR_API_KEY is an EAS variable on `production`. A failed
