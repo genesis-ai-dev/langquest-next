@@ -9085,6 +9085,29 @@ up to 24 dB, it would play its hiss as loud as a voice. Room alone measured
 over its room, 5.6 dB at least. `Level.kt` and `Level.swift` take the same
 line from `LEVEL`, so this too ships in a store build.
 
+Amended (2026-11-04, Caleb Koster): a play waits for its copy at most half
+a second (`READY_MS`), then plays the part as recorded; the copy goes on
+and plays the next time. The first play of a part was the "Reverse if"
+case: Caleb, on a Galaxy A05 right after recording two-second parts
+(LAN-224), tapped Play on each and saw Pause for far longer than the part
+with no sound, and the same in Clean up; on the web with the processor
+slowed eight times, a part waited about a second and a part in Clean up
+13 seconds. Caleb chose all four of these on 2026-11-04:
+- **A spinner in place of Pause** until the first sound, in every player
+  of the recordings people make (`PlayGlyph` in `ui/kit.tsx`, `loading`
+  from `useClip`, AudioClip, ClipPlayer, the review chip). Tapping it stops,
+  as Pause would.
+- **Half a second, then as recorded.** Even loudness on a first play is
+  given up only when the phone is slow; the next play is even.
+- **The part tapped goes first.** Copies and measures (181) run one at a
+  time (`levelTurns.ts`), as the microphone module does them on one thread;
+  the part someone is waiting to hear goes ahead of the next part's copy
+  and the other rows' measures.
+- **How long plays wait is recorded**: the `audio` tally's `waits`,
+  `waitMs` and `maxWaitMs` (docs/diagnostics.md), so the watch for user
+  issues (202) shows them under a problem sent from a phone.
+JavaScript only, so it ships in an OTA update.
+
 ## 183. Tutorial videos are filmed each night on GitHub, only those whose screens changed, and the job container brings them in
 
 Date: 2026-10-28 · By: Caleb Koster · Status: accepted

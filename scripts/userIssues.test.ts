@@ -428,7 +428,7 @@ describe('what Claude looks at besides the counts', () => {
     records: [
       rec(2, 'transfer', { count: 3, bytes: 3_145_728, ms: 36_000, maxMs: 21_000 }, { dir: 'down', src: 'lang' }),
       rec(5, 'transfer', { count: 2, bytes: 0, ms: 9000, maxMs: 6000, failOffline: 1, failOther: 1 }, { dir: 'down', src: 'source' }),
-      rec(6, 'audio', { plays: 4, playFail: 1 }),
+      rec(6, 'audio', { plays: 4, playFail: 1, waits: 3, waitMs: 21_000, maxWaitMs: 14_000 }),
       rec(8, 'open', { ms: 14_000 }, { cold: 'no' }),
       rec(9, 'device', { freeDiskMb: 820, totalDiskMb: 16_000, blobsWanted: 12, dbMb: 40 }),
       rec(45, 'transfer', { count: 50, ms: 1000 }, { dir: 'down', src: 'lang' })
@@ -482,6 +482,7 @@ describe('what Claude looks at besides the counts', () => {
       'Downloads (lang): 3 files, 3.0 MB, 12 s each on average, slowest 21 s',
       'Downloads (source): 2 files, 4.5 s each on average, slowest 6.0 s, 2 failed (failOffline 1, failOther 1)',
       'Audio: plays 4, playFail 1',
+      'Plays waited for sound: 7.0 s on average, longest 14 s (3 plays)',
       'Open: 1 time, slowest 14 s',
       `Disk, ${when(phone.records[4]!.at)}: 820 MB free of 16000 MB, 12 files wanted, database 40 MB`
     ]);

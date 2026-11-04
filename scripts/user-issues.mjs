@@ -477,6 +477,9 @@ export function phoneFacts(phone, at) {
   const audio = recent.filter((r) => r.kind === 'audio');
   const counts = AUDIO.filter((f) => sum(audio, f)).map((f) => `${f} ${sum(audio, f)}`);
   if (counts.length) lines.push(`Audio: ${counts.join(', ')}`);
+  // How long plays waited for their first sound (decisions.md 182, amended 2026-11-04).
+  const waits = sum(audio, 'waits');
+  if (waits) lines.push(`Plays waited for sound: ${secs(sum(audio, 'waitMs') / waits)} on average, longest ${secs(Math.max(0, ...audio.map((r) => Number(r.n?.maxWaitMs) || 0)))} (${plural(waits, 'play')})`);
   for (const kind of ['open', 'sync', 'snapshot', 'checkpoint', 'fill']) {
     const rs = recent.filter((r) => r.kind === kind && Number.isFinite(Number(r.n?.ms)));
     if (rs.length) lines.push(`${kind[0].toUpperCase()}${kind.slice(1)}: ${plural(rs.length, 'time')}, slowest ${secs(Math.max(...rs.map((r) => Number(r.n.ms))))}`);

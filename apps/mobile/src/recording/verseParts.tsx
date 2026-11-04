@@ -22,7 +22,7 @@ import type { Ctx } from '../shell/ctx';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpQuiet, HelpRow } from '../helpMode/helpBadge';
 import { isRtl, t } from '../i18n';
-import { HelpInfo, Ico, IconBtn, PrimaryBtn, Sheet } from '../ui/kit';
+import { HelpInfo, Ico, IconBtn, PlayGlyph, PrimaryBtn, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
 import { mmss, partLabel } from './model';
@@ -341,7 +341,7 @@ function PartRow(props: {
       <Pressable onPress={play.onPress} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={playLabel}
         style={({ pressed }) => [styles.playTap, (!clip.available || props.disabled) && ps.off, pressed && ps.pressed]}>
         <View style={[styles.playDot, heard.playing && styles.playDotOn]}>
-          <Ico name={heard.playing ? 'pause' : 'play'} size={16} color={heard.playing ? C.white : C.primary} strokeWidth={2.6} fill={heard.playing ? C.white : C.primary} />
+          <PlayGlyph playing={heard.playing} loading={heard.loading} size={16} color={heard.playing ? C.white : C.primary} strokeWidth={2.6} fill={heard.playing ? C.white : C.primary} />
         </View>
         <HelpBadge spot={play} />
       </Pressable>
