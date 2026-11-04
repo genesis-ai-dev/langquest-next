@@ -341,6 +341,16 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         if (error) throw new Error(`ops_user_issue_watch: ${error.message}`);
         return data;
       },
+      media: async (id) => {
+        const { data, error } = await serviceClient(env).rpc('ops_user_issue_media', { p_id: id });
+        if (error) throw new Error(`ops_user_issue_media: ${error.message}`);
+        return data;
+      },
+      phone: async (install, at) => {
+        const { data, error } = await serviceClient(env).rpc('ops_user_issue_phone', { p_install: install, p_at: at });
+        if (error) throw new Error(`ops_user_issue_phone: ${error.message}`);
+        return data;
+      },
       looked: async (looked) => {
         const { data, error } = await serviceClient(env).rpc('ops_user_issues_looked', { p: looked });
         if (error) throw new Error(`ops_user_issues_looked: ${error.message}`);

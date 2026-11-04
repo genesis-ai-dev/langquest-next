@@ -1,4 +1,4 @@
-import { LookedError, parseLooked, type Looked, type Watch } from '../../../server/userIssues';
+import { evidenceAsked, LookedError, parseLooked, type EvidenceAsk, type Looked, type Media, type Phone, type Watch } from '../../../server/userIssues';
 import { REPOSITORY } from '../../../server/tutorialFeedback';
 import type { JobRun } from '../../../server/jobRuns';
 import type { GithubRun, OidcRule } from './githubOidc';
@@ -15,6 +15,12 @@ import type { GithubRun, OidcRule } from './githubOidc';
  * (decision 186). GitHub holds no key to production. Each GET is recorded as
  * a `user_issue_watch` run, so a watch that stops shows on the ops dashboard,
  * and each POST as a `user_issue_look` run.
+ *
+ * `GET ?media=<feedback id>` and `GET ?phone=<install>&at=<time>` are what
+ * Claude looks at besides the counts: a problem's screenshot and picture, and
+ * that phone's build and records around the time (server/userIssues.ts
+ * `evidenceAsked`, decisions.md 202 amended 2026-11-04). Not recorded as runs:
+ * one look asks for several.
  */
 export const USER_ISSUES_PATH = '/api/user-issues';
 export const USER_ISSUES_RULE: OidcRule = {
@@ -27,6 +33,10 @@ export const USER_ISSUES_MAX_BYTES = 512 * 1024;
 export interface UserIssuesDeps {
   verify(token: string, rule: OidcRule): Promise<GithubRun | null>;
   watch(): Promise<Watch>;
+  /** null: not there, an idea, or older than the watch hands over. */
+  media(id: string): Promise<Media | null>;
+  /** null: no such install. */
+  phone(install: string, at: string | null): Promise<Phone | null>;
   looked(looked: Looked): Promise<{ looked: number; grew: number; closed?: number; reopened?: number }>;
   record(run: JobRun): Promise<void>;
   now(): number;
@@ -42,6 +52,16 @@ export async function handleUserIssues(request: Request, deps: UserIssuesDeps): 
   const started = deps.now();
 
   if (request.method === 'GET') {
+    let ask: EvidenceAsk | null;
+    try {
+      ask = evidenceAsked(new URL(request.url).searchParams);
+    } catch (e) {
+      return json(400, { error: e instanceof LookedError ? e.message : 'bad request' });
+    }
+    if (ask) {
+      const found = 'media' in ask ? await deps.media(ask.media) : await deps.phone(ask.phone, ask.at);
+      return found ? json(200, found) : json(404, { error: 'Not there, or not one the watch hands over.' });
+    }
     let watch: Watch;
     try {
       watch = await deps.watch();

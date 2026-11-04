@@ -5,8 +5,10 @@
 //
 //   node scripts/user-issues.mjs fetch <dir>   first tells the Worker which of its issues closed or opened again
 //                                              in Linear (with the pull request that fixed each, when named);
-//                                              then what is new (watch.json) and the team's issues in Linear
-//                                              (linear.json); writes look=<n> and grew=<n> to GITHUB_OUTPUT
+//                                              then what is new (watch.json), with what came with it in
+//                                              <dir>/evidence (each problem's screenshot and picture, its phones'
+//                                              records), and the team's issues in Linear (linear.json); writes
+//                                              look=<n> and grew=<n> to GITHUB_OUTPUT
 //   node scripts/user-issues.mjs file <dir>    decisions.json, as Claude wrote it: a Linear issue for each new
 //                                              problem, assigned to USER_ISSUES_ASSIGNEE, and a comment on each
 //                                              issue the team already had (reopened when it was closed) and on
@@ -14,9 +16,12 @@
 //                                              done, so nothing is filed twice; writes fixes=<the new issues' ids,
 //                                              as JSON> to GITHUB_OUTPUT, at most FIX_MAX
 //   node scripts/user-issues.mjs fix-context <dir> <issue>
-//                                              the Linear issue Claude writes a draft fix for (issue.json)
+//                                              the Linear issue Claude writes a draft fix for (issue.json), with
+//                                              its pictures and phones' records in <dir>/evidence, and the ids and
+//                                              words of what was sent in FIX_PRIVATE
 //   node scripts/user-issues.mjs fix-patch <dir>
-//                                              after Claude: its change as a patch and its fix.json, checked, in <dir>/out
+//                                              after Claude: its change as a patch and its fix.json, checked, in <dir>/out;
+//                                              none when they carry what FIX_PRIVATE names
 //   node scripts/user-issues.mjs fix-paths <patch>
 //                                              refuses a patch that changes what a draft fix may not
 //   node scripts/user-issues.mjs fix-open <dir> <issue>
@@ -70,7 +75,7 @@ const cut = (text, max) => {
 /** The kinds an issue says it is about: its "Kinds" lines, as issueDescription writes them. */
 export function keysIn(description) {
   const keys = [];
-  for (const m of String(description ?? '').matchAll(/^- `([^`\n]{3,300})`$/gm)) if (KEY.test(m[1])) keys.push(m[1]);
+  for (const m of String(description ?? '').matchAll(/^[-*] `([^`\n]{3,300})`$/gm)) if (KEY.test(m[1])) keys.push(m[1]);
   return [...new Set(keys)];
 }
 
@@ -90,7 +95,8 @@ export function factsOf(kind) {
       `**Sent from help mode** on ${when(f.at)}${f.screen ? `, from the screen \`${f.screen}\`` : ''} · ${f.app ?? f.os ?? '?'}${f.uiLanguage ? ` · app language ${f.uiLanguage}` : ''}`,
       '',
       words || '> (no words)',
-      ...(media.length ? ['', `With ${media.join(' and ')}: [ops dashboard](${OPS}), Feedback.`] : [])
+      ...(media.length ? ['', `With ${media.join(' and ')}: [ops dashboard](${OPS}), Feedback.`] : []),
+      ...(kind.phoneFacts?.length ? ['', '**That phone in the half hour before**', '', ...kind.phoneFacts.map((l) => `- ${cut(l, 300)}`)] : [])
     ].join('\n');
   }
   if (kind.server) {
@@ -303,12 +309,14 @@ export function statesToSend(known, issues, merges) {
 export const FIX_MAX = 3;
 /**
  * What a draft fix may never change: how the repository builds, tests and deploys, its packages,
- * its secrets, its agents' instructions, and the watch itself.
+ * its secrets, its agents' instructions, and the watch itself; nor may it add a picture or a recording.
  */
 export const FIX_REFUSED = [
   /^\.github\//, /^\.githooks\//, /(^|\/)\.env/, /(^|\/)package(-lock)?\.json$/, /(^|\/)\.npmrc$/,
   /^\.(agents|claude|hermes)\//, /^(AGENTS|CLAUDE)\.md$/, /^scripts\/(user-issues|linear-sync|tutorial-review)\.mjs$/, /^\.user-issues\//,
-  /(^|\/)\.git(\/|$)/
+  /(^|\/)\.git(\/|$)/,
+  // No pictures or recordings: a screenshot or voice note a person sent must never reach this public repository.
+  /\.(jpe?g|png|webp|gif|heic|m4a|wav|mp3|mp4|mov)$/i
 ];
 export const FIX_LIMITS = { files: 30, bytes: 300_000, summary: 3000, tests: 1000, noFix: 1000 };
 /** The checks the job with no key ran, as it may say them; anything else is "not run". */
@@ -400,6 +408,122 @@ export function noFixComment(reason, run) {
 }
 export function branchComment(branch, run) {
   return [`**Claude wrote a draft fix**, on the branch \`${branch}\`, but GitHub did not let the workflow open its pull request.`, '', `[Open it](https://github.com/${REPO}/compare/main...${branch}?expand=1) as a draft, or turn on Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests" (\`npm run github:rules -- --apply\`).`, '', `The watch for user issues: ${run}`].join('\n');
+}
+
+// ---- what Claude looks at besides the counts --------------------------------------------------------
+
+// A problem sent from help mode can come with a screenshot and a picture, and every phone records
+// how long its downloads, opens and syncs took (decisions.md 202, amended 2026-11-04). Before Claude
+// judges or fixes, the step before it asks the Worker for both and keeps them in <dir>/evidence: on
+// the runner only, never in a log, an artifact or a pull request.
+
+/** At most this many phones' records in one run, and this many for a kind that is not a problem sent from help mode. */
+export const EVIDENCE_PHONES = 12;
+export const PHONES_PER_KIND = 2;
+const FEEDBACK_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const INSTALL_ID = /^[A-Za-z0-9_.-]{1,64}$/;
+const JPEG = [0xff, 0xd8, 0xff];
+
+/** What to ask for: each problem's pictures and phone first, then a few phones of every other kind. */
+export function evidencePlan(kinds) {
+  const media = [];
+  const phones = new Map();
+  const phone = (installId, at) => {
+    if (INSTALL_ID.test(installId ?? '') && !phones.has(installId) && phones.size < EVIDENCE_PHONES) phones.set(installId, at ?? null);
+  };
+  for (const k of kinds) {
+    const f = k.feedback;
+    if (!f) continue;
+    if ((f.screenshot || f.picture) && FEEDBACK_ID.test(f.id ?? '')) media.push(f.id);
+    phone(f.installId, f.at);
+  }
+  for (const k of kinds) if (!k.feedback) for (const i of (k.installIds ?? []).slice(0, PHONES_PER_KIND)) phone(i, k.lastAt);
+  return { media, phones: [...phones].map(([installId, at]) => ({ installId, at })) };
+}
+
+const sum = (records, field) => records.reduce((n, r) => n + (Number(r.n?.[field]) || 0), 0);
+const secs = (ms) => (ms >= 10_000 ? `${Math.round(ms / 1000)} s` : `${(ms / 1000).toFixed(1)} s`);
+const mb = (bytes) => (bytes >= 1_048_576 ? `${(bytes / 1_048_576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
+const FAILS = ['failOffline', 'failHttp4xx', 'failHttp5xx', 'failHash', 'failDisk', 'failOther', 'failAuth', 'failNotFound', 'failTooLarge', 'failBadDigest', 'failGone'];
+const AUDIO = ['plays', 'playFail', 'playNotHere', 'streamFail', 'takes', 'startFail', 'stopFail', 'saveFail', 'encodeFail', 'interrupted'];
+
+/**
+ * A phone's records in the half hour before a time, in a few lines for a person: the phone, its
+ * build, its downloads and uploads (how many, how big, how long each took), plays and recordings,
+ * opens and syncs, its disk. Numbers from the records only: written here, never by Claude.
+ */
+export function phoneFacts(phone, at) {
+  const end = Date.parse(at ?? '') || Date.parse(phone.to);
+  const recent = (phone.records ?? []).filter((r) => {
+    const t = Date.parse(r.at);
+    return t <= end + 60_000 && t > end - 30 * 60_000;
+  });
+  const p = phone.phone ?? {};
+  const lines = [`${[p.model, p.os && `${p.os}${p.osVersion ? ` ${p.osVersion}` : ''}`].filter(Boolean).join(', ') || 'phone ?'} · ${phone.build}`];
+  const transfers = new Map();
+  for (const r of recent.filter((r) => r.kind === 'transfer')) {
+    const key = `${r.t?.dir === 'up' ? 'up' : 'down'} ${r.t?.src ?? '?'}`;
+    transfers.set(key, [...(transfers.get(key) ?? []), r]);
+  }
+  for (const [key, rs] of transfers) {
+    const [dir, src] = key.split(' ');
+    const count = sum(rs, 'count');
+    const failed = FAILS.reduce((n, f) => n + sum(rs, f), 0);
+    const done = count - failed;
+    const ms = sum(rs, 'ms');
+    const max = Math.max(0, ...rs.map((r) => Number(r.n?.maxMs) || 0));
+    lines.push(`${dir === 'up' ? 'Uploads' : 'Downloads'} (${src}): ${plural(count, 'file')}${done > 0 ? `, ${mb(sum(rs, 'bytes'))}` : ''}${count ? `, ${secs(ms / count)} each on average, slowest ${secs(max)}` : ''}${failed ? `, ${failed} failed (${FAILS.filter((f) => sum(rs, f)).map((f) => `${f} ${sum(rs, f)}`).join(', ')})` : ''}`);
+  }
+  const audio = recent.filter((r) => r.kind === 'audio');
+  const counts = AUDIO.filter((f) => sum(audio, f)).map((f) => `${f} ${sum(audio, f)}`);
+  if (counts.length) lines.push(`Audio: ${counts.join(', ')}`);
+  for (const kind of ['open', 'sync', 'snapshot', 'checkpoint', 'fill']) {
+    const rs = recent.filter((r) => r.kind === kind && Number.isFinite(Number(r.n?.ms)));
+    if (rs.length) lines.push(`${kind[0].toUpperCase()}${kind.slice(1)}: ${plural(rs.length, 'time')}, slowest ${secs(Math.max(...rs.map((r) => Number(r.n.ms))))}`);
+  }
+  const errors = recent.filter((r) => r.kind === 'error' || r.kind === 'expected').length;
+  if (errors) lines.push(`Errors: ${errors}`);
+  const device = (phone.records ?? []).find((r) => r.kind === 'device' && Date.parse(r.at) <= end + 60_000);
+  if (device) {
+    const n = device.n ?? {};
+    const parts = [n.freeDiskMb !== undefined && `${n.freeDiskMb} MB free${n.totalDiskMb ? ` of ${n.totalDiskMb} MB` : ''}`, n.blobsWanted !== undefined && `${n.blobsWanted} files wanted`,
+      n.dbMb !== undefined && `database ${n.dbMb} MB`, n.uploadsWaiting && `${n.uploadsWaiting} uploads waiting`].filter(Boolean);
+    if (parts.length) lines.push(`Disk, ${when(device.at)}: ${parts.join(', ')}`);
+  }
+  if (lines.length === 1) lines.push('No downloads, plays, opens, syncs or errors recorded in the half hour before it.');
+  return lines;
+}
+
+/** The ids and words of what was sent, which a draft fix in this public repository must never carry. */
+export function privateOf(description) {
+  const text = String(description ?? '');
+  const feedback = keysIn(text).filter((k) => k.startsWith('feedback:')).map((k) => k.slice('feedback:'.length)).filter((i) => FEEDBACK_ID.test(i));
+  const installs = new Set();
+  let inPhones = false;
+  for (const line of text.split('\n')) {
+    if (/Phones that hit it/.test(line)) { inPhones = true; continue; }
+    const m = /^[-*] ([A-Za-z0-9_.-]{8,64})$/.exec(line.trim());
+    if (inPhones && m) installs.add(m[1]);
+    else if (inPhones && line.trim()) inPhones = false;
+  }
+  const words = text.split('\n').filter((l) => l.startsWith('> ')).map((l) => l.slice(2).trim()).filter((l) => l.length >= 20);
+  return { feedback, installs: [...installs], ids: [...new Set([...feedback, ...installs])], words };
+}
+
+/** Whether some text carries an id or six words in a row of what was sent (case and spacing aside). */
+export function leaks(text, priv) {
+  const flat = (s) => String(s).toLowerCase().replace(/\s+/g, ' ');
+  const t = flat(text);
+  if ((priv.ids ?? []).some((id) => t.includes(id.toLowerCase()))) return true;
+  for (const line of priv.words ?? []) {
+    const w = flat(line).split(' ').filter(Boolean);
+    for (let i = 0; i + 6 <= w.length; i += 1) {
+      const run = w.slice(i, i + 6).join(' ');
+      if (run.length >= 25 && t.includes(run)) return true;
+    }
+    if (w.length < 6 && t.includes(flat(line).trim())) return true;
+  }
+  return false;
 }
 
 // ---- Linear -----------------------------------------------------------------------------------------
@@ -519,8 +643,8 @@ async function oidcToken() {
   return (await res.json()).value;
 }
 
-async function call(method, body) {
-  const res = await fetch(API, {
+async function call(method, body, query = '') {
+  const res = await fetch(`${API}${query}`, {
     method,
     headers: { authorization: `Bearer ${await oidcToken()}`, ...(body ? { 'content-type': 'application/json' } : {}) },
     ...(body ? { body: JSON.stringify(body) } : {})
@@ -529,6 +653,69 @@ async function call(method, body) {
   // The Worker's errors are fixed words; never a person's.
   if (!res.ok) throw new Error(`${method} ${API}: HTTP ${res.status} ${answer.slice(0, 300)}`);
   return JSON.parse(answer);
+}
+
+/** One thing to look at, or null when the Worker has none (404). */
+async function ask(query) {
+  try {
+    return await call('GET', undefined, query);
+  } catch (e) {
+    if (/HTTP 404/.test(e instanceof Error ? e.message : '')) return null;
+    throw e;
+  }
+}
+
+/**
+ * Asks the Worker for what the plan names and keeps it in <dir>/evidence, where Claude reads it:
+ * the pictures as JPEG files, each phone's build and records as JSON. What could not be had is
+ * left out and said in the log by its kind only. Returns where each went.
+ */
+export async function fetchEvidence(dir, plan, at = ask) {
+  const out = join(dir, 'evidence');
+  mkdirSync(out, { recursive: true });
+  const media = {};
+  for (const id of plan.media) {
+    media[id] = { screenshot: null, picture: null };
+    try {
+      const m = await at(`?media=${id}`);
+      for (const part of ['screenshot', 'picture']) {
+        const bytes = m?.[part] ? Buffer.from(m[part], 'base64') : null;
+        if (!bytes || bytes.length < 3 || JPEG.some((b, i) => bytes[i] !== b)) continue;
+        const path = join(out, `${id}-${part}.jpg`);
+        writeFileSync(path, bytes);
+        media[id][part] = path;
+      }
+    } catch (e) {
+      console.log(`evidence: no pictures for a problem sent from help mode (${String(e instanceof Error ? e.message : e).slice(0, 80)})`);
+    }
+  }
+  const phones = {};
+  for (const { installId, at: time } of plan.phones) {
+    try {
+      const phone = await at(`?phone=${encodeURIComponent(installId)}${time ? `&at=${encodeURIComponent(time)}` : ''}`);
+      if (!phone) continue;
+      const path = join(out, `phone-${installId}.json`);
+      writeFileSync(path, JSON.stringify(phone, null, 2));
+      phones[installId] = { path, phone };
+    } catch (e) {
+      console.log(`evidence: no records for a phone (${String(e instanceof Error ? e.message : e).slice(0, 80)})`);
+    }
+  }
+  const pictures = Object.values(media).filter((m) => m.screenshot || m.picture).length;
+  console.log(`evidence: pictures for ${pictures} of ${plan.media.length} problems, records for ${Object.keys(phones).length} of ${plan.phones.length} phones`);
+  return { media, phones };
+}
+
+/** Each kind with where its pictures and phones' records are, and the phone's numbers for a problem sent from help mode. */
+export function withEvidence(kinds, got) {
+  return kinds.map((k) => {
+    const installs = k.feedback ? [k.feedback.installId] : (k.installIds ?? []).slice(0, PHONES_PER_KIND);
+    const phones = installs.filter((i) => got.phones[i]).map((i) => got.phones[i].path);
+    const m = k.feedback ? got.media[k.feedback.id] : null;
+    const evidence = { screenshot: m?.screenshot ?? null, picture: m?.picture ?? null, phones };
+    const facts = k.feedback && got.phones[k.feedback.installId] ? phoneFacts(got.phones[k.feedback.installId].phone, k.feedback.at) : null;
+    return { ...k, evidence, ...(facts ? { phoneFacts: facts } : {}) };
+  });
 }
 
 function linearKey() {
@@ -560,6 +747,7 @@ async function fetchWatch(dir) {
       watch = await call('GET');
     }
   }
+  if (watch.look.length) watch = { ...watch, look: withEvidence(watch.look, await fetchEvidence(dir, evidencePlan(watch.look))) };
   writeFileSync(join(dir, 'watch.json'), JSON.stringify(watch, null, 2));
   const busy = watch.look.length > 0 || watch.grew.length > 0;
   const issues = busy ? await linearClient(linearKey()).issues(new Date(Date.now() - LINEAR_DAYS * 86_400_000).toISOString()) : [];
@@ -685,7 +873,16 @@ async function fixContext(dir, id) {
   mkdirSync(dir, { recursive: true });
   const issue = await linearClient(linearKey()).full(id);
   if (!issue) throw new Error(`${id} is not in Linear`);
-  writeFileSync(join(dir, 'issue.json'), JSON.stringify({ identifier: issue.identifier, url: issue.url, title: issue.title, description: redact(issue.description) }, null, 2));
+  // What was sent, for the patch step to keep out of this public repository: kept where Claude does not write.
+  const priv = privateOf(issue.description);
+  if (process.env.FIX_PRIVATE) writeFileSync(process.env.FIX_PRIVATE, JSON.stringify(priv));
+  const plan = { media: priv.feedback, phones: priv.installs.slice(0, EVIDENCE_PHONES).map((installId) => ({ installId, at: null })) };
+  const got = await fetchEvidence(dir, plan);
+  const evidence = {
+    pictures: Object.values(got.media).flatMap((m) => [m.screenshot, m.picture]).filter(Boolean),
+    phones: Object.values(got.phones).map((p) => p.path)
+  };
+  writeFileSync(join(dir, 'issue.json'), JSON.stringify({ identifier: issue.identifier, url: issue.url, title: issue.title, description: redact(issue.description), evidence }, null, 2));
   console.log(`${id}: handed to Claude for a draft fix`);
 }
 
@@ -701,8 +898,17 @@ function fixPatch(dir) {
   const small = existsSync(path) && readFileSync(path).length < 100_000;
   const fix = checkFix(small ? (() => { try { return readJson(path); } catch { return {}; } })() : { noFix: 'Claude wrote no fix.json.' });
   git(['add', '-A', '--', '.', `:(exclude)${dir}`]);
-  const patch = git(['diff', '--cached', '--binary']);
+  let patch = git(['diff', '--cached', '--binary']);
   if (!fix.noFix && !patch) fix.noFix = 'Claude changed no file.';
+  // This repository is public: a change or fix.json that carries what was sent is not kept.
+  const privPath = process.env.FIX_PRIVATE;
+  const priv = privPath && existsSync(privPath) ? readJson(privPath) : null;
+  if (priv && leaks([patch, fix.summary, fix.tests, fix.noFix].join('\n'), priv)) {
+    fix.noFix = 'Claude\'s change carried part of what was sent (the person\'s words or an id), and this repository is public, so it was not kept.';
+    fix.summary = '';
+    fix.tests = '';
+    patch = '';
+  }
   writeFileSync(join(out, 'fix.json'), JSON.stringify(fix, null, 2));
   if (!fix.noFix) writeFileSync(join(out, 'fix.patch'), patch);
   console.log(fix.noFix ? 'no draft fix' : `a draft fix: ${patch.length} bytes`);

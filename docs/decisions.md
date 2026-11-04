@@ -10423,3 +10423,33 @@ Considered: the Claude GitHub App's token, whose pull requests start checks
 at once (the guardrails would run unread code with their tokens); one job
 for all of it (Claude can write in the checkout, including `.git`, and a
 later step would run what it wrote with the keys).
+
+Amended (2026-11-04, Caleb Koster): Claude sees what came with each problem.
+Caleb sent a problem from help mode with a screenshot (LAN-224, playback
+slow on a low-end Android phone); the watch handed Claude only his words
+and that a screenshot came with them, and his phone had no error, so the
+issue and the draft fix were guesses. He asked that Claude see the pictures
+people send and the phone's timings and diagnostics. Decided (migration
+`*_user_issue_evidence.sql`, docs/diagnostics.md):
+- **Two more reads at the Worker's door**, for the watch workflow only:
+  `?media=<feedback id>`, a problem's screenshot and chosen picture (bugs
+  sent in the last 30 days or already judged), and `?phone=<install>&at=`,
+  that phone's build, model, OS and records from three days before to an
+  hour after, without organization or stream ids. The steps before Claude,
+  in the watch and the draft fix jobs, fetch them for each problem and up to
+  two phones of every other kind (12 a run) and keep them on the runner.
+- **The issue carries the phone's numbers**, written by the script from the
+  records, not by Claude: the half hour before the report, with downloads'
+  count, size and seconds per file, plays, opens and syncs, the disk. Claude
+  says what the screenshot and the numbers show, and follows the tap into
+  the code before it answers that there is no fix.
+- **None of it reaches the public repository.** Nothing that came with a
+  problem goes into a log or an artifact; the patch step drops a draft fix
+  that carries six words in a row of what the person wrote or one of the
+  problem's or phones' ids, and a draft fix may add no picture or recording.
+  The privacy page says Claude looks at the pictures and reads the phone's
+  diagnostics (Play's data safety answers stand: Anthropic is a processor).
+Considered: a link to the ops dashboard in the issue (what it did; a
+developer had to look, and Claude never did); the whole timeline in the
+issue (too long to read on a phone, and Claude still could not see the
+screenshot); the voice note (Claude cannot hear it).
