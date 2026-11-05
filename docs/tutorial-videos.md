@@ -245,8 +245,8 @@ the app's mark and "Tutorial videos" (`banners.ts` draws them). The publish
 job puts these on whenever they change (`server/youtube.ts` `brandChannel`,
 decision 184); the picture is set by hand. Its home page is laid out as
 BibleProject's and other channels' are (`setHome`, decision 191): under the
-trailer, the other 14 LangQuest channels in two rows of 7 (YouTube shows no
-more than 12 in a row), then a row for each of
+trailer, the other 15 LangQuest channels in two rows of 8 and 7 (YouTube
+shows no more than 12 in a row), then a row for each of
 its playlists, everyone's first (`server/youtubePlaylists.ts`). The publish
 job brings the rows up to date each run, and a playlist a run makes gets its
 row at the end of that run. None of it shows while the channel's Home tab
