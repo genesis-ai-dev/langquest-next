@@ -59,6 +59,7 @@ import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { LanguageChip } from '../account/uiLanguage';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
+import { touches } from '../ui/touches';
 
 /**
  * What to say when something fails (error-tracking): a command's own reason,
@@ -784,7 +785,7 @@ export function ScanQr(ctx: Ctx) {
               <Ico name={held ? 'check' : 'qr'} size={72} color={held ? C.green : C.faint} />
             )}
             {(['tl', 'tr', 'bl', 'br'] as const).map((k) => (
-              <View key={k} style={[{ pointerEvents: 'none' }, styles.corner, {
+              <View key={k} style={[touches.none, styles.corner, {
                 borderColor: held ? C.soft : C.white,
                 ...(k[0] === 't' ? { top: 16, borderTopWidth: 3 } : { bottom: 16, borderBottomWidth: 3 }),
                 ...(k[1] === 'l' ? { left: 16, borderLeftWidth: 3 } : { right: 16, borderRightWidth: 3 })

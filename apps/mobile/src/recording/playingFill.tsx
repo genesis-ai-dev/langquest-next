@@ -8,6 +8,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { C, withAlpha } from '../ui/theme';
+import { touches } from '../ui/touches';
 
 export function PlayingFill(props: {
   /** Seconds played, of `length` (0 while not known), and whether it is playing or paused there. */
@@ -26,7 +27,7 @@ export function PlayingFill(props: {
   }, [at, length, playing, share]);
   const width = share.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
   return (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'hidden' }, props.style]}
+    <View style={[touches.none, StyleSheet.absoluteFill, { overflow: 'hidden' }, props.style]}
       accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <Animated.View style={[styles.band, { width }]} />
     </View>

@@ -28,6 +28,8 @@ import { noteExpected } from '../diagnostics/report';
 import { clampFrames, LIVE_BARS, liveBars, liveBoxes, liveHeight, type LiveBar, type LiveBox, type LiveState } from './livePartsModel';
 import type { RecordingSession } from './recordingSession';
 import { mmss, partLabel } from './model';
+import { alwaysLtr } from '../ui/alwaysLtr';
+import { touches } from '../ui/touches';
 
 type Tone = 'onRed' | 'onCard';
 const LOST_ON_RED = '#7F1D1D';
@@ -98,21 +100,21 @@ export function LiveParts(props: {
       {...(editing ? {} : { importantForAccessibility: 'no-hide-descendants' as const, accessibilityElementsHidden: true })} {...gestures.panHandlers}>
       {s.seams.map((f) => {
         const x = (f - (end - frames)) * bw;
-        return x > 0 && x < size.w ? <View key={`seam-${f}`} pointerEvents="none" style={[styles.seam, { left: x, borderColor: ink.band }]} /> : null;
+        return x > 0 && x < size.w ? <View key={`seam-${f}`} style={[touches.none, styles.seam, { left: x, borderColor: ink.band }]} /> : null;
       })}
       {boxes.map((b) => (
-        <View key={b.index} testID={`live-part-${b.n}`} pointerEvents="none" style={[styles.part, {
+        <View key={b.index} testID={`live-part-${b.n}`} style={[touches.none, styles.part, {
           left: b.from * bw, width: Math.max(6, (b.to - b.from) * bw),
           borderColor: b.open ? ink.open : ink.box, backgroundColor: b.open ? ink.openFill : ink.boxFill, borderWidth: b.open ? 2.5 : 1.5
         }]} />
       ))}
       {/* Each number stays in sight while any of its box is. */}
       {boxes.map((b) => (
-        <View key={`n-${b.index}`} pointerEvents="none" style={[styles.pill, { left: Math.max(b.from * bw, 0) + 3, backgroundColor: b.open ? ink.pillOpen : ink.pill }]}>
+        <View key={`n-${b.index}`} style={[touches.none, styles.pill, { left: Math.max(b.from * bw, 0) + 3, backgroundColor: b.open ? ink.pillOpen : ink.pill }]}>
           <Text style={[styles.pillText, { color: b.open ? ink.pillOpenText : ink.pillText }]} maxFontSizeMultiplier={1.3}>{formatNumber(b.n)}</Text>
         </View>
       ))}
-      <View style={styles.bars} pointerEvents="none">
+      <View style={[touches.none, styles.bars]}>
         {bars.map((bar, i) => (
           <BarSlot key={i} level={percent(bar.db)} quiet={bar.quiet === null ? null : percent(bar.quiet)} color={ink.bar[bar.kind]} band={ink.band} />
         ))}
@@ -123,9 +125,9 @@ export function LiveParts(props: {
           onDrop={() => props.onDrop?.(b.index)}
           onNudge={(edge, ms) => { const p = s.parts[b.index]!; session?.edge(b.index, edge, (edge === 'from' ? p.from : p.to!) + ms / s.frameMs); props.onMoved?.(b.index); }} />
       )) : null}
-      {headAt !== null && headAt >= 0 && headAt <= size.w ? <View pointerEvents="none" style={[styles.head, { left: headAt - 1, backgroundColor: ink.mark }]} /> : null}
+      {headAt !== null && headAt >= 0 && headAt <= size.w ? <View style={[touches.none, styles.head, { left: headAt - 1, backgroundColor: ink.mark }]} /> : null}
       {editing && s.count > frames ? (
-        <View pointerEvents="none" style={[styles.track, { backgroundColor: ink.band }]}>
+        <View style={[touches.none, styles.track, { backgroundColor: ink.band }]}>
           <View style={[styles.thumb, { backgroundColor: ink.mark, left: `${((end - frames) / s.count) * 100}%`, width: `${Math.max(4, (frames / s.count) * 100)}%` }]} />
         </View>
       ) : null}
@@ -153,8 +155,8 @@ function BoxTools(props: { box: LiveBox; bw: number; size: { w: number; h: numbe
   const x = dropSpot(x0, x1, size);
   return (
     <>
-      {[x0, x1].map((ex, i) => ex >= 0 && ex <= size.w ? <View key={i} pointerEvents="none" style={[styles.handle, { left: ex - 3.5, top: size.h / 2 - 16, backgroundColor: ink.mark }]} /> : null)}
-      <View pointerEvents="none" style={[styles.drop, { left: x.cx - XS / 2, top: x.cy - XS / 2, backgroundColor: ink.mark }]}>
+      {[x0, x1].map((ex, i) => ex >= 0 && ex <= size.w ? <View key={i} style={[touches.none, styles.handle, { left: ex - 3.5, top: size.h / 2 - 16, backgroundColor: ink.mark }]} /> : null)}
+      <View style={[touches.none, styles.drop, { left: x.cx - XS / 2, top: x.cy - XS / 2, backgroundColor: ink.mark }]}>
         <Ico name="close" size={14} color={ink.markText} strokeWidth={3} />
       </View>
     </>
@@ -181,9 +183,9 @@ function BoxForReader(props: { box: LiveBox; bw: number; s: LiveState; onPlay: (
     }
   };
   return (
-    <View pointerEvents="none" accessible accessibilityRole="button" accessibilityActions={actions} onAccessibilityAction={act}
+    <View accessible accessibilityRole="button" accessibilityActions={actions} onAccessibilityAction={act}
       accessibilityLabel={t('recording.recorder.partLength', { part: label, length: mmss(((p.toMs ?? 0) - (p.fromMs ?? 0))) })}
-      style={[styles.reader, { left: Math.max(0, props.box.from * props.bw), width: Math.max(6, (props.box.to - props.box.from) * props.bw) }]} />
+      style={[touches.none, styles.reader, { left: Math.max(0, props.box.from * props.bw), width: Math.max(6, (props.box.to - props.box.from) * props.bw) }]} />
   );
 }
 
@@ -354,7 +356,7 @@ function useBoxPlayer(editing: boolean) {
 const PILL = 20;
 const styles = StyleSheet.create({
   // Time runs left to right in every language.
-  fill: { flex: 1, minHeight: 56, position: 'relative', direction: 'ltr' },
+  fill: { flex: 1, minHeight: 56, position: 'relative', ...alwaysLtr },
   part: { position: 'absolute', top: 0, bottom: 0, borderRadius: radius.md, overflow: 'hidden' },
   pill: { position: 'absolute', top: 3, minWidth: PILL, minHeight: PILL, borderRadius: 5, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
   pillText: { fontSize: T.xs, fontWeight: '800', lineHeight: 16 },

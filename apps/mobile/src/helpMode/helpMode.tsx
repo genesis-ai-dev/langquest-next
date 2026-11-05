@@ -22,6 +22,7 @@ import { Ico } from '../ui/kit';
 import { useHardwareBack } from '../ui/useHardwareBack';
 import { lift } from '../ui/shadow';
 import { C, radius, space } from '../ui/theme';
+import { touches } from '../ui/touches';
 
 /**
  * A distance from the left edge as a style. Positions here are measured on
@@ -344,7 +345,7 @@ function HelpLayer(props: {
   const n = props.current ? props.numbers.get(props.current) : undefined;
   return (
     <>
-      <View ref={root} style={StyleSheet.absoluteFill} pointerEvents="none"
+      <View ref={root} style={[touches.none, StyleSheet.absoluteFill]}
         onLayout={(e) => {
           const { width, height } = e.nativeEvent.layout;
           root.current?.measureInWindow((x, y) => setFrame({ x, y, width, height }));

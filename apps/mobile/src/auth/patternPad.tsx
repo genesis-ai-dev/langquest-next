@@ -11,6 +11,7 @@ import { Text } from '../ui/text';
 import { C, radius, space } from '../ui/theme';
 import { addDot, dotAt, dotsAtDrag, MIN_DOTS, PICTURES } from '../session/lockModel';
 import { a11yState } from '../ui/a11yModel';
+import { touches } from '../ui/touches';
 
 /**
  * Nine dots to draw a pattern on, as on the Android lock screen (decisions.md
@@ -110,20 +111,22 @@ export function PatternPad(props: { onDone: (dots: number[]) => void; disabled?:
       <View style={styles.pad} onLayout={(e: LayoutChangeEvent) => setSize(e.nativeEvent.layout.width)} {...pan.panHandlers}
         accessibilityLabel={t('shell.pattern.label', { n: MIN_DOTS })} testID="pattern-pad">
         {size > 0 ? (
-          <Svg width={size} height={size} pointerEvents="none">
-            {dots.slice(1).map((d, i) => {
-              const [a, b] = [at(dots[i]!), at(d)];
-              return <Line key={`l${i}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={lineColor} strokeWidth={6} strokeLinecap="round" />;
-            })}
-            {finger && last !== undefined ? (
-              <Line x1={at(last).x} y1={at(last).y} x2={finger.x} y2={finger.y} stroke={lineColor} strokeWidth={6} strokeLinecap="round" opacity={0.5} />
-            ) : null}
-            {Array.from({ length: 9 }, (_, d) => {
-              const p = at(d);
-              const on = dots.includes(d);
-              return <Circle key={d} cx={p.x} cy={p.y} r={on ? 16 : 10} fill={on ? lineColor : C.faint} />;
-            })}
-          </Svg>
+          <View style={touches.none}>
+            <Svg width={size} height={size}>
+              {dots.slice(1).map((d, i) => {
+                const [a, b] = [at(dots[i]!), at(d)];
+                return <Line key={`l${i}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={lineColor} strokeWidth={6} strokeLinecap="round" />;
+              })}
+              {finger && last !== undefined ? (
+                <Line x1={at(last).x} y1={at(last).y} x2={finger.x} y2={finger.y} stroke={lineColor} strokeWidth={6} strokeLinecap="round" opacity={0.5} />
+              ) : null}
+              {Array.from({ length: 9 }, (_, d) => {
+                const p = at(d);
+                const on = dots.includes(d);
+                return <Circle key={d} cx={p.x} cy={p.y} r={on ? 16 : 10} fill={on ? lineColor : C.faint} />;
+              })}
+            </Svg>
+          </View>
         ) : null}
         {/* Each dot can also be reached by a screen reader, in reading order. */}
         {size > 0 ? Array.from({ length: 9 }, (_, d) => {
@@ -131,9 +134,9 @@ export function PatternPad(props: { onDone: (dots: number[]) => void; disabled?:
           return (
             // help-ignore: reached by a screen reader only (no finger gets past pointerEvents); help mode explains the pad as a whole
             <Pressable key={`a${d}`} accessible accessibilityRole="button" accessibilityLabel={t('shell.pattern.dot', { n: d + 1 })}
-              {...a11yState({ selected: dots.includes(d) }, 'button')} pointerEvents="none"
+              {...a11yState({ selected: dots.includes(d) }, 'button')}
               onAccessibilityTap={() => tapDot(d)} onPress={() => tapDot(d)}
-              style={[styles.hit, { left: p.x - cell / 2, top: p.y - cell / 2, width: cell, height: cell }]} />
+              style={[touches.none, styles.hit, { left: p.x - cell / 2, top: p.y - cell / 2, width: cell, height: cell }]} />
           );
         }) : null}
         {helping ? (
