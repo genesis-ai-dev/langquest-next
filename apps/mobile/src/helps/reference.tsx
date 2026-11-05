@@ -30,6 +30,7 @@ import { saveNote } from '../study/studyActions';
 import { C, onColor, radius, space, target, TINT, type as T } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
 import { joinAnd, languageLabel } from '../admin/adminModel';
+import { BibleSheet, type Bible } from './BibleSheet';
 import { OthersSay, WhereItIs, WordChip } from './helps';
 import { keyLabel, keyTouches, othersSay, suggestedWords } from './helpsModel';
 import { useOtherLanguageTerms } from '../reference/useOtherLanguageTerms';
@@ -39,7 +40,6 @@ import { styles as ps } from '../recording/blockStyles';
 import { useClip } from '../audio/useClip';
 import { noteLabel } from './referenceText';
 import { useNoteStep } from '../checks/useNoteStep';
-import type { useBible } from './useBible';
 import { draftKey, EMPTY_NOTE, isNoteDraft, isRecord } from '../drafts/draftModel';
 import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
@@ -53,8 +53,6 @@ import { useFollowVerse } from './useFollowVerse';
 const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
 
 // ---- the Bible --------------------------------------------------------------------------
-
-export type Bible = ReturnType<typeof useBible>;
 
 /** The Bible chip: the player card, then the verses with the one playing lit (a-wsHalf). */
 export function BiblePane(props: {
@@ -305,43 +303,6 @@ function BiblePick(props: { label: string; onPress: () => void }) {
       style={({ pressed }) => [styles.pick, pressed && ps.pressed]}>
       <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]} numberOfLines={1}>{props.label}</Text>
       <Ico name="down" size={16} color={TINT.amberText} strokeWidth={2.6} />
-      <HelpBadge spot={spot} />
-    </Pressable>
-  );
-}
-
-/** Choose a Bible for the passage: the ones offered here, with what each has. */
-export function BibleSheet(props: { ctx: Ctx; bible: Bible; onClose: () => void; onMoreBibles?: () => void }) {
-  const { bible } = props;
-  const marks = useChipMarks(props.ctx, bible.passage);
-  return (
-    <Sheet visible title={t('reference.bible.choose')} sub={t('reference.bible.chooseSub')} onClose={props.onClose}>
-      <View style={styles.card}>
-        {bible.passage.options.map((o, i, all) => (
-          <HelpRow key={o.itemId} of="reference.bible">
-            <BibleRow label={chipLabel(o, all)} sub={[o.name, languageLabel(o.language), ...(marks[o.itemId] ?? [])].filter(Boolean).join(' · ')} on={o.itemId === bible.option?.itemId}
-              help={o.itemId === bible.option?.itemId ? t('reference.bible.rowOnHelp') : t('reference.bible.rowHelp')}
-              last={i === all.length - 1 && !props.onMoreBibles} onPress={() => { bible.choose(o); props.onClose(); }} />
-          </HelpRow>
-        ))}
-        {props.onMoreBibles ? <BibleRow label={t('sources.reader.moreBibles')} sub={t('reference.bible.moreBiblesSub')} more last onPress={props.onMoreBibles} /> : null}
-      </View>
-    </Sheet>
-  );
-}
-
-function BibleRow(props: { label: string; sub: string; on?: boolean; more?: boolean; last?: boolean; onPress: () => void;
-  /** What help mode says picking it does, where `sub` is what it has. */ help?: string }) {
-  const spot = useHelpSpot(props.label, props.help ?? props.sub, props.onPress);
-  return (
-    <Pressable onPress={spot.onPress} accessibilityRole={props.more ? 'button' : 'radio'} {...a11yState(props.more ? undefined : { selected: !!props.on }, props.more ? 'button' : 'radio')}
-      style={({ pressed }) => [styles.bibleRow, !props.last && ps.rowBorder, pressed && ps.pressed]}>
-      <Ico name={props.more ? 'plus' : 'book'} size={20} color={C.primary} />
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[txt.body, { fontWeight: '700', color: props.more ? C.primary : C.dark }]}>{props.label}</Text>
-        <Text style={txt.xs}>{props.sub}</Text>
-      </View>
-      {props.on ? <Ico name="check" size={20} color={C.primary} strokeWidth={3} /> : null}
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -928,7 +889,6 @@ const styles = StyleSheet.create({
   under: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm, marginTop: 2 },
   pick: { minHeight: 40, paddingHorizontal: space.md, borderRadius: radius.full, borderWidth: 1.5, borderColor: TINT.noteBorder, backgroundColor: TINT.note,
     flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 110 },
-  bibleRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row, paddingHorizontal: space.lg, paddingVertical: space.sm },
   bar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm + 2, paddingHorizontal: space.lg, backgroundColor: C.card, borderBottomWidth: 1, borderColor: C.border },
   termRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 56, paddingHorizontal: space.sm, paddingVertical: space.xs },
   hear: { width: target.min, height: target.min, alignItems: 'center', justifyContent: 'center' },

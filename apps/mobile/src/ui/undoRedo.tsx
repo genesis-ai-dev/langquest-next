@@ -2,6 +2,7 @@ import { StyleSheet, View } from 'react-native';
 import { t } from '../i18n';
 import { IconBtn } from './kit';
 import { C, target } from './theme';
+import { touches } from './touches';
 
 /**
  * Undo and Redo where people build something (decisions 133 and 134; the
@@ -18,7 +19,7 @@ export function UndoRedo(props: UndoRedoProps & { hidden?: boolean; size?: numbe
   const undoLabel = props.undoWhat ? t('common.undoWhat', { what: props.undoWhat }) : t('common.undo');
   const redoLabel = props.redoWhat ? t('common.redoWhat', { what: props.redoWhat }) : t('common.redo');
   return (
-    <View style={[styles.row, props.hidden && { opacity: 0 }]} pointerEvents={props.hidden ? 'none' : 'auto'}
+    <View style={[props.hidden ? touches.none : touches.auto, styles.row, props.hidden && { opacity: 0 }]}
       accessibilityElementsHidden={props.hidden} importantForAccessibility={props.hidden ? 'no-hide-descendants' : 'auto'}>
       <IconBtn name="undo" testID="undo" label={undoLabel} help={props.help.undo} bg="transparent" color={C.dark} size={size}
         disabled={!props.canUndo} onPress={props.onUndo} />

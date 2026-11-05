@@ -15,6 +15,7 @@ import { HelpBadge, HelpQuiet, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { Ico } from '../ui/kit';
 import { C, radius } from '../ui/theme';
+import { alwaysLtr } from '../ui/alwaysLtr';
 
 /** How far an open row stands aside: the bin's width. */
 export const BIN = 72;
@@ -195,7 +196,7 @@ const styles = StyleSheet.create({
   box: { overflow: 'hidden' },
   last: { borderBottomLeftRadius: radius.lg - 1, borderBottomRightRadius: radius.lg - 1 },
   // Left to right in every language: the row slides by screen distance, so the bin it shows is the one on that side.
-  under: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.red, flexDirection: 'row', justifyContent: 'space-between', direction: 'ltr' },
+  under: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.red, flexDirection: 'row', justifyContent: 'space-between', ...alwaysLtr },
   bin: { width: BIN, alignItems: 'center', justifyContent: 'center' },
   face: { backgroundColor: C.card }
 });
