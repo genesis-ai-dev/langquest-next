@@ -29,7 +29,7 @@ only before the QR screen. The QR screen confirms the chosen role.
    Both validate authorization inside their handlers. Their function config
    disables the gateway's legacy JWT verification.
 4. Set a random `PUSH_DELIVERY_SECRET` in the root `.env.<environment>`
-   (`npm run env:update -- <environment> PUSH_DELIVERY_SECRET "$(openssl rand -hex 32)"`).
+   (`openssl rand -hex 32 | npm run --silent env:update -- <environment> PUSH_DELIVERY_SECRET`).
 5. Run `npm run secrets -- <environment>`. It sets that secret as an
    Edge Function secret and in Vault as `langquest_push_delivery_secret`,
    stores the project URL in Vault as `langquest_project_url`, and runs the

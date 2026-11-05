@@ -95,7 +95,7 @@ import { useWorkingLanguage } from './src/shell/useWorkingLanguage';
 import { useReadOnlyHandles } from './src/shell/useReadOnlyHandles';
 import { ReadOnlyContext } from './src/session/useReadOnly';
 import { wireBase } from './src/shell/wiring';
-import { DisguiseGate } from './src/disguise/DisguiseGate';
+import { AppCover } from './src/shell/AppCover';
 
 // What the base folders need from folders above them (decisions.md 105), once, before anything draws.
 wireBase();
@@ -361,8 +361,8 @@ export default function App() {
   const appVersion = useAppVersion(!!auth);
   return (
     <SafeAreaProvider>
-      {/* A disguised phone opens on its calculator or notepad, before sign-in and everything else (decisions.md 171). */}
-      <DisguiseGate>
+      {/* On Android, a disguised phone opens on its calculator or notepad, before sign-in and everything else (decisions.md 171). */}
+      <AppCover>
       <SafeAreaView style={styles.root}>
         <StatusBar style="dark" />
         <UpdateBanner />
@@ -383,7 +383,7 @@ export default function App() {
           </ErrorBoundary>
         )}
       </SafeAreaView>
-      </DisguiseGate>
+      </AppCover>
     </SafeAreaProvider>
   );
 }

@@ -31,6 +31,12 @@ describe('the browser voice', () => {
     expect(voiceFor('zh-Hans', voices)?.lang).toBe('zh-CN');
     expect(voiceFor('zh-Hans', [{ lang: 'zh-TW' }, { lang: 'zh-HK' }])).toBeUndefined();
   });
+
+  it('reads Tagalog with a voice tagged fil or tl', () => {
+    expect(voiceFor('fil', [...voices, { lang: 'fil-PH' }])?.lang).toBe('fil-PH');
+    expect(voiceFor('fil', [...voices, { lang: 'tl_PH' }])?.lang).toBe('tl_PH');
+    expect(voiceFor('fil', voices)).toBeUndefined();
+  });
 });
 
 describe('numbering the parts', () => {

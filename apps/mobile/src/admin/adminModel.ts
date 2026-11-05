@@ -514,6 +514,7 @@ export function languageLabel(code: string | null | undefined): string {
     case 'ben': return t('admin.languageNames.ben');
     case 'npi': case 'nep': return t('admin.languageNames.npi');
     case 'mya': return t('admin.languageNames.mya');
+    case 'tgl': case 'fil': return t('admin.languageNames.tgl');
     case 'tpi': return t('admin.languageNames.tpi');
     case 'bis': return t('admin.languageNames.bis');
     case 'tir': return t('admin.languageNames.tir');

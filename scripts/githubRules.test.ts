@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ACTIONS_PERMISSIONS, jobNeeds, matches, pullRequestJobs, readRulesets, requiredContexts } from './github-rules.mjs';
+import { ACTIONS_PERMISSIONS, LABELS, jobNeeds, matches, pullRequestJobs, readRulesets, requiredContexts } from './github-rules.mjs';
+import { REPLACE_LABEL } from './store-choice.mjs';
 
 /**
  * main takes a merge only when the guardrails `gate` job is green
@@ -78,5 +79,16 @@ describe('what workflows may do with their built-in token', () => {
 
   it('runs guardrails when a draft is marked Ready for review', () => {
     expect(guardrails).toMatch(/^ {2}pull_request:\n(?: {4}#.*\n)* {4}types: \[opened, synchronize, reopened, ready_for_review\]$/m);
+  });
+});
+
+describe('the labels that something reads', () => {
+  it('include the one that asks a merge\'s store builds to replace the ones in review', () => {
+    const labels = JSON.parse(readFileSync(LABELS, 'utf8')) as { name: string; color: string; description: string }[];
+    expect(labels.map((l) => l.name)).toContain(REPLACE_LABEL);
+    for (const l of labels) {
+      expect(l.color, l.name).toMatch(/^[0-9a-f]{6}$/);
+      expect(l.description.length, `${l.name}: GitHub takes 100 characters`).toBeLessThanOrEqual(100);
+    }
   });
 });

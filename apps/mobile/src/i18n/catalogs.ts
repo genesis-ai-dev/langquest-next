@@ -19,6 +19,7 @@ export function loadCatalog(code: Exclude<UiLanguage, 'en'>): object | null {
     case 'zh-Hans': return require('./zh-Hans.json');
     case 'th': return require('./th.json');
     case 'my': return require('./my.json');
+    case 'tl': return require('./tl.json');
   }
 }
 

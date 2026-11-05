@@ -15,7 +15,7 @@
 // as apps/mobile/src/helpMode/helpAudio.ts computes it on the phone.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 type Tree = { [k: string]: string | Tree };
@@ -44,8 +44,20 @@ export function helpLines(language: string, catalog: Tree): { key: string; text:
 
 const csv = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
 
+/** The app's words in a language, with the Android disguise's, kept apart so an iPhone build has none (decisions.md 171). */
 function catalogOf(language: string): Tree {
-  return JSON.parse(readFileSync(join('apps/mobile/src/i18n', `${language}.json`), 'utf8')) as Tree;
+  const own = JSON.parse(readFileSync(join('apps/mobile/src/i18n', `${language}.json`), 'utf8')) as Tree;
+  const disguise = join('apps/mobile/src/disguise/i18n', `${language}.json`);
+  return existsSync(disguise) ? merged(own, JSON.parse(readFileSync(disguise, 'utf8')) as Tree) : own;
+}
+
+function merged(a: Tree, b: Tree): Tree {
+  const out: Tree = { ...a };
+  for (const [k, v] of Object.entries(b)) {
+    const here = out[k];
+    out[k] = typeof v === 'object' && typeof here === 'object' ? merged(here, v) : v;
+  }
+  return out;
 }
 
 function wrangler(args: string[], input?: string): string {

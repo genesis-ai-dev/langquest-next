@@ -3050,6 +3050,14 @@ by the database (the Inbox shows its own words by kind).
 Reverse if: translators need to change words between app releases (then the
 library localization), or people want their language to follow them to
 other devices (then an event in the person stream).
+Amended (2026-11-04, Caleb Koster): Tagalog (`tl`) is the sixteenth language
+(LAN-223), a machine translation released as approved, as the first fourteen
+were. Phones and browsers call it Filipino, so its locale is `fil` (iOS's
+folder, `Intl` dates, numbers and plurals) while Android's folder is
+`values-tl` and the library's code `tgl`. Its invite email, web pages, Bible
+book names, library labels and YouTube words come with it. It has no YouTube
+channel yet, so it stays out of `CHANNELS` (`server/youtube.ts`): no video
+description links to it and none is filmed in it until the channel exists.
 
 ## 82. A recorded part keeps how it relates to its neighbours, and its verse numbers are worked out down the list
 
@@ -7267,6 +7275,15 @@ costs more than asking people to update (then raise the minimum app version
 sooner), or a call that phones make is missed because it is built at run
 time (then name it in a list that the check reads).
 
+Amended (2026-11-05, Caleb Koster): a release branch (decision 155) deploys
+no server, so on a release branch, or on a copy onto one, the check reads
+main's server (from git) instead of the branch's own, and also checks the
+calls in the branch's own code. The first iPhone catch-up (PR 344) failed
+because the release branch's server, from 2026-10-28, did not have the
+password-reset Edge Function or the /api/source-audio route that main's
+OTA updates use. Each copy takes this check from main (decision 155's
+`MACHINERY`).
+
 ## 152. A pull request that changes the database runs the sync test from every supported store build's commit against it
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted
@@ -7470,6 +7487,82 @@ the platforms that keep a branch: no public iPhone build takes OTA updates
 from main yet (build 36, 1.0, runs code of 2026-10-16), so an iPhone branch
 would only feed TestFlight.
 
+Amended (2026-11-05, Caleb Koster): Caleb asked that every older build that
+can run a merge gets it, iPhone included, that Claude finishes copies with
+his Claude plan's token, and that the ops dashboard shows the same pull
+request in each build that has it. So:
+- iPhone keeps a branch again. App Store build 45 (2026.1026.1817) is public
+  and takes OTA updates, and has had none since PR 259 changed the iPhone
+  fingerprint on 2026-10-28. The workflow no longer sets
+  `RELEASE_BRANCH_PLATFORMS`, so both platforms keep branches. The new
+  iPhone builds made while iPhone kept none are listed in
+  `scripts/release-rebuilds.json`, and each run tags any that lacks its tag.
+  Every hour, a platform with no branch whose store shows a build older than
+  a newer one gets a branch, from the commit before the first new build that
+  is not public, and one copy pull request catches it up on every merge
+  since ("catch the public iPhone build up on N merges from main").
+- Only a merge that changes what the phone app runs is copied: files in
+  `apps/mobile` other than its tests, scripts, website files and EAS
+  settings, the sources of `packages/core` and `packages/sync`, and the
+  `package.json` files. A merge for the website, the ops dashboard, the
+  server, tests or docs sent the public build its own code again, and its
+  copy could only conflict (PRs 336, 338 and 340 on 2026-11-05).
+- A conflict in a file outside the phone app and its tests (docs and this
+  log, scripts, the server, the website, tutorial filming) keeps the release
+  branch's version, so Claude gets only conflicts in the app. A trial of the
+  iPhone catch-up on 2026-11-05 copied 15 of its 22 merges on its own; 7 need
+  Claude.
+- Each copy first takes main's release workflows, this script and its test
+  (`MACHINERY`): a pull request runs its own branch's workflows, so a branch
+  started from an older commit ran the older conflict step.
+- Every hour, a branch that serves another build than the public one starts
+  again (`servesAnother`): the first new build after its start must be the
+  first one that is not public. `release/android` started on 2026-11-03
+  from PR 322's merge (Android fingerprint e3bff02c), as PRs 322 and 319
+  both needed a new build a minute apart, while Google Play showed build 48
+  (80d370c0); none of its copies since reached build 48's phones.
+- Claude signs in with `CLAUDE_CODE_OAUTH_TOKEN`, a Claude plan's token as
+  the nightly jobs use, or with `ANTHROPIC_API_KEY`.
+- The ops dashboard shows a copied pull request in each build that has it:
+  from main in the new build, and in the public build as a copy named with
+  its copy pull request, first as "PR open, not merged yet" while the copy
+  is open. No person merges a copy, so nobody would hear of one that is
+  stuck: a copy whose tests failed, or that has been open for 3 hours, is a
+  problem under Needs attention, linked to the copy.
+
+Amended (2026-11-05, Caleb Koster): the first iPhone catch-up (PR 344) did
+not start Claude, and its checks failed, so the ops dashboard asked Caleb to
+fix it. Caleb asked that a copy whose tests fail need no person, and that
+Claude examine every copy before it merges: a copy that applies without a
+conflict may still change a feature that only the newer build has. So:
+- Every copy is labelled copy-claude (and copy-conflict when it stopped at a
+  conflict), which starts Claude. Claude finishes the copy, examines each
+  copied change against the release branch's code, takes out each part
+  that does not fit the public build (it changes or needs a feature that
+  only the newer build has), comments one line for each commit (copied,
+  copied in part, or left out, and why), and closes a copy of which no part
+  fits. Only Claude turns on auto-merge; the script no longer does. Without
+  a Claude token, a copy without a conflict merges itself as before.
+- Claude's action turns away any bot it is not told to allow, and the
+  release App labels the copies, so `allowed_bots` names the App.
+- A copy runs its own branch's workflows and scripts. Every hour, each open
+  copy whose release workflows or scripts differ from main's takes main's
+  (`freshenCopies`), so its checks run again with them, and one labelled
+  copy-claude or copy-conflict is labelled copy-claude again so that Claude
+  starts with them. The
+  server-calls check is now part of `MACHINERY` (decision 151 amended).
+- Every hour, a copy whose `gate` check failed, and that neither Claude nor
+  a person works on, gets Claude: the run comments ("The checks of this copy
+  failed …, try N of 3") and labels it copy-claude. Claude reads the failed
+  checks, fixes them and never skips, disables or weakens a test; a change
+  that needs code the public build does not have is left out. After 3
+  tries, the copy is labelled copy-needs-person.
+- The ops dashboard says "waits for Claude to examine it", or "failed its
+  tests, and Claude is fixing them" (or "starts fixing them within the
+  hour"), and asks for a person under Needs
+  attention only after Claude's 3 tries, or when the copy has been open for
+  3 hours.
+
 
 ## 156. Store builds come only from the EAS workflow on merges into main
 
@@ -7616,6 +7709,40 @@ by hand that evening, Apple closed the submission, and the version became
 Developer Rejected with its build free to change. The step now does the
 same (`PATCH /v1/reviewSubmissionItems/{id}` with `removed: true`) and
 deletes nothing.
+
+Amended (2026-11-04, Caleb Koster; LAN-223): a new build waits while
+another is in review, on both stores, unless its pull request asks to
+replace it. Caleb asked that a merge never restart a review by itself, and
+that developers choose per pull request. On Google Play a newer production
+release sent during a review takes its place and starts the review over,
+so Android builds now go to the `internal` track (`eas.json`,
+`submit.internal`), and `scripts/play-review.mjs` sends the newest one to
+production review, with `releaseStatus: completed` as before, only when
+nothing is in review. It runs right after the upload and every hour
+(`.eas/workflows/app-store-review.yml`). Google's API cannot say whether a
+release is in review (it calls a release completed once sent), so the step
+compares the newest production release's version name with the version
+Play's public page shows, which changes only once Google approves; a
+release that the page does not show yet is in review, and while the page
+cannot be read the build waits. A release Google rejected looks the same,
+so the build waits until a person acts in Play Console. The step needs a
+Play service account key with "Release to production", `PLAY_REVIEW_KEY`
+in `.env.production`, which `npm run secrets -- production --only eas`
+puts in EAS's production environment (`docs/environments.md`, The Play
+key); until it is there, Android builds wait in internal testing for a
+person to promote them, and the step succeeds. A pull request labelled
+`store: replace review` asks for the opposite
+(`scripts/store-choice.mjs`, read from GitHub's public API by the merge
+commit, or by the minute a store version names): its Android build goes
+straight to production, and its iPhone build cancels a review that is
+waiting or under way (`PATCH /v1/reviewSubmissions/{id}` with `canceled:
+true`, which leaves the version Developer Rejected) and takes that
+version's place. A label that cannot be read means wait. Internal testers
+get each Android build before the public again. The ops dashboard's
+Releases section draws where each build and update is now
+(`apps/admin/src/sources/pipeline.ts`, docs/admin.md). Reverse if: reviews are
+fast enough that a restarted one costs less than a build that waits, then
+send every build straight to production again.
 
 ## 158. Global Viewers read every organization, read-only, and only on a session verified with an authenticator
 
@@ -8480,6 +8607,37 @@ itself. Android's build is unchanged (`expo prebuild` writes the same Android
 project), and the iPhone pictures stay in `assets/disguise`. Reverse if: the
 App Review Board allows the icons (then the iPhone gets the disguise back,
 and the App Review notes describe it again).
+
+Amended (2026-11-05, Caleb Koster): an iPhone build carries nothing of the
+disguise, not even its words. Apple refused build 50 (2026.1103.2251) on
+2026-11-05 under 2.5.19 with the same letter, from "code in the submitted
+binary". Build 50 had no other icon and no native module, but it still
+carried the disguise's words in the app's catalogs (all 16 languages, such as
+"Makes LangQuest look like a calculator or a notepad on this phone"),
+Android's ten icon names and their pictures' paths in the settings Expo copies
+into every build (app.json's options for `./plugins/withAndroidAppIcons`),
+and the iPhone's stand-in files in `src/disguise`. Caleb's call of 2026-11-03
+(no calculator or notepad on iPhone) meant all of that, so:
+- The disguise's words are in `src/disguise/i18n`, not `src/i18n`;
+  `src/disguise/disguiseWords.ts` adds them to the language showing
+  (`addWords`), and only Android's files import it.
+- App.tsx and More settings reach the disguise through `src/shell/AppCover`,
+  `AppIconRow` and `useNotificationsOffered`: their `.android` files import
+  `src/disguise`, their own files (iPhone and web) are empty. The `.ios` and
+  `.web` files in `src/disguise` are gone, and `AppIconRow.tsx` is the web's
+  empty row that the 2026-10-29 amendment relies on.
+- `./plugins/withAndroidAppIcons` holds the icon list and names each alias
+  (it took in `./plugins/withDisguiseIcons`), so app.json names only the
+  plugin. `expo prebuild` writes the same Android project as before.
+- An iPhone no longer clears what build 45 kept: no iPhone ran a build that
+  did, since build 50 was refused. An iPhone build that has the disguise
+  again must not take that up as its own.
+This is not hiding it: the iPhone app does not have the feature, and the code
+names it plainly, as before. `test/disguiseIphone.test.ts` follows every
+import an iPhone build bundles and fails on a file of `src/disguise`, or a
+name, string or word of the disguise there, in its catalogs, or in the
+settings Expo embeds; an export of the iPhone app (`expo export --platform
+ios`) had none on 2026-11-05. Android is unchanged.
 
 ## 172. FIA's key words are a key-word list per language, picked apart from FIA's guides, shown where a passage links or says them, and every reference list can be searched
 
@@ -9612,8 +9770,9 @@ tab held only the one wide film (See reports on the web). Decided:
   goes up (`ops_tutorials_due`, migration `*_tutorial_newest_due.sql`): a
   tall version chosen before is not put up once a wide one is made.
 - **A channel's home page** (`server/youtube.ts` `setHome`), as BibleProject
-  and others lay theirs out: under the trailer, a row of the other 14
-  LangQuest channels, then a row for each of its playlists, everyone's
+  and others lay theirs out: under the trailer, the other 14 LangQuest
+  channels in two rows of 7 (a row shows no more than 12; amended
+  2026-11-03, when Burmese and Chinese were missing), then a row for each of its playlists, everyone's
   first (`server/youtubePlaylists.ts` `HOME_ORDER`). The publish job
   brings the rows up to date each run (2 of the day's 10,000 units when
   nothing changed); Connect lays them out at once.

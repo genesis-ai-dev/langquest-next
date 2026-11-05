@@ -404,7 +404,7 @@ interface TutorialsRow {
   published: { language: string; videos: number; latestAt: string }[];
 }
 
-/** The 15 channels in CHANNELS's order with what the database knows of each. */
+/** Every channel in CHANNELS's order with what the database knows of each. */
 export function tutorialsOf(row: TutorialsRow): Tutorials {
   const languages = Object.keys(CHANNELS) as ChannelLanguage[];
   return {

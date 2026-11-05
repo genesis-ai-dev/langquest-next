@@ -59,9 +59,29 @@ export function isRtl(): boolean {
   return languageInfo(currentLanguage()).dir === 'rtl';
 }
 
+/** The catalogs handed to i18next so far: a language may already hold other words (addWords). */
+const added = new Set<string>([SOURCE_LANGUAGE]);
+
 /** Hands a catalog to i18next; `start.ts` loads it from the bundle, tests from disk. */
 export function addCatalog(code: UiLanguage, catalog: object) {
-  if (!i18next.hasResourceBundle(code, 'translation')) i18next.addResourceBundle(code, 'translation', catalog, true, true);
+  if (added.has(code)) return;
+  added.add(code);
+  i18next.addResourceBundle(code, 'translation', catalog, true, true);
+}
+
+/**
+ * Words kept apart from the catalogs here, for a part of the app that not
+ * every build has: the Android phone's disguise (src/disguise/i18n,
+ * decisions.md 171), which an iPhone build leaves out with its words. They
+ * join the language showing now and each one shown after it.
+ */
+export function addWords(wordsFor: (code: UiLanguage) => object | null) {
+  const add = (code: string) => {
+    const words = wordsFor(code as UiLanguage);
+    if (words) i18next.addResourceBundle(code, 'translation', words, true, true);
+  };
+  add(currentLanguage());
+  i18next.on('languageChanged', add);
 }
 
 /** Show the app in this language from now on (its catalog must be added first). */

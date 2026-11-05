@@ -65,9 +65,9 @@ describe('a video\'s look', () => {
 });
 
 describe('a video on YouTube', () => {
-  it('has a playlist for each group in every app language, and a channel', () => {
+  it('has a playlist for each group and a channel in every app language', () => {
     expect(Object.keys(PLAYLISTS).sort()).toEqual(UI_LANGUAGES.map((l) => l.code).sort());
-    expect(Object.keys(CHANNELS).sort()).toEqual(Object.keys(PLAYLISTS).sort());
+    expect(UI_LANGUAGES.map((l) => l.code).filter((c) => !Object.hasOwn(CHANNELS, c))).toEqual([]);
     for (const titles of Object.values(PLAYLISTS)) for (const t of Object.values(titles)) expect(t.length).toBeLessThanOrEqual(150);
     expect(Object.keys(OTHER_LANGUAGES).sort()).toEqual(Object.keys(PLAYLISTS).sort());
   });
@@ -104,7 +104,7 @@ describe('a video on YouTube', () => {
     expect(links.slice(1)).toEqual(UI_LANGUAGES.filter((l) => l.code !== 'es' && l.code !== 'ar').map((l) => `${l.name}: ${watchLink(l.code, 'record-a-passage')}`));
     expect(links[1]).toBe(`English: ${APP_LINK}/v/en/record-a-passage`);
     expect(downloadLink('zh-Hans', 'record-a-passage')).toBe(`${APP_LINK}/v/zh-Hans/record-a-passage.mp4`);
-    expect(Object.keys(WORDS).sort()).toEqual(Object.keys(CHANNELS).sort());
+    expect(Object.keys(WORDS).sort()).toEqual(Object.keys(PLAYLISTS).sort());
   });
 
   it('keeps within what YouTube takes', () => {
@@ -114,6 +114,6 @@ describe('a video on YouTube', () => {
     expect(long.description.startsWith('ह')).toBe(true);
     expect(long.description).toContain(`LangQuest: ${APP_LINK}`);
     expect(long.description).toContain(downloadLink('hi', 'record-a-passage'));
-    expect(long.description.endsWith(watchLink('my', 'record-a-passage'))).toBe(true);
+    expect(long.description.endsWith(watchLink('tl', 'record-a-passage'))).toBe(true);
   });
 });

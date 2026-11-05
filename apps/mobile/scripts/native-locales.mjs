@@ -2,12 +2,14 @@
 // questions) in each language, from the catalogs' `native` area, into
 // locales/<language>.json, which app.json's `locales` names (a new build).
 // Run after changing those words: node apps/mobile/scripts/native-locales.mjs
+// iOS names a language as the phone does: Portuguese (Brazil) is pt-BR and
+// Tagalog is Filipino, fil.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = join(import.meta.dirname, '..');
-const LPROJ = { pt: 'pt-BR' };
-const languages = ['es', 'pt', 'fr', 'ar', 'sw', 'ha', 'am', 'hi', 'bn', 'ne', 'id', 'zh-Hans', 'th', 'my'];
+const LPROJ = { pt: 'pt-BR', tl: 'fil' };
+const languages = ['es', 'pt', 'fr', 'ar', 'sw', 'ha', 'am', 'hi', 'bn', 'ne', 'id', 'zh-Hans', 'th', 'my', 'tl'];
 mkdirSync(join(root, 'locales'), { recursive: true });
 const app = JSON.parse(readFileSync(join(root, 'app.json'), 'utf8'));
 app.expo.locales = {};

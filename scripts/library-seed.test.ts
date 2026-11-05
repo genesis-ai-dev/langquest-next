@@ -53,7 +53,7 @@ describe('LangQuest library seed', { timeout: 60_000 }, () => {
 
   it('names its templates, numberings, flows and book names in each of the app\'s other languages (decision 195)', () => {
     const sets = build.items.filter((i) => i.kind === 'labels');
-    expect(sets.map((i) => i.itemId)).toEqual(['spa', 'por', 'fra', 'arb', 'swa', 'hau', 'amh', 'hin', 'ben', 'npi', 'ind', 'cmn', 'tha', 'mya'].map((c) => `langquest.labels.${c}`));
+    expect(sets.map((i) => i.itemId)).toEqual(['spa', 'por', 'fra', 'arb', 'swa', 'hau', 'amh', 'hin', 'ben', 'npi', 'ind', 'cmn', 'tha', 'mya', 'tgl'].map((c) => `langquest.labels.${c}`));
     const hindi = new Map((doc(item('langquest.labels.hin').docHash) as LabelsDoc).items.map((i) => [i.itemId, i]));
     expect(hindi.get('langquest.bible.chapters')?.name).toBe('अध्याय के अनुसार');
     expect(hindi.get('langquest.bible.chapters.org-66')?.name).toBe('अध्याय के अनुसार');
