@@ -47,9 +47,10 @@ and production also `DIAG_DATABASE_URL` (read on a laptop by
 `npm run diag -- --hosted`, and by the admin page's Worker through the
 Hyperdrive config `npm run secrets` makes from it). Production may
 also hold the ops dashboard's `ADMIN_*` keys: one read-only token per
-provider, each optional (`docs/admin.md`), and `APP_STORE_REVIEW_KEY`,
+provider, each optional (`docs/admin.md`), `APP_STORE_REVIEW_KEY`,
 the key that sends new iPhone builds to App Review (The App Store key,
-below). It may also hold `BIBLE_BRAIN_ACCESS_KEY`, Faith Comes By
+below), and `PLAY_REVIEW_KEY`, the key that moves new Android builds from
+internal testing to production review (The Play key, below). It may also hold `BIBLE_BRAIN_ACCESS_KEY`, Faith Comes By
 Hearing's key for the Worker's Bible routes (`docs/reference-material.md`). That one is optional: it is not
 in the Worker's `secrets.required`, so a deploy never waits for it, and
 until a person sets it (`npm run env:update -- <env> BIBLE_BRAIN_ACCESS_KEY`,
@@ -70,7 +71,7 @@ declares:
 | admin Worker (production only) | each provider token or key (`ADMIN_*`) when the file has them (`docs/admin.md`). Never the service-role key |
 | Hyperdrive `langquest-next-diag` (production only) | `DIAG_DATABASE_URL`, as the config's connection; the first run makes the config and writes its id into `apps/admin/wrangler.jsonc` to commit (`docs/admin.md`) |
 | GitHub Actions secrets of this repository (production only) | `GEMINI_API_KEY` when the file has it, for the nightly filming of the tutorial videos (`.github/workflows/tutorials.yml`, `docs/tutorial-videos.md`); `CLAUDE_CODE_OAUTH_TOKEN` when it has it, a Claude plan's sign-in for the nightly look at the videos' feedback (`.github/workflows/tutorial-review.yml`, `docs/tutorial-videos.md` "Feedback") and the watch for user issues (`.github/workflows/user-issues.yml`, `docs/diagnostics.md`). The watch also uses the `LINEAR_API_KEY` repository secret that `linear-sync.yml` uses, which this script does not place. Never a production key (`scripts/workflows.test.ts`); needs `gh` signed in |
-| EAS's `production` environment (production only) | `APP_STORE_REVIEW_KEY` when the file has it, as a variable with secret visibility, which only EAS's jobs and builds can read: the App Review step of the EAS workflows (The App Store key, below). Needs `eas` signed in (`npx eas login`) |
+| EAS's `production` environment (production only) | `APP_STORE_REVIEW_KEY` and `PLAY_REVIEW_KEY` when the file has them, as variables with secret visibility, which only EAS's jobs and builds can read: the App Review and Play review steps of the EAS workflows (The App Store key and The Play key, below). Needs `eas` signed in (`npx eas login`) |
 | Edge Function secrets | `INVITE_RELAY_SECRET`, `PUSH_DELIVERY_SECRET` (once `PROJECTION_WORKER_SECRET`, which this unsets), `INVITE_RELAY_URL` (public, derived from the Worker's name) |
 | Vault | `langquest_project_url`, `langquest_push_delivery_secret`; with `WEBHOOK_POKE_SECRET`, also `langquest_webhook_poke_secret` and `langquest_dashboard_url` (public, the app's Worker's route) |
 | pg_cron | the push-delivery job: its migration (`20261026170400_push_delivery_when_waiting.sql`) schedules it, calling the function only when something is waiting, only where Vault already has the secrets, and leaves the projection pass to the Worker's job container, so this runs that migration again |
@@ -104,7 +105,7 @@ never deploys over preview or production.
 
 | Task | Command |
 | --- | --- |
-| Set one value | `npm run env:update -- <env> KEY ['value']`: `EXPO_PUBLIC_*` goes plain into the app's file and on to EAS; anything else is encrypted into `.env.<env>` (asks for the value, hidden, when it is left out) |
+| Set one value | `npm run env:update -- <env> KEY ['value']`: `EXPO_PUBLIC_*` goes plain into the app's file and on to EAS; anything else is encrypted into `.env.<env>` (asks for the value, hidden, when it is left out). Pipe a secret in (`jq -c . key.json \| npm run --silent env:update -- production KEY`), never pass it as an argument: npm prints a script's arguments, so it would land in the terminal and any agent's log (the Play key, 2026-11-05) |
 | Apply secrets | `npm run secrets -- <env>` (shows what differs, asks); `--check` only compares; `--only eas` does either for EAS's secrets alone, with no Supabase or Cloudflare sign-in |
 | Push the app's file to EAS | `npm run env:eas -- push <env>` |
 | Deploy a Worker by hand | `npm run web:deploy[:preview]`, `npm run email:deploy[:preview]` |
@@ -164,7 +165,7 @@ team that owns the app (team `GW63HDZ4G9`, app `6812492008`):
    `npx eas login`), then delete the file:
 
    ```
-   npm run env:update -- production APP_STORE_REVIEW_KEY "$(jq -cn --arg i <issuer id> --arg k <key id> --rawfile p ~/Downloads/AuthKey_<key id>.p8 '{issuerId: $i, keyId: $k, privateKey: $p}')"
+   jq -cn --arg i <issuer id> --arg k <key id> --rawfile p ~/Downloads/AuthKey_<key id>.p8 '{issuerId: $i, keyId: $k, privateKey: $p}' | npm run --silent env:update -- production APP_STORE_REVIEW_KEY
    npm run secrets -- production --only eas
    rm ~/Downloads/AuthKey_<key id>.p8
    ```
@@ -178,15 +179,17 @@ Each run prints a line that starts with what it found:
 | --- | --- |
 | `submit:` | no review was open, so the newest build Apple has processed went to App Review, on its own App Store version, released as soon as Apple approves it |
 | `wait:` | a review is waiting or under way, or an approved version is not out yet; the newest build waits in TestFlight and goes on a later run |
+| `cancel:` | a review is waiting or under way with an older build, and the newest build's pull request was labelled `store: replace review` (Replacing a build in review, below): the review is cancelled and the newest build goes to review on that version. When Apple finishes cancelling a moment late, the next run sends it |
 | `replace:` | Apple rejected a version, and a newer build is processed: the rejected version leaves its rejected submission and goes to review with the newer build and its version number (decisions.md 157, amended 2026-11-03). When Apple closes the submission a moment late, the next run sends it |
 | `held:` | Apple rejected the newest build itself, or a rejected or draft submission in App Store Connect holds something else. Someone reads Apple's message in App Store Connect (App Review), answers it there, and resubmits or removes the version, or the next store build takes its place; after that the step goes on by itself |
 | `stuck:` | the newest build's version number belongs to a version already out, which Apple takes only once, so the run fails. Two store builds of merges in the same minute, or a second build of one merge, share a number; the next store build brings a new one |
 | `none:` | nothing newer than the public build, or nothing processed yet |
 
-It never cancels or changes a review, and never deletes anything. The only
-thing it removes is a rejected version from its rejected submission, when a
-newer build takes its place, as the Remove button on App Store Connect's App
-Review page does. To
+It never deletes anything, and cancels or changes a review only for a
+build whose pull request asked to replace it. The only thing it removes is
+a rejected version from its rejected submission, when a newer build takes
+its place, as the Remove button on App Store Connect's App Review page
+does. To
 replace the key, make a new one the same way, store and apply it, then
 revoke the old one in the same list.
 
@@ -200,12 +203,85 @@ Issuer ID, so leave `issuerId` out, and the step signs as that user
 (`"sub": "user"`):
 
 ```
-npm run env:update -- production APP_STORE_REVIEW_KEY "$(jq -cn --arg k <key id> --rawfile p ~/Downloads/ApiKey_<key id>.p8 '{keyId: $k, privateKey: $p}')"
+jq -cn --arg k <key id> --rawfile p ~/Downloads/ApiKey_<key id>.p8 '{keyId: $k, privateKey: $p}' | npm run --silent env:update -- production APP_STORE_REVIEW_KEY
 ```
 
 An individual key acts with its user's role and apps, and stops working
 if that user leaves the team or loses the role, so replace it with a team
 key once the Integrations page opens.
+
+## The Play key
+
+`PLAY_REVIEW_KEY` is how `scripts/play-review.mjs` moves each new Android
+build from Play's internal testing track to production review when nothing
+is in review there (decisions.md 157, amended 2026-11-04): the JSON key
+file of a Google Cloud service account that Play Console lets release to
+production. It lives encrypted in `.env.production`, and `npm run secrets`
+puts it in EAS's production environment, the only place that reads it: the
+hourly `.eas/workflows/app-store-review.yml` and the `review_android` job
+of `deploy-to-testers.yml`. Without it the step says "no Google Play key
+yet" and succeeds, and Android builds wait in internal testing for a
+person to promote them in Play Console (Test and release > Internal
+testing > Promote release > Production).
+
+To make it, once, as a Play Console admin. It is a service account of its
+own, `play-review`, in a Google Cloud project the team can open
+(`langquest-next-play`): the one EAS submits with,
+`play-console-service-account@langquest-458501.iam.gserviceaccount.com`,
+lives in the project `langquest-458501`, which not every admin's Google
+account can open (Caleb's could not, 2026-11-04).
+
+1. Google Cloud console: create the project `langquest-next-play`, and
+   in it enable the Google Play Android Developer API (APIs & Services >
+   Library).
+2. IAM & Admin > Service accounts > Create service account: `play-review`,
+   no roles. Open it > Keys > Add key > Create new key > JSON. The file
+   downloads once.
+3. Play Console > Users and permissions > Invite new users: the service
+   account's address (it ends in `.iam.gserviceaccount.com`), app
+   permissions for LangQuest Next only: "Release to production, exclude
+   devices, and use Play App Signing". It can do nothing else.
+4. Store it, put it in EAS (signed in with `npx eas login`), then delete
+   the file:
+
+   ```
+   jq -c . ~/Downloads/<file>.json | npm run --silent env:update -- production PLAY_REVIEW_KEY
+   npm run secrets -- production --only eas
+   rm ~/Downloads/<file>.json
+   ```
+
+5. See what the step would do, without sending anything:
+   `npx dotenvx run -f .env.production -fk .env.keys --quiet -- node scripts/play-review.mjs --dry-run`.
+
+Each run prints a line that starts with what it found:
+
+| Line | Means |
+| --- | --- |
+| `promote:` | nothing is in review on Google Play, so the newest build in internal testing went to production review, released to everyone once Google approves it |
+| `wait:` | a production release is newer than the version Google Play's page shows people, so it is in review (or Google rejected it), or the page could not be read; the newest build waits in internal testing and goes on a later run |
+| `none:` | nothing in internal testing is newer than production |
+
+Google's API cannot say whether a release is in review
+(issuetracker.google.com/208842993), so the step compares the newest
+production release's version with the one Play's public page shows. A
+release Google rejected looks the same as one in review: someone fixes it
+in Play Console, or a merge labelled `store: replace review` sends its
+build in its place.
+
+## Replacing a build in review
+
+By default a new store build waits while an older one is in review, on
+both stores, so a review is never restarted. To replace the build in
+review instead (an urgent fix, say), add the label `store: replace review`
+to the pull request before it merges (`scripts/store-choice.mjs`). Its
+Android build then goes straight to production review, which Play reviews
+in place of the release that waited, and its iPhone build cancels the App
+Review that is waiting or under way and goes to review on that version,
+at the back of Apple's line. An approved version on its way out is never
+touched. The label is read from GitHub's public API when the merge's build
+is sent; if it cannot be read, the build waits. The label itself is kept in
+`.github/labels.json`, and `npm run github:rules -- --apply` makes it on
+GitHub.
 
 ## Setting up preview (once)
 
@@ -224,8 +300,8 @@ key once the Integrations page opens.
    - `npm run env:update -- preview EXPO_PUBLIC_SUPABASE_URL https://<ref>.supabase.co`
      and `npm run env:update -- preview EXPO_PUBLIC_SUPABASE_ANON_KEY <anon key>`
 4. **Secrets.**
-   `npm run env:update -- preview INVITE_RELAY_SECRET "$(openssl rand -hex 32)"`,
-   `npm run env:update -- preview PUSH_DELIVERY_SECRET "$(openssl rand -hex 32)"`,
+   `openssl rand -hex 32 | npm run --silent env:update -- preview INVITE_RELAY_SECRET`,
+   `openssl rand -hex 32 | npm run --silent env:update -- preview PUSH_DELIVERY_SECRET`,
    then `npm run secrets -- preview`. That also creates the two `-preview`
    Workers, so their first deploy finds its secrets.
 5. **Cloudflare.** Connect each `-preview` Worker to the repository in Workers

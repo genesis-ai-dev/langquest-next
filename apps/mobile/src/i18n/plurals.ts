@@ -7,14 +7,18 @@
 
 type Category = 'zero' | 'one' | 'two' | 'few' | 'many' | 'other';
 
-interface Operands { n: number; i: number; v: number }
+interface Operands { n: number; i: number; v: number; f: number }
 
 function operands(value: number): Operands {
   const n = Math.abs(value);
   const s = String(n);
   const dot = s.indexOf('.');
-  return { n, i: Math.floor(n), v: dot < 0 || s.includes('e') ? 0 : s.length - dot - 1 };
+  const v = dot < 0 || s.includes('e') ? 0 : s.length - dot - 1;
+  return { n, i: Math.floor(n), v, f: v ? Number(s.slice(dot + 1)) : 0 };
 }
+
+/** Filipino's "one": the numbers whose spoken form takes the linker "-ng" (isang, limang), not "na" (apat na, anim na, siyam na). */
+const NA = new Set([4, 6, 9]);
 
 /** "a million of", as Spanish, French and Portuguese say it: a whole number of millions. */
 const millions = (o: Operands) => o.v === 0 && o.i !== 0 && o.i % 1_000_000 === 0;
@@ -45,7 +49,11 @@ const RULES: Record<string, { categories: Category[]; select: (o: Operands) => C
   id: { categories: ['other'], select: () => 'other' },
   zh: { categories: ['other'], select: () => 'other' },
   th: { categories: ['other'], select: () => 'other' },
-  my: { categories: ['other'], select: () => 'other' }
+  my: { categories: ['other'], select: () => 'other' },
+  fil: {
+    categories: ['one', 'other'],
+    select: (o) => (o.v === 0 ? ([1, 2, 3].includes(o.i) || !NA.has(o.i % 10)) : !NA.has(o.f % 10)) ? 'one' : 'other'
+  }
 };
 
 export function fallbackRule(locale: string) {

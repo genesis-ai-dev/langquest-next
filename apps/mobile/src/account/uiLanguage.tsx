@@ -40,6 +40,7 @@ function nameHere(code: UiLanguage): string {
     case 'zh-Hans': return t('uiLanguage.names.zhHans');
     case 'th': return t('uiLanguage.names.th');
     case 'my': return t('uiLanguage.names.my');
+    case 'tl': return t('uiLanguage.names.tl');
   }
 }
 

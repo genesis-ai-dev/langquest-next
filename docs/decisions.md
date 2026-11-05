@@ -3050,6 +3050,14 @@ by the database (the Inbox shows its own words by kind).
 Reverse if: translators need to change words between app releases (then the
 library localization), or people want their language to follow them to
 other devices (then an event in the person stream).
+Amended (2026-11-04, Caleb Koster): Tagalog (`tl`) is the sixteenth language
+(LAN-223), a machine translation released as approved, as the first fourteen
+were. Phones and browsers call it Filipino, so its locale is `fil` (iOS's
+folder, `Intl` dates, numbers and plurals) while Android's folder is
+`values-tl` and the library's code `tgl`. Its invite email, web pages, Bible
+book names, library labels and YouTube words come with it. It has no YouTube
+channel yet, so it stays out of `CHANNELS` (`server/youtube.ts`): no video
+description links to it and none is filmed in it until the channel exists.
 
 ## 82. A recorded part keeps how it relates to its neighbours, and its verse numbers are worked out down the list
 
@@ -7616,6 +7624,40 @@ by hand that evening, Apple closed the submission, and the version became
 Developer Rejected with its build free to change. The step now does the
 same (`PATCH /v1/reviewSubmissionItems/{id}` with `removed: true`) and
 deletes nothing.
+
+Amended (2026-11-04, Caleb Koster; LAN-223): a new build waits while
+another is in review, on both stores, unless its pull request asks to
+replace it. Caleb asked that a merge never restart a review by itself, and
+that developers choose per pull request. On Google Play a newer production
+release sent during a review takes its place and starts the review over,
+so Android builds now go to the `internal` track (`eas.json`,
+`submit.internal`), and `scripts/play-review.mjs` sends the newest one to
+production review, with `releaseStatus: completed` as before, only when
+nothing is in review. It runs right after the upload and every hour
+(`.eas/workflows/app-store-review.yml`). Google's API cannot say whether a
+release is in review (it calls a release completed once sent), so the step
+compares the newest production release's version name with the version
+Play's public page shows, which changes only once Google approves; a
+release that the page does not show yet is in review, and while the page
+cannot be read the build waits. A release Google rejected looks the same,
+so the build waits until a person acts in Play Console. The step needs a
+Play service account key with "Release to production", `PLAY_REVIEW_KEY`
+in `.env.production`, which `npm run secrets -- production --only eas`
+puts in EAS's production environment (`docs/environments.md`, The Play
+key); until it is there, Android builds wait in internal testing for a
+person to promote them, and the step succeeds. A pull request labelled
+`store: replace review` asks for the opposite
+(`scripts/store-choice.mjs`, read from GitHub's public API by the merge
+commit, or by the minute a store version names): its Android build goes
+straight to production, and its iPhone build cancels a review that is
+waiting or under way (`PATCH /v1/reviewSubmissions/{id}` with `canceled:
+true`, which leaves the version Developer Rejected) and takes that
+version's place. A label that cannot be read means wait. Internal testers
+get each Android build before the public again. The ops dashboard's
+Releases section draws where each build and update is now
+(`apps/admin/src/sources/pipeline.ts`, docs/admin.md). Reverse if: reviews are
+fast enough that a restarted one costs less than a build that waits, then
+send every build straight to production again.
 
 ## 158. Global Viewers read every organization, read-only, and only on a session verified with an authenticator
 

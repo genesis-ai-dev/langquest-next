@@ -87,7 +87,7 @@ describe('the catalogs', () => {
     const english = catalog('en').native as Tree;
     expect(app.ios.infoPlist.NSMicrophoneUsageDescription).toBe(english.microphone);
     for (const lang of UI_LANGUAGES.filter((l) => l.code !== 'en')) {
-      const name = lang.code === 'pt' ? 'pt-BR' : lang.code;
+      const name = ({ pt: 'pt-BR', tl: 'fil' } as Record<string, string>)[lang.code] ?? lang.code;
       expect(app.locales?.[name], name).toBe(`./locales/${name}.json`);
       const native = catalog(lang.code).native as Tree;
       expect(JSON.parse(readFileSync(join(ROOT, 'locales', `${name}.json`), 'utf8')), name)
@@ -146,6 +146,10 @@ describe('choosing the language', () => {
     expect(catalogFor('zh-Hant-HK')).toBeNull();
     expect(catalogFor('ar-EG')).toBe('ar');
     expect(catalogFor('in-ID')).toBe('id');
+    // Phones call Tagalog Filipino; older Android phones say tl.
+    expect(catalogFor('fil-PH')).toBe('tl');
+    expect(catalogFor('fil')).toBe('tl');
+    expect(catalogFor('tl-PH')).toBe('tl');
     expect(catalogFor('de-DE')).toBeNull();
   });
 
@@ -169,7 +173,7 @@ describe('choosing the language', () => {
 
 describe('plurals, dates and numbers', () => {
   it('chooses plural forms as Node’s Intl does, for engines without it', () => {
-    const samples = [0, 1, 2, 3, 5, 10, 11, 12, 19, 20, 21, 99, 100, 101, 102, 103, 111, 1000, 1001, 1_000_000, 2_000_000, 1_000_001, 0.5, 1.5, 2.5];
+    const samples = [0, 1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 14, 16, 19, 20, 21, 99, 100, 101, 102, 103, 111, 1000, 1001, 1_000_000, 2_000_000, 1_000_001, 0.4, 0.5, 1.5, 1.6, 2.5];
     for (const lang of UI_LANGUAGES) {
       const rule = fallbackRule(lang.locale);
       const intl = new Intl.PluralRules(lang.locale);

@@ -4,10 +4,11 @@
 // a draft: it can be picked in Me → Language, says it is a draft, and the
 // phone's language never switches someone into it. The first fourteen are
 // machine translations Caleb approved on 2026-10-10, so field teams can use
-// them and say what reads wrong (decision 81).
+// them and say what reads wrong (decision 81); Tagalog was added the same
+// way on 2026-11-04 (LAN-223).
 
 export type UiLanguage =
-  | 'en' | 'es' | 'pt' | 'fr' | 'ar' | 'sw' | 'ha' | 'am' | 'hi' | 'bn' | 'ne' | 'id' | 'zh-Hans' | 'th' | 'my';
+  | 'en' | 'es' | 'pt' | 'fr' | 'ar' | 'sw' | 'ha' | 'am' | 'hi' | 'bn' | 'ne' | 'id' | 'zh-Hans' | 'th' | 'my' | 'tl';
 
 export interface UiLanguageInfo {
   code: UiLanguage;
@@ -37,7 +38,9 @@ export const UI_LANGUAGES: readonly UiLanguageInfo[] = [
   { code: 'id', name: 'Bahasa Indonesia', english: 'Indonesian', dir: 'ltr', locale: 'id', approved: { by: 'Caleb Koster (machine translation)', date: '2026-10-10' } },
   { code: 'zh-Hans', name: '简体中文', english: 'Chinese (Simplified)', dir: 'ltr', locale: 'zh-Hans', approved: { by: 'Caleb Koster (machine translation)', date: '2026-10-10' } },
   { code: 'th', name: 'ไทย', english: 'Thai', dir: 'ltr', locale: 'th', approved: { by: 'Caleb Koster (machine translation)', date: '2026-10-10' } },
-  { code: 'my', name: 'မြန်မာ', english: 'Burmese', dir: 'ltr', locale: 'my', approved: { by: 'Caleb Koster (machine translation)', date: '2026-10-10' } }
+  { code: 'my', name: 'မြန်မာ', english: 'Burmese', dir: 'ltr', locale: 'my', approved: { by: 'Caleb Koster (machine translation)', date: '2026-10-10' } },
+  // Phones call it Filipino (fil), the national language built on Tagalog; Intl knows it by that tag.
+  { code: 'tl', name: 'Tagalog', english: 'Tagalog', dir: 'ltr', locale: 'fil', approved: { by: 'Caleb Koster (machine translation)', date: '2026-11-04' } }
 ];
 
 export const SOURCE_LANGUAGE: UiLanguage = 'en';
@@ -64,6 +67,7 @@ export function catalogFor(tag: string): UiLanguage | null {
     return 'zh-Hans';
   }
   if (lang === 'in') return 'id'; // Android's old code for Indonesian
+  if (lang === 'fil') return 'tl'; // Filipino, as iPhones and Android phones name it
   return isUiLanguage(lang) ? lang : null;
 }
 

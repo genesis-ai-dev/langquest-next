@@ -418,5 +418,33 @@
     "tagline": "聆听。开口。*让人听见。*",
     "contribution": "Frontier R&D 贡献",
     "stays": "你录制的内容会留在你的机构中。"
+  },
+  "tl": {
+    "clips": "audio clip na na-record gamit ang LangQuest ngayong {year}",
+    "asOf": "Noong {date}",
+    "safe": "Bawat isa ay nararapat sa *ligtas na lugar.*",
+    "rebuilt": "Kaya muli naming binuo ang LangQuest *mula sa simula.*",
+    "forWhom": "Para sa oral na pagsasalin ng Bibliya ng simbahan",
+    "listen": "Makinig hanggang *matandaan mo ito.*",
+    "speak": "Saka *magsalita.*",
+    "keptHere": "Nakatago sa teleponong ito habang nagre-record ka",
+    "offline": "Ilang linggong offline? *Magpatuloy lang.*",
+    "noSignal": "Araw {n} · Walang signal",
+    "backInRange": "Araw {n} · May signal na ulit",
+    "heard": "Iparinig ito *agad.*",
+    "kept": "Bawat bersiyon ay *nakatago.*",
+    "decides": "Ang iyong simbahan ang *nagpapasya.*",
+    "rail": [
+      "Makinig",
+      "Magsalita",
+      "Offline",
+      "Iparinig",
+      "Nakatago",
+      "Nagpapasya"
+    ],
+    "square": "{one} parisukat = {n} clip",
+    "tagline": "Makinig. Magsalita. *Iparinig ito.*",
+    "contribution": "Isang kontribusyon mula sa Frontier R&D",
+    "stays": "Mananatili sa iyong organisasyon ang mga rekording na ginawa mo."
   }
 }

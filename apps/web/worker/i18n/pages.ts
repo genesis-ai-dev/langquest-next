@@ -18,13 +18,14 @@ import ne from './ne.json';
 import pt from './pt.json';
 import sw from './sw.json';
 import th from './th.json';
+import tl from './tl.json';
 import zhHans from './zh-Hans.json';
 
 export type PageWords = typeof en;
 type Area = keyof PageWords;
 
 export const PAGE_CATALOGS: Record<UiLanguage, { [A in Area]?: Partial<PageWords[A]> }> = {
-  en, es, pt, fr, ar, sw, ha, am, hi, bn, ne, id, 'zh-Hans': zhHans, th, my
+  en, es, pt, fr, ar, sw, ha, am, hi, bn, ne, id, 'zh-Hans': zhHans, th, my, tl
 };
 
 /** The language a page is shown in: `?lang=`, else the browser's languages (approved catalogs only), else English. */

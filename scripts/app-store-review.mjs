@@ -3,9 +3,13 @@
 // The EAS workflow on main runs this after each new build reaches
 // TestFlight, and an EAS schedule runs it every hour. Apple reviews one
 // version at a time, and a version taken out of review loses its place in
-// line, so this never cancels, changes or replaces what is in review: while
-// a review is waiting or under way, or a version is approved and not yet
-// out, the new build waits in TestFlight. When Apple rejects a version, a
+// line, so by default this never cancels, changes or replaces what is in
+// review: while a review is waiting or under way, or a version is approved
+// and not yet out, the new build waits in TestFlight. A merge whose pull
+// request is labelled `store: replace review` (scripts/store-choice.mjs,
+// decision 157 amended 2026-11-04) asks for the opposite: its build cancels
+// the review that is waiting or under way and goes to review in its place.
+// An approved version on its way out is never touched. When Apple rejects a version, a
 // newer build takes its place (decision 157, amended 2026-11-03): the
 // rejected version leaves its rejected submission, takes the newer build and
 // its version number, and goes to review again. The rejected build itself is
@@ -14,10 +18,10 @@
 // only the newest processed build that is newer than the public one, on an
 // App Store version of its own (the version number that app.config.js gave
 // the build), released as soon as Apple approves it. Its only writes are the
-// version, its "What's New", the review submission, and marking a rejected
+// version, its "What's New", the review submission, marking a rejected
 // version removed from its rejected submission, as the Remove button on
-// App Store Connect's App Review page does; it never deletes and never
-// cancels.
+// App Store Connect's App Review page does, and cancelling a review when the
+// newer build's merge asked for it; it never deletes.
 //
 //   node scripts/app-store-review.mjs             look, and send when it is time
 //   node scripts/app-store-review.mjs --dry-run   look, and say what it would do
@@ -33,11 +37,14 @@
 import { createPrivateKey, sign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { choiceForVersion } from './store-choice.mjs';
 
 const API = 'https://api.appstoreconnect.apple.com/v1';
 
-/** Review submission states in which a review is waiting or under way: never touched. */
+/** Review submission states in which a review is waiting or under way: never touched, unless a newer build's merge asks to replace it. */
 export const REVIEWING = ['WAITING_FOR_REVIEW', 'IN_REVIEW', 'CANCELING', 'COMPLETING'];
+/** The review states a replace may cancel: Apple cancels a submission only while it waits or is in review. */
+export const CANCELABLE = ['WAITING_FOR_REVIEW', 'IN_REVIEW'];
 /** A submission that Apple answered with a rejection, open until a person answers it in App Store Connect. */
 export const UNRESOLVED = 'UNRESOLVED_ISSUES';
 /** A submission put together and not yet sent: App Store Connect's draft. Apple keeps one open submission per platform. */
@@ -111,14 +118,19 @@ export function stateOf(resource) {
  * - `newest`: the newest processed build ({ id, number, version }), or null;
  * - `processing`: newer builds that Apple is still processing ({ number }).
  *
+ * `replace` says that the newest build's merge asked to replace a review
+ * (scripts/store-choice.mjs); without it a review is never cancelled.
+ *
  * The action is `submit` (with the version to use, or null for a new one,
  * and the draft submission to use, or null for a new one), `replace` (Apple
  * rejected the version in `submission`, and a newer build takes its place),
+ * `cancel` (the review in `submission` holds an older build, and the newest
+ * build's merge asked to replace it),
  * `none` (nothing to send), `wait` (a review or release is on its way: try
  * again later), `held` (a person has to act in App Store Connect first) or
  * `stuck` (this build can never go).
  */
-export function nextStep({ submissions = [], versions = [], newest = null, processing = [] }) {
+export function nextStep({ submissions = [], versions = [], newest = null, processing = [] }, { replace = false } = {}) {
   const name = (v) => `version ${v.string}${Number.isFinite(v.build) ? ` (build ${v.build})` : ''}`;
   const byId = (id) => versions.find((v) => v.id === id) ?? null;
   const later = processing.filter((b) => !newest || b.number > newest.number).map((b) => b.number);
@@ -131,11 +143,14 @@ export function nextStep({ submissions = [], versions = [], newest = null, proce
   const live = liveBuilds.length ? Math.max(...liveBuilds) : null;
   if (live !== null && newest.number <= live) return { action: 'none', why: `${build} is not newer than the public build ${live}${also}` };
 
-  // A review that is waiting or under way is never cancelled or changed.
+  // A review that is waiting or under way is never cancelled or changed, unless the newer build's merge asked to replace it.
   const reviewing = submissions.find((s) => REVIEWING.includes(s.state));
   if (reviewing) {
     const v = byId(reviewing.versionId);
     if (v && v.build === newest.number) return { action: 'none', why: `${name(v)} is ${words(reviewing.state)}${also}` };
+    if (replace && v && cancelable(reviewing, v, newest)) {
+      return { action: 'cancel', why: `${name(v)} is ${words(reviewing.state)}, and the merge that made ${build} asked to replace it, so that review is cancelled and ${build} (${newest.version}) goes to review in its place${also}`, submission: reviewing, version: v };
+    }
     return { action: 'wait', why: `${v ? name(v) : 'a submission'} is ${words(reviewing.state)}, ${waits}` };
   }
   // Nor is a version on its way: in review, approved, or being released.
@@ -186,6 +201,26 @@ export function nextStep({ submissions = [], versions = [], newest = null, proce
     return { action: 'held', why: `a draft submission in App Store Connect holds other items. Someone submits or removes them there, and ${build} goes on a later run${also}` };
   }
   return { action: 'submit', why: `no review is open, so ${build} (${newest.version}) goes to review`, version: open, draft };
+}
+
+/** Whether a replace may cancel this review for the newest build: it waits or is in review, and holds an older build. */
+function cancelable(submission, version, newest) {
+  return CANCELABLE.includes(submission.state) && Number.isFinite(version?.build) && newest.number > version.build;
+}
+
+/**
+ * Cancels a review that waits or is under way, as "Cancel Submission" on
+ * App Store Connect's App Review page does, and waits for Apple to finish
+ * cancelling. The version is then "taken out of review" and takes the
+ * newest build. Returns whether Apple finished.
+ */
+export async function cancelReview(api, submission, { wait = sleep } = {}) {
+  await api('PATCH', `/reviewSubmissions/${submission.id}`, { type: 'reviewSubmissions', id: submission.id, attributes: { canceled: true } });
+  for (let looks = 1; looks <= READY_LOOKS; looks++) {
+    if (!REVIEWING.includes((await api('GET', `/reviewSubmissions/${submission.id}`))?.data?.attributes?.state)) return true;
+    if (looks < READY_LOOKS) await wait(READY_WAIT_MS);
+  }
+  return false;
 }
 
 /** A token for the App Store Connect API, good for 15 minutes. */
@@ -406,8 +441,13 @@ export async function submit(api, appId, { newest, version, draft }, { wait = sl
   return (await api('GET', `/reviewSubmissions/${submissionId}`))?.data?.attributes?.state ?? null;
 }
 
-/** One run: look, say what is next, and send when it is time. Returns the step. */
-export async function run({ env = process.env, args = [], appId, fetch: fetchImpl = fetch, wait = sleep, log = console.log } = {}) {
+/**
+ * One run: look, say what is next, and send when it is time. Returns the
+ * step. `choice` says whether the merge that made a build version asked to
+ * replace the review (scripts/store-choice.mjs); it is asked only when a
+ * review holds an older build.
+ */
+export async function run({ env = process.env, args = [], appId, fetch: fetchImpl = fetch, wait = sleep, log = console.log, choice = choiceForVersion } = {}) {
   const key = reviewKey(env);
   if (!key) {
     log(`wait: ${NO_KEY}.`);
@@ -416,8 +456,23 @@ export async function run({ env = process.env, args = [], appId, fetch: fetchImp
   const api = client(key, { fetch: fetchImpl, wait });
   let state = await look(api, appId);
   let step = nextStep(state);
+  if (step.action === 'wait' && nextStep(state, { replace: true }).action === 'cancel') {
+    const asked = await choice(state.newest.version);
+    log(`Build ${state.newest.number}: ${asked.why}.`);
+    if (asked.replace) step = nextStep(state, { replace: true });
+  }
   log(`${step.action}: ${step.why}.`);
   if (args.includes('--dry-run')) return step;
+  if (step.action === 'cancel') {
+    const done = await cancelReview(api, step.submission, { wait });
+    log(`The review of version ${step.version.string} (build ${step.version.build}) is ${done ? 'cancelled' : 'being cancelled'}.`);
+    const cancelling = step.submission.id;
+    state = await look(api, appId);
+    step = state.submissions.some((x) => x.id === cancelling && REVIEWING.includes(x.state))
+      ? { action: 'wait', why: `Apple is still cancelling the review, so build ${state.newest?.number} goes on a later run` }
+      : nextStep(state);
+    log(`${step.action}: ${step.why}.`);
+  }
   if (step.action === 'replace') {
     const kept = await takeOut(api, step.submission, step.version, { wait });
     if (kept) {

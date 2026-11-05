@@ -11,7 +11,8 @@ import { sameCodes, sameLanguage } from './languageCodesModel';
 /** The app's languages as material writes them: the code it is usually written with first. */
 const CONTENT_CODES: Record<UiLanguage, readonly string[]> = {
   en: ['eng'], es: ['spa'], pt: ['por'], fr: ['fra'], ar: ['arb', 'ara'], sw: ['swa', 'swh'], ha: ['hau'], am: ['amh'],
-  hi: ['hin'], bn: ['ben'], ne: ['npi', 'nep'], id: ['ind'], 'zh-Hans': ['cmn', 'zho'], th: ['tha'], my: ['mya']
+  hi: ['hin'], bn: ['ben'], ne: ['npi', 'nep'], id: ['ind'], 'zh-Hans': ['cmn', 'zho'], th: ['tha'], my: ['mya'],
+  tl: ['tgl', 'fil']
 };
 
 export { sameCodes, sameLanguage };

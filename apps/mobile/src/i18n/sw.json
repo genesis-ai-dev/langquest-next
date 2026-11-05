@@ -89,7 +89,8 @@
       "id": "Kiindonesia",
       "zhHans": "Kichina (Rahisi)",
       "th": "Kithai",
-      "my": "Kibama"
+      "my": "Kibama",
+      "tl": "Kitagalogi"
     }
   },
   "core": {
@@ -1232,7 +1233,8 @@
       "npi": "Kinepali",
       "mya": "Kiburma",
       "tpi": "Kitok Pisin",
-      "bis": "Kibislama"
+      "bis": "Kibislama",
+      "tgl": "Kitagalogi"
     },
     "helps": {
       "bibles_one": "Biblia ya {{languages}}",

@@ -59,10 +59,11 @@ export const ADMIN_KEYS = ['ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_SUPABASE_TOKEN', 'AD
  * e2e/tutorials/frame-check.ts) in to a Claude plan: made by `claude setup-token`,
  * it lasts a year, and production's goes to this repository's GitHub Actions secrets. Anyone
  * on the team can replace it with their own plan's. APP_STORE_REVIEW_KEY is the App Store
- * Connect key (App Manager) that sends new iPhone builds to App Review: production's goes to
- * EAS (EAS_KEYS).
+ * Connect key (App Manager) that sends new iPhone builds to App Review, and PLAY_REVIEW_KEY the
+ * Google Play service account key that moves new Android builds from internal testing to
+ * production review: production's go to EAS (EAS_KEYS).
  */
-export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'APP_STORE_REVIEW_KEY', ...ADMIN_KEYS];
+export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'APP_STORE_REVIEW_KEY', 'PLAY_REVIEW_KEY', ...ADMIN_KEYS];
 export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET'];
 /**
  * Placed when the file has them, never required: the Worker answers without
@@ -77,10 +78,12 @@ export const GITHUB_REPO = 'genesis-ai-dev/langquest-next';
 /**
  * Production's secrets for EAS, which its workflows read on Expo's servers:
  * the App Store key that `scripts/app-store-review.mjs` sends new iPhone
- * builds to App Review with (decisions.md 157). Each is an EAS variable with
- * secret visibility, readable by EAS's jobs and builds only, never in a UI.
+ * builds to App Review with, and the Play key that `scripts/play-review.mjs`
+ * sends new Android builds to production review with (decisions.md 157).
+ * Each is an EAS variable with secret visibility, readable by EAS's jobs and
+ * builds only, never in a UI.
  */
-export const EAS_KEYS = ['APP_STORE_REVIEW_KEY'];
+export const EAS_KEYS = ['APP_STORE_REVIEW_KEY', 'PLAY_REVIEW_KEY'];
 /** The folder that holds the EAS project (eas.json, the project id), where `eas env:*` runs. */
 export const EAS_PROJECT = 'apps/mobile';
 /** Destinations that `--only` can apply alone. */
@@ -190,7 +193,7 @@ export function destinations(environment, values, ref, serviceRoleKey) {
       ...(values.BIBLE_BRAIN_ACCESS_KEY ? { BIBLE_BRAIN_ACCESS_KEY: values.BIBLE_BRAIN_ACCESS_KEY } : {}),
       ...(values.CLAUDE_CODE_OAUTH_TOKEN ? { CLAUDE_CODE_OAUTH_TOKEN: values.CLAUDE_CODE_OAUTH_TOKEN } : {})
     } : {},
-    // EAS's production environment: the App Store key for the App Review step (decisions.md 157).
+    // EAS's production environment: the store keys for the App Review and Play review steps (decisions.md 157).
     eas: environment === 'production' ? Object.fromEntries(EAS_KEYS.filter((key) => values[key]).map((key) => [key, values[key]])) : {},
     // Read with Deno.env.get in supabase/functions. The relay URL is public
     // but has no other way into a function.

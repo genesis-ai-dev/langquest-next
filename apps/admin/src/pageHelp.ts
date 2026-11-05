@@ -13,7 +13,7 @@ export const GROUP_HELP: Record<string, string> = {
   lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
   safety: 'Whether people\'s work is reaching the server and being kept: work the server refused, how late work arrives, phones with a wrong clock, the nightly check that stored snapshots match a fresh fold, and languages the server has fallen behind on.',
   phones: 'Everything phones and browsers tell us about themselves: syncs, errors and crashes, files, recording, signing in, which builds they run and how often each crashes, and phones that are stuck or have gone quiet. Counts and codes only, never content.',
-  releases: 'What is on main and whether CI passed, what each host serves, whether the database has every migration, what shipped in the last two weeks against the errors phones reported, and the app\'s EAS builds and updates.',
+  releases: 'Where each new store build and over-the-air update is now, what is on main and whether CI passed, what each host serves, whether the database has every migration, what shipped in the last two weeks against the errors phones reported, and the app\'s EAS builds and updates.',
   jobs: 'The server\'s own scheduled work: each job\'s runs and failures and whether it runs now (Run now starts one), the database\'s own timers (pg_cron), push notifications, and the import from LangQuest v2.',
   database: 'The database\'s health (connections, cache, deadlocks, slowest calls), where its space goes, long-open queries and transactions, and the Supabase project\'s services, logs and Edge Functions.',
   traffic: 'Requests each Cloudflare Worker answered in the last day with errors, CPU and its latest build, and the app Worker\'s requests by kind with how long they took and how many a limit refused.',
@@ -50,6 +50,7 @@ export const SECTION_HELP: Record<string, string> = {
   cloudflare: 'Each Cloudflare Worker\'s requests, errors and CPU over the last day, and its latest deploy and build.',
   supabase: 'The LangQuest Next Supabase project\'s status, each service\'s health, Edge Functions, and error counts from its logs.',
   expo: 'App builds on EAS, store submissions, and the newest over-the-air update on each branch.',
+  pipeline: 'Each new store build in the stage it is in now, left to right: building on EAS, waiting in TestFlight or Play\'s internal testing, in review, approved, and what people download. A new build waits while an older one is in review, unless its pull request had the label "store: replace review" (decisions.md 157). Inside each build: the over-the-air updates it takes (published for its runtime after it was made), each with its pull request and how many of the platform\'s phones run it.',
   adoption: 'How far each over-the-air update has reached. For each channel, platform and runtime that phones run: the newest update EAS published for exactly that, and how many installs active in the last 7 days run it, an older update, or the build\'s embedded one. Matched by the update id phones report.',
   googleplay: 'Android crash and freeze (ANR) rates as Google Play measures them, against Play\'s bad-behaviour lines, and recent reviews.',
   appstore: 'iOS versions in review, builds Apple processed, TestFlight crash reports, and recent reviews.',
@@ -62,6 +63,15 @@ export const SECTION_HELP: Record<string, string> = {
 };
 
 export const HELP: Record<string, string> = {
+  // ---- where each build and update is (sources/pipeline.ts)
+  'Building on EAS': 'Store builds EAS is making now, and the newest one when it failed.',
+  TestFlight: 'iPhone builds uploaded to Apple and not sent for review: Apple processing them, or waiting while an older build is in App Review. The hourly step sends only the newest once the review ends.',
+  'App Review': 'The iPhone version Apple is reviewing or will review next, or the one it rejected. A rejected one waits for a person, unless a newer build replaces it.',
+  'Approved, not out yet': 'Apple approved it and is putting it on the App Store, or it waits for someone to release it.',
+  'On the App Store': 'The version people download from the App Store now.',
+  'Internal testing': 'Android builds in Play\'s internal testing track: waiting while an older build is in Play review. play-review.mjs sends the newest to production review once nothing is in review (it needs PLAY_REVIEW_KEY).',
+  'Play review': 'The newest production release that Google Play\'s page does not show yet: in review, or rejected (Play Console says which).',
+  'On Google Play': 'The version Google Play\'s page shows: what people download now.',
   // ---- sync and data safety
   'events refused, latest day': 'Events (pieces of work) phones sent that the server would not accept on the latest day. Refused work may never arrive, so this matters more than a crash.',
   'refused as invalid': 'Events the server refused because they break its rules. Usually a bug in the app: that work cannot arrive until it is fixed.',

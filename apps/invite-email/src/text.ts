@@ -16,17 +16,18 @@ import ne from './i18n/ne.json';
 import pt from './i18n/pt.json';
 import sw from './i18n/sw.json';
 import th from './i18n/th.json';
+import tl from './i18n/tl.json';
 import zhHans from './i18n/zh-Hans.json';
 
 export type EmailText = typeof en;
 type Partial2 = { [K in keyof EmailText]?: Partial<EmailText[K]> };
 
 export const EMAIL_CATALOGS: Record<string, Partial2> = {
-  en, es, pt, fr, ar, sw, ha, am, hi, bn, ne, id, 'zh-Hans': zhHans, th, my
+  en, es, pt, fr, ar, sw, ha, am, hi, bn, ne, id, 'zh-Hans': zhHans, th, my, tl
 };
 
 /** BCP 47 tags for dates, by catalog. */
-const DATE_LOCALE: Record<string, string> = { pt: 'pt-BR', 'zh-Hans': 'zh-Hans' };
+const DATE_LOCALE: Record<string, string> = { pt: 'pt-BR', 'zh-Hans': 'zh-Hans', tl: 'fil' };
 const RTL = new Set(['ar']);
 
 /** The catalog for a language code the app sent ("pt", "zh-Hans"), else English. */

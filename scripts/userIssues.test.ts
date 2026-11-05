@@ -353,7 +353,10 @@ describe('Linear', () => {
 });
 
 describe('a draft fix for each new issue', () => {
-  const git = (cwd: string, ...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8' });
+  // Without the GIT_* a git hook exports: in a worktree's pre-push hook GIT_DIR names the real repository,
+  // and this fixture's commit landed on the branch being pushed, leaving only its two files (2026-11-05).
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')));
+  const git = (cwd: string, ...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8', env });
 
   it('reads the paths git lists for a patch, both sides of a rename and binary files', () => {
     const dir = mkdtempSync(join(tmpdir(), 'fix-'));

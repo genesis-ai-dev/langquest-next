@@ -87,7 +87,8 @@
       "id": "Indonesia",
       "zhHans": "Tionghoa (Sederhana)",
       "th": "Thai",
-      "my": "Burma"
+      "my": "Burma",
+      "tl": "Tagalog"
     }
   },
   "core": {
@@ -1204,7 +1205,8 @@
       "npi": "Nepali",
       "mya": "Burma",
       "tpi": "Tok Pisin",
-      "bis": "Bislama"
+      "bis": "Bislama",
+      "tgl": "Tagalog"
     },
     "helps": {
       "bibles_other": "Alkitab {{languages}}",

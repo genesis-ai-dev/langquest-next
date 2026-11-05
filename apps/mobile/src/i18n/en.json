@@ -89,7 +89,8 @@
       "id": "Indonesian",
       "zhHans": "Chinese (Simplified)",
       "th": "Thai",
-      "my": "Burmese"
+      "my": "Burmese",
+      "tl": "Tagalog"
     }
   },
   "core": {
@@ -1232,7 +1233,8 @@
       "npi": "Nepali",
       "mya": "Burmese",
       "tpi": "Tok Pisin",
-      "bis": "Bislama"
+      "bis": "Bislama",
+      "tgl": "Tagalog"
     },
     "helps": {
       "bibles_one": "{{languages}} Bible",
