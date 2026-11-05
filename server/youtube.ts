@@ -15,8 +15,7 @@ import type { UiLanguage } from '@langquest-next/core';
 import { HOME_ORDER, PLAYLISTS } from './youtubePlaylists';
 
 /**
- * Each app language's channel (Caleb made them on 2026-10-28; handles @LangQuestApp and @LangQuestApp-<code>).
- * Tagalog has none yet (LAN-223): its videos wait for one, and no link points to it.
+ * Each app language's channel (Caleb made them on 2026-10-28, Tagalog's on 2026-11-05; handles @LangQuestApp and @LangQuestApp-<code>).
  */
 export const CHANNELS = {
   en: 'UC8Ry8oFIPWzDygngMwvkBLQ',
@@ -33,7 +32,8 @@ export const CHANNELS = {
   id: 'UC-f8cdUejSCRyPhQHZ0hEhQ',
   th: 'UC2FEow8Ygqhjtsc2ypLmiMg',
   my: 'UCRkSFyWmZ9Ogr9Te3bpNMzA',
-  'zh-Hans': 'UCMqJheVuxJt1Qwt9VWmj0Bg'
+  'zh-Hans': 'UCMqJheVuxJt1Qwt9VWmj0Bg',
+  tl: 'UC9Y_hNtSf43UnO7fUtnjeug'
 } as const;
 
 export type ChannelLanguage = keyof typeof CHANNELS;
@@ -269,17 +269,21 @@ interface Section { id: string; snippet: { type: string; title?: string; positio
 interface Row { type: 'multipleChannels' | 'singlePlaylist'; title?: string; ids: string[] }
 
 /**
- * How many channels one row of the other channels holds. A channel's home page
+ * The most channels one row of the other channels holds. A channel's home page
  * shows no more than 12 in a row (on 2026-11-03 English's row of 14 showed
- * Burmese and Chinese nowhere), so the 14 go in two rows of 7.
+ * Burmese and Chinese nowhere).
  */
-const CHANNEL_ROW = 7;
-const rowsOf = <T>(all: T[], size: number): T[][] => Array.from({ length: Math.ceil(all.length / size) }, (_, i) => all.slice(i * size, (i + 1) * size));
+const CHANNEL_ROW = 12;
+/** `all` in the fewest rows of at most `most`, as even as they go: the 14 others in 7 and 7, the 15 in 8 and 7. */
+const rowsOf = <T>(all: T[], most: number): T[][] => {
+  const size = Math.ceil(all.length / Math.max(1, Math.ceil(all.length / most)));
+  return Array.from({ length: Math.ceil(all.length / Math.max(1, size)) }, (_, i) => all.slice(i * size, (i + 1) * size));
+};
 
 /**
  * A channel's home page (decisions.md 191), laid out as BibleProject and other
  * channels lay out theirs: under the trailer, the other LangQuest channels in
- * rows of CHANNEL_ROW, then a row for each of the channel's playlists in HOME_ORDER,
+ * the fewest even rows of at most CHANNEL_ROW, then a row for each of the channel's playlists in HOME_ORDER,
  * everyone's first. Only the rows that differ are put or taken away, so a
  * channel already laid out costs 2 units of the day's 10,000; each row put
  * or taken away costs 50. A playlist with no video yet has no row until it

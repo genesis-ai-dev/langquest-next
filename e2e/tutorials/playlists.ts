@@ -62,7 +62,7 @@ const plain = (text: string) => text.replace(/[<>]/g, '').replace(/\s+/g, ' ').t
 
 /**
  * A video, to link to itself in the other app languages it is made in (each by its own name, in the order the app lists them).
- * A language with no channel yet (Tagalog, LAN-223) gets no link: its link would lead nowhere.
+ * A language with no channel yet gets no link: its link would lead nowhere.
  */
 export interface Elsewhere {
   language: string;

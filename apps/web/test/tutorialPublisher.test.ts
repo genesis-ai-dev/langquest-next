@@ -237,9 +237,9 @@ describe('the publish job', () => {
       'GET /youtube/v3/channels', 'POST /upload/youtube/v3/channelBanners/insert', 'PUT /youtube/v3/channels',
       'GET /youtube/v3/channelSections', 'GET /youtube/v3/playlists', 'POST /youtube/v3/channelSections', 'POST /youtube/v3/channelSections', 'POST /youtube/v3/channelSections'
     ]);
-    // The other channels in two rows of 7, then its one playlist so far (decisions.md 191).
+    // The other 15 channels in two rows of 8 and 7, then its one playlist so far (decisions.md 191).
     expect(rows.map((r) => [r.snippet.type, r.snippet.position, r.contentDetails.playlists ?? r.contentDetails.channels!.length])).toEqual([
-      ['multipleChannels', 0, 7], ['multipleChannels', 1, 7], ['singlePlaylist', 2, ['PLtrad']]
+      ['multipleChannels', 0, 8], ['multipleChannels', 1, 7], ['singlePlaylist', 2, ['PLtrad']]
     ]);
     // Its other settings kept; its name, which only Google's account pages change, left out.
     expect(yt.sent[0]).toEqual({
