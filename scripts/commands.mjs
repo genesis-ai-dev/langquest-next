@@ -16,6 +16,7 @@ export const GROUPS = [
       help: 'this list',
       dev: 'the whole local stack: Supabase, then the web Worker on :8787 until Ctrl-C',
       app: 'Metro for the dev client (apps/mobile)',
+      'app:web': 'the app in a browser, on Metro at :8081 (apps/mobile)',
       'web:dev': 'only the web Worker on :8787 (Reports, the API, the job container)',
       'admin:dev': 'the ops dashboard Worker on :8791 (docs/admin.md)',
       'db:start': 'local Supabase, the scheduled jobs and the library',
