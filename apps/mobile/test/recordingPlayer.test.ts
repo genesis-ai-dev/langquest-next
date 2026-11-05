@@ -22,6 +22,8 @@ class FakeAudio {
   loads = 0;
   ontimeupdate: (() => void) | null = null;
   onplay: (() => void) | null = null;
+  onplaying: (() => void) | null = null;
+  onwaiting: (() => void) | null = null;
   onpause: (() => void) | null = null;
   onloadedmetadata: (() => void) | null = null;
   onended: (() => void) | null = null;
@@ -42,6 +44,8 @@ class FakeAudio {
   pause() { if (this.paused) return; this.paused = true; this.onpause?.(); }
   /** The browser has read the recording's length. */
   loaded(seconds: number) { this.duration = seconds; this.readyState = 1; this.onloadedmetadata?.(); }
+  /** Sound has come out. */
+  sounds() { this.onplaying?.(); }
   /** It played to its end. */
   end() { this.currentTime = this.duration; this.paused = true; this.onended?.(); }
 }
@@ -80,6 +84,27 @@ describe('the web player for recordings', () => {
     expect(made).toHaveLength(1);
     expect(refused).toEqual([]);
     expect(finished).toEqual(['blob:1', 'blob:2', 'blob:3', 'blob:4', 'blob:5', 'blob:6']);
+  });
+
+  it('says it is playing once sound has come, not when asked to play (LAN-224: a spinner until then)', async () => {
+    const { createRecordingPlayer } = await fresh();
+    tapping = true;
+    const p = createRecordingPlayer('blob:1');
+    const seen: boolean[] = [];
+    p.addListener('playbackStatusUpdate', (s: RecordingStatus) => seen.push(s.playing));
+    p.play();
+    tapping = false;
+    await flush();
+    expect(seen).toEqual([false]);
+    made[0]!.sounds();
+    expect(seen.at(-1)).toBe(true);
+    made[0]!.pause();
+    expect(seen.at(-1)).toBe(false);
+    // Played again, it waits for sound again.
+    p.play();
+    expect(seen.at(-1)).toBe(false);
+    made[0]!.sounds();
+    expect(seen.at(-1)).toBe(true);
   });
 
   it('unlocks once for the page: a later tap does not reload what plays', async () => {

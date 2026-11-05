@@ -19,7 +19,7 @@ export const GROUPS = [
   { id: 'userissues', title: 'User issues', src: 'What the watch for user issues filed in Linear or found already fixed, each issue\'s state and the pull request that fixed it', wide: true, parts: ['userissues'] },
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true, parts: ['safety'] },
   { id: 'phones', title: 'Phones and browsers', src: 'What installs report, the builds they run and how often each crashes, and phones that are stuck or quiet', wide: true, parts: ['clients', 'fleet'] },
-  { id: 'releases', title: 'Releases', src: 'main and its CI, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['code', 'releases', 'expo', 'adoption'] },
+  { id: 'releases', title: 'Releases', src: 'Where each store build and update is now, main and its CI, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['pipeline', 'code', 'releases', 'expo', 'adoption'] },
   { id: 'jobs', title: 'Server jobs', src: 'Each job\'s runs and whether it runs now, pg_cron, push delivery, and the v2 import', wide: true, parts: ['jobs', 'container', 'cron', 'push', 'v2'] },
   { id: 'database', title: 'Database', src: 'Connections, cache, slow calls, largest tables, long transactions, and the Supabase project', parts: ['database', 'dbdetail', 'supabase'] },
   { id: 'traffic', title: 'Workers and traffic', src: 'Each Cloudflare Worker\'s requests, errors and latest build, and the app Worker\'s routes', parts: ['cloudflare', 'worker'] },
@@ -33,7 +33,7 @@ export const GROUPS = [
 
 /** Sub-headings where a source's own title would repeat its section's, or say too little inside it. */
 export const PART_TITLES: Record<string, string> = {
-  clients: 'What installs report', fleet: 'Builds in the field and stuck phones', code: 'Code and deploys', releases: 'What shipped',
+  pipeline: 'Where each build and update is', clients: 'What installs report', fleet: 'Builds in the field and stuck phones', code: 'Code and deploys', releases: 'What shipped',
   expo: 'EAS builds and updates', adoption: 'Update adoption', jobs: 'Jobs', cron: 'pg_cron', push: 'Push delivery and Inbox', v2: 'v2 import',
   database: 'Health', dbdetail: 'Where the space goes', supabase: 'Supabase project', cloudflare: 'Cloudflare Workers', worker: 'App Worker routes, last 24 h',
   storage: 'Storage and backups', capacity: 'Capacity and cost', support: 'Queue', feedback: 'Feedback', security: 'Global Viewers and limits',
@@ -45,13 +45,14 @@ export const PART_TITLES: Record<string, string> = {
 export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials', 'videofeedback', 'userissues'] as const;
 
 /** Each from its own call (/ops/api/<id>), like the providers. */
-export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'filming'] as const;
+export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'filming', 'pipeline'] as const;
 
 export const OPS_SECTIONS = [
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true },
   { id: 'fleet', title: 'Builds and stuck phones', src: 'Updates in the field and their crash-free rate, versions, time to a usable Map, stuck and silent phones', wide: true },
   { id: 'releases', title: 'Release health', src: 'Merges, deploys and EAS updates over 14 days against errors; hosts; migrations against main' },
   { id: 'adoption', title: 'Update adoption', src: 'For each channel, platform and runtime: the newest EAS update and how many active installs run it' },
+  { id: 'pipeline', title: 'Where each build and update is', src: 'Each store build in its stage (EAS, TestFlight or internal testing, review, live), with the over-the-air updates it takes (decisions.md 157)' },
   { id: 'container', title: 'Job container', src: 'Whether each server job runs now (the app Worker\'s JobStatus)' },
   { id: 'cron', title: 'Scheduled database jobs', src: 'pg_cron runs and failures, last 24 h' },
   { id: 'dbdetail', title: 'Database detail', src: 'Largest tables and indexes, dead rows, long queries and transactions' },
@@ -137,6 +138,42 @@ Object.assign(RENDER, {
     h += '<h3>Silent phones</h3><p>' + num(d.silent.count) + ' quiet for 3 days while another device of the same person reports.</p>' +
       (d.silent.installs.length ? '<p>' + d.silent.installs.map((s) => installLink(s.install) + ' <small>' + ageOf(s.lastSeen) + '</small>').join(' · ') + '</p>' : '');
     return h;
+  },
+  pipeline(d) {
+    // Each store build sits in the stage it is in now, an arrow to the next; inside it, the over-the-air updates it takes.
+    const PHONES = { ios: 'iPhones', android: 'Android phones' };
+    // A pull request shows in each build that has it: from main in the newer build, and as a copy in an older
+    // build through its release branch (decisions.md 155), first as a copy that waits, then as the update it sent.
+    // A copy that catches a build up on several shows each, the first few, then how many more.
+    const CAUGHT_UP = 3;
+    const update = (u, platform) => {
+      const phones = u.phones ? ' · ' + num(u.phones.on) + ' of ' + num(u.phones.of) + ' ' + PHONES[platform] + ' run it' : '';
+      const how = u.waiting ? 'PR open, not merged yet: copy PR ' + u.copy + ' ' + u.waiting + ' · ' : u.copy ? 'copied by PR ' + u.copy + ' · ' : '';
+      const small = esc(how) + esc(ago(u.at)) + esc(phones);
+      const cls = 'pu' + (u.waiting ? ' pend' : '') + (u.needsPerson ? ' stuck' : '') + (u.copy ? ' cp' : '');
+      const link = (n, name, body) => '<a class="' + cls + '" href="https://github.com/' + esc(d.repo) + '/pull/' + encodeURIComponent(n) + '" target="_blank" rel="noopener" title="' + esc(name) + '">' + body + '</a>';
+      if (u.rollBack || (!u.pr && !u.copy)) {
+        const name = u.rollBack ? 'Back to the build\'s own code' : 'Update ' + u.id.slice(0, 8);
+        return '<div class="' + cls + '" title="' + esc(name) + '"><b>' + esc(name) + '</b><small>' + small + '</small></div>';
+      }
+      if (!u.pr) { const name = 'Copy PR ' + u.copy + (u.title ? ' · ' + u.title : ''); return link(u.copy, name, '<b>' + esc(name) + '</b><small>' + small + '</small>'); }
+      const prs = [{ pr: u.pr, title: u.title }].concat(u.also || []);
+      const shown = prs.slice(0, prs.length > CAUGHT_UP + 1 ? CAUGHT_UP : prs.length);
+      const more = prs.length - shown.length + (u.more || 0);
+      return shown.map((p) => { const name = 'PR ' + p.pr + (p.title ? ' · ' + p.title : ''); return link(p.pr, name, '<b>' + esc(name) + '</b><small>' + small + '</small>'); }).join('') +
+        (more ? link(u.copy, num(more) + ' more PRs in copy PR ' + u.copy, '<b>' + esc(num(more) + ' more PRs in copy PR ' + u.copy) + '</b><small>' + small + '</small>') : '');
+    };
+    const card = (c, platform) => '<div class="pc ' + esc(c.tone) + '"><b>' + esc(c.title) + '</b>' + (c.version ? ' <small>' + esc(c.version) + '</small>' : '') +
+      '<span>' + esc(c.state) + '</span>' + (c.at ? '<small>' + when(c.at) + '</small>' : '') +
+      (c.updates.length ? '<div class="pus"><div class="puh">Over-the-air updates</div>' + c.updates.map((u) => update(u, platform)).join('') + '</div>' : '') + '</div>';
+    const arrow = '<div class="pa" aria-hidden="true"></div>';
+    const lane = (l) => '<div class="lane"><h3>' + esc(l.title) + '</h3><div class="flow">' + l.stages.map((s, i) => (i ? arrow : '') +
+      '<div class="stage"><div class="st" data-help-key="' + esc(s.title) + '">' + esc(s.title) + '</div>' +
+      (s.cards.length ? s.cards.map((c) => card(c, l.id)).join('') : '<div class="pc none">' + esc(s.unseen || 'none') + '</div>') + '</div>').join('') + '</div>' +
+      l.notes.map((n) => '<p class="muted">' + esc(n) + '</p>').join('') + '</div>';
+    return '<div class="legend"><span class="pc busy">on its way</span><span class="pc wait">waiting</span><span class="pc bad">needs a person</span><span class="pc live">what people get</span></div>' +
+      d.lanes.map(lane).join('') +
+      '<p class="muted"><small>Phones: active in the last ' + num(d.activeDays) + ' days, with diagnostics on.</small></p>';
   },
   adoption(d) {
     // Each row: one channel, platform and runtime the phones run. Newest is what EAS published last for exactly that.

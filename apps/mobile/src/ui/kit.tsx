@@ -14,7 +14,7 @@ import {
   ArrowLeft, ArrowUp, ArrowDown, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert,
   ChevronsUpDown, CloudAlert, CloudDownload, FileText, Eye, EyeOff, Menu, Bug, Lightbulb, Ellipsis, MessageCirclePlus, Reply, Ear
 } from './icons';
-import { Fragment, isValidElement, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, isValidElement, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import {
   AccessibilityInfo, ActivityIndicator, Animated, Easing, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
   type StyleProp, type TextStyle, type ViewStyle
@@ -88,6 +88,23 @@ export function Ico(props: { name: IconName; size?: number; color?: string; stro
   return isRtl() && MIRRORED.has(props.name) ? <View style={{ transform: [{ scaleX: -1 }] }}>{icon}</View> : icon;
 }
 
+/**
+ * A player's Play or Pause, or a spinner while the sound is being got ready
+ * (its copy at even loudness, a download): Pause shows only once it plays
+ * (decision 182, amended 2026-11-04).
+ */
+export function PlayGlyph(props: { playing: boolean; loading?: boolean; size?: number; color?: string; strokeWidth?: number; fill?: string }) {
+  const size = props.size ?? 20;
+  if (props.loading) {
+    return (
+      <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="small" color={props.color ?? C.dark} style={size < 20 ? { transform: [{ scale: Math.max(0.6, (size + 4) / 20) }] } : undefined} />
+      </View>
+    );
+  }
+  return <Ico name={props.playing ? 'pause' : 'play'} size={size} {...(props.color ? { color: props.color } : {})} {...(props.strokeWidth ? { strokeWidth: props.strokeWidth } : {})} {...(props.fill ? { fill: props.fill } : {})} />;
+}
+
 // ---- text ----------------------------------------------------------------------------
 
 // ---- layout ----------------------------------------------------------------------------
@@ -107,6 +124,12 @@ export function Screen(props: {
   columnWidth?: number;
   /** Show the scroll bar, where what is below the fold is a way on (Sign In on a short phone). */
   scrollBar?: boolean;
+  /**
+   * Which page is on screen, where one screen shows a task's pages in turn
+   * (New language's steps, the pages of a question, an invite's steps): each
+   * new page opens at its top, not scrolled as far down as the page before.
+   */
+  page?: string;
 }) {
   // A wide window keeps the phone's reading width: the body sits in a
   // centred column and the footer's actions stop stretching (decisions.md 55).
@@ -121,6 +144,12 @@ export function Screen(props: {
   const helpOn = useHelpOn();
   // Something drawn on with a finger stops the body scrolling meanwhile (scrollHoldContext.ts).
   const [held, setHeld] = useState(false);
+  // Before the new page is drawn, so it never shows at the last page's scroll.
+  const body = useRef<ScrollView>(null);
+  const page = props.page;
+  useLayoutEffect(() => {
+    if (page !== undefined) body.current?.scrollTo({ y: 0, animated: false });
+  }, [page]);
   return (
     <KeyboardSafe style={[styles.screen, helpOn && { paddingBottom: HELP_FOOT_ROOM }]}>
       {props.header}
@@ -128,7 +157,7 @@ export function Screen(props: {
         {props.fixed ? (
           <View style={[{ flex: 1 }, column, props.bodyStyle]}>{props.children}</View>
         ) : (
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={!!props.scrollBar}
+          <ScrollView ref={body} style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={!!props.scrollBar}
             persistentScrollbar={!!props.scrollBar} scrollEnabled={!held}>
             <ScrollHoldContext.Provider value={setHeld}>{props.children}</ScrollHoldContext.Provider>
           </ScrollView>
@@ -618,7 +647,8 @@ function QuietLink(props: { label: string; icon: IconName; onPress: () => void; 
 }
 
 export function IconBtn(props: { name: IconName; onPress: () => void; label: string; color?: string; bg?: string; size?: number; disabled?: boolean; testID?: string;
-  /** What help mode says it does. */ help?: string }) {
+  /** What help mode says it does. */ help?: string;
+  /** A spinner in place of the icon: what it starts is being got ready. */ busy?: boolean }) {
   const size = props.size ?? 48;
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   // On the web an icon names itself on hover, as a button with words would (UI audit, findings 75 and 76).
@@ -628,10 +658,10 @@ export function IconBtn(props: { name: IconName; onPress: () => void; label: str
   }, [props.label]);
   return (
     <Pressable ref={ref} {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
-      {...a11yState({ disabled: !!props.disabled }, 'button')} hitSlop={Math.max(0, (target.min - size) / 2)}
+      {...a11yState({ disabled: !!props.disabled, busy: !!props.busy }, 'button')} hitSlop={Math.max(0, (target.min - size) / 2)}
       style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: props.bg ?? C.bg },
         props.disabled && { opacity: 0.4 }, pressed && styles.pressed]}>
-      <Ico name={props.name} size={Math.round(size * 0.46)} color={props.color ?? C.dark} />
+      {props.busy ? <ActivityIndicator size="small" color={props.color ?? C.dark} /> : <Ico name={props.name} size={Math.round(size * 0.46)} color={props.color ?? C.dark} />}
       <HelpBadge spot={spot} />
     </Pressable>
   );

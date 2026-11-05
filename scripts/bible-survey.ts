@@ -271,7 +271,8 @@ export function numberingsModule(s: Survey): string {
 const APP_LANGUAGES: [string, string[]][] = [
   ['English', ['eng']], ['Spanish', ['spa']], ['Portuguese', ['por']], ['French', ['fra']], ['Arabic', ['arb', 'ara']],
   ['Swahili', ['swh', 'swa']], ['Hausa', ['hau']], ['Amharic', ['amh']], ['Hindi', ['hin']], ['Bengali', ['ben']],
-  ['Nepali', ['npi', 'nep']], ['Indonesian', ['ind']], ['Chinese', ['cmn', 'zho']], ['Thai', ['tha']], ['Burmese', ['mya']]
+  ['Nepali', ['npi', 'nep']], ['Indonesian', ['ind']], ['Chinese', ['cmn', 'zho']], ['Thai', ['tha']], ['Burmese', ['mya']],
+  ['Tagalog', ['tgl', 'fil']]
 ];
 
 const EACH_CUSTOM = '## Custom, each one';

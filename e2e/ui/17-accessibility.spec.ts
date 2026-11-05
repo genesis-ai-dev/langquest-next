@@ -150,7 +150,8 @@ async function walk(browser: Browser, w: UiWorld): Promise<ScreenAudit[]> {
     const { context, page } = await device(browser, 'COORD');
     await tab(page, 'manage').click();
     await text(page, 'Alpha').click();
-    await expect(text(page, /^Ready ·/)).toBeVisible();
+    // A new device's first language page: its status waits for the organization to arrive, as in 09-language-setup.
+    await expect(text(page, /^Ready ·/)).toBeVisible({ timeout: 60_000 });
     await audit(page, 'the language page (Alpha)', 'COORD');
     await tab(page, 'manage').click();
     await text(page, 'Members').click();
@@ -355,7 +356,7 @@ async function arrowCheck(page: Page, name: string | RegExp, what: string): Prom
 
 // ---- interface languages -----------------------------------------------------------------
 
-const CODES = ['en', 'es', 'pt', 'fr', 'ar', 'sw', 'ha', 'am', 'hi', 'bn', 'ne', 'id', 'zh-Hans', 'th', 'my'] as const;
+const CODES = ['en', 'es', 'pt', 'fr', 'ar', 'sw', 'ha', 'am', 'hi', 'bn', 'ne', 'id', 'zh-Hans', 'th', 'my', 'tl'] as const;
 type Code = (typeof CODES)[number];
 
 function flatten(o: Record<string, unknown>, prefix = '', out: Record<string, string> = {}): Record<string, string> {
@@ -375,7 +376,7 @@ function catalog(code: Code): Record<string, string> {
 /** The languages' own names, as the picker lists them (i18n/languages.ts). */
 const OWN_NAME: Record<Code, string> = {
   en: 'English', es: 'Español', pt: 'Português (Brasil)', fr: 'Français', ar: 'العربية', sw: 'Kiswahili', ha: 'Hausa', am: 'አማርኛ',
-  hi: 'हिन्दी', bn: 'বাংলা', ne: 'नेपाली', id: 'Bahasa Indonesia', 'zh-Hans': '简体中文', th: 'ไทย', my: 'မြန်မာ'
+  hi: 'हिन्दी', bn: 'বাংলা', ne: 'नेपाली', id: 'Bahasa Indonesia', 'zh-Hans': '简体中文', th: 'ไทย', my: 'မြန်မာ', tl: 'Tagalog'
 };
 
 /** English words that would only show if a word is missing from `code`'s catalog or written straight into the code. */

@@ -2,7 +2,8 @@
  * Which phone flows a run can hold (scripts/maestro-ui.mjs, decision 102).
  *
  * Some flows cannot pass unattended: they need a microphone signal (tag
- * `voice`), Android's airplane mode (tag `android-only`), or a step from
+ * `voice`), Android (tag `android-only`: its airplane mode, or the disguise,
+ * which an iPhone build has none of), or a step from
  * outside mid-run (tag `wrapped`). Running them anyway reports failures that
  * are not findings, and hides the ones that are. So the runner skips them,
  * says so, and runs them only when the run says it can: `--voice` or
@@ -22,7 +23,7 @@ export const SKIPS = [
   {
     tag: 'android-only',
     when: (/** @type {RunOptions} */ o) => o.platform !== 'android',
-    why: 'turn on airplane mode, which the iOS simulator cannot: run with --platform android'
+    why: 'need Android (its airplane mode, which the iOS simulator lacks, or the disguise, which an iPhone build lacks): run with --platform android'
   },
   {
     tag: 'wrapped',

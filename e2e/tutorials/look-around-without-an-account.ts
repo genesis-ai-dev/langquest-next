@@ -69,8 +69,9 @@ export const lookAroundWithoutAnAccount: Tutorial = {
     },
     {
       screen: 'explore_home',
-      // The bar over the share recorded (its words are the card's, and would light the whole card).
-      part: (page) => card(page, 'C').getByText(/\d+%$/).last().locator('xpath=../preceding-sibling::*[1]'),
+      // The card whose bar shows most: the voice names the bar and its "Recorded 61%" line, and words in a card
+      // light their card (decisions.md 191), so the card is lit whole. The bar alone left that line dimmed.
+      part: (page) => card(page, 'C'),
       say: 'And how much of it is recorded.'
     },
     {

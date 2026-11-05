@@ -1,4 +1,4 @@
-import type { ChannelLanguage } from './youtube';
+import type { UiLanguage } from '@langquest-next/core';
 
 /**
  * The tutorial videos' playlists on YouTube, one for each group of people
@@ -12,8 +12,8 @@ import type { ChannelLanguage } from './youtube';
 /** Who a group of videos is for (e2e/tutorials/all.ts GROUPS). */
 export type Who = 'everyone' | 'admins' | 'leads' | 'translators' | 'reviewers' | 'followers';
 
-/** Each group's playlist title, by app language. */
-export const PLAYLISTS: Record<ChannelLanguage, Record<Who, string>> = {
+/** Each group's playlist title, by app language (a language without a channel yet has them ready). */
+export const PLAYLISTS: Record<UiLanguage, Record<Who, string>> = {
   en: {
     everyone: 'Everyone', admins: 'Organization heads and admins', leads: 'Team coordinators and language leads',
     translators: 'Translators', reviewers: 'Reviewers and consultants', followers: 'Followers, partners and staff'
@@ -73,6 +73,10 @@ export const PLAYLISTS: Record<ChannelLanguage, Record<Who, string>> = {
   'zh-Hans': {
     everyone: '所有人', admins: '组织负责人和管理员', leads: '团队协调员和语言负责人',
     translators: '译者', reviewers: '审阅者和顾问', followers: '关注者、合作伙伴和工作人员'
+  },
+  tl: {
+    everyone: 'Lahat', admins: 'Mga pinuno at admin ng organisasyon', leads: 'Mga coordinator ng pangkat at pinuno ng wika',
+    translators: 'Mga tagasalin', reviewers: 'Mga tagarepaso at konsultant', followers: 'Mga tagasunod, katuwang at kawani'
   }
 };
 

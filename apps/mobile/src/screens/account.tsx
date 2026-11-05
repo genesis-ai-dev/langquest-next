@@ -58,6 +58,8 @@ import { LOCKS_ON_SIGN_OUT, lockAndSignOut, rememberPassword, setAccountPassword
 import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { runningBuildLabel } from '../shell/updateStatus';
+import { AppIconRow } from '../shell/AppIconRow';
+import { useNotificationsOffered } from '../shell/useNotificationsOffered';
 import { PersonAvatar } from '../ui/UserChip';
 import { iconCounts, standingTitle, syncStanding, type SyncStanding } from '../sync/syncStanding';
 import { LanguageRow } from '../account/uiLanguage';
@@ -71,8 +73,6 @@ import { useInviterName } from '../account/useInviterName';
 import { useOrganizations } from '../account/useOrganizations';
 import { useUnsent } from '../account/useUnsent';
 import { deleteThisAccount } from '../account/deleteThisAccount';
-import { DisguiseRow } from '../disguise/DisguiseRow';
-import { useDisguise } from '../disguise/useDisguise';
 import { a11yState } from '../ui/a11yModel';
 
 // ---- Inbox (INBOX-1, INBOX-2) ---------------------------------------------------------------
@@ -455,10 +455,8 @@ export function SettingsMore(ctx: Ctx) {
   const orgs = useOrganizations(s.actorId).rows;
   const switchHere = !inSeveral(orgs);
   const passwordRow = s.isManaged && hasPassword === false;
-  // No push on the web yet: requests and feedback still reach the Inbox there. A disguised phone
-  // gets none, since each would show LangQuest's name (decisions.md 171).
-  const disguised = useDisguise().look !== null;
-  const notifications = Platform.OS !== 'web' && !disguised;
+  // No push on the web yet, nor on a disguised Android phone (useNotificationsOffered.ts).
+  const notifications = useNotificationsOffered();
   const blocked = ctx.blocks.ids.length;
   return (
     <Screen header={<Header title={t('account.me.more')} onBack={ctx.back} />}>
@@ -509,8 +507,8 @@ export function SettingsMore(ctx: Ctx) {
       <SectionLabel label={t('account.more.thisDevice')} />
       <Group>
         <Row icon="cloud" label={t('account.more.sync')} sub={syncSub} help={t('account.more.syncHelp')} badge={toSend > 0 ? formatNumber(toSend) : undefined} onPress={() => ctx.go('sync_status')} />
-        {/* A calculator or notepad in front of the app, opened with a code (decisions.md 171); phones only. */}
-        <DisguiseRow ctx={ctx} />
+        {/* Android only: a calculator or notepad in front of the app, opened with a code (decisions.md 171). */}
+        <AppIconRow ctx={ctx} />
         {/* docs/diagnostics.md, decisions.md 39: on by default, off here. */}
         <Row icon="progress" label={t('account.more.diagnostics')} sub={t('account.more.diagnosticsSub')}
           role="switch" checked={diag.on === true} disabled={diag.on === null} onPress={diag.toggle} last={blocked === 0} />

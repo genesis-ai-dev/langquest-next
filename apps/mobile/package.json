@@ -72,5 +72,14 @@
     "ship": "node scripts/ship.mjs",
     "eas-build-pre-install": "node scripts/store-build-guard.mjs"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "autolinking": {
+      "ios": {
+        "exclude": [
+          "expo-alternate-app-icons"
+        ]
+      }
+    }
+  }
 }

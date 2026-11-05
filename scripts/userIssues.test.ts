@@ -3,9 +3,9 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  API, AUDIENCE, branchComment, checkDecisions, checkFix, checkResults, factsOf, FAMILIES, FIX_LIMITS, FIX_MAX, fixBody, fixBranch, fixComment,
-  fixRefusal, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, LIMITS, linearClient, lookedOf, mergesOf, noFixComment, oldPathsOf, pathsOf,
-  PREFIX, redact, statesToSend, when
+  API, AUDIENCE, branchComment, checkDecisions, checkFix, checkResults, EVIDENCE_PHONES, evidencePlan, factsOf, FAMILIES, fetchEvidence, FIX_LIMITS, FIX_MAX,
+  fixBody, fixBranch, fixComment, fixRefusal, grewComment, isClosed, issueDescription, KEY, keysIn, LABEL, leaks, LIMITS, linearClient, lookedOf, mergesOf,
+  noFixComment, oldPathsOf, pathsOf, phoneFacts, PREFIX, privateOf, redact, statesToSend, when, withEvidence
 } from './user-issues.mjs';
 import { USER_ISSUES_PATH, USER_ISSUES_RULE } from '../apps/web/worker/userIssues';
 import * as model from '../server/userIssues';
@@ -28,6 +28,8 @@ const FB = kind('feedback:0d000000-0000-4000-8000-000000000001', {
 });
 const NOISE = kind('auth:sign_in:refused:invalid_credentials', { people: 1, count: 2 });
 const watch = { asOf: '2026-11-03T10:00:00Z', active: 9, look: [ERR, FB, NOISE], grew: [], issues: [] };
+
+const watchStepsOf = (job: string) => job.split(/\n {6}- /);
 
 describe('user-issues.mjs', () => {
   it('asks for a token the Worker takes, at the Worker\'s door, from the workflow the Worker lets in', () => {
@@ -66,7 +68,8 @@ describe('user-issues.mjs', () => {
     const perms = (job: string) => /^ {4}permissions:\n((?: {6}.+\n)+)/m.exec(jobs[job]!)?.[1]?.trim().split(/\n\s*/);
     expect(yml).toMatch(/^permissions:\n {2}contents: read\n\n/m);
     expect(perms('watch')).toEqual(['contents: read', 'id-token: write']);
-    expect(perms('fix')).toEqual(['contents: read']);
+    // The OpenID Connect token fetches what came with the issue, in the step before Claude, as in the watch job.
+    expect(perms('fix')).toEqual(['contents: read', 'id-token: write']);
     expect(perms('check')).toEqual(['contents: read']);
     expect(perms('open')).toEqual(['contents: write', 'pull-requests: write']);
     // No checkout before Claude or the patch's code keeps a token on disk.
@@ -79,6 +82,16 @@ describe('user-issues.mjs', () => {
     expect(fix.findIndex((s) => s.includes('LINEAR_API_KEY'))).toBeLessThan(fix.indexOf(claude));
     expect(fix.findIndex((s) => s.includes('cp -a .git "$RUNNER_TEMP/base.git"'))).toBeLessThan(fix.indexOf(claude));
     expect(jobs['fix']).toContain('GIT_DIR: ${{ runner.temp }}/base.git');
+    // What was sent is kept outside the checkout before Claude, and the patch step keeps it out of the change.
+    const context = fix.find((s) => s.includes('fix-context'))!;
+    expect(fix.indexOf(context)).toBeLessThan(fix.indexOf(claude));
+    expect(context).toContain('FIX_PRIVATE: ${{ runner.temp }}/private.json');
+    expect(fix.find((s) => s.includes('fix-patch'))).toContain('FIX_PRIVATE: ${{ runner.temp }}/private.json');
+    expect(claude).toContain('.user-issues/evidence');
+    expect(watchStepsOf(jobs['watch']!).find((s) => s.includes('anthropics/claude-code-action'))).toContain('.user-issues/evidence');
+    // Nothing that came with a problem leaves the runner: only the patch step's own output is uploaded.
+    const uploads = yml.split(/\n {6}- /).filter((s) => s.includes('actions/upload-artifact')).map((s) => /path: (.+)/.exec(s)?.[1]);
+    expect(uploads).toEqual(['${{ runner.temp }}/fix-out/', '${{ runner.temp }}/check/']);
     const watchSteps = jobs['watch']!.split(/\n {6}- /);
     const look = watchSteps.findIndex((s) => s.includes('anthropics/claude-code-action'));
     expect(watchSteps.findIndex((s) => s.includes('cp -a .git "$RUNNER_TEMP/base.git"'))).toBeLessThan(look);
@@ -340,7 +353,10 @@ describe('Linear', () => {
 });
 
 describe('a draft fix for each new issue', () => {
-  const git = (cwd: string, ...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8' });
+  // Without the GIT_* a git hook exports: in a worktree's pre-push hook GIT_DIR names the real repository,
+  // and this fixture's commit landed on the branch being pushed, leaving only its two files (2026-11-05).
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')));
+  const git = (cwd: string, ...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8', env });
 
   it('reads the paths git lists for a patch, both sides of a rename and binary files', () => {
     const dir = mkdtempSync(join(tmpdir(), 'fix-'));
@@ -369,7 +385,8 @@ describe('a draft fix for each new issue', () => {
     expect(fixRefusal(['apps/mobile/src/recording/recorder.ts', 'apps/mobile/test/recorder.test.ts'], 4000)).toBeNull();
     for (const p of ['.github/workflows/guardrails.yml', '.githooks/pre-commit', 'package.json', 'apps/mobile/package.json', 'package-lock.json', '.env.production',
       'apps/mobile/.env.preview', '.npmrc', '.agents/skills/user-issues/SKILL.md', '.claude/settings.json', 'AGENTS.md', 'CLAUDE.md', 'scripts/user-issues.mjs',
-      'scripts/linear-sync.mjs', '.git/config', 'apps/.git/hooks/pre-commit', '../outside.ts', '/etc/passwd', '.user-issues/issue.json', '"a/.github/\\tx"']) {
+      'scripts/linear-sync.mjs', '.git/config', 'apps/.git/hooks/pre-commit', '../outside.ts', '/etc/passwd', '.user-issues/issue.json', '"a/.github/\\tx"',
+      'apps/mobile/test/shot.jpg', 'apps/mobile/assets/x.PNG', 'apps/mobile/test/voice.m4a']) {
       expect(fixRefusal(['apps/mobile/src/a.ts', p], 100), p).toMatch(/which a draft fix may not$/);
     }
     expect(fixRefusal([], 0)).toBe('it changes nothing');
@@ -400,5 +417,106 @@ describe('a draft fix for each new issue', () => {
       .toBe('**Claude wrote a draft fix:** [PR 330](https://github.com/genesis-ai-dev/langquest-next/pull/330).\n\nTypecheck passed; no tests near the change.\n\nReview it, then mark it Ready for review on GitHub to run CI and merge it.');
     expect(noFixComment('Needs a store build.', RUN)).toBe(`**Claude looked for a fix and wrote none.** Needs a store build.\n\nThe watch for user issues: ${RUN}`);
     expect(branchComment('user-issue/lan-230', RUN)).toContain('[Open it](https://github.com/genesis-ai-dev/langquest-next/compare/main...user-issue/lan-230?expand=1)');
+  });
+});
+
+describe('what Claude looks at besides the counts', () => {
+  const at = '2026-11-04T04:29:00Z';
+  const rec = (minsBefore: number, kind: string, n: Record<string, number>, t: Record<string, string> = {}) => ({
+    at: new Date(Date.parse(at) - minsBefore * 60_000).toISOString(), receivedAt: at, kind, n, t
+  });
+  const phone = {
+    installId: 'inst-1', build: 'android update 01a1a398', phone: { os: 'android', osVersion: '11', model: 'moto e' },
+    firstSeen: '2026-10-20T00:00:00Z', lastSeen: at, from: '2026-11-01T04:29:00Z', to: '2026-11-04T05:29:00Z',
+    records: [
+      rec(2, 'transfer', { count: 3, bytes: 3_145_728, ms: 36_000, maxMs: 21_000 }, { dir: 'down', src: 'lang' }),
+      rec(5, 'transfer', { count: 2, bytes: 0, ms: 9000, maxMs: 6000, failOffline: 1, failOther: 1 }, { dir: 'down', src: 'source' }),
+      rec(6, 'audio', { plays: 4, playFail: 1, waits: 3, waitMs: 21_000, maxWaitMs: 14_000 }),
+      rec(8, 'open', { ms: 14_000 }, { cold: 'no' }),
+      rec(9, 'device', { freeDiskMb: 820, totalDiskMb: 16_000, blobsWanted: 12, dbMb: 40 }),
+      rec(45, 'transfer', { count: 50, ms: 1000 }, { dir: 'down', src: 'lang' })
+    ]
+  };
+
+  it('asks for each problem\'s pictures and phone first, then a few phones of every other kind, at most twelve', () => {
+    const many = kind('transfer:down:lang:failOther', { installIds: Array.from({ length: 30 }, (_, i) => `inst-${i}`) });
+    const plan = evidencePlan([ERR, many, FB, kind('feedback:0d000000-0000-4000-8000-000000000002', { feedback: { ...FB.feedback!, id: 'not-an-id', screenshot: true, installId: '../x' } })]);
+    expect(plan.media).toEqual(['0d000000-0000-4000-8000-000000000001']);
+    expect(plan.phones[0]).toEqual({ installId: 'inst-1', at: '2026-11-03T09:00:00Z' });
+    expect(plan.phones.map((p) => p.installId)).toEqual(['inst-1', 'inst-2', 'inst-0']);
+    const lots = evidencePlan(Array.from({ length: 10 }, (_, i) => kind(`error:E${i}@x:-`, { installIds: [`a-${i}`, `b-${i}`, `c-${i}`] })));
+    expect(lots.phones).toHaveLength(EVIDENCE_PHONES);
+    expect(lots.media).toEqual([]);
+  });
+
+  it('keeps the pictures as JPEG files and the records as JSON on the runner, and goes on without what it could not have', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'evidence-'));
+    try {
+      const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2]).toString('base64');
+      const asked: string[] = [];
+      const got = await fetchEvidence(dir, { media: ['0d000000-0000-4000-8000-000000000001', '0d000000-0000-4000-8000-000000000002'], phones: [{ installId: 'inst-1', at }, { installId: 'gone', at: null }] }, async (q: string) => {
+        asked.push(q);
+        if (q.includes('000000000002')) throw new Error('GET: HTTP 500');
+        if (q.startsWith('?media=')) return { screenshot: jpeg, picture: Buffer.from('<svg>').toString('base64') };
+        return q.includes('inst-1') ? phone : null;
+      });
+      expect(asked).toEqual(['?media=0d000000-0000-4000-8000-000000000001', '?media=0d000000-0000-4000-8000-000000000002', `?phone=inst-1&at=${encodeURIComponent(at)}`, '?phone=gone']);
+      const shot = got.media['0d000000-0000-4000-8000-000000000001']!;
+      expect(readFileSync(shot.screenshot!)).toEqual(Buffer.from(jpeg, 'base64'));
+      expect(shot.picture).toBeNull();
+      expect(got.media['0d000000-0000-4000-8000-000000000002']).toEqual({ screenshot: null, picture: null });
+      expect(JSON.parse(readFileSync(got.phones['inst-1']!.path, 'utf8'))).toEqual(phone);
+      expect(got.phones['gone']).toBeUndefined();
+      expect(shot.screenshot!.startsWith(join(dir, 'evidence'))).toBe(true);
+
+      const [err, fb] = withEvidence([ERR, FB], got);
+      expect(fb!.evidence).toEqual({ screenshot: shot.screenshot, picture: null, phones: [got.phones['inst-1']!.path] });
+      expect(fb!.phoneFacts).toEqual(phoneFacts(phone, FB.feedback!.at));
+      expect(err!.evidence).toEqual({ screenshot: null, picture: null, phones: [got.phones['inst-1']!.path] });
+      expect(err).not.toHaveProperty('phoneFacts');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('says what the phone did in the half hour before, from the records alone', () => {
+    expect(phoneFacts(phone, at)).toEqual([
+      'moto e, android 11 · android update 01a1a398',
+      'Downloads (lang): 3 files, 3.0 MB, 12 s each on average, slowest 21 s',
+      'Downloads (source): 2 files, 4.5 s each on average, slowest 6.0 s, 2 failed (failOffline 1, failOther 1)',
+      'Audio: plays 4, playFail 1',
+      'Plays waited for sound: 7.0 s on average, longest 14 s (3 plays)',
+      'Open: 1 time, slowest 14 s',
+      `Disk, ${when(phone.records[4]!.at)}: 820 MB free of 16000 MB, 12 files wanted, database 40 MB`
+    ]);
+    expect(phoneFacts({ ...phone, phone: {}, records: [] }, at)).toEqual(['phone ? · android update 01a1a398', 'No downloads, plays, opens, syncs or errors recorded in the half hour before it.']);
+  });
+
+  it('puts the phone\'s numbers under a problem sent from help mode', () => {
+    const facts = factsOf({ ...FB, phoneFacts: phoneFacts(phone, at) });
+    expect(facts).toContain('**That phone in the half hour before**');
+    expect(facts).toContain('- Downloads (lang): 3 files, 3.0 MB, 12 s each on average, slowest 21 s');
+    expect(factsOf(FB)).not.toContain('That phone');
+  });
+
+  it('knows the ids and words of what was sent, as Linear gives the issue back, and keeps them out of a public change', () => {
+    const description = [
+      'Playback is slow.', '', '**Sent from help mode** on Nov 3', '', '> Playback is super slow on this lower end phone. Just tried to play audio now.', '> ok', '',
+      '+++ Agent notes', '', 'Kinds (the watch matches later records to this issue by these lines; keep them):', '',
+      '* `feedback:a316558c-474c-46f1-8f48-672fc38ea87d`', '- `audio:playFail`', '',
+      'Phones that hit it, for `npm run diag -- --hosted timeline <installId> --days 3`:', '', '* eae9b9ed-7c59-41c5-9dc4-173b84a3860d', '- inst-0001', '',
+      'Not investigated in code.', '- not-a-phone-0001', '+++'
+    ].join('\n');
+    const priv = privateOf(description);
+    expect(priv.feedback).toEqual(['a316558c-474c-46f1-8f48-672fc38ea87d']);
+    expect(priv.installs).toEqual(['eae9b9ed-7c59-41c5-9dc4-173b84a3860d', 'inst-0001']);
+    expect(priv.words).toEqual(['Playback is super slow on this lower end phone. Just tried to play audio now.']);
+    expect(keysIn(description)).toEqual(['feedback:a316558c-474c-46f1-8f48-672fc38ea87d', 'audio:playFail']);
+
+    expect(leaks('+ // Seen on eae9b9ed-7c59-41c5-9dc4-173b84a3860d', priv)).toBe(true);
+    expect(leaks('const report = "a316558c-474c-46f1-8f48-672fC38EA87D";', priv)).toBe(true);
+    expect(leaks("it('plays when playback is super slow on this lower end phone', ...)", priv)).toBe(true);
+    expect(leaks("it('starts playing before the whole file is read')", priv)).toBe(false);
+    expect(leaks('Playback on slow phones starts at once.', priv)).toBe(false);
   });
 });

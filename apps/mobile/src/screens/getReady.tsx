@@ -196,7 +196,7 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
   }
 
   return (
-    <Screen header={header} bodyStyle={PAD}
+    <Screen header={header} bodyStyle={PAD} page={tq.pageId}
       footer={<>
         {/* One question a screen: the pages before the last move on inside the question (decision 80). */}
         {!tq.last ? (

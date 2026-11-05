@@ -3,16 +3,16 @@
 // a part is recorded here, from its file when it is first shown
 // (loudnessOfFile.ts), or when its copy at even loudness is made
 // (levelStore.ts, decision 182), and kept from then on. Files are read one
-// at a time.
+// at a time, behind a part someone is waiting to hear (levelTurns.ts).
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { noteExpected } from '../diagnostics/report';
 import { packSound, unpackSound, type PartSound } from './loudnessModel';
+import { inTurn } from './levelTurns';
 import { loudnessOfFile } from './loudnessOfFile';
 
 const KEY = (hash: string) => `loudness:v1:${hash}`;
 const known = new Map<string, PartSound | null>();
 const working = new Map<string, Promise<PartSound | null>>();
-let reading: Promise<unknown> = Promise.resolve();
 const listeners = new Set<(hash: string) => void>();
 
 /** The measure already known for `hash` this run (undefined: not looked up yet; null: none to be had). */
@@ -52,9 +52,7 @@ export function loadSound(hash: string, file: { uri: string; format: 'wav' | 'm4
     const kept = unpackSound(await AsyncStorage.getItem(KEY(hash)).catch(() => null));
     if (kept) return kept;
     if (!file) return null;
-    const turn = reading.then(() => loudnessOfFile(file.uri, file.format));
-    reading = turn.catch(() => undefined);
-    const read = await turn.catch((e: unknown) => { noteExpected('loudness: read', e, 'read'); return null; });
+    const read = await inTurn(`measure:${hash}`, () => loudnessOfFile(file.uri, file.format)).catch((e: unknown) => { noteExpected('loudness: read', e, 'read'); return null; });
     if (read) void AsyncStorage.setItem(KEY(hash), packSound(read)).catch((e: unknown) => noteExpected('loudness: keep', e, 'write'));
     return read;
   })().then((sound) => {

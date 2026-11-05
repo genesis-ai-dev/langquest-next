@@ -330,12 +330,12 @@ describe('tutorial videos (decisions.md 180)', () => {
     madeAt: hoursAgo(50), chosenAt: null, failed: null, failedAt: null, replaces: null, ...over
   });
 
-  it('lists all 15 channels, connected or not, with the count up on each', () => {
+  it('lists all 16 channels, connected or not, with the count up on each', () => {
     const t = tutorialsOf({
       channels: [{ channelId: CHANNELS.es, language: 'es', title: 'LangQuest - Español', connectedAt: hoursAgo(1), section: 'made' }],
       waiting: [], published: [{ language: 'es', videos: 3, latestAt: hoursAgo(2) }]
     });
-    expect(t.channels).toHaveLength(15);
+    expect(t.channels).toHaveLength(16);
     expect(t.channels[0]).toMatchObject({ language: 'en', title: null, connectedAt: null, videos: 0 });
     expect(t.channels.find((c) => c.language === 'es')).toMatchObject({ title: 'LangQuest - Español', videos: 3, section: 'made', branded: false, held: null });
   });

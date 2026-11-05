@@ -16,7 +16,7 @@ import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Ico } from '../ui/kit';
+import { Ico, PlayGlyph } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { cardDurations } from '../recording/workspaceModel';
 import { mmss, partLabel } from '../recording/model';
@@ -88,7 +88,7 @@ function PartRow(props: {
       <Pressable onPress={play.onPress} disabled={!clip.available} accessibilityRole="button" accessibilityLabel={playLabel}
         style={({ pressed }) => [styles.play, !clip.available && ps.off, pressed && ps.pressed]}>
         <View style={[styles.playDot, heard.playing && styles.playDotOn]}>
-          <Ico name={heard.playing ? 'pause' : 'play'} size={14} color={heard.playing ? C.white : C.primary} strokeWidth={2.6} fill={heard.playing ? C.white : C.primary} />
+          <PlayGlyph playing={heard.playing} loading={heard.loading} size={14} color={heard.playing ? C.white : C.primary} strokeWidth={2.6} fill={heard.playing ? C.white : C.primary} />
         </View>
         <Text style={[txt.body, { flex: 1, fontWeight: '600', color: C.dark }]} numberOfLines={1}>{name}</Text>
         <Text style={txt.smMuted}>{mmss(props.durationMs)}</Text>

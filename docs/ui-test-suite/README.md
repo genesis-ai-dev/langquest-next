@@ -373,7 +373,8 @@ npm run test:ui:phone -- --platform ios --voice --tags smoke
   `flowsOrder` run first on the first device, then the rest are split.
   Reports: `report-ordered.xml` and `report.xml`. Flows tagged `wrapped` need a step
   from outside mid-run (their headers say which) and run only with
-  `--wrapped`; `android-only` flows turn airplane mode on.
+  `--wrapped`; `android-only` flows turn airplane mode on, or use the
+  disguise, which an iPhone build has none of.
 - On Android, the runner turns animations off for the run (window,
   transition and animator scales to 0) and puts them back afterwards.
   Maestro reads a screen once it is idle, and one that animates every frame
