@@ -7516,7 +7516,10 @@ request in each build that has it. So:
   the nightly jobs use, or with `ANTHROPIC_API_KEY`.
 - The ops dashboard shows a copied pull request in each build that has it:
   from main in the new build, and in the public build as a copy named with
-  its copy pull request, first as waiting while the copy is open.
+  its copy pull request, first as "PR open, not merged yet" while the copy
+  is open. No person merges a copy, so nobody would hear of one that is
+  stuck: a copy whose tests failed, or that has been open for 3 hours, is a
+  problem under Needs attention, linked to the copy.
 
 
 ## 156. Store builds come only from the EAS workflow on merges into main

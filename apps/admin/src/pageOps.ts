@@ -148,9 +148,9 @@ Object.assign(RENDER, {
     const CAUGHT_UP = 3;
     const update = (u, platform) => {
       const phones = u.phones ? ' · ' + num(u.phones.on) + ' of ' + num(u.phones.of) + ' ' + PHONES[platform] + ' run it' : '';
-      const how = u.waiting ? 'not sent yet: copy PR ' + u.copy + ' ' + u.waiting + ' · ' : u.copy ? 'copied by PR ' + u.copy + ' · ' : '';
+      const how = u.waiting ? 'PR open, not merged yet: copy PR ' + u.copy + ' ' + u.waiting + ' · ' : u.copy ? 'copied by PR ' + u.copy + ' · ' : '';
       const small = esc(how) + esc(ago(u.at)) + esc(phones);
-      const cls = 'pu' + (u.waiting ? ' pend' : '') + (u.copy ? ' cp' : '');
+      const cls = 'pu' + (u.waiting ? ' pend' : '') + (u.needsPerson ? ' stuck' : '') + (u.copy ? ' cp' : '');
       const link = (n, name, body) => '<a class="' + cls + '" href="https://github.com/' + esc(d.repo) + '/pull/' + encodeURIComponent(n) + '" target="_blank" rel="noopener" title="' + esc(name) + '">' + body + '</a>';
       if (u.rollBack || (!u.pr && !u.copy)) {
         const name = u.rollBack ? 'Back to the build\'s own code' : 'Update ' + u.id.slice(0, 8);

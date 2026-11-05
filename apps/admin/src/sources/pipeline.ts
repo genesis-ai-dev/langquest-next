@@ -53,6 +53,8 @@ export interface UpdateCard {
   phones: { on: number; of: number } | null;
   /** A copy not merged yet, so no phone has it: what it waits for. */
   waiting?: string;
+  /** That copy needs a person: its tests failed, or it has been open for hours (`COPY_HOURS`). */
+  needsPerson?: boolean;
 }
 
 /** One build, in the stage it is in now. */
@@ -306,8 +308,11 @@ export function prFromMessage(message: string | null): Named | null {
   return { pr: prs[0]!.pr, title: prs[0]!.title, copy, also: prs.slice(1), more: Math.max(0, count - prs.length) };
 }
 
-/** An open pull request onto a release branch, as GitHub lists it. */
-export interface OpenCopy { number: number; title: string; body: string | null; created_at: string; labels?: { name: string }[] }
+/** An open pull request onto a release branch, as GitHub lists it; `failed` when its guardrails gate failed. */
+export interface OpenCopy { number: number; title: string; body: string | null; created_at: string; labels?: { name: string }[]; head?: { sha: string }; failed?: boolean }
+
+/** How long a copy may stay open before it needs a person: Claude's conflict step has an hour, the checks under one. */
+export const COPY_HOURS = 3;
 
 /**
  * Copies onto a platform's release branch that are not merged yet, as cards
@@ -316,7 +321,7 @@ export interface OpenCopy { number: number; title: string; body: string | null; 
  * ("- <commit> #317 Title"), or from its title for a copy made before that
  * list named them ("release/android: Merge pull request #340 from …").
  */
-export function pendingCopies(lane: StoreLane, open: OpenCopy[]): void {
+export function pendingCopies(lane: StoreLane, open: OpenCopy[], now = Date.now()): void {
   const card = stage(lane.stages, 'live').cards[0];
   if (!card) return;
   const pending = open.flatMap((o): UpdateCard[] => {
@@ -326,9 +331,13 @@ export function pendingCopies(lane: StoreLane, open: OpenCopy[]): void {
     const prs = listed.length ? listed : Number.isFinite(old) ? [{ pr: old, title: null }] : [];
     if (!prs.length) return [];
     const conflict = (o.labels ?? []).some((l) => l.name === 'copy-conflict');
+    const slow = (hoursAgo(o.created_at, now) ?? 0) >= COPY_HOURS;
     return [{
       id: `copy-${o.number}`, pr: prs[0]!.pr, title: prs[0]!.title, copy: o.number, also: prs.slice(1), more: 0, at: o.created_at, rollBack: false, phones: null,
-      waiting: conflict ? 'has a conflict that Claude resolves' : 'merges itself once its checks pass'
+      waiting: o.failed ? 'failed its tests, so it needs a person'
+        : conflict ? (slow ? 'has a conflict that Claude has not finished' : 'has a conflict that Claude is fixing')
+          : slow ? 'has been open for hours without merging' : 'merges itself when its tests pass',
+      needsPerson: !!o.failed || slow
     }];
   });
   card.updates = [...pending, ...card.updates];
@@ -391,6 +400,20 @@ export function pipelineAlerts(p: Pipeline, now = Date.now()): Alert[] {
       ? 'Check the hourly App Store step (app-store-review.yml) on EAS.'
       : 'Check the Play step (play-review.mjs) on EAS: without PLAY_REVIEW_KEY, promote it in Play Console (docs/environments.md, The Play key).';
     out.push({ level: 'watch', text: `${lane.id === 'ios' ? 'iPhone' : 'Android'} ${waiting.title} has waited in ${where} for ${Math.floor(hours)} h with nothing in review. ${fix}` });
+  }
+  // A copy for a public build that needs a person: its tests failed, or it has been open for hours.
+  for (const lane of p.lanes) {
+    const live = stage(lane.stages, 'live').cards[0];
+    for (const u of live?.updates ?? []) {
+      if (!u.waiting || !u.needsPerson || u.copy === null) continue;
+      const prs = [u.pr, ...u.also.map((a) => a.pr)].filter((n): n is number => n !== null).map((n) => `PR ${n}`);
+      const named = prs.length > 3 ? `${prs.slice(0, 2).join(', ')} and ${prs.length - 2} more` : prs.join(' and ');
+      out.push({
+        level: 'problem',
+        text: `${lane.id === 'ios' ? 'iPhone' : 'Android'} ${live!.title} does not have ${named} yet: copy PR ${u.copy} ${u.waiting}. Open it to finish it (decisions.md 155).`,
+        link: `https://github.com/${p.repo}/pull/${u.copy}`
+      });
+    }
   }
   return out;
 }
@@ -581,9 +604,15 @@ export async function pipelineSection(
     if (/^release\/[a-z]+: /.test(found.title)) { u.copy ??= found.pr; u.title ??= found.title.replace(/^release\/[a-z]+: /, ''); }
     else { u.pr ??= found.pr; u.title ??= found.title; }
   }
-  // Copies onto each release branch that are not merged yet, on the public build they are for.
-  const open = await Promise.all(p.lanes.map((l) =>
-    gh<OpenCopy[]>(`/pulls?state=open&base=${encodeURIComponent(`release/${l.id}`)}&per_page=30`, 'GitHub copies').catch(() => null)));
-  p.lanes.forEach((l, k) => { if (open[k]?.length) pendingCopies(l, open[k]!); });
+  // Copies onto each release branch that are not merged yet, on the public build they are for, with whether their tests failed.
+  const open = await Promise.all(p.lanes.map(async (l) => {
+    const copies = await gh<OpenCopy[]>(`/pulls?state=open&base=${encodeURIComponent(`release/${l.id}`)}&per_page=30`, 'GitHub copies').catch(() => null);
+    await Promise.all((copies ?? []).filter((o) => o.head?.sha).slice(0, 8).map((o) =>
+      gh<{ check_runs: { conclusion: string | null }[] }>(`/commits/${encodeURIComponent(o.head!.sha)}/check-runs?check_name=gate`, 'GitHub checks')
+        .then((r) => { o.failed = r.check_runs.some((c) => c.conclusion === 'failure'); })
+        .catch(() => {})));
+    return copies;
+  }));
+  p.lanes.forEach((l, k) => { if (open[k]?.length) pendingCopies(l, open[k]!, now); });
   return ok(p, pipelineAlerts(p, now));
 }
