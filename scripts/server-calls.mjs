@@ -138,8 +138,27 @@ export function serverHere(dir = root) {
 /** The server files that a checkout deploys: migrations, Edge Functions and the Worker. */
 const SERVER_PATHS = ['supabase/migrations', 'supabase/functions', 'apps/web/worker'];
 
-/** What main's server has: its server files, written out from git into a temporary folder. */
+/** Whether git knows `ref` as a commit here. */
+const knows = (ref) => {
+  try {
+    execFileSync('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { cwd: root, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * What main's server has: its server files, written out from git into a
+ * temporary folder. A checkout without main (the unit jobs check out only
+ * the pull request, one commit deep) fetches main's newest commit first, as
+ * shallow as the checkout, so that the check reads the same server there.
+ */
 export function serverOfMain(ref = 'origin/main') {
+  if (ref === 'origin/main' && !knows(ref)) {
+    const shallow = execFileSync('git', ['rev-parse', '--is-shallow-repository'], { cwd: root, encoding: 'utf8' }).trim() === 'true';
+    execFileSync('git', ['fetch', '--quiet', ...(shallow ? ['--depth=1'] : []), 'origin', 'main:refs/remotes/origin/main'], { cwd: root, stdio: ['ignore', 'ignore', 'pipe'] });
+  }
   const dir = mkdtempSync(join(tmpdir(), 'main-server-'));
   const tar = execFileSync('git', ['archive', '--format=tar', ref, ...SERVER_PATHS], { cwd: root, maxBuffer: 1 << 30 });
   execFileSync('tar', ['-x', '-C', dir], { input: tar });
