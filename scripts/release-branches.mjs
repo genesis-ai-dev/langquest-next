@@ -13,7 +13,9 @@
 // examines every copy (.github/workflows/release-copy-conflict.yml): it
 // finishes a copy with a conflict, takes out each part of a change that does
 // not fit the public build (a change to a feature that only a newer build
-// has), fixes failed checks, and then turns on auto-merge. Once the copy's
+// has) and fixes failed checks, in commits on the copy's branch. The
+// workflow's next step (finish-copy) pushes them, comments what Claude did
+// with each commit, and turns on auto-merge. Once the copy's
 // checks pass it merges, and .eas/workflows/deploy-release-branch.yml sends
 // the branch to the public build as an OTA update. A merge that changes only the website, the ops
 // dashboard, the server or the docs is not copied: the phone would get the
@@ -32,14 +34,19 @@
 //                                                           start Claude on copies whose checks failed
 //   node scripts/release-branches.mjs conflict-note --branch <copy branch> --pr <n>
 //                                                           without Claude: name the files in conflict
+//   node scripts/release-branches.mjs finish-copy --branch <copy branch> --pr <n> --start <commit>
+//                                                           after Claude: push its commits, comment, and
+//                                                           turn on auto-merge, or try again within the hour
 //
 // The GitHub calls use GH_TOKEN (a GitHub App's token, so that the copy pull
 // requests start their checks) through the gh CLI.
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = fileURLToPath(new URL('..', import.meta.url));
+// The checkout, or RELEASE_REPO_DIR: the copy workflow runs its own copy of this script, kept apart from what Claude edits.
+const root = process.env.RELEASE_REPO_DIR || fileURLToPath(new URL('..', import.meta.url));
 export const PLATFORMS = ['ios', 'android'];
 
 /**
@@ -95,28 +102,76 @@ export const MACHINERY = [
 /**
  * The label that starts Claude on a copy: every copy gets it, so that Claude
  * examines it, finishes it when it has a conflict, and fixes it when its
- * checks failed. Claude takes it off when it turns on auto-merge.
+ * checks failed. The workflow takes it off when Claude's run ends.
  */
 export const CLAUDE_LABEL = 'copy-claude';
-/** The label of a copy that stopped at a conflict, beside CLAUDE_LABEL; it starts nothing on its own. */
+/**
+ * The label of a copy that Claude has not finished: it stopped at a
+ * conflict (beside CLAUDE_LABEL, which starts Claude), or Claude's run ended
+ * before every commit was copied or left out (alone, so that the hourly run
+ * starts Claude again).
+ */
 export const CONFLICT_LABEL = 'copy-conflict';
-/** The label of a copy whose checks still fail after Claude's tries: a person fixes it. */
+/** The label of a copy that is still not finished, or still fails its checks, after Claude's tries: a person fixes it. */
 export const PERSON_LABEL = 'copy-needs-person';
-/** How many times Claude tries to fix a copy's failed checks before a person must. */
+/** How many times the hourly run starts Claude again on a copy before a person must finish it. */
 export const FIX_TRIES = 3;
-/** How the hourly run's comment on each try starts; the run counts them. */
+/** How the hourly run's comment on a try for failed checks starts. */
 export const TRY_NOTE = 'The checks of this copy failed';
+/** How the workflow's comment starts when Claude's run ended before the copy was finished. */
+export const UNFINISHED_NOTE = 'Claude did not finish this copy';
+/** Whether a comment is one of the hourly run's tries, "(try 2 of 3, …)"; the run counts them. */
+export const isTry = (body) => /\(try \d+ of \d+\b/.test(body ?? '');
+/** Where Claude writes what it did with each commit; git ignores it (the workflow excludes it). */
+export const RESULT_FILE = '.release-copy.json';
+/** What Claude may do with each listed commit. */
+export const RESULTS = ['copied', 'copied in part', 'left out'];
 
 /**
  * What the hourly run does with an open copy, from its labels, its gate
  * check on its newest commit ('FAILURE', 'SUCCESS', or null while it runs)
- * and Claude's tries so far: 'try' starts Claude on failed checks, 'person'
- * leaves them to a person, 'none' waits (Claude is on it, a person is, or
- * nothing failed).
+ * and Claude's tries so far: 'try' starts Claude again on a copy that is not
+ * finished (CONFLICT_LABEL alone) or whose checks failed, 'person' leaves it
+ * to a person, 'none' waits (Claude is on it, a person is, or nothing
+ * failed).
  */
 export function nextForCopy({ labels, gate, tries }) {
-  if ([CLAUDE_LABEL, CONFLICT_LABEL, PERSON_LABEL].some((l) => labels.includes(l)) || gate !== 'FAILURE') return 'none';
+  if ([CLAUDE_LABEL, PERSON_LABEL].some((l) => labels.includes(l))) return 'none';
+  if (!labels.includes(CONFLICT_LABEL) && gate !== 'FAILURE') return 'none';
   return tries < FIX_TRIES ? 'try' : 'person';
+}
+
+/**
+ * Whether Claude finished a copy, from the result it wrote (RESULT_FILE):
+ * `{ "commits": [{ "sha", "result": "copied" | "copied in part" | "left out", "why" }] }`,
+ * or `{ "unfinished": "why" }`. It is finished when each listed commit has a
+ * result, and each one copied (in part or whole) is on the branch
+ * (`onBranch`: git cherry-pick -x names it). Gives the comment's line for
+ * each commit and how many were copied, or why it is not finished.
+ */
+export function copyResult({ listed, names = {}, result, onBranch }) {
+  if (!result || typeof result !== 'object') return { done: false, why: 'Claude wrote no result' };
+  if (typeof result.unfinished === 'string' && result.unfinished.trim()) return { done: false, why: result.unfinished.trim() };
+  const entries = Array.isArray(result.commits) ? result.commits : [];
+  const lines = [];
+  const problems = [];
+  let copied = 0;
+  for (const sha of listed) {
+    const e = entries.find((x) => typeof x?.sha === 'string' && x.sha.length >= 7 && sha.startsWith(x.sha.toLowerCase()));
+    if (!e || !RESULTS.includes(e.result)) {
+      problems.push(`${sha.slice(0, 8)} has no result`);
+      continue;
+    }
+    if (e.result !== 'left out' && !onBranch(sha)) {
+      problems.push(`${sha.slice(0, 8)} is not on the branch`);
+      continue;
+    }
+    if (e.result !== 'left out') copied += 1;
+    const why = typeof e.why === 'string' ? e.why.trim() : '';
+    lines.push(`- ${sha.slice(0, 8)}${names[sha] ? ` ${names[sha]}` : ''}: ${e.result}.${why ? ` ${why}` : ''}`);
+  }
+  if (!listed.length) problems.push('the pull request lists no commits');
+  return problems.length ? { done: false, why: problems.join(', ') } : { done: true, lines, copied };
 }
 
 /**
@@ -292,7 +347,7 @@ function pick(sha) {
 function makeLabel(name) {
   const [color, description] = {
     [CLAUDE_LABEL]: ['5319E7', 'A copy onto a release branch that Claude examines, finishes or fixes'],
-    [CONFLICT_LABEL]: ['D93F0B', 'A copy onto a release branch that stopped at a conflict'],
+    [CONFLICT_LABEL]: ['D93F0B', 'A copy onto a release branch that Claude has not finished'],
     [PERSON_LABEL]: ['B60205', 'A copy onto a release branch that a person must fix'],
   }[name];
   run('gh', ['label', 'create', name, '--force', '--color', color, '--description', description]);
@@ -311,7 +366,8 @@ function takeMachinery() {
  * request: one merge after each merge into main, or every merge a new
  * branch takes (a catch-up). A conflict stops the copy there; the pull
  * request lists what is left. Claude examines every copy and finishes it
- * (.github/workflows/release-copy-conflict.yml), then turns on auto-merge.
+ * (.github/workflows/release-copy-conflict.yml), and that workflow then
+ * turns on auto-merge (finishCopy).
  */
 function copy(platform, shas) {
   if (!shas.length) return;
@@ -461,10 +517,11 @@ async function tidy() {
 }
 
 /**
- * A copy whose checks failed gets Claude, up to FIX_TRIES times: the run
- * comments on the try and labels the copy, which starts
- * .github/workflows/release-copy-conflict.yml. After that, it is labelled
- * for a person, and the ops dashboard puts it under Needs attention.
+ * A copy that Claude did not finish, or whose checks failed, gets Claude
+ * again, up to FIX_TRIES times: the run comments on the try and labels the
+ * copy, which starts .github/workflows/release-copy-conflict.yml. After
+ * that, it is labelled for a person, and the ops dashboard puts it under
+ * Needs attention.
  */
 function fixFailedCopies(platform) {
   if (!remoteHas(`refs/heads/${branchOf(platform)}`)) return;
@@ -472,21 +529,23 @@ function fixFailedCopies(platform) {
     '--json', 'number,headRefName,headRefOid,labels,comments,statusCheckRollup']).stdout);
   for (const pr of open) {
     if (!commitOfCopy(pr.headRefName)) continue;
+    const labels = (pr.labels ?? []).map((l) => l.name);
     const gate = (pr.statusCheckRollup ?? []).filter((c) => c.name === 'gate').at(-1)?.conclusion ?? null;
-    const tries = (pr.comments ?? []).filter((c) => c.body?.startsWith(TRY_NOTE)).length;
-    const step = nextForCopy({ labels: (pr.labels ?? []).map((l) => l.name), gate, tries });
+    const tries = (pr.comments ?? []).filter((c) => isTry(c.body)).length;
+    const step = nextForCopy({ labels, gate, tries });
+    const unfinished = labels.includes(CONFLICT_LABEL);
     if (step === 'try') {
-      run('gh', ['pr', 'comment', String(pr.number), '--body',
-        `${TRY_NOTE} on ${pr.headRefOid.slice(0, 8)}, so Claude tries to fix them (try ${tries + 1} of ${FIX_TRIES}, decisions.md 155).`]);
+      const why = unfinished ? `${UNFINISHED_NOTE}, so Claude tries again` : `${TRY_NOTE} on ${pr.headRefOid.slice(0, 8)}, so Claude tries to fix them`;
+      run('gh', ['pr', 'comment', String(pr.number), '--body', `${why} (try ${tries + 1} of ${FIX_TRIES}, decisions.md 155).`]);
       makeLabel(CLAUDE_LABEL);
       run('gh', ['pr', 'edit', String(pr.number), '--add-label', CLAUDE_LABEL]);
-      console.log(`#${pr.number}: its checks failed, so Claude tries to fix them (try ${tries + 1} of ${FIX_TRIES})`);
+      console.log(`#${pr.number}: ${unfinished ? 'not finished' : 'its checks failed'}, so Claude tries again (try ${tries + 1} of ${FIX_TRIES})`);
     } else if (step === 'person') {
       makeLabel(PERSON_LABEL);
       run('gh', ['pr', 'edit', String(pr.number), '--add-label', PERSON_LABEL]);
       run('gh', ['pr', 'comment', String(pr.number), '--body',
-        `Claude tried ${FIX_TRIES} times, and the checks of this copy still fail. A person must fix them: read the failed checks, fix them on this branch, and push. The copy then merges itself (decisions.md 155).`]);
-      console.log(`#${pr.number}: its checks still fail after ${FIX_TRIES} tries, so it is labelled for a person`);
+        `Claude tried ${FIX_TRIES} times, and this copy ${unfinished ? 'is still not finished' : 'still fails its checks'}. A person must finish it: read Claude's comments and the failed checks, fix this branch, push, remove the ${CONFLICT_LABEL} label, and turn on auto-merge (decisions.md 155).`]);
+      console.log(`#${pr.number}: ${unfinished ? 'not finished' : 'its checks still fail'} after ${FIX_TRIES} tries, so it is labelled for a person`);
     }
   }
 }
@@ -568,12 +627,80 @@ function noteConflict(branch, pr) {
   console.log(`conflict noted on #${pr}: ${files.length} file(s)`);
 }
 
+/**
+ * Push HEAD to a copy's branch with GH_TOKEN, only while the branch is still
+ * at `start` (where Claude began), so that a push made meanwhile wins. The
+ * token goes in git's environment, never in its arguments. No hook runs:
+ * the pull request's checks run what the hooks would, and more.
+ */
+function pushCopy(branch, start) {
+  const header = `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${process.env.GH_TOKEN ?? ''}`).toString('base64')}`;
+  const url = `${process.env.GITHUB_SERVER_URL ?? 'https://github.com'}/${process.env.GITHUB_REPOSITORY ?? 'genesis-ai-dev/langquest-next'}.git`;
+  return run('git', ['push', '--quiet', '--no-verify', `--force-with-lease=refs/heads/${branch}:${start}`, url, `HEAD:refs/heads/${branch}`], {
+    allowFail: true,
+    env: { ...process.env, GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader', GIT_CONFIG_VALUE_0: header },
+  });
+}
+
+/**
+ * After Claude's run on a copy (.github/workflows/release-copy-conflict.yml):
+ * push the commits Claude made, then comment what Claude did with each
+ * listed commit and turn on auto-merge, or close the copy when nothing in it
+ * fits the public build. When Claude did not finish (no result, a commit
+ * neither on the branch nor left out, changes not committed, or a push that
+ * failed), the copy is labelled CONFLICT_LABEL alone, and the hourly run
+ * starts Claude again (fixFailedCopies).
+ */
+function finishCopy(branch, pr, start, file = RESULT_FILE) {
+  if (!commitOfCopy(branch)) throw new Error(`${branch} is not a copy branch`);
+  const view = JSON.parse(run('gh', ['pr', 'view', pr, '--json', 'state,body']).stdout);
+  if (view.state !== 'OPEN') return console.log(`#${pr}: ${String(view.state).toLowerCase()}, so there is nothing to finish`);
+  let result = null;
+  try {
+    result = JSON.parse(readFileSync(resolve(root, file), 'utf8'));
+  } catch {
+    // None, or not JSON: not finished.
+  }
+  const names = Object.fromEntries([...(view.body ?? '').matchAll(/^- ([0-9a-f]{40}) ([^\n]+)$/gm)].map((m) => [m[1], m[2].trim()]));
+  const midway = existsSync(resolve(root, git('rev-parse', '--git-path', 'CHERRY_PICK_HEAD')))
+    || git('status', '--porcelain', '--untracked-files=no') !== '';
+  let outcome = midway ? { done: false, why: 'Claude left changes that are not committed' }
+    : copyResult({ listed: commitsOfCopy(view.body), names, result, onBranch: copied });
+  const head = git('rev-parse', 'HEAD');
+  if (head !== start) {
+    // Pushed even when not finished, so that the next try starts from Claude's commits.
+    const push = pushCopy(branch, start);
+    const said = (push.stderr || push.stdout).trim().split('\n');
+    if (push.status !== 0) outcome = { done: false, why: `its commits could not be pushed (${(said.find((l) => /rejected|fatal:/.test(l)) ?? said.at(-1)).trim()})` };
+    else console.log(`#${pr}: pushed ${git('rev-list', '--count', `${start}..${head}`)} commit(s) of Claude's`);
+  }
+  if (!outcome.done) {
+    run('gh', ['pr', 'comment', pr, '--body', `${UNFINISHED_NOTE}: ${outcome.why}. Claude tries again within the hour (decisions.md 155).`]);
+    makeLabel(CONFLICT_LABEL);
+    run('gh', ['pr', 'edit', pr, '--add-label', CONFLICT_LABEL]);
+    run('gh', ['pr', 'edit', pr, '--remove-label', CLAUDE_LABEL], { allowFail: true });
+    return console.log(`#${pr}: not finished (${outcome.why}), so the hourly run starts Claude again`);
+  }
+  const lines = outcome.lines.join('\n');
+  if (!outcome.copied) {
+    run('gh', ['pr', 'comment', pr, '--body', `${lines}\n\nNothing in this copy fits the public build, so it is closed (decisions.md 155).`]);
+    run('gh', ['pr', 'close', pr]);
+    return console.log(`#${pr}: nothing fits the public build, so it is closed`);
+  }
+  run('gh', ['pr', 'comment', pr, '--body', `${lines}\n\nClaude examined this copy, so it merges itself when its checks pass (decisions.md 155).`]);
+  for (const label of [CLAUDE_LABEL, CONFLICT_LABEL]) run('gh', ['pr', 'edit', pr, '--remove-label', label], { allowFail: true });
+  // Auto-merge, or a merge now when every check already passed (GitHub then turns auto-merge away).
+  if (run('gh', ['pr', 'merge', pr, '--auto', '--squash'], { allowFail: true }).status !== 0) run('gh', ['pr', 'merge', pr, '--squash']);
+  console.log(`#${pr}: finished, so it merges itself when its checks pass`);
+}
+
 async function main() {
   const [command, ...rest] = process.argv.slice(2);
   const opt = (name) => rest[rest.indexOf(`--${name}`) + 1];
   if (command === 'tidy') return tidy();
   if (command === 'conflict-note') return noteConflict(opt('branch'), opt('pr'));
-  if (command !== 'after-merge') throw new Error('usage: release-branches.mjs after-merge --platform <p> --old <fp> --new <fp> --sha <commit> | tidy');
+  if (command === 'finish-copy') return finishCopy(opt('branch'), opt('pr'), opt('start'));
+  if (command !== 'after-merge') throw new Error('usage: release-branches.mjs after-merge --platform <p> --old <fp> --new <fp> --sha <commit> | tidy | conflict-note | finish-copy');
   const platform = opt('platform');
   const sha = opt('sha');
   if (!platformsFrom(process.env.RELEASE_BRANCH_PLATFORMS).includes(platform)) return console.log(`${platform}: not in RELEASE_BRANCH_PLATFORMS, so no release branch`);
