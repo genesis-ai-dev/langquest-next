@@ -46,6 +46,7 @@ import { partIndexAfter } from './dragModel';
 import { useDragRows } from './useDragRows';
 import { lift } from '../ui/shadow';
 import { a11yState } from '../ui/a11yModel';
+import { touches } from '../ui/touches';
 
 /** A range's size, so "49–50" or "100–105" sits whole inside the space beside its part. */
 const rangeFit = (text: string) => ({ fontSize: text.length <= 5 ? T.sm : T.xs, letterSpacing: -0.3 });
@@ -373,7 +374,7 @@ function PartRow(props: {
 /** The ring a hold fills round a verse space: empty at the press, full as the part's verses open. */
 function HoldRing(props: { progress: Animated.Value }) {
   return (
-    <Animated.View pointerEvents="none" style={[styles.holdRing, {
+    <Animated.View style={[touches.none, styles.holdRing, {
       opacity: props.progress.interpolate({ inputRange: [0, 0.1, 1], outputRange: [0, 0.5, 1] }),
       transform: [{ scale: props.progress.interpolate({ inputRange: [0, 1], outputRange: [0.75, 1] }) }]
     }]} />
@@ -405,7 +406,7 @@ function HoldHint(props: { onDone: () => void }) {
     return () => run.stop();
   }, [still, fill]);
   return (
-    <View testID="verse-hold-hint" pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={styles.holdHint}>
+    <View testID="verse-hold-hint" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={[touches.none, styles.holdHint]}>
       <HoldRing progress={fill} />
       <Animated.View style={[styles.tip, { transform: [{ scale: fill.interpolate({ inputRange: [0, 0.1, 1], outputRange: [1.15, 0.9, 0.9] }) }] }]} />
     </View>

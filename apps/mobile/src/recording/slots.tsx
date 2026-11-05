@@ -22,6 +22,7 @@ import { styles as ps } from './blockStyles';
 import { lift } from '../ui/shadow';
 import { a11yState } from '../ui/a11yModel';
 import { useReduceMotion } from '../ui/useReduceMotion';
+import { touches } from '../ui/touches';
 
 /**
  * Half a + mark's 48 pt target, centred on the card's right edge: every row
@@ -72,7 +73,7 @@ export function GapSlot(props: { n: number; tile?: ReactNode; chosen: boolean; d
 export function InsertMark(props: { n: number; before: string; onPress: () => void }) {
   const spot = useHelpSpot(t('recording.recorder.recordBefore', { part: props.before }), t('recording.recorder.recordBeforeHelp'), props.onPress);
   return (
-    <View style={styles.markLine} pointerEvents="box-none">
+    <View style={[touches.boxNone, styles.markLine]}>
       <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('recording.recorder.recordBefore', { part: props.before })}
         style={({ pressed }) => [styles.markTap, pressed && { transform: [{ scale: 1.25 }] }]}>
         <View style={styles.mark}><Ico name="plus" size={12} color={C.muted} strokeWidth={3} /></View>
