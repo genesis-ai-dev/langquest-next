@@ -9,10 +9,13 @@
 // is an OTA update or a new build, so that commit is the code of the last
 // OTA update that the public build got. Each later merge into main that does
 // not change the fingerprint and changes a file the phone app is made of
-// (a fix or a feature, the pipeline cannot tell) is copied onto the branch
-// by a pull request that merges itself once its checks pass, and
-// .eas/workflows/deploy-release-branch.yml sends the branch to the public
-// build as an OTA update. A merge that changes only the website, the ops
+// (a fix or a feature) is copied onto the branch by a pull request. Claude
+// examines every copy (.github/workflows/release-copy-conflict.yml): it
+// finishes a copy with a conflict, takes out each part of a change that does
+// not fit the public build (a change to a feature that only a newer build
+// has), fixes failed checks, and then turns on auto-merge. Once the copy's
+// checks pass it merges, and .eas/workflows/deploy-release-branch.yml sends
+// the branch to the public build as an OTA update. A merge that changes only the website, the ops
 // dashboard, the server or the docs is not copied: the phone would get the
 // same code again. When the new build is public, the branch is deleted, or
 // moves to that build when a newer one is still in review.
@@ -89,8 +92,14 @@ export const MACHINERY = [
   'scripts/server-calls.mjs', 'scripts/serverCalls.test.ts'
 ];
 
-/** The label that starts Claude on a copy: to finish one with a conflict, or to fix one whose checks failed. */
-export const CLAUDE_LABEL = 'copy-conflict';
+/**
+ * The label that starts Claude on a copy: every copy gets it, so that Claude
+ * examines it, finishes it when it has a conflict, and fixes it when its
+ * checks failed. Claude takes it off when it turns on auto-merge.
+ */
+export const CLAUDE_LABEL = 'copy-claude';
+/** The label of a copy that stopped at a conflict, beside CLAUDE_LABEL; it starts nothing on its own. */
+export const CONFLICT_LABEL = 'copy-conflict';
 /** The label of a copy whose checks still fail after Claude's tries: a person fixes it. */
 export const PERSON_LABEL = 'copy-needs-person';
 /** How many times Claude tries to fix a copy's failed checks before a person must. */
@@ -106,7 +115,7 @@ export const TRY_NOTE = 'The checks of this copy failed';
  * nothing failed).
  */
 export function nextForCopy({ labels, gate, tries }) {
-  if (labels.includes(CLAUDE_LABEL) || labels.includes(PERSON_LABEL) || gate !== 'FAILURE') return 'none';
+  if ([CLAUDE_LABEL, CONFLICT_LABEL, PERSON_LABEL].some((l) => labels.includes(l)) || gate !== 'FAILURE') return 'none';
   return tries < FIX_TRIES ? 'try' : 'person';
 }
 
@@ -281,7 +290,11 @@ function pick(sha) {
 
 /** Make a copy label the first time it is needed. */
 function makeLabel(name) {
-  const [color, description] = name === CLAUDE_LABEL ? ['D93F0B', 'A copy onto a release branch that Claude finishes or fixes'] : ['B60205', 'A copy onto a release branch that a person must fix'];
+  const [color, description] = {
+    [CLAUDE_LABEL]: ['5319E7', 'A copy onto a release branch that Claude examines, finishes or fixes'],
+    [CONFLICT_LABEL]: ['D93F0B', 'A copy onto a release branch that stopped at a conflict'],
+    [PERSON_LABEL]: ['B60205', 'A copy onto a release branch that a person must fix'],
+  }[name];
   run('gh', ['label', 'create', name, '--force', '--color', color, '--description', description]);
 }
 
@@ -295,10 +308,10 @@ function takeMachinery() {
 
 /**
  * Copy merges from main onto the release branch, oldest first, by one pull
- * request that merges itself once its checks pass: one merge after each
- * merge into main, or every merge a new branch takes (a catch-up). A
- * conflict stops the copy there; the pull request lists what is left, and
- * Claude finishes it (.github/workflows/release-copy-conflict.yml).
+ * request: one merge after each merge into main, or every merge a new
+ * branch takes (a catch-up). A conflict stops the copy there; the pull
+ * request lists what is left. Claude examines every copy and finishes it
+ * (.github/workflows/release-copy-conflict.yml), then turns on auto-merge.
  */
 function copy(platform, shas) {
   if (!shas.length) return;
@@ -319,8 +332,9 @@ function copy(platform, shas) {
   // An empty commit gives the pull request something to show; Claude does the copy.
   if (git('rev-parse', 'HEAD') === base) git('commit', '--quiet', '--allow-empty', '-m', `Copy ${shas[0].slice(0, 8)} onto ${branchOf(platform)}: needs a hand with a conflict`);
   git('push', '--quiet', '--force', 'origin', branch);
-  // The label that starts Claude on a conflict; made the first time it is needed.
-  if (conflict) makeLabel(CLAUDE_LABEL);
+  // The labels: Claude's starts Claude on every copy; made the first time each is needed.
+  makeLabel(CLAUDE_LABEL);
+  if (conflict) makeLabel(CONFLICT_LABEL);
   const names = shas.map((sha) => mergeName(git('log', '-1', '--format=%B', sha)));
   // The ops dashboard reads these: the title's "(#317)", a catch-up's "up on N merges from main", the body's list.
   const one = names[0];
@@ -331,11 +345,11 @@ function copy(platform, shas) {
     shas.map((sha, k) => `- ${sha} ${names[k].label}`).join('\n'),
     conflict
       ? `Copying ${shas[done].slice(0, 8)} has a conflict, so this pull request holds ${done ? `the first ${done}` : 'none of them'} yet. Claude copies the rest and resolves the conflict (.github/workflows/release-copy-conflict.yml).`
-      : 'This pull request merges itself once its checks pass. Its merge sends the change to the public build as an OTA update.',
+      : 'Every merge copied without a conflict.',
+    'Claude examines each change and takes out any part that does not fit the public build, then turns on auto-merge. The merge sends the change to the public build as an OTA update.',
   ].join('\n\n');
   run('gh', ['pr', 'create', '--base', branchOf(platform), '--head', branch, '--title', title, '--body', body,
-    ...(conflict ? ['--label', CLAUDE_LABEL] : [])]);
-  if (!conflict) run('gh', ['pr', 'merge', branch, '--auto', '--squash']);
+    '--label', CLAUDE_LABEL, ...(conflict ? ['--label', CONFLICT_LABEL] : [])]);
   console.log(`${conflict ? 'conflict' : 'copy'}: ${shas.map((s) => s.slice(0, 8)).join(' ')} onto ${branchOf(platform)}`);
 }
 
@@ -502,11 +516,12 @@ function freshenCopies(platform) {
       console.log(`#${number}: could not take main's release workflows and scripts (${branch} moved), so the next run tries again`);
       continue;
     }
-    if (!(labels ?? []).some((l) => l.name === CLAUDE_LABEL)) {
+    if (!(labels ?? []).some((l) => l.name === CLAUDE_LABEL || l.name === CONFLICT_LABEL)) {
       console.log(`#${number}: took main's release workflows and scripts, so its checks run again`);
       continue;
     }
-    run('gh', ['pr', 'edit', String(number), '--remove-label', CLAUDE_LABEL]);
+    run('gh', ['pr', 'edit', String(number), '--remove-label', CLAUDE_LABEL], { allowFail: true });
+    makeLabel(CLAUDE_LABEL);
     run('gh', ['pr', 'edit', String(number), '--add-label', CLAUDE_LABEL]);
     console.log(`#${number}: took main's release workflows and scripts, and was labelled again so that Claude starts`);
   }
@@ -524,7 +539,7 @@ export function conflictNote(sha, base, files, after = []) {
     '',
     ...files.map((f) => `- \`${f}\``),
     '',
-    `Claude cannot sign in from this repository (neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY is set), so a person or a Claude session finishes the copy: on this branch, run \`git cherry-pick -x ${sha}\` (with \`-m 1\` for a merge commit)${after.length ? `, then the same for ${after.length === 1 ? 'the one after it' : `the ${after.length} after it`} in the list above, in order` : ''}, resolve each conflict keeping ${base}'s version of every file outside the phone app and its tests, and its code where main's change needs code that the public build does not have, push, remove the copy-conflict label, and turn on auto-merge (decisions.md 155).`
+    `Claude cannot sign in from this repository (neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY is set), so a person or a Claude session finishes the copy: on this branch, run \`git cherry-pick -x ${sha}\` (with \`-m 1\` for a merge commit)${after.length ? `, then the same for ${after.length === 1 ? 'the one after it' : `the ${after.length} after it`} in the list above, in order` : ''}, resolve each conflict keeping ${base}'s version of every file outside the phone app and its tests, and its code where main's change needs code that the public build does not have, push, remove the ${CLAUDE_LABEL} and ${CONFLICT_LABEL} labels, and turn on auto-merge (decisions.md 155).`
   ].join('\n');
 }
 
@@ -539,7 +554,12 @@ function noteConflict(branch, pr) {
   const view = JSON.parse(run('gh', ['pr', 'view', pr, '--json', 'baseRefName,body']).stdout);
   const listed = commitsOfCopy(view.body);
   const left = (listed.length ? listed : [git('rev-parse', short)]).filter((sha) => !copied(sha));
-  if (!left.length) return console.log(`#${pr}: every listed commit is already copied`);
+  if (!left.length) {
+    // Without Claude, a copy with nothing left to copy merges itself, as before Claude examined each one.
+    run('gh', ['pr', 'edit', pr, '--remove-label', CLAUDE_LABEL], { allowFail: true });
+    run('gh', ['pr', 'merge', pr, '--auto', '--squash']);
+    return console.log(`#${pr}: every listed commit is already copied, so it merges itself once its checks pass`);
+  }
   const [sha, ...after] = left;
   const files = pick(sha);
   if (!files.length) return console.log(`#${pr}: ${sha.slice(0, 8)} copies without a conflict in the app now; nothing pushed`);

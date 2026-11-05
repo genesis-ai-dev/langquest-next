@@ -221,7 +221,7 @@ describe('over-the-air updates', () => {
   it('let Claude fix a copy whose tests failed, with no person asked until Claude stops or hours pass', () => {
     const lane = pipelineFrom(world()).lanes[1]!;
     const fix = (n: number, labels: string[], hours: number) => ({ number: n, title: `release/android: Fix (#${n - 1})`, body: `- ${'5'.repeat(40)} #${n - 1} Fix`, created_at: hAgo(hours), labels: labels.map((name) => ({ name })), failed: true });
-    pendingCopies(lane, [fix(371, [], 1), fix(373, ['copy-conflict'], 1), fix(375, ['copy-conflict'], 4)], NOW);
+    pendingCopies(lane, [fix(371, [], 1), fix(373, ['copy-claude'], 1), fix(375, ['copy-claude'], 4)], NOW);
     const live = lane.stages.find((st) => st.id === 'live')!.cards[0]!;
     expect(live.updates.filter((u) => u.waiting).map((u) => [u.copy, u.waiting, u.needsPerson])).toEqual([
       [371, 'failed its tests, and Claude starts fixing them within the hour', false],
@@ -237,13 +237,17 @@ describe('over-the-air updates', () => {
     pendingCopies(lane, [
       { number: 341, title: 'release/android: Merge pull request #340 from genesis-ai-dev/claude/x', body: 'Copies 253640c75e631deb69f81eb26a9b572a071b8692 from main onto release/android.', created_at: hAgo(2), labels: [{ name: 'copy-conflict' }] },
       { number: 350, title: 'release/android: Show a thing (#344)', body: 'Copies this merge from main:\n\n- 0123abcd0123abcd0123abcd0123abcd0123abcd #344 Show a thing\n\nThis pull request merges itself.', created_at: hAgo(1), labels: [] },
-      { number: 351, title: 'release/android: catch the public Android build up on 2 merges from main', body: '- 1111111111111111111111111111111111111111 #345 One\n- 2222222222222222222222222222222222222222 #346 Two', created_at: hAgo(1), labels: [] }
+      { number: 351, title: 'release/android: catch the public Android build up on 2 merges from main', body: '- 1111111111111111111111111111111111111111 #345 One\n- 2222222222222222222222222222222222222222 #346 Two', created_at: hAgo(1), labels: [] },
+      { number: 353, title: 'release/android: Fix a thing (#352)', body: '- 3333333333333333333333333333333333333333 #352 Fix a thing', created_at: hAgo(0.5), labels: [{ name: 'copy-claude' }] },
+      { number: 355, title: 'release/android: Fix more (#354)', body: '- 4444444444444444444444444444444444444444 #354 Fix more', created_at: hAgo(0.5), labels: [{ name: 'copy-claude' }, { name: 'copy-conflict' }] }
     ], NOW);
     const live = lane.stages.find((st) => st.id === 'live')!.cards[0]!;
     expect(live.updates.filter((u) => u.waiting).map((u) => [u.pr, u.title, u.copy, u.also, u.waiting, u.needsPerson])).toEqual([
       [340, null, 341, [], 'has a conflict that Claude is fixing', false],
       [344, 'Show a thing', 350, [], 'merges itself when its tests pass', false],
-      [345, 'One', 351, [{ pr: 346, title: 'Two' }], 'merges itself when its tests pass', false]
+      [345, 'One', 351, [{ pr: 346, title: 'Two' }], 'merges itself when its tests pass', false],
+      [352, 'Fix a thing', 353, [], 'waits for Claude to examine it', false],
+      [354, 'Fix more', 355, [], 'has a conflict that Claude is fixing', false]
     ]);
     // Nothing for a person yet.
     expect(pipelineAlerts({ ...pipelineFrom(world()), lanes: [pipelineFrom(world()).lanes[0]!, lane] }, NOW)).toEqual([]);

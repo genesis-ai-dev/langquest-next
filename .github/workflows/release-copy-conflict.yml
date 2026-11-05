@@ -1,21 +1,26 @@
-# A copy onto a release branch (scripts/release-branches.mjs, decisions.md
-# 155) that has a conflict, or whose checks failed, is labelled
-# copy-conflict, and Claude finishes it: Anthropic's Claude GitHub Action
-# copies the commits that are left, resolving each conflict and keeping the
-# release branch's code wherever main's change depends on code that the
-# public build does not have, fixes what the checks found, and turns on
-# auto-merge. The hourly run labels a copy whose checks failed, up to 3
-# times; after that it is labelled copy-needs-person. The pull request's
-# checks run as for any other.
+# Claude examines every copy onto a release branch (scripts/release-branches.mjs,
+# decisions.md 155) before it merges. Each copy is labelled copy-claude
+# (and copy-conflict when it stopped at a conflict), and Anthropic's Claude
+# GitHub Action:
+#  - copies the commits that are left, resolving each conflict and keeping
+#    the release branch's code wherever main's change depends on code that
+#    the public build does not have;
+#  - examines each copied change, and takes out each part that does not fit
+#    the public build (a change to a feature that only a newer build has);
+#  - fixes what the checks found, and turns on auto-merge.
+# The hourly run labels a copy whose checks failed again, up to 3 times;
+# after that it is labelled copy-needs-person. The pull request's checks run
+# as for any other.
 #
 # Needs the GitHub App of release-branches.yml, so that Claude's push starts
 # the checks, and a way for Claude to sign in: CLAUDE_CODE_OAUTH_TOKEN, a
 # Claude plan's token (made by `claude setup-token`, from .env.production
 # through `npm run secrets -- production`, as the nightly jobs use), or else
-# ANTHROPIC_API_KEY. Without either, the pull request gets one comment
+# ANTHROPIC_API_KEY. Without either, a copy with a conflict gets one comment
 # naming the files in conflict and stays open for a person or a Claude
-# session to finish; nothing fails. The App opens and labels the copies, so
-# Claude's action must let that bot start it (allowed_bots).
+# session to finish, and a copy without one merges itself once its checks
+# pass; nothing fails. The App opens and labels the copies, so Claude's
+# action must let that bot start it (allowed_bots).
 name: release-copy-conflict
 
 on:
@@ -27,7 +32,7 @@ permissions:
 
 jobs:
   copy:
-    if: github.event.label.name == 'copy-conflict' && startsWith(github.event.pull_request.base.ref, 'release/') && vars.RELEASE_BRANCHES == 'on'
+    if: github.event.label.name == 'copy-claude' && startsWith(github.event.pull_request.base.ref, 'release/') && vars.RELEASE_BRANCHES == 'on'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -43,7 +48,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
           token: ${{ steps.token.outputs.token }}
-      - name: Without a way for Claude to sign in, name the files in conflict for a person
+      - name: Without a way for Claude to sign in, name the files in conflict for a person, or merge a copy without one
         if: env.HAS_CLAUDE_KEY != 'true'
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
@@ -58,10 +63,12 @@ jobs:
           github_token: ${{ steps.token.outputs.token }}
           allowed_bots: langquest-release-branches
           prompt: |
-            This pull request copies commits from main onto ${{ github.event.pull_request.base.ref }}, the code of the public build. A copy had a conflict, or the pull request's checks failed. The pull request's body lists the commits, oldest first (`- <sha> #<pull request> <title>`); a commit on this branch whose message says "cherry picked from commit <sha>" is a copy already made.
+            This pull request copies commits from main onto ${{ github.event.pull_request.base.ref }}, the code of the public build. A newer build, with main's code, is not public yet. The pull request's body lists the commits, oldest first (`- <sha> #<pull request> <title>`); a commit on this branch whose message says "cherry picked from commit <sha>" is a copy already made. Your task is to finish the copy, keep only what fits the public build, and make the checks pass.
             1. For each listed commit not copied yet, in order, run `git cherry-pick -x` of it on this branch (add `-m 1` for a merge commit) and resolve every conflict. A conflict in a file outside the phone app and its tests (anything not under apps/mobile/, packages/core/, packages/sync/, e2e/ui/ or e2e/web-smoke/, other than package.json and package-lock.json, and every .md file) keeps the release branch's version. In the app, keep the release branch's code wherever main's change depends on code that the release branch does not have (a change that came with a new store build is never copied), and say in the commit message what you left out and why.
-            2. If the checks failed, read why: `gh pr checks ${{ github.event.pull_request.number }}`, then `gh run view <run id> --log-failed` for each failed run.
-            3. Run `npm ci` and `npm run guardrails`, and fix what the copy broke and what the checks found. Never skip, disable or weaken a test to make it pass. When a test fails because main's change needs code that the release branch does not have, leave that part of the change out, and say so in the commit message.
-            4. Commit, push this branch, remove the copy-conflict label, and run `gh pr merge ${{ github.event.pull_request.number }} --auto --squash`.
+            2. Examine each copied commit against this branch's code. A part fits the public build when it changes code that this branch has and that people use on the public build: a fix, or a change to a feature that this branch has. A part does not fit when it changes or needs a feature, screen or code that only the newer build has. Take out each part that does not fit, in a commit that names each part and says why. When no part of the copy fits, comment on this pull request with the reasons, close it with `gh pr close`, and stop.
+            3. If the checks failed, read why: `gh pr checks ${{ github.event.pull_request.number }}`, then `gh run view <run id> --log-failed` for each failed run.
+            4. Run `npm ci` and `npm run guardrails`, and fix what the copy broke and what the checks found. Never skip, disable or weaken a test to make it pass. When a test fails because main's change needs code that the release branch does not have, take out that part of the change, and say so in the commit message.
+            5. Comment on this pull request with one line for each listed commit: copied, copied in part, or left out, and why.
+            6. Commit, push this branch, remove the copy-claude and copy-conflict labels, and run `gh pr merge ${{ github.event.pull_request.number }} --auto --squash`.
             Never push to main or to the release branch itself.
           claude_args: --allowedTools "Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(gh pr:*),Bash(gh run:*),Read,Edit,Write"

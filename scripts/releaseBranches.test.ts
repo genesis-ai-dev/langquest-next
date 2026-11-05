@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { afterLive, afterMerge, atLeast, changesTheApp, CLAUDE_LABEL, commitOfCopy, commitsOfCopy, conflictNote, copyBranch, FIX_TRIES, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
+import { afterLive, afterMerge, atLeast, changesTheApp, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, conflictNote, copyBranch, FIX_TRIES, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
 
 /**
  * The public build keeps getting fixes while a new build is in store review
@@ -224,9 +224,23 @@ describe('a copy with a conflict', () => {
     expect(nextForCopy({ labels: [], gate: 'FAILURE', tries: 3 })).toBe('person');
     // Claude is on it, or a person is, or nothing failed (yet).
     expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: 'FAILURE', tries: 0 })).toBe('none');
+    expect(nextForCopy({ labels: [CONFLICT_LABEL], gate: 'FAILURE', tries: 0 })).toBe('none');
     expect(nextForCopy({ labels: [PERSON_LABEL], gate: 'FAILURE', tries: 3 })).toBe('none');
     expect(nextForCopy({ labels: [], gate: 'SUCCESS', tries: 0 })).toBe('none');
     expect(nextForCopy({ labels: [], gate: null, tries: 0 })).toBe('none');
+  });
+
+  it('Claude examines every copy and takes out what does not fit the public build, and only Claude turns on auto-merge', () => {
+    // Caleb, 2026-11-05: Claude examines every copy before it merges.
+    expect(CLAUDE_LABEL).toBe('copy-claude');
+    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
+    expect(yml).toContain('Examine each copied commit against this branch\'s code');
+    expect(yml).toContain('Take out each part that does not fit');
+    expect(yml).toContain('remove the copy-claude and copy-conflict labels, and run `gh pr merge');
+    const script = readFileSync('scripts/release-branches.mjs', 'utf8');
+    const copyFn = script.slice(script.indexOf('function copy('), script.indexOf('async function liveVersion'));
+    expect(copyFn).toContain("'--label', CLAUDE_LABEL");
+    expect(copyFn).not.toContain("'--auto'");
   });
 
   it('Claude reads the failed checks and fixes them, and never skips a test', () => {
