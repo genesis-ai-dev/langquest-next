@@ -4921,8 +4921,7 @@
       "micOff": "LangQuest cannot hear you. Turn on the microphone for LangQuest in Settings.",
       "micOffWeb": "LangQuest cannot hear you. Allow the microphone for this site in your browser, then tap record again.",
       "openSettings": "Open Settings",
-      "openSettingsHelp": "Opens this phone's settings for LangQuest. Turn on the microphone there, then come back.",
-      "addPart": "Add a part here"
+      "openSettingsHelp": "Opens this phone's settings for LangQuest. Turn on the microphone there, then come back."
     },
     "quoted": "“{{text}}”",
     "listening": "Listening… {{time}}",

@@ -41,7 +41,7 @@ screens follow the simple redesign (decision 71 and its amendments) and
 | 16 | [16-role-journeys.md](16-role-journeys.md) | Whole jobs per role, and the passage lifecycle across every role | `JRN` | 14 |
 | 17 | [17-accessibility-and-field-use.md](17-accessibility-and-field-use.md) | Screen readers, target sizes, text size, colour, RTL, outdoor and low-end use | `A11Y` | 24 |
 
-**673 tests in all.**
+**678 tests in all.**
 
 ## How a test is written
 
