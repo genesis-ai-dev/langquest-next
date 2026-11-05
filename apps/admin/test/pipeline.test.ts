@@ -67,6 +67,7 @@ function world(over: Partial<PipelineInputs> = {}): PipelineInputs {
 }
 
 /** Each stage's cards as "title: state", for reading a lane at a glance. */
+const stage = (lane: StoreLane, id: string) => lane.stages.find((s) => s.id === id)!;
 const read = (lane: StoreLane) => Object.fromEntries(lane.stages.map((s) => [s.id, s.cards.map((c) => `${c.title}: ${c.state}`)]));
 
 describe('the iPhone lane', () => {
@@ -99,6 +100,9 @@ describe('the iPhone lane', () => {
     const lane = iosLane(world({ apple: null, notes: { ios: ['App Store Connect is not connected.'], android: [] } }));
     expect(read(lane)).toMatchObject({ waiting: ['build 52: uploaded to TestFlight'], review: [], live: [] });
     expect(lane.notes).toEqual(['App Store Connect is not connected.']);
+    // Build 50 may well be in review and build 45 live: those stages say they cannot be seen, never "none".
+    expect(lane.stages.filter((s) => s.unseen).map((s) => s.id)).toEqual(['review', 'approved', 'live']);
+    expect(lane.stages.find((s) => s.id === 'waiting')!.unseen).toBeUndefined();
   });
 });
 
@@ -187,6 +191,13 @@ describe('a build that waits with nothing ahead of it', () => {
     const fresh = world({ playLive: '2026.1103.2251' });
     fresh.builds = fresh.builds.map((b) => (b.build === '52' ? { ...b, doneAt: hAgo(1) } : b));
     expect(pipelineAlerts(pipelineFrom(fresh), NOW)).toEqual([]);
+  });
+
+  it('is never called stuck behind a review that cannot be seen', () => {
+    // Without App Store Connect, build 52 has sat in TestFlight for hours, but build 50's review may be open.
+    const blind = world({ apple: null });
+    expect(stage(iosLane(blind), 'waiting').cards[0]!.tone).toBe('wait');
+    expect(pipelineAlerts(pipelineFrom(blind), NOW).filter((a) => a.text.startsWith('iPhone'))).toEqual([]);
   });
 });
 

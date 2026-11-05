@@ -278,6 +278,17 @@ without showing it, and once you have the ones you want, run
      `jq -cn --arg i <issuer id> --arg k <key id> --rawfile p ~/Downloads/AuthKey_<key id>.p8 '{issuerId: $i, keyId: $k, privateKey: $p}' | npm run --silent env:update -- production ADMIN_APP_STORE_KEY`,
      then delete the `.p8`.
 
+  A team key needs the Account Holder. Until there is one, the App Store
+  key the review step uses (`APP_STORE_REVIEW_KEY`, Caleb's individual key
+  since 2026-11-02, `{"keyId", "privateKey"}` with no issuer) works here
+  too, signed as the user it belongs to. It carries that user's role, more
+  than the page needs, though the page only reads. Copy it without showing
+  it: `npx dotenvx get APP_STORE_REVIEW_KEY -f .env.production -fk .env.keys | npm run --silent env:update -- production ADMIN_APP_STORE_KEY`,
+  then `npm run secrets -- production`. Certificates and profiles, which
+  only the developer team can read, then show as a note under expiries.
+  Without any key the iPhone lane shows what EAS sent to TestFlight, and
+  the stages after it say they cannot be seen.
+
 A section whose token is refused says "Could not read" with the service's
 answer, usually a missing permission.
 

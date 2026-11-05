@@ -155,7 +155,7 @@ Object.assign(RENDER, {
     const arrow = '<div class="pa" aria-hidden="true"></div>';
     const lane = (l) => '<div class="lane"><h3>' + esc(l.title) + '</h3><div class="flow">' + l.stages.map((s, i) => (i ? arrow : '') +
       '<div class="stage"><div class="st" data-help-key="' + esc(s.title) + '">' + esc(s.title) + '</div>' +
-      (s.cards.length ? s.cards.map((c) => card(c, l.id)).join('') : '<div class="pc none">none</div>') + '</div>').join('') + '</div>' +
+      (s.cards.length ? s.cards.map((c) => card(c, l.id)).join('') : '<div class="pc none">' + esc(s.unseen || 'none') + '</div>') + '</div>').join('') + '</div>' +
       l.notes.map((n) => '<p class="muted">' + esc(n) + '</p>').join('') + '</div>';
     return '<div class="legend"><span class="pc busy">on its way</span><span class="pc wait">waiting</span><span class="pc bad">needs a person</span><span class="pc live">what people get</span></div>' +
       d.lanes.map(lane).join('') +
