@@ -298,7 +298,9 @@ describe('a copy with a conflict', () => {
     const script = readFileSync('scripts/release-branches.mjs', 'utf8');
     expect(script).toContain('fixFailedCopies(platform, freshenCopies(platform));');
     const fix = script.slice(script.indexOf('function fixFailedCopies('), script.indexOf('function freshenCopies('));
-    expect(fix).toContain('skip.has(pr.number)');
+    // Its old commit's checks count for nothing; a conflict still sends Claude; one labelled for Claude already has Claude.
+    expect(fix).toContain("fresh.pushed.has(pr.number) ? null");
+    expect(fix).toContain('fresh.labelled.has(pr.number)) continue;');
     expect(fix).toContain("pr.mergeable === 'CONFLICTING'");
     const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
     expect(yml).toContain('--json mergeable` says CONFLICTING');

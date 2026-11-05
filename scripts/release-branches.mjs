@@ -512,7 +512,6 @@ async function tidy() {
     if (step.action === 'restart') startBranch(platform, step.from, all);
   }
   for (const platform of platformsFrom(process.env.RELEASE_BRANCH_PLATFORMS)) {
-    // A copy just freshened runs its checks again: what GitHub lists for it now is its old commit's.
     fixFailedCopies(platform, freshenCopies(platform));
   }
 }
@@ -522,17 +521,19 @@ async function tidy() {
  * conflict with its release branch, gets Claude again, up to FIX_TRIES
  * times: the run comments on the try and labels the copy, which starts
  * .github/workflows/release-copy-conflict.yml. After that, it is labelled
- * for a person, and the ops dashboard puts it under Needs attention. The
- * copies in `skip` (just freshened) wait for their new checks.
+ * for a person, and the ops dashboard puts it under Needs attention. A copy
+ * just freshened (`fresh.pushed`) runs its checks again, so the checks that
+ * GitHub lists for it now are its old commit's and count for nothing; one
+ * that freshening labelled for Claude (`fresh.labelled`) has Claude already.
  */
-function fixFailedCopies(platform, skip = new Set()) {
+function fixFailedCopies(platform, fresh = { pushed: new Set(), labelled: new Set() }) {
   if (!remoteHas(`refs/heads/${branchOf(platform)}`)) return;
   const open = JSON.parse(run('gh', ['pr', 'list', '--base', branchOf(platform), '--state', 'open',
     '--json', 'number,headRefName,headRefOid,labels,comments,statusCheckRollup,mergeable']).stdout);
   for (const pr of open) {
-    if (!commitOfCopy(pr.headRefName) || skip.has(pr.number)) continue;
+    if (!commitOfCopy(pr.headRefName) || fresh.labelled.has(pr.number)) continue;
     const labels = (pr.labels ?? []).map((l) => l.name);
-    const gate = (pr.statusCheckRollup ?? []).filter((c) => c.name === 'gate').at(-1)?.conclusion ?? null;
+    const gate = fresh.pushed.has(pr.number) ? null : (pr.statusCheckRollup ?? []).filter((c) => c.name === 'gate').at(-1)?.conclusion ?? null;
     const tries = (pr.comments ?? []).filter((c) => isTry(c.body)).length;
     const conflicting = pr.mergeable === 'CONFLICTING';
     const step = nextForCopy({ labels, gate, tries, conflicting });
@@ -563,11 +564,12 @@ function fixFailedCopies(platform, skip = new Set()) {
  * check that read the release branch's old server. Each copy still open
  * takes main's, which runs its checks again, and one that Claude works on
  * is labelled again so that Claude starts with them. Gives the copies it
- * pushed to.
+ * pushed to, and those it labelled.
  */
 function freshenCopies(platform) {
   const pushed = new Set();
-  if (!remoteHas(`refs/heads/${branchOf(platform)}`)) return pushed;
+  const labelled = new Set();
+  if (!remoteHas(`refs/heads/${branchOf(platform)}`)) return { pushed, labelled };
   const open = JSON.parse(run('gh', ['pr', 'list', '--base', branchOf(platform), '--state', 'open',
     '--json', 'number,headRefName,labels']).stdout);
   for (const { number, headRefName: branch, labels } of open) {
@@ -590,9 +592,10 @@ function freshenCopies(platform) {
     run('gh', ['pr', 'edit', String(number), '--remove-label', CLAUDE_LABEL], { allowFail: true });
     makeLabel(CLAUDE_LABEL);
     run('gh', ['pr', 'edit', String(number), '--add-label', CLAUDE_LABEL]);
+    labelled.add(number);
     console.log(`#${number}: took main's release workflows and scripts, and was labelled again so that Claude starts`);
   }
-  return pushed;
+  return { pushed, labelled };
 }
 
 /** The first commit that a copy branch carries: its name ends with that commit's first 8 characters (and a catch-up's last one's). */
