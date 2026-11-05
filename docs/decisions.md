@@ -7563,11 +7563,11 @@ conflict may still change a feature that only the newer build has. So:
   attention only after Claude's 3 tries, or when the copy has been open for
   3 hours.
 
-Amended (2026-11-05, Caleb Koster): Claude's first runs on PR 344 and PR
-347 said "copied", and no push of theirs reached the branch (the action
-hides why); one of them also turned on auto-merge for a copy that held
-only main's workflows. Caleb asked that PR 344 go green with no person. So
-Claude no longer writes to GitHub:
+Amended (2026-11-05, Caleb Koster): Claude's two runs on PR 347 said
+"copied", and no push of theirs reached the branch (the action hides why;
+its run on PR 344 did push). The first also turned on auto-merge for PR
+347, which then held only main's workflows. Caleb asked that the copies go
+green with no person. So Claude no longer writes to GitHub:
 - Claude commits its work on the copy's branch, and writes what it did
   with each listed commit in `.release-copy.json` (git ignores it):
   copied, copied in part, or left out, and why, or that it could not

@@ -290,7 +290,7 @@ describe('a copy with a conflict', () => {
   });
 
   it('Claude commits and writes its result, and the next step pushes, comments and turns on auto-merge', () => {
-    // 2026-11-05: two of Claude's runs said "copied", and no push of theirs reached the branch.
+    // 2026-11-05: Claude's two runs on PR 347 said "copied", and no push of theirs reached the branch.
     const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
     expect(yml).toContain('Do not push, comment, label, close or merge');
     expect(yml).toContain('`.release-copy.json`');

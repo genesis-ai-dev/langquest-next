@@ -9,9 +9,9 @@
 #    the public build (a change to a feature that only a newer build has);
 #  - fixes what the checks found;
 # and commits its work, and writes what it did with each commit in
-# .release-copy.json. Claude does not push: on 2026-11-05 two runs said
-# "copied", and no push of theirs reached the branch (the action hides
-# why). The next step (release-branches.mjs finish-copy,
+# .release-copy.json. Claude does not push: on 2026-11-05 two runs on PR
+# 347 said "copied", and no push of theirs reached the branch (the action
+# hides why). The next step (release-branches.mjs finish-copy,
 # this run's own copy of it) pushes Claude's commits with the App's token,
 # comments a line for each commit, and turns on auto-merge, or closes the
 # copy when nothing in it fits the public build. A copy that Claude did not
