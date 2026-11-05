@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { afterLive, afterMerge, atLeast, changesTheApp, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, conflictNote, copyBranch, FIX_TRIES, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
+import { afterLive, afterMerge, atLeast, changesTheApp, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, conflictNote, copyBranch, copyResult, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
 
 /**
  * The public build keeps getting fixes while a new build is in store review
@@ -217,27 +217,65 @@ describe('a copy with a conflict', () => {
     expect(MACHINERY).toEqual(expect.arrayContaining(['scripts/server-calls.mjs', 'scripts/serverCalls.test.ts']));
   });
 
-  it('a copy whose checks failed gets Claude up to 3 times, then a person', () => {
+  it('a copy whose checks failed, or that Claude did not finish, gets Claude again up to 3 times, then a person', () => {
     expect(FIX_TRIES).toBe(3);
     expect(nextForCopy({ labels: [], gate: 'FAILURE', tries: 0 })).toBe('try');
     expect(nextForCopy({ labels: [], gate: 'FAILURE', tries: 2 })).toBe('try');
     expect(nextForCopy({ labels: [], gate: 'FAILURE', tries: 3 })).toBe('person');
+    // Not finished: the conflict label alone, whatever the checks say.
+    expect(nextForCopy({ labels: [CONFLICT_LABEL], gate: 'SUCCESS', tries: 0 })).toBe('try');
+    expect(nextForCopy({ labels: [CONFLICT_LABEL], gate: null, tries: 1 })).toBe('try');
+    expect(nextForCopy({ labels: [CONFLICT_LABEL], gate: 'FAILURE', tries: 3 })).toBe('person');
     // Claude is on it, or a person is, or nothing failed (yet).
     expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: 'FAILURE', tries: 0 })).toBe('none');
-    expect(nextForCopy({ labels: [CONFLICT_LABEL], gate: 'FAILURE', tries: 0 })).toBe('none');
+    expect(nextForCopy({ labels: [CLAUDE_LABEL, CONFLICT_LABEL], gate: 'FAILURE', tries: 0 })).toBe('none');
     expect(nextForCopy({ labels: [PERSON_LABEL], gate: 'FAILURE', tries: 3 })).toBe('none');
     expect(nextForCopy({ labels: [], gate: 'SUCCESS', tries: 0 })).toBe('none');
     expect(nextForCopy({ labels: [], gate: null, tries: 0 })).toBe('none');
   });
 
-  it('Claude examines every copy and takes out what does not fit the public build, and only Claude turns on auto-merge', () => {
+  it('the hourly run counts its tries, for failed checks or a copy not finished', () => {
+    expect(isTry('The checks of this copy failed on f953d263, so Claude tries to fix them (try 1 of 3, decisions.md 155).')).toBe(true);
+    expect(isTry('Claude did not finish this copy, so Claude tries again (try 2 of 3, decisions.md 155).')).toBe(true);
+    expect(isTry('Claude did not finish this copy: Claude wrote no result. Claude tries again within the hour (decisions.md 155).')).toBe(false);
+    expect(isTry('- cd174764 #315 Show maps: copied.')).toBe(false);
+    expect(isTry(undefined)).toBe(false);
+  });
+
+  it('a copy is finished when Claude gave each listed commit a result, and each one copied is on the branch', () => {
+    const a = 'a'.repeat(40);
+    const b = 'b'.repeat(40);
+    const names = { [a]: '#315 Show maps', [b]: '#270 Wait for the language' };
+    const on = new Set([a]);
+    const onBranch = (sha: string) => on.has(sha);
+    expect(copyResult({
+      listed: [a, b], names, onBranch,
+      result: { commits: [{ sha: a, result: 'copied', why: 'It fixes the study guide.' }, { sha: b.slice(0, 8), result: 'left out', why: 'Only the new build has it.' }] }
+    })).toEqual({
+      done: true, copied: 1,
+      lines: ['- aaaaaaaa #315 Show maps: copied. It fixes the study guide.', '- bbbbbbbb #270 Wait for the language: left out. Only the new build has it.']
+    });
+    // Everything left out: finished, and nothing copied, so the copy is closed.
+    expect(copyResult({ listed: [b], onBranch, result: { commits: [{ sha: b, result: 'left out' }] } })).toEqual({ done: true, copied: 0, lines: ['- bbbbbbbb: left out.'] });
+    // Not finished: no result, Claude says so, a commit with no result, or one said copied that is not on the branch.
+    expect(copyResult({ listed: [a], onBranch, result: null })).toEqual({ done: false, why: 'Claude wrote no result' });
+    expect(copyResult({ listed: [a], onBranch, result: { unfinished: 'b.tsx has a conflict I could not resolve' } })).toEqual({ done: false, why: 'b.tsx has a conflict I could not resolve' });
+    expect(copyResult({ listed: [a, b], onBranch, result: { commits: [{ sha: a, result: 'copied' }] } })).toEqual({ done: false, why: 'bbbbbbbb has no result' });
+    expect(copyResult({ listed: [b], onBranch, result: { commits: [{ sha: b, result: 'copied in part' }] } })).toEqual({ done: false, why: 'bbbbbbbb is not on the branch' });
+    expect(copyResult({ listed: [a], onBranch, result: { commits: [{ sha: a, result: 'merged' }] } })).toEqual({ done: false, why: 'aaaaaaaa has no result' });
+    expect(copyResult({ listed: [], onBranch, result: { commits: [] } })).toEqual({ done: false, why: 'the pull request lists no commits' });
+  });
+
+  it('Claude examines every copy and takes out what does not fit the public build, and auto-merge waits for Claude', () => {
     // Caleb, 2026-11-05: Claude examines every copy before it merges.
     expect(CLAUDE_LABEL).toBe('copy-claude');
     const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
     expect(yml).toContain('Examine each copied commit against this branch\'s code');
     expect(yml).toContain('Take out each part that does not fit');
-    expect(yml).toContain('remove the copy-claude and copy-conflict labels, and run `gh pr merge');
     const script = readFileSync('scripts/release-branches.mjs', 'utf8');
+    const finish = script.slice(script.indexOf('function finishCopy('), script.indexOf('async function main'));
+    expect(finish).toContain("'merge', pr, '--auto', '--squash'");
+    expect(finish.indexOf('if (!outcome.done)')).toBeLessThan(finish.indexOf("'--auto'"));
     const copyFn = script.slice(script.indexOf('function copy('), script.indexOf('async function liveVersion'));
     expect(copyFn).toContain("'--label', CLAUDE_LABEL");
     expect(copyFn).not.toContain("'--auto'");
@@ -247,8 +285,22 @@ describe('a copy with a conflict', () => {
     const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
     expect(yml).toContain('gh run view <run id> --log-failed');
     expect(yml).toContain('Never skip, disable or weaken a test');
-    expect(yml).toMatch(/--allowedTools "[^"]*Bash\(gh run:\*\)/);
+    expect(yml).toMatch(/--allowedTools "[^"]*Bash\(gh run view:\*\)/);
     expect(yml).toContain(`github.event.label.name == '${CLAUDE_LABEL}'`);
+  });
+
+  it('Claude commits and writes its result, and the next step pushes, comments and turns on auto-merge', () => {
+    // 2026-11-05: two of Claude's runs said "copied", and no push of theirs reached the branch.
+    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
+    expect(yml).toContain('Do not push, comment, label, close or merge');
+    expect(yml).toContain('`.release-copy.json`');
+    expect(yml).toContain('echo /.release-copy.json >> .git/info/exclude');
+    // Claude reads the pull request and its checks; only the workflow's own copy of the script writes to GitHub.
+    const tools = /--allowedTools "([^"]*)"/.exec(yml)?.[1].split(',') ?? [];
+    expect(tools.filter((t) => t.startsWith('Bash(gh '))).toEqual(['Bash(gh pr checks:*)', 'Bash(gh pr view:*)', 'Bash(gh pr diff:*)', 'Bash(gh run view:*)', 'Bash(gh run list:*)']);
+    expect(yml).toMatch(/cp scripts\/release-branches\.mjs "\$RUNNER_TEMP\/copy\/"/);
+    expect(yml).toMatch(/if: always\(\) && steps\.claude\.outcome != 'skipped'\n[\s\S]*?GH_TOKEN: \$\{\{ steps\.token\.outputs\.token \}\}[\s\S]*?node "\$RUNNER_TEMP\/copy\/release-branches\.mjs" finish-copy/);
+    expect(yml).toMatch(/^concurrency:\n  group: release-copy-\$\{\{ github\.event\.pull_request\.number \}\}\n  cancel-in-progress: false/m);
   });
 
   it('Claude\'s action lets the release bot that labels the copy start it', () => {
