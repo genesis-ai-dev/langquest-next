@@ -45,6 +45,7 @@ import { styles as ps } from './blockStyles';
 import { useClip } from '../audio/useClip';
 import { VerseParts } from './verseParts';
 import { a11yState } from '../ui/a11yModel';
+import { touches } from '../ui/touches';
 
 export interface Part { hash: string; durationMs?: number }
 
@@ -114,7 +115,7 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
   return (
     // The card's box reaches past its right edge, for the + marks that hang off it (slots.tsx EDGE); the card is drawn inside.
     <View style={styles.cardBox}>
-      <View style={styles.cardFace} pointerEvents="none" />
+      <View style={[touches.none, styles.cardFace]} />
       <View style={[styles.head, props.open && styles.headOpen]}>
         <PartMark state="done" />
         {/* Secondary while help is on: dim and unnumbered, and a tap still explains (LAN-135). The parts and the next card take the numbers. */}
