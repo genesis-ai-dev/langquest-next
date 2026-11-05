@@ -2,9 +2,10 @@
 // chip show it (decision 71; demo ADR-035; demo simple/translator.tsx Study,
 // StudyLesson, Workspace's guide): the step spoken (Back 10 s, Note at a
 // moment) when it has audio, its text with glossary words dotted-underlined
-// (tap for the meaning), pictures and maps as cards, and its callouts ("Stop
-// here." on amber). Any part takes a note or an answer (STUDY-7). Nothing
-// here depends on which method wrote the guide.
+// (tap for the meaning), pictures and maps as cards where the text links or
+// names them and the rest after it (picturesModel.ts, LAN-222), and its
+// callouts ("Stop here." on amber). Any part takes a note or an answer
+// (STUDY-7). Nothing here depends on which method wrote the guide.
 import { keyTermsFor, type CalloutKind, type KeyWordDoc, type PassageNote } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
@@ -18,6 +19,7 @@ import { txt } from '../ui/textStyles';
 import type { PassageView } from '../passage/passageView';
 import type { StudyGuide, StudyResource } from './guides';
 import { glossaryEntryOf } from './libraryGuides';
+import { guidePictures } from './picturesModel';
 import { useStudyFileUri } from './useStudyFileUri';
 import type { StudyProgress, StudyStepStatus } from './progress';
 import { clock, inlineParts, isCallout, isQuestion, secondsOf, sectionLabel, studySections, type StudySection } from './text';
@@ -84,6 +86,8 @@ export function GuideStep(props: {
   // A note or answer being added. Its draft is kept per part of the step, and one for the step's moments (whichever moment it is noted at).
   const [adding, setAdding] = useState<{ sectionId?: string; at?: string; quote: string; answer: boolean } | null>(null);
   const [resource, setResource] = useState<StudyResource | null>(null);
+  const pictures = useMemo(() => guidePictures(guide), [guide]);
+  const placed = pictures.step(step.id, props.read !== false);
   useEffect(() => () => audio.pause(), []); // eslint-disable-line react-hooks/exhaustive-deps -- it reads only refs, so the first draw's copy is enough on unmount
   useEffect(() => { if (props.hidden) audio.pause(); }, [props.hidden]); // eslint-disable-line react-hooks/exhaustive-deps -- pause reads only refs; this runs when the screen hides, not on every draw
 
@@ -91,10 +95,7 @@ export function GuideStep(props: {
   const atMoment = status.notes.filter((n) => momentOf(n) >= 0).sort((a, b) => momentOf(a) - momentOf(b));
   const onSection = (id: string) => status.notes.filter((n) => n.anchor.kind === 'study' && n.anchor.sectionId === id);
   const onStep = status.notes.filter((n) => n.anchor.kind === 'study' && !n.anchor.sectionId && momentOf(n) < 0);
-  const openRef = (ref: string) => {
-    const r = guide.resources.find((x) => x.ref === ref);
-    if (r) { audio.pause(); setResource(r); }
-  };
+  const open = (r: StudyResource) => { audio.pause(); setResource(r); };
   // A glossary word the team's key-word list holds by the same id (FIA's guides and FIA's key words, decision 172).
   const { lists } = useKeyWordLists(ctx);
   const listWord = resource?.kind === 'term' ? guideTermWord(lists, guide.pattern, resource.ref) : null;
@@ -126,13 +127,19 @@ export function GuideStep(props: {
 
       {props.read === false ? null : sections.map((sec) => (
         <HelpRow key={sec.id} of="study.section">
-          <SectionView ctx={ctx} section={sec} resources={guide.resources} notes={onSection(sec.id)} orgId={ctx.language.orgId}
+          <SectionView ctx={ctx} section={sec} resolve={pictures.resolve} media={placed.bySection[sec.id] ?? []} notes={onSection(sec.id)} orgId={ctx.language.orgId}
             selected={selected === sec.id} canContribute={props.canContribute}
             onSelect={() => setSelected((cur) => (cur === sec.id ? null : sec.id))}
             onAdd={() => setAdding({ sectionId: sec.id, quote: sectionLabel(sec, 120), answer: isQuestion(sec) })}
-            onOpenRef={openRef} />
+            onOpen={open} />
         </HelpRow>
       ))}
+
+      {placed.end.length > 0 ? (
+        <View style={{ gap: space.sm }}>
+          {placed.end.map((r) => <HelpRow key={r.ref} of="study.picture"><MediaCard resource={r} orgId={ctx.language.orgId} onPress={() => open(r)} /></HelpRow>)}
+        </View>
+      ) : null}
 
       {onStep.length > 0 ? <View style={{ gap: space.sm }}>{onStep.map((n) => <HelpRow key={n.id} of="study.note"><StudyNote ctx={ctx} note={n} /></HelpRow>)}</View> : null}
 
@@ -174,8 +181,8 @@ const CALLOUTS: Record<CalloutKind, { icon: IconName; tone: 'amber' | 'brand' | 
   culture: { icon: 'globe', tone: 'green' }
 };
 
-/** Inline text: bold, glossary words dotted-underlined, pictures and maps as links. */
-function Inline(props: { text: string; resources: StudyResource[]; onOpenRef: (ref: string) => void }) {
+/** Inline text: bold, glossary words dotted-underlined, pictures and maps as links. A link the guide has nothing for reads as plain words. */
+function Inline(props: { text: string; resolve: Resolve; onOpen: (r: StudyResource) => void }) {
   // While help is on a link does not open: the part around it explains it instead.
   const helpOn = useHelpOn();
   return (
@@ -183,16 +190,19 @@ function Inline(props: { text: string; resources: StudyResource[]; onOpenRef: (r
       {inlineParts(props.text).map((p, i) => {
         if (p.type === 'text') return <Text key={i}>{p.text}</Text>;
         if (p.type === 'bold') return <Text key={i} style={{ fontWeight: '800' }}>{p.text}</Text>;
-        const r = props.resources.find((x) => x.ref === p.ref);
+        const r = props.resolve(p.ref, p.text);
+        if (!r) return <Text key={i}>{p.text}</Text>;
         return (
-          <Text key={i} onPress={helpOn ? undefined : () => props.onOpenRef(p.ref)} accessibilityRole="link" suppressHighlighting={false}
-            accessibilityHint={r?.kind === 'term' ? t('study.guide.tapForMeaning') : t('study.guide.opensPicture')}
-            style={r?.kind === 'term' ? styles.word : styles.link}>{p.text}</Text>
+          <Text key={i} onPress={helpOn ? undefined : () => props.onOpen(r)} accessibilityRole="link" suppressHighlighting={false}
+            accessibilityHint={r.kind === 'term' ? t('study.guide.tapForMeaning') : t('study.guide.opensPicture')}
+            style={r.kind === 'term' ? styles.word : styles.link}>{p.text}</Text>
         );
       })}
     </>
   );
 }
+
+type Resolve = (ref: string, label: string) => StudyResource | null;
 
 /** A part that only explains itself, while help is on: its marks, for whoever cannot note it. */
 const NOTHING = () => undefined;
@@ -200,18 +210,17 @@ const NOTHING = () => undefined;
 /**
  * One section: tap to select it, then note it. A question shows its Answer
  * button without a tap first, and a tap on it answers too: hidden until
- * selected, most went unanswered (UI audit, finding 39). Pictures it links
- * to follow as cards.
+ * selected, most went unanswered (UI audit, finding 39). Pictures and maps
+ * it links or names follow as cards (`media`, picturesModel.ts).
  */
 function SectionView(props: {
-  ctx: Ctx; section: StudySection; resources: StudyResource[]; notes: StudyStepStatus['notes']; orgId: string | null;
-  selected: boolean; canContribute: boolean; onSelect: () => void; onAdd: () => void; onOpenRef: (ref: string) => void;
+  ctx: Ctx; section: StudySection; resolve: Resolve; media: StudyResource[]; notes: StudyStepStatus['notes']; orgId: string | null;
+  selected: boolean; canContribute: boolean; onSelect: () => void; onAdd: () => void; onOpen: (r: StudyResource) => void;
 }) {
   const sec = props.section;
   const question = isQuestion(sec);
-  const links = inlineParts(sec.text).flatMap((p) => (p.type === 'link' ? [p] : []));
-  const media = links.map((l) => props.resources.find((r) => r.ref === l.ref)).filter((r): r is StudyResource => !!r && r.kind !== 'term');
-  const inline = <Inline text={sec.text} resources={props.resources} onOpenRef={props.onOpenRef} />;
+  const links = inlineParts(sec.text).flatMap((p) => (p.type === 'link' && props.resolve(p.ref, p.text) ? [p] : []));
+  const inline = <Inline text={sec.text} resolve={props.resolve} onOpen={props.onOpen} />;
   // What a tap does, then what its marks mean: underlined words that open, and the count of its notes.
   const marked = links.length > 0 || props.notes.length > 0;
   const detail = [
@@ -244,7 +253,7 @@ function SectionView(props: {
             help={question ? t('study.guide.answerHelp') : t('study.guide.addNoteHelp')} />
         </View>
       ) : null}
-      {media.map((r) => <HelpRow key={r.ref} of="study.picture"><MediaCard resource={r} orgId={props.orgId} onPress={() => props.onOpenRef(r.ref)} /></HelpRow>)}
+      {props.media.map((r) => <HelpRow key={r.ref} of="study.picture"><MediaCard resource={r} orgId={props.orgId} onPress={() => props.onOpen(r)} /></HelpRow>)}
       {props.notes.map((n) => <HelpRow key={n.id} of="study.note"><StudyNote ctx={props.ctx} note={n} label={question ? t('study.guide.answerNote') : undefined} /></HelpRow>)}
     </View>
   );
@@ -252,7 +261,8 @@ function SectionView(props: {
 
 /** A picture or map the text links to (demo Picture): a thumbnail and its title; a tap shows it full width. */
 function MediaCard(props: { resource: StudyResource; orgId: string | null; onPress: () => void }) {
-  const first = props.resource.media?.[0];
+  // FIA's first picture of a set sometimes has no file: the thumbnail is the first one that does.
+  const first = props.resource.media?.find((m) => m.url || m.file) ?? props.resource.media?.[0];
   const { uri } = useStudyFileUri(props.orgId, first?.file, first?.url);
   const [failed, setFailed] = useState(false);
   const spot = useHelpSpot(props.resource.title, t('study.guide.help.picture'), props.onPress);
