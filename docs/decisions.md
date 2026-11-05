@@ -7596,6 +7596,16 @@ green with no person. So Claude no longer writes to GitHub:
 - The unit jobs check out one commit, without main, so the server-calls
   check fetches main's newest commit when it is missing (decision 151).
 
+Amended (2026-11-05, Caleb Koster): the first hourly run after that gave
+PR 344 a try for the failed checks of its commit before the one it had
+just pushed, and three copies were open on release/ios at once (PR 344,
+PR 347, PR 351), each changing the end of the decision log, so the first
+to merge can leave the others with a conflict. So the hourly run skips a copy
+that it just freshened (its checks run again), and starts Claude on a copy
+that has a conflict with its release branch, as on one whose checks
+failed (the same 3 tries). Claude first merges the release branch into the
+copy, never rebasing or forcing a push.
+
 
 ## 156. Store builds come only from the EAS workflow on merges into main
 

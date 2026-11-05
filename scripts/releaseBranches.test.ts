@@ -226,6 +226,10 @@ describe('a copy with a conflict', () => {
     expect(nextForCopy({ labels: [CONFLICT_LABEL], gate: 'SUCCESS', tries: 0 })).toBe('try');
     expect(nextForCopy({ labels: [CONFLICT_LABEL], gate: null, tries: 1 })).toBe('try');
     expect(nextForCopy({ labels: [CONFLICT_LABEL], gate: 'FAILURE', tries: 3 })).toBe('person');
+    // A conflict with the release branch: another copy merged first.
+    expect(nextForCopy({ labels: [], gate: 'SUCCESS', tries: 0, conflicting: true })).toBe('try');
+    expect(nextForCopy({ labels: [], gate: null, tries: 3, conflicting: true })).toBe('person');
+    expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: null, tries: 0, conflicting: true })).toBe('none');
     // Claude is on it, or a person is, or nothing failed (yet).
     expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: 'FAILURE', tries: 0 })).toBe('none');
     expect(nextForCopy({ labels: [CLAUDE_LABEL, CONFLICT_LABEL], gate: 'FAILURE', tries: 0 })).toBe('none');
@@ -287,6 +291,18 @@ describe('a copy with a conflict', () => {
     expect(yml).toContain('Never skip, disable or weaken a test');
     expect(yml).toMatch(/--allowedTools "[^"]*Bash\(gh run view:\*\)/);
     expect(yml).toContain(`github.event.label.name == '${CLAUDE_LABEL}'`);
+  });
+
+  it('the hourly run waits for the new checks of a copy it just freshened, and sends Claude to a copy that conflicts', () => {
+    // 2026-11-05 22:25 UTC: PR 344 got a try for the failed checks of the commit before the one just pushed.
+    const script = readFileSync('scripts/release-branches.mjs', 'utf8');
+    expect(script).toContain('fixFailedCopies(platform, freshenCopies(platform));');
+    const fix = script.slice(script.indexOf('function fixFailedCopies('), script.indexOf('function freshenCopies('));
+    expect(fix).toContain('skip.has(pr.number)');
+    expect(fix).toContain("pr.mergeable === 'CONFLICTING'");
+    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
+    expect(yml).toContain('--json mergeable` says CONFLICTING');
+    expect(yml).toContain('Never rebase, and never force a push.');
   });
 
   it('Claude commits and writes its result, and the next step pushes, comments and turns on auto-merge', () => {
