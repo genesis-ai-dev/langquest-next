@@ -317,21 +317,25 @@ export const COPY_HOURS = 3;
 /**
  * What a copy waits for, from its labels (scripts/release-branches.mjs):
  * copy-claude while Claude examines it, finishes it or fixes its failed
- * checks (with copy-conflict when it stopped at a conflict), and
- * copy-needs-person once Claude's tries to fix them are used up. Claude
- * takes its labels off when it turns on auto-merge; between a failure and
- * the hourly run that starts Claude again, a copy has none.
+ * checks (with copy-conflict when it stopped at a conflict); copy-conflict
+ * alone when Claude's run ended before the copy was finished, until the
+ * hourly run starts Claude again; copy-needs-person once Claude's tries are
+ * used up. The workflow takes the labels off when Claude finished, and turns
+ * on auto-merge; between a failure and the hourly run that starts Claude
+ * again, a copy has none.
  */
 function copyWaits(o: OpenCopy, slow: boolean): { waiting: string; needsPerson: boolean } {
   const labels = (o.labels ?? []).map((l) => l.name);
-  if (labels.includes('copy-needs-person')) return { waiting: 'failed its tests after 3 tries by Claude, so it needs a person', needsPerson: true };
+  if (labels.includes('copy-needs-person')) {
+    return { waiting: o.failed ? 'failed its tests after 3 tries by Claude, so it needs a person' : 'is not finished after 3 tries by Claude, so it needs a person', needsPerson: true };
+  }
   const conflict = labels.includes('copy-conflict');
-  const claude = conflict || labels.includes('copy-claude');
-  const waiting = o.failed
-    ? claude ? (slow ? 'failed its tests, and Claude has not fixed them' : 'failed its tests, and Claude is fixing them')
-      : 'failed its tests, and Claude starts fixing them within the hour'
-    : conflict ? (slow ? 'has a conflict that Claude has not finished' : 'has a conflict that Claude is fixing')
-      : claude ? (slow ? 'has waited for hours for Claude to examine it' : 'waits for Claude to examine it')
+  const waiting = labels.includes('copy-claude')
+    ? o.failed ? (slow ? 'failed its tests, and Claude has not fixed them' : 'failed its tests, and Claude is fixing them')
+      : conflict ? (slow ? 'has a conflict that Claude has not finished' : 'has a conflict that Claude is fixing')
+        : slow ? 'has waited for hours for Claude to examine it' : 'waits for Claude to examine it'
+    : conflict ? (slow ? 'has been open for hours, and Claude has not finished it' : 'is not finished, and Claude tries again within the hour')
+      : o.failed ? 'failed its tests, and Claude starts fixing them within the hour'
         : slow ? 'has been open for hours without merging' : 'merges itself when its tests pass';
   return { waiting, needsPerson: slow };
 }

@@ -200,21 +200,24 @@ describe('over-the-air updates', () => {
     expect(with332).toEqual([['build 50', null], ['build 48', 333]]);
   });
 
-  it('put a copy that needs a person under Needs attention: Claude could not fix its tests, or open for hours', () => {
+  it('put a copy that needs a person under Needs attention: Claude could not fix its tests or finish it, or open for hours', () => {
     const lane = pipelineFrom(world()).lanes[1]!;
     pendingCopies(lane, [
       { number: 360, title: 'release/android: Fix (#359)', body: '- 3333333333333333333333333333333333333333 #359 Fix', created_at: hAgo(2), labels: [{ name: 'copy-needs-person' }], failed: true },
-      { number: 362, title: 'release/android: catch up on 4 merges from main', body: [355, 356, 357, 358].map((n) => `- ${'4'.repeat(40)} #${n} T${n}`).join('\n'), created_at: hAgo(5), labels: [{ name: 'copy-conflict' }] }
+      { number: 362, title: 'release/android: catch up on 4 merges from main', body: [355, 356, 357, 358].map((n) => `- ${'4'.repeat(40)} #${n} T${n}`).join('\n'), created_at: hAgo(5), labels: [{ name: 'copy-conflict' }] },
+      { number: 364, title: 'release/android: Fix (#363)', body: '- 6666666666666666666666666666666666666666 #363 Fix', created_at: hAgo(2), labels: [{ name: 'copy-conflict' }, { name: 'copy-needs-person' }] }
     ], NOW);
     const live = lane.stages.find((st) => st.id === 'live')!.cards[0]!;
     expect(live.updates.filter((u) => u.waiting).map((u) => [u.copy, u.waiting, u.needsPerson])).toEqual([
       [360, 'failed its tests after 3 tries by Claude, so it needs a person', true],
-      [362, 'has a conflict that Claude has not finished', true]
+      [362, 'has been open for hours, and Claude has not finished it', true],
+      [364, 'is not finished after 3 tries by Claude, so it needs a person', true]
     ]);
     const alerts = pipelineAlerts({ ...pipelineFrom(world()), lanes: [pipelineFrom(world()).lanes[0]!, lane] }, NOW);
     expect(alerts.map((a) => [a.level, a.text, a.link])).toEqual([
       ['problem', 'Android build 48 does not have PR 359 yet: copy PR 360 failed its tests after 3 tries by Claude, so it needs a person. Open it to finish it (decisions.md 155).', 'https://github.com/genesis-ai-dev/langquest-next/pull/360'],
-      ['problem', 'Android build 48 does not have PR 355, PR 356 and 2 more yet: copy PR 362 has a conflict that Claude has not finished. Open it to finish it (decisions.md 155).', 'https://github.com/genesis-ai-dev/langquest-next/pull/362']
+      ['problem', 'Android build 48 does not have PR 355, PR 356 and 2 more yet: copy PR 362 has been open for hours, and Claude has not finished it. Open it to finish it (decisions.md 155).', 'https://github.com/genesis-ai-dev/langquest-next/pull/362'],
+      ['problem', 'Android build 48 does not have PR 363 yet: copy PR 364 is not finished after 3 tries by Claude, so it needs a person. Open it to finish it (decisions.md 155).', 'https://github.com/genesis-ai-dev/langquest-next/pull/364']
     ]);
   });
 
@@ -243,7 +246,8 @@ describe('over-the-air updates', () => {
     ], NOW);
     const live = lane.stages.find((st) => st.id === 'live')!.cards[0]!;
     expect(live.updates.filter((u) => u.waiting).map((u) => [u.pr, u.title, u.copy, u.also, u.waiting, u.needsPerson])).toEqual([
-      [340, null, 341, [], 'has a conflict that Claude is fixing', false],
+      // Claude's run ended before the copy was finished: the hourly run starts Claude again.
+      [340, null, 341, [], 'is not finished, and Claude tries again within the hour', false],
       [344, 'Show a thing', 350, [], 'merges itself when its tests pass', false],
       [345, 'One', 351, [{ pr: 346, title: 'Two' }], 'merges itself when its tests pass', false],
       [352, 'Fix a thing', 353, [], 'waits for Claude to examine it', false],

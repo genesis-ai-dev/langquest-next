@@ -7569,6 +7569,33 @@ conflict may still change a feature that only the newer build has. So:
   attention only after Claude's 3 tries, or when the copy has been open for
   3 hours.
 
+Amended (2026-11-05, Caleb Koster): Claude's first runs on PR 344 and PR
+347 said "copied", and no push of theirs reached the branch (the action
+hides why); one of them also turned on auto-merge for a copy that held
+only main's workflows. Caleb asked that PR 344 go green with no person. So
+Claude no longer writes to GitHub:
+- Claude commits its work on the copy's branch, and writes what it did
+  with each listed commit in `.release-copy.json` (git ignores it):
+  copied, copied in part, or left out, and why, or that it could not
+  finish. Its tools read the pull request and its checks, and cannot push,
+  comment, label, close or merge.
+- The workflow's next step, its own copy of `release-branches.mjs
+  finish-copy` (kept from before Claude's run), pushes Claude's commits with
+  the App's token (only while the branch is where Claude started, and with
+  no git hook: the checks run what the hooks would). The copy is finished
+  when every listed commit has a result, and each one copied is on the
+  branch. Then it comments a line for each commit, takes off the labels and
+  turns on auto-merge, or closes a copy of which nothing fits.
+- A copy that Claude did not finish (no result, a commit neither on the
+  branch nor left out, changes not committed, or a push that failed) gets a
+  comment, and is labelled copy-conflict alone. The hourly run starts
+  Claude on it again, as on a copy whose checks failed; the 3 tries count
+  both. The ops dashboard says "is not finished, and Claude tries again
+  within the hour".
+- One run at a time for each copy (`concurrency`).
+- The unit jobs check out one commit, without main, so the server-calls
+  check fetches main's newest commit when it is missing (decision 151).
+
 
 ## 156. Store builds come only from the EAS workflow on merges into main
 
