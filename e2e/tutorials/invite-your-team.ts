@@ -63,6 +63,11 @@ export const inviteYourTeam: Tutorial = {
     },
     {
       screen: 'invite_member',
+      part: (page) => words(page, 'Ask them to scan this').locator('../..'),
+      say: 'Up to thirty people can join with it, for seven days. Anyone who has it can join, so give it only to your team.'
+    },
+    {
+      screen: 'invite_member',
       part: (page) => words(page, 'Share as a link'),
       say: 'If they are far away, share it as a link instead.'
     },

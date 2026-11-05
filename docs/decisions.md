@@ -10527,3 +10527,32 @@ Considered: a link to the ops dashboard in the issue (what it did; a
 developer had to look, and Claude never did); the whole timeline in the
 issue (too long to read on a phone, and Claude still could not see the
 screenshot); the voice note (Claude cannot hear it).
+
+## 203. A tutorial's lines serve the viewer's goal, by the standard in docs/tutorial-teaching.md
+
+Date: 2026-11-04 · By: KieranVR · Status: accepted
+
+Reason: Caleb and Ryder (2026-11-04) handed the videos' refinement to Kieran,
+as docs. What checks a video today asks whether it is right: the frame check
+(`e2e/tutorials/frame-check.ts`) looks for what is drawn wrong, and nothing
+asks whether a viewer can do the job afterwards. A review found the scripts
+describe the screen better than the work. "Do a check" never said what to
+listen for, and "Work without internet" said an upload needs nothing done,
+though nothing in the app uploads while it is closed (no background task in
+`apps/mobile/app.json` or `package.json`), and until then the phone holds the
+only copy. The film also hides what a real phone shows: `film.ts` grants the
+microphone itself.
+- **The standard.** `docs/tutorial-teaching.md` holds seven promises to the
+  viewer: their goal first, a reason for each step that is not obvious, the
+  job and not only the buttons, the real phone, a way out of trouble, a clear
+  finish, and easy to follow. Its ideal is concern for the user and their
+  goals.
+- **Six videos follow it now.** Work without internet, Record a passage, Do a
+  check, Follow a language on the map, Invite your team, and Join your team.
+- **A video may grow** where the viewer would otherwise fail: these six run
+  about 14% longer.
+Reverse if: people watching a real task do as well with the shorter films, or
+a test on a phone shows uploads run with the app closed (then the upload line
+can say less).
+Considered: an AI check of teaching that holds films (it found real gaps but
+stated false things about the app, so it should suggest and never hold).

@@ -4,7 +4,8 @@ Short how-to videos, one per thing a person does in LangQuest ("Record a
 passage", "Invite your team"), in every app language. Each is a script in
 `e2e/tutorials/` that the app plays through on the web export, filmed frame by
 frame, with a computer voice saying the script's lines. Decision 177 says why
-they are made this way.
+they are made this way. `docs/tutorial-teaching.md` says what a video owes the
+person watching it: read it before writing or changing a line.
 
 ## Making them
 
@@ -210,10 +211,10 @@ Every video is wide (16:9), never tall (decision 191): YouTube makes a tall
 video under three minutes a Short, whose links cannot be clicked and which a
 channel lists apart from its videos. A video's description is read at a
 glance: the first sentence its voice says ("Here's how to record a
-passage."), then its links, each group apart with a blank line between:
+passage, so your team can hear it in your language."), then its links, each group apart with a blank line between:
 
 ```
-Here's how to record a passage.
+Here's how to record a passage, so your team can hear it in your language.
 
 Download this video: https://next.langquest.org/v/en/record-a-passage.mp4
 Watch or download every video: https://next.langquest.org/videos?lang=en

@@ -37,7 +37,7 @@ export const joinYourTeam: Tutorial = {
     {
       screen: 'scan_qr',
       part: (page) => page.getByPlaceholder('Invite or sign-in code').locator('visible=true').first(),
-      say: 'On a phone, point the camera at the code. If they sent you a link instead, paste it here.',
+      say: 'On a phone, the camera opens by itself. Allow it, and point it at the code. If they sent you a link instead, paste it here.',
       paste: () => link,
       stay: 1.2
     },
