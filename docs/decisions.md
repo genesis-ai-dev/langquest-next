@@ -7478,6 +7478,46 @@ the platforms that keep a branch: no public iPhone build takes OTA updates
 from main yet (build 36, 1.0, runs code of 2026-10-16), so an iPhone branch
 would only feed TestFlight.
 
+Amended (2026-11-05, Caleb Koster): Caleb asked that every older build that
+can run a merge gets it, iPhone included, that Claude finishes copies with
+his Claude plan's token, and that the ops dashboard shows the same pull
+request in each build that has it. So:
+- iPhone keeps a branch again. App Store build 45 (2026.1026.1817) is public
+  and takes OTA updates, and has had none since PR 259 changed the iPhone
+  fingerprint on 2026-10-28. The workflow no longer sets
+  `RELEASE_BRANCH_PLATFORMS`, so both platforms keep branches. The new
+  iPhone builds made while iPhone kept none are listed in
+  `scripts/release-rebuilds.json`, and each run tags any that lacks its tag.
+  Every hour, a platform with no branch whose store shows a build older than
+  a newer one gets a branch, from the commit before the first new build that
+  is not public, and one copy pull request catches it up on every merge
+  since ("catch the public iPhone build up on N merges from main").
+- Only a merge that changes what the phone app runs is copied: files in
+  `apps/mobile` other than its tests, scripts, website files and EAS
+  settings, the sources of `packages/core` and `packages/sync`, and the
+  `package.json` files. A merge for the website, the ops dashboard, the
+  server, tests or docs sent the public build its own code again, and its
+  copy could only conflict (PRs 336, 338 and 340 on 2026-11-05).
+- A conflict in a file outside the phone app and its tests (docs and this
+  log, scripts, the server, the website, tutorial filming) keeps the release
+  branch's version, so Claude gets only conflicts in the app. A trial of the
+  iPhone catch-up on 2026-11-05 copied 15 of its 22 merges on its own; 7 need
+  Claude.
+- Each copy first takes main's release workflows, this script and its test
+  (`MACHINERY`): a pull request runs its own branch's workflows, so a branch
+  started from an older commit ran the older conflict step.
+- Every hour, a branch that serves another build than the public one starts
+  again (`servesAnother`): the first new build after its start must be the
+  first one that is not public. `release/android` started on 2026-11-03
+  from PR 322's merge (Android fingerprint e3bff02c), as PRs 322 and 319
+  both needed a new build a minute apart, while Google Play showed build 48
+  (80d370c0); none of its copies since reached build 48's phones.
+- Claude signs in with `CLAUDE_CODE_OAUTH_TOKEN`, a Claude plan's token as
+  the nightly jobs use, or with `ANTHROPIC_API_KEY`.
+- The ops dashboard shows a copied pull request in each build that has it:
+  from main in the new build, and in the public build as a copy named with
+  its copy pull request, first as waiting while the copy is open.
+
 
 ## 156. Store builds come only from the EAS workflow on merges into main
 

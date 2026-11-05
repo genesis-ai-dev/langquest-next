@@ -100,6 +100,8 @@ pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padd
 .pu small { display: block; }
 a.pu:hover, a.pu:focus-visible { border-color: var(--primary); }
 a.pu b { color: var(--primary); }
+.pu.cp { border-left: 3px solid var(--primary); }
+.pu.pend { border-style: dashed; border-left-style: solid; opacity: .85; }
 .pc.none { color: var(--grey); border-style: dashed; border-inline-start-width: 1px; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
 .legend .pc { display: inline-block; padding: 2px 8px; font-size: 12px; }
