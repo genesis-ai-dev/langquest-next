@@ -1,6 +1,5 @@
 import KEPT from '../../expiry.json';
-import { jsonSecret } from '../jwt';
-import { appStoreToken } from './appstore';
+import { appStoreKey, appStoreToken } from './appstore';
 import { getJson, ok, type Alert, type Section } from '../section';
 
 /**
@@ -79,7 +78,7 @@ export async function expirySection(env: Env, fetcher: typeof fetch = fetch, now
   }
   if (env.ADMIN_APP_STORE_KEY) {
     tries.push((async () => {
-      const token = await appStoreToken(jsonSecret<Parameters<typeof appStoreToken>[0]>(env.ADMIN_APP_STORE_KEY!, 'ADMIN_APP_STORE_KEY', ['issuerId', 'keyId', 'privateKey']), now);
+      const token = await appStoreToken(appStoreKey(env.ADMIN_APP_STORE_KEY!), now);
       const headers = { authorization: `Bearer ${token}` };
       const [certs, profiles] = await Promise.all([
         getJson<AscList<{ name?: string; certificateType?: string; expirationDate?: string }>>(fetcher, 'https://api.appstoreconnect.apple.com/v1/certificates?limit=50', { headers }, 'App Store certificates'),

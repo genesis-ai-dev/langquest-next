@@ -2,7 +2,7 @@ import { diagConnection, withDiag, type Query } from '../db';
 import { jsonSecret } from '../jwt';
 import { getJson, hoursAgo, ok, off, type Alert, type Section } from '../section';
 import { ACTIVE_DAYS, INSTALLS_SQL, type InstallCount } from './adoption';
-import { appStoreToken } from './appstore';
+import { appStoreKey, appStoreToken } from './appstore';
 import { githubApi } from './github';
 import { googleToken } from './googleplay';
 
@@ -59,7 +59,11 @@ export interface Card {
   updates: UpdateCard[];
 }
 
-export interface Stage { id: string; title: string; cards: Card[] }
+export interface Stage {
+  id: string; title: string; cards: Card[];
+  /** Why this stage cannot be seen now (its store is not connected): shown in place of "none", which would claim it is empty. */
+  unseen?: string;
+}
 
 export interface StoreLane { id: 'ios' | 'android'; title: string; stages: Stage[]; notes: string[] }
 
@@ -150,7 +154,9 @@ export function iosLane(i: PipelineInputs): StoreLane {
   stage(stages, 'building').cards.push(...building(i.builds, 'ios'));
   const subs = i.submissions.filter((s) => s.platform === 'ios');
   if (!i.apple) {
-    // Without App Store Connect, the furthest Expo knows is the upload to TestFlight.
+    // Without App Store Connect, the furthest Expo knows is the upload to TestFlight; what is
+    // in review, approved or live is not known, so those stages say so instead of "none".
+    for (const id of ['review', 'approved', 'live']) stage(stages, id).unseen = "can't see without App Store Connect";
     for (const s of subs.slice(0, 3)) {
       if (RUNNING.has(s.status)) stage(stages, 'waiting').cards.push(buildCard(s.build, s.version, 'uploading to TestFlight', 'busy', s.at));
       else if (s.status === 'FINISHED') stage(stages, 'waiting').cards.push(buildCard(s.build, s.version, 'uploaded to TestFlight', 'wait', s.doneAt ?? s.at));
@@ -308,7 +314,8 @@ export const STUCK_HOURS = 3;
 export function pipelineAlerts(p: Pipeline, now = Date.now()): Alert[] {
   const out: Alert[] = [];
   for (const lane of p.lanes) {
-    const ahead = lane.stages.filter((s) => s.id === 'review' || s.id === 'approved').some((s) => s.cards.length > 0);
+    // A review that cannot be seen (its store not connected) may well be open, so it is never called stuck.
+    const ahead = lane.stages.filter((s) => s.id === 'review' || s.id === 'approved').some((s) => s.cards.length > 0 || s.unseen);
     const waiting = stage(lane.stages, 'waiting').cards.find((c) => c.tone === 'wait');
     const hours = hoursAgo(waiting?.at, now);
     if (!waiting || ahead || hours === null || hours < STUCK_HOURS) continue;
@@ -453,8 +460,7 @@ export async function pipelineSection(
   const appleRead = async () => {
     if (!env.ADMIN_APP_STORE_KEY) { notes.ios.push('App Store Connect is not connected (ADMIN_APP_STORE_KEY), so this shows only what EAS sent to TestFlight.'); return null; }
     try {
-      const key = jsonSecret<{ issuerId: string; keyId: string; privateKey: string }>(env.ADMIN_APP_STORE_KEY, 'ADMIN_APP_STORE_KEY', ['issuerId', 'keyId', 'privateKey']);
-      const headers = { authorization: `Bearer ${await appStoreToken(key, now)}` };
+      const headers = { authorization: `Bearer ${await appStoreToken(appStoreKey(env.ADMIN_APP_STORE_KEY), now)}` };
       const id = encodeURIComponent(env.APP_STORE_APP_ID);
       const api = 'https://api.appstoreconnect.apple.com/v1';
       const [versions, builds] = await Promise.all([
