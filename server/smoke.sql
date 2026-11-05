@@ -273,12 +273,14 @@ select set_config('request.jwt.claim.sub', '', false);
 select public.put_snapshot('org1', 'L1', 1, 3, '{"v":"old"}'::jsonb);
 select public.put_snapshot('org1', 'L1', 1, 5, '{"v":"new"}'::jsonb);
 -- The one before stays for a phone part-way through downloading it, until
--- the newer one has been out for 24 hours (decisions.md 88).
+-- the newer one has been out for 24 hours (decisions.md 88); the job takes
+-- it then (ops.purge_snapshots, server/snapshotPurgeSmoke.sql).
 do $$ declare n int; begin
   select count(*) into n from public.snapshots where stream_id = 'L1';
   if n <> 2 then raise exception 'put_snapshot should keep the previous snapshot for now, got % rows', n; end if;
   update public.snapshots set created_at = now() - interval '25 hours' where stream_id = 'L1' and server_seq = 5;
   perform public.put_snapshot('org1', 'L1', 1, 7, '{"v":"newer"}'::jsonb);
+  perform ops.purge_snapshots();
   if exists (select 1 from public.snapshots where stream_id = 'L1' and server_seq = 3) then
     raise exception 'a snapshot whose successor is 24 hours old should be gone';
   end if;
@@ -1000,7 +1002,7 @@ do $$ declare v text; begin
     and p.proname not in ('preview_invite');
   if v is not null then raise exception 'anon may run security definer functions: %', v; end if;
   select string_agg(f, ', ') into v
-  from unnest(array['put_snapshot', 'stage_snapshot_units', 'put_passage_lines', 'put_passage_lines_delta', 'passage_line_digests', 'list_streams', 'list_streams_page', 'snapshot_heads_page', 'record_blob', 'invalidate_blob', 'org_privileges', 'blob_access',
+  from unnest(array['put_snapshot', 'drop_snapshots_before', 'stage_snapshot_units', 'put_passage_lines', 'put_passage_lines_delta', 'passage_line_digests', 'list_streams', 'list_streams_page', 'snapshot_heads_page', 'record_blob', 'invalidate_blob', 'org_privileges', 'blob_access',
                      '_library_media_readable', 'may_emit']) f
   where exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = f
     and has_function_privilege('authenticated', p.oid, 'execute'));
