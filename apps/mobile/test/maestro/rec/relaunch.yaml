@@ -1,0 +1,39 @@
+# Start the app again after it was killed or stopped, keeping its data (the
+# recording tests, docs/ui-test-suite/06-recording.md): the dev client
+# reconnects to this run's Metro as common/launch.yaml does, without clearing
+# anything, and waits for the tabs. MIC: "allow" or "deny" (default allow).
+appId: com.frontierrnd.langquestnext
+---
+- launchApp:
+    clearState: false
+    permissions:
+      microphone: ${MIC || 'allow'}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - openLink: ${DEV_CLIENT_URL}
+      - runFlow:
+          when:
+            visible: "Open"
+          commands:
+            - tapOn: "Open"
+- runFlow:
+    when:
+      visible: "New development server"
+    commands:
+      - tapOn: "http://127.0.0.1.*"
+- runFlow:
+    when:
+      visible: "Toggle element inspector"
+    commands:
+      - back
+- runFlow:
+    when:
+      visible: "Close"
+    commands:
+      - tapOn: "Close"
+- extendedWaitUntil:
+    visible:
+      id: "tab-map"
+    timeout: 60000

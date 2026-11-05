@@ -1,0 +1,94 @@
+// i18n-ignore-file: developer tools, shown only in development builds.
+import type { Role } from '@langquest-next/core';
+
+/**
+ * Dev-only personas. Each is a real user on a local Supabase so every event
+ * it emits passes the server's actor check. "Seed demo team" (run by the owner)
+ * creates the accounts, invites each to its role and redeems the invite as
+ * that persona (nobody is added without joining, decisions.md 75), then asks
+ * for work; switching persona is a real sign-in as that user.
+ */
+export interface Persona {
+  id: string;
+  label: string;
+  /** The fixed role this persona plays (the seeded roles' `fixed`); null = not a member. */
+  role: Role | null;
+  /** Org role id seeded in the organization stream (core SEED_ROLES). */
+  roleId: string | null;
+  email: string;
+}
+
+const DOMAIN = 'example.test';
+
+export const PERSONAS: Persona[] = [
+  { id: 'owner', label: 'Org admin', role: 'owner', roleId: 'org_admin', email: `lq-owner@${DOMAIN}` },
+  { id: 'coordinator', label: 'Coordinator', role: 'coordinator', roleId: 'coordinator', email: `lq-coordinator@${DOMAIN}` },
+  { id: 'translator', label: 'Translator', role: 'translator', roleId: 'translator', email: `lq-translator@${DOMAIN}` },
+  { id: 'reviewer', label: 'Reviewer', role: 'reviewer', roleId: 'reviewer', email: `lq-reviewer@${DOMAIN}` },
+  { id: 'viewer', label: 'Viewer', role: 'viewer', roleId: 'viewer', email: `lq-viewer@${DOMAIN}` },
+  { id: 'noorg', label: 'No organization', role: null, roleId: null, email: `lq-noorg@${DOMAIN}` }
+];
+
+/**
+ * The personas are shared test accounts, so they only ever exist on a local
+ * Supabase (127.0.0.1 or localhost). Against a hosted server, persona
+ * switching and "Seed demo team" are off in every build: their password is
+ * inlined into the bundle (every EXPO_PUBLIC_* value is), so it must never
+ * guard a real account, and seeding would write personas into a real org.
+ */
+function isLocalServer(url: string | null | undefined = process.env.EXPO_PUBLIC_SUPABASE_URL): boolean {
+  if (!url) return false;
+  const host = /^[a-z]+:\/\/(\[[^\]]+\]|[^/:?#]+)/i.exec(url.trim())?.[1]?.toLowerCase();
+  // 10.0.2.2 is the Android emulator's name for the host machine.
+  return host === '127.0.0.1' || host === 'localhost' || host === '[::1]' || host === '10.0.2.2';
+}
+
+/**
+ * Testers named here (or in EXPO_PUBLIC_PERSONA_EMAILS, comma separated) may
+ * open the persona sheet in a build that is not a dev build, to walk through
+ * the translator's and reviewer's experience; only against a local server
+ * (see isLocalServer). Dev builds may always open it.
+ */
+const PERSONA_TESTERS: string[] = (process.env.EXPO_PUBLIC_PERSONA_EMAILS ?? 'ryder@frontierrnd.com')
+  .split(',')
+  .map((e: string) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+export function maySwitchPersona(email: string | null | undefined, isDev: boolean, serverUrl?: string | null): boolean {
+  if (isDev) return true;
+  return isLocalServer(serverUrl ?? process.env.EXPO_PUBLIC_SUPABASE_URL) && !!email && PERSONA_TESTERS.includes(email.toLowerCase());
+}
+
+/**
+ * The personas' shared password, from the developer's own env file. There is
+ * no fallback: without one, persona switching is unavailable (the sheet says
+ * so) rather than using a password anyone could read out of the bundle.
+ */
+export const DEV_PASSWORD: string | null = process.env.EXPO_PUBLIC_DEV_PASSWORD || null;
+
+/** Persona sign-in works only against a local server and with a password set. */
+export function personasAvailable(): { ok: true; password: string } | { ok: false; reason: string } {
+  if (!isLocalServer()) return { ok: false, reason: 'Personas work only against a local server (127.0.0.1 or localhost).' };
+  if (!DEV_PASSWORD) return { ok: false, reason: 'Persona switching is off: set EXPO_PUBLIC_DEV_PASSWORD in .env.development.local.' };
+  return { ok: true, password: DEV_PASSWORD };
+}
+
+/** "Seed demo team" writes accounts and memberships: dev builds on a local server only. */
+export function maySeedDemoTeam(isDev: boolean): boolean {
+  return isDev && personasAvailable().ok;
+}
+
+class PersonasUnavailable extends Error {
+  override name = 'PersonasUnavailable';
+}
+
+/** The personas' password, or why persona switching is off. */
+export function personaPassword(): string {
+  const a = personasAvailable();
+  if (!a.ok) throw new PersonasUnavailable(a.reason);
+  return a.password;
+}
+
+export function personaForEmail(email: string | null | undefined): Persona | undefined {
+  return PERSONAS.find((p) => p.email === email);
+}

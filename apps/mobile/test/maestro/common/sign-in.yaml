@@ -1,0 +1,34 @@
+# Sign in from Sign In with EMAIL and PASSWORD. A dev build fills in the
+# developer's own account, so each field is cleared first.
+appId: com.frontierrnd.langquestnext
+---
+- extendedWaitUntil:
+    visible: "Email or sign-in name"
+    timeout: 60000
+- tapOn: "Email or sign-in name"
+- eraseText: 80
+- inputText: ${EMAIL}
+- tapOn: "Password"
+- eraseText: 80
+- inputText: ${PASSWORD}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: "LangQuest"
+- tapOn:
+    id: "primary-action"
+- extendedWaitUntil:
+    notVisible: "Signing in…"
+    timeout: 60000
+# iOS offers to keep the password in the system's keychain: say no, it covers the screen.
+- runFlow:
+    when:
+      visible: "Save Password\\?"
+    commands:
+      - tapOn: "Not Now"

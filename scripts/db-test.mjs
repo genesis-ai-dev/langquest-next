@@ -1,0 +1,97 @@
+#!/usr/bin/env node
+// The server's checks on a fresh local database (`npm run db:test`, and CI):
+//
+//   node scripts/db-test.mjs            reset, every smoke, then the parity check
+//   node scripts/db-test.mjs --parity   the parity check alone, on the database as it is
+//
+// It resets with `supabase db reset` directly, not `npm run db:reset`, so no
+// push job runs under the smokes; the projection pass runs only while a web
+// Worker does (scripts/job-tick.mjs), so stop one first (they count
+// snapshots and Inbox rows; scripts/local-db.mjs). The parity check holds the SQL
+// validate_payload, event_privilege and language_of_org_event to core for
+// every event type (scripts/record-parity-sql.ts).
+//
+// server/accountSmoke.sql is not here: it runs against a populated database
+// and rolls itself back (server/README.md).
+import { spawnSync } from 'node:child_process';
+import { readFileSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { SCHEDULE_MIGRATION, vaultSql } from './secrets.mjs';
+
+const root = fileURLToPath(new URL('..', import.meta.url));
+const DB = 'supabase_db_langquest-next';
+
+/** In order: each starts from what the ones before it left. */
+const SMOKES = [
+  'server/smoke.sql',
+  'server/library-smoke.sql',
+  'server/diag-smoke.sql',
+  'server/delete-account-smoke.sql',
+  'server/feedback-smoke.sql',
+  'server/opsDashboardSmoke.sql',
+  'server/opsActionsSmoke.sql',
+  'server/tutorialsSmoke.sql',
+  'server/userIssuesSmoke.sql',
+  'server/moderation-smoke.sql',
+  'server/inviteKeysSmoke.sql',
+  'server/passwordResetSmoke.sql',
+  'server/joinSmoke.sql',
+  'server/inviteChecksSmoke.sql',
+  'server/grantsSmoke.sql',
+  'server/globalViewerSmoke.sql',
+  'server/orgVerificationSmoke.sql',
+  'server/publisherImportSmoke.sql',
+  'server/libraryMoveSmoke.sql',
+  'server/externalValuesSmoke.sql',
+  'server/receivedTimesSmoke.sql',
+  'server/notificationsSmoke.sql',
+  'server/concurrentAppendSmoke.sql',
+  'server/rlsReadSmoke.sql',
+  'server/timingJobsSmoke.sql',
+  'server/surfaceSmoke.sql',
+  'server/cronSmoke.sql'
+];
+/** Smokes that need something a reset leaves out, set up first: the cron jobs exist only where the Vault secrets do. */
+const PREPARE = {
+  'server/cronSmoke.sql': () => {
+    psql(vaultSql({ langquest_project_url: 'http://127.0.0.1:54321', langquest_push_delivery_secret: 'db-test' }), true);
+    psql(readFileSync(join(root, SCHEDULE_MIGRATION), 'utf8'), true);
+  }
+};
+/** Smokes that open sessions of their own (dblink), which needs a superuser. */
+const AS_SUPERUSER = new Set(['server/concurrentAppendSmoke.sql']);
+
+function run(cmd, args, input) {
+  const r = spawnSync(cmd, args, { cwd: root, input, stdio: [input === undefined ? 'inherit' : 'pipe', 'inherit', 'inherit'] });
+  if (r.status !== 0) throw new Error(`${cmd} ${args.join(' ')} failed`);
+}
+
+const psql = (sql, quiet = false, user = 'postgres') =>
+  run('docker', ['exec', '-i', DB, 'psql', '-U', user, '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', ...(quiet ? ['-q'] : [])], sql);
+
+function parity() {
+  const file = join(root, '.record-parity.sql');
+  try {
+    run('npx', ['tsx', 'scripts/record-parity-sql.ts', file]);
+    psql(readFileSync(file), true);
+  } finally {
+    rmSync(file, { force: true });
+  }
+}
+
+try {
+  if (!process.argv.includes('--parity')) {
+    run('npx', ['supabase', 'db', 'reset']);
+    for (const smoke of SMOKES) {
+      console.log(`→ ${smoke}`);
+      PREPARE[smoke]?.();
+      psql(readFileSync(join(root, smoke)), false, AS_SUPERUSER.has(smoke) ? 'supabase_admin' : 'postgres');
+    }
+  }
+  console.log('→ parity with core');
+  parity();
+} catch (err) {
+  console.error(`x ${err instanceof Error ? err.message : err}`);
+  process.exit(1);
+}

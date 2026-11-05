@@ -1,0 +1,38 @@
+# A push to main moves the Linear issues its commits name (LAN-12) to
+# Deploying, and lists the deploy lanes each waits on. The lanes report back
+# themselves: the EAS workflow for iOS and Android, and guardrails when checks
+# fail. All lanes ok is Live; any failure is Outage (decisions.md 53).
+#
+# Repo secret: LINEAR_API_KEY, a Linear personal API key for the account the
+# comments should come from. Missing, the job fails; Linear never hears of a
+# deploy it was not told about.
+name: linear-sync
+
+on:
+  push:
+    branches: [main]
+
+# Read the code, nothing more: a compromised dependency in a job gets no
+# write access to the repository through the token.
+permissions:
+  contents: read
+
+concurrency:
+  group: linear-sync
+  cancel-in-progress: false
+
+jobs:
+  deploying:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24 }
+      - name: Move named issues to Deploying
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          BEFORE: ${{ github.event.before }}
+        run: node scripts/linear-sync.mjs deploying --from "$BEFORE" --to "$GITHUB_SHA"

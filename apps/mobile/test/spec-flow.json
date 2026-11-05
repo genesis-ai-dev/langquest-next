@@ -1,0 +1,1404 @@
+{
+ "screens": [
+  "sign_in",
+  "create_account",
+  "terms_privacy",
+  "welcome",
+  "welcome_back",
+  "vision",
+  "explore_home",
+  "scan_qr",
+  "intent_chooser",
+  "create_org",
+  "request_access",
+  "my_work",
+  "status_home",
+  "map_home",
+  "book_map",
+  "passage_record",
+  "version_detail",
+  "review_detail",
+  "ask_someone",
+  "add_record",
+  "study_guide",
+  "study_step",
+  "workspace",
+  "review_capture",
+  "back_translation",
+  "guest_review",
+  "org_home",
+  "new_project",
+  "project_home",
+  "new_language",
+  "language_home",
+  "review_teams",
+  "review_team_editor",
+  "members_list",
+  "invite_member",
+  "invite_qr",
+  "edit_member",
+  "roles_home",
+  "role_editor",
+  "templates_home",
+  "template_picker",
+  "template_editor",
+  "book_structure",
+  "reference_home",
+  "material_editor",
+  "key_terms",
+  "key_term_detail",
+  "flows_home",
+  "flow_editor",
+  "inbox_home",
+  "settings_home",
+  "profile_edit",
+  "org_switcher",
+  "sign_out_confirm"
+ ],
+ "edges": [
+  {
+   "from": "sign_in",
+   "to": "welcome",
+   "mode": "replace",
+   "when": null,
+   "label": "Sign In · email contains “first”"
+  },
+  {
+   "from": "sign_in",
+   "to": "welcome_back",
+   "mode": "replace",
+   "when": null,
+   "label": "Sign In · a LangQuest v2 account (email contains “v2”)"
+  },
+  {
+   "from": "sign_in",
+   "to": "terms_privacy",
+   "mode": "push",
+   "when": "guest",
+   "label": "tap Terms & Privacy"
+  },
+  {
+   "from": "sign_in",
+   "to": "home_hub",
+   "mode": "replace",
+   "when": null,
+   "label": "Sign In"
+  },
+  {
+   "from": "sign_in",
+   "to": "create_account",
+   "mode": "push",
+   "when": "guest",
+   "label": "tap Create Account"
+  },
+  {
+   "from": "sign_in",
+   "to": "explore_home",
+   "mode": "push",
+   "when": "guest",
+   "label": "tap Browse public projects"
+  },
+  {
+   "from": "sign_in",
+   "to": "scan_qr",
+   "mode": "push",
+   "when": "guest",
+   "label": "tap Scan a code"
+  },
+  {
+   "from": "create_account",
+   "to": "scan_qr",
+   "mode": "push",
+   "when": "guest",
+   "label": "tap Scan an invite"
+  },
+  {
+   "from": "create_account",
+   "to": "home_hub",
+   "mode": "replace",
+   "when": null,
+   "label": "tap Create Account"
+  },
+  {
+   "from": "create_account",
+   "to": "sign_in",
+   "mode": "back",
+   "when": "guest",
+   "label": "tap Back"
+  },
+  {
+   "from": "scan_qr",
+   "to": "welcome",
+   "mode": "replace",
+   "when": null,
+   "label": "tap Join as …"
+  },
+  {
+   "from": "scan_qr",
+   "to": "home_hub",
+   "mode": "replace",
+   "when": null,
+   "label": "tap Sign in as … (a helper's sign-in code)"
+  },
+  {
+   "from": "scan_qr",
+   "to": "sign_in",
+   "mode": "reset",
+   "when": "guest",
+   "label": "tap I already have an account (guest only)"
+  },
+  {
+   "from": "scan_qr",
+   "to": "sign_in",
+   "mode": "back",
+   "when": "guest",
+   "label": "tap Back (from sign-in)"
+  },
+  {
+   "from": "scan_qr",
+   "to": "create_account",
+   "mode": "back",
+   "when": "guest",
+   "label": "tap Back (from create account)"
+  },
+  {
+   "from": "scan_qr",
+   "to": "intent_chooser",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from intent)"
+  },
+  {
+   "from": "terms_privacy",
+   "to": "sign_in",
+   "mode": "back",
+   "when": "guest",
+   "label": "tap Back"
+  },
+  {
+   "from": "welcome",
+   "to": "passage_record",
+   "mode": "reset",
+   "when": "contributor",
+   "label": "tap Show me how · practice passage"
+  },
+  {
+   "from": "welcome",
+   "to": "home_hub",
+   "mode": "replace",
+   "when": null,
+   "label": "tap Skip for now / Get started"
+  },
+  {
+   "from": "welcome",
+   "to": "vision",
+   "mode": "push",
+   "when": null,
+   "label": "tap What is LangQuest?"
+  },
+  {
+   "from": "welcome_back",
+   "to": "passage_record",
+   "mode": "reset",
+   "when": null,
+   "label": "tap Keep going on {passage}"
+  },
+  {
+   "from": "welcome_back",
+   "to": "home_hub",
+   "mode": "replace",
+   "when": null,
+   "label": "tap Go to My Work"
+  },
+  {
+   "from": "vision",
+   "to": "welcome",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back / Done (from welcome)"
+  },
+  {
+   "from": "explore_home",
+   "to": "sign_in",
+   "mode": "reset",
+   "when": "guest",
+   "label": "tap Sign In (guest only)"
+  },
+  {
+   "from": "explore_home",
+   "to": "sign_in",
+   "mode": "back",
+   "when": "guest",
+   "label": "tap Back (from sign-in)"
+  },
+  {
+   "from": "home_hub",
+   "to": "intent_chooser",
+   "mode": "replace",
+   "when": "home",
+   "label": "route · no-org"
+  },
+  {
+   "from": "home_hub",
+   "to": "my_work",
+   "mode": "replace",
+   "when": "home",
+   "label": "route · trans / review / admin-*"
+  },
+  {
+   "from": "home_hub",
+   "to": "status_home",
+   "mode": "replace",
+   "when": "home",
+   "label": "route · view-*"
+  },
+  {
+   "from": "my_work",
+   "to": "workspace",
+   "mode": "push",
+   "when": "translator",
+   "label": "tap Record / Continue"
+  },
+  {
+   "from": "my_work",
+   "to": "review_capture",
+   "mode": "push",
+   "when": "reviewer",
+   "label": "tap Review"
+  },
+  {
+   "from": "my_work",
+   "to": "back_translation",
+   "mode": "push",
+   "when": "reviewer",
+   "label": "tap Start (back translation)"
+  },
+  {
+   "from": "my_work",
+   "to": "passage_record",
+   "mode": "push",
+   "when": null,
+   "label": "tap Respond / waiting / recent passage"
+  },
+  {
+   "from": "my_work",
+   "to": "passage_record",
+   "mode": "push",
+   "when": "contributor",
+   "label": "tap a practice row (Getting started)"
+  },
+  {
+   "from": "my_work",
+   "to": "new_project",
+   "mode": "push",
+   "when": "assigner",
+   "label": "tap Create a project (Getting started · admin)"
+  },
+  {
+   "from": "my_work",
+   "to": "new_language",
+   "mode": "push",
+   "when": "assigner",
+   "label": "tap Add a language (Getting started · admin)"
+  },
+  {
+   "from": "my_work",
+   "to": "flows_home",
+   "mode": "push",
+   "when": "manageFlows",
+   "label": "tap Choose its review flow (Getting started · admin)"
+  },
+  {
+   "from": "my_work",
+   "to": "invite_member",
+   "mode": "push",
+   "when": "assigner",
+   "label": "tap Invite your team (Getting started · admin)"
+  },
+  {
+   "from": "my_work",
+   "to": "roles_home",
+   "mode": "push",
+   "when": "assigner",
+   "label": "tap See the roles (Getting started · admin)"
+  },
+  {
+   "from": "roles_home",
+   "to": "my_work",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from My Work)"
+  },
+  {
+   "from": "new_project",
+   "to": "my_work",
+   "mode": "back",
+   "when": null,
+   "label": "tap Create Project (from My Work)"
+  },
+  {
+   "from": "new_language",
+   "to": "my_work",
+   "mode": "back",
+   "when": null,
+   "label": "tap Create Language (from My Work)"
+  },
+  {
+   "from": "flows_home",
+   "to": "my_work",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from My Work)"
+  },
+  {
+   "from": "invite_member",
+   "to": "my_work",
+   "mode": "back",
+   "when": null,
+   "label": "tap Send invite (from My Work)"
+  },
+  {
+   "from": "invite_qr",
+   "to": "my_work",
+   "mode": "popTo",
+   "when": null,
+   "label": "tap Done (from My Work)"
+  },
+  {
+   "from": "passage_record",
+   "to": "my_work",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from My Work)"
+  },
+  {
+   "from": "my_work",
+   "to": "templates_home",
+   "mode": "push",
+   "when": "shapeTemplates",
+   "label": "tap Open on a content template task"
+  },
+  {
+   "from": "intent_chooser",
+   "to": "create_org",
+   "mode": "push",
+   "when": null,
+   "label": "tap Create an organization"
+  },
+  {
+   "from": "intent_chooser",
+   "to": "request_access",
+   "mode": "push",
+   "when": null,
+   "label": "tap Join an existing org"
+  },
+  {
+   "from": "intent_chooser",
+   "to": "scan_qr",
+   "mode": "push",
+   "when": null,
+   "label": "tap Join with QR code"
+  },
+  {
+   "from": "intent_chooser",
+   "to": "explore_home",
+   "mode": "push",
+   "when": null,
+   "label": "tap Explore projects"
+  },
+  {
+   "from": "intent_chooser",
+   "to": "sign_in",
+   "mode": "reset",
+   "when": null,
+   "label": "tap Back"
+  },
+  {
+   "from": "create_org",
+   "to": "my_work",
+   "mode": "replace",
+   "when": null,
+   "label": "tap Create Organization → org-admin"
+  },
+  {
+   "from": "create_org",
+   "to": "intent_chooser",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back"
+  },
+  {
+   "from": "request_access",
+   "to": "intent_chooser",
+   "mode": "replace",
+   "when": null,
+   "label": "tap Send request · shown sent"
+  },
+  {
+   "from": "request_access",
+   "to": "intent_chooser",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back"
+  },
+  {
+   "from": "status_home",
+   "to": "map_home",
+   "mode": "push",
+   "when": null,
+   "label": "tap language"
+  },
+  {
+   "from": "map_home",
+   "to": "status_home",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back"
+  },
+  {
+   "from": "language_home",
+   "to": "map_home",
+   "mode": "push",
+   "when": null,
+   "label": "tap Passage map"
+  },
+  {
+   "from": "map_home",
+   "to": "passage_record",
+   "mode": "push",
+   "when": null,
+   "label": "tap search result"
+  },
+  {
+   "from": "map_home",
+   "to": "book_map",
+   "mode": "push",
+   "when": null,
+   "label": "tap book"
+  },
+  {
+   "from": "book_map",
+   "to": "map_home",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back"
+  },
+  {
+   "from": "book_map",
+   "to": "passage_record",
+   "mode": "push",
+   "when": null,
+   "label": "tap chapter"
+  },
+  {
+   "from": "passage_record",
+   "to": "book_map",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back"
+  },
+  {
+   "from": "passage_record",
+   "to": "map_home",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back"
+  },
+  {
+   "from": "passage_record",
+   "to": "workspace",
+   "mode": "push",
+   "when": "translator",
+   "label": "tap Record it / Record a fix / New version"
+  },
+  {
+   "from": "passage_record",
+   "to": "review_capture",
+   "mode": "push",
+   "when": "reviewer",
+   "label": "tap Review it now"
+  },
+  {
+   "from": "passage_record",
+   "to": "back_translation",
+   "mode": "push",
+   "when": "reviewer",
+   "label": "tap Back-translate it"
+  },
+  {
+   "from": "passage_record",
+   "to": "ask_someone",
+   "mode": "push",
+   "when": "asker",
+   "label": "tap Ask someone"
+  },
+  {
+   "from": "passage_record",
+   "to": "add_record",
+   "mode": "push",
+   "when": "contributor",
+   "label": "tap Already happened (on a step)"
+  },
+  {
+   "from": "passage_record",
+   "to": "study_guide",
+   "mode": "push",
+   "when": null,
+   "label": "tap Start / Continue the study"
+  },
+  {
+   "from": "passage_record",
+   "to": "study_step",
+   "mode": "push",
+   "when": null,
+   "label": "tap a study step (Details)"
+  },
+  {
+   "from": "passage_record",
+   "to": "version_detail",
+   "mode": "push",
+   "when": null,
+   "label": "tap version"
+  },
+  {
+   "from": "passage_record",
+   "to": "review_detail",
+   "mode": "push",
+   "when": null,
+   "label": "tap review"
+  },
+  {
+   "from": "version_detail",
+   "to": "passage_record",
+   "mode": "popTo",
+   "when": null,
+   "label": "tap passage name (top)"
+  },
+  {
+   "from": "version_detail",
+   "to": "passage_record",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back"
+  },
+  {
+   "from": "version_detail",
+   "to": "review_detail",
+   "mode": "push",
+   "when": null,
+   "label": "tap review of this version"
+  },
+  {
+   "from": "version_detail",
+   "to": "key_term_detail",
+   "mode": "push",
+   "when": null,
+   "label": "tap tied key term"
+  },
+  {
+   "from": "review_detail",
+   "to": "passage_record",
+   "mode": "popTo",
+   "when": null,
+   "label": "tap passage name (top)"
+  },
+  {
+   "from": "review_detail",
+   "to": "passage_record",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back"
+  },
+  {
+   "from": "review_detail",
+   "to": "version_detail",
+   "mode": "push",
+   "when": null,
+   "label": "tap reviewed version"
+  },
+  {
+   "from": "review_detail",
+   "to": "workspace",
+   "mode": "push",
+   "when": "translator",
+   "label": "tap Record a fix"
+  },
+  {
+   "from": "ask_someone",
+   "to": "passage_record",
+   "mode": "popTo",
+   "when": null,
+   "label": "tap Send request"
+  },
+  {
+   "from": "ask_someone",
+   "to": "passage_record",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back"
+  },
+  {
+   "from": "ask_someone",
+   "to": "guest_review",
+   "mode": "push",
+   "when": null,
+   "label": "they open the link · no account"
+  },
+  {
+   "from": "add_record",
+   "to": "passage_record",
+   "mode": "popTo",
+   "when": null,
+   "label": "tap Looks good / Needs changes / Save to the record"
+  },
+  {
+   "from": "add_record",
+   "to": "passage_record",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back"
+  },
+  {
+   "from": "add_record",
+   "to": "key_term_detail",
+   "mode": "push",
+   "when": null,
+   "label": "tap key term"
+  },
+  {
+   "from": "add_record",
+   "to": "study_guide",
+   "mode": "push",
+   "when": null,
+   "label": "tap Open the study"
+  },
+  {
+   "from": "add_record",
+   "to": "study_step",
+   "mode": "push",
+   "when": null,
+   "label": "tap a study step"
+  },
+  {
+   "from": "study_guide",
+   "to": "study_step",
+   "mode": "push",
+   "when": null,
+   "label": "tap a step / Continue"
+  },
+  {
+   "from": "study_guide",
+   "to": "workspace",
+   "mode": "push",
+   "when": "translator",
+   "label": "tap Record it"
+  },
+  {
+   "from": "study_guide",
+   "to": "passage_record",
+   "mode": "popTo",
+   "when": null,
+   "label": "tap passage name (top)"
+  },
+  {
+   "from": "study_guide",
+   "to": "passage_record",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from record)"
+  },
+  {
+   "from": "study_guide",
+   "to": "workspace",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from workspace)"
+  },
+  {
+   "from": "study_guide",
+   "to": "review_capture",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from review)"
+  },
+  {
+   "from": "study_step",
+   "to": "study_guide",
+   "mode": "popTo",
+   "when": null,
+   "label": "tap Done (last step) / All steps / study name (top)"
+  },
+  {
+   "from": "study_step",
+   "to": "passage_record",
+   "mode": "popTo",
+   "when": null,
+   "label": "tap passage name (top)"
+  },
+  {
+   "from": "study_step",
+   "to": "key_term_detail",
+   "mode": "push",
+   "when": null,
+   "label": "tap FIA key term"
+  },
+  {
+   "from": "study_step",
+   "to": "workspace",
+   "mode": "push",
+   "when": "translator",
+   "label": "tap Record the first draft"
+  },
+  {
+   "from": "study_step",
+   "to": "study_guide",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back"
+  },
+  {
+   "from": "study_step",
+   "to": "passage_record",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from record)"
+  },
+  {
+   "from": "study_step",
+   "to": "review_capture",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from review)"
+  },
+  {
+   "from": "study_step",
+   "to": "workspace",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from workspace)"
+  },
+  {
+   "from": "key_term_detail",
+   "to": "study_step",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from study)"
+  },
+  {
+   "from": "workspace",
+   "to": "passage_record",
+   "mode": "popTo",
+   "when": null,
+   "label": "tap Publish → confirm"
+  },
+  {
+   "from": "workspace",
+   "to": "key_term_detail",
+   "mode": "push",
+   "when": null,
+   "label": "tap key term"
+  },
+  {
+   "from": "workspace",
+   "to": "key_terms",
+   "mode": "push",
+   "when": null,
+   "label": "tap All key terms"
+  },
+  {
+   "from": "workspace",
+   "to": "study_step",
+   "mode": "push",
+   "when": null,
+   "label": "tap a step in the Study tray"
+  },
+  {
+   "from": "workspace",
+   "to": "study_guide",
+   "mode": "push",
+   "when": null,
+   "label": "tap Open the study"
+  },
+  {
+   "from": "workspace",
+   "to": "passage_record",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from record)"
+  },
+  {
+   "from": "workspace",
+   "to": "my_work",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from My Work)"
+  },
+  {
+   "from": "workspace",
+   "to": "review_detail",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from review)"
+  },
+  {
+   "from": "review_capture",
+   "to": "passage_record",
+   "mode": "popTo",
+   "when": null,
+   "label": "tap Looks good / Needs changes"
+  },
+  {
+   "from": "review_capture",
+   "to": "key_term_detail",
+   "mode": "push",
+   "when": null,
+   "label": "tap key term"
+  },
+  {
+   "from": "review_capture",
+   "to": "study_guide",
+   "mode": "push",
+   "when": null,
+   "label": "tap Open the study"
+  },
+  {
+   "from": "review_capture",
+   "to": "study_step",
+   "mode": "push",
+   "when": null,
+   "label": "tap a study step"
+  },
+  {
+   "from": "review_capture",
+   "to": "passage_record",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from record)"
+  },
+  {
+   "from": "review_capture",
+   "to": "my_work",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from My Work)"
+  },
+  {
+   "from": "back_translation",
+   "to": "passage_record",
+   "mode": "popTo",
+   "when": null,
+   "label": "tap Save back translation"
+  },
+  {
+   "from": "back_translation",
+   "to": "passage_record",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from record)"
+  },
+  {
+   "from": "back_translation",
+   "to": "my_work",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from My Work)"
+  },
+  {
+   "from": "org_home",
+   "to": "members_list",
+   "mode": "push",
+   "when": null,
+   "label": "tap Members"
+  },
+  {
+   "from": "org_home",
+   "to": "project_home",
+   "mode": "push",
+   "when": null,
+   "label": "tap project in Projects"
+  },
+  {
+   "from": "org_home",
+   "to": "new_project",
+   "mode": "push",
+   "when": null,
+   "label": "tap New project"
+  },
+  {
+   "from": "org_home",
+   "to": "roles_home",
+   "mode": "push",
+   "when": null,
+   "label": "tap Setup, then Roles"
+  },
+  {
+   "from": "org_home",
+   "to": "templates_home",
+   "mode": "push",
+   "when": "manageTemplates",
+   "label": "tap Setup, then Content Templates"
+  },
+  {
+   "from": "org_home",
+   "to": "reference_home",
+   "mode": "push",
+   "when": "manageReference",
+   "label": "tap Setup, then Reference Material"
+  },
+  {
+   "from": "org_home",
+   "to": "flows_home",
+   "mode": "push",
+   "when": "manageFlows",
+   "label": "tap Setup, then Review Flows"
+  },
+  {
+   "from": "new_project",
+   "to": "org_home",
+   "mode": "back",
+   "when": null,
+   "label": "tap Create Project"
+  },
+  {
+   "from": "project_home",
+   "to": "members_list",
+   "mode": "push",
+   "when": null,
+   "label": "tap Members"
+  },
+  {
+   "from": "project_home",
+   "to": "roles_home",
+   "mode": "push",
+   "when": null,
+   "label": "tap Setup, then Roles"
+  },
+  {
+   "from": "project_home",
+   "to": "new_language",
+   "mode": "push",
+   "when": null,
+   "label": "tap New language"
+  },
+  {
+   "from": "project_home",
+   "to": "language_home",
+   "mode": "push",
+   "when": null,
+   "label": "tap language in Languages"
+  },
+  {
+   "from": "project_home",
+   "to": "org_home",
+   "mode": "popTo",
+   "when": null,
+   "label": "tap org breadcrumb"
+  },
+  {
+   "from": "project_home",
+   "to": "templates_home",
+   "mode": "push",
+   "when": "manageTemplates",
+   "label": "tap Setup, then Content Templates"
+  },
+  {
+   "from": "project_home",
+   "to": "reference_home",
+   "mode": "push",
+   "when": "manageReference",
+   "label": "tap Setup, then Reference Material"
+  },
+  {
+   "from": "project_home",
+   "to": "flows_home",
+   "mode": "push",
+   "when": "manageFlows",
+   "label": "tap Setup, then Review Flows"
+  },
+  {
+   "from": "new_language",
+   "to": "project_home",
+   "mode": "back",
+   "when": null,
+   "label": "tap Create Language"
+  },
+  {
+   "from": "language_home",
+   "to": "members_list",
+   "mode": "push",
+   "when": null,
+   "label": "tap Members"
+  },
+  {
+   "from": "language_home",
+   "to": "roles_home",
+   "mode": "push",
+   "when": null,
+   "label": "tap Setup, then Roles"
+  },
+  {
+   "from": "language_home",
+   "to": "review_teams",
+   "mode": "push",
+   "when": null,
+   "label": "tap Review Teams"
+  },
+  {
+   "from": "language_home",
+   "to": "org_home",
+   "mode": "popTo",
+   "when": null,
+   "label": "tap org breadcrumb"
+  },
+  {
+   "from": "language_home",
+   "to": "project_home",
+   "mode": "popTo",
+   "when": null,
+   "label": "tap project breadcrumb"
+  },
+  {
+   "from": "language_home",
+   "to": "templates_home",
+   "mode": "push",
+   "when": "manageTemplates",
+   "label": "tap Setup, then Content Templates"
+  },
+  {
+   "from": "language_home",
+   "to": "reference_home",
+   "mode": "push",
+   "when": "manageReference",
+   "label": "tap Setup, then Reference Material"
+  },
+  {
+   "from": "language_home",
+   "to": "flows_home",
+   "mode": "push",
+   "when": "manageFlows",
+   "label": "tap Setup, then Review Flows"
+  },
+  {
+   "from": "review_teams",
+   "to": "review_team_editor",
+   "mode": "push",
+   "when": null,
+   "label": "tap team / New"
+  },
+  {
+   "from": "review_team_editor",
+   "to": "review_teams",
+   "mode": "back",
+   "when": null,
+   "label": "tap Save / Back"
+  },
+  {
+   "from": "members_list",
+   "to": "invite_member",
+   "mode": "push",
+   "when": null,
+   "label": "tap Invite"
+  },
+  {
+   "from": "org_home",
+   "to": "invite_member",
+   "mode": "push",
+   "when": "assigner",
+   "label": "tap Invite people"
+  },
+  {
+   "from": "project_home",
+   "to": "invite_member",
+   "mode": "push",
+   "when": "assigner",
+   "label": "tap Invite people"
+  },
+  {
+   "from": "members_list",
+   "to": "edit_member",
+   "mode": "push",
+   "when": null,
+   "label": "tap Edit on an editable member"
+  },
+  {
+   "from": "edit_member",
+   "to": "members_list",
+   "mode": "back",
+   "when": null,
+   "label": "tap Save Assignment"
+  },
+  {
+   "from": "inbox_home",
+   "to": "edit_member",
+   "mode": "push",
+   "when": "assigner",
+   "label": "tap Accept join request"
+  },
+  {
+   "from": "edit_member",
+   "to": "inbox_home",
+   "mode": "back",
+   "when": null,
+   "label": "tap Assign Role · from inbox"
+  },
+  {
+   "from": "invite_member",
+   "to": "invite_qr",
+   "mode": "push",
+   "when": null,
+   "label": "tap Invite by QR code"
+  },
+  {
+   "from": "invite_qr",
+   "to": "role_editor",
+   "mode": "push",
+   "when": null,
+   "label": "tap Create a new role"
+  },
+  {
+   "from": "invite_qr",
+   "to": "members_list",
+   "mode": "popTo",
+   "when": null,
+   "label": "tap Done"
+  },
+  {
+   "from": "invite_qr",
+   "to": "invite_member",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back"
+  },
+  {
+   "from": "roles_home",
+   "to": "role_editor",
+   "mode": "push",
+   "when": null,
+   "label": "tap role / New Role"
+  },
+  {
+   "from": "role_editor",
+   "to": "invite_qr",
+   "mode": "push",
+   "when": "assigner",
+   "label": "tap Invite someone as … (assigner)"
+  },
+  {
+   "from": "invite_qr",
+   "to": "role_editor",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from a role)"
+  },
+  {
+   "from": "role_editor",
+   "to": "edit_member",
+   "mode": "push",
+   "when": "assigner",
+   "label": "tap member with this role"
+  },
+  {
+   "from": "templates_home",
+   "to": "template_picker",
+   "mode": "push",
+   "when": "manageTemplates",
+   "label": "tap Change template"
+  },
+  {
+   "from": "template_picker",
+   "to": "templates_home",
+   "mode": "popTo",
+   "when": null,
+   "label": "tap Use for this language"
+  },
+  {
+   "from": "template_picker",
+   "to": "templates_home",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back"
+  },
+  {
+   "from": "templates_home",
+   "to": "template_editor",
+   "mode": "push",
+   "when": "manageTemplates",
+   "label": "tap Edit levels / a template / New template"
+  },
+  {
+   "from": "template_editor",
+   "to": "templates_home",
+   "mode": "back",
+   "when": null,
+   "label": "tap Save / Back"
+  },
+  {
+   "from": "templates_home",
+   "to": "book_structure",
+   "mode": "push",
+   "when": "shapeTemplates",
+   "label": "tap a book / Open the outline"
+  },
+  {
+   "from": "book_structure",
+   "to": "templates_home",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back"
+  },
+  {
+   "from": "book_map",
+   "to": "book_structure",
+   "mode": "push",
+   "when": "shapeTemplates",
+   "label": "tap Edit passages"
+  },
+  {
+   "from": "book_structure",
+   "to": "book_map",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from the map)"
+  },
+  {
+   "from": "reference_home",
+   "to": "material_editor",
+   "mode": "push",
+   "when": "manageReference",
+   "label": "tap material"
+  },
+  {
+   "from": "material_editor",
+   "to": "reference_home",
+   "mode": "back",
+   "when": null,
+   "label": "tap Save / Back"
+  },
+  {
+   "from": "flows_home",
+   "to": "flow_editor",
+   "mode": "push",
+   "when": "manageFlows",
+   "label": "tap flow / New flow"
+  },
+  {
+   "from": "flow_editor",
+   "to": "flows_home",
+   "mode": "back",
+   "when": null,
+   "label": "tap Save / Back"
+  },
+  {
+   "from": "reference_home",
+   "to": "key_terms",
+   "mode": "push",
+   "when": null,
+   "label": "tap Key Terms"
+  },
+  {
+   "from": "key_terms",
+   "to": "reference_home",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back"
+  },
+  {
+   "from": "key_terms",
+   "to": "workspace",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back (from workspace)"
+  },
+  {
+   "from": "key_terms",
+   "to": "key_term_detail",
+   "mode": "push",
+   "when": null,
+   "label": "tap term"
+  },
+  {
+   "from": "key_term_detail",
+   "to": "key_terms",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back"
+  },
+  {
+   "from": "key_term_detail",
+   "to": "version_detail",
+   "mode": "push",
+   "when": null,
+   "label": "tap where it's used"
+  },
+  {
+   "from": "inbox_home",
+   "to": "passage_record",
+   "mode": "push",
+   "when": null,
+   "label": "tap update about a passage"
+  },
+  {
+   "from": "my_work",
+   "to": "inbox_home",
+   "mode": "push",
+   "when": null,
+   "label": "tap the bell (updates)"
+  },
+  {
+   "from": "settings_home",
+   "to": "profile_edit",
+   "mode": "push",
+   "when": null,
+   "label": "tap Edit Profile"
+  },
+  {
+   "from": "settings_home",
+   "to": "org_switcher",
+   "mode": "push",
+   "when": null,
+   "label": "tap Switch Organization"
+  },
+  {
+   "from": "settings_home",
+   "to": "my_work",
+   "mode": "reset",
+   "when": null,
+   "label": "tap Getting started"
+  },
+  {
+   "from": "settings_home",
+   "to": "vision",
+   "mode": "push",
+   "when": null,
+   "label": "tap What is LangQuest?"
+  },
+  {
+   "from": "vision",
+   "to": "settings_home",
+   "mode": "back",
+   "when": null,
+   "label": "tap Back / Done (from Settings)"
+  },
+  {
+   "from": "settings_home",
+   "to": "sign_out_confirm",
+   "mode": "push",
+   "when": null,
+   "label": "tap Sign Out"
+  },
+  {
+   "from": "sign_out_confirm",
+   "to": "sign_in",
+   "mode": "reset",
+   "when": null,
+   "label": "tap Confirm"
+  },
+  {
+   "from": "sign_out_confirm",
+   "to": "settings_home",
+   "mode": "back",
+   "when": null,
+   "label": "tap Cancel"
+  }
+ ]
+}

@@ -1,0 +1,75 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  // LangQuest operations in one page, for staff (docs/admin.md, decisions.md
+  // 151): what phones and the server's jobs report in `diag`, and what
+  // Cloudflare, Supabase, GitHub, Expo, Google Play and the App
+  // Store say about their part.
+  "name": "langquest-next-admin",
+  "main": "src/index.ts",
+  "account_id": "6a80496d1e59948a9cbaa3c643ba81d7",
+  "compatibility_date": "2026-10-01",
+  // global_fetch_strictly_public: next.langquest.org is another Worker on the
+  // same zone, which a Worker can fetch only over the public path.
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "workers_dev": false,
+  "preview_urls": false,
+  // No address of its own: the app's Worker hands it /ops-dashboard and
+  // /ops/api/* on next.langquest.org through its OPS service binding
+  // (apps/web/worker/ops.ts), so nothing reaches it any other way. No preview
+  // copy: preview has no database of its own for it to read yet.
+  "observability": { "enabled": true },
+  // Public settings: which project, account, team and app each section reads.
+  // The anon key is the one every app build carries; the page signs in with it.
+  "vars": {
+    "SUPABASE_URL": "https://xymxnebdwtbkfxlbylch.supabase.co",
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5bXhuZWJkd3Ria2Z4bGJ5bGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0OTE1NDYsImV4cCI6MjEwNTA2NzU0Nn0.25nzSvDd07448L-jjQeVUjJ3UIUE-KlRJkUFWkmNz50",
+    // The Supabase section's projects, `ref:name` and comma-separated: LangQuest
+    // Next only. LangQuest v2 was left off on 2026-10-22 (Carl): it is not this
+    // team's to run, and its token access was removed. The v2 import's own
+    // progress stays, read from Next's database (the v2 import section).
+    "SUPABASE_PROJECTS": "xymxnebdwtbkfxlbylch:LangQuest Next",
+    "CLOUDFLARE_ACCOUNT_ID": "6a80496d1e59948a9cbaa3c643ba81d7",
+    "CLOUDFLARE_WORKERS": "langquest-next,langquest-next-invite-email,langquest-next-admin",
+    // Its /version.json names the commit it was built from (apps/mobile/scripts/export-web.mjs).
+    "APP_URL": "https://next.langquest.org",
+    "PREVIEW_URL": "https://next-preview.langquest.org",
+    // The recordings bucket (apps/web/wrangler.jsonc r2_buckets), for its size.
+    "R2_BUCKET": "langquest-next-blobs",
+    // The production database's provisioned disk, GB (Supabase > Settings >
+    // Compute and Disk), for the capacity section's weeks left and its alert
+    // past 90%. Change it here when the disk is resized.
+    "SUPABASE_DB_LIMIT_GB": "64",
+    "GITHUB_REPO": "genesis-ai-dev/langquest-next",
+    // apps/mobile/app.json extra.eas.projectId
+    "EXPO_PROJECT_ID": "582d3757-4245-419a-9087-e269e3bf4c4d",
+    // apps/mobile/app.json android.package, and eas.json submit.production.ios.ascAppId
+    "GOOGLE_PLAY_PACKAGE": "com.frontierrnd.langquestnext",
+    "APP_STORE_APP_ID": "6812492008"
+  },
+  // diag_reader's read-only login (scripts/diag-access.sh) lives in this
+  // Hyperdrive config, not on the Worker: a Worker cannot open TLS to
+  // Supabase itself, and Hyperdrive holds that connection (decisions.md 160,
+  // amended 2026-10-23; src/db.ts). `npm run secrets -- production` creates
+  // it from DIAG_DATABASE_URL in .env.production, writes its id here, and
+  // keeps its login in step; caching is off, so every figure is current.
+  // Locally, npm run admin:dev points it at the local database.
+  "hyperdrive": [{ "binding": "DIAG", "id": "b244dbab6e4b47d2a956f3e21ef52ced" }],
+  // Optional secrets, set on the Worker by `npm run secrets -- production`:
+  // one token per provider, each section saying what it needs until its
+  // token is there (docs/admin.md). Who may open the page is not a secret:
+  // Global Viewers on an authenticator session (src/auth.ts).
+  // The app Worker's JobStatus entrypoint (apps/web/worker/jobStatus.ts):
+  // whether each server job is running now. One read-only method; this
+  // Worker has no way to start or stop a job (docs/ops-dashboard-plan.md 11.3).
+  // OpsActions: the few things the page may do (mark feedback, run a job
+  // now), which the app Worker does after checking the person's token
+  // itself; this Worker holds no writer's key (decisions.md 162).
+  "services": [
+    { "binding": "APP_JOBS", "service": "langquest-next", "entrypoint": "JobStatus" },
+    { "binding": "APP_ACTIONS", "service": "langquest-next", "entrypoint": "OpsActions" }
+  ],
+  // Per address, on the page's API (every call checks a sign-in with Supabase).
+  "ratelimits": [
+    { "name": "ADMIN_RATE_LIMIT", "namespace_id": "7005", "simple": { "limit": 120, "period": 60 } }
+  ]
+}

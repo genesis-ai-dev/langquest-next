@@ -1,0 +1,12 @@
+# Leave Welcome if it shows (a first sign-in on this device). Every role's
+# Welcome has one "Get started" (decision 71, amended 2026-10-13).
+appId: com.frontierrnd.langquestnext
+---
+- extendedWaitUntil:
+    visible: "Get started|Next for you|Nothing is waiting on you|A good place to start|Progress|My Work"
+    timeout: 60000
+- runFlow:
+    when:
+      visible: "Get started"
+    commands:
+      - tapOn: "Get started"

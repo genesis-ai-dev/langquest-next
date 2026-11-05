@@ -1,0 +1,78 @@
+// The web app's response headers (decisions.md 58), as the `_headers` file
+// the Worker's static assets serve. Kept apart so a test reads the policy.
+//
+// - Content security policy from what the app loads: its own files; the
+//   database's WebAssembly; the audio worklet and object URLs for recordings
+//   (blob:); Supabase over HTTPS and its realtime socket; study images, and
+//   Bible audio (a source's recordings, such as openbible.com's), from
+//   anywhere on HTTPS. Only playing: a source's audio kept offline comes
+//   through the Worker (decisions.md 201), since connect-src names no other
+//   host. react-native-web writes its styles at run time, so inline styles
+//   are allowed; inline scripts are not.
+// - No cross-origin isolation headers: the app uses expo-sqlite's async API
+//   only, which needs no SharedArrayBuffer, and isolation would block study
+//   images from other sites and is not the same in Safari.
+// - Hashed bundles never change, so they are cached for good, and so are the
+//   word catalogs in /i18n, which the app asks for with the build's id
+//   (?v=, catalogs.web.ts) so a new build fetches new words; the page and
+//   version.json are always checked.
+// - The ETEN Summit page (public/eten/, decisions.md 196) may frame YouTube's
+//   no-cookie player and nothing else: its block detaches the policy above
+//   and sets the same one with that one frame source. Cloudflare applies
+//   `! Header` before the block's own value, so the page gets one policy,
+//   not two.
+
+/** The one frame source the ETEN Summit page needs: YouTube's player that sets no cookies until played. */
+export const ETEN_FRAME_SOURCE = 'https://www.youtube-nocookie.com';
+
+export function headersFor({ supabaseUrl }) {
+  const supabase = new URL(supabaseUrl);
+  const wss = `wss://${supabase.host}`;
+  const local = supabase.protocol === 'http:' ? ` ws://${supabase.host}` : '';
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self' 'wasm-unsafe-eval' blob:",
+    "worker-src 'self' blob:",
+    "style-src 'self' 'unsafe-inline'",
+    // The reports API is 'self': the Worker serving the page answers it.
+    `connect-src 'self' ${supabase.origin} ${wss}${local} blob:`,
+    `img-src 'self' data: blob: https:`,
+    `media-src 'self' blob: ${supabase.origin} https:`,
+    "font-src 'self' data:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'"
+  ].join('; ');
+  const etenCsp = `${csp}; frame-src ${ETEN_FRAME_SOURCE}`;
+  return `/*
+  Content-Security-Policy: ${csp}
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: microphone=(self), camera=(self), geolocation=()
+  Cross-Origin-Opener-Policy: same-origin
+
+/_expo/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/i18n/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/index.html
+  Cache-Control: no-cache
+
+/version.json
+  Cache-Control: no-cache
+
+/.well-known/apple-app-site-association
+  Content-Type: application/json
+
+/eten/*
+  ! Content-Security-Policy
+  Content-Security-Policy: ${etenCsp}
+`;
+}

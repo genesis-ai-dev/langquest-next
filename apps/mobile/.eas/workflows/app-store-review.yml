@@ -1,0 +1,44 @@
+# Every hour: when no review is open, send the newest iPhone build that
+# Apple has processed in TestFlight to App Review
+# (scripts/app-store-review.mjs, decisions.md 157), and the newest Android
+# build in Play's internal testing to production review
+# (scripts/play-review.mjs, decision 157 amended 2026-11-04). A merge into
+# main that makes a new build runs the same step right after its upload
+# (deploy-to-testers.yml), but Apple is usually still processing an iPhone
+# build then, so this schedule is what sends it, within the hour after
+# Apple is done, and the builds that waited while a review was open. A
+# review is cancelled only when the newer build's pull request was labelled
+# `store: replace review`; after a rejection a newer iPhone build takes the
+# rejected one's place, and the rejected build itself waits for a person.
+# It reads the App Store Connect key APP_STORE_REVIEW_KEY and the Google
+# Play key PLAY_REVIEW_KEY from EAS's production environment
+# (docs/environments.md, "The App Store key" and "The Play key").
+name: Send the newest builds to store review
+
+on:
+  schedule:
+    - cron: '7 * * * *'
+
+defaults:
+  tools:
+    node: '24'
+
+jobs:
+  review_ios:
+    name: Send to App Review when no review is open
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - name: Send the newest build to App Review, or let it wait in TestFlight
+        run: |
+          cd ../..
+          node scripts/app-store-review.mjs
+  review_android:
+    name: Send to Play production review when nothing is in review
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - name: Send the newest build to production review, or let it wait in internal testing
+        run: |
+          cd ../..
+          node scripts/play-review.mjs

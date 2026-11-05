@@ -1,0 +1,1163 @@
+-- Exercises append_events / pull_events on a fresh local database.
+-- Run via `npm run db:test`. Fails loudly on any unexpected result.
+--
+-- org1 has three languages: L1, din and nus. 'lead' is its admin (org
+-- scope); 't1' translates L1 only; 'akol' leads din only.
+
+\set ON_ERROR_STOP on
+
+-- Legacy calls below omit p_client_version; allow them, the version check has its own section (5h).
+update public.server_config set min_client_version = 0;
+
+-- Simulate an authenticated caller (no auth.uid() outside PostgREST).
+select set_config('request.jwt.claim.sub', 'lead', false);
+
+-- 1. Bootstrap: the organization, its roles, its creator and its first
+--    language, in one batch; then a translator joins it.
+do $$ declare r record; n int := 0; begin
+  for r in select * from public.append_events('[
+    {"id":"o1","type":"v1.OrgCreated","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000001:000000:dA","payload":{"name":"Wycliffe"}},
+    {"id":"o2","type":"v1.RoleDefined","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000002:000000:dA","payload":{"roleId":"org_admin","name":"Organization Admin","privileges":["manage_structure","invite_members","manage_roles","manage_templates","shape_templates","manage_reference","manage_flows","manage_teams","assign_work","override_checkpoints","translate","fill_reference","send_to_reviewers","review","view_status"]}},
+    {"id":"o3","type":"v1.MemberAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000003:000000:dA","payload":{"profileId":"lead","roleId":"org_admin","scope":{"level":"org"}}},
+    {"id":"o4","type":"v1.RoleDefined","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000004:000000:dA","payload":{"roleId":"translator","name":"Translator","privileges":["translate","fill_reference","send_to_reviewers","view_status"]}},
+    {"id":"o5","type":"v1.RoleDefined","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000005:000000:dA","payload":{"roleId":"lang_lead","name":"Team Leader","privileges":["assign_work","manage_teams","translate","review","view_status"]}},
+    {"id":"o6","type":"v1.LanguageAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000006:000000:dA","payload":{"languageId":"L1","name":"Luke Team","code":"fia","sourceCode":"eng"}}
+  ]'::jsonb) loop
+    if not r.accepted then raise exception 'bootstrap event % refused: %', r.id, r.reason; end if;
+    n := n + 1;
+  end loop;
+  if n <> 6 then raise exception 'expected 6 bootstrap answers'; end if;
+  if (select role_id from public.org_memberships where org_id = 'org1' and profile_id = 'lead' and scope_key = 'org') <> 'org_admin' then
+    raise exception 'org_memberships row wrong';
+  end if;
+end $$;
+-- Nobody is added without joining (decisions.md 75): the admin may not
+-- name t1, who has never been in org1. In the app t1 joins by invite; here
+-- the server adds them, as redeem_invite_for does, in the admin's name.
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"o7","type":"v1.MemberAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000007:000000:dA","payload":{"profileId":"t1","roleId":"translator","scope":{"level":"language","languageId":"L1"}}}
+  ]'::jsonb);
+  if r.accepted or r.reason <> 'may not emit v1.MemberAdded: they have not joined this organization; invite them' then
+    raise exception 'adding someone who never joined should be refused, got %', r;
+  end if;
+end $$;
+select set_config('request.jwt.claim.sub', '', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"o7","type":"v1.MemberAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000007:000000:dA","payload":{"profileId":"t1","roleId":"translator","scope":{"level":"language","languageId":"L1"}}}
+  ]'::jsonb);
+  if not r.accepted or r.server_seq <> 7 then raise exception 't1 should join at seq 7, got %', r; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ begin
+  if (select role_id from public.org_memberships where org_id = 'org1' and profile_id = 't1' and scope_key = 'language:L1') <> 'translator' then
+    raise exception 'language membership row wrong';
+  end if;
+  if not public.language_listed('org1', 'L1') then raise exception 'L1 should be listed'; end if;
+  if public.effective_role_of(public.org_privileges('org1', 't1', 'L1')) <> 'translator' then raise exception 't1 should translate L1'; end if;
+  if cardinality(public.org_privileges('org1', 't1', null)) <> 0 then raise exception 't1 holds nothing at org scope'; end if;
+end $$;
+
+-- 1b. A language stream accepts events only once the organization lists it.
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"g1","type":"v1.UnitAdded","orgId":"org1","streamId":"L9","actorId":"lead","deviceId":"dA","hlc":"000000000000008:000000:dA","payload":{"unitId":"u1","parentUnitId":null,"kind":"book","label":"Luke","order":"a0"}}
+  ]'::jsonb);
+  if r.accepted or r.reason <> 'language not listed yet' then raise exception 'unlisted language should be refused, got %', r; end if;
+end $$;
+
+-- 2. Duplicate id is accepted idempotently with the same seq.
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"o7","type":"v1.MemberAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000007:000000:dA","payload":{"profileId":"t1","roleId":"translator","scope":{"level":"language","languageId":"L1"}}}
+  ]'::jsonb);
+  if not r.accepted or r.server_seq <> 7 or r.reason <> 'duplicate' then
+    raise exception 'duplicate should be accepted with seq 7, got %', r;
+  end if;
+end $$;
+
+-- 3. Translator may record but may not choose the flow.
+select set_config('request.jwt.claim.sub', 't1', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"e4","type":"v1.RecordingAdded","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000010:000000:dB","payload":{"recordingId":"rec1","unitId":"u1","kind":"target","cards":[{"hash":"c1","durationMs":100}]}}
+  ]'::jsonb);
+  if not r.accepted then raise exception 'translator recording should be accepted: %', r.reason; end if;
+  if r.server_seq <> 1 then raise exception 'each stream counts from 1, got %', r.server_seq; end if;
+
+  select * into r from public.append_events('[
+    {"id":"e5","type":"v1.FlowSelected","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000011:000000:dB","payload":{"flowId":"quick_check"}}
+  ]'::jsonb);
+  if r.accepted or r.reason <> 'may not emit v1.FlowSelected' then raise exception 'translator must not choose the flow, got %', r; end if;
+end $$;
+
+-- 4. Non-member is rejected; actorId spoofing is rejected.
+select set_config('request.jwt.claim.sub', 'stranger', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"e6","type":"v1.RecordingAdded","orgId":"org1","streamId":"L1","actorId":"stranger","deviceId":"dX","hlc":"000000000000012:000000:dX","payload":{}}
+  ]'::jsonb);
+  if r.accepted or r.reason <> 'not a member' then raise exception 'stranger should be rejected, got %', r; end if;
+
+  select * into r from public.append_events('[
+    {"id":"e7","type":"v1.RecordingAdded","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dX","hlc":"000000000000013:000000:dX","payload":{}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'spoofed actorId should be rejected'; end if;
+end $$;
+
+-- 5. Pull after cursor is bounded and ordered; non-member cannot pull.
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ declare n int; begin
+  select count(*) into n from public.pull_events('org1', '_org', 5, 10);
+  if n <> 2 then raise exception 'expected 2 events after seq 5, got %', n; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'stranger', false);
+do $$ begin
+  begin
+    perform * from public.pull_events('org1', 'L1', 0, 10);
+    raise exception 'stranger pull should have failed';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+
+-- 5b. Pulling a stream that has no events yet is empty, not an error.
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ declare n int; begin
+  select count(*) into n from public.pull_events('org1', 'nonexistent', 0, 10);
+  if n <> 0 then raise exception 'empty stream should pull 0 rows'; end if;
+end $$;
+
+-- 5c. Clients cannot forge a blob confirmation; the Worker records one
+-- (record_blob, decisions.md 69) after R2 has checked the bytes.
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"forged","type":"v1.BlobStored","orgId":"org1","streamId":"L1","actorId":"lead","deviceId":"dA","hlc":"000000000000014:000000:dA","payload":{"hash":"h1","size":1}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'client must not emit BlobStored'; end if;
+  begin
+    perform public.record_blob('org1', 'L1', 'abc123', 4321);
+    raise exception 'member must not call record_blob';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+select set_config('request.jwt.claim.sub', '', false);
+do $$ declare n int; begin
+  perform public.record_blob('org1', 'L1', 'abc123', 4321);
+  select count(*) into n from public.events e
+    where e.stream_id = 'L1' and e.type = 'v1.BlobStored' and e.payload->>'hash' = 'abc123' and (e.payload->>'size')::int = 4321;
+  if n <> 1 then raise exception 'record_blob should append one BlobStored, got %', n; end if;
+  -- A re-upload records the same event id: no duplicate.
+  perform public.record_blob('org1', 'L1', 'abc123', 4321);
+  select count(*) into n from public.events e where e.stream_id = 'L1' and e.type = 'v1.BlobStored';
+  if n <> 1 then raise exception 'BlobStored must be idempotent'; end if;
+  -- Different bytes under the name (a different size) confirm again, with the new size.
+  perform public.record_blob('org1', 'L1', 'abc123', 5000);
+  select count(*) into n from public.events e where e.stream_id = 'L1' and e.type = 'v1.BlobStored' and (e.payload->>'size')::int = 5000;
+  if n <> 1 then raise exception 'size change should re-confirm, got %', n; end if;
+
+  -- Who may use an object: the stream's readers read and upload; others neither.
+  if not public.blob_access('org1/L1/' || repeat('a', 64) || '.wav', 'lead', true) then raise exception 'lead should upload to L1'; end if;
+  if not public.blob_access('org1/L1/' || repeat('a', 64) || '.wav', 'lead', false) then raise exception 'lead should read L1'; end if;
+  if public.blob_access('org1/L1/' || repeat('a', 64) || '.wav', 'nobody', false) then raise exception 'a stranger must not read L1'; end if;
+  if public.blob_access('org1/L1/' || repeat('a', 64) || '.wav', null, false) then raise exception 'no profile must read nothing'; end if;
+  if public.blob_access('org1/_org/' || repeat('a', 64) || '.jpg', 'nobody', false) then raise exception 'a stranger must not read guide media'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
+
+-- 5c2. Reconciler verdicts: service only; clients cannot forge BlobInvalidated.
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"forgedinv","type":"v1.BlobInvalidated","orgId":"org1","streamId":"L1","actorId":"lead","deviceId":"dA","hlc":"000000000000015:000001:dA","payload":{"hash":"abc123"}}
+  ]'::jsonb, 1);
+  if r.accepted then raise exception 'client must not emit BlobInvalidated'; end if;
+  begin
+    perform public.invalidate_blob('org1', 'L1', 'abc123', 'x');
+    raise exception 'member must not call invalidate_blob';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+select set_config('request.jwt.claim.sub', '', false);
+do $$ declare n int; begin
+  if not public.invalidate_blob('org1', 'L1', 'abc123', 'hash mismatch') then raise exception 'invalidate should append'; end if;
+  if not public.record_blob('org1', 'L1', 'zzz', 7) then raise exception 'record_blob should append'; end if;
+  if public.record_blob('org1', 'L1', 'zzz', 7) then raise exception 'record_blob must be idempotent'; end if;
+  select count(*) into n from public.events e where e.stream_id = 'L1' and e.type = 'v1.BlobInvalidated';
+  if n <> 1 then raise exception 'expected one BlobInvalidated, got %', n; end if;
+end $$;
+
+-- 5d. Malformed payloads are refused at the door (the log cannot be edited later).
+select set_config('request.jwt.claim.sub', 't1', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"bad1","type":"v1.RecordingAdded","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000016:000000:dB","payload":{"recordingId":"recX","unitId":"u1","kind":"target"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload%' then raise exception 'missing cards should be refused, got %', r; end if;
+  select * into r from public.append_events('[
+    {"id":"bad2","type":"v1.TakeComposed","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000017:000000:dB","payload":"nope"}
+  ]'::jsonb);
+  if r.accepted then raise exception 'non-object payload should be refused'; end if;
+  select * into r from public.append_events('[
+    {"id":"bad3","type":"v1.TakeComposed","orgId":"org1","stream":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000018:000000:dB","payload":{}}
+  ]'::jsonb);
+  if r.accepted or r.reason <> 'malformed envelope' then raise exception 'an envelope without streamId should be refused, got %', r; end if;
+end $$;
+
+-- 5e. No event may use a name every object has (decisions.md 113): the fold
+-- keys its maps by these ids, and `__proto__` would reach Object.prototype.
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"proto1","type":"v1.TakeArchived","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000019:000000:dB","payload":{"takeId":"__proto__"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload%' then raise exception 'a __proto__ take id should be refused, got %', r; end if;
+  select * into r from public.append_events('[
+    {"id":"proto2","type":"v1.NoteAdded","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000020:000000:dB","payload":{"noteId":"n9","anchor":{"kind":"version","takeId":"t"},"extra":{"constructor":1}}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload%' then raise exception 'a constructor key should be refused, got %', r; end if;
+  select * into r from public.append_events('[
+    {"id":"toString","type":"v1.TakeArchived","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000021:000000:dB","payload":{"takeId":"tk9"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'malformed envelope%' then raise exception 'a toString event id should be refused, got %', r; end if;
+end $$;
+
+-- 5f. An event goes on the kind of stream it belongs to (decisions.md 116).
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"wrong-stream-1","type":"v1.RoleDefined","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000022:000000:dB","payload":{"roleId":"boss","name":"Boss","privileges":["manage_roles"]}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload: v1.RoleDefined belongs on the organization stream%' then raise exception 'a role in a language stream should be refused, got %', r; end if;
+  select * into r from public.append_events('[
+    {"id":"wrong-stream-2","type":"v1.TakeArchived","orgId":"org1","streamId":"_org","actorId":"t1","deviceId":"dB","hlc":"000000000000023:000000:dB","payload":{"takeId":"tk1"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload: v1.TakeArchived belongs on a language stream%' then raise exception 'a take in the organization stream should be refused, got %', r; end if;
+end $$;
+
+-- 5e. Oversized batches are refused outright; clients must page.
+do $$ begin
+  begin
+    perform * from public.append_events((select jsonb_agg(jsonb_build_object(
+      'id', 'big' || i, 'type', 'v1.TakeArchived', 'orgId', 'org1', 'streamId', 'L1', 'actorId', 't1',
+      'deviceId', 'dB', 'hlc', '000000000000019:' || lpad(i::text, 6, '0') || ':dB', 'payload', jsonb_build_object('takeId', 'x')))
+      from generate_series(1, 501) i));
+    raise exception 'batch of 501 should have been refused';
+  exception when sqlstate '22023' then null;
+  end;
+end $$;
+
+-- 5f. Redaction: admins may, translators may not.
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"rd0","type":"v1.Redacted","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000020:000000:dB","payload":{"eventId":"e4"}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'translator must not redact'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"rd1","type":"v1.Redacted","orgId":"org1","streamId":"L1","actorId":"lead","deviceId":"dA","hlc":"000000000000021:000000:dA","payload":{"eventId":"e4","reason":"wrong passage"}}
+  ]'::jsonb);
+  if not r.accepted then raise exception 'admin redaction should be accepted: %', r.reason; end if;
+end $$;
+-- A redaction is never redacted: which one stood would depend on arrival order.
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"rd2","type":"v1.Redacted","orgId":"org1","streamId":"L1","actorId":"lead","deviceId":"dA","hlc":"000000000000022:000000:dA","payload":{"eventId":"rd1"}}
+  ]'::jsonb);
+  if r.accepted or r.reason <> 'invalid payload: a redaction cannot be redacted' then
+    raise exception 'redacting a redaction should be refused, got %', r;
+  end if;
+end $$;
+
+-- 5g. Snapshots: service writes, members read newest for their version, strangers cannot.
+select set_config('request.jwt.claim.sub', '', false);
+select public.put_snapshot('org1', 'L1', 1, 3, '{"v":"old"}'::jsonb);
+select public.put_snapshot('org1', 'L1', 1, 5, '{"v":"new"}'::jsonb);
+-- The one before stays for a phone part-way through downloading it, until
+-- the newer one has been out for 24 hours (decisions.md 88).
+do $$ declare n int; begin
+  select count(*) into n from public.snapshots where stream_id = 'L1';
+  if n <> 2 then raise exception 'put_snapshot should keep the previous snapshot for now, got % rows', n; end if;
+  update public.snapshots set created_at = now() - interval '25 hours' where stream_id = 'L1' and server_seq = 5;
+  perform public.put_snapshot('org1', 'L1', 1, 7, '{"v":"newer"}'::jsonb);
+  if exists (select 1 from public.snapshots where stream_id = 'L1' and server_seq = 3) then
+    raise exception 'a snapshot whose successor is 24 hours old should be gone';
+  end if;
+  if not exists (select 1 from public.snapshots where stream_id = 'L1' and server_seq = 5) then
+    raise exception 'the previous snapshot should stay while its successor is new';
+  end if;
+  delete from public.snapshots where stream_id = 'L1' and server_seq = 7;
+end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ declare r record; begin
+  select * into r from public.get_snapshot('org1', 'L1', 1);
+  if r.server_seq <> 5 or r.state->>'v' <> 'new' then raise exception 'get_snapshot should return the newest, got %', r; end if;
+  if (select count(*) from public.get_snapshot('org1', 'L1', 2)) <> 0 then raise exception 'other reducer version must be empty'; end if;
+  begin
+    perform public.put_snapshot('org1', 'L1', 1, 9, '{}'::jsonb);
+    raise exception 'members must not write snapshots';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+-- Chunked read reassembles to the stored state exactly.
+do $$ declare m record; v_text text := ''; i int; begin
+  select * into m from public.get_snapshot_meta('org1', 'L1', 1);
+  if m.server_seq <> 5 or m.chunks <> 1 then raise exception 'meta wrong: %', m; end if;
+  for i in 0 .. m.chunks - 1 loop
+    v_text := v_text || public.get_snapshot_chunk('org1', 'L1', 1, 5, i);
+  end loop;
+  if v_text::jsonb <> '{"v":"new"}'::jsonb then raise exception 'chunks do not reassemble: %', v_text; end if;
+  if public.get_snapshot_chunk('org1', 'L1', 1, 4, 0) is not null then raise exception 'wrong seq must be null'; end if;
+end $$;
+-- The workers page through every stream (performance-audit.md item 9).
+select set_config('request.jwt.claim.sub', '', false);
+do $$ declare r record; after_org text := ''; after_stream text := ''; n int := 0; page int; begin
+  loop
+    page := 0;
+    for r in select * from public.list_streams_page(after_org, after_stream, 2) loop
+      page := page + 1; n := n + 1; after_org := r.org_id; after_stream := r.stream_id;
+    end loop;
+    exit when page < 2;
+  end loop;
+  if n <> (select count(*) from public.stream_cursors) then raise exception 'paging saw % of % streams', n, (select count(*) from public.stream_cursors); end if;
+end $$;
+-- Pieces are cut once, by bytes, never inside a character (decisions.md 89).
+select set_config('request.jwt.claim.sub', '', false);
+do $$ declare m record; v text := ''; i int; begin
+  perform public.put_snapshot('org1', 'mb', 1, 1, jsonb_build_object('t', repeat('ŋäɔ€𝄞', 120000)));
+  select * into m from public.get_snapshot_meta('org1', 'mb', 1);
+  if m.chunks < 2 then raise exception 'expected several pieces, got %', m.chunks; end if;
+  for i in 0 .. m.chunks - 1 loop v := v || public.get_snapshot_chunk('org1', 'mb', 1, 1, i); end loop;
+  if v::jsonb <> jsonb_build_object('t', repeat('ŋäɔ€𝄞', 120000)) then raise exception 'multi-byte pieces do not reassemble'; end if;
+  if exists (select 1 from public.snapshot_chunks where stream_id = 'mb' and octet_length(piece) > 262144) then raise exception 'a piece is over 256 KB'; end if;
+  delete from public.snapshots where stream_id = 'mb';
+  if exists (select 1 from public.snapshot_chunks where stream_id = 'mb') then raise exception 'pieces should go with their snapshot'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'stranger', false);
+do $$ begin
+  begin
+    perform * from public.get_snapshot_meta('org1', 'L1', 1);
+    raise exception 'stranger meta read should have failed';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform * from public.get_snapshot('org1', 'L1', 1);
+    raise exception 'stranger snapshot read should have failed';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+-- 5g'. The server's cut (decisions.md 147): the pass stages a snapshot's rows
+-- and put_snapshot moves them in; the newest snapshot alone keeps rows; state
+-- is not kept; lines are rewritten only when they change; members read
+-- through the RPCs a phone calls, strangers cannot, nobody but the service writes.
+select set_config('request.jwt.claim.sub', '', false);
+do $$ declare n int; begin
+  -- Left from a pass that died at another seq: it goes with the next batch.
+  perform public.stage_snapshot_units('org1', 'L1', 1, 10, '[["take","dead","u9","",{}]]'::jsonb);
+  perform public.stage_snapshot_units('org1', 'L1', 1, 11,
+    '[["recording","r1","u1","lead",{"a":1}],["take","t1","u1","lead",{"unitId":"u1"}],["review","rv1","u2","",{"b":2}],["file","h1","u1","",{"stored":true}]]'::jsonb);
+  perform public.stage_snapshot_units('org1', 'L1', 1, 11, '[["shared","","","",{"units":{}}]]'::jsonb);
+  if exists (select 1 from public.snapshot_units_staged where stream_id = 'L1' and server_seq = 10) then raise exception 'rows staged for a dead pass should go'; end if;
+  perform public.put_snapshot('org1', 'L1', 1, 11, '{"v":"cut"}'::jsonb);
+  if (select state from public.snapshots where stream_id = 'L1' and server_seq = 11) is not null then raise exception 'state should no longer be kept'; end if;
+  select count(*) into n from public.snapshot_units where stream_id = 'L1' and server_seq = 11;
+  if n <> 5 then raise exception 'the staged rows should move in with the snapshot, got %', n; end if;
+  if exists (select 1 from public.snapshot_units_staged where stream_id = 'L1') then raise exception 'staged rows should be gone'; end if;
+  -- A newer snapshot with rows takes them over; one written without rows leaves them where they are.
+  perform public.put_snapshot('org1', 'L1', 1, 12, '{"v":"no cut"}'::jsonb);
+  if not exists (select 1 from public.snapshot_units where stream_id = 'L1' and server_seq = 11) then raise exception 'rows should stay without a newer cut'; end if;
+  perform public.put_passage_lines('org1', 'L1', 1, 11, '[{"unitId":"u1","x":1},{"unitId":"u2","x":2},{"unitId":"u3","x":3}]'::jsonb);
+  perform public.put_passage_lines('org1', 'L1', 1, 12, '[{"unitId":"u1","x":1},{"unitId":"u2","x":5}]'::jsonb);
+  if (select server_seq from public.passage_lines where stream_id = 'L1' and unit_id = 'u1') <> 11 then raise exception 'an unchanged line keeps its row'; end if;
+  if (select server_seq from public.passage_lines where stream_id = 'L1' and unit_id = 'u2') <> 12 then raise exception 'a changed line is rewritten'; end if;
+  if exists (select 1 from public.passage_lines where stream_id = 'L1' and unit_id = 'u3') then raise exception 'a line no longer written goes'; end if;
+  if (select server_seq from public.passage_lines where stream_id = 'L1' and unit_id = '') <> 12 then raise exception 'the lines hold at the newest pass'; end if;
+  -- The head's counts were kept when the rows moved in; the lines carry digests only from the delta write.
+  if (select unit_counts from public.snapshots where stream_id = 'L1' and server_seq = 11) <> '[["u1",3],["u2",1]]'::jsonb then raise exception 'put_snapshot keeps the head counts'; end if;
+  if public.passage_line_digests('org1', 'L1', 1) <> '{"u1":null,"u2":null}'::jsonb then raise exception 'lines written whole have no digest'; end if;
+  perform public.put_passage_lines_delta('org1', 'L1', 1, 13, '[{"unitId":"u1","x":1},{"unitId":"u2","x":6},{"unitId":"u4","x":4}]'::jsonb,
+    '{"u1":"d1","u2":"d2","u4":"d4"}'::jsonb, '[]'::jsonb);
+  if (select server_seq from public.passage_lines where stream_id = 'L1' and unit_id = 'u1') <> 11 then raise exception 'a delta line equal to the stored one keeps its seq'; end if;
+  if (select server_seq from public.passage_lines where stream_id = 'L1' and unit_id = 'u2') <> 13 then raise exception 'a delta line that changed is rewritten'; end if;
+  perform public.put_passage_lines_delta('org1', 'L1', 1, 14, '[]'::jsonb, '{}'::jsonb, '["u4"]'::jsonb);
+  if exists (select 1 from public.passage_lines where stream_id = 'L1' and unit_id = 'u4') then raise exception 'a removed passage loses its line'; end if;
+  if public.passage_line_digests('org1', 'L1', 1) <> '{"u1":"d1","u2":"d2"}'::jsonb then raise exception 'digests wrong'; end if;
+  -- The whole write puts the lines as the pass last worked them (u2 back to 5), and clears the digest of the one it changed.
+  perform public.put_passage_lines('org1', 'L1', 1, 15, '[{"unitId":"u1","x":1},{"unitId":"u2","x":5}]'::jsonb);
+  if public.passage_line_digests('org1', 'L1', 1) <> '{"u1":"d1","u2":null}'::jsonb then raise exception 'a changed line loses its digest'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ declare h jsonb; p jsonb; begin
+  h := public.get_snapshot_head('org1', 'L1', 1, 1);
+  if h->>'server_seq' <> '11' or h->'units' <> '[["u1",3],["u2",1]]'::jsonb or h->'shared' <> '{"units":{}}'::jsonb
+     or h->'lines'->>'seq' <> '15' or h->'lines'->'lines' <> '[{"unitId":"u1","x":1},{"unitId":"u2","x":5}]'::jsonb then
+    raise exception 'head wrong: %', h;
+  end if;
+  if public.get_snapshot_head('org1', 'L1', 1, 1, false) ? 'shared' and public.get_snapshot_head('org1', 'L1', 1, 1, false)->'shared' <> 'null'::jsonb then
+    raise exception 'the shared part only when asked';
+  end if;
+  if public.get_snapshot_head('org1', 'L1', 1, 99)->'lines' <> 'null'::jsonb then raise exception 'no lines of another version'; end if;
+  if public.get_snapshot_head('org1', 'L1', 2, 1) is not null then raise exception 'no cut for another reducer'; end if;
+  -- Paged in (unit, kind, id) order, byte by byte.
+  p := public.get_snapshot_rows('org1', 'L1', 1, 0, array['u1', 'u2'], null, 2);
+  if p->'rows' <> '[["file","h1","u1","",{"stored":true}],["recording","r1","u1","lead",{"a":1}]]'::jsonb or p->'next' <> '["u1","recording","r1"]'::jsonb then
+    raise exception 'first page wrong: %', p;
+  end if;
+  p := public.get_snapshot_rows('org1', 'L1', 1, 0, array['u1', 'u2'], array['u1', 'recording', 'r1'], 2);
+  if p->'rows' <> '[["take","t1","u1","lead",{"unitId":"u1"}],["review","rv1","u2","",{"b":2}]]'::jsonb or p->'next' <> 'null'::jsonb then
+    raise exception 'last page wrong: %', p;
+  end if;
+  if public.get_snapshot_rows('org1', 'L1', 1, 12, array['u1'], null, 10) is not null then raise exception 'no cut at or past 12'; end if;
+  if public.get_snapshot_passages('org1', 'L1', 1, '[["review","rv1"],["take","nowhere"]]'::jsonb) <> '[["review","rv1","u2"]]'::jsonb then
+    raise exception 'passages wrong';
+  end if;
+  if (select g.state from public.get_snapshot('org1', 'L1', 1) g) <> '{"v":"no cut"}'::jsonb then raise exception 'get_snapshot reads the pieces'; end if;
+  begin
+    perform public.stage_snapshot_units('org1', 'L1', 1, 13, '[]'::jsonb);
+    raise exception 'members must not stage rows';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.put_passage_lines('org1', 'L1', 1, 13, '[]'::jsonb);
+    raise exception 'members must not write lines';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+select set_config('request.jwt.claim.sub', 'stranger', false);
+do $$ begin
+  begin perform public.get_snapshot_head('org1', 'L1', 1, 1); raise exception 'stranger head read should have failed';
+  exception when insufficient_privilege then null; end;
+  begin perform public.get_snapshot_rows('org1', 'L1', 1, 0, array['u1'], null, 10); raise exception 'stranger rows read should have failed';
+  exception when insufficient_privilege then null; end;
+  begin perform public.get_snapshot_passages('org1', 'L1', 1, '[]'::jsonb); raise exception 'stranger passages read should have failed';
+  exception when insufficient_privilege then null; end;
+end $$;
+select set_config('request.jwt.claim.sub', '', false);
+delete from public.snapshots where stream_id = 'L1' and server_seq in (11, 12);
+delete from public.passage_lines where stream_id = 'L1';
+do $$ begin
+  if exists (select 1 from public.snapshot_units where stream_id = 'L1') then raise exception 'rows should go with their snapshot'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
+
+-- 5h. Minimum client version: old clients are refused with a distinct code.
+update public.server_config set min_client_version = 2;
+do $$ begin
+  begin
+    perform * from public.pull_events('org1', 'L1', 0, 10, 1);
+    raise exception 'old client pull should have been refused';
+  exception when sqlstate 'LQ001' then null;
+  end;
+  begin
+    perform * from public.append_events('[]'::jsonb, 1);
+    raise exception 'old client append should have been refused';
+  exception when sqlstate 'LQ001' then null;
+  end;
+  perform * from public.pull_events('org1', 'L1', 0, 10, 2);
+end $$;
+update public.server_config set min_client_version = 0;
+
+-- 6. Append-only is enforced even for the table owner.
+do $$ begin
+  begin
+    update public.events set hlc = 'x' where id = 'o1';
+    raise exception 'update should have been refused';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    delete from public.events where id = 'o1';
+    raise exception 'delete should have been refused';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+
+-- 7. Long-offline liabilities (docs/flow-coverage-audit.md L1, L2, L10).
+-- 7a. Clock ahead: refused with server time in the reason; nothing stored.
+do $$ declare r record; begin
+  select * into r from public.append_events(format('[
+    {"id":"e7b","type":"v1.LanguageRenamed","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"%s:000000:dA","payload":{"languageId":"L1","name":"x"}}
+  ]', lpad(((extract(epoch from now()) * 1000)::bigint + 3600000)::text, 15, '0'))::jsonb);
+  if r.accepted or r.reason not like 'clock ahead: server time %' then raise exception 'clock-ahead should be refused, got %', r; end if;
+  if exists (select 1 from public.events where id = 'e7b') then raise exception 'refused event must not be stored'; end if;
+end $$;
+
+-- 7b. Removal is decided by the membership now: t1's work after removal is
+--     refused, whatever its clock says, and accepted again once re-admitted
+--     (the phone re-queues it, NOT_MEMBER).
+do $$ declare r record; begin
+  select * into r from public.append_events(format('[
+    {"id":"e7c0","type":"v1.MemberRemoved","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"%s:000000:dA","payload":{"profileId":"t1","scope":{"level":"language","languageId":"L1"}}}
+  ]', lpad(((extract(epoch from now()) * 1000)::bigint - 86400000)::text, 15, '0'))::jsonb);
+  if not r.accepted then raise exception 'removal should be accepted: %', r.reason; end if;
+  if cardinality(public.org_privileges('org1', 't1', 'L1')) <> 0 then raise exception 't1 should be removed now'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 't1', false);
+do $$ declare r record; begin
+  select * into r from public.append_events(format('[
+    {"id":"e7c1","type":"v1.TakeSubmitted","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"%s:000000:dB","payload":{"takeId":"take-old"}}
+  ]', lpad(((extract(epoch from now()) * 1000)::bigint - 2 * 86400000)::text, 15, '0'))::jsonb);
+  if r.accepted or r.reason <> 'not a member' then raise exception 'a removed member''s work should be refused, got %', r; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
+select * from public.append_events(format('[
+  {"id":"e7d0","type":"v1.MemberAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"%s:000000:dA","payload":{"profileId":"t1","roleId":"translator","scope":{"level":"language","languageId":"L1"}}}
+]', lpad(((extract(epoch from now()) * 1000)::bigint - 30000)::text, 15, '0'))::jsonb);
+select set_config('request.jwt.claim.sub', 't1', false);
+do $$ declare r record; begin
+  if public.effective_role_of(public.org_privileges('org1', 't1', 'L1')) <> 'translator' then raise exception 't1 should be a translator again'; end if;
+  select * into r from public.append_events(format('[
+    {"id":"e7c1","type":"v1.TakeSubmitted","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"%s:000000:dB","payload":{"takeId":"take-old"}}
+  ]', lpad(((extract(epoch from now()) * 1000)::bigint - 2 * 86400000)::text, 15, '0'))::jsonb);
+  if not r.accepted then raise exception 're-pushed work after re-admission should be accepted: %', r.reason; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
+
+-- 8. Languages and scopes (decision 63).
+-- 8a. An org admin adds two more languages; each stream opens when listed.
+do $$ declare r record; begin
+  for r in select * from public.append_events('[
+    {"id":"o10","type":"v1.LanguageAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000110:000000:dA","payload":{"languageId":"din","name":"Dinka","code":"din","sourceCode":"eng"}},
+    {"id":"o11","type":"v1.LanguageAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000111:000000:dA","payload":{"languageId":"nus","name":"Nuer","code":"nus","sourceCode":"eng"}},
+    {"id":"d1","type":"v1.UnitAdded","orgId":"org1","streamId":"din","actorId":"lead","deviceId":"dA","hlc":"000000000000112:000000:dA","payload":{"unitId":"u1","parentUnitId":null,"kind":"book","label":"Luke","order":"a0"}}
+  ]'::jsonb) loop
+    if not r.accepted then raise exception 'org admin language event % refused: %', r.id, r.reason; end if;
+  end loop;
+end $$;
+
+-- 8b. Earliest LanguageAdded wins; renames are a later-wins register.
+do $$ declare r record; l public.languages; begin
+  for r in select * from public.append_events('[
+    {"id":"o12","type":"v1.LanguageAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000113:000000:dA","payload":{"languageId":"din","name":"Second","code":"xxx","sourceCode":"eng"}},
+    {"id":"o13","type":"v1.LanguageRenamed","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000115:000000:dA","payload":{"languageId":"din","name":"Thuɔŋjäŋ"}},
+    {"id":"o14","type":"v1.LanguageRenamed","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000114:000000:dA","payload":{"languageId":"din","name":"Older"}}
+  ]'::jsonb) loop
+    if not r.accepted then raise exception 'language event % refused: %', r.id, r.reason; end if;
+  end loop;
+  select * into l from public.languages where org_id = 'org1' and language_id = 'din';
+  if l.added_name <> 'Dinka' or l.code <> 'din' then raise exception 'earliest LanguageAdded should win, got %', l; end if;
+  if public.language_display_name(l) <> 'Thuɔŋjäŋ' then raise exception 'latest rename should win, got %', l; end if;
+end $$;
+
+-- 8b1. Linking a language to the language list is a later-wins register
+--      that takes over LanguageAdded's code; unlinking keeps the code.
+do $$ declare r record; l public.languages; begin
+  select * into l from public.languages where org_id = 'org1' and language_id = 'din';
+  if public.language_code(l) <> 'din' or l.languoid_id is not null then raise exception 'an unlinked language keeps its added code, got %', l; end if;
+  for r in select * from public.append_events('[
+    {"id":"oc1","type":"v1.LanguageCodeSet","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000116:000000:dA","payload":{"languageId":"din","code":"dik","languoidId":"6d0c6d4e-3f0a-4c3e-9a51-6f3e2b9d7a10"}},
+    {"id":"oc2","type":"v1.LanguageCodeSet","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dB","hlc":"000000000000115:000002:dB","payload":{"languageId":"din","code":"dip","languoidId":null}}
+  ]'::jsonb) loop
+    if not r.accepted then raise exception 'language code event % refused: %', r.id, r.reason; end if;
+  end loop;
+  select * into l from public.languages where org_id = 'org1' and language_id = 'din';
+  if public.language_code(l) <> 'dik' or l.languoid_id <> '6d0c6d4e-3f0a-4c3e-9a51-6f3e2b9d7a10' or l.code <> 'din' then
+    raise exception 'latest LanguageCodeSet should win and keep the added code, got %', l;
+  end if;
+  select * into r from public.append_events('[
+    {"id":"oc3","type":"v1.LanguageCodeSet","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000117:000000:dA","payload":{"languageId":"din","code":"dik","languoidId":"nyan1308"}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'a glottocode is not a languoid id and should be refused'; end if;
+end $$;
+
+-- 8b2. The organization's name is a later-wins register over OrgCreated and
+--      OrgRenamed (decisions.md 76), and only an Organization Admin renames it.
+do $$ declare r record; begin
+  if public.org_name('org1') <> 'Wycliffe' then raise exception 'org name before a rename should be Wycliffe, got %', public.org_name('org1'); end if;
+  for r in select * from public.append_events('[
+    {"id":"orn1","type":"v1.OrgRenamed","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000115:000001:dA","payload":{"name":"Wycliffe Kenya"}},
+    {"id":"orn2","type":"v1.OrgRenamed","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dB","hlc":"000000000000114:000001:dB","payload":{"name":"Older"}}
+  ]'::jsonb) loop
+    if not r.accepted then raise exception 'admin rename % refused: %', r.id, r.reason; end if;
+  end loop;
+  if public.org_name('org1') <> 'Wycliffe Kenya' then raise exception 'latest org rename should win, got %', public.org_name('org1'); end if;
+  select * into r from public.append_events('[
+    {"id":"orn3","type":"v1.OrgRenamed","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000115:000002:dA","payload":{"name":""}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'an empty organization name must be refused'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 't1', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"orn4","type":"v1.OrgRenamed","orgId":"org1","streamId":"_org","actorId":"t1","deviceId":"dT","hlc":"000000000000115:000003:dT","payload":{"name":"Mine now"}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'a translator must not rename the organization'; end if;
+  if public.org_name('org1') <> 'Wycliffe Kenya' then raise exception 'refused rename changed the name: %', public.org_name('org1'); end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
+-- Named back, as the checks further down expect.
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"orn5","type":"v1.OrgRenamed","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000115:000004:dA","payload":{"name":"Wycliffe"}}
+  ]'::jsonb);
+  if not r.accepted or public.org_name('org1') <> 'Wycliffe' then raise exception 'renaming back failed: % %', r, public.org_name('org1'); end if;
+end $$;
+
+-- 8c. A language-scoped leader works in their language only; a stranger
+--     may not touch the organization. Akol joins din (by invite in the app).
+select set_config('request.jwt.claim.sub', '', false);
+select * from public.append_events('[
+  {"id":"o15","type":"v1.MemberAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000116:000000:dA","payload":{"profileId":"akol","roleId":"lang_lead","scope":{"level":"language","languageId":"din"}}}
+]'::jsonb);
+select set_config('request.jwt.claim.sub', 'akol', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"d2","type":"v1.RequestMade","orgId":"org1","streamId":"din","actorId":"akol","deviceId":"dB","hlc":"000000000000117:000000:dB","payload":{"requestId":"q1","unitId":"u1","what":"record","profileId":"t1"}}
+  ]'::jsonb);
+  if not r.accepted then raise exception 'language leader should ask in own language: %', r.reason; end if;
+  select * into r from public.append_events('[
+    {"id":"n1","type":"v1.RequestMade","orgId":"org1","streamId":"nus","actorId":"akol","deviceId":"dB","hlc":"000000000000118:000000:dB","payload":{"requestId":"q2","unitId":"u1","what":"record","profileId":"t1"}}
+  ]'::jsonb);
+  if r.accepted or r.reason <> 'not a member' then raise exception 'language leader must not work in another language, got %', r; end if;
+  select * into r from public.append_events('[
+    {"id":"o16","type":"v1.RoleDefined","orgId":"org1","streamId":"_org","actorId":"akol","deviceId":"dB","hlc":"000000000000119:000000:dB","payload":{"roleId":"sneaky","name":"Sneaky","privileges":["manage_roles"]}}
+  ]'::jsonb);
+  if r.accepted or r.reason <> 'may not emit v1.RoleDefined' then raise exception 'language leader must not define org roles, got %', r; end if;
+  perform * from public.pull_events('org1', '_org', 0, 10);
+  perform * from public.pull_events('org1', 'din', 0, 10);
+  -- A phone cold-starts from a snapshot, so a member of one language must
+  -- be able to ask for the organization's too.
+  perform * from public.get_snapshot_meta('org1', '_org', 1);
+  perform public.get_snapshot_chunk('org1', '_org', 1, 1, 0);
+  perform * from public.get_snapshot('org1', '_org', 1);
+  perform * from public.get_snapshot_meta('org1', 'din', 1);
+  begin
+    perform * from public.pull_events('org1', 'nus', 0, 10);
+    raise exception 'language leader must not pull another language';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+select set_config('request.jwt.claim.sub', 'stranger', false);
+do $$ begin
+  perform * from public.get_snapshot_meta('org1', '_org', 1);
+  raise exception 'a stranger must not read the org snapshot';
+exception when insufficient_privilege then null;
+end $$;
+do $$ declare r record; begin
+  begin
+    perform * from public.pull_events('org1', '_org', 0, 10);
+    raise exception 'stranger must not pull the organization stream';
+  exception when insufficient_privilege then null;
+  end;
+  select * into r from public.append_events('[
+    {"id":"o17","type":"v1.MemberAdded","orgId":"org1","streamId":"_org","actorId":"stranger","deviceId":"dX","hlc":"000000000000120:000000:dX","payload":{"profileId":"stranger","roleId":"org_admin","scope":{"level":"org"}}}
+  ]'::jsonb);
+  if r.accepted or r.reason <> 'not a member' then raise exception 'stranger must not join an org that has members, got %', r; end if;
+end $$;
+
+-- 8d. Invalid org payloads are refused at the door.
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"o18","type":"v1.RoleDefined","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000121:000000:dA","payload":{"roleId":"x","name":"X","privileges":["fly"]}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload:%' then raise exception 'unknown privilege should be refused, got %', r; end if;
+  select * into r from public.append_events('[
+    {"id":"o19","type":"v1.MemberAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000122:000000:dA","payload":{"profileId":"x","roleId":"org_admin","scope":{"level":"language"}}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload:%' then raise exception 'language scope without languageId should be refused, got %', r; end if;
+  select * into r from public.append_events('[
+    {"id":"o20","type":"v1.LanguageAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000123:000000:dA","payload":{"languageId":"_org","name":"X","code":"x","sourceCode":"eng"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload:%' then raise exception 'a reserved language id should be refused, got %', r; end if;
+end $$;
+
+-- 8e. The organization's license (docs/licensing.md): only the admin sets it,
+--     only known licenses, and a later "closing" is accepted but folds to nothing.
+select set_config('request.jwt.claim.sub', 'akol', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"lic1","type":"v1.LicenseSet","orgId":"org1","streamId":"_org","actorId":"akol","deviceId":"dB","hlc":"000000000000124:000000:dB","payload":{"license":"CC0-1.0"}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'a language leader must not open the organization''s license'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"lic2","type":"v1.LicenseSet","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000125:000000:dA","payload":{"license":"MIT"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload:%' then raise exception 'an unknown license should be refused, got %', r; end if;
+  for r in select * from public.append_events('[
+    {"id":"lic3","type":"v1.LicenseSet","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000126:000000:dA","payload":{"license":"CC-BY-SA-4.0"}},
+    {"id":"lic4","type":"v1.LicenseSet","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000127:000000:dA","payload":{"license":"all-rights-reserved"}}
+  ]'::jsonb) loop
+    if not r.accepted then raise exception 'org admin license event % refused: %', r.id, r.reason; end if;
+  end loop;
+end $$;
+
+-- 9. A language's template, flow and teams; the respond loop.
+do $$ declare r record; begin
+  for r in select * from public.append_events('[
+    {"id":"s1","type":"v1.TemplateSelected","orgId":"org1","streamId":"din","actorId":"lead","deviceId":"dA","hlc":"000000000000201:000000:dA","payload":{"itemId":"langquest.bible","docHash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","unitPrefix":"bible"}},
+    {"id":"s2","type":"v1.UnitAdded","orgId":"org1","streamId":"din","actorId":"lead","deviceId":"dA","hlc":"000000000000202:000000:dA","payload":{"unitId":"bible/gen","parentUnitId":null,"kind":"book","label":"Genesis","order":"b0000"}},
+    {"id":"s3","type":"v1.FlowSelected","orgId":"org1","streamId":"din","actorId":"lead","deviceId":"dA","hlc":"000000000000203:000000:dA","payload":{"flowId":"quick_check"}},
+    {"id":"s4","type":"v1.FlowStepSet","orgId":"org1","streamId":"din","actorId":"lead","deviceId":"dA","hlc":"000000000000204:000000:dA","payload":{"stepId":"quick_check/peer","order":"s00","kindIds":["peer"],"checkpoint":true}},
+    {"id":"s5","type":"v1.FlowStepRemoved","orgId":"org1","streamId":"din","actorId":"lead","deviceId":"dA","hlc":"000000000000205:000000:dA","payload":{"stepId":"quick_check/old"}},
+    {"id":"s6","type":"v1.ReviewTeamDefined","orgId":"org1","streamId":"din","actorId":"lead","deviceId":"dA","hlc":"000000000000206:000000:dA","payload":{"teamId":"team1","name":"Community"}},
+    {"id":"s7","type":"v1.ReviewTeamMemberSet","orgId":"org1","streamId":"din","actorId":"lead","deviceId":"dA","hlc":"000000000000207:000000:dA","payload":{"teamId":"team1","profileId":"r1","member":true}}
+  ]'::jsonb) loop
+    if not r.accepted then raise exception 'language setup event % refused: %', r.id, r.reason; end if;
+  end loop;
+  select * into r from public.append_events('[
+    {"id":"s8","type":"v1.FlowStepSet","orgId":"org1","streamId":"din","actorId":"lead","deviceId":"dA","hlc":"000000000000208:000000:dA","payload":{"stepId":"x","order":"s00","kindIds":["peer"],"checkpoint":"sometimes"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload:%' then raise exception 'a non-boolean checkpoint should be refused, got %', r; end if;
+end $$;
+-- Translator may respond; neither translator may select a template.
+select set_config('request.jwt.claim.sub', 't1', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"s9","type":"v1.ResponseRecorded","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000209:000000:dB","payload":{"takeId":"take-new","respondsToTakeId":"take-old","note":"kept card 1"}}
+  ]'::jsonb);
+  if not r.accepted then raise exception 'translator response should be accepted: %', r.reason; end if;
+  select * into r from public.append_events('[
+    {"id":"s10","type":"v1.TemplateSelected","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000210:000000:dB","payload":{"itemId":"langquest.bible","docHash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","unitPrefix":"bible"}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'translator must not select templates'; end if;
+end $$;
+
+-- 10. Materials and key terms.
+do $$ declare r record; begin
+  for r in select * from public.append_events('[
+    {"id":"m1","type":"v1.MaterialDefined","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000301:000000:dB","payload":{"materialId":"q-u1","kind":"questions","title":"Unit 1 questions","scope":{"unitId":"u1"}}},
+    {"id":"m2","type":"v1.MaterialFieldSet","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000302:000000:dB","payload":{"materialId":"q-u1","fieldId":"q1","text":"Is it clear?"}},
+    {"id":"m3","type":"v1.KeyTermDefined","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000303:000000:dB","payload":{"termId":"kt1","term":"Word","gloss":"Logos","unitScope":["u1"]}},
+    {"id":"m4","type":"v1.KeyTermLinked","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000304:000000:dB","payload":{"takeId":"take-new","termId":"kt1","note":"divine sense"}}
+  ]'::jsonb) loop
+    if not r.accepted then raise exception 'translator material event % refused: %', r.id, r.reason; end if;
+  end loop;
+  select * into r from public.append_events('[
+    {"id":"m5","type":"v1.MaterialDefined","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000305:000000:dB","payload":{"materialId":"tmf","kind":"tmf","title":"TMF","scope":{}}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'translator must not define managed material'; end if;
+  select * into r from public.append_events('[
+    {"id":"m6","type":"v1.MaterialLocked","orgId":"org1","streamId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000306:000000:dB","payload":{"materialId":"q-u1","locked":true}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'translator must not lock material'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"m7","type":"v1.MaterialLocked","orgId":"org1","streamId":"L1","actorId":"lead","deviceId":"dA","hlc":"000000000000307:000000:dA","payload":{"materialId":"q-u1","locked":true}}
+  ]'::jsonb);
+  if not r.accepted then raise exception 'admin lock refused: %', r.reason; end if;
+  select * into r from public.append_events('[
+    {"id":"m9","type":"v1.KeyTermDefined","orgId":"org1","streamId":"L1","actorId":"lead","deviceId":"dA","hlc":"000000000000309:000000:dA","payload":{"termId":"kt2","term":"Spirit","gloss":"x","unitScope":"u1"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload:%' then raise exception 'unitScope must be an array, got %', r; end if;
+end $$;
+
+-- 11. Invites and join requests (docs/flow-coverage-audit.md 5.B).
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$
+declare
+  v_hash text := encode(extensions.digest('tok-secret-1', 'sha256'), 'hex');
+  n int;
+begin
+  -- A member with invite_members may issue; the token itself never lands.
+  perform public.issue_invite_v3('org1', 'inv1', v_hash, 'lang_lead', '{"level":"org"}'::jsonb, now() + interval '7 days');
+  select count(*) into n from public.invites where id = 'inv1' and org_id = 'org1';
+  if n <> 1 then raise exception 'invite row missing'; end if;
+  select count(*) into n from public.events
+    where stream_id = '_org' and type = 'v1.InviteIssued' and payload->>'inviteId' = 'inv1';
+  if n <> 1 then raise exception 'InviteIssued not appended'; end if;
+  select count(*) into n from public.events
+    where stream_id = '_org' and payload::text like '%tok-secret-1%';
+  if n <> 0 then raise exception 'the token reached the log'; end if;
+
+  -- An unknown role is refused, so an invite cannot grant something undefined.
+  begin
+    perform public.issue_invite_v3('org1', 'inv-bad', repeat('b', 64), 'no_such_role', '{"level":"org"}'::jsonb, now() + interval '1 day');
+    raise exception 'unknown role was accepted';
+  exception when sqlstate '22023' then null;
+  end;
+  -- So is a language the organization does not have.
+  begin
+    perform public.issue_invite_v3('org1', 'inv-bad2', repeat('c', 64), 'translator',
+      '{"level":"language","languageId":"zzz"}'::jsonb, now() + interval '1 day');
+    raise exception 'unknown language was accepted';
+  exception when sqlstate '22023' then null;
+  end;
+end $$;
+
+-- A translator holds no invite_members privilege and may not issue.
+select set_config('request.jwt.claim.sub', 't1', false);
+do $$
+begin
+  begin
+    perform public.issue_invite_v3('org1', 'inv2', repeat('d', 64), 'lang_lead', '{"level":"org"}'::jsonb, now() + interval '1 day');
+    raise exception 'translator issued an invite';
+  exception when sqlstate '42501' then null;
+  end;
+end $$;
+
+-- A stranger redeems, and becomes a member without ever being granted anything by themselves.
+select set_config('request.jwt.claim.sub', 'newbie', false);
+do $$
+declare v_org text; n int; v_actor text;
+begin
+  v_org := public.redeem_invite_v2('tok-secret-1');
+  if v_org <> 'org1' then raise exception 'redeem returned %', v_org; end if;
+  if public.effective_role_of(public.org_privileges('org1', 'newbie', 'L1')) is null then raise exception 'membership not granted'; end if;
+  select actor_id into v_actor from public.events
+    where stream_id = '_org' and type = 'v1.MemberAdded' and payload->>'profileId' = 'newbie';
+  if v_actor <> 'service' then raise exception 'membership granted under actor %, not service', v_actor; end if;
+  select count(*) into n from public.events
+    where stream_id = '_org' and type = 'v1.InviteRedeemed' and payload->>'inviteId' = 'inv1';
+  if n <> 1 then raise exception 'InviteRedeemed not appended'; end if;
+
+  -- Redeeming again is a no-op for the same person; a wrong token is refused.
+  if public.redeem_invite_v2('tok-secret-1') <> 'org1' then raise exception 'a repeat redeem should answer the org'; end if;
+  begin
+    perform public.redeem_invite_v2('not-a-token');
+    raise exception 'bogus token accepted';
+  exception when sqlstate '22023' then null;
+  end;
+end $$;
+select set_config('request.jwt.claim.sub', 'other', false);
+do $$ begin
+  perform public.redeem_invite_v2('tok-secret-1');
+  raise exception 'a single-use invite was used twice';
+exception when sqlstate '22023' then null;
+end $$;
+
+-- A language-scoped leader with Invite invites into their language only.
+select set_config('request.jwt.claim.sub', 'lead', false);
+select * from public.append_events('[
+  {"id":"o21","type":"v1.RoleDefined","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000401:000000:dA","payload":{"roleId":"inviter","name":"Inviter","privileges":["invite_members","translate","fill_reference","send_to_reviewers","view_status"]}},
+  {"id":"o22","type":"v1.MemberAdded","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000402:000000:dA","payload":{"profileId":"akol","roleId":"inviter","scope":{"level":"language","languageId":"nus"}}}
+]'::jsonb);
+select set_config('request.jwt.claim.sub', 'akol', false);
+do $$ begin
+  perform public.issue_invite_v3('org1', 'inv3', repeat('e', 64), 'translator',
+    '{"level":"language","languageId":"nus"}'::jsonb, now() + interval '1 day');
+  begin
+    perform public.issue_invite_v3('org1', 'inv4', repeat('f', 64), 'translator',
+      '{"level":"language","languageId":"din"}'::jsonb, now() + interval '1 day');
+    raise exception 'invited into a language without Invite there';
+  exception when sqlstate '42501' then null;
+  end;
+  begin
+    perform public.issue_invite_v3('org1', 'inv5', repeat('0', 64), 'translator', '{"level":"org"}'::jsonb, now() + interval '1 day');
+    raise exception 'invited at org scope with a language role';
+  exception when sqlstate '42501' then null;
+  end;
+  -- Nobody invites to a role that holds more than they do (decisions.md 75).
+  begin
+    perform public.issue_invite_v3('org1', 'inv6', repeat('1', 64), 'lang_lead',
+      '{"level":"language","languageId":"nus"}'::jsonb, now() + interval '1 day');
+    raise exception 'invited to a role with privileges the inviter lacks';
+  exception when sqlstate '42501' then null;
+  end;
+end $$;
+
+-- No client may forge a redemption through the normal append path.
+select set_config('request.jwt.claim.sub', 'newbie', false);
+do $$
+declare r record;
+begin
+  select * into r from public.append_events('[
+    {"id":"forge1","type":"v1.InviteRedeemed","orgId":"org1","streamId":"_org","actorId":"newbie","deviceId":"dZ","hlc":"000000000000400:000000:dZ","payload":{"inviteId":"inv1","profileId":"newbie"}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'a client forged InviteRedeemed'; end if;
+end $$;
+
+-- Join requests: a non-member asks, a member decides.
+select set_config('request.jwt.claim.sub', 'asker', false);
+do $$
+declare n int;
+begin
+  perform public.create_join_request('org1', 'req1', 'please let me in');
+  select count(*) into n from public.join_requests where id = 'req1';
+  if n <> 1 then raise exception 'join request not stored'; end if;
+  -- Nothing reaches the log until someone decides.
+  select count(*) into n from public.events where stream_id = '_org' and type = 'v1.JoinDecided';
+  if n <> 0 then raise exception 'a request wrote to the log'; end if;
+  -- An asker cannot admit themselves.
+  begin
+    perform public.decide_join_request('req1', true, 'org_admin');
+    raise exception 'asker admitted themselves';
+  exception when sqlstate '42501' then null;
+  end;
+end $$;
+
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$
+declare n int;
+begin
+  -- Accepting without a role is refused: a membership needs one.
+  begin
+    perform public.decide_join_request('req1', true, null);
+    raise exception 'accepted with no role';
+  exception when sqlstate '22023' then null;
+  end;
+  perform public.decide_join_request('req1', true, 'lang_lead');
+  select count(*) into n from public.events
+    where stream_id = '_org' and type = 'v1.JoinDecided' and payload->>'requestId' = 'req1' and (payload->>'accepted')::boolean;
+  if n <> 1 then raise exception 'JoinDecided not appended'; end if;
+  if public.effective_role_of(public.org_privileges('org1', 'asker', 'L1')) is null then raise exception 'asker not admitted'; end if;
+  select count(*) into n from public.join_requests where id = 'req1';
+  if n <> 0 then raise exception 'decided request left open'; end if;
+end $$;
+
+-- How someone joined is the server's to say (decisions.md 114): the lead holds
+-- invite_members, yet may not append a JoinDecided or an InviteIssued itself.
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"forged-join","type":"v1.JoinDecided","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dL","hlc":"000000000000090:000000:dL","payload":{"requestId":"x","profileId":"asker","accepted":true}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'may not emit%' then raise exception 'a client JoinDecided should be refused, got %', r; end if;
+  select * into r from public.append_events('[
+    {"id":"forged-invite","type":"v1.InviteIssued","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dL","hlc":"000000000000091:000000:dL","payload":{"inviteId":"invX","roleId":"translator","scope":{"level":"org"},"expiresAt":"2030-01-01T00:00:00Z"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'may not emit%' then raise exception 'a client InviteIssued should be refused, got %', r; end if;
+end $$;
+
+-- Accepting names the scope, as an invite does: here one language.
+select set_config('request.jwt.claim.sub', 'asker-scope', false);
+select public.create_join_request('org1', 'req-scope', '');
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$
+begin
+  begin
+    perform public.decide_join_request_v2('req-scope', true, 'lang_lead', '{"level":"language"}');
+    raise exception 'accepted with a scope that names no language';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.decide_join_request_v2('req-scope', true, 'lang_lead', '{"level":"language","languageId":"nope"}');
+    raise exception 'accepted into an unknown language';
+  exception when sqlstate '22023' then null;
+  end;
+  perform public.decide_join_request_v2('req-scope', true, 'lang_lead', '{"level":"language","languageId":"din"}');
+  if public.effective_role_of(public.org_privileges('org1', 'asker-scope', 'din')) is null then raise exception 'asker-scope not admitted to din'; end if;
+  if public.effective_role_of(public.org_privileges('org1', 'asker-scope', 'nus')) is not null then raise exception 'asker-scope admitted beyond din'; end if;
+  if public.effective_role_of(public.org_privileges('org1', 'asker-scope', null)) is not null then raise exception 'asker-scope admitted org-wide'; end if;
+  -- Asking again after the decision is a no-op, as for the old signature.
+  perform public.decide_join_request_v2('req-scope', true, 'lang_lead', '{"level":"language","languageId":"din"}');
+end $$;
+
+-- 12. A language's country and target (decision 41) live in the
+--     organization stream: an admin sets them, a language leader without
+--     manage_structure may not, and my_privileges says so.
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"c1","type":"v1.LanguageCountrySet","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000500:000000:dA","payload":{"languageId":"din","country":"SS"}}
+  ]'::jsonb);
+  if not r.accepted then raise exception 'org admin should set a country: %', r.reason; end if;
+  select * into r from public.append_events('[
+    {"id":"c2","type":"v1.LanguageTargetSet","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000501:000000:dA","payload":{"languageId":"din","scope":"nt","startDate":"2026-01-01","targetDate":"2027-07-01"}}
+  ]'::jsonb);
+  if not r.accepted then raise exception 'org admin should set a target: %', r.reason; end if;
+  select * into r from public.append_events('[
+    {"id":"c3","type":"v1.LanguageTargetSet","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000502:000000:dA","payload":{"languageId":"din","scope":"nt","startDate":"2027-01-01","targetDate":"2026-01-01"}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'a target ending before it starts must be refused'; end if;
+  if (select country from public.languages where org_id = 'org1' and language_id = 'din') <> 'SS' then raise exception 'country not folded'; end if;
+  if (select target->>'targetDate' from public.languages where org_id = 'org1' and language_id = 'din') <> '2027-07-01' then raise exception 'target not folded'; end if;
+  if not ('manage_structure' = any(public.my_privileges('org1', 'din'))) then raise exception 'org admin privileges wrong: %', public.my_privileges('org1', 'din'); end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'akol', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"c4","type":"v1.LanguageCountrySet","orgId":"org1","streamId":"_org","actorId":"akol","deviceId":"dB","hlc":"000000000000503:000000:dB","payload":{"languageId":"din","country":"SD"}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'a language leader must not set the country'; end if;
+  if 'manage_structure' = any(public.my_privileges('org1', 'din')) then raise exception 'language leader must not read as manage_structure'; end if;
+  if not ('assign_work' = any(public.my_privileges('org1', 'din'))) then raise exception 'language leader privileges missing in own language'; end if;
+  if 'assign_work' = any(public.my_privileges('org1', 'nus')) then raise exception 'language leader privileges leaked to another language'; end if;
+  if cardinality(public.my_privileges('org1')) <> 0 then raise exception 'language leader holds nothing at org scope'; end if;
+end $$;
+
+-- 13. Navigation and the person stream.
+do $$ declare n int; begin
+  select count(*) into n from public.my_organizations() where org_id = 'org1' and name = 'Wycliffe';
+  if n <> 1 then raise exception 'my_organizations should list org1 once'; end if;
+  perform public.record_user_event('akol:t1', 'v1.TermsAccepted', '{"version":"2026-10"}'::jsonb);
+  if public.get_user_state()->>'termsVersion' <> '2026-10' then raise exception 'person stream not read back'; end if;
+  if not exists (select 1 from public.events where org_id = '_person' and stream_id = 'akol') then raise exception 'person stream row missing'; end if;
+end $$;
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"pp1","type":"v1.TermsAccepted","orgId":"_person","streamId":"akol","actorId":"akol","deviceId":"dB","hlc":"000000000000600:000000:dB","payload":{"version":"x"}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'a person stream is written only by record_user_event'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ begin
+  perform * from public.pull_events('_person', 'akol', 0, 10);
+  raise exception 'someone else must not read a person''s stream';
+exception when insufficient_privilege then null;
+end $$;
+
+-- 14. Signed out reaches nothing that reads a missing caller as the
+-- service role (decisions.md 64). A security definer function anon may run
+-- must be on this list; a new one fails here until it is revoked or listed.
+do $$ declare v text; begin
+  select string_agg(p.proname, ', ' order by p.proname) into v
+  from pg_proc p
+  where p.pronamespace = 'public'::regnamespace and p.prosecdef
+    and has_function_privilege('anon', p.oid, 'execute')
+    and p.proname not in ('preview_invite');
+  if v is not null then raise exception 'anon may run security definer functions: %', v; end if;
+  select string_agg(f, ', ') into v
+  from unnest(array['put_snapshot', 'stage_snapshot_units', 'put_passage_lines', 'put_passage_lines_delta', 'passage_line_digests', 'list_streams', 'list_streams_page', 'snapshot_heads_page', 'record_blob', 'invalidate_blob', 'org_privileges', 'blob_access',
+                     '_library_media_readable', 'may_emit']) f
+  where exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = f
+    and has_function_privilege('authenticated', p.oid, 'execute'));
+  if v is not null then raise exception 'signed-in people may run service-role functions: %', v; end if;
+end $$;
+select set_config('request.jwt.claim.sub', '', false);
+set role anon;
+do $$ begin
+  perform * from public.pull_events('org1', '_org', 0, 10);
+  raise exception 'a signed-out caller must not pull a stream';
+exception when insufficient_privilege then null;
+end $$;
+reset role;
+
+-- 15. The read policies on invites and join requests run as the signed-in
+-- caller, so they may only call what signed-in people may run (they once
+-- called org_privileges and every read failed). Whoever may invite sees the
+-- organization's invites and requests; the asker sees their own; a
+-- translator sees neither.
+select set_config('request.jwt.claim.sub', 'hopeful', false);
+select public.create_join_request('org1', 'req2', 'may I help');
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ begin
+  if (select count(*) from public.join_requests where id = 'req2') <> 1 then raise exception 'an admin should see a pending request'; end if;
+  if (select count(*) from public.invites where id = 'inv1') <> 1 then raise exception 'an admin should see the organization''s invites'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'hopeful', false);
+do $$ begin
+  if (select count(*) from public.join_requests where id = 'req2') <> 1 then raise exception 'an asker should see their own request'; end if;
+  if (select count(*) from public.invites) <> 0 then raise exception 'an asker must not see invites'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 't1', false);
+do $$ begin
+  if (select count(*) from public.join_requests where id = 'req2') <> 0 then raise exception 'a translator must not see requests'; end if;
+  if (select count(*) from public.invites where id = 'inv1') <> 0 then raise exception 'a translator must not see org invites'; end if;
+end $$;
+reset role;
+
+-- 16. Request Access lists organizations by name, and only those listing a
+-- language on Explore (decisions.md 66). An unlisted language does not
+-- name its organization; signed out, nothing is listed.
+insert into public.language_visibility values ('org1', 'L1', true), ('org1', 'din', false);
+insert into public.public_languages (org_id, language_id, name) values ('org1', 'L1', 'Language One'), ('org1', 'din', 'Dinka');
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'hopeful', false);
+do $$ declare r record; begin
+  select * into strict r from public.listed_organizations();
+  if r.org_id <> 'org1' or r.name <> 'Wycliffe' then raise exception 'a listed organization should be found by name: %', r; end if;
+  if r.languages <> array['Language One'] then raise exception 'only listed languages should name it: %', r.languages; end if;
+end $$;
+reset role;
+set role anon;
+do $$ begin
+  perform * from public.listed_organizations();
+  raise exception 'a signed-out caller must not list organizations';
+exception when insufficient_privilege then null;
+end $$;
+reset role;
+
+-- 22. An event is at most 64 KB, and an account creates at most 5
+-- organizations a day and 20 in all (decisions.md 115).
+select set_config('request.jwt.claim.sub', 't1', false);
+do $$ declare r record; begin
+  select * into r from public.append_events(jsonb_build_array(jsonb_build_object(
+    'id', 'huge-note', 'type', 'v1.NoteAdded', 'orgId', 'org1', 'streamId', 'L1', 'actorId', 't1', 'deviceId', 'dB',
+    'hlc', '000000000000099:000000:dB', 'payload', jsonb_build_object('noteId', 'huge', 'anchor', jsonb_build_object('kind', 'version', 'takeId', 't'), 'text', repeat('x', 70000)))));
+  if r.accepted or r.reason not like 'invalid payload: event too large%' then raise exception 'a 70 KB note should be refused, got %', r; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'founder', false);
+do $$ declare r record; i int; begin
+  for i in 1..5 loop
+    select * into r from public.append_events(jsonb_build_array(jsonb_build_object(
+      'id', 'quota-org-' || i, 'type', 'v1.OrgCreated', 'orgId', 'quota-org-' || i, 'streamId', '_org', 'actorId', 'founder', 'deviceId', 'dF',
+      'hlc', '000000000000001:000000:dF', 'payload', jsonb_build_object('name', 'Org ' || i))));
+    if not r.accepted then raise exception 'organization % should be created, got %', i, r; end if;
+  end loop;
+  -- More events in an organization already made are not counted.
+  select * into r from public.append_events(jsonb_build_array(jsonb_build_object(
+    'id', 'quota-role-1', 'type', 'v1.RoleDefined', 'orgId', 'quota-org-1', 'streamId', '_org', 'actorId', 'founder', 'deviceId', 'dF',
+    'hlc', '000000000000002:000000:dF', 'payload', jsonb_build_object('roleId', 'r', 'name', 'R', 'privileges', jsonb_build_array('translate')))));
+  if not r.accepted then raise exception 'a second event in an organization just made should be taken, got %', r; end if;
+  select * into r from public.append_events(jsonb_build_array(jsonb_build_object(
+    'id', 'quota-org-6', 'type', 'v1.RoleDefined', 'orgId', 'quota-org-6', 'streamId', '_org', 'actorId', 'founder', 'deviceId', 'dF',
+    'hlc', '000000000000003:000000:dF', 'payload', jsonb_build_object('roleId', 'r', 'name', 'R', 'privileges', jsonb_build_array('translate')))));
+  if r.accepted or r.reason not like 'may not emit v1.RoleDefined: an account creates at most 5 organizations a day%' then
+    raise exception 'a sixth organization in a day should be refused, got %', r;
+  end if;
+end $$;
+
+-- 23. Signing in with a v2 account is counted before v2 is asked: per email,
+-- per address, and cleared once v2 accepts the password.
+do $$ declare i int; begin
+  for i in 1..10 loop
+    if public.v2_import_sign_in_begin('Spray@Example.org', '198.51.100.7') is not null then raise exception 'try % should go to v2', i; end if;
+  end loop;
+  if public.v2_import_sign_in_begin('spray@example.org', '198.51.100.8') is distinct from 'email' then raise exception 'an 11th try for one email should stop'; end if;
+  perform public.v2_import_sign_in_passed('spray@example.org');
+  if public.v2_import_sign_in_begin('spray@example.org', '198.51.100.8') is not null then raise exception 'a right password should clear the count'; end if;
+  for i in 1..30 loop perform public.v2_import_sign_in_begin('person' || i || '@example.org', '198.51.100.9'); end loop;
+  if public.v2_import_sign_in_begin('another@example.org', '198.51.100.9') is distinct from 'address' then raise exception 'a 31st try from one address should stop'; end if;
+  delete from v2_import.sign_in_failures;
+end $$;
+
+-- 24. A looked-after account is one `join` made (decisions.md 54, amended
+-- 2026-10-15): an address in the domain that someone signed up with is not.
+insert into auth.users (id, email, aud, role, raw_app_meta_data) values
+  ('24000000-0000-0000-0000-00000000000a', 'squat-123@people.langquest.org', 'authenticated', 'authenticated', '{}'),
+  ('24000000-0000-0000-0000-00000000000b', 'made-456@people.langquest.org', 'authenticated', 'authenticated', '{"managed": true}');
+do $$ begin
+  if public.is_managed_account('24000000-0000-0000-0000-00000000000a') then raise exception 'a signed-up address in the domain is not looked-after'; end if;
+  if not public.is_managed_account('24000000-0000-0000-0000-00000000000b') then raise exception 'an account join made is looked-after'; end if;
+end $$;
+delete from auth.users where id in ('24000000-0000-0000-0000-00000000000a', '24000000-0000-0000-0000-00000000000b');
+
+-- 25. A v2 project that has come over comes over again into another
+-- organization as a new language (decisions.md 94, amended 2026-10-24); the
+-- board itself still never moves one, and the first copy is remembered.
+insert into v2_import.orgs (org_id, name, admins) values ('org-v2-smoke-a', 'Smoke A', '{}'), ('org-v2-smoke-b', 'Smoke B', '{}');
+insert into v2_import.placements (project_id, org_id, confirmed_by, confirmed_at) values ('v2-smoke-p', 'org-v2-smoke-a', 'smoke', now());
+insert into v2_import.placements (project_id, org_id) values ('v2-smoke-q', 'org-v2-smoke-a');
+do $$ declare p v2_import.placements; m v2_import.moves; begin
+  begin
+    perform public.v2_import_move('v2-smoke-q', 'org-v2-smoke-b', 'lang-new-q', 'smoke');
+    raise exception 'a project that has not come over cannot come over again';
+  exception when check_violation then null;
+  end;
+  begin
+    perform public.v2_import_move('v2-smoke-p', 'org-v2-smoke-a', 'lang-new', 'smoke');
+    raise exception 'coming over again into the same organization should be refused';
+  exception when check_violation then null;
+  end;
+  begin
+    perform public.v2_import_move('v2-smoke-p', 'org-v2-smoke-b', 'v2-smoke-p', 'smoke');
+    raise exception 'the new language needs an id of its own';
+  exception when unique_violation then null;
+  end;
+  begin
+    perform public.v2_import_save_plan('[]', '[{"project_id": "v2-smoke-p", "org_id": "org-v2-smoke-b", "confirmed": true}]', 'smoke');
+    raise exception 'the board must not move a project that has come over';
+  exception when check_violation then null;
+  end;
+  perform public.v2_import_move('v2-smoke-p', 'org-v2-smoke-b', 'lang-new', 'smoke');
+  select * into p from v2_import.placements where project_id = 'v2-smoke-p';
+  if p.org_id <> 'org-v2-smoke-b' or p.language_id <> 'lang-new' or p.moved_at is null then raise exception 'the placement did not take the move: %', p; end if;
+  select * into m from v2_import.moves where project_id = 'v2-smoke-p';
+  if m.from_org <> 'org-v2-smoke-a' or m.from_language <> 'v2-smoke-p' or m.to_language <> 'lang-new' then raise exception 'the first copy is not remembered: %', m; end if;
+  -- The board, saving the project where it now is, keeps its new language.
+  perform public.v2_import_save_plan('[]', '[{"project_id": "v2-smoke-p", "org_id": "org-v2-smoke-b", "name": "Renamed", "confirmed": true}]', 'smoke');
+  select * into p from v2_import.placements where project_id = 'v2-smoke-p';
+  if p.language_id <> 'lang-new' or p.name <> 'Renamed' then raise exception 'saving the board lost the new language: %', p; end if;
+  if (public.v2_import_plan()->'placements') @> '[{"project_id": "v2-smoke-p", "language_id": "lang-new"}]' is not true then
+    raise exception 'the plan does not carry the language id';
+  end if;
+end $$;
+delete from v2_import.moves where project_id = 'v2-smoke-p';
+delete from v2_import.placements where project_id in ('v2-smoke-p', 'v2-smoke-q');
+delete from v2_import.orgs where org_id in ('org-v2-smoke-a', 'org-v2-smoke-b');
+
+select 'smoke ok' as result;

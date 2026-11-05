@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSMicrophoneUsageDescription": "LangQuest yana naɗar muryarku don fassara nassosi.",
+    "NSCameraUsageDescription": "LangQuest yana amfani da kyamara don karanta lambobin QR na gayyata."
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "$comment": "Universal links and Android app links (decisions.md 58). Fill these, from the Apple developer account (Membership: Team ID) and the Play Console (Setup, App signing: SHA-256 certificate fingerprint, and the upload key's for internal testing builds), then deploy the web app: npm run export:web writes /.well-known/apple-app-site-association and /.well-known/assetlinks.json from them. Empty, the files are left out and links open the web app.",
+  "hosts": ["next.langquest.org", "next-preview.langquest.org"],
+  "paths": ["/invite", "/signin"],
+  "appleTeamId": "GW63HDZ4G9",
+  "androidSha256": [
+    "22:09:24:9D:12:E5:87:B2:87:DC:8A:08:19:C8:5B:F8:B9:C3:0E:E3:03:A7:20:CF:F4:63:FF:70:E1:CF:F4:C4",
+    "72:71:CB:94:19:07:7A:E0:4B:76:DE:C5:2B:B8:86:5A:07:6A:D1:0B:87:35:09:9D:88:5A:E4:E7:24:55:D7:99"
+  ]
+}

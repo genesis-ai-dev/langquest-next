@@ -1,0 +1,377 @@
+// The study screens' shared widgets (the UX demo's screens/shared.tsx
+// `useAudio`, `AudioBar`, `MediaTile`, `MediaSheet`, `StudyStepMark`, and
+// study.tsx's `ViewSwitch`, `ContributeSheet`). STUDY-3,
+// STUDY-5, STUDY-7, ADR-019. Audio follows audioSession.ts: starting one
+// player stops every other, and playback sets the session to play mode.
+import type { PassageNote } from '@langquest-next/core';
+import { createElement, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Image, Platform, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { Text } from '../ui/text';
+import { openContentLink } from '../ui/share';
+import { AudioClip } from '../audio/audioClip';
+import { studyUri } from './studyFiles';
+import type { Ctx } from '../shell/ctx';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
+import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
+import { t } from '../i18n';
+import { formatNumber } from '../i18n/format';
+import { Field, HelpInfo, Ico, NoteCard, PrimaryBtn, Sheet, SmallBtn, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { when, type PassageView } from '../passage/passageView';
+import { Authored, ReportFlag } from '../moderation/reportSheet';
+import { recordTarget } from '../moderation/reportTargets';
+import { C, space, type as T } from '../ui/theme';
+import { VoiceNote } from '../audio/voiceNote';
+import type { GlossaryEntry, StudyMedia, StudyMediaKind, StudyResource } from './guides';
+import { useStudyFileUri } from './useStudyFileUri';
+import type { StudyStepStatus } from './progress';
+import { inlineParts, isCallout, isQuestion, studySections, type StudySection } from './text';
+import { shownClock, mediaKindLabel, CALLOUT_LOOK, calloutLabel } from './studyText';
+import { takeBackNote } from './studyActions';
+import { styles } from './studyStyles';
+import { useStudyAudio, type StudyAudio } from './useStudyAudio';
+import { draftKey, EMPTY_NOTE, isNoteDraft } from '../drafts/draftModel';
+import { useDraft } from '../drafts/useDraft';
+import { SavedMark } from '../ui/SavedMark';
+import { a11yState } from '../ui/a11yModel';
+import { styles as ps } from '../recording/blockStyles';
+
+// ---- audio -------------------------------------------------------------------------
+
+/** A drag's press while help is on: the bar explains itself; moving waits until help is off. */
+const DRAG_HERE = () => undefined;
+
+/** Drag or tap along the bar to move; screen readers step 10 seconds. */
+function Scrubber(props: { value: number; max: number; label: string; onSeek: (s: number) => void }) {
+  const [width, setWidth] = useState(0);
+  const spot = useHelpSpot(t('study.audio.position', { label: props.label }), t('study.audio.positionHelp'), DRAG_HERE);
+  const pct = props.max > 0 ? Math.max(0, Math.min(1, props.value / props.max)) : 0;
+  const at = (x: number) => { if (width > 0) props.onSeek((Math.max(0, Math.min(width, x)) / width) * props.max); };
+  return (
+    <View onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)} style={styles.scrubber}
+      onStartShouldSetResponder={() => !spot.id} onMoveShouldSetResponder={() => !spot.id} onResponderTerminationRequest={() => false}
+      onResponderGrant={(e) => at(e.nativeEvent.locationX)} onResponderMove={(e) => at(e.nativeEvent.locationX)}
+      accessible accessibilityRole="adjustable" accessibilityLabel={t('study.audio.position', { label: props.label })}
+      accessibilityValue={{ min: 0, max: Math.round(props.max), now: Math.round(props.value), text: shownClock(props.value) }}
+      accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+      onAccessibilityAction={(e) => props.onSeek(props.value + (e.nativeEvent.actionName === 'increment' ? 10 : -10))}>
+      <View style={[styles.track, { pointerEvents: 'none' }]}>
+        <View style={[styles.trackFill, { width: `${pct * 100}%` }]} />
+      </View>
+      <View style={[{ pointerEvents: 'none' }, styles.thumb, { left: pct * width - 9 }]} />
+      {spot.id ? (
+        <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('study.audio.position', { label: props.label })} style={StyleSheet.absoluteFill}>
+          <HelpBadge spot={spot} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+/** Play/pause, a scrubber, and back 10 seconds. */
+/** `off` while there is nothing to play yet (not on the phone, or it could not load): the buttons are grey and the line says why. */
+export function AudioBar(props: { audio: StudyAudio; label: string; sub?: string; off?: boolean }) {
+  const a = props.audio;
+  const play = useHelpSpot(a.playing ? t('study.audio.pause', { label: props.label }) : t('study.audio.play', { label: props.label }), t('recording.player.playHelp'), a.toggle);
+  const back = useHelpSpot(t('common.backTenSeconds'), t('recording.player.back10Help'), () => a.seek(a.time - 10));
+  return (
+    <View style={styles.audioBar}>
+      <Pressable onPress={play.onPress} disabled={props.off} accessibilityRole="button" accessibilityLabel={a.playing ? t('study.audio.pause', { label: props.label }) : t('study.audio.play', { label: props.label })}
+        {...a11yState({ disabled: !!props.off }, 'button')}
+        style={({ pressed }) => [styles.playBtn, props.off && ps.off, pressed && styles.pressed]}>
+        <Ico name={a.playing ? 'pause' : 'play'} size={26} color={C.white} />
+        <HelpBadge spot={play} />
+      </Pressable>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        {/* The clock moves under the label when both do not fit on one line (decisions.md 139). */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: space.sm }}>
+          <Text style={[txt.sm, { fontWeight: '700', flexGrow: 1, flexShrink: 1 }]}>{props.label}</Text>
+          <Text style={[txt.xs, { fontVariant: ['tabular-nums'] }]}>{shownClock(a.time)} / {shownClock(a.duration)}</Text>
+        </View>
+        <Scrubber value={a.time} max={a.duration} label={props.label} onSeek={a.seek} />
+        {props.sub ? <Text style={[txt.xs, { marginTop: -2 }]}>{props.sub}</Text> : null}
+      </View>
+      <Pressable onPress={back.onPress} disabled={props.off} accessibilityRole="button" accessibilityLabel={t('common.backTenSeconds')}
+        {...a11yState({ disabled: !!props.off }, 'button')}
+        style={({ pressed }) => [styles.backBtn, props.off && ps.off, pressed && styles.pressed]}>
+        <Ico name="undo" size={16} color={C.primary} />
+        <Text style={[txt.xsStrong, { color: C.primary }]}>{formatNumber(10)}</Text>
+        <HelpBadge spot={back} />
+      </Pressable>
+    </View>
+  );
+}
+
+// ---- layout pieces -------------------------------------------------------------------
+
+/** Study material or the passage: two views of one screen, so switching never loses your place. */
+export function ViewSwitch<T extends string>(props: { views: { id: T; label: string; icon: IconName }[]; active: T; onChange: (v: T) => void }) {
+  return (
+    <View style={styles.switchWrap}>
+      <View style={styles.switch} accessibilityRole="tablist">
+        {/* help-each: each tab shows a different view */}
+        {props.views.map((v) => {
+          const on = props.active === v.id;
+          return (
+            // help-ignore: no screen shows this switch today; give it a line (useHelpSpot) when one does
+            <Pressable key={v.id} onPress={() => props.onChange(v.id)} accessibilityRole="tab" {...a11yState({ selected: on }, 'tab')}
+              style={({ pressed }) => [styles.switchTab, on && styles.switchOn, pressed && styles.pressed]}>
+              <Ico name={v.icon} size={16} color={on ? C.primary : C.muted} />
+              <Text style={[txt.sm, { fontWeight: '700', color: on ? C.dark : C.muted }]} numberOfLines={1}>{v.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+/** A step's mark: its number, a tinted ring once someone added to it, a green check when finished. */
+export function StepMark(props: { status: StudyStepStatus; size?: number }) {
+  const s = props.status;
+  const size = props.size ?? 32;
+  const started = !s.done && s.notes.length > 0;
+  return (
+    <View accessibilityLabel={s.done ? t('study.step.done') : started ? t('study.step.started') : t('study.step.notStarted')}
+      style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center',
+        backgroundColor: s.done ? C.green : started ? C.light : C.card, borderWidth: s.done ? 0 : 1.5, borderColor: started ? C.primary : C.border }}>
+      {s.done ? <Ico name="check" size={Math.round(size * 0.55)} color={C.white} strokeWidth={3} />
+        : <Text style={[txt.sm, { fontWeight: '800', color: C.primary }]}>{formatNumber(s.index + 1)}</Text>}
+    </View>
+  );
+}
+
+/**
+ * One note from the study or the passage reader, with its voice note when
+ * there is one; `extra` goes before its Undo or flag (a Reply, decisions.md
+ * 149), and `older` names the version it was made on when that is not the
+ * one showing.
+ */
+export function StudyNote(props: { ctx: Ctx; note: PassageNote; label?: string; extra?: ReactNode; older?: string }) {
+  const n = props.note;
+  const anchor = props.label ?? (n.blobHash && !n.text ? t('common.voiceNote') : t('study.note.note'));
+  const own = n.by === props.ctx.session.actorId
+    ? <SmallBtn label={t('passage.page.undo')} icon="undo" help={t('passage.page.undoNoteHelp')} onPress={() => void takeBackNote(props.ctx, n.id)} />
+    : <ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId)} size={36} />;
+  return (
+    <Authored ctx={props.ctx} by={n.by}>
+      <NoteCard anchor={n.photoHash ? t('study.note.withPhoto', { anchor }) : anchor} {...(n.text ? { text: n.text } : {})} by={props.ctx.name(n.by)} when={when(n.hlc)}
+        icon={n.blobHash ? 'mic' : 'note'} {...(props.older ? { olderVersion: props.older } : {})}
+        audio={n.blobHash ? <AudioClip language={props.ctx.language} hashes={[n.blobHash]} label={t('study.note.playVoiceNote')} /> : undefined}
+        action={props.extra ? <>{props.extra}{own}</> : own} />
+    </Authored>
+  );
+}
+
+// ---- writing notes -------------------------------------------------------------------
+
+/**
+ * Answer, note, or report what the group said: by voice or text (STUDY-3).
+ * What is said or typed is a draft only you see (decision 127), kept under
+ * `draftAt` (the verse, or the study part or moment): closing keeps it for
+ * the next note there, the button adds it and drops the draft.
+ */
+export function ContributeSheet(props: {
+  ctx: Ctx;
+  unitId: string;
+  languageId: string;
+  title: string;
+  where: string;
+  /** What it is on, for its draft: "verse:15:20", a study step's part or moment. */
+  draftAt: string;
+  /** It answers a question: the button says Add your answer. */
+  answer?: boolean;
+  onClose: () => void;
+  onSave: (c: { text: string; blobHash: string | null }) => Promise<boolean>;
+}) {
+  const draft = useDraft(draftKey('note', props.ctx.session.actorId, props.languageId, props.unitId, props.draftAt), EMPTY_NOTE, isNoteDraft);
+  const { text, hash } = draft.value;
+  const [busy, setBusy] = useState(false);
+  const add = async () => {
+    setBusy(true);
+    const ok = await props.onSave({ text, blobHash: hash });
+    if (ok) await draft.clear();
+    setBusy(false);
+    if (ok) props.onClose();
+  };
+  return (
+    <Sheet visible title={props.title} sub={t('study.contribute.sub')} onClose={props.onClose}
+      action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />}
+      footer={<PrimaryBtn label={props.answer ? t('study.contribute.addAnswer') : t('common.addNote')} busy={busy} disabled={!text.trim() && !hash}
+        onPress={() => void add()} />}>
+      <View style={styles.where}><Text style={txt.smMuted}>{props.where}</Text></View>
+      <VoiceNote ctx={props.ctx} label={t('study.contribute.record')} hash={hash} onChange={(h) => draft.set((d) => ({ ...d, hash: h }))} />
+      <Field value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} help={t('study.contribute.typeHelp')} multiline />
+    </Sheet>
+  );
+}
+
+// ---- pictures, maps and glossary terms ----------------------------------------------------
+
+const MEDIA_ICON: Record<StudyMediaKind, IconName> = { map: 'map', photo: 'camera', illustration: 'media', video: 'video' };
+
+/** The picture when there is a file for it (FIA sends low-resolution copies), a neutral stand-in otherwise or offline. */
+function MediaImage(props: { item: StudyMedia; orgId?: string | null }) {
+  const [failed, setFailed] = useState(false);
+  const it = props.item;
+  const { uri, waiting } = useStudyFileUri(props.orgId, it.file, it.url);
+  // A film kept as a file plays in the browser; phones have no player for it yet, so they say so.
+  const film = it.kind === 'video' && !!it.file;
+  if (film && uri && Platform.OS === 'web') {
+    return createElement('video', { src: uri, controls: true, preload: 'metadata', 'aria-label': it.title, style: { width: '100%', aspectRatio: '16 / 9', backgroundColor: '#000', display: 'block' } });
+  }
+  if (!uri || failed || film) {
+    const why = film ? t('study.media.filmsOnWeb') : waiting ? t('common.loading') : uri ? t('study.media.notLoaded') : mediaKindLabel(it.kind);
+    return (
+      <View style={styles.standIn} accessibilityLabel={t('study.media.standIn', { kind: mediaKindLabel(it.kind), title: it.title })}>
+        <Ico name={MEDIA_ICON[it.kind]} size={40} color={C.faint} />
+        <Text style={[txt.xs, { textAlign: 'center' }]}>{why}</Text>
+      </View>
+    );
+  }
+  // A kept copy of a picture known only by its address plays from the phone (studyFiles.ts); a stored file is already local.
+  return <Image source={{ uri: it.file ? uri : studyUri(uri) }} accessibilityLabel={it.title} onError={() => setFailed(true)}
+    resizeMode={it.kind === 'map' ? 'contain' : 'cover'} style={styles.image} />;
+}
+
+/** A set of pictures or a map, full width. A map opens full size. */
+export function MediaSheet(props: { resource: StudyResource; source: string; orgId?: string | null; onClose: () => void }) {
+  const items = props.resource.media ?? [];
+  const kinds = [...new Set(items.map((i) => mediaKindLabel(i.kind)))].join(t('study.listSeparator'));
+  const tapMap = items.some((i) => i.kind === 'map' && i.url);
+  const noCopy = items.some((i) => i.noPhoneCopy);
+  return (
+    <Sheet visible title={props.resource.title} sub={kinds ? `${kinds} · ${props.source}` : props.source} onClose={props.onClose}>
+      {props.resource.description ? <Text style={txt.body}>{props.resource.description}</Text> : null}
+      {items.map((item) => (
+        <HelpRow key={item.id} of="study.mediaItem">
+          <View style={{ gap: space.xs }}>
+            {item.kind === 'map' && item.url ? (
+              <MapFullSize item={item} url={item.url} orgId={props.orgId} />
+            ) : (
+              <View style={styles.imageWrap}><MediaImage item={item} orgId={props.orgId} /></View>
+            )}
+            {item.caption || (items.length > 1 && item.title) ? (
+              <Text style={txt.smMuted}>
+                {items.length > 1 ? <Text style={{ fontWeight: '700', color: C.dark }}>{item.title}. </Text> : null}{item.caption}
+              </Text>
+            ) : null}
+          </View>
+        </HelpRow>
+      ))}
+      <Text style={txt.xs}>
+        {tapMap && noCopy ? t('study.media.lowResMapFilm') : tapMap ? t('study.media.lowResMap') : noCopy ? t('study.media.lowResFilm') : t('study.media.lowRes')}
+      </Text>
+    </Sheet>
+  );
+}
+
+/** A map that opens full size, outside the app. */
+function MapFullSize(props: { item: StudyMedia; url: string; orgId?: string | null }) {
+  const label = t('study.media.openFullSize', { title: props.item.title });
+  const spot = useHelpSpot(label, t('study.media.openFullSizeHelp'), () => openContentLink(props.url));
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="link" accessibilityLabel={label}
+      style={({ pressed }) => [styles.imageWrap, pressed && styles.pressed]}>
+      <MediaImage item={props.item} orgId={props.orgId} />
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+/** A glossary term: its entry, read aloud when there is audio, and the language's key term when there is one. */
+export function GlossarySheet(props: {
+  entry: GlossaryEntry; source: string; orgId?: string | null; hasKeyTerm: boolean; onOpenTerm: () => void; onClose: () => void;
+  /**
+   * Add to our key words, when a key-word list the team uses holds this word
+   * (FIA's guides and FIA's key words share its id) and the team has not made
+   * it its own (decision 172). `language` is the team's language.
+   */
+  add?: { onPress: () => void; language: string; help: string };
+}) {
+  const e = props.entry;
+  const words = (e.body ?? e.hint ?? '').split(/\s+/).filter(Boolean).length;
+  const { uri: audioUri, failed: notHere } = useStudyFileUri(props.orgId, e.audioFile, e.audioUrl);
+  const audio = useStudyAudio(audioUri, Math.max(5, Math.round(words / 2.5)));
+  const audioSub = audio.failed ? t('study.guide.couldNotLoad') : notHere ? t('recording.player.notOnDeviceYet') : !audioUri ? t('study.guide.gettingRecording') : undefined;
+  useEffect(() => () => audio.pause(), []); // eslint-disable-line react-hooks/exhaustive-deps -- it reads only refs, so the first draw's copy is enough on unmount
+  const add = !props.hasKeyTerm ? props.add : undefined;
+  return (
+    <Sheet visible title={e.term} sub={t('study.glossary.sub', { source: props.source })} onClose={props.onClose}
+      footer={props.hasKeyTerm ? <PrimaryBtn label={t('study.glossary.openKeyTerm')} icon="book" onPress={props.onOpenTerm} />
+        : add ? (
+          <View style={{ gap: space.xs }}>
+            <PrimaryBtn label={t('keyTerms.sheet.add')} icon="plus" help={add.help} onPress={add.onPress} />
+            <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('keyTerms.sheet.addThen', { language: add.language })}</Text>
+          </View>
+        ) : undefined}>
+      {e.hint ? <Text style={[txt.body, { fontWeight: '600' }]}>{e.hint}</Text> : null}
+      {e.audioUrl || e.audioFile ? <AudioBar audio={audio} label={t('study.glossary.listen', { term: e.term })} off={audio.failed || !audioUri} {...(audioSub ? { sub: audioSub } : {})} /> : null}
+      {e.body ? e.body.split(/\n{2,}/).map((para, i) => <Text key={i} style={txt.body}>{para.trim()}</Text>) : null}
+      {!props.hasKeyTerm && !add ? <Text style={txt.xs}>{t('study.glossary.notKeyTerm')}</Text> : null}
+    </Sheet>
+  );
+}
+
+// ---- a step's text: callouts, list items, headings and links -------------------------------
+
+/** Inline text: bold words and links to pictures, maps and glossary terms. */
+function Inline(props: { text: string; onOpenRef?: (ref: string) => void }): ReactNode {
+  // While help is on a link does not open: the text around it explains it (StepPreview).
+  const helpOn = useHelpOn();
+  return inlineParts(props.text).map((p, i) => {
+    if (p.type === 'text') return p.text;
+    if (p.type === 'bold') return <Text key={i} style={{ fontWeight: '700' }}>{p.text}</Text>;
+    return (
+      <Text key={i} onPress={props.onOpenRef && !helpOn ? () => props.onOpenRef!(p.ref) : undefined} accessibilityRole="link" suppressHighlighting={false}
+        style={{ fontWeight: '700', color: C.primary, textDecorationLine: 'underline' }}>{p.text}</Text>
+    );
+  });
+}
+
+/** One section of a step's text, drawn the same on the step screen and in the guide editor's preview. */
+export function SectionBody(props: { section: StudySection; onOpenRef?: (ref: string) => void }) {
+  const sec = props.section;
+  const inline = <Inline text={sec.text} {...(props.onOpenRef ? { onOpenRef: props.onOpenRef } : {})} />;
+  if (isCallout(sec.kind)) {
+    const look = CALLOUT_LOOK[sec.kind];
+    const Icon = look.icon;
+    return (
+      <View style={[styles.callout, { backgroundColor: look.bg, borderColor: look.edge }, sec.kind === 'question' && styles.calloutOutlined]}>
+        <View style={styles.calloutHead}>
+          <Icon size={16} color={look.ink} strokeWidth={2.4} />
+          <Text style={[styles.calloutLabel, { color: look.ink }]}>{calloutLabel(sec.kind)}</Text>
+        </View>
+        <Text style={styles.stepText}>{inline}</Text>
+      </View>
+    );
+  }
+  if (sec.kind === 'item') {
+    return (
+      <View style={{ flexDirection: 'row', gap: space.sm }}>
+        <Text style={[styles.stepText, styles.itemMark]}>{sec.n ? `${sec.n}.` : '•'}</Text>
+        <Text style={[styles.stepText, { flex: 1 }, isQuestion(sec) && { fontWeight: '600' }]}>{inline}</Text>
+      </View>
+    );
+  }
+  if (sec.kind === 'heading') return <Text style={txt.h3}>{inline}</Text>;
+  return <Text style={styles.stepText}>{inline}</Text>;
+}
+
+/** A step's whole text as the step screen shows it, without notes: the guide editor's live preview. */
+export function StepPreview(props: { text: string; onOpenRef?: (ref: string) => void }) {
+  const sections = useMemo(() => studySections(props.text), [props.text]);
+  if (!sections.length) return <View style={styles.textCard}><Text style={[txt.smMuted, { padding: space.md }]}>{t('study.nothingWritten')}</Text></View>;
+  const body = sections.map((sec) => (
+    <View key={sec.id} style={{ paddingHorizontal: space.sm }}>
+      <View style={styles.previewSection}><SectionBody section={sec} {...(props.onOpenRef ? { onOpenRef: props.onOpenRef } : {})} /></View>
+    </View>
+  ));
+  // Links that open: while help is on the text says what they do, since a link inside it cannot light on its own.
+  const linked = !!props.onOpenRef && sections.some((sec) => inlineParts(sec.text).some((p) => p.type === 'link'));
+  if (!linked) return <View style={styles.textCard}>{body}</View>;
+  return <HelpInfo label={t('common.preview')} detail={t('study.preview.linksHelp')} style={styles.textCard}>{body}</HelpInfo>;
+}
+
+// ---- the passage: read and listen in a few translations, note any verse (STUDY-5) -------
+

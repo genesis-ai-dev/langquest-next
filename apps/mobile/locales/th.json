@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSMicrophoneUsageDescription": "LangQuest อัดเสียงของคุณเพื่อแปลตอนพระคัมภีร์",
+    "NSCameraUsageDescription": "LangQuest ใช้กล้องเพื่อสแกนคิวอาร์โค้ดคำเชิญ"
+  }
+}

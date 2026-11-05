@@ -1,0 +1,31 @@
+# A release branch carries the code of the public build while its new build
+# is in store review (scripts/release-branches.mjs, decisions.md 155). Every
+# merge into release/<platform> sends that branch to the public build as an
+# OTA update on the production channel, for that platform only. The update's
+# runtime comes from the branch's own code, so it reaches the public build
+# and never the new build in review.
+name: Deploy a release branch to the public build
+
+on:
+  push:
+    branches: ['release/*']
+
+defaults:
+  tools:
+    node: '24'
+
+jobs:
+  publish_ios_update:
+    name: Publish iOS over-the-air update to the public build
+    if: ${{ github.ref_name == 'release/ios' }}
+    type: update
+    params:
+      branch: production
+      platform: ios
+  publish_android_update:
+    name: Publish Android over-the-air update to the public build
+    if: ${{ github.ref_name == 'release/android' }}
+    type: update
+    params:
+      branch: production
+      platform: android

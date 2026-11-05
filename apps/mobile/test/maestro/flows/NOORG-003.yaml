@@ -1,0 +1,34 @@
+# NOORG-003 on a phone (the second Expected item only, until the product
+# decides on a back arrow): Android's back on "Join your team" keeps NOORG
+# there or leaves the app; it never shows another screen or signs out.
+appId: com.frontierrnd.langquestnext
+name: "NOORG-003 There is no way back past \"Join your team\""
+tags:
+  - noorg
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${NOORG_EMAIL}
+      PASSWORD: ${NOORG_PASSWORD}
+- extendedWaitUntil:
+    visible: "Join your team"
+    timeout: 60000
+- tapOn: "Find your organization"
+- tapOn:
+    id: "header-back"
+- assertVisible: "Join your team"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - back
+      - assertNotVisible: "Email or sign-in name"
+      - assertNotVisible: "My Work"
+      - assertNotVisible: "This screen could not open"
+      # Back into the app: still signed in, on Join your team.
+      - launchApp
+      - extendedWaitUntil:
+          visible: "Join your team"
+          timeout: 60000

@@ -1,0 +1,968 @@
+import {
+  approvedVersion, buildIndexes, decodeHlc, derivePassage, encodeHlc, externalKeyError, kindOf, languageInfo, libraryUnitRange, LISTENER_KIND, mayViewLanguage, orgLanguages, passageWork,
+  privilegesFor, recordedCard, releasesOf, stepAllowsLinks, validateEvent,
+  type AnyEvent, type Card, type KindState, type LanguageState, type OrgState, type PassageState, type Version
+} from '@langquest-next/core';
+import { canRead, canReadValues, coversLanguage, sha256Hex, type Grant } from './tokens';
+import { inSlices, positionIn, type LanguageRecords } from '../languageRecords';
+
+/**
+ * What a token may see and write, read from the organization object's
+ * records of each language (decisions.md 44 and 147). Pure apart from hashing and
+ * the link signer it is handed, so tests drive it with an in-memory log.
+ */
+
+export type ApiStatus = 'not_started' | 'drafting' | 'in_review' | 'feedback' | 'approved';
+
+export interface LanguageView {
+  languageId: string;
+  name: string;
+  code: string;
+  country: string | null;
+  /** What this token can do here, given its scopes and the person's privileges today. */
+  can: { read: 'all' | 'published' | null; review: boolean; release: boolean; externalValues: { read: boolean; write: boolean } };
+}
+
+export interface PassageSummary {
+  unitId: string;
+  label: string;
+  /** Labels of the units that hold it, outermost first ("Genesis", "Chapter 1"). */
+  path: string[];
+  /** What the template calls it, such as passage or chapter. */
+  kind: string;
+  /** Sorts passages into display order, compared as plain strings. */
+  order: string;
+  /** The verses it holds, read from its unit id; null for a unit made by hand. */
+  reference: PassageReference | null;
+  status: ApiStatus;
+  /**
+   * The version this token hears: the latest shared for review with `read`,
+   * the approved one with `read:published` alone. Null when there is none.
+   * `submittedAt` is the publishing phone's clock; `uploadedAt` the server's,
+   * when the publish reached it (decisions.md 188); `v2UploadedAt`, for a
+   * version brought over from LangQuest v2, when v2's server had all of it.
+   */
+  version: { n: number; takeId: string; submittedAt: string; uploadedAt: string | null; v2UploadedAt: string | null; durationMs: number } | null;
+  /** The newest version every step approved on its own (core approvedVersion); what a listening app should play. */
+  approvedVersion: { n: number; takeId: string } | null;
+  /** Where a version is live, one entry per channel (core releasesOf). */
+  releases: { channel: string; versionN: number; takeId: string; url?: string; at: string; uploadedAt: string | null }[];
+  /** Listener feedback on `version`. */
+  listenerFeedback: { looksGood: number; needsChanges: number };
+  /** The newest thing that happened to the passage's versions or reviews. */
+  updatedAt: string | null;
+}
+
+export interface AudioCard {
+  hash: string;
+  format: 'wav' | 'm4a';
+  durationMs: number;
+  /** Plays without a token until `expiresAt` (Range supported); ask for the passage again for a fresh one. */
+  url: string;
+  expiresAt: string;
+  /** When the server stored the file; null while the phone has not uploaded it yet (decisions.md 188). */
+  uploadedAt: string | null;
+  /** For audio brought over from LangQuest v2: when v2's server had the file. Null for audio made here, or where v2 kept no time. */
+  v2UploadedAt: string | null;
+}
+
+export interface ReviewOut {
+  kindId: string;
+  kind: string;
+  outcome: 'looks_good' | 'needs_changes' | 'recorded';
+  via: 'app' | 'link' | 'logged';
+  versionN: number;
+  /** The reviewer's clock: the phone's, or LangQuest's for one given by link. */
+  at: string;
+  /** When the server received it (decisions.md 188). */
+  uploadedAt: string | null;
+  /** For a review brought over from LangQuest v2: when v2's server got the newest of its votes. */
+  v2UploadedAt: string | null;
+  comment?: string;
+  givenBy?: string;
+  /** Voice notes, each with where in the version it is about (`atMs`) when the reviewer said, and when the server stored its file. */
+  voiceNotes?: { url: string; expiresAt: string; durationMs: number; atMs?: number; uploadedAt: string | null }[];
+}
+
+export interface PassageDetail extends PassageSummary {
+  /** `version`'s cards, in playing order. Empty when there is none. */
+  audio: AudioCard[];
+  /** With `read`: every review of every version. With `read:published` only: listener reviews of `version`. */
+  reviews: ReviewOut[];
+  /**
+   * With `read`: the language's flow and where the passage is in it. Each
+   * kind's `kindId` is what a review of that step sends; `apiReviewCounts`
+   * says whether a review sent through this API completes it (an ordinary
+   * step that takes links, never a checkpoint: decisions.md 72).
+   */
+  steps?: { name: string; complete: boolean; checkpoint: boolean; kinds: { kindId: string; name: string; state: KindState; apiReviewCounts: boolean }[] }[];
+  /**
+   * With `read`: requests not done yet, oldest first. `forYou` when it is to
+   * the token's person, or to a review team they are in; a review of its
+   * `kindId` answers it.
+   */
+  requests?: { requestId: string; what: 'record' | 'review'; kindId?: string; kind?: string; forYou: boolean; team?: string; note?: string; askedAt: string; uploadedAt: string | null }[];
+  versions?: { n: number; takeId: string; submittedAt: string; uploadedAt: string | null; v2UploadedAt: string | null }[];
+  /**
+   * With `read`: `approvedVersion`'s cards, so a listening app keeps playing what it
+   * published while a newer recording is in review. Empty when nothing is approved.
+   */
+  approvedAudio?: AudioCard[];
+}
+
+/** What a list may add to each passage, named as one passage's own fields. */
+export const PASSAGE_INCLUDES = ['audio', 'reviews', 'steps', 'requests', 'versions', 'approvedAudio'] as const;
+export type PassageInclude = (typeof PASSAGE_INCLUDES)[number];
+
+/** A passage on the list: its summary, and what the caller included. */
+export type PassageListItem = PassageSummary & Partial<Pick<PassageDetail, PassageInclude>>;
+
+export interface Refusal {
+  status: number;
+  code: string;
+  error: string;
+}
+
+export const isRefusal = (x: unknown): x is Refusal => typeof x === 'object' && x !== null && 'code' in x && 'status' in x;
+
+/** Signs a read link for an object key; the Worker's own `readPath`, absolute. */
+export type Signer = (key: string) => Promise<{ url: string; expiresAt: number }>;
+
+/**
+ * When the server received what an answer names (decisions.md 188), by key:
+ * `submitted:<takeId>` for a version (its first publish to arrive),
+ * `review:<reviewId>`, `request:<requestId>`, and `event:<eventId>` for
+ * anything else. Each is the database's own stamp on the event
+ * (`public.events.received_at`, read by `received_times`), as ISO text; a
+ * key with no row is left out. Asked once for a whole page.
+ *
+ * For work brought over from LangQuest v2, `v2:` keys ask what the import
+ * kept of v2's own stamps: `v2:review:<reviewId>`, `v2:file:<hash>` (when
+ * v2 had the audio) and `v2:segment:<hash>` (when it got the segment that
+ * names the file).
+ */
+export type Receipts = (keys: readonly string[]) => Promise<ReadonlyMap<string, string>>;
+
+/**
+ * What one answer asks `Receipts` for: each item is built with its times
+ * null, named here by its keys, and stamped once every passage of the page
+ * is built, with one question for them all.
+ */
+class Arrivals {
+  private readonly wants: [string, (at: string) => void][] = [];
+
+  /** The item's `uploadedAt`, from the key's time. */
+  want(key: string, item: { uploadedAt: string | null }): void {
+    this.on(key, (at) => { item.uploadedAt = at; });
+  }
+
+  /** The key's time, if it has one, to `use`. */
+  on(key: string, use: (at: string) => void): void {
+    this.wants.push([key, use]);
+  }
+
+  async stamp(received: Receipts): Promise<void> {
+    if (!this.wants.length) return;
+    const at = await received([...new Set(this.wants.map(([key]) => key))]);
+    for (const [key, use] of this.wants) {
+      const t = at.get(key);
+      if (t !== undefined) use(t);
+    }
+  }
+}
+
+/** The v2 import's device (`DEVICE` in packages/v2-import reconcile.ts): its events' clocks name it. */
+const V2_IMPORT = 'v2import';
+const byImport = (hlc: string) => decodeHlc(hlc).nodeId === V2_IMPORT;
+
+/** A version the import brought over: when v2 had all of it, the newest of v2's stamps on its parts' segments and audio. */
+function wantV2Version(arrivals: Arrivals, ver: Version, item: { v2UploadedAt: string | null }): void {
+  if (!byImport(ver.hlc)) return;
+  for (const hash of ver.cardHashes) {
+    for (const key of [`v2:segment:${hash}`, `v2:file:${hash}`]) {
+      arrivals.on(key, (at) => { if (!item.v2UploadedAt || at > item.v2UploadedAt) item.v2UploadedAt = at; });
+    }
+  }
+}
+
+/** A whole chapter has null verses; a whole book, null chapters too. A range may end in a later chapter. */
+export interface PassageReference {
+  book: string;
+  chapter: number | null;
+  verse: number | null;
+  endChapter: number | null;
+  endVerse: number | null;
+}
+
+/** "GEN" + "1.1-2.3", in the template's own numbering ("~org" or not, decisions.md 80). Core reads an unknown end as 999. */
+export function referenceOf(unitId: string): PassageReference | null {
+  const r = libraryUnitRange(unitId);
+  if (!r) return null;
+  const wholeBook = r.end.chapter >= 999;
+  const wholeChapters = r.end.verse >= 999;
+  return {
+    book: r.book,
+    chapter: wholeBook ? null : r.start.chapter, verse: wholeChapters ? null : r.start.verse,
+    endChapter: wholeBook ? null : r.end.chapter, endVerse: wholeChapters ? null : r.end.verse
+  };
+}
+
+const wallOf = (hlc: string): number => Number(hlc.slice(0, hlc.indexOf(':')));
+const iso = (hlc: string) => new Date(wallOf(hlc)).toISOString();
+
+/**
+ * When the server stored a file's bytes: its v1.BlobStored, which only the
+ * server appends, stamped with the server's clock (decisions.md 69 and 188).
+ * Null while no upload has been confirmed, or after the server found the
+ * bytes wrong or gone.
+ */
+const fileUploadedAt = (state: LanguageState, hash: string): string | null => {
+  const b = state.blobs[hash];
+  return b?.stored ? iso(b.hlc) : null;
+};
+
+const refuse = (status: number, code: string, error: string): Refusal => ({ status, code, error });
+
+/** The languages this token reaches: covered by it, and viewable by its person today. */
+export function languagesFor(grant: Grant, org: OrgState): LanguageView[] {
+  return orgLanguages(org)
+    .filter((l) => coversLanguage(grant, l.languageId) && mayViewLanguage(org, grant.profileId, l.languageId))
+    .map((l) => ({ languageId: l.languageId, name: l.name, code: l.code, country: l.country, can: abilities(grant, org, l.languageId) }));
+}
+
+function abilities(grant: Grant, org: OrgState, languageId: string): LanguageView['can'] {
+  const privs = privilegesFor(org, grant.profileId, languageId);
+  return {
+    read: canRead(grant, true) ? 'all' : canRead(grant) ? 'published' : null,
+    // Recorded like a check logged from outside the app: review or translate (core privilegeFor, via link).
+    review: (privs.has('review') || privs.has('translate')) && grant.scopes.includes('review'),
+    release: privs.has('assign_work') && grant.scopes.includes('release'),
+    externalValues: { read: canReadValues(grant), write: mayStoreValues(privs) && grant.scopes.includes('external_values') }
+  };
+}
+
+/** Whoever contributes to a language's work may store values there through a token (core EVENT_PRIVILEGE, decisions.md 79). */
+export const mayStoreValues = (privs: ReadonlySet<string>): boolean => privs.has('translate') || privs.has('review') || privs.has('fill_reference');
+
+/** Null when the token may not open this language; otherwise what it may do there. */
+export function languageAccess(grant: Grant, org: OrgState, languageId: string): LanguageView['can'] | null {
+  if (!languageInfo(org, languageId) || !coversLanguage(grant, languageId) || !mayViewLanguage(org, grant.profileId, languageId)) return null;
+  return abilities(grant, org, languageId);
+}
+
+function pathOf(state: LanguageState, unitId: string): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  let parent = state.units[unitId]?.parentUnitId ?? null;
+  while (parent && !seen.has(parent)) {
+    seen.add(parent);
+    const u = state.units[parent];
+    if (!u) break;
+    out.unshift(u.label);
+    parent = u.parentUnitId;
+  }
+  return out;
+}
+
+const statusOf = (s: PassageState): ApiStatus => {
+  const w = passageWork(s);
+  return w === 'done' ? 'approved' : w;
+};
+
+/** The version a token hears: the approved one for a published-only token, else the latest. */
+const heard = (grant: Grant, s: PassageState): Version | null => (canRead(grant, true) ? s.latest ?? null : approvedVersion(s));
+
+function summarize(grant: Grant, state: LanguageState, s: PassageState): PassageSummary {
+  const v = heard(grant, s);
+  const approved = approvedVersion(s);
+  const onVersion = v ? s.reviews.filter((r) => r.takeId === v.takeId && r.kindId === LISTENER_KIND) : [];
+  const releases = releasesOf(state, s);
+  let newest: string | null = s.latest?.hlc ?? null;
+  for (const r of s.reviews) if (!newest || r.hlc > newest) newest = r.hlc;
+  // A take-down leaves no release behind, so every report on any version counts as a change.
+  for (const v of s.versions) for (const reg of Object.values(state.releases?.[v.takeId] ?? {})) if (!newest || reg.hlc > newest) newest = reg.hlc;
+  return {
+    unitId: s.unitId,
+    label: state.units[s.unitId]?.label ?? s.unitId,
+    path: pathOf(state, s.unitId),
+    kind: state.units[s.unitId]?.kind ?? 'passage',
+    order: state.units[s.unitId]?.order ?? '',
+    reference: referenceOf(s.unitId),
+    status: statusOf(s),
+    version: v
+      ? { n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc), uploadedAt: null, v2UploadedAt: null, durationMs: v.cardHashes.reduce((t, h) => t + (recordedCard(state, h)?.durationMs ?? 0), 0) }
+      : null,
+    approvedVersion: approved ? { n: approved.n, takeId: approved.takeId } : null,
+    releases: releases.map((r) => ({ channel: r.channel, versionN: r.versionN, takeId: r.takeId, at: iso(r.hlc), ...(r.url !== undefined ? { url: r.url } : {}), uploadedAt: null })),
+    listenerFeedback: {
+      looksGood: onVersion.filter((r) => r.outcome === 'looks_good').length,
+      needsChanges: onVersion.filter((r) => r.outcome === 'needs_changes').length
+    },
+    updatedAt: newest ? iso(newest) : null
+  };
+}
+
+/** A token with only `read:published` sees passages with an approved version, and only that version. */
+const visible = (grant: Grant, s: PassageState) => canRead(grant, true) || (canRead(grant) && approvedVersion(s) !== null);
+
+export const API_STATUSES: readonly ApiStatus[] = ['not_started', 'drafting', 'in_review', 'feedback', 'approved'];
+/** The flow, the work asked for and older versions are the team's; read:published never gets them. */
+const TEAM_ONLY: readonly PassageInclude[] = ['steps', 'requests', 'versions', 'approvedAudio'];
+/** Passages on a page when the caller does not say, and the most one page holds. */
+export const PASSAGES_PAGE = 100;
+export const PASSAGES_PAGE_MAX = 500;
+
+export interface PassageFilter {
+  status?: ApiStatus;
+  /** ISO time: only passages with something newer than it. */
+  changedSince?: string;
+  /** Only these, still in display order. Ids that do not exist, or the token cannot see, are left out. */
+  unitIds?: string[];
+}
+
+export interface PassageListQuery {
+  filter: PassageFilter;
+  include: PassageInclude[];
+  limit: number;
+  /** The `nextAfter` of the page before: passages after this one in display order. */
+  after?: string;
+}
+
+/** A list request from REST or MCP, as plain values (strings, a string array, a number); one set of rules for both. */
+export function parsePassageQuery(raw: { status?: unknown; changedSince?: unknown; unitIds?: unknown; include?: unknown; limit?: unknown; after?: unknown }): PassageListQuery | Refusal {
+  const bad = (error: string) => refuse(400, 'bad_request', error);
+  const strings = (v: unknown) => Array.isArray(v) && v.every((x) => typeof x === 'string' && x.length > 0);
+  const filter: PassageFilter = {};
+  if (raw.status !== undefined) {
+    if (!(API_STATUSES as readonly unknown[]).includes(raw.status)) return bad(`status is one of ${API_STATUSES.join(', ')}.`);
+    filter.status = raw.status as ApiStatus;
+  }
+  if (raw.changedSince !== undefined) {
+    const ms = typeof raw.changedSince === 'string' ? Date.parse(raw.changedSince) : NaN;
+    if (Number.isNaN(ms)) return bad('changedSince must be an ISO date and time.');
+    filter.changedSince = new Date(ms).toISOString();
+  }
+  if (raw.unitIds !== undefined) {
+    if (!strings(raw.unitIds) || (raw.unitIds as string[]).length > PASSAGES_PAGE_MAX) return bad(`unitIds is a list of at most ${PASSAGES_PAGE_MAX} unit ids.`);
+    filter.unitIds = raw.unitIds as string[];
+  }
+  const include = raw.include ?? [];
+  if (!strings(include) || !(include as string[]).every((i) => (PASSAGE_INCLUDES as readonly string[]).includes(i))) {
+    return bad(`include lists any of ${PASSAGE_INCLUDES.join(', ')}.`);
+  }
+  const limit = raw.limit ?? PASSAGES_PAGE;
+  if (!Number.isInteger(limit) || (limit as number) < 1 || (limit as number) > PASSAGES_PAGE_MAX) return bad(`limit is a whole number from 1 to ${PASSAGES_PAGE_MAX}.`);
+  if (raw.after !== undefined && (typeof raw.after !== 'string' || !raw.after)) return bad('after is the nextAfter of the page before.');
+  return { filter, include: [...new Set(include as PassageInclude[])], limit: limit as number, ...(raw.after !== undefined ? { after: raw.after as string } : {}) };
+}
+
+/**
+ * One page of passages in display order, each with what the caller
+ * included. Links are signed only for the page given, and `nextAfter` is
+ * null when no passage after the page matches. The language is read a
+ * slice of passages at a time (decisions.md 147), so a Bible-size one is
+ * never whole in the object's memory.
+ */
+export async function passagesFor(
+  grant: Grant, orgId: string, languageId: string, records: LanguageRecords, q: PassageListQuery, sign: Signer, received: Receipts
+): Promise<{ passages: PassageListItem[]; nextAfter: string | null } | Refusal> {
+  const teamOnly = q.include.filter((i) => TEAM_ONLY.includes(i));
+  if (teamOnly.length && !canRead(grant, true)) return refuse(403, 'scope', `${teamOnly.join(' and ')} need the read scope; read:published shows approved passages only.`);
+  const order = records.passages;
+  const start = q.after === undefined ? -1 : positionIn(order, q.after);
+  if (q.after !== undefined && start === -1) return refuse(400, 'bad_request', 'after is not a passage in this language. Start again without it.');
+  const wanted = q.filter.unitIds ? new Set(q.filter.unitIds) : null;
+  const include = new Set(q.include);
+  const passages: PassageListItem[] = [];
+  const arrivals = new Arrivals();
+  let nextAfter: string | null = null;
+  // A language held whole hands back the same state for every slice: index it once.
+  const indexes = new WeakMap<LanguageState, ReturnType<typeof buildIndexes>>();
+  scan: for await (const { unitIds, state } of inSlices(records, order.slice(start + 1).filter((u) => !wanted || wanted.has(u)))) {
+    let idx = indexes.get(state);
+    if (!idx) indexes.set(state, (idx = buildIndexes(state)));
+    for (const unitId of unitIds) {
+      const s = derivePassage(state, unitId, idx);
+      if (!visible(grant, s)) continue;
+      const sum = summarize(grant, state, s);
+      if (q.filter.status && sum.status !== q.filter.status) continue;
+      if (q.filter.changedSince && (!sum.updatedAt || sum.updatedAt <= q.filter.changedSince)) continue;
+      if (passages.length === q.limit) {
+        nextAfter = passages[passages.length - 1]!.unitId;
+        break scan;
+      }
+      passages.push(await passageOut(grant, orgId, languageId, state, s, sum, include, sign, arrivals));
+    }
+  }
+  await arrivals.stamp(received);
+  return { passages, nextAfter };
+}
+
+/** One passage with everything the token may see; the list with every include, for one unit. */
+export async function passageFor(
+  grant: Grant, orgId: string, languageId: string, records: LanguageRecords, unitId: string, sign: Signer, received: Receipts
+): Promise<PassageDetail | Refusal> {
+  if (positionIn(records.passages, unitId) < 0) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
+  const state = await records.view([unitId]);
+  const idx = buildIndexes(state);
+  if (!idx.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
+  const s = derivePassage(state, unitId, idx);
+  if (!visible(grant, s)) return refuse(404, 'no_passage', 'There is no approved passage with that id in this language.');
+  const include = new Set<PassageInclude>(canRead(grant, true) ? PASSAGE_INCLUDES : PASSAGE_INCLUDES.filter((i) => !TEAM_ONLY.includes(i)));
+  const arrivals = new Arrivals();
+  const out = (await passageOut(grant, orgId, languageId, state, s, summarize(grant, state, s), include, sign, arrivals)) as PassageDetail;
+  await arrivals.stamp(received);
+  return out;
+}
+
+async function passageOut(
+  grant: Grant, orgId: string, languageId: string, state: LanguageState, s: PassageState, sum: PassageSummary,
+  include: ReadonlySet<PassageInclude>, sign: Signer, arrivals: Arrivals
+): Promise<PassageListItem> {
+  const out: PassageListItem = { ...sum };
+  const v = heard(grant, s);
+  if (out.version && v) {
+    arrivals.want(`submitted:${out.version.takeId}`, out.version);
+    wantV2Version(arrivals, v, out.version);
+  }
+  // A passage the import brought over may hold v2's audio in any version, a later one made here too.
+  const fromV2 = s.versions.some((ver) => byImport(ver.hlc));
+  for (const r of out.releases) {
+    const reg = state.releases?.[r.takeId]?.[r.channel];
+    if (reg) arrivals.want(`event:${reg.eventId}`, r);
+  }
+  const link = async (hash: string, format: string) => {
+    const l = await sign(`${orgId}/${languageId}/${hash}.${format}`);
+    return { url: l.url, expiresAt: new Date(l.expiresAt).toISOString() };
+  };
+  const audioOf = async (ver: Version | null) => {
+    const audio: AudioCard[] = [];
+    for (const hash of ver?.cardHashes ?? []) {
+      const card = recordedCard(state, hash);
+      const format = card?.format ?? 'wav';
+      const item: AudioCard = { hash, format, durationMs: card?.durationMs ?? 0, ...(await link(hash, format)), uploadedAt: fileUploadedAt(state, hash), v2UploadedAt: null };
+      if (fromV2) arrivals.on(`v2:file:${hash}`, (at) => { item.v2UploadedAt = at; });
+      audio.push(item);
+    }
+    return audio;
+  };
+  if (include.has('audio')) out.audio = await audioOf(v);
+  if (include.has('approvedAudio')) out.approvedAudio = await audioOf(approvedVersion(s));
+  if (include.has('reviews')) {
+    const all = canRead(grant, true);
+    out.reviews = [];
+    for (const r of s.reviews) {
+      if (!all && (r.kindId !== LISTENER_KIND || r.takeId !== v?.takeId)) continue;
+      const review: ReviewOut = { kindId: r.kindId, kind: kindOf(state, r.kindId).name, outcome: r.outcome, via: r.via, versionN: r.versionN, at: iso(r.hlc), uploadedAt: null, v2UploadedAt: null };
+      arrivals.want(`review:${r.id}`, review);
+      if (byImport(r.hlc)) arrivals.on(`v2:review:${r.id}`, (at) => { review.v2UploadedAt = at; });
+      if (r.comment !== undefined) review.comment = r.comment;
+      if (r.givenBy !== undefined) review.givenBy = r.givenBy;
+      // Voice notes: one in commentBlobHash (the app's; m4a unless the log says otherwise, decisions.md 77), and
+      // clips among the artifacts (from outside; for a kind that makes content, the artifacts are that content, not notes).
+      const notes: Card[] = [
+        ...(r.commentBlobHash ? [{ hash: r.commentBlobHash, durationMs: 0, format: state.audioFormats[r.commentBlobHash]?.value ?? 'm4a' }] : []),
+        ...(r.outcome !== 'recorded' ? r.artifacts ?? [] : [])
+      ];
+      if (notes.length) {
+        review.voiceNotes = [];
+        for (const n of notes) {
+          review.voiceNotes.push({ ...(await link(n.hash, n.format ?? 'wav')), durationMs: n.durationMs, ...(n.atMs !== undefined ? { atMs: n.atMs } : {}), uploadedAt: fileUploadedAt(state, n.hash) });
+        }
+      }
+      out.reviews.push(review);
+    }
+  }
+  if (include.has('steps')) {
+    out.steps = s.steps.map((st) => {
+      const counts = !st.step.checkpoint && stepAllowsLinks(state, st.step);
+      return {
+        name: st.step.kindIds.map((k) => kindOf(state, k).name).join(' + '), complete: st.complete, checkpoint: st.step.checkpoint,
+        kinds: st.kinds.map((k) => ({ kindId: k.kindId, name: kindOf(state, k.kindId).name, state: k.state, apiReviewCounts: counts }))
+      };
+    });
+  }
+  if (include.has('requests')) {
+    out.requests = s.openRequests.map((r) => {
+      const request: NonNullable<PassageDetail['requests']>[number] = {
+        requestId: r.id, what: r.what,
+        ...(r.kindId ? { kindId: r.kindId, kind: kindOf(state, r.kindId).name } : {}),
+        forYou: r.profileId === grant.profileId || (r.team?.memberIds.includes(grant.profileId) ?? false),
+        ...(r.team ? { team: r.team.name } : {}), ...(r.note ? { note: r.note } : {}),
+        askedAt: iso(r.hlc), uploadedAt: null
+      };
+      arrivals.want(`request:${r.id}`, request);
+      return request;
+    });
+  }
+  if (include.has('versions')) {
+    out.versions = s.versions.map((ver) => {
+      const version: NonNullable<PassageDetail['versions']>[number] = { n: ver.n, takeId: ver.takeId, submittedAt: iso(ver.hlc), uploadedAt: null, v2UploadedAt: null };
+      arrivals.want(`submitted:${ver.takeId}`, version);
+      wantV2Version(arrivals, ver, version);
+      return version;
+    });
+  }
+  return out;
+}
+
+// ---- writes ------------------------------------------------------------------------
+
+/** A voice note just uploaded (PUT …/voice-notes): AAC in MP4, or WAV from a browser that cannot record MP4. */
+export interface VoiceNote {
+  hash: string;
+  format: 'm4a' | 'wav';
+  durationMs: number;
+  /** Where in the version it is about, ms from the start; absent for the whole version. */
+  atMs?: number;
+}
+
+/** Clips one review may carry: enough for a careful listener, not a channel for files. */
+export const MAX_VOICE_NOTES = 10;
+
+export interface ReviewInput {
+  /** A kind in the language's flow, or `listener` (the default): feedback that never clears a step. */
+  kindId?: string;
+  outcome: 'looks_good' | 'needs_changes';
+  comment?: string;
+  voiceNotes?: VoiceNote[];
+  /** The caller's own id for whoever gave it (a listener, a device). Only a hash reaches the log. */
+  reviewerId: string;
+  /** Shown to the team as who gave it. */
+  reviewerName?: string;
+  /** The version heard; the token's `version` when left out. */
+  takeId?: string;
+  /** Separates one reviewer's answers to one version; without it, one answer per reviewer, version, kind and outcome. */
+  submissionId?: string;
+}
+
+export interface ReleaseInput {
+  /** The version; the approved one when left out. */
+  takeId?: string;
+  channel: string;
+  live: boolean;
+  url?: string;
+}
+
+interface WriteContext {
+  grant: Grant;
+  org: OrgState;
+  records: LanguageRecords;
+  languageId: string;
+  unitId: string;
+  now: number;
+}
+
+const str = (v: unknown, max: number): v is string => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
+const optStr = (v: unknown, max: number) => v === undefined || str(v, max);
+
+function parseVoiceNote(v: unknown): VoiceNote | null {
+  const o = (v ?? {}) as Record<string, unknown>;
+  if (typeof o['hash'] !== 'string' || !/^[0-9a-f]{64}$/.test(o['hash']) || (o['format'] !== 'm4a' && o['format'] !== 'wav')) return null;
+  if (o['atMs'] !== undefined && !(Number.isInteger(o['atMs']) && (o['atMs'] as number) >= 0)) return null;
+  const durationMs = typeof o['durationMs'] === 'number' && o['durationMs'] >= 0 ? Math.round(o['durationMs']) : 0;
+  return { hash: o['hash'], format: o['format'], durationMs, ...(o['atMs'] !== undefined ? { atMs: o['atMs'] as number } : {}) };
+}
+
+/** `voiceNotes`: what PUT …/voice-notes returned, each with `atMs` if it is about a moment. Undefined when none; null when malformed. */
+export function parseVoiceNotes(v: unknown): VoiceNote[] | null | undefined {
+  if (v === undefined) return undefined;
+  if (!Array.isArray(v) || v.length > MAX_VOICE_NOTES) return null;
+  const out = v.map(parseVoiceNote);
+  return out.some((n) => n === null) || new Set(out.map((n) => n!.hash)).size !== out.length ? null : (out as VoiceNote[]);
+}
+
+export function parseReview(body: unknown): ReviewInput | Refusal {
+  const b = (body ?? {}) as Record<string, unknown>;
+  if (b['outcome'] !== 'looks_good' && b['outcome'] !== 'needs_changes') return refuse(400, 'bad_request', 'outcome must be "looks_good" or "needs_changes".');
+  if (!str(b['reviewerId'], 200)) return refuse(400, 'bad_request', 'reviewerId is required: your id for whoever gave it, such as a listener or device (at most 200 characters).');
+  for (const [k, max] of [['kindId', 100], ['takeId', 200], ['comment', 4000], ['reviewerName', 120], ['submissionId', 64]] as const) {
+    if (!optStr(b[k], max)) return refuse(400, 'bad_request', `${k} must be non-empty text of at most ${max} characters.`);
+  }
+  const voiceNotes = parseVoiceNotes(b['voiceNotes']);
+  if (voiceNotes === null) return refuse(400, 'bad_request', `voiceNotes is a list of at most ${MAX_VOICE_NOTES}, each what PUT …/voice-notes returned, with atMs (a whole number) if it is about a moment.`);
+  const pick = (k: string) => (b[k] !== undefined ? { [k]: b[k] as string } : {});
+  return {
+    outcome: b['outcome'], reviewerId: b['reviewerId'] as string,
+    ...pick('kindId'), ...pick('takeId'), ...pick('comment'), ...pick('reviewerName'), ...pick('submissionId'),
+    ...(voiceNotes?.length ? { voiceNotes } : {})
+  };
+}
+
+export function parseRelease(body: unknown): ReleaseInput | Refusal {
+  const b = (body ?? {}) as Record<string, unknown>;
+  if (typeof b['live'] !== 'boolean') return refuse(400, 'bad_request', 'live must be true or false.');
+  if (!str(b['channel'], 60)) return refuse(400, 'bad_request', 'channel names where it is published, such as "Every Language app" (at most 60 characters).');
+  if (!optStr(b['takeId'], 200)) return refuse(400, 'bad_request', 'takeId must be a version id.');
+  if (b['url'] !== undefined && !(typeof b['url'] === 'string' && /^https:\/\/\S{1,2000}$/.test(b['url']))) return refuse(400, 'bad_request', 'url must be an https link.');
+  return { live: b['live'], channel: (b['channel'] as string).trim(), ...(b['takeId'] !== undefined ? { takeId: b['takeId'] as string } : {}), ...(b['url'] !== undefined ? { url: b['url'] as string } : {}) };
+}
+
+function checked(event: AnyEvent): AnyEvent | Refusal {
+  const invalid = validateEvent(event);
+  return invalid ? refuse(400, 'invalid', invalid) : event;
+}
+
+/** The kinds a review may be of here: `listener`, or a kind in the language's flow. */
+export function reviewableKinds(state: LanguageState, unitId: string): Set<string> {
+  const s = derivePassage(state, unitId);
+  return new Set([LISTENER_KIND, ...s.flow.steps.flatMap((st) => st.kindIds)]);
+}
+
+/** How long after its upload a voice note may still be attached to an answer. */
+export const VOICE_NOTE_FRESH_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * A voice note is new audio from an upload. Naming a card or note already in
+ * the language would hand out a link to it, and so would naming audio that
+ * was there before and has since been taken out of the record: a redaction
+ * drops the event, not the file. So a note must not be referenced, and the
+ * server must have stored it no more than a few hours ago (its BlobStored
+ * is stamped with the server's clock, and a re-upload of the same bytes
+ * keeps the first one, decisions.md 77). A note not folded in yet is new.
+ */
+async function fresh(records: LanguageRecords, notes: VoiceNote[] | undefined, now: number): Promise<boolean> {
+  if (!notes?.length) return true;
+  const { named, stored } = await records.files(notes.map((n) => n.hash));
+  return !notes.some((n) => {
+    const at = stored.get(n.hash);
+    return named.has(n.hash) || (at !== undefined && decodeHlc(at).wallMs < now - VOICE_NOTE_FRESH_MS);
+  });
+}
+
+/**
+ * The payload every outside review shares: given by link, by whoever is
+ * named, with the voice note where phones will play it.
+ */
+function reviewPayload(input: Pick<ReviewInput, 'outcome' | 'comment' | 'voiceNotes'>, takeId: string, kindId: string, givenBy: string, reviewId: string) {
+  // Voice notes are review artifacts: each card carries its own format, so phones play WAV and m4a alike, and its moment.
+  const artifacts = (input.voiceNotes ?? [])
+    .map((n) => ({ hash: n.hash, durationMs: n.durationMs, format: n.format, ...(n.atMs !== undefined ? { atMs: n.atMs } : {}) }))
+    .sort((a, b) => (a.atMs ?? -1) - (b.atMs ?? -1));
+  return {
+    reviewId, takeId, kindId, outcome: input.outcome, via: 'link', people: 1, givenBy,
+    ...(input.comment !== undefined ? { comment: input.comment } : {}),
+    ...(artifacts.length ? { artifacts } : {})
+  };
+}
+
+const deviceOf = (id: string) => `api-${id}`;
+
+function envelope(orgId: string, languageId: string, actorId: string, device: string, now: number, type: AnyEvent['type'], id: string, payload: unknown): AnyEvent {
+  return { id, type, orgId, streamId: languageId, actorId, deviceId: device, hlc: encodeHlc(now, 0, device), payload } as AnyEvent;
+}
+
+/**
+ * A review sent with a token: recorded as its person, given by link, from a
+ * device of the token's own. Its id comes from the token, version, reviewer,
+ * kind and outcome (or submissionId), so a double tap or a retry records it
+ * once and one reviewer cannot pile up answers on a version.
+ */
+export async function reviewEvent(ctx: WriteContext, input: ReviewInput): Promise<AnyEvent | Refusal> {
+  const { grant, org, records, languageId, unitId } = ctx;
+  if (!grant.scopes.includes('review')) return refuse(403, 'scope', 'This token was not given the "review" scope.');
+  const can = languageAccess(grant, org, languageId);
+  if (!can) return refuse(404, 'no_language', 'This token cannot open that language.');
+  if (!can.review) return refuse(403, 'privilege', 'The account behind this token cannot review or translate in this language.');
+  if (positionIn(records.passages, unitId) < 0) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
+  const state = await records.view([unitId]);
+  const idx = buildIndexes(state);
+  if (!idx.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
+  const s = derivePassage(state, unitId, idx);
+  // What a token cannot read, it cannot answer either: a published-only token hears the approved version.
+  const own = heard(grant, s);
+  if (!own) return canRead(grant, true) ? refuse(409, 'no_version', 'This passage has no version shared for review yet.') : refuse(404, 'no_passage', 'There is no approved passage with that id in this language.');
+  const takeId = input.takeId ?? own.takeId;
+  if (!s.versions.some((v) => v.takeId === takeId)) return refuse(404, 'no_version', 'That takeId is not a version of this passage.');
+  if (!canRead(grant, true) && takeId !== own.takeId) return refuse(404, 'no_version', 'This token hears only the approved version.');
+  const kindId = input.kindId ?? LISTENER_KIND;
+  // A review from outside is given by link: where its step takes no links it is kept but completes nothing (passage.ts, decisions.md 77).
+  if (!reviewableKinds(state, unitId).has(kindId)) return refuse(400, 'no_kind', `kindId must be "${LISTENER_KIND}" or a kind in this language's flow.`);
+  if (!(await fresh(records, input.voiceNotes, ctx.now))) return refuse(400, 'bad_request', 'voiceNotes must be ones you just uploaded.');
+  const reviewer = (await sha256Hex(`${grant.tokenId}\n${input.reviewerId}`)).slice(0, 16);
+  const reviewId = `${kindId === LISTENER_KIND ? LISTENER_KIND : 'review'}-${(await sha256Hex([grant.tokenId, takeId, reviewer, kindId, input.submissionId ?? input.outcome].join('\n'))).slice(0, 32)}`;
+  const givenBy = input.reviewerName?.trim() || `Listener ${reviewer.slice(0, 6)}`;
+  return checked(envelope(grant.orgId, languageId, grant.profileId, deviceOf(grant.tokenId), ctx.now, 'v1.ReviewRecorded', `api-${reviewId}`,
+    reviewPayload(input, takeId, kindId, givenBy, reviewId)));
+}
+
+/** Live or taken down on a channel. Going live needs the approved version; anything may be taken down. */
+export async function releaseEvent(ctx: WriteContext, input: ReleaseInput): Promise<AnyEvent | Refusal> {
+  const { grant, org, records, languageId, unitId } = ctx;
+  if (!grant.scopes.includes('release')) return refuse(403, 'scope', 'This token was not given the "release" scope.');
+  const can = languageAccess(grant, org, languageId);
+  if (!can) return refuse(404, 'no_language', 'This token cannot open that language.');
+  if (!can.release) return refuse(403, 'privilege', 'The account behind this token cannot assign work in this language, which reporting releases needs.');
+  if (positionIn(records.passages, unitId) < 0) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
+  const state = await records.view([unitId]);
+  const idx = buildIndexes(state);
+  if (!idx.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
+  const s = derivePassage(state, unitId, idx);
+  const approved = approvedVersion(s);
+  const takeId = input.takeId ?? approved?.takeId;
+  if (!takeId) return refuse(409, 'not_approved', 'This passage has no approved version to release.');
+  if (!s.versions.some((v) => v.takeId === takeId)) return refuse(404, 'no_version', 'That takeId is not a version of this passage.');
+  if (input.live && takeId !== approved?.takeId) return refuse(409, 'not_approved', 'Only the approved version can go live.');
+  const id = `api-release-${(await sha256Hex([grant.tokenId, takeId, input.channel, String(input.live), String(ctx.now)].join('\n'))).slice(0, 32)}`;
+  return checked(envelope(grant.orgId, languageId, grant.profileId, deviceOf(grant.tokenId), ctx.now, 'v1.VersionReleased', id,
+    { takeId, channel: input.channel, live: input.live, ...(input.url !== undefined ? { url: input.url } : {}) }));
+}
+
+// ---- external values (decisions.md 79) -----------------------------------------------
+
+/** The most a value's data may hold, as UTF-8 JSON. Only the Worker writes them, so the cap is kept here. */
+export const EXTERNAL_DATA_MAX_BYTES = 4096;
+/** Values in one answer; `after` (the last key) asks for the next ones. */
+export const EXTERNAL_VALUES_PAGE = 500;
+
+/** A third-party app's value as the API gives it, with who wrote it. */
+export interface ExternalValueOut {
+  key: string;
+  /** Null when the key was deleted (listed only with changedSince, so a follower sees deletions). */
+  data: Record<string, unknown> | null;
+  /** The person, and the token by its id; http.ts adds the app's name. */
+  writtenBy: { profileId: string; tokenId: string | null; app?: string };
+  at: string;
+}
+
+export interface ExternalValueFilter {
+  keyPrefix?: string;
+  changedSince?: string;
+  /** Keys after this one, for the next page. */
+  after?: string;
+}
+
+/** The token behind a device, `api-<tokenId>` (deviceOf), or null for a review link's (`api-link-…`) or anything else. */
+export const tokenOfDevice = (deviceId: string): string | null =>
+  deviceId.startsWith('api-') && !deviceId.startsWith('api-link-') ? deviceId.slice(4) : null;
+
+function valueOut(key: string, r: LanguageState['externalValues'][string]): ExternalValueOut {
+  return { key, data: r.value.data, writtenBy: { profileId: r.value.actorId, tokenId: tokenOfDevice(r.value.deviceId) }, at: iso(r.hlc) };
+}
+
+/** The latest value per key, in key order. A deleted key is left out unless the caller follows changes. */
+export function externalValuesFor(state: LanguageState, filter: ExternalValueFilter = {}): { values: ExternalValueOut[]; nextAfter: string | null } {
+  const since = filter.changedSince ? Date.parse(filter.changedSince) : null;
+  const keys = Object.keys(state.externalValues ?? {})
+    .filter((k) => (!filter.keyPrefix || k.startsWith(filter.keyPrefix)) && (!filter.after || k > filter.after))
+    .sort();
+  const values: ExternalValueOut[] = [];
+  for (const k of keys) {
+    const r = state.externalValues[k]!;
+    if (since !== null ? wallOf(r.hlc) <= since : r.value.data === null) continue;
+    if (values.length === EXTERNAL_VALUES_PAGE) return { values, nextAfter: values[values.length - 1]!.key };
+    values.push(valueOut(k, r));
+  }
+  return { values, nextAfter: null };
+}
+
+/** One key's value, or why not: a key never written, or deleted, is not found. */
+export function externalValueFor(state: LanguageState, key: string): ExternalValueOut | Refusal {
+  const r = state.externalValues?.[key];
+  return r && r.value.data !== null ? valueOut(key, r) : refuse(404, 'no_value', 'There is no value under that key in this language.');
+}
+
+/** A PUT's body: `{ "data": { … } }`, at most 4 KB as JSON. */
+export function parseExternalValue(body: unknown): { data: Record<string, unknown> } | Refusal {
+  const data = (body as Record<string, unknown> | null)?.['data'];
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return refuse(400, 'bad_request', 'Send { "data": { … } }: data is a JSON object. DELETE removes a key.');
+  if (new TextEncoder().encode(JSON.stringify(data)).length > EXTERNAL_DATA_MAX_BYTES) {
+    return refuse(413, 'too_large', `data can be at most ${EXTERNAL_DATA_MAX_BYTES} bytes of JSON. Keep totals, not one value per event.`);
+  }
+  return { data: data as Record<string, unknown> };
+}
+
+/** A value stored (or a key deleted, with null) as the token's person, from the token's device. Only this ever appends v1.ExternalValueSet. */
+export function externalValueEvent(ctx: Omit<WriteContext, 'unitId'>, key: string, data: Record<string, unknown> | null): AnyEvent | Refusal {
+  const { grant, org, records, languageId } = ctx;
+  // External values are the whole language's, held in memory with what it shares.
+  const state = records.shared;
+  if (!grant.scopes.includes('external_values')) return refuse(403, 'scope', 'This token was not given the "external_values" scope.');
+  const can = languageAccess(grant, org, languageId);
+  if (!can) return refuse(404, 'no_language', 'This token cannot open that language.');
+  if (!can.externalValues.write) return refuse(403, 'privilege', 'The account behind this token cannot translate, review or fill reference material in this language, which storing values needs.');
+  const bad = externalKeyError(key);
+  if (bad) return refuse(400, 'bad_key', `${bad}. Start keys with your app's own name, such as org.example.app/…`);
+  const device = deviceOf(grant.tokenId);
+  const event = envelope(grant.orgId, languageId, grant.profileId, device, ctx.now, 'v1.ExternalValueSet', `api-ev-${crypto.randomUUID()}`, { key, data });
+  // Stamped after the value it replaces, so a second write in the same millisecond wins as the newer one.
+  const prior = state.externalValues?.[key];
+  if (prior && prior.hlc >= event.hlc) {
+    const p = decodeHlc(prior.hlc);
+    event.hlc = encodeHlc(p.wallMs, p.counter + 1, device);
+  }
+  return checked(event);
+}
+
+// ---- review links ------------------------------------------------------------------
+
+/** A link someone shared to review one version for one kind (migration 20261008140000). */
+export interface ReviewLink {
+  id: string;
+  orgId: string;
+  languageId: string;
+  unitId: string;
+  takeId: string;
+  kindId: string;
+  /** Does a review through it count toward the step, or is it listener feedback? Chosen by the sharer. */
+  counts: boolean;
+  label: string | null;
+  createdBy: string;
+  /** The token it was shared with, if any: revoking the token closes it (decisions.md 77). */
+  tokenId: string | null;
+  createdAt: string;
+  expiresAt: string;
+  revokedAt: string | null;
+}
+
+export interface LinkSpec {
+  languageId: string;
+  unitId: string;
+  /** The version to hear; the latest when left out. */
+  takeId?: string;
+  kindId: string;
+  counts: boolean;
+  label?: string;
+}
+
+/** Reviews one link takes, and one browser on it, before it stops: one group, not the internet. */
+export const LINK_MAX_REVIEWS = 500;
+export const LINK_MAX_PER_BROWSER = 10;
+/** Open links one person may have shared in an organization at once, so a leaked token cannot spray them. */
+export const LINK_MAX_OPEN = 200;
+
+/** Does any step that holds this kind take reviews through shared links (`stepAllowsLinks`)? */
+function kindTakesLinks(state: LanguageState, s: PassageState, kindId: string): boolean {
+  return s.flow.steps.some((st) => st.kindIds.includes(kindId) && stepAllowsLinks(state, st));
+}
+
+/**
+ * Is a link open: not revoked, not expired, and its sharer can still record
+ * what it takes (review or translate)? A sharer who left, or lost the role,
+ * closes every link they shared, for listening as well as answering.
+ */
+export function linkIsOpen(link: ReviewLink, org: OrgState, now: number): boolean {
+  if (link.revokedAt || Date.parse(link.expiresAt) <= now) return false;
+  const privs = privilegesFor(org, link.createdBy, link.languageId);
+  return privs.has('review') || privs.has('translate');
+}
+
+/** May this person take back someone else's link? Whoever runs the work in the language (assign_work). */
+export function mayRevokeLinks(org: OrgState, profileId: string, languageId: string): boolean {
+  return privilegesFor(org, profileId, languageId).has('assign_work');
+}
+
+/**
+ * May this person share this link? They need to be able to ask for reviews
+ * (send_to_reviewers or assign_work), and to be able to record a review
+ * given by link (review or translate: it is recorded as them). The step must
+ * allow links; a link that does not count is listener feedback and may go
+ * out for any version.
+ */
+export function checkLinkSpec(org: OrgState, state: LanguageState, profileId: string, spec: LinkSpec): { takeId: string } | Refusal {
+  if (!languageInfo(org, spec.languageId)) return refuse(404, 'no_language', 'There is no such language.');
+  const privs = privilegesFor(org, profileId, spec.languageId);
+  if (!(privs.has('send_to_reviewers') || privs.has('assign_work')) || !(privs.has('review') || privs.has('translate'))) {
+    return refuse(403, 'privilege', 'Your role cannot send work to reviewers in this language.');
+  }
+  const idx = buildIndexes(state);
+  if (!idx.passages.includes(spec.unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
+  const s = derivePassage(state, spec.unitId, idx);
+  const takeId = spec.takeId ?? s.latest?.takeId;
+  if (!takeId || !s.versions.some((v) => v.takeId === takeId)) return refuse(409, 'no_version', 'Share a version that was sent for review.');
+  if (spec.counts) {
+    const step = s.flow.steps.find((st) => st.kindIds.includes(spec.kindId));
+    if (!step) return refuse(400, 'no_kind', "That kind is not in this language's flow; share it as feedback instead.");
+    if (!stepAllowsLinks(state, step)) return refuse(403, 'links_off', 'This step is not reviewed by shared links. Share it as feedback, or ask a coordinator to allow links for the step.');
+  }
+  return { takeId };
+}
+
+export interface LinkView {
+  label: string | null;
+  passage: { label: string; path: string[] };
+  language: string;
+  kind: { id: string; name: string; description: string };
+  counts: boolean;
+  version: number;
+  audio: Omit<AudioCard, 'v2UploadedAt'>[];
+  expiresAt: string;
+  open: boolean;
+}
+
+/** What the review page shows: the version's audio and what is being asked, nothing else of the language. */
+export async function linkView(link: ReviewLink, org: OrgState, state: LanguageState, sign: Signer, now: number): Promise<LinkView | Refusal> {
+  const s = derivePassage(state, link.unitId);
+  const v = s.versions.find((x) => x.takeId === link.takeId);
+  if (!v) return refuse(404, 'gone', 'This passage is no longer here.');
+  const open = linkIsOpen(link, org, now);
+  const audio: LinkView['audio'] = [];
+  // A closed link plays nothing: revoking it is how a sharer takes the audio back.
+  for (const hash of open ? v.cardHashes : []) {
+    const card = recordedCard(state, hash);
+    const format = card?.format ?? 'wav';
+    const l = await sign(`${link.orgId}/${link.languageId}/${hash}.${format}`);
+    audio.push({ hash, format, durationMs: card?.durationMs ?? 0, url: l.url, expiresAt: new Date(l.expiresAt).toISOString(), uploadedAt: fileUploadedAt(state, hash) });
+  }
+  const kind = kindOf(state, link.kindId);
+  return {
+    label: link.label, passage: { label: state.units[link.unitId]?.label ?? link.unitId, path: pathOf(state, link.unitId) },
+    language: languageInfo(org, link.languageId)?.name ?? link.languageId,
+    kind: { id: kind.id, name: kind.name, description: kind.description }, counts: link.counts, version: v.n, audio,
+    expiresAt: link.expiresAt, open
+  };
+}
+
+export interface LinkReviewInput {
+  outcome: 'looks_good' | 'needs_changes';
+  /** Any name; a label for the team, remembered by the browser. */
+  name: string;
+  comment?: string;
+  voiceNotes?: VoiceNote[];
+  /** Random, kept by the browser: tells one person's answers apart on a shared link. */
+  browserId: string;
+  /** Random per press of Send, so a retry records once and a changed mind records again. */
+  submissionId: string;
+}
+
+export function parseLinkReview(body: unknown): LinkReviewInput | Refusal {
+  const b = (body ?? {}) as Record<string, unknown>;
+  if (b['outcome'] !== 'looks_good' && b['outcome'] !== 'needs_changes') return refuse(400, 'bad_request', 'Choose looks good or needs changes.');
+  if (!str(b['name'], 80)) return refuse(400, 'bad_request', 'Type your name (at most 80 characters).');
+  if (!str(b['browserId'], 64) || !str(b['submissionId'], 64)) return refuse(400, 'bad_request', 'browserId and submissionId are required.');
+  if (!optStr(b['comment'], 4000)) return refuse(400, 'bad_request', 'A comment can be at most 4000 characters.');
+  const voiceNotes = parseVoiceNotes(b['voiceNotes']);
+  if (voiceNotes === null) return refuse(400, 'bad_request', `Send at most ${MAX_VOICE_NOTES} voice notes, each uploaded here.`);
+  return {
+    outcome: b['outcome'], name: (b['name'] as string).trim(), browserId: b['browserId'] as string, submissionId: b['submissionId'] as string,
+    ...(b['comment'] !== undefined ? { comment: b['comment'] as string } : {}), ...(voiceNotes?.length ? { voiceNotes } : {})
+  };
+}
+
+/**
+ * A review through a shared link, recorded as whoever shared it (decisions.md
+ * 70), of the link's kind when it counts and as listener feedback when not.
+ * Its id carries the link, the browser and the press of Send: the latest
+ * answer from a browser is the one that stands, and the counts below come
+ * from the log itself, so they survive the object's evictions.
+ */
+export async function linkReviewEvent(link: ReviewLink, org: OrgState, records: LanguageRecords, input: LinkReviewInput, now: number): Promise<AnyEvent | Refusal> {
+  if (!linkIsOpen(link, org, now)) return refuse(410, 'closed', 'This review link has closed. Ask whoever sent it for a new one.');
+  if (positionIn(records.passages, link.unitId) < 0) return refuse(404, 'gone', 'This passage is no longer here.');
+  // Every review on the link is of its version, so the link's passage holds them all.
+  const state = await records.view([link.unitId]);
+  const s = derivePassage(state, link.unitId);
+  if (!s.versions.some((v) => v.takeId === link.takeId)) return refuse(404, 'gone', 'This passage is no longer here.');
+  if (!(await fresh(records, input.voiceNotes, now))) return refuse(400, 'bad_request', 'A voice note was not uploaded here. Record it again.');
+  const linkKey = link.id.replace(/-/g, '').slice(0, 12);
+  const browser = (await sha256Hex(`${link.id}\n${input.browserId}`)).slice(0, 12);
+  const prefix = `link-${linkKey}-`;
+  const onLink = Object.keys(state.kindReviews ?? {}).filter((id) => id.startsWith(prefix));
+  if (onLink.length >= LINK_MAX_REVIEWS) return refuse(429, 'full', 'This review link has taken all the reviews it can. Ask whoever sent it for a new one.');
+  if (onLink.filter((id) => id.startsWith(`${prefix}${browser}-`)).length >= LINK_MAX_PER_BROWSER) return refuse(429, 'full', 'You have sent as many answers on this link as it takes.');
+  const reviewId = `${prefix}${browser}-${(await sha256Hex(input.submissionId)).slice(0, 16)}`;
+  // A counting link whose step stopped taking links since it was shared records feedback instead.
+  const kindId = link.counts && kindTakesLinks(state, s, link.kindId) ? link.kindId : LISTENER_KIND;
+  return checked(envelope(link.orgId, link.languageId, link.createdBy, `api-link-${linkKey}`, now, 'v1.ReviewRecorded', `api-${reviewId}`,
+    reviewPayload(input, link.takeId, kindId, input.name, reviewId)));
+}

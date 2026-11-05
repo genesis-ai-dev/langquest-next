@@ -1,0 +1,69 @@
+# REC-023 (docs/ui-test-suite/06-recording.md): the app killed in the middle
+# of a recording keeps every part that ended, once each.
+#
+# Passage: P-T (Luke 12:49-59), which no other phone flow touches; it starts
+# with no parts, so the two that end before the kill are "Parts 1–2".
+# Audio: G8, the host's microphone playing e2e/fixtures/voice.wav in
+# a loop (1.5 s of voice, 2.5 s of quiet), so a part ends about every four
+# seconds and "Recording…" shows while the voice plays. With a silent
+# microphone no part is made, so the flow is tagged voice and the runner
+# skips it unless the run has one (--voice or --mic).
+# Known issue (2026-10-12): the part being spoken at the kill is lost
+# (useRecorder.ts journals a part only once voice detection ends it), so the
+# draft has the two parts that ended, not three.
+appId: com.frontierrnd.langquestnext
+name: "REC-023 The app killed mid-recording keeps every part that ended"
+tags:
+  - rec
+  - p0
+  - voice
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- runFlow:
+    file: ../rec/open-workspace.yaml
+    env:
+      PASSAGE: ${P_T}
+- tapOn:
+    id: "record-button"
+- runFlow:
+    when:
+      visible: "(?i)Allow|While using the app|OK"
+    commands:
+      - tapOn: "(?i)Allow|While using the app|OK"
+- assertVisible: "Stop recording"
+# Two parts end (speak, pause, speak, pause)...
+- extendedWaitUntil:
+    visible: "Parts 1–2.*"
+    timeout: 30000
+# ...and the third is being spoken when the app is killed.
+- extendedWaitUntil:
+    visible: "Recording…"
+    timeout: 10000
+- killApp
+- runFlow: ../rec/relaunch.yaml
+# No crash screen on the way back in.
+- assertNotVisible: "This screen could not open"
+- runFlow:
+    file: ../rec/open-workspace.yaml
+    env:
+      PASSAGE: ${P_T}
+# Within 30 seconds the draft holds the two parts that ended, each once.
+- runFlow: ../rec/expand-parts.yaml
+- extendedWaitUntil:
+    visible: "Parts 1–2, 2 parts · .*"
+    timeout: 30000
+- assertNotVisible: "Parts 1–4.*"
+- assertNotVisible: "This screen could not open"
+# Each part plays.
+- tapOn: "Play Part 1"
+- assertVisible: "Pause Part 1"
+- tapOn: "Pause Part 1"
+- tapOn: "Play Part 2"
+- assertVisible: "Pause Part 2"
+- tapOn: "Pause Part 2"

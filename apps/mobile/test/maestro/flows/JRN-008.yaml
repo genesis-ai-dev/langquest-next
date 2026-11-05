@@ -1,0 +1,102 @@
+# JRN-008 A language lead runs one language and meets their limits
+# (docs/ui-test-suite/16-role-journeys.md). Decision 91: Review teams are
+# gone; step 4 puts TRANS on Alpha's Peer check instead.
+appId: com.frontierrnd.langquestnext
+name: "JRN-008 A language lead runs one language and meets their limits"
+tags:
+  - jrn
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${LADMIN_EMAIL}
+      PASSWORD: ${LADMIN_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-manage"
+    timeout: 60000
+# Step 1: Manage opens Alpha's page, not the organization's home.
+- tapOn:
+    id: "tab-manage"
+- assertVisible: "${LANG_A}"
+- assertVisible: "Review flow.*"
+- assertNotVisible: "New language"
+# Step 2: Invite offers only roles LADMIN holds, in Alpha only.
+- tapOn: "People.*"
+- runFlow:
+    when:
+      notVisible: "Who are you inviting\\?"
+    commands:
+      - tapOn: "Invite.*"
+- assertVisible: "Who are you inviting\\?"
+- assertVisible: "Translators"
+- assertVisible: "Checkers"
+- runFlow:
+    when:
+      visible: "Other roles · .*"
+    commands:
+      - tapOn: "Other roles · .*"
+- assertNotVisible: "Coordinator"
+- assertNotVisible: "Organization Admin"
+- assertNotVisible: "All of them"
+# Step 3: a group code for Translator in Alpha.
+- scrollUntilVisible:
+    element:
+      id: "invite-role-Translators"
+    direction: UP
+    centerElement: true
+- tapOn:
+    id: "invite-role-Translators"
+- extendedWaitUntil:
+    visible: "Ask them to scan this"
+    timeout: 30000
+- tapOn: "Done"
+# Step 4: TRANS on Alpha's Peer check.
+- runFlow:
+    when:
+      notVisible:
+        id: "tab-manage"
+    commands:
+      - tapOn:
+          id: "header-back"
+- tapOn:
+    id: "tab-manage"
+# Alpha's checks: Review flow, then Edit (decision 138).
+- tapOn: "Review flow.*"
+- tapOn: "Edit"
+- tapOn: "1\\. Peer check"
+# A check's people are on a page of their own (decision 130).
+- tapOn: "People, .*"
+- tapOn: "Add people"
+- tapOn: ".*${TRANS_NAME}.*"
+- tapOn: "Done"
+- extendedWaitUntil:
+    visible: "Take ${TRANS_NAME} off this check"
+    timeout: 20000
+# Back to the check, the Checks list, its Review flow, then Alpha's page where the tab bar is.
+- tapOn:
+    id: "header-back"
+- tapOn:
+    id: "header-back"
+- tapOn:
+    id: "header-back"
+- tapOn:
+    id: "header-back"
+# Step 5: All languages offers only Alpha: Bravo is outside LADMIN's scope,
+# and the tab bar stays.
+- tapOn:
+    id: "tab-map"
+- extendedWaitUntil:
+    visible: "${LANG_A}: .*"
+    timeout: 30000
+- assertNotVisible: "${LANG_B}: .*"
+- assertVisible:
+    id: "tab-work"
+# Step 6: no join requests (they are organization scope).
+- tapOn:
+    id: "tab-work"
+- tapOn: "Updates.*"
+- assertNotVisible: ".* wants to join"
+- assertNotVisible: "A person requested access"

@@ -1,0 +1,89 @@
+/**
+ * The projection pass (decisions.md 68, 141): Inbox rows, the public
+ * listing, server snapshots and report inputs for every language that
+ * changed. The job container behind the app's Worker runs it every five
+ * minutes from the Worker's job tick (`apps/web/worker/jobs.ts`;
+ * `scripts/build-jobs.mjs` bundles this file), with Node's memory, so the
+ * biggest language folds whole.
+ *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npx tsx server/projections.ts
+ * Run by hand it does the same and leaves no job run, so it never stands in
+ * for the scheduled pass in `diag.jobs()`. The log prints counts, never names.
+ *
+ * Each run also says how much memory it took: the process's peak resident
+ * size, which is what the container's limit counts, against Node's heap
+ * limit, and which language raised the peak. The container is sized from
+ * these (docs/server-jobs.md section 4): option F adds a cut to every fold,
+ * and the instance grows to 6 GiB if the peak nears the heap's 3 GiB.
+ */
+import { getHeapStatistics } from 'node:v8';
+import { createClient } from '@supabase/supabase-js';
+import { runProjections, type ProjectionCounts } from './projectionWorker';
+import { errorClassOf, jobRunSink, noJobRuns } from './jobRuns';
+
+const url = process.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
+const key = process.env['SUPABASE_SERVICE_ROLE_KEY'];
+if (!key) {
+  console.error('SUPABASE_SERVICE_ROLE_KEY is required');
+  process.exit(1);
+}
+// The job runner names the job it starts (jobsModel.ts jobEnv).
+const record = process.env['LANGQUEST_JOB'] === 'projection' ? jobRunSink(url, key) : noJobRuns;
+
+/** The process's peak resident size so far, in MB (Node reports it in KB). It only grows. */
+const peakRssMb = () => Math.round(process.resourceUsage().maxRSS / 1024);
+const mb = (bytes: number) => Math.round(bytes / 1_048_576);
+const startRssMb = peakRssMb();
+/**
+ * The language whose projection last raised the peak. A fold is synchronous,
+ * so the peak is read after each language rather than sampled during it.
+ */
+let peak: { mb: number; orgId: string | null; streamId: string | null } = { mb: startRssMb, orgId: null, streamId: null };
+// Named max…: diag.totals keeps the window's largest of a max field and sums every other one.
+const memory = () => ({ maxPeakRssMb: peakRssMb(), maxStartRssMb: startRssMb, maxHeapUsedMb: mb(process.memoryUsage().heapUsed), maxHeapLimitMb: mb(getHeapStatistics().heap_size_limit) });
+
+const started = Date.now();
+const counts: ProjectionCounts = { orgs: 0, projected: 0 };
+/** Every this many languages a progress line goes to the log (the container's logs in Cloudflare), ids and counts only. */
+const PROGRESS_EVERY = 25;
+const projected = (orgId: string, streamId: string) => {
+  const now = peakRssMb();
+  if (now > peak.mb) peak = { mb: now, orgId, streamId };
+  if (counts.projected % PROGRESS_EVERY === 0) {
+    console.log(`progress: ${counts.projected} projected, ${Math.round((Date.now() - started) / 1000)} s, peak ${peak.mb} MB resident, last ${streamId}`);
+  }
+};
+
+// Stopped from outside (a deploy's container rollout, the job runner at the
+// time limit): the platform allows 15 minutes before SIGKILL, so the pass
+// finishes the language in hand, stops before the next, records how far it
+// got and exits 75, the code that says it stopped early with its row written
+// (apps/web/worker/jobsModel.ts STOPPED_EARLY).
+let stopping = false;
+process.once('SIGTERM', () => {
+  stopping = true;
+  console.error(`SIGTERM after ${counts.projected} languages: finishing the one in hand`);
+});
+let done: Awaited<ReturnType<typeof runProjections>>;
+try {
+  done = await runProjections(createClient(url, key, { auth: { persistSession: false } }), counts, projected, () => stopping);
+} catch (error) {
+  await record({ job: 'projection', startedAt: started, ms: Date.now() - started, outcome: 'error', errorClass: errorClassOf(error), n: { ...counts, ...memory() } });
+  throw error;
+}
+const first = done.failed[0];
+await record({
+  job: 'projection', startedAt: started, ms: Date.now() - started,
+  outcome: stopping ? (counts.projected > 0 ? 'partial' : 'error') : done.failed.length === 0 ? 'ok' : counts.projected > 0 ? 'partial' : 'error',
+  n: { ...counts, languages: done.languages, snapshots: done.snapshots, quiet: done.quiet, failed: done.failed.length, ...done.arrivals, ...memory() },
+  // Stopped early, or the first failure's language; with neither, the language that raised the peak (docs/diagnostics.md).
+  ...(stopping ? { errorClass: 'sigterm' }
+    : first ? { errorClass: errorClassOf(first.error), orgId: first.orgId, streamId: first.streamId }
+    : peak.streamId ? { orgId: peak.orgId, streamId: peak.streamId } : {})
+});
+const m = memory();
+console.log(`languages: ${counts.projected} projected (${done.languages} with new events), ${done.quiet} quiet, ${done.snapshots} new snapshots, ${done.failed.length} failed, ${Math.round((Date.now() - started) / 1000)} s`);
+console.log(`memory: peak ${m.maxPeakRssMb} MB resident (from ${m.maxStartRssMb}), heap limit ${m.maxHeapLimitMb} MB${peak.streamId ? `, peak set by ${peak.streamId}` : ''}`);
+// Ids only, never a language's name.
+for (const f of done.failed) console.error(`failed ${f.streamId}: ${f.error instanceof Error ? f.error.message : String(f.error)}`);
+if (stopping) process.exit(75);
+if (done.failed.length) process.exit(1);

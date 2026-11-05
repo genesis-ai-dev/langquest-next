@@ -1,0 +1,24 @@
+# Dismiss the keyboard without hitting a row.
+# On iOS, hideKeyboard aims at the keyboard's button and lands on whatever
+# is underneath (a map search then opens the wrong passage) or fails
+# outright. Tap LABEL, a title that is not a row, as sign-in.yaml taps
+# "LangQuest". Android's hideKeyboard does land on the keyboard.
+appId: com.frontierrnd.langquestnext
+---
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: ${LABEL}
+      # A title does not dismiss it on every screen: if the keyboard is still
+      # up, Return closes a single-line field.
+      - runFlow:
+          when:
+            visible: "space"
+          commands:
+            - pressKey: Enter

@@ -1,0 +1,31 @@
+{
+  "invite": {
+    "subject": "Ang iyong imbitasyon sa LangQuest",
+    "heading": "Ang iyong imbitasyon sa LangQuest",
+    "intro": "Inimbitahan kang sumali sa isang pangkat sa LangQuest.",
+    "openLink": "Buksan ang link na ito:",
+    "openLinkOnPhone": "Buksan ang link na ito sa iyong telepono:",
+    "openButton": "Buksan ang LangQuest",
+    "openButtonOnPhone": "Buksan ang LangQuest sa iyong telepono",
+    "orPasteCode": "O sa LangQuest, i-tap ang {{screen}} at i-paste ang code na ito:",
+    "joinScreen": "I-scan ang code",
+    "expires": "Mag-e-expire ang imbitasyong ito sa {{date}}.",
+    "ignore": "Kung hindi mo inaasahan ang imbitasyong ito, maaari mo itong balewalain."
+  },
+  "reset": {
+    "subject": "Pumili ng bagong password sa LangQuest",
+    "heading": "Pumili ng bagong password",
+    "intro": "May humiling na palitan ang password para sa {{email}} sa LangQuest.",
+    "openButton": "Pumili ng bagong password",
+    "expires": "Gumagana ang link na ito sa loob ng {{minutes}} minuto.",
+    "ignore": "Kung hindi mo ito hiniling, balewalain ang email na ito. Mananatili ang iyong password."
+  },
+  "code": {
+    "subject": "Ang iyong code sa LangQuest: {{code}}",
+    "heading": "Kumpirmahin ang iyong email address",
+    "intro": "Humiling ang {{org}} sa LangQuest ng asul na tsek para sa website na {{domain}}.",
+    "enter": "Para kumpirmahin ang address na ito, ilagay ang code na ito sa LangQuest:",
+    "expires": "Gumagana ang code sa loob ng {{minutes}} minuto.",
+    "ignore": "Kung hindi mo ito hiniling, balewalain ang email na ito. Walang magbabago."
+  }
+}

@@ -1,0 +1,63 @@
+# docs/ui-test-suite/11-account-and-settings.md, ACCT-008: notifications
+# refused. The system's answer is set to "deny" before the tap (Maestro's
+# setPermissions), which is what refusing in the prompt leaves behind; the
+# row then says so in the app's words, and the Inbox still opens.
+appId: com.frontierrnd.langquestnext
+name: "ACCT-008 Notifications refused in the system prompt"
+tags:
+  - acct
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-me"
+    timeout: 60000
+- setPermissions:
+    permissions:
+      notifications: deny
+# Android ends the app's process when a permission is revoked: open it again (still signed in).
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: false
+          permissions:
+            notifications: deny
+      - extendedWaitUntil:
+          visible:
+            id: "tab-me"
+          timeout: 60000
+- tapOn:
+    id: "tab-me"
+- tapOn: "More settings.*"
+- extendedWaitUntil:
+    visible: "Notifications.*"
+    timeout: 20000
+- tapOn: "Notifications.*"
+# If the system still asks (the permission was never set), refuse it.
+- runFlow:
+    when:
+      visible: "Don.t Allow|Don.t allow"
+    commands:
+      - tapOn:
+          text: "Don.t Allow|Don.t allow"
+          optional: true
+- extendedWaitUntil:
+    visible: ".*Notifications are off\\. Your inbox still works\\..*"
+    timeout: 20000
+- assertNotVisible: ".*Something went wrong.*"
+- tapOn:
+    id: "header-back"
+- tapOn:
+    id: "tab-work"
+- tapOn: "Updates.*"
+- extendedWaitUntil:
+    visible: "Inbox"
+    timeout: 20000

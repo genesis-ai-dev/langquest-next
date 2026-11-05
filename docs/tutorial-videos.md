@@ -1,0 +1,363 @@
+# Tutorial videos
+
+Short how-to videos, one per thing a person does in LangQuest ("Record a
+passage", "Invite your team"), in every app language. Each is a script in
+`e2e/tutorials/` that the app plays through on the web export, filmed frame by
+frame, with a computer voice saying the script's lines. Decision 177 says why
+they are made this way.
+
+## Making them
+
+```sh
+npm run db:start
+npm run library:seed -- --sources --timings library/timings/bsb-fs
+bash e2e/ui-web.sh &                                   # the web export on :8787
+npm run tutorials                                      # every video, every app language
+npm run tutorials -- --language es record-a-passage    # one video, in Spanish
+npm run tutorials -- --dry --language ar               # a picture of each step, no voice or film
+```
+
+Videos land in `e2e/results/tutorials/<language>/<id>.mp4`; each film's
+frames, sound and log are in `e2e/results/tutorials/films/<language>/<id>/`.
+A step that cannot finish leaves `failed-step-<n>.png` and
+`failed-step-<n>.txt` (the screen's accessibility tree) there.
+
+Gemini needs a key: `GEMINI_API_KEY`, or a network that adds it to requests
+to generativelanguage.googleapis.com. The key's Google project must have
+billing on, since the Batch API is not offered on the free tier. The key is
+kept encrypted in `.env.production` (`npm run env:update -- production
+GEMINI_API_KEY`); run with it as `npx dotenvx run -f .env.production -fk
+.env.keys -- npm run tutorials`.
+
+## The parts
+
+| File | What it does |
+| --- | --- |
+| `all.ts`, `<id>.ts` | the scripts: who is signed in, the world they start from, each step (what is lit, what is said, what is tapped) |
+| `film.ts` | plays one script against the web export and keeps every frame with its time, when each line is said, what the speaker says into the microphone and what the app plays aloud; it lights each step's part with a spotlight: the rest of the screen dims, and the part's whole button, row or card stays bright, exactly to its own edge and corners, so no line is drawn; a part with no box of its own (words, an icon) is lit 6 points round, nearer where that would take in other words or an edge; several parts lit as one box take in whole any button, line of words or icon its edge would cut (a button by what shows of it, its box or face, not its tap area; a box the edge only grazes, by under a quarter, is not cut); a button with no box of its own is lit as the round face or card it shows (a part's play button) |
+| `compose.ts` | puts a film together as a wide (16:9) MP4: the frames in a phone beside the app's mark and the title (or in a browser window under the title, for web videos), the camera moving in on what each step lights (then 2560x1440, so YouTube makes its sharper versions, and the title fades while the camera is in and comes back whenever it is out on the whole page), and the sound evened to -16 LUFS |
+| `camera.ts` | where the camera looks: in on each lit part (its words about twice their size), further out where a close shot would be mostly empty screen, back out to the whole page where a step lights nothing or something most of the screen's height, at the start and at the end |
+| `frame-check.ts` | a new film's stills, one while each line is said, looked at by Claude (Sonnet, through Claude Code) for what is drawn wrong |
+| `gemini-voice.mjs` | says lines with Gemini's text-to-speech, through the Batch API |
+| `translate-lines.ts` | translates each video's title and lines into `lines/<language>.json` |
+| `readings.ts`, `make-readings.ts` | what the people in the videos say, and saying it into WAV files |
+| `ui.ts` | finds what a script names in English on a screen in any app language |
+| `make-videos.ts` | `npm run tutorials`: all of the above, three films at a time |
+| `look.ts` | a video's look: each step's screen as text, with what changes from run to run taken out, hashed |
+| `nightly.ts`, `put-in-release.ts` | the nightly filming of one language, and putting what it made in the `tutorials` release |
+| `banners.ts` | each channel's banner, drawn by the browser into the web app's `public/youtube` |
+| `playlists.ts` | what YouTube shows: the title, a description of one line and its links, and the playlist of who it is for |
+
+## Voice
+
+The narration is Gemini's `Sulafat` voice; Grace (who reads the made-up
+language, in French) is `Leda` and Ruth (who reviews, in the film's language)
+is `Aoede`. A line's recording is named by its words, so only changed lines are
+said again. Gemini allows a project 100 speech requests a day outside the
+Batch API; the batch has no daily cap, costs half, and takes a few minutes a
+job. It has no place for a speaking style, so the voice is a little quicker
+than one asked to be unhurried. Jobs of more than about 100 lines come back
+with many lines turned down ("Precondition check failed"), so
+`gemini-voice.mjs` sends 100 at a time and sends the turned-down lines again.
+
+When Google refuses the voice or a translation for a reason only a person can
+fix (the prepaid credit used up, the key refused or missing), the job says so
+in an annotation titled "Needs you: Gemini credit" or "Needs you: Gemini key"
+(`needs-you.mjs`), and the ops dashboard lists it under Needs attention with a
+link to AI Studio, until the next run works.
+
+What Gemini counts for each batch job (tokens in, out and thinking) goes into
+`e2e/results/tutorials/gemini-usage.jsonl`, with a line for each film the
+frame check showed Claude, and each job's summary on GitHub adds it up by
+model (`gemini-usage.mjs`) with what Gemini bills for it at its batch list
+price, to set against the bill in AI Studio. Claude's lines are on the
+Claude plan and not billed; the summary gives what they would cost on the
+API beside them. Until 2026-11-01 the frame check was Gemini at its full
+price, thinking about as many tokens as it was sent: about US$175 of the
+US$230 Google charged in the week every language was filmed again, about
+6 US cents a film.
+The first filming in all fifteen languages (29 October 2026) stopped on
+"prepayment credits are depleted" after about 8 hours of speech from CA$50 of
+prepaid credit, where Google's list price (25 audio tokens a second, US$4.50 a
+million in a batch) comes to about US$4: the counts are there to find out why.
+
+What the speaker says into the microphone (`readings.ts`) is parts with a
+long pause after each, since the app's recorder ends a part after a second of
+quiet (`splitter.ts`), and a part said as two pieces has a breath between
+them. Gemini leaves some quiet before and after what it says, so
+`make-readings.ts` cuts it where two pieces join: left in, the breath came to
+more than a second in some languages, and "Give each part its verse" got six
+parts where it asks for five. A reading is made again only when what it is
+made from changes (its words, voice, speed or pauses, or `MAKING` in
+`make-readings.ts`); `speech/<language>/made.json` says what each was made
+from, and the release keeps it with the readings.
+
+## Other languages
+
+A script is written once, in English. In another language:
+
+- **What is said** comes from `lines/<language>.json`, keyed by the English.
+  `translate-lines.ts` fills in what is missing with Gemini, told the app's own
+  words for what each line names (from `apps/mobile/src/i18n`), so the voice
+  says "Toca Guardar" when the button says "Guardar". Like the app's catalogs
+  (decision 81), these are machine translations.
+- **What is found on the screen** is translated as it is looked for. `ui.ts`
+  patches Playwright's `getByText`, `getByRole` names and the rest: a script's
+  `'Save'` or `/^Parts 1–4, 4 parts · /` is looked up in the English catalog
+  and becomes what the film language's catalog says, with its values (numbers
+  in that language's digits, names as written) in their places, or the
+  English. LangQuest's own library items (Standard Bible Flow, FIA passages,
+  a numbering) are found by what `library/labels` calls them in that language,
+  as the app shows them (decision 195). Names that are data rather than the
+  app's words (a team's own item, a person) stay as written; `asIs()` marks
+  one the catalogs would otherwise translate.
+- `notIn` on a script skips a language it cannot be made in ("Choose the
+  app's language" switches to Arabic, so it is not made in Arabic).
+
+## Each night
+
+`.github/workflows/tutorials.yml` keeps the videos current (decision 183).
+At 20:10 UTC, and when a change to `e2e/tutorials` or the workflow is
+merged into main, for each language in its `NIGHTLY_LANGUAGES` (all fifteen,
+English and French first, five at a time; English alone from 2026-11-01
+until Caleb has looked at the spotlight films), a runner starts the local stack and the web export as the UI tests
+do, has Gemini translate any line the language lacks (`translate-lines.ts`;
+the job keeps the file as `lines-<language>`, to commit), and `nightly.ts`:
+
+1. tries every video for the public without voice or film, one at a time
+   (a video whose try fails is tried once more),
+   keeping each step's screen as text once it stops changing and nothing
+   on it is saving, without the toast (`steps/NN.txt`, Playwright's
+   accessibility tree);
+2. compares each video's look (`look.ts`) with the look of the film the
+   repository's `tutorials` release keeps, tries a video that looks changed
+   again (a screen read mid-change can look different once), and films again
+   only the videos whose look changed, or that have no film yet, two at a
+   time; a film that fails is filmed once more, alone;
+3. looks at each new film as someone who pauses it would (`frame-check.ts`):
+   a still while each line is said, and the first and the last, as the video
+   shows them, go to Claude (Claude Code as Sonnet, thinking at high effort,
+   with no tools) in one look a film, two films at a time, which says what
+   is wrong in each: a line or a box's edge left outside the lit part or cut
+   through, words cut off or on top of each other, a heading that does not
+   agree with what the voice says, a blank, loading or error screen, words
+   not in the language. A film with something
+   wrong, or whose stills could not be looked at, is held: it is not put in
+   the release, the video keeps its last film, and the job fails, with what
+   is wrong under "Held by the frame check" on the run's summary and the
+   stills in its `tutorials-<language>` artifact (`check/`, `check.json`);
+4. writes the language's manifest, the films that did not change and the
+   new ones that passed, each with what YouTube shows (`playlists.ts`) and
+   its look.
+
+`put-in-release.ts` then puts the new films in the release (public, a
+pre-release), then the manifest, then the language's voice
+(`voice-<language>.tgz`: its lines, its readings and the pieces they are made
+of, so a line is said once), and takes out the films the manifest no longer
+names. Grace's pieces are the same French in every language, so the workflow
+says them once, before the languages' jobs, and keeps them in
+`pieces-grace.tgz`. A language's job that fails files it in Linear.
+The ops dashboard's Tutorial videos → Filming shows where a run is: each
+language waiting its turn, filming (and on which step), done or failed,
+with a link to its log.
+The workflow holds the Gemini key (`GEMINI_API_KEY`, for the voice and the
+translations) and the Claude plan's token (`CLAUDE_CODE_OAUTH_TOKEN`, for
+the frame check; see [Feedback](#feedback)), repository secrets that `npm
+run secrets -- production` sets from `.env.production`, and no production
+key. When Claude refuses the token, the frame check holds the night's new
+films and the job says "Needs you: Claude token" for the ops dashboard.
+
+Videos go up as soon as they are filmed (decision 192). Once a language's
+new films are in the release, its job tells the app's Worker
+(`e2e/tutorials/films-in.mjs` posts to `/api/tutorial-filmed`, with the OIDC
+token GitHub gives the job, so the workflow holds no production key), and
+the intake job in the app's job container (`server/tutorialIntake.ts`)
+starts: it reads each language's manifest, puts each film R2 lacks there
+through the Worker, checking its hash, and lists it on the ops dashboard,
+chosen for YouTube when it is wide (a tall film left from before waits for
+a person's Publish). The publish job starts as the intake ends. An intake
+already running takes the films in once more when it ends. The first job of
+each run tells the Worker too, for films an earlier run put in without
+saying, and the intake also runs at five past midnight in California, as
+YouTube's day of uploads begins, with the publish after it. A run by hand:
+Run now on the dashboard's Server jobs (`tutorial-intake`), or the
+workflow's Run workflow on GitHub, with languages and videos to film.
+
+A change the look does not see (a new sound, a colour) is filmed by running
+the workflow by hand with that video named, which films it whatever its
+look. A video for LangQuest staff (`staff: true`, "Read any
+organization as a Global Viewer") is never filmed here or put on YouTube:
+`npm run tutorials` films it by hand.
+
+No video shows or explains the phone's disguise, the calculator or notepad
+LangQuest can wear (decisions.md 171, amended): the web app they are filmed on
+draws no App icon row, `e2e/tutorials/no-disguise.test.ts` fails on a video that
+names or lights it, and the nightly look is refused when a reply or suggestion
+names it.
+
+## On YouTube
+
+Each app language has its own YouTube channel (decision 180). A version filmed
+is kept in R2 by its hash and listed on the ops dashboard's Tutorial videos
+section, chosen to go up as it comes in (decision 192); the publish job
+uploads it. A person's Publish puts up a film the intake does not choose (a
+tall one from before decision 191); a choice made before the intake chose
+films itself counts as none, so no tall film goes up as a Short unless a
+person chooses it again. Connecting the channels and publishing are in `docs/admin.md`
+("Tutorial videos on YouTube").
+
+Every video is wide (16:9), never tall (decision 191): YouTube makes a tall
+video under three minutes a Short, whose links cannot be clicked and which a
+channel lists apart from its videos. A video's description is read at a
+glance: the first sentence its voice says ("Here's how to record a
+passage."), then its links, each group apart with a blank line between:
+
+```
+Here's how to record a passage.
+
+Download this video: https://next.langquest.org/v/en/record-a-passage.mp4
+Watch or download every video: https://next.langquest.org/videos?lang=en
+LangQuest: https://next.langquest.org
+
+This video in other languages:
+Español: https://next.langquest.org/v/es/record-a-passage
+...
+```
+
+YouTube makes a description's links clickable only on a channel with its
+advanced features (Studio → Settings → Channel → Feature eligibility). A
+video's description is written when it is filmed and put on when it is
+uploaded; a film from before decision 191 (tall, its voice written out),
+from before the camera moved in on what each step lights, or with a ring
+drawn round each part rather than the spotlight, is filmed again once, whatever its look (`FRAME` in `playlists.ts` and in the release's
+manifest), and only a video's newest version goes up.
+
+A video's description ends with a link to the same video in each other
+language it is made in: `https://next.langquest.org/v/<language>/<video>`,
+which the app's Worker sends on to that video's newest version on YouTube,
+or to the language's channel while none is up (decision 183). So a
+description never needs changing when a newer version replaces one.
+
+Each channel looks like LangQuest's in its own language: a description of
+what the videos are with a link to the videos page (below) and the app's
+address, its language set, and a banner with
+the app's mark and "Tutorial videos" (`banners.ts` draws them). The publish
+job puts these on whenever they change (`server/youtube.ts` `brandChannel`,
+decision 184); the picture is set by hand. Its home page is laid out as
+BibleProject's and other channels' are (`setHome`, decision 191): under the
+trailer, a row of the other 14 LangQuest channels, then a row for each of
+its playlists, everyone's first (`server/youtubePlaylists.ts`). The publish
+job brings the rows up to date each run, and a playlist a run makes gets its
+row at the end of that run. None of it shows while the channel's Home tab
+is off, a switch in YouTube Studio (Customization, Home tab) that the API
+cannot set; it was off on all 15 channels on 2026-11-01. Each run also puts
+every channel's playlists in order before its uploads (`tidyChannel` in
+`server/tutorialPublisher.ts`, decision 180 amended): each video's newest
+version in its playlist in the plan's order, no older version in one, and
+every older version unlisted, so a step an upload left undone is done the
+next day. A playlist YouTube will not take in the channel's language
+(Hausa) is made without one. The links under a channel's name can only
+be set in YouTube Studio. Comments that may be inappropriate are held for review, and the ops
+dashboard counts them for each channel.
+
+## The trailer
+
+Each channel greets people who have not subscribed with a 48-second film of
+the app in its language (decision 189, `e2e/tutorials/trailer/README.md`):
+the October 2026 team film "From the ground up" made again from today's
+screens, with its score. It is filmed with the videos each night and made
+again only when its screens or its parts change, like a video. It goes up as
+the video `trailer`, first in the playlist for everyone, and the publish job
+makes it the channel's trailer. Its count ("1,000,000+ audio clips") and the
+day it was so are `CLIPS` and `AS_OF` in `e2e/tutorials/trailer/trailer.ts`.
+
+## Downloads
+
+Every video can be downloaded from LangQuest itself, not only watched on
+YouTube (decision 187). YouTube's own offline download works in only some
+countries, keeps the video inside the YouTube app, and needs it to reconnect
+every 48 hours; some countries block YouTube.
+
+- **A link that lasts:** `https://next.langquest.org/v/<language>/<video>.mp4`
+  gives the newest version chosen (as it came in, or with Publish), as a file named
+  `langquest-<video>-<language>.mp4`. It follows each new version by itself,
+  so it never needs changing. While none is chosen in that language it opens
+  the videos page. Each video's description on YouTube gives it, under the
+  app's address.
+- **The videos page:** `https://next.langquest.org/videos` lists every video
+  chosen in the reader's language (or `?lang=`), grouped by who it is for,
+  each with Download (and its size), Play (the file in the phone's own
+  player, no YouTube needed) and, once it is up, Watch on YouTube. Each
+  channel's description links it. Its foot links the privacy policy's
+  part on our YouTube channels (`/privacy#youtube`). The Worker writes it
+  (`apps/web/worker/videosPage.ts`, words in `apps/web/worker/i18n/`).
+- **Chosen, not uploaded:** a download is the version chosen, at once,
+  without waiting for YouTube's 100 uploads a day; so a new version can be
+  downloaded a day or more before YouTube has it. The files are the ones R2
+  keeps for the publish job (`/api/tutorials/...`, by hash, kept for good).
+
+## Feedback
+
+What people say about a video, and what changes in the app, come back to
+the videos (decision 186). Three kinds of input:
+
+- **Comments** on the videos and channels. The comments job in the app's
+  job container (`server/tutorialComments.ts`) reads each connected
+  channel's new comments each day at 23:50 UTC, after the publish job.
+- **Changes merged into main** that make a video's words or steps wrong (a
+  button renamed, a step moved, a help line changed). Claude finds them; a
+  change that only alters how a screen looks needs nothing, since the
+  nightly filming films that video again by itself.
+- **Notes** the team leaves on the ops dashboard: Tutorial videos →
+  Feedback and suggestions → Add a note, about a video or one not made yet.
+
+Each night at 10:00 UTC `.github/workflows/tutorial-review.yml` has Claude
+look at what is open. `scripts/tutorial-review.mjs fetch` gets it from the
+app's Worker and lists the changes merged into main since the last look;
+Claude (`anthropics/claude-code-action`, following the `tutorial-review`
+skill in `.agents/skills`) puts each comment into English with a reply in
+its own language, and suggests what to change: a video's script, screens or
+voice, the app's code, or a new video. Every input ends in a suggestion or
+with a line saying why none. `send` hands the look to the Worker, which
+checks it (`parseReview` in `server/tutorialFeedback.ts`) before the
+database takes it.
+
+A person decides each suggestion on the dashboard: Accept, Edit (change
+what it says first), or Reject with why, which the next look reads before
+suggesting the same again. An accepted code change becomes a Linear issue,
+"Tutorial feedback: …": at once when the app's Worker has `LINEAR_API_KEY`,
+otherwise at the comments job's next run. The replies Claude suggests are
+shown to copy into YouTube Studio; nothing is posted by itself. Making an
+accepted change to a video is still done by hand. A comment, with its
+English and suggested reply, is taken out 30 days after it was posted, and
+one older is never copied: YouTube's rule for what an API client keeps about
+other people, as the privacy policy says (`/privacy#youtube`; an hourly
+pg_cron job, migration `20261103190500_tutorial_comments_30_days.sql`). The
+suggestions stay without it. Code changes, notes and answered suggestions
+over a year old are taken out.
+
+Claude signs in with a Claude plan, not an API key, and uses that plan's
+five-hour and weekly limits, as the nightly filming's frame check does
+with the same token. The token, `CLAUDE_CODE_OAUTH_TOKEN`, is made
+by `claude setup-token` (`npx -y @anthropic-ai/claude-code setup-token`
+without the command installed), lasts a year, and is kept with `npm run
+env:update -- production CLAUDE_CODE_OAUTH_TOKEN`; `npm run secrets --
+production` makes it a secret of this repository's Actions. Anyone on the
+team can replace it with their own plan's the same way. Without one, or
+when Claude's answer says it was refused (expired or revoked), the run fails
+with an annotation titled "Needs you: Claude token", which the ops dashboard
+lists under Needs attention with a link to this section.
+
+The workflow holds no production key. The app's Worker answers
+`/api/tutorial-review` only for this workflow on main, which it knows by
+the OpenID Connect token GitHub signs for the job
+(`apps/web/worker/githubOidc.ts`); a branch, a fork or another workflow
+gets a token that names itself. Claude has no network, no token and no
+shell beyond reading git: the script around it fetches and sends. Anyone
+can write a comment, so the skill treats comments as data, never as
+instructions, and nothing Claude suggests happens without a person.
+
+The looks' runs are in the dashboard's Server jobs as `tutorial_review`
+(one the Worker refused is `bad_review`), and the comments job's as
+`tutorial_comments`. Run either by hand: Run workflow on GitHub, or Run now
+on the dashboard.

@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSMicrophoneUsageDescription": "LangQuest hurekodi sauti yako ili kutafsiri vifungu.",
+    "NSCameraUsageDescription": "LangQuest hutumia kamera kusoma misimbo ya QR ya mialiko."
+  }
+}

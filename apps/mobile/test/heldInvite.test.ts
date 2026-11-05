@@ -1,0 +1,243 @@
+import { foldOrg, ORG_STREAM, type AnyEvent } from '@langquest-next/core';
+import { deriveSession } from '../src/shell/session';
+import { claim, deadMessage, functionRefusal, HOLD_MS, holdScanned, inviteCard, learnFromPreview, nextStep, outcomeOfError, scanVerdict, withExpiry, type HeldInvite } from '../src/invites/heldInvite';
+import { inviteUri, parseKey, signInUri } from '../src/invites/inviteCode';
+import { isManagedEmail, makeSignInName, MANAGED_DOMAIN, signInAddress, signInName } from '../src/auth/accounts';
+
+/**
+ * The situations of docs/invites-and-accounts.md section 6, as the held
+ * invite sees them. Each test is one row of that table.
+ */
+const token = 'c'.repeat(64);
+const t0 = 1_790_000_000_000;
+const scanned = (now = t0): HeldInvite => holdScanned(null, { token, orgId: 'org-r' }, now);
+
+describe('the held invite', () => {
+  it('signed out, new person: the account they create joins, with no second Join', () => {
+    // Why: Caleb had to find the invite again and tap Join after signing up.
+    const held = claim(scanned(), 'next-account');
+    expect(nextStep(held, null, t0 + 1000)).toEqual({ step: 'none' });
+    const step = nextStep(held, 'caleb', t0 + 60_000);
+    expect(step.step).toBe('redeem');
+    // Bound to that account, so a later sign-in by someone else cannot take it.
+    if (step.step === 'redeem') expect(step.held.claim).toEqual({ kind: 'account', actorId: 'caleb' });
+  });
+
+  it('leaving the scan screen loses nothing: the invite is held, not the screen', () => {
+    // Whatever screens come and go, the decision reads only the held invite and who is signed in.
+    const held = claim(scanned(), 'next-account');
+    const again = JSON.parse(JSON.stringify(held)) as HeldInvite; // restored from storage after a restart
+    expect(nextStep(again, 'caleb', t0 + 5 * 60_000)).toEqual(nextStep(held, 'caleb', t0 + 5 * 60_000));
+  });
+
+  it('an unclaimed invite never joins on its own: the signed-in person is asked', () => {
+    // Why: on a shared phone the person signed in may not be the one the invite is for.
+    expect(nextStep(scanned(), 'ayen', t0 + 1000)).toEqual({ step: 'ask', held: scanned() });
+  });
+
+  it('an invite claimed by one account is not used by another on the same phone', () => {
+    const held = claim(scanned(), { actorId: 'nyibol' });
+    expect(nextStep(held, 'ayen', t0 + 1000)).toEqual({ step: 'none' });
+    expect(nextStep(held, 'nyibol', t0 + 1000).step).toBe('redeem');
+  });
+
+  it('scanning the same code again keeps the choice; a different code replaces it', () => {
+    const held = claim(scanned(), 'next-account');
+    expect(holdScanned(held, { token }, t0 + 5000).claim).toEqual({ kind: 'next-account' });
+    const other = holdScanned(held, { token: 'd'.repeat(64) }, t0 + 5000);
+    expect(other.token).toBe('d'.repeat(64));
+    expect(other.claim).toEqual({ kind: 'unclaimed' });
+  });
+
+  it('is held until the invite expires, signed in or not', () => {
+    // Why: invites last a week, and someone who scans offline may find a signal days later.
+    const held = claim(scanned(), 'next-account');
+    expect(nextStep(held, null, t0 + 3 * 86_400_000)).toEqual({ step: 'none' });
+    expect(nextStep(held, 'caleb', t0 + HOLD_MS + 1)).toEqual({ step: 'drop' });
+    expect(nextStep(held, null, t0 + HOLD_MS + 1)).toEqual({ step: 'drop' });
+    // Once the server has said when it expires, that date decides.
+    const known = withExpiry(held, new Date(t0 + 2 * 86_400_000).toISOString());
+    expect(nextStep(known, 'caleb', t0 + 86_400_000).step).toBe('redeem');
+    expect(nextStep(known, 'caleb', t0 + 2 * 86_400_000 + 1)).toEqual({ step: 'drop' });
+    expect(withExpiry(held, 'not a date')).toEqual(held);
+    // A phone whose clock jumped far backwards does not keep it forever either.
+    expect(nextStep(held, 'caleb', t0 - HOLD_MS - 1)).toEqual({ step: 'drop' });
+  });
+
+  it('learns an expiry only from an invite that can be used, so a dead one stays on screen until cleared', () => {
+    // Why: an expired invite's own date is in the past; held to it, it vanished with its reason a moment after it was read.
+    const held = scanned();
+    const later = new Date(t0 + 86_400_000).toISOString();
+    expect(learnFromPreview(held, { status: 'ok', expiresAt: later }).expiresAt).toBe(Date.parse(later));
+    const past = new Date(t0 - 60_000).toISOString();
+    for (const status of ['expired', 'used', 'retired', 'not_found', 'joined'] as const) {
+      const learned = learnFromPreview(held, { status, expiresAt: past });
+      expect(learned).toEqual(held);
+      expect(nextStep(learned, null, t0 + 1000)).toEqual({ step: 'none' });
+    }
+    expect(learnFromPreview(held, null)).toEqual(held);
+  });
+
+  it('scanning the same code again keeps its expiry and its join id', () => {
+    const held = { ...withExpiry(scanned(), new Date(t0 + 86_400_000).toISOString()), joinId: 'j1' };
+    const again = holdScanned(held, { token }, t0 + 5000);
+    expect(again.expiresAt).toBe(held.expiresAt);
+    expect(again.joinId).toBe('j1');
+  });
+});
+
+describe('why a join or sign-in code call failed', () => {
+  it('reads the function\'s reply, and says no connection when there was none', async () => {
+    // Why: offline, the error's context is the failed fetch; reading it as a reply threw, and the person saw "Try again" instead of "needs a connection".
+    const reply = new Response(JSON.stringify({ error: 'Type your name to join.', needsName: true }), { status: 400 });
+    expect(await functionRefusal({ message: 'Edge Function returned a non-2xx status code', context: reply })).toEqual(['Type your name to join.', true]);
+    const offline = { message: 'Failed to send a request to the Edge Function', context: new TypeError('Failed to fetch') };
+    expect(await functionRefusal(offline)).toEqual(['Failed to send a request to the Edge Function', false]);
+    expect(await functionRefusal({ message: 'boom' })).toEqual(['boom', false]);
+    const garbled = new Response('<html>', { status: 502 });
+    expect(await functionRefusal({ message: 'Edge Function returned a non-2xx status code', context: garbled })).toEqual(['Edge Function returned a non-2xx status code', false]);
+  });
+});
+
+describe('what a failed redemption means', () => {
+  it('offline or a fault keeps the invite for later', () => {
+    // Why: dropping a good invite is the one mistake the person cannot undo.
+    for (const m of ['Network request failed', 'TypeError: fetch failed', 'rpc: something odd', 'timed out']) {
+      expect(outcomeOfError(m), m).toEqual({ kind: 'retry' });
+    }
+  });
+
+  it("the server's refusals end it, each with its reason", () => {
+    expect(outcomeOfError('invite expired')).toEqual({ kind: 'dead', reason: 'expired' });
+    expect(outcomeOfError('invite already used')).toEqual({ kind: 'dead', reason: 'used' });
+    expect(outcomeOfError('invite not found')).toEqual({ kind: 'dead', reason: 'not_found' });
+    expect(outcomeOfError('invite role is no longer available')).toEqual({ kind: 'dead', reason: 'retired' });
+  });
+
+  it('says who to ask for a new one', () => {
+    expect(deadMessage('expired', 'Ryder')).toBe('This invite has expired. Ask Ryder for a new one.');
+    expect(deadMessage('used')).toBe('This invite has already been used. Ask for a new one.');
+  });
+});
+
+describe('the invite card', () => {
+  it("shows the server's word: who it is for, the role and the language", () => {
+    expect(inviteCard({ status: 'ok', label: 'Nyibol Deng', roleName: 'Translator', scopeLevel: 'language',
+      languageName: 'Anglish', orgName: "Ryder's Translation Organization", invitedBy: 'ryderwishart' }))
+      .toEqual({ title: 'Invite for Nyibol Deng', detail: "Translator · Anglish · Ryder's Translation Organization", from: 'ryderwishart' });
+  });
+
+  it('a group invite is named, not addressed to one person', () => {
+    expect(inviteCard({ status: 'ok', label: 'Juba workshop', group: true, roleName: 'Translator', scopeLevel: 'org', orgName: 'Org' }).title)
+      .toBe('Juba workshop');
+  });
+
+  it('offline, or for an unknown code, claims nothing', () => {
+    // Why: a link can be edited by whoever forwards it; only the server's preview is shown as fact.
+    expect(inviteCard(null)).toEqual({ title: 'Invitation to join an organization', detail: null, from: null });
+    expect(inviteCard({ status: 'not_found' }).detail).toBeNull();
+  });
+});
+
+describe('the one scanner reads both kinds of key', () => {
+  it('tells an invite from a sign-in key', () => {
+    expect(parseKey(inviteUri('org1', token))).toEqual({ kind: 'invite', token, orgId: 'org1' });
+    expect(parseKey(token)).toEqual({ kind: 'invite', token });
+    expect(parseKey(signInUri('e'.repeat(64)))).toEqual({ kind: 'signin', code: 'e'.repeat(64) });
+  });
+
+  it('refuses anything else', () => {
+    for (const junk of ['', 'hello', 'langquestnext://signin?code=short', 'https://example.com/?code=' + 'e'.repeat(64)]) {
+      expect(parseKey(junk), junk).toBeNull();
+    }
+  });
+});
+
+describe('looked-after accounts', () => {
+  it('sign in with a sign-in name or an email, in one field', () => {
+    expect(signInAddress(' Nyibol-482 ')).toBe(`nyibol-482@${MANAGED_DOMAIN}`);
+    expect(signInAddress('Caleb@Example.org')).toBe('caleb@example.org');
+  });
+
+  it('are told apart by their address alone', () => {
+    expect(isManagedEmail(`nyibol-482@${MANAGED_DOMAIN}`)).toBe(true);
+    expect(isManagedEmail('nyibol@gmail.com')).toBe(false);
+    expect(isManagedEmail(null)).toBe(false);
+    expect(signInName(`nyibol-482@${MANAGED_DOMAIN}`)).toBe('nyibol-482');
+    expect(signInName('caleb@example.org')).toBeNull();
+  });
+
+  it('get readable sign-in names that survive any script', () => {
+    expect(makeSignInName('Nyibol Deng', 482)).toBe('nyibol-deng-482');
+    expect(makeSignInName('  Akol  ', 7)).toBe('akol-007');
+    expect(makeSignInName('Ñandú José', 1)).toBe('nandu-jose-001');
+    expect(makeSignInName('ንጉሥ', 99)).toBe('member-099');
+    expect(makeSignInName('a'.repeat(60), 1).length).toBeLessThanOrEqual(28);
+  });
+});
+
+describe('who may invite', () => {
+  const at = (n: number) => ({ id: `e${n}`, orgId: 'o1', streamId: ORG_STREAM, actorId: 'me', deviceId: 'd', hlc: `0000000000${n}` });
+  const org = foldOrg([
+    { ...at(1), type: 'v1.RoleDefined', payload: { roleId: 'owner', name: 'Organization Admin', privileges: ['invite_members', 'manage_structure'] } },
+    { ...at(2), type: 'v1.MemberAdded', payload: { profileId: 'me', roleId: 'owner', scope: { level: 'org' } } }
+  ] as AnyEvent[]);
+
+  it('the role decides, with or without an email of their own', () => {
+    // Why (decisions.md 67): field admins often join by QR with no email; if
+    // that took Invite away, nobody could invite or admit anyone there.
+    const managed = deriveSession('me', `nyibol-482@${MANAGED_DOMAIN}`, true, org);
+    expect(managed.isManaged).toBe(true);
+    expect(managed.can('invite_members')).toBe(true);
+    expect(managed.can('manage_structure')).toBe(true);
+    const own = deriveSession('me', 'ryder@example.org', true, org);
+    expect(own.can('invite_members')).toBe(true);
+  });
+});
+
+describe('what the scan screen says about a held invite (scanVerdict)', () => {
+  const ok = { status: 'ok' as const, label: 'Akol', group: false };
+  it('names the one person a single invite is for, and no one for a group', () => {
+    expect(scanVerdict(ok, { kind: 'idle' })).toEqual({ dead: null, alreadyIn: false, named: 'Akol' });
+    expect(scanVerdict({ ...ok, group: true }, { kind: 'idle' }).named).toBeNull();
+    expect(scanVerdict({ status: 'ok' }, { kind: 'idle' }).named).toBeNull();
+  });
+
+  it('an invite the server says is spent, or the app found dead, says why', () => {
+    expect(scanVerdict({ status: 'expired', invitedBy: 'Mary' }, { kind: 'idle' }).dead).toBe(deadMessage('expired', 'Mary'));
+    expect(scanVerdict(ok, { kind: 'dead', message: 'Gone' }).dead).toBe('Gone');
+    expect(scanVerdict(null, { kind: 'idle' }).dead).toBeNull();
+  });
+
+  it('already in: said, not dead', () => {
+    expect(scanVerdict({ status: 'joined' }, { kind: 'idle' })).toEqual({ dead: null, alreadyIn: true, named: null });
+  });
+});
+
+describe('a dead invite says why, and who to ask (AUTH-039, AUTH-040, AUTH-041, AUTH-042)', () => {
+  const words = {
+    expired: ['AUTH-039', 'This invite has expired.'],
+    used: ['AUTH-040', 'This invite has already been used.'],
+    not_found: ['AUTH-041', "This invite isn't valid. Check you scanned the whole code, or"],
+    retired: ['AUTH-042', 'This invite can no longer be used.']
+  } as const;
+
+  for (const reason of ['expired', 'used', 'not_found', 'retired'] as const) {
+    const [id, start] = words[reason];
+    it(`${id} ${reason}: the message, with and without the person who invited`, () => {
+      expect(deadMessage(reason, 'Mary')).toContain(start);
+      expect(deadMessage(reason, 'Mary')).toMatch(/ask Mary for a new one\.$/i);
+      expect(deadMessage(reason)).toMatch(/ask for a new one\.$/i);
+      expect(deadMessage(reason, null)).toBe(deadMessage(reason));
+    });
+
+    it(`${id} ${reason}: the scan screen shows it as dead, not joinable`, () => {
+      expect(scanVerdict({ status: reason, invitedBy: 'Mary' }, { kind: 'idle' })).toEqual({ dead: deadMessage(reason, 'Mary'), alreadyIn: false, named: null });
+      expect(scanVerdict({ status: reason }, { kind: 'idle' }).dead).toBe(deadMessage(reason));
+    });
+  }
+
+  it('AUTH-041 an invalid code claims nothing: the generic card, no sender', () => {
+    expect(inviteCard({ status: 'not_found' })).toEqual({ title: 'Invitation to join an organization', detail: null, from: null });
+  });
+});

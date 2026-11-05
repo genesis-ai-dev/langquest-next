@@ -1,0 +1,13 @@
+# The UI test suite's phone flows (docs/ui-test-suite, decisions.md 95).
+# Run them with `npm run test:ui:phone -- --platform ios|android`
+# (scripts/maestro-ui.mjs), which builds a fresh fixture world and passes its
+# accounts and passages in as variables.
+flows:
+  - "flows/*"
+executionOrder:
+  continueOnFailure: true
+  # JRN-006 changes P-CHECK for good; P0-coordinator-ask-override undoes its
+  # own override, so it goes first.
+  flowsOrder:
+    - "P0 A coordinator asks someone and overrides a checkpoint"
+    - "JRN-006 A coordinator moves a passage past a checkpoint and signs it off"

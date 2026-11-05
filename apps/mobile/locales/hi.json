@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSMicrophoneUsageDescription": "LangQuest अंशों का अनुवाद करने के लिए आपकी आवाज़ रिकॉर्ड करता है।",
+    "NSCameraUsageDescription": "LangQuest निमंत्रण के QR कोड स्कैन करने के लिए कैमरे का इस्तेमाल करता है।"
+  }
+}

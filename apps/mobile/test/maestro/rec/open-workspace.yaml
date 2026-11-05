@@ -1,0 +1,27 @@
+# Open a passage's recording workspace from the Map (06-recording.md): find
+# PASSAGE (its label), open its record, and tap the Record step row (the main
+# button may read "Study" where FIA has a guide). Waits for the workspace.
+appId: com.frontierrnd.langquestnext
+---
+- extendedWaitUntil:
+    visible:
+      id: "tab-map"
+    timeout: 60000
+- tapOn:
+    id: "tab-map"
+- tapOn: "Find.*"
+- inputText: ${PASSAGE.split(':')[0]}
+- runFlow:
+    file: ../common/dismiss-keyboard.yaml
+    env:
+      LABEL: ${LANG_A}
+- tapOn:
+    text: "${PASSAGE}.*"
+    index: 0
+- extendedWaitUntil:
+    visible: "(?i)Then the team"
+    timeout: 30000
+- tapOn: "1\\. Record\\..*"
+- extendedWaitUntil:
+    visible: "Recording Version \\d+|Draft( \\d+)?|New draft"
+    timeout: 30000

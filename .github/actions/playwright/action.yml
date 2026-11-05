@@ -1,0 +1,48 @@
+name: Playwright browsers
+description: >
+  Install Playwright's browsers and the system packages that they need,
+  from a cache when there is one, retrying a slow package mirror instead of
+  waiting on it (scripts/ci-playwright.sh). Needs npm ci first.
+
+inputs:
+  browsers:
+    description: The browsers to install, separated by spaces (chromium, firefox, webkit)
+    required: true
+  warm:
+    description: "'true' to fill the cache only when it is missing (guardrails warm-caches), not to install from it"
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Work out the cache key
+      id: key
+      shell: bash
+      env:
+        BROWSERS: ${{ inputs.browsers }}
+      run: |
+        version="$(node -p "require('playwright/package.json').version")"
+        echo "key=playwright-${ImageOS:-linux}-${ImageVersion:-0}-${version}-${BROWSERS// /-}" >> "$GITHUB_OUTPUT"
+    - name: Restore the cached browsers and packages
+      id: restore
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: |
+          ~/.cache/ms-playwright
+          ${{ runner.temp }}/playwright-debs
+        key: ${{ steps.key.outputs.key }}
+        lookup-only: ${{ inputs.warm == 'true' }}
+    - name: Install them (retrying a slow mirror)
+      if: inputs.warm != 'true' || steps.restore.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        PLAYWRIGHT_CACHE_HIT: ${{ steps.restore.outputs.cache-hit }}
+      run: bash scripts/ci-playwright.sh "$RUNNER_TEMP/playwright-debs" ${{ inputs.browsers }}
+    - name: Save them for the next run
+      if: steps.restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: |
+          ~/.cache/ms-playwright
+          ${{ runner.temp }}/playwright-debs
+        key: ${{ steps.key.outputs.key }}
