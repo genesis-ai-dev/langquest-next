@@ -52,7 +52,7 @@ export const OPS_SECTIONS = [
   { id: 'fleet', title: 'Builds and stuck phones', src: 'Updates in the field and their crash-free rate, versions, time to a usable Map, stuck and silent phones', wide: true },
   { id: 'releases', title: 'Release health', src: 'Merges, deploys and EAS updates over 14 days against errors; hosts; migrations against main' },
   { id: 'adoption', title: 'Update adoption', src: 'For each channel, platform and runtime: the newest EAS update and how many active installs run it' },
-  { id: 'pipeline', title: 'Where each build and update is', src: 'Each store build in its stage (EAS, TestFlight or internal testing, review, live), and each update on production with the builds it reaches (decisions.md 157)' },
+  { id: 'pipeline', title: 'Where each build and update is', src: 'Each store build in its stage (EAS, TestFlight or internal testing, review, live), with the over-the-air updates it takes (decisions.md 157)' },
   { id: 'container', title: 'Job container', src: 'Whether each server job runs now (the app Worker\'s JobStatus)' },
   { id: 'cron', title: 'Scheduled database jobs', src: 'pg_cron runs and failures, last 24 h' },
   { id: 'dbdetail', title: 'Database detail', src: 'Largest tables and indexes, dead rows, long queries and transactions' },
@@ -140,28 +140,26 @@ Object.assign(RENDER, {
     return h;
   },
   pipeline(d) {
-    // Each store build sits in the stage it is in now; an arrow leads to the next. Each update leads to the builds it reaches, then the phones on it.
-    const card = (c) => '<div class="pc ' + esc(c.tone) + '"><b>' + esc(c.title) + '</b>' + (c.version ? ' <small>' + esc(c.version) + '</small>' : '') +
-      '<span>' + esc(c.state) + '</span>' + (c.at ? '<small>' + when(c.at) + '</small>' : '') + '</div>';
+    // Each store build sits in the stage it is in now, an arrow to the next; inside it, the over-the-air updates it takes.
+    const PHONES = { ios: 'iPhones', android: 'Android phones' };
+    const update = (u, platform) => {
+      const name = u.rollBack ? 'Back to the build\'s own code' : u.pr ? 'PR ' + u.pr + (u.title ? ' · ' + u.title : '') : 'Update ' + u.id.slice(0, 8);
+      const phones = u.phones ? ' · ' + num(u.phones.on) + ' of ' + num(u.phones.of) + ' ' + PHONES[platform] + ' run it' : '';
+      const body = '<b>' + esc(name) + '</b><small>' + esc(ago(u.at)) + esc(phones) + '</small>';
+      return u.pr ? '<a class="pu" href="https://github.com/' + esc(d.repo) + '/pull/' + encodeURIComponent(u.pr) + '" target="_blank" rel="noopener" title="' + esc(name) + '">' + body + '</a>'
+        : '<div class="pu" title="' + esc(name) + '">' + body + '</div>';
+    };
+    const card = (c, platform) => '<div class="pc ' + esc(c.tone) + '"><b>' + esc(c.title) + '</b>' + (c.version ? ' <small>' + esc(c.version) + '</small>' : '') +
+      '<span>' + esc(c.state) + '</span>' + (c.at ? '<small>' + when(c.at) + '</small>' : '') +
+      (c.updates.length ? '<div class="pus"><div class="puh">Over-the-air updates</div>' + c.updates.map((u) => update(u, platform)).join('') + '</div>' : '') + '</div>';
     const arrow = '<div class="pa" aria-hidden="true"></div>';
     const lane = (l) => '<div class="lane"><h3>' + esc(l.title) + '</h3><div class="flow">' + l.stages.map((s, i) => (i ? arrow : '') +
       '<div class="stage"><div class="st" data-help-key="' + esc(s.title) + '">' + esc(s.title) + '</div>' +
-      (s.cards.length ? s.cards.map(card).join('') : '<div class="pc none">none</div>') + '</div>').join('') + '</div>' +
+      (s.cards.length ? s.cards.map((c) => card(c, l.id)).join('') : '<div class="pc none">none</div>') + '</div>').join('') + '</div>' +
       l.notes.map((n) => '<p class="muted">' + esc(n) + '</p>').join('') + '</div>';
-    const PLATFORM = { ios: 'iPhone', android: 'Android' };
-    const otaRow = (r) => '<div class="flow ota">' +
-      '<div class="stage">' + card(Object.assign({}, r.update, { title: PLATFORM[r.platform] + ' ' + r.update.title })) + '</div>' + arrow +
-      '<div class="stage">' + (r.builds.length ? r.builds.map((b) => '<div class="pc ' + esc(b.tone) + '"><b>' + esc(b.title) + '</b>' + (b.version ? ' <small>' + esc(b.version) + '</small>' : '') + '<span>' + esc(b.where) + '</span></div>').join('')
-        : '<div class="pc none">no store build has this runtime yet</div>') + '</div>' + arrow +
-      '<div class="stage">' + (!r.phones ? '<div class="pc none">phones not counted</div>'
-        : !r.phones.of ? '<div class="pc none">no phone active in ' + num(d.activeDays) + ' days runs this runtime yet</div>'
-        : '<div class="pc ' + (r.phones.on < r.phones.of / 2 ? 'wait' : 'live') + '"><b>' + num(r.phones.on) + ' of ' + num(r.phones.of) + ' phones</b><span>run it, of those active in ' + num(d.activeDays) + ' days on this runtime</span></div>') + '</div></div>';
     return '<div class="legend"><span class="pc busy">on its way</span><span class="pc wait">waiting</span><span class="pc bad">needs a person</span><span class="pc live">what people get</span></div>' +
       d.lanes.map(lane).join('') +
-      '<div class="lane"><h3>Over-the-air updates on production</h3>' +
-      '<div class="flow heads"><div class="stage"><div class="st" data-help-key="Published">Published</div></div>' + arrow + '<div class="stage"><div class="st" data-help-key="Store builds that take it">Store builds that take it</div></div>' + arrow + '<div class="stage"><div class="st" data-help-key="Phones on it">Phones on it</div></div></div>' +
-      (d.ota.length ? d.ota.map(otaRow).join('') : '<p class="muted">No update on the production branch yet.</p>') +
-      d.otaNotes.map((n) => '<p class="muted">' + esc(n) + '</p>').join('') + '</div>';
+      '<p class="muted"><small>Phones: active in the last ' + num(d.activeDays) + ' days, with diagnostics on.</small></p>';
   },
   adoption(d) {
     // Each row: one channel, platform and runtime the phones run. Newest is what EAS published last for exactly that.

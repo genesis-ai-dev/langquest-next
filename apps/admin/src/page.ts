@@ -84,8 +84,6 @@ pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padd
 .lane { margin: 6px 0 14px; }
 .flow { display: flex; align-items: stretch; gap: 0; margin: 4px 0; }
 .flow .stage { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.flow.heads { margin-bottom: 0; }
-.flow.ota { margin-bottom: 10px; }
 .st { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 2px; }
 .pa { flex: none; width: 22px; align-self: center; text-align: center; color: var(--grey); }
 .pa::before { content: '→'; font-size: 18px; }
@@ -95,7 +93,13 @@ pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padd
 .pc.wait { border-inline-start-color: var(--amber); background: var(--amberbg); }
 .pc.bad { border-inline-start-color: var(--red); background: var(--redbg); }
 .pc.live { border-inline-start-color: var(--green); background: var(--greenbg); }
-.pc.old { border-inline-start-color: var(--grey); }
+.pus { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.puh { font-size: 11px; font-weight: 600; color: var(--muted); }
+.pu { display: block; padding: 4px 6px; border-radius: 6px; background: var(--card); border: 1px solid var(--line); color: var(--ink); text-decoration: none; font-size: 12px; }
+.pu b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pu small { display: block; }
+a.pu:hover, a.pu:focus-visible { border-color: var(--primary); }
+a.pu b { color: var(--primary); }
 .pc.none { color: var(--grey); border-style: dashed; border-inline-start-width: 1px; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
 .legend .pc { display: inline-block; padding: 2px 8px; font-size: 12px; }
@@ -133,8 +137,6 @@ td button { white-space: nowrap; }
   .scroll td:first-child::before { content: none; }
   .scroll td:empty { display: none; }
   .flow { flex-direction: column; }
-  .flow.heads { display: none; }
-  .flow.ota { padding-top: 10px; border-top: 1px solid var(--line); }
   .pa { width: auto; }
   .pa::before { content: '↓'; }
 }

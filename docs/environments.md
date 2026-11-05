@@ -224,16 +224,24 @@ yet" and succeeds, and Android builds wait in internal testing for a
 person to promote them in Play Console (Test and release > Internal
 testing > Promote release > Production).
 
-To make it, once, as someone who can manage the Google Cloud project that
-Play Console's API access uses:
+To make it, once, as a Play Console admin. It is a service account of its
+own, `play-review`, in a Google Cloud project the team can open
+(`langquest-next-play`): the one EAS submits with,
+`play-console-service-account@langquest-458501.iam.gserviceaccount.com`,
+lives in the project `langquest-458501`, which not every admin's Google
+account can open (Caleb's could not, 2026-11-04).
 
-1. Play Console > Users and permissions: find the service account that EAS
-   submits with (its address ends in `.iam.gserviceaccount.com`). It
-   already holds "Release to production, exclude devices, and use Play App
-   Signing".
-2. Google Cloud console > IAM & Admin > Service accounts > that account >
-   Keys > Add key > Create new key > JSON. The file downloads once.
-3. Store it, put it in EAS (signed in with `npx eas login`), then delete
+1. Google Cloud console: create the project `langquest-next-play`, and
+   in it enable the Google Play Android Developer API (APIs & Services >
+   Library).
+2. IAM & Admin > Service accounts > Create service account: `play-review`,
+   no roles. Open it > Keys > Add key > Create new key > JSON. The file
+   downloads once.
+3. Play Console > Users and permissions > Invite new users: the service
+   account's address (it ends in `.iam.gserviceaccount.com`), app
+   permissions for LangQuest Next only: "Release to production, exclude
+   devices, and use Play App Signing". It can do nothing else.
+4. Store it, put it in EAS (signed in with `npx eas login`), then delete
    the file:
 
    ```
@@ -242,7 +250,7 @@ Play Console's API access uses:
    rm ~/Downloads/<file>.json
    ```
 
-4. See what the step would do, without sending anything:
+5. See what the step would do, without sending anything:
    `npx dotenvx run -f .env.production -fk .env.keys --quiet -- node scripts/play-review.mjs --dry-run`.
 
 Each run prints a line that starts with what it found:

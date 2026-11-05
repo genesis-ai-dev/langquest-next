@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  androidLane, iosLane, newerVersion, otaRows, pipelineAlerts, pipelineFrom, pipelineSection, PIPELINE_QUERY,
+  androidLane, attachUpdates, iosLane, newerVersion, pipelineAlerts, pipelineFrom, pipelineSection, prFromMessage, PIPELINE_QUERY,
   type PipelineInputs, type StoreLane
 } from '../src/sources/pipeline';
 
@@ -14,6 +14,7 @@ import {
 const NOW = Date.parse('2026-11-04T22:00:00Z');
 const hAgo = (h: number) => new Date(NOW - h * 3_600_000).toISOString();
 const RT_OLD = 'aaaaaaaa1111', RT_NEW = '4f198b13ffff';
+const PR_332 = 'Merge pull request #332 from genesis-ai-dev/claude/project-thread-vwhnf3\n\nShow a spinner until a part plays (LAN-224)\n';
 
 function world(over: Partial<PipelineInputs> = {}): PipelineInputs {
   return {
@@ -31,10 +32,10 @@ function world(over: Partial<PipelineInputs> = {}): PipelineInputs {
       { platform: 'android', status: 'FINISHED', at: hAgo(22), doneAt: hAgo(22), track: 'production', version: '2026.1103.2251', build: '50' }
     ],
     updates: [
-      { id: 'u-android-new-0001', platform: 'android', at: hAgo(6), runtime: RT_NEW, commit: 'fc0760f06186', rollBack: false },
-      { id: 'u-android-old-0001', platform: 'android', at: hAgo(30), runtime: RT_OLD, commit: '0192ca8b0000', rollBack: false },
-      { id: 'u-android-old-0000', platform: 'android', at: hAgo(60), runtime: RT_OLD, commit: '11111111aaaa', rollBack: false },
-      { id: 'u-ios-new-0001', platform: 'ios', at: hAgo(6), runtime: RT_NEW, commit: 'fc0760f06186', rollBack: false }
+      { id: 'u-android-new-0001', platform: 'android', at: hAgo(6), runtime: RT_NEW, commit: 'fc0760f06186', message: PR_332, rollBack: false },
+      { id: 'u-android-old-0001', platform: 'android', at: hAgo(30), runtime: RT_OLD, commit: '0192ca8b0000', message: 'Merge pull request #324 from genesis-ai-dev/claude/a\n\nOpen each page of New language at its top', rollBack: false },
+      { id: 'u-android-old-0000', platform: 'android', at: hAgo(60), runtime: RT_OLD, commit: '11111111aaaa', message: 'Merge pull request #315 from genesis-ai-dev/claude/b', rollBack: false },
+      { id: 'u-ios-new-0001', platform: 'ios', at: hAgo(6), runtime: RT_NEW, commit: 'fc0760f06186', message: PR_332, rollBack: false }
     ],
     apple: {
       versions: [
@@ -60,7 +61,7 @@ function world(over: Partial<PipelineInputs> = {}): PipelineInputs {
       { channel: 'production', platform: 'ios', runtime: RT_NEW, embedded: false, updateId: 'u-ios-new-0001', n: 2 },
       { channel: 'preview', platform: 'ios', runtime: RT_NEW, embedded: false, updateId: 'x', n: 9 }
     ],
-    notes: { ios: [], android: [], ota: [] },
+    notes: { ios: [], android: [] },
     ...over
   };
 }
@@ -95,7 +96,7 @@ describe('the iPhone lane', () => {
   });
 
   it('says what EAS sent to TestFlight when App Store Connect cannot be read', () => {
-    const lane = iosLane(world({ apple: null, notes: { ios: ['App Store Connect is not connected.'], android: [], ota: [] } }));
+    const lane = iosLane(world({ apple: null, notes: { ios: ['App Store Connect is not connected.'], android: [] } }));
     expect(read(lane)).toMatchObject({ waiting: ['build 52: uploaded to TestFlight'], review: [], live: [] });
     expect(lane.notes).toEqual(['App Store Connect is not connected.']);
   });
@@ -117,7 +118,7 @@ describe('the Android lane', () => {
   });
 
   it('falls back on where EAS sent each build when Play\'s tracks cannot be read', () => {
-    const lane = androidLane(world({ play: null, notes: { ios: [], android: ["Play's tracks are not connected."], ota: [] } }));
+    const lane = androidLane(world({ play: null, notes: { ios: [], android: ["Play's tracks are not connected."] } }));
     expect(read(lane)).toMatchObject({
       waiting: ['build 52: waits for the review ahead of it to end'],
       review: ['build 50: in review, or rejected (Play Console says which)'],
@@ -142,28 +143,36 @@ describe('the Android lane', () => {
 });
 
 describe('over-the-air updates', () => {
-  it('lead from each platform and runtime\'s newest update to the store builds that take it and the phones on it', () => {
-    const lanes = [iosLane(world()), androidLane(world())];
-    const rows = otaRows(world(), lanes);
-    expect(rows.map((r) => `${r.platform} ${r.update.title}`)).toEqual(['android update u-androi', 'ios update u-ios-ne', 'android update u-androi']);
-    expect(rows[0]!.builds).toEqual([
-      { title: 'build 52', version: '2026.1104.1802', where: 'Internal testing', tone: 'wait' },
-      { title: 'build 50', version: '2026.1103.2251', where: 'Play review', tone: 'wait' }
-    ]);
-    // Nobody runs the new runtime on Android yet: build 50 is still in review.
-    expect(rows[0]!.phones).toEqual({ on: 0, of: 0 });
-    expect(rows[2]!.builds).toEqual([{ title: 'build 48', version: '2026.1030.1319', where: 'On Google Play', tone: 'live' }]);
-    expect(rows[2]!.phones).toEqual({ on: 4, of: 6 });
-    expect(rows[1]!.phones).toEqual({ on: 2, of: 2 });
+  /** Each card's updates as "PR: title, on of of", by build. */
+  const updatesOf = (lanes: StoreLane[]) => Object.fromEntries(lanes.flatMap((l) => l.stages.flatMap((st) => st.cards))
+    .filter((c) => c.updates.length).map((c) => [c.title, c.updates.map((u) => `${u.pr ?? '?'}: ${u.title ?? '?'}, ${u.phones ? `${u.phones.on} of ${u.phones.of}` : 'not counted'}`)]));
+
+  it('show inside each build that takes them: same runtime, published after the build was made, newest first', () => {
+    const p = pipelineFrom(world());
+    expect(updatesOf([p.lanes[0]!])).toEqual({ 'build 50': ['332: Show a spinner until a part plays (LAN-224), 2 of 2'] });
+    // Build 52 was made after PR 332's update, so it already has that code; build 48 has the old runtime.
+    expect(updatesOf([p.lanes[1]!])).toEqual({
+      'build 50': ['332: Show a spinner until a part plays (LAN-224), 0 of 6'],
+      'build 48': ['324: Open each page of New language at its top, 4 of 6', '315: ?, 1 of 6']
+    });
+    // One update can reach several builds: every build with its runtime.
+    expect(p.lanes.flatMap((l) => l.stages.flatMap((st) => st.cards)).filter((c) => c.updates.some((u) => u.id === 'u-android-new-0001')).map((c) => c.title)).toEqual(['build 50']);
   });
 
-  it('counts the build\'s own code as the newest after a rollback to it, and nothing without the database', () => {
-    const w = world({ updates: [{ id: 'u-back', platform: 'android', at: hAgo(1), runtime: RT_OLD, commit: null, rollBack: true }] });
-    const rows = otaRows(w, []);
-    expect(rows[0]!.update.state).toBe('back to the build\'s own code');
-    expect(rows[0]!.phones).toEqual({ on: 1, of: 6 });
-    expect(rows[0]!.builds[0]!.where).toBe('an older build');
-    expect(otaRows(world({ installs: null }), [])[0]!.phones).toBeNull();
+  it('count the build\'s own code after a rollback to it, and nothing without the database', () => {
+    const w = world({ updates: [{ id: 'u-back', platform: 'android', at: hAgo(1), runtime: RT_OLD, commit: null, message: null, rollBack: true }] });
+    const lanes = [iosLane(w), androidLane(w)];
+    attachUpdates(w, lanes);
+    expect(lanes[1]!.stages.find((st) => st.id === 'live')!.cards[0]!.updates).toEqual([{ id: 'u-back', pr: null, title: null, at: hAgo(1), rollBack: true, phones: { on: 1, of: 6 } }]);
+    const none = world({ installs: null });
+    expect(updatesOf(pipelineFrom(none).lanes)['build 48']).toEqual(['324: Open each page of New language at its top, not counted', '315: ?, not counted']);
+  });
+
+  it('name the pull request a merge commit names', () => {
+    expect(prFromMessage(PR_332)).toEqual({ pr: 332, title: 'Show a spinner until a part plays (LAN-224)' });
+    expect(prFromMessage('Merge pull request #315 from genesis-ai-dev/claude/b')).toEqual({ pr: 315, title: null });
+    expect(prFromMessage('Fix a typo')).toBeNull();
+    expect(prFromMessage(null)).toBeNull();
   });
 });
 
@@ -192,7 +201,7 @@ describe('versions', () => {
 
 describe('reading the sources', () => {
   it('needs the Expo token, and says which', async () => {
-    const s = await pipelineSection({ EXPO_PROJECT_ID: 'p', APP_STORE_APP_ID: 'a', GOOGLE_PLAY_PACKAGE: 'com.x' }, (async () => { throw new Error('no call'); }) as never);
+    const s = await pipelineSection({ EXPO_PROJECT_ID: 'p', APP_STORE_APP_ID: 'a', GOOGLE_PLAY_PACKAGE: 'com.x', GITHUB_REPO: 'o/r' }, (async () => { throw new Error('no call'); }) as never);
     expect(s.state).toBe('off');
     expect(s.setup).toContain('ADMIN_EXPO_TOKEN');
   });
@@ -208,7 +217,7 @@ describe('reading the sources', () => {
         return json({ data: { app: { byId: {
           builds: [{ status: 'FINISHED', platform: 'ANDROID', createdAt: hAgo(5), completedAt: hAgo(4.5), appVersion: '2026.1104.1802', appBuildVersion: '52', runtime: { version: RT_NEW } }],
           submissions: [],
-          updateBranchByName: { updateGroups: [[{ id: 'u1', platform: 'android', createdAt: hAgo(6), gitCommitHash: 'abc', isRollBackToEmbedded: false, runtime: { version: RT_NEW } }]] }
+          updateBranchByName: { updateGroups: [[{ id: 'u1', platform: 'android', createdAt: hAgo(4), message: 'Publish', gitCommitHash: 'abc123', isRollBackToEmbedded: false, runtime: { version: RT_NEW } }]] }
         } } } });
       }
       if (url.startsWith('https://api.appstoreconnect.apple.com/')) return json({ errors: [{ status: '401' }] }, 401);
@@ -217,12 +226,13 @@ describe('reading the sources', () => {
       if (url.endsWith('/edits/e1/tracks')) return json({ tracks: [{ track: 'internal', releases: [{ name: '2026.1104.1802', status: 'completed', versionCodes: ['52'] }] }, { track: 'production', releases: [] }] });
       if (url.endsWith('/edits/e1') && method === 'DELETE') return new Response(null, { status: 204 });
       if (url.startsWith('https://play.google.com/store/apps/details')) return new Response('<script>[[["2026.1030.1319"]],x]</script>');
+      if (url === 'https://api.github.com/repos/genesis-ai-dev/langquest-next/commits/abc123/pulls') return json([{ number: 333, title: 'Add a thing', merged_at: hAgo(4.1) }]);
       return json({ error: 'unexpected' }, 404);
     }) as typeof fetch;
     const key = JSON.stringify({ client_email: 'a@b.iam.gserviceaccount.com', private_key: await rsaPem() });
     const s = await pipelineSection({
       ADMIN_EXPO_TOKEN: 'x', EXPO_PROJECT_ID: 'p', ADMIN_APP_STORE_KEY: JSON.stringify({ issuerId: 'i', keyId: 'k', privateKey: await ecPem() }), APP_STORE_APP_ID: '6812492008',
-      ADMIN_GOOGLE_PLAY_KEY: key, GOOGLE_PLAY_PACKAGE: 'com.frontierrnd.langquestnext'
+      ADMIN_GOOGLE_PLAY_KEY: key, GOOGLE_PLAY_PACKAGE: 'com.frontierrnd.langquestnext', GITHUB_REPO: 'genesis-ai-dev/langquest-next'
     }, fetcher, NOW, null);
     expect(s.state).toBe('ok');
     const d = s.data!;
@@ -230,8 +240,10 @@ describe('reading the sources', () => {
     expect(d.lanes[0]!.notes[0]).toMatch(/^App Store Connect could not be read \(App Store versions: HTTP 401/);
     expect(asked).toContain('DELETE https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.frontierrnd.langquestnext/edits/e1');
     expect(asked.some((a) => a.includes(':commit') || a.startsWith('PUT') || a.startsWith('PATCH'))).toBe(false);
-    expect(d.ota).toHaveLength(1);
-    expect(d.ota[0]!.phones).toBeNull();
+    // The update's message names no pull request, so GitHub's answer for its merge commit does.
+    const waiting = d.lanes[1]!.stages.find((st) => st.id === 'waiting')!.cards[0]!;
+    expect(waiting.updates).toEqual([{ id: 'u1', pr: 333, title: 'Add a thing', at: hAgo(4), rollBack: false, phones: null }]);
+    expect(d.repo).toBe('genesis-ai-dev/langquest-next');
   });
 });
 

@@ -50,7 +50,7 @@ export const SECTION_HELP: Record<string, string> = {
   cloudflare: 'Each Cloudflare Worker\'s requests, errors and CPU over the last day, and its latest deploy and build.',
   supabase: 'The LangQuest Next Supabase project\'s status, each service\'s health, Edge Functions, and error counts from its logs.',
   expo: 'App builds on EAS, store submissions, and the newest over-the-air update on each branch.',
-  pipeline: 'Each new store build in the stage it is in now, left to right: building on EAS, waiting in TestFlight or Play\'s internal testing, in review, approved, and what people download. A new build waits while an older one is in review, unless its pull request had the label "store: replace review" (decisions.md 157). Below: each update on the production branch, the store builds that take it (same runtime), and how many phones run it.',
+  pipeline: 'Each new store build in the stage it is in now, left to right: building on EAS, waiting in TestFlight or Play\'s internal testing, in review, approved, and what people download. A new build waits while an older one is in review, unless its pull request had the label "store: replace review" (decisions.md 157). Inside each build: the over-the-air updates it takes (published for its runtime after it was made), each with its pull request and how many of the platform\'s phones run it.',
   adoption: 'How far each over-the-air update has reached. For each channel, platform and runtime that phones run: the newest update EAS published for exactly that, and how many installs active in the last 7 days run it, an older update, or the build\'s embedded one. Matched by the update id phones report.',
   googleplay: 'Android crash and freeze (ANR) rates as Google Play measures them, against Play\'s bad-behaviour lines, and recent reviews.',
   appstore: 'iOS versions in review, builds Apple processed, TestFlight crash reports, and recent reviews.',
@@ -72,9 +72,6 @@ export const HELP: Record<string, string> = {
   'Internal testing': 'Android builds in Play\'s internal testing track: waiting while an older build is in Play review. play-review.mjs sends the newest to production review once nothing is in review (it needs PLAY_REVIEW_KEY).',
   'Play review': 'The newest production release that Google Play\'s page does not show yet: in review, or rejected (Play Console says which).',
   'On Google Play': 'The version Google Play\'s page shows: what people download now.',
-  Published: 'The newest update on the production branch for each platform and runtime. Phones take it on their next launch after it downloads.',
-  'Store builds that take it': 'Store builds made with the same runtime as the update: only these run it. A build with another runtime keeps its own code until people install a newer build.',
-  'Phones on it': 'Installs active in the last 7 days on this platform and runtime, and how many of them run this update.',
   // ---- sync and data safety
   'events refused, latest day': 'Events (pieces of work) phones sent that the server would not accept on the latest day. Refused work may never arrive, so this matters more than a crash.',
   'refused as invalid': 'Events the server refused because they break its rules. Usually a bug in the app: that work cannot arrive until it is fixed.',

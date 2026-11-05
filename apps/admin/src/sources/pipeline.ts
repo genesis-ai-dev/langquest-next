@@ -3,14 +3,15 @@ import { jsonSecret } from '../jwt';
 import { getJson, hoursAgo, ok, off, type Alert, type Section } from '../section';
 import { ACTIVE_DAYS, INSTALLS_SQL, type InstallCount } from './adoption';
 import { appStoreToken } from './appstore';
+import { githubApi } from './github';
 import { googleToken } from './googleplay';
 
 /**
  * Where every new store build and over-the-air update sits on its way to
  * people (decisions.md 157): for each platform, the stages a store build
- * goes through, with each build in the stage it is in now, and for each
- * update on the production branch, the store builds it reaches and how many
- * phones run it. A new build waits in TestFlight or Play's internal testing
+ * goes through, with each build in the stage it is in now, and inside each
+ * build the updates it takes (the pull request that made each, and how many
+ * of the platform's phones run it). A new build waits in TestFlight or Play's internal testing
  * while an older one is in review, so this shows what waits and why.
  *
  * Expo says what was built and sent where; App Store Connect says where an
@@ -21,13 +22,32 @@ import { googleToken } from './googleplay';
  * Expo knows, and says so under its lane. Who started a build is left out.
  */
 
-/** busy: on its way; wait: waits for something; bad: needs a person; live: what people get; old: an older build some phones still run. */
-export type Tone = 'busy' | 'wait' | 'bad' | 'live' | 'old';
+/** busy: on its way; wait: waits for something; bad: needs a person; live: what people get. */
+export type Tone = 'busy' | 'wait' | 'bad' | 'live';
 
-/** One build or update, in the stage it is in now. */
+/**
+ * An over-the-air update a build takes: one published on the production
+ * branch for the build's platform and runtime after the build was made. One
+ * update reaches every build with that runtime, so it can show under several.
+ */
+export interface UpdateCard {
+  id: string;
+  /** The pull request whose merge published it, from the merge commit's message or GitHub. */
+  pr: number | null;
+  title: string | null;
+  at: string;
+  /** Back to the build's own code (a rollback), rather than new code. */
+  rollBack: boolean;
+  /** Phones active in the last week on the platform that run it, of all of them; null without the database. */
+  phones: { on: number; of: number } | null;
+}
+
+/** One build, in the stage it is in now. */
 export interface Card {
-  /** "build 51", or "update 3f2a91c0". */
+  /** "build 51". */
   title: string;
+  /** The store build number, when known. */
+  build: string | null;
   /** The store version (the merge's time, app.config.js), when known. */
   version: string | null;
   /** What it is doing there, in a few words. */
@@ -35,29 +55,21 @@ export interface Card {
   tone: Tone;
   /** Since when, as far as a source says. */
   at: string | null;
+  /** The updates it takes, newest first (the newest is what it runs once it downloads it). */
+  updates: UpdateCard[];
 }
 
 export interface Stage { id: string; title: string; cards: Card[] }
 
 export interface StoreLane { id: 'ios' | 'android'; title: string; stages: Stage[]; notes: string[] }
 
-/** One update on the production branch, the newest for its platform and runtime. */
-export interface OtaRow {
-  platform: 'ios' | 'android';
-  update: Card;
-  /** The store builds with the same runtime, which take this update, and where each is. */
-  builds: { title: string; version: string | null; where: string; tone: Tone }[];
-  /** Installs active in the last week on this platform and runtime, and how many run this update; null without the database. */
-  phones: { on: number; of: number } | null;
-}
-
-export interface Pipeline { lanes: StoreLane[]; ota: OtaRow[]; otaNotes: string[]; activeDays: number }
+export interface Pipeline { lanes: StoreLane[]; activeDays: number; repo: string }
 
 // ---- what each source answers, as the pipeline uses it ------------------------------
 
 export interface EasBuild { platform: 'ios' | 'android'; status: string; at: string; doneAt: string | null; version: string | null; build: string | null; runtime: string | null }
 export interface EasSubmission { platform: 'ios' | 'android'; status: string; at: string; doneAt: string | null; track: string | null; version: string | null; build: string | null }
-export interface EasUpdate { id: string; platform: 'ios' | 'android'; at: string; runtime: string | null; commit: string | null; rollBack: boolean }
+export interface EasUpdate { id: string; platform: 'ios' | 'android'; at: string; runtime: string | null; commit: string | null; message: string | null; rollBack: boolean }
 export interface AppleVersion { version: string; state: string; at: string | null; build: string | null }
 export interface AppleBuild { version: string | null; build: string | null; state: string; uploadedAt: string | null }
 export interface PlayRelease { name: string | null; status: string; versionCodes: string[] }
@@ -73,7 +85,7 @@ export interface PipelineInputs {
   /** The version Play's public page shows, which changes only once Google approves a release; null when it could not be read. */
   playLive: string | null;
   installs: InstallCount[] | null;
-  notes: { ios: string[]; android: string[]; ota: string[] };
+  notes: { ios: string[]; android: string[] };
 }
 
 // ---- the stages ------------------------------------------------------------------------
@@ -116,7 +128,7 @@ export function newerVersion(a: string | null, b: string | null): boolean {
 const emptyStages = (platform: 'ios' | 'android'): Stage[] => STAGES[platform].map(([id, title]) => ({ id, title, cards: [] }));
 const stage = (stages: Stage[], id: string): Stage => stages.find((s) => s.id === id)!;
 const buildCard = (build: string | null, version: string | null, state: string, tone: Tone, at: string | null): Card =>
-  ({ title: build ? `build ${build}` : version ? `version ${version}` : 'a build', version, state, tone, at });
+  ({ title: build ? `build ${build}` : version ? `version ${version}` : 'a build', build, version, state, tone, at, updates: [] });
 
 /** Builds still building on EAS, and the newest one when it failed after the last that finished. */
 function building(builds: EasBuild[], platform: 'ios' | 'android'): Card[] {
@@ -242,43 +254,47 @@ export function androidLane(i: PipelineInputs): StoreLane {
     stage(stages, subs[0].track === 'production' ? 'review' : 'waiting').cards.push(buildCard(subs[0].build, subs[0].version, 'upload to Google Play failed', 'bad', subs[0].doneAt ?? subs[0].at));
   }
   // The internal track keeps one release; the newest waits, with nothing between it and review.
-  stage(stages, 'waiting').cards.sort((a, b) => num(b.title.slice(6)) - num(a.title.slice(6)));
+  stage(stages, 'waiting').cards.sort((a, b) => num(b.build) - num(a.build));
   return { id: 'android', title: 'Android store builds', stages, notes };
 }
 
-/** Each platform and runtime's newest update on the production branch, newest first, with the store builds it reaches and the phones on it. */
-export function otaRows(i: PipelineInputs, lanes: StoreLane[], limit = 6): OtaRow[] {
-  const newest = new Map<string, EasUpdate>();
-  for (const u of i.updates) {
-    const key = `${u.platform}|${u.runtime}`;
-    const seen = newest.get(key);
-    if (!seen || Date.parse(u.at) > Date.parse(seen.at)) newest.set(key, u);
+/** The pull request a merge commit's message names: "Merge pull request #332 from …", its title on the line after. */
+export function prFromMessage(message: string | null): { pr: number; title: string | null } | null {
+  const m = /^Merge pull request #(\d+) from \S+[ \t]*(?:\r?\n\s*([^\n]+))?/.exec(message ?? '');
+  return m ? { pr: Number(m[1]), title: m[2]?.trim() || null } : null;
+}
+
+/** How many updates a card lists; older ones are on EAS. */
+export const UPDATES_PER_BUILD = 3;
+
+/**
+ * Each built card's updates: those published on the production branch for
+ * its platform and runtime after EAS made it, newest first, with the phones
+ * of that platform that run each. A card whose build EAS does not list (an
+ * older live one) shows none.
+ */
+export function attachUpdates(i: PipelineInputs, lanes: StoreLane[]): void {
+  const all = (platform: string) => (i.installs ?? []).filter((c) => c.channel === 'production' && c.platform === platform);
+  for (const lane of lanes) {
+    const phones = all(lane.id);
+    const of = phones.reduce((a, c) => a + (Number(c.n) || 0), 0);
+    for (const s of lane.stages) {
+      if (s.id === 'building') continue;
+      for (const card of s.cards) {
+        const built = i.builds.find((b) => b.platform === lane.id && b.build === card.build && b.build !== null && b.status === 'FINISHED');
+        if (!built?.runtime) continue;
+        card.updates = i.updates
+          .filter((u) => u.platform === lane.id && u.runtime === built.runtime && Date.parse(u.at) > Date.parse(built.at))
+          .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+          .slice(0, UPDATES_PER_BUILD)
+          .map((u) => {
+            const named = prFromMessage(u.message);
+            const on = phones.filter((c) => (u.rollBack ? c.embedded && c.runtime === u.runtime : c.updateId === u.id)).reduce((a, c) => a + (Number(c.n) || 0), 0);
+            return { id: u.id, pr: named?.pr ?? null, title: named?.title ?? null, at: u.at, rollBack: u.rollBack, phones: i.installs ? { on, of } : null };
+          });
+      }
+    }
   }
-  const whereIs = (platform: 'ios' | 'android', build: string | null) => {
-    for (const s of lanes.find((l) => l.id === platform)?.stages ?? []) {
-      const card = s.cards.find((c) => c.title === `build ${build}`);
-      if (card) return { where: s.title, tone: card.tone };
-    }
-    return { where: 'an older build', tone: 'old' as Tone };
-  };
-  return [...newest.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, limit).map((u) => {
-    const builds = i.builds.filter((b) => b.platform === u.platform && b.runtime === u.runtime && b.status === 'FINISHED')
-      .sort((a, b) => num(b.build) - num(a.build))
-      .slice(0, 3)
-      .map((b) => ({ title: `build ${b.build ?? '?'}`, version: b.version, ...whereIs(u.platform, b.build) }));
-    let phones: OtaRow['phones'] = null;
-    if (i.installs) {
-      const mine = i.installs.filter((c) => c.channel === 'production' && c.platform === u.platform && c.runtime === u.runtime);
-      const of = mine.reduce((a, c) => a + (Number(c.n) || 0), 0);
-      const on = mine.filter((c) => (u.rollBack ? c.embedded : c.updateId === u.id)).reduce((a, c) => a + (Number(c.n) || 0), 0);
-      phones = { on, of };
-    }
-    const update: Card = {
-      title: `update ${u.id.slice(0, 8)}`, version: u.commit ? `main ${u.commit.slice(0, 8)}` : null,
-      state: u.rollBack ? 'back to the build\'s own code' : `runtime ${String(u.runtime ?? '?').slice(0, 8)}`, tone: 'live', at: u.at
-    };
-    return { platform: u.platform, update, builds, phones };
-  });
 }
 
 /** How long a build may wait with nothing ahead of it before it is worth a look. */
@@ -305,10 +321,19 @@ export function pipelineAlerts(p: Pipeline, now = Date.now()): Alert[] {
   return out;
 }
 
-export function pipelineFrom(i: PipelineInputs): Pipeline {
+export function pipelineFrom(i: PipelineInputs, repo = 'genesis-ai-dev/langquest-next'): Pipeline {
   const lanes = [iosLane(i), androidLane(i)];
-  return { lanes, ota: otaRows(i, lanes), otaNotes: i.notes.ota, activeDays: ACTIVE_DAYS };
+  attachUpdates(i, lanes);
+  return { lanes, activeDays: ACTIVE_DAYS, repo };
 }
+
+/** The commits of shown updates whose message did not name their pull request and title. */
+export const unnamed = (p: Pipeline, commitOf: Map<string, string>): string[] =>
+  [...new Set(p.lanes.flatMap((l) => l.stages.flatMap((s) => s.cards.flatMap((c) => c.updates)))
+    .filter((u) => u.pr === null || u.title === null).map((u) => commitOf.get(u.id)).filter((c): c is string => !!c))];
+
+/** Pull requests by merge commit, kept per isolate: a merged pull request's number and title do not change. */
+const prsByCommit = new Map<string, { pr: number; title: string } | null>();
 
 // ---- reading the sources -------------------------------------------------------------------
 
@@ -316,7 +341,7 @@ export const PIPELINE_QUERY = `query ($id: String!) {
   app { byId(appId: $id) {
     builds(offset: 0, limit: 20, filter: { buildProfile: "production" }) { status platform createdAt completedAt appVersion appBuildVersion runtime { version } }
     submissions(filter: {}, offset: 0, limit: 12) { status platform createdAt completedAt androidConfig { track } submittedBuild { appVersion appBuildVersion } }
-    updateBranchByName(name: "production") { updateGroups(offset: 0, limit: 30) { id platform createdAt gitCommitHash isRollBackToEmbedded runtime { version } } }
+    updateBranchByName(name: "production") { updateGroups(offset: 0, limit: 30) { id platform createdAt message gitCommitHash isRollBackToEmbedded runtime { version } } }
   } }
 }`;
 
@@ -324,7 +349,7 @@ interface ExpoAnswer {
   data?: { app?: { byId?: {
     builds?: { status: string; platform: string; createdAt: string; completedAt?: string | null; appVersion?: string | null; appBuildVersion?: string | null; runtime?: { version?: string | null } | null }[];
     submissions?: { status: string; platform: string; createdAt: string; completedAt?: string | null; androidConfig?: { track?: string | null } | null; submittedBuild?: { appVersion?: string | null; appBuildVersion?: string | null } | null }[];
-    updateBranchByName?: { updateGroups?: { id: string; platform: string; createdAt: string; gitCommitHash?: string | null; isRollBackToEmbedded?: boolean | null; runtime?: { version?: string | null } | null }[][] } | null;
+    updateBranchByName?: { updateGroups?: { id: string; platform: string; createdAt: string; message?: string | null; gitCommitHash?: string | null; isRollBackToEmbedded?: boolean | null; runtime?: { version?: string | null } | null }[][] } | null;
   } } };
   errors?: { message: string }[];
 }
@@ -344,7 +369,7 @@ export function expoInputs(answer: ExpoAnswer): Pick<PipelineInputs, 'builds' | 
   }));
   const updates = byNewest((app?.updateBranchByName?.updateGroups ?? []).flat().flatMap((u) => {
     const platform = platformOf(u.platform);
-    return platform ? [{ id: u.id, platform, at: u.createdAt, runtime: u.runtime?.version ?? null, commit: u.gitCommitHash ?? null, rollBack: u.isRollBackToEmbedded === true }] : [];
+    return platform ? [{ id: u.id, platform, at: u.createdAt, runtime: u.runtime?.version ?? null, commit: u.gitCommitHash ?? null, message: u.message ?? null, rollBack: u.isRollBackToEmbedded === true }] : [];
   }));
   return { builds, submissions, updates };
 }
@@ -418,13 +443,13 @@ export async function playLiveVersion(pkg: string, fetcher: typeof fetch): Promi
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export async function pipelineSection(
-  env: { ADMIN_EXPO_TOKEN?: string; EXPO_PROJECT_ID: string; ADMIN_APP_STORE_KEY?: string; APP_STORE_APP_ID: string; ADMIN_GOOGLE_PLAY_KEY?: string; GOOGLE_PLAY_PACKAGE: string; DIAG?: Hyperdrive },
+  env: { ADMIN_EXPO_TOKEN?: string; EXPO_PROJECT_ID: string; ADMIN_APP_STORE_KEY?: string; APP_STORE_APP_ID: string; ADMIN_GOOGLE_PLAY_KEY?: string; GOOGLE_PLAY_PACKAGE: string; DIAG?: Hyperdrive; GITHUB_REPO: string; ADMIN_GITHUB_TOKEN?: string },
   fetcher: typeof fetch = fetch,
   now = Date.now(),
   diag: (<T>(fn: (q: Query) => Promise<T>) => Promise<T>) | null = env.DIAG ? (fn) => withDiag(diagConnection(env), fn) : null
 ): Promise<Section<Pipeline>> {
   if (!env.ADMIN_EXPO_TOKEN) return off('Add ADMIN_EXPO_TOKEN: what EAS built, sent and published is read with it (docs/admin.md).') as Section<Pipeline>;
-  const notes: PipelineInputs['notes'] = { ios: [], android: [], ota: [] };
+  const notes: PipelineInputs['notes'] = { ios: [], android: [] };
   const appleRead = async () => {
     if (!env.ADMIN_APP_STORE_KEY) { notes.ios.push('App Store Connect is not connected (ADMIN_APP_STORE_KEY), so this shows only what EAS sent to TestFlight.'); return null; }
     try {
@@ -460,10 +485,25 @@ export async function pipelineSection(
     playRead(),
     playLiveVersion(env.GOOGLE_PLAY_PACKAGE, fetcher).catch((e) => { notes.android.push(why(e)); return null; }),
     diag
-      ? diag((q) => q<InstallCount[]>(INSTALLS_SQL, [ACTIVE_DAYS])).catch((e) => { notes.ota.push(`Phones on each update could not be counted (${why(e)}).`); return null; })
+      ? diag((q) => q<InstallCount[]>(INSTALLS_SQL, [ACTIVE_DAYS])).catch((e) => {
+        for (const n of [notes.ios, notes.android]) n.push(`Phones on each update could not be counted (${why(e)}).`);
+        return null;
+      })
       : Promise.resolve(null)
   ]);
   if (answer.errors?.length) throw new Error(`Expo: ${answer.errors[0]!.message.slice(0, 200)}`);
-  const p = pipelineFrom({ ...expoInputs(answer), apple, play, playLive, installs, notes });
+  const inputs = { ...expoInputs(answer), apple, play, playLive, installs, notes };
+  const p = pipelineFrom(inputs, env.GITHUB_REPO);
+  // An update whose message does not name its pull request: GitHub's pull request for its merge commit, a few at most.
+  const commitOf = new Map(inputs.updates.filter((u) => u.commit).map((u) => [u.id, u.commit!]));
+  const gh = githubApi(env, fetcher);
+  await Promise.all(unnamed(p, commitOf).filter((c) => !prsByCommit.has(c)).slice(0, 8).map((c) =>
+    gh<{ number: number; title: string; merged_at?: string | null }[]>(`/commits/${encodeURIComponent(c)}/pulls`, 'GitHub pull requests')
+      .then((prs) => { const m = prs.find((x) => x.merged_at) ?? prs[0]; prsByCommit.set(c, m ? { pr: m.number, title: m.title } : null); })
+      .catch(() => {})));
+  for (const u of p.lanes.flatMap((l) => l.stages.flatMap((s) => s.cards.flatMap((c) => c.updates)))) {
+    const found = prsByCommit.get(commitOf.get(u.id) ?? '');
+    if (found) { u.pr ??= found.pr; u.title ??= found.title; }
+  }
   return ok(p, pipelineAlerts(p, now));
 }
