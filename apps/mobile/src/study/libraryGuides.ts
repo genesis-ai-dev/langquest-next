@@ -1,4 +1,0 @@
-
-
-export { glossaryEntryOf } from './guideMatch';
-
