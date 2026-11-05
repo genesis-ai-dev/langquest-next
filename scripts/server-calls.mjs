@@ -19,8 +19,15 @@
 //
 // The store builds come from EAS when EXPO_TOKEN is set, and otherwise from
 // apps/mobile/store-builds.json, which lists them as EAS had them.
+//
+// A release branch (decisions.md 155) deploys no server: its OTA updates
+// reach phones that call main's server. So on a release branch, or a copy
+// onto one, the check reads main's server, and also the calls in the
+// branch's own code. Each copy takes this script from main
+// (scripts/release-branches.mjs, MACHINERY).
 import { execFileSync } from 'node:child_process';
-import { readdirSync, readFileSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, existsSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -128,6 +135,27 @@ export function serverHere(dir = root) {
   };
 }
 
+/** The server files that a checkout deploys: migrations, Edge Functions and the Worker. */
+const SERVER_PATHS = ['supabase/migrations', 'supabase/functions', 'apps/web/worker'];
+
+/** What main's server has: its server files, written out from git into a temporary folder. */
+export function serverOfMain(ref = 'origin/main') {
+  const dir = mkdtempSync(join(tmpdir(), 'main-server-'));
+  const tar = execFileSync('git', ['archive', '--format=tar', ref, ...SERVER_PATHS], { cwd: root, maxBuffer: 1 << 30 });
+  execFileSync('tar', ['-x', '-C', dir], { input: tar });
+  return serverHere(dir);
+}
+
+/**
+ * The release branch that this check runs for, or null: a pull request's
+ * base (GITHUB_BASE_REF), or else the checkout's branch, when it is
+ * release/<platform> or a copy onto one (copy/<platform>/…).
+ */
+export function releaseBranch(env = process.env, branch = '') {
+  const name = env.GITHUB_BASE_REF || branch;
+  return /^(release|copy)\/(ios|android)\b/.test(name ?? '') ? name : null;
+}
+
 /** The calls in `calls` that `server` no longer has. */
 export function missing(calls, server) {
   return [...calls].filter((call) => {
@@ -207,12 +235,18 @@ async function main() {
     return;
   }
   const oldest = supported.map((b) => b.commit).reduce((a, b) => (isAncestor(a, b) ? a : b));
-  const broken = brokenCalls(phoneCalls(oldest, supported), supported, serverHere());
+  const release = releaseBranch(process.env, git(['rev-parse', '--abbrev-ref', 'HEAD']).trim());
+  const calls = phoneCalls(oldest, supported);
+  // The branch's own code is the OTA update that it sends to the public build.
+  if (release) for (const call of callsAt('HEAD')) if (!calls.added.has(call)) calls.added.set(call, null);
+  const broken = brokenCalls(calls, supported, release ? serverOfMain() : serverHere());
   console.log(`${supported.length} store builds (from ${source}), and every OTA update since ${oldest.slice(0, 8)}.`);
+  if (release) console.log(`${release} deploys no server, so the calls are checked against main's server (decisions.md 155).`);
   if (broken.length === 0) return console.log('Every server call that they make is still there.');
   for (const { call, build, commit } of broken) {
-    const who = build ? `${label(build)} still uses` : `The OTA update from ${commit.slice(0, 8)} still uses`;
-    console.log(`::error::${who} ${describe(call)}, which the server would no longer have. Add a new server call next to the old one instead.`);
+    const who = build ? `${label(build)} still uses` : commit ? `The OTA update from ${commit.slice(0, 8)} still uses` : `${release}'s code uses`;
+    const server = release ? "which main's server does not have" : 'which the server would no longer have';
+    console.log(`::error::${who} ${describe(call)}, ${server}. Add a new server call next to the old one instead.`);
   }
   process.exit(1);
 }
