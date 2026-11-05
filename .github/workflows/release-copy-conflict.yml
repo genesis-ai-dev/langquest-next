@@ -11,7 +11,8 @@
 # through `npm run secrets -- production`, as the nightly jobs use), or else
 # ANTHROPIC_API_KEY. Without either, the pull request gets one comment
 # naming the files in conflict and stays open for a person or a Claude
-# session to finish; nothing fails.
+# session to finish; nothing fails. The App opens and labels the copies, so
+# Claude's action must let that bot start it (allowed_bots).
 name: release-copy-conflict
 
 on:
@@ -52,6 +53,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ steps.token.outputs.token }}
+          allowed_bots: langquest-release-branches
           prompt: |
             This pull request copies commits from main onto ${{ github.event.pull_request.base.ref }}, the code of the public build, and a copy had a conflict. The pull request's body lists the commits, oldest first (`- <sha> #<pull request> <title>`); a commit on this branch whose message says "cherry picked from commit <sha>" is a copy already made.
             1. For each listed commit not copied yet, in order, run `git cherry-pick -x` of it on this branch (add `-m 1` for a merge commit) and resolve every conflict. A conflict in a file outside the phone app and its tests (anything not under apps/mobile/, packages/core/, packages/sync/, e2e/ui/ or e2e/web-smoke/, other than package.json and package-lock.json, and every .md file) keeps the release branch's version. In the app, keep the release branch's code wherever main's change depends on code that the release branch does not have (a change that came with a new store build is never copied), and say in the commit message what you left out and why.

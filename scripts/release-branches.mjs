@@ -24,7 +24,8 @@
 // missing.
 //
 //   node scripts/release-branches.mjs after-merge --platform ios --old <fp> --new <fp> --sha <commit>
-//   node scripts/release-branches.mjs tidy                  move or delete branches whose new build is public
+//   node scripts/release-branches.mjs tidy                  move or delete branches whose new build is public,
+//                                                           and give open conflict copies main's workflows
 //   node scripts/release-branches.mjs conflict-note --branch <copy branch> --pr <n>
 //                                                           without Claude: name the files in conflict
 //
@@ -408,6 +409,37 @@ async function tidy() {
     console.log(`${branchOf(platform)}: deleted, the store shows ${live}`);
     // A newer rebuild is in review: the build that just went public gets its own branch, from the commit before it.
     if (step.action === 'restart') startBranch(platform, step.from, all);
+  }
+  for (const platform of platformsFrom(process.env.RELEASE_BRANCH_PLATFORMS)) freshenCopies(platform);
+}
+
+/**
+ * A pull request runs the workflows of its own branch, so a copy with a
+ * conflict that was opened before main's release workflows or script
+ * changed would start the old ones: on 2026-11-05 the first iPhone catch-up
+ * started a Claude action that turned away the bot that labelled it. Each
+ * such copy still open takes main's, and is labelled again so that Claude
+ * starts with them.
+ */
+function freshenCopies(platform) {
+  if (!remoteHas(`refs/heads/${branchOf(platform)}`)) return;
+  const open = JSON.parse(run('gh', ['pr', 'list', '--base', branchOf(platform), '--state', 'open', '--label', 'copy-conflict',
+    '--json', 'number,headRefName']).stdout);
+  for (const { number, headRefName: branch } of open) {
+    if (!commitOfCopy(branch)) continue;
+    git('fetch', '--quiet', 'origin', branch, 'main');
+    git('checkout', '--quiet', '-B', branch, `origin/${branch}`);
+    const before = git('rev-parse', 'HEAD');
+    takeMachinery();
+    if (git('rev-parse', 'HEAD') === before) continue;
+    // Not forced: a push that Claude made meanwhile wins, and the next hour tries again.
+    if (run('git', ['push', '--quiet', 'origin', branch], { allowFail: true }).status !== 0) {
+      console.log(`#${number}: could not take main's release workflows and script (${branch} moved), so the next run tries again`);
+      continue;
+    }
+    run('gh', ['pr', 'edit', String(number), '--remove-label', 'copy-conflict']);
+    run('gh', ['pr', 'edit', String(number), '--add-label', 'copy-conflict']);
+    console.log(`#${number}: took main's release workflows and script, and was labelled again so that Claude starts`);
   }
 }
 

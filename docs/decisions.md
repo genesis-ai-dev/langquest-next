@@ -7521,6 +7521,14 @@ request in each build that has it. So:
   stuck: a copy whose tests failed, or that has been open for 3 hours, is a
   problem under Needs attention, linked to the copy.
 
+Amended (2026-11-05, Caleb Koster): the first iPhone catch-up (PR 344) did
+not start Claude: the release App labels the copy, and Claude's action
+turns away any bot it is not told to allow, so `allowed_bots` names the
+App. As a copy runs its own branch's workflows, every hour each open copy
+with a conflict whose release workflows or script differ from main's takes
+main's and is labelled again (`freshenCopies`), so a fix on main reaches the
+copies already open.
+
 
 ## 156. Store builds come only from the EAS workflow on merges into main
 

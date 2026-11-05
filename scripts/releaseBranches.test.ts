@@ -212,6 +212,12 @@ describe('a copy with a conflict', () => {
     expect(yml).toMatch(/claude-code-action@v1\n\s+if: env\.HAS_CLAUDE_KEY == 'true'/);
   });
 
+  it('Claude\'s action lets the release bot that labels the copy start it', () => {
+    // Without it, the first iPhone catch-up (2026-11-05) failed: "Workflow initiated by non-human actor".
+    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
+    expect(yml).toMatch(/claude-code-action@v1\n[\s\S]*?\n\s+allowed_bots: langquest-release-branches\n/);
+  });
+
   it('the workflow keeps a release branch for both platforms', () => {
     expect(readFileSync('.github/workflows/release-branches.yml', 'utf8')).not.toContain('RELEASE_BRANCH_PLATFORMS: ${{');
   });
