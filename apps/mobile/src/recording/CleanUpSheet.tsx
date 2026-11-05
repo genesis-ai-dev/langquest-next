@@ -24,6 +24,7 @@ import { PartBars } from './partBars';
 import { buttonLabel, limitAt, snapPlace, toneBars, type CleanUpPick } from './cleanUpModel';
 import { useCleanUp, type CleanStatus, type CleanUp } from './useCleanUp';
 import { a11yState } from '../ui/a11yModel';
+import { touches } from '../ui/touches';
 
 export interface CleanUpPart { hash: string; label: string; durationMs?: number }
 
@@ -226,10 +227,10 @@ function NoiseSlider(props: { work: CleanUp }) {
           accessible accessibilityRole="adjustable" accessibilityLabel={label} accessibilityValue={{ min: 0, max: 100, now: Math.round(work.place * 100) }}
           accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
           onAccessibilityAction={(e) => step(e.nativeEvent.actionName === 'increment' ? 1 / 6 : -1 / 6)}>
-          <View pointerEvents="none" style={styles.rail}>
+          <View style={[touches.none, styles.rail]}>
             <View style={[styles.railOn, { width: `${work.place * 100}%` }]} />
           </View>
-          <View pointerEvents="none" style={[styles.thumb, { left: `${work.place * 100}%`, marginLeft: -work.place * THUMB }]} />
+          <View style={[touches.none, styles.thumb, { left: `${work.place * 100}%`, marginLeft: -work.place * THUMB }]} />
         </View>
         <Text style={styles.end}>{t('recording.cleanUp.more')}</Text>
       </View>

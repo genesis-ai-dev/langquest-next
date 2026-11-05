@@ -12,6 +12,7 @@ import { formatNumber } from '../i18n/format';
 import { HelpInfo, Ico, PrimaryBtn, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { C, onColor, radius, space, target, type as T } from '../ui/theme';
+import { touches } from '../ui/touches';
 
 /**
  * Updates (the demo's bell): a round button with the unread count, in place
@@ -27,7 +28,7 @@ export function Bell(props: { count: number; onPress: () => void }) {
       style={({ pressed }) => [styles.bell, pressed && styles.pressed]}>
       <Ico name="notif" size={24} color={C.dark} />
       {props.count > 0 ? (
-        <View style={[styles.badge, { pointerEvents: 'none' }]}>
+        <View style={[styles.badge, touches.none]}>
           <Text style={styles.badgeText}>{props.count > 99 ? t('work.bell.overMax', { max: formatNumber(99) }) : formatNumber(props.count)}</Text>
         </View>
       ) : null}
