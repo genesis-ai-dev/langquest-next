@@ -53,7 +53,7 @@ export interface UpdateCard {
   phones: { on: number; of: number } | null;
   /** A copy not merged yet, so no phone has it: what it waits for. */
   waiting?: string;
-  /** That copy needs a person: its tests failed, or it has been open for hours (`COPY_HOURS`). */
+  /** That copy needs a person: Claude could not fix its failed tests, or it has been open for hours (`COPY_HOURS`). */
   needsPerson?: boolean;
 }
 
@@ -311,8 +311,26 @@ export function prFromMessage(message: string | null): Named | null {
 /** An open pull request onto a release branch, as GitHub lists it; `failed` when its guardrails gate failed. */
 export interface OpenCopy { number: number; title: string; body: string | null; created_at: string; labels?: { name: string }[]; head?: { sha: string }; failed?: boolean }
 
-/** How long a copy may stay open before it needs a person: Claude's conflict step has an hour, the checks under one. */
+/** How long a copy may stay open before it needs a person: Claude's step has an hour, the checks under one. */
 export const COPY_HOURS = 3;
+
+/**
+ * What a copy waits for, from its labels (scripts/release-branches.mjs):
+ * copy-conflict while Claude finishes it or fixes its failed checks,
+ * copy-needs-person once Claude's tries to fix them are used up. Between a
+ * failure and the hourly run that starts Claude, it has neither.
+ */
+function copyWaits(o: OpenCopy, slow: boolean): { waiting: string; needsPerson: boolean } {
+  const labels = (o.labels ?? []).map((l) => l.name);
+  if (labels.includes('copy-needs-person')) return { waiting: 'failed its tests after 3 tries by Claude, so it needs a person', needsPerson: true };
+  const claude = labels.includes('copy-conflict');
+  const waiting = o.failed
+    ? claude ? (slow ? 'failed its tests, and Claude has not fixed them' : 'failed its tests, and Claude is fixing them')
+      : 'failed its tests, and Claude starts fixing them within the hour'
+    : claude ? (slow ? 'has a conflict that Claude has not finished' : 'has a conflict that Claude is fixing')
+      : slow ? 'has been open for hours without merging' : 'merges itself when its tests pass';
+  return { waiting, needsPerson: slow };
+}
 
 /**
  * Copies onto a platform's release branch that are not merged yet, as cards
@@ -330,14 +348,10 @@ export function pendingCopies(lane: StoreLane, open: OpenCopy[], now = Date.now(
     const old = Number(/Merge pull request #(\d+)|\(#(\d+)\)\s*$/.exec(o.title)?.slice(1).find(Boolean) ?? NaN);
     const prs = listed.length ? listed : Number.isFinite(old) ? [{ pr: old, title: null }] : [];
     if (!prs.length) return [];
-    const conflict = (o.labels ?? []).some((l) => l.name === 'copy-conflict');
     const slow = (hoursAgo(o.created_at, now) ?? 0) >= COPY_HOURS;
     return [{
       id: `copy-${o.number}`, pr: prs[0]!.pr, title: prs[0]!.title, copy: o.number, also: prs.slice(1), more: 0, at: o.created_at, rollBack: false, phones: null,
-      waiting: o.failed ? 'failed its tests, so it needs a person'
-        : conflict ? (slow ? 'has a conflict that Claude has not finished' : 'has a conflict that Claude is fixing')
-          : slow ? 'has been open for hours without merging' : 'merges itself when its tests pass',
-      needsPerson: !!o.failed || slow
+      ...copyWaits(o, slow)
     }];
   });
   card.updates = [...pending, ...card.updates];
@@ -401,7 +415,7 @@ export function pipelineAlerts(p: Pipeline, now = Date.now()): Alert[] {
       : 'Check the Play step (play-review.mjs) on EAS: without PLAY_REVIEW_KEY, promote it in Play Console (docs/environments.md, The Play key).';
     out.push({ level: 'watch', text: `${lane.id === 'ios' ? 'iPhone' : 'Android'} ${waiting.title} has waited in ${where} for ${Math.floor(hours)} h with nothing in review. ${fix}` });
   }
-  // A copy for a public build that needs a person: its tests failed, or it has been open for hours.
+  // A copy for a public build that needs a person: Claude could not fix its failed tests, or it has been open for hours.
   for (const lane of p.lanes) {
     const live = stage(lane.stages, 'live').cards[0];
     for (const u of live?.updates ?? []) {

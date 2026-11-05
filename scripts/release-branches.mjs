@@ -25,7 +25,8 @@
 //
 //   node scripts/release-branches.mjs after-merge --platform ios --old <fp> --new <fp> --sha <commit>
 //   node scripts/release-branches.mjs tidy                  move or delete branches whose new build is public,
-//                                                           and give open conflict copies main's workflows
+//                                                           give open conflict copies main's workflows, and
+//                                                           start Claude on copies whose checks failed
 //   node scripts/release-branches.mjs conflict-note --branch <copy branch> --pr <n>
 //                                                           without Claude: name the files in conflict
 //
@@ -83,8 +84,31 @@ export const needsHand = (file) => HAND_FILES.some((re) => re.test(file)) && !/\
  */
 export const MACHINERY = [
   '.github/workflows/release-branches.yml', '.github/workflows/release-copy-conflict.yml',
-  'scripts/release-branches.mjs', 'scripts/releaseBranches.test.ts', 'scripts/release-rebuilds.json'
+  'scripts/release-branches.mjs', 'scripts/releaseBranches.test.ts', 'scripts/release-rebuilds.json',
+  // A release branch deploys no server, so its server-calls check reads main's server (decisions.md 151).
+  'scripts/server-calls.mjs', 'scripts/serverCalls.test.ts'
 ];
+
+/** The label that starts Claude on a copy: to finish one with a conflict, or to fix one whose checks failed. */
+export const CLAUDE_LABEL = 'copy-conflict';
+/** The label of a copy whose checks still fail after Claude's tries: a person fixes it. */
+export const PERSON_LABEL = 'copy-needs-person';
+/** How many times Claude tries to fix a copy's failed checks before a person must. */
+export const FIX_TRIES = 3;
+/** How the hourly run's comment on each try starts; the run counts them. */
+export const TRY_NOTE = 'The checks of this copy failed';
+
+/**
+ * What the hourly run does with an open copy, from its labels, its gate
+ * check on its newest commit ('FAILURE', 'SUCCESS', or null while it runs)
+ * and Claude's tries so far: 'try' starts Claude on failed checks, 'person'
+ * leaves them to a person, 'none' waits (Claude is on it, a person is, or
+ * nothing failed).
+ */
+export function nextForCopy({ labels, gate, tries }) {
+  if (labels.includes(CLAUDE_LABEL) || labels.includes(PERSON_LABEL) || gate !== 'FAILURE') return 'none';
+  return tries < FIX_TRIES ? 'try' : 'person';
+}
 
 /**
  * Whether a merge changes what the phone app runs, by the files it
@@ -255,11 +279,17 @@ function pick(sha) {
   return left;
 }
 
+/** Make a copy label the first time it is needed. */
+function makeLabel(name) {
+  const [color, description] = name === CLAUDE_LABEL ? ['D93F0B', 'A copy onto a release branch that Claude finishes or fixes'] : ['B60205', 'A copy onto a release branch that a person must fix'];
+  run('gh', ['label', 'create', name, '--force', '--color', color, '--description', description]);
+}
+
 /** Commit main's release machinery onto HEAD, when the branch's differs. */
 function takeMachinery() {
   git('checkout', 'origin/main', '--', ...MACHINERY);
   if (run('git', ['diff', '--cached', '--quiet'], { allowFail: true }).status !== 0) {
-    git('commit', '--quiet', '-m', "Take the release branches' workflows and script from main (decisions.md 155)");
+    git('commit', '--quiet', '-m', "Take the release branches' workflows and scripts from main (decisions.md 155)");
   }
 }
 
@@ -290,7 +320,7 @@ function copy(platform, shas) {
   if (git('rev-parse', 'HEAD') === base) git('commit', '--quiet', '--allow-empty', '-m', `Copy ${shas[0].slice(0, 8)} onto ${branchOf(platform)}: needs a hand with a conflict`);
   git('push', '--quiet', '--force', 'origin', branch);
   // The label that starts Claude on a conflict; made the first time it is needed.
-  if (conflict) run('gh', ['label', 'create', 'copy-conflict', '--force', '--color', 'D93F0B', '--description', 'A copy onto a release branch that Claude finishes']);
+  if (conflict) makeLabel(CLAUDE_LABEL);
   const names = shas.map((sha) => mergeName(git('log', '-1', '--format=%B', sha)));
   // The ops dashboard reads these: the title's "(#317)", a catch-up's "up on N merges from main", the body's list.
   const one = names[0];
@@ -304,7 +334,7 @@ function copy(platform, shas) {
       : 'This pull request merges itself once its checks pass. Its merge sends the change to the public build as an OTA update.',
   ].join('\n\n');
   run('gh', ['pr', 'create', '--base', branchOf(platform), '--head', branch, '--title', title, '--body', body,
-    ...(conflict ? ['--label', 'copy-conflict'] : [])]);
+    ...(conflict ? ['--label', CLAUDE_LABEL] : [])]);
   if (!conflict) run('gh', ['pr', 'merge', branch, '--auto', '--squash']);
   console.log(`${conflict ? 'conflict' : 'copy'}: ${shas.map((s) => s.slice(0, 8)).join(' ')} onto ${branchOf(platform)}`);
 }
@@ -410,22 +440,57 @@ async function tidy() {
     // A newer rebuild is in review: the build that just went public gets its own branch, from the commit before it.
     if (step.action === 'restart') startBranch(platform, step.from, all);
   }
-  for (const platform of platformsFrom(process.env.RELEASE_BRANCH_PLATFORMS)) freshenCopies(platform);
+  for (const platform of platformsFrom(process.env.RELEASE_BRANCH_PLATFORMS)) {
+    freshenCopies(platform);
+    fixFailedCopies(platform);
+  }
 }
 
 /**
- * A pull request runs the workflows of its own branch, so a copy with a
- * conflict that was opened before main's release workflows or script
- * changed would start the old ones: on 2026-11-05 the first iPhone catch-up
- * started a Claude action that turned away the bot that labelled it. Each
- * such copy still open takes main's, and is labelled again so that Claude
- * starts with them.
+ * A copy whose checks failed gets Claude, up to FIX_TRIES times: the run
+ * comments on the try and labels the copy, which starts
+ * .github/workflows/release-copy-conflict.yml. After that, it is labelled
+ * for a person, and the ops dashboard puts it under Needs attention.
+ */
+function fixFailedCopies(platform) {
+  if (!remoteHas(`refs/heads/${branchOf(platform)}`)) return;
+  const open = JSON.parse(run('gh', ['pr', 'list', '--base', branchOf(platform), '--state', 'open',
+    '--json', 'number,headRefName,headRefOid,labels,comments,statusCheckRollup']).stdout);
+  for (const pr of open) {
+    if (!commitOfCopy(pr.headRefName)) continue;
+    const gate = (pr.statusCheckRollup ?? []).filter((c) => c.name === 'gate').at(-1)?.conclusion ?? null;
+    const tries = (pr.comments ?? []).filter((c) => c.body?.startsWith(TRY_NOTE)).length;
+    const step = nextForCopy({ labels: (pr.labels ?? []).map((l) => l.name), gate, tries });
+    if (step === 'try') {
+      run('gh', ['pr', 'comment', String(pr.number), '--body',
+        `${TRY_NOTE} on ${pr.headRefOid.slice(0, 8)}, so Claude tries to fix them (try ${tries + 1} of ${FIX_TRIES}, decisions.md 155).`]);
+      makeLabel(CLAUDE_LABEL);
+      run('gh', ['pr', 'edit', String(pr.number), '--add-label', CLAUDE_LABEL]);
+      console.log(`#${pr.number}: its checks failed, so Claude tries to fix them (try ${tries + 1} of ${FIX_TRIES})`);
+    } else if (step === 'person') {
+      makeLabel(PERSON_LABEL);
+      run('gh', ['pr', 'edit', String(pr.number), '--add-label', PERSON_LABEL]);
+      run('gh', ['pr', 'comment', String(pr.number), '--body',
+        `Claude tried ${FIX_TRIES} times, and the checks of this copy still fail. A person must fix them: read the failed checks, fix them on this branch, and push. The copy then merges itself (decisions.md 155).`]);
+      console.log(`#${pr.number}: its checks still fail after ${FIX_TRIES} tries, so it is labelled for a person`);
+    }
+  }
+}
+
+/**
+ * A pull request runs the workflows of its own branch, so a copy that was
+ * opened before main's release workflows or scripts changed would run the
+ * old ones: on 2026-11-05 the first iPhone catch-up started a Claude action
+ * that turned away the bot that labelled it, and failed a server-calls
+ * check that read the release branch's old server. Each copy still open
+ * takes main's, which runs its checks again, and one that Claude works on
+ * is labelled again so that Claude starts with them.
  */
 function freshenCopies(platform) {
   if (!remoteHas(`refs/heads/${branchOf(platform)}`)) return;
-  const open = JSON.parse(run('gh', ['pr', 'list', '--base', branchOf(platform), '--state', 'open', '--label', 'copy-conflict',
-    '--json', 'number,headRefName']).stdout);
-  for (const { number, headRefName: branch } of open) {
+  const open = JSON.parse(run('gh', ['pr', 'list', '--base', branchOf(platform), '--state', 'open',
+    '--json', 'number,headRefName,labels']).stdout);
+  for (const { number, headRefName: branch, labels } of open) {
     if (!commitOfCopy(branch)) continue;
     git('fetch', '--quiet', 'origin', branch, 'main');
     git('checkout', '--quiet', '-B', branch, `origin/${branch}`);
@@ -434,12 +499,16 @@ function freshenCopies(platform) {
     if (git('rev-parse', 'HEAD') === before) continue;
     // Not forced: a push that Claude made meanwhile wins, and the next hour tries again.
     if (run('git', ['push', '--quiet', 'origin', branch], { allowFail: true }).status !== 0) {
-      console.log(`#${number}: could not take main's release workflows and script (${branch} moved), so the next run tries again`);
+      console.log(`#${number}: could not take main's release workflows and scripts (${branch} moved), so the next run tries again`);
       continue;
     }
-    run('gh', ['pr', 'edit', String(number), '--remove-label', 'copy-conflict']);
-    run('gh', ['pr', 'edit', String(number), '--add-label', 'copy-conflict']);
-    console.log(`#${number}: took main's release workflows and script, and was labelled again so that Claude starts`);
+    if (!(labels ?? []).some((l) => l.name === CLAUDE_LABEL)) {
+      console.log(`#${number}: took main's release workflows and scripts, so its checks run again`);
+      continue;
+    }
+    run('gh', ['pr', 'edit', String(number), '--remove-label', CLAUDE_LABEL]);
+    run('gh', ['pr', 'edit', String(number), '--add-label', CLAUDE_LABEL]);
+    console.log(`#${number}: took main's release workflows and scripts, and was labelled again so that Claude starts`);
   }
 }
 

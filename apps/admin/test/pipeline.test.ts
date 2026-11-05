@@ -200,22 +200,36 @@ describe('over-the-air updates', () => {
     expect(with332).toEqual([['build 50', null], ['build 48', 333]]);
   });
 
-  it('put a copy that needs a person under Needs attention: tests failed, or open for hours', () => {
+  it('put a copy that needs a person under Needs attention: Claude could not fix its tests, or open for hours', () => {
     const lane = pipelineFrom(world()).lanes[1]!;
     pendingCopies(lane, [
-      { number: 360, title: 'release/android: Fix (#359)', body: '- 3333333333333333333333333333333333333333 #359 Fix', created_at: hAgo(1), labels: [], failed: true },
+      { number: 360, title: 'release/android: Fix (#359)', body: '- 3333333333333333333333333333333333333333 #359 Fix', created_at: hAgo(2), labels: [{ name: 'copy-needs-person' }], failed: true },
       { number: 362, title: 'release/android: catch up on 4 merges from main', body: [355, 356, 357, 358].map((n) => `- ${'4'.repeat(40)} #${n} T${n}`).join('\n'), created_at: hAgo(5), labels: [{ name: 'copy-conflict' }] }
     ], NOW);
     const live = lane.stages.find((st) => st.id === 'live')!.cards[0]!;
     expect(live.updates.filter((u) => u.waiting).map((u) => [u.copy, u.waiting, u.needsPerson])).toEqual([
-      [360, 'failed its tests, so it needs a person', true],
+      [360, 'failed its tests after 3 tries by Claude, so it needs a person', true],
       [362, 'has a conflict that Claude has not finished', true]
     ]);
     const alerts = pipelineAlerts({ ...pipelineFrom(world()), lanes: [pipelineFrom(world()).lanes[0]!, lane] }, NOW);
     expect(alerts.map((a) => [a.level, a.text, a.link])).toEqual([
-      ['problem', 'Android build 48 does not have PR 359 yet: copy PR 360 failed its tests, so it needs a person. Open it to finish it (decisions.md 155).', 'https://github.com/genesis-ai-dev/langquest-next/pull/360'],
+      ['problem', 'Android build 48 does not have PR 359 yet: copy PR 360 failed its tests after 3 tries by Claude, so it needs a person. Open it to finish it (decisions.md 155).', 'https://github.com/genesis-ai-dev/langquest-next/pull/360'],
       ['problem', 'Android build 48 does not have PR 355, PR 356 and 2 more yet: copy PR 362 has a conflict that Claude has not finished. Open it to finish it (decisions.md 155).', 'https://github.com/genesis-ai-dev/langquest-next/pull/362']
     ]);
+  });
+
+  it('let Claude fix a copy whose tests failed, with no person asked until Claude stops or hours pass', () => {
+    const lane = pipelineFrom(world()).lanes[1]!;
+    const fix = (n: number, labels: string[], hours: number) => ({ number: n, title: `release/android: Fix (#${n - 1})`, body: `- ${'5'.repeat(40)} #${n - 1} Fix`, created_at: hAgo(hours), labels: labels.map((name) => ({ name })), failed: true });
+    pendingCopies(lane, [fix(371, [], 1), fix(373, ['copy-conflict'], 1), fix(375, ['copy-conflict'], 4)], NOW);
+    const live = lane.stages.find((st) => st.id === 'live')!.cards[0]!;
+    expect(live.updates.filter((u) => u.waiting).map((u) => [u.copy, u.waiting, u.needsPerson])).toEqual([
+      [371, 'failed its tests, and Claude starts fixing them within the hour', false],
+      [373, 'failed its tests, and Claude is fixing them', false],
+      [375, 'failed its tests, and Claude has not fixed them', true]
+    ]);
+    expect(pipelineAlerts({ ...pipelineFrom(world()), lanes: [pipelineFrom(world()).lanes[0]!, lane] }, NOW).map((a) => a.link))
+      .toEqual(['https://github.com/genesis-ai-dev/langquest-next/pull/375']);
   });
 
   it('show copies not merged yet on the public build, with what each waits for', () => {
@@ -322,8 +336,8 @@ describe('reading the sources', () => {
     expect(waiting.updates).toEqual([{ id: 'u1', pr: 333, title: 'Add a thing', copy: null, also: [], more: 0, at: hAgo(4), rollBack: false, phones: null }]);
     // Its copy onto release/android failed its tests, on the build people download.
     const live = d.lanes[1]!.stages.find((st) => st.id === 'live')!.cards[0]!;
-    expect(live.updates.map((u) => [u.pr, u.copy, u.waiting])).toEqual([[333, 334, 'failed its tests, so it needs a person']]);
-    expect(s.alerts.map((a) => a.link)).toContain('https://github.com/genesis-ai-dev/langquest-next/pull/334');
+    expect(live.updates.map((u) => [u.pr, u.copy, u.waiting])).toEqual([[333, 334, 'failed its tests, and Claude starts fixing them within the hour']]);
+    expect(s.alerts.map((a) => a.link)).not.toContain('https://github.com/genesis-ai-dev/langquest-next/pull/334');
     expect(asked).toContain('GET https://api.github.com/repos/genesis-ai-dev/langquest-next/pulls');
     expect(d.repo).toBe('genesis-ai-dev/langquest-next');
   });

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { afterLive, afterMerge, atLeast, changesTheApp, commitOfCopy, commitsOfCopy, conflictNote, copyBranch, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
+import { afterLive, afterMerge, atLeast, changesTheApp, CLAUDE_LABEL, commitOfCopy, commitsOfCopy, conflictNote, copyBranch, FIX_TRIES, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
 
 /**
  * The public build keeps getting fixes while a new build is in store review
@@ -210,6 +210,31 @@ describe('a copy with a conflict', () => {
     expect(yml).toMatch(/claude_code_oauth_token: \$\{\{ secrets\.CLAUDE_CODE_OAUTH_TOKEN \}\}/);
     expect(yml).toMatch(/if: env\.HAS_CLAUDE_KEY != 'true'\n\s+env:[\s\S]*?conflict-note/);
     expect(yml).toMatch(/claude-code-action@v1\n\s+if: env\.HAS_CLAUDE_KEY == 'true'/);
+  });
+
+  it('each copy also takes main\'s server-calls check, which reads main\'s server on a release branch', () => {
+    // PR 344 (2026-11-05) failed: the release branch's own server-calls check read its old server.
+    expect(MACHINERY).toEqual(expect.arrayContaining(['scripts/server-calls.mjs', 'scripts/serverCalls.test.ts']));
+  });
+
+  it('a copy whose checks failed gets Claude up to 3 times, then a person', () => {
+    expect(FIX_TRIES).toBe(3);
+    expect(nextForCopy({ labels: [], gate: 'FAILURE', tries: 0 })).toBe('try');
+    expect(nextForCopy({ labels: [], gate: 'FAILURE', tries: 2 })).toBe('try');
+    expect(nextForCopy({ labels: [], gate: 'FAILURE', tries: 3 })).toBe('person');
+    // Claude is on it, or a person is, or nothing failed (yet).
+    expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: 'FAILURE', tries: 0 })).toBe('none');
+    expect(nextForCopy({ labels: [PERSON_LABEL], gate: 'FAILURE', tries: 3 })).toBe('none');
+    expect(nextForCopy({ labels: [], gate: 'SUCCESS', tries: 0 })).toBe('none');
+    expect(nextForCopy({ labels: [], gate: null, tries: 0 })).toBe('none');
+  });
+
+  it('Claude reads the failed checks and fixes them, and never skips a test', () => {
+    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
+    expect(yml).toContain('gh run view <run id> --log-failed');
+    expect(yml).toContain('Never skip, disable or weaken a test');
+    expect(yml).toMatch(/--allowedTools "[^"]*Bash\(gh run:\*\)/);
+    expect(yml).toContain(`github.event.label.name == '${CLAUDE_LABEL}'`);
   });
 
   it('Claude\'s action lets the release bot that labels the copy start it', () => {

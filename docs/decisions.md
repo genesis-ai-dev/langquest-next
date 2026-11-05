@@ -7275,6 +7275,15 @@ costs more than asking people to update (then raise the minimum app version
 sooner), or a call that phones make is missed because it is built at run
 time (then name it in a list that the check reads).
 
+Amended (2026-11-05, Caleb Koster): a release branch (decision 155) deploys
+no server, so on a release branch, or on a copy onto one, the check reads
+main's server (from git) instead of the branch's own, and also checks the
+calls in the branch's own code. The first iPhone catch-up (PR 344) failed
+because the release branch's server, from 2026-10-28, did not have the
+password-reset Edge Function or the /api/source-audio route that main's
+OTA updates use. Each copy takes this check from main (decision 155's
+`MACHINERY`).
+
 ## 152. A pull request that changes the database runs the sync test from every supported store build's commit against it
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted
@@ -7522,12 +7531,25 @@ request in each build that has it. So:
   problem under Needs attention, linked to the copy.
 
 Amended (2026-11-05, Caleb Koster): the first iPhone catch-up (PR 344) did
-not start Claude: the release App labels the copy, and Claude's action
-turns away any bot it is not told to allow, so `allowed_bots` names the
-App. As a copy runs its own branch's workflows, every hour each open copy
-with a conflict whose release workflows or script differ from main's takes
-main's and is labelled again (`freshenCopies`), so a fix on main reaches the
-copies already open.
+not start Claude, and its checks failed, so the ops dashboard asked Caleb to
+fix it. Caleb asked that a copy whose tests fail need no person. So:
+- Claude's action turns away any bot it is not told to allow, and the
+  release App labels the copies, so `allowed_bots` names the App.
+- A copy runs its own branch's workflows and scripts. Every hour, each open
+  copy whose release workflows or scripts differ from main's takes main's
+  (`freshenCopies`), so its checks run again with them, and one labelled
+  copy-conflict is labelled again so that Claude starts with them. The
+  server-calls check is now part of `MACHINERY` (decision 151 amended).
+- Every hour, a copy whose `gate` check failed, and that neither Claude nor
+  a person works on, gets Claude: the run comments ("The checks of this copy
+  failed …, try N of 3") and labels it copy-conflict. Claude reads the failed
+  checks, fixes them and never skips, disables or weakens a test; a change
+  that needs code the public build does not have is left out. After 3
+  tries, the copy is labelled copy-needs-person.
+- The ops dashboard says "failed its tests, and Claude is fixing them" (or
+  "starts fixing them within the hour") and asks for a person under Needs
+  attention only after Claude's 3 tries, or when the copy has been open for
+  3 hours.
 
 
 ## 156. Store builds come only from the EAS workflow on merges into main
