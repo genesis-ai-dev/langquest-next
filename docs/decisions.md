@@ -9612,8 +9612,9 @@ tab held only the one wide film (See reports on the web). Decided:
   goes up (`ops_tutorials_due`, migration `*_tutorial_newest_due.sql`): a
   tall version chosen before is not put up once a wide one is made.
 - **A channel's home page** (`server/youtube.ts` `setHome`), as BibleProject
-  and others lay theirs out: under the trailer, a row of the other 14
-  LangQuest channels, then a row for each of its playlists, everyone's
+  and others lay theirs out: under the trailer, the other 14 LangQuest
+  channels in two rows of 7 (a row shows no more than 12; amended
+  2026-11-03, when Burmese and Chinese were missing), then a row for each of its playlists, everyone's
   first (`server/youtubePlaylists.ts` `HOME_ORDER`). The publish job
   brings the rows up to date each run (2 of the day's 10,000 units when
   nothing changed); Connect lays them out at once.

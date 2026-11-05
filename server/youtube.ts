@@ -260,9 +260,17 @@ interface Section { id: string; snippet: { type: string; title?: string; positio
 interface Row { type: 'multipleChannels' | 'singlePlaylist'; title?: string; ids: string[] }
 
 /**
+ * How many channels one row of the other channels holds. A channel's home page
+ * shows no more than 12 in a row (on 2026-11-03 English's row of 14 showed
+ * Burmese and Chinese nowhere), so the 14 go in two rows of 7.
+ */
+const CHANNEL_ROW = 7;
+const rowsOf = <T>(all: T[], size: number): T[][] => Array.from({ length: Math.ceil(all.length / size) }, (_, i) => all.slice(i * size, (i + 1) * size));
+
+/**
  * A channel's home page (decisions.md 191), laid out as BibleProject and other
- * channels lay out theirs: under the trailer, a row of the other LangQuest
- * channels, then a row for each of the channel's playlists in HOME_ORDER,
+ * channels lay out theirs: under the trailer, the other LangQuest channels in
+ * rows of CHANNEL_ROW, then a row for each of the channel's playlists in HOME_ORDER,
  * everyone's first. Only the rows that differ are put or taken away, so a
  * channel already laid out costs 2 units of the day's 10,000; each row put
  * or taken away costs 50. A playlist with no video yet has no row until it
@@ -274,7 +282,8 @@ export async function setHome(fetcher: Fetch, token: string, language: ChannelLa
     .sort((a, b) => a.snippet.position - b.snippet.position);
   const lists = await playlistsOf(fetcher, token);
   const want: Row[] = [
-    { type: 'multipleChannels', title: WORDS[language].otherChannels, ids: (Object.keys(CHANNELS) as ChannelLanguage[]).filter((l) => l !== language).map((l) => CHANNELS[l]) },
+    ...rowsOf((Object.keys(CHANNELS) as ChannelLanguage[]).filter((l) => l !== language).map((l) => CHANNELS[l]), CHANNEL_ROW)
+      .map((ids): Row => ({ type: 'multipleChannels', title: WORDS[language].otherChannels, ids })),
     ...HOME_ORDER.flatMap((who): Row[] => {
       const id = lists.get(PLAYLISTS[language][who]);
       return id ? [{ type: 'singlePlaylist', ids: [id] }] : [];

@@ -293,7 +293,7 @@ their ids are in `server/youtube.ts`.
 - **Connect**, once per channel. Google's page opens: sign in with the
   account that owns the channels and choose that language's channel. Back
   on the dashboard the channel shows as connected, and its home page gets a
-  row of the other LangQuest channels and one for each of its playlists
+  two rows of the other LangQuest channels and one for each of its playlists
   (decision 191; the publish job keeps them up to date). Google sends the person back to
   `/ops/api/youtube/callback`, which must be the OAuth client's redirect
   address. Connect again when a channel's videos fail with a sign-in code
