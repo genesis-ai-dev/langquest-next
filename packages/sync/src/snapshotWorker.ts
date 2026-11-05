@@ -148,7 +148,7 @@ async function snapshotOne(
     });
     if (put.error) throw new Error(`put_snapshot ${orgId}/${streamId}: ${put.error.message}`);
     // A snapshot from before a redaction may hold what it removed; one past it replaces them all, on any version
-    // (decisions.md 203). Only those before it: a new reducer's first tail is the whole log, and an old version's
+    // (decisions.md 204). Only those before it: a new reducer's first tail is the whole log, and an old version's
     // snapshot past an old redaction stays for the phones on it.
     const lastRedaction = tail.reduce((seq, e) => (e.type === 'v1.Redacted' ? Math.max(seq, e.serverSeq!) : seq), 0);
     if (lastRedaction > 0) {

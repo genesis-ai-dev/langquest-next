@@ -129,7 +129,7 @@ describe('runSnapshotWorker (the projection pass, against a fake service client)
     });
 
     it('a redaction drops every snapshot from before it, once one past it is stored', async () => {
-      // Why: an older snapshot of any version still holds the redacted event, and members can read it (decisions.md 203).
+      // Why: an older snapshot of any version still holds the redacted event, and members can read it (decisions.md 204).
       const { client, fake } = await stored(new Date().toISOString());
       await client.append('v1.Redacted', { eventId: 'a-e1' });
       await client.sync();

@@ -6,7 +6,7 @@
 -- leaves neither, so scripts/db-test.mjs sets the secrets and runs the
 -- migration before this file; it cleans up after itself. The Inbox purge
 -- (decision 122), the purge of cron's own run history, of comments copied
--- from YouTube over 30 days old (186, amended) and of snapshots (203) need no secret:
+-- from YouTube over 30 days old (186, amended) and of snapshots (204) need no secret:
 -- their migrations schedule them, so a reset keeps them and so does the
 -- clean-up here. Push delivery calls the function only when
 -- push_work_waiting() says something is waiting.

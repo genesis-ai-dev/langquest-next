@@ -447,7 +447,7 @@ describe('a server without the cut (decisions.md 147)', () => {
   });
 
   it('the cut replaced after every step of a fill costs a phone on a slow link nothing: no request more, no restart', async () => {
-    // Why: only the newest snapshot keeps rows, and a job deletes older snapshots (decisions.md 147, 203). A phone
+    // Why: only the newest snapshot keeps rows, and a job deletes older snapshots (decisions.md 147, 204). A phone
     // filling for hours must go on from what it has when the rows it started from are gone, so nothing here is retained.
     const run = async (rolling: boolean) => {
       const server = new FakeServer();

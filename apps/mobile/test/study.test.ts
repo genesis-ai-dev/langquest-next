@@ -29,6 +29,8 @@ describe('study text', () => {
       { type: 'bold', text: 'share' }, { type: 'text', text: ' or ' }, { type: 'bold', text: 'this' }, { type: 'text', text: '.' }
     ]);
     expect(sectionLabel({ id: 's0', kind: 'para', text: 'A [very](#m1) long sentence that runs past the limit of the label' }, 20)).toBe('A very long senten…');
+    // Some of FIA's English marks a span for its editors; it reads as its words.
+    expect(inlineParts('Find Beersheba. [Pause this audio here.]{.mark}')).toEqual([{ type: 'text', text: 'Find Beersheba. ' }, { type: 'text', text: 'Pause this audio here.' }]);
   });
 
   it('turns seconds into m:ss and back', () => {

@@ -1,4 +1,4 @@
--- What stays and what goes from the server's snapshots (decisions.md 88, 203).
+-- What stays and what goes from the server's snapshots (decisions.md 88, 204).
 -- The rules protect a phone part-way through a download on a slow link, so
 -- each block says which phone it protects. It needs nothing from the other
 -- smokes and leaves nothing behind.

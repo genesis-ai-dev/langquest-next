@@ -1,4 +1,4 @@
--- A job keeps the server's snapshots bounded (decisions.md 203, 88).
+-- A job keeps the server's snapshots bounded (decisions.md 204, 88).
 --
 -- put_snapshot deleted older snapshots of the reducer it was writing, and
 -- only when it was writing. So a deploy that bumped REDUCER_VERSION froze

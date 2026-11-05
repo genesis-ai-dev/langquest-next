@@ -84,16 +84,21 @@ type InlinePart =
   /** `ref` is the link target without its "#": "m387" pictures, "c47" a map, "t63" a glossary term. */
   | { type: 'link'; text: string; ref: string };
 
-/** `__bold__`, `**bold**` and `[label](#ref)`: all FIA's step text uses. */
+/**
+ * `__bold__`, `**bold**` and `[label](#ref)`: all FIA's step text uses. A
+ * span its editor marked (`[Pause this audio here.]{.mark}`, in some of
+ * FIA's English) reads as its words.
+ */
 export function inlineParts(text: string): InlinePart[] {
   const parts: InlinePart[] = [];
-  const re = /\[([^\]]+)\]\(#?([^)]+)\)|__([^_]+)__|\*\*([^*]+)\*\*/g;
+  const re = /\[([^\]]+)\]\(#?([^)]+)\)|\[([^\]]+)\]\{[^}]*\}|__([^_]+)__|\*\*([^*]+)\*\*/g;
   let last = 0;
   for (const m of text.matchAll(re)) {
     const i = m.index ?? 0;
     if (i > last) parts.push({ type: 'text', text: text.slice(last, i) });
     if (m[1]) parts.push({ type: 'link', text: m[1], ref: m[2]! });
-    else parts.push({ type: 'bold', text: (m[3] ?? m[4])! });
+    else if (m[3]) parts.push({ type: 'text', text: m[3] });
+    else parts.push({ type: 'bold', text: (m[4] ?? m[5])! });
     last = i + m[0].length;
   }
   if (last < text.length) parts.push({ type: 'text', text: text.slice(last) });
