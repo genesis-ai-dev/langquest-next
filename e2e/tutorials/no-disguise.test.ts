@@ -27,8 +27,8 @@ describe('the phone\'s disguise', () => {
   });
 
   it('never shows on the web app the videos are filmed on', () => {
-    // A video that opens Me would film the row if the web drew it.
-    expect(readFileSync('apps/mobile/src/disguise/DisguiseRow.web.tsx', 'utf8')).toMatch(/\{\s*return null;\s*\}/);
-    expect(readFileSync('apps/mobile/src/disguise/DisguiseGate.web.tsx', 'utf8')).toMatch(/return <>\{props\.children\}<\/>;/);
+    // A video that opens Me would film the row if the web drew it. Only Android's files bring it in.
+    expect(readFileSync('apps/mobile/src/shell/AppIconRow.tsx', 'utf8')).toMatch(/\{\s*return null;\s*\}/);
+    expect(readFileSync('apps/mobile/src/shell/AppCover.tsx', 'utf8')).toMatch(/return <>\{props\.children\}<\/>;/);
   });
 });

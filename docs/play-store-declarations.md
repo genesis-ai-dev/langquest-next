@@ -246,9 +246,10 @@ working calculator or notepad, and the code typed there opens LangQuest.
 `expo-alternate-app-icons` changes the icon: on Android it turns one of ten
 `<activity-alias>` launcher entries on and the usual one off (made by
 `./plugins/withAndroidAppIcons`, which runs only the package's Android steps,
-and labelled "Calculator" or "Notes" in the phone's language by
-`./plugins/withDisguiseIcons`, which also copies the app's link filters onto
-each). It needs no permission,
+labels each "Calculator" or "Notes" in the phone's language and copies the
+app's link filters onto each; since 2026-11-05 it holds the icon list itself,
+so the iPhone build's embedded settings carry none, and Android's manifest is
+the same as before). It needs no permission,
 and only the person changes it, from inside the app, and can change it back
 there (Deceptive Behavior: changes to the home screen with the user's
 knowledge and consent, easily reversed). The code is kept on the phone as a
@@ -305,9 +306,8 @@ this block.
   "androidPermissions": ["android.permission.MODIFY_AUDIO_SETTINGS", "android.permission.RECORD_AUDIO"],
   "blockedPermissions": [],
   "plugins": [
-    "./plugins/withDisguiseIcons",
     "./plugins/withSceneLifecycle",
-    "./plugins/withAndroidAppIcons {\"0\":{\"name\":\"Calculator1\",\"android\":{\"foregroundImage\":\"./assets/disguise/calculator1/adaptive.png\",\"backgroundColor\":\"#202226\"}},\"1\":{\"name\":\"Calculator2\",\"android\":{\"foregroundImage\":\"./assets/disguise/calculator2/adaptive.png\",\"backgroundColor\":\"#DBEAFE\"}},\"2\":{\"name\":\"Calculator3\",\"android\":{\"foregroundImage\":\"./assets/disguise/calculator3/adaptive.png\",\"backgroundColor\":\"#F97316\"}},\"3\":{\"name\":\"Calculator4\",\"android\":{\"foregroundImage\":\"./assets/disguise/calculator4/adaptive.png\",\"backgroundColor\":\"#111111\"}},\"4\":{\"name\":\"Calculator5\",\"android\":{\"foregroundImage\":\"./assets/disguise/calculator5/adaptive.png\",\"backgroundColor\":\"#16A34A\"}},\"5\":{\"name\":\"Notes1\",\"android\":{\"foregroundImage\":\"./assets/disguise/notes1/adaptive.png\",\"backgroundColor\":\"#FFFFFF\"}},\"6\":{\"name\":\"Notes2\",\"android\":{\"foregroundImage\":\"./assets/disguise/notes2/adaptive.png\",\"backgroundColor\":\"#2563EB\"}},\"7\":{\"name\":\"Notes3\",\"android\":{\"foregroundImage\":\"./assets/disguise/notes3/adaptive.png\",\"backgroundColor\":\"#FFFFFF\"}},\"8\":{\"name\":\"Notes4\",\"android\":{\"foregroundImage\":\"./assets/disguise/notes4/adaptive.png\",\"backgroundColor\":\"#1E293B\"}},\"9\":{\"name\":\"Notes5\",\"android\":{\"foregroundImage\":\"./assets/disguise/notes5/adaptive.png\",\"backgroundColor\":\"#E11D48\"}}}",
+    "./plugins/withAndroidAppIcons",
     "expo-audio {\"enableBackgroundPlayback\":false,\"microphonePermission\":\"LangQuest records your voice to translate passages.\"}",
     "expo-camera {\"cameraPermission\":\"LangQuest uses the camera to scan invite QR codes.\"}",
     "expo-localization {\"supportedLocales\":[\"en\",\"es\",\"pt-BR\",\"fr\",\"ar\",\"sw\",\"ha\",\"am\",\"hi\",\"bn\",\"ne\",\"id\",\"zh-Hans\",\"th\",\"my\",\"fil\"]}",

@@ -11,9 +11,9 @@ import { lookById, type Look } from './disguiseModel';
  * calculator or notepad in front of the app. All of it stays on this phone
  * and needs no connection. Which look is read at once, as the app starts,
  * so not one frame of LangQuest shows before it; the code is kept as a
- * salted hash in the Keychain or Keystore, never as typed. disguise.web.ts
- * is the browser's, which has none, and disguise.ios.ts an iPhone's, which
- * has none either (amended 2026-11-03).
+ * salted hash in the Keychain or Keystore, never as typed. Android only:
+ * the web and an iPhone build have none of it (src/shell/AppCover.tsx,
+ * amended 2026-11-03 and 2026-11-05).
  */
 
 /** expo-alternate-app-icons, optional: a build made before it has no other icon, and keeps the lock alone. */
