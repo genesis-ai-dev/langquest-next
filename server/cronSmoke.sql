@@ -5,8 +5,8 @@
 -- 148). A reset
 -- leaves neither, so scripts/db-test.mjs sets the secrets and runs the
 -- migration before this file; it cleans up after itself. The Inbox purge
--- (decision 122), the purge of cron's own run history and of comments
--- copied from YouTube over 30 days old (186, amended) need no secret:
+-- (decision 122), the purge of cron's own run history, of comments copied
+-- from YouTube over 30 days old (186, amended) and of snapshots (204) need no secret:
 -- their migrations schedule them, so a reset keeps them and so does the
 -- clean-up here. Push delivery calls the function only when
 -- push_work_waiting() says something is waiting.
@@ -17,6 +17,7 @@ do $$ declare j record; begin
     ('langquest-push-delivery', '* * * * *', '/functions/v1/push-delivery'),
     ('langquest-purge-cron-history', '41 3 * * *', 'delete from cron.job_run_details'),
     ('langquest-purge-notifications', '17 3 * * *', 'delete from public.notifications'),
+    ('langquest-purge-snapshots', '7-59/10 * * * *', 'ops.purge_snapshots()'),
     ('langquest-purge-tutorial-comments', '29 * * * *', 'ops.tutorial_comments_expire()')
   ) as t(name, schedule, fragment) loop
     if (select count(*) from cron.job where jobname = j.name) <> 1 then raise exception 'expected exactly one cron job %', j.name; end if;
@@ -26,7 +27,7 @@ do $$ declare j record; begin
     if not (select active from cron.job where jobname = j.name) then raise exception 'cron job % is inactive', j.name; end if;
   end loop;
   if exists (select 1 from cron.job where jobname = 'langquest-stream-projections') then raise exception 'the projection pass is scheduled on pg_cron; it runs in the job container'; end if;
-  if (select count(*) from cron.job where jobname like 'langquest-%') <> 4 then raise exception 'unexpected langquest cron jobs: %', (select string_agg(jobname, ', ') from cron.job where jobname like 'langquest-%'); end if;
+  if (select count(*) from cron.job where jobname like 'langquest-%') <> 5 then raise exception 'unexpected langquest cron jobs: %', (select string_agg(jobname, ', ') from cron.job where jobname like 'langquest-%'); end if;
 end $$;
 
 -- Leave the database as a reset does.
