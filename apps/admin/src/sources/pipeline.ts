@@ -32,14 +32,29 @@ export type Tone = 'busy' | 'wait' | 'bad' | 'live';
  */
 export interface UpdateCard {
   id: string;
-  /** The pull request whose merge published it, from the merge commit's message or GitHub. */
+  /** The pull request whose merge published it, from the merge commit's message or GitHub; for a copy, the one on main whose change it carries. */
   pr: number | null;
   title: string | null;
+  /**
+   * The copy pull request that sent it to an older build, through that
+   * build's release branch (decisions.md 155); null when it came from main.
+   * The same pull request then shows in each build that got it: from main in
+   * the newer build, as a copy in the older one.
+   */
+  copy: number | null;
+  /** The other pull requests on main that it carries, with their titles: a copy that catches an older build up on several merges. */
+  also: { pr: number; title: string | null }[];
+  /** How many more it carries than `pr` and `also` name (EAS keeps only the start of a long message). */
+  more: number;
   at: string;
   /** Back to the build's own code (a rollback), rather than new code. */
   rollBack: boolean;
   /** Phones active in the last week on the platform that run it, of all of them; null without the database. */
   phones: { on: number; of: number } | null;
+  /** A copy not merged yet, so no phone has it: what it waits for. */
+  waiting?: string;
+  /** That copy needs a person: its tests failed, or it has been open for hours (`COPY_HOURS`). */
+  needsPerson?: boolean;
 }
 
 /** One build, in the stage it is in now. */
@@ -264,10 +279,68 @@ export function androidLane(i: PipelineInputs): StoreLane {
   return { id: 'android', title: 'Android store builds', stages, notes };
 }
 
-/** The pull request a merge commit's message names: "Merge pull request #332 from …", its title on the line after. */
-export function prFromMessage(message: string | null): { pr: number; title: string | null } | null {
-  const m = /^Merge pull request #(\d+) from \S+[ \t]*(?:\r?\n\s*([^\n]+))?/.exec(message ?? '');
-  return m ? { pr: Number(m[1]), title: m[2]?.trim() || null } : null;
+/** What an update's message says it carries. */
+export type Named = Pick<UpdateCard, 'title' | 'copy' | 'also' | 'more'> & { pr: number };
+
+/** A merge's line, "Merge pull request #332 from …" (a squash's list starts it with "* "), and the title on the line after. */
+const MERGE_LINE = /^(?:\* )?Merge pull request #(\d+) from \S+[^\n]*(?=(?:\r?\n\s*([^\n]+))?)/gm;
+/** What follows a merge's line when it has no title: the next commit of a squash, or what git and GitHub add. */
+const NOT_A_TITLE = /^(?:\* |\(cherry picked from commit |Co-authored-by:|Merge pull request #)/i;
+
+/**
+ * The pull request a merge commit's message names: "Merge pull request #332
+ * from …", its title on the line after. A copy onto a release branch
+ * (scripts/release-branches.mjs) is a squash, whose first line ends with the
+ * copy pull request, "(#335)", and which carries the merges it copied: one,
+ * or for a catch-up ("… up on 33 merges from main (#350)") a list of them.
+ */
+export function prFromMessage(message: string | null): Named | null {
+  const text = message ?? '';
+  const first = text.split(/\r?\n/, 1)[0]!;
+  const merges = [...text.matchAll(MERGE_LINE)];
+  if (!merges.length) return null;
+  const squash = /\(#(\d+)\)\s*$/.exec(first);
+  const copy = squash && Number(squash[1]) !== Number(merges[0]![1]) ? Number(squash[1]) : null;
+  const named = (m: RegExpExecArray) => { const t = m[2]?.trim(); return { pr: Number(m[1]), title: t && !NOT_A_TITLE.test(t) ? t : null }; };
+  // A merge from main names one pull request; only a copy lists several.
+  const prs = (copy === null ? merges.slice(0, 1) : merges).map(named).filter((m, k, all) => all.findIndex((x) => x.pr === m.pr) === k);
+  const count = Number(/ up on (\d+) merges from main\b/.exec(first)?.[1] ?? prs.length);
+  return { pr: prs[0]!.pr, title: prs[0]!.title, copy, also: prs.slice(1), more: Math.max(0, count - prs.length) };
+}
+
+/** An open pull request onto a release branch, as GitHub lists it; `failed` when its guardrails gate failed. */
+export interface OpenCopy { number: number; title: string; body: string | null; created_at: string; labels?: { name: string }[]; head?: { sha: string }; failed?: boolean }
+
+/** How long a copy may stay open before it needs a person: Claude's conflict step has an hour, the checks under one. */
+export const COPY_HOURS = 3;
+
+/**
+ * Copies onto a platform's release branch that are not merged yet, as cards
+ * on its public build: the change it should get, and why it has not. Each
+ * names the pull requests on main it carries, from its body's list
+ * ("- <commit> #317 Title"), or from its title for a copy made before that
+ * list named them ("release/android: Merge pull request #340 from …").
+ */
+export function pendingCopies(lane: StoreLane, open: OpenCopy[], now = Date.now()): void {
+  const card = stage(lane.stages, 'live').cards[0];
+  if (!card) return;
+  const pending = open.flatMap((o): UpdateCard[] => {
+    const listed = [...(o.body ?? '').matchAll(/^- [0-9a-f]{40} #(\d+)(?:[ \t]+([^\n]+))?$/gm)].map((m) => ({ pr: Number(m[1]), title: m[2]?.trim() || null }));
+    // A copy made before its body listed pull requests names one in its title.
+    const old = Number(/Merge pull request #(\d+)|\(#(\d+)\)\s*$/.exec(o.title)?.slice(1).find(Boolean) ?? NaN);
+    const prs = listed.length ? listed : Number.isFinite(old) ? [{ pr: old, title: null }] : [];
+    if (!prs.length) return [];
+    const conflict = (o.labels ?? []).some((l) => l.name === 'copy-conflict');
+    const slow = (hoursAgo(o.created_at, now) ?? 0) >= COPY_HOURS;
+    return [{
+      id: `copy-${o.number}`, pr: prs[0]!.pr, title: prs[0]!.title, copy: o.number, also: prs.slice(1), more: 0, at: o.created_at, rollBack: false, phones: null,
+      waiting: o.failed ? 'failed its tests, so it needs a person'
+        : conflict ? (slow ? 'has a conflict that Claude has not finished' : 'has a conflict that Claude is fixing')
+          : slow ? 'has been open for hours without merging' : 'merges itself when its tests pass',
+      needsPerson: !!o.failed || slow
+    }];
+  });
+  card.updates = [...pending, ...card.updates];
 }
 
 /** How many updates a card lists; older ones are on EAS. */
@@ -296,7 +369,10 @@ export function attachUpdates(i: PipelineInputs, lanes: StoreLane[]): void {
           .map((u) => {
             const named = prFromMessage(u.message);
             const on = phones.filter((c) => (u.rollBack ? c.embedded && c.runtime === u.runtime : c.updateId === u.id)).reduce((a, c) => a + (Number(c.n) || 0), 0);
-            return { id: u.id, pr: named?.pr ?? null, title: named?.title ?? null, at: u.at, rollBack: u.rollBack, phones: i.installs ? { on, of } : null };
+            return {
+              id: u.id, pr: named?.pr ?? null, title: named?.title ?? null, copy: named?.copy ?? null, also: named?.also ?? [], more: named?.more ?? 0,
+              at: u.at, rollBack: u.rollBack, phones: i.installs ? { on, of } : null
+            };
           });
       }
     }
@@ -325,6 +401,20 @@ export function pipelineAlerts(p: Pipeline, now = Date.now()): Alert[] {
       : 'Check the Play step (play-review.mjs) on EAS: without PLAY_REVIEW_KEY, promote it in Play Console (docs/environments.md, The Play key).';
     out.push({ level: 'watch', text: `${lane.id === 'ios' ? 'iPhone' : 'Android'} ${waiting.title} has waited in ${where} for ${Math.floor(hours)} h with nothing in review. ${fix}` });
   }
+  // A copy for a public build that needs a person: its tests failed, or it has been open for hours.
+  for (const lane of p.lanes) {
+    const live = stage(lane.stages, 'live').cards[0];
+    for (const u of live?.updates ?? []) {
+      if (!u.waiting || !u.needsPerson || u.copy === null) continue;
+      const prs = [u.pr, ...u.also.map((a) => a.pr)].filter((n): n is number => n !== null).map((n) => `PR ${n}`);
+      const named = prs.length > 3 ? `${prs.slice(0, 2).join(', ')} and ${prs.length - 2} more` : prs.join(' and ');
+      out.push({
+        level: 'problem',
+        text: `${lane.id === 'ios' ? 'iPhone' : 'Android'} ${live!.title} does not have ${named} yet: copy PR ${u.copy} ${u.waiting}. Open it to finish it (decisions.md 155).`,
+        link: `https://github.com/${p.repo}/pull/${u.copy}`
+      });
+    }
+  }
   return out;
 }
 
@@ -337,7 +427,7 @@ export function pipelineFrom(i: PipelineInputs, repo = 'genesis-ai-dev/langquest
 /** The commits of shown updates whose message did not name their pull request and title. */
 export const unnamed = (p: Pipeline, commitOf: Map<string, string>): string[] =>
   [...new Set(p.lanes.flatMap((l) => l.stages.flatMap((s) => s.cards.flatMap((c) => c.updates)))
-    .filter((u) => u.pr === null || u.title === null).map((u) => commitOf.get(u.id)).filter((c): c is string => !!c))];
+    .filter((u) => (u.pr === null || u.title === null) && u.copy === null && !u.also.length).map((u) => commitOf.get(u.id)).filter((c): c is string => !!c))];
 
 /** Pull requests by merge commit, kept per isolate: a merged pull request's number and title do not change. */
 const prsByCommit = new Map<string, { pr: number; title: string } | null>();
@@ -346,7 +436,7 @@ const prsByCommit = new Map<string, { pr: number; title: string } | null>();
 
 export const PIPELINE_QUERY = `query ($id: String!) {
   app { byId(appId: $id) {
-    builds(offset: 0, limit: 20, filter: { buildProfile: "production" }) { status platform createdAt completedAt appVersion appBuildVersion runtime { version } }
+    builds(offset: 0, limit: 40, filter: { buildProfile: "production" }) { status platform createdAt completedAt appVersion appBuildVersion runtime { version } }
     submissions(filter: {}, offset: 0, limit: 12) { status platform createdAt completedAt androidConfig { track } submittedBuild { appVersion appBuildVersion } }
     updateBranchByName(name: "production") { updateGroups(offset: 0, limit: 30) { id platform createdAt message gitCommitHash isRollBackToEmbedded runtime { version } } }
   } }
@@ -509,7 +599,20 @@ export async function pipelineSection(
       .catch(() => {})));
   for (const u of p.lanes.flatMap((l) => l.stages.flatMap((s) => s.cards.flatMap((c) => c.updates)))) {
     const found = prsByCommit.get(commitOf.get(u.id) ?? '');
-    if (found) { u.pr ??= found.pr; u.title ??= found.title; }
+    if (!found) continue;
+    // A copy's own pull request ("release/android: …") is the copy, not the change.
+    if (/^release\/[a-z]+: /.test(found.title)) { u.copy ??= found.pr; u.title ??= found.title.replace(/^release\/[a-z]+: /, ''); }
+    else { u.pr ??= found.pr; u.title ??= found.title; }
   }
+  // Copies onto each release branch that are not merged yet, on the public build they are for, with whether their tests failed.
+  const open = await Promise.all(p.lanes.map(async (l) => {
+    const copies = await gh<OpenCopy[]>(`/pulls?state=open&base=${encodeURIComponent(`release/${l.id}`)}&per_page=30`, 'GitHub copies').catch(() => null);
+    await Promise.all((copies ?? []).filter((o) => o.head?.sha).slice(0, 8).map((o) =>
+      gh<{ check_runs: { conclusion: string | null }[] }>(`/commits/${encodeURIComponent(o.head!.sha)}/check-runs?check_name=gate`, 'GitHub checks')
+        .then((r) => { o.failed = r.check_runs.some((c) => c.conclusion === 'failure'); })
+        .catch(() => {})));
+    return copies;
+  }));
+  p.lanes.forEach((l, k) => { if (open[k]?.length) pendingCopies(l, open[k]!, now); });
   return ok(p, pipelineAlerts(p, now));
 }

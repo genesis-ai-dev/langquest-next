@@ -142,12 +142,26 @@ Object.assign(RENDER, {
   pipeline(d) {
     // Each store build sits in the stage it is in now, an arrow to the next; inside it, the over-the-air updates it takes.
     const PHONES = { ios: 'iPhones', android: 'Android phones' };
+    // A pull request shows in each build that has it: from main in the newer build, and as a copy in an older
+    // build through its release branch (decisions.md 155), first as a copy that waits, then as the update it sent.
+    // A copy that catches a build up on several shows each, the first few, then how many more.
+    const CAUGHT_UP = 3;
     const update = (u, platform) => {
-      const name = u.rollBack ? 'Back to the build\'s own code' : u.pr ? 'PR ' + u.pr + (u.title ? ' · ' + u.title : '') : 'Update ' + u.id.slice(0, 8);
       const phones = u.phones ? ' · ' + num(u.phones.on) + ' of ' + num(u.phones.of) + ' ' + PHONES[platform] + ' run it' : '';
-      const body = '<b>' + esc(name) + '</b><small>' + esc(ago(u.at)) + esc(phones) + '</small>';
-      return u.pr ? '<a class="pu" href="https://github.com/' + esc(d.repo) + '/pull/' + encodeURIComponent(u.pr) + '" target="_blank" rel="noopener" title="' + esc(name) + '">' + body + '</a>'
-        : '<div class="pu" title="' + esc(name) + '">' + body + '</div>';
+      const how = u.waiting ? 'PR open, not merged yet: copy PR ' + u.copy + ' ' + u.waiting + ' · ' : u.copy ? 'copied by PR ' + u.copy + ' · ' : '';
+      const small = esc(how) + esc(ago(u.at)) + esc(phones);
+      const cls = 'pu' + (u.waiting ? ' pend' : '') + (u.needsPerson ? ' stuck' : '') + (u.copy ? ' cp' : '');
+      const link = (n, name, body) => '<a class="' + cls + '" href="https://github.com/' + esc(d.repo) + '/pull/' + encodeURIComponent(n) + '" target="_blank" rel="noopener" title="' + esc(name) + '">' + body + '</a>';
+      if (u.rollBack || (!u.pr && !u.copy)) {
+        const name = u.rollBack ? 'Back to the build\'s own code' : 'Update ' + u.id.slice(0, 8);
+        return '<div class="' + cls + '" title="' + esc(name) + '"><b>' + esc(name) + '</b><small>' + small + '</small></div>';
+      }
+      if (!u.pr) { const name = 'Copy PR ' + u.copy + (u.title ? ' · ' + u.title : ''); return link(u.copy, name, '<b>' + esc(name) + '</b><small>' + small + '</small>'); }
+      const prs = [{ pr: u.pr, title: u.title }].concat(u.also || []);
+      const shown = prs.slice(0, prs.length > CAUGHT_UP + 1 ? CAUGHT_UP : prs.length);
+      const more = prs.length - shown.length + (u.more || 0);
+      return shown.map((p) => { const name = 'PR ' + p.pr + (p.title ? ' · ' + p.title : ''); return link(p.pr, name, '<b>' + esc(name) + '</b><small>' + small + '</small>'); }).join('') +
+        (more ? link(u.copy, num(more) + ' more PRs in copy PR ' + u.copy, '<b>' + esc(num(more) + ' more PRs in copy PR ' + u.copy) + '</b><small>' + small + '</small>') : '');
     };
     const card = (c, platform) => '<div class="pc ' + esc(c.tone) + '"><b>' + esc(c.title) + '</b>' + (c.version ? ' <small>' + esc(c.version) + '</small>' : '') +
       '<span>' + esc(c.state) + '</span>' + (c.at ? '<small>' + when(c.at) + '</small>' : '') +
