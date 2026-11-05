@@ -133,6 +133,9 @@ async function snapshotOne(
     ageMs = written ? Date.now() - Date.parse(written) : null;
   }
   const written = shouldWriteSnapshot({ existing: !!existing, newEvents: tail.length, redaction, ageMs });
+  // Every passage's line, each time the language is folded, not only with a snapshot. Before the snapshot: a phone
+  // that finds a cut past the lines downloads the whole snapshot instead (`old_lines`), and lines past a cut are normal.
+  await putLines(service, snapshot.orgId, snapshot.streamId, snapshot.serverSeq, snapshot.state);
   if (written) {
     // The rows a phone fills its passages from, moved in with the snapshot (decisions.md 147).
     await stageCut(service, snapshot);
@@ -144,9 +147,15 @@ async function snapshotOne(
       p_state: snapshot.state
     });
     if (put.error) throw new Error(`put_snapshot ${orgId}/${streamId}: ${put.error.message}`);
+    // A snapshot from before a redaction may hold what it removed; one past it replaces them all, on any version
+    // (decisions.md 204). Only those before it: a new reducer's first tail is the whole log, and an old version's
+    // snapshot past an old redaction stays for the phones on it.
+    const lastRedaction = tail.reduce((seq, e) => (e.type === 'v1.Redacted' ? Math.max(seq, e.serverSeq!) : seq), 0);
+    if (lastRedaction > 0) {
+      const dropped = await service.rpc('drop_snapshots_before', { p_org_id: orgId, p_stream_id: streamId, p_server_seq: lastRedaction });
+      if (dropped.error) throw new Error(`drop_snapshots_before ${orgId}/${streamId}: ${dropped.error.message}`);
+    }
   }
-  // Every passage's line, each time the language is folded, not only with a snapshot.
-  await putLines(service, snapshot.orgId, snapshot.streamId, snapshot.serverSeq, snapshot.state);
   if (observe) await observe(snapshot);
   return { orgId, streamId, serverSeq: snapshot.serverSeq, updated: true, written };
 }
@@ -245,6 +254,12 @@ async function putLines(service: SupabaseClient, orgId: string, streamId: string
  */
 async function completeCut(service: SupabaseClient, snapshot: Snapshot): Promise<void> {
   const { orgId, streamId, serverSeq } = snapshot;
+  // The lines before the cut, as when a snapshot is written (snapshotOne).
+  const lines = await service.from('passage_lines').select('server_seq')
+    .eq('org_id', orgId).eq('stream_id', streamId).eq('lines_version', LINES_VERSION).eq('unit_id', NO_UNIT).limit(1);
+  if (lines.error) throw new Error(`passage_lines ${orgId}/${streamId}: ${lines.error.message}`);
+  const at = (lines.data?.[0] as { server_seq?: number } | undefined)?.server_seq;
+  if (at === undefined || Number(at) < serverSeq) await putLines(service, orgId, streamId, serverSeq, snapshot.state);
   const cut = await service.from('snapshot_units').select('server_seq')
     .eq('org_id', orgId).eq('stream_id', streamId).eq('reducer_version', REDUCER_VERSION).eq('kind', SHARED).eq('server_seq', serverSeq).limit(1);
   if (cut.error) throw new Error(`snapshot_units ${orgId}/${streamId}: ${cut.error.message}`);
@@ -255,11 +270,6 @@ async function completeCut(service: SupabaseClient, snapshot: Snapshot): Promise
     });
     if (put.error) throw new Error(`put_snapshot ${orgId}/${streamId}: ${put.error.message}`);
   }
-  const lines = await service.from('passage_lines').select('server_seq')
-    .eq('org_id', orgId).eq('stream_id', streamId).eq('lines_version', LINES_VERSION).eq('unit_id', NO_UNIT).limit(1);
-  if (lines.error) throw new Error(`passage_lines ${orgId}/${streamId}: ${lines.error.message}`);
-  const at = (lines.data?.[0] as { server_seq?: number } | undefined)?.server_seq;
-  if (at === undefined || Number(at) < serverSeq) await putLines(service, orgId, streamId, serverSeq, snapshot.state);
 }
 
 async function pullAll(transport: SupabaseTransport, orgId: string, streamId: string, after: number, pageSize: number): Promise<AnyEvent[]> {
