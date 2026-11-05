@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { BackHandler } from 'react-native';
+import { BackHandler, Platform } from 'react-native';
 import { takeHardwareBack } from '../ui/hardwareBack';
 import { toastTime } from '../ui/toastTime';
 import { t } from '../i18n';
@@ -38,6 +38,8 @@ export function useRootBack(nav: Nav, session: Session, toast: (message: string)
     return 'moved';
   }, []);
   useEffect(() => {
+    // A browser has no hardware Back (its own goes through the URL), and react-native-web reports the listener as an error.
+    if (Platform.OS === 'web') return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (takeHardwareBack()) return true;
       if (!navRef.isReady()) return false;

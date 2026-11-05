@@ -26,7 +26,7 @@ import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/them
 import { VoiceNote } from '../audio/voiceNote';
 import { firstTouched, keyLabel, runKey, tapVerse, wordHits, type OtherSays, type VerseRun } from './helpsModel';
 import { styles as ps } from '../recording/blockStyles';
-import { BibleSheet, type Bible } from './reference';
+import { BibleSheet, type Bible } from './BibleSheet';
 import { useBible } from './useBible';
 import { useClip } from '../audio/useClip';
 import { textMissing } from './helpsModel';
