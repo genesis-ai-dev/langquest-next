@@ -77,6 +77,8 @@ export function fakeSupabase(server: FakeServer, opts: { snapshotCreatedAt?: str
         staged.delete(key);
         return null;
       }
+      case 'drop_snapshots_before':
+        return null;
       case 'put_passage_lines':
         server.keepLines(String(a['p_org_id']), String(a['p_stream_id']), Number(a['p_lines_version']), Number(a['p_server_seq']), a['p_lines'] as PassageLine[]);
         digestsOf.get(server)?.delete(`${a['p_org_id']}/${a['p_stream_id']}`);

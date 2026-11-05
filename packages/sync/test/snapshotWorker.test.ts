@@ -1,4 +1,4 @@
-import { emptyLanguageState, foldLanguage, HlcClock, languageLines, LINES_VERSION, ORG_STREAM, PERSON_ORG, PART_OF_KIND, putEntry, withOwnParts, type LanguageState, type Snapshot } from '@langquest-next/core';
+import { emptyLanguageState, foldLanguage, HlcClock, languageLines, LINES_VERSION, ORG_STREAM, PERSON_ORG, PART_OF_KIND, putEntry, REDUCER_VERSION, withOwnParts, type LanguageState, type Snapshot } from '@langquest-next/core';
 import { PART_KINDS } from '../src/keptLanguage';
 import { cutLanguage } from '../src/serverCut';
 import { MemoryStore } from '../src/memoryStore';
@@ -128,6 +128,49 @@ describe('runSnapshotWorker (the projection pass, against a fake service client)
       expect(observed[0]!.state.units['u1']).toBeDefined();
     });
 
+    it('a redaction drops every snapshot from before it, once one past it is stored', async () => {
+      // Why: an older snapshot of any version still holds the redacted event, and members can read it (decisions.md 203).
+      const { client, fake } = await stored(new Date().toISOString());
+      await client.append('v1.Redacted', { eventId: 'a-e1' });
+      await client.sync();
+      await runSnapshotWorker(fake.client);
+      const order = fake.calls.filter((c) => c.fn === 'put_snapshot' || c.fn === 'drop_snapshots_before').map((c) => c.fn);
+      expect(order.slice(-2)).toEqual(['put_snapshot', 'drop_snapshots_before']);
+      const dropped = fake.calls.filter((c) => c.fn === 'drop_snapshots_before');
+      expect(dropped.map((c) => c.args)).toEqual([{ p_org_id: 'org1', p_stream_id: 'a', p_server_seq: 4 }]);
+    });
+
+    it('a first snapshot of a new reducer, over a log with an old redaction, drops only what is older than that redaction', async () => {
+      // Why: the tail of a new reducer's first fold is the whole log. Dropping everything below its new seq would
+      // take the old version's snapshot from a phone part-way through a fill on it, though that one was folded past the redaction.
+      const server = new FakeServer();
+      const client = await language(server, 'a', 3);
+      await client.append('v1.Redacted', { eventId: 'a-e1' });
+      await client.append('v1.UnitAdded', unit(9));
+      await client.sync();
+      const fake = fakeSupabase(server);
+      const [r] = await runSnapshotWorker(fake.client);
+      expect(r).toMatchObject({ serverSeq: 5, written: true });
+      expect(fake.calls.filter((c) => c.fn === 'drop_snapshots_before').map((c) => c.args['p_server_seq'])).toEqual([4]);
+    });
+
+    it('new events with no redaction drop nothing', async () => {
+      const { client, fake } = await stored(null);
+      await client.append('v1.UnitAdded', unit(3));
+      await client.sync();
+      const [r] = await runSnapshotWorker(fake.client);
+      expect(r).toMatchObject({ written: true });
+      expect(fake.calls.filter((c) => c.fn === 'drop_snapshots_before')).toEqual([]);
+    });
+
+    it('a drop that fails is raised, as any write is', async () => {
+      const { client, fake } = await stored(new Date().toISOString());
+      await client.append('v1.Redacted', { eventId: 'a-e1' });
+      await client.sync();
+      fake.fail.set('drop_snapshots_before', 'boom');
+      await expect(runSnapshotWorker(fake.client)).rejects.toThrow('drop_snapshots_before org1/a: boom');
+    });
+
     it('an error reading the snapshot age is raised, not guessed', async () => {
       const { client, fake } = await stored(null, 'boom');
       await client.append('v1.UnitAdded', unit(3));
@@ -181,7 +224,8 @@ describe('runSnapshotWorker (the projection pass, against a fake service client)
       expect(server.hasCut(snap)).toBe(true);
       // Staged in batches, then moved in with the snapshot.
       const order = fake.calls.map((c) => c.fn).filter((f) => f === 'stage_snapshot_units' || f === 'put_snapshot' || f === 'put_passage_lines_delta');
-      expect(order).toEqual(['stage_snapshot_units', 'put_snapshot', 'put_passage_lines_delta']);
+      // Lines first: a phone that finds a cut with older lines downloads the whole snapshot instead (old_lines).
+      expect(order).toEqual(['put_passage_lines_delta', 'stage_snapshot_units', 'put_snapshot']);
       const head = (await server.transportFor().snapshotHead!('org1', 'a', snap.reducerVersion, LINES_VERSION))!;
       expect(head.units.map((u) => u.unitId)).toEqual(['u0', 'u1', 'u2', 'u3', 'u4', 'u5']);
       expect(head.units.reduce((n, u) => n + u.rows, 0)).toBe(cutLanguage(snap.state).rows.length);
@@ -248,6 +292,29 @@ describe('runSnapshotWorker (the projection pass, against a fake service client)
       expect(next.calls.find((c) => c.fn === 'put_passage_lines_delta')!.args['p_lines']).toEqual([]);
     });
 
+    it('a cut is never out before its lines: a first download at any moment of a pass can fill', async () => {
+      // Why: a phone falls back to the whole snapshot, 40 MB for a big language, when the newest cut is past the lines.
+      // So the snapshot went first, a phone arriving before the lines did, or for as long as writing them kept failing.
+      const server = new FakeServer();
+      server.serverCut = true;
+      const client = await language(server, 'a', 3);
+      const first = fakeSupabase(server);
+      await runSnapshotWorker(first.client);
+      await client.append('v1.UnitAdded', unit(3));
+      await client.sync();
+      const fake = fakeSupabase(server, { snapshotCreatedAt: null });
+      fake.fail.set('put_passage_lines_delta', 'boom');
+      await expect(runSnapshotWorker(fake.client)).rejects.toThrow('put_passage_lines_delta org1/a: boom');
+      expect(fake.puts()).toHaveLength(0);
+      const head = await server.transportFor().snapshotHead!('org1', 'a', REDUCER_VERSION, LINES_VERSION, true);
+      expect(head!.lines!.seq).toBeGreaterThanOrEqual(head!.serverSeq);
+      fake.fail.delete('put_passage_lines_delta');
+      await runSnapshotWorker(fake.client);
+      const after = await server.transportFor().snapshotHead!('org1', 'a', REDUCER_VERSION, LINES_VERSION, true);
+      expect(after!.serverSeq).toBe(4);
+      expect(after!.lines!.seq).toBe(4);
+    });
+
     it('gives a snapshot written before the cut its rows and lines on the next visit, though nothing new arrived', async () => {
       const server = new FakeServer();
       await worked(server, 3);
@@ -259,6 +326,8 @@ describe('runSnapshotWorker (the projection pass, against a fake service client)
       expect(out[0]).toMatchObject({ updated: false, written: false });
       expect(server.hasCut(server.snapshots.get('org1/a')!)).toBe(true);
       expect(server.lines.get('org1/a')).toMatchObject({ version: LINES_VERSION, seq: snap.serverSeq });
+      const order = fake.calls.map((c) => c.fn).filter((f) => f === 'put_snapshot' || f.startsWith('put_passage_lines'));
+      expect(order.at(-1)).toBe('put_snapshot');
       // Once it has them, a visit with nothing new writes nothing.
       const again = fakeSupabase(server);
       await runSnapshotWorker(again.client);

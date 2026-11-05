@@ -446,6 +446,43 @@ describe('a server without the cut (decisions.md 147)', () => {
     expect(comparable(await whole(client, store))).toEqual(comparable(foldLanguage([...server.stream('org1', 'p1')], emptyLanguageState())));
   });
 
+  it('the cut replaced after every step of a fill costs a phone on a slow link nothing: no request more, no restart', async () => {
+    // Why: only the newest snapshot keeps rows, and a job deletes older snapshots (decisions.md 147, 203). A phone
+    // filling for hours must go on from what it has when the rows it started from are gone, so nothing here is retained.
+    const run = async (rolling: boolean) => {
+      const server = new FakeServer();
+      server.serverCut = true;
+      server.retainMs = 0;
+      const lead = await language(server, 20);
+      server.makeSnapshot('org1', 'p1');
+      const diagStore = new MemoryDiagStore();
+      let id = 0;
+      const diag = new Diagnostics({ store: diagStore, newId: () => `d${++id}`, maxRecords: Infinity });
+      const { client, store } = phone(server, 'dB', 'r1', { keepOnDisk: true, fillBudgetMs: 0, diag });
+      await client.load();
+      await client.sync();
+      for (let step = 0; client.fillProgress() && step < 100; step++) {
+        await client.fillSome(0);
+        if (rolling) {
+          await lead.client.append('v1.NoteAdded', { noteId: `roll-${step}`, unitId: unitsOf(20)[step % 20]!, anchor: { kind: 'passage' }, text: 'x' });
+          await lead.client.sync();
+          server.makeSnapshot('org1', 'p1');
+        }
+        await client.sync();
+      }
+      expect(client.fillProgress()).toBeNull();
+      await settle(client);
+      await diag.settle();
+      expect(comparable(await whole(client, store))).toEqual(comparable(foldLanguage([...server.stream('org1', 'p1')], emptyLanguageState())));
+      expect(diagStore.records.filter((r) => r.kind === 'fill' && (r.t.event === 'restart' || r.t.event === 'fallback'))).toEqual([]);
+      return { rows: server.rowsCalls, chunks: server.chunkCalls };
+    };
+    const still = await run(false);
+    const rolling = await run(true);
+    expect(rolling.chunks).toBe(0);
+    expect(rolling.rows).toBeLessThanOrEqual(still.rows);
+  });
+
   it('a cut gone part-way through a fill (a server rolled back) starts the language over from the whole snapshot, keeping unsent work', async () => {
     const server = new FakeServer();
     server.serverCut = true;
