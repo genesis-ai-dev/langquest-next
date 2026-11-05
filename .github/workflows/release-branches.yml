@@ -1,15 +1,15 @@
 # Bug fixes keep reaching the public build while a new build is in store
-# review (scripts/release-branches.mjs, decisions.md 155). After each merge
-# into main, per platform: a merge that changes the native fingerprint
-# starts release/<platform> from the commit before it (the public build's
-# code) and is tagged rebuild/<platform>/<commit>; a merge that does not is
-# copied onto an existing release/<platform> by a pull request that merges
-# itself once its checks pass. Every hour, a release branch whose new build
-# is public is deleted.
+# review (scripts/release-branches.mjs, decisions.md 155), on iPhone and
+# Android. After each merge into main, per platform: a merge that changes
+# the native fingerprint is tagged rebuild/<platform>/<commit> and, when no
+# branch exists, starts release/<platform> from the public build's code; a
+# merge that does not, and changes the phone app, is copied onto an
+# existing release/<platform> by a pull request that merges itself once its
+# checks pass. Every hour, a release branch whose new build is public is
+# deleted, or moved to that build when a newer one is still in review, and
+# a platform whose public build is older than a newer build gets a branch.
 #
-# Off until the repository variable RELEASE_BRANCHES is `on`; the variable
-# RELEASE_BRANCH_PLATFORMS ("android", or "android ios") limits which
-# platforms keep a branch, every platform when it is not set. It needs a
+# Off until the repository variable RELEASE_BRANCHES is `on`. It needs a
 # GitHub App installed on this repository with Contents, Pull requests and
 # Workflows write (secrets RELEASE_APP_ID and RELEASE_APP_PRIVATE_KEY): a pull
 # request that the built-in token opens starts no checks, so a copy could
@@ -61,7 +61,6 @@ jobs:
       - name: Start, tag or copy onto each platform's release branch
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
-          RELEASE_BRANCH_PLATFORMS: ${{ vars.RELEASE_BRANCH_PLATFORMS }}
         run: |
           git config user.name 'langquest-release[bot]'
           git config user.email 'langquest-release[bot]@users.noreply.github.com'
@@ -71,7 +70,8 @@ jobs:
   tidy:
     if: vars.RELEASE_BRANCHES == 'on' && github.event_name != 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # A branch that starts catches up on every merge since, in one pull request.
+    timeout-minutes: 20
     steps:
       - id: token
         uses: actions/create-github-app-token@v1
@@ -84,10 +84,9 @@ jobs:
           token: ${{ steps.token.outputs.token }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24 }
-      - name: Delete release branches whose new build is public
+      - name: Move, delete or start each platform's release branch
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
-          RELEASE_BRANCH_PLATFORMS: ${{ vars.RELEASE_BRANCH_PLATFORMS }}
         run: |
           git config user.name 'langquest-release[bot]'
           git config user.email 'langquest-release[bot]@users.noreply.github.com'
