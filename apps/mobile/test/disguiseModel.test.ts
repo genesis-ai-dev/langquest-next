@@ -1,8 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import {
-  CALC_START, codeAllowed, digitsOnly, formatResult, keypadCandidate, LOOKS, noteCandidates, press, withoutCode, type Calc, type Key
+  CALC_START, codeAllowed, digitsOnly, formatResult, keypadCandidate, lookName, LOOKS, noteCandidates, press, tileLabel, withoutCode, type Calc, type Key
 } from '../src/disguise/disguiseModel';
+import { addCatalog, showLanguage } from '../src/i18n';
 
 // A phone's disguise (decisions.md 171): the calculator works as a
 // calculator, the code opens the app on its last digit or on a line of its
@@ -70,10 +72,13 @@ describe('codes', () => {
 
 describe('the looks', () => {
   const ROOT = join(import.meta.dirname, '..');
-  const app = JSON.parse(readFileSync(join(ROOT, 'app.json'), 'utf8')) as { expo: { plugins: unknown[] } };
-  const declared = (app.expo.plugins.find((p) => Array.isArray(p) && p[0] === './plugins/withAndroidAppIcons') as [string, { name: string; android: { foregroundImage: string } }[]])[1];
+  type Plugin = ((config: object) => { mods?: { android?: { manifest?: (c: object) => Promise<{ modResults: Manifest }> } } }) & { ICONS: { name: string; android: { foregroundImage: string } }[] };
+  type Filter = { action?: { $: Record<string, string> }[]; data?: { $: Record<string, string> }[] };
+  type Manifest = { manifest: { application: { $: Record<string, string>; activity: { $: Record<string, string>; 'intent-filter': Filter[] }[]; 'activity-alias'?: { $: Record<string, string>; 'intent-filter': Filter[] }[] }[] } };
+  const plugin = createRequire(import.meta.url)('../plugins/withAndroidAppIcons.js') as Plugin;
+  const declared = plugin.ICONS;
 
-  it('are five calculators and five notepads, each an icon app.json declares, with its pictures', () => {
+  it('are five calculators and five notepads, each an icon Android declares, with its pictures', () => {
     expect(LOOKS.filter((l) => l.kind === 'calculator')).toHaveLength(5);
     expect(LOOKS.filter((l) => l.kind === 'notes')).toHaveLength(5);
     expect(declared.map((d) => d.name)).toEqual(LOOKS.map((l) => l.icon));
@@ -83,8 +88,31 @@ describe('the looks', () => {
     }
   });
 
-  it('come after the plugin that names them on Android, so its manifest change runs last', () => {
-    const names = app.expo.plugins.map((p) => (Array.isArray(p) ? p[0] : p));
-    expect(names.indexOf('./plugins/withDisguiseIcons')).toBeLessThan(names.indexOf('./plugins/withAndroidAppIcons'));
+  it("are named in the language showing, from the disguise's own words (src/disguise/i18n)", () => {
+    const calculator = LOOKS[0]!;
+    const notes = LOOKS[5]!;
+    expect([lookName(calculator), lookName(notes), lookName(null), tileLabel(calculator)]).toEqual(['Calculator', 'Notes', 'LangQuest', 'Calculator 1']);
+    addCatalog('fr', JSON.parse(readFileSync(join(ROOT, 'src/i18n/fr.json'), 'utf8')) as object);
+    showLanguage('fr');
+    try {
+      expect([lookName(calculator), tileLabel(calculator)]).toEqual(['Calculatrice', 'Calculatrice 1']);
+    } finally {
+      showLanguage('en');
+    }
+  });
+
+  it("are named under the icon on Android and keep the app's links, after the package makes them", async () => {
+    // The manifest change the plugin adds, run on a manifest with one link filter: the package's
+    // step makes the ten aliases first, then the plugin's own names them and copies the link.
+    const link: Filter = { action: [{ $: { 'android:name': 'android.intent.action.VIEW' } }], data: [{ $: { 'android:scheme': 'langquestnext' } }] };
+    const manifest: Manifest = { manifest: { application: [{ $: { 'android:name': '.MainApplication' }, activity: [{ $: { 'android:name': '.MainActivity' }, 'intent-filter': [link] }] }] } };
+    const run = plugin({ name: 'LangQuest Next', slug: 'langquest-next' }).mods?.android?.manifest;
+    const out = await run!({ name: 'LangQuest Next', slug: 'langquest-next', modResults: manifest, modRequest: { platform: 'android', modName: 'manifest', projectRoot: ROOT, platformProjectRoot: join(ROOT, 'android'), introspect: true } });
+    const aliases = out.modResults.manifest.application[0]!['activity-alias'] ?? [];
+    expect(aliases.map((a) => a.$['android:name'])).toEqual(LOOKS.map((l) => `.MainActivity${l.icon}`));
+    for (const alias of aliases) {
+      expect(alias.$['android:label']).toBe(alias.$['android:name']!.includes('Calculator') ? '@string/disguise_calculator' : '@string/disguise_notes');
+      expect(alias['intent-filter']).toContainEqual(link);
+    }
   });
 });

@@ -8523,6 +8523,37 @@ project), and the iPhone pictures stay in `assets/disguise`. Reverse if: the
 App Review Board allows the icons (then the iPhone gets the disguise back,
 and the App Review notes describe it again).
 
+Amended (2026-11-05, Caleb Koster): an iPhone build carries nothing of the
+disguise, not even its words. Apple refused build 50 (2026.1103.2251) on
+2026-11-05 under 2.5.19 with the same letter, from "code in the submitted
+binary". Build 50 had no other icon and no native module, but it still
+carried the disguise's words in the app's catalogs (all 16 languages, such as
+"Makes LangQuest look like a calculator or a notepad on this phone"),
+Android's ten icon names and their pictures' paths in the settings Expo copies
+into every build (app.json's options for `./plugins/withAndroidAppIcons`),
+and the iPhone's stand-in files in `src/disguise`. Caleb's call of 2026-11-03
+(no calculator or notepad on iPhone) meant all of that, so:
+- The disguise's words are in `src/disguise/i18n`, not `src/i18n`;
+  `src/disguise/disguiseWords.ts` adds them to the language showing
+  (`addWords`), and only Android's files import it.
+- App.tsx and More settings reach the disguise through `src/shell/AppCover`,
+  `AppIconRow` and `useNotificationsOffered`: their `.android` files import
+  `src/disguise`, their own files (iPhone and web) are empty. The `.ios` and
+  `.web` files in `src/disguise` are gone, and `AppIconRow.tsx` is the web's
+  empty row that the 2026-10-29 amendment relies on.
+- `./plugins/withAndroidAppIcons` holds the icon list and names each alias
+  (it took in `./plugins/withDisguiseIcons`), so app.json names only the
+  plugin. `expo prebuild` writes the same Android project as before.
+- An iPhone no longer clears what build 45 kept: no iPhone ran a build that
+  did, since build 50 was refused. An iPhone build that has the disguise
+  again must not take that up as its own.
+This is not hiding it: the iPhone app does not have the feature, and the code
+names it plainly, as before. `test/disguiseIphone.test.ts` follows every
+import an iPhone build bundles and fails on a file of `src/disguise`, or a
+name, string or word of the disguise there, in its catalogs, or in the
+settings Expo embeds; an export of the iPhone app (`expo export --platform
+ios`) had none on 2026-11-05. Android is unchanged.
+
 ## 172. FIA's key words are a key-word list per language, picked apart from FIA's guides, shown where a passage links or says them, and every reference list can be searched
 
 Date: 2026-10-26 · By: Caleb Koster · Status: accepted
