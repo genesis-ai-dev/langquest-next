@@ -65,16 +65,9 @@ export const studyAPassage: Tutorial = {
     },
     {
       screen: 'study_guide',
+      // A question opens its answer at a tap, as its Answer button does (UI audit, finding 39).
       part: (page) => button(page, /^1\.\s/),
       say: 'Talk about the questions together. Tap a question to answer it.',
-      tap: true,
-      until: (page) => button(page, 'Answer').waitFor({ timeout: 10_000 }),
-      stay: 0.6
-    },
-    {
-      screen: 'study_guide',
-      part: (page) => button(page, 'Answer'),
-      say: 'Tap Answer.',
       tap: true,
       until: (page) => words(page, 'Your answer').waitFor({ timeout: 10_000 }),
       stay: 0.6

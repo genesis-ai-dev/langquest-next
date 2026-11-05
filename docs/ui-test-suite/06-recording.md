@@ -109,10 +109,10 @@ Steps:
 6. Tap the check, "Done".
 
 Expected:
-- After step 1 the button turns to a stop button (accessibility label "Stop recording"), and the recording view's title reads "Part 1". The Undo and Redo arrows left of the red button are out of the way while it records (decision 133).
+- After step 1 the button turns to a stop button (accessibility label "Stop recording"), and the red recording view opens with no part named at its top (decision 124, amended 2026-11-01). The Undo and Redo arrows left of the red button are out of the way while it records (decision 133).
 - The lit card reads "Listening for you · pause between parts" while silent, and "Recording…" with a moving level meter while speaking.
 - Each pause ends a part. Within 2 seconds of each pause the card above counts it: "Part 1", then "Parts 1–2", then "Parts 1–3", and the lit card moves to the next part number.
-- After step 5 the session is still open (decision 129): the pane says "Stopped", the waveform shows the three parts boxed and numbered, the title reads "Part 4", the button reads "Record", and the footer has no "Done" (the recording view's check is the only one).
+- After step 5 the session is still open (decision 129): the pane says "Stopped", the waveform shows the three parts boxed and numbered 1, 2 and 3, its status reads "3 parts so far" to a screen reader, the button reads "Record", and the footer has no "Done" (the recording view's check is the only one).
 - After step 6 the card reads "Parts 1–3" with "3 parts · 0:1x" (about 11 seconds in total), and the footer reads "Part 4" in grey.
 - The footer's "Done" is enabled.
 - The saved mark in the header ends on its check ("Saved") once the parts are kept.
@@ -123,6 +123,8 @@ Expected:
 Decided (2026-10-13), the docs were stale: decision 71's amendment of 2026-10-08 ("the recording workspace, Publish, the study and microphone setup now follow the agreed images") makes the lit part card and its meter the agreed recording view; the full-screen voice-detection panel (`VadPanel`) is back translation's. This test checks the lit card and the meter.
 
 Changed (2026-10-16, decision 124): while recording, the pane below the divider is the red recording view (`RecordingView.tsx`) in the workspace and in back translation alike: its top row names the part being said ("Part 2", with its verses when it fills a place), the time and a check, Done; the live waveform fills the rest. Its label reads "Part 2. Recording…" or "Part 2. Listening for you · pause between parts"; the parts card returns when recording stops.
+
+Changed (2026-11-01, decision 124 amended): the recording view's top row names no part. After Stop it named the next part to record ("Part 2" over the box numbered 1), so it read as the wrong number. The top row now says how the recording stands (recording, listening, stopped) beside the time and Done, and the boxes carry the numbers. Screen readers hear "Listening for you. 3 parts so far", and the tests count parts from that while the card is away.
 
 Changed (2026-10-16, decision 129): Stop no longer ends the session. Its parts stay boxes on the waveform, to hear, move or drop (REC-053), and are cut and saved, in order, when the session is left: Done, leaving the screen, or on a phone the next launch after a crash.
 
@@ -868,6 +870,22 @@ Expected:
 - Step 4: Part 2's space is empty again; Part 1 keeps 22.
 - Step 5: the first tap gives 23; tapping the number then makes Part 2 the same verse as the part above (label "Part 2, Verse 22, same as the part above"), shown hollow and grey.
 - Labels are on the record (`v1.CardVerseSet`): a second device shows the same numbers after Sync now.
+
+### REC-059 Help numbers only the parts that matter on the recording screen
+Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- REC-041's draft.
+
+Steps:
+1. In the workspace, tap the ?.
+2. Tap Part 1's grip.
+3. Tap the ? again.
+
+Expected:
+- Step 1 numbers at most seven parts (LAN-135): the open reference tab, its play button, the first part's verse space and play button, the part recorded next, Record and Done. The rest (Back, the saved mark, the other tabs, the verses, the divider, the parts card's head, a part's bars, marks and grip, the + marks, the bin, Undo and Redo) stay dim and unnumbered.
+- Step 2 explains the grip ("Move Part 1. …") instead of acting, as a dim row of a list does.
+- Step 3 turns help off: no numbers show.
 
 ### REC-042 Hold a part to choose its verses, Auto, None or Delete
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto

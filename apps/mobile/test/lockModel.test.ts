@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import {
-  addDot, afterMiss, between, dotAt, isPattern, isPicture, lockFor, MIN_DOTS, parseLocks, patternSecret, PICTURES, takenPictures, waitLeft, type Lock, type Misses
+  addDot, afterMiss, between, dotAt, dotsAtDrag, isPattern, isPicture, lockFor, MIN_DOTS, parseLocks, patternSecret, PICTURES, takenPictures, waitLeft, type Lock, type Misses
 } from '../src/session/lockModel';
 import { pbkdf2Async } from '@noble/hashes/pbkdf2';
 import { sha256 } from '@noble/hashes/sha2';
@@ -21,6 +21,18 @@ describe('a pattern', () => {
     expect(isPattern([0, 1, 2, 5])).toBe(false);
     expect(isPattern([0, 1, 2, 1, 8])).toBe(false);
     expect(isPattern([0, 1, 2, 5, 9])).toBe(false);
+  });
+
+  it('starts afresh when a finger drags after a stray tap (UI audit, finding 31)', () => {
+    // A thumb lands on dot 1 and lifts: tap mode, with dot 1 kept.
+    const tapped = addDot([], 0);
+    // Then the real pattern is drawn from dot 4: the stray dot is let go, and so is the dot between them.
+    const drawn = [5, 8, 7, 6].reduce(addDot, dotsAtDrag(tapped, true, 4));
+    expect(drawn).toEqual([4, 5, 8, 7, 6]);
+    // A drag that starts between dots starts empty.
+    expect(dotsAtDrag(tapped, true, null)).toEqual([]);
+    // A drag with no tap before it keeps what it has drawn; tapping alone never drags, so tap, tap, Done is unchanged.
+    expect(dotsAtDrag([4], false, 4)).toEqual([4]);
   });
 
   it('takes the dot a line passes over, as the Android lock screen does', () => {

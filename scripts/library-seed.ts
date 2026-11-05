@@ -37,7 +37,7 @@ import { isLocalUrl, LOCAL_URL, supabaseKey } from './local-supabase';
 import {
   bookOrder, canonicalJson, convertWay, DEFAULT_KINDS, encodeHlc, FIA_PERICOPES, FLOWS, kindOfDoc, missingMappings, numberingOf, ORG_STREAM, paratextMappings, parseRef,
   USFM_BOOKS, usfmOf, validateDoc, withDeps,
-  type AnyEvent, type CollectionDoc, type FlowDoc, type LibraryDoc, type LibraryKind, type StudyDoc,
+  type AnyEvent, type CollectionDoc, type FlowDoc, type LabelsDoc, type LibraryDoc, type LibraryKind, type NamesDoc, type StudyDoc,
   type TemplateBook, type TemplateDocV1, type TemplateDocV2, type VersificationDoc
 } from '@langquest-next/core';
 import { FIA_ATTRIBUTION, fiaLanguages, fiaPericope, fiaStudyDoc } from './fia-adapter';
@@ -50,6 +50,18 @@ const LIBRARY = fileURLToPath(new URL('../library/', import.meta.url));
 const DEFAULT_FIA_DIR = join(LIBRARY, 'fia');
 /** FIA's key words for the passage in DEFAULT_FIA_DIR; `--fia-terms` gives all of them (FIA's get_terms.py). */
 const DEFAULT_FIA_TERMS = join(LIBRARY, 'fia', 'terms.sample.json');
+
+/**
+ * The languages LangQuest names the books in (decision 193): the app's own
+ * (decision 81), by the code material writes them with, as their catalogs
+ * name the books.
+ */
+const BOOK_NAMES: { code: string; name: string }[] = [
+  { code: 'eng', name: 'English' }, { code: 'spa', name: 'Spanish' }, { code: 'por', name: 'Portuguese' }, { code: 'fra', name: 'French' },
+  { code: 'arb', name: 'Arabic' }, { code: 'swa', name: 'Swahili' }, { code: 'hau', name: 'Hausa' }, { code: 'amh', name: 'Amharic' },
+  { code: 'hin', name: 'Hindi' }, { code: 'ben', name: 'Bengali' }, { code: 'npi', name: 'Nepali' }, { code: 'ind', name: 'Indonesian' },
+  { code: 'cmn', name: 'Chinese (Simplified)' }, { code: 'tha', name: 'Thai' }, { code: 'mya', name: 'Burmese' }
+];
 
 /** The standard systems (library/versifications, from versification-tool), in the order people meet them. */
 const VERSIFICATIONS: { code: string; name: string; short: string; description: string }[] = [
@@ -278,7 +290,22 @@ export function buildLibrary(opts: { fiaDirs?: string[]; fiaTerms?: string; exam
     } satisfies FlowDoc);
   }
 
-  // 4. FIA study guides, one collection per language.
+  // 4. Bible book names, one item per language (decision 193): English from
+  // books.eng.json, the others from names/<code>.json.
+  for (const n of BOOK_NAMES) {
+    const names = n.code === 'eng' ? bookNames : readJson(join(LIBRARY, 'names', `${n.code}.json`)) as Record<string, string>;
+    const unknown = Object.keys(names).filter((b) => !USFM_BOOKS.includes(b));
+    if (unknown.length) throw new Error(`library/names/${n.code}.json names books with no USFM code: ${unknown.join(', ')}`);
+    const name = `Bible book names (${n.name})`;
+    const description = `What the books of the Bible are called in ${n.name}, for the passages a language translates.`;
+    publish(`langquest.names.${n.code}`, name, description, {
+      format: 'names@1', name, description, language: n.code,
+      books: Object.keys(names).sort((a, b) => bookOrder(a) - bookOrder(b)).map((book) => ({ book, name: names[book]! })),
+      deps: []
+    } satisfies NamesDoc);
+  }
+
+  // 5. FIA study guides, one collection per language.
   const guides = new Map<string, { name: string; entries: { ref: string; title: string; doc: string }[] }>();
   const addGuide = (lang: string, langName: string, doc: StudyDoc) => {
     const g = guides.get(lang) ?? { name: langName, entries: [] };
@@ -320,7 +347,7 @@ export function buildLibrary(opts: { fiaDirs?: string[]; fiaTerms?: string; exam
     } satisfies CollectionDoc);
   }
 
-  // 5. FIA's key words, one list per language (decision 172), placed on FIA's passages.
+  // 6. FIA's key words, one list per language (decision 172), placed on FIA's passages.
   const passageAt = new Map(fiaPassageList().map((p, order) => [p.id, { ref: p.ref, order }]));
   const termsJson = readJson(opts.fiaTerms ?? DEFAULT_FIA_TERMS);
   for (const lang of fiaTermLanguages(termsJson)) {
@@ -339,6 +366,28 @@ export function buildLibrary(opts: { fiaDirs?: string[]; fiaTerms?: string; exam
     publish('langquest.examples.eng', title, description, {
       format: 'collection@1', title, description, language: 'eng', versification: eng, entries: inOrder, deps: []
     } satisfies CollectionDoc);
+  }
+
+  // 7. What LangQuest's items are called in the app's other languages (decision 195), one set
+  // per language: from labels/<code>.json, by the English name (and description) each item is
+  // published with. A template, numbering, flow or set of book names with no name there stops
+  // the build; reference material keeps its own (the app names it in the language showing).
+  const named = [...items];
+  for (const n of BOOK_NAMES.filter((b) => b.code !== 'eng')) {
+    const file = readJson(join(LIBRARY, 'labels', `${n.code}.json`)) as { names: Record<string, string>; descriptions: Record<string, string> };
+    const missing = [...new Set(named.filter((it) => it.kind !== 'material' && !file.names[it.name]).map((it) => it.name))];
+    if (missing.length) throw new Error(`library/labels/${n.code}.json has no name for ${missing.join(', ')}`);
+    const name = `Library names (${n.name})`;
+    const description = `What LangQuest's templates, numberings, review flows and book names are called in ${n.name}.`;
+    publish(`langquest.labels.${n.code}`, name, description, {
+      format: 'labels@1', name, description, language: n.code,
+      items: named.flatMap((it) => {
+        const label = file.names[it.name];
+        const about = file.descriptions[it.description];
+        return label ? [{ itemId: it.itemId, name: label, ...(about ? { description: about } : {}) }] : [];
+      }),
+      deps: []
+    } satisfies LabelsDoc);
   }
 
   return { documents: [...documents.values()], items };

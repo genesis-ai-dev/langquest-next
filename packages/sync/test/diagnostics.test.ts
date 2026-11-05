@@ -62,6 +62,10 @@ describe('sanitizeDiag: the allowlist is the only way in', () => {
     expect(sanitizeDiag({ id: 'r', kind: 'load', at: 1, streamId: 'p1' })?.streamId).toBeUndefined();
     expect(sanitizeContext({ os: 'android', model: 'SM-A105F', ...({ email: 'a@b.c' } as object) })).toEqual({ os: 'android', model: 'SM-A105F' });
   });
+
+  it('keeps the store build a phone sends as its app version, so a report names it', () => {
+    expect(sanitizeContext({ os: 'ios', appVersion: '2026.1030.1319 (48)' })).toEqual({ os: 'ios', appVersion: '2026.1030.1319 (48)' });
+  });
 });
 
 describe('classifyTransferFailure', () => {
@@ -87,6 +91,9 @@ describe('classifyTransferFailure', () => {
     expect(classifyTransferFailure(new Error("There isn't enough space to save the file"))).toBe('disk');
     expect(classifyTransferFailure(new Error('A server with the specified hostname could not be found.'))).toBe('offline');
     expect(classifyTransferFailure(new Error('Failed to connect to /10.0.2.2'))).toBe('offline');
+    // Safari's fetch failure; our own "Download failed (404)" stays an answer.
+    expect(classifyTransferFailure(new TypeError('Load failed'))).toBe('offline');
+    expect(classifyTransferFailure(new Error('Download failed (500)'))).toBe('http5xx');
     // A hash in the text is not a status.
     expect(classifyTransferFailure(new Error('hash mismatch for 413abc: got 404def'))).toBe('hash');
   });

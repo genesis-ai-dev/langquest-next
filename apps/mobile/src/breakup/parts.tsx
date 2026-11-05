@@ -7,7 +7,7 @@ import { templateBooks, type NumberingClash, type TemplateDoc, type Versificatio
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
-import { bookNameOf } from '../templates/contentTemplatesModel';
+import { bookNameOf, choiceName } from '../templates/contentTemplatesModel';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
@@ -16,6 +16,7 @@ import { Chip, GhostBtn, HelpInfo, Ico, LinkBtn, PrimaryBtn, Sheet } from '../ui
 import { txt } from '../ui/textStyles';
 import { CheckRow, ChoiceCard, Pills } from '../admin/admin';
 import { alsoUsedLine } from './templateNames';
+import { joinAnd } from '../admin/adminModel';
 import type { BookChangeSheet } from './useBookChange';
 import { C, radius, space, TINT } from '../ui/theme';
 import {
@@ -68,14 +69,14 @@ export function WayCard(props: {
     row.inUse ? t('breakup.way.inUse') : usedLine(row.usedIn),
     doc ? (props.oneBook ? '' : countLine(doc, props.v11n)) : t('common.loading')
   ].filter(Boolean);
-  const preview = useHelpSpot(t('common.preview'), t('breakup.way.previewHelp', { way: row.choice.name }), props.onPreview);
+  const preview = useHelpSpot(t('common.preview'), t('breakup.way.previewHelp', { way: choiceName(row.choice) }), props.onPreview);
   const goes = doc?.format === 'template@2' ? doc.goesWith?.pattern : undefined;
   // Picking it, and what its bar of pieces means (rule 3), where the bar shows a book cut up.
   const barBook = row.later && !props.oneBook ? null : props.oneBook ?? SAMPLE_BOOK;
   const help = [t('breakup.way.pickHelp'),
     barBook && doc && piecesOf(doc, barBook, props.v11n).length > 0 ? t('breakup.way.barHelp', { book: bookNameOf(barBook) }) : null].filter(Boolean).join(' ');
   return (
-    <ChoiceCard on={props.on} icon={row.later ? 'clock' : 'book'} title={row.choice.name} sub={lines.join(' · ')} onPress={props.onPress} help={help}>
+    <ChoiceCard on={props.on} icon={row.later ? 'clock' : 'book'} title={choiceName(row.choice)} sub={lines.join(' · ')} onPress={props.onPress} help={help}>
       <View style={styles.indent}>
         {goes ? (
           <View style={styles.goes}>
@@ -85,9 +86,10 @@ export function WayCard(props: {
         ) : null}
         {row.later && !props.oneBook ? null : <PieceBar doc={doc} v11n={props.v11n} book={props.oneBook ?? SAMPLE_BOOK} />}
         {row.later ? null : (
-          <Pressable onPress={preview.onPress} accessibilityRole="button" accessibilityLabel={t('breakup.way.previewLabel', { way: row.choice.name })} style={({ pressed }) => [styles.peek, pressed && { opacity: 0.6 }]}>
+          <Pressable onPress={preview.onPress} accessibilityRole="button" accessibilityLabel={t('breakup.way.previewLabel', { way: choiceName(row.choice) })} style={({ pressed }) => [styles.peek, pressed && { opacity: 0.6 }]}>
             <Ico name="search" size={16} color={C.primary} />
-            <Text style={[txt.sm, { color: C.primary, fontWeight: '700' }]}>{t('common.preview')}</Text>
+            {/* The words get the row's width, not just what they measured: Android cut "पहले देखें" to "पहले" (decision 139). */}
+            <Text style={[txt.sm, styles.peekLabel]}>{t('common.preview')}</Text>
             <HelpBadge spot={preview} />
           </Pressable>
         )}
@@ -205,9 +207,10 @@ export function LessonSheet(props: { visible: boolean; onClose: () => void; wayD
 export function BookChangeSheets({ s }: { s: BookChangeSheet }) {
   return (
     <>
-      <RedoSheet visible={s.warn} book={s.bookName} busy={s.busy} onClose={s.closeWarn} onConfirm={s.confirmRedo} />
+      <RedoSheet visible={s.warn} book={s.bookName} busy={s.busy} onClose={s.closeWarn} onConfirm={s.confirmRedo} also={s.also}
+        {...(s.recorded !== undefined ? { recorded: s.recorded } : {})} />
       {s.users && s.asking ? (
-        <ApplySheet visible={s.asking} users={s.users} here={s.here} busy={s.busy} onClose={s.closeAsk} onApply={s.apply}>
+        <ApplySheet visible={s.asking} users={s.users} here={s.here} busy={s.busy} onClose={s.closeAsk} onApply={s.apply} {...(s.redo ? { redoBook: s.bookName } : {})}>
           <Text style={txt.body}>{alsoUsedLine(s.others, s.bookName)}</Text>
         </ApplySheet>
       ) : null}
@@ -222,6 +225,8 @@ export function BookChangeSheets({ s }: { s: BookChangeSheet }) {
  */
 export function ApplySheet(props: {
   visible: boolean; users: TemplateUser[]; here: string; busy: boolean; onClose: () => void; onApply: (chosen: Set<string>) => void; children?: ReactNode;
+  /** The book being divided again: each language ticked moves its recordings on it too, and its row says so. */
+  redoBook?: string;
 }) {
   const [chosen, setChosen] = useState<Set<string>>(() => new Set([props.here]));
   const others = props.users.filter((u) => u.languageId !== props.here);
@@ -236,7 +241,7 @@ export function ApplySheet(props: {
         {others.map((u, i) => (
           <HelpRow key={u.languageId} of="breakup.applyLanguage">
             <CheckRow label={u.name} sub={u.mayChange ? undefined : t('breakup.apply.cannotChange')} checked={chosen.has(u.languageId)} disabled={!u.mayChange}
-              detail={t('breakup.apply.otherDetail', { language: u.name })}
+              detail={props.redoBook ? t('breakup.apply.otherDetailRedo', { language: u.name, book: props.redoBook }) : t('breakup.apply.otherDetail', { language: u.name })}
               last={i === others.length - 1}
               onToggle={() => setChosen((cur) => { const next = new Set(cur); if (next.has(u.languageId)) next.delete(u.languageId); else next.add(u.languageId); return next; })} />
           </HelpRow>
@@ -256,17 +261,36 @@ export function ApplySheet(props: {
  * and needs doing again; that includes recordings on phones that have not
  * synced. Nothing is deleted.
  */
-export function RedoSheet(props: { visible: boolean; book: string; busy: boolean; onClose: () => void; onConfirm: () => void; numbering?: boolean }) {
+export function RedoSheet(props: {
+  visible: boolean; book: string; busy: boolean; onClose: () => void; onConfirm: () => void; numbering?: boolean;
+  /**
+   * This language's sections of the book with recordings on this phone, when
+   * known: the warning says what it costs here, and is amber when nothing
+   * recorded has reached the phone (UI audit, finding 53). It is asked all the
+   * same: recordings still on phones cannot be counted (decision 74).
+   */
+  recorded?: number;
+  /** Other languages changing with it, by name. */
+  also?: string[];
+}) {
+  const known = !props.numbering && props.recorded !== undefined;
+  const calm = known && props.recorded === 0;
+  const body = props.numbering ? t('breakup.redo.bodyNumbering')
+    : !known ? t('breakup.redo.bodyBook', { book: props.book })
+    : calm ? t('breakup.redo.bodyNoneHere', { book: props.book })
+    : t('breakup.redo.bodyRecorded', { count: props.recorded!, book: props.book });
+  const also = props.also ?? [];
   return (
     <Sheet visible={props.visible} title={props.numbering ? t('breakup.redo.titleNumbering') : t('breakup.redo.titleBook', { book: props.book })} onClose={props.onClose}
       footer={<>
-        <PrimaryBtn label={t('breakup.redo.changeAnyway')} tone="red" busy={props.busy} onPress={props.onConfirm} />
+        <PrimaryBtn label={also.length ? t('breakup.apply.changeFor', { count: also.length + 1 }) : t('breakup.redo.changeAnyway')} tone={calm ? 'amber' : 'red'} busy={props.busy} onPress={props.onConfirm} />
         <GhostBtn label={t('breakup.redo.keep')} icon="close" help={t('help.details.cancel')} onPress={props.onClose} />
       </>}>
-      <View style={styles.danger}>
-        <Ico name="flag" size={28} color={TINT.redText} />
+      <View style={[styles.danger, calm && { backgroundColor: TINT.amber }]}>
+        <Ico name="flag" size={28} color={calm ? TINT.amberText : TINT.redText} />
       </View>
-      <Text style={txt.body}>{props.numbering ? t('breakup.redo.bodyNumbering') : t('breakup.redo.bodyBook', { book: props.book })}</Text>
+      <Text style={txt.body}>{body}</Text>
+      {also.length ? <Text style={txt.body}>{t('breakup.redo.alsoLanguages', { languages: joinAnd(also), book: props.book })}</Text> : null}
       <Text style={txt.smMuted}>{t('breakup.redo.nothingDeleted')}</Text>
     </Sheet>
   );
@@ -311,7 +335,8 @@ const styles = StyleSheet.create({
   piece: { backgroundColor: C.primary, opacity: 0.85, borderRadius: 3, minWidth: 1, flexBasis: 0, flexShrink: 1 },
   waitBar: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.faint, borderRadius: radius.sm, paddingHorizontal: space.sm, paddingVertical: space.xs },
   goes: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  peek: { flexDirection: 'row', alignItems: 'center', gap: space.xs, alignSelf: 'flex-start', minHeight: 32 },
+  peek: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 32 },
+  peekLabel: { color: C.primary, fontWeight: '700', flexGrow: 1, flexShrink: 1 },
   list: { backgroundColor: C.card, borderRadius: radius.lg, borderWidth: 1, borderColor: C.border },
   listRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.md, paddingVertical: space.sm, borderBottomWidth: 1, borderBottomColor: C.border, minHeight: 44 },
   num: { width: 26, height: 26, borderRadius: 13, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },

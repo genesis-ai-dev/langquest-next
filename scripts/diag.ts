@@ -9,7 +9,7 @@
 //   npm run diag -- v2                                   the v2 import, per project
 //   npm run diag -- error <E-XXXXXX>
 //   npm run diag -- timeline <installId> [--days 2]
-//   npm run diag -- feedback [--days 30] [--install <id>] [--shot <feedbackId>] [--voice <feedbackId>]
+//   npm run diag -- feedback [--days 30] [--install <id>] [--shot <feedbackId>] [--picture <feedbackId>] [--voice <feedbackId>]
 //   npm run diag -- --hosted …    the same against the hosted database
 //
 // Reads through the `diag` schema only, as `diag_reader` on a hosted
@@ -23,7 +23,7 @@
 import { spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { REDUCER_VERSION } from '../packages/core/src/index';
-import { jobSignals, signals, throughput, type InstallSummary, type JobStat, type Member, type LanguageHealth, type RpcStat } from './diagSignals';
+import { buildLabel, jobSignals, signals, throughput, type InstallSummary, type JobStat, type Member, type LanguageHealth, type RpcStat } from './diagSignals';
 
 if (process.argv.includes('--hosted')) {
   const rest = process.argv.slice(1).filter((a) => a !== '--hosted');
@@ -148,11 +148,16 @@ function jobsReport(): void {
   console.log(out.join('\n'));
 }
 
+/** The phone or browser and the build it ran: "ios 26.0 · build 48 (2026.1030.1319) · OTA update 01a1827 (production)". */
+function phoneLine(c: Record<string, string | undefined>): string {
+  return [[c.os ?? '?', c.osVersion].filter(Boolean).join(' '), c.model, buildLabel(c)].filter(Boolean).join(' · ');
+}
+
 /** One install's section of a report: what it recorded, in the order support reads it. */
 function installLines(install: string, x: InstallSummary & { roles?: string; languages?: Record<string, number> | null }): string[] {
   const c = x.context;
   const out = ['', `## Install ${install}`, '',
-    `profile ${x.profileId}${x.roles ? ` (${x.roles})` : ''} · ${c.os ?? '?'} ${c.osVersion ?? ''} · ${c.model ?? '?'} · update ${c.updateId ?? 'embedded'} (${c.channel ?? '?'}) · last seen ${x.lastSeen}`];
+    `profile ${x.profileId}${x.roles ? ` (${x.roles})` : ''} · ${phoneLine(c)} · last seen ${x.lastSeen}`];
   if (x.languages) out.push(`- languages recorded: ${Object.entries(x.languages).map(([l, n]) => `${l} (${n})`).join(', ')}`);
   if (x.sync) {
     out.push(`- sync: ${x.sync.count} recorded, p50 ${s(x.sync.p50Ms)}, p95 ${s(x.sync.p95Ms)}; network ${s((x.sync.pullNetMs ?? 0) + (x.sync.pushNetMs ?? 0))} vs phone ${s(x.sync.applyMs)}; pulled ${x.sync.pulled ?? 0}; outcomes ${JSON.stringify(x.sync.outcomes ?? {})}`);
@@ -231,10 +236,13 @@ function personReport(profileId: string): void {
 interface Feedback {
   id: string; created_at: string; kind: 'bug' | 'idea'; body: string; status: string; install_id: string;
   context: Record<string, string>; has_screenshot: boolean; shared_name: string | null; shared_email: string | null;
-  voice_format: 'm4a' | 'wav' | null; voice_ms: number | null;
+  voice_format: 'm4a' | 'wav' | null; voice_ms: number | null; has_picture?: boolean;
 }
 
-/** Feedback from help mode, newest first; `--shot <id>` and `--voice <id>` save one report's screenshot or voice note beside you. */
+/**
+ * Feedback from help mode, newest first; `--shot <id>`, `--picture <id>` and `--voice <id>` save one report's
+ * screenshot, chosen picture (LAN-198) or voice note beside you.
+ */
 function feedbackReport(): void {
   const voice = flag('voice');
   if (voice) {
@@ -246,11 +254,12 @@ function feedbackReport(): void {
     console.log(`saved ${file}`);
     return;
   }
-  const shot = flag('shot');
+  const picture = flag('picture');
+  const shot = picture ?? flag('shot');
   if (shot) {
-    const b64 = query<string | null>(`select to_jsonb(encode(diag.feedback_screenshot(:'id'::uuid), 'base64'))`, { id: shot });
-    if (!b64) throw new Error(`Feedback ${shot} has no screenshot.`);
-    const file = `feedback-${shot}.jpg`;
+    const b64 = query<string | null>(`select to_jsonb(encode(diag.feedback_${picture ? 'picture' : 'screenshot'}(:'id'::uuid), 'base64'))`, { id: shot });
+    if (!b64) throw new Error(`Feedback ${shot} has no ${picture ? 'picture' : 'screenshot'}.`);
+    const file = `feedback-${shot}${picture ? '-picture' : ''}.jpg`;
     writeFileSync(file, Buffer.from(b64.replace(/\s+/g, ''), 'base64'));
     console.log(`saved ${file}`);
     return;
@@ -267,8 +276,8 @@ function feedbackReport(): void {
     const who = f.shared_name || f.shared_email ? ` · ${[f.shared_name, f.shared_email].filter(Boolean).join(' · ')}` : '';
     console.log([
       `## ${f.kind === 'bug' ? 'Problem' : 'Idea'} · ${f.created_at} · ${f.status}${who}`,
-      [`id ${f.id}`, `install ${f.install_id}`, c.screen, [c.os, c.osVersion].filter(Boolean).join(' '), c.model,
-        `app ${c.runtimeVersion ?? '?'} (${c.channel ?? '?'})`, c.uiLanguage, f.has_screenshot ? `screenshot: --shot ${f.id}` : undefined,
+      [`id ${f.id}`, `install ${f.install_id}`, c.screen, phoneLine(c), c.uiLanguage, f.has_screenshot ? `screenshot: --shot ${f.id}` : undefined,
+        f.has_picture ? `picture: --picture ${f.id}` : undefined,
         f.voice_format ? `voice note ${Math.round((f.voice_ms ?? 0) / 1000)} s: --voice ${f.id}` : undefined]
         .filter(Boolean).join(' · '),
       '',
@@ -314,9 +323,15 @@ function main(): void {
     case 'error':
       console.log(JSON.stringify(query(`select diag.error(:'id')`, { id: rest[0] ?? '' }), null, 2));
       return;
-    case 'timeline':
-      console.log(JSON.stringify(query(`select coalesce(jsonb_agg(x), '[]') from diag.timeline(:'install', :'since'::interval) x`, { install: rest[0] ?? '', since: `${Number(flag('days', '2'))} days` }), null, 2));
+    case 'timeline': {
+      const vars = { install: rest[0] ?? '', since: `${Number(flag('days', '2'))} days` };
+      // Which phone and build first; each record also names the update it was made under.
+      const phone = asJson ? null
+        : query<{ context: Record<string, string>; lastSeen: string } | null>(`select jsonb_build_object('context', i.context, 'lastSeen', i.last_seen) from diag.installs i where i.install_id = :'install'`, vars);
+      if (phone) console.log(`# Install ${vars.install} · ${phoneLine(phone.context)} · last seen ${phone.lastSeen}\n`);
+      console.log(JSON.stringify(query(`select coalesce(jsonb_agg(x), '[]') from diag.timeline(:'install', :'since'::interval) x`, vars), null, 2));
       return;
+    }
     case 'feedback':
       feedbackReport();
       return;

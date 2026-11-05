@@ -23,7 +23,7 @@ import { booksInScope, languageScopeLabel, type LanguageScope } from '../org/org
 export const QUESTIONS = [
   { id: 'record', icon: 'template' },
   { id: 'helps', icon: 'listen' },
-  { id: 'checks', icon: 'people' },
+  { id: 'checks', icon: 'flow' },
   { id: 'invite', icon: 'qr' }
 ] as const;
 export type QuestionId = (typeof QUESTIONS)[number]['id'];
@@ -191,12 +191,17 @@ export function scopeLabel(scope: LanguageScope, books: readonly string[] = []):
   return t('admin.record.someBooks', { count: sorted.length });
 }
 
-/** "Bible stories · New Testament" for the checklist and the language page. */
+/**
+ * "FIA passages (English) · New Testament" for the checklist and the language
+ * page: the template by the name its own page gives it (one name each,
+ * decision 138), or what it divides the work into ("Bible stories") when it
+ * has none.
+ */
 export function recordSummary(doc: TemplateDoc | null | undefined, books: readonly string[] | undefined, name?: string): string {
   const kind = recordKind(doc);
   if (!kind) return name ?? t('admin.record.chosen');
   if (kind === 'outline') return name ?? doc?.name ?? t('admin.record.ownList');
-  return `${recordTitle(kind)} · ${scopeLabel(scopeOfBooks(doc, books), books)}`;
+  return `${name || recordTitle(kind)} · ${scopeLabel(scopeOfBooks(doc, books), books)}`;
 }
 
 // ---- who checks ----------------------------------------------------------------------

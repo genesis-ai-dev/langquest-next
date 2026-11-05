@@ -93,15 +93,17 @@ test('AUTH-001 The Sign In screen offers two ways in', async ({ page }) => {
   await openSignedOut(page);
   await expect(page.getByRole('button', { name: 'Language: English. Change it', exact: true })).toBeVisible();
   await expect(text(page, 'LangQuest')).toBeVisible();
-  await expect(text(page, 'Coordinating Bible translation — draft to approval')).toBeVisible();
+  // The fields keep their names once typing starts (UI audit, finding 35).
+  await expect(text(page, 'Email or sign-in name')).toBeVisible();
   await expect(field(page, 'Email or sign-in name')).toBeVisible();
+  // In a browser the cursor starts in the first field, so typing can start at once (LAN-138).
+  await expect(field(page, 'Email or sign-in name')).toBeFocused();
   const password = field(page, 'Password');
   await expect(password).toHaveAttribute('type', 'password');
   await expect(button(page, SIGN_IN)).toBeDisabled();
   await expect(page.getByRole('link', { name: /By signing in you accept the Terms of Use and Privacy Policy/ })).toBeVisible();
   await expect(text(page, 'or')).toBeVisible();
   await expect(button(page, 'Scan a code')).toBeVisible();
-  await expect(text(page, 'An invite, or a code from someone helping you sign in')).toBeVisible();
   await expect(text(page, "Don't have an account?")).toBeVisible();
   await expect(button(page, 'Create Account')).toBeVisible();
   await expect(button(page, 'Browse public work')).toBeVisible();
@@ -114,6 +116,22 @@ test('AUTH-001 The Sign In screen offers two ways in', async ({ page }) => {
   expect(at("Don't have an account?")).toBeLessThan(at('Browse public work'));
   // "Switch persona" is a dev-build affordance; this run is a dev build, so it is not checked here (AUTH-010).
   expect(await tabsShown(page)).toEqual([]);
+  // A name with a space cannot be a sign-in name: the button stays off, and the screen says why.
+  await field(page, 'Email or sign-in name').fill('Nyibol Deng');
+  await field(page, 'Password').fill('whatever1');
+  await expect(button(page, SIGN_IN)).toBeDisabled();
+  await expect(text(page, 'A sign-in name has no spaces: letters, digits and dashes, like nyibol-deng-482.')).toBeVisible();
+  await field(page, 'Email or sign-in name').fill('nyibol-deng-482');
+  await expect(text(page, 'A sign-in name has no spaces: letters, digits and dashes, like nyibol-deng-482.')).toBeHidden();
+  await expect(button(page, SIGN_IN)).toBeEnabled();
+});
+
+test('AUTH-001 On a short phone, Scan a code and Create Account are on screen', async ({ page }) => {
+  // 360×800, the size most low-end Android phones have (UI audit, finding 27).
+  await page.setViewportSize({ width: 360, height: 800 });
+  await openSignedOut(page);
+  await expect(button(page, 'Scan a code')).toBeInViewport({ ratio: 1 });
+  await expect(button(page, 'Create Account')).toBeInViewport({ ratio: 1 });
 });
 
 for (const key of ['ADMIN', 'COORD', 'LADMIN', 'TRANS', 'REV', 'TREV', 'VIEW'] as const) {
@@ -160,14 +178,21 @@ test('AUTH-005 Wrong password or unknown account', async ({ page }) => {
     ['nobody-here@example.org', 'whatever1'],
     ['nobody-999', 'whatever1']
   ];
-  for (const [who, pw] of tries) {
+  const stuck = button(page, 'Write to admin@frontierrnd.com');
+  for (const [i, [who, pw]] of tries.entries()) {
     await signInWithForm(page, who, pw);
     const alert = page.getByRole('alert').locator('visible=true').first();
     await expect(alert).toHaveText('Wrong email, sign-in name or password.');
     await expect(field(page, 'Email or sign-in name')).toHaveValue(who);
     await expect(field(page, 'Password')).toHaveValue(pw);
     await expect(button(page, SIGN_IN)).toBeVisible();
+    // A second refusal opens "Can't sign in?" by itself: the ways in that need no password (UI audit, finding 30).
+    if (i === 0) await expect(stuck).toBeHidden();
+    else await expect(stuck).toBeVisible();
   }
+  await expect(text(page, 'Ask someone on your team to show you a sign-in code, then tap Scan a code.')).toBeVisible();
+  await button(page, "Can't sign in?").click();
+  await expect(stuck).toBeHidden();
 });
 
 test('AUTH-008 Signing in with no connection', async ({ page, context }) => {
@@ -535,6 +560,32 @@ test('AUTH-030 "I already have an account" joins after signing in', async ({ pag
   expect(await memberOf((await signIn(world(), 'TRANS')).sb)).toContain(world().org2Id);
 });
 
+test('AUTH-062 "Make an account with email" joins the new account', async ({ page }) => {
+  // The third way in after scanning (LAN-137): an email account made now, and the invite joins it as it does one already made.
+  const invite = await issueInvite(world(), base(), { issuer: 'OWNER2', org: 'org2', label: 'Translator Two' });
+  const email = newAddress(world());
+  await openSignedOut(page);
+  await openScan(page);
+  await paste(page, PASTE, invite.link);
+  await expect(button(page, 'I already have an account')).toBeVisible();
+  await button(page, 'Make an account with email').click();
+  await expect(text(page, 'Make your account to join')).toBeVisible();
+  await expect(text(page, "Your invite is saved. You'll join as soon as you're signed in to this account.")).toBeVisible();
+  // It has an invite already: scanning one is not offered here.
+  await expect(button(page, 'Scan an invite')).toHaveCount(0);
+  await field(page, 'Email').fill(email);
+  await field(page, 'Password').fill('secret12');
+  await field(page, 'Confirm password').fill('secret12');
+  await button(page, 'Create Account').click();
+  // The local server signs a new account straight in: it joins with no further tap.
+  await expect.poll(() => screenText(page), { timeout: 60_000 }).toContain(`You're a Translator on ${world().org2Name}.`);
+  await expect(text(page, `${world().accounts.OWNER2.name} invited you`)).toBeVisible();
+  const sb = anon();
+  const { error } = await sb.auth.signInWithPassword({ email, password: 'secret12' });
+  expect(error).toBeNull();
+  expect(await memberOf(sb)).toContain(world().org2Id);
+});
+
 test('AUTH-031 A held invite survives a restart', async ({ page, context }) => {
   const invite = await issueInvite(world(), base(), { issuer: 'OWNER2', org: 'org2', label: 'Translator Two' });
   const rev = world().accounts.REV;
@@ -562,7 +613,7 @@ test('AUTH-032 An invite nobody claimed is offered after signing in', async ({ p
   await onSignIn(page);
   await expect(text(page, 'Sign in to join')).toBeHidden();
   await signInWithForm(page, trev.email, trev.password!);
-  await expect(text(page, 'Invite includes organization, role, and scope')).toBeVisible({ timeout: 60_000 });
+  await expect(text(page, 'The invite says which organization, role and language')).toBeVisible({ timeout: 60_000 });
   await expect(text(page, 'Invite for Translator Two')).toBeVisible();
   await expect(button(page, `Join as ${trev.name}`)).toBeVisible();
   await expect(button(page, `Not ${trev.name}? Sign out first`)).toBeVisible();
@@ -586,13 +637,35 @@ test('AUTH-033 A signed-in member joins with "Join as"', async ({ page }) => {
   await expect(text(page, 'Join your team')).toBeVisible({ timeout: 60_000 });
   await text(page, 'Scan their code').click();
   await paste(page, PASTE, invite.link);
-  await expect(text(page, 'Invite includes organization, role, and scope')).toBeVisible();
+  await expect(text(page, 'The invite says which organization, role and language')).toBeVisible();
   await expect(button(page, 'Join as Nadia Fresh')).toBeVisible();
   await expect(button(page, 'Not Nadia Fresh? Sign out first')).toBeVisible();
   await expect(button(page, 'Not now')).toBeVisible();
   await expect(page.getByRole('link', { name: /Joining accepts/ })).toHaveCount(0);
   await button(page, 'Join as Nadia Fresh').click();
   await expectWelcome(page, { first: 'Nadia', sentence: `You're a Translator on the Alpha team at ${world().orgName}.`, nothingToRemember: false });
+});
+
+test('AUTH-061 Someone in an organization joins another by its code, with their own account', async ({ page }) => {
+  // A fresh account in the test organization alone (LAN-197): signing out to scan made a new account with no email.
+  const sam = await newAccount(world(), 'Sam Second');
+  await redeemAs(sam.sb, (await issueInvite(world(), base())).token);
+  const invite = await issueInvite(world(), base(), { issuer: 'OWNER2', org: 'org2', label: null });
+  await openNew(page, world(), sam);
+  // A first sign-in on this account, in an organization: the welcome comes first (ADR-022).
+  await button(page, 'Get started').click({ timeout: 60_000 });
+  await expectTabs(page, ['work', 'map', 'me']);
+  await tab(page, 'me').click();
+  await text(page, 'More settings').click();
+  await text(page, 'Switch Organization').click();
+  await expect(button(page, /^Find your organization/)).toBeVisible();
+  await button(page, /^Scan their code/).click();
+  await paste(page, PASTE, invite.link);
+  await expect(button(page, 'Join as Sam Second')).toBeVisible();
+  await expect(button(page, 'Join')).toHaveCount(0);
+  await button(page, 'Join as Sam Second').click();
+  await expectWelcome(page, { invitedBy: world().accounts.OWNER2.name, first: 'Sam', sentence: `You're a Translator on ${world().org2Name}.`, nothingToRemember: false });
+  expect(await memberOf(sam.sb)).toEqual(expect.arrayContaining([world().orgId, world().org2Id]));
 });
 
 test('AUTH-034 "Not {me}? Sign out first" keeps the invite for the next person', async ({ page }) => {
@@ -676,14 +749,12 @@ test('AUTH-038 A new person offline is told joining needs a connection', async (
   await expect(text(page, 'Invitation to join an organization')).toBeVisible();
   await expect(text(page, "Your role shows once you're connected.")).toBeVisible();
   await expect(text(page, 'Joining needs a connection. Your invite is saved on this device.')).toBeVisible({ timeout: 30_000 });
-  await expect(primary(page)).toHaveAccessibleName('Join');
-  await primary(page).click();
-  await field(page, 'Your name').fill('Test Person');
-  await button(page, 'Join').click();
-  await expect(page.getByRole('alert').locator('visible=true').first()).toHaveText('Joining needs a connection. Your invite is saved on this device.', { timeout: 30_000 });
+  // The button says it waits, and stays off: no name is taken only to be refused (UI audit, finding 28).
+  await expect(primary(page)).toHaveAccessibleName('Join when connected');
+  await expect(primary(page)).toBeDisabled();
+  // With a connection again, the preview is asked for by itself and the button comes on.
   await context.setOffline(false);
-  await back(page).click();
-  await expect(text(page, 'Invite for Test Person')).toBeVisible({ timeout: 30_000 });
+  await expect(text(page, 'Invite for Test Person')).toBeVisible({ timeout: 60_000 });
   await button(page, 'Join as Test').click();
   await expect(text(page, 'Welcome, Test')).toBeVisible({ timeout: 60_000 });
 });
@@ -827,6 +898,11 @@ test('AUTH-051 A signed-in person scans a sign-in code', async ({ page, browser 
   await expect(text(page, 'This is a sign-in code')).toBeVisible({ timeout: 60_000 });
   await expect(text(page, 'It is for someone signed out. Sign out first, then scan it again.')).toBeVisible();
   await expect(button(page, 'Sign in')).toHaveCount(0);
+  // The way out the banner asks for, on the same screen (UI audit, finding 34).
+  await button(page, 'Not you? Sign out first').click();
+  await expect(text(page, 'Sign out?')).toBeVisible({ timeout: 10_000 });
+  await button(page, 'Cancel').click();
+  await expect(text(page, 'This is a sign-in code')).toBeVisible();
   await button(page, 'Scan something else').click();
   await expect(button(page, 'Scan QR code')).toBeVisible();
   await expect(text(page, 'This is a sign-in code')).toBeHidden();

@@ -8,15 +8,15 @@ import type { LucideIcon } from './icons';
 import {
   ArrowLeftRight, ArrowRight, Ban, BookOpen, Briefcase, Building2, Camera, ChartColumn, Check, ChevronDown, ChevronLeft,
   ChevronRight, ChevronUp, CircleHelp, ClipboardList, Clock, Cloud, CloudCheck, CloudOff, Download, Filter, Flag, Folder, Globe, History,
-  House, Image, Inbox, LayoutTemplate, Link, Lock, MapIcon, MapPin, MessageCircle, MessageSquareText, Mic, Pause, Pencil,
+  House, Image, Inbox, LayoutTemplate, Link, Lock, LockOpen, Printer, Copy, MapIcon, MapPin, MessageCircle, MessageSquareText, Mic, Pause, Pencil,
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
   ThumbsUp, Trash2, Undo2, Redo2, Upload, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers, Info,
   ArrowLeft, ArrowUp, ArrowDown, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert,
-  ChevronsUpDown, FileText, Eye, EyeOff, Menu, Bug, Lightbulb, Ellipsis, MessageCirclePlus, Reply
+  ChevronsUpDown, CloudAlert, CloudDownload, FileText, Eye, EyeOff, Menu, Bug, Lightbulb, Ellipsis, MessageCirclePlus, Reply
 } from './icons';
-import { Fragment, isValidElement, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, isValidElement, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  AccessibilityInfo, Animated, Easing, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
+  AccessibilityInfo, ActivityIndicator, Animated, Easing, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
   type StyleProp, type TextStyle, type ViewStyle
 } from 'react-native';
 import { Text } from './text';
@@ -32,6 +32,7 @@ import { markedParts } from './textMatch';
 import { C, measure, onColor, radius, space, target, TINT, type as T } from './theme';
 import { useLayout, useOpenDetail } from './useLayout';
 import { useReduceMotion } from './useReduceMotion';
+import { useKeyboardCover } from './useKeyboardCover';
 import { kindIcon } from './kindIcon';
 import { txt } from './textStyles';
 import { FooterHeightContext } from './useLayout';
@@ -39,6 +40,9 @@ import { useHelpHost } from '../helpMode/useHelpMode';
 import { HeaderExtraContext } from './headerExtra';
 import { ModalCover } from './ModalCover';
 import { ScrollHoldContext } from './scrollHoldContext';
+import { toastLook, type ToastSpec } from './toastModel';
+import { useSheetOnTop, useShownToast } from './useToastLayer';
+import { a11yState } from './a11yModel';
 
 // ---- icons -------------------------------------------------------------------------
 
@@ -47,12 +51,12 @@ const ICONS = {
   arrowR: ArrowRight, assign: ClipboardList, block: Ban, book: BookOpen, building: Building2, camera: Camera, chat: MessageCircle,
   chatDots: MessageSquareText, check: Check, clock: Clock, close: X, cloud: Cloud, cut: Scissors, down: ChevronDown,
   download: Download, edit: Pencil, filter: Filter, flag: Flag, flow: Workflow, folder: Folder, globe: Globe,
-  help: CircleHelp, history: History, home: House, left: ChevronLeft, link: Link, lock: Lock, map: MapIcon, media: Image,
+  help: CircleHelp, history: History, home: House, left: ChevronLeft, link: Link, lock: Lock, unlocked: LockOpen, print: Printer, copy: Copy, map: MapIcon, media: Image,
   mic: Mic, note: StickyNote, notif: Bell, pause: Pause, people: Users, place: MapPin, play: Play, plus: Plus,
   progress: ChartColumn, qr: QrCode, restart: RotateCcw, right: ChevronRight, search: Search, settings: Settings,
   share: Share2, skip: SkipForward, sound: Volume2, sparkle: Sparkles, star: Star, stop: Square, swap: ArrowLeftRight,
   template: LayoutTemplate, thumbUp: ThumbsUp, trash: Trash2, undo: Undo2, redo: Redo2, up: ChevronUp, arrowUp: ArrowUp, arrowDown: ArrowDown, upload: Upload, user: User, video: Video,
-  work: Briefcase, inbox: Inbox, listen: Headphones, layers: Layers, info: Info, onPhone: CloudCheck, notOnPhone: CloudOff,
+  work: Briefcase, inbox: Inbox, listen: Headphones, layers: Layers, info: Info, onPhone: CloudCheck, notOnPhone: CloudOff, cloudAlert: CloudAlert, cloudDown: CloudDownload,
   arrowL: ArrowLeft, send: Send, key: KeyRound, list: List, phone: Smartphone, grip: GripVertical, handle: Menu, sliders: SlidersHorizontal, done: CircleCheck,
   warning: TriangleAlert, join: ChevronsUpDown, file: FileText, more: Ellipsis,
   // Show here / Hide here on a passage's helps (demo ADR-042).
@@ -99,6 +103,14 @@ export function Screen(props: {
   bodyStyle?: StyleProp<ViewStyle>;
   /** On a wide window, a column wider than the reading width (reports' tables and charts side by side). */
   columnWidth?: number;
+  /** Show the scroll bar, where what is below the fold is a way on (Sign In on a short phone). */
+  scrollBar?: boolean;
+  /**
+   * Which page is on screen, where one screen shows a task's pages in turn
+   * (New language's steps, the pages of a question, an invite's steps): each
+   * new page opens at its top, not scrolled as far down as the page before.
+   */
+  page?: string;
 }) {
   // A wide window keeps the phone's reading width: the body sits in a
   // centred column and the footer's actions stop stretching (decisions.md 55).
@@ -113,6 +125,12 @@ export function Screen(props: {
   const helpOn = useHelpOn();
   // Something drawn on with a finger stops the body scrolling meanwhile (scrollHoldContext.ts).
   const [held, setHeld] = useState(false);
+  // Before the new page is drawn, so it never shows at the last page's scroll.
+  const body = useRef<ScrollView>(null);
+  const page = props.page;
+  useLayoutEffect(() => {
+    if (page !== undefined) body.current?.scrollTo({ y: 0, animated: false });
+  }, [page]);
   return (
     <KeyboardSafe style={[styles.screen, helpOn && { paddingBottom: HELP_FOOT_ROOM }]}>
       {props.header}
@@ -120,8 +138,8 @@ export function Screen(props: {
         {props.fixed ? (
           <View style={[{ flex: 1 }, column, props.bodyStyle]}>{props.children}</View>
         ) : (
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
-            scrollEnabled={!held}>
+          <ScrollView ref={body} style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={!!props.scrollBar}
+            persistentScrollbar={!!props.scrollBar} scrollEnabled={!held}>
             <ScrollHoldContext.Provider value={setHeld}>{props.children}</ScrollHoldContext.Provider>
           </ScrollView>
         )}
@@ -137,37 +155,26 @@ export function Screen(props: {
 }
 
 /**
- * Keeps its contents above the on-screen keyboard. iOS keeps the
- * KeyboardAvoidingView it always had. Android draws edge to edge (Expo
- * 54 on), so the window no longer shrinks for the keyboard and the
- * footer and lower fields sat under it: here the view measures where it
- * is on screen when the keyboard opens and pads its bottom by the part
- * the keyboard covers. Re-measured on layout, so a window that does
- * shrink is not padded twice.
+ * Keeps its contents above the on-screen keyboard: the view measures where
+ * it is on screen when the keyboard opens and pads its bottom by the part
+ * the keyboard covers (useKeyboardCover.ts). React Native's
+ * KeyboardAvoidingView, which iOS had, measures the view from its parent,
+ * as if it started at the top of the screen; a screen starts below the
+ * status bar, so on an iPhone the keyboard still covered most of the
+ * footer's main button. Android draws edge to edge (Expo 54 on), so its
+ * window no longer shrinks for the keyboard either. Without the keyboard
+ * the view keeps its own bottom padding (help mode's room for Send
+ * feedback, which KeyboardAvoidingView set to nothing).
  */
 function KeyboardSafe(props: { style?: StyleProp<ViewStyle>; children: ReactNode }) {
-  if (Platform.OS !== 'android') {
-    return <KeyboardAvoidingView style={props.style} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>{props.children}</KeyboardAvoidingView>;
-  }
-  return <AndroidKeyboardSafe {...props} />;
+  if (Platform.OS === 'web') return <View style={props.style}>{props.children}</View>;
+  return <PhoneKeyboardSafe {...props} />;
 }
 
-function AndroidKeyboardSafe(props: { style?: StyleProp<ViewStyle>; children: ReactNode }) {
-  const view = useRef<View>(null);
-  const keyboardTop = useRef<number | null>(null);
-  const [covered, setCovered] = useState(0);
-  const remeasure = () => {
-    const top = keyboardTop.current;
-    if (top === null) { setCovered(0); return; }
-    view.current?.measureInWindow((_x, y, _w, h) => setCovered(Math.max(0, Math.round(y + h - top))));
-  };
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', (e) => { keyboardTop.current = e.endCoordinates.screenY; remeasure(); });
-    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardTop.current = null; setCovered(0); });
-    return () => { show.remove(); hide.remove(); };
-  }, []);
+function PhoneKeyboardSafe(props: { style?: StyleProp<ViewStyle>; children: ReactNode }) {
+  const keyboard = useKeyboardCover();
   return (
-    <View ref={view} style={[props.style, covered ? { paddingBottom: covered } : null]} onLayout={remeasure}>
+    <View ref={keyboard.ref} style={[props.style, keyboard.covered ? { paddingBottom: keyboard.covered } : null]} onLayout={keyboard.onLayout}>
       {props.children}
     </View>
   );
@@ -305,7 +312,7 @@ export function HelpToggle(props: { testID: string }) {
   if (!help) return null;
   return (
     <Pressable testID={props.testID} onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? t('help.turnOff') : t('help.explainScreen')}
-      accessibilityState={{ selected: help.on }}
+      {...a11yState({ selected: help.on }, 'button')}
       style={({ pressed }) => [styles.helpBtn, help.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
       <Ico name="help" size={24} color={help.on ? C.white : C.primary} />
       <HelpLit />
@@ -313,9 +320,20 @@ export function HelpToggle(props: { testID: string }) {
   );
 }
 
-/** A screen with no header (Sign in, Welcome, Sign out?) still has its ?, alone at the top on the reading end. */
-export function HelpTop() {
-  return useHelpMode() ? <View style={styles.helpTop}><HelpToggle testID="header-help" /></View> : null;
+/**
+ * A screen with no header (Sign in, Welcome, Sign out?) still has its ?, at
+ * the top on the reading end. `start` shares its line, at the other end (Sign
+ * In's language), so the screen keeps its height for the ways in.
+ */
+export function HelpTop(props: { start?: ReactNode }) {
+  const help = useHelpMode();
+  if (!help && !props.start) return null;
+  return (
+    <View style={[styles.helpTop, props.start ? styles.helpTopShared : null]}>
+      {props.start}
+      {help ? <HelpToggle testID="header-help" /> : null}
+    </View>
+  );
 }
 
 /** A parent above a wide window's title, one tap away. */
@@ -331,26 +349,28 @@ function Crumb(props: { label: string; onPress: () => void }) {
 
 /**
  * `current`: what this card opened is showing beside the list (a split on a
- * wide window, panes.ts). A card that opens something says so in help mode:
- * its `accessibilityLabel` names it and `help` says what tapping does.
+ * wide window, panes.ts), and a screen reader says so. `lead`: the usual
+ * choice among several, drawn the same way but said as nothing, since nothing
+ * has been chosen yet. A card that opens something says so in help mode: its
+ * `accessibilityLabel` names it and `help` says what tapping does.
  */
 export function Card(props: { children: ReactNode; onPress?: () => void; style?: StyleProp<ViewStyle>; accessibilityLabel?: string; current?: boolean;
+  lead?: boolean;
   /** What help mode says tapping it does. */ help?: string }) {
   const spot = useHelpSpot(props.accessibilityLabel ?? '', props.help, props.onPress);
+  const marked = (props.current || props.lead) && styles.cardCurrent;
   if (props.onPress) {
     return (
       <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
-        accessibilityState={props.current ? { selected: true } : undefined}
-        // aria-selected is not allowed on a button. aria-current is, and a screen reader says "current".
-        // accessibilityState.selected stays for native; react-native-web does not turn it into aria-selected.
-        aria-current={props.current ? true : undefined}
-        style={({ pressed }) => [styles.card, props.style, props.current && styles.cardCurrent, pressed && styles.pressed]}>
+        // aria-selected is not allowed on a button: a current card says aria-current, which a screen reader says as "current".
+        {...a11yState(props.current ? { selected: true } : undefined, 'button', 'current')}
+        style={({ pressed }) => [styles.card, props.style, marked, pressed && styles.pressed]}>
         {props.children}
         <HelpBadge spot={spot} />
       </Pressable>
     );
   }
-  return <View style={[styles.card, props.style, props.current && styles.cardCurrent]}>{props.children}</View>;
+  return <View style={[styles.card, props.style, marked]}>{props.children}</View>;
 }
 
 /** A group of rows on one white card. */
@@ -457,7 +477,7 @@ export function Row(props: {
   const id = props.testID ? { testID: props.testID } : {};
   if (!props.onPress) return <View {...id} style={style}>{body}</View>;
   return (
-    <Pressable {...id} onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
+    <Pressable {...id} onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole={props.role ?? 'button'} {...a11yState(state, props.role ?? 'button', 'current')} accessibilityLabel={props.accessibilityLabel}
       // react-native-web drops accessibilityState.selected, and aria-selected is not allowed on a button: a current row says aria-current.
       aria-current={props.current ? true : undefined}
       // The web reads only aria-*: a radio, checkbox or switch says whether it is on.
@@ -485,7 +505,7 @@ export function Disclosure(props: { icon: IconName; title: string; summary: stri
   const spot = useHelpSpot(props.title, props.help ?? (props.open ? t('help.details.disclosureOpen') : t('help.details.disclosure')), props.onToggle);
   return (
     <View style={styles.disclosure}>
-      <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ expanded: props.open }}
+      <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" {...a11yState({ expanded: props.open }, 'button')}
         accessibilityLabel={t('shell.a11y.labelDetail', { label: props.title, detail: props.summary })} accessibilityHint={props.open ? t('shell.kit.hidesDetails') : t('shell.kit.showsDetails')}
         style={({ pressed }) => [styles.disclosureHead, pressed && styles.pressed]}>
         <View style={styles.iconTile}><Ico name={props.icon} size={20} color={C.primary} /></View>
@@ -515,7 +535,7 @@ export function PrimaryBtn(props: { label: string; onPress: () => void; disabled
   const spot = useHelpSpot(props.label, props.help ?? t('help.details.primary'), props.onPress);
   const onPress = spot.onPress;
   return (
-    <Pressable testID="primary-action" onPress={onPress} disabled={off && !spot.id} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={{ disabled: !!off, busy: !!props.busy }}
+    <Pressable testID="primary-action" onPress={onPress} disabled={off && !spot.id} accessibilityRole="button" accessibilityLabel={props.label} {...a11yState({ disabled: !!off, busy: !!props.busy }, 'button')}
       style={({ pressed }) => [styles.primary, { backgroundColor: off ? C.faint : bg }, props.full === false && { alignSelf: 'flex-start', paddingHorizontal: space.xl },
         !off && lift({ color: bg, opacity: 0.25, y: 5, elevation: 3 }), pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={C.white} /> : null}
@@ -534,7 +554,7 @@ export function GhostBtn(props: { label: string; onPress: () => void; disabled?:
   const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
-      accessibilityState={{ disabled: !!props.disabled }}
+      {...a11yState({ disabled: !!props.disabled }, 'button')}
       style={({ pressed }) => [styles.ghost, { backgroundColor: bg }, props.full === false && { alignSelf: 'flex-start', paddingHorizontal: space.xl },
         props.disabled && { opacity: 0.5 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={fg} /> : null}
@@ -553,7 +573,7 @@ export function SmallBtn(props: { label: string; onPress: () => void; icon?: Ico
   const onPress = spot.onPress;
   return (
     <Pressable testID={props.testID} onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
-      accessibilityState={{ disabled: !!props.disabled }}
+      {...a11yState({ disabled: !!props.disabled }, 'button')}
       style={({ pressed }) => [styles.small, filled ? { backgroundColor: bg, borderColor: bg } : null, props.disabled && { opacity: 0.45 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={filled ? C.white : C.primary} /> : null}
       <Text style={[styles.smallLabel, { color: filled ? C.white : C.primary }]}>{props.label}</Text>
@@ -568,7 +588,7 @@ export function LinkBtn(props: { label: string; onPress: () => void; color?: str
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   return (
     <Pressable onPress={spot.onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
-      accessibilityState={props.expanded !== undefined ? { expanded: props.expanded } : undefined}
+      {...a11yState(props.expanded !== undefined ? { expanded: props.expanded } : undefined, 'button')}
       style={({ pressed }) => [styles.linkBtn, props.style, pressed && styles.pressed]}>
       <Text style={[txt.link, props.color ? { color: props.color } : null]}>{props.label}</Text>
       <HelpBadge spot={spot} />
@@ -611,9 +631,14 @@ export function IconBtn(props: { name: IconName; onPress: () => void; label: str
   /** What help mode says it does. */ help?: string }) {
   const size = props.size ?? 48;
   const spot = useHelpSpot(props.label, props.help, props.onPress);
+  // On the web an icon names itself on hover, as a button with words would (UI audit, findings 75 and 76).
+  const ref = useRef<View>(null);
+  useEffect(() => {
+    if (Platform.OS === 'web') (ref.current as unknown as { setAttribute?: (k: string, v: string) => void } | null)?.setAttribute?.('title', props.label);
+  }, [props.label]);
   return (
-    <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
-      accessibilityState={{ disabled: !!props.disabled }} hitSlop={Math.max(0, (target.min - size) / 2)}
+    <Pressable ref={ref} {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
+      {...a11yState({ disabled: !!props.disabled }, 'button')} hitSlop={Math.max(0, (target.min - size) / 2)}
       style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: props.bg ?? C.bg },
         props.disabled && { opacity: 0.4 }, pressed && styles.pressed]}>
       <Ico name={props.name} size={Math.round(size * 0.46)} color={props.color ?? C.dark} />
@@ -628,7 +653,7 @@ export function Chip(props: { label: string; on: boolean; onPress: () => void; i
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   const onPress = spot.onPress;
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }} accessibilityLabel={props.accessibilityLabel}
+    <Pressable onPress={onPress} accessibilityRole="button" {...a11yState({ selected: props.on }, 'button')} accessibilityLabel={props.accessibilityLabel}
       // A chip is a toggle: on the web, a pressed button ("Mark, pressed"). react-native-web drops accessibilityState.selected.
       aria-pressed={props.on}
       style={({ pressed }) => [styles.chip, props.on ? { backgroundColor: C.primary, borderColor: C.primary } : null, pressed && styles.pressed]}>
@@ -639,7 +664,7 @@ export function Chip(props: { label: string; on: boolean; onPress: () => void; i
   );
 }
 
-/** Pills in a row that scrolls sideways (filters, tabs within a screen). */
+/** Pills in a row that scrolls sideways (filters, a long list of places); a few tabs within a screen wrap instead (ChipWrap). */
 export function ChipRow(props: { children: ReactNode }) {
   return <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm, paddingVertical: 2 }}>{props.children}</ScrollView>;
 }
@@ -738,6 +763,8 @@ export function Field(props: {
   accessibilityLabel?: string;
   /** What help mode says to type here and what it is for, where the label does not say it. */
   help?: string;
+  /** The field takes the cursor when the screen opens, so typing can start at once. */
+  autoFocus?: boolean;
 }) {
   const name = props.label ?? props.accessibilityLabel ?? props.placeholder ?? '';
   const spot = useHelpSpot(name, props.help ?? t('help.details.field'), TYPE_HERE);
@@ -749,6 +776,7 @@ export function Field(props: {
         accessibilityLabel={props.label ?? props.accessibilityLabel ?? props.placeholder}
         {...(props.onSubmit && !props.multiline ? { onSubmitEditing: props.onSubmit, returnKeyType: 'go' as const } : {})}
         {...(props.testID ? { testID: props.testID } : {})}
+        {...(props.autoFocus ? { autoFocus: true } : {})}
         multiline={props.multiline} secureTextEntry={props.secure} keyboardType={props.keyboardType} autoCapitalize={props.autoCapitalize}
         style={[styles.field, inputDirection(), props.multiline && { minHeight: 88, textAlignVertical: 'top', paddingTop: 14 }, props.style]} />
       <HelpCover spot={spot} label={name} />
@@ -840,7 +868,7 @@ export function MovingBar(props: { color?: string; height?: number }) {
   const run = width * 0.4;
   const ends = isRtl() ? [width, -run] : [-run, width];
   return (
-    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} accessibilityRole="progressbar" accessibilityState={{ busy: true }}
+    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} accessibilityRole="progressbar" {...a11yState({ busy: true }, 'progressbar')}
       style={{ height: h, borderRadius: h, backgroundColor: C.border, overflow: 'hidden' }}>
       {width ? (
         <Animated.View style={{ position: 'absolute', left: 0, top: 0, width: run, height: h, borderRadius: h, backgroundColor: props.color ?? C.muted,
@@ -861,10 +889,13 @@ export function Segments(props: { total: number; done: (i: number) => boolean; c
   );
 }
 
-export function EmptyState(props: { icon?: IconName; title: string; sub?: string; children?: ReactNode }) {
+/** A screen's empty or waiting state; `busy` turns the icon into a spinner, so work under way does not read as an answer. */
+export function EmptyState(props: { icon?: IconName; title: string; sub?: string; busy?: boolean; children?: ReactNode }) {
   return (
-    <View style={styles.empty}>
-      <View style={[styles.iconTile, { width: 64, height: 64, borderRadius: 20 }]}><Ico name={props.icon ?? 'sparkle'} size={30} color={C.primary} /></View>
+    <View style={styles.empty} {...(props.busy ? { accessibilityLiveRegion: 'polite' as const } : {})}>
+      <View style={[styles.iconTile, { width: 64, height: 64, borderRadius: 20 }]}>
+        {props.busy ? <ActivityIndicator color={C.primary} accessibilityLabel={props.title} /> : <Ico name={props.icon ?? 'sparkle'} size={30} color={C.primary} />}
+      </View>
       <Text style={[txt.h3, { textAlign: 'center' }]}>{props.title}</Text>
       {props.sub ? <Text style={[txt.smMuted, { textAlign: 'center' }]}>{props.sub}</Text> : null}
       {props.children}
@@ -961,10 +992,14 @@ export function Banner(props: { icon: IconName; title: string; body?: string; to
 export function Sheet(props: { visible: boolean; title: string; sub?: string; onClose: () => void; children: ReactNode; footer?: ReactNode;
   /** Beside the title, before ? and ✕: the saved mark of what the sheet keeps as you go (SavedMark.tsx). */ action?: ReactNode;
   /** A phone's Back in a sheet of several steps: the step before, as its own Back does (decision 137). Else Back closes it. */
-  onBack?: () => void }) {
+  onBack?: () => void;
+  /** No ✕: a sheet whose every tap is already kept ends with its own Done in the footer, so nothing reads as Cancel (LAN-134). */
+  noClose?: boolean }) {
   const insets = useSafeAreaInsets();
   const wide = useLayout().kind !== 'phone';
   const host = useHelpHost(props.visible);
+  // The toast shows on the sheet on top, as the screen's would be hidden under it (toastLayer.ts).
+  const onTop = useSheetOnTop(props.visible);
   return (
     <Modal visible={props.visible} transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onBack ?? props.onClose}>
       <HelpHost id={host}>
@@ -980,7 +1015,7 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
             </View>
             {props.action}
             <HelpToggle testID="sheet-help" />
-            <IconBtn testID="sheet-close" name="close" label={t('common.close')} help={t('help.details.closeSheet')} onPress={props.onClose} bg={C.card} color={C.muted} />
+            {props.noClose ? null : <IconBtn testID="sheet-close" name="close" label={t('common.close')} help={t('help.details.closeSheet')} onPress={props.onClose} bg={C.card} color={C.muted} />}
           </View>
           <HelpClip style={{ flexShrink: 1 }}>
             <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: space.md, paddingHorizontal: space.xl, paddingBottom: space.lg }} keyboardShouldPersistTaps="handled">
@@ -991,9 +1026,16 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
         </View>
       </KeyboardSafe>
       </HelpHost>
+      {onTop ? <SheetToast top={insets.top + space.md} /> : null}
       <ModalCover />
     </Modal>
   );
+}
+
+/** The toast, drawn on the sheet on top: at its top, clear of the sheet's buttons. */
+function SheetToast(props: { top: number }) {
+  const shown = useShownToast();
+  return <ToastView toast={shown.toast} onDismiss={shown.dismiss} top={props.top} />;
 }
 
 /**
@@ -1035,7 +1077,7 @@ export function ReasonSheet(props: {
 function QuickReason(props: { reason: string; on: boolean; onPick: () => void }) {
   const spot = useHelpSpot(props.reason, t('help.details.quickReason'), props.onPick);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ selected: props.on }, 'button')}
       style={({ pressed }) => [styles.quickReason, props.on ? { backgroundColor: C.dark, borderColor: C.dark } : null, pressed && styles.pressed]}>
       <Text style={[txt.sm, { fontWeight: '600', color: props.on ? C.white : C.dark, flexShrink: 1 }]}>{props.reason}</Text>
       <HelpBadge spot={spot} />
@@ -1045,12 +1087,10 @@ function QuickReason(props: { reason: string; on: boolean; onPick: () => void })
 
 // ---- toasts ----------------------------------------------------------------------------------
 
-export interface ToastSpec {
-  id: number;
-  message: string;
-  /** How long it shows, for the bar that counts down to its going (the host sets it). */
-  ms?: number;
-}
+export type { ToastSpec } from './toastModel';
+
+/** The toast last announced, by id. */
+let announcedToast = 0;
 
 /**
  * What changed (CORE-5), and nothing to do about it: a toast never offers
@@ -1061,15 +1101,20 @@ export interface ToastSpec {
  * closes it sooner. The host places it above the screen's buttons, never
  * over them.
  */
-export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => void; bottom: number }) {
+export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => void } & ({ bottom: number } | { top: number })) {
   const toast = props.toast;
   const wide = useLayout().kind !== 'phone';
   const left = useRef(new Animated.Value(1)).current;
   // With reduce motion on, no bar runs down (A11Y-8): the toast still goes by itself, and the screen stays still.
   const still = useReduceMotion();
-  const bar = !!toast?.ms && !still;
+  // A problem stays until closed, with no bar, and never wears the check (toastModel.ts).
+  const look = toastLook(toast ?? {});
+  const bar = !!toast?.ms && look.goesBy && !still;
   useEffect(() => {
-    if (toast) AccessibilityInfo.announceForAccessibility(toast.message);
+    // Once per toast, though it moves between the screen and a sheet (toastLayer.ts).
+    if (!toast || toast.id === announcedToast) return;
+    announcedToast = toast.id;
+    AccessibilityInfo.announceForAccessibility(toast.message);
   }, [toast?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- announced once per toast: its words do not change for its id
   useEffect(() => {
     if (!bar) return;
@@ -1080,16 +1125,16 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
   }, [toast?.id, toast?.ms, bar, left]);
   if (!toast) return null;
   return (
-    <View style={[{ pointerEvents: 'box-none' }, styles.toastWrap, { bottom: props.bottom }]}>
+    <View style={[{ pointerEvents: 'box-none' }, styles.toastWrap, 'top' in props ? { top: props.top } : { bottom: props.bottom }]}>
       <View style={[styles.toast, wide && { maxWidth: measure.toast }]}>
         {/* help-ignore: a toast goes by itself in a few seconds; help explains what stays on the screen */}
         <Pressable testID="toast" onPress={props.onDismiss} accessibilityRole="button" accessibilityLabel={t('shell.toast.dismissLabel', { message: toast.message })}
-          accessibilityLiveRegion="polite" style={styles.toastMessage}>
-          <Ico name="check" size={20} color={C.green} />
+          accessibilityLiveRegion={look.live} style={styles.toastMessage}>
+          <Ico name={look.icon} size={20} color={C[look.color]} />
           <Text style={[txt.sm, { color: C.white, flex: 1, fontWeight: '600' }]}>{toast.message}</Text>
         </Pressable>
-        {/* help-ignore: the toast's close, gone in a few seconds with the toast */}
-        <IconBtn name="close" label={t('common.close')} onPress={props.onDismiss} bg="transparent" color={C.white} size={target.min} />
+        {/* help-ignore: the toast's close, gone in a few seconds with the toast. Named apart from a sheet's ✕, as it now shows on the sheet too. */}
+        <IconBtn name="close" label={t('shell.toast.close')} onPress={props.onDismiss} bg="transparent" color={C.white} size={target.min} />
         {bar ? (
           <View style={[styles.toastTrack, { pointerEvents: 'none' }]}>
             <Animated.View style={[styles.toastLeft, { width: left.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
@@ -1145,6 +1190,7 @@ const styles = StyleSheet.create({
   smallLabel: { fontSize: T.sm, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
   linkBtn: { minHeight: target.min, justifyContent: 'center' },
   helpTop: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: space.lg, paddingTop: space.sm },
+  helpTopShared: { justifyContent: 'space-between', alignItems: 'center' },
   helpBtn: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
   quietRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.xs },
   quiet: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: target.min, paddingHorizontal: space.sm, flexShrink: 1, maxWidth: '100%' },

@@ -95,6 +95,13 @@ organization), JSON. `503 {"error"}` when the Worker has no
 | `/api/bible/text/:filesetId/:book/:chapter` | `{ verses: [[verseStart, verseEnd, text], …] }` |
 | `/api/bible/audio/:filesetId/:book/:chapter` | `{ url, durationMs?, bytes?, expiresAt, offline }` (a signed MP3 link without the key; through `/download` when `offline`) |
 | `/api/bible/timestamps/:filesetId/:book/:chapter` | `{ rows: [{ verse, seconds }] }`, 404 when FCBH has none |
+| `/api/bible/file/:filesetId/:book/:chapter` | the MP3 itself, for a browser to keep (decisions.md 201): only when `/download` allows the fileset (403 otherwise), streamed through and never cached |
+
+A browser cannot read FCBH's or OpenBible's links itself (the page's content
+security policy), so it keeps a library source's audio through
+`GET /api/source-audio?url=<link>` (`apps/web/worker/sourceAudio.ts`, the same
+bearer token): only links on core's `SOURCE_AUDIO_HOSTS`, streamed through
+and never cached. Phones download from the links themselves.
 
 How the Worker reads FCBH (`apps/web/worker/bible.ts`):
 

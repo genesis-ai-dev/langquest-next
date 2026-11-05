@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { afterLive, afterMerge, atLeast, commitOfCopy, conflictNote, newBuildPublic, platformsFrom, storeVersion } from './release-branches.mjs';
+import { afterLive, afterMerge, atLeast, changesTheApp, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, conflictNote, copyBranch, copyResult, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
 
 /**
  * The public build keeps getting fixes while a new build is in store review
@@ -22,6 +22,42 @@ describe('after a merge into main', () => {
 
   it('does nothing when no new build is in review', () => {
     expect(afterMerge({ oldFingerprint: 'b', newFingerprint: 'b', branchExists: false })).toBe('none');
+  });
+
+  it('copies nothing that the phone app does not run', () => {
+    expect(afterMerge({ oldFingerprint: 'b', newFingerprint: 'b', branchExists: true, appChanged: false })).toBe('none');
+    // A new build is tagged whatever it changes.
+    expect(afterMerge({ oldFingerprint: 'b', newFingerprint: 'c', branchExists: true, appChanged: false })).toBe('tag');
+  });
+});
+
+describe('which merges the phone app needs', () => {
+  it('a change to the app, to the core and sync it bundles, or to the dependencies', () => {
+    expect(changesTheApp(['apps/mobile/src/screens/reports.tsx'])).toBe(true);
+    expect(changesTheApp(['packages/core/src/passage.ts'])).toBe(true);
+    expect(changesTheApp(['packages/sync/src/session.ts'])).toBe(true);
+    expect(changesTheApp(['apps/mobile/locales/tl.json'])).toBe(true);
+    expect(changesTheApp(['package-lock.json'])).toBe(true);
+    expect(changesTheApp(['apps/mobile/app.json'])).toBe(true);
+  });
+
+  it('not the website, the ops dashboard, the server, tests, scripts or docs (PRs 336, 338 and 340)', () => {
+    expect(changesTheApp(['server/youtube.ts', 'apps/mobile/public/youtube/tl.png', 'apps/web/test/youtube.test.ts', 'docs/tutorial-videos.md'])).toBe(false);
+    expect(changesTheApp(['apps/admin/src/sources/pipeline.ts', 'apps/admin/src/pageOps.ts', 'docs/admin.md'])).toBe(false);
+    expect(changesTheApp(['.env.production'])).toBe(false);
+    expect(changesTheApp(['apps/mobile/test/shell.test.ts', 'apps/mobile/src/ui/kit.test.tsx', 'apps/mobile/scripts/export-web.mjs', 'apps/mobile/README.md'])).toBe(false);
+    expect(changesTheApp(['apps/mobile/src/reports/chart.web.tsx', 'apps/mobile/.eas/workflows/deploy-to-testers.yml', 'packages/core/test/reducer.test.ts'])).toBe(false);
+    expect(changesTheApp([])).toBe(false);
+  });
+
+  it('a catch-up takes every merge after the branch starts that is not a new build and changes the app', () => {
+    const merges = [
+      { sha: 'a1', files: ['apps/mobile/src/a.ts'] },
+      { sha: 'r2', files: ['apps/mobile/app.json'] },
+      { sha: 'w3', files: ['apps/admin/src/x.ts'] },
+      { sha: 'a4', files: ['packages/core/src/b.ts', 'docs/x.md'] }
+    ];
+    expect(mergesToCopy(merges, ['r2'])).toEqual(['a1', 'a4']);
   });
 });
 
@@ -69,6 +105,44 @@ describe('the hourly cleanup', () => {
   });
 });
 
+describe('a platform with no release branch', () => {
+  // iPhone build 45 (2026.1026.1817, PR 250) is on the App Store; PRs 259 and 319 made newer builds.
+  const r250 = { sha: 'c250', time: '2026-10-26T18:17:00Z' };
+  const r259 = { sha: 'c259', time: '2026-10-28T14:49:00Z' };
+  const r319 = { sha: 'c319', time: '2026-11-03T22:51:00Z' };
+
+  it('starts one from just before the first new build that is not public', () => {
+    expect(startFrom({ rebuilds: [r250, r259, r319], liveVersion: '2026.1026.1817' })).toBe('c259');
+    expect(startFrom({ rebuilds: [r250, r259, r319], liveVersion: storeVersion(r259.time) })).toBe('c319');
+  });
+
+  it('starts none when the newest build is public, when the store cannot be read, or for 1.0', () => {
+    expect(startFrom({ rebuilds: [r250, r259, r319], liveVersion: storeVersion(r319.time) })).toBeNull();
+    expect(startFrom({ rebuilds: [r250, r259], liveVersion: null })).toBeNull();
+    expect(startFrom({ rebuilds: [r250, r259], liveVersion: '1.0.0' })).toBeNull();
+  });
+
+  it('starts again when it serves another build than the public one', () => {
+    // 2026-11-05: release/android began before PR 319 (so it ran PR 322's code), while Play showed build 48, made from PR 285.
+    const r285 = { sha: 'c285', time: '2026-10-30T13:19:00Z' };
+    const r322 = { sha: 'c322', time: '2026-11-03T22:50:53Z' };
+    const r319 = { sha: 'c319', time: '2026-11-03T22:51:00Z' };
+    const all = [r250, r259, r285, r322, r319];
+    expect(servesAnother({ since: [r319], all, liveVersion: '2026.1030.1319' })).toBe('c322');
+    expect(servesAnother({ since: [r322, r319], all, liveVersion: '2026.1030.1319' })).toBeNull();
+    // The store cannot be read, or every new build is public: the hourly cleanup's other steps decide.
+    expect(servesAnother({ since: [r319], all, liveVersion: null })).toBeNull();
+    expect(servesAnother({ since: [r319], all, liveVersion: storeVersion(r319.time) })).toBeNull();
+  });
+
+  it('puts back the tags of new builds made while it kept no branch, from scripts/release-rebuilds.json', () => {
+    const listed = listedRebuilds(readFileSync('scripts/release-rebuilds.json', 'utf8'));
+    expect(listed.ios.length).toBeGreaterThan(0);
+    expect(listed.ios.every((s) => /^[0-9a-f]{40}$/.test(s))).toBe(true);
+    expect(listedRebuilds('{"ios": ["not a commit"]}')).toEqual({ ios: [], android: [] });
+  });
+});
+
 describe('which platforms keep release branches', () => {
   it('every platform by default, or only those named in RELEASE_BRANCH_PLATFORMS', () => {
     expect(platformsFrom(undefined)).toEqual(['ios', 'android']);
@@ -81,23 +155,161 @@ describe('which platforms keep release branches', () => {
   });
 });
 
-describe('a copy with a conflict and no Claude key', () => {
-  it('finds the commit from the copy branch name', () => {
+describe('a copy with a conflict', () => {
+  const a = '0123abcd'.padEnd(40, '0');
+  const b = '89abcdef'.padEnd(40, '1');
+
+  it('finds the first commit from the copy branch name, of one merge or a catch-up', () => {
+    expect(copyBranch('android', a)).toBe('copy/android/0123abcd');
+    expect(copyBranch('ios', a, b)).toBe('copy/ios/0123abcd-89abcdef');
     expect(commitOfCopy('copy/android/0123abcd')).toBe('0123abcd');
+    expect(commitOfCopy('copy/ios/0123abcd-89abcdef')).toBe('0123abcd');
     expect(commitOfCopy('feature/x')).toBeNull();
   });
 
-  it('names the files in conflict and the steps for a person to finish it', () => {
+  it('reads the commits it copies from its body, oldest first', () => {
+    expect(commitsOfCopy(`Copies these 2 merges from main:\n\n- ${a} #259 Fix one\n- ${b} #262 Fix two\n\nCopying …`)).toEqual([a, b]);
+    // Copies made before the list named pull requests.
+    expect(commitsOfCopy(`- ${a} Merge pull request #259 from x`)).toEqual([a]);
+    expect(commitsOfCopy(null)).toEqual([]);
+  });
+
+  it('names each merge it copies by its pull request and title, as the ops dashboard reads it', () => {
+    expect(mergeName('Merge pull request #317 from genesis-ai-dev/claude/project-thread-nm4lpf\n\nShow maps the study guide points to (LAN-222)\n'))
+      .toEqual({ pr: 317, title: 'Show maps the study guide points to (LAN-222)', label: '#317 Show maps the study guide points to (LAN-222)' });
+    expect(mergeName('Merge pull request #315 from genesis-ai-dev/claude/b')).toEqual({ pr: 315, title: null, label: '#315' });
+    expect(mergeName('Fix a typo\n\nMore')).toEqual({ pr: null, title: null, label: 'Fix a typo' });
+  });
+
+  it('without Claude, names the files in conflict and the steps for a person to finish it', () => {
     const note = conflictNote('0123abcd', 'release/android', ['apps/mobile/src/a.ts', 'packages/core/src/b.ts']);
     expect(note).toContain('release/android');
     expect(note).toContain('- `apps/mobile/src/a.ts`');
     expect(note).toContain('git cherry-pick -x 0123abcd');
+    expect(note).toContain('CLAUDE_CODE_OAUTH_TOKEN');
+    expect(conflictNote('0123abcd', 'release/ios', ['a.ts'], ['89abcdef', 'fedcba98'])).toContain('the same for the 2 after it');
   });
 
-  it('the workflow skips Claude and comments instead when the key is missing', () => {
+  it('leaves Claude only the conflicts in the phone app and its tests; elsewhere the release branch keeps its own version', () => {
+    for (const f of ['apps/mobile/src/audio/useClip.ts', 'apps/mobile/src/i18n/en.json', 'apps/mobile/test/workspace.test.ts', 'packages/core/src/reducer.ts',
+      'packages/sync/test/push.test.ts', 'e2e/ui/06-recording-silence.spec.ts', 'package-lock.json']) expect(needsHand(f), f).toBe(true);
+    // From the dry run of the iPhone catch-up on 2026-11-05: conflicts that need no hand.
+    for (const f of ['docs/decisions.md', 'docs/ui-test-suite/README.md', 'scripts/secrets.mjs', 'server/jobRuns.ts', 'apps/web/test/languageRecords.test.ts',
+      'e2e/tutorials/make-videos.ts', 'apps/mobile/README.md']) expect(needsHand(f), f).toBe(false);
+  });
+
+  it('each copy carries main\'s workflows and script for release branches, as a pull request runs its own branch\'s', () => {
+    for (const f of MACHINERY) expect(() => readFileSync(f), f).not.toThrow();
+    expect(MACHINERY).toContain('.github/workflows/release-copy-conflict.yml');
+    expect(readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8')).toMatch(/^  pull_request:\n    types: \[labeled\]/m);
+  });
+
+  it('Claude signs in with the Claude plan token, or an API key, and the workflow comments instead when there is neither', () => {
     const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
-    expect(yml).toMatch(/HAS_CLAUDE_KEY: \$\{\{ secrets\.ANTHROPIC_API_KEY != '' \}\}/);
+    expect(yml).toMatch(/HAS_CLAUDE_KEY: \$\{\{ secrets\.CLAUDE_CODE_OAUTH_TOKEN != '' \|\| secrets\.ANTHROPIC_API_KEY != '' \}\}/);
+    expect(yml).toMatch(/claude_code_oauth_token: \$\{\{ secrets\.CLAUDE_CODE_OAUTH_TOKEN \}\}/);
     expect(yml).toMatch(/if: env\.HAS_CLAUDE_KEY != 'true'\n\s+env:[\s\S]*?conflict-note/);
     expect(yml).toMatch(/claude-code-action@v1\n\s+if: env\.HAS_CLAUDE_KEY == 'true'/);
+  });
+
+  it('each copy also takes main\'s server-calls check, which reads main\'s server on a release branch', () => {
+    // PR 344 (2026-11-05) failed: the release branch's own server-calls check read its old server.
+    expect(MACHINERY).toEqual(expect.arrayContaining(['scripts/server-calls.mjs', 'scripts/serverCalls.test.ts']));
+  });
+
+  it('a copy whose checks failed, or that Claude did not finish, gets Claude again up to 3 times, then a person', () => {
+    expect(FIX_TRIES).toBe(3);
+    expect(nextForCopy({ labels: [], gate: 'FAILURE', tries: 0 })).toBe('try');
+    expect(nextForCopy({ labels: [], gate: 'FAILURE', tries: 2 })).toBe('try');
+    expect(nextForCopy({ labels: [], gate: 'FAILURE', tries: 3 })).toBe('person');
+    // Not finished: the conflict label alone, whatever the checks say.
+    expect(nextForCopy({ labels: [CONFLICT_LABEL], gate: 'SUCCESS', tries: 0 })).toBe('try');
+    expect(nextForCopy({ labels: [CONFLICT_LABEL], gate: null, tries: 1 })).toBe('try');
+    expect(nextForCopy({ labels: [CONFLICT_LABEL], gate: 'FAILURE', tries: 3 })).toBe('person');
+    // Claude is on it, or a person is, or nothing failed (yet).
+    expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: 'FAILURE', tries: 0 })).toBe('none');
+    expect(nextForCopy({ labels: [CLAUDE_LABEL, CONFLICT_LABEL], gate: 'FAILURE', tries: 0 })).toBe('none');
+    expect(nextForCopy({ labels: [PERSON_LABEL], gate: 'FAILURE', tries: 3 })).toBe('none');
+    expect(nextForCopy({ labels: [], gate: 'SUCCESS', tries: 0 })).toBe('none');
+    expect(nextForCopy({ labels: [], gate: null, tries: 0 })).toBe('none');
+  });
+
+  it('the hourly run counts its tries, for failed checks or a copy not finished', () => {
+    expect(isTry('The checks of this copy failed on f953d263, so Claude tries to fix them (try 1 of 3, decisions.md 155).')).toBe(true);
+    expect(isTry('Claude did not finish this copy, so Claude tries again (try 2 of 3, decisions.md 155).')).toBe(true);
+    expect(isTry('Claude did not finish this copy: Claude wrote no result. Claude tries again within the hour (decisions.md 155).')).toBe(false);
+    expect(isTry('- cd174764 #315 Show maps: copied.')).toBe(false);
+    expect(isTry(undefined)).toBe(false);
+  });
+
+  it('a copy is finished when Claude gave each listed commit a result, and each one copied is on the branch', () => {
+    const a = 'a'.repeat(40);
+    const b = 'b'.repeat(40);
+    const names = { [a]: '#315 Show maps', [b]: '#270 Wait for the language' };
+    const on = new Set([a]);
+    const onBranch = (sha: string) => on.has(sha);
+    expect(copyResult({
+      listed: [a, b], names, onBranch,
+      result: { commits: [{ sha: a, result: 'copied', why: 'It fixes the study guide.' }, { sha: b.slice(0, 8), result: 'left out', why: 'Only the new build has it.' }] }
+    })).toEqual({
+      done: true, copied: 1,
+      lines: ['- aaaaaaaa #315 Show maps: copied. It fixes the study guide.', '- bbbbbbbb #270 Wait for the language: left out. Only the new build has it.']
+    });
+    // Everything left out: finished, and nothing copied, so the copy is closed.
+    expect(copyResult({ listed: [b], onBranch, result: { commits: [{ sha: b, result: 'left out' }] } })).toEqual({ done: true, copied: 0, lines: ['- bbbbbbbb: left out.'] });
+    // Not finished: no result, Claude says so, a commit with no result, or one said copied that is not on the branch.
+    expect(copyResult({ listed: [a], onBranch, result: null })).toEqual({ done: false, why: 'Claude wrote no result' });
+    expect(copyResult({ listed: [a], onBranch, result: { unfinished: 'b.tsx has a conflict I could not resolve' } })).toEqual({ done: false, why: 'b.tsx has a conflict I could not resolve' });
+    expect(copyResult({ listed: [a, b], onBranch, result: { commits: [{ sha: a, result: 'copied' }] } })).toEqual({ done: false, why: 'bbbbbbbb has no result' });
+    expect(copyResult({ listed: [b], onBranch, result: { commits: [{ sha: b, result: 'copied in part' }] } })).toEqual({ done: false, why: 'bbbbbbbb is not on the branch' });
+    expect(copyResult({ listed: [a], onBranch, result: { commits: [{ sha: a, result: 'merged' }] } })).toEqual({ done: false, why: 'aaaaaaaa has no result' });
+    expect(copyResult({ listed: [], onBranch, result: { commits: [] } })).toEqual({ done: false, why: 'the pull request lists no commits' });
+  });
+
+  it('Claude examines every copy and takes out what does not fit the public build, and auto-merge waits for Claude', () => {
+    // Caleb, 2026-11-05: Claude examines every copy before it merges.
+    expect(CLAUDE_LABEL).toBe('copy-claude');
+    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
+    expect(yml).toContain('Examine each copied commit against this branch\'s code');
+    expect(yml).toContain('Take out each part that does not fit');
+    const script = readFileSync('scripts/release-branches.mjs', 'utf8');
+    const finish = script.slice(script.indexOf('function finishCopy('), script.indexOf('async function main'));
+    expect(finish).toContain("'merge', pr, '--auto', '--squash'");
+    expect(finish.indexOf('if (!outcome.done)')).toBeLessThan(finish.indexOf("'--auto'"));
+    const copyFn = script.slice(script.indexOf('function copy('), script.indexOf('async function liveVersion'));
+    expect(copyFn).toContain("'--label', CLAUDE_LABEL");
+    expect(copyFn).not.toContain("'--auto'");
+  });
+
+  it('Claude reads the failed checks and fixes them, and never skips a test', () => {
+    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
+    expect(yml).toContain('gh run view <run id> --log-failed');
+    expect(yml).toContain('Never skip, disable or weaken a test');
+    expect(yml).toMatch(/--allowedTools "[^"]*Bash\(gh run view:\*\)/);
+    expect(yml).toContain(`github.event.label.name == '${CLAUDE_LABEL}'`);
+  });
+
+  it('Claude commits and writes its result, and the next step pushes, comments and turns on auto-merge', () => {
+    // 2026-11-05: two of Claude's runs said "copied", and no push of theirs reached the branch.
+    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
+    expect(yml).toContain('Do not push, comment, label, close or merge');
+    expect(yml).toContain('`.release-copy.json`');
+    expect(yml).toContain('echo /.release-copy.json >> .git/info/exclude');
+    // Claude reads the pull request and its checks; only the workflow's own copy of the script writes to GitHub.
+    const tools = /--allowedTools "([^"]*)"/.exec(yml)?.[1].split(',') ?? [];
+    expect(tools.filter((t) => t.startsWith('Bash(gh '))).toEqual(['Bash(gh pr checks:*)', 'Bash(gh pr view:*)', 'Bash(gh pr diff:*)', 'Bash(gh run view:*)', 'Bash(gh run list:*)']);
+    expect(yml).toMatch(/cp scripts\/release-branches\.mjs "\$RUNNER_TEMP\/copy\/"/);
+    expect(yml).toMatch(/if: always\(\) && steps\.claude\.outcome != 'skipped'\n[\s\S]*?GH_TOKEN: \$\{\{ steps\.token\.outputs\.token \}\}[\s\S]*?node "\$RUNNER_TEMP\/copy\/release-branches\.mjs" finish-copy/);
+    expect(yml).toMatch(/^concurrency:\n  group: release-copy-\$\{\{ github\.event\.pull_request\.number \}\}\n  cancel-in-progress: false/m);
+  });
+
+  it('Claude\'s action lets the release bot that labels the copy start it', () => {
+    // Without it, the first iPhone catch-up (2026-11-05) failed: "Workflow initiated by non-human actor".
+    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
+    expect(yml).toMatch(/claude-code-action@v1\n[\s\S]*?\n\s+allowed_bots: langquest-release-branches\n/);
+  });
+
+  it('the workflow keeps a release branch for both platforms', () => {
+    expect(readFileSync('.github/workflows/release-branches.yml', 'utf8')).not.toContain('RELEASE_BRANCH_PLATFORMS: ${{');
   });
 });

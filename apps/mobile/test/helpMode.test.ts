@@ -3,8 +3,8 @@
 // lit places and the tooltip go.
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { chooseRows, clipRect, helpLine, litShape, markAt, numberParts, speaks, tooltipPlace, type FirstSeen, type HelpRect, type RowPart } from '../src/helpMode/helpContext';
-import { findUnexplained, findUnlistedRows, scanHelp, scanRows } from './helpParts';
+import { chooseRows, clipRect, helpLine, litShape, markAt, numberParts, speaks, tooltipPlace, voiceFor, type FirstSeen, type HelpRect, type RowPart } from '../src/helpMode/helpContext';
+import { findStockLines, findUnexplained, findUnlistedRows, scanHelp, scanRows, scanStockLines } from './helpParts';
 
 const box = (x: number, y: number, width = 100, height = 48): HelpRect => ({ x, y, width, height });
 
@@ -14,6 +14,22 @@ describe('help mode', () => {
     expect(helpLine('Record', 'The main thing to do on this screen.')).toBe('Record. The main thing to do on this screen.');
     expect(helpLine(' Record ')).toBe('Record');
     expect(helpLine('Publish', '  ')).toBe('Publish');
+  });
+});
+
+describe('the browser voice', () => {
+  const voices = [{ lang: 'en-US' }, { lang: 'fr-FR' }, { lang: 'zh-TW' }, { lang: 'zh-CN' }, { lang: 'pt_BR' }];
+
+  it('speaks only in the app\'s language, so no words are read in the wrong one', () => {
+    expect(voiceFor('fr', voices)?.lang).toBe('fr-FR');
+    expect(voiceFor('pt', voices)?.lang).toBe('pt_BR');
+    expect(voiceFor('ha', voices)).toBeUndefined();
+    expect(voiceFor('am', [])).toBeUndefined();
+  });
+
+  it('reads Simplified Chinese with a mainland voice, never Taiwan\'s', () => {
+    expect(voiceFor('zh-Hans', voices)?.lang).toBe('zh-CN');
+    expect(voiceFor('zh-Hans', [{ lang: 'zh-TW' }, { lang: 'zh-HK' }])).toBeUndefined();
   });
 });
 
@@ -119,6 +135,15 @@ describe('every part explains itself', { timeout: 30_000 }, () => {
     // `npx tsx apps/mobile/test/helpParts.ts` lists them. Give each a line (useHelpSpot, or the kit
     // control's `help`), or a `help-ignore:` comment saying why it needs none.
     expect(scanHelp(join(import.meta.dirname, '..')).map((f) => `${f.file}:${f.line} ${f.text}`)).toEqual([]);
+  });
+
+  it('lets no more main buttons and fields fall back to the stock line', () => {
+    // UI audit, finding 108: "The main thing to do on this screen." says nothing about this one.
+    // Give a new PrimaryBtn or Field its own `help`; when you give old ones theirs, lower this number.
+    // `npx tsx apps/mobile/test/helpParts.ts --stock` lists them.
+    expect(scanStockLines(join(import.meta.dirname, '..')).length).toBeLessThanOrEqual(96);
+    expect(findStockLines('src/a.tsx', `<View><PrimaryBtn label="Go" onPress={go} /><PrimaryBtn label="Go" help="Goes." onPress={go} /><Field label="Name" {...p} /></View>`)
+      .map((f) => f.text)).toEqual(['PrimaryBtn says the stock line']);
   });
 
   it('gives every list of rows that hold parts one row to speak for it', () => {

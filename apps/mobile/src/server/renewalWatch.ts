@@ -1,10 +1,11 @@
 import { recordAuth } from '../diagnostics/authDiag';
-import { renewalChanges, type RenewalChange } from './sessionSafeFetch';
+import { listenToRenewals, type RenewalChange } from './sessionSafeFetch';
 
 /**
  * Renewing the sign-in, only when it changes (sessionSafeFetch.ts): it
  * started failing with a status or for want of a network, or it worked
- * again. Returns the unsubscribe.
+ * again, including a change from before the app started listening. Returns
+ * the unsubscribe.
  */
 export function watchRenewals(): () => void {
   const listener = (c: RenewalChange) => {
@@ -12,6 +13,5 @@ export function watchRenewals(): () => void {
     else if (c.outcome === 'offline') recordAuth('renew', 'offline');
     else recordAuth('renew', 'ok', { n: { ms: c.ms, ...(c.sinceOkMs !== undefined ? { sinceOkMs: c.sinceOkMs } : {}) } });
   };
-  renewalChanges.add(listener);
-  return () => { renewalChanges.delete(listener); };
+  return listenToRenewals(listener);
 }

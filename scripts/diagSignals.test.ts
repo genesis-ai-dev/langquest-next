@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { BACKGROUND_RPCS, jobSignals, signals, slowRpcs, type InstallSummary, type JobStat, type LanguageHealth } from './diagSignals';
+import { BACKGROUND_RPCS, buildLabel, jobSignals, signals, slowRpcs, type InstallSummary, type JobStat, type LanguageHealth } from './diagSignals';
 
 // The hypotheses a report leads with. Each case is a cause we expect to
 // meet in the field, stated as the numbers it leaves behind.
@@ -179,5 +179,26 @@ describe('slow RPCs', () => {
       expect(grants.some((g) => /^revoke/i.test(g) && /\bauthenticated\b/.test(g)), name).toBe(true);
       expect(grants.filter((g) => /^grant/i.test(g)).every((g) => !/\b(authenticated|anon|public)\b(?!\.)/i.test(g.replace(/on function public\.\w+/i, ''))), name).toBe(true);
     }
+  });
+});
+
+describe('which build a phone ran', () => {
+  const phone = { os: 'ios', runtimeVersion: '492c168b1f2e3d4c', updateId: '01a1827c-5d2e-4f6a-9b1c-2d3e4f5a6b7c', channel: 'production' };
+
+  it('names the store build and the OTA update it runs, as the app shows the update', () => {
+    expect(buildLabel({ ...phone, appVersion: '2026.1030.1319 (48)', embedded: 'no' })).toBe('build 48 (2026.1030.1319) · OTA update 01a1827 (production)');
+  });
+
+  it('says when a phone runs the store build\'s own code', () => {
+    expect(buildLabel({ ...phone, appVersion: '2026.1026.1817 (45)', embedded: 'yes' })).toBe('build 45 (2026.1026.1817) · no OTA update (production)');
+  });
+
+  it('shows the runtime for a phone that sent no store build, and never guesses one', () => {
+    expect(buildLabel({ ...phone, runtimeVersion: 'fede04f0aa', embedded: 'no' })).toBe('build ? (runtime fede04f0) · OTA update 01a1827 (production)');
+    expect(buildLabel({ os: 'android', appVersion: '1.0.0' })).toBe('build ? (1.0.0) · OTA update ?');
+  });
+
+  it('names a browser by the commit it loaded', () => {
+    expect(buildLabel({ os: 'web', runtimeVersion: '4df4afdeaf0f9b8c7d6e', channel: 'web' })).toBe('web build 4df4afdeaf0f');
   });
 });

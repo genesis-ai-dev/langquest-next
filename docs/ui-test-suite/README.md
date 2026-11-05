@@ -24,8 +24,8 @@ screens follow the simple redesign (decision 71 and its amendments) and
 | # | File | Area | IDs | Tests |
 | --- | --- | --- | --- | --- |
 | 01 | [01-getting-in.md](01-getting-in.md) | Sign in, create an account, terms, browsing public work, invites, sign-in codes, welcome | `AUTH` | 60 |
-| 02 | [02-no-organization.md](02-no-organization.md) | "Join your team", starting an organization, asking to join | `NOORG` | 26 |
-| 03 | [03-home-and-navigation.md](03-home-and-navigation.md) | Tabs per role, My Work, the bell, the Inbox, the viewer's overview, flow gates | `NAV` | 37 |
+| 02 | [02-no-organization.md](02-no-organization.md) | "Join your team", starting an organization, asking to join | `NOORG` | 28 |
+| 03 | [03-home-and-navigation.md](03-home-and-navigation.md) | Tabs per role, My Work, the bell, the Inbox, the viewer's overview, flow gates | `NAV` | 38 |
 | 04 | [04-map.md](04-map.md) | All languages, a language's map, books, chapters, search, filter | `MAP` | 21 |
 | 05 | [05-passage-record.md](05-passage-record.md) | The passage record, Something else?, Ask someone, Already happened, versions and history, set aside, checkpoints, Undo and Withdraw in History | `PASS` | 64 |
 | 06 | [06-recording.md](06-recording.md) | The recording workspace, voice detection, parts, Done, interruptions | `REC` | 51 |
@@ -41,7 +41,7 @@ screens follow the simple redesign (decision 71 and its amendments) and
 | 16 | [16-role-journeys.md](16-role-journeys.md) | Whole jobs per role, and the passage lifecycle across every role | `JRN` | 14 |
 | 17 | [17-accessibility-and-field-use.md](17-accessibility-and-field-use.md) | Screen readers, target sizes, text size, colour, RTL, outdoor and low-end use | `A11Y` | 24 |
 
-**670 tests in all.**
+**678 tests in all.**
 
 ## How a test is written
 
@@ -338,6 +338,10 @@ npm run test:ui:phone -- --platform ios --voice --tags smoke
   probes that exist only in test builds (`src/testBuild.ts`: dev, or an export
   with `EXPO_PUBLIC_LOCAL_RELEASE=1`): the log, Sync now, and
   `__langquestTestState` (`testState`, `expectSyncIdle` in `support.ts`).
+  After a test writes through the server and (re)opens a page, it waits with
+  `languageArrived`: the organization and the language both read up to date
+  since the page loaded, and drawn. Idle sync alone is not that (the
+  organization's sync finishes first, and nothing runs between the two).
   `UI_WORKERS` sets how many files run at once (4 by default). The `phone`
   project runs everything at 430×932; the `wide` project runs the tests
   tagged `@wide` at 1280×900.

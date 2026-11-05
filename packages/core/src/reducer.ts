@@ -12,7 +12,7 @@ import { countEvent } from './changes';
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 20;
+export const REDUCER_VERSION = 21;
 
 // The revision and the change log live in changes.ts; re-exported for the callers that read them here.
 export { markChanged, stateRevision } from './changes';
@@ -65,6 +65,12 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
     case 'v1.BookNameSet':
       lww(state.bookNames ??= {}, event.payload.book, event, event.payload.name);
       break;
+
+    case 'v1.BookNamesSelected': {
+      const { itemId, docHash, language, names } = event.payload;
+      state.bookNamesFrom = set(state.bookNamesFrom ?? null, event, { itemId, docHash, language, names: { ...names } });
+      break;
+    }
 
     case 'v1.FlowSelected': {
       const { flowId, itemId, docHash, name } = event.payload;

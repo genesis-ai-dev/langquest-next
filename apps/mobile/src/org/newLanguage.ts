@@ -1,6 +1,6 @@
 import {
-  CommandError, emptyLanguageState, isTemplateDoc, privilegesFor,
-  type EventPayloads, type EventSpec, type LanguageState, type LibraryDoc, type OrgState
+  CommandError, emptyLanguageState, isTemplateDoc, privilegesFor, selectBookNamesSpec,
+  type EventPayloads, type EventSpec, type LanguageState, type LibraryDoc, type NamesDoc, type OrgState
 } from '@langquest-next/core';
 import { draftSpecsFor } from '../checks/languageDraftModel';
 import { clusterEvents, type ClusterEvent } from '../clusters/model';
@@ -22,8 +22,11 @@ export interface NewOne { key: string; name: string; code: string; languoidId: s
 /** The cluster new languages go in: one already here, or a new one with its name; and languages already here it takes in. */
 export interface ClusterTarget { clusterId: string; name?: string; existing?: readonly string[] }
 
-/** Something a new language's team is offered from the start: an item here, or one another organization shares. */
-export interface Offer { itemId: string | null; shared: SharedItem | null; name: string; label: string; set?: GuideSet; member?: SetMember }
+/**
+ * Something a new language's team is offered from the start: an item here, one another organization shares,
+ * or a Bible Brain Bible, added to the library when the language is made (LAN-194).
+ */
+export interface Offer { itemId: string | null; shared: SharedItem | null; name: string; label: string; set?: GuideSet; member?: SetMember; bibleBrain?: { bibleId: string } }
 
 /** One thing New language can give a new team, on its Reference material step (decision 146): a Bible, a set of study guides, key words (decision 172), a note. */
 export type MaterialChoice = Offer & { key: string; kind: 'source' | 'guide' | 'words' | 'note'; sub: string };
@@ -58,6 +61,8 @@ export interface NewLanguageDeps {
   loadDoc: (hash: string) => Promise<LibraryDoc | undefined>;
   /** Use another organization's item here: followed with automatic updates, or copied when its owner does not allow following. */
   adopt: (shared: SharedItem) => Promise<string>;
+  /** A Bible Brain Bible as this organization's library item (`addBibleBrainSource`); returns its item id. */
+  addBibleBrain?: (bibleId: string) => Promise<string>;
   applySpecs: (itemId: string, opts: { docHash: string; into: LanguageState; books?: string[] }) => Promise<EventSpec[]>;
   appendOrg: <T extends 'v1.LanguageAdded' | 'v1.LanguageCodeSet' | ClusterEvent['type']>(type: T, payload: EventPayloads[T]) => Promise<void>;
   syncOrg: () => Promise<void>;
@@ -80,13 +85,15 @@ type NewLanguageInput = {
    */
   checks: readonly EventSpec[];
   offers: Offer[];
+  /** The book names it starts with (decision 193): an item here, or another organization's, followed first. */
+  bookNames?: { itemId: string | null; shared: SharedItem | null; name: string; docHash: string; doc: NamesDoc } | null;
 };
 
 /**
- * Add a language (ORG-2, decisions 63, 71, 76, 84, 91, 146): listed in the
- * organization's stream first, then its own stream starts with the
- * template, its checks as they were set up before it existed, and what
- * its team is offered.
+ * Add a language (ORG-2, decisions 63, 71, 76, 84, 91, 146, 193): listed in
+ * the organization's stream first, then its own stream starts with the
+ * template, its book names, its checks as they were set up before it
+ * existed, and what its team is offered.
  * The new language has no members yet, so its first events go in under
  * org-scope privileges. What helps is never required and a language can be
  * added offline: an offer that could not be followed is named, not fatal.
@@ -131,7 +138,7 @@ export async function createLanguages(input: NewLanguageInput & {
     let itemId = o.itemId;
     if (!itemId) {
       try {
-        itemId = await deps.adopt(o.shared!);
+        itemId = o.bibleBrain ? await deps.addBibleBrain!(o.bibleBrain.bibleId) : await deps.adopt(o.shared!);
       } catch (e) {
         // i18n-ignore: a diagnostics label (noteExpected), never shown
         deps.note('new language offer', e);
@@ -143,6 +150,17 @@ export async function createLanguages(input: NewLanguageInput & {
       const held = { ...o.set, members: o.set.members.map((m) => (m === o.member ? { ...m, itemId, shared: null } : m)) };
       setSays.push(...chooseSetLanguage(held, itemId, null).says);
     } else offered.push(itemId);
+  }
+  // Its book names, followed first when they are another organization's; without them its template's names stand.
+  let namesItem: string | null = null;
+  if (input.bookNames) {
+    try {
+      namesItem = input.bookNames.itemId ?? await deps.adopt(input.bookNames.shared!);
+    } catch (e) {
+      // i18n-ignore: a diagnostics label (noteExpected), never shown
+      deps.note('new language book names', e);
+      notOffered.push(input.bookNames.name);
+    }
   }
   const made: { languageId: string; name: string }[] = [];
   for (const [i, one] of input.languages.entries()) {
@@ -166,7 +184,9 @@ export async function createLanguages(input: NewLanguageInput & {
     await deps.syncOrg().catch((e: unknown) => deps.note('new language listing', e));
     if (!input.each) await deps.onPart('saving');
     const also = (input.alsoReads ?? []).map((language, i): EventSpec => ({ id: `${languageId}:reads:${i}`, type: 'v1.ReferenceLanguageAdded', payload: { language, added: true } }));
-    await deps.appendToLanguage(languageId, [...plan.specs, ...offerSpecs(languageId, offered, setSays, input.org?.recommendations), ...also]);
+    const names = namesItem && input.bookNames
+      ? [selectBookNamesSpec({ commandId: `${languageId}:names`, itemId: namesItem, docHash: input.bookNames.docHash, doc: input.bookNames.doc })] : [];
+    await deps.appendToLanguage(languageId, [...plan.specs, ...names, ...offerSpecs(languageId, offered, setSays, input.org?.recommendations), ...also]);
     input.done?.set(one.key, { languageId, name: languageName });
     made.push({ languageId, name: languageName });
   }

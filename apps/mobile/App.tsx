@@ -23,18 +23,19 @@ import { useAppVersion } from './src/appVersion/useAppVersion';
 import { maySwitchPersona } from './src/session/dev';
 import { MAP_SCREENS, PASSAGE_READING, SCREEN_IDS, TAB_SCREENS, type ScreenId } from './src/shell/flow';
 import { frame, layoutKind } from './src/ui/layout';
-import { chromeVisible, showsGlobalViewerLink } from './src/shell/chromeModel';
+import { chromeVisible, showsGlobalViewerLink, TASK_SCREENS } from './src/shell/chromeModel';
 import { NavChrome } from './src/shell/NavChrome';
 import { lockPhonesToPortrait } from './src/shell/orientation';
 import { paneFor, type SplitSpec } from './src/shell/panes';
 import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail, FooterHeightContext } from './src/ui/useLayout';
 import { EmptyState, GhostBtn, ToastView, type ToastSpec } from './src/ui/kit';
 import { readToastTime, toastTime } from './src/ui/toastTime';
+import { publishToast } from './src/ui/toastLayer';
+import { useSheetOpen } from './src/ui/useToastLayer';
 import { FeedbackHost } from './src/feedback/FeedbackSheet';
 import { txt } from './src/ui/textStyles';
 import { installGlobalHandlers, reportError } from './src/diagnostics/report';
 import { t } from './src/i18n';
-import { personLook } from './src/ui/people';
 import { navRef, type StackParams } from './src/shell/nav';
 import { useNav } from './src/shell/useNav';
 import * as Account from './src/screens/account';
@@ -111,6 +112,7 @@ const loadReference = () => import('./src/screens/reference');
 const loadReports = () => import('./src/screens/reports');
 const loadSources = () => import('./src/screens/sources');
 const loadGlobalViewer = () => import('./src/screens/globalViewer');
+const loadGuideEditor = () => import('./src/screens/guideEditor');
 
 const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   sign_in: Entry.SignIn, terms_privacy: Entry.TermsPrivacy, explore_home: Entry.ExploreHome, create_account: Entry.CreateAccount,
@@ -121,7 +123,7 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   passage_record: Passage.PassageRecord, version_detail: Passage.VersionDetail, review_detail: Passage.ReviewDetail,
   ask_someone: Passage.AskSomeone,
   guest_review: Review.GuestReview, add_record: Review.AddRecord, review_capture: Review.ReviewCapture,
-  study_guide: Study.StudyGuide, study_step: Study.StudyStep, guide_editor: Study.GuideEditor,
+  study_guide: Study.StudyGuide, study_step: Study.StudyStep, guide_editor: lazyScreen(loadGuideEditor, 'GuideEditor'),
   workspace: Translate.Workspace, back_translation: Translate.BackTranslation,
   key_terms: lazyScreen(loadConfig, 'KeyTerms'), key_term_detail: lazyScreen(loadConfig, 'KeyTermDetail'),
   inbox_home: Account.InboxHome, settings_home: Account.SettingsHome, profile_edit: Account.ProfileEdit,
@@ -440,7 +442,16 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // Read names again when someone joins, or a new member shows as a placeholder until restart.
   // Keyed on the state, not its members: the fold adds members in place (OrgHandle.state).
   const memberIds = useMemo(() => Object.keys(liveOrg.state?.members ?? {}).sort().join(','), [liveOrg.state]);
-  const people = useDisplayNames(props.actorId, memberIds);
+  // A member still without a name (the directory read before they joined, or before this account did) is asked for
+  // again a few times, further apart each time (LAN-129).
+  const [askedAgain, setAskedAgain] = useState(0);
+  const people = useDisplayNames(props.actorId, `${memberIds}#${askedAgain}`);
+  const unnamed = useMemo(() => memberIds.split(',').some((id) => id && id !== props.actorId && !(id in people)), [memberIds, people, props.actorId]);
+  useEffect(() => {
+    if (!unnamed || askedAgain >= 4) return;
+    const timer = setTimeout(() => setAskedAgain((n) => n + 1), 15_000 * (askedAgain + 1));
+    return () => clearTimeout(timer);
+  }, [unnamed, askedAgain]);
   const [devOpen, setDevOpen] = useState(false);
   const onboarding = useOnboarding(props.actorId, props.signedIn);
   // Someone from v2 is welcomed back to their work instead (demo ADR-043).
@@ -466,7 +477,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // Names: the signed-in person is always "you" (CORE-6).
   const name = useCallback((id: string, lower = false) => {
     if (id === props.actorId) return lower ? t('shell.youInSentence') : t('common.you');
-    return people[id] ?? viewedNames[id] ?? personLook(id).name;
+    // A person whose name this account cannot see is "someone", never their picture's colour and shape (LAN-129).
+    return people[id] ?? viewedNames[id] ?? t(lower ? 'shell.person.someoneInSentence' : 'shell.person.someone');
   }, [people, viewedNames, props.actorId]);
   const inbox = useInbox({ language, actorId: props.actorId, orgId: props.orgId, session, blocks, signedIn: props.signedIn });
 
@@ -638,7 +650,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
                   // crossfade like a tab switch; everything else slides like a
                   // push. On a wide window everything crossfades: the stack's
                   // box moves as a pane comes and goes, and a slide across it reads as a jump.
-                  <Stack.Screen key={id} name={id} component={HOSTS[id]} options={{ animation: wide || TAB_SCREENS.includes(id) ? 'fade' : 'default' }} />
+                  <Stack.Screen key={id} name={id} component={HOSTS[id]} options={{ animation: wide || TAB_SCREENS.includes(id) ? 'fade' : 'default', fullScreenGestureEnabled: !TASK_SCREENS.includes(id) }} />
                 ))}
               </Stack.Navigator>
             </NavigationContainer>
@@ -678,7 +690,7 @@ const styles = StyleSheet.create({
  * screen that said what happened ("Signed in", "… is ready to grow"). The new
  * host shows it for the rest of its time (AUTH-049, NOORG-009).
  */
-let showing: { message: string; until: number } | null = null;
+let showing: { message: string; until: number; tone?: 'problem' } | null = null;
 
 /**
  * Shows one toast at a time for 3.5 s, or as long as Android's "Time to take
@@ -688,10 +700,14 @@ let showing: { message: string; until: number } | null = null;
 function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void; bottom: number }) {
   const [spec, setSpec] = useState<ToastSpec | null>(() => {
     const left = showing ? showing.until - Date.now() : 0;
-    return showing && left > 1000
-      ? { id: Date.now(), message: showing.message, ms: left }
-      : null;
+    if (!showing || left <= 1000) return null;
+    // A problem stays until closed: it has no time left to count.
+    return showing.tone === 'problem'
+      ? { id: Date.now(), message: showing.message, tone: 'problem' }
+      : { id: Date.now(), message: showing.message, ms: left };
   });
+  // While a sheet is open, the sheet on top draws the toast, as this one would be under it (toastLayer.ts).
+  const sheetOpen = useSheetOpen();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reader = useRef(false);
   useEffect(() => {
@@ -706,6 +722,12 @@ function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void;
   useEffect(() => {
     register((next) => {
       if (timer.current) clearTimeout(timer.current);
+      timer.current = null;
+      if (next.tone === 'problem') {
+        showing = { message: next.message, until: Infinity, tone: 'problem' };
+        setSpec(next);
+        return;
+      }
       const ms = toastTime() * (reader.current ? 2 : 1);
       showing = { message: next.message, until: Date.now() + ms };
       setSpec({ ...next, ms });
@@ -719,6 +741,8 @@ function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void;
     const t = setTimeout(() => setSpec((cur) => (cur?.id === id ? null : cur)), spec.ms);
     return () => clearTimeout(t);
   }, [spec]);
-  return <ToastView toast={spec} onDismiss={() => { showing = null; setSpec(null); }} bottom={props.bottom} />;
+  const dismiss = useCallback(() => { showing = null; setSpec(null); }, []);
+  useEffect(() => publishToast(spec, dismiss), [spec, dismiss]);
+  return sheetOpen ? null : <ToastView toast={spec} onDismiss={dismiss} bottom={props.bottom} />;
 }
 

@@ -6,7 +6,7 @@ import {
   bookParts, languageName, sameParts, type LanguageState, type LevelDisplay, type LibraryItemView, type OrgState, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { sharedTemplateShown } from '../breakup/model';
-import { countOutline, versionNumber, type LibraryChoice, type TemplateForm } from './contentTemplatesModel';
+import { choiceName, countOutline, versionNumber, type LibraryChoice, type TemplateForm } from './contentTemplatesModel';
 import { t } from '../i18n';
 import { sourceLine, usesItem } from '../library/model';
 
@@ -157,7 +157,7 @@ export function pickerNote(p: { hasCurrent: boolean; recorded: number; language:
     ? p.recorded
       ? t('content.picker.hiddenRecorded', { language, parts: p.currentParts, count: p.recorded })
       : t('content.picker.hidden', { language, parts: p.currentParts })
-    : t('content.picker.willRecord', { language, name: pick.name });
+    : t('content.picker.willRecord', { language, name: choiceName(pick) });
   return `${effect}${pick.source === 'shared' ? ` ${t('content.picker.followsIt', { org: pick.shared.org_name, language })}` : ''}`;
 }
 

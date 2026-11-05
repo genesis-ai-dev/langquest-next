@@ -1,5 +1,5 @@
 import {
-  adminScopeOf, effectiveRole, MANAGE_PRIVILEGES, mayViewLanguage, privilegesFor, privilegesOfFixedRole,
+  adminScopeOf, effectiveRole, MANAGE_PRIVILEGES, mayViewLanguage, orgLanguages, privilegesFor, privilegesOfFixedRole,
   type OrgState, type Privilege, type Role, type Scope
 } from '@langquest-next/core';
 import { viewsAsGlobalViewer, type GlobalViewerAccess } from '../account/globalViewerModel';
@@ -58,6 +58,8 @@ export interface Session {
    * screens may show, not what may be done.
    */
   readOnly: boolean;
+  /** Has a role in exactly one of the organization's languages: the Map tab opens that language (UI audit, finding 82). */
+  oneLanguage: boolean;
 }
 
 /**
@@ -97,6 +99,7 @@ export function deriveSession(
   const isWorker = privileges.has('translate') || privileges.has('review') || privileges.has('fill_reference');
   const isViewer = !isAdmin && !isWorker && privileges.has('view_status');
   const adminScope: Scope | null = readOnly ? { level: 'org' } : org ? adminScopeOf(org, actorId) : null;
+  const oneLanguage = !readOnly && !!org && orgLanguages(org).filter((l) => privilegesFor(org, actorId, l.languageId).size > 0).length === 1;
   return {
     actorId,
     email,
@@ -116,7 +119,8 @@ export function deriveSession(
     isManaged,
     isGlobalViewer: globalViewer === 'on',
     viewingAsGlobalViewer: readOnly,
-    readOnly
+    readOnly,
+    oneLanguage
   };
 }
 
@@ -166,9 +170,16 @@ export function manageHomeFor(s: Session): ScreenId | null {
   return null;
 }
 
-/** The screen behind the Map tab: workers go straight to their language, everyone else to the overview. */
+/**
+ * The screen behind the Map tab: workers, and anyone who works in one
+ * language whatever their role, go straight to their language; the rest
+ * (several languages to manage, viewers) to the overview. A lead of one
+ * language once landed on "Progress · All languages" with one row in it
+ * (UI audit, finding 82).
+ */
 export function mapScreenFor(s: Session): ScreenId {
-  return s.isWorker && !s.adminScope ? 'map_home' : 'status_home';
+  if (s.isViewer || s.readOnly) return 'status_home';
+  return (s.isWorker && !s.adminScope) || s.oneLanguage ? 'map_home' : 'status_home';
 }
 
 /**

@@ -7,27 +7,52 @@ import { txt } from '../ui/textStyles';
 import { reportError } from '../diagnostics/report';
 import { allowStorage, onStoreFailure } from '../storage/store';
 import { startTab, type TabDeps, type TabState } from './tabLock';
+import { tabBusy } from './tabBusy';
 import { C, space } from '../ui/theme';
 
 const WEB = Platform.OS === 'web';
 
 const MOVED_KEY = 'langquest-moved';
-/** Set while this tab takes the database over from another, so one failed first open reloads instead of stopping. */
-const TOOK_KEY = 'langquest-took';
+/** Set when a failed first open reloaded the page, so it reloads only once before the error screen. */
+const REOPEN_KEY = 'langquest-reopen';
 /**
- * The other tab's lock goes with its page, but the browser can take a moment
- * longer to let go of its file handles; opening at once can find them still
- * held (seen on CI's Linux Chromium). Wait this long after a takeover.
+ * The page before this one (a reload, or another tab that just handed the
+ * database over) lets go of its lock with the page, but the browser can take
+ * a moment longer to stop its SQLite worker and free its file handles; an
+ * open at once can find them still held (seen on CI's Linux Chromium under
+ * load). Wait this long after a takeover before opening, and after a failed
+ * first open before reloading.
  */
-const TAKEOVER_SETTLE_MS = 1500;
+const SETTLE_MS = 1500;
+/** A failure this soon after storage may open is taken for the page before still letting go. */
+const FIRST_OPEN_MS = 30_000;
 
-function tookFlag(op: 'get' | 'set' | 'clear'): boolean {
+/** True when the flag is set, or was just set; false without session storage, so a page never reloads without end. */
+function reopenFlag(op: 'get' | 'set' | 'clear'): boolean {
   try {
-    if (op === 'get') return sessionStorage.getItem(TOOK_KEY) === '1';
-    if (op === 'set') sessionStorage.setItem(TOOK_KEY, '1');
-    else sessionStorage.removeItem(TOOK_KEY);
+    if (op === 'get') return sessionStorage.getItem(REOPEN_KEY) === '1';
+    if (op === 'set') { sessionStorage.setItem(REOPEN_KEY, '1'); return true; }
+    sessionStorage.removeItem(REOPEN_KEY);
   } catch { /* no session storage: the error screen's Try again still works */ }
   return false;
+}
+
+/** When this page let storage open (store.ts), and whether a failure has already sent it to reload. */
+let openedAt: number | null = null;
+let reloading = false;
+function openStorage(): void {
+  openedAt = Date.now();
+  allowStorage();
+}
+
+/** A failed first open reloads once, after the page before has had time to let go; true when it will. */
+function reopenOnce(): boolean {
+  if (reloading) return true;
+  if (openedAt === null || Date.now() - openedAt > FIRST_OPEN_MS) return false;
+  if (reopenFlag('get') || !reopenFlag('set')) return false;
+  reloading = true;
+  setTimeout(() => window.location.reload(), SETTLE_MS);
+  return true;
 }
 
 function browserTab(): TabDeps | null {
@@ -35,6 +60,7 @@ function browserTab(): TabDeps | null {
   const channel = new BroadcastChannel('langquest-tabs');
   return {
     request: async (name, opts, callback) => { await navigator.locks.request(name, opts, callback); },
+    busy: tabBusy,
     post: (m) => channel.postMessage(m),
     listen: (handler) => {
       const on = (e: MessageEvent) => handler(String(e.data));
@@ -54,6 +80,7 @@ interface TabControl {
   state: TabState;
   listeners: Set<(s: TabState) => void>;
   useHere(): void;
+  cancel(): void;
 }
 const TAB_KEY = '__langquestTabLock';
 
@@ -69,12 +96,13 @@ function tabControl(): TabControl | null {
   if (g[TAB_KEY]) return g[TAB_KEY];
   const deps = browserTab();
   if (!deps) return null;
-  const control: TabControl = { state: 'checking', listeners: new Set(), useHere: () => {} };
+  const control: TabControl = { state: 'checking', listeners: new Set(), useHere: () => {}, cancel: () => {} };
   const lock = startTab(deps, (s) => {
     control.state = s;
     for (const l of control.listeners) l(s);
   });
-  control.useHere = () => { tookFlag('set'); lock.useHere(); };
+  control.useHere = lock.useHere;
+  control.cancel = lock.cancel;
   g[TAB_KEY] = control;
   return control;
 }
@@ -97,7 +125,7 @@ function keepStorage(): void {
  */
 export function StorageGate(props: { children: ReactNode }) {
   const [tab, setTab] = useState<TabState>(WEB ? 'checking' : 'ready');
-  const [actions, setActions] = useState<{ useHere(): void } | null>(null);
+  const [actions, setActions] = useState<{ useHere(): void; cancel(): void } | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   /**
@@ -109,12 +137,8 @@ export function StorageGate(props: { children: ReactNode }) {
   const reported = useRef(false);
 
   useEffect(() => onStoreFailure((e) => {
-    // Right after a takeover the other tab's files may not have been let go yet: reload once and open again.
-    if (WEB && tookFlag('get')) {
-      tookFlag('clear');
-      window.location.reload();
-      return;
-    }
+    // Right after a reload or a takeover the page before may still hold the files: reload once and open again.
+    if (WEB && reopenOnce()) return;
     if (reported.current) return;
     reported.current = true;
     setFailure(reportError('open storage', e));
@@ -130,7 +154,7 @@ export function StorageGate(props: { children: ReactNode }) {
     }
     setTab(control.state);
     control.listeners.add(setTab);
-    setActions({ useHere: control.useHere });
+    setActions({ useHere: control.useHere, cancel: control.cancel });
     return () => { control.listeners.delete(setTab); };
   }, []);
 
@@ -139,12 +163,13 @@ export function StorageGate(props: { children: ReactNode }) {
     const prev = last.current;
     last.current = tab;
     if (tab !== 'ready') return;
-    if (WEB) keepStorage();
-    if (prev !== 'waiting') { allowStorage(); return; }
-    // Taken over just now: give the other tab's files a moment to be let go of,
-    // and stop treating a failure as the takeover's once storage has had time to open.
-    const open = setTimeout(allowStorage, TAKEOVER_SETTLE_MS);
-    const settled = setTimeout(() => tookFlag('clear'), 30_000);
+    if (!WEB) { allowStorage(); return; }
+    keepStorage();
+    // Taken over just now: give the other tab's files a moment to be let go of.
+    const delay = prev === 'waiting' ? SETTLE_MS : 0;
+    const open = delay ? setTimeout(openStorage, delay) : (openStorage(), undefined);
+    // Open a while without failing: a later failure is a new one, and may reload once again.
+    const settled = setTimeout(() => { if (!reloading) reopenFlag('clear'); }, delay + FIRST_OPEN_MS);
     return () => { clearTimeout(open); clearTimeout(settled); };
   }, [tab]);
 
@@ -163,12 +188,17 @@ export function StorageGate(props: { children: ReactNode }) {
   }
   if (tab === 'ready') return <View key={attempt} style={{ flex: 1 }}>{props.children}</View>;
   if (tab === 'checking') return null;
-  const title = tab === 'moved' ? t('entry.storage.moved') : tab === 'waiting' ? t('entry.storage.moving') : t('entry.storage.elsewhere');
-  const sub = tab === 'waiting' ? t('entry.storage.movingSub') : t('entry.storage.elsewhereSub');
+  const title = tab === 'moved' ? t('entry.storage.moved') : tab === 'waiting' ? t('entry.storage.moving')
+    : tab === 'busy' ? t('entry.storage.otherRecording') : t('entry.storage.elsewhere');
+  const sub = tab === 'waiting' ? t('entry.storage.movingSub') : tab === 'busy' ? t('entry.storage.otherRecordingSub') : t('entry.storage.elsewhereSub');
   return (
     <View style={{ flex: 1, justifyContent: 'center', backgroundColor: C.bg, padding: space.xl }}>
-      <EmptyState icon="layers" title={title} sub={sub}>
-        {tab !== 'waiting' && actions ? (
+      <EmptyState icon={tab === 'busy' ? 'mic' : 'layers'} title={title} sub={sub}>
+        {tab === 'waiting' && actions ? (
+          <View style={{ alignSelf: 'center' }}><GhostBtn label={t('common.cancel')} icon="close" full={false} help={t('entry.storage.cancelMoveHelp')} onPress={actions.cancel} /></View>
+        ) : tab === 'busy' && actions ? (
+          <View style={{ alignSelf: 'center' }}><GhostBtn label={t('common.tryAgain')} icon="restart" full={false} help={t('entry.storage.useHereHelp')} onPress={actions.useHere} /></View>
+        ) : actions ? (
           <View style={{ alignSelf: 'center' }}><GhostBtn label={t('entry.storage.useHere')} icon="swap" full={false} help={t('entry.storage.useHereHelp')} onPress={actions.useHere} /></View>
         ) : null}
       </EmptyState>

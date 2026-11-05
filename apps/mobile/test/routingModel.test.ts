@@ -34,7 +34,8 @@ describe('WEB-017 the address names the section, per role', () => {
   const addresses = (role: string) => tabsFor(roleSession(role), undefined, { wide: true }).map((t) => [t.id, pathFor([{ screen: t.screen }])]);
 
   it('an administrator: work, map, reports, manage, settings', () => {
-    expect(addresses('owner')).toEqual([['work', '/work'], ['map', '/map'], ['reports', '/reports'], ['manage', '/manage'], ['me', '/settings']]);
+    // The fixture's organization has one language, so the Map tab is that language's map (UI audit, finding 82).
+    expect(addresses('owner')).toEqual([['work', '/work'], ['map', '/map/language'], ['reports', '/reports'], ['manage', '/manage'], ['me', '/settings']]);
   });
 
   it('a translator: the language map, not the status map; no manage', () => {

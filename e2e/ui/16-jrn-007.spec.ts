@@ -26,7 +26,7 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   await button(page, /^Start a new one/).click();
   await field(page, "What's it called?").fill(orgName);
   await button(page, /^License:/).click();
-  await page.getByRole('radio', { name: /^CC BY-NC-SA 4\.0/ }).click();
+  await page.getByRole('radio', { name: /CC BY-NC-SA 4\.0$/ }).click();
   await expect(text(page, 'People outside can hear your team')).toBeVisible();
   await button(page, 'Use this license').click();
   await expect(button(page, /^License: CC BY-NC-SA 4\.0/)).toBeVisible();
@@ -44,16 +44,22 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   await primary(page).click();
   await page.getByPlaceholder('e.g. Hadiyya').fill('Journey Language');
   await primary(page).click();
+  // The languages its translators use, right after its name (decision 193). As many as the team reads (decision 130): English is ticked already.
+  await expect(text(page, "Which languages do Journey Language's translators use?")).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: /^English/ })).toBeChecked();
+  await primary(page).click();
   await page.getByRole('radio', { name: 'The Bible' }).click();
   await primary(page).click();
+  // Why the numbering matters, then three ways to find it (LAN-193).
+  await expect(text(page, 'Bibles number verses differently')).toBeVisible();
+  await primary(page).click();
+  await button(page, /^Pick your Bible/).click();
   await page.getByRole('radio', { name: 'New International Version (2011)' }).click();
   await primary(page).click();
   await expect(page.getByRole('radio', { name: /^FIA passages\./ })).toBeVisible();
   await page.getByRole('radio', { name: /^FIA passages\./ }).click();
   await primary(page).click();
-  // Reference material before the review flow (decision 146). As many languages as the team reads (decision 130): English is ticked already.
-  await expect(page.getByRole('checkbox', { name: /^English/ })).toBeChecked();
-  await primary(page).click();
+  // Reference material before the review flow (decision 146), in those languages.
   await expect(text(page, 'What will help Journey Language’s team?')).toBeVisible();
   await primary(page).click();
   await expect(text(page, 'How will recordings get checked?')).toBeVisible();
@@ -65,7 +71,7 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   await expect(text(page, /^(Setting up Journey Language|Getting the passages|Getting the review steps|Saving Journey Language's passages)/)).toBeVisible();
   await expectToast(page, `Journey Language added to ${orgName}.`);
   await expect(text(page, 'Time to invite people')).toBeVisible();
-  await button(page, 'Later').click();
+  await button(page, 'Done').click();
   // The Map shows the books in scope.
   await tab(page, 'map').click();
   const journey = page.getByRole('button', { name: /^Journey Language: .*Open its map/ }).locator('visible=true').first();
@@ -93,11 +99,8 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   if (await others.isVisible().catch(() => false)) await others.click();
   const journeyScope = page.getByRole('button', { name: 'Journey Language' }).locator('visible=true');
   if (await journeyScope.count()) await journeyScope.first().click();
-  // Its card's own Invite (decision 146); a role that checks may be put on some checks first, none here.
-  await page.getByTestId('invite-role-Community Checker').locator('visible=true').first().getByRole('button', { name: 'Invite', exact: true }).click();
-  const asked = text(page, 'Which checks will they do?');
-  await expect(asked.or(text(page, 'Ask them to scan this'))).toBeVisible();
-  if (await asked.isVisible()) await primary(page).click();
+  // Its tile, and its code on the same page (LAN-195); a role that checks may be put on some checks, none here.
+  await page.getByTestId('invite-role-Community Checker').locator('visible=true').first().click();
   await expect(text(page, 'Ask them to scan this')).toBeVisible();
   await expect(text(page, /^Community Checker/)).toBeVisible();
   await button(page, 'Done').click();

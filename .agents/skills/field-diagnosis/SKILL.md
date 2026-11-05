@@ -44,6 +44,11 @@ role on a hosted database (`DIAG_DATABASE_URL`) or the local database.
    `npm run diag -- timeline <id> --days 3` to see the order of events
    around when it went wrong (sync outcomes, snapshot, transfer tallies,
    errors, app update ids).
+   "Does this phone have the fix?" Every phone line names its build:
+   `build 48 (2026.1030.1319) · OTA update 01a1827`, or `no OTA update`
+   for the store build's own code. Say what that line says. A phone from
+   before 2026-11-03 shows `build ? (runtime …)`: only EAS's build list
+   turns that runtime into a build number, so say which you checked.
 4. **An error code** someone read out: `npm run diag -- error <code>` gives
    the frames, the build and the 30 records before it. Map frames to source
    with the update id's source maps.

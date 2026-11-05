@@ -6,8 +6,8 @@
 // say yours, add a word), notes, and everything recorded so far.
 import { commands, keyTermsFor, notePart, noteHelp, RECORD_STEP, replyOf, type KeyTermView, type KeyWordDoc, type NoteAnchor, type PassageNote, type PassageState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useMemo, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
@@ -27,7 +27,7 @@ import { anchorClock, chipLabel, copyrightLine } from '../sources/sourceText';
 import { emptyBibleText, type VerseRow } from '../sources/model';
 import { useChipMarks } from '../sources/useSources';
 import { saveNote } from '../study/studyActions';
-import { C, radius, space, target, TINT, type as T } from '../ui/theme';
+import { C, onColor, radius, space, target, TINT, type as T } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
 import { joinAnd, languageLabel } from '../admin/adminModel';
 import { OthersSay, WhereItIs, WordChip } from './helps';
@@ -47,6 +47,8 @@ import { usePassageKeyWords } from '../keyTerms/usePassageKeyWords';
 import { KeyWordSheet } from '../keyTerms/lazySheets';
 import { ListWordRow } from '../keyTerms/KeyWordRows';
 import { ownTermId, shortName, type KeyWordList, type WordHere } from '../keyTerms/listsModel';
+import { a11yState } from '../ui/a11yModel';
+import { useFollowVerse } from './useFollowVerse';
 
 const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
 
@@ -64,6 +66,12 @@ export function BiblePane(props: {
   /** What the step shows (decisions.md 130): the player when heard, the verses' words when read; numbers alone otherwise. */
   hear?: boolean;
   read?: boolean;
+  /**
+   * The pane scrolls itself, with this padding: the player stays at its top
+   * and only the words under it scroll (LAN-130), following the verse being
+   * read (LAN-131). Else the pane is part of a page that scrolls.
+   */
+  scroll?: StyleProp<ViewStyle>;
 }) {
   const { ctx, v, bible } = props;
   const hear = props.hear ?? true;
@@ -97,8 +105,15 @@ export function BiblePane(props: {
     : bible.audioAbsent ? t('recording.player.notOnDeviceYet')
       : src?.loading || !src ? t('common.loading') : src.textProblem;
   const selectedRow = props.selected ? src?.rows?.find((r) => r.key === props.selected) ?? null : null;
-  return (
-    <View style={{ gap: space.md }}>
+  const scrollRef = useRef<ScrollView>(null);
+  const follow = useFollowVerse({ playing: player.playing, verse: player.started ? player.current?.key : undefined, scroll: scrollRef });
+  // Under the chosen verse: what a note there is on, with the moment when it is playing there (UI audit, finding 42).
+  const noteHereLabel = (key: string) => {
+    const at = player.started && player.current?.key === key ? mmss(player.ms) : null;
+    return at ? t('study.reader.addNoteOnAt', { verse: key, time: at }) : t('study.reader.addNoteOn', { verse: key });
+  };
+  const top = (
+    <>
       {props.header}
       {hear ? (
         <MiniPlayer title={v.title} sub={bible.line()} playing={player.playing} available={bible.hasAudio && !player.loading} none={!bible.hasAudio && !bible.passage.notOnDevice && !bible.audioAbsent}
@@ -114,6 +129,10 @@ export function BiblePane(props: {
       ) : many ? (
         <View style={styles.under}><BiblePick label={abbr} onPress={() => setPicking(true)} /></View>
       ) : null}
+    </>
+  );
+  const words = (
+    <>
       {src?.rows && !read ? (
         <VerseDots>
           {src.rows.map((row) => (
@@ -124,7 +143,7 @@ export function BiblePane(props: {
           ))}
         </VerseDots>
       ) : src?.rows ? (
-        <View style={{ gap: space.xs }}>
+        <View style={{ gap: space.xs }} onLayout={follow.onList}>
           {src.rows.map((row) => {
             const here = player.started && player.current?.key === row.key;
             const sel = props.selected === row.key;
@@ -132,8 +151,10 @@ export function BiblePane(props: {
             const parts = markTerms(row.text, terms);
             const termIds = parts.flatMap((p) => (p.termId ? [p.termId] : []));
             return (
-              <HelpRow key={row.key} of="reference.verse">
+              <View key={row.key} onLayout={follow.onRow(row.key)}>
+              <HelpRow of="reference.verse">
                 <Verse row={row} here={here} selected={sel} notes={n} onPress={() => tap(row)} timed={bible.hasAudio && bible.timed}
+                  {...(sel && props.canNote ? { below: <AddNoteHere label={noteHereLabel(row.key)} onPress={note} /> } : {})}
                   terms={termIds.length === 0 ? null : props.onTerm ? 'open' : 'marked'} tied={termIds.some((id) => props.tied?.has(id))}>
                   {parts.map((part, i) => {
                     if (!part.termId) return <Text key={i}>{part.text}</Text>;
@@ -146,6 +167,7 @@ export function BiblePane(props: {
                   })}
                 </Verse>
               </HelpRow>
+              </View>
             );
           })}
         </View>
@@ -163,6 +185,10 @@ export function BiblePane(props: {
         </View>
       ) : null}
       {props.footer}
+    </>
+  );
+  const sheets = (
+    <>
       {picking ? <BibleSheet ctx={ctx} bible={bible} onClose={() => setPicking(false)} {...(props.onMoreBibles ? { onMoreBibles: () => { setPicking(false); props.onMoreBibles!(); } } : {})} /> : null}
       {noting ? (
         <NoteSheet ctx={ctx} v={v} title={noting.verse ? t('reference.notes.noteOnRef', { verse: noting.verse }) : t('common.addNote')}
@@ -170,12 +196,45 @@ export function BiblePane(props: {
           anchor={noting.verse ? { kind: 'verse', verse: noting.verse, ...(abbr ? { translation: abbr } : {}), ...(noting.at ? { at: noting.at } : {}) } : { kind: 'passage' }}
           onClose={() => setNoting(null)} />
       ) : null}
+    </>
+  );
+  if (props.scroll) {
+    return (
+      <View style={{ flex: 1 }}>
+        {props.header || hear || many ? <View style={[props.scroll, { flexGrow: 0, paddingBottom: space.sm }]}>{top}</View> : null}
+        <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={[props.scroll, { paddingTop: 0 }]} keyboardShouldPersistTaps="handled"
+          onLayout={follow.onLayout} onScroll={follow.onScroll} onScrollBeginDrag={follow.onScrollBeginDrag} scrollEventThrottle={64}>
+          {words}
+        </ScrollView>
+        {sheets}
+      </View>
+    );
+  }
+  return (
+    <View style={{ gap: space.md }}>
+      {top}
+      {words}
+      {sheets}
     </View>
+  );
+}
+
+/** "Add a note on 15:20", under the verse chosen. */
+function AddNoteHere(props: { label: string; onPress: () => void }) {
+  const spot = useHelpSpot(props.label, t('study.reader.addNoteHelp'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.addHere, pressed && ps.pressed]}>
+      <Ico name="note" size={16} color={C.white} />
+      <Text style={[txt.sm, { fontWeight: '700', color: C.white, flexShrink: 1 }]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
   );
 }
 
 function Verse(props: {
   row: VerseRow; here: boolean; selected: boolean; notes: number; timed: boolean; onPress: () => void; children: ReactNode;
+  /** Drawn under the verse: Add a note here, when it is chosen. */
+  below?: ReactNode;
   /** Key words in it: `open` when a tap opens one, `marked` when they are only underlined. */
   terms?: 'open' | 'marked' | null; tied?: boolean;
 }) {
@@ -190,16 +249,19 @@ function Verse(props: {
   ].filter(Boolean).join(' ');
   const spot = useHelpSpot(t('reference.bible.verse', { verse }), detail, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: props.here || props.selected }}
-      accessibilityLabel={props.notes ? t('reference.bible.verseLabelNotes', { verse: r.key, text: r.text, count: props.notes }) : t('sources.reader.verseLabel', { verse: r.key, text: r.text })}
-      style={({ pressed }) => [styles.verse, props.here && styles.versePlaying, props.selected && styles.verseSelected, pressed && ps.pressed]}>
-      <Text style={styles.verseText}>
-        <Text style={styles.verseNum}>{verse} </Text>
-        {props.children}
-        {props.notes ? <Text style={styles.verseNotes}>  ● {formatNumber(props.notes)}</Text> : null}
-      </Text>
-      <HelpBadge spot={spot} />
-    </Pressable>
+    <>
+      <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ selected: props.here || props.selected }, 'button')}
+        accessibilityLabel={props.notes ? t('reference.bible.verseLabelNotes', { verse: r.key, text: r.text, count: props.notes }) : t('sources.reader.verseLabel', { verse: r.key, text: r.text })}
+        style={({ pressed }) => [styles.verse, props.here && styles.versePlaying, props.selected && styles.verseSelected, pressed && ps.pressed]}>
+        <Text style={styles.verseText}>
+          <Text style={styles.verseNum}>{verse} </Text>
+          {props.children}
+          {props.notes ? <Text style={styles.verseNotes}>  ● {formatNumber(props.notes)}</Text> : null}
+        </Text>
+        <HelpBadge spot={spot} />
+      </Pressable>
+      {props.below}
+    </>
   );
 }
 
@@ -272,7 +334,7 @@ function BibleRow(props: { label: string; sub: string; on?: boolean; more?: bool
   /** What help mode says picking it does, where `sub` is what it has. */ help?: string }) {
   const spot = useHelpSpot(props.label, props.help ?? props.sub, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole={props.more ? 'button' : 'radio'} accessibilityState={props.more ? undefined : { selected: !!props.on }}
+    <Pressable onPress={spot.onPress} accessibilityRole={props.more ? 'button' : 'radio'} {...a11yState(props.more ? undefined : { selected: !!props.on }, props.more ? 'button' : 'radio')}
       style={({ pressed }) => [styles.bibleRow, !props.last && ps.rowBorder, pressed && ps.pressed]}>
       <Ico name={props.more ? 'plus' : 'book'} size={20} color={C.primary} />
       <View style={{ flex: 1, minWidth: 0 }}>
@@ -322,7 +384,14 @@ function voiceOf(term: KeyTermView): string | undefined {
  */
 export function KeyWordsPane(props: {
   ctx: Ctx; v: PassageView; terms: KeyTermView[]; rows: VerseRow[] | null; draftTakeId: string | undefined;
-  canTie: boolean; onHear: (verseKey: string | null) => void; allTerms?: () => void; disabled?: boolean;
+  canTie: boolean; allTerms?: () => void; disabled?: boolean;
+  /**
+   * Plays the Bible from a verse and shows it; false when it cannot (no
+   * timed audio for that verse), and the pane stays and says so.
+   * `canHear` is false when the Bible has no timed audio here at all: then
+   * no word offers the headphones (UI audit, finding 41).
+   */
+  onHear: (verseKey: string) => boolean; canHear: boolean;
   /** Opens a list word's own page (decision 172). */
   onWordPage?: (list: KeyWordList, word: KeyWordDoc) => void;
   /** The Bible the verses are in ("WEB"), for Add a key word's verses. */
@@ -332,6 +401,7 @@ export function KeyWordsPane(props: {
 }) {
   const { ctx, v } = props;
   const canEdit = ctx.session.can('fill_reference') || ctx.session.can('manage_reference');
+  const hearAt = (key: string) => { if (!props.onHear(key)) ctx.toast(t('reference.keyWords.noVerseAudio')); };
   const [saying, setSaying] = useState<KeyTermView | null>(null);
   const [adding, setAdding] = useState(false);
   const [opened, setOpened] = useState<WordHere | null>(null);
@@ -365,7 +435,7 @@ export function KeyWordsPane(props: {
               return (
                 <HelpRow key={term.termId} of="reference.keyWord">
                   <TermRow ctx={ctx} term={term} refs={keys.length ? `${book} ${verseRefs(keys)}` : term.gloss || t('reference.keyWords.elsewhere')} last={i === terms.length - 1}
-                    onHear={() => props.onHear(keys[0] ?? null)} canEdit={canEdit && !props.disabled} onSay={() => setSaying(term)}
+                    {...(props.canHear && keys[0] ? { onHear: () => hearAt(keys[0]!) } : {})} canEdit={canEdit && !props.disabled} onSay={() => setSaying(term)}
                     onOpen={() => ctx.go('key_term_detail', { unitId: v.unitId, languageId: v.languageId, termId: term.termId, ...(props.draftTakeId ? { draftId: props.draftTakeId } : {}) })} />
                 </HelpRow>
               );
@@ -393,7 +463,7 @@ export function KeyWordsPane(props: {
         <ListWordSheet ctx={ctx} list={opened.list} word={opened.word} place={v} draftTakeId={props.draftTakeId} rows={props.rows} bibleName={props.bibleName ?? ''}
           disabled={props.disabled} onClose={() => setOpened(null)}
           {...(props.onWordPage ? { onPage: (word: KeyWordDoc) => { setOpened(null); props.onWordPage!(opened.list, word); } } : {})}
-          {...(opened.verses.length ? { verses: { keys: opened.verses, book, onPlay: (key: string) => { setOpened(null); props.onHear(key); } } } : {})} />
+          {...(opened.verses.length ? { verses: { keys: opened.verses, book, onPlay: (key: string) => { setOpened(null); hearAt(key); } } } : {})} />
       ) : null}
     </View>
   );
@@ -429,7 +499,8 @@ export function ListWordSheet(props: {
   return <KeyWordSheet ctx={ctx} list={list} word={props.word} onClose={props.onClose} {...(props.verses ? { verses: props.verses } : {})} {...(canEdit ? { onAdd: setAdding } : {})} {...(props.onPage ? { onPage: props.onPage } : {})} />;
 }
 
-function TermRow(props: { ctx: Ctx; term: KeyTermView; refs: string; last: boolean; canEdit: boolean; onHear: () => void; onSay: () => void; onOpen: () => void }) {
+/** One of the team's words. `onHear` only when the Bible can play a verse it is in. */
+function TermRow(props: { ctx: Ctx; term: KeyTermView; refs: string; last: boolean; canEdit: boolean; onHear?: () => void; onSay: () => void; onOpen: () => void }) {
   const term = props.term;
   const voice = voiceOf(term);
   const rendering = term.renderings[term.renderings.length - 1]?.rendering;
@@ -437,10 +508,12 @@ function TermRow(props: { ctx: Ctx; term: KeyTermView; refs: string; last: boole
   const open = useHelpSpot(term.term, t('reference.keyWords.openHelp'), props.onOpen);
   return (
     <View style={[styles.termRow, !props.last && ps.rowBorder]}>
-      <Pressable onPress={hear.onPress} accessibilityRole="button" accessibilityLabel={t('reference.keyWords.hearLabel', { term: term.term })} hitSlop={4} style={({ pressed }) => [styles.hear, pressed && ps.pressed]}>
-        <Ico name="listen" size={22} color={TINT.amberText} />
-        <HelpBadge spot={hear} />
-      </Pressable>
+      {props.onHear ? (
+        <Pressable onPress={hear.onPress} accessibilityRole="button" accessibilityLabel={t('reference.keyWords.hearLabel', { term: term.term })} hitSlop={4} style={({ pressed }) => [styles.hear, pressed && ps.pressed]}>
+          <Ico name="listen" size={22} color={TINT.amberText} />
+          <HelpBadge spot={hear} />
+        </Pressable>
+      ) : null}
       <Pressable onPress={open.onPress} accessibilityRole="button"
         accessibilityLabel={rendering ? t('reference.keyWords.termLabelWord', { term: term.term, refs: props.refs, word: rendering }) : t('reference.keyWords.termLabel', { term: term.term, refs: props.refs })}
         style={({ pressed }) => [{ flex: 1, minWidth: 0, minHeight: target.min, justifyContent: 'center' }, pressed && ps.pressed]}>
@@ -599,7 +672,7 @@ export function AddWordSheet(props: {
   return (
     <Sheet visible title={t('reference.keyWords.add')} sub={t('reference.keyWords.addSub', { language: v.language })}
       action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />}
-      onClose={props.onClose} footer={<PrimaryBtn label={t('reference.keyWords.addWord')} icon="plus" busy={busy} disabled={!ready} onPress={() => void save()} />}>
+      onClose={props.onClose} footer={<PrimaryBtn label={t('reference.keyWords.addWord')} icon="plus" busy={busy} disabled={!ready} help={t('reference.keyWords.addWordHelp', { language: v.language })} onPress={() => void save()} />}>
       {suggestions.length && !word ? (
         <View style={{ gap: space.xs }}>
           <Text style={txt.xsStrong}>{t('keyTerms.others.suggest')}</Text>
@@ -621,6 +694,8 @@ export function AddWordSheet(props: {
           <OthersSay ctx={ctx} items={say} loading={others.loading} word={word} />
         </>
       ) : null}
+      {/* The one part Add the word needs, named as such: it sat unlabelled under the optional ones (UI audit, finding 43). */}
+      <SectionLabel label={t('reference.keyWords.howSays', { language: v.language })} />
       <VoiceNote ctx={ctx} label={t('reference.keyWords.sayItIn', { language: v.language })} hash={hash} onChange={(h) => put({ hash: h })} />
       <Field value={rendering} onChangeText={(x) => put({ rendering: x })} placeholder={t('common.orTypeIt')} help={t('reference.keyWords.typeHelp', { language: v.language })} />
     </Sheet>
@@ -835,6 +910,8 @@ function EarlierRow(props: { ctx: Ctx; item: EarlierItem; last: boolean }) {
 
 const styles = StyleSheet.create({
   card: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
+  addHere: { alignSelf: 'flex-start', minHeight: target.min, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', gap: space.sm,
+    paddingHorizontal: space.lg, marginLeft: 36, marginTop: space.xs, marginBottom: space.xs, backgroundColor: onColor.amber },
   verse: { borderRadius: radius.md, paddingHorizontal: space.xs, paddingVertical: 2, borderWidth: 1.5, borderColor: 'transparent', minHeight: target.min, justifyContent: 'center' },
   versePlaying: { backgroundColor: C.light, paddingHorizontal: space.sm },
   verseSelected: { borderColor: C.soft },

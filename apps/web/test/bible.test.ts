@@ -44,6 +44,13 @@ function bibleBrain(): Upstream {
   const status = (n: number) => new Response(JSON.stringify({ error: { message: 'x', status_code: n } }), { status: n });
   const fetch = async (raw: string) => {
     const url = new URL(raw);
+    // FCBH's signed links: the file itself, with no key.
+    if (url.hostname === 'cdn.example') {
+      calls.push(`cdn${url.pathname}`);
+      const o = overrides.get(`cdn${url.pathname}`);
+      if (o) return o();
+      return new Response(`mp3 of ${url.pathname}`, { status: 200, headers: { 'content-type': 'audio/mpeg' } });
+    }
     if (url.searchParams.get('key') !== KEY || url.searchParams.get('v') !== '4') return status(401);
     const path = url.pathname.replace(/^\/api/, '');
     calls.push(path);
@@ -219,10 +226,26 @@ describe('the Bible routes', () => {
     const res = await call('/api/bible/bibles?lang=eng');
     expect(res.body.bibles).toEqual([
       { bibleId: 'ENGESV', name: 'English Standard Version®', abbreviation: 'ESV', language: 'eng', languageName: 'English',
-        text: { OT: 'ENGESVO_ET', NT: 'ENGESVN_ET' }, audio: { OT: 'ENGESVO1DA', NT: 'ENGESVN1DA' }, timestamps: { OT: true, NT: false } },
+        text: { OT: 'ENGESVO_ET', NT: 'ENGESVN_ET' }, audio: { OT: 'ENGESVO1DA', NT: 'ENGESVN1DA' }, timestamps: { OT: true, NT: false }, numbering: 'eng' },
       { bibleId: 'ENGWEB', name: 'World English Bible', abbreviation: 'WEB', language: 'eng', languageName: 'English',
         text: { OT: 'ENGWEBO_ET', NT: 'ENGWEBN_ET' }, audio: { NT: 'ENGWEBN2DA' }, timestamps: { OT: false, NT: true } }
     ]);
+  });
+
+  it('finds Bibles by name, language or id with the numbering the survey found, without asking Bible Brain', async () => {
+    const { up, call } = setup();
+    const kjv = await call('/api/bible/numbered?q=ENGKJV');
+    expect(kjv.status).toBe(200);
+    expect(kjv.body.bibles[0]).toEqual({ bibleId: 'ENGKJV', name: 'King James Version', language: 'eng', languageName: 'English: USA', numbering: 'eng' });
+    // Every word, in any field: a Thai Bible by its language and its name in Thai.
+    const thai = (await call('/api/bible/numbered?q=thai standard')).body.bibles;
+    expect(thai.map((b: { bibleId: string }) => b.bibleId)).toContain('THATSV');
+    expect(thai.find((b: { bibleId: string }) => b.bibleId === 'THATSV')).toMatchObject({ vname: 'เวอร์ชั่นไทยมาตรฐาน', numbering: 'eng' });
+    expect((await call('/api/bible/numbered?q=bible')).body.bibles).toHaveLength(20);
+    expect((await call('/api/bible/numbered?q=x')).status).toBe(400);
+    // A Bible that fits none of the numberings offered is not found (ENGWEB has the deuterocanon numbered its own way).
+    expect((await call('/api/bible/numbered?q=ENGWEB')).body.bibles.map((b: { bibleId: string }) => b.bibleId)).not.toContain('ENGWEB');
+    expect(up.calls).toEqual([]);
   });
 
   it('describes one Bible: books, copyright, and whether /download allows its text and audio', async () => {
@@ -255,6 +278,33 @@ describe('the Bible routes', () => {
     expect(nt.offline).toBe(false);
     expect(nt.url).toBe(signed('ENGESVN1DA_MAT_1.mp3'));
     expect(up.calls).toEqual(expect.arrayContaining(['/download/ENGESVN1DA/MAT/1', '/bibles/filesets/ENGESVN1DA/MAT/1']));
+  });
+
+  it('passes a chapter\'s file to a browser to keep, only when /download allows it, and keeps nothing (decisions.md 201)', async () => {
+    const { up, cache, call } = setup();
+    const file = async (path: string, token: string | null = 'good') => {
+      const deps: ApiDeps = { profileOf: async (t) => (t === 'good' ? 'p1' : null), reports: async () => null, bible: { key: KEY, fetch: up.fetch, cache, now: () => NOW } };
+      const res = await handleApi(new Request(`https://next.langquest.org${path}`, { headers: token ? { authorization: `Bearer ${token}` } : {} }), deps);
+      const text = await res.text();
+      seen.push(text, JSON.stringify([...res.headers]));
+      return { status: res.status, text, headers: res.headers };
+    };
+    const ot = await file('/api/bible/file/ENGESVO1DA/GEN/1');
+    expect(ot.status).toBe(200);
+    expect(ot.text).toBe('mp3 of /audio/ENGESVO1DA_GEN_1.mp3');
+    expect(ot.headers.get('content-type')).toBe('audio/mpeg');
+    expect(ot.headers.get('cache-control')).toBe('private, no-store');
+    expect(up.calls).toContain('/download/ENGESVO1DA/GEN/1');
+    // Streaming only: heard in the app, never kept, so never passed through.
+    expect((await file('/api/bible/file/ENGESVN1DA/MAT/1')).status).toBe(403);
+    expect(up.calls).not.toContain('cdn/audio/ENGESVN1DA_MAT_1.mp3');
+    expect((await file('/api/bible/file/ENGESVO1DA/GEN/1', null)).status).toBe(401);
+    // FCBH's file host failing is a gateway error, not audio.
+    up.overrides.set('cdn/audio/ENGESVO1DA_GEN_2.mp3', () => new Response('<html>', { status: 200, headers: { 'content-type': 'text/html' } }));
+    expect((await file('/api/bible/file/ENGESVO1DA/GEN/2')).status).toBe(502);
+    // Only the link is cached, as before; never the bytes.
+    expect([...cache.store.values()].some((v) => v.body.startsWith('mp3 of'))).toBe(false);
+    expect((await call('/api/bible/audio/ENGESVO1DA/GEN/1')).body.offline).toBe(true);
   });
 
   it('has no Genesis audio for an NT-only Bible', async () => {

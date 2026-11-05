@@ -140,7 +140,7 @@ Steps:
 Expected:
 - On done steps REV sees "Done by {TRANS-name} · {when}".
 - On a step not done REV sees no "Done with this step"; the footer is "Next: {next step's title}" (ghost), or nothing on the last step.
-- REV may answer and add notes (REV holds Review): "Answer" and "Add a note" are offered.
+- REV may answer and add notes (REV holds Review): "Answer" shows under each question, and "Add a note" under a part REV taps.
 - REV never sees "Record the first draft" or "Open the recording workspace".
 
 ### STUDY-006 A viewer reads the study and cannot add to it
@@ -169,20 +169,21 @@ Preconditions:
 - P-SUBMITTED's study is open on a step with a question in its text.
 
 Steps:
-1. Tap the question.
-2. Tap "Answer".
-3. In the sheet "Your answer", tap "Record what the group said", speak for 6 seconds, stop.
-4. Tap "Or type it", type "The son came to himself", tap "Add your answer".
+1. Tap the question (or the "Answer" under it).
+2. In the sheet "Your answer", tap "Record what the group said", speak for 6 seconds, stop.
+3. Tap "Or type it", type "The son came to himself", tap "Add your answer".
 
 Expected:
-- Step 1 lights the question and shows "Answer". A plain section shows "Add a note" instead.
+- Every question shows "Answer" under it without a tap first, and a tap on the question opens the same sheet. A plain section, once tapped, lights and shows "Add a note".
 - The sheet's sub reads "It stays with the passage, and reviewers see it with the study."
 - "Add your answer" is disabled until something is said or typed. What is said or typed is kept on this device as a draft only TRANS sees (the sheet's saved mark), so closing the sheet and answering again brings it back (decision 127).
-- Step 4 shows the toast "Added to the study. Reviewers will see it with the passage.", with no Undo.
+- Step 3 shows the toast "Added to the study. Reviewers will see it with the passage.", with no Undo.
 - The answer shows under the question, labelled "Answer", with a play button for the voice. Its card has "Undo", because it is TRANS's own (someone else's answer has the report flag instead). Do not tap it here: REV-011 uses this answer.
 - REV sees it in Review it → Background → "Guide" (REV-011) and in the study.
 
 Changed (2026-10-16, decision 134): no toast offers Undo; the "Undo" on your own answer's card takes it back.
+
+Changed (2026-10-28, UI audit finding 39): "Answer" showed only after a tap on the question, which nothing pointed to; it now shows under every question.
 
 ### STUDY-008 A note at a moment of the spoken step
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -213,9 +214,11 @@ Steps:
 1. Open P-Q2's record and its Study row.
 
 Expected:
-- If the guide is on the device, it opens, and the spoken player reads "Couldn't load the recording" rather than spinning forever.
+- If the guide is on the device, it opens, and the spoken player reads "Couldn't load the recording" (a file from the web) or "Audio is not on this device yet." (one the organization keeps) rather than spinning forever, with its play button grey. Nothing counts time over silence.
 - If the guide is not on the device, the study must not claim the passage has no guide: "There's no study guide for this passage." is wrong for a guide that exists but was never downloaded. Record what shows.
 - A passage kept offline (Ready for offline) opens its guide offline in full (decision 71, last amendment: a phone keeps the guides of the passages it keeps).
+
+Fixed (2026-10-28, UI audit finding 36): the play button stayed purple, and Play ran a clock over silence when the file could not load; a kept file that could not be fetched said "Getting the recording…" for good (`useStudyAudio.ts`, `guide.tsx`).
 
 ### STUDY-010 Glossary words in the guide
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -230,7 +233,7 @@ Steps:
 
 Expected:
 - A sheet titled with the word, sub "Glossary · the guide · English", with its meaning.
-- Step 2 plays the word. If its audio cannot load, the sheet says "Couldn't load the audio — playing a stand-in".
+- Step 2 plays the word. If its audio cannot load, the player stops and the sheet says "Couldn't load the recording" (finding 36: it used to play a stand-in clock over silence).
 - If the organization has the term among its key terms, the footer reads "Open the key term" and opens its page (STUDY-023). Otherwise it reads "This term isn't in your organization's key terms yet." and is not a button.
 
 ### STUDY-011 Callouts, pictures and maps
@@ -350,10 +353,13 @@ Steps:
 
 Expected:
 - Each word shows where it is in the passage (for example "Luke 15:18, 21") and, on the right, "Your word" (a voice rendering), the written rendering, or "Say yours".
-- Step 2 switches to the "Bible" chip, selects the verse, and plays from it.
+- Step 2 switches to the "Bible" chip, selects the verse, and plays from it. In the study the footer then reads "Back to Key words", and it and the phone's Back return to the Key words chip.
+- When the Bible's audio has no verse timings (the built-in BSB, so the automated run), no word shows the listen icon. When the word's verse cannot be played, the pane stays and the toast reads "This Bible has no audio for that verse."
 - Step 3 opens the term's page (STUDY-023).
 - "Add a key word" and "All key words" are at the end of the list.
 - With no words, the pane reads "No key words in this passage yet. Add one your team should say the same way every time." (for those who may add) or "No key words in this passage yet." (others).
+
+Fixed (2026-10-28, UI audit finding 41): the listen icon switched to the Bible chip even when nothing could play, and the study's footer then led to the guide, not back to Key words (`reference.tsx`, `study.tsx`, `translate.tsx`, `btWorkspace.tsx`).
 
 ### STUDY-018 Say your word for a key word
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -387,7 +393,7 @@ Steps:
 3. Each: tap a word to open its page.
 
 Expected:
-- No "Say yours", "Add a key word", "New term", "Tie to your draft" or "Adjust or add a rendering" is offered.
+- No "Say yours", "Add a key word", "New term", "Tie to your draft" or "Change or add a word" is offered.
 - Words can be heard, and the term's page can be read.
 
 ### STUDY-020 The Key Terms list
@@ -402,7 +408,7 @@ Steps:
 3. Tap ✕ or Back.
 
 Expected:
-- The screen is "Key Terms" with the sub "Luke 15:11-32 · Alpha".
+- The screen is "Key Words" with the sub "Luke 15:11-32 · Alpha".
 - "New term" is in the header (TRANS holds Fill reference).
 - Sections "In this passage · N" (including "heaven") and "Other terms · N".
 - Terms without a rendering read "No Alpha rendering yet". FIA terms carry an FIA badge.
@@ -454,8 +460,8 @@ Expected:
 - The meaning, or "No meaning written yet.".
 - Where it applies: "Appears in {places}", or "Applies to every passage".
 - A card "Tie to your draft" with "So reviewers know this term shaped Luke 15:11-32." (because a draft is open and TRANS holds Translate and Fill reference).
-- "In Alpha" with the rendering, or an amber "No rendering yet" with "Add how Alpha says this, and when to use it.".
-- "Adjust or add a rendering" (or "Add a rendering" when there is none).
+- "In Alpha" with the rendering, or an amber "No word yet" with "Add how Alpha says this, and when to use it.".
+- "Change or add a word" (or "Add a rendering" when there is none).
 - "Why it's rendered this way" and "Where it's used" sections when there is history.
 
 ### STUDY-024 Tie a key term to the draft
@@ -489,16 +495,16 @@ Expected:
 
 Fixed (2026-10-12): the term's page now ties to the person's own draft: the one the workspace names (`draftId`), else the one they changed last (`study/keyTermDraft.ts`, tested in `apps/mobile/test/keyTermDraft.test.ts`), never a teammate's. The workspace does not pass `draftId` yet (`translate.tsx`), so with several drafts of one's own the tie goes on the one changed last, which is the one the workspace opens by default.
 
-### STUDY-026 Adjust or add a rendering, with why
+### STUDY-026 Change or add a word, with why
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
 - "heaven"'s page is open from P-SUBMITTED's workspace.
 
 Steps:
-1. Tap "Adjust or add a rendering".
+1. Tap "Change or add a word".
 2. Try "Add your word" with nothing.
-3. Type a new rendering in "New rendering (optional)", and "Only for God's dwelling" in "When to use it".
+3. Type a new rendering in "New word (optional)", and "Only for God's dwelling" in "When to use it".
 4. Tap "Say why", say 5 seconds, stop. Tap "Add your word".
 5. Open the sheet again; this time only type "Elders prefer the older word" in "Or type what changed, and why", and tap "Add your word".
 
@@ -603,7 +609,7 @@ Steps:
 
 Expected:
 - The detail shows its name, "{abbr} · Swahili", a badge "Can be kept offline" or "Streams only", and "No audio for the Old Testament" or "No audio for the New Testament" when the book has none.
-- Book and chapter chips (or "Previous chapter" and "Next chapter" for a library Bible) change the reader below.
+- It opens at the passage's book and chapter (Luke 15), with the lit book and chapter chips scrolled into view. Book and chapter chips (or "Previous chapter" and "Next chapter" for a library Bible) change the reader below.
 - Step 3 shows "{abbr} added to My Bibles", with no Undo, and returns to the passage.
 - In step 4 the reopened Bible shows a disabled "In My Bibles" and the link "Remove from My Bibles". Tapping the link shows "{abbr} removed from My Bibles", the footer turns back to "Add to My Bibles", and the Bible picker no longer lists it.
 - After step 5 it shows in the Bible picker, with "My Bible" in the More Bibles list. Reopening it shows a disabled "In My Bibles" and a link "Remove from My Bibles".
@@ -611,6 +617,8 @@ Expected:
 - Resets: TRANS's device has the Swahili Bible in My Bibles.
 
 Changed (2026-10-16, decision 134): no toast offers Undo; the Bible's "Remove from My Bibles" link takes it out again.
+
+Fixed (2026-10-28, UI audit finding 37): a Bible opened at chapter 1 with the book chips scrolled back to Genesis; it now opens at the passage's chapter and keeps the lit chips in view (`sources.tsx`).
 
 ### STUDY-032 Remove from My Bibles
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Manual
@@ -653,6 +661,7 @@ Steps:
 1. Tap "Next chapter" until "Chapter 24", then once more.
 
 Expected:
+- It opens at "Chapter 15", the passage's (finding 37).
 - After Luke 24, "Next chapter" is disabled, or moves to the next book.
 
 Fixed (2026-10-12): "Next chapter" stops at the book's last chapter under the Bible's numbering (`chaptersInBook` of its versification, `sources.tsx`): after Luke 24 it is gone. Run on the organization's own Bible ("Test Library Bible", Luke in English numbering) that the world adds (`e2e/ui/study-helpers.ts`).

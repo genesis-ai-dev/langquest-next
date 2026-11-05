@@ -58,7 +58,7 @@ export function searchListedOrganizations(query: string) {
  * phone on (handOver.ts). A refusal the server will repeat is permanent.
  */
 export async function deliverAccountAction(actorId: string, action: AccountAction,
-  attached: { screenshot?: string | null; voice?: { base64: string; format: string } | null } = {}): Promise<void> {
+  attached: { screenshot?: string | null; picture?: string | null; voice?: { base64: string; format: string } | null } = {}): Promise<void> {
   const { data } = await supabase.auth.getSession();
   const client = data.session?.user.id === actorId ? supabase : sendingAs(actorId);
   if (!client) {
@@ -87,7 +87,9 @@ export async function deliverAccountAction(actorId: string, action: AccountActio
               p_id: action.id, p_kind: p.kind, p_body: p.body, p_install: p.installId, p_context: p.context ?? {},
               p_share_profile: p.shareProfile === true, p_screenshot: attached.screenshot ?? null,
               p_voice: attached.voice?.base64 ?? null, p_voice_format: attached.voice?.format ?? null,
-              p_voice_ms: attached.voice ? (p.voice as { durationMs?: number } | null)?.durationMs ?? null : null
+              p_voice_ms: attached.voice ? (p.voice as { durationMs?: number } | null)?.durationMs ?? null : null,
+              // Named only when there is one (LAN-198): a report without a picture calls the function as before.
+              ...(attached.picture ? { p_picture: attached.picture } : {})
             })
             : await client.rpc('record_user_event', {
               p_id: action.id, p_type: p.type, p_payload: p.payload

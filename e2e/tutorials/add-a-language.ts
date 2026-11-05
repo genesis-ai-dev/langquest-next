@@ -1,6 +1,7 @@
 // "Add a language", for admins: Samuel adds Selani to Riverside Translation
-// Team. Its name, the Bible it translates from and how it is split, reference
-// material and checks as suggested; inviting its people is its own video.
+// Team. Its name and the languages its translators use, the Bible it
+// translates from and how it is split, reference material and checks as
+// suggested; inviting its people is its own video.
 import type { Page } from 'playwright';
 import type { Tutorial } from './tutorial';
 import { recordAPassage } from './record-a-passage';
@@ -57,6 +58,19 @@ export const addALanguage: Tutorial = {
       part: (page) => id(page, 'primary-action'),
       say: 'Tap Continue.',
       tap: true,
+      until: until(/translators use\?$/),
+      stay: 0.6
+    },
+    {
+      screen: 'new_language',
+      part: (page) => words(page, /translators use\?$/),
+      say: 'Next, the languages your translators use. The ones you need are already chosen.'
+    },
+    {
+      screen: 'new_language',
+      part: (page) => id(page, 'primary-action'),
+      say: 'Tap Continue.',
+      tap: true,
       until: until(/What will .* translate\?/),
       stay: 0.6
     },
@@ -71,6 +85,27 @@ export const addALanguage: Tutorial = {
       screen: 'new_language',
       part: (page) => id(page, 'primary-action'),
       say: 'Then Continue.',
+      tap: true,
+      until: until('Bibles number verses differently'),
+      stay: 0.6
+    },
+    {
+      screen: 'new_language',
+      part: (page) => words(page, 'Bibles number verses differently'),
+      say: 'Bibles number some verses differently, so LangQuest needs to know which Bible your team uses.'
+    },
+    {
+      screen: 'new_language',
+      part: (page) => id(page, 'primary-action'),
+      say: 'Tap Continue.',
+      tap: true,
+      until: until("Find your Bible's numbering"),
+      stay: 0.6
+    },
+    {
+      screen: 'new_language',
+      part: (page) => words(page, 'Pick your Bible'),
+      say: 'There are three ways to find it. Tap Pick your Bible.',
       tap: true,
       until: until('Which Bible do you translate from?'),
       stay: 0.6
@@ -94,7 +129,7 @@ export const addALanguage: Tutorial = {
       part: (page) => id(page, 'primary-action'),
       say: 'Tap Continue.',
       tap: true,
-      until: until('How should the Bible be broken up?'),
+      until: until('How should the Bible be divided?'),
       stay: 0.6
     },
     {
@@ -109,26 +144,13 @@ export const addALanguage: Tutorial = {
       part: (page) => id(page, 'primary-action'),
       say: 'Tap Continue.',
       tap: true,
-      until: until(/Bibles and study guides be in\?/),
-      stay: 0.6
-    },
-    {
-      screen: 'new_language',
-      part: (page) => words(page, /Bibles and study guides be in\?/),
-      say: 'Next, the languages of the Bibles and study guides your team will hear. The ones you need are already chosen.'
-    },
-    {
-      screen: 'new_language',
-      part: (page) => id(page, 'primary-action'),
-      say: 'Tap Continue.',
-      tap: true,
       until: until(/What will help .*’s team\?/),
       stay: 0.8
     },
     {
       screen: 'new_language',
       part: (page) => id(page, 'primary-action'),
-      say: 'And again, to keep what is suggested.',
+      say: 'Then Continue again, to keep the Bibles and study guides that are suggested.',
       tap: true,
       until: until('How will recordings get checked?'),
       stay: 0.6
@@ -161,7 +183,7 @@ export const addALanguage: Tutorial = {
     },
     {
       screen: 'new_language',
-      part: (page) => [words(page, 'Time to invite people'), button(page, 'Later')],
+      part: (page) => [words(page, 'Time to invite people'), button(page, 'Done')],
       say: `${NAME} is added. Last, invite its people, now or later.`,
       stay: 2
     }

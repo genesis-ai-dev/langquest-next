@@ -5,16 +5,21 @@ import { useRef, useState } from 'react';
 import type { LanguoidHit } from './languoidModel';
 import type { LanguageScope } from './orgAdmin';
 import type { Making, NewOne } from './newLanguage';
-import type { FlowPage, MaterialPage } from './newLanguageModel';
+import type { FlowPage, LanguagePage, MaterialPage } from './newLanguageModel';
 
-export function useNewLanguage(fromCluster: string | null) {
-  const [step, setStep] = useState(0);
+export function useNewLanguage(fromCluster: string | null, clusterFirst = false) {
+  // Opened as New cluster from Manage (LAN-140): straight to the cluster's name and its languages, past the six steps.
+  const [step, setStep] = useState(clusterFirst ? 1 : 0);
+  // The language's step, two pages: its name, then the languages its translators use (decision 193).
+  const [languagePage, setLanguagePage] = useState<LanguagePage>('name');
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   // Picked from the language list (docs/languoids.md); none leaves it unlinked, to link from its page later.
   const [picked, setPicked] = useState<LanguoidHit | null>(null);
+  // The name the last pick filled in: a name the person typed is kept when they pick (LAN-141).
+  const [filled, setFilled] = useState<string | null>(null);
   // One language, or a cluster of several (decision 108, demo ADR-045).
-  const [many, setMany] = useState(false);
+  const [many, setMany] = useState(clusterFirst);
   // One language: the cluster it joins (an id, NEW_CLUSTER, or none), and a new one's name.
   const [joins, setJoins] = useState<string | null>(fromCluster);
   const [newCluster, setNewCluster] = useState('');
@@ -26,8 +31,8 @@ export function useNewLanguage(fromCluster: string | null) {
   const madeRef = useRef(new Map<string, { languageId: string; name: string }>());
   const [scope, setScope] = useState<LanguageScope>('nt');
   const [chosenBooks, setChosenBooks] = useState<Set<string>>(new Set());
-  // Reference material, two pages: its languages, then what its team will have in them.
-  const [materialPage, setMaterialPage] = useState<MaterialPage>('languages');
+  // Reference material: what its team will have, in the languages asked after the name; those can be changed from it.
+  const [materialPage, setMaterialPage] = useState<MaterialPage>('material');
   // Material ticked or unticked by hand; the rest keeps what is suggested.
   const [ticked, setTicked] = useState<Record<string, boolean>>({});
   // The review flow, two pages: which to start from, then its checks.
@@ -41,10 +46,10 @@ export function useNewLanguage(fromCluster: string | null) {
   const [created, setCreated] = useState<{ languages: { languageId: string; name: string }[]; cluster: string | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  // The languages its Bibles and guides are in, picked; none until someone does.
+  // The languages its translators use, picked: its Bibles, guides, templates, flows and book names follow them. None until someone does.
   const [readsPicked, setReadsPicked] = useState<string[] | null>(null);
   return {
-    step, setStep, name, setName, code, setCode, picked, setPicked, many, setMany, joins, setJoins, newCluster, setNewCluster,
+    step, setStep, languagePage, setLanguagePage, name, setName, code, setCode, picked, setPicked, filled, setFilled, many, setMany, joins, setJoins, newCluster, setNewCluster,
     clusterTitle, setClusterTitle, batch, setBatch, existing, setExisting, madeRef, scope, setScope, chosenBooks, setChosenBooks,
     materialPage, setMaterialPage, ticked, setTicked, flowPage, setFlowPage, flowKey, setFlowKey, moreFlows, setMoreFlows,
     startAgain, setStartAgain, making, setMaking, created, setCreated, busy, setBusy, error, setError, readsPicked, setReadsPicked

@@ -4,8 +4,8 @@
 // states marked as well as coloured, and the quiet "Filter" link that keeps
 // the filters and the full key one tap deeper. Every press goes through help
 // mode.
-import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { Text } from '../ui/text';
 import type { ChapterStage } from '../reference/canon';
 import { useHelpSpot } from '../helpMode/useHelpMode';
@@ -14,6 +14,7 @@ import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Ico, type IconName } from '../ui/kit';
 import { C, onColor, radius, space, target, TINT, type as T } from '../ui/theme';
+import { a11yState } from '../ui/a11yModel';
 
 /** What the "Next" disc's icon says is to be done there, for help mode (rule 3). */
 function nextIconLine(icon: IconName): string | null {
@@ -57,7 +58,7 @@ export function Pills<K extends string>(props: { items: { id: K; label: string }
 function Pill(props: { label: string; on: boolean; onPress: () => void }) {
   const spot = useHelpSpot(props.label, t('map.parts.pillHelp'), props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ selected: props.on }, 'button')}
       style={({ pressed }) => [styles.pill, props.on && styles.pillOn, pressed && styles.pressed]}>
       <Text style={[styles.pillText, props.on && { color: C.white }]}>{props.label}</Text>
       <HelpBadge spot={spot} />
@@ -71,6 +72,28 @@ function bookLine(p: { total: number; recorded: number; count?: string }, shown:
   if (p.recorded === 0) return [t('map.parts.bookHelp'), t('map.parts.notStartedHelp')].join(' ');
   return [t('map.parts.bookHelp'), t('map.parts.barHelp'),
     t('map.parts.countHelp', { shown, recorded: formatNumber(p.recorded), total: formatNumber(p.total) })].join(' ');
+}
+
+/** The book names' column of one list: as wide as its widest name, so every bar starts in one place. */
+const NameColumn = createContext<{ width: number; fit: (e: LayoutChangeEvent) => void } | null>(null);
+
+/**
+ * A list of books whose bars line up: each name is as wide as the widest one
+ * ("1 Thessalonians" no longer pushes its bar right of the others'). The
+ * widest still takes at most half the row and wraps there (LAN-56).
+ */
+export function BookColumn(props: { children: ReactNode }) {
+  const [width, setWidth] = useState(0);
+  const column = useMemo(() => ({
+    width, fit: (e: LayoutChangeEvent) => { const w = Math.ceil(e.nativeEvent.layout.width); setWidth((x) => (w > x ? w : x)); }
+  }), [width]);
+  return <NameColumn.Provider value={column}>{props.children}</NameColumn.Provider>;
+}
+
+/** A book's name, as wide as the widest in its list (BookColumn). */
+function BookName(props: { name: string }) {
+  const column = useContext(NameColumn);
+  return <Text onLayout={column?.fit} style={[styles.bookName, column?.width ? { minWidth: column.width } : null]}>{props.name}</Text>;
 }
 
 /**
@@ -90,7 +113,7 @@ export function BookBar(props: {
     return (
       <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
         style={({ pressed }) => [styles.book, !props.last && styles.bookBorder, pressed && styles.pressed]}>
-        <Text style={styles.bookName}>{props.name}</Text>
+        <BookName name={props.name} />
         <Text style={[styles.waiting]}>{t('map.waiting')}</Text>
         <HelpBadge spot={spot} />
       </Pressable>
@@ -98,9 +121,9 @@ export function BookBar(props: {
   }
   return (
     <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
-      accessibilityState={props.current ? { selected: true } : undefined}
+      {...a11yState(props.current ? { selected: true } : undefined, 'button', 'current')}
       style={({ pressed }) => [styles.book, !props.last && styles.bookBorder, props.current && { backgroundColor: C.light }, pressed && styles.pressed]}>
-      <Text style={styles.bookName}>{props.name}</Text>
+      <BookName name={props.name} />
       <View style={styles.track}>
         <View style={{ width: pct(props.done), backgroundColor: C.green }} />
         <View style={{ width: pct(props.recorded - props.done), backgroundColor: C.primary }} />
@@ -128,15 +151,16 @@ export function ChapterTileView(props: {
   /** Under the number: the chapter's download button (decisions.md 166). */
   below?: ReactNode;
 }) {
-  const look = STAGE[props.stage];
+  // Outside the filter: a flat grey ground and a readable number, never faded to a ghost (UI audit, finding 125).
+  const look = props.dim ? { bg: TINT.gray, fg: C.muted, border: TINT.gray } : STAGE[props.stage];
   const spot = useHelpSpot(t('map.parts.chapter', { n: formatNumber(props.n) }), props.help ?? t('map.parts.chapterHelp'), props.onPress);
   return (
     <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
-      accessibilityState={{ disabled: props.disabled, selected: props.current }}
-      style={({ pressed }) => [styles.tile, props.below ? styles.tileTall : null, { backgroundColor: look.bg, borderColor: look.border, opacity: props.dim ? 0.28 : 1 },
+      {...a11yState({ disabled: props.disabled, selected: props.current }, 'button', 'current')}
+      style={({ pressed }) => [styles.tile, props.below ? styles.tileTall : null, { backgroundColor: look.bg, borderColor: look.border, opacity: props.dim ? 0.6 : 1 },
         props.current && { borderColor: C.primary, borderWidth: 3 }, pressed && { transform: [{ scale: 0.95 }] }]}>
-      <Text style={[styles.tileNumber, { color: look.fg }]}>{formatNumber(props.n)}</Text>
-      {props.stage === 'done' ? <Ico name="check" size={16} color={onColor.green} strokeWidth={3} />
+      <Text style={[styles.tileNumber, { color: look.fg }]} maxFontSizeMultiplier={1.5}>{formatNumber(props.n)}</Text>
+      {props.stage === 'done' ? <Ico name="check" size={16} color={props.dim ? C.muted : onColor.green} strokeWidth={3} />
         : props.stage === 'started' ? <View style={styles.tileDot} />
         : <View style={{ height: 16 }} />}
       {props.below}
@@ -221,8 +245,8 @@ const styles = StyleSheet.create({
   bookName: { minWidth: 120, maxWidth: '50%', flexShrink: 1, fontSize: T.base, fontWeight: '700', color: C.dark },
   track: { flex: 1, height: 8, borderRadius: 4, overflow: 'hidden', flexDirection: 'row', backgroundColor: C.light },
   bookCount: { width: 64, textAlign: 'right', fontSize: T.sm, color: C.muted, fontVariant: ['tabular-nums'] },
-  tile: { flex: 1, height: 76, borderRadius: radius.lg, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  tileTall: { height: 124, justifyContent: 'flex-start', paddingTop: space.md },
+  tile: { flex: 1, minHeight: 76, paddingVertical: space.xs, borderRadius: radius.lg, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  tileTall: { minHeight: 124, justifyContent: 'flex-start', paddingTop: space.md },
   tileNumber: { fontSize: T.xl, fontWeight: '800' },
   tileDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary, marginVertical: 4 },
   key: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: space.lg, rowGap: space.xs },

@@ -9,9 +9,15 @@ import { useRecordChoices } from '../admin/useChoices';
 import { baseWay, WAY_ITEMS, wayOf, type WayRow } from './model';
 import { useWays } from './useBreakup';
 import { adoptWay } from './breakupActions';
+import { docLanguage, inLanguages } from '../reference/languages';
 
-/** The state of the question, and `resolve()`: the item and version the language will use. */
-export function useTranslate(ctx: Ctx, forLanguage: string | null) {
+/**
+ * The state of the question, and `resolve()`: the item and version the
+ * language will use. `languages` are the team's (decision 193): templates in
+ * them or saying none are offered, and the one in use; the rest are one tap
+ * away (`showEveryLanguage`).
+ */
+export function useTranslate(ctx: Ctx, forLanguage: string | null, languages?: readonly string[]) {
   // The language's numbering: what its template is numbered in, until the admin chooses another.
   const [numberingCode, setNumberingCode] = useState<string | null>(null);
   const here = forLanguage && forLanguage === ctx.language.languageId ? ctx.language.state?.template?.value : null;
@@ -19,7 +25,10 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null) {
   const hereDoc = hereDocs.get<TemplateDoc>(here?.docHash);
   const hereCode = hereDoc?.bible ? hereDocs.get<VersificationDoc>(hereDoc.bible.versification)?.code ?? null : null;
   const code = numberingCode ?? hereCode;
-  const ways = useWays(ctx, forLanguage, code);
+  const [everyLanguage, setEveryLanguage] = useState(false);
+  const readable = (doc: TemplateDoc | null | undefined) => everyLanguage || !languages || inLanguages(docLanguage(doc), languages);
+  const allWays = useWays(ctx, forLanguage, code);
+  const ways = { ...allWays, rows: allWays.rows.filter((r) => r.inUse || readable(allWays.docOf(r.choice))) };
   // The LangQuest way the language uses now ("langquest.bible.fia"), whatever its numbering.
   const hereItem = here ? ways.lib.item(here.itemId) : null;
   const hereFrom = hereItem?.subscription ? { orgId: hereItem.subscription.sourceOrgId, itemId: hereItem.subscription.sourceItemId } : hereItem?.copiedFrom ?? null;
@@ -29,7 +38,9 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null) {
   const [key, setKey] = useState<string | null>(null);
   const [outlineKey, setOutlineKey] = useState<string | null>(null);
   const { choices: recChoices, kindOf } = rec;
-  const outlines = useMemo(() => recChoices.filter((c) => kindOf(c) === 'outline'), [recChoices, kindOf]);
+  const allOutlines = useMemo(() => recChoices.filter((c) => kindOf(c) === 'outline'), [recChoices, kindOf]);
+  const outlines = allOutlines.filter((c) => c === rec.current || readable(rec.docs.get<TemplateDoc>(c.hash)));
+  const hiddenLanguages = allWays.rows.length - ways.rows.length + allOutlines.length - outlines.length;
   // Already in use here: start from what the language has.
   const inUse = ways.rows.find((r) => r.inUse) ?? null;
   const outlineInUse = outlines.find((c) => c === rec.current) ?? null;
@@ -62,8 +73,8 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null) {
   const numbering = ways.numberings.find((n) => n.code === code) ?? null;
   const ready = shownWhat === 'bible' ? !!code && !!row && !!doc : shownWhat === 'else' ? !!outline : false;
 
-  // One question a screen (decision 80): what they translate, then the numbering (found, asked, or listed,
-  // then shown), then how it is divided. The screen holding these asks `advance` and `retreat` first.
+  // One question a screen (decision 80): what they translate, then the numbering (why it matters, the three
+  // ways to find it, found, asked, or listed, then shown), then how it is divided. The screen holding these asks `advance` and `retreat` first.
   const [page, setPage] = useState<TranslatePage>('what');
   const [found, setFound] = useState<{ from?: string; note?: string }>({});
   const [quizTrail, setQuizTrail] = useState<string[]>([QUIZ.start]);
@@ -74,30 +85,35 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null) {
     setPage('numbered');
   };
   const advance = (): boolean => {
-    if (page === 'what' && shownWhat === 'bible') { setPage(numbering ? 'numbered' : 'find'); return true; }
+    if (page === 'what' && shownWhat === 'bible') { setPage(numbering ? 'numbered' : 'why'); return true; }
+    if (page === 'why') { setPage('how'); return true; }
     if (page === 'numbered') { setPage('ways'); return true; }
     return false;
   };
   const retreat = (): boolean => {
     if (page === 'ways') { setPage('numbered'); return true; }
     if (page === 'numbered') { setPage('what'); return true; }
-    if (page === 'find') { setPage(numbering ? 'numbered' : 'what'); return true; }
+    if (page === 'why') { setPage('what'); return true; }
+    if (page === 'how') { setPage(numbering ? 'numbered' : 'why'); return true; }
     if (page === 'quiz' && quizTrail.length > 1) { setQuizTrail((q) => q.slice(0, -1)); return true; }
-    if (page === 'quiz' || page === 'list') { setPage('find'); return true; }
+    if (page === 'find' || page === 'quiz' || page === 'list') { setPage('how'); return true; }
     return false;
   };
   const canContinue = page === 'what' ? (shownWhat === 'bible' || (shownWhat === 'else' && !!outline))
-    : page === 'numbered' ? !!numbering : page === 'ways' ? ready : false;
+    : page === 'why' ? true : page === 'numbered' ? !!numbering : page === 'ways' ? ready : false;
   return {
-    ways, rec, what: shownWhat, setWhat, row, setKey, outlines, outline, setOutlineKey, empty, doc, v11n, resolve,
+    ways, rec, what: shownWhat, setWhat, row, setKey, outlines, outline, setOutlineKey, empty, doc, v11n, resolve, languages,
+    hiddenLanguages, showEveryLanguage: () => setEveryLanguage(true),
     numbering, setNumbering: (c: string) => { setNumberingCode(c); setKey(null); }, numberingChanged: !!hereCode && !!code && code !== hereCode,
     ready, page, found, choose, advance, retreat, canContinue, quizTrail, setQuizTrail,
+    /** The page on screen, down to the quiz's question: the screen holding the question opens each new one at its top. */
+    pageId: page === 'quiz' ? `quiz ${quizTrail[quizTrail.length - 1] ?? ''}` : page,
     setPage: (p: TranslatePage) => { if (p === 'quiz') setQuizTrail([QUIZ.start]); setPage(p); },
     /** Pages answered by tapping a choice have no Continue. */
-    showContinue: page === 'what' || page === 'numbered' || page === 'ways',
+    showContinue: page === 'what' || page === 'why' || page === 'numbered' || page === 'ways',
     /** The last page: what follows belongs to the screen holding the question. */
     last: page === 'ways' || (page === 'what' && shownWhat === 'else')
   };
 }
 
-export type TranslatePage = 'what' | 'find' | 'quiz' | 'list' | 'numbered' | 'ways';
+export type TranslatePage = 'what' | 'why' | 'how' | 'find' | 'quiz' | 'list' | 'numbered' | 'ways';

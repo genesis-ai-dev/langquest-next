@@ -52,18 +52,22 @@ Steps:
 1. Open the app.
 
 Expected:
-- A language chip shows at the top. Its accessibility label is "Language: English. Change it".
-- "LangQuest" and the line "Coordinating Bible translation — draft to approval" show.
-- The fields come first:
+- A language chip shows at the top, on the line of the help ?. Its accessibility label is "Language: English. Change it".
+- "LangQuest" shows beside a small logo, on one line.
+- The fields come first, each named above it, so the name stays once typing starts:
   - "Email or sign-in name"
   - "Password", hidden as it is typed
   - "Sign In", disabled
+  - "Can't sign in?"
   - "By signing in you accept the Terms of Use and Privacy Policy"
-- Then "or", then "Scan a code" with the hint "An invite, or a code from someone helping you sign in".
+- Then "or", then "Scan a code".
 - Then "Don't have an account?" with "Create Account", and "Browse public work".
 - No "Sign in to join" banner shows.
+- On the web, the cursor is in "Email or sign-in name" when the page opens, so typing starts at once (LAN-138). On a phone the keyboard stays down until a field is tapped.
 - On a preview build, "Switch persona" does not show.
 - No tab bar shows.
+- At 360×800 (most low-end Android phones), with no pictures of people signed out here, "Scan a code" and "Create Account" are on screen without scrolling. When pictures show, the scroll bar shows that there is more (UI audit, finding 27).
+- Typing "Nyibol Deng" (a space) with a password keeps "Sign In" disabled, and "A sign-in name has no spaces: letters, digits and dashes, like nyibol-deng-482." shows under the field. "nyibol-deng-482" takes the line away and turns "Sign In" on (finding 35).
 
 ### AUTH-002 Sign in with email and password
 Roles: ADMIN, COORD, LADMIN, TRANS, REV, TREV, VIEW · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
@@ -137,6 +141,7 @@ Expected:
 - The message does not say which part was wrong.
 - The fields keep what was typed.
 - The screen stays on Sign In.
+- From the second refusal, "Can't sign in?" is open by itself: "Ask someone on your team to show you a sign-in code, then tap Scan a code." and "Write to admin@frontierrnd.com", which opens an email. Tapping "Can't sign in?" closes it (UI audit, finding 30).
 
 ### AUTH-006 Too many tries
 Roles: GUEST · Priority: P2 · Platforms: iOS, Android, Web · Run: Manual
@@ -287,12 +292,13 @@ Preconditions (in addition to the global ones):
 - On "Explore", signed out.
 
 Steps:
-1. Tap LANG-A's card.
+1. Tap LANG-A's card. It ends with "Sign in to ask".
 2. Tap "Browse public work" again, then tap "Sign In" in the header.
 3. Tap "Browse public work" again, then tap the back arrow.
 
 Expected:
 - Each time, the Sign In screen opens.
+- After step 1, Sign In says "Sign in, then ask to join the Alpha team". Signing in then opens the request to LANG-A's organization (NOORG-028).
 - Nothing of LANG-A's passages, members or recordings is shown to a guest.
 
 ### AUTH-016 Explore offline shows what this device saved
@@ -561,6 +567,35 @@ Expected:
 - No "Nothing to remember" banner shows, because TRANS has an email.
 - Step 4 opens My Work in UI Admin Org. Me → "Switch Organization" (on Me now that TRANS is in two) lists UI Test Org and UI Admin Org.
 
+### AUTH-062 "Make an account with email" joins the new account
+Roles: GUEST · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+After scanning, the third way in (LAN-137): an email and password made now,
+and the invite joins that account, as "I already have an account" does one
+made before.
+
+Preconditions (in addition to the global ones):
+- Signed out. A new invite for the Translator role in UI Admin Org, as in
+  AUTH-030, is to hand. An email address nobody has used.
+
+Steps:
+1. Tap "Scan a code" and paste the link.
+2. Tap "Make an account with email".
+3. Type the new email, "secret12" and "secret12", and tap "Create Account".
+
+Expected:
+- Step 1 offers "I already have an account" and "Make an account with
+  email" under the Join button.
+- Step 2 opens Create Account with the banner "Make your account to join" /
+  "Your invite is saved. You'll join as soon as you're signed in to this
+  account.", and no "Scan an invite".
+- Step 3 joins with no further tap: "{ADMIN's name} invited you" and
+  "You're a Translator on UI Admin Org." The new account is a member of UI
+  Admin Org on the server.
+- Where the server sends a link to confirm the email first, "Account
+  created" says to open it and sign in on this device, and that the invite
+  is saved; signing in then joins.
+
 ### AUTH-031 A held invite survives a restart
 Roles: GUEST, TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
@@ -589,7 +624,7 @@ Steps:
 
 Expected:
 - Step 2: Sign In shows no "Sign in to join" banner. After signing in, the app goes to "Scan a code" by itself:
-  - The subtitle reads "Invite includes organization, role, and scope".
+  - The subtitle reads "The invite says which organization, role and language".
   - The invite card shows.
   - The footer has "Join as {TRANS's name}" and "Not {TRANS's name}? Sign out first", and "Not now" is under the field.
 - Nothing joins without a tap.
@@ -608,7 +643,7 @@ Steps:
 3. Tap "Join as {NOORG's name}".
 
 Expected:
-- The subtitle reads "Invite includes organization, role, and scope".
+- The subtitle reads "The invite says which organization, role and language".
 - The footer has "Join as {NOORG's name}" and "Not {NOORG's name}? Sign out first". "Not now" shows under the field. No terms line shows.
 - While it works, the button reads "Joining…". Then UI Test Org opens on the welcome: "You're a Translator on the Alpha team at UI Test Org."
 - No "Nothing to remember" banner shows.
@@ -702,15 +737,13 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Tap "Scan a code" and paste the link.
-2. Tap the main button, then on the name screen type "Test Person" and tap "Join".
-3. Go online. Go back to "Scan a code".
-4. Tap "Join as Test".
+2. Go online, and stay on "Scan a code".
+3. Tap "Join as Test".
 
 Expected:
-- Step 1: the card reads "Invitation to join an organization" with "Your role shows once you're connected." Under it, "Joining needs a connection. Your invite is saved on this device." The main button reads "Join", because the name on the invite cannot be read offline.
-- Step 2: "Joining needs a connection. Your invite is saved on this device." No account is made.
-- Step 3: the card now shows "Invite for Test Person", and the button reads "Join as Test".
-- Step 4 joins and opens the welcome.
+- Step 1: the card reads "Invitation to join an organization" with "Your role shows once you're connected." Under it, "Joining needs a connection. Your invite is saved on this device." The main button reads "Join when connected" and is disabled: no name is taken only to be refused (UI audit, finding 28; docs/invites-and-accounts.md flow E).
+- Step 2: within about 10 seconds the card shows "Invite for Test Person", and the button reads "Join as Test".
+- Step 3 joins and opens the welcome.
 
 Fixed (2026-10-12): offline, the scan screen says joining needs a connection as soon as the invite is read, and asks the server again every 10 seconds, so the card fills in once there is a connection. The name screen's message now says so too (offline it said "Joining did not work").
 
@@ -878,7 +911,7 @@ Preconditions (in addition to the global ones):
 - Device 2: COORD, signed in.
 
 Steps:
-1. Device 2: Manage → Members → KEPT → "Help them sign in". Leave "Their old device is lost or stolen" off. The code shows.
+1. Device 2: Manage → Members → KEPT → "Help Kept sign in on a new device" → "Help them sign in". Leave "Their old device is lost or stolen" off. The code shows.
 2. Device 1: tap "Scan a code" and scan the code (Auto: open its `/signin` link).
 3. Device 1: tap "Sign in".
 4. Device 1: Me → More settings.
@@ -919,12 +952,14 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Open the sign-in link on TRANS's device.
-2. Tap "Scan something else".
+2. Tap "Not you? Sign out first", then "Cancel".
+3. Tap "Scan something else".
 
 Expected:
 - "Scan a code" opens with "This is a sign-in code" / "It is for someone signed out. Sign out first, then scan it again."
 - No "Sign in" button is offered. TRANS stays signed in.
-- Step 2 shows the scanner. The code was not used: KEPT can still use it on another device.
+- Step 2 opens "Sign out?", the way out the banner asks for; Cancel comes back to the code (UI audit, finding 34).
+- Step 3 shows the scanner. The code was not used: KEPT can still use it on another device.
 
 ### AUTH-052 A sign-in code used twice, or after an hour
 Roles: GUEST · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1081,3 +1116,22 @@ Expected:
 - "What is LangQuest?" opens on "1 of 3".
 - "Done" returns to Me.
 - The back arrow on "1 of 3" also returns to Me.
+
+### AUTH-061 Someone in an organization joins another by its code, with their own account
+Roles: NEW · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions (in addition to the global ones):
+- A new account in the test organization only, and a group invite to UI
+  Second Org.
+
+Steps:
+1. Me → "More settings" → "Switch Organization".
+2. Tap "Scan their code" and paste the invite.
+3. Tap "Join as {name}".
+
+Expected:
+- Switch Organization offers "Scan their code" and "Find your
+  organization" above "New organization" (LAN-197).
+- The scan page offers "Join as {name}", not a new account.
+- The welcome says "You're a Translator on UI Second Org.", and the account
+  is a member of both organizations.
