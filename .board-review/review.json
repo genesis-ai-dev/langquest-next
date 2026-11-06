@@ -3,7 +3,7 @@
   "ask": "Where should the export be built, and where should admins start it?",
   "problem": "Organizations fear being locked in. Admins can download progress sheets today, but they cannot take out the recordings, the details about them, and the full history together.",
   "found": "The server has a job runner with lots of memory and a bucket holding every recording. The web server has little memory and short time limits. Reports and the admin area already exist.",
-  "changed": "Nothing yet. I have only written this question. After your answer I will build one Export all data button for org admins, one zip with audio folders, a list of every recording, progress sheets and the raw history, a written format guide, a test, and a decision entry.",
+  "changed": "Nothing yet, only this question. After your answer I will build an Export all data button for org admins that gives one zip: audio folders, a recording list, progress sheets and the full history.",
   "why": "The zip must hold hundreds of recordings and may be very large, so it needs a place with plenty of memory and no short time limit. A stored file with a download link also lets the admin close the page and come back.",
   "touches": "Options A and B add a stored file in the bucket that expires, and a small private row to record who asked. Option C adds neither. No new event types in any option.",
   "pictures": [],
