@@ -508,7 +508,7 @@ test('ACCT-025 New organization opens Create Organization', async ({ page }) => 
 const LANGUAGES: [string, string | null][] = [
   ['English', null], ['Español', 'Spanish'], ['Português (Brasil)', 'Portuguese (Brazil)'], ['Français', 'French'], ['العربية', 'Arabic'],
   ['Kiswahili', 'Swahili'], ['Hausa', 'Hausa'], ['አማርኛ', 'Amharic'], ['हिन्दी', 'Hindi'], ['বাংলা', 'Bengali'], ['नेपाली', 'Nepali'],
-  ['Bahasa Indonesia', 'Indonesian'], ['简体中文', 'Chinese (Simplified)'], ['ไทย', 'Thai'], ['မြန်မာ', 'Burmese']
+  ['Bahasa Indonesia', 'Indonesian'], ['简体中文', 'Chinese (Simplified)'], ['ไทย', 'Thai'], ['မြန်မာ', 'Burmese'], ['Tagalog', 'Tagalog']
 ];
 
 async function openLanguageSheet(page: Page) {
@@ -517,11 +517,11 @@ async function openLanguageSheet(page: Page) {
   await expect(text(page, 'Choose the language LangQuest speaks to you in.')).toBeVisible();
 }
 
-test('ACCT-026 The Language sheet lists fifteen languages', async ({ page }) => {
+test('ACCT-026 The Language sheet lists sixteen languages', async ({ page }) => {
   await openAs(page, world(), 'TRANS');
   await openLanguageSheet(page);
   const radios = page.getByRole('radio').locator('visible=true');
-  await expect(radios).toHaveCount(16);
+  await expect(radios).toHaveCount(17);
   await expect(radios.nth(0)).toHaveText(/^Same as this browser\s*Now English$/);
   const rows = await radios.allInnerTexts();
   LANGUAGES.forEach(([own, english], i) => {
