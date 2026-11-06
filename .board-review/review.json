@@ -2,17 +2,32 @@
   "kind": "question",
   "ask": "Should LangQuest offer an AI transcription draft, only where an admin turns it on, and is a sent-out audio service acceptable?",
   "problem": "Bezily's group wants an AI to write a first draft of the words from a recording. The translator would fix it and approve it. Today the product rule says no AI help, so this needs your decision before anyone builds it.",
-  "found": "The repository does not spell out the rule 'No AI help'. Only the tutorial notes mention it. So the rule needs a written exception if you say yes. The app sends no audio to any outside service today, and the Play answers say so. The one AI tool on the phone, noise clean-up, makes no new content. A draft would be new content, so it needs its own record, never a status. Back translation and the other speech-to-text steps would share one button. No model has been tested on the partners' languages yet.",
+  "found": "The rule 'No AI help' is not written in the repository, so a yes needs a written exception. The app sends no audio out today. A draft is new content and needs its own record. No model is tested on partner languages.",
   "changed": "Nothing is built. This card holds the decision only. The work on the related speech-to-text steps (LAN-49) stays in your own conversation.",
   "why": "A draft the translator must approve keeps the person in charge, and an admin switch per language keeps it off by default. Two points to weigh. First, the service: Google's Gemini is already paid for and used for the tutorial videos, but its accuracy on each partner language must be tested first; a dedicated speech service is the other choice. Second, the languages: only gateway languages with a proven model, such as English, Spanish, French, Portuguese, Swahili. Small languages get no button, since no good recognizer exists. The draft would show only online, with a clear 'AI draft' label.",
-  "touches": "Play Console answers change if you pick B. Data safety → Audio → Voice or sound recordings: mark as shared with a third party (the AI service). Content rating → 'Online content not in the download': change 'No AI-generated content' to yes. The privacy policy needs a line saying audio goes to the service and is not kept or used for training. We would also write a new decision, update the Play declarations file, add an admin switch per language, and add one new record type for the draft and the approval. Option C changes none of the Play answers.",
+  "touches": "Play Console answers change if you pick B. Data safety \u2192 Audio \u2192 Voice or sound recordings: mark as shared with a third party (the AI service). Content rating \u2192 'Online content not in the download': change 'No AI-generated content' to yes. The privacy policy needs a line saying audio goes to the service and is not kept or used for training. We would also write a new decision, update the Play declarations file, add an admin switch per language, and add one new record type for the draft and the approval. Option C changes none of the Play answers.",
   "pictures": [
-    {"file": "choices.png", "label": "The three choices"}
+    {
+      "file": "choices.png",
+      "label": "The three choices"
+    }
   ],
   "options": [
-    {"label": "A. No AI draft", "result": "The rule 'No AI help' stays untouched. Translators type every word. Bezily's request is declined or waits.", "picture": "option0.png"},
-    {"label": "B. Draft from an online service, per language, admin turns it on", "result": "One button gives a draft marked 'AI draft'. The translator edits and approves it, and the record says so. Audio goes to the service, so the Play answers change. Off by default.", "picture": "option1.png"},
-    {"label": "C. Draft made on the phone", "result": "No audio leaves the phone and the Play answers stay. It works offline, but each language needs a big download. Few languages work, and drafts have more mistakes.", "picture": "option2.png"}
+    {
+      "label": "A. No AI draft",
+      "result": "The rule 'No AI help' stays untouched. Translators type every word. Bezily's request is declined or waits.",
+      "picture": "option0.png"
+    },
+    {
+      "label": "B. Draft from an online service, per language, admin turns it on",
+      "result": "One button gives a draft marked 'AI draft'. The translator edits and approves it, and the record says so. Audio goes to the service, so the Play answers change. Off by default.",
+      "picture": "option1.png"
+    },
+    {
+      "label": "C. Draft made on the phone",
+      "result": "No audio leaves the phone and the Play answers stay. It works offline, but each language needs a big download. Few languages work, and drafts have more mistakes.",
+      "picture": "option2.png"
+    }
   ],
   "recommended": 1
 }
