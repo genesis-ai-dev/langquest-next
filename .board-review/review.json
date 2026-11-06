@@ -5,7 +5,7 @@
   "found": "The rule 'No AI help' is not written in the repository, so a yes needs a written exception. The app sends no audio out today. A draft is new content and needs its own record. No model is tested on partner languages.",
   "changed": "Nothing is built. This card holds the decision only. The work on the related speech-to-text steps (LAN-49) stays in your own conversation.",
   "why": "The translator must approve every draft, and an admin switch per language keeps it off by default. Gemini is already paid for, but needs testing on each language. Only big gateway languages get the button; small ones have no good model.",
-  "touches": "Play answers change: audio becomes shared with a third party, and AI-generated content becomes yes. We would also update the privacy policy, the declarations file and the decision log.",
+  "touches": "Option B changes two Play answers: audio shared with a third party, and AI-generated content. The privacy policy changes too.",
   "pictures": [
     {
       "file": "choices.png",
