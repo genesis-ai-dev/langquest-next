@@ -4,7 +4,12 @@
  "problem": "Jenn takes the app to Benin in early December. Some people there have projects in the old app. No video showed what they see once their work comes across.",
  "found": "The app already has a Welcome back screen for these people. No film covered it. The lasting download links work for every film Jenn needs, in English and French. No film is recorded as handed to Jenn.",
  "changed": "I wrote a new film script. A made-up teacher signs in with an old account, sees her project as a language, reads what is different, and taps Keep going. I also wrote a list of 19 films for Jenn, with links in both languages.",
- "why": "The film uses test people and a made-up answer, so no real work or person appears. I could not run it here, because this setup cannot start the app. The picture is a drawing of the plan, not the real film. All English films, and the new one, still wait for your approval. The French films were made earlier. Nothing was published or changed.",
+ "why": "The film uses test people only. I could not run the app here, so the picture is a plan, not the real film. English films still wait for your approval.",
  "touches": "A film can now start on the first-run screens. The list is in the docs folder. The new film joins the playlist for everyone after the nightly run.",
- "pictures": [{"file": "film.png", "label": "Plan for the new film (drawing, not filmed yet)"}]
+ "pictures": [
+  {
+   "file": "film.png",
+   "label": "Plan for the new film (drawing, not filmed yet)"
+  }
+ ]
 }
