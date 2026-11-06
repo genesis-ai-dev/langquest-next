@@ -1,8 +1,8 @@
 {
 "kind":"needs_you",
-"ask":"Can you close the draft pull request and cancel issue LAN-190 yourself?",
+"ask":"Can you close the draft pull request and cancel issue LAN-190?",
 "problem":"Partners asked for a flag on recordings with an odd length. You decided to drop it, because users can make this from the data feed.",
-"found":"Nothing was built. The only work on the branch was my question card. I am not allowed to change the Linear issue. I also cannot reach GitHub now to close the pull request.",
+"found":"Nothing was built. The only work on the branch was my question card. I am not allowed to change the Linear issue. I left the pull request open so this note stays attached to it.",
 "changed":"Nothing people see. I removed the old option pictures and left this note.",
 "why":"The feed already gives each recording's length, so users can work out the flag themselves.",
 "touches":"Nothing else changes.",
