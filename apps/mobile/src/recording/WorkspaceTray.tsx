@@ -277,9 +277,9 @@ function NoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void }) {
   }
   return (
     <Sheet visible title={t('common.addNote')} sub={t('recording.tray.noteSheetSub')} onClose={props.onClose}
-      footer={<PrimaryBtn label={t('recording.tray.saveNote')} busy={busy} disabled={!text.trim() && !hash} onPress={() => void save()} />}>
+      footer={<PrimaryBtn help={t('help.stock.addNote')} label={t('recording.tray.saveNote')} busy={busy} disabled={!text.trim() && !hash} onPress={() => void save()} />}>
       <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={hash} onChange={setHash} />
-      <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} multiline />
+      <Field help={t('help.stock.typeNote')} value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} multiline />
     </Sheet>
   );
 }

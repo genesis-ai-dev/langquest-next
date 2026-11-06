@@ -698,9 +698,9 @@ function AddNoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void; sa
     <Sheet visible title={props.say ? t('passage.else.sayInstead') : t('common.addNote')}
       sub={props.say ? t('passage.addNote.saySub') : t('passage.addNote.sub')} onClose={props.onClose}
       action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />}
-      footer={<PrimaryBtn label={t('passage.addNote.save')} disabled={!hasWords(text, hash)} busy={busy} onPress={() => void save()} />}>
+      footer={<PrimaryBtn help={t('help.stock.addNote')} label={t('passage.addNote.save')} disabled={!hasWords(text, hash)} busy={busy} onPress={() => void save()} />}>
       <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={hash} onChange={(h) => draft.set((d) => ({ ...d, hash: h }))} />
-      <Field value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} multiline />
+      <Field help={t('help.stock.typeNote')} value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} multiline />
     </Sheet>
   );
 }
@@ -1062,7 +1062,7 @@ function KeepPage(props: { ctx: Ctx; v: PassageView; review: ReviewView; source:
       <View style={{ paddingVertical: space.xxl }}>
         <BigVoice ctx={ctx} label={t('passage.keep.tapAndSay')} hash={hash} onChange={(h) => setHash(h)} />
       </View>
-      <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} multiline />
+      <Field help={t('help.stock.typeNote')} value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} multiline />
     </Screen>
   );
 }
@@ -1348,7 +1348,7 @@ export function AskSomeone(ctx: Ctx) {
         </Group>
       ) : (
         <View style={{ gap: space.sm }}>
-          <Field value={guestName} onChangeText={setGuestName} placeholder={t('passage.ask.guestName')} autoCapitalize="words" />
+          <Field help={t('help.stock.guestName')} value={guestName} onChangeText={setGuestName} placeholder={t('passage.ask.guestName')} autoCapitalize="words" />
           <View style={styles.btnRow}>
             <Chip label={channelLabel('whatsapp')} on={channel === 'whatsapp'} help={t('passage.ask.whatsappHelp')} onPress={() => setChannel('whatsapp')} />
             <Chip label={channelLabel('sms')} on={channel === 'sms'} help={t('passage.ask.smsHelp')} onPress={() => setChannel('sms')} />
@@ -1370,7 +1370,7 @@ export function AskSomeone(ctx: Ctx) {
 
       <SectionLabel label={t('passage.ask.directions')} />
       <VoiceNote ctx={ctx} label={isRecord ? t('passage.ask.sayKeepInMind') : t('passage.ask.sayListenFor')} hash={noteHash} onChange={setNoteHash} />
-      <Field value={note} onChangeText={setNote} placeholder={t('passage.ask.orTypeThem')} multiline />
+      <Field help={t('help.stock.typeQuestions')} value={note} onChangeText={setNote} placeholder={t('passage.ask.orTypeThem')} multiline />
 
       {!isRecord ? <TheyAnswer asked={asked} questions={questions} setQuestions={setQuestions}
         {...(kindId && ctx.session.can('manage_flows') ? { check: { name: model.check, open: () => ctx.go('check_editor', { languageId: v.languageId, kindId, part: 'questions' }) } } : {})} /> : null}

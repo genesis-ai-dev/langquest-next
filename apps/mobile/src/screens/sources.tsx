@@ -250,7 +250,7 @@ function BibleDetailView(props: {
   }
 
   const footer = option && props.languageId ? (
-    has ? <PrimaryBtn label={t('sources.explore.inMyBibles')} icon="check" disabled onPress={() => undefined} />
+    has ? <PrimaryBtn help={t('help.stock.bibleHave')} label={t('sources.explore.inMyBibles')} icon="check" disabled onPress={() => undefined} />
       : <PrimaryBtn label={t('sources.explore.addToMyBibles')} icon="plus" busy={busy} help={t('sources.explore.addHelp')} onPress={() => void add()} />
   ) : undefined;
 

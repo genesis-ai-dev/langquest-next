@@ -169,7 +169,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   const recorded = v.p.versions.length > 0;
   const backTo = chips.find((c) => c.id === backChip && c.id !== chip && c.id !== 'guide');
   const footer = chip !== 'guide' ? (
-    <PrimaryBtn label={backTo ? t('study.screen.backTo', { chip: backTo.label }) : t('study.screen.backToGuide')} icon="arrowL" onPress={() => pickChip(backTo?.id ?? 'guide')} />
+    <PrimaryBtn help={t('help.stock.goBack')} label={backTo ? t('study.screen.backTo', { chip: backTo.label }) : t('study.screen.backToGuide')} icon="arrowL" onPress={() => pickChip(backTo?.id ?? 'guide')} />
   ) : canStudy && !status.done ? (
     <PrimaryBtn label={t('study.screen.doneWithStep')} icon="check" help={t('study.screen.doneWithStepHelp')} onPress={() => void done()} />
   ) : (
@@ -182,7 +182,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
         </View>
       ) : null}
       {allDone && canStudy ? (
-        <PrimaryBtn label={recorded ? t('study.screen.openWorkspace') : t('study.screen.recordFirstDraft')} icon="mic" onPress={() => ctx.go('workspace', scope)} />
+        <PrimaryBtn help={t('help.stock.openWorkspace')} label={recorded ? t('study.screen.openWorkspace') : t('study.screen.recordFirstDraft')} icon="mic" onPress={() => ctx.go('workspace', scope)} />
       ) : sp.steps[index + 1] ? (
         <GhostBtn label={t('study.screen.nextStep', { step: sp.steps[index + 1]!.step.title })} help={t('study.screen.nextStepHelp')} onPress={() => setIndex(index + 1)} />
       ) : null}

@@ -9541,6 +9541,10 @@ and in History) needs new state in core and a reducer version; finding 8
 and 107 (help and questions spoken on phones) wait on Caleb's choice.
 Reverse if: people find the extra asks slow on work they do every day, or
 partners expect the demo's flow where it differs here.
+Amended (2026-11-06, Caleb Koster): LAN-151 gave the last main buttons and
+fields their own help (`help.stock.*` in every catalog, machine-translated
+like the rest, 81), so the ratchet now holds the count at 0. Spoken help on
+phones is still waiting on Caleb's choice of voice.
 
 ## 186. Claude looks each night at what came in about the tutorial videos and suggests changes; a person accepts, edits or rejects each on the ops dashboard
 
