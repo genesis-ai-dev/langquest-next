@@ -116,6 +116,8 @@ export const CONFLICT_LABEL = 'copy-conflict';
 export const PERSON_LABEL = 'copy-needs-person';
 /** How many times the hourly run starts Claude again on a copy before a person must finish it. */
 export const FIX_TRIES = 3;
+/** The repository_dispatch event that starts Claude on a copy with a conflict (startClaude). */
+export const DISPATCH_EVENT = 'release-copy';
 /** How the hourly run's comment on a try for failed checks starts. */
 export const TRY_NOTE = 'The checks of this copy failed';
 /** How the workflow's comment starts when Claude's run ended before the copy was finished. */
@@ -135,9 +137,13 @@ export const RESULTS = ['copied', 'copied in part', 'left out'];
  * Claude again on a copy that is not finished (CONFLICT_LABEL alone), whose
  * checks failed or that has a conflict, 'person' leaves it to a person,
  * 'none' waits (Claude is on it, a person is, or nothing failed).
+ * CLAUDE_LABEL on a copy with a conflict does not mean that Claude is on it:
+ * GitHub runs no pull_request workflow on a pull request with a conflict,
+ * so the label started nothing (PR 347, 2026-11-06), and the hourly run
+ * starts Claude through a repository_dispatch instead (startClaude).
  */
 export function nextForCopy({ labels, gate, tries, conflicting = false }) {
-  if ([CLAUDE_LABEL, PERSON_LABEL].some((l) => labels.includes(l))) return 'none';
+  if (labels.includes(PERSON_LABEL) || (labels.includes(CLAUDE_LABEL) && !conflicting)) return 'none';
   if (!labels.includes(CONFLICT_LABEL) && gate !== 'FAILURE' && !conflicting) return 'none';
   return tries < FIX_TRIES ? 'try' : 'person';
 }
@@ -531,11 +537,11 @@ function fixFailedCopies(platform, fresh = { pushed: new Set(), labelled: new Se
   const open = JSON.parse(run('gh', ['pr', 'list', '--base', branchOf(platform), '--state', 'open',
     '--json', 'number,headRefName,headRefOid,labels,comments,statusCheckRollup,mergeable']).stdout);
   for (const pr of open) {
-    if (!commitOfCopy(pr.headRefName) || fresh.labelled.has(pr.number)) continue;
+    const conflicting = pr.mergeable === 'CONFLICTING';
+    if (!commitOfCopy(pr.headRefName) || (fresh.labelled.has(pr.number) && !conflicting)) continue;
     const labels = (pr.labels ?? []).map((l) => l.name);
     const gate = fresh.pushed.has(pr.number) ? null : (pr.statusCheckRollup ?? []).filter((c) => c.name === 'gate').at(-1)?.conclusion ?? null;
     const tries = (pr.comments ?? []).filter((c) => isTry(c.body)).length;
-    const conflicting = pr.mergeable === 'CONFLICTING';
     const step = nextForCopy({ labels, gate, tries, conflicting });
     const unfinished = labels.includes(CONFLICT_LABEL);
     if (step === 'try') {
@@ -543,8 +549,7 @@ function fixFailedCopies(platform, fresh = { pushed: new Set(), labelled: new Se
         : conflicting ? `This copy has a conflict with ${branchOf(platform)}, so Claude merges ${branchOf(platform)} into it`
           : `${TRY_NOTE} on ${pr.headRefOid.slice(0, 8)}, so Claude tries to fix them`;
       run('gh', ['pr', 'comment', String(pr.number), '--body', `${why} (try ${tries + 1} of ${FIX_TRIES}, decisions.md 155).`]);
-      makeLabel(CLAUDE_LABEL);
-      run('gh', ['pr', 'edit', String(pr.number), '--add-label', CLAUDE_LABEL]);
+      startClaude(pr.number, conflicting);
       console.log(`#${pr.number}: ${unfinished ? 'not finished' : conflicting ? `a conflict with ${branchOf(platform)}` : 'its checks failed'}, so Claude tries again (try ${tries + 1} of ${FIX_TRIES})`);
     } else if (step === 'person') {
       makeLabel(PERSON_LABEL);
@@ -554,6 +559,25 @@ function fixFailedCopies(platform, fresh = { pushed: new Set(), labelled: new Se
       console.log(`#${pr.number}: ${unfinished ? 'not finished' : 'its checks still fail'} after ${FIX_TRIES} tries, so it is labelled for a person`);
     }
   }
+}
+
+/**
+ * Starts Claude on a copy. The copy-claude label starts
+ * release-copy-conflict.yml through the label's pull_request event, but
+ * GitHub runs no pull_request workflow on a pull request with a conflict:
+ * on 2026-11-06 the label on PR 347 started nothing. So for a copy with a
+ * conflict this also sends a repository_dispatch, which runs main's
+ * release-copy-conflict.yml for that copy (the App's token may send it,
+ * because it may write the repository's contents).
+ */
+function startClaude(pr, conflicting) {
+  run('gh', ['pr', 'edit', String(pr), '--remove-label', CLAUDE_LABEL], { allowFail: true });
+  makeLabel(CLAUDE_LABEL);
+  run('gh', ['pr', 'edit', String(pr), '--add-label', CLAUDE_LABEL]);
+  if (!conflicting) return;
+  const repo = process.env.GITHUB_REPOSITORY ?? 'genesis-ai-dev/langquest-next';
+  run('gh', ['api', '--method', 'POST', `repos/${repo}/dispatches`,
+    '-f', `event_type=${DISPATCH_EVENT}`, '-F', `client_payload[pr]=${pr}`]);
 }
 
 /**
