@@ -2,20 +2,44 @@
   "kind": "question",
   "ask": "Which wording should the terms and the license sheet use to say what the license covers?",
   "problem": "People cannot tell if the organization license covers only the final translation, or also drafts, notes and voice recordings. The app wording sounds like it covers everything.",
-  "found": "The documents already say the license covers submitted versions, reference material, key terms and published library items. It never covers drafts, reviews, feedback, voice notes or names. The app says your team's recordings and writing are shared under the license. That is wider than the documents.",
+  "found": "The documents say the license covers submitted versions, key terms and published items, never drafts, reviews, voice notes or names. The app says it covers what your team records and writes. That is wider.",
   "changed": "Nothing yet. I changed no wording in the app. The pictures show the wording today and three choices.",
   "why": "This is a product and legal choice, so it waits for you. I looked at three levels of detail: short in the terms with the full list on the sheet, the full list in both places, and no change until a lawyer answers. I recommend the first. Terms get skimmed, and the sheet is where the choice is made. It also puts fewer legal claims in the terms.",
   "touches": "Four lines of text in the app. The wording in the English text file and the test notes that quote it would change. Other languages would need translating. Open questions for someone with legal knowledge: (1) Who owns the copyright on what members contribute, and does joining the organization give it the right to license that work? (2) What counts as published: the current submitted version of each passage, or only passages past a checkpoint? (3) Is it safe to say drafts are never covered, when a draft could later be submitted? (4) Does the license apply to a member's work after they leave or delete their account? (5) Should library items carry the organization's license or their own? (6) How should the credit line read? (7) Does the terms text need a lawyer's review before the next store release, and do the store answers need to change?",
   "pictures": [
-    {"file": "before.png", "label": "Before: today's wording"},
-    {"file": "option1.png", "label": "Option 1: short terms, full sheet"},
-    {"file": "option2.png", "label": "Option 2: full list in both"},
-    {"file": "option3.png", "label": "Option 3: change nothing yet"}
+    {
+      "file": "before.png",
+      "label": "Before: today's wording"
+    },
+    {
+      "file": "option1.png",
+      "label": "Option 1: short terms, full sheet"
+    },
+    {
+      "file": "option2.png",
+      "label": "Option 2: full list in both"
+    },
+    {
+      "file": "option3.png",
+      "label": "Option 3: change nothing yet"
+    }
   ],
   "options": [
-    {"label": "Short in the terms, full list on the sheet", "result": "People see a short promise in the terms and the exact list where they choose the license.", "picture": "option1.png"},
-    {"label": "Full list in the terms and on the sheet", "result": "Both places list what is and is not covered. The terms get longer.", "picture": "option2.png"},
-    {"label": "Change nothing until a lawyer answers", "result": "The wording stays wide and unclear for now. No wrong promise is added.", "picture": "option3.png"}
+    {
+      "label": "Short in the terms, full list on the sheet",
+      "result": "People see a short promise in the terms and the exact list where they choose the license.",
+      "picture": "option1.png"
+    },
+    {
+      "label": "Full list in the terms and on the sheet",
+      "result": "Both places list what is and is not covered. The terms get longer.",
+      "picture": "option2.png"
+    },
+    {
+      "label": "Change nothing until a lawyer answers",
+      "result": "The wording stays wide and unclear for now. No wrong promise is added.",
+      "picture": "option3.png"
+    }
   ],
   "recommended": 0
 }
