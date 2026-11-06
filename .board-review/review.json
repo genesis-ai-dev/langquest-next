@@ -2,15 +2,32 @@
  "kind": "question",
  "ask": "How should teams translate passage titles and other text around the passages?",
  "problem": "Book names now show in the team's language. Passage titles and other text around the passages still show only in the template's language. A Nepali team sees English titles like \"The lost son\" on the Map, the Next line and the passage page.",
- "found": "Six kinds of text are left. Passage titles the template names (FIA has 2,376). Section titles in outline templates. The words for the pieces, like Chapter and Passage. Review flow step and kind names. Reference guide titles and text. Template names are already done. The only fix today is an admin renaming each passage by hand.",
+ "found": "Passage titles, outline section titles, piece words, review flow steps and guide text still show only in the template's language. Today an admin must rename each passage by hand.",
  "changed": "Nothing yet. I did not build anything. This card needs your choice first.",
  "why": "Three ways exist. A: the team renames by hand. It is simple but is thousands of titles of work. B: LangQuest publishes title sets in each language and the team picks one, as with book names (decision 193). A team rename still wins. C: each person sees titles in their app language. I recommend B. It matches book names, gives everyone on a team the same titles, and needs no work to start. I rejected C because two people on one team would see different titles. B needs your approval of machine translated titles, as you gave for book names. The pieces words and flow steps would follow in a second change using the same sets.",
  "touches": "New library kind and a new event in the language's stream, so older app builds ignore it. It adds a decision entry and a seed run in the live library. It does not change Play Store answers.",
- "pictures": [{"file": "inventory.png", "label": "What still shows only in the template's language"}],
+ "pictures": [
+  {
+   "file": "inventory.png",
+   "label": "What still shows only in the template's language"
+  }
+ ],
  "options": [
-  {"label": "A. Team renames by hand", "result": "Nothing ships ready. Each team retypes each title. Small to build, large for teams.", "picture": "optA.png"},
-  {"label": "B. Title sets the team picks", "result": "LangQuest publishes titles per language. A team picks one set and renames any title. Same title for everyone on the team.", "picture": "optB.png"},
-  {"label": "C. Each person's app language", "result": "Titles follow each phone's language. No team choice. People on one team see different titles.", "picture": "optC.png"}
+  {
+   "label": "A. Team renames by hand",
+   "result": "Nothing ships ready. Each team retypes each title. Small to build, large for teams.",
+   "picture": "optA.png"
+  },
+  {
+   "label": "B. Title sets the team picks",
+   "result": "LangQuest publishes titles per language. A team picks one set and renames any title. Same title for everyone on the team.",
+   "picture": "optB.png"
+  },
+  {
+   "label": "C. Each person's app language",
+   "result": "Titles follow each phone's language. No team choice. People on one team see different titles.",
+   "picture": "optC.png"
+  }
  ],
  "recommended": 1
 }
