@@ -6323,7 +6323,8 @@
     "writtenInApp": "အက်ပ်တွင် ရေးထားသည် · {{n, number}}",
     "provider": {
       "bibleBrain": "Bible Brain",
-      "library": "LangQuest စာကြည့်တိုက်"
+      "library": "LangQuest စာကြည့်တိုက်",
+      "uploaded": "တင်ထားသော ဖိုင်များ"
     },
     "rec": {
       "recommended": "အကြံပြုထားသည်",
@@ -6808,7 +6809,10 @@
       "verseHelpNote": "မှတ်စု ထည့်ရန် ဤအခန်းငယ်ကို ရွေးသည်။",
       "verseHelpPlays": "ဤအခန်းငယ်မှ ဖွင့်သည်။",
       "verseHelpPlaysNote": "ဤအခန်းငယ်မှ ဖွင့်ပြီး မှတ်စု ထည့်ရန် ၎င်းကို ရွေးသည်။",
-      "versionHelp": "ကျမ်းပိုဒ်ကို ဤသမ္မာကျမ်းစာဖြင့် ပြပြီး ဖွင့်သည်။"
+      "versionHelp": "ကျမ်းပိုဒ်ကို ဤသမ္မာကျမ်းစာဖြင့် ပြပြီး ဖွင့်သည်။",
+      "usfmCrossRef": "ကြည့်ရန်:",
+      "usfmRenumbered": "ဤကျမ်းစာသည် ဤအခန်းငယ်များကို {{verses}} ဟု ရေတွက်သည်။",
+      "usfmMissing": "ဤကျမ်းစာတွင် {{verses}} မပါပါ။"
     },
     "text": {
       "noBibleBrain": "Bible Brain ကို ဤစက်ပေါ်တွင် မပြင်ဆင်ထားပါ။",

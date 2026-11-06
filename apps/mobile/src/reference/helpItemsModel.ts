@@ -143,7 +143,7 @@ function aboutOf(doc: LibraryDoc): string {
   switch (doc.format) {
     case 'collection@1': return `${doc.title} ${doc.description}`;
     case 'material@1': return `${doc.title} ${doc.body ?? ''} ${doc.source ?? ''}`;
-    case 'source@1': return `${doc.name} ${doc.abbreviation}`;
+    case 'source@1': case 'usfmBible@1': return `${doc.name} ${doc.abbreviation}`;
     case 'study@1': case 'study@2': return `${doc.title} ${doc.source}`;
     default: return '';
   }

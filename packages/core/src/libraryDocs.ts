@@ -410,7 +410,7 @@ export interface LabelsDoc {
  * A Bible an organization uploaded as USFM files (decision 205): the
  * header of `usfmBible@1`, one `usfmBook@1` per book. Unlike `source@1`
  * it has no provider, no audio and no timings; it is text the team holds
- * and says it may share. Showing it beside a passage is LAN-230.
+ * and says it may share. It is read through `sourceOf` (decision 206).
  */
 export interface UsfmBibleDoc {
   format: 'usfmBible@1';
@@ -481,6 +481,37 @@ export interface TimingDoc {
 
 export type LibraryDoc = TemplateDocV1 | TemplateDocV2 | FlowDoc | StudyDoc | StudyDoc2 | CollectionDoc | MaterialDoc | SourceDoc | SourceBookDoc | TimingDoc | VersificationDoc
   | NamesDoc | LabelsDoc | UsfmBibleDoc | UsfmBookDoc;
+
+/**
+ * A Bible as whatever offers, lists or reads Bibles takes it: a `source@1`
+ * with its own books, or an uploaded Bible seen as one (text in the library,
+ * kept on the phone, no audio). `uploaded` says which; a book's `chapters` is
+ * how many the file has, known only for an upload.
+ */
+export type BibleSource = Omit<SourceDoc, 'books'> & {
+  books: { book: string; name: string; doc?: string; chapters?: number }[];
+  uploaded?: true;
+};
+
+const uploadedViews = new WeakMap<UsfmBibleDoc, BibleSource>();
+
+/** The Bible a document is, or null when it is not one (decision 206). The same document always gives the same object, so memos hold. */
+export function sourceOf(doc: LibraryDoc | null | undefined): BibleSource | null {
+  if (doc?.format === 'source@1') return doc;
+  if (doc?.format !== 'usfmBible@1') return null;
+  let view = uploadedViews.get(doc);
+  if (!view) {
+    view = {
+      format: 'source@1', name: doc.name, abbreviation: doc.abbreviation, language: doc.language, versification: doc.versification,
+      provider: { kind: 'library' }, offline: 'allowed', copyright: doc.copyright ? { text: doc.copyright } : {},
+      ...(doc.license ? { license: doc.license } : {}),
+      books: doc.books.map((b) => ({ book: b.book, name: b.name, doc: b.doc, chapters: b.chapters })),
+      deps: doc.deps, uploaded: true
+    };
+    uploadedViews.set(doc, view);
+  }
+  return view;
+}
 
 /** The library kind a document is published under. */
 export function kindOfDoc(doc: LibraryDoc): LibraryKind {

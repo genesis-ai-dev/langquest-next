@@ -202,11 +202,9 @@ material → Upload Bible files** on the web (decisions.md 205, LAN-229).
    `material`), through the library's outbox like any item. Nothing goes to
    the live library from anywhere but the admin's own publish.
 
-**Waits on LAN-230:** the reader does not open a `usfmBible@1` yet, so
-translators do not see it beside a passage, and the offered-Bibles counts and
-coverage leave it out. Paragraphs, headings and notes are kept in each book's
-`usfm` text for that work. Also not built: checking verse numbers against the
-chosen numbering, and splitting a file that holds several books.
+**Reading it** (decision 206, LAN-230). An uploaded Bible is a Bible everywhere: recommend it in **Bibles**, find it under **More Bibles**, read it beside a passage. It is text only, and phones keep the books of the passages in their offline scope. Verses stay rows with their numbers. Section headings stand above a verse, poetry stacks in its lines, and footnotes and cross references show under the verse with a letter in the text; no marker ever shows (`packages/core/src/usfmRead.ts`, `src/usfm/UsfmVerse.tsx`). Book names come from the file (`\toc2`, `\h`, `\toc1`, `\mt`). A Bible numbered otherwise maps to the passage and says how it numbers it; a passage's verses its file lacks are named above the text.
+
+Not built: checking verse numbers against the chosen numbering at upload, and splitting a file that holds several books.
 
 ## Where the code is
 
@@ -217,6 +215,6 @@ chosen numbering, and splitting a file that holds several books.
 | Bible Brain routes | `apps/web/worker/bible.ts` |
 | Reader, sources, explore, record of use | `apps/mobile/src/sources/` |
 | Admin: recommendations, coverage, passage links, timings | `apps/mobile/src/screens/config.tsx`, `apps/mobile/src/reference/` |
-| USFM Bible upload | `packages/core/src/usfm.ts`, `apps/mobile/src/usfm/` |
+| USFM Bible upload and reading | `packages/core/src/usfm.ts`, `packages/core/src/usfmRead.ts`, `apps/mobile/src/usfm/` |
 | Guide editor | `apps/mobile/src/guides/`; reading `study@2` in `apps/mobile/src/study/` |
 | Seeding LangQuest's sources | `scripts/library-seed.ts`, `scripts/sources-seed.ts` |

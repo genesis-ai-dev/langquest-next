@@ -6593,7 +6593,8 @@
     "writtenInApp": "Imeandikwa katika programu · {{n, number}}",
     "provider": {
       "bibleBrain": "Bible Brain",
-      "library": "Maktaba ya LangQuest"
+      "library": "Maktaba ya LangQuest",
+      "uploaded": "Faili zilizopakiwa"
     },
     "rec": {
       "recommended": "Inapendekezwa",
@@ -7105,7 +7106,10 @@
       "verseHelpNote": "Huchagua mstari huu, ili uongeze dokezo juu yake.",
       "verseHelpPlays": "Hucheza kuanzia mstari huu.",
       "verseHelpPlaysNote": "Hucheza kuanzia mstari huu na kuuchagua, ili uongeze dokezo juu yake.",
-      "versionHelp": "Husoma na kucheza kifungu katika Biblia hii."
+      "versionHelp": "Husoma na kucheza kifungu katika Biblia hii.",
+      "usfmCrossRef": "Tazama pia:",
+      "usfmRenumbered": "Biblia hii inahesabu mistari hii {{verses}}.",
+      "usfmMissing": "Biblia hii haina {{verses}}."
     },
     "text": {
       "noBibleBrain": "Bible Brain haijaandaliwa kwenye kifaa hiki.",

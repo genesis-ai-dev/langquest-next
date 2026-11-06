@@ -6323,7 +6323,8 @@
     "writtenInApp": "Ditulis di aplikasi · {{n, number}}",
     "provider": {
       "bibleBrain": "Bible Brain",
-      "library": "Perpustakaan LangQuest"
+      "library": "Perpustakaan LangQuest",
+      "uploaded": "Berkas yang diunggah"
     },
     "rec": {
       "recommended": "Direkomendasikan",
@@ -6808,7 +6809,10 @@
       "verseHelpNote": "Memilih ayat ini, untuk menambah catatan padanya.",
       "verseHelpPlays": "Memutar dari ayat ini.",
       "verseHelpPlaysNote": "Memutar dari ayat ini dan memilihnya, untuk menambah catatan padanya.",
-      "versionHelp": "Menampilkan dan memutar perikop dalam Alkitab ini."
+      "versionHelp": "Menampilkan dan memutar perikop dalam Alkitab ini.",
+      "usfmCrossRef": "Lihat juga:",
+      "usfmRenumbered": "Alkitab ini menomori ayat-ayat ini {{verses}}.",
+      "usfmMissing": "Alkitab ini tidak memiliki {{verses}}."
     },
     "text": {
       "noBibleBrain": "Bible Brain belum diatur di perangkat ini.",

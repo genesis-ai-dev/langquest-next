@@ -6593,7 +6593,8 @@
     "writtenInApp": "Isinulat sa app · {{n, number}}",
     "provider": {
       "bibleBrain": "Bible Brain",
-      "library": "Aklatan ng LangQuest"
+      "library": "Aklatan ng LangQuest",
+      "uploaded": "Mga na-upload na file"
     },
     "rec": {
       "recommended": "Inirerekomenda",
@@ -7105,7 +7106,10 @@
       "verseHelpNote": "Pinipili ang talatang ito, para magdagdag ng tala rito.",
       "verseHelpPlays": "Tumutugtog mula sa talatang ito.",
       "verseHelpPlaysNote": "Tumutugtog mula sa talatang ito at pinipili ito, para magdagdag ng tala rito.",
-      "versionHelp": "Binabasa at pinapatugtog ang sipi sa Bibliyang ito."
+      "versionHelp": "Binabasa at pinapatugtog ang sipi sa Bibliyang ito.",
+      "usfmCrossRef": "Tingnan din:",
+      "usfmRenumbered": "Binibilang ng Bibliyang ito ang mga talatang ito bilang {{verses}}.",
+      "usfmMissing": "Wala sa Bibliyang ito ang {{verses}}."
     },
     "text": {
       "noBibleBrain": "Hindi naka-set up ang Bible Brain sa device na ito.",

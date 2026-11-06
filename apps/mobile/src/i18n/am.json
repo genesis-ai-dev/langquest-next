@@ -6593,7 +6593,8 @@
     "writtenInApp": "በመተግበሪያው ውስጥ የተጻፈ · {{n, number}}",
     "provider": {
       "bibleBrain": "Bible Brain",
-      "library": "የLangQuest ቤተ መጻሕፍት"
+      "library": "የLangQuest ቤተ መጻሕፍት",
+      "uploaded": "የተሰቀሉ ፋይሎች"
     },
     "rec": {
       "recommended": "የተመከረ",
@@ -7105,7 +7106,10 @@
       "verseHelpNote": "በእሱ ላይ ማስታወሻ ለማከል ይህን ቁጥር ይመርጣል።",
       "verseHelpPlays": "ከዚህ ቁጥር ጀምሮ ያጫውታል።",
       "verseHelpPlaysNote": "ከዚህ ቁጥር ጀምሮ ያጫውታል፣ በእሱ ላይ ማስታወሻ ለማከልም ይመርጠዋል።",
-      "versionHelp": "ክፍሉን በዚህ መጽሐፍ ቅዱስ ያነባል፣ ያጫውታልም።"
+      "versionHelp": "ክፍሉን በዚህ መጽሐፍ ቅዱስ ያነባል፣ ያጫውታልም።",
+      "usfmCrossRef": "ደግሞም ይመልከቱ፦",
+      "usfmRenumbered": "ይህ መጽሐፍ ቅዱስ እነዚህን ቁጥሮች {{verses}} ብሎ ይቆጥራል።",
+      "usfmMissing": "ይህ መጽሐፍ ቅዱስ {{verses}} የለውም።"
     },
     "text": {
       "noBibleBrain": "Bible Brain በዚህ መሣሪያ ላይ አልተዘጋጀም።",

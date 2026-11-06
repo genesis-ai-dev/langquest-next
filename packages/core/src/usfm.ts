@@ -1,19 +1,16 @@
 import { BIBLE_BOOKS } from './catalogData';
+import { readUsfm, usfmPlainText } from './usfmRead';
 import { USFM_BOOKS, usfmOf } from './versification';
 
 /**
- * Reading one USFM file (decision 205, docs/reference-material.md): the
- * check an admin sees before a Bible is published as organization
- * reference material. Pure: text in, a book and what is wrong with it out.
+ * Checking one USFM file (decision 205, docs/reference-material.md): what an
+ * admin sees before a Bible is published as organization reference material.
+ * Pure: text in, a book and what is wrong with it out.
  *
- * Only the words of each verse are kept here, with markup, footnotes and
- * cross references taken out; the file's own text travels with the book
- * (`usfmBook@1.usfm`), so how paragraphs, headings and notes are shown
- * (LAN-230) needs no second upload.
+ * Only the words of each verse are kept in the check's result; the file's own
+ * text travels with the book (`usfmBook@1.usfm`), and `usfmRead.ts`, which this
+ * walks with, reads its paragraphs, headings and notes for the reader.
  */
-
-/** Markers whose whole span is not verse text: footnotes, cross references, study notes, figures, sidebars. */
-const SPAN_MARKERS = ['f', 'fe', 'x', 'ef', 'ex', 'esb', 'fig'];
 
 export interface UsfmChapter {
   chapter: number;
@@ -63,18 +60,7 @@ const BOOK_SET = new Set<string>(USFM_BOOKS);
 const NOT_A_BOOK = new Set(['FRT', 'BAK', 'INT', 'CNC', 'GLO', 'TDX', 'NDX', 'OTH', 'XXA', 'XXB', 'XXC', 'XXD', 'XXE', 'XXF', 'XXG']);
 
 /** Remove character markers and notes from the text of a verse and tidy its spaces. */
-export function cleanVerseText(raw: string): string {
-  let s = raw;
-  for (const m of SPAN_MARKERS) {
-    // \f + \fr 1.1 \ft note \f*  (also \+f for nested use)
-    s = s.replace(new RegExp(String.raw`\\\+?${m}\s[\s\S]*?\\\+?${m}\*`, 'g'), '');
-  }
-  // \w word|lemma="x"\w* keeps the word; every other attribute list after | is dropped.
-  s = s.replace(/\\\+?([a-z]+)\d?\s([^\\]*?)\|[^\\]*?\\\+?\1\*/g, '$2');
-  s = s.replace(/\\\+?[a-z]+\d*\*/g, '');
-  s = s.replace(/\\\+?[a-z]+\d*(?=\s|$)/g, '');
-  return s.replace(/~/g, ' ').replace(/\s+/g, ' ').trim();
-}
+export const cleanVerseText = usfmPlainText;
 
 /** A book's file may be this big: the library keeps a document up to 4 MB and the book holds the file twice (text and verses). */
 export const MAX_BOOK_BYTES = 1_800_000;
@@ -83,8 +69,6 @@ function utf8Bytes(s: string): number {
   for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); n += c < 0x80 ? 1 : c < 0x800 ? 2 : c >= 0xd800 && c < 0xdc00 ? (i++, 4) : 3; }
   return n;
 }
-
-const MARKER_LINE = /^\\([a-z]+\d*)\*?(?:\s+(.*))?$/;
 
 /** Read one USFM file. Never throws: every problem is in `errors` or `warnings`. */
 export function checkUsfm(fileName: string, text: string): UsfmCheck {
@@ -109,68 +93,22 @@ export function checkUsfm(fileName: string, text: string): UsfmCheck {
     else out.book = code;
   }
 
-  // ---- body: join lines to their marker, then walk the markers ----
-  let chapter = 0;
-  let current: UsfmChapter | null = null;
-  let verse: { start: number; end: number; text: string[] } | null = null;
-  let lastVerseEnd = 0;
-  const names: Record<string, string> = {};
-  const seenChapters = new Set<number>();
+  // ---- body ----
+  const read = readUsfm(src);
   let strayVerse = false;
   let outOfOrder = 0;
-  let emptyVerses = 0;
-
-  const closeVerse = () => {
-    if (!verse || !current) { verse = null; return; }
-    const body = cleanVerseText(verse.text.join(' '));
-    if (!body) emptyVerses++;
-    current.verses.push([verse.start, verse.end, body]);
-    out.verseCount++;
-    verse = null;
-  };
-
-  for (const rawLine of src.split('\n')) {
-    const line = rawLine.trim();
-    if (!line) continue;
-    const m = MARKER_LINE.exec(line);
-    if (!m) { if (verse) verse.text.push(line); continue; }
-    const marker = m[1]!;
-    const rest = m[2] ?? '';
-    switch (marker) {
-      case 'id': break;
-      case 'h': case 'toc1': case 'toc2': case 'toc3': case 'mt': case 'mt1':
-        names[marker] ??= cleanVerseText(rest); break;
-      case 'c': {
-        closeVerse();
-        const n = Number.parseInt(rest, 10);
-        if (!Number.isInteger(n) || n < 1) { fail({ code: 'badChapter', text: rest.slice(0, 20) }); break; }
-        if (seenChapters.has(n)) { fail({ code: 'chapterTwice', chapter: n }); }
-        else if (n < chapter) warn({ code: 'chapterOrder', chapter: n, after: chapter });
-        seenChapters.add(n);
-        chapter = n;
-        lastVerseEnd = 0;
-        current = { chapter: n, verses: [] };
-        out.chapters.push(current);
-        break;
-      }
-      case 'v': {
-        closeVerse();
-        const vm = /^(\d+)[a-z]?(?:\s*[-–—]\s*(\d+)[a-z]?)?(?:\s+([\s\S]*))?$/.exec(rest);
-        if (!current) { strayVerse = true; break; }
-        if (!vm) { fail({ code: 'badVerse', chapter, text: rest.slice(0, 20) }); break; }
-        const start = Number(vm[1]);
-        const end = vm[2] ? Number(vm[2]) : start;
-        if (end < start) { fail({ code: 'backward', chapter, start, end }); break; }
-        if (start <= lastVerseEnd && lastVerseEnd > 0) outOfOrder++;
-        lastVerseEnd = Math.max(lastVerseEnd, end);
-        verse = { start, end, text: vm[3] ? [vm[3]] : [] };
-        break;
-      }
-      default:
-        if (verse) { const t = rest; if (t) verse.text.push(`\\${marker} ${t}`); }
+  for (const p of read.problems) {
+    switch (p.code) {
+      case 'strayVerse': strayVerse = true; break;
+      case 'outOfOrder': outOfOrder++; break;
+      case 'chapterOrder': warn({ code: 'chapterOrder', chapter: p.chapter, after: p.after }); break;
+      default: fail(p);
     }
   }
-  closeVerse();
+  out.chapters = read.chapters.map((c) => ({ chapter: c.chapter, verses: c.verses.map((v): [number, number, string] => [v.start, v.end, v.text]) }));
+  out.verseCount = read.chapters.reduce((n, c) => n + c.verses.length, 0);
+  const emptyVerses = read.chapters.reduce((n, c) => n + c.verses.filter((v) => !v.text).length, 0);
+  const names = read.names;
 
   if (strayVerse) fail({ code: 'strayVerse' });
   if (!out.chapters.length) fail({ code: 'noChapters' });

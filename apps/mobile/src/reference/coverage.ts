@@ -55,7 +55,7 @@ function placementOf(doc: LibraryDoc | null, get: Get): Placement | null {
   const p: Placement = { kind, books: null, ranges: [], nodes: [] };
   const v = (hash: string | undefined) => (hash ? (get(hash) as VersificationDoc | null) : null);
   switch (doc.format) {
-    case 'source@1': p.books = new Set(doc.books.map((b) => b.book)); break;
+    case 'source@1': case 'usfmBible@1': p.books = new Set(doc.books.map((b) => b.book)); break;
     case 'study@1': {
       const v11n = v(doc.versification);
       const r = parseRef(doc.ref, v11n ? (b, c) => versesInChapter(v11n, b, c) : undefined);

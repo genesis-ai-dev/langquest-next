@@ -1040,7 +1040,7 @@ function OfferedRows(props: { ctx: Ctx; languageId: string | null; offered: Map<
     const doc = get(m.current);
     return offered.has(m.itemId) && !!doc && formats.includes(doc.format) && (!kind || (doc.format === 'material@1' && doc.kind === kind));
   }).length;
-  const bibles = count(['source@1']);
+  const bibles = count(['source@1', 'usfmBible@1']);
   const guides = count(['study@1', 'study@2', 'collection@1']);
   const notes = count(['material@1'], 'note');
   const open = ctx.language.languageId || null;

@@ -6593,7 +6593,8 @@
     "writtenInApp": "An rubuta a cikin manhaja · {{n, number}}",
     "provider": {
       "bibleBrain": "Bible Brain",
-      "library": "Ɗakin karatun LangQuest"
+      "library": "Ɗakin karatun LangQuest",
+      "uploaded": "Fayilolin da aka ɗora"
     },
     "rec": {
       "recommended": "An ba da shawara",
@@ -7105,7 +7106,10 @@
       "verseHelpNote": "Yana zaɓar wannan aya, don ƙara bayani a kanta.",
       "verseHelpPlays": "Yana kunnawa daga wannan aya.",
       "verseHelpPlaysNote": "Yana kunnawa daga wannan aya kuma yana zaɓar ta, don ƙara bayani a kanta.",
-      "versionHelp": "Yana nunawa da kunna nassin a wannan Littafi Mai Tsarki."
+      "versionHelp": "Yana nunawa da kunna nassin a wannan Littafi Mai Tsarki.",
+      "usfmCrossRef": "Duba kuma:",
+      "usfmRenumbered": "Wannan Littafi Mai Tsarki yana lissafta waɗannan ayoyi {{verses}}.",
+      "usfmMissing": "Wannan Littafi Mai Tsarki ba shi da {{verses}}."
     },
     "text": {
       "noBibleBrain": "Ba a saita Bible Brain a wannan na'ura ba.",

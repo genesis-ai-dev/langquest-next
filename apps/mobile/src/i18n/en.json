@@ -6593,7 +6593,8 @@
     "writtenInApp": "Written in the app · {{n, number}}",
     "provider": {
       "bibleBrain": "Bible Brain",
-      "library": "LangQuest library"
+      "library": "LangQuest library",
+      "uploaded": "Uploaded files"
     },
     "rec": {
       "recommended": "Recommended",
@@ -7105,7 +7106,10 @@
       "verseHelpNote": "Chooses this verse, to add a note on it.",
       "verseHelpPlays": "Plays from this verse.",
       "verseHelpPlaysNote": "Plays from this verse and chooses it, to add a note on it.",
-      "versionHelp": "Reads and plays the passage in this Bible."
+      "versionHelp": "Reads and plays the passage in this Bible.",
+      "usfmCrossRef": "See also:",
+      "usfmRenumbered": "This Bible numbers these verses {{verses}}.",
+      "usfmMissing": "This Bible does not have {{verses}}."
     },
     "text": {
       "noBibleBrain": "Bible Brain isn't set up on this device.",

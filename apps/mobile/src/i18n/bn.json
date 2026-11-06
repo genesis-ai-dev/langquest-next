@@ -6593,7 +6593,8 @@
     "writtenInApp": "অ্যাপে লেখা · {{n, number}}",
     "provider": {
       "bibleBrain": "Bible Brain",
-      "library": "LangQuest লাইব্রেরি"
+      "library": "LangQuest লাইব্রেরি",
+      "uploaded": "আপলোড করা ফাইল"
     },
     "rec": {
       "recommended": "প্রস্তাবিত",
@@ -7105,7 +7106,10 @@
       "verseHelpNote": "এই পদটি বেছে নেয়, এতে একটি নোট যোগ করতে।",
       "verseHelpPlays": "এই পদ থেকে চালায়।",
       "verseHelpPlaysNote": "এই পদ থেকে চালায় এবং এটি বেছে নেয়, এতে একটি নোট যোগ করতে।",
-      "versionHelp": "এই বাইবেলে অংশটি দেখায় ও চালায়।"
+      "versionHelp": "এই বাইবেলে অংশটি দেখায় ও চালায়।",
+      "usfmCrossRef": "আরও দেখুন:",
+      "usfmRenumbered": "এই বাইবেলে এই পদগুলির সংখ্যা {{verses}}।",
+      "usfmMissing": "এই বাইবেলে {{verses}} নেই।"
     },
     "text": {
       "noBibleBrain": "এই ডিভাইসে Bible Brain সেট করা নেই।",

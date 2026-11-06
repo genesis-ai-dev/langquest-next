@@ -7673,7 +7673,8 @@
     "writtenInApp": "مكتوب في التطبيق · {{n, number}}",
     "provider": {
       "bibleBrain": "Bible Brain",
-      "library": "مكتبة LangQuest"
+      "library": "مكتبة LangQuest",
+      "uploaded": "ملفات مرفوعة"
     },
     "rec": {
       "recommended": "موصى به",
@@ -8293,7 +8294,10 @@
       "verseHelpNote": "يختار هذه الآية، لتضيف ملاحظة عليها.",
       "verseHelpPlays": "يشغّل من هذه الآية.",
       "verseHelpPlaysNote": "يشغّل من هذه الآية ويختارها، لتضيف ملاحظة عليها.",
-      "versionHelp": "يعرض نص المقطع ويشغّله من هذه الترجمة."
+      "versionHelp": "يعرض نص المقطع ويشغّله من هذه الترجمة.",
+      "usfmCrossRef": "انظر أيضًا:",
+      "usfmRenumbered": "يرقّم هذا الكتاب المقدس هذه الآيات {{verses}}.",
+      "usfmMissing": "لا يحتوي هذا الكتاب المقدس على {{verses}}."
     },
     "text": {
       "noBibleBrain": "Bible Brain غير مُعدّ على هذا الجهاز.",

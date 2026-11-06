@@ -6323,7 +6323,8 @@
     "writtenInApp": "在应用中编写 · {{n, number}}",
     "provider": {
       "bibleBrain": "Bible Brain",
-      "library": "LangQuest 资料库"
+      "library": "LangQuest 资料库",
+      "uploaded": "上传的文件"
     },
     "rec": {
       "recommended": "推荐",
@@ -6808,7 +6809,10 @@
       "verseHelpNote": "选择这一节，以便对它添加备注。",
       "verseHelpPlays": "从这一节开始播放。",
       "verseHelpPlaysNote": "从这一节开始播放并选择它，以便对它添加备注。",
-      "versionHelp": "用这本圣经阅读和播放这个经段。"
+      "versionHelp": "用这本圣经阅读和播放这个经段。",
+      "usfmCrossRef": "另见：",
+      "usfmRenumbered": "这本圣经将这些经文编号为 {{verses}}。",
+      "usfmMissing": "这本圣经没有 {{verses}}。"
     },
     "text": {
       "noBibleBrain": "本设备上没有设置 Bible Brain。",

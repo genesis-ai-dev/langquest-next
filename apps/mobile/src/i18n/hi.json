@@ -6593,7 +6593,8 @@
     "writtenInApp": "ऐप में लिखा गया · {{n, number}}",
     "provider": {
       "bibleBrain": "Bible Brain",
-      "library": "LangQuest लाइब्रेरी"
+      "library": "LangQuest लाइब्रेरी",
+      "uploaded": "अपलोड की गई फ़ाइलें"
     },
     "rec": {
       "recommended": "सुझाई गई",
@@ -7105,7 +7106,10 @@
       "verseHelpNote": "यह पद चुनता है, उस पर नोट जोड़ने के लिए।",
       "verseHelpPlays": "इस पद से चलाता है।",
       "verseHelpPlaysNote": "इस पद से चलाता है और उसे चुनता है, उस पर नोट जोड़ने के लिए।",
-      "versionHelp": "इस बाइबल में अंश दिखाता और चलाता है।"
+      "versionHelp": "इस बाइबल में अंश दिखाता और चलाता है।",
+      "usfmCrossRef": "यह भी देखें:",
+      "usfmRenumbered": "यह बाइबल इन पदों को {{verses}} गिनती है।",
+      "usfmMissing": "इस बाइबल में {{verses}} नहीं है।"
     },
     "text": {
       "noBibleBrain": "Bible Brain इस डिवाइस पर सेट नहीं है।",

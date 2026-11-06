@@ -25,6 +25,7 @@ export { BIBLE_BOOKS, FIA_PERICOPES, type BibleBook } from './catalogData';
 export * from './versification';
 export * from './libraryDocs';
 export * from './usfm';
+export * from './usfmRead';
 export * from './library';
 export * from './libraryApply';
 export * from './breakup';

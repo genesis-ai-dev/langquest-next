@@ -6323,7 +6323,8 @@
     "writtenInApp": "เขียนในแอป · {{n, number}}",
     "provider": {
       "bibleBrain": "Bible Brain",
-      "library": "คลังของ LangQuest"
+      "library": "คลังของ LangQuest",
+      "uploaded": "ไฟล์ที่อัปโหลด"
     },
     "rec": {
       "recommended": "แนะนำ",
@@ -6808,7 +6809,10 @@
       "verseHelpNote": "เลือกข้อนี้ เพื่อเพิ่มโน้ต",
       "verseHelpPlays": "เล่นตั้งแต่ข้อนี้",
       "verseHelpPlaysNote": "เล่นตั้งแต่ข้อนี้และเลือกข้อนี้ เพื่อเพิ่มโน้ต",
-      "versionHelp": "อ่านและเล่นตอนนี้ในพระคัมภีร์ฉบับนี้"
+      "versionHelp": "อ่านและเล่นตอนนี้ในพระคัมภีร์ฉบับนี้",
+      "usfmCrossRef": "ดูเพิ่มเติม:",
+      "usfmRenumbered": "พระคัมภีร์ฉบับนี้นับข้อเหล่านี้เป็น {{verses}}",
+      "usfmMissing": "พระคัมภีร์ฉบับนี้ไม่มี {{verses}}"
     },
     "text": {
       "noBibleBrain": "ยังไม่ได้ตั้งค่า Bible Brain ในเครื่องนี้",
