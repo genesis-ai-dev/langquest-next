@@ -603,7 +603,7 @@ if (DRY) mkdirSync(path.join(out, 'steps'), { recursive: true });
 const speech = (tutorial.speech ?? []).map((f) => { const file = path.join(speechDir, f); return { file, seconds: wavSeconds(file) }; });
 
 const world = await buildWorld({
-  keptByInvite: true, names: tutorial.names,
+  keptByInvite: true, ...(tutorial.welcomed === false ? { welcomed: false } : {}), names: tutorial.names,
   voices: (what) => (WORLD_VOICES[what] ? readFileSync(path.join(speechDir, WORLD_VOICES[what]!)) : undefined)
 });
 // A dry run keeps the run-numbered addresses, so it can run beside a film.
