@@ -13,13 +13,13 @@ app's page from ever answering them. Production only: preview has no
 database of its own for it to read yet, so `/ops-dashboard` there says it
 is not set up.
 
-It reads, with four exceptions (decisions.md 162): marking feedback seen,
+It reads, with six exceptions (decisions.md 162): marking feedback seen,
 done or open again, running a server job now, granting or declining an
 organization's blue check request (decisions.md 173, docs/verified-organizations.md),
 connecting a tutorial channel on YouTube and choosing the videos to put
-up there (decisions.md 180, below), and leaving a note about a tutorial
+up there (decisions.md 180, below), leaving a note about a tutorial
 video or accepting, editing or rejecting a change Claude suggests for one
-(decisions.md 186). For those the page posts
+(decisions.md 186), and marking an account's quiet installs not an issue. For those the page posts
 to `/ops/api/actions`; this Worker, which holds no writer's key, passes the
 action and the person's own token to the app Worker's `OpsActions`
 entrypoint (`APP_ACTIONS` binding), which checks the token itself (a live
@@ -75,8 +75,8 @@ An alert says only what someone could act on. A merge that changes nothing
 the web app is built from, notifications for people with no push token
 (they stay in the Inbox), RPCs only the server's jobs call, an average over
 fewer than 20 calls, the v2 import's backdated events, browsers going
-quiet, and an overage costing under $5 this month raise none; each figure
-still shows in its section. The same list is JSON at
+quiet, an account marked not an issue under Silent phones, and an overage
+costing under $5 this month raise none; each figure still shows in its section. The same list is JSON at
 `/ops/api/attention`, with a count per level. Each section collapses to its
 title and status (OK, urgent, problems, to watch, not connected, could not
 read): it starts closed when it is fine and open when something needs a
@@ -113,7 +113,7 @@ the page loads to exactly one section.
 | Feedback | its open count from `diag.ops_feedback_open()` (migration `20261026120000_ops_feedback_and_since.sql`; `diag_reader` cannot read the table); `diag.feedback()`, `diag.feedback_screenshot()`, `diag.feedback_picture()` and `diag.feedback_voice()`, once the feedback store's migration is on the database; until then the section says so. Screenshots, chosen pictures and voice notes load when asked for, and only as JPEG, WAV or m4a | `DIAG_DATABASE_URL` |
 | Look up | an error code (`diag.error`), an email (`diag.lookup_email`: the profile id and its installs, never the address back), a profile id (`diag.person`), an install's last three days (`diag.timeline`), or an organization or language by name (`diag.find`) | `DIAG_DATABASE_URL` |
 | Sync and data safety | work the server refused, by reason (`sync` records); what arrived and how late, and events stamped ahead of the clock (the projection pass's sample); the nightly fold canary; languages behind the projection pass, overdue snapshots and the largest languages (`diag.ops_pipeline`) | `DIAG_DATABASE_URL`, migration `20261023100000_ops_dashboard.sql` |
-| Builds and stuck phones | each update in the field with its crash-free share (a rollback alert), reducer and protocol versions, browsers by web commit, time to a usable Map, stuck phones and phones gone quiet | `DIAG_DATABASE_URL` |
+| Builds and stuck phones | each update in the field with its crash-free share (a rollback alert), reducer and protocol versions, browsers by web commit, time to a usable Map, stuck phones, and phones gone quiet by account (`diag.ops_quiet_accounts`) | `DIAG_DATABASE_URL` |
 | Release health | merges on `main`, Worker deploys and EAS updates over 14 days against errors phones reported; the commit each host serves; hosted migrations against `main` (`diag.migrations_applied` and the files on GitHub) | `DIAG_DATABASE_URL`; the Cloudflare, Expo and GitHub tokens add to the timeline |
 | Job container | each server job's object, asked through the app Worker's read-only `JobStatus` entrypoint (`APP_JOBS` binding): running or not, since when, its limit | the binding |
 | Scheduled database jobs, Database detail, Push and Inbox, Integrations, Support queue, Security and limits | `diag.ops_cron`, `ops_database`, `ops_push`, `ops_integrations`, `ops_support`, `ops_limits`, and job runs (`push_delivery`, `webhook_dispatch`, `account_delete`, `worker_requests` for the rate limits' refusals). The longest query and oldest transaction name their role, client and wait (never the query's text) and leave out background work that always runs: every backend that is not a client's (autovacuum, WAL senders, pg_cron's and pg_net's workers) and Realtime's sessions, listed apart (migration `20261026160000_ops_database_who.sql`). To see its text, "Which query is it" below | `DIAG_DATABASE_URL`, the migration |
