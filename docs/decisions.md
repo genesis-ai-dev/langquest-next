@@ -8131,6 +8131,21 @@ or `suggestion_rejected`. They change only that feedback, never an
 organization's work. Accepting a code change also files it in Linear when
 the app Worker has `LINEAR_API_KEY`.
 
+Amended (2026-11-05, Caleb Koster): a sixth kind, `quiet-account`, recorded
+as `quiet_ok` or `quiet_ok_undo`. The warning about installs gone quiet
+counted 43 installs and named nobody. Asked who they were, Caleb confirmed
+that 3 accounts holding 40 of them were the store review account, a
+developer and Caleb's own; a reinstall leaves the old install quiet. Caleb
+asked to see the accounts behind the warning on the page and to say of one
+that it is not an issue. Silent phones now lists quiet installs by account
+(`diag.ops_quiet_accounts`), and a mark (`ops.quiet_accounts_ok`, gone with
+the account) takes that account's quiet installs out of the warning's count,
+now and later, until someone presses Undo. Not `ops.watch_ignored`: that
+also leaves the account out of the watch for user issues (202), and a
+problem on a marked account's phone is still a problem. It changes only this
+count, never an organization's work. The page shows the account's id and no
+name or email, as diagnostics do (38); its Look up opens the account's installs.
+
 ## 163. A pull request's guardrails run in about the time of its slowest test job, not of its setup
 
 Date: 2026-10-23 · By: Carl Sauder · Status: accepted
