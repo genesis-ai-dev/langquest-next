@@ -4,7 +4,7 @@
   "problem": "One web test, PASS-004, fails about 1 run in 14. A pull request that did nothing wrong turns red and has to be run again.",
   "found": "Both failures came on a very busy test machine, in different places. The same test passed on the next run. I saw no sign of an app bug, but could not run the full tests here to prove it.",
   "changed": "Nothing changes for people using the app. The test PASS-004 gets the quarantine tag, with this issue and an owner written beside it. It then runs alone in the nightly run instead of blocking pull requests.",
-  "why": "The team's testing rules say a test that fails without an app cause gets set aside, never retried until it passes. I could not install the tools here, so I could not run any check, and I did not want to guess at a fix I cannot test. I also looked at the earlier fix for the same kind of problem (LAN-166); it is already in this code.",
+  "why": "Our test rules say to set aside a test that fails without an app cause. I could not run any checks here, so I did not guess at a fix.",
   "touches": "Only the one test file. The nightly run will report this test separately.",
   "pictures": [
     {
