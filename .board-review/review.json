@@ -1,0 +1,17 @@
+{
+"kind":"question",
+"ask":"Where should the length flag show, and how should we set each chapter's expected range?",
+"problem":"Partners want to know when a recording is far too short or too long. Mark chapter 2 was only 5 seconds, and nobody saw it.",
+"found":"The partner feed already gives the length of each recording. Nothing says what length is normal, so nothing can be flagged. Reference recordings give a real length for many chapters. Verse count gives only a rough guess.",
+"changed":"Nothing yet. I have not built anything. I am waiting for your answer.",
+"why":"Each option shows the same Mark 2 example. Reference audio is the most accurate range. Verse count works where no reference exists. Hand-set ranges are exact but take team time.",
+"touches":"Choosing the partner feed changes the partner guide. Choosing Reports adds a column to a report screen.",
+"pictures":[{"file":"option-A.png","label":"A: feed only"},{"file":"option-B.png","label":"B: feed and Reports"},{"file":"option-C.png","label":"C: Reports only"},{"file":"option-D.png","label":"D: feed and Reports, hand-set"}],
+"options":[
+{"label":"Partner feed only, range from reference recording","result":"Partners see a flag in the feed. Reports stay as they are. Chapters with no reference get no flag.","picture":"option-A.png"},
+{"label":"Feed and Reports, reference recording first, then verse count","result":"Partners and the team both see the flag. Every chapter gets a range, accurate where a reference exists.","picture":"option-B.png"},
+{"label":"Reports only, range from verse count","result":"Only the team sees the flag. Ranges are rough everywhere.","picture":"option-C.png"},
+{"label":"Feed and Reports, team sets each range by hand","result":"Exact ranges, but someone must enter them for every chapter.","picture":"option-D.png"}
+],
+"recommended":1
+}
