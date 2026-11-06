@@ -1,0 +1,17 @@
+{
+  "kind": "question",
+  "ask": "When no video fits a person's language and app version, what should the help page show?",
+  "problem": "The help page has no links to the tutorial videos. People cannot watch or download the video for the screen they are on.",
+  "found": "Videos exist in 15 languages, with a stable download link and a watch link for each. The app links to none of them. Phones differ by store build and by update. A video filmed on today's screens can show buttons an older phone lacks.",
+  "changed": "Nothing yet. Once you pick, the help page will show Watch and Download for the current screen. It will pick by the app's language and build.",
+  "why": "The server will match the screen, the language and the build. Only the empty case is a product choice, so I ask first. I looked at hiding the link, showing English, opening the list, and showing a closest video with a warning.",
+  "touches": "The videos page link, the video list the server keeps, and the help screens. No video is published or changed.",
+  "pictures": [{"file": "how-it-picks.png", "label": "How a video is picked"}],
+  "options": [
+    {"label": "A. Hide the link", "result": "No match, no link. Clean page, but people never learn a video exists.", "picture": "option-hide.png"},
+    {"label": "B. Show English, labelled", "result": "People get the English video, marked as English. With no video at all, the link is hidden.", "picture": "option-english.png"},
+    {"label": "C. Open the list", "result": "The link opens the full video list in their language. They choose by hand.", "picture": "option-page.png"},
+    {"label": "D. Closest video, with a warning", "result": "An older phone gets the newest video, marked as made for a newer app.", "picture": "option-older.png"}
+  ],
+  "recommended": 1
+}
