@@ -5,6 +5,11 @@
   "found": "Android builds had no shrinking turned on. I built a release app here with shrinking on. The speech model, our audio part and the camera and database parts all kept their names. This machine has no phone emulator, so I could not run the app.",
   "changed": "People see no change. The Android app gets smaller. The shrinking tool now keeps the speech model, audio and camera parts safe. Play gets the crash map from the app bundle by itself.",
   "why": "I used the standard Expo setting and put the keep list in its own file. A separate map upload is not needed, because the bundle carries the map. I also updated the store answers file. No Play Console answer changes. I added decision 205 to the log.",
-  "touches": "The next Android store build must be new, because this is a native change. I did not start any build. Not tested: recording, voice detection, playback, sync, QR scan. Two guardrail checks also did not run here: server calls (shallow clone) and the server tests (no Docker).",
-  "pictures": [{"file": "diagram.png", "label": "What changes in the Android app"}]
+  "touches": "Needs a new Android store build; I started none. Not tested: recording, voice, playback, sync, QR scan.",
+  "pictures": [
+    {
+      "file": "diagram.png",
+      "label": "What changes in the Android app"
+    }
+  ]
 }
