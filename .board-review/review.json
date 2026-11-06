@@ -1,0 +1,10 @@
+{
+ "kind": "needs_you",
+ "ask": "Can you get Carl's OK for one file per decision, merge the pull request, and paste the setup line?",
+ "problem": "Pull request 255 waited for you since Oct 28. Main moved on, so it could not merge. It lets many changes run at once.",
+ "found": "Main merged in with no clashes. Main now has decisions up to 204, so the closing number was 198, which was too low.",
+ "changed": "I merged main in and moved the closing decision number to 204. I checked the cloud setup against today's cloud machines. It still fits and ran fine. All fast checks pass.",
+ "why": "The old number would fail the decision check on merge. I could not push to the original branch, so the work is on a new branch with a new draft pull request. The slow database and phone-style tests were not rerun here. The earlier run on Nov 2 passed them.",
+ "touches": "Anyone with an open change that adds a numbered decision must move it into its own file after this merges. Nothing in the store answers changes.",
+ "pictures": [{"file": "steps.png", "label": "What is done and what is left"}]
+}
