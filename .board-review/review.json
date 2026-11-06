@@ -2,12 +2,18 @@
   "kind": "screen",
   "ask": "Is a question mark on the Inbox badge the right way to say a count could not load?",
   "problem": "On the web app, some people could not load the Inbox counts for open reports and join requests. The badge then showed nothing, as if no one was waiting.",
-  "found": "The web page could not renew its sign-in, because the network failed or was busy. While that lasts, every server request is stopped, and the two counts fail the same way. The app hid those failures and kept zero or an old number. This is why the same people show both problems. An expired sign-in is a different case and belongs to LAN-243. I could not read the live logs here, so this comes from the code.",
+  "found": "The web page could not renew its sign-in, so the server stopped the count requests. The app hid the failure and kept zero. An expired sign-in is a different case, left to LAN-243. I read code only, not live logs.",
   "changed": "When a count cannot load, the Inbox badge now shows a question mark. If some counts did load, it shows the total with a plus sign. The same applies to the bell on My Work.",
   "why": "A wrong zero hides real requests from moderators. A question mark is honest and small. I looked at an error message on the Inbox instead, but that adds a new screen and new words in 16 languages. The pictures are drawings of the badge, not screenshots, because I could not run the web app here.",
   "touches": "Screen readers still read the old label, since new words need all 16 translations. For a moment at start, admins may see a question mark until the first count loads.",
   "pictures": [
-    {"file": "before.png", "label": "Before"},
-    {"file": "after.png", "label": "After"}
+    {
+      "file": "before.png",
+      "label": "Before"
+    },
+    {
+      "file": "after.png",
+      "label": "After"
+    }
   ]
 }
