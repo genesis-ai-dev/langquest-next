@@ -51,6 +51,15 @@ describe('reading a Playwright report', () => {
     expect(t.error).toBe('Error: expect(locator).toBeVisible() failed');
   });
 
+  it('counts a test marked test.fail that failed as passed, and one that passed unexpectedly as failed', () => {
+    const marked = (status: string) => ({
+      title: 'JRN-005 known gap', file: '16.spec.ts', line: 1,
+      tests: [{ projectName: 'wide', expectedStatus: 'failed', results: [{ status, error: status === 'failed' ? { message: 'Error: gap' } : undefined }] }]
+    });
+    expect(testsOf(report(marked('failed') as never))[0].passed).toBe(true);
+    expect(testsOf(report(marked('passed') as never))[0].passed).toBe(false);
+  });
+
   it('leaves out tests that did not run', () => {
     expect(testsOf(report(spec('A-1 skipped', 'skipped')))).toEqual([]);
   });
