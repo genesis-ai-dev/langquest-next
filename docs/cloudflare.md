@@ -241,7 +241,8 @@ The merge:
 
 The website (`langquest-website`), any time after step 5:
 
-8. Put the Next landing page at `langquest.org`, with its way in pointing at
+8. Put the Next landing page at `langquest.org` (LAN-153, draft pull request
+   164 in that repository), with its way in pointing at
    `https://app.langquest.org`. Keep these paths, which legacy phones and
    emails open: `/reset-password`, `/registration-confirmation`,
    `/notifications`, `/privacy`, `/terms`, `/account-deletion`, `/api/export`
