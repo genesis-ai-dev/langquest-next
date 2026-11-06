@@ -1,0 +1,23 @@
+{
+  "kind": "question",
+  "ask": "Should back translation show as two rows, make it and check it, without changing the flows?",
+  "problem": "Bezily's group thought a back translation needs a peer review. The screens put the two side by side, so it looks that way.",
+  "found": "I walked through both flows in the web app. In the Standard Bible Flow, step 1 lists Peer check and Back translation together, marked \"same time\". The button then says \"Do the peer check\". The back translation screens themselves never mention a peer review. In both flows a finished back translation says \"looks good\", as if someone had checked it. Nobody has. The check comes later, under Consultant check. The Spoken Oral Method already gives back translation its own step, so it shows no peer review there.",
+  "changed": "Nothing yet. I only took pictures and drew a mockup. I will change no screen and no flow until you answer.",
+  "why": "The words I propose: the row reads \"Back translation · make it\", then \"Back translation · check it\". A finished back translation says \"made\", not \"looks good\". The button after it says \"Check the back translation\". \"Peer check\" stays only where a flow has its own Peer Review step.",
+  "touches": "Two options change the record screen and the text people read. One option also changes the Standard Bible Flow, which languages may already have copied. The Consultant Check would keep its own row.",
+  "pictures": [
+    {"file": "standard-peer-and-bt-together.png", "label": "Standard flow: peer check and back translation side by side"},
+    {"file": "standard-bt-done-sheet.png", "label": "Standard flow: the back translation screen, no peer review shown"},
+    {"file": "standard-after-bt-looks-good.png", "label": "Standard flow: after finishing, it says looks good"},
+    {"file": "spoken-bt-step.png", "label": "Spoken Oral Method: back translation is its own step"},
+    {"file": "mock-two-parts-after-peer.png", "label": "Mockup: make it, then check it (before it is made)"},
+    {"file": "mock-two-parts-made.png", "label": "Mockup: made, now waiting for the check"}
+  ],
+  "options": [
+    {"label": "Two rows, flows unchanged", "result": "Back translation shows as make it, then check it. The peer check keeps its own row. No flow changes.", "picture": "mock-two-parts-made.png"},
+    {"label": "Two rows, and a new step", "result": "As option one, and the Standard flow moves back translation into its own step after the peer check. Copied flows stay as they are.", "picture": "mock-option-split.png"},
+    {"label": "New words only", "result": "Rows keep their order. Only the words change, and \"looks good\" becomes \"made\". The peer check still sits beside it.", "picture": "mock-option-wording.png"}
+  ],
+  "recommended": 0
+}
