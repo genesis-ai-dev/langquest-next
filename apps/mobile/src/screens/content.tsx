@@ -45,7 +45,7 @@ import * as Crypto from 'expo-crypto';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import {
-  bibleBook, bookNameOf, bookRows, withWaitingBooks, chapterBlocks, chipLabel, choiceLine, continuesInto, addNode,
+  bibleBook, bookNameOf, bookRows, withWaitingBooks, chapterBlocks, chipLabel, choiceLine, choiceName, continuesInto, addNode,
   docLevels, formFromDoc, levelsForDivide,
   levelsForOutline, libraryChoices, moveNode, newTemplateForm, partWords, recordedCount, removeNode, renameNode,
   setAsideCount, siblingsOf, findNode, STARTER_TEMPLATE, templateLine, templateOf, versesText, versificationBooks,
@@ -63,6 +63,8 @@ import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { mayWriteLibrary, sourceLine, sourceOrg, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
+import { useLabels } from '../library/useLabels';
+import { itemName } from '../library/labelsModel';
 import { failureMessage } from '../diagnostics/report';
 import { DashedRow } from '../admin/admin';
 import { contractsFor } from '../shell/screenContracts';
@@ -167,7 +169,8 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
   const { active, archived } = splitArchived(all);
   const shared = useSharedItems('template', lib.orgId);
   // LangQuest's ways once each (English numbering here), not its older templates or the same ways in every numbering (decision 107).
-  const others = useMemo(() => libraryChoices(library ?? {}, [], shared.rows.filter((r) => sharedTemplateShown(r, 'eng')), STARTER_TEMPLATE.name), [library, shared.rows]);
+  const labels = useLabels();
+  const others = useMemo(() => libraryChoices(library ?? {}, [], shared.rows.filter((r) => sharedTemplateShown(r, 'eng')), STARTER_TEMPLATE.name, labels), [library, shared.rows, labels]);
   const { updates } = useLibraryUpdates(lib.orgId);
   const [limit, setLimit] = useState(8);
   const [sharedLimit, setSharedLimit] = useState(5);
@@ -194,7 +197,7 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
           <View style={styles.head}>
             <View style={styles.tile}><Ico name={doc?.structure === 'outline' ? 'folder' : 'book'} size={22} color={C.primary} /></View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={txt.h3}>{it.name}</Text>
+              <Text style={txt.h3}>{itemName(labels, it)}</Text>
               <OrgLine text={withLanguage(sourceLine(it), doc)} orgName={sourceOrg(it)?.name} orgId={sourceOrg(it)?.id} style={[txt.sm, { fontWeight: '600', color: C.primary }]} />
               {it.description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{it.description}</Text> : null}
             </View>
@@ -235,7 +238,7 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
           open={archivedOpen.open} onToggle={archivedOpen.onToggle} {...(archivedOpen.open ? {} : { help: t('content.library.archivedHelp') })}>
           {archived.map((it, i) => (
             <HelpRow key={it.itemId} of="content.archivedTemplate">
-              <Row icon="template" iconColor={C.muted} iconBg={C.bg} label={it.name} sub={sourceLine(it)} muted
+              <Row icon="template" iconColor={C.muted} iconBg={C.bg} label={itemName(labels, it)} sub={sourceLine(it)} muted
                 help={canManage ? t('content.library.archivedRowHelp') : t('content.library.viewHelp')}
                 onPress={canManage ? () => setOptions(it.itemId) : () => ctx.go('template_editor', { itemId: it.itemId })} last={i === archived.length - 1} />
             </HelpRow>
@@ -253,12 +256,12 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
         const doc = docs.get<TemplateDoc>(c.hash);
         return (
           <HelpRow key={c.key} of="content.sharedTemplate">
-            <Card onPress={() => setBrowsing(c.shared)} accessibilityLabel={t('content.library.sharedLabel', { name: c.name, org: c.shared.org_name })}
+            <Card onPress={() => setBrowsing(c.shared)} accessibilityLabel={t('content.library.sharedLabel', { name: choiceName(c), org: c.shared.org_name })}
               help={canManage ? t('content.library.sharedHelp') : t('content.library.sharedViewHelp')}>
               <View style={styles.head}>
                 <View style={styles.tile}><Ico name={doc?.structure === 'outline' ? 'folder' : 'book'} size={22} color={C.primary} /></View>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={txt.h3}>{c.name}</Text>
+                  <Text style={txt.h3}>{choiceName(c)}</Text>
                   <OrgLine text={withLanguage(choiceLine(c, sourceLine), doc)} orgName={c.shared.org_name} orgId={c.shared.org_id} style={[txt.sm, { color: C.muted }]} />
                   {c.shared.description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{c.shared.description}</Text> : null}
                 </View>
@@ -539,7 +542,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
   const draft = useTemplateDraft(ctx, lib, null);
   const start = form ?? draft.value?.form;
   // Back from the first question leaves Scripture; otherwise it goes back a question.
-  const backOut = () => { if ((tq.page === 'find' && !tq.numbering) || tq.page === 'what' || !tq.retreat()) setBible(false); };
+  const backOut = () => { if ((tq.page === 'why' && !tq.numbering) || tq.page === 'what' || !tq.retreat()) setBible(false); };
   // A phone's Back does the same as the header's arrow (decision 137).
   useHardwareBack(bible && !start, backOut);
   // The sidebar names the organization on a desktop; the subtitle then need not.
@@ -547,7 +550,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
   if (start) return <TemplateEditorForm ctx={ctx} lib={lib} item={null} initial={start} draft={draft} />;
   if (!draft.loaded) return <Screen header={<Header title={t('content.newTemplate.title')} {...(sub ? { sub } : {})} onBack={ctx.back} />}>{null}</Screen>;
 
-  const scripture = () => { tq.setWhat('bible'); tq.setPage(tq.numbering ? 'numbered' : 'find'); setBible(true); };
+  const scripture = () => { tq.setWhat('bible'); tq.setPage(tq.numbering ? 'numbered' : 'why'); setBible(true); };
   const begin = () => {
     if (!tq.doc?.bible) return;
     // The way's books and how it divides them, its levels and numbering; the name and purpose are the admin's own.
@@ -556,7 +559,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
 
   if (bible) {
     return (
-      <Screen header={<Header title={t('content.newTemplate.title')} {...(sub ? { sub } : {})} onBack={backOut} />}
+      <Screen page={tq.pageId} header={<Header title={t('content.newTemplate.title')} {...(sub ? { sub } : {})} onBack={backOut} />}
         footer={tq.showContinue && tq.page !== 'what' ? (
           <PrimaryBtn label={t('org.continue')} icon="right" disabled={tq.page === 'ways' ? !tq.ready : !tq.canContinue} help={t('content.newTemplate.continueHelp')} onPress={() => { if (!tq.advance()) begin(); }} />
         ) : undefined}>
@@ -566,7 +569,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
   }
 
   return (
-    <Screen header={<Header title={t('content.newTemplate.title')} {...(sub ? { sub } : {})} onBack={ctx.back} />}>
+    <Screen page="start" header={<Header title={t('content.newTemplate.title')} {...(sub ? { sub } : {})} onBack={ctx.back} />}>
       <Text style={txt.body}>{t('content.newTemplate.what')}</Text>
       <Card onPress={scripture} accessibilityLabel={t('content.newTemplate.scripture')} help={t('content.newTemplate.scriptureHelp')}>
         <View style={styles.head}>
@@ -980,7 +983,9 @@ export function BookStructure(ctx: Ctx) {
   const book = bookId ? bibleBook(bookId) : undefined;
   const list = useRef<FlatList<number>>(null);
   const [picking, setPicking] = useState(false);
-  const [choosing, setChoosing] = useState(false);
+  // The book map's "Break up differently" opens the ways to choose from, and closing them goes back there (UI audit, finding 127).
+  const cameToChange = ctx.params['change'] === '1';
+  const [choosing, setChoosing] = useState(cameToChange);
   const [own, setOwn] = useState(false);
   const canShape = ctx.session.can('shape_templates') || ctx.session.can('manage_templates');
   // Breaking up a book changes the language's template: coordinators and admins (decision 74). It publishes a
@@ -1026,13 +1031,13 @@ export function BookStructure(ctx: Ctx) {
     // Dividing it your own way: the book's text, where other Bibles start sections, and its helps (decision 93).
     if (own) {
       return (
-        <DivideOwnWay ctx={ctx} book={usfm} bookName={data.label} doc={doc} v11n={v11n} fallbackVerses={book.verses} item={item} redo={data.segments.length > 0}
-          onClose={() => setOwn(false)} onDone={() => { setOwn(false); setChoosing(false); }} />
+        <DivideOwnWay ctx={ctx} book={usfm} bookName={data.label} doc={doc} v11n={v11n} fallbackVerses={book.verses} item={item} redo={data.segments.length > 0} recorded={data.recorded.size}
+          onClose={() => setOwn(false)} onDone={() => { setOwn(false); if (cameToChange) ctx.back(); else setChoosing(false); }} />
       );
     }
     return (
-      <BreakUpBook ctx={ctx} book={usfm} bookName={data.label} language={data.language} doc={doc} item={item} redo={data.segments.length > 0}
-        onClose={() => (choosing ? setChoosing(false) : ctx.back())} onOwn={() => setOwn(true)} />
+      <BreakUpBook ctx={ctx} book={usfm} bookName={data.label} language={data.language} doc={doc} item={item} redo={data.segments.length > 0} recorded={data.recorded.size}
+        onClose={() => (choosing && !cameToChange ? setChoosing(false) : ctx.back())} onOwn={() => setOwn(true)} />
     );
   }
   const words = partWords(doc);

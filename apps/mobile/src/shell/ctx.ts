@@ -47,8 +47,8 @@ export interface Ctx {
    * screen, with the thing.
    */
   act: (specs: EventSpec[], message: string) => Promise<void>;
-  /** Say what happened. */
-  toast: (message: string) => void;
+  /** Say what happened; `'problem'` when it went wrong: an amber warning that stays until closed. */
+  toast: (message: string, tone?: 'problem') => void;
   /** Details on request (ADR-013): open state per thing shown, kept across a visit and Back. */
   details: (key: string) => { open: boolean; onToggle: () => void };
   /** Passages this person opened lately, newest first (WORK-2). */

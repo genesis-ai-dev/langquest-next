@@ -2,7 +2,7 @@
 // Its own world with nobody welcomed yet, so the viewer's Welcome shows.
 // Platforms: iOS, Android, Wide: steps 1-4 at phone width, step 5 on a wide window.
 import { backToTabs, watch } from './16-helpers';
-import { button, expect, openAs, screenText, tab, tabsShown, test, text, useWorld } from './support';
+import { bookRow, button, expect, openAs, screenText, tab, tabsShown, test, text, useWorld } from './support';
 
 const world = useWorld({ welcomed: false });
 
@@ -27,7 +27,7 @@ test('JRN-010 A viewer follows progress @p0 @wide', async ({ page }) => {
   // Step 2: Alpha → Luke → P-DONE among Luke's passages: every step complete, nothing to act on.
   await button(page, /^Alpha: .*Open its map/).click();
   await button(page, /^Luke\./).click();
-  await button(page, new RegExp(`^${done}\\. Done`)).click();
+  await (await bookRow(page, new RegExp(`^${done}\\. Done`))).click();
   await expect(text(page, done)).toBeVisible();
   for (const check of ['Peer check', 'Back translation', 'Community check', 'Consultant check', 'Final approval']) {
     await expect(button(page, new RegExp(`^${check}, (looks good|done|complete)`, 'i'))).toBeVisible();

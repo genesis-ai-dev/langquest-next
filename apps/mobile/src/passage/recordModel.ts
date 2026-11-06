@@ -12,7 +12,8 @@ import {
 import { edgeFor, type ScreenId } from '../shell/flow';
 import { t } from '../i18n';
 import type { IconName } from '../ui/kit';
-import { andList, kindInSentence, versionTitle, when } from './passageView';
+import { andList, feedbackSource, kindInSentence, versionTitle, when } from './passageView';
+import { formatNumber } from '../i18n/format';
 import { studySummary, type StudyProgress } from '../study/progress';
 import { edgeAllowed, type Session } from '../shell/session';
 import { checkName, stepTitle } from '../admin/adminModel';
@@ -58,8 +59,13 @@ export function recordCan(s: Session): RecordCan {
   };
 }
 
-/** May "Then the team" rows open their step sheet? Only for someone who can do something there. */
-export function teamStepsOpen(can: RecordCan): boolean {
+/**
+ * May "Then the team" rows open their step sheet? Only for someone who can do
+ * something there, and only once a version is published: before that there is
+ * nothing to check, and each row's status already says when it comes (LAN-127).
+ */
+export function teamStepsOpen(can: RecordCan, p?: Pick<PassageState, 'versions'>): boolean {
+  if (p && p.versions.length === 0) return false;
   return can.ask || can.log || can.review;
 }
 
@@ -133,6 +139,8 @@ export function recordModel(o: {
   earlier?: boolean;
   /** Nobody else here holds Review (`askCandidates` is empty): its author does the next check (decisions.md 178). */
   alone?: boolean;
+  /** Checks this person has a review of kept on this phone, not sent: their button says Continue. */
+  reviewDrafts?: ReadonlySet<string>;
 }): RecordModel {
   const { p, kinds, me, can } = o;
   const nameOf = (kindId: string) => checkName(kindId, kinds);
@@ -152,7 +160,10 @@ export function recordModel(o: {
   const openCheck = openCheckFor(p, { isAuthor: o.isAuthor, canReview: can.review, alone: !!o.alone });
   const check = (kindId: string, requestId?: string): RecordMain => {
     const produces = !!o.kind(kindId).produces;
-    return { id: 'check', kindId, produces, ...(requestId ? { requestId } : {}), ...doCheckButton(o.kind(kindId), kinds) };
+    const button = !produces && o.reviewDrafts?.has(kindId)
+      ? { label: t('passage.page.main.continueCheck', { check: kindInSentence(nameOf(kindId)) }), icon: 'check' as const }
+      : doCheckButton(o.kind(kindId), kinds);
+    return { id: 'check', kindId, produces, ...(requestId ? { requestId } : {}), ...button };
   };
 
   let main: RecordMain | null = null;
@@ -168,12 +179,24 @@ export function recordModel(o: {
     // Nobody else could be asked: the author does it, and asking stays under Something else? (decisions.md 178).
     main = check(openCheck.kindId);
   } else if (nextKind && can.ask) {
-    main = { id: 'ask', label: t('passage.page.askFor', { check: kindInSentence(nameOf(nextKind.kindId)) }), icon: 'send', kindId: nextKind.kindId };
+    main = { id: 'ask', label: askForLabel(nextKind.kindId, kinds, p), icon: 'send', kindId: nextKind.kindId };
   } else if (openCheck) {
     main = check(openCheck.kindId);
   }
   if (o.earlier) main = null;
   return { answersMine, feedbackReview, myDraft, nextKinds, nextKind, main };
+}
+
+/**
+ * The checkpoint a recorded passage is held at, for someone who may move it
+ * past and has no main button there (a lead who neither recorded it nor
+ * reviews): the record says it waits there and offers moving past, which
+ * was only under Something else? (UI audit, finding 90).
+ */
+export function heldAtCheckpoint(p: PassageState, can: RecordCan, hasMain: boolean): FlowStepStatus | undefined {
+  const step = p.next;
+  if (!can.override || hasMain || !step) return undefined;
+  return step.step.checkpoint && !step.complete && !step.override && !step.lockedBy ? step : undefined;
 }
 
 /** The button that does a check now: "Do the peer check", or "Back-translate it" for a check that records. */
@@ -242,7 +265,8 @@ export function elseOptions(o: {
     out.push({ id: 'already', icon: 'check', label: t('passage.else.alreadyDid'), sub: t('passage.else.alreadyDidSub', { check: kindInSentence(nameOf(current.kind.kindId)) }), kindId: current.kind.kindId });
   }
   if (current && offers.skip && can.skip) {
-    out.push({ id: 'notNow', icon: 'clock', label: t('common.notNow'), sub: t('passage.else.notNowSub', { check: kindInSentence(nameOf(current.kind.kindId)) }),
+    // Said as what it does: "Not now" closes the Ask page, but this goes on the record (UI audit, finding 88).
+    out.push({ id: 'notNow', icon: 'skip', label: t('passage.else.setAside', { check: kindInSentence(nameOf(current.kind.kindId)) }), sub: t('passage.else.setAsideSub'),
       kindId: current.kind.kindId, stepId: current.step.step.id });
   }
   if (can.record && p.recorded && !o.answersMine) {
@@ -316,7 +340,8 @@ export function stepSheet(o: {
     title: stepTitle(step.step.kindIds, kinds),
     sub: stepSheetSub(step, lockedName),
     rows,
-    movePast: o.can.override && step.step.checkpoint && !step.complete && !step.override
+    // Only at the checkpoint the passage is held at, not one still behind it (UI audit, finding 91; as elseOptions).
+    movePast: o.can.override && step.step.checkpoint && !step.complete && !step.override && !step.lockedBy
   };
 }
 
@@ -441,15 +466,48 @@ export function goesWhenConnected(message: string, offline: boolean): string {
   return offline ? t('shell.toast.goesWhenConnected', { message }) : message;
 }
 
-/** The ask page's main button: ask the usual people, or ask for the check by name. */
-export function askButtonLabel(o: { target: UsualTarget | undefined; kindId: string; kinds: KindDef[]; name: NameFn }): string {
-  return o.target ? t('passage.published.askTarget', { target: sendTargetLabel(o.target, o.name) })
-    : t('passage.page.askFor', { check: kindInSentence(checkName(o.kindId, o.kinds)) });
+/**
+ * The ask page's main button: ask the usual people, or ask for the check by
+ * name; "again" once the check was done here before (LAN-200).
+ */
+export function askButtonLabel(o: { target: UsualTarget | undefined; kindId: string; kinds: KindDef[]; name: NameFn; p?: Pick<PassageState, 'reviews'> }): string {
+  if (!o.target) return askForLabel(o.kindId, o.kinds, o.p);
+  const target = sendTargetLabel(o.target, o.name);
+  return o.p && lastReview(o.p, o.kindId) ? t('passage.published.askTargetAgain', { target }) : t('passage.published.askTarget', { target });
 }
 
-/** The Versions page's "Ask for the …" button label. */
-export function askForLabel(kindId: string, kinds: KindDef[]): string {
-  return t('passage.page.askFor', { check: kindInSentence(checkName(kindId, kinds)) });
+/** "Ask for the peer check", or "Ask for the peer check again" once it was done here before (LAN-200). */
+export function askForLabel(kindId: string, kinds: KindDef[], p?: Pick<PassageState, 'reviews'>): string {
+  const check = kindInSentence(checkName(kindId, kinds));
+  return p && lastReview(p, kindId) ? t('passage.page.askForAgain', { check }) : t('passage.page.askFor', { check });
+}
+
+/**
+ * The last review of a check on this passage, whatever it said and however
+ * it was given: a review through a link that the step does not count is
+ * still a check that was done (LAN-200).
+ */
+export function lastReview(p: Pick<PassageState, 'reviews'>, kindId: string): ReviewView | undefined {
+  return [...p.reviews].reverse().find((r) => r.kindId === kindId);
+}
+
+/**
+ * Where a check is asked for, what happened the last time it was done here
+ * (LAN-200): "Dana checked version 1: needs changes, answered in version 2".
+ * Null when it was never done.
+ */
+export function lastCheckLine(p: Pick<PassageState, 'reviews' | 'versions'>, kindId: string, name: NameFn): string | null {
+  const r = lastReview(p, kindId);
+  if (!r) return null;
+  const who = feedbackSource(r, name);
+  const version = formatNumber(r.versionN);
+  if (r.outcome === 'looks_good') return t('passage.ask.last.good', { name: who, version });
+  if (r.outcome === 'recorded') return t('passage.ask.last.recorded', { name: who, version });
+  if (r.response?.decision === 'kept') return t('passage.ask.last.kept', { name: who, version });
+  const answer = r.response?.decision === 'revised' ? p.versions.find((v) => v.takeId === r.response!.revisedTakeId)?.n : undefined;
+  return answer !== undefined
+    ? t('passage.ask.last.answered', { name: who, version, answer: formatNumber(answer) })
+    : t('passage.ask.last.changes', { name: who, version });
 }
 
 /** What the ask page says when there is no next check to ask for. */

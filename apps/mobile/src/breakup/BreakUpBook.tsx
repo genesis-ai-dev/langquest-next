@@ -12,6 +12,7 @@ import { View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
+import { choiceName } from '../templates/contentTemplatesModel';
 import { Card, Field, GhostBtn, Header, Ico, PrimaryBtn, Row, Group, Screen, SectionLabel, Sheet } from '../ui/kit';
 import { HelpRow } from '../helpMode/helpBadge';
 import { txt } from '../ui/textStyles';
@@ -52,14 +53,14 @@ export function BookHead(props: {
       await ctx.act([{ id: Crypto.randomUUID(), type: 'v1.BookNameSet', payload: { book, name: trimmed } } as EventSpec], t('breakup.book.namedToast', { language: props.language, name: trimmed }));
       setNaming(false);
     } catch (e) {
-      ctx.toast(failureMessage('book name', e));
+      ctx.toast(failureMessage('book name', e), 'problem');
     }
   }
   return (
     <Card>
       <View style={{ gap: space.sm }}>
         <Text style={txt.label}>{t('breakup.book.brokenUp')}</Text>
-        <Text style={txt.h3}>{now ? now.choice.name : t('breakup.book.ownWay')}</Text>
+        <Text style={txt.h3}>{now ? choiceName(now.choice) : t('breakup.book.ownWay')}</Text>
         <PieceBar doc={props.doc} v11n={props.v11n} book={book} explain />
         {props.canShape ? <GhostBtn label={t('breakup.book.breakDifferently')} help={t('breakup.book.breakDifferentlyHelp')} icon="cut" onPress={props.onChange} /> : null}
       </View>
@@ -120,6 +121,8 @@ function NameChoices(props: { rows: { name: string; from: string[] }[]; current:
 export function BreakUpBook(props: {
   ctx: Ctx; book: string; bookName: string; language: string; doc: TemplateDoc; item: LibraryItemView | null; redo: boolean; onClose: () => void; onOwn: () => void;
   apply?: (way: TemplateDoc, note: string, said: string) => void; self?: string | null; extra?: ReactNode;
+  /** The language's sections of the book recorded on this phone, for the warning (RedoSheet). */
+  recorded?: number;
 }) {
   const { ctx, book } = props;
   const code = useNumberingCode(ctx, props.doc);
@@ -130,7 +133,8 @@ export function BreakUpBook(props: {
   const [key, setKey] = useState<string | null>(null);
   const picked = offered.find((r) => r.choice.key === key) ?? null;
   const [peek, setPeek] = useState<WayRow | null>(null);
-  const change = useBookChange(ctx, { book, bookName: props.bookName, doc: props.doc, item: props.item, redo: props.redo, onDone: props.onClose });
+  const change = useBookChange(ctx, { book, bookName: props.bookName, doc: props.doc, item: props.item, redo: props.redo, onDone: props.onClose,
+    ...(props.recorded !== undefined ? { recorded: props.recorded } : {}) });
   // A phone's Back does what the header's arrow does: back to the book, or out when it is not broken up yet (decision 137).
   useHardwareBack(true, props.onClose);
 
@@ -142,7 +146,7 @@ export function BreakUpBook(props: {
     const note = `${props.bookName} is broken up ${byChapter ? 'by chapter' : `into ${picked.choice.name}`}`;
     const said = byChapter
       ? t('breakup.book.brokenUpByChapter', { book: props.bookName })
-      : t('breakup.book.brokenUpInto', { book: props.bookName, way: picked.choice.name });
+      : t('breakup.book.brokenUpInto', { book: props.bookName, way: choiceName(picked.choice) });
     if (props.apply) props.apply(wayDoc, note, said);
     else change.start(wayDoc, note, said);
   };
@@ -155,7 +159,7 @@ export function BreakUpBook(props: {
         <GhostBtn label={t('common.notNow')} icon="clock" help={t('help.details.cancel')} onPress={props.onClose} />
       </>}>
       <Question>{props.redo ? t('breakup.book.changeQuestion', { book: props.bookName }) : t('breakup.book.question', { book: props.bookName })}</Question>
-      <Text style={[txt.sm, { color: C.muted }]}>{now ? t('breakup.book.nowEachPiece', { way: now.choice.name }) : t('breakup.book.eachPiece')}</Text>
+      <Text style={[txt.sm, { color: C.muted }]}>{now ? t('breakup.book.nowEachPiece', { way: choiceName(now.choice) }) : t('breakup.book.eachPiece')}</Text>
       {/* Your own way comes first and stands apart, so the list of ready-made ways can grow without burying it. */}
       <ChoiceCard own chevron on={false} icon="edit" title={t('breakup.own.title')} sub={t('breakup.own.sub', { book: props.bookName })} onPress={props.onOwn} />
       {offered.length ? <SectionLabel label={t('breakup.own.orReadyMade')} /> : null}
@@ -167,7 +171,7 @@ export function BreakUpBook(props: {
       ))}
       {offered.length === 0 ? <Text style={txt.smMuted}>{ways.loaded ? t('breakup.book.connectForWays') : t('common.loading')}</Text> : null}
       {props.extra}
-      <PreviewSheet key={peek?.choice.key ?? 'none'} visible={!!peek} name={peek?.choice.name ?? ''} doc={ways.docOf(peek?.choice)} v11n={ways.v11nOf(ways.docOf(peek?.choice))}
+      <PreviewSheet key={peek?.choice.key ?? 'none'} visible={!!peek} name={peek ? choiceName(peek.choice) : ''} doc={ways.docOf(peek?.choice)} v11n={ways.v11nOf(ways.docOf(peek?.choice))}
         book={book} onClose={() => setPeek(null)} onUse={peek ? () => { setKey(peek.choice.key); setPeek(null); } : undefined} />
       {props.apply ? null : <BookChangeSheets s={change.sheets} />}
     </Screen>

@@ -23,6 +23,7 @@ import { shownClock } from '../study/studyText';
 import { ownWordOf, shortName, type KeyWordList } from './listsModel';
 import { meaningParagraphs } from './searchModel';
 import { useKeyWordAudio } from './useKeyWordAudio';
+import { a11yState } from '../ui/a11yModel';
 
 /** How long a recording is: "8 min", or the clock under a minute. */
 function recordingLength(seconds: number): string {
@@ -43,7 +44,7 @@ export function KeyWordHear(props: { ctx: Ctx; list: KeyWordList; word: KeyWordD
   const sub = audio.failed ? t('study.guide.couldNotLoad') : audio.waiting ? t('study.guide.gettingRecording')
     : [languageLabel(list.language), clock].filter(Boolean).join(' · ');
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: audio.playing }}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" {...a11yState({ selected: audio.playing }, 'button')}
       accessibilityLabel={audio.playing ? t('keyTerms.sheet.pauseHear', { name }) : title}
       style={({ pressed }) => [styles.hear, pressed && ps.pressed]}>
       <View style={styles.hearPlay}>

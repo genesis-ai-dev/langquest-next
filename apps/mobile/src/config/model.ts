@@ -90,15 +90,17 @@ interface RoleRow {
 interface RoleHolder {
   profileId: string;
   scope: Scope;
+  /** The membership itself, as Edit member opens it (`memberEntries` keys; UI audit, finding 97). */
+  entry: string;
 }
 
 /** Everyone holding a role, at any scope. */
 export function holdersOf(org: OrgState | null, roleId: string): RoleHolder[] {
   const out: RoleHolder[] = [];
   for (const [profileId, byScope] of Object.entries(org?.members ?? {})) {
-    for (const m of Object.values(byScope)) {
+    for (const [key, m] of Object.entries(byScope)) {
       if (m.removed.value || m.roleId.value !== roleId) continue;
-      out.push({ profileId, scope: m.scope });
+      out.push({ profileId, scope: m.scope, entry: `${profileId}|${key}` });
     }
   }
   return out;

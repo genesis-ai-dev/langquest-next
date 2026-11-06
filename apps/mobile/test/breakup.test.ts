@@ -8,6 +8,7 @@ import {
 } from '../src/breakup/model';
 import type { LibraryChoice } from '../src/templates/contentTemplatesModel';
 import { publishOps, subscribeOps, type LibraryOp, type SharedItem } from '../src/library/model';
+import { addCatalog, showLanguage } from '../src/i18n';
 
 const H = (c: string) => c.repeat(64);
 let seq = 0;
@@ -62,6 +63,18 @@ describe('the ways to break up the Bible, in the order an admin sees them', () =
     expect(emptyLine(fia)).toBe('Romans, Hebrews and 2 more');
   });
 
+  it('counts in the language showing, not in English (decision 195)', () => {
+    addCatalog('hi', JSON.parse(fs.readFileSync(path.resolve(__dirname, '../src/i18n/hi.json'), 'utf8')));
+    showLanguage('hi');
+    try {
+      expect(countLine(fia, eng)).toBe('1 पुस्तक में 4 अंश');
+      expect(countLine(chapters, eng)).toBe('20 अध्याय');
+    } finally {
+      showLanguage('en');
+    }
+    expect(countLine(chapters, eng)).toBe('20 chapters');
+  });
+
   it('draws a book as its pieces, each as long as its verses', () => {
     expect(piecesOf(chapters, 'RUT', eng).map((p) => [p.label, p.verses])).toEqual([['Ruth 1', 22], ['Ruth 2', 23], ['Ruth 3', 18], ['Ruth 4', 22]]);
     const f = piecesOf(fia, 'RUT', eng);
@@ -98,9 +111,9 @@ describe('how a book is divided now, and what lists offer (decision 107)', () =>
   });
 
   it('says how each book is divided in a line', () => {
-    expect(divisionLine(own, 'ROM', 'By chapter', eng)).toBe('By chapter · 16 pieces');
-    expect(divisionLine(own, 'RUT', null, eng)).toBe('Its own way · 2 pieces');
-    expect(divisionLine(fia, 'ROM', null, eng)).toBe('Waiting to be broken up');
+    expect(divisionLine(own, 'ROM', 'By chapter', eng)).toBe('By chapter · 16 sections');
+    expect(divisionLine(own, 'RUT', null, eng)).toBe('Its own way · 2 sections');
+    expect(divisionLine(fia, 'ROM', null, eng)).toBe('Waiting to be divided');
   });
 
   it("lists LangQuest's ways once, in the numbering, and not its older templates", () => {

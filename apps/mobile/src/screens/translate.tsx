@@ -48,7 +48,7 @@ import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { screenTitle } from '../shell/flow';
-import { HelpBadge, HelpClip } from '../helpMode/helpBadge';
+import { HelpBadge, HelpClip, HelpQuiet } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { indexesFor } from '../sync/indexes';
@@ -58,7 +58,7 @@ import { ReferenceRecordings, SourcePlayer } from '../passage/passageSourceAudio
 import { feedbackSource, passageCrumbs, versionTitle, type PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
 import { useBackTranslationDraft } from '../recording/useBackTranslationDraft';
-import { CardList, RecordButton, SaveProblem, type ListedCard } from '../recording/parts';
+import { CardList, RecordButton, RecorderProblem, SaveProblem, type ListedCard } from '../recording/parts';
 import { SplitPane } from '../recording/SplitPane';
 import { MIN_BOTTOM, MIN_BOTTOM_RECORDING, rememberedSplit } from '../recording/splitModel';
 import { useListenLoop } from '../recording/useListenLoop';
@@ -66,7 +66,7 @@ import { RecordingView } from '../recording/RecordingView';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { VerseTile } from '../recording/verseParts';
 import {
-  backTranslationDraftKey, canPublish, cardDurations, clearListSpecs, draftToOpen, labelAt, marksKeepingLabels, marksOf, movedList,
+  backTranslationDraftKey, canPublish, cardDurations, clearListSpecs, draftToOpen, labelAt, marksForSaid, marksKeepingLabels, marksOf, movedList,
   removeCardSpecs, restoreSpecs, sameCards, slotRows, targetNumber,
   changedParts, historyFits, parsePartsHistory, partsHistoryKey,
   type PartsHistory, type PartsSnap, type RecordTarget, type SlotRow,
@@ -277,26 +277,11 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     const commandId = Crypto.randomUUID();
     try {
       specs = commands(state, idx).keepTake({ commandId, unitId, cardHashes: list, actorId: me, parentTakeId: parentNow() });
-      // A part recorded into a gap takes the next verse, so it fills the gap;
-      // in a deleted or replaced part's place, the first takes that part's verses and the rest are more of them.
-      const aimMark = aim.kind === 'end' ? undefined : aim.mark;
+      // The verses of what was said in a place: its own, or none (workspaceModel `marksForSaid`, decisions.md 124).
       const verses = verseKeysRef.current;
       if (insertBefore && verses.length > 0) {
-        const fresh = new Set(pending);
-        let marks: PartMark[];
-        if (aim.kind === 'gap' && aim.insert) {
-          // Said between two parts: it has no verses yet, and the parts around it keep theirs.
-          const old = list.filter((h) => !fresh.has(h));
-          marks = marksKeepingLabels({ list: old, marks: partMarksFor(state, unitId, old, verses) }, list, verses.length);
-        } else {
-          let first = true;
-          marks = partMarksFor(state, unitId, list, verses).map((m, i) => {
-            if (!fresh.has(list[i]!) || m) return m;
-            const mark: PartMark = aimMark ? (first ? aimMark : { t: 'join' }) : { t: 'next' };
-            first = false;
-            return mark;
-          });
-        }
+        const marks = marksForSaid(list, partMarksFor(state, unitId, list, verses), new Set(pending), aim.kind === 'end' ? undefined : aim.mark,
+          verses.length, aim.kind === 'gap' && !!aim.insert);
         specs = [...specs, ...commands(state, idx).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards: list, marks, verses })];
       }
     } catch (e) {
@@ -358,7 +343,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       return true;
     } catch (e) {
       setCleared(wasCleared);
-      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: change parts', e) }));
+      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: change parts', e) }), 'problem');
       return false;
     } finally { if (!quiet) setWorking(false); }
   }
@@ -454,7 +439,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         : which === 'undo' ? t('common.undone') : t('translate.redone'));
     } catch (e) {
       setCleared(wasCleared);
-      ctx.toast(t(which === 'undo' ? 'common.notUndone' : 'common.notSaved', { reason: failureMessage(`workspace: ${which}`, e) }));
+      ctx.toast(t(which === 'undo' ? 'common.notUndone' : 'common.notSaved', { reason: failureMessage(`workspace: ${which}`, e) }), 'problem');
     } finally { setWorking(false); }
   }
 
@@ -518,7 +503,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     try {
       specs = commands(state, idx).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards, marks: next, verses: verseKeys });
     } catch (e) {
-      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: verse labels', e) }));
+      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: verse labels', e) }), 'problem');
       return;
     }
     if (specs.length === 0) return;
@@ -590,10 +575,10 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     if (c === 'guide' && guideItem) usage.open(guideItem);
   };
   const chips: ChipItem<RefChip>[] = chipIds.map((c) => ({
-    bible: { id: 'bible' as const, label: t('translate.chips.bible'), icon: 'listen' as const, hint: t('translate.chips.bibleHint') },
+    bible: { id: 'bible' as const, label: t('translate.chips.bible'), icon: 'book' as const, hint: t('translate.chips.bibleHint') },
     guide: { id: 'guide' as const, label: t('translate.chips.guide'), icon: 'star' as const, hint: t('translate.chips.guideHint') },
     terms: { id: 'terms' as const, label: t('translate.chips.terms'), icon: 'key' as const, hint: t('translate.chips.termsHint') },
-    notes: { id: 'notes' as const, label: t('translate.chips.notes'), icon: 'chat' as const, count: notes.length, hint: t('translate.chips.notesHint') },
+    notes: { id: 'notes' as const, label: t('translate.chips.notes'), icon: 'note' as const, count: notes.length, hint: t('translate.chips.notesHint') },
     earlier: { id: 'earlier' as const, label: t('translate.chips.earlier'), icon: 'clock' as const, hint: t('translate.chips.earlierHint') }
   })[c]);
 
@@ -630,7 +615,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name), offline);
       }
     } catch (e) {
-      ctx.toast(t('translate.notPublished', { reason: failureMessage('workspace: publish', e) }));
+      ctx.toast(t('translate.notPublished', { reason: failureMessage('workspace: publish', e) }), 'problem');
       return false;
     }
     setPublishing(true);
@@ -674,7 +659,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const problem = rec.failureCount > 0
     ? <SaveProblem message={rec.error || t('translate.partNotSaved')} retryLabel={t('translate.retrySaving')} busy={rec.busy} onRetry={() => void rec.retryFailed()} />
     : composeError ? <SaveProblem message={composeError} onRetry={() => setComposeError('')} />
-    : rec.error ? <SaveProblem message={rec.error} /> : null;
+    : rec.error ? <RecorderProblem rec={rec} /> : null;
   const record = () => void loop.toggle();
   const scope = { unitId, languageId };
   const lastDone = history.done[history.done.length - 1];
@@ -707,8 +692,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const recorderLine = split >= 1;
   return (
     <Screen fixed
-      header={<Header title={v.title} sub={recordingSub} crumbs={passageCrumbs(ctx, v, screenTitle('workspace'))} onBack={ctx.back} close
-        action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} />}
+      // Help numbers go to the few parts that matter here (LAN-135): the header's stay dim and explain when tapped.
+      header={<HelpQuiet><Header title={v.title} sub={recordingSub} crumbs={passageCrumbs(ctx, v, screenTitle('workspace'))} onBack={ctx.back} close
+        action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} /></HelpQuiet>}
       footer={recorderLine ? undefined : (
         <RecorderFooter count={list.length} nextIndex={sessionIndex} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
           publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} undo={undoRedo} />
@@ -722,16 +708,21 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
             <RefChips items={chips} value={chip} onChange={openChip} />
             {chip === 'guide' && study ? <GuideNav ctx={ctx} sp={study} index={step} onIndex={setStep} /> : null}
             <HelpClip style={{ flex: 1 }}>
+              {/* The Bible scrolls its own words under a player that stays put (LAN-130). */}
+              {/* While help is on, only its play button takes a number here; the verses explain when tapped (LAN-135). */}
+              {chip === 'bible' ? (
+                <HelpQuiet>
+                <BiblePane ctx={ctx} v={v} bible={bible} terms={unitTerms} tied={tied} canNote={!recording} selected={verse} onSelect={setVerse}
+                  hear={shows.bibleAudio} read={shows.bibleText} scroll={styles.paneBody}
+                  footer={<ReferenceRecordings ctx={ctx} unitId={unitId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
+                  {...(recording ? {} : {
+                    onTerm: (termId: string) => ctx.go('key_term_detail', { ...scope, termId, ...(draft ? { draftId: draft.takeId } : {}) }),
+                    onMoreBibles: () => ctx.go('bible_explore', scope)
+                  })} />
+                </HelpQuiet>
+              ) : (
               <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.paneBody} keyboardShouldPersistTaps="handled">
-                {chip === 'bible' ? (
-                  <BiblePane ctx={ctx} v={v} bible={bible} terms={unitTerms} tied={tied} canNote={!recording} selected={verse} onSelect={setVerse}
-                    hear={shows.bibleAudio} read={shows.bibleText}
-                    footer={<ReferenceRecordings ctx={ctx} unitId={unitId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
-                    {...(recording ? {} : {
-                      onTerm: (termId: string) => ctx.go('key_term_detail', { ...scope, termId, ...(draft ? { draftId: draft.takeId } : {}) }),
-                      onMoreBibles: () => ctx.go('bible_explore', scope)
-                    })} />
-                ) : chip === 'guide' && study && guide ? (
+                {chip === 'guide' && study && guide ? (
                   <>
                     <GuideStep key={study.steps[step]!.step.id} ctx={ctx} v={v} guide={guide} status={study.steps[step]!} spoken={!shows.guideText && shows.guideAudio} read={shows.guideText}
                       canContribute={!recording} onTerm={(termId) => ctx.go('key_term_detail', { ...scope, termId, ...(draft ? { draftId: draft.takeId } : {}) })} />
@@ -739,7 +730,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                   </>
                 ) : chip === 'terms' ? (
                   <KeyWordsPane ctx={ctx} v={v} terms={trayTerms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} bibleLanguage={bible.option?.language} draftTakeId={draft?.takeId} canTie={canTie} disabled={blocked}
-                    onHear={(key) => { setChip('bible'); if (key) { setVerse(key); bible.playVerse(key); } }}
+                    canHear={chipIds.includes('bible') && bible.timed && !bible.audioAbsent}
+                    onHear={(key) => { if (!bible.playVerse(key)) return false; setChip('bible'); setVerse(key); return true; }}
                     allTerms={() => ctx.go('key_terms', scope)}
                     {...(recording ? {} : { onWordPage: (list: KeyWordList, word: KeyWordDoc) => ctx.go('key_term_detail', { ...scope, listId: list.itemId, wordId: word.id, ...(draft ? { draftId: draft.takeId } : {}) }) })} />
                 ) : chip === 'notes' ? (
@@ -748,12 +740,13 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                   <EarlierPane ctx={ctx} v={v} from={revising ? (s) => s === revising.kindId || earlierFrom(s) : earlierFrom} {...(revising ? { focusReviewId: revising.id } : {})} />
                 ) : null}
               </ScrollView>
+              )}
             </HelpClip>
           </View>
         )}
         bottom={({ compact, open, height, room }) => session ? (
           // While recording, the pane is the recording view: what is being said, the waveform, and an X back to the parts.
-          <RecordingView rec={rec} phase={loop.phase} title={partLabel(sessionIndex)} partNumber={targetN} count={list.length + rec.sessionKept} noun="part" onLeave={() => void loop.finish()} onResume={loop.resumeNow} onStop={loop.stop} onDiscard={() => void loop.discard()}
+          <RecordingView rec={rec} phase={loop.phase} partNumber={targetN} count={list.length + rec.sessionKept} noun="part" onLeave={() => void loop.finish()} onResume={loop.resumeNow} onStop={loop.stop} onDiscard={() => void loop.discard()}
             {...(slotTile ? { tile: slotTile } : {})} />
         ) : compact ? (
           <RecorderBar count={list.length} nextIndex={nextIndex} phase={loop.phase} disabled={saving || rec.failureCount > 0} onRecord={record} onOpen={open} undo={undoRedo} />

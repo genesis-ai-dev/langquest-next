@@ -4,7 +4,7 @@
 // reason, is shown but not chosen.
 import type { Tutorial } from './tutorial';
 import { recordAPassage } from './record-a-passage';
-import { button, divider, id, shows } from './workspace';
+import { button, divider, id, partRow, shows } from './workspace';
 
 export const answerFeedback: Tutorial = {
   id: 'answer-feedback',
@@ -71,7 +71,8 @@ export const answerFeedback: Tutorial = {
     },
     {
       screen: 'workspace',
-      part: (page) => button(page, 'Record Part 2 again'),
+      // The whole of Part 2's row is lit; the finger taps its recording (the first part named).
+      part: (page) => [button(page, 'Record Part 2 again'), ...partRow(page, 2)],
       say: 'Verse eighteen is in Part 2. Tap it to say it again.',
       tap: true,
       stay: 0.6

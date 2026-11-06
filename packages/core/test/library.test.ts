@@ -5,7 +5,7 @@ import { foldLanguage as fold } from '../src/reducer';
 import { emptyLanguageState } from '../src/state';
 import { buildOrgFixture, shuffle } from './fixtures';
 import { followerItemId, libraryItems, libraryItemView, subscriptionItemId, type LibraryItemState } from '../src/library';
-import { canonicalJson, validateDoc, withDeps, type CollectionDoc, type FlowDoc, type MaterialDoc, type TemplateDoc } from '../src/libraryDocs';
+import { canonicalJson, kindOfDoc, validateDoc, withDeps, type CollectionDoc, type FlowDoc, type LabelsDoc, type MaterialDoc, type TemplateDoc } from '../src/libraryDocs';
 import { libraryFlowId, selectFlowSpecs, selectTemplateSpecs, studyEntriesFor, templateUnits } from '../src/libraryApply';
 import { deriveFlow, unitPlace } from '../src/passage';
 import { languagePassages, buildIndexes } from '../src/indexes';
@@ -88,6 +88,22 @@ describe('documents', () => {
     expect(validateDoc({ ...list, terms: [{ id: 't1', term: 'x', gloss: 'y', audio: {} }] })).toMatch(/audio/);
     expect(validateDoc({ ...list, terms: [{ id: 't1', term: '', gloss: 'y' }] })).toMatch(/key word/);
     expect(validateDoc({ ...list, pattern: 3 })).toMatch(/pattern/);
+  });
+
+  it('name an organization\'s own items in one language, each item once (decision 195)', () => {
+    const hindi: LabelsDoc = {
+      format: 'labels@1', name: 'Library names (Hindi)', description: '', language: 'hin',
+      items: [{ itemId: 'langquest.bible.chapters', name: 'अध्याय के अनुसार' }, { itemId: 'langquest.flow.quick_check', name: 'त्वरित जाँच', description: 'एक साथी सुनता है।' }],
+      deps: []
+    };
+    expect(validateDoc(hindi)).toBeNull();
+    expect(kindOfDoc(hindi)).toBe('labels');
+    expect(validateDoc({ ...hindi, language: '' })).toMatch(/language/);
+    expect(validateDoc({ ...hindi, items: [{ itemId: 'langquest.bible.chapters', name: '' }] })).toMatch(/item id and a name/);
+    expect(validateDoc({ ...hindi, items: [{ itemId: 'a/b', name: 'x' }] })).toMatch(/item id and a name/);
+    expect(validateDoc({ ...hindi, items: [{ itemId: 'x', name: 'y', description: 3 }] })).toMatch(/item id and a name/);
+    expect(validateDoc({ ...hindi, items: [hindi.items[0], hindi.items[0]] })).toMatch(/twice/);
+    expect(validateDoc({ ...hindi, deps: ['0'.repeat(64)] })).toMatch(/deps/);
   });
 });
 

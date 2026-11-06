@@ -32,4 +32,5 @@ describe('the recording session (recordingSession.ts)', () => {
     expect(told.mock.calls.length).toBe(before + 1);
     expect(parts).toHaveBeenCalledTimes(1);
   });
+
 });

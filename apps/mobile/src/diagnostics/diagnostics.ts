@@ -7,6 +7,7 @@ import { Platform } from 'react-native';
 import { applyDiagnosticsOn, readDiagnosticsOn, saveDiagnosticsOn } from './diagnosticsSetting';
 import { getDiagStore, getStore } from '../storage/store';
 import { BUILD_ID } from '../build/webBuild';
+import { storeBuild } from './storeBuild';
 
 // Field diagnostics (docs/diagnostics.md, decisions.md 39). One recorder for
 // the app: the sync clients, the transfer workers and report.ts write to
@@ -61,6 +62,8 @@ export async function phoneContext(): Promise<DiagContext> {
     os: Platform.OS,
     osVersion: c.Release ?? c.osVersion ?? (Platform.Version !== undefined ? String(Platform.Version) : undefined),
     model: c.Model,
+    // The store build installed, and below the OTA update it runs (or none), so a report names both.
+    appVersion: storeBuild(),
     // A browser has no expo-updates: its build is the commit the page was built from (webBuild.ts).
     runtimeVersion: Platform.OS === 'web' ? BUILD_ID || undefined : Updates.runtimeVersion,
     updateId: Platform.OS === 'web' ? undefined : Updates.updateId,

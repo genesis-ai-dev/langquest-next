@@ -11,6 +11,7 @@ import { C, space } from '../ui/theme';
 import { PACE_TONE, recencyDaysLabel, recencyLabel, RECENCY_TONE, workLabel, WORK_TONE } from './labels';
 import { Legend } from './ui';
 import { num, pctText, shortDate, signed, TONE_FILL, weekday, type Tone } from './format';
+import { a11yState } from '../ui/a11yModel';
 
 /**
  * Small SVG charts, ported from the old web dashboard. Each one says its numbers
@@ -115,7 +116,7 @@ export function GroupedBars(props: { labels: string[]; series: Series[]; format:
       <Legend items={series.map((s, i) => ({ label: s.label, color: s.color, value: num(totals[i]!) }))} />
       {props.table !== false ? (
         <View>
-          <Pressable onPress={numbers.onPress} accessibilityRole="button" accessibilityState={{ expanded: open }} hitSlop={8}
+          <Pressable onPress={numbers.onPress} accessibilityRole="button" {...a11yState({ expanded: open }, 'button')} hitSlop={8}
             style={({ pressed }) => [{ minHeight: 48, justifyContent: 'center' }, pressed && { opacity: 0.6 }]}>
             <Text style={txt.link}>{open ? t('reports.charts.hideNumbers') : t('reports.charts.showNumbers')}</Text>
             <HelpBadge spot={numbers} />

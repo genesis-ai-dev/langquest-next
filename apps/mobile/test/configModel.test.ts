@@ -35,7 +35,7 @@ describe('roles', () => {
       expect(PRIVILEGE_INFO[p].label).toBeTruthy();
       expect(PRIVILEGE_INFO[p].desc).toBeTruthy();
     }
-    expect(PRIVILEGE_INFO.override_checkpoints.label).toBe('Override Checkpoints');
+    expect(PRIVILEGE_INFO.override_checkpoints.label).toBe('Let work past a locked check');
     expect(PRIVILEGE_INFO.shape_templates.label).toBe('Shape Content Templates');
   });
 
@@ -52,6 +52,8 @@ describe('roles', () => {
     const translators = holdersOf(org, 'translator');
     expect(translators.map((h) => h.profileId)).toEqual(['t1']);
     expect(translators[0]!.scope).toEqual({ level: 'language', languageId: 'L1' });
+    // Each row opens its own membership, not the person's first (UI audit, finding 97).
+    expect(translators[0]!.entry).toMatch(/^t1\|/);
     expect(holdersOf(org, 'org_admin').map((h) => h.profileId)).toEqual(['lead']);
     expect(scopeName(translators[0]!.scope, org)).toBe('Dinka');
     expect(scopeName({ level: 'org' }, org)).toBe('Wycliffe Kenya');

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { afterLive, afterMerge, atLeast, changesTheApp, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, conflictNote, copyBranch, copyResult, DISPATCH_EVENT, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
+import { afterLive, afterMerge, atLeast, changesTheApp, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, conflictNote, copyBranch, copyResult, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
 
 /**
  * The public build keeps getting fixes while a new build is in store review
@@ -226,13 +226,6 @@ describe('a copy with a conflict', () => {
     expect(nextForCopy({ labels: [CONFLICT_LABEL], gate: 'SUCCESS', tries: 0 })).toBe('try');
     expect(nextForCopy({ labels: [CONFLICT_LABEL], gate: null, tries: 1 })).toBe('try');
     expect(nextForCopy({ labels: [CONFLICT_LABEL], gate: 'FAILURE', tries: 3 })).toBe('person');
-    // A conflict with the release branch: another copy merged first.
-    expect(nextForCopy({ labels: [], gate: 'SUCCESS', tries: 0, conflicting: true })).toBe('try');
-    expect(nextForCopy({ labels: [], gate: null, tries: 3, conflicting: true })).toBe('person');
-    // GitHub runs no pull_request workflow on a copy with a conflict, so its label started nothing (PR 347, 2026-11-06).
-    expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: null, tries: 1, conflicting: true })).toBe('try');
-    expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: null, tries: 3, conflicting: true })).toBe('person');
-    expect(nextForCopy({ labels: [PERSON_LABEL], gate: null, tries: 3, conflicting: true })).toBe('none');
     // Claude is on it, or a person is, or nothing failed (yet).
     expect(nextForCopy({ labels: [CLAUDE_LABEL], gate: 'FAILURE', tries: 0 })).toBe('none');
     expect(nextForCopy({ labels: [CLAUDE_LABEL, CONFLICT_LABEL], gate: 'FAILURE', tries: 0 })).toBe('none');
@@ -296,20 +289,6 @@ describe('a copy with a conflict', () => {
     expect(yml).toContain(`github.event.label.name == '${CLAUDE_LABEL}'`);
   });
 
-  it('the hourly run waits for the new checks of a copy it just freshened, and sends Claude to a copy that conflicts', () => {
-    // 2026-11-05 22:25 UTC: PR 344 got a try for the failed checks of the commit before the one just pushed.
-    const script = readFileSync('scripts/release-branches.mjs', 'utf8');
-    expect(script).toContain('fixFailedCopies(platform, freshenCopies(platform));');
-    const fix = script.slice(script.indexOf('function fixFailedCopies('), script.indexOf('function freshenCopies('));
-    // Its old commit's checks count for nothing; a conflict still sends Claude; one labelled for Claude already has Claude.
-    expect(fix).toContain("fresh.pushed.has(pr.number) ? null");
-    expect(fix).toContain('(fresh.labelled.has(pr.number) && !conflicting)) continue;');
-    expect(fix).toContain("pr.mergeable === 'CONFLICTING'");
-    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
-    expect(yml).toContain('--json mergeable` says CONFLICTING');
-    expect(yml).toContain('Never rebase, and never force a push.');
-  });
-
   it('Claude commits and writes its result, and the next step pushes, comments and turns on auto-merge', () => {
     // 2026-11-05: two of Claude's runs said "copied", and no push of theirs reached the branch.
     const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
@@ -321,25 +300,7 @@ describe('a copy with a conflict', () => {
     expect(tools.filter((t) => t.startsWith('Bash(gh '))).toEqual(['Bash(gh pr checks:*)', 'Bash(gh pr view:*)', 'Bash(gh pr diff:*)', 'Bash(gh run view:*)', 'Bash(gh run list:*)']);
     expect(yml).toMatch(/cp scripts\/release-branches\.mjs "\$RUNNER_TEMP\/copy\/"/);
     expect(yml).toMatch(/if: always\(\) && steps\.claude\.outcome != 'skipped'\n[\s\S]*?GH_TOKEN: \$\{\{ steps\.token\.outputs\.token \}\}[\s\S]*?node "\$RUNNER_TEMP\/copy\/release-branches\.mjs" finish-copy/);
-    expect(yml).toMatch(/^concurrency:\n  group: release-copy-\$\{\{ github\.event\.pull_request\.number \|\| github\.event\.client_payload\.pr \}\}\n  cancel-in-progress: false/m);
-  });
-
-  it('the hourly run starts Claude on a copy with a conflict through a repository_dispatch, which runs main\'s workflow', () => {
-    // 2026-11-06 00:42 UTC: the label on PR 347 started nothing, as GitHub runs no pull_request workflow on a pull request with a conflict.
-    const script = readFileSync('scripts/release-branches.mjs', 'utf8');
-    const start = script.slice(script.indexOf('function startClaude('), script.indexOf('function freshenCopies('));
-    expect(start).toContain("'--add-label', CLAUDE_LABEL");
-    expect(start).toMatch(/if \(!conflicting\) return;\n[\s\S]*?`repos\/\$\{repo\}\/dispatches`[\s\S]*?`event_type=\$\{DISPATCH_EVENT\}`, '-F', `client_payload\[pr\]=\$\{pr\}`/);
-    expect(script.slice(script.indexOf('function fixFailedCopies('), script.indexOf('function startClaude('))).toContain('startClaude(pr.number, conflicting);');
-    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
-    expect(yml).toMatch(new RegExp(`^  repository_dispatch:\\n    types: \\[${DISPATCH_EVENT}\\]`, 'm'));
-    expect(yml).toContain("if: (github.event_name == 'repository_dispatch' || (github.event.label.name == 'copy-claude' && startsWith(github.event.pull_request.base.ref, 'release/')))");
-    // A dispatch names only a number: the workflow finds the copy and stops unless it is an open copy onto a release branch.
-    expect(yml).toMatch(/- id: copy\n[\s\S]*?PR: \$\{\{ github\.event\.pull_request\.number \|\| github\.event\.client_payload\.pr \}\}[\s\S]*?"\$base" != release\/\*[\s\S]*?exit 1/);
-    expect(yml.indexOf('- id: copy')).toBeLessThan(yml.indexOf('actions/checkout@'));
-    expect(yml).toContain('ref: ${{ steps.copy.outputs.head }}');
-    // After the step that finds the copy, nothing reads the pull request from the event.
-    expect(yml.slice(yml.indexOf('- uses: actions/checkout@'))).not.toContain('github.event.');
+    expect(yml).toMatch(/^concurrency:\n  group: release-copy-\$\{\{ github\.event\.pull_request\.number \}\}\n  cancel-in-progress: false/m);
   });
 
   it('Claude\'s action lets the release bot that labels the copy start it', () => {

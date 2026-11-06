@@ -162,7 +162,7 @@ export async function addNote(page: Page, world: UiWorld, key: PassageKey, words
 
 /**
  * Record `parts` parts with the voice file (one part about every four
- * seconds) and publish them as the next version: Done, then "Send later"
+ * seconds) and publish them as the next version: Done, then "Done, don't ask anyone"
  * (or "Finish Version N" when no check is next). Leaves the passage's record showing.
  */
 export async function recordAndPublish(page: Page, world: UiWorld, key: PassageKey, parts = 2, opts: { enter?: () => Promise<void> } = {}): Promise<void> {
@@ -178,17 +178,17 @@ export async function recordAndPublish(page: Page, world: UiWorld, key: PassageK
   await expect(text(page, /^Recording Version \d+|^Draft \d+/)).toBeVisible();
   const rec = byId(page, 'record-button');
   // The parts card counts what is there already (a revision starts from the last version's parts: "Version 1, 3 parts");
-  // while recording, the recording view names the part being said at the end ("Part 4. …": three are kept).
+  // while recording, the recording view's status says how many are kept ("Listening for you. 3 parts so far").
   const count = async () => {
     const card = page.getByRole('button', { name: /^(Parts? 1(–\d+)?|Version \d+), \d+ parts?/ }).locator('visible=true').first();
     if (await card.count()) {
       const m = /, (\d+) parts?/.exec((await card.getAttribute('aria-label').catch(() => null)) ?? '');
       return m ? Number(m[1]) : 0;
     }
-    const live = page.getByLabel(/^Part \d+\. /).locator('visible=true').first();
+    const live = page.getByLabel(/\d+ parts? so far$/).locator('visible=true').first();
     if (!(await live.count())) return 0;
-    const n = /^Part (\d+)\. /.exec((await live.getAttribute('aria-label').catch(() => null)) ?? '');
-    return n ? Number(n[1]) - 1 : 0;
+    const n = /(\d+) parts? so far$/.exec((await live.getAttribute('aria-label').catch(() => null)) ?? '');
+    return n ? Number(n[1]) : 0;
   };
   const before = await count();
   await rec.click();
@@ -200,7 +200,7 @@ export async function recordAndPublish(page: Page, world: UiWorld, key: PassageK
   await button(page, 'Done').click();
   await expect(page.getByText('Stopped', { exact: true }).locator('visible=true')).toHaveCount(0);
   await byId(page, 'publish-button').click();
-  await button(page, 'Send later').or(button(page, /^Finish Version \d+$/)).first().click();
+  await button(page, "Done, don't ask anyone").or(button(page, /^Finish Version \d+$/)).first().click();
   await expect(byId(page, 'toast')).toContainText(/^Version \d+ published\./);
 }
 

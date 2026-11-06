@@ -24,6 +24,17 @@ export const WIDE_CHROME: readonly ScreenId[] = [
  */
 const PHONE_TASKS: readonly ScreenId[] = ['passage_record', ...PASSAGE_READING];
 
+/**
+ * Task screens closed with a ✕ (ADR-021), each with sideways drags of its
+ * own: a part slides to its bin, a stopped session's waveform pans, a version
+ * card swipes, a timeline is dragged. On iOS only a swipe from the screen's
+ * edge goes back from them, not a drag anywhere.
+ */
+export const TASK_SCREENS: readonly ScreenId[] = [
+  'workspace', 'back_translation', 'review_capture', 'add_record', 'guest_review', 'study_guide', 'study_step',
+  'get_ready', 'new_language', 'ask_someone', 'review_detail'
+];
+
 /** Whether the tabs (bar, rail or sidebar) show on this screen. On a phone, the demo's tab screens but a passage's own. */
 export function chromeVisible(kind: LayoutKind, screen: ScreenId): boolean {
   if (kind === 'phone' && PHONE_TASKS.includes(screen)) return false;

@@ -147,7 +147,9 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   `mismatch` names the first language that differs, `server/foldCanary.ts`),
   the nightly R2 check (`blob_reconcile`: `streams`, `objects`, `missing`,
   recordings the log holds and R2 lacks, `orphaned`, files R2 had that the
-  log did not, `server/reconcileJob.ts`), each account deletion
+  log did not, `server/reconcileJob.ts`), the snapshot purge (`snapshot_purge`:
+  `snapshots`, `rows` and `staged` removed, every 10 minutes in the database,
+  `ops.purge_snapshots`, decision 204), each account deletion
   (`account_delete`, written by `_delete_account` with no id at all), the
   Worker's job tick (`job_starts`: jobs started, found running, switched
   off, or that could not start), push delivery
@@ -273,14 +275,16 @@ minutes); the report is an account change (it waits
 offline and goes as its author, like a profile change) and arrives in
 `diag.feedback` with the **install id** above, so its phone's records are
 one lookup away. A screenshot and the person's name and email come only when
-they turn those switches on. `public.feedback_submit` is the one way in
+they turn those switches on, and a picture of their own only when they add
+one (LAN-198). `public.feedback_submit` is the one way in
 (signed in, 20 a day per account); `diag.feedback()` and
-`diag.feedback_screenshot()` and `diag.feedback_voice()` are for `diag_reader`:
+`diag.feedback_screenshot()`, `diag.feedback_picture()` and `diag.feedback_voice()` are for `diag_reader`:
 
 ```sh
 npm run diag -- feedback --days 30                # newest first, with each install id
 npm run diag -- feedback --install <installId>    # one phone's
 npm run diag -- feedback --shot <feedbackId>      # saves its screenshot as feedback-<id>.jpg
+npm run diag -- feedback --picture <feedbackId>   # saves the picture they chose as feedback-<id>-picture.jpg
 npm run diag -- feedback --voice <feedbackId>     # saves its voice note as feedback-<id>.m4a (or .wav)
 npm run diag -- timeline <installId> --days 2     # then what that phone recorded
 ```

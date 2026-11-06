@@ -148,7 +148,9 @@ Steps:
 
 Expected:
 - Step 2 opens "What should change?": an amber pill "Needs changes", the heading "What should change?", and "Say it in your words. {TRANS first name} will hear it.". The step strip and ✕ are gone; the header's back arrow remains.
-- Before steps 3 and 4, "Send feedback" is disabled.
+- Before steps 3 and 4, "Send feedback" is already on: the note says what
+  should change (UI audit, finding 5). Without a note it waits for words
+  (REV-006).
 - After step 3 the big mic is replaced by a chip "Your feedback · 0:05" and "Record again".
 - Step 4's field has the placeholder "Or type it — what worked, what didn't".
 - A dashed row "Record a listener retelling" with "optional" is under it.
@@ -330,11 +332,13 @@ Preconditions:
 
 Steps:
 1. Tap "Questions" in the strip ("Questions, done. Go back").
-2. Look at question 1.
+2. Tap "Previous question" back to question 1.
 3. Tap "Listen" in the strip.
 
 Expected:
-- Step 1 opens the questions at the first one; question 1 still shows "4" chosen.
+- Step 1 opens the questions at the last one shown, with its answer kept
+  (UI audit, finding 11: it used to start again at question 1); question 1
+  still shows "4" chosen.
 - Step 3 opens Listen, and moving forward again reaches Decide with every answer kept.
 
 ### REV-015 Skipping an optional question just moves on
@@ -473,13 +477,13 @@ Expected:
 - Step 1 works as online, and the toast says when it goes: "Looks good. {TRANS-name} gets it when this device is connected." (decision 166).
 - My Work shows the sync chip until step 2.
 - After step 2 nothing waits to upload, and TRANS sees the review after Sync now.
-- If the version's audio is not on the device, the player is disabled with a download icon and "Audio is not on this device yet." instead of failing to play.
+- If the version's audio is not on the device, the player is disabled with a download icon and "Audio is not on this device yet." instead of failing to play, and "Next" stays off with "The recording is not on this phone yet. It plays here once the phone is online." (UI audit, finding 9). The automated test keeps P-S on the device first.
 
 ### REV-023 A review the server refuses is not lost silently
 Roles: REV, COORD · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- Two devices. REV on device 1 has a version open in Review it, offline. COORD on device 2.
+- Two devices. REV on device 1 has a version open in Review it, offline, with the passage kept on the device so it plays (REV-022). COORD on device 2.
 
 Steps:
 1. Device 2 (COORD): change REV's role at LANG-A to Viewer.
@@ -503,13 +507,13 @@ Preconditions:
 Steps:
 1. Tap "Next: decide", then "Needs changes", and type "Too quiet at the start" under "Or type it".
 2. Tap the header's back arrow (to Decide), then ✕.
-3. Kill the app (iOS, Android) or reload (Web), relaunch, open the passage and tap "Do the peer check".
+3. Kill the app (iOS, Android) or reload (Web), relaunch, open the passage and tap "Continue the peer check".
 4. Tap "Needs changes", then go back to Listen.
 
 Expected:
 - While it is made, the header's saved mark turns from a spinner into a check: what is said, typed or answered is kept on this device as a draft only REV sees (decision 127).
 - Step 2 leaves at once, with nothing to answer first; nothing is sent (the device's log is unchanged). A phone's Back goes back a question or a stage instead (decision 137), and from Listen leaves the same way.
-- Step 3 opens the review where it was left, on Decide.
+- Step 3: the passage's button reads "Continue the peer check" rather than "Do the peer check" while the draft waits (UI audit, finding 7), and opens the review where it was left, on Decide.
 - Step 4: the typed words are back in the field. Notes added in the review are kept in the same draft and come back too (decision 149).
 - Sending the review drops the draft; a draft about a version that is gone is dropped and the review starts fresh.
 - The phone steps are in the Maestro flow `flows/REV-008.yaml` (after REV-008's Back).
@@ -630,7 +634,7 @@ Steps:
 3. On the record, tap the next check's card, then "Something else?".
 
 Expected:
-- Step 1: Done's main button reads "Do the peer check", with "Ask someone" and "Send later" under it.
+- Step 1: Done's main button reads "Do the peer check", with "Ask someone" and "Done, don't ask anyone" under it.
 - Step 2: the version is published and the review opens on it: "Version 1 · recorded by you". The toast reads "Looks good · on the record", and the record shows the Peer check "looks good".
 - Step 3: the record's main button does the next check ("Back-translate it"); its sheet offers that first, with "Ask someone" beside it. "Something else?" does not offer "I'll do this myself" again.
 
@@ -701,7 +705,7 @@ Steps:
 1. Tap "Done" and read the sheet.
 
 Expected:
-- A reviewer without Send to reviewers or Assign work is not invited to ask: the sheet has no "Next check", and its only button is "Finish the back translation". Someone who may ask gets "Ask {usual people}" (or "Ask for the {check}") with "Send later" under it (decision 127).
+- A reviewer without Send to reviewers or Assign work is not invited to ask: the sheet has no "Next check", and its only button is "Finish the back translation". Someone who may ask gets "Ask {usual people}" (or "Ask for the {check}") with "Done, don't ask anyone" under it (decision 127).
 
 Changed (2026-10-15, decision 127): the published page after publishing is gone; asking for the next check is on Done itself.
 
@@ -848,12 +852,12 @@ Steps:
 3. Delete the part with verse 18 (or the last part) and record it again, slower: speak for 4 seconds, pause, stop.
 4. Tap "Done".
 5. Look at the Done screen.
-6. Tap "Send later".
+6. Tap "Done, don't ask anyone".
 
 Expected:
 - Step 1 opens the workspace with sub "Recording Version 2", on the "Earlier" chip, with REV's needs-changes review highlighted in amber.
 - Version 1's parts are in the card, and "These are Version 1's parts. Record a new part or delete one to publish a new version." shows until something changes.
-- Step 5: the row already reads "What changed" with "“Revised after the Peer check feedback.”" (prefilled, so the buttons are enabled), and a green check line "Answers the Peer check feedback from {REV-name}". Under "Next check" is the Peer check, and the main button asks for it ("Ask {usual people}", which publishes and asks in one tap), with "Send later" under it.
+- Step 5: the row already reads "What changed" with "“Revised after the Peer check feedback.”" (prefilled, so the buttons are enabled), and a green check line "Answers the Peer check feedback from {REV-name}". Under "Next check" is the Peer check, and the main button asks for it ("Ask {usual people}", which publishes and asks in one tap), with "Done, don't ask anyone" under it.
 - Step 6 shows "Version 2 published." and returns to the record.
 - Afterwards, the feedback is answered: the record no longer shows "Hear the feedback", and the review shows "{TRANS-name} revised it · {when}" with "Open Version 2".
 - REV, on a second device after Sync now, sees the update and can review Version 2; its Listen page shows "What changed in Version 2: Revised after the Peer check feedback.".
@@ -867,7 +871,7 @@ Preconditions:
 
 Steps:
 1. Open P-Q2, "Hear the feedback", "Record a fix".
-2. Record a part, "Done", "Send later".
+2. Record a part, "Done", "Done, don't ask anyone".
 3. Go online and wait 30 seconds.
 
 Expected:
@@ -973,7 +977,7 @@ Preconditions:
 
 Steps:
 1. TRANS: open P-Q1, "Hear the feedback", "Record a fix".
-2. Change a part, "Done", "Send later".
+2. Change a part, "Done", "Done, don't ask anyone".
 
 Expected:
 - The Done screen lists one "Answers the Peer check feedback from {REV-name}" line for each open feedback on Version 1 (only the unanswered one here).

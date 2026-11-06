@@ -1,4 +1,4 @@
-import { SOURCE_BIBLES, sourceAudioUrl, sourceChapters } from '../src/sourceBibles';
+import { isSourceAudioUrl, SOURCE_BIBLES, sourceAudioUrl, sourceChapters } from '../src/sourceBibles';
 import { FIA_PERICOPES } from '../src/catalogData';
 
 describe('organization source Bibles', () => {
@@ -36,5 +36,18 @@ describe('organization source Bibles', () => {
     expect(sourceAudioUrl(SOURCE_BIBLES[1],
       sourceChapters('bible@1/mar-1')[0]!))
       .toBe('https://openbible.com/audio/msb_frederick_surrey/MSB_41_Mrk_001_FS.mp3');
+  });
+
+  it('names its audio only on a host the Worker fetches for a browser (decisions.md 201)', () => {
+    for (const bible of SOURCE_BIBLES) {
+      expect(isSourceAudioUrl(sourceAudioUrl(bible, sourceChapters('bible@1/rev-22')[0]!))).toBe(true);
+    }
+  });
+
+  it('takes no other host, scheme, port or login as a source audio link', () => {
+    for (const url of [
+      'http://openbible.com/audio/a.mp3', 'https://openbible.com.example/a.mp3', 'https://evil.example/openbible.com/a.mp3',
+      'https://user:pw@openbible.com/a.mp3', 'https://openbible.com:8443/a.mp3', 'https://sub.openbible.com/a.mp3', 'not a link'
+    ]) expect(isSourceAudioUrl(url)).toBe(false);
   });
 });

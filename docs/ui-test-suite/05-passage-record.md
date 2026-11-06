@@ -28,7 +28,7 @@ fixture world and the role matrix hold for every test here.
 - Since decision 127 the recorder's "Publish" is "Done". Done opens a last
   look at the version whose main button asks the next check's usual people
   and publishes in the same tap ("Ask the Peer check team"); "Someone else"
-  and "Send later" finish it too. There is no "Version N published" page:
+  and "Done, don't ask anyone" finish it too. There is no "Version N published" page:
   every way out lands on the record's path (06 REC-011).
 - Since decision 134 no toast offers Undo. A toast says what happened, with
   a close ✕, for about 3.5 s. What is done here is taken back from
@@ -97,6 +97,8 @@ Expected:
   "after the consultant check" (a lock). The Peer check and Back translation
   cards show their people, "{REV}, {TREV}". Each card is spoken "{name},
   {status}" ("Peer check, once you're done").
+- Nothing is recorded yet, so no card opens: none has a chevron, and a tap
+  does nothing. Each status already says when its check comes (LAN-127).
 - The main button:
 
   | Role | Main button | Opens |
@@ -142,7 +144,8 @@ Expected:
 - When FIA's study guide for this passage is offered, "Study" shows first,
   as passed ("–"), with the sub "{pattern} guide · {done} of {n} steps". It
   is passed because recording has started.
-- "Record" is done, with the sub "Version 1 · {m:ss}". The "Done" step is
+- "Record" is done, with the sub "Version 1 · {m:ss}", and Version 1's
+  player under it (LAN-128). The "Done" step is
   done too, with the sub "Published {when} · asked {REV}" ("Published just
   now" when it is new; it read "Published Just now", REC-012).
 - "Then the team": "Peer check" reads "asked {REV}", "Back translation"
@@ -259,7 +262,7 @@ Expected:
 - Every step reads "looks good" (or "answered").
 - No role has a main button.
 - "Something else?" offers no "Someone else should do this", "We already
-  did this" or "Not now", because nothing is left to do.
+  did this" or "Set the … aside", because nothing is left to do.
 - TRANS, COORD and LADMIN are offered "Record a new version". REV and VIEW
   are not.
 
@@ -273,6 +276,9 @@ Steps:
 
 Expected:
 - No main button on any of them.
+- The "Record" step holds a player for the latest version ("Play Version 1"),
+  so the passage is heard on the passage itself, without Record (LAN-128).
+  Everyone who can see the passage has it, once a version is published.
 - "Record" and "Done", once ticked, open the version page. Steps not done
   do nothing.
 - "Then the team" cards do nothing.
@@ -311,11 +317,11 @@ Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 Steps:
 1. Open P-Q1 (Luke 13:10-17). Tap "Record".
 2. Record one part and tap "Done" (06 REC does it step by step).
-3. On the Done screen, tap "Send later".
+3. On the Done screen, tap "Done, don't ask anyone".
 
 Expected:
 - "Record" opens the recording workspace for Luke 13:10-17.
-- "Send later" publishes Version 1 and asks nobody: the toast reads
+- "Done, don't ask anyone" publishes Version 1 and asks nobody: the toast reads
   "Version 1 published.", and the app returns to the record's path. There
   is no "Version 1 published" page (decision 127).
 - The path's "Record" is done ("Version 1 · {m:ss}"), and so is "Done"
@@ -346,7 +352,7 @@ Expected:
   then "Back translation" with the same. The first is picked; with more
   than one they are radios.
 - The footer holds "Ask the Peer check team", then the quiet links "Someone
-  else" and "Send later".
+  else" and "Done, don't ask anyone".
 - Tapping the button publishes Version 1 and asks, in one write. The app
   returns to the path and shows "Sent to the Peer check team — anyone on it
   will see it on My Work". The toast has no Undo. The "Peer check" card
@@ -382,11 +388,11 @@ Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 Steps:
 1. Record a new version of any of TRANS's passages that has an unasked
    next check, and tap "Done".
-2. On the Done screen, tap "Send later".
+2. On the Done screen, tap "Done, don't ask anyone".
 3. Read the footer.
 
 Expected:
-- "Send later" publishes the version and asks nobody: the toast reads
+- "Done, don't ask anyone" publishes the version and asks nobody: the toast reads
   "Version {n} published.", and the app returns to the path.
 - The main button now reads "Ask for the {check}". Tapping it opens the
   ask page (PASS-015), with the header "Ask for a check" and ✕. No
@@ -456,7 +462,7 @@ Expected:
   read "looks good".
 - TREV is offered the next check: the sheet's "Next check" holds the
   Community check, with "Ask {target}" (then "Someone else" and "Send
-  later") or "Ask for the community check" (then "Send later").
+  later") or "Ask for the community check" (then "Done, don't ask anyone").
 - Fixed (2026-10-12): the page after publishing showed "Next, ask for a
   check" with the Community Check card to someone who cannot ask. Done now
   lists checks only for someone who can ask.
@@ -491,7 +497,7 @@ Preconditions (in addition to the global ones):
 Steps:
 1. On P-NEEDS's feedback page, tap "Record a fix".
 2. Record a part for Version 2 and tap "Done" (06 REC).
-3. Tap "Send later". Open the "Peer check" card.
+3. Tap "Done, don't ask anyone". Open the "Peer check" card.
 
 Expected:
 - The workspace opens on P-NEEDS, tied to REV's review.
@@ -499,7 +505,7 @@ Expected:
   check feedback.", so its buttons are enabled. "Next check" is the Peer
   check again, with "Ask the Peer check team": answered feedback keeps the
   check open (decided 2026-10-13, decisions.md 96).
-- "Send later" shows "Version 2 published." and returns to the record.
+- "Done, don't ask anyone" shows "Version 2 published." and returns to the record.
 - On the path, "Hear the feedback" and "Fix it…" are gone.
 - In the sheet, the Peer check is marked "Feedback answered".
 - "Versions and history" → "History" lists "Revised after Peer Review".
@@ -680,13 +686,13 @@ Expected:
 - "Someone else should do this" ("Ask a person on the team, or someone
   outside by WhatsApp or text") shows for TRANS, TREV, COORD, ADMIN, LADMIN
   and KEPT. Not for REV or VIEW.
-- No "We already did this", "Not now" or "Record a new version" (nothing is
-  recorded yet).
+- No "We already did this", "Set the … aside" or "Record a new version"
+  (nothing is recorded yet).
 - Tiles: "Add a note" (everyone but VIEW) and "What helps here" (everyone).
 - No offline card: whether the passage comes along offline is the line at
   the top of the passage (PASS-035, decision 166).
-- The footnote reads "Each check under "Then the team" has its own options
-  too: tap it on the path."
+- No footnote "Each check under "Then the team" has its own options too":
+  with nothing recorded, the checks do not open yet (LAN-127).
 - The footer "Say it instead", with "A voice note on this passage. Your team
   hears it here.", shows for everyone but VIEW.
 
@@ -707,7 +713,7 @@ Expected:
   | "Someone else should do this" | no (it is already asked) | no | no (it is already asked) | no |
   | "I'll do this myself" ("Back translation: record it now") | TRANS only (its author, decision 178) | no | no | no |
   | "We already did this" ("Say when and how the back translation happened") | yes | yes | yes | no |
-  | "Not now" ("Set the back translation aside. Say why") | yes | yes | yes | no |
+  | "Set the back translation aside" ("Say why. It goes on the record.", the skip mark) | yes | yes | yes | no |
   | "Record a new version" ("Reviews so far stay with the version they heard") | yes | no | yes | no |
   | "Move past a checkpoint" | no | no | COORD and ADMIN only, and only at a checkpoint | no |
 
@@ -754,12 +760,12 @@ Expected:
   onward).
 - ✕ returns to "Something else?", with nothing saved.
 
-### PASS-030 Not now, from Something else?
+### PASS-030 Set a check aside, from Something else?
 Roles: TREV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
 1. Open a Version 1 of TRANS's whose Peer check nobody has asked for. Tap
-   "Something else?", then "Not now".
+   "Something else?", then "Set the peer check aside".
 2. Choose "No one available for this right now". Tap "Set aside".
 3. Tap ✕. Open "Versions and history" → "History" and tap "Undo" on "Peer
    check set aside".
@@ -1028,18 +1034,22 @@ Steps:
 2. Type "Pastor Garang" in "Their name — e.g. Pastor Garang". Tap "SMS".
    Type "123" in "Phone number".
 3. Type "+211 555 0100".
-4. Tap "Ask Pastor".
+4. Tap "Save the request".
 
 Expected:
-- A preview "SMS preview" reads "Hi Pastor Garang — could you listen to Luke
-  14:1-14 in Alpha and tell us what you understood? No account needed:"
-  followed by "The request is saved on the record with their name and
-  number. Sending the no-account link from the app is not ready yet."
-- With "123" the footer stays disabled (more than 3 characters are needed).
-- After sending, the toast reads "Asked Pastor Garang · the request is on the
-  record", with no Undo. History's "Withdraw" takes it back (PASS-044).
-- The Back translation's sub reads "Waiting on Pastor Garang · by link over
-  SMS".
+- A card "Send them this yourself, by SMS" reads "Hi Pastor Garang — could
+  you listen to Luke 14:1-14 in Alpha and tell us what you understood?",
+  with "Share the message" (the share sheet; a browser copies it).
+- "Phone number · needed" labels the phone field. With "123" the footer
+  stays disabled (more than 3 characters are needed).
+- After saving, the toast reads "Saved on the record, not sent. Send it to
+  Pastor Garang yourself.", with no Undo. History's "Withdraw" takes it
+  back (PASS-044).
+- The Back translation's sub reads "Waiting on Pastor Garang · not sent by
+  the app · SMS".
+- Changed (UI audit, finding 87): the page showed an "SMS preview", the
+  button said "Ask Pastor" and the toast "Asked Pastor Garang", though the
+  app sends nothing; every word now says the person sends it.
 - Known issue (2026-10-12): nothing is sent to the phone, and the link page
   (`guest_review`) is not reachable. In passage summaries (map rows,
   "Opened lately") the guest's name becomes an anonymous colour-and-shape
@@ -1250,8 +1260,10 @@ Expected:
 - "Move past checkpoint" is disabled until there is a reason.
 - The toast reads "Moved past the checkpoint · reason saved", with no Undo.
   History's "Undo" takes it back (PASS-056).
-- "Then the team" reads "Consultant check" "moved past" and "Final approval"
-  "next".
+- "Then the team" reads "Consultant check" "moved past · {reason}", in an
+  amber tile with a flag (not a pass's green tick), and "Final approval"
+  "next". A check set aside is a grey tile with the skip mark (UI audit,
+  finding 86).
 - "Consultant check"'s sheet's sub reads "Checkpoint moved past, with a
   reason — later steps can go ahead. Undo it from History."
 - "Final approval"'s sheet is no longer locked, and offers its buttons.
@@ -1293,15 +1305,18 @@ Expected:
   (2026-10-13, decisions.md 97): taking back an override needs Override
   checkpoints, as making one does. Undoing a set-aside does not.
 
-### PASS-057 Not now at a checkpoint
+### PASS-057 No setting aside at a checkpoint
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
 1. Open P-CHECK. Tap "Something else?".
 
 Expected:
-- "Not now" is not offered at a checkpoint. The step sheet hides "Set aside"
-  there, and only an override moves past one.
+- "Set the consultant check aside" is not offered at a checkpoint. The step
+  sheet hides "Set aside" there, and only an override moves past one.
+- Changed (UI audit, finding 88): this option was called "Not now", the
+  same words and clock as the Ask page's button that only closes it; it is
+  named for what it does, with the skip mark set-aside checks wear.
 - Fixed (2026-10-12): "Something else?" offered "Not now" ("Set the
   consultant check aside. Say why") at a checkpoint (`elseChoices`,
   record.ts).
@@ -1342,22 +1357,27 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Open P-DONE. Tap "Something else?", then "Continue recording".
 2. Read the page.
-3. Tap "Edit" on "Draft 2", then ✕.
+3. Tap "Draft 2" itself, then ✕.
 4. On the unstarted passage with two drafts, tap the main button, then ✕,
    then the path's "Record" step.
 
 Expected:
-- With several drafts, "Continue recording" opens the Versions page to pick
-  one, not the workspace. That is the main button where Record is lit, the
-  "Record" step, and the "Something else?" option on a finished passage
-  (P-DONE).
+- With several drafts, "Continue recording" opens a page titled "Which
+  draft?" to pick one, not the workspace. That is the main button where
+  Record is lit, the "Record" step, and the "Something else?" option on a
+  finished passage (P-DONE). Its big button is "Continue Draft 2" (the
+  newest), a tap on a draft opens it, and "New version" is a quiet link
+  under the button. Opened from "Versions and history", the page is
+  "Versions" with "New version" as its button, as before (UI audit,
+  finding 89).
 - The page shows "Your drafts", with "Draft 1" and "Draft 2" in the order
   started. Each has a play button, "{n} parts · {m:ss} · from Version {n}"
   (or without "from"), "Saved {when}", "Edit", "Done" and a trash
   button.
 - "Done" is disabled on a draft whose parts are the same as the latest
   version. Otherwise it opens that draft's Done screen (06 REC-011).
-- "Edit" opens the workspace on that draft, named "Draft 2".
+- "Edit", or a tap on the draft while picking, opens the workspace on that
+  draft, named "Draft 2".
 - Fixed (2026-10-12): the path's "Record" step skipped the picker and opened
   the workspace on the latest draft (`passage.tsx` `onStep`). (On P-DONE the
   done "Record" step opens the version, as it should.)

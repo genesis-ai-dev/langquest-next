@@ -39,30 +39,38 @@ async function createAccountAndOrg(page: Page, email: string): Promise<void> {
   await vis(page, `input[aria-label="What's it called?"]`).fill('Smoke Org');
   await button(page, 'Create Organization').click();
   await button(page, /Add a language/).click({ timeout: 60_000 });
-  // New Language shows its six steps first (decision 146): its name, what they record and how it is
-  // broken up, the language of its Bibles and guides and what they will have, its review flow and its
-  // checks (each with the suggestion picked), then inviting, which can wait.
+  // New Language shows its six steps first (decision 146): its name and the languages its translators
+  // use (decision 193), what they record and how it is broken up, what they will have in those languages,
+  // its review flow and its checks (each with the suggestion picked), then inviting, which can wait.
   await button(page, 'Start').click({ timeout: 60_000 });
   await vis(page, 'input[aria-label="Its name"]').fill('Dinka');
   await vis(page, 'input[aria-label="Its code, if it has one"]').fill('din');
   await button(page, 'Continue').click();
-  // One question a screen (decision 80): the Bible, its numbering (from the list here), how it is divided.
+  await expect(page.getByText(/translators use\?/).first()).toBeVisible({ timeout: 60_000 });
   await button(page, 'Continue').click({ timeout: 60_000 });
-  await button(page, 'Choose from the list').click({ timeout: 60_000 });
+  // One question a screen (decision 80): the Bible, why its numbering matters, its numbering (from the list here), how it is divided.
+  await button(page, 'Continue').click({ timeout: 60_000 });
+  await button(page, 'Continue').click({ timeout: 60_000 });
+  await button(page, /^Choose the numbering/).click({ timeout: 60_000 });
   await page.getByText('Like most English Bibles', { exact: true }).locator('visible=true').first().click({ timeout: 60_000 });
   await button(page, 'Continue').click({ timeout: 60_000 });
   await button(page, 'Continue').click({ timeout: 60_000 });
-  // The language of its Bibles and study guides, on its own page (decision 84), then what they will have.
-  await expect(page.getByText(/Bibles and study guides be in\?/).first()).toBeVisible({ timeout: 60_000 });
-  await button(page, 'Continue').click({ timeout: 60_000 });
+  // What they will have, in the languages its translators use.
+  await expect(page.getByText(/What will help .*team\?/).first()).toBeVisible({ timeout: 60_000 });
   await button(page, 'Continue').click({ timeout: 60_000 });
   // Its review flow, then its checks; adding it ends on inviting.
   await expect(page.getByText('How will recordings get checked?').first()).toBeVisible({ timeout: 60_000 });
   await button(page, 'Continue').click({ timeout: 60_000 });
   await button(page, 'Add Dinka').click({ timeout: 60_000 });
-  await button(page, 'Later').click({ timeout: 60_000 });
-  // A new language leads My Work with its Get ready card (decision 71): "Get Dinka ready · 1 of 4".
-  await expect(page.getByText(/^Get Dinka ready/).first()).toBeVisible({ timeout: 60_000 });
+  // Inviting opens with the translators' code already made (decision 146, amended for LAN-195): Share as a link
+  // shows once the server has made it and this browser has it.
+  await expect(button(page, 'Share as a link')).toBeVisible({ timeout: 60_000 });
+  await button(page, 'Done').click({ timeout: 60_000 });
+  // A template, checks and an invite: Dinka is ready, so My Work offers no Get ready card and leads with its
+  // first passage (decision 71).
+  await expect(page.getByText('A good place to start', { exact: true }).locator('visible=true').first()).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole('heading', { name: 'Matthew 1:1–17' }).locator('visible=true').first()).toBeVisible();
+  await expect(page.getByText(/^Get Dinka ready/)).toHaveCount(0);
 }
 
 /** Every file the app's own stores hold in this site's private files (apps/mobile/src/web/webFiles.ts). */
@@ -105,11 +113,28 @@ async function openContext(browserName: string, open: () => Promise<BrowserConte
   return { context, done: async () => { await context.close(); rmSync(dir, { recursive: true, force: true }); } };
 }
 
+/**
+ * The browser the long test opened, traced until it ends. A test that fails
+ * or runs out of time keeps its trace with the results (trace.zip in the
+ * web-smoke-results artifact): the config's `trace` never reaches a context
+ * the test opens itself, and a timeout leaves no screen in the error.
+ */
+let traced: { context: BrowserContext; done: () => Promise<void> } | null = null;
+test.afterEach(async ({}, info) => {
+  const open = traced;
+  traced = null;
+  if (!open) return;
+  await open.context.tracing.stop({ path: info.outputPath('trace.zip') }).catch(() => {});
+  await open.done().catch(() => {});
+});
+
 test('a new organization on the web, from sign-up to sign-out', async ({ browser, browserName, playwright }, info) => {
   const use = info.project.use;
   const { context, done } = await openContext(browserName,
     () => browser.newContext(use),
     (dir) => playwright.webkit.launchPersistentContext(dir, { ...use, baseURL: use.baseURL }));
+  await context.tracing.start({ screenshots: true, snapshots: true });
+  traced = { context, done };
   const page = await context.newPage();
   const phone = info.project.name === 'chromium-phone';
   const mic = info.project.name.startsWith('chromium') && !phone;
@@ -148,8 +173,8 @@ test('a new organization on the web, from sign-up to sign-out', async ({ browser
   if (mic) {
     let block = true;
     await page.route('**/api/blobs/**', (route) => (block ? route.abort() : route.continue()));
+    // An organization with one language: the Map tab opens that language's map (UI audit, finding 82).
     await page.getByRole('tab', { name: 'Map' }).click();
-    await button(page, /^Dinka:/).click();
     await button(page, /^Matthew\./).click();
     // A book of FIA passages lists them as rows (decisions.md 166).
     await button(page, /^Matthew 3:1–17\. Not started/).click();
@@ -208,6 +233,8 @@ test('a new organization on the web, from sign-up to sign-out', async ({ browser
   }
 
   expect(await csp(), 'Content Security Policy refusals').toEqual([]);
+  traced = null;
+  await context.tracing.stop();
   await done();
 });
 
@@ -239,4 +266,27 @@ test('storage that will not open shows one code that stays', async ({ page }) =>
   }));
   expect(await code.innerText()).toBe(first);
   expect(reports).toHaveLength(1);
+});
+
+// A reload can open before the browser has let go of the page before's files
+// (seen on CI's Chromium under load): that first failed open reloads once
+// and opens, rather than showing the storage screen.
+test('a first open that finds the files still held reloads once and opens', async ({ page }) => {
+  const reports: string[] = [];
+  page.on('console', (m) => { if (m.text().includes('] open storage:')) reports.push(m.text()); });
+  // The first page's SQLite worker refuses every open, as one finding the files still held does; the reloaded page's opens.
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('smoke-held')) return;
+    sessionStorage.setItem('smoke-held', '1');
+    class Held extends EventTarget {
+      postMessage(m: { id: number }) {
+        setTimeout(() => this.dispatchEvent(new MessageEvent('message', { data: { id: m.id, error: 'NoModificationAllowedError: Access Handles cannot be created if there is another open Access Handle' } })));
+      }
+      terminate() {}
+    }
+    (window as unknown as { Worker: unknown }).Worker = Held;
+  });
+  await start(page);
+  await expect(page.getByText(/^Code for your team: /)).toHaveCount(0);
+  expect(reports).toEqual([]);
 });

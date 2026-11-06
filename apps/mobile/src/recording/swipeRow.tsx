@@ -11,7 +11,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { AccessibilityInfo, Animated, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
+import { HelpBadge, HelpQuiet, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { Ico } from '../ui/kit';
 import { C, radius } from '../ui/theme';
@@ -171,7 +171,8 @@ export function SwipeRow(props: {
               <Pressable onPress={bin.onPress} accessibilityRole="button" accessibilityLabel={t('recording.deleteItem', { item: props.name })}
                 style={({ pressed }) => [styles.bin, pressed && { opacity: 0.8 }]}>
                 <Ico name="trash" size={22} color={C.white} />
-                <HelpBadge spot={bin} />
+                {/* Secondary while help is on: dim and unnumbered, and a tap still explains (LAN-135). */}
+                <HelpQuiet><HelpBadge spot={bin} /></HelpQuiet>
               </Pressable>
             </HelpRow>
           ) : (
@@ -193,7 +194,8 @@ export function SwipeRow(props: {
 const styles = StyleSheet.create({
   box: { overflow: 'hidden' },
   last: { borderBottomLeftRadius: radius.lg - 1, borderBottomRightRadius: radius.lg - 1 },
-  under: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.red, flexDirection: 'row', justifyContent: 'space-between' },
+  // Left to right in every language: the row slides by screen distance, so the bin it shows is the one on that side.
+  under: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.red, flexDirection: 'row', justifyContent: 'space-between', direction: 'ltr' },
   bin: { width: BIN, alignItems: 'center', justifyContent: 'center' },
   face: { backgroundColor: C.card }
 });

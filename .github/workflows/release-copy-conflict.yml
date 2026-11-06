@@ -19,13 +19,6 @@
 # again, as on a copy whose checks failed, up to 3 times; after that it is
 # labelled copy-needs-person. The pull request's checks run as for any other.
 #
-# GitHub runs no pull_request workflow on a pull request with a conflict, so
-# the label cannot start Claude on a copy that has a conflict with its
-# release branch (another copy merged first): on 2026-11-06 the label on
-# PR 347 started nothing. For such a copy the hourly run also sends a
-# repository_dispatch (event type release-copy, client_payload.pr), which
-# runs this file from main.
-#
 # Needs the GitHub App of release-branches.yml, so that the push of Claude's
 # commits starts the checks, and a way for Claude to sign in: CLAUDE_CODE_OAUTH_TOKEN, a
 # Claude plan's token (made by `claude setup-token`, from .env.production
@@ -40,20 +33,18 @@ name: release-copy-conflict
 on:
   pull_request:
     types: [labeled]
-  repository_dispatch:
-    types: [release-copy]
 
 permissions:
   contents: read
 
 # One run at a time for each copy: a label that comes during a run waits for it.
 concurrency:
-  group: release-copy-${{ github.event.pull_request.number || github.event.client_payload.pr }}
+  group: release-copy-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
   copy:
-    if: (github.event_name == 'repository_dispatch' || (github.event.label.name == 'copy-claude' && startsWith(github.event.pull_request.base.ref, 'release/'))) && vars.RELEASE_BRANCHES == 'on'
+    if: github.event.label.name == 'copy-claude' && startsWith(github.event.pull_request.base.ref, 'release/') && vars.RELEASE_BRANCHES == 'on'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -64,21 +55,9 @@ jobs:
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-      - id: copy
-        name: Find the copy, and stop unless it is an open copy onto a release branch
-        env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
-          PR: ${{ github.event.pull_request.number || github.event.client_payload.pr }}
-        run: |
-          view=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json number,headRefName,baseRefName,state)
-          head=$(jq -r .headRefName <<<"$view"); base=$(jq -r .baseRefName <<<"$view"); state=$(jq -r .state <<<"$view")
-          if [[ "$state" != OPEN || "$base" != release/* || ! "$head" =~ ^copy/(ios|android)/[0-9a-f]{8}(-[0-9a-f]{8})?$ ]]; then
-            echo "::error::#$PR is not an open copy onto a release branch ($head onto $base, $state)"; exit 1
-          fi
-          { echo "pr=$(jq -r .number <<<"$view")"; echo "head=$head"; echo "base=$base"; } >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ steps.copy.outputs.head }}
+          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
           token: ${{ steps.token.outputs.token }}
       - name: Keep this run's own copy of the script that finishes the copy, and keep Claude's result out of git
@@ -91,8 +70,8 @@ jobs:
         if: env.HAS_CLAUDE_KEY != 'true'
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
-          HEAD: ${{ steps.copy.outputs.head }}
-          PR: ${{ steps.copy.outputs.pr }}
+          HEAD: ${{ github.event.pull_request.head.ref }}
+          PR: ${{ github.event.pull_request.number }}
         run: node scripts/release-branches.mjs conflict-note --branch "$HEAD" --pr "$PR"
       - id: claude
         uses: anthropics/claude-code-action@v1
@@ -103,11 +82,10 @@ jobs:
           github_token: ${{ steps.token.outputs.token }}
           allowed_bots: langquest-release-branches
           prompt: |
-            Pull request #${{ steps.copy.outputs.pr }} (this branch, ${{ steps.copy.outputs.head }}) copies commits from main onto ${{ steps.copy.outputs.base }}, the code of the public build. A newer build, with main's code, is not public yet. The pull request's body lists the commits, oldest first (`- <sha> #<pull request> <title>`); a commit on this branch whose message says "cherry picked from commit <sha>" is a copy already made. Your task is to finish the copy, keep only what fits the public build, and make the checks pass.
-            0. If `gh pr view ${{ steps.copy.outputs.pr }} --json mergeable` says CONFLICTING (another copy merged first), run `git merge origin/${{ steps.copy.outputs.base }}` and resolve each conflict as in step 1, keeping both sides' changes to the app. Never rebase, and never force a push.
+            This pull request copies commits from main onto ${{ github.event.pull_request.base.ref }}, the code of the public build. A newer build, with main's code, is not public yet. The pull request's body lists the commits, oldest first (`- <sha> #<pull request> <title>`); a commit on this branch whose message says "cherry picked from commit <sha>" is a copy already made. Your task is to finish the copy, keep only what fits the public build, and make the checks pass.
             1. For each listed commit not copied yet, in order, run `git cherry-pick -x` of it on this branch (add `-m 1` for a merge commit) and resolve every conflict. A conflict in a file outside the phone app and its tests (anything not under apps/mobile/, packages/core/, packages/sync/, e2e/ui/ or e2e/web-smoke/, other than package.json and package-lock.json, and every .md file) keeps the release branch's version. In the app, keep the release branch's code wherever main's change depends on code that the release branch does not have (a change that came with a new store build is never copied), and say in the commit message what you left out and why.
             2. Examine each copied commit against this branch's code. A part fits the public build when it changes code that this branch has and that people use on the public build: a fix, or a change to a feature that this branch has. A part does not fit when it changes or needs a feature, screen or code that only the newer build has. Take out each part that does not fit, in a commit that names each part and says why. When no part of a commit fits, leave it out.
-            3. If the checks failed, read why: `gh pr checks ${{ steps.copy.outputs.pr }}`, then `gh run view <run id> --log-failed` for each failed run.
+            3. If the checks failed, read why: `gh pr checks ${{ github.event.pull_request.number }}`, then `gh run view <run id> --log-failed` for each failed run.
             4. Run `npm ci` and `npm run guardrails`, and fix what the copy broke and what the checks found. Never skip, disable or weaken a test to make it pass. When a test fails because main's change needs code that the release branch does not have, take out that part of the change, and say so in the commit message.
             5. Commit all of your work on this branch. Do not push, comment, label, close or merge: the next step of this workflow pushes your commits, comments, and turns on auto-merge.
             6. Last, write `.release-copy.json` in the repository's root (git ignores it), with one entry for each listed commit, oldest first: `{"commits": [{"sha": "<full sha>", "result": "copied", "why": "<one sentence>"}]}`, where result is "copied", "copied in part" or "left out". A commit copied in whole or in part must be on this branch with its "cherry picked from commit" line. When you could not finish (a conflict or a failure you could not resolve), write `{"unfinished": "<one sentence: what is left, and why>"}` instead; Claude tries again later from your commits.
@@ -129,7 +107,7 @@ jobs:
         if: always() && steps.claude.outcome != 'skipped'
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
-          HEAD: ${{ steps.copy.outputs.head }}
-          PR: ${{ steps.copy.outputs.pr }}
+          HEAD: ${{ github.event.pull_request.head.ref }}
+          PR: ${{ github.event.pull_request.number }}
           RELEASE_REPO_DIR: ${{ github.workspace }}
         run: node "$RUNNER_TEMP/copy/release-branches.mjs" finish-copy --branch "$HEAD" --pr "$PR" --start "$(cat "$RUNNER_TEMP/copy/start")"

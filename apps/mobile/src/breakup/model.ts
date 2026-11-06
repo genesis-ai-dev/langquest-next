@@ -9,7 +9,7 @@ import {
 } from '@langquest-next/core';
 import { bookNameOf, STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplatesModel';
 import { bookName } from '../i18n/coreText';
-import { t } from '../i18n';
+import { currentLanguage, t } from '../i18n';
 import type { LibraryOp } from '../library/model';
 
 /** The ways LangQuest publishes (scripts/library-seed.ts `breakupWays`), in the order offered. */
@@ -170,10 +170,22 @@ export function countLine(doc: TemplateDoc, v11n: VersificationDoc | null): stri
   // The template's own word for its pieces, when every book uses the same one; else the app's "part".
   const names = [...new Set(divided.map((b) => (b.part ?? doc.levels[doc.levels.length - 1]?.name)?.toLowerCase() ?? null))];
   const noun = names.length === 1 ? names[0] : null;
-  const pieces = noun
-    ? t('breakup.count.named', { count: parts, part: noun, parts: noun.endsWith('y') ? `${noun.slice(0, -1)}ies` : `${noun}s` })
-    : t('breakup.count.parts', { count: parts });
+  const pieces = (noun ? partWordCount(noun, parts) : null) ?? (noun
+    // A word the template's makers typed stays as they typed it; only English is made plural here.
+    ? t('breakup.count.named', { count: parts, part: noun, parts: currentLanguage() !== 'en' ? noun : noun.endsWith('y') ? `${noun.slice(0, -1)}ies` : `${noun}s` })
+    : t('breakup.count.parts', { count: parts }));
   return divided.length === books.length ? pieces : t('breakup.count.inBooks', { pieces, books: t('breakup.count.books', { count: divided.length }) });
+}
+
+/** "2,376 passages" in the language showing, for the words LangQuest's ways use for their pieces (breakupWays). */
+function partWordCount(word: string, count: number): string | null {
+  switch (word) {
+    case 'passage': return t('breakup.count.passage', { count });
+    case 'chapter': return t('breakup.count.chapter', { count });
+    case 'chunk': return t('breakup.count.chunk', { count });
+    case 'section': return t('breakup.count.section', { count });
+    default: return null;
+  }
 }
 
 /** Books a way leaves for later: "Romans, Hebrews and 18 more". */

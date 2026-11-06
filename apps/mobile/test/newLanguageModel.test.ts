@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addedToast, backTarget, draftPlan, startingSpecs, uniqueKinds } from '../src/org/newLanguageModel';
+import { addedToast, backTarget, draftPlan, pageOf, startingSpecs, uniqueKinds } from '../src/org/newLanguageModel';
 import { commands, DEFAULT_KINDS, emptyLanguageState, type LibraryDoc } from '@langquest-next/core';
 import type { SharedItem } from '../src/library/model';
 import type { GuideSet } from '../src/reference/guideSets';
@@ -31,9 +31,31 @@ describe('new language wizard rules', () => {
       .toEqual(fresh.copyFlow({ commandId: 'c', name: 'Quick', kinds: DEFAULT_KINDS, steps }));
   });
   it('goes back one page of a step first, then a step', () => {
-    expect(backTarget(3, { materialPage: 'material', flowPage: 'pick' })).toEqual({ materialPage: 'languages' });
-    expect(backTarget(4, { materialPage: 'languages', flowPage: 'checks' })).toEqual({ flowPage: 'pick' });
-    expect(backTarget(3, { materialPage: 'languages', flowPage: 'pick' })).toEqual({ step: 2 });
+    const at = { languagePage: 'team', materialPage: 'material', flowPage: 'pick' } as const;
+    expect(backTarget(1, at)).toEqual({ languagePage: 'name' });
+    expect(backTarget(2, at)).toEqual({ step: 1 });
+    expect(backTarget(3, { ...at, materialPage: 'languages' })).toEqual({ materialPage: 'material' });
+    expect(backTarget(4, { ...at, flowPage: 'checks' })).toEqual({ flowPage: 'pick' });
+    expect(backTarget(3, at)).toEqual({ step: 2 });
+  });
+  it('names every page apart, so each opens at its top', () => {
+    const at = { languagePage: 'name', materialPage: 'material', flowPage: 'pick' } as const;
+    const pages = [
+      pageOf(0, at, 'what', false),
+      pageOf(1, at, 'what', false),
+      pageOf(1, { ...at, languagePage: 'team' }, 'what', false),
+      ...(['what', 'why', 'how', 'numbered', 'ways'] as const).map((q) => pageOf(2, at, q, false)),
+      pageOf(3, at, 'ways', false),
+      pageOf(3, { ...at, materialPage: 'languages' }, 'ways', false),
+      pageOf(4, at, 'ways', false),
+      pageOf(4, { ...at, flowPage: 'checks' }, 'ways', false),
+      pageOf(4, { ...at, flowPage: 'checks' }, 'ways', true)
+    ];
+    expect(new Set(pages).size).toBe(pages.length);
+    // Divide into sections, then Reference material: a new page, which once opened as far down as the last was scrolled.
+    expect(pageOf(2, at, 'ways', false)).not.toBe(pageOf(3, at, 'ways', false));
+    // What only changes another step's page does not move this one.
+    expect(pageOf(3, at, 'ways', false)).toBe(pageOf(3, { ...at, languagePage: 'team', flowPage: 'checks' }, 'what', false));
   });
   it('words the toast by how many and what was not offered', () => {
     const base = { count: 2, first: 'Dinka', org: 'O', cluster: 'C' };
@@ -52,7 +74,7 @@ describe('offer ranking', () => {
   });
 });
 
-const doc = (format: string, name: string, language: string, extra: object = {}) => ({ format, name, language, ...extra }) as unknown as LibraryDoc;
+const doc = (format: string, name: string, language: string, extra: object = {}) => ({ format, name, language, ...(format === 'source@1' ? { provider: { kind: 'library' } } : {}), ...extra }) as unknown as LibraryDoc;
 const shared = (item_id: string, name: string, org_name: string) => ({ org_id: 'langquest', item_id, name, org_name, latest_hash: `s-${item_id}` }) as unknown as SharedItem;
 
 describe('newLanguageOffers', () => {
@@ -91,6 +113,16 @@ describe('newLanguageOffers', () => {
   it('offers material in any of the languages the team reads', () => {
     const r = newLanguageOffers({ own: [], others, doc: (h) => docs[h] ?? null, sets: [], readsAll: ['eng', 'fra'] });
     expect(r.items.map((x) => x.key)).toContain('langquest/fra');
+  });
+  it("lists Bible Brain's Bibles after the library's, once each, none ticked, leaving out ones the library has (LAN-194)", () => {
+    const brain = (bibleId: string, name: string) => ({ bibleId, name, abbreviation: bibleId, language: 'eng', languageName: 'English' }) as never;
+    const linked = { ...docs, h1: doc('source@1', 'Berean', 'eng', { provider: { kind: 'biblebrain', bibleId: 'ENGBSB' } }) };
+    const r = newLanguageOffers({ own, others, doc: (h) => linked[h] ?? null, sets, readsAll: ['eng'],
+      bibleBrain: [brain('ENGBSB', 'Berean Standard Bible'), brain('ENGNIV', 'New International Version'), brain('ENGNIV', 'New International Version')] });
+    const keys = r.items.map((x) => x.key);
+    expect(keys.slice(0, 4)).toEqual(['bsb', 'web', 'langquest/web', 'biblebrain:ENGNIV']);
+    expect(r.items.find((x) => x.key === 'biblebrain:ENGNIV')).toMatchObject({ kind: 'source', itemId: null, shared: null, bibleBrain: { bibleId: 'ENGNIV' } });
+    expect([...r.suggested].sort()).toEqual(['set:fia', 'web']);
   });
 });
 

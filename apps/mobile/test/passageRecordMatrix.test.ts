@@ -24,7 +24,7 @@ const w = passageWorld();
 const name = (who: WorldRole) => NAMES[who];
 
 /** Everything the record shows `who` on passage `k`, as the screen builds it. */
-function record(who: WorldRole, k: WorldPassage) {
+function record(who: WorldRole, k: WorldPassage, reviewDrafts?: ReadonlySet<string>) {
   const v = passageView(w.state, unitOf(k), w.languageId, 'Alpha');
   const { p, kinds } = v;
   const s = w.session(who);
@@ -38,7 +38,7 @@ function record(who: WorldRole, k: WorldPassage) {
   const alone = nobodyElseReviews(w.state, w.org, { languageId: w.languageId, me, lines: languageLines(w.state) });
   const input = recordPathInput({ p, kinds, me, name: nameFn, teamName });
   const steps = pathSteps(input);
-  const model = recordModel({ p, kinds, kind: v.kind, me, can, steps, mine, asker: isAuthor, isAuthor, alone });
+  const model = recordModel({ p, kinds, kind: v.kind, me, can, steps, mine, asker: isAuthor, isAuthor, alone, ...(reviewDrafts ? { reviewDrafts } : {}) });
   const lit = steps.find((st) => st.state === 'current');
   const sheetOf = (kindId: string) => {
     const step = p.steps.find((st) => st.kinds.some((x) => x.kindId === kindId))!;
@@ -56,7 +56,7 @@ function record(who: WorldRole, k: WorldPassage) {
     path: steps.map((st, i) => `${i + 1}. ${st.title}. ${st.sub}`),
     /** Each "Then the team" row as it is spoken: "Peer check, looks good". */
     team: teamSteps(input).map((st) => `${st.name}, ${st.status}`),
-    teamOpens: teamStepsOpen(can),
+    teamOpens: teamStepsOpen(can, p),
     waiting: waitingOnAnswer({ p, kinds, answersMine: model.answersMine, name: nameFn }),
     sheet: sheetOf,
     /** "Something else?": its sub-title, each way forward as "label sub", and the note tiles. */
@@ -90,6 +90,8 @@ describe('the passage record, per role (05-passage-record.md)', () => {
         "Peer check, once you're done", 'Back translation, same time', 'Community check, after the peer check',
         'Consultant check, after the community check', 'Final approval, after the consultant check'
       ]);
+      // Nothing is recorded yet, so no check can be chosen: the rows say when each comes and do not open (LAN-127).
+      expect(r.teamOpens, who).toBe(false);
     }
     expect(each(roles, (who) => record(who, 'P-NEW').main)).toEqual({
       TRANS: 'Record', REV: null, TREV: 'Record', COORD: 'Record', LADMIN: 'Record', VIEW: null
@@ -120,6 +122,12 @@ describe('the passage record, per role (05-passage-record.md)', () => {
       TRANS: 'Ask for the back translation', REV: 'Do the peer check', TREV: 'Do the peer check', COORD: 'Do the peer check',
       LADMIN: 'Do the peer check', KEPT: 'Do the peer check', VIEW: null
     });
+  });
+
+  it('a review kept on the phone and not sent: its check\'s button says Continue (decision 127)', () => {
+    // Why: ✕ kept a half-done review as a draft, and the passage went on saying "Do the peer check".
+    expect(record('REV', 'P-SUBMITTED', new Set(['peer'])).main).toBe('Continue the peer check');
+    expect(record('REV', 'P-SUBMITTED', new Set(['community'])).main).toBe('Do the peer check');
   });
 
   it('PASS-004 P-NEEDS: feedback waiting for TRANS', () => {
@@ -244,7 +252,7 @@ describe('the passage record, per role (05-passage-record.md)', () => {
       // Only its author is offered doing it themselves (decisions.md 178).
       if (all.includes("I'll do this myself Back translation: record it now")) got.myself.push(who);
       if (all.includes('We already did this Say when and how the back translation happened')) got.already.push(who);
-      if (all.includes('Not now Set the back translation aside. Say why')) got.notNow.push(who);
+      if (all.includes('Set the back translation aside Say why. It goes on the record.')) got.notNow.push(who);
       if (all.includes('Record a new version Reviews so far stay with the version they heard')) got.newVersion.push(who);
       if (all.includes('Move past a checkpoint')) got.movePast.push(who);
     }

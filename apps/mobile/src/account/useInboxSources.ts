@@ -49,7 +49,7 @@ export function useOpenReports(orgId: string, enabled: boolean): { reports: Repo
  * the server's, with which of them this phone has opened. A change to
  * `readAgain` reads them again.
  */
-export function useServerInbox(actorId: string, readAgain: unknown = 0): { remote: RemoteNotification[]; seen: ReadonlySet<string>; markSeen: (id: string) => Promise<void> } {
+export function useServerInbox(actorId: string, readAgain: unknown = 0): { remote: RemoteNotification[]; seen: ReadonlySet<string>; markSeen: (ids: string | string[]) => Promise<void> } {
   const [remote, setRemote] = useState<RemoteNotification[]>([]);
   const [read, setRead] = useState<string[]>([]);
   useEffect(() => {
@@ -65,8 +65,8 @@ export function useServerInbox(actorId: string, readAgain: unknown = 0): { remot
     });
     return () => { active = false; };
   }, [actorId, readAgain]);
-  const markSeen = useCallback(async (id: string) => {
-    const next = [...new Set([...read, id])];
+  const markSeen = useCallback(async (ids: string | string[]) => {
+    const next = [...new Set([...read, ...(typeof ids === 'string' ? [ids] : ids)])];
     setRead(next);
     // Losing the read mark costs only a dot shown again: report it, carry on.
     await AsyncStorage.setItem(`inbox-read:${actorId}`, JSON.stringify(next)).catch((e: unknown) => { reportError('inbox mark read', e); });

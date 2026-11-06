@@ -152,6 +152,21 @@ export function field(page: Page, label: string | RegExp): Locator {
     .or(visible(page.getByPlaceholder(label, { exact: typeof label === 'string' })).first()).first();
 }
 
+/**
+ * A passage's row in a book's list, which shows 25 rows at a time (UI audit,
+ * finding 122): taps "Show N more" until the row shows.
+ */
+export async function bookRow(page: Page, name: RegExp): Promise<Locator> {
+  const row = visible(page.getByRole('button', { name })).first();
+  const more = visible(page.getByRole('button', { name: /^Show \d+ more · / })).last();
+  for (let i = 0; i < 20; i++) {
+    await row.or(more).first().waitFor();
+    if (await row.isVisible()) return row;
+    await more.click();
+  }
+  return row;
+}
+
 export const byId = (page: Page, id: string): Locator => visible(page.getByTestId(id)).last();
 export const tab = (page: Page, id: 'work' | 'map' | 'reports' | 'manage' | 'inbox' | 'me'): Locator => byId(page, `tab-${id}`);
 export const primary = (page: Page): Locator => byId(page, 'primary-action');
@@ -184,7 +199,11 @@ export async function syncNow(page: Page): Promise<void> {
 }
 
 /** What the app says it is doing: the test probe in App.tsx (test builds only). */
-export interface TestState { syncing: boolean; pending: number; rejected: number; lastSyncAt: number | null; lastPullMore: boolean; orgId: string | null; languageId: string | null }
+export interface TestState {
+  syncing: boolean; pending: number; rejected: number; lastSyncAt: number | null; lastPullMore: boolean; orgId: string | null; languageId: string | null;
+  /** The organization, and the open language, read up to date from the server since this page loaded, and drawn (useTestProbes.ts). */
+  orgPulled: boolean; languagePulled: boolean;
+}
 
 export async function testState(page: Page): Promise<TestState> {
   return page.evaluate(async () => {
@@ -204,17 +223,26 @@ export async function expectSyncIdle(page: Page, timeoutMs = 30_000): Promise<vo
 
 /**
  * A fresh device draws a record before its language has arrived (no versions,
- * "Record" as the main button, a note whose removal is a later page) and
- * redraws as the pull lands: wait until a sync has finished with nothing more
- * to pull or send. Offline, the record is what the device has.
+ * "Record" as the main button, a note whose removal is a later page), and a
+ * reloaded one draws what it kept before the pull brings what others wrote
+ * since: a team row "after the peer check" on a passage that is done (PASS-008),
+ * no History on a published one (PASS-062). It redraws as the pull lands, so
+ * wait until both the organization and the language have been read up to date
+ * since the page loaded, and that render is the one on screen, with nothing more
+ * to pull or send. `lastSyncAt` alone was not that: the organization's sync sets
+ * it too, and between the two syncs nothing is running, so a busy machine passed
+ * this before the language had pulled (nightly 2026-10-28, 17 05-passage-* tests).
+ * Offline, the record is what the device has.
  */
-export async function languageArrived(page: Page): Promise<void> {
+export async function languageArrived(page: Page, timeoutMs = 30_000): Promise<void> {
   await expect.poll(async () => {
     if (!(await page.evaluate(() => navigator.onLine))) return true;
     const s = await testState(page).catch(() => null);
-    return !!s && !s.syncing && s.pending === 0 && !s.lastPullMore && s.lastSyncAt !== null;
-  }, { timeout: 30_000, message: 'waiting for the language to arrive' }).toBe(true);
+    return !!s && upToDate(s);
+  }, { timeout: timeoutMs, message: 'waiting for the language to arrive' }).toBe(true);
 }
+
+const upToDate = (s: TestState): boolean => s.orgPulled && s.languagePulled && !s.syncing && s.pending === 0 && !s.lastPullMore;
 
 /** Device log rows for a stream: status and type, oldest first. */
 export async function deviceEvents(page: Page, orgId: string, streamId: string): Promise<{ status: string; type: string; rejectReason: string | null }[]> {
@@ -245,12 +273,19 @@ export async function openPassage(page: Page, world: UiWorld, key: keyof UiWorld
   // Admins land on All languages; workers on their language's map. Wait for one of the two
   // before choosing: a device that has just signed in may show neither yet.
   const lang = text(page, 'Alpha');
-  const search = visible(page.getByRole('searchbox')).or(visible(page.getByPlaceholder(/Search|Find/))).first();
+  // The field by its test id too, so the passage opens in any interface language (A11Y-019).
+  const search = visible(page.getByRole('searchbox')).or(visible(page.getByPlaceholder(/Search|Find/))).or(visible(page.getByTestId('map-search'))).first();
   await expect(search.or(lang).first()).toBeVisible({ timeout: 60_000 });
   if (!(await search.isVisible())) await lang.click();
   await search.fill(label.replace(/^Luke /, 'Luke '));
-  await visible(page.getByText(label, { exact: false })).first().click();
-  await expect(text(page, label, false)).toBeVisible();
+  // The passage is open when its title is the screen's heading; the row's own words are no sign of it.
+  // Under load the list can move between finding the row and the tap landing (the search filters a
+  // beat behind the field), so a tap that opened nothing is made again on the row where it is now.
+  const heading = visible(page.getByRole('heading', { name: label })).first();
+  await expect(async () => {
+    if (!(await heading.isVisible())) await visible(page.getByText(label, { exact: false })).first().click({ timeout: 5_000 });
+    await expect(heading).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 30_000 });
 }
 
 /**
@@ -307,8 +342,12 @@ export async function enterPassage(page: Page, world: UiWorld, unitId: string, l
   const languageId = world.languages[language].languageId;
   const has = await page.waitForFunction(() => typeof (globalThis as { __langquestOpenPassage?: unknown }).__langquestOpenPassage === 'function', undefined, { timeout: 10_000 }).then(() => true, () => false);
   if (!has) return false;
-  // The workspace is up and has pulled once (so its folds are in): before that the app is still choosing its home, and would put it back.
-  await expect.poll(async () => { const t = await testState(page).catch(() => null); return !!t?.orgId && !!t.languageId && t.lastSyncAt !== null && !t.syncing; }, { timeout: 30_000, message: 'waiting for the workspace' }).toBe(true);
+  // The workspace is up and has pulled (so its folds are in): before that the app is still choosing its home, and would put it back.
+  await expect.poll(async () => {
+    const t = await testState(page).catch(() => null);
+    if (!t?.orgId || !t.languageId) return false;
+    return (await page.evaluate(() => navigator.onLine)) ? upToDate(t) : t.lastSyncAt !== null && !t.syncing;
+  }, { timeout: 30_000, message: 'waiting for the workspace' }).toBe(true);
   await page.evaluate(([lang, unit]) => (globalThis as unknown as { __langquestOpenPassage: (l: string, u: string) => void }).__langquestOpenPassage(lang!, unit!), [languageId, unitId] as const);
   return true;
 }

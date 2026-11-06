@@ -2,7 +2,8 @@
 // it waits in the account outbox as the person who wrote it, so it survives
 // months offline and a restart, holds sign-out like any saved change, goes
 // with a shared phone's hand-over and is sent as its author (decisions.md
-// 60). Its screenshot waits beside it (feedbackShots.ts). Written before
+// 60). Its screenshot, and a picture the person chose (LAN-198), wait beside
+// it (feedbackShots.ts). Written before
 // anyone signed in on this phone, it waits in a list of its own and joins the
 // outbox of whoever signs in next: the server takes nothing from a phone
 // without an account (decision 112).
@@ -26,6 +27,8 @@ export interface FeedbackDraft {
   shareProfile: boolean;
   /** The screenshot as base64 JPEG, when the person turned it on. */
   shot: string | null;
+  /** A picture the person chose, as base64 JPEG that fits (feedbackModel's pictureFits). */
+  picture?: string | null;
   /** A voice note, in the phone's file store until it has gone. */
   voice: VoiceRef | null;
   /** The screen it was sent from (its ScreenId). */
@@ -65,7 +68,11 @@ export async function sendFeedback(actorId: string | null, draft: FeedbackDraft,
   if (draft.shot) {
     try { await keepShot(id, draft.shot); shot = true; } catch (e) { noteExpected('feedback: keep screenshot', e); }
   }
-  const payload = { ...words, shot };
+  let picture = false;
+  if (draft.picture) {
+    try { await keepShot(id, draft.picture, 'picture'); picture = true; } catch (e) { noteExpected('feedback: keep picture', e); }
+  }
+  const payload = { ...words, shot, ...(picture ? { picture } : {}) };
   if (actorId === null) {
     // Before sign-in there is no profile to share.
     const waiting = { id, payload: { ...payload, shareProfile: false }, queuedAt: Date.now() };
@@ -76,6 +83,7 @@ export async function sendFeedback(actorId: string | null, draft: FeedbackDraft,
     });
     for (const d of dropped) {
       if (d.payload.shot) await dropShot(d.id);
+      if (d.payload.picture) await dropShot(d.id, 'picture');
       if (d.payload.voice) await dropVoice(d.payload.voice);
     }
     return false;

@@ -25,10 +25,10 @@ async function openDone(page: Page): Promise<void> {
   await expect(text(page, 'Next check')).toBeVisible({ timeout: 30_000 });
 }
 
-/** Done, then Send later: Version `n` is published and nobody is asked yet. */
+/** Done, then "Done, don't ask anyone": Version `n` is published and nobody is asked yet. */
 async function publishLater(page: Page, n = 1): Promise<void> {
   await openDone(page);
-  await button(page, 'Send later').click();
+  await button(page, "Done, don't ask anyone").click();
   await toast(page, `Version ${n} published.`);
 }
 
@@ -97,7 +97,7 @@ test('PASS-012 Done, then asking: the check\'s people are picked @p0', async ({ 
   expect(all).toMatch(/Peer check (\w\w )*(Rita Reviewer, Trevor Both|Trevor Both, Rita Reviewer) Back translation/);
   await expect(byId(page, 'primary-action')).toHaveText('Ask the Peer check team');
   await expect(button(page, 'Someone else')).toBeVisible();
-  await expect(button(page, 'Send later')).toBeVisible();
+  await expect(button(page, "Done, don't ask anyone")).toBeVisible();
   // One tap publishes Version 1 and asks.
   await byId(page, 'primary-action').click();
   await toast(page, 'Sent to the Peer check team — anyone on it will see it on My Work');
@@ -131,7 +131,7 @@ test('PASS-014 Done, then send later', async ({ browser }) => {
   const L = label('P-Q3');
   const page = await recordAs(browser, world(), 'TRANS', 'P-Q3');
   await recordAndDone(page);
-  await button(page, 'Send later').click();
+  await button(page, "Done, don't ask anyone").click();
   await toast(page, 'Version 1 published.');
   await expect(header(page)).toHaveText(L);
   expect(await mainButton(page)).toBe('Ask for the peer check');
@@ -313,15 +313,18 @@ test('PASS-042 Ask someone without the app', async ({ browser }) => {
   await field(page, 'Their name — e.g. Pastor Garang').fill('Pastor Garang');
   await button(page, 'SMS').click();
   await field(page, 'Phone number').fill('123');
+  // The app sends nothing to someone without it yet: the message is theirs to send, and every word says so (UI audit, finding 87).
   const all = await screenText(page);
-  expect(all).toContain(`SMS PREVIEW Hi Pastor Garang — could you listen to ${L} in Alpha and tell us what you understood? No account needed: The request is saved on the record with their name and number. Sending the no-account link from the app is not ready yet.`);
+  expect(all).toContain(`SEND THEM THIS YOURSELF, BY SMS Hi Pastor Garang — could you listen to ${L} in Alpha and tell us what you understood?`);
+  expect(all).not.toContain('No account needed');
+  await expect(button(page, 'Share the message')).toBeVisible();
   await expect(byId(page, 'primary-action')).toBeDisabled();
   await field(page, 'Phone number').fill('+211 555 0100');
-  await expect(byId(page, 'primary-action')).toHaveText('Ask Pastor');
+  await expect(byId(page, 'primary-action')).toHaveText('Save the request');
   await byId(page, 'primary-action').click();
-  await toast(page, 'Asked Pastor Garang · the request is on the record');
+  await toast(page, 'Saved on the record, not sent. Send it to Pastor Garang yourself.');
   await openTeamRow(page, 'Back translation');
-  expect(await screenText(page)).toContain('Waiting on Pastor Garang · by link over SMS');
+  expect(await screenText(page)).toContain('Waiting on Pastor Garang · not sent by the app · SMS');
   await closeSheet(page);
 });
 
