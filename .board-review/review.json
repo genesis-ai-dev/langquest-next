@@ -1,0 +1,16 @@
+{
+  "kind": "question",
+  "ask": "Where should the export be built, and where should admins start it?",
+  "problem": "Organizations fear being locked in. Admins can download progress sheets today, but they cannot take out the recordings, the details about them, and the full history together.",
+  "found": "The server already has a job runner with a large memory budget, and a storage bucket that holds every recording by its fingerprint. The web server that answers requests has a small memory limit and short request times. The reports and the admin area already exist in the web app.",
+  "changed": "Nothing yet. I have only written this question. After your answer I will build one Export all data button for org admins, one zip with audio folders, a list of every recording, progress sheets and the raw history, a written format guide, a test, and a decision entry.",
+  "why": "The zip must hold hundreds of recordings and may be very large, so it needs a place with plenty of memory and no short time limit. A stored file with a download link also lets the admin close the page and come back.",
+  "touches": "Options A and B add a stored file in the bucket that expires, and a small private row to record who asked. Option C adds neither. No new event types in any option.",
+  "pictures": [],
+  "options": [
+    {"label": "Server job, button on the Organization screen", "result": "The admin starts the export where they manage people and roles. A job builds the zip, progress shows there, and a download link appears when it is ready.", "picture": "option0.png"},
+    {"label": "Server job, button in the Reports section", "result": "Same engine, but the button sits beside the progress downloads admins already use.", "picture": "option1.png"},
+    {"label": "Build inside the web server and stream it", "result": "No stored file and no link. The zip downloads as it is built. Large organizations may time out or run out of memory.", "picture": "option2.png"}
+  ],
+  "recommended": 0
+}
