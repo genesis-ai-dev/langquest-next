@@ -2,17 +2,32 @@
   "kind": "question",
   "ask": "Should a person with no password be allowed to sign out without a picture and pattern?",
   "problem": "A looked-after person with no password must pick a picture and draw a pattern twice before they can sign out. Some may find this a hurdle.",
-  "found": "This step is not at joining. It comes the first time the person signs out. People with a password skip it already. Without a picture and pattern, nothing lets a person back in on a phone offline. Only a helper's code works, and that needs internet. Decision 168 chose this lock so shared phones and offline sign-out both work.",
+  "found": "The step comes at first sign-out, not at joining. People with a password skip it. Without it, only a helper's code gets a person back in, and that needs internet. Decision 168 chose this.",
   "changed": "Nothing yet. No code is built until you answer.",
   "why": "The pattern is the only offline way back for people with no password or email. Skipping it saves one step but can lock people out in the field, where internet may be gone for months. Three options are shown. The first keeps things as they are.",
   "touches": "Option 2 and 3 change the sign-out screen and the sign-in screen, and amend decision 168. No store answers change.",
   "pictures": [
-    {"file": "option0.png", "label": "Today: pick a picture, draw a pattern, sign back in"}
+    {
+      "file": "option0.png",
+      "label": "Today: pick a picture, draw a pattern, sign back in"
+    }
   ],
   "options": [
-    {"label": "Keep both required", "result": "Nothing changes. Everyone with no password can always come back on the phone, even offline.", "picture": "option0.png"},
-    {"label": "Let people skip both", "result": "Sign-out is one tap and shows a warning. Coming back then needs a helper's code and internet. Offline lock-out becomes possible.", "picture": "option1.png"},
-    {"label": "Pick the picture for them", "result": "Only the pattern is drawn. One step fewer. Offline sign-in still works, and the pattern stays required.", "picture": "option2.png"}
+    {
+      "label": "Keep both required",
+      "result": "Nothing changes. Everyone with no password can always come back on the phone, even offline.",
+      "picture": "option0.png"
+    },
+    {
+      "label": "Let people skip both",
+      "result": "Sign-out is one tap and shows a warning. Coming back then needs a helper's code and internet. Offline lock-out becomes possible.",
+      "picture": "option1.png"
+    },
+    {
+      "label": "Pick the picture for them",
+      "result": "Only the pattern is drawn. One step fewer. Offline sign-in still works, and the pattern stays required.",
+      "picture": "option2.png"
+    }
   ],
   "recommended": 0
 }
