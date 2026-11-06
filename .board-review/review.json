@@ -4,12 +4,24 @@
   "problem": "To get an access token, a person must type the address of the connect page by hand. No button in the app leads there.",
   "found": "The connect page already works. It makes tokens, shows the address and gives an example. The app simply never linked to it.",
   "changed": "The web side menu has a purple Connect button under the language list. It opens the connect page in a new tab. On the phone, the organization's Setup list has a Connect an app row that opens the same page. The words are in all 16 languages.",
-  "why": "The existing page already has every step, so a second panel would repeat it and need upkeep. Supabase and Stripe also send people from a button to a page of keys and examples. The web link is relative, and the phone link uses the app's own address setting, so the coming host move needs no change here. The pictures are drawn mock-ups using the app's real colours and sizes. The cloud session has no database, so it could not open the signed-in app.",
+  "why": "The connect page already has every step, so a new panel would repeat it. Supabase also uses a button that leads to a page. Pictures are mock-ups, since the cloud has no database.",
   "touches": "Nothing else changes. No data, permissions or store answers are affected.",
   "pictures": [
-    {"file": "before.png", "label": "Web side menu, before"},
-    {"file": "after.png", "label": "Web side menu, after"},
-    {"file": "phone-before.png", "label": "Phone organization settings, before"},
-    {"file": "phone-after.png", "label": "Phone organization settings, after"}
+    {
+      "file": "before.png",
+      "label": "Web side menu, before"
+    },
+    {
+      "file": "after.png",
+      "label": "Web side menu, after"
+    },
+    {
+      "file": "phone-before.png",
+      "label": "Phone organization settings, before"
+    },
+    {
+      "file": "phone-after.png",
+      "label": "Phone organization settings, after"
+    }
   ]
 }
