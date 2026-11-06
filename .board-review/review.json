@@ -1,0 +1,45 @@
+{
+  "kind": "question",
+  "ask": "Which wording should the terms and the license sheet use to say what the license covers?",
+  "problem": "People cannot tell if the license covers only the final translation, or also drafts, notes and voice recordings. The app wording sounds like everything.",
+  "found": "The documents say the license covers submitted versions, key terms and published items, never drafts, reviews, voice notes or names. The app says it covers what your team records and writes. That is wider.",
+  "changed": "Nothing yet. No app wording changed. The pictures show today's wording and three choices.",
+  "why": "This is a product and legal choice, so it waits for you. I recommend option 1: terms get skimmed, and the sheet is where people choose. It also puts fewer legal claims in the terms.",
+  "touches": "Four lines of text. A lawyer should say: who owns members' copyright, what counts as published, and what happens when a member leaves.",
+  "pictures": [
+    {
+      "file": "before.png",
+      "label": "Before: today's wording"
+    },
+    {
+      "file": "option1.png",
+      "label": "Option 1: short terms, full sheet"
+    },
+    {
+      "file": "option2.png",
+      "label": "Option 2: full list in both"
+    },
+    {
+      "file": "option3.png",
+      "label": "Option 3: change nothing yet"
+    }
+  ],
+  "options": [
+    {
+      "label": "Short terms, full sheet",
+      "result": "The terms stay short. The sheet lists what is covered.",
+      "picture": "option1.png"
+    },
+    {
+      "label": "Full list in both",
+      "result": "Terms and sheet both list it. The terms get longer.",
+      "picture": "option2.png"
+    },
+    {
+      "label": "Change nothing yet",
+      "result": "Wording stays wide until a lawyer answers.",
+      "picture": "option3.png"
+    }
+  ],
+  "recommended": 0
+}
