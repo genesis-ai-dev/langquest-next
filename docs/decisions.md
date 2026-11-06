@@ -7569,11 +7569,11 @@ conflict may still change a feature that only the newer build has. So:
   attention only after Claude's 3 tries, or when the copy has been open for
   3 hours.
 
-Amended (2026-11-05, Caleb Koster): Claude's first runs on PR 344 and PR
-347 said "copied", and no push of theirs reached the branch (the action
-hides why); one of them also turned on auto-merge for a copy that held
-only main's workflows. Caleb asked that PR 344 go green with no person. So
-Claude no longer writes to GitHub:
+Amended (2026-11-05, Caleb Koster): Claude's two runs on PR 347 said
+"copied", and no push of theirs reached the branch (the action hides why;
+its run on PR 344 did push). The first also turned on auto-merge for PR
+347, which then held only main's workflows. Caleb asked that the copies go
+green with no person. So Claude no longer writes to GitHub:
 - Claude commits its work on the copy's branch, and writes what it did
   with each listed commit in `.release-copy.json` (git ignores it):
   copied, copied in part, or left out, and why, or that it could not
@@ -7595,6 +7595,27 @@ Claude no longer writes to GitHub:
 - One run at a time for each copy (`concurrency`).
 - The unit jobs check out one commit, without main, so the server-calls
   check fetches main's newest commit when it is missing (decision 151).
+
+Amended (2026-11-05, Caleb Koster): the first hourly run after that gave
+PR 344 a try for the failed checks of its commit before the one it had
+just pushed. Also, three copies were open on release/ios at once (PR 344,
+PR 347, PR 351), each changing the end of the decision log: PR 344 merged
+at 22:32 UTC, and PR 347 then had a conflict. So the hourly run counts no
+check of a copy that it just freshened (its checks run again), and starts
+Claude on a copy that has a conflict with its release branch, as on one
+whose checks failed (the same 3 tries). Claude first merges the release
+branch into the copy, never rebasing or forcing a push.
+
+Amended (2026-11-06, Caleb Koster): at 00:42 UTC the hourly run labelled
+PR 347 for its conflict, and no Claude run started: GitHub runs no
+`pull_request` workflow on a pull request with a conflict. So for a copy
+with a conflict the hourly run also sends a `repository_dispatch`
+(event type `release-copy`, with the copy's number), which runs main's
+`release-copy-conflict.yml` for that copy. The workflow finds the copy
+from the number and stops unless it is an open copy onto a release
+branch. A `copy-claude` label on a copy with a conflict no longer means
+that Claude is on it, so the hourly run starts Claude again (the same 3
+tries).
 
 
 ## 156. Store builds come only from the EAS workflow on merges into main
