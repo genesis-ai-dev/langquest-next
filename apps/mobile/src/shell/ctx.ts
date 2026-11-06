@@ -63,7 +63,7 @@ export interface Ctx {
    */
   blocks: Blocks;
   /** Record-derived updates for the Inbox and which of them this device has shown. */
-  inbox: { updates: Update[]; unread: number; isRead: (id: string) => boolean; markRead: (ids: string[]) => void };
+  inbox: { updates: Update[]; unread: number; unreadUnsure: boolean; isRead: (id: string) => boolean; markRead: (ids: string[]) => void };
 
   /**
    * Someone who came from LangQuest v2 and has not been welcomed yet: what

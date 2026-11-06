@@ -1,6 +1,7 @@
 // Requests to join, as screens follow them (invites/invites.ts makes the calls).
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
+import type { KnownCount } from '../shell/badgeModel';
 import { noteExpected } from '../diagnostics/report';
 import { requestOutcome, type RequestOutcome } from './requestOutcome';
 import { myOrganizations } from '../server/account';
@@ -10,21 +11,22 @@ import { requestListeners } from './invites';
 /**
  * How many people are asking to join, for the Inbox badge (the tab, or My
  * Work's bell): read when the app comes forward, every minute (as often as
- * pushes go, decisions.md 68), and after someone decides; offline it keeps
- * the last count. A count only, no rows. Only org-wide Invite can read
+ * pushes go, decisions.md 68), and after someone decides; when a read fails the
+ * count is unknown (null), never the last one (LAN-221). A count only, no rows. Only org-wide Invite can read
  * requests (`join_requests_read`).
  */
-export function usePendingRequestCount(orgId: string, enabled: boolean): number {
-  const [count, setCount] = useState(0);
+export function usePendingRequestCount(orgId: string, enabled: boolean): KnownCount {
+  const [count, setCount] = useState<KnownCount>(0);
   useEffect(() => {
     if (!enabled) { setCount(0); return; }
+    setCount(null);
     let active = true;
     const load = () => {
       void (async () => {
         const { count: open, error } = await server.joinRequestCount(orgId);
         if (error) throw new Error(error.message);
         if (active) setCount(open ?? 0);
-      })().catch((e: unknown) => { noteExpected('pending request count', e); });
+      })().catch((e: unknown) => { noteExpected('pending request count', e); if (active) setCount(null); });
     };
     load();
     requestListeners.add(load);

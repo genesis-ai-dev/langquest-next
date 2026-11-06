@@ -1,4 +1,5 @@
 // Who this person has blocked, and reports waiting, as screens follow them (moderation/moderationData.ts).
+import type { KnownCount } from '../shell/badgeModel';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppState } from 'react-native';
@@ -52,16 +53,17 @@ export function useBlocks(actorId: string): Blocks {
 /**
  * How many things have open reports this person may act on, for the Inbox
  * badge. Read when the app comes forward, every five minutes, and after a
- * moderator acts; offline it keeps the last count.
+ * moderator acts; when a read fails the count is unknown (null), not the last one: the badge says so (badgeModel.ts).
  */
-export function useOpenReportCount(orgId: string, enabled: boolean): number {
-  const [count, setCount] = useState(0);
+export function useOpenReportCount(orgId: string, enabled: boolean): KnownCount {
+  const [count, setCount] = useState<KnownCount>(0);
   useEffect(() => {
     if (!enabled) { setCount(0); return; }
+    setCount(null);
     let active = true;
     const load = () => {
       openReports(orgId).then((rows) => { if (active) setCount(groupReports(orgId, rows).length); })
-        .catch((e: unknown) => { noteExpected('open report count', e); });
+        .catch((e: unknown) => { noteExpected('open report count', e); if (active) setCount(null); });
     };
     load();
     reportListeners.add(load);

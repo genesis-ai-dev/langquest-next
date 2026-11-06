@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePendingRequestCount } from '../invites/useInviteRequests';
 import type { Blocks } from '../moderation/moderationData';
 import { useOpenReportCount } from '../moderation/useModeration';
+import { badgeTotal } from './badgeModel';
 import type { Session } from './session';
 import type { LanguageHandle } from '../sync/useLanguage';
 
@@ -50,5 +51,6 @@ export function useInbox(o: { language: Pick<LanguageHandle, 'state' | 'lines' |
   const reportCount = useOpenReportCount(orgId, signedIn && (session.can('manage_structure') || session.can('invite_members')));
   // People asking to join count too, for whoever may admit them.
   const requestCount = usePendingRequestCount(orgId, signedIn && session.can('invite_members'));
-  return { forYou, updates, unread: unread + reportCount + requestCount, isRead, markRead };
+  const { total, unsure } = badgeTotal(unread, [reportCount, requestCount]);
+  return { forYou, updates, unread: total, unreadUnsure: unsure, isRead, markRead };
 }

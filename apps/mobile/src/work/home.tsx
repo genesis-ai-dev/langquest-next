@@ -12,6 +12,7 @@ import { formatNumber } from '../i18n/format';
 import { HelpInfo, Ico, PrimaryBtn, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { C, onColor, radius, space, target, type as T } from '../ui/theme';
+import { badgeShape } from '../shell/badgeModel';
 import { touches } from '../ui/touches';
 
 /**
@@ -19,7 +20,8 @@ import { touches } from '../ui/touches';
  * of the Inbox tab for everyone with a My Work. The count is what the Inbox
  * tab used to show: unread updates, open reports and people asking to join.
  */
-export function Bell(props: { count: number; onPress: () => void }) {
+export function Bell(props: { count: number; unsure?: boolean; onPress: () => void }) {
+  const shape = badgeShape(props.count, props.unsure === true);
   const label = props.count ? t('work.bell.labelNew', { count: props.count }) : t('work.bell.label');
   // The number on it says how many are new (rule 3).
   const spot = useHelpSpot(t('work.bell.label'), props.count > 0 ? `${t('work.bell.help')} ${t('work.bell.countHelp')}` : t('work.bell.help'), props.onPress);
@@ -27,9 +29,9 @@ export function Bell(props: { count: number; onPress: () => void }) {
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={label}
       style={({ pressed }) => [styles.bell, pressed && styles.pressed]}>
       <Ico name="notif" size={24} color={C.dark} />
-      {props.count > 0 ? (
+      {shape.kind !== 'none' ? (
         <View style={[styles.badge, touches.none]}>
-          <Text style={styles.badgeText}>{props.count > 99 ? t('work.bell.overMax', { max: formatNumber(99) }) : formatNumber(props.count)}</Text>
+          <Text style={styles.badgeText}>{shape.kind === 'unknown' ? '?' : shape.kind === 'atLeast' ? t('work.bell.overMax', { max: formatNumber(shape.n) }) : shape.n > 99 ? t('work.bell.overMax', { max: formatNumber(99) }) : formatNumber(shape.n)}</Text>
         </View>
       ) : null}
       <HelpBadge spot={spot} />

@@ -13,6 +13,7 @@ import { HelpBadge } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { Badge, Ico, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
+import { badgeShape } from './badgeModel';
 import type { Tab, TabId } from './session';
 import { C, measure, radius, space, target } from '../ui/theme';
 import { UserChip } from '../ui/UserChip';
@@ -21,7 +22,10 @@ import { a11yState } from '../ui/a11yModel';
 const TAB_ICONS: Record<TabId, IconName | 'bookClosed'> = { work: 'list', map: 'bookClosed', reports: 'progress', manage: 'settings', inbox: 'notif', me: 'user' };
 
 /** A tab's badge: its count, or 99+ past that. */
-function badgeText(n: number): string {
+function badgeText(n: number, unsure = false): string {
+  const shape = badgeShape(n, unsure);
+  if (shape.kind === 'unknown') return '?';
+  if (shape.kind === 'atLeast') return t('shell.nav.badgeMax', { max: shape.n });
   return n > 99 ? t('shell.nav.badgeMax', { max: 99 }) : formatNumber(n);
 }
 
@@ -101,8 +105,8 @@ function BarTab(props: { tab: Tab; active: boolean; rail: boolean; onSelect: (ta
       {/* The lit tab is its colour, with no pill behind it (demo ADR-032); the rail keeps the pill. */}
       <View style={[styles.tabPill, rail && active && { backgroundColor: C.light }]}>
         <TabIcon id={tab.id} size={26} color={color} />
-        {tab.badge ? (
-          <View style={styles.tabBadge}><Text style={styles.tabBadgeText} maxFontSizeMultiplier={1.5}>{badgeText(tab.badge)}</Text></View>
+        {tab.badge || tab.badgeUnsure ? (
+          <View style={styles.tabBadge}><Text style={styles.tabBadgeText} maxFontSizeMultiplier={1.5}>{badgeText(tab.badge ?? 0, tab.badgeUnsure)}</Text></View>
         ) : null}
       </View>
       <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>{tab.label}</Text>
@@ -122,7 +126,7 @@ function SideTab(props: { tab: Tab; active: boolean; onSelect: (tab: Tab) => voi
       style={({ pressed }) => [styles.sideItem, active && { backgroundColor: C.light }, pressed && { opacity: 0.6 }]}>
       <TabIcon id={tab.id} size={22} color={active ? C.primary : C.muted} />
       <Text style={[txt.body, { flex: 1, fontWeight: active ? '700' : '600', color }]} numberOfLines={1}>{tab.label}</Text>
-      {tab.badge ? <Badge label={badgeText(tab.badge)} tone={tab.id === 'inbox' ? 'red' : 'brand'} /> : null}
+      {tab.badge || tab.badgeUnsure ? <Badge label={badgeText(tab.badge ?? 0, tab.badgeUnsure)} tone={tab.id === 'inbox' ? 'red' : 'brand'} /> : null}
       <HelpBadge spot={spot} inset />
     </Pressable>
   );
