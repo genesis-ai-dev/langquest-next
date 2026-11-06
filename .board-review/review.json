@@ -4,10 +4,16 @@
   "problem": "Ryder got an update that Caleb kept a passage and left a voice note. Ryder tapped it, the passage opened, and the voice note was nowhere to be found.",
   "found": "The passage showed only the words 'Kept, with a reason'. The voice note played only on the review's own page, which a kept update never opens.",
   "changed": "The review's line on the passage now shows the written reason and a play button for the voice note, labelled 'Their answer, said aloud'. One tap plays it.",
-  "why": "This fixes it where people land, with no change to what the update opens. I also looked at opening the review page from the update. That needs a second screen and does not help people who open the passage another way. No new words were added, so no translations are needed.",
+  "why": "This fixes it where people land. Opening the review page from the update would add a screen and miss other ways in. No new words, so no translations.",
   "touches": "Any review answer with a reason or voice note now shows on the passage, including answers that led to a new version. A test covers the new logic. The pictures are drawings because no database could run here. I could not check the real screen, so please look at it in the app.",
   "pictures": [
-    {"file": "before.png", "label": "Before (drawing)"},
-    {"file": "after.png", "label": "After (drawing)"}
+    {
+      "file": "before.png",
+      "label": "Before (drawing)"
+    },
+    {
+      "file": "after.png",
+      "label": "After (drawing)"
+    }
   ]
 }
