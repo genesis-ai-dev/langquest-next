@@ -5,7 +5,7 @@
   "found": "The app keeps written words and a manual tie to a take. It has no recording of how the team says a word, so nothing to compare a take with. The issue cited decision 54, which is about joining a team.",
   "changed": "A key word's page has a new Say it section. The team records two or three examples of the word and plays them back. A new script scores how well a matcher finds words in passages. No matcher yet.",
   "why": "The old written word must not change, so this is a new kind of record. The result stays a hint on the phone. Pictures are drawn from the app's colours; no live app ran here. Database checks did not run here, so wait for the PR checks.",
-  "touches": "A new database migration. Translations in 15 languages that I wrote, so a native reader should check them. Phones download the new clips. Play store answers do not change.",
+  "touches": "A new database migration. 15 translations I wrote need a native reader. Phones download the new clips. Play store answers stay the same.",
   "pictures": [
     {
       "file": "before.png",
