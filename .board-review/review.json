@@ -1,0 +1,37 @@
+{
+  "kind": "question",
+  "ask": "Which issues should we make for building a template as people go?",
+  "problem": "Some teams do not know their template before they start. They want to divide books, or add books, folders and stories, while they translate.",
+  "found": "I could not test on a phone or browser. This comes from the code. Leads and admins can divide a book. Adding books, folders or stories works only in the template editor under Manage, not from the map.",
+  "changed": "Nothing yet. No code changed. This card only holds pictures and a question.",
+  "why": "You asked for a walk-through and a question before anything is built. I looked at the map, the book page, the divide screens, the template editor and the flow map in the code.",
+  "touches": "Nothing today. Option 2 would change who may edit the organization's templates.",
+  "pictures": [
+    {
+      "file": "flow-divide.png",
+      "label": "Dividing a book today"
+    },
+    {
+      "file": "flow-template.png",
+      "label": "Adding books, folders and stories today"
+    }
+  ],
+  "options": [
+    {
+      "label": "Make two issues: add parts from the map",
+      "result": "One issue adds a folder or story from the map of an outline language. One adds a missing book from the map of a Bible language. Dividing stays as it is.",
+      "picture": "option-a.png"
+    },
+    {
+      "label": "Make three issues: also let language leads divide",
+      "result": "The two issues above, plus one so language leads can divide waiting books. This changes who may edit templates, so it needs a choice first.",
+      "picture": "option-b.png"
+    },
+    {
+      "label": "Make no issues until you test on a phone",
+      "result": "Nothing is built. You walk both flows on a phone and write here what felt slow or hard.",
+      "picture": "option-c.png"
+    }
+  ],
+  "recommended": 0
+}
