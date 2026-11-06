@@ -2,19 +2,40 @@
   "kind": "question",
   "ask": "Should the web server retry a failed reference-audio download once?",
   "problem": "One person on the web app saw two reference-audio files fail with a server error in one sync. Their other 14 files downloaded fine.",
-  "found": "I could not read the live server logs from here, so I could not confirm the cause. The error comes when the audio host fails or answers with something that is not audio. The failures were fast (about 0.3 seconds), which points to a brief fault at the audio host. Only one person and one time so far. The app then skips those files until the person restarts it.",
+  "found": "I could not read the server logs, so the cause is not confirmed. The failures were fast, which points to a brief fault at the audio host. Only one person, once. The app then skips those files until restart.",
   "changed": "Nothing yet. No code change is in this pull request.",
   "why": "One brief failure does not show a clear bug. A retry changes how the app behaves for everyone, so it is your choice. I also checked that the server only reports this error in three cases: host unreachable, host error, or a reply that is not audio.",
   "touches": "A retry would only affect the web server's audio pass-through. Phones do not use it.",
   "pictures": [
-    {"file": "option0.png", "label": "Option A"},
-    {"file": "option1.png", "label": "Option B"},
-    {"file": "option2.png", "label": "Option C"}
+    {
+      "file": "option0.png",
+      "label": "Option A"
+    },
+    {
+      "file": "option1.png",
+      "label": "Option B"
+    },
+    {
+      "file": "option2.png",
+      "label": "Option C"
+    }
   ],
   "options": [
-    {"label": "Leave as is", "result": "Nothing changes. We watch whether more people hit it.", "picture": "option0.png"},
-    {"label": "Retry once on the server", "result": "I add one quick retry and a test. Brief host faults then heal themselves.", "picture": "option1.png"},
-    {"label": "Retry, and skip failed files only for a few minutes", "result": "Failed files get tried again soon, not only after a restart. Larger change.", "picture": "option2.png"}
+    {
+      "label": "Leave as is",
+      "result": "Nothing changes. We watch whether more people hit it.",
+      "picture": "option0.png"
+    },
+    {
+      "label": "Retry once on the server",
+      "result": "I add one quick retry and a test. Brief host faults then heal themselves.",
+      "picture": "option1.png"
+    },
+    {
+      "label": "Retry, and skip failed files only for a few minutes",
+      "result": "Failed files get tried again soon, not only after a restart. Larger change.",
+      "picture": "option2.png"
+    }
   ],
   "recommended": 0
 }
