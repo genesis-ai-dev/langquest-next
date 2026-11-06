@@ -1,0 +1,33 @@
+{
+  "kind": "question",
+  "ask": "Should LangQuest offer an AI transcription draft, only where an admin turns it on, and is a sent-out audio service acceptable?",
+  "problem": "Bezily's group wants an AI to write a first draft of the words from a recording. The translator would fix it and approve it. Today the product rule says no AI help, so this needs your decision before anyone builds it.",
+  "found": "The rule 'No AI help' is not written in the repository, so a yes needs a written exception. The app sends no audio out today. A draft is new content and needs its own record. No model is tested on partner languages.",
+  "changed": "Nothing is built. This card holds the decision only. The work on the related speech-to-text steps (LAN-49) stays in your own conversation.",
+  "why": "The translator must approve every draft, and an admin switch per language keeps it off by default. Gemini is already paid for, but needs testing on each language. Only big gateway languages get the button; small ones have no good model.",
+  "touches": "Option B changes two Play answers: audio shared with a third party, and AI-generated content. The privacy policy changes too.",
+  "pictures": [
+    {
+      "file": "choices.png",
+      "label": "The three choices"
+    }
+  ],
+  "options": [
+    {
+      "label": "A. No AI draft",
+      "result": "The rule 'No AI help' stays untouched. Translators type every word. Bezily's request is declined or waits.",
+      "picture": "option0.png"
+    },
+    {
+      "label": "B. Online draft, admin turns it on per language",
+      "result": "One button gives a draft marked 'AI draft'. The translator edits and approves it. Audio goes to the service, so Play answers change. Off by default.",
+      "picture": "option1.png"
+    },
+    {
+      "label": "C. Draft made on the phone",
+      "result": "No audio leaves the phone and the Play answers stay. It works offline, but each language needs a big download. Few languages work, and drafts have more mistakes.",
+      "picture": "option2.png"
+    }
+  ],
+  "recommended": 1
+}
