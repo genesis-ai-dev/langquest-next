@@ -1,0 +1,10 @@
+{
+ "kind": "structure",
+ "ask": "Is it fine to fix the test and leave the app as it is?",
+ "problem": "A nightly test said the Language sheet should have 16 rows but found 17.",
+ "found": "The app is right. Tagalog was added as a new app language recently. The test was never told, so it still counted the old list.",
+ "changed": "The test now expects 17 rows and lists Tagalog last. The app is unchanged.",
+ "why": "This is a test left behind by the Tagalog work, not a product fault, so no quarantine tag is needed. I could not run the browser test here; the nightly run will show it. The tutorial video narration still says fifteen languages; I left it alone.",
+ "touches": "Nothing else. Only one test file changed.",
+ "pictures": [{"file": "before.png", "label": "Before"}, {"file": "after.png", "label": "After"}]
+}
