@@ -1,11 +1,11 @@
 {
   "kind": "question",
-  "ask": "Should LangQuest get a USB backup of one person's own work first, or a full hand-over between people, or nothing yet?",
-  "problem": "Translators often work offline for weeks. Their unsent recordings live only on the phone. A lost or broken phone loses that work. The issue has no text, so the goal of USB backup and import is not yet defined.",
+  "ask": "Which USB option should we build: personal backup, hand-over between people, or nothing yet?",
+  "problem": "Translators work offline for weeks. Unsent recordings live only on the phone, so a lost phone loses that work.",
   "found": "The server accepts each event once and checks its author, so an imported event is safe if it enters as unsent. The app cannot save files today. I found no trace of LAN-227's export in the repository.",
-  "changed": "Nothing in the app. This pull request holds only this question and three pictures. Nothing is built until you answer.",
-  "why": "Three real choices exist. Nothing keeps today's rules but leaves the lost-phone risk. A personal backup solves the lost-phone risk and is the smallest step. A hand-over between people helps teams with no internet, but it needs a new rule about who may carry whose work. Every option keeps the sync rules: imports arrive as unsent events, the server checks them, and audio files are never changed. I recommend the personal backup, with a file layout that lets a hand-over follow later.",
-  "touches": "Option 2 and 3 add a file picker and sharing tool to the phone app. That changes the Play Store file answers and needs a new entry in the decision log. Option 3 also changes how sign-out hand-overs on shared phones work.",
+  "changed": "Nothing in the app yet. This pull request holds only the question and three pictures.",
+  "why": "Nothing keeps today's rules but risks lost work. A personal backup is the smallest fix. A hand-over helps offline teams but needs a new permission rule. I recommend the backup.",
+  "touches": "Options 2 and 3 add a file picker, which changes the Play Store file answers and needs a decision-log entry.",
   "pictures": [
     {
       "file": "option-nothing.png",
@@ -23,17 +23,17 @@
   "options": [
     {
       "label": "Build nothing yet",
-      "result": "No change. Unsent work is still lost if a phone is lost or broken.",
+      "result": "Nothing changes. A lost phone still loses unsent work.",
       "picture": "option-nothing.png"
     },
     {
       "label": "Personal backup and restore",
-      "result": "A person saves their unsent work and recordings to a USB stick, then restores them on a new phone with the same sign-in. Restored work enters as unsent and the server checks it.",
+      "result": "A person saves unsent work to a USB stick and restores it on a new phone. The server checks it as usual.",
       "picture": "option-backup.png"
     },
     {
       "label": "Hand-over between people",
-      "result": "A courier carries a stick from an offline phone to an online one, which sends the work as its author. It needs a new permission rule and more testing.",
+      "result": "A courier carries work to an online phone, which sends it. Needs a new permission rule and more testing.",
       "picture": "option-transfer.png"
     }
   ],
