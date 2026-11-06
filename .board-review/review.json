@@ -4,8 +4,8 @@
   "problem": "Organizations fear being locked in. Admins can download progress sheets today, but they cannot take out the recordings, the details about them, and the full history together.",
   "found": "The server has a job runner with lots of memory and a bucket holding every recording. The web server has little memory and short time limits. Reports and the admin area already exist.",
   "changed": "Nothing yet, only this question. After your answer, admins will get an Export all data button. It gives one zip. The zip holds audio folders, a recording list, progress sheets and the full history.",
-  "why": "The zip must hold hundreds of recordings and may be very large, so it needs a place with plenty of memory and no short time limit. A stored file with a download link also lets the admin close the page and come back.",
-  "touches": "Options A and B add a stored file in the bucket that expires, and a small private row to record who asked. Option C adds neither. No new event types in any option.",
+  "why": "The zip may be very large. It needs a place with plenty of memory and no short time limit. A stored file lets the admin close the page and come back.",
+  "touches": "Options A and B keep a zip in storage for a while. They also note who asked. Option C does neither. No option adds new kinds of events.",
   "pictures": [],
   "options": [
     {
