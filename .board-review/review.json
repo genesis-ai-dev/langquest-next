@@ -1,0 +1,13 @@
+{
+  "kind": "screen",
+  "ask": "Is the new Say it section right, and can you send a few partner clips for the test set?",
+  "problem": "Teams find a missed key term only at the consultant stage and redo the draft. The app cannot yet check a take for a term.",
+  "found": "The app has written renderings of a key term and a manual tie to a take. It has no recording of how the team says the term, so there is nothing to compare a take against. The issue named decision 54 for this approach, but that decision is about joining a team.",
+  "changed": "A key word's page now has a Say it section. The team records two or three examples of the word, and plays them back. Each example is saved the moment it ends. A new script measures how well a matcher finds terms in passages, as precision and recall. No matcher exists yet.",
+  "why": "A new kind of record was needed because the old written rendering must not change. The result stays a hint on the phone, as the issue asks. I put it on the key word's page, not the old tray, as a note from LAN-233 advised. I wrote decision 205 to record the approach. The first bar of 80 percent for both numbers is my guess. The pictures are drawn from the app's colours and sizes, because this cloud session has no database to run the live app. The database checks also could not run here, so the pull request checks must pass first.",
+  "touches": "A new database migration. Translations for 15 languages, written by me, so a native reader should check them. Phones also download the new example clips with the other key word audio. Play store answers do not change.",
+  "pictures": [
+    {"file": "before.png", "label": "Before"},
+    {"file": "after.png", "label": "After"}
+  ]
+}
