@@ -327,7 +327,7 @@ Object.assign(RENDER, {
     const u = d.usage;
     // Growth is over the nightly sizes the fold canary kept (60 days at most) and R2's last 8 daily counts; it needs a week of them.
     const firstSize = (d.history || [])[0];
-    let h = '<div class="stats">' + stat(d.now ? bytes(d.now.dbBytes) : '–', 'database of ' + bytes(d.limitBytes), d.now && d.now.dbBytes >= d.limitBytes * 0.9 ? 'warn' : '', NOW) +
+    let h = '<div class="stats">' + stat(d.now ? bytes(d.now.dbBytes) : '–', 'database of ' + bytes(d.limitBytes), d.now && d.now.dbBytes >= d.limitBytes * 0.9 ? 'warn' : '', d.limitFrom === 'setting' ? 'disk size from the setting: Supabase did not say' : NOW) +
       stat(d.dbGrowthPerDay === null ? '–' : bytes(d.dbGrowthPerDay * 7), 'database growth a week', '', d.dbGrowthPerDay === null ? 'needs a week of nightly sizes' : since(firstSize && firstSize.at)) +
       stat(d.weeksLeft === null ? '–' : Math.round(d.weeksLeft), 'weeks left at that rate', d.weeksLeft !== null && d.weeksLeft < 12 ? 'warn' : '') +
       (d.now ? stat(bytes(d.now.eventsBytes), 'event log (' + num(d.now.eventsRows) + ' rows)', '', NOW) : '') +
