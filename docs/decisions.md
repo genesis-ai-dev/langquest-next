@@ -7617,6 +7617,13 @@ branch. A `copy-claude` label on a copy with a conflict no longer means
 that Claude is on it, so the hourly run starts Claude again (the same 3
 tries).
 
+Amended (2026-11-06, Caleb Koster): a run started by hand at 03:25 UTC
+sent Claude to PR 347, and the hourly run at 03:26 counted that try as
+failed and labelled the copy for a person, while Claude was still working
+(Claude finished at 03:31). So within the hour after the last try (the
+workflow's timeout), the hourly run leaves a copy with a conflict and
+`copy-claude` to the Claude that the try started.
+
 
 ## 156. Store builds come only from the EAS workflow on merges into main
 
