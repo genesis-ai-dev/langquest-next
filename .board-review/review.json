@@ -1,0 +1,12 @@
+{
+  "kind": "screen",
+  "ask": "Does the language report look right with the template named? Pictures need a run on your Mac.",
+  "problem": "A language's report named its review flow but not its template. The nightly test for this failed every night, even though it was marked as expected to fail.",
+  "found": "The gap was still open on main. The report never kept which template a language uses. Separately, the nightly report counted any test that failed as a failure, including one marked as expected to fail.",
+  "changed": "The language report now shows 'Template: FIA passages (English)' next to the review flow. The test no longer carries the expected-failure mark. The nightly report now treats an expected failure as fine.",
+  "why": "The report now keeps the template's identity, and the screen reads its name from the organization's library, as other screens do. I did both fixes the issue offered, as you asked. I could not take before and after pictures: this cloud session has no Docker or test world. Run the test on your Mac to see them.",
+  "touches": "Reports are rebuilt once under a new report version. Unit tests, lint and type checks pass. The server-calls check and the browser test did not run here.",
+  "pictures": [],
+  "guess": {"answer": "change", "change": "Wants real before and after pictures from the web app."},
+  "linear": {"comment": "Gap confirmed on main. Reports now name the language's template, the test's expected-failure mark is gone, and the nightly report counts expected failures as expected. Draft pull request: https://github.com/genesis-ai-dev/langquest-next/pull/397. No pictures yet: the cloud session had no browser world.", "state": "In Progress"}
+}
