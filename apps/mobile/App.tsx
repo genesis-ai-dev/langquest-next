@@ -36,7 +36,6 @@ import { FeedbackHost } from './src/feedback/FeedbackSheet';
 import { txt } from './src/ui/textStyles';
 import { installGlobalHandlers, reportError } from './src/diagnostics/report';
 import { t } from './src/i18n';
-import { personLook } from './src/ui/people';
 import { navRef, type StackParams } from './src/shell/nav';
 import { useNav } from './src/shell/useNav';
 import * as Account from './src/screens/account';
@@ -96,7 +95,7 @@ import { useWorkingLanguage } from './src/shell/useWorkingLanguage';
 import { useReadOnlyHandles } from './src/shell/useReadOnlyHandles';
 import { ReadOnlyContext } from './src/session/useReadOnly';
 import { wireBase } from './src/shell/wiring';
-import { DisguiseGate } from './src/disguise/DisguiseGate';
+import { AppCover } from './src/shell/AppCover';
 
 // What the base folders need from folders above them (decisions.md 105), once, before anything draws.
 wireBase();
@@ -117,7 +116,7 @@ const loadGuideEditor = () => import('./src/screens/guideEditor');
 
 const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   sign_in: Entry.SignIn, terms_privacy: Entry.TermsPrivacy, explore_home: Entry.ExploreHome, create_account: Entry.CreateAccount,
-  scan_qr: Entry.ScanQr, vision: Entry.Vision, intent_chooser: Entry.IntentChooser, create_org: Entry.CreateOrg,
+  scan_qr: Entry.ScanQr, forgot_password: Entry.ForgotPassword, new_password: Entry.NewPassword, vision: Entry.Vision, intent_chooser: Entry.IntentChooser, create_org: Entry.CreateOrg,
   request_access: Entry.RequestAccess, welcome: Onboarding.Welcome, welcome_back: Onboarding.WelcomeBack,
   my_work: Work.MyWork,
   status_home: MapScreens.StatusHome, map_home: MapScreens.MapHome, book_map: MapScreens.BookMap,
@@ -362,8 +361,8 @@ export default function App() {
   const appVersion = useAppVersion(!!auth);
   return (
     <SafeAreaProvider>
-      {/* A disguised phone opens on its calculator or notepad, before sign-in and everything else (decisions.md 171). */}
-      <DisguiseGate>
+      {/* On Android, a disguised phone opens on its calculator or notepad, before sign-in and everything else (decisions.md 171). */}
+      <AppCover>
       <SafeAreaView style={styles.root}>
         <StatusBar style="dark" />
         <UpdateBanner />
@@ -384,7 +383,7 @@ export default function App() {
           </ErrorBoundary>
         )}
       </SafeAreaView>
-      </DisguiseGate>
+      </AppCover>
     </SafeAreaProvider>
   );
 }
@@ -443,7 +442,16 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // Read names again when someone joins, or a new member shows as a placeholder until restart.
   // Keyed on the state, not its members: the fold adds members in place (OrgHandle.state).
   const memberIds = useMemo(() => Object.keys(liveOrg.state?.members ?? {}).sort().join(','), [liveOrg.state]);
-  const people = useDisplayNames(props.actorId, memberIds);
+  // A member still without a name (the directory read before they joined, or before this account did) is asked for
+  // again a few times, further apart each time (LAN-129).
+  const [askedAgain, setAskedAgain] = useState(0);
+  const people = useDisplayNames(props.actorId, `${memberIds}#${askedAgain}`);
+  const unnamed = useMemo(() => memberIds.split(',').some((id) => id && id !== props.actorId && !(id in people)), [memberIds, people, props.actorId]);
+  useEffect(() => {
+    if (!unnamed || askedAgain >= 4) return;
+    const timer = setTimeout(() => setAskedAgain((n) => n + 1), 15_000 * (askedAgain + 1));
+    return () => clearTimeout(timer);
+  }, [unnamed, askedAgain]);
   const [devOpen, setDevOpen] = useState(false);
   const onboarding = useOnboarding(props.actorId, props.signedIn);
   // Someone from v2 is welcomed back to their work instead (demo ADR-043).
@@ -469,7 +477,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // Names: the signed-in person is always "you" (CORE-6).
   const name = useCallback((id: string, lower = false) => {
     if (id === props.actorId) return lower ? t('shell.youInSentence') : t('common.you');
-    return people[id] ?? viewedNames[id] ?? personLook(id).name;
+    // A person whose name this account cannot see is "someone", never their picture's colour and shape (LAN-129).
+    return people[id] ?? viewedNames[id] ?? t(lower ? 'shell.person.someoneInSentence' : 'shell.person.someone');
   }, [people, viewedNames, props.actorId]);
   const inbox = useInbox({ language, actorId: props.actorId, orgId: props.orgId, session, blocks, signedIn: props.signedIn });
 

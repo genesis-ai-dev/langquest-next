@@ -91,7 +91,8 @@
       "id": "Indonesio",
       "zhHans": "Chino (simplificado)",
       "th": "Tailandés",
-      "my": "Birmano"
+      "my": "Birmano",
+      "tl": "Tagalo"
     }
   },
   "core": {
@@ -351,13 +352,13 @@
     "settings_more": "Más ajustes",
     "check_editor": "Verificación",
     "cluster_home": "Grupo",
-    "global_viewer": "Observador global"
+    "global_viewer": "Observador global",
+    "forgot_password": "Olvidé mi contraseña",
+    "new_password": "Contraseña nueva"
   },
   "native": {
     "microphone": "LangQuest graba tu voz para traducir pasajes.",
-    "camera": "LangQuest usa la cámara para escanear códigos QR de invitación.",
-    "calculator": "Calculadora",
-    "notes": "Notas"
+    "camera": "LangQuest usa la cámara para escanear códigos QR de invitación."
   },
   "library": {
     "sourceLine": {
@@ -744,6 +745,8 @@
       "languageHelp": "Abre su página: prepáralo, ve su trabajo y su gente.",
       "licenseHelp": "La licencia del trabajo de tu equipo. Configuración dice qué permite.",
       "newLanguageHelp": "Agrega un idioma a la organización, o un grupo de idiomas relacionados.",
+      "newCluster": "Grupo nuevo",
+      "newClusterHelp": "Agrupa idiomas que ya están aquí bajo un nombre. Nada de ellos cambia.",
       "roleHelp": "Tu rol en esta organización. Decide lo que puedes hacer aquí.",
       "clusterGroupHelp": "Los idiomas de este grupo. Toca para mostrarlos u ocultarlos.",
       "looseGroupHelp": "Los idiomas que no están en ningún grupo. Toca para mostrarlos u ocultarlos.",
@@ -872,7 +875,7 @@
       "sent": "Invitación enviada a {{address}} como {{role}}",
       "cannot": "Solo quienes pueden invitar miembros pueden invitar aquí.",
       "byEmail": "Por correo",
-      "byName": "Una persona, por nombre",
+      "byName": "Por nombre: una persona o un grupo",
       "emailTitle": "Invitar por correo",
       "send": "Enviar la invitación",
       "emailLabel": "Dirección de correo",
@@ -1256,7 +1259,8 @@
       "npi": "Nepalí",
       "mya": "Birmano",
       "tpi": "Tok pisin",
-      "bis": "Bislama"
+      "bis": "Bislama",
+      "tgl": "Tagalo"
     },
     "helps": {
       "bibles_one": "Biblia en {{languages}}",
@@ -2961,7 +2965,9 @@
       "failed": "No se pudo iniciar sesión. Inténtalo de nuevo.",
       "scanCodeHelp": "Abre la cámara, para unirte con una invitación o iniciar sesión con el código de alguien que te ayuda.",
       "createAccountHelp": "Abre un formulario para tu correo y una contraseña nueva.",
-      "browseHelp": "Ve el trabajo de traducción que las organizaciones comparten públicamente. No necesitas cuenta."
+      "browseHelp": "Ve el trabajo de traducción que las organizaciones comparten públicamente. No necesitas cuenta.",
+      "forgot": "¿Olvidaste tu contraseña?",
+      "forgotHelp": "Abre una página donde recibes un enlace por correo para elegir una contraseña nueva."
     },
     "terms": {
       "title": "Términos y privacidad",
@@ -3024,9 +3030,12 @@
     },
     "createAccount": {
       "title": "Crear cuenta",
+      "joinTitle": "Crea tu cuenta para unirte",
+      "joinBody": "Tu invitación está guardada. Te unirás en cuanto inicies sesión con esta cuenta.",
       "button": "Crear cuenta",
       "createdTitle": "Cuenta creada",
       "createdSub": "Abre el enlace que enviamos a {{email}} y luego inicia sesión. Cuando estés listo, puedes crear una organización, pedir unirte a una o escanear una invitación.",
+      "createdSubJoining": "Abre el enlace que enviamos a {{email}} y luego inicia sesión en este dispositivo. Tu invitación está guardada: te unes al equipo en cuanto lo hagas.",
       "emailPlaceholder": "tu@ejemplo.com",
       "passwordPlaceholder": "Elige una contraseña (6 caracteres o más)",
       "confirmLabel": "Confirmar contraseña",
@@ -3052,6 +3061,7 @@
       "cameraOff": "El acceso a la cámara está desactivado. Puedes pegar el código abajo.",
       "joinAsYou": "Unirme con mi cuenta",
       "haveAccount": "Ya tengo una cuenta",
+      "emailAccount": "Crear una cuenta con correo",
       "notMe": "¿No eres {{name}}? Primero cierra sesión",
       "notYou": "¿No eres tú? Primero cierra sesión",
       "joinWhenConnected": "Unirse al tener conexión",
@@ -3075,6 +3085,7 @@
       "joinAsHelp": "Te une al equipo en este dispositivo como la persona que nombra la invitación.",
       "joinHelp": "Después, escribe tu nombre. Así quedas en el equipo.",
       "haveAccountHelp": "Primero inicia sesión. Te unes al equipo en cuanto lo hagas.",
+      "emailAccountHelp": "Primero un correo y una contraseña propios. Te unes al equipo en cuanto inicias sesión.",
       "joinAsMeHelp": "Agrega esta cuenta a la organización de la invitación.",
       "notMeHelp": "Abre Cerrar sesión, para que la persona correcta pueda unirse en este dispositivo.",
       "stopCameraHelp": "Apaga la cámara.",
@@ -3284,6 +3295,36 @@
       "notMe": "No es mi imagen",
       "notMeHelp": "Vuelve a las imágenes.",
       "pictureHelp": "¿Cerraste sesión en este teléfono? Toca tu imagen y luego dibuja tu patrón. No hace falta conexión."
+    },
+    "forgot": {
+      "title": "Olvidé mi contraseña",
+      "emailHelp": "El correo con el que inicias sesión. El enlace llega ahí.",
+      "send": "Enviar enlace",
+      "sendAgain": "Enviar de nuevo",
+      "sending": "Enviando…",
+      "sendHelp": "Envía por correo un enlace para elegir una contraseña nueva. Necesita conexión.",
+      "sentTitle": "Revisa tu correo",
+      "sentBody": "Si {{email}} tiene una cuenta de LangQuest, va en camino un enlace para elegir una contraseña nueva.",
+      "failed": "No se pudo enviar el enlace. Inténtalo de nuevo.",
+      "noEmailTitle": "Esta cuenta no tiene correo",
+      "noEmailBody": "Alguien de tu equipo puede mostrarte un código para iniciar sesión."
+    },
+    "newPassword": {
+      "title": "Contraseña nueva",
+      "fieldHelp": "Escribe la contraseña con la que iniciarás sesión de ahora en adelante. El ojo muestra lo que escribiste.",
+      "button": "Iniciar sesión",
+      "buttonHelp": "Hace que esta sea tu contraseña e inicia tu sesión. Necesita conexión.",
+      "changeButton": "Cambiar contraseña",
+      "changing": "Cambiando…",
+      "changeHelp": "Hace que esta sea la contraseña de la cuenta. Necesita conexión.",
+      "expired": "Este enlace venció o ya se usó.",
+      "newLink": "Enviar un enlace nuevo",
+      "newLinkHelp": "Abre Olvidé mi contraseña, para recibir un enlace nuevo por correo.",
+      "failed": "No se pudo cambiar la contraseña. Inténtalo de nuevo.",
+      "signInFailed": "Tu contraseña nueva ya está puesta. Inicia sesión con ella.",
+      "changedTitle": "Contraseña cambiada",
+      "changedBody": "De ahora en adelante, {{email}} inicia sesión con la contraseña nueva.",
+      "doneHelp": "Vuelve a tu pantalla de inicio."
     }
   },
   "account": {
@@ -4565,8 +4606,8 @@
       "cannotOpenHere": "Eso no se puede abrir desde aquí.",
       "noPermission": "No tienes permiso para abrir eso.",
       "backAgainToLeave": "Pulsa Atrás otra vez para salir de LangQuest",
-      "languageExplorer": "Explorador de idiomas",
-      "languageExplorerNewTab": "Explorador de idiomas, se abre en una pestaña nueva",
+      "languageExplorer": "Idiomas del mundo y sus códigos",
+      "languageExplorerNewTab": "Idiomas del mundo y sus códigos, se abre en una pestaña nueva",
       "tabBadge": "{{tab}}, {{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4583,11 +4624,15 @@
       "showMore_other": "Mostrar {{count, number}} más · quedan {{left}}",
       "onOlderVersion": "en {{version}}",
       "orTypeReason": "O escribe la razón",
-      "reasonFootnote": "Esto queda en el registro del pasaje con tu nombre. Se puede deshacer después; el registro guarda las dos cosas."
+      "reasonFootnote": "Esto queda en el registro del pasaje con tu nombre. Se puede deshacer después; el registro guarda las dos cosas.",
+      "showPassword": "Mostrar contraseña",
+      "hidePassword": "Ocultar contraseña"
     },
     "person": {
       "showId": "{{name}}. Mostrar ID",
       "noName": "Todavía no tiene nombre",
+      "someone": "Alguien",
+      "someoneInSentence": "alguien",
       "id": "ID {{id}}",
       "anonymous": "{{shape}} {{color}}",
       "colors": {
@@ -4736,7 +4781,8 @@
       "done": "Terminado aquí: vuelve atrás.",
       "undo": "Vuelve a poner lo que había antes.",
       "tryAgain": "Lo intenta una vez más.",
-      "quickReason": "Usa esto como tu razón. Igual puedes cambiar las palabras."
+      "quickReason": "Usa esto como tu razón. Igual puedes cambiar las palabras.",
+      "showPassword": "Muestra la contraseña que escribiste, para revisarla. Vuelve a tocar para ocultarla."
     },
     "tabs": {
       "work": "Lo que sigue: tu próximo pasaje y lo que espera por ti.",
@@ -4745,7 +4791,7 @@
       "manage": "Los idiomas, las personas y los ajustes de tu organización.",
       "inbox": "Lo que pasó y te concierne: solicitudes, comentarios, personas que piden unirse.",
       "me": "Tu nombre, este dispositivo y tus ajustes.",
-      "explorer": "Abre el explorador de idiomas en una pestaña nueva: todos los idiomas y dónde se hablan."
+      "explorer": "Abre en una pestaña nueva una lista de los idiomas del mundo: los códigos de cada uno y dónde se habla. No son los idiomas de tu organización."
     },
     "sync": {
       "live": "Nube con una marca: con conexión. Tu trabajo se envía a medida que avanzas. Toca para ver lo que se envió.",
@@ -5203,8 +5249,8 @@
       "finishHelp": "Termina la {{version}}: el equipo puede escucharla.",
       "sendHelp": "Termina la {{version}} y se la envía para esta verificación. La encuentran en Mi trabajo.",
       "askHelp": "Termina la {{version}} y luego eliges a quién pedírselo.",
-      "sendLater": "Enviar más tarde",
-      "sendLaterHelp": "Termina la {{version}} sin pedírselo a nadie todavía. El equipo puede escucharla.",
+      "doneAskNobody": "Listo, no pedir a nadie",
+      "doneAskNobodyHelp": "Termina la {{version}} sin pedírselo a nadie. El equipo puede escucharla, y cualquiera que revise puede comprobarla.",
       "nextCheck": "Siguiente verificación",
       "checkNowHelp": "Termina la {{version}} y abre la siguiente verificación para que la hagas tú ahora."
     },
@@ -5312,6 +5358,7 @@
       "spaceSetHelp": "El anillo significa que elegiste este versículo. Mantén pulsado para elegir otro, o ninguno.",
       "pickHelp": "Da este versículo a {{part}}. Luego toca uno posterior para abarcar varios versículos.",
       "pickedHelp": "Relleno: {{part}} tiene este versículo. Toca uno posterior para abarcar varios versículos.",
+      "doneHelp": "Cierra los versículos de {{part}}. Lo que elegiste ya está guardado; Deshacer lo revierte.",
       "autoHelp": "La app calcula el versículo de esta parte según las partes de alrededor.",
       "noneHelp": "Deja esta parte sin versículo.",
       "tileHelp": "El versículo que dice esta parte.",
@@ -6756,7 +6803,7 @@
     "finishWhat": "Terminar la {{what}}",
     "doneHelp": "Cuando todas las partes estén dichas: termínala y envíala a la verificación que la escucha después.",
     "notesForCheck_other": "{{count, number}} notas para la {{check}}",
-    "sendLaterHelp": "Termina la {{what}} sin pedírselo a nadie todavía. El equipo puede escucharla.",
+    "doneAskNobodyHelp": "Termina la {{what}} sin pedírselo a nadie. El equipo puede escucharla, y cualquiera que revise puede comprobarla.",
     "chips": {
       "version": "Versión {{n}}"
     },
@@ -7437,6 +7484,7 @@
   },
   "referenceLanguage": {
     "question": "¿En qué idiomas deben estar las Biblias y guías de estudio de {{language}}?",
+    "questionAny": "¿En qué idiomas debe estar el material de referencia de {{language}}?",
     "setPassages_one": "Guías de {{name}} para {{count, number}} pasaje",
     "setPassages_many": "Guías de {{name}} para {{count, number}} de pasajes",
     "setPassages_other": "Guías de {{name}} para {{count, number}} pasajes",
@@ -7893,6 +7941,7 @@
       "note_other": "Los idiomas que ya están aquí conservan todo lo que tienen. Los {{count, number}} nuevos se configuran juntos en los pasos siguientes.",
       "onlyExisting": "No hay nada nuevo que configurar: los idiomas que ya están aquí conservan todo lo que tienen.",
       "make": "Crear el grupo",
+      "makeHelp": "Crea el grupo con los idiomas de arriba. Primero ponle un nombre y agrega al menos un idioma.",
       "made_one": "{{cluster}} creado, con {{count, number}} idioma.",
       "made_many": "{{cluster}} creado, con {{count, number}} idiomas.",
       "made_other": "{{cluster}} creado, con {{count, number}} idiomas.",
@@ -8052,36 +8101,6 @@
     "changes_one": "{{count, number}} cambio",
     "changes_many": "{{count, number}} cambios",
     "changes_other": "{{count, number}} cambios"
-  },
-  "disguise": {
-    "row": "Icono de la app",
-    "rowHelp": "Hace que LangQuest parezca una calculadora o un bloc de notas en este teléfono. Solo se abre con un código que tú eliges.",
-    "title": "Icono de la app",
-    "langquest": "LangQuest",
-    "ownHelp": "Vuelve a poner el icono propio de LangQuest. Se abre sin código.",
-    "lookHelp": "Elige este icono. Después eliges el código que abre LangQuest.",
-    "calculatorN": "Calculadora {{n}}",
-    "notesN": "Notas {{n}}",
-    "codeTitle": "Elige un código",
-    "code": "Código",
-    "codeHelp": "De 4 a 12 dígitos. En la calculadora, escríbelo con las teclas. En el bloc de notas, escríbelo solo en una línea.",
-    "nextHelp": "Abre la calculadora o el bloc de notas para que escribas tu código en él.",
-    "backHelp": "Vuelve un paso atrás.",
-    "tryTitle": "Escribe tu código",
-    "on": "Este teléfono ahora muestra {{name}}.",
-    "off": "El icono propio de LangQuest ha vuelto.",
-    "notesTitle": "Notas",
-    "keys": {
-      "clear": "Borrar todo",
-      "delete": "Borrar",
-      "percent": "Porcentaje",
-      "divide": "Dividir",
-      "times": "Multiplicar",
-      "minus": "Menos",
-      "plus": "Más",
-      "equals": "Igual",
-      "point": "Punto decimal"
-    }
   },
   "verified": {
     "sealLabel": "Organización verificada",

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { jsonSecret, pemToDer, signJwt } from '../src/jwt';
-import { appStoreAlerts, appStoreSection, buildsFrom, crashesFrom, storeReviewsFrom, versionsFrom } from '../src/sources/appstore';
+import { appStoreAlerts, appStoreKey, appStoreSection, appStoreToken, buildsFrom, crashesFrom, storeReviewsFrom, versionsFrom } from '../src/sources/appstore';
 import { googlePlaySection, playAlerts, reviewsFrom, weekRate, weighted, type GooglePlay } from '../src/sources/googleplay';
 
 const NOW = Date.parse('2026-10-19T22:00:00Z');
@@ -160,6 +160,19 @@ describe('App Store', () => {
       'problem App Store: the latest build 1.0.3 (57) is invalid after processing.',
       'watch App Store: 1 one- or two-star review in the last 7 days.'
     ]);
+  });
+
+  it("signs a team key as its issuer, and a person's individual key as the user", async () => {
+    const { pem: key } = await pem('ES256');
+    const team = await appStoreToken(appStoreKey(JSON.stringify({ issuerId: 'issuer-uuid', keyId: 'KEY123', privateKey: key })), NOW);
+    expect(part(team, 1)).toMatchObject({ iss: 'issuer-uuid', aud: 'appstoreconnect-v1' });
+    expect(part(team, 1)).not.toHaveProperty('sub');
+    // The App Store key Caleb made on 2026-11-02 is his own (individual) key: no issuer id.
+    const own = await appStoreToken(appStoreKey(JSON.stringify({ keyId: 'KEY456', privateKey: key })), NOW);
+    expect(part(own, 0)).toMatchObject({ alg: 'ES256', kid: 'KEY456' });
+    expect(part(own, 1)).toMatchObject({ sub: 'user', aud: 'appstoreconnect-v1' });
+    expect(part(own, 1)).not.toHaveProperty('iss');
+    expect(() => appStoreKey(JSON.stringify({ issuerId: 'i', privateKey: key }))).toThrow('ADMIN_APP_STORE_KEY has no "keyId"');
   });
 
   it('signs with the key, asks for the app by its id, and shows what it could read', async () => {

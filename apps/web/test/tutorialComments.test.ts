@@ -113,7 +113,8 @@ describe('tendComments', () => {
 
   function deps(over: Partial<CommentsDeps> = {}) {
     const marks: string[] = [];
-    const yt = youtube({ '': { items: [thread('Ugnew-000001', '2026-10-29T10:00:00Z')] } });
+    // Posted yesterday: the job reads back only as far as comments are kept (KEPT_DAYS).
+    const yt = youtube({ '': { items: [thread('Ugnew-000001', new Date(Date.now() - 86_400_000).toISOString())] } });
     const d: CommentsDeps = {
       fetcher: yt.fetcher, client: { clientId: 'id', clientSecret: 'secret' },
       channels: async () => [es, fr],

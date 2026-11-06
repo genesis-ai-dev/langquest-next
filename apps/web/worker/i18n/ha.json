@@ -142,6 +142,7 @@
     "youtube": "Kalla a YouTube",
     "size": "MB {{mb}}",
     "none": "Babu bidiyoyi a wannan harshe tukuna.",
-    "failed": "Bidiyoyin ba su loda ba. Sake loda shafin don sake gwadawa."
+    "failed": "Bidiyoyin ba su loda ba. Sake loda shafin don sake gwadawa.",
+    "privacy": "Sirri"
   }
 }

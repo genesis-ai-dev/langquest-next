@@ -14,9 +14,10 @@
 // (TUTORIAL_SLOT). TUTORIAL_REPORT=<file> adds a line of JSON to it for each
 // video as it ends ({ language, id, ok }), for nightly.ts.
 import { spawn } from 'node:child_process';
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { UI_LANGUAGES } from '@langquest-next/core';
+import { serviceClient } from '../ui/people-helpers';
 import { TUTORIALS } from './all';
 
 const args = process.argv.slice(2);
@@ -36,6 +37,21 @@ const run = (command: string, argv: string[], env: Record<string, string>, log: 
     child.stderr.on('data', (b: Buffer) => out.push(b));
     child.on('close', (code) => { writeFileSync(log, Buffer.concat(out), { flag: 'a' }); done(code === 0); });
   });
+
+/**
+ * Every world is built on the one local stack and named alike, so what a film's world shared with other
+ * organizations (a review flow, published study guides) showed in each later world as one more "Riverside
+ * Translation Team" row: three copies, after three tries (the frame check held two videos for it). When a film
+ * ends, its world's organizations share nothing more. film.ts writes the world it built to world.json.
+ */
+async function unshareWorld(folder: string, log: string): Promise<void> {
+  const file = path.join(folder, 'world.json');
+  if (!existsSync(file)) return;
+  const world = JSON.parse(readFileSync(file, 'utf8')) as { orgId?: string; org2Id?: string };
+  const orgs = [world.orgId, world.org2Id].filter((o): o is string => !!o);
+  const { error } = await serviceClient().from('library_items').update({ shared: false }).in('org_id', orgs).eq('shared', true);
+  if (error) writeFileSync(log, `Could not stop sharing this world's library: ${error.message}\n`, { flag: 'a' });
+}
 
 mkdirSync(results, { recursive: true });
 // A dry run needs the readings too: the people in a video's world have recorded them.
@@ -60,8 +76,10 @@ await Promise.all([...Array(Number(process.env['TUTORIAL_AT_ONCE'] ?? 3)).keys()
     const env = { TUTORIAL_LANGUAGE: language, TUTORIAL_SLOT: String(slot), TUTORIAL_TTS: 'node e2e/tutorials/gemini-voice.mjs', ...(dry ? { TUTORIAL_DRY: '1' } : {}) };
     const mp4 = path.join(results, language, `${id}.mp4`);
     mkdirSync(path.dirname(mp4), { recursive: true });
-    const ok = (await run('npx', ['tsx', path.join('e2e', 'tutorials', 'film.ts'), id, folder], env, log)) &&
-      (dry || (await run('npx', ['tsx', path.join('e2e', 'tutorials', 'compose.ts'), folder, mp4], {}, log)));
+    rmSync(path.join(folder, 'world.json'), { force: true });
+    const filmed = await run('npx', ['tsx', path.join('e2e', 'tutorials', 'film.ts'), id, folder], env, log);
+    await unshareWorld(folder, log);
+    const ok = filmed && (dry || (await run('npx', ['tsx', path.join('e2e', 'tutorials', 'compose.ts'), folder, mp4], {}, log)));
     if (!ok) failed++;
     if (process.env['TUTORIAL_REPORT']) appendFileSync(process.env['TUTORIAL_REPORT'], `${JSON.stringify({ language, id, ok })}\n`);
     console.log(`${ok ? 'OK  ' : 'FAIL'} ${language} ${id}${ok ? (dry ? '' : ` → ${mp4}`) : ` (${log})`}`);

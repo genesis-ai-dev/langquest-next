@@ -932,7 +932,7 @@ test('REV-041 Record a fix answers the feedback with Version 2 @p0', async ({ pa
   // The feedback goes back to its check: Done's main button asks for the Peer check again.
   await expect(text(page, 'Next check')).toBeVisible();
   await expect(primary(page)).toHaveText(/^Ask /);
-  await button(page, 'Send later').click();
+  await button(page, "Done, don't ask anyone").click();
   await sawToast(page, 'Version 2 published.');
   await expect(button(page, 'Versions and history')).toBeVisible();
   await expectSent(page, world());
@@ -950,7 +950,7 @@ test('REV-042 Record a fix offline', async ({ page, context }) => {
   await expect(text(page, 'Recording Version 3')).toBeVisible();
   await recordAPart(page);
   await publishButton(page).click();
-  await button(page, 'Send later').click();
+  await button(page, "Done, don't ask anyone").click();
   await sawToast(page, 'Version 3 published.');
   await context.setOffline(false);
   await expectSent(page, world(), 'A', 60_000);
@@ -1063,7 +1063,7 @@ test('REV-048 Answering feedback on P-Q1 with a new version', async ({ page }) =
   await publishButton(page).click();
   expect(open1).toBeGreaterThan(0);
   await expect(visible(page.getByText(/^Answers the Peer (Review|check) feedback from Rita Reviewer$/))).toHaveCount(open1);
-  await button(page, 'Send later').click();
+  await button(page, "Done, don't ask anyone").click();
   await sawToast(page, 'Version 2 published.');
   await expectSent(page, world());
 });

@@ -11,7 +11,8 @@
  * (scripts/maestro-plan.mjs): flows tagged `voice` need a microphone signal
  * (--voice loops e2e/fixtures/voice.wav into the host input; --mic says the
  * input already carries voice, as on a device with a person speaking),
- * `android-only` flows need Android's airplane mode, and `wrapped` flows
+ * `android-only` flows need Android (its airplane mode, or the disguise),
+ * and `wrapped` flows
  * need a step from outside mid-run (--wrapped, and their headers say which).
  * Flows named with --flow run as asked.
  *

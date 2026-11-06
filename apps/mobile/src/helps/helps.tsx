@@ -16,7 +16,7 @@ import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Field, Header, Ico, LinkBtn, PrimaryBtn, Screen, SectionLabel, type IconName } from '../ui/kit';
+import { Field, Header, Ico, LinkBtn, PlayGlyph, PrimaryBtn, Screen, SectionLabel, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { markTerms } from '../recording/workspaceModel';
 import { noteExpected } from '../diagnostics/report';
@@ -26,7 +26,7 @@ import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/them
 import { VoiceNote } from '../audio/voiceNote';
 import { firstTouched, keyLabel, runKey, tapVerse, wordHits, type OtherSays, type VerseRun } from './helpsModel';
 import { styles as ps } from '../recording/blockStyles';
-import { BibleSheet, type Bible } from './reference';
+import { BibleSheet, type Bible } from './BibleSheet';
 import { useBible } from './useBible';
 import { useClip } from '../audio/useClip';
 import { textMissing } from './helpsModel';
@@ -417,7 +417,7 @@ function OtherVoice(props: { ctx: Ctx; o: OtherSays; onFailed: () => void }) {
     <Pressable onPress={spot.onPress} disabled={wanted} accessibilityRole="button"
       accessibilityLabel={clip.playing ? t('common.pause') : t('keyTerms.others.play', { language: o.name })}
       style={({ pressed }) => [styles.otherPlay, wanted && ps.off, pressed && ps.pressed]}>
-      <Ico name={clip.playing ? 'pause' : 'play'} size={18} color={C.white} fill={C.white} />
+      <PlayGlyph playing={clip.playing} loading={clip.loading} size={18} color={C.white} fill={C.white} />
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -431,7 +431,7 @@ export function OwnWord(props: { ctx: Ctx; hash: string; term: string }) {
     <Pressable onPress={spot.onPress} disabled={!clip.available} accessibilityRole="button"
       accessibilityLabel={clip.playing ? t('reference.keyWords.pauseYourWord', { term: props.term }) : t('reference.keyWords.playYourWord', { term: props.term })}
       style={({ pressed }) => [styles.own, !clip.available && ps.off, pressed && ps.pressed]}>
-      <View style={styles.ownPlay}><Ico name={clip.playing ? 'pause' : 'play'} size={18} color={C.white} fill={C.white} /></View>
+      <View style={styles.ownPlay}><PlayGlyph playing={clip.playing} loading={clip.loading} size={18} color={C.white} fill={C.white} /></View>
       <Text style={[styles.helpName, { flex: 1 }]}>{t('reference.keyWords.yourWord')}</Text>
       <HelpBadge spot={spot} />
     </Pressable>

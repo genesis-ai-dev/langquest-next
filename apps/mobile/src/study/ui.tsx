@@ -35,6 +35,7 @@ import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
 import { a11yState } from '../ui/a11yModel';
 import { styles as ps } from '../recording/blockStyles';
+import { touches } from '../ui/touches';
 
 // ---- audio -------------------------------------------------------------------------
 
@@ -55,10 +56,10 @@ function Scrubber(props: { value: number; max: number; label: string; onSeek: (s
       accessibilityValue={{ min: 0, max: Math.round(props.max), now: Math.round(props.value), text: shownClock(props.value) }}
       accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
       onAccessibilityAction={(e) => props.onSeek(props.value + (e.nativeEvent.actionName === 'increment' ? 10 : -10))}>
-      <View style={[styles.track, { pointerEvents: 'none' }]}>
+      <View style={[styles.track, touches.none]}>
         <View style={[styles.trackFill, { width: `${pct * 100}%` }]} />
       </View>
-      <View style={[{ pointerEvents: 'none' }, styles.thumb, { left: pct * width - 9 }]} />
+      <View style={[touches.none, styles.thumb, { left: pct * width - 9 }]} />
       {spot.id ? (
         <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('study.audio.position', { label: props.label })} style={StyleSheet.absoluteFill}>
           <HelpBadge spot={spot} />

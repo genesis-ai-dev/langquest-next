@@ -45,6 +45,7 @@ import { useLayout, useOpenDetail } from '../ui/useLayout';
 import { tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications/notifications';
 import { notificationTarget, openAfterSwitch } from '../notifications/notificationTarget';
 import { personLook } from '../ui/people';
+import { usePerson } from '../ui/usePerson';
 import { noteExpected, failureMessage } from '../diagnostics/report';
 import { ReportActions } from '../moderation/reportSheet';
 import { contractsFor } from '../shell/screenContracts';
@@ -57,6 +58,8 @@ import { LOCKS_ON_SIGN_OUT, lockAndSignOut, rememberPassword, setAccountPassword
 import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { runningBuildLabel } from '../shell/updateStatus';
+import { AppIconRow } from '../shell/AppIconRow';
+import { useNotificationsOffered } from '../shell/useNotificationsOffered';
 import { PersonAvatar } from '../ui/UserChip';
 import { iconCounts, standingTitle, syncStanding, type SyncStanding } from '../sync/syncStanding';
 import { LanguageRow } from '../account/uiLanguage';
@@ -70,8 +73,6 @@ import { useInviterName } from '../account/useInviterName';
 import { useOrganizations } from '../account/useOrganizations';
 import { useUnsent } from '../account/useUnsent';
 import { deleteThisAccount } from '../account/deleteThisAccount';
-import { DisguiseRow } from '../disguise/DisguiseRow';
-import { useDisguise } from '../disguise/useDisguise';
 import { a11yState } from '../ui/a11yModel';
 
 // ---- Inbox (INBOX-1, INBOX-2) ---------------------------------------------------------------
@@ -182,7 +183,7 @@ export function InboxHome(ctx: Ctx) {
     if (decided[r.id]) continue;
     items.push({
       id: `join:${r.id}`, icon: 'people', title: t('account.inbox.joinRequest'), read: false,
-      body: t('account.inbox.askedToJoin', { name: r.name ?? names[r.profileId] ?? personLook(r.profileId).name, org: orgName }),
+      body: t('account.inbox.askedToJoin', { name: r.name ?? names[r.profileId] ?? t('shell.person.someone'), org: orgName }),
       time: formatShortDate(r.createdAt), onPress: () => setOpenRequest(r), help: t('account.inbox.joinHelp')
     });
   }
@@ -345,7 +346,7 @@ export function InboxHome(ctx: Ctx) {
         {openRequest ? (
           <View style={styles.requestBody}>
             <Text style={txt.body}>
-              {t('account.inbox.askedToJoin', { name: openRequest.name ?? names[openRequest.profileId] ?? personLook(openRequest.profileId).name, org: orgName })}
+              {t('account.inbox.askedToJoin', { name: openRequest.name ?? names[openRequest.profileId] ?? t('shell.person.someone'), org: orgName })}
             </Text>
             {openRequest.message ? <Text style={[txt.sm, { fontStyle: 'italic' }]}>"{openRequest.message}"</Text> : null}
           </View>
@@ -454,10 +455,8 @@ export function SettingsMore(ctx: Ctx) {
   const orgs = useOrganizations(s.actorId).rows;
   const switchHere = !inSeveral(orgs);
   const passwordRow = s.isManaged && hasPassword === false;
-  // No push on the web yet: requests and feedback still reach the Inbox there. A disguised phone
-  // gets none, since each would show LangQuest's name (decisions.md 171).
-  const disguised = useDisguise().look !== null;
-  const notifications = Platform.OS !== 'web' && !disguised;
+  // No push on the web yet, nor on a disguised Android phone (useNotificationsOffered.ts).
+  const notifications = useNotificationsOffered();
   const blocked = ctx.blocks.ids.length;
   return (
     <Screen header={<Header title={t('account.me.more')} onBack={ctx.back} />}>
@@ -508,8 +507,8 @@ export function SettingsMore(ctx: Ctx) {
       <SectionLabel label={t('account.more.thisDevice')} />
       <Group>
         <Row icon="cloud" label={t('account.more.sync')} sub={syncSub} help={t('account.more.syncHelp')} badge={toSend > 0 ? formatNumber(toSend) : undefined} onPress={() => ctx.go('sync_status')} />
-        {/* A calculator or notepad in front of the app, opened with a code (decisions.md 171); phones only. */}
-        <DisguiseRow ctx={ctx} />
+        {/* Android only: a calculator or notepad in front of the app, opened with a code (decisions.md 171). */}
+        <AppIconRow ctx={ctx} />
         {/* docs/diagnostics.md, decisions.md 39: on by default, off here. */}
         <Row icon="progress" label={t('account.more.diagnostics')} sub={t('account.more.diagnosticsSub')}
           role="switch" checked={diag.on === true} disabled={diag.on === null} onPress={diag.toggle} last={blocked === 0} />
@@ -553,6 +552,7 @@ function SwitchOrgRow(props: { ctx: Ctx; orgName: string; several: boolean; last
  */
 function BlockedPeople(props: { ctx: Ctx; onClose: () => void }) {
   const { ctx } = props;
+  const person = usePerson();
   // The list as the sheet opened, so a row keeps its place when its button is used.
   const [listed] = useState(() => ctx.blocks.ids);
   async function set(id: string, blocked: boolean) {
@@ -572,7 +572,7 @@ function BlockedPeople(props: { ctx: Ctx; onClose: () => void }) {
             const blocked = ctx.blocks.has(id);
             return (
               <HelpRow key={id} of="account.blockedPerson">
-                <Row leading={<PersonAvatar look={personLook(id, ctx.name(id))} size={36} />} label={ctx.name(id)}
+                <Row leading={<PersonAvatar look={person(id)} size={36} />} label={ctx.name(id)}
                   {...(blocked ? {} : { sub: t('account.blocked.unblocked') })} last={i === all.length - 1}
                   right={blocked
                     ? <SmallBtn label={t('account.blocked.unblock')} help={t('account.blocked.unblockHelp')} onPress={() => void set(id, false)} />

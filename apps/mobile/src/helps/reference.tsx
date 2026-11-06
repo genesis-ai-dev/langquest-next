@@ -6,8 +6,8 @@
 // say yours, add a word), notes, and everything recorded so far.
 import { commands, keyTermsFor, notePart, noteHelp, RECORD_STEP, replyOf, type KeyTermView, type KeyWordDoc, type NoteAnchor, type PassageNote, type PassageState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useMemo, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
@@ -15,7 +15,7 @@ import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Field, Ico, LinkBtn, PrimaryBtn, SectionLabel, Sheet } from '../ui/kit';
+import { Field, Ico, LinkBtn, PlayGlyph, PrimaryBtn, SectionLabel, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { versionTitle, when, type PassageView } from '../passage/passageView';
 import { markTerms } from '../recording/workspaceModel';
@@ -30,6 +30,7 @@ import { saveNote } from '../study/studyActions';
 import { C, onColor, radius, space, target, TINT, type as T } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
 import { joinAnd, languageLabel } from '../admin/adminModel';
+import { BibleSheet, type Bible } from './BibleSheet';
 import { OthersSay, WhereItIs, WordChip } from './helps';
 import { keyLabel, keyTouches, othersSay, suggestedWords } from './helpsModel';
 import { useOtherLanguageTerms } from '../reference/useOtherLanguageTerms';
@@ -39,7 +40,6 @@ import { styles as ps } from '../recording/blockStyles';
 import { useClip } from '../audio/useClip';
 import { noteLabel } from './referenceText';
 import { useNoteStep } from '../checks/useNoteStep';
-import type { useBible } from './useBible';
 import { draftKey, EMPTY_NOTE, isNoteDraft, isRecord } from '../drafts/draftModel';
 import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
@@ -48,12 +48,11 @@ import { KeyWordSheet } from '../keyTerms/lazySheets';
 import { ListWordRow } from '../keyTerms/KeyWordRows';
 import { ownTermId, shortName, type KeyWordList, type WordHere } from '../keyTerms/listsModel';
 import { a11yState } from '../ui/a11yModel';
+import { useFollowVerse } from './useFollowVerse';
 
 const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
 
 // ---- the Bible --------------------------------------------------------------------------
-
-export type Bible = ReturnType<typeof useBible>;
 
 /** The Bible chip: the player card, then the verses with the one playing lit (a-wsHalf). */
 export function BiblePane(props: {
@@ -65,6 +64,12 @@ export function BiblePane(props: {
   /** What the step shows (decisions.md 130): the player when heard, the verses' words when read; numbers alone otherwise. */
   hear?: boolean;
   read?: boolean;
+  /**
+   * The pane scrolls itself, with this padding: the player stays at its top
+   * and only the words under it scroll (LAN-130), following the verse being
+   * read (LAN-131). Else the pane is part of a page that scrolls.
+   */
+  scroll?: StyleProp<ViewStyle>;
 }) {
   const { ctx, v, bible } = props;
   const hear = props.hear ?? true;
@@ -98,13 +103,15 @@ export function BiblePane(props: {
     : bible.audioAbsent ? t('recording.player.notOnDeviceYet')
       : src?.loading || !src ? t('common.loading') : src.textProblem;
   const selectedRow = props.selected ? src?.rows?.find((r) => r.key === props.selected) ?? null : null;
+  const scrollRef = useRef<ScrollView>(null);
+  const follow = useFollowVerse({ playing: player.playing, verse: player.started ? player.current?.key : undefined, scroll: scrollRef });
   // Under the chosen verse: what a note there is on, with the moment when it is playing there (UI audit, finding 42).
   const noteHereLabel = (key: string) => {
     const at = player.started && player.current?.key === key ? mmss(player.ms) : null;
     return at ? t('study.reader.addNoteOnAt', { verse: key, time: at }) : t('study.reader.addNoteOn', { verse: key });
   };
-  return (
-    <View style={{ gap: space.md }}>
+  const top = (
+    <>
       {props.header}
       {hear ? (
         <MiniPlayer title={v.title} sub={bible.line()} playing={player.playing} available={bible.hasAudio && !player.loading} none={!bible.hasAudio && !bible.passage.notOnDevice && !bible.audioAbsent}
@@ -120,6 +127,10 @@ export function BiblePane(props: {
       ) : many ? (
         <View style={styles.under}><BiblePick label={abbr} onPress={() => setPicking(true)} /></View>
       ) : null}
+    </>
+  );
+  const words = (
+    <>
       {src?.rows && !read ? (
         <VerseDots>
           {src.rows.map((row) => (
@@ -130,7 +141,7 @@ export function BiblePane(props: {
           ))}
         </VerseDots>
       ) : src?.rows ? (
-        <View style={{ gap: space.xs }}>
+        <View style={{ gap: space.xs }} onLayout={follow.onList}>
           {src.rows.map((row) => {
             const here = player.started && player.current?.key === row.key;
             const sel = props.selected === row.key;
@@ -138,7 +149,8 @@ export function BiblePane(props: {
             const parts = markTerms(row.text, terms);
             const termIds = parts.flatMap((p) => (p.termId ? [p.termId] : []));
             return (
-              <HelpRow key={row.key} of="reference.verse">
+              <View key={row.key} onLayout={follow.onRow(row.key)}>
+              <HelpRow of="reference.verse">
                 <Verse row={row} here={here} selected={sel} notes={n} onPress={() => tap(row)} timed={bible.hasAudio && bible.timed}
                   {...(sel && props.canNote ? { below: <AddNoteHere label={noteHereLabel(row.key)} onPress={note} /> } : {})}
                   terms={termIds.length === 0 ? null : props.onTerm ? 'open' : 'marked'} tied={termIds.some((id) => props.tied?.has(id))}>
@@ -153,6 +165,7 @@ export function BiblePane(props: {
                   })}
                 </Verse>
               </HelpRow>
+              </View>
             );
           })}
         </View>
@@ -170,6 +183,10 @@ export function BiblePane(props: {
         </View>
       ) : null}
       {props.footer}
+    </>
+  );
+  const sheets = (
+    <>
       {picking ? <BibleSheet ctx={ctx} bible={bible} onClose={() => setPicking(false)} {...(props.onMoreBibles ? { onMoreBibles: () => { setPicking(false); props.onMoreBibles!(); } } : {})} /> : null}
       {noting ? (
         <NoteSheet ctx={ctx} v={v} title={noting.verse ? t('reference.notes.noteOnRef', { verse: noting.verse }) : t('common.addNote')}
@@ -177,6 +194,25 @@ export function BiblePane(props: {
           anchor={noting.verse ? { kind: 'verse', verse: noting.verse, ...(abbr ? { translation: abbr } : {}), ...(noting.at ? { at: noting.at } : {}) } : { kind: 'passage' }}
           onClose={() => setNoting(null)} />
       ) : null}
+    </>
+  );
+  if (props.scroll) {
+    return (
+      <View style={{ flex: 1 }}>
+        {props.header || hear || many ? <View style={[props.scroll, { flexGrow: 0, paddingBottom: space.sm }]}>{top}</View> : null}
+        <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={[props.scroll, { paddingTop: 0 }]} keyboardShouldPersistTaps="handled"
+          onLayout={follow.onLayout} onScroll={follow.onScroll} onScrollBeginDrag={follow.onScrollBeginDrag} scrollEventThrottle={64}>
+          {words}
+        </ScrollView>
+        {sheets}
+      </View>
+    );
+  }
+  return (
+    <View style={{ gap: space.md }}>
+      {top}
+      {words}
+      {sheets}
     </View>
   );
 }
@@ -267,43 +303,6 @@ function BiblePick(props: { label: string; onPress: () => void }) {
       style={({ pressed }) => [styles.pick, pressed && ps.pressed]}>
       <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]} numberOfLines={1}>{props.label}</Text>
       <Ico name="down" size={16} color={TINT.amberText} strokeWidth={2.6} />
-      <HelpBadge spot={spot} />
-    </Pressable>
-  );
-}
-
-/** Choose a Bible for the passage: the ones offered here, with what each has. */
-export function BibleSheet(props: { ctx: Ctx; bible: Bible; onClose: () => void; onMoreBibles?: () => void }) {
-  const { bible } = props;
-  const marks = useChipMarks(props.ctx, bible.passage);
-  return (
-    <Sheet visible title={t('reference.bible.choose')} sub={t('reference.bible.chooseSub')} onClose={props.onClose}>
-      <View style={styles.card}>
-        {bible.passage.options.map((o, i, all) => (
-          <HelpRow key={o.itemId} of="reference.bible">
-            <BibleRow label={chipLabel(o, all)} sub={[o.name, languageLabel(o.language), ...(marks[o.itemId] ?? [])].filter(Boolean).join(' · ')} on={o.itemId === bible.option?.itemId}
-              help={o.itemId === bible.option?.itemId ? t('reference.bible.rowOnHelp') : t('reference.bible.rowHelp')}
-              last={i === all.length - 1 && !props.onMoreBibles} onPress={() => { bible.choose(o); props.onClose(); }} />
-          </HelpRow>
-        ))}
-        {props.onMoreBibles ? <BibleRow label={t('sources.reader.moreBibles')} sub={t('reference.bible.moreBiblesSub')} more last onPress={props.onMoreBibles} /> : null}
-      </View>
-    </Sheet>
-  );
-}
-
-function BibleRow(props: { label: string; sub: string; on?: boolean; more?: boolean; last?: boolean; onPress: () => void;
-  /** What help mode says picking it does, where `sub` is what it has. */ help?: string }) {
-  const spot = useHelpSpot(props.label, props.help ?? props.sub, props.onPress);
-  return (
-    <Pressable onPress={spot.onPress} accessibilityRole={props.more ? 'button' : 'radio'} {...a11yState(props.more ? undefined : { selected: !!props.on }, props.more ? 'button' : 'radio')}
-      style={({ pressed }) => [styles.bibleRow, !props.last && ps.rowBorder, pressed && ps.pressed]}>
-      <Ico name={props.more ? 'plus' : 'book'} size={20} color={C.primary} />
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[txt.body, { fontWeight: '700', color: props.more ? C.primary : C.dark }]}>{props.label}</Text>
-        <Text style={txt.xs}>{props.sub}</Text>
-      </View>
-      {props.on ? <Ico name="check" size={20} color={C.primary} strokeWidth={3} /> : null}
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -497,7 +496,7 @@ function YourWord(props: { ctx: Ctx; hash: string; term: string }) {
     <Pressable onPress={spot.onPress} disabled={!clip.available} accessibilityRole="button"
       accessibilityLabel={clip.playing ? t('reference.keyWords.pauseYourWord', { term: props.term }) : t('reference.keyWords.playYourWord', { term: props.term })}
       style={({ pressed }) => [styles.wordBtn, !clip.available && ps.off, pressed && ps.pressed]}>
-      <Ico name={clip.playing ? 'pause' : 'play'} size={14} color={TINT.greenText} strokeWidth={3} fill={TINT.greenText} />
+      <PlayGlyph playing={clip.playing} loading={clip.loading} size={14} color={TINT.greenText} strokeWidth={3} fill={TINT.greenText} />
       <Text style={styles.yourWord}>{t('reference.keyWords.yourWord')}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
@@ -687,7 +686,7 @@ function NoteItem(props: { ctx: Ctx; note: PassageNote; label: string; older?: s
 function VoiceClip(props: { ctx: Ctx; hash: string; sub: string }) {
   const clip = useClip(props.ctx.language, [props.hash]);
   return (
-    <MiniPlayer title={clip.total ? mmss(clip.total * 1000) : t('common.voiceNote')} sub={props.sub} playing={clip.playing} available={clip.available}
+    <MiniPlayer title={clip.total ? mmss(clip.total * 1000) : t('common.voiceNote')} sub={props.sub} playing={clip.playing} loading={clip.loading} available={clip.available}
       onToggle={clip.toggle} onBack10={clip.back10} backDisabled={!clip.available || clip.elapsed <= 0} {...(clip.error ? { error: clip.error } : {})} />
   );
 }
@@ -863,7 +862,7 @@ function EarlierRow(props: { ctx: Ctx; item: EarlierItem; last: boolean }) {
   }
   return (
     <View style={[it.focus && styles.focus, !props.last && ps.rowBorder]}>
-      <PlayRow title={it.title} sub={`${it.sub}${length}`} playing={clip.playing} available={clip.available} onToggle={clip.toggle}
+      <PlayRow title={it.title} sub={`${it.sub}${length}`} playing={clip.playing} loading={clip.loading} available={clip.available} onToggle={clip.toggle}
         last {...(clip.error ? { error: clip.error } : {})} />
       {it.text ? <Text style={[txt.sm, styles.earlierText]}>{t('reference.earlier.quoted', { text: it.text })}</Text> : null}
     </View>
@@ -890,7 +889,6 @@ const styles = StyleSheet.create({
   under: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm, marginTop: 2 },
   pick: { minHeight: 40, paddingHorizontal: space.md, borderRadius: radius.full, borderWidth: 1.5, borderColor: TINT.noteBorder, backgroundColor: TINT.note,
     flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 110 },
-  bibleRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row, paddingHorizontal: space.lg, paddingVertical: space.sm },
   bar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm + 2, paddingHorizontal: space.lg, backgroundColor: C.card, borderBottomWidth: 1, borderColor: C.border },
   termRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 56, paddingHorizontal: space.sm, paddingVertical: space.xs },
   hear: { width: target.min, height: target.min, alignItems: 'center', justifyContent: 'center' },

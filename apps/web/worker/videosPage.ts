@@ -11,7 +11,9 @@ import { tutorialFile } from './tutorialVideos';
  * plan's order. Built for a phone on a weak connection: one small page, no
  * video loads until it is played, and a download is the file itself, named
  * for its video and language. Play needs no YouTube, which some countries
- * block. Each channel's description on YouTube links it.
+ * block. Each channel's description on YouTube links it. Its foot links the
+ * privacy policy's part on our YouTube channels, as YouTube's API audit asks
+ * of a page that links to YouTube (decisions.md 186, amended).
  */
 
 /** One video on the page, as `ops_tutorial_list` gives it. */
@@ -88,6 +90,7 @@ h3 .muted { font-weight: 400; font-size: 16px; white-space: nowrap; }
 .button.primary { min-height: 56px; background: var(--primary); border-color: var(--primary); color: #fff; }
 .notice { padding: 12px 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); margin: 12px 0; }
 .notice.red { color: var(--red); }
+.foot { text-align: center; margin: 28px 0 0; } .foot a { display: inline-flex; align-items: center; min-height: 48px; padding: 0 12px; color: var(--muted); }
 .pick { text-align: end; margin: 0; } .pick select { font: inherit; font-size: 15px; color: var(--muted); background: none; border: 0; min-height: 48px; }
 </style>
 </head>
@@ -96,6 +99,7 @@ h3 .muted { font-weight: 400; font-size: 16px; white-space: nowrap; }
   <p class="pick"><label>🌐 <select id="ui-lang" aria-label="${h(w.language)}">${choices}</select></label></p>
   <h1>${h(w.title)}</h1>
   ${list}
+  <p class="foot"><a href="/privacy#youtube">${h(w.privacy)}</a></p>
 </main>
 <script>
 document.getElementById('ui-lang').addEventListener('change', (e) => { const u = new URL(location.href); u.searchParams.set('lang', e.target.value); location.replace(u); });

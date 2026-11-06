@@ -714,6 +714,35 @@ Expected:
   ungrouped. Its languages are still here." Org home lists Bravo and Kilo
   {run} again, and no cluster.
 
+### SETUP-079 A cluster of languages already here, made from Manage
+Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Grouping languages already here is a row of its own on Manage, not only a
+choice inside New language (LAN-140). A cluster always holds a language.
+
+Preconditions (in addition to the global ones):
+- Online.
+- Resets: makes a cluster "Group {run}" of Alpha and Bravo, then ungroups
+  it, so both end as they began.
+
+Steps:
+1. Open Org home and tap "New cluster".
+2. Type "Group {run}" in "The cluster's name".
+3. Tap "Alpha" and "Bravo" under "Already in UI Test Org".
+4. Tap "Make the cluster".
+5. Tap "Ungroup", then "Ungroup" in the sheet.
+
+Expected:
+- Step 1 opens on "What are you adding?" with "A cluster of languages"
+  chosen, "The cluster's name" and "Its languages · 0", without the six
+  steps first. "Make the cluster" is the button, and it cannot be tapped.
+- After step 2 it still cannot be tapped: the cluster has no language yet.
+- After step 3: "Its languages · 2", and "Nothing new to set up: languages
+  already here keep everything they have."
+- Step 4: toast "Group {run} made, with 2 languages." The cluster's page
+  opens: "Cluster · 2 languages", with Alpha and Bravo.
+- Step 5: toast "Group {run} ungrouped. Its languages are still here."
+
 ## Get ready
 
 ### SETUP-022 Get a language ready, question by question
@@ -818,12 +847,14 @@ Expected:
 - Toast "Alpha translates {what}.", with no Undo.
 - Step 4 puts the New Testament back (the same toast, with the New
   Testament), and every P-* passage keeps its work.
-- Back on Alpha's page the "Content template" row reads "Bible stories ·
-  New Testament". Nothing is refused.
+- Back on Alpha's page the "Content template" row reads "FIA passages
+  (English) · New Testament". Nothing is refused.
 
 Changed (2026-10-16, decision 134): no toast offers Undo; choosing the earlier books again in "They record" changes it back.
 
 Changed (2026-10-16, decision 138): "They record" is now "Content template" → "Which books".
+
+Changed (2026-11-02, decision 138): the "Content template" row names the template as its own page does, not what it divides the work into ("Bible stories").
 
 ### SETUP-025 A new numbering on a language with work warns first
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Manual

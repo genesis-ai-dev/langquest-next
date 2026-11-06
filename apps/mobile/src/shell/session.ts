@@ -195,7 +195,7 @@ export const AUTH_SCREENS: ScreenId[] = ['sign_in', 'create_account'];
  * with the guest-gated edges by a test: every `guest` edge's endpoints must
  * appear here, so adding a guest screen without listing it fails.
  */
-export const GUEST_SCREENS: ScreenId[] = ['sign_in', 'create_account', 'explore_home', 'scan_qr', 'terms_privacy'];
+export const GUEST_SCREENS: ScreenId[] = ['sign_in', 'create_account', 'explore_home', 'scan_qr', 'terms_privacy', 'forgot_password', 'new_password'];
 
 /**
  * Has enough arrived to route a signed-in person? The org must have synced

@@ -241,6 +241,7 @@ Project skills, written for this app (use these first):
 - `laws-of-ux`: Fitts, Hick, Jakob and the rest, tuned for field use.
 - `infrastructure-as-code`: hosted settings, secrets and env files live in the repo, never only in a dashboard.
 - `tutorial-review`: the nightly look at the tutorial videos' comments, changes and notes, and what to suggest.
+- `user-issues`: the watch every 15 minutes: judge new problems people hit and file each real one in Linear.
 
 Third-party skills, by task:
 

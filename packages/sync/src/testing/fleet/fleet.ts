@@ -140,7 +140,7 @@ export class Fleet {
     const snapshots = this.options.snapshots === undefined ? { everyMs: 5 * TIME.MINUTE, minNewEvents: SNAPSHOT_SCHEDULE.minNewEvents } : this.options.snapshots;
     if (snapshots) {
       this.server.now = this.time.now;
-      this.server.retainMs = snapshots.retainMs ?? 24 * TIME.HOUR;
+      this.server.retainMs = snapshots.retainMs ?? 6 * TIME.HOUR;
       this.snapshotPass({ ...snapshots, maxAgeMs: snapshots.maxAgeMs ?? SNAPSHOT_SCHEDULE.maxAgeMs });
     }
   }

@@ -60,7 +60,8 @@ const BOOK_NAMES: { code: string; name: string }[] = [
   { code: 'eng', name: 'English' }, { code: 'spa', name: 'Spanish' }, { code: 'por', name: 'Portuguese' }, { code: 'fra', name: 'French' },
   { code: 'arb', name: 'Arabic' }, { code: 'swa', name: 'Swahili' }, { code: 'hau', name: 'Hausa' }, { code: 'amh', name: 'Amharic' },
   { code: 'hin', name: 'Hindi' }, { code: 'ben', name: 'Bengali' }, { code: 'npi', name: 'Nepali' }, { code: 'ind', name: 'Indonesian' },
-  { code: 'cmn', name: 'Chinese (Simplified)' }, { code: 'tha', name: 'Thai' }, { code: 'mya', name: 'Burmese' }
+  { code: 'cmn', name: 'Chinese (Simplified)' }, { code: 'tha', name: 'Thai' }, { code: 'mya', name: 'Burmese' },
+  { code: 'tgl', name: 'Tagalog' }
 ];
 
 /** The standard systems (library/versifications, from versification-tool), in the order people meet them. */

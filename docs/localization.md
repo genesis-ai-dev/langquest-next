@@ -82,15 +82,27 @@ too.
 `src/i18n/languages.ts` lists them, each with its own name, direction and
 who approved it for release. The app follows the phone's language into any
 approved catalog, and Me → Language (and the globe on the sign-in screen)
-offers every language. The first fourteen are machine translations approved
-as they are (decision 81): corrections come from the teams using them. A
-language not yet approved is a draft: it can be picked by hand and says so,
-and the phone's language never switches to it.
+offers every language. The first fourteen, and Tagalog (LAN-223), are
+machine translations approved as they are (decision 81): corrections come
+from the teams using them. A language not yet approved is a draft: it can be
+picked by hand and says so, and the phone's language never switches to it.
 
-To add a language: add it to `languages.ts`, add `<code>.json` with every key,
-add its line to `catalogs.ts`, and add it to `supportedLocales` for
-`expo-localization` in `app.json` (a new build). The test says what is
-missing.
+Tagalog's code is `tl`, but phones and browsers call it Filipino (`fil`):
+its `locale` is `fil` (dates, numbers, plurals, the iOS folder), Android's
+folder is `values-tl`, and the library's code is `tgl`. `catalogFor` takes
+`fil`, `fil-PH` and `tl-PH`.
+
+To add a language: add it to `packages/core/src/uiLanguages.ts`, add
+`<code>.json` with every key, add its line to `catalogs.ts` and its plural
+rule to `plurals.ts`, add it to `supportedLocales` for `expo-localization` in
+`app.json` and to `scripts/native-locales.mjs`, then run that script (a new
+build). The test says what is missing. The same language also wants its
+invite email (`apps/invite-email/src/i18n/`), the Worker's pages
+(`apps/web/worker/i18n/`), Bible book names and library labels
+(`library/names/`, `library/labels/`, `npm run library:seed`), and its
+YouTube words and playlists (`server/youtube.ts`, `server/youtubePlaylists.ts`,
+`e2e/tutorials/trailer/words.json`). Its channel goes in `CHANNELS` only once
+it exists on YouTube: until then no video description links to it.
 
 To correct a translation, change its catalog; the test checks the keys,
 placeholders and plural forms. To release a draft, put who approved it and
@@ -101,8 +113,8 @@ the date in its `approved` field.
 - Emails (`apps/invite-email/src/i18n/`) go in the sender's app language: the
   phone sends `locale` with an invite, `send-invite` passes it on, and the
   Worker writes the invite in that catalog (English when it has none). The
-  password reset email's words are there too (`passwordResetContent`), ready
-  for Forgot password.
+  Forgot password email (`passwordResetContent`) goes in the language the
+  app showed when it was asked for (decisions.md 200).
 - The shared review link page (`/r/<code>`), the connect page
   (`/connect`) and the tutorial videos page (`/videos`) are written by the
   web Worker (`apps/web/worker/i18n/`). They

@@ -1581,6 +1581,14 @@ Amended (2026-10-15, Carl Sauder): the export is now a main file and one
 file per screen module that loads when opened, and the budget is two: 5.7
 MiB for what a first visit loads, 6.5 MiB for all of it (123).
 
+Amended (2026-11-03, Caleb Koster): iOS claims the domains again.
+`ios.associatedDomains` is back in `app.json` for both hosts, so an iPhone
+opens invite, sign-in and Forgot password links (`/invite`, `/signin`) in
+the app, as Android does. Ryder Wishart found Associated Domains already
+enabled on `com.frontierrnd.langquestnext`; Caleb asked for it in the next
+iPhone store build, which is a native change, so phones on older builds
+keep opening the web app.
+
 ## 59. Joining by invite needs no password, and whoever can invite you can get you back in
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
@@ -2448,6 +2456,15 @@ over a strip across every screen (it cost height and said nothing a header
 could not) and over a tab of its own (on a wide window it sat beside a
 sidebar line that did the same, and a phone had only the tab).
 
+Amended (2026-11-02, Caleb Koster): help numbers what matters first (LAN-135,
+decision 199). Carl counted about 20 numbers on the recording list and asked
+for the few that matter. Parts that repeat what a row already says or only
+show something (a part's bars, verse marks and grip, a place between parts,
+the bin, the divider, reference chips not chosen, the Bible pane while
+recording) are quiet (`HelpQuiet` in `helpBadge.tsx`): dim and unnumbered,
+and a tap on one still explains it, as rows that do not speak for their list
+do. The recording screen numbers 7 parts (REC-059).
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: partly superseded by 79
@@ -3016,6 +3033,14 @@ by the database (the Inbox shows its own words by kind).
 Reverse if: translators need to change words between app releases (then the
 library localization), or people want their language to follow them to
 other devices (then an event in the person stream).
+Amended (2026-11-04, Caleb Koster): Tagalog (`tl`) is the sixteenth language
+(LAN-223), a machine translation released as approved, as the first fourteen
+were. Phones and browsers call it Filipino, so its locale is `fil` (iOS's
+folder, `Intl` dates, numbers and plurals) while Android's folder is
+`values-tl` and the library's code `tgl`. Its invite email, web pages, Bible
+book names, library labels and YouTube words come with it. It has no YouTube
+channel yet, so it stays out of `CHANNELS` (`server/youtube.ts`): no video
+description links to it and none is filmed in it until the channel exists.
 
 ## 82. A recorded part keeps how it relates to its neighbours, and its verse numbers are worked out down the list
 
@@ -3406,6 +3431,12 @@ snapshot's rows cut by passage (147), which only the newest snapshot keeps,
 and the pass writes every passage's line each time it folds a language,
 whether or not a snapshot is due. Retention is unchanged; a snapshot's rows
 go with it.
+
+Amended (2026-11-04, Carl Sauder): the 24 hours and the schedule stand, but
+`put_snapshot` no longer deletes anything; a job does, and that job also
+covers what this entry left out, older reducer versions and languages that
+went quiet (204). "About 25" had also never been a limit: a burst can write
+one a pass, so the job caps a version at 30.
 
 ## 89. A snapshot's pieces are cut once, when it is written, and kept in their own table
 
@@ -4655,6 +4686,12 @@ rows at a time. With no clusters the list is one list, as before. Map and
 Reports keep their cluster chips: they filter one list, so nothing there
 reads as a language (`clusters/model.ts` `languageGroups`).
 
+Amended (2026-11-02, Caleb Koster): grouping languages already here has a
+row of its own on Manage, New cluster (LAN-140, decision 199). It opens New
+language on the cluster's name and its languages, past the six steps, and
+"Make the cluster" waits for a name and a language: a cluster still always
+holds one.
+
 ## 109. A listening app keeps playing the approved version, hears changes by webhook, and the team sees its listeners on the passage
 
 Date: 2026-10-14 · By: Ryder Wishart · Status: partly superseded by 131
@@ -5320,6 +5357,10 @@ The passage's "Then the team" checks are cards again, each with its state,
 status and people and space around it: PR 72 had made them one-line rows
 and PR 92 stacked names under them with no room between.
 
+Amended (2026-11-02, Caleb Koster): "Send later" is now "Done, don't ask
+anyone", a button of its own under the asking links (LAN-136, decision
+199): it finishes the version and asks nobody, which "later" did not say.
+
 ## 128. A review goes on the one passage it is about
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -5903,6 +5944,11 @@ does. The slide itself was checked, not changed: on a device that never saw
 it, the first recording's parts slide once and it is kept as seen; builds 22
 and 23 and every update since carry it, so a phone that recorded on any of
 them has had its one showing.
+
+Amended (2026-11-02, Caleb Koster): the grip is six dots, not three lines
+(LAN-132, decision 199). Carl found people read three lines as a menu and
+tapped them; a tap on the grip now bounces its arrows to show it drags up
+and down, and nothing moves.
 
 ## 137. Android's Back goes one step back, inside a screen's steps too, and leaves the app only from the first screen
 
@@ -7218,6 +7264,15 @@ costs more than asking people to update (then raise the minimum app version
 sooner), or a call that phones make is missed because it is built at run
 time (then name it in a list that the check reads).
 
+Amended (2026-11-05, Caleb Koster): a release branch (decision 155) deploys
+no server, so on a release branch, or on a copy onto one, the check reads
+main's server (from git) instead of the branch's own, and also checks the
+calls in the branch's own code. The first iPhone catch-up (PR 344) failed
+because the release branch's server, from 2026-10-28, did not have the
+password-reset Edge Function or the /api/source-audio route that main's
+OTA updates use. Each copy takes this check from main (decision 155's
+`MACHINERY`).
+
 ## 152. A pull request that changes the database runs the sync test from every supported store build's commit against it
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted
@@ -7421,6 +7476,146 @@ the platforms that keep a branch: no public iPhone build takes OTA updates
 from main yet (build 36, 1.0, runs code of 2026-10-16), so an iPhone branch
 would only feed TestFlight.
 
+Amended (2026-11-05, Caleb Koster): Caleb asked that every older build that
+can run a merge gets it, iPhone included, that Claude finishes copies with
+his Claude plan's token, and that the ops dashboard shows the same pull
+request in each build that has it. So:
+- iPhone keeps a branch again. App Store build 45 (2026.1026.1817) is public
+  and takes OTA updates, and has had none since PR 259 changed the iPhone
+  fingerprint on 2026-10-28. The workflow no longer sets
+  `RELEASE_BRANCH_PLATFORMS`, so both platforms keep branches. The new
+  iPhone builds made while iPhone kept none are listed in
+  `scripts/release-rebuilds.json`, and each run tags any that lacks its tag.
+  Every hour, a platform with no branch whose store shows a build older than
+  a newer one gets a branch, from the commit before the first new build that
+  is not public, and one copy pull request catches it up on every merge
+  since ("catch the public iPhone build up on N merges from main").
+- Only a merge that changes what the phone app runs is copied: files in
+  `apps/mobile` other than its tests, scripts, website files and EAS
+  settings, the sources of `packages/core` and `packages/sync`, and the
+  `package.json` files. A merge for the website, the ops dashboard, the
+  server, tests or docs sent the public build its own code again, and its
+  copy could only conflict (PRs 336, 338 and 340 on 2026-11-05).
+- A conflict in a file outside the phone app and its tests (docs and this
+  log, scripts, the server, the website, tutorial filming) keeps the release
+  branch's version, so Claude gets only conflicts in the app. A trial of the
+  iPhone catch-up on 2026-11-05 copied 15 of its 22 merges on its own; 7 need
+  Claude.
+- Each copy first takes main's release workflows, this script and its test
+  (`MACHINERY`): a pull request runs its own branch's workflows, so a branch
+  started from an older commit ran the older conflict step.
+- Every hour, a branch that serves another build than the public one starts
+  again (`servesAnother`): the first new build after its start must be the
+  first one that is not public. `release/android` started on 2026-11-03
+  from PR 322's merge (Android fingerprint e3bff02c), as PRs 322 and 319
+  both needed a new build a minute apart, while Google Play showed build 48
+  (80d370c0); none of its copies since reached build 48's phones.
+- Claude signs in with `CLAUDE_CODE_OAUTH_TOKEN`, a Claude plan's token as
+  the nightly jobs use, or with `ANTHROPIC_API_KEY`.
+- The ops dashboard shows a copied pull request in each build that has it:
+  from main in the new build, and in the public build as a copy named with
+  its copy pull request, first as "PR open, not merged yet" while the copy
+  is open. No person merges a copy, so nobody would hear of one that is
+  stuck: a copy whose tests failed, or that has been open for 3 hours, is a
+  problem under Needs attention, linked to the copy.
+
+Amended (2026-11-05, Caleb Koster): the first iPhone catch-up (PR 344) did
+not start Claude, and its checks failed, so the ops dashboard asked Caleb to
+fix it. Caleb asked that a copy whose tests fail need no person, and that
+Claude examine every copy before it merges: a copy that applies without a
+conflict may still change a feature that only the newer build has. So:
+- Every copy is labelled copy-claude (and copy-conflict when it stopped at a
+  conflict), which starts Claude. Claude finishes the copy, examines each
+  copied change against the release branch's code, takes out each part
+  that does not fit the public build (it changes or needs a feature that
+  only the newer build has), comments one line for each commit (copied,
+  copied in part, or left out, and why), and closes a copy of which no part
+  fits. Only Claude turns on auto-merge; the script no longer does. Without
+  a Claude token, a copy without a conflict merges itself as before.
+- Claude's action turns away any bot it is not told to allow, and the
+  release App labels the copies, so `allowed_bots` names the App.
+- A copy runs its own branch's workflows and scripts. Every hour, each open
+  copy whose release workflows or scripts differ from main's takes main's
+  (`freshenCopies`), so its checks run again with them, and one labelled
+  copy-claude or copy-conflict is labelled copy-claude again so that Claude
+  starts with them. The
+  server-calls check is now part of `MACHINERY` (decision 151 amended).
+- Every hour, a copy whose `gate` check failed, and that neither Claude nor
+  a person works on, gets Claude: the run comments ("The checks of this copy
+  failed …, try N of 3") and labels it copy-claude. Claude reads the failed
+  checks, fixes them and never skips, disables or weakens a test; a change
+  that needs code the public build does not have is left out. After 3
+  tries, the copy is labelled copy-needs-person.
+- The ops dashboard says "waits for Claude to examine it", or "failed its
+  tests, and Claude is fixing them" (or "starts fixing them within the
+  hour"), and asks for a person under Needs
+  attention only after Claude's 3 tries, or when the copy has been open for
+  3 hours.
+
+Amended (2026-11-05, Caleb Koster): Claude's two runs on PR 347 said
+"copied", and no push of theirs reached the branch (the action hides why;
+its run on PR 344 did push). The first also turned on auto-merge for PR
+347, which then held only main's workflows. Caleb asked that the copies go
+green with no person. So Claude no longer writes to GitHub:
+- Claude commits its work on the copy's branch, and writes what it did
+  with each listed commit in `.release-copy.json` (git ignores it):
+  copied, copied in part, or left out, and why, or that it could not
+  finish. Its tools read the pull request and its checks, and cannot push,
+  comment, label, close or merge.
+- The workflow's next step, its own copy of `release-branches.mjs
+  finish-copy` (kept from before Claude's run), pushes Claude's commits with
+  the App's token (only while the branch is where Claude started, and with
+  no git hook: the checks run what the hooks would). The copy is finished
+  when every listed commit has a result, and each one copied is on the
+  branch. Then it comments a line for each commit, takes off the labels and
+  turns on auto-merge, or closes a copy of which nothing fits.
+- A copy that Claude did not finish (no result, a commit neither on the
+  branch nor left out, changes not committed, or a push that failed) gets a
+  comment, and is labelled copy-conflict alone. The hourly run starts
+  Claude on it again, as on a copy whose checks failed; the 3 tries count
+  both. The ops dashboard says "is not finished, and Claude tries again
+  within the hour".
+- One run at a time for each copy (`concurrency`).
+- The unit jobs check out one commit, without main, so the server-calls
+  check fetches main's newest commit when it is missing (decision 151).
+
+Amended (2026-11-05, Caleb Koster): the first hourly run after that gave
+PR 344 a try for the failed checks of its commit before the one it had
+just pushed. Also, three copies were open on release/ios at once (PR 344,
+PR 347, PR 351), each changing the end of the decision log: PR 344 merged
+at 22:32 UTC, and PR 347 then had a conflict. So the hourly run counts no
+check of a copy that it just freshened (its checks run again), and starts
+Claude on a copy that has a conflict with its release branch, as on one
+whose checks failed (the same 3 tries). Claude first merges the release
+branch into the copy, never rebasing or forcing a push.
+
+Amended (2026-11-06, Caleb Koster): at 00:42 UTC the hourly run labelled
+PR 347 for its conflict, and no Claude run started: GitHub runs no
+`pull_request` workflow on a pull request with a conflict. So for a copy
+with a conflict the hourly run also sends a `repository_dispatch`
+(event type `release-copy`, with the copy's number), which runs main's
+`release-copy-conflict.yml` for that copy. The workflow finds the copy
+from the number and stops unless it is an open copy onto a release
+branch. A `copy-claude` label on a copy with a conflict no longer means
+that Claude is on it, so the hourly run starts Claude again (the same 3
+tries).
+
+Amended (2026-11-06, Carl Sauder): the copy of PR 357 onto `release/ios` kept
+the branch's `apps/admin/src/sources/ops.ts` in a conflict and took main's
+`apps/admin/test/ops.test.ts`, so the pre-push hook failed in the workflow's
+first push. That left no pull request and stopped the job before Android. The
+hourly run only looks at open copies and a merge is copied once, so nothing
+tried it again, and Carl asked how such a copy is ever corrected. So:
+- The first push of a copy runs no hook, as the push of Claude's commits
+  already did. The copy's pull request then always opens, its checks run what
+  the hook would, and a copy they fail goes to Claude and then a person. A
+  first push that fails for another reason, such as the network, is still not
+  tried again. The hourly push that gives an open copy main's machinery runs
+  no hook either, or a copy with failing tests could never take it.
+- `packages/sync/src/testing/` no longer counts as what the phone app runs.
+  It is Node-only test helpers that the app never imports, and PR 357 was
+  copied only because it changed two of them.
+
 
 ## 156. Store builds come only from the EAS workflow on merges into main
 
@@ -7506,6 +7701,101 @@ Reverse if: a build that passed review hurts people often enough that a
 staged rollout or a wait in internal testing is worth the delay (then send
 to internal testing first and promote after a set time), or Apple starts
 taking a newer build into a version under review without losing its place.
+
+Amended (2026-11-02, Caleb Koster; LAN-209): the App Store step had never
+run, as its key was never made, and it would have stopped at the first
+rejection: Apple refuses a new review submission while a rejected one is
+open, and a rejection usually needs a person (an answer to Apple, a demo
+account, a fix to the listing). So a rejection now waits for a person
+instead of the newest build being sent again: while a submission has
+unresolved issues, or the newest build's version was rejected by Apple,
+taken out of review or refused as an invalid build, every run says so and
+sends nothing, until someone answers Apple in App Store Connect and
+resubmits or removes the version. The step sends only the newest build that
+Apple has processed and that is newer than the public one (never an
+internal-only one; a newer build still processing goes on a later run). It
+reads both of Apple's names for a version's state (`appVersionState` and the
+older `appStoreState`), so an approved version waiting for its release is
+never taken for one it may change. It reuses an empty draft submission or
+resumes its own, and holds when a draft holds anything else; it waits for
+Apple to mark the version ready for review and tries again while Apple is
+still settling a change. A version it makes is released on approval; one
+that already exists keeps the release setting someone gave it. The key is
+one secret, `APP_STORE_REVIEW_KEY` (`{"issuerId", "keyId", "privateKey"}`,
+App Manager; or an Admin's individual key, `{"keyId", "privateKey"}`, while
+App Store Connect's Integrations page fails for us, to be swapped for a
+team key once it opens), kept in `.env.production` like every other secret: `npm run
+secrets -- production`, or `--only eas`, which needs no Supabase or
+Cloudflare sign-in, puts it in EAS's production environment with secret
+visibility (`docs/environments.md`, The App Store key). It replaces
+`ASC_KEY_ID`, `ASC_ISSUER_ID` and `ASC_PRIVATE_KEY`, which were never set,
+and stays out of GitHub Actions, which holds no production key (decision
+141). Reverse the wait if: rejected versions are mostly passed by the next
+build unchanged, so that waiting for a person costs more than a second
+rejection.
+
+Amended (2026-11-03, Caleb Koster; LAN-209): a newer build takes a rejected
+build's place by itself. Apple rejected build 48 twice (Guideline 2.5.19),
+and the fix was a newer build (PR 322), which the wait above held in
+TestFlight until someone removed build 48 from its rejected submission by
+hand. Caleb chose that a newer build replaces a rejected one and goes to
+review on its own. While a submission has unresolved issues and its version
+holds a build older than the newest processed one, the step takes that
+version out of the submission (`DELETE /v1/reviewSubmissionItems/{id}`, the
+API's form of Remove in App Store Connect), waits for Apple to close the
+submission, and sends the newest build on that version with the build's own
+version number, as for any rejected version; if Apple has not closed it
+yet, the next run sends it. The rejected build itself is still never sent
+again by itself: a person answers Apple and resubmits it, or a newer build
+comes. A rejected submission that holds anything besides that one version
+is left to a person, and Apple's message stays in App Store Connect for
+anyone who wants to answer it. Reverse if: Apple counts a replaced
+rejection against the account (a warning, or slower or stricter reviews),
+then wait for a person again.
+
+Amended (2026-11-04, Caleb Koster; LAN-209): Apple deletes no item that
+went to review. The first two runs asked to delete build 48's item from its
+rejected submission, and Apple answered 409, "Item was already submitted",
+so nothing changed and build 50 waited. The Remove button on App Store
+Connect's App Review page marks the item removed instead: Caleb pressed it
+by hand that evening, Apple closed the submission, and the version became
+Developer Rejected with its build free to change. The step now does the
+same (`PATCH /v1/reviewSubmissionItems/{id}` with `removed: true`) and
+deletes nothing.
+
+Amended (2026-11-04, Caleb Koster; LAN-223): a new build waits while
+another is in review, on both stores, unless its pull request asks to
+replace it. Caleb asked that a merge never restart a review by itself, and
+that developers choose per pull request. On Google Play a newer production
+release sent during a review takes its place and starts the review over,
+so Android builds now go to the `internal` track (`eas.json`,
+`submit.internal`), and `scripts/play-review.mjs` sends the newest one to
+production review, with `releaseStatus: completed` as before, only when
+nothing is in review. It runs right after the upload and every hour
+(`.eas/workflows/app-store-review.yml`). Google's API cannot say whether a
+release is in review (it calls a release completed once sent), so the step
+compares the newest production release's version name with the version
+Play's public page shows, which changes only once Google approves; a
+release that the page does not show yet is in review, and while the page
+cannot be read the build waits. A release Google rejected looks the same,
+so the build waits until a person acts in Play Console. The step needs a
+Play service account key with "Release to production", `PLAY_REVIEW_KEY`
+in `.env.production`, which `npm run secrets -- production --only eas`
+puts in EAS's production environment (`docs/environments.md`, The Play
+key); until it is there, Android builds wait in internal testing for a
+person to promote them, and the step succeeds. A pull request labelled
+`store: replace review` asks for the opposite
+(`scripts/store-choice.mjs`, read from GitHub's public API by the merge
+commit, or by the minute a store version names): its Android build goes
+straight to production, and its iPhone build cancels a review that is
+waiting or under way (`PATCH /v1/reviewSubmissions/{id}` with `canceled:
+true`, which leaves the version Developer Rejected) and takes that
+version's place. A label that cannot be read means wait. Internal testers
+get each Android build before the public again. The ops dashboard's
+Releases section draws where each build and update is now
+(`apps/admin/src/sources/pipeline.ts`, docs/admin.md). Reverse if: reviews are
+fast enough that a restarted one costs less than a build that waits, then
+send every build straight to production again.
 
 ## 158. Global Viewers read every organization, read-only, and only on a session verified with an authenticator
 
@@ -8351,6 +8641,57 @@ the videos are filmed on draws no App icon row (`DisguiseRow.web.tsx`),
 and the nightly look at the videos' feedback is refused whole when a reply or
 suggestion names it (`server/tutorialFeedback.ts`, decision 186).
 
+Amended (2026-11-03, Caleb Koster): an iPhone build has no disguise. Apple
+refused iPhone build 48 twice on 2026-11-03 under App Review Guideline 2.5.19,
+the second time after Caleb's reply, for "functionality that allows users to
+change the app's icon to resemble a calculator or notes application", and
+asked for the feature and all code related to it to go. This goes further
+than "Reverse if" planned: the calculator and notepad go on iPhone too, not
+only the icon, so that the rejection stops holding back every iPhone build
+(few people use the app yet), and Caleb appeals to the App Review Board. The
+iPhone app has no App icon row and no lock (`src/disguise/*.ios.ts(x)`, as the
+web's), no other icons (`./plugins/withAndroidAppIcons` runs only
+expo-alternate-app-icons' Android steps) and not its native module
+(`expo.autolinking.ios.exclude` in `apps/mobile/package.json`);
+`test/disguiseIphone.test.ts` holds it. An iPhone that wore a disguise on
+build 45 opens on LangQuest once it updates, and what that build kept (look,
+note, the code's hash) is cleared, so a later build cannot put it back on by
+itself. Android's build is unchanged (`expo prebuild` writes the same Android
+project), and the iPhone pictures stay in `assets/disguise`. Reverse if: the
+App Review Board allows the icons (then the iPhone gets the disguise back,
+and the App Review notes describe it again).
+
+Amended (2026-11-05, Caleb Koster): an iPhone build carries nothing of the
+disguise, not even its words. Apple refused build 50 (2026.1103.2251) on
+2026-11-05 under 2.5.19 with the same letter, from "code in the submitted
+binary". Build 50 had no other icon and no native module, but it still
+carried the disguise's words in the app's catalogs (all 16 languages, such as
+"Makes LangQuest look like a calculator or a notepad on this phone"),
+Android's ten icon names and their pictures' paths in the settings Expo copies
+into every build (app.json's options for `./plugins/withAndroidAppIcons`),
+and the iPhone's stand-in files in `src/disguise`. Caleb's call of 2026-11-03
+(no calculator or notepad on iPhone) meant all of that, so:
+- The disguise's words are in `src/disguise/i18n`, not `src/i18n`;
+  `src/disguise/disguiseWords.ts` adds them to the language showing
+  (`addWords`), and only Android's files import it.
+- App.tsx and More settings reach the disguise through `src/shell/AppCover`,
+  `AppIconRow` and `useNotificationsOffered`: their `.android` files import
+  `src/disguise`, their own files (iPhone and web) are empty. The `.ios` and
+  `.web` files in `src/disguise` are gone, and `AppIconRow.tsx` is the web's
+  empty row that the 2026-10-29 amendment relies on.
+- `./plugins/withAndroidAppIcons` holds the icon list and names each alias
+  (it took in `./plugins/withDisguiseIcons`), so app.json names only the
+  plugin. `expo prebuild` writes the same Android project as before.
+- An iPhone no longer clears what build 45 kept: no iPhone ran a build that
+  did, since build 50 was refused. An iPhone build that has the disguise
+  again must not take that up as its own.
+This is not hiding it: the iPhone app does not have the feature, and the code
+names it plainly, as before. `test/disguiseIphone.test.ts` follows every
+import an iPhone build bundles and fails on a file of `src/disguise`, or a
+name, string or word of the disguise there, in its catalogs, or in the
+settings Expo embeds; an export of the iPhone app (`expo export --platform
+ios`) had none on 2026-11-05. Android is unchanged.
+
 ## 172. FIA's key words are a key-word list per language, picked apart from FIA's guides, shown where a passage links or says them, and every reference list can be searched
 
 Date: 2026-10-26 · By: Caleb Koster · Status: accepted
@@ -8722,6 +9063,9 @@ Reverse if: teams rely on checks being done by someone other than the
 recorder (then a check, or a checkpoint, could say "not by its recorder"),
 or people on teams check their own work instead of asking.
 
+Amended (2026-11-02, Caleb Koster): Done's "Send later" above is now "Done,
+don't ask anyone" (LAN-136, decision 199).
+
 ## 179. Clean up runs DeepFilterNet 3 on the phone, and the person hears each part both ways before picking
 
 Date: 2026-10-28 · By: Caleb Koster · Status: accepted
@@ -8830,6 +9174,23 @@ Amended (2026-10-30, Caleb Koster): a person's Publish is no longer needed
 for a wide film: the intake chooses it as it takes it in, and the publish
 follows each intake (192). Publish stays for a tall film and for putting a
 video up again.
+
+Amended (2026-11-02, Caleb Koster): a video's playlist place and its old
+version's unlisting were tried once, right after its upload, and a step that
+did not work stayed undone. On 2026-11-02 the Hausa channel had no playlist,
+so none of its videos was in one and an old version of a video still showed
+beside the new one, and seven other channels each had a video outside its
+playlist. YouTube would not make Hausa's playlist in Hausa: the run's first
+error was `localizationValidationError`, which YouTube gives only for a
+playlist's or a channel's language, and every channel's look had gone on.
+Others were YouTube busy for a moment (`SERVICE_UNAVAILABLE`, 2026-10-29 to
+11-01). Now a playlist YouTube will not take in its language
+is made without one, and each run, before its uploads, puts every channel's
+playlists in order from what the database says is up (`ops_tutorials_up`):
+each video's newest version in its playlist in the plan's order, no older
+version in one, and every older version unlisted. A channel in order costs a
+few units of the day's 10,000; each thing put right costs 50, and the job
+run counts them (`tidied`).
 
 ## 181. A part with lots of background noise wears an orange warning, measured on the device from its loudness and the room between its words
 
@@ -8942,6 +9303,29 @@ up to 24 dB, it would play its hiss as loud as a voice. Room alone measured
 3.5 dB at most (white, pink and brown noise, mains hum, a fan); speech 6 dB
 over its room, 5.6 dB at least. `Level.kt` and `Level.swift` take the same
 line from `LEVEL`, so this too ships in a store build.
+
+Amended (2026-11-04, Caleb Koster): a play waits for its copy at most half
+a second (`READY_MS`), then plays the part as recorded; the copy goes on
+and plays the next time. The first play of a part was the "Reverse if"
+case: Caleb, on a Galaxy A05 right after recording two-second parts
+(LAN-224), tapped Play on each and saw Pause for far longer than the part
+with no sound, and the same in Clean up; on the web with the processor
+slowed eight times, a part waited about a second and a part in Clean up
+13 seconds. Caleb chose all four of these on 2026-11-04:
+- **A spinner in place of Pause** until the first sound, in every player
+  of the recordings people make (`PlayGlyph` in `ui/kit.tsx`, `loading`
+  from `useClip`, AudioClip, ClipPlayer, the review chip). Tapping it stops,
+  as Pause would.
+- **Half a second, then as recorded.** Even loudness on a first play is
+  given up only when the phone is slow; the next play is even.
+- **The part tapped goes first.** Copies and measures (181) run one at a
+  time (`levelTurns.ts`), as the microphone module does them on one thread;
+  the part someone is waiting to hear goes ahead of the next part's copy
+  and the other rows' measures.
+- **How long plays wait is recorded**: the `audio` tally's `waits`,
+  `waitMs` and `maxWaitMs` (docs/diagnostics.md), so the watch for user
+  issues (202) shows them under a problem sent from a phone.
+JavaScript only, so it ships in an OTA update.
 
 ## 183. Tutorial videos are filmed each night on GitHub, only those whose screens changed, and the job container brings them in
 
@@ -9200,6 +9584,25 @@ more suggestions are rejected than accepted for weeks (then keep the
 inputs and drop the suggestions); or GitHub changes what its OIDC tokens
 say.
 
+Amended (2026-11-03, Caleb Koster): comments are kept 30 days, not a year.
+Google's audit for more YouTube API quota (Caleb, 2026-11-02, thread "Plan
+tutorial videos and keep them current") checks how we keep YouTube data,
+and YouTube's developer policies let an API client keep what it reads about
+other people for 30 days before it must read it again or delete it. Caleb
+said yes (2026-11-03) to one change that makes us pass: a comment, with its
+English and suggested reply, is taken out 30 days after it was posted,
+whether or not Claude has looked at it or a suggestion that answers it
+waits (the suggestion stays without it); one older is never copied, and the
+comments job reads back no further (`KEPT_DAYS`). An hourly pg_cron job
+takes them out (migration `20261103190500_tutorial_comments_30_days.sql`),
+so a stopped comments job or look keeps nothing longer. The privacy policy
+gains a part on our YouTube channels (`/privacy#youtube`: YouTube's Terms
+of Service and Google's Privacy Policy, what we copy, Claude, the 30 days,
+how to take away a channel's access), and the videos page (187) links it.
+Code changes, notes and answered suggestions keep their year. A comment
+Claude has not looked at within 30 days, because the look stopped running,
+is lost to it.
+
 ## 187. Every tutorial video can be downloaded from LangQuest, by a link that lasts and from a page of them all; YouTube's descriptions give both
 
 Date: 2026-10-29 · By: Caleb Koster · Status: accepted
@@ -9420,8 +9823,9 @@ tab held only the one wide film (See reports on the web). Decided:
   goes up (`ops_tutorials_due`, migration `*_tutorial_newest_due.sql`): a
   tall version chosen before is not put up once a wide one is made.
 - **A channel's home page** (`server/youtube.ts` `setHome`), as BibleProject
-  and others lay theirs out: under the trailer, a row of the other 14
-  LangQuest channels, then a row for each of its playlists, everyone's
+  and others lay theirs out: under the trailer, the other 14 LangQuest
+  channels in two rows of 7 (a row shows no more than 12; amended
+  2026-11-03, when Burmese and Chinese were missing), then a row for each of its playlists, everyone's
   first (`server/youtubePlaylists.ts` `HOME_ORDER`). The publish job
   brings the rows up to date each run (2 of the day's 10,000 units when
   nothing changed); Connect lays them out at once.
@@ -10013,3 +10417,422 @@ result that people review and commit).
 Reverse if: custom Bibles turn up that part from every numbering only
 outside the chapters read (then read more, or every chapter, for them), or
 Bible Brain offers each Bible's versification checked against its text.
+
+## 199. Carl's UI review: a grip of dots, holds and grips that show what they do, "Done, don't ask anyone", fewer help numbers, and doors of their own for a cluster and an email account
+
+Date: 2026-11-02 · By: Caleb Koster · Status: accepted
+
+Reason: Carl reviewed the app and filed LAN-125 to LAN-144 (Linear label
+"UI Review"). Caleb (2026-11-02) asked for the list fixed, each issue's
+Expected followed unless it goes against a product decision or the partner
+demo, with before and after screenshots. What changes an earlier entry or
+adds a way of working:
+- **The part grip is six dots** (LAN-132, amends 136): three lines read as
+  a menu, so people tapped them and nothing happened. A tap on the grip,
+  with no drag, now bounces the arrows on it (`useDragRows` `tapped`,
+  `slots.tsx` `PartGrip` `nudge`).
+- **Holding a verse space shows itself** (LAN-133): the first tap on one,
+  once per phone or browser, shows a fingertip holding it while the hold's
+  ring fills, twice (`recording/useHoldHint.ts`), as the swipe hint shows
+  the bin (136); every hold fills the ring as it is held. The verse sheet
+  ends with Done, not ✕ (LAN-134): each tap in it is kept as it is made, so
+  a ✕ read as Cancel.
+- **"Done, don't ask anyone"** (LAN-136, amends 127 and 178) replaces "Send
+  later", as a button of its own under Ask someone and Someone else: the
+  version is finished and nobody is asked, which is what it did.
+- **Help numbers what matters first** (LAN-135, amends 71): parts that
+  repeat or only show something are quiet (`HelpQuiet`), dim and
+  unnumbered, and a tap still explains them; the recording screen numbers 7.
+- **New cluster** (LAN-140, amends 108) is a row on Manage that opens New
+  language on the cluster's name and its languages, without the six steps.
+  A cluster still holds at least one language.
+- **After scanning, a third way in** (LAN-137): "Make an account with
+  email" keeps the invite for the next account to sign in, as "I already
+  have an account" does, and opens Create Account, which says the invite is
+  saved and leaves out its own "Scan an invite".
+- **A person whose name is not known yet is "someone"** (LAN-129), never
+  their picture's colour and shape, and the app asks the directory again, a
+  few times, while a member has no name.
+- **The Bible pane's player stays put and the words follow its voice**
+  (LAN-130, LAN-131): the words scroll under a fixed header and player; a
+  scroll by hand stops the following until the verse playing is back in
+  sight or play is pressed again (`helps/useFollowVerse.ts`).
+- **A passage's check cards open once there is a version to check**
+  (LAN-127), and its latest version plays on the passage itself (LAN-128).
+Caleb has a card open on each of four of these (six dots or three lines;
+the third way in after scanning; an empty cluster; whether a picture and
+pattern stay required, LAN-139, left as they are); the recommended answer
+is what is built, and another answer changes it.
+Considered: words on the grip (the row was cleared of words in 136); a
+"Send later" that reminds (the product has no due dates); a cluster made
+empty and filled from each language's page (the clusters chip on a
+language's page already adds it to one, and an empty cluster shows nowhere
+on Manage).
+Reverse if: people drag parts less, or take the hint or the bounce for a
+fault; people miss help on the quiet parts; or Manage's two add rows read
+as one too many.
+
+## 200. Forgot password emails a one-time link to the account's own address; the link opens New password, which sets it and signs in
+
+Date: 2026-11-03 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-17): "Can you check if we have a full password reset
+flow in the app? If we don't, can you implement it?", and an eye on the
+password fields; on 2026-11-03, "Let's fix the password reset", after three
+people had a password refused in a week and one of them made a second
+account. There was none: an account with its own email that forgot its
+password had no way back but a teammate's code or writing to us ("Can't
+sign in?", added by the UI audit until people could reset their own;
+docs/invites-and-accounts.md flow G). What was built:
+- **Sign In → Forgot password? → an email.** `supabase/functions/password-reset`
+  keeps a one-time code by its hash (`password_resets`, migration
+  20261103160000) and the email Worker's `/send-reset` sends
+  `https://next.langquest.org/signin#reset=<code>` in the language the app
+  showed, with the reset words written for LAN-42. The link is on `/signin`,
+  which the app links already declare, so no new build is needed: Android
+  opens the app; iOS (associated domains are still off, 58 amended) and
+  computers open the web app. A code works once, for an hour. Asking again
+  does not cancel an earlier link, since on a slow connection the first
+  email often arrives after the second request; using one ends the
+  account's other codes.
+- **The same answer whether or not the address has an account**, so typing
+  addresses does not tell anyone who uses LangQuest. Every request is
+  counted before anything is looked up: 5 an hour for one address (kept by
+  its hash), 30 an hour from one caller, 300 in five minutes overall. An
+  address with no account here goes to LangQuest v2, which sends its own
+  reset email as its app does: someone from v2 who has not signed in here
+  yet signs in with the password they choose there (docs/v2-import.md
+  section 3).
+- **New password sets the password and signs in** in one call, the session
+  coming back with the answer as `sign-in-code`'s does, so one moment of
+  connection is enough (`resetPassword` in `auth/signInFlow.ts`). Already
+  signed in as that account, the phone keeps a fresh session; signed in as
+  someone else, only the password changes. The phone remembers the new
+  password for signing back in offline (168). Setting a password ends the
+  account's other sessions (Supabase Auth, as 87 notes); their unsent work
+  waits on those phones for the next sign-in (60).
+- **No email, no email reset.** A sign-in name on Forgot password says the
+  account has no email and offers Scan a code, for a helper's code (flow F,
+  59). "Can't sign in?" stays for the ways in that need no password.
+- **Every password field has an eye** (kit `Field` with `secure`) that shows
+  what was typed and hides it again: a 48 pt button with its own help.
+Nothing in production's Auth settings changes: no redirect URL, email
+template or mail server is used. The function, the migration and the Worker
+deploy on merge (42) with the secrets they already have.
+Reverse if: people cannot finish within the hour on field connections (then
+lengthen it, with the email's words), or v2's own reset emails confuse
+people (then stop passing unknown addresses to v2).
+
+## 201. A browser keeps a source's audio by asking the Worker for it, which passes the bytes on and keeps nothing
+
+Date: 2026-11-03 · By: Caleb Koster · Status: accepted
+
+Reason: no browser had ever kept a chapter of reference audio. The field
+snapshot of 2026-11-03 found 63 of 63 downloads failing in two browsers in
+two to twelve milliseconds: the page's content security policy (58,
+`apps/mobile/scripts/webHeaders.mjs`) lets it read only its own site and
+Supabase, and openbible.com sends no header that lets another site read
+its files either, so widening the policy alone would not have done. Playing
+worked all along, because `media-src` allows any https host. So in a
+browser `sources/offline.ts` asks the Worker (`sources/throughWorker.ts`):
+`/api/source-audio?url=` for a library source's link, only on a host in
+core's `SOURCE_AUDIO_HOSTS` (today openbible.com), so it is no general
+proxy (`apps/web/worker/sourceAudio.ts`); and `/api/bible/file/:fileset/
+:book/:chapter` for Bible Brain, only for a fileset `/download` allows, as
+the audio route already decides (`bible.ts`). Both need a signed-in person
+and stream the file through without caching it, so Bible Brain's rule that
+nothing of theirs stays on our servers still holds; the browser keeps it
+by hash as a phone does. Phones still download from the source's own link.
+Considered: `connect-src https:` (needs the hosts' cooperation, and gives up
+what the policy protects); keeping no source audio in browsers (the offline
+promise is the same on every platform, 58).
+Reverse if: the sources serve cross-site reads and the policy can name
+them, or the traffic through the Worker costs more than keeping the files
+would.
+
+## 202. A watch every 15 minutes hands new kinds of user problems to Claude, which files each real one in Linear, assigned to a developer
+
+Date: 2026-11-03 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-11-03, thread "Auto-detect and fix user issues") found
+problems people had hit for up to a week (reference audio that never
+downloaded in browsers, 201; no password reset, 200) that nobody had seen,
+because seeing them meant someone remembering to open the ops dashboard or
+`npm run diag`. He asked for developers to be told of each problem as it
+happens, by the problem coming to them. He chose to build it in two steps:
+first the watch and the alerts, to see a few days of what it files; fix
+pull requests come after, in a change of their own. Decided:
+- **Kinds, not records.** `ops_user_issue_watch()` (migration
+  `20261103180000_user_issues.sql`) groups 7 days of `diag.records` into
+  kinds named by the records' code-like tags (`error:<name>@<where>:<code>`,
+  `transfer:down:source:failOther`, `device:lostRecordings`; the families
+  are in `server/userIssues.ts`), adds server jobs failing or stopped and
+  the Worker's 5xx (`diag.job_runs`), and each problem sent from help mode
+  (`diag.feedback`, bugs only, never who sent it). Development builds and
+  the accounts in `ops.watch_ignored` (the store review account and
+  Claude's production test account) are left out. A kind is handed over when someone hit it in the last day and it was
+  never looked at, at most 20 at a time, help mode first.
+- **Looked at once.** `ops.user_issues` keeps what was decided about each
+  kind: filed (a new Linear issue), known (an issue the team had) or noise.
+  A kind comes back only when at least twice as many people hit it (and two
+  more): noise to be judged again, a filed one as a comment on its issue.
+  Server kinds come back after a week. Noise is forgotten after 90 days.
+- **GitHub Actions, every 15 minutes, holding no production key**
+  (`.github/workflows/user-issues.yml`): it reads the watch and says what it
+  did through the app Worker's `/api/user-issues`, which lets in only that
+  workflow on main by its OIDC token, as 186's door does
+  (`apps/web/worker/userIssues.ts`). Each read is a `user_issue_watch` job
+  run, so a watch that stops shows on the ops dashboard. Like 186, this is
+  an exception to 141's "no production job runs in GitHub Actions" that
+  keeps 141's reasons: GitHub holds no production key, a late or dropped
+  run only tells the team later, and a schedule GitHub switches off shows
+  as a stale `user_issue_watch` within the hour. Considered: the Worker's
+  own cron (it would need the Linear key, and Claude, in the Worker); a
+  `diag_reader` login in GitHub (141 keeps production logins out of it).
+  The workflow runs every 15 minutes, so the ops dashboard reads its runs
+  apart from the others' (`FREQUENT_WORKFLOWS`).
+- **Claude judges; the script files.** Only when something is new, Claude
+  (the plan token of 186) reads the kinds and the team's Linear issues and
+  follows the `user-issues` skill: group what is one problem, find it in the
+  code, and decide. What people wrote is untrusted, so Claude has no
+  network, no key and no shell beyond reading git; its one output is a file
+  that `scripts/user-issues.mjs` checks (a kind it was not handed, or names
+  twice, is dropped). The script alone holds `LINEAR_API_KEY`.
+- **Linear is the alert.** Each new issue is in the LangQuest Next team
+  with the label User issue, assigned to the Linear user named in the
+  workflow (Caleb), whose Linear app tells him on his phone. GitHub stays
+  code only, since the repository and its Actions logs are public: the logs
+  carry counts, keys and issue ids, never what a person wrote, and no
+  address goes into Linear. When in doubt, the skill files: a missed problem
+  is what this exists to stop.
+Anthropic (Claude) and Linear now handle what people send from help mode;
+the privacy page names them as service providers.
+Reverse if: what it files is mostly noise after a week (then tighten what
+is handed over), or problems still go unseen for a day (then look at the
+assignment and the phone alerts first).
+
+Amended (2026-11-03, Caleb Koster): closed stays closed. The first run
+filed LAN-220 for a problem a pull request merged after the reports had
+already fixed (Play all, PR 295), and Caleb asked that issues the team has
+dealt with not come back, and that the ops dashboard say which pull request
+dealt with each. Decided (migration `20261103204500_user_issues_fixed.sql`):
+- **Already fixed** is a fourth verdict. Claude reads main's merges (the
+  checkout is 600 commits deep, `git log` and `git merge-base` only) and,
+  when one merged after every report fixes the kind, says `fixed` with the
+  pull request's number: nothing is filed.
+- **Linear decides open or closed.** Each run reads the state of every
+  issue the watch filed or commented on; closed there (Live, Canceled,
+  Duplicate; not Outage) closes its kinds, with the pull request linked on
+  the issue or the merge naming it, and marks what was sent from help mode
+  about it done. Opened again there, it is open again.
+- **Back only after the fix.** A fixed kind is handed over again only for
+  people who hit it more than a day after the fix, at least twice as many
+  as when last looked at (and two). Claude tells builds from before the fix
+  (it stays closed) from a fix that did not hold (the script reopens the
+  issue to Todo). Kinds now say the build (a browser's commit, a phone's
+  update or store build), since phones never send an app version.
+- **The ops dashboard's User issues section** (`diag.ops_user_issues()`)
+  lists each issue with its state in Linear and the pull request that fixed
+  it, and the kinds found already fixed.
+Considered: a list of closed kinds kept by hand (it would go stale, and
+Linear already says what is done); reopening on any new report (old phones
+and tabs keep reporting a fixed problem for days).
+
+Amended (2026-11-03, Caleb Koster): a draft fix with each new issue. Caleb
+chose (2026-11-03, thread "Auto-detect and fix user issues") that Claude
+opens a fix pull request right away with each new issue, not after a
+developer has looked at it, so a developer reviews the issue and its fix
+together. Decided (`.github/workflows/user-issues.yml`, the skill's "Writing
+a draft fix"):
+- **At most three a run**, each a draft pull request on
+  `user-issue/<issue>`, titled with the issue's id and linked on it. Claude
+  may answer that there is no fix, and the issue says why.
+- **What people wrote shapes the code, so the jobs trust each other less as
+  they go.** Claude edits with no key and no shell; the job that runs the
+  patch's code (typecheck, the nearest tests) holds no key and only reads;
+  the job that pushes and opens the pull request runs nothing of it. A
+  patch that changes how the repository builds, tests or deploys
+  (`.github/`, hooks, packages, `.env*`, agents' instructions, the watch) is
+  refused. Steps that hold a key after Claude run the scripts as they were
+  before Claude ran.
+- **Its checks wait for a person.** The pull request is opened with the
+  built-in token, which starts no checks, and guardrails run when a person
+  marks it Ready for review (`ready_for_review`). Guardrails hold the Expo
+  and Docker tokens, which code written from a stranger's words must not
+  reach before someone has read it. Opening pull requests with the built-in
+  token is a repository setting kept in `.github/actions-permissions.json`
+  (`npm run github:rules`).
+Considered: the Claude GitHub App's token, whose pull requests start checks
+at once (the guardrails would run unread code with their tokens); one job
+for all of it (Claude can write in the checkout, including `.git`, and a
+later step would run what it wrote with the keys).
+
+Amended (2026-11-04, Caleb Koster): Claude sees what came with each problem.
+Caleb sent a problem from help mode with a screenshot (LAN-224, playback
+slow on a low-end Android phone); the watch handed Claude only his words
+and that a screenshot came with them, and his phone had no error, so the
+issue and the draft fix were guesses. He asked that Claude see the pictures
+people send and the phone's timings and diagnostics. Decided (migration
+`*_user_issue_evidence.sql`, docs/diagnostics.md):
+- **Two more reads at the Worker's door**, for the watch workflow only:
+  `?media=<feedback id>`, a problem's screenshot and chosen picture (bugs
+  sent in the last 30 days or already judged), and `?phone=<install>&at=`,
+  that phone's build, model, OS and records from three days before to an
+  hour after, without organization or stream ids. The steps before Claude,
+  in the watch and the draft fix jobs, fetch them for each problem and up to
+  two phones of every other kind (12 a run) and keep them on the runner.
+- **The issue carries the phone's numbers**, written by the script from the
+  records, not by Claude: the half hour before the report, with downloads'
+  count, size and seconds per file, plays, opens and syncs, the disk. Claude
+  says what the screenshot and the numbers show, and follows the tap into
+  the code before it answers that there is no fix.
+- **None of it reaches the public repository.** Nothing that came with a
+  problem goes into a log or an artifact; the patch step drops a draft fix
+  that carries six words in a row of what the person wrote or one of the
+  problem's or phones' ids, and a draft fix may add no picture or recording.
+  The privacy page says Claude looks at the pictures and reads the phone's
+  diagnostics (Play's data safety answers stand: Anthropic is a processor).
+Considered: a link to the ops dashboard in the issue (what it did; a
+developer had to look, and Claude never did); the whole timeline in the
+issue (too long to read on a phone, and Claude still could not see the
+screenshot); the voice note (Claude cannot hear it).
+
+## 203. A study step shows the pictures and maps its text asks for, linked or not, and the rest after its text
+
+Date: 2026-11-03 · By: Caleb Koster · Status: accepted
+
+Reason: someone studying FIA on an iPhone wrote from help mode that the
+guide told them to stop and look at a map or a boat and there was nowhere to
+see it (LAN-222; Caleb asked for the fix). A step showed a picture or map
+only under the part whose text links it (`[boat](#m4)`), as the partner
+demo did. FIA's own text does not do that consistently: of the 1,524 English
+guides on production, 742 ask people to look at a picture or map the text
+never links though the passage has it (Luke 5:1–11 and Mark 4:35–41 among
+them), 378 link pictures by ids the passage does not carry, and most other
+languages link almost nothing (Portuguese 1 link in 352 guides, Swahili and
+Tok Pisin none), with picture titles often left in English. Decided, in
+`apps/mobile/src/study/picturesModel.ts` and `study/guide.tsx`, without
+changing FIA's documents:
+- A part that asks to look at something (it says map, picture, photo and the
+  like, in each of FIA's languages) and names a picture's title gets its
+  card, once per step; a map needs one of its places named when the part
+  asks for a map. A link finds its picture by its ref, by the ref without
+  leading zeros, or by the words of its label; a link that finds nothing
+  reads as plain words.
+- After the step's text come the pictures and maps no step links or names,
+  and when a part asks for something the app cannot match, every picture
+  and map the step does not show already. A step heard but not read shows
+  its own there.
+On English, parts that ask to look and have a card on the step went from
+32% to 81%; the rest are pictures and maps FIA does not have for that
+passage (385 of its English map links name maps it attaches to none).
+Considered: links added by the FIA adapter at seed time (`scripts/fia-adapter.ts`),
+which would reach phones only after the hosted library is seeded again and
+would not cover guides an organization writes; one "Pictures and maps" list
+per guide, which leaves the reader searching at the moment the guide says to
+look. Reverse if: teams report cards that do not match what the text asks
+for, or FIA's text comes to link every picture it mentions.
+
+## 204. A database job keeps the server's snapshots bounded, and keeps what a slow phone part-way through a download still needs
+
+Date: 2026-11-04 · By: Carl Sauder · Status: accepted
+
+Reason: 88's clean-up ran only inside `put_snapshot`, and only on the reducer
+version being written. Each deploy that bumps `REDUCER_VERSION` gives every
+language a new snapshot, and froze the old version's snapshots, pieces and
+whole cut for good (11 bumps from 2026-10-06 to 2026-10-30). A language that
+went quiet kept its last day's snapshots until it next changed. Hosted on
+2026-11-04, the snapshot tables held 17.7 GB beside 2.2 GB of events, and
+`ops_sizes` left out `snapshot_chunks`, over a third of that. All of it can be
+rebuilt from the log, so no rule here can lose work; what one can cost is a
+phone on a slow link its download.
+
+Carl chose a job in the database, `ops.purge_snapshots`
+(`langquest-purge-snapshots`, every 10 minutes, migration
+`20261104120000_snapshot_purge.sql`), not the projection pass, which skips
+quiet languages by design (68) and runs against a time budget. Each run takes
+at most 20 snapshots and stops once 200,000 pieces and rows are gone, so a
+backlog goes a little at a time, and records a `snapshot_purge` job run even
+with nothing to do, so a job that stops shows as stale. A snapshot goes when:
+- a newer one of its version has been out 24 hours (88), or it is beyond the
+  newest 30 of its version, unless it holds that version's only cut;
+- it is the newest of a version a later one replaced, that replacement came 7
+  days ago or more (`snapshots.superseded_at`), and no phone on that version
+  was seen in the last 14 days (`diag.installs`, updated by each delivery of
+  diagnostics).
+The only version a language has always stays. Rows a dead pass staged go after
+a day. `snapshot_units`, `snapshot_chunks` and `snapshots` are vacuumed at 2%
+dead rather than 20%, so a phone paging through a cut does not read past dead
+rows while a backlog goes, and plain vacuum gives back what is empty at the
+end of a table (the `state` of snapshots from before 147 goes this way, 190 MB
+to 2 MB in a test; no `VACUUM FULL`, which would block every read of the table).
+
+What each rule costs a slow phone, measured before building
+(`packages/sync/test/keptFill.test.ts`, the fleet's `slowLink` at 3,000
+passages and 2 KB/s, which reads pieces, not the cut):
+- A phone filling from the cut loses nothing when the cut is replaced under
+  it: a replaced cut after every step made no request more and no restart,
+  because what it filled stays and it reads the newest cut at or past where it
+  started. So the same version needs no window for it, only its newest cut.
+- A phone on an old version that loses that version's cut drops everything it
+  filled and pulls the whole log (`cutGone`). That turned down the first
+  proposal, deleting an old version after a flat 7 days: a native change can
+  leave a store build on an old reducer for weeks (151). The rule above holds
+  the version while such a phone is around, which costs one copy per language
+  per version in use.
+- Writing at most one snapshot an hour, the first proposal for a limit, was
+  turned down: joiners on a busy language went from 24 to 26 minutes and 3.8 MB
+  to 31 to 38 minutes and 4.5 to 5.5 MB, a longer tail after an older snapshot.
+  88's schedule stands and the cap of 30 sets the limit instead. With 2.5 hours
+  retained, what a cap leaves at one snapshot a pass, joiners at 2 KB/s took
+  the same 24 to 26 minutes. A 40 MB language's whole snapshot takes longer
+  than that at 2 KB/s, so such a download in a burst can go stale and start
+  over; a phone reading the cut does not.
+
+A redaction no longer waits for any of this: once a snapshot past it is
+stored, the pass calls `drop_snapshots_before`, which deletes every snapshot
+older than the redaction on every version, since those may hold what it
+removed and any member can read them through `get_snapshot_chunk`. A phone on
+an older version then has no snapshot, as it would have no snapshot past the
+redaction anyway. Snapshots folded past an old redaction stay: a new reducer's
+first tail is the whole log, and counting it would have dropped the old
+version on every deploy in a language with any redaction.
+
+Reverse if: `fill` records with `restart` and `cut_gone`, or `snapshot` records
+with `none`, rise after this among phones on an older reducer (then hold the
+version longer); or the tables grow past the database plan regardless (then a
+short key in `snapshot_units`' indexes, which hold 4.5 of its 7.7 GB, or 89's
+pieces in object storage).
+
+Amended (2026-11-06, Carl Sauder): an older snapshot now goes 6 hours after a
+newer one comes out, not 24 (migration
+`20261106120000_snapshot_window_and_copies.sql`), which amends 88 as well. The
+window serves only a whole-snapshot download that has not stopped: a phone
+filling from the cut reads the newest, and a phone that tries again asks for
+the newest and drops pieces of any other, so 88's phone that resumes later that
+day was never helped by it. 40 MB at 2 KB/s is about 5.5 hours, so 6 hours is
+the floor. A language writing one an hour keeps about 7 copies, not 25. Carl
+chose this now rather than once builds from before the cut are below the
+minimum version: until then those phones always read pieces, so a slower one
+on a big language can see its download go stale and start over.
+Reverse if: `snapshot` records with `stale` rise on `cold` first downloads.
+
+Amended (2026-11-06, Carl Sauder): an old version's last copy now goes 45 days
+after it was replaced, whoever still reports it, and a development build no
+longer holds a version. As first built, one install seen every 14 days held its
+version's copies for every language with no end, even a phone below the minimum
+version, whose diagnostics pass the gate (154) though it may not download. 45
+days allows for the three-week minimum-version cycle in 151 with a margin; it is
+a judgment, not a measurement. Past it, a phone still on that version pulls the
+log on a first download or a restarted fill, and its own work is safe.
+
+Amended (2026-11-06, Carl Sauder): an old version's last copy now waits 14 days
+after it was replaced, not 7, so one timer runs from the later of the replacement
+and the last phone seen on it. Carl pointed out that a store build in review can
+carry a version no phone has reported yet; 7 days could take its copy before
+approval. Shortening to 1 day was turned down for that reason, and so was having
+the release pipeline record each build's reducer, since one number covers it. A
+review over 14 days past the replacement, or a build cut from an older commit,
+still finds no copy: a new install on a slow link then pulls the log and its work
+is safe. At about one bump a week this keeps one or two versions nobody reports;
+at early October's three a week, five or six, each a copy per language.

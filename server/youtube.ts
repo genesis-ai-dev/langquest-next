@@ -11,9 +11,12 @@
  * unlisted with a line pointing to the new one, so its comments stay
  * readable (the plan's "What YouTube allows").
  */
+import type { UiLanguage } from '@langquest-next/core';
 import { HOME_ORDER, PLAYLISTS } from './youtubePlaylists';
 
-/** Each app language's channel (Caleb made them on 2026-10-28; handles @LangQuestApp and @LangQuestApp-<code>). */
+/**
+ * Each app language's channel (Caleb made them on 2026-10-28, Tagalog's on 2026-11-05; handles @LangQuestApp and @LangQuestApp-<code>).
+ */
 export const CHANNELS = {
   en: 'UC8Ry8oFIPWzDygngMwvkBLQ',
   es: 'UCpZYy6RO9gLD__QuUDVaEYg',
@@ -29,7 +32,8 @@ export const CHANNELS = {
   id: 'UC-f8cdUejSCRyPhQHZ0hEhQ',
   th: 'UC2FEow8Ygqhjtsc2ypLmiMg',
   my: 'UCRkSFyWmZ9Ogr9Te3bpNMzA',
-  'zh-Hans': 'UCMqJheVuxJt1Qwt9VWmj0Bg'
+  'zh-Hans': 'UCMqJheVuxJt1Qwt9VWmj0Bg',
+  tl: 'UC9Y_hNtSf43UnO7fUtnjeug'
 } as const;
 
 export type ChannelLanguage = keyof typeof CHANNELS;
@@ -46,9 +50,9 @@ export function languageOfChannel(channelId: string): ChannelLanguage | null {
  * banner (e2e/tutorials/banners.ts), the channel's description, and the
  * lines that lead to a video's download and to the page of all of them
  * (decisions.md 187). Machine translations, like the app's catalogs
- * (decisions.md 81).
+ * (decisions.md 81). Every app language has them, ready for its channel.
  */
-export const WORDS: Record<ChannelLanguage, { otherChannels: string; replacedBy: string; tagline: string; about: string; download: string; allVideos: string }> = {
+export const WORDS: Record<UiLanguage, { otherChannels: string; replacedBy: string; tagline: string; about: string; download: string; allVideos: string }> = {
   en: {
     otherChannels: 'Other LangQuest channels', replacedBy: 'Replaced by a newer video:', tagline: 'Tutorial videos',
     about: 'Short videos on how to use LangQuest, the free app for recording a Bible translation, checking it together and following its progress. One video for each task, kept up to date with the app.',
@@ -123,6 +127,11 @@ export const WORDS: Record<ChannelLanguage, { otherChannels: string; replacedBy:
     otherChannels: '其他 LangQuest 频道', replacedBy: '已由新视频取代：', tagline: '教程视频',
     about: 'LangQuest 使用教程短视频。LangQuest 是一款免费应用，用于录制圣经译文、一起审核并跟进进度。每项任务一个视频，随应用一同更新。',
     download: '下载本视频：', allVideos: '观看或下载全部视频：'
+  },
+  tl: {
+    otherChannels: 'Iba pang channel ng LangQuest', replacedBy: 'Pinalitan ng mas bagong video:', tagline: 'Mga video sa pagtuturo',
+    about: 'Maiikling video tungkol sa paggamit ng LangQuest, ang libreng app para i-record ang salin ng Bibliya, suriin ito nang magkakasama at sundan ang pag-usad nito. Isang video para sa bawat gawain, laging updated kasabay ng app.',
+    download: 'I-download ang video na ito:', allVideos: 'Panoorin o i-download ang bawat video:'
   }
 };
 
@@ -260,9 +269,21 @@ interface Section { id: string; snippet: { type: string; title?: string; positio
 interface Row { type: 'multipleChannels' | 'singlePlaylist'; title?: string; ids: string[] }
 
 /**
+ * The most channels one row of the other channels holds. A channel's home page
+ * shows no more than 12 in a row (on 2026-11-03 English's row of 14 showed
+ * Burmese and Chinese nowhere).
+ */
+const CHANNEL_ROW = 12;
+/** `all` in the fewest rows of at most `most`, as even as they go: the 14 others in 7 and 7, the 15 in 8 and 7. */
+const rowsOf = <T>(all: T[], most: number): T[][] => {
+  const size = Math.ceil(all.length / Math.max(1, Math.ceil(all.length / most)));
+  return Array.from({ length: Math.ceil(all.length / Math.max(1, size)) }, (_, i) => all.slice(i * size, (i + 1) * size));
+};
+
+/**
  * A channel's home page (decisions.md 191), laid out as BibleProject and other
- * channels lay out theirs: under the trailer, a row of the other LangQuest
- * channels, then a row for each of the channel's playlists in HOME_ORDER,
+ * channels lay out theirs: under the trailer, the other LangQuest channels in
+ * the fewest even rows of at most CHANNEL_ROW, then a row for each of the channel's playlists in HOME_ORDER,
  * everyone's first. Only the rows that differ are put or taken away, so a
  * channel already laid out costs 2 units of the day's 10,000; each row put
  * or taken away costs 50. A playlist with no video yet has no row until it
@@ -272,16 +293,10 @@ export async function setHome(fetcher: Fetch, token: string, language: ChannelLa
   const have = ((await answer<{ items?: Section[] }>(
     await fetcher(`${API}/channelSections?part=snippet,contentDetails&mine=true`, { headers: json(token) }))).items ?? [])
     .sort((a, b) => a.snippet.position - b.snippet.position);
-  const lists = new Map<string, string>();
-  let page = '';
-  do {
-    const got = await answer<{ items?: { id: string; snippet: { title: string } }[]; nextPageToken?: string }>(
-      await fetcher(`${API}/playlists?part=snippet&mine=true&maxResults=50${page ? `&pageToken=${encodeURIComponent(page)}` : ''}`, { headers: json(token) }));
-    for (const p of got.items ?? []) if (!lists.has(p.snippet.title)) lists.set(p.snippet.title, p.id);
-    page = got.nextPageToken ?? '';
-  } while (page);
+  const lists = await playlistsOf(fetcher, token);
   const want: Row[] = [
-    { type: 'multipleChannels', title: WORDS[language].otherChannels, ids: (Object.keys(CHANNELS) as ChannelLanguage[]).filter((l) => l !== language).map((l) => CHANNELS[l]) },
+    ...rowsOf((Object.keys(CHANNELS) as ChannelLanguage[]).filter((l) => l !== language).map((l) => CHANNELS[l]), CHANNEL_ROW)
+      .map((ids): Row => ({ type: 'multipleChannels', title: WORDS[language].otherChannels, ids })),
     ...HOME_ORDER.flatMap((who): Row[] => {
       const id = lists.get(PLAYLISTS[language][who]);
       return id ? [{ type: 'singlePlaylist', ids: [id] }] : [];
@@ -499,22 +514,82 @@ export async function uploadVideo(fetcher: Fetch, token: string, video: NewVideo
   return done.id;
 }
 
-/** The channel's playlist with this title, made when there is none (and `made` is told). */
-export async function playlistFor(fetcher: Fetch, token: string, title: string, language: ChannelLanguage, made?: () => void): Promise<string> {
+/** The channel's playlists by title (a title twice: the first). A unit for each 50. */
+export async function playlistsOf(fetcher: Fetch, token: string): Promise<Map<string, string>> {
+  const lists = new Map<string, string>();
   let page = '';
   do {
     const got = await answer<{ items?: { id: string; snippet: { title: string } }[]; nextPageToken?: string }>(
       await fetcher(`${API}/playlists?part=snippet&mine=true&maxResults=50${page ? `&pageToken=${encodeURIComponent(page)}` : ''}`, { headers: json(token) }));
-    const found = got.items?.find((p) => p.snippet.title === title);
-    if (found) return found.id;
+    for (const p of got.items ?? []) if (!lists.has(p.snippet.title)) lists.set(p.snippet.title, p.id);
     page = got.nextPageToken ?? '';
   } while (page);
-  const playlist = await answer<{ id: string }>(await fetcher(`${API}/playlists?part=snippet,status`, {
-    method: 'POST', headers: json(token),
-    body: JSON.stringify({ snippet: { title, defaultLanguage: language }, status: { privacyStatus: 'public' } })
+  return lists;
+}
+
+/**
+ * The channel's playlist with this title, made when there is none (and `made`
+ * is told). It is made in the channel's language, and without one when
+ * YouTube refuses that language for a playlist: the Hausa channel never got
+ * a playlist, though its videos went up in Hausa, and the publish job's
+ * first error on 2026-11-02 was localizationValidationError, which YouTube
+ * gives only for a playlist's or a channel's language (decisions.md 180).
+ */
+export async function playlistFor(fetcher: Fetch, token: string, title: string, language: ChannelLanguage, made?: () => void): Promise<string> {
+  const found = (await playlistsOf(fetcher, token)).get(title);
+  if (found) return found;
+  const make = async (snippet: Record<string, string>) => answer<{ id: string }>(await fetcher(`${API}/playlists?part=snippet,status`, {
+    method: 'POST', headers: json(token), body: JSON.stringify({ snippet, status: { privacyStatus: 'public' } })
   }));
+  let playlist: { id: string };
+  try {
+    playlist = await make({ title, defaultLanguage: language });
+  } catch (e) {
+    if (!(e instanceof YouTubeError && e.reason === 'localizationValidationError')) throw e;
+    playlist = await make({ title });
+  }
   made?.();
   return playlist.id;
+}
+
+/** One entry of a playlist: its own id, the video in it, and its place from 0. */
+export interface Entry { id: string; videoId: string; position: number }
+
+/** A playlist's entries in order. A unit for each 50. */
+export async function entriesOf(fetcher: Fetch, token: string, playlistId: string): Promise<Entry[]> {
+  const entries: Entry[] = [];
+  let page = '';
+  do {
+    const got = await answer<{ items?: { id: string; snippet: { position: number; resourceId: { videoId: string } } }[]; nextPageToken?: string }>(
+      await fetcher(`${API}/playlistItems?part=snippet&playlistId=${encodeURIComponent(playlistId)}&maxResults=50${page ? `&pageToken=${encodeURIComponent(page)}` : ''}`, { headers: json(token) }));
+    for (const i of got.items ?? []) entries.push({ id: i.id, videoId: i.snippet.resourceId.videoId, position: i.snippet.position });
+    page = got.nextPageToken ?? '';
+  } while (page);
+  return entries.sort((a, b) => a.position - b.position);
+}
+
+/** Puts a video in a playlist, at a place from 0, or at the end. 50 units. */
+export async function addToPlaylist(fetcher: Fetch, token: string, playlistId: string, videoId: string, position?: number): Promise<void> {
+  await answer(await fetcher(`${API}/playlistItems?part=snippet`, {
+    method: 'POST', headers: json(token),
+    body: JSON.stringify({ snippet: { playlistId, resourceId: { kind: 'youtube#video', videoId }, ...(position === undefined ? {} : { position }) } })
+  }));
+}
+
+/** Takes one entry out of its playlist. 50 units. */
+export async function removeEntry(fetcher: Fetch, token: string, entryId: string): Promise<void> {
+  await answer(await fetcher(`${API}/playlistItems?id=${encodeURIComponent(entryId)}`, { method: 'DELETE', headers: json(token) }));
+}
+
+/** Which of these videos anyone can find on the channel (public, not unlisted). A video gone is not among them. A unit for each 50. */
+export async function publicOf(fetcher: Fetch, token: string, ids: string[]): Promise<Set<string>> {
+  const shown = new Set<string>();
+  for (let i = 0; i < ids.length; i += 50) {
+    const got = await answer<{ items?: { id: string; status: { privacyStatus: string } }[] }>(
+      await fetcher(`${API}/videos?part=status&id=${ids.slice(i, i + 50).map(encodeURIComponent).join(',')}`, { headers: json(token) }));
+    for (const v of got.items ?? []) if (v.status.privacyStatus === 'public') shown.add(v.id);
+  }
+  return shown;
 }
 
 /**
@@ -529,11 +604,8 @@ export async function placeInPlaylist(fetcher: Fetch, token: string, playlistId:
       await fetcher(`${API}/playlistItems?part=snippet&playlistId=${encodeURIComponent(playlistId)}&videoId=${encodeURIComponent(replacing)}`, { headers: json(token) }));
     old = got.items?.[0];
   }
-  await answer(await fetcher(`${API}/playlistItems?part=snippet`, {
-    method: 'POST', headers: json(token),
-    body: JSON.stringify({ snippet: { playlistId, resourceId: { kind: 'youtube#video', videoId }, ...(old ? { position: old.snippet.position } : first ? { position: 0 } : {}) } })
-  }));
-  if (old) await answer(await fetcher(`${API}/playlistItems?id=${encodeURIComponent(old.id)}`, { method: 'DELETE', headers: json(token) }));
+  await addToPlaylist(fetcher, token, playlistId, videoId, old ? old.snippet.position : first ? 0 : undefined);
+  if (old) await removeEntry(fetcher, token, old.id);
 }
 
 /**

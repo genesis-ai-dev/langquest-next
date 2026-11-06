@@ -191,12 +191,17 @@ export function scopeLabel(scope: LanguageScope, books: readonly string[] = []):
   return t('admin.record.someBooks', { count: sorted.length });
 }
 
-/** "Bible stories · New Testament" for the checklist and the language page. */
+/**
+ * "FIA passages (English) · New Testament" for the checklist and the language
+ * page: the template by the name its own page gives it (one name each,
+ * decision 138), or what it divides the work into ("Bible stories") when it
+ * has none.
+ */
 export function recordSummary(doc: TemplateDoc | null | undefined, books: readonly string[] | undefined, name?: string): string {
   const kind = recordKind(doc);
   if (!kind) return name ?? t('admin.record.chosen');
   if (kind === 'outline') return name ?? doc?.name ?? t('admin.record.ownList');
-  return `${recordTitle(kind)} · ${scopeLabel(scopeOfBooks(doc, books), books)}`;
+  return `${name || recordTitle(kind)} · ${scopeLabel(scopeOfBooks(doc, books), books)}`;
 }
 
 // ---- who checks ----------------------------------------------------------------------
@@ -509,6 +514,7 @@ export function languageLabel(code: string | null | undefined): string {
     case 'ben': return t('admin.languageNames.ben');
     case 'npi': case 'nep': return t('admin.languageNames.npi');
     case 'mya': return t('admin.languageNames.mya');
+    case 'tgl': case 'fil': return t('admin.languageNames.tgl');
     case 'tpi': return t('admin.languageNames.tpi');
     case 'bis': return t('admin.languageNames.bis');
     case 'tir': return t('admin.languageNames.tir');

@@ -16,9 +16,10 @@
  */
 export const GROUPS = [
   { id: 'lookup', title: 'Look up', src: 'An error code someone read out (E-…), an email or profile id, an install id, or an organization or language name', parts: [] },
+  { id: 'userissues', title: 'User issues', src: 'What the watch for user issues filed in Linear or found already fixed, each issue\'s state and the pull request that fixed it', wide: true, parts: ['userissues'] },
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true, parts: ['safety'] },
   { id: 'phones', title: 'Phones and browsers', src: 'What installs report, the builds they run and how often each crashes, and phones that are stuck or quiet', wide: true, parts: ['clients', 'fleet'] },
-  { id: 'releases', title: 'Releases', src: 'main and its CI, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['code', 'releases', 'expo', 'adoption'] },
+  { id: 'releases', title: 'Releases', src: 'Where each store build and update is now, main and its CI, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['pipeline', 'code', 'releases', 'expo', 'adoption'] },
   { id: 'jobs', title: 'Server jobs', src: 'Each job\'s runs and whether it runs now, pg_cron, push delivery, and the v2 import', wide: true, parts: ['jobs', 'container', 'cron', 'push', 'v2'] },
   { id: 'database', title: 'Database', src: 'Connections, cache, slow calls, largest tables, long transactions, and the Supabase project', parts: ['database', 'dbdetail', 'supabase'] },
   { id: 'traffic', title: 'Workers and traffic', src: 'Each Cloudflare Worker\'s requests, errors and latest build, and the app Worker\'s routes', parts: ['cloudflare', 'worker'] },
@@ -32,24 +33,26 @@ export const GROUPS = [
 
 /** Sub-headings where a source's own title would repeat its section's, or say too little inside it. */
 export const PART_TITLES: Record<string, string> = {
-  clients: 'What installs report', fleet: 'Builds in the field and stuck phones', code: 'Code and deploys', releases: 'What shipped',
+  pipeline: 'Where each build and update is', clients: 'What installs report', fleet: 'Builds in the field and stuck phones', code: 'Code and deploys', releases: 'What shipped',
   expo: 'EAS builds and updates', adoption: 'Update adoption', jobs: 'Jobs', cron: 'pg_cron', push: 'Push delivery and Inbox', v2: 'v2 import',
   database: 'Health', dbdetail: 'Where the space goes', supabase: 'Supabase project', cloudflare: 'Cloudflare Workers', worker: 'App Worker routes, last 24 h',
   storage: 'Storage and backups', capacity: 'Capacity and cost', support: 'Queue', feedback: 'Feedback', security: 'Global Viewers and limits',
-  integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', filming: 'Filming', tutorials: 'Channels and videos', videofeedback: 'Feedback and suggestions'
+  integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', filming: 'Filming', tutorials: 'Channels and videos', videofeedback: 'Feedback and suggestions',
+  userissues: 'Problems people hit'
 };
 
 /** Read as diag_reader in one call (/ops/api/ops). */
-export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials', 'videofeedback'] as const;
+export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials', 'videofeedback', 'userissues'] as const;
 
 /** Each from its own call (/ops/api/<id>), like the providers. */
-export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'filming'] as const;
+export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'filming', 'pipeline'] as const;
 
 export const OPS_SECTIONS = [
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true },
   { id: 'fleet', title: 'Builds and stuck phones', src: 'Updates in the field and their crash-free rate, versions, time to a usable Map, stuck and silent phones', wide: true },
   { id: 'releases', title: 'Release health', src: 'Merges, deploys and EAS updates over 14 days against errors; hosts; migrations against main' },
   { id: 'adoption', title: 'Update adoption', src: 'For each channel, platform and runtime: the newest EAS update and how many active installs run it' },
+  { id: 'pipeline', title: 'Where each build and update is', src: 'Each store build in its stage (EAS, TestFlight or internal testing, review, live), with the over-the-air updates it takes (decisions.md 157)' },
   { id: 'container', title: 'Job container', src: 'Whether each server job runs now (the app Worker\'s JobStatus)' },
   { id: 'cron', title: 'Scheduled database jobs', src: 'pg_cron runs and failures, last 24 h' },
   { id: 'dbdetail', title: 'Database detail', src: 'Largest tables and indexes, dead rows, long queries and transactions' },
@@ -64,7 +67,8 @@ export const OPS_SECTIONS = [
   { id: 'capacity', title: 'Capacity and cost', src: 'Database and R2 growth against the plan, Cloudflare usage this month' },
   { id: 'filming', title: 'Filming', src: 'GitHub: the run of tutorials.yml on main filming now, or the latest, and each language\'s job (decisions.md 183)' },
   { id: 'tutorials', title: 'Tutorial videos', src: 'ops.youtube_channels and ops.tutorial_videos (decisions.md 180)' },
-  { id: 'videofeedback', title: 'Feedback on the videos', src: 'ops.tutorial_inputs and ops.tutorial_suggestions: comments, code changes and notes, and what Claude suggests each night (decisions.md 186)' }
+  { id: 'videofeedback', title: 'Feedback on the videos', src: 'ops.tutorial_inputs and ops.tutorial_suggestions: comments, code changes and notes, and what Claude suggests each night (decisions.md 186)' },
+  { id: 'userissues', title: 'User issues', src: 'ops.user_issues: what the watch filed in Linear, closed there, or found already fixed, with the pull request (decisions.md 202)' }
 ] as const;
 
 export const OPS_SCRIPT = String.raw`
@@ -109,13 +113,27 @@ Object.assign(RENDER, {
     ], p.lag);
     h += '<h3>Snapshots</h3><p>' + num(p.snapshots.overdue) + ' overdue (decision 88) · ' + num(p.snapshots.oldReducer) + ' on an older reducer · ' + num(p.snapshots.noCut) + ' not cut by passage yet</p>' +
       table([{ h: 'Language', v: (l) => esc(l.name || l.languageId) + ' <small>' + orgLink(l.orgId, 'org') + '</small>' }, { h: 'Events past it', n: true, v: (l) => num(l.behind) }, { h: 'Age', n: true, v: (l) => l.ageMinutes === null ? '–' : ms(l.ageMinutes * 60000) }], p.snapshots.worst);
+    if (d.copies) {
+      h += '<h3>Snapshot copies</h3><p>' + num(d.copies.total.snapshots) + ' copies of ' + num(d.copies.total.languages) + ' languages on ' + num(d.copies.total.versions) + ' reducer versions, ' + num(d.copies.total.pieces) + ' pieces, ' + bytes(d.copies.total.chars) + ' before compression</p>' + table([
+        { h: 'Reducer', v: (v) => esc(String(v.reducer)) }, { h: 'Languages', n: true, v: (v) => num(v.languages) }, { h: 'Copies', n: true, v: (v) => num(v.snapshots) },
+        { h: 'Pieces', n: true, v: (v) => num(v.pieces) }, { h: 'Size', n: true, v: (v) => bytes(v.chars) }, { h: 'Newest', v: (v) => when(v.newestAt) }, { h: 'Oldest', v: (v) => when(v.oldestAt) }
+      ], d.copies.byVersion) +
+      '<h3>Languages with the most copies</h3>' + table([
+        { h: 'Language', v: (l) => esc(l.name || l.languageId) + ' <small>' + orgLink(l.orgId, 'org') + '</small>' }, { h: 'Copies', n: true, v: (l) => num(l.snapshots) },
+        { h: 'Per reducer', v: (l) => l.perVersion.map((p) => esc(String(p.reducer)) + ': ' + num(p.snapshots)).join(' · ') }, { h: 'Size', n: true, v: (l) => bytes(l.chars) }
+      ], d.copies.languages);
+    }
     h += '<h3>Largest languages</h3>' + table([
       { h: 'Language', v: (l) => esc(l.name || l.languageId) + ' <small>' + orgLink(l.orgId, 'org') + '</small>' }, { h: 'Events', n: true, v: (l) => num(l.events) }, { h: 'Snapshot', n: true, v: (l) => bytes(l.snapshotBytes) }
     ], p.largest);
     return h;
   },
   fleet(d) {
-    let h = '<h3>Updates in the field, 14 days</h3>' + table([
+    let h = '<h3>Phones by build</h3>' + table([
+      { h: 'Platform', v: (b) => esc(b.platform) }, { h: 'Version', v: (b) => '<code>' + esc(b.version) + '</code>' }, { h: 'Reducer', v: (b) => esc(b.reducers || '–') },
+      { h: 'Last day', n: true, v: (b) => num(b.day) }, { h: 'Last 7 days', n: true, v: (b) => num(b.week) }, { h: 'Last 14 days', n: true, v: (b) => num(b.fortnight) }
+    ], d.builds || []);
+    h += '<h3>Updates in the field, 14 days</h3>' + table([
       { h: 'Update', v: (u) => '<code>' + esc(u.update) + '</code>' }, { h: 'Channel', v: (u) => esc(u.channel || '–') }, { h: 'Runtime', v: (u) => '<small>' + esc(u.runtime || '–') + '</small>' },
       { h: 'Installs', n: true, v: (u) => num(u.installs) }, { h: 'Crashed', n: true, v: (u) => '<span class="' + (u.crashed ? 'warn' : '') + '">' + num(u.crashed) + '</span>' },
       { h: 'Crash-free', n: true, v: (u) => share(u.installs - u.crashed, u.installs) }, { h: 'First seen', v: (u) => when(u.firstSeen) }
@@ -125,6 +143,11 @@ Object.assign(RENDER, {
     h += '<h3>Time to a usable Map</h3><p class="muted">open: a language\'s first full download; fill: a big language, until its Map shows.</p>' + table([
       { h: 'Day', v: (r) => esc(r.day) }, { h: 'Kind', v: (r) => esc(r.kind) }, { h: 'Count', n: true, v: (r) => num(r.count) }, { h: 'p50', n: true, v: (r) => hours(r.p50Ms) }, { h: 'p95', n: true, v: (r) => hours(r.p95Ms) }
     ], d.toMap.slice().reverse().slice(0, 14));
+    h += '<h3>First downloads that fell back or started over</h3>' + table([
+      { h: 'Day', v: (r) => esc(r.day) },
+      { h: 'What went wrong', v: (r) => (r.what === 'fallback' ? 'Took the whole snapshot' : r.what === 'restart' ? 'Started over' : 'No snapshot for reducer') + ' <code>' + esc(r.reason) + '</code>' },
+      { h: 'Count', n: true, v: (r) => num(r.count) }, { h: 'Installs', n: true, v: (r) => num(r.installs) }
+    ], (d.firstDownloads || []).slice(0, 20));
     h += '<h3>Stuck phones</h3>' + table([
       { h: 'Install', v: (s) => installLink(s.install) }, { h: 'Unsent for', n: true, v: (s) => s.unsentMin ? ms(s.unsentMin * 60000) : '–' },
       { h: 'Download stuck', n: true, v: (s) => s.stuckMin ? ms(s.stuckMin * 60000) : '–' }, { h: 'Free', n: true, v: (s) => s.freeMb === null ? '–' : num(s.freeMb) + ' MB' },
@@ -134,6 +157,42 @@ Object.assign(RENDER, {
     h += '<h3>Silent phones</h3><p>' + num(d.silent.count) + ' quiet for 3 days while another device of the same person reports.</p>' +
       (d.silent.installs.length ? '<p>' + d.silent.installs.map((s) => installLink(s.install) + ' <small>' + ageOf(s.lastSeen) + '</small>').join(' · ') + '</p>' : '');
     return h;
+  },
+  pipeline(d) {
+    // Each store build sits in the stage it is in now, an arrow to the next; inside it, the over-the-air updates it takes.
+    const PHONES = { ios: 'iPhones', android: 'Android phones' };
+    // A pull request shows in each build that has it: from main in the newer build, and as a copy in an older
+    // build through its release branch (decisions.md 155), first as a copy that waits, then as the update it sent.
+    // A copy that catches a build up on several shows each, the first few, then how many more.
+    const CAUGHT_UP = 3;
+    const update = (u, platform) => {
+      const phones = u.phones ? ' · ' + num(u.phones.on) + ' of ' + num(u.phones.of) + ' ' + PHONES[platform] + ' run it' : '';
+      const how = u.waiting ? 'PR open, not merged yet: copy PR ' + u.copy + ' ' + u.waiting + ' · ' : u.copy ? 'copied by PR ' + u.copy + ' · ' : '';
+      const small = esc(how) + esc(ago(u.at)) + esc(phones);
+      const cls = 'pu' + (u.waiting ? ' pend' : '') + (u.needsPerson ? ' stuck' : '') + (u.copy ? ' cp' : '');
+      const link = (n, name, body) => '<a class="' + cls + '" href="https://github.com/' + esc(d.repo) + '/pull/' + encodeURIComponent(n) + '" target="_blank" rel="noopener" title="' + esc(name) + '">' + body + '</a>';
+      if (u.rollBack || (!u.pr && !u.copy)) {
+        const name = u.rollBack ? 'Back to the build\'s own code' : 'Update ' + u.id.slice(0, 8);
+        return '<div class="' + cls + '" title="' + esc(name) + '"><b>' + esc(name) + '</b><small>' + small + '</small></div>';
+      }
+      if (!u.pr) { const name = 'Copy PR ' + u.copy + (u.title ? ' · ' + u.title : ''); return link(u.copy, name, '<b>' + esc(name) + '</b><small>' + small + '</small>'); }
+      const prs = [{ pr: u.pr, title: u.title }].concat(u.also || []);
+      const shown = prs.slice(0, prs.length > CAUGHT_UP + 1 ? CAUGHT_UP : prs.length);
+      const more = prs.length - shown.length + (u.more || 0);
+      return shown.map((p) => { const name = 'PR ' + p.pr + (p.title ? ' · ' + p.title : ''); return link(p.pr, name, '<b>' + esc(name) + '</b><small>' + small + '</small>'); }).join('') +
+        (more ? link(u.copy, num(more) + ' more PRs in copy PR ' + u.copy, '<b>' + esc(num(more) + ' more PRs in copy PR ' + u.copy) + '</b><small>' + small + '</small>') : '');
+    };
+    const card = (c, platform) => '<div class="pc ' + esc(c.tone) + '"><b>' + esc(c.title) + '</b>' + (c.version ? ' <small>' + esc(c.version) + '</small>' : '') +
+      '<span>' + esc(c.state) + '</span>' + (c.at ? '<small>' + when(c.at) + '</small>' : '') +
+      (c.updates.length ? '<div class="pus"><div class="puh">Over-the-air updates</div>' + c.updates.map((u) => update(u, platform)).join('') + '</div>' : '') + '</div>';
+    const arrow = '<div class="pa" aria-hidden="true"></div>';
+    const lane = (l) => '<div class="lane"><h3>' + esc(l.title) + '</h3><div class="flow">' + l.stages.map((s, i) => (i ? arrow : '') +
+      '<div class="stage"><div class="st" data-help-key="' + esc(s.title) + '">' + esc(s.title) + '</div>' +
+      (s.cards.length ? s.cards.map((c) => card(c, l.id)).join('') : '<div class="pc none">' + esc(s.unseen || 'none') + '</div>') + '</div>').join('') + '</div>' +
+      l.notes.map((n) => '<p class="muted">' + esc(n) + '</p>').join('') + '</div>';
+    return '<div class="legend"><span class="pc busy">on its way</span><span class="pc wait">waiting</span><span class="pc bad">needs a person</span><span class="pc live">what people get</span></div>' +
+      d.lanes.map(lane).join('') +
+      '<p class="muted"><small>Phones: active in the last ' + num(d.activeDays) + ' days, with diagnostics on.</small></p>';
   },
   adoption(d) {
     // Each row: one channel, platform and runtime the phones run. Newest is what EAS published last for exactly that.
@@ -376,6 +435,20 @@ Object.assign(RENDER, {
       d.videos.map((v) => '<option value="' + esc(v.tutorial) + '">' + esc(v.title) + '</option>').join('') + '</select>' +
       '<label for="note-text">Note</label><textarea id="note-text" maxlength="2000" rows="3"></textarea><p><button type="button" data-note>Add note</button></p>';
     return h;
+  },
+  // What the watch for user issues filed, closed or found already fixed, with the pull request (decisions.md 202).
+  userissues(d) {
+    const out = (href, text) => '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
+    const h = '<div class="stats">' + stat(num(d.open), 'open in Linear', d.open ? 'warn' : '', NOW) + stat(num(d.closed), 'closed in Linear', '', '90 days') +
+      stat(num(d.fixed), 'already fixed when seen', '', '90 days') + stat(num(d.noiseWeek), 'judged noise', '', LAST_WEEK) +
+      stat(d.last ? when(d.last.at) : 'never', 'last look', d.last && d.last.outcome !== 'ok' ? 'bad' : '', d.last ? d.last.outcome : '') + '</div>';
+    return h + table([
+      { h: 'Issue', v: (r) => r.issue ? out(r.issueUrl, esc(r.issue)) : '<span class="muted">not filed</span>' },
+      { h: 'What people hit', v: (r) => esc(r.title || r.keys[0]) + '<br><small>' + r.keys.slice(0, 3).map((k) => '<code>' + esc(k) + '</code>').join(' · ') + (r.keys.length > 3 ? ' …' : '') + '</small>' },
+      { h: 'In Linear', v: (r) => r.issue ? '<span class="' + (r.closedAt ? 'good' : 'warn') + '">' + esc(r.state || (r.closedAt ? 'closed' : 'open')) + '</span>' : '' },
+      { h: 'Fixed by', v: (r) => r.fixedBy ? out('https://github.com/genesis-ai-dev/langquest-next/pull/' + r.fixedBy, 'PR ' + esc(r.fixedBy)) + '<br><small>' + when(r.fixedAt) + '</small>' : r.closedAt ? '<span class="muted">no PR named</span>' : '' },
+      { h: 'Found', v: (r) => when(r.firstAt) }
+    ], d.issues);
   }
 });
 

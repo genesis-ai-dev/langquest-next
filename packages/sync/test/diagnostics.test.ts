@@ -62,6 +62,10 @@ describe('sanitizeDiag: the allowlist is the only way in', () => {
     expect(sanitizeDiag({ id: 'r', kind: 'load', at: 1, streamId: 'p1' })?.streamId).toBeUndefined();
     expect(sanitizeContext({ os: 'android', model: 'SM-A105F', ...({ email: 'a@b.c' } as object) })).toEqual({ os: 'android', model: 'SM-A105F' });
   });
+
+  it('keeps the store build a phone sends as its app version, so a report names it', () => {
+    expect(sanitizeContext({ os: 'ios', appVersion: '2026.1030.1319 (48)' })).toEqual({ os: 'ios', appVersion: '2026.1030.1319 (48)' });
+  });
 });
 
 describe('classifyTransferFailure', () => {
@@ -87,6 +91,9 @@ describe('classifyTransferFailure', () => {
     expect(classifyTransferFailure(new Error("There isn't enough space to save the file"))).toBe('disk');
     expect(classifyTransferFailure(new Error('A server with the specified hostname could not be found.'))).toBe('offline');
     expect(classifyTransferFailure(new Error('Failed to connect to /10.0.2.2'))).toBe('offline');
+    // Safari's fetch failure; our own "Download failed (404)" stays an answer.
+    expect(classifyTransferFailure(new TypeError('Load failed'))).toBe('offline');
+    expect(classifyTransferFailure(new Error('Download failed (500)'))).toBe('http5xx');
     // A hash in the text is not a status.
     expect(classifyTransferFailure(new Error('hash mismatch for 413abc: got 404def'))).toBe('hash');
   });
@@ -194,6 +201,19 @@ describe('Diagnostics', () => {
     await diag.settle();
     expect(store.records.find((r) => r.kind === 'audio')).toMatchObject({ orgId: 'o', streamId: 'p', n: { takes: 1, takeMs: 4200, micRefused: 1 } });
     expect(store.records.find((r) => r.kind === 'expected' && r.t.code === 'PGRST301')?.n.count).toBe(1);
+  });
+
+  it('adds how long plays waited for sound to the audio tally: how many, in all, and the longest', async () => {
+    const { store, diag } = make();
+    diag.audio({ orgId: 'o', streamId: 'p' }, 'plays', 3);
+    diag.audioWait({ orgId: 'o', streamId: 'p' }, 400.4);
+    diag.audioWait({ orgId: 'o', streamId: 'p' }, 9000);
+    diag.audioWait({ orgId: 'o', streamId: 'p' }, 1200);
+    diag.audioWait({ orgId: 'o', streamId: 'p' }, Number.NaN);
+    diag.audioWait({ orgId: 'o', streamId: 'p' }, -5);
+    diag.closeTallies();
+    await diag.settle();
+    expect(store.records.find((r) => r.kind === 'audio')).toMatchObject({ n: { plays: 3, waits: 3, waitMs: 10_600, maxWaitMs: 9000 } });
   });
 
   it('counts records dropped to stay in bounds, once', async () => {

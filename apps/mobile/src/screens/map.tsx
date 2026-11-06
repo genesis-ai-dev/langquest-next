@@ -38,7 +38,7 @@ import { NumberingNote } from '../breakup/parts';
 import { useVerseNumbering } from '../breakup/useBreakup';
 import { ChangedMark } from '../breakup/earlier';
 import { useEarlierSections } from '../breakup/useEarlierSections';
-import { BookBar, ChapterTileView, FullKey, NextLink, Pills, QuietIconLink, ShortKey } from '../map/mapParts';
+import { BookBar, BookColumn, ChapterTileView, FullKey, NextLink, Pills, QuietIconLink, ShortKey } from '../map/mapParts';
 import { HelpRow } from '../helpMode/helpBadge';
 import { chapterColumns } from '../ui/layout';
 import type { ClusterFilter } from '../clusters/model';
@@ -556,13 +556,15 @@ export function MapHome(ctx: Ctx) {
               {bookHits.length ? t('map.home.bookHits', { count: bookHits.length }) : t('map.home.noBook')}
             </Text>
             {bookHits.length > 0 ? (
-              <Group>
-                {bookHits.map((b, i) => (
-                  <HelpRow key={b.key} of="map.book">
-                    <BookRow b={b} filter="all" last={i === bookHits.length - 1} onPress={() => openBook(b.key)} />
-                  </HelpRow>
-                ))}
-              </Group>
+              <BookColumn>
+                <Group>
+                  {bookHits.map((b, i) => (
+                    <HelpRow key={b.key} of="map.book">
+                      <BookRow b={b} filter="all" last={i === bookHits.length - 1} onPress={() => openBook(b.key)} />
+                    </HelpRow>
+                  ))}
+                </Group>
+              </BookColumn>
             ) : null}
           </>
         ) : (
@@ -600,21 +602,23 @@ export function MapHome(ctx: Ctx) {
               {filter === 'all' ? t('map.home.noBooks') : t('map.nothingMatches')}
             </Text>
           ) : null}
-          {visible.length > 0 ? (
-            <Group>
-              {visible.map((b, i) => (
-                <HelpRow key={b.key} of="map.book">
-                  <BookRow b={b} filter={filter} last={i === visible.length - 1} onPress={() => openBook(b.key)} />
-                </HelpRow>
-              ))}
-            </Group>
-          ) : null}
-          {other ? (
-            <View style={{ gap: space.sm }}>
-              <SectionLabel label={t('map.other')} />
-              <Group><BookRow b={other} filter={filter} last onPress={() => openBook(OTHER)} /></Group>
-            </View>
-          ) : null}
+          <BookColumn>
+            {visible.length > 0 ? (
+              <Group>
+                {visible.map((b, i) => (
+                  <HelpRow key={b.key} of="map.book">
+                    <BookRow b={b} filter={filter} last={i === visible.length - 1} onPress={() => openBook(b.key)} />
+                  </HelpRow>
+                ))}
+              </Group>
+            ) : null}
+            {other ? (
+              <View style={{ gap: space.sm }}>
+                <SectionLabel label={t('map.other')} />
+                <Group><BookRow b={other} filter={filter} last onPress={() => openBook(OTHER)} /></Group>
+              </View>
+            ) : null}
+          </BookColumn>
         </>
       )}
       <FilterSheet visible={filterOpen} onClose={() => setFilterOpen(false)} filter={filter} counts={counts} onFilter={setFilter} summary={summary} />

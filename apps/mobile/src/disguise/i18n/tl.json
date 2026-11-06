@@ -1,0 +1,36 @@
+{
+  "disguise": {
+    "row": "Icon ng app",
+    "rowHelp": "Pinagmumukhang calculator o notepad ang LangQuest sa teleponong ito. Bubukas lang ito gamit ang code na pipiliin mo.",
+    "title": "Icon ng app",
+    "langquest": "LangQuest",
+    "ownHelp": "Ibinabalik ang sariling icon ng LangQuest. Bubukas ito nang walang code.",
+    "lookHelp": "Pinipili ang icon na ito. Susunod, pipiliin mo ang code na nagbubukas sa LangQuest.",
+    "calculatorN": "Calculator {{n}}",
+    "notesN": "Notes {{n}}",
+    "codeTitle": "Pumili ng code",
+    "code": "Code",
+    "codeHelp": "4 hanggang 12 digit. Sa calculator, i-type ito sa mga key. Sa notepad, i-type ito sa sarili nitong linya.",
+    "nextHelp": "Binubuksan ang calculator o notepad, para i-type mo roon ang iyong code.",
+    "backHelp": "Bumabalik nang isang hakbang.",
+    "tryTitle": "I-type ang iyong code",
+    "on": "Ipinapakita na ngayon ng teleponong ito ang {{name}}.",
+    "off": "Bumalik na ang sariling icon ng LangQuest.",
+    "notesTitle": "Notes",
+    "keys": {
+      "clear": "Clear",
+      "delete": "Burahin",
+      "percent": "Porsiyento",
+      "divide": "Hatiin",
+      "times": "Paramihin",
+      "minus": "Bawas",
+      "plus": "Dagdag",
+      "equals": "Katumbas",
+      "point": "Decimal point"
+    }
+  },
+  "native": {
+    "calculator": "Calculator",
+    "notes": "Notes"
+  }
+}

@@ -18,15 +18,20 @@ export interface AppStore {
   notes: string[];
 }
 
-interface Key { issuerId: string; keyId: string; privateKey: string }
+/** A team key (with its issuer id) or a person's individual key (without one), as App Store Connect gives them. */
+export interface AppStoreKey { issuerId?: string; keyId: string; privateKey: string }
+/** ADMIN_APP_STORE_KEY read as a key: `{"issuerId", "keyId", "privateKey"}`, or `{"keyId", "privateKey"}` for an individual key. */
+export const appStoreKey = (value: string): AppStoreKey => jsonSecret<AppStoreKey>(value, 'ADMIN_APP_STORE_KEY', ['keyId', 'privateKey']);
 interface Resource<A> { id: string; attributes?: A; relationships?: Record<string, { data?: { id: string; type: string } | null }> }
 
 const API = 'https://api.appstoreconnect.apple.com/v1';
 
 /** A token lives at most 20 minutes; one per request is cheap, so none is kept. */
-export async function appStoreToken(key: Key, now = Date.now()): Promise<string> {
+export async function appStoreToken(key: AppStoreKey, now = Date.now()): Promise<string> {
   const iat = Math.floor(now / 1000);
-  return signJwt('ES256', key.privateKey, { iss: key.issuerId, iat, exp: iat + 600, aud: 'appstoreconnect-v1' }, { kid: key.keyId });
+  // An individual key names no issuer; Apple takes `sub: "user"` in its place.
+  const who = key.issuerId ? { iss: key.issuerId } : { sub: 'user' };
+  return signJwt('ES256', key.privateKey, { ...who, iat, exp: iat + 600, aud: 'appstoreconnect-v1' }, { kid: key.keyId });
 }
 
 /** Versions whose review went wrong. */
@@ -96,9 +101,9 @@ export function storeReviewsFrom(list: Resource<ReviewAttrs>[], now = Date.now()
 
 export async function appStoreSection(env: { ADMIN_APP_STORE_KEY?: string; APP_STORE_APP_ID: string }, fetcher: typeof fetch = fetch, now = Date.now()): Promise<Section<AppStore>> {
   if (!env.ADMIN_APP_STORE_KEY) {
-    return off('Add ADMIN_APP_STORE_KEY: an App Store Connect API key with the Developer role (issuer id, key id and the .p8 file, as JSON; docs/admin.md).') as Section<AppStore>;
+    return off('Add ADMIN_APP_STORE_KEY: an App Store Connect API key as JSON: a team key with the Developer role (issuer id, key id and the .p8 file), or an individual key (key id and the .p8 file; docs/admin.md).') as Section<AppStore>;
   }
-  const key = jsonSecret<Key>(env.ADMIN_APP_STORE_KEY, 'ADMIN_APP_STORE_KEY', ['issuerId', 'keyId', 'privateKey']);
+  const key = appStoreKey(env.ADMIN_APP_STORE_KEY);
   const headers = { authorization: `Bearer ${await appStoreToken(key, now)}` };
   const id = encodeURIComponent(env.APP_STORE_APP_ID);
   const notes: string[] = [];

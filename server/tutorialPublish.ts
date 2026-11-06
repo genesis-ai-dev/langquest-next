@@ -8,7 +8,8 @@
  * channel's refresh token from Vault, and records a `tutorial_publish` job
  * run: `branded` and `brand_failed` (channels brought up to date first),
  * `held` (comments held for review, on all channels),
- * `due`, `published`, `replaced`, `failed` and `incomplete`, `channels_full`
+ * `due`, `published`, `replaced`, `failed` and `incomplete`, `tidied` (playlist
+ * places and old versions put right, tutorialPublisher.ts `tidyChannel`), `channels_full`
  * (channels at their own day's limit), `partial` when any failed or
  * YouTube's day ran out, for the project or a channel. Each channel's banner is read from the
  * web app (API_URL) too. The log prints counts, never
@@ -18,7 +19,7 @@
  */
 import { createClient } from '@supabase/supabase-js';
 import { errorClassOf, jobRunSink, noJobRuns } from './jobRuns';
-import { failureCode, publishTutorials, type Channel, type Due, type PublishReport } from './tutorialPublisher';
+import { failureCode, publishTutorials, type Channel, type Due, type PublishReport, type Up } from './tutorialPublisher';
 import { bannerPath } from './youtube';
 
 const url = process.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
@@ -40,7 +41,7 @@ process.once('SIGTERM', () => {
   console.error('SIGTERM: finishing the upload in hand');
 });
 // Counted as it goes, so a run cut short still reports what it did.
-const report: PublishReport = { branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, outOfQuota: false, channelsFull: 0, firstError: null };
+const report: PublishReport = { branded: 0, brandFailed: 0, held: 0, due: 0, published: 0, replaced: 0, failed: 0, incomplete: 0, tidied: 0, outOfQuota: false, channelsFull: 0, firstError: null };
 
 async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
   const { data, error } = await service.rpc(name, args);
@@ -54,6 +55,7 @@ try {
     fetcher: (input, init) => fetch(input, init),
     client: { clientId, clientSecret },
     due: (limit) => rpc<Due[]>('ops_tutorials_due', { p_limit: limit }),
+    up: () => rpc<Up[]>('ops_tutorials_up', {}),
     channels: () => rpc<Channel[]>('ops_youtube_channels', {}),
     banner: async (language) => {
       const response = await fetch(`${apiUrl.replace(/\/+$/, '')}${bannerPath(language)}`);
@@ -80,10 +82,10 @@ const errorClass = error !== undefined ? errorClassOf(error) : report.firstError
 await record({
   job: 'tutorial_publish', startedAt: started, ms: Date.now() - started,
   outcome: error !== undefined && report.published === 0 ? 'error' : error !== undefined || stopping || report.failed > 0 || report.incomplete > 0 || report.brandFailed > 0 || report.outOfQuota || report.channelsFull > 0 ? 'partial' : 'ok',
-  n: { branded: report.branded, brand_failed: report.brandFailed, held: report.held, due: report.due, published: report.published, replaced: report.replaced, failed: report.failed, incomplete: report.incomplete, out_of_quota: report.outOfQuota ? 1 : 0, channels_full: report.channelsFull },
+  n: { branded: report.branded, brand_failed: report.brandFailed, held: report.held, due: report.due, published: report.published, replaced: report.replaced, failed: report.failed, incomplete: report.incomplete, tidied: report.tidied, out_of_quota: report.outOfQuota ? 1 : 0, channels_full: report.channelsFull },
   ...(errorClass ? { errorClass } : {})
 });
-console.log(`channels: ${report.branded} brought up to date, ${report.brandFailed} failed, ${report.held} comments held for review`);
+console.log(`channels: ${report.branded} brought up to date, ${report.brandFailed} failed, ${report.tidied} playlist places and old versions put right, ${report.held} comments held for review`);
 console.log(`publish: ${report.published} of ${report.due} up (${report.replaced} replacing), ${report.failed} failed, ${report.incomplete} incomplete${report.outOfQuota ? ', out of YouTube\'s day' : ''}${report.channelsFull ? `, ${report.channelsFull} channels at their day's limit` : ''}, ${Math.round((Date.now() - started) / 1000)} s`);
 if (error !== undefined) {
   console.error(`failed: ${failureCode(error)}`);

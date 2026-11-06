@@ -47,20 +47,33 @@ const MIGRATION = 'Needs migration 20261023100000_ops_dashboard.sql on this data
 // ---- phones: builds, versions, stuck and silent ----------------------------------------------
 
 export interface Fleet {
+  /** Phones reporting, per platform and app version, as each last reported: over a day, a week and the two weeks this reads. */
+  builds: { platform: string; version: string; reducers: string | null; day: number; week: number; fortnight: number }[];
   updates: { update: string; runtime: string | null; channel: string | null; installs: number; crashed: number; firstSeen: string; lastSeen: string }[];
   versions: { reducer: string | null; protocol: string | null; installs: number }[];
   web: { commit: string | null; installs: number }[];
   toMap: { day: string; kind: 'open' | 'fill'; count: number; p50Ms: number | null; p95Ms: number | null }[];
+  /**
+   * First downloads that went wrong, per day: `fallback` took the whole
+   * snapshot and `restart` lost its cut (`reason` from the `fill` record), and
+   * `no_snapshot` had none for its reducer (`reason` is that reducer, as the
+   * install last reported it; decisions.md 147, 204).
+   */
+  firstDownloads: { day: string; what: 'fallback' | 'restart' | 'no_snapshot'; reason: string; count: number; installs: number }[];
   stuck: { install: string; unsentMin: number | null; stuckMin: number | null; freeMb: number | null; lostFiles: number | null; lostRecordings: number | null; at: string }[];
   silent: { count: number; installs: { install: string; lastSeen: string }[] };
 }
 
 /** Records are kept 90 days and indexed by arrival; installs by when they were last heard from. */
 export const FLEET_SQL = `with r as (
-  select install_id, kind, received_at, update_id, n, t from diag.records where received_at > now() - interval '14 days'
+  select install_id, org_id, stream_id, kind, received_at, update_id, n, t from diag.records where received_at > now() - interval '14 days'
 ),
 seen as (select install_id, profile_id, context, last_seen from diag.installs where last_seen > now() - interval '14 days')
 select jsonb_build_object(
+  'builds', (select coalesce(jsonb_agg(jsonb_build_object('platform', x.os, 'version', x.v, 'reducers', x.rv, 'day', x.d, 'week', x.w, 'fortnight', x.f) order by x.os, x.v desc), '[]'::jsonb)
+    from (select coalesce(context->>'os', '?') as os, coalesce(context->>'appVersion', '?') as v, string_agg(distinct context->>'reducerVersion', ', ') as rv,
+                 count(*) filter (where last_seen > now() - interval '1 day') as d, count(*) filter (where last_seen > now() - interval '7 days') as w, count(*) as f
+          from seen where coalesce(context->>'channel', '') <> 'development' and coalesce(context->>'os', '') <> 'web' group by 1, 2) x),
   'updates', (select coalesce(jsonb_agg(jsonb_build_object('update', x.up, 'runtime', x.rt, 'channel', x.ch, 'installs', x.i,
       'crashed', x.cr, 'firstSeen', x.fs, 'lastSeen', x.ls) order by x.fs desc), '[]'::jsonb)
     from (select coalesce(left(r.update_id, 8), 'embedded') as up, max(s.context->>'runtimeVersion') as rt, max(s.context->>'channel') as ch,
@@ -82,6 +95,17 @@ select jsonb_build_object(
                        case when kind = 'open' then (n->>'ms')::numeric else (n->>'msToMap')::numeric end as v
                 from r where kind = 'open' or (kind = 'fill' and t->>'event' = 'start')) q
           where v is not null group by 1, 2) x),
+  'firstDownloads', (select coalesce(jsonb_agg(jsonb_build_object('day', x.d, 'what', x.w, 'reason', x.re, 'count', x.c, 'installs', x.i) order by x.d desc, x.c desc, x.w, x.re), '[]'::jsonb)
+    from (select to_char(date_trunc('day', q.received_at), 'YYYY-MM-DD') as d, q.w, q.re, count(*) as c, count(distinct q.install_id) as i
+          from (select r.received_at, r.install_id,
+                       case when r.kind = 'snapshot' then 'no_snapshot' else r.t->>'event' end as w,
+                       case when r.kind = 'snapshot' then coalesce(s.context->>'reducerVersion', '?') else coalesce(r.t->>'reason', '?') end as re
+                from r left join seen s using (install_id)
+                where coalesce(s.context->>'channel', '') <> 'development'
+                  and ((r.kind = 'fill' and r.t->>'event' in ('fallback', 'restart'))
+                    -- The organization's and a person's streams never have a snapshot, so only a language's says anything.
+                    or (r.kind = 'snapshot' and r.t->>'outcome' = 'none' and r.stream_id <> '_org' and r.org_id <> '_person'))) q
+          group by 1, 2, 3 order by 1 desc, 4 desc limit 40) x),
   'stuck', (select coalesce(jsonb_agg(jsonb_build_object('install', x.install_id, 'unsentMin', x.un, 'stuckMin', x.st, 'freeMb', x.fr,
       'lostFiles', x.lf, 'lostRecordings', x.lr, 'at', x.received_at) order by x.received_at desc), '[]'::jsonb)
     from (select install_id, received_at, (n->>'oldestUnsentMin')::numeric as un, (n->>'wantedStuckMin')::numeric as st,
@@ -130,6 +154,14 @@ export interface Safety {
   arrivals: { day: string; sampled: number; newEvents: number; p50Ms: number | null; p95Ms: number | null; maxMs: number | null; futureStamped: number; futureInstalls: number }[];
   canary: { at: string; outcome: string; languages: number; mismatched: number; errorClass: string | null; org: string | null; stream: string | null }[];
   pipeline: Pipeline | null;
+  copies: SnapshotCopies | null;
+}
+
+/** How many copies of each language's snapshot the server holds: `diag.ops_snapshot_copies` (decisions.md 88, 204). */
+export interface SnapshotCopies {
+  total: { snapshots: number; languages: number; versions: number; pieces: number; chars: number };
+  byVersion: { reducer: number; languages: number; snapshots: number; pieces: number; chars: number; newestAt: string; oldestAt: string }[];
+  languages: { orgId: string; languageId: string; name: string | null; versions: number; snapshots: number; chars: number; perVersion: { reducer: number; snapshots: number }[] }[];
 }
 
 export interface Pipeline {
@@ -404,7 +436,7 @@ interface TutorialsRow {
   published: { language: string; videos: number; latestAt: string }[];
 }
 
-/** The 15 channels in CHANNELS's order with what the database knows of each. */
+/** Every channel in CHANNELS's order with what the database knows of each. */
 export function tutorialsOf(row: TutorialsRow): Tutorials {
   const languages = Object.keys(CHANNELS) as ChannelLanguage[];
   return {
@@ -481,22 +513,56 @@ export function feedbackAlerts(f: Feedback): Alert[] {
 
 const FEEDBACK_MIGRATION = 'Needs migration 20261029120000_tutorial_feedback.sql on this database.';
 
+// ---- the watch for user issues (decisions.md 202) ------------------------------------------------
+
+/** One Linear issue the watch filed or commented on, or one kind it found already fixed (no issue). */
+export interface UserIssueRow {
+  issue: string | null; issueUrl: string | null; title: string | null; verdict: 'filed' | 'known' | 'fixed';
+  /** Its state in Linear as last read, and when it closed there. */
+  state: string | null; closedAt: string | null;
+  /** The pull request on main that fixed it, and when it merged. */
+  fixedBy: number | null; fixedAt: string | null;
+  keys: string[]; people: number; firstAt: string; lookedAt: string;
+}
+
+/** diag.ops_user_issues(): the last 90 days, open issues first; counts; the last look. */
+export interface UserIssues {
+  issues: UserIssueRow[];
+  open: number; closed: number; fixed: number; noiseWeek: number;
+  last: { at: string; outcome: string; n: Record<string, number> | null } | null;
+}
+
+export function userIssuesOf(row: UserIssues): UserIssues {
+  return { ...row, open: num(row.open), closed: num(row.closed), fixed: num(row.fixed), noiseWeek: num(row.noiseWeek) };
+}
+
+export function userIssueAlerts(u: UserIssues): Alert[] {
+  const out: Alert[] = [];
+  if (u.open) out.push({ level: 'watch', text: `${plural(u.open, 'user issue')} open in Linear (User issues).` });
+  if (u.last && u.last.outcome !== 'ok') out.push({ level: 'problem', text: 'The watch for user issues failed to look at or file what it found (User issues).' });
+  return out;
+}
+
+const USER_ISSUES_MIGRATION = 'Needs migration 20261103204500_user_issues_fixed.sql on this database.';
+
 // ---- one load ---------------------------------------------------------------------------------
 
 export interface OpsSections {
   fleet: Section; safety: Section; people: Section; cron: Section; dbdetail: Section;
   push: Section; worker: Section; integrations: Section; support: Section; security: Section; tutorials: Section; videofeedback: Section;
+  userissues: Section;
 }
 
 /** Every section above on one connection; each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
-  const [fleet, rejected, arrivals, canary, pipeline, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
-    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback] = await Promise.all([
+  const [fleet, rejected, arrivals, canary, pipeline, copies, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
+    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications, tutorials, videofeedback, userissues] = await Promise.all([
     part<Fleet>(query, FLEET_SQL),
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
     part<Safety['canary']>(query, CANARY_SQL),
     part<Pipeline>(query, `select diag.ops_pipeline($1::int, $2::int, $3::bigint) as v`, [REDUCER_VERSION, SNAPSHOT_SCHEDULE.minNewEvents, SNAPSHOT_SCHEDULE.maxAgeMs]),
+    part<SnapshotCopies>(query, `select diag.ops_snapshot_copies() as v`),
     part<People>(query, `select diag.ops_people() as v`),
     part<{ orgs: OrgRow[] }>(query, `select diag.ops_orgs(20) as v`),
     part<{ day: string; events: number }[]>(query, EVENTS_BY_DAY_SQL),
@@ -514,7 +580,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<Support['actions']>(query, `select diag.ops_actions(15) as v`),
     part<VerificationRow[]>(query, `select diag.org_verification_requests() as v`),
     part<TutorialsRow>(query, `select diag.ops_tutorials() as v`),
-    part<Feedback>(query, `select diag.ops_tutorial_feedback() as v`)
+    part<Feedback>(query, `select diag.ops_tutorial_feedback() as v`),
+    part<UserIssues>(query, `select diag.ops_user_issues() as v`)
   ]);
 
   const routes = workerTotals.ok ? routeRows(workerTotals.value) : [];
@@ -527,7 +594,7 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     safety: build(safetyParts, '', () => {
       const s: Safety = {
         rejected: rejected.ok ? rejected.value : [], arrivals: arrivals.ok ? arrivals.value : [],
-        canary: canary.ok ? canary.value : [], pipeline: pipeline.ok ? pipeline.value : null
+        canary: canary.ok ? canary.value : [], pipeline: pipeline.ok ? pipeline.value : null, copies: copies.ok ? copies.value : null
       };
       return ok(s, safetyAlerts(s));
     }),
@@ -572,6 +639,10 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     videofeedback: build([videofeedback], FEEDBACK_MIGRATION, () => {
       const f = feedbackOf(val(videofeedback));
       return ok(f, feedbackAlerts(f));
+    }),
+    userissues: build([userissues], USER_ISSUES_MIGRATION, () => {
+      const u = userIssuesOf(val(userissues));
+      return ok(u, userIssueAlerts(u));
     })
   };
 }

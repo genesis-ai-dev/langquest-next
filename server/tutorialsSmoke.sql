@@ -275,14 +275,25 @@ do $$ begin
     raise exception 'a new video named an old one';
   exception when check_violation then null;
   end;
-  -- An answered comment a year old is taken out on the next read.
-  update ops.tutorial_inputs set at = now() - interval '13 months' where ref = 'Ugcomment-thanks-02';
+  -- A comment is kept 30 days after it was posted (migration *_tutorial_comments_30_days.sql); a note a year.
+  update ops.tutorial_inputs set at = now() - interval '31 days' where ref = 'Ugcomment-thanks-02' or kind = 'note';
 end $$;
 set local role service_role;
-select public.ops_comments_read('en', 'UC8Ry8oFIPWzDygngMwvkBLQ', '[]'::jsonb);
+select public.ops_comments_read('en', 'UC8Ry8oFIPWzDygngMwvkBLQ', jsonb_build_array(
+  jsonb_build_object('id', 'Ugcomment-old-0004', 'videoId', 'dQw4w9WgXcQ', 'text', 'Too old to copy', 'publishedAt', now() - interval '31 days'),
+  jsonb_build_object('id', 'Ugcomment-open-005', 'videoId', 'dQw4w9WgXcQ', 'text', 'Where is the record button?', 'publishedAt', now() - interval '3 days')));
 reset role;
 do $$ begin
-  assert not exists (select 1 from ops.tutorial_inputs where ref = 'Ugcomment-thanks-02'), 'kept a year';
+  assert not exists (select 1 from ops.tutorial_inputs where ref = 'Ugcomment-thanks-02'), 'a comment is kept 30 days';
+  assert not exists (select 1 from ops.tutorial_inputs where ref = 'Ugcomment-old-0004'), 'a comment posted over 30 days ago is not copied';
+  assert exists (select 1 from ops.tutorial_inputs where kind = 'note'), 'a note is kept a year';
+  assert exists (select 1 from ops.tutorial_inputs where ref = 'Ugcomment-bug-0001'), 'a comment of 2 days stays';
+  -- One Claude has not looked at goes too, by the hourly job, and its suggestions stay.
+  update ops.tutorial_inputs set at = now() - interval '31 days' where ref in ('Ugcomment-open-005', 'Ugcomment-bug-0001');
+  assert ops.tutorial_comments_expire() = 2, 'the two comments over 30 days taken out';
+  assert not exists (select 1 from ops.tutorial_inputs where kind = 'comment'), 'no comment over 30 days old';
+  assert (select count(*) from ops.tutorial_suggestions) = 2, 'the suggestions stay without their comment';
+  assert (select command from cron.job where jobname = 'langquest-purge-tutorial-comments') like '%ops.tutorial_comments_expire()%', 'taken out each hour';
 end $$;
 set local role diag_reader;
 do $$ declare v jsonb := diag.ops_tutorial_feedback(); begin
@@ -421,6 +432,30 @@ set local role diag_reader;
 do $$ declare w jsonb; begin
   select x into w from jsonb_array_elements(diag.ops_tutorials()->'waiting') x where x->>'sha256' = repeat('6', 64);
   assert w is not null and w->'chosenAt' = 'null'::jsonb, 'the dashboard shows an old tick as not chosen: %', w;
+end $$;
+reset role;
+
+-- What is up, for the job to put each channel's playlists in order (migration *_tutorials_up.sql, decisions.md
+-- 180 amended): each video's newest version up, its playlist and place, and the videos its older versions became.
+update ops.tutorial_videos set published_at = now() - interval '1 day' where language = 'en' and sha256 = repeat('a', 64);
+set local role service_role;
+do $$ declare v jsonb; x jsonb; begin
+  perform public.ops_tutorial_published('record-a-passage', 'en', repeat('e', 64), 'N3wV3rs10n0', null);
+  v := public.ops_tutorials_up();
+  assert jsonb_array_length(v) = 3, 'English''s one video and Spanish''s two; French has none up: %', v;
+  select e into x from jsonb_array_elements(v) e where e->>'language' = 'en';
+  assert x->>'youtubeId' = 'N3wV3rs10n0' and x->'older' = '["dQw4w9WgXcQ"]'::jsonb and x->>'playlist' = 'Translators'
+    and (x->>'position')::int = 29 and x->>'channelId' = 'UC8Ry8oFIPWzDygngMwvkBLQ', 'the newest English version, and the old one it replaced: %', x;
+  assert (select array_agg(e->>'tutorial') from jsonb_array_elements(v) e where e->>'language' = 'es') = array['trailer', 'find-your-way-around'],
+    'Spanish in the plan''s order, the trailer first: %', v;
+  assert (select bool_and(e->'older' = '[]'::jsonb) from jsonb_array_elements(v) e where e->>'language' = 'es'), 'nothing older in Spanish: %', v;
+end $$;
+reset role;
+do $$ begin
+  set local role authenticated;
+  perform public.ops_tutorials_up();
+  raise exception 'a signed-in person read what is up';
+exception when insufficient_privilege then null;
 end $$;
 reset role;
 

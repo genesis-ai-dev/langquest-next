@@ -16,6 +16,7 @@ export const GROUPS = [
       help: 'this list',
       dev: 'the whole local stack: Supabase, then the web Worker on :8787 until Ctrl-C',
       app: 'Metro for the dev client (apps/mobile)',
+      'app:web': 'the app in a browser, on Metro at :8081 (apps/mobile)',
       'web:dev': 'only the web Worker on :8787 (Reports, the API, the job container)',
       'admin:dev': 'the ops dashboard Worker on :8791 (docs/admin.md)',
       'db:start': 'local Supabase, the scheduled jobs and the library',
@@ -54,7 +55,7 @@ export const GROUPS = [
       'email:deploy:preview': 'the invite email Worker, preview (Cloudflare Workers Builds runs it)',
       'admin:deploy': 'the ops dashboard Worker, production (Cloudflare Workers Builds runs it)',
       'r2:buckets': "create an environment's R2 buckets when missing",
-      'github:rules': 'the GitHub rulesets in .github/rulesets: what would change (-- --apply to apply)',
+      'github:rules': 'the GitHub rulesets in .github/rulesets, .github/actions-permissions.json and .github/labels.json: what would change (-- --apply to apply)',
     },
   },
   {
@@ -64,7 +65,7 @@ export const GROUPS = [
       'env:check': 'no plaintext secret or misplaced key in committed env files',
       'env:update': 'change one setting or secret in its file and commit it',
       'env:eas': 'compare or push an EAS environment to its committed file',
-      secrets: "apply one environment's secrets to Cloudflare and Supabase",
+      secrets: "apply one environment's secrets to Cloudflare, Supabase, GitHub and EAS (-- --only eas: EAS alone)",
     },
   },
   {

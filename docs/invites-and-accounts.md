@@ -203,11 +203,16 @@ old phone is lost" when it is) → a QR. The person taps **Scan a code** on
 Sign In → signed in, with nothing to type; their Settings says who helped.
 (Before 59: they chose a new password.)
 
-**G. Lost password (own email).** Section 8: a sign-in key emailed through
-the existing Cloudflare email worker, using the same `sign-in-code`
-function. Until then, a steward or admin can do F for them only if the
-account is looked after; own-email accounts have no recovery yet, which is
-today's state.
+**G. Lost password (own email).** Sign In → **Forgot password?** → their
+email → **Send link**. The `password-reset` function emails a one-time link
+(`/signin#reset=<code>`) through the Cloudflare email worker, in the
+language the app showed; it opens **New password** in the app (app links,
+iPhone ones since decisions.md 58 was amended on 2026-11-03) or the web app,
+where the new password is set and they are signed
+in. It works once, for an hour. The answer is the same whether or not the
+address has an account; an address unknown here is passed to LangQuest v2,
+which sends its own reset email (decisions.md 200). A sign-in name has no
+email: Forgot password says so and offers Scan a code, for F.
 
 **H. Adding your own email (looked-after → own).** Section 8: Settings →
 Add your email → a sign-in key sent there proves it → the address changes
@@ -267,7 +272,9 @@ Built in this branch:
   `sign-in-code` function for stewards.
 - Sign in by sign-in name.
 
+Built later: G, Forgot password (decisions.md 200).
+
 Next, because they need email delivery through the Cloudflare worker
 (`apps/invite-email`) and so a deploy of their own:
 
-- G, H, and proving an address; then "only proven addresses may invite".
+- H, and proving an address; then "only proven addresses may invite".

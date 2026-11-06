@@ -104,7 +104,14 @@ const APP_ONLY: Record<string, string> = {
   'cluster_home->language_home': "a cluster's page lists its languages (decision 108, demo ADR-045)",
   'cluster_home->new_language': 'Add a language to it: a new one, already in the cluster (decision 108, demo ADR-045)',
   'new_language->cluster_home': 'a cluster made of languages already here opens its page (decision 108, demo ADR-045)',
-  'version_detail->workspace': 'a version\'s page edits it into a new draft, as the Versions page does (LAN-83)'
+  'version_detail->workspace': 'a version\'s page edits it into a new draft, as the Versions page does (LAN-83)',
+  'sign_in->forgot_password': 'Forgot password asks for a link to the account\'s own email (decision 200, docs/invites-and-accounts.md flow G)',
+  'forgot_password->scan_qr': 'a sign-in name has no email: a code from someone helping them is the way back (flow F)',
+  'scan_qr->new_password': 'a Forgot password link pasted or scanned on Scan a code opens New password (decision 200)',
+  'new_password->forgot_password': 'an expired or used link asks for a new one (decision 200)',
+  'new_password->terms_privacy': 'choosing a new password signs in, which accepts the terms, as Sign In does (AUTH-1)',
+  'new_password->sign_in': 'opened from a link with nothing under it, Back leads to Sign In, as on Scan a code',
+  'new_password->home_hub': 'opened from a link while signed in, Back and Done lead home, as on Scan a code'
 };
 
 /** App-only reference screens (docs/reference-material.md). */
@@ -119,8 +126,8 @@ const specEdges = (spec.edges as SpecEdge[]).filter(machine).filter(kept);
 const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
-  it('the screen set is the demo screen set plus sync status, account deletion, the Reports section, the reference screens, the guide editor, More Bibles, a check and a cluster, less the dropped screens', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'get_ready', 'settings_more', 'check_editor', 'cluster_home', 'global_viewer'].sort());
+  it('the screen set is the demo screen set plus sync status, account deletion, the Reports section, the reference screens, the guide editor, More Bibles, a check, a cluster and Forgot password, less the dropped screens', () => {
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'get_ready', 'settings_more', 'check_editor', 'cluster_home', 'global_viewer', 'forgot_password', 'new_password'].sort());
     // The drop list names only screens the spec has.
     expect(Object.keys(DROPPED).filter((s) => !spec.screens.includes(s))).toEqual([]);
   });

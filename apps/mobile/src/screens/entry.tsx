@@ -18,7 +18,7 @@ import {
   type ListedOrganization
 } from '../account/accountData';
 import { firstName, outboxErrorText, VISION_STEPS } from '../account/accountText';
-import { signInName } from '../auth/accounts';
+import { isSignInName, signInName } from '../auth/accounts';
 import { globalViewerLine } from '../account/globalViewerText';
 import { useGlobalViewer } from '../account/useGlobalViewer';
 import { licenseText } from '../i18n/coreText';
@@ -27,7 +27,7 @@ import { formatPercent } from '../i18n/format';
 import { inviteCard, scanVerdict } from '../invites/heldInvite';
 import { parseKey } from '../invites/inviteCode';
 import type { Ctx } from '../shell/ctx';
-import { createAccountWithEmail, signInWithEmail, signInWithKey, waitText } from '../auth/signInFlow';
+import { askResetLink, createAccountWithEmail, resetPassword, signInWithEmail, signInWithKey, waitText } from '../auth/signInFlow';
 import { queueJoinRequest } from '../auth/joinRequest';
 import { useAuthStep } from '../auth/useSignIn';
 import { createAccountReady, MIN_PASSWORD } from '../auth/model';
@@ -59,6 +59,7 @@ import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { LanguageChip } from '../account/uiLanguage';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
+import { touches } from '../ui/touches';
 
 /**
  * What to say when something fails (error-tracking): a command's own reason,
@@ -114,11 +115,15 @@ export function SignIn(ctx: Ctx) {
       ) : null}
       {/* Two ways in that never combine (the demo's ADR-031): the fields, or a code. */}
       <Card>
-        <Field label={t('entry.signIn.namePlaceholder')} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" help={t('entry.signIn.nameHelp')} />
+        {/* In a browser the cursor starts here, so typing can start at once (LAN-138). A phone keeps its keyboard down: it would cover the other ways in. */}
+        <Field label={t('entry.signIn.namePlaceholder')} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" help={t('entry.signIn.nameHelp')}
+          autoFocus={Platform.OS === 'web'} />
         {/* The button stays off until this can be an email or a sign-in name: say why. */}
         {nameNeedsFix(email) ? <Text style={txt.error}>{t('entry.signIn.nameHint')}</Text> : null}
         <Field label={t('entry.fields.password')} value={password} onChangeText={setPassword} secure autoCapitalize="none" help={t('entry.signIn.passwordHelp')}
           onSubmit={() => { if (ready && !busy) void submit(); }} />
+        <LinkBtn label={t('entry.signIn.forgot')} help={t('entry.signIn.forgotHelp')} style={{ alignSelf: 'flex-end' }}
+          onPress={() => ctx.go('forgot_password', email.trim() ? { email: email.trim() } : undefined)} />
         {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
         <PrimaryBtn label={busy ? t('entry.shared.signingIn') : t('entry.signIn.button')} help={t('entry.signIn.buttonHelp')} onPress={() => void submit()} disabled={!ready || busy} />
         <LinkBtn label={t('entry.signIn.cantSignIn')} help={t('entry.signIn.cantSignInHelp')} expanded={stuck} onPress={() => setStuck(!stuck)}
@@ -141,10 +146,9 @@ export function SignIn(ctx: Ctx) {
 }
 
 /**
- * Can't sign in? Nobody can reset their own password yet
- * (docs/invites-and-accounts.md, flow G), so this names the ways in that need
- * none: a code from someone on their team, scanned with Scan a code below,
- * or writing to us.
+ * Can't sign in? The ways in that need no password: a code from someone on
+ * their team, scanned with Scan a code below, or writing to us. A forgotten
+ * password has its own link, Forgot password?, under the field.
  */
 function CantSignIn() {
   return (
@@ -223,6 +227,128 @@ function useNow(until: number): number {
     return () => clearInterval(tick);
   }, [until]);
   return now;
+}
+
+// ---- Forgot password (docs/invites-and-accounts.md flow G, decision 200) ---------------------
+
+/**
+ * Someone who forgot their password asks for a link, sent to their own
+ * email; it opens New password. The answer is the same whether or not the
+ * address has an account (supabase/functions/password-reset). A looked-after
+ * account has no email: its sign-in name gets the way back it already has, a
+ * code from someone helping them (flow F).
+ */
+export function ForgotPassword(ctx: Ctx) {
+  const given = ctx.params['email'] ?? '';
+  const [email, setEmail] = useState(given);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [noEmail, setNoEmail] = useState(() => !given.includes('@') && isSignInName(given));
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const typed = email.trim();
+  const sent = sentTo !== null && sentTo === typed.toLowerCase();
+
+  async function send() {
+    setError('');
+    if (!typed.includes('@')) {
+      if (isSignInName(typed)) setNoEmail(true);
+      else setError(t('entry.errors.badEmail'));
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await askResetLink(typed);
+      if (result.kind === 'error') setError(result.text);
+      else setSentTo(typed.toLowerCase());
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Screen header={<Header title={t('entry.forgot.title')} onBack={ctx.back} />}>
+      <Field label={t('entry.fields.email')} value={email} placeholder={t('entry.createAccount.emailPlaceholder')} keyboardType="email-address" autoCapitalize="none"
+        help={t('entry.forgot.emailHelp')} onSubmit={() => { if (typed && !busy) void send(); }}
+        onChangeText={(v) => { setEmail(v); setError(''); setNoEmail(false); }} />
+      {noEmail ? (
+        <>
+          <Banner icon="people" title={t('entry.forgot.noEmailTitle')} body={t('entry.forgot.noEmailBody')} />
+          <GhostBtn label={t('entry.signIn.scanCode')} icon="qr" help={t('entry.signIn.scanCodeHelp')} onPress={() => ctx.go('scan_qr')} />
+        </>
+      ) : (
+        <>
+          {sent ? <Banner icon="check" tone="green" title={t('entry.forgot.sentTitle')} body={t('entry.forgot.sentBody', { email: sentTo })} /> : null}
+          {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
+          <PrimaryBtn label={busy ? t('entry.forgot.sending') : sent ? t('entry.forgot.sendAgain') : t('entry.forgot.send')} icon="send" help={t('entry.forgot.sendHelp')}
+            busy={busy} disabled={!typed || busy} onPress={() => void send()} />
+        </>
+      )}
+    </Screen>
+  );
+}
+
+/**
+ * A Forgot password link opened (useIncoming, or pasted on Scan a code):
+ * type the new password, and it is set and this phone signed in. Signed in
+ * already as that account, the phone stays signed in with the new password;
+ * as someone else, their sign-in is left alone and only the password
+ * changes. Setting it signs the account's other phones out (Supabase Auth);
+ * their unsent work waits there until they sign in again.
+ */
+export function NewPassword(ctx: Ctx) {
+  const code = ctx.params['code'] ?? '';
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(() => /^[0-9a-f]{64}$/.test(code) ? '' : t('entry.newPassword.expired'));
+  const [expired, setExpired] = useState(() => !/^[0-9a-f]{64}$/.test(code));
+  const [busy, setBusy] = useState(false);
+  const [changedFor, setChangedFor] = useState<string | null>(null);
+  const guest = ctx.session.isGuest;
+  const ready = password.length >= MIN_PASSWORD && !busy && !expired;
+
+  // Opened from a link, there is nothing under this screen: Back leads where
+  // the person would otherwise be, Sign In or their home (as Scan a code does).
+  const alone = () => !(navRef.isReady() && navRef.canGoBack());
+  const leave = () => { if (!alone()) ctx.back(); else if (guest) ctx.go('sign_in'); else ctx.home(); };
+
+  async function choose() {
+    setBusy(true);
+    setError('');
+    try {
+      const result = await resetPassword(code, password, guest ? null : ctx.session.actorId, { acceptTerms: ctx.acceptTerms, toast: ctx.toast, isDev: ctx.isDev });
+      if (result.kind === 'changed') setChangedFor(result.email);
+      else if (result.kind === 'expired') { setExpired(true); setError(result.text); }
+      else if (result.kind === 'error') setError(result.text);
+      // Signed out, the new session starts the app over as this account; signed in, the same account carries on at home.
+      else if (!guest) ctx.home();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (changedFor) {
+    return (
+      <Screen header={<Header title={t('entry.newPassword.title')} onBack={leave} />}
+        footer={<PrimaryBtn label={t('common.done')} icon="check" help={t('entry.newPassword.doneHelp')} onPress={() => ctx.home()} />}>
+        <Banner icon="check" tone="green" title={t('entry.newPassword.changedTitle')} body={t('entry.newPassword.changedBody', { email: changedFor })} />
+      </Screen>
+    );
+  }
+  return (
+    <Screen header={<Header title={t('entry.newPassword.title')} onBack={leave} />}>
+      <Field value={password} onChangeText={setPassword} placeholder={t('entry.createAccount.passwordPlaceholder')}
+        secure autoCapitalize="none" help={t('entry.newPassword.fieldHelp')} onSubmit={() => { if (ready) void choose(); }} />
+      {/* The placeholder that says so is gone once typing starts: say why the button stays off. */}
+      {password.length > 0 && password.length < MIN_PASSWORD ? <Text style={txt.error}>{t('entry.createAccount.tooShort')}</Text> : null}
+      {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
+      {expired ? (
+        <GhostBtn label={t('entry.newPassword.newLink')} icon="send" help={t('entry.newPassword.newLinkHelp')} onPress={() => ctx.go('forgot_password')} />
+      ) : (
+        <PrimaryBtn label={busy ? (guest ? t('entry.shared.signingIn') : t('entry.newPassword.changing')) : guest ? t('entry.newPassword.button') : t('entry.newPassword.changeButton')} icon="check"
+          help={guest ? t('entry.newPassword.buttonHelp') : t('entry.newPassword.changeHelp')} busy={busy} disabled={!ready} onPress={() => void choose()} />
+      )}
+      {guest && !expired ? <TermsLink ctx={ctx} i18nKey="entry.termsLine.signingIn" /> : null}
+    </Screen>
+  );
 }
 
 /** The line that says doing this accepts the terms, with the terms one tap away (ADR-022). */
@@ -307,7 +433,7 @@ export function Vision(ctx: Ctx) {
   // A phone's Back goes back a card, as the header's arrow does (decision 137).
   useHardwareBack(step > 0, () => setStep(step - 1));
   return (
-    <Screen
+    <Screen page={String(step)}
       header={<Header title={t('entry.vision.title')} sub={t('entry.vision.step', { current: step + 1, total: VISION_STEPS.length })} onBack={step === 0 ? ctx.back : () => setStep(step - 1)}
         {...(step > 0 ? { backHelp: t('entry.vision.backHelp') } : {})} />}
       footer={<PrimaryBtn label={last ? t('common.done') : t('common.next')} help={last ? t('help.details.done') : t('entry.vision.nextHelp')}
@@ -482,17 +608,21 @@ function EmailAccount(ctx: Ctx) {
   const { busy, error, checkEmail, run } = useAuthStep();
   const ready = createAccountReady(email, password, confirm);
   const create = () => run(() => createAccountWithEmail(email, password, { acceptTerms: ctx.acceptTerms, toast: ctx.toast, isDev: ctx.isDev }));
+  // Come from a scanned invite (LAN-137): it is kept, and joins this account once it is signed in.
+  const joining = ctx.invite.held?.claim.kind === 'next-account';
 
   if (checkEmail) {
     return (
       <Screen header={<Header title={t('entry.createAccount.title')} onBack={ctx.back} />}>
-        <EmptyState icon="check" title={t('entry.createAccount.createdTitle')} sub={t('entry.createAccount.createdSub', { email: email.trim() })} />
+        <EmptyState icon="check" title={t('entry.createAccount.createdTitle')}
+          sub={t(joining ? 'entry.createAccount.createdSubJoining' : 'entry.createAccount.createdSub', { email: email.trim() })} />
       </Screen>
     );
   }
 
   return (
     <Screen header={<Header title={t('entry.createAccount.title')} onBack={ctx.back} />}>
+      {joining ? <Banner icon="people" title={t('entry.createAccount.joinTitle')} body={t('entry.createAccount.joinBody')} /> : null}
       <Field label={t('entry.fields.email')} value={email} onChangeText={setEmail} placeholder={t('entry.createAccount.emailPlaceholder')} keyboardType="email-address" autoCapitalize="none"
         help={t('entry.createAccount.emailHelp')} />
       <Field label={t('entry.fields.password')} value={password} onChangeText={setPassword} placeholder={t('entry.createAccount.passwordPlaceholder')} secure autoCapitalize="none"
@@ -505,9 +635,14 @@ function EmailAccount(ctx: Ctx) {
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
       <PrimaryBtn label={busy ? t('entry.shared.creating') : t('entry.createAccount.button')} help={t('entry.createAccount.buttonHelp')} onPress={() => void create()} disabled={!ready || busy} />
       <TermsLink ctx={ctx} i18nKey="entry.termsLine.creating" />
-      <OrDivider />
-      <GhostBtn label={t('entry.createAccount.scanInvite')} icon="qr" help={t('entry.createAccount.scanInviteHelp')} onPress={() => ctx.go('scan_qr')} />
-      <Text style={[txt.xs, { textAlign: 'center' }]}>{t('entry.createAccount.scanHint')}</Text>
+      {/* With an invite already kept, scanning one is not the other way in. */}
+      {joining ? null : (
+        <>
+          <OrDivider />
+          <GhostBtn label={t('entry.createAccount.scanInvite')} icon="qr" help={t('entry.createAccount.scanInviteHelp')} onPress={() => ctx.go('scan_qr')} />
+          <Text style={[txt.xs, { textAlign: 'center' }]}>{t('entry.createAccount.scanHint')}</Text>
+        </>
+      )}
     </Screen>
   );
 }
@@ -560,6 +695,7 @@ export function ScanQr(ctx: Ctx) {
     if (!key) { setError(t('entry.scan.notCode')); return false; }
     setError('');
     if (key.kind === 'signin') { setSigninCode(key.code); return true; }
+    if (key.kind === 'reset') { ctx.go('new_password', { code: key.code }); return true; }
     setSigninCode(null);
     await invite.scan(key);
     return true;
@@ -614,6 +750,8 @@ export function ScanQr(ctx: Ctx) {
             onPress={() => ctx.go('create_account', { as: 'new', name: '' })} />
         )}
         <GhostBtn label={t('entry.scan.haveAccount')} disabled={joining} help={t('entry.scan.haveAccountHelp')} onPress={() => void invite.choose('next-account').then(() => ctx.go('sign_in'))} />
+        {/* A new account with an email and password, then the invite joins it, as it does an account already made (LAN-137). */}
+        <GhostBtn label={t('entry.scan.emailAccount')} disabled={joining} help={t('entry.scan.emailAccountHelp')} onPress={() => void invite.choose('next-account').then(() => ctx.go('create_account'))} />
       </>
     ) : (
       <>
@@ -647,7 +785,7 @@ export function ScanQr(ctx: Ctx) {
               <Ico name={held ? 'check' : 'qr'} size={72} color={held ? C.green : C.faint} />
             )}
             {(['tl', 'tr', 'bl', 'br'] as const).map((k) => (
-              <View key={k} style={[{ pointerEvents: 'none' }, styles.corner, {
+              <View key={k} style={[touches.none, styles.corner, {
                 borderColor: held ? C.soft : C.white,
                 ...(k[0] === 't' ? { top: 16, borderTopWidth: 3 } : { bottom: 16, borderBottomWidth: 3 }),
                 ...(k[1] === 'l' ? { left: 16, borderLeftWidth: 3 } : { right: 16, borderRightWidth: 3 })
@@ -985,7 +1123,7 @@ export function RequestAccess(ctx: Ctx) {
     // Someone already in an organization asked from Switch Organization goes back there (LAN-197).
     const done = () => (ctx.params['from'] === 'org_switcher' ? ctx.go('org_switcher') : ctx.go('intent_chooser'));
     return (
-      <Screen
+      <Screen page="asked"
         header={<Header title={failed ? t('entry.request.notSent') : t('entry.request.asked')} onBack={done} />}
         footer={failed ? <GhostBtn label={t('common.back')} help={t('entry.request.backHelp')} onPress={done} />
           : <PrimaryBtn label={t('common.done')} help={t('entry.request.doneHelp')} onPress={done} />}
@@ -1002,7 +1140,7 @@ export function RequestAccess(ctx: Ctx) {
   // One organization, and a message if they like.
   if (target) {
     return (
-      <Screen
+      <Screen page="ask"
         header={<Header title={target.orgName ? t('entry.request.askOrg', { org: target.orgName }) : t('entry.request.askUnknown')}
           {...(target.languageName ? { sub: target.languageName } : {})}
           onBack={given ? ctx.back : () => { setPicked(null); setError(''); }} />}
@@ -1019,7 +1157,7 @@ export function RequestAccess(ctx: Ctx) {
   const unloaded = refresh === 'stale' && listed.length === 0;
   // Find your organization (demo a-findOrg): the listed ones, each opening the form to ask it.
   return (
-    <Screen header={<Header title={t('entry.intent.findTitle')} onBack={ctx.back} />}>
+    <Screen page="find" header={<Header title={t('entry.intent.findTitle')} onBack={ctx.back} />}>
       {unloaded ? (
         <EmptyState icon="cloud" title={t('entry.request.loadFailedTitle')} sub={t('entry.request.loadFailedSub')}>
           <GhostBtn label={t('common.tryAgain')} icon="restart" help={t('entry.request.tryAgainHelp')} onPress={reload} />
@@ -1089,4 +1227,4 @@ const styles = StyleSheet.create({
   heroTile: { width: 64, height: 64, borderRadius: 24 }
 });
 
-export const contracts = contractsFor('sign_in', 'create_account', 'terms_privacy', 'vision', 'intent_chooser', 'create_org', 'explore_home', 'request_access', 'scan_qr');
+export const contracts = contractsFor('sign_in', 'create_account', 'terms_privacy', 'vision', 'intent_chooser', 'create_org', 'explore_home', 'request_access', 'scan_qr', 'forgot_password', 'new_password');

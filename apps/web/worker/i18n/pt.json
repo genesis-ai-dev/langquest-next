@@ -142,6 +142,7 @@
     "youtube": "Assistir no YouTube",
     "size": "{{mb}} MB",
     "none": "Ainda não há vídeos neste idioma.",
-    "failed": "Os vídeos não carregaram. Recarregue a página para tentar de novo."
+    "failed": "Os vídeos não carregaram. Recarregue a página para tentar de novo.",
+    "privacy": "Privacidade"
   }
 }

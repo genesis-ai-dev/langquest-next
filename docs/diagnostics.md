@@ -24,12 +24,23 @@ of these kinds, each with a fixed list of fields (`DIAG_SCHEMA`):
 | `device` | Each delivery | free and total disk (not on the web), audio cache size, files still wanted; files lost behind the app's back and unsent recordings among them (decision 92); takes mid-save and recoveries that failed; uploads waiting and the oldest unsent recording's age; the oldest wanted download's age; streams, events and database size held; diagnostics queued, and dropped past the 3000 bound |
 | `error` | A fault reaches `reportError` (`apps/mobile/src/diagnostics/report.ts`) | error class, where, the id shown to the person, fatal or not, a fixed code (a recorder's `nospace`, a SQLSTATE), stack frames |
 | `expected` | A failure already shown to the person (`noteExpected`), tallied per hour | where, error class, code; how many |
-| `audio` | Recording and playback, tallied per hour per language | takes and their total length, takes too short to keep, microphone refused, start, stop, save and compression failures, WAV kept, interruptions; plays, playback failures, taps on audio not yet on the phone, stream failures |
+| `audio` | Recording and playback, tallied per hour per language | takes and their total length, takes too short to keep, microphone refused, start, stop, save and compression failures, WAV kept, interruptions; plays, playback failures, taps on audio not yet on the phone, stream failures; plays that reached sound, how long they waited for it added up, and the longest wait (decision 182, amended 2026-11-04) |
 | `auth` | Signing in and staying in | what was tried (`sign_in`, `sign_up`, `code`, `v2`, `redeem`, `join`, `renew`, `ended`, `courier`, `outbox`, `route`, `delete`, `org_list`), how it ended, an Auth error code, SQLSTATE or our own code; ms, HTTP status, attempt, ages; for a hand-over, how much another person's sign-in left to send, never who; a sign-in from the phone's lock (decisions.md 168) is `sign_in` with action `lock_pattern` or `lock_password` |
 
 Every delivery also sends the phone's context: install id, OS and version,
-model (Android), runtime version, EAS update id and channel, whether the
-embedded bundle is running, reducer and protocol versions.
+model (Android), the store build installed (`appVersion`: the store's
+version and the build number, `2026.1030.1319 (48)`, since 2026-11-03),
+runtime version, EAS update id and channel, whether the embedded bundle is
+running, reducer and protocol versions. Feedback carries the same.
+
+Every report line about a phone names its build the way support asks it
+(`buildLabel`, `scripts/diagSignals.ts`): `build 48 (2026.1030.1319) · OTA
+update 01a1827 (production)`, or `no OTA update` when it runs the store
+build's own code. The update is cut to the seven characters the app shows
+under Sync, Details, so it matches what a person reads out. A phone from
+before the store build was sent shows `build ? (runtime fede04f0)`: its
+runtime names the store builds it can be, and only EAS's build list says
+which.
 
 **Web builds:** a browser has no expo-updates, so a record's
 `runtimeVersion` is the commit the web build was made from (its
@@ -147,7 +158,9 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   `mismatch` names the first language that differs, `server/foldCanary.ts`),
   the nightly R2 check (`blob_reconcile`: `streams`, `objects`, `missing`,
   recordings the log holds and R2 lacks, `orphaned`, files R2 had that the
-  log did not, `server/reconcileJob.ts`), each account deletion
+  log did not, `server/reconcileJob.ts`), the snapshot purge (`snapshot_purge`:
+  `snapshots`, `rows` and `staged` removed, every 10 minutes in the database,
+  `ops.purge_snapshots`, decision 204), each account deletion
   (`account_delete`, written by `_delete_account` with no id at all), the
   Worker's job tick (`job_starts`: jobs started, found running, switched
   off, or that could not start), push delivery
@@ -158,8 +171,9 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   isolate (`worker_requests`: `<route>_<2xx…5xx>`, `<route>_429` for a rate
   limit's refusal, and the time taken as `<route>_lt100ms`, `_lt1s`,
   `_lt10s` or `_over10s`; routes include `device` and `links`, the two
-  rate-limited ones, and `ops`, the ops dashboard), and invitation email (`invite_email`, from
-  `send-invite`, with the email service's code).
+  rate-limited ones, and `ops`, the ops dashboard), invitation email (`invite_email`, from
+  `send-invite`, with the email service's code), and Forgot password email
+  (`password_reset_email`, from `password-reset`, likewise).
 - `diag.job_schedule` says how often each runs; `diag.jobs()` gives each
   job's runs, failures, failure streak, last success and `stale` (no run
   that was not an error for over twice its schedule); `diag.job_history`
@@ -200,7 +214,7 @@ npm run diag -- jobs                               # the server's own jobs; --jo
 npm run diag -- inbox "LangQuest Sample"          # push delivery for an organization
 npm run diag -- v2                                 # the v2 import, per project
 npm run diag -- error E-7K2Q01                     # the code a person read out
-npm run diag -- timeline <installId> --days 3      # one phone, in order
+npm run diag -- timeline <installId> --days 3      # one phone and its build, then its records in order
 ```
 
 Without `DIAG_DATABASE_URL` it reads the local database. For the hosted
@@ -289,6 +303,133 @@ npm run diag -- timeline <installId> --days 2     # then what that phone recorde
 
 Kept a year, and deleted with the account. Seen and done are set from the
 admin page (`public.feedback_set_status`, service role).
+
+## The watch for user issues
+
+Nobody has to remember to look (decisions.md 202). Every 15 minutes
+`.github/workflows/user-issues.yml` asks the app's Worker what is new
+(`GET /api/user-issues`, which lets in only that workflow on main by its
+GitHub OIDC token; `apps/web/worker/userIssues.ts`). The database
+(`public.ops_user_issue_watch`, migration `*_user_issues.sql`) groups the
+last 7 days into **kinds**, named by the records' code-like tags:
+
+| Family | A kind, for example | From |
+| --- | --- | --- |
+| `error` | `error:TypeError@record:-` | an error record: name, where, code |
+| `sync` | `sync:error:pull:57014:ServerError`, `sync:unrenewed` | syncs that failed, were refused, too old or could not renew |
+| `transfer` | `transfer:down:source:failOther` | file transfers that failed, not offline |
+| `auth` | `auth:redeem:expired:-` | sign-in, joining and account changes that ended badly |
+| `expected` | `expected:<where>:<name>:<code>` | failures already shown to the person, from 10 |
+| `audio` | `audio:saveFail` | recording and playback failures |
+| `fill` | `fill:fallback:no_cut` | first downloads that fell back or started over |
+| `device` | `device:lostRecordings`, `device:uploadWaitingOverADay` | work lost or stuck on a phone |
+| `job` | `job:projection:failing` | a server job failing three times running, or stopped |
+| `worker` | `worker:blobs_get:5xx` | a Worker route answering 5xx at least 5 times in a day |
+| `feedback` | `feedback:<id>` | a problem sent from help mode (bugs, not ideas) |
+
+Development builds and the accounts in `ops.watch_ignored` (the store
+review account and Claude's production test account; an operator adds
+others with SQL) are left out. A kind is
+handed over when someone hit it in the last day and it was never looked at,
+at most 20 at a time, problems from help mode first.
+
+When something is new, Claude (`anthropics/claude-code-action`, the plan
+token of the tutorial review) reads the kinds and the team's Linear issues,
+follows the `user-issues` skill, and writes what it decided: a new problem,
+one the team already has, noise, or already fixed. Already fixed means a
+pull request merged into main after the reports fixes it (Claude reads
+main's merges with `git log`, 600 commits deep): nothing is filed, and the
+kind keeps the pull request's number and when it merged. `scripts/user-issues.mjs` then files
+each new problem in Linear's LangQuest Next team with the label **User
+issue**, assigned to the Linear user named in the workflow, and comments on
+an issue that a known kind belongs to. Then it tells the Worker what was
+done (`POST`), kept in `ops.user_issues`, so each kind is looked at once. A
+kind comes back when at least twice as many people (and two more) hit it: a
+filed one as a comment on its issue with the new numbers, noise to be
+judged again. Server kinds come back after a week; noise is forgotten after
+90 days.
+
+**Closed in Linear stays closed.** Every run reads the state of each issue
+the watch filed or commented on (180 days back) and sends what changed. An
+issue closed in Linear (Live, Canceled or Duplicate; not Outage, which says
+a deploy failed) closes its kinds too: they become already fixed, with the
+pull request linked on the issue (the newest) or the merge on main that
+names it, and a problem sent from help mode about it is marked done. An
+issue opened again in Linear is open for the watch again. A fixed kind, by
+Claude or by Linear, comes back only for people who hit it more than a day
+after the fix (time for browsers to reload and phones to take the update),
+at least twice as many as when it was last looked at and at least two.
+Claude then compares the builds they ran with the fix: builds from before
+it leave it closed; builds that have it mean the fix did not hold, and the
+script comments on the issue and moves it back to Todo. A build is a
+browser's commit (`web 4df4afdeaf0f`), a phone's update (`android update
+1a2b3c4d`) or store build by its runtime (`ios store build 492c168b`); the
+watch does not read the store build number phones send since 2026-11-03.
+
+The ops dashboard's **User issues** section (`diag.ops_user_issues()`)
+lists every issue the watch filed or commented on and every kind it found
+already fixed, the last 90 days: its state in Linear, the pull request that
+fixed it and when, and the last look.
+
+**Claude sees what came with each problem** (decisions.md 202, amended
+2026-11-04). Before Claude looks, the step before it asks the Worker for
+two more things and keeps them in `.user-issues/evidence` on the runner:
+
+| Asked for | Answered by | What it is |
+| --- | --- | --- |
+| `GET /api/user-issues?media=<feedback id>` | `public.ops_user_issue_media` | the screenshot and the chosen picture of a problem sent from help mode (bugs only, sent in the last 30 days or already judged), as JPEG files |
+| `GET /api/user-issues?phone=<install>&at=<time>` | `public.ops_user_issue_phone` | that phone's build, model and OS, and its records from three days before the time to an hour after, newest first, at most 400, without organization or stream ids |
+
+The phones are each problem's own and up to two of every other kind's, at
+most 12 a run (`scripts/user-issues.mjs` `evidencePlan`). Claude opens the
+pictures and the records before it judges, and says what they show. For a
+problem sent from help mode the script also writes that phone's half hour
+before the report into the issue, from the records alone (`phoneFacts`):
+downloads and uploads with their count, size and seconds per file, plays and
+recordings, opens and syncs, the disk. The draft fix job asks for the same
+for the issue's problem and phones, by the ids in its Agent notes, with its
+own OpenID Connect token before Claude runs. None of it goes into a log or
+an artifact, and the patch step drops a draft fix that carries the
+person's words (six in a row) or one of those ids, since the repository is
+public; a draft fix may add no picture or recording.
+
+An issue says what went wrong in plain words, what the watch counted
+(people, installs, platforms, builds, first and last seen), the
+person's own words for a problem from help mode (an email address taken
+out) with that phone's numbers, and, in its Agent notes, the kinds' keys (how later runs find it),
+a few install ids for `npm run diag -- --hosted timeline <installId>`, the
+newest stack, and where Claude thinks it comes from in the code. The
+repository is public, so the workflow's log says only counts, keys and
+issue ids.
+
+**A draft fix comes with each new issue** (at most three a run). After
+filing, the workflow hands each new issue back to Claude in a fresh checkout
+of main, following the skill's "Writing a draft fix": the smallest change
+that fixes it, with a test, or a reason why there is none (the cause is
+unclear, or it needs a person's decision, a store build or a dashboard).
+What people wrote shapes that code, so three jobs trust each other less as
+they go:
+
+| Job | Holds | Does |
+| --- | --- | --- |
+| `fix` | the Linear key, in a step before Claude; the Claude token | Claude edits the checkout with no shell but `git log`, `show` and `diff`; the patch is taken with the script and the repository copied before Claude ran |
+| `check` | no key; reads only | refuses a patch that changes `.github/`, hooks, packages, `.env*`, agents' instructions or the watch, then applies it, lets the git hooks rebuild what they rebuild, and runs typecheck and `vitest related` |
+| `open` | the Linear key; writes branches and pull requests | runs nothing of the patch: pushes it to `user-issue/<issue>`, opens it as a draft pull request titled with the issue's id, and links it on the issue with a comment |
+
+A pull request the built-in token opens starts no checks. Guardrails start
+when a person, having read the change, marks it Ready for review
+(`ready_for_review` in `guardrails.yml`); merging moves the issue on like any
+change whose commit names it. When there is no fix, the issue says why.
+Opening the pull request needs "Allow GitHub Actions to create and approve
+pull requests" (`.github/actions-permissions.json`, `npm run github:rules
+-- --apply`); without it the branch is pushed, the issue links it, and the
+run says "Needs you".
+
+The watch's runs are the ops dashboard's `user_issue_watch` job (it is
+stale after an hour without one) and `user_issue_look`. Without
+`CLAUDE_CODE_OAUTH_TOKEN`, or with one Claude refuses, a run fails with
+"Needs you: Claude token". To run it by hand: Actions → user-issues → Run
+workflow.
 
 ## Not built yet
 

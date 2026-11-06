@@ -60,7 +60,8 @@ export interface HelpRowAt {
  * of lists the part is in, the outermost first.
  */
 export type HelpLit =
-  | { kind: 'part'; part: string; mark: HelpMark; clip?: string; rows?: readonly HelpRowAt[] }
+  | { kind: 'part'; part: string; mark: HelpMark; clip?: string; rows?: readonly HelpRowAt[];
+    /** Dim and unnumbered while help is on; tapped, it still explains itself (HelpQuiet). */ quiet?: boolean }
   | { kind: 'lit'; clip?: string }
   | { kind: 'clip' };
 
@@ -237,6 +238,7 @@ export function helpLine(label: string, detail?: string): string {
  * finding 109): a browser with no Hausa voice would read Hausa words in
  * English, so the play button shows only when one matches. Simplified
  * Chinese takes a mainland or Singapore voice, never Hong Kong's or Taiwan's.
+ * Tagalog (locale fil) takes a voice tagged fil or tl, as phones name it.
  */
 export function voiceFor<V extends { lang: string }>(locale: string, voices: readonly V[]): V | undefined {
   const tag = (lang: string) => lang.replace(/_/g, '-').toLowerCase();
@@ -250,5 +252,6 @@ export function voiceFor<V extends { lang: string }>(locale: string, voices: rea
     });
   }
   const base = want.split('-')[0];
-  return voices.find((v) => tag(v.lang) === base) ?? voices.find((v) => tag(v.lang).split('-')[0] === base);
+  const bases = base === 'fil' ? ['fil', 'tl'] : [base];
+  return voices.find((v) => bases.includes(tag(v.lang))) ?? voices.find((v) => bases.includes(tag(v.lang).split('-')[0]));
 }

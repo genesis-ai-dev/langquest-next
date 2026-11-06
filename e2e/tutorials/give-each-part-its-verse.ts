@@ -108,8 +108,9 @@ export const giveEachPartItsVerse: Tutorial = {
     },
     {
       screen: 'workspace',
-      part: (page) => button(page, 'Close'),
-      say: "Close it when you're done.",
+      // The sheet's Done, the last on the screen: the recording screen has a Done of its own behind it.
+      part: (page) => button(page, 'Done'),
+      say: "Tap Done when you're finished.",
       tap: true,
       until: (page) => button(page, 'None').waitFor({ state: 'hidden', timeout: 10_000 }),
       stay: 0.6

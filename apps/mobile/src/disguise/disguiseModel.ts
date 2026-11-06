@@ -1,7 +1,9 @@
 // What disguise means (decisions.md 171), with no platform: the looks a
 // phone may take, the codes that open it, and the working calculator that
 // stands in front of the app. disguise.ts keeps the choice; faces.tsx draws it.
+// Its words come with it (disguiseWords.ts), and only Android's files import it.
 import { t } from '../i18n';
+import './disguiseWords';
 
 /** A calculator opens with its keypad, a notepad with a line of its own. */
 export type DisguiseKind = 'calculator' | 'notes';
@@ -10,7 +12,7 @@ export interface Look {
   /** Also the folder of its pictures under assets/disguise. */
   id: string;
   kind: DisguiseKind;
-  /** The app icon's name in app.json (expo-alternate-app-icons): the id in PascalCase. */
+  /** The app icon's name in plugins/withAndroidAppIcons.js (expo-alternate-app-icons): the id in PascalCase. */
   icon: string;
 }
 

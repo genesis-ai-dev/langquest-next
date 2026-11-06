@@ -41,8 +41,8 @@ export class FakeServer {
   /** The reducer the snapshot worker runs; a test raises it to model a deploy that bumps REDUCER_VERSION. */
   reducerVersion = REDUCER_VERSION;
   /**
-   * How long a replaced snapshot can still be downloaded (put_snapshot keeps
-   * it 24 hours, decisions.md 88). 0 drops it at once, as put_snapshot did.
+   * How long a replaced snapshot can still be downloaded (the purge job keeps
+   * it 6 hours, decisions.md 88, 204). 0 drops it at once, as put_snapshot did.
    */
   retainMs = 0;
   /** The server's clock, for retention; the fleet gives it simulated time. */
@@ -236,7 +236,7 @@ export class FakeServer {
     const key = `${orgId}/${streamId}`;
     const previous = this.snapshots.get(key);
     const now = this.now();
-    // As put_snapshot: a replaced snapshot goes once its successor has been out `retainMs`.
+    // As the purge job: a replaced snapshot goes once its successor has been out `retainMs`.
     const kept = [...(this.replaced.get(key) ?? []), ...(previous ? [{ snapshot: previous, replacedAt: now }] : [])]
       .filter((r) => this.retainMs > 0 && now - r.replacedAt < this.retainMs);
     this.replaced.set(key, kept);

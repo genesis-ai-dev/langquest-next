@@ -89,7 +89,8 @@
       "id": "Indonesiyanci",
       "zhHans": "Sinanci (sauƙaƙaƙƙe)",
       "th": "Thai",
-      "my": "Burmanci"
+      "my": "Burmanci",
+      "tl": "Tagalog"
     }
   },
   "core": {
@@ -349,13 +350,13 @@
     "settings_more": "Ƙarin saituna",
     "check_editor": "Dubawa",
     "cluster_home": "Rukuni",
-    "global_viewer": "Mai Kallo na Duniya"
+    "global_viewer": "Mai Kallo na Duniya",
+    "forgot_password": "Kalmar Sirri da Aka Manta",
+    "new_password": "Sabuwar Kalmar Sirri"
   },
   "native": {
     "microphone": "LangQuest yana naɗar muryarku don fassara nassosi.",
-    "camera": "LangQuest yana amfani da kyamara don karanta lambobin QR na gayyata.",
-    "calculator": "Kalkuleta",
-    "notes": "Bayanai"
+    "camera": "LangQuest yana amfani da kyamara don karanta lambobin QR na gayyata."
   },
   "library": {
     "sourceLine": {
@@ -731,6 +732,8 @@
       "languageHelp": "Yana buɗe shafinsa: ku shirya shi, ku ga aikinsa da mutanensa.",
       "licenseHelp": "Lasisin da aikin tawagarku yake ƙarƙashinsa. Tsari yana faɗin abin da ya yarda da shi.",
       "newLanguageHelp": "Yana ƙara harshe ga ƙungiyar, ko rukunin harsuna masu dangantaka.",
+      "newCluster": "Sabon rukuni",
+      "newClusterHelp": "Yana tara harsunan da ke nan ƙarƙashin suna ɗaya. Babu abin da zai canza a cikinsu.",
       "roleHelp": "Matsayinku a wannan ƙungiya. Shi ne yake ƙayyade abin da za ku iya yi a nan.",
       "clusterGroupHelp": "Harsunan wannan rukuni. Taɓa don nuna su ko ɓoye su.",
       "looseGroupHelp": "Harsunan da ba sa cikin kowane rukuni. Taɓa don nuna su ko ɓoye su.",
@@ -854,7 +857,7 @@
       "sent": "An aika gayyata zuwa {{address}} a matsayin {{role}}",
       "cannot": "Masu iya gayyatar membobi kaɗai ne za su iya gayyata a nan.",
       "byEmail": "Ta imel",
-      "byName": "Mutum ɗaya, da suna",
+      "byName": "Da suna: mutum ko rukuni",
       "emailTitle": "Gayyata ta imel",
       "send": "Aika gayyatar",
       "emailLabel": "Adireshin imel",
@@ -1228,7 +1231,8 @@
       "npi": "Nepalanci",
       "mya": "Burmanci",
       "tpi": "Tok Pisin",
-      "bis": "Bislama"
+      "bis": "Bislama",
+      "tgl": "Tagalog"
     },
     "helps": {
       "bibles_one": "Littafi Mai Tsarki na {{languages}}",
@@ -2863,7 +2867,9 @@
       "failed": "An kasa shiga. Ku sake gwadawa.",
       "scanCodeHelp": "Yana buɗe kyamara, don shiga da gayyata ko shiga da lambar mai taimaka muku.",
       "createAccountHelp": "Yana buɗe fom don imel ɗinku da sabuwar kalmar sirri.",
-      "browseHelp": "Ku ga ayyukan fassara da ƙungiyoyi suke rabawa a fili. Ba a buƙatar asusu."
+      "browseHelp": "Ku ga ayyukan fassara da ƙungiyoyi suke rabawa a fili. Ba a buƙatar asusu.",
+      "forgot": "Kun manta kalmar sirri?",
+      "forgotHelp": "Yana buɗe shafin da za ku sami mahaɗi ta imel don zaɓar sabuwar kalmar sirri."
     },
     "terms": {
       "title": "Sharuɗɗa da Sirri",
@@ -2926,9 +2932,12 @@
     },
     "createAccount": {
       "title": "Buɗe Asusu",
+      "joinTitle": "Ƙirƙiri asusunku don haɗuwa",
+      "joinBody": "An ajiye gayyatarku. Za ku haɗu da zarar kun shiga wannan asusun.",
       "button": "Buɗe Asusu",
       "createdTitle": "An buɗe asusu",
       "createdSub": "Ku buɗe mahaɗin da muka aika zuwa {{email}}, sannan ku shiga. Kuna iya kafa ƙungiya, ku nemi shiga ɗaya, ko ku karanta gayyata idan kun shirya.",
+      "createdSubJoining": "Ku buɗe mahaɗin da muka aika zuwa {{email}}, sannan ku shiga a wannan na'urar. An ajiye gayyatarku: za ku shiga tawagar da zarar kun yi haka.",
       "emailPlaceholder": "ku@example.com",
       "passwordPlaceholder": "Zaɓi kalmar sirri (haruffa 6 ko fiye)",
       "confirmLabel": "Tabbatar da kalmar sirri",
@@ -2954,6 +2963,7 @@
       "cameraOff": "An kashe izinin kyamara. Kuna iya liƙa lambar a ƙasa.",
       "joinAsYou": "Shiga a matsayinku",
       "haveAccount": "Ina da asusu tuni",
+      "emailAccount": "Ƙirƙiri asusu da imel",
       "notMe": "Ba {{name}} ba ne? Ku fara fita",
       "notYou": "Ba ku ba ne? Ku fara fita",
       "joinWhenConnected": "Shiga idan an haɗa",
@@ -2977,6 +2987,7 @@
       "joinAsHelp": "Yana shigar da ku tawagar a wannan na'ura a matsayin mutumin da gayyatar ta ambata.",
       "joinHelp": "Na gaba, ku rubuta sunanku. Sannan kun shiga tawagar.",
       "haveAccountHelp": "Ku fara shiga asusunku. Za ku shiga tawagar da zarar kun yi haka.",
+      "emailAccountHelp": "Da farko imel da kalmar sirri naku. Za ku shiga tawagar da zarar kun shiga.",
       "joinAsMeHelp": "Yana ƙara wannan asusu ga ƙungiyar da ke cikin gayyatar.",
       "notMeHelp": "Yana buɗe Fita, don mutumin da ya dace ya shiga a wannan na'ura.",
       "stopCameraHelp": "Yana kashe kyamara.",
@@ -3183,6 +3194,36 @@
       "notMe": "Ba hotona ba ne",
       "notMeHelp": "Yana komawa ga hotunan.",
       "pictureHelp": "Kun fita daga wannan waya? Taɓa hotonku, sannan ku zana zanenku. Ba a buƙatar intanet."
+    },
+    "forgot": {
+      "title": "Kalmar Sirri da Aka Manta",
+      "emailHelp": "Imel ɗin da kuke shiga da shi. Mahaɗin zai je can.",
+      "send": "Aika mahaɗi",
+      "sendAgain": "Sake aikawa",
+      "sending": "Ana aikawa…",
+      "sendHelp": "Yana aika mahaɗi ta imel don zaɓar sabuwar kalmar sirri. Yana buƙatar intanet.",
+      "sentTitle": "Ku duba imel ɗinku",
+      "sentBody": "Idan {{email}} yana da asusun LangQuest, mahaɗi don zaɓar sabuwar kalmar sirri yana kan hanya.",
+      "failed": "An kasa aika mahaɗin. Ku sake gwadawa.",
+      "noEmailTitle": "Wannan asusu ba shi da imel",
+      "noEmailBody": "Wani a tawagarku zai iya nuna muku lambar shiga."
+    },
+    "newPassword": {
+      "title": "Sabuwar Kalmar Sirri",
+      "fieldHelp": "Ku rubuta kalmar sirrin da za ku riƙa shiga da ita daga yanzu. Alamar ido tana nuna abin da kuka rubuta.",
+      "button": "Shiga",
+      "buttonHelp": "Yana mai da wannan kalmar sirrinku, kuma yana shigar da ku. Yana buƙatar intanet.",
+      "changeButton": "Canja kalmar sirri",
+      "changing": "Ana canjawa…",
+      "changeHelp": "Yana mai da wannan kalmar sirrin asusun. Yana buƙatar intanet.",
+      "expired": "Wannan mahaɗi ya ƙare ko an riga an yi amfani da shi.",
+      "newLink": "Aika sabon mahaɗi",
+      "newLinkHelp": "Yana buɗe shafin Kalmar Sirri da Aka Manta, don samun sabon mahaɗi ta imel.",
+      "failed": "An kasa canja kalmar sirri. Ku sake gwadawa.",
+      "signInFailed": "Sabuwar kalmar sirrinku ta shirya. Ku shiga da ita.",
+      "changedTitle": "An canja kalmar sirri",
+      "changedBody": "Daga yanzu, {{email}} zai shiga da sabuwar kalmar sirri.",
+      "doneHelp": "Koma babban shafinku."
     }
   },
   "account": {
@@ -4419,8 +4460,8 @@
       "cannotOpenHere": "Ba za a iya buɗe wannan daga nan ba.",
       "noPermission": "Ba ku da izinin buɗe wannan.",
       "backAgainToLeave": "Danna Koma sake don fita daga LangQuest",
-      "languageExplorer": "Mai zagaya harsuna",
-      "languageExplorerNewTab": "Mai zagaya harsuna, yana buɗewa a sabon shafi",
+      "languageExplorer": "Harsunan duniya da lambobinsu",
+      "languageExplorerNewTab": "Harsunan duniya da lambobinsu, yana buɗewa a sabon shafi",
       "tabBadge": "{{tab}}, {{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4436,11 +4477,15 @@
       "showMore_other": "Nuna ƙari {{count, number}} · saura {{left}}",
       "onOlderVersion": "a kan {{version}}",
       "orTypeReason": "Ko ku rubuta dalilin",
-      "reasonFootnote": "Wannan zai shiga tarihin nassin tare da sunanku. Ana iya janye shi daga baya; tarihin zai riƙe duka biyun."
+      "reasonFootnote": "Wannan zai shiga tarihin nassin tare da sunanku. Ana iya janye shi daga baya; tarihin zai riƙe duka biyun.",
+      "showPassword": "Nuna kalmar sirri",
+      "hidePassword": "Ɓoye kalmar sirri"
     },
     "person": {
       "showId": "{{name}}. Nuna lambar shaida",
       "noName": "Ba a sa suna ba tukuna",
+      "someone": "Wani",
+      "someoneInSentence": "wani",
       "id": "Lamba {{id}}",
       "anonymous": "{{shape}} {{color}}",
       "colors": {
@@ -4588,7 +4633,8 @@
       "done": "An gama a nan: yana komawa.",
       "undo": "Yana mayar da abin da yake nan a da.",
       "tryAgain": "Yana sake gwadawa sau ɗaya.",
-      "quickReason": "Yana amfani da wannan a matsayin dalilinku. Har yanzu kuna iya canja kalmomin."
+      "quickReason": "Yana amfani da wannan a matsayin dalilinku. Har yanzu kuna iya canja kalmomin.",
+      "showPassword": "Yana nuna kalmar sirrin da kuka rubuta, don ku duba ta. Sake taɓawa don ɓoye ta."
     },
     "tabs": {
       "work": "Abin da za ku yi na gaba: nassinku na gaba, da abin da ke jiran ku.",
@@ -4597,7 +4643,7 @@
       "manage": "Harsuna, mutane da saitunan ƙungiyarku.",
       "inbox": "Abin da ya faru da ya shafe ku: buƙatu, sharhi, mutanen da ke son shiga.",
       "me": "Sunanku, wannan na'ura da saitunanku.",
-      "explorer": "Yana buɗe mai binciken harsuna a sabon shafi: kowane harshe da inda ake magana da shi."
+      "explorer": "Yana buɗe jerin harsunan duniya a sabon shafi: lambobin kowane harshe da inda ake magana da shi. Waɗannan ba harsunan ƙungiyarku ba ne."
     },
     "sync": {
       "live": "Gajimare mai alamar daidai: an haɗa. Ana aika aikinka yayin da kake yi. Taɓa don ganin abin da aka aika.",
@@ -5035,8 +5081,8 @@
       "finishHelp": "Yana gama {{version}}: tawagar za ta iya jin ta.",
       "sendHelp": "Yana gama {{version}}, ya aika musu ita don wannan dubawa. Za su same ta a Aikina.",
       "askHelp": "Yana gama {{version}}, sannan ku zaɓi wanda za ku roƙa.",
-      "sendLater": "Aika daga baya",
-      "sendLaterHelp": "Yana gama {{version}} ba tare da kun roƙi kowa ba tukuna. Tawagar za ta iya jin ta.",
+      "doneAskNobody": "An gama, kada a roƙi kowa",
+      "doneAskNobodyHelp": "Yana gama {{version}} ba tare da kun roƙi kowa ba. Tawagar za ta iya jin ta, kuma duk wanda ke dubawa zai iya duba ta.",
       "nextCheck": "Duba na gaba",
       "checkNowHelp": "Yana gama {{version}}, sannan ya buɗe duba na gaba don ku yi shi da kanku yanzu."
     },
@@ -5142,6 +5188,7 @@
       "spaceSetHelp": "Zoben yana nufin kun zaɓi wannan aya. Riƙe don zaɓar wata, ko babu.",
       "pickHelp": "Yana ba {{part}} wannan aya. Sannan ku taɓa wata ta gaba don rufe ayoyi da yawa.",
       "pickedHelp": "An cika: {{part}} tana da wannan aya. Taɓa wata ta gaba don rufe ayoyi da yawa.",
+      "doneHelp": "Yana rufe ayoyin {{part}}. Abin da kuka zaɓa an riga an ajiye shi; Janye yana mayar da shi.",
       "autoHelp": "Manhajar tana gano ayar wannan sashe daga sassan da ke kewaye da shi.",
       "noneHelp": "Yana barin wannan sashe ba tare da aya ba.",
       "tileHelp": "Ayar da wannan sashe yake faɗi.",
@@ -6488,7 +6535,7 @@
     "finishWhat": "Gama {{what}}",
     "doneHelp": "Idan an faɗi kowane sashe: ku gama shi, ku aika shi zuwa dubawar da za ta saurare shi na gaba.",
     "notesForCheck_other": "Bayanai {{count, number}} don {{check}}",
-    "sendLaterHelp": "Yana gama {{what}} ba tare da kun roƙi kowa ba tukuna. Tawagar za ta iya jin sa.",
+    "doneAskNobodyHelp": "Yana gama {{what}} ba tare da kun roƙi kowa ba. Tawagar za ta iya jin sa, kuma duk wanda ke dubawa zai iya duba sa.",
     "chips": {
       "version": "Siga ta {{n}}"
     },
@@ -7139,6 +7186,7 @@
   },
   "referenceLanguage": {
     "question": "Da waɗanne harsuna ya kamata Littattafai Masu Tsarki da jagororin nazari na {{language}} su kasance?",
+    "questionAny": "Da waɗanne harsuna ya kamata kayan nassoshi na {{language}} su kasance?",
     "setPassages_one": "Jagororin {{name}} don nassi {{count, number}}",
     "setPassages_other": "Jagororin {{name}} don nassosi {{count, number}}",
     "bibles_one": "Littafi Mai Tsarki {{count, number}}",
@@ -7568,6 +7616,7 @@
       "note_other": "Harsunan da ke nan tuni suna riƙe da duk abin da suke da shi. Ana shirya sababbin harsuna {{count, number}} tare a matakai na gaba.",
       "onlyExisting": "Babu sabon abin da za a shirya: harsunan da ke nan tuni suna riƙe da duk abin da suke da shi.",
       "make": "Ƙirƙiri rukunin",
+      "makeHelp": "Yana ƙirƙirar rukunin da harsunan da ke sama. Da farko ka ba shi suna ka ƙara aƙalla harshe ɗaya.",
       "made_one": "An ƙirƙiri {{cluster}}, da harshe {{count, number}}.",
       "made_other": "An ƙirƙiri {{cluster}}, da harsuna {{count, number}}.",
       "forNew_one": "Don sabon harshe a {{cluster}}. Zai iya canza nasa daga baya.",
@@ -7717,36 +7766,6 @@
     "recordings_other": "Naɗe-naɗe {{count, number}}",
     "changes_one": "Canji {{count, number}}",
     "changes_other": "Canje-canje {{count, number}}"
-  },
-  "disguise": {
-    "row": "Alamar manhaja",
-    "rowHelp": "Yana sa LangQuest ya yi kama kalkuleta ko littafin rubutu a wannan waya. Yana buɗewa ne kawai da lambar da ka zaɓa.",
-    "title": "Alamar manhaja",
-    "langquest": "LangQuest",
-    "ownHelp": "Yana mayar da ainihin alamar LangQuest. Yana buɗewa ba tare da lamba ba.",
-    "lookHelp": "Yana zaɓar wannan alamar. Bayan haka za ka zaɓi lambar da ke buɗe LangQuest.",
-    "calculatorN": "Kalkuleta {{n}}",
-    "notesN": "Bayanai {{n}}",
-    "codeTitle": "Zaɓi lamba",
-    "code": "Lamba",
-    "codeHelp": "Lambobi 4 zuwa 12. A kalkuleta, rubuta ta da maɓallai. A littafin rubutu, rubuta ta ita kaɗai a layi.",
-    "nextHelp": "Yana buɗe kalkuleta ko littafin rubutu don ka rubuta lambarka a kai.",
-    "backHelp": "Yana komawa mataki ɗaya baya.",
-    "tryTitle": "Rubuta lambarka",
-    "on": "Wannan waya yanzu tana nuna {{name}}.",
-    "off": "Ainihin alamar LangQuest ta dawo.",
-    "notesTitle": "Bayanai",
-    "keys": {
-      "clear": "Share duka",
-      "delete": "Goge",
-      "percent": "Kashi cikin ɗari",
-      "divide": "Raba",
-      "times": "Ninka",
-      "minus": "Rage",
-      "plus": "Ƙara",
-      "equals": "Daidai da",
-      "point": "Digo"
-    }
   },
   "verified": {
     "sealLabel": "Ƙungiyar da aka tabbatar",

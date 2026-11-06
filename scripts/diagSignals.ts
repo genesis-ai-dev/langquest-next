@@ -136,6 +136,23 @@ const SOURCE: Record<string, string> = {
   guide: 'guide media', handover: 'hand-over', stream: 'streamed-play', source: 'source audio', help: 'help audio', study: 'study file'
 };
 
+/**
+ * Which build a phone or browser ran, from its diagnostics context, as
+ * support asks it: a phone's store build (number and version, its
+ * `appVersion`) and the OTA update it runs, or none when it runs the store
+ * build's own code; a browser's commit. Phones from before the store build
+ * was sent (2026-11-03) show their runtime instead. The update is cut to the
+ * seven characters the app shows under Sync, Details.
+ */
+export function buildLabel(c: Readonly<Record<string, string | undefined>>): string {
+  if (c.os === 'web') return `web build ${c.runtimeVersion ? c.runtimeVersion.slice(0, 12) : '?'}`;
+  const store = /^(\S+) \((\S+)\)$/.exec(c.appVersion ?? '');
+  const build = store ? `build ${store[2]} (${store[1]})`
+    : c.appVersion ? `build ? (${c.appVersion})` : `build ? (runtime ${c.runtimeVersion ? c.runtimeVersion.slice(0, 8) : '?'})`;
+  const update = c.embedded === 'yes' ? 'no OTA update' : c.updateId ? `OTA update ${c.updateId.slice(0, 7)}` : 'OTA update ?';
+  return `${build} · ${update}${c.channel ? ` (${c.channel})` : ''}`;
+}
+
 const KB = 1024;
 const MB = 1024 * KB;
 

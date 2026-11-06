@@ -33,7 +33,7 @@ import { Ico } from '../ui/kit';
 import { C, radius, type as T, withAlpha } from '../ui/theme';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audio/audioSession';
 import { cutWav, deleteRecorderFile } from '../audio/wavCut';
-import { playable } from '../audio/levelStore';
+import { playable, READY_MS } from '../audio/levelStore';
 import { createRecordingPlayer, unlockRecordingPlayer, type RecordingPlayer } from '../audio/recordingPlayer';
 import { noteExpected } from '../diagnostics/report';
 import { clampFrames, LIVE_BARS, liveBars, liveBoxes, liveClip, liveGaps, liveHeight, type LiveBar, type LiveBox, type LiveGap, type LiveState } from './livePartsModel';
@@ -41,6 +41,8 @@ import type { RecordingSession } from './recordingSession';
 import { usePinchHint } from './usePinchHint';
 import { useReduceMotion } from '../ui/useReduceMotion';
 import { mmss, partLabel } from './model';
+import { alwaysLtr } from '../ui/alwaysLtr';
+import { touches } from '../ui/touches';
 
 type Tone = 'onRed' | 'onCard';
 const LOST_ON_RED = '#7F1D1D';
@@ -128,28 +130,28 @@ export function LiveParts(props: {
       {...(editing ? {} : { importantForAccessibility: 'no-hide-descendants' as const, accessibilityElementsHidden: true })} {...gestures.panHandlers}>
       {s.seams.map((f) => {
         const x = (f - (end - frames)) * bw;
-        return x > 0 && x < size.w ? <View key={`seam-${f}`} pointerEvents="none" style={[styles.seam, { left: x, borderColor: ink.band }]} /> : null;
+        return x > 0 && x < size.w ? <View key={`seam-${f}`} style={[touches.none, styles.seam, { left: x, borderColor: ink.band }]} /> : null;
       })}
       {boxes.map((b) => b.silence ? (
-        <View key={boxKey(b)} testID={`live-silence-${b.n}`} pointerEvents="none" style={[styles.part, styles.silence, {
+        <View key={boxKey(b)} testID={`live-silence-${b.n}`} style={[touches.none, styles.part, styles.silence, {
           left: b.from * bw + SILENCE_INSET, width: Math.max(6, (b.to - b.from) * bw - 2 * SILENCE_INSET),
           borderColor: b.open ? ink.silenceOpen : ink.silence, backgroundColor: ink.silenceFill
         }]} />
       ) : (
-        <View key={boxKey(b)} testID={`live-part-${b.n}`} pointerEvents="none" style={[styles.part, {
+        <View key={boxKey(b)} testID={`live-part-${b.n}`} style={[touches.none, styles.part, {
           left: b.from * bw, width: Math.max(6, (b.to - b.from) * bw),
           borderColor: b.open ? ink.open : ink.box, backgroundColor: b.open ? ink.openFill : ink.boxFill, borderWidth: b.open ? 2.5 : 1.5
         }]} />
       ))}
       {/* Each number stays in sight while any of its box is; a silence's is outlined. */}
       {boxes.map((b) => (
-        <View key={`n-${boxKey(b)}`} pointerEvents="none" style={[styles.pill, b.silence
+        <View key={`n-${boxKey(b)}`} style={[touches.none, styles.pill, b.silence
           ? [styles.silencePill, { left: Math.max(b.from * bw, 0) + 3 + SILENCE_INSET, borderColor: b.open ? ink.silenceOpen : ink.silence }]
           : { left: Math.max(b.from * bw, 0) + 3, backgroundColor: b.open ? ink.pillOpen : ink.pill }]}>
           <Text style={[styles.pillText, { color: b.silence ? (b.open ? ink.silenceOpen : ink.silence) : b.open ? ink.pillOpenText : ink.pillText }]} maxFontSizeMultiplier={1.3}>{formatNumber(b.n)}</Text>
         </View>
       ))}
-      <View style={styles.bars} pointerEvents="none">
+      <View style={[touches.none, styles.bars]}>
         {bars.map((bar, i) => (
           <BarSlot key={i} level={percent(bar.db)} quiet={bar.quiet === null ? null : percent(bar.quiet)} color={ink.bar[bar.kind]} band={ink.band} />
         ))}
@@ -157,7 +159,7 @@ export function LiveParts(props: {
       {editing ? boxes.filter((b) => !b.silence).map((b) => <BoxTools key={`tools-${b.index}`} box={b} bw={bw} size={size} ink={ink} />) : null}
       {silenceXs.map((b) => <BoxTools key={`tools-${boxKey(b)}`} box={b} bw={bw} size={size} ink={ink} />)}
       {adds.map((a) => (
-        <View key={`add-${a.gap.chunk}-${a.gap.from}`} testID="live-add" pointerEvents="none" style={[styles.add, { left: a.cx - XS / 2, top: a.cy - XS / 2, borderColor: ink.mark }]}>
+        <View key={`add-${a.gap.chunk}-${a.gap.from}`} testID="live-add" style={[touches.none, styles.add, { left: a.cx - XS / 2, top: a.cy - XS / 2, borderColor: ink.mark }]}>
           <Ico name="plus" size={14} color={ink.mark} strokeWidth={3} />
         </View>
       ))}
@@ -167,15 +169,15 @@ export function LiveParts(props: {
           onNudge={(edge, ms) => { const p = s.parts[b.index]!; session?.edge(b.index, edge, (edge === 'from' ? p.from : p.to!) + ms / s.frameMs); props.onMoved?.(b.index); }} />
       )) : null}
       {adds.map((a) => (
-        <View key={`a11y-add-${a.gap.chunk}-${a.gap.from}`} pointerEvents="none" accessible accessibilityRole="button" accessibilityLabel={t('recording.recorder.addPart')}
+        <View key={`a11y-add-${a.gap.chunk}-${a.gap.from}`} accessible accessibilityRole="button" accessibilityLabel={t('recording.recorder.addPart')}
           onAccessibilityTap={() => props.onAdd?.(a.gap)} accessibilityActions={[{ name: 'activate' }]}
           onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'activate') props.onAdd?.(a.gap); }}
-          style={[styles.reader, { left: a.left, width: a.right - a.left }]} />
+          style={[touches.none, styles.reader, { left: a.left, width: a.right - a.left }]} />
       ))}
       {hint.show ? <PinchHint color={ink.mark} onDone={hint.done} /> : null}
-      {headAt !== null && headAt >= 0 && headAt <= size.w ? <View pointerEvents="none" style={[styles.head, { left: headAt - 1, backgroundColor: ink.mark }]} /> : null}
+      {headAt !== null && headAt >= 0 && headAt <= size.w ? <View style={[touches.none, styles.head, { left: headAt - 1, backgroundColor: ink.mark }]} /> : null}
       {editing && s.count > frames ? (
-        <View pointerEvents="none" style={[styles.track, { backgroundColor: ink.band }]}>
+        <View style={[touches.none, styles.track, { backgroundColor: ink.band }]}>
           <View style={[styles.thumb, { backgroundColor: ink.mark, left: `${((end - frames) / s.count) * 100}%`, width: `${Math.max(4, (frames / s.count) * 100)}%` }]} />
         </View>
       ) : null}
@@ -203,8 +205,8 @@ function BoxTools(props: { box: LiveBox; bw: number; size: { w: number; h: numbe
   const x = dropSpot(x0, x1, size);
   return (
     <>
-      {box.silence ? null : [x0, x1].map((ex, i) => ex >= 0 && ex <= size.w ? <View key={i} pointerEvents="none" style={[styles.handle, { left: ex - 3.5, top: size.h / 2 - 16, backgroundColor: ink.mark }]} /> : null)}
-      <View pointerEvents="none" style={[styles.drop, { left: x.cx - XS / 2, top: x.cy - XS / 2, backgroundColor: ink.mark }]}>
+      {box.silence ? null : [x0, x1].map((ex, i) => ex >= 0 && ex <= size.w ? <View key={i} style={[touches.none, styles.handle, { left: ex - 3.5, top: size.h / 2 - 16, backgroundColor: ink.mark }]} /> : null)}
+      <View style={[touches.none, styles.drop, { left: x.cx - XS / 2, top: x.cy - XS / 2, backgroundColor: ink.mark }]}>
         <Ico name="close" size={14} color={ink.markText} strokeWidth={3} />
       </View>
     </>
@@ -217,11 +219,11 @@ function BoxForReader(props: { box: LiveBox; bw: number; s: LiveState; onPlay: (
     const clip = liveClip(props.s, props.box);
     const label = partLabel(props.box.n - 1);
     return (
-      <View pointerEvents="none" accessible accessibilityRole="button" onAccessibilityTap={props.onPlay}
+      <View accessible accessibilityRole="button" onAccessibilityTap={props.onPlay}
         accessibilityActions={[{ name: 'activate' }, { name: 'drop', label: t('recording.deleteItem', { item: label }) }]}
         onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'activate') props.onPlay(); else if (e.nativeEvent.actionName === 'drop') props.onDrop(); }}
         accessibilityLabel={t('recording.recorder.silenceLength', { part: label, length: mmss(clip ? clip.toMs - clip.fromMs : 0) })}
-        style={[styles.reader, { left: Math.max(0, props.box.from * props.bw), width: Math.max(6, (props.box.to - props.box.from) * props.bw) }]} />
+        style={[touches.none, styles.reader, { left: Math.max(0, props.box.from * props.bw), width: Math.max(6, (props.box.to - props.box.from) * props.bw) }]} />
     );
   }
   const p = props.s.parts[props.box.index]!;
@@ -242,9 +244,9 @@ function BoxForReader(props: { box: LiveBox; bw: number; s: LiveState; onPlay: (
     }
   };
   return (
-    <View pointerEvents="none" accessible accessibilityRole="button" accessibilityActions={actions} onAccessibilityAction={act}
+    <View accessible accessibilityRole="button" accessibilityActions={actions} onAccessibilityAction={act}
       accessibilityLabel={t('recording.recorder.partLength', { part: label, length: mmss(((p.toMs ?? 0) - (p.fromMs ?? 0))) })}
-      style={[styles.reader, { left: Math.max(0, props.box.from * props.bw), width: Math.max(6, (props.box.to - props.box.from) * props.bw) }]} />
+      style={[touches.none, styles.reader, { left: Math.max(0, props.box.from * props.bw), width: Math.max(6, (props.box.to - props.box.from) * props.bw) }]} />
   );
 }
 
@@ -426,7 +428,7 @@ function useBoxPlayer(editing: boolean) {
         const uri = await cutWav(from, clip.fromMs, clip.toMs);
         if (run.current !== mine) { deleteRecorderFile(uri); return; }
         // At even loudness, as the part will play once kept (levelStore.ts, decision 182).
-        const heard = await playable(null, uri);
+        const heard = await playable(null, uri, READY_MS);
         if (run.current !== mine) { deleteRecorderFile(uri); return; }
         await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });
         const player = createRecordingPlayer(heard, { updateInterval: 50 });
@@ -476,7 +478,7 @@ function PinchHint(props: { color: string; onDone: () => void }) {
     opacity: spread.interpolate({ inputRange: [0, 0.1, 0.9, 1], outputRange: [0.4, 1, 1, 0.6] })
   });
   return (
-    <View testID="live-pinch-hint" pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={styles.hint}>
+    <View testID="live-pinch-hint" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={[touches.none, styles.hint]}>
       {([-1, 1] as const).map((side) => (
         <Animated.View key={side} style={[styles.tip, { borderColor: props.color, backgroundColor: withAlpha(props.color, 0.3) }, tip(side)]} />
       ))}
@@ -488,7 +490,7 @@ const PILL = 20;
 const TIP = 30;
 const styles = StyleSheet.create({
   // Time runs left to right in every language.
-  fill: { flex: 1, minHeight: 56, position: 'relative', direction: 'ltr' },
+  fill: { flex: 1, minHeight: 56, position: 'relative', ...alwaysLtr },
   part: { position: 'absolute', top: 0, bottom: 0, borderRadius: radius.md, overflow: 'hidden' },
   silence: { borderWidth: 2, borderStyle: 'dashed' },
   silencePill: { backgroundColor: 'transparent', borderWidth: 1.5 },

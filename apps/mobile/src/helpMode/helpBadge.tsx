@@ -6,7 +6,8 @@
 import { useContext, useEffect, useId, useMemo, useRef, type ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { HelpLit, HelpRowAt, HelpSpot } from './helpContext';
-import { HelpClipContext, HelpContext, HelpHostContext, HelpLayerContext, HelpRowContext, useHelpOn } from './useHelpMode';
+import { HelpClipContext, HelpContext, HelpHostContext, HelpLayerContext, HelpQuietContext, HelpRowContext, useHelpOn } from './useHelpMode';
+import { touches } from '../ui/touches';
 
 /** Tell the help layer where the view holding this ref is: when it is laid out, and as often as help mode measures (measureModel.ts) while help is on. */
 function useLit(what: HelpLit | null, id: string) {
@@ -35,11 +36,12 @@ export function HelpBadge(props: { spot: HelpSpot<unknown>; inset?: boolean }) {
   const id = useId();
   const clip = useContext(HelpClipContext);
   const rows = useContext(HelpRowContext);
+  const quiet = useContext(HelpQuietContext);
   const part = props.spot.id;
-  const what = useMemo<HelpLit | null>(() => (part ? { kind: 'part', part, mark: props.inset ? 'inset' : 'corner', ...(clip ? { clip } : {}), ...(rows ? { rows } : {}) } : null),
-    [part, props.inset, clip, rows]);
+  const what = useMemo<HelpLit | null>(() => (part ? { kind: 'part', part, mark: props.inset ? 'inset' : 'corner', ...(clip ? { clip } : {}), ...(rows ? { rows } : {}), ...(quiet ? { quiet } : {}) } : null),
+    [part, props.inset, clip, rows, quiet]);
   const lit = useLit(what, id);
-  return part ? <View ref={lit.ref} onLayout={lit.onLayout} collapsable={false} style={styles.box} pointerEvents="none" /> : null;
+  return part ? <View ref={lit.ref} onLayout={lit.onLayout} collapsable={false} style={[touches.none, styles.box]} /> : null;
 }
 
 /** Keeps a control lit while help is on without numbering it: the ? that turns help off. */
@@ -49,7 +51,7 @@ export function HelpLit() {
   const clip = useContext(HelpClipContext);
   const what = useMemo<HelpLit | null>(() => (on ? { kind: 'lit', ...(clip ? { clip } : {}) } : null), [on, clip]);
   const lit = useLit(what, id);
-  return what ? <View ref={lit.ref} onLayout={lit.onLayout} collapsable={false} style={styles.box} pointerEvents="none" /> : null;
+  return what ? <View ref={lit.ref} onLayout={lit.onLayout} collapsable={false} style={[touches.none, styles.box]} /> : null;
 }
 
 /**
@@ -69,6 +71,20 @@ export function HelpRow(props: { of: string; children: ReactNode }) {
 }
 
 /**
+ * A busy screen's secondary parts (LAN-135): while help is on they stay dim
+ * and unnumbered, as a list's other rows do, and a tap on one still explains
+ * it. So the numbers go to the few parts that matter most on that screen.
+ * `HelpLoud` inside it numbers a part again.
+ */
+export function HelpQuiet(props: { children: ReactNode }) {
+  return <HelpQuietContext.Provider value={true}>{props.children}</HelpQuietContext.Provider>;
+}
+
+export function HelpLoud(props: { children: ReactNode }) {
+  return <HelpQuietContext.Provider value={false}>{props.children}</HelpQuietContext.Provider>;
+}
+
+/**
  * The area parts scroll in (kit's Screen body): nothing lit inside it is
  * drawn past its edges, so a part scrolled under the header or a footer
  * stays dim there.
@@ -81,7 +97,7 @@ export function HelpClip(props: { style?: StyleProp<ViewStyle>; children: ReactN
   return (
     <View style={props.style}>
       <HelpClipContext.Provider value={id}>{props.children}</HelpClipContext.Provider>
-      {what ? <View ref={lit.ref} onLayout={lit.onLayout} collapsable={false} style={styles.box} pointerEvents="none" /> : null}
+      {what ? <View ref={lit.ref} onLayout={lit.onLayout} collapsable={false} style={[touches.none, styles.box]} /> : null}
     </View>
   );
 }

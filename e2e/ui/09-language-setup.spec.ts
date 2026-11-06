@@ -392,7 +392,7 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     await primary(p).click();
     await expectToast(p, /^Alpha translates .*New Testament.*\./);
     await goBack(p, 'Content template');
-    await expectOnScreen(p, 'Bible stories · New Testament');
+    await expectOnScreen(p, 'FIA passages (English) · New Testament');
     await expectSent(p, w);
     await expectNothingRefused(p, w);
     if (d) await d.context.close();

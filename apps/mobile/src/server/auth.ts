@@ -49,6 +49,15 @@ export function choosePassword(password: string) {
   return supabase.auth.updateUser({ password, data: { has_password: true } });
 }
 
+/**
+ * Forgot password (supabase/functions/password-reset), signed out: ask for
+ * a link to be emailed, or set a new password with a link's code. A refusal
+ * comes back as `error` with the reply as its context.
+ */
+export function passwordReset(body: { email: string; locale: string } | { code: string; password: string }) {
+  return supabase.functions.invoke('password-reset', { body });
+}
+
 /** Forget the sign-in on this device without asking the server (the person's choice, signOutCause.ts). */
 export function signOutLocally(): Promise<void> {
   return signingOutByChoice(async () => {

@@ -9,10 +9,11 @@
 
 /** Each section of the page (pageOps.ts GROUPS), on its title. */
 export const GROUP_HELP: Record<string, string> = {
+  userissues: 'Problems people hit in the app, as the watch for user issues found them every 15 minutes: each one it filed in Linear (assigned to a developer, whose phone tells them), its state there, and the pull request that fixed it; and those a merged pull request had already fixed, which it did not file. Close an issue in Linear and the watch stops; it reopens it only when people hit the problem on a build made after the fix.',
   lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
   safety: 'Whether people\'s work is reaching the server and being kept: work the server refused, how late work arrives, phones with a wrong clock, the nightly check that stored snapshots match a fresh fold, and languages the server has fallen behind on.',
   phones: 'Everything phones and browsers tell us about themselves: syncs, errors and crashes, files, recording, signing in, which builds they run and how often each crashes, and phones that are stuck or have gone quiet. Counts and codes only, never content.',
-  releases: 'What is on main and whether CI passed, what each host serves, whether the database has every migration, what shipped in the last two weeks against the errors phones reported, and the app\'s EAS builds and updates.',
+  releases: 'Where each new store build and over-the-air update is now, what is on main and whether CI passed, what each host serves, whether the database has every migration, what shipped in the last two weeks against the errors phones reported, and the app\'s EAS builds and updates.',
   jobs: 'The server\'s own scheduled work: each job\'s runs and failures and whether it runs now (Run now starts one), the database\'s own timers (pg_cron), push notifications, and the import from LangQuest v2.',
   database: 'The database\'s health (connections, cache, deadlocks, slowest calls), where its space goes, long-open queries and transactions, and the Supabase project\'s services, logs and Edge Functions.',
   traffic: 'Requests each Cloudflare Worker answered in the last day with errors, CPU and its latest build, and the app Worker\'s requests by kind with how long they took and how many a limit refused.',
@@ -49,6 +50,7 @@ export const SECTION_HELP: Record<string, string> = {
   cloudflare: 'Each Cloudflare Worker\'s requests, errors and CPU over the last day, and its latest deploy and build.',
   supabase: 'The LangQuest Next Supabase project\'s status, each service\'s health, Edge Functions, and error counts from its logs.',
   expo: 'App builds on EAS, store submissions, and the newest over-the-air update on each branch.',
+  pipeline: 'Each new store build in the stage it is in now, left to right: building on EAS, waiting in TestFlight or Play\'s internal testing, in review, approved, and what people download. A new build waits while an older one is in review, unless its pull request had the label "store: replace review" (decisions.md 157). Inside each build: the over-the-air updates it takes (published for its runtime after it was made), each with its pull request and how many of the platform\'s phones run it.',
   adoption: 'How far each over-the-air update has reached. For each channel, platform and runtime that phones run: the newest update EAS published for exactly that, and how many installs active in the last 7 days run it, an older update, or the build\'s embedded one. Matched by the update id phones report.',
   googleplay: 'Android crash and freeze (ANR) rates as Google Play measures them, against Play\'s bad-behaviour lines, and recent reviews.',
   appstore: 'iOS versions in review, builds Apple processed, TestFlight crash reports, and recent reviews.',
@@ -56,10 +58,20 @@ export const SECTION_HELP: Record<string, string> = {
   lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
   filming: 'Where the filming is: the run of tutorials.yml on GitHub filming now, or the latest. It starts at 20:10 UTC each night and when a change to the videos is merged into main; five languages film at once, each trying every video and filming only those that changed. Log opens a language\'s job on GitHub. As each language finishes, its new films come in, and the wide ones go up on YouTube at once.',
   tutorials: 'Each app language\'s YouTube channel and whether LangQuest may post to it, and every video made that is not on YouTube yet: ready to choose, or chosen and waiting for its turn.',
+  userissues: 'One row for each Linear issue the watch filed or added to, open ones first, and one for each problem it found already fixed. Fixed by is the pull request Linear links to the issue, or the newest merge into main that names it.',
   videofeedback: 'What came in about the videos (comments on YouTube, code changes merged into main, notes left here) and what Claude suggests doing about it each night: a change to a video\'s script, screens or voice, to the app\'s code, or a new video. Accept, edit or reject each; an accepted code change goes to Linear. Reply to comments in YouTube Studio.'
 };
 
 export const HELP: Record<string, string> = {
+  // ---- where each build and update is (sources/pipeline.ts)
+  'Building on EAS': 'Store builds EAS is making now, and the newest one when it failed.',
+  TestFlight: 'iPhone builds uploaded to Apple and not sent for review: Apple processing them, or waiting while an older build is in App Review. The hourly step sends only the newest once the review ends.',
+  'App Review': 'The iPhone version Apple is reviewing or will review next, or the one it rejected. A rejected one waits for a person, unless a newer build replaces it.',
+  'Approved, not out yet': 'Apple approved it and is putting it on the App Store, or it waits for someone to release it.',
+  'On the App Store': 'The version people download from the App Store now.',
+  'Internal testing': 'Android builds in Play\'s internal testing track: waiting while an older build is in Play review. play-review.mjs sends the newest to production review once nothing is in review (it needs PLAY_REVIEW_KEY).',
+  'Play review': 'The newest production release that Google Play\'s page does not show yet: in review, or rejected (Play Console says which).',
+  'On Google Play': 'The version Google Play\'s page shows: what people download now.',
   // ---- sync and data safety
   'events refused, latest day': 'Events (pieces of work) phones sent that the server would not accept on the latest day. Refused work may never arrive, so this matters more than a crash.',
   'refused as invalid': 'Events the server refused because they break its rules. Usually a bug in the app: that work cannot arrive until it is fixed.',
@@ -72,6 +84,9 @@ export const HELP: Record<string, string> = {
   'Fold canary (nightly)': 'Each night three languages are rebuilt from scratch and compared with the copy the server keeps. A mismatch means saved copies may be wrong for everyone downloading them.',
   'Furthest behind the projection pass': 'Languages with the most events the projection pass has not processed yet.',
   Snapshots: 'Saved copies of a language that new phones download first. Overdue: older than the rule allows. Older reducer: made before the latest app logic. Not cut: not split by passage yet, so big languages download whole.',
+  'Snapshot copies': 'How many saved copies of languages the server holds, for each reducer version. The purge job keeps the newest copy of an old version for 14 days after it was replaced or a phone on it last reported, whichever is later, up to 45 days; on any version, older copies stay 6 hours after a newer one comes out, up to 30. Many copies on an old reducer mean the purge is behind or stopped. Size is before compression, so the disk holds less.',
+  'Languages with the most copies': 'The languages holding the most copies, and how many on each reducer version. Busy languages keep about 7 on the newest version.',
+  'Per reducer': 'Copies this language holds on each reducer version.',
   'Largest languages': 'Languages with the most events: the heaviest to download and to rebuild.',
   'Not member': 'Refused because the person is not (or no longer) a member of that organization or language.',
   'Not allowed': 'Refused because the person\'s role does not allow that action.',
@@ -113,7 +128,10 @@ export const HELP: Record<string, string> = {
   Reducer: 'The version of the app\'s logic that turns work into what people see.',
   Protocol: 'The version of the format phones and the server sync in.',
   'Browsers by web commit, this week': 'Which version of the web app browsers are running. Old ones update when the page reloads.',
+  'Phones by build': 'Phones that reported, per platform and app version, as each last said: how many in the last day, 7 days and 14 days. Reducer is the data logic those phones run; an update can change it without a new build. A phone is an install that sends diagnostics, so a reinstall counts again, and development builds and browsers are left out.',
   'Time to a usable Map': 'How long until a language is usable after a first download. open: a whole language downloaded. fill: a big language, until its Map shows (the rest fills in behind).',
+  'First downloads that fell back or started over': 'First downloads that did not go the quick way, last 14 days. Took the whole snapshot: the phone could not fill from the server\'s cut (no_cut: no cut for its version; no_lines or old_lines: the passage lines are missing or older than the cut; error: the server failed). Started over: the cut it was filling from went away. No snapshot for reducer: the phone pulled the whole log. That is normal for a new language or minutes after a deploy; on an older reducer it means that version\'s snapshots were purged. Installs tells one phone retrying from a wider problem.',
+  'What went wrong': 'What happened to the first download, with the reason the phone reported or, for no snapshot, the reducer it runs.',
   'Stuck phones': 'Phones with unsent work over a day old, a stuck download, little storage or lost files. Open one to see its last three days.',
   'Silent phones': 'Phones quiet for 3 days while another device of the same person still reports: diagnostics turned off, or something broke on that phone. Browsers are left out: a new browser or a private window is a new install, so an old one going quiet is normal.',
   'Unsent for': 'How long the oldest unsent recording has waited.',
@@ -214,6 +232,9 @@ export const HELP: Record<string, string> = {
   Channels: 'Each app language\'s channel. Connect again when its videos fail with a sign-in code such as youtube_invalid_grant.',
   'Not on YouTube yet': 'Each video\'s newest version that is not up. A new version of one already up replaces it: it takes its place in the playlist, and the old one is unlisted with a link to the new.',
   'Videos up': 'Videos on this channel now.',
+  'open in Linear': 'Issues the watch filed or added to that are not closed in Linear. Close one there (Live, Canceled or Duplicate) and the watch counts the problem again only from a day after the fix.',
+  'already fixed when seen': 'Problems the watch did not file because every report came before a pull request merged into main that fixes them.',
+  'judged noise': 'Kinds of failure Claude judged nothing to fix this week (one person\'s wrong password, a refusal the app handled). One comes back when twice as many people hit it.',
   'suggestions waiting': 'Suggestions Claude made that nobody has accepted, edited or rejected yet. Edit one to change what it says before accepting it.',
   'not looked at yet': 'Comments, code changes and notes Claude has not looked at yet. It looks each night at 10:00 UTC (tutorial-review.yml on GitHub).',
   'not in Linear yet': 'Accepted code changes not filed in Linear yet. They wait when Linear refused or there is no Linear key (LINEAR_API_KEY); the comments job files them each night at 23:50 UTC.',

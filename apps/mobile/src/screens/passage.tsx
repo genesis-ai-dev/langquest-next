@@ -367,10 +367,18 @@ export function PassageRecord(ctx: Ctx) {
     const mv = stepMove(st, { p, can, earlier: earlierHere, feedbackReview });
     return mv ? () => doMove(mv) : undefined;
   };
-  const canAct = teamStepsOpen(can);
+  const canAct = teamStepsOpen(can, p);
   const onTeamStep = (step: TeamStep): (() => void) | undefined => (canAct && !earlierHere ? () => setOpenStepId(step.stepId) : undefined);
   const passageNote = passageNoteFor(p, me);
+  // The latest version can be heard on the passage itself, by anyone who may see it, not only through Record (LAN-128).
+  const listen = p.latest ? (
+    <ClipPlayer language={ctx.language} hashes={p.latest.cardHashes} title={versionTitle(p.latest.n)} bare />
+  ) : null;
   const extraFor = (st: PathStep): ReactNode => {
+    if (st.kind === 'record' && listen) {
+      const note = st.state === 'current' && passageNote ? <NotePill ctx={ctx} note={passageNote} /> : null;
+      return note ? <View style={{ gap: space.sm }}>{listen}{note}</View> : listen;
+    }
     if (st.state !== 'current') return null;
     if (st.kind === 'record' && passageNote) return <NotePill ctx={ctx} note={passageNote} />;
     if (st.kind === 'feedback' && st.review) return <FeedbackPill ctx={ctx} review={st.review} />;
@@ -430,7 +438,7 @@ export function PassageRecord(ctx: Ctx) {
       return doMove(mv);
     };
     return (
-      <Screen header={<Header title={t('passage.else.title')} sub={[v.title, lit?.title ?? ''].filter(Boolean).join(' · ')} onBack={() => setPage('path')} close />}
+      <Screen page={page} header={<Header title={t('passage.else.title')} sub={[v.title, lit?.title ?? ''].filter(Boolean).join(' · ')} onBack={() => setPage('path')} close />}
         footer={can.note ? (
           <View style={{ gap: 2 }}>
             <PrimaryBtn label={t('passage.else.sayInstead')} icon="mic" help={t('passage.else.sayInsteadHelp')} onPress={() => setNoting('say')} />
@@ -455,7 +463,7 @@ export function PassageRecord(ctx: Ctx) {
   if (page === 'ask') {
     const close = () => setPage('path');
     return (
-      <Screen header={<Header title={t('passage.published.askTitle')} sub={v.title} onBack={close} close />}
+      <Screen page={page} header={<Header title={t('passage.published.askTitle')} sub={v.title} onBack={close} close />}
         footer={nextKind && can.ask ? (
           <View style={{ gap: space.xs }}>
             <PrimaryBtn label={askButtonLabel({ target: nextTarget, kindId: nextKind.kindId, kinds, name: ctx.name, p })} icon="send"
@@ -583,7 +591,7 @@ export function PassageRecord(ctx: Ctx) {
     </View>
   );
   return (
-    <Screen header={<Header title={v.title} sub={v.language} onBack={ctx.back} />} footer={footer}>
+    <Screen page={page} header={<Header title={v.title} sub={v.language} onBack={ctx.back} />} footer={footer}>
       {/* Whether this passage comes along without a connection, and the button that takes it along, first (decisions.md 61, 166). */}
       <PassageOfflineBar ctx={ctx} unitId={unitId} />
       {waiting ? <Text style={[txt.sm, { color: TINT.amberText }]}>{waiting}</Text> : null}

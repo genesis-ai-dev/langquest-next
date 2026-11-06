@@ -245,10 +245,19 @@ the app's mark and "Tutorial videos" (`banners.ts` draws them). The publish
 job puts these on whenever they change (`server/youtube.ts` `brandChannel`,
 decision 184); the picture is set by hand. Its home page is laid out as
 BibleProject's and other channels' are (`setHome`, decision 191): under the
-trailer, a row of the other 14 LangQuest channels, then a row for each of
+trailer, the other 15 LangQuest channels in two rows of 8 and 7 (YouTube
+shows no more than 12 in a row), then a row for each of
 its playlists, everyone's first (`server/youtubePlaylists.ts`). The publish
 job brings the rows up to date each run, and a playlist a run makes gets its
-row at the end of that run. The links under a channel's name can only
+row at the end of that run. None of it shows while the channel's Home tab
+is off, a switch in YouTube Studio (Customization, Home tab) that the API
+cannot set; it was off on all 15 channels on 2026-11-01. Each run also puts
+every channel's playlists in order before its uploads (`tidyChannel` in
+`server/tutorialPublisher.ts`, decision 180 amended): each video's newest
+version in its playlist in the plan's order, no older version in one, and
+every older version unlisted, so a step an upload left undone is done the
+next day. A playlist YouTube will not take in the channel's language
+(Hausa) is made without one. The links under a channel's name can only
 be set in YouTube Studio. Comments that may be inappropriate are held for review, and the ops
 dashboard counts them for each channel.
 
@@ -280,7 +289,8 @@ every 48 hours; some countries block YouTube.
   chosen in the reader's language (or `?lang=`), grouped by who it is for,
   each with Download (and its size), Play (the file in the phone's own
   player, no YouTube needed) and, once it is up, Watch on YouTube. Each
-  channel's description links it. The Worker writes it
+  channel's description links it. Its foot links the privacy policy's
+  part on our YouTube channels (`/privacy#youtube`). The Worker writes it
   (`apps/web/worker/videosPage.ts`, words in `apps/web/worker/i18n/`).
 - **Chosen, not uploaded:** a download is the version chosen, at once,
   without waiting for YouTube's 100 uploads a day; so a new version can be
@@ -319,8 +329,13 @@ suggesting the same again. An accepted code change becomes a Linear issue,
 "Tutorial feedback: …": at once when the app's Worker has `LINEAR_API_KEY`,
 otherwise at the comments job's next run. The replies Claude suggests are
 shown to copy into YouTube Studio; nothing is posted by itself. Making an
-accepted change to a video is still done by hand. Inputs and answered
-suggestions over a year old are taken out.
+accepted change to a video is still done by hand. A comment, with its
+English and suggested reply, is taken out 30 days after it was posted, and
+one older is never copied: YouTube's rule for what an API client keeps about
+other people, as the privacy policy says (`/privacy#youtube`; an hourly
+pg_cron job, migration `20261103190500_tutorial_comments_30_days.sql`). The
+suggestions stay without it. Code changes, notes and answered suggestions
+over a year old are taken out.
 
 Claude signs in with a Claude plan, not an API key, and uses that plan's
 five-hour and weekly limits, as the nightly filming's frame check does

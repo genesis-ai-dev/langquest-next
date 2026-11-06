@@ -1,16 +1,20 @@
 // Put one hosted environment's secrets where they are used
 // (docs/environments.md). Deploys never carry secrets; this is the one way
-// they reach Cloudflare and Supabase, run by a person when a secret changes.
+// they reach Cloudflare, Supabase, GitHub and EAS, run by a person when a
+// secret changes.
 //
-//   npm run secrets -- preview             compare (names only), ask, apply
-//   npm run secrets -- production --check  exit 1 if anything is missing or differs
-//   npm run secrets -- preview --yes       apply without asking
+//   npm run secrets -- preview                compare (names only), ask, apply
+//   npm run secrets -- production --check     exit 1 if anything is missing or differs
+//   npm run secrets -- preview --yes          apply without asking
+//   npm run secrets -- production --only eas  the same for EAS's secrets alone, needing
+//                                             neither Supabase nor Cloudflare
 //
 // Sources: the encrypted .env.<env> at the repository root, the project ref
 // in supabase/config.toml [remotes.<env>], and the project's service-role key,
 // read from Supabase each time rather than stored. Destinations: each
 // Worker's secrets, the Edge Function secrets, the Gemini key as a GitHub
-// Actions secret of this repository (production's file only), the two Vault
+// Actions secret of this repository and the App Store key as a secret of EAS's
+// production environment (production's file only), the two Vault
 // secrets the push delivery cron job reads, and that job itself (by running its
 // scheduling migration again, which also keeps the projection pass off
 // pg_cron: it runs in the Worker's job container, decisions.md 141, 148).
@@ -54,9 +58,12 @@ export const ADMIN_KEYS = ['ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_SUPABASE_TOKEN', 'AD
  * (.github/workflows/tutorial-review.yml) and the nightly filming's frame check (tutorials.yml,
  * e2e/tutorials/frame-check.ts) in to a Claude plan: made by `claude setup-token`,
  * it lasts a year, and production's goes to this repository's GitHub Actions secrets. Anyone
- * on the team can replace it with their own plan's.
+ * on the team can replace it with their own plan's. APP_STORE_REVIEW_KEY is the App Store
+ * Connect key (App Manager) that sends new iPhone builds to App Review, and PLAY_REVIEW_KEY the
+ * Google Play service account key that moves new Android builds from internal testing to
+ * production review: production's go to EAS (EAS_KEYS).
  */
-export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', ...ADMIN_KEYS];
+export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'APP_STORE_REVIEW_KEY', 'PLAY_REVIEW_KEY', ...ADMIN_KEYS];
 export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET'];
 /**
  * Placed when the file has them, never required: the Worker answers without
@@ -67,6 +74,20 @@ export const OPTIONAL_KEYS = ['BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 
 
 /** The repository whose Actions secrets this script sets: the Gemini key and the Claude token, which no production system reads (decisions.md 183, 186). */
 export const GITHUB_REPO = 'genesis-ai-dev/langquest-next';
+
+/**
+ * Production's secrets for EAS, which its workflows read on Expo's servers:
+ * the App Store key that `scripts/app-store-review.mjs` sends new iPhone
+ * builds to App Review with, and the Play key that `scripts/play-review.mjs`
+ * sends new Android builds to production review with (decisions.md 157).
+ * Each is an EAS variable with secret visibility, readable by EAS's jobs and
+ * builds only, never in a UI.
+ */
+export const EAS_KEYS = ['APP_STORE_REVIEW_KEY', 'PLAY_REVIEW_KEY'];
+/** The folder that holds the EAS project (eas.json, the project id), where `eas env:*` runs. */
+export const EAS_PROJECT = 'apps/mobile';
+/** Destinations that `--only` can apply alone. */
+export const ONLY = ['eas'];
 
 /** LangQuest v2's production project, read (never written) by the v2 import and v2-sign-in (docs/v2-import.md). */
 export const V2_SUPABASE_URL = 'https://unsxkmlcyxgtgmtzfonb.supabase.co';
@@ -172,6 +193,8 @@ export function destinations(environment, values, ref, serviceRoleKey) {
       ...(values.BIBLE_BRAIN_ACCESS_KEY ? { BIBLE_BRAIN_ACCESS_KEY: values.BIBLE_BRAIN_ACCESS_KEY } : {}),
       ...(values.CLAUDE_CODE_OAUTH_TOKEN ? { CLAUDE_CODE_OAUTH_TOKEN: values.CLAUDE_CODE_OAUTH_TOKEN } : {})
     } : {},
+    // EAS's production environment: the store keys for the App Review and Play review steps (decisions.md 157).
+    eas: environment === 'production' ? Object.fromEntries(EAS_KEYS.filter((key) => values[key]).map((key) => [key, values[key]])) : {},
     // Read with Deno.env.get in supabase/functions. The relay URL is public
     // but has no other way into a function.
     functions: {
@@ -291,6 +314,34 @@ function setGithubSecret(name, value) {
   if (result.status !== 0) throw new Error(failure(result.stdout, result.stderr) || `gh secret set ${name} failed`);
 }
 
+/** The variable names in what `eas env:list <env> --format short` prints (NAME=value lines; a secret's value is masked). */
+export const easNames = (output) =>
+  [...String(output).replace(/\u001b\[[0-9;]*m/g, '').matchAll(/^([A-Z][A-Z0-9_]*)=/gm)].map((match) => match[1]);
+
+function easVariableNames(environment) {
+  const result = spawnSync('npx', ['eas', 'env:list', environment, '--format', 'short', '--scope', 'project'], { cwd: join(root, EAS_PROJECT), encoding: 'utf8' });
+  // Its output holds plain variables' values, so a failure shows only what eas said went wrong.
+  if (result.status !== 0) throw new Error(failure('', result.stderr) || 'eas env:list failed (npx eas login?)');
+  return easNames(result.stdout);
+}
+
+/** Each wanted EAS secret, 'set' or 'missing': like a Worker's, its value cannot be read back. */
+function easState(environment, wanted) {
+  const present = Object.keys(wanted).length ? easVariableNames(environment) : [];
+  return Object.fromEntries(Object.keys(wanted).map((name) => [name, present.includes(name) ? 'set' : 'missing']));
+}
+
+/**
+ * Creates or updates an EAS variable with secret visibility. The value goes
+ * to eas as an argument, the only way it takes one, so it is briefly in this
+ * machine's process list; it is never printed.
+ */
+function setEasSecret(environment, name, value) {
+  const result = spawnSync('npx', ['eas', 'env:set', environment, '--name', name, '--value', value, '--visibility', 'secret', '--type', 'string', '--scope', 'project', '--non-interactive'],
+    { cwd: join(root, EAS_PROJECT), encoding: 'utf8' });
+  if (result.status !== 0) throw new Error(failure(result.stdout, result.stderr).replaceAll(value, `<${name}>`) || `eas env:set ${name} failed`);
+}
+
 function hostedState(environment, ref, wanted) {
   const listed = JSON.parse(run('supabase', ['secrets', 'list', '--project-ref', ref, '-o', 'json']));
   const functionDigests = Object.fromEntries(listed.map((s) => [s.name, s.value ?? s.digest]));
@@ -318,6 +369,7 @@ function hostedState(environment, ref, wanted) {
   return {
     hyperdrive,
     github: Object.fromEntries(Object.keys(wanted.github).map((name) => [name, githubPresent.includes(name) ? 'set' : 'missing'])),
+    eas: easState(environment, wanted.eas),
     functions: drift(wanted.functions, functionDigests),
     retired: RETIRED_FUNCTION_SECRETS.filter((name) => name in functionDigests),
     vault: drift(wanted.vault, vaultDigests),
@@ -331,7 +383,7 @@ export function summarize(state) {
   const lines = [];
   let behind = false;
   const mark = (s) => (s === 'same' || s === 'set' ? '✓' : s === 'missing' ? '+' : '~');
-  for (const [worker, names] of Object.entries(state.workers)) {
+  for (const [worker, names] of Object.entries(state.workers ?? {})) {
     for (const [name, s] of Object.entries(names)) {
       lines.push(`  ${mark(s)} ${worker} Worker secret ${name}${s === 'set' ? ' (set; its value cannot be read back)' : ' (missing)'}`);
       if (s !== 'set') behind = true;
@@ -341,7 +393,11 @@ export function summarize(state) {
     lines.push(`  ${mark(s)} GitHub Actions secret ${name}${s === 'set' ? ' (set; its value cannot be read back)' : ' (missing)'}`);
     if (s !== 'set') behind = true;
   }
-  for (const [label, states] of [['function secret', state.functions], ['vault secret', state.vault]]) {
+  for (const [name, s] of Object.entries(state.eas ?? {})) {
+    lines.push(`  ${mark(s)} EAS secret ${name}${s === 'set' ? ' (set; its value cannot be read back)' : ' (missing)'}`);
+    if (s !== 'set') behind = true;
+  }
+  for (const [label, states] of [['function secret', state.functions ?? {}], ['vault secret', state.vault ?? {}]]) {
     for (const [name, s] of Object.entries(states)) {
       lines.push(`  ${mark(s)} ${label} ${name}${s === 'same' ? '' : ` (${s})`}`);
       if (s !== 'same') behind = true;
@@ -355,8 +411,11 @@ export function summarize(state) {
     lines.push(`  ${mark(state.hyperdrive)} Hyperdrive ${HYPERDRIVE_NAME}, diag_reader's login for the ops dashboard${state.hyperdrive === 'set' ? ' (set; its login cannot be read back)' : ' (missing)'}`);
     if (state.hyperdrive !== 'set') behind = true;
   }
-  lines.push(`  ${state.scheduled ? '✓' : '+'} cron job ${CRON_JOB} calling push-delivery, and no ${RETIRED_JOB}${state.scheduled ? '' : ' (not yet)'}`);
-  if (!state.scheduled) behind = true;
+  // `--only` compares no Supabase project, so its state has no cron job to report.
+  if (state.scheduled !== undefined) {
+    lines.push(`  ${state.scheduled ? '✓' : '+'} cron job ${CRON_JOB} calling push-delivery, and no ${RETIRED_JOB}${state.scheduled ? '' : ' (not yet)'}`);
+    if (!state.scheduled) behind = true;
+  }
   return { lines, behind };
 }
 
@@ -381,10 +440,58 @@ function applyHyperdrive(connectionString, state) {
   console.log(`✓ Hyperdrive ${HYPERDRIVE_NAME} made; its id is now in ${WORKERS.admin}. Commit that file, then deploy the admin Worker (npm run admin:deploy).`);
 }
 
+/** `<environment> [--check|--yes] [--only <destination>]`, with `unknown` set to anything else. */
+export function parseArgs(argv) {
+  const [environment, ...rest] = argv;
+  const args = { environment, check: false, yes: false, only: null, unknown: null };
+  for (let i = 0; i < rest.length; i++) {
+    const arg = rest[i];
+    if (arg === '--check') args.check = true;
+    else if (arg === '--yes') args.yes = true;
+    else if (arg === '--only') args.only = rest[++i] ?? '';
+    else if (arg.startsWith('--only=')) args.only = arg.slice('--only='.length);
+    else args.unknown ??= arg;
+  }
+  return args;
+}
+
+/** Asks on the terminal; true for y. */
+async function confirm(question) {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const answer = await rl.question(question);
+  rl.close();
+  return /^y$/i.test(answer.trim());
+}
+
+/** `--only eas`: EAS's secrets alone, with no Supabase project or Cloudflare login. */
+async function applyEasOnly(environment, file, values, { check, yes }) {
+  const wanted = destinations(environment, values, '', '').eas;
+  if (!Object.keys(wanted).length) {
+    console.log(`${file} holds none of EAS's secrets (${EAS_KEYS.join(', ')}; production only), so there is nothing to apply.`);
+    return;
+  }
+  console.log(`Comparing ${file} with EAS's ${environment} environment:`);
+  const before = summarize({ eas: easState(environment, wanted) });
+  console.log(before.lines.join('\n'));
+  if (check) process.exit(before.behind ? 1 : 0);
+  if (!yes && !(await confirm(before.behind ? `Apply to EAS's ${environment} environment? [y/N] ` : 'Everything comparable matches. Set the EAS secrets again anyway? [y/N] '))) {
+    console.log('Nothing applied.');
+    process.exit(before.behind ? 1 : 0);
+  }
+  for (const [name, value] of Object.entries(wanted)) setEasSecret(environment, name, value);
+  const after = summarize({ eas: easState(environment, wanted) });
+  if (after.behind) {
+    console.error(`x applied, but some still differ:\n${after.lines.filter((l) => !l.includes('✓')).join('\n')}`);
+    process.exit(1);
+  }
+  console.log(`✓ EAS's ${environment} environment has every secret from ${file} that it takes`);
+}
+
 async function main() {
-  const [environment, flag] = process.argv.slice(2);
-  if (!HOSTED.includes(environment)) {
-    console.error('usage: npm run secrets -- <preview|production> [--check|--yes]');
+  const args = parseArgs(process.argv.slice(2));
+  const { environment } = args;
+  if (!HOSTED.includes(environment) || args.unknown || (args.only !== null && !ONLY.includes(args.only)) || (args.check && args.yes)) {
+    console.error(`usage: npm run secrets -- <preview|production> [--check|--yes] [--only ${ONLY.join('|')}]`);
     process.exit(2);
   }
   const file = secretsPath(environment);
@@ -393,7 +500,8 @@ async function main() {
     console.error(`x ${file} holds ${unknown.join(', ')}, which scripts/secrets.mjs does not place. Add it to FILE_KEYS and destinations, or remove it.`);
     process.exit(1);
   }
-  const values = decrypt(file, [...REQUIRED_KEYS, ...OPTIONAL_KEYS, ...(environment === 'production' ? ['DIAG_DATABASE_URL', 'GEMINI_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', ...ADMIN_KEYS] : [])]);
+  if (args.only === 'eas') return applyEasOnly(environment, file, decrypt(file, EAS_KEYS), args);
+  const values = decrypt(file, [...REQUIRED_KEYS, ...OPTIONAL_KEYS, ...(environment === 'production' ? ['DIAG_DATABASE_URL', 'GEMINI_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', ...EAS_KEYS, ...ADMIN_KEYS] : [])]);
   const missing = REQUIRED_KEYS.filter((name) => !values[name]);
   if (missing.length) {
     console.error(`x ${file} is missing ${missing.join(', ')}.`);
@@ -424,18 +532,13 @@ async function main() {
   const hosted = hostedState(environment, ref, wanted);
   const before = summarize(hosted);
   console.log(before.lines.join('\n'));
-  if (flag === '--check') process.exit(before.behind ? 1 : 0);
+  if (args.check) process.exit(before.behind ? 1 : 0);
   const question = before.behind
     ? `Apply to ${environment}? [y/N] `
     : `Everything comparable matches. Set the Worker secrets again anyway? [y/N] `;
-  if (flag !== '--yes') {
-    const rl = createInterface({ input: process.stdin, output: process.stdout });
-    const answer = await rl.question(question);
-    rl.close();
-    if (!/^y$/i.test(answer.trim())) {
-      console.log('Nothing applied.');
-      process.exit(before.behind ? 1 : 0);
-    }
+  if (!args.yes && !(await confirm(question))) {
+    console.log('Nothing applied.');
+    process.exit(before.behind ? 1 : 0);
   }
 
   for (const [worker, secrets] of Object.entries(wanted.workers)) {
@@ -444,6 +547,7 @@ async function main() {
   }
   if (wanted.hyperdrive) applyHyperdrive(wanted.hyperdrive.connectionString, hosted.hyperdrive);
   for (const [name, value] of Object.entries(wanted.github)) setGithubSecret(name, value);
+  for (const [name, value] of Object.entries(wanted.eas)) setEasSecret(environment, name, value);
   withTempFile('functions.env', Object.entries(wanted.functions).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join('\n') + '\n',
     (f) => run('supabase', ['secrets', 'set', '--project-ref', ref, '--env-file', f]));
   // --yes: the CLI asks before unsetting, and with no answer it unsets nothing yet exits 0 (2026-10-20).

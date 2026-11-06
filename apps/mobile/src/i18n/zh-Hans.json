@@ -87,7 +87,8 @@
       "id": "印度尼西亚语",
       "zhHans": "中文（简体）",
       "th": "泰语",
-      "my": "缅甸语"
+      "my": "缅甸语",
+      "tl": "他加禄语"
     }
   },
   "core": {
@@ -347,13 +348,13 @@
     "settings_more": "更多设置",
     "check_editor": "检查",
     "cluster_home": "语言群",
-    "global_viewer": "全局查看者"
+    "global_viewer": "全局查看者",
+    "forgot_password": "忘记密码",
+    "new_password": "新密码"
   },
   "native": {
     "microphone": "LangQuest 会录下你的声音，用来翻译经段。",
-    "camera": "LangQuest 使用相机扫描邀请二维码。",
-    "calculator": "计算器",
-    "notes": "备忘录"
+    "camera": "LangQuest 使用相机扫描邀请二维码。"
   },
   "library": {
     "sourceLine": {
@@ -718,6 +719,8 @@
       "languageHelp": "打开它的页面：做好准备工作，查看它的工作和人员。",
       "licenseHelp": "你的团队的工作所用的许可协议。“设置”中说明了它允许什么。",
       "newLanguageHelp": "给机构添加一个语言，或者一个由相关语言组成的语言群。",
+      "newCluster": "新语言群",
+      "newClusterHelp": "把这里已有的语言归到一个名字下。它们本身不会有任何改变。",
       "roleHelp": "你在这个机构中的角色。它决定你在这里可以做什么。",
       "clusterGroupHelp": "这个语言群里的语言。点一下可以显示或隐藏。",
       "looseGroupHelp": "不在任何语言群中的语言。点一下可以显示或隐藏。",
@@ -836,7 +839,7 @@
       "sent": "已向 {{address}} 发送邀请，角色是{{role}}",
       "cannot": "只有可以邀请成员的人才能在这里邀请。",
       "byEmail": "通过邮箱",
-      "byName": "按名字邀请一个人",
+      "byName": "按名字：一个人或一组人",
       "emailTitle": "通过邮箱邀请",
       "send": "发送邀请",
       "emailLabel": "邮箱地址",
@@ -1200,7 +1203,8 @@
       "npi": "尼泊尔语",
       "mya": "缅甸语",
       "tpi": "托克皮辛语",
-      "bis": "比斯拉马语"
+      "bis": "比斯拉马语",
+      "tgl": "他加禄语"
     },
     "helps": {
       "bibles_other": "{{languages}}圣经",
@@ -2765,7 +2769,9 @@
       "failed": "无法登录。请重试。",
       "scanCodeHelp": "打开相机，用邀请码加入，或者用帮你的人给的登录码登录。",
       "createAccountHelp": "打开表单，填写你的邮箱和新密码。",
-      "browseHelp": "查看各机构公开分享的翻译工作。不需要账号。"
+      "browseHelp": "查看各机构公开分享的翻译工作。不需要账号。",
+      "forgot": "忘记密码？",
+      "forgotHelp": "打开一个页面，你可以通过邮件收到链接，用来设置新密码。"
     },
     "terms": {
       "title": "条款和隐私",
@@ -2828,9 +2834,12 @@
     },
     "createAccount": {
       "title": "创建账号",
+      "joinTitle": "创建账号后加入",
+      "joinBody": "你的邀请已保存。登录这个账号后就会立即加入。",
       "button": "创建账号",
       "createdTitle": "账号已创建",
       "createdSub": "请打开我们发到 {{email}} 的链接，然后登录。准备好后，你可以创建机构、申请加入一个机构，或者扫描邀请码。",
+      "createdSubJoining": "请打开我们发到 {{email}} 的链接，然后在这台设备上登录。你的邀请已保存：登录后就会立即加入团队。",
       "emailPlaceholder": "you@example.com",
       "passwordPlaceholder": "设置密码（至少 6 个字符）",
       "confirmLabel": "确认密码",
@@ -2856,6 +2865,7 @@
       "cameraOff": "相机权限已关闭。你可以在下面粘贴代码。",
       "joinAsYou": "以你自己的身份加入",
       "haveAccount": "我已经有账号了",
+      "emailAccount": "用邮箱创建账号",
       "notMe": "不是{{name}}？请先退出登录",
       "notYou": "不是你？请先退出登录",
       "joinWhenConnected": "联网后加入",
@@ -2879,6 +2889,7 @@
       "joinAsHelp": "在本设备上，以邀请中写明的那个人的身份加入团队。",
       "joinHelp": "接下来输入你的名字。然后你就加入团队了。",
       "haveAccountHelp": "请先登录。登录后你就会立即加入团队。",
+      "emailAccountHelp": "先用你自己的邮箱和密码。登录后你就会立即加入团队。",
       "joinAsMeHelp": "把这个账号加入邀请中的机构。",
       "notMeHelp": "打开退出登录，让对的人在本设备上加入。",
       "stopCameraHelp": "关闭相机。",
@@ -3082,6 +3093,36 @@
       "notMe": "不是我的图片",
       "notMeHelp": "回到图片。",
       "pictureHelp": "在这部手机上退出过登录？ 点你的图片，然后画出你的图案。不需要网络。"
+    },
+    "forgot": {
+      "title": "忘记密码",
+      "emailHelp": "你登录用的邮箱。链接会发到这里。",
+      "send": "发送链接",
+      "sendAgain": "再次发送",
+      "sending": "正在发送……",
+      "sendHelp": "通过邮件发送一个用来设置新密码的链接。需要联网。",
+      "sentTitle": "请查看你的邮箱",
+      "sentBody": "如果 {{email}} 有 LangQuest 账号，设置新密码的链接正在发送中。",
+      "failed": "无法发送链接。请重试。",
+      "noEmailTitle": "这个账号没有邮箱",
+      "noEmailBody": "你团队里的人可以给你看一个登录码，让你登录。"
+    },
+    "newPassword": {
+      "title": "新密码",
+      "fieldHelp": "输入你以后登录要用的密码。点按眼睛图标可以看到你输入的内容。",
+      "button": "登录",
+      "buttonHelp": "把它设为你的密码，并为你登录。需要联网。",
+      "changeButton": "修改密码",
+      "changing": "正在修改……",
+      "changeHelp": "把它设为这个账号的密码。需要联网。",
+      "expired": "这个链接已过期或已被使用。",
+      "newLink": "发送新链接",
+      "newLinkHelp": "打开“忘记密码”，通过邮件获取新链接。",
+      "failed": "无法修改密码。请重试。",
+      "signInFailed": "你的新密码已设置好。请用它登录。",
+      "changedTitle": "密码已修改",
+      "changedBody": "从现在起，{{email}} 用新密码登录。",
+      "doneHelp": "回到你的主页。"
     }
   },
   "account": {
@@ -4273,8 +4314,8 @@
       "cannotOpenHere": "这里无法打开它。",
       "noPermission": "你没有权限打开它。",
       "backAgainToLeave": "再按一次返回即可退出 LangQuest",
-      "languageExplorer": "语言浏览",
-      "languageExplorerNewTab": "语言浏览，在新标签页中打开",
+      "languageExplorer": "世界语言及其代码",
+      "languageExplorerNewTab": "世界语言及其代码，在新标签页中打开",
       "tabBadge": "{{tab}}，{{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4289,11 +4330,15 @@
       "showMore_other": "再显示 {{count, number}} 项 · 还剩 {{left}} 项",
       "onOlderVersion": "针对{{version}}",
       "orTypeReason": "或者输入原因",
-      "reasonFootnote": "这条会连同你的名字写进经段记录。以后可以撤销；记录会把两次都保留下来。"
+      "reasonFootnote": "这条会连同你的名字写进经段记录。以后可以撤销；记录会把两次都保留下来。",
+      "showPassword": "显示密码",
+      "hidePassword": "隐藏密码"
     },
     "person": {
       "showId": "{{name}}。显示 ID",
       "noName": "还没有设置名字",
+      "someone": "某人",
+      "someoneInSentence": "某人",
       "id": "ID {{id}}",
       "anonymous": "{{color}}{{shape}}",
       "colors": {
@@ -4440,7 +4485,8 @@
       "done": "这里完成了：返回。",
       "undo": "恢复之前的内容。",
       "tryAgain": "再试一次。",
-      "quickReason": "用这个作为你的理由。你仍然可以修改文字。"
+      "quickReason": "用这个作为你的理由。你仍然可以修改文字。",
+      "showPassword": "显示你输入的密码，方便检查。再点一次可以隐藏。"
     },
     "tabs": {
       "work": "接下来要做什么：你的下一个经段，以及等着你处理的事。",
@@ -4449,7 +4495,7 @@
       "manage": "你的机构的语言、人员和设置。",
       "inbox": "与你有关的事：请求、反馈、申请加入的人。",
       "me": "你的名字、本设备和你的设置。",
-      "explorer": "在新标签页中打开语言浏览：所有语言，以及在哪里使用。"
+      "explorer": "在新标签页中打开世界语言列表：每种语言的代码，以及在哪里使用。这些不是你们组织的语言。"
     },
     "sync": {
       "live": "带勾的云：已联网。你的工作会随时发送。点按查看发送了什么。",
@@ -4867,8 +4913,8 @@
       "finishHelp": "完成{{version}}：团队就能听到。",
       "sendHelp": "完成{{version}}，并发送给他们做这项检查。他们会在“我的工作”中看到。",
       "askHelp": "完成{{version}}，然后由你选择请谁。",
-      "sendLater": "以后再发送",
-      "sendLaterHelp": "完成{{version}}，暂时不请任何人。团队可以听到。",
+      "doneAskNobody": "完成，不请任何人",
+      "doneAskNobodyHelp": "完成{{version}}，不请任何人。团队可以听到，任何审阅者都可以检查。",
       "nextCheck": "下一项检查",
       "checkNowHelp": "完成{{version}}，然后打开下一项检查，由你现在自己来做。"
     },
@@ -4972,6 +5018,7 @@
       "spaceSetHelp": "圆圈表示这一节是你选的。长按可以选择其他经节，或者不选。",
       "pickHelp": "给{{part}}这一节。然后点按后面的某一节，可以涵盖几节经文。",
       "pickedHelp": "实心：{{part}}是这一节。点按后面的某一节，可以涵盖几节经文。",
+      "doneHelp": "关闭{{part}}的经节。你选的已经保存；撤销可以收回。",
       "autoHelp": "应用根据前后的段，判断这一段是哪一节。",
       "noneHelp": "让这一段不对应任何经节。",
       "tileHelp": "这一段说的经节。",
@@ -6220,7 +6267,7 @@
     "finishWhat": "完成{{what}}",
     "doneHelp": "每一段都说完后：完成它，并把它送去接下来要听它的检查。",
     "notesForCheck_other": "{{count, number}} 条给{{check}}的备注",
-    "sendLaterHelp": "完成{{what}}，暂时不请任何人。团队可以听到。",
+    "doneAskNobodyHelp": "完成{{what}}，不请任何人。团队可以听到，任何审阅者都可以检查。",
     "chips": {
       "version": "第 {{n}} 版"
     },
@@ -6841,6 +6888,7 @@
   },
   "referenceLanguage": {
     "question": "{{language}}的圣经和学习指南应使用哪些语言？",
+    "questionAny": "{{language}}的参考资料应使用哪些语言？",
     "setPassages_other": "{{name}}指南涵盖 {{count, number}} 个经段",
     "bibles_other": "{{count, number}} 本圣经",
     "otherGuides_other": "另有 {{count, number}} 份指南或笔记",
@@ -7243,6 +7291,7 @@
       "note_other": "已在这里的语言保留它们已有的一切。{{count, number}} 种新语言会在接下来的步骤中一起设置。",
       "onlyExisting": "没有需要新设置的：已在这里的语言保留它们已有的一切。",
       "make": "创建语言群",
+      "makeHelp": "用上面的语言创建语言群。请先命名，并至少加入一个语言。",
       "made_other": "已创建 {{cluster}}，包含 {{count, number}} 种语言。",
       "forNew_other": "用于 {{cluster}} 中的 {{count, number}} 种新语言。之后每种语言都可以修改自己的设置。",
       "added_other": "已将 {{count, number}} 种语言添加到 {{org}}，在 {{cluster}} 中。",
@@ -7382,36 +7431,6 @@
     "otherChanges": "其他更改",
     "recordings_other": "{{count, number}} 段录音",
     "changes_other": "{{count, number}} 项更改"
-  },
-  "disguise": {
-    "row": "应用图标",
-    "rowHelp": "让 LangQuest 在这部手机上看起来像计算器或记事本。只有输入你选的密码才能打开。",
-    "title": "应用图标",
-    "langquest": "LangQuest",
-    "ownHelp": "换回 LangQuest 自己的图标。打开时不需要密码。",
-    "lookHelp": "选择这个图标。接着你要选一个用来打开 LangQuest 的密码。",
-    "calculatorN": "计算器 {{n}}",
-    "notesN": "备忘录 {{n}}",
-    "codeTitle": "选择密码",
-    "code": "密码",
-    "codeHelp": "4 到 12 位数字。在计算器上，用按键输入。在记事本上，单独输入在一行里。",
-    "nextHelp": "打开计算器或记事本，让你在上面输入密码。",
-    "backHelp": "返回上一步。",
-    "tryTitle": "输入你的密码",
-    "on": "这部手机现在显示为{{name}}。",
-    "off": "已换回 LangQuest 自己的图标。",
-    "notesTitle": "备忘录",
-    "keys": {
-      "clear": "全部清除",
-      "delete": "删除",
-      "percent": "百分比",
-      "divide": "除",
-      "times": "乘",
-      "minus": "减",
-      "plus": "加",
-      "equals": "等于",
-      "point": "小数点"
-    }
   },
   "verified": {
     "sealLabel": "已认证的组织",

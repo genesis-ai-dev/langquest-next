@@ -32,8 +32,10 @@ const SMOKES = [
   'server/opsDashboardSmoke.sql',
   'server/opsActionsSmoke.sql',
   'server/tutorialsSmoke.sql',
+  'server/userIssuesSmoke.sql',
   'server/moderation-smoke.sql',
   'server/inviteKeysSmoke.sql',
+  'server/passwordResetSmoke.sql',
   'server/joinSmoke.sql',
   'server/inviteChecksSmoke.sql',
   'server/grantsSmoke.sql',
@@ -48,6 +50,7 @@ const SMOKES = [
   'server/rlsReadSmoke.sql',
   'server/timingJobsSmoke.sql',
   'server/surfaceSmoke.sql',
+  'server/snapshotPurgeSmoke.sql',
   'server/cronSmoke.sql'
 ];
 /** Smokes that need something a reset leaves out, set up first: the cron jobs exist only where the Vault secrets do. */

@@ -30,6 +30,7 @@ import {
   type FeedbackKind, type Shot, type VoiceRef
 } from './feedbackModel';
 import { canChoosePicture, choosePicture, shrinkPicture, type ChosenPicture } from './pictureFile';
+import { touches } from '../ui/touches';
 
 /** Two frames: the dimming has gone from the screen before it is taken. */
 const afterPaint = () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
@@ -99,7 +100,7 @@ export function FeedbackHost(props: { ctx: Ctx; screen: string; signedIn: boolea
 
   return (
     <>
-      <View style={StyleSheet.absoluteFill} pointerEvents="box-none"
+      <View style={[touches.boxNone, StyleSheet.absoluteFill]}
         onLayout={(e) => setArea({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}>
         {showing ? (
           // help-ignore: help mode's own button, like the ?: it opens feedback rather than explaining

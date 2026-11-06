@@ -7,7 +7,7 @@
  * most people mean by it (FIA writes Swahili `swa`, Bible Brain `swh`).
  */
 const SAME: readonly (readonly string[])[] = [
-  ['swa', 'swh'], ['arb', 'ara'], ['npi', 'nep'], ['cmn', 'zho'], ['fas', 'pes'], ['msa', 'zsm']
+  ['swa', 'swh'], ['arb', 'ara'], ['npi', 'nep'], ['cmn', 'zho'], ['fas', 'pes'], ['msa', 'zsm'], ['tgl', 'fil']
 ];
 
 /** Every code a reader takes for this language: the code itself first, then the others it is taken for. */

@@ -10,6 +10,8 @@ import { button, toastGone } from './workspace';
 // A library item's name as written; in another language the app adds the item's language after it ("(English)").
 const toggle = (page: Page, name: string) =>
   page.getByRole('switch', { name: asIs(new RegExp(`^${escape(name)}( \\(.+\\))?$`)) }).locator('visible=true').first();
+// The languages a set comes in, on the sheet that asks which one.
+const languages = (page: Page) => page.getByRole('radio').locator('visible=true');
 
 export const chooseReferenceMaterial: Tutorial = {
   id: 'choose-reference-material',
@@ -70,7 +72,8 @@ export const chooseReferenceMaterial: Tutorial = {
     },
     {
       screen: 'reference_home',
-      part: (page) => button(page, 'Use English'),
+      // The voice speaks of the languages, so they are lit with the button; the finger taps the button.
+      part: (page) => [button(page, 'Use English'), languages(page).first(), languages(page).last()],
       say: 'They come in several languages. Pick the one the team reads best.',
       tap: true,
       until: (page) => button(page, 'Use English').waitFor({ state: 'hidden', timeout: 10_000 }),

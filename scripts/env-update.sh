@@ -4,7 +4,11 @@
 #
 #   npm run env:update -- preview EXPO_PUBLIC_FOO 'value'           public: plain in apps/mobile/.env.preview, then EAS
 #   npm run env:update -- preview INVITE_RELAY_SECRET               secret: asks (hidden), encrypts into .env.preview
-#   npm run env:update -- production PUSH_DELIVERY_SECRET "$(openssl rand -hex 32)"
+#   openssl rand -hex 32 | npm run --silent env:update -- production PUSH_DELIVERY_SECRET
+#
+# Pipe a secret in, as above, never pass it as an argument: npm prints a
+# script's arguments, so the value lands in the terminal and in any agent's
+# log (the Play key, 2026-11-05).
 #
 # The key's name picks the file: EXPO_PUBLIC_* is public and goes in the
 # app's file; anything else is a secret and goes in the root .env.<env>,

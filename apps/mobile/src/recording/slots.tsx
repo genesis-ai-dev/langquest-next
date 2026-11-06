@@ -8,11 +8,11 @@
 // half off the card: tapping it opens a place there, a pill with space all
 // around it, so it never looks like a part (Caleb, 2026-10-16). Each part
 // has a grip at its right end to drag it up or down the card.
-import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type PanResponderInstance } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Animated, Pressable, StyleSheet, View, type PanResponderInstance } from 'react-native';
 import { Text } from '../ui/text';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpQuiet } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { Ico } from '../ui/kit';
 import { txt } from '../ui/textStyles';
@@ -21,6 +21,8 @@ import { partLabel } from './model';
 import { styles as ps } from './blockStyles';
 import { lift } from '../ui/shadow';
 import { a11yState } from '../ui/a11yModel';
+import { useReduceMotion } from '../ui/useReduceMotion';
+import { touches } from '../ui/touches';
 
 /**
  * Half a + mark's 48 pt target, centred on the card's right edge: every row
@@ -55,7 +57,8 @@ export function GapSlot(props: { n: number; tile?: ReactNode; chosen: boolean; d
           {props.chosen ? <Text style={txt.smMuted}>{t('recording.recorder.recordingNext')}</Text> : null}
         </View>
         {props.tile ?? null}
-        <HelpBadge spot={spot} />
+        {/* A place not chosen is secondary while help is on (LAN-135): the one recorded into next takes a number. */}
+        {props.chosen ? <HelpBadge spot={spot} /> : <HelpQuiet><HelpBadge spot={spot} /></HelpQuiet>}
       </Pressable>
     </View>
   );
@@ -70,11 +73,12 @@ export function GapSlot(props: { n: number; tile?: ReactNode; chosen: boolean; d
 export function InsertMark(props: { n: number; before: string; onPress: () => void }) {
   const spot = useHelpSpot(t('recording.recorder.recordBefore', { part: props.before }), t('recording.recorder.recordBeforeHelp'), props.onPress);
   return (
-    <View style={styles.markLine} pointerEvents="box-none">
+    <View style={[touches.boxNone, styles.markLine]}>
       <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('recording.recorder.recordBefore', { part: props.before })}
         style={({ pressed }) => [styles.markTap, pressed && { transform: [{ scale: 1.25 }] }]}>
         <View style={styles.mark}><Ico name="plus" size={12} color={C.muted} strokeWidth={3} /></View>
-        <HelpBadge spot={spot} />
+        {/* Secondary while help is on: dim and unnumbered, and a tap still explains (LAN-135). */}
+        <HelpQuiet><HelpBadge spot={spot} /></HelpQuiet>
       </Pressable>
     </View>
   );
@@ -88,8 +92,10 @@ const DRAG = () => undefined;
  * reader gets Move up and Move down instead.
  */
 export function PartGrip(props: { part: string; handlers: PanResponderInstance['panHandlers']; disabled: boolean; canUp: boolean; canDown: boolean; onStep: (by: -1 | 1) => void;
-  /** Its place in the list, 1-based, and how many parts there are: the slider's value. */ at: number; of: number }) {
+  /** Its place in the list, 1-based, and how many parts there are: the slider's value. */ at: number; of: number;
+  /** When it was tapped without a drag: it shows that it moves up and down (LAN-132). */ nudge?: number | undefined }) {
   const spot = useHelpSpot(t('recording.recorder.movePart', { part: props.part }), t('recording.recorder.movePartHelp'), props.disabled ? undefined : DRAG);
+  const nudging = useNudge(props.nudge);
   return (
     <View {...(props.disabled || spot.id ? {} : props.handlers)} style={[styles.grip, props.disabled && ps.off]} testID="part-grip"
       accessible accessibilityRole="adjustable" accessibilityLabel={t('recording.recorder.movePart', { part: props.part })}
@@ -103,7 +109,10 @@ export function PartGrip(props: { part: string; handlers: PanResponderInstance['
         if (e.nativeEvent.actionName === 'decrement' && props.canUp) props.onStep(-1);
         if (e.nativeEvent.actionName === 'increment' && props.canDown) props.onStep(1);
       }}>
-      <Ico name="handle" size={22} color={C.muted} />
+      {/* Six dots, the sign of something to drag; three lines read as a menu (LAN-132). A tap bounces arrows up and down. */}
+      <Animated.View style={{ transform: [{ translateY: nudging.y }] }} {...(nudging.on ? { testID: 'part-grip-nudge' } : {})}>
+        <Ico name={nudging.on ? 'join' : 'grip'} size={22} color={nudging.on ? C.primary : C.muted} />
+      </Animated.View>
       {spot.id ? (
         <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('recording.recorder.movePart', { part: props.part })} style={StyleSheet.absoluteFill}>
           <HelpBadge spot={spot} />
@@ -111,6 +120,25 @@ export function PartGrip(props: { part: string; handlers: PanResponderInstance['
       ) : null}
     </View>
   );
+}
+
+/**
+ * A tapped grip's answer: arrows up and down that bounce twice, then the
+ * dots again. With reduced motion the arrows stand a moment instead.
+ */
+function useNudge(at: number | undefined): { on: boolean; y: Animated.Value } {
+  const still = useReduceMotion();
+  const y = useRef(new Animated.Value(0)).current;
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    if (!at) return;
+    setOn(true);
+    const step = (to: number) => Animated.timing(y, { toValue: to, duration: 110, useNativeDriver: true });
+    const run = still ? Animated.delay(900) : Animated.sequence([step(-5), step(5), step(-5), step(5), step(0), Animated.delay(250)]);
+    run.start(() => setOn(false));
+    return () => { run.stop(); y.setValue(0); };
+  }, [at, still, y]);
+  return { on, y };
 }
 
 /** The microphone a chosen part shows: what is said next replaces it. */
