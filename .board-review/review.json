@@ -1,19 +1,23 @@
 {
   "kind": "screen",
-  "ask": "Is the new Say it section right, and can you send a few partner clips for the test set?",
-  "problem": "Teams find a missed key term only at the consultant stage and redo the draft. The app cannot check a take for a term yet.",
-  "found": "The app keeps written words and a manual tie to a take. It has no recording of how the team says a word, so nothing to compare a take with. The issue cited decision 54, which is about joining a team.",
-  "changed": "A key word's page has a new Say it section. The team records two or three examples of the word and plays them back. A new script scores how well a matcher finds words in passages. No matcher yet.",
-  "why": "The old written word must not change, so this is a new kind of record. The result stays a hint on the phone. Pictures are drawn from the app's colours; no live app ran here. Database checks did not run here, so wait for the PR checks.",
+  "ask": "Is the Say it section right? Please also send a few partner clips for the test set.",
+  "problem": "Amina drafts Luke 1 and ties the key word Logos to her take by hand. The app cannot tell if she said it, so a missed word is found late and the draft is redone.",
+  "found": "The app keeps written words only. It has no recording of how the team says a word, so nothing exists to compare a take with.",
+  "changed": "Before the book, the team records two or three examples of Logos on its page and plays them back. This is the first step of the check. The check itself comes later; picture 3 shows it.",
+  "why": "Hint means the phone only suggests; it never blocks Amina and saves nothing. The pictures are drawings in the app's colours, not screenshots: no live app can run here. Database checks must pass in the pull request.",
   "touches": "A new database migration. 15 translations I wrote need a native reader. Phones download the new clips. Play store answers stay the same.",
   "pictures": [
     {
       "file": "before.png",
-      "label": "Before"
+      "label": "Before: Amina ties the word by hand"
     },
     {
       "file": "after.png",
-      "label": "After"
+      "label": "After: the team records examples first"
+    },
+    {
+      "file": "later.png",
+      "label": "Later, not built: heard and not heard hint"
     }
   ]
 }
