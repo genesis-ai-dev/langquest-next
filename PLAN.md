@@ -206,6 +206,7 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.StudyStepMarked` | unitId, guideId, stepId, done | register per (unit, guide, step) |
 | `v1.MaterialDefined` / `v1.MaterialFieldSet` / `v1.MaterialLocked` | materialId, kind, title, scope {unitId?, stepId?}, templateRef? / materialId, fieldId, text? / blobHash? / materialId, locked | earliest wins / register per (material, field) / register per material |
 | `v1.KeyTermDefined` / `v1.KeyTermRenderingAdded` / `v1.KeyTermAdjusted` / `v1.KeyTermLinked` | termId, term, gloss, unitScope[] / renderingId… / adjustmentId, note, blobHash?, duringTakeId? / takeId, termId, note?, adjustmentId? | all grow-only |
+| `v1.KeyTermAudioRenderingAdded` | termId, renderingId, blobHash, durationMs | grow-only; a recorded example of how the language says a term, for the heard / not heard hint (decision 205); `KeyTermRenderingAdded` stays the written one |
 | `v1.ReferenceSet` | itemId, state (recommended, hidden, inherit) | register per item; the language's say on a library item (decision 62) |
 | `v1.ReferenceLanguageSet` | language | register; the language the team's reference material is in, before which `sourceCode` stands (decision 84) |
 | `v1.ReferenceLanguageAdded` | language, added | register per language; another language the team's reference material may be in, beside the main one (decision 130) |

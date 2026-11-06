@@ -29,6 +29,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
+import { TermExamples } from '../keyTerms/TermExamples';
 import { deriveKinds, localKind } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
@@ -88,7 +89,7 @@ import {
   materialChanges, materialFieldIds, materialReady, materialScopeName, partOfUnit, questionTypes, sortQuestionSets, templatePartChoices,
   versificationChoices, type VersificationChoice
 } from '../reference/materialModel';
-import { newRoleId, adjustKeyTermEvents, copyFlowEvents, defineKeyTermEvents, defineMaterialEvents, defineRole, linkKeyTermEvents, lockMaterialEvents, newMaterialId, setMaterialFieldsEvents, planQuestionSetReviews, recommendReference } from '../config/configCommands';
+import { newRoleId, addKeyTermAudioEvents, adjustKeyTermEvents, copyFlowEvents, defineKeyTermEvents, defineMaterialEvents, defineRole, linkKeyTermEvents, lockMaterialEvents, newMaterialId, setMaterialFieldsEvents, planQuestionSetReviews, recommendReference } from '../config/configCommands';
 import { privilegesOn, roleDefinition, roleDirty } from '../roles/model';
 import { SwitchRow } from '../admin/admin';
 import { flipSwitch, languageLabel, ROLE_SWITCHES, sameChecks, stepTitle, switchState } from '../admin/adminModel';
@@ -1775,6 +1776,13 @@ export function KeyTermDetail(ctx: Ctx) {
     setBusy(false);
   }
 
+  async function saveExample(hash: string, durationMs: number) {
+    setBusy(true);
+    await actCommand(ctx, 'record key term example', () => addKeyTermAudioEvents(state!, termId, hash, durationMs), // i18n-ignore: log label
+      t('config.keyTerm.exampleSaved'));
+    setBusy(false);
+  }
+
   const scopeTitles = term.unitScope.map((u) => unitTitle(state, u));
   const voice = [...term.adjustments].reverse().find((a) => a.blobHash)?.blobHash;
   return (
@@ -1829,6 +1837,11 @@ export function KeyTermDetail(ctx: Ctx) {
       )}
       {canEdit ? <GhostBtn label={term.renderings.length ? t('config.keyTerm.adjustOrAdd') : t('config.keyTerm.addRendering')} icon="edit"
         help={t('config.keyTerm.adjustHelp', { language })} onPress={() => setAdjusting(true)} /> : null}
+
+      {canEdit || term.audioRenderings.length ? (
+        <TermExamples ctx={ctx} language={language} examples={term.audioRenderings} canRecord={canEdit} busy={busy}
+          onRecorded={(hash, durationMs) => void saveExample(hash, durationMs)} />
+      ) : null}
 
       <WordPassagesSection ctx={ctx} passages={page.passages} own loading={page.loading} listName={fromList ? shortName(fromList.list) : null} onOpen={openPassage} />
       <WordNotesSection ctx={ctx} notes={page.notes}

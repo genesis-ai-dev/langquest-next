@@ -109,6 +109,8 @@ interface KeyTerm {
   /** Clock of the KeyTermDefined that stands (the earliest), or '' for a placeholder left by an early rendering. */
   hlc: Hlc;
   renderings: Record<string, { rendering: string; context: string; hlc: Hlc }>;
+  /** Absent in a state saved before decision 205. */
+  audioRenderings?: Record<string, { blobHash: string; durationMs: number; actorId: string; hlc: Hlc }>;
   adjustments: Record<string, { note: string; blobHash?: string; duringTakeId?: string; actorId: string; hlc: Hlc }>;
 }
 

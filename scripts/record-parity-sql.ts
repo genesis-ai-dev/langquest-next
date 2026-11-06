@@ -45,6 +45,7 @@ const OPTIONAL: Partial<Record<string, string[]>> = {
   'v1.CardCleanUpSet': ['cleanedHash', 'cleanedFormat', 'tool', 'limitDb'],
   'v1.MaterialDefined': ['templateRef'],
   'v1.MaterialFieldSet': ['text', 'blobHash'],
+  'v1.KeyTermAudioRenderingAdded': [],
   'v1.KeyTermAdjusted': ['blobHash', 'duringTakeId'],
   'v1.KeyTermLinked': ['note', 'adjustmentId'],
   'v1.Redacted': ['reason'],
@@ -145,6 +146,10 @@ const broken: AnyEvent[] = events.flatMap((e) => {
       for (const limitDb of [0, -1, 12, 12.5, 100, 100.5, '12', Infinity]) variants.push({ ...p, use: 'original', tool: 'dfn3', limitDb }, { ...p, use: 'cleaned', cleanedHash: 'x', cleanedFormat: 'wav', tool: 'dfn3', limitDb });
       break;
     }
+    case 'v1.KeyTermAudioRenderingAdded':
+      for (const durationMs of [0, -1, 1, 900.5, 30000, 30001, '900', null, Infinity]) variants.push({ ...p, durationMs });
+      variants.push({ ...p, blobHash: '' }, { ...p, renderingId: '' }, { ...p, termId: 7 });
+      break;
     case 'v1.VersionReleased':
       variants.push({ ...p, live: 1 }, { ...p, channel: '' }, { ...p, channel: 'x'.repeat(61) }, { ...p, channel: '🎧'.repeat(60) }, { ...p, url: '' }, { ...p, url: ' ' });
       break;

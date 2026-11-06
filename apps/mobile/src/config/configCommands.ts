@@ -60,6 +60,11 @@ export function linkKeyTermEvents(state: LanguageState, takeId: string, termIds:
   return commands(state, indexesFor(state)).linkKeyTerms({ commandId: randomUUID(), takeId, termIds });
 }
 
+/** A spoken example of a key term, from a recording already in the blob store (decision 205). */
+export function addKeyTermAudioEvents(state: LanguageState, termId: string, blobHash: string, durationMs: number): EventSpec[] {
+  return commands(state, indexesFor(state)).addKeyTermAudio({ commandId: randomUUID(), termId, blobHash, durationMs });
+}
+
 export function adjustKeyTermEvents(state: LanguageState, c: Omit<Adjust, 'commandId'>): EventSpec[] {
   return commands(state, indexesFor(state)).adjustKeyTermRendering({ ...c, commandId: randomUUID() } as Adjust);
 }
