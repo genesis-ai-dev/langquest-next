@@ -5,7 +5,7 @@
   "found": "In the Standard flow, step 1 shows the peer check and back translation together, so it looks like one job. A finished back translation says \"looks good\", though no one checked it. The Spoken flow keeps them apart.",
   "changed": "Nothing yet. I only took pictures and drew a mockup. I will change no screen and no flow until you answer.",
   "why": "Each row says make it or check it. A made back translation says \"made\", not \"looks good\". Peer check shows only where a flow has its own peer step.",
-  "touches": "Two options change the record screen and the text people read. One option also changes the Standard Bible Flow, which languages may already have copied. The Consultant Check would keep its own row.",
+  "touches": "Options one and two change the record screen words. Option two also changes the Standard flow, which languages may have copied.",
   "pictures": [
     {
       "file": "standard-peer-and-bt-together.png",
