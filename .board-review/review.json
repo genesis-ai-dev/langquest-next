@@ -4,7 +4,7 @@
  "problem": "Keeping chapters for offline work is mostly done. Two things were left: Bible Brain text (now LAN-19) and one view of what is stored, with sizes. This question is only about the second.",
  "found": "Settings shows one line: how many kept passages are ready. The Ready for offline screen shows sizes only for what is still to download. Nothing says how much space is used. Pictures are drawn from the app's words, not screenshots.",
  "changed": "Nothing is built. This is only the decision and the mockups.",
- "why": "Your note asks for very good and visible offline status. Sizes answer two real questions: how much space this uses, and whether a trip will fit. Removing audio already belongs to LAN-18, so any option that removes things would overlap it. You have scrapped work before when users could already get the answer another way, so I kept the options small.",
+ "why": "Sizes show how much space is used and whether a trip fits. Removing audio belongs to LAN-18, so I kept the options small.",
  "touches": "Option B changes only the Ready for offline screen. Option C adds a new screen and overlaps LAN-18. Neither touches Bible Brain text (LAN-19).",
  "pictures": [
   {
