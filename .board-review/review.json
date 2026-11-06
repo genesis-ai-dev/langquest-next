@@ -1,10 +1,10 @@
 {
 "kind":"needs_you",
-"ask":"Can you close the draft pull request and cancel issue LAN-190?",
-"problem":"Partners asked for a flag on recordings with an odd length. You decided to drop it, because users can make this from the data feed.",
-"found":"Nothing was built. The only work on the branch was my question card. I am not allowed to change the Linear issue. I left the pull request open so this note stays attached to it.",
-"changed":"Nothing people see. I removed the old option pictures and left this note.",
+"ask":"Can you cancel issue LAN-190 in Linear? Link: https://linear.app/frontierrandd/issue/LAN-190",
+"problem":"You decided to drop the length flag, because users can make this from the data feed.",
+"found":"I closed the draft pull request. I have no Linear tool in this session, so I cannot cancel the issue myself.",
+"changed":"Nothing people see. The pull request is closed: https://github.com/genesis-ai-dev/langquest-next/pull/362",
 "why":"The feed already gives each recording's length, so users can work out the flag themselves.",
-"touches":"Nothing else changes.",
-"pictures":[{"file":"status.png","label":"What is done and what needs you"}]
+"touches":"Nothing else changes. The branch holds only this note.",
+"pictures":[{"file":"status2.png","label":"What is done and what needs you"}]
 }
