@@ -42,14 +42,14 @@ do $$ begin
 end $$;
 
 -- A language that goes quiet is cleaned up with no new write. The window itself
--- is decision 88's: a phone reading pieces has 24 hours after the next one is out.
+-- is decision 88's, amended: a phone reading pieces has 6 hours after the next one is out.
 do $$ begin
   perform pg_temp.snap('quiet', 1, 1, '3 days');
-  perform pg_temp.snap('quiet', 1, 2, '2 days');
-  perform pg_temp.snap('quiet', 1, 3, '20 hours');
+  perform pg_temp.snap('quiet', 1, 2, '7 hours');
+  perform pg_temp.snap('quiet', 1, 3, '5 hours');
   perform pg_temp.snap('quiet', 1, 4, '1 hour');
   perform pg_temp.purge();
-  perform pg_temp.expect('quiet', 1, array[2, 3, 4]::bigint[], 'a snapshot goes once a newer one has been out 24 hours');
+  perform pg_temp.expect('quiet', 1, array[2, 3, 4]::bigint[], 'a snapshot goes once a newer one has been out 6 hours');
   if exists (select 1 from public.snapshot_chunks where org_id = 'purgeorg' and stream_id = 'quiet' and server_seq = 1) then
     raise exception 'pieces should go with their snapshot';
   end if;
@@ -81,21 +81,21 @@ do $$ begin
   perform pg_temp.snap('uncut', 1, 2, '2 days');
   perform pg_temp.snap('uncut', 1, 3, '1 hour');
   perform pg_temp.purge();
-  perform pg_temp.expect('uncut', 1, array[1, 2, 3]::bigint[], 'the only cut stays; so does the one that outlives it by under 24 hours');
+  perform pg_temp.expect('uncut', 1, array[1, 2, 3]::bigint[], 'the only cut stays; so does the one whose successor is under 6 hours old');
   if public.get_snapshot_rows('purgeorg', 'uncut', 1, 1, array['u1'], null, 10) is null then raise exception 'the only cut should still answer'; end if;
   perform pg_temp.snap('uncut', 1, 4, '0', true);
   perform pg_temp.purge();
   perform pg_temp.expect('uncut', 1, array[2, 3, 4]::bigint[], 'an older snapshot goes once a newer cut took its rows');
 end $$;
 
--- A burst (an import, 5 minutes a snapshot) stays within the cap. At one an hour it never applies.
+-- A burst (an import, 5 minutes a snapshot) stays within the cap. At one an hour it never applies, and 25 within the window stay.
 do $$ begin
   for i in 1..35 loop perform pg_temp.snap('burst', 1, i, make_interval(mins => 36 - i)); end loop;
   perform pg_temp.purge();
   perform pg_temp.expect('burst', 1, array(select generate_series(6, 35))::bigint[], 'the newest 30 stay');
-  for i in 1..25 loop perform pg_temp.snap('hourly', 1, i, make_interval(hours => 25 - i)); end loop;
+  for i in 1..25 loop perform pg_temp.snap('hourly', 1, i, make_interval(mins => (25 - i) * 12)); end loop;
   perform pg_temp.purge();
-  if cardinality(pg_temp.seqs('hourly', 1)) <> 25 then raise exception 'the schedule''s normal hourly writes should not meet the cap, %', pg_temp.seqs('hourly', 1); end if;
+  if cardinality(pg_temp.seqs('hourly', 1)) <> 25 then raise exception 'writes a window can hold should not meet the cap, %', pg_temp.seqs('hourly', 1); end if;
 end $$;
 
 -- A deploy that bumps the reducer. A phone on the old version reads only that
@@ -111,16 +111,16 @@ do $$ declare at timestamptz; begin
   perform pg_temp.expect('bump', 1, array[2]::bigint[], 'an old version keeps only its newest');
 
   -- Rewriting the mark would restart the clock.
-  update public.snapshots set superseded_at = now() - interval '6 days' where stream_id = 'bump' and reducer_version = 1;
+  update public.snapshots set superseded_at = now() - interval '13 days' where stream_id = 'bump' and reducer_version = 1;
   at := (select superseded_at from public.snapshots where stream_id = 'bump' and reducer_version = 1);
   perform pg_temp.snap('bump', 2, 3);
   if (select superseded_at from public.snapshots where stream_id = 'bump' and reducer_version = 1) <> at then raise exception 'the first newer snapshot sets the time'; end if;
 
-  -- Less than 7 days: it stays, with nobody seen on it.
+  -- Less than 14 days: it stays, with nobody seen on it, for a store build in review that carries it.
   perform pg_temp.purge();
-  perform pg_temp.expect('bump', 1, array[2]::bigint[], 'an old version stays 7 days');
+  perform pg_temp.expect('bump', 1, array[2]::bigint[], 'an old version stays 14 days after it is replaced');
 
-  -- Past 7 days with a phone on it seen lately (a store build a native change left behind): it stays, with its cut.
+  -- Past 14 days with a phone on it seen lately (a store build a native change left behind): it stays, with its cut.
   update public.snapshots set superseded_at = now() - interval '30 days' where stream_id = 'bump' and reducer_version = 1;
   insert into diag.installs (install_id, profile_id, context, last_seen) values ('purge-phone', 'p', '{"reducerVersion":"1"}', now() - interval '13 days');
   perform pg_temp.purge();
@@ -142,6 +142,28 @@ do $$ declare at timestamptz; begin
   update diag.installs set context = '{"reducerVersion":"1"}', last_seen = now() - interval '15 days' where install_id = 'purge-phone';
   perform pg_temp.purge();
   perform pg_temp.expect('seen', 1, '{}'::bigint[], 'a phone not seen for 14 days does not hold a version');
+end $$;
+
+-- However long a phone keeps reporting, an old version's last copy goes 45 days
+-- after it was replaced, and a developer's own build never holds one.
+do $$ begin
+  update diag.installs set context = '{"reducerVersion":"1","channel":"production"}', last_seen = now() where install_id = 'purge-phone';
+  perform pg_temp.snap('ceiling', 1, 1, '60 days');
+  perform pg_temp.snap('ceiling', 2, 1);
+  update public.snapshots set superseded_at = now() - interval '44 days' where stream_id = 'ceiling' and reducer_version = 1;
+  perform pg_temp.purge();
+  perform pg_temp.expect('ceiling', 1, array[1]::bigint[], 'a phone seen lately holds a version under 45 days');
+  update public.snapshots set superseded_at = now() - interval '46 days' where stream_id = 'ceiling' and reducer_version = 1;
+  perform pg_temp.purge();
+  perform pg_temp.expect('ceiling', 1, '{}'::bigint[], 'past 45 days no phone holds a version');
+  perform pg_temp.expect('ceiling', 2, array[1]::bigint[], 'the newest version is untouched');
+
+  perform pg_temp.snap('devheld', 1, 1, '60 days');
+  perform pg_temp.snap('devheld', 2, 1);
+  update public.snapshots set superseded_at = now() - interval '30 days' where stream_id = 'devheld' and reducer_version = 1;
+  update diag.installs set context = '{"reducerVersion":"1","channel":"development"}' where install_id = 'purge-phone';
+  perform pg_temp.purge();
+  perform pg_temp.expect('devheld', 1, '{}'::bigint[], 'a development build does not hold a version');
 end $$;
 
 -- A language the pass has not reached since the deploy has no newer version: its
@@ -238,6 +260,25 @@ do $$ declare r jsonb; begin
   if (select count(*) from diag.job_runs where job = 'snapshot_purge') <> 2 then raise exception 'a run with nothing to do should leave a job run too'; end if;
   if (select every from diag.job_schedule where job = 'snapshot_purge') <> interval '10 minutes' then raise exception 'the job should be on the schedule'; end if;
   delete from diag.job_runs where job = 'snapshot_purge';
+end $$;
+
+-- How many copies exist (the ops dashboard): in all, per reducer version and per language.
+do $$ declare v jsonb; l jsonb; begin
+  perform pg_temp.snap('copies', 7001, 1);
+  perform pg_temp.snap('copies', 7001, 2);
+  perform pg_temp.snap('copies', 7002, 3);
+  perform pg_temp.snap('copies', 7002, 4);
+  perform pg_temp.snap('copies', 7002, 5);
+  v := diag.ops_snapshot_copies();
+  if (v->'total'->>'snapshots')::int <> (select count(*) from public.snapshots) then raise exception 'total copies: %', v->'total'; end if;
+  if (select (x->>'snapshots')::int from jsonb_array_elements(v->'byVersion') x where (x->>'reducer')::int = 7002) <> 3 then raise exception 'per reducer: %', v->'byVersion'; end if;
+  if (select (x->>'languages')::int from jsonb_array_elements(v->'byVersion') x where (x->>'reducer')::int = 7001) <> 1 then raise exception 'languages per reducer: %', v->'byVersion'; end if;
+  select x into l from jsonb_array_elements(v->'languages') x where x->>'languageId' = 'copies';
+  if l is null or (l->>'versions')::int <> 2 or (l->>'snapshots')::int <> 5 or l->'perVersion' <> '[{"reducer":7002,"snapshots":3},{"reducer":7001,"snapshots":2}]'::jsonb then
+    raise exception 'per language: %', l;
+  end if;
+  if not has_function_privilege('diag_reader', 'diag.ops_snapshot_copies()', 'execute') then raise exception 'the dashboard should read the copies'; end if;
+  if has_function_privilege('authenticated', 'diag.ops_snapshot_copies()', 'execute') then raise exception 'signed-in people may read the copies'; end if;
 end $$;
 
 -- Leave nothing behind.

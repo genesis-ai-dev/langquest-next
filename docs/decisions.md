@@ -10804,3 +10804,36 @@ with `none`, rise after this among phones on an older reducer (then hold the
 version longer); or the tables grow past the database plan regardless (then a
 short key in `snapshot_units`' indexes, which hold 4.5 of its 7.7 GB, or 89's
 pieces in object storage).
+
+Amended (2026-11-06, Carl Sauder): an older snapshot now goes 6 hours after a
+newer one comes out, not 24 (migration
+`20261106120000_snapshot_window_and_copies.sql`), which amends 88 as well. The
+window serves only a whole-snapshot download that has not stopped: a phone
+filling from the cut reads the newest, and a phone that tries again asks for
+the newest and drops pieces of any other, so 88's phone that resumes later that
+day was never helped by it. 40 MB at 2 KB/s is about 5.5 hours, so 6 hours is
+the floor. A language writing one an hour keeps about 7 copies, not 25. Carl
+chose this now rather than once builds from before the cut are below the
+minimum version: until then those phones always read pieces, so a slower one
+on a big language can see its download go stale and start over.
+Reverse if: `snapshot` records with `stale` rise on `cold` first downloads.
+
+Amended (2026-11-06, Carl Sauder): an old version's last copy now goes 45 days
+after it was replaced, whoever still reports it, and a development build no
+longer holds a version. As first built, one install seen every 14 days held its
+version's copies for every language with no end, even a phone below the minimum
+version, whose diagnostics pass the gate (154) though it may not download. 45
+days allows for the three-week minimum-version cycle in 151 with a margin; it is
+a judgment, not a measurement. Past it, a phone still on that version pulls the
+log on a first download or a restarted fill, and its own work is safe.
+
+Amended (2026-11-06, Carl Sauder): an old version's last copy now waits 14 days
+after it was replaced, not 7, so one timer runs from the later of the replacement
+and the last phone seen on it. Carl pointed out that a store build in review can
+carry a version no phone has reported yet; 7 days could take its copy before
+approval. Shortening to 1 day was turned down for that reason, and so was having
+the release pipeline record each build's reducer, since one number covers it. A
+review over 14 days past the replacement, or a build cut from an older commit,
+still finds no copy: a new install on a slow link then pulls the log and its work
+is safe. At about one bump a week this keeps one or two versions nobody reports;
+at early October's three a week, five or six, each a copy per language.

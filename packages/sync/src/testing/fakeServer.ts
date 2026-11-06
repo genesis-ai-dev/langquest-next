@@ -42,7 +42,7 @@ export class FakeServer {
   reducerVersion = REDUCER_VERSION;
   /**
    * How long a replaced snapshot can still be downloaded (the purge job keeps
-   * it 24 hours, decisions.md 88, 204). 0 drops it at once, as put_snapshot did.
+   * it 6 hours, decisions.md 88, 204). 0 drops it at once, as put_snapshot did.
    */
   retainMs = 0;
   /** The server's clock, for retention; the fleet gives it simulated time. */
