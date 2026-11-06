@@ -1,0 +1,10 @@
+{
+ "kind": "screen",
+ "ask": "Does starting on Whole Bible look right to you?",
+ "problem": "When a team adds a new language, the step that picks the part of the Bible starts on New Testament. Teams that translate the whole Bible must change it every time.",
+ "found": "The step chose New Testament by default. It was one starting value.",
+ "changed": "The step now starts on Whole Bible. New Testament, Old Testament and Choose books work as before.",
+ "why": "This is the smallest change and matches the request from Bezily's group. The web tests that expected New Testament first now pick it themselves. The tutorial scripts never relied on it, so they stay as they are.",
+ "touches": "Nothing else. It reaches phones as a quick update, not a store build. I could not run the web tests here, because no test server was available. The pictures are sketches of the step, not real screenshots.",
+ "pictures": [{"file": "before.png", "label": "Before (sketch)"}, {"file": "after.png", "label": "After (sketch)"}]
+}
