@@ -8,6 +8,7 @@
 - [performance-audit.md](./performance-audit.md) — Event system performance: today's baseline, how to measure it, and ranked improvements with the metric for each
 - [performance-audit-app.md](./performance-audit-app.md) — App and server performance (rendering, startup, web bundle, Worker, SQL), and the event audit's open items, ranked with a fix and a metric each
 - [performance-audit-2026-10-26.md](./performance-audit-2026-10-26.md) — Re-measure after big languages and Global Viewers: the web bundle's icons, the kept-on-disk path, the server's passes, and both earlier audits' open items
+- [v2-fix-history-review.md](./v2-fix-history-review.md) — LAN-58: v2's fix history sorted by kind of fault and checked against Next, with the faults that can recur
 - [fleet-simulation.md](./fleet-simulation.md) — Many phones on simulated time against the in-memory server: `npm run fleet`, the scenarios, and how to read them
 - [fleet-baselines.md](./fleet-baselines.md) — Baseline numbers for every fleet scenario at several sizes, to compare before and after a performance change (`npm run fleet:baselines`)
 - [global-viewers.md](./global-viewers.md) — Global Viewers: LangQuest support who read every organization, as its admins see it, on an authenticator-verified session; making one on a call, revoking, a lost authenticator, how it works
