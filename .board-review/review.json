@@ -15,12 +15,12 @@
   "options": [
     {
       "label": "Set it aside now",
-      "result": "Pull requests stop failing on this test. It keeps running every night, and the cause stays open.",
+      "result": "Pull requests stop failing on this test. It still runs every night.",
       "picture": "quarantine.png"
     },
     {
-      "label": "Keep it blocking and dig deeper",
-      "result": "About 1 pull request in 14 still fails on it until someone reproduces the problem with the full test stack.",
+      "label": "Keep it blocking",
+      "result": "The test keeps failing about 1 run in 14 until someone finds the cause.",
       "picture": "wait.png"
     }
   ],
