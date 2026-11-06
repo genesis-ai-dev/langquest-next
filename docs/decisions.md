@@ -10853,3 +10853,21 @@ review over 14 days past the replacement, or a build cut from an older commit,
 still finds no copy: a new install on a slow link then pulls the log and its work
 is safe. At about one bump a week this keeps one or two versions nobody reports;
 at early October's three a week, five or six, each a copy per language.
+
+## 205. Android release builds are shrunk with R8, with keep rules for the native modules
+
+Date: 2026-11-06 · By: Caleb Koster · Status: accepted
+
+Reason: Play Console warns that the app's code isn't shrunk (deadline
+February 2027), and without a mapping file every upload shows "no
+deobfuscation file". `apps/mobile/plugins/withAndroidShrinking.js` turns on R8
+and resource shrinking for release builds through `expo-build-properties`; its
+keep rules are in `apps/mobile/plugins/android-shrinking-rules.pro` (ONNX
+Runtime, our `microphone-energy` module, and Expo modules and records, which
+are found by reflection). The rules sit in a file so app.json, which Expo copies
+into every build, names only the plugin. The bundle (AAB) that EAS builds carries
+R8's mapping file, and Play reads it from there, so no upload step is added.
+The change is native: it needs a new store build and changes the fingerprint.
+Reverse if: a release build loses a feature to over-shrinking that a keep rule
+cannot fix, or Play stops reading the mapping file from the bundle.
+
