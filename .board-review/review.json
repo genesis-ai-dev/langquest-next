@@ -1,11 +1,11 @@
 {
   "kind": "question",
   "ask": "Should an edit made during a review send the passage back for review?",
-  "problem": "A recorder can add a second version to a passage that already has audio, even in the middle of a review. Nobody is asked to listen to the new version, and the passage still looks finished.",
+  "problem": "A recorder can add a second version to a passage with audio, even mid-review. Nobody is asked to listen, and the passage still looks finished.",
   "found": "I tried neither phone nor web; both failed here. From the code: the new version goes live, old checks still count, and the passage stays Done. Partner apps keep the last approved version.",
-  "changed": "Nothing yet. I built nothing, as you asked. This card holds the choices and my pick.",
-  "why": "I read the earlier decisions first. Publishing never sends anything by itself (decisions 9 and 70). A check that asks for changes stays open until its reviewer says Looks good (decision 96). Releases only use a version someone approved (decision 72). Option 2 fits all three. It makes the gap visible and leaves the sending to the recorder.",
-  "touches": "Option 2 changes the passage record: the Done label and one message. Option 3 would break decision 70 and need a new decision. Option 4 adds a choice to the publish screen. Option 1 changes nothing.",
+  "changed": "Nothing yet. I built nothing, as you asked.",
+  "why": "Earlier decisions say publishing never sends anything by itself, and only approved versions leave the team. Option 2 fits both: it shows the gap and leaves sending to the recorder.",
+  "touches": "Option 2 changes the Done label and one message on the passage. Option 3 breaks an earlier decision. Option 4 adds a choice to publishing.",
   "pictures": [
     {
       "file": "today.png",
