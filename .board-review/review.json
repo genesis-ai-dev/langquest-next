@@ -1,12 +1,16 @@
 {
   "kind": "needs_you",
-  "ask": "Will you update the Linear issue to match your decision?",
+  "ask": "Can you paste the suggested wording into the Linear issue?",
   "problem": "The issue asked for a general Export all data button for org admins. Orgs already have the data API.",
-  "found": "Your answer changes the plan. Nothing is needed now. A tailored export waits for an organization that names the formats it needs.",
-  "changed": "Nothing is built. I dropped the old question and wrote suggested wording for the issue in the review folder. The pull request stays a draft.",
+  "found": "No. This session has no Linear tool, only GitHub, so the new key cannot reach it. Our rules also keep me out of the issue.",
+  "changed": "Nothing new is built. The suggested issue wording is in the review folder, ready to paste.",
   "why": "My rules keep me out of Linear. A tailored export needs facts from a real org first, so building now would guess.",
   "touches": "The phone's USB backup is not touched. The data API is not touched. The pull request can be closed or kept for later.",
   "pictures": [
+    {
+      "file": "linear-access.png",
+      "label": "What this session can reach"
+    },
     {
       "file": "plan.png",
       "label": "The new plan"
