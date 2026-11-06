@@ -35,7 +35,7 @@ Ask these in order. If an answer is "no", redesign before writing code.
 - **Which merge shape?** Pick from the shapes already in the catalog: once,
   grow-only set (earliest wins where there is a tie), register keyed by an
   explicit tuple (later HLC wins, parent pointer for stale detection), add-wins
-  flag or undo. A new merge shape needs a `docs/decisions.md` entry.
+  flag or undo. A new merge shape needs a decision (a file in `docs/decisions/`).
 - **Does the reducer case write only its own registers?** A case that reads
   existing state to decide what to write breaks order independence (the
   `MemberRemoved` bug in PLAN.md section 6). Derive combinations at read time instead.
@@ -95,7 +95,7 @@ permutation and idempotence tests then cover it), and
 ## Outside advice that does NOT apply here
 
 Common event-sourcing and sync guidance assumes ordered streams and a single
-writer. Reject it here unless a `docs/decisions.md` entry says otherwise:
+writer. Reject it here unless a decision (`docs/decisions.md`, `docs/decisions/`) says otherwise:
 
 | Advice you will see | Why it is wrong here |
 | --- | --- |
