@@ -1,0 +1,15 @@
+{
+  "kind": "screen",
+  "ask": "Is this upload flow right for admins, and is it fine that translators cannot read the Bible until LAN-230?",
+  "problem": "Go Forth North India has its own Bible as USFM files. An admin has no way to add them as reference material.",
+  "found": "Reference Material only takes Bibles from Bible Brain and the LangQuest library. Nothing reads USFM files. The old Bible format carries audio and provider details that do not fit uploaded text.",
+  "changed": "On the web, Add material now has Upload Bible files. The admin picks files or one zip. Each file is checked, and problems are said in plain words. The admin names the Bible, picks its language and numbering, and confirms the team may share the text. Publishing makes an organization library item. Sharing with other organizations is off until the admin turns it on. The item shows in Reference Material with its language and book count.",
+  "why": "A new pair of document types keeps shipped Bibles safe. Each book is its own document, because one document may be 4 MB at most. The original file is kept beside the plain verses, so LAN-230 needs no second upload. Nothing was published to the live library. The pictures are mock-ups of the layout, not captures of the running app, because no database was available in this session. Other app languages show English for the new words until they are translated.",
+  "touches": "Adds a database change that accepts the two new document types. Adds decision 205. Waits on LAN-230: reading the Bible beside a passage, offered-Bible counts, and coverage. Not built: checking verse numbers against the numbering, and splitting a file that holds several books.",
+  "pictures": [
+    {"file": "before.png", "label": "Before: no way to add Bible files"},
+    {"file": "after-files.png", "label": "After: files checked in plain words"},
+    {"file": "after-details.png", "label": "After: name, language, rights, publish"},
+    {"file": "after-library.png", "label": "After: the Bible in Reference Material"}
+  ]
+}
