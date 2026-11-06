@@ -1,0 +1,15 @@
+{
+  "kind": "structure",
+  "ask": "Should I open these four issues in Linear: scale test for waiting files, safe local database changes, batch time limit test, and tall-script text check?",
+  "problem": "The old app, version 2, had many fixes. Nobody had checked whether the new app could repeat those faults.",
+  "found": "Thirteen of seventeen fault kinds are already handled. Four are not. The worst: the phone's local database has no version, and one old step deletes unsent work. The others lack tests for many waiting files, batch time limits, and tall scripts.",
+  "changed": "Nothing people see. I added one report to the docs folder, with a table of all seventeen kinds and the four open faults, most serious first. The draft pull request is open and not merged.",
+  "why": "I read the old app's history without copying any code. I read about 45 fixes in full and sorted the rest by their titles, so a fault hidden under a vague title could be missed. I checked the new app by reading its code and tests, not by running it.",
+  "touches": "Nothing else. Each recommended issue is small. The database one may need a new entry in the decision log when built.",
+  "pictures": [
+    {
+      "file": "diagram.png",
+      "label": "Faults that can come back, most serious first"
+    }
+  ]
+}
