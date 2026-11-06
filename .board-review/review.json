@@ -1,0 +1,15 @@
+{
+  "kind": "question",
+  "ask": "Keep only the test fix and watch the next nights, or also set the three tests aside?",
+  "problem": "Three tests of a language's checks fail on some nights and pass on others. They are the ones that move a check, the must-pass lock, and the review flow page.",
+  "found": "The failed nights were busy ones. Other drag tests failed on the same nights. On both nights, the move test ended with Community check first, so the drag picked up the wrong card. The test pressed on a spot measured before the list had settled. I could not run the app here, so I did not prove the cause. The other two failures look like the same busy-machine timing, but I found no proof. I found no product fault.",
+  "changed": "Nothing changes for people. The move test now checks the starting order and waits for the list to hold still before it drags.",
+  "why": "Setting a test aside needs a clear case of no product fault, and I could not show one. The other two tests have no fix yet, because I could not see their pages fail.",
+  "touches": "Only the test file. The other two tests still need a closer look on a machine with the full test setup.",
+  "pictures": [{"file": "a.png", "label": "Option A"}, {"file": "b.png", "label": "Option B"}],
+  "options": [
+    {"label": "Keep the test fix only", "result": "The move test is firmer. The other two stay as they are, and we watch the next nights.", "picture": "a.png"},
+    {"label": "Also set all three aside", "result": "The nightly turns green. A real fault in these screens could go unseen.", "picture": "b.png"}
+  ],
+  "recommended": 0
+}
