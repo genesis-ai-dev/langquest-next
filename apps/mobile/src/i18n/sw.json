@@ -683,6 +683,9 @@
       "reference": "Nyenzo za Marejeo",
       "flows": "Mitiririko ya Ukaguzi",
       "roles": "Majukumu",
+      "connect": "Unganisha programu",
+      "connectSub": "Tengeneza tokeni ya ufikiaji",
+      "connectHelp": "Hufungua ukurasa ambapo unatengeneza tokeni ya ufikiaji kwa programu nyingine, pamoja na anwani na mfano.",
       "summary": {
         "templates": "Violezo vya maudhui",
         "referenceFirst": "Nyenzo za Marejeo",
@@ -4462,6 +4465,8 @@
       "backAgainToLeave": "Bonyeza Rudi tena ili kutoka LangQuest",
       "languageExplorer": "Lugha za dunia na misimbo yake",
       "languageExplorerNewTab": "Lugha za dunia na misimbo yake, inafunguka kwenye kichupo kipya",
+      "connect": "Unganisha",
+      "connectNewTab": "Unganisha programu: tengeneza tokeni ya ufikiaji, inafunguka kwenye kichupo kipya",
       "tabBadge": "{{tab}}, {{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4643,7 +4648,8 @@
       "manage": "Lugha, watu na mipangilio ya shirika lako.",
       "inbox": "Yaliyotokea yanayokuhusu: maombi, maoni, watu wanaoomba kujiunga.",
       "me": "Jina lako, kifaa hiki na mipangilio yako.",
-      "explorer": "Hufungua orodha ya lugha za dunia kwenye kichupo kipya: misimbo ya kila lugha na mahali inapozungumzwa. Hizi si lugha za shirika lako."
+      "explorer": "Hufungua orodha ya lugha za dunia kwenye kichupo kipya: misimbo ya kila lugha na mahali inapozungumzwa. Hizi si lugha za shirika lako.",
+      "connect": "Hufungua ukurasa kwenye kichupo kipya ambapo unatengeneza tokeni ya ufikiaji kwa programu nyingine, pamoja na anwani na mfano."
     },
     "sync": {
       "live": "Wingu lenye alama ya vema: umeunganishwa. Kazi yako inatumwa unapoendelea. Gusa uone kilichotumwa.",

@@ -689,6 +689,9 @@
       "reference": "Documents de référence",
       "flows": "Circuits de révision",
       "roles": "Rôles",
+      "connect": "Connecter une application",
+      "connectSub": "Créer un jeton d’accès",
+      "connectHelp": "Ouvre une page où vous créez un jeton d’accès pour une autre application, avec l’adresse et un exemple.",
       "summary": {
         "templates": "Modèles de contenu",
         "referenceFirst": "Documents de référence",
@@ -4608,6 +4611,8 @@
       "backAgainToLeave": "Appuyez encore sur Retour pour quitter LangQuest",
       "languageExplorer": "Langues du monde et leurs codes",
       "languageExplorerNewTab": "Langues du monde et leurs codes, s’ouvre dans un nouvel onglet",
+      "connect": "Connecter",
+      "connectNewTab": "Connecter une application : créer un jeton d’accès, s’ouvre dans un nouvel onglet",
       "tabBadge": "{{tab}}, {{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4791,7 +4796,8 @@
       "manage": "Les langues, les personnes et les réglages de votre organisation.",
       "inbox": "Ce qui s’est passé et qui vous concerne : demandes, remarques, personnes qui veulent rejoindre.",
       "me": "Votre nom, cet appareil et vos réglages.",
-      "explorer": "Ouvre dans un nouvel onglet une liste des langues du monde : les codes de chacune et où elle est parlée. Ce ne sont pas les langues de votre organisation."
+      "explorer": "Ouvre dans un nouvel onglet une liste des langues du monde : les codes de chacune et où elle est parlée. Ce ne sont pas les langues de votre organisation.",
+      "connect": "Ouvre dans un nouvel onglet une page où vous créez un jeton d’accès pour une autre application, avec l’adresse et un exemple."
     },
     "sync": {
       "live": "Nuage avec une coche : connecté. Votre travail est envoyé au fur et à mesure. Touchez pour voir ce qui a été envoyé.",

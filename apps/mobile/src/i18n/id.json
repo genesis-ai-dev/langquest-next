@@ -677,6 +677,9 @@
       "reference": "Bahan Referensi",
       "flows": "Alur Pemeriksaan",
       "roles": "Peran",
+      "connect": "Hubungkan aplikasi",
+      "connectSub": "Buat token akses",
+      "connectHelp": "Membuka halaman untuk membuat token akses bagi aplikasi lain, beserta alamat dan contohnya.",
       "summary": {
         "templates": "Templat isi",
         "referenceFirst": "Bahan Referensi",
@@ -4316,6 +4319,8 @@
       "backAgainToLeave": "Tekan Kembali sekali lagi untuk keluar dari LangQuest",
       "languageExplorer": "Bahasa-bahasa dunia dan kodenya",
       "languageExplorerNewTab": "Bahasa-bahasa dunia dan kodenya, terbuka di tab baru",
+      "connect": "Hubungkan",
+      "connectNewTab": "Hubungkan aplikasi: buat token akses, terbuka di tab baru",
       "tabBadge": "{{tab}}, {{badge, number}}",
       "badgeMax": "{{max, number}}+"
     },
@@ -4495,7 +4500,8 @@
       "manage": "Bahasa, orang, dan pengaturan organisasi Anda.",
       "inbox": "Hal-hal yang menyangkut Anda: permintaan, masukan, orang yang minta bergabung.",
       "me": "Nama Anda, perangkat ini, dan pengaturan Anda.",
-      "explorer": "Membuka daftar bahasa-bahasa dunia di tab baru: kode setiap bahasa dan di mana bahasa itu dipakai. Ini bukan bahasa-bahasa organisasi Anda."
+      "explorer": "Membuka daftar bahasa-bahasa dunia di tab baru: kode setiap bahasa dan di mana bahasa itu dipakai. Ini bukan bahasa-bahasa organisasi Anda.",
+      "connect": "Membuka halaman di tab baru untuk membuat token akses bagi aplikasi lain, beserta alamat dan contohnya."
     },
     "sync": {
       "live": "Awan dengan tanda centang: terhubung. Pekerjaan Anda dikirim sambil jalan. Ketuk untuk melihat yang sudah terkirim.",
