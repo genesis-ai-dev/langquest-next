@@ -32,6 +32,17 @@ Per-pull-request Supabase branches still open automatically for database
 changes. They have their own URL and no secrets, so they test migrations,
 not the app.
 
+## Addresses
+
+| Environment | The app | Links it makes, and machines |
+| --- | --- | --- |
+| production | `https://app.langquest.org`, with `https://next.langquest.org` as an alias | `https://next.langquest.org`, until the later steps in `docs/cloudflare.md` |
+| preview | `https://next-preview.langquest.org` | the same |
+
+Both production hosts are one Worker, so a browser at either has the page and
+API of its own origin (decisions.md 205). A browser's storage belongs to its
+origin, so work and sign-in do not carry from one to the other.
+
 ## Where settings live
 
 | Setting | File | Reaches the platform by |
@@ -40,7 +51,7 @@ not the app.
 | Worker public config, plain | `vars` in each `wrangler.jsonc` (top level is production, `env.preview` is preview) | every deploy |
 | Hosted Supabase project refs, plain | `[remotes.<env>] project_id` in `supabase/config.toml` | read by scripts; the app Worker's `SUPABASE_URL` var must match (a test checks) |
 | Secrets, encrypted | `.env.preview`, `.env.production` at the repository root | `npm run secrets -- <env>` |
-| Hosted Auth settings (`[auth*]`, such as `[auth.mfa.totp]`), plain | `supabase/config.toml` | `npx supabase config push` by hand, below; merging does not apply them |
+| Hosted Auth settings (`[auth*]`, such as `[auth.mfa.totp]`; a project's site URL and redirect list in `[remotes.<env>.auth]`), plain | `supabase/config.toml` | `npx supabase config push` by hand, below; merging does not apply them |
 
 The secrets file holds `INVITE_RELAY_SECRET` and `PUSH_DELIVERY_SECRET`,
 and production also `DIAG_DATABASE_URL` (read on a laptop by

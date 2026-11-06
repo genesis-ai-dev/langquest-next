@@ -58,6 +58,7 @@ are removed after verification.
 ## Cloudflare email deployment
 
 - Sender: `LangQuest <invites@frontierrnd.com>`.
+- Links: invitation and Forgot password emails link to `APP_URL`, which stays `https://next.langquest.org` after the web app moved to `app.langquest.org`, until older phones can read `app.` links (decisions.md 205).
 - Worker: `langquest-next-invite-email` in the Frontier R&D account (`langquest-invite-email` until 2026-10-01).
 - Endpoint: `https://langquest-next-invite-email.blue-darkness-7674.workers.dev/send-invite`.
 - Wrangler profile for a deploy from a laptop: `langquest-email`. Workers Builds uses its own token and does not use the profile.

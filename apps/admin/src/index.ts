@@ -23,7 +23,7 @@ import { capacitySection, storageSection } from './sources/storage';
 
 /**
  * The ops dashboard (docs/admin.md, decisions.md 160): the page at
- * /ops-dashboard and its API at /ops/api/*, on next.langquest.org. This
+ * /ops-dashboard and its API at /ops/api/*, on app.langquest.org. This
  * Worker has no address of its own; the app's Worker hands it those paths
  * through its OPS service binding (apps/web/worker/ops.ts). Every API call
  * checks the sign-in first. The one write, POST /ops/api/actions, is passed

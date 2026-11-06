@@ -444,3 +444,10 @@ verify_jwt = false
 # its auth site_url, in its block.
 [remotes.production]
 project_id = "xymxnebdwtbkfxlbylch"
+
+# The web app's addresses (decisions.md 205). Applied by `config push`, by hand
+# (docs/environments.md). The app's sign-in sends no redirect today, so these
+# guard what Auth's own emails may link to.
+[remotes.production.auth]
+site_url = "https://app.langquest.org"
+additional_redirect_urls = ["https://app.langquest.org/**", "https://next.langquest.org/**", "langquestnext://**"]

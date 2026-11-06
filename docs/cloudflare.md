@@ -49,9 +49,10 @@ lockfile: `npx npm@10 ci --dry-run --ignore-scripts`. The web app's deploy comma
 the Expo web export first (`npm run export:web`, a few minutes), reading
 `apps/mobile/.env.<env>` and the commit from `WORKERS_CI_COMMIT_SHA`; it fails
 if the JavaScript is over its budget. Its custom domains,
-`next.langquest.org` and `next-preview.langquest.org`, are `routes` in
+`app.langquest.org`, its alias `next.langquest.org` and
+`next-preview.langquest.org`, are `routes` in
 `apps/web/wrangler.jsonc` on the `langquest.org` zone in this account; a
-deploy attaches them. Branch builds stay off so a branch
+deploy attaches them, and takes the name in DNS without asking. Branch builds stay off so a branch
 never deploys over preview or production.
 
 The preview Workers are the `env.preview` section of each wrangler file
@@ -180,6 +181,93 @@ this is done through the repo's Supabase config and the CLI
 then the repo's way of applying Supabase config), never the dashboard. Switching
 rotates the keys, so existing sessions get new tokens on their next refresh;
 rotate the legacy secret out only after clients have refreshed.
+
+## Moving the web app to app.langquest.org
+
+Target (decisions.md 205, LAN-219):
+
+| Host | Serves | Where it is set |
+| --- | --- | --- |
+| `app.langquest.org` | the web app, the Worker `langquest-next` | `routes` in `apps/web/wrangler.jsonc` |
+| `next.langquest.org` | the same Worker, an alias for now | the same `routes` |
+| `next-preview.langquest.org` | the preview Worker; the name stays | `env.preview.routes` |
+| `legacy.langquest.org` | the legacy web app, Vercel project `langquest` | Vercel |
+| `langquest.org` | the landing page, Vercel project `langquest-website` | Vercel |
+
+The order matters, because **merging is the switch**: the first production
+deploy after the merge attaches `app.langquest.org`, and a deploy that is not
+interactive answers yes to wrangler's question about DNS records in the way.
+So everything the legacy app needs comes first.
+
+Facts about the zone (`runbook-dns-migration-vercel-to-cloudflare.md` in
+`langquest-dev-docs`, checked against DNS and Vercel on 2026-11-06). A wildcard
+`*` record, DNS only, sends every name with no record of its own to Vercel.
+`app` has no record of its own, so `preview.app` works only through that
+wildcard, and the record the custom domain makes ends that. Vercel's sites are
+DNS only, never proxied: the proxy conflicts with Vercel's certificates.
+
+The legacy app's sign-in emails do not go through `app.`: its web bundle links
+to `https://www.langquest.org/`, and its Supabase site URL in its repository is
+`https://langquest.org`, which its phones' links use too. So its site URL stays
+as it is, and the website keeps the pages they land on.
+
+Before the merge:
+
+1. In Vercel, add `legacy.langquest.org` to the project `langquest`. It needs
+   no Cloudflare change: the wildcard already sends it to Vercel.
+2. Open `https://legacy.langquest.org`, sign in by email, and use Forgot
+   password. In the legacy project's Supabase, add
+   `https://legacy.langquest.org/**` to the redirect allow-list only if this
+   check shows a redirect refused. Leave its site URL.
+3. In Cloudflare, add a CNAME `preview.app` to `cname.vercel-dns-016.com`,
+   DNS only, and check that `https://preview.app.langquest.org` still answers.
+
+The merge:
+
+4. Merge the pull request, then wait for the Workers Build of `langquest-next`.
+   If the build cannot attach the domain, add `app.langquest.org` to
+   `langquest-next` under Settings, Domains & Routes: it is what the file says.
+5. Check: `https://app.langquest.org/version.json` names the merged commit;
+   `/.well-known/assetlinks.json` is the app's; sign in on
+   `https://app.langquest.org`; Forgot password's link works; `/ops-dashboard`
+   opens. On `https://next.langquest.org`: `/api/v1`, `/connect`, a `/r/` review
+   link and the app itself still work.
+6. From `main`, push the Auth settings (`docs/environments.md`, Auth settings).
+   Say yes only when the diff is the site URL and the redirect list. The app's
+   sign-in sends no redirect, so nothing waits on this step.
+7. Remove `app.langquest.org` from the Vercel project `langquest`. Until then,
+   going back is reverting the merge, deleting the custom domain, and adding
+   `app` as a CNAME to `cname.vercel-dns-016.com`, DNS only.
+
+The website (`langquest-website`), any time after step 5:
+
+8. Put the Next landing page at `langquest.org`, with its way in pointing at
+   `https://app.langquest.org`. Keep these paths, which legacy phones and
+   emails open: `/reset-password`, `/registration-confirmation`,
+   `/notifications`, `/privacy`, `/terms`, `/account-deletion`, `/api/export`
+   and `/.well-known/*`.
+9. On `/en/next/privacy` and `/en/next/delete-account`, add a line at the top
+   that links to the legacy page. The paths stay, so Play Console needs no
+   change.
+
+Later, in this order:
+
+10. When the store builds that declare `app.` are at the minimum version
+    (decision 154), a pull request moves what links are made at to `app.`:
+    `EXPO_PUBLIC_APP_URL`, the invite email's `APP_URL`. Older builds refuse
+    a scanned link at a host they do not know, which is why this waits.
+11. Move what names `next.` as a machine: `app.` first in `routes`, with
+    `API_URL` (a test holds them together), production's secrets applied again
+    for the webhook poke (`docs/environments.md`), the YouTube callback in
+    Google's console, the scripts that call `/api/user-issues`,
+    `/api/tutorial-review` and `/api/tutorial-filmed`, and the policy addresses
+    in `src/auth/legal.ts` and Play Console. Tell the EveryBible bridge and MCP
+    users. The OIDC audiences are names, not addresses: they stay until both
+    ends change together.
+12. Only then may `next.` redirect (301) to `app.`. A redirect drops a bearer
+    token's POST, and work a browser has not uploaded stays in the `next.`
+    origin (decision 58), so first check that browsers there have drained
+    (`npm run diag`).
 
 ## Renaming the app's Worker
 
