@@ -113,13 +113,27 @@ Object.assign(RENDER, {
     ], p.lag);
     h += '<h3>Snapshots</h3><p>' + num(p.snapshots.overdue) + ' overdue (decision 88) · ' + num(p.snapshots.oldReducer) + ' on an older reducer · ' + num(p.snapshots.noCut) + ' not cut by passage yet</p>' +
       table([{ h: 'Language', v: (l) => esc(l.name || l.languageId) + ' <small>' + orgLink(l.orgId, 'org') + '</small>' }, { h: 'Events past it', n: true, v: (l) => num(l.behind) }, { h: 'Age', n: true, v: (l) => l.ageMinutes === null ? '–' : ms(l.ageMinutes * 60000) }], p.snapshots.worst);
+    if (d.copies) {
+      h += '<h3>Snapshot copies</h3><p>' + num(d.copies.total.snapshots) + ' copies of ' + num(d.copies.total.languages) + ' languages on ' + num(d.copies.total.versions) + ' reducer versions, ' + num(d.copies.total.pieces) + ' pieces, ' + bytes(d.copies.total.chars) + ' before compression</p>' + table([
+        { h: 'Reducer', v: (v) => esc(String(v.reducer)) }, { h: 'Languages', n: true, v: (v) => num(v.languages) }, { h: 'Copies', n: true, v: (v) => num(v.snapshots) },
+        { h: 'Pieces', n: true, v: (v) => num(v.pieces) }, { h: 'Size', n: true, v: (v) => bytes(v.chars) }, { h: 'Newest', v: (v) => when(v.newestAt) }, { h: 'Oldest', v: (v) => when(v.oldestAt) }
+      ], d.copies.byVersion) +
+      '<h3>Languages with the most copies</h3>' + table([
+        { h: 'Language', v: (l) => esc(l.name || l.languageId) + ' <small>' + orgLink(l.orgId, 'org') + '</small>' }, { h: 'Copies', n: true, v: (l) => num(l.snapshots) },
+        { h: 'Per reducer', v: (l) => l.perVersion.map((p) => esc(String(p.reducer)) + ': ' + num(p.snapshots)).join(' · ') }, { h: 'Size', n: true, v: (l) => bytes(l.chars) }
+      ], d.copies.languages);
+    }
     h += '<h3>Largest languages</h3>' + table([
       { h: 'Language', v: (l) => esc(l.name || l.languageId) + ' <small>' + orgLink(l.orgId, 'org') + '</small>' }, { h: 'Events', n: true, v: (l) => num(l.events) }, { h: 'Snapshot', n: true, v: (l) => bytes(l.snapshotBytes) }
     ], p.largest);
     return h;
   },
   fleet(d) {
-    let h = '<h3>Updates in the field, 14 days</h3>' + table([
+    let h = '<h3>Phones by build</h3>' + table([
+      { h: 'Platform', v: (b) => esc(b.platform) }, { h: 'Version', v: (b) => '<code>' + esc(b.version) + '</code>' }, { h: 'Reducer', v: (b) => esc(b.reducers || '–') },
+      { h: 'Last day', n: true, v: (b) => num(b.day) }, { h: 'Last 7 days', n: true, v: (b) => num(b.week) }, { h: 'Last 14 days', n: true, v: (b) => num(b.fortnight) }
+    ], d.builds || []);
+    h += '<h3>Updates in the field, 14 days</h3>' + table([
       { h: 'Update', v: (u) => '<code>' + esc(u.update) + '</code>' }, { h: 'Channel', v: (u) => esc(u.channel || '–') }, { h: 'Runtime', v: (u) => '<small>' + esc(u.runtime || '–') + '</small>' },
       { h: 'Installs', n: true, v: (u) => num(u.installs) }, { h: 'Crashed', n: true, v: (u) => '<span class="' + (u.crashed ? 'warn' : '') + '">' + num(u.crashed) + '</span>' },
       { h: 'Crash-free', n: true, v: (u) => share(u.installs - u.crashed, u.installs) }, { h: 'First seen', v: (u) => when(u.firstSeen) }
@@ -129,6 +143,11 @@ Object.assign(RENDER, {
     h += '<h3>Time to a usable Map</h3><p class="muted">open: a language\'s first full download; fill: a big language, until its Map shows.</p>' + table([
       { h: 'Day', v: (r) => esc(r.day) }, { h: 'Kind', v: (r) => esc(r.kind) }, { h: 'Count', n: true, v: (r) => num(r.count) }, { h: 'p50', n: true, v: (r) => hours(r.p50Ms) }, { h: 'p95', n: true, v: (r) => hours(r.p95Ms) }
     ], d.toMap.slice().reverse().slice(0, 14));
+    h += '<h3>First downloads that fell back or started over</h3>' + table([
+      { h: 'Day', v: (r) => esc(r.day) },
+      { h: 'What went wrong', v: (r) => (r.what === 'fallback' ? 'Took the whole snapshot' : r.what === 'restart' ? 'Started over' : 'No snapshot for reducer') + ' <code>' + esc(r.reason) + '</code>' },
+      { h: 'Count', n: true, v: (r) => num(r.count) }, { h: 'Installs', n: true, v: (r) => num(r.installs) }
+    ], (d.firstDownloads || []).slice(0, 20));
     h += '<h3>Stuck phones</h3>' + table([
       { h: 'Install', v: (s) => installLink(s.install) }, { h: 'Unsent for', n: true, v: (s) => s.unsentMin ? ms(s.unsentMin * 60000) : '–' },
       { h: 'Download stuck', n: true, v: (s) => s.stuckMin ? ms(s.stuckMin * 60000) : '–' }, { h: 'Free', n: true, v: (s) => s.freeMb === null ? '–' : num(s.freeMb) + ' MB' },
@@ -142,12 +161,26 @@ Object.assign(RENDER, {
   pipeline(d) {
     // Each store build sits in the stage it is in now, an arrow to the next; inside it, the over-the-air updates it takes.
     const PHONES = { ios: 'iPhones', android: 'Android phones' };
+    // A pull request shows in each build that has it: from main in the newer build, and as a copy in an older
+    // build through its release branch (decisions.md 155), first as a copy that waits, then as the update it sent.
+    // A copy that catches a build up on several shows each, the first few, then how many more.
+    const CAUGHT_UP = 3;
     const update = (u, platform) => {
-      const name = u.rollBack ? 'Back to the build\'s own code' : u.pr ? 'PR ' + u.pr + (u.title ? ' · ' + u.title : '') : 'Update ' + u.id.slice(0, 8);
       const phones = u.phones ? ' · ' + num(u.phones.on) + ' of ' + num(u.phones.of) + ' ' + PHONES[platform] + ' run it' : '';
-      const body = '<b>' + esc(name) + '</b><small>' + esc(ago(u.at)) + esc(phones) + '</small>';
-      return u.pr ? '<a class="pu" href="https://github.com/' + esc(d.repo) + '/pull/' + encodeURIComponent(u.pr) + '" target="_blank" rel="noopener" title="' + esc(name) + '">' + body + '</a>'
-        : '<div class="pu" title="' + esc(name) + '">' + body + '</div>';
+      const how = u.waiting ? 'PR open, not merged yet: copy PR ' + u.copy + ' ' + u.waiting + ' · ' : u.copy ? 'copied by PR ' + u.copy + ' · ' : '';
+      const small = esc(how) + esc(ago(u.at)) + esc(phones);
+      const cls = 'pu' + (u.waiting ? ' pend' : '') + (u.needsPerson ? ' stuck' : '') + (u.copy ? ' cp' : '');
+      const link = (n, name, body) => '<a class="' + cls + '" href="https://github.com/' + esc(d.repo) + '/pull/' + encodeURIComponent(n) + '" target="_blank" rel="noopener" title="' + esc(name) + '">' + body + '</a>';
+      if (u.rollBack || (!u.pr && !u.copy)) {
+        const name = u.rollBack ? 'Back to the build\'s own code' : 'Update ' + u.id.slice(0, 8);
+        return '<div class="' + cls + '" title="' + esc(name) + '"><b>' + esc(name) + '</b><small>' + small + '</small></div>';
+      }
+      if (!u.pr) { const name = 'Copy PR ' + u.copy + (u.title ? ' · ' + u.title : ''); return link(u.copy, name, '<b>' + esc(name) + '</b><small>' + small + '</small>'); }
+      const prs = [{ pr: u.pr, title: u.title }].concat(u.also || []);
+      const shown = prs.slice(0, prs.length > CAUGHT_UP + 1 ? CAUGHT_UP : prs.length);
+      const more = prs.length - shown.length + (u.more || 0);
+      return shown.map((p) => { const name = 'PR ' + p.pr + (p.title ? ' · ' + p.title : ''); return link(p.pr, name, '<b>' + esc(name) + '</b><small>' + small + '</small>'); }).join('') +
+        (more ? link(u.copy, num(more) + ' more PRs in copy PR ' + u.copy, '<b>' + esc(num(more) + ' more PRs in copy PR ' + u.copy) + '</b><small>' + small + '</small>') : '');
     };
     const card = (c, platform) => '<div class="pc ' + esc(c.tone) + '"><b>' + esc(c.title) + '</b>' + (c.version ? ' <small>' + esc(c.version) + '</small>' : '') +
       '<span>' + esc(c.state) + '</span>' + (c.at ? '<small>' + when(c.at) + '</small>' : '') +

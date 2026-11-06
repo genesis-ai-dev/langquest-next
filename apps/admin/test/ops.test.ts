@@ -19,7 +19,7 @@ const NOW = Date.parse('2026-10-22T12:00:00Z');
 const hoursAgo = (h: number) => new Date(NOW - h * 3_600_000).toISOString();
 
 const fleet = (over: Partial<Fleet> = {}): Fleet => ({
-  updates: [], versions: [], web: [], toMap: [], stuck: [], silent: { count: 0, installs: [] }, ...over
+  updates: [], versions: [], web: [], builds: [], toMap: [], firstDownloads: [], stuck: [], silent: { count: 0, installs: [] }, ...over
 });
 
 describe('builds and stuck phones', () => {
@@ -225,11 +225,13 @@ function fakeQuery(answers: [string, unknown][]): Query {
 describe('reading as diag_reader', () => {
   it('turns off only the sections whose functions a database lacks', async () => {
     const s = await opsSections(fakeQuery([
-      ['jsonb_build_object(\n  \'updates\'', fleet()],
+      ['jsonb_build_object(\n  \'builds\'', fleet()],
       ['rejNotMember', []], ['arrivalsSampled', []], ['fold_canary', []], ['totals', {}]
     ]));
     expect(s.fleet.state).toBe('ok');
     expect(s.safety.state).toBe('ok');
+    // Before its migration the rest of the section still shows.
+    expect(s.safety.data!.copies).toBeNull();
     expect(s.worker.state).toBe('ok');
     for (const id of ['people', 'cron', 'dbdetail', 'push', 'integrations', 'support', 'security'] as const) {
       expect(s[id]).toMatchObject({ state: 'off', setup: expect.stringContaining('20261023100000_ops_dashboard.sql') });

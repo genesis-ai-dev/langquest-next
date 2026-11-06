@@ -50,6 +50,7 @@ const SMOKES = [
   'server/rlsReadSmoke.sql',
   'server/timingJobsSmoke.sql',
   'server/surfaceSmoke.sql',
+  'server/snapshotPurgeSmoke.sql',
   'server/cronSmoke.sql'
 ];
 /** Smokes that need something a reset leaves out, set up first: the cron jobs exist only where the Vault secrets do. */

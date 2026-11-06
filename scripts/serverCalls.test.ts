@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { brokenCalls, callsAt, callsIn, missing, schemaAfter, serverHere } from './server-calls.mjs';
+import { execFileSync } from 'node:child_process';
+import { brokenCalls, callsAt, callsIn, missing, releaseBranch, schemaAfter, serverHere, serverOfMain } from './server-calls.mjs';
+
+/** A release branch deploys no server, so its code's calls are on main's (decisions.md 155). */
+const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { encoding: 'utf8' }).trim();
+const serverForThisBranch = () => (releaseBranch(process.env, branch) ? serverOfMain() : serverHere());
 
 /**
  * Every server call that a supported store build makes, in its own code or
@@ -28,8 +33,26 @@ describe('the calls in some code', () => {
     expect(calls).toContain('route:blobs');
   });
 
-  it('finds every call in the code on this branch on the server on this branch', () => {
-    expect(missing(callsAt('HEAD'), serverHere())).toEqual([]);
+  it('finds every call in the code on this branch on the server that it reaches', () => {
+    expect(missing(callsAt('HEAD'), serverForThisBranch())).toEqual([]);
+  });
+});
+
+describe('a release branch', () => {
+  it('is a pull request\'s base, or the checkout\'s branch, for release branches and copies onto them only', () => {
+    expect(releaseBranch({ GITHUB_BASE_REF: 'release/ios' }, 'copy/ios/abbde04c-fc0760f0')).toBe('release/ios');
+    expect(releaseBranch({}, 'copy/android/253640c7')).toBe('copy/android/253640c7');
+    expect(releaseBranch({}, 'release/android')).toBe('release/android');
+    expect(releaseBranch({ GITHUB_BASE_REF: 'main' }, 'claude/x')).toBeNull();
+    expect(releaseBranch({}, 'main')).toBeNull();
+    expect(releaseBranch({}, 'release-notes')).toBeNull();
+  });
+
+  it('reads main\'s server from git, which has what main\'s code calls', () => {
+    const main = serverOfMain('HEAD');
+    expect(main.schema.function.size).toBeGreaterThan(40);
+    expect(main.route('blobs')).toBe(true);
+    expect(missing(callsAt('HEAD'), main)).toEqual(missing(callsAt('HEAD'), serverHere()));
   });
 });
 

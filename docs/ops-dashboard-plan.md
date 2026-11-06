@@ -187,9 +187,17 @@ New:
 - **Silent phones**: installs that were active and have not been heard from
   in 3 days while their person's events still arrive from elsewhere
   (diagnostics off, or delivery broken).
+- **Snapshot copies** (Sync and data safety): how many copies exist per
+  reducer version and for the languages holding the most
+  (`diag.ops_snapshot_copies`, decisions.md 88, 204).
 - **Time to a usable Map**: a language's first full download (`open` and
   `fill` records, decision 147), p50 and p95 per day, by language size. It
   is the slowest moment a new person has.
+- **Phones by build**: installs reporting per platform and app version, over
+  a day, 7 days and 14 days, with the reducers they run.
+- **First downloads that fell back or started over**: `fill` records with
+  `fallback` or `restart`, and a language's `snapshot` records with `none`,
+  per day by reason, with how many installs (decisions.md 147, 204).
 - **Version drift**: reducer and protocol versions in the field against the
   server's, and browsers still running an older web commit than
   `version.json` (on the web the runtime version is the commit).

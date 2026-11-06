@@ -3449,6 +3449,12 @@ and the pass writes every passage's line each time it folds a language,
 whether or not a snapshot is due. Retention is unchanged; a snapshot's rows
 go with it.
 
+Amended (2026-11-04, Carl Sauder): the 24 hours and the schedule stand, but
+`put_snapshot` no longer deletes anything; a job does, and that job also
+covers what this entry left out, older reducer versions and languages that
+went quiet (204). "About 25" had also never been a limit: a burst can write
+one a pass, so the job caps a version at 30.
+
 ## 89. A snapshot's pieces are cut once, when it is written, and kept in their own table
 
 Date: 2026-10-12 · By: Carl Sauder · Status: accepted
@@ -7275,6 +7281,15 @@ costs more than asking people to update (then raise the minimum app version
 sooner), or a call that phones make is missed because it is built at run
 time (then name it in a list that the check reads).
 
+Amended (2026-11-05, Caleb Koster): a release branch (decision 155) deploys
+no server, so on a release branch, or on a copy onto one, the check reads
+main's server (from git) instead of the branch's own, and also checks the
+calls in the branch's own code. The first iPhone catch-up (PR 344) failed
+because the release branch's server, from 2026-10-28, did not have the
+password-reset Edge Function or the /api/source-audio route that main's
+OTA updates use. Each copy takes this check from main (decision 155's
+`MACHINERY`).
+
 ## 152. A pull request that changes the database runs the sync test from every supported store build's commit against it
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted
@@ -7477,6 +7492,146 @@ repository variable `RELEASE_BRANCH_PLATFORMS` ("android" for now) names
 the platforms that keep a branch: no public iPhone build takes OTA updates
 from main yet (build 36, 1.0, runs code of 2026-10-16), so an iPhone branch
 would only feed TestFlight.
+
+Amended (2026-11-05, Caleb Koster): Caleb asked that every older build that
+can run a merge gets it, iPhone included, that Claude finishes copies with
+his Claude plan's token, and that the ops dashboard shows the same pull
+request in each build that has it. So:
+- iPhone keeps a branch again. App Store build 45 (2026.1026.1817) is public
+  and takes OTA updates, and has had none since PR 259 changed the iPhone
+  fingerprint on 2026-10-28. The workflow no longer sets
+  `RELEASE_BRANCH_PLATFORMS`, so both platforms keep branches. The new
+  iPhone builds made while iPhone kept none are listed in
+  `scripts/release-rebuilds.json`, and each run tags any that lacks its tag.
+  Every hour, a platform with no branch whose store shows a build older than
+  a newer one gets a branch, from the commit before the first new build that
+  is not public, and one copy pull request catches it up on every merge
+  since ("catch the public iPhone build up on N merges from main").
+- Only a merge that changes what the phone app runs is copied: files in
+  `apps/mobile` other than its tests, scripts, website files and EAS
+  settings, the sources of `packages/core` and `packages/sync`, and the
+  `package.json` files. A merge for the website, the ops dashboard, the
+  server, tests or docs sent the public build its own code again, and its
+  copy could only conflict (PRs 336, 338 and 340 on 2026-11-05).
+- A conflict in a file outside the phone app and its tests (docs and this
+  log, scripts, the server, the website, tutorial filming) keeps the release
+  branch's version, so Claude gets only conflicts in the app. A trial of the
+  iPhone catch-up on 2026-11-05 copied 15 of its 22 merges on its own; 7 need
+  Claude.
+- Each copy first takes main's release workflows, this script and its test
+  (`MACHINERY`): a pull request runs its own branch's workflows, so a branch
+  started from an older commit ran the older conflict step.
+- Every hour, a branch that serves another build than the public one starts
+  again (`servesAnother`): the first new build after its start must be the
+  first one that is not public. `release/android` started on 2026-11-03
+  from PR 322's merge (Android fingerprint e3bff02c), as PRs 322 and 319
+  both needed a new build a minute apart, while Google Play showed build 48
+  (80d370c0); none of its copies since reached build 48's phones.
+- Claude signs in with `CLAUDE_CODE_OAUTH_TOKEN`, a Claude plan's token as
+  the nightly jobs use, or with `ANTHROPIC_API_KEY`.
+- The ops dashboard shows a copied pull request in each build that has it:
+  from main in the new build, and in the public build as a copy named with
+  its copy pull request, first as "PR open, not merged yet" while the copy
+  is open. No person merges a copy, so nobody would hear of one that is
+  stuck: a copy whose tests failed, or that has been open for 3 hours, is a
+  problem under Needs attention, linked to the copy.
+
+Amended (2026-11-05, Caleb Koster): the first iPhone catch-up (PR 344) did
+not start Claude, and its checks failed, so the ops dashboard asked Caleb to
+fix it. Caleb asked that a copy whose tests fail need no person, and that
+Claude examine every copy before it merges: a copy that applies without a
+conflict may still change a feature that only the newer build has. So:
+- Every copy is labelled copy-claude (and copy-conflict when it stopped at a
+  conflict), which starts Claude. Claude finishes the copy, examines each
+  copied change against the release branch's code, takes out each part
+  that does not fit the public build (it changes or needs a feature that
+  only the newer build has), comments one line for each commit (copied,
+  copied in part, or left out, and why), and closes a copy of which no part
+  fits. Only Claude turns on auto-merge; the script no longer does. Without
+  a Claude token, a copy without a conflict merges itself as before.
+- Claude's action turns away any bot it is not told to allow, and the
+  release App labels the copies, so `allowed_bots` names the App.
+- A copy runs its own branch's workflows and scripts. Every hour, each open
+  copy whose release workflows or scripts differ from main's takes main's
+  (`freshenCopies`), so its checks run again with them, and one labelled
+  copy-claude or copy-conflict is labelled copy-claude again so that Claude
+  starts with them. The
+  server-calls check is now part of `MACHINERY` (decision 151 amended).
+- Every hour, a copy whose `gate` check failed, and that neither Claude nor
+  a person works on, gets Claude: the run comments ("The checks of this copy
+  failed …, try N of 3") and labels it copy-claude. Claude reads the failed
+  checks, fixes them and never skips, disables or weakens a test; a change
+  that needs code the public build does not have is left out. After 3
+  tries, the copy is labelled copy-needs-person.
+- The ops dashboard says "waits for Claude to examine it", or "failed its
+  tests, and Claude is fixing them" (or "starts fixing them within the
+  hour"), and asks for a person under Needs
+  attention only after Claude's 3 tries, or when the copy has been open for
+  3 hours.
+
+Amended (2026-11-05, Caleb Koster): Claude's two runs on PR 347 said
+"copied", and no push of theirs reached the branch (the action hides why;
+its run on PR 344 did push). The first also turned on auto-merge for PR
+347, which then held only main's workflows. Caleb asked that the copies go
+green with no person. So Claude no longer writes to GitHub:
+- Claude commits its work on the copy's branch, and writes what it did
+  with each listed commit in `.release-copy.json` (git ignores it):
+  copied, copied in part, or left out, and why, or that it could not
+  finish. Its tools read the pull request and its checks, and cannot push,
+  comment, label, close or merge.
+- The workflow's next step, its own copy of `release-branches.mjs
+  finish-copy` (kept from before Claude's run), pushes Claude's commits with
+  the App's token (only while the branch is where Claude started, and with
+  no git hook: the checks run what the hooks would). The copy is finished
+  when every listed commit has a result, and each one copied is on the
+  branch. Then it comments a line for each commit, takes off the labels and
+  turns on auto-merge, or closes a copy of which nothing fits.
+- A copy that Claude did not finish (no result, a commit neither on the
+  branch nor left out, changes not committed, or a push that failed) gets a
+  comment, and is labelled copy-conflict alone. The hourly run starts
+  Claude on it again, as on a copy whose checks failed; the 3 tries count
+  both. The ops dashboard says "is not finished, and Claude tries again
+  within the hour".
+- One run at a time for each copy (`concurrency`).
+- The unit jobs check out one commit, without main, so the server-calls
+  check fetches main's newest commit when it is missing (decision 151).
+
+Amended (2026-11-05, Caleb Koster): the first hourly run after that gave
+PR 344 a try for the failed checks of its commit before the one it had
+just pushed. Also, three copies were open on release/ios at once (PR 344,
+PR 347, PR 351), each changing the end of the decision log: PR 344 merged
+at 22:32 UTC, and PR 347 then had a conflict. So the hourly run counts no
+check of a copy that it just freshened (its checks run again), and starts
+Claude on a copy that has a conflict with its release branch, as on one
+whose checks failed (the same 3 tries). Claude first merges the release
+branch into the copy, never rebasing or forcing a push.
+
+Amended (2026-11-06, Caleb Koster): at 00:42 UTC the hourly run labelled
+PR 347 for its conflict, and no Claude run started: GitHub runs no
+`pull_request` workflow on a pull request with a conflict. So for a copy
+with a conflict the hourly run also sends a `repository_dispatch`
+(event type `release-copy`, with the copy's number), which runs main's
+`release-copy-conflict.yml` for that copy. The workflow finds the copy
+from the number and stops unless it is an open copy onto a release
+branch. A `copy-claude` label on a copy with a conflict no longer means
+that Claude is on it, so the hourly run starts Claude again (the same 3
+tries).
+
+Amended (2026-11-06, Carl Sauder): the copy of PR 357 onto `release/ios` kept
+the branch's `apps/admin/src/sources/ops.ts` in a conflict and took main's
+`apps/admin/test/ops.test.ts`, so the pre-push hook failed in the workflow's
+first push. That left no pull request and stopped the job before Android. The
+hourly run only looks at open copies and a merge is copied once, so nothing
+tried it again, and Carl asked how such a copy is ever corrected. So:
+- The first push of a copy runs no hook, as the push of Claude's commits
+  already did. The copy's pull request then always opens, its checks run what
+  the hook would, and a copy they fail goes to Claude and then a person. A
+  first push that fails for another reason, such as the network, is still not
+  tried again. The hourly push that gives an open copy main's machinery runs
+  no hook either, or a copy with failing tests could never take it.
+- `packages/sync/src/testing/` no longer counts as what the phone app runs.
+  It is Node-only test helpers that the app never imports, and PR 357 was
+  copied only because it changed two of them.
 
 
 ## 156. Store builds come only from the EAS workflow on merges into main
@@ -10559,7 +10714,147 @@ developer had to look, and Claude never did); the whole timeline in the
 issue (too long to read on a phone, and Claude still could not see the
 screenshot); the voice note (Claude cannot hear it).
 
-## 203. Key terms are spotted in a take by matching audio to the team's recorded renderings, on the phone
+## 203. A study step shows the pictures and maps its text asks for, linked or not, and the rest after its text
+
+Date: 2026-11-03 · By: Caleb Koster · Status: accepted
+
+Reason: someone studying FIA on an iPhone wrote from help mode that the
+guide told them to stop and look at a map or a boat and there was nowhere to
+see it (LAN-222; Caleb asked for the fix). A step showed a picture or map
+only under the part whose text links it (`[boat](#m4)`), as the partner
+demo did. FIA's own text does not do that consistently: of the 1,524 English
+guides on production, 742 ask people to look at a picture or map the text
+never links though the passage has it (Luke 5:1–11 and Mark 4:35–41 among
+them), 378 link pictures by ids the passage does not carry, and most other
+languages link almost nothing (Portuguese 1 link in 352 guides, Swahili and
+Tok Pisin none), with picture titles often left in English. Decided, in
+`apps/mobile/src/study/picturesModel.ts` and `study/guide.tsx`, without
+changing FIA's documents:
+- A part that asks to look at something (it says map, picture, photo and the
+  like, in each of FIA's languages) and names a picture's title gets its
+  card, once per step; a map needs one of its places named when the part
+  asks for a map. A link finds its picture by its ref, by the ref without
+  leading zeros, or by the words of its label; a link that finds nothing
+  reads as plain words.
+- After the step's text come the pictures and maps no step links or names,
+  and when a part asks for something the app cannot match, every picture
+  and map the step does not show already. A step heard but not read shows
+  its own there.
+On English, parts that ask to look and have a card on the step went from
+32% to 81%; the rest are pictures and maps FIA does not have for that
+passage (385 of its English map links name maps it attaches to none).
+Considered: links added by the FIA adapter at seed time (`scripts/fia-adapter.ts`),
+which would reach phones only after the hosted library is seeded again and
+would not cover guides an organization writes; one "Pictures and maps" list
+per guide, which leaves the reader searching at the moment the guide says to
+look. Reverse if: teams report cards that do not match what the text asks
+for, or FIA's text comes to link every picture it mentions.
+
+## 204. A database job keeps the server's snapshots bounded, and keeps what a slow phone part-way through a download still needs
+
+Date: 2026-11-04 · By: Carl Sauder · Status: accepted
+
+Reason: 88's clean-up ran only inside `put_snapshot`, and only on the reducer
+version being written. Each deploy that bumps `REDUCER_VERSION` gives every
+language a new snapshot, and froze the old version's snapshots, pieces and
+whole cut for good (11 bumps from 2026-10-06 to 2026-10-30). A language that
+went quiet kept its last day's snapshots until it next changed. Hosted on
+2026-11-04, the snapshot tables held 17.7 GB beside 2.2 GB of events, and
+`ops_sizes` left out `snapshot_chunks`, over a third of that. All of it can be
+rebuilt from the log, so no rule here can lose work; what one can cost is a
+phone on a slow link its download.
+
+Carl chose a job in the database, `ops.purge_snapshots`
+(`langquest-purge-snapshots`, every 10 minutes, migration
+`20261104120000_snapshot_purge.sql`), not the projection pass, which skips
+quiet languages by design (68) and runs against a time budget. Each run takes
+at most 20 snapshots and stops once 200,000 pieces and rows are gone, so a
+backlog goes a little at a time, and records a `snapshot_purge` job run even
+with nothing to do, so a job that stops shows as stale. A snapshot goes when:
+- a newer one of its version has been out 24 hours (88), or it is beyond the
+  newest 30 of its version, unless it holds that version's only cut;
+- it is the newest of a version a later one replaced, that replacement came 7
+  days ago or more (`snapshots.superseded_at`), and no phone on that version
+  was seen in the last 14 days (`diag.installs`, updated by each delivery of
+  diagnostics).
+The only version a language has always stays. Rows a dead pass staged go after
+a day. `snapshot_units`, `snapshot_chunks` and `snapshots` are vacuumed at 2%
+dead rather than 20%, so a phone paging through a cut does not read past dead
+rows while a backlog goes, and plain vacuum gives back what is empty at the
+end of a table (the `state` of snapshots from before 147 goes this way, 190 MB
+to 2 MB in a test; no `VACUUM FULL`, which would block every read of the table).
+
+What each rule costs a slow phone, measured before building
+(`packages/sync/test/keptFill.test.ts`, the fleet's `slowLink` at 3,000
+passages and 2 KB/s, which reads pieces, not the cut):
+- A phone filling from the cut loses nothing when the cut is replaced under
+  it: a replaced cut after every step made no request more and no restart,
+  because what it filled stays and it reads the newest cut at or past where it
+  started. So the same version needs no window for it, only its newest cut.
+- A phone on an old version that loses that version's cut drops everything it
+  filled and pulls the whole log (`cutGone`). That turned down the first
+  proposal, deleting an old version after a flat 7 days: a native change can
+  leave a store build on an old reducer for weeks (151). The rule above holds
+  the version while such a phone is around, which costs one copy per language
+  per version in use.
+- Writing at most one snapshot an hour, the first proposal for a limit, was
+  turned down: joiners on a busy language went from 24 to 26 minutes and 3.8 MB
+  to 31 to 38 minutes and 4.5 to 5.5 MB, a longer tail after an older snapshot.
+  88's schedule stands and the cap of 30 sets the limit instead. With 2.5 hours
+  retained, what a cap leaves at one snapshot a pass, joiners at 2 KB/s took
+  the same 24 to 26 minutes. A 40 MB language's whole snapshot takes longer
+  than that at 2 KB/s, so such a download in a burst can go stale and start
+  over; a phone reading the cut does not.
+
+A redaction no longer waits for any of this: once a snapshot past it is
+stored, the pass calls `drop_snapshots_before`, which deletes every snapshot
+older than the redaction on every version, since those may hold what it
+removed and any member can read them through `get_snapshot_chunk`. A phone on
+an older version then has no snapshot, as it would have no snapshot past the
+redaction anyway. Snapshots folded past an old redaction stay: a new reducer's
+first tail is the whole log, and counting it would have dropped the old
+version on every deploy in a language with any redaction.
+
+Reverse if: `fill` records with `restart` and `cut_gone`, or `snapshot` records
+with `none`, rise after this among phones on an older reducer (then hold the
+version longer); or the tables grow past the database plan regardless (then a
+short key in `snapshot_units`' indexes, which hold 4.5 of its 7.7 GB, or 89's
+pieces in object storage).
+
+Amended (2026-11-06, Carl Sauder): an older snapshot now goes 6 hours after a
+newer one comes out, not 24 (migration
+`20261106120000_snapshot_window_and_copies.sql`), which amends 88 as well. The
+window serves only a whole-snapshot download that has not stopped: a phone
+filling from the cut reads the newest, and a phone that tries again asks for
+the newest and drops pieces of any other, so 88's phone that resumes later that
+day was never helped by it. 40 MB at 2 KB/s is about 5.5 hours, so 6 hours is
+the floor. A language writing one an hour keeps about 7 copies, not 25. Carl
+chose this now rather than once builds from before the cut are below the
+minimum version: until then those phones always read pieces, so a slower one
+on a big language can see its download go stale and start over.
+Reverse if: `snapshot` records with `stale` rise on `cold` first downloads.
+
+Amended (2026-11-06, Carl Sauder): an old version's last copy now goes 45 days
+after it was replaced, whoever still reports it, and a development build no
+longer holds a version. As first built, one install seen every 14 days held its
+version's copies for every language with no end, even a phone below the minimum
+version, whose diagnostics pass the gate (154) though it may not download. 45
+days allows for the three-week minimum-version cycle in 151 with a margin; it is
+a judgment, not a measurement. Past it, a phone still on that version pulls the
+log on a first download or a restarted fill, and its own work is safe.
+
+Amended (2026-11-06, Carl Sauder): an old version's last copy now waits 14 days
+after it was replaced, not 7, so one timer runs from the later of the replacement
+and the last phone seen on it. Carl pointed out that a store build in review can
+carry a version no phone has reported yet; 7 days could take its copy before
+approval. Shortening to 1 day was turned down for that reason, and so was having
+the release pipeline record each build's reducer, since one number covers it. A
+review over 14 days past the replacement, or a build cut from an older commit,
+still finds no copy: a new install on a slow link then pulls the log and its work
+is safe. At about one bump a week this keeps one or two versions nobody reports;
+at early October's three a week, five or six, each a copy per language.
+
+## 205. Key terms are spotted in a take by matching audio to the team's recorded renderings, on the phone
 
 Date: 2026-11-05 · By: Ryder Wishart · Status: accepted
 

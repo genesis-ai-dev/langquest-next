@@ -43,6 +43,7 @@ import { ScrollHoldContext } from './scrollHoldContext';
 import { toastLook, type ToastSpec } from './toastModel';
 import { useSheetOnTop, useShownToast } from './useToastLayer';
 import { a11yState } from './a11yModel';
+import { touches } from './touches';
 
 // ---- icons -------------------------------------------------------------------------
 
@@ -470,7 +471,7 @@ export function Row(props: {
   const onPress = spot.onPress;
   const right = props.right ?? (props.role === 'switch' ? (
     // Drawn only: the row takes the tap and speaks as the switch.
-    <View style={{ pointerEvents: 'none' }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <View style={touches.none} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <Toggle on={props.checked === true} disabled={props.disabled} label={props.label} onToggle={() => {}} drawnOnly />
     </View>
   ) : props.onPress ? <Ico name="right" size={22} color={C.muted} /> : null);
@@ -1155,7 +1156,7 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
   }, [toast?.id, toast?.ms, bar, left]);
   if (!toast) return null;
   return (
-    <View style={[{ pointerEvents: 'box-none' }, styles.toastWrap, 'top' in props ? { top: props.top } : { bottom: props.bottom }]}>
+    <View style={[touches.boxNone, styles.toastWrap, 'top' in props ? { top: props.top } : { bottom: props.bottom }]}>
       <View style={[styles.toast, wide && { maxWidth: measure.toast }]}>
         {/* help-ignore: a toast goes by itself in a few seconds; help explains what stays on the screen */}
         <Pressable testID="toast" onPress={props.onDismiss} accessibilityRole="button" accessibilityLabel={t('shell.toast.dismissLabel', { message: toast.message })}
@@ -1166,7 +1167,7 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
         {/* help-ignore: the toast's close, gone in a few seconds with the toast. Named apart from a sheet's ✕, as it now shows on the sheet too. */}
         <IconBtn name="close" label={t('shell.toast.close')} onPress={props.onDismiss} bg="transparent" color={C.white} size={target.min} />
         {bar ? (
-          <View style={[styles.toastTrack, { pointerEvents: 'none' }]}>
+          <View style={[styles.toastTrack, touches.none]}>
             <Animated.View style={[styles.toastLeft, { width: left.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
           </View>
         ) : null}

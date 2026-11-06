@@ -52,6 +52,7 @@ import { PlayingFill } from './playingFill';
 import { VerseParts } from './verseParts';
 import { SilenceSwitch } from './silenceSwitch';
 import { a11yState } from '../ui/a11yModel';
+import { touches } from '../ui/touches';
 
 export interface Part { hash: string; durationMs?: number;
   /** Tried in Clean up and kept as recorded: by whom, and when (decision 179). */ kept?: Kept;
@@ -124,7 +125,7 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
   return (
     // The card's box reaches past its right edge, for the + marks that hang off it (slots.tsx EDGE); the card is drawn inside.
     <View style={styles.cardBox}>
-      <View style={styles.cardFace} pointerEvents="none" />
+      <View style={[touches.none, styles.cardFace]} />
       <View style={[styles.head, props.open && styles.headOpen]}>
         {/* How far Play all is through every part; the part playing shows it again in its row. */}
         {clip.playing || clip.elapsed > 0 ? (

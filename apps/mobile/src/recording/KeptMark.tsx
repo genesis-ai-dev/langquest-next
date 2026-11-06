@@ -12,6 +12,7 @@ import { ModalCover } from '../ui/ModalCover';
 import { lift } from '../ui/shadow';
 import { txt } from '../ui/textStyles';
 import { C, radius, space, target, type as T } from '../ui/theme';
+import { touches } from '../ui/touches';
 
 /** Who tried Clean up on a part and kept it as recorded, by name, and the day. */
 export interface Kept { by: string; when: string }
@@ -39,7 +40,7 @@ export function KeptMark(props: { kept: Kept; part: string }) {
         {/* help-ignore: behind the open note, beside it rather than around it so VoiceOver reads it; a tap anywhere, the note too, closes it */}
         <Pressable style={StyleSheet.absoluteFill} onPress={() => setAt(null)} accessibilityLabel={t('common.close')} />
         {at ? (
-          <View pointerEvents="none" style={[styles.tip, { top: at.y, left: Math.max(space.lg, Math.min(at.x - TIP_WIDTH / 2, width - TIP_WIDTH - space.lg)) }]}>
+          <View style={[touches.none, styles.tip, { top: at.y, left: Math.max(space.lg, Math.min(at.x - TIP_WIDTH / 2, width - TIP_WIDTH - space.lg)) }]}>
             <View style={styles.head}>
               <Ico name="ear" size={18} color={C.muted} />
               <Text style={styles.title}>{t('recording.cleanUp.kept')}</Text>

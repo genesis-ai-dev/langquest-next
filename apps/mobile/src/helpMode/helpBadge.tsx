@@ -7,6 +7,7 @@ import { useContext, useEffect, useId, useMemo, useRef, type ReactNode } from 'r
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { HelpLit, HelpRowAt, HelpSpot } from './helpContext';
 import { HelpClipContext, HelpContext, HelpHostContext, HelpLayerContext, HelpQuietContext, HelpRowContext, useHelpOn } from './useHelpMode';
+import { touches } from '../ui/touches';
 
 /** Tell the help layer where the view holding this ref is: when it is laid out, and as often as help mode measures (measureModel.ts) while help is on. */
 function useLit(what: HelpLit | null, id: string) {
@@ -40,7 +41,7 @@ export function HelpBadge(props: { spot: HelpSpot<unknown>; inset?: boolean }) {
   const what = useMemo<HelpLit | null>(() => (part ? { kind: 'part', part, mark: props.inset ? 'inset' : 'corner', ...(clip ? { clip } : {}), ...(rows ? { rows } : {}), ...(quiet ? { quiet } : {}) } : null),
     [part, props.inset, clip, rows, quiet]);
   const lit = useLit(what, id);
-  return part ? <View ref={lit.ref} onLayout={lit.onLayout} collapsable={false} style={styles.box} pointerEvents="none" /> : null;
+  return part ? <View ref={lit.ref} onLayout={lit.onLayout} collapsable={false} style={[touches.none, styles.box]} /> : null;
 }
 
 /** Keeps a control lit while help is on without numbering it: the ? that turns help off. */
@@ -50,7 +51,7 @@ export function HelpLit() {
   const clip = useContext(HelpClipContext);
   const what = useMemo<HelpLit | null>(() => (on ? { kind: 'lit', ...(clip ? { clip } : {}) } : null), [on, clip]);
   const lit = useLit(what, id);
-  return what ? <View ref={lit.ref} onLayout={lit.onLayout} collapsable={false} style={styles.box} pointerEvents="none" /> : null;
+  return what ? <View ref={lit.ref} onLayout={lit.onLayout} collapsable={false} style={[touches.none, styles.box]} /> : null;
 }
 
 /**
@@ -96,7 +97,7 @@ export function HelpClip(props: { style?: StyleProp<ViewStyle>; children: ReactN
   return (
     <View style={props.style}>
       <HelpClipContext.Provider value={id}>{props.children}</HelpClipContext.Provider>
-      {what ? <View ref={lit.ref} onLayout={lit.onLayout} collapsable={false} style={styles.box} pointerEvents="none" /> : null}
+      {what ? <View ref={lit.ref} onLayout={lit.onLayout} collapsable={false} style={[touches.none, styles.box]} /> : null}
     </View>
   );
 }

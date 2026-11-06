@@ -16,7 +16,7 @@ import type { Scenario } from './types';
 export const slowLink: Scenario = {
   name: 'slowLink',
   summary: 'Phones on a very slow link join a busy language.',
-  defaults: { seed: 1, passages: 1200, translators: 8, reviewers: 5, historyDays: 3, joiners: 3, joinerKBps: 2, snapshotEveryMin: 5, snapshotMinNew: 200, snapshotMaxAgeMin: 60, snapshotRetainHours: 24, chunkKB: 32 },
+  defaults: { seed: 1, passages: 1200, translators: 8, reviewers: 5, historyDays: 3, joiners: 3, joinerKBps: 2, snapshotEveryMin: 5, snapshotMinNew: 200, snapshotMaxAgeMin: 60, snapshotRetainHours: 6, chunkKB: 32 },
   async run(k) {
     const started = performance.now();
     const fleet = new Fleet({

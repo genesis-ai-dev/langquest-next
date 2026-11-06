@@ -11,6 +11,7 @@ import { Ico } from '../ui/kit';
 import { Text } from '../ui/text';
 import { useReduceMotion } from '../ui/useReduceMotion';
 import { C, onColor, TINT } from '../ui/theme';
+import { touches } from '../ui/touches';
 
 /** The scene is drawn in these units and scaled to the card. */
 const W = 320;
@@ -129,7 +130,7 @@ export function TransitScene(props: { up: number; down: number; offline: boolean
   const onBelt = Math.min(up, BELT_MAX);
   const belt = Array.from({ length: onBelt }, (_, i) => i).filter((i) => !(goingUp && i === 0));
   const moving = (f: Flight, color: string) => (
-    <Animated.View pointerEvents="none" style={[styles.abs, {
+    <Animated.View style={[touches.none, styles.abs, {
       left: -10 * k, top: -8 * k, opacity: f.o,
       transform: [{ translateX: Animated.multiply(f.x, k) }, { translateY: Animated.multiply(f.y, k) }, { scale: f.s }]
     }]}>
@@ -168,7 +169,7 @@ export function TransitScene(props: { up: number; down: number; offline: boolean
             </G>
           </Svg>
           {belt.map((i) => (
-            <View key={i} pointerEvents="none" style={[styles.abs, { left: slotX(i, onBelt) * k - 10 * k, top: BELT_Y * k - 8 * k }]}>
+            <View key={i} style={[touches.none, styles.abs, { left: slotX(i, onBelt) * k - 10 * k, top: BELT_Y * k - 8 * k }]}>
               <Package color={C.primary} k={k} />
             </View>
           ))}
@@ -187,7 +188,7 @@ export function TransitScene(props: { up: number; down: number; offline: boolean
 function Count(props: { k: number; x: number; y: number; n: number; arrow: 'arrowUp' | 'arrowDown'; fg: string; bg: string }) {
   const { k } = props;
   return (
-    <View pointerEvents="none" style={[styles.abs, styles.count, { left: (props.x - 26) * k, top: (props.y - 13) * k, width: 52 * k, height: 26 * k, borderRadius: 13 * k, backgroundColor: props.bg }]}>
+    <View style={[touches.none, styles.abs, styles.count, { left: (props.x - 26) * k, top: (props.y - 13) * k, width: 52 * k, height: 26 * k, borderRadius: 13 * k, backgroundColor: props.bg }]}>
       <Ico name={props.arrow} size={Math.round(13 * k)} color={props.fg} strokeWidth={2.75} />
       <Text style={{ fontSize: 14 * k, fontWeight: '800', color: props.fg, fontVariant: ['tabular-nums'] }}>{String(props.n)}</Text>
     </View>
