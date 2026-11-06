@@ -2,9 +2,14 @@
   "kind": "structure",
   "ask": "Is it fine to tell the picture check that Arabic names sit at the right?",
   "problem": "The nightly English tutorial job fails on some nights and passes on others. Nothing is wrong with the app.",
-  "found": "All 46 films played through on the failed night. A film is only checked again when it looks different from the saved one. The picture check is an AI, and it held the language-choice film. It said the Arabic name floats to the right of its row. The app shows it that way on purpose, because Arabic starts at the right edge. So the cause is the picture check, not the app and not the film scripts. It fails only on nights when this film is shot again and the AI picks on this row. Earlier failures (2 November) had other causes: a passage count and a player clock.",
+  "found": "All 46 films played. The picture check, an AI, held one film. It called the Arabic name in the language list misplaced. Arabic starts at the right, so the check was wrong, not the app or scripts. It fails only on nights this film is shot again.",
   "changed": "The picture check now has a note: names in right-to-left writing start at the right of their row, and that is correct. People see no change in the app or the videos.",
   "why": "The check is the only part that was wrong here. Changing the app would make the language list worse. Changing the film script cannot move the name. I could not run the tests here, because the tools are not installed. The one-line change is a text note, so the normal checks on the pull request will test it.",
   "touches": "Nothing else. No video was published or changed on YouTube. Other checks stay as they were.",
-  "pictures": [{"file": "diagram.png", "label": "How the check decided, before and after"}]
+  "pictures": [
+    {
+      "file": "diagram.png",
+      "label": "How the check decided, before and after"
+    }
+  ]
 }
