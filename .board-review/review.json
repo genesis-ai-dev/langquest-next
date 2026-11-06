@@ -2,18 +2,37 @@
   "kind": "question",
   "ask": "Should an edit made during a review send the passage back for review?",
   "problem": "A recorder can add a second version to a passage that already has audio, even in the middle of a review. Nobody is asked to listen to the new version, and the passage still looks finished.",
-  "found": "I could not try it on a phone or in the web app. Phone simulators do not run on this machine. The web test setup started, but its sign-up step failed here because the machine blocks a download it needs. So this comes from the code and the existing web tests. Today the new version goes live. Old checks still count. The passage stays Done. Partner apps keep getting the last version a reviewer approved, so nothing unchecked leaves the team.",
+  "found": "I tried neither phone nor web; both failed here. From the code: the new version goes live, old checks still count, and the passage stays Done. Partner apps keep the last approved version.",
   "changed": "Nothing yet. I built nothing, as you asked. This card holds the choices and my pick.",
   "why": "I read the earlier decisions first. Publishing never sends anything by itself (decisions 9 and 70). A check that asks for changes stays open until its reviewer says Looks good (decision 96). Releases only use a version someone approved (decision 72). Option 2 fits all three. It makes the gap visible and leaves the sending to the recorder.",
   "touches": "Option 2 changes the passage record: the Done label and one message. Option 3 would break decision 70 and need a new decision. Option 4 adds a choice to the publish screen. Option 1 changes nothing.",
   "pictures": [
-    {"file": "today.png", "label": "Today"}
+    {
+      "file": "today.png",
+      "label": "Today"
+    }
   ],
   "options": [
-    {"label": "Keep it as it is", "result": "Edits never go back for review. Unheard audio can hide behind a Done passage.", "picture": "optA.png"},
-    {"label": "Mark it, and offer to send", "result": "The passage says the new version is not checked. The main button offers Send to the usual reviewer. Nothing is sent by itself.", "picture": "optB.png"},
-    {"label": "Send it back automatically", "result": "Every edit after a check goes to the reviewer at once. Nothing slips through, but small fixes bother reviewers.", "picture": "optC.png"},
-    {"label": "Ask the editor when they publish", "result": "Publishing shows two buttons: send for review, or publish only. The editor decides each time.", "picture": "optD.png"}
+    {
+      "label": "Keep it as it is",
+      "result": "Edits never go back for review. Unheard audio can hide behind a Done passage.",
+      "picture": "optA.png"
+    },
+    {
+      "label": "Mark it, and offer to send",
+      "result": "The passage says the new version is not checked. The main button offers Send to the usual reviewer. Nothing is sent by itself.",
+      "picture": "optB.png"
+    },
+    {
+      "label": "Send it back automatically",
+      "result": "Every edit after a check goes to the reviewer at once. Nothing slips through, but small fixes bother reviewers.",
+      "picture": "optC.png"
+    },
+    {
+      "label": "Ask the editor when they publish",
+      "result": "Publishing shows two buttons: send for review, or publish only. The editor decides each time.",
+      "picture": "optD.png"
+    }
   ],
   "recommended": 1
 }
