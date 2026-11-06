@@ -4,7 +4,7 @@
   "problem": "On the web app, some people could not load the Inbox counts for open reports and join requests. The badge then showed nothing, as if no one was waiting.",
   "found": "The web page could not renew its sign-in, so the server stopped the count requests. The app hid the failure and kept zero. An expired sign-in is a different case, left to LAN-243. I read code only, not live logs.",
   "changed": "When a count cannot load, the Inbox badge now shows a question mark. If some counts did load, it shows the total with a plus sign. The same applies to the bell on My Work.",
-  "why": "A wrong zero hides real requests from moderators. A question mark is honest and small. I looked at an error message on the Inbox instead, but that adds a new screen and new words in 16 languages. The pictures are drawings of the badge, not screenshots, because I could not run the web app here.",
+  "why": "A wrong zero hides real requests from moderators. A question mark is honest and small. An error screen would need new words in 16 languages. The pictures are drawings, not screenshots; I could not run the web app.",
   "touches": "Screen readers still read the old label, since new words need all 16 translations. For a moment at start, admins may see a question mark until the first count loads.",
   "pictures": [
     {
