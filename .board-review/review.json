@@ -1,0 +1,15 @@
+{
+"kind":"question",
+"ask":"Should a person's own recordings leave the phone once the server has confirmed them?",
+"problem":"Today a person's own recordings stay on their phone for good. Phones fill up, as they did in the old app. The issue asks us to clear them after upload.",
+"found":"Other people's audio is already cleared when space runs low, and only after the server confirms it. But every passage a person recorded in stays kept for good, and the download button refuses to un-keep it. So their own audio is never cleared, even after the server has it. Clearing also happens only when space is short, never right after upload.",
+"changed":"Nothing yet. This is a decision card only. No code is built until you answer.",
+"why":"Three choices fit the issue. Keeping everything is simplest but fills phones. Clearing when space is low matches the issue's rule 'like any other cached audio' and lets people still hear their work offline while there is room. Clearing a week after upload frees space sooner but breaks offline listening for people who work in low-signal places. I recommend B. Whichever you pick, a file is never cleared before the server confirms it.",
+"touches":"Choosing B or C changes decision 166, which keeps every passage a person worked on. The download button would stop saying 'kept because you worked on it'. The play-store answers about data on the device stay true.",
+"pictures":[{"file":"option-keep.png","label":"A. Keep for good"},{"file":"option-space.png","label":"B. Clear when space runs low"},{"file":"option-after.png","label":"C. Clear a week after upload"}],
+"options":[
+{"label":"A. Keep for good (today)","result":"No change. Own recordings stay on the phone forever. We close the issue as already decided.","picture":"option-keep.png"},
+{"label":"B. Clear when space runs low","result":"Own confirmed recordings become cache, cleared last when space is short. Passage shows Download again after clearing.","picture":"option-space.png"},
+{"label":"C. Clear a week after upload","result":"Own confirmed recordings are cleared seven days after the server confirms them, even with free space.","picture":"option-after.png"}],
+"recommended":1
+}
