@@ -163,7 +163,7 @@ export function ReferenceBibles(ctx: Ctx) {
   return (
     <Screen header={<Header title={t('reference.bibles.title')} sub={levelName(ctx, level)} onBack={ctx.back} />}
       // Adding a Bible follows LangQuest's or publishes Bible Brain's in the organization's library (`mayWriteLibrary`).
-      footer={canAdd ? <PrimaryBtn label={t('reference.bibles.add')} icon="plus" onPress={() => setAdding(true)} /> : undefined}>
+      footer={canAdd ? <PrimaryBtn help={t('help.stock.addBible')} label={t('reference.bibles.add')} icon="plus" onPress={() => setAdding(true)} /> : undefined}>
       <Intro>{level.kind === 'org' ? t('reference.bibles.introOrg') : t('reference.bibles.introLanguage')}</Intro>
       <SectionLabel label={t('reference.bibles.recommended', { n: on.length })} />
       {on.length ? on.slice(0, n).map(card) : (
@@ -267,7 +267,7 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
       sub={shown ? shown.sub : t('reference.addBible.sub')}
       footer={shown ? (
         <>
-          <PrimaryBtn label={t('reference.addBible.addAndRecommend')} onPress={shown.add} busy={busy} />
+          <PrimaryBtn help={t('help.stock.addRecommend')} label={t('reference.addBible.addAndRecommend')} onPress={shown.add} busy={busy} />
           <GhostBtn label={t('reference.addBible.backToList')} help={t('reference.addBible.backToListHelp')} onPress={unpick} />
         </>
       ) : undefined}>
@@ -521,7 +521,7 @@ export function ReferenceGuides(ctx: Ctx) {
 
   return (
     <Screen header={<Header title={t('reference.guides.title')} sub={levelName(ctx, level)} onBack={ctx.back} />}
-      footer={noteTo ? <PrimaryBtn label={t('reference.guides.newNote')} icon="plus" onPress={() => ctx.go('material_editor', noteTo)} /> : undefined}>
+      footer={noteTo ? <PrimaryBtn help={t('help.stock.newGuideNote')} label={t('reference.guides.newNote')} icon="plus" onPress={() => ctx.go('material_editor', noteTo)} /> : undefined}>
       <Intro>{t('reference.guides.intro')}</Intro>
       {/* Write your own, beside following others' (design principle 12; Get ready promises it). */}
       {mayWrite ? (
@@ -567,7 +567,7 @@ export function ReferenceGuides(ctx: Ctx) {
         </>
       ) : null}
 
-      <Sheet visible={filtering} title={t('common.filter')} onClose={() => setFiltering(false)} footer={<PrimaryBtn label={t('reference.guides.showItems', { count: shown.length })} onPress={() => setFiltering(false)} />}>
+      <Sheet visible={filtering} title={t('common.filter')} onClose={() => setFiltering(false)} footer={<PrimaryBtn help={t('help.stock.closeFilter')} label={t('reference.guides.showItems', { count: shown.length })} onPress={() => setFiltering(false)} />}>
         <Text style={txt.xsStrong}>{t('reference.guides.whatKind')}</Text>
         {/* help-each: each kind shows different material */}
         <ChipRow>{KIND_FILTERS.map((k) => <Chip key={k} label={kindFilterLabel(k)} on={kind === k} help={k === 'all' ? t('reference.guides.kindAllHelp') : t('reference.guides.kindHelp')} onPress={() => setKind(k)} />)}</ChipRow>

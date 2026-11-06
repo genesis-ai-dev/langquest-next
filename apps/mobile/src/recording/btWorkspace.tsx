@@ -508,11 +508,11 @@ function MomentSheet(props: {
   return (
     <Sheet visible title={t('backTranslation.noteAtPart', { time: formatClock(props.atMs), part: props.part + 1 })}
       sub={props.checkedBy ? t('backTranslation.noteSub', { check: props.checkedBy }) : t('backTranslation.noteSubNext')} onClose={props.onClose}
-      footer={<PrimaryBtn label={t('backTranslation.addNote')} disabled={!text.trim() && !spoken} onPress={() => props.onSave(text.trim(), spoken)} />}>
+      footer={<PrimaryBtn help={t('help.stock.addNote')} label={t('backTranslation.addNote')} disabled={!text.trim() && !spoken} onPress={() => props.onSave(text.trim(), spoken)} />}>
       {props.spokenTaken
         ? <Text style={txt.smMuted}>{t('backTranslation.oneSpokenNote')}</Text>
         : <VoiceNote ctx={props.ctx} label={t('common.sayIt')} hash={props.hash} onChange={(h) => props.onHash(h)} />}
-      <Field value={text} onChangeText={setText} placeholder={t('backTranslation.typeNoMatch')} multiline />
+      <Field help={t('help.stock.typeOwnWords')} value={text} onChangeText={setText} placeholder={t('backTranslation.typeNoMatch')} multiline />
     </Sheet>
   );
 }
@@ -561,7 +561,7 @@ function PublishSheet(props: {
       ]} /> : null}
       {askNobody}
     </View>
-  ) : <PrimaryBtn label={t('backTranslation.finishWhat', { what: props.what })} icon="check" busy={props.busy} onPress={() => finish(null)} />;
+  ) : <PrimaryBtn help={t('help.stock.finishStep')} label={t('backTranslation.finishWhat', { what: props.what })} icon="check" busy={props.busy} onPress={() => finish(null)} />;
   return (
     <Sheet visible title={capitalize(props.what)} sub={t('backTranslation.ofVersion', { n: props.of.n })}
       onClose={props.onClose} action={<SavedMark status={props.saved} help={t('saved.draftHelp')} />} footer={footer}>
@@ -576,7 +576,7 @@ function PublishSheet(props: {
       {props.spokenTaken
         ? <Text style={txt.smMuted}>{t('backTranslation.oneSpokenNote')}</Text>
         : <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={props.hash} onChange={(h) => props.onHash(h)} />}
-      <Field value={props.extra} onChangeText={props.onExtra} placeholder={t('backTranslation.typeNoMatch')} multiline />
+      <Field help={t('help.stock.typeOwnWords')} value={props.extra} onChangeText={props.onExtra} placeholder={t('backTranslation.typeNoMatch')} multiline />
       {next ? (
         <View style={{ gap: space.sm }}>
           <SectionLabel label={t('recording.publish.nextCheck')} />

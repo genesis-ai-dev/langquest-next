@@ -698,7 +698,7 @@ export function BookMap(ctx: Ctx) {
     const may = canGo(ctx, 'book_map', 'book_structure') && mayWriteLibrary(ctx.org.state, ctx.session.actorId, 'template');
     return (
       <Screen header={<Header title={title} crumbs={crumbs} onBack={ctx.back} sub={inLanguage(t('map.waiting'))} />}
-        footer={may ? <PrimaryBtn label={t('map.book.breakUp', { book: book.name })} icon="cut" onPress={() => ctx.go('book_structure', { languageId, bookId })} /> : undefined}>
+        footer={may ? <PrimaryBtn help={t('help.stock.breakUp')} label={t('map.book.breakUp', { book: book.name })} icon="cut" onPress={() => ctx.go('book_structure', { languageId, bookId })} /> : undefined}>
         <EmptyState icon="cut" title={t('map.book.notBrokenUp', { book: book.name })}
           sub={may ? t('map.book.chooseHow', { book: book.name }) : t('map.book.coordinatorDecides', { book: book.name })} />
       </Screen>

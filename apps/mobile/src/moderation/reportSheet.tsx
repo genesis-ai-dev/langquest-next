@@ -116,7 +116,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
     return (
       <Sheet visible title={of.kind === 'person' ? t('moderation.reportPerson', { name: who }) : reportThingLabel(of.kind)}
         sub={t('moderation.report.whatIsWrong')} onClose={props.onClose} onBack={toMenu}
-        footer={<PrimaryBtn label={t('moderation.report.send')} icon="flag" disabled={!ready || busy} busy={busy} onPress={() => void send(of)} />}>
+        footer={<PrimaryBtn help={t('help.stock.sendReport')} label={t('moderation.report.send')} icon="flag" disabled={!ready || busy} busy={busy} onPress={() => void send(of)} />}>
         <Group>
           {/* help-each: each reason means something different */}
           {REPORT_REASON_IDS.map((id, i) => (
@@ -125,7 +125,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
               onPress={() => setReason(id)} />
           ))}
         </Group>
-        <Field value={details} onChangeText={setDetails} placeholder={reason === 'other' ? t('moderation.report.whatIsWrong') : t('moderation.report.anythingElse')} multiline />
+        <Field help={t('help.stock.reportMore')} value={details} onChangeText={setDetails} placeholder={reason === 'other' ? t('moderation.report.whatIsWrong') : t('moderation.report.anythingElse')} multiline />
         {!blocked ? (
           <Group>
             <Row icon="block" iconColor={TINT.redText} label={t('moderation.report.alsoBlock', { name: who })} sub={t('moderation.report.alsoBlockSub')}
@@ -144,7 +144,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
       <Sheet visible title={removeThingTitle(target.kind)} sub={t('moderation.remove.sub')} onClose={props.onClose} onBack={() => setStep({ at: 'menu' })}
         footer={(
           <>
-            <PrimaryBtn label={t('moderation.remove.confirm')} icon="trash" tone="red" disabled={busy} busy={busy} onPress={() => void remove()} />
+            <PrimaryBtn help={t('help.stock.removeIt')} label={t('moderation.remove.confirm')} icon="trash" tone="red" disabled={busy} busy={busy} onPress={() => void remove()} />
             <GhostBtn label={t('common.cancel')} help={t('help.details.cancel')} onPress={() => setStep({ at: 'menu' })} />
           </>
         )}>
@@ -212,7 +212,7 @@ export function ReportActions(props: { ctx: Ctx; target: ReportTarget; onDone: (
     return (
       <>
         <Text style={txt.body}>{t('moderation.remove.sub')} {t('moderation.remove.body')}</Text>
-        <PrimaryBtn label={t('moderation.remove.confirm')} icon="trash" tone="red" disabled={busy} busy={busy} onPress={() => void run('remove')} />
+        <PrimaryBtn help={t('help.stock.removeIt')} label={t('moderation.remove.confirm')} icon="trash" tone="red" disabled={busy} busy={busy} onPress={() => void run('remove')} />
         <GhostBtn label={t('common.cancel')} help={t('help.details.cancel')} disabled={busy} onPress={() => setConfirming(false)} />
       </>
     );
@@ -221,7 +221,7 @@ export function ReportActions(props: { ctx: Ctx; target: ReportTarget; onDone: (
     <>
       {/* Look first: opening what was reported leads, and removing, which no phone can undo, is a quieter red button (UI audit, finding 113). */}
       {target.kind === 'person' ? (
-        <PrimaryBtn label={t('moderation.actions.openMembers')} icon="people" onPress={props.onOpen} />
+        <PrimaryBtn help={t('help.stock.openMembers')} label={t('moderation.actions.openMembers')} icon="people" onPress={props.onOpen} />
       ) : (
         <>
           {target.unitId ? <PrimaryBtn label={openLabel(target.kind)} help={t('moderation.actions.openPassageHelp')} onPress={props.onOpen} /> : null}

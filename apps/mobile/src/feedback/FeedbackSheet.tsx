@@ -186,7 +186,7 @@ function FeedbackSheet(props: { ctx: Ctx; screen: string; shot: Shot | null; sig
 
   return (
     <Sheet visible title={t('feedback.title')} onClose={props.onClose}
-      footer={<PrimaryBtn label={t('feedback.send')} icon="send" disabled={(!ready && !voiceTooLong(voice)) || busy} busy={busy} onPress={() => void send()} />}>
+      footer={<PrimaryBtn help={t('help.stock.sendFeedback')} label={t('feedback.send')} icon="send" disabled={(!ready && !voiceTooLong(voice)) || busy} busy={busy} onPress={() => void send()} />}>
       <ChipWrap>
         {/* help-each: a problem and an idea are different reports */}
         {FEEDBACK_KINDS.map((k) => (

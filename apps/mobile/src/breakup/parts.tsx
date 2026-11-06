@@ -233,7 +233,7 @@ export function ApplySheet(props: {
   const count = chosen.size;
   return (
     <Sheet visible={props.visible} title={t('breakup.apply.title')} sub={t('breakup.apply.sub')} onClose={props.onClose}
-      footer={<PrimaryBtn label={count === 1 ? t('breakup.apply.changeThis') : t('breakup.apply.changeFor', { count })} icon="check" busy={props.busy} onPress={() => props.onApply(chosen)} />}>
+      footer={<PrimaryBtn help={t('help.stock.applyChange')} label={count === 1 ? t('breakup.apply.changeThis') : t('breakup.apply.changeFor', { count })} icon="check" busy={props.busy} onPress={() => props.onApply(chosen)} />}>
       {props.children}
       <View style={styles.list}>
         <CheckRow label={props.users.find((u) => u.languageId === props.here)?.name ?? t('breakup.apply.thisLanguage')} sub={t('breakup.apply.hereSub')} checked onToggle={() => undefined} disabled
@@ -283,7 +283,7 @@ export function RedoSheet(props: {
   return (
     <Sheet visible={props.visible} title={props.numbering ? t('breakup.redo.titleNumbering') : t('breakup.redo.titleBook', { book: props.book })} onClose={props.onClose}
       footer={<>
-        <PrimaryBtn label={also.length ? t('breakup.apply.changeFor', { count: also.length + 1 }) : t('breakup.redo.changeAnyway')} tone={calm ? 'amber' : 'red'} busy={props.busy} onPress={props.onConfirm} />
+        <PrimaryBtn help={t('help.stock.changeAnyway')} label={also.length ? t('breakup.apply.changeFor', { count: also.length + 1 }) : t('breakup.redo.changeAnyway')} tone={calm ? 'amber' : 'red'} busy={props.busy} onPress={props.onConfirm} />
         <GhostBtn label={t('breakup.redo.keep')} icon="close" help={t('help.details.cancel')} onPress={props.onClose} />
       </>}>
       <View style={[styles.danger, calm && { backgroundColor: TINT.amber }]}>
