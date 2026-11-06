@@ -51,6 +51,6 @@ export function useInbox(o: { language: Pick<LanguageHandle, 'state' | 'lines' |
   const reportCount = useOpenReportCount(orgId, signedIn && (session.can('manage_structure') || session.can('invite_members')));
   // People asking to join count too, for whoever may admit them.
   const requestCount = usePendingRequestCount(orgId, signedIn && session.can('invite_members'));
-  const { total, unsure } = badgeTotal(unread, [reportCount, requestCount]);
-  return { forYou, updates, unread: total, unreadUnsure: unsure, isRead, markRead };
+  const { total, stale } = badgeTotal(unread, [reportCount, requestCount]);
+  return { forYou, updates, unread: total, unreadStale: stale, isRead, markRead };
 }

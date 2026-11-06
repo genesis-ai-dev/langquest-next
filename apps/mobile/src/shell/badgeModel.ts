@@ -1,22 +1,25 @@
 // What an Inbox badge says when a count could not load (LAN-221). Pure.
 
-/** A count of something on the server: a number once read, null when the last read failed or none has worked yet. */
-export type KnownCount = number | null;
+/** A count read from the server: the last number that loaded, and whether the latest read failed since. */
+export interface BadgeCount { count: number; stale: boolean }
 
-/**
- * Add the counts that make up one badge. `unsure` is true when any of them
- * could not be read, so the badge never claims "nothing waiting" (or an old
- * number) when the truth is that the server could not be asked.
- */
-export function badgeTotal(local: number, remote: KnownCount[]): { total: number; unsure: boolean } {
+/** How soon a failed count is read again, instead of waiting for the next regular read. */
+export const RETRY_MS = 15_000;
+
+/** Add the counts that make up one badge; it is stale when any of them is. */
+export function badgeTotal(local: number, remote: BadgeCount[]): { total: number; stale: boolean } {
   let total = local;
-  let unsure = false;
-  for (const n of remote) { if (n === null) unsure = true; else total += n; }
-  return { total, unsure };
+  let stale = false;
+  for (const r of remote) { total += r.count; if (r.stale) stale = true; }
+  return { total, stale };
 }
 
-/** The badge's text: a count, "n+" when more may wait, "?" when nothing is known. Null when there is nothing to show. */
-export function badgeShape(count: number, unsure: boolean): { kind: 'none' } | { kind: 'count'; n: number } | { kind: 'atLeast'; n: number } | { kind: 'unknown' } {
-  if (unsure) return count > 0 ? { kind: 'atLeast', n: count } : { kind: 'unknown' };
-  return count > 0 ? { kind: 'count', n: count } : { kind: 'none' };
+/**
+ * How the badge looks. A count that could not be refreshed keeps its last
+ * number but turns grey, so it is never shown as certain; with no number
+ * to show, a grey dot says something may be waiting.
+ */
+export function badgeShape(count: number, stale: boolean): { kind: 'none' } | { kind: 'count'; n: number; grey: boolean } | { kind: 'dot' } {
+  if (count > 0) return { kind: 'count', n: count, grey: stale };
+  return stale ? { kind: 'dot' } : { kind: 'none' };
 }

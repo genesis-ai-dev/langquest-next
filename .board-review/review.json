@@ -1,19 +1,23 @@
 {
   "kind": "screen",
-  "ask": "Is a question mark on the Inbox badge the right way to say a count could not load?",
-  "problem": "On the web app, some people could not load the Inbox counts for open reports and join requests. The badge then showed nothing, as if no one was waiting.",
+  "ask": "Is a grey badge, instead of a question mark, a good way to show a count that may be old?",
+  "problem": "On the web app, some people could not load the Inbox counts for reports and join requests. The badge then showed nothing, as if no one was waiting.",
   "found": "The web page could not renew its sign-in, so the server stopped the count requests. The app hid the failure and kept zero. An expired sign-in is a different case, left to LAN-243. I read code only, not live logs.",
-  "changed": "When a count cannot load, the Inbox badge now shows a question mark. If some counts did load, it shows the total with a plus sign. The same applies to the bell on My Work.",
-  "why": "A wrong zero hides real requests from moderators. A question mark is honest and small. An error screen would need new words in 16 languages. The pictures are drawings, not screenshots; I could not run the web app.",
-  "touches": "Screen readers keep the old label until all 16 languages are translated. Admins may see a question mark briefly at start.",
+  "changed": "No more question mark. A count that cannot refresh keeps its last number but turns grey. With no number, a grey dot shows. The app also tries again after 15 seconds.",
+  "why": "Grey needs no new words and no new screen. It is honest: a red number means sure, grey means maybe old. The pictures are drawings, not screenshots; I could not run the web app.",
+  "touches": "Screen readers keep the old label until all 16 languages are translated. The My Work bell changes the same way.",
   "pictures": [
     {
       "file": "before.png",
       "label": "Before"
     },
     {
-      "file": "after.png",
-      "label": "After"
+      "file": "after-number.png",
+      "label": "After: grey number"
+    },
+    {
+      "file": "after-dot.png",
+      "label": "After: grey dot"
     }
   ]
 }

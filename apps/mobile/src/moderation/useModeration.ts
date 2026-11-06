@@ -1,5 +1,5 @@
 // Who this person has blocked, and reports waiting, as screens follow them (moderation/moderationData.ts).
-import type { KnownCount } from '../shell/badgeModel';
+import { RETRY_MS, type BadgeCount } from '../shell/badgeModel';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppState } from 'react-native';
@@ -53,23 +53,23 @@ export function useBlocks(actorId: string): Blocks {
 /**
  * How many things have open reports this person may act on, for the Inbox
  * badge. Read when the app comes forward, every five minutes, and after a
- * moderator acts; when a read fails the count is unknown (null), not the last one: the badge says so (badgeModel.ts).
+ * moderator acts; when a read fails the last count stays and is marked stale, and it is read again soon (badgeModel.ts).
  */
-export function useOpenReportCount(orgId: string, enabled: boolean): KnownCount {
-  const [count, setCount] = useState<KnownCount>(0);
+export function useOpenReportCount(orgId: string, enabled: boolean): BadgeCount {
+  const [state, setState] = useState<BadgeCount>({ count: 0, stale: false });
   useEffect(() => {
-    if (!enabled) { setCount(0); return; }
-    setCount(null);
+    if (!enabled) { setState({ count: 0, stale: false }); return; }
     let active = true;
+    let retry: ReturnType<typeof setTimeout> | undefined;
     const load = () => {
-      openReports(orgId).then((rows) => { if (active) setCount(groupReports(orgId, rows).length); })
-        .catch((e: unknown) => { noteExpected('open report count', e); if (active) setCount(null); });
+      openReports(orgId).then((rows) => { if (active) { setState({ count: groupReports(orgId, rows).length, stale: false }); clearTimeout(retry); } })
+        .catch((e: unknown) => { noteExpected('open report count', e); if (active) { setState((s) => ({ ...s, stale: true })); clearTimeout(retry); retry = setTimeout(load, RETRY_MS); } });
     };
     load();
     reportListeners.add(load);
     const app = AppState.addEventListener('change', (state) => { if (state === 'active') load(); });
     const timer = setInterval(load, 5 * 60_000);
-    return () => { active = false; reportListeners.delete(load); app.remove(); clearInterval(timer); };
+    return () => { active = false; reportListeners.delete(load); app.remove(); clearInterval(timer); clearTimeout(retry); };
   }, [orgId, enabled]);
-  return count;
+  return state;
 }
