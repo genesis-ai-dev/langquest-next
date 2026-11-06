@@ -1,0 +1,20 @@
+{
+"kind": "question",
+"ask": "When two people give the same passage to different translators offline, should the last one win, or should both translators see it?",
+"problem": "Bezily's group wants a coordinator to give passages, a chapter or a book to one translator, who then sees them in My work. The app cannot do this in bulk today.",
+"found": "Part of this exists. A coordinator can already ask one person to record one passage, and it shows in that person's My work. Two such asks both stay open, so both people see the passage. What is missing: picking many passages at once, a view of who has each passage, and a simple move to someone else. The partner demo is not available to this session, so I could not check it. I did not build anything.",
+"changed": "Nothing yet. I wrote three options with a picture each. The code stays as it is until you answer.",
+"why": "Option 1 gives one clear owner, which matches 'who has each passage'. Option 2 is cheapest, with no new event type and no server change. Option 3 loses no work but needs a coordinator to settle each clash. A translator who already recorded keeps the recording under every option.",
+"touches": "Option 1 and option 3 add a new kind of record, so they need a server change and a new entry in the decision log. Option 2 needs neither. All three leave the audio prefetch work (LAN-19) able to use the list of passages given to a person.",
+"pictures": [
+ {"file": "option-A.png", "label": "Option 1: last one wins"},
+ {"file": "option-B.png", "label": "Option 2: reuse asks, both see it"},
+ {"file": "option-C.png", "label": "Option 3: both see it until a coordinator picks"}
+],
+"options": [
+ {"label": "Last one wins", "result": "One owner per passage. The later assignment replaces the earlier one. The first translator is told it moved.", "picture": "option-A.png"},
+ {"label": "Both see it, using today's asks", "result": "Bulk picking on top of the existing ask to record. Both translators see the passage. The first to record closes it for the other.", "picture": "option-B.png"},
+ {"label": "Both see it, coordinator settles", "result": "A new assignment record. A clash shows as two people on one passage until a coordinator keeps one.", "picture": "option-C.png"}
+],
+"recommended": 0
+}
