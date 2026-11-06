@@ -1,28 +1,15 @@
 {
-  "kind": "question",
-  "ask": "Where should the export be built, and where should admins start it?",
-  "problem": "Organizations fear being locked in. Admins can download progress sheets today. They cannot take out the recordings, their details and the full history together.",
-  "found": "The server has a job runner with lots of memory and a bucket holding every recording. The web server has little memory and short time limits. Reports and the admin area already exist.",
-  "changed": "Nothing yet, only this question. After your answer, admins will get an Export all data button. It gives one zip. The zip holds audio folders, a recording list, progress sheets and the full history.",
-  "why": "The zip may be very large. It needs a place with plenty of memory and no short time limit. A stored file lets the admin close the page and come back.",
-  "touches": "Options A and B keep a zip in storage for a while. They also note who asked. Option C does neither. No option adds new kinds of events.",
-  "pictures": [],
-  "options": [
+  "kind": "needs_you",
+  "ask": "Will you update the Linear issue to match your decision?",
+  "problem": "The issue asked for a general Export all data button for org admins. Orgs already have the data API.",
+  "found": "Your answer changes the plan. Nothing is needed now. A tailored export waits for an organization that names the formats it needs.",
+  "changed": "Nothing is built. I dropped the old question and wrote suggested wording for the issue in the review folder. The pull request stays a draft.",
+  "why": "My rules keep me out of Linear. A tailored export needs facts from a real org first, so building now would guess.",
+  "touches": "The phone's USB backup is not touched. The data API is not touched. The pull request can be closed or kept for later.",
+  "pictures": [
     {
-      "label": "Server job, button on the Organization screen",
-      "result": "The admin starts the export where they manage people and roles. A job builds the zip, progress shows there, and a download link appears when it is ready.",
-      "picture": "option0.png"
-    },
-    {
-      "label": "Server job, button in the Reports section",
-      "result": "Same engine, but the button sits beside the progress downloads admins already use.",
-      "picture": "option1.png"
-    },
-    {
-      "label": "Build inside the web server and stream it",
-      "result": "No stored file and no link. The zip downloads as it is built. Large organizations may time out or run out of memory.",
-      "picture": "option2.png"
+      "file": "plan.png",
+      "label": "The new plan"
     }
-  ],
-  "recommended": 0
+  ]
 }
