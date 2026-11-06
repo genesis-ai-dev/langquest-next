@@ -4,7 +4,7 @@
  "problem": "Bezily's group wants a coordinator to give passages, a chapter or a book to one translator, who then sees them in My work. The app cannot do this in bulk today.",
  "found": "A coordinator can already ask one person to record one passage. Both asks stay open, so both people see it. Missing: picking many passages, seeing who has each, and moving it.",
  "changed": "Nothing yet. I wrote three options with a picture each. The code stays as it is until you answer.",
- "why": "Option 1 gives one clear owner, which matches 'who has each passage'. Option 2 is cheapest, with no new event type and no server change. Option 3 loses no work but needs a coordinator to settle each clash. A translator who already recorded keeps the recording under every option.",
+ "why": "Option 1 gives one clear owner. Option 2 is cheapest: no new record type. Option 3 loses no work but needs a coordinator to settle each clash.",
  "touches": "Option 1 and option 3 add a new kind of record, so they need a server change and a new entry in the decision log. Option 2 needs neither. All three leave the audio prefetch work (LAN-19) able to use the list of passages given to a person.",
  "pictures": [
   {
