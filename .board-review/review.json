@@ -1,0 +1,15 @@
+{
+  "kind": "question",
+  "ask": "Set the PASS-004 test aside for now, or keep it blocking while we dig for the cause?",
+  "problem": "One web test, PASS-004, fails about 1 run in 14. A pull request that did nothing wrong turns red and has to be run again.",
+  "found": "I read both failing runs. They fail in different places: once the feedback step never appeared in 20 seconds, once the Record a fix button never appeared after a tap. The same test passed on the next run with the same code. Both runs were on a very busy test machine. The screen showed no clear sign of an app bug, but I could not run the full test stack here to prove it. So the cause is probably timing in the test or the machine, not proven.",
+  "changed": "Nothing changes for people using the app. The test PASS-004 gets the quarantine tag, with this issue and an owner written beside it. It then runs alone in the nightly run instead of blocking pull requests.",
+  "why": "The team's testing rules say a test that fails without an app cause gets set aside, never retried until it passes. I could not install the tools here, so I could not run any check, and I did not want to guess at a fix I cannot test. I also looked at the earlier fix for the same kind of problem (LAN-166); it is already in this code.",
+  "touches": "Only the one test file. The nightly run will report this test separately.",
+  "pictures": [{"file": "failure.png", "label": "A screen captured when the test failed (one of several devices in that run)"}],
+  "options": [
+    {"label": "Set it aside now", "result": "Pull requests stop failing on this test. It keeps running every night, and the cause stays open.", "picture": "quarantine.png"},
+    {"label": "Keep it blocking and dig deeper", "result": "About 1 pull request in 14 still fails on it until someone reproduces the problem with the full test stack.", "picture": "wait.png"}
+  ],
+  "recommended": 0
+}
