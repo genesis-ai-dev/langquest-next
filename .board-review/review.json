@@ -1,0 +1,15 @@
+{
+ "kind": "needs_you",
+ "ask": "Can you film the new video on your Mac, then approve the English films?",
+ "problem": "Jenn takes the app to Benin in early December. Some people there have projects in the old app. No video showed what they see once their work comes across.",
+ "found": "The app already has a Welcome back screen for these people. No film covered it. The lasting download links work for every film Jenn needs, in English and French. No film is recorded as handed to Jenn.",
+ "changed": "I wrote a new film script. A made-up teacher signs in with an old account, sees her project as a language, reads what is different, and taps Keep going. I also wrote a list of 19 films for Jenn, with links in both languages.",
+ "why": "The film uses test people only. I could not run the app here, so the picture is a plan, not the real film. English films still wait for your approval.",
+ "touches": "A film can now start on the first-run screens. The list is in the docs folder. The new film joins the playlist for everyone after the nightly run.",
+ "pictures": [
+  {
+   "file": "film.png",
+   "label": "Plan for the new film (drawing, not filmed yet)"
+  }
+ ]
+}
