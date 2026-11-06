@@ -7617,6 +7617,22 @@ branch. A `copy-claude` label on a copy with a conflict no longer means
 that Claude is on it, so the hourly run starts Claude again (the same 3
 tries).
 
+Amended (2026-11-06, Carl Sauder): the copy of PR 357 onto `release/ios` kept
+the branch's `apps/admin/src/sources/ops.ts` in a conflict and took main's
+`apps/admin/test/ops.test.ts`, so the pre-push hook failed in the workflow's
+first push. That left no pull request and stopped the job before Android. The
+hourly run only looks at open copies and a merge is copied once, so nothing
+tried it again, and Carl asked how such a copy is ever corrected. So:
+- The first push of a copy runs no hook, as the push of Claude's commits
+  already did. The copy's pull request then always opens, its checks run what
+  the hook would, and a copy they fail goes to Claude and then a person. A
+  first push that fails for another reason, such as the network, is still not
+  tried again. The hourly push that gives an open copy main's machinery runs
+  no hook either, or a copy with failing tests could never take it.
+- `packages/sync/src/testing/` no longer counts as what the phone app runs.
+  It is Node-only test helpers that the app never imports, and PR 357 was
+  copied only because it changed two of them.
+
 
 ## 156. Store builds come only from the EAS workflow on merges into main
 
