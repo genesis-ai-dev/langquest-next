@@ -7606,6 +7606,17 @@ Claude on a copy that has a conflict with its release branch, as on one
 whose checks failed (the same 3 tries). Claude first merges the release
 branch into the copy, never rebasing or forcing a push.
 
+Amended (2026-11-06, Caleb Koster): at 00:42 UTC the hourly run labelled
+PR 347 for its conflict, and no Claude run started: GitHub runs no
+`pull_request` workflow on a pull request with a conflict. So for a copy
+with a conflict the hourly run also sends a `repository_dispatch`
+(event type `release-copy`, with the copy's number), which runs main's
+`release-copy-conflict.yml` for that copy. The workflow finds the copy
+from the number and stops unless it is an open copy onto a release
+branch. A `copy-claude` label on a copy with a conflict no longer means
+that Claude is on it, so the hourly run starts Claude again (the same 3
+tries).
+
 
 ## 156. Store builds come only from the EAS workflow on merges into main
 
