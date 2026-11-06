@@ -2,19 +2,40 @@
   "kind": "question",
   "ask": "Should LangQuest get a USB backup of one person's own work first, or a full hand-over between people, or nothing yet?",
   "problem": "Translators often work offline for weeks. Their unsent recordings live only on the phone. A lost or broken phone loses that work. The issue has no text, so the goal of USB backup and import is not yet defined.",
-  "found": "The app keeps every change as an event on the phone and sends it when online. The server accepts an event only once, by its id, and checks the author's permissions. Folding the same event twice changes nothing. So an imported event is safe if it enters as an ordinary unsent event. The app has no way today to write a file for the person to keep. It has no file-picker or sharing tool yet. I could not find LAN-227 or its export in the repository, so I did not build on it. Please tell me what it holds if it matters. Adding a file picker may change the store answers about files, and the Play declarations file would then need an update.",
+  "found": "The server accepts each event once and checks its author, so an imported event is safe if it enters as unsent. The app cannot save files today. I found no trace of LAN-227's export in the repository.",
   "changed": "Nothing in the app. This pull request holds only this question and three pictures. Nothing is built until you answer.",
   "why": "Three real choices exist. Nothing keeps today's rules but leaves the lost-phone risk. A personal backup solves the lost-phone risk and is the smallest step. A hand-over between people helps teams with no internet, but it needs a new rule about who may carry whose work. Every option keeps the sync rules: imports arrive as unsent events, the server checks them, and audio files are never changed. I recommend the personal backup, with a file layout that lets a hand-over follow later.",
   "touches": "Option 2 and 3 add a file picker and sharing tool to the phone app. That changes the Play Store file answers and needs a new entry in the decision log. Option 3 also changes how sign-out hand-overs on shared phones work.",
   "pictures": [
-    {"file": "option-nothing.png", "label": "Option 1: build nothing"},
-    {"file": "option-backup.png", "label": "Option 2: personal backup"},
-    {"file": "option-transfer.png", "label": "Option 3: hand-over between people"}
+    {
+      "file": "option-nothing.png",
+      "label": "Option 1: build nothing"
+    },
+    {
+      "file": "option-backup.png",
+      "label": "Option 2: personal backup"
+    },
+    {
+      "file": "option-transfer.png",
+      "label": "Option 3: hand-over between people"
+    }
   ],
   "options": [
-    {"label": "Build nothing yet", "result": "No change. Unsent work is still lost if a phone is lost or broken.", "picture": "option-nothing.png"},
-    {"label": "Personal backup and restore", "result": "A person saves their unsent work and recordings to a USB stick, then restores them on a new phone with the same sign-in. Restored work enters as unsent and the server checks it.", "picture": "option-backup.png"},
-    {"label": "Hand-over between people", "result": "A courier carries a stick from an offline phone to an online one, which sends the work as its author. It needs a new permission rule and more testing.", "picture": "option-transfer.png"}
+    {
+      "label": "Build nothing yet",
+      "result": "No change. Unsent work is still lost if a phone is lost or broken.",
+      "picture": "option-nothing.png"
+    },
+    {
+      "label": "Personal backup and restore",
+      "result": "A person saves their unsent work and recordings to a USB stick, then restores them on a new phone with the same sign-in. Restored work enters as unsent and the server checks it.",
+      "picture": "option-backup.png"
+    },
+    {
+      "label": "Hand-over between people",
+      "result": "A courier carries a stick from an offline phone to an online one, which sends the work as its author. It needs a new permission rule and more testing.",
+      "picture": "option-transfer.png"
+    }
   ],
   "recommended": 1
 }
