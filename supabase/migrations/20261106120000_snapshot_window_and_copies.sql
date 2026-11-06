@@ -4,6 +4,18 @@
 -- and a phone that has to try again asks for the newest snapshot anyway. 40 MB
 -- at 2 KB/s is about 5.5 hours, so a download of that size that never stops
 -- still finishes. At one snapshot an hour a language keeps about 7 copies, not 25.
+--
+-- An old version's last copy also has a limit now. A phone seen in the last 14
+-- days held it for every language with no end, even one the app no longer lets
+-- download (diagnostics pass the minimum version's gate), so it goes 45 days
+-- after it was replaced whoever still reports it. A phone on it then pulls the
+-- log on a first download or a restarted fill; its own work is safe. A
+-- development build no longer holds a version at all.
+--
+-- It waits 14 days from when it was replaced, not 7, so one clock covers both
+-- reasons to keep it: a store build carrying that version may still be in review,
+-- with no phone to report it, and a phone on it may have stopped reporting. So it
+-- goes 14 days after the later of the two, and at 45 days whatever still reports.
 
 -- As in 20261104120000_snapshot_purge.sql, but for the window.
 create or replace function ops.purge_snapshots(p_snapshots int default 20, p_rows int default 200000) returns jsonb
@@ -24,7 +36,7 @@ begin
   for v in
     with on_phones as (
       select distinct i.context->>'reducerVersion' as version from diag.installs i
-      where i.last_seen > now() - interval '14 days'
+      where i.last_seen > now() - interval '14 days' and coalesce(i.context->>'channel', '') <> 'development'
     ), placed as (
       select s.org_id, s.stream_id, s.reducer_version, s.server_seq, s.created_at, s.superseded_at, s.chunks,
         row_number() over newest_first as place,
@@ -38,8 +50,9 @@ begin
            and not exists (select 1 from public.snapshot_units u
                            where u.org_id = p.org_id and u.stream_id = p.stream_id and u.reducer_version = p.reducer_version
                              and u.server_seq = p.server_seq and u.kind = 'shared' and u.id = ''))
-       or (p.place = 1 and p.reducer_version < p.top_version and p.superseded_at < now() - interval '7 days'
-           and not exists (select 1 from on_phones o where o.version = p.reducer_version::text))
+       or (p.place = 1 and p.reducer_version < p.top_version and p.superseded_at < now() - interval '14 days'
+           and (p.superseded_at < now() - interval '45 days'
+                or not exists (select 1 from on_phones o where o.version = p.reducer_version::text)))
     order by p.created_at
     limit greatest(p_snapshots, 0)
   loop

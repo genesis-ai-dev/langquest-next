@@ -84,7 +84,7 @@ export const HELP: Record<string, string> = {
   'Fold canary (nightly)': 'Each night three languages are rebuilt from scratch and compared with the copy the server keeps. A mismatch means saved copies may be wrong for everyone downloading them.',
   'Furthest behind the projection pass': 'Languages with the most events the projection pass has not processed yet.',
   Snapshots: 'Saved copies of a language that new phones download first. Overdue: older than the rule allows. Older reducer: made before the latest app logic. Not cut: not split by passage yet, so big languages download whole.',
-  'Snapshot copies': 'How many saved copies of languages the server holds, for each reducer version. The purge job keeps the newest copy of each version in use, and older ones for 6 hours after a newer one comes out, up to 30. Many copies on an old reducer mean the purge is behind or stopped. Size is before compression, so the disk holds less.',
+  'Snapshot copies': 'How many saved copies of languages the server holds, for each reducer version. The purge job keeps the newest copy of an old version for 14 days after it was replaced or a phone on it last reported, whichever is later, up to 45 days; on any version, older copies stay 6 hours after a newer one comes out, up to 30. Many copies on an old reducer mean the purge is behind or stopped. Size is before compression, so the disk holds less.',
   'Languages with the most copies': 'The languages holding the most copies, and how many on each reducer version. Busy languages keep about 7 on the newest version.',
   'Per reducer': 'Copies this language holds on each reducer version.',
   'Largest languages': 'Languages with the most events: the heaviest to download and to rebuild.',

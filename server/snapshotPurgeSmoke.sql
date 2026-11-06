@@ -111,16 +111,16 @@ do $$ declare at timestamptz; begin
   perform pg_temp.expect('bump', 1, array[2]::bigint[], 'an old version keeps only its newest');
 
   -- Rewriting the mark would restart the clock.
-  update public.snapshots set superseded_at = now() - interval '6 days' where stream_id = 'bump' and reducer_version = 1;
+  update public.snapshots set superseded_at = now() - interval '13 days' where stream_id = 'bump' and reducer_version = 1;
   at := (select superseded_at from public.snapshots where stream_id = 'bump' and reducer_version = 1);
   perform pg_temp.snap('bump', 2, 3);
   if (select superseded_at from public.snapshots where stream_id = 'bump' and reducer_version = 1) <> at then raise exception 'the first newer snapshot sets the time'; end if;
 
-  -- Less than 7 days: it stays, with nobody seen on it.
+  -- Less than 14 days: it stays, with nobody seen on it, for a store build in review that carries it.
   perform pg_temp.purge();
-  perform pg_temp.expect('bump', 1, array[2]::bigint[], 'an old version stays 7 days');
+  perform pg_temp.expect('bump', 1, array[2]::bigint[], 'an old version stays 14 days after it is replaced');
 
-  -- Past 7 days with a phone on it seen lately (a store build a native change left behind): it stays, with its cut.
+  -- Past 14 days with a phone on it seen lately (a store build a native change left behind): it stays, with its cut.
   update public.snapshots set superseded_at = now() - interval '30 days' where stream_id = 'bump' and reducer_version = 1;
   insert into diag.installs (install_id, profile_id, context, last_seen) values ('purge-phone', 'p', '{"reducerVersion":"1"}', now() - interval '13 days');
   perform pg_temp.purge();
@@ -142,6 +142,28 @@ do $$ declare at timestamptz; begin
   update diag.installs set context = '{"reducerVersion":"1"}', last_seen = now() - interval '15 days' where install_id = 'purge-phone';
   perform pg_temp.purge();
   perform pg_temp.expect('seen', 1, '{}'::bigint[], 'a phone not seen for 14 days does not hold a version');
+end $$;
+
+-- However long a phone keeps reporting, an old version's last copy goes 45 days
+-- after it was replaced, and a developer's own build never holds one.
+do $$ begin
+  update diag.installs set context = '{"reducerVersion":"1","channel":"production"}', last_seen = now() where install_id = 'purge-phone';
+  perform pg_temp.snap('ceiling', 1, 1, '60 days');
+  perform pg_temp.snap('ceiling', 2, 1);
+  update public.snapshots set superseded_at = now() - interval '44 days' where stream_id = 'ceiling' and reducer_version = 1;
+  perform pg_temp.purge();
+  perform pg_temp.expect('ceiling', 1, array[1]::bigint[], 'a phone seen lately holds a version under 45 days');
+  update public.snapshots set superseded_at = now() - interval '46 days' where stream_id = 'ceiling' and reducer_version = 1;
+  perform pg_temp.purge();
+  perform pg_temp.expect('ceiling', 1, '{}'::bigint[], 'past 45 days no phone holds a version');
+  perform pg_temp.expect('ceiling', 2, array[1]::bigint[], 'the newest version is untouched');
+
+  perform pg_temp.snap('devheld', 1, 1, '60 days');
+  perform pg_temp.snap('devheld', 2, 1);
+  update public.snapshots set superseded_at = now() - interval '30 days' where stream_id = 'devheld' and reducer_version = 1;
+  update diag.installs set context = '{"reducerVersion":"1","channel":"development"}' where install_id = 'purge-phone';
+  perform pg_temp.purge();
+  perform pg_temp.expect('devheld', 1, '{}'::bigint[], 'a development build does not hold a version');
 end $$;
 
 -- A language the pass has not reached since the deploy has no newer version: its
