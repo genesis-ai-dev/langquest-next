@@ -10804,3 +10804,16 @@ with `none`, rise after this among phones on an older reducer (then hold the
 version longer); or the tables grow past the database plan regardless (then a
 short key in `snapshot_units`' indexes, which hold 4.5 of its 7.7 GB, or 89's
 pieces in object storage).
+
+Amended (2026-11-06, Carl Sauder): an older snapshot now goes 6 hours after a
+newer one comes out, not 24 (migration
+`20261106120000_snapshot_window_and_copies.sql`), which amends 88 as well. The
+window serves only a whole-snapshot download that has not stopped: a phone
+filling from the cut reads the newest, and a phone that tries again asks for
+the newest and drops pieces of any other, so 88's phone that resumes later that
+day was never helped by it. 40 MB at 2 KB/s is about 5.5 hours, so 6 hours is
+the floor. A language writing one an hour keeps about 7 copies, not 25. Carl
+chose this now rather than once builds from before the cut are below the
+minimum version: until then those phones always read pieces, so a slower one
+on a big language can see its download go stale and start over.
+Reverse if: `snapshot` records with `stale` rise on `cold` first downloads.
