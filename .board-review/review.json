@@ -19,8 +19,8 @@
       "picture": "option0.png"
     },
     {
-      "label": "B. Draft from an online service, per language, admin turns it on",
-      "result": "One button gives a draft marked 'AI draft'. The translator edits and approves it, and the record says so. Audio goes to the service, so the Play answers change. Off by default.",
+      "label": "B. Online draft, admin turns it on per language",
+      "result": "One button gives a draft marked 'AI draft'. The translator edits and approves it. Audio goes to the service, so Play answers change. Off by default.",
       "picture": "option1.png"
     },
     {
