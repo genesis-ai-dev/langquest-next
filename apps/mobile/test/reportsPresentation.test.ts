@@ -58,7 +58,7 @@ const NOW = Date.parse('2026-09-30T12:00:00Z');
 const cov = (g = 0, nt = 0, ot = 0) => ({ gospels: g, nt, ot, bible: 0 });
 function report(over: Partial<LanguageReport> & { name: string }): LanguageReport {
   return {
-    languageId: over.name.toLowerCase(), code: over.name.slice(0, 3).toLowerCase(), country: 'SS', flowName: 'Quick Check', target: { scope: 'nt', startDate: '2026-01-01', targetDate: '2027-01-01' },
+    languageId: over.name.toLowerCase(), code: over.name.slice(0, 3).toLowerCase(), country: 'SS', flowName: 'Quick Check', templateItemId: null, target: { scope: 'nt', startDate: '2026-01-01', targetDate: '2027-01-01' },
     progress: { total: 10, recorded: 4, done: 2, steps: [], waiting: 0, feedback: 0 },
     work: { not_started: 5, drafting: 1, in_review: 2, feedback: 0, done: 2 },
     stages: [], bottleneck: null,

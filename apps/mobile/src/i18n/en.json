@@ -5992,6 +5992,7 @@
       "couldNotRead": "The report could not be read",
       "notVisible": "This language has no report you can see",
       "notVisibleBody": "Your role may not include this language, or it was added after the reports loaded (catch up from Reports to check).",
+      "template": "Template: <b>{{template}}</b>",
       "reviewFlow": "Review flow: <b>{{flow}}</b>",
       "bottleneck": "Bottleneck: <b>{{bottleneck}}</b>",
       "bottleneckValue_one": "{{count, number}} in {{step}}",

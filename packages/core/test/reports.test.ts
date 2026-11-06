@@ -69,6 +69,7 @@ describe('language report', () => {
     const r = report(p.state(), p.now());
     expect(r.name).toBe('Dinka');
     expect(r.flowName).toBe('Standard Bible Flow');
+    expect(r.templateItemId).toBe(p.state().template?.value.itemId ?? null);
     expect(r.work).toEqual({ not_started: 2, drafting: 0, in_review: 1, feedback: 0, done: 0 });
     expect(r.progress.total).toBe(3);
     expect(r.progress.recorded).toBe(1);

@@ -20,7 +20,7 @@ const days = (from: string, n: number, cards: (i: number) => number) =>
 
 function report(over: Partial<LanguageReport> & { name: string }): LanguageReport {
   return {
-    languageId: over.name.toLowerCase(), code: over.name.slice(0, 3).toLowerCase(), country: null, flowName: 'Quick Check', target: null,
+    languageId: over.name.toLowerCase(), code: over.name.slice(0, 3).toLowerCase(), country: null, flowName: 'Quick Check', templateItemId: null, target: null,
     progress: { total: 10, recorded: 4, done: 2, steps: [], waiting: 0, feedback: 0 },
     work: { not_started: 5, drafting: 1, in_review: 2, feedback: 0, done: 2 },
     stages: [], bottleneck: null,
