@@ -1,0 +1,41 @@
+{
+  "kind": "question",
+  "ask": "Which USB option should we build: personal backup, hand-over between people, or nothing yet?",
+  "problem": "Translators work offline for weeks. Unsent recordings live only on the phone, so a lost phone loses that work.",
+  "found": "The server accepts each event once and checks its author, so an imported event is safe if it enters as unsent. The app cannot save files today. I found no trace of LAN-227's export in the repository.",
+  "changed": "Nothing in the app yet. This pull request holds only the question and three pictures.",
+  "why": "Nothing keeps today's rules but risks lost work. A personal backup is the smallest fix. A hand-over helps offline teams but needs a new permission rule. I recommend the backup.",
+  "touches": "Options 2 and 3 add a file picker, which changes the Play Store file answers and needs a decision-log entry.",
+  "pictures": [
+    {
+      "file": "option-nothing.png",
+      "label": "Option 1: build nothing"
+    },
+    {
+      "file": "option-backup.png",
+      "label": "Option 2: personal backup"
+    },
+    {
+      "file": "option-transfer.png",
+      "label": "Option 3: hand-over between people"
+    }
+  ],
+  "options": [
+    {
+      "label": "Build nothing yet",
+      "result": "Nothing changes. A lost phone still loses unsent work.",
+      "picture": "option-nothing.png"
+    },
+    {
+      "label": "Personal backup and restore",
+      "result": "A person saves unsent work to a USB stick and restores it on a new phone. The server checks it as usual.",
+      "picture": "option-backup.png"
+    },
+    {
+      "label": "Hand-over between people",
+      "result": "A courier carries work to an online phone, which sends it. Needs a new permission rule and more testing.",
+      "picture": "option-transfer.png"
+    }
+  ],
+  "recommended": 1
+}
