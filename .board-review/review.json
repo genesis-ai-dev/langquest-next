@@ -1,11 +1,11 @@
 {
   "kind": "question",
   "ask": "Which wording should the terms and the license sheet use to say what the license covers?",
-  "problem": "People cannot tell if the organization license covers only the final translation, or also drafts, notes and voice recordings. The app wording sounds like it covers everything.",
+  "problem": "People cannot tell if the license covers only the final translation, or also drafts, notes and voice recordings. The app wording sounds like everything.",
   "found": "The documents say the license covers submitted versions, key terms and published items, never drafts, reviews, voice notes or names. The app says it covers what your team records and writes. That is wider.",
-  "changed": "Nothing yet. I changed no wording in the app. The pictures show the wording today and three choices.",
-  "why": "This is a product and legal choice, so it waits for you. I looked at three levels of detail: short in the terms with the full list on the sheet, the full list in both places, and no change until a lawyer answers. I recommend the first. Terms get skimmed, and the sheet is where the choice is made. It also puts fewer legal claims in the terms.",
-  "touches": "Four lines of text in the app. The wording in the English text file and the test notes that quote it would change. Other languages would need translating. Open questions for someone with legal knowledge: (1) Who owns the copyright on what members contribute, and does joining the organization give it the right to license that work? (2) What counts as published: the current submitted version of each passage, or only passages past a checkpoint? (3) Is it safe to say drafts are never covered, when a draft could later be submitted? (4) Does the license apply to a member's work after they leave or delete their account? (5) Should library items carry the organization's license or their own? (6) How should the credit line read? (7) Does the terms text need a lawyer's review before the next store release, and do the store answers need to change?",
+  "changed": "Nothing yet. No app wording changed. The pictures show today's wording and three choices.",
+  "why": "This is a product and legal choice, so it waits for you. I recommend option 1: terms get skimmed, and the sheet is where people choose. It also puts fewer legal claims in the terms.",
+  "touches": "Four lines of text. For a lawyer: who owns members' copyright? What counts as published? Are drafts safe to call never covered? What happens when a member leaves? Which license do library items carry? Who writes the credit line?",
   "pictures": [
     {
       "file": "before.png",
