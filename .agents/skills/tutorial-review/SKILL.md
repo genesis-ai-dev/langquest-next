@@ -35,6 +35,13 @@ posted, filmed or merged without them.
   `reply` and `replyEnglish` empty and say in `looked` that a person
   answers it. A look whose reply or suggestion names it is refused whole
   (`server/tutorialFeedback.ts`).
+- **Every video is for a person with a goal.** `docs/tutorial-teaching.md`
+  says what a video owes the person watching. Read it before a `script`
+  suggestion or a new video. Ask: does this video orient them, carry them
+  through the whole job, and leave them able to do it? "Tap this, type that"
+  is not enough. Where a change or comment shows a video falls short, suggest
+  the line that fixes it, checked against the app. This only ever suggests: it
+  never holds a video.
 - **Follow the app's recorded decisions.** Before a code suggestion, read
   the entries of `docs/decisions.md` and the parts of `PLAN.md` that touch
   it. Never suggest what they rule out (explanatory text on screens, due

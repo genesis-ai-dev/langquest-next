@@ -187,6 +187,13 @@ v2 events by hand.
 The parent repository is LangQuest v2. Do not import from it. Its data model is
 what this app replaces; see PLAN.md section 2 for why.
 
+## Tutorial videos (required, whoever you are working for)
+
+Before you write or change a script in `e2e/tutorials/`, read
+`docs/tutorial-teaching.md`. A video exists for a person with a goal. It orients
+them, carries them through the whole job, and leaves them able to do it. It is
+not a tour of buttons. Check every line against the app.
+
 ## Skills
 
 Skills live in `.agents/skills/` (read by Cursor, Codex and others) and are
