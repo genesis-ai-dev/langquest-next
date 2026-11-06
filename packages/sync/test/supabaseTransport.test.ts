@@ -48,6 +48,16 @@ describe('SupabaseTransport error classification', () => {
     await expect(failingWith({ message: 'Network request failed: sign-in renewal answered 429' }).append([])).rejects.toBeInstanceOf(UnrenewedError);
   });
 
+  it('an access token that expired in an idle tab is a sign-in not yet renewed, not a server error', async () => {
+    // Why: a web tab that slept woke with its old token, and PostgREST
+    // answered PGRST303 (JWT expired). Read as a ServerError, the language's
+    // sync stopped with an error although the next request would have worked.
+    const err = await failingWith({ code: 'PGRST303', message: 'JWT expired' }).pull('org1', 'p1', 0, 1).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(UnrenewedError);
+    expect(err).toBeInstanceOf(OfflineError);
+    await expect(failingWith({ code: 'PGRST303', message: 'JWT expired' }).append([])).rejects.toBeInstanceOf(UnrenewedError);
+  });
+
   it('any other failure keeps the server code, or the HTTP status', async () => {
     const timeout = await failingWith({ code: '57014', message: 'canceling statement' }).pull('org1', 'p1', 0, 1).catch((e: unknown) => e);
     expect(timeout).toBeInstanceOf(ServerError);

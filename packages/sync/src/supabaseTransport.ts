@@ -164,6 +164,11 @@ function toError(error: { message: string; code?: string }, status?: number): Er
   // for every purpose but diagnostics. Before the network test, which its
   // text also passes.
   if (UNRENEWED_TEXT.test(error.message)) return new UnrenewedError(error.message);
+  // PostgREST's own answer to an access token that expired while the request
+  // was on its way (PGRST303, "JWT expired"): a tab or phone that slept
+  // woke with the old token. The next request carries a renewed one, so it
+  // is the same as a sign-in not yet renewed: queued, retried, not an error.
+  if (error.code === 'PGRST303') return new UnrenewedError(error.message);
   // insufficient_privilege: every `raise ... using errcode = '42501'` in
   // supabase/migrations, which is how the RPCs refuse a non-member.
   if (error.code === '42501' || /not a member|permission denied|service role only|not authorized/i.test(error.message)) {
