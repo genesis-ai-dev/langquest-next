@@ -5,7 +5,7 @@
   "found": "Reference Material only takes Bibles from Bible Brain and the LangQuest library. Nothing reads USFM files. The old Bible format carries audio and provider details that do not fit uploaded text.",
   "changed": "Add material now has Upload Bible files, on the web. Each file is checked in plain words. The admin names the Bible, picks its language, confirms the rights, and publishes. Sharing is off until turned on.",
   "why": "New document types keep old Bibles safe. Each book is its own document, since one may be 4 MB at most. The file is kept, so LAN-230 needs no re-upload. Pictures are mock-ups, not app captures. Other languages show English for now.",
-  "touches": "Adds a database change and decision 205. Waits on LAN-230: reading the Bible beside a passage, Bible counts, coverage. Not built: checking verse numbers, and splitting files that hold several books.",
+  "touches": "Adds a database change and decision 205. Waits on LAN-230: reading the Bible beside a passage. Not built: verse number checks.",
   "pictures": [
     {
       "file": "before.png",
