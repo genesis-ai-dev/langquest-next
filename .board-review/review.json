@@ -1,0 +1,22 @@
+{
+ "kind": "question",
+ "ask": "Do you still want a single view of what is stored on the phone, with sizes? Which option?",
+ "problem": "Keeping chapters for offline work is mostly done. Two things were left: Bible Brain text (now LAN-19) and one view of what is stored, with sizes. This question is only about the second.",
+ "found": "Settings shows one short line: how many kept passages are ready. The Ready for offline screen adds a progress bar and lists what is always on the phone and what needs a connection. It shows a size only for what is still to download. Nowhere does it say how much space is used. Every chapter tile and passage row has a download button. These pictures are drawn from the app's own words and layout, not screenshots, because the app cannot run in this session.",
+ "changed": "Nothing is built. This is only the decision and the mockups.",
+ "why": "Your note asks for very good and visible offline status. Sizes answer two real questions: how much space this uses, and whether a trip will fit. Removing audio already belongs to LAN-18, so any option that removes things would overlap it. You have scrapped work before when users could already get the answer another way, so I kept the options small.",
+ "touches": "Option B changes only the Ready for offline screen. Option C adds a new screen and overlaps LAN-18. Neither touches Bible Brain text (LAN-19).",
+ "pictures": [
+  {"file": "current_settings.png", "label": "Now: Settings row"},
+  {"file": "current_sync.png", "label": "Now: Ready for offline screen"},
+  {"file": "current_buttons.png", "label": "Now: download buttons on chapters"}
+ ],
+ "options": [
+  {"label": "Not needed", "result": "Keep what exists. Close this part of the issue. No sizes on the phone.", "picture": "current_sync.png"},
+  {"label": "Sizes in the existing card", "result": "The Ready for offline screen shows total space used, and audio, text, study files and history each with a size. View only.", "picture": "optB.png"},
+  {"label": "Full storage screen", "result": "A new screen lists every kept chapter by language with sizes, free space and a remove button. Needs LAN-18 first or together.", "picture": "optC.png"}
+ ],
+ "recommended": 1,
+ "guess": {"answer": "option", "option": 1},
+ "linear": {"comment": "Decision prepared, nothing built. Options: leave as is, show sizes in the Ready for offline card (recommended), or a full storage screen with removal (overlaps LAN-18). Bible Brain text stays with LAN-19. See the draft pull request.", "state": "In Progress"}
+}
