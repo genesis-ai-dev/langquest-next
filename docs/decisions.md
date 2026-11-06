@@ -8385,6 +8385,12 @@ partners and users real trouble. So:
 - **Sent means sent.** Offline, asking someone, a review and a published
   version say who gets it when the device is connected.
 
+Amended (2026-11-06, Caleb Koster): My Work's to-do rows end with the same
+download button as a Map row, for the passage each is about (LAN-19), so
+"On this device" shows before the passage opens. It is on the rows of the
+Then list and the "record again" row; the lead card, the join, divide and
+language rows, and the waiting and recent lists have none.
+
 ## 167. The nightly mutation run is four shards of core's files, dealt by what each costs, and one merged score
 
 Date: 2026-10-26 · By: Carl Sauder · Status: accepted
