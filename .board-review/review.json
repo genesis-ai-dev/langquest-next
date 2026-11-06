@@ -1,0 +1,17 @@
+{
+  "kind": "question",
+  "ask": "How should help be spoken on phones: which of these four ways do you choose?",
+  "problem": "Help points had a stock line like \"The main thing to do on this screen.\" It told people nothing. Nobody has recorded spoken help yet.",
+  "found": "94 buttons and fields still used the stock line. Spoken help is built, but no line has been recorded. Your choice of voice was still open.",
+  "changed": "Every one of the 94 now says its own words, such as \"Type your note here.\" All 16 languages have them. They are machine translations, like the rest of the app. The test now allows none that fall back. No audio was recorded or published.",
+  "why": "The words follow the rest of the app: short, plain, one line each. I could not make audio samples, because the voice service refused my access in this session. The picture shows each way with a sample line and its cost. Costs are my estimates. No option changes the Play Store answers, because phones already download help audio from our server.",
+  "touches": "Decision 185 has a note added. Nothing else changes for people until you choose a voice.",
+  "pictures": [{"file": "choices.png", "label": "The four ways to speak help"}],
+  "options": [
+    {"label": "Computer voice for the explanations only", "result": "About 1,200 lines per language are recorded ahead in all 16 languages. Cost about 10 to 15 dollars once. Phones download each line once.", "picture": "choices.png"},
+    {"label": "Computer voice for every app word", "result": "About 4,200 lines per language. Cost about 20 to 40 dollars once. Biggest downloads. It also reads button names.", "picture": "choices.png"},
+    {"label": "The phone's own voice", "result": "Free, nothing to record or download. Many of our languages have no voice on phones, so help stays silent there.", "picture": "choices.png"},
+    {"label": "People record every line", "result": "Best quality. It takes speaker time in all 16 languages, likely weeks for each.", "picture": "choices.png"}
+  ],
+  "recommended": 0
+}
