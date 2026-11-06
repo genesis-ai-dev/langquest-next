@@ -9,6 +9,7 @@ import { checkUsfmFiles, orgLicense, type UsfmCheck } from '@langquest-next/core
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { CheckRow } from '../admin/admin';
+import { HelpRow } from '../helpMode/helpBadge';
 import { licenseText } from '../i18n/coreText';
 import { t } from '../i18n';
 import { useSharedItems, type useLibrary } from '../library/useLibrary';
@@ -68,7 +69,7 @@ export function UsfmSheet(props: { visible: boolean; onClose: () => void; ctx: C
   const footer = done ? undefined : (
     <View style={{ gap: space.xs }}>
       {hint && raw.length ? <Text style={[txt.smMuted, { textAlign: 'center' }]}>{hint}</Text> : null}
-      <PrimaryBtn label={t('usfm.publish')} icon="check" busy={busy} disabled={!!missing} onPress={() => void publish()} />
+      <PrimaryBtn label={t('usfm.publish')} icon="check" busy={busy} disabled={!!missing} help={t('usfm.publishHelp')} onPress={() => void publish()} />
     </View>
   );
 
@@ -82,7 +83,7 @@ export function UsfmSheet(props: { visible: boolean; onClose: () => void; ctx: C
       ) : (
         <View style={{ gap: space.md }}>
           <Text style={txt.body}>{t('usfm.intro')}</Text>
-          <SmallBtn label={raw.length ? t('usfm.addMore') : t('usfm.choose')} icon="plus" tone="primary" onPress={() => void choose()} />
+          <SmallBtn label={raw.length ? t('usfm.addMore') : t('usfm.choose')} icon="plus" tone="primary" help={t('usfm.chooseHelp')} onPress={() => void choose()} />
           {problem ? <Text accessibilityRole="alert" style={[txt.sm, { color: C.red, fontWeight: '700' }]}>{problem}</Text> : null}
 
           {raw.length ? (
@@ -90,7 +91,9 @@ export function UsfmSheet(props: { visible: boolean; onClose: () => void; ctx: C
               <SectionLabel label={t('usfm.files', { count: raw.length })} />
               <Group>
                 {checks.map((c, i) => (
-                  <FileRow key={c.fileName} check={c} last={i === checks.length - 1} onRemove={() => setRaw((cur) => cur.filter((r) => r.name !== c.fileName))} />
+                  <HelpRow key={c.fileName} of="usfm.file">
+                    <FileRow check={c} last={i === checks.length - 1} onRemove={() => setRaw((cur) => cur.filter((r) => r.name !== c.fileName))} />
+                  </HelpRow>
                 ))}
               </Group>
               <Text style={txt.smMuted}>{t('usfm.summary', { ready: ready.length, problems: checks.length - ready.length })}</Text>
@@ -100,26 +103,32 @@ export function UsfmSheet(props: { visible: boolean; onClose: () => void; ctx: C
           {ready.length ? (
             <>
               <SectionLabel label={t('usfm.about')} />
-              <Field label={t('usfm.name')} value={details.name} placeholder={t('usfm.namePlaceholder')} testID="usfm-name"
+              <Field label={t('usfm.name')} value={details.name} placeholder={t('usfm.namePlaceholder')} testID="usfm-name" help={t('usfm.nameHelp')}
                 onChangeText={(v) => set({ name: v, ...(named ? {} : { abbreviation: suggestAbbreviation(v) }) })} />
-              <Field label={t('usfm.abbreviation')} value={details.abbreviation} testID="usfm-abbreviation" autoCapitalize="none"
+              <Field label={t('usfm.abbreviation')} value={details.abbreviation} testID="usfm-abbreviation" help={t('usfm.abbreviationHelp')} autoCapitalize="none"
                 onChangeText={(v) => { setNamed(true); set({ abbreviation: v }); }} />
               <LanguageField label={t('usfm.language')} value={details.language} onChange={(language) => set({ language })} />
               <View style={{ gap: space.xs }}>
                 <Text style={txt.xsStrong}>{t('usfm.numbering')}</Text>
                 <ChipRow>
                   {(numberings.length ? numberings : [{ code: 'eng', name: t('usfm.numberingEnglish') }]).map((n) => (
-                    <Chip key={n.code} label={n.name} on={details.numbering === n.code} onPress={() => set({ numbering: n.code })} />
+                    <HelpRow key={n.code} of="usfm.numbering">
+                      <Chip label={n.name} on={details.numbering === n.code} help={t('usfm.numberingHelp')} onPress={() => set({ numbering: n.code })} />
+                    </HelpRow>
                   ))}
                 </ChipRow>
                 <Text style={txt.smMuted}>{t('usfm.numberingHelp')}</Text>
               </View>
-              <Field label={t('usfm.copyright')} value={details.copyright} placeholder={t('usfm.copyrightPlaceholder')} testID="usfm-copyright"
+              <Field label={t('usfm.copyright')} value={details.copyright} placeholder={t('usfm.copyrightPlaceholder')} testID="usfm-copyright" help={t('usfm.copyrightHelp')}
                 onChangeText={(v) => set({ copyright: v })} />
               <Text style={txt.smMuted}>{t('usfm.license', { license: licenseText(license).name })}</Text>
               <Group>
-                <CheckRow label={t('usfm.rights')} sub={t('usfm.rightsSub')} checked={details.rights} onToggle={() => set({ rights: !details.rights })} last={false} />
-                <Row label={t('usfm.share')} sub={t('usfm.shareSub')} role="switch" checked={details.share} onPress={() => set({ share: !details.share })} last />
+                <HelpRow of="usfm.rights">
+                  <CheckRow label={t('usfm.rights')} sub={t('usfm.rightsSub')} checked={details.rights} detail={t('usfm.rightsHelp')} onToggle={() => set({ rights: !details.rights })} last={false} />
+                </HelpRow>
+                <HelpRow of="usfm.share">
+                  <Row label={t('usfm.share')} sub={t('usfm.shareSub')} role="switch" checked={details.share} help={t('usfm.shareHelp')} onPress={() => set({ share: !details.share })} last />
+                </HelpRow>
               </Group>
             </>
           ) : null}
@@ -136,6 +145,6 @@ function FileRow(props: { check: UsfmCheck; last: boolean; onRemove: () => void 
   return (
     <Row icon={ok ? 'check' : 'flag'} label={ok ? check.name : check.fileName} last={props.last}
       sub={ok ? `${check.fileName} · ${t('usfm.counts', { chapters: check.chapters.length, verses: check.verseCount })}${lines.length ? `\n${lines.join('\n')}` : ''}` : lines.join('\n')}
-      badge={ok ? t('usfm.ok') : t('usfm.fix')} badgeTone={ok ? 'green' : 'amber'} onPress={props.onRemove} />
+      badge={ok ? t('usfm.ok') : t('usfm.fix')} badgeTone={ok ? 'green' : 'amber'} help={t('usfm.fileHelp')} onPress={props.onRemove} />
   );
 }

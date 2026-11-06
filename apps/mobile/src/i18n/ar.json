@@ -9429,6 +9429,14 @@
       "outOfOrder": "Verses are out of order or repeated inside a chapter. Count: {{count}}.",
       "emptyVerses": "Some verses have no text. Count: {{count}}.",
       "duplicateBook": "This is {{book}} again. The file {{other}} already has it. Leave one out."
-    }
+    },
+    "chooseHelp": "Pick USFM files (.usfm or .sfm) or a zip of them from this computer.",
+    "publishHelp": "Adds this Bible to your organization's Reference Material.",
+    "nameHelp": "The name people will see for this Bible.",
+    "abbreviationHelp": "A short name, such as GB. It shows next to the Bible's text.",
+    "copyrightHelp": "Who owns the rights to this text. It is shown with the Bible.",
+    "fileHelp": "One file. Tap to take it out of the list.",
+    "rightsHelp": "Check this box only if your team may share this text.",
+    "shareHelp": "Turn this on to let other organizations follow this Bible."
   }
 }
