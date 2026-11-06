@@ -4,8 +4,8 @@
   "problem": "Go Forth North India has its own Bible as USFM files. An admin has no way to add them as reference material.",
   "found": "Reference Material only takes Bibles from Bible Brain and the LangQuest library. Nothing reads USFM files. The old Bible format carries audio and provider details that do not fit uploaded text.",
   "changed": "Add material now has Upload Bible files, on the web. Each file is checked in plain words. The admin names the Bible, picks its language, confirms the rights, and publishes. Sharing is off until turned on.",
-  "why": "A new pair of document types keeps shipped Bibles safe. Each book is its own document, because one document may be 4 MB at most. The original file is kept beside the plain verses, so LAN-230 needs no second upload. Nothing was published to the live library. The pictures are mock-ups of the layout, not captures of the running app, because no database was available in this session. Other app languages show English for the new words until they are translated.",
-  "touches": "Adds a database change that accepts the two new document types. Adds decision 205. Waits on LAN-230: reading the Bible beside a passage, offered-Bible counts, and coverage. Not built: checking verse numbers against the numbering, and splitting a file that holds several books.",
+  "why": "New document types keep old Bibles safe. Each book is its own document, since one may be 4 MB at most. The file is kept, so LAN-230 needs no re-upload. Pictures are mock-ups, not app captures. Other languages show English for now.",
+  "touches": "Adds a database change and decision 205. Waits on LAN-230: reading the Bible beside a passage, Bible counts, coverage. Not built: checking verse numbers, and splitting files that hold several books.",
   "pictures": [
     {
       "file": "before.png",
