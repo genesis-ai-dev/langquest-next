@@ -1,12 +1,15 @@
 -- v1.KeyTermAudioRenderingAdded: a spoken example of a key term (decisions.md 205).
 --
---   v1.KeyTermAudioRenderingAdded { termId, renderingId, blobHash, durationMs }
+--   v1.KeyTermAudioRenderingAdded { termId, renderingId, blobHash, durationMs, forRenderingId? }
 --
 -- The shipped v1.KeyTermRenderingAdded is written text and keeps its shape.
 -- This one names a short recording of how the language says the term, kept
 -- as a voice note (m4a unless v1.AudioFormatSet says otherwise). Grow-only,
 -- one entry per (term, renderingId); filling in reference work is
--- fill_reference, as for the other key-term events.
+-- fill_reference, as for the other key-term events. forRenderingId names the
+-- written rendering a clip is an example of: clips with the same one repeat
+-- one way of saying the term, different ones are different, context-dependent
+-- ways (the same split KeyTermRenderingAdded makes in text).
 --
 -- validate_payload is restated whole from 20261030110000_library_labels.sql,
 -- event_privilege from 20261030070000_book_names.sql and _entity_key from
@@ -371,6 +374,7 @@ begin
         and (p->>'durationMs')::numeric > 0 and (p->>'durationMs')::numeric <= 30000 else false end) then
         return 'durationMs must be a whole number of milliseconds up to 30000';
       end if;
+      if not public._is_opt_str(p->'forRenderingId') then return 'forRenderingId must be a string'; end if;
     when 'v1.KeyTermAdjusted' then
       if not (public._is_str(p->'termId') and public._is_str(p->'adjustmentId')) then return 'termId, adjustmentId must be non-empty strings'; end if;
       if jsonb_typeof(p->'note') is distinct from 'string' then return 'note must be a string'; end if;

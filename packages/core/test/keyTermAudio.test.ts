@@ -48,3 +48,24 @@ describe('v1.KeyTermAudioRenderingAdded', () => {
     expect(EVENT_PRIVILEGE['v1.KeyTermAudioRenderingAdded']).toBe('fill_reference');
   });
 });
+
+describe('v1.KeyTermAudioRenderingAdded and the ways a term is said', () => {
+  const base = foldLanguage([...buildFixture(), ...buildStep11Fixture()].filter((e) => e.parentEventId === undefined), emptyLanguageState());
+  const clip = (commandId: string, forRenderingId?: string) =>
+    commands(base).addKeyTermAudio({ commandId, termId: 'kt-logos', blobHash: `sha256:${commandId}`, durationMs: 900, ...(forRenderingId ? { forRenderingId } : {}) });
+  const at = (s: EventSpec, n: number): AnyEvent =>
+    ({ ...s, orgId: 'o', streamId: 'L1', actorId: 't1', deviceId: 'dB', hlc: `${900000000000000 + n}:000000:dB` }) as AnyEvent;
+
+  it('keeps repeats of one written rendering apart from another rendering', () => {
+    const state = foldLanguage([...clip('a', 'r1'), ...clip('b', 'r1'), ...clip('c', 'r2'), ...clip('d')].map((s, i) => at(s, i)), base);
+    const by: Record<string, string[]> = {};
+    for (const e of keyTermView(state, 'kt-logos')!.audioRenderings) (by[e.forRenderingId ?? 'none'] ??= []).push(e.renderingId);
+    expect(by).toEqual({ r1: ['audio:a', 'audio:b'], r2: ['audio:c'], none: ['ra1', 'audio:d'] });
+  });
+
+  it('accepts a missing or text forRenderingId only', () => {
+    const ok = at(clip('a', 'r1')[0]!, 1);
+    expect(validateEvent(ok)).toBeNull();
+    expect(validateEvent({ ...ok, payload: { ...ok.payload, forRenderingId: 7 } } as unknown as AnyEvent)).not.toBeNull();
+  });
+});

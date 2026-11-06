@@ -127,7 +127,7 @@ export interface Commands {
   defineKind(c: RecordEvents['v1.ReviewKindDefined'] & { commandId: string }): EventSpec[];
   /** Tie key terms to a take (TERM-4): the draft being recorded, or a version as it is published. */
   /** Record a spoken example of a term (decision 205); the Key Term screen asks for two or three. */
-  addKeyTermAudio(c: { commandId: string; termId: string; blobHash: string; durationMs: number }): EventSpec[];
+  addKeyTermAudio(c: { commandId: string; termId: string; blobHash: string; durationMs: number; forRenderingId?: string }): EventSpec[];
   linkKeyTerms(c: { commandId: string; takeId: string; termIds: string[]; note?: string; adjustmentId?: string }): EventSpec[];
   /** A new term (TERM-6): the term, its first rendering, and why, as its first adjustment. */
   defineKeyTerm(c: { commandId: string; termId: string; term: string; gloss: string; unitScope: string[];
@@ -487,7 +487,7 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
       const durationMs = Math.round(c.durationMs);
       if (!(durationMs > 0)) throw new CommandError('Record the term before saving.');
       if (durationMs > MAX_KEY_TERM_AUDIO_MS) throw new CommandError('Keep a term to a few seconds.');
-      return [{ id: ids(c.commandId)(), type: 'v1.KeyTermAudioRenderingAdded', payload: { termId: c.termId, renderingId: `audio:${c.commandId}`, blobHash: c.blobHash, durationMs } }];
+      return [{ id: ids(c.commandId)(), type: 'v1.KeyTermAudioRenderingAdded', payload: { termId: c.termId, renderingId: `audio:${c.commandId}`, blobHash: c.blobHash, durationMs, ...(c.forRenderingId ? { forRenderingId: c.forRenderingId } : {}) } }];
     },
 
     linkKeyTerms(c) {

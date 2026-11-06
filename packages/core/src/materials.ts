@@ -29,8 +29,12 @@ export type MaterialEvents = {
   'v1.MaterialLocked': { materialId: string; locked: boolean };
   'v1.KeyTermDefined': { termId: string; term: string; gloss: string; unitScope: string[] };
   'v1.KeyTermRenderingAdded': { termId: string; renderingId: string; rendering: string; context: string };
-  /** A spoken example of how the language says a term (decision 205); `KeyTermRenderingAdded` stays the written one. */
-  'v1.KeyTermAudioRenderingAdded': { termId: string; renderingId: string; blobHash: string; durationMs: number };
+  /**
+   * A spoken example of how the language says a term (decision 205); `KeyTermRenderingAdded` stays the written one.
+   * `renderingId` names this clip. `forRenderingId` names the written rendering it is an example of: clips with the
+   * same one are repeats of one way of saying the term; different ones are different, context-dependent ways.
+   */
+  'v1.KeyTermAudioRenderingAdded': { termId: string; renderingId: string; blobHash: string; durationMs: number; forRenderingId?: string };
   'v1.KeyTermAdjusted': { termId: string; adjustmentId: string; note: string; blobHash?: string; duringTakeId?: string };
   'v1.KeyTermLinked': { takeId: string; termId: string; note?: string; adjustmentId?: string };
 };
@@ -127,7 +131,7 @@ export interface KeyTermView {
   renderings: { renderingId: string; rendering: string; context: string }[];
   adjustments: { adjustmentId: string; note: string; blobHash?: string; duringTakeId?: string; actorId: string; hlc: string }[];
   /** Recorded examples of the term, oldest first (decision 205). */
-  audioRenderings: { renderingId: string; blobHash: string; durationMs: number; actorId: string }[];
+  audioRenderings: { renderingId: string; blobHash: string; durationMs: number; actorId: string; forRenderingId?: string }[];
 }
 
 export function keyTermView(state: LanguageState, termId: string): KeyTermView | null {
@@ -146,7 +150,7 @@ export function keyTermView(state: LanguageState, termId: string): KeyTermView |
       .map(([adjustmentId, a]) => ({ adjustmentId, ...a })),
     audioRenderings: Object.entries(t.audioRenderings ?? {})
       .sort(([, a], [, b]) => (a.hlc < b.hlc ? -1 : 1))
-      .map(([renderingId, r]) => ({ renderingId, blobHash: r.blobHash, durationMs: r.durationMs, actorId: r.actorId }))
+      .map(([renderingId, r]) => ({ renderingId, blobHash: r.blobHash, durationMs: r.durationMs, actorId: r.actorId, ...(r.forRenderingId !== undefined ? { forRenderingId: r.forRenderingId } : {}) }))
   };
 }
 

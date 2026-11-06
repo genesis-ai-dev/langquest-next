@@ -1,10 +1,10 @@
 {
   "kind": "screen",
-  "ask": "Is the Say it section right? Please also send a few partner clips for the test set.",
-  "problem": "Amina drafts Luke 1 and ties the key word Logos to her take by hand. The app cannot tell if she said it, so a missed word is found late and the draft is redone.",
-  "found": "The app keeps written words only. It has no recording of how the team says a word, so nothing exists to compare a take with.",
-  "changed": "Before the book, the team records two or three examples of Logos on its page and plays them back. This is the first step of the check. The check itself comes later; picture 3 shows it.",
-  "why": "Hint means the phone only suggests; it never blocks Amina and saves nothing. The pictures are drawings in the app's colours, not screenshots: no live app can run here. Database checks must pass in the pull request.",
+  "ask": "Do the two ways of saying a word stay apart as you want? Please also send partner clips.",
+  "problem": "Amina ties the key word Logos to her take by hand. The app cannot tell if she said it. Logos may be said two ways in Dinka, by context.",
+  "found": "My first version stored clips per word only, so two ways of saying it would mix. You were right. I fixed it before it ships.",
+  "changed": "Each written way of saying a word now has its own clips. Repeats stay together; other ways stay apart. Clips with no written way go under Another way. Pictures show the routes and flow.",
+  "why": "Hint means the phone only suggests; it never blocks and saves nothing. A take with any way counts as heard. Pictures are drawings in app colours, not screenshots; no live app runs here.",
   "touches": "A new database migration. 15 translations I wrote need a native reader. Phones download the new clips. Play store answers stay the same.",
   "pictures": [
     {
@@ -12,12 +12,20 @@
       "label": "Before: Amina ties the word by hand"
     },
     {
-      "file": "after.png",
-      "label": "After: the team records examples first"
+      "file": "ways.png",
+      "label": "After: each way of saying Logos has its own clips"
+    },
+    {
+      "file": "path.png",
+      "label": "How you reach this page"
+    },
+    {
+      "file": "flow.png",
+      "label": "Flowchart: translation and review"
     },
     {
       "file": "later.png",
-      "label": "Later, not built: heard and not heard hint"
+      "label": "Later, not built: heard hint"
     }
   ]
 }

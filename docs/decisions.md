@@ -10874,13 +10874,18 @@ vocabulary and not speech recognition, because most of these languages have no
 recognizer and a team's own renderings inflect.
 
 Stage 1 is the examples: `v1.KeyTermAudioRenderingAdded { termId, renderingId,
-blobHash, durationMs }`, a new event because the shipped
+blobHash, durationMs, forRenderingId? }`, a new event because the shipped
 `v1.KeyTermRenderingAdded` is written text and keeps its shape. It is
 grow-only, one entry per (term, renderingId) and fill_reference, as the other
 key-term events are, and its audio is a voice note (m4a unless
 `v1.AudioFormatSet` says otherwise, 77). Recording is the app's existing
 microphone; the clips are user audio shared as voice notes already are, so the
-Play answers do not change (49). Stage 2 is the bar:
+Play answers do not change (49). A source term can be said more than one way
+in the target language, depending on context (a team's written renderings
+already carry a context). `forRenderingId` names the written rendering a clip
+is an example of, so repeats of one way stay together and different ways stay
+apart; a clip naming none, or one that is gone, is the team's "other" way. The
+later check accepts a take that holds any way, and can say which. Stage 2 is the bar:
 `scripts/key-term-eval.ts` (`npm run key-terms:eval`) reports each matcher's
 precision and recall on a set of partner clips with known contents
 (`eval/key-terms/README.md`), and the baselines "always heard" and "never

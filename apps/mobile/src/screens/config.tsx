@@ -1776,9 +1776,9 @@ export function KeyTermDetail(ctx: Ctx) {
     setBusy(false);
   }
 
-  async function saveExample(hash: string, durationMs: number) {
+  async function saveExample(hash: string, durationMs: number, forRenderingId?: string) {
     setBusy(true);
-    await actCommand(ctx, 'record key term example', () => addKeyTermAudioEvents(state!, termId, hash, durationMs), // i18n-ignore: log label
+    await actCommand(ctx, 'record key term example', () => addKeyTermAudioEvents(state!, termId, hash, durationMs, forRenderingId), // i18n-ignore: log label
       t('config.keyTerm.exampleSaved'));
     setBusy(false);
   }
@@ -1839,8 +1839,8 @@ export function KeyTermDetail(ctx: Ctx) {
         help={t('config.keyTerm.adjustHelp', { language })} onPress={() => setAdjusting(true)} /> : null}
 
       {canEdit || term.audioRenderings.length ? (
-        <TermExamples ctx={ctx} language={language} examples={term.audioRenderings} canRecord={canEdit} busy={busy}
-          onRecorded={(hash, durationMs) => void saveExample(hash, durationMs)} />
+        <TermExamples ctx={ctx} language={language} term={term} canRecord={canEdit} busy={busy}
+          onRecorded={(hash, durationMs, forRenderingId) => void saveExample(hash, durationMs, forRenderingId)} />
       ) : null}
 
       <WordPassagesSection ctx={ctx} passages={page.passages} own loading={page.loading} listName={fromList ? shortName(fromList.list) : null} onOpen={openPassage} />
