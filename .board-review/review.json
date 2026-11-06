@@ -26,18 +26,18 @@
   ],
   "options": [
     {
-      "label": "Short in the terms, full list on the sheet",
-      "result": "People see a short promise in the terms and the exact list where they choose the license.",
+      "label": "Short terms, full sheet",
+      "result": "The terms stay short. The sheet lists what is covered.",
       "picture": "option1.png"
     },
     {
-      "label": "Full list in the terms and on the sheet",
-      "result": "Both places list what is and is not covered. The terms get longer.",
+      "label": "Full list in both",
+      "result": "Terms and sheet both list it. The terms get longer.",
       "picture": "option2.png"
     },
     {
-      "label": "Change nothing until a lawyer answers",
-      "result": "The wording stays wide and unclear for now. No wrong promise is added.",
+      "label": "Change nothing yet",
+      "result": "Wording stays wide until a lawyer answers.",
       "picture": "option3.png"
     }
   ],
