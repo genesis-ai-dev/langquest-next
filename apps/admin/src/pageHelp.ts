@@ -186,7 +186,7 @@ export const HELP: Record<string, string> = {
   'Nightly R2 check': 'Each night the log of stored files is compared with what the bucket holds. Missing: the log says stored, the bucket lacks it.',
   'Files lost on phones (decision 92)': 'Files that vanished from phones without the app removing them, by day.',
   'database growth a week': 'How much the database grew in a week, from the nightly size readings.',
-  'weeks left at that rate': 'Weeks until the database fills its provisioned disk (SUPABASE_DB_LIMIT_GB in apps/admin/wrangler.jsonc) if it keeps growing as it has.',
+  'weeks left at that rate': 'Weeks until the database fills its disk, the size Supabase says (SUPABASE_DB_LIMIT_GB in apps/admin/wrangler.jsonc when it does not), if it keeps growing as it has.',
   'R2 growth a week': 'How much the recordings bucket grew in a week.',
   'Cloudflare this month, against the plan': 'This month\'s usage against what the Workers Paid plan includes; past it is billed.',
   Included: 'What the plan includes each month.',

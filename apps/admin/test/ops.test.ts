@@ -11,7 +11,7 @@ import {
 } from '../src/sources/ops';
 import { CHANNELS } from '../../../server/youtube';
 import { isMerge, migrationsBehind, releaseAlerts, type Releases } from '../src/sources/releases';
-import { ALLOWANCE, PRICE_USD, capacityAlerts, extraUsd, growthPerDay, latestBackup, r2ByClass, storageAlerts, type Capacity, type Storage } from '../src/sources/storage';
+import { ALLOWANCE, PRICE_USD, capacityAlerts, capacitySection, extraUsd, growthPerDay, latestBackup, r2ByClass, storageAlerts, type Capacity, type Storage } from '../src/sources/storage';
 
 /** The sections the ops dashboard plan added (docs/ops-dashboard-plan.md 5): what each calls a problem. */
 
@@ -157,6 +157,29 @@ describe('storage, capacity and releases', () => {
     // October 2026: 13 GB of a 64 GB disk is nothing to say.
     expect(capacityAlerts({ ...base, weeksLeft: null, now: size(13) })).toEqual([]);
     expect(capacityAlerts({ ...base, weeksLeft: null, now: size(60) })).toEqual([{ level: 'problem', text: expect.stringMatching(/^The database \(60 GB\) fills 94% of its 64 GB disk/) }]);
+  });
+
+  describe('the disk the database is measured against', () => {
+    const GB = 1024 ** 3;
+    // 23 GB, growing 0.8 GB a day: under 12 weeks on 64 GB, far over it on 256 GB.
+    const history = [{ at: '2026-10-24T04:00:00Z', dbBytes: 13.4 * GB }, { at: '2026-11-05T04:00:00Z', dbBytes: 23 * GB }];
+    const diag = <T>(fn: (q: Query) => Promise<T>) => fn((async (text: string) => (text.includes('ops_sizes') ? { dbBytes: 23 * GB, eventsBytes: 0, eventsRows: 0, snapshotsBytes: 0 } : history)) as Query);
+    const env = { ADMIN_SUPABASE_TOKEN: 'token', SUPABASE_PROJECTS: 'abc:LangQuest Next', CLOUDFLARE_ACCOUNT_ID: 'a', R2_BUCKET: 'b', SUPABASE_DB_LIMIT_GB: '64' };
+    const answering = (body: unknown, status = 200) => vi.fn(async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+
+    it('is the size Supabase says, so a resized disk needs no change here', async () => {
+      const fetcher = answering({ attributes: { size_gb: 256, type: 'gp3' }, last_modified_at: '2026-11-01T00:00:00Z' });
+      const s = await capacitySection(env, fetcher, NOW, diag);
+      expect(fetcher).toHaveBeenCalledWith('https://api.supabase.com/v1/projects/abc/config/disk', expect.anything());
+      expect(s.data).toMatchObject({ limitBytes: 256 * GB, limitFrom: 'supabase' });
+      expect(s.alerts).toEqual([]);
+    });
+
+    it('is the setting when the token may not read the disk, and the section says so', async () => {
+      const s = await capacitySection(env, answering({ message: 'forbidden' }, 403), NOW, diag);
+      expect(s.data).toMatchObject({ limitBytes: 64 * GB, limitFrom: 'setting' });
+      expect(s.alerts[0]).toMatchObject({ level: 'watch', text: expect.stringContaining('64 GB disk') });
+    });
   });
 
   it('raises an overage only once it costs five dollars this month', () => {
