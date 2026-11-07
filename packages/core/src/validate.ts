@@ -490,6 +490,89 @@ function utf8Bytes(s: string): number {
   return n;
 }
 
+/**
+ * A string as UTF-8, as `TextEncoder` would give it: a lone surrogate becomes
+ * U+FFFD. Core has no `TextEncoder`, and these bytes are what gets signed.
+ */
+export function utf8Encode(s: string): Uint8Array {
+  const out = new Uint8Array(s.length * 3);
+  let n = 0;
+  for (let i = 0; i < s.length; i++) {
+    let c = s.charCodeAt(i);
+    if (c >= 0xd800 && c <= 0xdfff) {
+      const low = c <= 0xdbff && i + 1 < s.length ? s.charCodeAt(i + 1) : 0;
+      if (low >= 0xdc00 && low <= 0xdfff) {
+        c = 0x10000 + ((c - 0xd800) << 10) + (low - 0xdc00);
+        i++;
+      } else c = 0xfffd;
+    }
+    if (c < 0x80) out[n++] = c;
+    else if (c < 0x800) {
+      out[n++] = 0xc0 | (c >> 6);
+      out[n++] = 0x80 | (c & 0x3f);
+    } else if (c < 0x10000) {
+      out[n++] = 0xe0 | (c >> 12);
+      out[n++] = 0x80 | ((c >> 6) & 0x3f);
+      out[n++] = 0x80 | (c & 0x3f);
+    } else {
+      out[n++] = 0xf0 | (c >> 18);
+      out[n++] = 0x80 | ((c >> 12) & 0x3f);
+      out[n++] = 0x80 | ((c >> 6) & 0x3f);
+      out[n++] = 0x80 | (c & 0x3f);
+    }
+  }
+  return out.slice(0, n);
+}
+
+/** How deep an event from a nearby phone may nest. No real payload comes close. */
+export const NEARBY_MAX_DEPTH = 32;
+
+/** U+0000 or a lone surrogate in a string, either of which Postgres is believed to refuse in jsonb. */
+function hasUnstorableChar(s: string): boolean {
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c === 0) return true;
+    if (c >= 0xdc00 && c <= 0xdfff) return true;
+    if (c >= 0xd800 && c <= 0xdbff) {
+      const low = i + 1 < s.length ? s.charCodeAt(i + 1) : 0;
+      if (low < 0xdc00 || low > 0xdfff) return true;
+      i++;
+    }
+  }
+  return false;
+}
+
+/**
+ * What the nearby door refuses in any value before reading it: depth over
+ * `NEARBY_MAX_DEPTH`, a string or key holding U+0000 or a lone surrogate, and
+ * non-finite numbers. Stricter than SQL on purpose: `canonicalJson` and `stable`
+ * recurse and `canonicalJson` throws on a non-finite number, and one such event
+ * is believed to fail a whole page at the relay. Iterative, so no depth can
+ * overflow the stack.
+ */
+export function nearbyPayloadError(v: unknown): string | null {
+  const stack: { x: unknown; depth: number }[] = [{ x: v, depth: 0 }];
+  while (stack.length > 0) {
+    const { x, depth } = stack.pop()!;
+    if (typeof x === 'string') {
+      if (hasUnstorableChar(x)) return 'a string holds U+0000 or a lone surrogate';
+    } else if (typeof x === 'number') {
+      if (!Number.isFinite(x)) return 'a number is not finite';
+    } else if (typeof x === 'object' && x !== null) {
+      if (depth >= NEARBY_MAX_DEPTH) return `nested deeper than ${NEARBY_MAX_DEPTH}`;
+      if (Array.isArray(x)) {
+        for (const item of x) stack.push({ x: item, depth: depth + 1 });
+      } else {
+        for (const [k, child] of Object.entries(x)) {
+          if (hasUnstorableChar(k)) return 'a key holds U+0000 or a lone surrogate';
+          stack.push({ x: child, depth: depth + 1 });
+        }
+      }
+    }
+  }
+  return null;
+}
+
 /** Why an event is too big to make or to take, or null. */
 export function eventSizeError(e: AnyEvent): string | null {
   for (const k of ['id', 'type', 'orgId', 'streamId', 'actorId', 'deviceId', 'hlc', 'parentEventId'] as const) {

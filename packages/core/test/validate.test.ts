@@ -1,4 +1,5 @@
-import { validateEvent } from '../src/validate';
+import fc from 'fast-check';
+import { NEARBY_MAX_DEPTH, nearbyPayloadError, utf8Encode, validateEvent } from '../src/validate';
 import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture } from './fixtures';
 
 describe('validateEvent guards the append-only log', () => {
@@ -51,5 +52,53 @@ describe('validateEvent guards the append-only log', () => {
   it('does not reject unknown future event types (an old app must keep folding)', () => {
     const e = buildFixture()[0]!;
     expect(validateEvent({ ...e, type: 'v9.Later', payload: { anything: 1 } } as never)).toBeNull();
+  });
+});
+
+describe('utf8Encode', () => {
+  it('gives what TextEncoder gives, lone surrogates and all', () => {
+    const encoder = new TextEncoder();
+    const units = fc.array(fc.oneof(fc.integer({ min: 0, max: 0x10ffff }).map((c) => String.fromCodePoint(c)), fc.integer({ min: 0xd800, max: 0xdfff }).map((c) => String.fromCharCode(c))), { maxLength: 30 }).map((a) => a.join(''));
+    fc.assert(fc.property(units, (s) => {
+      expect(utf8Encode(s)).toEqual(encoder.encode(s));
+    }));
+    expect(utf8Encode('')).toEqual(new Uint8Array(0));
+    expect(utf8Encode('\ud83d')).toEqual(encoder.encode('\ud83d'));
+  });
+});
+
+describe('nearbyPayloadError', () => {
+  const nested = (depth: number, wrap: (x: unknown) => unknown = (x) => ({ x })) => {
+    let v: unknown = 1;
+    for (let i = 0; i < depth; i++) v = wrap(v);
+    return v;
+  };
+
+  it('takes ordinary values', () => {
+    for (const v of [null, undefined, 1, 'text', 'é👋', true, [], {}, { a: [1, { b: 'c' }] }]) expect(nearbyPayloadError(v)).toBeNull();
+  });
+
+  it('refuses depth over the limit, of either kind, and no depth overflows the stack', () => {
+    expect(nearbyPayloadError(nested(NEARBY_MAX_DEPTH))).toBeNull();
+    expect(nearbyPayloadError(nested(NEARBY_MAX_DEPTH + 1))).toMatch(/deeper/);
+    expect(nearbyPayloadError(nested(NEARBY_MAX_DEPTH, (x) => [x]))).toBeNull();
+    expect(nearbyPayloadError(nested(NEARBY_MAX_DEPTH + 1, (x) => [x]))).toMatch(/deeper/);
+    expect(nearbyPayloadError(nested(200_000))).toMatch(/deeper/);
+  });
+
+  it('refuses U+0000 and lone surrogates in a string or a key, at any depth, and takes a real pair', () => {
+    for (const bad of ['a\u0000b', '\ud800', 'x\ud800y', '\udc00', 'x\udc00', '\ud83d']) {
+      expect(nearbyPayloadError(bad)).toMatch(/string/);
+      expect(nearbyPayloadError({ a: [{ b: bad }] })).toMatch(/string/);
+      expect(nearbyPayloadError({ [bad]: 1 })).toMatch(/key/);
+    }
+    expect(nearbyPayloadError('👋')).toBeNull();
+  });
+
+  it('refuses numbers that are not finite', () => {
+    for (const bad of [NaN, Infinity, -Infinity]) {
+      expect(nearbyPayloadError(bad)).toMatch(/finite/);
+      expect(nearbyPayloadError({ a: [bad] })).toMatch(/finite/);
+    }
   });
 });
