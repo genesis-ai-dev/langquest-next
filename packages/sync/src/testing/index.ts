@@ -12,3 +12,4 @@ export * from './fleet/links';
 export * from './fleet/personas';
 export * from './fleet/device';
 export * from './fleet/fleet';
+export * from './fleet/nearby';
