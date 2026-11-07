@@ -74,18 +74,20 @@ export function ExportSheet(props: {
   return (
     <Sheet visible={visible} title={t('orgExport.title')} sub={t('orgExport.sub')} onClose={props.onClose} footer={footer}>
       <View style={{ gap: space.sm }}>
-        <Row testID="export-whole" role="radio" selected={all} icon="globe" label={t('orgExport.whole')} onPress={() => setAll(true)} />
-        <Row testID="export-some" role="radio" selected={!all} icon="folder" label={t('orgExport.some')} onPress={() => setAll(false)} last={all} />
+        <Row testID="export-whole" role="radio" selected={all} icon="globe" label={t('orgExport.whole')} help={t('orgExport.wholeHelp')} onPress={() => setAll(true)} />
+        <Row testID="export-some" role="radio" selected={!all} icon="folder" label={t('orgExport.some')} help={t('orgExport.someHelp')} onPress={() => setAll(false)} last={all} />
+        {/* help-each: each row is one language to include */}
         {all ? null : props.languages.map((l, i) => (
-          <Row key={l.id} testID={`export-language-${l.id}`} role="checkbox" checked={picked.has(l.id)} label={l.name} last={i === props.languages.length - 1}
+          <Row key={l.id} testID={`export-language-${l.id}`} role="checkbox" checked={picked.has(l.id)} label={l.name} help={t('orgExport.languageHelp')} last={i === props.languages.length - 1}
             onPress={() => setPicked((p) => { const n = new Set(p); if (n.has(l.id)) n.delete(l.id); else n.add(l.id); return n; })} />
         ))}
+        {/* help-each: each row is one export, with its own Download */}
         {items.slice(0, 3).map((e) => {
           const f = fraction(e);
           return (
             <View key={e.id} testID={`export-${e.status}`} style={{ gap: 4 }}>
               <Row icon="download" label={say(e)} sub={`${formatDay(e.createdAt)}${e.sizeBytes ? ` · ${formatBytes(e.sizeBytes)}` : ''}`}
-                right={e.status === 'ready' ? <SmallBtn label={t('orgExport.download')} icon="download" onPress={() => void download(e.id)} /> : undefined}
+                right={e.status === 'ready' ? <SmallBtn label={t('orgExport.download')} icon="download" help={t('orgExport.downloadHelp')} onPress={() => void download(e.id)} /> : undefined}
                 below={f === null ? undefined : <ProgressBar value={f} />} last />
             </View>
           );

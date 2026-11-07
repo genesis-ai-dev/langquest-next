@@ -40,6 +40,7 @@ const ALLOWED: Record<string, string> = {
   'snapshots.state': 'the folded state of a stream (a checkpoint), not a status',
   'timing_jobs.done': 'a count of items a background timing job has finished, not a verdict on translation work',
   'api_device_grants.approved_at': 'when a person approved a device sign-in for the API, not an approval of work',
+  'org_exports.status': "where an organization export request stands (queued, running, ready, failed, expired), the job's own state (decisions.md 205), not a status of work",
   'org_verification_requests.status': "where an organization's blue check request stands, the server's own state (decisions.md 173), not a status of work",
   'ops.user_issues.verdict': 'what the watch for user issues decided about a kind of failure the app reported (filed, known, noise or fixed; decisions.md 202), not a status of work',
 };

@@ -7993,6 +7993,11 @@
     "started": "Uhamishaji umeanza.",
     "problem": "Uhamishaji haukuweza kuanza.",
     "expired": "Imeondolewa baada ya siku 7.",
-    "keep": "Zip iliyokamilika hukaa siku 7."
+    "keep": "Zip iliyokamilika hukaa siku 7.",
+    "help": "Hufungua ukurasa wa kupakua data yote ya shirika kama zip moja.",
+    "wholeHelp": "Hamisha lugha zote za shirika.",
+    "someHelp": "Chagua lugha za kuhamisha.",
+    "languageHelp": "Jumuisha au acha lugha hii.",
+    "downloadHelp": "Hupakua zip iliyokamilika."
   }
 }

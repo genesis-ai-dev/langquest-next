@@ -7993,6 +7993,11 @@
     "started": "Nagsimula na ang export.",
     "problem": "Hindi masimulan ang export.",
     "expired": "Inalis pagkatapos ng 7 araw.",
-    "keep": "Ang natapos na zip ay nananatili nang 7 araw."
+    "keep": "Ang natapos na zip ay nananatili nang 7 araw.",
+    "help": "Nagbubukas ng pahina para i-download ang lahat ng data ng organisasyon bilang isang zip.",
+    "wholeHelp": "I-export ang lahat ng wika ng organisasyon.",
+    "someHelp": "Piliin kung aling mga wika ang i-eexport.",
+    "languageHelp": "Isama o huwag isama ang wikang ito.",
+    "downloadHelp": "Dina-download ang natapos na zip."
   }
 }

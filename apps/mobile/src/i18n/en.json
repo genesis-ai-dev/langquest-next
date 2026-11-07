@@ -7993,6 +7993,11 @@
     "started": "The export has started.",
     "problem": "The export could not start.",
     "expired": "Removed after 7 days.",
-    "keep": "A finished zip stays for 7 days."
+    "keep": "A finished zip stays for 7 days.",
+    "help": "Opens a page to download all the organization's data as one zip.",
+    "wholeHelp": "Export every language of the organization.",
+    "someHelp": "Choose which languages to export.",
+    "languageHelp": "Include or leave out this language.",
+    "downloadHelp": "Downloads the finished zip."
   }
 }

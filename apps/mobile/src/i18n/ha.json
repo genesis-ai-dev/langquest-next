@@ -7993,6 +7993,11 @@
     "started": "Fitarwar ta fara.",
     "problem": "Ba a iya fara fitarwar ba.",
     "expired": "An cire bayan kwana 7.",
-    "keep": "Zip da aka gama yana zama kwana 7."
+    "keep": "Zip da aka gama yana zama kwana 7.",
+    "help": "Yana buɗe shafi don sauke duk bayanan ƙungiyar a zip ɗaya.",
+    "wholeHelp": "Fitar da duk harsunan ƙungiyar.",
+    "someHelp": "Zaɓi harsunan da za a fitar.",
+    "languageHelp": "Haɗa ko bar wannan harshe.",
+    "downloadHelp": "Yana saukar da zip ɗin da aka gama."
   }
 }

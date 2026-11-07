@@ -8338,6 +8338,11 @@
     "started": "L'export a commencé.",
     "problem": "Impossible de lancer l'export.",
     "expired": "Supprimé après 7 jours.",
-    "keep": "Un zip terminé reste disponible 7 jours."
+    "keep": "Un zip terminé reste disponible 7 jours.",
+    "help": "Ouvre une page pour télécharger toutes les données de l'organisation dans un zip.",
+    "wholeHelp": "Exporte toutes les langues de l'organisation.",
+    "someHelp": "Choisissez les langues à exporter.",
+    "languageHelp": "Inclut ou exclut cette langue.",
+    "downloadHelp": "Télécharge le zip terminé."
   }
 }

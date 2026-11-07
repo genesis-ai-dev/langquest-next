@@ -680,6 +680,7 @@ function OrgNameAndLicense(props: { ctx: Ctx }) {
   // Asking for it is the admin's, as renaming is: manage_roles at the organization's level, as the server asks.
   const mayVerify = mayRename;
   const sealLabel = badge ? t('verified.sealLabelDomain', { domain: badge.domain }) : t('verified.row.ask');
+  const exportSpot = useHelpSpot(t('orgExport.title'), t('orgExport.help'), () => setOpen('export'));
   const sealSpot = useHelpSpot(sealLabel, badge ? t('verified.row.verifiedHelp') : t('verified.row.askHelp'), badge || mayVerify ? () => setOpen('verified') : undefined);
   async function openTo(next: License) {
     // Someone else may have opened it further while the sheet was up.
@@ -722,9 +723,10 @@ function OrgNameAndLicense(props: { ctx: Ctx }) {
       </Pressable>
       {mayRename && canExport ? (
         <>
-          <Pressable testID="org-export" onPress={() => setOpen('export')} accessibilityRole="button" accessibilityLabel={t('orgExport.title')}
+          <Pressable testID="org-export" onPress={exportSpot.onPress} accessibilityRole="button" accessibilityLabel={t('orgExport.title')}
             style={({ pressed }) => [{ alignSelf: 'flex-start', minHeight: target.min, justifyContent: 'center' }, pressed && { opacity: 0.7 }]}>
             <Text style={[txt.xs, { color: C.primary, fontWeight: '700' }]}>{t('orgExport.title')}</Text>
+            <HelpBadge spot={exportSpot} />
           </Pressable>
           <ExportSheet visible={open === 'export'} onClose={() => setOpen(null)} orgId={ctx.language.orgId} toast={ctx.toast}
             languages={orgLanguages(ctx.org.state).map((l) => ({ id: l.languageId, name: l.name }))} />

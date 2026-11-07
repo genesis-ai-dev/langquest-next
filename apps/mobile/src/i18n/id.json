@@ -7648,6 +7648,11 @@
     "started": "Ekspor telah dimulai.",
     "problem": "Ekspor tidak dapat dimulai.",
     "expired": "Dihapus setelah 7 hari.",
-    "keep": "Zip yang selesai disimpan selama 7 hari."
+    "keep": "Zip yang selesai disimpan selama 7 hari.",
+    "help": "Membuka halaman untuk mengunduh semua data organisasi dalam satu zip.",
+    "wholeHelp": "Mengekspor semua bahasa organisasi.",
+    "someHelp": "Pilih bahasa yang akan diekspor.",
+    "languageHelp": "Sertakan atau lewati bahasa ini.",
+    "downloadHelp": "Mengunduh zip yang sudah selesai."
   }
 }
