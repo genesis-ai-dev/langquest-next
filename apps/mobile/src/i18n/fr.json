@@ -8367,8 +8367,8 @@
     "done": {
       "title": "{{name}} is published",
       "body": "It is now in your Reference Material.",
-      "waitTitle": "Reading it beside a passage is not ready yet",
-      "waitBody": "Translators cannot read this Bible beside their work yet. That comes in a later update."
+      "nextTitle": "Next: recommend it",
+      "nextBody": "Find it under Bibles and recommend it, so translators see it beside their passages. Anyone can also find it under More Bibles."
     },
     "pickFailure": {
       "notZip": "This zip file cannot be opened.",
@@ -8398,6 +8398,14 @@
       "outOfOrder": "Verses are out of order or repeated inside a chapter. Count: {{count}}.",
       "emptyVerses": "Some verses have no text. Count: {{count}}.",
       "duplicateBook": "This is {{book}} again. The file {{other}} already has it. Leave one out."
+    },
+    "help": {
+      "publish": "Publish these books as one Bible in your organization's library.",
+      "choose": "Choose USFM files, or one zip of them, from this computer.",
+      "name": "The name people see for this Bible.",
+      "abbreviation": "A short name for this Bible, shown on its chip beside a passage.",
+      "copyright": "Who holds the rights to this text. It shows with the text.",
+      "file": "Tap to take this file out of the upload."
     }
   }
 }

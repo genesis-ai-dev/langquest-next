@@ -698,3 +698,33 @@ Expected:
 - Step 2: the text shows if it is on the device, and the player is disabled with a download icon and "Audio is not on this device yet."; nothing spins forever, and recording still works.
 
 Known issue (2026-10-12, found automating it): offline, a passage whose Bible was never opened on this device shows "No Bible for this passage yet" in the player and the pane, as if there were none, instead of the Bible with "Audio is not on this device yet." (P-Q2 in the workspace, web). Like STUDY-009, something that exists but has not come to the device must not be called missing.
+
+### STUDY-037 An uploaded Bible beside the passage, with its headings
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- The organization recommends an uploaded Bible (LAN-229, decision 205): the Hindi IRV as USFM files (Jonah, and Luke 15 and 16), and a small English Bible. The automated test builds this world with `e2e/ui/usfm-helpers.ts` from real eBible.org files (`e2e/fixtures/usfm`).
+
+Steps:
+1. Open P-SUBMITTED (Luke 15:11-32) and its Bible chip.
+2. Tap the Bible chip, then the uploaded Bible (IRV) in "Choose a Bible".
+
+Expected:
+- The picker lists both Bibles. The chip then reads "Bible: IRV. Choose another".
+- The verses of Luke 15:11-32 show in Hindi, with the file's section headings above the verses they lead to (decision 206), and the Bible's copyright line.
+- No raw USFM marker (a backslash) shows anywhere on the screen.
+
+### STUDY-038 More Bibles opens the uploaded Bible with the file's books, headings, poetry and notes
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- STUDY-037's world.
+
+Steps:
+1. In the Bible picker, tap "More Bibles", then the uploaded Bible under "In your organization's library".
+2. Tap the book chip "योना" (Jonah), then "Chapter 2".
+
+Expected:
+- The Bible shows its name, "IRV · hin" and "Can be kept offline". Its book chips are the names its files give ("योना", "लूका"), and it opens at the passage's chapter, Luke 15.
+- Jonah 2 shows the heading "योना की प्रार्थना", the poetry as lines of their own, and under verse 2 its footnote with the letter that marks it.
+- No raw USFM marker (a backslash) shows anywhere on the screen.
