@@ -15,6 +15,15 @@ export function encodeHlc(wallMs: number, counter: number, nodeId: string): Hlc 
   return `${String(wallMs).padStart(WALL_WIDTH, '0')}:${String(counter).padStart(COUNTER_WIDTH, '0')}:${nodeId}`;
 }
 
+/**
+ * Is this a clock `encodeHlc` could have made? `decodeHlc` throws on too few
+ * parts and reads `x1:y:z` as NaN, so a clock from outside this phone is
+ * checked before it reaches `HlcClock`. The twin is `events_hlc_format` in SQL.
+ */
+export function isHlc(hlc: unknown): hlc is Hlc {
+  return typeof hlc === 'string' && /^\d{15}:\d{6}:[^:]+$/.test(hlc);
+}
+
 export function decodeHlc(hlc: Hlc): { wallMs: number; counter: number; nodeId: string } {
   const [wall, counter, nodeId] = hlc.split(':');
   if (wall === undefined || counter === undefined || nodeId === undefined) {

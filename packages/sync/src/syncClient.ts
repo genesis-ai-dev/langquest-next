@@ -4,6 +4,7 @@ import {
   eventPassage,
   eventSizeError,
   foldLanguage,
+  isHlc,
   LINES_VERSION,
   REDUCER_VERSION,
   type AnyEvent,
@@ -1526,7 +1527,8 @@ export class SyncClient<S = LanguageState> {
         if (seq === undefined) continue;
         // Upsert: a pending event of ours whose ack was lost becomes confirmed.
         writes.push({ event, status: 'confirmed' });
-        this.clock.receive(event.hlc);
+        // A malformed clock on the server cannot be read, and must not stop every phone's pull: the event still folds.
+        if (isHlc(event.hlc)) this.clock.receive(event.hlc);
         this.state = this.m.apply(this.state, event);
         folded += 1;
         if (event.type === 'v1.Redacted') {

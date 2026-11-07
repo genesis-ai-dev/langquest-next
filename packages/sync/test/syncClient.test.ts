@@ -1,4 +1,4 @@
-import { HlcClock, ORG_STREAM, REDUCER_VERSION, derivePassage, emptyLanguageState, foldLanguage, type LanguageState, type OrgState } from '@langquest-next/core';
+import { HlcClock, isHlc, ORG_STREAM, REDUCER_VERSION, derivePassage, emptyLanguageState, foldLanguage, type LanguageState, type OrgState } from '@langquest-next/core';
 import { Diagnostics, MemoryDiagStore } from '../src/diagnostics';
 import { MemoryStore } from '../src/memoryStore';
 import { LANGUAGE_MATERIALIZER, SyncClient, type Materializer } from '../src/syncClient';
@@ -1079,6 +1079,24 @@ describe('SyncClient after a long offline stretch (audit L1, L2, L3)', () => {
     expect(await coord.pendingCount()).toBe(1);
     expect((await coord.sync()).pushed).toBe(1);
     expect(Object.keys(coord.getState().languages)).toEqual(['p9']);
+  });
+
+  it.each(['123', 'x1:y:z'])('a clock of %s on the server neither stops a pull nor spoils this phone\'s clock', async (hlc) => {
+    // Why: `append_events` only strips non-digits from the wall, so any member could put these in the log, and
+    // every phone in the language then failed every pull (`123`) or saved a NaN clock (`x1:y:z`).
+    const server = new FakeServer();
+    const store = new MemoryStore();
+    const writer = new SyncClient({ orgId: 'o', streamId: 'p', actorId: 'a', deviceId: 'dA', store: new MemoryStore(), transport: server.transportFor(), clock: new HlcClock('dA', () => 5), newId: () => 'bad' });
+    await writer.load();
+    await writer.append('v1.UnitAdded', { unitId: 'u1', parentUnitId: null, kind: 'passage', label: 'P', order: 'a' });
+    await writer.sync();
+    (server.stream('o', 'p')[0] as { hlc: string }).hlc = hlc;
+    const client = new SyncClient({ orgId: 'o', streamId: 'p', actorId: 'b', deviceId: 'dB', store, transport: server.transportFor(), clock: new HlcClock('dB', () => 9), newId: () => 'mine' });
+    await client.load();
+    await client.pull();
+    expect(client.getState().units['u1']).toBeDefined();
+    await client.append('v1.UnitAdded', { unitId: 'u2', parentUnitId: null, kind: 'passage', label: 'Q', order: 'b' });
+    expect(isHlc((await store.get('mine'))?.event.hlc)).toBe(true);
   });
 
   it('a device whose clock runs ahead is re-stamped from server time and pushed again with the same ids', async () => {

@@ -1,4 +1,4 @@
-import { HlcClock, encodeHlc } from '../src/hlc';
+import { HlcClock, encodeHlc, isHlc } from '../src/hlc';
 
 describe('HlcClock persistence', () => {
   it('a clock seeded from its last value never goes backwards when wall time does', () => {
@@ -19,5 +19,16 @@ describe('HlcClock persistence', () => {
     expect(clock.last()).toBe(a);
     clock.receive(encodeHlc(999, 0, 'dB'));
     expect(clock.last()! > a).toBe(true);
+  });
+});
+
+describe('isHlc', () => {
+  it('takes what encodeHlc makes, and nothing that would throw or read as NaN', () => {
+    expect(isHlc(encodeHlc(1_700_000_000_000, 3, 'dA'))).toBe(true);
+    expect(isHlc(encodeHlc(0, 0, 'a-b_c'))).toBe(true);
+    for (const bad of ['123', 'x1:y:z', '', ':', '000000000000001:000000:', '000000000000001:000000:a:b', '1:000000:dA', '000000000000001:0:dA',
+      ' 000000000000001:000000:dA', 'NaN:000000:dA', null, undefined, 7, {}]) {
+      expect(isHlc(bad), String(bad)).toBe(false);
+    }
   });
 });
