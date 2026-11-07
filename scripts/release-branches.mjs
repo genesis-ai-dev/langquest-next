@@ -69,10 +69,11 @@ export const copyBranch = (platform, first, last = null) =>
 
 /** Where the phone app's code is: what Metro bundles into an OTA update, and the dependencies it pins. */
 const APP_FILES = [/^apps\/mobile\//, /^packages\/(core|sync)\/src\//, /^package(-lock)?\.json$/];
-/** In apps/mobile but not in the phone's bundle: tests, scripts, the website's files, EAS's own settings, docs. */
+/** In those folders but not in the phone's bundle: tests, scripts, the website's files, EAS's own settings, docs, the Node-only test helpers of packages/sync. */
 const NOT_APP_FILES = [
   /^apps\/mobile\/(\.claude|\.eas|dist[^/]*|explorer|public|scripts|test)\//,
   /^apps\/mobile\/(store-builds\.json|\.env\.(development|preview|example)|LICENSE)$/,
+  /^packages\/sync\/src\/testing\//,
   /\.md$/, /\.web\.tsx?$/, /\.test\.tsx?$/
 ];
 
@@ -116,6 +117,8 @@ export const CONFLICT_LABEL = 'copy-conflict';
 export const PERSON_LABEL = 'copy-needs-person';
 /** How many times the hourly run starts Claude again on a copy before a person must finish it. */
 export const FIX_TRIES = 3;
+/** The repository_dispatch event that starts Claude on a copy with a conflict (startClaude). */
+export const DISPATCH_EVENT = 'release-copy';
 /** How the hourly run's comment on a try for failed checks starts. */
 export const TRY_NOTE = 'The checks of this copy failed';
 /** How the workflow's comment starts when Claude's run ended before the copy was finished. */
@@ -129,15 +132,20 @@ export const RESULTS = ['copied', 'copied in part', 'left out'];
 
 /**
  * What the hourly run does with an open copy, from its labels, its gate
- * check on its newest commit ('FAILURE', 'SUCCESS', or null while it runs)
- * and Claude's tries so far: 'try' starts Claude again on a copy that is not
- * finished (CONFLICT_LABEL alone) or whose checks failed, 'person' leaves it
- * to a person, 'none' waits (Claude is on it, a person is, or nothing
- * failed).
+ * check on its newest commit ('FAILURE', 'SUCCESS', or null while it runs),
+ * whether it has a conflict with its release branch (another copy merged
+ * first and changed the same lines) and Claude's tries so far: 'try' starts
+ * Claude again on a copy that is not finished (CONFLICT_LABEL alone), whose
+ * checks failed or that has a conflict, 'person' leaves it to a person,
+ * 'none' waits (Claude is on it, a person is, or nothing failed).
+ * CLAUDE_LABEL on a copy with a conflict does not mean that Claude is on it:
+ * GitHub runs no pull_request workflow on a pull request with a conflict,
+ * so the label started nothing (PR 347, 2026-11-06), and the hourly run
+ * starts Claude through a repository_dispatch instead (startClaude).
  */
-export function nextForCopy({ labels, gate, tries }) {
-  if ([CLAUDE_LABEL, PERSON_LABEL].some((l) => labels.includes(l))) return 'none';
-  if (!labels.includes(CONFLICT_LABEL) && gate !== 'FAILURE') return 'none';
+export function nextForCopy({ labels, gate, tries, conflicting = false }) {
+  if (labels.includes(PERSON_LABEL) || (labels.includes(CLAUDE_LABEL) && !conflicting)) return 'none';
+  if (!labels.includes(CONFLICT_LABEL) && gate !== 'FAILURE' && !conflicting) return 'none';
   return tries < FIX_TRIES ? 'try' : 'person';
 }
 
@@ -387,7 +395,10 @@ function copy(platform, shas) {
   const conflict = done < shas.length;
   // An empty commit gives the pull request something to show; Claude does the copy.
   if (git('rev-parse', 'HEAD') === base) git('commit', '--quiet', '--allow-empty', '-m', `Copy ${shas[0].slice(0, 8)} onto ${branchOf(platform)}: needs a hand with a conflict`);
-  git('push', '--quiet', '--force', 'origin', branch);
+  // No hook runs: the pull request's checks run what the hooks would, and a
+  // copy they fail goes to Claude (fixFailedCopies). A hook that stopped this
+  // push would leave no pull request, so nothing would ever try the copy again.
+  git('push', '--quiet', '--no-verify', '--force', 'origin', branch);
   // The labels: Claude's starts Claude on every copy; made the first time each is needed.
   makeLabel(CLAUDE_LABEL);
   if (conflict) makeLabel(CONFLICT_LABEL);
@@ -511,43 +522,66 @@ async function tidy() {
     if (step.action === 'restart') startBranch(platform, step.from, all);
   }
   for (const platform of platformsFrom(process.env.RELEASE_BRANCH_PLATFORMS)) {
-    freshenCopies(platform);
-    fixFailedCopies(platform);
+    fixFailedCopies(platform, freshenCopies(platform));
   }
 }
 
 /**
- * A copy that Claude did not finish, or whose checks failed, gets Claude
- * again, up to FIX_TRIES times: the run comments on the try and labels the
- * copy, which starts .github/workflows/release-copy-conflict.yml. After
- * that, it is labelled for a person, and the ops dashboard puts it under
- * Needs attention.
+ * A copy that Claude did not finish, whose checks failed, or that has a
+ * conflict with its release branch, gets Claude again, up to FIX_TRIES
+ * times: the run comments on the try and labels the copy, which starts
+ * .github/workflows/release-copy-conflict.yml. After that, it is labelled
+ * for a person, and the ops dashboard puts it under Needs attention. A copy
+ * just freshened (`fresh.pushed`) runs its checks again, so the checks that
+ * GitHub lists for it now are its old commit's and count for nothing; one
+ * that freshening labelled for Claude (`fresh.labelled`) has Claude already.
  */
-function fixFailedCopies(platform) {
+function fixFailedCopies(platform, fresh = { pushed: new Set(), labelled: new Set() }) {
   if (!remoteHas(`refs/heads/${branchOf(platform)}`)) return;
   const open = JSON.parse(run('gh', ['pr', 'list', '--base', branchOf(platform), '--state', 'open',
-    '--json', 'number,headRefName,headRefOid,labels,comments,statusCheckRollup']).stdout);
+    '--json', 'number,headRefName,headRefOid,labels,comments,statusCheckRollup,mergeable']).stdout);
   for (const pr of open) {
-    if (!commitOfCopy(pr.headRefName)) continue;
+    const conflicting = pr.mergeable === 'CONFLICTING';
+    if (!commitOfCopy(pr.headRefName) || (fresh.labelled.has(pr.number) && !conflicting)) continue;
     const labels = (pr.labels ?? []).map((l) => l.name);
-    const gate = (pr.statusCheckRollup ?? []).filter((c) => c.name === 'gate').at(-1)?.conclusion ?? null;
+    const gate = fresh.pushed.has(pr.number) ? null : (pr.statusCheckRollup ?? []).filter((c) => c.name === 'gate').at(-1)?.conclusion ?? null;
     const tries = (pr.comments ?? []).filter((c) => isTry(c.body)).length;
-    const step = nextForCopy({ labels, gate, tries });
+    const step = nextForCopy({ labels, gate, tries, conflicting });
     const unfinished = labels.includes(CONFLICT_LABEL);
     if (step === 'try') {
-      const why = unfinished ? `${UNFINISHED_NOTE}, so Claude tries again` : `${TRY_NOTE} on ${pr.headRefOid.slice(0, 8)}, so Claude tries to fix them`;
+      const why = unfinished ? `${UNFINISHED_NOTE}, so Claude tries again`
+        : conflicting ? `This copy has a conflict with ${branchOf(platform)}, so Claude merges ${branchOf(platform)} into it`
+          : `${TRY_NOTE} on ${pr.headRefOid.slice(0, 8)}, so Claude tries to fix them`;
       run('gh', ['pr', 'comment', String(pr.number), '--body', `${why} (try ${tries + 1} of ${FIX_TRIES}, decisions.md 155).`]);
-      makeLabel(CLAUDE_LABEL);
-      run('gh', ['pr', 'edit', String(pr.number), '--add-label', CLAUDE_LABEL]);
-      console.log(`#${pr.number}: ${unfinished ? 'not finished' : 'its checks failed'}, so Claude tries again (try ${tries + 1} of ${FIX_TRIES})`);
+      startClaude(pr.number, conflicting);
+      console.log(`#${pr.number}: ${unfinished ? 'not finished' : conflicting ? `a conflict with ${branchOf(platform)}` : 'its checks failed'}, so Claude tries again (try ${tries + 1} of ${FIX_TRIES})`);
     } else if (step === 'person') {
       makeLabel(PERSON_LABEL);
       run('gh', ['pr', 'edit', String(pr.number), '--add-label', PERSON_LABEL]);
       run('gh', ['pr', 'comment', String(pr.number), '--body',
-        `Claude tried ${FIX_TRIES} times, and this copy ${unfinished ? 'is still not finished' : 'still fails its checks'}. A person must finish it: read Claude's comments and the failed checks, fix this branch, push, remove the ${CONFLICT_LABEL} label, and turn on auto-merge (decisions.md 155).`]);
+        `Claude tried ${FIX_TRIES} times, and this copy ${unfinished ? 'is still not finished' : conflicting ? `still has a conflict with ${branchOf(platform)}` : 'still fails its checks'}. A person must finish it: read Claude's comments and the failed checks, fix this branch, push, remove the ${CONFLICT_LABEL} label, and turn on auto-merge (decisions.md 155).`]);
       console.log(`#${pr.number}: ${unfinished ? 'not finished' : 'its checks still fail'} after ${FIX_TRIES} tries, so it is labelled for a person`);
     }
   }
+}
+
+/**
+ * Starts Claude on a copy. The copy-claude label starts
+ * release-copy-conflict.yml through the label's pull_request event, but
+ * GitHub runs no pull_request workflow on a pull request with a conflict:
+ * on 2026-11-06 the label on PR 347 started nothing. So for a copy with a
+ * conflict this also sends a repository_dispatch, which runs main's
+ * release-copy-conflict.yml for that copy (the App's token may send it,
+ * because it may write the repository's contents).
+ */
+function startClaude(pr, conflicting) {
+  run('gh', ['pr', 'edit', String(pr), '--remove-label', CLAUDE_LABEL], { allowFail: true });
+  makeLabel(CLAUDE_LABEL);
+  run('gh', ['pr', 'edit', String(pr), '--add-label', CLAUDE_LABEL]);
+  if (!conflicting) return;
+  const repo = process.env.GITHUB_REPOSITORY ?? 'genesis-ai-dev/langquest-next';
+  run('gh', ['api', '--method', 'POST', `repos/${repo}/dispatches`,
+    '-f', `event_type=${DISPATCH_EVENT}`, '-F', `client_payload[pr]=${pr}`]);
 }
 
 /**
@@ -557,10 +591,13 @@ function fixFailedCopies(platform) {
  * that turned away the bot that labelled it, and failed a server-calls
  * check that read the release branch's old server. Each copy still open
  * takes main's, which runs its checks again, and one that Claude works on
- * is labelled again so that Claude starts with them.
+ * is labelled again so that Claude starts with them. Gives the copies it
+ * pushed to, and those it labelled.
  */
 function freshenCopies(platform) {
-  if (!remoteHas(`refs/heads/${branchOf(platform)}`)) return;
+  const pushed = new Set();
+  const labelled = new Set();
+  if (!remoteHas(`refs/heads/${branchOf(platform)}`)) return { pushed, labelled };
   const open = JSON.parse(run('gh', ['pr', 'list', '--base', branchOf(platform), '--state', 'open',
     '--json', 'number,headRefName,labels']).stdout);
   for (const { number, headRefName: branch, labels } of open) {
@@ -571,10 +608,12 @@ function freshenCopies(platform) {
     takeMachinery();
     if (git('rev-parse', 'HEAD') === before) continue;
     // Not forced: a push that Claude made meanwhile wins, and the next hour tries again.
-    if (run('git', ['push', '--quiet', 'origin', branch], { allowFail: true }).status !== 0) {
+    // No hook runs, as a copy whose tests fail would then never take main's.
+    if (run('git', ['push', '--quiet', '--no-verify', 'origin', branch], { allowFail: true }).status !== 0) {
       console.log(`#${number}: could not take main's release workflows and scripts (${branch} moved), so the next run tries again`);
       continue;
     }
+    pushed.add(number);
     if (!(labels ?? []).some((l) => l.name === CLAUDE_LABEL || l.name === CONFLICT_LABEL)) {
       console.log(`#${number}: took main's release workflows and scripts, so its checks run again`);
       continue;
@@ -582,8 +621,10 @@ function freshenCopies(platform) {
     run('gh', ['pr', 'edit', String(number), '--remove-label', CLAUDE_LABEL], { allowFail: true });
     makeLabel(CLAUDE_LABEL);
     run('gh', ['pr', 'edit', String(number), '--add-label', CLAUDE_LABEL]);
+    labelled.add(number);
     console.log(`#${number}: took main's release workflows and scripts, and was labelled again so that Claude starts`);
   }
+  return { pushed, labelled };
 }
 
 /** The first commit that a copy branch carries: its name ends with that commit's first 8 characters (and a catch-up's last one's). */
