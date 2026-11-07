@@ -96,10 +96,7 @@ test('PASS-003 REV P-SUBMITTED: Do the peer check opens the review @p0', async (
   await expect(header(page)).toHaveText(L);
 });
 
-// @quarantine, owner Caleb Koster, LAN-242: failed 2 of 27 runs, each time on a busy runner (run queue
-// up to 19 on 4 vCPUs): once the feedback step never showed in 20 s, once "Record a fix" never showed
-// after the tap. It passes on the next run with the same code. Take the tag off once the cause is known.
-test('PASS-004 TRANS P-NEEDS: feedback waiting for TRANS @p0 @quarantine', async ({ browser }) => {
+test('PASS-004 TRANS P-NEEDS: feedback waiting for TRANS @p0', async ({ browser }) => {
   const rev = nameOf('REV');
   const page = await recordAs(browser, world(), 'TRANS', 'P-NEEDS');
   const hear = (await pathStep(page, 'Hear the feedback').getAttribute('aria-label')) ?? '';

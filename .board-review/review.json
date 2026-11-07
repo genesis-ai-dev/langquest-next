@@ -1,28 +1,11 @@
 {
-  "kind": "question",
-  "ask": "Set the PASS-004 test aside for now, or keep it blocking while we dig for the cause?",
-  "problem": "One web test, PASS-004, fails about 1 run in 14. A pull request that did nothing wrong turns red and has to be run again.",
-  "found": "Both failures came on a very busy test machine, in different places. The same test passed on the next run. I saw no sign of an app bug, but could not run the full tests here to prove it.",
-  "changed": "Nothing changes for people using the app. The test PASS-004 gets the quarantine tag, with this issue and an owner written beside it. It then runs alone in the nightly run instead of blocking pull requests.",
-  "why": "Our test rules say to set aside a test that fails without an app cause. I could not run any checks here, so I did not guess at a fix.",
-  "touches": "Only the one test file. The nightly run will report this test separately.",
-  "pictures": [
-    {
-      "file": "failure.png",
-      "label": "A screen captured when the test failed (one of several devices in that run)"
-    }
-  ],
-  "options": [
-    {
-      "label": "Set it aside now",
-      "result": "Pull requests stop failing on this test. It still runs every night.",
-      "picture": "quarantine.png"
-    },
-    {
-      "label": "Keep it blocking",
-      "result": "The test keeps failing about 1 run in 14 until someone finds the cause.",
-      "picture": "wait.png"
-    }
-  ],
-  "recommended": 0
+  "kind": "structure",
+  "ask": "Is it right to leave release-branch runs out of the flaky-test count?",
+  "problem": "A web test, PASS-004, looked flaky: it failed in 2 of 27 runs, so the nightly check filed an issue.",
+  "found": "Both failures were on iPhone release-branch catch-up runs. Those hold older code from 28 October, before main fixed this exact early-read bug on 29 October. Main has no failures.",
+  "changed": "Nothing changes for people. The nightly flaky-test count now skips release-branch runs. I removed the quarantine I added earlier. The test keeps blocking.",
+  "why": "I ran the test 14 times here under heavy load and on forced server passes. All passed. Quarantining would have hidden a test that works.",
+  "touches": "Only the nightly flaky-test report and its test. The release branch gets the test fix when it next catches up with main.",
+  "pictures": [{"file": "cause.png", "label": "How the old bug reached the count"}, {"file": "fix.png", "label": "Before and after the count"}],
+  "guess": {"answer": "looks_good"}
 }
