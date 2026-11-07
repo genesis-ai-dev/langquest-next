@@ -468,6 +468,11 @@ export class SyncClient<S = LanguageState> {
   private commit(batch: WriteBatch): Promise<void> {
     if (batch.meta && Object.keys(batch.meta).length === 0) delete batch.meta;
     if (batch.events?.length === 0) delete batch.events;
+    if (batch.receive?.length === 0) delete batch.receive;
+    if (batch.dropNearby?.ids.length === 0) delete batch.dropNearby;
+    if (batch.batches?.length === 0) delete batch.batches;
+    if (batch.dropBatches?.keys.length === 0) delete batch.dropBatches;
+    if (batch.attests?.length === 0) delete batch.attests;
     if (Object.keys(batch).length === 0) return Promise.resolve();
     // What the language keeps on disk changed: lookups cached from it are out of date. Lines alone change nothing they read.
     const keptChanged = batch.kept?.streamId === this.opts.streamId

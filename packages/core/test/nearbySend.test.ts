@@ -1,7 +1,7 @@
 import fc from 'fast-check';
-import type { AnyEvent } from '../src/events';
+import type { AnyEvent, LocalEventStatus } from '../src/events';
 import {
-  NEARBY_VECTOR_MAX_KEYS, NEARBY_VECTOR_MAX_RANGES, applyFloor, batchRowsToSend, countBatch, isCounted, parseVector, shouldClaim, type NearbyVector
+  NEARBY_VECTOR_MAX_KEYS, NEARBY_VECTOR_MAX_RANGES, applyFloor, batchRowsToSend, countBatch, isCounted, parseVector, shouldClaim, type NearbyRow, type NearbyVector
 } from '../src/nearbySend';
 import { base64urlEncode } from '../src/nearbySigning';
 
@@ -139,7 +139,7 @@ describe('the rows that go with a batch', () => {
   const none = () => false;
 
   it('keeps pending and nearby rows of this batch, in the order given', () => {
-    const rows = [{ event: event('a'), status: 'pending', via }, { event: event('b'), status: 'nearby', via }];
+    const rows: NearbyRow[] = [{ event: event('a'), status: 'pending', via }, { event: event('b'), status: 'nearby', via }];
     expect(batchRowsToSend(rows, batch, none).map((e) => e.id)).toEqual(['a', 'b']);
   });
 
@@ -168,7 +168,7 @@ describe('shouldClaim', () => {
   const event = (extra: object = {}) => ({ id: 'e1', type: 'v1.TakeArchived', serverSeq: 10, orgId: 'o', streamId: 's', actorId: 'a', deviceId: 'd', hlc: 'h', payload: {}, ...extra }) as unknown as AnyEvent;
   const them = { cursor: 5, claimedSeq: 3 };
   const here = { attestedSeq: 20, isRedacted: () => false };
-  const yes = (e: AnyEvent, status = 'confirmed') => shouldClaim({ event: e, status }, them, here);
+  const yes = (e: AnyEvent, status: LocalEventStatus = 'confirmed') => shouldClaim({ event: e, status }, them, here);
 
   it('is true for a confirmed row past what they know, up to what was vouched for', () => {
     expect(yes(event())).toBe(true);
@@ -188,7 +188,7 @@ describe('shouldClaim', () => {
   });
 
   it('is false for anything but a confirmed row', () => {
-    for (const status of ['pending', 'nearby', 'rejected']) expect(yes(event(), status)).toBe(false);
+    for (const status of ['pending', 'nearby', 'rejected'] as const) expect(yes(event(), status)).toBe(false);
   });
 
   it('is false for what no phone may claim', () => {

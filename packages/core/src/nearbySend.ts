@@ -1,4 +1,4 @@
-import type { AnyEvent } from './events';
+import type { AnyEvent, LocalEventStatus } from './events';
 import { NEARBY_NOT_CARRIED, nearbyCopy } from './nearbyDoor';
 import { isBase64url } from './nearbySigning';
 import { EVENT_PRIVILEGE, ORG_EVENT_TYPES } from './org';
@@ -105,10 +105,10 @@ export function applyFloor(vector: NearbyVector, key: string, floor: number): Ne
   return withEntry(vector, key, settled(floor, ahead));
 }
 
-/** A row as the store gives it. `status` is a plain string here until `LocalEventStatus` holds 'nearby'. */
+/** A row as the store gives it. */
 export interface NearbyRow {
   event: AnyEvent;
-  status: string;
+  status: LocalEventStatus;
   via?: NearbyVia;
 }
 

@@ -4,7 +4,7 @@ import { MemoryStore } from '../src/memoryStore';
 import { LANGUAGE_MATERIALIZER, SyncClient, type Materializer } from '../src/syncClient';
 import { ORG_MATERIALIZER } from '../src/orgSession';
 import { FakeServer } from '../src/testing/fakeServer';
-import { EventTooLargeError, rejectCodeOf, type Transport } from '../src/types';
+import { EventTooLargeError, rejectCodeOf, type Transport, type WriteBatch } from '../src/types';
 
 /** The organization stream's fold, as the app wires it (apps/mobile useOrg). */
 const unit = (i: number | string, label = `P${i}`) =>
@@ -1381,6 +1381,21 @@ describe('SyncClient when the server refuses this actor', () => {
 });
 
 describe('SyncClient single writer', () => {
+  it('a commit holding only empty nearby fields never reaches the store', async () => {
+    // Why: a page where every row was refused or already here must cost no transaction, or a sync loop writes on every pass.
+    const { client, store } = device(new FakeServer(), 'dA', 'lead', { t: 0 });
+    await client.load();
+    const writes = vi.spyOn(store, 'commit');
+    const stream = { orgId: 'org1', streamId: 'p1' };
+    const commit = (batch: WriteBatch) => client['commit'](batch);
+    await commit({ receive: [], dropNearby: { ...stream, ids: [] }, batches: [], dropBatches: { ...stream, keys: [] }, attests: [] });
+    expect(writes).not.toHaveBeenCalled();
+    // An attestation's drop has no list to be empty: it always says something.
+    await commit({ receive: [], dropAttests: { ...stream, upToSeq: 5 } });
+    expect(writes).toHaveBeenCalledTimes(1);
+    expect(writes.mock.calls[0]![0]).toEqual({ dropAttests: { ...stream, upToSeq: 5 } });
+  });
+
   it('publishes a revision before the disk write and reports saving until the commit lands', async () => {
     // Why: the screen must move on the tap (next frame) and must be able to
     // say "saved locally" only when that is true.

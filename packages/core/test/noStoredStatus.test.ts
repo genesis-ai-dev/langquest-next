@@ -36,7 +36,7 @@ function columns(source: string): { table: string; column: string }[] {
  * reason. Keyed `table.column`.
  */
 const ALLOWED: Record<string, string> = {
-  'events.status': 'sync status of a local event: pending, confirmed or rejected (invariant 7)',
+  'events.status': 'sync status of a local event: pending, confirmed, rejected or nearby (invariant 7)',
   'snapshots.state': 'the folded state of a stream (a checkpoint), not a status',
   'timing_jobs.done': 'a count of items a background timing job has finished, not a verdict on translation work',
   'api_device_grants.approved_at': 'when a person approved a device sign-in for the API, not an approval of work',
