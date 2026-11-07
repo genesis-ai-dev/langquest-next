@@ -6,7 +6,12 @@
  "changed": "Nothing people see. The test now records one part on the member's phone first. After the role change it checks that the phone kept those recordings.",
  "why": "It keeps the point of the test: a role change must not erase the member's own work. Setting the test aside would hide that. I could not run the browser suite here, so CI must confirm.",
  "touches": "One helper gained an optional set-up step. No other test changes.",
- "pictures": [],
+ "pictures": [
+  {
+   "file": "diagram.png",
+   "label": "Why it failed and the fix"
+  }
+ ],
  "guess": {
   "answer": "looks_good"
  },
