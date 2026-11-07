@@ -1,13 +1,13 @@
-import type { AnyEvent, EventPayloads, EventType } from '../src/events';
-import { HlcClock } from '../src/hlc';
-import { commands } from '../src/commands';
-import { foldLanguage } from '../src/reducer';
-import { emptyLanguageState } from '../src/state';
-import { flowTemplate, instantiateFlow } from '../src/record';
-import { derivePassage } from '../src/passage';
+import type { AnyEvent, EventPayloads, EventType } from '@langquest-next/core';
+import { HlcClock } from '@langquest-next/core';
+import { commands } from '@langquest-next/core';
+import { foldLanguage } from '@langquest-next/core';
+import { emptyLanguageState } from '@langquest-next/core';
+import { flowTemplate, instantiateFlow } from '@langquest-next/core';
+import { derivePassage } from '@langquest-next/core';
 
 /**
- * A fixture organization for the export's tests (packages/core and
+ * A fixture organization for the export's tests (packages/sync and
  * apps/web): one language, two versions of a passage, and a review with a
  * voice comment. Events carry stream ids `_org` and `din`.
  */

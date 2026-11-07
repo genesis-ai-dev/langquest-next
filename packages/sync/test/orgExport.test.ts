@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { AnyEvent } from '../src/events';
-import { foldLanguage } from '../src/reducer';
-import { emptyLanguageState } from '../src/state';
-import { foldOrg } from '../src/org';
-import { voiceNoteOf } from '../src/blobs';
+import type { AnyEvent } from '@langquest-next/core';
+import { foldLanguage } from '@langquest-next/core';
+import { emptyLanguageState } from '@langquest-next/core';
+import { foldOrg } from '@langquest-next/core';
+import { voiceNoteOf } from '@langquest-next/core';
 import { planOrgExport, safeName } from '../src/orgExport';
 import { fixture, NAMES, NOW } from './orgExportFixture';
 

@@ -6,7 +6,7 @@ import { foldLanguage, emptyLanguageState, ORG_STREAM, type AnyEvent } from '@la
 import { allEvents, writeExport, type ExportDeps } from '../../../server/orgExportJob';
 import { Parts, ZipWriter } from '../../../server/orgExportZip';
 import { exportKey, handleOrgExports, KEEP_MS, LINK_MS, type ExportBucket, type ExportDeps as DoorDeps, type ExportRow, type ExportStore } from '../worker/orgExports';
-import { fixture, NOW } from '../../../packages/core/test/orgExportFixture';
+import { fixture, NOW } from '../../../packages/sync/test/orgExportFixture';
 
 /**
  * The organization export (decisions.md 205): the zip opens in a real unzip

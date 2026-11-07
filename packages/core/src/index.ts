@@ -34,4 +34,3 @@ export * from './verses';
 export * from './checks';
 export * from './quiet';
 export * from './uiLanguages';
-export * from './orgExport';

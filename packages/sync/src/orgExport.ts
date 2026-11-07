@@ -1,12 +1,8 @@
-import { cleanedFrom, recordedCard } from './cards';
-import { voiceFormat } from './blobs';
-import { decodeHlc } from './hlc';
-import { buildIndexes, languagePassages } from './indexes';
-import { languageInfo, languagePeople, membershipsOf, orgName, type OrgState } from './org';
-import { approvedVersion, derivePassage, kindOf, unitPlace, unitTitle, type PassageState, type Version } from './passage';
-import { toCsv } from './portfolio';
-import { languageReport, passageWork } from './reports';
-import type { LanguageState } from './state';
+import {
+  approvedVersion, buildIndexes, cleanedFrom, decodeHlc, derivePassage, kindOf, languageInfo, languagePassages, languagePeople, languageReport, membershipsOf,
+  orgName, passageWork, recordedCard, toCsv, unitPlace, unitTitle, voiceFormat,
+  type LanguageState, type OrgState, type PassageState, type Version
+} from '@langquest-next/core';
 
 /**
  * The organization export (decisions.md 205, docs/org-export.md): everything

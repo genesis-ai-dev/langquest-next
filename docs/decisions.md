@@ -10884,9 +10884,9 @@ chapter and passage with readable names; a manifest (CSV and JSON) of every
 recording and every voice note; spreadsheets by language, book, person, month
 and passage; people, passages, reviews, notes and key terms; and the raw event
 log as JSON lines, which is the guarantee: the rest is a reading of it.
-What is read is core's own (`planOrgExport`, pure, in `packages/core`): it uses
+What is read is core's own (`planOrgExport`, pure, in `packages/sync` where only servers use it, so the phone and web bundle does not carry it): it uses
 `derivePassage`, `approvedVersion` and `languageReport`, so a figure in a sheet
-is the figure the dashboard shows. `packages/core/test/orgExport.test.ts`
+is the figure the dashboard shows. `packages/sync/test/orgExport.test.ts`
 checks a fixture organization's manifest against its event log, and
 `apps/web/test/orgExports.test.ts` unzips what the job writes with a real tool.
 The format is versioned (`EXPORT_FORMAT_VERSION`): a column may be added, never

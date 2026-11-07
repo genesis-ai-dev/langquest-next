@@ -121,14 +121,14 @@ reads only the request's organization. A request is a private row
 `server/orgExport.ts` in the job container (`docs/server-jobs.md`), started by
 the request. It folds each language, reads each file from R2 by hash through
 the Worker, and writes the zip in 32 MiB parts to R2 through
-`/api/org-exports/:id/upload`. `packages/core/src/orgExport.ts` decides what
+`/api/org-exports/:id/upload`. `packages/sync/src/orgExport.ts` decides what
 goes where and is pure; `server/orgExportJob.ts` and `server/orgExportZip.ts`
 write it. Zip64 is used past 4 GB or 65,535 files, and no one file may pass
 4 GB.
 
 ## Tests
 
-`packages/core/test/orgExport.test.ts` exports a fixture organization and checks
+`packages/sync/test/orgExport.test.ts` exports a fixture organization and checks
 the manifest against its event log: every audio hash the log names is in it and
 nothing else is. `apps/web/test/orgExports.test.ts` unzips the job's output with
 `unzip -t`, and checks who may ask and that links expire.
