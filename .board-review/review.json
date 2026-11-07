@@ -4,7 +4,7 @@
  "problem": "Many changes run at once and clash. Your Mac runs only 3 or 4 threads. Since Oct 1, 54 merges of main clashed. 41 of them clashed only in the decisions file.",
  "found": "Yes. Changes all added decisions to one shared file, so they clashed. Now each new decision is its own file. Old decisions 1 to 204 stay put. Coding threads also move to Claude's cloud.",
  "changed": "I merged main in. Main had reached decision 204, so I moved the closing number from 198 to 204. I checked the setup script against today's cloud machines. It still works. All fast checks pass.",
- "why": "One file per decision means two changes never touch the same file. The other choice was to name each file by its pull request number. That needs a rename after the pull request opens. Carl's OK is needed because it changes how the whole team writes decisions. I could not push to the original pull request's branch, so this is a new draft pull request. Merge only one of them.",
+ "why": "Separate files never clash. I could also have named files by pull request number, but that needs a rename later. Carl's OK is needed because it changes how the team writes decisions.",
  "touches": "Anyone with an open change that adds a numbered decision must move it into its own file after this merges. Until then, their decision check fails. Nothing in the store answers changes.",
  "pictures": [
   {
