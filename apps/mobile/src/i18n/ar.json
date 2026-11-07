@@ -3963,7 +3963,8 @@
         "checking": "متصل",
         "offline": "غير متصل",
         "refused": "لا تتم المزامنة",
-        "tooOld": "حدّث للاستلام"
+        "tooOld": "حدّث للاستلام",
+        "signIn": "Sign-in not renewed"
       },
       "help": {
         "live": "تصل تغييرات فريقك فور حدوثها، وتُرسل تغييراتك فورًا.",
@@ -3972,7 +3973,8 @@
         "refused": "الخادم لا يقبل التغييرات من هذا الجهاز. عملك ما زال محفوظًا هنا.",
         "tooOld": "هذا التطبيق أقدم من أن يستلم تغييرات فريقك. حدّثه من المتجر.",
         "toReceive": "تسجيلات من الآخرين ما زال هذا الجهاز ينزّلها.",
-        "refusedLine": "تغييرات لم يقبلها الخادم، غالبًا لأن صلاحية تغيّرت. تبقى على هذا الجهاز؛ افتح التفاصيل لرؤية كل واحد منها."
+        "refusedLine": "تغييرات لم يقبلها الخادم، غالبًا لأن صلاحية تغيّرت. تبقى على هذا الجهاز؛ افتح التفاصيل لرؤية كل واحد منها.",
+        "signIn": "Your sign-in could not be renewed yet, so changes wait on this device and send once it works. Check your connection, or sign out and in again."
       },
       "toReceive": "للاستلام",
       "refusedLine": "مرفوضة",
@@ -5244,7 +5246,8 @@
       "refused": "سحابة حمراء عليها تحذير: رفض الخادم شيئًا. اضغط لترى ما هو، وما يجب فعله.",
       "tooOld": "سحابة كهرمانية بسهم لأسفل: هذا التطبيق أقدم من أن يستلم تغييرات فريقك. انقر لتحديثه.",
       "withWaiting": "{{standing}} الرقم هو عدد الأشياء التي تنتظر الإرسال.",
-      "withReceiving": "{{standing}} تدور الحلقة بينما تُنزَّل تسجيلات الآخرين إلى هذا الجهاز. لا شيء ينتظر الإرسال."
+      "withReceiving": "{{standing}} تدور الحلقة بينما تُنزَّل تسجيلات الآخرين إلى هذا الجهاز. لا شيء ينتظر الإرسال.",
+      "signIn": "Your sign-in could not be renewed yet, so changes wait on this device and send once it works. Check your connection, or sign out and in again."
     }
   },
   "offline": {

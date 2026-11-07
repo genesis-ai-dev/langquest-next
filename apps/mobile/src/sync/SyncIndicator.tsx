@@ -16,6 +16,7 @@ import { C, TINT, type as T } from '../ui/theme';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Text } from '../ui/text';
+import { useSignInBlocked } from './useSignInBlocked';
 import { useSyncStatus } from './useSyncStatus';
 import { syncStanding, standingIcon, standingTitle, type SyncStanding, previewCount, previewListeners, iconCounts } from './syncStanding';
 
@@ -29,11 +30,11 @@ const LAPS = [
   { color: C.dark, width: 3.5, opacity: 1 }
 ];
 
-const STANDING_COLOR: Record<SyncStanding, string> = { live: C.green, checking: C.faint, offline: C.amber, refused: C.red, tooOld: C.amber };
+const STANDING_COLOR: Record<SyncStanding, string> = { live: C.green, checking: C.faint, offline: C.amber, refused: C.red, tooOld: C.amber, signIn: C.amber };
 
 /** What the dot's colour means, as help mode says it. */
 function standingHelp(s: SyncStanding): string {
-  return s === 'live' ? t('help.sync.live') : s === 'offline' ? t('help.sync.offline')
+  return s === 'signIn' ? t('help.sync.signIn') : s === 'live' ? t('help.sync.live') : s === 'offline' ? t('help.sync.offline')
     : s === 'checking' ? t('help.sync.checking') : s === 'tooOld' ? t('help.sync.tooOld') : t('help.sync.refused');
 }
 
@@ -48,7 +49,7 @@ export function SyncIndicator(props: { language: Ctx['language']; org: Ctx['org'
   const ring = useRing(counts.inFlight);
   // The drawn counter falls toward the queue (syncRing.ts); while recordings come down it would count them, so it shows what is to send.
   const shownCount = receiving ? pending : ring.count;
-  const standing = syncStanding(project);
+  const standing = syncStanding(project, useSignInBlocked());
   const color = STANDING_COLOR[standing];
   const lap = LAPS[ring.lap]!;
   const label = pending ? `${standingTitle(standing)}, ${t('work.sync.toSend', { count: pending })}`

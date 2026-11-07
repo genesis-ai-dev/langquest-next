@@ -1,32 +1,23 @@
 {
-  "kind": "question",
-  "ask": "Keep the grey badge for counts that cannot load, or leave the badge as it was?",
-  "problem": "The Inbox badge is the usual corner indicator. When the web page loses its link to the server, it quietly shows nothing, so it can say nothing is waiting when that is untrue.",
-  "found": "You read it right: the badge is standard. The fault is the link. The page could not renew its sign-in, so count requests failed, and the badge hid it. A live feed would fail the same way. Code only; no live logs.",
-  "changed": "Only how the badge fails: a count that cannot refresh keeps its last number in grey, or shows a grey dot. It retries after 15 seconds. Nothing else changes.",
-  "why": "Renewal fails when the network drops or is busy, and the app already retries. There is no bigger fix to make here. An expired sign-in is LAN-243's. Pictures are drawings, not screenshots.",
-  "touches": "Screen readers keep the old label. The My Work bell changes the same way.",
+  "kind": "screen",
+  "ask": "Is this enough: grey badge plus a header note saying the sign-in was not renewed?",
+  "problem": "On the web app, when the page cannot renew its sign-in, the Inbox counts fail and the badge showed nothing. Nothing told people why.",
+  "found": "The app already shows an Offline icon in the My Work header. But it called a blocked sign-in 'offline' too, or said nothing. Code only; no live logs. An expired sign-in is LAN-243's.",
+  "changed": "The grey badge stays. The header icon now says 'Sign-in not renewed' when the server answers but will not renew. No network still says 'Offline'. Both retry by themselves.",
+  "why": "The icon already exists, so I made it more exact instead of adding a new banner. Pictures are drawings, not screenshots; I could not run the web app.",
+  "touches": "Other languages show the English words until translated. The icon shows on My Work and Sync; the Inbox tab has no note.",
   "pictures": [
     {
       "file": "before.png",
       "label": "Before"
     },
     {
-      "file": "after-number.png",
-      "label": "After: grey number"
-    }
-  ],
-  "options": [
-    {
-      "label": "Keep the grey badge",
-      "result": "A badge that cannot refresh turns grey, and retries soon. Honest, small change.",
-      "picture": "after-number.png"
+      "file": "after-signin.png",
+      "label": "After: sign-in not renewed"
     },
     {
-      "label": "Leave the badge as it was",
-      "result": "No change. The badge may show nothing while the link is down. I close the pull request.",
-      "picture": "before.png"
+      "file": "after-offline.png",
+      "label": "After: no connection"
     }
-  ],
-  "recommended": 0
+  ]
 }
