@@ -3534,7 +3534,7 @@
         "tooOld": "Programu hii ni ya zamani mno kupokea mabadiliko ya timu yako. Isasishe kutoka dukani.",
         "toReceive": "Rekodi za wengine ambazo kifaa hiki bado kinapakua.",
         "refusedLine": "Mabadiliko ambayo seva haikukubali, kwa kawaida kwa sababu ruhusa imebadilika. Yanabaki kwenye kifaa hiki; fungua Maelezo kuona kila moja.",
-        "signIn": "Your sign-in could not be renewed yet, so changes wait on this device and send once it works. Check your connection, or sign out and in again."
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "Za kupokea",
       "refusedLine": "Yamekataliwa",
@@ -4654,8 +4654,7 @@
       "refused": "Wingu jekundu lenye onyo: seva ilikataa kitu. Gusa uone ni nini, na la kufanya.",
       "tooOld": "Wingu la njano lenye mshale wa chini: programu hii ni ya zamani mno kupokea mabadiliko ya timu yako. Gusa ili kuisasisha.",
       "withWaiting": "{{standing}} Namba ni idadi ya vitu vinavyosubiri kutumwa.",
-      "withReceiving": "{{standing}} Pete inazunguka wakati rekodi za wengine zinapakuliwa kwenye kifaa hiki. Hakuna kinachosubiri kutumwa.",
-      "signIn": "Your sign-in could not be renewed yet, so changes wait on this device and send once it works. Check your connection, or sign out and in again."
+      "withReceiving": "{{standing}} Pete inazunguka wakati rekodi za wengine zinapakuliwa kwenye kifaa hiki. Hakuna kinachosubiri kutumwa."
     }
   },
   "offline": {

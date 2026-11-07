@@ -34,7 +34,7 @@ const STANDING_COLOR: Record<SyncStanding, string> = { live: C.green, checking: 
 
 /** What the dot's colour means, as help mode says it. */
 function standingHelp(s: SyncStanding): string {
-  return s === 'signIn' ? t('help.sync.signIn') : s === 'live' ? t('help.sync.live') : s === 'offline' ? t('help.sync.offline')
+  return s === 'signIn' ? t('account.sync.help.signIn') : s === 'live' ? t('help.sync.live') : s === 'offline' ? t('help.sync.offline')
     : s === 'checking' ? t('help.sync.checking') : s === 'tooOld' ? t('help.sync.tooOld') : t('help.sync.refused');
 }
 

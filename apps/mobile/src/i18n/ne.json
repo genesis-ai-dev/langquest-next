@@ -3534,7 +3534,7 @@
         "tooOld": "यो एप तपाईंको टोलीका परिवर्तनहरू पाउन धेरै पुरानो छ। स्टोरबाट अपडेट गर्नुहोस्।",
         "toReceive": "अरूका रेकर्डिङ जुन यो उपकरणले अझै डाउनलोड गर्दैछ।",
         "refusedLine": "सर्भरले स्वीकार नगरेका परिवर्तन, प्रायः कुनै अनुमति बदलिएकाले। यी यो उपकरणमै रहन्छन्; प्रत्येक हेर्न विवरण खोल्नुहोस्।",
-        "signIn": "Your sign-in could not be renewed yet, so changes wait on this device and send once it works. Check your connection, or sign out and in again."
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "पाउन बाँकी",
       "refusedLine": "अस्वीकृत",
@@ -4654,8 +4654,7 @@
       "refused": "चेतावनी भएको रातो बादल: सर्भरले केही अस्वीकार गर्‍यो। के, र के गर्ने हेर्न थिच्नुहोस्।",
       "tooOld": "तल तीर भएको सुन्तला बादल: यो एप तपाईंको टोलीका परिवर्तनहरू पाउन धेरै पुरानो छ। अपडेट गर्न ट्याप गर्नुहोस्।",
       "withWaiting": "{{standing}} सङ्ख्याले कतिवटा कुरा पठाउन पर्खिरहेका छन् देखाउँछ।",
-      "withReceiving": "{{standing}} अरूका रेकर्डिङ यो उपकरणमा डाउनलोड हुँदा घेरा घुम्छ। पठाउन बाँकी केही छैन।",
-      "signIn": "Your sign-in could not be renewed yet, so changes wait on this device and send once it works. Check your connection, or sign out and in again."
+      "withReceiving": "{{standing}} अरूका रेकर्डिङ यो उपकरणमा डाउनलोड हुँदा घेरा घुम्छ। पठाउन बाँकी केही छैन।"
     }
   },
   "offline": {

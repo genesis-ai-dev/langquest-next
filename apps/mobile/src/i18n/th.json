@@ -3424,7 +3424,7 @@
         "tooOld": "แอปนี้เก่าเกินกว่าจะรับการเปลี่ยนแปลงจากทีมของคุณ อัปเดตจากสโตร์",
         "toReceive": "การบันทึกของคนอื่นที่อุปกรณ์นี้ยังดาวน์โหลดอยู่",
         "refusedLine": "การเปลี่ยนแปลงที่เซิร์ฟเวอร์ไม่รับ ส่วนใหญ่เพราะสิทธิ์เปลี่ยนไป ยังอยู่ในอุปกรณ์นี้ เปิดรายละเอียดเพื่อดูแต่ละรายการ",
-        "signIn": "Your sign-in could not be renewed yet, so changes wait on this device and send once it works. Check your connection, or sign out and in again."
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "รอรับ",
       "refusedLine": "ถูกปฏิเสธ",
@@ -4506,8 +4506,7 @@
       "refused": "เมฆสีแดงมีเครื่องหมายเตือน: เซิร์ฟเวอร์ปฏิเสธบางอย่าง แตะเพื่อดูว่าอะไร และต้องทำอย่างไร",
       "tooOld": "เมฆสีเหลืองอำพันมีลูกศรชี้ลง: แอปนี้เก่าเกินกว่าจะรับการเปลี่ยนแปลงจากทีมของคุณ แตะเพื่ออัปเดต",
       "withWaiting": "{{standing}} ตัวเลขคือจำนวนรายการที่รอส่ง",
-      "withReceiving": "{{standing}} วงแหวนหมุนขณะที่ไฟล์บันทึกเสียงของผู้อื่นกำลังดาวน์โหลดมายังอุปกรณ์นี้ ไม่มีอะไรรอส่ง",
-      "signIn": "Your sign-in could not be renewed yet, so changes wait on this device and send once it works. Check your connection, or sign out and in again."
+      "withReceiving": "{{standing}} วงแหวนหมุนขณะที่ไฟล์บันทึกเสียงของผู้อื่นกำลังดาวน์โหลดมายังอุปกรณ์นี้ ไม่มีอะไรรอส่ง"
     }
   },
   "offline": {

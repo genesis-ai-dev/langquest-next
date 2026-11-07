@@ -3534,7 +3534,7 @@
         "tooOld": "Masyadong luma ang app na ito para matanggap ang mga pagbabago ng iyong pangkat. I-update ito mula sa store.",
         "toReceive": "Mga rekording mula sa iba na dina-download pa ng device na ito.",
         "refusedLine": "Mga pagbabagong hindi tinanggap ng server, kadalasan dahil nagbago ang isang pahintulot. Nananatili ang mga ito sa device na ito; buksan ang Mga Detalye para makita ang bawat isa.",
-        "signIn": "Your sign-in could not be renewed yet, so changes wait on this device and send once it works. Check your connection, or sign out and in again."
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "Tatanggapin",
       "refusedLine": "Tinanggihan",
@@ -4654,8 +4654,7 @@
       "refused": "Pulang ulap na may babala: may tinanggihan ang server. I-tap para makita kung ano, at kung ano ang gagawin.",
       "tooOld": "Kulay-amber na ulap na may palasong pababa: masyadong luma ang app na ito para matanggap ang mga pagbabago ng iyong pangkat. I-tap para i-update ito.",
       "withWaiting": "{{standing}} Ang numero ay kung ilang bagay ang naghihintay na maipadala.",
-      "withReceiving": "{{standing}} Umiikot ang singsing habang dina-download sa device na ito ang mga rekording mula sa iba. Walang naghihintay na maipadala.",
-      "signIn": "Your sign-in could not be renewed yet, so changes wait on this device and send once it works. Check your connection, or sign out and in again."
+      "withReceiving": "{{standing}} Umiikot ang singsing habang dina-download sa device na ito ang mga rekording mula sa iba. Walang naghihintay na maipadala."
     }
   },
   "offline": {

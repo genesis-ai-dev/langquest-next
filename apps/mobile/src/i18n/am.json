@@ -3534,7 +3534,7 @@
         "tooOld": "ይህ መተግበሪያ የቡድንዎን ለውጦች ለመቀበል በጣም አሮጌ ነው። ከመደብሩ ያዘምኑት።",
         "toReceive": "ይህ መሣሪያ አሁንም እያወረዳቸው ያሉ የሌሎች ቅጂዎች።",
         "refusedLine": "አገልጋዩ ያልተቀበላቸው ለውጦች፣ ብዙውን ጊዜ ፈቃድ ስለተቀየረ። በዚህ መሣሪያ ላይ ይቆያሉ፤ እያንዳንዱን ለማየት ዝርዝሮችን ይክፈቱ።",
-        "signIn": "Your sign-in could not be renewed yet, so changes wait on this device and send once it works. Check your connection, or sign out and in again."
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "የሚቀበሉ",
       "refusedLine": "ውድቅ የተደረጉ",
@@ -4654,8 +4654,7 @@
       "refused": "ማስጠንቀቂያ ያለው ቀይ ደመና፦ አገልጋዩ አንድ ነገር አልተቀበለም። ምን እንደሆነና ምን እንደሚደረግ ለማየት ይንኩ።",
       "tooOld": "ወደ ታች ቀስት ያለው ብርቱካናማ ደመና፦ ይህ መተግበሪያ የቡድንዎን ለውጦች ለመቀበል በጣም አሮጌ ነው። ለማዘመን ይንኩ።",
       "withWaiting": "{{standing}} ቁጥሩ ለመላክ የሚጠብቁ ነገሮችን ብዛት ያሳያል።",
-      "withReceiving": "{{standing}} የሌሎች ቅጂዎች ወደዚህ መሣሪያ እየወረዱ ሳለ ቀለበቱ ይዞራል። የሚላክ ምንም የለም።",
-      "signIn": "Your sign-in could not be renewed yet, so changes wait on this device and send once it works. Check your connection, or sign out and in again."
+      "withReceiving": "{{standing}} የሌሎች ቅጂዎች ወደዚህ መሣሪያ እየወረዱ ሳለ ቀለበቱ ይዞራል። የሚላክ ምንም የለም።"
     }
   },
   "offline": {

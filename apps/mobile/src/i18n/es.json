@@ -3644,7 +3644,7 @@
         "tooOld": "Esta app es demasiado antigua para recibir los cambios de tu equipo. Actualízala desde la tienda.",
         "toReceive": "Grabaciones de otras personas que este dispositivo todavía está descargando.",
         "refusedLine": "Cambios que el servidor no aceptó, normalmente porque cambió un permiso. Se quedan en este dispositivo; abra Detalles para ver cada uno.",
-        "signIn": "Your sign-in could not be renewed yet, so changes wait on this device and send once it works. Check your connection, or sign out and in again."
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "Por recibir",
       "refusedLine": "Rechazados",
@@ -4802,8 +4802,7 @@
       "refused": "Nube roja con una advertencia: el servidor rechazó algo. Toca para ver qué y qué hacer.",
       "tooOld": "Nube ámbar con una flecha hacia abajo: esta app es demasiado antigua para recibir los cambios de tu equipo. Toca para actualizarla.",
       "withWaiting": "{{standing}} El número indica cuántas cosas esperan para enviarse.",
-      "withReceiving": "{{standing}} El anillo gira mientras las grabaciones de otros se descargan en este dispositivo. No hay nada por enviar.",
-      "signIn": "Your sign-in could not be renewed yet, so changes wait on this device and send once it works. Check your connection, or sign out and in again."
+      "withReceiving": "{{standing}} El anillo gira mientras las grabaciones de otros se descargan en este dispositivo. No hay nada por enviar."
     }
   },
   "offline": {

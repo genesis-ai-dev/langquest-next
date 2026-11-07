@@ -3534,7 +3534,7 @@
         "tooOld": "This app is too old to receive your team’s changes. Update it from the store.",
         "toReceive": "Recordings from others that this device is still downloading.",
         "refusedLine": "Changes the server would not accept, usually because a permission changed. They stay on this device; open Details to see each one.",
-        "signIn": "Your sign-in could not be renewed yet, so changes wait on this device and send once it works. Check your connection, or sign out and in again."
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "To receive",
       "refusedLine": "Refused",
@@ -4654,8 +4654,7 @@
       "refused": "Red cloud with a warning: the server refused something. Tap to see what, and what to do.",
       "tooOld": "Amber cloud with a down arrow: this app is too old to receive your team’s changes. Tap to update it.",
       "withWaiting": "{{standing}} The number is how many things wait to send.",
-      "withReceiving": "{{standing}} The ring turns while recordings from others download to this device. Nothing waits to send.",
-      "signIn": "Your sign-in could not be renewed yet, so changes wait on this device and send once it works. Check your connection, or sign out and in again."
+      "withReceiving": "{{standing}} The ring turns while recordings from others download to this device. Nothing waits to send."
     }
   },
   "offline": {

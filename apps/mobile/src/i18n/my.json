@@ -3424,7 +3424,7 @@
         "tooOld": "ဤအက်ပ်သည် သင့်အဖွဲ့၏ ပြောင်းလဲမှုများကို လက်ခံရန် အလွန်ဟောင်းနေပါပြီ။ စတိုးမှ အပ်ဒိတ်လုပ်ပါ။",
         "toReceive": "ဤစက်က ဒေါင်းလုဒ်ဆွဲနေဆဲဖြစ်သော အခြားသူများ၏ အသံဖမ်းချက်များ။",
         "refusedLine": "ဆာဗာက လက်မခံသော ပြောင်းလဲမှုများ၊ များသောအားဖြင့် ခွင့်ပြုချက်ပြောင်းသွား၍ဖြစ်သည်။ ဤစက်ပေါ်တွင်ရှိနေမည်၊ တစ်ခုချင်းကြည့်ရန် အသေးစိတ်ကိုဖွင့်ပါ။",
-        "signIn": "Your sign-in could not be renewed yet, so changes wait on this device and send once it works. Check your connection, or sign out and in again."
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "လက်ခံရန်",
       "refusedLine": "ငြင်းပယ်ခံရ",
@@ -4506,8 +4506,7 @@
       "refused": "သတိပေးချက်ပါသော တိမ်နီ- ဆာဗာက တစ်ခုခုကို ငြင်းပယ်ခဲ့သည်။ ဘာလဲ၊ ဘာလုပ်ရမလဲ ကြည့်ရန် နှိပ်ပါ။",
       "tooOld": "အောက်မြှားပါ လိမ္မော်ရောင်တိမ်- ဤအက်ပ်သည် သင့်အဖွဲ့၏ ပြောင်းလဲမှုများကို လက်ခံရန် အလွန်ဟောင်းနေပါပြီ။ အပ်ဒိတ်လုပ်ရန် တို့ပါ။",
       "withWaiting": "{{standing}} နံပါတ်သည် ပို့ရန် စောင့်နေသည့်အရာ အရေအတွက် ဖြစ်သည်။",
-      "withReceiving": "{{standing}} အခြားသူများ၏ အသံဖိုင်များ ဤစက်သို့ ဒေါင်းလုဒ်ဆွဲနေစဉ် ကွင်းလှည့်နေသည်။ ပို့ရန် စောင့်နေသည့်အရာ မရှိပါ။",
-      "signIn": "Your sign-in could not be renewed yet, so changes wait on this device and send once it works. Check your connection, or sign out and in again."
+      "withReceiving": "{{standing}} အခြားသူများ၏ အသံဖိုင်များ ဤစက်သို့ ဒေါင်းလုဒ်ဆွဲနေစဉ် ကွင်းလှည့်နေသည်။ ပို့ရန် စောင့်နေသည့်အရာ မရှိပါ။"
     }
   },
   "offline": {
