@@ -27,7 +27,7 @@ const plain = (text: string) => new Response(text, {
  * log names the error's class only.
  */
 export async function toOps(request: Request, ops: Fetcher | undefined): Promise<Response> {
-  if (!ops) return plain('The ops dashboard is not set up here: it runs on next.langquest.org. Locally, start it with `npm run admin:dev` beside this Worker.');
+  if (!ops) return plain('The ops dashboard is not set up here: it runs on app.langquest.org. Locally, start it with `npm run admin:dev` beside this Worker.');
   try {
     return await ops.fetch(request);
   } catch (e) {

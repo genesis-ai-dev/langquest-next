@@ -6,7 +6,9 @@ import { Platform } from 'react-native';
  * makes (invites, sign-in keys) use it, so they open in the app or the web
  * app. The web app is that address, so it needs no setting; a phone build
  * without one keeps the `langquestnext://` links. Changing the domain is
- * this setting plus the steps in decisions.md 58.
+ * this setting plus the steps in decisions.md 58. It stays on next. after the
+ * web app moved to app.langquest.org, until older phones can read app. links
+ * (decisions.md 205).
  */
 export const APP_URL: string | null = process.env.EXPO_PUBLIC_APP_URL?.replace(/\/$/, '')
   ?? (Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : null);

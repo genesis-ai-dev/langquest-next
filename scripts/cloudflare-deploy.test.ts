@@ -100,6 +100,25 @@ describe('cloudflare deploy', () => {
     expect(classes).toContain('JobRunner');
   });
 
+  it('serves people at app. and keeps next. as the alias that machines still name (decision 205)', () => {
+    // Why: the first route is API_URL, the webhook poke and the YouTube callback, which do not move with people;
+    // and a phone that does not declare a host the Worker serves opens its links in the browser.
+    const config = parseJsonc(read('apps/web/wrangler.jsonc'));
+    const hosts = wranglerFor(config, 'production').routes.map((r: { pattern: string }) => r.pattern);
+    expect(hosts).toEqual(['next.langquest.org', 'app.langquest.org']);
+    const links = JSON.parse(read('apps/mobile/appLinks.json')) as { hosts: string[] };
+    const app = (JSON.parse(read('apps/mobile/app.json')) as { expo: { ios: { associatedDomains: string[] }; android: { intentFilters: { data: { host: string }[] }[] } } }).expo;
+    for (const host of [...hosts, wranglerFor(config, 'preview').routes[0].pattern]) {
+      expect(links.hosts, host).toContain(host);
+      expect(app.ios.associatedDomains, host).toContain(`applinks:${host}`);
+      expect(app.android.intentFilters[0]!.data.map((d) => d.host), host).toContain(host);
+    }
+    // Auth's own emails go to people's address, and either host may be sent back to.
+    const auth = /^\[remotes\.production\.auth\]\s*$([\s\S]*?)(?=^\[|(?![\s\S]))/m.exec(read('supabase/config.toml'))?.[1] ?? '';
+    expect(auth).toContain('site_url = "https://app.langquest.org"');
+    for (const host of hosts) expect(auth).toContain(`"https://${host}/**"`);
+  });
+
   it('names the app\'s Worker for the app, not the dashboard it once was (decision 144)', () => {
     // Why: the Worker serves the web app, /api and the job runner; its name,
     // and its container application's after it, are what the console shows.

@@ -199,7 +199,7 @@ functions, the role boundaries, retention and job runs (`npm run db:test`).
 
 ## Reading it
 
-Staff can see it all in one page at `https://next.langquest.org/ops-dashboard`
+Staff can see it all in one page at `https://app.langquest.org/ops-dashboard`
 (`docs/admin.md`): the server's jobs, every install together, the
 database's RPC timings, the v2 import, and a box for an error code, an
 install id or a name. It reads as `diag_reader`, like the commands below.
