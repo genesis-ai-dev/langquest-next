@@ -191,8 +191,9 @@ Target (decisions.md 205, LAN-219):
 | `app.langquest.org` | the web app, the Worker `langquest-next` | `routes` in `apps/web/wrangler.jsonc` |
 | `next.langquest.org` | the same Worker, an alias for now | the same `routes` |
 | `next-preview.langquest.org` | the preview Worker; the name stays | `env.preview.routes` |
-| `legacy.langquest.org` | the legacy web app, Vercel project `langquest` | Vercel |
-| `langquest.org` | the landing page, Vercel project `langquest-website` | Vercel |
+| `langquest.org` | the new landing page, and the old website's other paths, Vercel project `langquest-website` | Vercel |
+| `legacy.langquest.org` | the old website with its old home page, the same Vercel project | Vercel |
+| `legacy-app.langquest.org` | the legacy web app, Vercel project `langquest` | Vercel |
 
 The order matters, because **merging is the switch**: the first production
 deploy after the merge attaches `app.langquest.org`, and a deploy that is not
@@ -213,12 +214,13 @@ as it is, and the website keeps the pages they land on.
 
 Before the merge:
 
-1. In Vercel, add `legacy.langquest.org` to the project `langquest`. It needs
-   no Cloudflare change: the wildcard already sends it to Vercel.
-2. Open `https://legacy.langquest.org`, sign in by email, and use Forgot
-   password. In the legacy project's Supabase, add
-   `https://legacy.langquest.org/**` to the redirect allow-list only if this
-   check shows a redirect refused. Leave its site URL.
+1. In Vercel, add `legacy-app.langquest.org` to the project `langquest`, and
+   `legacy.langquest.org` to the project `langquest-website`. They need no
+   Cloudflare change: the wildcard already sends them to Vercel.
+2. Open `https://legacy-app.langquest.org`, sign in by email, and use Forgot
+   password. Open `https://legacy.langquest.org` and log in to its portal. In
+   the legacy project's Supabase, add either host to the redirect allow-list
+   only if this check shows a redirect refused. Leave its site URL.
 3. In Cloudflare, add a CNAME `preview.app` to `cname.vercel-dns-016.com`,
    DNS only, and check that `https://preview.app.langquest.org` still answers.
 
@@ -241,12 +243,13 @@ The merge:
 
 The website (`langquest-website`), any time after step 5:
 
-8. Put the Next landing page at `langquest.org` (LAN-153, draft pull request
-   164 in that repository), with its way in pointing at
-   `https://app.langquest.org`. Keep these paths, which legacy phones and
-   emails open: `/reset-password`, `/registration-confirmation`,
-   `/notifications`, `/privacy`, `/terms`, `/account-deletion`, `/api/export`
-   and `/.well-known/*`.
+8. Put the new landing page at `langquest.org` (LAN-153), with Log in pointing
+   at `https://app.langquest.org/signin`. Only the home page changes: at
+   `legacy.langquest.org` the same project still shows the old one. Keep these
+   paths on `langquest.org`, which legacy phones and emails open:
+   `/reset-password`, `/registration-confirmation`, `/notifications`,
+   `/privacy`, `/terms`, `/account-deletion`, `/api/export` and
+   `/.well-known/*`. Link the old website to `legacy-app.langquest.org`.
 9. On `/en/next/privacy` and `/en/next/delete-account`, add a line at the top
    that links to the legacy page. The paths stay, so Play Console needs no
    change.

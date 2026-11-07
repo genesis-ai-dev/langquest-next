@@ -10862,9 +10862,10 @@ at early October's three a week, five or six, each a copy per language.
 Date: 2026-11-06 · By: Caleb Koster · Status: accepted
 
 Reason: Caleb agreed the hostnames on 2026-11-02 and 2026-11-03 (LAN-219):
-`app.langquest.org` is the Next web app, the legacy web app moves to
-`legacy.langquest.org`, `langquest.org` is the landing page, and
-`next.langquest.org` keeps working so nothing that names it breaks. Ending a
+`app.langquest.org` is the Next web app, `langquest.org` is the landing page,
+and `next.langquest.org` keeps working so nothing that names it breaks. On
+2026-11-06 Caleb chose that the old website goes to `legacy.langquest.org`, so
+the legacy web app goes to `legacy-app.langquest.org`. Ending a
 legacy web session is accepted; everything else moves gracefully.
 `docs/cloudflare.md` has the steps, in order.
 
@@ -10894,7 +10895,9 @@ Merging is the switch: a deploy attaches the route and takes the name in DNS
 without asking. So the legacy app moves first, and `preview.app` gets its own
 record first, because a record for `app` ends the wildcard that serves it. The
 legacy app's Supabase site URL stays `langquest.org`: its phones and emails use
-the website, not `app.`, though LAN-219 had planned to change it.
+the website, not `app.`, though LAN-219 had planned to change it. One website
+project answers at both `langquest.org` and `legacy.langquest.org`, so that the
+paths its phones and emails open stay where they are; only the home page differs.
 
 Alternatives: a redirect from `next.` to `app.` now, which drops a bearer token's
 POST and strands work a browser has not uploaded (58); moving links in the same
