@@ -1,0 +1,15 @@
+{
+ "kind": "question",
+ "ask": "Is it right to park this and leave the draft pull request open and unmerged?",
+ "problem": "Passage titles and other peripheral text show only in the template's language. Book names already follow the team's source languages.",
+ "found": "Your note: teams can already show Bible books in their source language. No user has asked to translate book names into the target language yet.",
+ "changed": "Nothing in the app. I dropped the old option pictures and my recommendation, and parked the work.",
+ "why": "You asked to wait for an explicit user request. I built nothing, so there is no risk to keep the draft open until then.",
+ "touches": "Nothing else. The issue stays In Progress until you change it.",
+ "pictures": [{"file": "parked.png", "label": "What is done and what is parked"}],
+ "options": [
+  {"label": "Yes, park it", "result": "The draft stays open and unmerged. I do nothing more until you send a user request.", "picture": "parked.png"},
+  {"label": "No, show me options again", "result": "I bring back the three ways to translate titles, with pictures.", "picture": "parked.png"}
+ ],
+ "recommended": 0
+}
