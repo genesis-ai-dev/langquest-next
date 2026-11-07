@@ -8399,13 +8399,13 @@
       "emptyVerses": "Some verses have no text. Count: {{count}}.",
       "duplicateBook": "This is {{book}} again. The file {{other}} already has it. Leave one out."
     },
-    "help": {
-      "publish": "Publish these books as one Bible in your organization's library.",
-      "choose": "Choose USFM files, or one zip of them, from this computer.",
-      "name": "The name people see for this Bible.",
-      "abbreviation": "A short name for this Bible, shown on its chip beside a passage.",
-      "copyright": "Who holds the rights to this text. It shows with the text.",
-      "file": "Tap to take this file out of the upload."
-    }
+    "chooseHelp": "Pick USFM files (.usfm or .sfm) or a zip of them from this computer.",
+    "publishHelp": "Adds this Bible to your organization's Reference Material.",
+    "nameHelp": "The name people will see for this Bible.",
+    "abbreviationHelp": "A short name, such as GB. It shows next to the Bible's text.",
+    "copyrightHelp": "Who owns the rights to this text. It is shown with the Bible.",
+    "fileHelp": "One file. Tap to take it out of the list.",
+    "rightsHelp": "Check this box only if your team may share this text.",
+    "shareHelp": "Turn this on to let other organizations follow this Bible."
   }
 }
