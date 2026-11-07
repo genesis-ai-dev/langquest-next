@@ -1,0 +1,11 @@
+{
+  "kind": "structure",
+  "ask": "Is it right to leave release-branch runs out of the flaky-test count?",
+  "problem": "A web test, PASS-004, looked flaky: it failed in 2 of 27 runs, so the nightly check filed an issue.",
+  "found": "Both failures were on iPhone release-branch catch-up runs. Those hold older code from 28 October, before main fixed this exact early-read bug on 29 October. Main has no failures.",
+  "changed": "Nothing changes for people. The nightly flaky-test count now skips release-branch runs. I removed the quarantine I added earlier. The test keeps blocking.",
+  "why": "I ran the test 10 times here under heavy load and on forced server passes. All passed. Quarantining would have hidden a test that works.",
+  "touches": "Only the nightly flaky-test report and its test. The release branch gets the test fix when it next catches up with main.",
+  "pictures": [{"file": "cause.png", "label": "How the old bug reached the count"}, {"file": "fix.png", "label": "Before and after the count"}],
+  "guess": {"answer": "looks_good"}
+}

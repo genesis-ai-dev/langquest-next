@@ -24,7 +24,10 @@
 // next push is counted as a failure: that is why the threshold is not 100%
 // and why a test must be seen in several runs (--min). A report in which more
 // than MANY tests failed is one cause (the stack down), not many flakes, and
-// is left out (scripts/nightly-report.mjs does the same).
+// is left out (scripts/nightly-report.mjs does the same). Runs on a release
+// branch or a catch-up copy onto one (`release/*`, `copy/*`) are not counted:
+// they run the older app and tests the public build was cut from, so a race
+// that main fixed since still fails there, and filing it again is noise (LAN-242).
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -40,6 +43,9 @@ const EVENTS = ['pull_request', 'merge_group', 'push'];
 
 // --- Reading the runs ---------------------------------------------------------
 
+/** Is this run of main's code and tests, not of a release branch's older copy? */
+export const isMainLine = (run) => !/^(release|copy)\//.test(run.head_branch ?? '');
+
 /** The last `count` completed runs worth counting, newest first. `get(path)` is a GitHub REST GET returning JSON. */
 export async function recentRuns(get, repo, count, maxPages = 5) {
   const runs = [];
@@ -47,7 +53,7 @@ export async function recentRuns(get, repo, count, maxPages = 5) {
     const { workflow_runs: batch } = await get(`/repos/${repo}/actions/workflows/${WORKFLOW}/runs?status=completed&per_page=100&page=${page}`);
     if (!batch.length) break;
     for (const run of batch) {
-      if (EVENTS.includes(run.event) && ['success', 'failure'].includes(run.conclusion)) runs.push(run);
+      if (EVENTS.includes(run.event) && ['success', 'failure'].includes(run.conclusion) && isMainLine(run)) runs.push(run);
     }
   }
   return runs.slice(0, count);
