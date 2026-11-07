@@ -1,6 +1,6 @@
 {
  "kind": "needs_you",
- "ask": "Can you cancel LAN-190 in Linear yourself?",
+ "ask": "Can you set LAN-190 to Canceled? Open https://linear.app/frontierrandd/issue/LAN-190",
  "problem": "You decided to drop the length flag, because users can make this from the data feed.",
  "found": "The board cannot cancel issues for me, and I have no Linear access. I asked the board to add a comment explaining why. The pull request is closed.",
  "changed": "Nothing people see. The pull request is closed: https://github.com/genesis-ai-dev/langquest-next/pull/362",
@@ -12,13 +12,11 @@
    "label": "What is done and what needs you"
   }
  ],
- "steps": [
-  {
-   "text": "Set LAN-190 to Canceled",
-   "link": "https://linear.app/frontierrandd/issue/LAN-190"
-  }
- ],
  "links": [
+  {
+   "label": "LAN-190 in Linear",
+   "url": "https://linear.app/frontierrandd/issue/LAN-190"
+  },
   {
    "label": "Closed pull request",
    "url": "https://github.com/genesis-ai-dev/langquest-next/pull/362"
