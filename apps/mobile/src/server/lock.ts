@@ -27,7 +27,9 @@ import { SESSION_KEY, supabase } from './supabase';
  * A person's nearby discovery keys (nearbySecrets.ts) are sealed with their
  * session and come back with it, since only their own Share nearby uses them;
  * the install key and the certificates are not (docs/nearby-sync-plan.md 5.5,
- * Carl's answer 5, decisions.md 168 as amended).
+ * Carl's answer 5, decisions.md 168 as amended). They are written only by
+ * `keepFindKeys`, while their person is the one signed in; at a sign-out the
+ * server forces, src/nearby/nearbySignOut.ts drops them.
  */
 export const LOCKS_ON_SIGN_OUT = Platform.OS !== 'web';
 

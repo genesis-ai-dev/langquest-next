@@ -63,7 +63,8 @@ async function load() {
   const key = await import('../src/server/nearbyKey.android');
   const hold = await import('../src/nearby/holdChoice');
   const lock = await import('../src/server/lock');
-  return { identity, flag, phone, key, hold, lock };
+  const signOut = await import('../src/nearby/nearbySignOut');
+  return { identity, flag, phone, key, hold, lock, signOut };
 }
 
 const org = (languages: string[], roleId = 'tr') => ({
@@ -256,6 +257,31 @@ describe('the nearby identity', () => {
     await input(p);
     expect(fake.calls).toHaveLength(2);
     expect(Object.keys(findKeys())).toEqual(['o1/L1']);
+  });
+
+  it('a sign-out the server forced leaves no discovery key in the clear, and no nearbyPeers (5.12 "The store")', async () => {
+    const p = await load();
+    p.flag.heardUserState(ME, { orgFeatures: { o1: ['nearby'] } });
+    await input(p);
+    expect(Object.keys(findKeys())).toEqual(['o1/L1']);
+    fake.secure.set('nearbyFindKeys:mary', 'mary\'s, untouched');
+    await store().setMeta('nearbyPeers:o1/L1', '[]');
+    await store().setMeta('nearbyPeers:o1/L2', '[]');
+    await store().setMeta('deviceId', 'd1');
+    // supabase-js deleted the session when renewing was refused, then said SIGNED_OUT; nobody chose it.
+    fake.secure.delete('sb-session');
+    await p.signOut.nearbyAfterAuthEvent('SIGNED_OUT', JSON.parse(session(ME)));
+    expect(fake.secure.has(`nearbyFindKeys:${ME}`)).toBe(false);
+    expect([...fake.secure.values()].join()).not.toContain(KEY_A);
+    expect(await store().meta('nearbyPeers:o1/L1')).toBeUndefined();
+    expect(await store().meta('nearbyPeers:o1/L2')).toBeUndefined();
+    expect(fake.secure.get('nearbyFindKeys:mary')).toBe('mary\'s, untouched');
+    expect(await store().meta('deviceId')).toBe('d1');
+    // Any other event, or a sign-out with nobody signed in before, touches nothing.
+    await store().setMeta('nearbyPeers:o1/L1', '[]');
+    await p.signOut.nearbyAfterAuthEvent('TOKEN_REFRESHED', JSON.parse(session(ME)));
+    await p.signOut.nearbyAfterAuthEvent('SIGNED_OUT', null);
+    expect(await store().meta('nearbyPeers:o1/L1')).toBe('[]');
   });
 
   it('keeps the hold choice: on by default, off under a disguise, as pressed once pressed', async () => {

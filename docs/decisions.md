@@ -8584,6 +8584,18 @@ only that person's Share nearby uses them. This goes to the security review
 and to Caleb, whose entry this is (`docs/nearby-sync-plan.md` 5.5 and
 section 13); Carl's answer stands unless the review finds a reason.
 
+Amended (2026-11-07, Carl Sauder): a sign-out the server forces (renewing
+refused, the session ended elsewhere) seals nothing, and sealing the
+discovery keys then would be pointless, because that person's lock key is
+still in the clear on that path. So at any sign-out the app drops the
+signed-out person's `nearbyFindKeys:<profileId>` and every `nearbyPeers` row
+(`apps/mobile/src/nearby/nearbySignOut.ts`, from App's auth listener); a
+chosen sign-out has sealed them first. Discovery keys are written only by
+`keepFindKeys` in `lock.ts`, in the queue sign-out uses, and only while the
+stored session is that person's, so a certificate answer that arrives after
+they signed out is dropped rather than left in the clear. Sign-out does not
+wait for that call, which may be waiting on the network.
+
 ## 169. An account writes at most 20,000 events or 100 MB dated any one day, a person's stream holds each event once, and a language's member reads only their languages' templates
 
 Date: 2026-10-26 · By: Carl Sauder · Status: accepted

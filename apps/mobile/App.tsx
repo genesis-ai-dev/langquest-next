@@ -58,6 +58,7 @@ import { onAuthChange, savedSignIn, serverConfigError } from './src/server/auth'
 import { onUnlocked, signedInHere } from './src/server/lock';
 import { afterAuthEvent, savedSession } from './src/session/authState';
 import { noteAuthEvent } from './src/diagnostics/authDiag';
+import { nearbyAfterAuthEvent } from './src/nearby/nearbySignOut';
 import { watchRenewals } from './src/server/renewalWatch';
 import { C, space } from './src/ui/theme';
 import { recordUserEvent } from './src/account/accountData';
@@ -348,6 +349,8 @@ export default function App() {
     savedSignIn().then((raw) => fromStorage(savedSession(raw)), () => fromStorage(null));
     const unsubscribe = onAuthChange((event, s) => {
       noteAuthEvent(event, authNow.current, s);
+      // At any sign-out, chosen or forced by the server, nearby leaves no discovery key in the clear and no nearbyPeers (5.12).
+      void nearbyAfterAuthEvent(event, authNow.current);
       setAuth((now) => afterAuthEvent(now, event, s));
       // In by a password, a code or an invite: an older lock of theirs here is not theirs to come back to (decisions.md 168).
       if (event === 'SIGNED_IN' && s) void signedInHere(s.user.id);
