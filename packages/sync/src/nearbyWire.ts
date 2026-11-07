@@ -30,7 +30,8 @@ export type Message =
   /** The Worker's list, sent only when the other's seq is lower. */
   | { t: 'revoked'; text: string; kid: string; sig: string }
   /** At most `NEARBY_HOLDINGS_MESSAGE_FILES` hashes a message; `sig` and `chain` on the last part. */
-  | { t: 'holdings'; key: string; counter: number; files: string[]; more: boolean; sig?: string; chain?: ChainLink[] }
+  /** `hold`, `sig` and `chain` on the last part: `hold` says whether the owner's "Hold teammates' recordings" row is on, and is signed. */
+  | { t: 'holdings'; key: string; counter: number; files: string[]; more: boolean; hold?: boolean; sig?: string; chain?: ChainLink[] }
   | { t: 'holdings-end' }
   | { t: 'batch'; manifest: string; sig: string; chain: ChainLink[]; events: AnyEvent[] }
   /** The Worker's attestation; `events` may be a subset of its rows. */
@@ -145,11 +146,13 @@ function read(t: string, o: Raw): Message | null | undefined {
       return typeof text === 'string' && isId(kid) && isSig(sig) ? { t, text, kid, sig } : null;
     }
     case 'holdings': {
-      const { key, counter, files, more, sig, chain } = o;
+      const { key, counter, files, more, hold, sig, chain } = o;
       if (!isKey(key) || !isCount(counter) || typeof more !== 'boolean') return null;
       if (!Array.isArray(files) || files.length > NEARBY_HOLDINGS_MESSAGE_FILES || !files.every((f) => isHash(f))) return null;
-      if (!optionalIs(sig, isSig) || !optionalIs(chain, isChain)) return null;
-      return { t, key, counter, files: files as string[], more, ...optional('sig', sig as string | undefined), ...optional('chain', chain as ChainLink[] | undefined) };
+      if (!optionalIs(hold, (h): h is boolean => typeof h === 'boolean') || !optionalIs(sig, isSig) || !optionalIs(chain, isChain)) return null;
+      return {
+        t, key, counter, files: files as string[], more, ...optional('hold', hold as boolean | undefined), ...optional('sig', sig as string | undefined), ...optional('chain', chain as ChainLink[] | undefined)
+      };
     }
     case 'batch': {
       const { manifest, sig, chain, events } = o;

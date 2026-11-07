@@ -10,7 +10,7 @@ const SIG = 'A'.repeat(86);
 const KEY = (c: string) => `${c.repeat(42)}A`;
 const FILE = (c: string) => c.repeat(64);
 const chainOf = (profileId: string) => [{ kind: 'worker@1', kid: 'k', body: { profileId }, sig: SIG }] as unknown as ChainLink[];
-const entry = (counter: number, files: string[], over: Partial<HoldingEntry> = {}): HoldingEntry => ({ counter, files, sig: SIG, chain: chainOf('p'), ...over });
+const entry = (counter: number, files: string[], over: Partial<HoldingEntry> = {}): HoldingEntry => ({ counter, files, hold: false, sig: SIG, chain: chainOf('p'), ...over });
 
 describe('mergeHoldings', () => {
   const me = KEY('m');
@@ -41,6 +41,12 @@ describe('mergeHoldings', () => {
     }
   });
 
+  it('a tie on files goes to the row off, so whoever merges whom agrees on whether the owner keeps them', () => {
+    const off = entry(2, [FILE('a')]);
+    const on = entry(2, [FILE('a')], { hold: true });
+    for (const [x, y] of [[off, on], [on, off]]) expect(mergeHoldings(new Map([[KEY('a'), x!]]), new Map([[KEY('a'), y!]]), me).get(KEY('a'))).toBe(off);
+  });
+
   it('a tie on files goes by signature and then chain, whoever merges whom', () => {
     const a = entry(2, [FILE('a')], { sig: `A${'A'.repeat(85)}` });
     const b = entry(2, [FILE('a')], { sig: `B${'A'.repeat(85)}` });
@@ -61,6 +67,7 @@ describe('mergeHoldings', () => {
     const anEntry = fc.record({
       counter: fc.integer({ min: 0, max: 3 }),
       files: fc.uniqueArray(fc.constantFrom(FILE('a'), FILE('b'), FILE('c')), { maxLength: 3 }).map((f) => f.sort()),
+      hold: fc.boolean(),
       sig: fc.constantFrom(SIG, `B${SIG.slice(1)}`),
       chain: fc.constantFrom('p1', 'p2').map(chainOf)
     });
@@ -80,17 +87,28 @@ describe('mergeHoldings', () => {
 });
 
 describe('withMyHolding', () => {
-  const me = (signed: Uint8Array[] = []) => ({
-    key: PUBLIC_KEY, orgId: 'org1', streamId: 'lang1', chain: chainOf('p'), sha256,
+  const me = (signed: Uint8Array[] = [], hold = false) => ({
+    key: PUBLIC_KEY, orgId: 'org1', streamId: 'lang1', chain: chainOf('p'), hold, sha256,
     sign: async (message: Uint8Array) => { signed.push(message); return SIG; }
   });
 
   it('starts at one, sorted and with no repeats, and signs the text the receiver will work out', async () => {
     const signed: Uint8Array[] = [];
     const out = await withMyHolding(new Map(), [FILE('b'), FILE('a'), FILE('b')], me(signed));
-    expect(out.get(PUBLIC_KEY)).toEqual({ counter: 1, files: [FILE('a'), FILE('b')], sig: SIG, chain: chainOf('p') });
+    expect(out.get(PUBLIC_KEY)).toEqual({ counter: 1, files: [FILE('a'), FILE('b')], hold: false, sig: SIG, chain: chainOf('p') });
     const filesHash = await holdingsFilesHash([FILE('a'), FILE('b')], sha256);
-    expect(signed).toEqual([nearbyBytes('holdings', holdingsText({ orgId: 'org1', streamId: 'lang1', key: PUBLIC_KEY, counter: 1, filesHash }))]);
+    expect(signed).toEqual([nearbyBytes('holdings', holdingsText({ orgId: 'org1', streamId: 'lang1', key: PUBLIC_KEY, counter: 1, filesHash, hold: false }))]);
+  });
+
+  it('signs whether the row is on, and bumps when only that changed', async () => {
+    const signed: Uint8Array[] = [];
+    const on = await withMyHolding(new Map(), [FILE('a')], me(signed, true));
+    expect(on.get(PUBLIC_KEY)?.hold).toBe(true);
+    const filesHash = await holdingsFilesHash([FILE('a')], sha256);
+    expect(signed).toEqual([nearbyBytes('holdings', holdingsText({ orgId: 'org1', streamId: 'lang1', key: PUBLIC_KEY, counter: 1, filesHash, hold: true }))]);
+    expect(await withMyHolding(on, [FILE('a')], me([], true))).toBe(on);
+    const off = await withMyHolding(on, [FILE('a')], me());
+    expect(off.get(PUBLIC_KEY)).toMatchObject({ counter: 2, files: [FILE('a')], hold: false });
   });
 
   it('bumps only when the set changed, whatever order it comes in', async () => {
@@ -150,7 +168,7 @@ describe('copiesOf', () => {
 });
 
 describe('parseHoldings', () => {
-  const good = { counter: 1, files: [FILE('a'), FILE('b')], sig: SIG, chain: chainOf('p') };
+  const good = { counter: 1, files: [FILE('a'), FILE('b')], hold: true, sig: SIG, chain: chainOf('p') };
 
   it('reads a row into a Map', () => {
     expect(parseHoldings({})).toEqual(new Map());
@@ -169,7 +187,7 @@ describe('parseHoldings', () => {
     expect(parseHoldings({ short: good })).toBeNull();
     for (const value of [null, 5, [], {}, { ...good, counter: -1 }, { ...good, counter: 1.5 }, { ...good, counter: 2 ** 53 }, { ...good, counter: '1' }, { ...good, files: 'x' },
       { ...good, files: ['nope'] }, { ...good, files: [FILE('b'), FILE('a')] }, { ...good, files: [FILE('a'), FILE('a')] }, { ...good, sig: 'short' }, { ...good, chain: 'x' }, { ...good, chain: [5] },
-      { ...good, chain: [[]] }, { ...good, chain: [null] }, { ...good, chain: Array.from({ length: 5 }, () => ({})) }]) {
+      { ...good, chain: [[]] }, { ...good, chain: [null] }, { ...good, hold: undefined }, { ...good, hold: 'true' }, { ...good, hold: 1 }, { ...good, chain: Array.from({ length: 5 }, () => ({})) }]) {
       expect(parseHoldings({ [KEY('a')]: value }), JSON.stringify(value)).toBeNull();
     }
   });
@@ -223,3 +241,4 @@ describe('summaryText', () => {
     expect(summaryText(1, v(true), new Map(), 0)).toBe(summaryText(1, v(false), new Map(), 0));
   });
 });
+

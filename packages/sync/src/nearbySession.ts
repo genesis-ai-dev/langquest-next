@@ -61,6 +61,8 @@ export interface NearbyFileMoves {
   held(): Promise<readonly string[]>;
   /** With "Hold teammates' recordings" off, what no longer needs keeping (`nearbyShedOf`), before this phone's own entry goes. */
   shed?(holdings: Holdings): Promise<void>;
+  /** Whether this phone's "Hold teammates' recordings" row is on, signed into its own entry. Absent means off, which lets no teammate shed a file for its sake. */
+  holds?(): boolean;
 }
 
 export interface NearbyGenerations {
@@ -629,7 +631,7 @@ export class NearbySession {
     const { files, keep, orgId, languageId, chain } = this.opt;
     if (!files) return null;
     const { publicKey, sign, sha256 } = this.crypto;
-    const after = await withMyHolding(this.holdings, await files.held(), { key: publicKey, orgId, streamId: languageId, chain, sign: (m) => sign(m), sha256 });
+    const after = await withMyHolding(this.holdings, await files.held(), { key: publicKey, orgId, streamId: languageId, chain, hold: files.holds?.() ?? false, sign: (m) => sign(m), sha256 });
     if (after === this.holdings) return null;
     this.holdings = after;
     const entry = after.get(publicKey)!;
@@ -843,12 +845,12 @@ export class NearbySession {
   // ---- step 5: holdings --------------------------------------------------------
 
   private async sendHolding(key: string, entry: HoldingEntry): Promise<void> {
-    const { files, counter, sig, chain } = entry;
+    const { files, counter, hold, sig, chain } = entry;
     for (let at = 0; ;) {
       const part = files.slice(at, at + NEARBY_HOLDINGS_MESSAGE_FILES);
       at += part.length;
       const more = at < files.length;
-      const m: HoldingsMessage = more ? { t: 'holdings', key, counter, files: [...part], more } : { t: 'holdings', key, counter, files: [...part], more, sig, chain };
+      const m: HoldingsMessage = more ? { t: 'holdings', key, counter, files: [...part], more } : { t: 'holdings', key, counter, files: [...part], more, hold, sig, chain };
       await this.send(m);
       if (!more) break;
     }
@@ -874,22 +876,24 @@ export class NearbySession {
       open = null;
       const held = heard.get(m.key);
       if (held && held.counter >= m.counter) return;
-      const good = !entry.bad && m.sig !== undefined && m.chain !== undefined && m.key !== this.crypto.publicKey ? await this.holdingHolds(m.key, m.counter, entry.files, m.sig, m.chain) : false;
+      const good = !entry.bad && m.hold !== undefined && m.sig !== undefined && m.chain !== undefined && m.key !== this.crypto.publicKey
+        ? await this.holdingHolds(m.key, m.counter, entry.files, m.hold, m.sig, m.chain)
+        : false;
       if (!good) {
         this.report.holdings.dropped += 1;
         return;
       }
-      heard.set(m.key, { counter: m.counter, files: entry.files, sig: m.sig!, chain: chainAsSigned(m.chain!) });
+      heard.set(m.key, { counter: m.counter, files: entry.files, hold: m.hold!, sig: m.sig!, chain: chainAsSigned(m.chain!) });
     };
   }
 
   /** Outside any lock, before `mergeHoldings`, one entry at a time, and a failure never ends the session. */
-  private async holdingHolds(key: string, counter: number, files: readonly string[], sig: string, chain: ChainLink[]): Promise<boolean> {
+  private async holdingHolds(key: string, counter: number, files: readonly string[], hold: boolean, sig: string, chain: ChainLink[]): Promise<boolean> {
     const { opt, crypto } = this;
     const verdict = await checkChain(chain, { rootKeys: opt.rootKeys, orgId: opt.orgId, languageId: opt.languageId, now: null, verify: crypto.verify, sha256: crypto.sha256 });
     if (!verdict.ok || verdict.holder.installKey !== key) return false;
     const filesHash = await holdingsFilesHash(files, crypto.sha256);
-    return signedBy(crypto.verify, key, nearbyBytes('holdings', holdingsText({ orgId: opt.orgId, streamId: opt.languageId, key, counter, filesHash })), sig);
+    return signedBy(crypto.verify, key, nearbyBytes('holdings', holdingsText({ orgId: opt.orgId, streamId: opt.languageId, key, counter, filesHash, hold })), sig);
   }
 
   /** Written once for the step, and only what moved. */

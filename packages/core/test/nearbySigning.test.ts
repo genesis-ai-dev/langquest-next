@@ -57,7 +57,7 @@ describe('the texts phones sign, as golden vectors', () => {
 
   it('a holdings entry signs the hash of its files', async () => {
     expect(await holdingsFilesHash(v.HOLDINGS_FILES, sha256)).toBe(v.HOLDINGS_FILES_HASH);
-    expect(holdingsText({ orgId: 'org1', streamId: 'lang1', key: v.PUBLIC_KEY, counter: 5, filesHash: v.HOLDINGS_FILES_HASH })).toBe(v.HOLDINGS_TEXT);
+    expect(holdingsText({ orgId: 'org1', streamId: 'lang1', key: v.PUBLIC_KEY, counter: 5, filesHash: v.HOLDINGS_FILES_HASH, hold: true })).toBe(v.HOLDINGS_TEXT);
   });
 
   it('a newcomer\'s id starts from the decoded key and salt, not their text', () => {

@@ -100,7 +100,7 @@ export const NEARBY_PREFIXES = {
   batch: 'lq-nearby-batch-v1\n',
   attest: 'lq-nearby-attest-v1\n',
   revoked: 'lq-nearby-revoked-v1\n',
-  holdings: 'lq-nearby-holdings-v1\n',
+  holdings: 'lq-nearby-holdings-v2\n',
   newcomer: 'lq-nearby-newcomer-v1\n',
   proof: 'lq-nearby-proof-v1\n',
   link: 'lq-nearby-link-v1\n',
@@ -317,8 +317,13 @@ export async function holdingsFilesHash(files: readonly string[], sha256: Sha256
   return bytesToHex(await sha256(utf8Encode(canonicalJson(files))));
 }
 
-export function holdingsText(h: { orgId: string; streamId: string; key: string; counter: number; filesHash: string }): string {
-  return canonicalJson({ v: 1, orgId: h.orgId, streamId: h.streamId, key: h.key, counter: h.counter, filesHash: h.filesHash });
+/**
+ * `hold` says whether the owner's "Hold teammates' recordings" row is on, so a phone with the
+ * row off can tell whether a teammate holding a file will keep it (docs/nearby-sync-plan.md 5.6).
+ * Version 2: version 1 had no `hold`, and no store build ever signed it.
+ */
+export function holdingsText(h: { orgId: string; streamId: string; key: string; counter: number; filesHash: string; hold: boolean }): string {
+  return canonicalJson({ v: 2, orgId: h.orgId, streamId: h.streamId, key: h.key, counter: h.counter, filesHash: h.filesHash, hold: h.hold });
 }
 
 // ---- who someone is --------------------------------------------------------------

@@ -44,7 +44,8 @@ export const REVOCATION_TEXT = `{"keys":[["${PUBLIC_KEY}","${PROFILE}",170000000
 
 export const HOLDINGS_FILES = ['a'.repeat(64), 'b'.repeat(64)];
 export const HOLDINGS_FILES_HASH = '2ba3056e95d23c0c154eca683e330401c46e441d5074523e16349e29d7597a64';
-export const HOLDINGS_TEXT = `{"counter":5,"filesHash":"${HOLDINGS_FILES_HASH}","key":"${PUBLIC_KEY}","orgId":"org1","streamId":"lang1","v":1}`;
+/** Version 2 says whether the owner's "Hold teammates' recordings" row is on; version 1 never reached a store build. */
+export const HOLDINGS_TEXT = `{"counter":5,"filesHash":"${HOLDINGS_FILES_HASH}","hold":true,"key":"${PUBLIC_KEY}","orgId":"org1","streamId":"lang1","v":2}`;
 
 /** The hash of `lq-nearby-newcomer-v1\n`, the decoded key, then the 16 salt bytes 0 to 15. */
 export const NEWCOMER_SALT = 'AAECAwQFBgcICQoLDA0ODw';

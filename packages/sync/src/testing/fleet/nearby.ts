@@ -346,7 +346,9 @@ export class FleetNearby {
       held: async () => {
         const s = await device.wholeState();
         return [...device.audioHere].filter((h) => s.blobs[h]?.stored !== true).sort();
-      }
+      },
+      // Fleet phones run with "Hold teammates' recordings" on (section 8).
+      holds: () => true
     };
     return files;
   }

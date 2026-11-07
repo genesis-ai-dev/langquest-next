@@ -457,7 +457,7 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
     const [a, b] = await two();
     const cy = await teammate('cy');
     const dan = await teammate('dan');
-    const signedBy = async (who: Teammate, files: string[]) => (await withMyHolding(new Map(), files, { key: who.key, orgId: ORG, streamId: LANG, chain: who.chain, sign: who.crypto.sign, sha256: fakeSha256 })).get(who.key)!;
+    const signedBy = async (who: Teammate, files: string[]) => (await withMyHolding(new Map(), files, { key: who.key, orgId: ORG, streamId: LANG, chain: who.chain, hold: false, sign: who.crypto.sign, sha256: fakeSha256 })).get(who.key)!;
     const cys = await signedBy(cy, ['c'.repeat(64)]);
     const forged = { ...(await signedBy(dan, ['d'.repeat(64)])), files: ['e'.repeat(64)] };
     await a.keep.saveHoldings(new Map([[cy.key, cys], [dan.key, forged]]));
@@ -467,6 +467,23 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
     const held = await b.keep.holdings();
     expect(held.get(cy.key)).toEqual(cys);
     expect(held.has(dan.key)).toBe(false);
+  });
+
+  it('drops an entry whose hold field was turned on after its owner signed it off, or that another key signed', async () => {
+    const [a, b] = await two();
+    const cy = await teammate('cy');
+    const dan = await teammate('dan');
+    const off = (await withMyHolding(new Map(), ['c'.repeat(64)], { key: cy.key, orgId: ORG, streamId: LANG, chain: cy.chain, hold: false, sign: cy.crypto.sign, sha256: fakeSha256 })).get(cy.key)!;
+    // Dan signs an entry in Cy's name: the chain is Cy's, so the key it names did not sign it.
+    const wrongKey = (await withMyHolding(new Map(), ['d'.repeat(64)], { key: cy.key, orgId: ORG, streamId: LANG, chain: cy.chain, hold: true, sign: dan.crypto.sign, sha256: fakeSha256 })).get(cy.key)!;
+    await a.keep.saveHoldings(new Map([[cy.key, { ...off, hold: true }]]));
+    const [, rb] = await run(a, b, pairOf());
+    expect(rb.holdings.dropped).toBe(1);
+    expect((await b.keep.holdings()).has(cy.key)).toBe(false);
+    await a.keep.saveHoldings(new Map([[cy.key, wrongKey]]));
+    const [, rb2] = await run(a, b, pairOf());
+    expect(rb2.holdings.dropped).toBe(1);
+    expect((await b.keep.holdings()).has(cy.key)).toBe(false);
   });
 
   describe('files', () => {

@@ -14,6 +14,8 @@ export interface HoldingEntry {
   counter: number;
   /** Sorted, unconfirmed hashes only. */
   files: readonly string[];
+  /** The owner's "Hold teammates' recordings" row was on when it signed this: it keeps these files until the server confirms them. */
+  hold: boolean;
   sig: string;
   chain: ChainLink[];
 }
@@ -42,7 +44,7 @@ function compareFiles(a: readonly string[], b: readonly string[]): number {
  */
 function newer(a: HoldingEntry, b: HoldingEntry): HoldingEntry {
   if (a.counter !== b.counter) return a.counter > b.counter ? a : b;
-  const order = compareFiles(a.files, b.files) || compareText(a.sig, b.sig) || compareText(canonicalJson(a.chain), canonicalJson(b.chain));
+  const order = compareFiles(a.files, b.files) || Number(a.hold) - Number(b.hold) || compareText(a.sig, b.sig) || compareText(canonicalJson(a.chain), canonicalJson(b.chain));
   return order <= 0 ? a : b;
 }
 
@@ -58,23 +60,25 @@ export function mergeHoldings(mine: Holdings, theirs: Holdings, myKey: string): 
 }
 
 /**
- * This phone's own entry with what it holds now. The counter moves only when the set
- * changed, and from its own number, never one it heard. Answers the same Holdings
- * when nothing changed, so nothing is signed or written.
+ * This phone's own entry with what it holds now and whether its row is on. The counter
+ * moves only when either changed, and from its own number, never one it heard. Answers
+ * the same Holdings when nothing changed, so nothing is signed or written.
  */
 export async function withMyHolding(
   holdings: Holdings,
   files: Iterable<string>,
-  me: { key: string; orgId: string; streamId: string; chain: ChainLink[]; sign(message: Uint8Array): Promise<string>; sha256: Sha256 }
+  me: { key: string; orgId: string; streamId: string; chain: ChainLink[]; hold: boolean; sign(message: Uint8Array): Promise<string>; sha256: Sha256 }
 ): Promise<Holdings> {
   const sorted = [...new Set(files)].filter(isHash).sort();
   const held = holdings.get(me.key);
-  if (compareFiles(held?.files ?? [], sorted) === 0) return holdings;
+  if (held && held.hold === me.hold && compareFiles(held.files, sorted) === 0) return holdings;
+  // An entry that never named a file says nothing, whatever the row.
+  if (!held && sorted.length === 0) return holdings;
   const counter = (held?.counter ?? 0) + 1;
   if (!Number.isSafeInteger(counter)) return holdings;
   const filesHash = await holdingsFilesHash(sorted, me.sha256);
-  const sig = await me.sign(nearbyBytes('holdings', holdingsText({ orgId: me.orgId, streamId: me.streamId, key: me.key, counter, filesHash })));
-  return new Map(holdings).set(me.key, { counter, files: sorted, sig, chain: me.chain });
+  const sig = await me.sign(nearbyBytes('holdings', holdingsText({ orgId: me.orgId, streamId: me.streamId, key: me.key, counter, filesHash, hold: me.hold })));
+  return new Map(holdings).set(me.key, { counter, files: sorted, hold: me.hold, sig, chain: me.chain });
 }
 
 /**
@@ -101,8 +105,9 @@ export function copiesOf(holdings: Holdings): Map<string, number> {
 
 function parseEntry(raw: unknown, maxFiles: number): HoldingEntry | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
-  const { counter, files, sig, chain } = raw as Record<string, unknown>;
+  const { counter, files, hold, sig, chain } = raw as Record<string, unknown>;
   if (typeof counter !== 'number' || !Number.isSafeInteger(counter) || counter < 0) return null;
+  if (typeof hold !== 'boolean') return null;
   if (!Array.isArray(files) || files.length > maxFiles) return null;
   for (let i = 0; i < files.length; i++) {
     if (!isHash(files[i]) || (i > 0 && files[i - 1] >= files[i])) return null;
@@ -110,7 +115,7 @@ function parseEntry(raw: unknown, maxFiles: number): HoldingEntry | null {
   if (!isBase64url(sig, 64)) return null;
   if (!Array.isArray(chain) || chain.length > MAX_LINKS || objectMemberNameIn(chain) !== null || nearbyPayloadError(chain) !== null) return null;
   if (!chain.every((link) => typeof link === 'object' && link !== null && !Array.isArray(link))) return null;
-  return { counter, files: files as string[], sig, chain: chain as ChainLink[] };
+  return { counter, files: files as string[], hold, sig, chain: chain as ChainLink[] };
 }
 
 /** Holdings as a meta row keeps them. Refuses member names, unsafe counters and non-hash files, and caps sizes. Null for anything else, as a whole. */
@@ -224,3 +229,4 @@ export function wantedFilesOf(facts: WantedFacts, choice: HoldChoice): WantedFil
   backup.sort((a, b) => (facts.copies.get(a.hash) ?? 0) - (facts.copies.get(b.hash) ?? 0) || byPlan(a, b));
   return [...needed, ...review, ...backup];
 }
+
