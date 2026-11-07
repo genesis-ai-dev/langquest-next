@@ -48,6 +48,45 @@ describe('SupabaseTransport error classification', () => {
     await expect(failingWith({ message: 'Network request failed: sign-in renewal answered 429' }).append([])).rejects.toBeInstanceOf(UnrenewedError);
   });
 
+  it('an access token that expired in an idle tab is a sign-in not yet renewed, not a server error', async () => {
+    // Why: a web tab that slept woke with its old token, and PostgREST
+    // answered PGRST303 (JWT expired). Read as a ServerError, the language's
+    // sync stopped with an error although the next request would have worked.
+    const err = await failingWith({ code: 'PGRST303', message: 'JWT expired' }).pull('org1', 'p1', 0, 1).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(UnrenewedError);
+    expect(err).toBeInstanceOf(OfflineError);
+    await expect(failingWith({ code: 'PGRST303', message: 'JWT expired' }).append([])).rejects.toBeInstanceOf(UnrenewedError);
+  });
+
+  it('an expired access token is renewed and the request sent once more, so the pull succeeds', async () => {
+    // Why: LAN-243. A web tab idle for half an hour woke with an expired
+    // token; the pull failed with PGRST303 although one renewal would have
+    // let it through (the next sync, ten minutes later, worked).
+    const calls: string[] = [];
+    let renewals = 0;
+    let token = 'old';
+    const client = {
+      auth: { refreshSession: async () => { renewals += 1; token = 'new'; return { data: {}, error: null }; } },
+      rpc: async () => {
+        calls.push(token);
+        return token === 'old' ? { data: null, error: { code: 'PGRST303', message: 'JWT expired' } } : { data: [], error: null };
+      }
+    } as unknown as SupabaseClient;
+    expect(await new SupabaseTransport(client).pull('org1', 'p1', 0, 1)).toEqual([]);
+    expect(renewals).toBe(1);
+    expect(calls).toEqual(['old', 'new']);
+  });
+
+  it('an expired token that renewal does not fix is tried once more only, then offline-unrenewed', async () => {
+    let rpcs = 0;
+    const client = {
+      auth: { refreshSession: async () => { throw new Error('Network request failed'); } },
+      rpc: async () => { rpcs += 1; return { data: null, error: { code: 'PGRST303', message: 'JWT expired' } }; }
+    } as unknown as SupabaseClient;
+    await expect(new SupabaseTransport(client).pull('org1', 'p1', 0, 1)).rejects.toBeInstanceOf(UnrenewedError);
+    expect(rpcs).toBe(2);
+  });
+
   it('any other failure keeps the server code, or the HTTP status', async () => {
     const timeout = await failingWith({ code: '57014', message: 'canceling statement' }).pull('org1', 'p1', 0, 1).catch((e: unknown) => e);
     expect(timeout).toBeInstanceOf(ServerError);
