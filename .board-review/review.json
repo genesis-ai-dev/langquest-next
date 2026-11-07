@@ -1,0 +1,24 @@
+{
+  "kind": "needs_you",
+  "ask": "Can you close the empty draft pull request for this issue?",
+  "problem": "One person on the web app saw two reference-audio downloads fail with a server error.",
+  "found": "A brief fault at the audio host, most likely. One person, one time, and no other server errors in 7 days.",
+  "changed": "Nothing. You chose to leave it and watch, so I changed no code.",
+  "why": "One brief fault does not need a fix. The draft pull request holds no code, and I cannot close it from here.",
+  "touches": "Nothing else.",
+  "pictures": [
+    {
+      "file": "done.png",
+      "label": "Done"
+    }
+  ],
+  "guess": {
+    "answer": "looks_good"
+  },
+  "links": [
+    {
+      "label": "Draft pull request",
+      "url": "https://github.com/genesis-ai-dev/langquest-next/pull/361"
+    }
+  ]
+}
