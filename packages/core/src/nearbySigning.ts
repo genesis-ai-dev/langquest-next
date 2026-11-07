@@ -1,6 +1,6 @@
 import type { AnyEvent } from './events';
 import type { JoinPass, RevocationList, Sha256, WorkerLink, InviteLink } from './nearbyChain';
-import { canonicalJson } from './libraryDocs';
+import { canonicalJson, isHash } from './libraryDocs';
 import { nearbyPayloadError, utf8Encode } from './validate';
 
 /**
@@ -184,6 +184,57 @@ export interface Attestation {
 
 export function attestationText(a: Attestation): string {
   return canonicalJson(a);
+}
+
+const parsedObject = (text: unknown): Record<string, unknown> | null => {
+  if (typeof text !== 'string') return null;
+  try {
+    const raw: unknown = JSON.parse(text);
+    return typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+};
+const isWord = (v: unknown): v is string => typeof v === 'string' && v !== '';
+const isSeq = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v);
+
+/**
+ * A manifest off the wire, for this session's organization and language. Null for
+ * anything else: the wrong stream, unsafe numbers, over the cap, an id twice, a
+ * floor past its own number, or any text its signer's build would not have written.
+ * It is built from the fields it knows and compared back, so nothing unread is signed.
+ */
+export function parseBatchManifest(text: unknown, session: { orgId: string; streamId: string }): BatchManifest | null {
+  const raw = parsedObject(text);
+  if (!raw) return null;
+  const { v, orgId, streamId, key, deviceId, actorId, n, floor, events } = raw;
+  if (v !== 1 || orgId !== session.orgId || streamId !== session.streamId) return null;
+  if (!isBase64url(key, 32) || !isWord(deviceId) || !isWord(actorId)) return null;
+  if (!isSeq(n) || n < 1 || !isSeq(floor) || floor < 0 || floor > n) return null;
+  if (!Array.isArray(events) || events.length > NEARBY_BATCH_MAX_EVENTS) return null;
+  const seen = new Set<unknown>();
+  for (const entry of events as unknown[]) {
+    if (!Array.isArray(entry) || entry.length !== 2 || !isWord(entry[0]) || !isHash(entry[1]) || seen.has(entry[0])) return null;
+    seen.add(entry[0]);
+  }
+  const manifest: BatchManifest = { v, orgId: session.orgId, streamId: session.streamId, key, deviceId, actorId, n, floor, events: events as [string, string][] };
+  return manifestText(manifest) === text ? manifest : null;
+}
+
+/** The Worker's word off the wire, for this session's organization and language and the `kid` the message names. Null for anything else. */
+export function parseAttestation(text: unknown, session: { orgId: string; streamId: string; kid: string }): Attestation | null {
+  const raw = parsedObject(text);
+  if (!raw) return null;
+  const { v, kid, orgId, streamId, rows } = raw;
+  if (v !== 1 || kid !== session.kid || orgId !== session.orgId || streamId !== session.streamId) return null;
+  if (!Array.isArray(rows) || rows.length > NEARBY_BATCH_MAX_EVENTS) return null;
+  const seen = new Set<unknown>();
+  for (const row of rows as unknown[]) {
+    if (!Array.isArray(row) || row.length !== 3 || !isWord(row[0]) || !isHash(row[1]) || !isSeq(row[2]) || row[2] < 1 || seen.has(row[0])) return null;
+    seen.add(row[0]);
+  }
+  const attestation: Attestation = { v, kid: session.kid, orgId: session.orgId, streamId: session.streamId, rows: rows as [string, string, number][] };
+  return attestationText(attestation) === text ? attestation : null;
 }
 
 export function revocationText(list: RevocationList): string {

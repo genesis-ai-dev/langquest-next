@@ -2,6 +2,7 @@ import type { AnyEvent, EventType } from './events';
 import { decodeHlc, isHlc } from './hlc';
 import { EVENT_PRIVILEGE, ORG_EVENT_TYPES, privilegeAllows, privilegeFor, privilegesFor, type OrgState } from './org';
 import { ORG_STREAM, PERSON_ORG, type Privilege } from './orgTerms';
+import type { LanguageState } from './state';
 import { entityKeyOf, eventSizeError, idAuthor, isServerEventId, nearbyPayloadError, validateEvent } from './validate';
 
 /**
@@ -74,8 +75,12 @@ export function isBoundToAuthor(e: AnyEvent): boolean {
 
 const hasPrivilegeEntry = (type: string) => Object.prototype.hasOwnProperty.call(EVENT_PRIVILEGE, type);
 
-/** Step 10. An unknown target passes, because arrival order is free here, unless its bound id already says the answer. */
-function lookUpRefusal(e: AnyEvent, ctx: NearbyDoorContext): DoorRefusal | null {
+/**
+ * Step 10, on its own too, because a target that lands after its undo runs it again.
+ * An unknown target passes, because arrival order is free here, unless its bound id
+ * already says the answer.
+ */
+export function nearbyLookUpRefusal(e: AnyEvent, ctx: NearbyDoorContext): DoorRefusal | null {
   const mine = (target: string, known: string | undefined) => (known ?? idAuthor(target) ?? e.actorId) === e.actorId;
   switch (e.type) {
     case 'v1.ReviewWithdrawn':
@@ -130,7 +135,7 @@ export function nearbyDoor(e: AnyEvent, ctx: NearbyDoorContext): DoorRefusal | n
       return { reason: 'not allowed in this language', retry: needed !== null && needed !== 'bootstrap' };
     }
     // 10.
-    const lookedUp = lookUpRefusal(e, ctx);
+    const lookedUp = nearbyLookUpRefusal(e, ctx);
     if (lookedUp) return lookedUp;
     // 11.
     if (!ctx.people.languageListed(ctx.languageId)) return { reason: 'language not listed', retry: true };
@@ -138,4 +143,82 @@ export function nearbyDoor(e: AnyEvent, ctx: NearbyDoorContext): DoorRefusal | n
   // 12.
   const key = entityKeyOf(e);
   return key !== null && ctx.facts.entityTaken(key) ? refuse(`${key} is taken`) : null;
+}
+
+// ---- the facts, read per page ----------------------------------------------------
+
+const hasOwn = (map: object, key: string) => Object.prototype.hasOwnProperty.call(map, key);
+const own = <T>(map: Record<string, T> | undefined, key: string): T | undefined => (map && hasOwn(map, key) ? map[key] : undefined);
+
+/** The maps a create's key lands in, with the kind of row each is kept under on disk. */
+const ENTITY_MAPS = {
+  recording: 'recordings', take: 'takes', response: 'responses', review: 'kindReviews', departure: 'departures', request: 'requests', note: 'notes'
+} as const;
+
+const entityParts = (key: string): [prefix: string, rest: string] => {
+  const at = key.indexOf(':');
+  return [key.slice(0, at), key.slice(at + 1)];
+};
+
+/** A take left by an archive that came first has no passage yet, and its compose is still to come. */
+const creates = (prefix: string, entry: unknown) => entry !== undefined && (prefix !== 'take' || (entry as { unitId?: unknown }).unitId !== '');
+
+/**
+ * The rows on disk an event's door needs, for reading before the door runs. A form the
+ * door's first steps would refuse asks for nothing, so a mangled payload costs no read.
+ */
+export function doorKeptReads(e: AnyEvent): { kind: string; id: string }[] {
+  if (nearbyPayloadError(e) !== null || validateEvent(e) !== null) return [];
+  const reads: { kind: string; id: string }[] = [];
+  const key = entityKeyOf(e);
+  if (key !== null) {
+    const [prefix, id] = entityParts(key);
+    if (hasOwn(ENTITY_MAPS, prefix)) reads.push({ kind: prefix, id });
+  }
+  if (e.type === 'v1.ReviewWithdrawn') reads.push({ kind: 'review', id: e.payload.reviewId });
+  if (e.type === 'v1.NoteWithdrawn') reads.push({ kind: 'note', id: e.payload.noteId });
+  if (e.type === 'v1.DepartureUndone') reads.push({ kind: 'departure', id: e.payload.departureId });
+  return reads;
+}
+
+/** `DoorFacts` that also learn what this page has let in, so two events on one page cannot both take a slot. */
+export interface PageFacts extends DoorFacts {
+  note(e: AnyEvent): void;
+}
+
+/**
+ * What the door may ask, from the fold and the rows read for it. The fold stands for
+ * the log, since every row but a refused one is in it, and for the shared state, where
+ * renderings, adjustments and audio formats live. A row read off disk stands for an
+ * event pruned into a checkpoint. A passage not filled in has neither, and passes.
+ */
+export function doorFactsOf(lang: LanguageState, kept: (kind: string, id: string) => unknown): PageFacts {
+  const taken = new Set<string>();
+  const reviews = new Map<string, string>();
+  const notes = new Map<string, string>();
+  const departures = new Map<string, string>();
+  const inFold = (prefix: string, id: string): unknown => {
+    if (hasOwn(ENTITY_MAPS, prefix)) return own(lang[ENTITY_MAPS[prefix as keyof typeof ENTITY_MAPS]] as Record<string, unknown>, id);
+    if (prefix === 'audioformat') return own(lang.audioFormats, id);
+    const slash = id.indexOf('/');
+    const term = own(lang.keyTerms, id.slice(0, slash));
+    return own<unknown>(prefix === 'rendering' ? term?.renderings : term?.adjustments, id.slice(slash + 1));
+  };
+  return {
+    entityTaken(key) {
+      if (taken.has(key)) return true;
+      const [prefix, id] = entityParts(key);
+      return creates(prefix, inFold(prefix, id)) || (hasOwn(ENTITY_MAPS, prefix) && creates(prefix, kept(prefix, id)));
+    },
+    reviewAuthor: (id) => reviews.get(id) ?? own(lang.kindReviews, id)?.by ?? (kept('review', id) as { by?: string } | undefined)?.by,
+    noteAuthor: (id) => notes.get(id) ?? own(lang.notes, id)?.by ?? (kept('note', id) as { by?: string } | undefined)?.by,
+    departureType: (id) => departures.get(id) ?? own(lang.departures, id)?.type ?? (kept('departure', id) as { type?: string } | undefined)?.type,
+    note(e) {
+      const key = entityKeyOf(e);
+      if (key !== null) taken.add(key);
+      if (e.type === 'v1.ReviewRecorded') reviews.set(e.payload.reviewId, e.actorId);
+      if (e.type === 'v1.NoteAdded') notes.set(e.payload.noteId, e.actorId);
+      if (e.type === 'v1.DepartureRecorded') departures.set(e.payload.departureId, e.payload.type);
+    }
+  };
 }

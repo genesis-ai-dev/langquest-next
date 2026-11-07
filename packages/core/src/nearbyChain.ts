@@ -1,3 +1,4 @@
+import { decodeHlc, isHlc } from './hlc';
 import type { NearbyPeople } from './nearbyDoor';
 import { peopleFromOrg } from './nearbyDoor';
 import { base64urlDecode, bytesToHex, isBase64url, linkText, nearbyBytes, newcomerIdBytes, passText } from './nearbySigning';
@@ -124,7 +125,7 @@ function privilegesAt(org: ChainOrg, languageId: string): Set<Privilege> {
 }
 
 /** A check that throws is a failed check: a real verify may throw on bytes it cannot read. */
-async function signedBy(verify: Verify, key: string, message: Uint8Array, sig: string): Promise<boolean> {
+export async function signedBy(verify: Verify, key: string, message: Uint8Array, sig: string): Promise<boolean> {
   try {
     return (await verify(key, message, sig)) === true;
   } catch {
@@ -159,6 +160,15 @@ const isPast = (now: number | null, expiresAt: number) => now !== null && !(now 
 
 const isRevoked = (list: RevocationList | undefined, key: string, profileId: string) =>
   !!list && list.keys.some(([k, p]) => k === key && p === profileId);
+
+/**
+ * Carl's answer 4, per event: work dated before `revoked_at` stands, and later work
+ * from that key and person is refused. A clock that cannot be read counts as later.
+ */
+export function revokedLater(list: RevocationList | undefined, key: string, profileId: string, hlc: unknown): boolean {
+  const entry = list?.keys.find(([k, p]) => k === key && p === profileId);
+  return !!entry && !(isHlc(hlc) && decodeHlc(hlc).wallMs < entry[2]);
+}
 
 async function checkWorkerLink(link: WorkerLink, opts: CheckChainOptions): Promise<Accepted | Refused> {
   const { installKey, profileId, deviceId, expiresAt, org } = link.body;

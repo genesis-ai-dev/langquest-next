@@ -1,7 +1,7 @@
 import { createHash, createPublicKey, verify as edVerify } from 'node:crypto';
 import fc from 'fast-check';
 import {
-  checkChain, newcomerProfileId, peopleWithChains, type CheckChainOptions, type ChainVerdict, type InviteLink, type JoinPass, type RevocationList, type WorkerLink
+  checkChain, newcomerProfileId, peopleWithChains, revokedLater, signedBy, type CheckChainOptions, type ChainVerdict, type InviteLink, type JoinPass, type RevocationList, type WorkerLink
 } from '../src/nearbyChain';
 import { nearbyDoor, type DoorFacts } from '../src/nearbyDoor';
 import { base64urlEncode, linkText, nearbyBytes, passText } from '../src/nearbySigning';
@@ -450,5 +450,34 @@ describe('peopleWithChains: a newer certificate decides', () => {
     expect(nearbyDoor(event, { ...ctx, people: peopleWithChains(fold, [], 10) })).toMatchObject({ retry: true });
     expect(nearbyDoor(event, { ...ctx, people: peopleWithChains(fold, [held(stranger, 11, ['translate'])], 10) })).toBeNull();
     expect(nearbyDoor(event, { ...ctx, people: peopleWithChains(fold, [held(stranger, 11, ['translate'])], 11) })).toMatchObject({ retry: true });
+  });
+});
+
+describe('revokedLater: earlier work stands, per event', () => {
+  const list: RevocationList = { v: 1, kid: 'k1', orgId: ORG, seq: 1, keys: [[INVITER_KEY, INVITER, 5_000]] };
+  const at = (wall: number) => `${String(wall).padStart(15, '0')}:000000:d1`;
+
+  it('passes what is dated before, and refuses the rest', () => {
+    expect(revokedLater(list, INVITER_KEY, INVITER, at(4_999))).toBe(false);
+    expect(revokedLater(list, INVITER_KEY, INVITER, at(5_000))).toBe(true);
+    expect(revokedLater(list, INVITER_KEY, INVITER, at(6_000))).toBe(true);
+  });
+
+  it('a clock that cannot be read counts as later', () => {
+    expect(revokedLater(list, INVITER_KEY, INVITER, 'x1:y:z')).toBe(true);
+    expect(revokedLater(list, INVITER_KEY, INVITER, undefined)).toBe(true);
+  });
+
+  it('another person on that key is not refused, nor anyone with no list', () => {
+    expect(revokedLater(list, INVITER_KEY, 'someone-else', at(9_000))).toBe(false);
+    expect(revokedLater(list, NEWCOMER_KEY, INVITER, at(9_000))).toBe(false);
+    expect(revokedLater(undefined, INVITER_KEY, INVITER, at(9_000))).toBe(false);
+  });
+});
+
+describe('signedBy', () => {
+  it('a check that throws is a failed check', async () => {
+    expect(await signedBy(() => { throw new Error('bad bytes'); }, ROOT, new Uint8Array(), 'x')).toBe(false);
+    expect(await signedBy(async () => true, ROOT, new Uint8Array(), 'x')).toBe(true);
   });
 });

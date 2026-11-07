@@ -27,6 +27,13 @@ export const NEARBY_VECTOR_MAX_RANGES = 32;
 /** Far above any team, so that a bad row or message costs a refusal and not a walk. */
 export const NEARBY_VECTOR_MAX_KEYS = 4096;
 
+/**
+ * Carl's answer 21, from decision 169: 70,000 rows (the 99th percentile day, 1,150,
+ * times 60 days offline) and 50 MB per signer. A phone passes these in, so a test or
+ * a later build can move them, and they do not move quietly.
+ */
+export const NEARBY_BUDGET = { maxRows: 70_000, maxBytes: 50_000_000 } as const;
+
 const isCount = (n: unknown): n is number => typeof n === 'number' && Number.isSafeInteger(n) && n >= 0;
 
 function parseEntry(raw: unknown, maxRanges: number): NearbyVectorEntry | null {

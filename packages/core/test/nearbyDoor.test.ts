@@ -1,10 +1,12 @@
 import fc from 'fast-check';
 import type { AnyEvent } from '../src/events';
 import { encodeHlc } from '../src/hlc';
-import { NEARBY_NOT_CARRIED, isBoundToAuthor, nearbyCopy, nearbyDoor, peopleFromOrg, type DoorFacts, type NearbyDoorContext, type NearbyPeople } from '../src/nearbyDoor';
+import { NEARBY_NOT_CARRIED, doorFactsOf, doorKeptReads, isBoundToAuthor, nearbyCopy, nearbyDoor, nearbyLookUpRefusal, peopleFromOrg, type DoorFacts, type NearbyDoorContext, type NearbyPeople } from '../src/nearbyDoor';
 import { EVENT_PRIVILEGE, ORG_EVENT_TYPES, emptyOrgState, foldOrg, privilegeFor, privilegesOfFixedRole } from '../src/org';
 import { ORG_STREAM, PERSON_ORG, PRIVILEGES, type Privilege } from '../src/orgTerms';
 import { EVENT_FIELD_MAX_CHARS, EVENT_PAYLOAD_MAX_BYTES, OBJECT_MEMBER_NAMES, entityKeyOf } from '../src/validate';
+import { emptyLanguageState } from '../src/state';
+import { applyLanguageEvent } from '../src/reducer';
 import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture } from './fixtures';
 
 const ACTOR = 'sam';
@@ -391,5 +393,95 @@ describe('isBoundToAuthor', () => {
     expect(isBoundToAuthor({ ...e, payload: { ...e.payload, takeId: 'take:old' } } as unknown as AnyEvent)).toBe(false);
     expect(isBoundToAuthor(one('v1.TakeArchived'))).toBe(true);
     expect(isBoundToAuthor(one('v1.AudioFormatSet'))).toBe(true);
+  });
+});
+
+describe('the door\'s facts', () => {
+  const made = (type: string, payload: object, actorId = ACTOR) =>
+    ({ id: `by:${actorId}:${type}:${JSON.stringify(payload).length}`, type, orgId: ORG, streamId: LANG, actorId, deviceId: 'd1', hlc: encodeHlc(1_700_000_000_000, 0, 'd1'), payload }) as unknown as AnyEvent;
+  const recording = made('v1.RecordingAdded', { recordingId: 'r1', unitId: 'u1', kind: 'target', cards: [{ hash: 'h1', durationMs: 5 }] });
+  const review = made('v1.ReviewRecorded', { reviewId: 'rv1', takeId: 't1', kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'slower' });
+  const note = made('v1.NoteAdded', { noteId: 'n1', unitId: 'u1', anchor: { kind: 'passage' }, text: 'hm' });
+  const departure = made('v1.DepartureRecorded', { departureId: 'd1', unitId: 'u1', type: 'skip', kindId: 'peer', reason: 'no peer' });
+  const nothing = () => undefined;
+
+  it('reads what a fold holds', () => {
+    let lang = emptyLanguageState();
+    for (const e of [recording, review, note, departure]) lang = applyLanguageEvent(lang, e);
+    const facts = doorFactsOf(lang, nothing);
+    expect(facts.entityTaken('recording:r1')).toBe(true);
+    expect(facts.entityTaken('recording:r2')).toBe(false);
+    expect(facts.reviewAuthor('rv1')).toBe(ACTOR);
+    expect(facts.noteAuthor('n1')).toBe(ACTOR);
+    expect(facts.departureType('d1')).toBe('skip');
+  });
+
+  it('reads a row off disk when the fold let go of it: an event pruned into a checkpoint still answers', () => {
+    const rows = new Map<string, unknown>([['recording r9', { unitId: 'u9' }], ['review rv9', { by: 'ana' }], ['note n9', { by: 'ana' }], ['departure d9', { type: 'skip' }]]);
+    const facts = doorFactsOf(emptyLanguageState(), (kind, id) => rows.get(`${kind} ${id}`));
+    expect(facts.entityTaken('recording:r9')).toBe(true);
+    expect(facts.reviewAuthor('rv9')).toBe('ana');
+    expect(facts.noteAuthor('n9')).toBe('ana');
+    expect(facts.departureType('d9')).toBe('skip');
+  });
+
+  it('a take left by an archive that came first is not taken, and its compose still comes in', () => {
+    // Why: the archive leaves a placeholder with no passage, and the real compose must not read as a second one.
+    let lang = emptyLanguageState();
+    lang = applyLanguageEvent(lang, made('v1.TakeArchived', { takeId: 't1' }));
+    expect(lang.takes['t1']).toBeDefined();
+    expect(doorFactsOf(lang, nothing).entityTaken('take:t1')).toBe(false);
+    expect(doorFactsOf(lang, () => ({ unitId: '' })).entityTaken('take:t1')).toBe(false);
+    expect(doorFactsOf(lang, () => ({ unitId: 'u1' })).entityTaken('take:t1')).toBe(true);
+  });
+
+  it('shared entries answer from the fold: a rendering, an adjustment, a voice note\'s format', () => {
+    let lang = emptyLanguageState();
+    lang = applyLanguageEvent(lang, made('v1.KeyTermRenderingAdded', { termId: 'logos', renderingId: 'a', rendering: 'word', context: 'in John' }));
+    lang = applyLanguageEvent(lang, made('v1.KeyTermAdjusted', { termId: 'logos', adjustmentId: 'b', note: 'n' }));
+    lang = applyLanguageEvent(lang, made('v1.AudioFormatSet', { hash: 'h'.repeat(64), format: 'wav' }));
+    const facts = doorFactsOf(lang, nothing);
+    expect(facts.entityTaken('rendering:logos/a')).toBe(true);
+    expect(facts.entityTaken('adjustment:logos/b')).toBe(true);
+    expect(facts.entityTaken('rendering:logos/z')).toBe(false);
+    expect(facts.entityTaken('rendering:other/a')).toBe(false);
+    expect(facts.entityTaken(`audioformat:${'h'.repeat(64)}`)).toBe(true);
+    expect(facts.entityTaken(`audioformat:${'i'.repeat(64)}`)).toBe(false);
+  });
+
+  it('a name on Object.prototype finds nothing', () => {
+    const facts = doorFactsOf(emptyLanguageState(), nothing);
+    expect(facts.entityTaken('recording:constructor')).toBe(false);
+    expect(facts.reviewAuthor('constructor')).toBeUndefined();
+    expect(facts.entityTaken('unheard:toString')).toBe(false);
+  });
+
+  it('what a page already let in counts, so two events on one page cannot both take a slot', () => {
+    const facts = doorFactsOf(emptyLanguageState(), nothing);
+    expect(facts.entityTaken('review:rv1')).toBe(false);
+    for (const e of [review, note, departure]) facts.note(e);
+    facts.note(made('v1.TakeSubmitted', { takeId: 't1' }));
+    expect(facts.entityTaken('review:rv1')).toBe(true);
+    expect(facts.reviewAuthor('rv1')).toBe(ACTOR);
+    expect(facts.noteAuthor('n1')).toBe(ACTOR);
+    expect(facts.departureType('d1')).toBe('skip');
+  });
+
+  it('asks for the rows an event names, and none for a mangled one', () => {
+    expect(doorKeptReads(recording)).toEqual([{ kind: 'recording', id: 'r1' }]);
+    expect(doorKeptReads(made('v1.ReviewWithdrawn', { reviewId: 'rv1' }))).toEqual([{ kind: 'review', id: 'rv1' }]);
+    expect(doorKeptReads(made('v1.NoteWithdrawn', { noteId: 'n1' }))).toEqual([{ kind: 'note', id: 'n1' }]);
+    expect(doorKeptReads(made('v1.DepartureUndone', { departureId: 'd1' }))).toEqual([{ kind: 'departure', id: 'd1' }]);
+    expect(doorKeptReads(made('v1.AudioFormatSet', { hash: 'h'.repeat(64), format: 'wav' }))).toEqual([]);
+    expect(doorKeptReads({ ...recording, payload: null } as unknown as AnyEvent)).toEqual([]);
+    expect(doorKeptReads({ ...recording, payload: { recordingId: 'a\u0000b' } } as unknown as AnyEvent)).toEqual([]);
+  });
+
+  it('step 10 runs alone, without the steps around it', () => {
+    const withdrawal = made('v1.ReviewWithdrawn', { reviewId: 'rv1' }, 'mallory');
+    const facts = doorFactsOf(emptyLanguageState(), nothing);
+    expect(nearbyLookUpRefusal(withdrawal, context({ facts }))).toBeNull();
+    facts.note(review);
+    expect(nearbyLookUpRefusal(withdrawal, context({ facts }))?.retry).toBe(false);
   });
 });

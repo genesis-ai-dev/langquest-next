@@ -2,7 +2,7 @@ import { createHash, createHmac, createPrivateKey, createPublicKey, sign, verify
 import fc from 'fast-check';
 import type { InviteLink, JoinPass, WorkerLink } from '../src/nearbyChain';
 import {
-  NEARBY_OPENING_BYTES, NEARBY_PREFIXES, PASS_WINDOW_MS, attestationText, base64urlDecode, base64urlEncode, bytesToHex, certRequestText, concatBytes, eventDigest, eventText, firstContactText, holdingsFilesHash,
+  NEARBY_OPENING_BYTES, NEARBY_PREFIXES, PASS_WINDOW_MS, attestationText, parseAttestation, parseBatchManifest, type BatchManifest, base64urlDecode, base64urlEncode, bytesToHex, certRequestText, concatBytes, eventDigest, eventText, firstContactText, holdingsFilesHash,
   holdingsText, isBase64url, linkText, manifestText, nearbyBytes, newcomerIdBytes, openingMaskInput, openingTagInputI, openingTagInputR, passIdOf, passIdText, passText, passWindowAt, proofText, revocationText,
   sameEventBytes, summaryOf, transcriptInput
 } from '../src/nearbySigning';
@@ -203,5 +203,72 @@ describe('plain bytes', () => {
   it('hex and joining', () => {
     expect(bytesToHex(new Uint8Array([0, 15, 255]))).toBe('000fff');
     expect(concatBytes(new Uint8Array([1]), new Uint8Array(0), new Uint8Array([2, 3]))).toEqual(new Uint8Array([1, 2, 3]));
+  });
+});
+
+describe('a manifest off the wire', () => {
+  const session = { orgId: 'org1', streamId: 'L1' };
+  const digest = 'a'.repeat(64);
+  const key = base64urlEncode(new Uint8Array(32).fill(5));
+  const good = (over: Partial<BatchManifest> = {}): BatchManifest =>
+    ({ v: 1, ...session, key, deviceId: 'd1', actorId: 'sam', n: 3, floor: 1, events: [['by:sam:a:0', digest]], ...over });
+
+  it('reads what a phone signed', () => {
+    expect(parseBatchManifest(manifestText(good()), session)).toEqual(good());
+    expect(parseBatchManifest(manifestText(good({ events: [], floor: 3 })), session)?.events).toEqual([]);
+  });
+
+  it.each<[string, unknown]>([
+    ['another organization', manifestText(good({ orgId: 'org2' }))],
+    ['another language', manifestText(good({ streamId: 'L2' }))],
+    ['a key that is not one', manifestText(good({ key: 'short' }))],
+    ['no author', manifestText(good({ actorId: '' }))],
+    ['no device', manifestText(good({ deviceId: '' }))],
+    ['a number of 0', manifestText(good({ n: 0, floor: 0 }))],
+    ['an unsafe number', manifestText(good({ n: 2 ** 53 }))],
+    ['a fractional number', manifestText(good({ n: 1.5 }))],
+    ['a floor past its number', manifestText(good({ floor: 4 }))],
+    ['a floor below 0', manifestText(good({ floor: -1 }))],
+    ['an id twice', manifestText(good({ events: [['x', digest], ['x', digest]] }))],
+    ['over the cap', manifestText(good({ events: Array.from({ length: 201 }, (_, i) => [`e${i}`, digest] as [string, string]) }))],
+    ['a digest that is not one', manifestText(good({ events: [['x', 'ABC']] }))],
+    ['an entry of the wrong shape', JSON.stringify({ ...good(), events: [['x']] })],
+    ['events that are not a list', JSON.stringify({ ...good(), events: {} })],
+    ['another version', manifestText({ ...good(), v: 2 } as unknown as BatchManifest)],
+    ['text no build writes: spaces', JSON.stringify(good(), null, 1)],
+    ['a field nobody knows', manifestText({ ...good(), later: 1 } as unknown as BatchManifest)],
+    ['not JSON', '{'],
+    ['not an object', '[]'],
+    ['not text', 3]
+  ])('refuses %s', (_why, text) => {
+    expect(parseBatchManifest(text, session)).toBeNull();
+  });
+});
+
+describe('an attestation off the wire', () => {
+  const session = { orgId: 'org1', streamId: 'L1', kid: 'k1' };
+  const digest = 'b'.repeat(64);
+  const good = (over: object = {}) => ({ v: 1 as const, kid: 'k1', orgId: 'org1', streamId: 'L1', rows: [['x', digest, 7] as [string, string, number]], ...over });
+
+  it('reads what the Worker signed', () => {
+    expect(parseAttestation(attestationText(good()), session)).toEqual(good());
+  });
+
+  it.each<[string, unknown]>([
+    ['a kid the message does not name', attestationText(good({ kid: 'k2' }))],
+    ['another organization', attestationText(good({ orgId: 'org2' }))],
+    ['another language', attestationText(good({ streamId: 'L2' }))],
+    ['a seq of 0', attestationText(good({ rows: [['x', digest, 0]] }))],
+    ['an unsafe seq', attestationText(good({ rows: [['x', digest, 2 ** 53]] }))],
+    ['an id twice', attestationText(good({ rows: [['x', digest, 1], ['x', digest, 2]] }))],
+    ['over the cap', attestationText(good({ rows: Array.from({ length: 201 }, (_, i) => [`e${i}`, digest, i + 1]) }))],
+    ['rows that are not a list', JSON.stringify({ ...good(), rows: 1 })],
+    ['a row of the wrong shape', attestationText(good({ rows: [['x', digest]] }))],
+    ['a digest that is not one', attestationText(good({ rows: [['x', 'nope', 1]] }))],
+    ['another version', attestationText(good({ v: 2 }))],
+    ['a field nobody knows', attestationText(good({ later: 1 }))],
+    ['not JSON', 'nope']
+  ])('refuses %s', (_why, text) => {
+    expect(parseAttestation(text, session)).toBeNull();
   });
 });
