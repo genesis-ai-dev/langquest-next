@@ -4041,7 +4041,11 @@
         "askedWho": "demandé à {{who}}",
         "asked": "demandé",
         "next": "ensuite",
-        "afterDone": "quand vous aurez terminé"
+        "afterDone": "quand vous aurez terminé",
+        "made": "faite",
+        "checked": "vérifiée",
+        "afterMade": "une fois faite",
+        "checkedBy": "dans la {{check}}"
       },
       "help": {
         "study": "Parcourez le guide d’étude ensemble avant d’enregistrer. Rien n’attend cette étape.",
@@ -4061,7 +4065,9 @@
         "checkpoint": "Le cadenas : elle doit être validée avant les étapes suivantes."
       },
       "thenTheTeam": "Puis l’équipe",
-      "teamHears": "Puis l’équipe peut l’écouter"
+      "teamHears": "Puis l’équipe peut l’écouter",
+      "makeIt": "{{what}} · la faire",
+      "checkIt": "{{what}} · la vérifier"
     },
     "quote": "« {{text}} »",
     "journey": {
