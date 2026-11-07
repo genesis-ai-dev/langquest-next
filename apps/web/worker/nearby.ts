@@ -20,7 +20,9 @@ import { hexBytes, type NearbySigner } from './nearbyKeys';
  * `POST /api/nearby/attest`, bearer token, `{ orgId, streamId, afterSeq }`: the
  * Worker reads the rows itself, as the caller, and signs their ids, digests and
  * `serverSeq`. No digest comes in the request, or it would sign whatever it
- * was sent. `null` while nearby is off for the organization.
+ * was sent. `null` while nearby is off for the organization; 403 for someone
+ * who may not read the stream, on or off, so the route tells no outsider which
+ * organizations have nearby on.
  */
 export const CERTIFICATE_PATH = '/api/nearby/certificate';
 export const ATTEST_PATH = '/api/nearby/attest';
@@ -219,22 +221,29 @@ async function attest(request: Request, deps: NearbyDeps): Promise<Response> {
   if (!isId(orgId) || !isId(streamId) || !isCount(afterSeq)) return json(400, { error: 'Send { orgId, streamId, afterSeq }.' });
   if (!isLanguageStream(orgId, streamId)) return json(400, { error: 'Only a language\'s stream is attested.' });
 
+  // As the caller, before anything else: someone who may not read this stream gets nothing signed, and learns
+  // nothing of whether nearby is on for its organization (403 either way).
+  const page = async (after: number): Promise<AnyEvent[] | null> => {
+    try {
+      return await deps.pullAs(token, orgId, streamId, after, NEARBY_BATCH_MAX_EVENTS);
+    } catch (e) {
+      if (e instanceof NotAuthorizedError) return null;
+      throw e;
+    }
+  };
+  const first = await page(afterSeq);
+  if (first === null) return json(403, { error: 'You cannot read this language.' });
+
   const on = await deps.nearbyOn(orgId);
   if (on.error?.code === 'PGRST202') return behind();
   if (on.error) throw new Error(`_org_feature_on: ${on.error.message}`);
   if (on.data !== true) return json(200, null);
 
-  // As the caller: someone who may not read this stream gets nothing signed.
   const rows: Attestation['rows'] = [];
   let after = afterSeq;
-  for (let page = 0; page < ATTEST_PAGES; page += 1) {
-    let events: AnyEvent[];
-    try {
-      events = await deps.pullAs(token, orgId, streamId, after, NEARBY_BATCH_MAX_EVENTS);
-    } catch (e) {
-      if (e instanceof NotAuthorizedError) return json(403, { error: 'You cannot read this language.' });
-      throw e;
-    }
+  for (let n = 0; n < ATTEST_PAGES; n += 1) {
+    const events = n === 0 ? first : await page(after);
+    if (events === null) return json(403, { error: 'You cannot read this language.' });
     for (const e of events) {
       if (rows.length === NEARBY_BATCH_MAX_EVENTS) break;
       const seq = e.serverSeq;

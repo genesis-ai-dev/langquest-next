@@ -337,7 +337,17 @@ describe('POST /api/nearby/attest', () => {
     const off = setup({}, { on: { data: false, error: null } });
     const answer = await handleNearby(post(ATTEST_PATH, { orgId: 'org1', streamId: 'lang1', afterSeq: 0 }), off.deps);
     expect([answer.status, await answer.json()]).toEqual([200, null]);
-    expect([w.pullCalls.length, off.w.pullCalls]).toEqual([1, []]);
+    expect(w.pullCalls.length).toBe(1);
+  });
+
+  it('tells a non-reader nothing of whether nearby is on: 403 either way, before the flag is asked', async () => {
+    const asked: string[] = [];
+    for (const on of [true, false]) {
+      const { deps } = setup({ nearbyOn: async (orgId) => { asked.push(orgId); return { data: on, error: null }; } });
+      const res = await handleNearby(post(ATTEST_PATH, { orgId: 'org1', streamId: 'secret', afterSeq: 0 }), deps);
+      expect([res.status, await res.json()], `nearby ${on ? 'on' : 'off'}`).toEqual([403, { error: 'You cannot read this language.' }]);
+    }
+    expect(asked).toEqual([]);
   });
 
   it('answers 503 with no key and on PGRST202, 401 with no live token, 400 for a body it cannot read, 502 for any other failure', async () => {

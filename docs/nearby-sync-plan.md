@@ -1771,8 +1771,10 @@ revoked from every role that should not call them, because functions default ope
   are no digests in the request, or the route would sign whatever it was sent. The Worker
   calls `pull_events` with the caller's token, so `can_read_stream` gates it, maps rows
   exactly as `SupabaseTransport.pull` does, computes `eventDigest` itself and signs at most
-  200 rows. It refuses `_org` and `_person` streams, answers null when `nearby` is off for
-  the organization, and answers 503 with no key. A confirmed tail is usually about 10 pages,
+  200 rows. It refuses `_org` and `_person` streams, answers 403 to anyone who may not read
+  the stream before it asks whether `nearby` is on (so it tells no outsider which
+  organizations have it on), answers null when `nearby` is off for the organization, and
+  answers 503 with no key. A confirmed tail is usually about 10 pages,
   because `checkpointEvery` is 2,000. It answers `{ text, kid, sig }`.
 - `POST /api/relay`, with a bearer token and `{ orgId, streamId, clientVersion, batches:
   RelayBatch[] }`, answers `{ batches: [{ key, n, refused?, verdicts? }] }`, `verdicts` being
