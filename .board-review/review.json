@@ -7,9 +7,17 @@
   "why": "No specific error showed, so a fix would be a guess. If errors grow again, we look at the server logs then.",
   "touches": "Nothing else.",
   "pictures": [],
-  "steps": [
-    {"text": "Close the draft pull request, which holds no code.", "link": "https://github.com/genesis-ai-dev/langquest-next/pull/366"}
+  "links": [
+    {
+      "label": "Draft pull request",
+      "url": "https://github.com/genesis-ai-dev/langquest-next/pull/366"
+    },
+    {
+      "label": "Linear issue LAN-225",
+      "url": "https://linear.app/frontierrandd/issue/LAN-225"
+    }
   ],
-  "links": [{"label": "Linear issue LAN-225", "url": "https://linear.app/frontierrandd/issue/LAN-225"}],
-  "guess": {"answer": "looks_good"}
+  "guess": {
+    "answer": "looks_good"
+  }
 }
