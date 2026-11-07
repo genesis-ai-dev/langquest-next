@@ -6,9 +6,19 @@
   "changed": "Nothing. You chose to leave it and watch, so I changed no code.",
   "why": "One brief fault does not need a fix. The draft pull request holds no code, and I cannot close it from here.",
   "touches": "Nothing else.",
-  "pictures": [{"file": "done.png", "label": "Done"}],
-  "steps": [
-    {"text": "Close the empty draft pull request without merging it.", "link": "https://github.com/genesis-ai-dev/langquest-next/pull/361"}
+  "pictures": [
+    {
+      "file": "done.png",
+      "label": "Done"
+    }
   ],
-  "guess": {"answer": "looks_good"}
+  "guess": {
+    "answer": "looks_good"
+  },
+  "links": [
+    {
+      "label": "Draft pull request",
+      "url": "https://github.com/genesis-ai-dev/langquest-next/pull/361"
+    }
+  ]
 }
