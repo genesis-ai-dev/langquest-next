@@ -537,18 +537,18 @@ describe.each(STORES)('the sweep on the %s store', (_name, make) => {
     describe('an undo that holds a slot when its target is pulled', () => {
       const oldReview = (reviewId: string) => eventBy(sam, 'v1.ReviewRecorded', { reviewId, takeId: 't1', kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'slower' }, { id: `${reviewId}-event:0` });
 
-      it('is not settled by the sweep: the server has not got it, so the table keeps it, and only delivery can say', async () => {
-        // A wrong withdrawal of an unbound review passes, because the review is not here.
+      it('is refused by the pull that brings its target, so the sweep has nothing to keep, and the author\'s withdrawal holds the slot', async () => {
+        // A wrong withdrawal of an unbound review passes, because the review is not here. The server has not got it, so the
+        // sweep alone would keep it as signed by an author who has not sent it yet; step 10 runs again when the review is pulled.
         const forged = eventBy(mallory, 'v1.ReviewWithdrawn', { reviewId: 'rv-old' }, { at: NOW - 100 });
         const client = await myPhone();
         await client.receiveNearby(await pageOf(mallory, 1, [forged]), intakeFor());
         await toServer(oldReview('rv-old'), eventBy(sam, 'v1.ReviewWithdrawn', { reviewId: 'rv-old' }, { at: NOW + 100 }));
 
         await client.sync();
-        expect(await statusOf(store, forged.id)).toBe('nearby');
+        expect(await rowOf(store, forged.id)).toMatchObject({ status: 'rejected', rejectReason: 'a review is withdrawn only by its author' });
         const state = await client.withPassages(UNITS);
-        // The slot is still the wrong one, so the author's real withdrawal, pulled from the server, counts for nothing here.
-        expect(state.withdrawnReviews['rv-old']?.by).toBe('mallory');
+        expect(state.withdrawnReviews['rv-old']?.by).toBe('sam');
       });
 
       it('never reaches a checkpoint: the wrong undo is left out, and the author\'s is what is saved', async () => {

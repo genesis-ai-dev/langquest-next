@@ -313,6 +313,8 @@ export class SyncClient<S = LanguageState> {
   private readonly fillBudgetMs: number;
   /** Should a pull read its ids to compare (`sameEventBytes`)? Unknown until the first pull asks; once true it stays true. */
   private pullCompares: boolean | null = null;
+  /** A fill's commit refused rows still in the fold: it folds again once the fill step is done. */
+  private foldOwed = false;
   /** Nearby sharing's half, when this client was given one (`nearby`). */
   private readonly nearbyPart: NearbyPart | null;
 
@@ -336,7 +338,7 @@ export class SyncClient<S = LanguageState> {
       ? new KeptLines(opts.store, opts.orgId, opts.streamId, this.kept, (b) => this.commit(b), () => this.state as unknown as LanguageState, opts.build ?? '')
       : null;
     this.fill = this.kept && this.lines && (opts.keptFormat ?? KEPT_CHECKPOINT_FORMAT) >= 2
-      ? new KeptFill(opts.store, opts.transport, opts.orgId, opts.streamId, this.m.version, this.kept, this.lines, (b) => this.commit(b), () => this.state as unknown as LanguageState, opts.fillPageRows)
+      ? new KeptFill(opts.store, opts.transport, opts.orgId, opts.streamId, this.m.version, this.kept, this.lines, (b) => this.commitFill(b), () => this.state as unknown as LanguageState, opts.fillPageRows)
       : null;
     this.fillBudgetMs = opts.fillBudgetMs ?? 2_000;
     this.nearbyPart = opts.nearby?.(this.nearbyPort()) ?? null;
@@ -404,6 +406,7 @@ export class SyncClient<S = LanguageState> {
     o: { started: number; readMs: number; staleSeq: number | null; reason: LoadReason }
   ): Promise<S> {
     const folding = this.elapsed();
+    this.foldOwed = false;
     // What each folded event names, for the lines it owes; kept instead of the events.
     const named: ReturnType<typeof eventPassage>[] = [];
     const folded = await this.foldLog(snapshot ? (snapshot.state as unknown as S) : this.m.empty(), {
@@ -914,7 +917,9 @@ export class SyncClient<S = LanguageState> {
   /** Run a fill step; if the cut it fills from is gone, start the language over (`cutGone`) and say nothing was filled. */
   private async fillOrStartOver(step: () => Promise<string[]>): Promise<string[]> {
     try {
-      return await step();
+      const filled = await step();
+      if (this.foldOwed) await this.refold('other');
+      return filled;
     } catch (err) {
       if (!(err instanceof CutGoneError)) throw err;
       await this.cutGone();
@@ -1480,6 +1485,28 @@ export class SyncClient<S = LanguageState> {
     return mine.length;
   }
 
+  /** Can a row here differ from the server's copy: a nearby row, or a restamp? A phone with neither reads nothing for it. */
+  private async comparesHere(): Promise<boolean> {
+    this.pullCompares ??= !!(await this.opts.store.meta(this.nearbyKey('nearbyRestamped'))) || (await this.opts.store.nearbyCount(this.opts.orgId, this.opts.streamId)) > 0;
+    return this.pullCompares;
+  }
+
+  /**
+   * A fill's write. The rows it keeps can be the target of a nearby undo that landed first, so
+   * nearby's step 10 runs again over them in the same commit; the fold drops what it refuses
+   * once the fill step ends. A phone with no nearby rows here reads nothing for it.
+   */
+  private async commitFill(batch: WriteBatch): Promise<void> {
+    if (this.nearbyPart && batch.kept?.upsert?.length && (await this.comparesHere())) {
+      const refused = await this.nearbyPart.filled(batch.kept.upsert);
+      if (refused.length > 0) {
+        batch.events = [...(batch.events ?? []), ...refused];
+        this.foldOwed = true;
+      }
+    }
+    await this.commit(batch);
+  }
+
   /** Pull the whole stream's tail and fold it. Returns number of new events. */
   pull(): Promise<number> {
     return this.exclusive(async () => {
@@ -1518,9 +1545,8 @@ export class SyncClient<S = LanguageState> {
     let membershipChanged = false;
     let base = (await this.checkpointSeq()) ?? 0;
     // A nearby copy or a restamp can differ from the server's. Everyone else reads nothing here.
-    this.pullCompares ??= !!(await this.opts.store.meta(this.nearbyKey('nearbyRestamped'))) || (await this.opts.store.nearbyCount(this.opts.orgId, this.opts.streamId)) > 0;
     // So does a phone holding a teammate's row in another language, whose id the server may hold here.
-    const compares = this.pullCompares || (!!this.nearbyPart && await this.nearbyPart.holdsAny());
+    const compares = (await this.comparesHere()) || (!!this.nearbyPart && await this.nearbyPart.holdsAny());
     let differs = false;
     for (;;) {
       const asked = this.elapsed();
@@ -1610,7 +1636,7 @@ export class SyncClient<S = LanguageState> {
       // never holds the whole language. Not once a redaction was pulled in this slice: the refold below undoes
       // its target from the log, and a checkpoint before that would prune the target and keep its effects.
       // Nor once a copy here differed: the live state still holds the old copy, and the fast path would save it as confirmed.
-      if (this.kept && !redacted && !differs && folded > 0 && after - base >= this.checkpointEvery && !this.opts.deferCheckpoint?.()) {
+      if (this.kept && !redacted && !differs && !this.foldOwed && folded > 0 && after - base >= this.checkpointEvery && !this.opts.deferCheckpoint?.()) {
         await this.checkpoint(after);
         base = after;
       }
@@ -1638,7 +1664,7 @@ export class SyncClient<S = LanguageState> {
     }
     // A redaction may target an event already folded; only a refold undoes it.
     if (redacted) await this.refold('redaction');
-    else if (differs) await this.refold('other');
+    else if (differs || this.foldOwed) await this.refold('other');
     // Still catching up: a language held whole in memory skips the checkpoint
     // (it serializes the whole state) and takes one when the tail is reached;
     // nothing is pruned before it, so a crash mid-catch-up only costs a longer

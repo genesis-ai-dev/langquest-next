@@ -1,7 +1,7 @@
 import { clockCloseEnough, decodeHlc, entityKeyOf, validateEvent, type AnyEvent, type LanguageState } from '@langquest-next/core';
 import {
   applyFloor, checkChain, countBatch, doorFactsOf, doorKeptReads, isCounted, NEARBY_VECTOR_MAX_RANGES, nearbyCopy, nearbyDoor, nearbyLookUpRefusal, parseAttestation, parseBatchManifest,
-  parseVector, revokedLater, type NearbyPeople, type NearbyVector, type NearbyVia, type PageFacts, type RevocationList
+  parseVector, revokedLater, type DoorFacts, type NearbyPeople, type NearbyVector, type NearbyVia, type PageFacts, type RevocationList
 } from '@langquest-next/core/nearby';
 import type { Diagnostics } from './diagnostics';
 import {
@@ -10,7 +10,7 @@ import {
 } from './nearbyIntake';
 import { batchPageOf, nextClaimsOf, signBatch } from './nearbySender';
 import { applyRevocationList, attestNearby, isServerVerdict, replaceBareManifest, settleBatches, sweepNearby, type NearbyHost, type NearbyPlatform } from './nearbyUpkeep';
-import { nearbyBudgetOf, type EventStore, type LocalEvent, type NearbyUse, type Transport, type WriteBatch } from './types';
+import { nearbyBudgetOf, type EventStore, type KeptRecord, type LocalEvent, type NearbyUse, type Transport, type WriteBatch } from './types';
 
 /**
  * Nearby sharing's half of a `SyncClient` (docs/nearby-sync-plan.md 5.4, 5.7, 5.12): signing,
@@ -94,6 +94,8 @@ export interface NearbyPart {
    * that page's commit. A row the server sends here from another language's row leaves that language a note.
    */
   pulled(page: readonly AnyEvent[], here: ReadonlyMap<string, LocalEvent>): Promise<{ events: LocalEvent[]; meta: Record<string, string> }>;
+  /** Rows a fill is about to keep: the nearby undos their reviews, notes and departures refuse, for the same commit. */
+  filled(rows: readonly KeptRecord[]): Promise<LocalEvent[]>;
 }
 
 /** How a client gets its nearby half: `nearby: nearbyClient(platform)`. Only the Android app passes one. */
@@ -121,6 +123,33 @@ const HELD_KEY = 'nearbyHeld';
 
 /** The note a pull leaves a language whose rows the server sent to another: those rows as they were there. */
 const movedKey = (orgId: string, streamId: string) => `nearbyMoved:${orgId}/${streamId}`;
+
+const hasOwn = (map: object, key: string) => Object.prototype.hasOwnProperty.call(map, key);
+
+/** Who may do what when no gate has been seen yet: nobody may do anything, so only a refusal for good is taken from it. */
+const NOBODY: NearbyPeople = { privilegesIn: () => new Set(), languageListed: () => false };
+
+/** The undo types by the target each names, as the door's step 10 reads them. */
+type UndoTargets = Map<'v1.ReviewWithdrawn' | 'v1.NoteWithdrawn' | 'v1.DepartureUndone', Set<string>>;
+
+function undoTargetOf(e: AnyEvent): string | null {
+  if (e.type === 'v1.ReviewWithdrawn') return e.payload.reviewId;
+  if (e.type === 'v1.NoteWithdrawn') return e.payload.noteId;
+  if (e.type === 'v1.DepartureUndone') return e.payload.departureId;
+  return null;
+}
+
+/** Targets among these events whose undo slot the fold already holds: an undo that landed first holds it. */
+function heldSlotsOf(events: readonly AnyEvent[], lang: LanguageState): UndoTargets {
+  const out: UndoTargets = new Map();
+  const add = (type: 'v1.ReviewWithdrawn' | 'v1.NoteWithdrawn' | 'v1.DepartureUndone', id: string) => out.set(type, (out.get(type) ?? new Set()).add(id));
+  for (const e of events) {
+    if (e.type === 'v1.ReviewRecorded' && hasOwn(lang.withdrawnReviews, e.payload.reviewId)) add('v1.ReviewWithdrawn', e.payload.reviewId);
+    if (e.type === 'v1.NoteAdded' && hasOwn(lang.withdrawnNotes, e.payload.noteId)) add('v1.NoteWithdrawn', e.payload.noteId);
+    if (e.type === 'v1.DepartureRecorded' && hasOwn(lang.undoneDepartures, e.payload.departureId)) add('v1.DepartureUndone', e.payload.departureId);
+  }
+  return out;
+}
 
 function movedOf(raw: string | undefined): AnyEvent[] {
   if (!raw) return [];
@@ -157,6 +186,8 @@ class NearbyClient implements NearbyPart {
   private doorChecked = false;
   private readonly farAhead = new Map<string, string>();
   private readonly host: NearbyHost;
+  /** The gate a page, Try again or a door run last came with: what a target arriving by pull or fill asks of people. */
+  private gate: NearbyGate | null = null;
 
   constructor(private readonly port: NearbyPort, platform: NearbyPlatform | undefined, private readonly phone: PhoneShare) {
     this.host = { ...port, platform, vector: () => this.vector(), vectorMeta: (vector) => this.vectorMeta(vector), number: (key) => this.number(key) };
@@ -277,6 +308,7 @@ class NearbyClient implements NearbyPart {
    */
   async receiveNearby(page: NearbyPage, intake: NearbyIntake): Promise<NearbyReceipt> {
     if (!this.port.loaded()) throw new Error('call load() first');
+    this.gate = intake;
     return page.t === 'batch' ? this.receiveBatch(page, intake) : this.receiveClaims(page, intake);
   }
 
@@ -303,7 +335,7 @@ class NearbyClient implements NearbyPart {
       const people = intake.people(checked.verdict);
       const door = await this.throughDoor(checked.events, here, people, { via: () => ({ batch: n, key }) });
       // 6.
-      const folded = await this.foldNearby(door, people);
+      const folded = await this.foldNearby(door, intake);
       const settled = new Set([...checked.settled, ...door.settled]);
       // 7.
       const counted = await batchIsWhole(manifest, here, settled, this.port.lang(), intake.sha256);
@@ -338,9 +370,8 @@ class NearbyClient implements NearbyPart {
       await this.doorAgainOnce(intake);
       // A row already here stays, whichever way it came: any difference is a clock from before a restamp, and a pull's comparison settles it.
       const here = byId(await this.port.store.getMany(checked.events.map((e) => e.id)));
-      const people = intake.people();
-      const door = await this.throughDoor(checked.events, here, people, { claim: true, via: (e) => ({ claim: { key: intake.peerKey, seq: checked.seqOf.get(e.id)! } }) });
-      const folded = await this.foldNearby(door, people);
+      const door = await this.throughDoor(checked.events, here, intake.people(), { claim: true, via: (e) => ({ claim: { key: intake.peerKey, seq: checked.seqOf.get(e.id)! } }) });
+      const folded = await this.foldNearby(door, intake);
       const claimed = await this.number(this.port.key('nearbyClaimed'));
       await this.commitNearby({
         receive: folded.rows,
@@ -388,7 +419,7 @@ class NearbyClient implements NearbyPart {
   }
 
   /** Step 6 up to its commit: a bounded clock, apply, the undos a late target settles, lines and the revision. */
-  private async foldNearby(door: NearbyDoorPass, people: NearbyPeople): Promise<NearbyFolded> {
+  private async foldNearby(door: NearbyDoorPass, gate: NearbyGate): Promise<NearbyFolded> {
     const last = this.port.lastStamp();
     const baseline = Math.max(this.port.wall(), last ? decodeHlc(last).wallMs : 0);
     let newest: AnyEvent | null = null;
@@ -401,7 +432,7 @@ class NearbyClient implements NearbyPart {
     // The door does not refuse a stamp far ahead: its only baseline may be the one that is wrong, and refusing would hold back honest work offline.
     const farAhead = newest && !clockCloseEnough(newest.hlc, baseline) ? { actorId: newest.actorId, hlc: newest.hlc } : undefined;
     if (farAhead) this.farAhead.set(farAhead.actorId, farAhead.hlc);
-    const rejected = await this.settleLateUndos(door, people);
+    const rejected = await this.settleLateUndos(door, gate);
     if (events.length > 0) await this.port.foldedNow(events);
     return { rows: door.rows, rejected, refold: rejected.length > 0, ...(farAhead ? { farAhead } : {}) };
   }
@@ -413,28 +444,28 @@ class NearbyClient implements NearbyPart {
    * the nearby rows naming it. An ordinary page finds no slot held, and reads nothing. A
    * batch has one author, so an undo on the target's own page is that author's.
    */
-  private async settleLateUndos(door: NearbyDoorPass, people: NearbyPeople): Promise<LocalEvent[]> {
-    const lang = this.port.lang();
+  private async settleLateUndos(door: NearbyDoorPass, gate: NearbyGate): Promise<LocalEvent[]> {
+    const targets = heldSlotsOf(door.rows.map((r) => r.event), this.port.lang());
+    return targets.size === 0 ? [] : this.refuseLateUndos(targets, door.facts, gate, new Set());
+  }
+
+  /**
+   * Step 10 again over the nearby undos naming these targets, read by target so that a page never
+   * makes this phone walk every nearby row under the turn. The server already held a claim's event,
+   * and an id in `skip` came with the target, so neither is judged. With no gate seen yet, only a
+   * refusal for good is taken: a reason that can change waits for a fold that can answer it.
+   */
+  private async refuseLateUndos(targets: UndoTargets, facts: DoorFacts, gate: NearbyGate | null, skip: ReadonlySet<string>): Promise<LocalEvent[]> {
+    const { store, orgId, streamId } = this.port;
+    const ids = [...new Set([...targets.values()].flatMap((set) => [...set]))];
+    const peopleOf = gate ? this.peopleFor(gate) : async () => NOBODY;
     const rejected: LocalEvent[] = [];
-    const slots = new Set<string>();
-    for (const { event: e } of door.rows) {
-      if (e.type === 'v1.ReviewRecorded' && lang.withdrawnReviews[e.payload.reviewId]) slots.add(`v1.ReviewWithdrawn ${e.payload.reviewId}`);
-      if (e.type === 'v1.NoteAdded' && lang.withdrawnNotes[e.payload.noteId]) slots.add(`v1.NoteWithdrawn ${e.payload.noteId}`);
-      if (e.type === 'v1.DepartureRecorded' && lang.undoneDepartures[e.payload.departureId]) slots.add(`v1.DepartureUndone ${e.payload.departureId}`);
-    }
-    if (slots.size === 0) return rejected;
-    const names = (e: AnyEvent) => {
-      if (e.type === 'v1.ReviewWithdrawn') return slots.has(`${e.type} ${e.payload.reviewId}`);
-      if (e.type === 'v1.NoteWithdrawn') return slots.has(`${e.type} ${e.payload.noteId}`);
-      return e.type === 'v1.DepartureUndone' && slots.has(`${e.type} ${e.payload.departureId}`);
-    };
-    const context = { orgId: this.port.orgId, languageId: this.port.streamId, people, facts: door.facts };
-    // Only the undos naming these targets: a page must not make this phone read every nearby row under the turn.
-    const targets = [...slots].map((slot) => slot.slice(slot.indexOf(' ') + 1));
-    for (const l of await this.port.store.nearbyUndoing(this.port.orgId, this.port.streamId, targets)) {
-      // The server already held a claim's event, so step 10 does not apply to it.
-      const refused = names(l.event) && !(l.via && 'claim' in l.via) ? nearbyLookUpRefusal(l.event, context) : null;
-      if (refused) rejected.push({ event: l.event, status: 'rejected', rejectReason: refused.reason, ...(l.via ? { via: l.via } : {}) });
+    for (const l of await store.nearbyUndoing(orgId, streamId, ids)) {
+      const e = l.event;
+      const target = undoTargetOf(e);
+      if (skip.has(e.id) || (l.via && 'claim' in l.via) || target === null || !targets.get(e.type as 'v1.ReviewWithdrawn')?.has(target)) continue;
+      const refused = nearbyLookUpRefusal(e, { orgId, languageId: streamId, people: await peopleOf(l.via), facts });
+      if (refused && (gate || !refused.retry)) rejected.push({ event: e, status: 'rejected', rejectReason: refused.reason, ...(l.via ? { via: l.via } : {}) });
     }
     return rejected;
   }
@@ -461,6 +492,7 @@ class NearbyClient implements NearbyPart {
    * revocation stay out, and so do rows the sweep refused on the server's word. Answers how many came back.
    */
   retryNearby(gate: NearbyGate): Promise<number> {
+    this.gate = gate;
     return this.port.exclusive(async () => {
       const { store, orgId, streamId } = this.port;
       const refused = (await store.rejected(orgId, streamId)).filter((l) => !!l.via && !isServerVerdict(l.rejectReason));
@@ -490,6 +522,7 @@ class NearbyClient implements NearbyPart {
    * refused for being counted. Answers how many were refused.
    */
   nearbyDoorAgain(gate: NearbyGate): Promise<number> {
+    this.gate = gate;
     this.doorChecked = false;
     return this.port.exclusive(() => this.doorAgainOnce(gate));
   }
@@ -631,7 +664,29 @@ class NearbyClient implements NearbyPart {
       moved.set(key, [...(moved.get(key) ?? []), was]);
     }
     for (const [key, events] of moved) meta[key] = JSON.stringify([...movedOf(await this.port.store.meta(key)), ...events]);
-    return { events: [], meta };
+    // A target arriving from the server whose slot a nearby undo holds: step 10 again, as a page from a teammate would run it.
+    const targets = heldSlotsOf(page, this.port.lang());
+    if (targets.size === 0) return { events: [], meta };
+    const facts = doorFactsOf(this.port.lang(), () => undefined);
+    for (const e of page) facts.note(e);
+    return { events: await this.refuseLateUndos(targets, facts, this.gate, new Set(page.map((e) => e.id))), meta };
+  }
+
+  async filled(rows: readonly KeptRecord[]): Promise<LocalEvent[]> {
+    const lang = this.port.lang();
+    const targets: UndoTargets = new Map();
+    const values = new Map<string, unknown>();
+    const slot = { review: ['v1.ReviewWithdrawn', lang.withdrawnReviews], note: ['v1.NoteWithdrawn', lang.withdrawnNotes], departure: ['v1.DepartureUndone', lang.undoneDepartures] } as const;
+    for (const r of rows) {
+      if (!hasOwn(slot, r.kind)) continue;
+      const [type, held] = slot[r.kind as keyof typeof slot];
+      if (!hasOwn(held, r.id)) continue;
+      targets.set(type, (targets.get(type) ?? new Set()).add(r.id));
+      values.set(`${r.kind}\u0000${r.id}`, JSON.parse(r.json));
+    }
+    if (targets.size === 0) return [];
+    // The rows being kept stand for the targets: they are what the door's facts would read off disk after this commit.
+    return this.refuseLateUndos(targets, doorFactsOf(lang, (kind, id) => values.get(`${kind}\u0000${id}`)), this.gate, new Set());
   }
 
   /**

@@ -1046,6 +1046,83 @@ describe.each(STORES)('an undo that lands before its target, on the %s store', (
     expect(await statusOf(store, own.id)).toBe('nearby');
   });
 
+  it('a target that comes by pull refuses a forged undo in the same commit as its page, and the sweep then keeps nothing', async () => {
+    // Why: only a nearby page ran step 10 again, so the forged withdrawal kept the slot once the review came from the server,
+    // and the sweep kept it too, as signed by an author who had not sent it yet.
+    const w = watched(store);
+    const client = phone(server, w.store, mine);
+    await client.load();
+    const forged = eventBy(mallory, 'v1.ReviewWithdrawn', { reviewId: 'rv-old' }, { at: NOW - 100 });
+    await client.receiveNearby(await pageOf(mallory, 1, [forged]), intakeFor());
+    expect(stateOf(client).withdrawnReviews['rv-old']?.by).toBe('mallory');
+    const batches: Parameters<EventStore['commit']>[0][] = [];
+    w.fail.commit = (b) => { batches.push(b); return false; };
+    await server.transportFor().append([oldReview(sam, 'rv-old')]);
+    await client.pull();
+    const page = batches.find((b) => b.cursor && b.events?.some((l) => l.event.id === 'rv-old-event:0'));
+    expect(page?.events?.find((l) => l.event.id === forged.id)).toMatchObject({ status: 'rejected', rejectReason: 'a review is withdrawn only by its author', via: { batch: 1, key: mallory.key } });
+    expect(stateOf(client).withdrawnReviews['rv-old']).toBeUndefined();
+    expect(stateOf(client).kindReviews['rv-old']).toBeDefined();
+    await client.sync();
+    expect(await statusOf(store, forged.id)).toBe('rejected');
+  });
+
+  it('a right undo stays when its target comes by pull, and a phone with no nearby rows reads nothing for it', async () => {
+    const quiet = watched(make());
+    const bare = phone(server, quiet.store, mine);
+    await bare.load();
+    await server.transportFor().append([oldReview(sam, 'rv-a')]);
+    await bare.pull();
+    expect(quiet.calls['nearbyUndoing']).toBeUndefined();
+    expect(quiet.calls['getMany']).toBeUndefined();
+
+    const client = await myPhone();
+    const own = eventBy(sam, 'v1.ReviewWithdrawn', { reviewId: 'rv-b' }, { at: NOW - 100 });
+    await client.receiveNearby(await pageOf(sam, 1, [own]), intakeFor());
+    await server.transportFor().append([oldReview(sam, 'rv-b')]);
+    await client.pull();
+    expect(await statusOf(store, own.id)).toBe('nearby');
+    expect(stateOf(client).withdrawnReviews['rv-b']?.by).toBe('sam');
+  });
+
+  it('an undo of an override, when the override comes by pull, from someone the last gate says lacks override_checkpoints', async () => {
+    const client = await myPhone();
+    const undo = eventBy(mallory, 'v1.DepartureUndone', { departureId: 'dep-old' });
+    await client.receiveNearby(await pageOf(mallory, 1, [undo]), intakeFor({ people: () => everyone(['translate', 'review']) }));
+    await server.transportFor().append([eventBy(sam, 'v1.DepartureRecorded', { departureId: 'dep-old', unitId: 'u1', type: 'override', stepId: 's1', reason: 'r' }, { id: 'dep-old-event:0' })]);
+    await client.pull();
+    expect(await rowOf(store, undo.id)).toMatchObject({ status: 'rejected', rejectReason: 'undoing an override needs override_checkpoints' });
+    expect(stateOf(client).undoneDepartures['dep-old']).toBeUndefined();
+  });
+
+  it('a target that comes by fill refuses a forged undo in the same commit as its rows', async () => {
+    // Why: a language kept on disk gets a passage's rows from the server's cut, not by pull, so a pull's check never sees them.
+    const lead = phone(server, new MemoryStore(), sam);
+    await lead.load();
+    await lead.append('v1.UnitAdded', { unitId: 'u1', parentUnitId: null, kind: 'passage', label: 'x', order: 'a' });
+    await lead.append('v1.RecordingAdded', { recordingId: 'r-old', unitId: 'u1', kind: 'target', cards: [{ hash: 'h1', durationMs: 5 }] });
+    await lead.append('v1.TakeComposed', { takeId: 't-old', unitId: 'u1', cardHashes: ['h1'], parentTakeId: null });
+    await lead.append('v1.ReviewRecorded', { reviewId: 'rv-old', takeId: 't-old', kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'x' });
+    await lead.sync();
+    server.serverCut = true;
+    server.makeSnapshot(ORG, LANG);
+    const w = watched(store);
+    const client = phone(server, w.store, mine, { keepOnDisk: true, fillAtOnceRows: 0, fillPageRows: 1 });
+    await client.load();
+    await client.pull();
+    expect(client.isFilled('u1')).toBe(false);
+    const forged = eventBy(mallory, 'v1.ReviewWithdrawn', { reviewId: 'rv-old' }, { at: NOW - 100 });
+    expect(await client.receiveNearby(await pageOf(mallory, 1, [forged]), intakeFor())).toMatchObject({ kept: 1 });
+    expect(stateOf(client).withdrawnReviews['rv-old']?.by).toBe('mallory');
+    const batches: Parameters<EventStore['commit']>[0][] = [];
+    w.fail.commit = (b) => { batches.push(b); return false; };
+    for (let i = 0; i < 5 && !client.isFilled('u1'); i++) await client.fillSome();
+    expect(client.isFilled('u1')).toBe(true);
+    const rows = batches.find((b) => b.kept?.upsert?.some((r) => r.kind === 'review' && r.id === 'rv-old'));
+    expect(rows?.events?.find((l) => l.event.id === forged.id)).toMatchObject({ status: 'rejected', rejectReason: 'a review is withdrawn only by its author' });
+    expect(stateOf(client).withdrawnReviews['rv-old']).toBeUndefined();
+  });
+
   it('a claim of an undo is not judged again: the server held it', async () => {
     const client = await myPhone();
     const claimedUndo = eventBy(mallory, 'v1.ReviewWithdrawn', { reviewId: 'rv-claimed' }, { id: 'undo-old:0' });
