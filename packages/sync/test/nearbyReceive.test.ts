@@ -1222,6 +1222,35 @@ describe.each(STORES)('Try again and a new reducer, on the %s store', (_name, ma
     expect(await statusOf(store, e.id)).toBe('nearby');
   });
 
+  it('a row a newer certificate let in stays after a new reducer and comes back on Try again: its batch\'s chain speaks again', async () => {
+    // Why: run with the fold alone, the door refuses what the signer's certificate allowed, and no partner re-sends a counted batch.
+    const foldSaysNo = (verdict?: { ok: boolean; holder?: { profileId: string } }) => (verdict?.holder?.profileId === 'sam' ? everyone() : everyone([]));
+    const client = await myPhone();
+    const e = unitBy(sam, 'u1');
+    expect(await client.receiveNearby(await pageOf(sam, 1, [e]), intakeFor({ people: foldSaysNo }))).toMatchObject({ kept: 1, counted: true });
+    const next = await underNewReducer();
+    expect(await next.nearbyDoorAgain(intakeFor({ people: foldSaysNo }))).toBe(0);
+    expect(await statusOf(store, e.id)).toBe('nearby');
+
+    await store.commit({ events: [refused(e)] });
+    expect(await next.retryNearby(intakeFor({ people: foldSaysNo }))).toBe(1);
+    expect(await statusOf(store, e.id)).toBe('nearby');
+  });
+
+  it('a stored chain is checked as at receipt: one that does not name the batch\'s signer speaks for nothing', async () => {
+    const foldSaysNo = (verdict?: { ok: boolean; holder?: { profileId: string } }) => (verdict?.holder?.profileId === 'sam' ? everyone() : everyone([]));
+    const client = await myPhone();
+    const e = unitBy(sam, 'u1');
+    await client.receiveNearby(await pageOf(sam, 1, [e]), intakeFor({ people: foldSaysNo }));
+    // A chain swapped in on disk for someone else's: the door goes by the fold, as it would for a page carrying it.
+    const [row] = await store.batchesAfter(ORG, LANG, sam.key, 0, 1);
+    await store.commit({ dropBatches: { orgId: ORG, streamId: LANG, keys: [{ key: sam.key, n: 1 }] } });
+    await store.commit({ batches: [{ ...row!, chain: JSON.stringify((await teammate('ana')).chain) }] });
+    const next = await underNewReducer();
+    expect(await next.nearbyDoorAgain(intakeFor({ people: foldSaysNo }))).toBe(1);
+    expect(await statusOf(store, e.id)).toBe('rejected');
+  });
+
   it('a phone with no nearby rows only notes the version', async () => {
     const next = await underNewReducer();
     expect(await next.nearbyDoorAgain({ people: () => everyone() })).toBe(0);

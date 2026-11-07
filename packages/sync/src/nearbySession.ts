@@ -614,7 +614,10 @@ export class NearbySession {
     const { port, keep } = this.opt;
     await this.local(async () => {
       await port.startNearbyBudget();
-      await port.nearbyDoorAgain({ people: (verdict) => this.opt.gate.people(verdict), ...(this.revoked ? { revoked: this.revoked.list } : {}) });
+      await port.nearbyDoorAgain({
+        people: (verdict) => this.opt.gate.people(verdict), rootKeys: this.opt.rootKeys, verify: this.crypto.verify, sha256: this.crypto.sha256,
+        ...(this.revoked ? { revoked: this.revoked.list } : {})
+      });
       if (this.revoked) await port.nearbyApplyRevoked(this.revoked.list);
       this.holdings = await keep.holdings();
       await this.refreshMyHolding();

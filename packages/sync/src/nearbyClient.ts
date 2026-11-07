@@ -1,6 +1,6 @@
 import { clockCloseEnough, decodeHlc, entityKeyOf, validateEvent, type AnyEvent, type LanguageState } from '@langquest-next/core';
 import {
-  applyFloor, countBatch, doorFactsOf, doorKeptReads, isCounted, NEARBY_VECTOR_MAX_RANGES, nearbyCopy, nearbyDoor, nearbyLookUpRefusal, parseAttestation, parseBatchManifest,
+  applyFloor, checkChain, countBatch, doorFactsOf, doorKeptReads, isCounted, NEARBY_VECTOR_MAX_RANGES, nearbyCopy, nearbyDoor, nearbyLookUpRefusal, parseAttestation, parseBatchManifest,
   parseVector, revokedLater, type NearbyPeople, type NearbyVector, type NearbyVia, type PageFacts, type RevocationList
 } from '@langquest-next/core/nearby';
 import type { Diagnostics } from './diagnostics';
@@ -466,12 +466,12 @@ class NearbyClient implements NearbyPart {
       const refused = (await store.rejected(orgId, streamId)).filter((l) => !!l.via && !isServerVerdict(l.rejectReason));
       if (refused.length === 0) return 0;
       const facts = await this.pageFacts(refused.map((l) => l.event));
-      const people = gate.people();
+      const peopleOf = this.peopleFor(gate);
       const back: LocalEvent[] = [];
       for (const { event: e, via } of refused) {
         const claim = !!via && 'claim' in via;
         if (via && 'batch' in via && revokedLater(gate.revoked, via.key, e.actorId, e.hlc)) continue;
-        if (nearbyDoor(e, { orgId, languageId: streamId, people, facts, ...(claim ? { claim } : {}) })) continue;
+        if (nearbyDoor(e, { orgId, languageId: streamId, people: await peopleOf(via), facts, ...(claim ? { claim } : {}) })) continue;
         facts.note(e);
         back.push({ event: e, status: 'nearby', ...(via ? { via } : {}) });
       }
@@ -516,14 +516,14 @@ class NearbyClient implements NearbyPart {
         if (page.length < LOG_PAGE) break;
         after = page[page.length - 1]!.event.id;
       }
-      const people = gate.people();
+      const peopleOf = this.peopleFor(gate);
       for (let after: string | null = null; ;) {
         const page: LocalEvent[] = await store.nearbyPage(orgId, streamId, after, LOG_PAGE);
         const base = await this.pageFacts(page.map((l) => l.event));
         const rejected: LocalEvent[] = [];
         for (const { event: e, via } of page) {
           const facts = { ...base, entityTaken: (entity: string) => (holders.get(entity)?.event.id ?? e.id) !== e.id };
-          const refusal = nearbyDoor(e, { orgId, languageId: streamId, people, facts, ...(via && 'claim' in via ? { claim: true } : {}) });
+          const refusal = nearbyDoor(e, { orgId, languageId: streamId, people: await peopleOf(via), facts, ...(via && 'claim' in via ? { claim: true } : {}) });
           if (refusal) rejected.push({ event: e, status: 'rejected', rejectReason: refusal.reason, ...(via ? { via } : {}) });
         }
         refused += rejected.length;
@@ -538,6 +538,40 @@ class NearbyClient implements NearbyPart {
       await this.port.refold('other');
     }
     return refused;
+  }
+
+  /**
+   * Who may do what, for a row already here, as when its batch arrived: the chain kept with that batch,
+   * checked again the same way (no expiry, and naming the batch's signer), decides with the fold, so a
+   * row a certificate newer than the fold let in is not refused for it later. A claim, a row whose batch
+   * is gone, or a gate with nothing to check a chain with goes by the fold. One check per batch.
+   */
+  private peopleFor(gate: NearbyGate): (via: NearbyVia | undefined) => Promise<NearbyPeople> {
+    let plain: NearbyPeople | null = null;
+    const byFold = () => (plain ??= gate.people());
+    const byBatch = new Map<string, Promise<NearbyPeople>>();
+    const { rootKeys, verify, sha256 } = gate;
+    return async (via) => {
+      if (!via || !('batch' in via) || !rootKeys || !verify || !sha256) return byFold();
+      const at = `${via.key} ${via.batch}`;
+      let people = byBatch.get(at);
+      if (!people) {
+        people = (async () => {
+          const { store, orgId, streamId } = this.port;
+          const [row] = await store.batchesAfter(orgId, streamId, via.key, via.batch - 1, 1);
+          if (row?.n !== via.batch) return byFold();
+          try {
+            const verdict = await checkChain(JSON.parse(row.chain), { rootKeys, orgId, languageId: streamId, now: null, verify, sha256 });
+            const named = verdict.ok && verdict.holder.installKey === row.key && verdict.holder.deviceId === row.deviceId && verdict.holder.profileId === row.actorId;
+            return named ? gate.people(verdict) : byFold();
+          } catch {
+            return byFold();
+          }
+        })();
+        byBatch.set(at, people);
+      }
+      return people;
+    };
   }
 
   /** A newer revocation list reaches rows already taken: those dated after their key's revocation are refused. Answers how many. */

@@ -22,6 +22,13 @@ export interface NearbyGate {
   people(verdict?: ChainVerdict): NearbyPeople;
   /** The Worker's list, from phase 2. Later-dated events from a listed key and person stay out, one by one. */
   revoked?: RevocationList;
+  /**
+   * What a stored chain is checked with when the door runs again over rows already here, as it was
+   * checked when their batch arrived. Without all three, the door goes by the fold alone.
+   */
+  rootKeys?: ReadonlyMap<string, string>;
+  verify?: Verify;
+  sha256?: Sha256;
 }
 
 export interface NearbyIntake extends NearbyGate {
