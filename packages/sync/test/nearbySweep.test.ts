@@ -1,4 +1,5 @@
 import { emptyLanguageState, foldLanguage, isCounted, type AnyEvent, type LanguageState } from '@langquest-next/core';
+import { Diagnostics, MemoryDiagStore } from '../src/diagnostics';
 import { FakeServer } from '../src/testing/fakeServer';
 import { SimDevice } from '../src/testing/fleet/device';
 import { fakeSha256 } from '../src/testing/memoryNearbyLink';
@@ -6,7 +7,7 @@ import { shapeTransport } from '../src/testing/shapedTransport';
 import { OfflineError, type EventStore, type KnownEvent, type Transport } from '../src/types';
 import type { SyncClient } from '../src/syncClient';
 import {
-  LANG, NOW, ORG, STORES, claimsOf, eventBy, intakeFor, pageOf, phone, recordingBy, rowOf, statusOf, teammate, unitBy, vectorOf, type PhoneOptions, type Teammate
+  LANG, NOW, ORG, STORES, claimsOf, eventBy, intakeFor, pageOf, phone, recordingBy, rowOf, statusOf, teammate, unitBy, vectorOf, worker, type PhoneOptions, type Teammate
 } from './nearbyFixtures';
 
 /**
@@ -16,7 +17,7 @@ import {
  * good; but a copy dropped wrongly loses a teammate's work, and a copy dropped without its
  * line and fold being put right is saved as confirmed by the next checkpoint.
  */
-const certified = { sha256: fakeSha256 };
+const certified = { sha256: fakeSha256, holdsCertificate: () => true };
 
 const HOW = [['whole in memory', false], ['kept on disk', true]] as const;
 const UNITS = ['u1', 'u2'];
@@ -308,6 +309,22 @@ describe.each(STORES)('the sweep on the %s store', (_name, make) => {
         while ((await client.sync()).more);
         expect(server.knownEventsCalls).toBeGreaterThan(0);
       });
+
+      it('comes after push, pull and attest, in that order', async () => {
+        await toServer(...units());
+        server.attester = worker.attestRows;
+        const calls: string[] = [];
+        const t = server.transportFor();
+        for (const name of ['append', 'pull', 'attest', 'knownEvents'] as const) {
+          const inner = t[name] as (...a: unknown[]) => Promise<unknown>;
+          (t as unknown as Record<string, unknown>)[name] = (...a: unknown[]) => { if (calls.at(-1) !== name) calls.push(name); return inner(...a); };
+        }
+        const client = await myPhone({ transport: t, nearby: certified });
+        await client.append('v1.UnitAdded', { unitId: 'u3', parentUnitId: null, kind: 'passage', label: 'u3', order: 'u3' });
+        await client.receiveNearby(await pageOf(sam, 1, [recordingBy(sam, 'r1')]), intakeFor());
+        await client.sync();
+        expect(calls).toEqual(['append', 'pull', 'attest', 'knownEvents']);
+      });
     });
 
     describe('what follows a drop', () => {
@@ -543,6 +560,206 @@ describe.each(STORES)('the sweep on the %s store', (_name, make) => {
         const checkpoint = JSON.parse((await store.meta(`snapshot:${ORG}/${LANG}`))!) as { state: LanguageState };
         expect(checkpoint.state.withdrawnReviews['rv-old']?.by).toBe('sam');
       });
+    });
+  });
+
+  describe('asking the Worker to vouch', () => {
+    let sam: Teammate;
+    let mine: Teammate;
+    let store: EventStore;
+    let server: FakeServer;
+
+    beforeEach(async () => {
+      sam = await teammate('sam');
+      mine = await teammate('me');
+      store = make();
+      server = new FakeServer();
+      server.attester = worker.attestRows;
+    });
+
+    const toServer = async (from: number, to: number) => {
+      const events = Array.from({ length: to - from + 1 }, (_, i) => unitBy(sam, `u${from + i}`));
+      for (const r of await server.transportFor().append(events)) expect(r.accepted).toBe(true);
+    };
+    async function myPhone(o: PhoneOptions = {}) {
+      const client = phone(server, store, mine, { nearby: certified, ...o });
+      await client.load();
+      return client;
+    }
+    const heldSeqs = async () => (await store.attestedUpTo(ORG, LANG)).map((a) => a.lastSeq);
+    const diagnostics = () => {
+      const records = new MemoryDiagStore();
+      let n = 0;
+      const clock = { t: 0 };
+      const diag = new Diagnostics({ store: records, newId: () => `d${++n}`, now: () => clock.t });
+      return {
+        diag,
+        tallied: async () => {
+          diag.closeTallies();
+          await diag.settle();
+          return records.records.filter((r) => r.kind === 'expected').map((r) => r.t);
+        }
+      };
+    };
+
+    it('asks in serverSeq order, each after the newest answer held, and stores what holds', async () => {
+      await toServer(1, 250);
+      const client = await myPhone();
+      await client.sync();
+      expect(server.attestCalls).toBe(2);
+      expect(await heldSeqs()).toEqual([200, 250]);
+      expect((await store.attestedUpTo(ORG, LANG))[0]).toMatchObject({ orgId: ORG, streamId: LANG, kid: worker.kid });
+    });
+
+    it('with nothing new, makes no call', async () => {
+      await toServer(1, 3);
+      const client = await myPhone();
+      await client.sync();
+      await client.sync();
+      expect(server.attestCalls).toBe(1);
+      await toServer(4, 5);
+      await client.sync();
+      expect(server.attestCalls).toBe(2);
+      expect(await heldSeqs()).toEqual([3, 5]);
+    });
+
+    it('with no certificate, or no platform half, makes no call', async () => {
+      await toServer(1, 3);
+      const client = await myPhone({ nearby: { sha256: fakeSha256, holdsCertificate: () => false } });
+      await client.sync();
+      const bare = phone(server, make(), mine);
+      await bare.load();
+      await bare.sync();
+      expect(server.attestCalls).toBe(0);
+    });
+
+    it('a null answer stores nothing, and the next sync asks again', async () => {
+      await toServer(1, 3);
+      server.attester = null;
+      const client = await myPhone();
+      await client.sync();
+      expect(await heldSeqs()).toEqual([]);
+      server.attester = worker.attestRows;
+      await client.sync();
+      expect(await heldSeqs()).toEqual([3]);
+    });
+
+    it('an answer that disagrees with this phone\'s rows shows in diagnostics, stores nothing and goes no further', async () => {
+      await toServer(1, 3);
+      const { diag, tallied } = diagnostics();
+      server.attester = async (orgId, streamId, rows) => worker.attest({ orgId, streamId, rows: rows.map((e) => [e.id, 'a'.repeat(64), e.serverSeq!]) });
+      const client = await myPhone({ diag });
+      expect((await client.sync()).offline).toBe(false);
+      expect(await heldSeqs()).toEqual([]);
+      expect(server.attestCalls).toBe(1);
+      expect(await tallied()).toEqual([{ where: 'nearby_attest', name: 'mismatch' }]);
+    });
+
+    it.each([
+      ['leaves out a row here', (rows: readonly AnyEvent[]) => rows.filter((e) => e.serverSeq !== 2)],
+      ['starts past one', (rows: readonly AnyEvent[]) => rows.slice(1)]
+    ])('an answer that %s is refused, so what is stored stays contiguous', async (_what, cut) => {
+      await toServer(1, 3);
+      server.attester = async (orgId, streamId, rows) => worker.attestRows(orgId, streamId, cut(rows));
+      const client = await myPhone();
+      await client.sync();
+      expect(await heldSeqs()).toEqual([]);
+    });
+
+    it('text that is not the Worker\'s form is a mismatch, and an attestation of no rows is the end', async () => {
+      await toServer(1, 3);
+      const { diag, tallied } = diagnostics();
+      server.attester = async () => ({ text: 'nonsense', kid: worker.kid, sig: 'x' });
+      const client = await myPhone({ diag });
+      await client.sync();
+      expect(await heldSeqs()).toEqual([]);
+      expect(await tallied()).toEqual([{ where: 'nearby_attest', name: 'mismatch' }]);
+      server.attester = async (orgId, streamId) => worker.attest({ orgId, streamId, rows: [] });
+      await client.sync();
+      expect(await heldSeqs()).toEqual([]);
+    });
+
+    it('claims go up to the contiguous attested seq, where a failed page stopped, and on from there', async () => {
+      await toServer(1, 250);
+      let answered = 0;
+      server.attester = async (orgId, streamId, rows) => {
+        answered += 1;
+        if (answered === 2) throw new Error('worker fell over');
+        return worker.attestRows(orgId, streamId, rows);
+      };
+      const client = await myPhone();
+      await client.sync();
+      expect(await heldSeqs()).toEqual([200]);
+
+      const first = await client.nearbyNextClaims({ cursor: 0, claimedSeq: 0 });
+      expect(first?.throughSeq).toBe(200);
+      expect(await client.nearbyNextClaims({ cursor: 0, claimedSeq: 200 })).toBeNull();
+
+      await client.sync();
+      expect(await heldSeqs()).toEqual([200, 250]);
+      expect((await client.nearbyNextClaims({ cursor: 0, claimedSeq: 200 }))?.throughSeq).toBe(250);
+    });
+
+    it('never claims past the cursor: a row pushed here can sit beyond one not pulled yet', async () => {
+      await toServer(1, 2);
+      const client = await myPhone();
+      await client.sync();
+      await toServer(3, 3);
+      await client.append('v1.UnitAdded', { unitId: 'mine', parentUnitId: null, kind: 'passage', label: 'mine', order: 'mine' });
+      await client.push();
+      expect(await store.cursor(ORG, LANG)).toBe(2);
+      const rows = server.stream(ORG, LANG).slice(2);
+      const answer = await worker.attestRows(ORG, LANG, rows);
+      await store.commit({ attests: [{ orgId: ORG, streamId: LANG, lastSeq: 4, ...answer }] });
+
+      expect(await client.nearbyNextClaims({ cursor: 2, claimedSeq: 0 })).toBeNull();
+      await client.pull();
+      expect((await client.nearbyNextClaims({ cursor: 2, claimedSeq: 0 }))?.throughSeq).toBe(4);
+    });
+
+    it('an answer goes as prune passes it, and asking starts from the checkpoint', async () => {
+      await toServer(1, 50);
+      const client = await myPhone({ checkpointEvery: 100 });
+      await client.sync();
+      expect(await heldSeqs()).toEqual([50]);
+
+      await toServer(51, 110);
+      await client.sync();
+      expect(await store.cursor(ORG, LANG)).toBe(110);
+      expect(JSON.parse((await store.meta(`snapshot:${ORG}/${LANG}`))!).serverSeq).toBe(110);
+      expect(await heldSeqs()).toEqual([]);
+      expect(server.attestCalls).toBe(1);
+
+      await toServer(111, 113);
+      await client.sync();
+      expect(await heldSeqs()).toEqual([113]);
+    });
+
+    it('a Worker that cannot be reached fails no sync, and the sweep still runs', async () => {
+      await toServer(1, 3);
+      const { diag, tallied } = diagnostics();
+      const rec = recordingBy(sam, 'r1');
+      const t = server.transportFor();
+      t.attest = async () => { throw new Error('502'); };
+      const client = await myPhone({ transport: t, diag });
+      await client.receiveNearby(await pageOf(sam, 1, [rec]), intakeFor());
+      const result = await client.sync();
+      expect(result).toMatchObject({ offline: false, refused: null, tooOld: false, pulled: 3 });
+      expect(server.knownEventsCalls).toBe(1);
+      expect(await tallied()).toEqual([{ where: 'nearby_attest', name: 'Error' }]);
+
+      t.attest = async () => { throw new OfflineError('no route'); };
+      expect((await client.sync()).offline).toBe(false);
+    });
+
+    it('stops after ten answers, which keeps the stream\'s turn short, and goes on at the next sync', async () => {
+      await toServer(1, 2_200);
+      const client = await myPhone({ checkpointEvery: 100_000 });
+      await client.sync();
+      expect(server.attestCalls).toBe(10);
+      expect((await heldSeqs()).at(-1)).toBe(2_000);
+      await client.sync();
+      expect((await heldSeqs()).at(-1)).toBe(2_200);
     });
   });
 

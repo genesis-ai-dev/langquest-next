@@ -46,7 +46,7 @@ import {
   type NearbyBatchPage, type NearbyClaimsPage, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbyRefusal, type NearbySigned, type NearbySigner
 } from './nearbyIntake';
 import { batchPageOf, nextClaimsOf, signBatch } from './nearbySender';
-import { isServerVerdict, settleBatches, sweepNearby, type NearbyHost, type NearbyPlatform } from './nearbyUpkeep';
+import { attestNearby, isServerVerdict, settleBatches, sweepNearby, type NearbyHost, type NearbyPlatform } from './nearbyUpkeep';
 import { WriteQueue } from './writeQueue';
 import { ClientTooOldError, EventTooLargeError, NotAuthorizedError, OfflineError, UnrenewedError, NOT_LISTED_TEXT, rejectCodeOf, type RejectCode } from './types';
 import { downloadPieces, fetchSnapshot } from './snapshotFetch';
@@ -203,7 +203,7 @@ export interface SyncClientOptions<S = LanguageState> {
    * sync, split into waiting on the network and working on the phone.
    */
   diag?: Diagnostics;
-  /** Nearby sync's platform half. Without it a sync still sweeps, but closes no batch number. */
+  /** Nearby sync's platform half. Without it a sync still sweeps, but asks for no attestation and closes no batch number. */
   nearby?: NearbyPlatform;
   /**
    * Push only, for a person who handed a shared phone on (`deliverQueued`,
@@ -531,6 +531,8 @@ export class SyncClient<S = LanguageState> {
     if (batch.batches?.length === 0) delete batch.batches;
     if (batch.dropBatches?.keys.length === 0) delete batch.dropBatches;
     if (batch.attests?.length === 0) delete batch.attests;
+    // An answer goes as prune passes it: its rows are gone, and so nothing can be claimed under it.
+    if (batch.prune) batch.dropAttests = { orgId: batch.prune.orgId, streamId: batch.prune.streamId, upToSeq: batch.prune.uptoSeq };
     if (Object.keys(batch).length === 0) return Promise.resolve();
     // What the language keeps on disk changed: lookups cached from it are out of date. Lines alone change nothing they read.
     const keptChanged = batch.kept?.streamId === this.opts.streamId
@@ -1804,8 +1806,9 @@ export class SyncClient<S = LanguageState> {
     return result;
   }
 
-  /** Push, pull, then the sweep (docs/nearby-sync-plan.md section 6), which with what it settles waits until nothing more is to pull. */
+  /** Push, pull, then attest and sweep (docs/nearby-sync-plan.md section 6); the sweep and what it settles wait until nothing more is to pull. */
   private async afterPull(morePull: boolean): Promise<void> {
+    await attestNearby(this.nearbyHost);
     if (morePull) return;
     this.nearbyUseNow = null;
     await sweepNearby(this.nearbyHost);
@@ -2322,6 +2325,7 @@ export class SyncClient<S = LanguageState> {
       streamId: this.opts.streamId,
       actorId: this.opts.actorId,
       deviceId: this.opts.deviceId,
+      diag: this.opts.diag,
       platform: this.opts.nearby,
       commit: (batch) => this.commit(batch),
       key: (what, signer) => this.nearbyKey(what, signer),
@@ -2330,7 +2334,8 @@ export class SyncClient<S = LanguageState> {
       number: (key) => this.nearbyNumber(key),
       lang: () => this.state as unknown as LanguageState,
       touched: (events) => this.lines?.touched(this.state as unknown as LanguageState, events),
-      refold: () => this.refold('other')
+      refold: () => this.refold('other'),
+      checkpointSeq: () => this.checkpointSeq()
     });
   }
 }

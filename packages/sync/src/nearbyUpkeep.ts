@@ -1,18 +1,22 @@
 import {
-  countBatch, isCounted, NEARBY_VECTOR_MAX_RANGES, parseBatchManifest,
-  type AnyEvent, type LanguageState, type NearbyVector, type Sha256
+  countBatch, eventDigest, isCounted, NEARBY_BATCH_MAX_EVENTS, NEARBY_VECTOR_MAX_RANGES, parseAttestation, parseBatchManifest,
+  type AnyEvent, type Attestation, type LanguageState, type NearbyVector, type Sha256
 } from '@langquest-next/core';
+import type { Diagnostics } from './diagnostics';
 import { batchIsWhole } from './nearbyIntake';
-import type { EventStore, LocalEvent, Transport, WriteBatch } from './types';
+import { OfflineError, type EventStore, type LocalEvent, type Transport, type WriteBatch } from './types';
 
 /**
- * The server's half of nearby sync, at the end of a sync (docs/nearby-sync-plan.md 5.7):
- * what the server says of rows held for teammates, and which manifests are still needed. Each runs under the stream's turn, and the
+ * The server's half of nearby sync, at the end of a sync (docs/nearby-sync-plan.md 5.7,
+ * 5.12): what the Worker vouches for, what the server says of rows held for teammates,
+ * and which manifests are still needed. Each runs under the stream's turn, and the
  * `SyncClient` hands in the little private state it needs.
  */
 
 /** What the sweep asks for at once, which is what `knownEvents` takes. */
 const SWEEP_PAGE = 500;
+/** Answers one sync asks for, about 2,000 rows. A long tail goes on at the next, so this cannot hold the stream's turn for long. */
+const ATTEST_PAGES = 10;
 const LOG_PAGE = 500;
 
 /**
@@ -26,6 +30,8 @@ export const isServerVerdict = (reason: string | undefined): boolean => !!reason
 /** What the platform gives nearby sync here. This package imports none (decision 104). */
 export interface NearbyPlatform {
   sha256: Sha256;
+  /** Holds this phone a certificate for this organization? Only then is there anyone to claim to. */
+  holdsCertificate(): boolean;
 }
 
 /** What nearby's steps need from their `SyncClient`. */
@@ -36,6 +42,7 @@ export interface NearbyHost {
   streamId: string;
   actorId: string;
   deviceId: string;
+  diag: Diagnostics | undefined;
   platform: NearbyPlatform | undefined;
   commit(batch: WriteBatch): Promise<void>;
   key(what: string, signer?: string): string;
@@ -46,6 +53,7 @@ export interface NearbyHost {
   /** These events' passages' lines are owed, worked out from the fold as it stands. */
   touched(events: readonly AnyEvent[]): void;
   refold(): Promise<unknown>;
+  checkpointSeq(): Promise<number | null>;
 }
 
 const byId = (rows: readonly LocalEvent[]) => new Map(rows.map((l) => [l.event.id, l]));
@@ -163,6 +171,68 @@ async function closeSwept(up: NearbyHost, swept: Swept): Promise<void> {
     if (await batchIsWhole(manifest, here, settled, up.lang(), platform.sha256)) vector = countBatch(vector, manifest.key, manifest.n, { maxRanges: NEARBY_VECTOR_MAX_RANGES });
   }
   if (vector !== before) await up.commit({ meta: up.vectorMeta(vector) });
+}
+
+// ---- attesting ------------------------------------------------------------------
+
+/**
+ * The Worker's answer against this phone's own rows: in `serverSeq` order, past where it
+ * asked, each row pulled here the same, and no row here left out, so claims can stop at the
+ * contiguous attested seq. A row past the cursor is not here yet. An event no digest can
+ * stand for cannot be attested, and is sent by neither claim nor batch.
+ */
+async function attestationHolds(attested: Attestation, after: number, cursor: number, mine: readonly LocalEvent[], sha256: Sha256): Promise<boolean> {
+  let last = after;
+  for (const [, , seq] of attested.rows) {
+    if (seq <= last) return false;
+    last = seq;
+  }
+  const here = byId(mine);
+  for (const [id, digest, seq] of attested.rows) {
+    if (seq > cursor) continue;
+    const row = here.get(id);
+    if (row?.event.serverSeq !== seq || (await eventDigest(row.event, sha256)) !== digest) return false;
+  }
+  const named = new Set(attested.rows.map(([id]) => id));
+  for (const { event } of mine) {
+    if ((event.serverSeq ?? Infinity) <= last && !named.has(event.id) && (await eventDigest(event, sha256)) !== '') return false;
+  }
+  return true;
+}
+
+/**
+ * Ask the Worker to vouch for what this phone pulled (docs/nearby-sync-plan.md 5.12, Claims),
+ * in `serverSeq` order from the newest answer held. An answer goes in only once it holds
+ * against this phone's rows, so what is stored is contiguous, and one that does not hold
+ * shows in diagnostics and stops here until the next sync. A Worker that cannot be reached
+ * costs claims and nothing more: a sync that pushed and pulled did not fail.
+ */
+export async function attestNearby(up: NearbyHost): Promise<void> {
+  const { store, transport, orgId, streamId, platform } = up;
+  if (!transport.attest || !platform?.holdsCertificate()) return;
+  const cursor = await store.cursor(orgId, streamId);
+  // The newest answer's seq, written with it, so that a sync with nothing new does not read every answer held.
+  const newest = up.key('nearbyAttested');
+  let after = Math.max(await up.number(newest), (await up.checkpointSeq()) ?? 0);
+  for (let pages = 0; after < cursor && pages < ATTEST_PAGES; pages += 1) {
+    let answer: Awaited<ReturnType<NonNullable<Transport['attest']>>>;
+    try {
+      answer = await transport.attest(orgId, streamId, after);
+    } catch (err) {
+      if (!(err instanceof OfflineError)) up.diag?.expected('nearby_attest', err instanceof Error ? err.name : 'non-error');
+      return;
+    }
+    if (!answer) return;
+    const attested = parseAttestation(answer.text, { orgId, streamId, kid: answer.kid });
+    if (attested?.rows.length === 0) return;
+    const mine = attested ? await store.confirmedAfter(orgId, streamId, after, NEARBY_BATCH_MAX_EVENTS + 1) : [];
+    if (!attested || !await attestationHolds(attested, after, cursor, mine, platform.sha256)) {
+      up.diag?.expected('nearby_attest', 'mismatch');
+      return;
+    }
+    after = attested.rows[attested.rows.length - 1]![2];
+    await up.commit({ attests: [{ orgId, streamId, lastSeq: after, text: answer.text, kid: answer.kid, sig: answer.sig }], meta: { [newest]: String(after) } });
+  }
 }
 
 // ---- manifests ------------------------------------------------------------------

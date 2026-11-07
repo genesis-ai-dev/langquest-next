@@ -98,6 +98,8 @@ export async function batchPageOf(up: NearbyHost, key: string, n: number): Promi
 export async function nextClaimsOf(up: NearbyHost, them: { cursor: number; claimedSeq: number }): Promise<{ page: NearbyClaimsPage; throughSeq: number } | null> {
   const { store, orgId, streamId } = up;
   let after = Math.max(them.cursor, them.claimedSeq);
+  // A row pushed here but not yet pulled can sit past one this phone has not got, and a claim past that would skip it for the other.
+  const cursor = await store.cursor(orgId, streamId);
   for (const held of await store.attestedUpTo(orgId, streamId)) {
     if (held.lastSeq <= after) continue;
     const attested = parseAttestation(held.text, { orgId, streamId, kid: held.kid });
@@ -105,7 +107,7 @@ export async function nextClaimsOf(up: NearbyHost, them: { cursor: number; claim
     const ids = new Set(attested.rows.map(([id]) => id));
     const told = { cursor: after, claimedSeq: after };
     const rows = (await store.confirmedAfter(orgId, streamId, after, NEARBY_BATCH_MAX_EVENTS))
-      .filter((l) => ids.has(l.event.id) && shouldClaim(l, told, { attestedSeq: held.lastSeq, isRedacted: (id) => up.lang().redactions[id] === true }));
+      .filter((l) => ids.has(l.event.id) && shouldClaim(l, told, { attestedSeq: Math.min(held.lastSeq, cursor), isRedacted: (id) => up.lang().redactions[id] === true }));
     const events: AnyEvent[] = [];
     let bytes = 0;
     let throughSeq = after;
