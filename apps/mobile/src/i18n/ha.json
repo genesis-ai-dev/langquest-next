@@ -7976,5 +7976,11 @@
       "badItem": "Ku zaɓi ɗaya daga cikin abubuwanku na iri ɗaya.",
       "offline": "Ba a iya kaiwa ga LangQuest ba. Ku duba haɗinku ku sake gwadawa."
     }
+  },
+  "tutorial": {
+    "open": "Kalli yadda",
+    "watch": "Kalla a YouTube",
+    "download": "Sauke bidiyon",
+    "help": "Bidiyon wannan allon."
   }
 }

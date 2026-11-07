@@ -7631,5 +7631,11 @@
       "badItem": "请选择你自己的同类项。",
       "offline": "无法连接 LangQuest。请检查网络后重试。"
     }
+  },
+  "tutorial": {
+    "open": "观看教程",
+    "watch": "在 YouTube 观看",
+    "download": "下载视频",
+    "help": "本屏幕的视频。"
   }
 }

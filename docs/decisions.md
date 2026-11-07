@@ -10853,3 +10853,10 @@ review over 14 days past the replacement, or a build cut from an older commit,
 still finds no copy: a new install on a slow link then pulls the log and its work
 is safe. At about one bump a week this keeps one or two versions nobody reports;
 at early October's three a week, five or six, each a copy per language.
+
+## 205. The help page links a screen to its tutorial video by the app's language and build, and shows nothing when none fits
+
+Date: 2026-11-07 · By: Caleb Koster · Status: accepted
+
+Reason: LAN-244 asks for each screen's tutorial video and download on the help page, matched to the app's version (store build and update) and its language. When no video fits, Caleb chose to hide the link: no English stand-in, no list, no warning. A wrong-language or wrong-version video could show buttons the person does not have. `packages/core/src/tutorialLinks.ts` picks (`pickTutorialLink`: screen to video, same language only, left out when filmed for another store build or a newer update than the phone's); the Worker lists a language's chosen videos at `/api/tutorial-links` (only for a language with its own approved catalog, so an unsupported one is not answered in English); help mode's play button opens Watch and Download, using the lasting links of decision 187. Considered and turned down: English stand-in, the full videos list, the closest video with a warning. The build fields (`runtimes`, `filmedFrom`) are read when the list carries them; the filming does not record them yet, so until it does only language decides, which is true of the web app always.
+Reverse if: people in languages with few videos ask where the video is; then show the English one, labelled.

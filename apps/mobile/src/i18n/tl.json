@@ -7976,5 +7976,11 @@
       "badItem": "Pumili ng isa sa sarili mong item na pareho ang uri.",
       "offline": "Hindi maabot ang LangQuest. Tingnan ang iyong koneksiyon at subukan ulit."
     }
+  },
+  "tutorial": {
+    "open": "Panoorin kung paano",
+    "watch": "Panoorin sa YouTube",
+    "download": "I-download ang video",
+    "help": "Ang video ng screen na ito."
   }
 }

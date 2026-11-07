@@ -7976,5 +7976,11 @@
       "badItem": "Chagua kimojawapo cha vipengele vyako vya aina hiyo hiyo.",
       "offline": "Imeshindwa kufikia LangQuest. Angalia muunganisho wako ujaribu tena."
     }
+  },
+  "tutorial": {
+    "open": "Tazama jinsi",
+    "watch": "Tazama kwenye YouTube",
+    "download": "Pakua video",
+    "help": "Video ya skrini hii."
   }
 }

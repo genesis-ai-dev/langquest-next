@@ -8321,5 +8321,11 @@
       "badItem": "Elige uno de tus propios elementos del mismo tipo.",
       "offline": "No se pudo conectar con LangQuest. Revisa tu conexión e inténtalo de nuevo."
     }
+  },
+  "tutorial": {
+    "open": "Ver cómo",
+    "watch": "Ver en YouTube",
+    "download": "Descargar el video",
+    "help": "El video de esta pantalla."
   }
 }
