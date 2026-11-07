@@ -1,0 +1,17 @@
+{
+  "kind": "question",
+  "ask": "Should we wait and watch, or record the real error from now on?",
+  "problem": "File downloads from the server failed with a server error 5 times in one day. No phone or browser reported it. Retrying probably worked.",
+  "found": "The last hour and a half shows no download errors out of about 15,000 downloads. The nightly file check is clean. The error day itself was not in the data, so the cause stays unknown.",
+  "changed": "Nothing. I made no code change, because no specific error showed.",
+  "why": "A clean file check and zero current errors point to a brief storage fault. Code cannot fix that. I left the other download route, owned by another manager, alone.",
+  "touches": "Nothing else.",
+  "pictures": [],
+  "options": [
+    {"label": "Wait and watch", "result": "We do nothing now. If the count stays low, we close the issue. If it grows, we look again.", "picture": "a.png"},
+    {"label": "Record the real error", "result": "I open a small pull request that saves the real error for each failed download. The cause shows the next time it happens.", "picture": "b.png"}
+  ],
+  "recommended": 0,
+  "guess": {"answer": "option", "option": 0},
+  "linear": {"comment": "Read-only look: no download errors in the latest 1.5 hours (about 15,000 downloads); nightly file check clean (0 missing, 0 orphaned). The error day was not in the data, so the cause is unknown; likely a brief storage fault. No code change. Draft PR #366 carries only a question card for Caleb."}
+}
