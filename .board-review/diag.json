@@ -1,4 +1,4 @@
 {"runs": [
- {"command": "jobs", "args": ["--job", "worker_requests", "--days", "3"]},
- {"command": "jobs", "args": ["--job", "blob_reconcile", "--days", "3"]}
+ {"command": "jobs", "args": [], "job": "worker_requests", "days": 3},
+ {"command": "jobs", "args": [], "job": "blob_reconcile", "days": 3}
 ]}
