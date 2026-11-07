@@ -2,9 +2,45 @@
  "kind": "needs_you",
  "ask": "Can you get Carl's OK, merge the pull request, and paste the setup line?",
  "problem": "Many changes run at once and clash. Your Mac runs only 3 or 4 threads. Since Oct 1, 54 merges of main clashed. 41 of them clashed only in the decisions file.",
- "found": "Yes, you read it right. Every change added its decision at the end of one shared file, so they clashed. The pull request gives each new decision its own file, named by date and a few words. Decisions 1 to 204 stay in the old file, because many places cite their numbers. The same pull request also lets coding threads run on Claude's cloud machines instead of your Mac. A setup script makes those machines ready.",
+ "found": "Yes. Changes all added decisions to one shared file, so they clashed. Now each new decision is its own file. Old decisions 1 to 204 stay put. Coding threads also move to Claude's cloud.",
  "changed": "I merged main in. Main had reached decision 204, so I moved the closing number from 198 to 204. I checked the setup script against today's cloud machines. It still works. All fast checks pass.",
  "why": "One file per decision means two changes never touch the same file. The other choice was to name each file by its pull request number. That needs a rename after the pull request opens. Carl's OK is needed because it changes how the whole team writes decisions. I could not push to the original pull request's branch, so this is a new draft pull request. Merge only one of them.",
  "touches": "Anyone with an open change that adds a numbered decision must move it into its own file after this merges. Until then, their decision check fails. Nothing in the store answers changes.",
- "pictures": [{"file": "before.png", "label": "Before: one shared decisions file"}, {"file": "after.png", "label": "After: one file per new decision"}]
+ "pictures": [
+  {
+   "file": "before.png",
+   "label": "Before: one shared decisions file"
+  },
+  {
+   "file": "after.png",
+   "label": "After: one file per new decision"
+  }
+ ],
+ "steps": [
+  {
+   "text": "Ask Carl to approve one file per decision",
+   "link": "https://github.com/genesis-ai-dev/langquest-next/pull/372"
+  },
+  {
+   "text": "Merge pull request 372 once checks are green",
+   "link": "https://github.com/genesis-ai-dev/langquest-next/pull/372"
+  },
+  {
+   "text": "Close old pull request 255 without merging",
+   "link": "https://github.com/genesis-ai-dev/langquest-next/pull/255"
+  },
+  {
+   "text": "Paste the setup line into the cloud environment settings: bash langquest-next/scripts/cloud-setup.sh --snapshot || true",
+   "link": "https://claude.ai/code"
+  }
+ ],
+ "links": [
+  {
+   "label": "Linear issue LAN-165",
+   "url": "https://linear.app/frontierrandd/issue/LAN-165"
+  }
+ ],
+ "guess": {
+  "answer": "looks_good"
+ }
 }
