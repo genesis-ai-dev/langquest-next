@@ -14,7 +14,11 @@
 # NEARBY_CERT_KEYS in apps/web/wrangler.jsonc (committed here) and then to
 # EXPO_PUBLIC_NEARBY_CERT_KEYS in apps/mobile/.env.<env> (committed by
 # env-update.sh, which then offers to push the app's file to EAS). A rotation
-# appends, so phones built before it still trust what the old key signed.
+# appends, so phones built before it still trust what the old key signed: they
+# cannot check the new key's chains until an update carries its public half,
+# and until then keep the chains and discovery keys they hold
+# (apps/mobile/src/nearby/nearbyIdentity.android.ts, decisions.md 212 as
+# amended), while newer phones trust both.
 #
 # After it: npm run secrets -- <env> puts the key on the app Worker; merging
 # deploys the public list with the Worker; npm run env:eas -- push <env> if the

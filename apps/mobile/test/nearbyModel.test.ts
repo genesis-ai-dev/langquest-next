@@ -77,6 +77,14 @@ describe('discovery keys', () => {
     expect(findKeysAfterAnswer(held, [], [], new Set())).toEqual({});
   });
 
+  it('after an answer whose chain for an organization could not be checked: that organization\'s keys stay as held, whatever it answered', () => {
+    const next = findKeysAfterAnswer(held, ['o1/L1', 'o1/L2', 'o2/L9'], [
+      { orgId: 'o1', languageId: 'L1', gen: 4, floor: 2, key: K2 },
+      { orgId: 'o2', languageId: 'L9', gen: 9, floor: 2, key: K2 }
+    ], new Set(['o1', 'o2']), new Set(['o2']));
+    expect(next).toEqual({ 'o1/L1': { gen: 4, key: K2, floor: 2, direct: true }, 'o2/L9': held['o2/L9'] });
+  });
+
   it('names held languages and the open organization\'s opened ones, of organizations on', () => {
     expect(languagesToName(held, 'o1', ['L5', 'L1', ''], new Set(['o1']))).toEqual(['o1/L1', 'o1/L2', 'o1/L5']);
     expect(languagesToName(held, 'o3', ['L5'], new Set(['o2']))).toEqual(['o2/L9']);

@@ -170,6 +170,46 @@ describe('the nearby identity', () => {
     expect(fake.noted.some((n) => n.startsWith('nearby certificate'))).toBe(true);
   });
 
+  it('on a build from before the Worker\'s key rotated, keeps the chain and discovery keys the old key signed (scripts/nearby-signing-key.sh)', async () => {
+    const p = await load();
+    p.flag.heardUserState(ME, { orgFeatures: { o1: ['nearby'] } });
+    await input(p);
+    const held = await p.phone.readChains(ME);
+    expect(Object.keys(held)).toEqual(['o1']);
+    // The Worker now signs with a key this build does not carry: its answer cannot be checked, so it changes nothing here.
+    fake.answer = async (req) => {
+      const body = (await issued({ signer: rogue })(req)).body;
+      return { kind: 'answer', body: { ...body, discoveryKeys: body.discoveryKeys.map((k) => ({ ...k, gen: 3, key: `${'B'.repeat(42)}A` })) } };
+    };
+    await input(p, { org: org(['L1', 'L2'], 'admin') });
+    expect(fake.calls).toHaveLength(2);
+    expect(await p.phone.readChains(ME)).toEqual(held);
+    expect(p.phone.holdsCertificate(ME, 'o1')).toBe(true);
+    expect(findKeys()).toEqual({ 'o1/L1': { gen: 2, key: KEY_A, floor: 1, direct: true } });
+    expect(fake.noted.some((n) => n.startsWith('nearby certificate'))).toBe(true);
+  });
+
+  it('drops an organization a checked answer no longer names, while keeping one whose new chain it could not check', async () => {
+    const p = await load();
+    p.flag.heardUserState(ME, { orgFeatures: { o1: ['nearby'], o2: ['nearby'], o3: ['nearby'] } });
+    fake.answer = issued({ orgs: ['o1', 'o2', 'o3'] });
+    await input(p);
+    await input(p, { orgId: 'o2', org: org(['L9']), languageId: 'L9' });
+    await input(p, { orgId: 'o3', org: org(['L5']), languageId: 'L5' });
+    expect(Object.keys(findKeys()).sort()).toEqual(['o1/L1', 'o2/L9', 'o3/L5']);
+    const o3 = (await p.phone.readChains(ME))['o3'];
+    // o1 checks, o2 is not named (this person left it), o3's chain is signed by a key this build does not trust.
+    fake.answer = async (req) => {
+      const good = (await issued({ orgs: ['o1'] })(req)).body;
+      const bad = (await issued({ orgs: ['o3'], signer: rogue })(req)).body;
+      return { kind: 'answer', body: { ...good, chains: [...good.chains, ...bad.chains], discoveryKeys: [...good.discoveryKeys, ...bad.discoveryKeys] } };
+    };
+    await input(p, { org: org(['L1'], 'admin') });
+    expect(Object.keys(await p.phone.readChains(ME)).sort()).toEqual(['o1', 'o3']);
+    expect((await p.phone.readChains(ME))['o3']).toEqual(o3);
+    expect(Object.keys(findKeys()).sort()).toEqual(['o1/L1', 'o3/L5']);
+  });
+
   it('makes a new key when the old one was revoked, drops every chain naming it, and asks once more', async () => {
     const p = await load();
     p.flag.heardUserState(ME, { orgFeatures: { o1: ['nearby'] } });

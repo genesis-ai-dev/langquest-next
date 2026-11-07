@@ -135,17 +135,29 @@ async function ask(input: IdentityInput, key: InstallKey, languages: string[], f
     return;
   }
 
-  const chains: HeldChains = {};
-  for (const { orgId: org, chain } of answer.chains) {
-    // `now: null`: Hello checks expiry against its own clock; a phone's wrong date must not drop a fresh certificate here.
+  // `now: null`: Hello checks expiry against its own clock; a phone's wrong date must not drop a fresh certificate here.
+  const usable = async (chain: unknown[], org: string): Promise<string | null> => {
     const verdict = await checkChain(chain, { rootKeys: ROOT_KEYS, orgId: org, now: null, verify: nobleVerify, sha256: nobleSha256, maxLinks: 1 });
-    if (verdict.ok && verdict.holder.installKey === key.publicKey && verdict.holder.profileId === actorId) chains[org] = chain;
+    if (!verdict.ok) return verdict.reason;
     // i18n-ignore: for diagnostics; no screen shows it
-    else noteExpected('nearby certificate', new Error(verdict.ok ? 'a chain for another key or person' : verdict.reason));
+    return verdict.holder.installKey === key.publicKey && verdict.holder.profileId === actorId ? null : 'a chain for another key or person';
+  };
+  const held = await readChains(actorId);
+  const chains: HeldChains = {};
+  // Organizations whose new chain this build cannot check, most often because the Worker's key rotated past
+  // it (scripts/nearby-signing-key.sh): as after a 429 or 503, the chain and discovery keys held stay while
+  // the held chain still checks. An organization the answer does not name at all goes, as before.
+  const keptOrgs = new Set<string>();
+  for (const { orgId: org, chain } of answer.chains) {
+    const refused = await usable(chain, org);
+    if (refused === null) { chains[org] = chain; continue; }
+    noteExpected('nearby certificate', new Error(refused));
+    const before = held[org];
+    if (before && await usable(before, org) === null) { chains[org] = before; keptOrgs.add(org); }
   }
   await keepChains(actorId, chains);
   const chainOrgs = new Set(Object.keys(chains));
-  const nextFind = findKeysAfterAnswer(find, languages, answer.discoveryKeys, chainOrgs);
+  const nextFind = findKeysAfterAnswer(find, languages, answer.discoveryKeys, chainOrgs, keptOrgs);
   // Dropped if they signed out while the call was out (lock.ts): sign-out sealed what was here then. The answer
   // then settles nothing, so the first check once they are back asks again.
   if (!await keepFindKeys(actorId, Object.keys(nextFind).length > 0 ? JSON.stringify(nextFind) : null)) {

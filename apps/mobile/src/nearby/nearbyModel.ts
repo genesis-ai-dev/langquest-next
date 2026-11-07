@@ -130,13 +130,17 @@ export interface AnsweredFindKey {
  * After a certificate answer: each language it answered is replaced with `direct: true`; a
  * language this phone named and it did not answer goes, since this person may no longer read
  * it or its organization is off; and keys of organizations it holds no chain for go. A key
- * named by nobody stays as it was.
+ * named by nobody stays as it was. `keptOrgs`, organizations whose new chain could not be
+ * checked while the one held still checks (the Worker's key rotated past this build), are as
+ * after a 429 or 503: their keys stay as held, and what the answer said of them is not taken.
  */
-export function findKeysAfterAnswer(held: FindKeys, named: readonly string[], answered: readonly AnsweredFindKey[], chainOrgs: ReadonlySet<string>): FindKeys {
+export function findKeysAfterAnswer(
+  held: FindKeys, named: readonly string[], answered: readonly AnsweredFindKey[], chainOrgs: ReadonlySet<string>, keptOrgs: ReadonlySet<string> = new Set()
+): FindKeys {
   const out: FindKeys = { ...held };
-  for (const where of named) delete out[where];
+  for (const where of named) if (!keptOrgs.has(orgOf(where))) delete out[where];
   for (const a of answered) {
-    if (!chainOrgs.has(a.orgId)) continue;
+    if (!chainOrgs.has(a.orgId) || keptOrgs.has(a.orgId)) continue;
     out[`${a.orgId}/${a.languageId}`] = { gen: a.gen, key: a.key, floor: a.floor, direct: true };
   }
   return findKeysForOrgs(out, chainOrgs);

@@ -1566,7 +1566,9 @@ row (section 5.6); `nearbyNames:<org>`, install key to `profileId`,
 filled from every checked chain, which does not by itself say a meeting took place;
 `nearbyRevoked:<org>`, the newest list; `nearbyRestamped:<org>/<stream>`, by a restamp;
 `nearbyChain:<profileId>`, a map of organization id to that organization's chain, replaced
-whole when a certificate answer arrives, never merged, so a turned-off organization's goes;
+whole when a certificate answer arrives, never merged, so a turned-off organization's goes,
+except that an organization whose new chain this build cannot check (the Worker's key rotated
+past it) keeps the chain it held, and its discovery keys, while that chain still checks;
 in phase 6, `nearbyPasses:<profileId>`, that person's join passes, replaced whole the same
 way, and `startingCopy:<org>/<stream>`.
 

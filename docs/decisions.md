@@ -11204,6 +11204,17 @@ holds across launches.
 Reverse if: certificates expire on teams that were offline less than a year,
 or a teammate learns of another organization from what a phone carries.
 
+Amended (2026-11-07, Carl Sauder): a chain the phone cannot check no longer
+strips what it holds. Once the Worker's key rotates, a phone still on a
+build without the new public key refuses every new chain, and replacing
+`nearbyChain:<profileId>` whole dropped its chains and so its discovery keys.
+Now, for an organization whose new chain fails the check, the phone keeps
+the chain it held for that organization, and that organization's discovery
+keys as held, while the held chain still checks against its bundled keys, as
+after a 429 or 503. An organization the answer does not name goes as before,
+so turning one off still reaches the phone. This is what makes
+`scripts/nearby-signing-key.sh --rotate` safe for phones built before it.
+
 ## 213. A certificate is a chain of signed links, checked with no server
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
