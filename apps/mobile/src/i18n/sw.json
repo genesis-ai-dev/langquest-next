@@ -3914,7 +3914,11 @@
         "askedWho": "ameombwa {{who}}",
         "asked": "imeombwa",
         "next": "inayofuata",
-        "afterDone": "ukishamaliza"
+        "afterDone": "ukishamaliza",
+        "made": "imefanywa",
+        "checked": "imekaguliwa",
+        "afterMade": "baada ya kuifanya",
+        "checkedBy": "katika {{check}}"
       },
       "help": {
         "study": "Pitieni mwongozo wa kujifunza pamoja kabla ya kurekodi. Hakuna kinachousubiri.",
@@ -3934,7 +3938,9 @@
         "checkpoint": "Kufuli: lazima ipite kabla ya hatua zinazofuata."
       },
       "thenTheTeam": "Kisha timu",
-      "teamHears": "Kisha timu inaweza kukisikia"
+      "teamHears": "Kisha timu inaweza kukisikia",
+      "makeIt": "{{what}} · kuifanya",
+      "checkIt": "{{what}} · kuikagua"
     },
     "quote": "“{{text}}”",
     "journey": {
