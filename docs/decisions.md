@@ -8490,6 +8490,8 @@ Reverse if: people forget their pattern more often than they come back with
 it (then offer a helper's code first), or a locked phone is opened by
 someone it does not belong to (then a larger grid, or a server-held key).
 
+Amended (2026-11-07, Caleb Koster): LAN-139 asked whether the picture and pattern could be skipped. They stay required for someone with no password, who first chooses them at sign-out; without them only a helper's code, online, brings that person back. Considered: skipping both with a warning (offline lock-out), and choosing the picture for them (one step fewer).
+
 Amended (2026-10-30, Caleb Koster): someone with an account could not join
 another organization or language with it by scanning. Signed in, nothing
 led to the scanner, so people signed out to scan, and Scan's Join made a
