@@ -29,10 +29,12 @@ export const NEARBY_VECTOR_MAX_KEYS = 4096;
 
 /**
  * Carl's answer 21, from decision 169: 70,000 rows (the 99th percentile day, 1,150,
- * times 60 days offline) and 50 MB per signer. A phone passes these in, so a test or
- * a later build can move them, and they do not move quietly.
+ * times 60 days offline) and 50 MB per signer. Stored manifests have 50 MB of their own,
+ * because a manifest naming 200 ids costs about 30 KB, so one row under each would come
+ * to 2 GB at the row budget; honest full batches at 70,000 rows hold about 11 MB. A phone
+ * passes these in, so a test or a later build can move them, and they do not move quietly.
  */
-export const NEARBY_BUDGET = { maxRows: 70_000, maxBytes: 50_000_000 } as const;
+export const NEARBY_BUDGET = { maxRows: 70_000, maxBytes: 50_000_000, maxManifestBytes: 50_000_000 } as const;
 
 const isCount = (n: unknown): n is number => typeof n === 'number' && Number.isSafeInteger(n) && n >= 0;
 

@@ -188,11 +188,12 @@ export interface EventStore {
   nearbyUse(orgId: string, streamId: string): Promise<NearbyUse[]>;
 }
 
-/** Rows and characters of JSON held as nearby under one budget. */
+/** Rows and characters of JSON held as nearby under one budget, and characters of manifest text kept for it. */
 export interface NearbyUse {
   who: string;
   rows: number;
   bytes: number;
+  manifestBytes: number;
 }
 
 /**

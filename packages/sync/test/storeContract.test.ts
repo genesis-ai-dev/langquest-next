@@ -461,9 +461,19 @@ describe.each(impls)('%s nearby contract', (_name, make) => {
     const use = await store.nearbyUse('o', 'p');
     const sized = (...events: LocalEvent[]) => events.reduce((n, l) => n + JSON.stringify(l.event).length, 0);
     expect([...use].sort((a, b) => (a.who < b.who ? -1 : 1))).toEqual([
-      { who: 'actor:sam', rows: 2, bytes: sized(batchRow, nearby('b2', '000000000000004:000000:d1', { actorId: 'sam' })) },
-      { who: 'claim:K2', rows: 1, bytes: sized(claimRow) }
+      { who: 'actor:sam', rows: 2, bytes: sized(batchRow, nearby('b2', '000000000000004:000000:d1', { actorId: 'sam' })), manifestBytes: 0 },
+      { who: 'claim:K2', rows: 1, bytes: sized(claimRow), manifestBytes: 0 }
     ]);
+  });
+
+  it('counts stored manifest text by the manifest\'s actor, with or without rows, and on this stream only', async () => {
+    const store = await make();
+    const batch = (streamId: string, key: string, n: number, actorId: string, manifest: string) => ({ orgId: 'o', streamId, key, n, deviceId: 'd1', actorId, firstHlc: null, manifest, sig: 's', chain: '[]' });
+    await store.commit({ receive: [nearby('b1', '000000000000001:000000:d1', { actorId: 'sam' })] });
+    await store.commit({ batches: [batch('p', 'K1', 1, 'sam', 'x'.repeat(10)), batch('p', 'K2', 1, 'sam', 'y'.repeat(5)), batch('p', 'K3', 1, 'ana', 'z'.repeat(7)), batch('elsewhere', 'K1', 1, 'sam', 'w'.repeat(100))] });
+    const use = await store.nearbyUse('o', 'p');
+    expect(use.find((u) => u.who === 'actor:sam')).toMatchObject({ rows: 1, manifestBytes: 15 });
+    expect(use.find((u) => u.who === 'actor:ana')).toEqual({ who: 'actor:ana', rows: 0, bytes: 0, manifestBytes: 7 });
   });
 });
 

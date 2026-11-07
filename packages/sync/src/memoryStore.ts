@@ -192,8 +192,14 @@ export class MemoryStore implements EventStore {
     for (const l of this.stream(orgId, streamId)) {
       if (l.status !== 'nearby') continue;
       const who = nearbyBudgetOf(l.event.actorId, l.via);
-      const held = use.get(who) ?? { who, rows: 0, bytes: 0 };
-      use.set(who, { who, rows: held.rows + 1, bytes: held.bytes + JSON.stringify(l.event).length });
+      const held = use.get(who) ?? { who, rows: 0, bytes: 0, manifestBytes: 0 };
+      use.set(who, { ...held, rows: held.rows + 1, bytes: held.bytes + JSON.stringify(l.event).length });
+    }
+    for (const b of this.nearbyBatches.values()) {
+      if (b.orgId !== orgId || b.streamId !== streamId) continue;
+      const who = `actor:${b.actorId}`;
+      const held = use.get(who) ?? { who, rows: 0, bytes: 0, manifestBytes: 0 };
+      use.set(who, { ...held, manifestBytes: held.manifestBytes + b.manifest.length });
     }
     return [...use.values()];
   }

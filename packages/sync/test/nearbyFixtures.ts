@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import {
-  eventDigest, HlcClock, encodeHlc, manifestText, nearbyBytes, newCommandId, PRIVILEGES,
+  eventDigest, HlcClock, encodeHlc, manifestText, NEARBY_BUDGET, nearbyBytes, newCommandId, PRIVILEGES,
   type AnyEvent, type BatchManifest, type ChainLink, type EventPayloads, type EventType, type NearbyPeople, type Privilege
 } from '@langquest-next/core';
 import type { NearbyBatchPage, NearbyClaimsPage, NearbyIntake, NearbySigner } from '../src/nearbyIntake';
@@ -114,7 +114,7 @@ export const everyone = (privs: Iterable<Privilege> = PRIVILEGES): NearbyPeople 
 
 export const intakeFor = (over: Partial<NearbyIntake> = {}): NearbyIntake => ({
   people: () => everyone(), rootKeys: worker.rootKeys, verify: fakeVerify, sha256: fakeSha256,
-  budget: { maxRows: 70_000, maxBytes: 50_000_000 }, peerKey: fakeSigner('peer').publicKey, ...over
+  budget: { ...NEARBY_BUDGET }, peerKey: fakeSigner('peer').publicKey, ...over
 });
 
 export const signerFor = (crypto: NearbyCrypto, chains: Record<string, ChainLink[]>): NearbySigner => ({

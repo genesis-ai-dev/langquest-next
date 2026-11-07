@@ -288,13 +288,18 @@ export class SqliteStore implements EventStore {
 
   async nearbyUse(orgId: string, streamId: string): Promise<NearbyUse[]> {
     // The same answer as `nearbyBudgetOf`: a claim spends its claimer's budget, and a batch row its author's.
-    const rows = await this.db.all<{ who: string; n: number; bytes: number }>(
-      `select case when json_extract(via, '$.claim.key') is not null then 'claim:' || json_extract(via, '$.claim.key') else 'actor:' || json_extract(json, '$.actorId') end as who,
-              count(*) as n, sum(length(json)) as bytes
-       from events where org_id = ? and stream_id = ? and status = 'nearby' group by who`,
-      [orgId, streamId]
+    const rows = await this.db.all<{ who: string; n: number; bytes: number; manifest_bytes: number }>(
+      `select who, sum(n) as n, sum(bytes) as bytes, sum(manifest_bytes) as manifest_bytes from (
+         select case when json_extract(via, '$.claim.key') is not null then 'claim:' || json_extract(via, '$.claim.key') else 'actor:' || json_extract(json, '$.actorId') end as who,
+                count(*) as n, sum(length(json)) as bytes, 0 as manifest_bytes
+         from events where org_id = ? and stream_id = ? and status = 'nearby' group by who
+         union all
+         select 'actor:' || actor_id as who, 0 as n, 0 as bytes, sum(length(manifest)) as manifest_bytes
+         from nearby_batches where org_id = ? and stream_id = ? group by actor_id
+       ) group by who`,
+      [orgId, streamId, orgId, streamId]
     );
-    return rows.map((r) => ({ who: r.who, rows: Number(r.n), bytes: Number(r.bytes) }));
+    return rows.map((r) => ({ who: r.who, rows: Number(r.n), bytes: Number(r.bytes), manifestBytes: Number(r.manifest_bytes) }));
   }
 
   async getMany(ids: readonly string[]): Promise<LocalEvent[]> {

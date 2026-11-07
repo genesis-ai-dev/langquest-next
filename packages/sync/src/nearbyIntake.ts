@@ -28,8 +28,8 @@ export interface NearbyIntake extends NearbyGate {
   rootKeys: ReadonlyMap<string, string>;
   verify: Verify;
   sha256: Sha256;
-  /** Per signer (core `NEARBY_BUDGET`). */
-  budget: { maxRows: number; maxBytes: number };
+  /** Per signer (core `NEARBY_BUDGET`). `maxManifestBytes` is stored manifest text, which rows and their JSON do not count. */
+  budget: { maxRows: number; maxBytes: number; maxManifestBytes: number };
   /** The install key from Hello of the phone sending this: a claim's `via`, and whose budget claims spend. */
   peerKey: string;
   /** This phone's install key: a manifest it signed moves its counter. */

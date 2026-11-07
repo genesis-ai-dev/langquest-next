@@ -1,4 +1,4 @@
-import { encodeHlc, foldLanguage, emptyLanguageState, isCounted, manifestText, nearbyBytes, newCommandId, parseVector, REDUCER_VERSION, type AnyEvent, type LanguageState, type NearbyVia, type RevocationList } from '@langquest-next/core';
+import { encodeHlc, foldLanguage, emptyLanguageState, isCounted, manifestText, NEARBY_BUDGET, nearbyBytes, newCommandId, parseVector, REDUCER_VERSION, type AnyEvent, type LanguageState, type NearbyVia, type RevocationList } from '@langquest-next/core';
 import {
   LANG, NOW, ORG, STORES, claimsOf, eventBy, everyone, intakeFor, manifestOf, pageOf, phone, recordingBy, rowOf, signerOf, statusOf, teammate, unitBy, vectorOf, wallClock, watched, type Teammate
 } from './nearbyFixtures';
@@ -753,7 +753,7 @@ describe.each(STORES)('the budget per signer on the %s store', (_name, make) => 
     store = make();
     server = new FakeServer();
   });
-  const budget = (maxRows: number, maxBytes = 50_000_000) => ({ maxRows, maxBytes });
+  const budget = (maxRows: number, maxBytes = 50_000_000, maxManifestBytes = 50_000_000) => ({ maxRows, maxBytes, maxManifestBytes });
   const units = (who: Teammate, n: number, tag = 'u') => Array.from({ length: n }, (_, i) => unitBy(who, `${tag}${i}`));
   async function myPhone() {
     const client = phone(server, store, mine);
@@ -816,6 +816,62 @@ describe.each(STORES)('the budget per signer on the %s store', (_name, make) => 
     const client = await myPhone();
     await client.receiveNearby(await pageOf(sam, 1, units(sam, 3)), intakeFor({ budget: budget(3) }));
     expect(await client.receiveNearby(await pageOf(sam, 5, [], { floor: 4 }), intakeFor({ budget: budget(3) }))).toMatchObject({ outcome: 'taken', counted: true });
+    expect((await vectorOf(client)).get(sam.key)?.mark).toBe(5);
+  });
+
+  /** A manifest as signed, naming `ids` ids, stored straight into the store: the reads and writes under test are what comes next. */
+  async function kept(who: Teammate, n: number, ids: number) {
+    const events: [string, string][] = Array.from({ length: ids }, (_, i) => [newCommandId(who.profileId, `kept${n}:${i}`), 'a'.repeat(64)]);
+    const text = manifestText(await manifestOf(who, n, [], { events }));
+    return { orgId: ORG, streamId: LANG, key: who.key, n, deviceId: who.deviceId, actorId: who.profileId, firstHlc: null, manifest: text, sig: 'x', chain: '[]' };
+  }
+
+  it('honest full batches fit under the manifest budget at the row budget\'s worth of events', async () => {
+    // Why: the budget is there for one-row manifests, so it must never be what stops a member within 70,000 rows.
+    const client = await myPhone();
+    const full = NEARBY_BUDGET.maxRows / 200;
+    for (let n = 1; n < full; n += 50) await store.commit({ batches: await Promise.all(Array.from({ length: 50 }, (_, i) => kept(sam, n + i, 200))) });
+    const used = (await store.nearbyUse(ORG, LANG)).find((u) => u.who === `actor:${sam.profileId}`)!;
+    expect(used.manifestBytes).toBeGreaterThan(5_000_000);
+    expect(used.manifestBytes).toBeLessThan(NEARBY_BUDGET.maxManifestBytes);
+    await client.startNearbyBudget();
+    const events = Array.from({ length: 200 }, (_, i) => unitBy(sam, `next${i}`));
+    expect(await client.receiveNearby(await pageOf(sam, full + 1, events), intakeFor())).toMatchObject({ outcome: 'taken', kept: 200, counted: true });
+  });
+
+  it('a flood of manifests naming 200 ids and carrying one row each is dropped, its number open, while another signer goes on', async () => {
+    const client = await myPhone();
+    const flood = Math.floor(NEARBY_BUDGET.maxManifestBytes / (await kept(sam, 1, 200)).manifest.length);
+    for (let n = 1; n <= flood; n += 200) await store.commit({ batches: await Promise.all(Array.from({ length: 200 }, (_, i) => kept(sam, n + i, 200))) });
+    await client.startNearbyBudget();
+    const rows = (await store.nearbyUse(ORG, LANG)).find((u) => u.who === `actor:${sam.profileId}`)!;
+    expect(rows.rows).toBe(0);
+    const n = flood + 1000;
+    const one = unitBy(sam, 'one');
+    const others = Array.from({ length: 199 }, (_, i) => unitBy(sam, `absent${i}`));
+    const verify = vi.fn(() => true);
+    const page = await pageOf(sam, n, [one, ...others], { carrying: [one] });
+    expect(await client.receiveNearby(page, intakeFor({ verify }))).toMatchObject({ outcome: 'dropped', overBudget: true, kept: 0, counted: false });
+    expect(verify).not.toHaveBeenCalled();
+    expect(await store.getMany([one.id])).toEqual([]);
+    expect(isCounted(await vectorOf(client), sam.key, n)).toBe(false);
+    expect(await client.receiveNearby(await pageOf(ana, 1, [unitBy(ana, 'a')]), intakeFor())).toMatchObject({ kept: 1 });
+  });
+
+  it('adds what a session takes to the manifest budget, so a flood stops within the session', async () => {
+    const client = await myPhone();
+    const text = (e: AnyEvent[]) => pageOf(sam, 1, e).then((p) => p.manifest.length);
+    const size = await text([unitBy(sam, 'probe')]);
+    const small = { ...budget(100), maxManifestBytes: size + 10 };
+    expect(await client.receiveNearby(await pageOf(sam, 1, [unitBy(sam, 'a')]), intakeFor({ budget: small }))).toMatchObject({ kept: 1 });
+    expect(await client.receiveNearby(await pageOf(sam, 2, [unitBy(sam, 'b')]), intakeFor({ budget: small }))).toMatchObject({ overBudget: true });
+  });
+
+  it('a manifest with no ids still gets through at the manifest budget, so its floor travels', async () => {
+    const client = await myPhone();
+    await client.receiveNearby(await pageOf(sam, 1, [unitBy(sam, 'a')]), intakeFor());
+    const small = { ...budget(100), maxManifestBytes: 1 };
+    expect(await client.receiveNearby(await pageOf(sam, 5, [], { floor: 4 }), intakeFor({ budget: small }))).toMatchObject({ outcome: 'taken', counted: true });
     expect((await vectorOf(client)).get(sam.key)?.mark).toBe(5);
   });
 

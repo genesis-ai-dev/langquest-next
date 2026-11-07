@@ -2024,23 +2024,28 @@ export class SyncClient<S = LanguageState> {
     this.nearbyUseNow = new Map(use.map((u) => [u.who, u]));
   }
 
-  private async overBudget(who: string, events: readonly AnyEvent[], budget: NearbyIntake['budget']): Promise<boolean> {
+  private async overBudget(who: string, events: readonly AnyEvent[], budget: NearbyIntake['budget'], manifestChars = 0): Promise<boolean> {
     if (!this.nearbyUseNow) await this.startNearbyBudget();
-    const use = this.nearbyUseNow!.get(who) ?? { rows: 0, bytes: 0 };
+    const use = this.nearbyUseNow!.get(who) ?? { rows: 0, bytes: 0, manifestBytes: 0 };
     let bytes = use.bytes;
     for (const e of events) {
       // An event too deep to write out spends nothing here: it cannot pass its digest, and this runs before anything has judged it.
       try { bytes += JSON.stringify(e).length; } catch { /* the door's first step */ }
     }
-    return use.rows + events.length > budget.maxRows || bytes > budget.maxBytes;
+    return use.rows + events.length > budget.maxRows || bytes > budget.maxBytes || (manifestChars > 0 && use.manifestBytes + manifestChars > budget.maxManifestBytes);
   }
 
   private spend(rows: readonly LocalEvent[]): void {
     for (const l of rows) {
       const who = nearbyBudgetOf(l.event.actorId, l.via);
-      const use = this.nearbyUseNow?.get(who) ?? { who, rows: 0, bytes: 0 };
-      this.nearbyUseNow?.set(who, { who, rows: use.rows + 1, bytes: use.bytes + JSON.stringify(l.event).length });
+      const use = this.nearbyUseNow?.get(who) ?? { who, rows: 0, bytes: 0, manifestBytes: 0 };
+      this.nearbyUseNow?.set(who, { ...use, rows: use.rows + 1, bytes: use.bytes + JSON.stringify(l.event).length });
     }
+  }
+
+  private spendManifest(who: string, chars: number): void {
+    const use = this.nearbyUseNow?.get(who) ?? { who, rows: 0, bytes: 0, manifestBytes: 0 };
+    this.nearbyUseNow?.set(who, { ...use, manifestBytes: use.manifestBytes + chars });
   }
 
   /**
@@ -2061,7 +2066,8 @@ export class SyncClient<S = LanguageState> {
     if (!manifest) return nearbyDropped('bad manifest');
     const { key, n, floor } = manifest;
     if (isCounted(await this.nearbyVector(), key, n)) return { ...nearbyDropped('already counted'), outcome: 'ignored', counted: true };
-    if (await this.overBudget(`actor:${manifest.actorId}`, page.events, intake.budget)) return nearbyDropped('over budget', { overBudget: true });
+    // A manifest with no ids is exempt from its budget: only a signer's newest bare one stays, so it costs one row however many come, and its floor must travel.
+    if (await this.overBudget(`actor:${manifest.actorId}`, page.events, intake.budget, manifest.events.length > 0 ? page.manifest.length : 0)) return nearbyDropped('over budget', { overBudget: true });
     // 2 to 4.
     const checked = await checkBatchPage(manifest, page, intake, streamId);
     if ('reason' in checked) return nearbyDropped(checked.reason);
@@ -2094,6 +2100,7 @@ export class SyncClient<S = LanguageState> {
         ...bare,
         meta: { ...this.clockMeta(), ...this.vectorMeta(vector), ...(ownCount !== null && ownCount < n ? { [this.nearbyKey('nearbyCount', key)]: String(n) } : {}), ...bare.meta }
       }, folded);
+      if (!same && folded.rows.length > 0) this.spendManifest(`actor:${manifest.actorId}`, page.manifest.length);
       return { outcome: 'taken' as const, kept: folded.rows.length, refused: [...checked.refused, ...door.refused], counted, ...(folded.farAhead ? { farAhead: folded.farAhead } : {}) };
     });
   }
