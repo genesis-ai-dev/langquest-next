@@ -10,7 +10,9 @@ import { SqliteStore, type SqlDriver } from '../src/sqliteStore';
 import { SyncClient, type Materializer } from '../src/syncClient';
 import { FakeServer } from '../src/testing/fakeServer';
 import { fakeSha256, fakeSigner, fakeVerify, fakeWorker } from '../src/testing/memoryNearbyLink';
-import type { EventStore } from '../src/types';
+import type { Diagnostics } from '../src/diagnostics';
+import type { NearbyPlatform } from '../src/nearbyUpkeep';
+import type { EventStore, Transport } from '../src/types';
 
 /** What the nearby tests share: two stores, a team with certificates, and pages signed by hand so that a test can forge them. */
 
@@ -135,19 +137,28 @@ export interface PhoneOptions {
   clock?: HlcClock;
   fillAtOnceRows?: number;
   fillPageRows?: number;
+  transport?: Transport;
+  nearby?: NearbyPlatform;
+  pullPageSize?: number;
+  pullBudgetMs?: number;
+  diag?: Diagnostics;
 }
 
 export function phone(server: FakeServer, store: EventStore, who: Pick<Teammate, 'profileId' | 'deviceId'>, o: PhoneOptions = {}) {
   let n = 0;
   return new SyncClient({
-    orgId: ORG, streamId: LANG, actorId: who.profileId, deviceId: who.deviceId, store, transport: server.transportFor(),
+    orgId: ORG, streamId: LANG, actorId: who.profileId, deviceId: who.deviceId, store, transport: o.transport ?? server.transportFor(),
     now: o.now ?? (() => NOW), newId: () => `${who.deviceId}-${serial}-${++n}`,
     ...(o.keepOnDisk ? { keepOnDisk: true } : {}),
     ...(o.checkpointEvery ? { checkpointEvery: o.checkpointEvery } : {}),
     ...(o.materializer ? { materializer: o.materializer as never } : {}),
     ...(o.clock ? { clock: o.clock } : {}),
     ...(o.fillAtOnceRows !== undefined ? { fillAtOnceRows: o.fillAtOnceRows } : {}),
-    ...(o.fillPageRows !== undefined ? { fillPageRows: o.fillPageRows } : {})
+    ...(o.fillPageRows !== undefined ? { fillPageRows: o.fillPageRows } : {}),
+    ...(o.nearby ? { nearby: o.nearby } : {}),
+    ...(o.pullPageSize !== undefined ? { pullPageSize: o.pullPageSize } : {}),
+    ...(o.pullBudgetMs !== undefined ? { pullBudgetMs: o.pullBudgetMs } : {}),
+    ...(o.diag ? { diag: o.diag } : {})
   });
 }
 

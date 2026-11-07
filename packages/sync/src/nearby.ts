@@ -6,3 +6,4 @@
 export * from './nearbyIntake';
 export * from './nearbyLink';
 export * from './nearbyWire';
+export { isServerVerdict, type NearbyPlatform } from './nearbyUpkeep';

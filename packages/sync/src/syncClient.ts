@@ -46,7 +46,7 @@ import {
   type NearbyBatchPage, type NearbyClaimsPage, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbyRefusal, type NearbySigned, type NearbySigner
 } from './nearbyIntake';
 import { batchPageOf, nextClaimsOf, signBatch } from './nearbySender';
-import { settleBatches, type NearbyHost } from './nearbyUpkeep';
+import { isServerVerdict, settleBatches, sweepNearby, type NearbyHost, type NearbyPlatform } from './nearbyUpkeep';
 import { WriteQueue } from './writeQueue';
 import { ClientTooOldError, EventTooLargeError, NotAuthorizedError, OfflineError, UnrenewedError, NOT_LISTED_TEXT, rejectCodeOf, type RejectCode } from './types';
 import { downloadPieces, fetchSnapshot } from './snapshotFetch';
@@ -203,6 +203,8 @@ export interface SyncClientOptions<S = LanguageState> {
    * sync, split into waiting on the network and working on the phone.
    */
   diag?: Diagnostics;
+  /** Nearby sync's platform half. Without it a sync still sweeps, but closes no batch number. */
+  nearby?: NearbyPlatform;
   /**
    * Push only, for a person who handed a shared phone on (`deliverQueued`,
    * decisions.md 60): the client never folds, writes projections or
@@ -1802,10 +1804,11 @@ export class SyncClient<S = LanguageState> {
     return result;
   }
 
-  /** What a sync does past its pull, once nothing more is to pull. */
+  /** Push, pull, then the sweep (docs/nearby-sync-plan.md section 6), which with what it settles waits until nothing more is to pull. */
   private async afterPull(morePull: boolean): Promise<void> {
     if (morePull) return;
     this.nearbyUseNow = null;
+    await sweepNearby(this.nearbyHost);
     await settleBatches(this.nearbyHost);
   }
 
@@ -2228,12 +2231,12 @@ export class SyncClient<S = LanguageState> {
    * Try again on the Sync screen: the door again over refused rows from teammates. Those
    * that pass go back to `nearby`, never to `pending`, because naming this person proves
    * nothing and pending would push a forged event as them. Rows dated after their key's
-   * revocation stay out. Answers how many came back.
+   * revocation stay out, and so do rows the sweep refused on the server's word. Answers how many came back.
    */
   retryNearby(gate: NearbyGate): Promise<number> {
     return this.exclusive(async () => {
       const { store, orgId, streamId } = this.opts;
-      const refused = (await store.rejected(orgId, streamId)).filter((l) => !!l.via);
+      const refused = (await store.rejected(orgId, streamId)).filter((l) => !!l.via && !isServerVerdict(l.rejectReason));
       if (refused.length === 0) return 0;
       const facts = await this.pageFacts(refused.map((l) => l.event));
       const people = gate.people();
@@ -2314,16 +2317,20 @@ export class SyncClient<S = LanguageState> {
   private get nearbyHost(): NearbyHost {
     return (this.nearbyHostMade ??= {
       store: this.opts.store,
+      transport: this.opts.transport,
       orgId: this.opts.orgId,
       streamId: this.opts.streamId,
       actorId: this.opts.actorId,
       deviceId: this.opts.deviceId,
+      platform: this.opts.nearby,
       commit: (batch) => this.commit(batch),
       key: (what, signer) => this.nearbyKey(what, signer),
       vector: () => this.nearbyVector(),
       vectorMeta: (vector) => this.vectorMeta(vector),
       number: (key) => this.nearbyNumber(key),
-      lang: () => this.state as unknown as LanguageState
+      lang: () => this.state as unknown as LanguageState,
+      touched: (events) => this.lines?.touched(this.state as unknown as LanguageState, events),
+      refold: () => this.refold('other')
     });
   }
 }
