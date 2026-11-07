@@ -44,9 +44,13 @@ let writes: Promise<unknown> = Promise.resolve();
 const changed = new Set<() => void>();
 /** One change to the locks at a time; listeners hear about it after. */
 function serial<T>(fn: () => Promise<T>): Promise<T> {
+  return inTurn(fn).finally(() => { for (const l of changed) l(); });
+}
+/** In the same queue as `serial`, telling no listener: for writes that change no lock. */
+function inTurn<T>(fn: () => Promise<T>): Promise<T> {
   const next = writes.then(fn);
   writes = next.catch(() => {});
-  return next.finally(() => { for (const l of changed) l(); });
+  return next;
 }
 async function readLocks(): Promise<Lock[]> {
   return parseLocks(await secureStorage.getItem(LOCKS));
@@ -175,6 +179,22 @@ async function sealFindKeys(actorId: string): Promise<void> {
   const key = await secureStorage.getItem(keyFor(actorId));
   if (key) await secureStorage.setItem(findKeysSealedFor(actorId), JSON.stringify(seal(key, raw, random)));
   await secureStorage.removeItem(findKeysKey(actorId));
+}
+
+/**
+ * Keep this person's discovery keys (nearbySecrets.ts) in the clear, or drop them (`null`). A
+ * write lands only while the session stored here is theirs: a certificate answer that comes back
+ * after they signed out (sealed above, at sign-out) or after someone else signed in is dropped,
+ * and their next answer once they are back brings the keys again. In the same queue as sign-out,
+ * which never waits on the network, so neither can hold the other up. Answers whether it was kept.
+ */
+export function keepFindKeys(actorId: string, raw: string | null): Promise<boolean> {
+  return inTurn(async () => {
+    if (raw === null) { await secureStorage.removeItem(findKeysKey(actorId)); return true; }
+    if (savedSession(await secureStorage.getItem(SESSION_KEY))?.user.id !== actorId) return false;
+    await secureStorage.setItem(findKeysKey(actorId), raw);
+    return true;
+  });
 }
 
 /** Back at sign-in from the lock, with the key that opened it. Inside `serial`. */

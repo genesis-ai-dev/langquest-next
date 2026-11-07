@@ -29,6 +29,14 @@ vi.mock('../src/server/secureStorage', () => ({
   }
 }));
 vi.mock('../src/storage/store', () => ({ getStore: async () => fake.store }));
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: { getItem: async () => null, setItem: async () => undefined, removeItem: async () => undefined }
+}));
+// Signing out here (src/server/lock.ts) asks the server nothing: with nothing stored, supabase-js only says SIGNED_OUT.
+vi.mock('../src/server/supabase', () => ({
+  SESSION_KEY: 'sb-session',
+  supabase: { auth: { stopAutoRefresh: async () => undefined, startAutoRefresh: async () => undefined, signOut: async () => ({ error: null }) } }
+}));
 vi.mock('../src/server/nearby', () => ({
   requestCertificate: async (req: (typeof fake.calls)[number]) => { fake.calls.push(req); return fake.answer!(req); }
 }));
@@ -38,6 +46,7 @@ vi.mock('../src/nearby/holdChoice', () => import('../src/nearby/holdChoice.andro
 vi.mock('../src/diagnostics/report', () => ({ noteExpected: (where: string, e: unknown) => { fake.noted.push(`${where}: ${e instanceof Error ? e.message : String(e)}`); } }));
 
 const ME = '11111111-1111-4111-8111-111111111111';
+const session = (actorId: string) => JSON.stringify({ access_token: 'a', refresh_token: 'r', expires_at: 1_700_000_000, user: { id: actorId } });
 const worker = fakeWorker('k1');
 const rogue = fakeWorker('k2');
 const ROOT = fakeSigner('worker:k1');
@@ -53,7 +62,8 @@ async function load() {
   const phone = await import('../src/nearby/nearbyPhone.android');
   const key = await import('../src/server/nearbyKey.android');
   const hold = await import('../src/nearby/holdChoice');
-  return { identity, flag, phone, key, hold };
+  const lock = await import('../src/server/lock');
+  return { identity, flag, phone, key, hold, lock };
 }
 
 const org = (languages: string[], roleId = 'tr') => ({
@@ -84,6 +94,7 @@ const input = (p: Phone, over: Partial<Parameters<Phone['identity']['refreshNear
 
 beforeEach(() => {
   fake.secure.clear();
+  fake.secure.set('sb-session', session(ME));
   fake.store = new MemoryStore();
   fake.calls.length = 0;
   fake.noted.length = 0;
@@ -227,6 +238,24 @@ describe('the nearby identity', () => {
     expect(await gate.verify!(signer.publicKey, message, sig)).toBe(true);
     expect(await gate.verify!(signer.publicKey, new Uint8Array([1, 2]), sig)).toBe(false);
     expect(gate.people().privilegesIn(ME, 'L1').has('translate')).toBe(true);
+  });
+
+  it('writes no discovery key in the clear for someone who signed out while the certificate call was out', async () => {
+    const p = await load();
+    await p.lock.setLockPattern(ME, [0, 1, 2, 4, 6, 7, 8], 3);
+    p.flag.heardUserState(ME, { orgFeatures: { o1: ['nearby'] } });
+    // Sign Out lands while the Worker is answering; then someone else signs in on this phone.
+    fake.answer = async (req) => { await p.lock.lockAndSignOut(ME); fake.secure.set('sb-session', session('mary')); return issued()(req); };
+    await input(p);
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.secure.has(`nearbyFindKeys:${ME}`)).toBe(false);
+    expect([...fake.secure.values()].join()).not.toContain(KEY_A);
+    // That answer settled nothing: signed in again, the next check asks, and its answer brings them back.
+    fake.secure.set('sb-session', session(ME));
+    fake.answer = issued();
+    await input(p);
+    expect(fake.calls).toHaveLength(2);
+    expect(Object.keys(findKeys())).toEqual(['o1/L1']);
   });
 
   it('keeps the hold choice: on by default, off under a disguise, as pressed once pressed', async () => {

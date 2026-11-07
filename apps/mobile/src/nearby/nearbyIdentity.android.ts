@@ -5,7 +5,8 @@ import * as Crypto from 'expo-crypto';
 import { noteExpected } from '../diagnostics/report';
 import { requestCertificate } from '../server/nearby';
 import { ensureInstallKey, replaceInstallKey, type InstallKey } from '../server/nearbyKey';
-import { readFindKeys, writeFindKeys } from '../server/nearbySecrets';
+import { keepFindKeys } from '../server/lock';
+import { readFindKeys } from '../server/nearbySecrets';
 import { getStore } from '../storage/store';
 import { keepHoldChoice } from './holdChoice';
 import { nobleSha256, nobleVerify, signWith } from './nearbyCryptoModel';
@@ -38,6 +39,11 @@ const HOLD_KEY = 'nearbyHold';
 
 /** Reasons asked once this run, so an answer that cannot settle them does not ask again at every check. */
 const askedThisRun = new Set<string>();
+
+/** Each tag above is `<reason>:<actorId>:...`. */
+function forgetAskedBy(actorId: string): void {
+  for (const tag of askedThisRun) if (tag.split(':')[1] === actorId) askedThisRun.delete(tag);
+}
 
 let turn: Promise<void> = Promise.resolve();
 
@@ -76,7 +82,7 @@ async function refresh(input: IdentityInput): Promise<void> {
   if (!same(chains, heldChains)) await keepChains(actorId, chains);
   const heldFind = parseFindKeys(await readFindKeys(actorId));
   const find = findKeysForOrgs(heldFind, orgsOn);
-  if (!same(find, heldFind)) await writeFindKeys(actorId, Object.keys(find).length > 0 ? JSON.stringify(find) : null);
+  if (!same(find, heldFind)) await keepFindKeys(actorId, Object.keys(find).length > 0 ? JSON.stringify(find) : null);
   if (orgsOn.size === 0) return;
 
   const key = await ensureInstallKey();
@@ -140,7 +146,12 @@ async function ask(input: IdentityInput, key: InstallKey, languages: string[], f
   await keepChains(actorId, chains);
   const chainOrgs = new Set(Object.keys(chains));
   const nextFind = findKeysAfterAnswer(find, languages, answer.discoveryKeys, chainOrgs);
-  await writeFindKeys(actorId, Object.keys(nextFind).length > 0 ? JSON.stringify(nextFind) : null);
+  // Dropped if they signed out while the call was out (lock.ts): sign-out sealed what was here then. The answer
+  // then settles nothing, so the first check once they are back asks again.
+  if (!await keepFindKeys(actorId, Object.keys(nextFind).length > 0 ? JSON.stringify(nextFind) : null)) {
+    forgetAskedBy(actorId);
+    return;
+  }
 
   for (const signed of answer.revocations) {
     const root = ROOT_KEYS.get(signed.kid);

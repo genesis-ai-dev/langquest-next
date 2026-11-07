@@ -28,4 +28,6 @@ export async function openLock(_kind: Wrap['kind'], _secret: string, _who: { add
 export function onUnlocked(_listener: (session: Session) => void): () => void { return () => {}; }
 export async function restoreSession(_actorId: string, _key: string, _kept: string | null): Promise<boolean> { return false; }
 export async function patternPeople(): Promise<{ actorId: string; picture: number }[]> { return []; }
+// A browser never holds discovery keys (only Android writes them, nearbySecrets.ts).
+export async function keepFindKeys(_actorId: string, _raw: string | null): Promise<boolean> { return false; }
 export const forgetLock = nothing as (actorId: string) => Promise<void>;
