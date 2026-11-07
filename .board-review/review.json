@@ -1,18 +1,21 @@
 {
-  "kind": "needs_you",
-  "ask": "Can you give this session a read-only key for the Cloudflare server logs?",
-  "problem": "One person on the web app saw two reference-audio downloads fail with a server error. We still do not know why.",
-  "found": "The 502 answers come from the web server, whose logs live in Cloudflare. This session has no key for them, and I may not read secrets. The phone data needs its own key too.",
-  "changed": "Nothing yet. No code changed.",
-  "why": "A read-only key lets me check the logs without changing anything. The audio failures are not in the Supabase logs, so that link alone will not help.",
-  "touches": "Nothing else. I would only read, never write.",
+  "kind": "question",
+  "ask": "Do you want to leave this as it is, or make it easier to see next time?",
+  "problem": "One person on the web app saw two reference-audio downloads fail with a server error. Their other 14 files came fine.",
+  "found": "A short fault at the audio host, most likely. It was one time, about 0.3 seconds. In 7 days the web server counted no other server errors on its general routes. The server cannot show audio errors on their own.",
+  "changed": "Nothing. I changed no code.",
+  "why": "One brief fault does not show a bug. A retry changes how the app behaves for everyone, so it is your choice. Option B only makes the next one easy to see.",
+  "touches": "Option B touches only the server's own counts. Option C touches only the web audio path. Phones are not affected.",
   "pictures": [
-    {"file": "now.png", "label": "Now"},
-    {"file": "after.png", "label": "After your step"}
+    {"file": "option0.png", "label": "Option A"},
+    {"file": "option1.png", "label": "Option B"},
+    {"file": "option2.png", "label": "Option C"}
   ],
-  "steps": [
-    "In Cloudflare, create an API token that can only read Workers logs (Workers Observability, read).",
-    "In this cloud session's settings, add api.cloudflare.com as a connected service with that token, so I never see it.",
-    "Optional: connect the Supabase connector in your Claude settings so I can read the person's timeline."
-  ]
+  "options": [
+    {"label": "Leave it and watch", "result": "Nothing changes. We act if more people hit it.", "picture": "option0.png"},
+    {"label": "Count these errors on their own", "result": "I add a separate count for audio errors, with a test. Next time we see it at once.", "picture": "option1.png"},
+    {"label": "Retry once on the server", "result": "I add one quick retry and a test. Brief host faults then heal themselves.", "picture": "option2.png"}
+  ],
+  "recommended": 0,
+  "guess": {"answer": "option", "option": 0}
 }
