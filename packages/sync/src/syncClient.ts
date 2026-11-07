@@ -36,17 +36,18 @@ import {
   type PageFacts,
   type PassageLine,
   type PassageLines,
+  type RevocationList,
   type Snapshot,
   HlcClock,
   languageLines
 } from '@langquest-next/core';
 import { nearbyBudgetOf, type EventStore, type LocalEvent, type NearbyUse, type SyncInspection, type Transport, type WriteBatch } from './types';
 import {
-  batchIsWhole, checkBatchPage, checkClaimsPage, nearbyDropped,
+  batchIsWhole, chainAsSigned, checkBatchPage, checkClaimsPage, nearbyDropped,
   type NearbyBatchPage, type NearbyClaimsPage, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbyRefusal, type NearbySigned, type NearbySigner
 } from './nearbyIntake';
 import { batchPageOf, nextClaimsOf, signBatch } from './nearbySender';
-import { attestNearby, isServerVerdict, replaceBareManifest, settleBatches, sweepNearby, type NearbyHost, type NearbyPlatform } from './nearbyUpkeep';
+import { applyRevocationList, attestNearby, isServerVerdict, replaceBareManifest, settleBatches, sweepNearby, type NearbyHost, type NearbyPlatform } from './nearbyUpkeep';
 import { WriteQueue } from './writeQueue';
 import { ClientTooOldError, EventTooLargeError, NotAuthorizedError, OfflineError, UnrenewedError, NOT_LISTED_TEXT, rejectCodeOf, type RejectCode } from './types';
 import { downloadPieces, fetchSnapshot } from './snapshotFetch';
@@ -2096,7 +2097,7 @@ export class SyncClient<S = LanguageState> {
       await this.commitNearby({
         receive: folded.rows,
         events: folded.rejected,
-        ...(folded.rows.length > 0 || isNewest ? { batches: [{ orgId, streamId, key, n, deviceId: manifest.deviceId, actorId: manifest.actorId, firstHlc, manifest: page.manifest, sig: page.sig, chain: JSON.stringify(page.chain) }] } : {}),
+        ...(folded.rows.length > 0 || isNewest ? { batches: [{ orgId, streamId, key, n, deviceId: manifest.deviceId, actorId: manifest.actorId, firstHlc, manifest: page.manifest, sig: page.sig, chain: JSON.stringify(chainAsSigned(page.chain)) }] } : {}),
         ...bare,
         meta: { ...this.clockMeta(), ...this.vectorMeta(vector), ...(ownCount !== null && ownCount < n ? { [this.nearbyKey('nearbyCount', key)]: String(n) } : {}), ...bare.meta }
       }, folded);
@@ -2323,6 +2324,37 @@ export class SyncClient<S = LanguageState> {
       await this.refold('other');
     }
     return refused;
+  }
+
+  /** A newer revocation list reaches rows already taken: those dated after their key's revocation are refused. Answers how many. */
+  nearbyApplyRevoked(list: RevocationList): Promise<number> {
+    return this.exclusive(async () => {
+      const refused = await applyRevocationList(this.nearbyHost, list);
+      if (refused > 0) this.nearbyUseNow = null;
+      return refused;
+    });
+  }
+
+  /** One of a session's rows in device meta (`nearbyKeep.ts`). */
+  async nearbyMeta(key: string): Promise<string | null> {
+    return (await this.opts.store.meta(key)) ?? null;
+  }
+
+  /** Only rows of nearby's own, in one commit under the stream's turn. A teammate's words never reach a cursor. */
+  writeNearbyMeta(rows: Record<string, string>): Promise<void> {
+    if (!Object.keys(rows).every((key) => key.startsWith('nearby'))) throw new Error('not a nearby row');
+    return this.exclusive(() => this.commit({ meta: rows }));
+  }
+
+  /** This phone's time, for Hello's clock warning. */
+  get nearbyWallNow(): number {
+    return this.wall();
+  }
+
+  /** What Hello checks a certificate against: `HlcClock.last` never goes back, so setting the date back does not revive one. */
+  get nearbyHelloNow(): number {
+    const last = this.clock.last();
+    return Math.max(this.wall(), last ? decodeHlc(last).wallMs : 0);
   }
 
   /** What the steps at the end of a sync need from this client (`nearbyUpkeep.ts`). */

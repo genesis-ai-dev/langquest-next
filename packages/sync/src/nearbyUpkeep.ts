@@ -1,6 +1,6 @@
 import {
-  countBatch, eventDigest, isCounted, NEARBY_BATCH_MAX_EVENTS, NEARBY_VECTOR_MAX_RANGES, parseAttestation, parseBatchManifest,
-  type AnyEvent, type Attestation, type LanguageState, type NearbyVector, type Sha256
+  countBatch, eventDigest, isCounted, NEARBY_BATCH_MAX_EVENTS, NEARBY_VECTOR_MAX_RANGES, parseAttestation, parseBatchManifest, revokedLater,
+  type AnyEvent, type Attestation, type LanguageState, type NearbyVector, type RevocationList, type Sha256
 } from '@langquest-next/core';
 import type { Diagnostics } from './diagnostics';
 import { batchIsWhole } from './nearbyIntake';
@@ -233,6 +233,37 @@ export async function attestNearby(up: NearbyHost): Promise<void> {
     after = attested.rows[attested.rows.length - 1]![2];
     await up.commit({ attests: [{ orgId, streamId, lastSeq: after, text: answer.text, kid: answer.kid, sig: answer.sig }], meta: { [newest]: String(after) } });
   }
+}
+
+// ---- a newer revocation list -----------------------------------------------------
+
+/**
+ * Rows already taken from a key the list now names, dated after its revocation, are refused
+ * (docs/nearby-sync-plan.md 5.12). Try again leaves them, because `retryNearby` applies the
+ * same date rule. Earlier work stands, under Carl's answer 4. Stamped per stream, so a list
+ * taken in another language's session or from a certificate answer reaches this one too.
+ */
+export async function applyRevocationList(up: NearbyHost, list: RevocationList): Promise<number> {
+  const { store, orgId, streamId } = up;
+  const stamp = up.key('nearbyRevokedApplied');
+  if (await up.number(stamp) >= list.seq) return 0;
+  const listed = new Set(list.keys.map(([key]) => key));
+  const refused: LocalEvent[] = [];
+  for (const { key, n, actorId } of await store.batchKeys(orgId, streamId)) {
+    if (!listed.has(key)) continue;
+    const [row] = await store.batchesAfter(orgId, streamId, key, n - 1, 1);
+    const manifest = row?.n === n ? parseBatchManifest(row.manifest, { orgId, streamId }) : null;
+    if (!manifest) continue;
+    for (const l of await store.getMany(manifest.events.map(([id]) => id))) {
+      const { via } = l;
+      if (l.status !== 'nearby' || !via || !('batch' in via) || via.key !== key || !revokedLater(list, key, actorId, l.event.hlc)) continue;
+      refused.push({ event: l.event, status: 'rejected', rejectReason: 'dated after its key was revoked', via });
+    }
+  }
+  if (refused.length > 0) up.touched(refused.map((l) => l.event));
+  await up.commit({ events: refused, meta: { [stamp]: String(list.seq) } });
+  if (refused.length > 0) await up.refold();
+  return refused.length;
 }
 
 // ---- manifests ------------------------------------------------------------------

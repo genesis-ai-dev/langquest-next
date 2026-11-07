@@ -566,6 +566,32 @@ describe.each(STORES)('receiving a batch on the %s store', (_name, make) => {
       const client = await myPhone();
       expect(await client.receiveNearby(await pageOf(sam, 1, [unitBy(sam, 'u1')]), intakeFor())).toMatchObject({ kept: 1 });
     });
+
+    it('a newer list reaches rows already taken: later-dated ones are refused, once per seq, and earlier ones and claims stand', async () => {
+      const client = await myPhone();
+      const before = unitBy(sam, 'u1', { at: NOW - 10 });
+      const after = unitBy(sam, 'u2', { at: NOW + 10 });
+      const claimed = unitBy(sam, 'u3', { at: NOW + 20 });
+      await client.receiveNearby(await pageOf(sam, 1, [before, after]), intakeFor());
+      await client.receiveNearby(await claimsOf([claimed], () => 5), intakeFor());
+      expect(await client.nearbyApplyRevoked(listOf(sam, NOW))).toBe(1);
+      expect(await rowOf(store, after.id)).toMatchObject({ status: 'rejected', rejectReason: 'dated after its key was revoked', via: { batch: 1, key: sam.key } });
+      expect(await statusOf(store, before.id)).toBe('nearby');
+      expect(await statusOf(store, claimed.id)).toBe('nearby');
+      expect(stateOf(client).units['u2']).toBeUndefined();
+      // Stamped per stream, so a list this stream has had does nothing a second time.
+      expect(await client.nearbyApplyRevoked(listOf(sam, NOW - 100))).toBe(0);
+      expect(await client.retryNearby({ people: () => everyone(), revoked: listOf(sam, NOW) })).toBe(0);
+    });
+
+    it('keeps a session\'s rows in meta, and only nearby\'s own', async () => {
+      const client = await myPhone();
+      await client.writeNearbyMeta({ 'nearbyPeers:x': '[]' });
+      expect(await client.nearbyMeta('nearbyPeers:x')).toBe('[]');
+      expect(await client.nearbyMeta('nearbyPeers:none')).toBeNull();
+      expect(() => client.writeNearbyMeta({ [`cursor:${ORG}/${LANG}`]: '99' })).toThrow(/not a nearby row/);
+      expect(client.nearbyHelloNow).toBeGreaterThanOrEqual(client.nearbyWallNow);
+    });
   });
 
   it('takes the stream\'s turn: pages at once run one at a time, and each commits whole', async () => {
@@ -760,6 +786,18 @@ describe.each(STORES)('the budget per signer on the %s store', (_name, make) => 
     await client.load();
     return client;
   }
+
+  it('keeps a chain as signed: a field nobody signed is neither stored nor handed on', async () => {
+    // Why: a stored chain is outside every budget, so a megabyte under a field the Worker never signed would cost each row that much.
+    const client = await myPhone();
+    const junk = 'x'.repeat(100_000);
+    const page = await pageOf(sam, 1, [unitBy(sam, 'a')], { chain: [{ ...sam.chain[0]!, junk } as never] });
+    expect(await client.receiveNearby(page, intakeFor())).toMatchObject({ kept: 1 });
+    const [row] = await store.batchesAfter(ORG, LANG, sam.key, 0, 1);
+    expect(row!.chain).not.toContain(junk);
+    expect(JSON.parse(row!.chain)).toEqual(sam.chain);
+    expect((await client.nearbyBatchPage(sam.key, 1))!.chain).toEqual(sam.chain);
+  });
 
   it('drops an over-budget page before any signature work, with its number left open, and writes nothing', async () => {
     const client = await myPhone();

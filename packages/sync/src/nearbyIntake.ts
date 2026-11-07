@@ -1,6 +1,6 @@
 import {
   checkChain, eventDigest, nearbyBytes, revokedLater, signedBy,
-  type Attestation, type AnyEvent, type BatchManifest, type ChainVerdict, type LanguageState, type NearbyPeople, type RevocationList, type Sha256, type Verify
+  type Attestation, type AnyEvent, type BatchManifest, type ChainLink, type ChainVerdict, type LanguageState, type NearbyPeople, type RevocationList, type Sha256, type Verify
 } from '@langquest-next/core';
 import type { NearbyCrypto } from './nearbyLink';
 import type { Message } from './nearbyWire';
@@ -85,6 +85,14 @@ interface Checked {
   refused: NearbyRefusal[];
   /** Ids of events refused for good with a matching digest: these count as here, and a digest mismatch never does. */
   settled: Set<string>;
+}
+
+/**
+ * A checked chain as it is kept: only what its signatures speak for. A field nobody signed
+ * would be stored and handed on at a teammate's say, a megabyte to a row, outside any budget.
+ */
+export function chainAsSigned(chain: readonly ChainLink[]): ChainLink[] {
+  return chain.map((link) => (link.kind === 'worker@1' ? { kind: link.kind, kid: link.kid, body: link.body, sig: link.sig } : { kind: link.kind, body: link.body, sig: link.sig }));
 }
 
 /** An id as far as it can be told. `String` throws on an object with no way to print itself, and anything can come off the link. */

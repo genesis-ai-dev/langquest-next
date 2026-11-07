@@ -241,6 +241,19 @@ export function revocationText(list: RevocationList): string {
   return canonicalJson(list);
 }
 
+/** The Worker's list off the wire, for this organization and the `kid` the message names. Null for anything else. */
+export function parseRevocationList(text: unknown, session: { orgId: string; kid: string }): RevocationList | null {
+  const raw = parsedObject(text);
+  if (!raw) return null;
+  const { v, kid, orgId, seq, keys } = raw;
+  if (v !== 1 || kid !== session.kid || orgId !== session.orgId || !isSeq(seq) || seq < 1 || !Array.isArray(keys)) return null;
+  for (const key of keys as unknown[]) {
+    if (!Array.isArray(key) || key.length !== 3 || !isBase64url(key[0], 32) || !isWord(key[1]) || !isSeq(key[2]) || key[2] < 0) return null;
+  }
+  const list: RevocationList = { v, kid: session.kid, orgId: session.orgId, seq, keys: keys as RevocationList['keys'] };
+  return revocationText(list) === text ? list : null;
+}
+
 // ---- holdings --------------------------------------------------------------------
 
 /** `files` sorted. The receiver works this out itself, so a signature speaks for the list. */

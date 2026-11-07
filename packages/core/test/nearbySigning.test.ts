@@ -3,7 +3,7 @@ import fc from 'fast-check';
 import type { InviteLink, JoinPass, WorkerLink } from '../src/nearbyChain';
 import {
   NEARBY_OPENING_BYTES, NEARBY_PREFIXES, PASS_WINDOW_MS, attestationText, parseAttestation, parseBatchManifest, type BatchManifest, base64urlDecode, base64urlEncode, bytesToHex, certRequestText, concatBytes, eventDigest, eventText, firstContactText, holdingsFilesHash,
-  holdingsText, isBase64url, linkText, manifestText, nearbyBytes, newcomerIdBytes, openingMaskInput, openingTagInputI, openingTagInputR, passIdOf, passIdText, passText, passWindowAt, proofText, revocationText,
+  holdingsText, isBase64url, linkText, manifestText, nearbyBytes, newcomerIdBytes, openingMaskInput, openingTagInputI, openingTagInputR, parseRevocationList, passIdOf, passIdText, passText, passWindowAt, proofText, revocationText,
   sameEventBytes, summaryOf, transcriptInput
 } from '../src/nearbySigning';
 import type { AnyEvent } from '../src/events';
@@ -270,5 +270,32 @@ describe('an attestation off the wire', () => {
     ['not JSON', 'nope']
   ])('refuses %s', (_why, text) => {
     expect(parseAttestation(text, session)).toBeNull();
+  });
+});
+
+describe('a revocation list off the wire', () => {
+  const session = { orgId: 'org1', kid: 'k1' };
+  const good = (over: object = {}) => ({ v: 1 as const, kid: 'k1', orgId: 'org1', seq: 4, keys: [[v.PUBLIC_KEY, v.PROFILE, 1700000000000] as const], ...over });
+
+  it('reads the golden text', () => {
+    expect(parseRevocationList(v.REVOCATION_TEXT, session)).toEqual(good());
+    expect(parseRevocationList(revocationText(good({ keys: [] })), session)).toEqual(good({ keys: [] }));
+  });
+
+  it.each<[string, unknown]>([
+    ['a kid the message does not name', revocationText(good({ kid: 'k2' }))],
+    ['another organization', revocationText(good({ orgId: 'org2' }))],
+    ['a seq of 0', revocationText(good({ seq: 0 }))],
+    ['a key that is not one', revocationText(good({ keys: [['nope', v.PROFILE, 1]] }))],
+    ['no person', revocationText(good({ keys: [[v.PUBLIC_KEY, '', 1]] }))],
+    ['a negative time', revocationText(good({ keys: [[v.PUBLIC_KEY, v.PROFILE, -1]] }))],
+    ['an entry of the wrong shape', revocationText(good({ keys: [[v.PUBLIC_KEY, v.PROFILE]] }))],
+    ['keys that are not a list', JSON.stringify({ ...good(), keys: 1 })],
+    ['a field nobody knows', revocationText(good({ later: 1 }))],
+    ['text not as signed', JSON.stringify(good(), null, 1)],
+    ['not JSON', 'nope'],
+    ['not text', 7]
+  ])('refuses %s', (_why, text) => {
+    expect(parseRevocationList(text, session)).toBeNull();
   });
 });
