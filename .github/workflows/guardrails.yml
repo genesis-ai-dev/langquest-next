@@ -1,6 +1,6 @@
 # Guardrails on every PR, so nothing depends on a local hook having run.
 #
-# scope:    which of server, web-smoke and ui-web the pull request's
+# scope:    which of server, web-smoke, ui-web and android-native the pull request's
 #           changed files need (scripts/ci-scope.mjs, decisions.md 150);
 #           none, when the commit already passed (decisions.md 164): a merge
 #           queue entry whose tree the pull request's own run tested within
@@ -18,6 +18,11 @@
 #           seeded and push delivery scheduled; the Worker runs the
 #           projection pass in its job container (docs/testing.md),
 #           in four shards of two browsers each (see ui-web below).
+# android-native: the nearby link's Kotlin (apps/mobile/modules/nearby-link)
+#           compiled in the Android project that `expo prebuild` makes, its
+#           JUnit tests and Android lint; only when the module, the app's
+#           package.json or the root lockfile changes (docs/nearby-sync-plan.md
+#           section 7).
 # nightly:  the whole web UI suite, a fleet scenario and Stryker on core,
 #           on a schedule; not blocking, but each job files its failures in
 #           Linear (scripts/nightly-report.mjs; a dry run off main). The
@@ -110,8 +115,9 @@ env:
   SUPABASE_EXCLUDE: studio,imgproxy,vector,logflare,supavisor
 
 # main requires one check, `gate` (.github/rulesets/main.json, decisions.md
-# 150). `scope` says which of `server`, `web-smoke` and `ui-web` the pull
-# request's changed files need (scripts/ci-scope.mjs); the others are
+# 150). `scope` says which of `server`, `web-smoke`, `ui-web` and
+# `android-native` the pull request's changed files need
+# (scripts/ci-scope.mjs); the others are
 # skipped. `gate` passes only when `checks`, `unit`, `coverage` and every
 # needed job passed.
 # A job that runs on a pull request is in `gate`'s needs;
@@ -130,6 +136,7 @@ jobs:
       server: ${{ steps.scope.outputs.server }}
       web-smoke: ${{ steps.scope.outputs.web-smoke }}
       ui-web: ${{ steps.scope.outputs.ui-web }}
+      android-native: ${{ steps.scope.outputs.android-native }}
       # The run that already passed this tree or commit, or empty: then no job runs.
       tested: ${{ steps.scope.outputs.tested }}
     steps:
@@ -412,13 +419,58 @@ jobs:
             e2e/results/ui/**/error-context.md
           if-no-files-found: ignore
 
+  android-native:
+    # The nearby link's native module (apps/mobile/modules/nearby-link,
+    # docs/nearby-sync-plan.md section 7, Carl's answers 3 and 22): nothing
+    # else compiles its Kotlin before a store build, and no developer's
+    # machine has to hold an Android SDK. `expo prebuild` writes the Android
+    # project the store build would (android/ is generated and ignored), and
+    # Gradle compiles the module against the expo-modules-core it resolves,
+    # runs its JUnit tests (the golden vectors in the module's
+    # test-vectors.json, which vitest also reads) and Android lint. GitHub's
+    # Ubuntu runner carries an Android SDK (ANDROID_HOME) with its licences
+    # accepted, so Gradle fetches any platform it lacks; the JDK is set here.
+    needs: scope
+    if: ${{ !cancelled() && needs.scope.outputs.android-native == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      # Gradle's caches, keyed by the files that decide what it downloads.
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: |
+            package-lock.json
+            apps/mobile/modules/*/android/build.gradle
+      - name: The Android project (expo prebuild)
+        working-directory: apps/mobile
+        run: npx expo prebuild -p android --no-install
+      - name: Compile the nearby module, run its JUnit tests and lint it
+        working-directory: apps/mobile/android
+        run: ./gradlew --no-daemon --stacktrace :nearby-link:compileReleaseKotlin :nearby-link:testDebugUnitTest :nearby-link:lintDebug
+      - name: Keep the test and lint reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: android-native-reports
+          path: |
+            apps/mobile/modules/nearby-link/android/build/reports
+            apps/mobile/modules/nearby-link/android/build/test-results
+          if-no-files-found: ignore
+
   gate:
     # The one check that main requires. A job that the changed files do not
     # need is skipped and counts as passed; a needed job must have passed.
     # It runs whatever the others did (always()), so a failure or a cancel
     # fails it instead of leaving it skipped, which GitHub would count as a
     # pass.
-    needs: [scope, checks, unit, coverage, server, web-smoke, ui-web]
+    needs: [scope, checks, unit, coverage, server, web-smoke, ui-web, android-native]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
