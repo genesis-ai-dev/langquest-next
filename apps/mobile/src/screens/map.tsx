@@ -136,12 +136,8 @@ function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e
         </View>
       )}
       // Its download button at the end, beside the step marks (decisions.md 166).
-      right={(
-        <View style={styles.rowEnd}>
-          {marks ? <StepMarks steps={e.s.steps.map((st) => ({ kinds: st.kinds, checkpoint: st.step.checkpoint }))} size={14} /> : null}
-          <DownloadButton ctx={ctx} unitId={e.unitId} testID={`download-${e.unitId}`} />
-        </View>
-      )} />
+      right={marks && <StepMarks steps={e.s.steps.map((st) => ({ kinds: st.kinds, checkpoint: st.step.checkpoint }))} size={14} />}
+      action={<DownloadButton ctx={ctx} unitId={e.unitId} testID={`download-${e.unitId}`} />} />
   );
 }
 
@@ -825,7 +821,6 @@ export function BookMap(ctx: Ctx) {
 }
 
 const styles = StyleSheet.create({
-  rowEnd: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   filterBar: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   quietRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginLeft: -space.sm },
   filterChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },

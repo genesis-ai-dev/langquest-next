@@ -460,6 +460,11 @@ export function Row(props: {
   help?: string;
   /** Drawn right after the label, in its line: an organization's blue check (decisions.md 173). */
   afterLabel?: ReactNode;
+  /**
+   * A button at the end of the row that is not the row's own tap (a download disc). It sits beside the
+   * pressable row, not inside it: a button in a button is read as one by a screen reader and fails axe.
+   */
+  action?: ReactNode;
 }) {
   const state = {
     ...(props.selected !== undefined ? { selected: props.selected } : props.current ? { selected: true } : {}),
@@ -495,17 +500,26 @@ export function Row(props: {
   );
   const style = [styles.row, !props.last && styles.rowBorder, props.current && styles.rowCurrent];
   const id = props.testID ? { testID: props.testID } : {};
-  if (!props.onPress) return <View {...id} style={style}>{body}</View>;
-  return (
+  if (!props.onPress) return <View {...id} style={style}>{body}{props.action}</View>;
+  const beside = !!props.action;
+  const rowStyle = beside ? [styles.row, styles.rowBeside] : style;
+  const pressable = (
     <Pressable {...id} onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole={props.role ?? 'button'} {...a11yState(state, props.role ?? 'button', 'current')} accessibilityLabel={props.accessibilityLabel}
       // react-native-web drops accessibilityState.selected, and aria-selected is not allowed on a button: a current row says aria-current.
       aria-current={props.current ? true : undefined}
       // The web reads only aria-*: a radio, checkbox or switch says whether it is on.
       aria-checked={props.role === 'radio' ? !!(props.selected ?? props.current) : props.role === 'switch' || props.role === 'checkbox' ? props.checked === true : undefined}
-      style={({ pressed }) => [...style, pressed && styles.pressed]}>
+      style={({ pressed }) => [...rowStyle, pressed && styles.pressed]}>
       {body}
       <HelpBadge spot={spot} inset />
     </Pressable>
+  );
+  if (!beside) return pressable;
+  return (
+    <View style={[styles.rowWithAction, !props.last && styles.rowBorder, props.current && styles.rowCurrent]}>
+      {pressable}
+      <View style={styles.rowAction}>{props.action}</View>
+    </View>
   );
 }
 
@@ -1206,6 +1220,9 @@ const styles = StyleSheet.create({
   orDivider: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.xs },
   orRule: { flex: 1, height: StyleSheet.hairlineWidth * 2, backgroundColor: C.border },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row, paddingHorizontal: space.lg, paddingVertical: space.md, backgroundColor: C.card },
+  rowWithAction: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card },
+  rowBeside: { flex: 1, minWidth: 0, backgroundColor: 'transparent', paddingRight: space.sm },
+  rowAction: { paddingRight: space.lg },
   rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   rowCurrent: { backgroundColor: C.light },
   iconTile: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
