@@ -509,7 +509,7 @@ Traps in today's code, each of which needs a test:
 | A dropped copy (section 5.7) | `foldLocal` marks lines owed only for events in the log and for rejected rows, so a removed leftover leaves its passage's line worked out from the old copy. | Call `lines.touched` on dropped events before refolding. |
 | A passage not filled in | `touchedAt` only queues these, and `isLoaded` stays false, so a nearby review changes no line and the screen says the passage is not here. Filling needs the server. | In this release a phone mid-download cannot review an unfilled passage. Allowing it is a later, small change. |
 | A pruned event coming back | With pulls not feeding the vector, a phone back from town gets an event again from a teammate who holds it as nearby. The guard no longer knows that id. | The fold tolerates it (invariant 3), and redactions hold through `state.redactions`. The row sits as nearby until the next sweep, blocks the fast path offline and inflates the count. Accepted, and tested. |
-| Memory on a kept language | Decision 143's bound assumes checkpoints shed. Nearby entries stay in memory until settled, every load folds them, and "every phone takes everything" multiplies this by team size over a month. They must not shed without audio rows, because `LanguageFiles.plan` finds their files only through memory. | Read `load` and `foldMs` on the village scenario before phase 3 (section 7), with one member at the budget above. |
+| Memory on a kept language | Decision 143's bound assumes checkpoints shed. Nearby entries stay in memory until settled, every load folds them, and "every phone takes everything" multiplies this by team size over a month. They must not shed without audio rows, because `LanguageFiles.plan` finds their files only through memory. | Read `load` and `foldMs` on the village scenario before phase 3 (section 7), with one member at the budget above. Read 2026-11-07 (`villageMonth`, seed 1, 5 phones, 300 passages, 30 days; Node on the build machine, not a phone): without that member each phone held about 1,830 nearby rows and its app opened in 29 to 45 ms. With one member's notes at 68,000 rows (70,302 unconfirmed rows on every phone, 42.7 MB of event JSON, a fold of 42 MB as JSON) it opened in 6.2 to 6.4 s, `foldMs` all of it, kept and memory phones alike, and one sync in town took 48.7 s of CPU. The fleet's `MemoryStore` sorts the whole stream for each page it reads, which inflates those two; the same 70,300 rows on the app's SQLite store open in 1.03 s, against 0.55 s for `foldLanguage` alone. A 2 GB phone running Hermes is slower than this machine by a factor nobody has measured here, so a phone would wait several seconds on every open for the month, and hold a fold of that size in memory, on every phone in the team. These numbers go to Carl (decision 210); the budget is not lowered. |
 
 ### 5.5 Who to trust
 
@@ -2208,6 +2208,26 @@ Promise<string | null>; keep(hash, text): Promise<boolean> }`, which `src/nearby
   12 already settled it. Carl sees it when it ships.
 - **The module's off switch.** There is none. Keeping it out of `app.json` does nothing,
   because autolinking finds it.
+
+**What building phase 1 found in this contract** (2026-11-07). Nothing above is changed by
+these; they say where the code differs from the text or what the text left out.
+
+- `choosePartner` takes a third argument, `{ waited }`: the time-out that lets the higher tag
+  connect after waiting, which the text describes as "calls it again with connecting allowed".
+- `NearbyRoom` takes more than the list under Find gives: `radio`, `crypto`, `keys()` (the
+  newest generation and its `floor`), `facts` (the summary after signing, peers, known keys,
+  what each side lacks, the revocation list), `openSession`, `find` (`FindTunables`),
+  `tunables` and `report`, besides `idleLimitMs`, `waitLimitMs`, `runLimitMs`,
+  `stopWhenLevel` and `radios`.
+- `NearbyRadio` has no way to take down a group hosted for an abandoned attempt, no way to
+  stop scanning while it keeps advertising during a session, and no signal that an opening
+  passed, which rotation needs so that it holds the salt while a session opens. Phase 3's
+  native work must add all three.
+- The manifests a signer has stored have a budget of their own,
+  `NEARBY_BUDGET.maxManifestBytes`, 50 MB, beside Carl's rows and bytes, which are unchanged
+  (decision 208).
+- A nearby undo of an unbound target holds its slot until delivery settles it.
+  Section 5.7's prose says "the sweep or delivery"; the table there stands as written.
 
 ## 6. The delivery phase
 

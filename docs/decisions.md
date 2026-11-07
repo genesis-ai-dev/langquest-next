@@ -1724,6 +1724,16 @@ drops the key, so the person can still come back to this phone offline.
 Coming back from the lock takes the session back from the courier without
 ending it, after any delivery under way stops (`takeBackHandOver`).
 
+Amended (2026-11-07, Carl Sauder): a teammate's events that came from their
+phone (`nearby`, 206) never go through the courier. They are not `pending`,
+so `pendingStreamsBy` and a hand-over's `deliverQueued` never see them, and
+`requeue` and Try again never turn a row with a `via` into `pending`: naming
+this person proves nothing, so the courier would otherwise push a forged
+event as its author. Until delivery (`docs/nearby-sync-plan.md` phase 4) only
+an author's own session sends their work. A nearby file evicted before the
+server has it, and teammates' files left out of a hand-over's uploads, come
+with phase 3.
+
 ## 61. Every passage says whether it is on this phone, and Settings says how ready the phone is for offline
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
@@ -4369,6 +4379,18 @@ early, and the job only builds its deps. ESLint now also reads `server/`,
 nothing from `apps/mobile/src` (shared code goes in core). This is still
 one package, not the separate server package the reverse-if names: the
 server entry imports only what sync already may.
+
+Amended (2026-11-07, Carl Sauder): sync has a third entry,
+`@langquest-next/sync/nearby` (`packages/sync/src/nearby.ts`), for sharing
+between phones: the room, the session, the link and radio contract, the wire
+and what a page needs at the door (`docs/nearby-sync-plan.md` 5.12). It is
+absent from `index.ts`, so the web app, which has no Share nearby (58), does
+not carry it. It imports only what sync already may; a platform's crypto,
+radio and files come in as arguments (`NearbyCrypto`, `NearbyRadio`,
+`NearbyFileMoves`). The lint rule that keeps the app on package entries
+(`noDeepPackage` in `eslint.config.mjs`) names it as the one subpath the app
+may import. Its test doubles are in `src/testing` with the rest
+(`memoryNearbyLink.ts`, and `fleet/nearby.ts` for the fleet).
 
 ## 105. In `apps/mobile`, server calls live in `src/server/`, logic outside screens, and folders by feature
 
@@ -10853,3 +10875,185 @@ review over 14 days past the replacement, or a build cut from an older commit,
 still finds no copy: a new install on a slow link then pulls the log and its work
 is safe. At about one bump a week this keeps one or two versions nobody reports;
 at early October's three a week, five or six, each a copy per language.
+
+## 205. A nearby phone is not a server: a teammate's work moves phone to phone, and only the server confirms it
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: teams already work offline for a month or more (PLAN.md section 1),
+and nobody sees a teammate's work until both have been online. Carl set two
+purposes for sharing between phones, in this order: review before anyone is
+back online, and one trip to town with protection from a lost or crashed
+phone, so every phone ends up holding all the team's unsent work
+(`docs/nearby-sync-plan.md` sections 1 and 2). The fold is order-independent
+and idempotent (invariants 2 and 3), so a phone can fold a teammate's events
+with no merge step and no new event, reducer change or `REDUCER_VERSION`
+bump. What keeps every server rule true is that a nearby phone is not a
+`Transport` (plan 5.1): only the server moves a cursor, only the server
+confirms (a nearby event is never `confirmed`, a nearby file never makes
+`isStored` true), and nothing a nearby phone says can delete anything.
+Server-only events are refused, and `v1.Redacted` and `v1.ExternalValueSet`
+are refused by name in the door (`packages/core/src/nearbyDoor.ts`) and the
+sender, since `privilegeFor` would let an admin's through.
+`SyncClient.receiveNearby` takes one page at a time under the stream's turn
+and runs only part of the pull's path: apply, lines, revision and one commit,
+never the cursor, the fill, the redaction branch, the membership retry or a
+checkpoint, and the link is never awaited inside that turn. The room's loop
+(`NearbyRoom`, `choosePartner`) and the session (`NearbySession`) live in
+`packages/sync` behind its `./nearby` entry (104), so the fleet runs the app's
+own code and supplies only time and the link (`packages/sync/src/testing/fleet/nearby.ts`).
+Phase 1 is the model with no radio and no screen. Held by
+`packages/sync/test/nearbyConverges.test.ts` (any split of work, any pairings
+with drops, then trips to town: every phone folds to the server's log with
+nothing nearby) and the fleet's `villageMonth`, `wrongDate`, `fiveInRoom` and
+`lostPhone` scenarios.
+Reverse if: a phone back from town ever folds to something the server's log
+does not give, or a nearby row is ever found in a checkpoint or the outbox.
+
+## 206. `nearby` is a fourth status on the events table, and `via` says how a teammate's row came
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: a teammate's event must be held and folded so it can be reviewed,
+and must never be sent as its author from this phone (plan 5.2). Reusing
+`pending` with another person's `actorId`, as a shared phone does, would
+let `pendingStreamsBy` and the courier (60) push it as that person when they
+sign in here, laundering a forged event; the same door exists through retry,
+so `requeue` leaves out any row with a `via`. `status` is a plain text column,
+so `nearby` needs no migration and invariant 7 holds (PLAN.md section 7 now
+lists it). `SqliteStore.open` gains a `via` column and the `nearby_batches` and
+`nearby_attests` tables behind its pragma read. Push, the sync count and the
+sign-out check read `status = 'pending'` and ignore nearby rows; the fold reads
+`status <> 'rejected'` and includes them. The traps in plan 5.4 each have a
+rule and a test: `takeCheckpoint`'s fast path and `loadUnits` read
+`unconfirmedCount`, so no nearby row reaches a confirmed checkpoint;
+`WriteBatch.receive` writes only ids this phone lacks, while a pull still
+overwrites and clears `via`; `receiveNearby` drops `serverSeq` by
+destructuring; a teammate's clock is received only within 5 minutes
+(`clockCloseEnough`). `SyncInspection` has a nearby count, and the fleet's
+`caughtUp` requires it to be zero. The cost is that nearby rows, like pending
+ones, hold `takeCheckpoint` on its slow path and keep memory from shedding
+until the server confirms them (210 has the numbers).
+Reverse if: a `pending` or `confirmed` row is ever downgraded by a teammate's
+copy, or a nearby row is ever pushed.
+
+## 207. Each phone numbers the batches it signs, and a teammate counts what it received by signer and number
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: Carl's answer 2 (2026-11-06): a batch counter, not clocks. A plain
+clock vector cannot say what a teammate has received: `restamp` moves a
+device's clock backwards, and a shared phone pushes one device's events out
+of clock order, so a clock entry can claim an event that is on neither side.
+So clock code and 15 stay as they are. Each phone signs up to 200 of one
+author's events at a time with its install key, under a manifest listing
+each event's id and digest (`packages/core/src/nearbySigning.ts`), so any
+subset can be checked against it; `n` comes from this key's own counter,
+never from a number a teammate sent. The vector records, per stream and per
+signer's install key, a mark and a short list of ranges above it, in device
+meta, written in the same commit as the events it counts, and it outlives
+pruning. The security review keyed it by install key rather than device,
+because a `deviceId` is only a label its caller chose (Carl's answer 21
+kept that). Only a verified manifest moves an entry: pulled events and
+claims never do, nor Have or anything else unsigned. A phone signs what is
+unsigned before it broadcasts a summary (`SyncClient.signUnsigned`). Known
+weakness, accepted with the answer: a phone restored from a backup could
+reuse numbers, and teammates would skip those batches until the server has
+them.
+Reverse if: the real-phone test finds a phone restored from a backup keeps
+its install key (plan section 11).
+
+## 208. A batch counts only when it is whole, gaps stay open, and the signer's own floor closes them
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: with numbered batches (207) a teammate could close a number by
+leaving events out, and a phone holding part of a batch could close it for
+the next phone (plan 5.3, from the security review). A number counts only
+when every id in its manifest is here under that digest, under a later batch
+of the same signer (a restamp), redacted here, refused for good by this
+phone's door after arriving with a matching digest, or found on the server by
+the sweep; a digest mismatch never counts. Until then the rows are kept and
+folded, the number stays open, and every later partner sends the batch again
+with known ids dropping out, so the re-send is the asking and there is no ask
+message. A sender sends every batch the receiver has not counted, lowest
+first, and a receiver records a number above a gap as a range. Each manifest
+carries `floor`, the signer's word that none of its batches at or below it
+has a row still pending or nearby on its phone; a receiver sets
+`mark = max(mark, floor)`, so a signer can hurt only its own entry. When a
+sync moves the floor, `signUnsigned` signs a batch with no events to carry
+it, and each phone keeps each signer's newest manifest after its rows go, so
+the floor travels on. A signer's stored manifests have a budget of their own
+(`NEARBY_BUDGET.maxManifestBytes`, 50 MB), and a manifest with no row under it
+replaces that signer's last, so a flood of empty manifests holds one row. If
+an author's phone is lost its gap stays open, which costs extra sessions and
+nothing else. Measured in the fleet's `fiveInRoom` (seeds 1 to 5 alike), with
+nobody working after the first meeting: one phone's trip to town moved its
+summary, and the next meeting took 12 pairings (8 finished, 4 met a busy
+phone) and 0.14 MB of claims and holdings before every room stopped; a
+meeting after that took none.
+Reverse if: open gaps make rooms in the field keep talking without moving
+anything.
+
+## 209. New ids name their author, and a teammate's phone takes only work whose ids are bound to who wrote it
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: nearby hands teammates event ids and entity ids before the server
+has seen them, and the server gives an id to whoever arrives first (plan
+5.4, Bound ids). A teammate could push their own events under Sam's ids, or
+sign a batch holding them; Sam's real event would then be refused for good,
+the pull would overwrite his row with theirs, and nobody would see a
+refusal. New builds mint `by:<actorId>:<random>`, a marker no build has used,
+since today's ids are already `<uuid>:<n>` and a bare actor prefix could not
+be told from one. `commandId` comes from one core helper, `newCommandId`,
+held by a lint rule over the command sites, so event ids and the `take:`,
+`review:`, `note:`, `req:`, `dep:`, `rendering:` and `adjustment:` ids made
+from it inherit it, and `SyncClient.append`'s default id binds too.
+`idAuthor` in core refuses an event whose id, or the id a create makes,
+names someone else (for `rendering:` and `adjustment:` keys, the part after
+the term, shared by design, 75). The door refuses an unbound batch event, and
+`signUnsigned` leaves an unbound row out and counts it for the screen, so a
+missed site costs sharing, not integrity. `FakeServer` holds the rule now;
+`append_events` gets its twin, for callers only and with a reason that reads
+as `INVALID`, in phase 2 (152 is amended then). Any other id behaves as
+today, so old builds keep their results. Known limits, for the security
+review: `audioformat:<hash>` is a content address and cannot be bound, so a
+teammate can label one voice note first, and take ids reaching apps through
+the agent API now show their author's profile id.
+Reverse if: an id over the 256-character limit turns up, or a command site
+is found minting ids the lint rule does not see.
+
+## 210. A phone takes at most 70,000 rows and 50 MB of nearby work per signer
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: every phone keeps what it takes, these rows cannot be pruned until
+the server settles them, and every load folds them, so one member's flood
+of valid events could stop a language opening on every phone in the team
+(plan 5.4, A budget per signer, from the security review). Carl kept the
+review's numbers (answer 21), from 169: 70,000 rows (the 99th-percentile
+day, 1,150 events, times 60 days offline) and 50 MB, as arguments from
+JavaScript (`NEARBY_BUDGET` in `packages/core/src/nearbySend.ts`).
+`receiveNearby` checks the budget right after parsing a manifest, before
+chain and signature work, outside the door, which runs again over counted
+rows on a `REDUCER_VERSION` change and would miss unknown types. Batch rows
+count against the manifest's actor and claims against the claimer, never
+the event's author, so a teammate cannot spend Sam's budget. An over-budget
+page is dropped and its number stays open, so nothing is skipped and the work
+stays on its author's phone; after 36 dropped pages in one session the phone
+says `bye` with `busy`. The count is one grouped query over nearby rows at
+session start, then kept in memory, with no new table. So "every phone takes
+everything" means room and budget allowing. A runaway bug on an honest phone
+is stopped the same way.
+What it costs, read on the fleet's `villageMonth` (seed 1, 5 phones, 30 days,
+Node on the build machine, not a phone): with one member's notes at 68,000
+rows every phone held 70,302 unconfirmed rows (42.7 MB of event JSON, a fold
+of 42 MB as JSON) and its app took 6.2 to 6.4 s to open, against 29 to 45 ms
+without that member. The fleet's `MemoryStore` reads pages slowly at that
+size; the same rows on the app's SQLite store open in 1.03 s. How much slower
+a 2 GB phone is has not been measured, so these numbers go to Carl, as plan
+5.4 asks, and the budget stands until he decides.
+Reverse if: the real-phone test's load and fold times with a month of a
+team's nearby rows (plan section 11) do not fit a 2 GB phone; the numbers
+then go back to Carl, and are not lowered quietly.

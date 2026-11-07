@@ -28,8 +28,8 @@ const noSupabase = {
   paths: [{ name: '@supabase/supabase-js', allowTypeImports: true, message: `Call a function in src/server instead; types are fine (${D105}).` }],
   patterns: [{ regex: '(^|/)server/supabase$', message: `Only src/server talks to Supabase: add a function there (${D105}).` }]
 };
-/** A package is used through its entry, never its files. */
-const noDeepPackage = { regex: '^@langquest-next/[^/]+/', message: 'Import the package, not its files: export what you need from its index.' };
+/** A package is used through its entry, never its files. `@langquest-next/sync/nearby` is an entry of its own, which the web bundle must not carry (decisions.md 104). */
+const noDeepPackage = { regex: '^@langquest-next/(?!sync/nearby$)[^/]+/', message: 'Import the package, not its files: export what you need from its index.' };
 /** Icons come one file each through src/ui/icons: lucide's own entry brings every icon it has. */
 const noIconBarrel = {
   paths: [{ name: 'lucide-react-native', allowTypeImports: true, message: 'Import icons from src/ui/icons, which takes each from its own file: the package itself brings all 1,800-odd (1.5 MB on the web).' }]
