@@ -222,6 +222,11 @@ export class Fleet {
     return this.time.runFor(ms);
   }
 
+  /** People stop working (their personas act no more), as `settle` does, while phones stay as they are. */
+  stopWork(): void {
+    this.working = false;
+  }
+
   /** A phone lost or broken: it stops, and what it never sent goes with it. */
   async lose(device: SimDevice): Promise<void> {
     const at = this.devices.indexOf(device);

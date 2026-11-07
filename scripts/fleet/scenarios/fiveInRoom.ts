@@ -8,7 +8,8 @@ import type { Scenario } from './types';
  * chosen partners take to leave every phone holding everything (5.11 says 6 with a good
  * order, 10 for every pair to meet), how long that takes, whether review audio came ahead of
  * backups in every session, and what a trip to town by one phone costs at the next meeting:
- * its summary moves with what it pulled, so the room talks again while that gap is open.
+ * its summary moves with what it pulled, so the room talks again while that gap is open. Nobody
+ * works after the first meeting, so the later meetings measure the trip and nothing else.
  */
 export const fiveInRoom: Scenario = {
   name: 'fiveInRoom',
@@ -44,8 +45,10 @@ export const fiveInRoom: Scenario = {
     const first = await meet(fleet, team);
     const order = reviewFirst(fleet);
 
-    // The first translator goes to town in the morning, pulls and pushes, and comes back.
-    await fleet.time.runUntil(town + 3 * TIME.HOUR);
+    // Nobody works from here on, so what follows is the trip's cost alone. The first translator goes to town
+    // in the morning, pulls and pushes, and comes back; the team meets in the evening.
+    fleet.stopWork();
+    await fleet.time.runUntil(evening(k.daysApart! + 1));
     const afterTown = await meet(fleet, team);
 
     // A third meeting with nothing new: the room should not talk.
