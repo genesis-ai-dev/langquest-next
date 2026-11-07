@@ -9,6 +9,7 @@ import { getRecordingJournal } from '../recording/recordingJournal';
 import { cutWav, deleteRecorderFile } from '../audio/wavCut';
 import { isRecording } from '../recording/recorderState';
 import { getStore } from '../storage/store';
+import { nearbyMakerFor } from '../nearby/nearbyPhone';
 import { serverTransport } from './serverTransport';
 import { trackSync } from './syncActivity';
 import type { LanguagePlatform } from './openLanguage';
@@ -44,7 +45,9 @@ export async function appLanguagePlatform(): Promise<LanguagePlatform> {
     fetch: downloadBlob,
     timedTransfer,
     registerProbe: registerDeviceProbe,
-    settled: (f, blobsWanted) => { void flushDiagnostics({ blobCacheBytes: f.totalBytes(), blobsWanted }).catch(() => {}); }
+    settled: (f, blobsWanted) => { void flushDiagnostics({ blobCacheBytes: f.totalBytes(), blobsWanted }).catch(() => {}); },
+    // Android's file gives each person and organization one nearby half; elsewhere there is none.
+    nearby: nearbyMakerFor
   };
 }
 

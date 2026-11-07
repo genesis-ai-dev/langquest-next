@@ -622,7 +622,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     <View style={{ flex: 1 }}>
       <ReadOnlyContext.Provider value={readOnly}>
       <SyncStatusContext.Provider value={syncSources}>
-      <SyncEffects orgId={props.orgId} orgPulled={org.pulled} refused={language.refused} />
+      <SyncEffects orgId={props.orgId} orgPulled={org.pulled} refused={language.refused}
+        actorId={props.actorId} signedIn={props.signedIn} org={liveOrg.state} languageId={languageId} />
       <PeopleContext.Provider value={people}>
       <HeaderExtraContext.Provider value={headerExtra}>
         <View style={{ flex: 1, flexDirection: 'row' }}>
