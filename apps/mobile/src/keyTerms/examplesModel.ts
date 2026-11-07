@@ -12,6 +12,8 @@ export interface ExampleWay {
   rendering: string;
   context: string;
   examples: KeyTermView['audioRenderings'];
+  /** The takes its clips were recorded during, each once, so the way can list its passages. */
+  takeIds: string[];
 }
 
 /** A way the phone makes when the team adds one with no written form. */
@@ -29,12 +31,16 @@ export function exampleWays(term: Pick<KeyTermView, 'renderings' | 'audioRenderi
     let w = ways.get(wayId);
     if (!w) {
       const r = written.get(wayId);
-      w = { wayId, rendering: r?.rendering ?? '', context: r?.context ?? '', examples: [] };
+      w = { wayId, rendering: r?.rendering ?? '', context: r?.context ?? '', examples: [], takeIds: [] };
       ways.set(wayId, w);
     }
     return w;
   };
-  for (const e of term.audioRenderings) way(e.wayId).examples.push(e);
+  for (const e of term.audioRenderings) {
+    const w = way(e.wayId);
+    w.examples.push(e);
+    if (e.duringTakeId && !w.takeIds.includes(e.duringTakeId)) w.takeIds.push(e.duringTakeId);
+  }
   for (const r of term.renderings) way(r.renderingId);
   for (const id of pending) way(id);
   if (ways.size === 0) way('way:first');

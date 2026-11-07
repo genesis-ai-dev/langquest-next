@@ -34,9 +34,10 @@ export type MaterialEvents = {
    * `renderingId` names this clip. `wayId` names the way of saying the term it is an example of: clips with the
    * same one are repeats of one way; different ones are different, context-dependent ways. A way needs no written
    * form (a language may be oral only): it is the id of a written rendering when the team wrote one, else any id the
-   * phone made.
+   * phone made. `duringTakeId` is the take being drafted when it was recorded, so a way can list the passages
+   * it was recorded in.
    */
-  'v1.KeyTermAudioRenderingAdded': { termId: string; renderingId: string; blobHash: string; durationMs: number; wayId: string };
+  'v1.KeyTermAudioRenderingAdded': { termId: string; renderingId: string; blobHash: string; durationMs: number; wayId: string; duringTakeId?: string };
   'v1.KeyTermAdjusted': { termId: string; adjustmentId: string; note: string; blobHash?: string; duringTakeId?: string };
   'v1.KeyTermLinked': { takeId: string; termId: string; note?: string; adjustmentId?: string };
 };
@@ -133,7 +134,7 @@ export interface KeyTermView {
   renderings: { renderingId: string; rendering: string; context: string }[];
   adjustments: { adjustmentId: string; note: string; blobHash?: string; duringTakeId?: string; actorId: string; hlc: string }[];
   /** Recorded examples of the term, oldest first (decision 205). */
-  audioRenderings: { renderingId: string; blobHash: string; durationMs: number; actorId: string; wayId: string }[];
+  audioRenderings: { renderingId: string; blobHash: string; durationMs: number; actorId: string; wayId: string; duringTakeId?: string }[];
 }
 
 export function keyTermView(state: LanguageState, termId: string): KeyTermView | null {
@@ -152,7 +153,7 @@ export function keyTermView(state: LanguageState, termId: string): KeyTermView |
       .map(([adjustmentId, a]) => ({ adjustmentId, ...a })),
     audioRenderings: Object.entries(t.audioRenderings ?? {})
       .sort(([, a], [, b]) => (a.hlc < b.hlc ? -1 : 1))
-      .map(([renderingId, r]) => ({ renderingId, blobHash: r.blobHash, durationMs: r.durationMs, actorId: r.actorId, wayId: r.wayId }))
+      .map(([renderingId, r]) => ({ renderingId, blobHash: r.blobHash, durationMs: r.durationMs, actorId: r.actorId, wayId: r.wayId, ...(r.duringTakeId !== undefined ? { duringTakeId: r.duringTakeId } : {}) }))
   };
 }
 

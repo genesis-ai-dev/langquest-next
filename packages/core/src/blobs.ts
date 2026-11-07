@@ -238,7 +238,7 @@ function collectRefs(state: LanguageState): Map<string, BlobRef> {
     }
   }
   for (const t of Object.values(state.keyTerms)) {
-    for (const a of Object.values(t.audioRenderings ?? {})) if (!out.has(a.blobHash)) out.set(a.blobHash, { hash: a.blobHash, format: voice(a.blobHash), unitId: '' });
+    for (const a of Object.values(t.audioRenderings ?? {})) if (!out.has(a.blobHash)) out.set(a.blobHash, { hash: a.blobHash, format: voice(a.blobHash), unitId: a.duringTakeId ? state.takes[a.duringTakeId]?.unitId ?? '' : '' });
   }
   for (const [takeId, r] of Object.entries(state.responses)) {
     const unitId = state.takes[takeId]?.unitId ?? '';

@@ -69,4 +69,12 @@ describe('v1.KeyTermAudioRenderingAdded and the ways a term is said', () => {
     for (const wayId of [7, '', undefined]) expect(validateEvent({ ...ok, payload: { ...ok.payload, wayId } } as unknown as AnyEvent)).not.toBeNull();
     expect(() => clip('q', '')).toThrow(CommandError);
   });
+
+  it('remembers the take a clip was recorded during, so a way can name its passages', () => {
+    const spec = commands(base).addKeyTermAudio({ commandId: 'dd', termId: 'kt-logos', blobHash: 'sha256:dd', durationMs: 900, wayId: 'way:a', duringTakeId: 'take2' });
+    expect(spec[0]!.payload).toMatchObject({ wayId: 'way:a', duringTakeId: 'take2' });
+    const clip = keyTermView(foldLanguage(spec.map((s, i) => at(s, i)), base), 'kt-logos')!.audioRenderings.find((c) => c.renderingId === 'audio:dd');
+    expect(clip).toMatchObject({ duringTakeId: 'take2' });
+    expect(validateEvent({ ...at(spec[0]!, 1), payload: { ...spec[0]!.payload, duringTakeId: 7 } } as unknown as AnyEvent)).not.toBeNull();
+  });
 });

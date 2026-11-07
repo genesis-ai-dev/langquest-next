@@ -1683,7 +1683,7 @@ function useTermPassages(ctx: Ctx, termId: string, term: KeyTermView | null): La
     let current = true;
     void (async () => {
       const units = new Set(await passagesLinkingTerm(termId));
-      for (const a of term.adjustments) {
+      for (const a of [...term.adjustments, ...term.audioRenderings]) {
         const u = a.duringTakeId ? await passageOfTake(a.duringTakeId) : null;
         if (u) units.add(u);
       }
@@ -1778,7 +1778,8 @@ export function KeyTermDetail(ctx: Ctx) {
 
   async function saveExample(hash: string, durationMs: number, wayId: string) {
     setBusy(true);
-    await actCommand(ctx, 'record key term example', () => addKeyTermAudioEvents(state!, termId, hash, durationMs, wayId), // i18n-ignore: log label
+    const duringTakeId = adjustDuringTake(draftTakeId, passage);
+    await actCommand(ctx, 'record key term example', () => addKeyTermAudioEvents(state!, termId, hash, durationMs, wayId, duringTakeId), // i18n-ignore: log label
       t('config.keyTerm.exampleSaved'));
     setBusy(false);
   }
@@ -1840,7 +1841,8 @@ export function KeyTermDetail(ctx: Ctx) {
 
       {canEdit || term.audioRenderings.length ? (
         <TermExamples ctx={ctx} language={language} term={term} canRecord={canEdit} busy={busy}
-          onRecorded={(hash, durationMs, wayId) => void saveExample(hash, durationMs, wayId)} />
+          onRecorded={(hash, durationMs, wayId) => void saveExample(hash, durationMs, wayId)}
+          versionOf={(takeId) => versionOf(takeId)} onOpen={openVersion} />
       ) : null}
 
       <WordPassagesSection ctx={ctx} passages={page.passages} own loading={page.loading} listName={fromList ? shortName(fromList.list) : null} onOpen={openPassage} />

@@ -110,7 +110,7 @@ interface KeyTerm {
   hlc: Hlc;
   renderings: Record<string, { rendering: string; context: string; hlc: Hlc }>;
   /** Absent in a state saved before decision 205. */
-  audioRenderings?: Record<string, { blobHash: string; durationMs: number; actorId: string; wayId: string; hlc: Hlc }>;
+  audioRenderings?: Record<string, { blobHash: string; durationMs: number; actorId: string; wayId: string; duringTakeId?: string; hlc: Hlc }>;
   adjustments: Record<string, { note: string; blobHash?: string; duringTakeId?: string; actorId: string; hlc: Hlc }>;
 }
 
