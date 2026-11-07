@@ -79,9 +79,9 @@ export class LanguageFiles {
     return offlineSummaryOf(await this.plan({ units }), present, chosen, why);
   }
 
-  /** What the files a phone lost behind the app's back were (decisions.md 92). */
-  async lost(hashes: readonly string[]): Promise<LostFilesView> {
-    return lostFilesOf(await this.plan({ hashes }), hashes);
+  /** What the files a phone lost behind the app's back were (decisions.md 92). `nearby`: teammates' files, which count in neither total. */
+  async lost(hashes: readonly string[], nearby?: ReadonlySet<string>): Promise<LostFilesView> {
+    return lostFilesOf(await this.plan({ hashes }), hashes, nearby);
   }
 
   /**
@@ -119,7 +119,7 @@ export class LanguageFiles {
   };
 
   /** The files memory names, and, from disk, those of these passages and these files, with the server's verdict on each. */
-  private async plan(about: { units?: Iterable<string>; hashes?: Iterable<string> }): Promise<FilePlan> {
+  async plan(about: { units?: Iterable<string>; hashes?: Iterable<string> }): Promise<FilePlan> {
     const live = this.client.getState();
     const kept = this.client.keptRecords();
     if (!kept) return filePlanOf(live);

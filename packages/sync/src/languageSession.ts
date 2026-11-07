@@ -3,8 +3,10 @@ import {
   type AnyEvent, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState,
   type LostFilesView, type OfflineSummary, type PassageLine, type PassageLines, type UnitOffline, type Update
 } from '@langquest-next/core';
+import type { HoldChoice } from '@langquest-next/core/nearby';
 import { RECORD_KINDS } from './keptLanguage';
 import { LanguageFiles } from './languageFiles';
+import type { NearbyFetchFile, NearbyFilesMaker, NearbyFilesPart } from './nearbyFiles';
 import { noteSent, readSentLog, sameUploads, uploadsByPassage, type PassageUploads, type SentEntry } from './sentLog';
 import { SyncClient, type SyncClientOptions, type SyncResult } from './syncClient';
 import { SyncScheduler } from './syncScheduler';
@@ -28,8 +30,14 @@ export interface LocalFiles {
   sizeOf(hash: string): number | undefined;
   /** The format a file was stored in, which can differ from the one asked for (WAV on a browser without MP4). */
   formatOf(hash: string): string | undefined;
-  /** Give back files the server still has, until the limits hold. */
-  reclaim(evictable: readonly BlobRef[], limits: { minFreeBytes: number; maxTotalBytes: number }): unknown;
+  /**
+   * Free space from these lists in order, using up each before the next, worked out once
+   * (docs/nearby-sync-plan.md 5.6): level 1, files the server still has, largest first, then
+   * level 2, teammates' files in the order core gives. The cap on the store frees from the
+   * first list only, and leaves `uncapped` (teammates' files) out of the total. Answers the
+   * hashes it freed, where the store can say.
+   */
+  reclaim(lists: readonly (readonly { hash: string; format: string }[])[], limits: { minFreeBytes: number; maxTotalBytes: number; uncapped?: ReadonlySet<string> }): unknown;
   onChange(listener: () => void): () => void;
 }
 
@@ -53,8 +61,11 @@ export interface LanguageStatus {
   pulled: boolean;
   /** The realtime channel is up. */
   live: boolean;
+  /** This person's own recordings waiting to go up: a teammate's, marked nearby, are not theirs to wait for (5.2). */
   pendingUp: number;
   pendingDown: number;
+  /** Teammates' recordings here the server has not confirmed: "Holding N for teammates" (docs/nearby-sync-plan.md 5.8). */
+  holding: number;
   /** Highest pending count since the queue was last empty: a progress bar's denominator. */
   peakUp: number;
   peakDown: number;
@@ -110,6 +121,21 @@ export interface LanguageSessionOptions {
   /** Send one recording to the server, and fetch one; each rejects when it could not. */
   upload: (ref: BlobRef) => Promise<void>;
   download: (ref: BlobRef) => Promise<void>;
+  /**
+   * And a teammate's, over a nearby link: where it lands and how it is kept (docs/nearby-sync-plan.md
+   * 5.6). Only with `nearbyFiles`, which only the Android app passes.
+   */
+  fetchFile?: NearbyFetchFile;
+  /** The language's nearby files (`nearbyFiles(platform)` from `@langquest-next/sync/nearby`): marks, the third worker, level 2 and shedding. */
+  nearbyFiles?: NearbyFilesMaker;
+  /** "Hold teammates' recordings" (Carl's answer 14); null while not known, which sheds nothing. */
+  holdChoice?: () => HoldChoice | null;
+  /**
+   * May this person write files in this language (core `mayWriteFiles`)? Someone who only views can
+   * hold teammates' files, which the server would refuse them forever, so those stay off the upload
+   * list. Their own files stay on it whatever this says (5.4's trap table).
+   */
+  mayUpload?: () => boolean;
   /** One budget per device, shared by every language's workers. */
   budget?: TransferBudget;
   /** Keep this much free for recording, and cap the cache. */
@@ -194,6 +220,8 @@ export class LanguageSession {
   private lastReclaim = -Infinity;
   /** The file set last published, to skip a copy when nothing changed since. */
   private publishedVersion: number | undefined;
+  /** Teammates' files from nearby phones: Android only, null everywhere else. */
+  private readonly near: NearbyFilesPart | null;
 
   static async open(o: LanguageSessionOptions): Promise<LanguageSession> {
     // The person's offline scope fills in first, after what a screen asks for (decisions.md 61, 147).
@@ -217,6 +245,7 @@ export class LanguageSession {
     const kept = new Set<string>(JSON.parse((await o.store.meta(keepKey(o.orgId, o.languageId))) || '[]') as string[]);
     const sent = readSentLog(await o.store.meta(sentKey(o.orgId, o.languageId)));
     session = new LanguageSession(o, client, kept, sent);
+    await session.near?.load();
     return session;
   }
 
@@ -230,7 +259,7 @@ export class LanguageSession {
     this.current = {
       revision: client.publishedRevision, pending: 0, refusedEvents: 0, lastSync: 'never',
       online: null, tooOld: false, refused: null, pulled: false, live: false,
-      pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0, present: o.files.snapshot(), keptUnits: kept,
+      pendingUp: 0, pendingDown: 0, holding: 0, peakUp: 0, peakDown: 0, present: o.files.snapshot(), keptUnits: kept,
       keptOffline: null, offlineSummary: null, scope: new Set(), lines: client.passageLines(), fill: client.fillProgress(),
       uploads: new Map(), sent, uploading: new Set(), downloading: new Set()
     };
@@ -238,6 +267,15 @@ export class LanguageSession {
     const files = o.files;
     const plan = new LanguageFiles(client, o.store, o.orgId, o.languageId);
     this.plan = plan;
+    // Everything nearby lives behind the nearby entry, so the web carries none of it.
+    this.near = o.nearbyFiles?.({
+      o, client, plan,
+      scope: () => this.scope(),
+      level1: async () => this.level1(await this.scope()),
+      closed: () => this.closed,
+      holding: (holding) => this.set({ holding }),
+      nudge: () => this.up.nudge()
+    }) ?? null;
     const common = {
       isOnline: () => this.current.online !== false,
       isPulling: () => this.pulling,
@@ -250,14 +288,24 @@ export class LanguageSession {
       ...UPLOAD_DEFAULTS,
       ...common,
       // Size from the confirmation versus the file here: a mismatch reopens the upload.
-      work: async () => { const list = await plan.upload(this.here(), files.sizes()); this.lastUnsent = list; this.countUploads(); return list; },
+      work: async () => {
+        const all = await plan.upload(this.here(), files.sizes());
+        const list = this.near ? this.near.uploadable(all) : all;
+        this.lastUnsent = list;
+        this.countUploads();
+        return list;
+      },
       transfer: async (ref) => {
         await this.moving('uploading', ref, () => o.upload(ref));
         this.sentFiles.add(ref.hash);
         this.noteSent({ unitId: ref.unitId || null, files: 1 });
         this.countUploads();
       },
-      onChange: (n) => this.set({ pendingUp: n, peakUp: n === 0 ? 0 : Math.max(this.current.peakUp, n) })
+      onChange: (n) => {
+        // The sign-out check and a hand-over wait only for this person's own (5.2).
+        const own = this.near ? this.near.own(n, this.lastUnsent) : n;
+        this.set({ pendingUp: own, peakUp: own === 0 ? 0 : Math.max(this.current.peakUp, own) });
+      }
     });
     this.down = new TransferWorker({
       ...DOWNLOAD_DEFAULTS,
@@ -287,6 +335,7 @@ export class LanguageSession {
     this.stops.push(client.subscribe((s) => { this.set({ revision: s.revision, lines: s.lines ?? languageLines(s.state), fill: s.fill ?? null }); this.recount(); }));
     this.up.start();
     this.down.start();
+    this.near?.start();
     this.stops.push(files.onChange(() => {
       this.up.nudge();
       this.down.nudge();
@@ -316,6 +365,7 @@ export class LanguageSession {
     for (const stop of this.stops.splice(0)) stop();
     this.up.stop();
     this.down.stop();
+    this.near?.stop();
     this.scheduler.stop();
     if (this.presentTimer) clearTimeout(this.presentTimer);
     if (this.reclaimTimer) clearTimeout(this.reclaimTimer);
@@ -374,6 +424,8 @@ export class LanguageSession {
               : `pushed ${r.pushed}, pulled ${r.pulled}, rejected ${r.rejected}`
       });
       if (!r.offline) o.onAnswered?.(o.client?.now?.() ?? Date.now());
+      // Confirmations may have come: a backup the server holds goes now, and with the row off, what need not be kept.
+      if (!r.offline) await this.near?.afterSync();
       // Diagnostics go after this device's own work has had its turn: the
       // outbox empty and every waiting upload tried. An upload that fails
       // every time (they retry forever) must not hold them back for good: it
@@ -533,9 +585,14 @@ export class LanguageSession {
     return this.plan.hasRecording(id, unitId);
   }
 
-  /** What these files a phone lost were (decisions.md 92). */
+  /** What these files a phone lost were (decisions.md 92). A teammate's file is not this person's to record again. */
   lost(hashes: readonly string[]): Promise<LostFilesView> {
-    return this.plan.lost(hashes);
+    return this.plan.lost(hashes, this.near?.marked());
+  }
+
+  /** For a nearby exchange in this language; null where there are no nearby files. */
+  nearbyMoves(): ReturnType<NearbyFilesPart['moves']> | null {
+    return this.near?.moves() ?? null;
   }
 
   /** After recording: clear upload backoff and start a pass now. */
@@ -543,9 +600,10 @@ export class LanguageSession {
     this.up.trigger();
   }
 
-  /** Recordings here the server has not confirmed: what a hand-over must still send. */
-  unsent(): Promise<BlobRef[]> {
-    return this.plan.upload(this.o.files.snapshot(), this.o.files.sizes());
+  /** This person's recordings here the server has not confirmed: what a hand-over must still send. A teammate's waits for the next session on the phone (5.2). */
+  async unsent(): Promise<BlobRef[]> {
+    const all = await this.plan.upload(this.o.files.snapshot(), this.o.files.sizes());
+    return this.near ? this.near.mine(all) : all;
   }
 
   inspect(): Promise<SyncInspection> {
@@ -598,12 +656,20 @@ export class LanguageSession {
     const files = this.o.files;
     this.lastReclaim = Date.now();
     try {
-      const scope = await this.scope();
-      const evictable = await this.plan.evictable(this.here(), scope, files.sizes());
+      const level1 = await this.level1(await this.scope());
       // The plan was read from the phone's table; a session closed meanwhile frees nothing.
       if (this.closed) return;
-      files.reclaim(evictable, this.o.limits);
+      // With nearby files, level 2 follows (5.6): teammates' files, once level 1 cannot free enough, never for the cap.
+      if (this.near) await this.near.reclaim(level1);
+      else files.reclaim([level1], this.o.limits);
     } catch { /* disk queries can fail on some devices; try again next change */ }
+  }
+
+  /** Level 1: files the server still has that no kept passage needs, largest first, so the fewest go. */
+  private async level1(scope: ReadonlySet<string>): Promise<BlobRef[]> {
+    const sizes = this.o.files.sizes();
+    const list = await this.plan.evictable(this.here(), scope, sizes);
+    return [...list].sort((a, b) => (sizes.get(b.hash) ?? 0) - (sizes.get(a.hash) ?? 0));
   }
 
   /** The offline marks and Settings' summary, worked out after a burst of changes rather than on every draw. */

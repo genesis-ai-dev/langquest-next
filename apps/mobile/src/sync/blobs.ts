@@ -5,6 +5,7 @@ import { readDirectoryAsync } from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 import { getFileLedger } from '../storage/store';
 import { hashOf, isStoredFormat, mimeOf, type StoredFile, type StoredFormat } from '../storage/storedFile';
+import { toFreeOf } from './blobsModel';
 import { onWake } from './wake';
 import { webFiles, type WebFiles } from '../web/webFiles';
 import { noteExpected } from '../diagnostics/report';
@@ -19,8 +20,14 @@ import { noteExpected } from '../diagnostics/report';
  * and both hash first: `ingest` hashes before naming, and downloads land in
  * a `.part` staging name that is renamed only after its hash matches.
  * Startup discards leftover staging files, so an interrupted download can
- * never be mistaken for a verified one. Deletion happens only in `reclaim`,
- * and only for files the caller has proven the server can give back.
+ * never be mistaken for a verified one. A file from a teammate's phone lands
+ * in a staging name of its own (`<hash>.<format>.nearby.part`), since a
+ * download deletes any `.part` of the same name. Deletion happens in
+ * `reclaim` and `remove`, for files the caller has proven the server can give
+ * back, or, on Android, for teammates' files the ledger marks as nearby: when
+ * space runs short, when the server confirms one, or when its person chose not
+ * to hold them (docs/nearby-sync-plan.md 5.6). A file with no mark, such as
+ * this person's own unsent recording, is never one of those.
  *
  * Some phones claim more storage than they have and delete files behind
  * the app's back (decisions.md 92). So every file kept is also written down
@@ -188,10 +195,10 @@ export class BlobStore {
     return format && format !== ref.format ? { hash: ref.hash, format } : ref;
   }
 
-  /** Bytes on disk across every present file. */
-  totalBytes(): number {
+  /** Bytes on disk across every present file, less any in `uncapped` (teammates' files, which the cap leaves alone). */
+  totalBytes(uncapped?: ReadonlySet<string>): number {
     let total = 0;
-    for (const n of this.sizeByHash.values()) total += n;
+    for (const [hash, n] of this.sizeByHash) if (!uncapped?.has(hash)) total += n;
     return total;
   }
 
@@ -239,9 +246,9 @@ export class BlobStore {
     return new File(this.disk(), nameOf(ref));
   }
 
-  /** Native only: where a download lands before its bytes are verified. */
-  stagingFor(ref: StoredFile): File {
-    return new File(this.disk(), `${nameOf(ref)}${STAGING_SUFFIX}`);
+  /** Native only: where a download lands before its bytes are verified; a file from a teammate's phone has a name of its own. */
+  stagingFor(ref: StoredFile, nearby = false): File {
+    return new File(this.disk(), `${nameOf(ref)}${nearby ? '.nearby' : ''}${STAGING_SUFFIX}`);
   }
 
   /** Web only: the bytes to upload. */
@@ -271,8 +278,8 @@ export class BlobStore {
    * Promote a verified staging file to its trusted name (an atomic rename on
    * the same volume) and index it. Callers verify first; this does not.
    */
-  commitStaged(ref: StoredFile, size: number): void {
-    const staged = this.stagingFor(ref);
+  commitStaged(ref: StoredFile, size: number, nearby = false): void {
+    const staged = this.stagingFor(ref, nearby);
     const dest = this.fileFor(ref);
     if (dest.exists) staged.delete();
     else staged.move(dest);
@@ -280,32 +287,30 @@ export class BlobStore {
   }
 
   /**
-   * Delete files from `evictable` until at least `minFreeBytes` is free on
-   * the volume and the store holds at most `maxTotalBytes`. The caller
-   * decides eligibility (core `evictableBlobs`); this only does the disk
-   * work, largest first so the fewest files go. What to free is worked out
-   * once, up front: the files themselves go a moment later (`discard`).
+   * Delete files from these lists, in their order and each used up before
+   * the next, until at least `minFreeBytes` is free on the volume and the
+   * store holds at most `maxTotalBytes`. The caller decides eligibility and
+   * order (docs/nearby-sync-plan.md 5.6): level 1 first, files the server
+   * still has, largest first so the fewest go; then level 2, teammates'
+   * files. The cap frees from the first list only and leaves `uncapped` out
+   * of the total, so taking a teammate's file pushes out no level 1 file and
+   * the cap alone never deletes one. What to free is worked out once, up
+   * front, for every list: the files themselves go a moment later
+   * (`discard`), so a second call would still see the disk short.
    */
-  reclaim(evictable: readonly StoredFile[], opts: { minFreeBytes: number; maxTotalBytes: number }): string[] {
+  reclaim(lists: readonly (readonly StoredFile[])[], opts: { minFreeBytes: number; maxTotalBytes: number; uncapped?: ReadonlySet<string> }): string[] {
     // The browser reports no free space synchronously; on the web the total alone is bounded.
     const short = this.dir ? opts.minFreeBytes - Paths.availableDiskSpace : 0;
-    let toFree = Math.max(short, this.totalBytes() - opts.maxTotalBytes);
-    if (toFree <= 0) return [];
-    const bySize = [...evictable].sort((a, b) => (this.sizeOf(b.hash) ?? 0) - (this.sizeOf(a.hash) ?? 0));
-    const chosen = new Map<string, StoredFile>();
-    for (const ref of bySize) {
-      if (toFree <= 0) break;
-      if (!this.present.has(ref.hash) || chosen.has(ref.hash)) continue;
-      chosen.set(ref.hash, ref);
-      toFree -= this.sizeOf(ref.hash) ?? 0;
-    }
-    return this.discard([...chosen.values()]);
+    const over = this.totalBytes(opts.uncapped) - opts.maxTotalBytes;
+    return this.discard(toFreeOf(lists, { short, over, present: this.present, sizes: this.sizeByHash }));
   }
 
   /**
    * Delete these files whatever the space: a source's audio whose license
    * no longer lets phones keep it, or one the sources cache evicts
-   * (sources/offline.ts). Recordings never come through here.
+   * (sources/offline.ts), and on Android a teammate's recording the server
+   * confirmed or its person chose not to hold. This person's own recordings
+   * never come through here.
    */
   remove(refs: readonly BlobFile[]): string[] {
     return this.discard(refs);

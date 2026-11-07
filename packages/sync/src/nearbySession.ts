@@ -63,6 +63,18 @@ export interface NearbyFileMoves {
   shed?(holdings: Holdings): Promise<void>;
   /** Whether this phone's "Hold teammates' recordings" row is on, signed into its own entry. Absent means off, which lets no teammate shed a file for its sake. */
   holds?(): boolean;
+  /** Moves the files through the language session's nearby worker (`nearbyFiles`); absent, the session fetches them one by one itself. */
+  take?(job: NearbyFetchJob): Promise<{ noRoom: boolean }>;
+}
+
+/** The files a session would take from its partner now, in order, and how to move one over its link. */
+export interface NearbyFetchJob {
+  list: readonly WantedFile[];
+  /** One file over this session's link: rejects only when the link or the session ended. */
+  fetch(file: WantedFile, stage: { stagingUri: string; maxBytes: number; minFreeBytes: number }): Promise<void>;
+  linkUp(): boolean;
+  /** Asked before each file: true stops the job (backups cut for a teammate waiting, section 5.11). */
+  stop(file: WantedFile): boolean;
 }
 
 export interface NearbyGenerations {
@@ -1059,6 +1071,24 @@ export class NearbySession {
     const wanted = await opt.files!.wanted(this.holdings);
     const theirs = new Set(this.holdings.get(report.peer!.installKey)?.files ?? []);
     let backupsFrom: number | null = null;
+    if (opt.files!.take) {
+      const { noRoom } = await opt.files!.take({
+        // Holdings say whether this partner has a backup, so a wanted list of thousands does not cost thousands of `no`s.
+        list: wanted.filter((file) => file.group !== 'backup' || theirs.has(file.hash)),
+        fetch: (file, stage) => this.fetchOne(file, stage),
+        linkUp: () => !this.over && !this.stopped && !this.stalled,
+        stop: (file) => {
+          if (file.group !== 'backup') return false;
+          backupsFrom ??= opt.time.now();
+          if (!opt.otherWaiting?.() || opt.time.now() - backupsFrom < tune.backupLimitMs) return false;
+          report.files.cutBackups = true;
+          return true;
+        }
+      });
+      if (noRoom) report.files.noRoom = true;
+      await this.send({ t: 'files-done' });
+      return;
+    }
     for (const file of wanted) {
       if (file.group === 'backup') {
         // Holdings say whether this partner has one, so a wanted list of thousands does not cost thousands of `no`s.

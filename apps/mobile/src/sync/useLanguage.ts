@@ -132,7 +132,7 @@ const NO_LINES: PassageLines = languageLines(emptyLanguageState());
 
 const NOTHING_YET: LanguageStatus = {
   revision: 0, pending: 0, refusedEvents: 0, lastSync: 'never', online: null, tooOld: false,
-  refused: null, pulled: false, live: false, pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0,
+  refused: null, pulled: false, live: false, pendingUp: 0, pendingDown: 0, holding: 0, peakUp: 0, peakDown: 0,
   present: new Set(), keptUnits: new Set(), keptOffline: null, offlineSummary: null, scope: new Set(), lines: NO_LINES, fill: null,
   uploads: new Map(), sent: [], uploading: new Set(), downloading: new Set()
 };
@@ -193,7 +193,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
       // Only a change in what is shown redraws the shell; the ticking part goes to its own store.
       setStatus((prev) => (slowSame(prev, now) ? prev : now));
       syncStatus.set({
-        pending: now.pending, lastSync: now.lastSync, pendingUp: now.pendingUp, pendingDown: now.pendingDown,
+        pending: now.pending, lastSync: now.lastSync, pendingUp: now.pendingUp, pendingDown: now.pendingDown, holding: now.holding,
         peakUp: now.peakUp, peakDown: now.peakDown, present: now.present, uploads: now.uploads, sent: now.sent,
         uploading: now.uploading, downloading: now.downloading
       });

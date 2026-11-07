@@ -30,7 +30,7 @@ function memoryFiles(): LocalFiles & { put(hash: string, size: number): void; re
     sizes: () => sizes,
     sizeOf: (hash) => sizes.get(hash),
     formatOf: (hash) => (sizes.has(hash) ? 'm4a' : undefined),
-    reclaim: (evictable) => { reclaimed.push(evictable.map((r) => r.hash)); },
+    reclaim: (lists) => { reclaimed.push((lists[0] ?? []).map((r) => r.hash)); },
     onChange: (l) => { listeners.add(l); return () => { listeners.delete(l); }; }
   };
 }
