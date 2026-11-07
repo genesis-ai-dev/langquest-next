@@ -1,23 +1,32 @@
 {
-  "kind": "screen",
-  "ask": "Is this enough: grey badge plus a header note saying the sign-in was not renewed?",
+  "kind": "question",
+  "ask": "Skip a renew button, or add a Try again button to the sign-in note?",
   "problem": "On the web app, when the page cannot renew its sign-in, the Inbox counts fail and the badge showed nothing. Nothing told people why.",
   "found": "The app already shows an Offline icon in the My Work header. But it called a blocked sign-in 'offline' too, or said nothing. Code only; no live logs. An expired sign-in is LAN-243's.",
-  "changed": "The grey badge stays. The header icon now says 'Sign-in not renewed' when the server answers but will not renew. No network still says 'Offline'. Both retry by themselves.",
-  "why": "The icon already exists, so I made it more exact instead of adding a new banner. Pictures are drawings, not screenshots; I could not run the web app.",
-  "touches": "Other languages show the English words until translated. The icon shows on My Work and Sync; the Inbox tab has no note.",
+  "changed": "Nothing new since last time: grey badge, plus a header note saying the sign-in was not renewed. No new button.",
+  "why": "Apps renew sign-in silently and retry; people rarely tap for it. The Sync screen already has Sync now. A sign-in that truly expired is LAN-243's, and asks to sign in again.",
+  "touches": "A button would need new words in all 16 languages and a new place on the screen.",
   "pictures": [
     {
-      "file": "before.png",
-      "label": "Before"
-    },
-    {
       "file": "after-signin.png",
-      "label": "After: sign-in not renewed"
+      "label": "Now"
     },
     {
-      "file": "after-offline.png",
-      "label": "After: no connection"
+      "file": "option-button.png",
+      "label": "With a button"
     }
-  ]
+  ],
+  "options": [
+    {
+      "label": "No button",
+      "result": "The note explains, the app retries by itself, and Sync now is one tap away. This is the usual way.",
+      "picture": "after-signin.png"
+    },
+    {
+      "label": "Add Try again",
+      "result": "A button on the note retries at once. Faster, but one more control for a fault that heals itself.",
+      "picture": "option-button.png"
+    }
+  ],
+  "recommended": 0
 }
