@@ -147,6 +147,16 @@ export class MemoryStore implements EventStore {
     return this.stream(orgId, streamId).filter((e) => e.status === 'nearby').length;
   }
 
+  async nearbyUndoing(orgId: string, streamId: string, targetIds: readonly string[]): Promise<LocalEvent[]> {
+    const targets = new Set(targetIds);
+    return this.stream(orgId, streamId).filter(({ event: e, status }) => {
+      if (status !== 'nearby') return false;
+      const p = e.payload as Record<string, unknown>;
+      const named = e.type === 'v1.ReviewWithdrawn' ? p['reviewId'] : e.type === 'v1.NoteWithdrawn' ? p['noteId'] : e.type === 'v1.DepartureUndone' ? p['departureId'] : undefined;
+      return typeof named === 'string' && targets.has(named);
+    });
+  }
+
   async nearbyPage(orgId: string, streamId: string, afterId: string | null, limit: number): Promise<LocalEvent[]> {
     return this.stream(orgId, streamId)
       .filter((e) => e.status === 'nearby' && (afterId === null || e.event.id > afterId))

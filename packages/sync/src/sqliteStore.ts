@@ -292,6 +292,22 @@ export class SqliteStore implements EventStore {
     return rows.map(toLocal);
   }
 
+  async nearbyUndoing(orgId: string, streamId: string, targetIds: readonly string[]): Promise<LocalEvent[]> {
+    const unique = [...new Set(targetIds)];
+    const out: LocalEvent[] = [];
+    for (let i = 0; i < unique.length; i += KEPT_SLICE) {
+      const rows = await this.db.all<Row>(
+        `select * from events where org_id = ? and stream_id = ? and status = 'nearby'
+           and json_extract(json, '$.type') in ('v1.ReviewWithdrawn', 'v1.NoteWithdrawn', 'v1.DepartureUndone')
+           and coalesce(json_extract(json, '$.payload.reviewId'), json_extract(json, '$.payload.noteId'), json_extract(json, '$.payload.departureId'))
+             in (select value from json_each(?))`,
+        [orgId, streamId, JSON.stringify(unique.slice(i, i + KEPT_SLICE))]
+      );
+      for (const r of rows) out.push(toLocal(r));
+    }
+    return out;
+  }
+
   async nearbyUse(orgId: string, streamId: string): Promise<NearbyUse[]> {
     // The same answer as `nearbyBudgetOf`: a claim spends its claimer's budget, and a batch row its author's.
     const rows = await this.db.all<{ who: string; n: number; bytes: number; manifest_bytes: number }>(

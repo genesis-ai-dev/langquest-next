@@ -1024,8 +1024,26 @@ describe.each(STORES)('an undo that lands before its target, on the %s store', (
     await client.receiveNearby(await pageOf(sam, 1, [real, unitBy(sam, 'u1')]), intakeFor());
     expect(w.calls['nearbyPage']).toBeUndefined();
     await client.receiveNearby(await claimsOf([oldReview(sam, 'rv-mine')], () => 3), intakeFor());
-    expect(w.calls['nearbyPage']).toBeGreaterThan(0);
+    expect(w.calls['nearbyUndoing']).toBe(1);
     expect(await statusOf(store, real.id)).toBe('nearby');
+  });
+
+  it('a target whose slot is held reads only the undos naming it, however many nearby rows there are', async () => {
+    // Why: any member could otherwise make each page they send scan the whole nearby table inside the stream's turn.
+    const w = watched(store);
+    const client = phone(server, w.store, mine);
+    await client.load();
+    const many = Array.from({ length: 600 }, (_, i) => unitBy(sam, `u${i}`));
+    for (let i = 0; i < 3; i++) await client.receiveNearby(await pageOf(sam, i + 1, many.slice(i * 200, i * 200 + 200)), intakeFor());
+    const own = eventBy(sam, 'v1.ReviewWithdrawn', { reviewId: 'rv-old' }, { at: NOW - 100 });
+    await client.receiveNearby(await pageOf(sam, 4, [own]), intakeFor());
+    const before = { ...w.calls };
+    await client.receiveNearby(await claimsOf([oldReview(sam, 'rv-old')], () => 3), intakeFor());
+    // One read by target, which finds the one undo; no walk of the nearby rows, and nothing refused to fold again for.
+    expect(w.calls['nearbyUndoing']).toBe((before['nearbyUndoing'] ?? 0) + 1);
+    expect(w.calls['nearbyPage'] ?? 0).toBe(before['nearbyPage'] ?? 0);
+    expect(w.calls['page'] ?? 0).toBe(before['page'] ?? 0);
+    expect(await statusOf(store, own.id)).toBe('nearby');
   });
 
   it('a claim of an undo is not judged again: the server held it', async () => {

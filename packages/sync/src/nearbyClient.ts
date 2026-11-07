@@ -429,16 +429,14 @@ class NearbyClient implements NearbyPart {
       return e.type === 'v1.DepartureUndone' && slots.has(`${e.type} ${e.payload.departureId}`);
     };
     const context = { orgId: this.port.orgId, languageId: this.port.streamId, people, facts: door.facts };
-    for (let after: string | null = null; ;) {
-      const page: LocalEvent[] = await this.port.store.nearbyPage(this.port.orgId, this.port.streamId, after, LOG_PAGE);
-      for (const l of page) {
-        // The server already held a claim's event, so step 10 does not apply to it.
-        const refused = names(l.event) && !(l.via && 'claim' in l.via) ? nearbyLookUpRefusal(l.event, context) : null;
-        if (refused) rejected.push({ event: l.event, status: 'rejected', rejectReason: refused.reason, ...(l.via ? { via: l.via } : {}) });
-      }
-      if (page.length < LOG_PAGE) return rejected;
-      after = page[page.length - 1]!.event.id;
+    // Only the undos naming these targets: a page must not make this phone read every nearby row under the turn.
+    const targets = [...slots].map((slot) => slot.slice(slot.indexOf(' ') + 1));
+    for (const l of await this.port.store.nearbyUndoing(this.port.orgId, this.port.streamId, targets)) {
+      // The server already held a claim's event, so step 10 does not apply to it.
+      const refused = names(l.event) && !(l.via && 'claim' in l.via) ? nearbyLookUpRefusal(l.event, context) : null;
+      if (refused) rejected.push({ event: l.event, status: 'rejected', rejectReason: refused.reason, ...(l.via ? { via: l.via } : {}) });
     }
+    return rejected;
   }
 
   /** The page's one commit. It carries no cursor, because only the server moves a cursor. A commit that fails leaves the fold ahead of the log, so it folds again. */

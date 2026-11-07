@@ -173,6 +173,8 @@ export interface EventStore {
   nearbyCount(orgId: string, streamId: string): Promise<number>;
   /** Nearby rows in id order, after `afterId` (null for the first page). */
   nearbyPage(orgId: string, streamId: string, afterId: string | null, limit: number): Promise<LocalEvent[]>;
+  /** Nearby rows that withdraw or undo one of these reviews, notes or departures: the three undo types, by the id each names. */
+  nearbyUndoing(orgId: string, streamId: string, targetIds: readonly string[]): Promise<LocalEvent[]>;
   /** The rows holding these ids, of any status and any stream, in no set order. */
   getMany(ids: readonly string[]): Promise<LocalEvent[]>;
   /** Pending rows no batch speaks for yet, oldest first, strictly after `afterHlc` (null for the first page). */

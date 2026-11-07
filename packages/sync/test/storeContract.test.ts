@@ -348,6 +348,25 @@ describe.each(impls)('%s nearby contract', (_name, make) => {
     expect(await s.nearbyPage('o', 'p', 'c', 2)).toEqual([]);
   });
 
+  it('nearbyUndoing reads only nearby undos and withdrawals naming these targets, of this stream', async () => {
+    // Why: a page that lands a target whose slot is held must not read every nearby row to find the undo (review finding 2).
+    const s = await make();
+    const undo = (id: string, type: string, payload: Record<string, unknown>, over: Partial<AnyEvent> = {}) => nearby(id, '1', { type, payload, ...over } as Partial<AnyEvent>);
+    await s.commit({ receive: [
+      undo('w-review', 'v1.ReviewWithdrawn', { reviewId: 'rv' }),
+      undo('w-note', 'v1.NoteWithdrawn', { noteId: 'n' }),
+      undo('w-dep', 'v1.DepartureUndone', { departureId: 'dep' }),
+      undo('w-other', 'v1.ReviewWithdrawn', { reviewId: 'someone-else' }),
+      undo('not-an-undo', 'v1.ReviewRecorded', { reviewId: 'rv', takeId: 't', kindId: 'k', outcome: 'approved', via: 'app' }),
+      undo('w-elsewhere', 'v1.ReviewWithdrawn', { reviewId: 'rv' }, { streamId: 'q' }),
+      nearby('plain', '2')
+    ] });
+    await s.put({ event: { ...ev('w-pending', '3'), type: 'v1.NoteWithdrawn', payload: { noteId: 'n' } } as AnyEvent, status: 'pending' });
+    expect(ids(await s.nearbyUndoing('o', 'p', ['rv', 'n', 'dep'])).sort()).toEqual(['w-dep', 'w-note', 'w-review']);
+    expect(await s.nearbyUndoing('o', 'p', [])).toEqual([]);
+    expect(ids(await s.nearbyUndoing('o', 'q', ['rv']))).toEqual(['w-elsewhere']);
+  });
+
   it('getMany answers for what is here, of any status, each id once, across slices', async () => {
     const s = await make();
     await s.put({ event: ev('c', '1', 1), status: 'confirmed' });
