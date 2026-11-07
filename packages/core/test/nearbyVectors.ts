@@ -49,6 +49,8 @@ export const HOLDINGS_TEXT = `{"counter":5,"filesHash":"${HOLDINGS_FILES_HASH}",
 /** The hash of `lq-nearby-newcomer-v1\n`, the decoded key, then the 16 salt bytes 0 to 15. */
 export const NEWCOMER_SALT = 'AAECAwQFBgcICQoLDA0ODw';
 export const NEWCOMER_HASH = '0ce1daeec982e3f32357aa12ac36414dba232083b8f9ce840d377075b33d2a8f';
+/** Its first 16 bytes, with version 4 and variant bits set: 0xe3 becomes 0x43, and 0x23 becomes 0xa3. */
+export const NEWCOMER_ID = '0ce1daee-c982-43f3-a357-aa12ac36414d';
 
 /** 2023-11-14 falls in window 218. */
 export const PASS_NOW_MS = 1700000000000;
@@ -71,3 +73,32 @@ export const OPENING = {
 
 /** A generation's key, then the three below it (`key(g - 1) = SHA-256('lq-nearby-gen-v1' || key(g))`). The migration's vector is the same. */
 export const GENERATIONS = ['BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc', 'ZKxHYBpq0T77wN5AfJJc7t_0qrA041KqcKWrV2JAl10', '8Fjjxvz7bHRokg2U6V91J8qKQ8oLNCHdzOQb2XZQVx8', '0-wAuKHDruwZMVUSkqDDdTTYHQBxTLaIbtwivjANPCI'];
+
+/** A worker link, then an invite link holding its pass. Signed with Node's Ed25519: the root from a seed of 0x03, the inviter from a seed of 0x02. The newcomer is `PUBLIC_KEY`. */
+export const CHAIN_ROOT_KEY = '7UkoxijRwsbq6QM4kFmVYSlZJzpcY_k2NsFGFKyHN9E';
+export const CHAIN_INVITER_KEY = 'gTl3Dqh9F19Wo1Rmw0x-zMuNipG07jeiXfYPW4_Js5Q';
+const CHAIN_WORKER_LINK = {
+  kind: 'worker@1', kid: 'k1',
+  body: {
+    installKey: CHAIN_INVITER_KEY, profileId: PROFILE, deviceId: '33333333-3333-4333-8333-333333333333', expiresAt: 1730000000000,
+    org: { orgId: 'org1', orgSeq: 40, scopes: [{ level: 'language', languageId: 'lang1', privileges: ['invite_members', 'translate', 'review'] }] }
+  },
+  sig: 'F81YdxgylOyjNXbm3gNwzHpM31FG_a2NarNEStOL1YMK9ZG60UP64bKN9Ibh0v1VsRhYryzu8vRlB1-Xc_mnBg'
+} as const;
+const CHAIN_PASS = {
+  kind: 'pass@1', kid: 'k1',
+  body: {
+    passId: 'ab'.repeat(16), orgId: 'org1', languageId: 'lang1', inviter: PROFILE, inviterKey: CHAIN_INVITER_KEY,
+    roles: [{ roleId: 'translator', privileges: ['translate'] }], maxUses: 3, expiresAt: PASS_EXPIRES_AT
+  },
+  sig: '4Dm8Fju36m_dHts0_jZrm1x9IG4wCkCessawDYad3_OxlLZzYw5BuEv2tAAi__FdHa-twkttm2ziToJHCKlxBg'
+} as const;
+const CHAIN_INVITE_LINK = {
+  kind: 'invite@1',
+  body: {
+    pass: CHAIN_PASS, installKey: PUBLIC_KEY, idSalt: NEWCOMER_SALT, profileId: NEWCOMER_ID, deviceId: '44444444-4444-4444-8444-444444444444', name: 'Yé',
+    roleId: 'translator', privileges: ['translate']
+  },
+  sig: '7QqkCvIjMKzzYIeA7S6bj_uvpoxHwYYJ3NeCztznHmXXsZzuhEg_Lq8DQ1OB5Cb1CejFKS1BwrVKT0SR_-s-DQ'
+} as const;
+export const CHAIN: readonly unknown[] = [CHAIN_WORKER_LINK, CHAIN_INVITE_LINK];

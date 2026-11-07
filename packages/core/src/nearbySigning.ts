@@ -203,7 +203,7 @@ export function holdingsText(h: { orgId: string; streamId: string; key: string; 
 
 // ---- who someone is --------------------------------------------------------------
 
-/** The one text that is not JSON: the decoded key, then the decoded salt. Hashed, and `newcomerProfileId` (phase 2) takes it from there. */
+/** The one text that is not JSON: the decoded key, then the decoded salt. Hashed, and `newcomerProfileId` takes it from there. */
 export function newcomerIdBytes(installKey: Uint8Array, idSalt: Uint8Array): Uint8Array {
   return concatBytes(utf8Encode(NEARBY_PREFIXES.newcomer), installKey, idSalt);
 }
