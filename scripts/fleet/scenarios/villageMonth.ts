@@ -1,4 +1,5 @@
-import { NEARBY_BUDGET, newCommandId } from '@langquest-next/core';
+import { newCommandId } from '@langquest-next/core';
+import { NEARBY_BUDGET } from '@langquest-next/core/nearby';
 import { always, Fleet, FLEET_EPOCH, NETWORKS, offlineBetween, passageId, TIME, type SimDevice } from '@langquest-next/sync/src/testing';
 import { loads, meet, round, type Meeting } from './nearbyMeet';
 import type { Scenario } from './types';

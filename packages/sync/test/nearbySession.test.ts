@@ -1,5 +1,7 @@
 import { createHmac, hkdfSync } from 'node:crypto';
-import { base64urlEncode, concatBytes, isCounted, nearbyBytes, NEARBY_OPENING_BYTES, openingMaskInput, revocationText, utf8Encode, withMyHolding, type RevocationList } from '@langquest-next/core';
+import {
+  base64urlEncode, concatBytes, isCounted, NEARBY_OPENING_BYTES, nearbyBytes, openingMaskInput, revocationText, utf8Encode, withMyHolding, type RevocationList
+} from '@langquest-next/core/nearby';
 import * as v from '../../core/test/nearbyVectors';
 import { arrangePlan, mayHandOn, type NearbySessionReport } from '../src/nearbySession';
 import { checkOpeningI, checkOpeningR, findTagOf, makeOpeningI, makeOpeningR, openingKeyOf, sessionKeysOf } from '../src/nearbyOpening';

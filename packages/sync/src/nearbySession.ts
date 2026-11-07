@@ -1,8 +1,7 @@
+import { CLOCK_AHEAD_TOLERANCE_MS, LINES_VERSION, NEARBY_PROTOCOL, pickProtocol, REDUCER_VERSION } from '@langquest-next/core';
 import {
-  base64urlEncode, checkChain, CLOCK_AHEAD_TOLERANCE_MS, holdingsFilesHash, holdingsText, handedKeyHolds, isBase64url, LINES_VERSION, mergeHoldings, NEARBY_BUDGET, NEARBY_HOLDINGS_MAX_FILES, NEARBY_OPENING_BYTES,
-  NEARBY_PROTOCOL, nearbyBytes, parseRevocationList, pickProtocol, proofText, REDUCER_VERSION, signedBy, summaryOf, summaryText, withMyHolding,
-  type ChainLink, type ChainVerdict, type DiscoveryKey, type HoldingEntry, type Holdings, type RevocationList, type WantedFile
-} from '@langquest-next/core';
+  base64urlEncode, checkChain, handedKeyHolds, holdingsFilesHash, holdingsText, isBase64url, mergeHoldings, NEARBY_BUDGET, NEARBY_HOLDINGS_MAX_FILES, NEARBY_OPENING_BYTES, nearbyBytes, parseRevocationList, proofText, signedBy, summaryOf, summaryText, withMyHolding, type ChainLink, type ChainVerdict, type DiscoveryKey, type HoldingEntry, type Holdings, type RevocationList, type WantedFile
+} from '@langquest-next/core/nearby';
 import { chainAsSigned, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbySigned, type NearbySigner } from './nearbyIntake';
 import type { NearbyKeep } from './nearbyKeep';
 import type { HostDetails, HostOptions, NearbyCrypto, NearbyLink, NearbyRadio } from './nearbyLink';

@@ -1,5 +1,7 @@
 import fc from 'fast-check';
-import { NEARBY_MAX_DEPTH, idAuthor, isServerEventId, nearbyPayloadError, utf8Encode, validateEvent } from '../src/validate';
+import { isServerEventId } from '../src/nearbyDoor';
+import { NEARBY_MAX_DEPTH, nearbyPayloadError, utf8Encode } from '../src/nearbySigning';
+import { idAuthor, validateEvent } from '../src/validate';
 import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture } from './fixtures';
 
 describe('validateEvent guards the append-only log', () => {

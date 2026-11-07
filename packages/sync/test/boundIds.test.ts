@@ -1,4 +1,5 @@
-import { HlcClock, idAuthor, isBoundToAuthor, newCommandId, type AnyEvent } from '@langquest-next/core';
+import { HlcClock, idAuthor, newCommandId, type AnyEvent } from '@langquest-next/core';
+import { isBoundToAuthor } from '@langquest-next/core/nearby';
 import { LanguageFiles } from '../src/languageFiles';
 import { MemoryStore } from '../src/memoryStore';
 import { SyncClient } from '../src/syncClient';

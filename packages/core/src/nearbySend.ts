@@ -1,8 +1,7 @@
 import type { AnyEvent, LocalEventStatus } from './events';
-import { NEARBY_NOT_CARRIED, nearbyCopy } from './nearbyDoor';
+import { isServerEventId, NEARBY_NOT_CARRIED, nearbyCopy } from './nearbyDoor';
 import { isBase64url } from './nearbySigning';
 import { EVENT_PRIVILEGE, ORG_EVENT_TYPES } from './org';
-import { isServerEventId } from './validate';
 
 /**
  * What one phone counts as received from each signer (docs/nearby-sync-plan.md

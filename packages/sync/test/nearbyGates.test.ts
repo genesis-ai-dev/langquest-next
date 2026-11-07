@@ -1,5 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
-import { HlcClock, type AnyEvent, type LanguageState, type NearbyVia } from '@langquest-next/core';
+import { HlcClock, type AnyEvent, type LanguageState } from '@langquest-next/core';
+import { type NearbyVia } from '@langquest-next/core/nearby';
 import { Diagnostics, MemoryDiagStore } from '../src/diagnostics';
 import { MemoryStore } from '../src/memoryStore';
 import { SqliteStore, type SqlDriver } from '../src/sqliteStore';

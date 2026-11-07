@@ -1,4 +1,5 @@
-import { emptyLanguageState, foldLanguage, isCounted, type AnyEvent, type LanguageState } from '@langquest-next/core';
+import { emptyLanguageState, foldLanguage, type AnyEvent, type LanguageState } from '@langquest-next/core';
+import { isCounted } from '@langquest-next/core/nearby';
 import { Diagnostics, MemoryDiagStore } from '../src/diagnostics';
 import { FakeServer } from '../src/testing/fakeServer';
 import { SimDevice } from '../src/testing/fleet/device';

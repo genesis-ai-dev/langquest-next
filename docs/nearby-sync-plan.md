@@ -1170,24 +1170,26 @@ route, a QR code or a native callback, such as `idSalt`, a discovery key, a salt
 | --- | --- | --- |
 | core | `version.ts` | `NEARBY_PROTOCOL = { min: 1, max: 1 }`, `pickProtocol(mine, theirs)`, beside `CLIENT_PROTOCOL_VERSION`. |
 | core | `hlc.ts` | `isHlc`, `CLOCK_AHEAD_TOLERANCE_MS = 300000`, `clockCloseEnough`. `HlcClock` and `decodeHlc` do not change. |
-| core | `validate.ts` | `isServerEventId` and `idAuthor`, each with a parity block in `scripts/record-parity-sql.ts`; `utf8Encode`, since core has no `TextEncoder`; `nearbyPayloadError`. |
+| core | `validate.ts` | `idAuthor`, with a parity block in `scripts/record-parity-sql.ts`, and `sameEventBytes`: every client needs both (a command mints a bound id, and a pull compares). |
 | core | `commands.ts` | `newCommandId(actorId)`, the one way to mint a `commandId` (section 5.4, Bound ids). |
 | core | `org.ts` | Export `EventPrivilege`. In phase 6, `withChainMembership` and `newcomerOrgState`. |
-| core | `nearbyDoor.ts` | `NearbyPeople`, `DoorFacts`, `peopleFromOrg`, `nearbyDoor`, `nearbyCopy` (envelope only, no `serverSeq`). |
+| core | `nearbyDoor.ts` | `NearbyPeople`, `DoorFacts`, `peopleFromOrg`, `nearbyDoor`, `nearbyCopy` (envelope only, no `serverSeq`), `isServerEventId` with its parity block. |
 | core | `nearbySend.ts` | `NearbyVector`, `parseVector`, `countBatch`, `applyFloor`, `batchRowsToSend`, `shouldClaim`. |
-| core | `nearbyHoldings.ts` | `Holdings`, `mergeHoldings`, `withMyHolding`, `copiesOf`, `parseHoldings`, `summaryText`. |
-| core | `nearbySigning.ts` | The texts below, `eventDigest`, `sameEventBytes`, the manifest and attestation types, the opening's bytes, and in phase 6 the two pictures from `th`. |
+| core | `nearbyHoldings.ts` | `Holdings`, `mergeHoldings`, `withMyHolding`, `copiesOf`, `parseHoldings`, `summaryText`, `nearbyGroupOf`, `wantedFilesOf`. |
+| core | `nearbySigning.ts` | The texts below, `eventDigest`, the manifest and attestation types, the opening's bytes, `utf8Encode`, since core has no `TextEncoder`, `nearbyPayloadError`, and in phase 6 the two pictures from `th`. |
 | core | `nearbyChain.ts` | `ChainLink`, `JoinPass`, `Verify`, `Sha256`, `checkChain`, `newcomerProfileId`, `RevocationList`, `peopleWithChains`. |
 | core | `nearbyGenerations.ts` | `olderDiscoveryKey`, `discoveryKeyAt`, `handedKeyHolds` (Generations, below). |
+| core | `nearby.ts` | The barrel behind `@langquest-next/core/nearby` (`packages/core/package.json`), for every `nearby*` file here. Absent from `index.ts`: Metro does not shake an entry's unused modules out of the web bundle. |
 | core | `libraryInUse.ts` | In phase 6, `STARTING_COPY_FORMATS`, `mayGoInStartingCopy`, `docsThisLanguageNames`, `docsThisLanguageUses` (Documents a language uses, below). |
 | core | `passageLines.ts` | `isOpenForReview`, `openForReviewOf`. |
-| core | `blobs.ts` | `nearbyGroupOf`, `wantedFilesOf`, `nearbyEvictableOf`, `nearbyShedOf`, `backupsConfirmedOf`, and a third argument to `lostFilesOf`, here because `forScope` is private to this file. In phase 4, `filesNamedBy`. |
+| core | `blobs.ts` | `nearbyEvictableOf`, `nearbyShedOf`, `backupsConfirmedOf`, and a third argument to `lostFilesOf`, here because `forScope` is private to this file. In phase 4, `filesNamedBy`. |
 | sync | `nearbyLink.ts` | `NearbyLink`, `NearbyRadio`, `NEARBY_MESSAGE_MAX`. |
 | sync | `nearbyWire.ts` | The messages below, `encodeMessage`, `parseMessage`. |
 | sync | `nearbySession.ts` | `NearbySession`. Link, `NearbyCrypto`, door lookup and file moves are constructor arguments, plus a narrow port onto `SyncClient`. It holds no store handle for writes. |
 | sync | `nearbyRoom.ts`, `nearbyPartners.ts` | The room's loop; `choosePartner`, pure, with no clock inside. |
 | sync | `nearby.ts` | The barrel behind the `./nearby` entry in `packages/sync/package.json`. Absent from `index.ts`. |
-| sync | `syncClient.ts` | `signUnsigned`, `receiveNearby`, the sender's reads, the sweep, `deliverNearby`, because they need its private state. Kept small: they are in the web bundle. |
+| sync | `nearbyClient.ts` | `nearbyClient(platform)`, `NearbyPort`: signing, receiving, the sender's reads, the door again, attesting, the sweep and settling batches, through a narrow port onto `SyncClient`'s private state. A client takes it as its `nearby` argument, which only the Android app passes. |
+| sync | `syncClient.ts` | What every client needs: the checkpoint gates, `requeue` leaving out rows with `via`, the pull's comparison and refold, `inspect().nearby`, and one-line calls handing on to `nearbyClient.ts`. Everything here is in the web bundle. |
 | sync | `types.ts`, `sqliteStore.ts`, `memoryStore.ts` | The store below, on both stores. |
 | sync | `fileLedger.ts`, `languageFiles.ts`, `languageSession.ts` | Marks, the wanted list, `serves`, `mayUpload`, `holdChoice`, the third worker with a `fetchFile` argument beside today's `upload` and `download`, the multi-list `reclaim`, shedding and a confirmed backup going. |
 | sync | `testing/memoryNearbyLink.ts`, `testing/fleet/nearby.ts` | `memoryNearbyPair`, `fakeSigner`, and the fleet's time and link for the room. |

@@ -1,4 +1,4 @@
-import { parseHoldings, parseRevocationList, type HoldingEntry, type Holdings, type RevocationList } from '@langquest-next/core';
+import { parseHoldings, parseRevocationList, type HoldingEntry, type Holdings, type RevocationList } from '@langquest-next/core/nearby';
 
 /**
  * What a session keeps between phones, in device meta and never in the log

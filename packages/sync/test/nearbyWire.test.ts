@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import fc from 'fast-check';
-import { NEARBY_BATCH_MAX_EVENTS, utf8Encode, type AnyEvent, type ChainLink } from '@langquest-next/core';
+import { type AnyEvent } from '@langquest-next/core';
+import { NEARBY_BATCH_MAX_EVENTS, utf8Encode, type ChainLink } from '@langquest-next/core/nearby';
 import { NEARBY_MESSAGE_MAX } from '../src/nearbyLink';
 import { NEARBY_COPY_PART_MAX_CHARS, NEARBY_HOLDINGS_MESSAGE_FILES, encodeMessage, parseMessage, utf8Decode, type Message } from '../src/nearby';
 

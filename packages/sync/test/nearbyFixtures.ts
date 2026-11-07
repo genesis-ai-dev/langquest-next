@@ -1,8 +1,10 @@
 import { DatabaseSync } from 'node:sqlite';
 import {
-  eventDigest, HlcClock, encodeHlc, manifestText, NEARBY_BUDGET, nearbyBytes, newCommandId, PRIVILEGES,
-  type AnyEvent, type BatchManifest, type ChainLink, type EventPayloads, type EventType, type NearbyPeople, type Privilege
+  HlcClock, encodeHlc, newCommandId, PRIVILEGES, type AnyEvent, type EventPayloads, type EventType, type Privilege
 } from '@langquest-next/core';
+import {
+  eventDigest, manifestText, NEARBY_BUDGET, nearbyBytes, type BatchManifest, type ChainLink, type NearbyPeople
+} from '@langquest-next/core/nearby';
 import type { NearbyBatchPage, NearbyClaimsPage, NearbyIntake, NearbySigner } from '../src/nearbyIntake';
 import type { NearbyCrypto } from '../src/nearbyLink';
 import { MemoryStore } from '../src/memoryStore';
@@ -11,6 +13,7 @@ import { SyncClient, type Materializer } from '../src/syncClient';
 import { FakeServer } from '../src/testing/fakeServer';
 import { fakeSha256, fakeSigner, fakeVerify, fakeWorker } from '../src/testing/memoryNearbyLink';
 import type { Diagnostics } from '../src/diagnostics';
+import { nearbyClient } from '../src/nearbyClient';
 import type { NearbyPlatform } from '../src/nearbyUpkeep';
 import type { EventStore, Transport } from '../src/types';
 
@@ -155,7 +158,7 @@ export function phone(server: FakeServer, store: EventStore, who: Pick<Teammate,
     ...(o.clock ? { clock: o.clock } : {}),
     ...(o.fillAtOnceRows !== undefined ? { fillAtOnceRows: o.fillAtOnceRows } : {}),
     ...(o.fillPageRows !== undefined ? { fillPageRows: o.fillPageRows } : {}),
-    ...(o.nearby ? { nearby: o.nearby } : {}),
+    nearby: nearbyClient(o.nearby),
     ...(o.pullPageSize !== undefined ? { pullPageSize: o.pullPageSize } : {}),
     ...(o.pullBudgetMs !== undefined ? { pullBudgetMs: o.pullBudgetMs } : {}),
     ...(o.diag ? { diag: o.diag } : {})

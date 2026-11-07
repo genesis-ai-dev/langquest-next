@@ -1,7 +1,91 @@
 import type { AnyEvent } from './events';
 import type { JoinPass, RevocationList, Sha256, WorkerLink, InviteLink } from './nearbyChain';
 import { canonicalJson, isHash } from './libraryDocs';
-import { nearbyPayloadError, utf8Encode } from './validate';
+
+// ---- the form a nearby event may take, and its bytes (moved from validate.ts: no web client needs them) ----
+
+/**
+ * A string as UTF-8, as `TextEncoder` would give it: a lone surrogate becomes
+ * U+FFFD. Core has no `TextEncoder`, and these bytes are what gets signed.
+ */
+export function utf8Encode(s: string): Uint8Array {
+  const out = new Uint8Array(s.length * 3);
+  let n = 0;
+  for (let i = 0; i < s.length; i++) {
+    let c = s.charCodeAt(i);
+    if (c >= 0xd800 && c <= 0xdfff) {
+      const low = c <= 0xdbff && i + 1 < s.length ? s.charCodeAt(i + 1) : 0;
+      if (low >= 0xdc00 && low <= 0xdfff) {
+        c = 0x10000 + ((c - 0xd800) << 10) + (low - 0xdc00);
+        i++;
+      } else c = 0xfffd;
+    }
+    if (c < 0x80) out[n++] = c;
+    else if (c < 0x800) {
+      out[n++] = 0xc0 | (c >> 6);
+      out[n++] = 0x80 | (c & 0x3f);
+    } else if (c < 0x10000) {
+      out[n++] = 0xe0 | (c >> 12);
+      out[n++] = 0x80 | ((c >> 6) & 0x3f);
+      out[n++] = 0x80 | (c & 0x3f);
+    } else {
+      out[n++] = 0xf0 | (c >> 18);
+      out[n++] = 0x80 | ((c >> 12) & 0x3f);
+      out[n++] = 0x80 | ((c >> 6) & 0x3f);
+      out[n++] = 0x80 | (c & 0x3f);
+    }
+  }
+  return out.slice(0, n);
+}
+
+/** How deep an event from a nearby phone may nest. No real payload comes close. */
+export const NEARBY_MAX_DEPTH = 32;
+
+/** U+0000 or a lone surrogate in a string, either of which Postgres is believed to refuse in jsonb. */
+function hasUnstorableChar(s: string): boolean {
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c === 0) return true;
+    if (c >= 0xdc00 && c <= 0xdfff) return true;
+    if (c >= 0xd800 && c <= 0xdbff) {
+      const low = i + 1 < s.length ? s.charCodeAt(i + 1) : 0;
+      if (low < 0xdc00 || low > 0xdfff) return true;
+      i++;
+    }
+  }
+  return false;
+}
+
+/**
+ * What the nearby door refuses in any value before reading it: depth over
+ * `NEARBY_MAX_DEPTH`, a string or key holding U+0000 or a lone surrogate, and
+ * non-finite numbers. Stricter than SQL on purpose: `canonicalJson` and `stable`
+ * recurse and `canonicalJson` throws on a non-finite number, and one such event
+ * is believed to fail a whole page at the relay. Iterative, so no depth can
+ * overflow the stack.
+ */
+export function nearbyPayloadError(v: unknown): string | null {
+  const stack: { x: unknown; depth: number }[] = [{ x: v, depth: 0 }];
+  while (stack.length > 0) {
+    const { x, depth } = stack.pop()!;
+    if (typeof x === 'string') {
+      if (hasUnstorableChar(x)) return 'a string holds U+0000 or a lone surrogate';
+    } else if (typeof x === 'number') {
+      if (!Number.isFinite(x)) return 'a number is not finite';
+    } else if (typeof x === 'object' && x !== null) {
+      if (depth >= NEARBY_MAX_DEPTH) return `nested deeper than ${NEARBY_MAX_DEPTH}`;
+      if (Array.isArray(x)) {
+        for (const item of x) stack.push({ x: item, depth: depth + 1 });
+      } else {
+        for (const [k, child] of Object.entries(x)) {
+          if (hasUnstorableChar(k)) return 'a key holds U+0000 or a lone surrogate';
+          stack.push({ x: child, depth: depth + 1 });
+        }
+      }
+    }
+  }
+  return null;
+}
 
 /**
  * What gets hashed and signed between nearby phones (docs/nearby-sync-plan.md 5.12,
@@ -113,36 +197,8 @@ export async function eventDigest(e: AnyEvent, sha256: Sha256): Promise<string> 
   return bytesToHex(await sha256(nearbyBytes('event', eventText(e))));
 }
 
-/** The same JSON, whatever order the keys came in. Iterative: a pull page runs this on whatever the server holds. */
-function sameJson(left: unknown, right: unknown): boolean {
-  const stack: [unknown, unknown][] = [[left, right]];
-  while (stack.length > 0) {
-    const [a, b] = stack.pop()!;
-    if (a === b) continue;
-    if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
-    if (Array.isArray(a) !== Array.isArray(b)) return false;
-    if (Array.isArray(a)) {
-      const other = b as unknown[];
-      if (a.length !== other.length) return false;
-      a.forEach((item, i) => stack.push([item, other[i]]));
-      continue;
-    }
-    const given = (o: object) => Object.entries(o).filter(([, v]) => v !== undefined);
-    const ofA = given(a);
-    if (ofA.length !== given(b).length) return false;
-    for (const [k, v] of ofA) {
-      if (!Object.prototype.hasOwnProperty.call(b, k)) return false;
-      stack.push([v, (b as Record<string, unknown>)[k]]);
-    }
-  }
-  return true;
-}
-
-/** Are these one event, byte for byte, the whole envelope less `serverSeq`? Comparing `hlc` is not enough: a copy can match there and differ in its payload. */
-export function sameEventBytes(a: AnyEvent, b: AnyEvent): boolean {
-  for (const k of ['id', 'type', 'orgId', 'streamId', 'actorId', 'deviceId', 'hlc'] as const) if (a[k] !== b[k]) return false;
-  return (a.parentEventId || undefined) === (b.parentEventId || undefined) && sameJson(a.payload, b.payload);
-}
+/** Moved to `validate.ts`: a pull compares with it, so it is in every client, and this file is not (5.12). */
+export { sameEventBytes } from './validate';
 
 // ---- batches and attestations ----------------------------------------------------
 

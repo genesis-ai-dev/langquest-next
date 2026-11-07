@@ -1,5 +1,6 @@
 import { WriteQueue } from './writeQueue';
-import type { AnyEvent, NearbyVia } from '@langquest-next/core';
+import type { AnyEvent } from '@langquest-next/core';
+import type { NearbyVia } from '@langquest-next/core/nearby';
 import type { EventStore, KeptKind, KeptRecord, LocalEvent, NearbyAttestRow, NearbyBatchRow, NearbyUse, WriteBatch } from './types';
 
 /**

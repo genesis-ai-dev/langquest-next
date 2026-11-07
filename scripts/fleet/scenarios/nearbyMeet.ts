@@ -1,4 +1,4 @@
-import { isServerEventId } from '@langquest-next/core';
+import { isServerEventId } from '@langquest-next/core/nearby';
 import { TIME, type Fleet, type SimDevice } from '@langquest-next/sync/src/testing';
 
 /**

@@ -1,7 +1,7 @@
+import { defaultOfflineScope, filePlanOf, privilegesOfFixedRole, type AnyEvent, type LanguageState, type Role } from '@langquest-next/core';
 import {
-  base64urlEncode, copiesOf, defaultOfflineScope, filePlanOf, NEARBY_BUDGET, privilegesOfFixedRole, summaryOf, summaryText, utf8Encode, wantedFilesOf,
-  type AnyEvent, type ChainLink, type Holdings, type LanguageState, type NearbyPeople, type Role, type WantedFile
-} from '@langquest-next/core';
+  base64urlEncode, copiesOf, NEARBY_BUDGET, summaryOf, summaryText, utf8Encode, wantedFilesOf, type ChainLink, type Holdings, type NearbyPeople, type WantedFile
+} from '@langquest-next/core/nearby';
 import type { NearbyPage, NearbySigner } from '../../nearbyIntake';
 import { nearbyKeepOf, type NearbyKeep } from '../../nearbyKeep';
 import type { FindTunables, NearbyCrypto, NearbyLink, NearbyRadio } from '../../nearbyLink';

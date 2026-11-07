@@ -3,7 +3,16 @@ import { decodeHlc, isHlc } from './hlc';
 import { EVENT_PRIVILEGE, ORG_EVENT_TYPES, privilegeAllows, privilegeFor, privilegesFor, type OrgState } from './org';
 import { ORG_STREAM, PERSON_ORG, type Privilege } from './orgTerms';
 import type { LanguageState } from './state';
-import { entityKeyOf, eventSizeError, idAuthor, isServerEventId, nearbyPayloadError, validateEvent } from './validate';
+import { nearbyPayloadError } from './nearbySigning';
+import { entityKeyOf, eventSizeError, idAuthor, validateEvent } from './validate';
+
+/**
+ * Is this an id only the server makes? A client may not append one (SQL
+ * `_server_event_id`, held to this by the parity script).
+ */
+export function isServerEventId(id: string): boolean {
+  return /^(invite|invitemember|inviteredeem|invitecheck|joindecided|joinmember|removed|accountdeleted|blob|blobinvalid|pin|seed|timings|v2):/.test(id) || id.startsWith('api-');
+}
 
 /**
  * What an event from a nearby phone must pass (docs/nearby-sync-plan.md 5.4). It

@@ -1,7 +1,7 @@
+import { type AnyEvent, type LanguageState } from '@langquest-next/core';
 import {
-  checkChain, eventDigest, nearbyBytes, revokedLater, signedBy,
-  type Attestation, type AnyEvent, type BatchManifest, type ChainLink, type ChainVerdict, type LanguageState, type NearbyPeople, type RevocationList, type Sha256, type Verify
-} from '@langquest-next/core';
+  checkChain, eventDigest, nearbyBytes, revokedLater, signedBy, type Attestation, type BatchManifest, type ChainLink, type ChainVerdict, type NearbyPeople, type RevocationList, type Sha256, type Verify
+} from '@langquest-next/core/nearby';
 import type { NearbyCrypto } from './nearbyLink';
 import type { Message } from './nearbyWire';
 import type { LocalEvent } from './types';

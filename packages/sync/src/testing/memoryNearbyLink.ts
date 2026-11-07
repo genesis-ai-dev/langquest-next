@@ -1,7 +1,8 @@
 import { createHash, createHmac, createPrivateKey, createPublicKey, diffieHellman, hkdfSync, sign as edSign, verify as edVerify } from 'node:crypto';
+import { type AnyEvent, type Privilege } from '@langquest-next/core';
 import {
-  attestationText, base64urlEncode, bytesToHex, eventDigest, utf8Encode, linkText, nearbyBytes, type AnyEvent, type Attestation, type ChainLink, type ChainOrg, type Privilege, type WorkerLink
-} from '@langquest-next/core';
+  attestationText, base64urlEncode, bytesToHex, eventDigest, linkText, nearbyBytes, utf8Encode, type Attestation, type ChainLink, type ChainOrg, type WorkerLink
+} from '@langquest-next/core/nearby';
 import type { FindTunables, HostDetails, HostOptions, NearbyCapabilities, NearbyCrypto, NearbyLink, NearbyRadio, SeenPhone } from '../nearbyLink';
 import { NEARBY_MESSAGE_MAX } from '../nearbyLink';
 import type { Message } from '../nearbyWire';

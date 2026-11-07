@@ -1,10 +1,9 @@
 import {
-  countBatch, eventDigest, isCounted, NEARBY_BATCH_MAX_EVENTS, NEARBY_VECTOR_MAX_RANGES, parseAttestation, parseBatchManifest, revokedLater,
-  type AnyEvent, type Attestation, type LanguageState, type NearbyVector, type RevocationList, type Sha256
-} from '@langquest-next/core';
-import type { Diagnostics } from './diagnostics';
+  countBatch, eventDigest, isCounted, NEARBY_BATCH_MAX_EVENTS, NEARBY_VECTOR_MAX_RANGES, parseAttestation, parseBatchManifest, revokedLater, type Attestation, type NearbyVector, type RevocationList, type Sha256
+} from '@langquest-next/core/nearby';
+import type { NearbyPort } from './nearbyClient';
 import { batchIsWhole } from './nearbyIntake';
-import { OfflineError, type EventStore, type LocalEvent, type Transport, type WriteBatch } from './types';
+import { OfflineError, type LocalEvent, type Transport, type WriteBatch } from './types';
 
 /**
  * The server's half of nearby sync, at the end of a sync (docs/nearby-sync-plan.md 5.7,
@@ -34,26 +33,12 @@ export interface NearbyPlatform {
   holdsCertificate(): boolean;
 }
 
-/** What nearby's steps need from their `SyncClient`. */
-export interface NearbyHost {
-  store: EventStore;
-  transport: Transport;
-  orgId: string;
-  streamId: string;
-  actorId: string;
-  deviceId: string;
-  diag: Diagnostics | undefined;
+/** What nearby's steps need from their `SyncClient`: its port, and the few reads of its own that `nearbyClient.ts` adds. */
+export interface NearbyHost extends NearbyPort {
   platform: NearbyPlatform | undefined;
-  commit(batch: WriteBatch): Promise<void>;
-  key(what: string, signer?: string): string;
   vector(): Promise<NearbyVector>;
   vectorMeta(vector: NearbyVector): Record<string, string>;
   number(key: string): Promise<number>;
-  lang(): LanguageState;
-  /** These events' passages' lines are owed, worked out from the fold as it stands. */
-  touched(events: readonly AnyEvent[]): void;
-  refold(): Promise<unknown>;
-  checkpointSeq(): Promise<number | null>;
 }
 
 const byId = (rows: readonly LocalEvent[]) => new Map(rows.map((l) => [l.event.id, l]));

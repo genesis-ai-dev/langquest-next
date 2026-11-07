@@ -1,4 +1,4 @@
-import type { Verify } from '@langquest-next/core';
+import type { Verify } from '@langquest-next/core/nearby';
 
 /**
  * The seams between nearby sync and a platform (docs/nearby-sync-plan.md 5.12). A

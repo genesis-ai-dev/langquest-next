@@ -6,6 +6,7 @@ import { Diagnostics, MemoryDiagStore } from '../../diagnostics';
 import { FILE, PART_KINDS } from '../../keptLanguage';
 import { LanguageFiles } from '../../languageFiles';
 import { MemoryStore } from '../../memoryStore';
+import { nearbyClient } from '../../nearbyClient';
 import type { NearbyPlatform } from '../../nearbyUpkeep';
 import { LANGUAGE_MATERIALIZER, SyncClient } from '../../syncClient';
 import { SyncScheduler } from '../../syncScheduler';
@@ -196,7 +197,7 @@ export class SimDevice {
       transport: this.observed(shaped),
       // A phone's clock reads whole milliseconds, as Hello's `wallMs` must; fleets without nearby keep the time as they always read it.
       now: this.fleet.nearbyPlatform || this.clockOffsetMs !== 0 ? () => Math.floor(time.now()) + this.clockOffsetMs : time.now,
-      ...(this.fleet.nearbyPlatform ? { nearby: this.fleet.nearbyPlatform } : {}),
+      ...(this.fleet.nearbyPlatform ? { nearby: nearbyClient(this.fleet.nearbyPlatform) } : {}),
       newId: () => this.random.uuid(),
       diag: new Diagnostics({ store: this.diag, newId: () => this.random.uuid(), now: time.now, maxRecords: Infinity })
     });
@@ -360,7 +361,7 @@ export class SimDevice {
       ...(this.fleet.checkpointEvery !== undefined ? { checkpointEvery: this.fleet.checkpointEvery } : {}),
       transport: this.fleet.server.transportFor(),
       now,
-      ...(this.fleet.nearbyPlatform ? { nearby: this.fleet.nearbyPlatform } : {}),
+      ...(this.fleet.nearbyPlatform ? { nearby: nearbyClient(this.fleet.nearbyPlatform) } : {}),
       newId: () => this.random.uuid(),
       diag: new Diagnostics({ store: diag, newId: () => this.random.uuid(), now, maxRecords: Infinity })
     });

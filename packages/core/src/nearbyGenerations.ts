@@ -1,6 +1,5 @@
 import type { Sha256 } from './nearbyChain';
-import { base64urlDecode, concatBytes } from './nearbySigning';
-import { utf8Encode } from './validate';
+import { base64urlDecode, concatBytes, utf8Encode } from './nearbySigning';
 
 /**
  * A language's discovery key rotates as a one-way hash chain of generations

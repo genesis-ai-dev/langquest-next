@@ -1,4 +1,5 @@
-import { bytesToHex, newCommandId, type LanguageState, type NearbyPeople, type WantedFile } from '@langquest-next/core';
+import { newCommandId, type LanguageState } from '@langquest-next/core';
+import { base64urlEncode, bytesToHex, summaryOf, summaryText, type Holdings, type NearbyPeople, type WantedFile } from '@langquest-next/core/nearby';
 import { nearbyKeepOf, type NearbyKeep } from '../src/nearbyKeep';
 import type { NearbyLink } from '../src/nearbyLink';
 import { channelKeysOf } from '../src/nearbyOpening';
@@ -114,7 +115,6 @@ export type Report = NearbySessionReport;
 
 // ---- rooms ------------------------------------------------------------------------
 
-import { base64urlEncode, summaryOf, summaryText, type Holdings } from '@langquest-next/core';
 import { NearbyRoom, type NearbyRoomEvent, type NearbyRoomFacts, type NearbyRoomKeys, type NearbyRoomOptions } from '../src/nearbyRoom';
 import type { MemoryNearbyAir, MemoryNearbyRadio, MemoryRadioKnobs } from '../src/testing/memoryNearbyLink';
 import type { NearbyCapabilities } from '../src/nearbyLink';

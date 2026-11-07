@@ -215,8 +215,8 @@ export default [
   // Core says what the data means: pure TypeScript, nothing imported.
   { files: ['packages/core/src/**/*.ts'], rules: { 'no-restricted-imports': ['error', { patterns: [{ regex: '^(?!\\.)', message: 'packages/core is pure: no I/O and no dependencies (AGENTS.md).' }] }] } },
   // Sync keeps and moves it: core, supabase-js and its own files; a platform comes in as an argument.
-  { files: ['packages/sync/src/**/*.ts'], rules: { 'no-restricted-imports': ['error', { patterns: [{ regex: '^(?!\\.|@langquest-next/core$|@supabase/supabase-js$)', message: `packages/sync imports only core, supabase-js and its own files: pass the platform in (${D104}).` }] }] } },
-  { files: ['packages/sync/src/testing/**/*.ts'], rules: { 'no-restricted-imports': ['error', { patterns: [{ regex: '^(?!\\.|node:|@langquest-next/core$|@supabase/supabase-js$)', message: `packages/sync/src/testing runs in Node: its own files, core, supabase-js and Node built-ins (${D104}).` }] }] } },
+  { files: ['packages/sync/src/**/*.ts'], rules: { 'no-restricted-imports': ['error', { patterns: [{ regex: '^(?!\\.|@langquest-next/core(/nearby)?$|@supabase/supabase-js$)', message: `packages/sync imports only core, supabase-js and its own files: pass the platform in (${D104}).` }] }] } },
+  { files: ['packages/sync/src/testing/**/*.ts'], rules: { 'no-restricted-imports': ['error', { patterns: [{ regex: '^(?!\\.|node:|@langquest-next/core(/nearby)?$|@supabase/supabase-js$)', message: `packages/sync/src/testing runs in Node: its own files, core, supabase-js and Node built-ins (${D104}).` }] }] } },
 
   // The app, general to specific.
   { files: OUTSIDE, rules: { 'no-restricted-imports': ['error', outsideTheApp] } },

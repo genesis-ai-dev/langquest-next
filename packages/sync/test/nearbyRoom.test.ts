@@ -1,4 +1,4 @@
-import { base64urlEncode, concatBytes, utf8Encode } from '@langquest-next/core';
+import { base64urlEncode, concatBytes, utf8Encode } from '@langquest-next/core/nearby';
 import { channelKeysOf } from '../src/nearbyOpening';
 import { FakeServer } from '../src/testing/fakeServer';
 import { fakeSha256, fakeSigner, memoryNearbyAir, type MemoryFiles, type MemoryNearbyAir } from '../src/testing/memoryNearbyLink';

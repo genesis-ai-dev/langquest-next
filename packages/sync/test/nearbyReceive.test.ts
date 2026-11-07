@@ -1,4 +1,5 @@
-import { encodeHlc, foldLanguage, emptyLanguageState, isCounted, manifestText, NEARBY_BUDGET, nearbyBytes, newCommandId, parseVector, REDUCER_VERSION, type AnyEvent, type LanguageState, type NearbyVia, type RevocationList } from '@langquest-next/core';
+import { encodeHlc, foldLanguage, emptyLanguageState, newCommandId, REDUCER_VERSION, type AnyEvent, type LanguageState } from '@langquest-next/core';
+import { isCounted, manifestText, NEARBY_BUDGET, nearbyBytes, parseVector, type NearbyVia, type RevocationList } from '@langquest-next/core/nearby';
 import {
   LANG, NOW, ORG, STORES, claimsOf, eventBy, everyone, intakeFor, manifestOf, pageOf, phone, recordingBy, rowOf, signerOf, statusOf, teammate, unitBy, vectorOf, wallClock, watched, type Teammate
 } from './nearbyFixtures';

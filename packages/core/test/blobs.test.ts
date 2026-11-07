@@ -1,4 +1,5 @@
-import { audioFormatsFor, nearbyGroupOf, wantedFilesOf, type HoldChoice, type WantedFacts, defaultOfflineScope, deriveDownloadWork, deriveMissingBlobs, deriveUploadWork, evictableBlobs, isStored, lostFilesView, offlineByUnit, offlineSummary, referencedBlobs, unitOffline } from '../src/blobs';
+import { nearbyGroupOf, wantedFilesOf, type HoldChoice, type WantedFacts } from '../src/nearbyHoldings';
+import { audioFormatsFor, defaultOfflineScope, deriveDownloadWork, deriveMissingBlobs, deriveUploadWork, evictableBlobs, isStored, lostFilesView, offlineByUnit, offlineSummary, referencedBlobs, unitOffline } from '../src/blobs';
 import type { AnyEvent, EventPayloads, EventType } from '../src/events';
 import { applyLanguageEvent, foldLanguage } from '../src/reducer';
 import { emptyLanguageState } from '../src/state';

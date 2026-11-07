@@ -1,10 +1,9 @@
 import { decodeHlc, isHlc } from './hlc';
 import type { NearbyPeople } from './nearbyDoor';
 import { peopleFromOrg } from './nearbyDoor';
-import { base64urlDecode, bytesToHex, isBase64url, linkText, nearbyBytes, newcomerIdBytes, passText } from './nearbySigning';
+import { base64urlDecode, bytesToHex, isBase64url, linkText, nearbyBytes, nearbyPayloadError, newcomerIdBytes, passText } from './nearbySigning';
 import type { OrgState } from './org';
 import { MANAGE_PRIVILEGES, type Privilege } from './orgTerms';
-import { nearbyPayloadError } from './validate';
 
 /**
  * Who a nearby phone is, without a server (docs/nearby-sync-plan.md 5.12, Chains).

@@ -1,6 +1,5 @@
-import {
-  NEARBY_BATCH_MAX_EVENTS, isBase64url, isHash, nearbyPayloadError, objectMemberNameIn, parseVector, utf8Encode, type AnyEvent, type ChainLink, type NearbyVector
-} from '@langquest-next/core';
+import { isHash, objectMemberNameIn, type AnyEvent } from '@langquest-next/core';
+import { isBase64url, NEARBY_BATCH_MAX_EVENTS, nearbyPayloadError, parseVector, utf8Encode, type ChainLink, type NearbyVector } from '@langquest-next/core/nearby';
 import { NEARBY_MESSAGE_MAX, type HostDetails } from './nearbyLink';
 
 /**

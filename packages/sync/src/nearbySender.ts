@@ -1,8 +1,7 @@
+import { type AnyEvent } from '@langquest-next/core';
 import {
-  batchRowsToSend, countBatch, eventDigest, eventText, isBoundToAuthor, manifestText, NEARBY_BATCH_MAX_EVENTS, NEARBY_BATCH_MAX_TEXT_BYTES, NEARBY_NOT_CARRIED,
-  NEARBY_VECTOR_MAX_RANGES, nearbyBytes, nearbyCopy, parseAttestation, parseBatchManifest, shouldClaim,
-  type AnyEvent, type BatchManifest
-} from '@langquest-next/core';
+  batchRowsToSend, countBatch, eventDigest, eventText, isBoundToAuthor, manifestText, NEARBY_BATCH_MAX_EVENTS, NEARBY_BATCH_MAX_TEXT_BYTES, NEARBY_NOT_CARRIED, NEARBY_VECTOR_MAX_RANGES, nearbyBytes, nearbyCopy, parseAttestation, parseBatchManifest, shouldClaim, type BatchManifest
+} from '@langquest-next/core/nearby';
 import type { NearbyBatchPage, NearbyClaimsPage, NearbySigned, NearbySigner } from './nearbyIntake';
 import type { NearbyHost } from './nearbyUpkeep';
 

@@ -1,4 +1,5 @@
-import type { AnyEvent, LocalEventStatus, NearbyVia } from '@langquest-next/core';
+import type { AnyEvent, LocalEventStatus } from '@langquest-next/core';
+import type { NearbyVia } from '@langquest-next/core/nearby';
 
 /**
  * One atomic local write: events, outbox state, cursor, clock and other

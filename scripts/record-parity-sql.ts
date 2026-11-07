@@ -7,9 +7,9 @@
  */
 import { writeFileSync } from 'node:fs';
 import {
-  EVENT_PAYLOAD_MAX_BYTES, EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, ORG_EVENT_TYPES, PRIVILEGES, emptyOrgState, entityKeyOf, eventSizeError, isServerEventId, jsonbTextBytes, languageOfOrgEvent, mayReadLanguage, mayWriteFiles, privilegeAllows, privilegeFor, privilegesOfFixedRole,
-  validateEvent, type AnyEvent, type OrgState, type Privilege, type Role
+  EVENT_PAYLOAD_MAX_BYTES, EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, ORG_EVENT_TYPES, PRIVILEGES, emptyOrgState, entityKeyOf, eventSizeError, jsonbTextBytes, languageOfOrgEvent, mayReadLanguage, mayWriteFiles, privilegeAllows, privilegeFor, privilegesOfFixedRole, validateEvent, type AnyEvent, type OrgState, type Privilege, type Role
 } from '@langquest-next/core';
+import { isServerEventId } from '@langquest-next/core/nearby';
 import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture } from '../packages/core/test/fixtures';
 
 const sql = (v: unknown) => `'${JSON.stringify(v).replaceAll("'", "''")}'::jsonb`;

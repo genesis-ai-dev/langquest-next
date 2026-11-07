@@ -4391,6 +4391,15 @@ radio and files come in as arguments (`NearbyCrypto`, `NearbyRadio`,
 (`noDeepPackage` in `eslint.config.mjs`) names it as the one subpath the app
 may import. Its test doubles are in `src/testing` with the rest
 (`memoryNearbyLink.ts`, and `fleet/nearby.ts` for the fleet).
+A `SyncClient` takes the nearby half (`nearbyClient(platform)`,
+`packages/sync/src/nearbyClient.ts`) as an optional constructor argument,
+`nearby`, which reaches the client's private state through a narrow port
+(`NearbyPort`); only the Android app passes it, and `syncClient.ts` keeps
+what every client needs. Core is split the same way:
+`@langquest-next/core/nearby` (`packages/core/src/nearby.ts`) names core's
+`nearby*` files, which core's `index.ts` does not, because Metro carries
+every module an entry names into the web bundle, used or not. Sync's own
+files may import it.
 
 ## 105. In `apps/mobile`, server calls live in `src/server/`, logic outside screens, and folders by feature
 

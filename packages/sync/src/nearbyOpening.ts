@@ -1,6 +1,6 @@
 import {
   base64urlDecode, base64urlEncode, bytesToHex, concatBytes, NEARBY_OPENING_BYTES, openingMaskInput, openingTagInputI, openingTagInputR, transcriptInput, utf8Encode
-} from '@langquest-next/core';
+} from '@langquest-next/core/nearby';
 import type { NearbyCrypto } from './nearbyLink';
 
 /**

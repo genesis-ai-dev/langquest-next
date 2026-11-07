@@ -1,4 +1,4 @@
-import { base64urlDecode, base64urlEncode, discoveryKeyAt, type DiscoveryKey } from '@langquest-next/core';
+import { base64urlDecode, base64urlEncode, discoveryKeyAt, type DiscoveryKey } from '@langquest-next/core/nearby';
 import type { NearbyPeerRecord } from './nearbyKeep';
 import type { FindTunables, NearbyCapabilities, NearbyCrypto, NearbyLink, NearbyRadio, SeenPhone } from './nearbyLink';
 import { channelKeysOf, findEchoOf, findPayload, findTagOf } from './nearbyOpening';

@@ -7,6 +7,7 @@ import { PART_KINDS } from '../src/keptLanguage';
 import { MemoryStore } from '../src/memoryStore';
 import { SqliteStore, type SqlDriver } from '../src/sqliteStore';
 import type { EventStore } from '../src/types';
+import { nearbyClient } from '../src/nearbyClient';
 import { keptCheckpointVersion, LANGUAGE_MATERIALIZER, SyncClient, type Materializer } from '../src/syncClient';
 import { LanguageFiles } from '../src/languageFiles';
 import { FakeServer } from '../src/testing/fakeServer';
@@ -45,7 +46,7 @@ function phone(server: FakeServer, deviceId: string, actorId: string, opts: { ke
   const store = opts.store ?? makeStore();
   const client = new SyncClient({
     orgId: 'org1', streamId: 'p1', actorId, deviceId, store, transport: server.transportFor(),
-    clock: new HlcClock(deviceId, () => ++ids), newId: () => `${deviceId}-${++ids}`,
+    clock: new HlcClock(deviceId, () => ++ids), newId: () => `${deviceId}-${++ids}`, nearby: nearbyClient(),
     ...(opts.keepOnDisk ? { keepOnDisk: true } : {}),
     ...(opts.checkpointEvery ? { checkpointEvery: opts.checkpointEvery } : {}),
     ...(opts.pullPageSize ? { pullPageSize: opts.pullPageSize } : {}),

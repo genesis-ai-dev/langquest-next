@@ -1,4 +1,5 @@
-import { eventDigest, isCounted, newCommandId, parseBatchManifest, type BatchManifest, type LanguageState } from '@langquest-next/core';
+import { newCommandId, type LanguageState } from '@langquest-next/core';
+import { eventDigest, isCounted, parseBatchManifest, type BatchManifest } from '@langquest-next/core/nearby';
 import { signerFor, signerOf, ORG, LANG, NOW, STORES, intakeFor, phone, rowOf, session, teammate, vectorOf, worker, type Teammate } from './nearbyFixtures';
 import { MemoryStore } from '../src/memoryStore';
 import { FakeServer } from '../src/testing/fakeServer';
