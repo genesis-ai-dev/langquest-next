@@ -1,0 +1,1 @@
+{"comment": "Caleb chose to wait and watch. No code change. If the 5xx count on file downloads grows past the watch threshold again, look at the Worker logs for 'blobs:' errors then. Draft PR #366 holds no code and can be closed."}
