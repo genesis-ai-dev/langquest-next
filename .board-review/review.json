@@ -1,33 +1,15 @@
 {
  "kind": "question",
- "ask": "How should teams translate passage titles and other text around the passages?",
- "problem": "Book names show in the team's language now. Passage titles like \"The lost son\" still show in English for every team.",
- "found": "Passage titles, outline section titles, piece words, review flow steps and guide text still show only in the template's language. Today an admin must rename each passage by hand.",
- "changed": "Nothing yet. I built nothing, because I need your choice first.",
- "why": "B matches book names, gives a whole team the same titles, and needs no typing to start. A is thousands of titles of work. C shows teammates different titles.",
- "touches": "A new library kind and event. Older apps ignore it. Needs a decision entry and a library seed. No Play Store change.",
- "pictures": [
-  {
-   "file": "inventory.png",
-   "label": "What still shows only in the template's language"
-  }
- ],
+ "ask": "Is it right to park this and leave the draft pull request open and unmerged?",
+ "problem": "Passage titles and other peripheral text show only in the template's language. Book names already follow the team's source languages.",
+ "found": "Your note: teams can already show Bible books in their source language. No user has asked to translate book names into the target language yet.",
+ "changed": "Nothing in the app. I dropped the old option pictures and my recommendation, and parked the work.",
+ "why": "You asked to wait for an explicit user request. I built nothing, so there is no risk to keep the draft open until then.",
+ "touches": "Nothing else. The issue stays In Progress until you change it.",
+ "pictures": [{"file": "parked.png", "label": "What is done and what is parked"}],
  "options": [
-  {
-   "label": "A. Team renames by hand",
-   "result": "Nothing ships ready. Each team retypes each title. Small to build, large for teams.",
-   "picture": "optA.png"
-  },
-  {
-   "label": "B. Title sets the team picks",
-   "result": "LangQuest publishes titles per language. A team picks one set and renames any title. Same title for everyone on the team.",
-   "picture": "optB.png"
-  },
-  {
-   "label": "C. Each person's app language",
-   "result": "Titles follow each phone's language. No team choice. People on one team see different titles.",
-   "picture": "optC.png"
-  }
+  {"label": "Yes, park it", "result": "The draft stays open and unmerged. I do nothing more until you send a user request.", "picture": "parked.png"},
+  {"label": "No, show me options again", "result": "I bring back the three ways to translate titles, with pictures.", "picture": "parked.png"}
  ],
- "recommended": 1
+ "recommended": 0
 }
