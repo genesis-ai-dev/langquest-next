@@ -453,7 +453,17 @@ export class SimDevice {
         this.metrics.bytesDown += JSON.stringify(page)?.length ?? 0;
         return page;
       } } : {}),
-      ...(t.snapshotPassages ? { snapshotPassages: (...a: Parameters<NonNullable<Transport['snapshotPassages']>>) => timed(() => t.snapshotPassages!(...a)) } : {})
+      ...(t.snapshotPassages ? { snapshotPassages: (...a: Parameters<NonNullable<Transport['snapshotPassages']>>) => timed(() => t.snapshotPassages!(...a)) } : {}),
+      ...(t.knownEvents ? { knownEvents: async (...a: Parameters<NonNullable<Transport['knownEvents']>>) => {
+        const known = await timed(() => t.knownEvents!(...a));
+        this.metrics.bytesDown += JSON.stringify(known)?.length ?? 0;
+        return known;
+      } } : {}),
+      ...(t.attest ? { attest: async (...a: Parameters<NonNullable<Transport['attest']>>) => {
+        const answer = await timed(() => t.attest!(...a));
+        this.metrics.bytesDown += JSON.stringify(answer)?.length ?? 0;
+        return answer;
+      } } : {})
     };
   }
 

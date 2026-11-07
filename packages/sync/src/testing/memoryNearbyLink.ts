@@ -1,6 +1,6 @@
 import { createHash, createHmac, createPrivateKey, createPublicKey, diffieHellman, hkdfSync, sign as edSign, verify as edVerify } from 'node:crypto';
 import {
-  attestationText, base64urlEncode, linkText, nearbyBytes, type Attestation, type ChainLink, type ChainOrg, type Privilege, type WorkerLink
+  attestationText, base64urlEncode, eventDigest, linkText, nearbyBytes, type AnyEvent, type Attestation, type ChainLink, type ChainOrg, type Privilege, type WorkerLink
 } from '@langquest-next/core';
 import type { NearbyCrypto } from '../nearbyLink';
 import type { Message } from '../nearbyWire';
@@ -65,10 +65,16 @@ export interface FakeWorker {
   certify(holder: { installKey: string; profileId: string; deviceId: string }, org: Pick<ChainOrg, 'orgId'> & Partial<Omit<ChainOrg, 'orgId'>> & { privileges?: Privilege[] }): Promise<ChainLink[]>;
   /** A `claims` page over these rows' events, as the attest call answers, with `events` the rows it carries. */
   attest(att: Omit<Attestation, 'v' | 'kid'>): Promise<Omit<Extract<Message, { t: 'claims' }>, 'events' | 't'>>;
+  /** What the attest call does with rows it read itself: their digests, signed. `FakeServer.attester` takes it. */
+  attestRows(orgId: string, streamId: string, rows: readonly AnyEvent[]): Promise<{ text: string; kid: string; sig: string }>;
 }
 
 export function fakeWorker(kid = 'k1'): FakeWorker {
   const root = fakeSigner(`worker:${kid}`);
+  const attest: FakeWorker['attest'] = async (att) => {
+    const text = attestationText({ v: 1, kid, ...att });
+    return { text, kid, sig: await root.sign(nearbyBytes('attest', text)) };
+  };
   return {
     kid,
     rootKeys: new Map([[kid, root.publicKey]]),
@@ -79,9 +85,9 @@ export function fakeWorker(kid = 'k1'): FakeWorker {
       };
       return [{ kind: 'worker@1', kid, body, sig: await root.sign(nearbyBytes('link', linkText({ kind: 'worker@1', kid, body }, ''))) }];
     },
-    async attest(att) {
-      const text = attestationText({ v: 1, kid, ...att });
-      return { text, kid, sig: await root.sign(nearbyBytes('attest', text)) };
-    }
+    attest,
+    attestRows: async (orgId, streamId, rows) => attest({
+      orgId, streamId, rows: await Promise.all(rows.map(async (e) => [e.id, await eventDigest(e, fakeSha256), e.serverSeq!] as [string, string, number]))
+    })
   };
 }

@@ -239,6 +239,26 @@ export interface Transport {
   snapshotRows?(orgId: string, streamId: string, reducerVersion: number, minSeq: number, unitIds: readonly string[], after: RowCursor | null, limit: number): Promise<SnapshotRowsPage | null>;
   /** Which passage each of these takes, reviews, departures, requests or notes is in, by the newest snapshot; absent when it has none. */
   snapshotPassages?(orgId: string, streamId: string, reducerVersion: number, items: readonly { kind: string; id: string }[]): Promise<{ kind: string; id: string; unitId: string }[]>;
+  /**
+   * What the server holds of these ids, at most 500 (docs/nearby-sync-plan.md 5.7). Null
+   * when the database is behind. An id it does not hold is not in the answer. Optional, and
+   * in every list that wraps a transport by hand: a list that misses it turns the sweep off
+   * and says nothing (`nearbySweep.test.ts`).
+   */
+  knownEvents?(orgId: string, streamId: string, ids: readonly string[]): Promise<KnownEvent[] | null>;
+  /**
+   * The Worker's word for up to 200 rows past `afterSeq`, over rows it read itself (docs/nearby-sync-plan.md
+   * 5.12, Claims). Null when off, or not yet.
+   */
+  attest?(orgId: string, streamId: string, afterSeq: number): Promise<{ text: string; kid: string; sig: string } | null>;
+}
+
+/** One id as the server holds it. */
+export interface KnownEvent {
+  id: string;
+  serverSeq: number;
+  hlc: string;
+  actorId: string;
 }
 
 /** Where a page of a snapshot's rows ends: the next page starts after it. */
