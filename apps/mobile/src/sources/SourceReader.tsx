@@ -30,6 +30,8 @@ import { useChipMarks, usePassageSource, useSources, type PassageSources } from 
 import { choiceKey, chipLabel, copyrightLine, anchorClock } from './sourceText';
 import { useChoice, useOffer } from './useSourceChoice';
 import { a11yState } from '../ui/a11yModel';
+import { stackOf } from '../usfm/readerModel';
+import { UsfmAbove, UsfmFitNote, UsfmLines, UsfmNotes } from '../usfm/UsfmVerse';
 
 /** Faith Comes By Hearing's terms for Bible Brain (DBP) content. */
 const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
@@ -89,6 +91,8 @@ export function SourceView(props: SourceReaderProps & {
   onPlayed?: (o: SourceOption) => void;
   /** The explore screen hides the chips: it shows one Bible. */
   chips?: boolean;
+  /** A whole chapter opened for a passage: these verses are marked, and the first is brought into view. */
+  passageHere?: { chapter: number; from: number; to: number } | null;
 }) {
   const { ctx, passage, option } = props;
   const src = usePassageSource(ctx, option, passage);
@@ -124,6 +128,19 @@ export function SourceView(props: SourceReaderProps & {
     if (y === undefined) return;
     scroll.current.scrollTo({ y: Math.max(0, (props.layout === 'screen' ? 0 : readerY.current) + listY.current + y - 160), animated: true });
   }, [player.playing, player.current?.key]); // eslint-disable-line react-hooks/exhaustive-deps -- scrolls when the part playing changes, not on every draw
+
+  // A chapter opened for a passage comes to the passage's first verse, once every part has its place.
+  const inPassage = (row: VerseRow) => !!props.passageHere && row.chapter === props.passageHere.chapter && row.verseEnd >= props.passageHere.from && row.verseStart <= props.passageHere.to;
+  const firstHere = src?.rows?.find(inPassage)?.key;
+  const placed = useRef(new Set<string>());
+  const openedAt = useRef<string | null>(null);
+  const place = (part: string) => {
+    placed.current.add(part);
+    if (!firstHere || openedAt.current === firstHere || !scroll?.current) return;
+    if (!placed.current.has('reader') || !placed.current.has('list') || !placed.current.has(firstHere)) return;
+    openedAt.current = firstHere;
+    scroll.current.scrollTo({ y: Math.max(0, readerY.current + listY.current + (rowsY.current[firstHere] ?? 0) - space.lg), animated: false });
+  };
 
   const [selected, setSelected] = useState<string | null>(null);
   const canManage = ctx.session.can('manage_reference');
@@ -174,7 +191,7 @@ export function SourceView(props: SourceReaderProps & {
       ) : (
         <View style={{ gap: space.xs }}>
           <Text style={[txt.sm, { fontWeight: '700' }]}>{src?.loading ? t('common.loading') : t('sources.reader.noAudioIn', { abbr })}</Text>
-          {!src?.loading && canManage ? <Text style={txt.xs}>{t('sources.reader.giveAudio')}</Text> : null}
+          {!src?.loading && canManage && !option.doc?.uploaded ? <Text style={txt.xs}>{t('sources.reader.giveAudio')}</Text> : null}
         </View>
       )}
       {plan && plan.wholeChapters ? <Text style={txt.xs}>{t('sources.reader.wholeChapter')}</Text>
@@ -193,9 +210,10 @@ export function SourceView(props: SourceReaderProps & {
       {!passage.loading && !passage.notOnDevice && props.onMoreBibles ? <Text style={txt.xs}>{t('sources.reader.findMore')}</Text> : null}
     </View>
   ) : (
-    <View style={styles.textCard} onLayout={(e) => { listY.current = e.nativeEvent.layout.y; }}>
+    <View style={styles.textCard} onLayout={(e) => { listY.current = e.nativeEvent.layout.y; place('list'); }}>
+      <UsfmFitNote fit={src?.usfmFit} />
       {src?.rows ? src.rows.map((row) => {
-        const here = player.current?.key === row.key && player.started;
+        const here = (player.current?.key === row.key && player.started) || inPassage(row);
         const isSel = selected === row.key;
         const badge = props.verse?.badge?.(row) ?? 0;
         const below = props.verse?.below?.(row, {
@@ -204,9 +222,11 @@ export function SourceView(props: SourceReaderProps & {
         });
         return (
           <HelpRow key={row.key} of="source.verse">
-            <View onLayout={(e) => { rowsY.current[row.key] = e.nativeEvent.layout.y; }}>
+            <View onLayout={(e) => { rowsY.current[row.key] = e.nativeEvent.layout.y; place(row.key); }}>
+              <UsfmAbove row={row} />
               <VerseRowView row={row} here={here} selected={isSel} badge={badge} timed={!!plan && timed} choosable={!!props.verse} terms={terms}
                 tied={props.tied} onTerm={props.onTerm} onPress={() => tapRow(row)} />
+              <UsfmNotes row={row} />
               {below}
             </View>
           </HelpRow>
@@ -239,7 +259,7 @@ export function SourceView(props: SourceReaderProps & {
     );
   }
   return (
-    <View style={{ gap: space.sm }} onLayout={(e) => { readerY.current = e.nativeEvent.layout.y; }}>
+    <View style={{ gap: space.sm }} onLayout={(e) => { readerY.current = e.nativeEvent.layout.y; place('reader'); }}>
       {chipRow}
       {playerBar}
       {verses}
@@ -305,22 +325,23 @@ function VerseRowView(props: {
   const acts = props.timed || props.choosable || termIds.length > 0 || props.badge > 0;
   const spot = useHelpSpot(t('reference.bible.verse', { verse: row.key }), detail || undefined, acts ? props.onPress : undefined);
   const onTerm = helpOn ? undefined : props.onTerm;
+  const marked = (text: string) => markTerms(text, props.terms).map((part, i) => {
+    if (!part.termId) return <Text key={i}>{part.text}</Text>;
+    const tied = props.tied?.has(part.termId) ?? false;
+    return (
+      <Text key={i} {...(onTerm ? { onPress: () => onTerm(part.termId!), accessibilityRole: 'link' as const } : {})}
+        accessibilityLabel={tied ? t('sources.reader.keyTermTied', { term: part.text }) : t('sources.reader.keyTerm', { term: part.text })}
+        style={[styles.term, tied ? styles.termTied : null]}>{part.text}{tied ? ' ✓' : ''}</Text>
+    );
+  });
   return (
     <Pressable onPress={spot.id ? spot.onPress : props.onPress} accessibilityRole="button" {...a11yState({ selected: props.here || props.selected }, 'button')}
       accessibilityLabel={t('sources.reader.verseLabel', { verse: row.key, text: row.text })} accessibilityHint={props.timed ? t('sources.reader.playsFromVerse') : undefined}
       style={({ pressed }) => [styles.verse, props.here && styles.playing, props.selected && styles.selected, pressed && styles.pressed]}>
       <Text style={[styles.verseNum, props.here && { color: C.primary }]}>{row.key}</Text>
-      <Text style={[styles.verseText, { flex: 1 }]}>
-        {parts.map((part, i) => {
-          if (!part.termId) return <Text key={i}>{part.text}</Text>;
-          const tied = props.tied?.has(part.termId) ?? false;
-          return (
-            <Text key={i} {...(onTerm ? { onPress: () => onTerm(part.termId!), accessibilityRole: 'link' as const } : {})}
-              accessibilityLabel={tied ? t('sources.reader.keyTermTied', { term: part.text }) : t('sources.reader.keyTerm', { term: part.text })}
-              style={[styles.term, tied ? styles.termTied : null]}>{part.text}{tied ? ' ✓' : ''}</Text>
-          );
-        })}
-      </Text>
+      {row.usfm ? (
+        <View style={{ flex: 1 }}><UsfmLines pieces={stackOf(row.usfm.verse).body} style={styles.verseText} words={marked} /></View>
+      ) : <Text style={[styles.verseText, { flex: 1 }]}>{marked(row.text)}</Text>}
       {props.badge > 0 && !props.selected ? <View style={styles.count}><Text style={styles.countText}>{formatNumber(props.badge)}</Text></View> : null}
       <HelpBadge spot={spot} />
     </Pressable>

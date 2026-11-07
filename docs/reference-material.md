@@ -182,6 +182,30 @@ material has. Web first; on a phone it edits text and records step audio.
 - **Publishing** needs Manage Reference; core `validateDoc` runs first and
   any problem is said in plain words with a link to where to fix it.
 
+## Upload your own Bible (USFM)
+
+An admin with Manage Reference opens **Setup → Reference Material → Add
+material → Upload Bible files** on the web (decisions.md 205, LAN-229).
+
+1. **Files.** `.usfm`, `.sfm`, `.ptx` or `.txt` files, or one zip (opened in
+   the browser; `src/usfm/zipModel.ts`). `checkUsfm` (`packages/core/src/usfm.ts`)
+   reads each: no `\id`, an unknown or front-matter book code, no chapters,
+   no verses, a chapter or verse repeated or out of order, broken letters, a
+   file over 1.8 MB, a book given twice. Each problem is a code the sheet says
+   in plain words; a file with one cannot be published.
+2. **About it.** Name, short name, language, the numbering its verses follow
+   (LangQuest's versifications, English first), who holds the rights, and the
+   uploader's confirmation that the team may share the text. The item takes
+   the organization's license. **Share with other organizations** is off
+   until the admin turns it on.
+3. **Publish.** One `usfmBook@1` per book, then a `usfmBible@1` item (kind
+   `material`), through the library's outbox like any item. Nothing goes to
+   the live library from anywhere but the admin's own publish.
+
+**Reading it** (decision 206, LAN-230). An uploaded Bible is a Bible everywhere: recommend it in **Bibles**, find it under **More Bibles**, read it beside a passage. It is text only, and phones keep the books of the passages in their offline scope. Verses stay rows with their numbers. Section headings stand above a verse, poetry stacks in its lines, and footnotes and cross references show under the verse with a letter in the text; no marker ever shows (`packages/core/src/usfmRead.ts`, `src/usfm/UsfmVerse.tsx`). Book names come from the file (`\toc2`, `\h`, `\toc1`, `\mt`). A Bible numbered otherwise maps to the passage and says how it numbers it; a passage's verses its file lacks are named above the text.
+
+Not built: checking verse numbers against the chosen numbering at upload, and splitting a file that holds several books.
+
 ## Where the code is
 
 | Part | Where |
@@ -191,5 +215,6 @@ material has. Web first; on a phone it edits text and records step audio.
 | Bible Brain routes | `apps/web/worker/bible.ts` |
 | Reader, sources, explore, record of use | `apps/mobile/src/sources/` |
 | Admin: recommendations, coverage, passage links, timings | `apps/mobile/src/screens/config.tsx`, `apps/mobile/src/reference/` |
+| USFM Bible upload and reading | `packages/core/src/usfm.ts`, `packages/core/src/usfmRead.ts`, `apps/mobile/src/usfm/` |
 | Guide editor | `apps/mobile/src/guides/`; reading `study@2` in `apps/mobile/src/study/` |
 | Seeding LangQuest's sources | `scripts/library-seed.ts`, `scripts/sources-seed.ts` |

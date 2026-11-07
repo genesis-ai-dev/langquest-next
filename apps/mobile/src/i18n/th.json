@@ -2302,7 +2302,9 @@
       "steps_other": "{{count, number}} ขั้นตอน",
       "bible": "พระคัมภีร์",
       "notReference": "ไม่ใช่เอกสารอ้างอิง",
-      "numbering": "การเรียงเลขแบบ {{name}}"
+      "numbering": "การเรียงเลขแบบ {{name}}",
+      "uploadedBible": "Uploaded Bible",
+      "bibleBooks": "Books: {{count, number}}"
     },
     "errors": {
       "setNotForKind": "ชุดคำถามนี้ไม่ได้มีไว้สำหรับประเภทการตรวจ",
@@ -2537,7 +2539,9 @@
         "here": "แนวทาง สรุปย่อ หรือคำถาม",
         "hereSub": "เขียนที่นี่ทีละส่วน คำถามการตรวจจะไปอยู่กับการตรวจประเภทหนึ่ง",
         "byVerses": "บันทึกที่วางตามข้อ",
-        "byVersesSub": "เข้าไปในคลัง และไปถึงตอนที่มีข้อหรือส่วนของแม่แบบนั้นอยู่"
+        "byVersesSub": "เข้าไปในคลัง และไปถึงตอนที่มีข้อหรือส่วนของแม่แบบนั้นอยู่",
+        "usfm": "Upload Bible files",
+        "usfmSub": "USFM files from your team, as a Bible in your reference material"
       }
     },
     "material": {
@@ -6319,7 +6323,8 @@
     "writtenInApp": "เขียนในแอป · {{n, number}}",
     "provider": {
       "bibleBrain": "Bible Brain",
-      "library": "คลังของ LangQuest"
+      "library": "คลังของ LangQuest",
+      "uploaded": "ไฟล์ที่อัปโหลด"
     },
     "rec": {
       "recommended": "แนะนำ",
@@ -6804,7 +6809,10 @@
       "verseHelpNote": "เลือกข้อนี้ เพื่อเพิ่มโน้ต",
       "verseHelpPlays": "เล่นตั้งแต่ข้อนี้",
       "verseHelpPlaysNote": "เล่นตั้งแต่ข้อนี้และเลือกข้อนี้ เพื่อเพิ่มโน้ต",
-      "versionHelp": "อ่านและเล่นตอนนี้ในพระคัมภีร์ฉบับนี้"
+      "versionHelp": "อ่านและเล่นตอนนี้ในพระคัมภีร์ฉบับนี้",
+      "usfmCrossRef": "ดูเพิ่มเติม:",
+      "usfmRenumbered": "พระคัมภีร์ฉบับนี้นับข้อเหล่านี้เป็น {{verses}}",
+      "usfmMissing": "พระคัมภีร์ฉบับนี้ไม่มี {{verses}}"
     },
     "text": {
       "noBibleBrain": "ยังไม่ได้ตั้งค่า Bible Brain ในเครื่องนี้",
@@ -7631,5 +7639,83 @@
       "badItem": "เลือกรายการหนึ่งของคุณเองที่เป็นประเภทเดียวกัน",
       "offline": "ติดต่อ LangQuest ไม่ได้ ตรวจการเชื่อมต่อแล้วลองอีกครั้ง"
     }
+  },
+  "usfm": {
+    "title": "Upload a Bible",
+    "intro": "Add your team's own Bible from USFM files. Use one file for each book, or one zip with many books.",
+    "choose": "Choose files",
+    "addMore": "Add more files",
+    "files": "Files ({{count}})",
+    "summary": "Books ready: {{ready}} · Files to fix: {{problems}}",
+    "counts": "Chapters: {{chapters}} · Verses: {{verses}}",
+    "ok": "Ready",
+    "fix": "Fix this",
+    "about": "About this Bible",
+    "name": "Name of the Bible",
+    "namePlaceholder": "For example: Our Team Bible 2026",
+    "abbreviation": "Short name",
+    "language": "Language of the text",
+    "numbering": "Verse numbering",
+    "numberingEnglish": "English numbering",
+    "numberingHelp": "Pick the numbering your chapters and verses follow. Most Bibles follow English.",
+    "copyright": "Who holds the rights",
+    "copyrightPlaceholder": "For example: © 2026 Our Team",
+    "license": "It is published under your organization's license: {{license}}.",
+    "rights": "We may share this text",
+    "rightsSub": "I confirm that our team may share this Bible text with the people who use it.",
+    "share": "Share with other organizations",
+    "shareSub": "Other organizations can follow this Bible and get updates.",
+    "publish": "Publish Bible",
+    "failed": "The Bible was not saved. Check your connection and try again.",
+    "missing": {
+      "books": "Add at least one file that is ready.",
+      "name": "Type a name for the Bible.",
+      "abbreviation": "Type a short name.",
+      "language": "Choose the language of the text.",
+      "rights": "Confirm that you may share this text."
+    },
+    "done": {
+      "title": "{{name}} is published",
+      "body": "It is now in your Reference Material.",
+      "nextTitle": "Next: recommend it",
+      "nextBody": "Find it under Bibles and recommend it, so translators see it beside their passages. Anyone can also find it under More Bibles."
+    },
+    "pickFailure": {
+      "notZip": "This zip file cannot be opened.",
+      "tooMany": "This zip has too many files. Use one zip for one Bible.",
+      "tooBig": "This zip is too big. Use one zip for one Bible.",
+      "unsupported": "This zip has a password or an unsupported kind of file.",
+      "unreadable": "This file could not be read."
+    },
+    "problem": {
+      "empty": "The file is empty.",
+      "tooBig": "The file is too big for one book. Split it into smaller files.",
+      "brokenLetters": "Some letters are broken. Save the file as UTF-8 text and add it again.",
+      "notUsfm": "This does not look like a USFM file. It has no backslash markers.",
+      "noId": "The file has no \\id line, so we cannot tell which book it is. Add a line such as \\id GEN.",
+      "noCode": "The \\id line has no book code. Add one, such as \\id GEN.",
+      "frontBack": "The code {{code}} is not a book of the Bible. Leave this file out.",
+      "unknownCode": "We do not know the book code {{code}}. Use a code such as GEN, MRK or 1CO.",
+      "strayVerse": "The file has verses before its first chapter. Add a line such as \\c 1 above them.",
+      "noChapters": "The file has no chapters. Each chapter starts with a line such as \\c 1.",
+      "noVerses": "The file has chapters but no verses. Each verse starts with a line such as \\v 1.",
+      "badChapter": "A chapter line reads \\c {{text}}. A chapter needs a number, such as \\c 1.",
+      "chapterTwice": "Chapter {{chapter}} appears twice.",
+      "missingChapters": "Some chapters are missing before chapter {{chapter}}.",
+      "chapterOrder": "Chapter {{chapter}} comes after chapter {{after}}.",
+      "badVerse": "In chapter {{chapter}}, a verse line reads \\v {{text}}. A verse needs a number, such as \\v 1.",
+      "backward": "In chapter {{chapter}}, the verses {{start}}-{{end}} run backward.",
+      "outOfOrder": "Verses are out of order or repeated inside a chapter. Count: {{count}}.",
+      "emptyVerses": "Some verses have no text. Count: {{count}}.",
+      "duplicateBook": "This is {{book}} again. The file {{other}} already has it. Leave one out."
+    },
+    "chooseHelp": "Pick USFM files (.usfm or .sfm) or a zip of them from this computer.",
+    "publishHelp": "Adds this Bible to your organization's Reference Material.",
+    "nameHelp": "The name people will see for this Bible.",
+    "abbreviationHelp": "A short name, such as GB. It shows next to the Bible's text.",
+    "copyrightHelp": "Who owns the rights to this text. It is shown with the Bible.",
+    "fileHelp": "One file. Tap to take it out of the list.",
+    "rightsHelp": "Check this box only if your team may share this text.",
+    "shareHelp": "Turn this on to let other organizations follow this Bible."
   }
 }

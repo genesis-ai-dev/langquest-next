@@ -14,8 +14,8 @@
 // question 1 alone, as "What to translate" from a ready language's page.
 import {
   commands, CUSTOM_FLOW, deriveFlow, keyTermsFor, languageName, materialsFor,
-  followerItemId, goesWith, isTemplateDoc, recommendedFor, templateBooks,
-  type CollectionDoc, type EventSpec, type LibraryDoc, type SourceDoc
+  followerItemId, goesWith, isTemplateDoc, recommendedFor, sourceOf, templateBooks,
+  type CollectionDoc, type EventSpec, type LibraryDoc, type BibleSource
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
@@ -407,7 +407,7 @@ function useSetSheet(h: ReturnType<typeof useHelpItems>, team: string) {
 type Media = 'both' | 'audio' | 'text' | 'listed';
 
 /** What a Bible has: audio and text, one of them, or only its listing. */
-function mediaOf(doc: SourceDoc, get: (h: string | null | undefined) => LibraryDoc | null): Media {
+function mediaOf(doc: BibleSource, get: (h: string | null | undefined) => LibraryDoc | null): Media {
   const f = sourceFacts(doc, get);
   const text = f.text.OT || f.text.NT;
   const audio = f.audio.OT || f.audio.NT;
@@ -598,7 +598,7 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
   const press = (x: HelpItem) => onHelpPress(x, h.items, sheet.open, (item) => void h.toggle(item));
   const onOff = (x: HelpItem) => (x.on ? t('getReady.helps.onInline') : t('getReady.helps.offInline'));
   const bibleRow = (b: HelpItem, last: boolean) => {
-    const doc = b.doc as SourceDoc;
+    const doc = sourceOf(b.doc)!;
     return (
       <HelpRow key={b.key} of="getReady.bible">
         <CheckRow label={`${languageLabel(doc.language)} · ${doc.abbreviation}`} sub={mediaText(mediaOf(doc, h.get))} checked={b.on} highlight={search.query} last={last}
@@ -716,7 +716,7 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
     );
   };
   const bibleRow = (b: HelpItem, last: boolean) => {
-    const doc = b.doc as SourceDoc;
+    const doc = sourceOf(b.doc)!;
     return switchRow(b, last, `${languageLabel(doc.language)} · ${mediaText(mediaOf(doc, h.get), true)}`);
   };
   const guideRow = (g: HelpItem, last: boolean) => {
@@ -816,7 +816,7 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
  */
 function inTeamLanguage(x: HelpItem, languages: readonly string[]): boolean {
   if (x.on || x.set) return true;
-  return inLanguages(x.kind === 'source' ? (x.doc as SourceDoc).language : docLanguage(x.doc), languages);
+  return inLanguages(x.kind === 'source' ? sourceOf(x.doc)!.language : docLanguage(x.doc), languages);
 }
 
 /** "FIA study guides (English)" for a team that reads English: "FIA study guides". */

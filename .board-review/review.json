@@ -1,0 +1,27 @@
+{
+  "kind": "screen",
+  "ask": "Is this upload flow right for admins, and is it fine that translators cannot read the Bible until LAN-230?",
+  "problem": "Go Forth North India has its own Bible as USFM files. An admin has no way to add them as reference material.",
+  "found": "Reference Material only takes Bibles from Bible Brain and the LangQuest library. Nothing reads USFM files. The old Bible format carries audio and provider details that do not fit uploaded text.",
+  "changed": "Add material now has Upload Bible files, on the web. Each file is checked in plain words. The admin names the Bible, picks its language, confirms the rights, and publishes. Sharing is off until turned on.",
+  "why": "New document types keep old Bibles safe. Each book is its own document, since one may be 4 MB at most. The file is kept, so LAN-230 needs no re-upload. Pictures are mock-ups, not app captures. Other languages show English for now.",
+  "touches": "Adds a database change and decision 205. Waits on LAN-230: reading the Bible beside a passage. Not built: verse number checks.",
+  "pictures": [
+    {
+      "file": "before.png",
+      "label": "Before: no way to add Bible files"
+    },
+    {
+      "file": "after-files.png",
+      "label": "After: files checked in plain words"
+    },
+    {
+      "file": "after-details.png",
+      "label": "After: name, language, rights, publish"
+    },
+    {
+      "file": "after-library.png",
+      "label": "After: the Bible in Reference Material"
+    }
+  ]
+}

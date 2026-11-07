@@ -5,7 +5,7 @@
 // (SourceReader.tsx) do the I/O.
 import {
   BIBLE_BOOKS, bookIdOf, FIA_PERICOPES, libraryUnitRange, mapRange, parseRef, segmentAt, segmentsFromStarts, testamentOf, usfmOf, verseSpan,
-  type RecommendationSource, type SourceDoc, type SourceBookDoc, type TimingDoc, type UsedReference, type VerseRange, type VersificationDoc
+  type RecommendationSource, type SourceBookDoc, type BibleSource, type TimingDoc, type UsedReference, type UsfmVerse, type VerseRange, type VersificationDoc
 } from '@langquest-next/core';
 import { t } from '../i18n';
 import type { BibleDetail } from './bibleBrain';
@@ -28,7 +28,7 @@ export interface SourceOption {
   /** ISO 639-3. */
   language: string;
   /** library: the version this organization is at. */
-  doc?: SourceDoc;
+  doc?: BibleSource;
   docHash?: string;
   /** biblebrain: the Bible as the Worker describes it, when known. */
   bible?: BibleDetail;
@@ -104,6 +104,7 @@ export function offersFor(o: SourceOption, book: string, builtinHasText = false)
   if (o.kind === 'builtin') return { text: builtinHasText, audio: o.itemId === 'builtin.BSB' && builtinHasText };
   if (o.doc) {
     if (!o.doc.books.some((b) => b.book === book)) return { text: false, audio: false };
+    if (o.doc.uploaded) return { text: true, audio: false };
     if (o.doc.provider.kind === 'biblebrain') {
       const f = filesetsFor(o, book);
       return { text: !!f.text, audio: !!f.audio };
@@ -231,9 +232,11 @@ export interface VerseRow {
   verseStart: number;
   verseEnd: number;
   text: string;
+  /** An uploaded Bible's verse as its file sets it out (decision 206): `text` stays its plain words. */
+  usfm?: { verse: UsfmVerse; chapterHead?: string };
 }
 
-const rowKey = (c: number, vs: number, ve: number) => (vs === ve ? `${c}:${vs}` : `${c}:${vs}-${ve}`);
+export const rowKey = (c: number, vs: number, ve: number) => (vs === ve ? `${c}:${vs}` : `${c}:${vs}-${ve}`);
 
 /**
  * The passage's verses from each chapter's `[verseStart, verseEnd, text]`

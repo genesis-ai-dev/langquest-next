@@ -7,7 +7,7 @@
 // Sources in the organization's library that nobody recommended can be
 // added the same way. Every Bible says whether it has audio and whether it
 // can be kept offline.
-import { chaptersInBook, libraryItems, testamentOf, type SourceDoc, type VersificationDoc, type VerseRange } from '@langquest-next/core';
+import { chaptersInBook, libraryItems, sourceOf, testamentOf, type BibleSource, type UsfmBookDoc, type VersificationDoc, type VerseRange } from '@langquest-next/core';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
@@ -91,8 +91,8 @@ export function BibleExplore(ctx: Ctx) {
   const libraryItemsList = useMemo(() => libraryItems(ctx.org.state?.library ?? {}, 'material').filter((i) => i.current && !i.archived), [ctx.org.state]);
   const docs = useLibraryDocs(ctx.language.orgId, libraryItemsList.map((i) => i.current));
   const librarySources = libraryItemsList.flatMap((i) => {
-    const doc = docs.get<SourceDoc>(i.current);
-    return doc && doc.format === 'source@1' ? [{ itemId: i.itemId, doc, hash: i.current! }] : [];
+    const doc = sourceOf(docs.get(i.current));
+    return doc ? [{ itemId: i.itemId, doc, hash: i.current! }] : [];
   });
 
   const passageLabel = unitId && state?.units[unitId] ? state.units[unitId]!.label : undefined;
@@ -178,7 +178,7 @@ function LitInView(props: { lit: string | null; keys: string[]; children: (key: 
 
 /** One Bible: what it has, any chapter to read and hear, and Add to My Bibles. */
 function BibleDetailView(props: {
-  ctx: Ctx; picked: Picked; lib: { itemId: string; doc: SourceDoc; hash: string } | undefined; languageId: string | null; unitId: string | undefined;
+  ctx: Ctx; picked: Picked; lib: { itemId: string; doc: BibleSource; hash: string } | undefined; languageId: string | null; unitId: string | undefined;
   mine: ReturnType<typeof useMyBibles>; header: React.ReactNode;
 }) {
   const { ctx, picked, lib, mine } = props;
@@ -201,19 +201,25 @@ function BibleDetailView(props: {
   const passageRange = props.unitId ? unitCoordinates(props.unitId) : null;
   const passageBook = passageRange?.book ?? (props.unitId ? /\/([A-Z0-9]{3})/.exec(props.unitId)?.[1] : undefined);
   const books = useMemo(() => {
-    if (picked.kind === 'library') return (lib?.doc.books ?? []).map((b) => ({ book: b.book, name: b.name, chapters: 0 }));
+    if (picked.kind === 'library') return (lib?.doc.books ?? []).map((b) => ({ book: b.book, name: b.name, chapters: b.chapters ?? 0 }));
     return (bible?.books ?? []).map((b) => ({ book: b.book, name: b.name, chapters: b.chapters }));
   }, [picked.kind, lib, bible]);
   const [book, setBook] = useState<string | null>(null);
   const current = book ?? (books.find((b) => b.book === passageBook)?.book ?? books[0]?.book ?? null);
   const chapters = books.find((b) => b.book === current)?.chapters ?? 0;
+  // An uploaded book may skip chapters: its own document says which it has.
+  const uploadedHash = lib?.doc.uploaded ? lib.doc.books.find((b) => b.book === current)?.doc : undefined;
+  const uploadedDocs = useLibraryDocs(ctx.language.orgId, [uploadedHash], { deps: false });
+  const uploadedChapters = uploadedDocs.get<UsfmBookDoc>(uploadedHash)?.chapters.map((c) => c.chapter);
+  const chapterList = uploadedChapters ?? Array.from({ length: chapters }, (_, i) => i + 1);
   // The passage's chapter in the passage's book, unless this Bible's book is shorter.
   const startOf = (b: string | null, count: number) => {
     const c = b === passageBook ? passageRange?.start.chapter ?? 1 : 1;
     return count > 0 && c > count ? 1 : c;
   };
   const [shownChapter, setChapter] = useState<number | null>(null);
-  const chapter = shownChapter ?? startOf(current, chapters);
+  const opening = startOf(current, chapters);
+  const chapter = shownChapter ?? (uploadedChapters && !uploadedChapters.includes(opening) ? uploadedChapters[0] ?? opening : opening);
   const range: VerseRange | null = current ? { book: current, start: { chapter, verse: 1 }, end: { chapter, verse: 999 } } : null;
   const { get } = useLibraryDocs(ctx.language.orgId, picked.kind === 'library' ? [lib?.doc.versification] : []);
   // A library Bible's last chapter of the book, from its numbering; unknown until that document is here.
@@ -249,6 +255,7 @@ function BibleDetailView(props: {
     }
   }
 
+  const scroll = useRef<ScrollView>(null);
   const footer = option && props.languageId ? (
     has ? <PrimaryBtn label={t('sources.explore.inMyBibles')} icon="check" disabled onPress={() => undefined} />
       : <PrimaryBtn label={t('sources.explore.addToMyBibles')} icon="plus" busy={busy} help={t('sources.explore.addHelp')} onPress={() => void add()} />
@@ -256,7 +263,7 @@ function BibleDetailView(props: {
 
   return (
     <Screen fixed header={props.header} footer={footer}>
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scroll} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         {!option ? (
           <EmptyState icon="book" title={problem || t('common.loading')} />
         ) : (
@@ -283,8 +290,8 @@ function BibleDetailView(props: {
                 }}
               </LitInView>
             ) : null}
-            {chapters > 1 ? (
-              <LitInView lit={String(chapter)} keys={Array.from({ length: chapters }, (_, i) => String(i + 1))}>
+            {chapterList.length > 1 ? (
+              <LitInView lit={String(chapter)} keys={chapterList.map(String)}>
                 {(k) => {
                   const c = Number(k);
                   return (
@@ -294,7 +301,7 @@ function BibleDetailView(props: {
                   );
                 }}
               </LitInView>
-            ) : picked.kind === 'library' ? (
+            ) : picked.kind === 'library' && !lib?.doc.uploaded ? (
               <View style={styles.chapterStep}>
                 <LinkBtn label={t('sources.explore.previousChapter')} help={t('sources.explore.previousChapterHelp')} onPress={() => setChapter(Math.max(1, chapter - 1))} />
                 <Text style={txt.sm}>{t('sources.explore.chapter', { n: chapter })}</Text>
@@ -304,7 +311,9 @@ function BibleDetailView(props: {
                   : <View />}
               </View>
             ) : null}
-            <SourceView ctx={ctx} unitId={props.unitId ?? ''} languageId={props.languageId ?? ''} passage={passage} option={option} chips={false} />
+            <SourceView ctx={ctx} unitId={props.unitId ?? ''} languageId={props.languageId ?? ''} passage={passage} option={option} chips={false} scrollRef={scroll}
+              passageHere={passageRange && passageRange.book === current && passageRange.start.chapter <= chapter && chapter <= passageRange.end.chapter
+                ? { chapter, from: chapter === passageRange.start.chapter ? passageRange.start.verse : 1, to: chapter === passageRange.end.chapter ? passageRange.end.verse : Infinity } : null} />
           </>
         )}
       </ScrollView>

@@ -114,7 +114,7 @@ export type RefKind = 'source' | 'guide' | 'note' | 'questions' | 'words' | 'oth
 export function refKindOf(doc: LibraryDoc | null | undefined): RefKind | null {
   if (!doc) return null;
   switch (doc.format) {
-    case 'source@1': return 'source';
+    case 'source@1': case 'usfmBible@1': return 'source';
     case 'study@1': case 'study@2': case 'collection@1': return 'guide';
     case 'material@1': return doc.kind === 'note' ? 'note' : doc.kind === 'questions' ? 'questions' : doc.kind === 'key_terms' ? 'words' : 'other';
     default: return null;
@@ -139,7 +139,7 @@ export function booksOf(doc: LibraryDoc | null | undefined): string[] {
   const out = new Set<string>();
   const add = (ref: string | undefined) => { const m = ref ? /^([A-Z0-9]{3})/.exec(ref.trim()) : null; if (m) out.add(m[1]!); };
   switch (doc.format) {
-    case 'source@1': for (const b of doc.books) out.add(b.book); break;
+    case 'source@1': case 'usfmBible@1': for (const b of doc.books) out.add(b.book); break;
     case 'study@1': add(doc.ref); break;
     case 'study@2': add(doc.ref); for (const l of doc.links ?? []) if ('ref' in l) add(l.ref); break;
     case 'collection@1': for (const e of doc.entries) add(e.ref); break;

@@ -1,5 +1,5 @@
 // What the Ready screen reads: the language's summary, requests waiting and the roles in plain words (admin/ready.tsx).
-import { deriveFlow, languageName, libraryItems, libraryItemView, mayGrantRole, recommendedFor, scopeKey, type LibraryDoc, type Scope, type SourceDoc, type TemplateDoc } from '@langquest-next/core';
+import { deriveFlow, languageName, libraryItems, libraryItemView, mayGrantRole, recommendedFor, scopeKey, sourceOf, type LibraryDoc, type Scope, type TemplateDoc } from '@langquest-next/core';
 import { useMemo } from 'react';
 import { deriveKinds } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
@@ -59,7 +59,8 @@ export function useReadySummary(ctx: Ctx): ReadySummary {
       const doc: LibraryDoc | null = docs.get(it?.current);
       if (!it || it.archived || !doc) continue;
       const language = docLanguage(doc);
-      if (doc.format === 'source@1') { if (offered.has(id)) bibles.push(languageLabel((doc as SourceDoc).language)); }
+      const bible = sourceOf(doc);
+      if (bible) { if (offered.has(id)) bibles.push(languageLabel(bible.language)); }
       else if (doc.format === 'study@1' || doc.format === 'study@2' || doc.format === 'collection@1') guides.push(language ? { name: guideShortName(it.name), language: languageLabel(language) } : guideShortName(it.name));
       else if (doc.format === 'material@1' && doc.kind === 'note') notes++;
     }
