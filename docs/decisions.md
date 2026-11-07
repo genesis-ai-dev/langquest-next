@@ -1746,6 +1746,20 @@ an author's own session sends their work. A nearby file evicted before the
 server has it, and teammates' files left out of a hand-over's uploads, come
 with phase 3.
 
+Amended (2026-11-07, Carl Sauder): "recordings evicted only once the server
+has them" no longer holds for a teammate's recording that came from their
+phone. Such a file is marked in the file ledger when it lands, and can go
+before the server has it when space runs short and nothing the server holds
+can free enough, when the server confirms it (a backup goes at once), or
+with "Hold teammates' recordings" off once another person is known to hold it
+(`docs/nearby-sync-plan.md` 5.6, PLAN.md section 14). This person's own
+unsent recordings, and another person's on a shared phone, carry no mark and
+are still never deleted. Teammates' files are left out of a hand-over's
+uploads (`LanguageSession.unsent`) and of the sign-out count (`pendingUp`),
+so they neither hold a session on the phone nor go up as its person; they
+wait for the next session here. Tests `packages/sync/test/nearbyFiles.test.ts`,
+`apps/mobile/test/blobsModel.test.ts`.
+
 ## 61. Every passage says whether it is on this phone, and Settings says how ready the phone is for offline
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted

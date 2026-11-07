@@ -603,6 +603,23 @@ units, and other languages' files are never touched. Downloads land in a
 `.part` staging name and are renamed only after their hash matches;
 startup deletes leftover staging files.
 
+Amended (2026-11-07, Carl Sauder): on Android, files that came from a
+teammate's phone over a nearby link (`docs/nearby-sync-plan.md` 5.6) are
+marked in the file ledger, and when space runs short they go in three
+levels: first the files `evictableBlobs` names, as above; then, only once
+those cannot free enough, marked files outside the offline scope (a marked
+file no reference names first, then backups, then files open for review,
+the most known copies first); never this person's own unsynced recordings,
+another person's on a shared phone, kept units, or a needed nearby file. So
+a backup can go before the server has it, possibly its last copy, because
+the person's own recording has to win. The 2 GB cap leaves marked files out
+of its total and frees from the first level only. A marked backup the server
+confirms at the size held here goes at once, on every phone, and with "Hold
+teammates' recordings" off a phone also sheds marked files outside what it
+needs and a small window of review once the server or another person keeps
+them (Carl's answer 14). Another language's marked level 2 files can go from
+the mark alone. Nearby files land in `<hash>.<format>.nearby.part`.
+
 Known v2 gap still open: no server-side garbage collection of blobs nothing
 references (a redacted recording's blobs stay in the bucket until that
 exists).

@@ -783,10 +783,11 @@ With it off:
   server has the file at the size held here, as `evictableOf` asks, or another person is known
   to hold it. "Known" means a holdings entry
   from an install key other than this phone's, certified to someone other than whoever is
-  signed in here. That key must also sort below this phone's, so that two phones cannot each
-  shed a file because of the other, and the lowest key holding a file keeps it. So the phone
-  keeps the last known copy. No entry says which phones have the row on, so the lowest key keeps
-  the file even when a teammate with the row on holds it too. It runs when the row is turned off,
+  signed in here. Its owner must keep its files, which its signed `hold` says (the row on), or
+  its key must sort below this phone's, so that two phones with the row off cannot each shed a
+  file because of the other, and the lowest such key holding a file keeps it. So the phone
+  keeps the last known copy, and a disguised phone with the lowest key does not keep voices that
+  teammates with the row on hold. It runs when the row is turned off,
   in each session at step 8, before this phone's own entry goes, so that the final summaries
   already count it, and at the end of each sync, not only when space is short. Holdings can be out of date, and an owner's own entry
   can be false (section 5.11), so a copy believed safe may not be. That is accepted on a phone
@@ -1182,7 +1183,7 @@ route, a QR code or a native callback, such as `idSalt`, a discovery key, a salt
 | core | `nearby.ts` | The barrel behind `@langquest-next/core/nearby` (`packages/core/package.json`), for every `nearby*` file here. Absent from `index.ts`: Metro does not shake an entry's unused modules out of the web bundle. |
 | core | `libraryInUse.ts` | In phase 6, `STARTING_COPY_FORMATS`, `mayGoInStartingCopy`, `docsThisLanguageNames`, `docsThisLanguageUses` (Documents a language uses, below). |
 | core | `passageLines.ts` | `isOpenForReview`, `openForReviewOf`. |
-| core | `blobs.ts` | `nearbyEvictableOf`, `nearbyShedOf`, `backupsConfirmedOf`, and a third argument to `lostFilesOf`, here because `forScope` is private to this file. In phase 4, `filesNamedBy`. |
+| core | `blobs.ts` | A third argument to `lostFilesOf`, and `forScope` exported. `nearbyEvictableOf`, `nearbyShedOf` and `backupsConfirmedOf` are in `nearbyHoldings.ts`, behind the nearby entry, since they take marks and no plan. In phase 4, `filesNamedBy`. |
 | sync | `nearbyLink.ts` | `NearbyLink`, `NearbyRadio`, `NEARBY_MESSAGE_MAX`. |
 | sync | `nearbyWire.ts` | The messages below, `encodeMessage`, `parseMessage`. |
 | sync | `nearbySession.ts` | `NearbySession`. Link, `NearbyCrypto`, door lookup and file moves are constructor arguments, plus a narrow port onto `SyncClient`. It holds no store handle for writes. |
@@ -1191,7 +1192,7 @@ route, a QR code or a native callback, such as `idSalt`, a discovery key, a salt
 | sync | `nearbyClient.ts` | `nearbyClient(platform)`, `NearbyPort`: signing, receiving, the sender's reads, the door again, attesting, the sweep and settling batches, through a narrow port onto `SyncClient`'s private state. A client takes it as its `nearby` argument, which only the Android app passes. |
 | sync | `syncClient.ts` | What every client needs: the checkpoint gates, `requeue` leaving out rows with `via`, the pull's comparison and refold, `inspect().nearby`, and one-line calls handing on to `nearbyClient.ts`. Everything here is in the web bundle. |
 | sync | `types.ts`, `sqliteStore.ts`, `memoryStore.ts` | The store below, on both stores. |
-| sync | `fileLedger.ts`, `languageFiles.ts`, `languageSession.ts` | Marks, the wanted list, `serves`, `mayUpload`, `holdChoice`, the third worker with a `fetchFile` argument beside today's `upload` and `download`, the multi-list `reclaim`, shedding and a confirmed backup going. |
+| sync | `languageFiles.ts`, `languageSession.ts`, `nearbyMarks.ts`, `nearbyFiles.ts` | `holdChoice`, `mayUpload`, `fetchFile` and `nearbyFiles` on `LanguageSession`, own-file counts and `holding`, the multi-list `reclaim`. Behind the nearby entry: the marks (a `nearby_files` table in the ledger's database) and `nearbyFiles(platform)`, which holds the wanted list, serving, the third worker, level 2, shedding and a confirmed backup going. |
 | sync | `testing/memoryNearbyLink.ts`, `testing/fleet/nearby.ts` | `memoryNearbyPair`, `fakeSigner`, and the fleet's time and link for the room. |
 | app | `modules/nearby-link/` | Native (section 5.9). `src/wire.ts` and `test-vectors.json` hold the id, mask, frame and pipe formats, and both vitest and JUnit read them. |
 | app | `src/nearby/` | `nearbyLink.ts` and `nearbyLink.android.ts` (the binding, sign, verify, `@noble/curves`), `useNearby.ts`, `useNearbyIdentity.ts` and `.android`, `nearbyModel.ts`, `nearbyPermissionsModel.ts`, `NearbyRow.tsx` and `.android`, and in phase 6 `useFirstContact.ts`. `src/shell/useAppCovered.ts` and `.android`, `src/shell/NearbyCoverNotes.tsx` and `.android`, the disguised phone's words in `src/disguise/i18n`. |
@@ -1312,7 +1313,7 @@ type Message =
       vector: Record<string, { mark: number; ahead: [number, number][] }>; // by install key
       holdings: Record<string, number> /* counters, by install key */ }
   | { t: 'revoked'; text: string; kid: string; sig: string } // the Worker's list, sent only when the other's seq is lower
-  | { t: 'holdings'; key: string; counter: number; files: string[]; more: boolean; sig?: string; chain?: ChainLink[] } // at most 8,000 hashes a message; sig and chain on the last part
+  | { t: 'holdings'; key: string; counter: number; files: string[]; more: boolean; hold?: boolean; sig?: string; chain?: ChainLink[] } // at most 8,000 hashes a message; hold, sig and chain on the last part
   | { t: 'holdings-end' }
   | { t: 'batch'; manifest: string; sig: string; chain: ChainLink[]; events: AnyEvent[] }
   | { t: 'claims'; text: string; kid: string; sig: string; events: AnyEvent[] } // the Worker's attestation; events may be a subset of its rows
@@ -1448,7 +1449,7 @@ synchronous and already a dependency of `apps/mobile`, and on the Worker it is
 | Batch | `lq-nearby-batch-v1\n` | The `manifest` string below | The author's install key |
 | Attestation | `lq-nearby-attest-v1\n` | The `text` string: `canonicalJson({ v: 1, kid, orgId, streamId, rows: [[id, digest, serverSeq], ...] })`, at most 200 rows, with no expiry. A golden vector holds the Worker's digest equal to a pulled row's, including an absent parent. | The Worker, over rows it read itself |
 | Revocation list | `lq-nearby-revoked-v1\n` | The `text` string: `canonicalJson({ v: 1, kid, orgId, seq, keys: [[publicKey, profileId, revokedAtMs], ...] })` | The Worker |
-| Holdings entry | `lq-nearby-holdings-v1\n` | `canonicalJson({ v: 1, orgId, streamId, key, counter, filesHash })`, `filesHash` being the lowercase hex SHA-256 of `utf8Encode(canonicalJson(files))`, files sorted, which the receiver works out itself | The owner's install key |
+| Holdings entry | `lq-nearby-holdings-v2\n` | `canonicalJson({ v: 2, orgId, streamId, key, counter, filesHash, hold })`, `hold` true when the owner's "Hold teammates' recordings" row is on, `filesHash` being the lowercase hex SHA-256 of `utf8Encode(canonicalJson(files))`, files sorted, which the receiver works out itself | The owner's install key |
 | Newcomer's id | `lq-nearby-newcomer-v1\n` | The 32 decoded key bytes, then the 16 `idSalt` bytes (section 5.12, Chains) | Hashed, not signed |
 | Session proof | `lq-nearby-proof-v1\n` | `<i or r>\n<hex of th>` | The sender's install key |
 | Chain link | `lq-nearby-link-v1\n` | `canonicalJson({ kind, kid, body, prev })`, `prev` being the link before's `sig`, or `''`. An `invite@1` link has no `kid`, which canonicalizes as absent. | The Worker, or the key the link before names |
@@ -1971,11 +1972,11 @@ vector holds SQL and core equal (`scripts/record-parity-sql.ts`).
 **Holdings and the summary.** `packages/core/src/nearbyHoldings.ts`.
 
 ```ts
-type Holdings = ReadonlyMap<string /* install key */, { counter: number; files: readonly string[]; sig: string; chain: ChainLink[] }>; // sorted, unconfirmed hashes only
+type Holdings = ReadonlyMap<string /* install key */, { counter: number; files: readonly string[]; hold: boolean; sig: string; chain: ChainLink[] }>; // sorted, unconfirmed hashes only; hold: the owner's row is on
 ```
 
-- Only the owner changes its own entry, and it signs what it sets. `withMyHolding` bumps the
-  counter only when the set changed, and never jumps on a number it heard. A restored phone
+- Only the owner changes its own entry, and it signs what it sets, `hold` included. `withMyHolding`
+  bumps the counter only when the set or `hold` changed, and never jumps on a number it heard. A restored phone
   has a new key, so it has a new entry. Nobody else prunes an entry, or two phones would hold
   different lists under one counter.
 - A receiver works out `filesHash` itself after the last `more` part, and verifies the entry
@@ -1987,7 +1988,7 @@ type Holdings = ReadonlyMap<string /* install key */, { counter: number; files: 
 - `mergeHoldings` skips this phone's own key, and takes the higher counter wholesale per
   key, so a phone can retract a file. A tie with different files, which only a restored or
   lying owner makes, goes to the lower `canonicalJson(files)`, so merging is commutative,
-  associative and idempotent.
+  associative and idempotent. A tie on files goes to `hold` false, then as before.
 - `copiesOf(holdings)` gives hash to the number of distinct certified people holding it,
   by the first link's `profileId`. One person's many keys add one copy, so inventing
   devices cannot make a last copy look safe to delete. Counting a person with two phones,
@@ -2018,7 +2019,7 @@ interface WantedFacts { // what the store query in section 5.6 and the session g
 }
 function wantedFilesOf(facts: WantedFacts, choice: HoldChoice): WantedFile[]; // no default, so each caller and test says which it means
 function nearbyShedOf(marks: NearbyMark[], wanted: ReadonlySet<string>, holdings: Holdings, me: { key: string; signedIn: string },
-  stored: (hash: string) => boolean): string[]; // called only with hold false
+  stored: (hash: string) => boolean): string[]; // called only with hold false; another person's entry counts when its hold is true or its key sorts below me.key
 function backupsConfirmedOf(marks: NearbyMark[], verdict: (hash: string) => { stored: boolean; size: number } | undefined,
   localSizes: ReadonlyMap<string, number>): string[]; // called on every phone, at the end of each sync
 ```
@@ -2234,6 +2235,23 @@ these; they say where the code differs from the text or what the text left out.
   (decision 208).
 - A nearby undo of an unbound target holds its slot until delivery settles it.
   Section 5.7's prose says "the sweep or delivery"; the table there stands as written.
+
+**What building phase 3's steps 1 and 2 found** (2026-11-07).
+
+- A holdings entry carries a signed `hold`, the owner's row, and its text is version 2 with a
+  new prefix. Without it the tie-break made a phone with the row off and the lowest key keep every
+  file, even those teammates with the row on hold. The wire was free to change, since no store
+  build has signed version 1.
+- The marks, level 2, shedding, the wanted list and the third worker sit behind the nearby
+  entries (`nearbyMarks.ts`, `nearbyFiles.ts`, `nearbyHoldings.ts`), not in `fileLedger.ts` and
+  `blobs.ts`, because the web bundle had no room: every client carries only `LanguageSession`'s
+  options, the own-file counts and `holding`, and the multi-list `reclaim`.
+- The third worker is per language session. `NearbySession` hands its file step to it through
+  `NearbyFileMoves.take` when given one, and fetches one by one itself otherwise (the fleet).
+- `mayUpload` leaves only teammates' files off the upload list. Leaving a person's own off as
+  well would bring their sign-out count to zero while their recordings sat unsent.
+- A choice not known yet asks as the row off would, five passages of review, and sheds nothing.
+  A phone that cannot read holdings counts no copies and sheds only what the server has.
 
 ## 6. The delivery phase
 
