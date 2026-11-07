@@ -46,7 +46,7 @@ import {
   type NearbyBatchPage, type NearbyClaimsPage, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbyRefusal, type NearbySigned, type NearbySigner
 } from './nearbyIntake';
 import { batchPageOf, nextClaimsOf, signBatch } from './nearbySender';
-import { attestNearby, isServerVerdict, settleBatches, sweepNearby, type NearbyHost, type NearbyPlatform } from './nearbyUpkeep';
+import { attestNearby, isServerVerdict, replaceBareManifest, settleBatches, sweepNearby, type NearbyHost, type NearbyPlatform } from './nearbyUpkeep';
 import { WriteQueue } from './writeQueue';
 import { ClientTooOldError, EventTooLargeError, NotAuthorizedError, OfflineError, UnrenewedError, NOT_LISTED_TEXT, rejectCodeOf, type RejectCode } from './types';
 import { downloadPieces, fetchSnapshot } from './snapshotFetch';
@@ -2086,11 +2086,13 @@ export class SyncClient<S = LanguageState> {
       const ownCount = key === intake.ownKey ? await this.nearbyNumber(this.nearbyKey('nearbyCount', key)) : null;
       const isNewest = held.every((b) => b.n <= n);
       const firstHlc = door.rows.reduce<string | null>((low, { event: e }) => (low === null || e.hlc < low ? e.hlc : low), null);
+      const bare = folded.rows.length === 0 && isNewest ? await replaceBareManifest(this.nearbyHost, key, n) : {};
       await this.commitNearby({
         receive: folded.rows,
         events: folded.rejected,
         ...(folded.rows.length > 0 || isNewest ? { batches: [{ orgId, streamId, key, n, deviceId: manifest.deviceId, actorId: manifest.actorId, firstHlc, manifest: page.manifest, sig: page.sig, chain: JSON.stringify(page.chain) }] } : {}),
-        meta: { ...this.clockMeta(), ...this.vectorMeta(vector), ...(ownCount !== null && ownCount < n ? { [this.nearbyKey('nearbyCount', key)]: String(n) } : {}) }
+        ...bare,
+        meta: { ...this.clockMeta(), ...this.vectorMeta(vector), ...(ownCount !== null && ownCount < n ? { [this.nearbyKey('nearbyCount', key)]: String(n) } : {}), ...bare.meta }
       }, folded);
       return { outcome: 'taken' as const, kept: folded.rows.length, refused: [...checked.refused, ...door.refused], counted, ...(folded.farAhead ? { farAhead: folded.farAhead } : {}) };
     });

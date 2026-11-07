@@ -238,6 +238,25 @@ export async function attestNearby(up: NearbyHost): Promise<void> {
 // ---- manifests ------------------------------------------------------------------
 
 /**
+ * A manifest kept with no row here only because it is its signer's newest. Each such one
+ * replaces the signer's last, so a member signing empty manifests one number at a time
+ * holds one row on this phone, whatever the budget counts. A manifest with a row under it
+ * stays, and the first signature for that number with it.
+ */
+export async function replaceBareManifest(up: NearbyHost, key: string, n: number): Promise<Pick<WriteBatch, 'dropBatches' | 'meta'>> {
+  const { store, orgId, streamId } = up;
+  const pointer = up.key('nearbyBare', key);
+  const meta = { [pointer]: String(n) };
+  const last = await up.number(pointer);
+  if (last === 0 || last >= n) return { meta };
+  const [row] = await store.batchesAfter(orgId, streamId, key, last - 1, 1);
+  if (row?.n !== last) return { meta };
+  const ids = parseBatchManifest(row.manifest, { orgId, streamId })?.events.map(([id]) => id) ?? [];
+  const speaks = (await store.getMany(ids)).some(({ via }) => via && 'batch' in via && via.key === key && via.batch === last);
+  return speaks ? { meta } : { meta, dropBatches: { orgId, streamId, keys: [{ key, n: last }] } };
+}
+
+/**
  * The end of a sync, on a phone holding any manifest. A batch goes when no row that is
  * pending, nearby or refused still speaks under it, since Try again can return a refused
  * row to `nearby`. Each signer's newest stays, so its floor travels on. This key's floor

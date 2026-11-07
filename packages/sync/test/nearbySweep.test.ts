@@ -763,6 +763,100 @@ describe.each(STORES)('the sweep on the %s store', (_name, make) => {
     });
   });
 
+  describe('a flood of manifests with no rows', () => {
+    let sam: Teammate;
+    let ana: Teammate;
+    let mine: Teammate;
+    let store: EventStore;
+    let server: FakeServer;
+
+    beforeEach(async () => {
+      sam = await teammate('sam');
+      ana = await teammate('ana');
+      mine = await teammate('me');
+      store = make();
+      server = new FakeServer();
+    });
+
+    async function myPhone() {
+      const client = phone(server, store, mine);
+      await client.load();
+      return client;
+    }
+    const heldOf = async (who: Teammate) => (await store.batchKeys(ORG, LANG)).filter((b) => b.key === who.key).map((b) => b.n);
+
+    it('holds one row per signer however many a member signs, with the newest kept and each number counted', async () => {
+      const client = await myPhone();
+      for (let n = 1; n <= 30; n++) expect(await client.receiveNearby(await pageOf(sam, n, [], { floor: n - 1 }), intakeFor())).toMatchObject({ outcome: 'taken', counted: true });
+      await client.receiveNearby(await pageOf(ana, 1, []), intakeFor());
+      expect(await heldOf(sam)).toEqual([30]);
+      expect(await heldOf(ana)).toEqual([1]);
+      const sent = await client.nearbyBatchPage(sam.key, 30);
+      expect(sent?.manifest).toContain('"floor":29');
+      expect((await vectorOf(client)).get(sam.key)).toEqual({ mark: 30, ahead: [] });
+    });
+
+    it('holds for numbers left open too: manifests naming ids that never come', async () => {
+      const client = await myPhone();
+      for (let n = 1; n <= 30; n++) {
+        const named = recordingBy(sam, `never-${n}`);
+        expect(await client.receiveNearby(await pageOf(sam, n, [named], { carrying: [] }), intakeFor())).toMatchObject({ outcome: 'taken', counted: false });
+      }
+      expect(await heldOf(sam)).toEqual([30]);
+      // None closed: each stays open, so the work can still come.
+      expect((await vectorOf(client)).get(sam.key)).toBeUndefined();
+    });
+
+    it('carries on over a restart', async () => {
+      const client = await myPhone();
+      await client.receiveNearby(await pageOf(sam, 1, []), intakeFor());
+      const again = await myPhone();
+      await again.receiveNearby(await pageOf(sam, 2, []), intakeFor());
+      expect(await heldOf(sam)).toEqual([2]);
+    });
+
+    it('a manifest with a row under it stays, and its first signature with it', async () => {
+      const client = await myPhone();
+      const [a, b] = [recordingBy(sam, 'r1'), recordingBy(sam, 'r2')];
+      await client.receiveNearby(await pageOf(sam, 1, [a, b], { carrying: [a] }), intakeFor());
+      for (let n = 2; n <= 5; n++) await client.receiveNearby(await pageOf(sam, n, []), intakeFor());
+      expect(await heldOf(sam)).toEqual([1, 5]);
+
+      const other = recordingBy(sam, 'other');
+      expect(await client.receiveNearby(await pageOf(sam, 1, [a, other]), intakeFor())).toMatchObject({ outcome: 'dropped', reason: 'another manifest holds this number' });
+      expect(await client.receiveNearby(await pageOf(sam, 1, [a, b]), intakeFor())).toMatchObject({ outcome: 'taken', counted: true });
+    });
+
+    it('a manifest that had no row when it came, and has one now, is not replaced', async () => {
+      const client = await myPhone();
+      const a = recordingBy(sam, 'r1');
+      await client.receiveNearby(await pageOf(sam, 1, [a], { carrying: [] }), intakeFor());
+      expect(await heldOf(sam)).toEqual([1]);
+      await client.receiveNearby(await pageOf(sam, 1, [a]), intakeFor());
+      await client.receiveNearby(await pageOf(sam, 2, []), intakeFor());
+      await client.receiveNearby(await pageOf(sam, 3, []), intakeFor());
+      expect(await heldOf(sam)).toEqual([1, 3]);
+    });
+
+    it('a number replaced while open can still bring its rows, and they stay', async () => {
+      const client = await myPhone();
+      const a = recordingBy(sam, 'r1');
+      await client.receiveNearby(await pageOf(sam, 1, [a], { carrying: [] }), intakeFor());
+      await client.receiveNearby(await pageOf(sam, 2, []), intakeFor());
+      expect(await heldOf(sam)).toEqual([2]);
+      expect(await client.receiveNearby(await pageOf(sam, 1, [a]), intakeFor())).toMatchObject({ kept: 1, counted: true });
+      expect(await heldOf(sam)).toEqual([1, 2]);
+    });
+
+    it('one older than the newest is not kept and moves nothing', async () => {
+      const client = await myPhone();
+      await client.receiveNearby(await pageOf(sam, 5, []), intakeFor());
+      await client.receiveNearby(await pageOf(sam, 3, []), intakeFor());
+      expect(await heldOf(sam)).toEqual([5]);
+      await client.receiveNearby(await pageOf(sam, 6, []), intakeFor());
+      expect(await heldOf(sam)).toEqual([6]);
+    });
+  });
 });
 
 describe('the lists that wrap a transport', () => {
