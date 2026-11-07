@@ -1,4 +1,4 @@
-import { audioFormatsFor, defaultOfflineScope, deriveDownloadWork, deriveMissingBlobs, deriveUploadWork, evictableBlobs, isStored, lostFilesView, offlineByUnit, offlineSummary, referencedBlobs, unitOffline } from '../src/blobs';
+import { audioFormatsFor, nearbyGroupOf, wantedFilesOf, type HoldChoice, type WantedFacts, defaultOfflineScope, deriveDownloadWork, deriveMissingBlobs, deriveUploadWork, evictableBlobs, isStored, lostFilesView, offlineByUnit, offlineSummary, referencedBlobs, unitOffline } from '../src/blobs';
 import type { AnyEvent, EventPayloads, EventType } from '../src/events';
 import { applyLanguageEvent, foldLanguage } from '../src/reducer';
 import { emptyLanguageState } from '../src/state';
@@ -254,5 +254,104 @@ describe('files a phone lost behind the app\'s back (decisions.md 92)', () => {
     expect(lostFilesView(state, ['c1', 'c2', 'sha256:ov1', 'someone-elses'])).toEqual({ safe: 1, unsent: 2, unitIds: ['luke1'] });
     expect(lostFilesView(state, ['c1'])).toEqual({ safe: 1, unsent: 0, unitIds: [] });
     expect(lostFilesView(state, [])).toEqual({ safe: 0, unsent: 0, unitIds: [] });
+  });
+});
+
+describe('what a phone asks a nearby teammate for', () => {
+  const HOLD: HoldChoice = { hold: true };
+  const ref = (hash: string, confirmed = false, format = 'wav') => ({ hash, format, confirmed });
+  const facts = (over: Partial<WantedFacts> = {}): WantedFacts => ({ refs: [], offlineScope: new Set(), reviewOrder: [], copies: new Map(), planOrder: [], ...over });
+  const hashes = (f: WantedFacts, choice: HoldChoice) => wantedFilesOf(f, choice).map((w) => w.hash);
+
+  it('asks for needed files, then those open for review, then backups', () => {
+    const f = facts({ refs: [ref('backup'), ref('review'), ref('needed')], offlineScope: new Set(['needed']), reviewOrder: [['review']] });
+    expect(wantedFilesOf(f, HOLD)).toEqual([
+      { hash: 'needed', format: 'wav', group: 'needed' }, { hash: 'review', format: 'wav', group: 'review' }, { hash: 'backup', format: 'wav', group: 'backup' }
+    ]);
+  });
+
+  it('a file the server has moves only if it is needed or open for review', () => {
+    const f = facts({ refs: [ref('a', true), ref('b', true), ref('c', true)], offlineScope: new Set(['a']), reviewOrder: [['b']] });
+    expect(hashes(f, HOLD)).toEqual(['a', 'b']);
+  });
+
+  it('a file both needed and open for review is needed, and a repeat is asked for once', () => {
+    const f = facts({ refs: [ref('a'), ref('a')], offlineScope: new Set(['a']), reviewOrder: [['a']] });
+    expect(wantedFilesOf(f, HOLD)).toEqual([{ hash: 'a', format: 'wav', group: 'needed' }]);
+  });
+
+  it('asks for nothing no reference names, since it would not know the format', () => {
+    expect(hashes(facts({ offlineScope: new Set(['a']), reviewOrder: [['b']] }), HOLD)).toEqual([]);
+  });
+
+  it('someone who cannot review has no review group, and those files are backups', () => {
+    const f = facts({ refs: [ref('a'), ref('b', true)], reviewOrder: null });
+    expect(wantedFilesOf(f, HOLD)).toEqual([{ hash: 'a', format: 'wav', group: 'backup' }]);
+  });
+
+  it('needed goes by the plan, review by the order the app offers, backups by fewest copies and then the plan', () => {
+    const f = facts({
+      refs: [ref('n2'), ref('n1'), ref('r2'), ref('r1'), ref('r3'), ref('b1'), ref('b2'), ref('b3'), ref('b4')],
+      offlineScope: new Set(['n1', 'n2']), reviewOrder: [['r1', 'r3'], ['r2']],
+      copies: new Map([['b1', 2], ['b2', 1], ['b3', 1]]), planOrder: ['n1', 'n2', 'b3', 'b2', 'b1', 'b4']
+    });
+    expect(hashes(f, HOLD)).toEqual(['n1', 'n2', 'r1', 'r3', 'r2', 'b4', 'b3', 'b2', 'b1']);
+  });
+
+  it('files outside the plan go after those in it, by hash', () => {
+    const f = facts({ refs: [ref('z'), ref('y'), ref('m')], planOrder: ['m'] });
+    expect(hashes(f, HOLD)).toEqual(['m', 'y', 'z']);
+    expect(hashes({ ...f, planOrder: ['m', 'm'] }, HOLD)).toEqual(['m', 'y', 'z']);
+  });
+
+  it('with the row off it takes needed files and a window of review, in that order, and no backups', () => {
+    const f = facts({ refs: [ref('n'), ref('r1'), ref('r2'), ref('r3'), ref('b')], offlineScope: new Set(['n']), reviewOrder: [['r1'], ['r2'], ['r3']] });
+    expect(hashes(f, { hold: false, reviewWindow: 2 })).toEqual(['n', 'r1', 'r2']);
+    expect(hashes(f, { hold: false, reviewWindow: 0 })).toEqual(['n']);
+    expect(hashes(f, { hold: false, reviewWindow: 99 })).toEqual(['n', 'r1', 'r2', 'r3']);
+    expect(hashes(f, { hold: false, reviewWindow: -1 })).toEqual(['n']);
+    expect(hashes(f, { hold: false, reviewWindow: NaN })).toEqual(['n']);
+  });
+
+  it('with the row off a file past the window is not wanted, even when the server has none of it', () => {
+    const f = facts({ refs: [ref('r1', true), ref('r2')], reviewOrder: [['r1'], ['r2']] });
+    expect(hashes(f, { hold: false, reviewWindow: 1 })).toEqual(['r1']);
+    expect(hashes({ ...f, reviewOrder: null }, { hold: false, reviewWindow: 1 })).toEqual([]);
+  });
+
+  it('gives one order whatever order the references come in', () => {
+    const refs = ['a', 'b', 'c', 'd', 'e', 'f'].map((h, i) => ref(h, i % 3 === 0));
+    const f = facts({ refs, offlineScope: new Set(['a', 'b']), reviewOrder: [['c'], ['d']], copies: new Map([['e', 2], ['f', 2]]), planOrder: ['f', 'e', 'b', 'a'] });
+    const first = wantedFilesOf(f, HOLD);
+    for (let turn = 1; turn < refs.length; turn++) {
+      expect(wantedFilesOf({ ...f, refs: [...refs.slice(turn), ...refs.slice(0, turn)] }, HOLD)).toEqual(first);
+    }
+  });
+
+  it('an aside file still counts: the walk is over references, not a passage\'s files', () => {
+    const state = foldLanguage(events(), emptyLanguageState());
+    const refs = [...referencedBlobs(state).values()].map((r) => ({ hash: r.hash, format: r.format, confirmed: isStored(state, r.hash) }));
+    const unconfirmed = refs.filter((r) => !r.confirmed).map((r) => r.hash).sort();
+    expect(unconfirmed.length).toBeGreaterThan(0);
+    expect(hashes(facts({ refs }), HOLD).sort()).toEqual(unconfirmed);
+    expect(hashes(facts({ refs }), { hold: false, reviewWindow: 5 })).toEqual([]);
+  });
+});
+
+describe('why a nearby file is kept', () => {
+  const sets = { named: new Set(['needed', 'review', 'both', 'backup']), offlineScope: new Set(['needed', 'both']), review: new Set(['review', 'both']) };
+
+  it('says so from what is true now, and a file no reference names goes first', () => {
+    expect(nearbyGroupOf('needed', sets)).toBe('needed');
+    expect(nearbyGroupOf('both', sets)).toBe('needed');
+    expect(nearbyGroupOf('review', sets)).toBe('review');
+    expect(nearbyGroupOf('backup', sets)).toBe('backup');
+    expect(nearbyGroupOf('gone', sets)).toBe('unnamed');
+    expect(nearbyGroupOf('gone', { ...sets, offlineScope: new Set(['gone']) })).toBe('unnamed');
+  });
+
+  it('moves as the work moves: a backup asked of this person becomes needed, and a checked file a backup', () => {
+    expect(nearbyGroupOf('backup', { ...sets, offlineScope: new Set(['backup']) })).toBe('needed');
+    expect(nearbyGroupOf('review', { ...sets, review: new Set() })).toBe('backup');
   });
 });

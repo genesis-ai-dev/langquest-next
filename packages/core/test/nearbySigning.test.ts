@@ -27,7 +27,8 @@ describe('the texts phones sign, as golden vectors', () => {
     const pulled = { ...v.EVENT_NO_PARENT, serverSeq: 77 } as AnyEvent;
     const withNull = { ...v.EVENT_NO_PARENT, parentEventId: null } as unknown as AnyEvent;
     const withUndefined = { ...v.EVENT_NO_PARENT, parentEventId: undefined } as unknown as AnyEvent;
-    for (const row of [pulled, withNull, withUndefined]) expect(await eventDigest(row, sha256)).toBe(v.EVENT_NO_PARENT_DIGEST);
+    const withEmpty = { ...v.EVENT_NO_PARENT, parentEventId: '' } as AnyEvent;
+    for (const row of [pulled, withNull, withUndefined, withEmpty]) expect(await eventDigest(row, sha256)).toBe(v.EVENT_NO_PARENT_DIGEST);
   });
 
   it('a manifest is signed as text with plain Ed25519, and a signature for one purpose fails for another', () => {

@@ -136,6 +136,13 @@ describe('every list is capped', () => {
     malformed({ ...page(0), chain: [5] });
   });
 
+  it('the depth of a link, since checking one recurses', () => {
+    let deep: unknown = 1;
+    for (let i = 0; i < 40; i++) deep = { deep };
+    malformed({ t: 'batch', manifest: '{}', sig: SIG, chain: [{ deep }], events: [] });
+    malformed({ t: 'holdings', key: KEY, counter: 1, files: [], more: false, sig: SIG, chain: [{ deep }] });
+  });
+
   it('hashes in a holdings message', () => {
     const part = (n: number) => ({ t: 'holdings', key: KEY, counter: 1, more: true, files: Array.from({ length: n }, () => HASH) });
     expect(parse(part(NEARBY_HOLDINGS_MESSAGE_FILES)).kind).toBe('message');

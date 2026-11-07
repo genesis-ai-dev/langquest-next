@@ -1,4 +1,8 @@
+import type { AnyEvent } from './events';
+import { NEARBY_NOT_CARRIED, nearbyCopy } from './nearbyDoor';
 import { isBase64url } from './nearbySigning';
+import { EVENT_PRIVILEGE, ORG_EVENT_TYPES } from './org';
+import { isServerEventId } from './validate';
 
 /**
  * What one phone counts as received from each signer (docs/nearby-sync-plan.md
@@ -58,4 +62,78 @@ export function parseVector(raw: unknown, opts: { maxRanges: number; maxKeys?: n
     out.set(key, entry);
   }
   return out;
+}
+
+/** Everything at or below `mark`, or in a range above it? */
+export function isCounted(vector: NearbyVector, key: string, n: number): boolean {
+  const entry = vector.get(key);
+  return !!entry && (n <= entry.mark || entry.ahead.some(([from, to]) => from <= n && n <= to));
+}
+
+/** An entry in one form only: ranges in order with no two touching, and none touching the mark. Two phones that counted the same numbers then write the same text. */
+function settled(start: number, ranges: readonly (readonly [number, number])[]): NearbyVectorEntry {
+  let mark = start;
+  const ahead: [number, number][] = [];
+  for (const [from, to] of [...ranges].sort((a, b) => a[0] - b[0])) {
+    const last = ahead[ahead.length - 1];
+    if (from <= mark + 1) mark = Math.max(mark, to);
+    else if (last && from <= last[1] + 1) last[1] = Math.max(last[1], to);
+    else ahead.push([from, to]);
+  }
+  return { mark, ahead };
+}
+
+const withEntry = (vector: NearbyVector, key: string, entry: NearbyVectorEntry): NearbyVector => new Map(vector).set(key, entry);
+
+/**
+ * Records a whole batch's number. Past the cap on ranges it records no number that
+ * neither fills nor extends one, so a hostile sender can fragment the list but
+ * cannot force a gap closed, and under-recording costs only a re-send.
+ */
+export function countBatch(vector: NearbyVector, key: string, n: number, opts: { maxRanges: number }): NearbyVector {
+  if (!Number.isSafeInteger(n) || n < 1 || isCounted(vector, key, n)) return vector;
+  const { mark, ahead } = vector.get(key) ?? { mark: 0, ahead: [] };
+  const touches = n === mark + 1 || ahead.some(([from, to]) => n === from - 1 || n === to + 1);
+  if (!touches && ahead.length >= opts.maxRanges) return vector;
+  return withEntry(vector, key, settled(mark, [...ahead, [n, n]]));
+}
+
+/** A signer's own word that nothing of its at or below `floor` is still unsent on its phone. It can hurt only its own entry. */
+export function applyFloor(vector: NearbyVector, key: string, floor: number): NearbyVector {
+  const { mark, ahead } = vector.get(key) ?? { mark: 0, ahead: [] };
+  if (!Number.isSafeInteger(floor) || floor <= mark) return vector;
+  return withEntry(vector, key, settled(floor, ahead));
+}
+
+/** A row as the store gives it. `status` is a plain string here until `LocalEventStatus` holds 'nearby'. */
+export interface NearbyRow {
+  event: AnyEvent;
+  status: string;
+  via?: NearbyVia;
+}
+
+/**
+ * The rows that go with one signed batch, stripped for the wire. A confirmed row
+ * goes by claim instead, and a restamped one has left the batch by losing its `via`.
+ */
+export function batchRowsToSend(rows: readonly NearbyRow[], batch: { key: string; n: number }, isRedacted: (id: string) => boolean): AnyEvent[] {
+  return rows
+    .filter(({ event, status, via }) =>
+      (status === 'pending' || status === 'nearby') && !!via && 'batch' in via && via.batch === batch.n && via.key === batch.key &&
+      !isRedacted(event.id) && !NEARBY_NOT_CARRIED.includes(event.type))
+    .map(({ event }) => nearbyCopy(event));
+}
+
+/**
+ * Should this row go to a teammate by claim? Only what the server confirmed, past
+ * what they have been told of, and only up to what the Worker has vouched for in
+ * order, so a failed page cannot push their mark past rows they never got.
+ */
+export function shouldClaim(row: NearbyRow, them: { cursor: number; claimedSeq: number }, here: { attestedSeq: number; isRedacted: (id: string) => boolean }): boolean {
+  const { event, status } = row;
+  if (status !== 'confirmed' || event.serverSeq === undefined) return false;
+  if (event.serverSeq <= Math.max(them.cursor, them.claimedSeq) || event.serverSeq > here.attestedSeq) return false;
+  if (isServerEventId(event.id) || EVENT_PRIVILEGE[event.type] === null) return false;
+  if (NEARBY_NOT_CARRIED.includes(event.type) || (ORG_EVENT_TYPES as readonly string[]).includes(event.type)) return false;
+  return !here.isRedacted(event.id);
 }

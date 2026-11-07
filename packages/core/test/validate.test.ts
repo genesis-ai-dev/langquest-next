@@ -1,5 +1,5 @@
 import fc from 'fast-check';
-import { NEARBY_MAX_DEPTH, nearbyPayloadError, utf8Encode, validateEvent } from '../src/validate';
+import { NEARBY_MAX_DEPTH, idAuthor, isServerEventId, nearbyPayloadError, utf8Encode, validateEvent } from '../src/validate';
 import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture } from './fixtures';
 
 describe('validateEvent guards the append-only log', () => {
@@ -100,5 +100,52 @@ describe('nearbyPayloadError', () => {
       expect(nearbyPayloadError(bad)).toMatch(/finite/);
       expect(nearbyPayloadError({ a: [bad] })).toMatch(/finite/);
     }
+  });
+});
+
+describe('isServerEventId', () => {
+  it('reads the ids only a server makes, and near misses as what they are', () => {
+    for (const id of ['invite:1', 'invitemember:x', 'inviteredeem:x', 'invitecheck:x', 'joindecided:x', 'joinmember:x', 'removed:x', 'accountdeleted:x', 'blob:x', 'blobinvalid:x', 'pin:x', 'seed:x', 'timings:x', 'v2:x', 'api-1', 'api-']) {
+      expect(isServerEventId(id), id).toBe(true);
+    }
+    for (const id of ['e1', '', 'invite', 'invites:1', 'xinvite:1', ' invite:1', 'INVITE:1', 'api', 'api:1', 'by:a:b:0', 'take:by:a:b']) expect(isServerEventId(id), id).toBe(false);
+  });
+});
+
+describe('idAuthor', () => {
+  it('reads the author of an event id and of what a command makes', () => {
+    for (const id of ['by:sam:r:0', 'by:sam:r:take:1', 'take:by:sam:r', 'take:by:sam:r:take', 'review:by:sam:r:0', 'note:by:sam:r', 'req:by:sam:r', 'dep:by:sam:r', 'rendering:by:sam:r', 'adjustment:by:sam:r']) {
+      expect(idAuthor(id), id).toBe('sam');
+    }
+    expect(idAuthor('by:11111111-1111-4111-8111-111111111111:r:0')).toBe('11111111-1111-4111-8111-111111111111');
+  });
+
+  it('reads entity keys, with the term of a key term left out, because it is shared by design', () => {
+    for (const key of ['take:take:by:sam:r', 'review:review:by:sam:r', 'departure:dep:by:sam:r', 'request:req:by:sam:r', 'note:note:by:sam:r', 'response:take:by:sam:r', 'recording:by:sam:r']) {
+      expect(idAuthor(key), key).toBe('sam');
+    }
+    expect(idAuthor('rendering:T/rendering:by:sam:r')).toBe('sam');
+    expect(idAuthor('adjustment:T/adjustment:by:sam:r')).toBe('sam');
+    expect(idAuthor('rendering:by:carla:term/rendering:by:sam:r')).toBe('sam');
+    expect(idAuthor('rendering:by:carla:term/old-id')).toBeNull();
+    expect(idAuthor('adjustment:by:carla:term/old-id')).toBeNull();
+  });
+
+  it('reads the first author, even with another further on', () => {
+    expect(idAuthor('by:sam:by:carla:0')).toBe('sam');
+    expect(idAuthor('take:by:sam:by:carla:0')).toBe('sam');
+  });
+
+  it('gives null for any other id, so it behaves as today', () => {
+    for (const id of ['', 'e1', 'uuid:0', '11111111-1111-4111-8111-111111111111:0', 'take:uuid', 'by:', 'by:sam', 'by::r', 'BY:sam:r', 'Take:by:sam:r', '1:by:sam:r', 'xby:sam:r', ' by:sam:r', 'audioformat:abc', 'x-by:sam:r']) {
+      expect(idAuthor(id), id).toBeNull();
+    }
+  });
+
+  it('never throws', () => {
+    fc.assert(fc.property(fc.string(), (s) => {
+      const author = idAuthor(s);
+      expect(author === null || (author !== '' && !author.includes(':'))).toBe(true);
+    }));
   });
 });

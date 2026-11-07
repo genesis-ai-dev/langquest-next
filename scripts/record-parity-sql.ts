@@ -7,7 +7,7 @@
  */
 import { writeFileSync } from 'node:fs';
 import {
-  EVENT_PAYLOAD_MAX_BYTES, EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, ORG_EVENT_TYPES, PRIVILEGES, emptyOrgState, entityKeyOf, eventSizeError, jsonbTextBytes, languageOfOrgEvent, mayReadLanguage, mayWriteFiles, privilegeAllows, privilegeFor, privilegesOfFixedRole,
+  EVENT_PAYLOAD_MAX_BYTES, EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, ORG_EVENT_TYPES, PRIVILEGES, emptyOrgState, entityKeyOf, eventSizeError, isServerEventId, jsonbTextBytes, languageOfOrgEvent, mayReadLanguage, mayWriteFiles, privilegeAllows, privilegeFor, privilegesOfFixedRole,
   validateEvent, type AnyEvent, type OrgState, type Privilege, type Role
 } from '@langquest-next/core';
 import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture } from '../packages/core/test/fixtures';
@@ -242,6 +242,13 @@ const scopedLanguage = [...events, ...broken.filter((e) => SCOPED.has(e.type) &&
 // The entity a creating event names (one event per entity in a stream, decisions.md 75).
 const entities = events.map((e) => ({ type: e.type, payload: e.payload, key: entityKeyOf(e) }));
 
+// Ids only the server makes: every prefix, near misses of each, and `api-`.
+const SERVER_ID_PREFIXES = ['invite', 'invitemember', 'inviteredeem', 'invitecheck', 'joindecided', 'joinmember', 'removed', 'accountdeleted', 'blob', 'blobinvalid', 'pin', 'seed', 'timings', 'v2'];
+const serverIds = [
+  ...SERVER_ID_PREFIXES.flatMap((p) => [`${p}:x`, `${p}:`, p, `${p}x:y`, `x${p}:y`, ` ${p}:y`, `${p.toUpperCase()}:y`]),
+  'api-', 'api-x', 'api', 'api:x', 'API-x', ' api-x', 'xapi-x', 'e1', '', 'by:a:b:0', 'take:by:a:b'
+].map((id) => ({ id, server: isServerEventId(id) }));
+
 // How big an event may be (decisions.md 115): each fixture, and payloads on
 // either side of the limit, of text, of many small numbers (a space after
 // every comma) and of nested objects (one after every colon too).
@@ -341,6 +348,11 @@ writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r json
       raise exception '_entity_key disagrees with core: % (sql says %)', r, public._entity_key(r->>'type', r->'payload');
     end if;
   end loop;
+  for r in select * from jsonb_array_elements(${sql(serverIds)}) loop
+    if public._server_event_id(r->>'id') is distinct from (r->>'server')::boolean then
+      raise exception '_server_event_id disagrees with isServerEventId: %', r;
+    end if;
+  end loop;
 end $$;
 begin;
 do $$ declare r jsonb; m jsonb; begin
@@ -369,5 +381,5 @@ do $$ declare r jsonb; m jsonb; begin
 end $$;
 rollback;
 select ${rows.length} as payload_checks, ${perms.length + single.length} as permission_checks, ${scopedLanguage.length} as scope_checks,
-  ${entities.length} as entity_checks, ${sizes.length} as size_checks, ${access.length} as access_checks;
+  ${entities.length} as entity_checks, ${sizes.length} as size_checks, ${access.length} as access_checks, ${serverIds.length} as server_id_checks;
 `);

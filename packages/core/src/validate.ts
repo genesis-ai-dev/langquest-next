@@ -406,6 +406,32 @@ export function entityKeyOf(e: AnyEvent): string | null {
   }
 }
 
+/**
+ * Is this an id only the server makes? A client may not append one (SQL
+ * `_server_event_id`, held to this by the parity script).
+ */
+export function isServerEventId(id: string): boolean {
+  return /^(invite|invitemember|inviteredeem|invitecheck|joindecided|joinmember|removed|accountdeleted|blob|blobinvalid|pin|seed|timings|v2):/.test(id) || id.startsWith('api-');
+}
+
+const AFTER_TERM = /^(?:rendering|adjustment):[^/]*\//;
+const AUTHORED = /^(?:(?!by:)[a-z]+:)*by:([^:]+):/;
+
+/**
+ * Whose id this is, or null when it names nobody. New builds mint ids that name
+ * their author, `by:<actorId>:<random>` (docs/nearby-sync-plan.md 5.4), because
+ * nearby phones hand ids to teammates before the server has seen them, and the
+ * server gives an id to whoever arrives first. It reads an event id, an id with its
+ * terms in front (`take:by:...`), or an entity key (`take:take:by:...`). A key
+ * under a key term reads from after the term, which is shared by design (decision
+ * 75). The answer depends only on the text, so no other author can make an id that
+ * reads as someone's and equals theirs. Every step here holds in a Postgres regular
+ * expression too, for the twin.
+ */
+export function idAuthor(id: string): string | null {
+  return AUTHORED.exec(id.replace(AFTER_TERM, ''))?.[1] ?? null;
+}
+
 const VERSE_REF = /^[1-9][0-9]{0,2}:[1-9][0-9]{0,2}$/;
 
 /** "15:4" -> 15004, for ordering; null when it is not chapter:verse. */

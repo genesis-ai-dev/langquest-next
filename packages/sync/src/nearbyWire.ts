@@ -1,5 +1,5 @@
 import {
-  NEARBY_BATCH_MAX_EVENTS, isBase64url, isHash, objectMemberNameIn, parseVector, utf8Encode, type AnyEvent, type ChainLink, type NearbyVector
+  NEARBY_BATCH_MAX_EVENTS, isBase64url, isHash, nearbyPayloadError, objectMemberNameIn, parseVector, utf8Encode, type AnyEvent, type ChainLink, type NearbyVector
 } from '@langquest-next/core';
 import { NEARBY_MESSAGE_MAX, type HostDetails } from './nearbyLink';
 
@@ -13,8 +13,8 @@ import { NEARBY_MESSAGE_MAX, type HostDetails } from './nearbyLink';
  * fields it knows, checks every list's size, and reads the maps into Maps. A `have`
  * is the one shape that differs on the wire, where its maps are JSON objects.
  * Events pass through as objects: the door judges them, one at a time, so that one
- * bad event costs itself and not the session. Chains pass through too, for
- * `checkChain`, which takes unknowns.
+ * bad event costs itself and not the session. Chains pass through with only their
+ * size and depth checked, for `checkChain`, which takes unknowns.
  */
 export type Message =
   | { t: 'hello'; protocol: { min: number; max: number }; can: string[]; reducerVersion: number; linesVersion: number; deviceId: string; wallMs: number; chain: ChainLink[]; proof: string }
@@ -80,7 +80,8 @@ const isText = (v: unknown, max = MAX_FIELD_CHARS): v is string => typeof v === 
 const isId = (v: unknown): v is string => isText(v) && v !== '';
 const isSig = (v: unknown): v is string => isBase64url(v, 64);
 const isKey = (v: unknown): v is string => isBase64url(v, 32);
-const isChain = (v: unknown): v is ChainLink[] => Array.isArray(v) && v.length <= MAX_LINKS && v.every(isRaw);
+/** `canonicalJson` recurses over a link when it is checked, so depth is bounded here as it is for an event. */
+const isChain = (v: unknown): v is ChainLink[] => Array.isArray(v) && v.length <= MAX_LINKS && v.every(isRaw) && nearbyPayloadError(v) === null;
 const isEvents = (v: unknown): v is AnyEvent[] => Array.isArray(v) && v.length <= NEARBY_BATCH_MAX_EVENTS && v.every(isRaw);
 const isOneOf = <T extends string>(v: unknown, values: readonly T[]): v is T => (values as readonly unknown[]).includes(v);
 const optional = <K extends string, V>(key: K, value: V | undefined): { [P in K]?: V } => (value === undefined ? {} : ({ [key]: value } as { [P in K]?: V }));
@@ -208,9 +209,9 @@ function isTransferId(v: unknown): v is string {
 }
 
 /**
- * UTF-8 bytes as a string, or null when they are not valid UTF-8: Hermes has no
- * `TextDecoder`, and a decoder that patched bad bytes would hand on text its
- * sender never wrote.
+ * UTF-8 bytes as a string, or null when they are not valid UTF-8. Sync assumes no
+ * `TextDecoder` on the runtimes it runs on, and a decoder that patched bad bytes
+ * would hand on text its sender never wrote.
  */
 export function utf8Decode(bytes: Uint8Array): string | null {
   const parts: string[] = [];

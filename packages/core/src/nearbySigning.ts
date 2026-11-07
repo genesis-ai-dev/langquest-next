@@ -93,11 +93,11 @@ export function concatBytes(...parts: Uint8Array[]): Uint8Array {
 
 // ---- events ----------------------------------------------------------------------
 
-/** What an event's digest covers. No `serverSeq`, and an absent parent stays absent however a row carries it. */
+/** What an event's digest covers. No `serverSeq`, and an absent parent stays absent however a row carries it: a pull drops an empty one (`SupabaseTransport.pull`). */
 export function eventText(e: AnyEvent): string {
   return canonicalJson({
     id: e.id, type: e.type, orgId: e.orgId, streamId: e.streamId, actorId: e.actorId, deviceId: e.deviceId, hlc: e.hlc,
-    parentEventId: e.parentEventId ?? undefined, payload: e.payload
+    parentEventId: e.parentEventId || undefined, payload: e.payload
   });
 }
 
@@ -141,7 +141,7 @@ function sameJson(left: unknown, right: unknown): boolean {
 /** Are these one event, byte for byte, the whole envelope less `serverSeq`? Comparing `hlc` is not enough: a copy can match there and differ in its payload. */
 export function sameEventBytes(a: AnyEvent, b: AnyEvent): boolean {
   for (const k of ['id', 'type', 'orgId', 'streamId', 'actorId', 'deviceId', 'hlc'] as const) if (a[k] !== b[k]) return false;
-  return (a.parentEventId ?? undefined) === (b.parentEventId ?? undefined) && sameJson(a.payload, b.payload);
+  return (a.parentEventId || undefined) === (b.parentEventId || undefined) && sameJson(a.payload, b.payload);
 }
 
 // ---- batches and attestations ----------------------------------------------------
