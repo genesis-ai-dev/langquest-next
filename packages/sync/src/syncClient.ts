@@ -2,7 +2,6 @@ import {
   newCommandId,
   applyFloor,
   applyLanguageEvent,
-  batchRowsToSend,
   clockCloseEnough,
   countBatch,
   decodeHlc,
@@ -10,21 +9,13 @@ import {
   doorKeptReads,
   emptyLanguageState,
   entityKeyOf,
-  eventDigest,
   eventPassage,
   eventSizeError,
-  eventText,
   foldLanguage,
-  isBoundToAuthor,
   isCounted,
   isHlc,
   LINES_VERSION,
-  manifestText,
-  NEARBY_BATCH_MAX_EVENTS,
-  NEARBY_BATCH_MAX_TEXT_BYTES,
-  NEARBY_NOT_CARRIED,
   NEARBY_VECTOR_MAX_RANGES,
-  nearbyBytes,
   nearbyCopy,
   nearbyDoor,
   nearbyLookUpRefusal,
@@ -34,10 +25,8 @@ import {
   REDUCER_VERSION,
   revokedLater,
   sameEventBytes,
-  shouldClaim,
   validateEvent,
   type AnyEvent,
-  type BatchManifest,
   type EventPayloads,
   type EventType,
   type LanguageState,
@@ -56,6 +45,8 @@ import {
   batchIsWhole, checkBatchPage, checkClaimsPage, nearbyDropped,
   type NearbyBatchPage, type NearbyClaimsPage, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbyRefusal, type NearbySigned, type NearbySigner
 } from './nearbyIntake';
+import { batchPageOf, nextClaimsOf, signBatch } from './nearbySender';
+import { settleBatches, type NearbyHost } from './nearbyUpkeep';
 import { WriteQueue } from './writeQueue';
 import { ClientTooOldError, EventTooLargeError, NotAuthorizedError, OfflineError, UnrenewedError, NOT_LISTED_TEXT, rejectCodeOf, type RejectCode } from './types';
 import { downloadPieces, fetchSnapshot } from './snapshotFetch';
@@ -375,6 +366,7 @@ export class SyncClient<S = LanguageState> {
   private pullCompares: boolean | null = null;
   /** What each budget has spent: counted once when a session starts, then added to. */
   private nearbyUseNow: Map<string, NearbyUse> | null = null;
+  private nearbyHostMade: NearbyHost | null = null;
   /** The door has been run again for this reducer, if it needed to be. */
   private doorChecked = false;
   private readonly farAhead = new Map<string, string>();
@@ -1787,7 +1779,7 @@ export class SyncClient<S = LanguageState> {
       if (!morePull && this.fill?.active() && this.kept?.wantedUnits().length) {
         if ((await this.inPhase('snapshot', () => this.fillOrStartOver(() => this.fill!.fillWanted()))).length > 0) await this.afterFill();
       }
-      if (!morePull && !this.opts.deliverOnly) await this.inPhase('pull', () => this.settleBatches());
+      if (!this.opts.deliverOnly) await this.inPhase('pull', () => this.afterPull(morePull));
       result = { ...idle, pushed: accepted, rejected, pulled, more: morePush || morePull, filling: !!this.fill?.active() };
     } catch (err) {
       unrenewed = err instanceof UnrenewedError;
@@ -1808,6 +1800,13 @@ export class SyncClient<S = LanguageState> {
     await this.recordSync(started, result, outcome);
     this.recordOpen(result);
     return result;
+  }
+
+  /** What a sync does past its pull, once nothing more is to pull. */
+  private async afterPull(morePull: boolean): Promise<void> {
+    if (morePull) return;
+    this.nearbyUseNow = null;
+    await settleBatches(this.nearbyHost);
   }
 
   /**
@@ -1968,79 +1967,8 @@ export class SyncClient<S = LanguageState> {
     const out: NearbySigned = { batches: 0, events: 0, unbound: 0, noCertificate: 0, unsafeNumber: false };
     // What is left out never needs reading twice, so a row with no certificate costs one read.
     const walked = { after: null as string | null };
-    while (await this.exclusive(() => this.signBatch(signer, out, walked)));
+    while (await this.exclusive(() => signBatch(this.nearbyHost, signer, out, walked)));
     return out;
-  }
-
-  /** One batch: true when it signed one, so there may be more. */
-  private async signBatch(signer: NearbySigner, out: NearbySigned, walked: { after: string | null }): Promise<boolean> {
-    const { store, orgId, streamId, deviceId } = this.opts;
-    const key = signer.publicKey;
-    const counter = await this.nearbyNumber(this.nearbyKey('nearbyCount', key));
-    const n = counter + 1;
-    if (!Number.isSafeInteger(n)) {
-      out.unsafeNumber = true;
-      return false;
-    }
-    const usable = (actorId: string) => {
-      const chain = signer.chainFor(actorId);
-      const last = chain?.[chain.length - 1];
-      // A chain for another key or device would be refused on every phone that got it.
-      return last && last.body.installKey === key && last.body.profileId === actorId && last.body.deviceId === deviceId ? chain! : null;
-    };
-    let author: string | null = null;
-    const rows: { event: AnyEvent; digest: string }[] = [];
-    let textBytes = 0;
-    pick: for (let after = walked.after; ;) {
-      const page = await store.unsignedPage(orgId, streamId, after, LOG_PAGE);
-      for (const { event: e } of page) {
-        after = e.hlc;
-        const unbound = !isBoundToAuthor(e);
-        const left = e.deviceId !== deviceId || NEARBY_NOT_CARRIED.includes(e.type) || unbound || !usable(e.actorId);
-        if (left) {
-          // Rows past the first signable one come round again, and are counted then.
-          if (author === null) {
-            walked.after = e.hlc;
-            if (e.deviceId === deviceId && !NEARBY_NOT_CARRIED.includes(e.type)) { if (unbound) out.unbound += 1; else out.noCertificate += 1; }
-          }
-          continue;
-        }
-        if (e.actorId !== (author ?? e.actorId)) continue;
-        const digest = await eventDigest(e, signer.sha256);
-        if (digest === '') continue;
-        const bytes = nearbyBytes('event', eventText(e)).length;
-        if (rows.length === NEARBY_BATCH_MAX_EVENTS || (rows.length > 0 && textBytes + bytes > NEARBY_BATCH_MAX_TEXT_BYTES)) break pick;
-        author = e.actorId;
-        textBytes += bytes;
-        rows.push({ event: e, digest });
-      }
-      if (page.length < LOG_PAGE) break;
-    }
-    const stored = await this.nearbyNumber(this.nearbyKey('nearbyFloor', key));
-    let floor = stored;
-    if (rows.length === 0) {
-      // Nothing to carry but a floor that moved. With every batch before it settled it has no row of its own either,
-      // so it speaks for itself too: saying only `counter`, the next sync would move the floor past it and sign another.
-      const [newest] = await store.batchesAfter(orgId, streamId, key, counter - 1, 1);
-      const signedFloor = newest ? parseBatchManifest(newest.manifest, this.stream())?.floor ?? 0 : 0;
-      if (stored <= signedFloor) return false;
-      author = this.opts.actorId;
-      if (!usable(author)) return false;
-      if (stored === counter) floor = n;
-    }
-    const chain = usable(author!)!;
-    const manifest: BatchManifest = { v: 1, orgId, streamId, key, deviceId, actorId: author!, n, floor, events: rows.map((r) => [r.event.id, r.digest]) };
-    const text = manifestText(manifest);
-    const sig = await signer.sign(nearbyBytes('batch', text));
-    const vector = countBatch(await this.nearbyVector(), key, n, { maxRanges: signer.maxRanges ?? NEARBY_VECTOR_MAX_RANGES });
-    await this.commit({
-      events: rows.map((r) => ({ event: r.event, status: 'pending' as const, via: { batch: n, key } })),
-      batches: [{ orgId, streamId, key, n, deviceId, actorId: author!, firstHlc: rows[0]?.event.hlc ?? null, manifest: text, sig, chain: JSON.stringify(chain) }],
-      meta: { [this.nearbyKey('nearbyCount', key)]: String(n), ...this.vectorMeta(vector) }
-    });
-    out.batches += 1;
-    out.events += rows.length;
-    return true;
   }
 
   /** What Have says of this phone: where the server has it and what it counts as received. Moves nothing on the other side but what it sends. */
@@ -2057,15 +1985,8 @@ export class SyncClient<S = LanguageState> {
   }
 
   /** One batch as a page: the manifest whole, with the rows still here that it may carry. A confirmed row goes by claim instead. */
-  async nearbyBatchPage(key: string, n: number): Promise<NearbyBatchPage | null> {
-    const { store, orgId, streamId } = this.opts;
-    const [row] = await store.batchesAfter(orgId, streamId, key, n - 1, 1);
-    const manifest = row?.n === n ? parseBatchManifest(row.manifest, this.stream()) : null;
-    if (!row || !manifest) return null;
-    const order = new Map(manifest.events.map(([id], at) => [id, at]));
-    const rows = (await store.getMany([...order.keys()])).filter((l) => l.event.orgId === orgId && l.event.streamId === streamId);
-    rows.sort((a, b) => order.get(a.event.id)! - order.get(b.event.id)!);
-    return { t: 'batch', manifest: row.manifest, sig: row.sig, chain: JSON.parse(row.chain) as NearbyBatchPage['chain'], events: batchRowsToSend(rows, { key, n }, (id) => this.isRedactedHere(id)) };
+  nearbyBatchPage(key: string, n: number): Promise<NearbyBatchPage | null> {
+    return batchPageOf(this.nearbyHost, key, n);
   }
 
   private isRedactedHere(id: string): boolean {
@@ -2077,31 +1998,8 @@ export class SyncClient<S = LanguageState> {
    * other has been told of, in `serverSeq` order: 200 to a page or 512 KiB. `throughSeq` is
    * where it reached, for the caller to pass as `claimedSeq` next time. Null when no more.
    */
-  async nearbyNextClaims(them: { cursor: number; claimedSeq: number }): Promise<{ page: NearbyClaimsPage; throughSeq: number } | null> {
-    const { store, orgId, streamId } = this.opts;
-    let after = Math.max(them.cursor, them.claimedSeq);
-    for (const held of await store.attestedUpTo(orgId, streamId)) {
-      if (held.lastSeq <= after) continue;
-      const attested = parseAttestation(held.text, { orgId, streamId, kid: held.kid });
-      if (!attested) continue;
-      const ids = new Set(attested.rows.map(([id]) => id));
-      const told = { cursor: after, claimedSeq: after };
-      const rows = (await store.confirmedAfter(orgId, streamId, after, NEARBY_BATCH_MAX_EVENTS))
-        .filter((l) => ids.has(l.event.id) && shouldClaim(l, told, { attestedSeq: held.lastSeq, isRedacted: (id) => this.isRedactedHere(id) }));
-      const events: AnyEvent[] = [];
-      let bytes = 0;
-      let throughSeq = after;
-      for (const { event } of rows) {
-        const size = nearbyBytes('event', eventText(event)).length;
-        if (events.length > 0 && bytes + size > NEARBY_BATCH_MAX_TEXT_BYTES) break;
-        events.push(nearbyCopy(event));
-        bytes += size;
-        throughSeq = event.serverSeq!;
-      }
-      if (events.length > 0) return { page: { t: 'claims', text: held.text, kid: held.kid, sig: held.sig, events }, throughSeq };
-      after = held.lastSeq;
-    }
-    return null;
+  nearbyNextClaims(them: { cursor: number; claimedSeq: number }): Promise<{ page: NearbyClaimsPage; throughSeq: number } | null> {
+    return nextClaimsOf(this.nearbyHost, them);
   }
 
   /** This phone's log starts past what the other has been told of, so it cannot send all it knows of, and the screen says so. */
@@ -2412,50 +2310,20 @@ export class SyncClient<S = LanguageState> {
     return refused;
   }
 
-  /**
-   * The end of a sync, on a phone holding any manifest. A batch goes when no row that is
-   * pending, nearby or refused still speaks under it, since Try again can return a refused
-   * row to `nearby`. Each signer's newest stays, so its floor travels on. This key's floor
-   * is one below its lowest batch with a row pending or nearby, or its counter if none has.
-   */
-  private async settleBatches(): Promise<void> {
-    const { store, orgId, streamId } = this.opts;
-    this.nearbyUseNow = null;
-    const batches = await store.batchKeys(orgId, streamId);
-    if (batches.length === 0) return;
-    const speaking = new Set<string>();
-    const lowestOpen = new Map<string, number>();
-    const see = (l: LocalEvent) => {
-      if (!l.via || !('batch' in l.via)) return;
-      speaking.add(`${l.via.key} ${l.via.batch}`);
-      if (l.status === 'rejected') return;
-      lowestOpen.set(l.via.key, Math.min(l.via.batch, lowestOpen.get(l.via.key) ?? Infinity));
-    };
-    for (const l of await store.rejected(orgId, streamId)) see(l);
-    for (let after: string | null = null; ;) {
-      const page: LocalEvent[] = await store.nearbyPage(orgId, streamId, after, LOG_PAGE);
-      page.forEach(see);
-      if (page.length < LOG_PAGE) break;
-      after = page[page.length - 1]!.event.id;
-    }
-    for (let after: string | null = null; ;) {
-      const page: LocalEvent[] = await store.pendingPage(orgId, streamId, after, LOG_PAGE);
-      page.forEach(see);
-      if (page.length < LOG_PAGE) break;
-      after = page[page.length - 1]!.event.hlc;
-    }
-    const newest = new Map<string, number>();
-    for (const { key, n } of batches) newest.set(key, Math.max(n, newest.get(key) ?? 0));
-    const meta: Record<string, string> = {};
-    for (const key of newest.keys()) {
-      // Only a key this phone signs with has a counter. A teammate's floor is theirs to state.
-      const counter = await this.nearbyNumber(this.nearbyKey('nearbyCount', key));
-      if (counter === 0) continue;
-      const open = lowestOpen.get(key);
-      const floor = open === undefined ? counter : open - 1;
-      if (floor > await this.nearbyNumber(this.nearbyKey('nearbyFloor', key))) meta[this.nearbyKey('nearbyFloor', key)] = String(floor);
-    }
-    const gone = batches.filter(({ key, n }) => n !== newest.get(key) && !speaking.has(`${key} ${n}`)).map(({ key, n }) => ({ key, n }));
-    await this.commit({ meta, dropBatches: { orgId, streamId, keys: gone } });
+  /** What the steps at the end of a sync need from this client (`nearbyUpkeep.ts`). */
+  private get nearbyHost(): NearbyHost {
+    return (this.nearbyHostMade ??= {
+      store: this.opts.store,
+      orgId: this.opts.orgId,
+      streamId: this.opts.streamId,
+      actorId: this.opts.actorId,
+      deviceId: this.opts.deviceId,
+      commit: (batch) => this.commit(batch),
+      key: (what, signer) => this.nearbyKey(what, signer),
+      vector: () => this.nearbyVector(),
+      vectorMeta: (vector) => this.vectorMeta(vector),
+      number: (key) => this.nearbyNumber(key),
+      lang: () => this.state as unknown as LanguageState
+    });
   }
 }
