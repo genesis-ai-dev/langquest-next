@@ -38,7 +38,9 @@ export const JOBS = {
   'tutorial-intake': { job: 'tutorial_intake', entrypoint: ['node', 'intake.mjs'], timeLimitMs: 120 * 60_000 },
   // The comments on the tutorial videos, kept for Claude's nightly look (server/tutorialComments.ts, decisions.md 186):
   // a day's comments, a page of 100 a call, and at most 20 Linear issues.
-  'tutorial-comments': { job: 'tutorial_comments', entrypoint: ['node', 'comments.mjs'], timeLimitMs: 60 * 60_000 }
+  'tutorial-comments': { job: 'tutorial_comments', entrypoint: ['node', 'comments.mjs'], timeLimitMs: 60 * 60_000 },
+  // The organization export (server/orgExport.ts, decisions.md 205): started when an admin asks, builds one zip a request.
+  'org-export': { job: 'org_export', entrypoint: ['node', 'orgexport.mjs'], timeLimitMs: 240 * 60_000 }
 } as const satisfies Record<string, JobSpec>;
 
 export type JobKey = keyof typeof JOBS;
@@ -244,6 +246,8 @@ export function jobEnv(key: JobKey, s: JobSettings): { env: Record<string, strin
     return { env: { ...env, YOUTUBE_CLIENT_ID: s.YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET: s.YOUTUBE_CLIENT_SECRET,
       ...(s.LINEAR_API_KEY ? { LINEAR_API_KEY: s.LINEAR_API_KEY } : {}) } };
   }
+  // The export reads files and puts its zip in R2 through the Worker.
+  if (key === 'org-export') return s.API_URL ? { env: { ...env, API_URL: s.API_URL } } : { refuse: 'org export: API_URL not set on the Worker' };
   // The intake reads the public release itself and puts the films through the Worker.
   if (key === 'tutorial-intake') return s.API_URL ? { env: { ...env, API_URL: s.API_URL } } : { refuse: 'tutorial intake: API_URL not set on the Worker' };
   if (s.V2_IMPORT_ENABLED !== 'true') return { skip: 'disabled' };

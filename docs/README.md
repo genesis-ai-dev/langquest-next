@@ -13,6 +13,7 @@
 - [global-viewers.md](./global-viewers.md) — Global Viewers: LangQuest support who read every organization, as its admins see it, on an authenticator-verified session; making one on a call, revoking, a lost authenticator, how it works
 - [verified-organizations.md](./verified-organizations.md) — the blue check after an organization's name: an admin asks with a code emailed to its domain, staff grant it on the ops dashboard, and where it shows
 - [publisher-imports.md](./publisher-imports.md) — importers staff turn on for a publisher's organization: its admins bring in their own material (FIA from Bible Aquifer), the server builds it, they publish it
+- [org-export.md](./org-export.md) — the organization export: one zip of every recording, its metadata, progress sheets and the raw log, and who may take it
 - [library.md](./library.md) — The library: templates, flows and reference material as versioned documents
 - [languoids.md](./languoids.md) — Languages and regions: v2's reference tables filled from Glottolog, the explorer, search, and the interface-language proposal
 - [v2-project-languages.md](./v2-project-languages.md) — The language each v2 project should get here (many picked English), and the records that follow it
