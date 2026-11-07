@@ -223,9 +223,10 @@ export class Fleet {
   }
 
   /** A phone lost or broken: it stops, and what it never sent goes with it. */
-  lose(device: SimDevice): void {
+  async lose(device: SimDevice): Promise<void> {
     const at = this.devices.indexOf(device);
     if (at < 0) return;
+    await this.nearby?.leave([device]);
     device.stop();
     this.devices.splice(at, 1);
     this.lost.push(device);

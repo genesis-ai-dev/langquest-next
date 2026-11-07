@@ -183,11 +183,6 @@ export class FleetNearby {
     return this.phones.get(device)?.events ?? [];
   }
 
-  /** Unconfirmed files this phone holds, as its holdings entry would list them. */
-  heldBy(device: SimDevice): Promise<readonly string[]> {
-    return this.phones.get(device)!.files.held();
-  }
-
   private tick(): void {
     if (this.ticker !== null || this.open.size === 0) return;
     const { time } = this.ctx;
