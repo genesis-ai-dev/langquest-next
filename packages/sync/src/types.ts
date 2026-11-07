@@ -275,6 +275,8 @@ export interface WatchHandlers {
 export interface SyncInspection {
   pending: LocalEvent[];
   rejected: LocalEvent[];
+  /** Rows held for teammates, which `total` also counts. */
+  nearby: number;
   total: number;
   cursor: number;
   checkpointSeq: number | null;

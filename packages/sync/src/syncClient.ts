@@ -1,9 +1,15 @@
 import {
   newCommandId,
+  applyFloor,
   applyLanguageEvent,
   batchRowsToSend,
+  clockCloseEnough,
   countBatch,
+  decodeHlc,
+  doorFactsOf,
+  doorKeptReads,
   emptyLanguageState,
+  entityKeyOf,
   eventDigest,
   eventPassage,
   eventSizeError,
@@ -20,25 +26,36 @@ import {
   NEARBY_VECTOR_MAX_RANGES,
   nearbyBytes,
   nearbyCopy,
+  nearbyDoor,
+  nearbyLookUpRefusal,
   parseAttestation,
   parseBatchManifest,
   parseVector,
   REDUCER_VERSION,
+  revokedLater,
+  sameEventBytes,
   shouldClaim,
+  validateEvent,
   type AnyEvent,
   type BatchManifest,
   type EventPayloads,
   type EventType,
   type LanguageState,
+  type NearbyPeople,
   type NearbyVector,
+  type NearbyVia,
+  type PageFacts,
   type PassageLine,
   type PassageLines,
   type Snapshot,
   HlcClock,
   languageLines
 } from '@langquest-next/core';
-import type { EventStore, LocalEvent, SyncInspection, Transport, WriteBatch } from './types';
-import type { NearbyBatchPage, NearbyClaimsPage, NearbySigned, NearbySigner } from './nearbyIntake';
+import { nearbyBudgetOf, type EventStore, type LocalEvent, type NearbyUse, type SyncInspection, type Transport, type WriteBatch } from './types';
+import {
+  batchIsWhole, checkBatchPage, checkClaimsPage, nearbyDropped,
+  type NearbyBatchPage, type NearbyClaimsPage, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbyRefusal, type NearbySigned, type NearbySigner
+} from './nearbyIntake';
 import { WriteQueue } from './writeQueue';
 import { ClientTooOldError, EventTooLargeError, NotAuthorizedError, OfflineError, UnrenewedError, NOT_LISTED_TEXT, rejectCodeOf, type RejectCode } from './types';
 import { downloadPieces, fetchSnapshot } from './snapshotFetch';
@@ -52,6 +69,25 @@ import type { KeptRecord } from './types';
 /** Local events folded at once when the log is read a page at a time (`foldLog`). */
 const LOG_PAGE = 500;
 const REDACTED = 'v1.Redacted';
+
+/** What the door made of one page's new events, before anything is folded or written. */
+interface NearbyDoorPass {
+  rows: LocalEvent[];
+  refused: NearbyRefusal[];
+  /** Let in, or refused for good. A refusal that can change is neither, so its number stays open. */
+  settled: Set<string>;
+  facts: PageFacts;
+}
+
+/** What a page's commit writes once its rows are folded. */
+interface NearbyFolded {
+  rows: LocalEvent[];
+  rejected: LocalEvent[];
+  refold: boolean;
+  farAhead?: { actorId: string; hlc: string };
+}
+
+const byId = (rows: readonly LocalEvent[]) => new Map(rows.map((l) => [l.event.id, l]));
 
 /** Why a first download took the whole snapshot when it could have filled: the `fill` record's `reason`. */
 type FillFallback = Exclude<(typeof DIAG_SCHEMA.fill.t.reason)[number], 'cut_gone'>;
@@ -335,6 +371,13 @@ export class SyncClient<S = LanguageState> {
   /** Filling in passages' rows from the server's cut (decisions.md 147), for a language kept on disk. */
   private readonly fill: KeptFill | null;
   private readonly fillBudgetMs: number;
+  /** Should a pull read its ids to compare (`sameEventBytes`)? Unknown until the first pull asks; once true it stays true. */
+  private pullCompares: boolean | null = null;
+  /** What each budget has spent: counted once when a session starts, then added to. */
+  private nearbyUseNow: Map<string, NearbyUse> | null = null;
+  /** The door has been run again for this reducer, if it needed to be. */
+  private doorChecked = false;
+  private readonly farAhead = new Map<string, string>();
 
   constructor(private readonly opts: SyncClientOptions<S>) {
     this.m = opts.materializer ?? (LANGUAGE_MATERIALIZER as unknown as Materializer<S>);
@@ -1452,7 +1495,9 @@ export class SyncClient<S = LanguageState> {
     this.clock = new HlcClock(this.opts.deviceId, this.wall);
     const ordered = [...items].sort((a, b) => (a.local.event.hlc < b.local.event.hlc ? -1 : 1));
     const events = ordered.map(({ local }) => ({ event: { ...local.event, hlc: this.clock.next() } as AnyEvent, status: 'pending' as const }));
-    await this.commit({ events, meta: { ...this.clockMeta(), [this.offsetKey()]: String(this.clockOffsetMs) } });
+    // Written with no `via`: the old digest no longer matches, and signing picks these up again in a later batch.
+    await this.commit({ events, meta: { ...this.clockMeta(), [this.offsetKey()]: String(this.clockOffsetMs), [this.nearbyKey('nearbyRestamped')]: '1' } });
+    this.pullCompares = true;
   }
 
   /**
@@ -1532,6 +1577,9 @@ export class SyncClient<S = LanguageState> {
     let redactionSeq = 0;
     let membershipChanged = false;
     let base = (await this.checkpointSeq()) ?? 0;
+    // A nearby copy or a restamp can differ from the server's. Everyone else reads nothing here.
+    this.pullCompares ??= !!(await this.opts.store.meta(this.nearbyKey('nearbyRestamped'))) || (await this.opts.store.nearbyCount(this.opts.orgId, this.opts.streamId)) > 0;
+    let differs = false;
     for (;;) {
       const asked = this.elapsed();
       const page = await this.opts.transport.pull(
@@ -1555,6 +1603,11 @@ export class SyncClient<S = LanguageState> {
         }
         this.net.pull += this.elapsed() - asking;
       }
+      // The guard in `apply` ignores the server's copy of an id already folded, and the fold keeps the old copy, so a row that differs folds again below.
+      if (this.pullCompares && page.length > 0) {
+        const here = byId(await this.opts.store.getMany(page.map((e) => e.id)));
+        differs = page.some((e) => { const l = here.get(e.id); return !!l && !sameEventBytes(l.event, e); }) || differs;
+      }
       const writes: LocalEvent[] = [];
       let folded = 0;
       /** Each event on this page by id, with its seq: where a redaction on the page finds a target pulled with it. */
@@ -1562,7 +1615,7 @@ export class SyncClient<S = LanguageState> {
       for (const event of page) {
         const seq = event.serverSeq;
         if (seq === undefined) continue;
-        // Upsert: a pending event of ours whose ack was lost becomes confirmed.
+        // Upsert: a pending event of ours whose ack was lost becomes confirmed, and a nearby copy too, losing its `via`.
         writes.push({ event, status: 'confirmed' });
         // A malformed clock on the server cannot be read, and must not stop every phone's pull: the event still folds.
         if (isHlc(event.hlc)) this.clock.receive(event.hlc);
@@ -1611,7 +1664,8 @@ export class SyncClient<S = LanguageState> {
       // log from the start (a reducer bump before the server has a snapshot for it, a redaction waited out)
       // never holds the whole language. Not once a redaction was pulled in this slice: the refold below undoes
       // its target from the log, and a checkpoint before that would prune the target and keep its effects.
-      if (this.kept && !redacted && folded > 0 && after - base >= this.checkpointEvery && !this.opts.deferCheckpoint?.()) {
+      // Nor once a copy here differed: the live state still holds the old copy, and the fast path would save it as confirmed.
+      if (this.kept && !redacted && !differs && folded > 0 && after - base >= this.checkpointEvery && !this.opts.deferCheckpoint?.()) {
         await this.checkpoint(after);
         base = after;
       }
@@ -1639,6 +1693,7 @@ export class SyncClient<S = LanguageState> {
     }
     // A redaction may target an event already folded; only a refold undoes it.
     if (redacted) await this.refold('redaction');
+    else if (differs) await this.refold('other');
     // Still catching up: a language held whole in memory skips the checkpoint
     // (it serializes the whole state) and takes one when the tail is reached;
     // nothing is pruned before it, so a crash mid-catch-up only costs a longer
@@ -1849,14 +1904,15 @@ export class SyncClient<S = LanguageState> {
   /** The local log as the sync status screen shows it. */
   async inspect(): Promise<SyncInspection> {
     const { orgId, streamId } = this.opts;
-    const [pending, rejected, total, cursor, checkpointSeq] = await Promise.all([
+    const [pending, rejected, nearby, total, cursor, checkpointSeq] = await Promise.all([
       this.opts.store.pending(orgId, streamId),
       this.opts.store.rejected(orgId, streamId),
+      this.opts.store.nearbyCount(orgId, streamId),
       this.opts.store.count(orgId, streamId),
       this.opts.store.cursor(orgId, streamId),
       this.checkpointSeq()
     ]);
-    return { pending, rejected, total, cursor, checkpointSeq };
+    return { pending, rejected, nearby, total, cursor, checkpointSeq };
   }
 
   /**
@@ -2016,8 +2072,12 @@ export class SyncClient<S = LanguageState> {
     return (this.state as unknown as LanguageState).redactions[id] === true;
   }
 
-  /** What this phone pulled and the Worker has vouched for, past what the other has been told of, in `serverSeq` order: 200 to a page or 512 KiB. */
-  async *nearbyClaimPages(them: { cursor: number; claimedSeq: number }): AsyncGenerator<NearbyClaimsPage> {
+  /**
+   * The next page of what this phone pulled and the Worker has vouched for, past what the
+   * other has been told of, in `serverSeq` order: 200 to a page or 512 KiB. `throughSeq` is
+   * where it reached, for the caller to pass as `claimedSeq` next time. Null when no more.
+   */
+  async nearbyNextClaims(them: { cursor: number; claimedSeq: number }): Promise<{ page: NearbyClaimsPage; throughSeq: number } | null> {
     const { store, orgId, streamId } = this.opts;
     let after = Math.max(them.cursor, them.claimedSeq);
     for (const held of await store.attestedUpTo(orgId, streamId)) {
@@ -2025,28 +2085,328 @@ export class SyncClient<S = LanguageState> {
       const attested = parseAttestation(held.text, { orgId, streamId, kid: held.kid });
       if (!attested) continue;
       const ids = new Set(attested.rows.map(([id]) => id));
+      const told = { cursor: after, claimedSeq: after };
       const rows = (await store.confirmedAfter(orgId, streamId, after, NEARBY_BATCH_MAX_EVENTS))
-        .filter((l) => ids.has(l.event.id) && shouldClaim(l, them, { attestedSeq: held.lastSeq, isRedacted: (id) => this.isRedactedHere(id) }));
-      let events: AnyEvent[] = [];
+        .filter((l) => ids.has(l.event.id) && shouldClaim(l, told, { attestedSeq: held.lastSeq, isRedacted: (id) => this.isRedactedHere(id) }));
+      const events: AnyEvent[] = [];
       let bytes = 0;
+      let throughSeq = after;
       for (const { event } of rows) {
         const size = nearbyBytes('event', eventText(event)).length;
-        if (events.length > 0 && bytes + size > NEARBY_BATCH_MAX_TEXT_BYTES) {
-          yield { t: 'claims', text: held.text, kid: held.kid, sig: held.sig, events };
-          events = [];
-          bytes = 0;
-        }
+        if (events.length > 0 && bytes + size > NEARBY_BATCH_MAX_TEXT_BYTES) break;
         events.push(nearbyCopy(event));
         bytes += size;
+        throughSeq = event.serverSeq!;
       }
-      if (events.length > 0) yield { t: 'claims', text: held.text, kid: held.kid, sig: held.sig, events };
+      if (events.length > 0) return { page: { t: 'claims', text: held.text, kid: held.kid, sig: held.sig, events }, throughSeq };
       after = held.lastSeq;
     }
+    return null;
   }
 
   /** This phone's log starts past what the other has been told of, so it cannot send all it knows of, and the screen says so. */
   async nearbyHoldsLess(them: { cursor: number; claimedSeq: number }): Promise<boolean> {
     return ((await this.checkpointSeq()) ?? 0) > Math.max(them.cursor, them.claimedSeq);
+  }
+
+  /** Authors whose newest stamp on a page was far ahead of this phone's time, for one line on screen, kept as long as this client. */
+  get nearbyFarAhead(): readonly { actorId: string; hlc: string }[] {
+    return [...this.farAhead].map(([actorId, hlc]) => ({ actorId, hlc }));
+  }
+
+  /** A session starts here: the budget is counted once, and added to in memory. */
+  async startNearbyBudget(): Promise<void> {
+    const use = await this.opts.store.nearbyUse(this.opts.orgId, this.opts.streamId);
+    this.nearbyUseNow = new Map(use.map((u) => [u.who, u]));
+  }
+
+  private async overBudget(who: string, events: readonly AnyEvent[], budget: NearbyIntake['budget']): Promise<boolean> {
+    if (!this.nearbyUseNow) await this.startNearbyBudget();
+    const use = this.nearbyUseNow!.get(who) ?? { rows: 0, bytes: 0 };
+    let bytes = use.bytes;
+    for (const e of events) bytes += JSON.stringify(e).length;
+    return use.rows + events.length > budget.maxRows || bytes > budget.maxBytes;
+  }
+
+  private spend(rows: readonly LocalEvent[]): void {
+    for (const l of rows) {
+      const who = nearbyBudgetOf(l.event.actorId, l.via);
+      const use = this.nearbyUseNow?.get(who) ?? { who, rows: 0, bytes: 0 };
+      this.nearbyUseNow?.set(who, { who, rows: use.rows + 1, bytes: use.bytes + JSON.stringify(l.event).length });
+    }
+  }
+
+  /**
+   * Take one page from a teammate (docs/nearby-sync-plan.md 5.4 and 5.12). It takes only
+   * part of a pull's path: apply, lines, revision and one commit. Parsing, the budget and
+   * every signature come first, outside the stream's turn. Nothing thrown here came from
+   * what the page holds: a bad page is a receipt, and only the store can fail.
+   */
+  async receiveNearby(page: NearbyPage, intake: NearbyIntake): Promise<NearbyReceipt> {
+    if (!this.loaded) throw new Error('call load() first');
+    return page.t === 'batch' ? this.receiveBatch(page, intake) : this.receiveClaims(page, intake);
+  }
+
+  private async receiveBatch(page: NearbyBatchPage, intake: NearbyIntake): Promise<NearbyReceipt> {
+    const { store, orgId, streamId } = this.opts;
+    // 1.
+    const manifest = parseBatchManifest(page.manifest, this.stream());
+    if (!manifest) return nearbyDropped('bad manifest');
+    const { key, n, floor } = manifest;
+    if (isCounted(await this.nearbyVector(), key, n)) return { ...nearbyDropped('already counted'), outcome: 'ignored', counted: true };
+    if (await this.overBudget(`actor:${manifest.actorId}`, page.events, intake.budget)) return nearbyDropped('over budget', { overBudget: true });
+    // 2 to 4.
+    const checked = await checkBatchPage(manifest, page, intake, streamId);
+    if ('reason' in checked) return nearbyDropped(checked.reason);
+    return this.exclusive(async () => {
+      await this.doorAgainOnce(intake);
+      const held = await store.batchesAfter(orgId, streamId, key, n - 1, 2);
+      const same = held.find((b) => b.n === n);
+      // The first signature for a number stays, and rows under another couldn't be passed on from here.
+      if (same && same.manifest !== page.manifest) return nearbyDropped('another manifest holds this number');
+      // 5.
+      const here = byId(await store.getMany(manifest.events.map(([id]) => id)));
+      const people = intake.people(checked.verdict);
+      const door = await this.throughDoor(checked.events, here, people, { via: () => ({ batch: n, key }) });
+      // 6.
+      const folded = await this.foldNearby(door, people);
+      const settled = new Set([...checked.settled, ...door.settled]);
+      // 7.
+      const counted = await batchIsWhole(manifest, here, settled, this.state as unknown as LanguageState, intake.sha256);
+      let vector = await this.nearbyVector();
+      if (counted) vector = countBatch(vector, key, n, { maxRanges: intake.maxRanges ?? NEARBY_VECTOR_MAX_RANGES });
+      vector = applyFloor(vector, key, floor);
+      const ownCount = key === intake.ownKey ? await this.nearbyNumber(this.nearbyKey('nearbyCount', key)) : null;
+      const isNewest = held.every((b) => b.n <= n);
+      const firstHlc = checked.events.reduce<string | null>((low, e) => (low === null || e.hlc < low ? e.hlc : low), null);
+      await this.commitNearby({
+        receive: folded.rows,
+        events: folded.rejected,
+        ...(folded.rows.length > 0 || isNewest ? { batches: [{ orgId, streamId, key, n, deviceId: manifest.deviceId, actorId: manifest.actorId, firstHlc, manifest: page.manifest, sig: page.sig, chain: JSON.stringify(page.chain) }] } : {}),
+        meta: { ...this.clockMeta(), ...this.vectorMeta(vector), ...(ownCount !== null && ownCount < n ? { [this.nearbyKey('nearbyCount', key)]: String(n) } : {}) }
+      }, folded);
+      return { outcome: 'taken' as const, kept: folded.rows.length, refused: [...checked.refused, ...door.refused], counted, ...(folded.farAhead ? { farAhead: folded.farAhead } : {}) };
+    });
+  }
+
+  private async receiveClaims(page: NearbyClaimsPage, intake: NearbyIntake): Promise<NearbyReceipt> {
+    const { orgId, streamId } = this.opts;
+    const attestation = parseAttestation(page.text, { orgId, streamId, kid: page.kid });
+    if (!attestation) return nearbyDropped('bad attestation');
+    // The claimer's budget, never the author's, so that a flood naming Sam cannot stop Sam's own batches.
+    if (await this.overBudget(`claim:${intake.peerKey}`, page.events, intake.budget)) return nearbyDropped('over budget', { overBudget: true });
+    const checked = await checkClaimsPage(attestation, page, intake);
+    if ('reason' in checked) return nearbyDropped(checked.reason);
+    return this.exclusive(async () => {
+      await this.doorAgainOnce(intake);
+      // A row already here stays, whichever way it came: any difference is a clock from before a restamp, and a pull's comparison settles it.
+      const here = byId(await this.opts.store.getMany(checked.events.map((e) => e.id)));
+      const people = intake.people();
+      const door = await this.throughDoor(checked.events, here, people, { claim: true, via: (e) => ({ claim: { key: intake.peerKey, seq: checked.seqOf.get(e.id)! } }) });
+      const folded = await this.foldNearby(door, people);
+      const claimed = await this.nearbyNumber(this.nearbyKey('nearbyClaimed'));
+      await this.commitNearby({
+        receive: folded.rows,
+        events: folded.rejected,
+        meta: { ...this.clockMeta(), ...(checked.highest > claimed ? { [this.nearbyKey('nearbyClaimed')]: String(checked.highest) } : {}) }
+      }, folded);
+      return { outcome: 'taken' as const, kept: folded.rows.length, refused: [...checked.refused, ...door.refused], counted: false, ...(folded.farAhead ? { farAhead: folded.farAhead } : {}) };
+    });
+  }
+
+  /** Step 5's door, with the facts read per page. A row it refuses is not written, so a flood of refused rows takes no disk. */
+  private async throughDoor(candidates: readonly AnyEvent[], here: ReadonlyMap<string, LocalEvent>, people: NearbyPeople, o: { claim?: boolean; via: (e: AnyEvent) => NearbyVia }): Promise<NearbyDoorPass> {
+    const { orgId, streamId } = this.opts;
+    const fresh = candidates.filter((e) => !here.has(e.id));
+    const facts = await this.pageFacts(fresh);
+    const pass: NearbyDoorPass = { rows: [], refused: [], settled: new Set(), facts };
+    for (const e of fresh) {
+      // A redaction here holds whichever way the event comes: it is not kept, and it does not hold its batch open.
+      if (this.isRedactedHere(e.id)) { pass.settled.add(e.id); continue; }
+      const refused = nearbyDoor(e, { orgId, languageId: streamId, people, facts, ...(o.claim ? { claim: true } : {}) });
+      if (refused) {
+        pass.refused.push({ id: e.id, ...refused });
+        if (!refused.retry) pass.settled.add(e.id);
+        continue;
+      }
+      facts.note(e);
+      pass.settled.add(e.id);
+      // `nearbyCopy` drops `serverSeq` by destructuring: a copy holding one would be skipped by a refold's `after`, even with the field undefined.
+      pass.rows.push({ event: nearbyCopy(e), status: 'nearby', via: o.via(e) });
+    }
+    return pass;
+  }
+
+  /** Reads the rows these events' door needs off disk: an event pruned into a checkpoint still answers. */
+  private async pageFacts(events: readonly AnyEvent[]): Promise<PageFacts> {
+    const rows = new Map<string, unknown>();
+    if (this.kept) {
+      const byKind = new Map<string, string[]>();
+      for (const e of events) for (const { kind, id } of doorKeptReads(e)) byKind.set(kind, [...(byKind.get(kind) ?? []), id]);
+      for (const [kind, ids] of byKind) {
+        for (const row of await this.opts.store.keptById(this.opts.orgId, this.opts.streamId, kind, ids)) rows.set(`${kind}\u0000${row.id}`, JSON.parse(row.json));
+      }
+    }
+    return doorFactsOf(this.state as unknown as LanguageState, (kind, id) => rows.get(`${kind}\u0000${id}`));
+  }
+
+  /** Step 6 up to its commit: a bounded clock, apply, the undos a late target settles, lines and the revision. */
+  private async foldNearby(door: NearbyDoorPass, people: NearbyPeople): Promise<NearbyFolded> {
+    const last = this.clock.last();
+    const baseline = Math.max(this.wall(), last ? decodeHlc(last).wallMs : 0);
+    let newest: AnyEvent | null = null;
+    const events = door.rows.map((r) => r.event);
+    for (const e of events) {
+      if (clockCloseEnough(e.hlc, this.wall())) this.clock.receive(e.hlc);
+      if (!newest || e.hlc > newest.hlc) newest = e;
+      this.state = this.m.apply(this.state, e);
+    }
+    // The door does not refuse a stamp far ahead: its only baseline may be the one that is wrong, and refusing would hold back honest work offline.
+    const farAhead = newest && !clockCloseEnough(newest.hlc, baseline) ? { actorId: newest.actorId, hlc: newest.hlc } : undefined;
+    if (farAhead) this.farAhead.set(farAhead.actorId, farAhead.hlc);
+    const rejected = await this.settleLateUndos(door, people);
+    const lang = this.state as unknown as LanguageState;
+    if (events.length > 0) {
+      // Lines catch up before the page is shown: a list never reads a passage ahead of its line.
+      this.lines?.touched(lang, events);
+      await this.lines?.refresh().catch(() => { /* owed still; the next change tries again */ });
+      this.revision += 1;
+    }
+    return { rows: door.rows, rejected, refold: rejected.length > 0, ...(farAhead ? { farAhead } : {}) };
+  }
+
+  /**
+   * An undo that landed before its target. `earliestUndo` keeps a backdated entry and
+   * `withdrawnBy` ignores it, so a wrong one would hold the author's real withdrawal out
+   * of the slot. When a target lands and its slot is already held, step 10 runs again over
+   * the nearby rows naming it. An ordinary page finds no slot held, and reads nothing. A
+   * batch has one author, so an undo on the target's own page is that author's.
+   */
+  private async settleLateUndos(door: NearbyDoorPass, people: NearbyPeople): Promise<LocalEvent[]> {
+    const lang = this.state as unknown as LanguageState;
+    const rejected: LocalEvent[] = [];
+    const slots = new Set<string>();
+    for (const { event: e } of door.rows) {
+      if (e.type === 'v1.ReviewRecorded' && lang.withdrawnReviews[e.payload.reviewId]) slots.add(`v1.ReviewWithdrawn ${e.payload.reviewId}`);
+      if (e.type === 'v1.NoteAdded' && lang.withdrawnNotes[e.payload.noteId]) slots.add(`v1.NoteWithdrawn ${e.payload.noteId}`);
+      if (e.type === 'v1.DepartureRecorded' && lang.undoneDepartures[e.payload.departureId]) slots.add(`v1.DepartureUndone ${e.payload.departureId}`);
+    }
+    if (slots.size === 0) return rejected;
+    const names = (e: AnyEvent) => {
+      if (e.type === 'v1.ReviewWithdrawn') return slots.has(`${e.type} ${e.payload.reviewId}`);
+      if (e.type === 'v1.NoteWithdrawn') return slots.has(`${e.type} ${e.payload.noteId}`);
+      return e.type === 'v1.DepartureUndone' && slots.has(`${e.type} ${e.payload.departureId}`);
+    };
+    const context = { orgId: this.opts.orgId, languageId: this.opts.streamId, people, facts: door.facts };
+    for (let after: string | null = null; ;) {
+      const page: LocalEvent[] = await this.opts.store.nearbyPage(this.opts.orgId, this.opts.streamId, after, LOG_PAGE);
+      for (const l of page) {
+        // The server already held a claim's event, so step 10 does not apply to it.
+        const refused = names(l.event) && !(l.via && 'claim' in l.via) ? nearbyLookUpRefusal(l.event, context) : null;
+        if (refused) rejected.push({ event: l.event, status: 'rejected', rejectReason: refused.reason, ...(l.via ? { via: l.via } : {}) });
+      }
+      if (page.length < LOG_PAGE) return rejected;
+      after = page[page.length - 1]!.event.id;
+    }
+  }
+
+  /** The page's one commit. It carries no cursor, because only the server moves a cursor. A commit that fails leaves the fold ahead of the log, so it folds again. */
+  private async commitNearby(batch: WriteBatch, folded: NearbyFolded): Promise<void> {
+    try {
+      await this.commit(batch);
+    } catch (err) {
+      await this.refold('other');
+      throw err;
+    }
+    this.pullCompares = true;
+    this.spend(folded.rows);
+    if (folded.refold) await this.refold('other');
+  }
+
+  /**
+   * Try again on the Sync screen: the door again over refused rows from teammates. Those
+   * that pass go back to `nearby`, never to `pending`, because naming this person proves
+   * nothing and pending would push a forged event as them. Rows dated after their key's
+   * revocation stay out. Answers how many came back.
+   */
+  retryNearby(gate: NearbyGate): Promise<number> {
+    return this.exclusive(async () => {
+      const { store, orgId, streamId } = this.opts;
+      const refused = (await store.rejected(orgId, streamId)).filter((l) => !!l.via);
+      if (refused.length === 0) return 0;
+      const facts = await this.pageFacts(refused.map((l) => l.event));
+      const people = gate.people();
+      const back: LocalEvent[] = [];
+      for (const { event: e, via } of refused) {
+        const claim = !!via && 'claim' in via;
+        if (via && 'batch' in via && revokedLater(gate.revoked, via.key, e.actorId, e.hlc)) continue;
+        if (nearbyDoor(e, { orgId, languageId: streamId, people, facts, ...(claim ? { claim } : {}) })) continue;
+        facts.note(e);
+        back.push({ event: e, status: 'nearby', ...(via ? { via } : {}) });
+      }
+      if (back.length === 0) return 0;
+      await this.commit({ events: back });
+      this.nearbyUseNow = null;
+      await this.refold('requeue');
+      return back.length;
+    });
+  }
+
+  /**
+   * The door again over every nearby row after a new reducer: a type the door passed as
+   * unknown (step 8) has rules now. A session calls this once the organization is known,
+   * since `people` comes from there. The budget is not asked, so a counted row is not
+   * refused for being counted. Answers how many were refused.
+   */
+  nearbyDoorAgain(gate: NearbyGate): Promise<number> {
+    this.doorChecked = false;
+    return this.exclusive(() => this.doorAgainOnce(gate));
+  }
+
+  private async doorAgainOnce(gate: NearbyGate): Promise<number> {
+    if (this.doorChecked) return 0;
+    this.doorChecked = true;
+    const { store, orgId, streamId } = this.opts;
+    const stamp = { [this.nearbyKey('nearbyDoorVersion')]: String(this.m.version) };
+    if ((await store.meta(this.nearbyKey('nearbyDoorVersion'))) === String(this.m.version)) return 0;
+    let refused = 0;
+    if ((await store.nearbyCount(orgId, streamId)) > 0) {
+      // Each row is in the fold, so the fold cannot say whether another event took its slot. The log can: what the server or this phone wrote holds it, then the earliest stamp.
+      const holders = new Map<string, LocalEvent>();
+      for (let after: string | null = null; ;) {
+        const page: LocalEvent[] = await store.page(orgId, streamId, after, LOG_PAGE);
+        for (const l of page) {
+          const entity = validateEvent(l.event) === null ? entityKeyOf(l.event) : null;
+          if (entity === null) continue;
+          const held = holders.get(entity);
+          const ahead = held && (held.status !== 'nearby') !== (l.status !== 'nearby') ? l.status !== 'nearby' : !held || l.event.hlc < held.event.hlc;
+          if (ahead) holders.set(entity, l);
+        }
+        if (page.length < LOG_PAGE) break;
+        after = page[page.length - 1]!.event.id;
+      }
+      const people = gate.people();
+      for (let after: string | null = null; ;) {
+        const page: LocalEvent[] = await store.nearbyPage(orgId, streamId, after, LOG_PAGE);
+        const base = await this.pageFacts(page.map((l) => l.event));
+        const rejected: LocalEvent[] = [];
+        for (const { event: e, via } of page) {
+          const facts = { ...base, entityTaken: (entity: string) => (holders.get(entity)?.event.id ?? e.id) !== e.id };
+          const refusal = nearbyDoor(e, { orgId, languageId: streamId, people, facts, ...(via && 'claim' in via ? { claim: true } : {}) });
+          if (refusal) rejected.push({ event: e, status: 'rejected', rejectReason: refusal.reason, ...(via ? { via } : {}) });
+        }
+        refused += rejected.length;
+        await this.commit({ events: rejected });
+        if (page.length < LOG_PAGE) break;
+        after = page[page.length - 1]!.event.id;
+      }
+    }
+    await this.commit({ meta: stamp });
+    if (refused > 0) {
+      this.nearbyUseNow = null;
+      await this.refold('other');
+    }
+    return refused;
   }
 
   /**
@@ -2057,6 +2417,7 @@ export class SyncClient<S = LanguageState> {
    */
   private async settleBatches(): Promise<void> {
     const { store, orgId, streamId } = this.opts;
+    this.nearbyUseNow = null;
     const batches = await store.batchKeys(orgId, streamId);
     if (batches.length === 0) return;
     const speaking = new Set<string>();

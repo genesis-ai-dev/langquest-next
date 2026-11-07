@@ -1,5 +1,5 @@
 import { eventDigest, isCounted, newCommandId, parseBatchManifest, type BatchManifest, type LanguageState } from '@langquest-next/core';
-import { signerFor, signerOf, ORG, LANG, NOW, STORES, phone, rowOf, session, teammate, vectorOf, worker, type Teammate } from './nearbyFixtures';
+import { signerFor, signerOf, ORG, LANG, NOW, STORES, intakeFor, phone, rowOf, session, teammate, vectorOf, worker, type Teammate } from './nearbyFixtures';
 import { MemoryStore } from '../src/memoryStore';
 import { FakeServer } from '../src/testing/fakeServer';
 import { fakeSha256, fakeSigner } from '../src/testing/memoryNearbyLink';
@@ -45,6 +45,20 @@ describe.each(STORES)('signing on the %s store', (_name, make) => {
     // Signing changes no status: the row still goes up as pending.
     expect((await client.inspect()).pending).toHaveLength(2);
     expect(await client.pendingCount()).toBe(2);
+  });
+
+  it('what it signs a teammate can check, and a second run signs nothing new', async () => {
+    const { client } = await samsPhone();
+    await client.append('v1.UnitAdded', unit(1));
+    await client.signUnsigned(signerOf(sam));
+    expect((await client.signUnsigned(signerOf(sam))).batches).toBe(0);
+
+    const page = await client.nearbyBatchPage(sam.key, 1);
+    const ana = await teammate('ana');
+    const other = phone(new FakeServer(), make(), ana);
+    await other.load();
+    expect(await other.receiveNearby(page!, intakeFor())).toMatchObject({ outcome: 'taken', kept: 1, counted: true });
+    expect((other.getState()).units['u1']).toBeDefined();
   });
 
   it('one author to a batch: a shared phone signs each person under one key, with their own chain, and one counter', async () => {
@@ -363,18 +377,28 @@ describe.each(STORES)('what a phone sends, on the %s store', (_name, make) => {
 
     const collect = async (them: { cursor: number; claimedSeq: number }) => {
       const out: string[][] = [];
-      for await (const page of client.nearbyClaimPages(them)) out.push(page.events.map((e) => e.id));
-      return out;
+      for (let told = them; ;) {
+        const next = await client.nearbyNextClaims(told);
+        if (!next) return out;
+        out.push(next.page.events.map((e) => e.id));
+        told = { ...told, claimedSeq: next.throughSeq };
+      }
     };
     // Only what is attested: the third row waits for the Worker, even though it is confirmed here.
     expect(await collect({ cursor: 0, claimedSeq: 0 })).toEqual([[rows[0]!.event.id, rows[1]!.event.id]]);
     expect(await collect({ cursor: 1, claimedSeq: 0 })).toEqual([[rows[1]!.event.id]]);
     expect(await collect({ cursor: 0, claimedSeq: 2 })).toEqual([]);
 
-    const pages = [];
-    for await (const page of client.nearbyClaimPages({ cursor: 0, claimedSeq: 0 })) pages.push(page);
-    expect(pages[0]!.events.every((e) => !('serverSeq' in e))).toBe(true);
-    expect(pages[0]).toMatchObject({ t: 'claims', text: signed.text, kid: 'k1', sig: signed.sig });
+    const next = await client.nearbyNextClaims({ cursor: 0, claimedSeq: 0 });
+    expect(next!.throughSeq).toBe(2);
+    expect(next!.page.events.every((e) => !('serverSeq' in e))).toBe(true);
+    expect(next!.page).toMatchObject({ t: 'claims', text: signed.text, kid: 'k1', sig: signed.sig });
+
+    // A teammate takes that page as it is, and its mark says what comes next.
+    const other = phone(new FakeServer(), make(), await teammate('ana'));
+    await other.load();
+    expect(await other.receiveNearby(next!.page, intakeFor({ peerKey: sam.key }))).toMatchObject({ outcome: 'taken', kept: 2 });
+    expect((await other.nearbyHave()).claimedSeq).toBe(2);
   });
 
   it('claims close at 512 KiB, under the same attestation', async () => {
@@ -389,8 +413,12 @@ describe.each(STORES)('what a phone sends, on the %s store', (_name, make) => {
     const att = await Promise.all(rows.map(async (l) => [l.event.id, await eventDigest(l.event, fakeSha256), l.event.serverSeq!] as [string, string, number]));
     const signed = await worker.attest({ orgId: ORG, streamId: LANG, rows: att });
     await store.commit({ attests: [{ orgId: ORG, streamId: LANG, lastSeq: 10, text: signed.text, kid: signed.kid, sig: signed.sig }] });
-    const sizes: number[] = [];
-    for await (const page of client.nearbyClaimPages({ cursor: 0, claimedSeq: 0 })) sizes.push(page.events.length);
-    expect(sizes).toEqual([8, 2]);
+    const first = await client.nearbyNextClaims({ cursor: 0, claimedSeq: 0 });
+    expect(first!.page.events).toHaveLength(8);
+    expect(first!.throughSeq).toBe(8);
+    const second = await client.nearbyNextClaims({ cursor: 0, claimedSeq: 8 });
+    expect(second!.page.events).toHaveLength(2);
+    expect(second!.page.text).toBe(first!.page.text);
+    expect(await client.nearbyNextClaims({ cursor: 0, claimedSeq: 10 })).toBeNull();
   });
 });

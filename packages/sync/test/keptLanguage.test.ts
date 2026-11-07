@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import {
-  buildIndexes, derivePassage, emptyLanguageState, foldLanguage, HlcClock, REDUCER_VERSION, keptVerdict, languageLines, PART_OF_KIND, putEntry, referencedBlobs, updatesFor, withOwnParts,
+  buildIndexes, derivePassage, emptyLanguageState, foldLanguage, HlcClock, newCommandId, REDUCER_VERSION, keptVerdict, languageLines, PART_OF_KIND, putEntry, referencedBlobs, updatesFor, withOwnParts,
   type LanguageState
 } from '@langquest-next/core';
 import { PART_KINDS } from '../src/keptLanguage';
@@ -10,6 +10,7 @@ import type { EventStore } from '../src/types';
 import { keptCheckpointVersion, SyncClient } from '../src/syncClient';
 import { LanguageFiles } from '../src/languageFiles';
 import { FakeServer } from '../src/testing/fakeServer';
+import { intakeFor, signerOf, teammate } from './nearbyFixtures';
 
 /**
  * A big language keeps each passage's records (recordings, versions,
@@ -120,6 +121,69 @@ async function language(server: FakeServer, n: number) {
 
 describe.each([['memory', () => new MemoryStore() as EventStore], ['SQLite', sqlite]] as const)('on the %s store', (_name, make) => {
 beforeEach(() => { makeStore = make; });
+
+describe('nearby rows', () => {
+  /** Work by Sam on `u1` and `u2`, with every id naming him, as a current build writes it. */
+  async function nearbyWork(c: SyncClient, tag: string) {
+    const by = (name: string) => newCommandId('sam', `${name}-${tag}`);
+    await c.append('v1.RecordingAdded', { recordingId: by('r'), unitId: 'u1', kind: 'target', cards: [{ hash: `h-${tag}`, durationMs: 1000 }] });
+    await c.append('v1.TakeComposed', { takeId: by('t'), unitId: 'u1', cardHashes: [`h-${tag}`], parentTakeId: null });
+    await c.append('v1.TakeSubmitted', { takeId: by('t') });
+    await c.append('v1.ReviewRecorded', { reviewId: by('rv'), takeId: by('t'), kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'slower' });
+    await c.append('v1.RequestMade', { requestId: by('q'), unitId: 'u2', what: 'record', profileId: 'r1' });
+    await c.append('v1.NoteAdded', { noteId: by('n'), unitId: 'u2', anchor: { kind: 'passage' }, text: 'hm' });
+    await c.append('v1.DepartureRecorded', { departureId: by('dep'), unitId: 'u2', type: 'skip', kindId: 'peer', reason: 'no peer' });
+    await c.append('v1.NoteWithdrawn', { noteId: by('n') });
+  }
+
+  it.each([['in order', [0, 1, 2]], ['newest first', [2, 1, 0]], ['with a page again', [1, 0, 1, 2, 0]]] as const)('agrees with a phone that keeps everything in memory, %s, through a checkpoint and a relaunch', async (_how, order) => {
+    const server = new FakeServer();
+    await language(server, 3);
+    const sam = await teammate('sam');
+    const author = phone(server, sam.deviceId, 'sam', { store: new MemoryStore() });
+    await author.client.load();
+    await author.client.pull();
+    const pages = [];
+    for (let i = 0; i < 3; i++) {
+      await nearbyWork(author.client, `t${i}`);
+      await author.client.signUnsigned(signerOf(sam));
+      pages.push((await author.client.nearbyBatchPage(sam.key, i + 1))!);
+    }
+    const held = phone(server, 'dM', 'r1', { store: new MemoryStore() });
+    const kept = phone(server, 'dK', 'r1', { keepOnDisk: true, checkpointEvery: 2 });
+    for (const p of [held, kept]) { await p.client.load(); await p.client.pull(); }
+    await kept.client.loadUnits(['u1']);
+
+    for (const at of order) {
+      for (const p of [held, kept]) await p.client.receiveNearby(pages[at]!, intakeFor());
+    }
+    expect(await kept.store.nearbyCount('org1', 'p1')).toBe(24);
+    const units = ['u0', 'u1', 'u2'];
+    await kept.client.settleLines();
+    expect(linesOf(kept.client.passageLines(), units)).toEqual(linesOf(held.client.passageLines(), units));
+    expect(comparable(await whole(kept.client, kept.store))).toEqual(comparable(held.client.getState()));
+
+    // A pull past a checkpoint leaves them out of it and holds them still.
+    await author.client.append('v1.UnitAdded', { unitId: 'u9', parentUnitId: null, kind: 'passage', label: 'P9', order: 'z' });
+    await server.transportFor().append([(await author.store.pending('org1', 'p1')).at(-1)!.event]);
+    for (const p of [held, kept]) await p.client.pull();
+    expect(comparable(await whole(kept.client, kept.store))).toEqual(comparable(held.client.getState()));
+
+    // A relaunch reads the rows back the same way.
+    await kept.client.load();
+    await kept.client.settleLines();
+    expect(comparable(await whole(kept.client, kept.store))).toEqual(comparable(held.client.getState()));
+    expect(linesOf(kept.client.passageLines(), units)).toEqual(linesOf(held.client.passageLines(), units));
+
+    // And once the server has them all, nothing is left nearby, and both still agree.
+    await author.client.sync();
+    for (const p of [held, kept]) await p.client.sync();
+    for (const p of [held, kept]) expect(await p.store.nearbyCount('org1', 'p1')).toBe(0);
+    await kept.client.settleLines();
+    expect(comparable(await whole(kept.client, kept.store))).toEqual(comparable(held.client.getState()));
+    expect(linesOf(kept.client.passageLines(), units)).toEqual(linesOf(held.client.passageLines(), units));
+  });
+});
 
 describe('a language that keeps its recordings on disk', () => {
   it('opens from a server snapshot holding no recordings in memory until a passage opens', async () => {
