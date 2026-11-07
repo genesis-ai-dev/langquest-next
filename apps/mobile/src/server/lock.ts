@@ -7,6 +7,7 @@ import { afterMiss, isPicture, lockFor, parseLocks, parseMisses, patternSecret, 
 import { addressHash, newDataKey, openWrap, seal, unseal, withWrap, type Random } from '../session/sealModel';
 import { signingOutByChoice } from '../session/signOutCause';
 import { noteExpected } from '../diagnostics/report';
+import { findKeysKey } from './nearbySecrets';
 import { secureStorage } from './secureStorage';
 import { SESSION_KEY, supabase } from './supabase';
 
@@ -22,6 +23,13 @@ import { SESSION_KEY, supabase } from './supabase';
  * The locks, each person's data key and their sealed session live in the
  * Keychain or Keystore with the session itself (secureStorage.ts); only the
  * count of wrong guesses and the phone's salt are plain.
+ *
+ * A person's nearby discovery keys (nearbySecrets.ts) are sealed with their
+ * session and come back with it, since only their own Share nearby uses them;
+ * the install key and the certificates are not (docs/nearby-sync-plan.md 5.5,
+ * Carl's answer 5, decisions.md 168 as amended). They are written only by
+ * `keepFindKeys`, while their person is the one signed in; at a sign-out the
+ * server forces, src/nearby/nearbySignOut.ts drops them.
  */
 export const LOCKS_ON_SIGN_OUT = Platform.OS !== 'web';
 
@@ -30,6 +38,7 @@ const PHONE_SALT = 'lock-phone-salt';
 const keyFor = (actorId: string) => `lock-key:${actorId}`;
 const sessionFor = (actorId: string) => `locked-session:${actorId}`;
 const missesFor = (actorId: string) => `lock-misses:${actorId}`;
+const findKeysSealedFor = (actorId: string) => `locked-find-keys:${actorId}`;
 
 const random: Random = (n) => Crypto.getRandomBytes(n);
 
@@ -37,9 +46,13 @@ let writes: Promise<unknown> = Promise.resolve();
 const changed = new Set<() => void>();
 /** One change to the locks at a time; listeners hear about it after. */
 function serial<T>(fn: () => Promise<T>): Promise<T> {
+  return inTurn(fn).finally(() => { for (const l of changed) l(); });
+}
+/** In the same queue as `serial`, telling no listener: for writes that change no lock. */
+function inTurn<T>(fn: () => Promise<T>): Promise<T> {
   const next = writes.then(fn);
   writes = next.catch(() => {});
-  return next.finally(() => { for (const l of changed) l(); });
+  return next;
 }
 async function readLocks(): Promise<Lock[]> {
   return parseLocks(await secureStorage.getItem(LOCKS));
@@ -111,6 +124,8 @@ export function signedInHere(actorId: string): Promise<void> {
   if (!LOCKS_ON_SIGN_OUT) return Promise.resolve();
   return serial(async () => {
     if (await secureStorage.getItem(sessionFor(actorId)) !== null) await secureStorage.removeItem(sessionFor(actorId));
+    // Sealed discovery keys go with it; this sign-in reached the server, and its next certificate answer brings them back.
+    if (await secureStorage.getItem(findKeysSealedFor(actorId)) !== null) await secureStorage.removeItem(findKeysSealedFor(actorId));
   }).catch((e: unknown) => noteExpected('lock: signed in', e));
 }
 
@@ -156,6 +171,42 @@ async function sealUnderKey(actorId: string, raw: string): Promise<void> {
 }
 
 /**
+ * The person's discovery keys go under their key with their session, and never stay in the
+ * clear once they are signed out: with no key to seal them under, they simply go, and the next
+ * certificate answer brings them back. Inside `serial`.
+ */
+async function sealFindKeys(actorId: string): Promise<void> {
+  const raw = await secureStorage.getItem(findKeysKey(actorId));
+  if (raw === null) return;
+  const key = await secureStorage.getItem(keyFor(actorId));
+  if (key) await secureStorage.setItem(findKeysSealedFor(actorId), JSON.stringify(seal(key, raw, random)));
+  await secureStorage.removeItem(findKeysKey(actorId));
+}
+
+/**
+ * Keep this person's discovery keys (nearbySecrets.ts) in the clear, or drop them (`null`). A
+ * write lands only while the session stored here is theirs: a certificate answer that comes back
+ * after they signed out (sealed above, at sign-out) or after someone else signed in is dropped,
+ * and their next answer once they are back brings the keys again. In the same queue as sign-out,
+ * which never waits on the network, so neither can hold the other up. Answers whether it was kept.
+ */
+export function keepFindKeys(actorId: string, raw: string | null): Promise<boolean> {
+  return inTurn(async () => {
+    if (raw === null) { await secureStorage.removeItem(findKeysKey(actorId)); return true; }
+    if (savedSession(await secureStorage.getItem(SESSION_KEY))?.user.id !== actorId) return false;
+    await secureStorage.setItem(findKeysKey(actorId), raw);
+    return true;
+  });
+}
+
+/** Back at sign-in from the lock, with the key that opened it. Inside `serial`. */
+async function unsealFindKeys(actorId: string, key: string): Promise<void> {
+  const raw = unseal(key, await secureStorage.getItem(findKeysSealedFor(actorId)));
+  if (raw !== null) await secureStorage.setItem(findKeysKey(actorId), raw);
+  await secureStorage.removeItem(findKeysSealedFor(actorId));
+}
+
+/**
  * Sign out of this phone, locked, asking the server nothing: the session is
  * sealed with the person's key and only their password or pattern opens it
  * again. Nothing queued goes anywhere; it is still here when they are back.
@@ -167,6 +218,7 @@ export function lockAndSignOut(actorId: string): Promise<void> {
       await serial(async () => {
         const raw = await secureStorage.getItem(SESSION_KEY);
         if (raw) await sealUnderKey(actorId, raw);
+        await sealFindKeys(actorId);
         await secureStorage.removeItem(keyFor(actorId));
         await secureStorage.removeItem(SESSION_KEY);
       });
@@ -189,8 +241,9 @@ export function sealHandedOver(actorId: string, raw: string): Promise<void> {
   if (!LOCKS_ON_SIGN_OUT) return Promise.resolve();
   return serial(async () => {
     // Sign Out asks for a way back first; without one the hand-over goes on as before.
-    if (await secureStorage.getItem(keyFor(actorId)) === null) return;
+    if (await secureStorage.getItem(keyFor(actorId)) === null) { await sealFindKeys(actorId); return; }
     await sealUnderKey(actorId, raw);
+    await sealFindKeys(actorId);
   });
 }
 
@@ -214,6 +267,7 @@ export function dropLockedSession(actorId: string): Promise<void> {
   if (!LOCKS_ON_SIGN_OUT) return Promise.resolve();
   return serial(async () => {
     await secureStorage.removeItem(sessionFor(actorId));
+    await secureStorage.removeItem(findKeysSealedFor(actorId));
     await secureStorage.removeItem(keyFor(actorId));
   }).catch((e: unknown) => noteExpected('lock: session gone', e));
 }
@@ -265,6 +319,7 @@ export async function restoreSession(actorId: string, key: string, kept: string 
     await secureStorage.setItem(SESSION_KEY, raw);
     await secureStorage.setItem(keyFor(actorId), key);
     await secureStorage.removeItem(sessionFor(actorId));
+    await unsealFindKeys(actorId, key);
     await AsyncStorage.removeItem(missesFor(actorId));
     return back;
   });
@@ -292,6 +347,8 @@ export function forgetLock(actorId: string): Promise<void> {
   return serial(async () => {
     await secureStorage.removeItem(keyFor(actorId));
     await secureStorage.removeItem(sessionFor(actorId));
+    await secureStorage.removeItem(findKeysSealedFor(actorId));
+    await secureStorage.removeItem(findKeysKey(actorId));
     await AsyncStorage.removeItem(missesFor(actorId));
     await writeLocks((await readLocks()).filter((l) => l.actorId !== actorId));
   });

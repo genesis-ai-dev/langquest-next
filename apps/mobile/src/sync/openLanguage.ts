@@ -26,6 +26,8 @@ export interface LanguagePlatform {
   registerProbe: (name: string, probe: () => ReturnType<LanguageSession['probe']>) => () => void;
   /** A sync has settled: a moment to send diagnostics. */
   settled: (files: BlobStore, blobsWanted: number) => void;
+  /** The client's nearby half (`nearbyClient`), which only the Android app gives (docs/nearby-sync-plan.md 5.12). */
+  nearby?: (orgId: string, actorId: string) => Promise<NonNullable<LanguageSessionOptions['client']>['nearby']>;
 }
 
 export interface OpenLanguageInput {
@@ -68,6 +70,7 @@ export async function openLanguage(
   // One random id per install, persisted. Every device must differ or
   // clocks can tie and the fold becomes order-dependent.
   const deviceId = await ensureDeviceId(store, platform.newId);
+  const nearby = await platform.nearby?.(orgId, actorId);
   const where = { orgId, streamId: languageId };
   const session = await LanguageSession.open({
     orgId, languageId, actorId, deviceId, store, files,
@@ -78,7 +81,7 @@ export async function openLanguage(
     limits: platform.limits,
     // Recording comes first: transfers, and the whole-state clone a checkpoint takes, wait.
     isDeferred: platform.isDeferred,
-    client: platform.client,
+    client: nearby ? { ...platform.client, nearby } : platform.client,
     aroundSync: platform.aroundSync,
     onAnswered: input.onAnswered,
     // Recordings and file verdicts stay on the phone; memory holds the passages on screen (decisions.md 143).

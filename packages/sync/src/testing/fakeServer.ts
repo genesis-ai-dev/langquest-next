@@ -1,4 +1,4 @@
-import { CLIENT_PROTOCOL_VERSION, emptyLanguageState, foldLanguage, LINES_VERSION, REDUCER_VERSION, takeSnapshot, type AnyEvent, type PassageLine, type Snapshot } from '@langquest-next/core';
+import { CLIENT_PROTOCOL_VERSION, emptyLanguageState, entityKeyOf, foldLanguage, idAuthor, LINES_VERSION, REDUCER_VERSION, takeSnapshot, type AnyEvent, type PassageLine, type Snapshot } from '@langquest-next/core';
 import { cutLanguage, languageLinesOf, type ServerCut } from '../serverCut';
 import type { AppendResult, KeptRecord, RowCursor, Transport } from '../types';
 import { ClientTooOldError, NotAuthorizedError, OfflineError, ServerError } from '../types';
@@ -37,6 +37,12 @@ export class FakeServer {
   pullCalls = 0;
   /** Clients below this protocol version are refused, like the server RPCs. */
   minClientVersion = 0;
+  knownEventsCalls = 0;
+  /** A database from before `knownEvents`: it answers null. */
+  knownEventsBehind = false;
+  attestCalls = 0;
+  /** What the Worker does with rows it read: nothing here until a test gives it a signer, and the call answers null, as when nearby is off. */
+  attester: ((orgId: string, streamId: string, rows: readonly AnyEvent[]) => Promise<{ text: string; kid: string; sig: string } | null>) | null = null;
   readonly snapshots = new Map<string, Snapshot>();
   /** The reducer the snapshot worker runs; a test raises it to model a deploy that bumps REDUCER_VERSION. */
   reducerVersion = REDUCER_VERSION;
@@ -169,6 +175,21 @@ export class FakeServer {
         this.pullCalls += 1;
         // Seqs in a stream run 1, 2, 3, ... so the event after `after` is at index `after`.
         return (this.byStream.get(`${orgId}/${streamId}`) ?? []).slice(after, after + limit);
+      },
+      knownEvents: async (orgId, streamId, ids) => {
+        this.reach();
+        this.knownEventsCalls += 1;
+        if (this.knownEventsBehind) return null;
+        if (ids.length > 500) throw new ServerError('too many ids', '22023');
+        return ids.flatMap((id) => {
+          const e = this.byId.get(id);
+          return e && e.orgId === orgId && e.streamId === streamId && e.serverSeq !== undefined ? [{ id, serverSeq: e.serverSeq, hlc: e.hlc, actorId: e.actorId }] : [];
+        });
+      },
+      attest: async (orgId, streamId, afterSeq) => {
+        this.reach();
+        this.attestCalls += 1;
+        return this.attester ? this.attester(orgId, streamId, (this.byStream.get(`${orgId}/${streamId}`) ?? []).slice(afterSeq, afterSeq + 200)) : null;
       }
     };
   }
@@ -274,6 +295,8 @@ export class FakeServer {
   private accept(e: AnyEvent): AppendResult {
     const existing = this.byId.get(e.id);
     if (existing) return { id: e.id, accepted: true, serverSeq: existing.serverSeq!, reason: 'duplicate' };
+    // `append_events`' rule on bound ids: nobody else may take an id that names its author.
+    if (!isUnboundOrAuthors(e)) return { id: e.id, accepted: false, serverSeq: null, reason: 'malformed envelope: id names someone else' };
     const reason = this.authorize(e);
     if (reason) return { id: e.id, accepted: false, serverSeq: null, reason };
     const key = `${e.orgId}/${e.streamId}`;
@@ -305,6 +328,11 @@ export class FakeServer {
     }
     return text;
   }
+}
+
+function isUnboundOrAuthors(e: AnyEvent): boolean {
+  const key = entityKeyOf(e);
+  return [e.id, ...(key === null ? [] : [key])].every((id) => (idAuthor(id) ?? e.actorId) === e.actorId);
 }
 
 function cmp(a: string, b: string): number {

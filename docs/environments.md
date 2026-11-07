@@ -61,12 +61,15 @@ the Worker within seconds of a push to an organization that has webhooks
 cron. `scripts/webhook-poke-secret.sh` makes a random one for each
 environment that has none (preview, then production; `--rotate` replaces
 it), commits it through `env:update` and applies it with `npm run secrets`.
+`NEARBY_SIGNING_KEY` is optional the same way: the app Worker's Ed25519 key
+for nearby sync's certificates and attestations (The nearby signing key,
+below); without it `/api/nearby/*` answers 503.
 `npm run secrets` puts each where it is used, as `scripts/secrets.mjs`
 declares:
 
 | Destination | Gets |
 | --- | --- |
-| app's Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo; `BIBLE_BRAIN_ACCESS_KEY`, `WEBHOOK_POKE_SECRET`, `V2_SUPABASE_ANON_KEY` and `V2_DATABASE_URL` when the file has them, `YOUTUBE_CLIENT_ID` with `YOUTUBE_CLIENT_SECRET` when it has both, and `LINEAR_API_KEY` when it has it. Its job containers get them from the Worker at each start: the projection pass the database's, the v2 import v2's too, the tutorial publish job the YouTube client's, the comments job the YouTube client's and Linear's (`docs/server-jobs.md`) |
+| app's Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo; `BIBLE_BRAIN_ACCESS_KEY`, `WEBHOOK_POKE_SECRET`, `V2_SUPABASE_ANON_KEY` and `V2_DATABASE_URL` when the file has them, `YOUTUBE_CLIENT_ID` with `YOUTUBE_CLIENT_SECRET` when it has both, `LINEAR_API_KEY` when it has it, and `NEARBY_SIGNING_KEY` when it has it. Its job containers get them from the Worker at each start: the projection pass the database's, the v2 import v2's too, the tutorial publish job the YouTube client's, the comments job the YouTube client's and Linear's (`docs/server-jobs.md`) |
 | invite-email Worker | `INVITE_RELAY_SECRET` |
 | admin Worker (production only) | each provider token or key (`ADMIN_*`) when the file has them (`docs/admin.md`). Never the service-role key |
 | Hyperdrive `langquest-next-diag` (production only) | `DIAG_DATABASE_URL`, as the config's connection; the first run makes the config and writes its id into `apps/admin/wrangler.jsonc` to commit (`docs/admin.md`) |
@@ -133,6 +136,45 @@ Global Viewers need (docs/global-viewers.md).
 `npm run secrets` compares Supabase values by digest. Worker secrets cannot be
 read back, so it only checks that they exist, and sets them again on every
 apply.
+
+## The nearby signing key
+
+`NEARBY_SIGNING_KEY` is the app Worker's Ed25519 private key for nearby sync
+(`apps/web/worker/nearby.ts`, `docs/nearby-sync-plan.md` 5.12): it signs each
+phone's certificate, each organization's revocation list and the attestations
+of pulled work. It is one compact JWK with its `kid`, a secret of its own, never
+derived from the service-role key, since rotating that would strand phones
+that are offline for months. Its public half is a public setting in two places
+that must be equal (`scripts/nearbyCertKeys.test.ts`): `NEARBY_CERT_KEYS` in the
+app Worker's `vars` (top level for production, `env.preview` for preview) and
+`EXPO_PUBLIC_NEARBY_CERT_KEYS` in `apps/mobile/.env.<env>`, each a list of
+`kid:base64url` so that a key can rotate. Both are empty until someone makes
+the key: the Worker answers 503 and phones refuse every chain.
+
+To make it, once per environment, before the first update or build that
+carries nearby sync (production at the merge, `docs/nearby-sync-plan.md` 7):
+
+```
+scripts/nearby-signing-key.sh production
+npm run secrets -- production
+npm run env:eas -- push production     # if the script's own EAS push was declined
+```
+
+The script makes the pair with Node's crypto and pipes the private JWK into
+`env:update`, so it is encrypted into `.env.production` and committed without
+being printed or written in plain text. It appends the public `kid:key` to
+`NEARBY_CERT_KEYS` in `apps/web/wrangler.jsonc` and commits that, then sets
+`EXPO_PUBLIC_NEARBY_CERT_KEYS` with `env:update`, which commits the app's file
+and offers to push it to EAS. Merging the commits deploys the Worker with the
+list. The Worker signs only while `NEARBY_CERT_KEYS` lists its key's `kid`
+with that very public key, so a key that phones would not trust is never used.
+
+To rotate, `--rotate` makes a new key and appends its public half; the old
+`kid` stays listed, so phones built before the rotation keep trusting what
+the old key signed (batches are carried for months). An environment that
+already has the key keeps it without `--rotate`. Locally, `npm run web:dev`
+passes `NEARBY_SIGNING_KEY` and `NEARBY_CERT_KEYS` from your shell to the
+Worker when they are set (`scripts/web-dev-vars.ts`), never a hosted key.
 
 ## The App Store key
 

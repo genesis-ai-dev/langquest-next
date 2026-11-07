@@ -16,7 +16,7 @@
 // (it was Publish) puts them in one core produceContent, in part order, and
 // in the same tap asks whoever usually does the check that comes next.
 import {
-  checkPeople, checkShows, commands, DEFAULT_KINDS, keyTermsForUnit, RECORD_STEP, type EventSpec, type KindDef, type KindStatus, type PassageNote, type Version
+  newCommandId, checkPeople, checkShows, commands, DEFAULT_KINDS, keyTermsForUnit, RECORD_STEP, type EventSpec, type KindDef, type KindStatus, type PassageNote, type Version
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -249,11 +249,11 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
     try {
       const c = commands(state, indexesFor(state));
       specs = c.produceContent({
-        commandId: Crypto.randomUUID(), fromTakeId: of.takeId, kindId: kind.id, cards: pieces,
+        commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), fromTakeId: of.takeId, kindId: kind.id, cards: pieces,
         ...(note ? { note } : {}), ...(noteHash ? { noteBlobHash: noteHash } : {}), ...(request ? { requestId: request.id } : {})
       });
       if (ask && 'kindId' in ask && sendTo) {
-        const asked = c.ask(sendToInput({ commandId: Crypto.randomUUID(), unitId, kindId: ask.kindId, target: sendTo }));
+        const asked = c.ask(sendToInput({ commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), unitId, kindId: ask.kindId, target: sendTo }));
         specs = [...specs, ...asked];
         message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name), offline);
       }

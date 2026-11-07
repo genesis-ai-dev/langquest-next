@@ -225,7 +225,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
       sessionRef.current = language.session;
       filesRef.current = language.files;
       // Finish any save a crash or kill interrupted; after the workers start, so the upload pass sees the recovered card.
-      await recoverRecordings(language.session, language.files, { orgId, languageId }, appRecoveryEnv(), () => cancelled);
+      await recoverRecordings(language.session, language.files, { orgId, languageId, actorId }, appRecoveryEnv(), () => cancelled);
     })();
     return () => {
       cancelled = true;

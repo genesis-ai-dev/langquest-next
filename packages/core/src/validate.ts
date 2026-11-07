@@ -406,6 +406,24 @@ export function entityKeyOf(e: AnyEvent): string | null {
   }
 }
 
+const AFTER_TERM = /^(?:rendering|adjustment):[^/]*\//;
+const AUTHORED = /^(?:(?!by:)[a-z]+:)*by:([^:]+):/;
+
+/**
+ * Whose id this is, or null when it names nobody. New builds mint ids that name
+ * their author, `by:<actorId>:<random>` (docs/nearby-sync-plan.md 5.4), because
+ * nearby phones hand ids to teammates before the server has seen them, and the
+ * server gives an id to whoever arrives first. It reads an event id, an id with its
+ * terms in front (`take:by:...`), or an entity key (`take:take:by:...`). A key
+ * under a key term reads from after the term, which is shared by design (decision
+ * 75). The answer depends only on the text, so no other author can make an id that
+ * reads as someone's and equals theirs. Every step here holds in a Postgres regular
+ * expression too, for the twin.
+ */
+export function idAuthor(id: string): string | null {
+  return AUTHORED.exec(id.replace(AFTER_TERM, ''))?.[1] ?? null;
+}
+
 const VERSE_REF = /^[1-9][0-9]{0,2}:[1-9][0-9]{0,2}$/;
 
 /** "15:4" -> 15004, for ordering; null when it is not chapter:verse. */
@@ -498,4 +516,35 @@ export function eventSizeError(e: AnyEvent): string | null {
   }
   const bytes = jsonbTextBytes(e.payload);
   return bytes > EVENT_PAYLOAD_MAX_BYTES ? `event too large: ${bytes} bytes (max ${EVENT_PAYLOAD_MAX_BYTES})` : null;
+}
+
+/** The same JSON, whatever order the keys came in. Iterative: a pull page runs this on whatever the server holds. */
+function sameJson(left: unknown, right: unknown): boolean {
+  const stack: [unknown, unknown][] = [[left, right]];
+  while (stack.length > 0) {
+    const [a, b] = stack.pop()!;
+    if (a === b) continue;
+    if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+    if (Array.isArray(a) !== Array.isArray(b)) return false;
+    if (Array.isArray(a)) {
+      const other = b as unknown[];
+      if (a.length !== other.length) return false;
+      a.forEach((item, i) => stack.push([item, other[i]]));
+      continue;
+    }
+    const given = (o: object) => Object.entries(o).filter(([, v]) => v !== undefined);
+    const ofA = given(a);
+    if (ofA.length !== given(b).length) return false;
+    for (const [k, v] of ofA) {
+      if (!Object.prototype.hasOwnProperty.call(b, k)) return false;
+      stack.push([v, (b as Record<string, unknown>)[k]]);
+    }
+  }
+  return true;
+}
+
+/** Are these one event, byte for byte, the whole envelope less `serverSeq`? Comparing `hlc` is not enough: a copy can match there and differ in its payload. */
+export function sameEventBytes(a: AnyEvent, b: AnyEvent): boolean {
+  for (const k of ['id', 'type', 'orgId', 'streamId', 'actorId', 'deviceId', 'hlc'] as const) if (a[k] !== b[k]) return false;
+  return (a.parentEventId || undefined) === (b.parentEventId || undefined) && sameJson(a.payload, b.payload);
 }

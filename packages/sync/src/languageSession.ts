@@ -116,8 +116,8 @@ export interface LanguageSessionOptions {
   limits: { minFreeBytes: number; maxTotalBytes: number };
   /** Recording and local saves come first: transfers and checkpoints wait while this is true. */
   isDeferred?: () => boolean;
-  /** Passed to the SyncClient. */
-  client?: Pick<SyncClientOptions, 'newId' | 'yieldBetweenPages' | 'diag' | 'clock' | 'now'>;
+  /** Passed to the SyncClient. `nearby` only from the Android app (`nearbyClient`, docs/nearby-sync-plan.md 5.12). */
+  client?: Pick<SyncClientOptions, 'newId' | 'yieldBetweenPages' | 'diag' | 'clock' | 'now' | 'nearby'>;
   /** Wraps every `client.sync()`, for a test-state probe. */
   aroundSync?: (run: () => Promise<SyncResult>) => Promise<SyncResult>;
   /**
@@ -529,8 +529,8 @@ export class LanguageSession {
   }
 
   /** Does the language hold this recording, in memory or on disk? (A recovered recording's check.) */
-  hasRecording(id: string): Promise<boolean> {
-    return this.plan.hasRecording(id);
+  hasRecording(id: string, unitId: string): Promise<boolean> {
+    return this.plan.hasRecording(id, unitId);
   }
 
   /** What these files a phone lost were (decisions.md 92). */

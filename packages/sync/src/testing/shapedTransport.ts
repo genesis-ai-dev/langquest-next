@@ -83,6 +83,10 @@ export function shapeTransport(inner: Transport, o: ShapeOptions): Transport {
       call(REQUEST_BYTES + jsonBytes(a[4]), () => inner.snapshotRows!(...a), jsonBytes) } : {}),
     ...(inner.snapshotPassages ? { snapshotPassages: (...a: Parameters<NonNullable<Transport['snapshotPassages']>>) =>
       call(REQUEST_BYTES + jsonBytes(a[3]), () => inner.snapshotPassages!(...a), jsonBytes) } : {}),
+    ...(inner.knownEvents ? { knownEvents: (...a: Parameters<NonNullable<Transport['knownEvents']>>) =>
+      call(REQUEST_BYTES + jsonBytes(a[2]), () => inner.knownEvents!(...a), jsonBytes) } : {}),
+    ...(inner.attest ? { attest: (...a: Parameters<NonNullable<Transport['attest']>>) =>
+      call(REQUEST_BYTES, () => inner.attest!(...a), jsonBytes) } : {}),
     ...(inner.watch ? { watch: inner.watch.bind(inner) } : {})
   };
 }

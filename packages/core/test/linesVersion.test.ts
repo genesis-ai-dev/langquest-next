@@ -23,6 +23,6 @@ function sourceHash(): string {
 
 describe('LINES_VERSION', () => {
   it('is bumped, or its hash recorded again, whenever passage.ts or passageLines.ts changes', () => {
-    expect({ version: LINES_VERSION, hash: sourceHash() }).toEqual({ version: 1, hash: 'fa66828d1900d8ba' });
+    expect({ version: LINES_VERSION, hash: sourceHash() }).toEqual({ version: 1, hash: 'bfcdb672ea3aa19a' });
   });
 });

@@ -1,3 +1,5 @@
+import { createClient } from '@supabase/supabase-js';
+import { SupabaseTransport } from '@langquest-next/sync';
 import { handleApi } from './api';
 import type { OrgStub } from './agent/http';
 import { supabaseAgentStore } from './agent/store';
@@ -19,6 +21,7 @@ import { isOpsPath, toOps } from './ops';
 import { pokeInBatches } from './batches';
 import { handleDownload, handleWatch } from './tutorialVideos';
 import { githubOidc } from './githubOidc';
+import { nearbySigner, subtleSha256, subtleVerify, type NearbySigner } from './nearbyKeys';
 
 export { OrgSnapshot } from './orgSnapshot';
 export { JobRunner } from './jobs';
@@ -79,6 +82,9 @@ const tokenCache = new TtlCache<TokenRecord>(MAX_ENTRIES);
 /** GitHub's signing keys, kept in the isolate (githubOidc.ts). */
 let githubOidcCached: ReturnType<typeof githubOidc> | null = null;
 let blobAccessCached: ((key: string, profileId: string, write: boolean, aal?: string) => Promise<boolean>) | null = null;
+/** Nearby sync's key, imported once per isolate (nearbyKeys.ts), and its callers' identity with the session asked every time. */
+let nearbySignerCached: Promise<NearbySigner | null> | null = null;
+let nearbyCallerCached: ((token: string) => Promise<Identity | null>) | null = null;
 
 /** The app's Worker: `/api/*` here, everything else is the built page. */
 export default {
@@ -332,6 +338,34 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
       },
       record: jobRunSink(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY),
       now: () => Date.now()
+    },
+    // Nearby sync's certificates and attestations (nearby.ts, docs/nearby-sync-plan.md 5.12).
+    nearby: {
+      signer: () => (nearbySignerCached ??= nearbySigner(env.NEARBY_SIGNING_KEY, env.NEARBY_CERT_KEYS)),
+      // Not liveSessions: its 30-second cache would let a phone whose sessions were just ended make a new key, and it
+      // takes a database it cannot reach as a yes. sessionLiveCheck asks every time and throws then.
+      certificateCaller: async (token) => {
+        nearbyCallerCached ??= cachedIdentityOf(claimsVerifier(serviceClient(env)), Date.now, sessionLiveCheck(serviceClient(env)));
+        return (await nearbyCallerCached(token))?.profileId ?? null;
+      },
+      profileOf,
+      allowed: async (profileId) => !env.NEARBY_RATE_LIMIT || (await env.NEARBY_RATE_LIMIT.limit({ key: profileId })).success,
+      facts: async (profileId, deviceId, publicKey, languages) => await serviceClient(env).rpc('nearby_certificate_facts', {
+        p_profile: profileId, p_install: deviceId, p_key: publicKey, p_languages: languages
+      }),
+      nearbyOn: async (orgId) => await serviceClient(env).rpc('_org_feature_on', { p_org: orgId, p_feature: 'nearby' }),
+      // The caller's own token, so pull_events' can_read_stream decides; mapped as every phone maps a pull.
+      pullAs: (token, orgId, streamId, afterSeq, limit) => {
+        if (!env.SUPABASE_ANON_KEY) throw new Error('SUPABASE_ANON_KEY is not set');
+        const asCaller = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
+          global: { headers: { authorization: `Bearer ${token}` } },
+          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+        });
+        return new SupabaseTransport(asCaller).pull(orgId, streamId, afterSeq, limit);
+      },
+      now: () => Date.now(),
+      verify: subtleVerify,
+      sha256: subtleSha256
     },
     // The watch for user issues, every 15 minutes from GitHub Actions (userIssues.ts, decisions.md 202).
     userIssues: {

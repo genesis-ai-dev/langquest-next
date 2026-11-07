@@ -1305,6 +1305,18 @@ Amended (2026-10-22, Caleb Koster): small changes still go to `main` on
 their own, but through a pull request whose guardrails checks are green;
 `main` takes no direct push (decisions.md 150).
 
+Amended (2026-11-07, Carl Sauder): the app's first flag, nearby sync's
+(214), has no synced configuration document. It keeps this entry's
+per-organization control, default of off, offline behaviour, lack of a
+third-party service, and its rule that a flag gates screens and behaviour,
+never events. The record is `org_features` on the server, and the
+certificate carries it to the phone: the certificate would still need its
+own server check, and two places would have to agree
+(`docs/nearby-sync-plan.md` 5.10). That document can come when a second
+feature needs a flag; `org_features` names its feature, so it can grow. As
+this entry asks, a follow-up issue tracks the rollout and removing the flag;
+none exists yet.
+
 ## 54. Getting in is a key the phone holds, and an account without email has a steward
 
 Date: 2026-10-01 · By: Caleb Koster · Status: partly superseded by 59
@@ -1723,6 +1735,16 @@ sent everything it no longer ends that session: it seals the newest copy and
 drops the key, so the person can still come back to this phone offline.
 Coming back from the lock takes the session back from the courier without
 ending it, after any delivery under way stops (`takeBackHandOver`).
+
+Amended (2026-11-07, Carl Sauder): a teammate's events that came from their
+phone (`nearby`, 206) never go through the courier. They are not `pending`,
+so `pendingStreamsBy` and a hand-over's `deliverQueued` never see them, and
+`requeue` and Try again never turn a row with a `via` into `pending`: naming
+this person proves nothing, so the courier would otherwise push a forged
+event as its author. Until delivery (`docs/nearby-sync-plan.md` phase 4) only
+an author's own session sends their work. A nearby file evicted before the
+server has it, and teammates' files left out of a hand-over's uploads, come
+with phase 3.
 
 ## 61. Every passage says whether it is on this phone, and Settings says how ready the phone is for offline
 
@@ -4369,6 +4391,38 @@ early, and the job only builds its deps. ESLint now also reads `server/`,
 nothing from `apps/mobile/src` (shared code goes in core). This is still
 one package, not the separate server package the reverse-if names: the
 server entry imports only what sync already may.
+
+Amended (2026-11-07, Carl Sauder): sync has a third entry,
+`@langquest-next/sync/nearby` (`packages/sync/src/nearby.ts`), for sharing
+between phones: the room, the session, the link and radio contract, the wire
+and what a page needs at the door (`docs/nearby-sync-plan.md` 5.12). It is
+absent from `index.ts`, so the web app, which has no Share nearby (58), does
+not carry it. It imports only what sync already may; a platform's crypto,
+radio and files come in as arguments (`NearbyCrypto`, `NearbyRadio`,
+`NearbyFileMoves`). The lint rule that keeps the app on package entries
+(`noDeepPackage` in `eslint.config.mjs`) names it as the one subpath the app
+may import. Its test doubles are in `src/testing` with the rest
+(`memoryNearbyLink.ts`, and `fleet/nearby.ts` for the fleet).
+A `SyncClient` takes the nearby half (`nearbyClient(platform)`,
+`packages/sync/src/nearbyClient.ts`) as an optional constructor argument,
+`nearby`, which reaches the client's private state through a narrow port
+(`NearbyPort`); only the Android app passes it, and `syncClient.ts` keeps
+what every client needs. Core is split the same way:
+`@langquest-next/core/nearby` (`packages/core/src/nearby.ts`) names core's
+`nearby*` files, which core's `index.ts` does not, because Metro carries
+every module an entry names into the web bundle, used or not. Sync's own
+files may import it.
+
+Amended (2026-11-07, Carl Sauder): only `.android` files in
+`apps/mobile/src` import `@langquest-next/sync/nearby` or
+`@langquest-next/core/nearby` (`nearbyOnAndroid` in `eslint.config.mjs`,
+`docs/nearby-sync-plan.md` 5.12), each with a plain stub beside it where a
+file on every platform needs it, so the web and iPhone bundles carry
+neither: a `.web` stub would ship on iPhones. The phone's crypto is built in
+the app (`src/nearby/nearbyCryptoModel.ts`, `@noble/curves` and
+`@noble/hashes`) and reaches sync as `NearbyCrypto` and as the platform of
+`nearbyClient`, and `LanguageSession`'s `client` option passes `nearby` on
+to its `SyncClient`.
 
 ## 105. In `apps/mobile`, server calls live in `src/server/`, logic outside screens, and folders by feature
 
@@ -7325,6 +7379,15 @@ Reverse if: the old tests fail often for reasons that phones never meet
 (then run only the parts of each test that phones run), or the run grows
 past the `server` job's other steps (then run the commits in parallel jobs).
 
+Amended (2026-11-07, Carl Sauder): `append_events` is restated once, for
+the `by:` rule (209): a caller's event whose id, or the id a create makes,
+names someone else is refused with a reason that reads as `INVALID`. Any
+other id behaves as today, so old builds keep their results, which this
+entry's old-sync run checks in CI on the nearby branch's pull request
+(`supabase/migrations/20261107010000_nearby_identity.sql`,
+`docs/nearby-sync-plan.md` section 12). `may_emit` is restated once too, in
+phase 4.
+
 ## 153. The first launch after install waits up to 5 seconds for the latest OTA update
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted
@@ -8501,6 +8564,37 @@ before, Scan shows their pictures under "Who is joining?": tap yours, draw
 the pattern, and the invite joins that account; "Someone new" makes a new
 one, and "I already have an account" still signs in with a password first.
 Pictures, never names, as above.
+
+Amended (2026-11-07, Carl Sauder): Carl chose (his answer 5, 2026-11-06)
+that on a shared phone a signed-out person's unsent work may be shared
+nearby, so the nearby install key (211) and each person's certificates
+(212) sit outside this entry's seal: the key in the Keystore beside it, the
+chains as plain meta rows. They are used only when someone signed in has
+opened Share nearby, apart from proving the key to the Worker in the
+certificate call of whoever is signed in. This weakens what this entry
+guards against: whoever controls that phone can sign, as any certified
+person on it, whatever is in its log, and with a live join pass on the phone
+(phase 6) can let in a new person with no manage privilege. It is not a way
+to sign in: a copied key gets a server session only on an account made from
+a chain, before that account's first session. Discovery keys stay inside
+the seal: each person's (`nearbyFindKeys:<profileId>`) are sealed with their
+session at sign-out, in `apps/mobile/src/server/lock.ts`, come back at
+sign-in from the lock, and with no key to seal them under are dropped, since
+only that person's Share nearby uses them. This goes to the security review
+and to Caleb, whose entry this is (`docs/nearby-sync-plan.md` 5.5 and
+section 13); Carl's answer stands unless the review finds a reason.
+
+Amended (2026-11-07, Carl Sauder): a sign-out the server forces (renewing
+refused, the session ended elsewhere) seals nothing, and sealing the
+discovery keys then would be pointless, because that person's lock key is
+still in the clear on that path. So at any sign-out the app drops the
+signed-out person's `nearbyFindKeys:<profileId>` and every `nearbyPeers` row
+(`apps/mobile/src/nearby/nearbySignOut.ts`, from App's auth listener); a
+chosen sign-out has sealed them first. Discovery keys are written only by
+`keepFindKeys` in `lock.ts`, in the queue sign-out uses, and only while the
+stored session is that person's, so a certificate answer that arrives after
+they signed out is dropped rather than left in the clear. Sign-out does not
+wait for that call, which may be waiting on the network.
 
 ## 169. An account writes at most 20,000 events or 100 MB dated any one day, a person's stream holds each event once, and a language's member reads only their languages' templates
 
@@ -10853,3 +10947,407 @@ review over 14 days past the replacement, or a build cut from an older commit,
 still finds no copy: a new install on a slow link then pulls the log and its work
 is safe. At about one bump a week this keeps one or two versions nobody reports;
 at early October's three a week, five or six, each a copy per language.
+
+## 205. A nearby phone is not a server: a teammate's work moves phone to phone, and only the server confirms it
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: teams already work offline for a month or more (PLAN.md section 1),
+and nobody sees a teammate's work until both have been online. Carl set two
+purposes for sharing between phones, in this order: review before anyone is
+back online, and one trip to town with protection from a lost or crashed
+phone, so every phone ends up holding all the team's unsent work
+(`docs/nearby-sync-plan.md` sections 1 and 2). The fold is order-independent
+and idempotent (invariants 2 and 3), so a phone can fold a teammate's events
+with no merge step and no new event, reducer change or `REDUCER_VERSION`
+bump. What keeps every server rule true is that a nearby phone is not a
+`Transport` (plan 5.1): only the server moves a cursor, only the server
+confirms (a nearby event is never `confirmed`, a nearby file never makes
+`isStored` true), and nothing a nearby phone says can delete anything.
+Server-only events are refused, and `v1.Redacted` and `v1.ExternalValueSet`
+are refused by name in the door (`packages/core/src/nearbyDoor.ts`) and the
+sender, since `privilegeFor` would let an admin's through.
+`SyncClient.receiveNearby` takes one page at a time under the stream's turn
+and runs only part of the pull's path: apply, lines, revision and one commit,
+never the cursor, the fill, the redaction branch, the membership retry or a
+checkpoint, and the link is never awaited inside that turn. The room's loop
+(`NearbyRoom`, `choosePartner`) and the session (`NearbySession`) live in
+`packages/sync` behind its `./nearby` entry (104), so the fleet runs the app's
+own code and supplies only time and the link (`packages/sync/src/testing/fleet/nearby.ts`).
+Phase 1 is the model with no radio and no screen. Held by
+`packages/sync/test/nearbyConverges.test.ts` (any split of work, any pairings
+with drops, then trips to town: every phone folds to the server's log with
+nothing nearby) and the fleet's `villageMonth`, `wrongDate`, `fiveInRoom` and
+`lostPhone` scenarios.
+Reverse if: a phone back from town ever folds to something the server's log
+does not give, or a nearby row is ever found in a checkpoint or the outbox.
+
+## 206. `nearby` is a fourth status on the events table, and `via` says how a teammate's row came
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: a teammate's event must be held and folded so it can be reviewed,
+and must never be sent as its author from this phone (plan 5.2). Reusing
+`pending` with another person's `actorId`, as a shared phone does, would
+let `pendingStreamsBy` and the courier (60) push it as that person when they
+sign in here, laundering a forged event; the same door exists through retry,
+so `requeue` leaves out any row with a `via`. `status` is a plain text column,
+so `nearby` needs no migration and invariant 7 holds (PLAN.md section 7 now
+lists it). `SqliteStore.open` gains a `via` column and the `nearby_batches` and
+`nearby_attests` tables behind its pragma read. Push, the sync count and the
+sign-out check read `status = 'pending'` and ignore nearby rows; the fold reads
+`status <> 'rejected'` and includes them. The traps in plan 5.4 each have a
+rule and a test: `takeCheckpoint`'s fast path and `loadUnits` read
+`unconfirmedCount`, so no nearby row reaches a confirmed checkpoint;
+`WriteBatch.receive` writes only ids this phone lacks, while a pull still
+overwrites and clears `via`; `receiveNearby` drops `serverSeq` by
+destructuring; a teammate's clock is received only within 5 minutes
+(`clockCloseEnough`). `SyncInspection` has a nearby count, and the fleet's
+`caughtUp` requires it to be zero. The cost is that nearby rows, like pending
+ones, hold `takeCheckpoint` on its slow path and keep memory from shedding
+until the server confirms them (210 has the numbers).
+Reverse if: a `pending` or `confirmed` row is ever downgraded by a teammate's
+copy, or a nearby row is ever pushed.
+
+## 207. Each phone numbers the batches it signs, and a teammate counts what it received by signer and number
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: Carl's answer 2 (2026-11-06): a batch counter, not clocks. A plain
+clock vector cannot say what a teammate has received: `restamp` moves a
+device's clock backwards, and a shared phone pushes one device's events out
+of clock order, so a clock entry can claim an event that is on neither side.
+So clock code and 15 stay as they are. Each phone signs up to 200 of one
+author's events at a time with its install key, under a manifest listing
+each event's id and digest (`packages/core/src/nearbySigning.ts`), so any
+subset can be checked against it; `n` comes from this key's own counter,
+never from a number a teammate sent. The vector records, per stream and per
+signer's install key, a mark and a short list of ranges above it, in device
+meta, written in the same commit as the events it counts, and it outlives
+pruning. The security review keyed it by install key rather than device,
+because a `deviceId` is only a label its caller chose (Carl's answer 21
+kept that). Only a verified manifest moves an entry: pulled events and
+claims never do, nor Have or anything else unsigned. A phone signs what is
+unsigned before it broadcasts a summary (`SyncClient.signUnsigned`). Known
+weakness, accepted with the answer: a phone restored from a backup could
+reuse numbers, and teammates would skip those batches until the server has
+them.
+Reverse if: the real-phone test finds a phone restored from a backup keeps
+its install key (plan section 11).
+
+## 208. A batch counts only when it is whole, gaps stay open, and the signer's own floor closes them
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: with numbered batches (207) a teammate could close a number by
+leaving events out, and a phone holding part of a batch could close it for
+the next phone (plan 5.3, from the security review). A number counts only
+when every id in its manifest is here under that digest, under a later batch
+of the same signer (a restamp), redacted here, refused for good by this
+phone's door after arriving with a matching digest, or found on the server by
+the sweep; a digest mismatch never counts. Until then the rows are kept and
+folded, the number stays open, and every later partner sends the batch again
+with known ids dropping out, so the re-send is the asking and there is no ask
+message. A sender sends every batch the receiver has not counted, lowest
+first, and a receiver records a number above a gap as a range. Each manifest
+carries `floor`, the signer's word that none of its batches at or below it
+has a row still pending or nearby on its phone; a receiver sets
+`mark = max(mark, floor)`, so a signer can hurt only its own entry. When a
+sync moves the floor, `signUnsigned` signs a batch with no events to carry
+it, and each phone keeps each signer's newest manifest after its rows go, so
+the floor travels on. A signer's stored manifests have a budget of their own
+(`NEARBY_BUDGET.maxManifestBytes`, 50 MB), and a manifest with no row under it
+replaces that signer's last, so a flood of empty manifests holds one row. If
+an author's phone is lost its gap stays open, which costs extra sessions and
+nothing else. Measured in the fleet's `fiveInRoom` (seeds 1 to 5 alike), with
+nobody working after the first meeting: one phone's trip to town moved its
+summary, and the next meeting took 12 pairings (8 finished, 4 met a busy
+phone) and 0.14 MB of claims and holdings before every room stopped; a
+meeting after that took none.
+Reverse if: open gaps make rooms in the field keep talking without moving
+anything.
+
+## 209. New ids name their author, and a teammate's phone takes only work whose ids are bound to who wrote it
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: nearby hands teammates event ids and entity ids before the server
+has seen them, and the server gives an id to whoever arrives first (plan
+5.4, Bound ids). A teammate could push their own events under Sam's ids, or
+sign a batch holding them; Sam's real event would then be refused for good,
+the pull would overwrite his row with theirs, and nobody would see a
+refusal. New builds mint `by:<actorId>:<random>`, a marker no build has used,
+since today's ids are already `<uuid>:<n>` and a bare actor prefix could not
+be told from one. `commandId` comes from one core helper, `newCommandId`,
+held by a lint rule over the command sites, so event ids and the `take:`,
+`review:`, `note:`, `req:`, `dep:`, `rendering:` and `adjustment:` ids made
+from it inherit it, and `SyncClient.append`'s default id binds too.
+`idAuthor` in core refuses an event whose id, or the id a create makes,
+names someone else (for `rendering:` and `adjustment:` keys, the part after
+the term, shared by design, 75). The door refuses an unbound batch event, and
+`signUnsigned` leaves an unbound row out and counts it for the screen, so a
+missed site costs sharing, not integrity. `FakeServer` holds the rule now;
+`append_events` gets its twin, for callers only and with a reason that reads
+as `INVALID`, in phase 2 (152 is amended then). Any other id behaves as
+today, so old builds keep their results. Known limits, for the security
+review: `audioformat:<hash>` is a content address and cannot be bound, so a
+teammate can label one voice note first, and take ids reaching apps through
+the agent API now show their author's profile id.
+Reverse if: an id over the 256-character limit turns up, or a command site
+is found minting ids the lint rule does not see.
+
+## 210. A phone takes at most 70,000 rows and 50 MB of nearby work per signer
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: every phone keeps what it takes, these rows cannot be pruned until
+the server settles them, and every load folds them, so one member's flood
+of valid events could stop a language opening on every phone in the team
+(plan 5.4, A budget per signer, from the security review). Carl kept the
+review's numbers (answer 21), from 169: 70,000 rows (the 99th-percentile
+day, 1,150 events, times 60 days offline) and 50 MB, as arguments from
+JavaScript (`NEARBY_BUDGET` in `packages/core/src/nearbySend.ts`).
+`receiveNearby` checks the budget right after parsing a manifest, before
+chain and signature work, outside the door, which runs again over counted
+rows on a `REDUCER_VERSION` change and would miss unknown types. Batch rows
+count against the manifest's actor and claims against the claimer, never
+the event's author, so a teammate cannot spend Sam's budget. An over-budget
+page is dropped and its number stays open, so nothing is skipped and the work
+stays on its author's phone; after 36 dropped pages in one session the phone
+says `bye` with `busy`. The count is one grouped query over nearby rows at
+session start, then kept in memory, with no new table. So "every phone takes
+everything" means room and budget allowing. A runaway bug on an honest phone
+is stopped the same way.
+What it costs, read on the fleet's `villageMonth` (seed 1, 5 phones, 30 days,
+Node on the build machine, not a phone): with one member's notes at 68,000
+rows every phone held 70,302 unconfirmed rows (42.7 MB of event JSON, a fold
+of 42 MB as JSON) and its app took 6.2 to 6.4 s to open, against 29 to 45 ms
+without that member. The fleet's `MemoryStore` reads pages slowly at that
+size; the same rows on the app's SQLite store open in 1.03 s. How much slower
+a 2 GB phone is has not been measured, so these numbers go to Carl, as plan
+5.4 asks, and the budget stands until he decides.
+Reverse if: the real-phone test's load and fold times with a month of a
+team's nearby rows (plan section 11) do not fit a 2 GB phone; the numbers
+then go back to Carl, and are not lowered quietly.
+
+## 211. Each install makes one Ed25519 key for nearby sync, and the server keeps it per person
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: with no server to ask, identity has to be arranged while online,
+and authorship has to survive being carried by a third phone and the relay
+(`docs/nearby-sync-plan.md` 5.5). So a phone makes its own Ed25519 key the
+first time someone on it belongs to an organization with nearby sync on
+(214), and signs its batches, its proof at Hello and its certificate
+request with it. One key per install, not per person: one install key
+stays, so two organizations' phones can still be matched on profile id,
+device id and that key. Until phase 5 key making and the certificate call
+are Android only, behind `.android` files
+(`apps/mobile/src/server/nearbyKey.android.ts`; the plain stub answers that
+there is none), because iPhones are out of scope and App Store answers are
+not in this plan. The randomness comes from `expo-crypto`, because Hermes
+has no global `crypto.getRandomValues`; Ed25519 on the phone is
+`@noble/curves`, beside the `@noble/hashes` the app already has
+(`src/nearby/nearbyCryptoModel.ts`, checked against core's golden vectors in
+`apps/mobile/test/nearbyCryptoModel.test.ts`). The key is in the Keystore,
+which Android's backups leave out, so a restored phone makes a new key. The
+server keeps `install_keys` with primary key `(public_key, profile_id)`,
+because one key can serve several people on a shared phone, and `install_id`
+is only the `deviceId`, a label with no uniqueness: a first-come rule would
+let a member take an id before its owner certifies. At most 5 new keys per
+person in 24 hours, refreshing a known key never counts, and nothing is
+evicted, so a reinstall cannot strand anyone and a stolen token cannot push
+out the real phone's key (`nearby_certificate_facts`,
+`supabase/migrations/20261107010000_nearby_identity.sql`). The request is
+proved by a signature over `{ profileId, deviceId, publicKey }` with no
+time in it, since field clocks are wrong and a proof is useless without that
+person's token. Rows go with the account (46) by cascade. The install key
+sits outside decision 168's seal (Carl's answer 5, 168 as amended). It is a
+new identifier kept on the server, so the Play Store's "Device or other IDs"
+answer covers it (`docs/play-store-declarations.md`).
+Reverse if: the real-phone test finds a restored phone keeps its key, or
+Ed25519 in Hermes is too slow for one check per batch (plan section 11).
+
+## 212. The Worker signs one certificate per person and organization, naming that organization alone
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: a teammate's phone must know, offline, that a key belongs to a
+member and what they may do (plan 5.5). `POST /api/nearby/certificate`
+(`apps/web/worker/nearby.ts`) signs, for each organization that has nearby
+on where the caller is a live member, a link binding the install key to the
+person and device and naming that organization alone, valid for a year.
+Hello, batches and a join grant carry only the session's organization's
+certificate, because they rest in plain SQLite on every teammate's phone,
+and a person's other organizations are no teammate's business (`_org` is
+members only). A link carries resolved privileges per scope, not role ids,
+because an older fold may not know the role, and the organization stream's
+newest seq at signing, so a certificate decides only when it is newer than
+the phone's fold (`peopleWithChains`), and someone added last week is not
+turned away. A year: shorter revokes faster, but risks stranding
+long-offline teams. A phone asks after an organization pull, once a day, on
+a membership change, when `nearbyRevokedSeq` says it is behind, or the first
+time a language with no key opens (`useNearbyIdentity`,
+`apps/mobile/src/nearby/nearbyIdentity.android.ts`), keeps a chain only once
+it checks against the Worker's bundled public keys, and replaces
+`nearbyChain:<profileId>` whole, never merged, so a turned-off
+organization's goes. The certificate route asks `session_is_live` uncached,
+because decision 118's 30-second cache would let a phone whose sessions were
+just ended make a new key. The Worker's private key is `NEARBY_SIGNING_KEY`,
+a secret of its own and not derived from the service key, since rotating
+that would strand offline phones; its public keys ship in the app's public
+settings with key ids (`EXPO_PUBLIC_NEARBY_CERT_KEYS`, equal to the
+Worker's `NEARBY_CERT_KEYS`), so it can rotate, and a retired key id stays
+listed. The phone remembers when it last had an answer and its membership
+then, in one meta row (`nearbyCertAsked:<profileId>`), so "once a day"
+holds across launches.
+Reverse if: certificates expire on teams that were offline less than a year,
+or a teammate learns of another organization from what a phone carries.
+
+Amended (2026-11-07, Carl Sauder): a chain the phone cannot check no longer
+strips what it holds. Once the Worker's key rotates, a phone still on a
+build without the new public key refuses every new chain, and replacing
+`nearbyChain:<profileId>` whole dropped its chains and so its discovery keys.
+Now, for an organization whose new chain fails the check, the phone keeps
+the chain it held for that organization, and that organization's discovery
+keys as held, while the held chain still checks against its bundled keys, as
+after a 429 or 503. An organization the answer does not name goes as before,
+so turning one off still reaches the phone. This is what makes
+`scripts/nearby-signing-key.sh --rotate` safe for phones built before it.
+
+## 213. A certificate is a chain of signed links, checked with no server
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: phones must accept a newcomer vouched for by a teammate (section 14,
+from phase 6), so a certificate is a chain: the first link is the Worker's
+signature, and each later link is signed by the key named in the link
+before, in a versioned format (`worker@1`, `invite@1`;
+`packages/core/src/nearbyChain.ts`, plan 5.12 Chains). Each signed text has
+a domain prefix and includes the previous link's signature, so links cannot
+be spliced and a signature made for one purpose cannot be replayed for
+another. `checkChain` refuses a kind it does not know before any verify, and
+more links than `maxLinks`. Until phase 6 issues any, every chain has one
+link, but phones check two-link chains from phase 2. `Verify` and `Sha256`
+are passed in, so the same check runs on the Worker's `crypto.subtle` and on
+the phone's `@noble/curves` and `@noble/hashes` (104). Batches are carried
+for months, so a batch's chain is checked with expiry skipped; Hello checks
+expiry against `max(wall, last hlc)` with no not-before, because
+`HlcClock.last` never goes back. A newcomer's membership comes from their
+chain only until this phone's fold has any entry for them, so a removal
+sticks.
+Reverse if: a link kind the field needs cannot be added without phones
+refusing it, or the security review finds a splice.
+
+## 214. Nearby sync is off for everyone and turned on per organization, in `org_features`, and the phone learns it from `get_user_state`
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: Carl chose (2026-11-06) that nearby sync starts experimental and off
+for everyone, and staff turn it on one organization at a time, beginning
+with a test organization (plan 5.10). The record is `org_features`, copying
+`org_importers` (174): who turned it on and when, kept once revoked so the
+history stays, with the features `nearby` and `nearby_join` (Carl's answer
+11) and staff's `npm run org-feature`. The certificate carries it to the
+phone: the Worker hands certificates and discovery keys out only for
+organizations that are on, and holding them is what makes Share nearby
+appear, so it works offline; a teammate checks the certificate at Hello, so
+unhiding the screen gets nobody in. A phone learns through a call it already
+makes: `get_user_state` gains `orgFeatures` and `nearbyRevokedSeq`, read by
+`useGlobalViewer` on every `OrgWork` mount and token refresh and handed to
+`useNearbyIdentity` (`apps/mobile/src/nearby/nearbyFlag.ts`), so someone in
+an organization that is off makes no new server call; `my_organizations`
+runs on too few screens to carry it. Turning an organization off reaches a
+phone the next time it reaches the server: it drops that person's chain and
+discovery keys with no call, and Share nearby disappears. The flag gates the
+way in and nothing else: the sweep, uploads, delivery and freeing space keep
+running, so nearby work already on a phone still settles. It cannot contain
+the shared sync path's changes or the native module, which ship to everyone
+in a build (157), so those rest on tests and the real-phone test. This
+amends 53.
+Reverse if: an admin toggle is wanted while it is still experimental, or
+the default becomes on (then the records list the organizations that turned
+it off).
+
+## 215. The Worker vouches for pulled work, and a phone claims only as far as that runs unbroken
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: a teammate who got someone else's event from the server has no
+author's signature for it, and their own word would let any certified phone
+write as anyone, or plant a copy that shadows real work (plan 5.5). So after
+each pull a phone holding a certificate for that organization asks
+`POST /api/nearby/attest`; the Worker reads the rows itself, as the caller
+through `pull_events` so `can_read_stream` gates it, computes each digest,
+and signs ids, digests and `serverSeq`, at most 200 rows. No digest comes in
+the request, or it would sign whatever it was sent. It refuses `_org` and
+`_person` streams and answers null while the organization is off. The phone
+checks each answer against its own rows as it arrives, keeps answers in
+`nearby_attests`, and claims only up to the contiguous attested seq
+(`attestNearby`, `packages/sync/src/nearbyUpkeep.ts`). `SupabaseTransport`
+knows no Worker address, so the app adds `attest` to its transport
+(`apps/mobile/src/server/sync.ts`, from `src/server/nearby.ts`); only a
+client given a nearby half, which only the Android app passes
+(`src/nearby/nearbyPhone.android.ts`), calls it. Without an attestation the
+work waits for the server, so an offline team loses nothing it could have
+had. A claim is first-hand only in this release.
+Reverse if: attesting costs a phone's syncs more than the claims save
+teammates, or a receiver needs to pass a claim on (then an ability in
+Hello).
+
+## 216. The Worker signs a revocation list per organization, and phones carry it to each other
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: a person whose phone was marked lost is still a live member, so the
+fold does not help, and teammates would keep handing it the team's work
+(plan 5.5, section 6). So the server keeps `install_key_revocations`, one
+row per organization of that person with `seq` per organization, its own
+table because a list worked out from current memberships would shrink when
+someone is removed. Pairs `(key, person)`, not bare keys, so another person
+on a shared phone is not refused because of one person's lost phone (Carl's
+answer 20). The Worker signs each organization's list of the last year with
+the certificate answer; the phone keeps it only once its signature checks
+and its `seq` is higher than the list held (`nearbyRevoked:<org>`), and
+passes it on in each session, so one trip to town protects the whole team.
+`get_user_state`'s `nearbyRevokedSeq` lets a phone behind it ask at once
+rather than in a day. Hello refuses a listed pair, and later-dated events
+from it are refused one by one (Carl's answer 4). A revoked key's own phone
+is told `{ revoked: true }`, makes a new key and drops every chain naming
+the old one. Who may revoke is New password and staff only, with no admin
+action on this branch (Carl's answer 23); that and `revoke_install_keys`
+come in phase 4. A team that has met nobody who has been online stays
+exposed.
+Reverse if: lost phones keep receiving a team's work after a teammate has
+been to town.
+
+## 217. A language's discovery key rotates as a one-way hash chain, and a phone hands a newer one on once
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: Carl's answer 13. A fixed discovery key would give a removed member
+or a taken phone a radar for the team for the life of the language (plan
+5.5). So a language has generations, `key(g - 1) = SHA-256('lq-nearby-gen-v1'
+|| key(g))` from a random seed at generation 10,000, so an older key can be
+worked out from a newer one and never the reverse
+(`packages/core/src/nearbyGenerations.ts`, `_discovery_generation` in the
+migration, a golden vector holding them equal). The server makes one lazily,
+only in the certificate call for a language the phone named, at most one a
+day, when the newest is over 90 days old or older than a removal covering
+the language or a revocation; there is no timed drop, because a timer
+strands long-offline teams on wrong dates. An answer holds the newest key
+and a `floor` (the highest generation at least a year old), and a phone
+stores one entry per language, `{ gen, key, floor, direct }`, in the
+Keystore under `nearbyFindKeys:<profileId>`, sealed with that person's
+session at sign-out (168 as amended). Discovery keys come only for languages
+this phone has opened (37). A phone that got its key from the server hands
+it to a teammate after Hello, one hop, only once its fold has seen the
+removal that made it; a phone that got its key by hand-on never passes it
+on. The limits that remain: a phone the new generation has not reached stays
+recognisable under the old key; a scan-only phone on an old key cannot meet
+a newer one until it syncs; someone holding an old key can draw a connection
+from a phone that scans down to it, or read the chain of a phone still on
+it; and an informer who is still a member is unaffected.
+Reverse if: the real-phone test finds a team stuck on old generations after
+a trip to town, or the security review finds the hand-on reaches a removed
+member.

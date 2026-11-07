@@ -58,6 +58,7 @@ import { onAuthChange, savedSignIn, serverConfigError } from './src/server/auth'
 import { onUnlocked, signedInHere } from './src/server/lock';
 import { afterAuthEvent, savedSession } from './src/session/authState';
 import { noteAuthEvent } from './src/diagnostics/authDiag';
+import { nearbyAfterAuthEvent } from './src/nearby/nearbySignOut';
 import { watchRenewals } from './src/server/renewalWatch';
 import { C, space } from './src/ui/theme';
 import { recordUserEvent } from './src/account/accountData';
@@ -348,6 +349,8 @@ export default function App() {
     savedSignIn().then((raw) => fromStorage(savedSession(raw)), () => fromStorage(null));
     const unsubscribe = onAuthChange((event, s) => {
       noteAuthEvent(event, authNow.current, s);
+      // At any sign-out, chosen or forced by the server, nearby leaves no discovery key in the clear and no nearbyPeers (5.12).
+      void nearbyAfterAuthEvent(event, authNow.current);
       setAuth((now) => afterAuthEvent(now, event, s));
       // In by a password, a code or an invite: an older lock of theirs here is not theirs to come back to (decisions.md 168).
       if (event === 'SIGNED_IN' && s) void signedInHere(s.user.id);
@@ -622,7 +625,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     <View style={{ flex: 1 }}>
       <ReadOnlyContext.Provider value={readOnly}>
       <SyncStatusContext.Provider value={syncSources}>
-      <SyncEffects orgId={props.orgId} orgPulled={org.pulled} refused={language.refused} />
+      <SyncEffects orgId={props.orgId} orgPulled={org.pulled} refused={language.refused}
+        actorId={props.actorId} signedIn={props.signedIn} org={liveOrg.state} languageId={languageId} />
       <PeopleContext.Provider value={people}>
       <HeaderExtraContext.Provider value={headerExtra}>
         <View style={{ flex: 1, flexDirection: 'row' }}>
@@ -671,7 +675,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
       {/* Files this device deleted behind the app's back (decisions.md 92): over every screen until seen. */}
       <LostFilesAlert state={language.state} whatWere={language.blobs.lost} />
       {canSwitchPersona ? (
-        <DevMenu open={devOpen} onClose={() => setDevOpen(false)} language={language} org={org} currentEmail={props.email} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
+        <DevMenu open={devOpen} onClose={() => setDevOpen(false)} language={language} org={org} currentEmail={props.email} actorId={session.actorId} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
       ) : null}
     </View>
   );

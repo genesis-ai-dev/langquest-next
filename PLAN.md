@@ -248,8 +248,11 @@ Smells to catch in review:
 }
 ```
 
-Local events table adds `status: 'pending' | 'confirmed' | 'rejected'` and
-`rejectReason`.
+Local events table adds `status: 'pending' | 'confirmed' | 'rejected' | 'nearby'`
+and `rejectReason`. `nearby` is a teammate's event that came from their phone
+and that the server has not confirmed: folded, never pushed, never in a
+checkpoint, with `via` saying which signed batch or attested claim brought it
+(docs/nearby-sync-plan.md 5.2, decisions.md 206).
 
 ## 8. Conflict rules
 

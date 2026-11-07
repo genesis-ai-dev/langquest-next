@@ -46,7 +46,13 @@
     // variable it replaces), with this many files copied at once.
     "V2_IMPORT_ENABLED": "true",
     "V2_IMPORT_CONCURRENCY": "64",
-    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5bXhuZWJkd3Ria2Z4bGJ5bGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0OTE1NDYsImV4cCI6MjEwNTA2NzU0Nn0.25nzSvDd07448L-jjQeVUjJ3UIUE-KlRJkUFWkmNz50"
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5bXhuZWJkd3Ria2Z4bGJ5bGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0OTE1NDYsImV4cCI6MjEwNTA2NzU0Nn0.25nzSvDd07448L-jjQeVUjJ3UIUE-KlRJkUFWkmNz50",
+    // Nearby sync's public keys (worker/nearby.ts, docs/nearby-sync-plan.md
+    // 5.12), kid:base64url,..., equal to EXPO_PUBLIC_NEARBY_CERT_KEYS in
+    // apps/mobile/.env.production (scripts/nearbyCertKeys.test.ts). Empty, so
+    // /api/nearby/* answers 503, until a person runs
+    // scripts/nearby-signing-key.sh production, which appends to it.
+    "NEARBY_CERT_KEYS": ""
   },
   // Set on the Worker by `npm run secrets -- production`, never at deploy;
   // a deploy fails while one is missing.
@@ -94,7 +100,9 @@
   "ratelimits": [
     { "name": "DEVICE_RATE_LIMIT", "namespace_id": "7001", "simple": { "limit": 20, "period": 60 } },
     // Review links (agent/links.ts): a whole WhatsApp group may share one address.
-    { "name": "LINK_RATE_LIMIT", "namespace_id": "7003", "simple": { "limit": 300, "period": 60 } }
+    { "name": "LINK_RATE_LIMIT", "namespace_id": "7003", "simple": { "limit": 300, "period": 60 } },
+    // Nearby certificates (worker/nearby.ts), per person: a phone asks about once a day.
+    { "name": "NEARBY_RATE_LIMIT", "namespace_id": "7005", "simple": { "limit": 10, "period": 60 } }
   ],
   // The preview stack (docs/environments.md): langquest-next-preview,
   // deployed from develop. Vars, secrets and bindings are not inherited, so
@@ -104,8 +112,9 @@
     "preview": {
       "routes": [{ "pattern": "next-preview.langquest.org", "custom_domain": true }],
       // The preview app build's public key (apps/mobile/.env.preview).
-      // Preview never imports from v2: it has no v2 keys.
-      "vars": { "API_URL": "https://next-preview.langquest.org", "V2_IMPORT_ENABLED": "false", "V2_IMPORT_CONCURRENCY": "8", "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5bXhuZWJkd3Ria2Z4bGJ5bGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0OTE1NDYsImV4cCI6MjEwNTA2NzU0Nn0.25nzSvDd07448L-jjQeVUjJ3UIUE-KlRJkUFWkmNz50" },
+      // Preview never imports from v2: it has no v2 keys. NEARBY_CERT_KEYS
+      // equals EXPO_PUBLIC_NEARBY_CERT_KEYS in apps/mobile/.env.preview.
+      "vars": { "API_URL": "https://next-preview.langquest.org", "V2_IMPORT_ENABLED": "false", "V2_IMPORT_CONCURRENCY": "8", "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5bXhuZWJkd3Ria2Z4bGJ5bGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0OTE1NDYsImV4cCI6MjEwNTA2NzU0Nn0.25nzSvDd07448L-jjQeVUjJ3UIUE-KlRJkUFWkmNz50", "NEARBY_CERT_KEYS": "" },
       "secrets": { "required": ["SUPABASE_SERVICE_ROLE_KEY"] },
       "durable_objects": {
         "bindings": [
@@ -119,7 +128,8 @@
       "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "langquest-next-blobs-preview" }],
       "ratelimits": [
         { "name": "DEVICE_RATE_LIMIT", "namespace_id": "7002", "simple": { "limit": 20, "period": 60 } },
-        { "name": "LINK_RATE_LIMIT", "namespace_id": "7004", "simple": { "limit": 300, "period": 60 } }
+        { "name": "LINK_RATE_LIMIT", "namespace_id": "7004", "simple": { "limit": 300, "period": 60 } },
+        { "name": "NEARBY_RATE_LIMIT", "namespace_id": "7006", "simple": { "limit": 10, "period": 60 } }
       ]
     }
   }

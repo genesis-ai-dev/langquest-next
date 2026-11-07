@@ -118,7 +118,7 @@ every type.
 | Audio | Other audio files (step and glossary audio an admin uploads to a study guide) | Yes | No | Optional | App functionality |
 | App info and performance | Crash logs | Yes | No | Optional (Settings switch) | App functionality, Analytics |
 | App info and performance | Diagnostics | Yes | No | Optional (Settings switch) | App functionality, Analytics |
-| Device or other IDs | Device or other IDs (random install ID, push token) | Yes | No | Required | App functionality |
+| Device or other IDs | Device or other IDs (random install ID, push token; the nearby install key, a public key each install makes for nearby sync and the server keeps with the account) | Yes | No | Required | App functionality |
 
 The Reports section's map and country names (`d3-geo`, `topojson-client`,
 `world-atlas`, `i18n-iso-countries`) are code and data inside the app: they
@@ -265,6 +265,31 @@ Connect leave it out. The Android build is the same as before
 (`expo prebuild` writes the same Android project), so no Play Console answer
 changes.
 
+Nearby sync, phase 2 (`docs/nearby-sync-plan.md` sections 5.5, 5.10 and 9;
+decisions.md 211 to 217): on Android, the first time someone on a phone
+belongs to an organization that LangQuest staff turned nearby sync on for,
+the app makes one Ed25519 key for that install (`@noble/curves`, code inside
+the app with no network, its randomness from `expo-crypto`) and keeps it in
+the Keystore. Its public half goes to our Worker with the person's sign-in,
+once a day or when their membership changes, and the server keeps it in
+`install_keys` beside the account and the install ID diagnostics already
+use; the Worker signs a certificate binding that key to the person and the
+organization, and hands back each opened language's discovery key and the
+organization's revocation list. That is a new identifier kept on the server,
+so it sits under "Device or other IDs", which was already declared
+collected, not shared, required and for app functionality. Required stays
+true: everyone in an organization that has it on gets a key, so the answer
+cannot say each user chooses. Someone in an organization that is off makes
+no new call and gets no key. Deleting the account deletes the keys
+(`install_keys` and `install_key_revocations` cascade from `auth.users`,
+decisions.md 46). A certificate and a revocation list name install keys and
+profile ids of the same organization's members, and from phase 3 they pass
+between those members' phones, as the team's work does; nothing goes to
+anyone else. Discovery-key generations are about a language, not a person,
+and the counters on `install_keys` are about a key, so neither changes an
+answer. No screen shows any of this until phase 3, and no permission or SDK
+that collects data is added, so the other answers are unchanged.
+
 Not used, on purpose: Google Play's In-App Updates library (Play Core). It
 would tell an Android phone itself when a newer version is live, but Google's own
 data safety section for it (developer.android.com/guide/playcore/in-app-updates,
@@ -316,7 +341,7 @@ this block.
     "expo-sqlite"
   ],
   "mobileDependencies": [
-    "@expo/metro-runtime", "@langquest-next/core", "@langquest-next/sync", "@noble/ciphers", "@noble/hashes",
+    "@expo/metro-runtime", "@langquest-next/core", "@langquest-next/sync", "@noble/ciphers", "@noble/curves", "@noble/hashes",
     "@react-native-async-storage/async-storage", "@react-navigation/native",
     "@react-navigation/native-stack", "@supabase/supabase-js", "d3-geo", "expo", "expo-audio",
     "expo-alternate-app-icons", "expo-application", "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",

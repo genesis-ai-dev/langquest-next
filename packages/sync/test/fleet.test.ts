@@ -149,4 +149,29 @@ describe('a fleet of phones on simulated time', { timeout: 60_000 }, () => {
       expect(lines(d.client.passageLines()), d.id).toEqual(lines(languageLines(server)));
     }
   });
+
+  it('a team that shares nearby with no server ends, after one trip to town, with every phone the server\'s fold and nothing nearby', async () => {
+    // Why: a nearby phone is not a server (docs/nearby-sync-plan.md 5.1). The room and the sessions are the app's
+    // own code on fleet time; whatever they moved, once each phone reaches the server it must hold the server's
+    // log folded, with no teammate's row left waiting (`caughtUp` requires none).
+    const town = FLEET_EPOCH + 2 * TIME.DAY + 9 * TIME.HOUR;
+    const fleet = new Fleet({
+      seed: 5, audio: { bytesPerSecond: 16_000 }, keepOnDisk: 'half', nearby: {},
+      crew: { passages: 20, translators: 2, reviewers: 1, link: () => offlineBetween(FLEET_EPOCH + 2 * TIME.HOUR, town, always(NETWORKS.phone, 'phone')) }
+    });
+    await fleet.start();
+    const team = fleet.devices.slice(1);
+    for (let day = 0; day < 2; day++) {
+      await fleet.time.runUntil(FLEET_EPOCH + day * TIME.DAY + 17 * TIME.HOUR);
+      await fleet.nearby!.gather(team);
+      for (let i = 0; i < 360 && !fleet.nearby!.allStopped(team); i++) await fleet.runFor(10_000);
+      await fleet.nearby!.leave(team);
+    }
+    expect(fleet.nearby!.stats.eventsTaken).toBeGreaterThan(0);
+    expect(fleet.nearby!.stats.filesGot).toBeGreaterThan(0);
+    const r = fleet.report(await fleet.settle(), 0);
+    expect(r.errors).toEqual([]);
+    expect(r.agreement).toMatchObject({ caughtUp: true, agree: true, disagree: [] });
+    for (const d of fleet.devices) expect((await d.client.inspect()).nearby, d.id).toBe(0);
+  });
 });

@@ -13,8 +13,7 @@
 //                 (demo ADR-042; design principles 12, 13)
 // One main action per screen, the rest one labelled tap away (decision 56).
 // Pure reading lives in src/reference/ (model.ts, coverage.ts, timings.ts, offered.ts).
-import {
-  derivePassage, keyTermsForUnit, languageName, type libraryUnitRange, materialsFor, unitTitle,
+import { newCommandId, derivePassage, keyTermsForUnit, languageName, type libraryUnitRange, materialsFor, unitTitle,
   type RecommendationSource, type SourceDoc, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -728,7 +727,7 @@ export function PassageReference(ctx: Ctx) {
     if (busy) return;
     setBusy(true);
     try {
-      await ctx.act(passageLinkSpec(Crypto.randomUUID(), unitId, itemId, linked), message);
+      await ctx.act(passageLinkSpec(newCommandId(ctx.session.actorId, Crypto.randomUUID()), unitId, itemId, linked), message);
     } catch {
       // ctx.act has already said "Not saved" and why.
     } finally {
