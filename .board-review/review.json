@@ -1,53 +1,17 @@
 {
-  "kind": "question",
-  "ask": "Should back translation show as two rows, make it and check it, without changing the flows?",
-  "problem": "Bezily's group thought a back translation needs a peer review. The screens put the two side by side, so it looks that way.",
-  "found": "In the Standard flow, step 1 shows the peer check and back translation together, so it looks like one job. A finished back translation says \"looks good\", though no one checked it. The Spoken flow keeps them apart.",
-  "changed": "Nothing yet. I only took pictures and drew a mockup. I will change no screen and no flow until you answer.",
-  "why": "Each row says make it or check it. A made back translation says \"made\", not \"looks good\". Peer check shows only where a flow has its own peer step.",
-  "touches": "Options one and two change the record screen words. Option two also changes the Standard flow, which languages may have copied.",
+  "kind": "screen",
+  "ask": "Do the two back translation rows look right?",
+  "problem": "Bezily's group thought a back translation needs a peer review, because the screen listed them side by side.",
+  "found": "The Standard flow lists the peer check and back translation together, and a made back translation said \"looks good\" though no one had checked it.",
+  "changed": "Back translation now has two rows: make it, then check it. A made one says \"made\". The check row says \"checked\" once done.",
+  "why": "You chose two rows with the flows unchanged. The rows use the same cards as the other rows. They say nothing about a peer review.",
+  "touches": "Only the passage screen's list. Flows, checks and the back translation screen are unchanged. New words added in all languages.",
   "pictures": [
-    {
-      "file": "standard-peer-and-bt-together.png",
-      "label": "Standard flow: peer check and back translation side by side"
-    },
-    {
-      "file": "standard-bt-done-sheet.png",
-      "label": "Standard flow: the back translation screen, no peer review shown"
-    },
-    {
-      "file": "standard-after-bt-looks-good.png",
-      "label": "Standard flow: after finishing, it says looks good"
-    },
-    {
-      "file": "spoken-bt-step.png",
-      "label": "Spoken Oral Method: back translation is its own step"
-    },
-    {
-      "file": "mock-two-parts-after-peer.png",
-      "label": "Mockup: make it, then check it (before it is made)"
-    },
-    {
-      "file": "mock-two-parts-made.png",
-      "label": "Mockup: made, now waiting for the check"
-    }
+    {"file": "before-peer-and-bt.png", "label": "Before: peer check and back translation together"},
+    {"file": "after-peer-and-bt.png", "label": "After: make it, then check it"},
+    {"file": "before-bt-looks-good.png", "label": "Before: made back translation says looks good"},
+    {"file": "after-bt-made.png", "label": "After: made, waiting for the check"},
+    {"file": "after-spoken.png", "label": "After: Spoken Oral Method, back translation is next"}
   ],
-  "options": [
-    {
-      "label": "Two rows, flows unchanged",
-      "result": "Back translation shows as make it, then check it. The peer check keeps its own row. No flow changes.",
-      "picture": "mock-two-parts-made.png"
-    },
-    {
-      "label": "Two rows, and a new step",
-      "result": "As option one, and the Standard flow moves back translation into its own step after the peer check. Copied flows stay as they are.",
-      "picture": "mock-option-split.png"
-    },
-    {
-      "label": "New words only",
-      "result": "Rows keep their order. Only the words change, and \"looks good\" becomes \"made\". The peer check still sits beside it.",
-      "picture": "mock-option-wording.png"
-    }
-  ],
-  "recommended": 0
+  "guess": {"answer": "looks_good"}
 }
