@@ -1,3 +1,4 @@
+import type { OrgState } from '@langquest-next/core';
 import type { HoldChoice } from './nearbyModel';
 
 /**
@@ -13,3 +14,10 @@ export function currentHoldChoice(): HoldChoice | null {
 
 /** Only Android's `useNearbyIdentity` keeps one. */
 export function keepHoldChoice(_choice: HoldChoice): void {}
+
+/** Only Android's `useNearbyIdentity` keeps the organization for its nearby files. */
+export function keepNearbyOrg(_orgId: string, _org: OrgState | null): void {}
+
+export function nearbyOrg(_orgId: string): OrgState | null {
+  return null;
+}

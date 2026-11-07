@@ -1,11 +1,17 @@
-import type { OrgState } from '@langquest-next/core';
+import { mayWriteFiles, privilegesFor, type OrgState } from '@langquest-next/core';
 import { parseRevocationList, peopleWithChains, type ChainLink, type RevocationList } from '@langquest-next/core/nearby';
-import { nearbyClient, type NearbyCrypto, type NearbyGate, type NearbyMaker, type NearbySigner } from '@langquest-next/sync/nearby';
+import {
+  nearbyClient, nearbyFiles, SqliteNearbyMarks, type NearbyCrypto, type NearbyFetchFile, type NearbyGate, type NearbyMaker, type NearbyMarks, type NearbySigner
+} from '@langquest-next/sync/nearby';
 import * as Crypto from 'expo-crypto';
+import { File, Paths } from 'expo-file-system';
 import { installKey } from '../server/nearbyKey';
-import { getStore } from '../storage/store';
+import { fileLedgerDriver, getStore } from '../storage/store';
+import type { BlobStore } from '../sync/blobs';
+import { currentHoldChoice, nearbyOrg } from './holdChoice';
 import { nobleSha256, nobleVerify, phoneCryptoOf } from './nearbyCryptoModel';
 import { parseCertKeys, parseChains, type HeldChains, type SignedText } from './nearbyModel';
+import type { NearbyFilesOptions } from './nearbyPhone';
 
 /**
  * Nearby sync's pieces on an Android phone (docs/nearby-sync-plan.md 5.5, 5.12): the Worker's
@@ -123,4 +129,67 @@ export async function nearbySignerFor(orgId: string, actorIds: readonly string[]
     if (chain) held.set(actorId, chain as ChainLink[]);
   }
   return { publicKey: crypto.publicKey, sign: crypto.sign, sha256: crypto.sha256, chainFor: (actorId) => held.get(actorId) ?? null };
+}
+
+// ---- teammates' files (docs/nearby-sync-plan.md 5.6) -----------------------------------
+
+/**
+ * A language session's nearby files on an Android phone (docs/nearby-sync-plan.md 5.6): the marks
+ * in the file ledger's database, the file store's half of a nearby move, "Hold teammates'
+ * recordings" as `useNearbyIdentity` worked it out, and what this person may do from the
+ * organization's fold. The native write into the staging name arrives with the radios; this is
+ * where it lands and how it is kept.
+ */
+
+const NEARBY_STAGING = '.nearby.part';
+
+let marks: Promise<NearbyMarks> | undefined;
+function nearbyMarks(): Promise<NearbyMarks> {
+  marks ??= fileLedgerDriver().then((driver) => SqliteNearbyMarks.open(driver)).catch((error: unknown) => { marks = undefined; throw error; });
+  return marks;
+}
+
+type Stored = Parameters<BlobStore['stagingFor']>[0];
+
+/** The file store's half of a nearby move: `<hash>.<format>.nearby.part`, renamed only once native's hash matched. */
+export function nearbyFetchFileOf(store: BlobStore): NearbyFetchFile {
+  const staging = (file: { hash: string; format: string }): File | null => {
+    try { return store.stagingFor(file as Stored, true); } catch { return null; }
+  };
+  return {
+    stagingUri: (file) => staging(file)?.uri ?? null,
+    commit: async (file, stagingUri, size) => {
+      // Only the name this store gave for this file: a staging name for one hash never becomes another's.
+      if (staging(file)?.uri !== stagingUri) throw new Error('not this file\'s staging name');
+      store.commitStaged(file as Stored, size, true);
+    },
+    discard: async (stagingUri) => {
+      if (!stagingUri.endsWith(NEARBY_STAGING)) return;
+      try { new File(stagingUri).delete(); } catch { /* the store's startup cleanup takes any staging file left */ }
+    },
+    uriOf: (file) => store.uriFor(file as Stored),
+    freeBytes: () => Paths.availableDiskSpace,
+    remove: (files) => store.remove(files as Parameters<BlobStore['remove']>[0])
+  };
+}
+
+export async function nearbyFilesFor(orgId: string, actorId: string, languageId: string, files: BlobStore): Promise<NearbyFilesOptions> {
+  const [held, crypto] = await Promise.all([nearbyMarks(), phoneCrypto()]);
+  return {
+    fetchFile: nearbyFetchFileOf(files),
+    nearbyFiles: nearbyFiles({
+      marks: held,
+      installKey: () => crypto?.publicKey ?? null,
+      canReview: (language) => {
+        const org = nearbyOrg(orgId);
+        return org ? privilegesFor(org, actorId, language).has('review') : true;
+      }
+    }),
+    holdChoice: currentHoldChoice,
+    // Not known yet: as today, everything here may go up.
+    mayUpload: () => {
+      const org = nearbyOrg(orgId);
+      return org ? mayWriteFiles(org, actorId, languageId) : true;
+    }
+  };
 }

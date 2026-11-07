@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDisguise } from '../disguise/useDisguise';
+import { keepNearbyOrg } from './holdChoice';
 import { refreshHoldChoice, refreshNearbyIdentity } from './nearbyIdentity.android';
 import { nearbyFlag, onNearbyFlag } from './nearbyFlag';
 import { membershipMarkOf } from './nearbyModel';
@@ -28,6 +29,8 @@ export function useNearbyIdentity(props: NearbyIdentityProps): void {
   const membership = membershipMarkOf(props.org, actorId);
   const org = useRef(props.org);
   org.current = props.org;
+  // For the language session's nearby files: may this person review, may they write files.
+  useEffect(() => { if (orgId) keepNearbyOrg(orgId, props.org); });
   useEffect(() => {
     if (!signedIn || actorId === 'guest' || !orgId || !orgPulled) return;
     void refreshNearbyIdentity({ actorId, orgId, org: org.current, languageId });

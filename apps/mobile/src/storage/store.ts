@@ -120,6 +120,7 @@ async function expoDriver(db: SQLite.SQLiteDatabase, name: string): Promise<SqlD
 let storePromise: Promise<SqliteStore> | undefined;
 let diagPromise: Promise<SqliteDiagStore> | undefined;
 let ledgerPromise: Promise<SqliteFileLedger> | undefined;
+let ledgerDriverPromise: Promise<SqlDriver> | undefined;
 /** The open databases, so signing out on the web can close and delete them. */
 const opened = new Map<string, SQLite.SQLiteDatabase>();
 /** Their write connections (phones only). */
@@ -178,10 +179,16 @@ export function getDiagStore(): Promise<SqliteDiagStore> {
  * open its storage at all.
  */
 export function getFileLedger(): Promise<SqliteFileLedger> {
-  ledgerPromise ??= allowed.then(() => open('langquest-files.db'))
-    .then(async (db) => SqliteFileLedger.open(await expoDriver(db, 'langquest-files.db')))
+  ledgerPromise ??= fileLedgerDriver().then((driver) => SqliteFileLedger.open(driver))
     .catch((error: unknown) => { ledgerPromise = undefined; throw error; });
   return ledgerPromise;
+}
+
+/** The ledger's database, where Android also keeps its nearby marks beside `kept_files` (docs/nearby-sync-plan.md 5.6). Phones only, as above. */
+export function fileLedgerDriver(): Promise<SqlDriver> {
+  ledgerDriverPromise ??= allowed.then(() => open('langquest-files.db')).then((db) => expoDriver(db, 'langquest-files.db'))
+    .catch((error: unknown) => { ledgerDriverPromise = undefined; throw error; });
+  return ledgerDriverPromise;
 }
 
 /** One local event log per device, shared by every stream this phone syncs. */

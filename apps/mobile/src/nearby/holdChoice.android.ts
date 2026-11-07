@@ -1,3 +1,4 @@
+import type { OrgState } from '@langquest-next/core';
 import type { HoldChoice } from './nearbyModel';
 
 /**
@@ -14,4 +15,20 @@ export function currentHoldChoice(): HoldChoice | null {
 
 export function keepHoldChoice(next: HoldChoice): void {
   choice = next;
+}
+
+/**
+ * The organization's fold as `useNearbyIdentity` last saw it, so a language session can ask what
+ * this person may do there (may they review, may they write files) without a screen open. It
+ * changes in place, so it is kept by reference.
+ */
+const orgs = new Map<string, OrgState>();
+
+export function keepNearbyOrg(orgId: string, org: OrgState | null): void {
+  if (org) orgs.set(orgId, org);
+  else orgs.delete(orgId);
+}
+
+export function nearbyOrg(orgId: string): OrgState | null {
+  return orgs.get(orgId) ?? null;
 }

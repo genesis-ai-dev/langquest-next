@@ -29,6 +29,8 @@ vi.mock('../src/server/secureStorage', () => ({
   }
 }));
 vi.mock('../src/storage/store', () => ({ getStore: async () => fake.store }));
+// The phone's nearby files share the module, and none of this touches them.
+vi.mock('expo-file-system', () => ({ File: class {}, Paths: { availableDiskSpace: 0 } }));
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: { getItem: async () => null, setItem: async () => undefined, removeItem: async () => undefined }
 }));

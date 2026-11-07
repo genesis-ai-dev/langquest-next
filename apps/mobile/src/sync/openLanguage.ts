@@ -28,6 +28,8 @@ export interface LanguagePlatform {
   settled: (files: BlobStore, blobsWanted: number) => void;
   /** The client's nearby half (`nearbyClient`), which only the Android app gives (docs/nearby-sync-plan.md 5.12). */
   nearby?: (orgId: string, actorId: string) => Promise<NonNullable<LanguageSessionOptions['client']>['nearby']>;
+  /** Teammates' files over a nearby link (`nearbyFiles`, a `fetchFile`, the hold choice), which only the Android app gives (5.6). */
+  nearbyFiles?: (orgId: string, actorId: string, languageId: string, files: BlobStore) => Promise<Pick<LanguageSessionOptions, 'fetchFile' | 'nearbyFiles' | 'holdChoice' | 'mayUpload'>>;
 }
 
 export interface OpenLanguageInput {
@@ -71,6 +73,8 @@ export async function openLanguage(
   // clocks can tie and the fold becomes order-dependent.
   const deviceId = await ensureDeviceId(store, platform.newId);
   const nearby = await platform.nearby?.(orgId, actorId);
+  // Only with the client's nearby half: holdings live in its meta rows.
+  const nearbyFiles = nearby ? await platform.nearbyFiles?.(orgId, actorId, languageId, files) : undefined;
   const where = { orgId, streamId: languageId };
   const session = await LanguageSession.open({
     orgId, languageId, actorId, deviceId, store, files,
@@ -82,6 +86,7 @@ export async function openLanguage(
     // Recording comes first: transfers, and the whole-state clone a checkpoint takes, wait.
     isDeferred: platform.isDeferred,
     client: nearby ? { ...platform.client, nearby } : platform.client,
+    ...nearbyFiles,
     aroundSync: platform.aroundSync,
     onAnswered: input.onAnswered,
     // Recordings and file verdicts stay on the phone; memory holds the passages on screen (decisions.md 143).
