@@ -3,5 +3,6 @@
  * (docs/nearby-sync-plan.md 5.12). Absent from `index.ts`, so the web bundle does
  * not carry it.
  */
+export * from './nearbyIntake';
 export * from './nearbyLink';
 export * from './nearbyWire';
