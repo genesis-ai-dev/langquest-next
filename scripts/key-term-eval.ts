@@ -13,7 +13,7 @@ import { pathToFileURL } from 'node:url';
 import {
   BASELINES, DEFAULT_BAR, decodeWav, formatReports, manifestProblem, reportFor, scorePairs,
   type EvalClip, type EvalManifest, type EvalSet, type Matcher
-} from '@langquest-next/core';
+} from '../packages/core/src/keyTermEval';
 
 function clip(folder: string, file: string): EvalClip {
   const { samples, sampleRate } = decodeWav(new Uint8Array(readFileSync(resolve(folder, file))));

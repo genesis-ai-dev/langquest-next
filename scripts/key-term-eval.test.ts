@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { BASELINES, reportFor, scorePairs } from '@langquest-next/core';
+import { BASELINES, reportFor, scorePairs } from '../packages/core/src/keyTermEval';
 import { loadSet } from './key-term-eval';
 
 /** Why: the evaluation script must read a set the way eval/key-terms/README.md says, and refuse a broken one before it reports anything. */

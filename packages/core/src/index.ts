@@ -11,7 +11,6 @@ export * from './indexes';
 export * from './org';
 export * from './license';
 export * from './materials';
-export * from './keyTermEval';
 export * from './version';
 export * from './commands';
 export * from './sourceBibles';

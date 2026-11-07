@@ -29,23 +29,14 @@ export type MaterialEvents = {
   'v1.MaterialLocked': { materialId: string; locked: boolean };
   'v1.KeyTermDefined': { termId: string; term: string; gloss: string; unitScope: string[] };
   'v1.KeyTermRenderingAdded': { termId: string; renderingId: string; rendering: string; context: string };
-  /**
-   * A spoken example of how the language says a term (decision 205); `KeyTermRenderingAdded` stays the written one.
-   * `renderingId` names this clip. `wayId` names the way of saying the term it is an example of: clips with the
-   * same one are repeats of one way; different ones are different, context-dependent ways. A way needs no written
-   * form (a language may be oral only): it is the id of a written rendering when the team wrote one, else any id the
-   * phone made. `duringTakeId` is the take being drafted when it was recorded, so a way can list the passages
-   * it was recorded in.
-   */
+  // A spoken example of a term (decision 205). wayId groups repeats of one way of saying it.
   'v1.KeyTermAudioRenderingAdded': { termId: string; renderingId: string; blobHash: string; durationMs: number; wayId: string; duringTakeId?: string };
   'v1.KeyTermAdjusted': { termId: string; adjustmentId: string; note: string; blobHash?: string; duringTakeId?: string };
   'v1.KeyTermLinked': { takeId: string; termId: string; note?: string; adjustmentId?: string };
 };
 
-/** How many recorded examples of a term the team is asked for (decision 205). */
 export const KEY_TERM_EXAMPLES_WANTED = 3;
 
-/** The longest recorded example of a term, in milliseconds (decision 205). */
 export const MAX_KEY_TERM_AUDIO_MS = 30000;
 
 /** The language's Translation Guidelines document: one per language. */
@@ -133,7 +124,6 @@ export interface KeyTermView {
   unitScope: string[];
   renderings: { renderingId: string; rendering: string; context: string }[];
   adjustments: { adjustmentId: string; note: string; blobHash?: string; duringTakeId?: string; actorId: string; hlc: string }[];
-  /** Recorded examples of the term, oldest first (decision 205). */
   audioRenderings: { renderingId: string; blobHash: string; durationMs: number; actorId: string; wayId: string; duringTakeId?: string }[];
 }
 

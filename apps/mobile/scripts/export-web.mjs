@@ -122,7 +122,10 @@ const TOTAL_BUDGET_BYTES = 4.9 * 1024 * 1024;
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
 // microphone opens has to be loaded with the recorder.
 // Lowered to 3.9 MB with the icons above: 5.70 MB to 3.71 MB.
-const FIRST_VISIT_BUDGET_BYTES = 3.9 * 1024 * 1024;
+// Raised to 3.92 MB for the key-term check's recorded examples (decision 205,
+// LAN-228): the new event's reducer, validation, command and blob rules are
+// core code every first visit loads, and took it a few KB past 3.9 MB.
+const FIRST_VISIT_BUDGET_BYTES = 3.92 * 1024 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
