@@ -3,9 +3,9 @@
  "ask": "Can you get Carl's OK, merge the pull request, and paste the setup line?",
  "problem": "Many changes run at once and clash. Your Mac runs only 3 or 4 threads. Since Oct 1, 54 merges of main clashed. 41 of them clashed only in the decisions file.",
  "found": "Yes. Changes all added decisions to one shared file, so they clashed. Now each new decision is its own file. Old decisions 1 to 204 stay put. Coding threads also move to Claude's cloud.",
- "changed": "I merged main in. Main had reached decision 204, so I moved the closing number from 198 to 204. I checked the setup script against today's cloud machines. It still works. All fast checks pass.",
+ "changed": "I merged main in and moved the closing decision number to 204. The cloud setup still works. Fast checks pass.",
  "why": "Separate files never clash. I could also have named files by pull request number, but that needs a rename later. Carl's OK is needed because it changes how the team writes decisions.",
- "touches": "Anyone with an open change that adds a numbered decision must move it into its own file after this merges. Until then, their decision check fails. Nothing in the store answers changes.",
+ "touches": "Open changes that add a numbered decision must move it into its own file after this merges.",
  "pictures": [
   {
    "file": "before.png",
