@@ -1,5 +1,5 @@
 import { WriteQueue } from './writeQueue';
-import type { EventStore, KeptKind, KeptRecord, LocalEvent, NearbyAttestRow, NearbyBatchRow, WriteBatch } from './types';
+import { nearbyBudgetOf, type EventStore, type KeptKind, type KeptRecord, type LocalEvent, type NearbyAttestRow, type NearbyBatchRow, type NearbyUse, type WriteBatch } from './types';
 
 /**
  * A row as SQLite gives it back: no property holding undefined. An event carrying
@@ -185,6 +185,17 @@ export class MemoryStore implements EventStore {
 
   async attestedUpTo(orgId: string, streamId: string): Promise<NearbyAttestRow[]> {
     return [...this.nearbyAttests.values()].filter((a) => a.orgId === orgId && a.streamId === streamId).sort((a, b) => a.lastSeq - b.lastSeq);
+  }
+
+  async nearbyUse(orgId: string, streamId: string): Promise<NearbyUse[]> {
+    const use = new Map<string, NearbyUse>();
+    for (const l of this.stream(orgId, streamId)) {
+      if (l.status !== 'nearby') continue;
+      const who = nearbyBudgetOf(l.event.actorId, l.via);
+      const held = use.get(who) ?? { who, rows: 0, bytes: 0 };
+      use.set(who, { who, rows: held.rows + 1, bytes: held.bytes + JSON.stringify(l.event).length });
+    }
+    return [...use.values()];
   }
 
   async pendingStreamsBy(actorId: string): Promise<{ orgId: string; streamId: string }[]> {

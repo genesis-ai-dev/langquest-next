@@ -7,6 +7,7 @@ export * from './fakeServer';
 export * from './virtualTime';
 export * from './random';
 export * from './shapedTransport';
+export * from './memoryNearbyLink';
 export * from './fleet/links';
 export * from './fleet/personas';
 export * from './fleet/device';

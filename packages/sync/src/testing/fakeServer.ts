@@ -1,4 +1,4 @@
-import { CLIENT_PROTOCOL_VERSION, emptyLanguageState, foldLanguage, LINES_VERSION, REDUCER_VERSION, takeSnapshot, type AnyEvent, type PassageLine, type Snapshot } from '@langquest-next/core';
+import { CLIENT_PROTOCOL_VERSION, emptyLanguageState, entityKeyOf, foldLanguage, idAuthor, LINES_VERSION, REDUCER_VERSION, takeSnapshot, type AnyEvent, type PassageLine, type Snapshot } from '@langquest-next/core';
 import { cutLanguage, languageLinesOf, type ServerCut } from '../serverCut';
 import type { AppendResult, KeptRecord, RowCursor, Transport } from '../types';
 import { ClientTooOldError, NotAuthorizedError, OfflineError, ServerError } from '../types';
@@ -274,6 +274,8 @@ export class FakeServer {
   private accept(e: AnyEvent): AppendResult {
     const existing = this.byId.get(e.id);
     if (existing) return { id: e.id, accepted: true, serverSeq: existing.serverSeq!, reason: 'duplicate' };
+    // `append_events`' rule on bound ids: nobody else may take an id that names its author.
+    if (!isUnboundOrAuthors(e)) return { id: e.id, accepted: false, serverSeq: null, reason: 'malformed envelope: id names someone else' };
     const reason = this.authorize(e);
     if (reason) return { id: e.id, accepted: false, serverSeq: null, reason };
     const key = `${e.orgId}/${e.streamId}`;
@@ -305,6 +307,11 @@ export class FakeServer {
     }
     return text;
   }
+}
+
+function isUnboundOrAuthors(e: AnyEvent): boolean {
+  const key = entityKeyOf(e);
+  return [e.id, ...(key === null ? [] : [key])].every((id) => (idAuthor(id) ?? e.actorId) === e.actorId);
 }
 
 function cmp(a: string, b: string): number {

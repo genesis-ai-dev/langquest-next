@@ -184,7 +184,22 @@ export interface EventStore {
   batchesAfter(orgId: string, streamId: string, key: string, afterN: number, limit: number): Promise<NearbyBatchRow[]>;
   /** Every attestation held, by `lastSeq`. */
   attestedUpTo(orgId: string, streamId: string): Promise<NearbyAttestRow[]>;
+  /** One grouped read of what nearby rows cost, by whose budget they spend (`nearbyBudgetOf`). */
+  nearbyUse(orgId: string, streamId: string): Promise<NearbyUse[]>;
 }
+
+/** Rows and characters of JSON held as nearby under one budget. */
+export interface NearbyUse {
+  who: string;
+  rows: number;
+  bytes: number;
+}
+
+/**
+ * Whose budget a nearby row spends: a batch row its author's, and a claim its claimer's,
+ * never the event's author, so that a teammate cannot spend Sam's budget by naming him.
+ */
+export const nearbyBudgetOf = (actorId: string, via: NearbyVia | undefined): string => (via && 'claim' in via ? `claim:${via.claim.key}` : `actor:${actorId}`);
 
 export interface AppendResult {
   id: string;

@@ -1,6 +1,6 @@
 import { WriteQueue } from './writeQueue';
 import type { AnyEvent, NearbyVia } from '@langquest-next/core';
-import type { EventStore, KeptKind, KeptRecord, LocalEvent, NearbyAttestRow, NearbyBatchRow, WriteBatch } from './types';
+import type { EventStore, KeptKind, KeptRecord, LocalEvent, NearbyAttestRow, NearbyBatchRow, NearbyUse, WriteBatch } from './types';
 
 /**
  * Minimal SQL driver so the same store runs on expo-sqlite in the app and on
@@ -284,6 +284,17 @@ export class SqliteStore implements EventStore {
       [orgId, streamId, afterId ?? '', limit]
     );
     return rows.map(toLocal);
+  }
+
+  async nearbyUse(orgId: string, streamId: string): Promise<NearbyUse[]> {
+    // The same answer as `nearbyBudgetOf`: a claim spends its claimer's budget, and a batch row its author's.
+    const rows = await this.db.all<{ who: string; n: number; bytes: number }>(
+      `select case when json_extract(via, '$.claim.key') is not null then 'claim:' || json_extract(via, '$.claim.key') else 'actor:' || json_extract(json, '$.actorId') end as who,
+              count(*) as n, sum(length(json)) as bytes
+       from events where org_id = ? and stream_id = ? and status = 'nearby' group by who`,
+      [orgId, streamId]
+    );
+    return rows.map((r) => ({ who: r.who, rows: Number(r.n), bytes: Number(r.bytes) }));
   }
 
   async getMany(ids: readonly string[]): Promise<LocalEvent[]> {

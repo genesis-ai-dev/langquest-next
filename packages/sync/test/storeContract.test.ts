@@ -450,6 +450,21 @@ describe.each(impls)('%s nearby contract', (_name, make) => {
     expect(await s.nearbyCount('o', 'p')).toBe(1);
     expect((await s.batchKeys('o', 'p')).length).toBe(1);
   });
+
+  it('counts what nearby rows cost by whose budget they spend: a claim its claimer\'s, a batch row its author\'s', async () => {
+    const store = await make();
+    const batchRow = nearby('b1', '000000000000001:000000:d1', { actorId: 'sam' });
+    const claimRow: LocalEvent = { ...nearby('c1', '000000000000002:000000:d1', { actorId: 'sam' }), via: { claim: { key: 'K2', seq: 4 } } };
+    const pendingRow: LocalEvent = { event: { ...ev('p1', '000000000000003:000000:d1'), actorId: 'sam' } as AnyEvent, status: 'pending' };
+    await store.commit({ receive: [batchRow, claimRow, nearby('b2', '000000000000004:000000:d1', { actorId: 'sam' })], events: [pendingRow] });
+    await store.commit({ receive: [nearby('z1', '000000000000005:000000:d1', { streamId: 'elsewhere' })] });
+    const use = await store.nearbyUse('o', 'p');
+    const sized = (...events: LocalEvent[]) => events.reduce((n, l) => n + JSON.stringify(l.event).length, 0);
+    expect([...use].sort((a, b) => (a.who < b.who ? -1 : 1))).toEqual([
+      { who: 'actor:sam', rows: 2, bytes: sized(batchRow, nearby('b2', '000000000000004:000000:d1', { actorId: 'sam' })) },
+      { who: 'claim:K2', rows: 1, bytes: sized(claimRow) }
+    ]);
+  });
 });
 
 describe('SqliteStore nearby', () => {
