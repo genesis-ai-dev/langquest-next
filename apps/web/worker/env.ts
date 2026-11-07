@@ -18,6 +18,8 @@ export interface Env {
   DEVICE_RATE_LIMIT?: RateLimit;
   /** Per-address limit on review links (agent/links.ts), generous because a WhatsApp group may share one address. */
   LINK_RATE_LIMIT?: RateLimit;
+  /** Per-person limit on nearby certificates (nearby.ts), a minute at a time. */
+  NEARBY_RATE_LIMIT?: RateLimit;
   SUPABASE_URL: string;
   /**
    * Where the job container reaches the database when that differs from the
@@ -72,6 +74,15 @@ export interface Env {
    * accepted code changes wait, counted on the dashboard.
    */
   LINEAR_API_KEY?: string;
+  /**
+   * Nearby sync's signing key (nearby.ts, docs/nearby-sync-plan.md 5.12):
+   * one compact Ed25519 JWK with its `kid`, made by
+   * scripts/nearby-signing-key.sh. Optional (`npm run secrets`): without it,
+   * or while NEARBY_CERT_KEYS does not list it, /api/nearby/* answers 503.
+   */
+  NEARBY_SIGNING_KEY?: string;
+  /** The public keys phones trust, `kid:base64url,...`: a plain var, equal to the app's EXPO_PUBLIC_NEARBY_CERT_KEYS. */
+  NEARBY_CERT_KEYS?: string;
 }
 
 let shared: { url: string; key: string; client: SupabaseClient } | undefined;

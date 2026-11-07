@@ -9,6 +9,7 @@ import { FILMED_PATH, handleTutorialFilmed, type FilmedDeps } from './tutorialFi
 import { handleUserIssues, USER_ISSUES_PATH, type UserIssuesDeps } from './userIssues';
 import { handleLanguoids, type LanguoidDeps } from './languoids';
 import { handleAgentApi, type AgentDeps } from './agent/http';
+import { handleNearby, isNearbyPath, type NearbyDeps } from './nearby';
 
 export interface ApiDeps {
   /** The profile a Supabase access token belongs to, or null when it is not valid. */
@@ -39,6 +40,8 @@ export interface ApiDeps {
   tutorialFilmed?: FilmedDeps;
   /** The watch for user issues (`/api/user-issues`, userIssues.ts); without it that route answers 503. */
   userIssues?: UserIssuesDeps;
+  /** Nearby sync's certificates and attestations (`/api/nearby/*`, nearby.ts); without it those routes answer 503. */
+  nearby?: NearbyDeps;
 }
 
 const NO_STORE = { 'cache-control': 'private, no-store' };
@@ -103,6 +106,7 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
   if (url.pathname === REVIEW_PATH) return deps.tutorialReview ? handleTutorialReview(request, deps.tutorialReview) : json(503, { error: 'The tutorial review is not set up here.' });
   if (url.pathname === USER_ISSUES_PATH) return deps.userIssues ? handleUserIssues(request, deps.userIssues) : json(503, { error: 'The watch for user issues is not set up here.' });
   if (url.pathname === FILMED_PATH) return deps.tutorialFilmed ? handleTutorialFilmed(request, deps.tutorialFilmed) : json(503, { error: 'The tutorial intake is not set up here.' });
+  if (isNearbyPath(url.pathname)) return deps.nearby ? handleNearby(request, deps.nearby) : json(503, { error: 'Nearby sync is not set up here yet.' });
   if (url.pathname === '/api/languoids') {
     return deps.languoids ? handleLanguoids(request, deps.languoids) : json(503, { error: 'The language list is not set up here.' });
   }
