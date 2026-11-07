@@ -1082,7 +1082,7 @@ export class SyncClient<S = LanguageState> {
     const { state } = await this.foldLog(base.state as unknown as S, { after: base.serverSeq, confirmedOnly: true });
     this.m.compact(state);
     if (this.kept && this.lines) {
-      const split = await this.kept.split(state as unknown as LanguageState);
+      const split = await this.kept.split(state as unknown as LanguageState, { tailOnly: true });
       const chars = await this.saveSnapshot({ ...base, serverSeq: cursor, state: split.lite }, { kept: { ...this.stream(), upsert: split.rows }, meta: this.lines.owed() });
       this.kept.stored(split.placed);
       return { chars, path: 'slow' };

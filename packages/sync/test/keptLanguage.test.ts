@@ -385,6 +385,40 @@ describe('a language that keeps its recordings on disk', () => {
     expect(comparable(await whole(client, store))).toEqual(comparable(full));
   });
 
+  it('a checkpoint taken with work not yet sent combines a passage open on screen with its kept rows', async () => {
+    // Why: the slow path folds the last checkpoint and the confirmed tail, and a checkpoint holds no records, so an
+    // entry in that fold has only what the tail said. A passage open on screen must not have its rows replaced by that.
+    const server = new FakeServer();
+    const lead = await language(server, 20);
+    await lead.client.append('v1.CardVerseSet', { unitId: 'u3', hash: 'first', mark: 'next' });
+    for (let i = 0; i < 6; i++) {
+      await lead.client.append('v1.RecordingAdded', { recordingId: `b${i}`, unitId: `u${i + 10}`, kind: 'target', cards: [{ hash: `hb${i}`, durationMs: 5 }] });
+    }
+    await lead.client.sync();
+    const { client, store } = phone(server, 'dB', 'r1', { keepOnDisk: true, checkpointEvery: 5 });
+    await client.load();
+    await client.pull();
+    expect(await store.keptById('org1', 'p1', 'cardVerses', ['u3'])).toHaveLength(1);
+    await client.loadUnits(['u3']);
+    server.offline = true;
+    await client.append('v1.RecordingAdded', { recordingId: 'mine', unitId: 'u5', kind: 'target', cards: [{ hash: 'hm', durationMs: 9 }] });
+    server.offline = false;
+    // Someone marks another card in that passage, and enough other work follows that the next pull takes a checkpoint.
+    await lead.client.append('v1.CardVerseSet', { unitId: 'u3', hash: 'second', mark: 'join' });
+    for (let i = 0; i < 8; i++) {
+      await lead.client.append('v1.RecordingAdded', { recordingId: `o${i}`, unitId: `u${i + 10}`, kind: 'target', cards: [{ hash: `ho${i}`, durationMs: 5 }] });
+    }
+    await lead.client.sync();
+    await client.pull();
+    expect((await client.inspect()).pending).toHaveLength(1);
+    await client.sync();
+    const full = foldLanguage(server.stream('org1', 'p1'), emptyLanguageState());
+    expect(comparable(await whole(client, store))).toEqual(comparable(full));
+    // And the row itself, which a later session reads with nothing in memory.
+    const [row] = await store.keptById('org1', 'p1', 'cardVerses', ['u3']);
+    expect(JSON.parse(row!.json)).toEqual(full.cardVerses!['u3']);
+  });
+
   it('a list reads each passage as the state shows it, without waiting for its line to be worked out', async () => {
     // Why: the web UI suite read the Map as soon as the language showed, and
     // lines worked out a moment later said "Not started" for recorded passages.
