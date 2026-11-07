@@ -1,41 +1,18 @@
 {
-  "kind": "question",
-  "ask": "Should the web server retry a failed reference-audio download once?",
-  "problem": "One person on the web app saw two reference-audio files fail with a server error in one sync. Their other 14 files downloaded fine.",
-  "found": "I could not read the server logs, so the cause is not confirmed. The failures were fast, which points to a brief fault at the audio host. Only one person, once. The app then skips those files until restart.",
-  "changed": "Nothing yet. No code change is in this pull request.",
-  "why": "One brief failure does not show a clear bug. A retry changes how the app behaves for everyone, so it is your choice. I also checked that the server only reports this error in three cases: host unreachable, host error, or a reply that is not audio.",
-  "touches": "A retry would only affect the web server's audio pass-through. Phones do not use it.",
+  "kind": "needs_you",
+  "ask": "Can you give this session a read-only key for the Cloudflare server logs?",
+  "problem": "One person on the web app saw two reference-audio downloads fail with a server error. We still do not know why.",
+  "found": "The 502 answers come from the web server, whose logs live in Cloudflare. This session has no key for them, and I may not read secrets. The phone data needs its own key too.",
+  "changed": "Nothing yet. No code changed.",
+  "why": "A read-only key lets me check the logs without changing anything. The audio failures are not in the Supabase logs, so that link alone will not help.",
+  "touches": "Nothing else. I would only read, never write.",
   "pictures": [
-    {
-      "file": "option0.png",
-      "label": "Option A"
-    },
-    {
-      "file": "option1.png",
-      "label": "Option B"
-    },
-    {
-      "file": "option2.png",
-      "label": "Option C"
-    }
+    {"file": "now.png", "label": "Now"},
+    {"file": "after.png", "label": "After your step"}
   ],
-  "options": [
-    {
-      "label": "Leave as is",
-      "result": "Nothing changes. We watch whether more people hit it.",
-      "picture": "option0.png"
-    },
-    {
-      "label": "Retry once on the server",
-      "result": "I add one quick retry and a test. Brief host faults then heal themselves.",
-      "picture": "option1.png"
-    },
-    {
-      "label": "Retry, and skip failed files only for a few minutes",
-      "result": "Failed files get tried again soon, not only after a restart. Larger change.",
-      "picture": "option2.png"
-    }
-  ],
-  "recommended": 0
+  "steps": [
+    "In Cloudflare, create an API token that can only read Workers logs (Workers Observability, read).",
+    "In this cloud session's settings, add api.cloudflare.com as a connected service with that token, so I never see it.",
+    "Optional: connect the Supabase connector in your Claude settings so I can read the person's timeline."
+  ]
 }
