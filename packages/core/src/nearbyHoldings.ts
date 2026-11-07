@@ -230,3 +230,80 @@ export function wantedFilesOf(facts: WantedFacts, choice: HoldChoice): WantedFil
   return [...needed, ...review, ...backup];
 }
 
+// ---- what a phone keeps (docs/nearby-sync-plan.md 5.6) ------------------------------
+
+const GROUP_ORDER: Record<NearbyGroup, number> = { unnamed: 0, backup: 1, review: 2, needed: 3 };
+
+/**
+ * Level 2: nearby files this phone may delete when it is short of space and level 1
+ * (`evictableOf`, which does not change) could not free enough. Only marked files, so
+ * nothing a teammate sends can make this phone's own file deletable, and never a needed
+ * one. A marked file no reference names goes first (a row the sweep refused, 5.7), since
+ * nothing else could ever free it; then backups, then files open for review, which go last
+ * so that a team's unreviewed audio cannot leave no room for this person's own recording.
+ * Within each, the most known copies go first, so a last copy goes last, then the largest,
+ * then by hash. A file the server has is level 1's, or a needed one. The disk takes the
+ * list in this order.
+ */
+export function nearbyEvictableOf(
+  marks: readonly NearbyMark[],
+  present: ReadonlySet<string>,
+  sizes: ReadonlyMap<string, number>,
+  stored: (hash: string) => boolean
+): { hash: string; format: string }[] {
+  const out = marks.filter((m) => m.group !== 'needed' && present.has(m.hash) && (m.group === 'unnamed' || !stored(m.hash)));
+  out.sort((a, b) => GROUP_ORDER[a.group] - GROUP_ORDER[b.group] || b.copies - a.copies || (sizes.get(b.hash) ?? 0) - (sizes.get(a.hash) ?? 0) || compareText(a.hash, b.hash));
+  const seen = new Set<string>();
+  return out.filter((m) => !seen.has(m.hash) && seen.add(m.hash)).map(({ hash, format }) => ({ hash, format }));
+}
+
+/**
+ * With "Hold teammates' recordings" off (Carl's answer 14): marked files outside the
+ * wanted set (needed files and the review window) that this phone need not keep, because
+ * the server has the file at the size held here, or another person is known to hold it.
+ * Known means a holdings entry from another install key, certified to someone other than
+ * whoever is signed in here, whose owner keeps its files (its row on), or whose key sorts
+ * below this phone's. So of two phones with the row off, only the higher key sheds a file
+ * the other holds, and the last known copy stays. Holdings can be out of date, and an
+ * owner's own entry can be false; that is accepted on a phone whose person chose not to
+ * hold these files. Called only with the row off.
+ */
+export function nearbyShedOf(
+  marks: readonly NearbyMark[],
+  wanted: ReadonlySet<string>,
+  holdings: Holdings,
+  me: { key: string; signedIn: string },
+  stored: (hash: string) => boolean
+): string[] {
+  const elsewhere = new Set<string>();
+  for (const [key, entry] of holdings) {
+    if (key === me.key || !(entry.hold || key < me.key)) continue;
+    const first = entry.chain[0];
+    if (first?.kind !== 'worker@1' || first.body.profileId === me.signedIn) continue;
+    for (const hash of entry.files) elsewhere.add(hash);
+  }
+  const out = new Set<string>();
+  for (const m of marks) if (!wanted.has(m.hash) && (stored(m.hash) || elsewhere.has(m.hash))) out.add(m.hash);
+  return [...out];
+}
+
+/**
+ * Backups the server now holds at the size held here, as `evictableOf` asks. They go at
+ * once, on every phone, whatever the row says (Carl's answer 14), so a phone back from town
+ * does not keep voices it never needed. A file open for review then falls to level 1, and a
+ * needed one is kept: their marks go, and the files stay.
+ */
+export function backupsConfirmedOf(
+  marks: readonly NearbyMark[],
+  verdict: (hash: string) => { stored: boolean; size: number } | undefined,
+  localSizes: ReadonlyMap<string, number>
+): string[] {
+  const out: string[] = [];
+  for (const m of marks) {
+    if (m.group !== 'backup') continue;
+    const v = verdict(m.hash);
+    const here = localSizes.get(m.hash);
+    if (v?.stored && here !== undefined && here === v.size) out.push(m.hash);
+  }
+  return out;
+}

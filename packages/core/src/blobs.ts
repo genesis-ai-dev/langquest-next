@@ -142,7 +142,7 @@ export function referencedBlobs(state: LanguageState): ReadonlyMap<string, BlobR
 }
 
 /** What a scope needs, worked out once per plan: the workers and the reclaimer ask with the same scope after every file. */
-function forScope(plan: FilePlan, scope: ReadonlySet<string>): { needed: ReadonlySet<string>; stored: readonly BlobRef[] } {
+export function forScope(plan: FilePlan, scope: ReadonlySet<string>): { needed: ReadonlySet<string>; stored: readonly BlobRef[] } {
   // A scope Set is not changed once it has been passed in here (the session keeps one per revision).
   const same = plan.byScope.get(scope);
   if (same) return same;
@@ -420,12 +420,13 @@ export function lostFilesView(state: LanguageState, hashes: Iterable<string>): L
   return lostFilesOf(planOf(state), hashes);
 }
 
-export function lostFilesOf(plan: FilePlan, hashes: Iterable<string>): LostFilesView {
+/** `nearby`: files a teammate's phone sent here (the ledger's marks), which are not this person's to record again, so they count in neither total (decision 92, docs/nearby-sync-plan.md 5.4). */
+export function lostFilesOf(plan: FilePlan, hashes: Iterable<string>, nearby?: ReadonlySet<string>): LostFilesView {
   const out: LostFilesView = { safe: 0, unsent: 0, unitIds: [] };
   const units = new Set<string>();
   for (const hash of hashes) {
     const ref = plan.refs.get(hash);
-    if (!ref) continue;
+    if (!ref || nearby?.has(hash)) continue;
     if (plan.verdict(hash)?.stored) { out.safe++; continue; }
     out.unsent++;
     if (ref.unitId && !units.has(ref.unitId)) { units.add(ref.unitId); out.unitIds.push(ref.unitId); }

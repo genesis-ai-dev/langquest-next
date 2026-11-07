@@ -1,5 +1,5 @@
 import { nearbyGroupOf, wantedFilesOf, type HoldChoice, type WantedFacts } from '../src/nearbyHoldings';
-import { audioFormatsFor, defaultOfflineScope, deriveDownloadWork, deriveMissingBlobs, deriveUploadWork, evictableBlobs, isStored, lostFilesView, offlineByUnit, offlineSummary, referencedBlobs, unitOffline } from '../src/blobs';
+import { audioFormatsFor, defaultOfflineScope, deriveDownloadWork, deriveMissingBlobs, deriveUploadWork, evictableBlobs, filePlanOf, isStored, lostFilesOf, lostFilesView, offlineByUnit, offlineSummary, referencedBlobs, unitOffline } from '../src/blobs';
 import type { AnyEvent, EventPayloads, EventType } from '../src/events';
 import { applyLanguageEvent, foldLanguage } from '../src/reducer';
 import { emptyLanguageState } from '../src/state';
@@ -255,6 +255,13 @@ describe('files a phone lost behind the app\'s back (decisions.md 92)', () => {
     expect(lostFilesView(state, ['c1', 'c2', 'sha256:ov1', 'someone-elses'])).toEqual({ safe: 1, unsent: 2, unitIds: ['luke1'] });
     expect(lostFilesView(state, ['c1'])).toEqual({ safe: 1, unsent: 0, unitIds: [] });
     expect(lostFilesView(state, [])).toEqual({ safe: 0, unsent: 0, unitIds: [] });
+  });
+
+  it('a lost file a teammate\'s phone sent counts in neither total: it is not this person\'s to record again (5.4)', () => {
+    const plan = filePlanOf(state);
+    expect(lostFilesOf(plan, ['c1', 'c2', 'sha256:ov1'], new Set(['c2']))).toEqual({ safe: 1, unsent: 1, unitIds: ['luke1'] });
+    expect(lostFilesOf(plan, ['c1', 'c2'], new Set(['c1', 'c2']))).toEqual({ safe: 0, unsent: 0, unitIds: [] });
+    expect(lostFilesOf(plan, ['c2'])).toEqual({ safe: 0, unsent: 1, unitIds: ['luke1'] });
   });
 });
 

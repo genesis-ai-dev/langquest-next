@@ -1,7 +1,10 @@
 import { createHash } from 'node:crypto';
 import fc from 'fast-check';
 import type { ChainLink } from '../src/nearbyChain';
-import { NEARBY_HOLDINGS_MAX_FILES, copiesOf, mergeHoldings, parseHoldings, summaryText, withMyHolding, type HoldingEntry, type Holdings } from '../src/nearbyHoldings';
+import {
+  NEARBY_HOLDINGS_MAX_FILES, backupsConfirmedOf, copiesOf, mergeHoldings, nearbyEvictableOf, nearbyShedOf, parseHoldings, summaryText, withMyHolding,
+  type HoldingEntry, type Holdings, type NearbyMark
+} from '../src/nearbyHoldings';
 import { holdingsFilesHash, holdingsText, nearbyBytes } from '../src/nearbySigning';
 import { HOLDINGS_FILES, PUBLIC_KEY, SUMMARY_TEXT } from './nearbyVectors';
 
@@ -242,3 +245,107 @@ describe('summaryText', () => {
   });
 });
 
+// ---- what a phone keeps (docs/nearby-sync-plan.md 5.6, section 8's freeing-space and hold rows) ----
+
+const mark = (c: string, group: NearbyMark['group'], copies = 0, languageId = 'lang1'): NearbyMark => ({ hash: FILE(c), format: 'm4a', languageId, group, copies });
+
+describe('nearbyEvictableOf', () => {
+  const sizes = new Map([[FILE('a'), 10], [FILE('b'), 30], [FILE('c'), 20], [FILE('d'), 5], [FILE('e'), 40], [FILE('f'), 50]]);
+  const all = new Set(sizes.keys());
+  const none = () => false;
+
+  it('a marked file no reference names first, then backups, then files open for review; never a needed one', () => {
+    const marks = [mark('a', 'review'), mark('b', 'backup'), mark('c', 'unnamed'), mark('d', 'needed')];
+    expect(nearbyEvictableOf(marks, all, sizes, none).map((r) => r.hash)).toEqual([FILE('c'), FILE('b'), FILE('a')]);
+  });
+
+  it('within a group the most known copies go first, so a last copy goes last, then the largest, then by hash', () => {
+    const marks = [mark('a', 'backup', 1), mark('b', 'backup', 0), mark('c', 'backup', 3), mark('e', 'backup', 1), mark('f', 'review', 9)];
+    expect(nearbyEvictableOf(marks, all, sizes, none).map((r) => r.hash)).toEqual([FILE('c'), FILE('e'), FILE('a'), FILE('b'), FILE('f')]);
+    const tie = [mark('b', 'backup'), mark('a', 'backup')];
+    expect(nearbyEvictableOf(tie, all, new Map(), none).map((r) => r.hash)).toEqual([FILE('a'), FILE('b')]);
+  });
+
+  it('only files here, and a backup or review file the server has is level 1\'s, not this list\'s', () => {
+    const marks = [mark('a', 'backup'), mark('b', 'review'), mark('c', 'unnamed'), mark('d', 'backup')];
+    const stored = (h: string) => h !== FILE('d');
+    expect(nearbyEvictableOf(marks, new Set([FILE('a'), FILE('b'), FILE('c'), FILE('d')]), sizes, stored).map((r) => r.hash)).toEqual([FILE('c'), FILE('d')]);
+    expect(nearbyEvictableOf(marks, new Set([FILE('b')]), sizes, none)).toEqual([{ hash: FILE('b'), format: 'm4a' }]);
+  });
+
+  it('an unmarked file is never listed, whatever it is', () => {
+    expect(nearbyEvictableOf([], all, sizes, none)).toEqual([]);
+  });
+});
+
+describe('nearbyShedOf (the row off)', () => {
+  const ME = KEY('m');
+  const LOWER = KEY('c');
+  const HIGHER = KEY('x');
+  const me = { key: ME, signedIn: 'me' };
+  const none = () => false;
+  const held = (key: string, files: string[], profileId: string, hold = false): [string, HoldingEntry] => [key, entry(1, files, { chain: chainOf(profileId), hold })];
+
+  it('sheds a file the server has at the size held here', () => {
+    expect(nearbyShedOf([mark('a', 'backup'), mark('b', 'backup')], new Set(), new Map(), me, (h) => h === FILE('a'))).toEqual([FILE('a')]);
+  });
+
+  it('sheds one another person holds under a lower key, and keeps the last known copy', () => {
+    const holdings = new Map([held(LOWER, [FILE('a')], 'sam')]);
+    expect(nearbyShedOf([mark('a', 'backup'), mark('b', 'review')], new Set(), holdings, me, none)).toEqual([FILE('a')]);
+  });
+
+  it('a higher key with its row off does not count, so of two such phones only the higher sheds', () => {
+    const marks = [mark('a', 'backup')];
+    expect(nearbyShedOf(marks, new Set(), new Map([held(HIGHER, [FILE('a')], 'sam')]), me, none)).toEqual([]);
+    // The two phones, each seeing the other: exactly one sheds.
+    const low = { key: LOWER, signedIn: 'carla' };
+    const shedLow = nearbyShedOf(marks, new Set(), new Map([held(ME, [FILE('a')], 'me')]), low, none);
+    const shedMe = nearbyShedOf(marks, new Set(), new Map([held(LOWER, [FILE('a')], 'carla')]), me, none);
+    expect([shedLow, shedMe]).toEqual([[], [FILE('a')]]);
+  });
+
+  it('a teammate whose row is on keeps the file, so a higher key holding it counts (the signed hold field)', () => {
+    expect(nearbyShedOf([mark('a', 'backup')], new Set(), new Map([held(HIGHER, [FILE('a')], 'sam', true)]), me, none)).toEqual([FILE('a')]);
+  });
+
+  it('another install of whoever is signed in here does not count, nor does an entry with no certified person', () => {
+    expect(nearbyShedOf([mark('a', 'backup')], new Set(), new Map([held(LOWER, [FILE('a')], 'me', true)]), me, none)).toEqual([]);
+    const uncertified: Holdings = new Map([[LOWER, entry(1, [FILE('a')], { chain: [], hold: true })]]);
+    expect(nearbyShedOf([mark('a', 'backup')], new Set(), uncertified, me, none)).toEqual([]);
+    // This phone's own entry is never another copy.
+    expect(nearbyShedOf([mark('a', 'backup')], new Set(), new Map([held(ME, [FILE('a')], 'sam', true)]), me, none)).toEqual([]);
+  });
+
+  it('a file in the wanted set never goes, and an unmarked file is never listed', () => {
+    const holdings = new Map([held(LOWER, [FILE('a'), FILE('b')], 'sam', true)]);
+    expect(nearbyShedOf([mark('a', 'needed'), mark('b', 'review')], new Set([FILE('a'), FILE('b')]), holdings, me, () => true)).toEqual([]);
+    expect(nearbyShedOf([], new Set(), holdings, me, () => true)).toEqual([]);
+  });
+
+  it('no two phones with the row off shed the last copy between them, whatever they hold', () => {
+    const keys = [KEY('a'), KEY('b'), KEY('c'), KEY('d')];
+    fc.assert(fc.property(fc.array(fc.subarray([FILE('1'), FILE('2'), FILE('3')]), { minLength: 4, maxLength: 4 }), (lists) => {
+      // Four phones of four people, every row off, each knowing every other's true entry.
+      const holdings = new Map(keys.map((k, i) => [k, entry(1, [...lists[i]!].sort(), { chain: chainOf(`p${i}`) })] as [string, HoldingEntry]));
+      const left = new Map<string, number>();
+      keys.forEach((key, i) => {
+        const marks = lists[i]!.map((h) => ({ hash: h, format: 'm4a', languageId: 'l', group: 'backup' as const, copies: 0 }));
+        const shed = new Set(nearbyShedOf(marks, new Set(), holdings, { key, signedIn: `p${i}` }, none));
+        for (const h of lists[i]!) if (!shed.has(h)) left.set(h, (left.get(h) ?? 0) + 1);
+      });
+      for (const h of new Set(lists.flat())) expect(left.get(h)).toBe(1);
+    }));
+  });
+});
+
+describe('backupsConfirmedOf', () => {
+  it('lists backups the server holds at the size held here, and nothing else', () => {
+    const marks = [mark('a', 'backup'), mark('b', 'backup'), mark('c', 'review'), mark('d', 'needed'), mark('e', 'backup'), mark('f', 'unnamed')];
+    const verdicts = new Map([[FILE('a'), { stored: true, size: 10 }], [FILE('b'), { stored: true, size: 99 }], [FILE('c'), { stored: true, size: 10 }], [FILE('d'), { stored: true, size: 10 }], [FILE('f'), { stored: true, size: 10 }]]);
+    const local = new Map([[FILE('a'), 10], [FILE('b'), 10], [FILE('c'), 10], [FILE('d'), 10], [FILE('e'), 10], [FILE('f'), 10]]);
+    expect(backupsConfirmedOf(marks, (h) => verdicts.get(h), local)).toEqual([FILE('a')]);
+    // A size not known here is not a confirmation.
+    expect(backupsConfirmedOf([mark('a', 'backup')], (h) => verdicts.get(h), new Map())).toEqual([]);
+  });
+});
