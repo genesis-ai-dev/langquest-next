@@ -1,0 +1,24 @@
+{
+ "kind": "structure",
+ "ask": "Is this test fix fine to take once CI passes?",
+ "problem": "The nightly test for a member's new role failed. It found no recordings on the member's phone.",
+ "found": "The test was at fault, not pull request 364. It expected old recordings on the phone, but a phone opened after a snapshot cut stores none. So it passed or failed by timing.",
+ "changed": "Nothing people see. The test now records one part on the member's phone first. After the role change it checks that the phone kept those recordings.",
+ "why": "It keeps the point of the test: a role change must not erase the member's own work. Setting the test aside would hide that. I could not run the browser suite here, so CI must confirm.",
+ "touches": "One helper gained an optional set-up step. No other test changes.",
+ "pictures": [
+  {
+   "file": "diagram.png",
+   "label": "Why it failed and the fix"
+  }
+ ],
+ "guess": {
+  "answer": "looks_good"
+ },
+ "links": [
+  {
+   "label": "Pull request",
+   "url": "https://github.com/genesis-ai-dev/langquest-next/pull/400"
+  }
+ ]
+}
