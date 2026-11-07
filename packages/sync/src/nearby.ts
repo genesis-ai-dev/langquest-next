@@ -4,6 +4,11 @@
  * not carry it.
  */
 export * from './nearbyIntake';
+export * from './nearbyKeep';
 export * from './nearbyLink';
+export * from './nearbyOpening';
+export * from './nearbyPartners';
+export * from './nearbyRoom';
+export * from './nearbySession';
 export * from './nearbyWire';
 export { isServerVerdict, type NearbyPlatform } from './nearbyUpkeep';

@@ -111,3 +111,78 @@ export async function settled<T extends unknown[]>(time: VirtualTime, ...work: {
 
 export const newTime = () => new VirtualTime(NOW);
 export type Report = NearbySessionReport;
+
+// ---- rooms ------------------------------------------------------------------------
+
+import { base64urlEncode, summaryOf, summaryText, type Holdings } from '@langquest-next/core';
+import { NearbyRoom, type NearbyRoomEvent, type NearbyRoomFacts, type NearbyRoomKeys, type NearbyRoomOptions } from '../src/nearbyRoom';
+import type { MemoryNearbyAir, MemoryNearbyRadio, MemoryRadioKnobs } from '../src/testing/memoryNearbyLink';
+import type { NearbyCapabilities } from '../src/nearbyLink';
+import type { NearbyGenerations } from '../src/nearbySession';
+
+export const FIND = { rotateMinMs: 240_000, rotateMaxMs: 360_000, scanStartGapMs: 6_000, scanRestartMs: 1_500_000, connectRetries: 2, connectable: 'always' as const };
+
+/** What the app works out for the room from its own store: the summary after signing, and holdings for what each side lacks. */
+export function roomFacts(p: TestPhone): NearbyRoomFacts & { holdings: Holdings } {
+  const facts = {
+    holdings: new Map() as Holdings,
+    async summary() {
+      await p.client.signUnsigned(signerOf(p.who));
+      facts.holdings = await p.keep.holdings();
+      const { cursor, claimedSeq, vector } = await p.client.nearbyHave();
+      return summaryOf(summaryText(Math.max(cursor, claimedSeq), vector, facts.holdings, (await p.keep.revoked())?.list.seq ?? 0), fakeSha256);
+    },
+    peers: () => p.keep.peers(),
+    async knownKeys() {
+      const { vector } = await p.client.nearbyHave();
+      return [...new Set([...vector.keys(), ...facts.holdings.keys()])];
+    },
+    swap(key: string | null) {
+      const theirs = key === null ? undefined : facts.holdings.get(key);
+      if (!theirs) return { hasWhatIWant: true, wantsWhatIHave: true };
+      const mine = new Set(p.files.here);
+      return { hasWhatIWant: theirs.files.some((f) => !mine.has(f)), wantsWhatIHave: [...mine].some((f) => !theirs.files.includes(f)) };
+    },
+    listed: () => false
+  };
+  return facts;
+}
+
+export interface TestRoom {
+  phone: TestPhone;
+  radio: MemoryNearbyRadio;
+  room: NearbyRoom;
+  events: NearbyRoomEvent[];
+  keys: { current: NearbyRoomKeys & { direct: boolean; certOrgSeq: number } };
+}
+
+export function roomFor(p: TestPhone, air: MemoryNearbyAir, time: VirtualTime, o: { caps?: Partial<NearbyCapabilities>; knobs?: MemoryRadioKnobs; keys?: NearbyRoomKeys & { direct?: boolean; certOrgSeq?: number }; room?: Partial<NearbyRoomOptions>; orgSeqHere?: number } = {}): TestRoom {
+  const radio = air.radio(p.who.deviceId, o.caps, o.knobs);
+  const events: NearbyRoomEvent[] = [];
+  const keys = { current: { gen: 1, key: base64urlEncode(DISCOVERY), floor: 1, direct: true, certOrgSeq: 0, ...o.keys } };
+  const room = new NearbyRoom({
+    radio, crypto: p.who.crypto, keys: () => keys.current, facts: roomFacts(p), idleLimitMs: 300_000, waitLimitMs: 1_800_000, stopWhenLevel: false,
+    radios: () => ({ directByName: false, band5: false, hotspot: false, joinHotspot: false }), find: FIND, report: (e) => events.push(e),
+    openSession: (args) => {
+      const generations: NearbyGenerations = {
+        sessionGen: args.gen, mine: () => keys.current, orgSeqHere: () => o.orgSeqHere ?? 0,
+        keep: async (handed) => { keys.current = { ...keys.current, ...handed, direct: false }; }
+      };
+      return sessionFor(p, args.role, args.link, time, {
+        opening: { kSess: args.kSess, salt: args.salt, kFind: args.kFind, ...(args.seen ? { seen: args.seen } : {}) },
+        older: args.older, ...(args.heardTag !== undefined ? { heardTag: args.heardTag } : {}), ...(args.onOpened ? { onOpened: args.onOpened } : {}),
+        otherWaiting: args.otherWaiting, generations
+      });
+    },
+    ...o.room
+  });
+  return { phone: p, radio, room, events, keys };
+}
+
+/** One scan burst and one tick for every room, then two seconds of simulated time. */
+export async function turn(air: MemoryNearbyAir, time: VirtualTime, rooms: readonly TestRoom[], scan = true): Promise<void> {
+  if (scan) air.scan();
+  for (const r of rooms) await r.room.tick(time.now());
+  await time.runFor(2_000);
+}
+

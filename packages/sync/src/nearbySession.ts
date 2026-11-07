@@ -167,6 +167,8 @@ export interface NearbySessionReport {
   role: NearbyRole;
   ended: NearbySessionEnd;
   peer: { installKey: string; profileId: string; deviceId: string; tag: string } | null;
+  /** The tag worked out from a chain that checked, when the read gate or the tag heard then refused it: the room does not pick that phone again. */
+  refusedTag: string | null;
   /** Their hello said a range this build shares nothing with: get a newer app from a teammate or the store. */
   newerAppNeeded: boolean;
   /** Their clock and this phone's differ by over five minutes. */
@@ -193,7 +195,7 @@ export interface NearbySessionReport {
 }
 
 const emptyReport = (role: NearbyRole): NearbySessionReport => ({
-  role, ended: { how: 'dropped' }, peer: null, newerAppNeeded: false, clockOff: false, linkKind: null, signed: null,
+  role, ended: { how: 'dropped' }, peer: null, refusedTag: null, newerAppNeeded: false, clockOff: false, linkKind: null, signed: null,
   got: { pages: 0, events: 0, refused: 0, droppedPages: 0, overBudget: 0, counted: 0 },
   sent: { batches: 0, claims: 0, events: 0, skipped: 0 },
   files: { got: 0, served: 0, answeredNo: 0, toldNo: 0, failed: 0, noRoom: false, cutBackups: false },
@@ -595,9 +597,11 @@ export class NearbySession {
     const theirRole = opt.role === 'i' ? 'r' : 'i';
     if (!await signedBy(crypto.verify, holder.installKey, nearbyBytes('proof', proofText(theirRole, this.keys!.th)), hello.proof)) throw new SayBye('identity', 'bad proof');
     const tag = findTagOf(crypto, opt.opening.kFind, holder.installKey);
+    this.report.refusedTag = tag;
     if (opt.heardTag !== undefined && opt.heardTag !== tag) throw new SayBye('identity', 'not the tag heard');
     // The read gate: Global Viewers hold no privileges in a language, so they are out.
     if (opt.gate.people(verdict).privilegesIn(holder.profileId, opt.languageId).size === 0) throw new SayBye('not-member');
+    this.report.refusedTag = null;
     this.verdict = verdict;
     this.theirHello = hello;
     this.report.peer = { installKey: holder.installKey, profileId: holder.profileId, deviceId: holder.deviceId, tag };
