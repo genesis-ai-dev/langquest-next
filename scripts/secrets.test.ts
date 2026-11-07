@@ -100,6 +100,15 @@ describe('secrets', () => {
     expect(OPTIONAL_KEYS).toContain('LINEAR_API_KEY');
   });
 
+  it('gives the app\'s Worker the nearby signing key when the file has it, and nowhere else; a deploy never waits for it', () => {
+    const wanted = destinations('production', { ...values, NEARBY_SIGNING_KEY: '{"kid":"k1"}' }, 'ref', 'k');
+    expect(wanted.workers.app).toMatchObject({ NEARBY_SIGNING_KEY: '{"kid":"k1"}' });
+    expect(JSON.stringify({ ...wanted, workers: { ...wanted.workers, app: {} } })).not.toContain('NEARBY_SIGNING_KEY');
+    expect(Object.keys(destinations('preview', values, 'ref', 'k').workers.app)).not.toContain('NEARBY_SIGNING_KEY');
+    expect(OPTIONAL_KEYS).toContain('NEARBY_SIGNING_KEY');
+    expect(read('apps/web/wrangler.jsonc')).not.toMatch(/"required": \[[^\]]*NEARBY_SIGNING_KEY/);
+  });
+
   it('gives GitHub the Gemini key for the nightly filming and the Claude token for the nightly look and frame check, from production\'s file only, and nothing else', () => {
     expect(destinations('production', { ...values, GEMINI_API_KEY: 'g' }, 'ref', 'k').github).toEqual({ GEMINI_API_KEY: 'g' });
     expect(destinations('production', { ...values, GEMINI_API_KEY: 'g', CLAUDE_CODE_OAUTH_TOKEN: 'sk-oat' }, 'ref', 'k').github)
