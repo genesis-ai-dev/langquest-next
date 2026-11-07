@@ -7,10 +7,11 @@
  */
 import { writeFileSync } from 'node:fs';
 import {
-  EVENT_PAYLOAD_MAX_BYTES, EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, ORG_EVENT_TYPES, PRIVILEGES, emptyOrgState, entityKeyOf, eventSizeError, jsonbTextBytes, languageOfOrgEvent, mayReadLanguage, mayWriteFiles, privilegeAllows, privilegeFor, privilegesOfFixedRole, validateEvent, type AnyEvent, type OrgState, type Privilege, type Role
+  EVENT_PAYLOAD_MAX_BYTES, EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, ORG_EVENT_TYPES, PRIVILEGES, emptyOrgState, entityKeyOf, eventSizeError, idAuthor, jsonbTextBytes, languageOfOrgEvent, mayReadLanguage, mayWriteFiles, privilegeAllows, privilegeFor, privilegesOfFixedRole, validateEvent, type AnyEvent, type OrgState, type Privilege, type Role
 } from '@langquest-next/core';
-import { isServerEventId } from '@langquest-next/core/nearby';
+import { base64urlDecode, isServerEventId } from '@langquest-next/core/nearby';
 import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture } from '../packages/core/test/fixtures';
+import { GENERATIONS } from '../packages/core/test/nearbyVectors';
 
 const sql = (v: unknown) => `'${JSON.stringify(v).replaceAll("'", "''")}'::jsonb`;
 
@@ -249,6 +250,25 @@ const serverIds = [
   'api-', 'api-x', 'api', 'api:x', 'API-x', ' api-x', 'xapi-x', 'e1', '', 'by:a:b:0', 'take:by:a:b'
 ].map((id) => ({ id, server: isServerEventId(id) }));
 
+// Whose id this is (docs/nearby-sync-plan.md 5.4, Bound ids): bound ids with terms in front,
+// entity keys, keys under a key term, near misses of each, and every fixture's ids and keys.
+const UUID = '5870452d-7878-4328-916d-f4fecc0b79f2';
+const authorIds = [...new Set([
+  `by:${UUID}:r1:0`, `by:${UUID}:r1`, 'by:a:b:0', 'by:a:b', 'by:a', 'by:a:', 'by::b', 'by:', 'by', 'by:by:a:', 'by:a:by:b:c',
+  'take:by:a:b', 'take:take:by:a:b', 'note:by:a:n', 'review:review:by:a:r', 'audioformat:by:a:x', 'a:b:c:by:z:q',
+  'xby:a:b', 'Take:by:a:b', 'take1:by:a:b', 'BY:a:b', ' by:a:b', 'by :a:b', 'take-by:a:b', 'take:x1:by:a:b',
+  'rendering:t/by:b:r', 'rendering:by:t:x/by:b:r', 'rendering:by:t:x/r', 'rendering:t/r', 'rendering:by:x', 'rendering:by:x:y',
+  'adjustment:term/by:c:1', 'adjustment:by:a:t/by:a:x:y/z', 'rendering:t/rendering:u/by:d:e', 'rendering:/by:e:f',
+  'take:by:🎧:x', 'by:é:x', 'by:a\nb:c', `${UUID}:3`, 'e1', '', 'api-x', 'invite:x',
+  ...events.flatMap((e) => [e.id, entityKeyOf(e) ?? '']),
+  ...events.flatMap((e) => { const k = entityKeyOf(e); return k ? [k.replace(/:/, `:by:${UUID}:`)] : []; })
+])].map((id) => ({ id, author: idAuthor(id) }));
+if (!authorIds.some((r) => r.author === UUID) || !authorIds.some((r) => r.author === null)) throw new Error('the id author cases must name someone and no one');
+
+// Generations of a discovery key (5.12, Generations): the golden vector from its newest down.
+const hex = (b64url: string) => Buffer.from(base64urlDecode(b64url)!).toString('hex');
+const generations = GENERATIONS.map((key, steps) => ({ steps, key: hex(key) }));
+
 // How big an event may be (decisions.md 115): each fixture, and payloads on
 // either side of the limit, of text, of many small numbers (a space after
 // every comma) and of nested objects (one after every colon too).
@@ -353,6 +373,16 @@ writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r json
       raise exception '_server_event_id disagrees with isServerEventId: %', r;
     end if;
   end loop;
+  for r in select * from jsonb_array_elements(${sql(authorIds)}) loop
+    if public._id_author(r->>'id') is distinct from r->>'author' then
+      raise exception '_id_author disagrees with idAuthor: % (sql says %)', r, public._id_author(r->>'id');
+    end if;
+  end loop;
+  for r in select * from jsonb_array_elements(${sql(generations)}) loop
+    if encode(public._discovery_key_below(decode('${generations[0]!.key}', 'hex'), (r->>'steps')::int), 'hex') is distinct from r->>'key' then
+      raise exception '_discovery_key_below disagrees with the generations vector: %', r;
+    end if;
+  end loop;
 end $$;
 begin;
 do $$ declare r jsonb; m jsonb; begin
@@ -381,5 +411,6 @@ do $$ declare r jsonb; m jsonb; begin
 end $$;
 rollback;
 select ${rows.length} as payload_checks, ${perms.length + single.length} as permission_checks, ${scopedLanguage.length} as scope_checks,
-  ${entities.length} as entity_checks, ${sizes.length} as size_checks, ${access.length} as access_checks, ${serverIds.length} as server_id_checks;
+  ${entities.length} as entity_checks, ${sizes.length} as size_checks, ${access.length} as access_checks, ${serverIds.length} as server_id_checks,
+  ${authorIds.length} as id_author_checks, ${generations.length} as generation_checks;
 `);

@@ -1,7 +1,9 @@
 -- What the server does not expose. The v2 import's functions are the service
 -- role's alone (decision 94); the audio bucket's policies and trigger went
 -- when recordings moved to R2 (decision 69), so no signed-in caller reaches
--- the bucket's objects and storage no longer appends events. Read-only.
+-- the bucket's objects and storage no longer appends events; nearby sync's
+-- staff functions, certificate facts and key tables are the service role's
+-- alone (docs/nearby-sync-plan.md 5.12). Read-only.
 \set ON_ERROR_STOP on
 
 -- 1. Every v2_import_* function is service role only, and there is at least
@@ -60,3 +62,30 @@ do $$ begin
   end;
 end $$;
 reset role;
+
+-- 3. Nearby sync: the staff functions, the Worker's certificate facts and
+-- their helpers are the service role's alone, its tables are out of every API
+-- role's reach, and known_events is for someone signed in.
+do $$ declare v text; n int; begin
+  select count(*) into n from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = any (array[
+    'org_feature_grant', 'org_feature_revoke', 'org_feature_list', 'nearby_certificate_facts',
+    '_org_feature_on', '_discovery_generation', '_discovery_key_below', '_id_author']);
+  if n <> 8 then raise exception 'expected the nearby service functions, found %', n; end if;
+  select string_agg(p.proname, ', ' order by p.proname) into v from pg_proc p
+   where p.pronamespace = 'public'::regnamespace and p.proname = any (array[
+     'org_feature_grant', 'org_feature_revoke', 'org_feature_list', 'nearby_certificate_facts',
+     '_org_feature_on', '_discovery_generation', '_discovery_key_below', '_id_author'])
+     and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute')
+          or has_function_privilege('public', p.oid, 'execute') or not has_function_privilege('service_role', p.oid, 'execute'));
+  if v is not null then raise exception 'nearby functions not the service role''s alone: %', v; end if;
+  select string_agg(t, ', ' order by t) into v from unnest(array[
+    'org_features', 'install_keys', 'install_key_revocations', 'language_discovery_chains', 'language_discovery_keys']) t
+   where has_table_privilege('anon', 'public.' || t, 'select') or has_table_privilege('authenticated', 'public.' || t, 'select')
+      or has_table_privilege('anon', 'public.' || t, 'insert') or has_table_privilege('authenticated', 'public.' || t, 'insert')
+      or not (select c.relrowsecurity from pg_class c where c.oid = ('public.' || t)::regclass);
+  if v is not null then raise exception 'nearby tables open to API roles, or without row level security: %', v; end if;
+  if has_function_privilege('anon', 'public.known_events(text, text, text[])', 'execute')
+     or not has_function_privilege('authenticated', 'public.known_events(text, text, text[])', 'execute') then
+    raise exception 'known_events is for someone signed in';
+  end if;
+end $$;
