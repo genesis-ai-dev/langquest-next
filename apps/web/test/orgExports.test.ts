@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { foldLanguage, emptyLanguageState, ORG_STREAM, type AnyEvent } from '@langquest-next/core';
@@ -233,4 +233,3 @@ describe('the export door', () => {
     expect(d.objects.size).toBe(0);
   });
 });
-void readFileSync;

@@ -7631,5 +7631,23 @@
       "badItem": "Pilih salah satu item Anda sendiri dengan jenis yang sama.",
       "offline": "Tidak bisa menghubungi LangQuest. Periksa koneksi Anda dan coba lagi."
     }
+  },
+  "orgExport": {
+    "title": "Ekspor semua data",
+    "sub": "Satu zip: rekaman dalam folder, daftar setiap rekaman, lembar kemajuan, dan catatan lengkap.",
+    "whole": "Seluruh organisasi",
+    "some": "Hanya beberapa bahasa",
+    "start": "Buat zip",
+    "waiting": "Menunggu untuk dimulai",
+    "reading": "Membaca organisasi",
+    "audio": "Menambahkan rekaman: {{done}} dari {{total}}",
+    "log": "Menambahkan catatan lengkap",
+    "ready": "Siap diunduh",
+    "download": "Unduh",
+    "failed": "Ekspor tidak selesai. Coba lagi.",
+    "started": "Ekspor telah dimulai.",
+    "problem": "Ekspor tidak dapat dimulai.",
+    "expired": "Dihapus setelah 7 hari.",
+    "keep": "Zip yang selesai disimpan selama 7 hari."
   }
 }

@@ -13,7 +13,7 @@
 import {
   clusterName, mayManageClusters, orgClusters,
   commands, decodeHlc, deriveFlow, emptyLanguageState, goesWith, isMoreOpen, keyTermsFor, languageInfo, languageName, progressOf as linesProgress,
-  leavesNoRoleManager, libraryItems, libraryItemView, materialsFor, mayChangeLicense, mayChangeMembership, mayGrantRole, mayRenameLanguage, mayRenameOrg, orgLicense, orgName, privilegesFor, SEED_ROLES,
+  leavesNoRoleManager, libraryItems, libraryItemView, materialsFor, mayChangeLicense, mayChangeMembership, mayGrantRole, mayRenameLanguage, mayRenameOrg, orgLanguages, orgLicense, orgName, privilegesFor, SEED_ROLES,
   subscriptionItemId, templateBooks, type EventSpec, type LanguageProgress, type LibraryDoc, type LibraryKind, type License, type Scope, type ScopeLevel, type SourceDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -52,6 +52,8 @@ import {
 } from '../org/orgAdmin';
 import { noteExpected, reportError, failureMessage } from '../diagnostics/report';
 import { LicenseRow, LicenseSheet } from '../org/licenseSheet';
+import { ExportSheet } from '../org/ExportSheet';
+import { canExport } from '../org/orgExports';
 import { appendToLanguage } from '../sync/languageWriter';
 import { createLanguages, newLanguageParts, type Making, type MaterialChoice, type NewOne } from '../org/newLanguage';
 import { emailInvite } from '../org/emailInvite';
@@ -664,7 +666,7 @@ function LanguagesRow(props: { ctx: Ctx; languageId: string; name: string; code:
  */
 function OrgNameAndLicense(props: { ctx: Ctx }) {
   const { ctx } = props;
-  const [open, setOpen] = useState<'name' | 'license' | 'verified' | null>(null);
+  const [open, setOpen] = useState<'name' | 'license' | 'verified' | 'export' | null>(null);
   const [busy, setBusy] = useState(false);
   const name = orgName(ctx.org.state) ?? '';
   const mayRename = mayRenameOrg(ctx.org.state, ctx.session.actorId);
@@ -718,6 +720,16 @@ function OrgNameAndLicense(props: { ctx: Ctx }) {
         <Text style={[txt.xs, { color: C.primary, fontWeight: '700' }]}>{licenseText(current).name} · {licenseText(current).short}</Text>
         <HelpBadge spot={license} />
       </Pressable>
+      {mayRename && canExport ? (
+        <>
+          <Pressable testID="org-export" onPress={() => setOpen('export')} accessibilityRole="button" accessibilityLabel={t('orgExport.title')}
+            style={({ pressed }) => [{ alignSelf: 'flex-start', minHeight: target.min, justifyContent: 'center' }, pressed && { opacity: 0.7 }]}>
+            <Text style={[txt.xs, { color: C.primary, fontWeight: '700' }]}>{t('orgExport.title')}</Text>
+          </Pressable>
+          <ExportSheet visible={open === 'export'} onClose={() => setOpen(null)} orgId={ctx.language.orgId} toast={ctx.toast}
+            languages={orgLanguages(ctx.org.state).map((l) => ({ id: l.languageId, name: l.name }))} />
+        </>
+      ) : null}
       {badge ? <VerifiedSheet visible={open === 'verified'} onClose={() => setOpen(null)} orgName={name} badge={badge} />
         : mayVerify ? (
           <VerificationSheet visible={open === 'verified'} onClose={() => setOpen(null)} orgId={ctx.language.orgId} orgName={name}

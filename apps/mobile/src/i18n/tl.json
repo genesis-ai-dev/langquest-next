@@ -7976,5 +7976,23 @@
       "badItem": "Pumili ng isa sa sarili mong item na pareho ang uri.",
       "offline": "Hindi maabot ang LangQuest. Tingnan ang iyong koneksiyon at subukan ulit."
     }
+  },
+  "orgExport": {
+    "title": "I-export ang lahat ng data",
+    "sub": "Isang zip: mga recording sa mga folder, listahan ng bawat recording, mga sheet ng progreso at ang buong talaan.",
+    "whole": "Ang buong organisasyon",
+    "some": "Ilang wika lang",
+    "start": "Gawin ang zip",
+    "waiting": "Naghihintay na magsimula",
+    "reading": "Binabasa ang organisasyon",
+    "audio": "Dinadagdag ang mga recording: {{done}} sa {{total}}",
+    "log": "Dinadagdag ang buong talaan",
+    "ready": "Handa nang i-download",
+    "download": "I-download",
+    "failed": "Hindi natapos ang export. Subukan ulit.",
+    "started": "Nagsimula na ang export.",
+    "problem": "Hindi masimulan ang export.",
+    "expired": "Inalis pagkatapos ng 7 araw.",
+    "keep": "Ang natapos na zip ay nananatili nang 7 araw."
   }
 }

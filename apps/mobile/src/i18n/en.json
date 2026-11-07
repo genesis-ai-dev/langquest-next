@@ -7976,5 +7976,23 @@
       "badItem": "Choose one of your own items of the same kind.",
       "offline": "Could not reach LangQuest. Check your connection and try again."
     }
+  },
+  "orgExport": {
+    "title": "Export all data",
+    "sub": "One zip: recordings in folders, a list of every recording, progress sheets and the full record.",
+    "whole": "The whole organization",
+    "some": "Only some languages",
+    "start": "Make the zip",
+    "waiting": "Waiting to start",
+    "reading": "Reading the organization",
+    "audio": "Adding recordings: {{done}} of {{total}}",
+    "log": "Adding the full record",
+    "ready": "Ready to download",
+    "download": "Download",
+    "failed": "The export did not finish. Try again.",
+    "started": "The export has started.",
+    "problem": "The export could not start.",
+    "expired": "Removed after 7 days.",
+    "keep": "A finished zip stays for 7 days."
   }
 }

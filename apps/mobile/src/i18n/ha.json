@@ -7976,5 +7976,23 @@
       "badItem": "Ku zaɓi ɗaya daga cikin abubuwanku na iri ɗaya.",
       "offline": "Ba a iya kaiwa ga LangQuest ba. Ku duba haɗinku ku sake gwadawa."
     }
+  },
+  "orgExport": {
+    "title": "Fitar da duk bayanai",
+    "sub": "Zip ɗaya: rikodi a cikin manyan fayiloli, jerin kowane rikodi, takardun ci gaba da cikakken tarihi.",
+    "whole": "Dukan ƙungiyar",
+    "some": "Wasu harsuna kawai",
+    "start": "Yi zip",
+    "waiting": "Ana jiran farawa",
+    "reading": "Ana karanta ƙungiyar",
+    "audio": "Ana ƙara rikodi: {{done}} daga {{total}}",
+    "log": "Ana ƙara cikakken tarihi",
+    "ready": "A shirye don saukewa",
+    "download": "Zazzage",
+    "failed": "Fitarwar ba ta ƙare ba. Sake gwadawa.",
+    "started": "Fitarwar ta fara.",
+    "problem": "Ba a iya fara fitarwar ba.",
+    "expired": "An cire bayan kwana 7.",
+    "keep": "Zip da aka gama yana zama kwana 7."
   }
 }
