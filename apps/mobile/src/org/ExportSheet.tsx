@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { t } from '../i18n';
 import { formatBytes, formatDay } from '../i18n/format';
-import { Banner, PrimaryBtn, ProgressBar, Row, Sheet, SmallBtn } from '../ui/kit';
+import { Banner, Ico, PrimaryBtn, ProgressBar, Row, Sheet, SmallBtn } from '../ui/kit';
 import { Text } from '../ui/text';
 import { txt } from '../ui/textStyles';
 import { C, space } from '../ui/theme';
@@ -13,6 +13,9 @@ import { fraction, isOpen, lineOf, type ExportItem } from './exportModel';
 import { exportLink, listExports, startExport } from './orgExports';
 
 const POLL_MS = 4000;
+
+/** The mark at the end of a chosen row; unchosen rows keep its room so the labels line up. */
+const tick = (on: boolean) => (on ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />);
 
 function say(e: ExportItem): string {
   const line = lineOf(e);
@@ -74,11 +77,11 @@ export function ExportSheet(props: {
   return (
     <Sheet visible={visible} title={t('orgExport.title')} sub={t('orgExport.sub')} onClose={props.onClose} footer={footer}>
       <View style={{ gap: space.sm }}>
-        <Row testID="export-whole" role="radio" selected={all} icon="globe" label={t('orgExport.whole')} help={t('orgExport.wholeHelp')} onPress={() => setAll(true)} />
-        <Row testID="export-some" role="radio" selected={!all} icon="folder" label={t('orgExport.some')} help={t('orgExport.someHelp')} onPress={() => setAll(false)} last={all} />
+        <Row testID="export-whole" role="radio" selected={all} icon="globe" label={t('orgExport.whole')} help={t('orgExport.wholeHelp')} right={tick(all)} onPress={() => setAll(true)} />
+        <Row testID="export-some" role="radio" selected={!all} icon="folder" label={t('orgExport.some')} help={t('orgExport.someHelp')} right={tick(!all)} onPress={() => setAll(false)} last={all} />
         {/* help-each: each row is one language to include */}
         {all ? null : props.languages.map((l, i) => (
-          <Row key={l.id} testID={`export-language-${l.id}`} role="checkbox" checked={picked.has(l.id)} label={l.name} help={t('orgExport.languageHelp')} last={i === props.languages.length - 1}
+          <Row key={l.id} testID={`export-language-${l.id}`} role="checkbox" checked={picked.has(l.id)} label={l.name} help={t('orgExport.languageHelp')} right={tick(picked.has(l.id))} last={i === props.languages.length - 1}
             onPress={() => setPicked((p) => { const n = new Set(p); if (n.has(l.id)) n.delete(l.id); else n.add(l.id); return n; })} />
         ))}
         {/* help-each: each row is one export, with its own Download */}
@@ -88,7 +91,7 @@ export function ExportSheet(props: {
             <View key={e.id} testID={`export-${e.status}`} style={{ gap: 4 }}>
               <Row icon="download" label={say(e)} sub={`${formatDay(e.createdAt)}${e.sizeBytes ? ` · ${formatBytes(e.sizeBytes)}` : ''}`}
                 right={e.status === 'ready' ? <SmallBtn label={t('orgExport.download')} icon="download" help={t('orgExport.downloadHelp')} onPress={() => void download(e.id)} /> : undefined}
-                below={f === null ? undefined : <ProgressBar value={f} />} last />
+                below={f === null ? undefined : <ProgressBar value={f * 100} />} last />
             </View>
           );
         })}

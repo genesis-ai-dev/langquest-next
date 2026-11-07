@@ -1,19 +1,27 @@
 {
-  "kind": "needs_you",
-  "ask": "Can you paste the suggested wording into the Linear issue?",
-  "problem": "The issue asked for a general Export all data button for org admins. Orgs already have the data API.",
-  "found": "No. This session has no Linear tool, only GitHub, so the new key cannot reach it. Our rules also keep me out of the issue.",
-  "changed": "Nothing new is built. The suggested issue wording is in the review folder, ready to paste.",
-  "why": "My rules keep me out of Linear. A tailored export needs facts from a real org first, so building now would guess.",
-  "touches": "The phone's USB backup is not touched. The data API is not touched. The pull request can be closed or kept for later.",
+  "kind": "screen",
+  "ask": "Does this look right to you, so I can mark the pull request ready?",
+  "problem": "Organizations fear being locked in. Admins could not take out recordings, their details, and the full history together.",
+  "found": "Reports already exist, but only counts. Nothing gathered the audio, who made it, and the raw history. A server job can do that without a phone.",
+  "changed": "Org admins on the web see Export all data. They pick all languages or some. A server job makes one zip. They watch progress, then download.",
+  "why": "A zip of many recordings is too big for the web server. A job has the memory and time. The zip waits seven days. Only the org admin can ask.",
+  "touches": "Adds a request table and a server job. The format is written in the docs, with a decision entry. Phones do not show it. USB backup is untouched.",
   "pictures": [
     {
-      "file": "linear-access.png",
-      "label": "What this session can reach"
+      "file": "before-home.png",
+      "label": "Before: organization home"
     },
     {
-      "file": "plan.png",
-      "label": "The new plan"
+      "file": "after-home.png",
+      "label": "After: the new link"
+    },
+    {
+      "file": "sheet-working.png",
+      "label": "The sheet while the zip is made"
+    },
+    {
+      "file": "sheet-ready.png",
+      "label": "The sheet when the zip is ready"
     }
   ]
 }
