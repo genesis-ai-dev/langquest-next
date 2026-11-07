@@ -529,8 +529,8 @@ export class LanguageSession {
   }
 
   /** Does the language hold this recording, in memory or on disk? (A recovered recording's check.) */
-  hasRecording(id: string): Promise<boolean> {
-    return this.plan.hasRecording(id);
+  hasRecording(id: string, unitId: string): Promise<boolean> {
+    return this.plan.hasRecording(id, unitId);
   }
 
   /** What these files a phone lost were (decisions.md 92). */

@@ -707,7 +707,7 @@ describe('file planning for a language kept on disk', () => {
     const files = new LanguageFiles(client, store, 'org1', 'p1');
     const present = new Set(['unsent', 'h2']);
     expect((await files.upload(present)).map((r) => r.hash)).toEqual(['unsent']);
-    expect(await files.hasRecording('mine')).toBe(true);
+    expect(await files.hasRecording('mine', 'u7')).toBe(true);
     // The passage this person recorded in is theirs to keep offline.
     expect([...(await files.scope('t1'))]).toContain('u7');
     // Kept offline: the stored files of u2 and u7 come down, with the server's size; the unsent one cannot.

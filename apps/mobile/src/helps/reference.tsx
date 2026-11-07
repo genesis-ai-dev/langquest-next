@@ -4,7 +4,7 @@
 // Bible (play, Back 10 s, a Bible picker, the verses with the one playing
 // lit, a note on a verse or a moment), key words (hear each, your word or
 // say yours, add a word), notes, and everything recorded so far.
-import { commands, keyTermsFor, notePart, noteHelp, RECORD_STEP, replyOf, type KeyTermView, type KeyWordDoc, type NoteAnchor, type PassageNote, type PassageState } from '@langquest-next/core';
+import { newCommandId, commands, keyTermsFor, notePart, noteHelp, RECORD_STEP, replyOf, type KeyTermView, type KeyWordDoc, type NoteAnchor, type PassageNote, type PassageState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
@@ -530,7 +530,7 @@ function SayYoursSheet(props: { ctx: Ctx; v: PassageView; term: KeyTermView; dra
       // TERM-5: a rendering said (and, when typed, written), recorded with this passage; tied to the draft when there is one.
       await ctx.act(commands(state, indexesFor(state)).adjustKeyTermRendering({
         // i18n-ignore: the rendering's note is stored in the event log
-        commandId: Crypto.randomUUID(), termId: term.termId, rendering: text, note: hash ? '' : `Rendered “${text.trim()}” in ${v.title}.`,
+        commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), termId: term.termId, rendering: text, note: hash ? '' : `Rendered “${text.trim()}” in ${v.title}.`,
         ...(hash ? { blobHash: hash } : {}), ...(duringTakeId ? { duringTakeId } : {}),
         ...(props.canTie && props.draftTakeId ? { tieToTakeId: props.draftTakeId } : {})
       }), t('reference.keyWords.saved', { term: term.term }));
@@ -620,7 +620,7 @@ export function AddWordSheet(props: {
     try {
       // TERM-6: the word, how the language says it (said, typed or both), recorded as its first adjustment.
       await ctx.act(commands(state, indexesFor(state)).defineKeyTerm({
-        commandId: Crypto.randomUUID(), termId: from?.termId ?? `kt-${Crypto.randomUUID()}`, term, gloss, unitScope: book ? [book] : [],
+        commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), termId: from?.termId ?? `kt-${Crypto.randomUUID()}`, term, gloss, unitScope: book ? [book] : [],
         // i18n-ignore: the term's first note is stored in the event log
         rendering, note: rendering.trim() ? `First rendering: ${rendering.trim()}.` : 'Said in a voice note.',
         ...(hash ? { blobHash: hash } : {}), ...(duringTakeId ? { duringTakeId } : {})

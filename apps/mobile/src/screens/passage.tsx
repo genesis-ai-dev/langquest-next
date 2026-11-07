@@ -12,7 +12,7 @@ import { isEarlierSection } from '../breakup/earlierSections';
 import { Faces, PeopleLine } from '../checks/parts';
 import { checkName, stepTitle } from '../admin/adminModel';
 import {
-  CommandError, canDeleteVersion, checkPeople, commands, draftsBy, questionsForKind, recordTimeline,
+  newCommandId, CommandError, canDeleteVersion, checkPeople, commands, draftsBy, questionsForKind, recordTimeline,
   type Commands, type EventSpec, type FlowStepStatus, type KindState, type KindStatus, type PassageNote, type QuestionSpec, type ReviewView
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -316,7 +316,7 @@ export function PassageRecord(ctx: Ctx) {
     if (!target) return go('ask_someone', { what: 'review', kindId });
     setOpenStepId(null);
     const label = sendTargetLabel(target, ctx.name);
-    void perform(ctx, (c) => c.ask({ ...sendToInput({ commandId: newId(), unitId, kindId, target }), ...(questions.length ? { questions } : {}) }),
+    void perform(ctx, (c) => c.ask({ ...sendToInput({ commandId: newCommandId(ctx.session.actorId, newId()), unitId, kindId, target }), ...(questions.length ? { questions } : {}) }),
       sentText(target, label, ctx.language.online === false));
   };
   /** Carry out a move the record's models decided (recordModel.ts `RecordMove`). */
@@ -334,11 +334,11 @@ export function PassageRecord(ctx: Ctx) {
     else doMove(mv);
   };
   const sheetOf = (step: FlowStepStatus) => stepSheet({ p, kinds, kind: v.kind, step, can, isAuthor, me, mine, name: ctx.name, teamName, targets, alone });
-  const undoFromHistory = (departureId: string, type: string) => void perform(ctx, (c) => c.undoDeparture({ commandId: newId(), departureId }), undoneText(type));
-  const withdraw = (requestId: string) => void perform(ctx, (c) => c.withdrawRequest({ commandId: newId(), requestId }), t('passage.page.withdrawn'));
+  const undoFromHistory = (departureId: string, type: string) => void perform(ctx, (c) => c.undoDeparture({ commandId: newCommandId(ctx.session.actorId, newId()), departureId }), undoneText(type));
+  const withdraw = (requestId: string) => void perform(ctx, (c) => c.withdrawRequest({ commandId: newCommandId(ctx.session.actorId, newId()), requestId }), t('passage.page.withdrawn'));
   /** Your own review or note, taken back (decisions.md 111): the check is open again, the note gone. */
-  const takeBackReview = (reviewId: string) => void perform(ctx, (c) => c.withdrawReviews({ commandId: newId(), reviewIds: [reviewId] }), t('common.undone'));
-  const takeBackNote = (noteId: string) => void perform(ctx, (c) => c.withdrawNote({ commandId: newId(), noteId }), t('common.undone'));
+  const takeBackReview = (reviewId: string) => void perform(ctx, (c) => c.withdrawReviews({ commandId: newCommandId(ctx.session.actorId, newId()), reviewIds: [reviewId] }), t('common.undone'));
+  const takeBackNote = (noteId: string) => void perform(ctx, (c) => c.withdrawNote({ commandId: newCommandId(ctx.session.actorId, newId()), noteId }), t('common.undone'));
 
   // ---- the path ----
   const latestSeconds = p.latest ? clipSeconds(v.state, p.latest.cardHashes) : 0;
@@ -409,7 +409,7 @@ export function PassageRecord(ctx: Ctx) {
           onConfirm={(r) => {
             const { kindId, stepId } = skipping;
             setSkipping(null);
-            void perform(ctx, (c) => c.depart(skipInput({ commandId: newId(), unitId, kindId, stepId, reason: r })),
+            void perform(ctx, (c) => c.depart(skipInput({ commandId: newCommandId(ctx.session.actorId, newId()), unitId, kindId, stepId, reason: r })),
               t('passage.page.skip.done', { kind: nameOf(kindId) }));
           }} />
       ) : null}
@@ -420,7 +420,7 @@ export function PassageRecord(ctx: Ctx) {
           onConfirm={(r) => {
             const stepId = overriding;
             setOverriding(null);
-            void perform(ctx, (c) => c.depart(overrideInput({ commandId: newId(), unitId, stepId, reason: r })),
+            void perform(ctx, (c) => c.depart(overrideInput({ commandId: newCommandId(ctx.session.actorId, newId()), unitId, stepId, reason: r })),
               t('passage.page.override.done'));
           }} />
       ) : null}
@@ -676,7 +676,7 @@ function KeepSheet(props: { ctx: Ctx; v: PassageView; reviewId: string; onClose:
       quickReasons={[]} confirmLabel={t('passage.keep.confirm')} voice={voiceFor(ctx)} onClose={props.onClose}
       onConfirm={(r) => {
         props.onClose();
-        void perform(ctx, (c) => c.depart(keepInput({ commandId: newId(), unitId: v.unitId, reviewId: props.reviewId, reason: r })),
+        void perform(ctx, (c) => c.depart(keepInput({ commandId: newCommandId(ctx.session.actorId, newId()), unitId: v.unitId, reviewId: props.reviewId, reason: r })),
           t('passage.keep.done'));
       }} />
   );
@@ -690,7 +690,7 @@ function AddNoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void; sa
   const [busy, setBusy] = useState(false);
   const save = async () => {
     setBusy(true);
-    const ok = await perform(ctx, (c) => c.addNote(noteInput({ commandId: newId(), unitId: v.unitId, text, hash })), t('passage.addNote.done'));
+    const ok = await perform(ctx, (c) => c.addNote(noteInput({ commandId: newCommandId(ctx.session.actorId, newId()), unitId: v.unitId, text, hash })), t('passage.addNote.done'));
     setBusy(false);
     if (ok) { await draft.clear(); props.onClose(); }
   };
@@ -1047,7 +1047,7 @@ function KeepPage(props: { ctx: Ctx; v: PassageView; review: ReviewView; source:
   const [busy, setBusy] = useState(false);
   const keep = async () => {
     setBusy(true);
-    const ok = await perform(ctx, (c) => c.depart(keepPageInput({ commandId: newId(), unitId: v.unitId, reviewId: review.id, text, hash })),
+    const ok = await perform(ctx, (c) => c.depart(keepPageInput({ commandId: newCommandId(ctx.session.actorId, newId()), unitId: v.unitId, reviewId: review.id, text, hash })),
       t('passage.keep.done'));
     setBusy(false);
     if (ok) ctx.back();
@@ -1161,7 +1161,7 @@ export function ReviewDetail(ctx: Ctx) {
         </View>
       ) : mine ? (
         <GhostBtn label={t('passage.page.undo')} icon="undo" help={t('passage.page.actionHelp.undo')}
-          onPress={() => void perform(ctx, (c) => c.withdrawReviews({ commandId: newId(), reviewIds: [review.id] }), t('common.undone'))} />
+          onPress={() => void perform(ctx, (c) => c.withdrawReviews({ commandId: newCommandId(ctx.session.actorId, newId()), reviewIds: [review.id] }), t('common.undone'))} />
       ) : undefined}>
       <View style={[styles.outcome, { backgroundColor: review.withdrawn ? C.bg : tint.bg }]}>
         <View style={[styles.roundTile, { backgroundColor: C.card, width: 44, height: 44, borderRadius: 22 }]}>
@@ -1291,7 +1291,7 @@ export function AskSomeone(ctx: Ctx) {
   const send = async () => {
     if (!ready) return;
     setBusy(true);
-    const ok = await perform(ctx, (c) => c.ask(askInput({ commandId: newId(), unitId: v.unitId, what, model, picks, channel, note, noteHash, questions })),
+    const ok = await perform(ctx, (c) => c.ask(askInput({ commandId: newCommandId(ctx.session.actorId, newId()), unitId: v.unitId, what, model, picks, channel, note, noteHash, questions })),
     askDoneText(model, ctx.language.online === false));
     setBusy(false);
     if (ok) ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId, asked: String(Date.now()) });

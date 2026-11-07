@@ -1,4 +1,5 @@
 import {
+  newCommandId,
   applyLanguageEvent,
   emptyLanguageState,
   eventPassage,
@@ -1207,7 +1208,7 @@ export class SyncClient<S = LanguageState> {
   ): Promise<AnyEvent> {
     if (!this.loaded) throw new Error('call load() first');
     const event = {
-      id: this.newId(),
+      id: this.newEventId(),
       type,
       orgId: this.opts.orgId,
       streamId: this.opts.streamId,
@@ -1262,7 +1263,7 @@ export class SyncClient<S = LanguageState> {
     const events = items.map(
       ({ id, type, payload }) =>
         ({
-          id: id ?? this.newId(),
+          id: id ?? this.newEventId(),
           type,
           orgId: this.opts.orgId,
           streamId: this.opts.streamId,
@@ -1274,6 +1275,11 @@ export class SyncClient<S = LanguageState> {
     );
     await this.applyLocal(events);
     return events;
+  }
+
+  /** An id that names its author, so a teammate holding it before the server does cannot take it first (docs/nearby-sync-plan.md 5.4). */
+  private newEventId(): string {
+    return newCommandId(this.opts.actorId, this.newId());
   }
 
   private clockKey(): string {

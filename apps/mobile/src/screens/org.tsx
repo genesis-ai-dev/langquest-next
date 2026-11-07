@@ -11,7 +11,7 @@
 // languages directly (docs/decisions.md 63). A cluster (decision 108, demo
 // ADR-045) is a name on some of them, with a page of its own (ClusterHome).
 import {
-  clusterName, mayManageClusters, orgClusters,
+  newCommandId, clusterName, mayManageClusters, orgClusters,
   commands, decodeHlc, deriveFlow, emptyLanguageState, goesWith, isMoreOpen, keyTermsFor, languageInfo, languageName, progressOf as linesProgress,
   leavesNoRoleManager, libraryItems, libraryItemView, materialsFor, mayChangeLicense, mayChangeMembership, mayGrantRole, mayRenameLanguage, mayRenameOrg, orgLicense, orgName, privilegesFor, SEED_ROLES,
   subscriptionItemId, templateBooks, type EventSpec, type LanguageProgress, type LibraryDoc, type LibraryKind, type License, type Scope, type ScopeLevel, type SourceDoc
@@ -1614,7 +1614,7 @@ export function NewLanguage(ctx: Ctx) {
     if (plan === 'ask') { setStartAgain(true); return; }
     let specs: EventSpec[];
     try {
-      specs = startingSpecs({ commandId: Crypto.randomUUID(), flow: choosing || !flow ? null : { name: flow.c.name, kinds: chk.kindsOf(flow.doc), steps: flow.doc.steps } });
+      specs = startingSpecs({ commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), flow: choosing || !flow ? null : { name: flow.c.name, kinds: chk.kindsOf(flow.doc), steps: flow.doc.steps } });
     } catch (e) {
       setError(failure('new language checks', e));
       return;

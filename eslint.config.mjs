@@ -135,6 +135,32 @@ const rolePolicies = [
   mayNotImport('server', ['screen', 'component', 'hook'], 'src/server holds plain calls: no components or hooks')
 ];
 const HOOK_EXPORT = '/^(use[A-Z]|[A-Z]\\w*Context$)/';
+/**
+ * A commandId names its author, or a teammate holding it before the server does could take it first, and the
+ * events and ids made from it inherit that (docs/nearby-sync-plan.md 5.4). Only newCommandId mints one; everything
+ * else passes one along or adds to its end. A name this rule cannot see costs sharing, not integrity: a row that is
+ * not bound is left unsigned (isBoundToAuthor).
+ */
+const COMMAND_ID_MESSAGE = 'A commandId comes from newCommandId(actorId, ...) in @langquest-next/core, so what it makes names its author; pass one along as `commandId`, or add to its end with `${commandId}:...` (docs/nearby-sync-plan.md 5.4).';
+const SPEC_ID_MESSAGE = 'An event spec\'s own id names its author: newCommandId(actorId, ...) from @langquest-next/core (docs/nearby-sync-plan.md 5.4).';
+const boundCommandIds = [
+  ...[
+    "Property[key.name='commandId'] > CallExpression:not([callee.name='newCommandId'])",
+    "Property[key.name='commandId'] > Literal",
+    "Property[key.name='commandId'] > Identifier:not([name='commandId'])",
+    "Property[key.name='commandId'] > MemberExpression:not([property.name='commandId'])",
+    "Property[key.name='commandId'] > TemplateLiteral:not([expressions.0.name='commandId'], [expressions.0.property.name='commandId'])",
+    "VariableDeclarator[id.name='commandId'] > CallExpression:not([callee.name='newCommandId'])",
+    "VariableDeclarator[id.name='commandId'] > TemplateLiteral:not([expressions.0.name='commandId'], [expressions.0.property.name='commandId'])",
+    "CallExpression[callee.name='restoreChecks'] > CallExpression[callee.property.name='randomUUID']"
+  ].map((selector) => ({ selector, message: COMMAND_ID_MESSAGE })),
+  ...[
+    "ObjectExpression:has(> Property[key.name=/^(type|payload)$/]) > Property[key.name='id'] > CallExpression:not([callee.name='newCommandId'])",
+    "TSAsExpression[typeAnnotation.typeName.name='EventSpec'] > ObjectExpression > Property[key.name='id'] > CallExpression:not([callee.name='newCommandId'])",
+    "CallExpression[callee.name='passageLinkSpec'] > CallExpression[callee.property.name='randomUUID']"
+  ].map((selector) => ({ selector, message: SPEC_ID_MESSAGE }))
+];
+
 const hookExportsOnly = [
   `ExportNamedDeclaration > FunctionDeclaration[id.name!=${HOOK_EXPORT}]`,
   `ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[id.name!=${HOOK_EXPORT}]`,
@@ -227,6 +253,8 @@ export default [
   },
   { files: ['apps/mobile/src/**/*.tsx'], ignores: [HOOKS], rules: { 'react-refresh/only-export-components': ['error', { allowConstantExport: true }] } },
   { files: ['apps/mobile/src/screens/*.tsx'], rules: { 'react-refresh/only-export-components': ['error', { allowConstantExport: true, allowExportNames: ['contracts'] }] } },
-  { files: [HOOKS], rules: { 'no-restricted-syntax': ['error', ...hookExportsOnly] } },
-  { files: ['apps/mobile/src/**/*.ts'], ignores: [HOOKS], rules: { 'no-restricted-syntax': ['error', ...noHookExports] } }
+  // no-restricted-syntax does not merge across blocks either, so each block has every list it needs.
+  { files: ['apps/mobile/src/**/*.tsx'], rules: { 'no-restricted-syntax': ['error', ...boundCommandIds] } },
+  { files: [HOOKS], rules: { 'no-restricted-syntax': ['error', ...hookExportsOnly, ...boundCommandIds] } },
+  { files: ['apps/mobile/src/**/*.ts'], ignores: [HOOKS], rules: { 'no-restricted-syntax': ['error', ...noHookExports, ...boundCommandIds] } }
 ];

@@ -1048,7 +1048,7 @@ describe('SyncClient after a long offline stretch (audit L1, L2, L3)', () => {
     const second = await b.client.sync();
     expect(second.pushed).toBe(1);
     expect(second.rejected).toBe(0);
-    expect(server.log.some((e) => e.id === 'dB-1')).toBe(true);
+    expect(server.log.some((e) => e.id === 'by:t1:dB-1')).toBe(true);
   });
 
   it('the organization stream re-queues its own refused events when the actor is re-admitted', async () => {
@@ -1096,7 +1096,7 @@ describe('SyncClient after a long offline stretch (audit L1, L2, L3)', () => {
     await client.pull();
     expect(client.getState().units['u1']).toBeDefined();
     await client.append('v1.UnitAdded', { unitId: 'u2', parentUnitId: null, kind: 'passage', label: 'Q', order: 'b' });
-    expect(isHlc((await store.get('mine'))?.event.hlc)).toBe(true);
+    expect(isHlc((await store.get('by:b:mine'))?.event.hlc)).toBe(true);
   });
 
   it('a device whose clock runs ahead is re-stamped from server time and pushed again with the same ids', async () => {
@@ -1438,7 +1438,7 @@ describe('SyncClient single writer', () => {
       client.append('v1.UnitAdded', unit(1)),
       client.append('v1.UnitAdded', unit(2))
     ]);
-    expect(order).toEqual(['start:dA-1', 'end:dA-1', 'start:dA-2', 'end:dA-2']);
+    expect(order).toEqual(['start:by:lead:dA-1', 'end:by:lead:dA-1', 'start:by:lead:dA-2', 'end:by:lead:dA-2']);
   });
 
   it('two syncs asked for at once send a published take once, and it stays in the fold (REC-016)', async () => {

@@ -266,7 +266,7 @@ describe('LanguageSession: a language kept on disk (decisions.md 143)', () => {
     await session.append('v1.RecordingAdded', { recordingId: 'r1', unitId: 'Luke 1', kind: 'target', cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' }] });
     await until(() => session.status.keptOffline !== null && session.status.scope.has('Luke 1'));
     expect(session.status.keptOffline?.get('Luke 1')).toMatchObject({ audio: 1, here: 1, reason: 'worked' });
-    expect(await session.hasRecording('r1')).toBe(true);
+    expect(await session.hasRecording('r1', 'Luke 1')).toBe(true);
     session.triggerUpload();
     await until(() => uploaded.includes('h1'));
     await session.loadUnits(['Luke 1']);

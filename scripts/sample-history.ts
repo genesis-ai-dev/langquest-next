@@ -5,6 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { MemoryStore, SupabaseTransport, SyncClient } from '@langquest-next/sync';
 import { blobKey, workerBlobs } from '@langquest-next/sync/server';
 import {
+  newCommandId,
   applyLanguageEvent, commands, deriveFlow, deriveKinds, derivePassage, encodeHlc, languagePassages, ORG_STREAM, unitPlace,
   type AnyEvent, type EventSpec, type LanguageState
 } from '@langquest-next/core';
@@ -119,11 +120,11 @@ export async function addHistory(c: Ctx): Promise<void> {
       if (a.kind === 'record') {
         const cards = Array.from({ length: a.cards }, (_, k) => silentWav(`${c.orgId}/${languageId}/${a.unitIndex}/${k}`));
         await append([
-          { id: randomUUID(), type: 'v1.RecordingAdded', payload: {
-            recordingId: randomUUID(), unitId, kind: 'target',
+          { id: newCommandId(c.actorId, randomUUID()), type: 'v1.RecordingAdded', payload: {
+            recordingId: newCommandId(c.actorId, randomUUID()), unitId, kind: 'target',
             cards: cards.map((w) => ({ hash: w.hash, durationMs: w.durationMs, format: 'wav' }))
           } } as EventSpec,
-          ...commands(state).publishVersion({ commandId: randomUUID(), unitId, cardHashes: cards.map((w) => w.hash), actorId: c.actorId })
+          ...commands(state).publishVersion({ commandId: newCommandId(c.actorId, randomUUID()), unitId, cardHashes: cards.map((w) => w.hash), actorId: c.actorId })
         ], a.at);
         if (a.uploaded) cards.forEach((w, k) => blobs.push({ languageId, hash: w.hash, bytes: w.bytes, at: uploadedAt(a.at, k) }));
         recordings += cards.length;
@@ -144,8 +145,8 @@ export async function addHistory(c: Ctx): Promise<void> {
           if (step.checkpoint && !whole) continue;
           const cmd = commands(state);
           specs.push(...(kinds.find((k) => k.id === kindId)?.produces
-            ? cmd.depart({ commandId: randomUUID(), unitId, type: 'skip', kindId, reason: 'No bilingual speaker for a back translation yet.' })
-            : cmd.recordReview({ commandId: randomUUID(), takeIds: [takeId], kindId, outcome: 'looks_good', via: 'app' })));
+            ? cmd.depart({ commandId: newCommandId(c.actorId, randomUUID()), unitId, type: 'skip', kindId, reason: 'No bilingual speaker for a back translation yet.' })
+            : cmd.recordReview({ commandId: newCommandId(c.actorId, randomUUID()), takeIds: [takeId], kindId, outcome: 'looks_good', via: 'app' })));
         }
       }
       if (specs.length) await append(specs, a.at);
