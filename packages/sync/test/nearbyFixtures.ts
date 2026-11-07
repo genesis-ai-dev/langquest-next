@@ -13,7 +13,7 @@ import { SyncClient, type Materializer } from '../src/syncClient';
 import { FakeServer } from '../src/testing/fakeServer';
 import { fakeSha256, fakeSigner, fakeVerify, fakeWorker } from '../src/testing/memoryNearbyLink';
 import type { Diagnostics } from '../src/diagnostics';
-import { nearbyClient } from '../src/nearbyClient';
+import { nearbyClient, type NearbyMaker } from '../src/nearbyClient';
 import type { NearbyPlatform } from '../src/nearbyUpkeep';
 import type { EventStore, Transport } from '../src/types';
 
@@ -56,6 +56,8 @@ export const STORES = [['memory', () => new MemoryStore() as EventStore], ['SQLi
 
 export const ORG = 'org1';
 export const LANG = 'p1';
+/** A second language of the same organization. */
+export const LANG2 = 'p2';
 /** A date that reads as today on every phone here. */
 export const NOW = 1_700_000_000_000;
 export const worker = fakeWorker('k1');
@@ -142,6 +144,9 @@ export interface PhoneOptions {
   fillPageRows?: number;
   transport?: Transport;
   nearby?: NearbyPlatform;
+  /** One nearby maker for several clients of one phone, as the app passes it; otherwise each gets its own. */
+  nearbyMaker?: NearbyMaker;
+  streamId?: string;
   pullPageSize?: number;
   pullBudgetMs?: number;
   diag?: Diagnostics;
@@ -150,7 +155,7 @@ export interface PhoneOptions {
 export function phone(server: FakeServer, store: EventStore, who: Pick<Teammate, 'profileId' | 'deviceId'>, o: PhoneOptions = {}) {
   let n = 0;
   return new SyncClient({
-    orgId: ORG, streamId: LANG, actorId: who.profileId, deviceId: who.deviceId, store, transport: o.transport ?? server.transportFor(),
+    orgId: ORG, streamId: o.streamId ?? LANG, actorId: who.profileId, deviceId: who.deviceId, store, transport: o.transport ?? server.transportFor(),
     now: o.now ?? (() => NOW), newId: () => `${who.deviceId}-${serial}-${++n}`,
     ...(o.keepOnDisk ? { keepOnDisk: true } : {}),
     ...(o.checkpointEvery ? { checkpointEvery: o.checkpointEvery } : {}),
@@ -158,7 +163,7 @@ export function phone(server: FakeServer, store: EventStore, who: Pick<Teammate,
     ...(o.clock ? { clock: o.clock } : {}),
     ...(o.fillAtOnceRows !== undefined ? { fillAtOnceRows: o.fillAtOnceRows } : {}),
     ...(o.fillPageRows !== undefined ? { fillPageRows: o.fillPageRows } : {}),
-    nearby: nearbyClient(o.nearby),
+    nearby: o.nearbyMaker ?? nearbyClient(o.nearby),
     ...(o.pullPageSize !== undefined ? { pullPageSize: o.pullPageSize } : {}),
     ...(o.pullBudgetMs !== undefined ? { pullBudgetMs: o.pullBudgetMs } : {}),
     ...(o.diag ? { diag: o.diag } : {})

@@ -162,13 +162,18 @@ export class SqliteStore implements EventStore {
    * Upsert events, a few hundred a statement handed over as one JSON array,
    * as kept rows are: a pull page of 500 was 500 awaited statements, each a
    * round trip to the native side (performance-audit-2026-10-26.md). Rows
-   * apply in order, so an id given twice ends as its last.
+   * apply in order, so an id given twice ends as its last. A row is replaced
+   * whole, its organization and stream too, as `MemoryStore` replaces it: the
+   * server's event under an id held here in another stream belongs where the
+   * server holds it.
    */
   private async putOn(db: SqlDriver, locals: readonly LocalEvent[]): Promise<void> {
     for (let i = 0; i < locals.length; i += EVENTS_PER_STATEMENT) {
       await db.run(
         `${INSERT_EVENTS}
          on conflict(id) do update set
+           org_id = excluded.org_id,
+           stream_id = excluded.stream_id,
            hlc = excluded.hlc,
            status = excluded.status,
            reject_reason = excluded.reject_reason,

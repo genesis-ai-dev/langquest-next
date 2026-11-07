@@ -311,6 +311,20 @@ describe.each(impls)('%s nearby contract', (_name, make) => {
     expect(ids(await s.getMany(['shared', 'here'])).sort()).toEqual(['here', 'shared']);
   });
 
+  it('an upsert under an id held in another stream moves the row there whole, as the server holds it', async () => {
+    // Why: a nearby row in `p` and the server's event under that id in `q`. Left in `p` with `q`'s JSON and seq,
+    // `q` would never see the event, and `p` would fold `q`'s event as confirmed, past the door, into its checkpoint.
+    const s = await make();
+    await s.commit({ receive: [nearby('moved', '1')] });
+    await s.put({ event: { ...ev('moved', '7', 5), streamId: 'q', orgId: 'o2' }, status: 'confirmed' });
+    expect(await s.get('moved')).toMatchObject({ status: 'confirmed', event: { orgId: 'o2', streamId: 'q', serverSeq: 5 } });
+    expect(await s.nearbyCount('o', 'p')).toBe(0);
+    expect(await s.count('o', 'p')).toBe(0);
+    expect(ids(await s.page('o', 'p', null, 10))).toEqual([]);
+    expect(ids(await s.page('o2', 'q', null, 10))).toEqual(['moved']);
+    expect(ids(await s.confirmedAfter('o2', 'q', 0, 10))).toEqual(['moved']);
+  });
+
   it('unconfirmedCount is pending and nearby, per stream, for the checkpoint gates', async () => {
     const s = await make();
     expect(await s.unconfirmedCount('o', 'p')).toBe(0);

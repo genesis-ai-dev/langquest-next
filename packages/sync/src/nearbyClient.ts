@@ -87,6 +87,13 @@ export interface NearbyPart {
   readonly nearbyHelloNow: number;
   /** The end of a sync, under the turn: attest, then once nothing more is to pull, the sweep and what it settles. */
   afterSync(morePull: boolean): Promise<void>;
+  /** Has this phone ever held a teammate's row, in any language? Until it has, a pull compares nothing for nearby's sake. */
+  holdsAny(): Promise<boolean>;
+  /**
+   * A pulled page before it is written, with the rows already here under its ids: what nearby adds to
+   * that page's commit. A row the server sends here from another language's row leaves that language a note.
+   */
+  pulled(page: readonly AnyEvent[], here: ReadonlyMap<string, LocalEvent>): Promise<{ events: LocalEvent[]; meta: Record<string, string> }>;
 }
 
 /** How a client gets its nearby half: `nearby: nearbyClient(platform)`. Only the Android app passes one. */
@@ -97,7 +104,32 @@ export type NearbyMaker = (port: NearbyPort) => NearbyPart;
  * certificate); without it a sync still sweeps, but asks for no attestation and closes no batch number.
  */
 export function nearbyClient(platform?: NearbyPlatform): NearbyMaker {
-  return (port) => new NearbyClient(port, platform);
+  const phone: PhoneShare = { held: null };
+  return (port) => new NearbyClient(port, platform, phone);
+}
+
+/**
+ * What the clients one maker made share: has this phone ever held a teammate's row? Pass one
+ * maker to every client on a phone, so a row taken in one language is known to the others'
+ * pulls at once. The device meta row says so across launches.
+ */
+interface PhoneShare {
+  held: boolean | null;
+}
+
+const HELD_KEY = 'nearbyHeld';
+
+/** The note a pull leaves a language whose rows the server sent to another: those rows as they were there. */
+const movedKey = (orgId: string, streamId: string) => `nearbyMoved:${orgId}/${streamId}`;
+
+function movedOf(raw: string | undefined): AnyEvent[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? (parsed as AnyEvent[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 /** What the door made of one page's new events, before anything is folded or written. */
@@ -126,7 +158,7 @@ class NearbyClient implements NearbyPart {
   private readonly farAhead = new Map<string, string>();
   private readonly host: NearbyHost;
 
-  constructor(private readonly port: NearbyPort, platform: NearbyPlatform | undefined) {
+  constructor(private readonly port: NearbyPort, platform: NearbyPlatform | undefined, private readonly phone: PhoneShare) {
     this.host = { ...port, platform, vector: () => this.vector(), vectorMeta: (vector) => this.vectorMeta(vector), number: (key) => this.number(key) };
   }
 
@@ -411,12 +443,14 @@ class NearbyClient implements NearbyPart {
 
   /** The page's one commit. It carries no cursor, because only the server moves a cursor. A commit that fails leaves the fold ahead of the log, so it folds again. */
   private async commitNearby(batch: WriteBatch, folded: NearbyFolded): Promise<void> {
+    if (folded.rows.length > 0) batch.meta = { ...batch.meta, [HELD_KEY]: '1' };
     try {
       await this.port.commit(batch);
     } catch (err) {
       await this.port.refold('other');
       throw err;
     }
+    if (folded.rows.length > 0) this.phone.held = true;
     this.port.compareFromNow();
     this.spend(folded.rows);
     if (folded.refold) await this.port.refold('other');
@@ -541,10 +575,45 @@ class NearbyClient implements NearbyPart {
 
   /** Push, pull, then attest and sweep (docs/nearby-sync-plan.md section 6); the sweep and what it settles wait until nothing more is to pull. */
   async afterSync(morePull: boolean): Promise<void> {
+    await this.settleMoved();
     await attestNearby(this.host);
     if (morePull) return;
     this.useNow = null;
     await sweepNearby(this.host);
     await settleBatches(this.host);
+  }
+
+  async holdsAny(): Promise<boolean> {
+    this.phone.held ??= !!(await this.port.store.meta(HELD_KEY));
+    return this.phone.held;
+  }
+
+  async pulled(page: readonly AnyEvent[], here: ReadonlyMap<string, LocalEvent>): Promise<{ events: LocalEvent[]; meta: Record<string, string> }> {
+    const meta: Record<string, string> = {};
+    // `events.id` is unique across streams: the store moves such a row here whole, and the language it left must fold without it.
+    const moved = new Map<string, AnyEvent[]>();
+    for (const e of page) {
+      const was = here.get(e.id)?.event;
+      if (!was || (was.orgId === this.port.orgId && was.streamId === this.port.streamId)) continue;
+      const key = movedKey(was.orgId, was.streamId);
+      moved.set(key, [...(moved.get(key) ?? []), was]);
+    }
+    for (const [key, events] of moved) meta[key] = JSON.stringify([...movedOf(await this.port.store.meta(key)), ...events]);
+    return { events: [], meta };
+  }
+
+  /**
+   * Rows of this language that a pull in another took, because the server holds their ids there:
+   * their lines are owed while the fold can still place them, and the fold then leaves them out.
+   */
+  private async settleMoved(): Promise<void> {
+    if (!(await this.holdsAny())) return;
+    const key = movedKey(this.port.orgId, this.port.streamId);
+    const events = movedOf(await this.port.store.meta(key));
+    if (events.length === 0) return;
+    this.port.touched(events);
+    await this.port.commit({ meta: { [key]: '' } });
+    this.useNow = null;
+    await this.port.refold();
   }
 }

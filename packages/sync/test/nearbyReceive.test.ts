@@ -1,9 +1,10 @@
 import { encodeHlc, foldLanguage, emptyLanguageState, newCommandId, REDUCER_VERSION, type AnyEvent, type LanguageState } from '@langquest-next/core';
 import { isCounted, manifestText, NEARBY_BUDGET, nearbyBytes, parseVector, type NearbyVia, type RevocationList } from '@langquest-next/core/nearby';
 import {
-  LANG, NOW, ORG, STORES, claimsOf, eventBy, everyone, intakeFor, manifestOf, pageOf, phone, recordingBy, rowOf, signerOf, statusOf, teammate, unitBy, vectorOf, wallClock, watched, type Teammate
+  LANG, LANG2, NOW, ORG, STORES, claimsOf, eventBy, everyone, intakeFor, manifestOf, pageOf, phone, recordingBy, rowOf, signerOf, statusOf, teammate, unitBy, vectorOf, wallClock, watched, type Teammate
 } from './nearbyFixtures';
 import { MemoryStore } from '../src/memoryStore';
+import { nearbyClient } from '../src/nearbyClient';
 import { LANGUAGE_MATERIALIZER } from '../src/syncClient';
 import { FakeServer } from '../src/testing/fakeServer';
 import { fakeSigner } from '../src/testing/memoryNearbyLink';
@@ -1402,6 +1403,49 @@ describe.each(STORES)('a pull and a restamp, on the %s store', (_name, make) => 
     const after = await client.nearbyHave();
     expect(after.vector).toEqual(before.vector);
     expect(after.claimedSeq).toBe(before.claimedSeq);
+  });
+});
+
+describe.each(STORES)('an id the server holds in another language, on the %s store', (_name, make) => {
+  it('moves the row there, and the language it left folds without it and works its line out again', async () => {
+    // Why: Sam signs an L batch under his own id, then sends another event under that id to L2, which the
+    // server keeps. Left in L, the row would be lost to L2 for good, and L would fold L2's event as confirmed.
+    const sam = await teammate('sam');
+    const mine = await teammate('me');
+    const store = make();
+    const server = new FakeServer();
+    await server.transportFor().append([unitBy(sam, 'u1')]);
+    const shared = nearbyClient();
+    const inL = phone(server, store, mine, { keepOnDisk: true, nearbyMaker: shared });
+    await inL.load();
+    await inL.pull();
+    const inL2 = phone(server, store, mine, { streamId: LANG2, nearbyMaker: shared });
+    await inL2.load();
+    const id = newCommandId('sam', 'twice:0');
+    const recording = recordingBy(sam, 'r1', 'u1', { id });
+    const recordingId = (recording.payload as { recordingId: string }).recordingId;
+    await inL.receiveNearby(await pageOf(sam, 1, [recording]), intakeFor());
+    await inL.settleLines();
+    expect(stateOf(inL).recordings[recordingId]).toBeDefined();
+    expect(inL.passageLines().get('u1').worked).toBe(true);
+
+    await server.transportFor().append([{ ...unitBy(sam, 'u9', { id }), streamId: LANG2 } as AnyEvent]);
+    await inL2.pull();
+    expect(await rowOf(store, id)).toMatchObject({ status: 'confirmed', event: { streamId: LANG2 } });
+    expect(await store.nearbyCount(ORG, LANG)).toBe(0);
+    expect(stateOf(inL2).units['u9']).toBeDefined();
+
+    await inL.sync();
+    expect(stateOf(inL).recordings[recordingId]).toBeUndefined();
+    await inL.settleLines();
+    expect(inL.passageLines().get('u1').worked).toBe(false);
+    // Across a relaunch L2 keeps it, and L never folds it.
+    const l2Again = phone(server, store, mine, { streamId: LANG2 });
+    await l2Again.load();
+    expect(stateOf(l2Again).units['u9']).toBeDefined();
+    const lAgain = phone(server, store, mine, { keepOnDisk: true });
+    await lAgain.load();
+    expect(stateOf(lAgain).units['u9']).toBeUndefined();
   });
 });
 

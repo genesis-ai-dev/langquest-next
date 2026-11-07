@@ -1519,6 +1519,8 @@ export class SyncClient<S = LanguageState> {
     let base = (await this.checkpointSeq()) ?? 0;
     // A nearby copy or a restamp can differ from the server's. Everyone else reads nothing here.
     this.pullCompares ??= !!(await this.opts.store.meta(this.nearbyKey('nearbyRestamped'))) || (await this.opts.store.nearbyCount(this.opts.orgId, this.opts.streamId)) > 0;
+    // So does a phone holding a teammate's row in another language, whose id the server may hold here.
+    const compares = this.pullCompares || (!!this.nearbyPart && await this.nearbyPart.holdsAny());
     let differs = false;
     for (;;) {
       const asked = this.elapsed();
@@ -1544,9 +1546,12 @@ export class SyncClient<S = LanguageState> {
         this.net.pull += this.elapsed() - asking;
       }
       // The guard in `apply` ignores the server's copy of an id already folded, and the fold keeps the old copy, so a row that differs folds again below.
-      if (this.pullCompares && page.length > 0) {
+      let nearby: { events: LocalEvent[]; meta: Record<string, string> } | null = null;
+      if (compares && page.length > 0) {
         const here = byId(await this.opts.store.getMany(page.map((e) => e.id)));
         differs = page.some((e) => { const l = here.get(e.id); return !!l && !sameEventBytes(l.event, e); }) || differs;
+        nearby = (await this.nearbyPart?.pulled(page, here)) ?? null;
+        if (nearby?.events.length) differs = true;
       }
       const writes: LocalEvent[] = [];
       let folded = 0;
@@ -1594,9 +1599,9 @@ export class SyncClient<S = LanguageState> {
         this.revision += 1;
       }
       await this.commit({
-        events: writes,
+        events: nearby ? [...writes, ...nearby.events] : writes,
         cursor: { orgId: this.opts.orgId, streamId: this.opts.streamId, seq: after },
-        meta: this.clockMeta()
+        meta: { ...this.clockMeta(), ...nearby?.meta }
       });
       this.opts.onPullProgress?.(total);
       // A language kept on disk checkpoints as it goes (decisions.md 143): its checkpoint is the small shared
