@@ -7976,5 +7976,11 @@
       "badItem": "Choose one of your own items of the same kind.",
       "offline": "Could not reach LangQuest. Check your connection and try again."
     }
+  },
+  "tutorial": {
+    "open": "Watch how",
+    "watch": "Watch on YouTube",
+    "download": "Download the video",
+    "help": "The video for this screen."
   }
 }

@@ -189,6 +189,20 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
     if (error) console.error(`ops_tutorial_list ${language}:`, error.message);
     return videosPage(language, error ? null : pageVideos(data));
   }
+  // The videos the help page can link, in the app's language (LAN-244, decisions.md 205): the same list as /videos, as JSON.
+  if (url.pathname === '/api/tutorial-links' && request.method === 'GET') {
+    const [{ pageVideos }, { pageLanguage }] = await Promise.all([import('./videosPage'), import('./i18n/pages')]);
+    const language = pageLanguage(request);
+    const { data, error } = await serviceClient(env).rpc('ops_tutorial_list', { p_language: language });
+    if (error) {
+      console.error(`ops_tutorial_list ${language}:`, error.message);
+      return Response.json({ language, videos: [] }, { status: 503, headers: { 'cache-control': 'no-store' } });
+    }
+    // Only the language asked for: a language with no approved catalog is answered in English, and its people get no English video (decision 205).
+    const exact = url.searchParams.get('lang') === language;
+    const videos = (exact ? pageVideos(data) : []).map((v) => ({ tutorial: v.tutorial, sha256: v.sha256, youtube: v.youtube }));
+    return Response.json({ language, videos }, { headers: { 'cache-control': 'public, max-age=300' } });
+  }
   // A tutorial video to download, by a link that lasts (decisions.md 187), linked from its description on YouTube.
   if (url.pathname.startsWith('/v/') && url.pathname.endsWith('.mp4')) {
     return handleDownload(request, async (tutorial, language) => {

@@ -1,17 +1,15 @@
 {
-  "kind": "question",
-  "ask": "When no video fits a person's language and app version, what should the help page show?",
-  "problem": "The help page has no links to the tutorial videos. People cannot watch or download the video for the screen they are on.",
-  "found": "Videos exist in 15 languages, with a stable download link and a watch link for each. The app links to none of them. Phones differ by store build and by update. A video filmed on today's screens can show buttons an older phone lacks.",
-  "changed": "Nothing yet. Once you pick, the help page will show Watch and Download for the current screen. It will pick by the app's language and build.",
-  "why": "The server will match the screen, the language and the build. Only the empty case is a product choice, so I ask first. I looked at hiding the link, showing English, opening the list, and showing a closest video with a warning.",
-  "touches": "The videos page link, the video list the server keeps, and the help screens. No video is published or changed.",
-  "pictures": [{"file": "how-it-picks.png", "label": "How a video is picked"}],
-  "options": [
-    {"label": "A. Hide the link", "result": "No match, no link. Clean page, but people never learn a video exists.", "picture": "option-hide.png"},
-    {"label": "B. Show English, labelled", "result": "People get the English video, marked as English. With no video at all, the link is hidden.", "picture": "option-english.png"},
-    {"label": "C. Open the list", "result": "The link opens the full video list in their language. They choose by hand.", "picture": "option-page.png"},
-    {"label": "D. Closest video, with a warning", "result": "An older phone gets the newest video, marked as made for a newer app.", "picture": "option-older.png"}
+  "kind": "screen",
+  "ask": "Does the play button in help mode look right, and is the foot of the screen the place for it?",
+  "problem": "The help page had no way to watch or download the video for the screen a person is on.",
+  "found": "Videos already exist in 15 languages, with lasting links. The app linked to none of them.",
+  "changed": "In help mode a play button sits at the foot's left. It opens Watch on YouTube and Download for that screen's video. It uses the app's language. No match means no button, as you chose.",
+  "why": "The button sits beside Send feedback, so it covers nothing. Pictures are drawings of the layout, not screenshots: I could not run the app here. Not yet done: the filming does not record which build each video was made for. Until it does, only language decides.",
+  "touches": "The server lists a language's videos. All 16 word files gain four short phrases. Decision 205 is added. No video is published or changed.",
+  "pictures": [
+    {"file": "before.png", "label": "Before: no video button"},
+    {"file": "after.png", "label": "After: play button at the foot"},
+    {"file": "after-open.png", "label": "After: Watch and Download"}
   ],
-  "recommended": 1
+  "guess": {"answer": "looks_good"}
 }
