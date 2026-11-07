@@ -1036,14 +1036,15 @@ export class SyncClient<S = LanguageState> {
 
   /** Null when nothing was written: something was folded while the stored copies were read, and the next pull tries again. */
   private async takeCheckpoint(cursor: number): Promise<{ chars: number; path: 'fast' | 'slow' } | null> {
-    // With nothing pending, the live state is the confirmed fold up to the
+    // With nothing unconfirmed, the live state is the confirmed fold up to the
     // cursor (a rejection or redaction refolds it from the log). Save it as
     // is: parsing the last checkpoint, cloning it and replaying onto it held
     // the state four times over. A local append during the await, or one not
     // yet on disk, would put a pending event in it; then take the slow path.
+    // Nearby rows count too: saved here, a teammate's event would be confirmed for good.
     const revision = this.revision;
-    const pending = await this.opts.store.pendingCount(this.opts.orgId, this.opts.streamId);
-    if (pending === 0 && this.writer.size === 0 && revision === this.revision) {
+    const unconfirmed = await this.opts.store.unconfirmedCount(this.opts.orgId, this.opts.streamId);
+    if (unconfirmed === 0 && this.writer.size === 0 && revision === this.revision) {
       const live = this.state;
       let state = { ...live } as unknown as LanguageState;
       this.m.compact(state as unknown as S);
@@ -1131,11 +1132,12 @@ export class SyncClient<S = LanguageState> {
       this.publish();
     }
     // Memory lets go of passages only at a checkpoint, and one reading passage after passage may pull nothing to
-    // take one: a checkpoint when memory has taken in many, on the fast path only (nothing unsent), which sheds.
+    // take one: a checkpoint when memory has taken in many, on the fast path only (nothing unconfirmed), which sheds.
+    // A nearby row sends a checkpoint down the slow path too, so it counts here, or each passage opened would run one for nothing.
     if (this.kept.holdsTooMany() && !this.opts.deferCheckpoint?.()) {
       const { store, orgId, streamId } = this.opts;
       await this.exclusive(async () => {
-        if (!this.kept?.holdsTooMany() || (await store.pendingCount(orgId, streamId)) > 0) return;
+        if (!this.kept?.holdsTooMany() || (await store.unconfirmedCount(orgId, streamId)) > 0) return;
         await this.checkpoint(await store.cursor(orgId, streamId));
       }).catch(() => { /* a disk error: the next pull's checkpoint lets go instead */ });
     }
@@ -1448,7 +1450,11 @@ export class SyncClient<S = LanguageState> {
     return n;
   }
 
-  /** Mark this actor's refusals with these codes pending again; the caller refolds. */
+  /**
+   * Mark this actor's refusals with these codes pending again; the caller refolds.
+   * Never a row with a `via`: it came from a teammate's phone, and naming this actor
+   * proves nothing, so pending would push a forged event as them (docs/nearby-sync-plan.md 5.4).
+   */
   private async requeue(codes: readonly RejectCode[]): Promise<number> {
     // Push asks for not-listed refusals on every run: read only those, not every refusal kept.
     const store = this.opts.store;
@@ -1456,7 +1462,7 @@ export class SyncClient<S = LanguageState> {
       ? await store.rejectedWith(this.opts.orgId, this.opts.streamId, NOT_LISTED_TEXT)
       : await store.rejected(this.opts.orgId, this.opts.streamId);
     const mine = candidates.filter(
-      (l) => l.event.actorId === this.opts.actorId && codes.includes(rejectCodeOf(l.rejectReason))
+      (l) => !l.via && l.event.actorId === this.opts.actorId && codes.includes(rejectCodeOf(l.rejectReason))
     );
     if (mine.length === 0) return 0;
     await this.commit({ events: mine.map((l) => ({ event: l.event, status: 'pending' as const })) });
