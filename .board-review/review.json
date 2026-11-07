@@ -6,7 +6,27 @@
  "changed": "The download button now sits beside the row, not inside it. Tapping the row opens the passage. Tapping the disc downloads. Looks the same on screen.",
  "why": "This fixes the cause for every row, not just this list. I did not tag the test as quarantined, because the fault was in the product. I could not run the accessibility test here: it needs a local database that this session lacks. Typecheck and lint pass.",
  "touches": "Only the shared row piece, plus the passage row that uses it. Other rows are unchanged. The accessibility test on the draft pull request still has to run.",
- "pictures": [{"file": "before.png", "label": "Before"}, {"file": "after.png", "label": "After"}],
- "guess": {"answer": "looks_good"},
- "linear": {"comment": "Cause: passage rows drew their download button inside the row's own button (nested-interactive). Fix: Row takes an action drawn beside the row. Draft PR: https://github.com/genesis-ai-dev/langquest-next/pull/396. The axe test could not run in the cloud session (needs Docker); CI will run it.", "state": "In Progress"}
+ "pictures": [
+  {
+   "file": "before.png",
+   "label": "Before"
+  },
+  {
+   "file": "after.png",
+   "label": "After"
+  }
+ ],
+ "guess": {
+  "answer": "looks_good"
+ },
+ "linear": {
+  "comment": "Cause: passage rows drew their download button inside the row's own button (nested-interactive). Fix: Row takes an action drawn beside the row. Draft PR: https://github.com/genesis-ai-dev/langquest-next/pull/396. The axe test could not run in the cloud session (needs Docker); CI will run it.",
+  "state": "In Progress"
+ },
+ "links": [
+  {
+   "label": "Pull request",
+   "url": "https://github.com/genesis-ai-dev/langquest-next/pull/396"
+  }
+ ]
 }
