@@ -133,7 +133,7 @@ export interface MemoryNearbyPair {
 type Frame = { bytes: Uint8Array; key: string };
 
 /** One direction. */
-class Lane {
+class Direction {
   frames: Frame[] = [];
   taker: ((f: Frame) => void) | null = null;
   blocked: { frame: Frame; resolve: () => void; reject: (e: Error) => void }[] = [];
@@ -176,7 +176,7 @@ export function memoryNearbyPair(o: MemoryNearbyPairOptions): MemoryNearbyPair {
     start((v) => { if (!settled) { settled = true; resolve(v); } }, (e) => { if (!settled) { settled = true; reject(e); } });
   });
 
-  const end = (me: 'a' | 'b', out: Lane, inbound: Lane): NearbyLink => {
+  const end = (me: 'a' | 'b', out: Direction, inbound: Direction): NearbyLink => {
     const them = me === 'a' ? 'b' : 'a';
     let keys: { send: string; receive: string } | null = null;
     const usable = () => {
@@ -336,8 +336,8 @@ export function memoryNearbyPair(o: MemoryNearbyPairOptions): MemoryNearbyPair {
       }
     };
   };
-  const ab = new Lane();
-  const ba = new Lane();
+  const ab = new Direction();
+  const ba = new Direction();
   const a = end('a', ab, ba);
   const b = end('b', ba, ab);
   return { a, b, drop, dropAt: (n) => { dropAtCount = n; }, sent, messages: () => count, closedBy };
