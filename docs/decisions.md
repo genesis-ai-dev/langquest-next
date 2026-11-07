@@ -10853,3 +10853,57 @@ review over 14 days past the replacement, or a build cut from an older commit,
 still finds no copy: a new install on a slow link then pulls the log and its work
 is safe. At about one bump a week this keeps one or two versions nobody reports;
 at early October's three a week, five or six, each a copy per language.
+
+## 205. A key term is checked against recordings of the team saying it, on the phone, as a hint
+
+Date: 2026-11-06 · By: Caleb Koster · Status: accepted
+
+Reason: a partner team on the 2026-11-05 call (LAN-228) said a missed key term
+is usually found at the consultant stage, and the team then redoes the draft.
+They want the check while drafting. The app knows which terms a passage's
+source has and lets the translator tie one to a take by hand (`KeyTermLinked`),
+but nothing says whether the take holds the term. LAN-228 named decision 54 as
+the record of this approach; 54 is about joining a team, so this entry is the
+record.
+
+The check is query by example: the team records two or three examples of
+saying each term before the book begins, and a later stage compares a saved
+take with them (MFCC with subsequence DTW first, a small multilingual encoder
+only if that misses the bar). It is not keyword spotting from a fixed
+vocabulary and not speech recognition, because most of these languages have no
+recognizer and a team's own renderings inflect.
+
+Stage 1 is the examples: `v1.KeyTermAudioRenderingAdded { termId, renderingId,
+blobHash, durationMs, wayId, duringTakeId? }`, a new event because the shipped
+`v1.KeyTermRenderingAdded` is written text and keeps its shape. It is
+grow-only, one entry per (term, renderingId) and fill_reference, as the other
+key-term events are, and its audio is a voice note (m4a unless
+`v1.AudioFormatSet` says otherwise, 77). Recording is the app's existing
+microphone; the clips are user audio shared as voice notes already are, so the
+Play answers do not change (49). A source term can be said more than one way
+in the target language, depending on context, and a language may be oral only,
+so a way cannot depend on written text. `wayId` names the way a clip is an
+example of: repeats of one way share it, different ways differ. It is the id of
+a written rendering when the team wrote one, else an id the phone makes. The
+screen shows every way of a term, each
+with its clips. A clip also names the take being drafted when it was recorded
+(`duringTakeId`, as a key-term adjustment does), so each way lists the passages
+it was recorded in, and a tap opens the version in context, where its audio
+plays. Nothing makes a team record before a book: a word and its ways can be
+added in the key words list ahead of time, or on the word's page as passages
+come, and the later check works with whatever is recorded. The later check
+accepts a take that holds any way, and can say which. The shipped
+`v1.KeyTermLinked` ties a take to a term and keeps its shape. Stage 2 is the bar:
+`scripts/key-term-eval.ts` (`npm run key-terms:eval`) reports each matcher's
+precision and recall on a set of partner clips with known contents
+(`eval/key-terms/README.md`), and the baselines "always heard" and "never
+heard" are the floor. The starting bar, precision and recall of 0.8 each, is
+a guess for the team to confirm against the first real set.
+
+What stays true for stages 3 and 4: the result is a hint computed on the phone,
+cached per device, never synced as status and never blocking, so no event
+carries "heard" and no reducer derives it. A native runtime in stage 4 changes
+the Play declarations and gets its own entry.
+
+Reverse if: the first real set shows no matcher reaching the bar on two or more
+partner languages, or teams will not record examples before a book.

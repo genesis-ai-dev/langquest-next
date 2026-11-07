@@ -29,9 +29,15 @@ export type MaterialEvents = {
   'v1.MaterialLocked': { materialId: string; locked: boolean };
   'v1.KeyTermDefined': { termId: string; term: string; gloss: string; unitScope: string[] };
   'v1.KeyTermRenderingAdded': { termId: string; renderingId: string; rendering: string; context: string };
+  // A spoken example of a term (decision 205). wayId groups repeats of one way of saying it.
+  'v1.KeyTermAudioRenderingAdded': { termId: string; renderingId: string; blobHash: string; durationMs: number; wayId: string; duringTakeId?: string };
   'v1.KeyTermAdjusted': { termId: string; adjustmentId: string; note: string; blobHash?: string; duringTakeId?: string };
   'v1.KeyTermLinked': { takeId: string; termId: string; note?: string; adjustmentId?: string };
 };
+
+export const KEY_TERM_EXAMPLES_WANTED = 3;
+
+export const MAX_KEY_TERM_AUDIO_MS = 30000;
 
 /** The language's Translation Guidelines document: one per language. */
 export const TG_MATERIAL_ID = 'tg';
@@ -118,6 +124,7 @@ export interface KeyTermView {
   unitScope: string[];
   renderings: { renderingId: string; rendering: string; context: string }[];
   adjustments: { adjustmentId: string; note: string; blobHash?: string; duringTakeId?: string; actorId: string; hlc: string }[];
+  audioRenderings: { renderingId: string; blobHash: string; durationMs: number; actorId: string; wayId: string; duringTakeId?: string }[];
 }
 
 export function keyTermView(state: LanguageState, termId: string): KeyTermView | null {
@@ -133,7 +140,10 @@ export function keyTermView(state: LanguageState, termId: string): KeyTermView |
       .map(([renderingId, r]) => ({ renderingId, rendering: r.rendering, context: r.context })),
     adjustments: Object.entries(t.adjustments)
       .sort(([, a], [, b]) => (a.hlc < b.hlc ? -1 : 1))
-      .map(([adjustmentId, a]) => ({ adjustmentId, ...a }))
+      .map(([adjustmentId, a]) => ({ adjustmentId, ...a })),
+    audioRenderings: Object.entries(t.audioRenderings ?? {})
+      .sort(([, a], [, b]) => (a.hlc < b.hlc ? -1 : 1))
+      .map(([renderingId, r]) => ({ renderingId, blobHash: r.blobHash, durationMs: r.durationMs, actorId: r.actorId, wayId: r.wayId, ...(r.duringTakeId !== undefined ? { duringTakeId: r.duringTakeId } : {}) }))
   };
 }
 
