@@ -174,6 +174,28 @@ describe.each(STORES)('receiving a batch on the %s store', (_name, make) => {
       expect(receipt.counted).toBe(false);
     });
 
+    it('whatever an event holds, a page gets a receipt: an id that cannot be printed, a clock that is not one, a depth past any stack', async () => {
+      const client = await myPhone();
+      const unprintable = { ...unitBy(sam, 'u1'), id: { toString: 1, valueOf: 1 } } as unknown as AnyEvent;
+      let deep: unknown = 1;
+      for (let i = 0; i < 200_000; i++) deep = [deep];
+      const u3 = unitBy(sam, 'u3');
+      const bomb = { ...u3, payload: { unitId: 'u3', deep } } as unknown as AnyEvent;
+      const page = await pageOf(sam, 1, [u3], { carrying: [unprintable, bomb] });
+      const receipt = await client.receiveNearby(page, intakeFor());
+      expect(receipt.outcome).toBe('taken');
+      expect(receipt.refused.map((r) => r.reason)).toEqual(['not in the manifest', 'digest mismatch']);
+      expect(receipt.counted).toBe(false);
+
+      // Signed that way by its own signer, a clock that is not one reaches the door, and stops there: no row, and nothing bad in the manifest's row.
+      const notAClock = { ...unitBy(sam, 'u4'), hlc: 12345 } as unknown as AnyEvent;
+      const signed = await client.receiveNearby(await pageOf(sam, 2, [notAClock]), intakeFor());
+      expect(signed).toMatchObject({ outcome: 'taken', kept: 0, counted: true });
+      expect((await store.batchesAfter(ORG, LANG, sam.key, 1, 1))[0]!.firstHlc).toBeNull();
+      const claims = await client.receiveNearby(await claimsOf([u3], () => 1, [unprintable]), intakeFor());
+      expect(claims.refused[0]).toMatchObject({ reason: 'not attested' });
+    });
+
     it('a signer who signed a bad event closes only their own number, and the event stays out', async () => {
       const client = await myPhone();
       const named = unitBy(sam, 'u2', { id: newCommandId('sam', 'bad:0') });

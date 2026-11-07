@@ -87,6 +87,9 @@ interface Checked {
   settled: Set<string>;
 }
 
+/** An id as far as it can be told. `String` throws on an object with no way to print itself, and anything can come off the link. */
+const wireId = (e: AnyEvent): string => (typeof e.id === 'string' ? e.id : '');
+
 /** Never throws, whatever came off the link: an event no digest can stand for takes the mismatch path. */
 async function digestOf(e: AnyEvent, sha256: Sha256): Promise<string> {
   try {
@@ -114,7 +117,7 @@ export async function checkBatchPage(manifest: BatchManifest, page: NearbyBatchP
   const seen = new Set<string>();
   for (const e of page.events) {
     const digest = digests.get(e.id);
-    if (digest === undefined) { out.refused.push({ id: String(e.id), reason: 'not in the manifest', retry: false }); continue; }
+    if (digest === undefined) { out.refused.push({ id: wireId(e), reason: 'not in the manifest', retry: false }); continue; }
     if (seen.has(e.id)) continue;
     if ((await digestOf(e, intake.sha256)) !== digest) { out.refused.push({ id: e.id, reason: 'digest mismatch', retry: false }); continue; }
     seen.add(e.id);
@@ -139,7 +142,7 @@ export async function checkClaimsPage(attestation: Attestation, page: NearbyClai
   let highest = 0;
   for (const e of page.events) {
     const row = rows.get(e.id);
-    if (!row) { out.refused.push({ id: String(e.id), reason: 'not attested', retry: false }); continue; }
+    if (!row) { out.refused.push({ id: wireId(e), reason: 'not attested', retry: false }); continue; }
     if (seqOf.has(e.id)) continue;
     if ((await digestOf(e, intake.sha256)) !== row.digest || (e.serverSeq !== undefined && e.serverSeq !== row.seq)) { out.refused.push({ id: e.id, reason: 'digest mismatch', retry: false }); continue; }
     seqOf.set(e.id, row.seq);

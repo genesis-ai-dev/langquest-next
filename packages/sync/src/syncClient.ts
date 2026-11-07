@@ -2124,7 +2124,10 @@ export class SyncClient<S = LanguageState> {
     if (!this.nearbyUseNow) await this.startNearbyBudget();
     const use = this.nearbyUseNow!.get(who) ?? { rows: 0, bytes: 0 };
     let bytes = use.bytes;
-    for (const e of events) bytes += JSON.stringify(e).length;
+    for (const e of events) {
+      // An event too deep to write out spends nothing here: it cannot pass its digest, and this runs before anything has judged it.
+      try { bytes += JSON.stringify(e).length; } catch { /* the door's first step */ }
+    }
     return use.rows + events.length > budget.maxRows || bytes > budget.maxBytes;
   }
 
@@ -2178,7 +2181,7 @@ export class SyncClient<S = LanguageState> {
       vector = applyFloor(vector, key, floor);
       const ownCount = key === intake.ownKey ? await this.nearbyNumber(this.nearbyKey('nearbyCount', key)) : null;
       const isNewest = held.every((b) => b.n <= n);
-      const firstHlc = checked.events.reduce<string | null>((low, e) => (low === null || e.hlc < low ? e.hlc : low), null);
+      const firstHlc = door.rows.reduce<string | null>((low, { event: e }) => (low === null || e.hlc < low ? e.hlc : low), null);
       await this.commitNearby({
         receive: folded.rows,
         events: folded.rejected,
