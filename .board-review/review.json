@@ -1,10 +1,10 @@
 {
   "kind": "screen",
-  "ask": "Do the two ways of saying a word stay apart as you want? Please also send partner clips.",
-  "problem": "Amina ties the key word Logos to her take by hand. The app cannot tell if she said it. Logos may be said two ways in Dinka, by context.",
-  "found": "My first version stored clips per word only, so two ways of saying it would mix. You were right. I fixed it before it ships.",
-  "changed": "Each written way of saying a word now has its own clips. Repeats stay together; other ways stay apart. Clips with no written way go under Another way. Pictures show the routes and flow.",
-  "why": "Hint means the phone only suggests; it never blocks and saves nothing. A take with any way counts as heard. Pictures are drawings in app colours, not screenshots; no live app runs here.",
+  "ask": "Should the translator pick the way when tying a word, so each way can list its passages?",
+  "problem": "Teams may only speak a language, with nothing written. One word can also be said several ways by context. Recordings of the same way must group together, apart from other ways.",
+  "found": "My last version tied each group to a written word, so oral-only teams could not use it. The record button also sat apart from the clips it belonged to.",
+  "changed": "Each way is its own card with its clips and its own record button. Add a different way starts a new card. No written word is needed. Passages per way are the next step.",
+  "why": "Today a tie links a take to a word, not to a way, so passages per way need that choice. Pictures are drawings in app colours, not screenshots. Orange parts are not built.",
   "touches": "A new database migration. 15 translations I wrote need a native reader. Phones download the new clips. Play store answers stay the same.",
   "pictures": [
     {
@@ -12,20 +12,20 @@
       "label": "Before: Amina ties the word by hand"
     },
     {
-      "file": "ways.png",
-      "label": "After: each way of saying Logos has its own clips"
+      "file": "oralway.png",
+      "label": "After: each way is a card; used-in is next"
+    },
+    {
+      "file": "surfaces.png",
+      "label": "Every place this should show"
     },
     {
       "file": "path.png",
-      "label": "How you reach this page"
+      "label": "How you reach the word's page"
     },
     {
       "file": "flow.png",
       "label": "Flowchart: translation and review"
-    },
-    {
-      "file": "later.png",
-      "label": "Later, not built: heard hint"
     }
   ]
 }

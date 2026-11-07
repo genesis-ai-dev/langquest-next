@@ -329,11 +329,11 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
     }
 
     case 'v1.KeyTermAudioRenderingAdded': {
-      const { termId, renderingId, blobHash, durationMs, forRenderingId } = event.payload;
+      const { termId, renderingId, blobHash, durationMs, wayId } = event.payload;
       const audio = (keyTerm(state, termId).audioRenderings ??= {});
       const prior = audio[renderingId];
-      if (prior && !earlier(event, { blobHash, durationMs, forRenderingId }, prior, { blobHash: prior.blobHash, durationMs: prior.durationMs, forRenderingId: prior.forRenderingId })) break;
-      audio[renderingId] = { blobHash, durationMs, actorId: event.actorId, hlc: event.hlc, ...(forRenderingId !== undefined ? { forRenderingId } : {}) };
+      if (prior && !earlier(event, { blobHash, durationMs, wayId }, prior, { blobHash: prior.blobHash, durationMs: prior.durationMs, wayId: prior.wayId })) break;
+      audio[renderingId] = { blobHash, durationMs, actorId: event.actorId, hlc: event.hlc, wayId };
       break;
     }
 

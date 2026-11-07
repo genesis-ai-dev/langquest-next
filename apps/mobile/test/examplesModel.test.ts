@@ -1,23 +1,29 @@
-import { exampleGroups } from '../src/keyTerms/examplesModel';
+import { exampleWays, newWayId } from '../src/keyTerms/examplesModel';
 
-/** Why: a team's term can be said two ways depending on context; their recordings must stay apart, and none may be lost. */
+/** Why: a term can be said two ways by context, and a language may have no written form; recordings of different ways must stay apart and none may be lost. */
 const r = (renderingId: string, rendering: string, context = '') => ({ renderingId, rendering, context });
-const a = (renderingId: string, forRenderingId?: string) => ({ renderingId, blobHash: `h-${renderingId}`, durationMs: 800, actorId: 'x', ...(forRenderingId ? { forRenderingId } : {}) });
+const a = (renderingId: string, wayId: string) => ({ renderingId, blobHash: `h-${renderingId}`, durationMs: 800, actorId: 'x', wayId });
 
-describe('exampleGroups', () => {
-  it('keeps repeats of one way together and the other way apart', () => {
-    const g = exampleGroups({ renderings: [r('w1', 'Wët Nhialic', 'God'), r('w2', 'Wët', 'a message')], audioRenderings: [a('c1', 'w1'), a('c2', 'w2'), a('c3', 'w1')] });
-    expect(g.map((x) => [x.rendering, x.examples.map((e) => e.renderingId)])).toEqual([['Wët Nhialic', ['c1', 'c3']], ['Wët', ['c2']]]);
+describe('exampleWays', () => {
+  it('keeps repeats of one way together and other ways apart, with no written form needed', () => {
+    const ways = exampleWays({ renderings: [], audioRenderings: [a('c1', 'way:a'), a('c2', 'way:b'), a('c3', 'way:a')] });
+    expect(ways.map((w) => [w.wayId, w.rendering, w.examples.map((e) => e.renderingId)])).toEqual([['way:a', '', ['c1', 'c3']], ['way:b', '', ['c2']]]);
   });
-  it('offers an empty written way with no clips, so each can get its first examples', () => {
-    expect(exampleGroups({ renderings: [r('w1', 'Wët')], audioRenderings: [] })).toEqual([{ renderingId: 'w1', rendering: 'Wët', context: '', examples: [] }]);
+  it('names a way by its written rendering and carries its context', () => {
+    const ways = exampleWays({ renderings: [r('w1', 'Wët Nhialic', 'God himself')], audioRenderings: [a('c1', 'w1')] });
+    expect(ways).toEqual([{ wayId: 'w1', rendering: 'Wët Nhialic', context: 'God himself', examples: [a('c1', 'w1')] }]);
   });
-  it('puts clips with no written way, or one that is gone, under "other"', () => {
-    const g = exampleGroups({ renderings: [r('w1', 'Wët')], audioRenderings: [a('c1'), a('c2', 'gone'), a('c3', 'w1')] });
-    expect(g.at(-1)).toMatchObject({ renderingId: null, examples: [{ renderingId: 'c1' }, { renderingId: 'c2' }] });
-    expect(g[0]!.examples.map((e) => e.renderingId)).toEqual(['c3']);
+  it('still offers a written rendering with no clips, after the recorded ways', () => {
+    const ways = exampleWays({ renderings: [r('w1', 'Wët')], audioRenderings: [a('c1', 'way:a')] });
+    expect(ways.map((w) => w.wayId)).toEqual(['way:a', 'w1']);
+    expect(ways[1]!.examples).toEqual([]);
   });
-  it('lets a team record before it writes anything', () => {
-    expect(exampleGroups({ renderings: [], audioRenderings: [] })).toEqual([{ renderingId: null, rendering: '', context: '', examples: [] }]);
+  it('shows a way just added on screen before it has a clip, once', () => {
+    const id = newWayId('u1');
+    const ways = exampleWays({ renderings: [], audioRenderings: [a('c1', 'way:a')] }, [id, 'way:a']);
+    expect(ways.map((w) => w.wayId)).toEqual(['way:a', 'way:u1']);
+  });
+  it('gives a term with nothing one empty way, so there is always a place to record', () => {
+    expect(exampleWays({ renderings: [], audioRenderings: [] })).toEqual([{ wayId: 'way:first', rendering: '', context: '', examples: [] }]);
   });
 });

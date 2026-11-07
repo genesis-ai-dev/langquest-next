@@ -1776,9 +1776,9 @@ export function KeyTermDetail(ctx: Ctx) {
     setBusy(false);
   }
 
-  async function saveExample(hash: string, durationMs: number, forRenderingId?: string) {
+  async function saveExample(hash: string, durationMs: number, wayId: string) {
     setBusy(true);
-    await actCommand(ctx, 'record key term example', () => addKeyTermAudioEvents(state!, termId, hash, durationMs, forRenderingId), // i18n-ignore: log label
+    await actCommand(ctx, 'record key term example', () => addKeyTermAudioEvents(state!, termId, hash, durationMs, wayId), // i18n-ignore: log label
       t('config.keyTerm.exampleSaved'));
     setBusy(false);
   }
@@ -1840,7 +1840,7 @@ export function KeyTermDetail(ctx: Ctx) {
 
       {canEdit || term.audioRenderings.length ? (
         <TermExamples ctx={ctx} language={language} term={term} canRecord={canEdit} busy={busy}
-          onRecorded={(hash, durationMs, forRenderingId) => void saveExample(hash, durationMs, forRenderingId)} />
+          onRecorded={(hash, durationMs, wayId) => void saveExample(hash, durationMs, wayId)} />
       ) : null}
 
       <WordPassagesSection ctx={ctx} passages={page.passages} own loading={page.loading} listName={fromList ? shortName(fromList.list) : null} onOpen={openPassage} />

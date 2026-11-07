@@ -283,7 +283,7 @@ export function validateEvent(e: AnyEvent): string | null {
     case 'v1.KeyTermRenderingAdded':
       return str('termId', 'renderingId', 'rendering') ?? (typeof p['context'] === 'string' ? null : 'context must be a string');
     case 'v1.KeyTermAudioRenderingAdded':
-      return str('termId', 'renderingId', 'blobHash') ?? optStr('forRenderingId') ??
+      return str('termId', 'renderingId', 'blobHash', 'wayId') ??
         (typeof p['durationMs'] === 'number' && Number.isInteger(p['durationMs']) && p['durationMs'] > 0 && p['durationMs'] <= MAX_KEY_TERM_AUDIO_MS ? null : 'durationMs must be a whole number of milliseconds up to 30000');
     case 'v1.KeyTermAdjusted':
       return str('termId', 'adjustmentId') ?? (typeof p['note'] === 'string' ? null : 'note must be a string') ?? optStr('blobHash', 'duringTakeId');

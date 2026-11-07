@@ -14,7 +14,7 @@ import type { AnyEvent } from '../src/events';
  */
 describe('v1.KeyTermAudioRenderingAdded', () => {
   const base = foldLanguage([...buildFixture(), ...buildStep11Fixture()].filter((e) => e.parentEventId === undefined), emptyLanguageState());
-  const spec = (commandId: string, durationMs = 900) => commands(base).addKeyTermAudio({ commandId, termId: 'kt-logos', blobHash: `sha256:${commandId}`, durationMs });
+  const spec = (commandId: string, durationMs = 900) => commands(base).addKeyTermAudio({ commandId, termId: 'kt-logos', blobHash: `sha256:${commandId}`, durationMs, wayId: 'way:a' });
   const at = (s: EventSpec, n: number, deviceId = 'dB'): AnyEvent =>
     ({ ...s, orgId: 'o', streamId: 'L1', actorId: 't1', deviceId, hlc: `${900000000000000 + n}:000000:${deviceId}` }) as AnyEvent;
   const fold = (events: AnyEvent[]): LanguageState => foldLanguage(events, foldLanguage([...buildFixture(), ...buildStep11Fixture()].filter((e) => e.parentEventId === undefined), emptyLanguageState()));
@@ -36,7 +36,7 @@ describe('v1.KeyTermAudioRenderingAdded', () => {
     expect(spec('a')).toEqual(spec('a'));
     expect(() => spec('z', 0)).toThrow(CommandError);
     expect(() => spec('z', 31000)).toThrow(CommandError);
-    expect(() => commands(base).addKeyTermAudio({ commandId: 'z', termId: 'nope', blobHash: 'h', durationMs: 900 })).toThrow(CommandError);
+    expect(() => commands(base).addKeyTermAudio({ commandId: 'z', termId: 'nope', blobHash: 'h', durationMs: 900, wayId: 'w' })).toThrow(CommandError);
   });
 
   it('validates its payload and needs fill_reference', () => {
@@ -51,21 +51,22 @@ describe('v1.KeyTermAudioRenderingAdded', () => {
 
 describe('v1.KeyTermAudioRenderingAdded and the ways a term is said', () => {
   const base = foldLanguage([...buildFixture(), ...buildStep11Fixture()].filter((e) => e.parentEventId === undefined), emptyLanguageState());
-  const clip = (commandId: string, forRenderingId?: string) =>
-    commands(base).addKeyTermAudio({ commandId, termId: 'kt-logos', blobHash: `sha256:${commandId}`, durationMs: 900, ...(forRenderingId ? { forRenderingId } : {}) });
+  const clip = (commandId: string, wayId: string) =>
+    commands(base).addKeyTermAudio({ commandId, termId: 'kt-logos', blobHash: `sha256:${commandId}`, durationMs: 900, wayId });
   const at = (s: EventSpec, n: number): AnyEvent =>
     ({ ...s, orgId: 'o', streamId: 'L1', actorId: 't1', deviceId: 'dB', hlc: `${900000000000000 + n}:000000:dB` }) as AnyEvent;
 
   it('keeps repeats of one written rendering apart from another rendering', () => {
-    const state = foldLanguage([...clip('a', 'r1'), ...clip('b', 'r1'), ...clip('c', 'r2'), ...clip('d')].map((s, i) => at(s, i)), base);
+    const state = foldLanguage([...clip('a', 'r1'), ...clip('b', 'r1'), ...clip('c', 'r2'), ...clip('d', 'way:oral')].map((s, i) => at(s, i)), base);
     const by: Record<string, string[]> = {};
-    for (const e of keyTermView(state, 'kt-logos')!.audioRenderings) (by[e.forRenderingId ?? 'none'] ??= []).push(e.renderingId);
-    expect(by).toEqual({ r1: ['audio:a', 'audio:b'], r2: ['audio:c'], none: ['ra1', 'audio:d'] });
+    for (const e of keyTermView(state, 'kt-logos')!.audioRenderings) (by[e.wayId] ??= []).push(e.renderingId);
+    expect(by).toEqual({ r1: ['ra1', 'audio:a', 'audio:b'], r2: ['audio:c'], 'way:oral': ['audio:d'] });
   });
 
-  it('accepts a missing or text forRenderingId only', () => {
+  it('needs a text wayId', () => {
     const ok = at(clip('a', 'r1')[0]!, 1);
     expect(validateEvent(ok)).toBeNull();
-    expect(validateEvent({ ...ok, payload: { ...ok.payload, forRenderingId: 7 } } as unknown as AnyEvent)).not.toBeNull();
+    for (const wayId of [7, '', undefined]) expect(validateEvent({ ...ok, payload: { ...ok.payload, wayId } } as unknown as AnyEvent)).not.toBeNull();
+    expect(() => clip('q', '')).toThrow(CommandError);
   });
 });
