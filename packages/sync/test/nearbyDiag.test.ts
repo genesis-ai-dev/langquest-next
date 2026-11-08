@@ -1,5 +1,5 @@
 import { Diagnostics, MemoryDiagStore, sanitizeDiag } from '../src/diagnostics';
-import { nearbyCodeOf, NEARBY_DIAG_SCHEMA, roomDiagOf, sessionDiagOf, type NearbyDiagInput } from '../src/nearbyDiag';
+import { nearbyCodeOf, NEARBY_DIAG_SCHEMA, NEARBY_ROOM_MS_CAP, roomDiagOf, sessionDiagOf, type NearbyDiagInput } from '../src/nearbyDiag';
 import type { NearbySessionReport } from '../src/nearbySession';
 import { FakeServer } from '../src/testing/fakeServer';
 import { fakeSigner, memoryNearbyAir, type MemoryFiles, type MemoryNearbyAir } from '../src/testing/memoryNearbyLink';
@@ -51,6 +51,22 @@ describe('nearby diagnostics: the fields', () => {
     expect(d.t).toEqual({ event: 'room', stop: 'idle', code: 'PIPE_TIMEOUT', adv: 'no', direct: 'yes', hotspot: 'yes' });
     expect(d.n).toEqual({ ms: 60_000, levelMs: 9_000, heard: 2, echoed: 1, maybe: 1, taps: 0, maxUnmatched: 3, pipeFails: 1, strangers: 4, busy: 0, noAnswer: 0, sessions: 1, done: 1 });
     expect(clean(d)).toMatchObject(d);
+  });
+
+  it('a room stopped by the run limit or at "Up to date" reads as one stopped by asking, and no record runs past ten minutes', () => {
+    // Why: only a disguised phone has a run limit or stops when level, so either stop, or a run
+    // ending at exactly ten minutes, would mark the person in records support and Claude read.
+    const tally = { heard: 1, echoed: 1, maybe: 0, taps: 0, maxUnmatched: 0, pipeFails: 0, strangers: 0, busy: 0, noAnswer: 0, sessions: 1, done: 1, levelMs: 700_000, code: null };
+    const caps = { sdk: 33, advertise: true, directByName: true, band5: false, hotspot: true, joinHotspot: true, bluetoothOn: true, wifiOn: true, locationOn: true };
+    const plain = roomDiagOf(tally, 'asked', 2 * NEARBY_ROOM_MS_CAP, caps);
+    expect(roomDiagOf(tally, 'run', NEARBY_ROOM_MS_CAP + 1_999, caps)).toEqual(plain);
+    expect(plain.t.stop).toBe('asked');
+    expect(plain.n).toMatchObject({ ms: NEARBY_ROOM_MS_CAP, levelMs: NEARBY_ROOM_MS_CAP });
+    const short = { ...tally, levelMs: 30_000 };
+    expect(roomDiagOf(short, 'level', 90_000, caps)).toEqual(roomDiagOf(short, 'asked', 90_000, caps));
+    // Stops a plain phone makes are kept as they are.
+    expect(roomDiagOf(short, 'idle', 90_000, caps).t.stop).toBe('idle');
+    expect(roomDiagOf(short, 'wait', 90_000, caps).t.stop).toBe('wait');
   });
 
   it('the allowlist drops a code it does not list and a reason it does not know', () => {
@@ -150,6 +166,46 @@ describe('nearby diagnostics: what a room records', () => {
     await a!.room.stop();
     expect(roomRecord(a!.diag)!.n).toMatchObject({ strangers: 3, sessions: 0 });
     expect(sessions(a!.diag)).toEqual([]);
+  });
+
+  it('a disguised phone\'s room records the same as a plain phone\'s stopped by asking at the same moment', async () => {
+    // Why: a disguised phone stops at ten minutes and at "Up to date"; neither may show in diagnostics.
+    const run = async (worn: boolean) => {
+      server = new FakeServer();
+      shelf = new Map();
+      time = newTime();
+      air = memoryNearbyAir({ time, files: shelf });
+      const limits = worn ? { runLimitMs: NEARBY_ROOM_MS_CAP, stopWhenLevel: true } : {};
+      const [a, b] = await rooms(2, [{ room: { idleLimitMs: 1_800_000, ...limits } }, { room: { idleLimitMs: 1_800_000 } }]);
+      await unit(a!.phone, 'a1');
+      await unit(b!.phone, 'b1');
+      return { a: a!, b: b! };
+    };
+    // "Up to date": the worn phone stops itself; the plain one is stopped on the same turn.
+    const worn = await run(true);
+    let turns = 0;
+    for (; turns < 40 && !roomRecord(worn.a.diag); turns++) await turn(air, time, [worn.a, worn.b]);
+    expect(worn.a.events.find((e) => e.t === 'stopped')).toEqual({ t: 'stopped', why: 'level' });
+    const plain = await run(false);
+    for (let i = 0; i < turns; i++) await turn(air, time, [plain.a, plain.b]);
+    await plain.a.room.stop();
+    expect(roomRecord(worn.a.diag)).toEqual(roomRecord(plain.a.diag));
+    expect(roomRecord(plain.a.diag)!.t.stop).toBe('asked');
+    // The run limit, alone: the plain phone runs on past ten minutes and is then stopped.
+    const alone = async (o: Parameters<typeof roomFor>[3]) => {
+      time = newTime();
+      air = memoryNearbyAir({ time, files: shelf });
+      const [a] = await rooms(1, [o]);
+      return a!;
+    };
+    const wornAlone = await alone({ room: { idleLimitMs: 1_800_000, runLimitMs: NEARBY_ROOM_MS_CAP, stopWhenLevel: true } });
+    for (let i = 0; i < 400 && !roomRecord(wornAlone.diag); i++) await turn(air, time, [wornAlone]);
+    expect(wornAlone.events.find((e) => e.t === 'stopped')).toEqual({ t: 'stopped', why: 'run' });
+    const plainAlone = await alone({ room: { idleLimitMs: 1_800_000 } });
+    for (let i = 0; i < 400; i++) await turn(air, time, [plainAlone]);
+    await plainAlone.room.stop();
+    expect(roomRecord(wornAlone.diag)).toEqual(roomRecord(plainAlone.diag));
+    expect(roomRecord(plainAlone.diag)!.n!.ms).toBe(NEARBY_ROOM_MS_CAP);
   });
 
   it('a pipe that would not open is counted with its code', async () => {

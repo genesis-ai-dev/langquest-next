@@ -11775,3 +11775,14 @@ dropped radio link is not a bug to file (plan section 9).
 Reverse if: a field report about Share nearby cannot be told apart from these
 records (then a field is added, never an identifier), or the watch should
 file a kind of nearby failure.
+
+Amended (2026-11-07, Carl Sauder): leaving the disguise out was not enough,
+because only a disguised phone has a run limit or stops at "Up to date"
+(225), so a room record with `stop` `run` or `level`, or a run that ended at
+exactly ten minutes, marked the person. A room record now reads those stops
+as `asked`, and says it ran, and took to "Up to date", at most ten minutes
+(`NEARBY_ROOM_MS_CAP`, held equal to the app's run limit by a test), so a
+worn phone's record is one a plain phone stopped by its person also makes.
+A plain phone's run past ten minutes is the cost; `stop` still says idle or
+wait. The server's allowlist keeps `run` and `level`, which no build now
+sends.

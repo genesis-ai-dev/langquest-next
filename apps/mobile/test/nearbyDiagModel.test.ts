@@ -1,4 +1,5 @@
-import { NEARBY_DIAG_BLOCKED, NEARBY_DIAG_CODES } from '@langquest-next/sync/nearby';
+import { NEARBY_DIAG_BLOCKED, NEARBY_DIAG_CODES, NEARBY_ROOM_MS_CAP } from '@langquest-next/sync/nearby';
+import { NEARBY_RUN_LIMIT_MS } from '../src/nearby/nearbyRunModel';
 import { NEARBY_NATIVE_CODES } from '../modules/nearby-link/src/codes';
 import { nearbyBlockedOf, type NearbyBlocked } from '../src/nearby/nearbyDiagModel';
 
@@ -8,6 +9,12 @@ describe('nearby diagnostics in the app', () => {
   it('the allowlist holds exactly the module\'s codes, in its order', () => {
     // Why: a code the module adds and the allowlist lacks would be dropped silently on the phone and the server.
     expect([...NEARBY_DIAG_CODES]).toEqual([...NEARBY_NATIVE_CODES]);
+  });
+
+  it('a room record runs no longer than a disguised phone may, so its length cannot mark a disguise', () => {
+    // Why: the room caps every record's length at this; a run limit past it would leave a worn
+    // phone's run-limit stop at a length no plain record has.
+    expect(NEARBY_ROOM_MS_CAP).toBe(NEARBY_RUN_LIMIT_MS);
   });
 
   it('every reason the screen can give is one the allowlist keeps', () => {

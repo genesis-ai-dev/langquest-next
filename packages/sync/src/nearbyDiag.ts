@@ -41,8 +41,9 @@ export type NearbyDiagBlocked = (typeof NEARBY_DIAG_BLOCKED)[number];
 const YES_NO = ['yes', 'no'] as const;
 
 /**
- * The `nearby` kind. `event` says which record: `room` when a room stops (`stop` why, `ms` it
- * ran, `levelMs` to its first "Up to date", the phones `heard` that matched a key and how many
+ * The `nearby` kind. `event` says which record: `room` when a room stops (`stop` why, never
+ * `run` or `level`, which read as `asked`; `ms` it ran and `levelMs` to its first "Up to date",
+ * each at most `NEARBY_ROOM_MS_CAP`; the phones `heard` that matched a key and how many
  * `echoed`, `maybe` offers of a tap and the `taps`, `maxUnmatched` salts of this form no key
  * matched at once, `pipeFails` with the last `code`, `strangers` whose opening never checked,
  * `busy` turned away while in a session, `noAnswer`, `sessions` and `done`, and what the radio
@@ -134,15 +135,30 @@ export const emptyRoomTally = (): NearbyRoomTally => ({
   heard: 0, echoed: 0, maybe: 0, taps: 0, maxUnmatched: 0, pipeFails: 0, strangers: 0, busy: 0, noAnswer: 0, sessions: 0, done: 0, levelMs: null, code: null
 });
 
-/** A room that stopped, why, how long it ran, and what this phone's radio can do. */
+/**
+ * The longest a room record says it ran: a disguised phone's run limit (the app's
+ * `NEARBY_RUN_LIMIT_MS`, held equal by apps/mobile/test/nearbyDiagModel.test.ts). A worn phone's
+ * room always stops by then, so a plain phone's longer run reads as this too, and a run that
+ * ended at exactly ten minutes is one any phone left on past ten records.
+ */
+export const NEARBY_ROOM_MS_CAP = 10 * 60_000;
+
+/**
+ * Stops only a disguised phone makes, at its run limit and at "Up to date" (decision 225), read
+ * as a stop by asking, so a worn phone's record is one a plain phone also makes (decision 229).
+ */
+const STOP_RECORDED: Record<string, string> = { run: 'asked', level: 'asked' };
+
+/** A room that stopped, why, how long it ran (to the cap), and what this phone's radio can do. */
 export function roomDiagOf(tally: NearbyRoomTally, stop: string, ms: number, caps: NearbyCapabilities | null): NearbyDiagInput {
   const { levelMs, code, ...counts } = tally;
-  const t: Record<string, string> = { event: 'room', stop };
+  const t: Record<string, string> = { event: 'room', stop: STOP_RECORDED[stop] ?? stop };
   if (code) t.code = code;
   if (caps) {
     t.adv = caps.advertise ? 'yes' : 'no';
     t.direct = caps.directByName ? 'yes' : 'no';
     t.hotspot = caps.hotspot ? 'yes' : 'no';
   }
-  return { t, n: { ms, ...counts, ...(levelMs !== null ? { levelMs } : {}) } };
+  const capped = (x: number) => Math.min(x, NEARBY_ROOM_MS_CAP);
+  return { t, n: { ms: capped(ms), ...counts, ...(levelMs !== null ? { levelMs: capped(levelMs) } : {}) } };
 }
