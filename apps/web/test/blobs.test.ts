@@ -116,6 +116,29 @@ describe('blob uploads', () => {
     expect(bucket.objects.size).toBe(0);
   });
 
+  it('lets someone who only views upload a file an accepted event names, asking every time and never for a writer', async () => {
+    // Why: docs/nearby-sync-plan.md section 6, Files. Any phone carries the team's work, so a viewer
+    // holding a teammate's recording may put it up by naming the event that names it; the database
+    // decides (blob_named_by), and R2 still checks the bytes against the name.
+    const { deps, bucket } = world();
+    const asked: string[] = [];
+    deps.namedBy = async (k, profileId, eventId) => { asked.push(`${k} ${profileId} ${eventId}`); return eventId === 'ev-names-it'; };
+    const named = (eventId: string, token = 'tok-viewer') => handleBlobs(new Request(`${ORIGIN}/api/blobs/${key}`, {
+      method: 'PUT', body: audio, headers: { 'content-length': String(audio.byteLength), authorization: `Bearer ${token}`, 'x-named-by': eventId }
+    }), deps);
+    expect((await named('ev-other')).status).toBe(403);
+    expect(bucket.objects.size).toBe(0);
+    expect((await named('ev-names-it')).status).toBe(200);
+    expect((await named('ev-names-it')).status).toBe(200);
+    expect(bucket.objects.get(key)).toEqual(audio);
+    expect(asked).toEqual([`${key} viewer ev-other`, `${key} viewer ev-names-it`, `${key} viewer ev-names-it`]);
+    // A writer is let in by blob_access and never asked; a header with no event, or one too long, asks nothing.
+    expect((await named('ev-other', 'tok-lead')).status).toBe(200);
+    expect((await named('x'.repeat(257))).status).toBe(403);
+    expect((await put(deps, key, audio, 'tok-viewer')).status).toBe(403);
+    expect(asked).toHaveLength(3);
+  });
+
   it('the service key may upload anywhere (imports, the copy from Supabase)', async () => {
     const { deps, bucket } = world();
     expect((await put(deps, `org2/L9/${hash}.wav`, audio, SERVICE)).status).toBe(200);

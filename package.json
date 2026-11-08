@@ -52,6 +52,7 @@
     "org-verification": "tsx scripts/org-verification.ts",
     "publisher-import": "tsx scripts/publisher-import.ts",
     "org-feature": "tsx scripts/org-feature.ts",
+    "nearby-keys": "tsx scripts/nearby-keys.ts",
     "v2": "node scripts/with-local-keys.mjs tsx server/v2.ts",
     "library:seed": "tsx scripts/library-seed.ts",
     "bibles:survey": "tsx scripts/bible-survey.ts",

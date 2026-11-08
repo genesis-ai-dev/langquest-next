@@ -21,7 +21,7 @@ import { isOpsPath, toOps } from './ops';
 import { pokeInBatches } from './batches';
 import { handleDownload, handleWatch } from './tutorialVideos';
 import { githubOidc } from './githubOidc';
-import { nearbySigner, subtleSha256, subtleVerify, type NearbySigner } from './nearbyKeys';
+import { nearbySigner, parseCertKeys, subtleSha256, subtleVerify, type NearbySigner } from './nearbyKeys';
 
 export { OrgSnapshot } from './orgSnapshot';
 export { JobRunner } from './jobs';
@@ -85,6 +85,8 @@ let blobAccessCached: ((key: string, profileId: string, write: boolean, aal?: st
 /** Nearby sync's key, imported once per isolate (nearbyKeys.ts), and its callers' identity with the session asked every time. */
 let nearbySignerCached: Promise<NearbySigner | null> | null = null;
 let nearbyCallerCached: ((token: string) => Promise<Identity | null>) | null = null;
+/** The public keys phones trust, read once per isolate: a batch's chain is checked against them (relay.ts). */
+let nearbyRootKeysCached: Map<string, string> | null = null;
 
 /** The app's Worker: `/api/*` here, everything else is the built page. */
 export default {
@@ -275,6 +277,13 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         return data === true;
       }),
       record: recordBlob,
+      // Asked every time, never through cachedBlobAccess, which remembers per person and stream: one file allowed
+      // by naming an event would open the whole stream for a minute (docs/nearby-sync-plan.md section 6, Files).
+      namedBy: async (key, profileId, eventId) => {
+        const { data, error } = await serviceClient(env).rpc('blob_named_by', { p_name: key, p_profile: profileId, p_event: eventId });
+        if (error) throw new Error(`blob_named_by: ${error.message}`);
+        return data === true;
+      },
       tally: (step, status) => tally.add(step, status)
     },
     agent: {
@@ -364,6 +373,17 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         return new SupabaseTransport(asCaller).pull(orgId, streamId, afterSeq, limit);
       },
       now: () => Date.now(),
+      verify: subtleVerify,
+      sha256: subtleSha256
+    },
+    // Teammates' signed work, delivered by whichever phone reaches the server (relay.ts, docs/nearby-sync-plan.md section 6).
+    relay: {
+      rootKeys: () => (nearbyRootKeysCached ??= parseCertKeys(env.NEARBY_CERT_KEYS)),
+      profileOf,
+      mayRead: async (orgId, streamId, profileId) => await serviceClient(env).rpc('can_read_stream', { p_org: orgId, p_stream: streamId, p_profile: profileId }),
+      append: async (author, key, events, clientVersion) => await serviceClient(env).rpc('relay_append_events', {
+        p_author: author, p_key: key, p_events: events, p_client_version: clientVersion
+      }),
       verify: subtleVerify,
       sha256: subtleSha256
     },

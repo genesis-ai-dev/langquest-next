@@ -51,10 +51,11 @@ export function choosePassword(password: string) {
 
 /**
  * Forgot password (supabase/functions/password-reset), signed out: ask for
- * a link to be emailed, or set a new password with a link's code. A refusal
- * comes back as `error` with the reply as its context.
+ * a link to be emailed, or set a new password with a link's code, and with
+ * `lost` revoke the person's nearby keys first (docs/nearby-sync-plan.md
+ * section 6). A refusal comes back as `error` with the reply as its context.
  */
-export function passwordReset(body: { email: string; locale: string } | { code: string; password: string }) {
+export function passwordReset(body: { email: string; locale: string } | { code: string; password: string; lost?: boolean }) {
   return supabase.functions.invoke('password-reset', { body });
 }
 

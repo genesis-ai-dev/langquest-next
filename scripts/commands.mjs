@@ -77,6 +77,7 @@ export const GROUPS = [
       'org-verification': "organizations' blue checks: list requests, grant, decline, revoke (docs/verified-organizations.md)",
       'publisher-import': "importers for organizations' own material: list, grant, revoke, step (docs/publisher-imports.md)",
       'org-feature': 'features staff turn on per organization, such as nearby sync: list, grant, revoke (docs/nearby-sync-plan.md 5.10)',
+      'nearby-keys': "a person's nearby keys: list with each revoked key's cap, revoke for a lost phone, raise a cap (docs/nearby-sync-plan.md section 6)",
       v2: 'the LangQuest v2 import: the board, a sync, a dry run',
       'library:seed': "publish the LangQuest organization's library",
       'bibles:survey': "which numbering each of Bible Brain's Bibles uses (needs its key)",
