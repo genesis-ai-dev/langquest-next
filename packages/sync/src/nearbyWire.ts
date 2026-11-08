@@ -23,7 +23,7 @@ export type Message =
   | { t: 'discovery-key'; gen: number; key: string }
   /** `joinHotspot` is false on a disguised phone. */
   | { t: 'arrange'; summary: string; radios: { directByName: boolean; band5: boolean; hotspot: boolean; joinHotspot: boolean } }
-  | ({ t: 'host' } & HostDetails)
+  | ({ t: 'host'; attempt?: number /* the place in the arranged plan; the session refuses a host without it */ } & HostDetails)
   | { t: 'ready' }
   /** `vector` and `holdings` (counters) are by install key. */
   | { t: 'have'; orgId: string; languageId: string; cursor: number; claimedSeq: number; revokedSeq: number; vector: NearbyVector; holdings: ReadonlyMap<string, number> }
@@ -125,12 +125,13 @@ function read(t: string, o: Raw): Message | null | undefined {
       return { t, summary: o['summary'], radios: { directByName, band5, hotspot, joinHotspot } };
     }
     case 'host': {
-      const { kind, ssid, passphrase, port, band, security } = o;
+      const { kind, attempt, ssid, passphrase, port, band, security } = o;
       if (!isOneOf(kind, ['wifi-direct', 'hotspot', 'bluetooth'] as const)) return null;
       const isPort = (v: unknown) => isCount(v) && v <= 65535;
-      if (![ssid, passphrase, band, security].every((v) => optionalIs(v, isText)) || !optionalIs(port, isPort)) return null;
+      const isAttempt = (v: unknown) => isCount(v) && v < 64;
+      if (![ssid, passphrase, band, security].every((v) => optionalIs(v, isText)) || !optionalIs(port, isPort) || !optionalIs(attempt, isAttempt)) return null;
       return {
-        t, kind, ...optional('ssid', ssid as string | undefined), ...optional('passphrase', passphrase as string | undefined), ...optional('port', port as number | undefined),
+        t, kind, ...optional('attempt', attempt as number | undefined), ...optional('ssid', ssid as string | undefined), ...optional('passphrase', passphrase as string | undefined), ...optional('port', port as number | undefined),
         ...optional('band', band as string | undefined), ...optional('security', security as string | undefined)
       };
     }

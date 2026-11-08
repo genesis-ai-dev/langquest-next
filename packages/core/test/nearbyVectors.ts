@@ -72,6 +72,19 @@ export const OPENING = {
   th: '10e57d5908136bd37a7c06de41530498c4e2408c1749ebf17556b568b846f6eb'
 };
 
+/**
+ * A Wi-Fi attempt's keys (5.12, Session keys): `HKDF-SHA256(ikm = wifi i to r || wifi r to i,
+ * salt = '', info = 'lq-nearby-attempt-v1\n' || the attempt's place in the plan, 64 bytes)`, i to r
+ * then r to i, from Wi-Fi keys of 0x55 and 0x66. Made with Python's hmac.
+ */
+export const ATTEMPT_KEYS = {
+  wifi: { iToR: '55'.repeat(32), rToI: '66'.repeat(32) },
+  attempts: [
+    { attempt: 0, iToR: '350ff6b8e917752bd51cfd719027720f7a803f514a2593b31e04cc915056c492', rToI: '700d57cd8afdaa5839cc08ed6acf3edf46814edf198c706d2718898ad19c8d05' },
+    { attempt: 1, iToR: '686118a8949f7256c0f6495a1a8db348b327122bebe37333f617e87683ff37de', rToI: 'cf216b14b335447a20b2b0de05eaa8f1410314db27206733b0f64e45c6ee2aa0' }
+  ]
+};
+
 /** A generation's key, then the three below it (`key(g - 1) = SHA-256('lq-nearby-gen-v1' || key(g))`). The migration's vector is the same. */
 export const GENERATIONS = ['BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc', 'ZKxHYBpq0T77wN5AfJJc7t_0qrA041KqcKWrV2JAl10', '8Fjjxvz7bHRokg2U6V91J8qKQ8oLNCHdzOQb2XZQVx8', '0-wAuKHDruwZMVUSkqDDdTTYHQBxTLaIbtwivjANPCI'];
 

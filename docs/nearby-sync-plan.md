@@ -1307,7 +1307,7 @@ type Message =
   | { t: 'you-first' } // the initiator, in place of its hello, under an older generation
   | { t: 'discovery-key'; gen: number; key: string } // the hand-on, one hop: a newer generation of the session's language
   | { t: 'arrange'; summary: string; radios: { directByName: boolean; band5: boolean; hotspot: boolean; joinHotspot: boolean /* false on a disguised phone */ } }
-  | { t: 'host'; kind: 'wifi-direct' | 'hotspot' | 'bluetooth'; ssid?: string; passphrase?: string; port?: number; band?: string; security?: string }
+  | { t: 'host'; attempt: number /* its place in the arranged plan */; kind: 'wifi-direct' | 'hotspot' | 'bluetooth'; ssid?: string; passphrase?: string; port?: number; band?: string; security?: string }
   | { t: 'ready' }
   | { t: 'have'; orgId: string; languageId: string; cursor: number; claimedSeq: number; revokedSeq: number;
       vector: Record<string, { mark: number; ahead: [number, number][] }>; // by install key
@@ -2112,14 +2112,25 @@ ss  = X25519(my ephemeral private, their ephemeral public)    // refuse an all-z
 okm = HKDF-SHA256(ikm = ss || kSess, salt = th, info = 'lq-nearby-keys-v1', 128 bytes)
 
 first channel:  i to r = okm[0..32],  r to i = okm[32..64]
-Wi-Fi link:     i to r = okm[64..96], r to i = okm[96..128]
+Wi-Fi keys:     i to r = okm[64..96], r to i = okm[96..128]
+
+Wi-Fi link of attempt n (its place in the arranged plan, from 0):
+  ok  = HKDF-SHA256(ikm = Wi-Fi i to r || Wi-Fi r to i, salt = '', info = 'lq-nearby-attempt-v1\n' || decimal n, 64 bytes)
+  i to r = ok[0..32], r to i = ok[32..64]
 ```
+
+Each attempt's link has keys of its own, because every link starts its nonces at counter 0:
+a link secured for an attempt that was then abandoned, and the goodbye it seals as it closes,
+would otherwise reuse the winning link's nonces under the same key. The host's `host` message
+names its `attempt`, since two attempts can be of one kind (Wi-Fi Direct at 5 GHz, then any
+band), and the joiner refuses one the plan it worked out does not hold, with `bye`
+`protocol`. `ATTEMPT_KEYS` in core's vectors is the golden vector.
 
 `hello.proof` is the install key's signature over the session proof text. The receiver
 checks it against the `installKey` of `hello.chain`'s holder, and that holder's `deviceId`
 against `hello.deviceId`. So a relay in the middle cannot pass, and a stranger with no
-discovery key never reaches Hello. A Wi-Fi link takes its keys from the same exchange and
-does not run Hello again, since `ready` proves the peer holds them. A new session is a new
+discovery key never reaches Hello. A Wi-Fi link takes its attempt's keys from the same
+exchange and does not run Hello again, since `ready` proves the peer holds them. A new session is a new
 exchange and new keys. Keys are never reused, logged or sent in events.
 
 On a QR start, `kSess = HKDF-SHA256(ikm = the QR's secret, salt = '', info =

@@ -114,6 +114,18 @@ export function sessionKeysOf(crypto: NearbyCryptoLike, kSess: Uint8Array, mine:
   };
 }
 
+/**
+ * The keys one Wi-Fi attempt's link is secured with (5.12, Session keys): each attempt of the
+ * plan has its own, so a link secured for an abandoned attempt, or its sealed goodbye, never
+ * reuses a nonce under the winning attempt's keys. `attempt` is the place in the plan, which the
+ * host's `host` message names and both sides check against the plan they worked out.
+ */
+export function attemptKeysOf(crypto: Pick<NearbyCrypto, 'hkdfSha256'>, wifi: { iToR: Uint8Array; rToI: Uint8Array }, attempt: number): { iToR: Uint8Array; rToI: Uint8Array } {
+  if (!Number.isSafeInteger(attempt) || attempt < 0) throw new RangeError('an attempt is a place in the plan');
+  const okm = crypto.hkdfSha256(concatBytes(wifi.iToR, wifi.rToI), NONE, `lq-nearby-attempt-v1\n${attempt}`, 2 * KEY_BYTES);
+  return { iToR: okm.slice(0, KEY_BYTES), rToI: okm.slice(KEY_BYTES, 2 * KEY_BYTES) };
+}
+
 // ---- Find -------------------------------------------------------------------------
 
 /** Hex of a tag or summary as bytes. */

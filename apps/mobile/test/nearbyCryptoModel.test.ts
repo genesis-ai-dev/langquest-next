@@ -2,7 +2,7 @@ import { createHash, diffieHellman, createPrivateKey, createPublicKey, hkdfSync,
 import {
   base64urlDecode, base64urlEncode, checkChain, discoveryKeyAt, eventDigest, isBase64url, nearbyBytes, newcomerProfileId
 } from '@langquest-next/core/nearby';
-import { checkOpeningI, makeOpeningI, makeOpeningR, openingKeyOf, sessionKeysOf, type NearbyCrypto } from '@langquest-next/sync/nearby';
+import { attemptKeysOf, checkOpeningI, makeOpeningI, makeOpeningR, openingKeyOf, sessionKeysOf, type NearbyCrypto } from '@langquest-next/sync/nearby';
 import { fakeSigner } from '../../../packages/sync/src/testing/memoryNearbyLink';
 import * as v from '../../../packages/core/test/nearbyVectors';
 import { base64url, fromBase64url, nobleSha256, nobleVerify, phoneCryptoOf, publicKeyOf, signWith } from '../src/nearby/nearbyCryptoModel';
@@ -125,6 +125,12 @@ describe('HMAC, HKDF and X25519', () => {
     expect(hex(openingKeyOf(phone, kSess))).toBe(Buffer.from(hkdfSync('sha256', kSess, new Uint8Array(0), 'lq-nearby-open-v1', 32)).toString('hex'));
     expect(hex(phone.hkdfSha256(kSess, fromHex('aa'.repeat(32)), 'lq-nearby-keys-v1', 128)))
       .toBe(Buffer.from(hkdfSync('sha256', kSess, fromHex('aa'.repeat(32)), 'lq-nearby-keys-v1', 128)).toString('hex'));
+    // A Wi-Fi attempt's keys, as the golden vector has them.
+    const { wifi, attempts } = v.ATTEMPT_KEYS;
+    for (const a of attempts) {
+      const k = attemptKeysOf(phone, { iToR: fromHex(wifi.iToR), rToI: fromHex(wifi.rToI) }, a.attempt);
+      expect([hex(k.iToR), hex(k.rToI)]).toEqual([a.iToR, a.rToI]);
+    }
   });
 
   it('HMAC-SHA256 gives RFC 4231\'s second test case', () => {

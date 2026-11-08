@@ -4,12 +4,12 @@ import {
 } from '@langquest-next/core/nearby';
 import * as v from '../../core/test/nearbyVectors';
 import { arrangePlan, mayHandOn, type NearbySessionReport } from '../src/nearbySession';
-import { checkOpeningI, checkOpeningR, findTagOf, makeOpeningI, makeOpeningR, openingKeyOf, sessionKeysOf } from '../src/nearbyOpening';
+import { attemptKeysOf, checkOpeningI, checkOpeningR, findTagOf, makeOpeningI, makeOpeningR, openingKeyOf, sessionKeysOf } from '../src/nearbyOpening';
 import { parseMessage, encodeMessage, type Message } from '../src/nearbyWire';
 import { FakeServer } from '../src/testing/fakeServer';
 import { fakeSha256, fakeSigner, memoryNearbyAir, memoryNearbyPair, type MemoryFiles, type MemoryNearbyPair } from '../src/testing/memoryNearbyLink';
 import type { NearbyLink } from '../src/nearbyLink';
-import type { EventStore } from '../src/types';
+import { OfflineError, type EventStore } from '../src/types';
 import { LANG, NOW, ORG, STORES, pageOf, teammate, wallClock, worker, type Teammate } from './nearbyFixtures';
 import { keys, newTime, record, SALT, sessionFor, settled, testPhone, unit, type TestPhone } from './nearbyKit';
 
@@ -586,6 +586,57 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
       expect(ar.calls.takeDown).toBe(0);
     });
 
+    it.each([
+      ['no attempt', (m: Extract<Message, { t: 'host' }>) => { const { attempt: _, ...rest } = m; return rest; }],
+      ['an attempt the plan does not hold', (m: Extract<Message, { t: 'host' }>) => ({ ...m, attempt: 5 })],
+      ['an attempt of another kind', (m: Extract<Message, { t: 'host' }>) => ({ ...m, kind: 'hotspot' as const })]
+    ])('a host with %s is a broken phone, and gets bye', async (_label, change) => {
+      // Why: the attempt picks the link's keys, so the two sides must agree on it or not go on.
+      const [a, b] = await two();
+      await unit(a, 'a1');
+      const pair = pairOf({ kind: 'bluetooth' });
+      rewrite(pair.b, (m) => (m.t === 'host' ? change(m) : m));
+      const [ra] = await run(a, b, pair);
+      expect(ra.ended).toMatchObject({ how: 'said', reason: 'protocol' });
+    });
+
+    it('secures each attempt with keys of its own, the same on both sides', async () => {
+      // Why: a link secured for an abandoned attempt, and its sealed goodbye, would otherwise
+      // reuse the winning attempt's keys and nonces from counter 0.
+      const [a, b] = await two();
+      await unit(a, 'a1');
+      const air = memoryNearbyAir({ time, files: shelf });
+      const radios = { directByName: true, band5: true, hotspot: false, joinHotspot: false };
+      const keysBy: { attempt: number; side: 'a' | 'b'; send: string; receive: string }[] = [];
+      const watch = (link: NearbyLink, side: 'a' | 'b', attempt: number, failFirstSend: boolean): NearbyLink => {
+        const secure = link.secure.bind(link);
+        const send = link.send.bind(link);
+        link.secure = async (k) => { keysBy.push({ attempt, side, send: Buffer.from(k.send).toString('hex'), receive: Buffer.from(k.receive).toString('hex') }); await secure(k); };
+        if (failFirstSend) link.send = async () => { await link.close(); throw new OfflineError('dropped'); };
+        else link.send = send;
+        return link;
+      };
+      const ar = air.radio('a');
+      const br = air.radio('b');
+      let joins = 0;
+      let hosts = 0;
+      const join = ar.join.bind(ar);
+      ar.join = async (kind, details) => { const n = joins++; return watch(await join(kind, details), 'a', n, n === 0); };
+      const host = br.host.bind(br);
+      br.host = async (kind, opts) => { const n = hosts++; const h = await host(kind, opts); return { ...h, link: h.link.then((l) => watch(l, 'b', n, false)) }; };
+      const [ra, rb] = await run(a, b, pairOf({ kind: 'bluetooth' }), { arrange: { radio: ar, radios } }, { arrange: { radio: br, radios } });
+      expect([ra.ended.how, rb.ended.how]).toEqual(['done', 'done']);
+      expect(ra.linkKind).toBe('wifi-direct');
+      expect([ra.fallbacks, rb.fallbacks]).toEqual([1, 1]);
+      const of = (attempt: number, side: 'a' | 'b') => keysBy.find((k) => k.attempt === attempt && k.side === side)!;
+      for (const attempt of [0, 1]) {
+        expect(of(attempt, 'a').send).toBe(of(attempt, 'b').receive);
+        expect(of(attempt, 'a').receive).toBe(of(attempt, 'b').send);
+      }
+      expect(of(0, 'a').send).not.toBe(of(1, 'a').send);
+      expect(of(0, 'a').receive).not.toBe(of(1, 'a').receive);
+    });
+
     it('takes down a group whose attempt never came up, when the pipe carries on as the link', async () => {
       const [a, b] = await two();
       await unit(a, 'a1');
@@ -685,6 +736,25 @@ describe('the opening', () => {
     expect(ki.th).toBe(hex(th));
     expect(ki.first.iToR).toEqual(okm.slice(0, 32));
     expect(ki.wifi.rToI).toEqual(okm.slice(96, 128));
+  });
+
+  it('each Wi-Fi attempt has keys of its own, the golden vector\'s', () => {
+    // Why: an abandoned attempt's sealed goodbye would otherwise reuse nonces with the winning
+    // attempt under the same key, and AES-GCM with a repeated nonce gives the key stream away.
+    const { wifi, attempts } = v.ATTEMPT_KEYS;
+    const base = { iToR: fromHex(wifi.iToR), rToI: fromHex(wifi.rToI) };
+    for (const a of attempts) {
+      const k = attemptKeysOf(crypto, base, a.attempt);
+      expect([hex(k.iToR), hex(k.rToI)]).toEqual([a.iToR, a.rToI]);
+      const node = new Uint8Array(hkdfSync('sha256', concatBytes(base.iToR, base.rToI), new Uint8Array(0), `lq-nearby-attempt-v1\n${a.attempt}`, 64));
+      expect(concatBytes(k.iToR, k.rToI)).toEqual(node);
+    }
+    const seen = new Set<string>();
+    for (let n = 0; n < 8; n++) {
+      const k = attemptKeysOf(crypto, base, n);
+      for (const key of [k.iToR, k.rToI, base.iToR, base.rToI]) seen.add(hex(key));
+    }
+    expect(seen.size).toBe(8 * 2 + 2);
   });
 
   it('refuses an all-zero shared secret', () => {

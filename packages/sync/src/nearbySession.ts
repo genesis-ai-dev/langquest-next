@@ -6,7 +6,7 @@ import { chainAsSigned, type NearbyGate, type NearbyIntake, type NearbyPage, typ
 import { nearbyCodeOf, type NearbyDiagCode } from './nearbyDiag';
 import type { NearbyKeep } from './nearbyKeep';
 import type { HostDetails, HostOptions, NearbyCrypto, NearbyLink, NearbyRadio } from './nearbyLink';
-import { checkOpeningI, checkOpeningR, findTagOf, makeOpeningI, makeOpeningR, openingKeyOf, sessionKeysOf, type NearbySessionKeys } from './nearbyOpening';
+import { attemptKeysOf, checkOpeningI, checkOpeningR, findTagOf, makeOpeningI, makeOpeningR, openingKeyOf, sessionKeysOf, type NearbySessionKeys } from './nearbyOpening';
 import { encodeMessage, NEARBY_HOLDINGS_MESSAGE_FILES, parseMessage, type Message } from './nearbyWire';
 import { OfflineError } from './types';
 
@@ -712,7 +712,11 @@ export class NearbySession {
     const { opt, tune } = this;
     const me = opt.role;
     const wifi = this.keys!.wifi;
-    const sealed = me === 'i' ? { send: wifi.iToR, receive: wifi.rToI } : { send: wifi.rToI, receive: wifi.iToR };
+    /** Each attempt's own keys, so no two links of a session ever share a key and nonce. */
+    const sealedFor = (attempt: number) => {
+      const k = attemptKeysOf(this.crypto, wifi, attempt);
+      return me === 'i' ? { send: k.iToR, receive: k.rToI } : { send: k.rToI, receive: k.iToR };
+    };
     type Turn = { t: 'message'; m: Message } | { t: 'pipe-failed'; err: unknown } | { t: 'up'; at: number; link: NearbyLink } | { t: 'no-link'; at: number } | { t: 'time'; at: number };
     let at = 0;
     let finished = false;
@@ -736,7 +740,7 @@ export class NearbySession {
       try {
         link = await made;
         if (finished || attempt !== at) throw new OfflineError('a later attempt took over');
-        await link.secure(sealed);
+        await link.secure(sealedFor(attempt));
         const says = await Promise.all([link.send(encodeMessage({ t: 'ready' })), this.readOne(link)]);
         if (says[1].t !== 'ready') throw new OfflineError('no ready');
         if (finished || attempt !== at) throw new OfflineError('a later attempt took over');
@@ -764,7 +768,7 @@ export class NearbySession {
       const { kind, host, band5 } = plan[attempt]!;
       if (kind === 'bluetooth') {
         if (host === me) {
-          await pipe.send(encodeMessage({ t: 'host', kind }));
+          await pipe.send(encodeMessage({ t: 'host', attempt, kind }));
           return pipe;
         }
         armTimer();
@@ -781,7 +785,7 @@ export class NearbySession {
         return turn === attempt + 1 ? begin(turn) : null;
       }
       groups.set(attempt, hosted);
-      await pipe.send(encodeMessage({ t: 'host', ...hostDetailsOf(hosted) }));
+      await pipe.send(encodeMessage({ t: 'host', attempt, ...hostDetailsOf(hosted) }));
       up = seal(attempt, hosted.link);
       return null;
     };
@@ -799,10 +803,13 @@ export class NearbySession {
           const { m } = turn;
           if (m.t === 'host') {
             const other = me === 'i' ? 'r' : 'i';
-            const found = plan.findIndex((a, j) => j >= at && a.host === other && a.kind === m.kind);
-            // A host that crossed this phone's own move on is stale, and one the plan never held is a broken phone.
-            if (found < 0 && !plan.some((a) => a.host === other && a.kind === m.kind)) throw new SayBye('protocol', 'host off the plan');
-            if (found < 0) continue;
+            // The host names its attempt, since two attempts can be of one kind (Wi-Fi Direct at 5 GHz, then any band),
+            // and the attempt picks the link's keys. One the plan does not hold is a broken phone; one behind
+            // this phone's own move on crossed it, and is stale.
+            const found = m.attempt;
+            const planned = found === undefined ? undefined : plan[found];
+            if (found === undefined || !planned || planned.host !== other || planned.kind !== m.kind) throw new SayBye('protocol', 'host off the plan');
+            if (found < at) continue;
             at = found;
             await takeDownBefore(found);
             if (m.kind === 'bluetooth') return pipe;

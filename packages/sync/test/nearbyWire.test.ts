@@ -21,7 +21,8 @@ const EVERY: Message[] = [
   { t: 'you-first' },
   { t: 'discovery-key', gen: 3, key: KEY },
   { t: 'arrange', summary: '1f1d85db', radios: { directByName: true, band5: false, hotspot: true, joinHotspot: false } },
-  { t: 'host', kind: 'wifi-direct', ssid: 'DIRECT-ab-Android_12', passphrase: 'secret', port: 9000, band: '5', security: 'wpa2' },
+  { t: 'host', attempt: 1, kind: 'wifi-direct', ssid: 'DIRECT-ab-Android_12', passphrase: 'secret', port: 9000, band: '5', security: 'wpa2' },
+  { t: 'host', attempt: 3, kind: 'bluetooth' },
   { t: 'host', kind: 'bluetooth' },
   { t: 'ready' },
   { t: 'have', orgId: 'org1', languageId: 'lang1', cursor: 1, claimedSeq: 2, revokedSeq: 3, vector: new Map([[KEY, { mark: 2, ahead: [[4, 5], [7, 7]] }]]), holdings: new Map([[KEY, 9]]) },
@@ -119,6 +120,8 @@ describe('nearby messages', () => {
   it('a host says a real port', () => {
     malformed({ t: 'host', kind: 'hotspot', port: 65536 });
     malformed({ t: 'host', kind: 'radio' });
+    malformed({ t: 'host', kind: 'hotspot', attempt: 64 });
+    malformed({ t: 'host', kind: 'hotspot', attempt: -1 });
   });
 });
 
