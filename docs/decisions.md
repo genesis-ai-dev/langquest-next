@@ -3680,6 +3680,15 @@ Reverse if: the ledger itself proves unreliable on these phones (false
 alarms in the field), or losses turn out to be damaged contents rather than
 missing files, in which case add a slow background spot check of hashes.
 
+Amended (2026-11-07, Carl Sauder): a teammate's recording that came from
+their phone and is lost behind the app's back is not this person's to record
+again. Such a file is marked when it lands (220), so the lost view
+(`LanguageSession.lost`, `lostFilesOf` given the marks) counts it in
+neither of the alert's totals and names none of its passages: its author's
+phone is where it is recorded again, if it must be. This person's own
+files, and another person's on a shared phone, carry no mark and alarm as
+before.
+
 ## 93. A to-do opens its task, making your own comes first, and content is decided with its text, its helps and what others do in view
 
 Date: 2026-10-12 · By: Caleb Koster · Status: accepted
@@ -7286,6 +7295,16 @@ request's own green run of the last hour tested the same tree, and a push
 to main runs no tests for the commit that the queue passed; `checks` is
 three jobs, `checks`, `unit` and `coverage` (decisions 163, 164).
 
+Amended (2026-11-07, Carl Sauder): `gate` needs one more job,
+`android-native` (228), which `scope` names when the nearby module's files
+(`apps/mobile/modules/nearby-link/**`), `apps/mobile/package.json` or the
+root `package-lock.json` change (Carl's answers 3 and 22). It prebuilds the
+Android project and compiles, unit-tests and lints the module. Shared code,
+other dependencies and unmatched files now run `SHARED` (the three jobs they
+ran before), not every name in `JOBS`, so a change to core or a script
+compiles no Kotlin; a nightly run, a manual run and a scope error still run
+every job. AGENTS.md's Guardrails table has its row.
+
 ## 151. A pull request may not take away a server call that a supported store build makes
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted
@@ -8352,6 +8371,16 @@ team's recordings had arrived. Carl chose (2026-10-23):
 Reverse if: people read a turning ring with no number as stuck, or ask how
 many recordings are still coming (then the icon gets a second count).
 
+Amended (2026-11-07, Carl Sauder): a teammate's recording held here and
+not yet on the server counts in the number and the spoken name as waiting to
+upload, because it is true of this phone (`docs/nearby-sync-plan.md` 5.8):
+`iconCounts` adds the language's `holding` to `pendingUp`, as do Sync's
+upload line and More settings' sync line. The sign-out check and the leave
+guard still count only the person's own (`pendingUp`, `useUnsent`), since a
+teammate's file neither holds a session on the phone nor goes up as its
+person (60 as amended). Sync also says "Holding N for teammates" whenever the
+phone holds some, even after the organization turns nearby off.
+
 ## 166. What is on the device and what waits to upload is shown by passage: a download button on every passage, an upload bar while anything waits, and the Sync screen by passage with a record of what went up
 
 Date: 2026-10-25 · By: Caleb Koster · Status: accepted
@@ -8461,6 +8490,18 @@ partners and users real trouble. So:
   and offline before "Live".
 - **Sent means sent.** Offline, asking someone, a review and a published
   version say who gets it when the device is connected.
+
+Amended (2026-11-07, Carl Sauder): teammates' recordings held here count
+in the upload bar and the Waiting list too (`docs/nearby-sync-plan.md` 5.8):
+a phone holding backups shows the amber bar while offline and lists other
+people's passages, which is true of this phone. They come from the upload
+list, so for someone who may not write files in the language (`mayUpload`,
+`packages/sync/src/nearbyFiles.ts`) teammates' files stay off it, and off
+the bar, until delivery (phase 4). Carl sees this when it ships
+(plan section 13), so he can object. A record's History gains one line for a
+row still nearby ("Came from Sam's phone, not on the server yet"), read from
+row status; a claim row says only that it came from Sam's phone. No other
+list marks it.
 
 ## 167. The nightly mutation run is four shards of core's files, dealt by what each costs, and one merged score
 
@@ -8816,6 +8857,21 @@ import an iPhone build bundles and fails on a file of `src/disguise`, or a
 name, string or word of the disguise there, in its catalogs, or in the
 settings Expo embeds; an export of the iPhone app (`expo export --platform
 ios`) had none on 2026-11-05. Android is unchanged.
+
+Amended (2026-11-07, Carl Sauder): a disguised Android phone is offered
+Share nearby, with limits (Carl's answer 15; 225 has them in full). The
+radios never run behind the cover: opening the screen does nothing, a press
+starts it, ten minutes or "Up to date" stops it with no listening bursts,
+and going to the background stops it for good, so only a new press after the
+code restarts it. One warning comes before any permission prompt, because
+Android's prompts name the app whatever icon the phone shows, and
+`radios.joinHotspot` is false, since the hotspot's dialog names it too.
+"Hold teammates' recordings" is off by default there. Its code goes through a
+`.android` seam and its words stay in `src/disguise/i18n`, as the amendment of
+2026-11-05 asks, so iPhone and web builds carry none of it. The broadcast has
+nothing fixed the app picks, but its form may tell a determined scanner, and
+the system's own names and address are not the app's to hide. Caleb should see
+this, since this is his entry.
 
 ## 172. FIA's key words are a key-word list per language, picked apart from FIA's guides, shown where a passage links or says them, and every reference list can be searched
 
@@ -11365,3 +11421,357 @@ it; and an informer who is still a member is unaffected.
 Reverse if: the real-phone test finds a team stuck on old generations after
 a trip to town, or the security review finds the hand-on reaches a removed
 member.
+
+## 218. Nearby sync moves work over our own link on Android's own APIs: Bluetooth LE to find, Wi-Fi Direct to move, a local-only hotspot if that fails, and Bluetooth for events if neither comes up
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: the link has to work on Android phones without Google Play services,
+including in China, with iPhones a lower priority (Carl, 2026-11-06;
+`docs/nearby-sync-plan.md` section 4). Nearby Connections needs Play
+services, and a team can mix phones with and without them, so every phone
+needs the same link anyway. Bluetooth LE is the radio every phone shares
+and is fine for finding each other and for events, but at a reported 20 to
+70 KB/s an hour of one person's audio (58 MB, decision 106) would take 14 to
+48 minutes. So, in this order: phones find each other over Bluetooth LE; a
+short Bluetooth exchange runs the key exchange and Hello and says who
+hosts; one phone hosts a Wi-Fi Direct group the other joins by name and
+passphrase (`WifiP2pConfig.Builder`, Android 10 and later, silent to join),
+asking for 5 GHz only when both report it; if Wi-Fi Direct will not come up
+a local-only hotspot is tried next, with a system dialog on the joining
+phone; and failing both, events still move over Bluetooth while audio
+waits (`arrangePlan`, `packages/sync/src/nearbySession.ts`). Android first:
+an iPhone has no Wi-Fi Direct API and comes in phase 5, with the protocol
+unchanged. The module, `apps/mobile/modules/nearby-link`, is mechanism only:
+it does nothing at construction, names no API 29 class in its fields,
+logs nothing, takes every tunable as an argument from JavaScript (a Kotlin
+edit needs a store review), carries its permissions in its own
+`AndroidManifest.xml` so `app.json` and the iPhone fingerprint do not move,
+and rejects with an enumerated list of codes (`src/codes.ts`), a drop as
+sync's `OfflineError`. Text guards hold it to no logging, nothing fixed in
+an advert, no Play services and declared permissions
+(`apps/mobile/test/nearbyNative.test.ts`). What it costs is that we own what
+Nearby Connections would have handled: more native code, our own
+encryption, and the differences between phone makers, none of it tried on
+China-market phones yet; Carl chose to build the whole branch and let the
+real-phone test decide, so the risk is that the native work is redone or
+dropped, while the model, identity and delivery work does not depend on the
+radio. `NearbyLink` leaves room to add a faster path later.
+Reverse if: the real-phone test finds the link does not hold up on
+China-market phones or 2 GB Androids (plan section 11), or it is much slower
+than Nearby Connections between phones that have Play services (then that
+becomes a second `NearbyLink`).
+
+## 219. Phones open sealed, and a phone shows and connects to a teammate only after hearing its own salt echoed
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: a broadcast with a fixed id, or a readable first message in a public
+format, would be a certain yes that a phone runs this app, with no key
+needed (plan 5.5 and 5.12). So an advert is a salt and an HMAC under the
+language's discovery key, as valid version 4 UUIDs with no manufacturer or
+service data, device name or transmit power; the scan response is masked
+with a new `r` every tick so no mask repeats under a salt; and a rotation
+changes salt and Bluetooth address together on a jittered period. Anyone
+can connect to a pipe, so the opening is 80 raw bytes with no JSON, type or
+version, sealed under a key from the discovery key and the responder's salt,
+and a phone that has not checked the other's opening says nothing at all; a
+stranger gets silence and a close at a short random deadline, and holds
+nothing (`packages/sync/src/nearbyOpening.ts`, native never sees `kSess`).
+An advert has no clock, so a recording of one verifies for good and,
+played back elsewhere, would draw a teammate's phone to connect and so
+show that it holds that team's key. So a phone that can advertise connects
+only after hearing its own current or previous salt echoed in a teammate's
+scan response, and shows nobody before that (`NearbyRoom`); after a while
+with no echo the screen says "A teammate may be nearby" and connecting
+takes a tap (Carl's answer 21), so one-way hearing does not strand a pair.
+A phone that cannot advertise connects as before and keeps this risk. The
+limits that remain: a live relay to a real team phone can still pass, the
+form of the broadcast may tell a determined scanner the phone probably runs
+this, and where a restart keeps the Bluetooth address or uses the public
+one, rotation does not stop a continuous scanner. Those phones still run,
+because refusing could strand a team.
+Reverse if: the real-phone test finds an echo misses meetings between phone
+makers, or that addresses repeat across salts on common phones (plan
+section 11); then the notice on Share nearby, and this entry, say so.
+
+## 220. When space runs short, a phone frees files in three levels, and a teammate's file is marked, never inferred
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: every phone now takes teammates' recordings (221), so a cheap phone
+can fill up, and until now there was only yes or no (`evictableOf`). Carl
+chose (2026-11-06) that a backup may go when space runs short (plan 5.6).
+Level 1 is today's rule unchanged: files the server has, outside this
+person's offline scope, largest first. Level 2 is new: nearby files outside
+the offline scope, backups first and files open for review last, the most
+known copies first so a last copy goes last, then the largest; it goes only
+under 500 MB free once level 1 cannot free enough. Everything else is never
+deleted: the person's own unsent files, another person's on a shared phone
+(60), needed nearby files, and kept files the server has. A backup may be the
+last copy, because the phone it came from may be gone, and it goes before a
+kept file the server has safe: the person's own recording has to win, and
+deleting a kept file could stop someone working offline. Review files go
+last in level 2 rather than being protected, so a team's unreviewed audio
+cannot fill a reviewer's phone with no way to free room. A nearby file is
+known only by a mark written when it lands (`nearby_files`, beside the
+ledger), its group worked out when space is short; no mark means protected,
+so nothing a teammate sends can make this phone's own file deletable.
+`evictableOf` does not change; level 2 is `nearbyEvictableOf`
+(`packages/core/src/nearbyHoldings.ts`), and `reclaim` takes ordered lists
+and one limits object and frees them in one pass, so a second call cannot
+see the disk still short and delete too many backups. The 2 GB cap leaves
+marked files out, level 1 gives way before a nearby file lands, and any
+session can free another language's level 2 files from the mark alone; a
+mark names one language while the store is global by hash, so this could
+delete a file a second language also names, which is rare and accepted.
+Building found that the marks, level 2, shedding and the third worker had
+to sit behind the nearby entries (`nearbyMarks.ts`, `nearbyFiles.ts`), not in
+`fileLedger.ts` and `blobs.ts`, because the web bundle had no room. PLAN.md
+section 14 and 60 are amended with it.
+Reverse if: field phones lose last copies of teammates' work to level 2
+before anyone reaches the server (then the order or the 500 MB line moves).
+
+## 221. Every phone takes everything, unless its person turns off "Hold teammates' recordings"
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: Carl chose (2026-11-06) that every event the server has not
+confirmed goes to every phone, viewers too, so any one phone can carry the
+whole team's work to town and a lost phone loses nothing (plan 5.11). Then
+answer 14 (2026-11-07): a voice is hard to deny, the events beside it name
+the speaker, and no file has protection at rest, so after a month offline
+one taken phone, even a viewer's, would hold a month of all five people. So
+Share nearby has a phone-wide switch row, "Hold teammates' recordings", in
+`meta` as `nearbyHold`, written only when someone presses it: on with
+nothing written, off on a phone that wears a disguise (`holdByDefault(worn)`,
+`apps/mobile/src/nearby/nearbyModel.ts`), and a pressed choice stays whatever
+the disguise does later. It covers files only; events still go to every
+phone. Role does not decide it, because role is not risk, and open for
+review alone would not do, because Translators hold `review`. With it off a
+phone asks for needed files and a small window of open-for-review passages
+in `upNextOf` order (five as a starting guess, from JavaScript), no backups,
+and sheds marked files outside that set once the server has the file or
+another person is known to hold it, keeping the last known copy
+(`nearbyShedOf`); Ready to carry says the phone can carry the team's work but
+not all of their recordings. `wantedFilesOf` takes the choice with no
+default, so a test says which it means. Building found that a choice not
+known yet should ask as the row off would, five passages of review, and shed
+nothing, and that a phone that cannot read holdings counts no copies and
+sheds only what the server has. What is accepted: a team where everyone
+wears a disguise has no backups unless someone turns the row on, and a
+speaker's voice stays on any phone with the row on until the server
+confirms it. Five people recording an hour a day with the row on is 8.7 GB a
+phone a month, which is arithmetic, not a measurement.
+Reverse if: teams in the field run out of room carrying everything, or ask
+for the row to be per language or per role.
+
+## 222. A backup goes, on every phone, as soon as the server confirms it
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: a backup is kept so the phone can carry the team's work and in case
+the phone it came from is lost (plan 5.6); once the server holds it, neither
+reason stands, and a phone back from town should not keep voices it never
+needed. Carl's answer 14 makes this hold whatever "Hold teammates'
+recordings" says. At the end of each sync `backupsConfirmedOf`
+(`packages/core/src/nearbyHoldings.ts`) lists marked files in the backup
+group that the server holds at the size held here, as `evictableOf` asks,
+and they go at once; the mark goes with them, and when `discard` forgets a
+file. A file that was open for review becomes level 1 and goes only under
+space pressure, so up to about 35 hours of teammates' voices a reviewer could
+review can stay after that trip; a needed one is kept. This departs from
+PLAN.md section 14 and 60's "recordings evicted only once the server has
+them" in the other direction too, since the server has these, and both are
+amended.
+Reverse if: reviewers on the way back from town lose audio they meant to
+review (then a backup in a passage open for review waits for space
+pressure).
+
+## 223. A holdings entry is signed by its owner and says whether it holds teammates' recordings
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: each phone keeps, for each install key it has heard from, which
+unconfirmed files that phone last said it holds, so phones can choose what
+to fetch and what to free first, and whether two phones have anything to swap
+(plan 5.11 and 5.12). Holdings pass along after Have, stay in device meta
+beside the vector, and never reach the server or the log. An entry is signed
+by its owner with a counter, so newer news replaces older and a teammate can
+pass one on but cannot forge or wedge it; `copiesOf` counts certified
+people, so a false entry naming fifty devices adds at most one copy. What an
+owner says of itself can still be false, which changes the deletion order or
+puts off an exchange, and on a phone with the row off can make a file go that
+it would have kept. Building found (phase 3, steps 1 and 2) that the entry
+needs the owner's row: without it the lower-key tie-break made a phone with
+"Hold teammates' recordings" off and the lowest key keep every file, even
+those teammates with the row on hold. So the signed text is version 2 with a
+new prefix and a `hold` field; the counter moves when only `hold` changes, a
+tie on files goes to `hold` false, `parseHoldings` and the wire refuse a
+non-boolean, and a session drops an entry whose `hold` changed after signing.
+The wire was free to change, since no store build had signed version 1.
+Reverse if: holdings turn out too stale between exchanges to choose by
+(then phones ask instead of trusting them).
+
+## 224. A phone keeps who it last finished with and what both said, never when it met anyone
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: partner choice needs to know which teammates this phone has
+finished with and what both summaries were, so two phones that finished
+together and have not changed do not connect again (plan 5.11, 5.12 The
+store). But `nearbyPeers`, `nearbyToday`, the vector and chains sit in plain
+SQLite and say who is on the team, and a taken phone gives them up. So
+`nearbyPeers:<org>/<stream>` is an ordered list of `{ tag, gen, mine, theirs }`
+written at Done, with no time, device or person; `nearbyToday` is one
+phone-wide `{ day, tags }` for "today"; both go when this phone takes a new
+generation, at the end of any completed sync unless the room is running, and
+at any sign-out; and Ready to carry says "today", "since you were last
+online" or not, from the vector, holdings and members, with the newest work
+held from each (`firstHlc`), not from who met whom. No meeting time is kept
+anywhere, and diagnostics name no teammate (229). All that costs is partner
+order and perhaps one extra session. Android's backup rules leave the
+database out (`configureAndroidBackup`), and a test holds that.
+Reverse if: partner order without times makes teams of five take many more
+sessions than the fleet's scenarios show.
+
+## 225. A disguised phone is offered Share nearby, but its radios run only after a press, stop sooner, and never behind the cover
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: Carl's answer 15. Hiding Share nearby on a disguised phone would be
+safest, and would send the most exposed people to town and out of offline
+review while teammates' phones still broadcast beside them; staff not
+granting `nearby` is the lever for a team where any broadcast is too much
+(plan 5.8). A disguised phone stays mounted under its calculator and fires
+no `blur` (171), so without limits someone coming back would get a
+calculator that broadcasts, exchanges and holds the screen awake. So: one
+gate, `radiosMayRun({ focused, onScreen, covered, worn, pressed, stopped })`
+(`apps/mobile/src/nearby/nearbyModel.ts`), asked by every start path and
+again after each await. On a phone that wears a cover, opening the screen
+does nothing, with no radios and no prompts, and a 56 pt "Start sharing"
+press starts it. Ten minutes from the press (`runLimitMs`, from JavaScript)
+or "Up to date" stops it, with no listening bursts, and both latch. Going to
+the background stops it for good: 171 locks the app then, a lock clears the
+press, and typing the code does not set it again, because a code typed
+under pressure would light the radios and show teammates' names in front of
+whoever asked. One warning comes before any permission prompt, because
+Android's prompts name the application whatever icon the phone shows.
+`radios.joinHotspot` is false there, since the hotspot's join dialog names
+it too (`radiosFor`). "Hold teammates' recordings" is off by default (221).
+The code goes through a `.android` seam (`src/shell/useAppCovered`,
+`NearbyCoverNotes`), and every word only a disguised phone shows stays in
+`src/disguise/i18n`, so iPhone and web builds carry none of it (171 as
+amended 2026-11-05).
+Reverse if: the real-phone test finds the prompts name the launcher alias
+(then the warning changes), or people under a disguise are found broadcasting
+behind the cover.
+
+## 226. Share nearby is a screen of its own, labelled experimental, opened from Sync on an Android phone whose organization has it on
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: both people opt in by opening the screen, and the radios run only
+while it is open, so no personal switch for the radios is needed (Carl's
+choices of 2026-11-06, plan 2, 5.8 and 5.10). It is `share_nearby`
+(`apps/mobile/src/screens/nearby.tsx`), loaded when first opened, from a row
+under Sync that shows only with a certificate for the organization and a
+discovery key for the language (214), with an `APP_ONLY` edge since the
+partner demo has no such flow, and an amber experimental badge until the
+experiment ends, which is Carl's call later. Below Android 10, or without
+Bluetooth LE or Wi-Fi Direct, the row is disabled with a line saying why
+(Carl's answer 7) and keeps its `onPress` for help mode; Bluetooth, Wi-Fi or
+Location off each have a state, because an app generally cannot turn them
+on. Progress lives in the hook's state, read by this screen alone, because
+anything ticking in `ctx` would redraw every mounted screen. The screen
+stays awake from Find on, the upload bar is hidden on it, and the room stops
+by itself after an idle limit (five minutes as a starting guess) that only a
+verified session's work restarts, so a stranger cannot hold the radios on.
+On the web and on iPhones it is absent through plain stubs beside `.android`
+files, so those builds carry none of it. Sync gains "Holding N for
+teammates", and a record's History one line for a row still nearby.
+Reverse if: the experiment ends (then the badge goes, and admins may get the
+toggle), or people miss teammates because the screen stopped (then the idle
+limit moves).
+
+## 227. The web app may take 3.94 MB on a first visit and 4.92 MB in all, for nearby sync
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: the web app never runs nearby sync (58), but every client carries
+what the shared sync path needs: the checkpoint gates, the pull's
+comparison, the stores' nearby tables, ids that name their author, the
+own-file counts and `holding`, and the Share nearby screen's words, stubs
+and flow edges. Main had about 2 KB left. Carl chose to raise the budgets
+in `apps/mobile/scripts/export-web.mjs` rather than hold the work back:
+the first visit to 3.93 MB with the sync changes (3.91 MB then), then to
+3.94 MB with Share nearby (3.92 MB to 3.93 MB: 6 KB of English words, the
+rest stubs and flow edges), and all chunks to 4.92 MB (4.90 MB to 4.92 MB,
+13 KB of it the screen's chunk, which the web never opens but the screen map
+names), each rounded up to the next 0.01 MB. Everything else moved behind
+the Android-only nearby entries (`@langquest-next/sync/nearby`, `.android`
+files), which is also why diagnostics' `nearby` kind lives there (229).
+Reverse if: a later change needs room and nearby's share can move behind a
+chunk the web never loads.
+
+## 228. A required `android-native` job compiles, tests and lints the nearby module when it, the app's package.json or the lockfile changes
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: `guardrails.yml` had no Android step, so `build_android` after a
+merge would have been the first compile of the module's Kotlin, and a
+failure there stalls every Android merge (plan section 7). Carl's answer 3
+(2026-11-06): a new required job scoped to the module; answer 22
+(2026-11-07): also on `apps/mobile/package.json` and the root lockfile, which
+can move `expo-modules-core`, the module's compile dependency. The job runs
+`expo prebuild -p android --no-install`, then `./gradlew
+:nearby-link:compileReleaseKotlin :nearby-link:testDebugUnitTest
+:nearby-link:lintDebug`, and is in `gate.needs`. In `scripts/ci-scope.mjs`
+two rules go before the dependency rule, which matches any `package.json`:
+the module's files run `[...APP, 'android-native']`, and the app's
+`package.json` and the lockfile `[...SHARED, 'android-native']`. `SHARED`
+holds the three jobs that shared code, other dependencies and unmatched files
+ran before, so a change to core or a script compiles no Kotlin. A nightly
+run, a manual run and a scope error run every job, so anything else that
+breaks the Kotlin (`app.json`, the workflow) shows by the next night. This
+machine has no JDK or Android SDK, so the job runs only in CI; whether
+GitHub's runner has a suitable SDK was unconfirmed until its first run. The
+module's JUnit tests read their vectors with a parser of their own, so
+`android.jar`'s `org.json` stub cannot shadow it. 150 is amended.
+Reverse if: the module leaves the repository, or the job's run time holds up
+pull requests that never touch it.
+
+## 229. Share nearby's diagnostics record counts, durations and the module's codes, and nothing that names a teammate or a disguise
+
+Date: 2026-11-07 · By: Carl Sauder · Status: accepted
+
+Reason: a field report about Share nearby ("it never finds anyone", "it
+stops") has to be answerable with `npm run diag`, as the rest of the app's
+are (39), before anyone has measured the link in the field (plan section
+11), and diagnostics are how a report shows whether a phone has used it
+(plan 5.10). A phone silent to its peer must not be silent to diagnostics
+(plan 5.12). So one `nearby` kind (`packages/sync/src/nearbyDiag.ts`): a
+record when a room stops (why, how long, to "Up to date", teammates' phones
+heard and echoed, taps offered and taken, salts no key matched, pipes that
+failed with the module's code, strangers' openings, busy refusals,
+sessions, and whether the radio can advertise, use Wi-Fi Direct and host),
+one when a session of this phone's ends (how, the bye reason, the module's
+code or a store fault's class, the link after its fallbacks, counts of what
+moved, and flags), one when Find fails natively, and one when the screen
+cannot run. The module's codes are an enumerated list, because the
+allowlist holds them, and a test holds sync's copy equal to the module's.
+Neither side records the other phone's tag, salt, key, install key, profile
+or device id, as `docs/diagnostics.md` already rules for a shared phone's
+other person; building added that the record leaves out whether the phone
+wears a disguise and its "Hold teammates' recordings" row, which defaults
+off under one (221), since either would mark the person in records that
+support and Claude read. The schema lives in the nearby entry and a
+recorder takes it with `Diagnostics.allow`, because the web bundle had no
+room (227); the server's allowlist (`diag.schema()`, migration
+`20261107020000_diag_nearby.sql`) holds it beside the rest, and
+`diag.install_summary` reports it as `nearby`. Only transfers go to the
+user-issue watch: these records are for reading a field report, and a
+dropped radio link is not a bug to file (plan section 9).
+Reverse if: a field report about Share nearby cannot be told apart from these
+records (then a field is added, never an identifier), or the watch should
+file a kind of nearby failure.
