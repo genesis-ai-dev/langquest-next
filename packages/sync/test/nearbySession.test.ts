@@ -469,6 +469,21 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
     expect(held.has(dan.key)).toBe(false);
   });
 
+  it('drops an entry from a key on the revocation list, or from someone this phone no longer lets in', async () => {
+    // Why: a taken phone's or a removed person's entry would count as a copy, so a teammate with the row off sheds the file it names.
+    const [a, b] = await two();
+    const cy = await teammate('cy');
+    const dan = await teammate('dan');
+    const signedBy = async (who: Teammate, files: string[]) => (await withMyHolding(new Map(), files, { key: who.key, orgId: ORG, streamId: LANG, chain: who.chain, hold: true, sign: who.crypto.sign, sha256: fakeSha256 })).get(who.key)!;
+    await a.keep.saveHoldings(new Map([[cy.key, await signedBy(cy, ['c'.repeat(64)])], [dan.key, await signedBy(dan, ['d'.repeat(64)])]]));
+    await b.keep.saveRevoked(await signedList({ v: 1, kid: 'k1', orgId: ORG, seq: 2, keys: [[cy.key, 'cy', NOW]] }));
+    const removed = { privilegesIn: (id: string) => (id === 'dan' ? new Set<never>() : b.people.privilegesIn(id, LANG)), languageListed: () => true };
+    const [ra, rb] = await run(a, b, pairOf(), {}, { gate: { people: () => removed } });
+    expect([ra.ended.how, rb.ended.how]).toEqual(['done', 'done']);
+    expect(rb.holdings.dropped).toBe(2);
+    expect((await b.keep.holdings()).size).toBe(0);
+  });
+
   it('drops an entry whose hold field was turned on after its owner signed it off, or that another key signed', async () => {
     const [a, b] = await two();
     const cy = await teammate('cy');

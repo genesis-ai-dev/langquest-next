@@ -1,5 +1,5 @@
-import { HlcClock, type BlobRef } from '@langquest-next/core';
-import type { ChainLink, HoldChoice, HoldingEntry, NearbyMark, WantedFile } from '@langquest-next/core/nearby';
+import { HlcClock, type BlobRef, type OrgState } from '@langquest-next/core';
+import { revocationText, type ChainLink, type HoldChoice, type HoldingEntry, type NearbyMark, type WantedFile } from '@langquest-next/core/nearby';
 import { LanguageSession, type LanguageSessionOptions, type LocalFiles } from '../src/languageSession';
 import { MemoryStore } from '../src/memoryStore';
 import { nearbyClient } from '../src/nearbyClient';
@@ -92,7 +92,7 @@ async function until(ok: () => boolean | Promise<boolean>, ms = 3000): Promise<v
   }
 }
 
-async function setUp(over: { choice?: HoldChoice | null; mayUpload?: boolean; limits?: LanguageSessionOptions['limits']; preset?: NearbyMark[]; upload?: LanguageSessionOptions['upload']; transport?: (t: Transport) => Transport } = {}) {
+async function setUp(over: { choice?: HoldChoice | null; org?: OrgState; mayUpload?: boolean; limits?: LanguageSessionOptions['limits']; preset?: NearbyMark[]; upload?: LanguageSessionOptions['upload']; transport?: (t: Transport) => Transport } = {}) {
   const server = new FakeServer();
   const marks = new MemoryNearbyMarks();
   await marks.put(over.preset ?? []);
@@ -106,7 +106,7 @@ async function setUp(over: { choice?: HoldChoice | null; mayUpload?: boolean; li
     limits: over.limits ?? { minFreeBytes: 500 * MB, maxTotalBytes: 2048 * MB },
     client: { clock: new HlcClock('phone', () => (wall.t += 1)), newId: () => `e${(wall.t += 1)}`, nearby: nearbyClient() },
     fetchFile: f.fetchFile,
-    nearbyFiles: nearbyFiles({ marks, installKey: () => ME_KEY, canReview: () => false }),
+    nearbyFiles: nearbyFiles({ marks, installKey: () => ME_KEY, canReview: () => false, org: () => over.org ?? null }),
     holdChoice: () => choice.now,
     mayUpload: () => over.mayUpload ?? true
   });
@@ -381,6 +381,20 @@ describe('nearby files: "Hold teammates\' recordings" off (Carl\'s answer 14)', 
     await session.sync();
     expect(removed).toEqual([CYS]);
     session.close();
+  });
+
+  it('a key on the revocation list, or a person removed in the fold, holds no copy that lets a file go', async () => {
+    // Why: holdings were checked when they came, and a taken phone's or a removed person's entry must not count as the copy that lets this phone shed.
+    const removedSam = { members: { sam: { org: { roleId: { value: 'translator' }, removed: { value: true }, scope: { level: 'org' } } } } } as unknown as OrgState;
+    for (const cut of ['revoked', 'removed'] as const) {
+      const { session, land, keep, removed } = await setUp({ choice: { hold: false, reviewWindow: 5 }, ...(cut === 'removed' ? { org: removedSam } : {}) });
+      await land(SAMS, 4 * MB);
+      await keep.saveHoldings(new Map([[KEY('c'), entry([SAMS], 'sam', true)]]));
+      if (cut === 'revoked') await keep.saveRevoked({ text: revocationText({ v: 1, kid: 'k', orgId: 'org1', seq: 1, keys: [[KEY('c'), 'sam', 0]] }), kid: 'k', sig: SIG });
+      await session.sync();
+      expect(removed, cut).toEqual([]);
+      session.close();
+    }
   });
 
   it('with the row on, or not known yet, nothing is shed for another\'s sake', async () => {

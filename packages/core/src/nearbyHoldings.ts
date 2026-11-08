@@ -1,7 +1,8 @@
-import type { ChainLink, Sha256 } from './nearbyChain';
+import type { ChainLink, RevocationList, Sha256 } from './nearbyChain';
 import { canonicalJson, isHash } from './libraryDocs';
 import type { NearbyVector } from './nearbySend';
 import { holdingsFilesHash, holdingsText, isBase64url, nearbyBytes, nearbyPayloadError } from './nearbySigning';
+import type { OrgState } from './org';
 import { objectMemberNameIn } from './validate';
 
 /**
@@ -79,6 +80,34 @@ export async function withMyHolding(
   const filesHash = await holdingsFilesHash(sorted, me.sha256);
   const sig = await me.sign(nearbyBytes('holdings', holdingsText({ orgId: me.orgId, streamId: me.streamId, key: me.key, counter, filesHash, hold: me.hold })));
   return new Map(holdings).set(me.key, { counter, files: sorted, hold: me.hold, sig, chain: me.chain });
+}
+
+/**
+ * The entries that still speak for someone (docs/nearby-sync-plan.md 5.5, 5.12). An entry was
+ * checked when it came, and a revocation or a removal can come after it: an entry goes when its
+ * key and holder, or its first link's key and person, are on the revocation list, or when its
+ * holder or first link's person has an entry in this fold and none of it live. A file such an
+ * entry names then counts as rarer, so it is fetched sooner and kept longer, and nothing is shed
+ * for its sake. With no list and no fold, every entry stands.
+ */
+export function holdingsInForce(holdings: Holdings, here: { revoked?: RevocationList | null; org?: OrgState | null }): Holdings {
+  const { revoked, org } = here;
+  if (!revoked?.keys.length && !org) return holdings;
+  const listed = new Set((revoked?.keys ?? []).map(([key, profileId]) => `${key} ${profileId}`));
+  const removed = (profileId: string) => {
+    const entries = org && Object.prototype.hasOwnProperty.call(org.members, profileId) ? Object.values(org.members[profileId]!) : [];
+    return entries.length > 0 && entries.every((m) => m.removed.value !== false);
+  };
+  const out = new Map<string, HoldingEntry>();
+  for (const [key, entry] of holdings) {
+    const first = entry.chain[0];
+    const last = entry.chain[entry.chain.length - 1];
+    const holder = (last?.body as { profileId?: unknown } | undefined)?.profileId;
+    if (first?.kind === 'worker@1' && typeof first.body?.profileId === 'string' && (listed.has(`${first.body.installKey} ${first.body.profileId}`) || removed(first.body.profileId))) continue;
+    if (typeof holder === 'string' && (listed.has(`${key} ${holder}`) || removed(holder))) continue;
+    out.set(key, entry);
+  }
+  return out;
 }
 
 /**

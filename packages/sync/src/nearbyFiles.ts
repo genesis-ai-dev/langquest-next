@@ -1,6 +1,6 @@
-import { buildIndexes, forScope, MAX_FILE_BYTES, openForReviewOf, type BlobRef, type FilePlan } from '@langquest-next/core';
+import { buildIndexes, forScope, MAX_FILE_BYTES, openForReviewOf, type BlobRef, type FilePlan, type OrgState } from '@langquest-next/core';
 import {
-  backupsConfirmedOf, copiesOf, filesNamedBy, nearbyEvictableOf, nearbyGroupOf, nearbyShedOf, wantedFilesOf, type HoldChoice, type Holdings, type NearbyMark, type WantedFile
+  backupsConfirmedOf, copiesOf, filesNamedBy, holdingsInForce, nearbyEvictableOf, nearbyGroupOf, nearbyShedOf, wantedFilesOf, type HoldChoice, type Holdings, type NearbyMark, type WantedFile
 } from '@langquest-next/core/nearby';
 import type { LanguageFiles } from './languageFiles';
 import type { LanguageSessionOptions } from './languageSession';
@@ -46,6 +46,8 @@ export interface NearbyFilesPlatform {
   installKey(): string | null;
   /** May this person review in this language? Files open for review are then their own group, ahead of backups. */
   canReview(languageId: string): boolean;
+  /** This organization's fold, when it is read: a teammate's holdings stop counting once they are removed in it. */
+  org?(): OrgState | null;
 }
 
 /** Exactly what the nearby files reach of their `LanguageSession`. */
@@ -186,12 +188,17 @@ class LanguageNearbyFiles implements NearbyFilesPart {
     this.port.nudge();
   }
 
-  /** What teammates' phones said they hold. None when they cannot be read: then nothing is shed for another's sake, and copies count as none. */
+  /**
+   * What teammates' phones said they hold, less entries from a key revoked or a person removed since
+   * (`holdingsInForce`). None when they cannot be read: then nothing is shed for another's sake, and
+   * copies count as none.
+   */
   private async holdings(): Promise<Holdings> {
     const { client } = this.port;
     const { orgId, languageId } = this.port.o;
     try {
-      return await nearbyKeepOf({ nearbyMeta: (k) => client.nearbyMeta(k), writeNearbyMeta: (r) => client.writeNearbyMeta(r) }, { orgId, streamId: languageId }).holdings();
+      const keep = nearbyKeepOf({ nearbyMeta: (k) => client.nearbyMeta(k), writeNearbyMeta: (r) => client.writeNearbyMeta(r) }, { orgId, streamId: languageId });
+      return holdingsInForce(await keep.holdings(), { revoked: (await keep.revoked())?.list ?? null, org: this.platform.org?.() ?? null });
     } catch {
       return new Map();
     }

@@ -243,7 +243,8 @@ export async function nearbyFilesFor(orgId: string, actorId: string, languageId:
       canReview: (language) => {
         const org = nearbyOrg(orgId);
         return org ? privilegesFor(org, actorId, language).has('review') : true;
-      }
+      },
+      org: () => nearbyOrg(orgId)
     }),
     holdChoice: currentHoldChoice,
     // Not known yet: as today, everything here may go up.

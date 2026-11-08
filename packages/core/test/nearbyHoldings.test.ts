@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
 import fc from 'fast-check';
-import type { ChainLink } from '../src/nearbyChain';
+import type { ChainLink, RevocationList } from '../src/nearbyChain';
+import type { OrgState } from '../src/org';
 import {
-  NEARBY_HOLDINGS_MAX_FILES, backupsConfirmedOf, copiesOf, mergeHoldings, nearbyEvictableOf, nearbyShedOf, parseHoldings, summaryText, withMyHolding,
+  NEARBY_HOLDINGS_MAX_FILES, backupsConfirmedOf, copiesOf, holdingsInForce, mergeHoldings, nearbyEvictableOf, nearbyShedOf, parseHoldings, summaryText, withMyHolding,
   type HoldingEntry, type Holdings, type NearbyMark
 } from '../src/nearbyHoldings';
 import { holdingsFilesHash, holdingsText, nearbyBytes } from '../src/nearbySigning';
@@ -275,6 +276,49 @@ describe('nearbyEvictableOf', () => {
 
   it('an unmarked file is never listed, whatever it is', () => {
     expect(nearbyEvictableOf([], all, sizes, none)).toEqual([]);
+  });
+});
+
+describe('holdingsInForce', () => {
+  const ME = KEY('m');
+  const me = { key: ME, signedIn: 'me' };
+  const certified = (key: string, profileId: string) => [{ kind: 'worker@1', kid: 'k', body: { installKey: key, profileId }, sig: SIG }] as unknown as ChainLink[];
+  const invited = (inviterKey: string, inviter: string, profileId: string) => [...certified(inviterKey, inviter), { kind: 'invite@1', body: { profileId }, sig: SIG }] as unknown as ChainLink[];
+  const list = (keys: RevocationList['keys']): RevocationList => ({ v: 1, kid: 'k', orgId: 'o', seq: 1, keys });
+  const member = (removed: boolean[]) => Object.fromEntries(removed.map((r, i) => [`scope${i}`, { roleId: { value: 'translator' }, removed: { value: r }, scope: { level: 'org' } }]));
+  const org = (members: Record<string, boolean[]>) => ({ members: Object.fromEntries(Object.entries(members).map(([id, r]) => [id, member(r)])) }) as unknown as OrgState;
+  const holdings: Holdings = new Map([
+    [KEY('a'), entry(1, [FILE('a')], { chain: certified(KEY('a'), 'sam'), hold: true })],
+    [KEY('b'), entry(1, [FILE('b')], { chain: invited(KEY('i'), 'ana', 'nyibol'), hold: true })],
+    [KEY('c'), entry(1, [FILE('c')], { chain: certified(KEY('c'), 'cy'), hold: true })]
+  ]);
+
+  it('keeps every entry with no list and no fold', () => {
+    expect(holdingsInForce(holdings, {})).toBe(holdings);
+  });
+
+  it('drops an entry whose key and holder, or whose inviter\'s key and inviter, are on the list, and only that pair', () => {
+    // Why: a revoked key's entry would count as a copy, so a phone with the row off would shed a file only a taken phone holds.
+    expect([...holdingsInForce(holdings, { revoked: list([[KEY('a'), 'sam', 0]]) }).keys()]).toEqual([KEY('b'), KEY('c')]);
+    expect([...holdingsInForce(holdings, { revoked: list([[KEY('a'), 'someone else', 0]]) }).keys()]).toEqual([KEY('a'), KEY('b'), KEY('c')]);
+    expect([...holdingsInForce(holdings, { revoked: list([[KEY('b'), 'nyibol', 0]]) }).keys()]).toEqual([KEY('a'), KEY('c')]);
+    expect([...holdingsInForce(holdings, { revoked: list([[KEY('i'), 'ana', 0]]) }).keys()]).toEqual([KEY('a'), KEY('c')]);
+  });
+
+  it('drops an entry whose holder or inviter has an entry in the fold and none of it live', () => {
+    expect([...holdingsInForce(holdings, { org: org({ sam: [true], cy: [true, false] }) }).keys()]).toEqual([KEY('b'), KEY('c')]);
+    expect([...holdingsInForce(holdings, { org: org({ ana: [true] }) }).keys()]).toEqual([KEY('a'), KEY('c')]);
+    expect([...holdingsInForce(holdings, { org: org({ nyibol: [true] }) }).keys()]).toEqual([KEY('a'), KEY('c')]);
+    // Someone the fold has never seen still counts: a newcomer, or a member added since.
+    expect(holdingsInForce(holdings, { org: org({}) }).size).toBe(3);
+  });
+
+  it('so nothing is shed and no copy counted for a dropped entry\'s sake', () => {
+    const marks = [mark('a', 'backup'), mark('c', 'backup')];
+    const inForce = holdingsInForce(holdings, { revoked: list([[KEY('a'), 'sam', 0]]), org: org({ cy: [true] }) });
+    expect(nearbyShedOf(marks, new Set(), holdings, me, () => false)).toEqual([FILE('a'), FILE('c')]);
+    expect(nearbyShedOf(marks, new Set(), inForce, me, () => false)).toEqual([]);
+    expect(copiesOf(inForce).get(FILE('a'))).toBeUndefined();
   });
 });
 

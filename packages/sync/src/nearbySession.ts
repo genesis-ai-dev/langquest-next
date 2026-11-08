@@ -1284,8 +1284,12 @@ export class NearbySession {
   /** Outside any lock, before `mergeHoldings`, one entry at a time, and a failure never ends the session. */
   private async holdingHolds(key: string, counter: number, files: readonly string[], hold: boolean, sig: string, chain: ChainLink[]): Promise<boolean> {
     const { opt, crypto } = this;
-    const verdict = await checkChain(chain, { rootKeys: opt.rootKeys, orgId: opt.orgId, languageId: opt.languageId, now: null, verify: crypto.verify, sha256: crypto.sha256 });
+    const verdict = await checkChain(chain, {
+      rootKeys: opt.rootKeys, orgId: opt.orgId, languageId: opt.languageId, now: null, verify: crypto.verify, sha256: crypto.sha256, ...(this.revoked ? { revoked: this.revoked.list } : {})
+    });
     if (!verdict.ok || verdict.holder.installKey !== key) return false;
+    // A person removed, or let in by an inviter since revoked or removed, holds nothing that counts as a copy: Hello's own read gate.
+    if (opt.gate.people(verdict).privilegesIn(verdict.holder.profileId, opt.languageId).size === 0) return false;
     const filesHash = await holdingsFilesHash(files, crypto.sha256);
     return signedBy(crypto.verify, key, nearbyBytes('holdings', holdingsText({ orgId: opt.orgId, streamId: opt.languageId, key, counter, filesHash, hold })), sig);
   }
