@@ -307,3 +307,26 @@ export function holdChoiceOf(pressed: string | null | undefined, worn: boolean, 
   const hold = pressed === 'true' ? true : pressed === 'false' ? false : holdByDefault(worn);
   return hold ? { hold: true } : { hold: false, reviewWindow };
 }
+
+// ---- whether the radios may run (docs/nearby-sync-plan.md 5.8) ----------------------------
+
+/** What the one gate reads. `covered` and `worn` come from `useAppCovered`, so this file names no cover. */
+export interface RadiosGate {
+  /** Share nearby is the focused screen: a `blur` closes the gate, since frozen screens never draw one. */
+  focused: boolean;
+  /** The app is in front, not in the background. */
+  onScreen: boolean;
+  /** Something stands in front of the app now. */
+  covered: boolean;
+  /** This phone wears one at all: then it waits for a press. */
+  worn: boolean;
+  /** "Start sharing" was pressed since the last lock. */
+  pressed: boolean;
+  /** A stop that latched: idle, the run limit, "Up to date" on a worn phone, leaving the app. */
+  stopped: boolean;
+}
+
+/** Every start path asks this, and asks again after any await (5.8). */
+export function radiosMayRun(g: RadiosGate): boolean {
+  return g.focused && g.onScreen && !g.covered && !g.stopped && (!g.worn || g.pressed);
+}
