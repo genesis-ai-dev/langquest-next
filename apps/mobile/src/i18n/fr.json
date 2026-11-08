@@ -8510,6 +8510,8 @@
       "anotherHelp": "Recommence avec un nouveau code.",
       "turnedAway": "Un autre téléphone a essayé ce code et a été refusé.",
       "stayOpen": "Gardez cet écran ouvert jusqu’à la fin.",
+      "file": "Fichier d’installation de cette version : {{file}}",
+      "fileHelp": "Quand toutes les personnes pour qui vous êtes venu sont entrées, supprimez ce fichier. Il vous faut internet pour le récupérer.",
       "picturesLabel": "Deux images. Comparez-les avec l’autre téléphone.",
       "end": {
         "expired": "Personne n’a utilisé le code à temps. Créez-en un nouveau.",

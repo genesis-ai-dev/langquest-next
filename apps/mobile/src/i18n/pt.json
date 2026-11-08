@@ -8510,6 +8510,8 @@
       "anotherHelp": "Começa de novo com um código novo.",
       "turnedAway": "Outro celular tentou usar este código e foi recusado.",
       "stayOpen": "Deixe esta tela aberta até terminar.",
+      "file": "Arquivo de instalação desta versão: {{file}}",
+      "fileHelp": "Quando todos por quem você veio tiverem entrado, apague este arquivo. Você precisa de internet para obtê-lo de novo.",
       "picturesLabel": "Duas imagens. Compare com o outro celular.",
       "end": {
         "expired": "Ninguém usou o código a tempo. Crie um novo.",

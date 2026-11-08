@@ -37,7 +37,8 @@
       "warnedHelp": "Tumutuloy sa pagbabahagi. Maaaring humingi ng pahintulot ang Android pagkatapos.",
       "left": "Huminto ang pagbabahagi dahil umalis ka sa app.",
       "run": "Huminto ang pagbabahagi pagkalipas ng sampung minuto.",
-      "level": "Napapanahon. Huminto ang pagbabahagi."
+      "level": "Napapanahon. Huminto ang pagbabahagi.",
+      "letInLook": "LangQuest ang ipapakita ng bagong telepono hanggang pumili sila ng ibang itsura sa Iba pang setting."
     }
   },
   "native": {

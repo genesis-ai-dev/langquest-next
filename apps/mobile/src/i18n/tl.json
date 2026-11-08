@@ -8165,6 +8165,8 @@
       "anotherHelp": "Nagsisimula ulit gamit ang bagong code.",
       "turnedAway": "May ibang teleponong sumubok sa code na ito at tinanggihan.",
       "stayOpen": "Panatilihing bukas ang screen na ito hanggang matapos.",
+      "file": "Install file para sa bersiyong ito: {{file}}",
+      "fileHelp": "Kapag nakapasok na ang lahat ng pinuntahan mo, burahin ang file na ito. Kailangan mo ng internet para makuha ito ulit.",
       "picturesLabel": "Dalawang larawan. Ihambing ang mga ito sa kabilang telepono.",
       "end": {
         "expired": "Walang gumamit ng code sa tamang oras. Gumawa ng bago.",

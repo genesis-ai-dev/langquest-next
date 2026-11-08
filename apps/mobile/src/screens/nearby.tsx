@@ -27,6 +27,7 @@ import {
   endedWords, linesShown, PERMISSION_WORDS, RADIO_WORDS, SEEN_WORDS, stageOf, STOP_WORDS, teammatesShown, TEAMMATE_WORDS, WHY_NOT_WORDS, type NearbyStage
 } from '../nearby/shareNearbyModel';
 import type { Ctx } from '../shell/ctx';
+import { LetInCoverNote } from '../shell/LetInCoverNote';
 import { NearbyCoverNotes } from '../shell/NearbyCoverNotes';
 import { contractsFor } from '../shell/screenContracts';
 import { Badge, Banner, Card, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, Row, Screen, SectionLabel, SmallBtn, type IconName } from '../ui/kit';
@@ -352,7 +353,7 @@ function TwoPictures(props: { pictures: [number, number] }) {
  * Then this phone sends them a starting copy. Nothing runs until Show the code is pressed.
  */
 export function LetSomeoneIn(ctx: Ctx) {
-  const { whyNot, roles, state, code, secondsLeft, actions } = useLetIn(ctx);
+  const { whyNot, roles, state, code, secondsLeft, installFile, worn, actions } = useLetIn(ctx);
   const { stage } = state;
   const running = stage.t === 'starting' || stage.t === 'showing' || stage.t === 'connected' || stage.t === 'copying';
   let footer: ReactNode = null;
@@ -379,6 +380,14 @@ export function LetSomeoneIn(ctx: Ctx) {
         </View>
         <Text style={txt.sm}>{t('nearby.letIn.intro')}</Text>
       </Card>
+      {installFile !== null && whyNot !== 'not-in-build' ? (
+        // The carried build this phone's versions need, named by versions alone, so a carrier can compare it with the file they hold (14.4).
+        <Card>
+          <Text style={txt.body}>{t('nearby.letIn.file', { file: installFile })}</Text>
+          <Text style={txt.smMuted}>{t('nearby.letIn.fileHelp')}</Text>
+          <LetInCoverNote worn={worn} />
+        </Card>
+      ) : null}
       {whyNot !== null ? (
         <Card>
           <View style={styles.line}>
@@ -425,7 +434,7 @@ export function LetSomeoneIn(ctx: Ctx) {
           ) : null}
           {stage.t === 'ended' ? (
             <Banner icon="info" tone="amber" title={stage.why === 'versions'
-              ? t('nearby.letIn.end.versions', { version: `${REDUCER_VERSION}.${LINES_VERSION}` }) : t(LET_IN_END[stage.why])} />
+              ? t('nearby.letIn.end.versions', { version: installFile ?? `${REDUCER_VERSION}.${LINES_VERSION}` }) : t(LET_IN_END[stage.why])} />
           ) : null}
           {state.turnedAway ? (
             <View style={styles.line}>

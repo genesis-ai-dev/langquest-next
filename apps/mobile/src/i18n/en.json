@@ -8165,6 +8165,8 @@
       "anotherHelp": "Starts again with a new code.",
       "turnedAway": "Another phone tried this code and was turned away.",
       "stayOpen": "Keep this screen open until it finishes.",
+      "file": "Install file for this version: {{file}}",
+      "fileHelp": "When everyone you came for is in, delete this file. You need internet to get it again.",
       "picturesLabel": "Two pictures. Compare them with the other phone.",
       "end": {
         "expired": "Nobody used the code in time. Make a new one.",

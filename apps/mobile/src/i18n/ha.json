@@ -8165,6 +8165,8 @@
       "anotherHelp": "Yana sake farawa da sabuwar lamba.",
       "turnedAway": "Wata waya ta gwada wannan lambar kuma an ƙi karɓar ta.",
       "stayOpen": "Ka bar wannan shafin a buɗe har sai ya gama.",
+      "file": "Fayil ɗin girkawa na wannan sigar: {{file}}",
+      "fileHelp": "Idan duk waɗanda ka zo don su sun shiga, goge wannan fayil ɗin. Kana buƙatar intanet don sake samun sa.",
       "picturesLabel": "Hotuna biyu. Ka kwatanta su da ɗayan wayar.",
       "end": {
         "expired": "Babu wanda ya yi amfani da lambar a kan lokaci. Ka yi sabuwa.",

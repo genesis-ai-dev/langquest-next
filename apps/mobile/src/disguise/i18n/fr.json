@@ -37,7 +37,8 @@
       "warnedHelp": "Passe au partage. Android peut demander une autorisation ensuite.",
       "left": "Partage arrêté parce que vous avez quitté l’application.",
       "run": "Partage arrêté après dix minutes.",
-      "level": "À jour. Partage arrêté."
+      "level": "À jour. Partage arrêté.",
+      "letInLook": "Le nouveau téléphone affichera LangQuest jusqu’à ce qu’on choisisse une autre apparence dans Autres réglages."
     }
   },
   "native": {

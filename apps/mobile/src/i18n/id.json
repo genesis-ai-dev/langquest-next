@@ -7820,6 +7820,8 @@
       "anotherHelp": "Mulai lagi dengan kode baru.",
       "turnedAway": "Ponsel lain mencoba kode ini dan ditolak.",
       "stayOpen": "Biarkan layar ini terbuka sampai selesai.",
+      "file": "File instalasi untuk versi ini: {{file}}",
+      "fileHelp": "Setelah semua orang yang Anda datangi sudah masuk, hapus file ini. Anda perlu internet untuk mendapatkannya lagi.",
       "picturesLabel": "Dua gambar. Bandingkan dengan ponsel yang lain.",
       "end": {
         "expired": "Tidak ada yang memakai kode tepat waktu. Buat kode baru.",

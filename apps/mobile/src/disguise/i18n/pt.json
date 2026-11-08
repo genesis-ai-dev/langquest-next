@@ -37,7 +37,8 @@
       "warnedHelp": "Segue para compartilhar. O Android pode pedir permissão em seguida.",
       "left": "O compartilhamento parou porque você saiu do app.",
       "run": "O compartilhamento parou depois de dez minutos.",
-      "level": "Atualizado. O compartilhamento parou."
+      "level": "Atualizado. O compartilhamento parou.",
+      "letInLook": "O celular novo vai mostrar LangQuest até escolherem outra aparência em Mais configurações."
     }
   },
   "native": {

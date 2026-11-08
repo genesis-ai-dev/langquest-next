@@ -1,6 +1,8 @@
+import { carriedApkNameHere } from '@langquest-next/core';
 import type { JoinPass } from '@langquest-next/core/nearby';
 import type { NearbySession } from '@langquest-next/sync/nearby';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import * as Updates from 'expo-updates';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { noteExpected } from '../diagnostics/report';
@@ -146,8 +148,10 @@ export function useLetIn(ctx: Ctx): LetInHandle {
     newCode: () => { stop(); dispatch({ t: 'new-code' }); }
   }), [show, stop]);
 
-  return useMemo(() => ({ whyNot, roles, state, code: codeShown(state.stage, now), secondsLeft: state.stage.t === 'showing' ? Math.max(0, Math.ceil((state.stage.until - now) / 1000)) : 0, actions }),
-    [whyNot, roles, state, now, actions]);
+  return useMemo(() => ({
+    whyNot, roles, state, code: codeShown(state.stage, now), secondsLeft: state.stage.t === 'showing' ? Math.max(0, Math.ceil((state.stage.until - now) / 1000)) : 0,
+    installFile: carriedApkNameHere(Updates.runtimeVersion), worn, actions
+  }), [whyNot, roles, state, now, worn, actions]);
 }
 
 /** Whether Share nearby offers Let someone in, or why not, from the pass and the flag alone; starts nothing. */

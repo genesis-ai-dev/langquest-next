@@ -37,7 +37,8 @@
       "warnedHelp": "Lanjut berbagi. Android mungkin meminta izin setelah ini.",
       "left": "Berbagi berhenti karena Anda keluar dari aplikasi.",
       "run": "Berbagi berhenti setelah sepuluh menit.",
-      "level": "Sudah terbaru. Berbagi berhenti."
+      "level": "Sudah terbaru. Berbagi berhenti.",
+      "letInLook": "Ponsel baru akan menampilkan LangQuest sampai pemiliknya memilih tampilan lain di Pengaturan lain."
     }
   },
   "native": {

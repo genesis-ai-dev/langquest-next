@@ -37,7 +37,8 @@
       "warnedHelp": "Inaendelea kushiriki. Android inaweza kuomba ruhusa baadaye.",
       "left": "Kushiriki kumesimama kwa sababu umetoka kwenye programu.",
       "run": "Kushiriki kumesimama baada ya dakika kumi.",
-      "level": "Imesasishwa. Kushiriki kumesimama."
+      "level": "Imesasishwa. Kushiriki kumesimama.",
+      "letInLook": "Simu mpya itaonyesha LangQuest hadi wachague mwonekano mwingine kwenye Mipangilio zaidi."
     }
   },
   "native": {

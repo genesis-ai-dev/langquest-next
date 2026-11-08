@@ -37,7 +37,8 @@
       "warnedHelp": "Goes on to share. Android may ask for permission next.",
       "left": "Sharing stopped because you left the app.",
       "run": "Sharing stopped after ten minutes.",
-      "level": "Up to date. Sharing stopped."
+      "level": "Up to date. Sharing stopped.",
+      "letInLook": "The new phone will show LangQuest until they choose another look under More settings."
     }
   },
   "native": {
