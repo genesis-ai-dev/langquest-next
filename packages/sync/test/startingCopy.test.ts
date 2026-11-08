@@ -211,6 +211,12 @@ describe.each([['memory', () => new MemoryStore() as EventStore], ['SQLite', sql
       const rowsBefore = server.rowsCalls;
       expect(await n.client.fillSome()).toMatchObject({ filled: 0, offline: true });
       expect(server.rowsCalls).toBe(rowsBefore);
+      // The server answers now, and a fill run before any sync still reads nothing from it: its rows would join a stand-in.
+      online.on = true;
+      expect(await n.client.fillSome()).toMatchObject({ filled: 0, offline: true });
+      expect(server.rowsCalls).toBe(rowsBefore);
+      expect(await n.client.holdsCopy()).toBe(true);
+      online.on = false;
       expect(await n.store.cursor('org1', 'p1')).toBe(0);
       // A drop part-way keeps what came and goes on.
       const sender = new StartingCopySender({ language: t.client }, 'p1');
