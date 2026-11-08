@@ -1,5 +1,6 @@
 import { base64urlDecode, base64urlEncode, discoveryKeyAt, type DiscoveryKey } from '@langquest-next/core/nearby';
 import type { NearbyPeerRecord } from './nearbyKeep';
+import { emptyRoomTally, nearbyCodeOf, roomDiagOf, sessionDiagOf, type NearbyDiagInput, type NearbyRoomTally } from './nearbyDiag';
 import type { FindTunables, NearbyCapabilities, NearbyCrypto, NearbyLink, NearbyRadio, SeenPhone } from './nearbyLink';
 import { channelKeysOf, findEchoOf, findPayload, findTagOf } from './nearbyOpening';
 import { choosePartner, type PartnerInRange } from './nearbyPartners';
@@ -104,6 +105,8 @@ export interface NearbyRoomOptions {
   find: FindTunables;
   tunables?: Partial<NearbyRoomTunables>;
   report(event: NearbyRoomEvent): void;
+  /** Field diagnostics: a record when the room stops and when one of this phone's sessions ends (nearbyDiag.ts). */
+  diag?: (input: NearbyDiagInput) => void;
 }
 
 interface Generation {
@@ -185,6 +188,11 @@ export class NearbyRoom {
   /** Releases the salt a responder's open pipe holds. */
   private saltRelease: (() => void) | null = null;
   private scanHeld = false;
+  /** What diagnostics count over one run: numbers, and the tags only to count them once. */
+  private tally: NearbyRoomTally = emptyRoomTally();
+  private readonly heardTags = new Set<string>();
+  private readonly echoedTags = new Set<string>();
+  private readonly began = new Map<NearbyRoomSession, number>();
 
   constructor(options: NearbyRoomOptions) {
     this.opt = options;
@@ -203,8 +211,12 @@ export class NearbyRoom {
     this.idleMs = 0;
     this.waitMs = 0;
     this.level = false;
+    this.tally = emptyRoomTally();
+    this.heardTags.clear();
+    this.echoedTags.clear();
     this.caps = await this.opt.radio.capabilities();
     if (!await this.gensFromKeys()) {
+      this.note(roomDiagOf(this.tally, 'no-key', 0, this.caps));
       this.opt.report({ t: 'stopped', why: 'no-key' });
       return;
     }
@@ -236,6 +248,7 @@ export class NearbyRoom {
   tap(tag: string): void {
     const h = this.heard.get(tag);
     if (h) h.tapped = true;
+    this.tally.taps += 1;
   }
 
   /** One turn of the loop, with the time. Refreshes the scan response whether or not anyone was heard, so no mask is reused. */
@@ -256,6 +269,7 @@ export class NearbyRoom {
       if (!this.running) return;
       if (choice === null) {
         if (!this.level) this.opt.report({ t: 'level' });
+        this.tally.levelMs ??= now - this.startedAt;
         this.level = true;
         if (this.opt.stopWhenLevel && this.everMet) return await this.halt('level');
         this.idleMs += passed;
@@ -349,12 +363,15 @@ export class NearbyRoom {
     const echoes = [this.salts.current, this.salts.previous].some((salt) => salt !== null && findEchoOf(this.opt.crypto, kFind, salt, seen.r) === seen.echo);
     if (echoes || this.scanOnly()) h.echoed = true;
     this.heard.set(seen.tag, h);
+    this.heardTags.add(seen.tag);
+    if (h.echoed) this.echoedTags.add(seen.tag);
     this.everMet = true;
     this.showTeammates();
   }
 
   private formSalt(salt: string, rssi?: number): void {
     this.formSalts = [...this.formSalts.filter((f) => f.salt !== salt), { salt, rssi: rssi ?? -100, at: this.now }];
+    this.tally.maxUnmatched = Math.max(this.tally.maxUnmatched, this.formSalts.length);
   }
 
   private scanOnly(): boolean {
@@ -394,7 +411,10 @@ export class NearbyRoom {
       const echoed = h.echoed || h.tapped;
       if (!echoed && this.now - h.firstAt >= this.tune.tapAfterMs) {
         // A recording waits here for a tap and holds off nothing.
-        if (!h.offered) this.opt.report({ t: 'maybe', tag });
+        if (!h.offered) {
+          this.opt.report({ t: 'maybe', tag });
+          this.tally.maybe += 1;
+        }
         h.offered = true;
         continue;
       }
@@ -449,7 +469,9 @@ export class NearbyRoom {
     let link: NearbyLink;
     try {
       link = await this.opt.radio.openPipe(seen.peer, seen.salt, seen.scan);
-    } catch {
+    } catch (err) {
+      this.tally.pipeFails += 1;
+      this.tally.code = nearbyCodeOf(err) ?? this.tally.code;
       this.connecting = false;
       await this.holdScan(false);
       this.backOff(tag);
@@ -465,6 +487,7 @@ export class NearbyRoom {
       radios: this.opt.radios(this.caps), otherWaiting: () => waiting
     });
     this.session = session;
+    this.began.set(session, this.now);
     this.opt.report({ t: 'session', tag, role: 'i' });
     void this.finish(session, tag, mine, seen.summary);
   }
@@ -504,10 +527,15 @@ export class NearbyRoom {
       }
     });
     this.strangers.add(session);
+    this.began.set(session, this.now);
     void session.run().then((report) => {
       this.strangers.delete(session);
       // A refusal has no session to settle, but a refused teammate is still not picked again.
       if (this.session === session || report.refusedTag) return this.settle(session, report.peer?.tag ?? report.refusedTag, mine, null, report);
+      this.began.delete(session);
+      // Silent to its peer, but not to diagnostics (5.12): an opening that never checked, or a teammate turned away while busy.
+      if (report.ended.how === 'silent') this.tally.strangers += 1;
+      else if (report.ended.how === 'said' && report.ended.reason === 'busy') this.tally.busy += 1;
     });
   }
 
@@ -525,6 +553,11 @@ export class NearbyRoom {
       if (this.running) await this.holdScan(false);
     }
     const { ended } = report;
+    this.tally.sessions += 1;
+    if (ended.how === 'done') this.tally.done += 1;
+    if (ended.how === 'no-answer') this.tally.noAnswer += 1;
+    this.note(sessionDiagOf(report, Math.max(0, this.now - (this.began.get(session) ?? this.now))));
+    this.began.delete(session);
     // Only a verified session that committed something restarts the clocks, never a connection.
     if (report.changed) {
       this.idleMs = 0;
@@ -583,6 +616,16 @@ export class NearbyRoom {
     this.saltRelease = null;
     this.scanHeld = false;
     await this.opt.radio.stopAll();
+    this.note(roomDiagOf({ ...this.tally, heard: this.heardTags.size, echoed: this.echoedTags.size }, why, Math.max(0, this.now - this.startedAt), this.caps));
     this.opt.report({ t: 'stopped', why });
+  }
+
+  /** Diagnostics never stop the room. */
+  private note(input: NearbyDiagInput): void {
+    try {
+      this.opt.diag?.(input);
+    } catch {
+      // Recording is best effort.
+    }
   }
 }

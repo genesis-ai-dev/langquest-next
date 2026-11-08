@@ -2,10 +2,11 @@ import type { OrgState } from '@langquest-next/core';
 import { summaryOf, summaryText, type ChainLink, type DiscoveryKey, type Holdings, type RevocationList } from '@langquest-next/core/nearby';
 import { ensureDeviceId, type SyncInspection } from '@langquest-next/sync';
 import {
-  nearbyKeepOf, NearbyRoom, NearbySession, type FindTunables, type NearbyCrypto, type NearbyGate, type NearbyGenerations, type NearbyRoomEvent,
+  nearbyKeepOf, NEARBY_DIAG_SCHEMA, NearbyRoom, NearbySession, type FindTunables, type NearbyDiagInput, type NearbyCrypto, type NearbyGate, type NearbyGenerations, type NearbyRoomEvent,
   type NearbyRoomFacts, type NearbySessionReport, type NearbySigner
 } from '@langquest-next/sync/nearby';
 import * as Crypto from 'expo-crypto';
+import { diagnostics } from '../diagnostics/diagnostics';
 import { keepFindKeys } from '../server/lock';
 import { readFindKeys } from '../server/nearbySecrets';
 import { getStore } from '../storage/store';
@@ -98,6 +99,16 @@ export interface NearbyRoomArgs {
   progress(report: Readonly<NearbySessionReport>): void;
 }
 
+/**
+ * Share nearby's field diagnostics for one language (packages/sync/src/nearbyDiag.ts): counts and
+ * codes, filed under the organization and language as other records are. The recorder takes the
+ * `nearby` kind only here, so no other build carries its schema.
+ */
+export function nearbyDiagFor(orgId: string, languageId: string): (input: NearbyDiagInput) => void {
+  diagnostics.allow(NEARBY_DIAG_SCHEMA);
+  return (input) => diagnostics.record('nearby', { orgId, streamId: languageId, ...input });
+}
+
 const time = { now: () => Date.now(), sleep: (ms: number) => new Promise<void>((resolve) => { setTimeout(resolve, ms); }) };
 
 /** The room's facts from the language's store, as a session works them out: the summary after signing, and holdings for what each side lacks. */
@@ -140,6 +151,7 @@ export function nearbyRoomOf(a: NearbyRoomArgs): NearbyRoom {
     radios: (caps) => radiosFor(caps, worn),
     find: NEARBY_FIND,
     report: a.report,
+    diag: nearbyDiagFor(orgId, languageId),
     openSession: (args) => {
       const generations: NearbyGenerations = {
         sessionGen: args.gen,

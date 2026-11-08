@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { DIAG_CONTEXT, DIAG_SCHEMA } from '@langquest-next/sync';
+import { NEARBY_DIAG_SCHEMA } from '@langquest-next/sync/nearby';
 
 /**
  * What we told Google Play (docs/play-store-declarations.md, decisions.md 49)
@@ -66,7 +67,8 @@ function actual(): Facts {
     const options = Object.fromEntries(Object.entries(p[1] ?? {}).sort(([a], [b]) => a.localeCompare(b)));
     return `${p[0]} ${JSON.stringify(options)}`;
   });
-  const kinds = Object.fromEntries(Object.entries(DIAG_SCHEMA).map(([kind, s]) =>
+  // Android's `nearby` kind sits in the nearby entry, and phones send it as they send the rest.
+  const kinds = Object.fromEntries(Object.entries({ ...DIAG_SCHEMA, ...NEARBY_DIAG_SCHEMA }).map(([kind, s]) =>
     [kind, sorted([...s.n, ...Object.keys(s.t)])]));
   const modules = moduleManifests();
   return {

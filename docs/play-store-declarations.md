@@ -308,6 +308,15 @@ Console answers this changes are listed for the developer with the phase (permis
 declarations, the location prompt below Android 13, encryption in transit, the export answer);
 the module does nothing until the screen that uses it ships.
 
+Share nearby's diagnostics (`docs/diagnostics.md`, the `nearby` kind in the facts block):
+on Android, a record when a room stops, when a session ends, when Find fails and when the
+screen cannot run, with counts, durations and the nearby module's fixed codes. They name no
+teammate's phone (no tag, salt, key, install key, profile or device id), say nothing of a
+disguise, carry no content, and go only to our own database with the person's other
+diagnostics, under the same Settings switch and 90 days. That is more of "App info and
+performance → Diagnostics", already declared collected, optional, not shared, for app
+functionality and analytics, so no Play Console answer changes.
+
 Not used, on purpose: Google Play's In-App Updates library (Play Core). It
 would tell an Android phone itself when a newer version is live, but Google's own
 data safety section for it (developer.android.com/guide/playcore/in-app-updates,
@@ -387,6 +396,7 @@ this block.
       "error": ["code", "errorId", "fatal", "name", "where"],
       "expected": ["code", "count", "name", "where"],
       "fill": ["event", "headKb", "ms", "msToMap", "passages", "reason", "rows", "why"],
+      "nearby": ["adv", "busy", "bye", "clockOff", "code", "cutBackups", "direct", "done", "echoed", "end", "error", "event", "events", "fallbacks", "farAhead", "fileFails", "files", "heard", "hotspot", "keyRefused", "levelMs", "link", "maxUnmatched", "maybe", "ms", "newerApp", "noAnswer", "noRoom", "older", "overBudget", "pipeFails", "refused", "role", "sent", "served", "sessions", "stop", "strangers", "taps", "why"],
       "load": ["checkpoint", "events", "foldMs", "fromSnapshot", "ms", "readMs", "reason", "staleCheckpointSeq"],
       "open": ["cold", "loadMs", "ms", "pulled", "snapshotMs", "syncs"],
       "snapshot": ["bytes", "chunks", "ms", "outcome", "resumedChunks", "seq", "why"],

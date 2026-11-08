@@ -4,6 +4,7 @@
  * not carry it.
  */
 export * from './nearbyClient';
+export * from './nearbyDiag';
 export * from './nearbyFiles';
 export * from './nearbyIntake';
 export * from './nearbyKeep';

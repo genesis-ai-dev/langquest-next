@@ -12,12 +12,13 @@ import { currentHoldChoice } from './holdChoice.android';
 import { pressHoldChoice } from './nearbyIdentity.android';
 import { nearbyRadio } from './nearbyLink.android';
 import { carryFactsOf, type StoredCarryFacts } from './nearbyCarry.android';
+import { nearbyBlockedOf } from './nearbyDiagModel';
 import { holdByDefault, radiosMayRun } from './nearbyModel';
 import { androidSdk, askingForNearby, askNearbyPermissions, checkNearbyPermissions, openNearbySettings } from './nearbyPermissions.android';
 import {
   afterPrompt, permissionsStateOf, permissionStepOf, radiosOffOf, unavailableReasonOf, type PermissionAnswers
 } from './nearbyPermissionsModel';
-import { nearbyNamesOf, nearbyOfferedFor, nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.android';
+import { nearbyDiagFor, nearbyNamesOf, nearbyOfferedFor, nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.android';
 import {
   NEARBY_PROGRESS_MS, NEARBY_RUN_START, NEARBY_TICK_MS, nearbyRunReducer, nearbyViewOf, type NearbyHandle, type NearbyWhyNot
 } from './nearbyRunModel';
@@ -105,7 +106,11 @@ export function useNearby(ctx: Ctx): NearbyHandle {
   // A lock clears the press, and a code typed afterwards does not set it again (Carl's answer 15).
   useEffect(() => { if (covered) dispatch({ t: 'covered', worn }); }, [covered, worn]);
 
-  useEffect(() => radio?.onFindError((code) => dispatch({ t: 'find-error', code })), [radio]);
+  const diag = useMemo(() => nearbyDiagFor(orgId, languageId), [orgId, languageId]);
+  useEffect(() => radio?.onFindError((code) => {
+    dispatch({ t: 'find-error', code });
+    diag({ t: { event: 'find', code } });
+  }), [radio, diag]);
 
   const whyNot: NearbyWhyNot | null = readOnly ? 'read-only'
     : unavailableReasonOf(facts, radio !== null, sdk) ?? (facts === null || offered === null ? 'loading' : offered ? null : 'no-certificate');
@@ -116,6 +121,10 @@ export function useNearby(ctx: Ctx): NearbyHandle {
     [sdk, answers, worn, run.warned, run.warnedOnce]
   );
   const permissions = useMemo(() => ({ state, step }), [state, step]);
+
+  // Diagnostics hear once per reason while the screen is open why it cannot run, never who.
+  const blocked = nearbyBlockedOf(whyNot, radiosOff, state);
+  useEffect(() => { if (blocked) diag({ t: { event: 'blocked', why: blocked } }); }, [blocked, diag]);
 
   const mayRun = radiosMayRun({ focused, onScreen, covered, worn, pressed: run.pressed, stopped: run.stopped !== null })
     && whyNot === null && radiosOff.length === 0 && step.t === 'ready' && org.state !== null && language.state !== null;

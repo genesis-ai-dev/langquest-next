@@ -3,6 +3,7 @@ import {
   base64urlEncode, checkChain, handedKeyHolds, holdingsFilesHash, holdingsText, isBase64url, mergeHoldings, NEARBY_BUDGET, NEARBY_HOLDINGS_MAX_FILES, NEARBY_OPENING_BYTES, nearbyBytes, parseRevocationList, proofText, signedBy, summaryOf, summaryText, withMyHolding, type ChainLink, type ChainVerdict, type DiscoveryKey, type HoldingEntry, type Holdings, type RevocationList, type WantedFile
 } from '@langquest-next/core/nearby';
 import { chainAsSigned, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbySigned, type NearbySigner } from './nearbyIntake';
+import { nearbyCodeOf, type NearbyDiagCode } from './nearbyDiag';
 import type { NearbyKeep } from './nearbyKeep';
 import type { HostDetails, HostOptions, NearbyCrypto, NearbyLink, NearbyRadio } from './nearbyLink';
 import { checkOpeningI, checkOpeningR, findTagOf, makeOpeningI, makeOpeningR, openingKeyOf, sessionKeysOf, type NearbySessionKeys } from './nearbyOpening';
@@ -188,6 +189,10 @@ export interface NearbySessionReport {
   clockOff: boolean;
   /** The link that moved the work. */
   linkKind: NearbyLink['kind'] | null;
+  /** Attempts in the plan moved past before the link that held, or before it ended (`arrangePlan`). */
+  fallbacks: number;
+  /** The nearby module's code on the error it ended on, for diagnostics; null for any other end. */
+  code: NearbyDiagCode | null;
   signed: NearbySigned | null;
   got: { pages: number; events: number; refused: number; droppedPages: number; overBudget: number; counted: number };
   sent: { batches: number; claims: number; events: number; skipped: number };
@@ -208,7 +213,7 @@ export interface NearbySessionReport {
 }
 
 const emptyReport = (role: NearbyRole): NearbySessionReport => ({
-  role, ended: { how: 'dropped' }, peer: null, refusedTag: null, newerAppNeeded: false, clockOff: false, linkKind: null, signed: null,
+  role, ended: { how: 'dropped' }, peer: null, refusedTag: null, newerAppNeeded: false, clockOff: false, linkKind: null, fallbacks: 0, code: null, signed: null,
   got: { pages: 0, events: 0, refused: 0, droppedPages: 0, overBudget: 0, counted: 0 },
   sent: { batches: 0, claims: 0, events: 0, skipped: 0 },
   files: { got: 0, served: 0, answeredNo: 0, toldNo: 0, failed: 0, noRoom: false, cutBackups: false },
@@ -357,6 +362,7 @@ export class NearbySession {
   }
 
   private async settle(err: unknown): Promise<void> {
+    this.report.code = nearbyCodeOf(err) ?? null;
     if (err instanceof HeardBye) {
       this.report.ended = { how: 'heard', reason: err.reason };
     } else if (err instanceof SayBye) {
@@ -828,6 +834,7 @@ export class NearbySession {
       }
     } finally {
       finished = true;
+      this.report.fallbacks = at;
       // The group whose link won stays until that link ends; every other one goes now.
       for (const [j, g] of groups) if (j !== won) await g.takeDown().catch(() => undefined);
     }
