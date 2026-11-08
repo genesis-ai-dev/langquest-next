@@ -116,7 +116,7 @@ do $$ declare v text; begin
   select string_agg(p.proname, ', ' order by p.proname) into v from pg_proc p
    where p.pronamespace = 'public'::regnamespace and p.proname = any (array[
      '_manage_privileges', '_org_joins_on', '_newcomer_profile_id', '_pass_body_error', 'pass_refusal', '_redeem_invite_row',
-     'redeem_pass_for', 'nearby_join_state', 'nearby_join_finish', 'redeem_invite_for'])
+     'redeem_pass_for', 'nearby_join_state', 'nearby_join_finish', 'redeem_invite_for', 'take_sign_in_code_for'])
      and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute')
           or has_function_privilege('public', p.oid, 'execute') or not has_function_privilege('service_role', p.oid, 'execute'));
   if v is not null then raise exception 'joining functions not the service role''s alone: %', v; end if;
@@ -136,6 +136,8 @@ do $$ begin
   begin perform public.nearby_join_state('x', 'y', 'z', '{}', 'translator'); raise exception 'a member asked an account''s state';
   exception when insufficient_privilege then null; end;
   begin perform public.nearby_join_finish('x', 'y', 'z', 'd', 'n', '{}', 'translator'); raise exception 'a member finished a join';
+  exception when insufficient_privilege then null; end;
+  begin perform public.take_sign_in_code_for(repeat('a', 64), '5f000000-0000-0000-0000-00000000000b'); raise exception 'a member took a code';
   exception when insufficient_privilege then null; end;
 end $$;
 reset role;
@@ -410,6 +412,30 @@ do $$ declare p jsonb := pg_temp.pass(pg_temp.u('0b'), pg_temp.k(101), array['tr
   if not exists (select 1 from public.install_keys k where k.profile_id = pg_temp.nid(14)::uuid and k.revoked_at is not null) then
     raise exception 'a retry un-revoked a key';
   end if;
+end $$;
+
+-- 9b. A local person's phone names its id with a helper's code: a code made
+-- for someone else is refused and stays unspent, with that person's key
+-- sign-in still open; their own is taken as take_sign_in_code_v2 takes it.
+do $$ declare p jsonb := pg_temp.pass(pg_temp.u('0b'), pg_temp.k(101), array['translator']); r record; begin
+  perform pg_temp.join(40, p, 'translator');
+  perform pg_temp.join(41, p, 'translator');
+  insert into public.sign_in_codes (code_hash, profile_id, issued_by, expires_at) values
+    (repeat('a', 64), pg_temp.nid(40)::uuid, pg_temp.u('0b')::uuid, now() + interval '1 hour');
+  begin
+    perform * from public.take_sign_in_code_for(repeat('a', 64), pg_temp.nid(41)::uuid);
+    raise exception 'a code made for someone else was taken';
+  exception when sqlstate '28000' then null;
+  end;
+  if exists (select 1 from public.sign_in_codes c where c.code_hash = repeat('a', 64) and c.used_at is not null) then raise exception 'a refused code was spent'; end if;
+  if not (pg_temp.finish(40, p, 'translator')->>'signIn')::boolean then raise exception 'a refused code closed its person''s key sign-in'; end if;
+  begin perform * from public.take_sign_in_code_for(repeat('a', 64), null); raise exception 'a code taken for nobody named';
+  exception when sqlstate '22023' then null; end;
+  if (select count(*) from public.take_sign_in_code_for(repeat('b', 64), pg_temp.nid(40)::uuid)) <> 0 then raise exception 'a code that does not exist'; end if;
+  select * into r from public.take_sign_in_code_for(repeat('a', 64), pg_temp.nid(40)::uuid);
+  if r.profile_id is distinct from pg_temp.nid(40)::uuid or r.lost then raise exception 'their own code: %', r; end if;
+  if (pg_temp.finish(40, p, 'translator')->>'signIn')::boolean then raise exception 'their own code left key sign-in open'; end if;
+  if (select count(*) from public.take_sign_in_code_for(repeat('a', 64), pg_temp.nid(40)::uuid)) <> 0 then raise exception 'a code taken twice'; end if;
 end $$;
 
 -- 10. Someone a pass no longer takes is let in with an ordinary invite for

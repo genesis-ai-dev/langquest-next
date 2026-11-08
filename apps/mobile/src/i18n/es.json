@@ -3121,6 +3121,7 @@
       "notValid": "Este código no es válido.",
       "expiredOrUsed": "Este código venció o ya se usó. Pide uno nuevo.",
       "codeBusy": "No se pudo usar este código. Inténtalo de nuevo.",
+      "forSomeoneElse": "Este código se hizo para otra persona. Pide uno hecho para ti.",
       "scanElseHelp": "Deja este código y vuelve a abrir el escáner.",
       "signOutHelp": "Abre cerrar sesión, para que la persona de este código pueda entrar en este dispositivo.",
       "buttonHelp": "Inicia tu sesión en este dispositivo con este código. No hay nada que escribir.",

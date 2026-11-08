@@ -43,7 +43,8 @@ export const SESSION_KEY = sessionStorageKey(supabaseUrl);
  * The phone's own client also sends nothing as no one while a local person
  * holds the phone (docs/nearby-sync-plan.md 14.1, 5 "Requests"): they have
  * no session until first contact, and a request as no one would be refused,
- * not offline, which would mark their work as refused.
+ * not offline, which would mark their work as refused. A helper's code made
+ * for them is the one exception (sessionSafeFetch.ts).
  */
 function clientAt(storageKey: string, autoRefreshToken: boolean, main = false) {
   const watch: RenewalWatch = { failedAt: null };
@@ -54,7 +55,8 @@ function clientAt(storageKey: string, autoRefreshToken: boolean, main = false) {
     realtime: { heartbeatIntervalMs: 15_000 },
     global: {
       fetch: sessionSafeFetch({
-        anonKey: supabaseAnonKey, watch, hasSavedSession: async () => (main && localPersonHolds()) || (await secureStorage.getItem(storageKey)) !== null
+        anonKey: supabaseAnonKey, watch, hasSavedSession: async () => (await secureStorage.getItem(storageKey)) !== null,
+        ...(main ? { localPersonHolds } : {})
       })
     }
   });

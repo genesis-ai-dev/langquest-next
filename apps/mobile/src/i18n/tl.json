@@ -3023,6 +3023,7 @@
       "notValid": "Hindi wasto ang code na ito.",
       "expiredOrUsed": "Nag-expire na o nagamit na ang code na ito. Humingi ng bago.",
       "codeBusy": "Hindi magamit ang code na ito. Pakisubukang muli.",
+      "forSomeoneElse": "Ginawa ang code na ito para sa ibang tao. Humingi ng code na ginawa para sa iyo.",
       "scanElseHelp": "Iniiwan ang code na ito at binubuksang muli ang scanner.",
       "signOutHelp": "Binubuksan ang pag-sign out, para makapag-sign in sa device na ito ang taong pinag-uukulan ng code.",
       "buttonHelp": "Isina-sign in ka sa device na ito gamit ang code na ito. Walang ita-type.",

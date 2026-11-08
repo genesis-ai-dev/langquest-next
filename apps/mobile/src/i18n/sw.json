@@ -3023,6 +3023,7 @@
       "notValid": "Msimbo huu si sahihi.",
       "expiredOrUsed": "Msimbo huu umeisha muda au tayari umetumika. Omba mpya.",
       "codeBusy": "Imeshindwa kutumia msimbo huu. Tafadhali jaribu tena.",
+      "forSomeoneElse": "Msimbo huu ulitengenezwa kwa ajili ya mtu mwingine. Omba msimbo uliotengenezwa kwa ajili yako.",
       "scanElseHelp": "Huacha msimbo huu na kufungua kisoma msimbo tena.",
       "signOutHelp": "Hufungua kutoka, ili mtu wa msimbo huu aweze kuingia kwenye kifaa hiki.",
       "buttonHelp": "Hukuingiza kwenye kifaa hiki kwa msimbo huu. Hakuna cha kuandika.",

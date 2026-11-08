@@ -89,7 +89,7 @@ describe('the streams\' transport until first contact', () => {
 });
 
 describe('the phone\'s Supabase client', () => {
-  it('sends no request as no one while a local person holds the phone, and leaves a hand-over\'s client alone', async () => {
+  it('sends no request as no one while a local person holds the phone but a helper\'s code, and leaves a hand-over\'s client alone', async () => {
     vi.stubEnv('EXPO_PUBLIC_SUPABASE_URL', 'https://db.example');
     vi.stubEnv('EXPO_PUBLIC_SUPABASE_ANON_KEY', 'anon');
     vi.stubGlobal('__DEV__', true);
@@ -104,7 +104,12 @@ describe('the phone\'s Supabase client', () => {
     fake.holds = true;
     await expect(main!.fetch('https://db.example/rest/v1/rpc/pull_events', asNoOne)).rejects.toThrow(/Network request failed/);
     await expect(main!.fetch('https://db.example/functions/v1/join', asNoOne)).rejects.toThrow(/Network request failed/);
+    await expect(main!.fetch('https://db.example/storage/v1/object/x', asNoOne)).rejects.toThrow(/Network request failed/);
     expect(sent).toEqual([]);
+    // A helper's code made for them is how a local person whose key no longer signs in gets a session (14.1, 6): it goes as no one.
+    await main!.fetch('https://db.example/functions/v1/sign-in-code', { ...asNoOne, method: 'POST' });
+    expect(sent).toEqual(['https://db.example/functions/v1/sign-in-code']);
+    sent.length = 0;
     // Supabase Auth's own calls still go, so the server's health can be asked.
     await main!.fetch('https://db.example/auth/v1/health', asNoOne);
     // Another person's kept session is its own storage's to answer for.

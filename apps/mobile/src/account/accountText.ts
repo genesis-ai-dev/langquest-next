@@ -183,6 +183,7 @@ export function signInCodeErrorText(message: string): string {
     case 'This code is not valid.': return t('entry.signInKey.notValid');
     case 'This code has expired or was already used. Ask for a new one.': return t('entry.signInKey.expiredOrUsed');
     case 'Unable to use this code. Please retry.': return t('entry.signInKey.codeBusy');
+    case 'This code was made for someone else.': return t('entry.signInKey.forSomeoneElse');
     case 'Unable to sign in right now. Please retry.': return t('entry.invite.signInBusy');
     default: return t('entry.signInKey.failed');
   }

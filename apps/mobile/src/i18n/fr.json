@@ -3121,6 +3121,7 @@
       "notValid": "Ce code n’est pas valide.",
       "expiredOrUsed": "Ce code a expiré ou a déjà été utilisé. Demandez-en un nouveau.",
       "codeBusy": "Impossible d’utiliser ce code. Veuillez réessayer.",
+      "forSomeoneElse": "Ce code a été fait pour quelqu’un d’autre. Demandez-en un fait pour vous.",
       "scanElseHelp": "Laisse ce code et rouvre le scanner.",
       "signOutHelp": "Ouvre la déconnexion, pour que la personne à qui ce code est destiné puisse se connecter sur cet appareil.",
       "buttonHelp": "Vous connecte sur cet appareil avec ce code. Rien à taper.",

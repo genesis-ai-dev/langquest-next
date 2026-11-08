@@ -2925,6 +2925,7 @@
       "notValid": "Kode ini tidak berlaku.",
       "expiredOrUsed": "Kode ini sudah kedaluwarsa atau sudah dipakai. Minta yang baru.",
       "codeBusy": "Kode ini tidak dapat dipakai. Silakan coba lagi.",
+      "forSomeoneElse": "Kode ini dibuat untuk orang lain. Minta kode yang dibuat untuk Anda.",
       "scanElseHelp": "Meninggalkan kode ini dan membuka pemindai lagi.",
       "signOutHelp": "Membuka keluar akun, agar orang pemilik kode ini bisa masuk di perangkat ini.",
       "buttonHelp": "Memasukkan Anda di perangkat ini dengan kode ini. Tidak perlu mengetik.",

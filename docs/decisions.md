@@ -12181,6 +12181,17 @@ no more power than a first try. Amends 75.
 Reverse if: a key is taken between the join and the first certificate
 often enough that a shorter window is worth retries failing.
 
+Amended (2026-11-08, Carl Sauder): a local person whose key no longer signs
+in (`needsCode`) redeems a helper's code made for them, so the phone's
+client lets `sign-in-code` go as no one while a local person holds it,
+which every other request does not, and sends their id with the code. The
+function then calls `take_sign_in_code_for`, which refuses a live code made
+for anyone else before taking it (403, "made for someone else"), because the
+phone takes only a session for its own id: taken first, the code would be
+spent and that person's key sign-in closed for nothing. A build that sends
+no id is answered by `take_sign_in_code_v2` as before. Migration
+`20261108030000_sign_in_code_for.sql`.
+
 ## 239. A deleted account's bare id is kept, so no chain can bring it back
 
 Date: 2026-11-08 · By: Carl Sauder · Status: accepted

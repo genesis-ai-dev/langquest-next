@@ -3023,6 +3023,7 @@
       "notValid": "This code is not valid.",
       "expiredOrUsed": "This code has expired or was already used. Ask for a new one.",
       "codeBusy": "Unable to use this code. Please retry.",
+      "forSomeoneElse": "This code was made for someone else. Ask for a code made for you.",
       "scanElseHelp": "Leaves this code and opens the scanner again.",
       "signOutHelp": "Opens sign out, so the person this code is for can sign in on this device.",
       "buttonHelp": "Signs you in on this device with this code. Nothing to type.",

@@ -113,11 +113,17 @@ export async function createAccountWithEmail(email: string, password: string, ho
   }
 }
 
-/** Sign in with a code a teammate made on a phone that is signed in (the function's reply is English: said in the language showing). */
+/**
+ * Sign in with a code a teammate made on a phone that is signed in (the function's reply is
+ * English: said in the language showing). Someone let in offline names their id, so a code made
+ * for anyone else is refused before the server takes it: this phone would refuse that session
+ * (server/auth.ts), and the code would be spent for nothing.
+ */
 export async function signInWithKey(code: string, host: AuthHost): Promise<AuthResult> {
   const started = Date.now();
   try {
-    const help = await redeemSignInCode(code);
+    const local = await localPersonHere();
+    const help = await redeemSignInCode(code, local?.profileId);
     const { data, error } = await setSession(help.session);
     if (error) {
       noteExpected('sign in with code', error);
