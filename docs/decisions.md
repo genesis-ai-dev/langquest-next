@@ -12160,6 +12160,17 @@ amended).
 Reverse if: local persons strand work in the field often enough that a
 shared phone or a second person per install is worth what it costs.
 
+Amended (2026-11-08, Carl Sauder): "Remove me from this phone" is built,
+under More settings for a local person in place of Sign out and Delete
+account (plan 14.1, 5 "Me"), so a lasting refusal at first contact (taken,
+deleted, chain, proof, a lost key) no longer leaves the phone theirs for
+good. It asks first, naming what has not been sent from this phone, then
+removes their discovery keys, `nearbyPeers:`, every chain and pass (each
+named the install key), the install key, and last the record, so a removal
+cut short can be done again; with no record the app is back at Sign In.
+Their unsent events stay in the log, and push sends only the signed-in
+person's own, so nothing ever goes as them.
+
 ## 238. Proof of a key signs a chain's account in until the key's first session
 
 Date: 2026-11-08 · By: Carl Sauder · Status: accepted

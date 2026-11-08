@@ -47,3 +47,9 @@ export async function replaceInstallKey(): Promise<InstallKey | null> {
   making = makeKey().finally(() => { making = null; });
   return making;
 }
+
+/** Remove this install's key (Remove me from this phone, docs/nearby-sync-plan.md 14.1, 5): whoever needs one next makes a new one. */
+export async function forgetInstallKey(): Promise<void> {
+  if (making) await making.catch(() => null);
+  await secureStorage.removeItem(INSTALL_KEY);
+}

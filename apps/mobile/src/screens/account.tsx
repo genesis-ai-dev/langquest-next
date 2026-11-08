@@ -43,6 +43,7 @@ import { txt } from '../ui/textStyles';
 import { storeUrl } from '../appVersion/appVersionModel';
 import { belowMinimum } from '../appVersion/syncGate';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
+import { RemoveMeRow } from '../shell/RemoveMeRow';
 import { useLayout, useOpenDetail } from '../ui/useLayout';
 import { tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications/notifications';
 import { notificationTarget, openAfterSwitch } from '../notifications/notificationTarget';
@@ -560,7 +561,8 @@ export function SettingsMore(ctx: Ctx) {
       {/* A lost or taken phone (decisions.md 200): the link's New password has the choice that revokes its nearby keys. */}
       {lostPhoneRowShown(s) && s.email ? <Group><LostPhoneRow ctx={ctx} email={s.email} /></Group> : null}
       {/* Store rules, decisions.md 46: the store answers and the App Review notes say Settings → Delete account; it is here, under Me › More settings. */}
-      {s.isLocal ? null : (
+      {/* Someone let in offline has no account to delete yet: Remove me from this phone takes its place, and Sign out's (14.1, 5 "Me"). */}
+      {s.isLocal ? <RemoveMeRow ctx={ctx} name={name} /> : (
         <Group>
           <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('account.more.deleteAccount')} sub={t('account.more.deleteSub')}
             onPress={() => ctx.go('delete_account')} last />

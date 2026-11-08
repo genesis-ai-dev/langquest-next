@@ -3211,7 +3211,8 @@ it does today (decision 54).
      (`durableOutbox.ts`), which already gives a retryable error with no session.
    - **Me.** No Sign out, no notification switch, no Switch or new organization. "Remove
      me from this phone" under More settings, with a warning about unsent work, takes the
-     place of Sign out and Delete account, and deletes the install key. `useHeldInvite`,
+     place of Sign out and Delete account, and deletes the install key, with the chains,
+     passes, discovery keys and `nearbyPeers:` rows it leaves behind, the record last. `useHeldInvite`,
      `useOnboarding`, `useInbox` and `useIncoming` take `serverSession`. App icon stays under
      More settings, so a newcomer can choose another look.
 6. **First time online.** `useFirstContact`, above the organization, calls `POST

@@ -402,9 +402,11 @@ member taps once after both compare two pictures.
 - **Account deletion.** Deleting an account now also keeps its bare random id
   (`deleted_profile_ids`), so no copy of a newcomer's invitation can bring the account back; the
   id names nobody once the account is gone, and nothing else is kept. Someone with no account yet
-  has nothing on our server to delete: their data is only on phones. The plan's "Remove me from
-  this phone" for them is not built on this branch, so for now uninstalling the app or clearing
-  its storage erases it.
+  has nothing on our server to delete: their data is only on phones. "Remove me from this
+  phone", under More settings in place of Sign out and Delete account, erases them from it: the
+  person, the install key, the chains and passes it signed, their discovery keys and who was
+  nearby. Work they made stays in the phone's copy of the team's work, as anyone's does, and is
+  never sent from it as them. Uninstalling the app or clearing its storage erases everything.
 - **Distribution.** The app is also offered as an APK file at
   `https://next.langquest.org/apk/<name>`, the Play-signed universal APK of a carried build,
   which Play Console offers for each build and Google says may be distributed elsewhere, under a

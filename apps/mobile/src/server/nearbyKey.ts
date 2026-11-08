@@ -24,3 +24,6 @@ export async function ensureInstallKey(): Promise<InstallKey | null> {
 export async function replaceInstallKey(): Promise<InstallKey | null> {
   return null;
 }
+
+/** Remove this install's key; here there is none. */
+export async function forgetInstallKey(): Promise<void> {}
