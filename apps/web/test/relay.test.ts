@@ -148,6 +148,26 @@ describe('POST /api/relay', () => {
     ]);
   });
 
+  it('refuses, one by one, a signed event under another author, another device or another stream, and sends the rest', async () => {
+    // Why: the signature proves only what the key holder signed. A copied key can sign anyone's
+    // events, so each must be the manifest's author and device, in the stream the request names.
+    const good = note(sam);
+    const asAna = note(sam, { actorId: 'ana' });
+    const otherDevice = note(sam, { deviceId: 'd-other' });
+    const otherStream = note(sam, { streamId: 'L2' });
+    const batch = await batchOf(sam, 1, [asAna, otherDevice, otherStream, good]);
+    const { deps, w } = setup();
+    const out = await (await handleRelay(post(relayBody([batch])), deps)).json() as Answer;
+    expect(out.batches[0]!.refused).toBeUndefined();
+    expect(w.calls).toEqual([{ author: 'sam', key: sam.key, ids: [good.id], clientVersion: 7 }]);
+    expect(out.batches[0]!.verdicts).toEqual([
+      { id: asAna.id, accepted: false, serverSeq: null, reason: 'actorId does not match caller' },
+      { id: otherDevice.id, accepted: false, serverSeq: null, reason: 'actorId does not match caller' },
+      { id: otherStream.id, accepted: false, serverSeq: null, reason: 'malformed envelope: another stream' },
+      { id: good.id, accepted: true, serverSeq: 100, reason: null }
+    ]);
+  });
+
   it('makes one call per author and key, at most 500 events each, so a request mixing authors gets partial success', async () => {
     const batches = [];
     for (let n = 1; n <= 3; n++) batches.push(await batchOf(sam, n, Array.from({ length: 200 }, () => note(sam))));
