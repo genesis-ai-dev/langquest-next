@@ -212,7 +212,7 @@ export const nearbyBudgetOf = (actorId: string, via: NearbyVia | undefined, pass
 /** A two-link chain's pass id, as written, checked by nothing here: which budget a newcomer's batches spend. */
 export function passIdOfChain(chain: unknown): string | null {
   const id = Array.isArray(chain) && chain.length === 2 ? (chain[1] as { body?: { pass?: { body?: { passId?: unknown } } } } | null)?.body?.pass?.body?.passId : null;
-  return typeof id === 'string' && id !== '' ? id : null;
+  return typeof id === 'string' ? id : null;
 }
 
 export interface AppendResult {
