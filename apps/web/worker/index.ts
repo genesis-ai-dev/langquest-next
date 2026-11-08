@@ -240,6 +240,11 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
       return typeof data === 'string' ? data : null;
     });
   }
+  // A carried build's APK, for a carrier's browser (apk.ts, docs/nearby-sync-plan.md 14.4); anything else under /apk/ is 404.
+  if (url.pathname.startsWith('/apk/')) {
+    const { serveApk } = await import('./apk');
+    return serveApk(request, env.APKS);
+  }
   if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
   // The database says an organization's log moved (decisions.md 101); its object looks a few seconds later.
   if (url.pathname === '/api/internal/poke' && request.method === 'POST') {

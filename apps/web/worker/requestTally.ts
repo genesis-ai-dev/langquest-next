@@ -34,7 +34,7 @@ export function routeClass(method: string, path: string): RouteClass | null {
   if (path === '/api/v1' || path.startsWith('/api/v1/')) return 'agent_api';
   if (path === '/api/internal/poke') return 'webhook';
   if (path.startsWith('/api/nearby/') || path === '/api/relay') return 'nearby';
-  if (path.startsWith('/api/') || path === '/connect' || path.startsWith('/r/') || path.startsWith('/v/') || path === '/videos') return 'other';
+  if (path.startsWith('/api/') || path === '/connect' || path.startsWith('/r/') || path.startsWith('/v/') || path.startsWith('/apk/') || path === '/videos') return 'other';
   return null;
 }
 
