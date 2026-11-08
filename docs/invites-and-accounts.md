@@ -270,6 +270,11 @@ stopped meanwhile, the work stays on the phone, and anyone with Invite
 there can let the same id in with an ordinary invite, scanned on Me or
 Sync. If a teammate's phone reaches the server first carrying the
 newcomer's work, the relay makes the same account while the pass allows.
+The app itself comes to the new phone as a carried build: an APK the
+carrier downloaded while online from `https://next.langquest.org/apk/<name>`
+and passes on by Quick Share, SD card or USB, named by versions alone, which
+Let someone in names so the carrier can compare (docs/nearby-sync-plan.md
+14.4, decisions.md 240). The app never downloads or installs it.
 
 **H. Adding your own email (looked-after → own).** Section 8: Settings →
 Add your email → a sign-in key sent there proves it → the address changes
