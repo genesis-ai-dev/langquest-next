@@ -353,7 +353,9 @@
     "global_viewer": "Mai Kallo na Duniya",
     "forgot_password": "Kalmar Sirri da Aka Manta",
     "new_password": "Sabuwar Kalmar Sirri",
-    "share_nearby": "Raba da na kusa"
+    "share_nearby": "Raba da na kusa",
+    "let_someone_in": "Shigar da wani",
+    "join_offline": "Shiga ba tare da intanet ba"
   },
   "native": {
     "microphone": "LangQuest yana naɗar muryarku don fassara nassosi.",
@@ -2870,7 +2872,11 @@
       "createAccountHelp": "Yana buɗe fom don imel ɗinku da sabuwar kalmar sirri.",
       "browseHelp": "Ku ga ayyukan fassara da ƙungiyoyi suke rabawa a fili. Ba a buƙatar asusu.",
       "forgot": "Kun manta kalmar sirri?",
-      "forgotHelp": "Yana buɗe shafin da za ku sami mahaɗi ta imel don zaɓar sabuwar kalmar sirri."
+      "forgotHelp": "Yana buɗe shafin da za ku sami mahaɗi ta imel don zaɓar sabuwar kalmar sirri.",
+      "localHere": "Wani ya shiga tawagar a wannan wayar ba tare da intanet ba. Babu wani da zai iya shiga a nan har sai wayarsa ta sami intanet sau ɗaya.",
+      "joiningTitle": "{{name}} yana shiga a wannan wayar",
+      "goOnJoining": "Ci gaba da shiga",
+      "goOnJoiningHelp": "Yana buɗe shafin da ke kammala shiga tawagar daga wayar abokin aiki."
     },
     "terms": {
       "title": "Sharuɗɗa da Sirri",
@@ -2999,7 +3005,9 @@
       "notNowHelp": "Yana share wannan gayyata, ya koma aikinku.",
       "whoJoins": "Wa zai shiga?",
       "someoneNew": "Sabon mutum",
-      "someoneNewHelp": "Ga wanda bai riga ya kasance a wannan wayar ba: sabon asusu. Sannan, rubuta sunansa."
+      "someoneNewHelp": "Ga wanda bai riga ya kasance a wannan wayar ba: sabon asusu. Sannan, rubuta sunansa.",
+      "joinNotGuest": "Wannan lambar tana bar sabuwar waya ta shiga tawaga. Akwai wani a wannan wayar tuni.",
+      "localJoined": "An gama. Aikinku zai tafi sabar a matsayin naku."
     },
     "signInKey": {
       "notGuestTitle": "Wannan lambar shiga ce",
@@ -3226,7 +3234,8 @@
       "changedBody": "Daga yanzu, {{email}} zai shiga da sabuwar kalmar sirri.",
       "doneHelp": "Koma babban shafinku.",
       "lost": "Ɗaya daga cikin wayoyina ya ɓace ko an ɗauke shi",
-      "lostSub": "Wayoyin abokan aiki za su daina amincewa da aikin wannan wayar da aka sa wa kwanan wata bayan yanzu, kuma sauran wayoyinku za su buƙaci sake shiga kafin su raba da na kusa."
+      "lostSub": "Wayoyin abokan aiki za su daina amincewa da aikin wannan wayar da aka sa wa kwanan wata bayan yanzu, kuma sauran wayoyinku za su buƙaci sake shiga kafin su raba da na kusa.",
+      "lostLetIn": "Idan kun shigar da wani daga wannan wayar wanda bai sami intanet ba tukuna, sabar za ta ƙi karɓar sa. Aikinsa zai zauna a wayarsa, kuma wanda zai iya gayyatar mutane zai iya sake shigar da shi da gayyata."
     }
   },
   "account": {
@@ -3365,7 +3374,33 @@
       "nameHelp": "Yana buɗe bayanan kanku, don canja sunan da tawagarku take gani.",
       "offlineHelp": "Yana nuna abin da wannan na'ura take riƙewa don aiki ba tare da intanet ba.",
       "tourHelp": "Yana buɗe gajerun katuna uku game da amfanin LangQuest.",
-      "moreHelp": "Yana buɗe saitunan kalmar sirri, sanarwa, daidaitawa da asusunku. Lamba tana nufin akwai canje-canje da ke jiran a aika."
+      "moreHelp": "Yana buɗe saitunan kalmar sirri, sanarwa, daidaitawa da asusunku. Lamba tana nufin akwai canje-canje da ke jiran a aika.",
+      "local": {
+        "title": "{{name}}, kun shiga ba tare da intanet ba",
+        "letInBy": "{{name}} ya shigar da ku daga wayarsa.",
+        "letIn": "Wani abokin aiki ya shigar da ku daga wayarsa.",
+        "waiting": "Za a buɗe asusunku a karon farko da wannan waya ta sami intanet. Kafin nan aikinku zai jira a nan.",
+        "joining": "Ana kai wa sabar…",
+        "finishing": "An shiga. Ana kammala shirya wannan waya…",
+        "needsCode": "Asusunku ya shirya. Ku shiga a matsayin {{name}} da lamba daga wani a tawagarku.",
+        "needsCodeLine": "Ku roƙi abokin aiki ya buɗe Taimaka musu shiga, sannan ku karanta lambarsa a nan.",
+        "keyLost": "Wannan waya ta rasa makullin da aka shigar da ita da shi. Aikinku yana nan. Ku nemi taimako daga wani a tawagarku.",
+        "otherAccount": "Wani daban ya shiga a wannan wayar. Aikinku yana nan.",
+        "refusedLine": "Aikinku yana lafiya a wannan wayar. Ku nemi gayyata daga wanda zai iya gayyatar mutane, sannan ku karanta ta a nan.",
+        "workSafe": "Ana ajiye aikinku a wannan waya da a wayoyin abokan aiki har sai ya iso sabar.",
+        "retry": "Gwada yanzu",
+        "retryHelp": "Yana sake tambayar sabar yanzu, idan wannan waya tana da intanet.",
+        "scan": "Karanta lamba",
+        "scanHelp": "Yana buɗe kyamarar karanta lamba don gayyata ko lambar shiga ta abokin aiki.",
+        "refused": {
+          "expired": "Sabar ta ƙi karɓar ku: izinin shigar da aka ba ku ya ƙare.",
+          "used": "Sabar ta ƙi karɓar ku: an riga an yi amfani da izinin shigar da aka ba ku.",
+          "off": "Sabar ta ƙi karɓar ku: ƙungiyarku ta kashe shiga ba tare da intanet ba.",
+          "notFound": "Sabar ta ƙi karɓar ku: ba ta san izinin shigar da aka ba ku ba.",
+          "retired": "Sabar ta ƙi karɓar ku: ba a amfani da matsayinku kuma, ko abokin aikin da ya shigar da ku ba zai iya ba da shi ba kuma.",
+          "other": "Sabar ta ƙi karɓar ku."
+        }
+      }
     },
     "more": {
       "noEmail": "Babu imel tukuna",
@@ -8091,6 +8126,109 @@
       "holding": "Ana riƙewa don abokan aiki",
       "holdingHelp": "Naɗe-naɗen abokan aiki a wannan waya waɗanda sabar ba ta da su tukuna. Za su hau idan wannan waya ta haɗa da intanet.",
       "deliveryRefused": "Sabar ba ta karɓi aikin {{name}} daga wannan waya ba: {{reason}}. Zai zauna a nan, kuma za a sake aikawa da shi a kowace daidaitawa."
+    },
+    "letIn": {
+      "rowSub": "Sabuwar waya tana shiga tawagar daga wannan, ba tare da intanet ba",
+      "rowHelp": "Yana buɗe Shigar da wani, inda sabuwar waya mara intanet take shiga tawagarka daga wannan waya.",
+      "intro": "Sabon mutum mai LangQuest a wayarsa yana shiga tawagarka daga wannan waya, ba tare da intanet ba. Zaɓi matsayinsa, nuna masa lambar, sannan ka shigar da shi idan hotunan sun yi daidai.",
+      "why": {
+        "loading": "Ana duba wannan waya…",
+        "notInBuild": "Wayoyin Android ne kaɗai za su iya shigar da wani.",
+        "noPass": "Wannan waya ba za ta iya shigar da kowa ba. Dole ƙungiyarka ta kunna shi, dole ka iya gayyatar mutane zuwa wannan harshe, kuma dole wannan waya ta sami intanet tun daga lokacin.",
+        "expired": "Izinin wannan waya na shigar da mutane ya ƙare. Ka haɗa da intanet sau ɗaya don sabunta shi.",
+        "noRole": "Babu matsayin da wannan waya za ta iya bayarwa ba tare da intanet ba. Mai kula zai iya ba da matsayi bayan sabon mutumin ya sami intanet.",
+        "permissions": "Ka fara buɗe Raba da na kusa ka ba da izinin abin da Android ta tambaya, sannan ka dawo.",
+        "wifiOff": "Ka kunna Wi-Fi a saitunan wayarka, sannan ka dawo."
+      },
+      "role": "Matsayinsa",
+      "roleHelp": "Matsayin da sabon mutumin zai samu. Mai kula zai iya canja shi bayan ya sami intanet.",
+      "asRole": "Zai shiga a matsayin {{role}}. Mai kula zai iya canja shi bayan ya sami intanet.",
+      "show": "Nuna lambar",
+      "newCode": "Sabuwar lamba",
+      "showHelp": "Yana yin lamba don sabuwar wayar ta karanta. Tana aiki na minti biyu, don waya ɗaya.",
+      "starting": "Ana shirya lambar…",
+      "codeLabel": "Lambar da sabuwar wayar za ta karanta",
+      "scanLine": "A sabuwar wayar, buɗe LangQuest, taɓa Karanta lamba, sannan ka nuna ta nan.",
+      "secondsLeft": "Sauran daƙiƙoƙi: {{n, number}}",
+      "connected": "Wata waya ta haɗa. Ana jiran ta tambaya…",
+      "ask": "A shigar da {{name}}?",
+      "compare": "Ka duba cewa sabuwar wayar tana nuna hotuna biyu iri ɗaya. Idan sun bambanta, taɓa A'a.",
+      "whatGoes": "Zai sami aikin wannan harshe da sunayen tawagarsa.",
+      "letIn": "Shigar da {{name}}",
+      "letInHelp": "Yana shigar da shi da matsayin da aka zaɓa, sannan ya aika masa kwafin farko na wannan harshe.",
+      "no": "A'a",
+      "noHelp": "Ba ya aika masa komai, kuma yana yanke haɗin.",
+      "copying": "Ana aika wa {{name}} kwafin farko… Sassan da aka aika: {{n, number}}",
+      "done": "{{name}} ya shiga",
+      "doneLine": "Zai iya aiki yanzu. Za a buɗe asusunsa idan wayarsa, ko ta abokin aikin da ke ɗauke da aikinsa, ta sami intanet.",
+      "another": "Shigar da wani daban",
+      "anotherHelp": "Yana sake farawa da sabuwar lamba.",
+      "turnedAway": "Wata waya ta gwada wannan lambar kuma an ƙi karɓar ta.",
+      "stayOpen": "Ka bar wannan shafin a buɗe har sai ya gama.",
+      "picturesLabel": "Hotuna biyu. Ka kwatanta su da ɗayan wayar.",
+      "end": {
+        "expired": "Babu wanda ya yi amfani da lambar a kan lokaci. Ka yi sabuwa.",
+        "saidNo": "Ba a aika komai ba.",
+        "noAnswer": "Wayar da ta haɗa ba ta da wannan lambar. Ka yi sabuwa.",
+        "versions": "Sabuwar wayar tana amfani da wata sigar manhajar daban. Tana buƙatar fayil ɗin girkawa na sigar {{version}}.",
+        "clock": "Agogon wayoyin biyu sun bambanta da fiye da minti biyar. Ka sa lokaci daidai a sabuwar wayar, sannan ka yi sabuwar lamba.",
+        "refused": "Wannan waya ba ta iya shigar da shi da wannan matsayin ba. Ka haɗa da intanet sau ɗaya, sannan ka sake gwadawa.",
+        "dropped": "Haɗin ya yanke kafin a shigar da shi. Ka yi sabuwar lamba.",
+        "droppedAfter": "Ya shiga, amma haɗin ya yanke. Duk abokin aikin da ya buɗe Raba da na kusa zai iya kammala kwafinsa na farko.",
+        "stopped": "Lambar ta tafi saboda ka bar wannan shafin. Ka yi sabuwa.",
+        "noCertificate": "Dole wannan waya ta haɗa da intanet sau ɗaya kafin ta iya shigar da kowa.",
+        "failed": "Wani abu ya lalace a wannan waya. Ka yi sabuwar lamba."
+      }
+    },
+    "join": {
+      "intro": "Ka shiga tawagarka daga wayar abokin aiki, ba tare da intanet ba. Za a buɗe asusunka a karon farko da wayarka ta sami intanet.",
+      "checking": "Ana duba wannan waya…",
+      "notInBuild": "Shiga ba tare da intanet ba yana buƙatar wayar Android.",
+      "notEmpty": {
+        "title": "Wannan waya tana riƙe da aikin wani tuni",
+        "session": "Wani ya shiga a wannan wayar. Sabon mutum zai iya shiga ba tare da intanet ba ne kawai a wayar da babu kowa a kanta.",
+        "others": "Wani ya taɓa amfani da LangQuest a wannan wayar. Sabon mutum zai iya shiga ba tare da intanet ba ne kawai a wayar da babu kowa a kanta.",
+        "unsent": "Wannan waya tana riƙe da aikin da bai iso sabar ba. Sabon mutum zai iya shiga ba tare da intanet ba ne kawai a wayar da babu kowa a kanta.",
+        "local": "Wani ya riga ya shiga a wannan wayar ba tare da intanet ba. Mutum ɗaya ne kawai zai iya."
+      },
+      "noCode": "Ka fara karanta lambar da ke wayar abokin aikinka.",
+      "name": "Sunanka",
+      "namePlaceholder": "Kamar yadda tawagarka ta san ka",
+      "nameHelp": "Sunan da abokin aikinka zai gani kafin ya shigar da kai.",
+      "nameLine": "Idan ka taɓa Shiga, Android za ta nemi ka bar LangQuest ya yi amfani da na'urorin da ke kusa. Yana buƙatar wannan don ya kai wayar abokin aikinka.",
+      "stale": "Wataƙila wannan lambar ta tsufa. Idan shiga bai yi nasara ba, ka nemi sabuwa.",
+      "join": "Shiga",
+      "tryAgain": "Sake gwadawa",
+      "joinHelp": "Yana kai wayar abokin aikinka kuma yana neman a shigar da kai.",
+      "permission": "LangQuest yana buƙatar na'urorin da ke kusa don ya kai wayar abokin aikinka.",
+      "permissionBlocked": "Ka ba LangQuest izinin Na'urorin da ke kusa a saitunan wayar, sannan ka dawo.",
+      "wifiOff": "Ka kunna Wi-Fi a saitunan wayarka, sannan ka sake gwadawa.",
+      "connecting": "Ana kai wayar abokin aikinka…",
+      "asked": "Ana jiran abokin aikinka",
+      "compare": "Wayar abokin aikinka tana nuna hotuna biyu. Idan iri ɗaya ne da waɗannan, abokin aikinka zai shigar da kai.",
+      "copying": "Ka shiga. Ana samun kwafin farko na aikin tawagar… Sassa: {{n, number}}",
+      "unfinished": "Ka shiga, amma kwafin farko bai cika ba",
+      "unfinishedLine": "Duk abokin aikin da ya buɗe Raba da na kusa a sigar manhaja iri ɗaya zai iya kammala shi.",
+      "look": "Nemo abokan aiki",
+      "lookHelp": "Yana nemo wayar abokin aiki a kusa don kammala kwafin farko.",
+      "looking": "Ana neman abokin aikin da ya buɗe Raba da na kusa…",
+      "stopLooking": "Daina nema",
+      "stopLookingHelp": "Yana daina nema. Za ka iya sake nema daga baya.",
+      "whole": "Ka shiga",
+      "installFile": "Wannan waya ba ta buƙatar fayil ɗin girkawa kuma. Za ka iya goge shi, sai dai idan za ka ba wani.",
+      "scan": "Karanta sabuwar lamba",
+      "scanHelp": "Yana buɗe kyamarar karanta lamba don sabuwar lamba daga wayar abokin aikinka.",
+      "back": "Koma Shiga",
+      "backHelp": "Yana komawa Shiga.",
+      "end": {
+        "notLetIn": "Ba a shigar da kai ba. Ka nemi sabuwar lamba daga abokin aikinka idan ya kamata a shigar da kai.",
+        "noAnswer": "Wayar abokin aikinka ba ta amsa ba. Ka nemi sabuwar lamba.",
+        "clock": "Agogon wannan waya da na abokin aikinka sun bambanta da fiye da minti biyar. Ka sa kwanan wata da lokaci daidai, sannan ka karanta sabuwar lamba.",
+        "versions": "Wayar abokin aikinka tana amfani da wata sigar manhajar daban. Ka nemi fayil ɗin girkawa na sigarsa daga gare shi.",
+        "refused": "Wannan waya ba ta iya duba amsar abokin aikinka ba. Ka nemi sabuwar lamba.",
+        "dropped": "Haɗin ya yanke. Ka nemi sabuwar lamba.",
+        "failed": "Wani abu ya lalace a wannan waya. Ka nemi sabuwar lamba."
+      }
     }
   }
 }

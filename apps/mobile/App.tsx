@@ -150,7 +150,9 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   get_ready: Ready.GetReady,
   settings_more: Account.SettingsMore,
   global_viewer: lazyScreen(loadGlobalViewer, 'GlobalViewer'),
-  share_nearby: lazyScreen(loadNearby, 'ShareNearby')
+  share_nearby: lazyScreen(loadNearby, 'ShareNearby'),
+  let_someone_in: lazyScreen(loadNearby, 'LetSomeoneIn'),
+  join_offline: lazyScreen(loadNearby, 'JoinOffline')
 };
 
 /**

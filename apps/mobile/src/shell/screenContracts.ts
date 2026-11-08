@@ -138,6 +138,9 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   sign_out_confirm: { rpcs:['unregister_push_token'] },
   // Share nearby (docs/nearby-sync-plan.md 5.8): no event, no call; it reads who is on the language for Ready to carry.
   share_nearby: { reads:['org.members'] },
+  // Let someone in and the new phone's progress (docs/nearby-sync-plan.md 14.1): no event and no call; membership comes at first contact.
+  let_someone_in: { reads:['org.roles'] },
+  join_offline: {},
   delete_account: { rpcs:['delete_my_account'] },
   // Read from the app's Worker, not the local fold (decisions.md 44, 57).
   // A language's country and target go straight to the organization's

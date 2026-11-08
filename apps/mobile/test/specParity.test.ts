@@ -112,7 +112,12 @@ const APP_ONLY: Record<string, string> = {
   'new_password->terms_privacy': 'choosing a new password signs in, which accepts the terms, as Sign In does (AUTH-1)',
   'new_password->sign_in': 'opened from a link with nothing under it, Back leads to Sign In, as on Scan a code',
   'new_password->home_hub': 'opened from a link while signed in, Back and Done lead home, as on Scan a code',
-  'sync_status->share_nearby': 'Share nearby: phones near each other bring each other up to date with no internet; the demo has no such flow (docs/nearby-sync-plan.md 5.8)'
+  'sync_status->share_nearby': 'Share nearby: phones near each other bring each other up to date with no internet; the demo has no such flow (docs/nearby-sync-plan.md 5.8)',
+  'share_nearby->let_someone_in': 'Let someone in: a new phone with no internet joins the team from a teammate\'s; the demo has no such flow (docs/nearby-sync-plan.md 14.1)',
+  'scan_qr->join_offline': 'a scanned Let someone in code opens the new phone\'s progress screen (docs/nearby-sync-plan.md 14.1, 3)',
+  'join_offline->scan_qr': 'a code that did not let them in: scan a new one from the teammate\'s phone (docs/nearby-sync-plan.md 14.1, 3)',
+  'sign_in->join_offline': 'a starting copy a drop left unfinished: Sign In leads back to finishing it, and no other account signs in over it (docs/nearby-sync-plan.md 14.1)',
+  'settings_home->scan_qr': 'someone let in offline and refused, or needing a helper\'s code, scans it from Me, since Sign In is not theirs (docs/nearby-sync-plan.md 14.1, 6)'
 };
 
 /** App-only reference screens (docs/reference-material.md). */
@@ -127,8 +132,8 @@ const specEdges = (spec.edges as SpecEdge[]).filter(machine).filter(kept);
 const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
-  it('the screen set is the demo screen set plus sync status, account deletion, the Reports section, the reference screens, the guide editor, More Bibles, a check, a cluster, Forgot password and Share nearby, less the dropped screens', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'get_ready', 'settings_more', 'check_editor', 'cluster_home', 'global_viewer', 'forgot_password', 'new_password', 'share_nearby'].sort());
+  it('the screen set is the demo screen set plus sync status, account deletion, the Reports section, the reference screens, the guide editor, More Bibles, a check, a cluster, Forgot password, Share nearby and joining without internet, less the dropped screens', () => {
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'get_ready', 'settings_more', 'check_editor', 'cluster_home', 'global_viewer', 'forgot_password', 'new_password', 'share_nearby', 'let_someone_in', 'join_offline'].sort());
     // The drop list names only screens the spec has.
     expect(Object.keys(DROPPED).filter((s) => !spec.screens.includes(s))).toEqual([]);
   });

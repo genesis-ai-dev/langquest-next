@@ -353,7 +353,9 @@
     "global_viewer": "Pandaigdigang Tagatingin",
     "forgot_password": "Nakalimutan ang Password",
     "new_password": "Bagong Password",
-    "share_nearby": "Ibahagi sa malapit"
+    "share_nearby": "Ibahagi sa malapit",
+    "let_someone_in": "Magpapasok ng isang tao",
+    "join_offline": "Sumali nang walang internet"
   },
   "native": {
     "microphone": "Nire-record ng LangQuest ang iyong boses para isalin ang mga sipi.",
@@ -2870,7 +2872,11 @@
       "createAccountHelp": "Nagbubukas ng form para sa iyong email at bagong password.",
       "browseHelp": "Tingnan ang gawain sa pagsasalin na hayagang ibinabahagi ng mga organisasyon. Hindi kailangan ng account.",
       "forgot": "Nakalimutan ang password?",
-      "forgotHelp": "Nagbubukas ng pahina kung saan makakukuha ka ng link sa email para pumili ng bagong password."
+      "forgotHelp": "Nagbubukas ng pahina kung saan makakukuha ka ng link sa email para pumili ng bagong password.",
+      "localHere": "May sumali sa pangkat sa teleponong ito nang walang internet. Walang ibang makapag-sign in dito hanggang makakonekta sa internet ang telepono niya nang isang beses.",
+      "joiningTitle": "Sumasali si {{name}} sa teleponong ito",
+      "goOnJoining": "Ituloy ang pagsali",
+      "goOnJoiningHelp": "Binubuksan ang screen na tatapos sa pagsali sa pangkat mula sa telepono ng isang kasamahan."
     },
     "terms": {
       "title": "Mga Tuntunin at Privacy",
@@ -2999,7 +3005,9 @@
       "notNowHelp": "Kinakalimutan ang imbitasyong ito at bumabalik sa iyong gawain.",
       "whoJoins": "Sino ang sasali?",
       "someoneNew": "Isang bagong tao",
-      "someoneNewHelp": "Para sa taong wala pa sa teleponong ito: isang bagong account. Susunod, i-type ang pangalan niya."
+      "someoneNewHelp": "Para sa taong wala pa sa teleponong ito: isang bagong account. Susunod, i-type ang pangalan niya.",
+      "joinNotGuest": "Ang code na ito ay para makasali sa pangkat ang isang bagong telepono. May gumagamit na sa teleponong ito.",
+      "localJoined": "Tapos na. Mapupunta sa server ang gawa mo bilang iyo."
     },
     "signInKey": {
       "notGuestTitle": "Code ito sa pag-sign in",
@@ -3226,7 +3234,8 @@
       "changedBody": "Magsa-sign in ang {{email}} gamit ang bagong password mula ngayon.",
       "doneHelp": "Pabalik sa iyong home page.",
       "lost": "Nawala o kinuha ang isa kong telepono",
-      "lostSub": "Hindi na pagkakatiwalaan ng mga telepono ng mga kasamahan ang gawa ng teleponong iyon na may petsang lampas sa ngayon, at kailangang mag-sign in muli ng iba mo pang telepono para makapagbahagi sa malapit."
+      "lostSub": "Hindi na pagkakatiwalaan ng mga telepono ng mga kasamahan ang gawa ng teleponong iyon na may petsang lampas sa ngayon, at kailangang mag-sign in muli ng iba mo pang telepono para makapagbahagi sa malapit.",
+      "lostLetIn": "Kung may pinapasok ka mula sa teleponong iyon na hindi pa nakakakonekta sa internet, tatanggihan sila ng server. Mananatili ang gawa nila sa telepono nila, at maaari silang papasukin ulit gamit ang imbitasyon ng isang makapag-iimbita."
     }
   },
   "account": {
@@ -3365,7 +3374,33 @@
       "nameHelp": "Binubuksan ang iyong profile, para palitan ang pangalang nakikita ng iyong pangkat.",
       "offlineHelp": "Ipinapakita kung ano ang itinatago ng device na ito para makapagtrabaho nang walang koneksiyon.",
       "tourHelp": "Nagbubukas ng tatlong maiikling card tungkol sa layunin ng LangQuest.",
-      "moreHelp": "Binubuksan ang mga setting ng iyong password, notification, sync at account. Ang numero ay mga pagbabagong naghihintay na maipadala."
+      "moreHelp": "Binubuksan ang mga setting ng iyong password, notification, sync at account. Ang numero ay mga pagbabagong naghihintay na maipadala.",
+      "local": {
+        "title": "{{name}}, sumali ka nang walang internet",
+        "letInBy": "Pinapasok ka ni {{name}} mula sa telepono niya.",
+        "letIn": "Pinapasok ka ng isang kasamahan mula sa telepono niya.",
+        "waiting": "Gagawin ang account mo sa unang beses na makakonekta sa internet ang teleponong ito. Hanggang doon, maghihintay dito ang gawa mo.",
+        "joining": "Kumokonekta sa server…",
+        "finishing": "Naka-sign in na. Tinatapos ang pag-set up ng teleponong ito…",
+        "needsCode": "Handa na ang account mo. Mag-sign in bilang {{name}} gamit ang code mula sa isang kasama mo sa pangkat.",
+        "needsCodeLine": "Hilingin sa isang kasamahan na buksan ang Tulungan siyang mag-sign in, saka i-scan dito ang code niya.",
+        "keyLost": "Nawala sa teleponong ito ang susi na ginamit nang papasukin ito. Nandito pa rin ang gawa mo. Humingi ng tulong sa isang kasama mo sa pangkat.",
+        "otherAccount": "Ibang tao ang naka-sign in sa teleponong ito. Nandito pa rin ang gawa mo.",
+        "refusedLine": "Ligtas ang gawa mo sa teleponong ito. Humingi ng imbitasyon sa isang makapag-iimbita, saka i-scan ito dito.",
+        "workSafe": "Itinatago ang gawa mo sa teleponong ito at sa mga telepono ng mga kasamahan hanggang makarating ito sa server.",
+        "retry": "Subukan ngayon",
+        "retryHelp": "Tinatanong ulit ang server ngayon, kung may internet ang teleponong ito.",
+        "scan": "I-scan ang code",
+        "scanHelp": "Binubuksan ang scanner para sa imbitasyon o sa code sa pag-sign in ng isang kasamahan.",
+        "refused": {
+          "expired": "Tinanggihan ka ng server: paso na ang pahintulot na ginamit nang papasukin ka.",
+          "used": "Tinanggihan ka ng server: naubos na ang pahintulot na ginamit nang papasukin ka.",
+          "off": "Tinanggihan ka ng server: naka-off sa iyong organisasyon ang pagsali nang walang internet.",
+          "notFound": "Tinanggihan ka ng server: hindi nito kilala ang pahintulot na ginamit nang papasukin ka.",
+          "retired": "Tinanggihan ka ng server: hindi na ginagamit ang tungkulin mo, o hindi na ito maibibigay ng kasamahang nagpapasok sa iyo.",
+          "other": "Tinanggihan ka ng server."
+        }
+      }
     },
     "more": {
       "noEmail": "Wala pang email",
@@ -8091,6 +8126,109 @@
       "holding": "Itinatago para sa mga kasamahan",
       "holdingHelp": "Mga rekording ng mga kasamahan sa teleponong ito na wala pa sa server. Maa-upload ang mga ito kapag online ang teleponong ito.",
       "deliveryRefused": "Hindi tinanggap ng server ang gawa ni {{name}} mula sa teleponong ito: {{reason}}. Mananatili ito rito at ipapadala ulit sa bawat sync."
+    },
+    "letIn": {
+      "rowSub": "Sasali sa pangkat ang isang bagong telepono mula rito, nang walang internet",
+      "rowHelp": "Binubuksan ang Magpapasok ng isang tao, kung saan sasali sa pangkat mo ang isang bagong teleponong walang internet mula sa teleponong ito.",
+      "intro": "Ang isang bagong tao na may LangQuest sa telepono niya ay sasali sa pangkat mo mula sa teleponong ito, nang walang internet. Piliin ang tungkulin niya, ipakita sa kanya ang code, at papasukin siya kapag magkapareho ang mga larawan.",
+      "why": {
+        "loading": "Sinusuri ang teleponong ito…",
+        "notInBuild": "Mga Android na telepono lang ang makapagpapapasok ng tao.",
+        "noPass": "Hindi makapagpapapasok ng kahit sino ang teleponong ito. Kailangang naka-on ito sa iyong organisasyon, kailangang makapag-imbita ka ng mga tao sa wikang ito, at kailangang nakakonekta na sa internet ang teleponong ito mula noon.",
+        "expired": "Paso na ang pahintulot ng teleponong ito na magpapasok ng mga tao. Kumonekta sa internet nang isang beses para i-renew ito.",
+        "noRole": "Walang tungkuling maibibigay ang teleponong ito nang walang internet. Makapagbibigay ng tungkulin ang isang admin kapag nakakonekta na sa internet ang bagong tao.",
+        "permissions": "Buksan muna ang Ibahagi sa malapit at payagan ang hinihingi ng Android, saka bumalik.",
+        "wifiOff": "I-on ang Wi-Fi sa settings ng iyong telepono, saka bumalik."
+      },
+      "role": "Ang tungkulin niya",
+      "roleHelp": "Ang tungkuling makukuha ng bagong tao. Mapapalitan ito ng isang admin kapag nakakonekta na siya sa internet.",
+      "asRole": "Sasali siya bilang {{role}}. Mapapalitan ito ng isang admin kapag nakakonekta na siya sa internet.",
+      "show": "Ipakita ang code",
+      "newCode": "Bagong code",
+      "showHelp": "Gumagawa ng code na ii-scan ng bagong telepono. Gumagana ito nang dalawang minuto, para sa isang telepono.",
+      "starting": "Inihahanda ang code…",
+      "codeLabel": "Ang code na ii-scan ng bagong telepono",
+      "scanLine": "Sa bagong telepono, buksan ang LangQuest, i-tap ang I-scan ang code, at itutok ito rito.",
+      "secondsLeft": "Natitirang segundo: {{n, number}}",
+      "connected": "May kumonektang telepono. Hinihintay itong humiling…",
+      "ask": "Papasukin si {{name}}?",
+      "compare": "Tingnan kung parehong dalawang larawan ang ipinapakita ng bagong telepono. Kung magkaiba, i-tap ang Hindi.",
+      "whatGoes": "Makukuha nila ang gawa ng wikang ito at ang mga pangalan ng pangkat nito.",
+      "letIn": "Papasukin si {{name}}",
+      "letInHelp": "Pinapapasok sila sa piniling tungkulin, saka pinapadalhan ng panimulang kopya ng wikang ito.",
+      "no": "Hindi",
+      "noHelp": "Walang ipinapadala sa kanila at tinatapos ang koneksiyon.",
+      "copying": "Pinapadalhan si {{name}} ng panimulang kopya… Mga bahaging naipadala: {{n, number}}",
+      "done": "Nakapasok na si {{name}}",
+      "doneLine": "Makakapagtrabaho na sila. Gagawin ang account nila kapag nakakonekta sa internet ang telepono nila, o ang telepono ng isang kasamahang may dala ng gawa nila.",
+      "another": "Magpapasok ng iba pa",
+      "anotherHelp": "Nagsisimula ulit gamit ang bagong code.",
+      "turnedAway": "May ibang teleponong sumubok sa code na ito at tinanggihan.",
+      "stayOpen": "Panatilihing bukas ang screen na ito hanggang matapos.",
+      "picturesLabel": "Dalawang larawan. Ihambing ang mga ito sa kabilang telepono.",
+      "end": {
+        "expired": "Walang gumamit ng code sa tamang oras. Gumawa ng bago.",
+        "saidNo": "Walang naipadala.",
+        "noAnswer": "Wala ng code na ito ang kumonektang telepono. Gumawa ng bago.",
+        "versions": "Ibang bersiyon ng app ang nasa bagong telepono. Kailangan nito ang install file para sa bersiyon {{version}}.",
+        "clock": "Mahigit limang minuto ang pagkakaiba ng orasan ng dalawang telepono. Itakda ang tamang oras sa bagong telepono, saka gumawa ng bagong code.",
+        "refused": "Hindi sila mapapasok ng teleponong ito sa tungkuling iyon. Kumonekta sa internet nang isang beses, saka subukan ulit.",
+        "dropped": "Naputol ang koneksiyon bago sila nakapasok. Gumawa ng bagong code.",
+        "droppedAfter": "Nakapasok na sila, pero naputol ang koneksiyon. Matatapos ang panimulang kopya nila ng sinumang kasamahang nakabukas ang Ibahagi sa malapit.",
+        "stopped": "Nawala ang code dahil umalis ka sa screen na ito. Gumawa ng bago.",
+        "noCertificate": "Kailangang kumonekta muna sa internet nang isang beses ang teleponong ito bago ito makapagpapasok ng kahit sino.",
+        "failed": "May nangyaring mali sa teleponong ito. Gumawa ng bagong code."
+      }
+    },
+    "join": {
+      "intro": "Sumali sa pangkat mo mula sa telepono ng isang kasamahan, nang walang internet. Gagawin ang account mo sa unang beses na makakonekta sa internet ang telepono mo.",
+      "checking": "Sinusuri ang teleponong ito…",
+      "notInBuild": "Kailangan ng Android na telepono para sumali nang walang internet.",
+      "notEmpty": {
+        "title": "May gawa na ng ibang tao sa teleponong ito",
+        "session": "May naka-sign in sa teleponong ito. Makakasali lang nang walang internet ang bagong tao sa teleponong walang ibang gumagamit.",
+        "others": "May gumamit na ng LangQuest sa teleponong ito dati. Makakasali lang nang walang internet ang bagong tao sa teleponong walang ibang gumagamit.",
+        "unsent": "May gawa sa teleponong ito na hindi pa nakakarating sa server. Makakasali lang nang walang internet ang bagong tao sa teleponong walang ibang gumagamit.",
+        "local": "May sumali na sa teleponong ito nang walang internet. Isang tao lang ang puwede."
+      },
+      "noCode": "I-scan muna ang code sa telepono ng kasamahan mo.",
+      "name": "Ang pangalan mo",
+      "namePlaceholder": "Kung paano ka kilala ng pangkat mo",
+      "nameHelp": "Ang pangalang makikita ng kasamahan mo bago ka niya papasukin.",
+      "nameLine": "Kapag na-tap mo ang Sumali, hihilingin ng Android na payagan ang LangQuest na gumamit ng mga device sa malapit. Kailangan ito para maabot ang telepono ng kasamahan mo.",
+      "stale": "Maaaring masyado nang luma ang code na ito. Kung hindi ka makasali, humingi ng bago.",
+      "join": "Sumali",
+      "tryAgain": "Subukan ulit",
+      "joinHelp": "Kumokonekta sa telepono ng kasamahan mo at humihiling na papasukin.",
+      "permission": "Kailangan ng LangQuest ang mga device sa malapit para maabot ang telepono ng kasamahan mo.",
+      "permissionBlocked": "Payagan ang Mga kalapit na device para sa LangQuest sa settings ng telepono, saka bumalik.",
+      "wifiOff": "I-on ang Wi-Fi sa settings ng iyong telepono, saka subukan ulit.",
+      "connecting": "Kumokonekta sa telepono ng kasamahan mo…",
+      "asked": "Hinihintay ang kasamahan mo",
+      "compare": "Dalawang larawan ang ipinapakita sa telepono ng kasamahan mo. Kung kapareho ang mga ito ng mga larawang narito, papasukin ka ng kasamahan mo.",
+      "copying": "Nakapasok ka na. Kinukuha ang panimulang kopya ng gawa ng pangkat… Mga bahagi: {{n, number}}",
+      "unfinished": "Nakapasok ka na, pero hindi pa kumpleto ang panimulang kopya",
+      "unfinishedLine": "Matatapos ito ng sinumang kasamahang nakabukas ang Ibahagi sa malapit at may parehong bersiyon ng app.",
+      "look": "Maghanap ng mga kasamahan",
+      "lookHelp": "Naghahanap ng telepono ng kasamahang malapit para matapos ang panimulang kopya.",
+      "looking": "Naghahanap ng kasamahang nakabukas ang Ibahagi sa malapit…",
+      "stopLooking": "Huminto sa paghahanap",
+      "stopLookingHelp": "Humihinto sa paghahanap. Puwede kang maghanap ulit mamaya.",
+      "whole": "Nakapasok ka na",
+      "installFile": "Hindi na kailangan ng teleponong ito ang install file. Puwede mo itong burahin, maliban kung ipapasa mo ito sa iba.",
+      "scan": "Mag-scan ng bagong code",
+      "scanHelp": "Binubuksan ang scanner para sa bagong code mula sa telepono ng kasamahan mo.",
+      "back": "Bumalik sa Mag-sign In",
+      "backHelp": "Bumabalik sa Mag-sign In.",
+      "end": {
+        "notLetIn": "Hindi ka pinapasok. Humingi ng bagong code sa kasamahan mo kung dapat kang makapasok.",
+        "noAnswer": "Hindi sumagot ang telepono ng kasamahan mo. Humingi ng bagong code.",
+        "clock": "Mahigit limang minuto ang pagkakaiba ng orasan ng teleponong ito at ng sa kasamahan mo. Itakda ang tamang petsa at oras, saka mag-scan ng bagong code.",
+        "versions": "Ibang bersiyon ng app ang nasa telepono ng kasamahan mo. Hingin sa kanila ang install file ng bersiyon nila.",
+        "refused": "Hindi masuri ng teleponong ito ang sagot ng kasamahan mo. Humingi ng bagong code.",
+        "dropped": "Naputol ang koneksiyon. Humingi ng bagong code.",
+        "failed": "May nangyaring mali sa teleponong ito. Humingi ng bagong code."
+      }
     }
   }
 }

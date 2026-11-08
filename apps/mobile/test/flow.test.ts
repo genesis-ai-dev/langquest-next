@@ -31,7 +31,9 @@ describe('UX flow coverage', () => {
       // Forgot password, and the new password its emailed link opens (decision 200).
       'forgot_password', 'new_password',
       // Share nearby: phones bring each other up to date with no internet (docs/nearby-sync-plan.md 5.8).
-      'share_nearby'] as const;
+      'share_nearby',
+      // Let someone in, and the new phone's progress: joining without internet (docs/nearby-sync-plan.md 14.1).
+      'let_someone_in', 'join_offline'] as const;
     expect(SCREEN_IDS.length).toBe(kept.length + appOnly.length);
     for (const id of appOnly) expect(screenTitle(id)).not.toBe(`screens.${id}`);
   });

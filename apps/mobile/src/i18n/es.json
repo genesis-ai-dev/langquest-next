@@ -355,7 +355,9 @@
     "global_viewer": "Observador global",
     "forgot_password": "Olvidé mi contraseña",
     "new_password": "Contraseña nueva",
-    "share_nearby": "Compartir cerca"
+    "share_nearby": "Compartir cerca",
+    "let_someone_in": "Dejar entrar a alguien",
+    "join_offline": "Unirse sin internet"
   },
   "native": {
     "microphone": "LangQuest graba tu voz para traducir pasajes.",
@@ -2968,7 +2970,11 @@
       "createAccountHelp": "Abre un formulario para tu correo y una contraseña nueva.",
       "browseHelp": "Ve el trabajo de traducción que las organizaciones comparten públicamente. No necesitas cuenta.",
       "forgot": "¿Olvidaste tu contraseña?",
-      "forgotHelp": "Abre una página donde recibes un enlace por correo para elegir una contraseña nueva."
+      "forgotHelp": "Abre una página donde recibes un enlace por correo para elegir una contraseña nueva.",
+      "localHere": "Alguien se unió al equipo en este teléfono sin internet. Nadie más puede iniciar sesión aquí hasta que su teléfono se conecte a internet una vez.",
+      "joiningTitle": "{{name}} se está uniendo en este teléfono",
+      "goOnJoining": "Seguir uniéndose",
+      "goOnJoiningHelp": "Abre la pantalla que termina de unirte al equipo desde el teléfono de un compañero."
     },
     "terms": {
       "title": "Términos y privacidad",
@@ -3097,7 +3103,9 @@
       "notNowHelp": "Olvida esta invitación y vuelve a tu trabajo.",
       "whoJoins": "¿Quién se une?",
       "someoneNew": "Alguien nuevo",
-      "someoneNewHelp": "Para alguien que aún no está en este teléfono: una cuenta nueva. Después, escribe su nombre."
+      "someoneNewHelp": "Para alguien que aún no está en este teléfono: una cuenta nueva. Después, escribe su nombre.",
+      "joinNotGuest": "Este código permite que un teléfono nuevo se una a un equipo. Este teléfono ya tiene a alguien.",
+      "localJoined": "Listo. Tu trabajo llega al servidor como tuyo."
     },
     "signInKey": {
       "notGuestTitle": "Este es un código para iniciar sesión",
@@ -3327,7 +3335,8 @@
       "changedBody": "De ahora en adelante, {{email}} inicia sesión con la contraseña nueva.",
       "doneHelp": "Vuelve a tu pantalla de inicio.",
       "lost": "Perdí un teléfono mío o me lo quitaron",
-      "lostSub": "Los teléfonos de tus compañeros dejan de confiar en el trabajo de ese teléfono con fecha posterior a ahora, y tus otros teléfonos necesitan iniciar sesión de nuevo para compartir cerca."
+      "lostSub": "Los teléfonos de tus compañeros dejan de confiar en el trabajo de ese teléfono con fecha posterior a ahora, y tus otros teléfonos necesitan iniciar sesión de nuevo para compartir cerca.",
+      "lostLetIn": "Si dejaste entrar desde ese teléfono a alguien que todavía no se ha conectado a internet, el servidor lo rechazará. Su trabajo se queda en su teléfono, y alguien que pueda invitar personas puede dejarlo entrar de nuevo con una invitación."
     }
   },
   "account": {
@@ -3467,7 +3476,33 @@
       "nameHelp": "Abre tu perfil, para cambiar el nombre que ve tu equipo.",
       "offlineHelp": "Muestra lo que guarda este dispositivo para trabajar sin conexión.",
       "tourHelp": "Abre tres tarjetas cortas sobre para qué sirve LangQuest.",
-      "moreHelp": "Abre los ajustes de tu contraseña, notificaciones, sincronización y cuenta. Un número indica cambios esperando para enviarse."
+      "moreHelp": "Abre los ajustes de tu contraseña, notificaciones, sincronización y cuenta. Un número indica cambios esperando para enviarse.",
+      "local": {
+        "title": "{{name}}, te uniste sin internet",
+        "letInBy": "{{name}} te dejó entrar desde su teléfono.",
+        "letIn": "Un compañero te dejó entrar desde su teléfono.",
+        "waiting": "Tu cuenta se crea la primera vez que este teléfono se conecte a internet. Hasta entonces, tu trabajo espera aquí.",
+        "joining": "Conectando con el servidor…",
+        "finishing": "Sesión iniciada. Terminando de preparar este teléfono…",
+        "needsCode": "Tu cuenta está lista. Inicia sesión como {{name}} con un código de alguien de tu equipo.",
+        "needsCodeLine": "Pide a un compañero que abra Ayudarle a iniciar sesión y luego escanea su código aquí.",
+        "keyLost": "Este teléfono perdió la clave con la que te dejaron entrar. Tu trabajo sigue aquí. Pide ayuda a alguien de tu equipo.",
+        "otherAccount": "Otra persona inició sesión en este teléfono. Tu trabajo sigue aquí.",
+        "refusedLine": "Tu trabajo está seguro en este teléfono. Pide una invitación a alguien que pueda invitar personas y luego escanéala aquí.",
+        "workSafe": "Tu trabajo se guarda en este teléfono y en los de tus compañeros hasta que llegue al servidor.",
+        "retry": "Intentar ahora",
+        "retryHelp": "Vuelve a preguntar al servidor ahora, si este teléfono tiene internet.",
+        "scan": "Escanear un código",
+        "scanHelp": "Abre el escáner para una invitación o el código de inicio de sesión de un compañero.",
+        "refused": {
+          "expired": "El servidor te rechazó: el pase con el que te dejaron entrar ya venció.",
+          "used": "El servidor te rechazó: el pase con el que te dejaron entrar ya se usó.",
+          "off": "El servidor te rechazó: tu organización tiene desactivado unirse sin internet.",
+          "notFound": "El servidor te rechazó: no conoce el pase con el que te dejaron entrar.",
+          "retired": "El servidor te rechazó: tu rol ya no se usa, o el compañero que te dejó entrar ya no puede darlo.",
+          "other": "El servidor te rechazó."
+        }
+      }
     },
     "more": {
       "noEmail": "Todavía no hay correo",
@@ -8436,6 +8471,109 @@
       "holding": "Guardadas para compañeros",
       "holdingHelp": "Grabaciones de compañeros en este teléfono que el servidor aún no tiene. Se suben cuando este teléfono tiene conexión.",
       "deliveryRefused": "El servidor no aceptó el trabajo de {{name}} desde este teléfono: {{reason}}. Se queda aquí y se envía de nuevo en cada sincronización."
+    },
+    "letIn": {
+      "rowSub": "Un teléfono nuevo se une al equipo desde este, sin internet",
+      "rowHelp": "Abre Dejar entrar a alguien, donde un teléfono nuevo sin internet se une a tu equipo desde este teléfono.",
+      "intro": "Una persona nueva con LangQuest en su teléfono se une a tu equipo desde este teléfono, sin internet. Elige su rol, muéstrale el código y déjala entrar cuando las imágenes coincidan.",
+      "why": {
+        "loading": "Revisando este teléfono…",
+        "notInBuild": "Solo los teléfonos Android pueden dejar entrar a alguien.",
+        "noPass": "Este teléfono no puede dejar entrar a nadie. Tu organización debe tenerlo activado, tú debes poder invitar personas a este idioma, y este teléfono debe haberse conectado a internet desde entonces.",
+        "expired": "El permiso de este teléfono para dejar entrar a personas venció. Conéctate a internet una vez para renovarlo.",
+        "noRole": "No hay ningún rol que este teléfono pueda dar sin internet. Un administrador puede dar roles cuando la persona nueva se conecte a internet.",
+        "permissions": "Primero abre Compartir cerca y permite lo que pida Android, luego vuelve.",
+        "wifiOff": "Enciende el Wi-Fi en los ajustes del teléfono, luego vuelve."
+      },
+      "role": "Su rol",
+      "roleHelp": "El rol que recibe la persona nueva. Un administrador puede cambiarlo cuando se conecte a internet.",
+      "asRole": "Se une como {{role}}. Un administrador puede cambiarlo cuando se conecte a internet.",
+      "show": "Mostrar el código",
+      "newCode": "Código nuevo",
+      "showHelp": "Crea un código para que lo escanee el teléfono nuevo. Sirve por dos minutos, para un solo teléfono.",
+      "starting": "Preparando el código…",
+      "codeLabel": "El código que debe escanear el teléfono nuevo",
+      "scanLine": "En el teléfono nuevo, abre LangQuest, toca Escanear un código y apunta aquí.",
+      "secondsLeft": "Segundos restantes: {{n, number}}",
+      "connected": "Un teléfono se conectó. Esperando a que pida entrar…",
+      "ask": "¿Dejar entrar a {{name}}?",
+      "compare": "Revisa que el teléfono nuevo muestre las mismas dos imágenes. Si son diferentes, toca No.",
+      "whatGoes": "Recibirá el trabajo de este idioma y los nombres de su equipo.",
+      "letIn": "Dejar entrar a {{name}}",
+      "letInHelp": "Lo deja entrar con el rol elegido y luego le envía una copia inicial de este idioma.",
+      "no": "No",
+      "noHelp": "No le envía nada y termina la conexión.",
+      "copying": "Enviando a {{name}} una copia inicial… Partes enviadas: {{n, number}}",
+      "done": "{{name}} ya entró",
+      "doneLine": "Ya puede trabajar. Su cuenta se crea cuando su teléfono, o el de un compañero que lleve su trabajo, se conecte a internet.",
+      "another": "Dejar entrar a otra persona",
+      "anotherHelp": "Empieza de nuevo con un código nuevo.",
+      "turnedAway": "Otro teléfono intentó usar este código y fue rechazado.",
+      "stayOpen": "Deja esta pantalla abierta hasta que termine.",
+      "picturesLabel": "Dos imágenes. Compáralas con el otro teléfono.",
+      "end": {
+        "expired": "Nadie usó el código a tiempo. Crea uno nuevo.",
+        "saidNo": "No se envió nada.",
+        "noAnswer": "El teléfono que se conectó no tenía este código. Crea uno nuevo.",
+        "versions": "El teléfono nuevo tiene otra versión de la app. Necesita el archivo de instalación de la versión {{version}}.",
+        "clock": "Los relojes de los dos teléfonos difieren en más de cinco minutos. Pon la hora correcta en el teléfono nuevo y luego crea un código nuevo.",
+        "refused": "Este teléfono no pudo dejarlo entrar con ese rol. Conéctate a internet una vez y vuelve a intentarlo.",
+        "dropped": "La conexión se cortó antes de que entrara. Crea un código nuevo.",
+        "droppedAfter": "Ya entró, pero la conexión se cortó. Cualquier compañero con Compartir cerca abierto puede terminar su copia inicial.",
+        "stopped": "El código ya no sirve porque saliste de esta pantalla. Crea uno nuevo.",
+        "noCertificate": "Este teléfono debe conectarse a internet una vez antes de poder dejar entrar a alguien.",
+        "failed": "Algo salió mal en este teléfono. Crea un código nuevo."
+      }
+    },
+    "join": {
+      "intro": "Únete a tu equipo desde el teléfono de un compañero, sin internet. Tu cuenta se crea la primera vez que tu teléfono se conecte a internet.",
+      "checking": "Revisando este teléfono…",
+      "notInBuild": "Para unirte sin internet necesitas un teléfono Android.",
+      "notEmpty": {
+        "title": "Este teléfono ya tiene el trabajo de alguien",
+        "session": "Alguien inició sesión en este teléfono. Una persona nueva solo puede unirse sin internet en un teléfono que no tenga a nadie.",
+        "others": "Alguien ya usó LangQuest en este teléfono. Una persona nueva solo puede unirse sin internet en un teléfono que no tenga a nadie.",
+        "unsent": "Este teléfono tiene trabajo que no ha llegado al servidor. Una persona nueva solo puede unirse sin internet en un teléfono que no tenga a nadie.",
+        "local": "Alguien ya se unió en este teléfono sin internet. Solo una persona puede hacerlo."
+      },
+      "noCode": "Primero escanea el código en el teléfono de tu compañero.",
+      "name": "Tu nombre",
+      "namePlaceholder": "Como te conoce tu equipo",
+      "nameHelp": "El nombre que ve tu compañero antes de dejarte entrar.",
+      "nameLine": "Cuando toques Unirse, Android pedirá permiso para que LangQuest use dispositivos cercanos. Lo necesita para llegar al teléfono de tu compañero.",
+      "stale": "Puede que este código sea muy viejo. Si no puedes unirte, pide uno nuevo.",
+      "join": "Unirse",
+      "tryAgain": "Intentar de nuevo",
+      "joinHelp": "Se conecta al teléfono de tu compañero y pide entrar.",
+      "permission": "LangQuest necesita dispositivos cercanos para llegar al teléfono de tu compañero.",
+      "permissionBlocked": "Permite dispositivos cercanos para LangQuest en los ajustes del teléfono, luego vuelve.",
+      "wifiOff": "Enciende el Wi-Fi en los ajustes del teléfono y vuelve a intentarlo.",
+      "connecting": "Conectando con el teléfono de tu compañero…",
+      "asked": "Esperando a tu compañero",
+      "compare": "El teléfono de tu compañero muestra dos imágenes. Si son iguales a estas, tu compañero te deja entrar.",
+      "copying": "Ya entraste. Recibiendo una copia inicial del trabajo del equipo… Partes: {{n, number}}",
+      "unfinished": "Ya entraste, pero la copia inicial no está completa",
+      "unfinishedLine": "Cualquier compañero con Compartir cerca abierto en la misma versión de la app puede terminarla.",
+      "look": "Buscar compañeros",
+      "lookHelp": "Busca el teléfono de un compañero cercano para terminar la copia inicial.",
+      "looking": "Buscando un compañero con Compartir cerca abierto…",
+      "stopLooking": "Dejar de buscar",
+      "stopLookingHelp": "Deja de buscar. Puedes volver a buscar después.",
+      "whole": "Ya entraste",
+      "installFile": "Este teléfono ya no necesita el archivo de instalación. Puedes borrarlo, a menos que vayas a pasárselo a alguien.",
+      "scan": "Escanear un código nuevo",
+      "scanHelp": "Abre el escáner para un código nuevo del teléfono de tu compañero.",
+      "back": "Volver a Iniciar sesión",
+      "backHelp": "Vuelve a Iniciar sesión.",
+      "end": {
+        "notLetIn": "No te dejaron entrar. Si debías entrar, pide a tu compañero un código nuevo.",
+        "noAnswer": "El teléfono de tu compañero no respondió. Pide un código nuevo.",
+        "clock": "El reloj de este teléfono difiere del de tu compañero en más de cinco minutos. Pon la fecha y la hora correctas y luego escanea un código nuevo.",
+        "versions": "El teléfono de tu compañero tiene otra versión de la app. Pídele el archivo de instalación de su versión.",
+        "refused": "Este teléfono no pudo comprobar la respuesta de tu compañero. Pide un código nuevo.",
+        "dropped": "La conexión se cortó. Pide un código nuevo.",
+        "failed": "Algo salió mal en este teléfono. Pide un código nuevo."
+      }
     }
   }
 }

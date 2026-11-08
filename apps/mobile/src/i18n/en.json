@@ -353,7 +353,9 @@
     "global_viewer": "Global Viewer",
     "forgot_password": "Forgot Password",
     "new_password": "New Password",
-    "share_nearby": "Share nearby"
+    "share_nearby": "Share nearby",
+    "let_someone_in": "Let someone in",
+    "join_offline": "Join without internet"
   },
   "native": {
     "microphone": "LangQuest records your voice to translate passages.",
@@ -2870,7 +2872,11 @@
       "createAccountHelp": "Opens a form for your email and a new password.",
       "browseHelp": "See translation work that organizations share publicly. No account needed.",
       "forgot": "Forgot password?",
-      "forgotHelp": "Opens a page where you get a link by email to choose a new password."
+      "forgotHelp": "Opens a page where you get a link by email to choose a new password.",
+      "localHere": "Someone joined the team on this phone without internet. Nobody else can sign in here until their phone has reached the internet once.",
+      "joiningTitle": "{{name}} is joining on this phone",
+      "goOnJoining": "Go on joining",
+      "goOnJoiningHelp": "Opens the screen that finishes joining the team from a teammate's phone."
     },
     "terms": {
       "title": "Terms & Privacy",
@@ -2999,7 +3005,9 @@
       "notNowHelp": "Forgets this invite and goes back to your work.",
       "whoJoins": "Who is joining?",
       "someoneNew": "Someone new",
-      "someoneNewHelp": "For someone not on this phone yet: a new account. Next, type their name."
+      "someoneNewHelp": "For someone not on this phone yet: a new account. Next, type their name.",
+      "joinNotGuest": "This code lets a new phone join a team. This phone already has someone on it.",
+      "localJoined": "Done. Your work goes to the server as yours."
     },
     "signInKey": {
       "notGuestTitle": "This is a sign-in code",
@@ -3226,7 +3234,8 @@
       "changedBody": "{{email}} signs in with the new password from now on.",
       "doneHelp": "Back to your home page.",
       "lost": "A phone of mine was lost or taken",
-      "lostSub": "Teammates' phones stop trusting that phone's work dated after now, and your other phones need a new sign-in to share nearby."
+      "lostSub": "Teammates' phones stop trusting that phone's work dated after now, and your other phones need a new sign-in to share nearby.",
+      "lostLetIn": "If you let anyone in from that phone who has not reached the internet yet, the server will turn them away. Their work stays on their phone, and someone with Invite can let them in again with an invite."
     }
   },
   "account": {
@@ -3365,7 +3374,33 @@
       "nameHelp": "Opens your profile, to change the name your team sees.",
       "offlineHelp": "Shows what this device keeps for working without a connection.",
       "tourHelp": "Opens three short cards on what LangQuest is for.",
-      "moreHelp": "Opens your password, notifications, sync and account settings. A number means changes waiting to send."
+      "moreHelp": "Opens your password, notifications, sync and account settings. A number means changes waiting to send.",
+      "local": {
+        "title": "{{name}}, you joined without internet",
+        "letInBy": "{{name}} let you in from their phone.",
+        "letIn": "A teammate let you in from their phone.",
+        "waiting": "Your account is made the first time this phone reaches the internet. Until then your work waits here.",
+        "joining": "Reaching the server…",
+        "finishing": "Signed in. Finishing setting up this phone…",
+        "needsCode": "Your account is ready. Sign in as {{name}} with a code from someone on your team.",
+        "needsCodeLine": "Ask a teammate to find you in Members and tap Help them sign in, then scan their code here.",
+        "keyLost": "This phone lost the key it was let in with. Your work is still here. Ask someone on your team for help.",
+        "otherAccount": "Someone else is signed in on this phone. Your work is still here.",
+        "refusedLine": "Your work is safe on this phone. Ask someone with Invite for an invite, then scan it here.",
+        "workSafe": "Your work is kept on this phone and on teammates' phones until it reaches the server.",
+        "retry": "Try now",
+        "retryHelp": "Asks the server again now, if this phone has internet.",
+        "scan": "Scan a code",
+        "scanHelp": "Opens the scanner for an invite or a teammate's sign-in code.",
+        "refused": {
+          "expired": "The server turned you away: the pass you were let in with had run out.",
+          "used": "The server turned you away: the pass you were let in with was used up.",
+          "off": "The server turned you away: your organization has joining without internet turned off.",
+          "notFound": "The server turned you away: it does not know the pass you were let in with.",
+          "retired": "The server turned you away: your role is no longer used, or the teammate who let you in can no longer give it.",
+          "other": "The server turned you away."
+        }
+      }
     },
     "more": {
       "noEmail": "No email yet",
@@ -8091,6 +8126,109 @@
       "holding": "Holding for teammates",
       "holdingHelp": "Teammates' recordings on this phone that the server does not have yet. They go up when this phone is online.",
       "deliveryRefused": "The server would not take {{name}}'s work from this phone: {{reason}}. It stays here and goes again at each sync."
+    },
+    "letIn": {
+      "rowSub": "A new phone joins the team from this one, without internet",
+      "rowHelp": "Opens Let someone in, where a new phone with no internet joins your team from this phone.",
+      "intro": "A new person with LangQuest on their phone joins your team from this phone, without internet. Choose their role, show them the code, and let them in once the pictures match.",
+      "why": {
+        "loading": "Checking this phone…",
+        "notInBuild": "Only Android phones can let someone in.",
+        "noPass": "This phone cannot let anyone in. Your organization must have it turned on, you must be able to invite people to this language, and this phone must have reached the internet since.",
+        "expired": "This phone's permission to let people in has run out. Connect to the internet once to renew it.",
+        "noRole": "There is no role this phone can give without internet. An admin can give roles after the new person reaches the internet.",
+        "permissions": "Open Share nearby first and allow what Android asks, then come back.",
+        "wifiOff": "Turn on Wi-Fi in your phone's settings, then come back."
+      },
+      "role": "Their role",
+      "roleHelp": "The role the new person gets. An admin can change it after they reach the internet.",
+      "asRole": "They join as {{role}}. An admin can change it after they reach the internet.",
+      "show": "Show the code",
+      "newCode": "New code",
+      "showHelp": "Makes a code for the new phone to scan. It works for two minutes, for one phone.",
+      "starting": "Getting the code ready…",
+      "codeLabel": "The code for the new phone to scan",
+      "scanLine": "On the new phone, open LangQuest, tap Scan a code, and point it here.",
+      "secondsLeft": "Seconds left: {{n, number}}",
+      "connected": "A phone connected. Waiting for it to ask…",
+      "ask": "Let {{name}} in?",
+      "compare": "Check that the new phone shows the same two pictures. If they differ, tap No.",
+      "whatGoes": "They will get this language's work and the names of its team.",
+      "letIn": "Let {{name}} in",
+      "letInHelp": "Lets them in with the role chosen, then sends them a starting copy of this language.",
+      "no": "No",
+      "noHelp": "Sends them nothing and ends the connection.",
+      "copying": "Sending {{name}} a starting copy… Parts sent: {{n, number}}",
+      "done": "{{name}} is in",
+      "doneLine": "They can work now. Their account is made when their phone, or a teammate's carrying their work, reaches the internet.",
+      "another": "Let someone else in",
+      "anotherHelp": "Starts again with a new code.",
+      "turnedAway": "Another phone tried this code and was turned away.",
+      "stayOpen": "Keep this screen open until it finishes.",
+      "picturesLabel": "Two pictures. Compare them with the other phone.",
+      "end": {
+        "expired": "Nobody used the code in time. Make a new one.",
+        "saidNo": "Nothing was sent.",
+        "noAnswer": "The phone that connected did not have this code. Make a new one.",
+        "versions": "The new phone runs a different version of the app. It needs the install file for version {{version}}.",
+        "clock": "The two phones' clocks differ by more than five minutes. Set the right time on the new phone, then make a new code.",
+        "refused": "This phone could not let them in under that role. Connect to the internet once, then try again.",
+        "dropped": "The connection dropped before they were let in. Make a new code.",
+        "droppedAfter": "They are in, but the connection dropped. Any teammate with Share nearby open can finish their starting copy.",
+        "stopped": "The code is gone because you left this screen. Make a new one.",
+        "noCertificate": "This phone must connect to the internet once before it can let anyone in.",
+        "failed": "Something went wrong on this phone. Make a new code."
+      }
+    },
+    "join": {
+      "intro": "Join your team from a teammate's phone, without internet. Your account is made the first time your phone reaches the internet.",
+      "checking": "Checking this phone…",
+      "notInBuild": "Joining without internet needs an Android phone.",
+      "notEmpty": {
+        "title": "This phone already holds someone's work",
+        "session": "Someone is signed in on this phone. A new person can join without internet only on a phone with nobody on it.",
+        "others": "Someone has used LangQuest on this phone before. A new person can join without internet only on a phone with nobody on it.",
+        "unsent": "This phone holds work that has not reached the server. A new person can join without internet only on a phone with nobody on it.",
+        "local": "Someone has already joined on this phone without internet. Only one person can."
+      },
+      "noCode": "Scan the code on your teammate's phone first.",
+      "name": "Your name",
+      "namePlaceholder": "As your team knows you",
+      "nameHelp": "The name your teammate sees before letting you in.",
+      "nameLine": "When you tap Join, Android asks to let LangQuest use nearby devices. It needs this to reach your teammate's phone.",
+      "stale": "This code may be too old. If joining fails, ask for a new one.",
+      "join": "Join",
+      "tryAgain": "Try again",
+      "joinHelp": "Reaches your teammate's phone and asks to be let in.",
+      "permission": "LangQuest needs nearby devices to reach your teammate's phone.",
+      "permissionBlocked": "Allow nearby devices for LangQuest in the phone's settings, then come back.",
+      "wifiOff": "Turn on Wi-Fi in your phone's settings, then try again.",
+      "connecting": "Reaching your teammate's phone…",
+      "asked": "Waiting for your teammate",
+      "compare": "Your teammate's phone shows two pictures. If they are the same as these, your teammate lets you in.",
+      "copying": "You are in. Getting a starting copy of the team's work… Parts: {{n, number}}",
+      "unfinished": "You are in, but the starting copy is not complete",
+      "unfinishedLine": "Any teammate with Share nearby open on the same version of the app can finish it.",
+      "look": "Look for teammates",
+      "lookHelp": "Finds a teammate's phone nearby to finish the starting copy.",
+      "looking": "Looking for a teammate with Share nearby open…",
+      "stopLooking": "Stop looking",
+      "stopLookingHelp": "Stops looking. You can look again later.",
+      "whole": "You are in",
+      "installFile": "This phone no longer needs the install file. You can delete it, unless you will pass it on.",
+      "scan": "Scan a new code",
+      "scanHelp": "Opens the scanner for a new code from your teammate's phone.",
+      "back": "Back to Sign In",
+      "backHelp": "Goes back to Sign In.",
+      "end": {
+        "notLetIn": "You were not let in. Ask your teammate for a new code if you should be.",
+        "noAnswer": "Your teammate's phone did not answer. Ask for a new code.",
+        "clock": "This phone's clock differs from your teammate's by more than five minutes. Set the right date and time, then scan a new code.",
+        "versions": "Your teammate's phone runs a different version of the app. Ask them for the install file of their version.",
+        "refused": "This phone could not check your teammate's answer. Ask for a new code.",
+        "dropped": "The connection dropped. Ask for a new code.",
+        "failed": "Something went wrong on this phone. Ask for a new code."
+      }
     }
   }
 }

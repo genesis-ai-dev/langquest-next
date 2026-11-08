@@ -53,7 +53,9 @@ export const SCREEN_IDS = [
   // App only: Forgot password, and the new password its emailed link opens (decision 200)
   'forgot_password', 'new_password',
   // App only: phones near each other bring each other up to date with no internet (docs/nearby-sync-plan.md 5.8)
-  'share_nearby'
+  'share_nearby',
+  // App only: a teammate's phone lets a new person in with no internet, and the new phone's progress (docs/nearby-sync-plan.md 14.1)
+  'let_someone_in', 'join_offline'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -454,7 +456,16 @@ export const EDGES: Edge[] = [
   e('new_password', 'home_hub', 'reset'), // tap Back with nothing under it, or Done
   // App only: Share nearby, from Sync where this phone may share (docs/nearby-sync-plan.md 5.8, experimental)
   e('sync_status', 'share_nearby'),
-  e('share_nearby', 'sync_status', 'back')
+  e('share_nearby', 'sync_status', 'back'),
+  // App only: joining without internet (docs/nearby-sync-plan.md 14.1, experimental)
+  e('share_nearby', 'let_someone_in'), // tap Let someone in
+  e('let_someone_in', 'share_nearby', 'back'),
+  e('scan_qr', 'join_offline', undefined, 'guest'), // scan a teammate's Let someone in code
+  e('join_offline', 'scan_qr', undefined, 'guest'), // tap Scan a new code
+  e('join_offline', 'sign_in', 'back', 'guest'), // tap Back
+  e('sign_in', 'join_offline', undefined, 'guest'), // a copy left unfinished: tap Go on joining
+  e('settings_home', 'scan_qr'), // someone let in offline and refused, or needing a helper's code: tap Scan a code
+  e('scan_qr', 'settings_home', 'back')
 ];
 
 /**

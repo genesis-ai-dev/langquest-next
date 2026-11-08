@@ -90,7 +90,12 @@ Copy to adapt; `src/guides/`, docs/reference-material.md), and Share nearby
 (`share_nearby`, from Sync on an Android phone whose organization has it on,
 labelled experimental; docs/nearby-sync-plan.md 5.8). Share nearby keeps the
 kit and the conventions above: 48 pt rows, its one main action a 56 pt
-button, help lines on every part, and words that wrap.
+button, help lines on every part, and words that wrap. Joining without
+internet adds two more on the same terms (docs/nearby-sync-plan.md 14.1): Let
+someone in (`let_someone_in`, from Share nearby for someone holding a pass for
+the language), whose code, one tap and two pictures let a new phone in, and
+Join without internet (`join_offline`, a guest screen from Scan a code), the
+new phone's progress through the ask and the starting copy.
 
 ### Not ported yet
 

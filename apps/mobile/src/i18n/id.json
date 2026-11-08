@@ -351,7 +351,9 @@
     "global_viewer": "Pengamat Global",
     "forgot_password": "Lupa Kata Sandi",
     "new_password": "Kata Sandi Baru",
-    "share_nearby": "Berbagi di sekitar"
+    "share_nearby": "Berbagi di sekitar",
+    "let_someone_in": "Izinkan seseorang masuk",
+    "join_offline": "Gabung tanpa internet"
   },
   "native": {
     "microphone": "LangQuest merekam suara Anda untuk menerjemahkan perikop.",
@@ -2772,7 +2774,11 @@
       "createAccountHelp": "Membuka formulir untuk email Anda dan kata sandi baru.",
       "browseHelp": "Lihat pekerjaan penerjemahan yang dibagikan organisasi untuk publik. Tidak perlu akun.",
       "forgot": "Lupa kata sandi?",
-      "forgotHelp": "Membuka halaman tempat Anda mendapat tautan lewat email untuk memilih kata sandi baru."
+      "forgotHelp": "Membuka halaman tempat Anda mendapat tautan lewat email untuk memilih kata sandi baru.",
+      "localHere": "Seseorang bergabung dengan tim di ponsel ini tanpa internet. Tidak ada orang lain yang bisa masuk di sini sampai ponselnya tersambung ke internet sekali.",
+      "joiningTitle": "{{name}} sedang bergabung di ponsel ini",
+      "goOnJoining": "Lanjutkan bergabung",
+      "goOnJoiningHelp": "Membuka layar untuk menyelesaikan bergabung dengan tim dari ponsel rekan tim."
     },
     "terms": {
       "title": "Ketentuan & Privasi",
@@ -2901,7 +2907,9 @@
       "notNowHelp": "Melupakan undangan ini dan kembali ke pekerjaan Anda.",
       "whoJoins": "Siapa yang bergabung?",
       "someoneNew": "Orang baru",
-      "someoneNewHelp": "Untuk orang yang belum ada di ponsel ini: akun baru. Lalu, ketik namanya."
+      "someoneNewHelp": "Untuk orang yang belum ada di ponsel ini: akun baru. Lalu, ketik namanya.",
+      "joinNotGuest": "Kode ini untuk ponsel baru yang mau bergabung dengan tim. Ponsel ini sudah dipakai seseorang.",
+      "localJoined": "Selesai. Pekerjaan Anda dikirim ke server atas nama Anda."
     },
     "signInKey": {
       "notGuestTitle": "Ini kode masuk",
@@ -3125,7 +3133,8 @@
       "changedBody": "Mulai sekarang {{email}} masuk dengan kata sandi baru.",
       "doneHelp": "Kembali ke layar utama Anda.",
       "lost": "Ponsel saya hilang atau diambil orang",
-      "lostSub": "Ponsel rekan tim berhenti memercayai pekerjaan dari ponsel itu yang bertanggal setelah sekarang, dan ponsel Anda yang lain perlu masuk lagi untuk berbagi di sekitar."
+      "lostSub": "Ponsel rekan tim berhenti memercayai pekerjaan dari ponsel itu yang bertanggal setelah sekarang, dan ponsel Anda yang lain perlu masuk lagi untuk berbagi di sekitar.",
+      "lostLetIn": "Jika dari ponsel itu Anda mengizinkan seseorang masuk yang belum tersambung ke internet, server akan menolak mereka. Pekerjaan mereka tetap di ponsel mereka, dan orang yang bisa mengundang dapat mengizinkan mereka masuk lagi dengan undangan."
     }
   },
   "account": {
@@ -3263,7 +3272,33 @@
       "nameHelp": "Membuka profil Anda, untuk mengubah nama yang dilihat tim Anda.",
       "offlineHelp": "Menampilkan apa yang disimpan perangkat ini untuk bekerja tanpa koneksi.",
       "tourHelp": "Membuka tiga kartu singkat tentang kegunaan LangQuest.",
-      "moreHelp": "Membuka pengaturan kata sandi, notifikasi, sinkronisasi, dan akun Anda. Angka berarti ada perubahan yang menunggu dikirim."
+      "moreHelp": "Membuka pengaturan kata sandi, notifikasi, sinkronisasi, dan akun Anda. Angka berarti ada perubahan yang menunggu dikirim.",
+      "local": {
+        "title": "{{name}}, Anda bergabung tanpa internet",
+        "letInBy": "{{name}} mengizinkan Anda masuk dari ponselnya.",
+        "letIn": "Seorang rekan tim mengizinkan Anda masuk dari ponselnya.",
+        "waiting": "Akun Anda dibuat saat ponsel ini pertama kali tersambung ke internet. Sampai saat itu, pekerjaan Anda menunggu di sini.",
+        "joining": "Menghubungi server…",
+        "finishing": "Sudah masuk. Menyelesaikan penyiapan ponsel ini…",
+        "needsCode": "Akun Anda sudah siap. Masuk sebagai {{name}} dengan kode dari seseorang di tim Anda.",
+        "needsCodeLine": "Minta rekan tim membuka Bantu mereka masuk, lalu pindai kodenya di sini.",
+        "keyLost": "Ponsel ini kehilangan kunci yang dipakai saat diizinkan masuk. Pekerjaan Anda masih ada di sini. Minta bantuan seseorang di tim Anda.",
+        "otherAccount": "Orang lain sudah masuk di ponsel ini. Pekerjaan Anda masih ada di sini.",
+        "refusedLine": "Pekerjaan Anda aman di ponsel ini. Minta undangan dari orang yang bisa mengundang, lalu pindai di sini.",
+        "workSafe": "Pekerjaan Anda disimpan di ponsel ini dan di ponsel rekan tim sampai tiba di server.",
+        "retry": "Coba sekarang",
+        "retryHelp": "Menghubungi server lagi sekarang, jika ponsel ini ada internet.",
+        "scan": "Pindai kode",
+        "scanHelp": "Membuka pemindai untuk undangan atau kode masuk dari rekan tim.",
+        "refused": {
+          "expired": "Server menolak Anda: izin yang dipakai saat Anda masuk sudah habis masa berlakunya.",
+          "used": "Server menolak Anda: izin yang dipakai saat Anda masuk sudah terpakai habis.",
+          "off": "Server menolak Anda: organisasi Anda mematikan bergabung tanpa internet.",
+          "notFound": "Server menolak Anda: server tidak mengenal izin yang dipakai saat Anda masuk.",
+          "retired": "Server menolak Anda: peran Anda tidak dipakai lagi, atau rekan tim yang mengizinkan Anda masuk tidak bisa lagi memberikannya.",
+          "other": "Server menolak Anda."
+        }
+      }
     },
     "more": {
       "noEmail": "Belum ada email",
@@ -7746,6 +7781,109 @@
       "holding": "Disimpan untuk rekan tim",
       "holdingHelp": "Rekaman rekan tim di ponsel ini yang belum ada di server. Rekaman ini diunggah saat ponsel ini online.",
       "deliveryRefused": "Server tidak menerima pekerjaan {{name}} dari ponsel ini: {{reason}}. Pekerjaan itu tetap di sini dan dikirim lagi setiap kali disinkronkan."
+    },
+    "letIn": {
+      "rowSub": "Ponsel baru bergabung dengan tim dari ponsel ini, tanpa internet",
+      "rowHelp": "Membuka Izinkan seseorang masuk, tempat ponsel baru tanpa internet bergabung dengan tim Anda dari ponsel ini.",
+      "intro": "Orang baru yang punya LangQuest di ponselnya bergabung dengan tim Anda dari ponsel ini, tanpa internet. Pilih perannya, tunjukkan kodenya, dan izinkan dia masuk jika gambarnya sama.",
+      "why": {
+        "loading": "Memeriksa ponsel ini…",
+        "notInBuild": "Hanya ponsel Android yang bisa mengizinkan seseorang masuk.",
+        "noPass": "Ponsel ini tidak bisa mengizinkan siapa pun masuk. Organisasi Anda harus menyalakannya, Anda harus bisa mengundang orang ke bahasa ini, dan ponsel ini harus sudah tersambung ke internet sejak itu.",
+        "expired": "Izin ponsel ini untuk mengizinkan orang masuk sudah habis. Sambungkan ke internet sekali untuk memperbaruinya.",
+        "noRole": "Tidak ada peran yang bisa diberikan ponsel ini tanpa internet. Admin bisa memberi peran setelah orang baru itu tersambung ke internet.",
+        "permissions": "Buka Berbagi di sekitar dulu dan izinkan yang diminta Android, lalu kembali ke sini.",
+        "wifiOff": "Nyalakan Wi-Fi di pengaturan ponsel Anda, lalu kembali ke sini."
+      },
+      "role": "Perannya",
+      "roleHelp": "Peran yang didapat orang baru itu. Admin bisa mengubahnya setelah dia tersambung ke internet.",
+      "asRole": "Dia bergabung sebagai {{role}}. Admin bisa mengubahnya setelah dia tersambung ke internet.",
+      "show": "Tunjukkan kode",
+      "newCode": "Kode baru",
+      "showHelp": "Membuat kode untuk dipindai ponsel baru. Kode berlaku dua menit, untuk satu ponsel.",
+      "starting": "Menyiapkan kode…",
+      "codeLabel": "Kode untuk dipindai ponsel baru",
+      "scanLine": "Di ponsel baru, buka LangQuest, ketuk Pindai kode, lalu arahkan ke sini.",
+      "secondsLeft": "Sisa detik: {{n, number}}",
+      "connected": "Sebuah ponsel tersambung. Menunggu permintaannya…",
+      "ask": "Izinkan {{name}} masuk?",
+      "compare": "Periksa apakah ponsel baru menampilkan dua gambar yang sama. Jika berbeda, ketuk Tidak.",
+      "whatGoes": "Mereka akan mendapat pekerjaan bahasa ini dan nama-nama anggota timnya.",
+      "letIn": "Izinkan {{name}} masuk",
+      "letInHelp": "Mengizinkan mereka masuk dengan peran yang dipilih, lalu mengirim salinan awal bahasa ini.",
+      "no": "Tidak",
+      "noHelp": "Tidak mengirim apa pun dan memutus sambungan.",
+      "copying": "Mengirim salinan awal ke {{name}}… Bagian terkirim: {{n, number}}",
+      "done": "{{name}} sudah masuk",
+      "doneLine": "Mereka bisa bekerja sekarang. Akun mereka dibuat saat ponsel mereka, atau ponsel rekan tim yang membawa pekerjaan mereka, tersambung ke internet.",
+      "another": "Izinkan orang lain masuk",
+      "anotherHelp": "Mulai lagi dengan kode baru.",
+      "turnedAway": "Ponsel lain mencoba kode ini dan ditolak.",
+      "stayOpen": "Biarkan layar ini terbuka sampai selesai.",
+      "picturesLabel": "Dua gambar. Bandingkan dengan ponsel yang lain.",
+      "end": {
+        "expired": "Tidak ada yang memakai kode tepat waktu. Buat kode baru.",
+        "saidNo": "Tidak ada yang dikirim.",
+        "noAnswer": "Ponsel yang tersambung tidak punya kode ini. Buat kode baru.",
+        "versions": "Ponsel baru memakai versi aplikasi yang berbeda. Ponsel itu memerlukan file instalasi untuk versi {{version}}.",
+        "clock": "Jam kedua ponsel berbeda lebih dari lima menit. Atur jam yang benar di ponsel baru, lalu buat kode baru.",
+        "refused": "Ponsel ini tidak bisa mengizinkan mereka masuk dengan peran itu. Sambungkan ke internet sekali, lalu coba lagi.",
+        "dropped": "Sambungan terputus sebelum mereka diizinkan masuk. Buat kode baru.",
+        "droppedAfter": "Mereka sudah masuk, tetapi sambungan terputus. Rekan tim mana pun yang membuka Berbagi di sekitar bisa menyelesaikan salinan awal mereka.",
+        "stopped": "Kode hilang karena Anda meninggalkan layar ini. Buat kode baru.",
+        "noCertificate": "Ponsel ini harus tersambung ke internet sekali sebelum bisa mengizinkan siapa pun masuk.",
+        "failed": "Ada yang salah di ponsel ini. Buat kode baru."
+      }
+    },
+    "join": {
+      "intro": "Bergabung dengan tim Anda dari ponsel rekan tim, tanpa internet. Akun Anda dibuat saat ponsel Anda pertama kali tersambung ke internet.",
+      "checking": "Memeriksa ponsel ini…",
+      "notInBuild": "Bergabung tanpa internet memerlukan ponsel Android.",
+      "notEmpty": {
+        "title": "Ponsel ini sudah menyimpan pekerjaan seseorang",
+        "session": "Seseorang sudah masuk di ponsel ini. Orang baru hanya bisa bergabung tanpa internet di ponsel yang belum dipakai siapa pun.",
+        "others": "Seseorang pernah memakai LangQuest di ponsel ini. Orang baru hanya bisa bergabung tanpa internet di ponsel yang belum dipakai siapa pun.",
+        "unsent": "Ponsel ini menyimpan pekerjaan yang belum tiba di server. Orang baru hanya bisa bergabung tanpa internet di ponsel yang belum dipakai siapa pun.",
+        "local": "Seseorang sudah bergabung di ponsel ini tanpa internet. Hanya satu orang yang bisa."
+      },
+      "noCode": "Pindai dulu kode di ponsel rekan tim Anda.",
+      "name": "Nama Anda",
+      "namePlaceholder": "Nama yang dikenal tim Anda",
+      "nameHelp": "Nama yang dilihat rekan tim Anda sebelum mengizinkan Anda masuk.",
+      "nameLine": "Saat Anda mengetuk Gabung, Android meminta izin agar LangQuest bisa memakai perangkat di sekitar. Izin ini diperlukan untuk menghubungi ponsel rekan tim Anda.",
+      "stale": "Kode ini mungkin sudah terlalu lama. Jika gagal bergabung, minta kode baru.",
+      "join": "Gabung",
+      "tryAgain": "Coba lagi",
+      "joinHelp": "Menghubungi ponsel rekan tim Anda dan meminta izin masuk.",
+      "permission": "LangQuest memerlukan izin perangkat di sekitar untuk menghubungi ponsel rekan tim Anda.",
+      "permissionBlocked": "Izinkan Perangkat di sekitar untuk LangQuest di pengaturan ponsel, lalu kembali ke sini.",
+      "wifiOff": "Nyalakan Wi-Fi di pengaturan ponsel Anda, lalu coba lagi.",
+      "connecting": "Menghubungi ponsel rekan tim Anda…",
+      "asked": "Menunggu rekan tim Anda",
+      "compare": "Ponsel rekan tim Anda menampilkan dua gambar. Jika sama dengan gambar ini, rekan tim Anda akan mengizinkan Anda masuk.",
+      "copying": "Anda sudah masuk. Mengambil salinan awal pekerjaan tim… Bagian: {{n, number}}",
+      "unfinished": "Anda sudah masuk, tetapi salinan awal belum lengkap",
+      "unfinishedLine": "Rekan tim mana pun yang membuka Berbagi di sekitar dengan versi aplikasi yang sama bisa menyelesaikannya.",
+      "look": "Cari rekan tim",
+      "lookHelp": "Mencari ponsel rekan tim di sekitar untuk menyelesaikan salinan awal.",
+      "looking": "Mencari rekan tim yang membuka Berbagi di sekitar…",
+      "stopLooking": "Berhenti mencari",
+      "stopLookingHelp": "Berhenti mencari. Anda bisa mencari lagi nanti.",
+      "whole": "Anda sudah masuk",
+      "installFile": "Ponsel ini tidak lagi memerlukan file instalasi. Anda bisa menghapusnya, kecuali Anda akan meneruskannya ke orang lain.",
+      "scan": "Pindai kode baru",
+      "scanHelp": "Membuka pemindai untuk kode baru dari ponsel rekan tim Anda.",
+      "back": "Kembali ke Masuk",
+      "backHelp": "Kembali ke Masuk.",
+      "end": {
+        "notLetIn": "Anda tidak diizinkan masuk. Minta kode baru ke rekan tim Anda jika seharusnya Anda boleh masuk.",
+        "noAnswer": "Ponsel rekan tim Anda tidak menjawab. Minta kode baru.",
+        "clock": "Jam ponsel ini berbeda lebih dari lima menit dengan jam rekan tim Anda. Atur tanggal dan jam yang benar, lalu pindai kode baru.",
+        "versions": "Ponsel rekan tim Anda memakai versi aplikasi yang berbeda. Minta file instalasi versi mereka.",
+        "refused": "Ponsel ini tidak bisa memeriksa jawaban rekan tim Anda. Minta kode baru.",
+        "dropped": "Sambungan terputus. Minta kode baru.",
+        "failed": "Ada yang salah di ponsel ini. Minta kode baru."
+      }
     }
   }
 }

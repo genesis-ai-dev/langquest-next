@@ -58,6 +58,9 @@ import { ChosenPicture, PatternPad, PictureGrid } from '../auth/patternPad';
 import { useLockWays } from '../auth/useLockWays';
 import { LOCKS_ON_SIGN_OUT, lockAndSignOut, rememberPassword, setAccountPassword, setLockPattern, signOutThisDevice } from '../account/accountAuth';
 import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
+import { useLocalPerson } from '../shell/useLocalPerson';
+import { membershipOf } from '../session/localPersonModel';
+import { firstContactWords } from '../session/firstContactWords';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { runningBuildLabel } from '../shell/updateStatus';
 import { AppIconRow } from '../shell/AppIconRow';
@@ -389,11 +392,13 @@ export function SettingsHome(ctx: Ctx) {
   const moreSub = p.refused ? t('account.me.moreRefused')
     : p.refusedEvents > 0 ? t('account.me.moreRefusedEvents', { n: p.refusedEvents })
     : waiting > 0 ? t('account.me.morePending', { count: waiting }) : moreSettingsSub();
+  const local = ctx.session.isLocal;
   return (
     <Screen header={<Header title={t('account.me.title')} />}>
+      {local ? <LocalPersonCard ctx={ctx} name={name} /> : null}
       <Group>
         <Row icon="user" label={name} sub={t('account.me.nameSub')} help={t('account.me.nameHelp')} onPress={() => ctx.go('profile_edit')} />
-        {inSeveral(orgs) ? <SwitchOrgRow ctx={ctx} orgName={orgName} several /> : null}
+        {inSeveral(orgs) && !local ? <SwitchOrgRow ctx={ctx} orgName={orgName} several /> : null}
         {/* What comes along to the field, seen before a trip (decisions.md 61). */}
         <Row icon="download" label={t('account.me.offline')} sub={offlineCount(offline)} help={t('account.me.offlineHelp')} onPress={() => ctx.go('sync_status', { show: 'offline' })} />
         <Row icon="help" label={t('account.me.tour')} sub={t('account.me.tourSub')} help={t('account.me.tourHelp')} onPress={() => ctx.go('vision')} />
@@ -401,8 +406,39 @@ export function SettingsHome(ctx: Ctx) {
         <Row icon="settings" label={t('account.me.more')} sub={moreSub} help={t('account.me.moreHelp')} onPress={() => ctx.go('settings_more')}
           {...(waiting > 0 ? { badge: formatNumber(waiting) } : {})} last />
       </Group>
-      <DangerLink label={t('account.me.signOut')} onPress={() => ctx.go('sign_out_confirm')} />
+      {/* Someone let in offline cannot sign out: their work has no account to wait under until first contact (14.1, 5 "Me"). */}
+      {local ? null : <DangerLink label={t('account.me.signOut')} onPress={() => ctx.go('sign_out_confirm')} />}
     </Screen>
+  );
+}
+
+/**
+ * Someone let in offline (docs/nearby-sync-plan.md 14.1, 5 and 6): who let them in, where first
+ * contact stands with Try now, why the join route refused in words, and for a refusal or an account
+ * that needs a helper's code, the scanner, which takes an invite from someone with Invite or the
+ * helper's code. Their work stays on this phone whatever the server says.
+ */
+function LocalPersonCard(props: { ctx: Ctx; name: string }) {
+  const { ctx } = props;
+  const local = useLocalPerson();
+  const inviter = membershipOf(local)?.inviter;
+  const status = ctx.firstContact.status;
+  const words = firstContactWords(status);
+  const stopped = status.kind === 'refused' || status.kind === 'needsCode';
+  return (
+    <Card>
+      <View style={{ gap: space.xs }}>
+        <Text style={[txt.body, { fontWeight: '700' }]}>{t('account.me.local.title', { name: props.name })}</Text>
+        <Text style={txt.sm}>{inviter ? t('account.me.local.letInBy', { name: ctx.name(inviter) }) : t('account.me.local.letIn')}</Text>
+        {words ? <Text style={[txt.sm, stopped || status.kind === 'blocked' ? { color: TINT.amberText } : null]}>
+          {status.kind === 'needsCode' ? t('account.me.local.needsCode', { name: status.signInName }) : t(words)}</Text> : null}
+        {status.kind === 'refused' ? <Text style={txt.smMuted}>{t('account.me.local.refusedLine')}</Text> : null}
+        {status.kind === 'needsCode' ? <Text style={txt.smMuted}>{t('account.me.local.needsCodeLine')}</Text> : null}
+        <Text style={txt.smMuted}>{t('account.me.local.workSafe')}</Text>
+      </View>
+      {status.kind === 'waiting' ? <GhostBtn label={t('account.me.local.retry')} icon="restart" help={t('account.me.local.retryHelp')} onPress={ctx.firstContact.retry} /> : null}
+      {stopped ? <GhostBtn label={t('account.me.local.scan')} icon="qr" help={t('account.me.local.scanHelp')} onPress={() => ctx.go('scan_qr')} /> : null}
+    </Card>
   );
 }
 
@@ -456,10 +492,11 @@ export function SettingsMore(ctx: Ctx) {
   const syncSub = syncSummary({ refused: p.refused, live: p.live, online: p.online, pending: status.pending + status.orgPending, recordings: status.pendingUp + status.holding, lastSync: status.lastSync });
   // Someone in several organizations switches on Me itself; anyone else finds it here, where it also starts a new one.
   const orgs = useOrganizations(s.actorId).rows;
-  const switchHere = !inSeveral(orgs);
-  const passwordRow = s.isManaged && hasPassword === false;
+  // Someone let in offline has no account yet: no switching, notifications or deleting until first contact (14.1, 5 "Me").
+  const switchHere = !inSeveral(orgs) && !s.isLocal;
+  const passwordRow = s.isManaged && hasPassword === false && !s.isLocal;
   // No push on the web yet, nor on a disguised Android phone (useNotificationsOffered.ts).
-  const notifications = useNotificationsOffered();
+  const notifications = useNotificationsOffered() && !s.isLocal;
   const blocked = ctx.blocks.ids.length;
   return (
     <Screen header={<Header title={t('account.me.more')} onBack={ctx.back} />}>
@@ -523,10 +560,12 @@ export function SettingsMore(ctx: Ctx) {
       {/* A lost or taken phone (decisions.md 200): the link's New password has the choice that revokes its nearby keys. */}
       {lostPhoneRowShown(s) && s.email ? <Group><LostPhoneRow ctx={ctx} email={s.email} /></Group> : null}
       {/* Store rules, decisions.md 46: the store answers and the App Review notes say Settings → Delete account; it is here, under Me › More settings. */}
-      <Group>
-        <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('account.more.deleteAccount')} sub={t('account.more.deleteSub')}
-          onPress={() => ctx.go('delete_account')} last />
-      </Group>
+      {s.isLocal ? null : (
+        <Group>
+          <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('account.more.deleteAccount')} sub={t('account.more.deleteSub')}
+            onPress={() => ctx.go('delete_account')} last />
+        </Group>
+      )}
       {ctx.canSwitchPersona ? (
         <>
           <SectionLabel label={t('account.more.testing')} />

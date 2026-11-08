@@ -353,7 +353,9 @@
     "global_viewer": "Mtazamaji wa Kimataifa",
     "forgot_password": "Umesahau Nenosiri",
     "new_password": "Nenosiri Jipya",
-    "share_nearby": "Shiriki karibu"
+    "share_nearby": "Shiriki karibu",
+    "let_someone_in": "Mruhusu mtu aingie",
+    "join_offline": "Jiunge bila intaneti"
   },
   "native": {
     "microphone": "LangQuest hurekodi sauti yako ili kutafsiri vifungu.",
@@ -2870,7 +2872,11 @@
       "createAccountHelp": "Hufungua fomu ya barua pepe yako na nenosiri jipya.",
       "browseHelp": "Ona kazi za tafsiri ambazo mashirika yanashiriki hadharani. Hakuna akaunti inayohitajika.",
       "forgot": "Umesahau nenosiri?",
-      "forgotHelp": "Hufungua ukurasa ambapo unapata kiungo kwa barua pepe ili uchague nenosiri jipya."
+      "forgotHelp": "Hufungua ukurasa ambapo unapata kiungo kwa barua pepe ili uchague nenosiri jipya.",
+      "localHere": "Mtu amejiunga na timu kwenye simu hii bila intaneti. Hakuna mtu mwingine anayeweza kuingia hapa hadi simu yake ifike kwenye intaneti mara moja.",
+      "joiningTitle": "{{name}} anajiunga kwenye simu hii",
+      "goOnJoining": "Endelea kujiunga",
+      "goOnJoiningHelp": "Hufungua skrini inayomaliza kujiunga na timu kutoka kwenye simu ya mwenzako wa timu."
     },
     "terms": {
       "title": "Masharti na Faragha",
@@ -2999,7 +3005,9 @@
       "notNowHelp": "Husahau mwaliko huu na kurudi kwenye kazi yako.",
       "whoJoins": "Nani anajiunga?",
       "someoneNew": "Mtu mpya",
-      "someoneNewHelp": "Kwa mtu ambaye bado hayupo kwenye simu hii: akaunti mpya. Kisha, andika jina lake."
+      "someoneNewHelp": "Kwa mtu ambaye bado hayupo kwenye simu hii: akaunti mpya. Kisha, andika jina lake.",
+      "joinNotGuest": "Msimbo huu huruhusu simu mpya kujiunga na timu. Simu hii tayari ina mtu.",
+      "localJoined": "Imekamilika. Kazi yako inaenda kwenye seva kama yako."
     },
     "signInKey": {
       "notGuestTitle": "Huu ni msimbo wa kuingia",
@@ -3226,7 +3234,8 @@
       "changedBody": "Kuanzia sasa, {{email}} inaingia kwa nenosiri jipya.",
       "doneHelp": "Hurudi kwenye skrini yako kuu.",
       "lost": "Simu yangu moja ilipotea au ilichukuliwa",
-      "lostSub": "Simu za wenzako wa timu zinaacha kuamini kazi ya simu hiyo yenye tarehe baada ya sasa, na simu zako nyingine zinahitaji kuingia upya ili kushiriki karibu."
+      "lostSub": "Simu za wenzako wa timu zinaacha kuamini kazi ya simu hiyo yenye tarehe baada ya sasa, na simu zako nyingine zinahitaji kuingia upya ili kushiriki karibu.",
+      "lostLetIn": "Ikiwa ulimruhusu mtu yeyote aingie kutoka kwenye simu ile ambaye bado hajafika kwenye intaneti, seva itamkataa. Kazi yake inabaki kwenye simu yake, na mtu anayeweza kualika watu anaweza kumruhusu aingie tena kwa mwaliko."
     }
   },
   "account": {
@@ -3365,7 +3374,33 @@
       "nameHelp": "Hufungua wasifu wako, ili ubadilishe jina ambalo timu yako inaona.",
       "offlineHelp": "Huonyesha kile kifaa hiki kinahifadhi kwa ajili ya kufanya kazi bila mtandao.",
       "tourHelp": "Hufungua kadi tatu fupi kuhusu LangQuest ni ya nini.",
-      "moreHelp": "Hufungua mipangilio ya nenosiri, arifa, usawazishaji na akaunti yako. Namba inamaanisha mabadiliko yanayosubiri kutumwa."
+      "moreHelp": "Hufungua mipangilio ya nenosiri, arifa, usawazishaji na akaunti yako. Namba inamaanisha mabadiliko yanayosubiri kutumwa.",
+      "local": {
+        "title": "{{name}}, ulijiunga bila intaneti",
+        "letInBy": "{{name}} alikuruhusu uingie kutoka kwenye simu yake.",
+        "letIn": "Mwenzako wa timu alikuruhusu uingie kutoka kwenye simu yake.",
+        "waiting": "Akaunti yako inatengenezwa mara ya kwanza simu hii itakapofika kwenye intaneti. Hadi wakati huo kazi yako inasubiri hapa.",
+        "joining": "Inafikia seva…",
+        "finishing": "Umeingia. Inamaliza kuandaa simu hii…",
+        "needsCode": "Akaunti yako iko tayari. Ingia kama {{name}} kwa msimbo kutoka kwa mtu kwenye timu yako.",
+        "needsCodeLine": "Mwombe mwenzako wa timu afungue Msaidie kuingia, kisha soma msimbo wake hapa.",
+        "keyLost": "Simu hii imepoteza ufunguo uliotumika kukuruhusu uingie. Kazi yako bado iko hapa. Omba msaada kwa mtu kwenye timu yako.",
+        "otherAccount": "Mtu mwingine ameingia kwenye simu hii. Kazi yako bado iko hapa.",
+        "refusedLine": "Kazi yako iko salama kwenye simu hii. Omba mwaliko kwa mtu anayeweza kualika watu, kisha uusome hapa.",
+        "workSafe": "Kazi yako inahifadhiwa kwenye simu hii na kwenye simu za wenzako hadi ifike kwenye seva.",
+        "retry": "Jaribu sasa",
+        "retryHelp": "Huuliza seva tena sasa, ikiwa simu hii ina intaneti.",
+        "scan": "Soma msimbo",
+        "scanHelp": "Hufungua kisomaji kwa ajili ya mwaliko au msimbo wa kuingia wa mwenzako wa timu.",
+        "refused": {
+          "expired": "Seva imekukataa: kibali ulichoruhusiwa kuingia nacho kilikuwa kimeisha muda.",
+          "used": "Seva imekukataa: kibali ulichoruhusiwa kuingia nacho kilikuwa kimeshatumika.",
+          "off": "Seva imekukataa: shirika lako limezima kujiunga bila intaneti.",
+          "notFound": "Seva imekukataa: haikijui kibali ulichoruhusiwa kuingia nacho.",
+          "retired": "Seva imekukataa: jukumu lako halitumiki tena, au mwenzako aliyekuruhusu uingie hawezi tena kulitoa.",
+          "other": "Seva imekukataa."
+        }
+      }
     },
     "more": {
       "noEmail": "Bado hakuna barua pepe",
@@ -8091,6 +8126,109 @@
       "holding": "Inahifadhi kwa ajili ya wenzako",
       "holdingHelp": "Rekodi za wenzako kwenye simu hii ambazo seva bado haina. Zinapakiwa simu hii ikiwa mtandaoni.",
       "deliveryRefused": "Seva haikupokea kazi ya {{name}} kutoka simu hii: {{reason}}. Inabaki hapa na itatumwa tena kila unaposawazisha."
+    },
+    "letIn": {
+      "rowSub": "Simu mpya inajiunga na timu kupitia hii, bila intaneti",
+      "rowHelp": "Hufungua Mruhusu mtu aingie, ambapo simu mpya isiyo na intaneti inajiunga na timu yako kupitia simu hii.",
+      "intro": "Mtu mpya mwenye LangQuest kwenye simu yake anajiunga na timu yako kupitia simu hii, bila intaneti. Chagua jukumu lake, mwonyeshe msimbo, na umruhusu aingie picha zikifanana.",
+      "why": {
+        "loading": "Inaangalia simu hii…",
+        "notInBuild": "Simu za Android pekee ndizo zinaweza kumruhusu mtu aingie.",
+        "noPass": "Simu hii haiwezi kumruhusu mtu yeyote aingie. Shirika lako lazima liwe limewasha hili, lazima uweze kualika watu kwenye lugha hii, na simu hii lazima iwe imefika kwenye intaneti tangu wakati huo.",
+        "expired": "Ruhusa ya simu hii kuwaruhusu watu waingie imeisha muda. Unganisha kwenye intaneti mara moja ili kuifanya upya.",
+        "noRole": "Hakuna jukumu ambalo simu hii inaweza kutoa bila intaneti. Msimamizi anaweza kutoa majukumu baada ya mtu mpya kufika kwenye intaneti.",
+        "permissions": "Fungua Shiriki karibu kwanza na uruhusu kile Android inachouliza, kisha urudi.",
+        "wifiOff": "Washa Wi-Fi kwenye mipangilio ya simu yako, kisha urudi."
+      },
+      "role": "Jukumu lake",
+      "roleHelp": "Jukumu ambalo mtu mpya anapata. Msimamizi anaweza kulibadilisha baada ya yeye kufika kwenye intaneti.",
+      "asRole": "Anajiunga kama {{role}}. Msimamizi anaweza kulibadilisha baada ya yeye kufika kwenye intaneti.",
+      "show": "Onyesha msimbo",
+      "newCode": "Msimbo mpya",
+      "showHelp": "Hutengeneza msimbo wa simu mpya kusoma. Unafanya kazi kwa dakika mbili, kwa simu moja.",
+      "starting": "Inaandaa msimbo…",
+      "codeLabel": "Msimbo wa simu mpya kusoma",
+      "scanLine": "Kwenye simu mpya, fungua LangQuest, gusa Soma msimbo, na uielekeze hapa.",
+      "secondsLeft": "Sekunde zilizobaki: {{n, number}}",
+      "connected": "Simu imeunganishwa. Inasubiri iombe…",
+      "ask": "Umruhusu {{name}} aingie?",
+      "compare": "Hakikisha simu mpya inaonyesha picha mbili zilezile. Zikitofautiana, gusa Hapana.",
+      "whatGoes": "Atapata kazi ya lugha hii na majina ya timu yake.",
+      "letIn": "Mruhusu {{name}} aingie",
+      "letInHelp": "Humruhusu aingie kwa jukumu lililochaguliwa, kisha humtumia nakala ya kuanzia ya lugha hii.",
+      "no": "Hapana",
+      "noHelp": "Haimtumii chochote na inamaliza muunganisho.",
+      "copying": "Inamtumia {{name}} nakala ya kuanzia… Sehemu zilizotumwa: {{n, number}}",
+      "done": "{{name}} ameingia",
+      "doneLine": "Anaweza kufanya kazi sasa. Akaunti yake inatengenezwa simu yake, au ya mwenzako aliyebeba kazi yake, ikifika kwenye intaneti.",
+      "another": "Mruhusu mtu mwingine aingie",
+      "anotherHelp": "Huanza tena kwa msimbo mpya.",
+      "turnedAway": "Simu nyingine ilijaribu msimbo huu na ikakataliwa.",
+      "stayOpen": "Acha skrini hii wazi hadi imalize.",
+      "picturesLabel": "Picha mbili. Zilinganishe na simu nyingine.",
+      "end": {
+        "expired": "Hakuna aliyetumia msimbo kwa wakati. Tengeneza mpya.",
+        "saidNo": "Hakuna kilichotumwa.",
+        "noAnswer": "Simu iliyounganishwa haikuwa na msimbo huu. Tengeneza mpya.",
+        "versions": "Simu mpya ina toleo tofauti la programu. Inahitaji faili ya kusakinisha ya toleo {{version}}.",
+        "clock": "Saa za simu hizi mbili zinatofautiana kwa zaidi ya dakika tano. Weka saa sahihi kwenye simu mpya, kisha tengeneza msimbo mpya.",
+        "refused": "Simu hii haikuweza kumruhusu aingie kwa jukumu hilo. Unganisha kwenye intaneti mara moja, kisha ujaribu tena.",
+        "dropped": "Muunganisho ulikatika kabla hajaruhusiwa kuingia. Tengeneza msimbo mpya.",
+        "droppedAfter": "Ameingia, lakini muunganisho ulikatika. Mwenzako yeyote wa timu aliyefungua Shiriki karibu anaweza kumaliza nakala yake ya kuanzia.",
+        "stopped": "Msimbo umeondoka kwa sababu uliondoka kwenye skrini hii. Tengeneza mpya.",
+        "noCertificate": "Simu hii lazima iunganishwe kwenye intaneti mara moja kabla ya kuweza kumruhusu mtu yeyote aingie.",
+        "failed": "Kuna tatizo limetokea kwenye simu hii. Tengeneza msimbo mpya."
+      }
+    },
+    "join": {
+      "intro": "Jiunge na timu yako kupitia simu ya mwenzako wa timu, bila intaneti. Akaunti yako inatengenezwa mara ya kwanza simu yako itakapofika kwenye intaneti.",
+      "checking": "Inaangalia simu hii…",
+      "notInBuild": "Kujiunga bila intaneti kunahitaji simu ya Android.",
+      "notEmpty": {
+        "title": "Simu hii tayari ina kazi ya mtu",
+        "session": "Mtu ameingia kwenye simu hii. Mtu mpya anaweza kujiunga bila intaneti tu kwenye simu isiyo na mtu yeyote.",
+        "others": "Mtu ameshatumia LangQuest kwenye simu hii. Mtu mpya anaweza kujiunga bila intaneti tu kwenye simu isiyo na mtu yeyote.",
+        "unsent": "Simu hii ina kazi ambayo haijafika kwenye seva. Mtu mpya anaweza kujiunga bila intaneti tu kwenye simu isiyo na mtu yeyote.",
+        "local": "Mtu ameshajiunga kwenye simu hii bila intaneti. Ni mtu mmoja tu anayeweza."
+      },
+      "noCode": "Soma kwanza msimbo kwenye simu ya mwenzako.",
+      "name": "Jina lako",
+      "namePlaceholder": "Kama timu yako inavyokujua",
+      "nameHelp": "Jina ambalo mwenzako anaona kabla ya kukuruhusu uingie.",
+      "nameLine": "Ukigusa Jiunge, Android itaomba kuruhusu LangQuest itumie vifaa vilivyo karibu. Inahitaji hii ili kufikia simu ya mwenzako.",
+      "stale": "Huenda msimbo huu ni wa zamani sana. Kujiunga kukishindikana, omba mpya.",
+      "join": "Jiunge",
+      "tryAgain": "Jaribu tena",
+      "joinHelp": "Hufikia simu ya mwenzako na kuomba kuruhusiwa kuingia.",
+      "permission": "LangQuest inahitaji vifaa vilivyo karibu ili kufikia simu ya mwenzako.",
+      "permissionBlocked": "Ruhusu vifaa vilivyo karibu kwa LangQuest kwenye mipangilio ya simu, kisha urudi.",
+      "wifiOff": "Washa Wi-Fi kwenye mipangilio ya simu yako, kisha ujaribu tena.",
+      "connecting": "Inafikia simu ya mwenzako…",
+      "asked": "Inamsubiri mwenzako",
+      "compare": "Simu ya mwenzako inaonyesha picha mbili. Zikiwa sawa na hizi, mwenzako atakuruhusu uingie.",
+      "copying": "Umeingia. Inapata nakala ya kuanzia ya kazi ya timu… Sehemu: {{n, number}}",
+      "unfinished": "Umeingia, lakini nakala ya kuanzia haijakamilika",
+      "unfinishedLine": "Mwenzako yeyote wa timu aliyefungua Shiriki karibu kwenye toleo lilelile la programu anaweza kuimaliza.",
+      "look": "Tafuta wenzako wa timu",
+      "lookHelp": "Hupata simu ya mwenzako iliyo karibu ili kumaliza nakala ya kuanzia.",
+      "looking": "Inatafuta mwenzako aliyefungua Shiriki karibu…",
+      "stopLooking": "Acha kutafuta",
+      "stopLookingHelp": "Huacha kutafuta. Unaweza kutafuta tena baadaye.",
+      "whole": "Umeingia",
+      "installFile": "Simu hii haihitaji tena faili ya kusakinisha. Unaweza kuifuta, isipokuwa utampa mtu mwingine.",
+      "scan": "Soma msimbo mpya",
+      "scanHelp": "Hufungua kisomaji kwa ajili ya msimbo mpya kutoka kwenye simu ya mwenzako.",
+      "back": "Rudi kwenye Ingia",
+      "backHelp": "Hurudi kwenye Ingia.",
+      "end": {
+        "notLetIn": "Hukuruhusiwa kuingia. Mwombe mwenzako msimbo mpya ikiwa unapaswa kuingia.",
+        "noAnswer": "Simu ya mwenzako haikujibu. Omba msimbo mpya.",
+        "clock": "Saa ya simu hii inatofautiana na ya mwenzako kwa zaidi ya dakika tano. Weka tarehe na saa sahihi, kisha soma msimbo mpya.",
+        "versions": "Simu ya mwenzako ina toleo tofauti la programu. Mwombe faili ya kusakinisha ya toleo lake.",
+        "refused": "Simu hii haikuweza kuhakiki jibu la mwenzako. Omba msimbo mpya.",
+        "dropped": "Muunganisho ulikatika. Omba msimbo mpya.",
+        "failed": "Kuna tatizo limetokea kwenye simu hii. Omba msimbo mpya."
+      }
     }
   }
 }

@@ -355,7 +355,9 @@
     "global_viewer": "Observateur global",
     "forgot_password": "Mot de passe oublié",
     "new_password": "Nouveau mot de passe",
-    "share_nearby": "Partager à proximité"
+    "share_nearby": "Partager à proximité",
+    "let_someone_in": "Faire entrer quelqu’un",
+    "join_offline": "Rejoindre sans Internet"
   },
   "native": {
     "microphone": "LangQuest enregistre votre voix pour traduire des passages.",
@@ -2968,7 +2970,11 @@
       "createAccountHelp": "Ouvre un formulaire pour votre e-mail et un nouveau mot de passe.",
       "browseHelp": "Voyez le travail de traduction que les organisations partagent publiquement. Pas besoin de compte.",
       "forgot": "Mot de passe oublié ?",
-      "forgotHelp": "Ouvre une page où vous recevez un lien par e-mail pour choisir un nouveau mot de passe."
+      "forgotHelp": "Ouvre une page où vous recevez un lien par e-mail pour choisir un nouveau mot de passe.",
+      "localHere": "Quelqu’un a rejoint l’équipe sur ce téléphone sans Internet. Personne d’autre ne peut se connecter ici tant que son téléphone ne s’est pas connecté une fois à Internet.",
+      "joiningTitle": "{{name}} rejoint l’équipe sur ce téléphone",
+      "goOnJoining": "Continuer à rejoindre",
+      "goOnJoiningHelp": "Ouvre l’écran qui termine de rejoindre l’équipe depuis le téléphone d’un coéquipier."
     },
     "terms": {
       "title": "Conditions et confidentialité",
@@ -3097,7 +3103,9 @@
       "notNowHelp": "Oublie cette invitation et revient à votre travail.",
       "whoJoins": "Qui rejoint ?",
       "someoneNew": "Quelqu’un de nouveau",
-      "someoneNewHelp": "Pour quelqu’un qui n’est pas encore sur ce téléphone : un nouveau compte. Ensuite, tapez son nom."
+      "someoneNewHelp": "Pour quelqu’un qui n’est pas encore sur ce téléphone : un nouveau compte. Ensuite, tapez son nom.",
+      "joinNotGuest": "Ce code permet à un nouveau téléphone de rejoindre une équipe. Ce téléphone a déjà quelqu’un dessus.",
+      "localJoined": "C’est fait. Votre travail va au serveur en votre nom."
     },
     "signInKey": {
       "notGuestTitle": "Ceci est un code de connexion",
@@ -3327,7 +3335,8 @@
       "changedBody": "Désormais, {{email}} se connecte avec le nouveau mot de passe.",
       "doneHelp": "Retour à votre écran d’accueil.",
       "lost": "Un de mes téléphones a été perdu ou pris",
-      "lostSub": "Les téléphones de vos coéquipiers ne font plus confiance au travail de ce téléphone daté d’après maintenant, et vos autres téléphones doivent se reconnecter pour partager à proximité."
+      "lostSub": "Les téléphones de vos coéquipiers ne font plus confiance au travail de ce téléphone daté d’après maintenant, et vos autres téléphones doivent se reconnecter pour partager à proximité.",
+      "lostLetIn": "Si vous avez fait entrer depuis ce téléphone quelqu’un qui ne s’est pas encore connecté à Internet, le serveur le refusera. Son travail reste sur son téléphone, et quelqu’un qui peut inviter des personnes peut le faire entrer à nouveau avec une invitation."
     }
   },
   "account": {
@@ -3467,7 +3476,33 @@
       "nameHelp": "Ouvre votre profil, pour changer le nom que voit votre équipe.",
       "offlineHelp": "Affiche ce que cet appareil garde pour travailler sans connexion.",
       "tourHelp": "Ouvre trois courtes fiches sur ce à quoi sert LangQuest.",
-      "moreHelp": "Ouvre les réglages du mot de passe, des notifications, de la synchronisation et du compte. Un nombre indique des modifications en attente d’envoi."
+      "moreHelp": "Ouvre les réglages du mot de passe, des notifications, de la synchronisation et du compte. Un nombre indique des modifications en attente d’envoi.",
+      "local": {
+        "title": "{{name}}, vous avez rejoint sans Internet",
+        "letInBy": "{{name}} vous a fait entrer depuis son téléphone.",
+        "letIn": "Un coéquipier vous a fait entrer depuis son téléphone.",
+        "waiting": "Votre compte est créé la première fois que ce téléphone se connecte à Internet. D’ici là, votre travail attend ici.",
+        "joining": "Connexion au serveur…",
+        "finishing": "Connecté. Fin de la préparation de ce téléphone…",
+        "needsCode": "Votre compte est prêt. Connectez-vous en tant que {{name}} avec un code d’une personne de votre équipe.",
+        "needsCodeLine": "Demandez à un coéquipier d’ouvrir L’aider à se connecter, puis scannez son code ici.",
+        "keyLost": "Ce téléphone a perdu la clé avec laquelle vous êtes entré. Votre travail est toujours là. Demandez de l’aide à quelqu’un de votre équipe.",
+        "otherAccount": "Quelqu’un d’autre est connecté sur ce téléphone. Votre travail est toujours là.",
+        "refusedLine": "Votre travail est en sécurité sur ce téléphone. Demandez une invitation à quelqu’un qui peut inviter des personnes, puis scannez-la ici.",
+        "workSafe": "Votre travail est gardé sur ce téléphone et sur ceux de vos coéquipiers jusqu’à ce qu’il arrive au serveur.",
+        "retry": "Essayer maintenant",
+        "retryHelp": "Redemande au serveur maintenant, si ce téléphone a Internet.",
+        "scan": "Scanner un code",
+        "scanHelp": "Ouvre le scanner pour une invitation ou le code de connexion d’un coéquipier.",
+        "refused": {
+          "expired": "Le serveur vous a refusé : le laissez-passer avec lequel vous êtes entré avait expiré.",
+          "used": "Le serveur vous a refusé : le laissez-passer avec lequel vous êtes entré était déjà utilisé.",
+          "off": "Le serveur vous a refusé : votre organisation a désactivé la possibilité de rejoindre sans Internet.",
+          "notFound": "Le serveur vous a refusé : il ne connaît pas le laissez-passer avec lequel vous êtes entré.",
+          "retired": "Le serveur vous a refusé : votre rôle n’est plus utilisé, ou le coéquipier qui vous a fait entrer ne peut plus le donner.",
+          "other": "Le serveur vous a refusé."
+        }
+      }
     },
     "more": {
       "noEmail": "Pas encore d’e-mail",
@@ -8436,6 +8471,109 @@
       "holding": "Gardés pour les coéquipiers",
       "holdingHelp": "Enregistrements de coéquipiers sur ce téléphone que le serveur n’a pas encore. Ils sont envoyés quand ce téléphone est en ligne.",
       "deliveryRefused": "Le serveur n’a pas accepté le travail de {{name}} depuis ce téléphone : {{reason}}. Il reste ici et repart à chaque synchronisation."
+    },
+    "letIn": {
+      "rowSub": "Un nouveau téléphone rejoint l’équipe depuis celui-ci, sans Internet",
+      "rowHelp": "Ouvre Faire entrer quelqu’un, où un nouveau téléphone sans Internet rejoint votre équipe depuis ce téléphone.",
+      "intro": "Une nouvelle personne qui a LangQuest sur son téléphone rejoint votre équipe depuis ce téléphone, sans Internet. Choisissez son rôle, montrez-lui le code, et faites-la entrer quand les images sont les mêmes.",
+      "why": {
+        "loading": "Vérification de ce téléphone…",
+        "notInBuild": "Seuls les téléphones Android peuvent faire entrer quelqu’un.",
+        "noPass": "Ce téléphone ne peut faire entrer personne. Votre organisation doit l’avoir activé, vous devez pouvoir inviter des personnes dans cette langue, et ce téléphone doit s’être connecté à Internet depuis.",
+        "expired": "L’autorisation de ce téléphone pour faire entrer des personnes a expiré. Connectez-vous une fois à Internet pour la renouveler.",
+        "noRole": "Il n’y a aucun rôle que ce téléphone peut donner sans Internet. Un administrateur pourra donner des rôles quand la nouvelle personne se sera connectée à Internet.",
+        "permissions": "Ouvrez d’abord Partager à proximité et autorisez ce qu’Android demande, puis revenez.",
+        "wifiOff": "Activez le Wi-Fi dans les réglages du téléphone, puis revenez."
+      },
+      "role": "Son rôle",
+      "roleHelp": "Le rôle que reçoit la nouvelle personne. Un administrateur peut le changer quand elle se sera connectée à Internet.",
+      "asRole": "Elle rejoint en tant que {{role}}. Un administrateur peut le changer quand elle se sera connectée à Internet.",
+      "show": "Montrer le code",
+      "newCode": "Nouveau code",
+      "showHelp": "Crée un code que le nouveau téléphone va scanner. Il marche pendant deux minutes, pour un seul téléphone.",
+      "starting": "Préparation du code…",
+      "codeLabel": "Le code que le nouveau téléphone doit scanner",
+      "scanLine": "Sur le nouveau téléphone, ouvrez LangQuest, touchez Scanner un code, et pointez-le ici.",
+      "secondsLeft": "Secondes restantes : {{n, number}}",
+      "connected": "Un téléphone s’est connecté. En attente de sa demande…",
+      "ask": "Faire entrer {{name}} ?",
+      "compare": "Vérifiez que le nouveau téléphone montre les deux mêmes images. Si elles sont différentes, touchez Non.",
+      "whatGoes": "Cette personne recevra le travail de cette langue et les noms de son équipe.",
+      "letIn": "Faire entrer {{name}}",
+      "letInHelp": "La fait entrer avec le rôle choisi, puis lui envoie une copie de départ de cette langue.",
+      "no": "Non",
+      "noHelp": "Ne lui envoie rien et met fin à la connexion.",
+      "copying": "Envoi d’une copie de départ à {{name}}… Parties envoyées : {{n, number}}",
+      "done": "{{name}} est entré",
+      "doneLine": "Cette personne peut travailler maintenant. Son compte est créé quand son téléphone, ou celui d’un coéquipier qui porte son travail, se connecte à Internet.",
+      "another": "Faire entrer quelqu’un d’autre",
+      "anotherHelp": "Recommence avec un nouveau code.",
+      "turnedAway": "Un autre téléphone a essayé ce code et a été refusé.",
+      "stayOpen": "Gardez cet écran ouvert jusqu’à la fin.",
+      "picturesLabel": "Deux images. Comparez-les avec l’autre téléphone.",
+      "end": {
+        "expired": "Personne n’a utilisé le code à temps. Créez-en un nouveau.",
+        "saidNo": "Rien n’a été envoyé.",
+        "noAnswer": "Le téléphone qui s’est connecté n’avait pas ce code. Créez-en un nouveau.",
+        "versions": "Le nouveau téléphone a une autre version de l’application. Il lui faut le fichier d’installation de la version {{version}}.",
+        "clock": "Les horloges des deux téléphones diffèrent de plus de cinq minutes. Mettez la bonne heure sur le nouveau téléphone, puis créez un nouveau code.",
+        "refused": "Ce téléphone n’a pas pu faire entrer cette personne avec ce rôle. Connectez-vous une fois à Internet, puis réessayez.",
+        "dropped": "La connexion a été coupée avant que la personne soit entrée. Créez un nouveau code.",
+        "droppedAfter": "La personne est entrée, mais la connexion a été coupée. Tout coéquipier avec Partager à proximité ouvert peut terminer sa copie de départ.",
+        "stopped": "Le code n’existe plus car vous avez quitté cet écran. Créez-en un nouveau.",
+        "noCertificate": "Ce téléphone doit se connecter une fois à Internet avant de pouvoir faire entrer quelqu’un.",
+        "failed": "Un problème est survenu sur ce téléphone. Créez un nouveau code."
+      }
+    },
+    "join": {
+      "intro": "Rejoignez votre équipe depuis le téléphone d’un coéquipier, sans Internet. Votre compte est créé la première fois que votre téléphone se connecte à Internet.",
+      "checking": "Vérification de ce téléphone…",
+      "notInBuild": "Pour rejoindre sans Internet, il faut un téléphone Android.",
+      "notEmpty": {
+        "title": "Ce téléphone contient déjà le travail de quelqu’un",
+        "session": "Quelqu’un est connecté sur ce téléphone. Une nouvelle personne ne peut rejoindre sans Internet que sur un téléphone où il n’y a personne.",
+        "others": "Quelqu’un a déjà utilisé LangQuest sur ce téléphone. Une nouvelle personne ne peut rejoindre sans Internet que sur un téléphone où il n’y a personne.",
+        "unsent": "Ce téléphone contient du travail qui n’est pas arrivé au serveur. Une nouvelle personne ne peut rejoindre sans Internet que sur un téléphone où il n’y a personne.",
+        "local": "Quelqu’un a déjà rejoint sur ce téléphone sans Internet. Une seule personne le peut."
+      },
+      "noCode": "Scannez d’abord le code sur le téléphone de votre coéquipier.",
+      "name": "Votre nom",
+      "namePlaceholder": "Comme votre équipe vous connaît",
+      "nameHelp": "Le nom que votre coéquipier voit avant de vous faire entrer.",
+      "nameLine": "Quand vous toucherez Rejoindre, Android demandera d’autoriser LangQuest à utiliser les appareils à proximité. Il en a besoin pour joindre le téléphone de votre coéquipier.",
+      "stale": "Ce code est peut-être trop ancien. Si vous n’arrivez pas à rejoindre, demandez-en un nouveau.",
+      "join": "Rejoindre",
+      "tryAgain": "Réessayer",
+      "joinHelp": "Joint le téléphone de votre coéquipier et demande à entrer.",
+      "permission": "LangQuest a besoin des appareils à proximité pour joindre le téléphone de votre coéquipier.",
+      "permissionBlocked": "Autorisez les appareils à proximité pour LangQuest dans les réglages du téléphone, puis revenez.",
+      "wifiOff": "Activez le Wi-Fi dans les réglages du téléphone, puis réessayez.",
+      "connecting": "Connexion au téléphone de votre coéquipier…",
+      "asked": "En attente de votre coéquipier",
+      "compare": "Le téléphone de votre coéquipier montre deux images. Si ce sont les mêmes que celles-ci, votre coéquipier vous fait entrer.",
+      "copying": "Vous êtes entré. Réception d’une copie de départ du travail de l’équipe… Parties : {{n, number}}",
+      "unfinished": "Vous êtes entré, mais la copie de départ n’est pas complète",
+      "unfinishedLine": "Tout coéquipier avec Partager à proximité ouvert sur la même version de l’application peut la terminer.",
+      "look": "Chercher des coéquipiers",
+      "lookHelp": "Trouve le téléphone d’un coéquipier à proximité pour terminer la copie de départ.",
+      "looking": "Recherche d’un coéquipier avec Partager à proximité ouvert…",
+      "stopLooking": "Arrêter de chercher",
+      "stopLookingHelp": "Arrête de chercher. Vous pourrez chercher à nouveau plus tard.",
+      "whole": "Vous êtes entré",
+      "installFile": "Ce téléphone n’a plus besoin du fichier d’installation. Vous pouvez le supprimer, sauf si vous allez le transmettre.",
+      "scan": "Scanner un nouveau code",
+      "scanHelp": "Ouvre le scanner pour un nouveau code du téléphone de votre coéquipier.",
+      "back": "Retour à Connexion",
+      "backHelp": "Revient à Connexion.",
+      "end": {
+        "notLetIn": "On ne vous a pas fait entrer. Si vous deviez entrer, demandez un nouveau code à votre coéquipier.",
+        "noAnswer": "Le téléphone de votre coéquipier n’a pas répondu. Demandez un nouveau code.",
+        "clock": "L’horloge de ce téléphone diffère de celle de votre coéquipier de plus de cinq minutes. Mettez la bonne date et la bonne heure, puis scannez un nouveau code.",
+        "versions": "Le téléphone de votre coéquipier a une autre version de l’application. Demandez-lui le fichier d’installation de sa version.",
+        "refused": "Ce téléphone n’a pas pu vérifier la réponse de votre coéquipier. Demandez un nouveau code.",
+        "dropped": "La connexion a été coupée. Demandez un nouveau code.",
+        "failed": "Un problème est survenu sur ce téléphone. Demandez un nouveau code."
+      }
     }
   }
 }
