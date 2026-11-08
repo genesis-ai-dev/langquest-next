@@ -7,11 +7,11 @@
  */
 import { writeFileSync } from 'node:fs';
 import {
-  EVENT_PAYLOAD_MAX_BYTES, EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, ORG_EVENT_TYPES, PRIVILEGES, emptyOrgState, entityKeyOf, eventSizeError, idAuthor, jsonbTextBytes, languageOfOrgEvent, mayReadLanguage, mayWriteFiles, privilegeAllows, privilegeFor, privilegesOfFixedRole, validateEvent, type AnyEvent, type OrgState, type Privilege, type Role
+  EVENT_PAYLOAD_MAX_BYTES, EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, MANAGE_PRIVILEGES, ORG_EVENT_TYPES, PRIVILEGES, emptyOrgState, entityKeyOf, eventSizeError, idAuthor, jsonbTextBytes, languageOfOrgEvent, mayReadLanguage, mayWriteFiles, privilegeAllows, privilegeFor, privilegesOfFixedRole, validateEvent, type AnyEvent, type OrgState, type Privilege, type Role
 } from '@langquest-next/core';
 import { base64urlDecode, filesNamedBy, isServerEventId } from '@langquest-next/core/nearby';
 import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture } from '../packages/core/test/fixtures';
-import { GENERATIONS } from '../packages/core/test/nearbyVectors';
+import { GENERATIONS, NEWCOMER_ID, NEWCOMER_SALT, PUBLIC_KEY } from '../packages/core/test/nearbyVectors';
 
 const sql = (v: unknown) => `'${JSON.stringify(v).replaceAll("'", "''")}'::jsonb`;
 
@@ -277,6 +277,16 @@ if (!namedFiles.some((r) => r.files.some((f) => f.endsWith(':'))) || !namedFiles
 const hex = (b64url: string) => Buffer.from(base64urlDecode(b64url)!).toString('hex');
 const generations = GENERATIONS.map((key, steps) => ({ steps, key: hex(key) }));
 
+// Joining offline (14.1): what a pass may never grant, and a newcomer's id from their key and salt, as
+// core's golden vector has it, with a key and a salt that are not canonical base64url giving none.
+const managePrivileges = [...MANAGE_PRIVILEGES].sort();
+const newcomerIds = [
+  { key: PUBLIC_KEY, salt: NEWCOMER_SALT, id: NEWCOMER_ID },
+  { key: `${PUBLIC_KEY.slice(0, 42)}x`, salt: NEWCOMER_SALT, id: null },
+  { key: PUBLIC_KEY, salt: `${NEWCOMER_SALT.slice(0, 21)}x`, id: null },
+  { key: PUBLIC_KEY.slice(0, 42), salt: NEWCOMER_SALT, id: null }
+];
+
 // How big an event may be (decisions.md 115): each fixture, and payloads on
 // either side of the limit, of text, of many small numbers (a space after
 // every comma) and of nested objects (one after every colon too).
@@ -395,6 +405,14 @@ writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r json
   for r in select * from jsonb_array_elements(${sql(generations)}) loop
     if encode(public._discovery_key_below(decode('${generations[0]!.key}', 'hex'), (r->>'steps')::int), 'hex') is distinct from r->>'key' then
       raise exception '_discovery_key_below disagrees with the generations vector: %', r;
+    end if;
+  end loop;
+  if (select array_agg(p order by p collate "C") from unnest(public._manage_privileges()) p) is distinct from array(select jsonb_array_elements_text(${sql(managePrivileges)})) then
+    raise exception '_manage_privileges disagrees with MANAGE_PRIVILEGES: %', public._manage_privileges();
+  end if;
+  for r in select * from jsonb_array_elements(${sql(newcomerIds)}) loop
+    if public._newcomer_profile_id(r->>'key', r->>'salt') is distinct from r->>'id' then
+      raise exception '_newcomer_profile_id disagrees with newcomerProfileId: % (sql says %)', r, public._newcomer_profile_id(r->>'key', r->>'salt');
     end if;
   end loop;
 end $$;
