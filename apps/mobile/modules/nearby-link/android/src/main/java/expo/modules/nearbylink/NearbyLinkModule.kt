@@ -53,7 +53,7 @@ class NearbyLinkModule : Module() {
     override fun findError(code: NearbyCode) = emit("onFindError", mapOf("code" to code.name))
   }
 
-  private val registry = LinkRegistry({ roots() }, { linkTune }, events)
+  private val links = LinkRegistry({ roots() }, { linkTune }, events)
 
   private fun emit(name: String, body: Map<String, Any?>) {
     main.post { sendEvent(name, body) }
@@ -63,7 +63,7 @@ class NearbyLinkModule : Module() {
   private fun kit(): RadioKit {
     synchronized(this) {
       (kitHeld as? RadioKit)?.let { return it }
-      return RadioKit(context, registry, { linkTune }, events).also { kitHeld = it }
+      return RadioKit(context, links, { linkTune }, events).also { kitHeld = it }
     }
   }
 
@@ -100,7 +100,7 @@ class NearbyLinkModule : Module() {
       if (backgrounded && kit != null && kit.joiningHotspot > 0) return
       kit?.stopAll()
     }
-    registry.closeAll()
+    links.closeAll()
   }
 
   override fun definition() = ModuleDefinition {
@@ -156,14 +156,14 @@ class NearbyLinkModule : Module() {
       radio(promise) { it.join(kind, details, deadlineMs.toLong()).id }
     }
 
-    AsyncFunction("sendOpening") { linkId: String, bytes: ByteArray, promise: Promise -> run(promise) { registry.get(linkId).sendOpening(bytes); null } }
+    AsyncFunction("sendOpening") { linkId: String, bytes: ByteArray, promise: Promise -> run(promise) { links.get(linkId).sendOpening(bytes); null } }
     AsyncFunction("receiveOpening") { linkId: String, size: Int, deadlineMs: Double, promise: Promise ->
-      run(promise) { registry.get(linkId).receiveOpening(size, deadlineMs.toLong()) }
+      run(promise) { links.get(linkId).receiveOpening(size, deadlineMs.toLong()) }
     }
     AsyncFunction("secure") { linkId: String, sendKey: ByteArray, receiveKey: ByteArray, promise: Promise ->
       run(promise) {
         try {
-          registry.get(linkId).secure(sendKey, receiveKey)
+          links.get(linkId).secure(sendKey, receiveKey)
         } finally {
           sendKey.fill(0)
           receiveKey.fill(0)
@@ -171,26 +171,26 @@ class NearbyLinkModule : Module() {
         null
       }
     }
-    AsyncFunction("send") { linkId: String, bytes: ByteArray, promise: Promise -> run(promise) { registry.get(linkId).send(bytes); null } }
-    AsyncFunction("receive") { linkId: String, promise: Promise -> run(promise) { registry.get(linkId).receive() } }
+    AsyncFunction("send") { linkId: String, bytes: ByteArray, promise: Promise -> run(promise) { links.get(linkId).send(bytes); null } }
+    AsyncFunction("receive") { linkId: String, promise: Promise -> run(promise) { links.get(linkId).receive() } }
     AsyncFunction("sendFile") { linkId: String, transferId: String, uri: String, size: Double, promise: Promise ->
-      run(promise) { registry.get(linkId).sendFile(transferId, fileOf(uri), size.toLong()); null }
+      run(promise) { links.get(linkId).sendFile(transferId, fileOf(uri), size.toLong()); null }
     }
     AsyncFunction("receiveFile") { linkId: String, transferId: String, stagingUri: String, maxBytes: Double, minFreeBytes: Double, promise: Promise ->
       run(promise) {
-        val r = registry.get(linkId).receiveFile(transferId, fileOf(stagingUri), maxBytes.toLong(), minFreeBytes.toLong())
+        val r = links.get(linkId).receiveFile(transferId, fileOf(stagingUri), maxBytes.toLong(), minFreeBytes.toLong())
         mapOf("size" to r.size.toDouble(), "sha256" to r.sha256)
       }
     }
     AsyncFunction("cancelFile") { linkId: String, transferId: String, promise: Promise ->
       run(promise) {
-        try { registry.get(linkId).cancelFile(transferId) } catch (_: NearbyException) {}
+        try { links.get(linkId).cancelFile(transferId) } catch (_: NearbyException) {}
         null
       }
     }
     AsyncFunction("closeLink") { linkId: String, promise: Promise ->
       run(promise) {
-        try { registry.get(linkId).close() } catch (_: NearbyException) {}
+        try { links.get(linkId).close() } catch (_: NearbyException) {}
         null
       }
     }
