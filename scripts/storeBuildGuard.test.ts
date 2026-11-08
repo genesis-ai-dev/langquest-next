@@ -20,6 +20,19 @@ describe('the store build guard', () => {
     expect(refusal({ EAS_BUILD_PROFILE: 'production' })).toMatch(/outside the workflow/);
   });
 
+  it('holds a carried build as it holds a production build (docs/nearby-sync-plan.md 14.4)', () => {
+    expect(refusal({ EAS_BUILD_PROFILE: 'carried', LQ_STORE_BUILD_REF: 'refs/heads/main' })).toBeNull();
+    expect(refusal({ EAS_BUILD_PROFILE: 'carried', EAS_BUILD_USERNAME: 'rwishart' })).toMatch(/profile carried\) was started by rwishart/);
+    expect(refusal({ EAS_BUILD_PROFILE: 'carried' })).toMatch(/outside the workflow/);
+  });
+
+  it('adds a carried profile that extends production, keeps its channel and changes no other profile', () => {
+    const build = JSON.parse(readFileSync('apps/mobile/eas.json', 'utf8')).build;
+    expect(build.carried).toEqual({ extends: 'production', android: { buildType: 'app-bundle' } });
+    expect(Object.keys(build)).toEqual(['development', 'simulator', 'preview', 'production', 'carried']);
+    expect(build.production).toEqual({ node: '24.21.0', autoIncrement: true, channel: 'production', environment: 'production' });
+  });
+
   it('lets every other profile build', () => {
     for (const profile of ['preview', 'development', 'simulator']) expect(refusal({ EAS_BUILD_PROFILE: profile }), profile).toBeNull();
   });
