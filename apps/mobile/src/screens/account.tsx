@@ -451,7 +451,7 @@ export function SettingsMore(ctx: Ctx) {
   const p = ctx.language;
   const status = useSyncStatus();
   const toSend = iconCounts(status).toSend;
-  const syncSub = syncSummary({ refused: p.refused, live: p.live, online: p.online, pending: status.pending + status.orgPending, recordings: status.pendingUp, lastSync: status.lastSync });
+  const syncSub = syncSummary({ refused: p.refused, live: p.live, online: p.online, pending: status.pending + status.orgPending, recordings: status.pendingUp + status.holding, lastSync: status.lastSync });
   // Someone in several organizations switches on Me itself; anyone else finds it here, where it also starts a new one.
   const orgs = useOrganizations(s.actorId).rows;
   const switchHere = !inSeveral(orgs);
@@ -1019,7 +1019,8 @@ export function SyncStatus(ctx: Ctx) {
         <Stat id="confirmed" icon="check" color={C.green} value={Math.max(ins?.cursor ?? 0, logged?.cursor ?? 0)} label={t('account.sync.latestConfirmed')} />
         <Stat id="checkpoint" icon="layers" color={C.muted} value={ins?.checkpointSeq ?? 0} label={t('account.sync.localCheckpoint')} />
       </View>
-      <Transfer icon="up" pending={sync.pendingUp} peak={sync.peakUp} rate={rates.up} label={t('account.sync.audioUp')} offline={offline} />
+      {/* Teammates' recordings waiting to upload count too: that is true of this phone (decisions.md 166, docs/nearby-sync-plan.md 5.8). */}
+      <Transfer icon="up" pending={sync.pendingUp + sync.holding} peak={sync.peakUp} rate={rates.up} label={t('account.sync.audioUp')} offline={offline} />
       <Transfer icon="download" pending={sync.pendingDown} peak={sync.peakDown} rate={rates.down} label={t('account.sync.audioDown')} offline={offline} />
       {ins && ins.pending.length ? (
         <>
