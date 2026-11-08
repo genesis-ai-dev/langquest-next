@@ -92,6 +92,53 @@ class FramesTest {
     assertTrue(!a.contentEquals(b))
   }
 
+  /**
+   * Why: `forget` zeroes the key when the link ends, while a writer may be sealing. A frame sealed
+   * part or whole under an all-zero key would go out readable by anyone, so forgetting waits for a
+   * seal in progress, and every seal after it throws instead of sealing.
+   */
+  @Test fun aForgottenSealerNeverSealsUnderZeros() {
+    repeat(200) { round ->
+      val sealer = Sealer(key)
+      val out = java.util.Collections.synchronizedList(ArrayList<ByteArray>())
+      var refused: NearbyException? = null
+      val body = ByteArray(1024) { it.toByte() }
+      // The writer seals until refused, or for a while after the forget if it never is.
+      val until = java.util.concurrent.atomic.AtomicLong(Long.MAX_VALUE)
+      val started = java.util.concurrent.CountDownLatch(1)
+      val writer = Thread {
+        try {
+          while (System.nanoTime() < until.get()) {
+            out.add(sealer.seal(Frame.MESSAGE, body))
+            started.countDown()
+          }
+        } catch (e: NearbyException) {
+          refused = e
+        }
+      }
+      writer.start()
+      started.await()
+      if (round % 2 == 1) Thread.sleep(0, (round * 7919) % 300_000)
+      sealer.forget()
+      until.set(System.nanoTime() + 20_000_000)
+      writer.join()
+      assertEquals("round $round: a seal after forget throws", NearbyCode.LINK_CLOSED, refused?.code)
+      val opener = Opener(key)
+      for (sealed in out.toList()) {
+        val h = opener.header(sealed.copyOfRange(0, Frame.SEALED_HEADER))
+        assertEquals(body.size, h.len)
+        assertArrayEquals(body, opener.body(sealed.copyOfRange(Frame.SEALED_HEADER, sealed.size)))
+      }
+    }
+  }
+
+  @Test fun aForgottenOpenerOpensNothing() {
+    val sealed = Sealer(key).seal(Frame.MESSAGE, byteArrayOf(1))
+    val opener = Opener(key)
+    opener.forget()
+    expectCode(NearbyCode.LINK_CLOSED) { opener.header(sealed.copyOfRange(0, Frame.SEALED_HEADER)) }
+  }
+
   @Test fun fileBodiesCarryTheirIds() {
     val start = Frame.readFileBody(Frame.fileStart("t1", 300))
     assertEquals("t1", start.transferId)

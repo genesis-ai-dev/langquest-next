@@ -435,8 +435,14 @@ class LinkSession(
     sealedOnly()
     writeLock.withLock {
       ended?.let { throw endedError() }
-      // Sealed under the lock, so the order of nonces is the order on the wire.
-      val bytes = sealer!!.seal(type, body)
+      // Sealed under the lock, so the order of nonces is the order on the wire. A link that ended
+      // since the check above has forgotten its keys, and the sealer refuses: the link's own end.
+      val bytes = try {
+        sealer!!.seal(type, body)
+      } catch (e: NearbyException) {
+        if (ended != null) throw endedError()
+        throw e
+      }
       try {
         transport.output.write(bytes)
         transport.output.flush()
@@ -493,6 +499,9 @@ class LinkSession(
       held.writer.discard()
       held.done.completeExceptionally(NearbyException(if (closedHere.get()) NearbyCode.LINK_CLOSED else NearbyCode.LINK_DROPPED, "the link went during the file"))
     }
+    // Not under `writeLock`: a writer blocked in a full socket holds it until `transport.close`
+    // below fails its write. Each key's own lock makes the forget wait for a seal or open in
+    // progress, and both refuse from then on.
     sealer?.forget()
     opener?.forget()
     transport.close()

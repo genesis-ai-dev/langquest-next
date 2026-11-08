@@ -66,10 +66,18 @@ private fun gcm(mode: Int, key: ByteArray, counter: Long): Cipher {
   return cipher
 }
 
-/** One direction's sealing. Every seal takes the next nonce; a nonce is never used twice. */
+/** Thrown by a `Sealer` or `Opener` once its key is forgotten: the link has ended. */
+private fun forgottenError() = NearbyException(NearbyCode.LINK_CLOSED, "the link's keys are forgotten")
+
+/**
+ * One direction's sealing. Every seal takes the next nonce; a nonce is never used twice. `forget`
+ * waits for a seal in progress and every seal after it throws, so no frame, nor half of one, is
+ * ever sealed under the zeroed key.
+ */
 class Sealer(key: ByteArray) {
   private val key = key.copyOf()
   private var counter = 0L
+  private var forgotten = false
 
   init {
     if (key.size != 32) throw NearbyException(NearbyCode.BAD_ARGUMENT, "a frame key is 32 bytes")
@@ -77,6 +85,7 @@ class Sealer(key: ByteArray) {
 
   @Synchronized
   fun seal(type: Int, body: ByteArray): ByteArray {
+    if (forgotten) throw forgottenError()
     if (body.size > Frame.MAX) throw NearbyException(NearbyCode.MESSAGE_TOO_LARGE, "over the frame ceiling")
     if (counter > Long.MAX_VALUE - 2) throw NearbyException(NearbyCode.LINK_CLOSED, "the counter ran out")
     val header = Bytes.concat(Bytes.u32(body.size), byteArrayOf(type.toByte()))
@@ -85,13 +94,18 @@ class Sealer(key: ByteArray) {
     return Bytes.concat(h, b)
   }
 
-  fun forget() = key.fill(0)
+  @Synchronized
+  fun forget() {
+    forgotten = true
+    key.fill(0)
+  }
 }
 
-/** One direction's opening, in order. A failed tag throws `TAG_FAILED`, and the link closes. */
+/** One direction's opening, in order. A failed tag throws `TAG_FAILED`, and the link closes. Forgotten, it opens nothing. */
 class Opener(key: ByteArray) {
   private val key = key.copyOf()
   private var counter = 0L
+  private var forgotten = false
 
   init {
     if (key.size != 32) throw NearbyException(NearbyCode.BAD_ARGUMENT, "a frame key is 32 bytes")
@@ -112,6 +126,7 @@ class Opener(key: ByteArray) {
   fun body(sealed: ByteArray): ByteArray = open(sealed)
 
   private fun open(sealed: ByteArray): ByteArray {
+    if (forgotten) throw forgottenError()
     if (counter > Long.MAX_VALUE - 1) throw NearbyException(NearbyCode.LINK_CLOSED, "the counter ran out")
     val at = counter++
     if (sealed.size < Frame.TAG) throw NearbyException(NearbyCode.TAG_FAILED, "shorter than a tag")
@@ -123,5 +138,9 @@ class Opener(key: ByteArray) {
     }
   }
 
-  fun forget() = key.fill(0)
+  @Synchronized
+  fun forget() {
+    forgotten = true
+    key.fill(0)
+  }
 }
