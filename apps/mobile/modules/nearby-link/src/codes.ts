@@ -17,5 +17,9 @@ export const NEARBY_NATIVE_CODES = [
 
 export type NearbyNativeCode = (typeof NEARBY_NATIVE_CODES)[number];
 
-/** Codes that mean the link went: sync's `OfflineError`. */
-export const NEARBY_DROP_CODES: readonly NearbyNativeCode[] = ['LINK_CLOSED', 'LINK_DROPPED', 'TAG_FAILED', 'FRAME_TOO_LARGE', 'LINK_UNKNOWN'];
+/**
+ * Codes that mean the link went: sync's `OfflineError`. `STOPPED` is every link stopped at once.
+ * Whatever code a call on a link that already went rejects with is a drop too (the adapter), and
+ * native rejects such a call with one of these (`DROP_CODES` in NearbyError.kt, held equal).
+ */
+export const NEARBY_DROP_CODES: readonly NearbyNativeCode[] = ['LINK_CLOSED', 'LINK_DROPPED', 'TAG_FAILED', 'FRAME_TOO_LARGE', 'LINK_UNKNOWN', 'STOPPED'];

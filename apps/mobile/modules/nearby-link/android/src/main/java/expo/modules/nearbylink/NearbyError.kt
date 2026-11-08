@@ -59,3 +59,12 @@ enum class NearbyCode {
 }
 
 class NearbyException(val code: NearbyCode, message: String, cause: Throwable? = null) : Exception(message, cause)
+
+/**
+ * The codes that mean the link went, which JavaScript reads as a drop (`NEARBY_DROP_CODES` in
+ * src/codes.ts, held equal by apps/mobile/test/nearbyNative.test.ts). A call on a link that went
+ * rejects with one of these, whatever ended it.
+ */
+val DROP_CODES: Set<NearbyCode> = setOf(
+  NearbyCode.LINK_CLOSED, NearbyCode.LINK_DROPPED, NearbyCode.TAG_FAILED, NearbyCode.FRAME_TOO_LARGE, NearbyCode.LINK_UNKNOWN, NearbyCode.STOPPED,
+)

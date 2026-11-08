@@ -478,9 +478,10 @@ class LinkSession(
     if (!isSecured) throw NearbyException(NearbyCode.NOT_SECURED, "no frame is ever plain: secure first")
   }
 
+  /** Always a drop code, so JavaScript reads a call on a link that went as a drop; `onEnded` says how it went. */
   private fun endedError(): NearbyException {
     if (closedHere.get()) return NearbyException(NearbyCode.LINK_CLOSED, "closed here")
-    val code = ended ?: NearbyCode.LINK_DROPPED
+    val code = ended?.takeIf { it in DROP_CODES } ?: NearbyCode.LINK_DROPPED
     return NearbyException(code, if (clean) "the other side closed the link" else "the link went")
   }
 

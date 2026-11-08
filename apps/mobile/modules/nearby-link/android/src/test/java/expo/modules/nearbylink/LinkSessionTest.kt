@@ -86,6 +86,42 @@ class LinkSessionTest {
     }
   }
 
+  /**
+   * Why: a reader that failed in an unforeseen way ends the link `INTERNAL`, and a call waiting on
+   * it rejected `INTERNAL` too, which JavaScript reads as a failure, not a drop. A call on a link
+   * that went always rejects with a drop code; how it went is `onEnded`'s.
+   */
+  @Test fun aCallOnALinkWhoseReaderFailedRejectsAsADrop() {
+    val server = ServerSocket(0, 1, InetAddress.getLoopbackAddress())
+    val accepted = pool.submit(Callable { server.accept() })
+    val client = Socket(InetAddress.getLoopbackAddress(), server.localPort)
+    val other = SocketTransport(accepted.get(5, TimeUnit.SECONDS))
+    server.close()
+    val failing = object : Transport by other {
+      override val input: InputStream = object : InputStream() {
+        override fun read(): Int = throw IllegalStateException("a broken stream")
+        override fun read(b: ByteArray, off: Int, len: Int): Int = throw IllegalStateException("a broken stream")
+      }
+    }
+    var endedWith: NearbyCode? = null
+    val a = LinkSession("a", "test", SocketTransport(client), LinkTunables(), listOf(tmp.root))
+    val b = LinkSession("b", "test", failing, LinkTunables(), listOf(tmp.root), onEnded = { _, code -> endedWith = code })
+    opened.add(a)
+    opened.add(b)
+    secure(a, b)
+    // Waiting, or called once the reader has failed: the same answer.
+    val waiting = pool.submit(Callable { b.receive() })
+    try {
+      waiting.get(5, TimeUnit.SECONDS)
+      fail("expected the receive to fail")
+    } catch (e: ExecutionException) {
+      val c = e.cause as NearbyException
+      assertTrue("${c.code}", c.code in DROP_CODES)
+    }
+    assertEquals(NearbyCode.INTERNAL, endedWith)
+    expectCode(*DROP_CODES.toTypedArray()) { b.send(byteArrayOf(1)) }
+  }
+
   @Test fun theOpeningIsRawBytesThenMessagesAreSealed() {
     val (a, b) = pair()
     a.sendOpening(Vectors.pattern(80))

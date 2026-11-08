@@ -144,10 +144,20 @@ export function nearbyRadioOver(native: NearbyBinding, options: Partial<NearbyRa
   function linkOf(linkId: string, kind: NearbyLink['kind']): NearbyLink {
     const held = { down: null as NearbyNativeCode | null };
     links.set(linkId, held);
-    /** A link that went, or that this phone closed, takes no more calls: they reject at once as a drop. */
-    const on = <T>(work: () => Promise<T>): Promise<T> => {
-      if (held.down !== null || links.get(linkId) !== held) return Promise.reject(new OfflineError(held.down ?? 'LINK_CLOSED'));
-      return call(work);
+    const gone = () => held.down !== null || links.get(linkId) !== held;
+    /**
+     * A link that went, or that this phone closed, takes no more calls: they reject at once as a
+     * drop. A call that fails once it has gone is a drop too, whatever its code (a reader that
+     * failed ends the link `INTERNAL`), named by how the link went.
+     */
+    const on = async <T>(work: () => Promise<T>): Promise<T> => {
+      if (gone()) throw new OfflineError(held.down ?? 'LINK_CLOSED');
+      try {
+        return await call(work);
+      } catch (error) {
+        if (!(error instanceof OfflineError) && gone()) throw new OfflineError(held.down ?? 'LINK_CLOSED');
+        throw error;
+      }
     };
     return {
       kind,

@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { NEARBY_NATIVE_CODES } from '../modules/nearby-link/src/codes';
+import { NEARBY_DROP_CODES, NEARBY_NATIVE_CODES } from '../modules/nearby-link/src/codes';
 
 /**
  * Text guards over the nearby module's Kotlin (docs/nearby-sync-plan.md section 8, Native, and
@@ -211,6 +211,12 @@ describe('the nearby module\'s JavaScript face equals its Kotlin', () => {
     // Every rejection carries one of them by name, never a message as its code.
     expect(moduleKt).toMatch(/promise\.reject\(e\.code\.name/);
     for (const m of kotlinCode.matchAll(/NearbyCode\.([A-Z0-9_]+)/g)) expect(codes).toContain(m[1]);
+  });
+
+  it('calls the same codes a drop as the adapter does', () => {
+    // Why: a call on a link that went rejects with one of these, which the adapter must read as OfflineError.
+    const set = /val DROP_CODES: Set<NearbyCode> = setOf\(([\s\S]*?)\)/.exec(code(kotlin.get('NearbyError.kt')!))![1]!;
+    expect([...set.matchAll(/NearbyCode\.([A-Z0-9_]+)/g)].map((m) => m[1]).sort()).toEqual([...NEARBY_DROP_CODES].sort());
   });
 
   it('reads its test vectors from the file vitest checks', () => {

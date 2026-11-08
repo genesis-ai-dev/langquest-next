@@ -193,6 +193,33 @@ describe('a drop rejects with OfflineError', () => {
     await expect(radio.stopFind()).rejects.toMatchObject({ code: 'INTERNAL' });
   });
 
+  it('STOPPED is a drop: native stopped every link', async () => {
+    const f = fakeBinding();
+    const link = await pipe(nearbyRadioOver(f.native));
+    f.fail.set('send', coded('STOPPED'));
+    await expect(link.send(new Uint8Array(1))).rejects.toEqual(new OfflineError('STOPPED'));
+  });
+
+  it('any error from a link that went is a drop, named by how it went', async () => {
+    // Why: a link whose reader failed ends INTERNAL, and a call waiting on it rejects INTERNAL;
+    // read as a failure, the session would end "failed" for what is a dropped link.
+    const f = fakeBinding();
+    const radio = nearbyRadioOver(f.native);
+    const link = await pipe(radio);
+    let rejectReceive!: (e: unknown) => void;
+    f.native.receive = (() => new Promise((_, reject) => { rejectReceive = reject; })) as typeof f.native.receive;
+    const waiting = link.receive().catch((e: unknown) => e);
+    await Promise.resolve();
+    f.emit('onLinkDown', { linkId: 'link-1', code: 'INTERNAL' });
+    rejectReceive(coded('INTERNAL'));
+    expect(await waiting).toEqual(new OfflineError('INTERNAL'));
+    // A file refused on a link that is still up is that refusal.
+    const up = await pipe(radio);
+    f.fail.set('receiveFile', coded('FILE_TOO_BIG'));
+    const refused = await up.receiveFile({ transferId: 't', stagingUri: 'u', maxBytes: 1, minFreeBytes: 1 }).catch((e: unknown) => e);
+    expect(refused).toBeInstanceOf(NearbyNativeError);
+  });
+
   it('refuses at once, without native, every call on a link onLinkDown named', async () => {
     const f = fakeBinding();
     const radio = nearbyRadioOver(f.native);
