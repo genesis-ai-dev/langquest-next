@@ -1,15 +1,16 @@
 import { DatabaseSync } from 'node:sqlite';
 import {
-  emptyLanguageState, foldLanguage, foldOrg, HlcClock, keptVerdict, languageLines, ORG_STREAM, PART_OF_KIND, putEntry, withOwnParts, type LanguageState, type OrgState
+  canonicalJson, emptyLanguageState, foldLanguage, foldOrg, HlcClock, keptVerdict, languageLines, ORG_STREAM, PART_OF_KIND, putEntry, withOwnParts, type LanguageState, type LibraryDoc, type OrgState
 } from '@langquest-next/core';
-import { newcomerOrgState } from '@langquest-next/core/nearby';
+import { bytesToHex, newcomerOrgState, utf8Encode } from '@langquest-next/core/nearby';
 import { PART_KINDS } from '../src/keptLanguage';
 import { MemoryStore } from '../src/memoryStore';
-import { rowsOverLink, StartingCopySender, type CopyAsker } from '../src/nearbyCopy';
+import { rowsOverLink, StartingCopySender, takeStartingCopy, type CopyAsker, type NearbyDocs } from '../src/nearbyCopy';
 import { ORG_MATERIALIZER } from '../src/orgSession';
 import { SqliteStore, type SqlDriver } from '../src/sqliteStore';
 import { SyncClient } from '../src/syncClient';
 import { FakeServer } from '../src/testing/fakeServer';
+import { fakeSha256 } from '../src/testing/memoryNearbyLink';
 import { OfflineError, type EventStore, type StartingCopy, type Transport } from '../src/types';
 
 /**
@@ -192,6 +193,42 @@ describe.each([['memory', () => new MemoryStore() as EventStore], ['SQLite', sql
       const none = phone(server, 'dZ', 'z', { online: () => false });
       await none.client.load();
       expect(await none.client.startingCopy()).toBeNull();
+    });
+  });
+
+  describe('the documents a kept language uses', () => {
+    it('sender and newcomer count a material linked to a passage whose links are kept on disk, and it goes', async () => {
+      const server = new FakeServer();
+      server.serverCut = true;
+      const lead = await language(server, 8);
+      const mat = { format: 'material@1', kind: 'document', title: 'Notes', deps: [] } as unknown as LibraryDoc;
+      const matHash = bytesToHex(fakeSha256(utf8Encode(canonicalJson(mat))));
+      await lead.client.append('v1.PassageReferenceLinked', { unitId: 'u03', itemId: 'mat', linked: true } as never);
+      await lead.client.sync();
+      server.makeSnapshot('org1', 'p1');
+      const t = await teammate(server);
+      // Kept on disk: the checkpoint the copy carries holds no links; the passage's rows do.
+      expect(((await t.client.startingCopy())!.state as Lang).passageLinks?.['u03']).toBeUndefined();
+      const reg = <T,>(value: T) => ({ value, hlc: 'x', eventId: 'e' });
+      const orgState = {
+        library: { mat: { kind: reg('material'), name: reg('Notes'), description: reg(''), copiedFrom: reg(null), versions: { [matHash]: { docHash: matHash, hlc: 'x', eventId: 'e', actorId: 'lead' } }, sharing: reg({ shared: false, subscribable: false }), archived: reg(false), subscription: reg(null), pinned: reg(null) } },
+        recommendations: {}, members: {}, roles: {}, languages: {}
+      } as unknown as OrgState;
+      const docs = new Map([[matHash, mat]]);
+      const kept: string[] = [];
+      const port: NearbyDocs = { read: async (x) => docs.get(x) ?? null, text: async (x) => (docs.has(x) ? canonicalJson(docs.get(x)) : null), keep: async (x) => { kept.push(x); return true; } };
+      const sender = new StartingCopySender({ language: t.client, org: { startingCopy: async () => ({ serverSeq: 1, state: orgState }) }, docs: port }, 'p1');
+      expect(await sender.answer({ t: 'copy-ask', part: 'doc', hash: matHash })).toMatchObject({ part: 'doc', body: canonicalJson(mat) });
+
+      const n = await newcomer(server, t.client, { on: false });
+      const none: NearbyDocs = { read: async () => null, text: async () => null, keep: port.keep };
+      const taken = await takeStartingCopy(asker(sender), {
+        languageId: 'p1', sha256: fakeSha256, docs: none,
+        language: { holdsCopy: () => n.client.holdsCopy(), adoptStartingCopy: (c) => n.client.adoptStartingCopy(c), fillFromCopy: (r) => n.client.fillFromCopy(r), keptOnDisk: true, state: () => n.client.getState(), keptPassageLinks: () => n.client.keptPassageLinks() },
+        org: { holdsCopy: async () => true, adoptStartingCopy: async () => undefined, state: () => orgState }
+      });
+      expect(taken.docs).toEqual({ kept: 1, refused: 0, missing: 0 });
+      expect(kept).toEqual([matHash]);
     });
   });
 

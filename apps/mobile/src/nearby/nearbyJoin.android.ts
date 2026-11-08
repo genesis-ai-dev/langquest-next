@@ -112,7 +112,7 @@ async function newcomerClients(person: LocalPerson, orgId: string, languageId: s
       languageId,
       language: {
         holdsCopy: () => client.holdsCopy(), adoptStartingCopy: (c) => client.adoptStartingCopy(c), fillFromCopy: (rows) => client.fillFromCopy(rows),
-        keptOnDisk: true, state: () => client.getState()
+        keptOnDisk: true, state: () => client.getState(), keptPassageLinks: () => client.keptPassageLinks()
       },
       org: { holdsCopy: () => org.holdsCopy(), adoptStartingCopy: (c) => org.adoptStartingCopy(c), state: () => org.getState() },
       names,

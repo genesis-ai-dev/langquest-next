@@ -37,6 +37,18 @@ export interface NearbyDocs {
 export interface CopyStream {
   startingCopy(): Promise<StartingCopy | null>;
   startingCopyRows?(unitId: string): Promise<KeptRecord[] | null>;
+  /** A language kept on disk: the links its passages' rows hold, which its checkpoint does not. */
+  keptPassageLinks?(): Promise<LanguageState['passageLinks']>;
+}
+
+/**
+ * A language's state with the links its passages keep on disk laid under those in memory, so the
+ * sender and the newcomer work out the same list: a language kept on disk moves `passageLinks` to
+ * rows (decisions.md 143), and a material linked to a passage would otherwise be on neither.
+ */
+function withKeptLinks(state: LanguageState, kept: LanguageState['passageLinks'] | undefined): LanguageState {
+  if (!kept || Object.keys(kept).length === 0) return state;
+  return { ...state, passageLinks: { ...kept, ...(state.passageLinks ?? {}) } };
 }
 
 /** Everything a sender reads from: the language's client, the organization's, member names and documents. */
@@ -132,9 +144,10 @@ export class StartingCopySender {
       const docs = this.source.docs;
       const [org, language] = await Promise.all([this.org(), this.language()]);
       if (!docs || !org || !language) return new Set<string>();
+      const state = withKeptLinks(language.state as LanguageState, await this.source.language.keptPassageLinks?.());
       const read = new Map<string, LibraryDoc | null>();
       for (;;) {
-        const list = docsThisLanguageUses(org.state as OrgState, language.state as LanguageState, (h) => read.get(h) ?? null);
+        const list = docsThisLanguageUses(org.state as OrgState, state, (h) => read.get(h) ?? null);
         const fresh = list.filter((h) => !read.has(h));
         if (fresh.length === 0) return new Set(list);
         for (const h of fresh) read.set(h, await docs.read(h).catch(() => null));
@@ -295,6 +308,8 @@ export interface StartingCopyTarget {
     fillFromCopy?(rows: FillRows): Promise<{ filled: number; filling: boolean }>;
     keptOnDisk: boolean;
     state(): LanguageState;
+    /** As `CopyStream.keptPassageLinks`, for a language kept on disk. */
+    keptPassageLinks?(): Promise<LanguageState['passageLinks']>;
   };
   org: { holdsCopy(): Promise<boolean>; adoptStartingCopy(copy: StartingCopy): Promise<void>; state(): OrgState } | null;
   /** Seeds `profile-directory` with the names the copy's members go by. */
@@ -353,8 +368,9 @@ export async function takeStartingCopy(asker: CopyAsker, target: StartingCopyTar
     const local = target.docs;
     const here = new Map<string, LibraryDoc | null>();
     const asked = new Set<string>();
+    const links = await language.keptPassageLinks?.();
     for (;;) {
-      const list = docsThisLanguageUses(org.state(), language.state(), (h) => here.get(h) ?? null);
+      const list = docsThisLanguageUses(org.state(), withKeptLinks(language.state(), links), (h) => here.get(h) ?? null);
       const fresh = list.filter((h) => !here.has(h) && !asked.has(h));
       if (fresh.length === 0) break;
       for (const hash of fresh) {

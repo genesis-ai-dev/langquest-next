@@ -1,5 +1,5 @@
 import {
-  newCommandId, applyLanguageEvent, ORG_STREAM, emptyLanguageState, eventPassage, eventSizeError, foldLanguage, isHlc, LINES_VERSION, REDUCER_VERSION, sameEventBytes,
+  newCommandId, applyLanguageEvent, ORG_STREAM, emptyLanguageState, eventPassage, eventSizeError, foldLanguage, isHlc, LINES_VERSION, PART_OF_KIND, putEntry, REDUCER_VERSION, sameEventBytes,
   type AnyEvent, type EventPayloads, type EventType, type LanguageState, type PassageLine, type PassageLines, type Snapshot, HlcClock, languageLines
 } from '@langquest-next/core';
 // Types only: the code behind them is the nearby entry's, which the web app does not carry.
@@ -1948,6 +1948,19 @@ export class SyncClient<S = LanguageState> {
       this.m.compact(state);
       return { serverSeq: Math.max(base?.serverSeq ?? 0, await store.cursor(orgId, streamId)), state };
     });
+  }
+
+  /**
+   * The links to library items a language kept on disk holds in its passages' rows, which its
+   * checkpoint no longer carries (decisions.md 143), for the documents a starting copy names
+   * (`docsThisLanguageUses`). Empty for any other stream.
+   */
+  async keptPassageLinks(): Promise<LanguageState['passageLinks']> {
+    const part = PART_OF_KIND.get('passageLinks');
+    if (!this.kept || !part) return {};
+    const out = { passageLinks: {} } as LanguageState;
+    for (const row of await this.opts.store.keptAll(this.opts.orgId, this.opts.streamId, part.kind)) putEntry(out, part, row.id, JSON.parse(row.json));
+    return out.passageLinks;
   }
 
   /** One passage's rows for a starting copy, in (kind, id) order, file verdicts under `''`; null for a passage not filled in here. */
