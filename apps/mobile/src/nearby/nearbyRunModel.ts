@@ -1,5 +1,6 @@
 import type { FindKey } from './nearbyModel';
 import type { NearbyUnavailable, PermissionsState, PermissionStep, RadioOff } from './nearbyPermissionsModel';
+import type { ReadyToCarry } from './readyToCarryModel';
 
 /**
  * Share nearby's run as plain data (docs/nearby-sync-plan.md 5.8, 5.11, section 8): what
@@ -387,6 +388,8 @@ export interface NearbyView {
   findError: string | null;
   /** "Hold teammates' recordings", as pressed or by default. */
   hold: boolean;
+  /** Ready to carry (5.8). */
+  carry: ReadyToCarry;
 }
 
 export interface NearbyActions {
@@ -419,6 +422,7 @@ export interface NearbyViewFacts {
   run: NearbyRunState;
   holding: number;
   hold: boolean;
+  carry: ReadyToCarry;
 }
 
 export function nearbyViewOf(f: NearbyViewFacts): NearbyView {
@@ -427,6 +431,6 @@ export function nearbyViewOf(f: NearbyViewFacts): NearbyView {
     offered: f.offered, whyNot: f.whyNot, radiosOff: f.radiosOff, permissions: f.permissions, worn: f.worn,
     needsPress: f.worn && !run.pressed, running: run.running, stopped: run.stopped, level: run.level, teammates: run.teammates,
     sessions: run.sessions, current: run.current, holding: f.holding, farAhead: run.farAhead, clockOff: run.clockOff,
-    newerAppNeeded: run.newerAppNeeded, findError: run.findError, hold: f.hold
+    newerAppNeeded: run.newerAppNeeded, findError: run.findError, hold: f.hold, carry: f.carry
   };
 }

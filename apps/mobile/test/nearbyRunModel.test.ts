@@ -1,3 +1,4 @@
+import { NOTHING_TO_CARRY } from '../src/nearby/readyToCarryModel';
 import { radiosMayRun, type RadiosGate } from '../src/nearby/nearbyModel';
 import {
   certOrgSeqOf, listedKey, mergeFarAhead, namesOf, NEARBY_RUN_LIMIT_MS, NEARBY_RUN_START, NEARBY_SESSIONS_KEPT, nearbyOffered, nearbyRunReducer, nearbyViewOf,
@@ -233,7 +234,7 @@ describe('what the room is given', () => {
 describe('what the screen is handed', () => {
   it('asks a worn phone for a press until it has one, and passes the run through', () => {
     const facts = {
-      offered: true, whyNot: null, radiosOff: [], permissions: { state: 'granted' as const, step: { t: 'ready' as const } }, worn: true, holding: 3, hold: false
+      offered: true, whyNot: null, radiosOff: [], permissions: { state: 'granted' as const, step: { t: 'ready' as const } }, worn: true, holding: 3, hold: false, carry: NOTHING_TO_CARRY
     };
     expect(nearbyViewOf({ ...facts, run: NEARBY_RUN_START })).toMatchObject({ needsPress: true, holding: 3, hold: false, running: false });
     const pressed = run({ t: 'press', worn: true }, { t: 'started' });

@@ -1,3 +1,4 @@
+import { languagePeople } from '@langquest-next/core';
 import type { NearbyRoom, NearbyRoomEvent, NearbySessionReport } from '@langquest-next/sync/nearby';
 import { NavigationContext } from '@react-navigation/native';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
@@ -10,6 +11,7 @@ import { useAppCovered } from '../shell/useAppCovered';
 import { currentHoldChoice } from './holdChoice.android';
 import { pressHoldChoice } from './nearbyIdentity.android';
 import { nearbyRadio } from './nearbyLink.android';
+import { carryFactsOf, type StoredCarryFacts } from './nearbyCarry.android';
 import { holdByDefault, radiosMayRun } from './nearbyModel';
 import { androidSdk, askingForNearby, askNearbyPermissions, checkNearbyPermissions, openNearbySettings } from './nearbyPermissions.android';
 import {
@@ -19,6 +21,7 @@ import { nearbyNamesOf, nearbyOfferedFor, nearbyPiecesFor, nearbyRoomOf } from '
 import {
   NEARBY_PROGRESS_MS, NEARBY_RUN_START, NEARBY_TICK_MS, nearbyRunReducer, nearbyViewOf, type NearbyHandle, type NearbyWhyNot
 } from './nearbyRunModel';
+import { readyToCarryOf } from './readyToCarryModel';
 
 /**
  * Share nearby on an Android phone (docs/nearby-sync-plan.md 5.8, 5.11, 5.12). It builds the
@@ -61,18 +64,29 @@ export function useNearby(ctx: Ctx): NearbyHandle {
   const [offered, setOffered] = useState<boolean | null>(null);
   const [hold, setHoldShown] = useState(() => currentHoldChoice()?.hold ?? holdByDefault(worn));
   const holding = useSyncExternalStore(language.syncStatus.subscribe, () => language.syncStatus.get().holding);
+  const present = useSyncExternalStore(language.syncStatus.subscribe, () => language.syncStatus.get().present);
+  const [stored, setStored] = useState<StoredCarryFacts | null>(null);
   const wornRef = useRef(worn);
   wornRef.current = worn;
   const sdk = androidSdk();
 
+  /** Ready to carry's facts from the store: on opening, after each session and at "Up to date" (5.8). */
+  const nearbyLanguage = language.nearby;
+  const readCarry = useCallback(() => {
+    const open = nearbyLanguage();
+    if (!open) return;
+    carryFactsOf(open, orgId, languageId).then(setStored).catch((e: unknown) => noteExpected('nearby: ready to carry', e));
+  }, [nearbyLanguage, orgId, languageId]);
+
   /** What the phone, its permissions and its identity say now: asked on focus and on coming back, never with a prompt. */
   const refresh = useCallback(() => {
+    readCarry();
     if (!radio) return;
     radio.facts().then(setFacts).catch((e: unknown) => noteExpected('nearby: capabilities', e));
     checkNearbyPermissions().then(setAnswers).catch((e: unknown) => noteExpected('nearby: permissions', e));
     nearbyOfferedFor(actorId, orgId, languageId).then(setOffered).catch((e: unknown) => { noteExpected('nearby: offered', e); setOffered(false); });
     setHoldShown(currentHoldChoice()?.hold ?? holdByDefault(wornRef.current));
-  }, [radio, actorId, orgId, languageId]);
+  }, [radio, actorId, orgId, languageId, readCarry]);
   useEffect(refresh, [refresh]);
 
   const focused = useFocus(useCallback(() => { dispatch({ t: 'reopened', worn: wornRef.current }); refresh(); }, [refresh]));
@@ -133,7 +147,6 @@ export function useNearby(ctx: Ctx): NearbyHandle {
   orgState.current = org.state;
   const inspectOrg = useRef(org.inspect);
   inspectOrg.current = org.inspect;
-  const nearbyLanguage = language.nearby;
   const start = useCallback(async () => {
     const mine = ++attempt.current;
     const still = () => mine === attempt.current && gate.current;
@@ -152,6 +165,7 @@ export function useNearby(ctx: Ctx): NearbyHandle {
       const report = (e: NearbyRoomEvent) => {
         dispatch({ t: 'room', report: e, worn, names: names.current });
         if (e.t === 'ended') void nearbyNamesOf(open, orgId).then((n) => { names.current = n; }).catch(() => undefined);
+        if (e.t === 'ended' || e.t === 'level') readCarry();
         // A stop of its own (idle, the run limit, "Up to date" on a worn phone): nothing more to stop here.
         if (e.t === 'stopped' && room) release(room);
       };
@@ -181,7 +195,7 @@ export function useNearby(ctx: Ctx): NearbyHandle {
       if (room) await room.stop().catch(() => undefined);
       if (mine === attempt.current) dispatch({ t: 'failed' });
     }
-  }, [radio, nearbyLanguage, actorId, orgId, languageId, worn, release]);
+  }, [radio, nearbyLanguage, actorId, orgId, languageId, worn, release, readCarry]);
 
   // Runs while the gate is open, and stops when it closes, when the language or person changes, and on leaving.
   useEffect(() => {
@@ -210,9 +224,18 @@ export function useNearby(ctx: Ctx): NearbyHandle {
     }
   }), [worn, askPermissions]);
 
+  const members = useMemo(() => [...languagePeople(org.state, languageId).keys()], [org.state, languageId]);
+  const carry = useMemo(() => readyToCarryOf({
+    me: actorId, members, present, inRange: run.teammates.map((t) => t.key), hold,
+    noRoom: run.sessions.some((l) => l.noRoom), olderFromServer: run.sessions.some((l) => l.olderFromServer), farAhead: run.farAhead,
+    todayStartMs: new Date().setHours(0, 0, 0, 0),
+    myKey: stored?.myKey ?? null, names: stored?.names ?? new Map(), vectorKeys: stored?.vectorKeys ?? [], holdings: stored?.holdings ?? new Map(),
+    batches: stored?.batches ?? [], pulledUnshared: stored?.pulledUnshared ?? false, lastOnlineMs: stored?.lastOnlineMs ?? null
+  }), [actorId, members, present, run.teammates, hold, run.sessions, run.farAhead, stored]);
+
   const view = useMemo(
-    () => nearbyViewOf({ offered: offered === true, whyNot, radiosOff, permissions, worn, run, holding, hold }),
-    [offered, whyNot, radiosOff, permissions, worn, run, holding, hold]
+    () => nearbyViewOf({ offered: offered === true, whyNot, radiosOff, permissions, worn, run, holding, hold, carry }),
+    [offered, whyNot, radiosOff, permissions, worn, run, holding, hold, carry]
   );
   return useMemo(() => ({ view, actions }), [view, actions]);
 }
