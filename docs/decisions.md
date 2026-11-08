@@ -1681,6 +1681,19 @@ and every privilege of the role; a membership someone else made for them
 counts for nothing. A repeated `join` request signs the account in again
 only within an hour and while it is still looked after with no password.
 
+Amended (2026-11-08, Carl Sauder): a join can now also come through the
+Worker's `POST /api/nearby/join`, taking a two-link chain, proof of the key
+and the phone's own id, for a newcomer let in offline (237, 238; docs/
+nearby-sync-plan.md 14.1, step 6). It makes the same kind of looked-after
+account with no password, but with the id the key gives, and redeems a join
+pass instead of a token (234). `supabase/functions/join` stays as it is for
+current builds. A newcomer whose pass stopped is let in by an ordinary
+invite: the phone posts the token to the same route with its chain, the
+route calls `preview_invite` before making anything, and the token is still
+the permission this entry made it. Getting back in is unchanged: after the
+key's first session, a helper's code as for anyone (75 as amended). Caleb
+should see this, since 59 is his entry.
+
 ## 60. Signing out of a shared phone hands unsent work over, and it still goes as its author
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
@@ -2834,6 +2847,19 @@ aborted its caller's transaction. It now takes the stream's lock and
 checks the id again under it, returning null as it says it does.
 Migration `20261015190000_append_event_as_under_lock.sql`; cases 4 and 5
 of `server/concurrentAppendSmoke.sql` (`record_blob` twice at once).
+
+Amended (2026-11-08, Carl Sauder): proof of a key can now sign someone in to
+an account made from a chain, until that key's first session, which
+`install_keys.first_session_at` records (Carl's answer 10; 238). It signs in
+only an account whose `app_metadata.chain_key` is that key, that is looked
+after, with the key's row unrevoked and no first session yet, so an ordinary
+account's certified key gets nothing. `nearby_certificate_facts` closes the
+window on all of the person's rows, as does either `take_sign_in_code`
+function, so a helper's code on another phone ends it too. After that, a
+helper's code as for anyone. "Nobody is added without joining" still holds:
+a newcomer joins by redeeming a pass whose stops the server checks (234),
+and the id they come in with follows from their key, so it cannot name a
+member, an imported person or a deleted account (235, 239).
 
 ## 76. Names identify nothing: a repeated language is warned about, and an organization can be renamed
 
@@ -7780,6 +7806,16 @@ tried it again, and Carl asked how such a copy is ever corrected. So:
   copied only because it changed two of them.
 
 
+Amended (2026-11-08, Carl Sauder): a phone with no Play Store gets a carried
+file after a native change (240), because this entry deletes
+`release/android` once the new build is public, and over-the-air updates
+after a native change reach the old runtime only through that branch, so
+such a phone would otherwise get nothing for good until a newer file exists
+(docs/nearby-sync-plan.md 14.4). While the new store build is in review, a
+merge touching the files nearby sync added is copied to `release/android`,
+where they do not exist, and conflicts, so such merges wait until it is
+public (section 7). Caleb should see this, since 155 is his entry.
+
 ## 156. Store builds come only from the EAS workflow on merges into main
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted
@@ -7959,6 +7995,17 @@ Releases section draws where each build and update is now
 (`apps/admin/src/sources/pipeline.ts`, docs/admin.md). Reverse if: reviews are
 fast enough that a restarted one costs less than a build that waits, then
 send every build straight to production again.
+
+Amended (2026-11-08, Carl Sauder): carried builds never go to production
+review (240). A merge that makes one uploads it to Play's `alpha` track
+with release status `draft` (`eas.json`, `submit.carried`), which
+`scripts/play-review.mjs` never reads, since it sends the newest build on
+the internal track to production review. EAS documents only production,
+beta, alpha and internal, so a track of its own name was not on offer. It is
+an exception to this entry's "every new build goes to production review",
+and it uses up a version code, so later store builds simply number higher
+(docs/nearby-sync-plan.md 14.4). Caleb should see this, since 157 is his
+entry.
 
 ## 158. Global Viewers read every organization, read-only, and only on a session verified with an authenticator
 
@@ -11986,3 +12033,211 @@ so that message is not built. It can be added later as an ability with no
 new protocol version.
 Reverse if: teams offline for long see refused work on their screens long
 enough to matter.
+
+## 234. A join pass lets a member let a new person in offline, one pass to a window, and it stops only by itself
+
+Date: 2026-11-08 · By: Carl Sauder · Status: accepted
+
+Reason: Carl chose (plan section 2) that a new person can join offline, on
+Android, in a later phase (docs/nearby-sync-plan.md section 14). A phone
+that may let someone in holds a *join pass* for each language its person
+can invite to, in the certificate answer (`nearby_certificate_facts`
+gains `passes`; the phone keeps them in `nearbyPasses`, replaced whole as
+chains are). The Worker issues one only while the organization has both
+`nearby` and `nearby_join` on, its own feature granted separately in
+`org_features` (Carl's answer 11). A pass names the organization, language,
+inviter and inviter's key, the roles allowed, 10 uses (`JOIN_PASS_USES`)
+and an expiry. One id per organization, language, inviter, key and 90-day
+window, derived by the Worker, expiring at the window's end (answer 17), so
+the daily refresh makes no new uses. Nothing is written at issue, since
+`issue_invite_v3` appends an event for each invite and a row per inviter,
+language, role and sync would grow the immutable log without end: the first
+use at the server makes the invites row under `token_hash = 'pass:' ||
+passId`, which no token can reach, and its `v1.InviteIssued`, then redeems
+through `_redeem_invite_row`, the body of `redeem_invite_for` split out with
+the link's role, so `redeem_invite_for` keeps its results for store builds
+(152). Roles: only those with no privilege in core's `MANAGE_PRIVILEGES`
+whose privileges the inviter holds (answer 8), so a local person never holds
+a role that makes other hooks write organization events, and an admin can
+raise the role after first contact. Looked-after accounts hold passes (answer
+18): Invite goes by permissions alone (67). A pass stops automatically only
+(answer 9, and the security review): past expiry or uses, the inviter lost
+Invite or that role, the role retired or gained a manage privilege, the
+inviter's key revoked, or either feature off. There is no withdraw button,
+so for a taken phone the key's revocation is the stop that holds.
+`pass_refusal` asks the same stops read-only before any account is made, and
+`redeem_pass_for` answers a person who already redeemed this pass first, so
+a repeat answers after the uses run out. Migration
+`20261108020000_nearby_join.sql`, `server/nearbyJoinSmoke.sql`.
+Reverse if: teams leaving town often hold a pass with days left (section 13
+asks whether to hold the next window's too), or passes are misused faster
+than their stops catch.
+
+## 235. A newcomer's id comes from their key, and the code they scan holds no pass or key
+
+Date: 2026-11-08 · By: Carl Sauder · Status: accepted
+
+Reason: a newcomer has no account when they are let in, so their phone
+makes a new install key and a 16-byte `idSalt` and derives its profile id
+from them (docs/nearby-sync-plan.md 5.12, Chains), keeping them with the
+join's progress, so a dropped link or another inviter gets the same id.
+`checkChain` recomputes the id from the key, so a chain cannot name an
+existing member, an imported v2 person who has not signed in yet, or anyone
+else: an imported person has live memberships and no `auth.users` row, and
+without this a chain could claim their id and inherit every role. The
+inviter's Let someone in shows a QR holding only how to reach the phone, a
+one-time secret and a pin on its opening (`langquestnext://join?...`), and
+no pass or key (Carl's answer 21), because a photo of the QR gives anyone
+all they need to get that far, and the discovery key cannot be taken back
+once it is out. The pass, its chain and the key travel only after the
+inviter's one tap beside two of decision 168's pictures worked out from the
+link (`joinPictures`), which both phones show, so a QR holder who connected
+first and typed the expected name is caught. `parseKey` reads this third
+kind of key, and a newcomer joins only on a phone with nobody on it, because
+a local person makes Sign In unreachable for everyone signed out there (168).
+Reverse if: field tests show the pictures do not catch a wrong phone, or a
+newcomer's key is lost often enough that an id they could recover is worth
+what it costs.
+
+## 236. A starting copy holds state, member names and the library documents the language uses, on allowlists that fail closed, until the server's first download replaces it
+
+Date: 2026-11-08 · By: Carl Sauder · Status: accepted
+
+Reason: Carl's answer 6: a newcomer needs a language to work in before
+first contact, so the inviter's phone, or any teammate's on the same
+reducer and lines versions whose read gate passes the chain, sends a
+starting copy, taking the language from the checked chain and never from the
+ask (docs/nearby-sync-plan.md 14.1, step 4). It holds the language
+checkpoint and part rows in the server's first-download order, and the
+organization part through core's `newcomerOrgState`, which starts empty and
+copies an allowlist (the organization, roles, license, library,
+recommendations, this language and its live members), so invites, join
+decisions, other languages and any field added later stay out. Member names
+are filtered to that cut's members, since `my_directory` holds every
+organization the caller belongs to. Library documents go by core's
+`docsThisLanguageUses`, checked by hash, and only formats on
+`STARTING_COPY_FORMATS` (`mayGoInStartingCopy`): publishers' documents,
+`study@2` and `labels@1` stay out until Carl confirms the terms (answer 19),
+and a `material@1` goes only if it is the organization's own with no
+`source` or `pattern`, because FIA's key words are one. No source audio or
+guide media. `adoptStartingCopy` writes it in one commit with the cursor at
+0 and the marker `startingCopy:<org>/<stream>`, and with the marker set
+`pullNow` takes the first-download route and `loadUnits` takes no
+checkpoint, because any one of those alone would keep a forged copy for
+good. Where the server has no snapshot the copy is dropped and the stream
+pulled from 0; the organization stream pulls into a temporary client. Only
+a newcomer takes organization state from a phone.
+Reverse if: Carl confirms the terms for publishers' documents (then widen
+the allowlist), or newcomers can do too little without source audio.
+
+## 237. A newcomer works as a local person with no session until first contact, which makes their account with their own id
+
+Date: 2026-11-08 · By: Carl Sauder · Status: accepted
+
+Reason: a newcomer let in offline has no account, so the app runs them as a
+*local person*: an actor id and no server session, one per install, kept
+in `secureStorage` (`nearby-local-person`, `src/server/localPerson.android.ts`), from
+asking through a whole copy to first contact, never going back a stage
+(docs/nearby-sync-plan.md 14.1, step 5). The copy finishes before the
+person is set, because `Shell` remounts on the actor id. `signedIn` splits
+into routing and `serverSession`, an overlay of the chain's membership
+(`withChainMembership`) gives real privileges at `Workspace` from the link's
+signed ones and writes nothing, and their transport throws `OfflineError`
+until first contact, so their events stay `pending` and reach teammates as
+`nearby`. When the server answers, `useFirstContact` posts the chain,
+proof of key, the id and a request id to the Worker's `POST
+/api/nearby/join` (`accountFromChain`, shared with the relay, so a
+teammate carrying the newcomer's work makes the same account): an id that
+exists is reached only by its own `chain_key`, a deleted id is refused
+(239), `pass_refusal` is asked before any Auth call, then `createUser` with
+the phone's own id and `app_metadata: { managed: true, chain_key }`, the
+`install_keys` row and `redeem_pass_for`. A database error answers 503,
+never a refusal, and `JOIN_RATE_LIMIT` runs before any signature check. A
+refusal keeps the person and their work, and someone with Invite can let
+the same id in with an ordinary invite. Edge Functions cannot import core,
+so this is a Worker route and `supabase/functions/join` stays as it is (59,
+amended).
+Reverse if: local persons strand work in the field often enough that a
+shared phone or a second person per install is worth what it costs.
+
+## 238. Proof of a key signs a chain's account in until the key's first session
+
+Date: 2026-11-08 · By: Carl Sauder · Status: accepted
+
+Reason: Carl's answer 10: a newcomer has no password and no helper code at
+first contact, so proof of their key signs them in, but only until that
+key's first session, recorded as `install_keys.first_session_at`; after
+that, a helper's code as for anyone. `nearby_join_finish` returns a session
+only for an account whose `app_metadata.chain_key` is this key, that is
+looked after, with the key's row unrevoked and no first session yet, so an
+ordinary account's certified key gets nothing, however it got its row. The
+route never writes `first_session_at`: `nearby_certificate_facts` does, on
+all of that person's rows, because it holds a bearer token, and the phone
+calls the certificate route straight after adopting the session, whatever
+the flag says, until it succeeds. Both `take_sign_in_code` functions close
+the same rows, so a helper's code on another phone ends it too. So a lost
+reply can be retried whenever the phone next gets a signal, and a repeat has
+no more power than a first try. Amends 75.
+Reverse if: a key is taken between the join and the first certificate
+often enough that a shorter window is worth retries failing.
+
+## 239. A deleted account's bare id is kept, so no chain can bring it back
+
+Date: 2026-11-08 · By: Carl Sauder · Status: accepted
+
+Reason: a newcomer's id follows from their key (235), so a chain kept on a
+phone could make an account with the id of one deleted since, and
+`accountdeleted:` events are written only for live memberships, so the log
+cannot say who was deleted (docs/nearby-sync-plan.md 14.1, step 6).
+`_delete_account` now also writes the bare id to `deleted_profile_ids`, a
+table only the service role reads, and `nearby_join_state` refuses any id
+in it. It holds the id alone, which names nobody once the account is gone,
+so account deletion (46) and Data safety stay true (section 9). Migration
+`20261108020000_nearby_join.sql`.
+Reverse if: deletion must leave no trace of an id at all, then refuse ids by
+another proof.
+
+## 240. A carried build is the newcomer's install file: made when the reducer, lines or protocol version or the Android fingerprint changes, fetched from Play and served from an R2 bucket of its own
+
+Date: 2026-11-08 · By: Carl Sauder · Status: accepted
+
+Reason: an iPhone cannot install an app offline and a store build holds only
+the JavaScript it was built with, so Carl chose (2026-11-06) that the app
+comes to a newcomer as a carried APK built from the team's latest
+JavaScript (docs/nearby-sync-plan.md 14.4); it is also how phones with no
+Play Store, as in China, get the app at all. A merge into main that changes
+`REDUCER_VERSION`, `LINES_VERSION`, the nearby protocol range or the Android
+fingerprint makes one: the first three decide whether a starting copy can be
+read and two phones can talk, and the fingerprint because after a native
+change the old runtime gets updates only from `release/android`, which 155
+deletes. The file's name holds only those versions (core `carriedApkName`,
+`r21-l1-p1-<first 8 of the fingerprint>.apk`), because a carrier keeps it in
+Downloads or on an SD card where no disguise applies; one function names it
+for the script, the route and Let someone in. EAS clones only the latest
+commit, so `scripts/carried-build.mjs --check` asks the bucket for that name
+and a 404 means make one, which also retries a failed publish. The jobs
+(`carried_check`, `build_carried`, `submit_carried`, `publish_carried` in
+`deploy-to-testers.yml`) need only the fingerprint and no store job needs
+them, so a failure there cannot stall `publish_android_update`. Its own
+profile, `carried`, because `get_android_build` matches on profile and
+fingerprint, and a carried build on `production` could satisfy that check
+when the store build failed. It goes to Play's alpha track as a draft (157,
+amended); the job then reads its Play-signed universal APK through
+`generatedApks` with `PLAY_REVIEW_KEY`, GET only, and puts it in a new R2
+bucket, `langquest-next-apks`, with a token limited to it (Carl's answer
+12), served by the Worker at `/apk/<name>` with that name in
+`Content-Disposition`, apart from teams' recordings and their auth, and
+public by design. It cannot be a static asset, as an APK is past
+Cloudflare's per-file limit. The script fails closed: a missing setting or
+key, a fingerprint not the build's, or any answer from Google or the bucket
+it does not expect stops it before it writes. A carrier downloads the file
+with their browser while online; the app never downloads or installs it,
+which keeps clear of Play's rules on apps that download APKs, and
+`REQUEST_INSTALL_PACKAGES` stays out. A person creates the bucket and its
+token, and someone with `PLAY_REVIEW_KEY` tries `generatedApks` on an
+existing build first. `server-calls` holds the carried profile's builds as
+store builds and `store-build-guard` refuses one started outside the
+workflow, since it is in the field too.
+Reverse if: carried files go out of date faster than carriers can replace
+them (section 14.3), China cannot reach the address, or a phone installed
+from one does not take Play updates.
