@@ -55,6 +55,13 @@
         "track": "internal",
         "releaseStatus": "completed"
       }
+    },
+    "carried": {
+      "extends": "production",
+      "android": {
+        "track": "alpha",
+        "releaseStatus": "draft"
+      }
     }
   }
 }

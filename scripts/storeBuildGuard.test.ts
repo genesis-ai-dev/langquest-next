@@ -37,11 +37,11 @@ describe('the store build guard', () => {
     for (const profile of ['preview', 'development', 'simulator']) expect(refusal({ EAS_BUILD_PROFILE: profile }), profile).toBeNull();
   });
 
-  it('runs before every EAS build, and the workflow passes its ref to both store builds', () => {
+  it('runs before every EAS build, and the workflow passes its ref to both store builds and the carried build', () => {
     const scripts = JSON.parse(readFileSync('apps/mobile/package.json', 'utf8')).scripts;
     expect(scripts['eas-build-pre-install']).toBe('node scripts/store-build-guard.mjs');
     const workflow = readFileSync('apps/mobile/.eas/workflows/deploy-to-testers.yml', 'utf8');
-    for (const job of ['build_ios', 'build_android'])
+    for (const job of ['build_ios', 'build_android', 'build_carried'])
       expect(workflow, job).toMatch(new RegExp(`\\n  ${job}:\\n(?: {4}.*\\n)*? {6}LQ_STORE_BUILD_REF: \\$\\{\\{ github\\.ref \\}\\}\\n`));
   });
 

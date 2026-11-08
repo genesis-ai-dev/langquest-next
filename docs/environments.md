@@ -50,7 +50,9 @@ also hold the ops dashboard's `ADMIN_*` keys: one read-only token per
 provider, each optional (`docs/admin.md`), `APP_STORE_REVIEW_KEY`,
 the key that sends new iPhone builds to App Review (The App Store key,
 below), and `PLAY_REVIEW_KEY`, the key that moves new Android builds from
-internal testing to production review (The Play key, below). It may also hold `BIBLE_BRAIN_ACCESS_KEY`, Faith Comes By
+internal testing to production review (The Play key, below), and
+`APK_R2_ACCESS_KEY_ID` with `APK_R2_SECRET_ACCESS_KEY`, the carried builds'
+bucket token (The carried build, below). It may also hold `BIBLE_BRAIN_ACCESS_KEY`, Faith Comes By
 Hearing's key for the Worker's Bible routes (`docs/reference-material.md`). That one is optional: it is not
 in the Worker's `secrets.required`, so a deploy never waits for it, and
 until a person sets it (`npm run env:update -- <env> BIBLE_BRAIN_ACCESS_KEY`,
@@ -74,7 +76,7 @@ declares:
 | admin Worker (production only) | each provider token or key (`ADMIN_*`) when the file has them (`docs/admin.md`). Never the service-role key |
 | Hyperdrive `langquest-next-diag` (production only) | `DIAG_DATABASE_URL`, as the config's connection; the first run makes the config and writes its id into `apps/admin/wrangler.jsonc` to commit (`docs/admin.md`) |
 | GitHub Actions secrets of this repository (production only) | `GEMINI_API_KEY` when the file has it, for the nightly filming of the tutorial videos (`.github/workflows/tutorials.yml`, `docs/tutorial-videos.md`); `CLAUDE_CODE_OAUTH_TOKEN` when it has it, a Claude plan's sign-in for the nightly look at the videos' feedback (`.github/workflows/tutorial-review.yml`, `docs/tutorial-videos.md` "Feedback") and the watch for user issues (`.github/workflows/user-issues.yml`, `docs/diagnostics.md`). The watch also uses the `LINEAR_API_KEY` repository secret that `linear-sync.yml` uses, which this script does not place. Never a production key (`scripts/workflows.test.ts`); needs `gh` signed in |
-| EAS's `production` environment (production only) | `APP_STORE_REVIEW_KEY` and `PLAY_REVIEW_KEY` when the file has them, as variables with secret visibility, which only EAS's jobs and builds can read: the App Review and Play review steps of the EAS workflows (The App Store key and The Play key, below). Needs `eas` signed in (`npx eas login`) |
+| EAS's `production` environment (production only) | `APP_STORE_REVIEW_KEY`, `PLAY_REVIEW_KEY`, `APK_R2_ACCESS_KEY_ID` and `APK_R2_SECRET_ACCESS_KEY` when the file has them, as variables with secret visibility, which only EAS's jobs and builds can read: the App Review and Play review steps of the EAS workflows, and the carried build's (The App Store key, The Play key and The carried build, below). Needs `eas` signed in (`npx eas login`) |
 | Edge Function secrets | `INVITE_RELAY_SECRET`, `PUSH_DELIVERY_SECRET` (once `PROJECTION_WORKER_SECRET`, which this unsets), `INVITE_RELAY_URL` (public, derived from the Worker's name) |
 | Vault | `langquest_project_url`, `langquest_push_delivery_secret`; with `WEBHOOK_POKE_SECRET`, also `langquest_webhook_poke_secret` and `langquest_dashboard_url` (public, the app's Worker's route) |
 | pg_cron | the push-delivery job: its migration (`20261026170400_push_delivery_when_waiting.sql`) schedules it, calling the function only when something is waiting, only where Vault already has the secrets, and leaves the projection pass to the Worker's job container, so this runs that migration again |
@@ -309,6 +311,69 @@ production release's version with the one Play's public page shows. A
 release Google rejected looks the same as one in review: someone fixes it
 in Play Console, or a merge labelled `store: replace review` sends its
 build in its place.
+
+## The carried build
+
+A carried build is the APK a teammate carries to a phone with no internet
+or no Play Store (docs/nearby-sync-plan.md 14.4). The EAS workflow on main
+makes one when the APK bucket has no file named for that merge's reducer,
+lines and protocol versions and Android fingerprint
+(`.eas/workflows/deploy-to-testers.yml`, the `carried_*` jobs), uploads it
+to Play's alpha track as a draft, and `scripts/carried-build.mjs` fetches
+its Play-signed universal APK from Google (`generatedApks`) and puts it in
+the bucket, where the app's Worker serves it at
+`https://next.langquest.org/apk/<name>`. Until all of the below is done, the
+check fails with "the APK bucket is not configured" and nothing else
+happens; the store build and its updates go on as before.
+
+Once, as a person (agents may not do these):
+
+1. Before the merge, with the Play key, try `GET generatedApks` on a build
+   already in Play, to see that the key may read it and that Play gives one
+   universal APK for it. This only reads:
+
+   ```
+   npx dotenvx run -f .env.production -fk .env.keys --quiet -- node --input-type=module -e "
+   import { client, playKey } from './scripts/play-review.mjs';
+   const api = await client(playKey(process.env));
+   const a = await api('GET', '/generatedApks/<version code>');
+   console.log(JSON.stringify(a.generatedApks?.map((k) => ({ universal: Boolean(k.generatedUniversalApk?.downloadId) }))));"
+   ```
+
+   It should print `[{"universal":true}]`. A 403 means the service account
+   needs a further Play Console permission for app bundle downloads; more
+   than one entry means more than one signing key, which the script refuses.
+2. Create the buckets the Worker binds, before the merge, because a deploy
+   with a binding to a bucket that does not exist fails:
+   `npm run r2:buckets -- production` (and `preview`), which makes
+   `langquest-next-apks` (`langquest-next-apks-preview`) beside the
+   recordings bucket, private, with no r2.dev address.
+3. Cloudflare dashboard > R2 > Manage API tokens > Create Account API
+   token: Object Read & Write, applied to `langquest-next-apks` only. It
+   shows an Access Key ID and a Secret Access Key once. Enter each when
+   `env:update` asks (hidden), never as an argument, then apply them to EAS:
+
+   ```
+   npm run --silent env:update -- production APK_R2_ACCESS_KEY_ID
+   npm run --silent env:update -- production APK_R2_SECRET_ACCESS_KEY
+   npm run secrets -- production --only eas
+   ```
+
+   The token can read and write that one bucket and nothing else: not the
+   recordings, not the account.
+4. See what a publish would do, writing nothing, for the build of step 1
+   (it names the file with this checkout's versions):
+   `npx dotenvx run -f .env.production -fk .env.keys --quiet -- npx tsx
+   scripts/carried-build.mjs --publish --dry-run --version-code <code>
+   --fingerprint <its runtime version> --build-fingerprint <the same>`.
+
+Each run prints a line that starts with what it found:
+
+| Line | Means |
+| --- | --- |
+| `due:` | no file of this build's name is in the bucket, so the carried build runs |
+| `none:` | the file is there; nothing to build |
+| `no carried build:` | a setting or key is missing, or Google or the bucket answered something unexpected; the job failed and changed nothing. The next merge that changes the app checks again |
 
 ## Replacing a build in review
 

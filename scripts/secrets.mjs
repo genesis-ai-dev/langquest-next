@@ -64,9 +64,12 @@ export const ADMIN_KEYS = ['ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_SUPABASE_TOKEN', 'AD
  * production review: production's go to EAS (EAS_KEYS). NEARBY_SIGNING_KEY is the app Worker's
  * Ed25519 key for nearby sync's certificates and attestations (docs/nearby-sync-plan.md 5.12), one
  * compact JWK with its kid, made by scripts/nearby-signing-key.sh, whose public half is in the
- * Worker's NEARBY_CERT_KEYS var and the app's EXPO_PUBLIC_NEARBY_CERT_KEYS.
+ * Worker's NEARBY_CERT_KEYS var and the app's EXPO_PUBLIC_NEARBY_CERT_KEYS. APK_R2_ACCESS_KEY_ID and
+ * APK_R2_SECRET_ACCESS_KEY are the S3 credentials of an R2 token limited to the carried builds'
+ * bucket, with which scripts/carried-build.mjs checks for and puts each carried APK
+ * (docs/nearby-sync-plan.md 14.4): production's go to EAS (EAS_KEYS).
  */
-export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'APP_STORE_REVIEW_KEY', 'PLAY_REVIEW_KEY', 'NEARBY_SIGNING_KEY', ...ADMIN_KEYS];
+export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'APP_STORE_REVIEW_KEY', 'PLAY_REVIEW_KEY', 'APK_R2_ACCESS_KEY_ID', 'APK_R2_SECRET_ACCESS_KEY', 'NEARBY_SIGNING_KEY', ...ADMIN_KEYS];
 export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET'];
 /**
  * Placed when the file has them, never required: the Worker answers without
@@ -82,11 +85,14 @@ export const GITHUB_REPO = 'genesis-ai-dev/langquest-next';
  * Production's secrets for EAS, which its workflows read on Expo's servers:
  * the App Store key that `scripts/app-store-review.mjs` sends new iPhone
  * builds to App Review with, and the Play key that `scripts/play-review.mjs`
- * sends new Android builds to production review with (decisions.md 157).
- * Each is an EAS variable with secret visibility, readable by EAS's jobs and
- * builds only, never in a UI.
+ * sends new Android builds to production review with (decisions.md 157),
+ * and that `scripts/carried-build.mjs` fetches each carried build's APK
+ * with, for reading only; and the APK bucket's limited R2 token, with which
+ * that script puts the APK there (docs/nearby-sync-plan.md 14.4). Each is
+ * an EAS variable with secret visibility, readable by EAS's jobs and builds
+ * only, never in a UI.
  */
-export const EAS_KEYS = ['APP_STORE_REVIEW_KEY', 'PLAY_REVIEW_KEY'];
+export const EAS_KEYS = ['APP_STORE_REVIEW_KEY', 'PLAY_REVIEW_KEY', 'APK_R2_ACCESS_KEY_ID', 'APK_R2_SECRET_ACCESS_KEY'];
 /** The folder that holds the EAS project (eas.json, the project id), where `eas env:*` runs. */
 export const EAS_PROJECT = 'apps/mobile';
 /** Destinations that `--only` can apply alone. */

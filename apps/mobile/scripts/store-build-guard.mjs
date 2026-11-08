@@ -10,10 +10,10 @@
 // docs/nearby-sync-plan.md 14.4) is held the same way. Other profiles pass.
 import { fileURLToPath } from 'node:url';
 
-/** Why this build may not run, or null when it may. */
-/** Profiles that make a build for the field, which only the workflow on main may start. */
-const FIELD_PROFILES = ['production', 'carried'];
+/** Profiles that make a build for the field, which only the workflow on main may start (scripts/server-calls.mjs holds the same two). */
+export const FIELD_PROFILES = ['production', 'carried'];
 
+/** Why this build may not run, or null when it may. */
 export function refusal(env) {
   if (!FIELD_PROFILES.includes(env.EAS_BUILD_PROFILE)) return null;
   if (env.LQ_STORE_BUILD_REF === 'refs/heads/main') return null;
