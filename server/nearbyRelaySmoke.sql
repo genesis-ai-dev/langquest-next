@@ -279,14 +279,19 @@ select pg_temp.accepted(pg_temp.u('0b'), pg_temp.k(2), pg_temp.ev('rl-u4', 'rl-L
   'a translator undoing a set-aside the server holds');
 
 -- 8. A helper's lost-phone code revokes that person's keys at their sign-in,
--- only theirs, and the revocation list carries them; a code not marked lost
--- leaves keys alone.
+-- only theirs, and ends their sessions, so a taken phone cannot ask for a new
+-- certificate under a new key; the revocation list carries them; a code not
+-- marked lost leaves keys and sessions alone.
 insert into public.sign_in_codes (code_hash, profile_id, issued_by, expires_at, lost) values
   (repeat('1', 64), pg_temp.u('0e')::uuid, pg_temp.u('0a')::uuid, now() + interval '1 hour', true),
   (repeat('2', 64), pg_temp.u('0f')::uuid, pg_temp.u('0a')::uuid, now() + interval '1 hour', false);
+insert into auth.sessions (user_id, created_at, updated_at, aal) values
+  (pg_temp.u('0e')::uuid, now(), now(), 'aal1'), (pg_temp.u('0b')::uuid, now(), now(), 'aal1'), (pg_temp.u('0f')::uuid, now(), now(), 'aal1');
 do $$ declare r record; v jsonb; begin
   select * into r from public.take_sign_in_code_v2(repeat('1', 64));
   if r.profile_id is distinct from pg_temp.u('0e')::uuid or not r.lost then raise exception 'the lost code''s answer: %', r; end if;
+  if exists (select 1 from auth.sessions where user_id = pg_temp.u('0e')::uuid) then raise exception 'a lost code left the taken phone signed in'; end if;
+  if not exists (select 1 from auth.sessions where user_id = pg_temp.u('0b')::uuid) then raise exception 'a lost code signed another person out'; end if;
   if exists (select 1 from public.install_keys where profile_id = pg_temp.u('0e')::uuid and revoked_at is null) then raise exception 'a lost code left a key unrevoked'; end if;
   if exists (select 1 from public.install_keys where profile_id = pg_temp.u('0b')::uuid and revoked_at is not null) then raise exception 'a lost code revoked another person on the shared phone'; end if;
   if (select count(*) from public.install_key_revocations where org_id = 'rl-org' and profile_id = pg_temp.u('0e')::uuid) <> 2 then
@@ -300,6 +305,7 @@ do $$ declare r record; v jsonb; begin
   if public.nearby_certificate_facts(pg_temp.u('0e'), 'dev-5', pg_temp.k(5), '{}')->>'revoked' <> 'true' then raise exception 'a revoked key got a certificate'; end if;
   select * into r from public.take_sign_in_code_v2(repeat('2', 64));
   if r.lost or exists (select 1 from public.install_keys where profile_id = pg_temp.u('0f')::uuid and revoked_at is not null) then raise exception 'a code not marked lost revoked keys'; end if;
+  if not exists (select 1 from auth.sessions where user_id = pg_temp.u('0f')::uuid) then raise exception 'a code not marked lost ended sessions'; end if;
   if (select count(*) from public.take_sign_in_code_v2(repeat('1', 64))) <> 0 then raise exception 'a code was taken twice'; end if;
 end $$;
 
@@ -384,7 +390,9 @@ end $$;
 -- 11. An email account's keys through New password's lost choice, and staff:
 -- idempotent, the list written once, and later relayed work refused.
 do $$ declare v_sessions int; begin
+  insert into auth.sessions (user_id, created_at, updated_at, aal) values (pg_temp.u('11')::uuid, now(), now(), 'aal1');
   if public.revoke_install_keys(pg_temp.u('11'), 'New password: a phone was lost') <> 1 then raise exception 'the reset revoked nothing'; end if;
+  if exists (select 1 from auth.sessions where user_id = pg_temp.u('11')::uuid) then raise exception 'a revoke left the person signed in'; end if;
   if public.revoke_install_keys(pg_temp.u('11'), 'New password: a phone was lost') <> 0 then raise exception 'a second revoke revoked again'; end if;
   if (select count(*) from public.install_key_revocations where profile_id = pg_temp.u('11')::uuid) <> 1 then raise exception 'one list row per organization'; end if;
   begin perform public.revoke_install_keys(pg_temp.u('11'), ''); raise exception 'a revoke that says nobody';
@@ -439,5 +447,32 @@ begin
   if public.blob_named_by(f || pg_temp.h('1') || '.wav', v, 'rl-nothing') then raise exception 'an event nobody sent'; end if;
   if public.blob_named_by(f || pg_temp.h('1') || '.wav', '', 'rl-f1') then raise exception 'nobody'; end if;
   if public.blob_access(f || pg_temp.h('1') || '.wav', v, true) then raise exception 'blob_access changed for a viewer'; end if;
+end $$;
+-- 13. A lost code taken through the password branch (builds before decision
+-- 59) revokes and signs out as take_sign_in_code_v2 does, with the same
+-- answer; and suspending an account revokes its keys onto the list and ends
+-- its sessions, while letting it back revokes nothing more.
+insert into public.install_keys (public_key, profile_id, install_id) values (pg_temp.k(9), pg_temp.u('0f')::uuid, 'dev-9');
+insert into public.sign_in_codes (code_hash, profile_id, issued_by, expires_at, lost) values
+  (repeat('3', 64), pg_temp.u('0f')::uuid, pg_temp.u('0a')::uuid, now() + interval '1 hour', true);
+insert into auth.sessions (user_id, created_at, updated_at, aal) values (pg_temp.u('0f')::uuid, now(), now(), 'aal1'), (pg_temp.u('0d')::uuid, now(), now(), 'aal1');
+do $$ declare r record; v_seq bigint; begin
+  select * into r from public.take_sign_in_code(repeat('3', 64));
+  if r.profile_id is distinct from pg_temp.u('0f')::uuid or r.email is null then raise exception 'the password branch''s answer: %', r; end if;
+  if exists (select 1 from public.install_keys where public_key = pg_temp.k(9) and revoked_at is null) then raise exception 'a lost code through the password branch left a key'; end if;
+  if exists (select 1 from auth.sessions where user_id = pg_temp.u('0f')::uuid) then raise exception 'a lost code through the password branch left a session'; end if;
+  if not exists (select 1 from public.install_key_revocations where public_key = pg_temp.k(9) and profile_id = pg_temp.u('0f')::uuid) then raise exception 'the list lacks the password branch''s key'; end if;
+
+  select max(seq) into v_seq from public.install_key_revocations where org_id = 'rl-org';
+  if not public.suspend_account(pg_temp.u('0d')) then raise exception 'suspend found nobody'; end if;
+  if exists (select 1 from public.install_keys where profile_id = pg_temp.u('0d')::uuid and revoked_at is null) then raise exception 'a suspended account kept a key'; end if;
+  if exists (select 1 from auth.sessions where user_id = pg_temp.u('0d')::uuid) then raise exception 'a suspended account kept a session'; end if;
+  if not exists (select 1 from public.install_key_revocations where org_id = 'rl-org' and public_key = pg_temp.k(4) and profile_id = pg_temp.u('0d')::uuid and seq > v_seq) then
+    raise exception 'a suspension is not on the revocation list';
+  end if;
+  if public.nearby_certificate_facts(pg_temp.u('0d'), 'dev-4', pg_temp.k(4), '{}')->>'revoked' <> 'true' then raise exception 'a suspended key got a certificate'; end if;
+  if not public.suspend_account(pg_temp.u('0d'), false) then raise exception 'letting back found nobody'; end if;
+  if (select count(*) from public.install_key_revocations where profile_id = pg_temp.u('0d')::uuid) <> 1 then raise exception 'letting back revoked again'; end if;
+  if public.suspend_account('not an id') or public.suspend_account('0d000000-0000-0000-0000-0000000000ff') then raise exception 'suspended nobody'; end if;
 end $$;
 rollback;

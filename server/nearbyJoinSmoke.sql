@@ -278,6 +278,12 @@ begin
   perform public.org_feature_grant('jn-org', 'nearby', 'Smoke');
   perform pg_temp.refused(pb, 'translator', null, 'back on');
 
+  -- A suspended inviter's pass lets nobody in, and nor does it once they are let back, since suspending revoked their key.
+  update auth.users set banned_until = now() + interval '1 day' where id = pg_temp.u('0c')::uuid;
+  perform pg_temp.refused(pb, 'translator', 'pass inviter suspended', 'a suspended inviter');
+  update auth.users set banned_until = null where id = pg_temp.u('0c')::uuid;
+  perform pg_temp.refused(pb, 'translator', null, 'a ban that ended');
+
   perform pg_temp.seed(jsonb_build_array(pg_temp.ev('jn-30', '_org', pg_temp.u('0a'), 'v1.MemberRemoved',
     jsonb_build_object('profileId', pg_temp.u('0c'), 'scope', '{"level":"language","languageId":"jn-L"}'::jsonb), 500)));
   perform pg_temp.refused(pb, 'translator', 'pass role is no longer available from whoever sent it', 'the inviter removed');

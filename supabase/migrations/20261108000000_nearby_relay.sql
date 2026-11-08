@@ -91,18 +91,48 @@ end $$;
 -- membership in, with `seq` per organization (5.12), in one transaction, so the
 -- Worker's certificate facts carry them from the next call. Only the named
 -- person: on a shared phone the others' rows stay good (Carl's answer 20), so
--- the list holds (key, person) pairs. Idempotent: a second call finds nothing
--- to revoke and adds no row. Answers how many keys it revoked. Each
--- organization's list is numbered under a lock of its own, taken in
--- organization order so two revocations at once cannot deadlock.
-create or replace function public.revoke_install_keys(p_profile text, p_by text)
+-- the list holds (key, person) pairs. It also ends every session of theirs,
+-- each time it is called: a taken phone still signed in would otherwise answer
+-- the certificate call's `{revoked: true}` with a new key and get a fresh
+-- chain, so the revocation would not stick. Each caller signs the person in
+-- again afterwards, on the phone they still hold. Idempotent: a second call
+-- finds nothing to revoke and adds no row. Answers how many keys it revoked.
+-- Each organization's list is numbered under a lock of its own, taken in
+-- organization order so two revocations at once cannot deadlock. The body is
+-- _revoke_install_keys, which suspend_account also calls.
+create or replace function public._revoke_install_keys(p_profile uuid, p_by text)
 returns int language plpgsql security definer set search_path = '' as $$
 declare
-  v_profile uuid;
   v_keys text[];
   v_org text;
   v_key text;
   v_at timestamptz := now();
+begin
+  delete from auth.sessions s where s.user_id = p_profile;
+  with revoked as (
+    update public.install_keys k set revoked_at = v_at, revoked_by = p_by
+    where k.profile_id = p_profile and k.revoked_at is null
+    returning k.public_key)
+  select coalesce(array_agg(r.public_key order by r.public_key), '{}') into v_keys from revoked r;
+  if cardinality(v_keys) = 0 then return 0; end if;
+
+  for v_org in
+    select distinct m.org_id from public.org_memberships m where m.profile_id = p_profile::text order by m.org_id
+  loop
+    perform pg_advisory_xact_lock(hashtext('install_key_revocations:' || v_org));
+    foreach v_key in array v_keys loop
+      insert into public.install_key_revocations (org_id, seq, public_key, profile_id, revoked_at)
+      values (v_org, coalesce((select max(r.seq) from public.install_key_revocations r where r.org_id = v_org), 0) + 1, v_key, p_profile, v_at)
+      on conflict (org_id, public_key, profile_id) do nothing;
+    end loop;
+  end loop;
+  return cardinality(v_keys);
+end $$;
+
+-- The service role's call (New password's lost choice, a helper's lost-phone
+-- code, staff): its id and words checked, then _revoke_install_keys.
+create or replace function public.revoke_install_keys(p_profile text, p_by text)
+returns int language plpgsql security definer set search_path = '' as $$
 begin
   if public.caller_id() is not null then raise exception 'service role only' using errcode = '42501'; end if;
   if p_profile is null or p_profile !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
@@ -111,25 +141,7 @@ begin
   if coalesce(length(btrim(p_by)), 0) not between 1 and 200 then
     raise exception 'say who revokes, in 1 to 200 characters' using errcode = '22023';
   end if;
-  v_profile := p_profile::uuid;
-  with revoked as (
-    update public.install_keys k set revoked_at = v_at, revoked_by = btrim(p_by)
-    where k.profile_id = v_profile and k.revoked_at is null
-    returning k.public_key)
-  select coalesce(array_agg(r.public_key order by r.public_key), '{}') into v_keys from revoked r;
-  if cardinality(v_keys) = 0 then return 0; end if;
-
-  for v_org in
-    select distinct m.org_id from public.org_memberships m where m.profile_id = v_profile::text order by m.org_id
-  loop
-    perform pg_advisory_xact_lock(hashtext('install_key_revocations:' || v_org));
-    foreach v_key in array v_keys loop
-      insert into public.install_key_revocations (org_id, seq, public_key, profile_id, revoked_at)
-      values (v_org, coalesce((select max(r.seq) from public.install_key_revocations r where r.org_id = v_org), 0) + 1, v_key, v_profile, v_at)
-      on conflict (org_id, public_key, profile_id) do nothing;
-    end loop;
-  end loop;
-  return cardinality(v_keys);
+  return public._revoke_install_keys(p_profile::uuid, btrim(p_by));
 end $$;
 
 -- For staff, for someone who cannot reach their email (docs/nearby-sync-plan.md
@@ -450,6 +462,7 @@ $$;
 -- ---- grants ---------------------------------------------------------------------------
 
 revoke all on function public._install_key_person(text) from public, anon, authenticated;
+revoke all on function public._revoke_install_keys(uuid, text) from public, anon, authenticated;
 revoke all on function public.revoke_install_keys(text, text) from public, anon, authenticated;
 revoke all on function public.install_keys_staff_revoke(text, text) from public, anon, authenticated;
 revoke all on function public.install_key_list(text) from public, anon, authenticated;
@@ -458,6 +471,7 @@ revoke all on function public.relay_append_events(text, text, jsonb, int) from p
 revoke all on function public._event_files(text, jsonb) from public, anon, authenticated;
 revoke all on function public.blob_named_by(text, text, text) from public, anon, authenticated;
 grant execute on function public._install_key_person(text) to service_role;
+grant execute on function public._revoke_install_keys(uuid, text) to service_role;
 grant execute on function public.revoke_install_keys(text, text) to service_role;
 grant execute on function public.install_keys_staff_revoke(text, text) to service_role;
 grant execute on function public.install_key_list(text) to service_role;

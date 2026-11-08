@@ -9,8 +9,8 @@
 -- redeems through the body redeem_invite_for always had (_redeem_invite_row),
 -- with the role the invite link chose. A pass stops automatically only
 -- (answer 9): expiry, uses, the inviter's Invite or that role lost, the role
--- retired or grown a manage privilege, the inviter's key revoked, or either
--- feature turned off.
+-- retired or grown a manage privilege, the inviter's key revoked or account
+-- suspended, or either feature turned off.
 --
 -- The Worker's POST /api/nearby/join and its relay make a newcomer's account
 -- with the id their key gives (checkChain, and _newcomer_profile_id here),
@@ -118,8 +118,8 @@ begin
 end $$;
 
 -- Why this pass no longer lets anyone in under this role, or null (Carl's
--- answer 9, the security review's addition to it, and 14.1's redeem_pass_for
--- steps 2 and 3). Read-only, so the join route asks it before any Auth call
+-- answer 9, the security reviews' additions to it, a suspended inviter among
+-- them, and 14.1's redeem_pass_for steps 2 and 3). Read-only, so the join route asks it before any Auth call
 -- and a dead pass makes no account. Words the app reads: 'expired', 'used',
 -- 'off'; anything else reads as a role no longer available.
 create or replace function public.pass_refusal(p_pass jsonb, p_role text)
@@ -144,6 +144,10 @@ begin
     if v_row.org_id is distinct from v_org then return 'pass not found'; end if;
     select count(*) into v_used from public.invite_redemptions r where r.invite_id = v_row.id;
     if v_used >= v_row.max_uses then return 'pass already used'; end if;
+  end if;
+  -- Suspended: their account signs in nowhere, so their pass lets nobody in either.
+  if exists (select 1 from auth.users u where u.id = v_inviter::uuid and u.banned_until > now()) then
+    return 'pass inviter suspended';
   end if;
   -- Revoked, or gone with its account: the stop that holds for a taken phone.
   if not exists (select 1 from public.install_keys k
@@ -560,19 +564,25 @@ end $$;
 
 -- Restated from 20261006000000_baseline.sql with the same signature and
 -- answers; a code taken also ends key sign-in for every key of that person
--- (Carl's answer 10), since the password it sets is a way in of its own.
+-- (Carl's answer 10), since the password it sets is a way in of its own. A
+-- code the helper marked lost revokes the person's keys and ends their
+-- sessions, as take_sign_in_code_v2 does (answer 26), so a build that still
+-- sets a password with the code cannot leave a taken phone's key standing.
 create or replace function public.take_sign_in_code(p_code_hash text)
 returns table (profile_id uuid, email text) language plpgsql security definer set search_path = public as $$
-declare v_who uuid; v_address text;
+declare v_who uuid; v_address text; v_lost boolean;
 begin
   if public.caller_id() is not null then raise exception 'service role only' using errcode = '42501'; end if;
   update public.sign_in_codes c set used_at = now()
   from auth.users u
   where c.code_hash = p_code_hash and c.used_at is null and c.expires_at > now()
     and u.id = c.profile_id and public.is_managed_email(u.email::text)
-  returning c.profile_id, u.email::text into v_who, v_address;
+  returning c.profile_id, u.email::text, c.lost into v_who, v_address, v_lost;
   if not found then return; end if;
   update public.install_keys k set first_session_at = now() where k.profile_id = v_who and k.first_session_at is null;
+  if v_lost then
+    perform public.revoke_install_keys(v_who::text, 'a helper''s lost-phone sign-in code');
+  end if;
   profile_id := v_who; email := v_address;
   return next;
 end $$;
