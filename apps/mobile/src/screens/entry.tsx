@@ -26,6 +26,7 @@ import { t, Trans } from '../i18n';
 import { formatPercent } from '../i18n/format';
 import { inviteCard, scanVerdict } from '../invites/heldInvite';
 import { parseKey } from '../invites/inviteCode';
+import { holdJoinCode } from '../invites/heldJoinCode';
 import type { Ctx } from '../shell/ctx';
 import { askResetLink, createAccountWithEmail, resetPassword, signInWithEmail, signInWithKey, waitText } from '../auth/signInFlow';
 import { queueJoinRequest } from '../auth/joinRequest';
@@ -706,6 +707,8 @@ export function ScanQr(ctx: Ctx) {
     if (key.kind === 'signin') { setSigninCode(key.code); return true; }
     if (key.kind === 'reset') { ctx.go('new_password', { code: key.code }); return true; }
     setSigninCode(null);
+    // A teammate's Let someone in code (docs/nearby-sync-plan.md 14.1, 3) is no invite: it is held for joining their phone.
+    if (key.kind === 'join') { holdJoinCode(key); return true; }
     await invite.scan(key);
     return true;
   }

@@ -5,6 +5,7 @@ import { forgetKeyInAddress } from '../web/appUrl';
 import type { Ctx } from './ctx';
 import { nextStep } from '../invites/heldInvite';
 import { parseKey } from '../invites/inviteCode';
+import { holdJoinCode } from '../invites/heldJoinCode';
 import { navRef, type Nav } from './nav';
 import { findNotification } from '../notifications/notifications';
 import { notificationTarget, openAfterSwitch } from '../notifications/notificationTarget';
@@ -35,6 +36,9 @@ export function useIncoming(o: {
       if (key.kind === 'signin') { resetNav({ screen: 'scan_qr', params: { code: url } }); return; }
       // A Forgot password link (flow G): choose the new password, signed in or not.
       if (key.kind === 'reset') { resetNav({ screen: 'new_password', params: { code: key.code } }); return; }
+      // A teammate's Let someone in code (docs/nearby-sync-plan.md 14.1, 3): never an invite, which the scan screen
+      // would refuse a new person offline. It is held for joining their phone, from the scanner.
+      if (key.kind === 'join') { holdJoinCode(key); resetNav({ screen: 'scan_qr' }); return; }
       void scanInvite(key).then(() => resetNav({ screen: 'scan_qr' }));
     };
     if (!initialLinkRead) {
