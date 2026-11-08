@@ -113,6 +113,42 @@ describe.each(STORES)('delivery on the %s store', (_name, make) => {
     expect(sent).toEqual(['sam:1:1', 'sam:2:1', 'bob:1:1']);
   });
 
+  it('a carrier behind the server skips batches the server answered duplicate, so the batch past the first 25 goes at the next sync', async () => {
+    const units = Array.from({ length: 27 }, (_, i) => unitBy(sam, `d${i}`, { at: NOW + i }));
+    // Sam pushed the first 26 himself; the last is on the carrier alone, a lost phone's work.
+    await server.transportFor().append(units.slice(0, 26));
+    const sent: number[] = [];
+    const t = server.transportFor();
+    const relay = t.relay!;
+    t.relay = async (o, s, batches) => {
+      for (const b of batches) sent.push(JSON.parse(b.manifest).n as number);
+      return relay(o, s, batches);
+    };
+    // Its pull never reaches the server's head in these syncs, so neither pull nor sweep settles the duplicates.
+    t.pull = async () => [];
+    const client = await carrier({ transport: t });
+    for (const [i, u] of units.entries()) await take(client, sam, i + 1, [u]);
+    await client.sync();
+    expect(sent).toEqual(Array.from({ length: 25 }, (_, i) => i + 1));
+    sent.length = 0;
+    await client.sync();
+    expect(sent).toEqual([26, 27]);
+    expect(server.stream(ORG, LANG).map((e) => e.id)).toContain(units[26]!.id);
+    expect(await statusOf(store, units[26]!.id)).toBe('confirmed');
+    // Each answered duplicate once, and nothing is sent again.
+    sent.length = 0;
+    await client.sync();
+    expect(sent).toEqual([]);
+    expect(await statusOf(store, units[0]!.id)).toBe('nearby');
+    // Once the pull reaches the server's head the duplicates settle, and what delivery kept of them goes with the batch.
+    const kept = `nearbyDuplicate:${ORG}/${LANG}:1 ${sam.key}`;
+    expect(await store.meta(kept)).toBe(JSON.stringify([units[0]!.id]));
+    t.pull = server.transportFor().pull;
+    await client.sync();
+    expect((await client.inspect()).nearby).toBe(0);
+    expect(await store.meta(kept)).toBeUndefined();
+  });
+
   it('leaves every row nearby when the relay says not yet, refuses a batch whole, or the server is too old for this build', async () => {
     const u = unitBy(sam, 'u1');
     const client = await carrier();

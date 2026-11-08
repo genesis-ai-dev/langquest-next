@@ -44,6 +44,29 @@ export interface Delivered {
 
 const empty = (): Delivered => ({ sent: 0, taken: 0, refused: 0, farAhead: 0, keyRefused: 0, batchesRefused: 0, batches: 0, more: false });
 
+/**
+ * The ids of one batch the server answered `duplicate`, in device meta keyed by the batch. A
+ * duplicate is left nearby for the pull or sweep, and on a carrier whose pull is behind the
+ * server's copy is past its cursor, so the sweep cannot drop it until the pull gets there.
+ * Sent again it would be answered the same, and would use up the sync's batches before later
+ * ones, which may be a lost phone's work only this phone holds. So delivery skips these ids
+ * and does not count a batch left with none. A public key has one length, so no batch's key
+ * starts with another's, and `settleBatches` clears it with the batch.
+ */
+export const duplicateKey = (up: Pick<NearbyHost, 'key'>, key: string, n: number): string => up.key('nearbyDuplicate', `${n} ${key}`);
+
+async function answeredDuplicate(up: NearbyHost, key: string, n: number): Promise<Set<string>> {
+  const raw = await up.store.meta(duplicateKey(up, key, n));
+  if (!raw) return new Set();
+  try {
+    const ids = JSON.parse(raw) as unknown;
+    return new Set(Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : []);
+  } catch {
+    // A row that cannot be read costs a re-send only.
+    return new Set();
+  }
+}
+
 /** How a row the relay answered is kept: confirmed, left for pull or a later try, or refused keeping its `via`. */
 function verdictRow(local: LocalEvent, v: AppendResult, out: Delivered): LocalEvent | null {
   const reason = v.reason ?? '';
@@ -148,8 +171,9 @@ export async function deliverNearby(up: NearbyHost): Promise<Delivered & { refol
       const [row] = await store.batchesAfter(orgId, streamId, key, n - 1, 1);
       const manifest = row?.n === n ? parseBatchManifest(row.manifest, { orgId, streamId }) : null;
       if (!row || !manifest) continue;
+      const duplicate = await answeredDuplicate(up, key, n);
       const here = (await store.getMany(manifest.events.map(([id]) => id)))
-        .filter((l) => l.status === 'nearby' && l.via && 'batch' in l.via && l.via.key === key && l.via.batch === n)
+        .filter((l) => l.status === 'nearby' && l.via && 'batch' in l.via && l.via.key === key && l.via.batch === n && !duplicate.has(l.event.id))
         .sort((a, b) => (a.event.hlc < b.event.hlc ? -1 : a.event.hlc > b.event.hlc ? 1 : 0));
       if (here.length === 0) continue;
       let chain: unknown[];
@@ -169,16 +193,19 @@ export async function deliverNearby(up: NearbyHost): Promise<Delivered & { refol
       if (!answer || answer.refused !== undefined || !answer.verdicts) { out.batchesRefused += 1; continue; }
       const byId = new Map(here.map((l) => [l.event.id, l]));
       const writes: LocalEvent[] = [];
+      const duplicates: string[] = [];
       for (const v of answer.verdicts) {
         const local = byId.get(v.id);
         const w = local ? verdictRow(local, v, out) : null;
         if (w) writes.push(w);
+        else if (local && v.accepted && v.reason === 'duplicate') duplicates.push(v.id);
       }
       if (writes.some((w) => w.status === 'rejected')) {
         refold = true;
         up.touched(writes.filter((w) => w.status === 'rejected').map((w) => w.event));
       }
-      await up.commit({ events: writes });
+      const meta = duplicates.length > 0 ? { [duplicateKey(up, key, n)]: JSON.stringify([...duplicate, ...duplicates]) } : undefined;
+      await up.commit({ events: writes, ...(meta ? { meta } : {}) });
     }
     // An undo refused for a departure delivered just now goes again in the same sync.
     const again = round === 0 && !out.more ? await backToNearby(up) : [];

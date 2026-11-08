@@ -2,6 +2,7 @@ import {
   countBatch, eventDigest, isCounted, NEARBY_BATCH_MAX_EVENTS, NEARBY_VECTOR_MAX_RANGES, parseAttestation, parseBatchManifest, revokedLater, type Attestation, type NearbyVector, type RevocationList, type Sha256
 } from '@langquest-next/core/nearby';
 import type { NearbyPort } from './nearbyClient';
+import { duplicateKey } from './nearbyDeliver';
 import { batchIsWhole } from './nearbyIntake';
 import { OfflineError, type LocalEvent, type Transport, type WriteBatch } from './types';
 
@@ -316,4 +317,10 @@ export async function settleBatches(up: NearbyHost): Promise<void> {
   }
   const gone = batches.filter(({ key, n }) => n !== newest.get(key) && !speaking.has(`${key} ${n}`)).map(({ key, n }) => ({ key, n }));
   await up.commit({ meta, dropBatches: { orgId, streamId, keys: gone } });
+  // What delivery kept of a batch no row speaks under any more: the ids the server answered duplicate.
+  for (const { key, n } of batches) {
+    if (speaking.has(`${key} ${n}`)) continue;
+    const dup = duplicateKey(up, key, n);
+    if (await store.meta(dup)) await store.clearMeta(dup);
+  }
 }
