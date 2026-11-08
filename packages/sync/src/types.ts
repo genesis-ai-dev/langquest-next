@@ -306,6 +306,23 @@ export interface SnapshotHead {
   lines: { seq: number; lines: unknown[] } | null;
 }
 
+/**
+ * A starting copy of one stream, as a teammate's phone sends it to a newcomer
+ * (docs/nearby-sync-plan.md 14.1, 4). It is only ever a stand-in: the server's first
+ * download replaces it, and nothing is pulled on top of it.
+ */
+export interface StartingCopy {
+  /** The server's seq the sender's checkpoint holds to. */
+  serverSeq: number;
+  /** The checkpoint's state: for a language kept on disk what the whole language shares; for the organization, `newcomerOrgState`. */
+  state: unknown;
+  /** A language kept on disk: each passage's line, and the passages whose rows follow, with `''` for the file verdicts. */
+  kept?: { lines: PassageLineRow[]; units: { unitId: string; rows: number }[] };
+}
+
+/** A line as a starting copy carries it: core's `PassageLine`, checked when it is adopted. */
+export type PassageLineRow = { unitId: string } & Record<string, unknown>;
+
 export interface SnapshotRowsPage {
   /** The snapshot these rows are from. */
   serverSeq: number;

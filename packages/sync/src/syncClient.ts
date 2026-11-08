@@ -1,19 +1,20 @@
 import {
-  newCommandId, applyLanguageEvent, emptyLanguageState, eventPassage, eventSizeError, foldLanguage, isHlc, LINES_VERSION, REDUCER_VERSION, sameEventBytes,
+  newCommandId, applyLanguageEvent, ORG_STREAM, emptyLanguageState, eventPassage, eventSizeError, foldLanguage, isHlc, LINES_VERSION, REDUCER_VERSION, sameEventBytes,
   type AnyEvent, type EventPayloads, type EventType, type LanguageState, type PassageLine, type PassageLines, type Snapshot, HlcClock, languageLines
 } from '@langquest-next/core';
 // Types only: the code behind them is the nearby entry's, which the web app does not carry.
 import type { NearbyVector, RevocationList } from '@langquest-next/core/nearby';
 import type { NearbyMaker, NearbyPart, NearbyPort } from './nearbyClient';
 import type { NearbyBatchPage, NearbyClaimsPage, NearbyGate, NearbyIntake, NearbyPage, NearbyReceipt, NearbySigned, NearbySigner } from './nearbyIntake';
-import type { EventStore, LocalEvent, SyncInspection, Transport, WriteBatch } from './types';
+import type { EventStore, LocalEvent, StartingCopy, SyncInspection, Transport, WriteBatch } from './types';
 import { WriteQueue } from './writeQueue';
 import { ClientTooOldError, EventTooLargeError, NotAuthorizedError, OfflineError, UnrenewedError, NOT_LISTED_TEXT, rejectCodeOf, type RejectCode } from './types';
 import { downloadPieces, fetchSnapshot } from './snapshotFetch';
 import type { DIAG_SCHEMA, Diagnostics } from './diagnostics';
-import { holdsKept, KeptLanguage, LINE, PART_KINDS, SnapshotRows, SPLIT_MAPS } from './keptLanguage';
+import { FILE, holdsKept, KeptLanguage, LINE, PART_KINDS, SnapshotRows, SPLIT_MAPS } from './keptLanguage';
 import { KeptLines, lineRow } from './keptLines';
-import { CutGoneError, KeptFill } from './keptFill';
+import { CutGoneError, KeptFill, type FillRows } from './keptFill';
+import { MemoryStore } from './memoryStore';
 import { stateSplitter } from './stateSplit';
 import type { KeptRecord } from './types';
 
@@ -317,6 +318,8 @@ export class SyncClient<S = LanguageState> {
   private foldOwed = false;
   /** Nearby sharing's half, when this client was given one (`nearby`). */
   private readonly nearbyPart: NearbyPart | null;
+  /** A teammate's starting copy is this client's checkpoint (`startingCopy:` row); null until read. */
+  private copyHeld: boolean | null = null;
 
   constructor(private readonly opts: SyncClientOptions<S>) {
     this.m = opts.materializer ?? (LANGUAGE_MATERIALIZER as unknown as Materializer<S>);
@@ -365,6 +368,7 @@ export class SyncClient<S = LanguageState> {
         this.clockOffsetMs = Number((await this.opts.store.meta(this.offsetKey())) ?? 0);
         this.clock = new HlcClock(this.opts.deviceId, this.wall, seed ?? null);
       }
+      await this.holdsStartingCopy();
       const checkpoint = await this.storedCheckpoint();
       const readMs = this.elapsed() - started;
       const staleSeq = checkpoint && !this.readable(checkpoint.reducerVersion) ? checkpoint.serverSeq : null;
@@ -672,10 +676,11 @@ export class SyncClient<S = LanguageState> {
    */
   private async dropStaleCheckpoint(): Promise<void> {
     await this.commit({
-      meta: { [this.snapshotKey()]: '', [this.snapshotSeqKey()]: '', [this.redactionKey()]: '', ...(this.lines ? { [this.lines.owedKey()]: '' } : {}), ...(this.fill?.clear() ?? {}) },
+      meta: { [this.snapshotKey()]: '', [this.snapshotSeqKey()]: '', [this.redactionKey()]: '', ...(this.lines ? { [this.lines.owedKey()]: '' } : {}), ...(this.fill?.clear() ?? {}), [this.copyKey()]: '' },
       cursor: { orgId: this.opts.orgId, streamId: this.opts.streamId, seq: 0 },
       ...(this.kept ? { kept: { ...this.stream(), clear: true } } : {})
     });
+    this.heldCopy(false);
   }
 
   /**
@@ -692,11 +697,13 @@ export class SyncClient<S = LanguageState> {
     const seq = Math.max(snap.serverSeq, await this.opts.store.cursor(orgId, streamId));
     const { meta, chars } = this.snapshotMeta(snap, o.stateText);
     await this.commit({
-      meta: { ...meta, ...(o.meta ?? {}) },
+      // The server's snapshot replaces a starting copy, in the same write.
+      meta: { ...meta, ...(o.meta ?? {}), [this.copyKey()]: '' },
       cursor: { orgId, streamId, seq },
       prune: { orgId, streamId, uptoSeq: snap.serverSeq },
       ...(o.kept ? { kept: o.kept } : {})
     });
+    this.heldCopy(false);
     return chars;
   }
 
@@ -747,6 +754,13 @@ export class SyncClient<S = LanguageState> {
       this.recordSnapshot({ ms: this.elapsed() - started }, 'none', why);
       this.reducerDropped = false;
       this.noSnapshotUntil = this.elapsed() + NO_SNAPSHOT_RECHECK_MS;
+      // A starting copy is never pulled onto, or anything forged in it would stay for good. The organization stream
+      // never has a snapshot, so it is pulled aside and written in one commit; a language's copy is dropped first.
+      if (await this.holdsStartingCopy()) {
+        if (this.opts.streamId === ORG_STREAM) return this.replaceCopyByPull();
+        await this.dropStaleCheckpoint();
+        await this.refold('other');
+      }
       return 0;
     }
     if (meta.serverSeq < minSeq) {
@@ -889,11 +903,12 @@ export class SyncClient<S = LanguageState> {
     // Pieces of a whole-snapshot download cut short are no use now.
     await this.dropChunks();
     await this.commit({
-      meta: { ...this.snapshotMeta(snap).meta, ...this.lines.adopt(serverLines, shared), ...this.fill.begin({ ...head, lines }, this.elapsed()) },
+      meta: { ...this.snapshotMeta(snap).meta, ...this.lines.adopt(serverLines, shared), ...this.fill.begin({ ...head, lines }, this.elapsed()), [this.copyKey()]: '' },
       cursor: { orgId, streamId, seq: head.serverSeq },
       prune: { orgId, streamId, uptoSeq: head.serverSeq },
       kept: { ...this.stream(), clear: true, upsert: serverLines.map(lineRow) }
     });
+    this.heldCopy(false);
     // The Map opens on the shared part and the lines.
     await this.refold('snapshot');
     const extent = this.fill.extent();
@@ -1045,6 +1060,8 @@ export class SyncClient<S = LanguageState> {
 
   /** Null when nothing was written: something was folded while the stored copies were read, and the next pull tries again. */
   private async takeCheckpoint(cursor: number): Promise<{ chars: number; path: 'fast' | 'slow' } | null> {
+    // A starting copy's checkpoint keeps the sender's seq with the cursor at 0: one taken now would write 0 over it.
+    if (await this.holdsStartingCopy()) return null;
     // With nothing unconfirmed, the live state is the confirmed fold up to the
     // cursor (a rejection or redaction refolds it from the log). Save it as
     // is: parsing the last checkpoint, cloning it and replaying onto it held
@@ -1143,7 +1160,7 @@ export class SyncClient<S = LanguageState> {
     // Memory lets go of passages only at a checkpoint, and one reading passage after passage may pull nothing to
     // take one: a checkpoint when memory has taken in many, on the fast path only (nothing unconfirmed), which sheds.
     // A nearby row sends a checkpoint down the slow path too, so it counts here, or each passage opened would run one for nothing.
-    if (this.kept.holdsTooMany() && !this.opts.deferCheckpoint?.()) {
+    if (this.kept.holdsTooMany() && !this.opts.deferCheckpoint?.() && !(await this.holdsStartingCopy())) {
       const { store, orgId, streamId } = this.opts;
       await this.exclusive(async () => {
         if (!this.kept?.holdsTooMany() || (await store.unconfirmedCount(orgId, streamId)) > 0) return;
@@ -1535,9 +1552,13 @@ export class SyncClient<S = LanguageState> {
     const started = this.wall();
     let after = await this.opts.store.cursor(this.opts.orgId, this.opts.streamId);
     // A stream with nothing yet would ask for a snapshot on every sync; ask again after a while.
-    if (after === 0 && this.elapsed() >= this.noSnapshotUntil && (await this.checkpointSeq()) === null) {
+    // A starting copy takes the first-download route too, which replaces it (docs/nearby-sync-plan.md 14.1, 6).
+    const copy = await this.holdsStartingCopy();
+    if (after === 0 && this.elapsed() >= this.noSnapshotUntil && (copy || (await this.checkpointSeq()) === null)) {
       after = await this.adoptServerSnapshot(this.reducerDropped ? 'reducer' : 'cold');
     }
+    // Only the server's first download ends a starting copy: nothing is ever pulled on top of one.
+    if (copy && await this.holdsStartingCopy()) return { pulled: 0, more: false };
     let total = 0;
     let more = false;
     let redacted = false;
@@ -1809,6 +1830,143 @@ export class SyncClient<S = LanguageState> {
         throw err;
       }
     });
+  }
+
+  // ---- a starting copy (docs/nearby-sync-plan.md 14.1, 4 and 6) ------------------------
+  // A newcomer with no server takes a teammate's checkpoint as its own, with the cursor at 0
+  // and a marker, until the server's first download replaces it. Everyone else gets state only
+  // from the server: a phone with anything from it refuses one.
+
+  private copyKey(): string {
+    return `startingCopy:${this.opts.orgId}/${this.opts.streamId}`;
+  }
+
+  /** While a copy is held, a fill reads only a teammate's link: never the server, whose rows would join a stand-in. */
+  private readonly noCopyRows: FillRows = () => Promise.reject(new OfflineError('a starting copy fills only from a teammate'));
+
+  private heldCopy(held: boolean): void {
+    this.copyHeld = held;
+    this.fill?.rowsFrom(held ? this.noCopyRows : null);
+  }
+
+  private async holdsStartingCopy(): Promise<boolean> {
+    if (this.copyHeld === null) this.heldCopy(!!(await this.opts.store.meta(this.copyKey())));
+    return this.copyHeld!;
+  }
+
+  /** Does this stream hold a teammate's starting copy, not yet replaced by the server's? */
+  holdsCopy(): Promise<boolean> {
+    return this.holdsStartingCopy();
+  }
+
+  /**
+   * Take a teammate's starting copy as this stream's checkpoint, in one commit with the cursor at
+   * 0, the marker, and `nearbyClaimed` at the copy's seq so claims resume above it. A language kept
+   * on disk takes its lines and a fill of the passages whose rows follow (`fillFromCopy`). Throws
+   * for a phone with anything from the server, and for a copy of the other kind.
+   */
+  adoptStartingCopy(copy: StartingCopy): Promise<void> {
+    return this.exclusive(async () => {
+      const { orgId, streamId, store } = this.opts;
+      if (typeof copy.state !== 'object' || copy.state === null || !Number.isSafeInteger(copy.serverSeq) || copy.serverSeq < 0 || !copy.kept !== !this.fill) {
+        throw new Error('not a starting copy this stream can take');
+      }
+      if ((await store.cursor(orgId, streamId)) !== 0 || (!(await this.holdsStartingCopy()) && (await this.checkpointSeq()) !== null)) {
+        throw new Error('only a phone with nothing from the server takes a starting copy');
+      }
+      const state = copy.state as LanguageState;
+      state.appliedEventIds ??= {};
+      const snap: Snapshot = { orgId, streamId, reducerVersion: this.m.version, serverSeq: copy.serverSeq, state };
+      const claimed = this.nearbyKey('nearbyClaimed');
+      let meta: Record<string, string> = {
+        ...this.snapshotMeta(snap).meta, [this.copyKey()]: String(copy.serverSeq),
+        [claimed]: String(Math.max(Number((await store.meta(claimed)) ?? 0) || 0, copy.serverSeq))
+      };
+      let kept: WriteBatch['kept'];
+      if (copy.kept && this.lines && this.fill) {
+        const lines = copy.kept.lines as unknown as PassageLine[];
+        meta = { ...meta, ...this.lines.adopt(lines, state), ...this.fill.begin({ serverSeq: copy.serverSeq, units: copy.kept.units, lines: { seq: copy.serverSeq, lines } }, this.elapsed()) };
+        kept = { ...this.stream(), clear: true, upsert: lines.map(lineRow) };
+      }
+      await this.dropChunks();
+      await this.commit({ meta, cursor: { orgId, streamId, seq: 0 }, ...(kept ? { kept } : {}) });
+      this.heldCopy(true);
+      await this.refold('snapshot');
+    });
+  }
+
+  /**
+   * Fill a starting copy's passages from a teammate's link, until done. A link that drops throws
+   * `OfflineError`, and what came stays; the next call goes on. Nothing for a stream with no copy.
+   */
+  fillFromCopy(rows: FillRows): Promise<{ filled: number; filling: boolean }> {
+    return this.exclusive(async () => {
+      const fill = this.fill;
+      if (!fill || !this.loaded || !(await this.holdsStartingCopy())) return { filled: 0, filling: false };
+      let filled = 0;
+      fill.rowsFrom(rows);
+      try {
+        while (fill.active()) {
+          const done = await this.fillOrStartOver(() => fill.step(Infinity, this.opts.fillFirst, this.elapsed));
+          if (done.length === 0) break;
+          filled += done.length;
+          await this.afterFill();
+        }
+      } finally {
+        if (this.copyHeld) fill.rowsFrom(this.noCopyRows);
+      }
+      return { filled, filling: fill.active() };
+    });
+  }
+
+  /**
+   * What a starting copy of this stream carries, for a sender: a language kept on disk gives its
+   * checkpoint, which holds only confirmed work, its lines, and the passages it has rows for; any
+   * other stream its confirmed fold. Null when it has none to give: a fill still running, or a
+   * language kept on disk with no checkpoint.
+   */
+  startingCopy(): Promise<StartingCopy | null> {
+    return this.exclusive(async () => {
+      const { store, orgId, streamId } = this.opts;
+      const base = await this.localSnapshot();
+      if (this.kept) {
+        if (!base || this.fill?.active()) return null;
+        const lines = (await store.keptAll(orgId, streamId, LINE)).map((r) => JSON.parse(r.json) as { unitId: string });
+        const units = (await store.keptUnits(orgId, streamId, PART_KINDS)).filter((u) => u !== '').map((unitId) => ({ unitId, rows: 1 }));
+        return { serverSeq: base.serverSeq, state: base.state, kept: { lines, units: [...units, { unitId: '', rows: 1 }] } };
+      }
+      const { state } = await this.foldLog(base ? (base.state as unknown as S) : this.m.empty(), { ...(base ? { after: base.serverSeq } : {}), confirmedOnly: true });
+      this.m.compact(state);
+      return { serverSeq: Math.max(base?.serverSeq ?? 0, await store.cursor(orgId, streamId)), state };
+    });
+  }
+
+  /** One passage's rows for a starting copy, in (kind, id) order, file verdicts under `''`; null for a passage not filled in here. */
+  async startingCopyRows(unitId: string): Promise<KeptRecord[] | null> {
+    const { store, orgId, streamId } = this.opts;
+    if (!this.kept || !this.isFilled(unitId)) return null;
+    const rows = unitId === '' ? await store.keptAll(orgId, streamId, FILE) : await store.keptByUnit(orgId, streamId, PART_KINDS, [unitId]);
+    return rows.map((r) => (unitId === '' ? { ...r, unitId: '' } : r)).sort((a, b) => (a.kind !== b.kind ? (a.kind < b.kind ? -1 : 1) : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  }
+
+  /**
+   * The organization stream has no snapshot, so a starting copy of it is replaced by a pull from 0
+   * into a client aside on a `MemoryStore`, as reports.ts does, written here in one commit: a poor
+   * link that drops part-way leaves the person the organization they had.
+   */
+  private async replaceCopyByPull(): Promise<number> {
+    const { orgId, streamId, actorId, deviceId, transport, now, newId } = this.opts;
+    const aside = new SyncClient<S>({ orgId, streamId, actorId, deviceId, transport, store: new MemoryStore(), materializer: this.m, checkpointEvery: Number.MAX_SAFE_INTEGER, ...(now ? { now } : {}), ...(newId ? { newId } : {}) });
+    await aside.load();
+    await aside.pull();
+    const seq = await aside.opts.store.cursor(orgId, streamId);
+    const state = aside.getState();
+    this.m.compact(state);
+    const snap = { orgId, streamId, reducerVersion: this.m.version, serverSeq: seq, state } as unknown as Snapshot;
+    await this.commit({ meta: { ...this.snapshotMeta(snap).meta, [this.copyKey()]: '' }, cursor: { orgId, streamId, seq }, prune: { orgId, streamId, uptoSeq: seq } });
+    this.heldCopy(false);
+    await this.refold('snapshot');
+    return seq;
   }
 
   /** The first sync since `trackOpen` that read the stream up to date: what opening it cost, once. */

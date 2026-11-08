@@ -17,3 +17,4 @@ export * from './nearbySession';
 export * from './nearbyWire';
 export { deliveryRefusals } from './nearbyDeliver';
 export { isServerVerdict, type NearbyPlatform } from './nearbyUpkeep';
+export * from './nearbyCopy';
