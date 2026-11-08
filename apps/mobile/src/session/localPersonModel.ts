@@ -125,6 +125,11 @@ export function mayKeepLocalPerson(held: LocalPerson | null, next: LocalPerson):
   return held.installKey === next.installKey && held.idSalt === next.idSalt && stageAt(next.stage) >= stageAt(held.stage);
 }
 
+/** Is this record, granted, this person's? Only then may anything be kept for them with no session (their discovery key, 14.1, 3). */
+export function localPersonIs(p: LocalPerson | null | undefined, profileId: string): boolean {
+  return !!p && p.stage !== 'asking' && p.profileId === profileId;
+}
+
 /** The membership the invite link gives, once granted; null before. */
 export function membershipOf(p: LocalPerson | null | undefined): LocalMembership | null {
   if (!p || p.stage === 'asking') return null;

@@ -274,3 +274,38 @@ describe('nearby sync\'s keys (docs/nearby-sync-plan.md 5.5, decisions.md 168 as
     }
   });
 });
+
+describe('a local person\'s discovery key, with no session (docs/nearby-sync-plan.md 14.1, 3)', () => {
+  const FIND = JSON.stringify({ 'org-1/lang-1': { gen: 4, key: 'iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w', floor: 2, direct: false } });
+
+  it('is kept for the person the grant named, and for nobody else, while no session is stored', async () => {
+    const lock = await load();
+    const { person } = await import('./localPersonFixtures');
+    const { localPersonText } = await import('../src/session/localPersonModel');
+    fake.secure.set('nearby-local-person', localPersonText(person({ profileId: 'newcomer-1', stage: 'filling' })));
+    expect(await lock.keepFindKeys('newcomer-1', FIND)).toBe(true);
+    expect(fake.secure.get('nearbyFindKeys:newcomer-1')).toBe(FIND);
+    expect(await lock.keepFindKeys('someone-else', FIND)).toBe(false);
+    // A leftover record with nothing granted keeps nothing.
+    fake.secure.set('nearby-local-person', localPersonText(person({ profileId: 'newcomer-2', stage: 'asking' })));
+    expect(await lock.keepFindKeys('newcomer-2', FIND)).toBe(false);
+    // Someone else's session here: the local person's key is not written under it.
+    fake.secure.set('nearby-local-person', localPersonText(person({ profileId: 'newcomer-1', stage: 'ready' })));
+    fake.secure.set('sb-session', session('akol'));
+    fake.secure.delete('nearbyFindKeys:newcomer-1');
+    expect(await lock.keepFindKeys('newcomer-1', FIND)).toBe(false);
+    expect(fake.secure.has('nearbyFindKeys:newcomer-1')).toBe(false);
+  });
+
+  it('a lock of someone else\'s cannot be opened while a local person holds the phone', async () => {
+    const lock = await load();
+    fake.secure.set('sb-session', session('akol'));
+    await lock.setLockPattern('akol', Z, 3);
+    await lock.lockAndSignOut('akol');
+    const { person } = await import('./localPersonFixtures');
+    const { localPersonText } = await import('../src/session/localPersonModel');
+    fake.secure.set('nearby-local-person', localPersonText(person({ profileId: 'newcomer-1', stage: 'ready' })));
+    await expect(lock.signBackIn('pattern', patternSecret(Z), { actorId: 'akol' })).rejects.toThrow();
+    expect(fake.secure.has('sb-session')).toBe(false);
+  });
+});

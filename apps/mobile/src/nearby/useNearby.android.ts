@@ -19,6 +19,7 @@ import {
   afterPrompt, permissionsStateOf, permissionStepOf, radiosOffOf, unavailableReasonOf, type PermissionAnswers
 } from './nearbyPermissionsModel';
 import { nearbyDiagFor, nearbyNamesOf, nearbyOfferedFor, nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.android';
+import { copySourceOf } from './nearbyJoin.android';
 import {
   NEARBY_PROGRESS_MS, NEARBY_RUN_START, NEARBY_TICK_MS, nearbyRunReducer, nearbyViewOf, type NearbyHandle, type NearbyWhyNot
 } from './nearbyRunModel';
@@ -39,7 +40,7 @@ import { readyToCarryOf } from './readyToCarryModel';
 const KEEP_AWAKE = 'nearby-share';
 
 /** Whether this screen is the focused one; a `focus` after a `blur` is the screen opened again. */
-function useFocus(onReopen: () => void): boolean {
+export function useFocus(onReopen: () => void): boolean {
   const nav = useContext(NavigationContext);
   const [focused, setFocused] = useState(() => nav?.isFocused() ?? true);
   const reopen = useRef(onReopen);
@@ -156,6 +157,8 @@ export function useNearby(ctx: Ctx): NearbyHandle {
   orgState.current = org.state;
   const inspectOrg = useRef(org.inspect);
   inspectOrg.current = org.inspect;
+  const orgClient = useRef(org.client);
+  orgClient.current = org.client;
   const start = useCallback(async () => {
     const mine = ++attempt.current;
     const still = () => mine === attempt.current && gate.current;
@@ -184,7 +187,9 @@ export function useNearby(ctx: Ctx): NearbyHandle {
         lastProgress.current = now;
         dispatch({ t: 'progress', report: r });
       };
-      room = nearbyRoomOf({ radio, pieces: got.pieces, language: open, actorId, orgId, languageId, worn, report, progress });
+      // Any teammate whose read gate passes a newcomer's chain sends a starting copy, on the same versions (14.1, 4).
+      const copy = copySourceOf({ actorId, language: open.client, org: orgClient.current() });
+      room = nearbyRoomOf({ radio, pieces: got.pieces, language: open, actorId, orgId, languageId, worn, report, progress, copy });
       held.current = { room, ticker: null };
       await room.start(Date.now());
       if (!still()) {

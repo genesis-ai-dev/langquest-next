@@ -31,3 +31,4 @@ export async function patternPeople(): Promise<{ actorId: string; picture: numbe
 // A browser never holds discovery keys (only Android writes them, nearbySecrets.ts).
 export async function keepFindKeys(_actorId: string, _raw: string | null): Promise<boolean> { return false; }
 export const forgetLock = nothing as (actorId: string) => Promise<void>;
+export async function anyLocks(): Promise<boolean> { return false; }

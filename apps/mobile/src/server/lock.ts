@@ -7,6 +7,7 @@ import { afterMiss, isPicture, lockFor, parseLocks, parseMisses, patternSecret, 
 import { addressHash, newDataKey, openWrap, seal, unseal, withWrap, type Random } from '../session/sealModel';
 import { signingOutByChoice } from '../session/signOutCause';
 import { noteExpected } from '../diagnostics/report';
+import { localPersonIs, LOCAL_PERSON_KEY, parseLocalPerson } from '../session/localPersonModel';
 import { findKeysKey } from './nearbySecrets';
 import { secureStorage } from './secureStorage';
 import { SESSION_KEY, supabase } from './supabase';
@@ -189,14 +190,26 @@ async function sealFindKeys(actorId: string): Promise<void> {
  * after they signed out (sealed above, at sign-out) or after someone else signed in is dropped,
  * and their next answer once they are back brings the keys again. In the same queue as sign-out,
  * which never waits on the network, so neither can hold the other up. Answers whether it was kept.
+ *
+ * A local person (docs/nearby-sync-plan.md 14.1, 5) has no session: their key comes in the grant
+ * that let them in, and later by hand-on. It lands while no session is stored here and the local
+ * person's record, granted, is theirs; once first contact gives them a session it is theirs as
+ * anyone's is, and their sign-out seals it above.
  */
 export function keepFindKeys(actorId: string, raw: string | null): Promise<boolean> {
   return inTurn(async () => {
     if (raw === null) { await secureStorage.removeItem(findKeysKey(actorId)); return true; }
-    if (savedSession(await secureStorage.getItem(SESSION_KEY))?.user.id !== actorId) return false;
+    const session = savedSession(await secureStorage.getItem(SESSION_KEY));
+    if (session ? session.user.id !== actorId : !localPersonIs(parseLocalPerson(await secureStorage.getItem(LOCAL_PERSON_KEY)), actorId)) return false;
     await secureStorage.setItem(findKeysKey(actorId), raw);
     return true;
   });
+}
+
+/** Has anyone signed out of this phone with a lock to come back to? Then it is no phone with nobody on it (14.1, 3). */
+export async function anyLocks(): Promise<boolean> {
+  await writes;
+  return (await readLocks()).length > 0;
 }
 
 /** Back at sign-in from the lock, with the key that opened it. Inside `serial`. */
@@ -313,6 +326,9 @@ export function onUnlocked(listener: (session: Session) => void): () => void {
 export async function restoreSession(actorId: string, key: string, kept: string | null): Promise<boolean> {
   const session = await serial(async () => {
     if (await secureStorage.getItem(SESSION_KEY) !== null) throw new Error('Someone is signed in on this phone.');
+    // Someone let in offline holds this phone: nobody else comes back here until their record goes (docs/nearby-sync-plan.md 14.1, 5).
+    const local = parseLocalPerson(await secureStorage.getItem(LOCAL_PERSON_KEY));
+    if (local && local.stage !== 'asking' && local.profileId !== actorId) throw new Error('Someone let in offline works on this phone.');
     const raw = savedSession(kept) ? kept : unseal(key, await secureStorage.getItem(sessionFor(actorId)));
     const back = savedSession(raw);
     if (!raw || !back) return null;

@@ -108,6 +108,32 @@ async function toDisk(hash: string, text: string, made = false): Promise<void> {
   if (!file.exists) file.write(text);
 }
 
+/** A document's text as kept here, or null: what a starting copy sends a newcomer (docs/nearby-sync-plan.md 14.1, 4). Phones only. */
+export async function docText(hash: string): Promise<string | null> {
+  if (WEB || !DIR) return null;
+  ensureDir();
+  const file = new File(DIR, `${hash}.json`);
+  if (!file.exists) return null;
+  const text = await file.text();
+  return (await admit(hash, text)) ? text : null;
+}
+
+/** A document this phone holds, from memory or disk, never the server. */
+export async function heldDoc(hash: string): Promise<LibraryDoc | null> {
+  return memory.get(hash) ?? (await fromDisk(hash));
+}
+
+/**
+ * Keep a teammate's text as a fetched document: no outbox row, since this phone did not make it.
+ * Only once it hashes to its name and validates; the caller has checked the allowlist.
+ */
+export async function keepFetchedDoc(hash: string, text: string): Promise<boolean> {
+  if (!(await admit(hash, text))) return false;
+  await toDisk(hash, text);
+  notify();
+  return true;
+}
+
 /** Keep a document made here, and queue it for the server. */
 export async function keepNewDoc(orgId: string, text: string, hash: string): Promise<void> {
   if (!(await admit(hash, text))) throw new Error('The document did not match its name.');

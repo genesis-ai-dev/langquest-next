@@ -191,10 +191,15 @@ export function fileLedgerDriver(): Promise<SqlDriver> {
   return ledgerDriverPromise;
 }
 
+/** The event log's driver, once opened, for the one question the store has no call for (`holdsUnsent`). */
+let resolveMain: (driver: SqlDriver | null) => void = () => {};
+const mainDriver = new Promise<SqlDriver | null>((resolve) => { resolveMain = resolve; });
+
 /** One local event log per device, shared by every stream this phone syncs. */
 export function getStore(): Promise<SqliteStore> {
   storePromise ??= allowed.then(() => open('langquest-next.db')).then(async (db) => {
     const driver = await expoDriver(db, 'langquest-next.db');
+    resolveMain(driver);
     const store = await SqliteStore.open(driver);
     // The web UI suite reads the device log directly (e2e/ui, web dev
     // and local-stack exports only (testBuild.ts)). Installed once the schema exists, so its presence means ready.
@@ -207,6 +212,17 @@ export function getStore(): Promise<SqliteStore> {
     return store;
   }).catch(failed<SqliteStore>(() => { storePromise = undefined; }));
   return storePromise;
+}
+
+/**
+ * Does this phone hold anyone's unsent work: a row pending, or a teammate's held as nearby? A
+ * newcomer joins offline only on a phone with nobody on it (docs/nearby-sync-plan.md 14.1, 3).
+ */
+export async function holdsUnsent(): Promise<boolean> {
+  await getStore();
+  const driver = await mainDriver;
+  if (!driver) return false;
+  return (await driver.all<{ one: number }>("select 1 as one from events where status in ('pending', 'nearby') limit 1")).length > 0;
 }
 
 /**
