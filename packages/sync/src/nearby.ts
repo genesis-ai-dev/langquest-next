@@ -15,4 +15,5 @@ export * from './nearbyPartners';
 export * from './nearbyRoom';
 export * from './nearbySession';
 export * from './nearbyWire';
+export { deliveryRefusals } from './nearbyDeliver';
 export { isServerVerdict, type NearbyPlatform } from './nearbyUpkeep';

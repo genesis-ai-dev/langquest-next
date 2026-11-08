@@ -8089,7 +8089,8 @@
     },
     "sync": {
       "holding": "Holding for teammates",
-      "holdingHelp": "Teammates' recordings on this phone that the server does not have yet. They go up when this phone is online."
+      "holdingHelp": "Teammates' recordings on this phone that the server does not have yet. They go up when this phone is online.",
+      "deliveryRefused": "The server would not take {{name}}'s work from this phone: {{reason}}. It stays here and goes again at each sync."
     }
   }
 }

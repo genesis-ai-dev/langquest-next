@@ -1,5 +1,6 @@
 import { View } from 'react-native';
 import { t } from '../i18n';
+import { useDeliveryRefusals } from '../nearby/useDeliveryRefusals';
 import { useNearbyOffered } from '../nearby/useNearby';
 import { WHY_NOT_WORDS } from '../nearby/shareNearbyModel';
 import { Card, Group, Ico, Row } from '../ui/kit';
@@ -13,12 +14,15 @@ import type { Ctx } from './ctx';
  * holds a certificate for the organization and a discovery key for the language, labelled
  * experimental. Below Android 10, or without Bluetooth LE or Wi-Fi Direct, it is disabled with a
  * line saying why, and keeps its `onPress` so help mode can explain it (Carl's answer 7). A
- * batch stamped far ahead names its author here too (5.4), whether or not the row shows.
+ * batch stamped far ahead names its author here too (5.4), whether or not the row shows, and so
+ * does teammates' work the server refused whole when this phone delivered it, with the server's
+ * reason (section 6).
  */
 export function NearbyRow(props: { ctx: Ctx }) {
   const { ctx } = props;
   const { offered, whyNot } = useNearbyOffered(ctx);
   const farAhead = farAheadOf(ctx);
+  const refusals = useDeliveryRefusals(ctx);
   return (
     <>
       {offered ? (
@@ -34,6 +38,16 @@ export function NearbyRow(props: { ctx: Ctx }) {
             <View key={actorId} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
               <Ico name="warning" size={20} color={TINT.amberText} />
               <Text style={[txt.sm, { flex: 1 }]}>{t('nearby.farAhead', { name: ctx.name(actorId) })}</Text>
+            </View>
+          ))}
+        </Card>
+      ) : null}
+      {refusals.length > 0 ? (
+        <Card>
+          {refusals.map((r) => (
+            <View key={`${r.actorId} ${r.reason}`} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+              <Ico name="flag" size={20} color={TINT.redText} />
+              <Text style={[txt.sm, { flex: 1 }]}>{t('nearby.sync.deliveryRefused', { name: ctx.name(r.actorId), reason: r.reason })}</Text>
             </View>
           ))}
         </Card>

@@ -8089,7 +8089,8 @@
     },
     "sync": {
       "holding": "Itinatago para sa mga kasamahan",
-      "holdingHelp": "Mga rekording ng mga kasamahan sa teleponong ito na wala pa sa server. Maa-upload ang mga ito kapag online ang teleponong ito."
+      "holdingHelp": "Mga rekording ng mga kasamahan sa teleponong ito na wala pa sa server. Maa-upload ang mga ito kapag online ang teleponong ito.",
+      "deliveryRefused": "Hindi tinanggap ng server ang gawa ni {{name}} mula sa teleponong ito: {{reason}}. Mananatili ito rito at ipapadala ulit sa bawat sync."
     }
   }
 }

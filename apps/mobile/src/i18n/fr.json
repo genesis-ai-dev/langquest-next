@@ -8434,7 +8434,8 @@
     },
     "sync": {
       "holding": "Gardés pour les coéquipiers",
-      "holdingHelp": "Enregistrements de coéquipiers sur ce téléphone que le serveur n’a pas encore. Ils sont envoyés quand ce téléphone est en ligne."
+      "holdingHelp": "Enregistrements de coéquipiers sur ce téléphone que le serveur n’a pas encore. Ils sont envoyés quand ce téléphone est en ligne.",
+      "deliveryRefused": "Le serveur n’a pas accepté le travail de {{name}} depuis ce téléphone : {{reason}}. Il reste ici et repart à chaque synchronisation."
     }
   }
 }

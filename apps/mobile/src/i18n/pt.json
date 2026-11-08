@@ -8434,7 +8434,8 @@
     },
     "sync": {
       "holding": "Guardando para colegas",
-      "holdingHelp": "Gravações de colegas neste celular que o servidor ainda não tem. Elas são enviadas quando este celular tiver internet."
+      "holdingHelp": "Gravações de colegas neste celular que o servidor ainda não tem. Elas são enviadas quando este celular tiver internet.",
+      "deliveryRefused": "O servidor não aceitou o trabalho de {{name}} vindo deste celular: {{reason}}. Ele fica aqui e é enviado de novo a cada sincronização."
     }
   }
 }

@@ -8089,7 +8089,8 @@
     },
     "sync": {
       "holding": "Inahifadhi kwa ajili ya wenzako",
-      "holdingHelp": "Rekodi za wenzako kwenye simu hii ambazo seva bado haina. Zinapakiwa simu hii ikiwa mtandaoni."
+      "holdingHelp": "Rekodi za wenzako kwenye simu hii ambazo seva bado haina. Zinapakiwa simu hii ikiwa mtandaoni.",
+      "deliveryRefused": "Seva haikupokea kazi ya {{name}} kutoka simu hii: {{reason}}. Inabaki hapa na itatumwa tena kila unaposawazisha."
     }
   }
 }

@@ -7744,7 +7744,8 @@
     },
     "sync": {
       "holding": "Disimpan untuk rekan tim",
-      "holdingHelp": "Rekaman rekan tim di ponsel ini yang belum ada di server. Rekaman ini diunggah saat ponsel ini online."
+      "holdingHelp": "Rekaman rekan tim di ponsel ini yang belum ada di server. Rekaman ini diunggah saat ponsel ini online.",
+      "deliveryRefused": "Server tidak menerima pekerjaan {{name}} dari ponsel ini: {{reason}}. Pekerjaan itu tetap di sini dan dikirim lagi setiap kali disinkronkan."
     }
   }
 }

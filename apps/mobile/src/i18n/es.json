@@ -8434,7 +8434,8 @@
     },
     "sync": {
       "holding": "Guardadas para compañeros",
-      "holdingHelp": "Grabaciones de compañeros en este teléfono que el servidor aún no tiene. Se suben cuando este teléfono tiene conexión."
+      "holdingHelp": "Grabaciones de compañeros en este teléfono que el servidor aún no tiene. Se suben cuando este teléfono tiene conexión.",
+      "deliveryRefused": "El servidor no aceptó el trabajo de {{name}} desde este teléfono: {{reason}}. Se queda aquí y se envía de nuevo en cada sincronización."
     }
   }
 }

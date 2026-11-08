@@ -67,6 +67,40 @@ async function answeredDuplicate(up: NearbyHost, key: string, n: number): Promis
   }
 }
 
+/**
+ * Why the relay refused a batch whole (a chain it would not take, a caller who may not read),
+ * which plan section 6 says the phone keeps and shows. One device meta row per language, keyed
+ * by batch: a refused batch's rows stay nearby and go again at each sync, and its entry goes
+ * once that batch is answered event by event or is no longer here to deliver. Only whole
+ * refusals are kept, so it holds a few entries.
+ */
+const refusedKeyOf = (at: { orgId: string; streamId: string }): string => `nearbyRelayRefused:${at.orgId}/${at.streamId}`;
+
+type Refusals = Record<string, { actorId: string; reason: string }>;
+
+function parseRefusals(raw: string | null | undefined): Refusals {
+  if (!raw) return {};
+  try {
+    const all = JSON.parse(raw) as unknown;
+    if (typeof all !== 'object' || all === null || Array.isArray(all)) return {};
+    const out: Refusals = {};
+    for (const [batch, v] of Object.entries(all as Record<string, unknown>)) {
+      const r = v as { actorId?: unknown; reason?: unknown } | null;
+      if (typeof r?.actorId === 'string' && typeof r.reason === 'string') out[batch] = { actorId: r.actorId, reason: r.reason };
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+/** Whose work the relay refused whole and why, once per author and reason, for Sync to show. The reason is the server's English. */
+export async function deliveryRefusals(meta: { nearbyMeta(key: string): Promise<string | null> }, at: { orgId: string; streamId: string }): Promise<{ actorId: string; reason: string }[]> {
+  const seen = new Map<string, { actorId: string; reason: string }>();
+  for (const r of Object.values(parseRefusals(await meta.nearbyMeta(refusedKeyOf(at))))) seen.set(`${r.actorId} ${r.reason}`, r);
+  return [...seen.values()];
+}
+
 /** How a row the relay answered is kept: confirmed, left for pull or a later try, or refused keeping its `via`. */
 function verdictRow(local: LocalEvent, v: AppendResult, out: Delivered): LocalEvent | null {
   const reason = v.reason ?? '';
@@ -162,6 +196,16 @@ export async function deliverNearby(up: NearbyHost): Promise<Delivered & { refol
   const back = await backToNearby(up);
   if (back.length > 0) await up.commit({ events: back });
   let refold = back.length > 0;
+  const refusedKey = refusedKeyOf(up);
+  const refusals = parseRefusals(await store.meta(refusedKey));
+  const keepRefusals = () => ({ [refusedKey]: JSON.stringify(refusals) });
+  if (Object.keys(refusals).length > 0) {
+    // An entry whose batch has nothing left to deliver goes.
+    const open = new Set((await deliveryOrder(up)).map(({ key, n }) => `${key} ${n}`));
+    const stale = Object.keys(refusals).filter((batch) => !open.has(batch));
+    for (const batch of stale) delete refusals[batch];
+    if (stale.length > 0) await up.commit({ meta: keepRefusals() });
+  }
   if ((await store.nearbyCount(orgId, streamId)) === 0) return { ...out, refold };
   let only: Set<string> | null = null;
   for (let round = 0; round < 2 && !out.stopped; round++) {
@@ -190,7 +234,17 @@ export async function deliverNearby(up: NearbyHost): Promise<Delivered & { refol
       out.batches += 1;
       out.sent += here.length;
       const answer = answers.find((a) => a.key === key && a.n === n) ?? answers[0];
-      if (!answer || answer.refused !== undefined || !answer.verdicts) { out.batchesRefused += 1; continue; }
+      const batch = `${key} ${n}`;
+      if (!answer || answer.refused !== undefined || !answer.verdicts) {
+        out.batchesRefused += 1;
+        if (answer?.refused !== undefined && refusals[batch]?.reason !== answer.refused) {
+          refusals[batch] = { actorId: manifest.actorId, reason: answer.refused };
+          await up.commit({ meta: keepRefusals() });
+        }
+        continue;
+      }
+      const answered = batch in refusals;
+      if (answered) delete refusals[batch];
       const byId = new Map(here.map((l) => [l.event.id, l]));
       const writes: LocalEvent[] = [];
       const duplicates: string[] = [];
@@ -204,8 +258,11 @@ export async function deliverNearby(up: NearbyHost): Promise<Delivered & { refol
         refold = true;
         up.touched(writes.filter((w) => w.status === 'rejected').map((w) => w.event));
       }
-      const meta = duplicates.length > 0 ? { [duplicateKey(up, key, n)]: JSON.stringify([...duplicate, ...duplicates]) } : undefined;
-      await up.commit({ events: writes, ...(meta ? { meta } : {}) });
+      const meta = {
+        ...(duplicates.length > 0 ? { [duplicateKey(up, key, n)]: JSON.stringify([...duplicate, ...duplicates]) } : {}),
+        ...(answered ? keepRefusals() : {})
+      };
+      await up.commit({ events: writes, ...(Object.keys(meta).length > 0 ? { meta } : {}) });
     }
     // An undo refused for a departure delivered just now goes again in the same sync.
     const again = round === 0 && !out.more ? await backToNearby(up) : [];

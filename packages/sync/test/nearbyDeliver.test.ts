@@ -1,5 +1,6 @@
 import { emptyLanguageState, foldLanguage, newCommandId, type AnyEvent } from '@langquest-next/core';
 import { Diagnostics, MemoryDiagStore } from '../src/diagnostics';
+import { deliveryRefusals } from '../src/nearbyDeliver';
 import { FakeServer } from '../src/testing/fakeServer';
 import { fakeSha256 } from '../src/testing/memoryNearbyLink';
 import type { AppendResult, EventStore, RelayAnswer, Transport } from '../src/types';
@@ -167,6 +168,18 @@ describe.each(STORES)('delivery on the %s store', (_name, make) => {
     server.minClientVersion = 0;
     await client.sync();
     expect(await statusOf(store, u.id)).toBe('confirmed');
+  });
+
+  it('keeps why the relay refused a batch whole, by batch, for Sync to show, until that batch goes or is gone', async () => {
+    const client = await carrier();
+    await take(client, sam, 1, [unitBy(sam, 'u1')]);
+    await take(client, bob, 1, [unitBy(bob, 'b1')]);
+    server.relayCheck = async (_o, _s, b) => (JSON.parse(b.manifest).actorId === 'sam' ? 'chain: unknown certificate key' : null);
+    await client.sync();
+    expect(await deliveryRefusals(client, { orgId: ORG, streamId: LANG })).toEqual([{ actorId: 'sam', reason: 'chain: unknown certificate key' }]);
+    server.relayCheck = null;
+    await client.sync();
+    expect(await deliveryRefusals(client, { orgId: ORG, streamId: LANG })).toEqual([]);
   });
 
   it('a revoked key\'s earlier work goes up and its later work is refused for good, one by one (Carl\'s answer 4)', async () => {

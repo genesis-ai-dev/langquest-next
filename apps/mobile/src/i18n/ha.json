@@ -8089,7 +8089,8 @@
     },
     "sync": {
       "holding": "Ana riƙewa don abokan aiki",
-      "holdingHelp": "Naɗe-naɗen abokan aiki a wannan waya waɗanda sabar ba ta da su tukuna. Za su hau idan wannan waya ta haɗa da intanet."
+      "holdingHelp": "Naɗe-naɗen abokan aiki a wannan waya waɗanda sabar ba ta da su tukuna. Za su hau idan wannan waya ta haɗa da intanet.",
+      "deliveryRefused": "Sabar ba ta karɓi aikin {{name}} daga wannan waya ba: {{reason}}. Zai zauna a nan, kuma za a sake aikawa da shi a kowace daidaitawa."
     }
   }
 }
