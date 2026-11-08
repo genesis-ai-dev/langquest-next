@@ -12,8 +12,6 @@ const fake = vi.hoisted(() => ({ holds: false, saved: null as string | null, sec
 
 vi.mock('../src/server/localPerson', () => ({ localPersonHolds: () => fake.holds }));
 vi.mock('../src/server/auth', () => ({ savedSignIn: async () => fake.saved }));
-// The transport underneath is the test's own; the real one would make a Supabase client.
-vi.mock('../src/server/sync', () => ({ supabaseTransport: () => { throw new Error('not in this test'); } }));
 vi.mock('react-native-url-polyfill/auto', () => ({}));
 vi.mock('../src/server/secureStorage', () => ({
   secureStorage: { getItem: async (k: string) => fake.secure.get(k) ?? null, setItem: async () => undefined, removeItem: async () => undefined }
@@ -51,7 +49,7 @@ function counted(server: FakeServer): { transport: Transport; calls: string[] } 
 
 describe('the streams\' transport until first contact', () => {
   it('asks the server nothing for a local person, and their work stays pending, not refused', async () => {
-    const { untilFirstContact } = await import('../src/sync/serverTransport');
+    const { untilFirstContact } = await import('../src/sync/firstContactGate.android');
     const server = new FakeServer();
     const { transport, calls } = counted(server);
     let n = 0;
@@ -80,7 +78,7 @@ describe('the streams\' transport until first contact', () => {
   });
 
   it('is the plain transport for everyone else', async () => {
-    const { untilFirstContact } = await import('../src/sync/serverTransport');
+    const { untilFirstContact } = await import('../src/sync/firstContactGate.android');
     const { transport, calls } = counted(new FakeServer());
     const gated = untilFirstContact(transport as SupabaseTransport);
     await gated.pull('o1', 'L1', 0, 10);
