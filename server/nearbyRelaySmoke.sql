@@ -163,8 +163,10 @@ do $$ declare r record; begin
   if r.accepted is not true or r.reason is distinct from 'duplicate' then raise exception 'the author''s push after a relay should be a duplicate, got %', r; end if;
   perform pg_temp.as_caller(null);
 end $$;
-select pg_temp.refused(pg_temp.u('0b'), pg_temp.k(2), pg_temp.ev('rl-e1', 'rl-L', pg_temp.u('0b'), 'v1.NoteAdded', '{"noteId":"rl-n0","unitId":"u1","anchor":{"kind":"passage"},"text":"x"}'),
-  'malformed envelope: event id already used', 'an id reused for another event');
+-- append_events answers `duplicate` for an id it holds with the same organization, stream,
+-- actor and type, whatever the payload, so reusing an id is refused only for another type.
+select pg_temp.refused(pg_temp.u('0b'), pg_temp.k(2), pg_temp.ev('rl-e1', 'rl-L', pg_temp.u('0b'), 'v1.TakeComposed', jsonb_build_object('takeId', 'rl-take-e1', 'unitId', 'u1',
+  'cardHashes', jsonb_build_array(pg_temp.h('e')), 'parentTakeId', null)), 'malformed envelope: event id already used', 'an id reused for another event');
 select pg_temp.refused(pg_temp.u('0b'), pg_temp.k(2), pg_temp.ev('rl-1', 'rl-L', pg_temp.u('0b'), 'v1.NoteAdded', '{"noteId":"rl-n9","unitId":"u1","anchor":{"kind":"passage"},"text":"x"}'),
   'malformed envelope: event id already used', 'another person''s id in another stream');
 do $$ declare v_id text; begin
