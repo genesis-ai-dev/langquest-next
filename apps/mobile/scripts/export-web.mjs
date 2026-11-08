@@ -120,7 +120,11 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // MB before): 13 KB is its screen's chunk, which the web never opens but the
 // screen map names, and the rest its English words and the Sync and History
 // lines; its radios, cover and per-phone code stay in .android files.
-const TOTAL_BUDGET_BYTES = 4.92 * 1024 * 1024;
+// Raised to 4.93 MB with "A phone of mine was lost or taken" (Carl,
+// 2026-11-08), 4.92 MB then: it took all chunks 1.4 KB past 4.92 MB, its
+// words in 16 catalogs and the New password and More settings rows; a first
+// visit stays under its own budget.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
