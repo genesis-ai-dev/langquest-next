@@ -88,6 +88,13 @@ export const ATTEMPT_KEYS = {
 /** A generation's key, then the three below it (`key(g - 1) = SHA-256('lq-nearby-gen-v1' || key(g))`). The migration's vector is the same. */
 export const GENERATIONS = ['BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc', 'ZKxHYBpq0T77wN5AfJJc7t_0qrA041KqcKWrV2JAl10', '8Fjjxvz7bHRokg2U6V91J8qKQ8oLNCHdzOQb2XZQVx8', '0-wAuKHDruwZMVUSkqDDdTTYHQBxTLaIbtwivjANPCI'];
 
+/** The two pictures (phase 6) from `OPENING.th`, worked out with Python: the hash under the pictures prefix, its first nibble, then the next that differs. */
+export const PICTURES_HASH = '70883f5387382d5599180c3cf6cdff92911a194346b860a7e1a463ee52d14860';
+export const PICTURES = [7, 0] as const;
+/** A `th` whose hash starts with two equal nibbles (eec5...), so the second picture is the third nibble. */
+export const PICTURES_SAME_TH = '0000000000000000000000000000000000000000000000000000000000000001';
+export const PICTURES_SAME = [14, 12] as const;
+
 /** A worker link, then an invite link holding its pass. Signed with Node's Ed25519: the root from a seed of 0x03, the inviter from a seed of 0x02. The newcomer is `PUBLIC_KEY`. */
 export const CHAIN_ROOT_KEY = '7UkoxijRwsbq6QM4kFmVYSlZJzpcY_k2NsFGFKyHN9E';
 export const CHAIN_INVITER_KEY = 'gTl3Dqh9F19Wo1Rmw0x-zMuNipG07jeiXfYPW4_Js5Q';

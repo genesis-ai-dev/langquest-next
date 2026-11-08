@@ -2,7 +2,7 @@ import { decodeHlc, isHlc } from './hlc';
 import type { NearbyPeople } from './nearbyDoor';
 import { peopleFromOrg } from './nearbyDoor';
 import { base64urlDecode, bytesToHex, isBase64url, linkText, nearbyBytes, nearbyPayloadError, newcomerIdBytes, passText } from './nearbySigning';
-import type { OrgState } from './org';
+import { mayGrantRole, type OrgState } from './org';
 import { MANAGE_PRIVILEGES, type Privilege } from './orgTerms';
 
 /**
@@ -82,7 +82,7 @@ export interface CheckChainOptions {
 }
 
 export type ChainVerdict =
-  | { ok: true; holder: { installKey: string; profileId: string; deviceId: string; name?: string }; org: ChainOrg; links: number; inviter?: string; roleId?: string }
+  | { ok: true; holder: { installKey: string; profileId: string; deviceId: string; name?: string }; org: ChainOrg; links: number; inviter?: string; inviterKey?: string; roleId?: string }
   | { ok: false; reason: string };
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -180,28 +180,51 @@ async function checkWorkerLink(link: WorkerLink, opts: CheckChainOptions): Promi
   return { ok: true, holder: { installKey, profileId, deviceId }, org, links: 1 };
 }
 
-/** That is `mayGrantRole`'s rule on signed privileges, so it works with a stale fold. Uses are counted only by the server, at first contact. */
+/** What a newcomer asked with, which the invite link names (`join-ask`, docs/nearby-sync-plan.md 14.1). */
+export interface JoinAsk {
+  installKey: string;
+  idSalt: string;
+  profileId: string;
+  deviceId: string;
+  name: string;
+}
+
+/**
+ * Why this inviter may not let this newcomer in under this pass and role, or null. The one rule
+ * the issuing side and `checkChain` share, so a phone never signs a link its teammates refuse.
+ * That is `mayGrantRole`'s rule on signed privileges, so it works with a stale fold. Uses are
+ * counted only by the server, at first contact. Signatures are the caller's.
+ */
+export async function inviteRefusal(
+  pass: JoinPass, inviter: Extract<ChainVerdict, { ok: true }>, ask: JoinAsk & { roleId: string; privileges: readonly Privilege[] }, opts: Pick<CheckChainOptions, 'orgId' | 'languageId' | 'now' | 'sha256' | 'revoked'>
+): Promise<string | null> {
+  const { holder } = inviter;
+  if (pass.body.orgId !== opts.orgId || inviter.org.orgId !== opts.orgId) return 'wrong organization';
+  if (opts.languageId !== undefined && pass.body.languageId !== opts.languageId) return 'wrong language';
+  if (pass.body.inviterKey !== holder.installKey || pass.body.inviter !== holder.profileId) return 'pass names someone else';
+  if (isPast(opts.now, pass.body.expiresAt)) return 'pass expired';
+  if (ask.installKey === holder.installKey) return 'a link cannot vouch for its own key';
+
+  const role = pass.body.roles.find((r) => r.roleId === ask.roleId);
+  const chosen = new Set(ask.privileges);
+  if (!role || chosen.size !== new Set(role.privileges).size || !role.privileges.every((p) => chosen.has(p))) return 'role is not on the pass';
+  if (ask.privileges.some((p) => MANAGE_PRIVILEGES.includes(p))) return 'a pass cannot grant a manage privilege';
+  const held = privilegesAt(inviter.org, pass.body.languageId);
+  if (!held.has('invite_members') || !ask.privileges.every((p) => held.has(p))) return 'inviter could not grant this role';
+
+  // By exact string: a chosen id could name an admin, or an imported person who has not signed in yet.
+  if (ask.profileId !== await newcomerProfileId(ask.installKey, ask.idSalt, opts.sha256)) return 'id does not follow from the key';
+  if (isRevoked(opts.revoked, ask.installKey, ask.profileId)) return 'key revoked';
+  return null;
+}
+
 async function checkInviteLink(link: InviteLink, before: Accepted, prevSig: string, opts: CheckChainOptions): Promise<Accepted | Refused> {
-  const { pass, installKey, idSalt, profileId, deviceId, name, roleId, privileges } = link.body;
+  const { pass, installKey, profileId, deviceId, name, roleId, privileges } = link.body;
   const inviter = before.holder;
   const root = opts.rootKeys.get(pass.kid);
   if (root === undefined) return refuse('unknown pass key');
-  if (pass.body.orgId !== opts.orgId) return refuse('wrong organization');
-  if (opts.languageId !== undefined && pass.body.languageId !== opts.languageId) return refuse('wrong language');
-  if (pass.body.inviterKey !== inviter.installKey || pass.body.inviter !== inviter.profileId) return refuse('pass names someone else');
-  if (isPast(opts.now, pass.body.expiresAt)) return refuse('pass expired');
-  if (installKey === inviter.installKey) return refuse('a link cannot vouch for its own key');
-
-  const role = pass.body.roles.find((r) => r.roleId === roleId);
-  const chosen = new Set(privileges);
-  if (!role || chosen.size !== new Set(role.privileges).size || !role.privileges.every((p) => chosen.has(p))) return refuse('role is not on the pass');
-  if (privileges.some((p) => MANAGE_PRIVILEGES.includes(p))) return refuse('a pass cannot grant a manage privilege');
-  const held = privilegesAt(before.org, pass.body.languageId);
-  if (!held.has('invite_members') || !privileges.every((p) => held.has(p))) return refuse('inviter could not grant this role');
-
-  // By exact string: a chosen id could name an admin, or an imported person who has not signed in yet.
-  if (profileId !== await newcomerProfileId(installKey, idSalt, opts.sha256)) return refuse('id does not follow from the key');
-  if (isRevoked(opts.revoked, installKey, profileId)) return refuse('key revoked');
+  const refused = await inviteRefusal(pass, before, link.body, opts);
+  if (refused !== null) return refuse(refused);
   if (!await signedBy(opts.verify, root, nearbyBytes('pass', passText(pass)), pass.sig)) return refuse('bad pass signature');
   if (!await signedBy(opts.verify, inviter.installKey, nearbyBytes('link', linkText(link, prevSig)), link.sig)) return refuse('bad link signature');
   return {
@@ -210,6 +233,7 @@ async function checkInviteLink(link: InviteLink, before: Accepted, prevSig: stri
     org: { orgId: before.org.orgId, orgSeq: before.org.orgSeq, scopes: [{ level: 'language', languageId: pass.body.languageId, privileges }] },
     links: before.links + 1,
     inviter: inviter.profileId,
+    inviterKey: inviter.installKey,
     roleId
   };
 }
@@ -246,27 +270,71 @@ export async function checkChain(chain: readonly unknown[], opts: CheckChainOpti
 }
 
 /**
- * Who may do what, once this phone has checked some chains. `orgSeqHere` is
- * `max(store.cursor, the organization checkpoint's serverSeq)`. A one-link chain
- * answers only when it was signed past what this fold has seen, so someone added last
- * week is not turned away, and a fold that has seen further beats it, on a starting
- * copy too. It then decides outright, so a newer certificate with less also counts.
- * Everything else answers from the fold: a two-link chain gets its own rule when
- * phase 6 issues any, and until then its holder waits (the door's `retry: true`).
+ * May this inviter still let someone in under this role, by this fold? Core's twin of the
+ * server's `_invite_still_granted` and the stops of Carl's answer 9 that a fold can speak for:
+ * the inviter removed or lost Invite or the role's privileges (`mayGrantRole`), the role
+ * retired or unknown, the role grown a manage privilege (answer 8), or the inviter's key
+ * revoked. Uses and an organization turned off stay with the server.
  */
-export function peopleWithChains(org: OrgState, verdicts: Iterable<ChainVerdict>, orgSeqHere: number): NearbyPeople {
+export function inviteStillGranted(org: OrgState, at: { inviter: string; inviterKey: string; roleId: string; languageId: string }, revoked?: RevocationList): boolean {
+  if (isRevoked(revoked, at.inviterKey, at.inviter)) return false;
+  if (!Object.prototype.hasOwnProperty.call(org.roles, at.roleId)) return false;
+  const role = org.roles[at.roleId]!;
+  if (role.retired || (role.privileges.value ?? []).some((p) => MANAGE_PRIVILEGES.includes(p))) return false;
+  return mayGrantRole(org, at.inviter, at.roleId, { level: 'language', languageId: at.languageId });
+}
+
+const hasEntry = (org: OrgState, profileId: string) =>
+  Object.prototype.hasOwnProperty.call(org.members, profileId) && Object.keys(org.members[profileId]!).length > 0;
+
+/**
+ * Who may do what, once this phone has checked some chains (docs/nearby-sync-plan.md 5.12,
+ * Chains). `orgSeqHere` is `max(store.cursor, the organization checkpoint's serverSeq)`.
+ *
+ * A one-link chain answers only when it was signed past what this fold has seen, so someone
+ * added last week is not turned away, and a fold that has seen further beats it, on a starting
+ * copy too. It then decides outright, so a newer certificate with less also counts.
+ *
+ * A two-link chain (a newcomer) answers only while this fold has no entry at all for them, so a
+ * removal sticks and an admin's raised role answers from the fold. An inviter whose key is on
+ * the list stops it at once. With the fold at or past the chain's `orgSeq`, the inviter must
+ * still be able to grant the role (`inviteStillGranted`), and the answer is the signed
+ * privileges the role still holds in the fold; below it, the signed link decides, so a team that
+ * has not synced carries on. Everything else answers from the fold.
+ */
+export function peopleWithChains(org: OrgState, verdicts: Iterable<ChainVerdict>, orgSeqHere: number, revoked?: RevocationList): NearbyPeople {
   const fold = peopleFromOrg(org);
-  // A Map, because a profile id arrives off the wire. A person's newest chain speaks for them, whichever phone it came from.
+  // Maps, because a profile id arrives off the wire. A person's newest chain speaks for them, whichever phone it came from.
   const newest = new Map<string, ChainOrg>();
+  const newcomers = new Map<string, Extract<ChainVerdict, { ok: true }>>();
   for (const v of verdicts) {
-    if (!v.ok || v.links !== 1) continue;
-    const held = newest.get(v.holder.profileId);
-    if (!held || v.org.orgSeq > held.orgSeq) newest.set(v.holder.profileId, v.org);
+    if (!v.ok) continue;
+    const id = v.holder.profileId;
+    if (v.links === 1) {
+      const held = newest.get(id);
+      if (!held || v.org.orgSeq > held.orgSeq) newest.set(id, v.org);
+    } else if (v.links === 2 && v.inviter !== undefined && v.inviterKey !== undefined && v.roleId !== undefined) {
+      const held = newcomers.get(id);
+      if (!held || v.org.orgSeq > held.org.orgSeq) newcomers.set(id, v);
+    }
   }
+  const asNewcomer = (v: Extract<ChainVerdict, { ok: true }>, languageId: string): Set<Privilege> => {
+    const signed = privilegesAt(v.org, languageId);
+    const scope = v.org.scopes[0];
+    const at = { inviter: v.inviter!, inviterKey: v.inviterKey!, roleId: v.roleId!, languageId: scope?.languageId ?? '' };
+    if (isRevoked(revoked, at.inviterKey, at.inviter)) return new Set();
+    if (v.org.orgSeq > orgSeqHere) return signed;
+    if (!inviteStillGranted(org, at, revoked)) return new Set();
+    const now = new Set(org.roles[at.roleId]!.privileges.value ?? []);
+    return new Set([...signed].filter((p) => now.has(p)));
+  };
   return {
     privilegesIn(profileId, languageId) {
       const chain = newest.get(profileId);
-      return chain && chain.orgSeq > orgSeqHere ? privilegesAt(chain, languageId) : fold.privilegesIn(profileId, languageId);
+      if (chain && chain.orgSeq > orgSeqHere) return privilegesAt(chain, languageId);
+      const newcomer = newcomers.get(profileId);
+      if (newcomer && !hasEntry(org, profileId)) return asNewcomer(newcomer, languageId);
+      return fold.privilegesIn(profileId, languageId);
     },
     languageListed: fold.languageListed
   };

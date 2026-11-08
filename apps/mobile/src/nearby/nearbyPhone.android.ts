@@ -124,7 +124,7 @@ export async function phoneCrypto(): Promise<NearbyCrypto | null> {
 export async function nearbyGateFor(orgId: string, org: OrgState, orgSeqHere: number): Promise<NearbyGate> {
   const revoked = (await readRevoked(orgId))?.list;
   return {
-    people: (verdict) => peopleWithChains(org, verdict ? [verdict] : [], orgSeqHere),
+    people: (verdict) => peopleWithChains(org, verdict ? [verdict] : [], orgSeqHere, revoked),
     ...(revoked ? { revoked } : {}),
     rootKeys: ROOT_KEYS,
     verify: nobleVerify,

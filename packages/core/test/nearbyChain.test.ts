@@ -106,6 +106,7 @@ describe('checkChain over real Ed25519', () => {
       org: { orgId: 'org1', orgSeq: 40, scopes: [{ level: 'language', languageId: 'lang1', privileges: ['translate'] }] },
       links: 2,
       inviter: v.PROFILE,
+      inviterKey: v.CHAIN_INVITER_KEY,
       roleId: 'translator'
     });
   });
@@ -136,7 +137,7 @@ describe('checkChain accepts', () => {
       ok: true,
       holder: { installKey: NEWCOMER_KEY, profileId: await newcomerProfileId(NEWCOMER_KEY, SALT, sha256), deviceId: 'device-b', name: 'Asha' },
       org: { orgId: ORG, orgSeq: 40, scopes: [{ level: 'language', languageId: LANG, privileges: ['translate'] }] },
-      links: 2, inviter: INVITER, roleId: 'translator'
+      links: 2, inviter: INVITER, inviterKey: INVITER_KEY, roleId: 'translator'
     });
   });
 
@@ -428,7 +429,7 @@ describe('peopleWithChains: a newer certificate decides', () => {
     expect([...peopleWithChains(fold, [newer, older], 10).privilegesIn(stranger, language)]).toEqual(['review']);
   });
 
-  it('a refused chain says nothing, and a two-link chain waits for its own rule', () => {
+  it('a refused chain says nothing, and a two-link verdict naming no inviter says nothing either', () => {
     const two: ChainVerdict = { ...held(stranger, 11, ['translate']), links: 2 } as ChainVerdict;
     const people = peopleWithChains(fold, [{ ok: false, reason: 'no' }, two], 10);
     expect(people.privilegesIn(stranger, language).size).toBe(0);

@@ -10,3 +10,5 @@ export * from './nearbyDoor';
 export * from './nearbyHoldings';
 export * from './nearbyGenerations';
 export * from './nearbyFilesNamed';
+export * from './nearbyJoin';
+export * from './libraryInUse';

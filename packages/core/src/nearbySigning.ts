@@ -108,7 +108,8 @@ export const NEARBY_PREFIXES = {
   passId: 'lq-nearby-passid-v1\n',
   certRequest: 'lq-nearby-certreq-v1\n',
   firstContact: 'lq-nearby-join-v1\n',
-  summary: 'lq-nearby-summary-v1\n'
+  summary: 'lq-nearby-summary-v1\n',
+  pictures: 'lq-nearby-pictures-v1\n'
 } as const;
 
 /** The bytes a text stands for: always the prefix and the text together, as UTF-8. */
