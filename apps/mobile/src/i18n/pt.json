@@ -5118,8 +5118,7 @@
       "micOff": "O LangQuest não consegue ouvir você. Ative o microfone para o LangQuest em Ajustes.",
       "micOffWeb": "O LangQuest não consegue ouvir você. Permita o microfone para este site no seu navegador e toque em gravar de novo.",
       "openSettings": "Abrir Ajustes",
-      "openSettingsHelp": "Abre os ajustes deste telefone para o LangQuest. Ative o microfone lá e volte.",
-      "addPart": "Adicionar uma parte aqui"
+      "openSettingsHelp": "Abre os ajustes deste telefone para o LangQuest. Ative o microfone lá e volte."
     },
     "quoted": "“{{text}}”",
     "listening": "Ouvindo… {{time}}",
