@@ -474,7 +474,14 @@ manifest, before the chain and signature work. It sits outside the door, which r
 over rows already counted on a `REDUCER_VERSION` change and would miss unknown types. Batch
 rows count against the manifest's actor, and claims against the claimer, never the event's
 author, because a teammate must not be able to spend Sam's budget. From phase 6, two-link
-authors share one bucket per `passId`, since one inviter can mint authors offline. An
+authors share one bucket per `passId`, read from the chain kept with each batch
+(`passIdOfChain`), since one inviter can mint authors offline. That bucket counts their rows,
+bytes and manifest text, bare manifests included, which a member's do not spend; a newcomer
+key that would make more than the pass's `maxUses` newcomers held under it is dropped as over
+budget; and a bare manifest from someone this phone no longer lets in (removed, or let in by an
+inviter since revoked or removed) is counted but not kept, so it does not spread. The vector
+takes no new key past `NEARBY_VECTOR_MAX_KEYS` (`countBatch`, `applyFloor`), so a flood of
+signers cannot push the stored vector past what `parseVector` reads back. An
 over-budget page is dropped and its number stays open, so nothing is skipped and the work
 stays on its author's phone, and after a few dozen dropped pages in one session the phone
 sends `bye` with `busy`. Counting is one grouped query at session start over `status =
@@ -632,7 +639,11 @@ through someone whose identity already was (section 14).
   team. Hello refuses a listed key, and later-dated events from it are refused one by one,
   under answer 4's rule, and past a cap, under answer 16's (section 6). A revocation also
   makes a new generation, so the taken phone keeps only keys that go stale as the team takes
-  the new one. A team that has met nobody who has been online stays exposed.
+  the new one, and ends the person's sessions, so a taken phone still signed in cannot answer
+  `{ revoked: true }` with a new key and a fresh chain. Suspending an account revokes its keys
+  the same way, and a suspended inviter's pass lets nobody in. A holdings entry from a listed
+  key, or from someone removed, counts as no copy (section 5.12, Holdings). A team that has
+  met nobody who has been online stays exposed.
 - **Expiry.** Hello checks a teammate's certificate against `max(wall, last hlc)`, with no
   not-before: `HlcClock.last` never goes back, so setting the date back does not revive an
   expired certificate, and a phone with an old date does not refuse a fresh one. Batches
@@ -1862,7 +1873,10 @@ sightings with a gap between them stay unlinked. The decision entry says so.
 **The echo.** An advert has no clock, so a recording of one verifies for good. Played back
 elsewhere, it would draw any teammate's phone to connect, and the connection alone says
 that phone holds that team's key. So a phone that can advertise connects only after
-hearing its own current or previous salt echoed: each tick fills the `echo` slot for the
+hearing its own current or previous salt echoed, and forgets every echo when its own salt
+changes, so a recording made while a teammate was live stops counting once it names neither
+salt; a live teammate echoes again at once, since its advert names the previous salt until
+it hears the new one. Each tick fills the `echo` slot for the
 next salt it has heard, chosen partner first, so every pair in a room of five gets a turn,
 then salts no key matched (Generations, below), and with random bytes when it has heard none.
 A recording cannot answer a salt made after
@@ -1987,7 +2001,11 @@ type Holdings = ReadonlyMap<string /* install key */, { counter: number; files: 
   holder's `installKey` equal to the entry's `key`. It drops what fails, one entry at a time,
   and never ends the session for it. So a member cannot forge a teammate's entry, and a forged
   counter near the top of the safe range cannot pin one. A counter in `have` only says what to
-  send.
+  send. The chain is checked against the revocation list, and an entry whose holder Hello's
+  read gate would refuse is dropped too. Stored entries can outlive a revocation or removal,
+  so the files part reads them through `holdingsInForce`, which leaves out an entry whose key
+  and holder, or first link's key and person, are listed, or whose person has only removed
+  entries in the organization's fold.
 - `mergeHoldings` skips this phone's own key, and takes the higher counter wholesale per
   key, so a phone can retract a file. A tie with different files, which only a restored or
   lying owner makes, goes to the lower `canonicalJson(files)`, so merging is commutative,
@@ -2124,7 +2142,10 @@ Wi-Fi link of attempt n (its place in the arranged plan, from 0):
 
 Each attempt's link has keys of its own, because every link starts its nonces at counter 0:
 a link secured for an attempt that was then abandoned, and the goodbye it seals as it closes,
-would otherwise reuse the winning link's nonces under the same key. The host's `host` message
+would otherwise reuse the winning link's nonces under the same key. A hotspot hands up every
+connection under one attempt's keys, so within an attempt only the proven link may seal: the
+joiner sends `ready` first, the host seals nothing on a candidate until the joiner's `ready`
+has opened, and native sends no goodbye on a link whose other side has not proven the keys. The host's `host` message
 names its `attempt`, since two attempts can be of one kind (Wi-Fi Direct at 5 GHz, then any
 band), and the joiner refuses one the plan it worked out does not hold, with `bye`
 `protocol`. `ATTEMPT_KEYS` in core's vectors is the golden vector.
@@ -2291,9 +2312,13 @@ so partners get the first release only with this phase (section 7).
   own.
 - **A lost phone.** One service-role function, `revoke_install_keys(p_profile, p_by)`, sets
   `revoked_at` and `revoked_by` on that person's unrevoked `install_keys` rows and adds them
-  to the revocation list (section 5.12), in one transaction. It is idempotent, and three
-  things call it:
-  - `take_sign_in_code_v2`, when a code with `lost` is taken, for a looked-after account.
+  to the revocation list (section 5.12), in one transaction, and ends every session of the
+  person's, so a taken phone still signed in cannot answer `{ revoked: true }` with a new key.
+  Each caller signs the person in again afterwards on the phone they hold. It is idempotent,
+  and three things call it, beside `suspend_account`, which revokes a suspended person's keys
+  through the same body (`_revoke_install_keys`):
+  - `take_sign_in_code_v2`, when a code with `lost` is taken, for a looked-after account, and
+    `take_sign_in_code`, an older build's password branch, the same way.
     `issue_sign_in_code_v2` only stores a flag on a code, and nothing happens until that
     code is used. Looked-after accounts hold join passes (Carl's answer 18), so this is how an
     inviter who has no email stops a taken phone's pass. It is the flow a helper already has,
@@ -3062,7 +3087,8 @@ it does today (decision 54).
      (`useLibraryFollow`), which could not travel.
    - **How a pass stops: automatically only** (Carl's answer, 2026-11-06). Past expiry or
      uses, the inviter has lost Invite or that role, the role is retired or has gained a
-     manage privilege, or the inviter's key is revoked. An organization with either feature
+     manage privilege, the inviter's key is revoked, or the inviter is suspended (which also
+     revokes their key). An organization with either feature
      off refuses new joins. There is no withdraw button, and no withdrawn state exists on
      `invites`. Demoting an inviter is undone if the role comes back, so for a taken phone
      the key's revocation is the stop that holds. Every account can now reach it: one with an

@@ -11324,6 +11324,19 @@ Reverse if: the real-phone test's load and fold times with a month of a
 team's nearby rows (plan section 11) do not fit a 2 GB phone; the numbers
 then go back to Carl, and are not lowered quietly.
 
+Amended (2026-11-08, Carl Sauder): the final security review found that one
+join pass could mint any number of newcomers, each with a budget of its own,
+whose bare manifests were then kept and spread for good. So two-link authors
+now share one bucket per `passId` (read from the chain kept with the batch,
+`passIdOfChain`) for rows, bytes and manifest text, bare manifests included,
+which plan 5.4 already asked for from phase 6; a newcomer key that would make
+more than the pass's `maxUses` newcomers held under it is dropped as over
+budget; a bare manifest from someone the phone no longer lets in (removed, or
+let in by an inviter since revoked or removed) is counted but not kept, so it
+does not spread; and `countBatch` and `applyFloor` add no key past
+`NEARBY_VECTOR_MAX_KEYS`, since a stored vector over that cap read back as
+nothing and reset what the phone counted as received.
+
 ## 211. Each install makes one Ed25519 key for nearby sync, and the server keeps it per person
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
@@ -11515,6 +11528,20 @@ exposed.
 Reverse if: lost phones keep receiving a team's work after a teammate has
 been to town.
 
+Amended (2026-11-08, Carl Sauder): a revoked key's phone that was still
+signed in answered `{ revoked: true }` with a new key and got a fresh chain,
+so the revocation did not stick while its session lived (final security
+review). `revoke_install_keys` now also ends every session of the person's
+(its body is `_revoke_install_keys`), from every caller, not only staff;
+each caller signs the person in again afterwards on the phone they still
+hold. A lost code taken through the password branch (`take_sign_in_code`,
+builds before 59) revokes as `take_sign_in_code_v2` does, with the same
+answers. Suspending an account (`suspend_account`, migration
+`20261108040000_nearby_suspend.sql`) revokes the person's keys the same way,
+so the list carries them and the next certificate call makes a new
+discovery generation due. An access token already issued lives until it
+expires.
+
 ## 217. A language's discovery key rotates as a one-way hash chain, and a phone hands a newer one on once
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
@@ -11599,6 +11626,15 @@ refused. Each attempt's link is secured with keys of its own, from the
 Wi-Fi keys and its place in the plan, which the `host` message now names
 (plan 5.12, Session keys).
 
+Amended (2026-11-08, Carl Sauder): every hotspot candidate shares its
+attempt's keys and starts its nonces at zero, so a `ready` or goodbye sealed
+on a stranger's connection repeated the real link's nonces under the same
+AES-GCM key (final security review). The joiner now sends `ready` first and
+the host seals nothing on a link until the joiner's `ready` has opened, and
+the native link sends no goodbye on a link whose other side has not proven
+the keys (`LinkSession.close`), so only the proven link ever seals under an
+attempt's keys.
+
 ## 219. Phones open sealed, and a phone shows and connects to a teammate only after hearing its own salt echoed
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
@@ -11631,6 +11667,13 @@ because refusing could strand a team.
 Reverse if: the real-phone test finds an echo misses meetings between phone
 makers, or that addresses repeat across salts on common phones (plan
 section 11); then the notice on Share nearby, and this entry, say so.
+
+Amended (2026-11-08, Carl Sauder): an echo, once heard, held for the whole
+room run, so a recording made while a teammate was live drew a connection
+for good (final security review). A phone now forgets every echo when its
+own salt changes; a live teammate's next advert echoes again, since it
+names the previous salt until it hears the new one, and a recording stops
+counting once it names neither.
 
 ## 220. When space runs short, a phone frees files in three levels, and a teammate's file is marked, never inferred
 
@@ -11749,6 +11792,15 @@ non-boolean, and a session drops an entry whose `hold` changed after signing.
 The wire was free to change, since no store build had signed version 1.
 Reverse if: holdings turn out too stale between exchanges to choose by
 (then phones ask instead of trusting them).
+
+Amended (2026-11-08, Carl Sauder): an entry was checked once, when it came,
+so one from a key revoked or a person removed since still counted as a copy
+(final security review). A session now checks an entry's chain against the
+revocation list and drops one whose holder Hello's read gate would refuse,
+and the files part reads stored entries through `holdingsInForce`, which
+leaves out an entry whose key and holder, or first link's key and person,
+are on the list, or whose person has only removed entries in the fold, so
+no file is shed or counted as safe for its sake.
 
 ## 224. A phone keeps who it last finished with and what both said, never when it met anyone
 
@@ -11993,6 +12045,10 @@ revoked, the list holding (key, person) pairs (answer 20).
 Reverse if: field data shows backdated floods, or real work refused at the
 cap more often than staff can raise it.
 
+Amended (2026-11-08, Carl Sauder): every revocation now ends the person's
+sessions, not only staff's (216 as amended), the password branch's lost
+code revokes too, and suspending an account revokes its keys.
+
 ## 232. The relay carries no redaction and no stamp more than a day ahead
 
 Date: 2026-11-08 · By: Carl Sauder · Status: accepted
@@ -12072,6 +12128,11 @@ a repeat answers after the uses run out. Migration
 Reverse if: teams leaving town often hold a pass with days left (section 13
 asks whether to hold the next window's too), or passes are misused faster
 than their stops catch.
+
+Amended (2026-11-08, Carl Sauder): a suspended inviter's pass stops too:
+`pass_refusal` answers 'pass inviter suspended' while `banned_until` is
+ahead (final security review), and suspending revokes the inviter's key, so
+the pass stays stopped after they are let back.
 
 ## 235. A newcomer's id comes from their key, and the code they scan holds no pass or key
 
