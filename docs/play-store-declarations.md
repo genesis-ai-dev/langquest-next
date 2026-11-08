@@ -290,6 +290,24 @@ and the counters on `install_keys` are about a key, so neither changes an
 answer. No screen shows any of this until phase 3, and no permission or SDK
 that collects data is added, so the other answers are unchanged.
 
+Nearby sync, phase 3's native module (`docs/nearby-sync-plan.md` sections 4, 5.9 and 9):
+`apps/mobile/modules/nearby-link`, a local Expo module on Android's own Bluetooth LE, Wi-Fi
+Direct and local-only hotspot APIs, with no Google Play services and no new SDK. Its own
+`AndroidManifest.xml` declares the permissions in the facts block's `modulePermissions`, which
+merge into the app's manifest for every build (decision 157), whoever has the feature: the three
+Bluetooth permissions of Android 12 and later (`BLUETOOTH_SCAN` marked `neverForLocation`),
+`NEARBY_WIFI_DEVICES` on Android 13 and later (`neverForLocation`), fine and coarse location only
+up to Android 12L (`maxSdkVersion` 32), where Bluetooth scans and Wi-Fi Direct require them, the
+legacy `BLUETOOTH` and `BLUETOOTH_ADMIN` up to Android 11, and the Wi-Fi and network state
+permissions. Bluetooth, Bluetooth LE and Wi-Fi Direct are declared as features not required, so
+no phone is hidden from the listing. No location is read or derived, no background location,
+foreground service, `ACCESS_LOCAL_NETWORK` or `REQUEST_INSTALL_PACKAGES` is asked for, and
+nothing is asked at run time until someone opens Share nearby. Phones exchange the team's work
+encrypted with their own protocol (AES-256-GCM under keys from an X25519 exchange). The Play
+Console answers this changes are listed for the developer with the phase (permissions
+declarations, the location prompt below Android 13, encryption in transit, the export answer);
+the module does nothing until the screen that uses it ships.
+
 Not used, on purpose: Google Play's In-App Updates library (Play Core). It
 would tell an Android phone itself when a newer version is live, but Google's own
 data safety section for it (developer.android.com/guide/playcore/in-app-updates,
@@ -330,6 +348,15 @@ this block.
   "appName": "LangQuest Next",
   "androidPermissions": ["android.permission.MODIFY_AUDIO_SETTINGS", "android.permission.RECORD_AUDIO"],
   "blockedPermissions": [],
+  "modulePermissions": [
+    "android.permission.ACCESS_COARSE_LOCATION maxSdkVersion=32", "android.permission.ACCESS_FINE_LOCATION maxSdkVersion=32",
+    "android.permission.ACCESS_NETWORK_STATE", "android.permission.ACCESS_WIFI_STATE",
+    "android.permission.BLUETOOTH maxSdkVersion=30", "android.permission.BLUETOOTH_ADMIN maxSdkVersion=30",
+    "android.permission.BLUETOOTH_ADVERTISE", "android.permission.BLUETOOTH_CONNECT",
+    "android.permission.BLUETOOTH_SCAN usesPermissionFlags=neverForLocation", "android.permission.CHANGE_NETWORK_STATE",
+    "android.permission.CHANGE_WIFI_STATE", "android.permission.NEARBY_WIFI_DEVICES usesPermissionFlags=neverForLocation"
+  ],
+  "moduleFeatures": ["android.hardware.bluetooth required=false", "android.hardware.bluetooth_le required=false", "android.hardware.wifi.direct required=false"],
   "plugins": [
     "./plugins/withSceneLifecycle",
     "./plugins/withAndroidAppIcons",
