@@ -146,6 +146,15 @@ recordings and library documents, and every saved key, then reloads
 (`forgetBrowser.ts`); it runs only after the unsent-work check of 12.
 Phones keep the log as before.
 
+Amended (2026-11-08, Carl Sauder): an event comes from its author, or from a
+phone holding the author's valid signature, unless it is a redaction
+(docs/nearby-sync-plan.md section 6, decision 230). A phone that reaches the
+server sends teammates' signed work through the Worker's `POST /api/relay`,
+which appends it as each author through `append_events`, so a shared phone
+still pushes only its actor's own pending work, and nobody's work is sent
+under the carrier's account: the relay checks the author's signature and
+chain, and the server takes the author, not the caller, as the actor.
+
 ## 12. No accidental sign-out offline
 
 Date: 2026-09-14 · By: Ryder Wishart · Status: accepted
@@ -4045,6 +4054,24 @@ this event; the event's shape did not change.
 Reverse if: a team wants translators to bring a checkpoint back themselves.
 Then it is a role setting, not a code change.
 
+Amended (2026-11-08, Carl Sauder): taking back a departure the server does
+not have now needs Override checkpoints too, because "it changes nothing"
+stopped being true with nearby sync (docs/nearby-sync-plan.md section 6): a
+translator holding a coordinator's override from a teammate's batch could
+push the undo before the override lands, and it would then read as undone
+for good. `may_emit` is restated once (`20261108000000_nearby_relay.sql`):
+an undo needs Override checkpoints unless the server holds a departure with
+that id that is not an override, so holders keep today's result and an undo
+of a set-aside the server holds is unchanged. So that an honest undo of a
+teammate's unsent set-aside is not lost, `pushNow` in new builds holds back
+a `v1.DepartureUndone` whose departure is on the phone only as a teammate's,
+and pushes it once more after delivery in the same sync; the relay words a
+refused undo of a departure the server lacks `departure not here yet`, and
+the carrying phone sends it again once that departure is the server's. An
+old build on a shared phone can send one person's undo before another's
+set-aside, since push filters by actor: that is now refused, and Try again
+recovers it. Caleb should see this.
+
 ## 98. An organization always keeps someone who can manage roles
 
 Date: 2026-10-13 · By: Carl Sauder · Status: accepted
@@ -7421,6 +7448,17 @@ entry's old-sync run checks in CI on the nearby branch's pull request
 `docs/nearby-sync-plan.md` section 12). `may_emit` is restated once too, in
 phase 4.
 
+Amended (2026-11-08, Carl Sauder): `may_emit` is restated once for delivery
+(docs/nearby-sync-plan.md section 6, decision 97 as amended), which changes
+one result for an old build: an undo of a departure the server does not
+hold, sent by someone without Override checkpoints, is refused, where it
+was accepted. No store build's integration test sends one. Everything else
+in `20261108000000_nearby_relay.sql` is new names (`relay_append_events`,
+`revoke_install_keys`, `install_key_limit_raise`, `blob_named_by` and
+helpers, a `server_config` column), `take_sign_in_code_v2` keeps its
+signature and answers, and `append_events` is not touched, so old builds
+keep their results.
+
 ## 153. The first launch after install waits up to 5 seconds for the latest OTA update
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted
@@ -7516,6 +7554,18 @@ page, where Sync now was. Its words say the person's own work still goes
 out only below the minimum version; a server that refuses the app's
 protocol (LQ001) takes nothing, and it says to update. From the UI audit
 Caleb asked to have fixed (findings 24 and 119).
+
+Amended (2026-11-08, Carl Sauder): LQ001 takes nothing per caller, not per
+author, so a below-gate build's signed work goes up when a current phone
+delivers it, as it already does when its author updates, because offline
+teams and lost phones are why delivery exists (docs/nearby-sync-plan.md
+section 6). The relay's `p_client_version` is the delivering phone's: LQ001
+from the relay is a whole-request answer (426) that the phone reads as
+`ClientTooOldError`, leaving every row nearby. Delivery joins `SENDS` in
+`syncGate.ts`, so a carrier below the store minimum still delivers, as it
+still sends its own work. If a per-build stop is ever needed it gets its own
+setting, not `min_client_version`. Caleb should see this, since 154 is his
+entry.
 
 ## 155. While a new build is in store review, the public build keeps getting every merge as an OTA update from a release branch
 
@@ -10704,6 +10754,21 @@ Reverse if: people cannot finish within the hour on field connections (then
 lengthen it, with the email's words), or v2's own reset emails confuse
 people (then stop passing unknown addresses to v2).
 
+Amended (2026-11-08, Carl Sauder): New password can revoke the person's
+nearby install keys, for "A phone of mine was lost or taken"
+(docs/nearby-sync-plan.md section 6, decision 231): `password-reset`'s
+`choose` takes an optional `lost`, which builds before it never send, and
+calls `revoke_install_keys` before setting the password, giving the code
+back if that fails so the person can retry. The authority is the mailbox,
+not a session, so a taken phone cannot use it against its owner's new
+phone, and setting the password already ends the account's other sessions.
+It is opt-in, because revoking on every forgotten password would refuse
+newcomers that person let in. On this branch only the server and the app's
+`passwordReset` call take `lost`; the choice on New password and the More
+settings row that sends the link are not built yet, and need their words in
+every app language and the demo's look. Caleb should see this, since 200 is
+his entry.
+
 ## 201. A browser keeps a source's audio by asking the Worker for it, which passes the bytes on and keeps nothing
 
 Date: 2026-11-03 · By: Caleb Koster · Status: accepted
@@ -11799,3 +11864,113 @@ worn phone's record is one a plain phone stopped by its person also makes.
 A plain phone's run past ten minutes is the cost; `stop` still says idle or
 wait. The server's allowlist keeps `run` and `level`, which no build now
 sends.
+
+## 230. A phone that reaches the server delivers teammates' signed work on their authors' behalf
+
+Date: 2026-11-08 · By: Carl Sauder · Status: accepted
+
+Reason: Carl's choice (plan section 2): any one phone can upload the whole
+team's work, and partners get the first release only with it, so one trip
+to town sends everyone's work and a lost phone's work survives on its
+teammates' phones (docs/nearby-sync-plan.md section 6). The Worker's
+`POST /api/relay` (`apps/web/worker/relay.ts`) checks the caller's token
+and that the caller may read the language, then each batch's chain with
+expiry skipped (a batch may be carried for months), its signature and every
+event's digest, and calls `relay_append_events` once per author and
+signer's key, at most 500 events, so a request mixing authors gets separate
+transactions and partial success. It does not ask `org_features`, because
+the flag gates only the way in. That function refuses a caller before
+anything else, then appends as the author through `append_events`, with
+`set_config` local to the transaction, so every per-account check (size,
+bound and reserved ids, stream kind, grants, the author's daily allowance of
+169) applies from the code that holds it; a suspended author
+(`banned_until`) and a key row that is missing are refused for every event.
+A phone delivers between push and pull (`deliverNearby`,
+`packages/sync/src/nearbyDeliver.ts`), so events go first and a month's
+catch-up pull does not run on the slow path that 143 exists to stop: per
+author, oldest clock first, one batch at a time, saving each batch's
+verdicts before the next. Accepted rows are confirmed; a duplicate,
+`CLOCK_AHEAD` or `NOT_LISTED` stays nearby for the pull or a later try,
+because a duplicate compares only organization, stream, actor and type and
+its clock may differ; `NOT_MEMBER` and `NOT_ALLOWED` are refused with Try
+again; anything else is the server's word for good. Files go as today, and
+someone who only views may upload a file an accepted event names under
+exactly that name (`x-named-by`, `blob_named_by`), asked every time and
+never through `cachedBlobAccess`, which would open the stream for a minute;
+the reconciler copies a file stored under a format the log does not name,
+since `v1.BlobStored` records only hash and size. A newcomer's chain (two
+links) waits for joining offline (phase 6).
+Reverse if: carried work proves to land wrongly attributed or refused for
+passing reasons in the field, or the relay's cost on the database outgrows
+what delivery saves.
+
+## 231. Work signed by a key later revoked is accepted when dated before the revocation, up to 50,000 events and 100 MB per revoked key
+
+Date: 2026-11-08 · By: Carl Sauder · Status: accepted
+
+Reason: Carl's answer 4: refusing everything a revoked key signed would
+fail the most common case, a phone that was simply lost, so events dated
+before `revoked_at` are accepted and later ones refused, per event, by the
+wall part of `hlc`, in `relay_append_events`. The security review showed
+that setting a phone's date back is enough to date new work before
+`revoked_at`, so the rule protects a lost phone's earlier work and does not
+stop whoever took it; Hello's refusal on phones holding the list does that.
+So that millions of backdated events cannot take 2 GB phones out of service
+for a language, Carl's answer 16 caps a revoked `install_keys` row at
+50,000 events and 100 MB through the relay, counted one by one under a row
+lock taken only when `revoked_at` is set, duplicates uncounted, and only
+what `append_events` took counted; an event past either limit is refused
+alone with a reason that reads as `NOT_ALLOWED`, so it is listed with Try
+again. There is no closing date. A thief who goes first can use up the cap,
+so staff raise one row's limit (`install_key_limit_raise`, which never
+lowers one; `npm run nearby-keys -- raise`), and Try again then delivers.
+Keys are revoked by `revoke_install_keys`, which writes the revocation list
+that the certificate facts carry, from three places: New password's lost
+choice (200 as amended), a helper's lost-phone sign-in code when the person
+next signs in (`take_sign_in_code_v2`, Carl's answer 26), and staff, who
+also end the person's sessions (`npm run nearby-keys -- revoke`). No admin
+can revoke a member's phone (answer 23), and only the named person is
+revoked, the list holding (key, person) pairs (answer 20).
+Reverse if: field data shows backdated floods, or real work refused at the
+cap more often than staff can raise it.
+
+## 232. The relay carries no redaction and no stamp more than a day ahead
+
+Date: 2026-11-08 · By: Carl Sauder · Status: accepted
+
+Reason: a redaction cannot itself be redacted, and `append_events` allows
+one to anyone holding Manage structure, so someone holding a Coordinator's
+copied key could sign batches of `v1.Redacted`, post them with any member's
+token and take the team's work off every phone for good
+(docs/nearby-sync-plan.md section 6). So the relay refuses `v1.Redacted` by
+name, per event, with a reason that reads as `INVALID`; no honest batch
+holds one, because the door, the sender and the claims refuse it, and
+redactions still take effect from `remove_content` and an author's own
+push. `CLOCK_AHEAD` alone would never settle an event stamped years ahead:
+the sweep keeps it because it is signed, and every phone would stay on the
+slow checkpoint path until that date. So the relay refuses a stamp more than
+`relay_ahead_limit_ms` (a day, in `server_config` beside
+`clock_ahead_tolerance_ms`, so it needs no app update) past server time,
+with `stamped too far ahead: <date>`; the phone marks the row refused,
+keeping its `via`, and puts it back to nearby once its date is within a day,
+so a lost author's work is delivered when its date comes. Until then that
+row's file is not wanted by other phones and is freed first under space
+pressure, so a lost phone with a far-ahead date can lose that audio. An
+author's own push still gets `CLOCK_AHEAD` and restamps.
+Reverse if: honest work with far-ahead dates is refused often enough in the
+field that a longer limit is worth the slow path it costs.
+
+## 233. An author's phone does not tell teammates of a refusal; their copies settle at the server
+
+Date: 2026-11-08 · By: Carl Sauder · Status: accepted
+
+Reason: an event the server refused from its author is shown refused on the
+author's phone, but a teammate's copy stays folded until that teammate
+reaches the server, when the sweep or delivery settles it
+(docs/nearby-sync-plan.md 5.7 and section 6). The first design had the
+author's phone tell teammates at their next exchange, and they would drop
+it, but a dropped id is unknown again and can come back from a third phone,
+so that message is not built. It can be added later as an ability with no
+new protocol version.
+Reverse if: teams offline for long see refused work on their screens long
+enough to matter.

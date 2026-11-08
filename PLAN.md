@@ -289,6 +289,13 @@ below is the contract they satisfy; a Workers front end can wrap them later.
   shows an upgrade state with nothing lost.
 - Blobs: `PUT /blobs/:hash` idempotent, `GET /blobs/:hash`. Presence of a blob
   is independent of presence of the events that reference it.
+- Amended (2026-11-08, Carl Sauder): delivery (docs/nearby-sync-plan.md
+  section 6, decision 230). An event comes from its author, or from a phone
+  holding the author's valid signature, unless it is a redaction. The Worker's `POST /api/relay` takes teammates'
+  signed batches, checks each chain and signature, and appends them as each
+  author through `relay_append_events`, which wraps `append_events`; a phone
+  delivers between push and pull. Someone who only views may upload a file
+  an accepted event names (`x-named-by` on the blob PUT).
 
 Migration option: this protocol can be served by PowerSync syncing a single
 immutable `events` table bucketed by stream, with the upload queue as the
