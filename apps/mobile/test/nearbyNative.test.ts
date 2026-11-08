@@ -148,6 +148,17 @@ describe('the nearby module\'s permissions', () => {
   });
 });
 
+describe('the nearby module leaves nothing served or open behind a stop', () => {
+  it('a Find stopped while a new salt\'s pipe service was being added takes that service down', () => {
+    // Why: \`stop\` unserves the pipe, but a \`serve\` already under way answers after it; left up,
+    // that salt's GATT service would go on answering after Share nearby stopped (JUnit cannot run BleFind).
+    const ble = code(kotlin.get('BleFind.kt')!);
+    const startSet = /private fun startSet\([\s\S]*?\n  \}\n/.exec(ble)![0];
+    const served = /pipes\.serve\(key, newSalt\) \{ served ->([\s\S]*)/.exec(startSet)![1]!;
+    expect(served).toMatch(/if \(kFind == null\) \{\s*pipes\.unserve\(\)/);
+  });
+});
+
 describe('the nearby module stays off phones it cannot run on', () => {
   const API29 = /WifiP2pConfig\.Builder|WifiNetworkSpecifier|AdvertisingSet\b|startLocalOnlyHotspot|BluetoothGattServer\b/;
 

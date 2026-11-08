@@ -197,7 +197,11 @@ class BleFind(
     rotating = true
     pipes.serve(key, newSalt) { served ->
       handler.post {
-        if (kFind == null) return@post done(false)
+        if (kFind == null) {
+          // Stopped while this salt's service was being added: `stop` unserved before it was up.
+          pipes.unserve()
+          return@post done(false)
+        }
         if (!served) {
           rotating = false
           return@post done(false)
