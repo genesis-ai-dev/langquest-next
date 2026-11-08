@@ -153,9 +153,16 @@ class LinkSessionTest {
     expectCode(NearbyCode.MESSAGE_TOO_LARGE) { a.send(ByteArray(Frame.MAX + 1)) }
   }
 
+  /** `a` hears a frame of `b`'s, so it holds the keys `b` holds and may seal a goodbye. */
+  private fun prove(a: LinkSession, b: LinkSession) {
+    b.send(Bytes.utf8("ready"))
+    assertEquals("ready", String(a.receive()!!))
+  }
+
   @Test fun aCleanCloseIsNullAndADropIsAnError() {
     val (a, b) = pair()
     secure(a, b)
+    prove(a, b)
     a.send(Bytes.utf8("last"))
     a.close()
     assertEquals("last", String(b.receive()!!))
@@ -181,6 +188,7 @@ class LinkSessionTest {
   @Test fun messagesQueuedBeforeAGoodbyeAreStillReadThenNull() {
     val (a, b) = pair()
     secure(a, b)
+    prove(a, b)
     a.send(Bytes.utf8("one"))
     a.send(Bytes.utf8("two"))
     a.close()
@@ -210,6 +218,25 @@ class LinkSessionTest {
       assertNull(b.receive())
       flooding.get(5, TimeUnit.SECONDS)
     }
+  }
+
+  /**
+   * Why: a hotspot hands up every connection under one attempt's keys, and each starts its nonces at
+   * zero, so a goodbye sealed on a stranger's connection would repeat the real link's nonce under the
+   * same key. Nothing sealed goes out on a link whose other side has not proven the keys.
+   */
+  @Test fun aLinkNobodyProvedClosesWithNoGoodbye() {
+    val (a, b) = pair()
+    a.secure(keyA, keyB)
+    a.close()
+    val raw = (b.javaClass.getDeclaredField("transport").apply { isAccessible = true }.get(b) as Transport).input
+    assertEquals(-1, raw.read())
+
+    val (c, d) = pair()
+    secure(c, d)
+    prove(c, d)
+    c.close()
+    assertNull(d.receive())
   }
 
   @Test fun theWrongKeyClosesTheLink() {

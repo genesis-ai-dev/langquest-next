@@ -1037,14 +1037,22 @@ export class NearbySession {
       }
     };
 
+    /**
+     * The joiner sends `ready` at once; the host, whose group may hand up several connections under
+     * one attempt's keys, seals nothing until the joiner's `ready` has opened, so only the link that
+     * proved the keys ever carries a frame under them and no nonce repeats on another.
+     */
     const seal = async (attempt: number, made: Promise<NearbyLink>): Promise<Turn> => {
       let link: NearbyLink | null = null;
       try {
         link = await made;
         if (finished || attempt !== at) throw new OfflineError('a later attempt took over');
         await link.secure(sealedFor(attempt));
-        const says = await Promise.all([link.send(encodeMessage({ t: 'ready' })), this.readOne(link)]);
-        if (says[1].t !== 'ready') throw new OfflineError('no ready');
+        const ready = encodeMessage({ t: 'ready' });
+        const hosting = plan[attempt]!.host === me;
+        const heard = hosting ? await this.readOne(link) : (await Promise.all([link.send(ready), this.readOne(link)]))[1];
+        if (heard.t !== 'ready') throw new OfflineError('no ready');
+        if (hosting && !finished && attempt === at) await link.send(ready);
         if (finished || attempt !== at) throw new OfflineError('a later attempt took over');
         return { t: 'up', at: attempt, link };
       } catch {

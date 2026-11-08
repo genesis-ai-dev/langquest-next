@@ -665,6 +665,10 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
       expect(ra.linkKind).toBe('hotspot');
       expect(ra.fallbacks).toBe(0);
       expect(b.files.here.size).toBe(1);
+      // Every candidate shares the attempt's keys, so the host seals nothing on one until it has proven them with `ready`:
+      // otherwise its frames there would repeat the link's nonces under the same key.
+      expect(air.strangers.length).toBe(1);
+      expect(air.strangers[0]!.pair.sent.a.frames).toEqual([]);
     });
 
     it('takes down a group whose attempt never came up, when the pipe carries on as the link', async () => {

@@ -246,14 +246,16 @@ class LinkSession(
   /**
    * A goodbye if there is time, then the stream goes. Every wait here ends. After the goodbye this
    * side stops writing and the reader drops what still comes until the other side closes too (or
-   * `byeDrainMs` passes), so nothing is left unread to turn the close into a reset.
+   * `byeDrainMs` passes), so nothing is left unread to turn the close into a reset. No goodbye on a
+   * link the other side has not proven: a hotspot hands up every connection under one attempt's
+   * keys, so one sealed on a stranger's would repeat the real link's nonce under the same key.
    */
   fun close() {
     if (!closedHere.compareAndSet(false, true)) return
     state.withLock { changed.signalAll() }
     val s = sealer
     var said = false
-    if (s != null && ended == null && writeLock.tryLock(tune.byeWaitMs, TimeUnit.MILLISECONDS)) {
+    if (s != null && proven && ended == null && writeLock.tryLock(tune.byeWaitMs, TimeUnit.MILLISECONDS)) {
       try {
         transport.output.write(s.seal(Frame.BYE, ByteArray(0)))
         transport.output.flush()

@@ -397,6 +397,8 @@ export interface MemoryNearbyAir {
   readonly pipes: { from: string; to: string; pair: MemoryNearbyPair }[];
   /** Wi-Fi links brought up. */
   readonly links: { kind: string; pair: MemoryNearbyPair }[];
+  /** Strangers who connected to a group first (`strangerFirst`): side `a` is the host's. */
+  readonly strangers: { kind: string; pair: MemoryNearbyPair }[];
 }
 
 const NO_CAPS: NearbyCapabilities = { sdk: 34, advertise: true, directByName: true, band5: true, hotspot: true, joinHotspot: true, bluetoothOn: true, wifiOn: true, locationOn: true };
@@ -415,6 +417,7 @@ export function memoryNearbyAir(o: { time: MemoryLinkClock; files?: MemoryFiles;
   const maskRepeats: string[] = [];
   const pipes: MemoryNearbyAir['pipes'] = [];
   const links: MemoryNearbyAir['links'] = [];
+  const strangers: MemoryNearbyAir['strangers'] = [];
   const groups = new Map<string, { kind: HostKind; offer: (link: NearbyLink) => void; settle: () => void }>();
   const files = o.files ?? new Map<string, Uint8Array>();
   let salts = 0;
@@ -466,7 +469,7 @@ export function memoryNearbyAir(o: { time: MemoryLinkClock; files?: MemoryFiles;
   };
 
   const air: MemoryNearbyAir = {
-    adverts, maskRepeats, pipes, links,
+    adverts, maskRepeats, pipes, links, strangers,
     radio(name, caps = {}, knobs = {}) {
       const calls = { startFind: 0, updateFind: 0, stopFind: 0, stopAll: 0, openPipe: 0, takeDown: 0 };
       const state = {
@@ -551,7 +554,11 @@ export function memoryNearbyAir(o: { time: MemoryLinkClock; files?: MemoryFiles;
             return new Promise<NearbyLink>((resolve, reject) => { waiting.push({ resolve, reject }); });
           };
           groups.set(ssid, { kind, offer, settle });
-          if (state.knobs.strangerFirst?.includes(kind)) offer(memoryNearbyPair({ ...pairOptions, kind, canMoveFiles: true }).a);
+          if (state.knobs.strangerFirst?.includes(kind)) {
+            const stranger = memoryNearbyPair({ ...pairOptions, kind, canMoveFiles: true });
+            strangers.push({ kind, pair: stranger });
+            offer(stranger.a);
+          }
           const link = next();
           link.catch(() => undefined);
           const takeDown = async () => {
