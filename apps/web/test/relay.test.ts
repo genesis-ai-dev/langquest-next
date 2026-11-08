@@ -1,12 +1,14 @@
 import { createPrivateKey, createPublicKey, sign as nodeSign } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { encodeHlc, type AnyEvent } from '@langquest-next/core';
-import { base64urlEncode, eventDigest, linkText, manifestText, nearbyBytes, type WorkerLink } from '@langquest-next/core/nearby';
+import { base64urlEncode, eventDigest, linkText, manifestText, nearbyBytes, type InviteLink, type WorkerLink } from '@langquest-next/core/nearby';
 import { handleApi, type ApiDeps } from '../worker/api';
 import type { RpcAnswer } from '../worker/nearby';
 import { subtleSha256, subtleVerify } from '../worker/nearbyKeys';
 import { handleRelay, RELAY_PATH, type RelayDeps } from '../worker/relay';
 import { routeClass } from '../worker/requestTally';
+import type { AccountDeps } from '../worker/nearbyJoin';
+import { CHAIN, NEWCOMER_ID, PUBLIC_KEY } from '../../../packages/core/test/nearbyVectors';
 
 /**
  * Delivery through a teammate, at the Worker (docs/nearby-sync-plan.md section 6), with real
@@ -119,8 +121,8 @@ describe('POST /api/relay', () => {
       [await batchOf(sam, 1, events, { signer: ana.seed }), 'bad signature'],
       [await batchOf(sam, 2, events, { chain: forged.chain }), 'the chain names someone else'],
       [await batchOf(sam, 3, events, { chain: [unknownRoot] }), 'chain: unknown certificate key'],
-      // One link only: a newcomer's chain waits for joining offline (phase 6).
-      [await batchOf(sam, 4, events, { chain: [...sam.chain, sam.chain[0]] }), 'chain: too many links'],
+      // A second link must be a newcomer's invite link.
+      [await batchOf(sam, 4, events, { chain: [...sam.chain, sam.chain[0]] }), 'chain: link out of order'],
       [{ ...(await batchOf(sam, 5, events)), manifest: '{"v":1}' }, 'bad manifest'],
       ['not a batch', 'not a batch']
     ] as const;
@@ -221,5 +223,63 @@ describe('POST /api/relay', () => {
     expect((await handleApi(post(relayBody([batch])), { ...base, relay: deps })).status).toBe(200);
     expect((await handleApi(post(relayBody([batch])), base)).status).toBe(503);
     expect(routeClass('POST', RELAY_PATH)).toBe('nearby');
+  });
+
+  describe('a newcomer with no account yet (section 6)', () => {
+    // Core's golden chain: the inviter let in the newcomer (a seed of 0x01) under a pass the root signed.
+    const golden = CHAIN[1] as InviteLink;
+    const newcomer: Author = { seed: '01'.repeat(32), key: PUBLIC_KEY, profileId: NEWCOMER_ID, deviceId: golden.body.deviceId, chain: CHAIN as WorkerLink[] };
+    const at = (a: Author) => ({ ...note(a), streamId: 'lang1' } as AnyEvent);
+    const batchIn = async (events: AnyEvent[]) => {
+      const manifest = manifestText({
+        v: 1, orgId: 'org1', streamId: 'lang1', key: newcomer.key, deviceId: newcomer.deviceId, actorId: newcomer.profileId, n: 1, floor: 0,
+        events: await Promise.all(events.map(async (e) => [e.id, await eventDigest(e, subtleSha256)] as [string, string]))
+      });
+      return { manifest, sig: signWith(newcomer.seed, nearbyBytes('batch', manifest)), chain: CHAIN, events };
+    };
+    const accounts = (state: Record<string, unknown> | { error: RpcAnswer['error'] }, calls: string[]): Omit<AccountDeps, 'rootKeys' | 'verify' | 'sha256'> => ({
+      state: async () => { calls.push('state'); return 'error' in state ? { data: null, error: state.error } : { data: state, error: null }; },
+      finish: async (a) => { calls.push('finish'); return { data: { orgId: a.pass.orgId, email: 'ye-1@people.langquest.org', signIn: true }, error: null }; },
+      preview: async () => { calls.push('preview'); return { data: null, error: null }; },
+      createUser: async (a) => { calls.push(`createUser ${a.id} ${a.chainKey}`); return { error: null }; },
+      random: () => 0.5
+    });
+
+    it('makes the account as the join route does, then appends the batch as the newcomer', async () => {
+      const calls: string[] = [];
+      const events = [at(newcomer), at(newcomer)];
+      const { deps, w } = setup({ accounts: accounts({ state: 'new', redeemed: false, member: false, keyed: false, refusal: null }, calls) });
+      const out = await (await handleRelay(post(relayBody([await batchIn(events)], { streamId: 'lang1' })), deps)).json() as Answer;
+      expect(calls).toEqual(['state', `createUser ${NEWCOMER_ID} ${PUBLIC_KEY}`, 'finish']);
+      expect(w.calls).toEqual([{ author: NEWCOMER_ID, key: PUBLIC_KEY, ids: events.map((e) => e.id), clientVersion: 7 }]);
+      expect(out.batches[0]!.verdicts!.every((v) => v.accepted)).toBe(true);
+    });
+
+    it('makes no account when the pass no longer takes them, and answers each event as not a member, for Try again', async () => {
+      const calls: string[] = [];
+      const events = [at(newcomer), at(newcomer)];
+      const { deps, w } = setup({ accounts: accounts({ state: 'new', redeemed: false, member: false, keyed: false, refusal: 'pass expired' }, calls) });
+      const out = await (await handleRelay(post(relayBody([await batchIn(events)], { streamId: 'lang1' })), deps)).json() as Answer;
+      expect(calls).toEqual(['state']);
+      expect(w.calls).toEqual([]);
+      expect(out.batches[0]!.verdicts).toEqual(events.map((e) => ({ id: e.id, accepted: false, serverSeq: null, reason: 'not a member: pass expired' })));
+    });
+
+    it('appends at once for an account its key reaches with a key row and a membership', async () => {
+      const calls: string[] = [];
+      const { deps, w } = setup({ accounts: accounts({ state: 'mine', redeemed: true, member: true, keyed: true, refusal: null }, calls) });
+      await handleRelay(post(relayBody([await batchIn([at(newcomer)])], { streamId: 'lang1' })), deps);
+      expect(calls).toEqual(['state']);
+      expect(w.calls).toHaveLength(1);
+    });
+
+    it('refuses the batch whole, keeping it on the phone, when the database cannot say or joining is not set up', async () => {
+      for (const over of [{ accounts: accounts({ error: { code: 'PGRST202', message: 'no function' } }, []) }, {}]) {
+        const { deps, w } = setup(over);
+        const out = await (await handleRelay(post(relayBody([await batchIn([at(newcomer)])], { streamId: 'lang1' })), deps)).json() as Answer;
+        expect(out.batches[0]).toEqual({ key: PUBLIC_KEY, n: 1, refused: 'not yet: the server could not check this newcomer' });
+        expect(w.calls).toEqual([]);
+      }
+    });
   });
 });

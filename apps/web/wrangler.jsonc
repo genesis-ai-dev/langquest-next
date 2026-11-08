@@ -102,7 +102,9 @@
     // Review links (agent/links.ts): a whole WhatsApp group may share one address.
     { "name": "LINK_RATE_LIMIT", "namespace_id": "7003", "simple": { "limit": 300, "period": 60 } },
     // Nearby certificates (worker/nearby.ts), per person: a phone asks about once a day.
-    { "name": "NEARBY_RATE_LIMIT", "namespace_id": "7005", "simple": { "limit": 10, "period": 60 } }
+    { "name": "NEARBY_RATE_LIMIT", "namespace_id": "7005", "simple": { "limit": 10, "period": 60 } },
+    // A newcomer's first contact (worker/nearbyJoin.ts), per address, signed out: a town's phones may share one.
+    { "name": "JOIN_RATE_LIMIT", "namespace_id": "7007", "simple": { "limit": 20, "period": 60 } }
   ],
   // The preview stack (docs/environments.md): langquest-next-preview,
   // deployed from develop. Vars, secrets and bindings are not inherited, so
@@ -129,7 +131,8 @@
       "ratelimits": [
         { "name": "DEVICE_RATE_LIMIT", "namespace_id": "7002", "simple": { "limit": 20, "period": 60 } },
         { "name": "LINK_RATE_LIMIT", "namespace_id": "7004", "simple": { "limit": 300, "period": 60 } },
-        { "name": "NEARBY_RATE_LIMIT", "namespace_id": "7006", "simple": { "limit": 10, "period": 60 } }
+        { "name": "NEARBY_RATE_LIMIT", "namespace_id": "7006", "simple": { "limit": 10, "period": 60 } },
+        { "name": "JOIN_RATE_LIMIT", "namespace_id": "7008", "simple": { "limit": 20, "period": 60 } }
       ]
     }
   }

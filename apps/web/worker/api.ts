@@ -11,6 +11,7 @@ import { handleLanguoids, type LanguoidDeps } from './languoids';
 import { handleAgentApi, type AgentDeps } from './agent/http';
 import { handleNearby, isNearbyPath, type NearbyDeps } from './nearby';
 import { handleRelay, RELAY_PATH, type RelayDeps } from './relay';
+import { handleJoin, JOIN_PATH, type JoinDeps } from './nearbyJoin';
 
 export interface ApiDeps {
   /** The profile a Supabase access token belongs to, or null when it is not valid. */
@@ -45,6 +46,8 @@ export interface ApiDeps {
   nearby?: NearbyDeps;
   /** Delivery of teammates' signed work (`/api/relay`, relay.ts); without it the route answers 503. */
   relay?: RelayDeps;
+  /** A newcomer's first contact (`/api/nearby/join`, nearbyJoin.ts); without it the route answers 503. */
+  join?: JoinDeps;
 }
 
 const NO_STORE = { 'cache-control': 'private, no-store' };
@@ -109,6 +112,7 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
   if (url.pathname === REVIEW_PATH) return deps.tutorialReview ? handleTutorialReview(request, deps.tutorialReview) : json(503, { error: 'The tutorial review is not set up here.' });
   if (url.pathname === USER_ISSUES_PATH) return deps.userIssues ? handleUserIssues(request, deps.userIssues) : json(503, { error: 'The watch for user issues is not set up here.' });
   if (url.pathname === FILMED_PATH) return deps.tutorialFilmed ? handleTutorialFilmed(request, deps.tutorialFilmed) : json(503, { error: 'The tutorial intake is not set up here.' });
+  if (url.pathname === JOIN_PATH) return deps.join ? handleJoin(request, deps.join) : json(503, { error: 'Nearby sync is not set up here yet.' });
   if (isNearbyPath(url.pathname)) return deps.nearby ? handleNearby(request, deps.nearby) : json(503, { error: 'Nearby sync is not set up here yet.' });
   if (url.pathname === RELAY_PATH) return deps.relay ? handleRelay(request, deps.relay) : json(503, { error: 'Nearby sync is not set up here yet.' });
   if (url.pathname === '/api/languoids') {

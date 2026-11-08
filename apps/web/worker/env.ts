@@ -20,6 +20,8 @@ export interface Env {
   LINK_RATE_LIMIT?: RateLimit;
   /** Per-person limit on nearby certificates (nearby.ts), a minute at a time. */
   NEARBY_RATE_LIMIT?: RateLimit;
+  /** Per-address limit on a newcomer's first contact (nearbyJoin.ts), which anyone may call signed out. */
+  JOIN_RATE_LIMIT?: RateLimit;
   SUPABASE_URL: string;
   /**
    * Where the job container reaches the database when that differs from the

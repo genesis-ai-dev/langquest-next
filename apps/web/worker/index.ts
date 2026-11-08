@@ -22,6 +22,7 @@ import { pokeInBatches } from './batches';
 import { handleDownload, handleWatch } from './tutorialVideos';
 import { githubOidc } from './githubOidc';
 import { nearbySigner, parseCertKeys, subtleSha256, subtleVerify, type NearbySigner } from './nearbyKeys';
+import type { AccountDeps } from './nearbyJoin';
 
 export { OrgSnapshot } from './orgSnapshot';
 export { JobRunner } from './jobs';
@@ -87,6 +88,32 @@ let nearbySignerCached: Promise<NearbySigner | null> | null = null;
 let nearbyCallerCached: ((token: string) => Promise<Identity | null>) | null = null;
 /** The public keys phones trust, read once per isolate: a batch's chain is checked against them (relay.ts). */
 let nearbyRootKeysCached: Map<string, string> | null = null;
+
+/** Never shown or stored anywhere, as `join` makes one: a newcomer signs in by key, then by a helper's code. */
+function randomPassword(): string {
+  return [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** A newcomer's account in the database and Auth (nearbyJoin.ts), for the join route and the relay alike. */
+function newcomerAccounts(env: Env): Omit<AccountDeps, 'rootKeys' | 'verify' | 'sha256'> {
+  return {
+    state: async ({ profileId, key, salt, pass, roleId }) => await serviceClient(env).rpc('nearby_join_state', {
+      p_profile: profileId, p_key: key, p_salt: salt, p_pass: pass, p_role: roleId
+    }),
+    finish: async ({ profileId, key, salt, deviceId, name, pass, roleId, token }) => await serviceClient(env).rpc('nearby_join_finish', {
+      p_profile: profileId, p_key: key, p_salt: salt, p_install: deviceId, p_name: name, p_pass: pass, p_role: roleId, p_token: token ?? null
+    }),
+    preview: async (token) => await serviceClient(env).rpc('preview_invite', { p_token: token }),
+    // `managed` makes it a looked-after account to the server, and `chain_key` says which key reaches it; only the service role writes app_metadata.
+    createUser: async ({ id, email, chainKey }) => {
+      const made = await serviceClient(env).auth.admin.createUser({
+        id, email, password: randomPassword(), email_confirm: true, user_metadata: { has_password: false }, app_metadata: { managed: true, chain_key: chainKey }
+      });
+      return { error: made.error ? { message: made.error.message } : null };
+    },
+    random: () => crypto.getRandomValues(new Uint32Array(1))[0]! / 2 ** 32
+  };
+}
 
 /** The app's Worker: `/api/*` here, everything else is the built page. */
 export default {
@@ -376,8 +403,28 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
       verify: subtleVerify,
       sha256: subtleSha256
     },
+    // A newcomer's first contact (nearbyJoin.ts, docs/nearby-sync-plan.md 14.1), and the account the relay shares with it.
+    join: {
+      ...newcomerAccounts(env),
+      rootKeys: () => (nearbyRootKeysCached ??= parseCertKeys(env.NEARBY_CERT_KEYS)),
+      allowed: async (address) => !env.JOIN_RATE_LIMIT || (await env.JOIN_RATE_LIMIT.limit({ key: address })).success,
+      // Supabase's own one-time sign-in token, made and used here and never sent anywhere (supabase/functions/_shared/session.ts).
+      signIn: async (email) => {
+        if (!env.SUPABASE_ANON_KEY) throw new Error('SUPABASE_ANON_KEY is not set');
+        const link = await serviceClient(env).auth.admin.generateLink({ type: 'magiclink', email });
+        const tokenHash = link.data?.properties?.hashed_token;
+        if (link.error || !tokenHash) throw new Error(link.error?.message ?? 'no sign-in token');
+        const anon = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+        const { data, error } = await anon.auth.verifyOtp({ token_hash: tokenHash, type: 'magiclink' });
+        if (error || !data.session) throw new Error(error?.message ?? 'no session');
+        return { access_token: data.session.access_token, refresh_token: data.session.refresh_token };
+      },
+      verify: subtleVerify,
+      sha256: subtleSha256
+    },
     // Teammates' signed work, delivered by whichever phone reaches the server (relay.ts, docs/nearby-sync-plan.md section 6).
     relay: {
+      accounts: newcomerAccounts(env),
       rootKeys: () => (nearbyRootKeysCached ??= parseCertKeys(env.NEARBY_CERT_KEYS)),
       profileOf,
       mayRead: async (orgId, streamId, profileId) => await serviceClient(env).rpc('can_read_stream', { p_org: orgId, p_stream: streamId, p_profile: profileId }),
