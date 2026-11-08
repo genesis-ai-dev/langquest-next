@@ -1,13 +1,16 @@
 import { defaultOfflineScope, filePlanOf, privilegesOfFixedRole, type AnyEvent, type LanguageState, type Role } from '@langquest-next/core';
 import {
-  base64urlEncode, copiesOf, NEARBY_BUDGET, summaryOf, summaryText, utf8Encode, wantedFilesOf, type ChainLink, type Holdings, type NearbyPeople, type WantedFile
+  base64urlEncode, copiesOf, joinPassBody, NEARBY_BUDGET, passRoles, summaryOf, summaryText, utf8Encode, wantedFilesOf, type ChainLink, type Holdings, type NearbyPeople, type WantedFile, type WorkerLink
 } from '@langquest-next/core/nearby';
+import type { NearbyCopySource, StartingCopyTarget } from '../../nearbyCopy';
+import type { FillRows } from '../../keptFill';
 import type { NearbyPage, NearbySigner } from '../../nearbyIntake';
+import type { StartingCopy } from '../../types';
 import { nearbyKeepOf, type NearbyKeep } from '../../nearbyKeep';
 import type { FindTunables, NearbyCrypto, NearbyLink, NearbyRadio } from '../../nearbyLink';
 import { NearbyRoom, type NearbyRoomEvent, type NearbyRoomFacts, type NearbyRoomKeys } from '../../nearbyRoom';
 import { NearbySession, type NearbyFileMoves, type NearbyGenerations, type NearbySessionPort, type NearbySessionReport } from '../../nearbySession';
-import { fakeSha256, fakeSigner, fakeWorker, memoryNearbyAir, type FakeWorker, type MemoryFiles, type MemoryNearbyAir, type MemoryNearbyRadio } from '../memoryNearbyLink';
+import { fakeSha256, fakeSigner, fakeWorker, memoryNearbyAir, memoryNearbyPair, type FakeWorker, type MemoryFiles, type MemoryNearbyAir, type MemoryNearbyRadio } from '../memoryNearbyLink';
 import { LinkPipe, type NetworkShape } from '../shapedTransport';
 import type { VirtualTime } from '../virtualTime';
 import type { SimDevice } from './device';
@@ -150,6 +153,85 @@ export class FleetNearby {
     };
     phone.files = this.fileMoves(phone);
     this.phones.set(device, phone);
+  }
+
+  /** A newcomer's phone, with the chain its join granted, as `enrol` gives anyone else theirs (phase 6). */
+  enrolWith(device: SimDevice, crypto: NearbyCrypto, chain: ChainLink[]): void {
+    const phone: NearbyPhone = {
+      device, crypto, chain,
+      signer: { publicKey: crypto.publicKey, sign: crypto.sign, sha256: crypto.sha256, chainFor: (actorId) => (actorId === device.actorId ? chain : null) },
+      keep: nearbyKeepOf({ nearbyMeta: (k) => device.client.nearbyMeta(k), writeNearbyMeta: (r) => device.client.writeNearbyMeta(r) }, { orgId: this.ctx.orgId, streamId: this.ctx.streamId }),
+      files: null as unknown as NearbyFileMoves,
+      radio: this.air.radio(device.id),
+      pipe: new LinkPipe(),
+      keys: { gen: 1, key: DISCOVERY, floor: 1, direct: false, certOrgSeq: 0 },
+      room: null,
+      events: [],
+      sessions: 0
+    };
+    phone.files = this.fileMoves(phone);
+    this.phones.set(device, phone);
+  }
+
+  /**
+   * Let someone in (docs/nearby-sync-plan.md 14.1, 3 and 4): the inviter's phone and a phone
+   * with nobody on it meet over a link a QR code started, the inviter taps once, and the starting
+   * copy follows on the same link, as the app's own `NearbySession` does it. The inviter's
+   * certificate holds Invite, as a language lead's would. `forge` changes the copy on its way, as
+   * a lying teammate would. Answers both reports and how long it took, in simulated ms.
+   */
+  async letIn(inviter: SimDevice, newcomer: SimDevice, o: { crypto: NearbyCrypto; idSalt: string; name: string; roleId: string; forge?: (copy: StartingCopy) => StartingCopy }): Promise<{ inviter: NearbySessionReport; newcomer: NearbySessionReport; ms: number }> {
+    const { time } = this.ctx;
+    await this.enrol(inviter);
+    const host = this.phones.get(inviter)!;
+    const held = new Set([...privilegesOfFixedRole(this.ctx.roleOf(inviter.actorId)), 'invite_members' as const]);
+    const chain = await this.worker.certify({ installKey: host.crypto.publicKey, profileId: inviter.actorId, deviceId: inviter.deviceId }, { orgId: this.ctx.orgId, privileges: [...held] });
+    const roles = passRoles([{ roleId: o.roleId, privileges: [...privilegesOfFixedRole(this.ctx.roleOf(newcomer.actorId))] }], held);
+    const body = await joinPassBody({ orgId: this.ctx.orgId, languageId: this.ctx.streamId, inviter: inviter.actorId, inviterKey: host.crypto.publicKey, roles, nowMs: time.now() }, fakeSha256);
+    if (!body) throw new Error('no role this inviter could grant');
+    const pass = await this.worker.signPass(body);
+    const pair = memoryNearbyPair({ time, kind: 'wifi-direct', files: this.shelf });
+    const random = fakeSigner(`qr:${newcomer.id}`).randomBytes;
+    const opening = { kSess: random(32), salt: random(6), kFind: random(32) };
+    const language = inviter.client;
+    const copy: NearbyCopySource = {
+      language: { startingCopy: async () => { const c = await language.startingCopy(); return c && o.forge ? o.forge(structuredClone(c)) : c; }, startingCopyRows: (u) => language.startingCopyRows(u) }
+    };
+    const client = () => newcomer.client;
+    const target: Omit<StartingCopyTarget, 'sha256'> = {
+      languageId: this.ctx.streamId, org: null,
+      language: {
+        keptOnDisk: newcomer.keepsOnDisk, holdsCopy: () => client().holdsCopy(), adoptStartingCopy: (c) => client().adoptStartingCopy(c), state: () => client().getState(),
+        ...(newcomer.keepsOnDisk ? { fillFromCopy: (rows: FillRows) => client().fillFromCopy(rows) } : {})
+      }
+    };
+    const started = time.now();
+    let granted: ChainLink[] | null = null;
+    const session = (role: 'i' | 'r', device: SimDevice, crypto: NearbyCrypto, more: Partial<ConstructorParameters<typeof NearbySession>[0]>) => new NearbySession({
+      role, link: role === 'i' ? this.shapedLink(pair.a, new LinkPipe()) : this.shapedLink(pair.b, host.pipe), crypto, orgId: this.ctx.orgId, languageId: this.ctx.streamId,
+      deviceId: device.deviceId, chain: [], signer: { publicKey: crypto.publicKey, sign: crypto.sign, sha256: crypto.sha256, chainFor: () => null },
+      rootKeys: this.worker.rootKeys, gate: { people: () => this.people }, port: this.port(device),
+      keep: nearbyKeepOf({ nearbyMeta: (k) => device.client.nearbyMeta(k), writeNearbyMeta: (r) => device.client.writeNearbyMeta(r) }, { orgId: this.ctx.orgId, streamId: this.ctx.streamId }),
+      opening, time, ...more
+    });
+    const work = Promise.all([
+      session('i', newcomer, o.crypto, {
+        join: {
+          as: 'newcomer', idSalt: o.idSalt, profileId: newcomer.actorId, name: o.name, target,
+          granted: async (g) => { granted = g.chain; this.enrolWith(newcomer, o.crypto, g.chain); }
+        }
+      }).run(),
+      session('r', inviter, host.crypto, {
+        chain, copy,
+        join: { as: 'inviter', pass, discovery: { key: DISCOVERY, gen: 1, floor: 1 }, tap: async () => o.roleId }
+      }).run()
+    ]);
+    let done = false;
+    void work.finally(() => { done = true; });
+    while (!done) await time.runFor(500);
+    const [mine, theirs] = await work;
+    if (!granted) throw new Error(`not let in: ${JSON.stringify(mine.ended)} ${JSON.stringify(theirs.ended)}`);
+    return { inviter: theirs, newcomer: mine, ms: time.now() - started };
   }
 
   /** These people open Share nearby in one place. Each keeps it open until `leave`. */

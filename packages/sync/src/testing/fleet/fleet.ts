@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto';
 import { CLOCK_AHEAD_TOLERANCE_MS, decodeHlc, emptyLanguageState, foldLanguage, isHlc, type AnyEvent, type Role } from '@langquest-next/core';
 import { SNAPSHOT_SCHEDULE } from '../../snapshotWorker';
 import { FakeServer } from '../fakeServer';
-import { fakeSha256 } from '../memoryNearbyLink';
+import { fakeSha256, fakeSigner } from '../memoryNearbyLink';
+import { base64urlEncode, newcomerProfileId } from '@langquest-next/core/nearby';
 import { seededRandom, type Random } from '../random';
 import { VirtualTime } from '../virtualTime';
 import { OFFICE_HOURS, SimDevice, type FleetContext, type WorkPattern } from './device';
@@ -143,9 +144,29 @@ export class Fleet {
 
   private roles: Map<string, Role> | null = null;
 
-  private add(id: string, actorId: string, persona: Persona, work: WorkPattern, link: Link): void {
+  private add(id: string, actorId: string, persona: Persona, work: WorkPattern, link: Link, index = this.devices.length): SimDevice {
     this.roles?.set(actorId, persona.role);
-    this.devices.push(new SimDevice(id, actorId, persona, work, link, this.context, this.random.fork(`device:${id}`), this.devices.length));
+    const device = new SimDevice(id, actorId, persona, work, link, this.context, this.random.fork(`device:${id}`), index);
+    this.devices.push(device);
+    return device;
+  }
+
+  /**
+   * A new person's phone with nobody on it (docs/nearby-sync-plan.md 14.1, phase 6): a new install
+   * key and salt, an id that follows from them, a translator's work, and no server until its link
+   * says so. Installed, with nothing to work on until a starting copy arrives (`FleetNearby.letIn`).
+   * `kept` puts it where the fleet keeps the language on disk, or not.
+   */
+  async addNewcomer(id: string, link: Link, o: { kept: boolean }): Promise<{ device: SimDevice; crypto: ReturnType<typeof fakeSigner>; idSalt: string }> {
+    const crypto = fakeSigner(`fleet:${id}`);
+    const idSalt = base64urlEncode(fakeSha256(new TextEncoder().encode(`salt:${id}`)).slice(0, 16));
+    const actorId = (await newcomerProfileId(crypto.publicKey, idSalt, fakeSha256))!;
+    let index = this.devices.length;
+    if (this.context.keepsOnDisk(index) !== o.kept) index += 1;
+    const translators = this.options.crew.translators;
+    const device = this.add(id, actorId, translator({ actorId, index: translators, of: translators + 1, random: this.random.fork(`t:${id}`) }), this.options.crew.work ?? OFFICE_HOURS, link, index);
+    await device.install();
+    return { device, crypto, idSalt };
   }
 
   /** Install every app; the coordinator sets the language up at once. */
