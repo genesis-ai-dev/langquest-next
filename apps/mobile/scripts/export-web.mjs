@@ -116,7 +116,11 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // (LAN-125 to LAN-144, 2026-11-02) took it 2 KB past 4.85 MB: they too are
 // screens' code (a Bible pane that follows the voice, hints, New cluster, a
 // third way to join), and a first visit stays under its own budget.
-const TOTAL_BUDGET_BYTES = 4.9 * 1024 * 1024;
+// Raised to 4.92 MB with Share nearby (Carl, 2026-11-07), 4.92 MB then (4.90
+// MB before): 13 KB is its screen's chunk, which the web never opens but the
+// screen map names, and the rest its English words and the Sync and History
+// lines; its radios, cover and per-phone code stay in .android files.
+const TOTAL_BUDGET_BYTES = 4.92 * 1024 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -126,7 +130,11 @@ const TOTAL_BUDGET_BYTES = 4.9 * 1024 * 1024;
 // about 2 KB left, and what every client must carry stayed after the rest moved
 // behind the Android-only nearby entries: the checkpoint gates, the pull's
 // comparison, the stores' nearby tables and ids that name their author.
-const FIRST_VISIT_BUDGET_BYTES = 3.93 * 1024 * 1024;
+// Raised to 3.94 MB with Share nearby (Carl, 2026-11-07), 3.93 MB then (3.92
+// MB before): 6 KB is its English words in the catalog every visit carries,
+// and the rest the stubs the web takes in their place (the Sync row, the
+// History line) and its flow edges; the screen loads when opened.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
