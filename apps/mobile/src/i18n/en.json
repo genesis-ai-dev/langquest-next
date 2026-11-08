@@ -3224,7 +3224,9 @@
       "signInFailed": "Your new password is set. Sign in with it.",
       "changedTitle": "Password changed",
       "changedBody": "{{email}} signs in with the new password from now on.",
-      "doneHelp": "Back to your home page."
+      "doneHelp": "Back to your home page.",
+      "lost": "A phone of mine was lost or taken",
+      "lostSub": "Teammates' phones stop trusting that phone's work dated after now, and your other phones need a new sign-in to share nearby."
     }
   },
   "account": {
@@ -3402,6 +3404,8 @@
       "blockedCount_other": "{{count, number}} people",
       "deleteAccount": "Delete account",
       "deleteSub": "Your account and your name, for good",
+      "lostPhoneSub": "Emails you a link to choose a new password and stop trusting that phone",
+      "lostPhoneSent": "Link sent to {{email}}. Open it, choose a new password and turn on “A phone of mine was lost or taken”.",
       "testing": "Testing",
       "personaSub": "Sign in as a demo translator, reviewer or admin",
       "syncHelp": "Shows what waits to send or download. A number means changes waiting to send.",

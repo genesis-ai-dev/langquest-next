@@ -156,11 +156,11 @@ export type ResetResult = { kind: 'done' } | { kind: 'changed'; email: string } 
  * new password ended the old one); signed in as someone else
  * (`signedInAs`), their sign-in stays and only the password changes. The
  * phone remembers the new password for signing back in offline (decisions.md
- * 168).
+ * 168). `lost` is "A phone of mine was lost or taken" (decisions.md 200).
  */
-export async function resetPassword(code: string, password: string, signedInAs: string | null, host: AuthHost): Promise<ResetResult> {
+export async function resetPassword(code: string, password: string, signedInAs: string | null, host: AuthHost, lost = false): Promise<ResetResult> {
   try {
-    const done = await chooseNewPassword(code, password);
+    const done = await chooseNewPassword(code, password, lost);
     if (signedInAs && done.userId !== signedInAs) return { kind: 'changed', email: done.email };
     const { data, error } = done.session ? await setSession(done.session) : await signInWithPassword(done.email, password);
     if (error) {

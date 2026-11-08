@@ -3325,7 +3325,9 @@
       "signInFailed": "A sua nova senha já está pronta. Entre com ela.",
       "changedTitle": "Senha mudada",
       "changedBody": "De agora em diante, {{email}} entra com a nova senha.",
-      "doneHelp": "Volta para a sua tela inicial."
+      "doneHelp": "Volta para a sua tela inicial.",
+      "lost": "Um celular meu foi perdido ou levado",
+      "lostSub": "Os celulares dos colegas de equipe deixam de confiar no trabalho desse celular com data depois de agora, e seus outros celulares precisam entrar de novo para compartilhar por perto."
     }
   },
   "account": {
@@ -3506,6 +3508,8 @@
       "blockedCount_other": "{{count, number}} pessoas",
       "deleteAccount": "Excluir conta",
       "deleteSub": "A sua conta e o seu nome, para sempre",
+      "lostPhoneSub": "Envia por e-mail um link para escolher uma senha nova e deixar de confiar nesse celular",
+      "lostPhoneSent": "Link enviado para {{email}}. Abra-o, escolha uma senha nova e ative “Um celular meu foi perdido ou levado”.",
       "testing": "Testes",
       "personaSub": "Entrar como tradutor, revisor ou administrador de demonstração",
       "syncHelp": "Mostra o que espera para enviar ou baixar. Um número quer dizer mudanças esperando para enviar.",

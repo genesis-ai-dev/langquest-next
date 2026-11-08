@@ -3123,7 +3123,9 @@
       "signInFailed": "你的新密码已设置好。请用它登录。",
       "changedTitle": "密码已修改",
       "changedBody": "从现在起，{{email}} 用新密码登录。",
-      "doneHelp": "回到你的主页。"
+      "doneHelp": "回到你的主页。",
+      "lost": "我的一部手机丢了或被拿走了",
+      "lostSub": "队友的手机将不再信任那部手机上时间晚于现在的工作，你的其他手机需要重新登录才能附近共享。"
     }
   },
   "account": {
@@ -3298,6 +3300,8 @@
       "blockedCount_other": "{{count, number}} 人",
       "deleteAccount": "删除账号",
       "deleteSub": "永久删除你的账号和名字",
+      "lostPhoneSub": "通过邮件发送链接，用来设置新密码并不再信任那部手机",
+      "lostPhoneSent": "链接已发送到 {{email}}。打开它，设置新密码，并打开“我的一部手机丢了或被拿走了”。",
       "testing": "测试",
       "personaSub": "以演示用的译者、审核人或管理员身份登录",
       "syncHelp": "显示等待发送或下载的内容。数字表示有等待发送的更改。",

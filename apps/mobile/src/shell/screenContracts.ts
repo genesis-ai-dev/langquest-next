@@ -30,6 +30,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   request_access: { rpcs:['create_join_request','listed_organizations','listed_organizations_search'] },
   scan_qr: { emits:['v1.TermsAccepted'],rpcs:['preview_invite','redeem_invite_v2','my_organizations','record_user_event'] },
   // Forgot password goes through the password-reset Edge Function only (decision 200); a new password signs in and accepts the terms.
+  // "A phone of mine was lost or taken" is `lost` on that same call, which revokes the person's nearby keys first.
   new_password: { emits:['v1.TermsAccepted'],rpcs:['record_user_event'] },
   explore_home: { reads:['public_languages'] },
   // People asking to join show under a coordinator's Get ready card (decision 71).
@@ -132,7 +133,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // A Global Viewer's tab (decision 158): their access, and every organization.
   global_viewer: { rpcs:['get_user_state','global_viewer_organizations'] },
   settings_home: { reads:['offlineSummary'],rpcs:['my_organizations'] },
-  // What Settings had beyond Me's five rows (decision 71).
+  // What Settings had beyond Me's five rows (decision 71). Its lost-phone row asks password-reset for a link, no RPC (decision 200).
   settings_more: { rpcs:['register_push_token','set_blocked','my_organizations'],reads:['user_blocks'] },
   sign_out_confirm: { rpcs:['unregister_push_token'] },
   // Share nearby (docs/nearby-sync-plan.md 5.8): no event, no call; it reads who is on the language for Ready to carry.

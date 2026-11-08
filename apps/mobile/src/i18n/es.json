@@ -3325,7 +3325,9 @@
       "signInFailed": "Tu contraseña nueva ya está puesta. Inicia sesión con ella.",
       "changedTitle": "Contraseña cambiada",
       "changedBody": "De ahora en adelante, {{email}} inicia sesión con la contraseña nueva.",
-      "doneHelp": "Vuelve a tu pantalla de inicio."
+      "doneHelp": "Vuelve a tu pantalla de inicio.",
+      "lost": "Perdí un teléfono mío o me lo quitaron",
+      "lostSub": "Los teléfonos de tus compañeros dejan de confiar en el trabajo de ese teléfono con fecha posterior a ahora, y tus otros teléfonos necesitan iniciar sesión de nuevo para compartir cerca."
     }
   },
   "account": {
@@ -3506,6 +3508,8 @@
       "blockedCount_other": "{{count, number}} personas",
       "deleteAccount": "Eliminar cuenta",
       "deleteSub": "Tu cuenta y tu nombre, para siempre",
+      "lostPhoneSub": "Te envía por correo un enlace para elegir una contraseña nueva y dejar de confiar en ese teléfono",
+      "lostPhoneSent": "Enlace enviado a {{email}}. Ábrelo, elige una contraseña nueva y activa “Perdí un teléfono mío o me lo quitaron”.",
       "testing": "Pruebas",
       "personaSub": "Iniciar sesión como traductor, revisor o administrador de prueba",
       "syncHelp": "Muestra lo que espera para enviarse o descargarse. Un número indica cambios esperando para enviarse.",

@@ -10769,6 +10769,18 @@ settings row that sends the link are not built yet, and need their words in
 every app language and the demo's look. Caleb should see this, since 200 is
 his entry.
 
+Amended (2026-11-08, Carl Sauder): the choice and the row are now built.
+New password has "A phone of mine was lost or taken" as a switch row, off
+unless turned on, whose line says teammates' phones stop trusting that
+phone's work dated after now and the person's other phones need a new
+sign-in to share nearby; turned on, the call sends `lost: true`, and off it
+sends what builds before it sent (`newPasswordBody` in `auth/model.ts`).
+More settings has a row of the same name for an account with its own email,
+which only emails the Forgot password link, with no confirm since a link
+changes nothing until it is used. Both are in all 16 app languages, the 15
+others machine-translated. They show on every platform, since the person
+may reset from a computer or an iPhone for a lost Android phone.
+
 ## 201. A browser keeps a source's audio by asking the Worker for it, which passes the bytes on and keeps nothing
 
 Date: 2026-11-03 · By: Caleb Koster · Status: accepted

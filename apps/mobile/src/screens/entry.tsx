@@ -293,11 +293,14 @@ export function ForgotPassword(ctx: Ctx) {
  * already as that account, the phone stays signed in with the new password;
  * as someone else, their sign-in is left alone and only the password
  * changes. Setting it signs the account's other phones out (Supabase Auth);
- * their unsent work waits there until they sign in again.
+ * their unsent work waits there until they sign in again. "A phone of mine
+ * was lost or taken", off unless turned on, first revokes the person's
+ * nearby keys (decisions.md 200, docs/nearby-sync-plan.md section 6).
  */
 export function NewPassword(ctx: Ctx) {
   const code = ctx.params['code'] ?? '';
   const [password, setPassword] = useState('');
+  const [lost, setLost] = useState(false);
   const [error, setError] = useState(() => /^[0-9a-f]{64}$/.test(code) ? '' : t('entry.newPassword.expired'));
   const [expired, setExpired] = useState(() => !/^[0-9a-f]{64}$/.test(code));
   const [busy, setBusy] = useState(false);
@@ -314,7 +317,7 @@ export function NewPassword(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
-      const result = await resetPassword(code, password, guest ? null : ctx.session.actorId, { acceptTerms: ctx.acceptTerms, toast: ctx.toast, isDev: ctx.isDev });
+      const result = await resetPassword(code, password, guest ? null : ctx.session.actorId, { acceptTerms: ctx.acceptTerms, toast: ctx.toast, isDev: ctx.isDev }, lost);
       if (result.kind === 'changed') setChangedFor(result.email);
       else if (result.kind === 'expired') { setExpired(true); setError(result.text); }
       else if (result.kind === 'error') setError(result.text);
@@ -339,6 +342,12 @@ export function NewPassword(ctx: Ctx) {
         secure autoCapitalize="none" help={t('entry.newPassword.fieldHelp')} onSubmit={() => { if (ready) void choose(); }} />
       {/* The placeholder that says so is gone once typing starts: say why the button stays off. */}
       {password.length > 0 && password.length < MIN_PASSWORD ? <Text style={txt.error}>{t('entry.createAccount.tooShort')}</Text> : null}
+      {!expired ? (
+        <Group>
+          <Row icon="phone" label={t('entry.newPassword.lost')} sub={t('entry.newPassword.lostSub')} role="switch" checked={lost} disabled={busy}
+            onPress={() => setLost((on) => !on)} last />
+        </Group>
+      ) : null}
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
       {expired ? (
         <GhostBtn label={t('entry.newPassword.newLink')} icon="send" help={t('entry.newPassword.newLinkHelp')} onPress={() => ctx.go('forgot_password')} />

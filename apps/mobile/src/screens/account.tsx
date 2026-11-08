@@ -12,6 +12,8 @@
 import { OrgName } from '../verified/VerifiedSeal';
 import { signInName } from '../auth/accounts';
 import { readHelp, type SignInHelp } from '../auth/signInHelp';
+import { lostPhoneRowShown } from '../auth/model';
+import { askResetLink } from '../auth/signInFlow';
 import { decodeHlc, languageName, unitTitle, type Update } from '@langquest-next/core';
 import * as Updates from 'expo-updates';
 import { useEffect, useMemo, useState } from 'react';
@@ -518,6 +520,8 @@ export function SettingsMore(ctx: Ctx) {
           <Row icon="block" label={t('account.more.blocked')} sub={t('account.more.blockedCount', { count: blocked })} help={t('account.more.blockedHelp')} onPress={() => setBlockedOpen(true)} last />
         ) : null}
       </Group>
+      {/* A lost or taken phone (decisions.md 200): the link's New password has the choice that revokes its nearby keys. */}
+      {lostPhoneRowShown(s) && s.email ? <Group><LostPhoneRow ctx={ctx} email={s.email} /></Group> : null}
       {/* Store rules, decisions.md 46: the store answers and the App Review notes say Settings → Delete account; it is here, under Me › More settings. */}
       <Group>
         <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('account.more.deleteAccount')} sub={t('account.more.deleteSub')}
@@ -534,6 +538,23 @@ export function SettingsMore(ctx: Ctx) {
       {blockedOpen ? <BlockedPeople ctx={ctx} onClose={() => setBlockedOpen(false)} /> : null}
     </Screen>
   );
+}
+
+/**
+ * "A phone of mine was lost or taken": only emails a Forgot password link,
+ * since the mailbox, not this session, is what may revoke the person's
+ * nearby keys (docs/nearby-sync-plan.md section 6). The choice is on New password.
+ */
+function LostPhoneRow(props: { ctx: Ctx; email: string }) {
+  const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle');
+  async function send() {
+    if (state === 'sending') return;
+    setState('sending');
+    const result = await askResetLink(props.email);
+    if (result.kind === 'error') { setState('idle'); props.ctx.toast(result.text, 'problem'); } else setState('sent');
+  }
+  const sub = state === 'sending' ? t('entry.forgot.sending') : state === 'sent' ? t('account.more.lostPhoneSent', { email: props.email }) : t('account.more.lostPhoneSub');
+  return <Row icon="phone" label={t('entry.newPassword.lost')} sub={sub} help={t('account.more.lostPhoneSub')} onPress={() => void send()} disabled={state === 'sending'} last />;
 }
 
 /**

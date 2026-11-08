@@ -3224,7 +3224,9 @@
       "signInFailed": "Nakatakda na ang iyong bagong password. Mag-sign in gamit ito.",
       "changedTitle": "Napalitan ang password",
       "changedBody": "Magsa-sign in ang {{email}} gamit ang bagong password mula ngayon.",
-      "doneHelp": "Pabalik sa iyong home page."
+      "doneHelp": "Pabalik sa iyong home page.",
+      "lost": "Nawala o kinuha ang isa kong telepono",
+      "lostSub": "Hindi na pagkakatiwalaan ng mga telepono ng mga kasamahan ang gawa ng teleponong iyon na may petsang lampas sa ngayon, at kailangang mag-sign in muli ng iba mo pang telepono para makapagbahagi sa malapit."
     }
   },
   "account": {
@@ -3402,6 +3404,8 @@
       "blockedCount_other": "{{count, number}} tao",
       "deleteAccount": "Burahin ang account",
       "deleteSub": "Ang iyong account at ang iyong pangalan, magpakailanman",
+      "lostPhoneSub": "Nagpapadala sa email mo ng link para pumili ng bagong password at hindi na pagkatiwalaan ang teleponong iyon",
+      "lostPhoneSent": "Naipadala ang link sa {{email}}. Buksan ito, pumili ng bagong password at i-on ang “Nawala o kinuha ang isa kong telepono”.",
       "testing": "Pagsubok",
       "personaSub": "Mag-sign in bilang demo na tagasalin, tagarepaso o admin",
       "syncHelp": "Ipinapakita kung ano ang naghihintay na maipadala o ma-download. Ang numero ay mga pagbabagong naghihintay na maipadala.",

@@ -3325,7 +3325,9 @@
       "signInFailed": "Votre nouveau mot de passe est enregistré. Connectez-vous avec celui-ci.",
       "changedTitle": "Mot de passe changé",
       "changedBody": "Désormais, {{email}} se connecte avec le nouveau mot de passe.",
-      "doneHelp": "Retour à votre écran d’accueil."
+      "doneHelp": "Retour à votre écran d’accueil.",
+      "lost": "Un de mes téléphones a été perdu ou pris",
+      "lostSub": "Les téléphones de vos coéquipiers ne font plus confiance au travail de ce téléphone daté d’après maintenant, et vos autres téléphones doivent se reconnecter pour partager à proximité."
     }
   },
   "account": {
@@ -3506,6 +3508,8 @@
       "blockedCount_other": "{{count, number}} personnes",
       "deleteAccount": "Supprimer le compte",
       "deleteSub": "Votre compte et votre nom, définitivement",
+      "lostPhoneSub": "Vous envoie par e-mail un lien pour choisir un nouveau mot de passe et ne plus faire confiance à ce téléphone",
+      "lostPhoneSent": "Lien envoyé à {{email}}. Ouvrez-le, choisissez un nouveau mot de passe et activez « Un de mes téléphones a été perdu ou pris ».",
       "testing": "Test",
       "personaSub": "Se connecter comme traducteur, réviseur ou administrateur de démonstration",
       "syncHelp": "Affiche ce qui attend d’être envoyé ou téléchargé. Un nombre indique des modifications en attente d’envoi.",

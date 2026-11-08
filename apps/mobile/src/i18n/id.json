@@ -3123,7 +3123,9 @@
       "signInFailed": "Kata sandi baru Anda sudah dibuat. Masuk dengan kata sandi itu.",
       "changedTitle": "Kata sandi diubah",
       "changedBody": "Mulai sekarang {{email}} masuk dengan kata sandi baru.",
-      "doneHelp": "Kembali ke layar utama Anda."
+      "doneHelp": "Kembali ke layar utama Anda.",
+      "lost": "Ponsel saya hilang atau diambil orang",
+      "lostSub": "Ponsel rekan tim berhenti memercayai pekerjaan dari ponsel itu yang bertanggal setelah sekarang, dan ponsel Anda yang lain perlu masuk lagi untuk berbagi di sekitar."
     }
   },
   "account": {
@@ -3298,6 +3300,8 @@
       "blockedCount_other": "{{count, number}} orang",
       "deleteAccount": "Hapus akun",
       "deleteSub": "Akun dan nama Anda, untuk selamanya",
+      "lostPhoneSub": "Mengirim tautan lewat email untuk memilih kata sandi baru dan berhenti memercayai ponsel itu",
+      "lostPhoneSent": "Tautan dikirim ke {{email}}. Buka, pilih kata sandi baru, lalu nyalakan “Ponsel saya hilang atau diambil orang”.",
       "testing": "Pengujian",
       "personaSub": "Masuk sebagai penerjemah, pemeriksa, atau admin contoh",
       "syncHelp": "Menampilkan apa yang menunggu dikirim atau diunduh. Angka berarti ada perubahan yang menunggu dikirim.",

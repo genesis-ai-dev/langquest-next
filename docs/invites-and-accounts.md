@@ -212,7 +212,10 @@ where the new password is set and they are signed
 in. It works once, for an hour. The answer is the same whether or not the
 address has an account; an address unknown here is passed to LangQuest v2,
 which sends its own reset email (decisions.md 200). A sign-in name has no
-email: Forgot password says so and offers Scan a code, for F.
+email: Forgot password says so and offers Scan a code, for F. On New
+password, "A phone of mine was lost or taken", off unless turned on, also
+revokes the person's nearby keys, and More settings has a row of that name
+that only emails this link (docs/nearby-sync-plan.md section 6).
 
 **H. Adding your own email (looked-after → own).** Section 8: Settings →
 Add your email → a sign-in key sent there proves it → the address changes
@@ -226,7 +229,7 @@ and the steward row is removed.
 | Leaves the scan screen, signs up elsewhere | Still joins | The key is held, not the screen |
 | Translator without email | A: a looked-after account | Section 3 |
 | A new phone, or signed out | F, from anyone who can invite them where they are | Every account has someone who can get it back in |
-| Phone lost or stolen | F with "Their old phone is lost": the old phone is signed out | The code ends every other session (59) |
+| Phone lost or stolen | F with "Their old phone is lost", or G with "A phone of mine was lost or taken": the old phone is signed out and its nearby keys revoked | The code or new password ends every other session (59, 200) |
 | Inviter leaves the organization | They can no longer help; anyone else with Invite there can | `may_help_sign_in` follows current roles (59) |
 | The reply to Join is lost | Tapping Join again within the hour signs the same account in | One request id per join (59, 75) |
 | Shared phone, several translators | Each picks a picture and draws a pattern (or uses their password) at sign-out; Sign In shows the pictures, never names | The session is locked on the phone under their pattern or password (168) |

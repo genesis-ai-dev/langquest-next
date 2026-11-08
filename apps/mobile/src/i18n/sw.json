@@ -3224,7 +3224,9 @@
       "signInFailed": "Nenosiri lako jipya limewekwa. Ingia nalo.",
       "changedTitle": "Nenosiri limebadilishwa",
       "changedBody": "Kuanzia sasa, {{email}} inaingia kwa nenosiri jipya.",
-      "doneHelp": "Hurudi kwenye skrini yako kuu."
+      "doneHelp": "Hurudi kwenye skrini yako kuu.",
+      "lost": "Simu yangu moja ilipotea au ilichukuliwa",
+      "lostSub": "Simu za wenzako wa timu zinaacha kuamini kazi ya simu hiyo yenye tarehe baada ya sasa, na simu zako nyingine zinahitaji kuingia upya ili kushiriki karibu."
     }
   },
   "account": {
@@ -3402,6 +3404,8 @@
       "blockedCount_other": "Watu {{count, number}}",
       "deleteAccount": "Futa akaunti",
       "deleteSub": "Akaunti yako na jina lako, milele",
+      "lostPhoneSub": "Inakutumia kiungo kwa barua pepe ili uchague nenosiri jipya na kuacha kuiamini simu hiyo",
+      "lostPhoneSent": "Kiungo kimetumwa kwa {{email}}. Kifungue, chagua nenosiri jipya na uwashe “Simu yangu moja ilipotea au ilichukuliwa”.",
       "testing": "Majaribio",
       "personaSub": "Ingia kama mtafsiri, mkaguzi au msimamizi wa majaribio",
       "syncHelp": "Huonyesha kinachosubiri kutumwa au kupakuliwa. Namba inamaanisha mabadiliko yanayosubiri kutumwa.",
