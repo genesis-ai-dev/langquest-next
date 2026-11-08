@@ -353,6 +353,8 @@ export interface MemoryRadioKnobs {
   hostFails?: HostKind[];
   /** `join` never brings the link up for these kinds, so only the deadline moves on. */
   neverUp?: HostKind[];
+  /** A stranger on another network connects first to a group of these kinds this phone hosts, and says nothing. */
+  strangerFirst?: HostKind[];
 }
 
 /** One scan response as the air carried it, for a replay. */
@@ -410,7 +412,7 @@ export function memoryNearbyAir(o: { time: MemoryLinkClock; files?: MemoryFiles;
   const maskRepeats: string[] = [];
   const pipes: MemoryNearbyAir['pipes'] = [];
   const links: MemoryNearbyAir['links'] = [];
-  const groups = new Map<string, { kind: HostKind; resolve: (link: NearbyLink) => void }>();
+  const groups = new Map<string, { kind: HostKind; offer: (link: NearbyLink) => void; settle: () => void }>();
   const files = o.files ?? new Map<string, Uint8Array>();
   let salts = 0;
   let groupsMade = 0;
@@ -526,14 +528,36 @@ export function memoryNearbyAir(o: { time: MemoryLinkClock; files?: MemoryFiles;
           if (state.knobs.hostFails?.includes(kind)) throw new Error(`${kind} would not start`);
           groupsMade += 1;
           const ssid = opts.ssid ?? `hotspot-${groupsMade}`;
-          let resolve!: (link: NearbyLink) => void;
-          const link = new Promise<NearbyLink>((r) => { resolve = r; });
-          groups.set(ssid, { kind, resolve });
+          // As native's Hosted: links in the order they connected; once settled or taken down, no more.
+          const ready: NearbyLink[] = [];
+          const waiting: { resolve: (link: NearbyLink) => void; reject: (e: Error) => void }[] = [];
+          let over = false;
+          const offer = (l: NearbyLink) => {
+            const w = waiting.shift();
+            if (w) w.resolve(l);
+            else ready.push(l);
+          };
+          const settle = () => {
+            over = true;
+            for (const w of waiting.splice(0)) w.reject(new OfflineError('HOST_TAKEN_DOWN'));
+          };
+          const next = (): Promise<NearbyLink> => {
+            const l = ready.shift();
+            if (l) return Promise.resolve(l);
+            if (over) return Promise.reject(new OfflineError('HOST_TAKEN_DOWN'));
+            return new Promise<NearbyLink>((resolve, reject) => { waiting.push({ resolve, reject }); });
+          };
+          groups.set(ssid, { kind, offer, settle });
+          if (state.knobs.strangerFirst?.includes(kind)) offer(memoryNearbyPair({ ...pairOptions, kind, canMoveFiles: true }).a);
+          const link = next();
+          link.catch(() => undefined);
           const takeDown = async () => {
             calls.takeDown += 1;
             groups.delete(ssid);
+            settle();
           };
-          return { kind, ssid, passphrase: opts.passphrase ?? 'system-chosen', link, onRefused: () => () => undefined, takeDown };
+          // Only a hotspot hands up every connection: its server is not bound to its own network.
+          return { kind, ssid, passphrase: opts.passphrase ?? 'system-chosen', link, ...(kind === 'hotspot' ? { nextLink: next } : {}), onRefused: () => () => undefined, takeDown };
         },
         async join(kind, details: HostDetails) {
           const group = details.ssid === undefined ? undefined : groups.get(details.ssid);
@@ -542,7 +566,8 @@ export function memoryNearbyAir(o: { time: MemoryLinkClock; files?: MemoryFiles;
           groups.delete(details.ssid!);
           const pair = memoryNearbyPair({ ...pairOptions, kind, canMoveFiles: true });
           links.push({ kind, pair });
-          group.resolve(pair.a);
+          group.offer(pair.a);
+          group.settle();
           return pair.b;
         },
         async stopAll() {

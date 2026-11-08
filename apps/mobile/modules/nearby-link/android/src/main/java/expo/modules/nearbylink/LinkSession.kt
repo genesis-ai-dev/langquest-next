@@ -58,6 +58,8 @@ class LinkSession(
   @Volatile private var opener: Opener? = null
   private val closedHere = AtomicBoolean(false)
   @Volatile private var ended: NearbyCode? = null
+  /** True once a frame from the other side opened: it holds this link's keys. */
+  @Volatile private var proven = false
   /** True when the other side said goodbye: `receive` then gives null once the queue is empty. */
   @Volatile private var clean = false
   private val messages = ArrayDeque<ByteArray>()
@@ -79,6 +81,8 @@ class LinkSession(
 
   val isSecured: Boolean get() = sealer != null
   val isEnded: Boolean get() = ended != null
+  /** The other side has proven it holds the keys given to `secure`: a frame of its opened. */
+  val isProven: Boolean get() = proven
 
   // ---- the opening ---------------------------------------------------------------
 
@@ -278,6 +282,7 @@ class LinkSession(
         val h = open.header(head)
         val sealedBody = readFully(h.len + Frame.TAG) ?: return stop(NearbyCode.LINK_DROPPED)
         val body = open.body(sealedBody)
+        proven = true
         when (h.type) {
           Frame.MESSAGE -> queue(body)
           Frame.FILE_START -> fileStart(body)

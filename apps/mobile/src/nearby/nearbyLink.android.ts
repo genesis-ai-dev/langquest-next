@@ -194,12 +194,15 @@ export function nearbyRadioOver(native: NearbyBinding, options: Partial<NearbyRa
     openPipe: (peer, salt, scan) => call(async () => linkOf(await native.openPipe(peer, salt, scan), 'bluetooth')),
     host: async (kind, opts) => {
       const hosted = await call(() => native.host(kind, hostOptionsOf(opts), o.hostDeadlineMs));
-      const link = call(async () => linkOf(await native.hostLink(hosted.hostId), kind));
+      const nextLink = () => call(async () => linkOf(await native.hostLink(hosted.hostId), kind));
+      const link = nextLink();
       // Nobody may ever come: an abandoned attempt's link is not an unhandled rejection.
       link.catch(() => undefined);
       return {
         ...hostDetailsOf(hosted),
         link,
+        // A hotspot's server is not bound to its own network, so native hands up every connection in turn (Hosted.kt).
+        ...(kind === 'hotspot' ? { nextLink } : {}),
         onRefused: (hear) => listen((h) => native.addListener('onRefused', (e) => { if (e.hostId === hosted.hostId) h(); }), hear),
         takeDown: () => call(() => native.takeDown(hosted.hostId))
       };

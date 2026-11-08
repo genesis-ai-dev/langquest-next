@@ -750,6 +750,55 @@ export class NearbySession {
         return { t: 'no-link', at: attempt };
       }
     };
+    /**
+     * A hosted attempt whose group hands up every connection (`nextLink`, a hotspot): each one is
+     * tried at once, the first to prove the attempt's keys is the link, and every other is
+     * closed, so a stranger who connected first, or stays silent, holds nothing up.
+     */
+    const sealAny = (attempt: number, group: { link: Promise<NearbyLink>; nextLink(): Promise<NearbyLink> }): Promise<Turn> => new Promise<Turn>((resolve) => {
+      const tried = new Set<NearbyLink>();
+      let trying = 0;
+      let more = true;
+      let settled = false;
+      const settle = (turn: Turn) => {
+        if (settled) return;
+        settled = true;
+        resolve(turn);
+        for (const l of tried) if (turn.t !== 'up' || l !== turn.link) void this.closeQuietly(l);
+      };
+      const tryOne = (made: Promise<NearbyLink>) => {
+        trying += 1;
+        void seal(attempt, made.then((l) => {
+          if (settled) throw new OfflineError('another candidate is the link');
+          tried.add(l);
+          return l;
+        })).then((turn) => {
+          trying -= 1;
+          if (turn.t === 'up' && settled) void this.closeQuietly(turn.link);
+          else if (turn.t === 'up') settle(turn);
+          else if (!more && trying === 0) settle(turn);
+        });
+      };
+      tryOne(group.link);
+      void (async () => {
+        for (;;) {
+          let next: NearbyLink;
+          try {
+            next = await group.nextLink();
+          } catch {
+            more = false;
+            if (trying === 0) settle({ t: 'no-link', at: attempt });
+            return;
+          }
+          if (settled || finished || attempt !== at) {
+            more = false;
+            await this.closeQuietly(next);
+            return;
+          }
+          tryOne(Promise.resolve(next));
+        }
+      })();
+    });
     /** This phone's next turn to host: nobody else will move on for it. */
     const myNext = (from: number) => {
       for (let j = from + 1; j < plan.length; j++) if (plan[j]!.host === me) return j;
@@ -786,7 +835,8 @@ export class NearbySession {
       }
       groups.set(attempt, hosted);
       await pipe.send(encodeMessage({ t: 'host', attempt, ...hostDetailsOf(hosted) }));
-      up = seal(attempt, hosted.link);
+      const { nextLink } = hosted;
+      up = nextLink ? sealAny(attempt, { link: hosted.link, nextLink: () => nextLink.call(hosted) }) : seal(attempt, hosted.link);
       return null;
     };
     try {

@@ -11462,6 +11462,19 @@ China-market phones or 2 GB Androids (plan section 11), or it is much slower
 than Nearby Connections between phones that have Play services (then that
 becomes a second `NearbyLink`).
 
+Amended (2026-11-07, Carl Sauder): a Wi-Fi Direct group's server is bound
+to the group's own address, but a local-only hotspot's cannot be: no public
+API names its interface, and another app can share the same hotspot, so its
+server listens on every network the phone is on, and a stranger there
+could connect first and take the link. So a hotspot hands up every
+connection in turn (`Hosted` with `candidates`, `nextLink`), the session
+tries each at once, and the link is the one that proves the attempt's keys
+(its first frame opens); the rest are closed, a candidate that never proved
+them takes nothing down, and only once one has is a later connection
+refused. Each attempt's link is secured with keys of its own, from the
+Wi-Fi keys and its place in the plan, which the `host` message now names
+(plan 5.12, Session keys).
+
 ## 219. Phones open sealed, and a phone shows and connects to a teammate only after hearing its own salt echoed
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted

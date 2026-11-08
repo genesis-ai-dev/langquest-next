@@ -637,6 +637,21 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
       expect(of(0, 'a').receive).not.toBe(of(1, 'a').receive);
     });
 
+    it('a stranger who connects first to the hotspot, and says nothing, does not take the link', async () => {
+      // Why: a hotspot's server listens on every network the phone is on, so anyone there could
+      // connect before the teammate; every connection is tried, and the one with the keys is the link.
+      const [a, b] = await two();
+      await record(a, shelf, 'ra');
+      const air = memoryNearbyAir({ time, files: shelf });
+      const radios = { directByName: false, band5: false, hotspot: true, joinHotspot: true };
+      const strangers = { strangerFirst: ['hotspot'] as ('wifi-direct' | 'hotspot')[] };
+      const [ra, rb] = await run(a, b, pairOf({ kind: 'bluetooth' }), { arrange: { radio: air.radio('a', {}, strangers), radios } }, { arrange: { radio: air.radio('b', {}, strangers), radios } });
+      expect([ra.ended.how, rb.ended.how]).toEqual(['done', 'done']);
+      expect(ra.linkKind).toBe('hotspot');
+      expect(ra.fallbacks).toBe(0);
+      expect(b.files.here.size).toBe(1);
+    });
+
     it('takes down a group whose attempt never came up, when the pipe carries on as the link', async () => {
       const [a, b] = await two();
       await unit(a, 'a1');

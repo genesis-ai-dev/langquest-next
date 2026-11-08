@@ -1248,8 +1248,11 @@ export interface NearbyRadio {
   onSalt(hear: (salt: string) => void): () => void; // this phone's salt, at each start and rotation
   onPipe(hear: (pipe: NearbyLink, salt: string) => void): () => void; // someone connected; nothing is trusted until the opening checks
   openPipe(peer: string, salt: string, scan: number): Promise<NearbyLink>; // kind 'bluetooth'
-  // The first opening takes the link. A second phone is refused, and reported so the inviter can be told.
-  host(kind: 'wifi-direct' | 'hotspot', opts: HostOptions): Promise<HostDetails & { link: Promise<NearbyLink>; onRefused(hear: () => void): () => void }>;
+  // On Wi-Fi Direct, whose server is bound to the group's own address, the first connection takes the link. A hotspot's
+  // address cannot be found reliably, so its server listens on every network and `nextLink` hands up each later
+  // connection: the session tries them all, and the one that proves the attempt's keys is the link. Once settled, a
+  // second phone is refused, and reported so the inviter can be told.
+  host(kind: 'wifi-direct' | 'hotspot', opts: HostOptions): Promise<HostDetails & { link: Promise<NearbyLink>; nextLink?(): Promise<NearbyLink>; onRefused(hear: () => void): () => void; takeDown(): Promise<void> }>;
   join(kind: 'wifi-direct' | 'hotspot', details: HostDetails): Promise<NearbyLink>;
   stopAll(): Promise<void>;
 }

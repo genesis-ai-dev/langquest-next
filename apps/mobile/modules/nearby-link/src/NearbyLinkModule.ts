@@ -106,7 +106,7 @@ export interface NearbyLinkNative extends NativeModule<NearbyLinkEvents> {
   /** A link id. */
   openPipe(peer: string, salt: string, scan: number): Promise<string>;
   host(kind: 'wifi-direct' | 'hotspot', options: { ssid?: string; passphrase?: string; band5: boolean }, deadlineMs: number): Promise<NativeHosted>;
-  /** The first link to reach a hosted group: a link id. */
+  /** The next link to reach a hosted group, a link id: its only one on Wi-Fi Direct, each connection in turn on a hotspot until one proves the keys; HOST_TAKEN_DOWN once there will be no more. */
   hostLink(hostId: string): Promise<string>;
   /** Takes down a group hosted for an abandoned attempt. */
   takeDown(hostId: string): Promise<void>;

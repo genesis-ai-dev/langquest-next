@@ -156,7 +156,7 @@ describe('the nearby module stays off phones it cannot run on', () => {
       if (!API29.test(code(text))) continue;
       // Every class in a file that uses one is marked, so lint holds each call to an SDK_INT check.
       const classes = [...code(text).matchAll(/^((?:@[^\n]+\n)*)class (\w+)/gm)];
-      for (const c of classes) if (c[2] !== 'PipeTransport' && c[2] !== 'Hosted') expect(c[1], `${file} ${c[2]}`).toContain('@RequiresApi(Build.VERSION_CODES.Q)');
+      for (const c of classes) if (c[2] !== 'PipeTransport') expect(c[1], `${file} ${c[2]}`).toContain('@RequiresApi(Build.VERSION_CODES.Q)');
     }
     expect(moduleKt).not.toMatch(/(val|var)\s+\w+\s*:\s*(RadioKit|BleFind|GattServerPipes|GattClientPipe|WifiDirect|Hotspot)\b/);
     // The kit is reached only after a check of the Android version.

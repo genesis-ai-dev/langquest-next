@@ -117,12 +117,26 @@ export interface NearbyRadio {
   /** Kind 'bluetooth'. */
   openPipe(peer: string, salt: string, scan: number): Promise<NearbyLink>;
   /**
-   * The first opening takes the link. A second phone is refused, and reported so the inviter can be told.
-   * `takeDown` ends a group hosted for an attempt that was abandoned; a link it already gave keeps running.
+   * The first connection takes the link, where the host's server is bound to the group's own
+   * network (Wi-Fi Direct). Where it cannot be (a hotspot, whose address cannot be found
+   * reliably), anyone on another network of this phone's could connect first, so `nextLink`
+   * gives each later connection in turn, and the session tries every one: the link is the one
+   * that proves the attempt's keys, and the rest are closed. It rejects once there will be no
+   * more. A phone that connects after the link is settled is refused, and reported so the inviter
+   * can be told. `takeDown` ends a group hosted for an attempt that was abandoned; a link it
+   * already gave keeps running.
    */
-  host(kind: 'wifi-direct' | 'hotspot', opts: HostOptions): Promise<HostDetails & { link: Promise<NearbyLink>; onRefused(hear: () => void): () => void; takeDown(): Promise<void> }>;
+  host(kind: 'wifi-direct' | 'hotspot', opts: HostOptions): Promise<HostDetails & HostedGroup>;
   join(kind: 'wifi-direct' | 'hotspot', details: HostDetails): Promise<NearbyLink>;
   stopAll(): Promise<void>;
+}
+
+/** A group this phone hosts, as `host` answers. */
+export interface HostedGroup {
+  link: Promise<NearbyLink>;
+  nextLink?(): Promise<NearbyLink>;
+  onRefused(hear: () => void): () => void;
+  takeDown(): Promise<void>;
 }
 
 /** What sync may not import: a platform's crypto, an argument to `NearbySession` and `SyncClient` (decision 104). */

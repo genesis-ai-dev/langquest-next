@@ -249,6 +249,23 @@ describe('hosting and joining', () => {
     expect(f.calls.at(-1)).toEqual(['takeDown', 'H1']);
   });
 
+  it('a hotspot hands up each later connection with nextLink, and Wi-Fi Direct has none', async () => {
+    // Why: a hotspot's server listens on every network, so the session tries every connection (Hosted.kt).
+    const f = fakeBinding();
+    f.answers.set('host', { hostId: 'H1', kind: 'hotspot', port: 1 });
+    const radio = nearbyRadioOver(f.native);
+    const hosted = await radio.host('hotspot', { band5: false });
+    f.pending.get('hostLink')!.resolve('L1');
+    expect((await hosted.link).kind).toBe('hotspot');
+    const next = hosted.nextLink!();
+    await Promise.resolve();
+    f.pending.get('hostLink')!.resolve('L2');
+    await next;
+    expect(f.calls.filter((c) => c[0] === 'hostLink')).toEqual([['hostLink', 'H1'], ['hostLink', 'H1']]);
+    f.answers.set('host', { hostId: 'H2', kind: 'wifi-direct', ssid: 'DIRECT-ab', passphrase: 'pw', port: 2 });
+    expect((await radio.host('wifi-direct', { ssid: 'DIRECT-ab', passphrase: 'pw', band5: false })).nextLink).toBeUndefined();
+  });
+
   it('does not leave an abandoned group\'s link as an unhandled rejection', async () => {
     const f = fakeBinding();
     f.answers.set('host', { hostId: 'H1', kind: 'hotspot', port: 1 });

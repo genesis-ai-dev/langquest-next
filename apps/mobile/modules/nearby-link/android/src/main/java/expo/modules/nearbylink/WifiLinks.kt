@@ -25,59 +25,6 @@ import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
-/** A group or hotspot this phone hosts, waiting for its one link. */
-class Hosted(
-  val id: String,
-  val kind: String,
-  val details: Map<String, Any?>,
-  private val server: ServerSocket,
-  private val teardown: () -> Unit,
-  private val adopt: (Socket, Hosted) -> LinkSession,
-  private val refused: (Hosted) -> Unit,
-) {
-  val link = CompletableFuture<LinkSession>()
-  @Volatile private var down = false
-
-  /** The first connection takes the link; any later one is closed and reported, so the inviter can be told. */
-  fun acceptLoop() {
-    Thread({
-      while (!down) {
-        val socket = try { server.accept() } catch (e: IOException) { break }
-        if (link.isDone) {
-          try { socket.close() } catch (_: IOException) {}
-          refused(this)
-          continue
-        }
-        tune(socket)
-        link.complete(adopt(socket, this))
-      }
-    }, "nearby-host-accept").apply {
-      isDaemon = true
-      start()
-    }
-  }
-
-  /** Takes the group down: an abandoned attempt, a link that ended, or `stopAll`. */
-  fun takeDown() {
-    if (down) return
-    down = true
-    try { server.close() } catch (_: IOException) {}
-    link.completeExceptionally(NearbyException(NearbyCode.HOST_TAKEN_DOWN, "the group was taken down"))
-    try { teardown() } catch (_: Exception) {}
-  }
-
-  fun awaitLink(): LinkSession = try {
-    link.get()
-  } catch (e: ExecutionException) {
-    throw (e.cause as? NearbyException) ?: NearbyException(NearbyCode.INTERNAL, "no link", e.cause)
-  }
-}
-
-internal fun tune(socket: Socket) {
-  socket.tcpNoDelay = true
-  socket.keepAlive = true
-}
-
 /** Connects to `host:port`, trying again until the deadline: a group's address answers a moment after it forms. */
 internal fun connectBy(deadline: Long, make: () -> Socket, host: InetAddress, port: Int): Socket {
   var last: IOException? = null
@@ -264,9 +211,11 @@ class Hotspot(private val context: Context, private val handler: Handler) {
         details["security"] = "wpa2"
       }
       if (details["ssid"] == null) throw NearbyException(NearbyCode.HOTSPOT_FAILED, "the hotspot has no name")
-      val server = ServerSocket(0, 2)
+      // On every network: the hotspot's own address cannot be found reliably, so every connection
+      // is a candidate until one proves the attempt's keys (Hosted).
+      val server = ServerSocket(0, 4)
       details["port"] = server.localPort
-      val hosted = Hosted(id, "hotspot", details, server, { reservation.close() }, adopt, refused)
+      val hosted = Hosted(id, "hotspot", details, server, { reservation.close() }, adopt, refused, candidates = true)
       hosted.acceptLoop()
       return hosted
     } catch (e: Exception) {

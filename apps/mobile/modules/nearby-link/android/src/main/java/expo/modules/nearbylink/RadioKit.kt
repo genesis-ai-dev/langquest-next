@@ -34,11 +34,11 @@ class LinkRegistry(
   private val links = ConcurrentHashMap<String, LinkSession>()
   private val ids = AtomicLong()
 
-  fun adopt(transport: Transport, kind: String, onGone: () -> Unit = {}): LinkSession {
+  fun adopt(transport: Transport, kind: String, onGone: (LinkSession) -> Unit = {}): LinkSession {
     val id = "link-${ids.incrementAndGet()}"
     val session = LinkSession(id, kind, transport, tune(), roots(), onEnded = { s, code ->
       links.remove(s.id)
-      try { onGone() } catch (_: Exception) {}
+      try { onGone(s) } catch (_: Exception) {}
       events.linkDown(s.id, code)
     })
     links[id] = session
@@ -129,7 +129,8 @@ class RadioKit(
   fun host(kind: String, opts: Map<String, Any?>, deadlineMs: Long): Hosted {
     Radios.require(context, wifi = true, bluetooth = false)
     val id = "host-${hostIds.incrementAndGet()}"
-    val adopt = { socket: Socket, hosted: Hosted -> registry.adopt(SocketTransport(socket), kind) { takeDown(hosted.id) } }
+    // The link's end takes its group down; a hotspot candidate that never proved the keys does not.
+    val adopt = { socket: Socket, hosted: Hosted -> registry.adopt(SocketTransport(socket), kind) { s -> if (hosted.endTakesDown(s)) takeDown(hosted.id) } }
     val refused = { hosted: Hosted -> events.refused(hosted.id) }
     val hosted = when (kind) {
       "wifi-direct" -> {
@@ -144,7 +145,8 @@ class RadioKit(
     return hosted
   }
 
-  fun hostLink(hostId: String): LinkSession = (hosts[hostId] ?: throw NearbyException(NearbyCode.HOST_TAKEN_DOWN, "no such group")).awaitLink()
+  /** The group's next link: its only one on Wi-Fi Direct, each candidate in turn on a hotspot (Hosted). */
+  fun hostLink(hostId: String): LinkSession = (hosts[hostId] ?: throw NearbyException(NearbyCode.HOST_TAKEN_DOWN, "no such group")).nextLink()
 
   /** Takes down a group hosted for an attempt that was abandoned; a link it already gave keeps running. */
   fun takeDown(hostId: String) {
@@ -168,7 +170,7 @@ class RadioKit(
       }
       else -> throw NearbyException(NearbyCode.BAD_ARGUMENT, "wifi-direct or hotspot")
     }
-    return registry.adopt(SocketTransport(socket), kind, down)
+    return registry.adopt(SocketTransport(socket), kind) { down() }
   }
 
   fun stopAll() {
