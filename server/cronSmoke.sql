@@ -24,7 +24,7 @@ do $$ declare j record; begin
     if not (select active from cron.job where jobname = j.name) then raise exception 'cron job % is inactive', j.name; end if;
   end loop;
   if exists (select 1 from cron.job where jobname = 'langquest-stream-projections') then raise exception 'the projection pass is scheduled on pg_cron; it runs in the job container'; end if;
-  if (select count(*) from cron.job where jobname like 'langquest-%') <> 3 then raise exception 'unexpected langquest cron jobs: %', (select string_agg(jobname, ', ') from cron.job where jobname like 'langquest-%'); end if;
+  if (select count(*) from cron.job where jobname like 'langquest-%') <> 4 then raise exception 'unexpected langquest cron jobs: %', (select string_agg(jobname, ', ') from cron.job where jobname like 'langquest-%'); end if;
 end $$;
 
 -- Leave the database as a reset does.
