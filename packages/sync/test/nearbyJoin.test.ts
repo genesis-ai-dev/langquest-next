@@ -1,4 +1,4 @@
-import { canonicalJson, HlcClock, ORG_STREAM, type LanguageState, type LibraryDoc, type OrgState } from '@langquest-next/core';
+import { canonicalJson, HlcClock, ORG_STREAM, validateDoc, type LanguageState, type LibraryDoc, type OrgState } from '@langquest-next/core';
 import {
   base64urlEncode, bytesToHex, checkChain, joinPassBody, newcomerProfileId, utf8Encode, type ChainLink, type JoinPass, type WorkerLink
 } from '@langquest-next/core/nearby';
@@ -329,7 +329,10 @@ describe('a sender\'s answers and a newcomer\'s keep', () => {
     expect(await admitDoc('0'.repeat(64), text, fakeSha256)).toBeNull();
     const spaced = JSON.stringify(good, null, 1);
     expect(await admitDoc(bytesToHex(fakeSha256(utf8Encode(spaced))), spaced, fakeSha256)).toBeNull();
-    const study = canonicalJson({ format: 'study@2', title: 'x', deps: [] });
+    // A team's own guide, whole and valid: the allowlist alone keeps it out (Carl's answer 19).
+    const guide = { format: 'study@2', title: 'Clean water', links: [{ template: 'health', node: 'water' }], steps: [{ id: 's1', title: 'Listen', text: 'Water is fetched at dawn.' }], resources: [], terms: [], deps: [] };
+    expect(validateDoc(guide)).toBeNull();
+    const study = canonicalJson(guide);
     expect(await admitDoc(bytesToHex(fakeSha256(utf8Encode(study))), study, fakeSha256)).toBeNull();
     const fiaText = canonicalJson(fia);
     expect(await admitDoc(bytesToHex(fakeSha256(utf8Encode(fiaText))), fiaText, fakeSha256)).toBeNull();
