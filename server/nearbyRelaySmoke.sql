@@ -412,7 +412,7 @@ select pg_temp.accepted(pg_temp.u('0b'), pg_temp.k(2), pg_temp.ev('rl-f2', 'rl-L
 select pg_temp.accepted(pg_temp.u('0b'), pg_temp.k(2), pg_temp.ev('rl-f3', 'rl-L', pg_temp.u('0b'), 'v1.AudioFormatSet', jsonb_build_object('hash', pg_temp.h('5'), 'format', 'wav')), 'a voice note''s format');
 select pg_temp.accepted(pg_temp.u('0b'), pg_temp.k(2), pg_temp.note('rl-f4', pg_temp.u('0b'), jsonb_build_object('blobHash', pg_temp.h('5'))), 'a wav voice note');
 select pg_temp.accepted(pg_temp.u('0b'), pg_temp.k(2), pg_temp.ev('rl-f5', 'rl-L', pg_temp.u('0b'), 'v1.CardCleanUpSet', jsonb_build_object('unitId', 'u1', 'hash', pg_temp.h('1'),
-  'use', 'cleaned', 'cleanedHash', pg_temp.h('6'), 'cleanedFormat', 'm4a')), 'a cleaned part');
+  'use', 'cleaned', 'cleanedHash', pg_temp.h('6'), 'cleanedFormat', 'm4a', 'tool', 'dfn3')), 'a cleaned part');
 select pg_temp.accepted(pg_temp.u('0b'), pg_temp.k(2), pg_temp.note('rl-f6', pg_temp.u('0b'), jsonb_build_object('blobHash', pg_temp.h('7'))), 'a voice note later redacted');
 select pg_temp.seed(jsonb_build_array(pg_temp.ev('rl-f7', 'rl-L', pg_temp.u('0a'), 'v1.Redacted', '{"eventId":"rl-f6"}')));
 do $$
