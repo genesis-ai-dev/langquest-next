@@ -1,7 +1,7 @@
 import { applyOrgEvent, emptyOrgState, type OrgState } from '@langquest-next/core';
 import {
   ASK_EVERY_MS, askReason, certificateAnswerOf, chainsForOrgs, findKeysAfterAnswer, findKeysForOrgs, holdByDefault, holdChoiceOf, isKey32, languagesToName,
-  MAX_LANGUAGES, membershipMarkOf, nearbyOrgsOf, orgFeaturesOf, parseAskRecord, parseCertKeys, parseChains, parseFindKeys, revokedSeqsOf,
+  MAX_LANGUAGES, membershipMarkOf, nearbyOrgsOf, orgFeaturesOf, parseAskRecord, parseCertKeys, parseChains, parseFindKeys, parsePasses, passesForOrgs, passFor, revokedSeqsOf,
   type AskFacts, type FindKeys
 } from '../src/nearby/nearbyModel';
 
@@ -102,8 +102,34 @@ describe('the certificate answer', () => {
 
   it('reads a revoked key, and an issued answer', () => {
     expect(certificateAnswerOf({ revoked: true })).toEqual({ revoked: true });
-    expect(certificateAnswerOf(ok)).toEqual({ revoked: false, chains: ok.chains, discoveryKeys: ok.discoveryKeys, revocations: ok.revocations });
-    expect(certificateAnswerOf({ chains: [], discoveryKeys: [], passes: [], revocations: [] })).toEqual({ revoked: false, chains: [], discoveryKeys: [], revocations: [] });
+    expect(certificateAnswerOf(ok)).toEqual({ revoked: false, chains: ok.chains, discoveryKeys: ok.discoveryKeys, revocations: ok.revocations, passes: [] });
+    expect(certificateAnswerOf({ chains: [], discoveryKeys: [], passes: [], revocations: [] })).toEqual({ revoked: false, chains: [], discoveryKeys: [], revocations: [], passes: [] });
+  });
+
+  const pass = {
+    kind: 'pass@1', kid: 'k1', sig: 's',
+    body: { passId: 'p1', orgId: 'o1', languageId: 'L1', inviter: 'me', inviterKey: K1, roles: [{ roleId: 'tr', privileges: ['translate'] }], maxUses: 10, expiresAt: 9 }
+  };
+
+  it('reads the passes it holds, each for the language its body names', () => {
+    expect(certificateAnswerOf({ ...ok, passes: [{ orgId: 'o1', languageId: 'L1', pass }] })).toMatchObject({ passes: [{ orgId: 'o1', languageId: 'L1', pass }] });
+    expect(certificateAnswerOf({ ...ok, passes: 'x' })).toBeNull();
+    expect(certificateAnswerOf({ ...ok, passes: [{ orgId: 'o1', languageId: 'L2', pass }] })).toBeNull();
+    expect(certificateAnswerOf({ ...ok, passes: [{ orgId: 'o1', languageId: 'L1', pass: { ...pass, kind: 'pass@2' } }] })).toBeNull();
+    expect(certificateAnswerOf({ ...ok, passes: [{ orgId: 'o1', languageId: 'L1', pass: { ...pass, body: { ...pass.body, inviterKey: 'short' } } }] })).toBeNull();
+    expect(certificateAnswerOf({ ...ok, passes: [{ orgId: 'o1', languageId: 'L1', pass: { ...pass, body: { ...pass.body, roles: [{ roleId: 'tr' }] } } }] })).toBeNull();
+  });
+
+  it('keeps passes whole, drops those of organizations off, and finds one language\'s', () => {
+    const held = [{ orgId: 'o1', languageId: 'L1', pass }, { orgId: 'o2', languageId: 'L1', pass: { ...pass, body: { ...pass.body, orgId: 'o2' } } }];
+    expect(parsePasses(JSON.stringify(held))).toEqual(held);
+    expect(parsePasses(JSON.stringify([...held, { orgId: 'o3' }]))).toEqual(held);
+    expect(parsePasses('{')).toEqual([]);
+    expect(parsePasses(null)).toEqual([]);
+    expect(parsePasses('{}')).toEqual([]);
+    expect(passesForOrgs(held, new Set(['o2']))).toEqual([held[1]]);
+    expect(passFor(held, 'o1', 'L1')).toEqual(pass);
+    expect(passFor(held, 'o1', 'L2')).toBeNull();
   });
 
   it('takes nothing from an answer the Worker would not send', () => {

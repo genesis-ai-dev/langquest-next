@@ -1,10 +1,10 @@
 import type { OrgState } from '@langquest-next/core';
-import { certRequestText, checkChain, nearbyBytes, parseRevocationList, signedBy } from '@langquest-next/core/nearby';
+import { certRequestText, checkChain, nearbyBytes, parseRevocationList, passText, signedBy } from '@langquest-next/core/nearby';
 import { ensureDeviceId } from '@langquest-next/sync';
 import * as Crypto from 'expo-crypto';
 import { noteExpected } from '../diagnostics/report';
 import { requestCertificate } from '../server/nearby';
-import { ensureInstallKey, replaceInstallKey, type InstallKey } from '../server/nearbyKey';
+import { ensureInstallKey, installKey, replaceInstallKey, type InstallKey } from '../server/nearbyKey';
 import { keepFindKeys } from '../server/lock';
 import { readFindKeys } from '../server/nearbySecrets';
 import { getStore } from '../storage/store';
@@ -13,9 +13,9 @@ import { nobleSha256, nobleVerify, signWith } from './nearbyCryptoModel';
 import { nearbyFlag } from './nearbyFlag';
 import {
   askReason, certificateAnswerOf, chainsForOrgs, findKeysAfterAnswer, findKeysForOrgs, holdChoiceOf, languagesToName, membershipMarkOf, nearbyOrgsOf,
-  parseAskRecord, parseFindKeys, type AskRecord, type FindKeys, type HeldChains
+  parseAskRecord, parseFindKeys, passesForOrgs, type AskRecord, type FindKeys, type HeldChains, type HeldPass
 } from './nearbyModel';
-import { forgetAllChains, keepChains, keepRevoked, readChains, readRevoked, ROOT_KEYS } from './nearbyPhone.android';
+import { forgetAllChains, keepChains, keepPasses, keepRevoked, readChains, readPasses, readRevoked, ROOT_KEYS } from './nearbyPhone.android';
 
 /**
  * A phone's nearby identity, kept current after each organization pull (docs/nearby-sync-plan.md
@@ -86,6 +86,9 @@ async function refresh(input: IdentityInput): Promise<void> {
   const heldChains = await readChains(actorId);
   const chains = chainsForOrgs(heldChains, orgsOn);
   if (!same(chains, heldChains)) await keepChains(actorId, chains);
+  const heldPasses = await readPasses(actorId);
+  const passes = passesForOrgs(heldPasses, orgsOn);
+  if (passes.length !== heldPasses.length) await keepPasses(actorId, passes);
   const heldFind = parseFindKeys(await readFindKeys(actorId));
   const find = findKeysForOrgs(heldFind, orgsOn);
   if (!same(find, heldFind)) await keepFindKeys(actorId, Object.keys(find).length > 0 ? JSON.stringify(find) : null);
@@ -120,7 +123,31 @@ async function refresh(input: IdentityInput): Promise<void> {
   await ask(input, key, languages, find, last, membership, false);
 }
 
-async function ask(input: IdentityInput, key: InstallKey, languages: string[], find: FindKeys, last: AskRecord | null, membership: string, again: boolean): Promise<void> {
+/**
+ * First contact's certificate call (docs/nearby-sync-plan.md 14.1, 6 "The session"): straight
+ * after a newcomer's session is adopted, whatever the flag says, because the facts behind the
+ * answer are what record the key's first session, and that ends key sign-in (Carl's answer 10).
+ * It names the language the newcomer was let into. True once the Worker answered, whatever it
+ * said; false for 429 or 503 or an answer it would not send, when it is asked again. Throws
+ * `OfflineError` with no connection. It never makes a key: the newcomer's is the one their
+ * account names.
+ */
+export function firstCertificate(input: IdentityInput): Promise<boolean> {
+  const run = turn.then(async () => {
+    const key = await installKey();
+    // i18n-ignore: for diagnostics; no screen shows it
+    if (!key) throw new Error('no install key for first contact');
+    const store = await getStore();
+    const last = parseAskRecord(await store.meta(askKey(input.actorId)));
+    const find = parseFindKeys(await readFindKeys(input.actorId));
+    const languages = input.languageId ? [`${input.orgId}/${input.languageId}`] : [];
+    return ask(input, key, languages, find, last, membershipMarkOf(input.org, input.actorId), false);
+  });
+  turn = run.then(() => undefined, () => undefined);
+  return run;
+}
+
+async function ask(input: IdentityInput, key: InstallKey, languages: string[], find: FindKeys, last: AskRecord | null, membership: string, again: boolean): Promise<boolean> {
   const { actorId, orgId } = input;
   const store = await getStore();
   const deviceId = await ensureDeviceId(store, () => Crypto.randomUUID());
@@ -128,17 +155,17 @@ async function ask(input: IdentityInput, key: InstallKey, languages: string[], f
   const proof = signWith(key.seed, nearbyBytes('certRequest', certRequestText({ profileId: actorId, deviceId, publicKey: key.publicKey })));
   const call = await requestCertificate({ publicKey: key.publicKey, deviceId, languages, proof });
   // 429 or 503: keep what is held, and ask again at the next check.
-  if (call.kind === 'later') return;
+  if (call.kind === 'later') return false;
   const answer = certificateAnswerOf(call.body);
-  if (!answer) { noteExpected('nearby certificate', new Error('an answer the Worker would not send')); return; }
+  if (!answer) { noteExpected('nearby certificate', new Error('an answer the Worker would not send')); return false; }
 
   if (answer.revoked) {
     // This person's key was revoked (a phone marked lost): a new key, and every chain naming the old one goes (5.12).
-    if (again) return;
+    if (again) return true;
     const fresh = await replaceInstallKey();
     await forgetAllChains();
     if (fresh) await ask(input, fresh, languages, find, last, membership, true);
-    return;
+    return true;
   }
 
   // `now: null`: Hello checks expiry against its own clock; a phone's wrong date must not drop a fresh certificate here.
@@ -163,12 +190,27 @@ async function ask(input: IdentityInput, key: InstallKey, languages: string[], f
   }
   await keepChains(actorId, chains);
   const chainOrgs = new Set(Object.keys(chains));
+  // Passes for this person and key, under a root key, in an organization whose chain is held: replaced whole (14.1, 1).
+  const passes: HeldPass[] = [];
+  for (const held of answer.passes) {
+    const { pass } = held;
+    const root = ROOT_KEYS.get(pass.kid);
+    const mine = pass.body.inviter === actorId && pass.body.inviterKey === key.publicKey;
+    if (mine && chainOrgs.has(held.orgId) && !keptOrgs.has(held.orgId) && root && await signedBy(nobleVerify, root, nearbyBytes('pass', passText(pass)), pass.sig)) {
+      passes.push(held);
+      continue;
+    }
+    if (!keptOrgs.has(held.orgId)) noteExpected('nearby certificate', new Error('a pass not for this person and key, or not signed by the Worker'));
+  }
+  // An organization whose new chain could not be checked keeps the passes it held, as it keeps its chain.
+  for (const held of await readPasses(actorId)) if (keptOrgs.has(held.orgId)) passes.push(held);
+  await keepPasses(actorId, passes);
   const nextFind = findKeysAfterAnswer(find, languages, answer.discoveryKeys, chainOrgs, keptOrgs);
   // Dropped if they signed out while the call was out (lock.ts): sign-out sealed what was here then. The answer
   // then settles nothing, so the first check once they are back asks again.
   if (!await keepFindKeys(actorId, Object.keys(nextFind).length > 0 ? JSON.stringify(nextFind) : null)) {
     forgetAskedBy(actorId);
-    return;
+    return true;
   }
 
   for (const signed of answer.revocations) {
@@ -184,4 +226,5 @@ async function ask(input: IdentityInput, key: InstallKey, languages: string[], f
 
   const record: AskRecord = { at: Date.now(), memberships: { ...(last?.memberships ?? {}), [orgId]: membership } };
   await store.setMeta(askKey(actorId), JSON.stringify(record));
+  return true;
 }

@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { certRequestText, nearbyBytes, revocationText, type ChainLink } from '@langquest-next/core/nearby';
+import { certRequestText, joinPassBody, nearbyBytes, revocationText, type ChainLink } from '@langquest-next/core/nearby';
+import { nobleSha256 } from '../src/nearby/nearbyCryptoModel';
 import { MemoryStore, SyncClient } from '@langquest-next/sync';
 import { nearbyClient } from '@langquest-next/sync/nearby';
 import { FakeServer } from '../../../packages/sync/src/testing/fakeServer';
@@ -377,5 +378,82 @@ describe('the nearby identity', () => {
     // A new install key forgets every chain, and who held one.
     await p.phone.forgetAllChains();
     expect(await p.phone.chainPeople()).toEqual([]);
+  });
+});
+
+describe('join passes (docs/nearby-sync-plan.md 14.1, 1)', () => {
+  const roles = [{ roleId: 'tr', privileges: ['translate' as const] }];
+  /** The answer above, with a pass for each language named, by `signer`, for `inviter` and `inviterKey` (this person and key unless said). */
+  function withPasses(o: { signer?: typeof worker; inviter?: string; inviterKey?: string; orgs?: string[] } = {}) {
+    return async (req: (typeof fake.calls)[number]) => {
+      const answer = await issued(o.orgs ? { orgs: o.orgs } : {})(req);
+      const passes = await Promise.all(req.languages.map(async (where) => {
+        const [orgId, languageId] = where.split('/') as [string, string];
+        const body = (await joinPassBody({ orgId, languageId, inviter: o.inviter ?? ME, inviterKey: o.inviterKey ?? req.publicKey, roles, nowMs: Date.now() }, nobleSha256))!;
+        return { orgId, languageId, pass: await (o.signer ?? worker).signPass(body) };
+      }));
+      return { kind: 'answer' as const, body: { ...answer.body, passes } };
+    };
+  }
+
+  it('keeps each pass the Worker signed for this person and key, and Let someone in finds the open language\'s', async () => {
+    const p = await load();
+    fake.answer = withPasses();
+    p.flag.heardUserState(ME, { orgFeatures: { o1: ['nearby', 'nearby_join'] } });
+    await input(p);
+    const pass = await p.phone.joinPassFor(ME, 'o1', 'L1');
+    expect(pass?.body).toMatchObject({ orgId: 'o1', languageId: 'L1', inviter: ME, maxUses: 10 });
+    expect(await p.phone.joinPassFor(ME, 'o1', 'L2')).toBeNull();
+    expect(await p.phone.joinPassFor(ME, 'o2', 'L1')).toBeNull();
+    expect(fake.noted).toEqual([]);
+    // Replaced whole: an answer with none leaves none.
+    fake.answer = issued();
+    await input(p, { org: org(['L1', 'L2'], 'admin') });
+    expect(await p.phone.readPasses(ME)).toEqual([]);
+  });
+
+  it('keeps no pass another key signed, or one for another person or key', async () => {
+    for (const o of [{ signer: rogue }, { inviter: 'someone-else' }, { inviterKey: KEY_A }]) {
+      fake.store = new MemoryStore();
+      fake.noted.length = 0;
+      const p = await load();
+      fake.answer = withPasses(o);
+      p.flag.heardUserState(ME, { orgFeatures: { o1: ['nearby', 'nearby_join'] } });
+      await input(p);
+      expect(Object.keys(await p.phone.readChains(ME))).toEqual(['o1']);
+      expect(await p.phone.readPasses(ME)).toEqual([]);
+      expect(fake.noted.some((n) => n.startsWith('nearby certificate'))).toBe(true);
+    }
+  });
+
+  it('drops the passes of an organization turned off, and every pass when the key is replaced', async () => {
+    const p = await load();
+    fake.answer = withPasses({ orgs: ['o1', 'o2'] });
+    p.flag.heardUserState(ME, { orgFeatures: { o1: ['nearby'], o2: ['nearby'] } });
+    await input(p);
+    await input(p, { orgId: 'o2', org: org(['L1']), languageId: 'L1' });
+    expect((await p.phone.readPasses(ME)).map((x) => x.orgId).sort()).toEqual(['o1', 'o2']);
+    p.flag.heardUserState(ME, { orgFeatures: { o2: ['nearby'] } });
+    await input(p, { orgId: 'o2', org: org(['L1']), languageId: 'L1' });
+    expect((await p.phone.readPasses(ME)).map((x) => x.orgId)).toEqual(['o2']);
+    await p.phone.forgetAllChains();
+    expect(await p.phone.readPasses(ME)).toEqual([]);
+  });
+
+  it('first contact\'s call goes whatever the flag says, never makes a key, and says whether the Worker answered', async () => {
+    const p = await load();
+    const first = { actorId: ME, orgId: 'o1', org: org(['L1']), languageId: 'L1' };
+    // No key: nothing to prove, and none is made for it.
+    await expect(p.identity.firstCertificate(first)).rejects.toThrow(/no install key/);
+    expect(await p.key.installKey()).toBeNull();
+    const key = (await p.key.ensureInstallKey())!;
+    fake.answer = async () => ({ kind: 'later', status: 503 });
+    expect(await p.identity.firstCertificate(first)).toBe(false);
+    fake.answer = issued();
+    // The server has not said which organizations are on: the call still goes.
+    expect(await p.identity.firstCertificate(first)).toBe(true);
+    expect(fake.calls.map((c) => c.languages)).toEqual([['o1/L1'], ['o1/L1']]);
+    expect(fake.calls[1]!.publicKey).toBe(key.publicKey);
+    expect(Object.keys(await p.phone.readChains(ME))).toEqual(['o1']);
   });
 });

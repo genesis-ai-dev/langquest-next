@@ -1,5 +1,5 @@
 import { mayWriteFiles, privilegesFor, type OrgState } from '@langquest-next/core';
-import { parseRevocationList, peopleWithChains, type ChainLink, type RevocationList } from '@langquest-next/core/nearby';
+import { parseRevocationList, peopleWithChains, type ChainLink, type JoinPass, type RevocationList } from '@langquest-next/core/nearby';
 import {
   nearbyClient, nearbyFiles, SqliteNearbyMarks, type NearbyCrypto, type NearbyFetchFile, type NearbyGate, type NearbyMaker, type NearbyMarks, type NearbySigner
 } from '@langquest-next/sync/nearby';
@@ -10,7 +10,7 @@ import { fileLedgerDriver, getStore } from '../storage/store';
 import type { BlobStore } from '../sync/blobs';
 import { currentHoldChoice, nearbyOrg } from './holdChoice';
 import { nobleSha256, nobleVerify, phoneCryptoOf } from './nearbyCryptoModel';
-import { parseCertKeys, parseChains, type HeldChains, type SignedText } from './nearbyModel';
+import { parseCertKeys, parseChains, parsePasses, passFor, type HeldChains, type HeldPass, type SignedText } from './nearbyModel';
 import type { NearbyFilesOptions } from './nearbyPhone';
 
 /**
@@ -62,12 +62,44 @@ export async function chainPeople(): Promise<string[]> {
   }
 }
 
-/** A new install key: every chain on this phone named the old one, whoever's it was (5.12, `revoked`). */
+/** A new install key: every chain and pass on this phone named the old one, whoever's it was (5.12, `revoked`). */
 export async function forgetAllChains(): Promise<void> {
   const store = await getStore();
   await store.clearMeta('nearbyChain:');
   await store.clearMeta(CHAIN_PEOPLE);
+  await store.clearMeta('nearbyPasses:');
   chains.clear();
+  passes.clear();
+}
+
+// ---- join passes (docs/nearby-sync-plan.md 14.1, 1) -------------------------------------
+
+const passesKey = (profileId: string) => `nearbyPasses:${profileId}`;
+const passes = new Map<string, HeldPass[]>();
+
+/** This person's join passes, as the last certificate answer gave them, each checked against the Worker's keys before it was kept. */
+export async function readPasses(profileId: string): Promise<HeldPass[]> {
+  const held = passes.get(profileId);
+  if (held) return held;
+  const read = parsePasses(await (await getStore()).meta(passesKey(profileId)));
+  passes.set(profileId, read);
+  return read;
+}
+
+/** Replaced whole, never merged, as chains are (5.12, "The store"). */
+export async function keepPasses(profileId: string, next: readonly HeldPass[]): Promise<void> {
+  await (await getStore()).setMeta(passesKey(profileId), JSON.stringify(next));
+  passes.set(profileId, [...next]);
+}
+
+/**
+ * The pass Let someone in offers for the open language (14.1, 3), or null: none was issued, the
+ * organization is off, or this person holds no chain for it. Whether it still lets anyone in by
+ * this phone's fold is `joinPassStop`'s, which the screen asks with the chosen role.
+ */
+export async function joinPassFor(profileId: string, orgId: string, languageId: string): Promise<JoinPass | null> {
+  if (!(await readChains(profileId))[orgId]) return null;
+  return passFor(await readPasses(profileId), orgId, languageId);
 }
 
 /** Does this phone hold this person's certificate for this organization? Only then is there anyone to claim to. */

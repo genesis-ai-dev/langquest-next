@@ -1,4 +1,4 @@
-import type { OrgState } from '@langquest-next/core';
+import type { OrgState, Privilege } from '@langquest-next/core';
 
 /**
  * What a phone keeps of its nearby identity, and when it asks for more
@@ -157,7 +157,28 @@ export interface SignedText {
 
 export type CertificateAnswer =
   | { revoked: true }
-  | { revoked: false; chains: { orgId: string; chain: unknown[] }[]; discoveryKeys: AnsweredFindKey[]; revocations: SignedText[] };
+  | { revoked: false; chains: { orgId: string; chain: unknown[] }[]; discoveryKeys: AnsweredFindKey[]; revocations: SignedText[]; passes: HeldPass[] };
+
+/**
+ * A join pass as the Worker signs it (core's `JoinPass`, docs/nearby-sync-plan.md 5.12 and 14.1),
+ * written out here because only `.android` files import the nearby entry.
+ */
+export interface PassShape {
+  kind: 'pass@1';
+  kid: string;
+  body: {
+    passId: string; orgId: string; languageId: string; inviter: string; inviterKey: string;
+    roles: { roleId: string; privileges: Privilege[] }[]; maxUses: number; expiresAt: number;
+  };
+  sig: string;
+}
+
+/** One language's pass, as the certificate answer lists it and `nearbyPasses:<profileId>` keeps it. */
+export interface HeldPass {
+  orgId: string;
+  languageId: string;
+  pass: PassShape;
+}
 
 const isId = (v: unknown): v is string => typeof v === 'string' && v.length >= 1 && v.length <= 256;
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -171,8 +192,10 @@ export function certificateAnswerOf(body: unknown): CertificateAnswer | null {
   if (!isObject(body)) return null;
   if (body['revoked'] === true) return { revoked: true };
   const { chains, discoveryKeys, revocations } = body;
-  if (!Array.isArray(chains) || !Array.isArray(discoveryKeys) || !Array.isArray(revocations)) return null;
-  const out: CertificateAnswer = { revoked: false, chains: [], discoveryKeys: [], revocations: [] };
+  // Absent from a Worker before passes came, which reads as none.
+  const passes = body['passes'] ?? [];
+  if (!Array.isArray(chains) || !Array.isArray(discoveryKeys) || !Array.isArray(revocations) || !Array.isArray(passes)) return null;
+  const out: CertificateAnswer = { revoked: false, chains: [], discoveryKeys: [], revocations: [], passes: [] };
   for (const c of chains as unknown[]) {
     if (!isObject(c) || !isId(c['orgId']) || !Array.isArray(c['chain'])) return null;
     out.chains.push({ orgId: c['orgId'], chain: c['chain'] as unknown[] });
@@ -184,6 +207,11 @@ export function certificateAnswerOf(body: unknown): CertificateAnswer | null {
   for (const r of revocations as unknown[]) {
     if (!isObject(r) || !isId(r['orgId']) || typeof r['text'] !== 'string' || !isId(r['kid']) || typeof r['sig'] !== 'string') return null;
     out.revocations.push({ orgId: r['orgId'], text: r['text'], kid: r['kid'], sig: r['sig'] });
+  }
+  for (const p of passes as unknown[]) {
+    const held = heldPassOf(p);
+    if (!held) return null;
+    out.passes.push(held);
   }
   return out;
 }
@@ -207,6 +235,50 @@ export function parseChains(raw: string | null | undefined): HeldChains {
 /** Chains of organizations no longer on go, with no call. */
 export function chainsForOrgs(held: HeldChains, orgsOn: ReadonlySet<string>): HeldChains {
   return Object.fromEntries(Object.entries(held).filter(([org]) => orgsOn.has(org)));
+}
+
+// ---- join passes as stored ---------------------------------------------------------------
+
+const isTime = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
+const isTexts = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string');
+
+/** A pass's shape, as core's `isJoinPass` reads it; the signature is the caller's to check. */
+export function passShapeOf(v: unknown): PassShape | null {
+  if (!isObject(v) || v['kind'] !== 'pass@1' || !isId(v['kid']) || typeof v['sig'] !== 'string' || !isObject(v['body'])) return null;
+  const { passId, orgId, languageId, inviter, inviterKey, roles, maxUses, expiresAt } = v['body'];
+  if (!isId(passId) || !isId(orgId) || !isId(languageId) || !isId(inviter) || !isKey32(inviterKey) || !isTime(maxUses) || !isTime(expiresAt)) return null;
+  if (!Array.isArray(roles) || !roles.every((r: unknown) => isObject(r) && isId(r['roleId']) && isTexts(r['privileges']))) return null;
+  return v as unknown as PassShape;
+}
+
+function heldPassOf(v: unknown): HeldPass | null {
+  if (!isObject(v) || !isId(v['orgId']) || !isId(v['languageId'])) return null;
+  const pass = passShapeOf(v['pass']);
+  // The entry says which language it is for, and so does the signed body: they must agree.
+  if (!pass || pass.body.orgId !== v['orgId'] || pass.body.languageId !== v['languageId']) return null;
+  return { orgId: v['orgId'], languageId: v['languageId'], pass };
+}
+
+/** `nearbyPasses:<profileId>`: that person's passes, replaced whole by each answer, as chains are (5.12, "The store"). */
+export function parsePasses(raw: string | null | undefined): HeldPass[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(heldPassOf).filter((p): p is HeldPass => p !== null);
+  } catch {
+    return [];
+  }
+}
+
+/** Passes of organizations no longer on, or with no chain held, go: Let someone in needs both (14.1, 3). */
+export function passesForOrgs(held: readonly HeldPass[], orgs: ReadonlySet<string>): HeldPass[] {
+  return held.filter((p) => orgs.has(p.orgId));
+}
+
+/** This person's pass for one language, or null: what Let someone in offers (14.1, 3). */
+export function passFor(held: readonly HeldPass[], orgId: string, languageId: string): PassShape | null {
+  return held.find((p) => p.orgId === orgId && p.languageId === languageId)?.pass ?? null;
 }
 
 // ---- when to ask -----------------------------------------------------------------------
