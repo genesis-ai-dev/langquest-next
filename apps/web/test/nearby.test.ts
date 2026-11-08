@@ -2,7 +2,8 @@ import { createPrivateKey, createPublicKey, sign as nodeSign, verify as nodeVeri
 import { describe, expect, it } from 'vitest';
 import type { AnyEvent } from '@langquest-next/core';
 import {
-  base64urlDecode, base64urlEncode, bytesToHex, certRequestText, checkChain, eventDigest, nearbyBytes, parseAttestation, parseRevocationList, type Verify
+  base64urlDecode, base64urlEncode, bytesToHex, certRequestText, checkChain, eventDigest, issueInviteLink, JOIN_PASS_USES, nearbyBytes, newcomerProfileId,
+  parseAttestation, parseRevocationList, passText, type JoinPass, type Verify, type WorkerLink
 } from '@langquest-next/core/nearby';
 import { NotAuthorizedError, SupabaseTransport } from '@langquest-next/sync';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -12,7 +13,7 @@ import { hexBytes, nearbySigner, parseCertKeys, subtleSha256, subtleVerify } fro
 import { routeClass } from '../worker/requestTally';
 import {
   ATTESTATION_TEXT, CHAIN, CHAIN_INVITER_KEY, CHAIN_ROOT_KEY, EVENT_NO_PARENT, EVENT_NO_PARENT_DIGEST, EVENT_PULLED, EVENT_PULLED_DIGEST, GENERATIONS,
-  MANIFEST_SIG, MANIFEST_TEXT, PROFILE, PUBLIC_KEY, REVOCATION_TEXT, SEED_HEX
+  MANIFEST_SIG, MANIFEST_TEXT, PASS_EXPIRES_AT, PASS_ID, PASS_NOW_MS, PROFILE, PUBLIC_KEY, REVOCATION_TEXT, SEED_HEX
 } from '../../../packages/core/test/nearbyVectors';
 
 /**
@@ -189,6 +190,57 @@ describe('POST /api/nearby/certificate', () => {
     expect(JSON.stringify(out.chains)).not.toContain('translator');
     expect(out.discoveryKeys).toEqual([{ orgId: 'org1', languageId: 'lang1', gen: 3, floor: 1, key: GENERATIONS[0] }]);
     expect(out.passes).toEqual([]);
+  });
+
+  it('signs a join pass per language the facts give, over the roles core\'s passRoles keeps, with the golden id and expiry, which a newcomer\'s chain then takes', async () => {
+    const passes = [
+      {
+        languageId: 'lang1', held: ['invite_members', 'review', 'translate'],
+        roles: [
+          { roleId: 'translator', privileges: ['translate'] }, { roleId: 'admin', privileges: ['manage_roles', 'translate'] },
+          { roleId: 'reviewer', privileges: ['translate', 'review'] }, { roleId: 'viewer', privileges: ['view_status'] }
+        ]
+      },
+      // No Invite there, so no pass, whatever the facts list.
+      { languageId: 'lang2', held: ['translate'], roles: [{ roleId: 'translator', privileges: ['translate'] }] }
+    ];
+    const { deps } = setup({ now: () => PASS_NOW_MS }, { facts: { data: { ...FACTS, orgs: [factsOrg({ passes })] }, error: null } });
+    const proof = signWith(SEED_HEX, nearbyBytes('certRequest', certRequestText({ profileId: PROFILE, deviceId: DEVICE, publicKey: PUBLIC_KEY })));
+    const ask = async () => await (await handleNearby(post(CERTIFICATE_PATH, certBody({ publicKey: PUBLIC_KEY, proof })), deps)).json() as {
+      chains: { orgId: string; chain: WorkerLink[] }[]; passes: { orgId: string; languageId: string; pass: JoinPass }[];
+    };
+    const out = await ask();
+    expect(out.passes.map((p) => [p.orgId, p.languageId])).toEqual([['org1', 'lang1']]);
+    const { pass } = out.passes[0]!;
+    expect(pass).toMatchObject({ kind: 'pass@1', kid: 'k1' });
+    expect(pass.body).toEqual({
+      passId: PASS_ID, orgId: 'org1', languageId: 'lang1', inviter: PROFILE, inviterKey: PUBLIC_KEY,
+      roles: [{ roleId: 'reviewer', privileges: ['review', 'translate'] }, { roleId: 'translator', privileges: ['translate'] }],
+      maxUses: JOIN_PASS_USES, expiresAt: PASS_EXPIRES_AT
+    });
+    expect(await nodeVerifyFn(CHAIN_ROOT_KEY, nearbyBytes('pass', passText(pass)), pass.sig)).toBe(true);
+    // The daily refresh makes no new pass: the same window, the same id, the same bytes.
+    expect((await ask()).passes[0]!.pass).toEqual(pass);
+
+    // The inviter's phone issues a newcomer's link under it, and core's checkChain takes the two links.
+    const key = createPublicKey(pkcs8('0f'.repeat(32))).export({ format: 'jwk' }).x!;
+    const salt = 'ICEiIyQlJicoKSorLC0uLw';
+    const profileId = (await newcomerProfileId(key, salt, subtleSha256))!;
+    const inviterLink = out.chains[0]!.chain[0]!;
+    const issued = await issueInviteLink({
+      inviterLink, pass, ask: { installKey: key, idSalt: salt, profileId, deviceId: 'd-0f', name: 'Deng' }, roleId: 'reviewer',
+      now: PASS_NOW_MS, sha256: subtleSha256, sign: (m) => signWith(SEED_HEX, m)
+    });
+    if (!issued.ok) throw new Error(issued.reason);
+    const verdict = await checkChain([inviterLink, issued.link], { rootKeys: ROOT_KEYS, orgId: 'org1', languageId: 'lang1', now: PASS_NOW_MS, verify: nodeVerifyFn, sha256: subtleSha256 });
+    expect(verdict).toMatchObject({ ok: true, links: 2, holder: { installKey: key, profileId }, roleId: 'reviewer' });
+  });
+
+  it('gives no pass where the facts give none, as a database before passes does', async () => {
+    const { deps } = setup({}, { facts: { data: { ...FACTS, orgs: [factsOrg({ passes: [] })] }, error: null } });
+    expect((await (await handleNearby(post(CERTIFICATE_PATH, certBody()), deps)).json() as { passes: unknown[] }).passes).toEqual([]);
+    const bad = setup({}, { facts: { data: { ...FACTS, orgs: [factsOrg({ passes: [{ languageId: 'lang1', held: 'all', roles: [] }] })] }, error: null } });
+    expect((await handleNearby(post(CERTIFICATE_PATH, certBody()), bad.deps)).status).toBe(502);
   });
 
   it('signs the revocation list with seq = revokedSeq, as the golden text, and leaves out a list with no seq yet', async () => {

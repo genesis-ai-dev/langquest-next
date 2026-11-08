@@ -1,7 +1,7 @@
 import type { AnyEvent, Privilege } from '@langquest-next/core';
 import {
-  attestationText, base64urlEncode, certRequestText, eventDigest, isBase64url, linkText, nearbyBytes, NEARBY_BATCH_MAX_EVENTS,
-  revocationText, signedBy, type Attestation, type ChainOrg, type RevokedKey, type Sha256, type Verify, type WorkerLink
+  attestationText, base64urlEncode, certRequestText, eventDigest, isBase64url, joinPassBody, linkText, nearbyBytes, NEARBY_BATCH_MAX_EVENTS,
+  passRoles, revocationText, signedBy, signJoinPass, type Attestation, type ChainOrg, type JoinPass, type RevokedKey, type Sha256, type Verify, type WorkerLink
 } from '@langquest-next/core/nearby';
 import { NotAuthorizedError } from '@langquest-next/sync';
 import { hexBytes, type NearbySigner } from './nearbyKeys';
@@ -14,8 +14,12 @@ import { hexBytes, type NearbySigner } from './nearbyKeys';
  *
  * `POST /api/nearby/certificate`, bearer token, `{ publicKey, deviceId, languages, proof }`:
  * one `worker@1` link per organization that has nearby on, the discovery keys
- * of the languages named that this person may read, and each organization's
- * signed revocation list. `{ revoked: true }` for a revoked key.
+ * of the languages named that this person may read, each organization's
+ * signed revocation list, and, where `nearby_join` is on too, a join pass for
+ * each language named where they hold Invite (14.1, Carl's answers 8, 11, 17,
+ * 18), signed with core's `joinPassBody` and `signJoinPass` over the roles
+ * core's `passRoles` keeps, the same functions phones use, and nothing written.
+ * `{ revoked: true }` for a revoked key.
  *
  * `POST /api/nearby/attest`, bearer token, `{ orgId, streamId, afterSeq }`: the
  * Worker reads the rows itself, as the caller, and signs their ids, digests and
@@ -109,21 +113,33 @@ export async function handleNearby(request: Request, deps: NearbyDeps): Promise<
 
 // ---- the certificate ---------------------------------------------------------------
 
+interface FactsPass {
+  languageId: string;
+  /** The person's privileges in that language. */
+  held: Privilege[];
+  roles: { roleId: string; privileges: Privilege[] }[];
+}
+
 interface FactsOrg {
   orgId: string;
   orgSeq: number;
   scopes: ChainOrg['scopes'];
   discoveryKeys: { languageId: string; gen: number; floor: number; key: string }[];
+  passes: FactsPass[];
   revokedSeq: number;
   revocations: RevokedKey[];
 }
+
+const isPrivileges = (v: unknown): v is Privilege[] => Array.isArray(v) && v.every((p) => isId(p, 100));
 
 /** One organization of `nearby_certificate_facts`' answer, checked, with keys as base64url; null for anything the migration would not write. */
 function factsOrg(v: unknown): FactsOrg | null {
   if (!isObject(v) || !isId(v['orgId']) || !isCount(v['orgSeq']) || !isCount(v['revokedSeq'])) return null;
   const { scopes, discoveryKeys, revocations } = v;
-  if (!Array.isArray(scopes) || !Array.isArray(discoveryKeys) || !Array.isArray(revocations)) return null;
-  const out: FactsOrg = { orgId: v['orgId'], orgSeq: v['orgSeq'], scopes: [], discoveryKeys: [], revokedSeq: v['revokedSeq'], revocations: [] };
+  // Absent from a database before passes came, which reads as none.
+  const passes = v['passes'] ?? [];
+  if (!Array.isArray(scopes) || !Array.isArray(discoveryKeys) || !Array.isArray(revocations) || !Array.isArray(passes)) return null;
+  const out: FactsOrg = { orgId: v['orgId'], orgSeq: v['orgSeq'], scopes: [], discoveryKeys: [], passes: [], revokedSeq: v['revokedSeq'], revocations: [] };
   for (const s of scopes as unknown[]) {
     if (!isObject(s) || !Array.isArray(s['privileges']) || !(s['privileges'] as unknown[]).every((p) => isId(p, 100))) return null;
     const privileges = s['privileges'] as Privilege[];
@@ -136,6 +152,15 @@ function factsOrg(v: unknown): FactsOrg | null {
     const key = isObject(k) ? hexBytes(k['key']) : null;
     if (!isObject(k) || !isId(k['languageId']) || !isCount(k['gen'], 1) || !isCount(k['floor'], 1) || key?.length !== 32) return null;
     out.discoveryKeys.push({ languageId: k['languageId'], gen: k['gen'], floor: k['floor'], key: base64urlEncode(key) });
+  }
+  for (const p of passes as unknown[]) {
+    if (!isObject(p) || !isId(p['languageId']) || !isPrivileges(p['held']) || !Array.isArray(p['roles'])) return null;
+    const roles: FactsPass['roles'] = [];
+    for (const r of p['roles'] as unknown[]) {
+      if (!isObject(r) || !isId(r['roleId']) || !isPrivileges(r['privileges'])) return null;
+      roles.push({ roleId: r['roleId'], privileges: r['privileges'] });
+    }
+    out.passes.push({ languageId: p['languageId'], held: p['held'], roles });
   }
   for (const r of revocations as unknown[]) {
     if (!isObject(r) || !isBase64url(r['publicKey'], 32) || !isId(r['profileId']) || !isCount(r['revokedAtMs'])) return null;
@@ -185,6 +210,7 @@ async function certificate(request: Request, deps: NearbyDeps): Promise<Response
   const chains: { orgId: string; chain: WorkerLink[] }[] = [];
   const discoveryKeys: { orgId: string; languageId: string; gen: number; floor: number; key: string }[] = [];
   const revocations: { orgId: string; text: string; kid: string; sig: string }[] = [];
+  const passes: { orgId: string; languageId: string; pass: JoinPass }[] = [];
   for (const org of orgs as FactsOrg[]) {
     const unsigned: Omit<WorkerLink, 'sig'> = {
       kind: 'worker@1',
@@ -194,14 +220,20 @@ async function certificate(request: Request, deps: NearbyDeps): Promise<Response
     };
     chains.push({ orgId: org.orgId, chain: [{ ...unsigned, sig: await signer.sign(nearbyBytes('link', linkText(unsigned, ''))) }] });
     for (const k of org.discoveryKeys) discoveryKeys.push({ orgId: org.orgId, ...k });
+    // One pass to a window (Carl's answer 17): the same id all window long for this organization, language, person and key.
+    for (const p of org.passes) {
+      const roles = passRoles(p.roles, new Set(p.held));
+      const body = await joinPassBody({ orgId: org.orgId, languageId: p.languageId, inviter: profileId, inviterKey: publicKey, roles, nowMs: deps.now() }, deps.sha256);
+      if (body) passes.push({ orgId: org.orgId, languageId: p.languageId, pass: await signJoinPass(body, signer.kid, signer.sign) });
+    }
     // A list with no seq yet has nothing a phone could take: it reads seq 1 and up.
     if (org.revokedSeq >= 1) {
       const text = revocationText({ v: 1, kid: signer.kid, orgId: org.orgId, seq: org.revokedSeq, keys: org.revocations });
       revocations.push({ orgId: org.orgId, text, kid: signer.kid, sig: await signer.sign(nearbyBytes('revoked', text)) });
     }
   }
-  // Passes come in phase 6. With no organization on, every list is empty, and the phone drops what it holds.
-  return json(200, { chains, discoveryKeys, passes: [], revocations });
+  // With no organization on, every list is empty, and the phone drops what it holds.
+  return json(200, { chains, discoveryKeys, passes, revocations });
 }
 
 // ---- the attestation ---------------------------------------------------------------
