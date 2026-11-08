@@ -12,7 +12,7 @@ import { getStore } from '../storage/store';
 import type { NearbyLanguage } from '../sync/useLanguage';
 import type { PhoneRadio } from './nearbyLink.android';
 import { parseFindKeys, type FindKey } from './nearbyModel';
-import { holdsCertificate, nearbyGateFor, nearbySignerFor, phoneCrypto, readChains, readRevoked, ROOT_KEYS } from './nearbyPhone.android';
+import { holdsCertificate, nearbyGateFor, phoneCrypto, phoneSignerFor, readChains, readRevoked, ROOT_KEYS } from './nearbyPhone.android';
 import { certOrgSeqOf, listedKey, namesOf, nearbyOffered, orgSeqHereOf, radiosFor, roomLimitsFor, swapOf } from './nearbyRunModel';
 
 /**
@@ -72,8 +72,9 @@ export async function nearbyPiecesFor(o: { actorId: string; orgId: string; langu
   if (!crypto) return { ok: false, why: 'no-key' };
   const chain = (await readChains(o.actorId))[o.orgId] as ChainLink[] | undefined;
   const findKey = await findKeyFor(o.actorId, o.orgId, o.languageId);
-  // Only someone signed in opens Share nearby; their chain is the one Hello sends (Carl's answer 5 lets the signer hold others' too).
-  const signer = await nearbySignerFor(o.orgId, [o.actorId]);
+  // Only someone signed in opens Share nearby, and their chain is the one Hello sends; the signer also holds the chain of
+  // everyone else on this phone with a certificate here, so their unsent work is signed too (Carl's answer 5).
+  const signer = await phoneSignerFor(o.orgId, o.actorId);
   if (!chain || !findKey || !signer) return { ok: false, why: 'no-certificate' };
   const orgSeqHere = orgSeqHereOf(await o.inspectOrg());
   const [gate, revoked, deviceId] = await Promise.all([

@@ -27,6 +27,8 @@ import type { NearbyFilesOptions } from './nearbyPhone';
 export const ROOT_KEYS: ReadonlyMap<string, string> = parseCertKeys(process.env.EXPO_PUBLIC_NEARBY_CERT_KEYS);
 
 const chainKey = (profileId: string) => `nearbyChain:${profileId}`;
+/** Who has a `nearbyChain:` row here, since meta has no prefix scan: kept beside the rows, and cleared with them. */
+const CHAIN_PEOPLE = 'nearbyChainPeople';
 const revokedKey = (orgId: string) => `nearbyRevoked:${orgId}`;
 const random = (n: number) => Crypto.getRandomBytes(n);
 
@@ -43,13 +45,28 @@ export async function readChains(profileId: string): Promise<HeldChains> {
 
 /** Replaced whole, never merged, so a turned-off organization's goes (5.12). */
 export async function keepChains(profileId: string, next: HeldChains): Promise<void> {
-  await (await getStore()).setMeta(chainKey(profileId), JSON.stringify(next));
+  const store = await getStore();
+  await store.setMeta(chainKey(profileId), JSON.stringify(next));
   chains.set(profileId, next);
+  const people = await chainPeople();
+  if (!people.includes(profileId)) await store.setMeta(CHAIN_PEOPLE, JSON.stringify([...people, profileId]));
+}
+
+/** Everyone on this phone a certificate answer was ever kept for, signed in or not. */
+export async function chainPeople(): Promise<string[]> {
+  try {
+    const parsed = JSON.parse((await (await getStore()).meta(CHAIN_PEOPLE)) ?? '[]') as unknown;
+    return Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === 'string') : [];
+  } catch {
+    return [];
+  }
 }
 
 /** A new install key: every chain on this phone named the old one, whoever's it was (5.12, `revoked`). */
 export async function forgetAllChains(): Promise<void> {
-  await (await getStore()).clearMeta('nearbyChain:');
+  const store = await getStore();
+  await store.clearMeta('nearbyChain:');
+  await store.clearMeta(CHAIN_PEOPLE);
   chains.clear();
 }
 
@@ -129,6 +146,17 @@ export async function nearbySignerFor(orgId: string, actorIds: readonly string[]
     if (chain) held.set(actorId, chain as ChainLink[]);
   }
   return { publicKey: crypto.publicKey, sign: crypto.sign, sha256: crypto.sha256, chainFor: (actorId) => held.get(actorId) ?? null };
+}
+
+/**
+ * The signer a Share nearby that `signedIn` opened uses: this install's key, and the chain for
+ * this organization of everyone on this phone who holds one, so a signed-out person's unsent work
+ * is signed and travels too (Carl's answer 5, docs/nearby-sync-plan.md 5.5 and 5.12
+ * `signUnsigned`). Anyone here with no certificate for this organization stays unsigned.
+ */
+export async function phoneSignerFor(orgId: string, signedIn: string): Promise<NearbySigner | null> {
+  const others = (await chainPeople()).filter((p) => p !== signedIn);
+  return nearbySignerFor(orgId, [signedIn, ...others]);
 }
 
 // ---- teammates' files (docs/nearby-sync-plan.md 5.6) -----------------------------------

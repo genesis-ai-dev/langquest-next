@@ -1,6 +1,8 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { certRequestText, nearbyBytes, revocationText, type ChainLink } from '@langquest-next/core/nearby';
-import { MemoryStore } from '@langquest-next/sync';
+import { MemoryStore, SyncClient } from '@langquest-next/sync';
+import { nearbyClient } from '@langquest-next/sync/nearby';
+import { FakeServer } from '../../../packages/sync/src/testing/fakeServer';
 import { fakeSigner, fakeWorker } from '../../../packages/sync/src/testing/memoryNearbyLink';
 import { nobleVerify } from '../src/nearby/nearbyCryptoModel';
 
@@ -336,5 +338,44 @@ describe('the nearby identity', () => {
     await store().setMeta('nearbyHold', 'true');
     await p.identity.refreshHoldChoice(true);
     expect(p.hold.currentHoldChoice()).toEqual({ hold: true });
+  });
+
+  it('signs the unsent work of everyone on this phone with a certificate here, signed out or not (Carl\'s answer 5)', async () => {
+    const MARY = '22222222-2222-4222-8222-222222222222';
+    const JOE = '33333333-3333-4333-8333-333333333333';
+    const p = await load();
+    p.flag.heardUserState(ME, { orgFeatures: { o1: ['nearby'] } });
+    await input(p);
+    const { publicKey, deviceId } = fake.calls[0]!;
+    // Mary signed out earlier, and her chain for this organization stayed (5.5); Joe holds one for another organization only.
+    await p.phone.keepChains(MARY, { o1: await worker.certify({ installKey: publicKey, profileId: MARY, deviceId }, { orgId: 'o1', privileges: ['translate'] }) });
+    await p.phone.keepChains(JOE, { o2: await worker.certify({ installKey: publicKey, profileId: JOE, deviceId }, { orgId: 'o2', privileges: ['translate'] }) });
+    expect((await p.phone.chainPeople()).sort()).toEqual([ME, MARY, JOE].sort());
+
+    const server = new FakeServer();
+    const maker = nearbyClient({ sha256: async (b) => b.slice(0, 32), holdsCertificate: () => true });
+    let n = 0;
+    const clientOf = (actorId: string) => new SyncClient({
+      orgId: 'o1', streamId: 'L1', actorId, deviceId, store: store(), transport: server.transportFor(), now: () => 1_700_000_000_000,
+      newId: () => `${actorId}:e${++n}`, nearby: maker
+    });
+    const unit = (id: string) => ({ unitId: id, parentUnitId: null, kind: 'passage', label: id, order: id });
+    for (const who of [MARY, JOE, ME]) {
+      const c = clientOf(who);
+      await c.load();
+      await c.append('v1.UnitAdded', unit(`u-${who}`));
+    }
+    const mine = clientOf(ME);
+    await mine.load();
+
+    const signer = (await p.phone.phoneSignerFor('o1', ME))!;
+    expect(signer.chainFor(MARY)).toEqual((await p.phone.readChains(MARY))['o1']);
+    expect(signer.chainFor(JOE)).toBeNull();
+    expect(await mine.signUnsigned(signer)).toMatchObject({ batches: 2, events: 2, noCertificate: 1 });
+    expect((await store().batchKeys('o1', 'L1')).map((b) => b.actorId).sort()).toEqual([ME, MARY].sort());
+
+    // A new install key forgets every chain, and who held one.
+    await p.phone.forgetAllChains();
+    expect(await p.phone.chainPeople()).toEqual([]);
   });
 });
