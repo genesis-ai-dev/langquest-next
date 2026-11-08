@@ -24,9 +24,9 @@ First filled in: 2026-09-30, Caleb Koster, with Claude.
 | Default language | English (United States), en-US |
 | App or game | App |
 | Free or paid | Free (cannot become paid later) |
-| Declarations | Developer Program Policies; US export laws (standard HTTPS encryption only) |
+| Declarations | Developer Program Policies; US export laws: the app complies. Besides HTTPS it has its own encryption, all standard algorithms: on Android, Share nearby's protocol between phones (AES-256-GCM under keys from an X25519 exchange, HKDF and HMAC with SHA-256, Ed25519 signatures; `docs/nearby-sync-plan.md` 5.12), and on any phone the sign-out lock (decisions.md 168). See "Encryption" below |
 | Developer account | The organization account (D-U-N-S) that publishes LangQuest v2; not subject to the 12-tester rule for new personal accounts |
-| Track | Internal testing only; every merge to `main` uploads new native builds (decisions.md 45) |
+| Track | Production: every new build that a merge to `main` makes goes to production review and is public once approved, with no staged rollout (decisions.md 157, which replaced decision 45's internal testing only) |
 | Managed publishing | Off |
 | Category | Productivity (a work tool for translation teams) |
 | Tags | Up to five that fit from Google's list (team collaboration, voice recorder, translation, Bible) |
@@ -52,6 +52,18 @@ repository), an **Organization Admin** of the sample organization
 "LangQuest Sample" with the Dinka language. "Sign in details provide full
 access to all features": **ticked** (Organization Admin; no paid content).
 
+Share nearby (Android, labelled experimental) appears only for an
+organization that LangQuest staff have turned nearby sync on for, so
+"LangQuest Sample" must have it on before a build with it goes to review
+(`npm run org-feature -- grant <its organization id> nearby --hosted`), and
+the instructions add: "Share nearby (Sync → Share nearby) passes the team's
+work between two Android phones with no internet. Sign in as the test
+account on two Android 10 or later phones, open the same language on both,
+and open Share nearby on both; Android asks for Nearby devices (or, on
+Android 10 to 12, location) first." Without the flag the reviewer cannot
+reach the feature behind the new permissions. `nearby_join` (joining
+offline) stays off and is not described.
+
 ## Ads, audience and other declarations
 
 | Question | Answer |
@@ -70,7 +82,7 @@ access to all features": **ticked** (Organization Admin; no paid content).
 | Primarily news or educational | No: a work tool for translation teams |
 | Violence | Yes, mildest options: scripture narrates violence (Judges, the crucifixion), text and audio only, not graphic, no visual depiction |
 | Sexual content | Nudity or explicit content: No. Sexual references: Yes, mild, text and audio only (Song of Songs, Genesis 19) |
-| Users interact or exchange content | Yes (recordings, reviews and comments within an organization) |
+| Users interact or exchange content | Yes (recordings, reviews and comments within an organization; on Android, Share nearby also passes them between the phones of members of the same organization, who could already see them, which changes no answer) |
 | Reporting and blocking | In the app: anyone can report a version, review, note, join request or person, and block a person; moderators and LangQuest staff act on reports, and the Terms of Use forbid objectionable content (decisions.md 48) |
 | Interactions limited to invited people | Yes: only members an organization's admin invited or approved. Anyone with an account can send an organization a join request with a short message, seen only by its admins |
 | Online content not in the download | Yes: source Bible audio, library templates, flows and reference material, and each team's synced work. No AI-generated content, news, film, music or shopping |
@@ -83,7 +95,7 @@ Expected rating: about Teen / 12+ with "Users Interact".
 | Question | Answer |
 | --- | --- |
 | Collects or shares required data types | Yes |
-| Encrypted in transit | Yes: Supabase, the app's Cloudflare Worker (reports, decisions.md 44; recordings and guide media, kept in Cloudflare R2, decisions.md 69), Bible text and audio (Bible Brain's CDN, OpenBible) over HTTPS; no cleartext allowed |
+| Encrypted in transit | Yes: Supabase, the app's Cloudflare Worker (reports, decisions.md 44; recordings and guide media, kept in Cloudflare R2, decisions.md 69), Bible text and audio (Bible Brain's CDN, OpenBible) over HTTPS; no cleartext allowed. Phone to phone (Share nearby, Android), every message and file is encrypted with the app's own protocol, AES-256-GCM under keys from an X25519 exchange that only phones holding the language's discovery key can open, over Bluetooth LE, Wi-Fi Direct or a local-only hotspot; nothing readable goes out before the other phone proves it holds that key |
 | Account creation | Username, password and other authentication: an email and password (someone with a LangQuest v2 account signs in with that account's email and password, which our server checks with LangQuest v2, our own app, once; decisions.md 94); or, for someone joining by invite with no email, the invite itself (a one-time QR code) makes the account, and they get back in with a one-time code from someone who can invite them, or with their sign-in name and a password if they set one (docs/invites-and-accounts.md, decisions.md 59); no OAuth. LangQuest's own Global Viewer accounts (support staff, decisions.md 158) also enter a code from an authenticator app; no user of the app is asked for one, and nothing new is collected from users |
 | Account deletion URL | https://next.langquest.org/delete-account |
 | Delete some data without deleting the account | No. Account data is deleted with the account; an organization's work belongs to it, and requests about it go to its admins |
@@ -101,8 +113,17 @@ Feedback that app sends back is a review in the organization's log, already
 collected as other user-generated content. Review links (`/r/<code>`) are a
 web page outside the Android app: a person shares one, and whoever answers
 on it gives a name, a comment and perhaps a voice note, which reach the app
-as reviews (name, messages, voice recordings: types already declared). **Processed ephemerally: No** for
-every type.
+as reviews (name, messages, voice recordings: types already declared).
+Share nearby (Android, from phase 3) sends events, recordings, names in
+signed certificates, and install keys straight from one member's phone to
+another's in the same organization, encrypted between the two phones, when
+both people have opened Share nearby. Each recipient is a member who could
+already read that work from our server, so it is the same data reaching the
+same people another way: a transfer the users start and expect, not a third
+party, so it is not sharing in Play's terms, and every type it carries is
+already declared collected (the server gets it too). "Hold teammates'
+recordings" changes how much a phone keeps, not who may read it, so it
+changes no answer. **Processed ephemerally: No** for every type.
 
 | Category | Data type | Collected | Shared | Required or optional | Purposes |
 | --- | --- | --- | --- | --- | --- |
@@ -257,7 +278,11 @@ salted hash in the Keystore (`expo-secure-store`, `expo-crypto`), the
 notepad's text in app storage; neither is sent. Turning it on disconnects
 the phone's notifications through the existing call, since each would say
 LangQuest. Nothing new is collected or sent, so no Play Console answer
-changes. iPhone builds have none of it (decisions.md 171, amended
+changes. On Android a disguised phone can also share nearby after a press
+(decisions.md 171, amended 2026-11-07), so Android's permission prompts
+would name the app in front of whoever is there; the app warns first, and
+never joins a hotspot there, whose dialog names it too. iPhone builds have
+none of it (decisions.md 171, amended
 2026-11-03): Apple refused iPhone build 48 twice under App Review Guideline
 2.5.19 for the icons, so the iPhone app has no App icon row, no other icons
 and not the package's native module, and the App Review notes in App Store
@@ -290,23 +315,59 @@ and the counters on `install_keys` are about a key, so neither changes an
 answer. No screen shows any of this until phase 3, and no permission or SDK
 that collects data is added, so the other answers are unchanged.
 
-Nearby sync, phase 3's native module (`docs/nearby-sync-plan.md` sections 4, 5.9 and 9):
-`apps/mobile/modules/nearby-link`, a local Expo module on Android's own Bluetooth LE, Wi-Fi
-Direct and local-only hotspot APIs, with no Google Play services and no new SDK. Its own
-`AndroidManifest.xml` declares the permissions in the facts block's `modulePermissions`, which
-merge into the app's manifest for every build (decision 157), whoever has the feature: the three
-Bluetooth permissions of Android 12 and later (`BLUETOOTH_SCAN` marked `neverForLocation`),
-`NEARBY_WIFI_DEVICES` on Android 13 and later (`neverForLocation`), fine and coarse location only
-up to Android 12L (`maxSdkVersion` 32), where Bluetooth scans and Wi-Fi Direct require them, the
-legacy `BLUETOOTH` and `BLUETOOTH_ADMIN` up to Android 11, and the Wi-Fi and network state
-permissions. Bluetooth, Bluetooth LE and Wi-Fi Direct are declared as features not required, so
-no phone is hidden from the listing. No location is read or derived, no background location,
-foreground service, `ACCESS_LOCAL_NETWORK` or `REQUEST_INSTALL_PACKAGES` is asked for, and
-nothing is asked at run time until someone opens Share nearby. Phones exchange the team's work
-encrypted with their own protocol (AES-256-GCM under keys from an X25519 exchange). The Play
-Console answers this changes are listed for the developer with the phase (permissions
-declarations, the location prompt below Android 13, encryption in transit, the export answer);
-the module does nothing until the screen that uses it ships.
+Nearby sync, phase 3: the link and the screen (`docs/nearby-sync-plan.md` sections 4, 5.6,
+5.8, 5.9 and 9; decisions.md 218 to 229). On Android, an organization that LangQuest staff
+turned nearby on for sees Share nearby under Sync, labelled experimental. While someone has it
+open, the phone finds teammates who also have it open on the same language and passes the
+team's unsent work between the two phones, with no internet.
+
+- **The link.** `apps/mobile/modules/nearby-link`, a local Expo module on Android's own
+  Bluetooth LE, Wi-Fi Direct and local-only hotspot APIs, with no Google Play services and no
+  new SDK (no new entry in `mobileDependencies`). It logs nothing and sends nothing to us or
+  anyone else; it reads no location.
+- **Permissions and features** (the facts block's `modulePermissions` and `moduleFeatures`,
+  from the module's own `AndroidManifest.xml`, merged into every build whoever has the
+  feature, decision 157):
+
+  | Permission | Limit | Android | Asked at run time |
+  | --- | --- | --- | --- |
+  | `BLUETOOTH`, `BLUETOOTH_ADMIN` | `maxSdkVersion` 30 | 10 and 11 | No (normal) |
+  | `BLUETOOTH_SCAN` | `neverForLocation` | 12 and later | Yes, "Nearby devices" |
+  | `BLUETOOTH_ADVERTISE`, `BLUETOOTH_CONNECT` | | 12 and later | Yes, "Nearby devices" |
+  | `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` | `maxSdkVersion` 32 | 10 to 12L, where Bluetooth scans and Wi-Fi Direct require them | Yes, "Location" |
+  | `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE`, `CHANGE_NETWORK_STATE`, `ACCESS_NETWORK_STATE` | | all | No (normal) |
+  | `NEARBY_WIFI_DEVICES` | `neverForLocation` | 13 and later | Yes, "Nearby devices" |
+
+  `android.hardware.bluetooth`, `bluetooth_le` and `wifi.direct` are features with
+  `required="false"`, so no phone is hidden from the listing. No background location,
+  `FOREGROUND_SERVICE`, `ACCESS_LOCAL_NETWORK` or `REQUEST_INSTALL_PACKAGES`. Nothing is
+  asked until someone opens Share nearby, and the screen says why before Android's prompt,
+  because on Android 10 to 12L the prompt names location although none is read or kept.
+  None of these needs a Play Console declaration form (only background location does), but
+  they show in the release's permission list.
+- **What stays on the phone.** Teammates' events and recordings, until the server confirms
+  them (a backup goes as soon as it does, on every phone), with "Hold teammates' recordings"
+  deciding how many of the recordings a phone keeps; holdings, the batch vector, the names in
+  certificates it checked, and the partners it last finished with, with no time, place or
+  meeting record. None of it reaches our server or any third party: phones exchange it only
+  with each other.
+- **What goes to teammates.** The language's unsent events and recordings with their
+  authors' names, signed batches, holdings, the revocation list, a newer discovery key, and
+  each phone's certificate (install key, profile id, device id, organization and role
+  privileges), only to members of the same organization whose certificate checks and who may
+  read that language. Data safety, above: not sharing, no new type.
+- **Data safety, Location** stays "not collected": the location permissions exist only because
+  Android 10 to 12L require them to scan and use Wi-Fi Direct, and the scan is marked
+  `neverForLocation` from Android 12.
+- **Device or other IDs** is unchanged from phase 2: certificates and install keys now also
+  pass between members' phones, which is neither collection by us nor sharing.
+- **Diagnostics**: below.
+- **A disguised phone** (decision 171) is offered Share nearby too, with limits: opening the
+  screen does nothing until a press, it stops after ten minutes or at "Up to date", leaving
+  the app stops it, it never joins a hotspot, and one warning comes first that Android's
+  prompts will show the app's real name. No permission is added for it and no answer changes.
+- **Content and audience** are unchanged: the same organization's work between the same
+  members.
 
 Share nearby's diagnostics (`docs/diagnostics.md`, the `nearby` kind in the facts block):
 on Android, a record when a room stops, when a session ends, when Find fails and when the
@@ -328,6 +389,22 @@ developer's decision.
 
 Not collected: location, financial info, health, files, calendar, contacts,
 web browsing, app interactions beyond diagnostics, other personal info.
+
+## Encryption
+
+Play Console's "US export laws" is a declaration that the app complies, not a
+questionnaire, so its wording does not change; what it covers does. From
+phase 3 the Android app has its own encrypted protocol between phones,
+besides HTTPS: X25519 key agreement, HKDF and HMAC with SHA-256 and Ed25519
+signatures (`@noble/curves`, `@noble/hashes`, code inside the app), and
+AES-256-GCM for every frame and file (the module, on Android's own
+`javax.crypto`), all published standard algorithms, used to protect the
+team's own data. That
+is mass-market encryption of the kind the US Export Administration
+Regulations treat under 5D992.c; the developer must confirm that
+classification, and whether a self-classification report is due, before the
+build with it goes to review. iPhone builds carry none of the module, so
+`ITSAppUsesNonExemptEncryption` stays `false` until phase 5 looks again.
 
 ## Store listing
 
