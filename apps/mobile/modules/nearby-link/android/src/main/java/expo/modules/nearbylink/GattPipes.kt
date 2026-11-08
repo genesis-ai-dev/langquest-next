@@ -75,7 +75,7 @@ class GattServerPipes(
   private var salt: ByteArray? = null
   private var writeUuid: UUID? = null
   private var notifyUuid: UUID? = null
-  private val ends = HashMap<String, End>()
+  private val ends = PipeEnds<End>()
   private var serviceAdded: ((Boolean) -> Unit)? = null
   /** One notification at a time across every client: an older Android keeps the value on the characteristic. */
   private val notifyLock = ReentrantLock()
@@ -90,7 +90,7 @@ class GattServerPipes(
     }
 
     override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
-      if (newState == BluetoothProfile.STATE_DISCONNECTED) drop(device.address)
+      if (newState == BluetoothProfile.STATE_DISCONNECTED) dropAt(device.address)
     }
 
     override fun onMtuChanged(device: BluetoothDevice, mtu: Int) {
@@ -105,12 +105,12 @@ class GattServerPipes(
       val on = value != null && value.contentEquals(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
       if (responseNeeded) server?.sendResponse(device, requestId, if (ours) BluetoothGatt.GATT_SUCCESS else BluetoothGatt.GATT_FAILURE, 0, null)
       if (!ours) return
-      if (!on) return drop(device.address)
+      if (!on) return dropAt(device.address)
       val end = lock.withLock {
         val current = salt ?: return
-        if (ends.containsKey(device.address)) return
+        if (ends.has(device.address)) return
         val queue = ByteQueue(tune().pipeBytes) { drained(device.address) }
-        End(device, queue, current.copyOf()).also { ends[device.address] = it }
+        End(device, queue, current.copyOf()).also { ends.put(device.address, it) }
       }
       opened(PipeTransport(end.queue, { end.mtu }, { notify(end, it) }, { disconnect(end) }), end.salt)
     }
@@ -126,7 +126,7 @@ class GattServerPipes(
       }
       if (!end.queue.offer(value)) {
         if (responseNeeded) server?.sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null)
-        return drop(device.address)
+        return drop(end)
       }
       if (!responseNeeded) return
       // Past half the pipe's room, the answer waits for the reader, so the client waits too.
@@ -200,7 +200,7 @@ class GattServerPipes(
   }
 
   fun close() {
-    val all = lock.withLock { ends.values.toList().also { ends.clear() } }
+    val all = lock.withLock { ends.takeAll() }
     for (end in all) {
       end.gone = true
       end.queue.end()
@@ -222,15 +222,25 @@ class GattServerPipes(
     server?.sendResponse(held.first.device, held.second, BluetoothGatt.GATT_SUCCESS, 0, null)
   }
 
-  private fun drop(address: String) {
-    val end = lock.withLock { ends.remove(address) } ?: return
+  /** What the system says about a device: whatever pipe it holds now goes. */
+  private fun dropAt(address: String) {
+    lock.withLock { ends.remove(address) }?.let { finish(it) }
+  }
+
+  /** One pipe goes, and leaves a newer pipe of the same device where it is. */
+  private fun drop(end: End) {
+    lock.withLock { ends.remove(end.device.address, end) }
+    finish(end)
+  }
+
+  private fun finish(end: End) {
     end.gone = true
     end.queue.end()
     notifyLock.withLock { sent.signalAll() }
   }
 
   private fun disconnect(end: End) {
-    drop(end.device.address)
+    drop(end)
     try { server?.cancelConnection(end.device) } catch (_: Exception) {}
   }
 

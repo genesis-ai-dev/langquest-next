@@ -50,6 +50,31 @@ interface Transport {
 }
 
 /**
+ * A GATT server's pipes, by device address. Not locked: its owner holds its own lock. A pipe that
+ * ends removes itself only (`remove(address, end)`), because the device may have reconnected
+ * since and hold a newer pipe at the same address.
+ */
+class PipeEnds<E : Any> {
+  private val byAddress = HashMap<String, E>()
+
+  operator fun get(address: String): E? = byAddress[address]
+  fun has(address: String): Boolean = byAddress.containsKey(address)
+  fun put(address: String, end: E) { byAddress[address] = end }
+
+  /** Whatever pipe the device holds now: for what the system says about the device itself. */
+  fun remove(address: String): E? = byAddress.remove(address)
+
+  /** This pipe only, if it is still the one at its address. */
+  fun remove(address: String, end: E): Boolean {
+    if (byAddress[address] !== end) return false
+    byAddress.remove(address)
+    return true
+  }
+
+  fun takeAll(): List<E> = byAddress.values.toList().also { byAddress.clear() }
+}
+
+/**
  * Bytes that arrive by GATT, read in order as a stream. Holds at most `capacity` bytes; past that
  * the pipe is broken, since only a hostile or broken peer floods it (a pipe carries events only).
  * `onDrained` lets a GATT server answer a held write once a reader made room.

@@ -3,6 +3,8 @@ package expo.modules.nearbylink
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -75,5 +77,26 @@ class StreamsTest {
     q.offer(ByteArray(10))
     q.read(ByteArray(10), 0, 10)
     assertEquals(1, drained)
+  }
+
+  /**
+   * Why: a pipe that ends removed whatever pipe sat at its device's address, so a device that had
+   * reconnected lost its new pipe to the old one's close. A pipe removes itself only.
+   */
+  @Test fun aPipeThatEndsRemovesItselfAndNotTheDevicesNewerPipe() {
+    val ends = PipeEnds<Any>()
+    val old = Any()
+    val newer = Any()
+    ends.put("AA", old)
+    assertTrue(ends.remove("AA", old))
+    ends.put("AA", newer)
+    assertFalse(ends.remove("AA", old))
+    assertSame(newer, ends["AA"])
+    assertSame(newer, ends.remove("AA"))
+    assertNull(ends["AA"])
+    ends.put("AA", old)
+    ends.put("BB", newer)
+    assertEquals(setOf(old, newer), ends.takeAll().toSet())
+    assertNull(ends["BB"])
   }
 }
