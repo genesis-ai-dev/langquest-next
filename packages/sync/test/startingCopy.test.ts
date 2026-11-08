@@ -288,6 +288,8 @@ describe.each([['memory', () => new MemoryStore() as EventStore], ['SQLite', sql
         await settle(n.client);
         expect(await n.client.holdsCopy()).toBe(false);
         expect(await n.store.meta('startingCopy:org1/p1')).toBeFalsy();
+        // The forged copy's seq is gone with it: claims resume from what the server gave, never above its head.
+        expect(Number(await n.store.meta('nearbyClaimed:org1/p1'))).toBeLessThanOrEqual(server.head('org1', 'p1'));
         const truth = serverFold(server);
         expect(Object.keys(truth.notes ?? {})).toEqual(expect.arrayContaining(['n-new', 'n-later']));
         expect(comparable(await whole(n.client, n.store))).toEqual(comparable(truth));
@@ -407,7 +409,8 @@ describe.each([['memory', () => new MemoryStore() as EventStore], ['SQLite', sql
       await n.load();
       const forgedState = structuredClone(state);
       forgedState.members['forged-admin'] = structuredClone(forgedState.members['t1']!);
-      await n.adoptStartingCopy({ ...copy, state: forgedState });
+      await n.adoptStartingCopy({ ...copy, serverSeq: copy.serverSeq + 1000, state: forgedState });
+      expect(await store.meta(`nearbyClaimed:org1/${ORG_STREAM}`)).toBe(String(copy.serverSeq + 1000));
       expect(Object.keys(n.getState().members)).toContain('forged-admin');
       expect((await n.sync()).offline).toBe(true);
       expect(Object.keys(n.getState().members)).toContain('forged-admin');
@@ -434,6 +437,7 @@ describe.each([['memory', () => new MemoryStore() as EventStore], ['SQLite', sql
       const truth = foldOrg(server.stream('org1', ORG_STREAM));
       expect({ ...good.getState(), appliedEventIds: {} }).toEqual({ ...truth, appliedEventIds: {} });
       expect(await store.cursor('org1', ORG_STREAM)).toBe(server.head('org1', ORG_STREAM));
+      expect(await store.meta(`nearbyClaimed:org1/${ORG_STREAM}`)).toBe(String(server.head('org1', ORG_STREAM)));
       expect(newcomerOrgState(good.getState(), 'p1').members['forged-admin']).toBeUndefined();
     });
   });

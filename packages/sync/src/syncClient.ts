@@ -676,7 +676,7 @@ export class SyncClient<S = LanguageState> {
    */
   private async dropStaleCheckpoint(): Promise<void> {
     await this.commit({
-      meta: { [this.snapshotKey()]: '', [this.snapshotSeqKey()]: '', [this.redactionKey()]: '', ...(this.lines ? { [this.lines.owedKey()]: '' } : {}), ...(this.fill?.clear() ?? {}), [this.copyKey()]: '' },
+      meta: { [this.snapshotKey()]: '', [this.snapshotSeqKey()]: '', [this.redactionKey()]: '', ...(this.lines ? { [this.lines.owedKey()]: '' } : {}), ...(this.fill?.clear() ?? {}), ...(await this.copyGone(0)) },
       cursor: { orgId: this.opts.orgId, streamId: this.opts.streamId, seq: 0 },
       ...(this.kept ? { kept: { ...this.stream(), clear: true } } : {})
     });
@@ -698,7 +698,7 @@ export class SyncClient<S = LanguageState> {
     const { meta, chars } = this.snapshotMeta(snap, o.stateText);
     await this.commit({
       // The server's snapshot replaces a starting copy, in the same write.
-      meta: { ...meta, ...(o.meta ?? {}), [this.copyKey()]: '' },
+      meta: { ...meta, ...(o.meta ?? {}), ...(await this.copyGone(seq)) },
       cursor: { orgId, streamId, seq },
       prune: { orgId, streamId, uptoSeq: snap.serverSeq },
       ...(o.kept ? { kept: o.kept } : {})
@@ -903,7 +903,7 @@ export class SyncClient<S = LanguageState> {
     // Pieces of a whole-snapshot download cut short are no use now.
     await this.dropChunks();
     await this.commit({
-      meta: { ...this.snapshotMeta(snap).meta, ...this.lines.adopt(serverLines, shared), ...this.fill.begin({ ...head, lines }, this.elapsed()), [this.copyKey()]: '' },
+      meta: { ...this.snapshotMeta(snap).meta, ...this.lines.adopt(serverLines, shared), ...this.fill.begin({ ...head, lines }, this.elapsed()), ...(await this.copyGone(head.serverSeq)) },
       cursor: { orgId, streamId, seq: head.serverSeq },
       prune: { orgId, streamId, uptoSeq: head.serverSeq },
       kept: { ...this.stream(), clear: true, upsert: serverLines.map(lineRow) }
@@ -1854,6 +1854,15 @@ export class SyncClient<S = LanguageState> {
     return this.copyHeld!;
   }
 
+  /**
+   * What a commit that replaces this stream's checkpoint writes about a starting copy: the marker
+   * cleared, and while one is held, `nearbyClaimed` at the new cursor. A copy's seq is only what a
+   * teammate said, so a forged one would otherwise hold claims above the server's head for good.
+   */
+  private async copyGone(cursor: number): Promise<Record<string, string>> {
+    return { [this.copyKey()]: '', ...((await this.holdsStartingCopy()) ? { [this.nearbyKey('nearbyClaimed')]: String(cursor) } : {}) };
+  }
+
   /** Does this stream hold a teammate's starting copy, not yet replaced by the server's? */
   holdsCopy(): Promise<boolean> {
     return this.holdsStartingCopy();
@@ -1963,7 +1972,7 @@ export class SyncClient<S = LanguageState> {
     const state = aside.getState();
     this.m.compact(state);
     const snap = { orgId, streamId, reducerVersion: this.m.version, serverSeq: seq, state } as unknown as Snapshot;
-    await this.commit({ meta: { ...this.snapshotMeta(snap).meta, [this.copyKey()]: '' }, cursor: { orgId, streamId, seq }, prune: { orgId, streamId, uptoSeq: seq } });
+    await this.commit({ meta: { ...this.snapshotMeta(snap).meta, ...(await this.copyGone(seq)) }, cursor: { orgId, streamId, seq }, prune: { orgId, streamId, uptoSeq: seq } });
     this.heldCopy(false);
     await this.refold('snapshot');
     return seq;

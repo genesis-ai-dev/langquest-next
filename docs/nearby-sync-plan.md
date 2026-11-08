@@ -3293,7 +3293,8 @@ it does today (decision 54).
      the first-download route, not only when there is no checkpoint, which would keep
      anything forged for good. The server's first download replaces the copy, by the path
      that already replaces a language (decision 143), and the marker clears in the same
-     commit. Where the server has no snapshot, the copy is dropped first, and the stream
+     commit, with `nearbyClaimed` moved to the new cursor, since the copy's seq was only a
+     teammate's word. Where the server has no snapshot, the copy is dropped first, and the stream
      pulled from 0. The organization stream never has one, so it pulls into a temporary
      client on a `MemoryStore`, as `reports.ts` does, and writes the result in one commit,
      so the person keeps a working organization on a poor link. `loadUnits` takes no
