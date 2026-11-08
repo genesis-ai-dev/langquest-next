@@ -4798,8 +4798,7 @@
       "micOff": "LangQuest tidak bisa mendengar Anda. Nyalakan mikrofon untuk LangQuest di Pengaturan.",
       "micOffWeb": "LangQuest tidak bisa mendengar Anda. Izinkan mikrofon untuk situs ini di browser Anda, lalu ketuk rekam lagi.",
       "openSettings": "Buka Pengaturan",
-      "openSettingsHelp": "Membuka pengaturan ponsel ini untuk LangQuest. Nyalakan mikrofon di sana, lalu kembali.",
-      "addPart": "Tambahkan bagian di sini"
+      "openSettingsHelp": "Membuka pengaturan ponsel ini untuk LangQuest. Nyalakan mikrofon di sana, lalu kembali."
     },
     "quoted": "“{{text}}”",
     "listening": "Mendengarkan… {{time}}",

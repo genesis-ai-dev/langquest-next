@@ -4798,8 +4798,7 @@
       "micOff": "LangQuest 听不到你的声音。请在“设置”中为 LangQuest 打开麦克风。",
       "micOffWeb": "LangQuest 听不到你的声音。请在浏览器中允许此网站使用麦克风，然后再点一次录音。",
       "openSettings": "打开设置",
-      "openSettingsHelp": "打开此手机上 LangQuest 的设置。在那里打开麦克风，然后返回。",
-      "addPart": "在这里添加一段"
+      "openSettingsHelp": "打开此手机上 LangQuest 的设置。在那里打开麦克风，然后返回。"
     },
     "quoted": "“{{text}}”",
     "listening": "正在听……{{time}}",
