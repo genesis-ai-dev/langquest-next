@@ -66,6 +66,13 @@ Every account has somebody who can get it back in.
 | May help others sign in | when their role holds Invite where that person is | no |
 | Becomes the other kind | n/a | by adding and proving their own email (section 8) |
 
+A third way in makes a looked-after account too: **joining offline**
+(flow I, docs/nearby-sync-plan.md section 14). Its id is not the server's
+choice but follows from the newcomer's install key, its `app_metadata`
+holds that key as `chain_key`, and until that key's first session, proof
+of the key signs it in (decision 75 as amended by Carl's answer 10); after
+that it gets back in like any looked-after account, through a helper's code.
+
 A looked-after account's address is `<sign-in name>@people.langquest.org`.
 Nothing is delivered there: the domain has no mail server, and the app never
 asks Supabase to email it. It exists because Supabase signs people in by
@@ -148,6 +155,38 @@ Server functions:
   only while the account is still looked after with no password (75); after
   that, getting back in is a helper's code.
 
+Joining offline adds (docs/nearby-sync-plan.md 14.1, 5.12):
+
+- **Join passes.** The Worker's certificate answer holds one for each
+  language a person's phone named where they hold Invite, looked after or
+  not, when their organization has both `nearby` and `nearby_join` on:
+  the organization, language, inviter and inviter's key, the roles with no
+  manage privilege they may grant, 10 uses, and an expiry at the end of a
+  90-day window, which also fixes its id. Nothing is written when one is
+  issued.
+- **The pass's invites row,** made by its first use at the server
+  (`redeem_pass_for`), under the hash `pass:<passId>`, which no token's
+  SHA-256 can equal, so `preview_invite`, `redeem_invite_v2` and the `join`
+  function never reach it, and `issue_invite_v3` refuses it as a hash. Its
+  first use appends `v1.InviteIssued` as the inviter; each use then redeems
+  through `_redeem_invite_row` (redeem_invite_for's body, which
+  `redeem_invite_for` now wraps) under the role the newcomer's link chose.
+  `pass_refusal` holds every stop: past expiry or uses, either feature off,
+  the inviter's key revoked, the inviter no longer able to grant the role,
+  the role retired or given a manage privilege.
+- **`deleted_profile_ids`**, the bare id of every deleted account
+  (`_delete_account`), so a chain cannot bring a deleted newcomer back.
+- **`POST /api/nearby/join`** on the Worker, signed out: the chain, proof of
+  the key, the profile id, a request id and, for someone a pass no longer
+  takes, an ordinary invite's token. It refuses any id but the one the key
+  gives, and one someone already holds (an account, an imported v2 person's
+  membership, a profile, a redemption, a join request, a v2 link) or that
+  was deleted (`nearby_join_state`), asks the pass before making anything,
+  makes the account with that id, records the key and redeems
+  (`nearby_join_finish`), and returns a session only until the key's first
+  session. The relay makes the same account for a newcomer whose work a
+  teammate carries.
+
 Phone state: one value, the **held key**, in `AsyncStorage` under
 `held-invite`:
 
@@ -193,8 +232,9 @@ The key is held, and the scan screen opens on the card: flow A, B or C.
 
 **E. Offline.** Scanning works offline. The card says "Saved. You'll join
 when you're connected" for an existing account; a new person needs a
-connection to create the account, and the button says so. The key stays
-held across restarts until it can be used.
+connection to create the account, and the button says so, unless a
+teammate lets them in with Share nearby (I). The key stays held across
+restarts until it can be used.
 
 **F. New phone, reinstalled, or signed out (looked-after account).**
 A helper opens Members → the person → **Help {name} sign in on a new
@@ -216,6 +256,20 @@ email: Forgot password says so and offers Scan a code, for F. On New
 password, "A phone of mine was lost or taken", off unless turned on, also
 revokes the person's nearby keys, and More settings has a row of that name
 that only emails this link (docs/nearby-sync-plan.md section 6).
+
+**I. Joining offline** (Android, an organization with `nearby_join` on;
+docs/nearby-sync-plan.md section 14). On a phone with nobody on it, the
+newcomer scans the QR on a teammate's Let someone in screen and types their
+name; the teammate taps "Let Nyibol in?" after comparing two pictures; the
+newcomer's phone takes a starting copy of the language from them and works
+as a local person with no account. The first time it reaches the server it
+calls `POST /api/nearby/join`: the account is made with the id its key
+gives, the pass's role is granted, and the phone is signed in, then asks
+for its certificate at once, which ends key sign-in. If the pass has
+stopped meanwhile, the work stays on the phone, and anyone with Invite
+there can let the same id in with an ordinary invite, scanned on Me or
+Sync. If a teammate's phone reaches the server first carrying the
+newcomer's work, the relay makes the same account while the pass allows.
 
 **H. Adding your own email (looked-after → own).** Section 8: Settings →
 Add your email → a sign-in key sent there proves it → the address changes
@@ -246,6 +300,10 @@ and the steward row is removed.
 | Looked-after account tries to invite | No Invite button; the server refuses too | The privilege is removed in the session and in SQL |
 | Account deleted | Memberships end as before; steward rows go | Foreign keys cascade from `auth.users` |
 | The invite's role was retired | "This invite can no longer be used" | Server check, unchanged |
+| Let in offline, then reaches the server | I: the account is made with the id their key gives, and signed in | `POST /api/nearby/join`, under the pass's stops |
+| The join reply is lost | The phone asks again whenever it next gets a signal, and is signed in until the key's first session | The id is fixed, and a redemption already made answers the organization |
+| Offline newcomer's pass ran out first | Their work stays on the phone; an ordinary invite from anyone with Invite lets the same id in | `pass_refusal`; the token is the permission (59) |
+| Someone else's chain, an imported person's id, or a deleted account's id | Refused, and no account is made | The id follows from the key; `nearby_join_state` and `deleted_profile_ids` |
 
 ## 7. Requirements from the brief, and what became of them
 
