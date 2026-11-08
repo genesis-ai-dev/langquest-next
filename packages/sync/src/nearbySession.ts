@@ -1,10 +1,11 @@
 import { CLOCK_AHEAD_TOLERANCE_MS, LINES_VERSION, NEARBY_PROTOCOL, pickProtocol, REDUCER_VERSION } from '@langquest-next/core';
 import {
-  base64urlEncode, checkChain, handedKeyHolds, holdingsFilesHash, holdingsText, isBase64url, mergeHoldings, NEARBY_BUDGET, NEARBY_HOLDINGS_MAX_FILES, NEARBY_OPENING_BYTES, nearbyBytes, parseRevocationList, proofText, signedBy, summaryOf, summaryText, withMyHolding, type ChainLink, type ChainVerdict, type DiscoveryKey, type HoldingEntry, type Holdings, type RevocationList, type WantedFile
+  base64urlEncode, checkChain, handedKeyHolds, issueInviteLink, joinPictures, newcomerProfileId, type JoinPass, type WorkerLink, holdingsFilesHash, holdingsText, isBase64url, mergeHoldings, NEARBY_BUDGET, NEARBY_HOLDINGS_MAX_FILES, NEARBY_OPENING_BYTES, nearbyBytes, parseRevocationList, proofText, signedBy, summaryOf, summaryText, withMyHolding, type ChainLink, type ChainVerdict, type DiscoveryKey, type HoldingEntry, type Holdings, type RevocationList, type WantedFile
 } from '@langquest-next/core/nearby';
 import { chainAsSigned, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbySigned, type NearbySigner } from './nearbyIntake';
 import { nearbyCodeOf, type NearbyDiagCode } from './nearbyDiag';
 import type { NearbyKeep } from './nearbyKeep';
+import { CopyRefused, StartingCopySender, takeStartingCopy, type CopyAsker, type NearbyCopySource, type StartingCopyTaken, type StartingCopyTarget } from './nearbyCopy';
 import type { HostDetails, HostOptions, NearbyCrypto, NearbyLink, NearbyRadio } from './nearbyLink';
 import { attemptKeysOf, checkOpeningI, checkOpeningR, findTagOf, makeOpeningI, makeOpeningR, openingKeyOf, sessionKeysOf, type NearbySessionKeys } from './nearbyOpening';
 import { encodeMessage, NEARBY_HOLDINGS_MESSAGE_FILES, parseMessage, type Message } from './nearbyWire';
@@ -115,10 +116,12 @@ export interface NearbySessionTunables {
   byeMs: number;
   /** A hand-on's jump, at most. */
   handOnMaxSteps: number;
+  /** On a QR link, from Hello to the grant: the ask and the inviter's tap. */
+  joinTapMs: number;
 }
 
 export const NEARBY_SESSION_DEFAULTS: NearbySessionTunables = {
-  openCloseMinMs: 2_000, openCloseMaxMs: 6_000, replyMs: 8_000, stallMs: 60_000, fileStallMs: 600_000, busyAfterDrops: 36, backupLimitMs: 120_000, attemptMs: 30_000, byeMs: 2_000, handOnMaxSteps: 1_000
+  openCloseMinMs: 2_000, openCloseMaxMs: 6_000, replyMs: 8_000, stallMs: 60_000, fileStallMs: 600_000, busyAfterDrops: 36, backupLimitMs: 120_000, attemptMs: 30_000, byeMs: 2_000, handOnMaxSteps: 1_000, joinTapMs: 180_000
 };
 
 export interface NearbySessionOptions {
@@ -161,6 +164,43 @@ export interface NearbySessionOptions {
   onOpened?: () => boolean;
   /** Anything moved, for a progress line. */
   onProgress?: (report: Readonly<NearbySessionReport>) => void;
+  /**
+   * Phase 6, Let someone in (docs/nearby-sync-plan.md 14.1, 3): this phone's side of a link a QR
+   * code started, where Hello carries no chain, proof or device id from either side.
+   */
+  join?: NearbyJoinInviter | NearbyJoinNewcomer;
+  /** Phase 6: this phone sends a starting copy from these (`starting-copy` in Hello's `can`), to whoever passed its read gate. */
+  copy?: NearbyCopySource;
+  /** Phase 6: this phone holds a starting copy not yet whole, and asks a teammate on the same versions for the rest after Hello. */
+  takeCopy?: Omit<StartingCopyTarget, 'sha256'>;
+}
+
+/** The inviter's side of a QR link (`let-in`). Its `chain` is its certificate for the session's organization. */
+export interface NearbyJoinInviter {
+  as: 'inviter';
+  /** This phone's pass for the session's language. */
+  pass: JoinPass;
+  /** The newest discovery key of the language, its generation and `floor`, which the grant hands on. */
+  discovery: { key: string; gen: number; floor: number };
+  /** The one tap, "Let Nyibol in?", beside the two pictures: the chosen role, or null for No. */
+  tap(who: { name: string; profileId: string; pictures: [number, number] }): Promise<string | null>;
+  /** Why the pass no longer lets anyone in under this role by this phone's fold (`joinPassStop`), or null. */
+  stop?(roleId: string): string | null;
+}
+
+/** The newcomer's side of a QR link. Its `crypto` is the install key just made, and its `chain` is empty. */
+export interface NearbyJoinNewcomer {
+  as: 'newcomer';
+  idSalt: string;
+  /** `newcomerProfileId(installKey, idSalt)`, kept with the join's progress. */
+  profileId: string;
+  name: string;
+  /** The two pictures, to show beside the inviter's. */
+  pictures?(pictures: [number, number]): void;
+  /** The grant checked: the chain, the discovery key, its generation and `floor`. Only now may the key be stored. */
+  granted(grant: { chain: ChainLink[]; verdict: Extract<ChainVerdict, { ok: true }>; discovery: { key: string; gen: number; floor: number } }): Promise<void>;
+  /** Where the starting copy goes, over this link once granted. */
+  target: Omit<StartingCopyTarget, 'sha256'>;
 }
 
 export type NearbySessionEnd =
@@ -210,6 +250,15 @@ export interface NearbySessionReport {
   finals: { mine: string; theirs: string } | null;
   /** A verified session committed events or files: the room's idle clock restarts on this and nothing else. */
   changed: boolean;
+  /** On a QR link: the two pictures, whether the grant went or came, and why not. */
+  join: { pictures: [number, number] | null; granted: boolean; refused: string | null } | null;
+  /** The two phones run another reducer or lines version: no starting copy moves, and the screen names the file needed. */
+  versionsDiffer: boolean;
+  /** What this phone took of a starting copy, and why a teammate gave no more. */
+  copy: StartingCopyTaken | null;
+  copyRefused: string | null;
+  /** Parts of a starting copy this phone sent, and asks it answered with `copy-no`. */
+  copyServed: { parts: number; no: number };
 }
 
 const emptyReport = (role: NearbyRole): NearbySessionReport => ({
@@ -218,7 +267,8 @@ const emptyReport = (role: NearbyRole): NearbySessionReport => ({
   sent: { batches: 0, claims: 0, events: 0, skipped: 0 },
   files: { got: 0, served: 0, answeredNo: 0, toldNo: 0, failed: 0, noRoom: false, cutBackups: false },
   holdings: { taken: 0, dropped: 0, sent: 0 },
-  older: false, farAhead: [], handedKey: null, handedKeyRefused: 0, revokedTaken: null, revokedDropped: 0, finals: null, changed: false
+  older: false, farAhead: [], handedKey: null, handedKeyRefused: 0, revokedTaken: null, revokedDropped: 0, finals: null, changed: false,
+  join: null, versionsDiffer: false, copy: null, copyRefused: null, copyServed: { parts: 0, no: 0 }
 });
 
 /** Who hosts what, in the order tried, ending with the pipe (5.12, The short Bluetooth exchange). Both sides work this out from `arrange`, so they agree. */
@@ -281,8 +331,9 @@ class SayBye extends Error {
   }
 }
 
-/** Messages of phase 6's abilities, which this build does not claim: as a message it does not know. */
-const NOT_CLAIMED: ReadonlySet<Message['t']> = new Set<Message['t']>(['join-ask', 'join-grant', 'copy-ask', 'copy-part', 'copy-no']);
+/** Phase 6's messages, each read only by a phone in the part that uses it, and otherwise as a message it does not know. */
+const JOIN_MESSAGES: ReadonlySet<Message['t']> = new Set<Message['t']>(['join-ask', 'join-grant']);
+const COPY_ANSWERS: ReadonlySet<Message['t']> = new Set<Message['t']>(['copy-part', 'copy-no']);
 
 const isDrop = (err: unknown) => err instanceof OfflineError;
 const nameOf = (err: unknown) => (err instanceof Error ? err.name : 'non-error');
@@ -309,6 +360,9 @@ export class NearbySession {
   private revoked: { signed: { text: string; kid: string; sig: string }; list: RevocationList } | null = null;
   private holdings: Holdings = new Map();
   private readonly fileNos = new Map<string, (reason: string) => void>();
+  /** A message read while waiting on a copy's answer, kept for the step it belongs to. */
+  private readonly stash: Message[] = [];
+  private sender: StartingCopySender | null = null;
 
   constructor(options: NearbySessionOptions) {
     this.opt = options;
@@ -343,11 +397,13 @@ export class NearbySession {
   }
 
   private async steps(): Promise<void> {
+    if (this.opt.join) return this.joinSteps(this.opt.join);
     await this.hello();
     await this.prepare();
     await this.arrange();
-    // Phase 6's `join-ask`, `join-grant` and the copy go here, and a copy asked of a teammate after an ordinary Hello, on the abilities `let-in` and `starting-copy`.
+    // Phase 6: a copy asked of a teammate after an ordinary Hello comes between steps 2 and 4.
     this.report.linkKind = this.link.kind;
+    await this.askCopy();
     const moveFiles = this.movesFiles();
     const them = await this.have();
     if (moveFiles) await this.holdingsStep(them);
@@ -364,7 +420,8 @@ export class NearbySession {
   private async settle(err: unknown): Promise<void> {
     this.report.code = nearbyCodeOf(err) ?? null;
     if (err instanceof HeardBye) {
-      this.report.ended = { how: 'heard', reason: err.reason };
+      // On a QR link the newcomer ends the copy with `bye` `done`: the inviter's side is done too.
+      this.report.ended = err.reason === 'done' && this.report.join?.granted ? { how: 'done' } : { how: 'heard', reason: err.reason };
     } else if (err instanceof SayBye) {
       this.report.ended = { how: 'said', reason: err.reason, ...(err.detail ? { detail: err.detail } : {}) };
       await this.lastWords(err.reason);
@@ -513,7 +570,9 @@ export class NearbySession {
       if (parsed.kind === 'malformed') throw new SayBye('protocol', parsed.reason);
       const m = parsed.message;
       if (m.t === 'bye') throw new HeardBye(m.reason);
-      if (NOT_CLAIMED.has(m.t)) continue;
+      if (JOIN_MESSAGES.has(m.t) && !this.opt.join) continue;
+      if (m.t === 'copy-ask' && !this.opt.copy && !this.opt.join) continue;
+      if (COPY_ANSWERS.has(m.t) && !this.opt.takeCopy && this.opt.join?.as !== 'newcomer') continue;
       // Step 4 says when, and it comes before whatever that side sends next, whichever step this side is on.
       if (m.t === 'revoked' && this.haveDone) {
         await this.takeRevoked(m);
@@ -542,6 +601,12 @@ export class NearbySession {
   }
 
   private async take(): Promise<Message> {
+    const held = this.stash.shift();
+    if (held) return held;
+    return this.takeLink();
+  }
+
+  private async takeLink(): Promise<Message> {
     const m = await this.next();
     this.reading = null;
     return m;
@@ -568,11 +633,12 @@ export class NearbySession {
 
   private async myHello(): Promise<HelloMessage> {
     const { crypto, opt } = this;
+    const can = [...(opt.files && !opt.join ? ['files'] : []), ...(opt.join?.as === 'inviter' ? ['let-in'] : []), ...(opt.copy ? ['starting-copy'] : [])];
+    const base = { t: 'hello' as const, protocol: { ...NEARBY_PROTOCOL }, can, reducerVersion: REDUCER_VERSION, linesVersion: LINES_VERSION, wallMs: opt.port.nearbyWallNow };
+    // On a QR link a QR holder learns nothing of the inviter until the tap: no chain, proof or device id from either side.
+    if (opt.join) return { ...base, deviceId: '', chain: [], proof: '' };
     const proof = await crypto.sign(nearbyBytes('proof', proofText(opt.role, this.keys!.th)));
-    return {
-      t: 'hello', protocol: { ...NEARBY_PROTOCOL }, can: opt.files ? ['files'] : [], reducerVersion: REDUCER_VERSION, linesVersion: LINES_VERSION,
-      deviceId: opt.deviceId, wallMs: opt.port.nearbyWallNow, chain: opt.chain, proof
-    };
+    return { ...base, deviceId: opt.deviceId, chain: opt.chain, proof };
   }
 
   /** Who speaks first follows from the generation, so a refused phone gets no chain from the side that checks first. */
@@ -605,6 +671,7 @@ export class NearbySession {
       this.report.newerAppNeeded = true;
       throw new SayBye('protocol', 'no common version');
     }
+    if (opt.join) return this.checkJoinHello(hello);
     const verdict = await checkChain(hello.chain, {
       rootKeys: opt.rootKeys, orgId: opt.orgId, languageId: opt.languageId, now: opt.port.nearbyHelloNow, verify: crypto.verify, sha256: crypto.sha256,
       ...(this.revoked ? { revoked: this.revoked.list } : {})
@@ -626,6 +693,190 @@ export class NearbySession {
     this.report.peer = { installKey: holder.installKey, profileId: holder.profileId, deviceId: holder.deviceId, tag };
     this.report.clockOff = Math.abs(hello.wallMs - opt.port.nearbyWallNow) > CLOCK_AHEAD_TOLERANCE_MS;
     await opt.keep.noteName(holder.installKey, holder.profileId);
+  }
+
+  // ---- phase 6: letting someone in, and the starting copy (section 14.1) ---------
+
+  /** Both phones run this reducer and lines version, so a starting copy can move between them. */
+  private sameVersions(): boolean {
+    const h = this.theirHello;
+    return !!h && h.reducerVersion === REDUCER_VERSION && h.linesVersion === LINES_VERSION;
+  }
+
+  /** Hello on a QR link: empty from both sides, clocks within five minutes, and the same versions, or no join. */
+  private checkJoinHello(hello: HelloMessage): void {
+    const { opt } = this;
+    if (hello.chain.length !== 0 || hello.proof !== '' || hello.deviceId !== '') throw new SayBye('protocol', 'not a join');
+    this.theirHello = hello;
+    this.report.join = { pictures: null, granted: false, refused: null };
+    this.report.clockOff = Math.abs(hello.wallMs - opt.port.nearbyWallNow) > CLOCK_AHEAD_TOLERANCE_MS;
+    // A new phone's date is often wrong; a pass's expiry and every later check need it right.
+    if (this.report.clockOff) throw new SayBye('protocol', 'clock');
+    if (!this.sameVersions()) {
+      this.report.versionsDiffer = true;
+      throw new SayBye('protocol', 'versions');
+    }
+    if (opt.join?.as === 'newcomer' && !hello.can.includes('let-in')) throw new SayBye('nothing', 'cannot let in');
+  }
+
+  private async joinSteps(join: NearbyJoinInviter | NearbyJoinNewcomer): Promise<void> {
+    this.report.linkKind = this.link.kind;
+    await this.hello();
+    if (join.as === 'inviter') await this.letIn(join);
+    else await this.askToJoin(join);
+  }
+
+  /** Until the grant neither side acts on anything but `join-ask`, `join-grant` or `bye`, and `copy-ask` gets `not-allowed`. */
+  private async beforeGrant<T extends 'join-ask' | 'join-grant'>(t: T): Promise<Extract<Message, { t: T }>> {
+    const waiting = (async () => {
+      for (;;) {
+        const m = await this.take();
+        if (m.t === t) return m as Extract<Message, { t: T }>;
+        if (m.t === 'copy-ask') await this.send({ t: 'copy-no', reason: 'not-allowed' });
+      }
+    })();
+    const late = this.opt.time.sleep(this.tune.joinTapMs).then((): null => null);
+    this.localWork += 1;
+    try {
+      const got = await Promise.race([waiting, late]);
+      if (!got) throw new SayBye('stopped', 'no tap in time');
+      return got;
+    } finally {
+      this.localWork -= 1;
+      this.moved();
+    }
+  }
+
+  /** The inviter: check the ask, show the pictures, take the one tap, sign the second link and send the grant, then serve the copy. */
+  private async letIn(join: NearbyJoinInviter): Promise<void> {
+    const { opt, crypto, report } = this;
+    const theirRole = opt.role === 'i' ? 'r' : 'i';
+    const first = opt.chain[0] as WorkerLink | undefined;
+    // Its certificate for this organization and no other: a teammate learns of no other organization of the inviter's.
+    if (!first || first.kind !== 'worker@1' || first.body.org.orgId !== opt.orgId || opt.chain.length !== 1) throw new SayBye('identity', 'no certificate for this organization');
+    const ask = await this.beforeGrant('join-ask');
+    const refused = (reason: string) => {
+      report.join!.refused = reason;
+      return new SayBye('identity', reason);
+    };
+    if (ask.installKey === crypto.publicKey) throw refused('this phone');
+    if (ask.profileId !== await newcomerProfileId(ask.installKey, ask.idSalt, crypto.sha256)) throw refused('id does not follow from the key');
+    if (!await signedBy(crypto.verify, ask.installKey, nearbyBytes('proof', proofText(theirRole, this.keys!.th)), ask.proof)) throw refused('bad proof');
+    report.peer = { installKey: ask.installKey, profileId: ask.profileId, deviceId: ask.deviceId, tag: '' };
+    const pictures = await joinPictures(this.keys!.th, crypto.sha256);
+    report.join!.pictures = pictures;
+    const roleId = await this.local(() => join.tap({ name: ask.name, profileId: ask.profileId, pictures }));
+    if (roleId === null) {
+      report.join!.refused = 'not let in';
+      throw new SayBye('stopped', 'not let in');
+    }
+    const stopped = join.stop?.(roleId) ?? null;
+    if (stopped !== null) throw refused(stopped);
+    const issued = await issueInviteLink({
+      inviterLink: first, pass: join.pass, ask, roleId, now: opt.port.nearbyHelloNow, sha256: crypto.sha256, sign: (m) => crypto.sign(m),
+      ...(this.revoked ? { revoked: this.revoked.list } : {})
+    });
+    if (!issued.ok) throw refused(issued.reason);
+    const proof = await crypto.sign(nearbyBytes('proof', proofText(opt.role, this.keys!.th)));
+    await this.send({ t: 'join-grant', chain: [first, issued.link], proof, discoveryKey: join.discovery.key, gen: join.discovery.gen, floor: join.discovery.floor });
+    report.join!.granted = true;
+    // The link stays up for the starting copy, which the newcomer ends with `bye`.
+    for (;;) {
+      const m = await this.take();
+      if (m.t === 'copy-ask') await this.serveCopy(m);
+    }
+  }
+
+  /** The newcomer: ask with the new key, wait for the tap, check the grant, keep it, then take the copy over this link. */
+  private async askToJoin(join: NearbyJoinNewcomer): Promise<void> {
+    const { opt, crypto, report } = this;
+    const theirRole = opt.role === 'i' ? 'r' : 'i';
+    const proof = await crypto.sign(nearbyBytes('proof', proofText(opt.role, this.keys!.th)));
+    await this.send({ t: 'join-ask', installKey: crypto.publicKey, idSalt: join.idSalt, profileId: join.profileId, deviceId: opt.deviceId, name: join.name, proof });
+    const pictures = await joinPictures(this.keys!.th, crypto.sha256);
+    report.join!.pictures = pictures;
+    join.pictures?.(pictures);
+    const grant = await this.beforeGrant('join-grant');
+    const refused = (reason: string) => {
+      report.join!.refused = reason;
+      return new SayBye('identity', reason);
+    };
+    const verdict = await checkChain(grant.chain, {
+      rootKeys: opt.rootKeys, orgId: opt.orgId, languageId: opt.languageId, now: opt.port.nearbyHelloNow, verify: crypto.verify, sha256: crypto.sha256
+    });
+    if (!verdict.ok) throw refused(verdict.reason);
+    const { holder } = verdict;
+    // The link names the key, id, device and name this phone asked with, and nothing else.
+    if (verdict.links !== 2 || holder.installKey !== crypto.publicKey || holder.profileId !== join.profileId || holder.deviceId !== opt.deviceId || holder.name !== join.name) {
+      throw refused('the grant names someone else');
+    }
+    if (!verdict.inviterKey || !await signedBy(crypto.verify, verdict.inviterKey, nearbyBytes('proof', proofText(theirRole, this.keys!.th)), grant.proof)) throw refused('bad proof');
+    report.peer = { installKey: verdict.inviterKey, profileId: verdict.inviter ?? '', deviceId: '', tag: '' };
+    await this.local(() => join.granted({ chain: grant.chain, verdict, discovery: { key: grant.discoveryKey, gen: grant.gen, floor: grant.floor } }));
+    report.join!.granted = true;
+    await this.takeCopyFrom(join.target);
+    await this.send({ t: 'bye', reason: 'done' }).catch((err: unknown) => { if (!isDrop(err)) throw err; });
+  }
+
+  /** A teammate's answer to one ask: as a sender, only after its read gate passed this chain, and only on the same versions. */
+  private async serveCopy(ask: Extract<Message, { t: 'copy-ask' }>): Promise<void> {
+    const { opt, report } = this;
+    const granted = !opt.join || report.join?.granted === true;
+    let answer: Awaited<ReturnType<StartingCopySender['answer']>>;
+    if (!opt.copy || !granted) answer = 'not-allowed';
+    else if (!this.sameVersions()) answer = 'versions';
+    else {
+      this.sender ??= new StartingCopySender(opt.copy, opt.languageId);
+      answer = await this.local(() => this.sender!.answer(ask)).catch((): 'not-here' => 'not-here');
+    }
+    if (typeof answer === 'string') {
+      report.copyServed.no += 1;
+      await this.send({ t: 'copy-no', reason: answer });
+      return;
+    }
+    report.copyServed.parts += 1;
+    await this.send({ t: 'copy-part', ...answer });
+  }
+
+  /** One ask and its answer. A `have` that came first is kept for step 4. */
+  private copyAsker(): CopyAsker {
+    return async (ask) => {
+      await this.send({ t: 'copy-ask', ...ask });
+      for (;;) {
+        const m = await this.takeLink();
+        if (m.t === 'copy-part' || m.t === 'copy-no') return m;
+        if (m.t === 'have' && !this.opt.join) this.stash.push(m);
+        else if (m.t === 'copy-ask') await this.send({ t: 'copy-no', reason: 'not-allowed' });
+        else throw new SayBye('protocol', `${m.t} during a copy`);
+      }
+    };
+  }
+
+  private async takeCopyFrom(target: Omit<StartingCopyTarget, 'sha256'>): Promise<void> {
+    try {
+      this.report.copy = await takeStartingCopy(this.copyAsker(), { ...target, sha256: this.crypto.sha256 });
+      if (this.report.copy.filled > 0) this.report.changed = true;
+    } catch (err) {
+      if (!(err instanceof CopyRefused)) throw err;
+      this.report.copyRefused = err.reason;
+    }
+  }
+
+  /** After an ordinary Hello: a newcomer whose copy is not whole yet asks a teammate that offers one, on the same versions. */
+  private async askCopy(): Promise<void> {
+    const target = this.opt.takeCopy;
+    if (!target || !this.theirHello?.can.includes('starting-copy') || !this.sameVersions()) return;
+    await this.takeCopyFrom(target);
+  }
+
+  /** Step 4's `have`, answering a newcomer's copy asks that come before it. */
+  private async expectHave(): Promise<HaveMessage> {
+    for (;;) {
+      const m = await this.take();
+      if (m.t === 'have') return m;
+      if (m.t === 'copy-ask') await this.serveCopy(m);
+      else throw new SayBye('protocol', `${m.t} in place of have`);
+    }
   }
 
   // ---- after hello: this phone's own house in order ----------------------------
@@ -906,7 +1157,7 @@ export class NearbySession {
     const revokedSeq = this.revoked?.list.seq ?? 0;
     const counters = new Map([...this.holdings].map(([key, e]) => [key, e.counter]));
     const mine: HaveMessage = { t: 'have', orgId: opt.orgId, languageId: opt.languageId, cursor, claimedSeq, revokedSeq, vector, holdings: counters };
-    const [, them] = await Promise.all([this.send(mine), this.expect('have')]);
+    const [, them] = await Promise.all([this.send(mine), this.expectHave()]);
     if (them.orgId !== opt.orgId || them.languageId !== opt.languageId) throw new SayBye('protocol', 'another language');
     this.haveDone = true;
     if (this.revoked && revokedSeq > them.revokedSeq) await this.send({ t: 'revoked', ...this.revoked.signed });

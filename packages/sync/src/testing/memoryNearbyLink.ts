@@ -1,7 +1,7 @@
 import { createHash, createHmac, createPrivateKey, createPublicKey, diffieHellman, hkdfSync, sign as edSign, verify as edVerify } from 'node:crypto';
 import { type AnyEvent, type Privilege } from '@langquest-next/core';
 import {
-  attestationText, base64urlEncode, bytesToHex, eventDigest, linkText, nearbyBytes, utf8Encode, type Attestation, type ChainLink, type ChainOrg, type WorkerLink
+  attestationText, base64urlEncode, bytesToHex, eventDigest, linkText, nearbyBytes, signJoinPass, utf8Encode, type Attestation, type ChainLink, type ChainOrg, type JoinPass, type WorkerLink
 } from '@langquest-next/core/nearby';
 import type { FindTunables, HostDetails, HostOptions, NearbyCapabilities, NearbyCrypto, NearbyLink, NearbyRadio, SeenPhone } from '../nearbyLink';
 import { NEARBY_MESSAGE_MAX } from '../nearbyLink';
@@ -70,6 +70,8 @@ export interface FakeWorker {
   attest(att: Omit<Attestation, 'v' | 'kid'>): Promise<Omit<Extract<Message, { t: 'claims' }>, 'events' | 't'>>;
   /** What the attest call does with rows it read itself: their digests, signed. `FakeServer.attester` takes it. */
   attestRows(orgId: string, streamId: string, rows: readonly AnyEvent[]): Promise<{ text: string; kid: string; sig: string }>;
+  /** A join pass, as the certificate answer holds it (phase 6). */
+  signPass(body: JoinPass['body']): Promise<JoinPass>;
 }
 
 export function fakeWorker(kid = 'k1'): FakeWorker {
@@ -89,6 +91,7 @@ export function fakeWorker(kid = 'k1'): FakeWorker {
       return [{ kind: 'worker@1', kid, body, sig: await root.sign(nearbyBytes('link', linkText({ kind: 'worker@1', kid, body }, ''))) }];
     },
     attest,
+    signPass: (body) => signJoinPass(body, kid, (m) => root.sign(m)),
     attestRows: async (orgId, streamId, rows) => attest({
       orgId, streamId, rows: await Promise.all(rows.map(async (e) => [e.id, await eventDigest(e, fakeSha256), e.serverSeq!] as [string, string, number]))
     })
