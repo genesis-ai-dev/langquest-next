@@ -1,0 +1,13 @@
+{
+  "why": "New iPhone builds made from main while iPhone kept no release branch (2026-10-26 to 2026-11-05), so no run tagged them: build 45 (PR 250, the public one on 2026-11-05) and each merge after it that changed the iPhone fingerprint (npx @expo/fingerprint at each merge). scripts/release-branches.mjs tags each as rebuild/ios/<commit> and starts release/ios from the commit before the first one whose build is not public (decisions.md 155).",
+  "ios": [
+    "41fe1de79be02175bae79553960f034c3e5402e7",
+    "1d103a424f70146c8c2508a67650f96df8b7e8a3",
+    "86d2cae4ea1370a0fe5957b46726f5422682e480",
+    "e4083d0a61a4a007d69fefc1fe7baa4c853d8396",
+    "7a82273629375a39bc48ec4e3622865511765505",
+    "bbfe6bff29920898123489f232c00d2c22b7e4f6",
+    "332dee81397a456def73a1b5ce171a90035bc5ba",
+    "fbb89a54e3bf3e52aefc1b9c855928e49724bf04"
+  ]
+}
