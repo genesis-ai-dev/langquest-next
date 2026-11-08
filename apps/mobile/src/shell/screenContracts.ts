@@ -135,6 +135,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // What Settings had beyond Me's five rows (decision 71).
   settings_more: { rpcs:['register_push_token','set_blocked','my_organizations'],reads:['user_blocks'] },
   sign_out_confirm: { rpcs:['unregister_push_token'] },
+  // Share nearby (docs/nearby-sync-plan.md 5.8): no event, no call; it reads who is on the language for Ready to carry.
+  share_nearby: { reads:['org.members'] },
   delete_account: { rpcs:['delete_my_account'] },
   // Read from the app's Worker, not the local fold (decisions.md 44, 57).
   // A language's country and target go straight to the organization's

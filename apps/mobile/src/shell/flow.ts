@@ -51,7 +51,9 @@ export const SCREEN_IDS = [
   // App only: LangQuest support's authenticator and every organization, read-only (decision 158)
   'global_viewer',
   // App only: Forgot password, and the new password its emailed link opens (decision 200)
-  'forgot_password', 'new_password'
+  'forgot_password', 'new_password',
+  // App only: phones near each other bring each other up to date with no internet (docs/nearby-sync-plan.md 5.8)
+  'share_nearby'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -449,7 +451,10 @@ export const EDGES: Edge[] = [
   e('new_password', 'forgot_password'), // the link expired: tap Send a new link
   e('new_password', 'terms_privacy', undefined, 'guest'), // tap the terms line
   e('new_password', 'sign_in', 'reset', 'guest'), // tap Back with nothing under it
-  e('new_password', 'home_hub', 'reset') // tap Back with nothing under it, or Done
+  e('new_password', 'home_hub', 'reset'), // tap Back with nothing under it, or Done
+  // App only: Share nearby, from Sync where this phone may share (docs/nearby-sync-plan.md 5.8, experimental)
+  e('sync_status', 'share_nearby'),
+  e('share_nearby', 'sync_status', 'back')
 ];
 
 /**

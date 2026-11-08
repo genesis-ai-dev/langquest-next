@@ -27,6 +27,17 @@
       "plus": "Más",
       "equals": "Igual",
       "point": "Punto decimal"
+    },
+    "nearby": {
+      "startLine": "Solo se empieza a compartir cuando tocas Empezar a compartir, y se detiene después de diez minutos o cuando estés al día.",
+      "start": "Empezar a compartir",
+      "startHelp": "Enciende el Bluetooth y el Wi-Fi para encontrar compañeros cercanos, por hasta diez minutos.",
+      "warning": "Alguien con el equipo adecuado puede notar que este teléfono está transmitiendo, y las preguntas de Android mostrarán el nombre real de la app. Hazlo cuando estés a solas.",
+      "warned": "Continuar",
+      "warnedHelp": "Sigue para compartir. Es posible que Android pida permiso después.",
+      "left": "Se dejó de compartir porque saliste de la app.",
+      "run": "Se dejó de compartir después de diez minutos.",
+      "level": "Al día. Se dejó de compartir."
     }
   },
   "native": {

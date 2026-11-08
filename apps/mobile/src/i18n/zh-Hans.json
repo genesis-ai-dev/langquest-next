@@ -350,7 +350,8 @@
     "cluster_home": "语言群",
     "global_viewer": "全局查看者",
     "forgot_password": "忘记密码",
-    "new_password": "新密码"
+    "new_password": "新密码",
+    "share_nearby": "附近共享"
   },
   "native": {
     "microphone": "LangQuest 会录下你的声音，用来翻译经段。",
@@ -7630,6 +7631,116 @@
       "notOpen": "这个移交已被撤回或已经处理完毕。",
       "badItem": "请选择你自己的同类项。",
       "offline": "无法连接 LangQuest。请检查网络后重试。"
+    }
+  },
+  "nearby": {
+    "experimental": "试验功能",
+    "intro": "相互靠近的手机会互相更新到最新，更改和录音双向传送，不需要互联网。请保持此页面打开，直到显示“已是最新”。",
+    "row": "附近共享",
+    "rowSub": "不用互联网，让队友的手机更新到最新",
+    "rowHelp": "打开“附近共享”，相互靠近的手机可以不用互联网互相更新到最新。",
+    "why": {
+      "loading": "正在检查这部手机…",
+      "notInBuild": "这个版本的应用无法使用附近共享。请到应用商店更新。",
+      "androidTooOld": "“附近共享”需要 Android 10 或更高版本，这部手机的版本较旧。",
+      "noBluetoothLe": "这部手机没有“附近共享”所需的 Bluetooth Low Energy。",
+      "noWifiDirect": "这部手机没有“附近共享”所需的 Wi-Fi Direct。",
+      "noKey": "这部手机还不能共享。请先连接一次互联网，然后再回来。",
+      "noCertificate": "要使用附近共享，这部手机必须在你的机构开启“附近共享”期间连接一次互联网。",
+      "readOnly": "只能查看机构的账号不能使用附近共享。"
+    },
+    "radios": {
+      "title": "请在手机设置中打开以下各项，然后再回来：",
+      "bluetooth": "Bluetooth",
+      "wifi": "Wi-Fi",
+      "location": "位置信息"
+    },
+    "permission": {
+      "location": "Android 把查找附近的手机称为“位置信息”。LangQuest 不会记录你在哪里。它只在此页面打开时用来查找队友的手机。",
+      "nearbyAndLocation": "Android 会问两次：先问能否查找附近的设备，再问位置信息，这是 Wi-Fi Direct 需要的。LangQuest 不会记录你在哪里。",
+      "nearbyDevices": "Android 会请你允许 LangQuest 查找并连接附近的设备。只在此页面打开时使用。",
+      "precise": "Android 只给了大致位置，而 Wi-Fi Direct 需要精确位置才能连接。LangQuest 仍然不会记录你在哪里。",
+      "settings": "Android 不会再问了。请打开这个应用的设置，进入“权限”，允许“附近的设备”或“位置信息”。",
+      "allow": "继续",
+      "allowHelp": "显示 Android 的询问。选择“允许”，即可与附近的队友共享。",
+      "openSettings": "打开设置",
+      "openSettingsHelp": "打开手机设置中这个应用的页面，你可以在那里允许。"
+    },
+    "stopped": {
+      "idle": "过了一段时间附近没有新的人，已停止。",
+      "wait": "等一位忙碌的队友等了很久，已停止。",
+      "noKey": "这部手机还不能共享。请先连接一次互联网，然后再回来。",
+      "failed": "“附近共享”无法启动 Bluetooth 和 Wi-Fi。",
+      "lookAgainLine": "如果有队友来了，请点“再找一次”。"
+    },
+    "lookAgain": "再找一次",
+    "lookAgainHelp": "重新打开 Bluetooth 和 Wi-Fi，查找附近的队友。",
+    "findError": "Bluetooth 停止工作了（{{code}}）。请关闭 Bluetooth 再重新打开。",
+    "starting": "正在启动…",
+    "looking": "正在查找队友。请保持此页面打开，并请他们也打开“附近共享”。",
+    "upToDate": "已是最新",
+    "upToDateLine": "这部手机和附近的每个人一样，已是最新。",
+    "sharingWith": "正在与{{name}}共享",
+    "aTeammate": "一位队友",
+    "teammates": "附近的队友",
+    "state": {
+      "here": "在附近",
+      "maybe": "可能有队友在附近",
+      "exchanging": "正在共享",
+      "done": "已是最新",
+      "missed": "没有完成，稍后会再试。"
+    },
+    "connect": "连接",
+    "connectHelp": "连接到这部手机。当队友就在附近、但两部手机还没找到对方时使用。",
+    "came": {
+      "title": "传送情况",
+      "changesIn": "收到的更改：{{n}}",
+      "changesOut": "发出的更改：{{n}}",
+      "filesIn": "收到的录音：{{n}}",
+      "filesOut": "发出的录音：{{n}}",
+      "refused": "未接受的更改：{{n}}",
+      "filesFailed": "没有收到的录音：{{n}}",
+      "noRoom": "这部手机没有空间存放录音了。",
+      "cutBackups": "备份已暂停，好让正在等待的队友轮到。",
+      "dropped": "连接在结束前断开了。",
+      "stalled": "连接卡住了。",
+      "noAnswer": "另一部手机没有回应。",
+      "heard": "另一部手机提前结束了。",
+      "said": "这部手机提前结束了。",
+      "failed": "出了点问题，稍后会再试。"
+    },
+    "clockOff": "队友手机的时钟和这部手机相差超过五分钟。请检查两部手机的日期和时间。",
+    "newerApp": "队友的手机需要更新版本的应用，才能和这部手机共享。请到应用商店更新应用，或从队友那里获取新版本。",
+    "tooOld": "这个应用版本太旧，无法共享。请到应用商店更新。",
+    "farAhead": "{{name}}的手机日期设在很远的未来。他们的工作要等传到服务器后才会过来。",
+    "olderFromServer": "较早的工作会从服务器获取。",
+    "hold": "保存队友的录音",
+    "holdHelp": "开启时，这部手机会保存队友的录音，直到服务器收到为止。关闭时，只保存你需要的录音。",
+    "carry": {
+      "title": "可随身带走",
+      "everything": "这部手机保存了它所知道的全部内容。",
+      "missing": "缺少的录音：{{n}}",
+      "coming": "还在从附近队友那里传来：{{n}}",
+      "elsewhere": "这部手机已尽量保存{{name}}的工作。其余部分留在{{name}}的手机上，直到有人连上互联网。",
+      "elsewhereUnknown": "只有不在附近的手机才有的录音：{{n}}",
+      "noRoom": "这部手机空间不够，放不下所有录音。",
+      "notAll": "这部手机可以带上团队的工作，但带不了所有录音。",
+      "pulled": "这部手机从服务器获得的更改，要等它下次连上互联网后才能共享。",
+      "holding": "为队友保存：{{n}}",
+      "today": "今天",
+      "sinceOnline": "自你上次联网以来",
+      "notSinceOnline": "自你上次联网以来没有",
+      "newest": "这里最新的工作：{{when}}"
+    },
+    "history": {
+      "nearby": "来自{{name}}的手机，还没有传到服务器",
+      "nearbyUnknown": "来自队友的手机，还没有传到服务器",
+      "claim": "来自{{name}}的手机",
+      "claimUnknown": "来自队友的手机"
+    },
+    "sync": {
+      "holding": "为队友保存",
+      "holdingHelp": "这部手机上服务器还没有的队友录音。这部手机联网时会上传。"
     }
   }
 }

@@ -29,7 +29,9 @@ describe('UX flow coverage', () => {
       // LangQuest support's authenticator and every organization, read-only (decision 158).
       'global_viewer',
       // Forgot password, and the new password its emailed link opens (decision 200).
-      'forgot_password', 'new_password'] as const;
+      'forgot_password', 'new_password',
+      // Share nearby: phones bring each other up to date with no internet (docs/nearby-sync-plan.md 5.8).
+      'share_nearby'] as const;
     expect(SCREEN_IDS.length).toBe(kept.length + appOnly.length);
     for (const id of appOnly) expect(screenTitle(id)).not.toBe(`screens.${id}`);
   });

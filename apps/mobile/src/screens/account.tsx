@@ -59,6 +59,7 @@ import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { runningBuildLabel } from '../shell/updateStatus';
 import { AppIconRow } from '../shell/AppIconRow';
+import { NearbyRow } from '../shell/NearbyRow';
 import { useNotificationsOffered } from '../shell/useNotificationsOffered';
 import { PersonAvatar } from '../ui/UserChip';
 import { iconCounts, standingTitle, syncStanding, type SyncStanding } from '../sync/syncStanding';
@@ -996,6 +997,8 @@ export function SyncStatus(ctx: Ctx) {
           <Text style={txt.body}>{belowMinimum() ? t('account.sync.tooOldSends') : t('account.sync.tooOld')}</Text>
         ) : null}
       </Card>
+      {/* Share nearby, where this phone may share it (Android, the organization on; docs/nearby-sync-plan.md 5.8). */}
+      <NearbyRow ctx={ctx} />
       {/* Settings' "Ready for offline" opens here with what comes along first (decisions.md 61); otherwise what waits to upload, by passage, and what went up (decision 166). */}
       {offlineFirst ? <><FillBanner ctx={ctx} /><OfflineCard ctx={ctx} s={offlineSummaryNow} /></> : null}
       <UploadsCard ctx={ctx} />
@@ -1004,6 +1007,8 @@ export function SyncStatus(ctx: Ctx) {
       {offlineFirst ? null : <><FillBanner ctx={ctx} /><OfflineCard ctx={ctx} s={offlineSummaryNow} /></>}
       <Card>
         <SyncLine icon="download" label={t('account.sync.toReceive')} value={sync.pendingDown} rate={sync.pendingDown ? rates.down : 0} help={t('account.sync.help.toReceive')} unknown={offline} />
+        {/* Teammates' recordings here the server lacks, shown whenever there are some, even with the organization turned off (5.8). */}
+        {sync.holding ? <SyncLine icon="people" label={t('nearby.sync.holding')} value={sync.holding} help={t('nearby.sync.holdingHelp')} /> : null}
         {rejected.length ? <SyncLine icon="flag" label={t('account.sync.refusedLine')} value={rejected.length} tone={TINT.redText} help={t('account.sync.help.refusedLine')} /> : null}
       </Card>
       <Disclosure testID="sync-details" icon="layers" title={t('account.sync.details')} summary={ins ? t('account.sync.events', { count: ins.total + ins.rejected.length }) : ''}

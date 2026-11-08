@@ -70,6 +70,8 @@ import { authoredText, recordTarget } from '../moderation/reportTargets';
 import { useReviewDrafts } from '../reviewing/useReviewDrafts';
 import { UsedLine } from '../sources/used';
 import { contractsFor } from '../shell/screenContracts';
+import { originWords } from '../nearby/nearbyHistoryModel';
+import { useNearbyHistory } from '../nearby/useNearbyHistory';
 import { edgeAllowed } from '../shell/session';
 import { useStudyGuide } from '../study/useStudyGuides';
 import { studyProgress, type StudyProgress } from '../study/progress';
@@ -262,6 +264,13 @@ export function PassageRecord(ctx: Ctx) {
   const vp = v?.p;
   const vLanguageId = v?.languageId;
   const timeline = useMemo(() => (vState && vp ? recordTimeline(vState, vp) : []), [vState, vp]);
+  // An entry still held for a teammate here, and not on the server, says which phone it came from (docs/nearby-sync-plan.md 5.8).
+  const cameFrom = useNearbyHistory(ctx);
+  const came = (by: string, hlc: string) => {
+    const o = cameFrom(by, hlc);
+    const words = originWords(o);
+    return words ? t(words, { name: o?.from ? ctx.name(o.from) : '' }) : null;
+  };
   const guide = useStudyGuide(ctx, v?.unitId);
   const study = useMemo(() => (vState && vp && guide ? studyProgress(vState, vp, guide) : null), [vState, vp, guide]);
   const versesHeld = useVersesHeld(ctx, v?.state, v?.unitId);
@@ -557,7 +566,7 @@ export function PassageRecord(ctx: Ctx) {
             if (act?.id === 'reportRequest') trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'request', act.requestId, act.by, unitId)} size={36} />;
             return (
               <HelpRow key={`${e.type}-${e.hlc}-${i}`} of="passage.history">
-                <HistoryRow text={entry} when={when(e.hlc)} last={i === Math.min(historyShown, timeline.length) - 1} trailing={trailing} below={below} {...(onPress ? { onPress } : {})} {...(help ? { help } : {})} />
+                <HistoryRow text={entry} when={when(e.hlc)} came={came(e.by, e.hlc)} last={i === Math.min(historyShown, timeline.length) - 1} trailing={trailing} below={below} {...(onPress ? { onPress } : {})} {...(help ? { help } : {})} />
               </HelpRow>
             );
           })}
@@ -896,10 +905,11 @@ function GridCell(props: { label: string; help: string; onPress: () => void; chi
 }
 
 /** One entry of the passage's history: who and when first, so a long reason never hides them. */
-function HistoryRow(props: { text: EntryText; when: string; last: boolean; trailing: ReactNode; below?: ReactNode; onPress?: () => void; help?: string }) {
+function HistoryRow(props: { text: EntryText; when: string; last: boolean; trailing: ReactNode; below?: ReactNode; onPress?: () => void; help?: string;
+  /** "Came from Sam's phone, not on the server yet", for a row still nearby here (docs/nearby-sync-plan.md 5.8). */ came?: string | null }) {
   const { text } = props;
   return (
-    <Row label={text.title} sub={`${text.who} · ${props.when}${text.sub ? ` — ${text.sub}` : ''}`} last={props.last} {...(text.struck ? { struck: true } : {})}
+    <Row label={text.title} sub={`${text.who} · ${props.when}${text.sub ? ` — ${text.sub}` : ''}${props.came ? `\n${props.came}` : ''}`} last={props.last} {...(text.struck ? { struck: true } : {})}
       leading={(
         <View style={[styles.historyIcon, { backgroundColor: withAlpha(text.color, 0.1) }]}>
           <Ico name={text.icon} size={16} color={text.color} />

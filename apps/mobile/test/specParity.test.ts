@@ -111,7 +111,8 @@ const APP_ONLY: Record<string, string> = {
   'new_password->forgot_password': 'an expired or used link asks for a new one (decision 200)',
   'new_password->terms_privacy': 'choosing a new password signs in, which accepts the terms, as Sign In does (AUTH-1)',
   'new_password->sign_in': 'opened from a link with nothing under it, Back leads to Sign In, as on Scan a code',
-  'new_password->home_hub': 'opened from a link while signed in, Back and Done lead home, as on Scan a code'
+  'new_password->home_hub': 'opened from a link while signed in, Back and Done lead home, as on Scan a code',
+  'sync_status->share_nearby': 'Share nearby: phones near each other bring each other up to date with no internet; the demo has no such flow (docs/nearby-sync-plan.md 5.8)'
 };
 
 /** App-only reference screens (docs/reference-material.md). */
@@ -126,8 +127,8 @@ const specEdges = (spec.edges as SpecEdge[]).filter(machine).filter(kept);
 const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
-  it('the screen set is the demo screen set plus sync status, account deletion, the Reports section, the reference screens, the guide editor, More Bibles, a check, a cluster and Forgot password, less the dropped screens', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'get_ready', 'settings_more', 'check_editor', 'cluster_home', 'global_viewer', 'forgot_password', 'new_password'].sort());
+  it('the screen set is the demo screen set plus sync status, account deletion, the Reports section, the reference screens, the guide editor, More Bibles, a check, a cluster, Forgot password and Share nearby, less the dropped screens', () => {
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'get_ready', 'settings_more', 'check_editor', 'cluster_home', 'global_viewer', 'forgot_password', 'new_password', 'share_nearby'].sort());
     // The drop list names only screens the spec has.
     expect(Object.keys(DROPPED).filter((s) => !spec.screens.includes(s))).toEqual([]);
   });

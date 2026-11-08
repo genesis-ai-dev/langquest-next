@@ -27,6 +27,17 @@
       "plus": "Tambah",
       "equals": "Sama dengan",
       "point": "Titik desimal"
+    },
+    "nearby": {
+      "startLine": "Berbagi hanya dimulai saat Anda menekan Mulai berbagi, dan berhenti setelah sepuluh menit atau begitu Anda sudah terbaru.",
+      "start": "Mulai berbagi",
+      "startHelp": "Menyalakan Bluetooth dan Wi-Fi untuk menemukan rekan tim di sekitar, paling lama sepuluh menit.",
+      "warning": "Orang yang punya alat khusus bisa tahu bahwa ponsel ini sedang memancarkan sinyal, dan pertanyaan Android akan menampilkan nama asli aplikasi ini. Lakukan ini saat Anda sendirian.",
+      "warned": "Lanjutkan",
+      "warnedHelp": "Lanjut berbagi. Android mungkin meminta izin setelah ini.",
+      "left": "Berbagi berhenti karena Anda keluar dari aplikasi.",
+      "run": "Berbagi berhenti setelah sepuluh menit.",
+      "level": "Sudah terbaru. Berbagi berhenti."
     }
   },
   "native": {

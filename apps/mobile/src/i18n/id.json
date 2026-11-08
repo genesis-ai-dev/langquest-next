@@ -350,7 +350,8 @@
     "cluster_home": "Rumpun",
     "global_viewer": "Pengamat Global",
     "forgot_password": "Lupa Kata Sandi",
-    "new_password": "Kata Sandi Baru"
+    "new_password": "Kata Sandi Baru",
+    "share_nearby": "Berbagi di sekitar"
   },
   "native": {
     "microphone": "LangQuest merekam suara Anda untuk menerjemahkan perikop.",
@@ -7630,6 +7631,116 @@
       "notOpen": "Tawaran ini sudah ditarik kembali atau sudah selesai.",
       "badItem": "Pilih salah satu item Anda sendiri dengan jenis yang sama.",
       "offline": "Tidak bisa menghubungi LangQuest. Periksa koneksi Anda dan coba lagi."
+    }
+  },
+  "nearby": {
+    "experimental": "Uji coba",
+    "intro": "Ponsel yang berdekatan saling memperbarui, perubahan dan rekaman ke dua arah, tanpa internet. Biarkan layar ini terbuka sampai muncul tulisan Sudah terbaru.",
+    "row": "Berbagi di sekitar",
+    "rowSub": "Perbarui ponsel rekan tim tanpa internet",
+    "rowHelp": "Membuka Berbagi di sekitar, tempat ponsel yang berdekatan saling memperbarui tanpa internet.",
+    "why": {
+      "loading": "Memeriksa ponsel ini…",
+      "notInBuild": "Versi aplikasi ini tidak bisa berbagi di sekitar. Perbarui dari toko aplikasi.",
+      "androidTooOld": "Berbagi di sekitar memerlukan Android 10 atau yang lebih baru, sedangkan ponsel ini memakai versi yang lebih lama.",
+      "noBluetoothLe": "Ponsel ini tidak punya Bluetooth Low Energy, yang diperlukan Berbagi di sekitar.",
+      "noWifiDirect": "Ponsel ini tidak punya Wi-Fi Direct, yang diperlukan Berbagi di sekitar.",
+      "noKey": "Ponsel ini belum siap berbagi. Sambungkan ke internet sekali, lalu kembali ke sini.",
+      "noCertificate": "Untuk berbagi di sekitar, ponsel ini harus tersambung ke internet sekali saat organisasi Anda menyalakan Berbagi di sekitar.",
+      "readOnly": "Akun yang hanya melihat organisasi tidak bisa berbagi di sekitar."
+    },
+    "radios": {
+      "title": "Nyalakan ini di pengaturan ponsel Anda, lalu kembali ke sini:",
+      "bluetooth": "Bluetooth",
+      "wifi": "Wi-Fi",
+      "location": "Lokasi"
+    },
+    "permission": {
+      "location": "Android menyebut pencarian ponsel di sekitar sebagai “lokasi”. LangQuest tidak mencatat di mana Anda berada. Izin ini hanya dipakai untuk menemukan ponsel rekan tim selama layar ini terbuka.",
+      "nearbyAndLocation": "Android akan bertanya dua kali: untuk menemukan perangkat di sekitar, lalu untuk lokasi, yang diperlukan Wi-Fi Direct. LangQuest tidak mencatat di mana Anda berada.",
+      "nearbyDevices": "Android akan meminta izin agar LangQuest bisa menemukan dan tersambung ke perangkat di sekitar. Izin ini hanya dipakai selama layar ini terbuka.",
+      "precise": "Android hanya memberi lokasi perkiraan, padahal Wi-Fi Direct memerlukan lokasi akurat untuk tersambung. LangQuest tetap tidak mencatat di mana Anda berada.",
+      "settings": "Android tidak akan bertanya lagi. Buka pengaturan aplikasi ini, lalu Izin, dan izinkan Perangkat di sekitar atau Lokasi.",
+      "allow": "Lanjutkan",
+      "allowHelp": "Menampilkan pertanyaan Android. Pilih Izinkan untuk berbagi dengan rekan tim di sekitar.",
+      "openSettings": "Buka Pengaturan",
+      "openSettingsHelp": "Membuka halaman aplikasi ini di pengaturan ponsel Anda, tempat Anda bisa mengizinkannya."
+    },
+    "stopped": {
+      "idle": "Berhenti setelah beberapa saat karena tidak ada orang baru di sekitar.",
+      "wait": "Berhenti setelah lama menunggu rekan tim yang sedang sibuk.",
+      "noKey": "Ponsel ini belum bisa berbagi. Sambungkan ke internet sekali, lalu kembali ke sini.",
+      "failed": "Berbagi di sekitar tidak bisa menyalakan Bluetooth dan Wi-Fi.",
+      "lookAgainLine": "Jika ada rekan tim yang datang, ketuk Cari lagi."
+    },
+    "lookAgain": "Cari lagi",
+    "lookAgainHelp": "Menyalakan lagi Bluetooth dan Wi-Fi untuk menemukan rekan tim di sekitar.",
+    "findError": "Bluetooth berhenti bekerja ({{code}}). Matikan Bluetooth, lalu nyalakan lagi.",
+    "starting": "Memulai…",
+    "looking": "Mencari rekan tim. Biarkan layar ini terbuka, dan minta mereka membuka Berbagi di sekitar juga.",
+    "upToDate": "Sudah terbaru",
+    "upToDateLine": "Ponsel ini sudah terbaru dengan semua orang di sekitar.",
+    "sharingWith": "Berbagi dengan {{name}}",
+    "aTeammate": "Seorang rekan tim",
+    "teammates": "Rekan tim di sekitar",
+    "state": {
+      "here": "Di sekitar",
+      "maybe": "Mungkin ada rekan tim di sekitar",
+      "exchanging": "Sedang berbagi",
+      "done": "Sudah terbaru",
+      "missed": "Belum selesai. Akan dicoba lagi."
+    },
+    "connect": "Sambungkan",
+    "connectHelp": "Menyambung ke ponsel ini. Gunakan saat ada rekan tim di dekat Anda tetapi kedua ponsel belum saling menemukan.",
+    "came": {
+      "title": "Yang sudah berpindah",
+      "changesIn": "Perubahan diterima: {{n}}",
+      "changesOut": "Perubahan dikirim: {{n}}",
+      "filesIn": "Rekaman diterima: {{n}}",
+      "filesOut": "Rekaman dikirim: {{n}}",
+      "refused": "Perubahan tidak diambil: {{n}}",
+      "filesFailed": "Rekaman yang tidak sampai: {{n}}",
+      "noRoom": "Ruang untuk rekaman di ponsel ini habis.",
+      "cutBackups": "Cadangan dijeda agar rekan tim yang menunggu bisa mendapat giliran.",
+      "dropped": "Sambungan terputus sebelum selesai.",
+      "stalled": "Sambungan macet.",
+      "noAnswer": "Ponsel lain tidak menjawab.",
+      "heard": "Ponsel lain menghentikannya lebih awal.",
+      "said": "Ponsel ini menghentikannya lebih awal.",
+      "failed": "Ada yang salah. Akan dicoba lagi."
+    },
+    "clockOff": "Jam ponsel rekan tim dan jam ponsel ini berbeda lebih dari lima menit. Periksa tanggal dan jam di kedua ponsel.",
+    "newerApp": "Ponsel rekan tim memerlukan versi aplikasi yang lebih baru untuk berbagi dengan ponsel ini. Perbarui aplikasi dari toko aplikasi, atau dapatkan versi yang lebih baru dari rekan tim.",
+    "tooOld": "Aplikasi ini terlalu lama untuk berbagi. Perbarui dari toko aplikasi.",
+    "farAhead": "Ponsel {{name}} memakai tanggal yang jauh di masa depan. Pekerjaannya menunggu sampai tiba di server.",
+    "olderFromServer": "Pekerjaan yang lebih lama akan datang dari server.",
+    "hold": "Simpan rekaman rekan tim",
+    "holdHelp": "Jika aktif, ponsel ini menyimpan rekaman rekan tim sampai server menerimanya. Jika mati, hanya rekaman yang Anda perlukan yang disimpan.",
+    "carry": {
+      "title": "Siap dibawa",
+      "everything": "Ponsel ini menyimpan semua yang diketahuinya.",
+      "missing": "Rekaman yang belum ada: {{n}}",
+      "coming": "Masih datang dari rekan tim di sekitar: {{n}}",
+      "elsewhere": "Ponsel ini menyimpan sebanyak mungkin pekerjaan {{name}}. Sisanya tetap di ponsel {{name}} sampai ada yang tersambung ke internet.",
+      "elsewhereUnknown": "Rekaman yang hanya ada di ponsel yang tidak di sekitar: {{n}}",
+      "noRoom": "Ruang di ponsel ini tidak cukup untuk semua rekaman.",
+      "notAll": "Ponsel ini bisa membawa pekerjaan tim, tetapi tidak semua rekamannya.",
+      "pulled": "Perubahan yang didapat ponsel ini dari server baru bisa dibagikan setelah ponsel ini tersambung ke internet lagi.",
+      "holding": "Disimpan untuk rekan tim: {{n}}",
+      "today": "Hari ini",
+      "sinceOnline": "Sejak terakhir Anda online",
+      "notSinceOnline": "Belum sejak terakhir Anda online",
+      "newest": "pekerjaan terbaru di sini {{when}}"
+    },
+    "history": {
+      "nearby": "Datang dari ponsel {{name}}, belum ada di server",
+      "nearbyUnknown": "Datang dari ponsel rekan tim, belum ada di server",
+      "claim": "Datang dari ponsel {{name}}",
+      "claimUnknown": "Datang dari ponsel rekan tim"
+    },
+    "sync": {
+      "holding": "Disimpan untuk rekan tim",
+      "holdingHelp": "Rekaman rekan tim di ponsel ini yang belum ada di server. Rekaman ini diunggah saat ponsel ini online."
     }
   }
 }

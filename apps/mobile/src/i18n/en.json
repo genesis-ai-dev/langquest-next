@@ -352,7 +352,8 @@
     "cluster_home": "Cluster",
     "global_viewer": "Global Viewer",
     "forgot_password": "Forgot Password",
-    "new_password": "New Password"
+    "new_password": "New Password",
+    "share_nearby": "Share nearby"
   },
   "native": {
     "microphone": "LangQuest records your voice to translate passages.",
@@ -7975,6 +7976,116 @@
       "notOpen": "This offer was taken back or is already settled.",
       "badItem": "Choose one of your own items of the same kind.",
       "offline": "Could not reach LangQuest. Check your connection and try again."
+    }
+  },
+  "nearby": {
+    "experimental": "Experimental",
+    "intro": "Phones near each other bring each other up to date, changes and recordings both ways, with no internet. Keep this screen open until it says Up to date.",
+    "row": "Share nearby",
+    "rowSub": "Bring teammates' phones up to date without the internet",
+    "rowHelp": "Opens Share nearby, where phones near each other bring each other up to date without the internet.",
+    "why": {
+      "loading": "Checking this phone…",
+      "notInBuild": "This version of the app cannot share nearby. Update it from the store.",
+      "androidTooOld": "Share nearby needs Android 10 or later, and this phone has an older version.",
+      "noBluetoothLe": "This phone has no Bluetooth Low Energy, which Share nearby needs.",
+      "noWifiDirect": "This phone has no Wi-Fi Direct, which Share nearby needs.",
+      "noKey": "This phone is not ready to share yet. Connect to the internet once, then come back.",
+      "noCertificate": "To share nearby, this phone must connect to the internet once while your organization has Share nearby turned on.",
+      "readOnly": "Accounts that only view organizations do not share nearby."
+    },
+    "radios": {
+      "title": "Turn these on in your phone's settings, then come back:",
+      "bluetooth": "Bluetooth",
+      "wifi": "Wi-Fi",
+      "location": "Location"
+    },
+    "permission": {
+      "location": "Android calls finding nearby phones \"location\". LangQuest does not record where you are. It uses this only to find teammates' phones while this screen is open.",
+      "nearbyAndLocation": "Android will ask twice: to find nearby devices, then for location, which Wi-Fi Direct needs. LangQuest does not record where you are.",
+      "nearbyDevices": "Android will ask to let LangQuest find and connect to nearby devices. It uses this only while this screen is open.",
+      "precise": "Android gave only approximate location, and Wi-Fi Direct needs precise location to connect. LangQuest still does not record where you are.",
+      "settings": "Android will not ask again. Open this app's settings, then Permissions, and allow Nearby devices or Location.",
+      "allow": "Continue",
+      "allowHelp": "Shows Android's question. Choose Allow to share with teammates nearby.",
+      "openSettings": "Open settings",
+      "openSettingsHelp": "Opens this app's page in your phone's settings, where you can allow it."
+    },
+    "stopped": {
+      "idle": "Stopped after a while with nobody new nearby.",
+      "wait": "Stopped after waiting a long time for a busy teammate.",
+      "noKey": "This phone cannot share yet. Connect to the internet once, then come back.",
+      "failed": "Share nearby could not start Bluetooth and Wi-Fi.",
+      "lookAgainLine": "If a teammate arrives, tap Look again."
+    },
+    "lookAgain": "Look again",
+    "lookAgainHelp": "Turns on Bluetooth and Wi-Fi again to find teammates nearby.",
+    "findError": "Bluetooth stopped working ({{code}}). Turn Bluetooth off and on again.",
+    "starting": "Starting…",
+    "looking": "Looking for teammates. Keep this screen open, and ask them to open Share nearby too.",
+    "upToDate": "Up to date",
+    "upToDateLine": "This phone is up to date with everyone nearby.",
+    "sharingWith": "Sharing with {{name}}",
+    "aTeammate": "A teammate",
+    "teammates": "Teammates nearby",
+    "state": {
+      "here": "Nearby",
+      "maybe": "A teammate may be nearby",
+      "exchanging": "Sharing now",
+      "done": "Up to date",
+      "missed": "Did not finish. It will try again."
+    },
+    "connect": "Connect",
+    "connectHelp": "Connects to this phone. Use it when a teammate is nearby but the phones have not found each other.",
+    "came": {
+      "title": "What came across",
+      "changesIn": "Changes received: {{n}}",
+      "changesOut": "Changes sent: {{n}}",
+      "filesIn": "Recordings received: {{n}}",
+      "filesOut": "Recordings sent: {{n}}",
+      "refused": "Changes not taken: {{n}}",
+      "filesFailed": "Recordings that did not arrive: {{n}}",
+      "noRoom": "This phone ran out of room for recordings.",
+      "cutBackups": "Backups paused so a waiting teammate could have a turn.",
+      "dropped": "The connection dropped before the end.",
+      "stalled": "The connection stopped moving.",
+      "noAnswer": "The other phone did not answer.",
+      "heard": "The other phone ended it early.",
+      "said": "This phone ended it early.",
+      "failed": "Something went wrong. It will try again."
+    },
+    "clockOff": "A teammate's clock and this phone's differ by more than five minutes. Check the date and time on both phones.",
+    "newerApp": "A teammate's phone needs a newer version of the app to share with this one. Update the app from the store, or get the newer version from a teammate.",
+    "tooOld": "This app is too old to share. Update it from the store.",
+    "farAhead": "{{name}}'s phone has a date far in the future. Their work waits until it reaches the server.",
+    "olderFromServer": "Older work will come from the server.",
+    "hold": "Hold teammates' recordings",
+    "holdHelp": "On, this phone keeps teammates' recordings until the server has them. Off, it keeps only the ones you need.",
+    "carry": {
+      "title": "Ready to carry",
+      "everything": "This phone holds everything it knows of.",
+      "missing": "Recordings missing: {{n}}",
+      "coming": "Still coming from teammates nearby: {{n}}",
+      "elsewhere": "This phone holds as much of {{name}}'s work as it can. The rest stays on {{name}}'s phone until someone reaches the internet.",
+      "elsewhereUnknown": "Recordings that only phones not nearby hold: {{n}}",
+      "noRoom": "There is not enough room on this phone for every recording.",
+      "notAll": "This phone can carry the team's work, but not all of their recordings.",
+      "pulled": "Changes this phone got from the server can be shared only after it next reaches the internet.",
+      "holding": "Holding for teammates: {{n}}",
+      "today": "Today",
+      "sinceOnline": "Since you were last online",
+      "notSinceOnline": "Not since you were last online",
+      "newest": "newest work here {{when}}"
+    },
+    "history": {
+      "nearby": "Came from {{name}}'s phone, not on the server yet",
+      "nearbyUnknown": "Came from a teammate's phone, not on the server yet",
+      "claim": "Came from {{name}}'s phone",
+      "claimUnknown": "Came from a teammate's phone"
+    },
+    "sync": {
+      "holding": "Holding for teammates",
+      "holdingHelp": "Teammates' recordings on this phone that the server does not have yet. They go up when this phone is online."
     }
   }
 }

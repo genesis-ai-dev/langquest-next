@@ -352,7 +352,8 @@
     "cluster_home": "Kumpol",
     "global_viewer": "Pandaigdigang Tagatingin",
     "forgot_password": "Nakalimutan ang Password",
-    "new_password": "Bagong Password"
+    "new_password": "Bagong Password",
+    "share_nearby": "Ibahagi sa malapit"
   },
   "native": {
     "microphone": "Nire-record ng LangQuest ang iyong boses para isalin ang mga sipi.",
@@ -7975,6 +7976,116 @@
       "notOpen": "Binawi na o naayos na ang alok na ito.",
       "badItem": "Pumili ng isa sa sarili mong item na pareho ang uri.",
       "offline": "Hindi maabot ang LangQuest. Tingnan ang iyong koneksiyon at subukan ulit."
+    }
+  },
+  "nearby": {
+    "experimental": "Sinusubukan pa",
+    "intro": "Ang mga teleponong magkakalapit ay nagpapanahon sa isa't isa, mga pagbabago at rekording sa magkabilang direksiyon, nang walang internet. Panatilihing bukas ang screen na ito hanggang sabihin nitong Napapanahon.",
+    "row": "Ibahagi sa malapit",
+    "rowSub": "Gawing napapanahon ang telepono ng mga kasamahan nang walang internet",
+    "rowHelp": "Binubuksan ang Ibahagi sa malapit, kung saan nagpapanahon sa isa't isa ang mga teleponong magkakalapit nang walang internet.",
+    "why": {
+      "loading": "Sinusuri ang teleponong ito…",
+      "notInBuild": "Hindi makapagbahagi sa malapit ang bersiyong ito ng app. I-update ito mula sa store.",
+      "androidTooOld": "Kailangan ng Ibahagi sa malapit ang Android 10 o mas bago, at mas luma ang bersiyon ng teleponong ito.",
+      "noBluetoothLe": "Walang Bluetooth Low Energy ang teleponong ito, na kailangan ng Ibahagi sa malapit.",
+      "noWifiDirect": "Walang Wi-Fi Direct ang teleponong ito, na kailangan ng Ibahagi sa malapit.",
+      "noKey": "Hindi pa handang magbahagi ang teleponong ito. Kumonekta sa internet nang isang beses, saka bumalik.",
+      "noCertificate": "Para makapagbahagi sa malapit, kailangang kumonekta sa internet nang isang beses ang teleponong ito habang naka-on ang Ibahagi sa malapit sa iyong organisasyon.",
+      "readOnly": "Hindi nakapagbabahagi sa malapit ang mga account na tumitingin lang sa mga organisasyon."
+    },
+    "radios": {
+      "title": "I-on ang mga ito sa settings ng iyong telepono, saka bumalik:",
+      "bluetooth": "Bluetooth",
+      "wifi": "Wi-Fi",
+      "location": "Lokasyon"
+    },
+    "permission": {
+      "location": "Tinatawag ng Android na “lokasyon” ang paghahanap ng mga teleponong malapit. Hindi itinatala ng LangQuest kung nasaan ka. Ginagamit lang nito ito para mahanap ang telepono ng mga kasamahan habang bukas ang screen na ito.",
+      "nearbyAndLocation": "Dalawang beses magtatanong ang Android: para maghanap ng mga device sa malapit, saka para sa lokasyon, na kailangan ng Wi-Fi Direct. Hindi itinatala ng LangQuest kung nasaan ka.",
+      "nearbyDevices": "Hihilingin ng Android na payagan ang LangQuest na maghanap at kumonekta sa mga device sa malapit. Ginagamit lang ito habang bukas ang screen na ito.",
+      "precise": "Tinatayang lokasyon lang ang ibinigay ng Android, at kailangan ng Wi-Fi Direct ang eksaktong lokasyon para kumonekta. Hindi pa rin itinatala ng LangQuest kung nasaan ka.",
+      "settings": "Hindi na magtatanong ulit ang Android. Buksan ang settings ng app na ito, saka ang Mga Pahintulot, at payagan ang Mga kalapit na device o Lokasyon.",
+      "allow": "Magpatuloy",
+      "allowHelp": "Ipinapakita ang tanong ng Android. Piliin ang Payagan para makapagbahagi sa mga kasamahang malapit.",
+      "openSettings": "Buksan ang Settings",
+      "openSettingsHelp": "Binubuksan ang pahina ng app na ito sa settings ng iyong telepono, kung saan mo ito mapapayagan."
+    },
+    "stopped": {
+      "idle": "Huminto pagkalipas ng ilang sandali dahil walang bagong tao sa malapit.",
+      "wait": "Huminto pagkatapos maghintay nang matagal sa isang abalang kasamahan.",
+      "noKey": "Hindi pa makapagbahagi ang teleponong ito. Kumonekta sa internet nang isang beses, saka bumalik.",
+      "failed": "Hindi masimulan ng Ibahagi sa malapit ang Bluetooth at Wi-Fi.",
+      "lookAgainLine": "Kung may dumating na kasamahan, i-tap ang Maghanap ulit."
+    },
+    "lookAgain": "Maghanap ulit",
+    "lookAgainHelp": "Ini-on muli ang Bluetooth at Wi-Fi para mahanap ang mga kasamahang malapit.",
+    "findError": "Huminto sa paggana ang Bluetooth ({{code}}). I-off ang Bluetooth at i-on ulit.",
+    "starting": "Nagsisimula…",
+    "looking": "Naghahanap ng mga kasamahan. Panatilihing bukas ang screen na ito, at sabihan silang buksan din ang Ibahagi sa malapit.",
+    "upToDate": "Napapanahon",
+    "upToDateLine": "Napapanahon ang teleponong ito kasabay ng lahat ng nasa malapit.",
+    "sharingWith": "Nagbabahagi kay {{name}}",
+    "aTeammate": "Isang kasamahan",
+    "teammates": "Mga kasamahang malapit",
+    "state": {
+      "here": "Malapit",
+      "maybe": "Maaaring may kasamahang malapit",
+      "exchanging": "Nagbabahagi ngayon",
+      "done": "Napapanahon",
+      "missed": "Hindi natapos. Susubukan ulit."
+    },
+    "connect": "Kumonekta",
+    "connectHelp": "Kumokonekta sa teleponong ito. Gamitin kapag may kasamahang malapit pero hindi pa nagkakahanapan ang mga telepono.",
+    "came": {
+      "title": "Ang naipasa",
+      "changesIn": "Mga pagbabagong natanggap: {{n}}",
+      "changesOut": "Mga pagbabagong naipadala: {{n}}",
+      "filesIn": "Mga rekording na natanggap: {{n}}",
+      "filesOut": "Mga rekording na naipadala: {{n}}",
+      "refused": "Mga pagbabagong hindi tinanggap: {{n}}",
+      "filesFailed": "Mga rekording na hindi dumating: {{n}}",
+      "noRoom": "Naubusan ng espasyo para sa mga rekording ang teleponong ito.",
+      "cutBackups": "Itinigil muna ang mga backup para makasingit ang naghihintay na kasamahan.",
+      "dropped": "Naputol ang koneksiyon bago matapos.",
+      "stalled": "Tumigil ang koneksiyon.",
+      "noAnswer": "Hindi sumagot ang kabilang telepono.",
+      "heard": "Maagang tinapos ito ng kabilang telepono.",
+      "said": "Maagang tinapos ito ng teleponong ito.",
+      "failed": "May nangyaring mali. Susubukan ulit."
+    },
+    "clockOff": "Mahigit limang minuto ang pagkakaiba ng orasan sa telepono ng isang kasamahan at sa teleponong ito. Tingnan ang petsa at oras sa parehong telepono.",
+    "newerApp": "Kailangan ng telepono ng isang kasamahan ang mas bagong bersiyon ng app para makapagbahagi sa teleponong ito. I-update ang app mula sa store, o kunin ang mas bagong bersiyon mula sa isang kasamahan.",
+    "tooOld": "Masyadong luma ang app na ito para makapagbahagi. I-update ito mula sa store.",
+    "farAhead": "Malayo sa hinaharap ang petsa sa telepono ni {{name}}. Maghihintay ang kanilang gawa hanggang makarating ito sa server.",
+    "olderFromServer": "Manggagaling sa server ang mas lumang gawa.",
+    "hold": "Itago ang mga rekording ng mga kasamahan",
+    "holdHelp": "Kapag naka-on, itinatago ng teleponong ito ang mga rekording ng mga kasamahan hanggang makuha ito ng server. Kapag naka-off, ang mga kailangan mo lang ang itinatago nito.",
+    "carry": {
+      "title": "Handang dalhin",
+      "everything": "Hawak ng teleponong ito ang lahat ng alam nito.",
+      "missing": "Mga kulang na rekording: {{n}}",
+      "coming": "Paparating pa mula sa mga kasamahang malapit: {{n}}",
+      "elsewhere": "Hawak ng teleponong ito ang pinakamaraming kaya nito sa gawa ni {{name}}. Mananatili ang iba sa telepono ni {{name}} hanggang may makakonekta sa internet.",
+      "elsewhereUnknown": "Mga rekording na nasa mga teleponong wala sa malapit lang: {{n}}",
+      "noRoom": "Kulang ang espasyo sa teleponong ito para sa lahat ng rekording.",
+      "notAll": "Kayang dalhin ng teleponong ito ang gawa ng pangkat, pero hindi ang lahat ng kanilang rekording.",
+      "pulled": "Ang mga pagbabagong nakuha ng teleponong ito mula sa server ay maibabahagi lang pagkatapos nitong muling kumonekta sa internet.",
+      "holding": "Itinatago para sa mga kasamahan: {{n}}",
+      "today": "Ngayong araw",
+      "sinceOnline": "Mula noong huli kang online",
+      "notSinceOnline": "Hindi pa mula noong huli kang online",
+      "newest": "pinakabagong gawa rito {{when}}"
+    },
+    "history": {
+      "nearby": "Galing sa telepono ni {{name}}, wala pa sa server",
+      "nearbyUnknown": "Galing sa telepono ng isang kasamahan, wala pa sa server",
+      "claim": "Galing sa telepono ni {{name}}",
+      "claimUnknown": "Galing sa telepono ng isang kasamahan"
+    },
+    "sync": {
+      "holding": "Itinatago para sa mga kasamahan",
+      "holdingHelp": "Mga rekording ng mga kasamahan sa teleponong ito na wala pa sa server. Maa-upload ang mga ito kapag online ang teleponong ito."
     }
   }
 }

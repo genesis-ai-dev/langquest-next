@@ -27,6 +27,17 @@
       "plus": "Mais",
       "equals": "Igual",
       "point": "Vírgula decimal"
+    },
+    "nearby": {
+      "startLine": "O compartilhamento só começa quando você toca em Começar a compartilhar, e para depois de dez minutos ou quando você estiver atualizado.",
+      "start": "Começar a compartilhar",
+      "startHelp": "Liga o Bluetooth e o Wi-Fi para encontrar colegas por perto, por até dez minutos.",
+      "warning": "Alguém com o equipamento certo pode perceber que este celular está transmitindo, e as perguntas do Android vão mostrar o nome real do app. Faça isso quando estiver a sós.",
+      "warned": "Continuar",
+      "warnedHelp": "Segue para compartilhar. O Android pode pedir permissão em seguida.",
+      "left": "O compartilhamento parou porque você saiu do app.",
+      "run": "O compartilhamento parou depois de dez minutos.",
+      "level": "Atualizado. O compartilhamento parou."
     }
   },
   "native": {

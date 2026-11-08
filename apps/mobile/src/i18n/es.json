@@ -354,7 +354,8 @@
     "cluster_home": "Grupo",
     "global_viewer": "Observador global",
     "forgot_password": "Olvidé mi contraseña",
-    "new_password": "Contraseña nueva"
+    "new_password": "Contraseña nueva",
+    "share_nearby": "Compartir cerca"
   },
   "native": {
     "microphone": "LangQuest graba tu voz para traducir pasajes.",
@@ -8320,6 +8321,116 @@
       "notOpen": "Esta oferta se retiró o ya se resolvió.",
       "badItem": "Elige uno de tus propios elementos del mismo tipo.",
       "offline": "No se pudo conectar con LangQuest. Revisa tu conexión e inténtalo de nuevo."
+    }
+  },
+  "nearby": {
+    "experimental": "Experimental",
+    "intro": "Los teléfonos cercanos se ponen al día entre sí, con cambios y grabaciones en ambos sentidos, sin internet. Deja esta pantalla abierta hasta que diga Al día.",
+    "row": "Compartir cerca",
+    "rowSub": "Pon al día los teléfonos de tus compañeros sin internet",
+    "rowHelp": "Abre Compartir cerca, donde los teléfonos cercanos se ponen al día entre sí sin internet.",
+    "why": {
+      "loading": "Revisando este teléfono…",
+      "notInBuild": "Esta versión de la app no puede compartir cerca. Actualízala desde la tienda.",
+      "androidTooOld": "Compartir cerca necesita Android 10 o posterior, y este teléfono tiene una versión más antigua.",
+      "noBluetoothLe": "Este teléfono no tiene Bluetooth Low Energy, que Compartir cerca necesita.",
+      "noWifiDirect": "Este teléfono no tiene Wi-Fi Direct, que Compartir cerca necesita.",
+      "noKey": "Este teléfono todavía no está listo para compartir. Conéctate a internet una vez y luego vuelve.",
+      "noCertificate": "Para compartir cerca, este teléfono debe conectarse a internet una vez mientras tu organización tenga Compartir cerca activado.",
+      "readOnly": "Las cuentas que solo ven organizaciones no comparten cerca."
+    },
+    "radios": {
+      "title": "Activa esto en los ajustes del teléfono y luego vuelve:",
+      "bluetooth": "Bluetooth",
+      "wifi": "Wi-Fi",
+      "location": "Ubicación"
+    },
+    "permission": {
+      "location": "Android llama \"ubicación\" a buscar teléfonos cercanos. LangQuest no registra dónde estás. Solo lo usa para encontrar los teléfonos de tus compañeros mientras esta pantalla está abierta.",
+      "nearbyAndLocation": "Android preguntará dos veces: para buscar dispositivos cercanos y luego para la ubicación, que Wi-Fi Direct necesita. LangQuest no registra dónde estás.",
+      "nearbyDevices": "Android pedirá permiso para que LangQuest busque dispositivos cercanos y se conecte a ellos. Solo lo usa mientras esta pantalla está abierta.",
+      "precise": "Android solo dio la ubicación aproximada, y Wi-Fi Direct necesita la ubicación exacta para conectarse. LangQuest sigue sin registrar dónde estás.",
+      "settings": "Android no volverá a preguntar. Abre los ajustes de esta app, luego Permisos, y permite Dispositivos cercanos o Ubicación.",
+      "allow": "Continuar",
+      "allowHelp": "Muestra la pregunta de Android. Elige Permitir para compartir con compañeros cercanos.",
+      "openSettings": "Abrir ajustes",
+      "openSettingsHelp": "Abre la página de esta app en los ajustes del teléfono, donde puedes permitirlo."
+    },
+    "stopped": {
+      "idle": "Se detuvo después de un rato sin nadie nuevo cerca.",
+      "wait": "Se detuvo después de esperar mucho a un compañero ocupado.",
+      "noKey": "Este teléfono todavía no puede compartir. Conéctate a internet una vez y luego vuelve.",
+      "failed": "Compartir cerca no pudo encender el Bluetooth y el Wi-Fi.",
+      "lookAgainLine": "Si llega un compañero, toca Buscar de nuevo."
+    },
+    "lookAgain": "Buscar de nuevo",
+    "lookAgainHelp": "Vuelve a encender el Bluetooth y el Wi-Fi para encontrar compañeros cercanos.",
+    "findError": "El Bluetooth dejó de funcionar ({{code}}). Apaga el Bluetooth y vuelve a encenderlo.",
+    "starting": "Iniciando…",
+    "looking": "Buscando compañeros. Deja esta pantalla abierta y pídeles que también abran Compartir cerca.",
+    "upToDate": "Al día",
+    "upToDateLine": "Este teléfono está al día con todos los que están cerca.",
+    "sharingWith": "Compartiendo con {{name}}",
+    "aTeammate": "Un compañero",
+    "teammates": "Compañeros cercanos",
+    "state": {
+      "here": "Cerca",
+      "maybe": "Puede que haya un compañero cerca",
+      "exchanging": "Compartiendo ahora",
+      "done": "Al día",
+      "missed": "No terminó. Lo volverá a intentar."
+    },
+    "connect": "Conectar",
+    "connectHelp": "Se conecta a este teléfono. Úsalo cuando un compañero esté cerca pero los teléfonos no se hayan encontrado.",
+    "came": {
+      "title": "Lo que se compartió",
+      "changesIn": "Cambios recibidos: {{n}}",
+      "changesOut": "Cambios enviados: {{n}}",
+      "filesIn": "Grabaciones recibidas: {{n}}",
+      "filesOut": "Grabaciones enviadas: {{n}}",
+      "refused": "Cambios no aceptados: {{n}}",
+      "filesFailed": "Grabaciones que no llegaron: {{n}}",
+      "noRoom": "Este teléfono se quedó sin espacio para grabaciones.",
+      "cutBackups": "Las copias de seguridad se pausaron para que un compañero que esperaba tuviera su turno.",
+      "dropped": "La conexión se cortó antes de terminar.",
+      "stalled": "La conexión dejó de avanzar.",
+      "noAnswer": "El otro teléfono no respondió.",
+      "heard": "El otro teléfono lo terminó antes de tiempo.",
+      "said": "Este teléfono lo terminó antes de tiempo.",
+      "failed": "Algo salió mal. Lo volverá a intentar."
+    },
+    "clockOff": "El reloj de un compañero y el de este teléfono difieren en más de cinco minutos. Revisa la fecha y la hora en ambos teléfonos.",
+    "newerApp": "El teléfono de un compañero necesita una versión más nueva de la app para compartir con este. Actualiza la app desde la tienda o consigue la versión nueva de un compañero.",
+    "tooOld": "Esta app es demasiado antigua para compartir. Actualízala desde la tienda.",
+    "farAhead": "El teléfono de {{name}} tiene una fecha muy en el futuro. Su trabajo espera hasta llegar al servidor.",
+    "olderFromServer": "El trabajo más antiguo llegará desde el servidor.",
+    "hold": "Guardar las grabaciones de compañeros",
+    "holdHelp": "Activado: este teléfono guarda las grabaciones de tus compañeros hasta que el servidor las tenga. Desactivado: solo guarda las que necesitas.",
+    "carry": {
+      "title": "Listo para llevar",
+      "everything": "Este teléfono tiene todo lo que conoce.",
+      "missing": "Grabaciones que faltan: {{n}}",
+      "coming": "Aún llegando de compañeros cercanos: {{n}}",
+      "elsewhere": "Este teléfono tiene todo el trabajo de {{name}} que puede. El resto se queda en el teléfono de {{name}} hasta que alguien tenga internet.",
+      "elsewhereUnknown": "Grabaciones que solo tienen teléfonos que no están cerca: {{n}}",
+      "noRoom": "No hay espacio suficiente en este teléfono para todas las grabaciones.",
+      "notAll": "Este teléfono puede llevar el trabajo del equipo, pero no todas sus grabaciones.",
+      "pulled": "Los cambios que este teléfono recibió del servidor solo se pueden compartir después de que vuelva a tener internet.",
+      "holding": "Guardadas para compañeros: {{n}}",
+      "today": "Hoy",
+      "sinceOnline": "Desde la última vez que tuviste conexión",
+      "notSinceOnline": "No desde la última vez que tuviste conexión",
+      "newest": "trabajo más reciente aquí: {{when}}"
+    },
+    "history": {
+      "nearby": "Llegó del teléfono de {{name}}, aún no está en el servidor",
+      "nearbyUnknown": "Llegó del teléfono de un compañero, aún no está en el servidor",
+      "claim": "Llegó del teléfono de {{name}}",
+      "claimUnknown": "Llegó del teléfono de un compañero"
+    },
+    "sync": {
+      "holding": "Guardadas para compañeros",
+      "holdingHelp": "Grabaciones de compañeros en este teléfono que el servidor aún no tiene. Se suben cuando este teléfono tiene conexión."
     }
   }
 }

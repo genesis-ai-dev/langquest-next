@@ -114,6 +114,7 @@ const loadReports = () => import('./src/screens/reports');
 const loadSources = () => import('./src/screens/sources');
 const loadGlobalViewer = () => import('./src/screens/globalViewer');
 const loadGuideEditor = () => import('./src/screens/guideEditor');
+const loadNearby = () => import('./src/screens/nearby');
 
 const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   sign_in: Entry.SignIn, terms_privacy: Entry.TermsPrivacy, explore_home: Entry.ExploreHome, create_account: Entry.CreateAccount,
@@ -142,7 +143,8 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   bible_explore: lazyScreen(loadSources, 'BibleExplore'),
   get_ready: Ready.GetReady,
   settings_more: Account.SettingsMore,
-  global_viewer: lazyScreen(loadGlobalViewer, 'GlobalViewer')
+  global_viewer: lazyScreen(loadGlobalViewer, 'GlobalViewer'),
+  share_nearby: lazyScreen(loadNearby, 'ShareNearby')
 };
 
 /**
@@ -640,8 +642,9 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
             {/* Its own box, so the native stack ends where the tab bar begins
                 rather than drawing screens underneath it. */}
             <View style={{ flex: 1, overflow: 'hidden' }}>
-            {/* What waits on this device to upload, over every screen but Sync itself (decisions.md 166). */}
-            {screen === 'sync_status' ? null : <UploadBar ctx={ctx} onOpen={RECORDING_SCREENS.includes(screen) ? null : openSync} />}
+            {/* What waits on this device to upload, over every screen but Sync itself (decisions.md 166) and Share
+                nearby, where its tap would push Sync over the radios (docs/nearby-sync-plan.md 5.8). */}
+            {screen === 'sync_status' || screen === 'share_nearby' ? null : <UploadBar ctx={ctx} onOpen={RECORDING_SCREENS.includes(screen) ? null : openSync} />}
             <NavigationContainer ref={navRef} onReady={nav.onReady} onStateChange={nav.onStateChange}
               documentTitle={{ formatter: (_options, route) => (route ? titleFor(route.name as ScreenId) : 'LangQuest') }}>
               <Stack.Navigator

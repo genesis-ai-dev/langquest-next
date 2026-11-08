@@ -354,7 +354,8 @@
     "cluster_home": "Groupe",
     "global_viewer": "Observateur global",
     "forgot_password": "Mot de passe oublié",
-    "new_password": "Nouveau mot de passe"
+    "new_password": "Nouveau mot de passe",
+    "share_nearby": "Partager à proximité"
   },
   "native": {
     "microphone": "LangQuest enregistre votre voix pour traduire des passages.",
@@ -8320,6 +8321,116 @@
       "notOpen": "Cette proposition a été retirée ou est déjà réglée.",
       "badItem": "Choisissez un de vos propres éléments du même type.",
       "offline": "Impossible de joindre LangQuest. Vérifiez votre connexion et réessayez."
+    }
+  },
+  "nearby": {
+    "experimental": "Expérimental",
+    "intro": "Les téléphones proches se mettent à jour entre eux, modifications et enregistrements dans les deux sens, sans Internet. Gardez cet écran ouvert jusqu’à ce qu’il affiche À jour.",
+    "row": "Partager à proximité",
+    "rowSub": "Mettre à jour les téléphones de vos coéquipiers sans Internet",
+    "rowHelp": "Ouvre Partager à proximité, où les téléphones proches se mettent à jour entre eux sans Internet.",
+    "why": {
+      "loading": "Vérification de ce téléphone…",
+      "notInBuild": "Cette version de l’application ne peut pas partager à proximité. Mettez-la à jour depuis le store.",
+      "androidTooOld": "Partager à proximité nécessite Android 10 ou plus récent, et ce téléphone a une version plus ancienne.",
+      "noBluetoothLe": "Ce téléphone n’a pas Bluetooth Low Energy, dont Partager à proximité a besoin.",
+      "noWifiDirect": "Ce téléphone n’a pas Wi-Fi Direct, dont Partager à proximité a besoin.",
+      "noKey": "Ce téléphone n’est pas encore prêt à partager. Connectez-vous à Internet une fois, puis revenez.",
+      "noCertificate": "Pour partager à proximité, ce téléphone doit se connecter une fois à Internet pendant que votre organisation a activé Partager à proximité.",
+      "readOnly": "Les comptes qui consultent seulement les organisations ne partagent pas à proximité."
+    },
+    "radios": {
+      "title": "Activez ceci dans les réglages du téléphone, puis revenez :",
+      "bluetooth": "Bluetooth",
+      "wifi": "Wi-Fi",
+      "location": "Localisation"
+    },
+    "permission": {
+      "location": "Android appelle « localisation » la recherche de téléphones proches. LangQuest n’enregistre pas où vous êtes. Il s’en sert seulement pour trouver les téléphones de vos coéquipiers pendant que cet écran est ouvert.",
+      "nearbyAndLocation": "Android va demander deux fois : pour trouver les appareils à proximité, puis pour la localisation, dont Wi-Fi Direct a besoin. LangQuest n’enregistre pas où vous êtes.",
+      "nearbyDevices": "Android va demander d’autoriser LangQuest à trouver les appareils à proximité et à s’y connecter. Il s’en sert seulement pendant que cet écran est ouvert.",
+      "precise": "Android n’a donné que la localisation approximative, et Wi-Fi Direct a besoin de la localisation précise pour se connecter. LangQuest n’enregistre toujours pas où vous êtes.",
+      "settings": "Android ne demandera plus. Ouvrez les réglages de cette application, puis Autorisations, et autorisez Appareils à proximité ou Localisation.",
+      "allow": "Continuer",
+      "allowHelp": "Affiche la question d’Android. Choisissez Autoriser pour partager avec les coéquipiers à proximité.",
+      "openSettings": "Ouvrir les réglages",
+      "openSettingsHelp": "Ouvre la page de cette application dans les réglages du téléphone, où vous pouvez l’autoriser."
+    },
+    "stopped": {
+      "idle": "Arrêté après un moment sans personne de nouveau à proximité.",
+      "wait": "Arrêté après une longue attente d’un coéquipier occupé.",
+      "noKey": "Ce téléphone ne peut pas encore partager. Connectez-vous à Internet une fois, puis revenez.",
+      "failed": "Partager à proximité n’a pas pu démarrer le Bluetooth et le Wi-Fi.",
+      "lookAgainLine": "Si un coéquipier arrive, touchez Chercher à nouveau."
+    },
+    "lookAgain": "Chercher à nouveau",
+    "lookAgainHelp": "Rallume le Bluetooth et le Wi-Fi pour trouver des coéquipiers à proximité.",
+    "findError": "Le Bluetooth ne fonctionne plus ({{code}}). Éteignez puis rallumez le Bluetooth.",
+    "starting": "Démarrage…",
+    "looking": "Recherche de coéquipiers. Gardez cet écran ouvert, et demandez-leur d’ouvrir aussi Partager à proximité.",
+    "upToDate": "À jour",
+    "upToDateLine": "Ce téléphone est à jour avec tous ceux qui sont à proximité.",
+    "sharingWith": "Partage avec {{name}}",
+    "aTeammate": "Un coéquipier",
+    "teammates": "Coéquipiers à proximité",
+    "state": {
+      "here": "À proximité",
+      "maybe": "Un coéquipier est peut-être à proximité",
+      "exchanging": "Partage en cours",
+      "done": "À jour",
+      "missed": "Pas terminé. Nouvel essai automatique."
+    },
+    "connect": "Se connecter",
+    "connectHelp": "Se connecte à ce téléphone. Utilisez-le quand un coéquipier est à proximité mais que les téléphones ne se sont pas trouvés.",
+    "came": {
+      "title": "Ce qui a été échangé",
+      "changesIn": "Modifications reçues : {{n}}",
+      "changesOut": "Modifications envoyées : {{n}}",
+      "filesIn": "Enregistrements reçus : {{n}}",
+      "filesOut": "Enregistrements envoyés : {{n}}",
+      "refused": "Modifications non acceptées : {{n}}",
+      "filesFailed": "Enregistrements non arrivés : {{n}}",
+      "noRoom": "Ce téléphone n’a plus de place pour les enregistrements.",
+      "cutBackups": "Sauvegardes mises en pause pour laisser son tour à un coéquipier qui attendait.",
+      "dropped": "La connexion a été coupée avant la fin.",
+      "stalled": "La connexion n’avançait plus.",
+      "noAnswer": "L’autre téléphone n’a pas répondu.",
+      "heard": "L’autre téléphone a arrêté avant la fin.",
+      "said": "Ce téléphone a arrêté avant la fin.",
+      "failed": "Un problème est survenu. Nouvel essai automatique."
+    },
+    "clockOff": "L’horloge d’un coéquipier et celle de ce téléphone diffèrent de plus de cinq minutes. Vérifiez la date et l’heure sur les deux téléphones.",
+    "newerApp": "Le téléphone d’un coéquipier a besoin d’une version plus récente de l’application pour partager avec celui-ci. Mettez à jour l’application depuis le store, ou obtenez la version récente auprès d’un coéquipier.",
+    "tooOld": "Cette application est trop ancienne pour partager. Mettez-la à jour depuis le store.",
+    "farAhead": "Le téléphone de {{name}} a une date très en avance. Son travail attend d’arriver au serveur.",
+    "olderFromServer": "Le travail plus ancien viendra du serveur.",
+    "hold": "Garder les enregistrements des coéquipiers",
+    "holdHelp": "Activé : ce téléphone garde les enregistrements des coéquipiers jusqu’à ce que le serveur les ait. Désactivé : il ne garde que ceux dont vous avez besoin.",
+    "carry": {
+      "title": "Prêt à transporter",
+      "everything": "Ce téléphone a tout ce qu’il connaît.",
+      "missing": "Enregistrements manquants : {{n}}",
+      "coming": "Encore en route depuis des coéquipiers à proximité : {{n}}",
+      "elsewhere": "Ce téléphone garde autant du travail de {{name}} qu’il peut. Le reste demeure sur le téléphone de {{name}} jusqu’à ce que quelqu’un ait accès à Internet.",
+      "elsewhereUnknown": "Enregistrements que seuls des téléphones éloignés ont : {{n}}",
+      "noRoom": "Il n’y a pas assez de place sur ce téléphone pour tous les enregistrements.",
+      "notAll": "Ce téléphone peut transporter le travail de l’équipe, mais pas tous ses enregistrements.",
+      "pulled": "Les modifications que ce téléphone a reçues du serveur ne pourront être partagées qu’après sa prochaine connexion à Internet.",
+      "holding": "Gardés pour les coéquipiers : {{n}}",
+      "today": "Aujourd’hui",
+      "sinceOnline": "Depuis votre dernière connexion",
+      "notSinceOnline": "Pas depuis votre dernière connexion",
+      "newest": "travail le plus récent ici : {{when}}"
+    },
+    "history": {
+      "nearby": "Venu du téléphone de {{name}}, pas encore sur le serveur",
+      "nearbyUnknown": "Venu du téléphone d’un coéquipier, pas encore sur le serveur",
+      "claim": "Venu du téléphone de {{name}}",
+      "claimUnknown": "Venu du téléphone d’un coéquipier"
+    },
+    "sync": {
+      "holding": "Gardés pour les coéquipiers",
+      "holdingHelp": "Enregistrements de coéquipiers sur ce téléphone que le serveur n’a pas encore. Ils sont envoyés quand ce téléphone est en ligne."
     }
   }
 }

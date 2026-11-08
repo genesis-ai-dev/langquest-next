@@ -526,6 +526,7 @@ gone (decision 63).
 | Who may use an organization's work, and what outsiders see | `v1.LicenseSet` in the organization stream (`orgLicense`, `LICENSE_INFO[..].terms`); outsiders read a projection, never the log | **added**, not in the demo (decision 38, docs/licensing.md); only ever opens |
 | Whether this phone sends field diagnostics | Settings › App › Send diagnostics, a switch row (`diag:off` in device meta, `src/diagnosticsSetting.ts`); diagnostics are never events | **added**, not in the demo (decision 39, docs/diagnostics.md); on by default, and off deletes what is waiting |
 | Reporting content or a person, and blocking someone | a flag on anything someone else made (`reportSheet.tsx`); `content_reports` and `user_blocks` rows sent through the account outbox, never events; a moderator removes content with `v1.Redacted`, staff act through `npm run moderation`; a blocked person's words and audio are hidden behind Show and their work still counts | **added**, not in the demo (decision 48); Google Play requires it |
+| Sharing work between phones with no internet | Share nearby (`share_nearby`), from Sync while the organization has it on, labelled experimental (`src/screens/nearby.tsx`, `src/nearby/`); rows a teammate's phone sent are `nearby` in the events table until the server confirms them, and "Hold teammates' recordings" is `nearbyHold` in device meta; nothing new is an event | **added**, not in the demo (docs/nearby-sync-plan.md 5.8); Android only, through `.android` files |
 
 ## 14. Blobs: the upload and download design for step 5
 

@@ -84,9 +84,13 @@ Review it, the record updating, set aside with a reason, the Inbox. All
 events were accepted by the server's validation and permission rules.
 
 App-only screens (each edge is in `specParity.test.ts`'s drift log with its
-reason): Sync, Delete Account, the Reports section, and Write a Guide
+reason): Sync, Delete Account, the Reports section, Write a Guide
 (`guide_editor`, from Reference Material and from a study guide's Edit or
-Copy to adapt; `src/guides/`, docs/reference-material.md).
+Copy to adapt; `src/guides/`, docs/reference-material.md), and Share nearby
+(`share_nearby`, from Sync on an Android phone whose organization has it on,
+labelled experimental; docs/nearby-sync-plan.md 5.8). Share nearby keeps the
+kit and the conventions above: 48 pt rows, its one main action a 56 pt
+button, help lines on every part, and words that wrap.
 
 ### Not ported yet
 

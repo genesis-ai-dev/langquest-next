@@ -352,7 +352,8 @@
     "cluster_home": "Kundi",
     "global_viewer": "Mtazamaji wa Kimataifa",
     "forgot_password": "Umesahau Nenosiri",
-    "new_password": "Nenosiri Jipya"
+    "new_password": "Nenosiri Jipya",
+    "share_nearby": "Shiriki karibu"
   },
   "native": {
     "microphone": "LangQuest hurekodi sauti yako ili kutafsiri vifungu.",
@@ -7975,6 +7976,116 @@
       "notOpen": "Pendekezo hili liliondolewa au tayari limeshamalizwa.",
       "badItem": "Chagua kimojawapo cha vipengele vyako vya aina hiyo hiyo.",
       "offline": "Imeshindwa kufikia LangQuest. Angalia muunganisho wako ujaribu tena."
+    }
+  },
+  "nearby": {
+    "experimental": "Majaribio",
+    "intro": "Simu zilizo karibu zinasasishana, mabadiliko na rekodi pande zote mbili, bila intaneti. Acha skrini hii wazi hadi iseme Imesasishwa.",
+    "row": "Shiriki karibu",
+    "rowSub": "Sasisha simu za wenzako wa timu bila intaneti",
+    "rowHelp": "Hufungua Shiriki karibu, ambapo simu zilizo karibu zinasasishana bila intaneti.",
+    "why": {
+      "loading": "Inakagua simu hii…",
+      "notInBuild": "Toleo hili la programu haliwezi kushiriki karibu. Lisasishe kutoka dukani.",
+      "androidTooOld": "Shiriki karibu inahitaji Android 10 au mpya zaidi, na simu hii ina toleo la zamani.",
+      "noBluetoothLe": "Simu hii haina Bluetooth Low Energy, ambayo Shiriki karibu inahitaji.",
+      "noWifiDirect": "Simu hii haina Wi-Fi Direct, ambayo Shiriki karibu inahitaji.",
+      "noKey": "Simu hii bado haiko tayari kushiriki. Unganisha kwenye intaneti mara moja, kisha urudi.",
+      "noCertificate": "Ili kushiriki karibu, simu hii lazima iunganishwe kwenye intaneti mara moja wakati shirika lako limewasha Shiriki karibu.",
+      "readOnly": "Akaunti zinazotazama mashirika tu hazishiriki karibu."
+    },
+    "radios": {
+      "title": "Washa hivi kwenye mipangilio ya simu yako, kisha urudi:",
+      "bluetooth": "Bluetooth",
+      "wifi": "Wi-Fi",
+      "location": "Mahali"
+    },
+    "permission": {
+      "location": "Android huita kutafuta simu zilizo karibu \"mahali\". LangQuest hairekodi ulipo. Inatumia hii tu kutafuta simu za wenzako wa timu wakati skrini hii iko wazi.",
+      "nearbyAndLocation": "Android itauliza mara mbili: kutafuta vifaa vilivyo karibu, kisha kwa ajili ya mahali, ambayo Wi-Fi Direct inahitaji. LangQuest hairekodi ulipo.",
+      "nearbyDevices": "Android itaomba kuruhusu LangQuest itafute na iunganishe na vifaa vilivyo karibu. Inatumia hii tu wakati skrini hii iko wazi.",
+      "precise": "Android imetoa mahali pa takriban tu, na Wi-Fi Direct inahitaji mahali kamili ili kuunganisha. LangQuest bado hairekodi ulipo.",
+      "settings": "Android haitauliza tena. Fungua mipangilio ya programu hii, kisha Ruhusa, na uruhusu Vifaa vilivyo karibu au Mahali.",
+      "allow": "Endelea",
+      "allowHelp": "Huonyesha swali la Android. Chagua Ruhusu ili kushiriki na wenzako wa timu walio karibu.",
+      "openSettings": "Fungua mipangilio",
+      "openSettingsHelp": "Hufungua ukurasa wa programu hii kwenye mipangilio ya simu yako, ambapo unaweza kuiruhusu."
+    },
+    "stopped": {
+      "idle": "Imesimama baada ya muda bila mtu mpya karibu.",
+      "wait": "Imesimama baada ya kumsubiri kwa muda mrefu mwenzako mwenye shughuli.",
+      "noKey": "Simu hii bado haiwezi kushiriki. Unganisha kwenye intaneti mara moja, kisha urudi.",
+      "failed": "Shiriki karibu imeshindwa kuwasha Bluetooth na Wi-Fi.",
+      "lookAgainLine": "Mwenzako akifika, gusa Tafuta tena."
+    },
+    "lookAgain": "Tafuta tena",
+    "lookAgainHelp": "Huwasha Bluetooth na Wi-Fi tena ili kupata wenzako wa timu walio karibu.",
+    "findError": "Bluetooth imeacha kufanya kazi ({{code}}). Zima Bluetooth kisha uiwashe tena.",
+    "starting": "Inaanza…",
+    "looking": "Inatafuta wenzako wa timu. Acha skrini hii wazi, na uwaombe nao wafungue Shiriki karibu.",
+    "upToDate": "Imesasishwa",
+    "upToDateLine": "Simu hii imesasishwa na kila mtu aliye karibu.",
+    "sharingWith": "Inashiriki na {{name}}",
+    "aTeammate": "Mwenzako wa timu",
+    "teammates": "Wenzako wa timu walio karibu",
+    "state": {
+      "here": "Karibu",
+      "maybe": "Huenda mwenzako yuko karibu",
+      "exchanging": "Inashiriki sasa",
+      "done": "Imesasishwa",
+      "missed": "Haikumaliza. Itajaribu tena."
+    },
+    "connect": "Unganisha",
+    "connectHelp": "Huunganisha na simu hii. Itumie wakati mwenzako yuko karibu lakini simu hazijapatana.",
+    "came": {
+      "title": "Kilichopita kati ya simu",
+      "changesIn": "Mabadiliko yaliyopokelewa: {{n}}",
+      "changesOut": "Mabadiliko yaliyotumwa: {{n}}",
+      "filesIn": "Rekodi zilizopokelewa: {{n}}",
+      "filesOut": "Rekodi zilizotumwa: {{n}}",
+      "refused": "Mabadiliko yasiyokubaliwa: {{n}}",
+      "filesFailed": "Rekodi ambazo hazikufika: {{n}}",
+      "noRoom": "Simu hii imeishiwa nafasi ya rekodi.",
+      "cutBackups": "Nakala za akiba zimesitishwa ili mwenzako aliyekuwa akisubiri apate zamu.",
+      "dropped": "Muunganisho ulikatika kabla ya mwisho.",
+      "stalled": "Muunganisho uliacha kusonga.",
+      "noAnswer": "Simu nyingine haikujibu.",
+      "heard": "Simu nyingine ilimaliza mapema.",
+      "said": "Simu hii ilimaliza mapema.",
+      "failed": "Kuna tatizo. Itajaribu tena."
+    },
+    "clockOff": "Saa ya simu ya mwenzako na ya simu hii zinatofautiana kwa zaidi ya dakika tano. Angalia tarehe na saa kwenye simu zote mbili.",
+    "newerApp": "Simu ya mwenzako inahitaji toleo jipya zaidi la programu ili kushiriki na hii. Sasisha programu kutoka dukani, au pata toleo jipya kutoka kwa mwenzako.",
+    "tooOld": "Programu hii ni ya zamani mno kushiriki. Isasishe kutoka dukani.",
+    "farAhead": "Simu ya {{name}} ina tarehe ya mbali sana mbeleni. Kazi yake inasubiri hadi ifike kwenye seva.",
+    "olderFromServer": "Kazi ya zamani zaidi itakuja kutoka kwenye seva.",
+    "hold": "Hifadhi rekodi za wenzako",
+    "holdHelp": "Ikiwashwa, simu hii huhifadhi rekodi za wenzako hadi seva iwe nazo. Ikizimwa, huhifadhi zile unazohitaji tu.",
+    "carry": {
+      "title": "Tayari kubeba",
+      "everything": "Simu hii ina kila kitu inachokijua.",
+      "missing": "Rekodi zinazokosekana: {{n}}",
+      "coming": "Bado zinakuja kutoka kwa wenzako walio karibu: {{n}}",
+      "elsewhere": "Simu hii ina kazi ya {{name}} kadiri inavyoweza. Iliyobaki inabaki kwenye simu ya {{name}} hadi mtu afike kwenye intaneti.",
+      "elsewhereUnknown": "Rekodi zilizo kwenye simu zisizo karibu tu: {{n}}",
+      "noRoom": "Hakuna nafasi ya kutosha kwenye simu hii kwa rekodi zote.",
+      "notAll": "Simu hii inaweza kubeba kazi ya timu, lakini si rekodi zao zote.",
+      "pulled": "Mabadiliko ambayo simu hii ilipata kutoka kwenye seva yanaweza kushirikiwa tu baada ya kufika kwenye intaneti tena.",
+      "holding": "Inahifadhi kwa ajili ya wenzako: {{n}}",
+      "today": "Leo",
+      "sinceOnline": "Tangu ulipokuwa mtandaoni mara ya mwisho",
+      "notSinceOnline": "Si tangu ulipokuwa mtandaoni mara ya mwisho",
+      "newest": "kazi mpya zaidi hapa {{when}}"
+    },
+    "history": {
+      "nearby": "Imetoka kwenye simu ya {{name}}, bado haiko kwenye seva",
+      "nearbyUnknown": "Imetoka kwenye simu ya mwenzako, bado haiko kwenye seva",
+      "claim": "Imetoka kwenye simu ya {{name}}",
+      "claimUnknown": "Imetoka kwenye simu ya mwenzako"
+    },
+    "sync": {
+      "holding": "Inahifadhi kwa ajili ya wenzako",
+      "holdingHelp": "Rekodi za wenzako kwenye simu hii ambazo seva bado haina. Zinapakiwa simu hii ikiwa mtandaoni."
     }
   }
 }
