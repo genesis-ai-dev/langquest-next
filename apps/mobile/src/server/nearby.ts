@@ -12,7 +12,8 @@ import { supabase } from './supabase';
 /** The Worker's address, as blobTransport.ts reads it. */
 const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') || (Platform.OS === 'web' ? '' : null);
 
-async function post(path: string, body: unknown): Promise<Response> {
+/** A bearer-token POST to the Worker; `OfflineError` when it cannot be reached. */
+export async function post(path: string, body: unknown): Promise<Response> {
   if (apiUrl === null) throw new Error('No Worker is set up for this build (EXPO_PUBLIC_API_URL).');
   const { data, error } = await supabase.auth.getSession();
   if (error) throw new Error(error.message);

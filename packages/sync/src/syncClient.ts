@@ -1359,7 +1359,9 @@ export class SyncClient<S = LanguageState> {
         const page = await this.opts.store.pendingPage(this.opts.orgId, this.opts.streamId, afterHlc, this.pushBatchSize);
         if (page.length === 0) break;
         afterHlc = page[page.length - 1]!.event.hlc;
-        const batch = page.filter((p) => p.event.actorId === this.opts.actorId);
+        let batch = page.filter((p) => p.event.actorId === this.opts.actorId);
+        // An undo of a teammate's unsent set-aside waits for delivery (docs/nearby-sync-plan.md section 6).
+        if (this.nearbyPart) batch = await this.nearbyPart.holdBack(batch);
         if (batch.length === 0) continue;
         if (batches >= this.pushBatchesPerRun) {
           more = true;
@@ -1753,13 +1755,15 @@ export class SyncClient<S = LanguageState> {
     let unrenewed = false;
     try {
       const { accepted, rejected, more: morePush } = await this.inPhase('push', () => this.pushNow());
+      // Push, deliver teammates' signed work, pull (docs/nearby-sync-plan.md section 6).
+      const moreNear = !this.opts.deliverOnly && await this.nearbyPart?.deliver();
       const { pulled, more: morePull } = await this.inPhase('pull', () => this.pullNow(this.pullBudgetMs));
       // Up to date: passages a screen or this phone's own work asked for are filled in now (decisions.md 147); the rest by `fillSome`.
       if (!morePull && this.fill?.active() && this.kept?.wantedUnits().length) {
         if ((await this.inPhase('snapshot', () => this.fillOrStartOver(() => this.fill!.fillWanted()))).length > 0) await this.afterFill();
       }
       if (!this.opts.deliverOnly) await this.inPhase('pull', () => this.afterPull(morePull));
-      result = { ...idle, pushed: accepted, rejected, pulled, more: morePush || morePull, filling: !!this.fill?.active() };
+      result = { ...idle, pushed: accepted, rejected, pulled, more: morePush || !!moreNear || morePull, filling: !!this.fill?.active() };
     } catch (err) {
       unrenewed = err instanceof UnrenewedError;
       if (err instanceof OfflineError) result = { ...idle, offline: true };
@@ -1965,7 +1969,8 @@ export class SyncClient<S = LanguageState> {
       clockMeta: () => this.clockMeta(),
       compareFromNow: () => { this.pullCompares = true; },
       key: (what, signer) => this.nearbyKey(what, signer),
-      checkpointSeq: () => this.checkpointSeq()
+      checkpointSeq: () => this.checkpointSeq(),
+      pushNow: () => this.pushNow()
     };
   }
 }

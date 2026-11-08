@@ -87,6 +87,8 @@ export function shapeTransport(inner: Transport, o: ShapeOptions): Transport {
       call(REQUEST_BYTES + jsonBytes(a[2]), () => inner.knownEvents!(...a), jsonBytes) } : {}),
     ...(inner.attest ? { attest: (...a: Parameters<NonNullable<Transport['attest']>>) =>
       call(REQUEST_BYTES, () => inner.attest!(...a), jsonBytes) } : {}),
+    ...(inner.relay ? { relay: (...a: Parameters<NonNullable<Transport['relay']>>) =>
+      call(REQUEST_BYTES + jsonBytes(a[2]), () => inner.relay!(...a), jsonBytes) } : {}),
     ...(inner.watch ? { watch: inner.watch.bind(inner) } : {})
   };
 }

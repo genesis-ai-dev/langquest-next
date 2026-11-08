@@ -51,7 +51,10 @@ const YES_NO = ['yes', 'no'] as const;
  * how it `end`ed with its `bye` reason or its native `code` or the class of a store `error`,
  * the `link` that moved the work after `fallbacks` attempts, events and files each way, refusals,
  * and flags as 0 or 1); `find` when Find fails natively (`code`); `blocked` when the screen
- * cannot run (`why`).
+ * cannot run (`why`); `deliver` when a sync delivered teammates' work to the server (docs/nearby-sync-plan.md
+ * section 6): `ms`, events `sent`, `events` the server took as new, `refused` here, of them `farAhead` and
+ * `keyRefused` (a revoked key's later work or its cap), `noAnswer` batches the relay did not try, `done`
+ * batches answered, and `error` the class of what stopped it early (`later` for not yet).
  */
 export const NEARBY_DIAG_SCHEMA = {
   nearby: {
@@ -59,7 +62,7 @@ export const NEARBY_DIAG_SCHEMA = {
       'fallbacks', 'events', 'sent', 'refused', 'overBudget', 'files', 'served', 'fileFails', 'keyRefused', 'farAhead',
       'noRoom', 'cutBackups', 'older', 'clockOff', 'newerApp'],
     t: {
-      event: ['room', 'session', 'find', 'blocked'],
+      event: ['room', 'session', 'find', 'blocked', 'deliver'],
       stop: ['asked', 'idle', 'wait', 'run', 'level', 'no-key'],
       role: ['i', 'r'],
       end: ['done', 'silent', 'no-answer', 'said', 'heard', 'dropped', 'stalled', 'failed'],
@@ -161,4 +164,12 @@ export function roomDiagOf(tally: NearbyRoomTally, stop: string, ms: number, cap
   }
   const capped = (x: number) => Math.min(x, NEARBY_ROOM_MS_CAP);
   return { t, n: { ms: capped(ms), ...counts, ...(levelMs !== null ? { levelMs: capped(levelMs) } : {}) } };
+}
+
+/** One sync's delivery of teammates' work: counts, and why it stopped early. Names no author, key or event. */
+export function deliverDiagOf(d: { sent: number; taken: number; refused: number; farAhead: number; keyRefused: number; batchesRefused: number; batches: number; stopped?: string }, ms: number): NearbyDiagInput {
+  return {
+    t: { event: 'deliver', ...(d.stopped ? { error: d.stopped } : {}) },
+    n: { ms, sent: d.sent, events: d.taken, refused: d.refused, farAhead: d.farAhead, keyRefused: d.keyRefused, noAnswer: d.batchesRefused, done: d.batches }
+  };
 }

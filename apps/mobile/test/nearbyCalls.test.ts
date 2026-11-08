@@ -90,3 +90,37 @@ describe('the attestation call', () => {
     expect(typeof transport.pull).toBe('function');
   });
 });
+
+describe('the relay call (docs/nearby-sync-plan.md section 6)', () => {
+  const batch = { manifest: '{}', sig: 's', chain: [], events: [] };
+
+  it('posts the batches with this build\'s protocol version, and hands back each batch\'s answer', async () => {
+    const { relayBatches } = await import('../src/server/nearbyRelay.android');
+    const { CLIENT_PROTOCOL_VERSION } = await import('@langquest-next/core');
+    const answer = [{ key: 'k', n: 1, verdicts: [{ id: 'e1', accepted: true, serverSeq: 4, reason: null }] }];
+    reply = () => new Response(JSON.stringify({ batches: answer }));
+    expect(await relayBatches('o1', 'L1', [batch])).toEqual(answer);
+    expect(calls[0]!.url).toBe('https://next.example/api/relay');
+    expect(JSON.parse(calls[0]!.init?.body as string)).toEqual({ orgId: 'o1', streamId: 'L1', clientVersion: CLIENT_PROTOCOL_VERSION, batches: [batch] });
+  });
+
+  it('503 is not yet, 426 is too old, a body it cannot read or another status throws, no network is offline', async () => {
+    vi.resetModules();
+    const { relayBatches } = await import('../src/server/nearbyRelay.android');
+    reply = () => new Response('{}', { status: 503 });
+    expect(await relayBatches('o1', 'L1', [batch])).toBeNull();
+    reply = () => new Response(JSON.stringify({ code: 'LQ001' }), { status: 426 });
+    await expect(relayBatches('o1', 'L1', [batch])).rejects.toMatchObject({ name: 'ClientTooOldError' });
+    for (const r of [() => new Response('{}', { status: 502 }), () => new Response(JSON.stringify({ batches: [{ key: 1 }] }))]) {
+      reply = r;
+      await expect(relayBatches('o1', 'L1', [batch])).rejects.toMatchObject({ name: 'NearbyCallError' });
+    }
+    reply = () => { throw new TypeError('Network request failed'); };
+    await expect(relayBatches('o1', 'L1', [batch])).rejects.toMatchObject({ name: 'OfflineError' });
+  });
+
+  it('the web has no relay, so its transport delivers nothing', async () => {
+    const { relayBatches } = await import('../src/server/nearbyRelay');
+    expect(relayBatches).toBeUndefined();
+  });
+});

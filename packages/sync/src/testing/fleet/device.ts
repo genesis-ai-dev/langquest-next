@@ -91,6 +91,8 @@ export class DeviceMetrics {
   workLists = 0;
   /** From append on another phone to arriving here from a nearby teammate. */
   nearbyPropagationMs: number[] = [];
+  /** Teammates' events this phone delivered that the server took as new (docs/nearby-sync-plan.md section 6). */
+  delivered = 0;
 }
 
 /**
@@ -571,6 +573,13 @@ export class SimDevice {
       } } : {}),
       ...(t.attest ? { attest: async (...a: Parameters<NonNullable<Transport['attest']>>) => {
         const answer = await timed(() => t.attest!(...a));
+        this.metrics.bytesDown += JSON.stringify(answer)?.length ?? 0;
+        return answer;
+      } } : {}),
+      // Delivery through a teammate (docs/nearby-sync-plan.md section 6): what it sends counts up.
+      ...(t.relay ? { relay: async (...a: Parameters<NonNullable<Transport['relay']>>) => {
+        const answer = await timed(() => t.relay!(...a));
+        for (const b of answer ?? []) for (const v of b.verdicts ?? []) if (v.accepted && v.reason !== 'duplicate') this.metrics.delivered += 1;
         this.metrics.bytesDown += JSON.stringify(answer)?.length ?? 0;
         return answer;
       } } : {})

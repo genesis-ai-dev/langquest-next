@@ -20,6 +20,11 @@ export interface BlobRef {
    * and which no phone downloads while the note names this file (decisions.md 176).
    */
   replaces?: string;
+  /**
+   * For an upload by someone who only views: the accepted event that names this file, which
+   * lets them put a teammate's recording up (docs/nearby-sync-plan.md section 6, `x-named-by`).
+   */
+  namedBy?: string;
 }
 
 /** Where each event that can name a voice note keeps its hash. */

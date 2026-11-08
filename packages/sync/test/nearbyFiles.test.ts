@@ -172,16 +172,34 @@ describe('nearby files: marks and what counts as this person\'s (5.2, 5.4)', () 
     session.close();
   });
 
-  it('someone who may not write files keeps teammates\' files off the upload list, and their own on it', async () => {
+  it('someone who may not write files keeps teammates\' files no accepted event names off the upload list, and their own on it', async () => {
     const uploaded: string[] = [];
+    const STRAY = H('e');
     const { session, land } = await setUp({ mayUpload: false, upload: async (ref) => { uploaded.push(ref.hash); } });
-    await land(SAMS, 4 * MB);
+    await land(STRAY, 4 * MB);
+    await session.sync();
     session.start();
     session.triggerUpload();
-    await until(() => uploaded.includes(MINE) && session.status.holding === 1);
+    await until(() => uploaded.includes(MINE));
     await new Promise((r) => setTimeout(r, 30));
     expect(uploaded).toEqual([MINE]);
-    expect(await session.lost([SAMS])).toEqual({ safe: 0, unsent: 0, unitIds: [] });
+    expect(await session.lost([STRAY])).toEqual({ safe: 0, unsent: 0, unitIds: [] });
+    session.close();
+  });
+
+  it('someone who only views uploads a teammate\'s file an accepted event names, naming that event (section 6)', async () => {
+    // Why: any phone can carry the team's work. The server lets a viewer put a file up only by naming an
+    // accepted event that names it (blob_named_by), so the upload says which (x-named-by).
+    const uploaded: BlobRef[] = [];
+    const { session, land, server } = await setUp({ mayUpload: false, upload: async (ref) => { uploaded.push(ref); } });
+    await land(SAMS, 4 * MB);
+    await session.sync();
+    session.start();
+    session.triggerUpload();
+    await until(() => uploaded.some((r) => r.hash === SAMS));
+    const naming = server.log.find((e) => e.type === 'v1.RecordingAdded' && JSON.stringify(e.payload).includes(SAMS))!;
+    expect(uploaded.find((r) => r.hash === SAMS)?.namedBy).toBe(naming.id);
+    expect(uploaded.find((r) => r.hash === MINE)?.namedBy).toBeUndefined();
     session.close();
   });
 });

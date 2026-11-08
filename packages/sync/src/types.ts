@@ -255,6 +255,30 @@ export interface Transport {
    * 5.12, Claims). Null when off, or not yet.
    */
   attest?(orgId: string, streamId: string, afterSeq: number): Promise<{ text: string; kid: string; sig: string } | null>;
+  /**
+   * Teammates' signed batches, delivered on their authors' behalf (docs/nearby-sync-plan.md
+   * section 6, the Worker's `POST /api/relay`): one answer per batch, `refused` when it was
+   * not tried, else a verdict per event as `append_events` words it. Null when not yet (no
+   * key on the Worker, a database behind); LQ001 throws `ClientTooOldError`. Optional, and in
+   * every list that wraps a transport by hand.
+   */
+  relay?(orgId: string, streamId: string, batches: RelayBatch[]): Promise<RelayAnswer[] | null>;
+}
+
+/** One signed batch as it is kept here: its manifest as signed, the signature, the signer's chain, and the rows still here it speaks for. */
+export interface RelayBatch {
+  manifest: string;
+  sig: string;
+  chain: unknown[];
+  events: AnyEvent[];
+}
+
+/** The relay's answer for one batch, named by its signer's key and number. */
+export interface RelayAnswer {
+  key: string;
+  n: number;
+  refused?: string;
+  verdicts?: AppendResult[];
 }
 
 /** One id as the server holds it. */

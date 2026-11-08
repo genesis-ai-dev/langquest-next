@@ -1,6 +1,6 @@
 import { buildIndexes, forScope, MAX_FILE_BYTES, openForReviewOf, type BlobRef, type FilePlan } from '@langquest-next/core';
 import {
-  backupsConfirmedOf, copiesOf, nearbyEvictableOf, nearbyGroupOf, nearbyShedOf, wantedFilesOf, type HoldChoice, type Holdings, type NearbyMark, type WantedFile
+  backupsConfirmedOf, copiesOf, filesNamedBy, nearbyEvictableOf, nearbyGroupOf, nearbyShedOf, wantedFilesOf, type HoldChoice, type Holdings, type NearbyMark, type WantedFile
 } from '@langquest-next/core/nearby';
 import type { LanguageFiles } from './languageFiles';
 import type { LanguageSessionOptions } from './languageSession';
@@ -51,7 +51,7 @@ export interface NearbyFilesPlatform {
 /** Exactly what the nearby files reach of their `LanguageSession`. */
 export interface NearbyFilesPort {
   /** The session's options: its language and person, files, `fetchFile`, limits, `holdChoice`, `mayUpload`, `isDeferred`. */
-  readonly o: Pick<LanguageSessionOptions, 'orgId' | 'languageId' | 'actorId' | 'files' | 'fetchFile' | 'limits' | 'holdChoice' | 'mayUpload' | 'isDeferred'>;
+  readonly o: Pick<LanguageSessionOptions, 'orgId' | 'languageId' | 'actorId' | 'files' | 'fetchFile' | 'limits' | 'holdChoice' | 'mayUpload' | 'isDeferred' | 'store'>;
   readonly client: Pick<SyncClient, 'getState' | 'passageLines' | 'nearbyMeta' | 'writeNearbyMeta'>;
   readonly plan: Pick<LanguageFiles, 'plan' | 'sizeOf'>;
   /** The passages kept offline: asked of this person, worked in, or chosen. */
@@ -72,7 +72,10 @@ export interface NearbyFilesPart {
   stop(): void;
   /** Every marked hash, in any language: the 2 GB cap leaves these alone, and a lost one is not this person's. */
   marked(): ReadonlySet<string>;
-  /** The upload list less teammates' files when this person may not write files (`mayUpload`); their own stay. */
+  /**
+   * The upload list less teammates' files when this person may not write files (`mayUpload`); their own
+   * stay, and so does a teammate's file an accepted event names, carrying that event's id (`namedBy`).
+   */
   uploadable(list: BlobRef[]): BlobRef[];
   /** This person's own: the list less teammates' files. */
   mine(list: BlobRef[]): BlobRef[];
@@ -88,6 +91,9 @@ export interface NearbyFilesPart {
 
 /** Null without a `fetchFile`: then no file is ever marked. */
 export type NearbyFilesMaker = (port: NearbyFilesPort) => NearbyFilesPart | null;
+
+/** Confirmed events read at once when looking for what names a teammate's file. */
+const NAMED_PAGE = 500;
 
 /** With the row's choice not known yet, a phone asks as it would with the row off, and sheds nothing. */
 const UNKNOWN_CHOICE: HoldChoice = { hold: false, reviewWindow: 5 };
@@ -110,6 +116,11 @@ class LanguageNearbyFiles implements NearbyFilesPart {
   private readonly all = new Map<string, NearbyMark>();
   private readonly worker: TransferWorker;
   private job: Job | null = null;
+  /** For someone who only views: teammates' files held here that an accepted event names, with its id (docs/nearby-sync-plan.md section 6). */
+  private namedBy = new Map<string, string>();
+  /** Every file a confirmed event here names, by hash, read forward by `serverSeq` from `namedSeq`. */
+  private readonly named = new Map<string, string>();
+  private namedSeq = 0;
 
   constructor(private readonly platform: NearbyFilesPlatform, private readonly port: NearbyFilesPort, private readonly fetchFile: NearbyFetchFile) {
     const { isDeferred } = port.o;
@@ -140,7 +151,12 @@ class LanguageNearbyFiles implements NearbyFilesPart {
   marked(): ReadonlySet<string> { return new Set(this.all.keys()); }
 
   uploadable(list: BlobRef[]): BlobRef[] {
-    return this.port.o.mayUpload?.() ?? true ? list : this.mine(list);
+    if (this.port.o.mayUpload?.() ?? true) return list;
+    return list.flatMap((r) => {
+      if (!this.all.has(r.hash)) return [r];
+      const by = this.namedBy.get(r.hash);
+      return by === undefined ? [] : [{ ...r, namedBy: by }];
+    });
   }
 
   mine(list: BlobRef[]): BlobRef[] {
@@ -271,6 +287,39 @@ class LanguageNearbyFiles implements NearbyFilesPart {
     try {
       await this.settle();
     } catch { /* disk queries can fail on some devices; the next sync tries again */ }
+    try {
+      await this.findNamers();
+    } catch { /* as above */ }
+  }
+
+  /**
+   * Someone who only views may upload a teammate's file by naming an accepted event that names
+   * it (docs/nearby-sync-plan.md section 6, the 5.4 trap on `mayUpload`): the events are read
+   * forward from where the last look ended, so a sync with nothing new reads one page.
+   */
+  private async findNamers(): Promise<void> {
+    if (this.port.o.mayUpload?.() ?? true) return;
+    const present = this.here();
+    const hashes = this.marksHere().map((m) => m.hash).filter((h) => present.has(h));
+    if (hashes.length === 0) return;
+    const { store, orgId, languageId } = this.port.o;
+    for (;;) {
+      const page = await store.confirmedAfter(orgId, languageId, this.namedSeq, NAMED_PAGE);
+      for (const { event } of page) {
+        for (const f of filesNamedBy(event)) if (!this.named.has(f.hash)) this.named.set(f.hash, event.id);
+        this.namedSeq = Math.max(this.namedSeq, event.serverSeq ?? 0);
+      }
+      if (page.length < NAMED_PAGE) break;
+    }
+    const redacted = this.port.client.getState().redactions;
+    const found = new Map<string, string>();
+    for (const hash of hashes) {
+      const id = this.named.get(hash);
+      if (id !== undefined && redacted[id] !== true) found.set(hash, id);
+    }
+    const fresh = [...found.keys()].some((h) => !this.namedBy.has(h));
+    this.namedBy = found;
+    if (fresh) this.port.nudge();
   }
 
   private async settle(): Promise<void> {

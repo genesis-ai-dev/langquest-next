@@ -4,6 +4,8 @@ import {
   parseVector, revokedLater, type DoorFacts, type NearbyPeople, type NearbyVector, type NearbyVia, type PageFacts, type RevocationList
 } from '@langquest-next/core/nearby';
 import type { Diagnostics } from './diagnostics';
+import { deliverNearby, departureOf, departureRows } from './nearbyDeliver';
+import { deliverDiagOf, NEARBY_DIAG_SCHEMA } from './nearbyDiag';
 import {
   batchIsWhole, chainAsSigned, checkBatchPage, checkClaimsPage, nearbyDropped,
   type NearbyBatchPage, type NearbyClaimsPage, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbyRefusal, type NearbySigned, type NearbySigner
@@ -65,6 +67,8 @@ export interface NearbyPort {
   /** A device meta key for this stream, and for one signer when given. */
   key(what: string, signer?: string): string;
   checkpointSeq(): Promise<number | null>;
+  /** Push this person's pending work, under the turn already held: after delivery, for an undo held back. */
+  pushNow(): Promise<unknown>;
 }
 
 /** What a `SyncClient` asks of its nearby half. */
@@ -87,6 +91,14 @@ export interface NearbyPart {
   readonly nearbyHelloNow: number;
   /** The end of a sync, under the turn: attest, then once nothing more is to pull, the sweep and what it settles. */
   afterSync(morePull: boolean): Promise<void>;
+  /**
+   * Between push and pull, under the turn: teammates' signed work goes to the server on their
+   * authors' behalf (docs/nearby-sync-plan.md section 6), and when push held back an undo whose
+   * departure was a teammate's, this person's work is pushed once more. True when batches wait.
+   */
+  deliver(): Promise<boolean>;
+  /** This person's pending rows less any undo of a departure held here only as a teammate's: it goes after delivery. */
+  holdBack(batch: LocalEvent[]): Promise<LocalEvent[]>;
   /** Has this phone ever held a teammate's row, in any language? Until it has, a pull compares nothing for nearby's sake. */
   holdsAny(): Promise<boolean>;
   /**
@@ -188,6 +200,8 @@ class NearbyClient implements NearbyPart {
   private readonly host: NearbyHost;
   /** The gate a page, Try again or a door run last came with: what a target arriving by pull or fill asks of people. */
   private gate: NearbyGate | null = null;
+  /** Push held back an undo this sync, to go again after delivery. */
+  private heldBack = false;
 
   constructor(private readonly port: NearbyPort, platform: NearbyPlatform | undefined, private readonly phone: PhoneShare) {
     this.host = { ...port, platform, vector: () => this.vector(), vectorMeta: (vector) => this.vectorMeta(vector), number: (key) => this.number(key) };
@@ -646,6 +660,34 @@ class NearbyClient implements NearbyPart {
     this.useNow = null;
     await sweepNearby(this.host);
     await settleBatches(this.host);
+  }
+
+  async deliver(): Promise<boolean> {
+    const started = Date.now();
+    const done = await deliverNearby(this.host);
+    if (done.sent > 0 || done.refold || (done.stopped && done.stopped !== 'later')) {
+      this.useNow = null;
+      // The nearby kind is allowed where a room runs; a sync can deliver before any has.
+      this.port.diag?.allow(NEARBY_DIAG_SCHEMA);
+      this.port.diag?.record('nearby', { orgId: this.port.orgId, streamId: this.port.streamId, ...deliverDiagOf(done, Date.now() - started) });
+    }
+    if (done.refold) await this.port.refold('other');
+    if (this.heldBack) {
+      this.heldBack = false;
+      await this.port.pushNow();
+    }
+    return done.more;
+  }
+
+  async holdBack(batch: LocalEvent[]): Promise<LocalEvent[]> {
+    const undos = batch.filter((l) => l.event.type === 'v1.DepartureUndone');
+    if (undos.length === 0 || !(await this.holdsAny())) return batch;
+    // An undo of a teammate's unsent set-aside: the server would refuse it for good if it went first (may_emit, decision 97 as amended).
+    const departures = await departureRows(this.port, undos.map((l) => departureOf(l.event)));
+    const held = new Set(undos.filter((l) => departures.get(departureOf(l.event))?.status === 'nearby').map((l) => l.event.id));
+    if (held.size === 0) return batch;
+    this.heldBack = true;
+    return batch.filter((l) => !held.has(l.event.id));
   }
 
   async holdsAny(): Promise<boolean> {
