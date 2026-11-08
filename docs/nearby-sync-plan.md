@@ -2351,12 +2351,14 @@ so partners get the first release only with this phase (section 7).
   1. Lock the row (`for update`), only when `revoked_at` is set, so ordinary delivery takes no
      lock. Each call has one key, and takes it before the stream's lock, so calls cannot deadlock.
   2. Walk the events still standing, in order. An id already on the server passes uncounted, so
-     several carriers count once. Otherwise add 1 event and `octet_length((ev->'payload')::text)`,
-     the same size the daily allowance counts. If either passes its limit, that event is refused
-     alone with `may not emit <type>: this revoked key has reached its limit`, which
-     `rejectCodeOf` reads as `NOT_ALLOWED`.
-  3. Call `append_events` with the rest. Then add to `after_revoked_events` and
-     `after_revoked_bytes` only what it took: answers `accepted`, with no reason `duplicate`.
+     several carriers count once. Otherwise an event costs 1 event and
+     `octet_length((ev->'payload')::text)`, the same size the daily allowance counts.
+  3. Add to `after_revoked_events` and `after_revoked_bytes` only what `append_events` took: answers
+     `accepted`, with no reason `duplicate`, so an event it refuses never uses up room for a later
+     one in the same call. When everything standing fits even if all of it is taken, one call
+     takes it. Otherwise `append_events` is called once per event, and an event that would pass
+     either limit of what has been taken so far is refused alone with `may not emit <type>: this
+     revoked key has reached its limit`, which `rejectCodeOf` reads as `NOT_ALLOWED`.
 
   A refused row is listed on the Sync screen with Try again. A thief who goes first can use up
   the cap and get the real work refused, so staff can raise that one row's limit with

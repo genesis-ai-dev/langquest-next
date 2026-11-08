@@ -313,9 +313,10 @@ select pg_temp.refused(pg_temp.u('0e'), pg_temp.k(5), pg_temp.dated(pg_temp.ev('
   'invalid payload: a redaction is not relayed', 'a backdated redaction under a revoked key');
 
 -- 10. The cap on a revoked key (Carl's answer 16): counted one by one as
--- append_events took them, duplicates and refusals uncounted, the event past
--- either limit refused alone and read as NOT_ALLOWED; staff raise one row,
--- never lowering it, and Try again then delivers.
+-- append_events took them, duplicates and refusals uncounted, so a refusal
+-- uses up no room for a later event in the same call; the event past either
+-- limit refused alone and read as NOT_ALLOWED; staff raise one row, never
+-- lowering it, and Try again then delivers.
 do $$ declare v_bytes bigint; r record; begin
   if (select after_revoked_events from public.install_keys where public_key = pg_temp.k(5) and profile_id = pg_temp.u('0e')::uuid) <> 1 then
     raise exception 'the earlier note was not counted';
@@ -356,6 +357,23 @@ do $$ begin
   if public.install_key_limit_raise(pg_temp.k(5), pg_temp.u('0e'), 1, 1, ' ') <> 'say_who' then raise exception 'a raise must say who'; end if;
 end $$;
 select pg_temp.accepted(pg_temp.u('0e'), pg_temp.k(5), pg_temp.dated(pg_temp.note('rl-c3', pg_temp.u('0e')), interval '-2 hours'), 'Try again after the raise');
+-- One event of headroom: a batch of an event append_events refuses and a good one takes the good one, and the next is past the cap.
+do $$ declare r record; v_events int; begin
+  update public.install_keys set after_revoked_events_limit = after_revoked_events + 1 where public_key = pg_temp.k(5) and profile_id = pg_temp.u('0e')::uuid;
+  select after_revoked_events into v_events from public.install_keys where public_key = pg_temp.k(5) and profile_id = pg_temp.u('0e')::uuid;
+  for r in select * from pg_temp.relay(pg_temp.u('0e'), pg_temp.k(5), jsonb_build_array(
+      pg_temp.dated(pg_temp.ev('rl-c5', 'rl-L', pg_temp.u('0e'), 'v1.NoteAdded', '{"noteId":"rl-c5-n","anchor":{"kind":"passage"}}'), interval '-2 hours'),
+      pg_temp.dated(pg_temp.note('rl-c6', pg_temp.u('0e')), interval '-2 hours'))) loop
+    if r.id = 'rl-c5' and (r.accepted or r.reason like '%revoked key has reached its limit') then raise exception 'a note with no unit: %', r; end if;
+    if r.id = 'rl-c6' and (r.accepted is not true or r.reason is not null) then raise exception 'a refusal used up the last room: %', r; end if;
+  end loop;
+  if not exists (select 1 from public.events where id = 'rl-c6') then raise exception 'the good note is not on the server'; end if;
+  if (select after_revoked_events from public.install_keys where public_key = pg_temp.k(5) and profile_id = pg_temp.u('0e')::uuid) <> v_events + 1 then
+    raise exception 'the cap counted other than the one note taken';
+  end if;
+end $$;
+select pg_temp.refused(pg_temp.u('0e'), pg_temp.k(5), pg_temp.dated(pg_temp.note('rl-c7', pg_temp.u('0e')), interval '-2 hours'),
+  'may not emit v1.NoteAdded: this revoked key has reached its limit', 'a note once the room is used');
 -- An unrevoked key takes no lock: the translator's row was never locked or written by the relay.
 do $$ begin
   if (select xmax::text from public.install_keys where public_key = pg_temp.k(2) and profile_id = pg_temp.u('0b')::uuid) <> '0' then

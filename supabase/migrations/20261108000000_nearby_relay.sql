@@ -229,14 +229,18 @@ end $$;
 --    revoked_at is set, so ordinary delivery takes no lock, and before the
 --    stream's lock, since each call has one key. An id already on the server
 --    passes uncounted, so several carriers count once. Otherwise each event
---    adds 1 and its payload's jsonb text size; one past either limit is
---    refused alone, with a reason that reads as NOT_ALLOWED.
+--    adds 1 and its payload's jsonb text size, and only once append_events
+--    has taken it, so an event it refuses never uses up room for a later one.
+--    When everything still standing fits, one call takes it all. When it
+--    might not, append_events is called per event, and an event past either
+--    limit of what was taken so far is refused alone, with a reason that
+--    reads as NOT_ALLOWED.
 -- 5. set_config('request.jwt.claims', ...) local to the transaction, with the
 --    author, then append_events: size, actorId, bound and reserved ids, stream
 --    kind, grant refusals and the author's daily allowance all apply from the
 --    code that holds them, and v1.ExternalValueSet is refused because the
 --    caller is then not null. An undo refused because the server lacks its
---    departure answers `departure not here yet`. The cap then counts only what
+--    departure answers `departure not here yet`. The cap counts only what
 --    append_events took (accepted, not a duplicate), and the claims go back.
 --
 -- Same columns as append_events. p_client_version is the delivering phone's,
@@ -267,6 +271,8 @@ declare
   v_size int;
   v_took_events int := 0;
   v_took_bytes bigint := 0;
+  v_one_by_one boolean;
+  v_call jsonb;
   r record;
 begin
   -- 1.
@@ -316,17 +322,12 @@ begin
       when coalesce(ev->>'orgId', '') like '\_%' or coalesce(ev->>'streamId', '') like '\_%'
         then 'invalid payload: only a language''s stream is relayed'
     end;
-    -- 4. The cap, counted one by one, for a revoked key only.
+    -- 4. What the cap would count, for a revoked key only: an id the server lacks.
     if v_refusal is null and v_revoked_ms is not null and not exists (select 1 from public.events e where e.id = v_id) then
-      v_size := octet_length((ev->'payload')::text);
-      if v_key.after_revoked_events + v_events + 1 > v_key.after_revoked_events_limit
-         or v_key.after_revoked_bytes + v_bytes + coalesce(v_size, 0) > v_key.after_revoked_bytes_limit then
-        v_refusal := format('may not emit %s: this revoked key has reached its limit', v_type);
-      else
-        v_events := v_events + 1;
-        v_bytes := v_bytes + coalesce(v_size, 0);
-        v_sizes := v_sizes || jsonb_build_object(v_id, coalesce(v_size, 0));
-      end if;
+      v_size := coalesce(octet_length((ev->'payload')::text), 0);
+      v_events := v_events + 1;
+      v_bytes := v_bytes + v_size;
+      v_sizes := v_sizes || jsonb_build_object(v_id, v_size);
     end if;
     if v_refusal is not null then
       id := v_id; accepted := false; server_seq := null; reason := v_refusal;
@@ -340,23 +341,38 @@ begin
   end loop;
   if jsonb_array_length(v_rest) = 0 then return; end if;
 
+  -- 4. Everything fits even if all of it is taken: one call. Otherwise one call per event, so the
+  -- cap is checked against what append_events has taken, and a refusal uses up no room.
+  v_one_by_one := v_revoked_ms is not null and (v_key.after_revoked_events + v_events > v_key.after_revoked_events_limit
+                                                 or v_key.after_revoked_bytes + v_bytes > v_key.after_revoked_bytes_limit);
+
   -- 5.
   v_claims := current_setting('request.jwt.claims', true);
   -- The author exactly as the Worker checked it against the chain, so actorId must match it as in a push.
   perform set_config('request.jwt.claims', jsonb_build_object('sub', p_author)::text, true);
-  for r in select * from public.append_events(v_rest, p_client_version) loop
-    id := r.id; accepted := r.accepted; server_seq := r.server_seq; reason := r.reason;
-    if not r.accepted and r.reason = 'may not emit v1.DepartureUndone' and v_undoes ? r.id and not exists (
-         select 1 from public.events e
-         where e.org_id = v_undoes->r.id->>'orgId' and e.stream_id = v_undoes->r.id->>'streamId'
-           and e.type = 'v1.DepartureRecorded' and e.payload->>'departureId' = v_undoes->r.id->>'departureId') then
-      reason := 'departure not here yet';
+  for v_call in select case when v_one_by_one then jsonb_build_array(e) else v_rest end
+                from jsonb_array_elements(case when v_one_by_one then v_rest else jsonb_build_array(null) end) e loop
+    if v_one_by_one and v_sizes ? (v_call->0->>'id') and (
+         v_key.after_revoked_events + v_took_events + 1 > v_key.after_revoked_events_limit
+         or v_key.after_revoked_bytes + v_took_bytes + (v_sizes->>(v_call->0->>'id'))::bigint > v_key.after_revoked_bytes_limit) then
+      id := v_call->0->>'id'; accepted := false; server_seq := null;
+      reason := format('may not emit %s: this revoked key has reached its limit', v_call->0->>'type');
+      return next; continue;
     end if;
-    if r.accepted and r.reason is null and v_sizes ? r.id then
-      v_took_events := v_took_events + 1;
-      v_took_bytes := v_took_bytes + (v_sizes->>r.id)::bigint;
-    end if;
-    return next;
+    for r in select * from public.append_events(v_call, p_client_version) loop
+      id := r.id; accepted := r.accepted; server_seq := r.server_seq; reason := r.reason;
+      if not r.accepted and r.reason = 'may not emit v1.DepartureUndone' and v_undoes ? r.id and not exists (
+           select 1 from public.events e
+           where e.org_id = v_undoes->r.id->>'orgId' and e.stream_id = v_undoes->r.id->>'streamId'
+             and e.type = 'v1.DepartureRecorded' and e.payload->>'departureId' = v_undoes->r.id->>'departureId') then
+        reason := 'departure not here yet';
+      end if;
+      if r.accepted and r.reason is null and v_sizes ? r.id then
+        v_took_events := v_took_events + 1;
+        v_took_bytes := v_took_bytes + (v_sizes->>r.id)::bigint;
+      end if;
+      return next;
+    end loop;
   end loop;
   perform set_config('request.jwt.claims', coalesce(v_claims, ''), true);
   if v_took_events > 0 then
