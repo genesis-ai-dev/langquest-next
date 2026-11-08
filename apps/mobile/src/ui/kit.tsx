@@ -12,7 +12,7 @@ import {
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
   ThumbsUp, Trash2, Undo2, Redo2, Upload, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers, Info,
   ArrowLeft, ArrowUp, ArrowDown, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert,
-  ChevronsUpDown, CloudAlert, CloudDownload, FileText, Eye, EyeOff, Menu, Bug, Lightbulb, Ellipsis, MessageCirclePlus, Reply, Ear
+  ChevronsUpDown, CloudAlert, CloudDownload, FileText, Eye, EyeOff, Menu, Bug, Lightbulb, Ellipsis, MessageCirclePlus, Reply
 } from './icons';
 import { Fragment, isValidElement, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
