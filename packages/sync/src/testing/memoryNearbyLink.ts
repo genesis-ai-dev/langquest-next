@@ -369,14 +369,18 @@ export interface MemoryNearbyRadio extends NearbyRadio {
   /** Find as native holds it, or null when stopped. */
   readonly find: { kFind: Uint8Array; scanKeys: Uint8Array[]; payload: Uint8Array; r: Uint8Array; tunables: FindTunables } | null;
   readonly salt: string | null;
-  readonly calls: { startFind: number; updateFind: number; stopFind: number; stopAll: number; openPipe: number };
+  readonly calls: { startFind: number; updateFind: number; stopFind: number; stopAll: number; openPipe: number; takeDown: number };
+  /** Scanning is held off for a session; advertising carries on. */
+  readonly scanHeld: boolean;
+  /** An opening passed on a pipe to this phone: a rotation waits. */
+  readonly saltHeld: boolean;
 }
 
 export interface MemoryNearbyAir {
   radio(name: string, caps?: Partial<NearbyCapabilities>, knobs?: MemoryRadioKnobs): MemoryNearbyRadio;
   /** Every listening phone hears every advertising one once, as one scan burst. */
   scan(): void;
-  /** A new salt for this phone, as native's rotation timer does. */
+  /** A new salt for this phone, as native's rotation timer does; deferred while the salt is held. */
   rotate(name: string): void;
   /** What a scanner far away recorded, played to every phone now. */
   replay(advert: MemoryAdvert): void;
@@ -423,6 +427,9 @@ export function memoryNearbyAir(o: { time: MemoryLinkClock; files?: MemoryFiles;
     formSalt: Set<(salt: string, rssi?: number) => void>;
     onSalt: Set<(salt: string) => void>;
     onPipe: Set<(pipe: NearbyLink, salt: string) => void>;
+    scanHeld: boolean;
+    saltHeld: boolean;
+    rotationDue: boolean;
   }
 
   const newSalt = (state: MemoryRadioState) => {
@@ -440,7 +447,7 @@ export function memoryNearbyAir(o: { time: MemoryLinkClock; files?: MemoryFiles;
     echo: base64urlEncode(advert.payload.slice(10, 14)), connectable: true, scan
   });
   const hear = (listener: MemoryRadioState, advert: MemoryAdvert) => {
-    if (!listener.find || listener.radio.name === advert.peer) return;
+    if (!listener.find || listener.scanHeld || listener.radio.name === advert.peer) return;
     const scan = listener.find.scanKeys.findIndex((k) => sameKey(k, advert.kFind));
     if (scan >= 0) for (const h of listener.found) h(seenOf(advert, scan));
     else for (const h of listener.formSalt) h(advert.salt, -50);
@@ -456,12 +463,17 @@ export function memoryNearbyAir(o: { time: MemoryLinkClock; files?: MemoryFiles;
   const air: MemoryNearbyAir = {
     adverts, maskRepeats, pipes, links,
     radio(name, caps = {}, knobs = {}) {
-      const calls = { startFind: 0, updateFind: 0, stopFind: 0, stopAll: 0, openPipe: 0 };
-      const state = { caps: { ...NO_CAPS, ...caps }, knobs, find: null, salt: null, usedR: new Set(), found: new Set(), formSalt: new Set(), onSalt: new Set(), onPipe: new Set() } as unknown as MemoryRadioState;
+      const calls = { startFind: 0, updateFind: 0, stopFind: 0, stopAll: 0, openPipe: 0, takeDown: 0 };
+      const state = {
+        caps: { ...NO_CAPS, ...caps }, knobs, find: null, salt: null, usedR: new Set(), found: new Set(), formSalt: new Set(), onSalt: new Set(), onPipe: new Set(),
+        scanHeld: false, saltHeld: false, rotationDue: false
+      } as unknown as MemoryRadioState;
       const radio: MemoryNearbyRadio = {
         name,
         get find() { return state.find; },
         get salt() { return state.salt; },
+        get scanHeld() { return state.scanHeld; },
+        get saltHeld() { return state.saltHeld; },
         calls,
         capabilities: async () => state.caps,
         async startFind(args) {
@@ -483,6 +495,19 @@ export function memoryNearbyAir(o: { time: MemoryLinkClock; files?: MemoryFiles;
         async stopFind() {
           calls.stopFind += 1;
           state.find = null;
+          state.scanHeld = false;
+          state.saltHeld = false;
+          state.rotationDue = false;
+        },
+        async holdScan(held) {
+          state.scanHeld = held;
+        },
+        async holdSalt(held) {
+          state.saltHeld = held;
+          if (!held && state.rotationDue) {
+            state.rotationDue = false;
+            if (state.find && state.caps.advertise) newSalt(state);
+          }
         },
         onFound: (h) => listen(state.found, h),
         onFormSalt: (h) => listen(state.formSalt, h),
@@ -504,7 +529,11 @@ export function memoryNearbyAir(o: { time: MemoryLinkClock; files?: MemoryFiles;
           let resolve!: (link: NearbyLink) => void;
           const link = new Promise<NearbyLink>((r) => { resolve = r; });
           groups.set(ssid, { kind, resolve });
-          return { kind, ssid, passphrase: opts.passphrase ?? 'system-chosen', link, onRefused: () => () => undefined };
+          const takeDown = async () => {
+            calls.takeDown += 1;
+            groups.delete(ssid);
+          };
+          return { kind, ssid, passphrase: opts.passphrase ?? 'system-chosen', link, onRefused: () => () => undefined, takeDown };
         },
         async join(kind, details: HostDetails) {
           const group = details.ssid === undefined ? undefined : groups.get(details.ssid);
@@ -519,6 +548,9 @@ export function memoryNearbyAir(o: { time: MemoryLinkClock; files?: MemoryFiles;
         async stopAll() {
           calls.stopAll += 1;
           state.find = null;
+          state.scanHeld = false;
+          state.saltHeld = false;
+          state.rotationDue = false;
         }
       };
       state.radio = radio;
@@ -531,7 +563,10 @@ export function memoryNearbyAir(o: { time: MemoryLinkClock; files?: MemoryFiles;
     },
     rotate(name) {
       const state = radios.get(name);
-      if (state?.find && state.caps.advertise) newSalt(state);
+      if (!state?.find || !state.caps.advertise) return;
+      // As native's timer: a pipe that passed its opening holds the salt, and the rotation runs once it is released.
+      if (state.saltHeld) state.rotationDue = true;
+      else newSalt(state);
     },
     replay(advert) {
       for (const listener of radios.values()) hear(listener, advert);

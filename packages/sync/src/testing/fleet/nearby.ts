@@ -363,6 +363,8 @@ export class FleetNearby {
       startFind: (a) => radio.startFind(a),
       updateFind: (a) => radio.updateFind(a),
       stopFind: () => radio.stopFind(),
+      holdScan: (held) => radio.holdScan(held),
+      holdSalt: (held) => radio.holdSalt(held),
       onFound: (h) => radio.onFound(h),
       onFormSalt: (h) => radio.onFormSalt(h),
       onSalt: (h) => radio.onSalt(h),

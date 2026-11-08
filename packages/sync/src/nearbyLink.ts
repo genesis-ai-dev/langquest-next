@@ -66,6 +66,16 @@ export interface FindTunables {
   scanRestartMs: number;
   connectRetries: number;
   connectable: 'always' | { mode: 'after-hearing'; listenMs: number; connectableMs: number };
+  /** One empty `ScanFilter`, the usual way round makers that hold back unfiltered scan results (section 11). */
+  emptyScanFilter?: boolean;
+  /** Android's advertising interval; `low` (100 ms) when left out. */
+  advertiseInterval?: 'low' | 'medium' | 'high';
+  /** Android's scan mode; `low-latency` when left out. */
+  scanMode?: 'low-latency' | 'balanced' | 'low-power';
+  /** A salt no key matched is handed up again only after this long. */
+  formSaltRepeatMs?: number;
+  /** How long one Bluetooth connection may take before `connectRetries` tries again. */
+  connectTimeoutMs?: number;
 }
 
 /** No name or passphrase for a hotspot, because the system chooses them. */
@@ -93,6 +103,10 @@ export interface NearbyRadio {
   /** A new scan response under a new mask, never a new salt. */
   updateFind(args: { payload: Uint8Array; r: Uint8Array }): Promise<void>;
   stopFind(): Promise<void>;
+  /** True stops scanning while advertising carries on, for a session; false scans again (5.12, Find). */
+  holdScan(held: boolean): Promise<void>;
+  /** True once an opening passed on a pipe to this phone: rotation waits, and runs as soon as it is released (5.12, Rotation). */
+  holdSalt(held: boolean): Promise<void>;
   onFound(hear: (seen: SeenPhone) => void): () => void;
   /** The salt of an advert of this form that no key in `scanKeys` matches. */
   onFormSalt(hear: (salt: string, rssi?: number) => void): () => void;
@@ -102,8 +116,11 @@ export interface NearbyRadio {
   onPipe(hear: (pipe: NearbyLink, salt: string) => void): () => void;
   /** Kind 'bluetooth'. */
   openPipe(peer: string, salt: string, scan: number): Promise<NearbyLink>;
-  /** The first opening takes the link. A second phone is refused, and reported so the inviter can be told. */
-  host(kind: 'wifi-direct' | 'hotspot', opts: HostOptions): Promise<HostDetails & { link: Promise<NearbyLink>; onRefused(hear: () => void): () => void }>;
+  /**
+   * The first opening takes the link. A second phone is refused, and reported so the inviter can be told.
+   * `takeDown` ends a group hosted for an attempt that was abandoned; a link it already gave keeps running.
+   */
+  host(kind: 'wifi-direct' | 'hotspot', opts: HostOptions): Promise<HostDetails & { link: Promise<NearbyLink>; onRefused(hear: () => void): () => void; takeDown(): Promise<void> }>;
   join(kind: 'wifi-direct' | 'hotspot', details: HostDetails): Promise<NearbyLink>;
   stopAll(): Promise<void>;
 }

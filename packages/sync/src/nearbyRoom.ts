@@ -126,6 +126,26 @@ interface Heard {
 
 const NONE = new Uint8Array(0);
 
+/** The same link, with `close` also running `closed` first. */
+function closingWith(link: NearbyLink, closed: () => void): NearbyLink {
+  return {
+    get kind() { return link.kind; },
+    get canMoveFiles() { return link.canMoveFiles; },
+    send: (m) => link.send(m),
+    receive: () => link.receive(),
+    sendOpening: (b) => link.sendOpening(b),
+    receiveOpening: (size, deadlineMs) => link.receiveOpening(size, deadlineMs),
+    secure: (keys) => link.secure(keys),
+    sendFile: (f) => link.sendFile(f),
+    receiveFile: (f) => link.receiveFile(f),
+    cancelFile: (id) => link.cancelFile(id),
+    close: async () => {
+      closed();
+      await link.close();
+    }
+  };
+}
+
 export class NearbyRoom {
   private readonly opt: NearbyRoomOptions;
   private readonly tune: NearbyRoomTunables;
@@ -162,6 +182,9 @@ export class NearbyRoom {
   private shown = '[]';
   private ticking = false;
   private unsubscribe: (() => void)[] = [];
+  /** Releases the salt a responder's open pipe holds. */
+  private saltRelease: (() => void) | null = null;
+  private scanHeld = false;
 
   constructor(options: NearbyRoomOptions) {
     this.opt = options;
@@ -421,11 +444,14 @@ export class NearbyRoom {
     const mine = this.summary;
     this.connecting = true;
     this.waitingOn.delete(tag);
+    // A session notices nobody who arrives after it began: scanning stops, advertising carries on (5.12, Find).
+    await this.holdScan(true);
     let link: NearbyLink;
     try {
       link = await this.opt.radio.openPipe(seen.peer, seen.salt, seen.scan);
     } catch {
       this.connecting = false;
+      await this.holdScan(false);
       this.backOff(tag);
       return;
     }
@@ -453,13 +479,26 @@ export class NearbyRoom {
     let seen = this.nonces.get(salt);
     if (!seen) this.nonces.set(salt, (seen = new Set()));
     const mine = this.summary;
+    // The salt stays while a pipe that passed its opening is open, since a rotation swaps the GATT service under it.
+    // The pipe closes when the Wi-Fi link takes over, and rotation runs again then (5.12, Rotation).
+    let holding = false;
+    const release = () => {
+      if (!holding) return;
+      holding = false;
+      this.saltRelease = null;
+      void this.opt.radio.holdSalt(false).catch(() => undefined);
+    };
     const session: NearbyRoomSession = this.opt.openSession({
-      role: 'r', link: pipe, salt: base64urlDecode(salt) ?? NONE, kSess: gen.kSess, kFind: gen.kFind, gen: gen.gen, older: false, seen, radios: this.opt.radios(this.caps),
+      role: 'r', link: closingWith(pipe, release), salt: base64urlDecode(salt) ?? NONE, kSess: gen.kSess, kFind: gen.kFind, gen: gen.gen, older: false, seen, radios: this.opt.radios(this.caps),
       otherWaiting: () => false,
       onOpened: () => {
         this.strangers.delete(session);
         if (!this.running || this.session || this.connecting) return false;
         this.session = session;
+        holding = true;
+        this.saltRelease = release;
+        void this.opt.radio.holdSalt(true).catch(() => undefined);
+        void this.holdScan(true);
         this.opt.report({ t: 'session', tag: null, role: 'r' });
         return true;
       }
@@ -480,7 +519,11 @@ export class NearbyRoom {
   private async settle(session: NearbyRoomSession, tag: string | null, mine: string, theirs: string | null, report: NearbySessionReport): Promise<void> {
     const mineToSettle = this.session === session || this.connecting;
     if (this.session === session) this.session = null;
-    if (mineToSettle) this.connecting = false;
+    if (mineToSettle) {
+      this.connecting = false;
+      this.saltRelease?.();
+      if (this.running) await this.holdScan(false);
+    }
     const { ended } = report;
     // Only a verified session that committed something restarts the clocks, never a connection.
     if (report.changed) {
@@ -510,6 +553,12 @@ export class NearbyRoom {
     if (report.handedKey || (keys && keys.gen !== this.gens[0]?.gen)) await this.restartFind();
   }
 
+  private async holdScan(held: boolean): Promise<void> {
+    if (this.scanHeld === held) return;
+    this.scanHeld = held;
+    await this.opt.radio.holdScan(held).catch(() => undefined);
+  }
+
   private backOff(tag: string): void {
     const held = this.backoff.get(tag);
     const fails = (held?.fails ?? 0) + 1;
@@ -519,6 +568,7 @@ export class NearbyRoom {
   /** A newer generation: Find again under it, as when a certificate answer moves the key. */
   private async restartFind(): Promise<void> {
     await this.opt.radio.stopFind();
+    this.scanHeld = false;
     if (!await this.gensFromKeys()) return this.halt('no-key');
     this.heard.clear();
     await this.startFind();
@@ -530,6 +580,8 @@ export class NearbyRoom {
     this.session?.stop();
     for (const s of this.strangers) s.stop();
     for (const off of this.unsubscribe.splice(0)) off();
+    this.saltRelease = null;
+    this.scanHeld = false;
     await this.opt.radio.stopAll();
     this.opt.report({ t: 'stopped', why });
   }

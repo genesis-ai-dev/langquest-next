@@ -714,6 +714,16 @@ export class NearbySession {
     let pipeGone = false;
     let up: Promise<Turn> | null = null;
     let timer: Promise<Turn> | null = null;
+    /** Groups this phone hosts, by attempt: each one an attempt moved past is taken down, and every one but the link's at the end. */
+    const groups = new Map<number, { takeDown(): Promise<void> }>();
+    let won = -1;
+    const takeDownBefore = async (attempt: number) => {
+      for (const [j, g] of [...groups]) {
+        if (j >= attempt) continue;
+        groups.delete(j);
+        await g.takeDown().catch(() => undefined);
+      }
+    };
 
     const seal = async (attempt: number, made: Promise<NearbyLink>): Promise<Turn> => {
       let link: NearbyLink | null = null;
@@ -744,6 +754,7 @@ export class NearbySession {
     const begin = async (attempt: number): Promise<NearbyLink | null> => {
       at = attempt;
       up = null;
+      await takeDownBefore(attempt);
       const { kind, host, band5 } = plan[attempt]!;
       if (kind === 'bluetooth') {
         if (host === me) {
@@ -763,6 +774,7 @@ export class NearbySession {
         const turn = myNext(attempt);
         return turn === attempt + 1 ? begin(turn) : null;
       }
+      groups.set(attempt, hosted);
       await pipe.send(encodeMessage({ t: 'host', ...hostDetailsOf(hosted) }));
       up = seal(attempt, hosted.link);
       return null;
@@ -786,6 +798,7 @@ export class NearbySession {
             if (found < 0 && !plan.some((a) => a.host === other && a.kind === m.kind)) throw new SayBye('protocol', 'host off the plan');
             if (found < 0) continue;
             at = found;
+            await takeDownBefore(found);
             if (m.kind === 'bluetooth') return pipe;
             armTimer();
             up = seal(found, opt.arrange ? opt.arrange.radio.join(m.kind, hostDetailsOf(m)) : Promise.reject(new OfflineError('no radio')));
@@ -798,6 +811,7 @@ export class NearbySession {
           pipeGone = true;
         } else if (turn.t === 'up') {
           if (turn.at !== at) continue;
+          won = turn.at;
           finished = true;
           await this.closeQuietly(pipe);
           return turn.link;
@@ -814,6 +828,8 @@ export class NearbySession {
       }
     } finally {
       finished = true;
+      // The group whose link won stays until that link ends; every other one goes now.
+      for (const [j, g] of groups) if (j !== won) await g.takeDown().catch(() => undefined);
     }
   }
 

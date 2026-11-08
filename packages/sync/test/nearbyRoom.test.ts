@@ -58,6 +58,48 @@ describe.each(STORES)('a room on the %s store', (_name, make) => {
     expect(air.maskRepeats).toEqual([]);
   });
 
+  it('stops scanning during a session and keeps advertising, and holds the salt only while the responder\'s pipe is open', async () => {
+    const [a, b] = await rooms(2);
+    await unit(a!.phone, 'a1');
+    await unit(b!.phone, 'b1');
+    const seen: { scan: boolean[]; salt: boolean[] } = { scan: [], salt: [] };
+    for (const r of [a!, b!]) {
+      const { holdScan, holdSalt } = r.radio;
+      r.radio.holdScan = async (held) => { seen.scan.push(held); await holdScan(held); };
+      r.radio.holdSalt = async (held) => { seen.salt.push(held); await holdSalt(held); };
+    }
+    air.scan();
+    for (let i = 0; i < 10; i++) await turn(air, time, [a!, b!]);
+    expect(air.pipes.length).toBe(1);
+    // Each side held the scan for its session and let it go after, and the responder held its salt and let it go.
+    expect(seen.scan.filter((h) => h).length).toBe(2);
+    expect(seen.scan.filter((h) => !h).length).toBe(2);
+    expect(seen.salt).toEqual([true, false]);
+    for (const r of [a!, b!]) {
+      expect(r.radio.scanHeld).toBe(false);
+      expect(r.radio.saltHeld).toBe(false);
+      expect(r.radio.find).not.toBeNull();
+    }
+  });
+
+  it('a rotation waits while the salt is held, and runs once it is released; a held scan hears nobody', async () => {
+    const [a, b] = await rooms(2);
+    const before = a!.radio.salt;
+    await a!.radio.holdSalt(true);
+    air.rotate(a!.radio.name);
+    expect(a!.radio.salt).toBe(before);
+    await a!.radio.holdSalt(false);
+    expect(a!.radio.salt).not.toBe(before);
+    let heard = 0;
+    b!.radio.onFound(() => { heard += 1; });
+    await b!.radio.holdScan(true);
+    air.scan();
+    expect(heard).toBe(0);
+    await b!.radio.holdScan(false);
+    air.scan();
+    expect(heard).toBe(1);
+  });
+
   it('stops at "Up to date" when told to, and only Look again starts it', async () => {
     const [a, b] = await rooms(2, [{ room: { stopWhenLevel: true } }, {}]);
     await unit(a!.phone, 'a1');

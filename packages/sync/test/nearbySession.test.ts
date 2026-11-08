@@ -569,6 +569,35 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
       expect(rb.got.events).toBe(1);
     });
 
+    it('takes down every group hosted for an abandoned attempt, and keeps the one whose link won', async () => {
+      const [a, b] = await two();
+      await unit(a, 'a1');
+      const air = memoryNearbyAir({ time, files: shelf });
+      const radios = { directByName: true, band5: true, hotspot: true, joinHotspot: true };
+      // Wi-Fi Direct never comes up, at either band; the hotspot does.
+      const stuck = { neverUp: ['wifi-direct'] as ('wifi-direct' | 'hotspot')[] };
+      const ar = air.radio('a', {}, stuck);
+      const br = air.radio('b', {}, stuck);
+      const [ra, rb] = await run(a, b, pairOf({ kind: 'bluetooth' }), { arrange: { radio: ar, radios } }, { arrange: { radio: br, radios } });
+      expect([ra.ended.how, rb.ended.how]).toEqual(['done', 'done']);
+      expect(ra.linkKind).toBe('hotspot');
+      // The responder hosted both Wi-Fi Direct attempts and the hotspot: the two abandoned groups went, the hotspot stayed.
+      expect(br.calls.takeDown).toBe(2);
+      expect(ar.calls.takeDown).toBe(0);
+    });
+
+    it('takes down a group whose attempt never came up, when the pipe carries on as the link', async () => {
+      const [a, b] = await two();
+      await unit(a, 'a1');
+      const air = memoryNearbyAir({ time, files: shelf });
+      const radios = { directByName: true, band5: false, hotspot: false, joinHotspot: false };
+      const stuck = { neverUp: ['wifi-direct', 'hotspot'] as ('wifi-direct' | 'hotspot')[] };
+      const br = air.radio('b', {}, stuck);
+      const [ra] = await run(a, b, pairOf({ kind: 'bluetooth' }), { arrange: { radio: air.radio('a', {}, stuck), radios } }, { arrange: { radio: br, radios } });
+      expect(ra.linkKind).toBe('bluetooth');
+      expect(br.calls.takeDown).toBe(1);
+    });
+
     it('works out who hosts from both radios, ending with the pipe', () => {
       const all = { directByName: true, band5: true, hotspot: true, joinHotspot: true };
       expect(arrangePlan(all, all)).toEqual([
