@@ -134,6 +134,48 @@ class LinkSessionTest {
     expectCode(NearbyCode.LINK_DROPPED) { waiting.get(5, TimeUnit.SECONDS) }
   }
 
+  private fun waitUntil(what: String, condition: () -> Boolean) {
+    val deadline = System.currentTimeMillis() + 5000
+    while (!condition()) {
+      if (System.currentTimeMillis() > deadline) fail(what)
+      Thread.sleep(5)
+    }
+  }
+
+  @Test fun messagesQueuedBeforeAGoodbyeAreStillReadThenNull() {
+    val (a, b) = pair()
+    secure(a, b)
+    a.send(Bytes.utf8("one"))
+    a.send(Bytes.utf8("two"))
+    a.close()
+    // The goodbye is read before anyone asks, as on a phone whose JavaScript is busy.
+    waitUntil("the goodbye arrives") { b.isEnded }
+    assertEquals("one", String(b.receive()!!))
+    assertEquals("two", String(b.receive()!!))
+    assertNull(b.receive())
+    assertNull(b.receive())
+  }
+
+  @Test fun aCloseWithUnreadBytesStillSaysGoodbye() {
+    repeat(10) {
+      val (a, b) = pair(LinkTunables(queueMessages = 1))
+      secure(a, b)
+      // b sends more than a reads, so bytes sit unread on a's side when it closes.
+      val flooding = pool.submit(Callable {
+        try {
+          while (true) b.send(ByteArray(64 * 1024))
+        } catch (_: NearbyException) {}
+      })
+      waitUntil("a's side fills") { (a.javaClass.getDeclaredField("messages").apply { isAccessible = true }.get(a) as ArrayDeque<*>).isNotEmpty() }
+      Thread.sleep(20)
+      a.send(Bytes.utf8("last"))
+      a.close()
+      assertEquals("last", String(b.receive()!!))
+      assertNull(b.receive())
+      flooding.get(5, TimeUnit.SECONDS)
+    }
+  }
+
   @Test fun theWrongKeyClosesTheLink() {
     val (a, b) = pair()
     a.secure(keyA, keyB)

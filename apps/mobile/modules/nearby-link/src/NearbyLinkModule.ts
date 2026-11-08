@@ -52,6 +52,8 @@ export interface NativeLinkTunables {
   fileWaitMs?: number;
   pipeBytes?: number;
   byeWaitMs?: number;
+  /** How long a close reads on after its goodbye until the other side closes too, so the close is not a reset. */
+  byeDrainMs?: number;
 }
 
 export interface NativeHosted {

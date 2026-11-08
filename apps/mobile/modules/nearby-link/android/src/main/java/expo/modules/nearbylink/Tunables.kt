@@ -65,6 +65,7 @@ data class FindTunables(
         fileWaitMs = n("fileWaitMs", d.fileWaitMs).coerceIn(0, 120_000),
         pipeBytes = n("pipeBytes", d.pipeBytes.toLong()).toInt().coerceIn(64 * 1024, 16 * 1024 * 1024),
         byeWaitMs = n("byeWaitMs", d.byeWaitMs).coerceIn(0, 10_000),
+        byeDrainMs = n("byeDrainMs", d.byeDrainMs).coerceIn(0, 10_000),
       )
     }
 

@@ -44,6 +44,8 @@ interface Transport {
   val output: OutputStream
   /** 0 waits for ever. */
   fun setReadTimeout(ms: Int)
+  /** No more bytes from this side; the other side reads to its end. A pipe has nothing to do here. */
+  fun shutdownOutput() {}
   fun close()
 }
 
@@ -165,6 +167,7 @@ class SocketTransport(private val socket: java.net.Socket) : Transport {
   override val input: InputStream = java.io.BufferedInputStream(socket.getInputStream(), 64 * 1024)
   override val output: OutputStream = java.io.BufferedOutputStream(socket.getOutputStream(), 64 * 1024)
   override fun setReadTimeout(ms: Int) { socket.soTimeout = ms }
+  override fun shutdownOutput() { socket.shutdownOutput() }
   override fun close() {
     try { socket.close() } catch (_: IOException) {}
   }

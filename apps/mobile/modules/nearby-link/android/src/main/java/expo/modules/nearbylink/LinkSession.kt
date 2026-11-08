@@ -24,6 +24,11 @@ data class LinkTunables(
   val pipeBytes: Int = 4 * 1024 * 1024,
   /** How long `close` waits to say goodbye before it just closes. */
   val byeWaitMs: Long = 500,
+  /**
+   * How long `close` reads on after its goodbye, until the other side closes too. A socket closed
+   * with bytes unread is reset, and a reset can lose the goodbye on the other side.
+   */
+  val byeDrainMs: Long = 1_000,
 )
 
 /**
@@ -132,9 +137,13 @@ class LinkSession(
     frame(Frame.MESSAGE, message)
   }
 
-  /** The next whole message, in order; null once the other side closed cleanly. */
+  /**
+   * The next whole message, in order; null once the other side closed cleanly. Messages that came
+   * before a goodbye are still given after the link ended, however soon the reader saw it.
+   */
   fun receive(): ByteArray? {
-    sealedOnly()
+    if (closedHere.get()) throw NearbyException(NearbyCode.LINK_CLOSED, "closed here")
+    if (!isSecured) throw NearbyException(NearbyCode.NOT_SECURED, "no frame is ever plain: secure first")
     state.withLock {
       while (messages.isEmpty() && ended == null) changed.await()
       if (messages.isNotEmpty()) {
@@ -230,18 +239,30 @@ class LinkSession(
 
   // ---- closing -------------------------------------------------------------------
 
-  /** A goodbye if there is time, then the stream goes. Every wait here ends. */
+  /**
+   * A goodbye if there is time, then the stream goes. Every wait here ends. After the goodbye this
+   * side stops writing and the reader drops what still comes until the other side closes too (or
+   * `byeDrainMs` passes), so nothing is left unread to turn the close into a reset.
+   */
   fun close() {
     if (!closedHere.compareAndSet(false, true)) return
+    state.withLock { changed.signalAll() }
     val s = sealer
+    var said = false
     if (s != null && ended == null && writeLock.tryLock(tune.byeWaitMs, TimeUnit.MILLISECONDS)) {
       try {
         transport.output.write(s.seal(Frame.BYE, ByteArray(0)))
         transport.output.flush()
+        transport.shutdownOutput()
+        said = true
       } catch (_: Exception) {
       } finally {
         writeLock.unlock()
       }
+    }
+    val r = reader
+    if (said && r != null && r !== Thread.currentThread()) {
+      try { r.join(tune.byeDrainMs.coerceAtLeast(1)) } catch (_: InterruptedException) { Thread.currentThread().interrupt() }
     }
     end(NearbyCode.LINK_CLOSED)
   }
@@ -252,9 +273,10 @@ class LinkSession(
     val open = opener ?: return
     try {
       while (true) {
-        val head = readFully(Frame.SEALED_HEADER) ?: return end(NearbyCode.LINK_DROPPED)
+        if (closedHere.get()) return drain()
+        val head = readFully(Frame.SEALED_HEADER) ?: return stop(NearbyCode.LINK_DROPPED)
         val h = open.header(head)
-        val sealedBody = readFully(h.len + Frame.TAG) ?: return end(NearbyCode.LINK_DROPPED)
+        val sealedBody = readFully(h.len + Frame.TAG) ?: return stop(NearbyCode.LINK_DROPPED)
         val body = open.body(sealedBody)
         when (h.type) {
           Frame.MESSAGE -> queue(body)
@@ -264,21 +286,34 @@ class LinkSession(
           Frame.FILE_CANCEL -> fileCancelled(body)
           Frame.BYE -> {
             clean = true
-            return end(NearbyCode.LINK_DROPPED)
+            return stop(NearbyCode.LINK_DROPPED)
           }
           // A frame type from a later build: sealed and checked, so skipped.
           else -> {}
         }
       }
     } catch (e: NearbyException) {
-      end(e.code)
+      stop(e.code)
     } catch (e: IOException) {
-      end(if (closedHere.get()) NearbyCode.LINK_CLOSED else NearbyCode.LINK_DROPPED)
+      stop(NearbyCode.LINK_DROPPED)
     } catch (e: InterruptedException) {
       end(NearbyCode.LINK_CLOSED)
     } catch (e: RuntimeException) {
-      end(NearbyCode.INTERNAL)
+      stop(NearbyCode.INTERNAL)
     }
+  }
+
+  /** The reader's end; once this side is closing, `close` ends the link itself. */
+  private fun stop(code: NearbyCode) {
+    if (!closedHere.get()) end(code)
+  }
+
+  /** After this side's goodbye: drops what still comes, until the other side's end or `close` closes the stream. */
+  private fun drain() {
+    val sink = ByteArray(16 * 1024)
+    try {
+      while (transport.input.read(sink) >= 0) {}
+    } catch (_: IOException) {}
   }
 
   private fun readFully(size: Int): ByteArray? {
@@ -293,8 +328,8 @@ class LinkSession(
   }
 
   private fun queue(message: ByteArray) = state.withLock {
-    while (messages.size >= tune.queueMessages.coerceAtLeast(1) && ended == null) changed.await()
-    if (ended == null) {
+    while (messages.size >= tune.queueMessages.coerceAtLeast(1) && ended == null && !closedHere.get()) changed.await()
+    if (ended == null && !closedHere.get()) {
       messages.add(message)
       changed.signalAll()
     }
@@ -308,7 +343,7 @@ class LinkSession(
     val held: Incoming? = state.withLock {
       // JavaScript registers before it asks, so this wait is short; past it, the file is refused.
       val deadline = System.currentTimeMillis() + tune.fileWaitMs
-      while (incoming[id] == null && id !in skipped && ended == null) {
+      while (incoming[id] == null && id !in skipped && ended == null && !closedHere.get()) {
         val left = deadline - System.currentTimeMillis()
         if (left <= 0) break
         changed.await(left, TimeUnit.MILLISECONDS)

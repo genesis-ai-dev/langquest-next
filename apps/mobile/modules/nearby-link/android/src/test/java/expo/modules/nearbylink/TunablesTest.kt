@@ -35,5 +35,7 @@ class TunablesTest {
     val t = FindTunables.links(mapOf("queueMessages" to 0.0, "fileChunk" to 10.0))
     assertEquals(1, t.queueMessages)
     assertEquals(1024, t.fileChunk)
+    assertEquals(1_000L, t.byeDrainMs)
+    assertEquals(10_000L, FindTunables.links(mapOf("byeDrainMs" to 60_000.0)).byeDrainMs)
   }
 }
