@@ -58,6 +58,12 @@ export async function refreshHoldChoice(worn: boolean): Promise<void> {
   keepHoldChoice(holdChoiceOf(await (await getStore()).meta(HOLD_KEY), worn));
 }
 
+/** The row pressed: written as pressed, so it stays whatever the disguise does later, then kept where `openLanguage` reads it. */
+export async function pressHoldChoice(hold: boolean, worn: boolean): Promise<void> {
+  await (await getStore()).setMeta(HOLD_KEY, hold ? 'true' : 'false');
+  await refreshHoldChoice(worn);
+}
+
 const same = (a: object, b: object) => JSON.stringify(a) === JSON.stringify(b);
 
 /** The languages of the organization open here that this phone has opened: a cursor here says it pulled them (decision 37). */
