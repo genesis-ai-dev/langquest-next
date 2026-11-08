@@ -3,7 +3,8 @@ import {
   base64urlEncode, bytesToHex, checkChain, joinPassBody, newcomerProfileId, utf8Encode, type ChainLink, type JoinPass, type WorkerLink
 } from '@langquest-next/core/nearby';
 import { admitDoc, StartingCopySender, type NearbyCopySource, type NearbyDocs, type StartingCopyTarget } from '../src/nearbyCopy';
-import type { NearbyJoinInviter, NearbyJoinNewcomer, NearbySessionReport } from '../src/nearbySession';
+import { joinOnlyKeep, joinOnlyPort, type NearbyJoinInviter, type NearbyJoinNewcomer, type NearbySessionReport } from '../src/nearbySession';
+import { drawOpening, openingPinOf, QR_SALT, qrSessionKeyOf } from '../src/nearbyOpening';
 import { encodeMessage, parseMessage } from '../src/nearbyWire';
 import { ORG_MATERIALIZER } from '../src/orgSession';
 import { SyncClient } from '../src/syncClient';
@@ -199,6 +200,47 @@ describe.each(STORES)('letting someone in, on the %s store', (_name, make) => {
     const [rn, ri] = await run(s.a.p, late, s.pair, { ...s.join, n: { ...s.join.n, target: { ...s.n.target } } }, s.copy);
     expect([rn.ended, ri.ended]).toContainEqual({ how: 'said', reason: 'protocol', detail: 'clock' });
     expect(s.granted).toEqual([]);
+  });
+
+  it('a newcomer whose QR code named no organization takes it from the grant, and the copy goes where granted says', async () => {
+    const s = await setUp();
+    const seen: { orgId: string; languageId: string }[] = [];
+    const n: NearbyJoinNewcomer = {
+      as: 'newcomer', idSalt: SALT, profileId: s.n.profileId, name: 'Nyibol',
+      granted: async (g) => { seen.push({ orgId: g.orgId, languageId: g.languageId }); return s.n.target; }
+    };
+    const [rn, ri] = await settled<[NearbySessionReport, NearbySessionReport]>(time,
+      sessionFor(s.n.p, 'i', s.pair.a, time, { join: n, chain: [], orgId: '', languageId: '', port: joinOnlyPort(() => NOW), keep: joinOnlyKeep() }).run(),
+      sessionFor(s.a.p, 'r', s.pair.b, time, { join: s.join.i, copy: s.copy }).run());
+    expect(ri.ended).toEqual({ how: 'done' });
+    expect(rn.join?.granted).toBe(true);
+    expect(seen).toEqual([{ orgId: ORG, languageId: LANG }]);
+    expect(rn.copy).toMatchObject({ whole: true });
+    expect(await s.n.p.client.holdsCopy()).toBe(true);
+  });
+
+  it('a QR link opens only on the opening its pin names: another opening under the same secret gets silence and no ask', async () => {
+    const qr = fakeSigner('qr');
+    const secret = qr.randomBytes(16);
+    const kSess = qrSessionKeyOf(qr, secret);
+    for (const pinned of [true, false]) {
+      server = new FakeServer();
+      const s = await setUp();
+      const drawn = drawOpening(s.a.who.crypto);
+      const other = drawOpening(s.a.who.crypto);
+      const pin = openingPinOf(qr, (pinned ? drawn : other).eph.public, (pinned ? drawn : other).nonce);
+      const [rn, ri] = await settled<[NearbySessionReport, NearbySessionReport]>(time,
+        sessionFor(s.n.p, 'i', s.pair.a, time, { join: s.join.n, chain: [], opening: { kSess, salt: QR_SALT, kFind: new Uint8Array(32), pin } }).run(),
+        sessionFor(s.a.p, 'r', s.pair.b, time, { join: s.join.i, copy: s.copy, opening: { kSess, salt: QR_SALT, kFind: new Uint8Array(32), seen: new Set(), drawn } }).run());
+      if (pinned) {
+        expect(rn.join?.granted).toBe(true);
+        expect(ri.ended).toEqual({ how: 'done' });
+      } else {
+        expect(rn.ended).toEqual({ how: 'silent' });
+        expect(s.granted).toEqual([]);
+        expect(typesOf(s.pair.sent.a.frames)).not.toContain('join-ask');
+      }
+    }
   });
 
   it('a dropped link after the grant resumes the copy from a teammate after an ordinary Hello', async () => {

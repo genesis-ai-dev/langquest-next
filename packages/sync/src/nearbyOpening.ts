@@ -43,6 +43,23 @@ export function channelKeysOf(crypto: Pick<NearbyCrypto, 'hkdfSha256'>, discover
 /** On a QR link the salt is the fixed bytes `qr`, and `kSess` comes from the code's secret (phase 6). */
 export const QR_SALT = utf8Encode('qr');
 
+/** On a QR start, `kSess` comes from the code's 16-byte secret (docs/nearby-sync-plan.md 5.12, Session keys). */
+export const qrSessionKeyOf = (crypto: Pick<NearbyCrypto, 'hkdfSha256'>, secret: Uint8Array): Uint8Array => crypto.hkdfSha256(secret, NONE, 'lq-nearby-qr-v1', KEY_BYTES);
+
+/** Bytes of the pin a QR code holds on the inviter's opening. */
+export const QR_PIN_BYTES = 16;
+
+/**
+ * The inviter's ephemeral key and nonce, drawn before its QR code is shown, so the code can hold
+ * a pin on the opening it will send (section 14.1, 3). Used for one opening only.
+ */
+export function drawOpening(crypto: Pick<NearbyCrypto, 'x25519Pair' | 'randomBytes'>): { nonce: Uint8Array; eph: { secret: Uint8Array; public: Uint8Array } } {
+  return { nonce: crypto.randomBytes(NONCE_BYTES), eph: crypto.x25519Pair() };
+}
+
+/** The pin: the first 16 bytes of SHA-256(eph_r || nonce_r). The newcomer refuses any opening that does not match it, so a rogue group cannot pose as the inviter. */
+export const openingPinOf = (crypto: Pick<NearbyCrypto, 'sha256'>, eph: Uint8Array, nonce: Uint8Array): Uint8Array => crypto.sha256(concatBytes(eph, nonce)).slice(0, QR_PIN_BYTES);
+
 /** `kOpen`, which keys the opening's masks and tags. */
 export const openingKeyOf = (crypto: Pick<NearbyCrypto, 'hkdfSha256'>, kSess: Uint8Array): Uint8Array => crypto.hkdfSha256(kSess, NONE, 'lq-nearby-open-v1', KEY_BYTES);
 const tag = (crypto: NearbyCryptoLike, kOpen: Uint8Array, input: Uint8Array) => crypto.hmacSha256(kOpen, input).slice(0, TAG_BYTES);

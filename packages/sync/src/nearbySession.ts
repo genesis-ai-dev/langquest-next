@@ -7,7 +7,7 @@ import { nearbyCodeOf, type NearbyDiagCode } from './nearbyDiag';
 import type { NearbyKeep } from './nearbyKeep';
 import { CopyRefused, StartingCopySender, takeStartingCopy, type CopyAsker, type NearbyCopySource, type StartingCopyTaken, type StartingCopyTarget } from './nearbyCopy';
 import type { HostDetails, HostOptions, NearbyCrypto, NearbyLink, NearbyRadio } from './nearbyLink';
-import { attemptKeysOf, checkOpeningI, checkOpeningR, findTagOf, makeOpeningI, makeOpeningR, openingKeyOf, sessionKeysOf, type NearbySessionKeys } from './nearbyOpening';
+import { attemptKeysOf, checkOpeningI, checkOpeningR, findTagOf, makeOpeningI, makeOpeningR, openingKeyOf, openingPinOf, sameBytes, sessionKeysOf, type NearbySessionKeys } from './nearbyOpening';
 import { encodeMessage, NEARBY_HOLDINGS_MESSAGE_FILES, parseMessage, type Message } from './nearbyWire';
 import { OfflineError } from './types';
 
@@ -147,6 +147,10 @@ export interface NearbySessionOptions {
     kFind: Uint8Array;
     /** The responder's nonces under this salt, shared across connections. A repeat is a stranger. */
     seen?: Set<string>;
+    /** A QR link's inviter: the ephemeral key and nonce its code's pin was worked out from (`drawOpening`). */
+    drawn?: { nonce: Uint8Array; eph: { secret: Uint8Array; public: Uint8Array } };
+    /** A QR link's newcomer: the code's pin (`openingPinOf`). An opening that does not match it gets silence. */
+    pin?: Uint8Array;
   };
   generations?: NearbyGenerations;
   /** The initiator connected under a generation below its newest: it holds back its `hello`. */
@@ -188,7 +192,11 @@ export interface NearbyJoinInviter {
   stop?(roleId: string): string | null;
 }
 
-/** The newcomer's side of a QR link. Its `crypto` is the install key just made, and its `chain` is empty. */
+/**
+ * The newcomer's side of a QR link. Its `crypto` is the install key just made, and its `chain` is
+ * empty. A QR code names no organization, so a newcomer may pass `orgId` and `languageId` as '',
+ * and the grant's pass then says which; the chain is checked against those as against any other.
+ */
 export interface NearbyJoinNewcomer {
   as: 'newcomer';
   idSalt: string;
@@ -197,10 +205,37 @@ export interface NearbyJoinNewcomer {
   name: string;
   /** The two pictures, to show beside the inviter's. */
   pictures?(pictures: [number, number]): void;
-  /** The grant checked: the chain, the discovery key, its generation and `floor`. Only now may the key be stored. */
-  granted(grant: { chain: ChainLink[]; verdict: Extract<ChainVerdict, { ok: true }>; discovery: { key: string; gen: number; floor: number } }): Promise<void>;
-  /** Where the starting copy goes, over this link once granted. */
-  target: Omit<StartingCopyTarget, 'sha256'>;
+  /**
+   * The grant checked: the chain, the discovery key, its generation and `floor`, and the
+   * organization and language it is for. Only now may the key be stored. It may answer where the
+   * starting copy goes, for a phone that could not know before the grant.
+   */
+  granted(grant: {
+    chain: ChainLink[]; verdict: Extract<ChainVerdict, { ok: true }>; discovery: { key: string; gen: number; floor: number }; orgId: string; languageId: string;
+  }): Promise<Omit<StartingCopyTarget, 'sha256'> | void>;
+  /** Where the starting copy goes, over this link once granted, unless `granted` answers one. */
+  target?: Omit<StartingCopyTarget, 'sha256'>;
+}
+
+/**
+ * The port and keep a newcomer's QR session runs on before it has any stream: a join reads only
+ * the clock from its port and the revocation list (none) from its keep, and never reaches the
+ * rest, which refuse. The starting copy goes through the target `granted` answers.
+ */
+export function joinOnlyPort(now: () => number): NearbySessionPort {
+  const no = (): Promise<never> => Promise.reject(new Error('a join reads no stream'));
+  return {
+    signUnsigned: no, nearbyHave: no, nearbyUncounted: no, nearbyBatchPage: no, nearbyNextClaims: no, nearbyHoldsLess: no, receiveNearby: no,
+    startNearbyBudget: no, nearbyDoorAgain: no, nearbyApplyRevoked: no,
+    get nearbyWallNow() { return now(); },
+    get nearbyHelloNow() { return now(); },
+    nearbyFarAhead: []
+  };
+}
+
+export function joinOnlyKeep(): NearbyKeep {
+  const no = (): Promise<never> => Promise.reject(new Error('a join keeps nothing'));
+  return { holdings: no, saveHoldings: no, revoked: async () => null, saveRevoked: no, noteName: async () => undefined, peers: async () => [], recordPeer: no };
 }
 
 export type NearbySessionEnd =
@@ -336,6 +371,13 @@ const JOIN_MESSAGES: ReadonlySet<Message['t']> = new Set<Message['t']>(['join-as
 const COPY_ANSWERS: ReadonlySet<Message['t']> = new Set<Message['t']>(['copy-part', 'copy-no']);
 
 const isDrop = (err: unknown) => err instanceof OfflineError;
+
+/** The organization and language a grant's invite link names through its pass, before the chain is checked; null when it has none. */
+function grantPassOf(chain: readonly ChainLink[]): { orgId: string; languageId: string } | null {
+  const body = (chain[1] as { kind?: unknown; body?: { pass?: { body?: { orgId?: unknown; languageId?: unknown } } } } | undefined);
+  const pass = body?.kind === 'invite@1' ? body.body?.pass?.body : undefined;
+  return pass && typeof pass.orgId === 'string' && typeof pass.languageId === 'string' ? { orgId: pass.orgId, languageId: pass.languageId } : null;
+}
 const nameOf = (err: unknown) => (err instanceof Error ? err.name : 'non-error');
 
 export class NearbySession {
@@ -516,7 +558,10 @@ export class NearbySession {
       this.report.ended = { how: 'no-answer' };
       return null;
     }
-    const theirs = checkOpeningR(this.crypto, kOpen, salt, mine.bytes, reply);
+    const checked = checkOpeningR(this.crypto, kOpen, salt, mine.bytes, reply);
+    const { pin } = this.opt.opening;
+    // On a QR link, only the opening the code pinned: a rogue group that learned the secret from a photo of the code gets silence.
+    const theirs = checked && (!pin || sameBytes(openingPinOf(this.crypto, checked.eph, checked.nonce), pin)) ? checked : null;
     const keys = theirs && sessionKeysOf(this.crypto, kSess, mine, theirs, { ephI: mine.eph, ephR: theirs.eph, nonceI: mine.nonce, nonceR: theirs.nonce });
     if (!keys) this.report.ended = { how: 'silent' };
     return keys;
@@ -534,7 +579,7 @@ export class NearbySession {
     const nonce = theirs ? base64urlEncode(theirs.nonce) : '';
     if (!bytes || !theirs || seen?.has(nonce)) return this.silence(started, deadline, bytes !== null);
     seen?.add(nonce);
-    const mine = makeOpeningR(this.crypto, kOpen, salt, bytes);
+    const mine = makeOpeningR(this.crypto, kOpen, salt, bytes, this.opt.opening.drawn);
     const keys = sessionKeysOf(this.crypto, kSess, mine, theirs, { ephI: theirs.eph, ephR: mine.eph, nonceI: theirs.nonce, nonceR: mine.nonce });
     if (!keys) return this.silence(started, deadline, true);
     await this.link.sendOpening(mine.bytes);
@@ -801,8 +846,13 @@ export class NearbySession {
       report.join!.refused = reason;
       return new SayBye('identity', reason);
     };
+    // A QR code names no organization: a newcomer that passed none takes the grant's pass's, and checks the chain against it as against any other.
+    const pass = grantPassOf(grant.chain);
+    const orgId = opt.orgId || pass?.orgId || '';
+    const languageId = opt.languageId || pass?.languageId || '';
+    if (!orgId || !languageId) throw refused('no pass in the grant');
     const verdict = await checkChain(grant.chain, {
-      rootKeys: opt.rootKeys, orgId: opt.orgId, languageId: opt.languageId, now: opt.port.nearbyHelloNow, verify: crypto.verify, sha256: crypto.sha256
+      rootKeys: opt.rootKeys, orgId, languageId, now: opt.port.nearbyHelloNow, verify: crypto.verify, sha256: crypto.sha256
     });
     if (!verdict.ok) throw refused(verdict.reason);
     const { holder } = verdict;
@@ -812,9 +862,10 @@ export class NearbySession {
     }
     if (!verdict.inviterKey || !await signedBy(crypto.verify, verdict.inviterKey, nearbyBytes('proof', proofText(theirRole, this.keys!.th)), grant.proof)) throw refused('bad proof');
     report.peer = { installKey: verdict.inviterKey, profileId: verdict.inviter ?? '', deviceId: '', tag: '' };
-    await this.local(() => join.granted({ chain: grant.chain, verdict, discovery: { key: grant.discoveryKey, gen: grant.gen, floor: grant.floor } }));
+    const answered = await this.local(() => join.granted({ chain: grant.chain, verdict, discovery: { key: grant.discoveryKey, gen: grant.gen, floor: grant.floor }, orgId, languageId }));
     report.join!.granted = true;
-    await this.takeCopyFrom(join.target);
+    const target = answered ?? join.target;
+    if (target) await this.takeCopyFrom(target);
     await this.send({ t: 'bye', reason: 'done' }).catch((err: unknown) => { if (!isDrop(err)) throw err; });
   }
 
