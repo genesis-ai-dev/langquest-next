@@ -129,8 +129,7 @@ export function RecordingView(props: {
       ) : (
         <View style={styles.wave}>
           {/* Stopped, the status row's help says what the boxes do. */}
-          <LiveParts session={session} tone="onRed" paused={rec.vadPaused} editing={stopped} onDrop={rec.dropPart} onMoved={rec.notePart}
-            onDropSilence={rec.dropSilence} onAdd={rec.addPart} />
+          <LiveParts session={session} tone="onRed" paused={rec.vadPaused} editing={stopped} onDrop={rec.dropPart} onMoved={rec.notePart} />
         </View>
       )}
       {rec.micRefused ? <MicRefused message={rec.error} /> : rec.error ? <Text style={styles.error} accessibilityRole="alert">{rec.error}</Text> : null}
