@@ -35,3 +35,7 @@ export async function forgetLocalPerson(_profileId: string): Promise<void> {}
 export function localPersonHolds(): boolean {
   return false;
 }
+
+export function localOrgOf(_p: LocalPerson | null | undefined): string | null {
+  return null;
+}

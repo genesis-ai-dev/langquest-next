@@ -1,6 +1,10 @@
 import {
-  foldKnows, identityOf, isLocalIdentity, localPersonText, mayKeepLocalPerson, membershipOf, parseLocalPerson, type LocalPerson
+  foldKnows, localPersonText, mayKeepLocalPerson, membershipOf, overlayFor, parseLocalPerson, recordDone, type LocalPerson
 } from '../src/session/localPersonModel';
+import { identityOf, isLocalIdentity } from '../src/session/identityModel';
+import { emptyOrgState, privilegesFor, type OrgState, type Privilege } from '@langquest-next/core';
+import { withChainMembership } from '@langquest-next/core/nearby';
+import { deriveSession } from '../src/shell/session';
 import { inviteChain, person } from './localPersonFixtures';
 
 /**
@@ -99,6 +103,42 @@ describe('the membership the link gives', () => {
     expect(foldKnows(null, 'p')).toBe(false);
     expect(foldKnows({ p: {} }, 'p')).toBe(false);
     expect(foldKnows({ p: { 'language:l': { removed: { value: true } } } }, 'p')).toBe(true);
+  });
+});
+
+describe('the overlay at Workspace', () => {
+  const lay = (state: OrgState, p: LocalPerson, orgId: string) => {
+    const m = overlayFor(p, orgId);
+    return m ? withChainMembership(state, { ...m, privileges: m.privileges as Privilege[] }) : state;
+  };
+
+  it('gives the link\'s privileges in the chain\'s language, and nothing in another organization or before the grant', () => {
+    const state = emptyOrgState();
+    const p = person();
+    const mine = lay(state, p, 'org-1');
+    expect([...privilegesFor(mine, 'newcomer-1', 'lang-1')].sort()).toEqual(['translate', 'view_status']);
+    expect(privilegesFor(mine, 'newcomer-1', 'lang-2').size).toBe(0);
+    expect(lay(state, p, 'org-2')).toBe(state);
+    expect(lay(state, person({ stage: 'asking' }), 'org-1')).toBe(state);
+    // The fold's own state is left as it was.
+    expect(state.members).toEqual({});
+    // Every screen then sees a member who may translate there, and a local person, not a guest.
+    const session = deriveSession('newcomer-1', null, false, mine, 'lang-1', false, null, true);
+    expect(session).toMatchObject({ isLocal: true, isGuest: false, hasNoOrg: false, isAdmin: false });
+    expect(session.can('translate')).toBe(true);
+    expect(deriveSession('newcomer-1', null, false, mine, 'lang-1').isLocal).toBe(false);
+  });
+
+  it('goes once the fold has the person, and the record with it once the certificate route answered', () => {
+    const none = { hlc: '', eventId: '' };
+    const state = emptyOrgState();
+    // Removed in the fold: the removal sticks, and the chain gives nothing back.
+    state.members['newcomer-1'] = { 'language:lang-1': { roleId: { value: 'viewer', ...none }, removed: { value: true, ...none }, scope: { level: 'language', languageId: 'lang-1' } } };
+    expect(lay(state, person(), 'org-1')).toBe(state);
+    expect(privilegesFor(lay(state, person(), 'org-1'), 'newcomer-1', 'lang-1').size).toBe(0);
+    expect(recordDone(person({ stage: 'done' }), { 'newcomer-1': { x: {} } })).toBe(true);
+    expect(recordDone(person({ stage: 'joined' }), { 'newcomer-1': { x: {} } })).toBe(false);
+    expect(recordDone(person({ stage: 'done' }), {})).toBe(false);
   });
 });
 

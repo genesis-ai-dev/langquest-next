@@ -40,6 +40,12 @@ export interface Session {
   /** Not signed in at all (browsing public listings). */
   isGuest: boolean;
   /**
+   * A local person (docs/nearby-sync-plan.md 14.1, 5): let in offline by a teammate's phone, with
+   * no account until first contact. Not a guest, but with no server session: no sign-out, no
+   * Switch or new organization, and nothing that needs the server until then.
+   */
+  isLocal: boolean;
+  /**
    * A looked-after account (accounts.ts): no email of its own. What it may
    * do is still its role's; only helping others sign in needs an email
    * (decisions.md 67, docs/invites-and-accounts.md).
@@ -80,7 +86,8 @@ export function deriveSession(
   org: OrgState | null = null,
   languageId?: string | null,
   fromV2 = false,
-  globalViewer: GlobalViewerAccess | null = null
+  globalViewer: GlobalViewerAccess | null = null,
+  isLocal = false
 ): Session {
   const own = org ? privilegesFor(org, actorId, languageId ?? undefined) : new Set<Privilege>();
   // A Global Viewer sees an organization they are not in as its admins do,
@@ -116,6 +123,7 @@ export function deriveSession(
     isFirstTime: !seenVision && !readOnly,
     fromV2,
     isGuest: actorId === 'guest',
+    isLocal: isLocal && actorId !== 'guest',
     isManaged,
     isGlobalViewer: globalViewer === 'on',
     viewingAsGlobalViewer: readOnly,

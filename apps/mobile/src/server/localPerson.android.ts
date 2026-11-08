@@ -1,6 +1,5 @@
-import {
-  isLocalIdentity, LOCAL_PERSON_KEY, localPersonText, mayKeepLocalPerson, parseLocalPerson, type LocalPerson
-} from '../session/localPersonModel';
+import { isLocalIdentity } from '../session/identityModel';
+import { LOCAL_PERSON_KEY, localPersonText, mayKeepLocalPerson, membershipOf, parseLocalPerson, type LocalPerson } from '../session/localPersonModel';
 import { secureStorage } from './secureStorage';
 
 /**
@@ -90,4 +89,9 @@ export function forgetLocalPerson(profileId: string): Promise<void> {
  */
 export function localPersonHolds(): boolean {
   return isLocalIdentity(held);
+}
+
+/** The organization the local person was let into, from their chain; null before a grant. */
+export function localOrgOf(p: LocalPerson | null | undefined): string | null {
+  return membershipOf(p)?.orgId ?? null;
 }

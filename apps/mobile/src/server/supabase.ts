@@ -1,5 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
+import { localPersonHolds } from './localPerson';
 import { secureStorage } from './secureStorage';
 import { sessionStorageKey } from './sessionKey';
 import { answerAtOnceWhileOffline, sessionSafeFetch, type RenewalWatch } from './sessionSafeFetch';
@@ -39,8 +40,12 @@ export const SESSION_KEY = sessionStorageKey(supabaseUrl);
  * A Supabase client that keeps its sign-in through a busy network, sends
  * nothing as no one while the sign-in waits to renew, and answers at once
  * offline instead of after half a minute of retries (sessionSafeFetch.ts).
+ * The phone's own client also sends nothing as no one while a local person
+ * holds the phone (docs/nearby-sync-plan.md 14.1, 5 "Requests"): they have
+ * no session until first contact, and a request as no one would be refused,
+ * not offline, which would mark their work as refused.
  */
-function clientAt(storageKey: string, autoRefreshToken: boolean) {
+function clientAt(storageKey: string, autoRefreshToken: boolean, main = false) {
   const watch: RenewalWatch = { failedAt: null };
   const client = createClient(supabaseUrl, supabaseAnonKey, {
     auth: { storage: secureStorage, storageKey, autoRefreshToken, persistSession: true, detectSessionInUrl: false },
@@ -48,7 +53,9 @@ function clientAt(storageKey: string, autoRefreshToken: boolean) {
     // a shorter beat than the default 25 s, so the app's own check rarely has to ask.
     realtime: { heartbeatIntervalMs: 15_000 },
     global: {
-      fetch: sessionSafeFetch({ anonKey: supabaseAnonKey, watch, hasSavedSession: async () => (await secureStorage.getItem(storageKey)) !== null })
+      fetch: sessionSafeFetch({
+        anonKey: supabaseAnonKey, watch, hasSavedSession: async () => (main && localPersonHolds()) || (await secureStorage.getItem(storageKey)) !== null
+      })
     }
   });
   answerAtOnceWhileOffline(client.auth, { watch, readSaved: () => secureStorage.getItem(storageKey) });
@@ -57,7 +64,7 @@ function clientAt(storageKey: string, autoRefreshToken: boolean) {
 
 // A placeholder keeps `createClient` from throwing when the config is
 // missing; nothing calls it, because App shows the error instead.
-export const supabase = clientAt(SESSION_KEY, true);
+export const supabase = clientAt(SESSION_KEY, true, true);
 
 /** Sign out of this device only, online or not (signOut.ts, decision 87). */
 export function signOutHere(): Promise<void> {

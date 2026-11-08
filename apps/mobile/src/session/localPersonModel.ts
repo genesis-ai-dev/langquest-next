@@ -137,36 +137,22 @@ export function membershipOf(p: LocalPerson | null | undefined): LocalMembership
   };
 }
 
-/** Is this record the person the phone works as, when nobody is signed in? `ready`, and `joined` whose session went. */
-export function isLocalIdentity(p: LocalPerson | null | undefined): p is LocalPerson {
-  return !!p && (p.stage === 'ready' || p.stage === 'joined');
-}
-
-/** Who the app runs as (section 14.1, 5 "Identity"): `signedIn` routes, `serverSession` is what the server would take. */
-export interface Identity {
-  actorId: string;
-  email: string | null;
-  /** Someone is on this phone: routing, tabs and the screens behind Sign In. */
-  signedIn: boolean;
-  /** A real session the server would take: anything that calls the server waits for this. */
-  serverSession: boolean;
-  /** The local person, when the phone runs as them. */
-  local: LocalPerson | null;
-}
-
-/**
- * The identity from the saved sign-in and the local person; undefined until both are read. A
- * session wins: after first contact it is the same id, so `Shell`, keyed on the actor id, does
- * not remount. A local person counts only from `ready`, so a copy still filling stays a guest.
- */
-export function identityOf(auth: { id: string; email?: string | null } | null | undefined, local: LocalPerson | null | undefined): Identity | undefined {
-  if (auth === undefined || local === undefined) return undefined;
-  if (auth) return { actorId: auth.id, email: auth.email ?? null, signedIn: true, serverSession: true, local: local && local.profileId === auth.id ? local : null };
-  if (isLocalIdentity(local)) return { actorId: local.profileId, email: null, signedIn: true, serverSession: false, local };
-  return { actorId: 'guest', email: null, signedIn: false, serverSession: false, local: null };
-}
-
 /** Does the organization's fold have any entry for this person, live or removed? Then the overlay goes (section 14.1, 6 "After"). */
 export function foldKnows(members: Record<string, Record<string, unknown>> | null | undefined, profileId: string): boolean {
   return !!members && Object.prototype.hasOwnProperty.call(members, profileId) && Object.keys(members[profileId]!).length > 0;
+}
+
+/**
+ * The membership to lay over this organization's fold for the local person (section 14.1, 5
+ * "Membership"): only in the organization their chain names, so a chain never gives a role
+ * anywhere else, and only from the grant on.
+ */
+export function overlayFor(p: LocalPerson | null | undefined, orgId: string | null): LocalMembership | null {
+  const m = membershipOf(p);
+  return m && m.orgId === orgId ? m : null;
+}
+
+/** The record has done its work once the certificate route answered and the fold has the person (section 14.1, 6 "After"). */
+export function recordDone(p: LocalPerson | null | undefined, members: Record<string, Record<string, unknown>> | null | undefined): p is LocalPerson {
+  return p?.stage === 'done' && foldKnows(members, p.profileId);
 }
