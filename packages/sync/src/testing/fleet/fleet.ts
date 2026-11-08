@@ -124,6 +124,7 @@ export class Fleet {
         roleOf: (actorId) => roles.get(actorId) ?? 'viewer'
       }, options.nearby);
       this.server.attester = (orgId, streamId, rows) => this.nearby!.worker.attestRows(orgId, streamId, rows);
+      this.server.relaying = options.nearby.delivery === true;
       this.roles = roles;
     }
     const { crew } = options;
@@ -264,7 +265,7 @@ export class Fleet {
     for (const d of this.devices) d.stop();
     const log = this.server.stream(this.orgId, this.streamId);
     const expected = foldDigest(foldLanguage(log, emptyLanguageState()));
-    // Work only a lost author could send stays nearby until delivery (phase 4). A phone holding any of it must hold all
+    // Work only a lost author could send stays nearby without delivery (phase 4). A phone holding any of it must hold all
     // that any phone holds, and agree on the server's log plus it; a phone that never met the team agrees on the log.
     const unsent = new Map<string, AnyEvent>();
     const held = new Map<SimDevice, number>();
@@ -313,6 +314,7 @@ export class Fleet {
         offlineSyncs: sum((d) => d.metrics.offlineSyncs),
         fills: sum((d) => d.metrics.fills),
         syncErrors: sum((d) => d.metrics.syncErrors),
+        delivered: sum((d) => d.metrics.delivered),
         syncCpuMs: stats(flat((d) => d.metrics.syncCpuMs)),
         appendCpuMs: stats(flat((d) => d.metrics.appendCpuMs)),
         // Each install loads once, and so does each adopted server snapshot; the rest are refolds.
@@ -407,6 +409,8 @@ export interface FleetReport {
     /** Passages filled in from the server's cut. */
     fills: number;
     syncErrors: number;
+    /** Teammates' events phones delivered that the server took as new (docs/nearby-sync-plan.md section 6). */
+    delivered: number;
     syncCpuMs: Stats;
     appendCpuMs: Stats;
     /** Full refolds of the local log, beyond the load at install and after adopting a snapshot. */

@@ -12,9 +12,10 @@ import { newTime, record, sessionFor, settled, testPhone, type TestPhone } from 
  * phone is not a server (5.1), so however work is split among phones, whichever pairs meet
  * in whatever order, and whatever links drop mid-session, once every phone has reached the
  * server each one must fold to exactly what the server's log folds to (PLAN.md invariant 2),
- * with nothing left nearby. Until delivery (phase 4) only an author sends its own work up,
- * so every phone reaches the server at the end, in an order the run picks, and some go to
- * town on the way.
+ * with nothing left nearby. Without delivery only an author sends its own work up, so every
+ * phone reaches the server at the end, in an order the run picks, and some go to town on the
+ * way. From phase 4 (section 6), after a full round of exchanges any one phone alone reaching
+ * the server leaves it holding every event any phone made, for authors within their budget.
  */
 
 type Step =
@@ -140,5 +141,70 @@ describe.each(STORES)('nearby converges on the %s store', (name, make) => {
     expect(moved.files).toBeGreaterThan(0);
     expect(moved.ends['dropped']).toBeGreaterThan(0);
     expect(moved.ends['done']).toBeGreaterThan(0);
+  });
+
+  it('phase 4: after a full round of exchanges, any one phone alone reaching the server leaves it every event any phone made, and then every phone folds to it', async () => {
+    // Files are the fleet's to check (fleet.test.ts, delivery through a teammate): these phones have no uploader.
+    const runs = Math.ceil(Number(process.env['NEARBY_RUNS'] ?? RUNS[name]) / 2);
+    let delivered = 0;
+    await fc.assert(fc.asyncProperty(
+      fc.integer({ min: 2, max: PHONES }),
+      fc.array(fc.record({ phone: fc.nat(PHONES - 1), what: fc.constantFrom('unit', 'record', 'note', 'take') as fc.Arbitrary<'unit'> }), { minLength: 1, maxLength: 16 }),
+      fc.array(fc.record({ a: fc.nat(PHONES - 1), b: fc.nat(PHONES - 1), dropAt: fc.option(fc.integer({ min: 1, max: 40 }), { freq: 2 }) }), { maxLength: 6 }),
+      fc.nat(PHONES - 1),
+      fc.boolean(),
+      async (n, work, earlier, carrierAt, keepOdd) => {
+        const server = new FakeServer();
+        server.relaying = true;
+        server.attester = (orgId, streamId, rows) => worker.attestRows(orgId, streamId, rows);
+        const shelf: MemoryFiles = new Map();
+        const time = newTime();
+        const kept = (i: number) => keepOdd && i % 2 === 1;
+        const phones: TestPhone[] = [];
+        for (let i = 0; i < n; i++) phones.push(await testPhone(server, make(), people[i]!, shelf, kept(i) ? { keepOnDisk: true, checkpointEvery: 3 } : {}));
+        let serial = 0;
+        const units = ['u0'];
+        for (const w of work) {
+          const p = phones[w.phone % n]!;
+          const id = (what: string) => newCommandId(p.who.profileId, `${what}${++serial}`);
+          const unitId = units[serial % units.length]!;
+          if (w.what === 'unit') {
+            const u = id('u');
+            units.push(u);
+            await p.client.append('v1.UnitAdded', { unitId: u, parentUnitId: null, kind: 'passage', label: u, order: u });
+          } else if (w.what === 'record') await record(p, shelf, `r${++serial}`, unitId);
+          else if (w.what === 'note') await p.client.append('v1.NoteAdded', { noteId: id('n'), unitId, anchor: { kind: 'passage' }, text: 'a note' });
+          else {
+            const takeId = id('t');
+            await p.client.append('v1.TakeComposed', { takeId, unitId, cardHashes: [`c${serial}`], parentTakeId: null });
+          }
+        }
+        const pairUp = async (a: TestPhone, b: TestPhone, dropAt: number | null) => {
+          const pair = memoryNearbyPair({ time, files: shelf });
+          if (dropAt !== null) pair.dropAt(dropAt);
+          await settled(time, sessionFor(a, 'i', pair.a, time).run(), sessionFor(b, 'r', pair.b, time).run());
+        };
+        // Some meetings that drop, then a full round: every pair twice, so all each holds reaches all.
+        for (const e of earlier) if (e.a % n !== e.b % n) await pairUp(phones[e.a % n]!, phones[e.b % n]!, e.dropAt);
+        for (let pass = 0; pass < 2; pass++) for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) await pairUp(phones[a]!, phones[b]!, null);
+
+        const made = new Set<string>();
+        for (const p of phones) for (const l of [...(await p.client.inspect()).pending, ...(await p.store.nearbyPage(ORG, LANG, null, 10_000))]) made.add(l.event.id);
+        const carrier = phones[carrierAt % n]!;
+        await toTown(carrier);
+        const onServer = new Set(server.stream(ORG, LANG).map((e) => e.id));
+        expect([...made].filter((id) => !onServer.has(id))).toEqual([]);
+        delivered += server.stream(ORG, LANG).filter((e) => e.actorId !== carrier.who.profileId).length;
+
+        for (let round = 0; round < 2; round++) for (const p of phones) await toTown(p);
+        const expected = foldDigest(foldLanguage(server.stream(ORG, LANG), emptyLanguageState()));
+        for (const [i, p] of phones.entries()) {
+          expect({ phone: i, nearby: (await p.client.inspect()).nearby }).toEqual({ phone: i, nearby: 0 });
+          expect({ phone: i, digest: foldDigest(await whole(p, kept(i))) }).toEqual({ phone: i, digest: expected });
+        }
+      }
+    ), { numRuns: runs });
+    // Across the runs, so a property where nobody delivered anything cannot pass.
+    expect(delivered).toBeGreaterThan(0);
   });
 });

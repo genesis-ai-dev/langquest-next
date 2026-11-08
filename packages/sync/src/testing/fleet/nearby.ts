@@ -45,6 +45,12 @@ export interface FleetNearbyOptions {
   budget?: { maxRows: number; maxBytes: number; maxManifestBytes: number };
   /** The room's idle limit: "Up to date" this long with nobody new stops it. */
   idleLimitMs?: number;
+  /**
+   * Delivery through a teammate (docs/nearby-sync-plan.md section 6, phase 4): a phone that reaches
+   * the server sends teammates' signed work on their behalf. Off, only authors send their own, as
+   * before phase 4, so the earlier scenarios count what they always did.
+   */
+  delivery?: boolean;
 }
 
 /** What the fleet tells nearby about its phones. */
@@ -110,7 +116,7 @@ export class FleetNearby {
   constructor(private readonly ctx: FleetNearbyContext, options: FleetNearbyOptions = {}) {
     this.o = {
       tickMs: 2_000, wifiUpMs: 5_000, wifi: true, bluetooth: NEARBY_NETWORKS.bluetooth, wifiShape: NEARBY_NETWORKS.wifi,
-      budget: { ...NEARBY_BUDGET }, idleLimitMs: 300_000, ...options
+      budget: { ...NEARBY_BUDGET }, idleLimitMs: 300_000, delivery: false, ...options
     };
     this.air = memoryNearbyAir({ time: ctx.time, files: this.shelf });
   }
