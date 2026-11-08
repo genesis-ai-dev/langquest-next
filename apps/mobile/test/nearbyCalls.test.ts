@@ -124,3 +124,29 @@ describe('the relay call (docs/nearby-sync-plan.md section 6)', () => {
     expect(relayBatches).toBeUndefined();
   });
 });
+
+describe('the join call', () => {
+  const join = { chain: [{ kind: 'worker@1' }], proof: 'p', profileId: 'n1', requestId: '6f1d2c4e-8b1a-4c3d-9e2f-0a1b2c3d4e5f' };
+
+  it('posts the body signed out, and hands back the status and body as answered', async () => {
+    const { joinNearby } = await load();
+    reply = () => new Response(JSON.stringify({ error: 'pass expired', status: 'expired' }), { status: 410 });
+    expect(await joinNearby(join)).toEqual({ status: 410, body: { error: 'pass expired', status: 'expired' } });
+    expect(calls[0]!.url).toBe('https://next.example/api/nearby/join');
+    expect((calls[0]!.init?.headers as Record<string, string>)['Authorization']).toBeUndefined();
+    expect(JSON.parse(calls[0]!.init?.body as string)).toEqual(join);
+    reply = () => new Response('<html>', { status: 503 });
+    expect(await joinNearby(join)).toEqual({ status: 503, body: null });
+  });
+
+  it('no network is offline, and a build with no Worker address cannot call', async () => {
+    const { joinNearby } = await load();
+    reply = () => { throw new TypeError('Network request failed'); };
+    await expect(joinNearby(join)).rejects.toMatchObject({ name: 'OfflineError' });
+    vi.stubEnv('EXPO_PUBLIC_API_URL', '');
+    const again = await load();
+    calls.length = 0;
+    await expect(again.joinNearby(join)).rejects.toThrow(/EXPO_PUBLIC_API_URL/);
+    expect(calls).toEqual([]);
+  });
+});

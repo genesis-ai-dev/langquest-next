@@ -61,6 +61,8 @@ import { identityOf } from './src/session/identityModel';
 import { localOrgOf, type LocalPerson } from './src/server/localPerson';
 import { useLocalPerson } from './src/shell/useLocalPerson';
 import { useChainMembership } from './src/nearby/useChainMembership';
+import { useFirstContact } from './src/nearby/useFirstContact';
+import type { FirstContactView } from './src/session/firstContactModel';
 import { noteAuthEvent } from './src/diagnostics/authDiag';
 import { nearbyAfterAuthEvent } from './src/nearby/nearbySignOut';
 import { watchRenewals } from './src/server/renewalWatch';
@@ -421,9 +423,11 @@ function Shell(props: Who) {
   // The held invite is used here, above the organization, so opening the
   // organization it joined cannot interrupt it. It redeems through the server.
   const invite = useHeldInvite(props.serverSession ? props.actorId : null, openOrganization);
+  // A local person's first contact, here for the same reason: the session it adopts must not remount what is open (14.1, 6).
+  const firstContact = useFirstContact({ serverAs: props.serverSession ? props.actorId : null });
   if (!decided) return <View style={styles.root} accessibilityLabel={t('shell.openingOrganization')} />;
   return <Workspace key={`${orgId}:${selectionRevision}`} {...props} orgId={orgId} noOrganizations={noOrganizations} openOrganization={openOrganization} invite={invite}
-    arrival={arrival?.orgId === orgId ? arrival : null} />;
+    firstContact={firstContact} arrival={arrival?.orgId === orgId ? arrival : null} />;
 }
 
 /**
@@ -432,7 +436,8 @@ function Shell(props: Who) {
  * the first sync has had its chance), which languages it has is unknown, so
  * nothing is opened yet.
  */
-function Workspace(props: Who & { orgId: string | null; noOrganizations: boolean; openOrganization: Ctx['openOrganization']; invite: InviteHandle; arrival: Arrival | null }) {
+function Workspace(props: Who & { orgId: string | null; noOrganizations: boolean; openOrganization: Ctx['openOrganization']; invite: InviteHandle; firstContact: FirstContactView;
+  arrival: Arrival | null; }) {
   // A local person's membership is their chain's until the fold has any entry for them (docs/nearby-sync-plan.md 14.1, 5).
   const org = useChainMembership(useOrg(props.orgId, props.actorId), props.orgId, props.local);
   // Help audio waits for this organization's first sync (src/helpMode/useKeepHelpAudio.ts).
@@ -452,7 +457,7 @@ function Workspace(props: Who & { orgId: string | null; noOrganizations: boolean
  * place, without leaving the screen.
  */
 function OrgWork(props: Who & {
-  orgId: string; noOrganizations: boolean; org: OrgHandle; openOrganization: Ctx['openOrganization']; invite: InviteHandle; arrival: Arrival | null }) {
+  orgId: string; noOrganizations: boolean; org: OrgHandle; openOrganization: Ctx['openOrganization']; invite: InviteHandle; firstContact: FirstContactView; arrival: Arrival | null }) {
   const liveOrg = props.org;
   const nav = useNav({ screen: 'sign_in' });
   // A Global Viewer whose access is on reads every organization, as a Viewer (decisions.md 158).
@@ -516,7 +521,7 @@ function OrgWork(props: Who & {
     ready: onboarding.loaded && welcomeBack.loaded
   });
   const homeIsWork = homeScreenFor(session) === 'my_work';
-  const { invite } = props;
+  const { invite, firstContact } = props;
   // Links still open screens for a local person; asking "Join as you?" and the Inbox's pushes wait for a server session.
   useIncoming({
     nav, invite, signedIn: props.serverSession, onboardingLoaded: onboarding.loaded, actorId: props.actorId, orgId: props.orgId,
@@ -568,12 +573,13 @@ function OrgWork(props: Who & {
     acceptTerms,
     markJoined,
     invite,
+    firstContact,
     openOrganization,
     openDev,
     isDev: IS_DEV,
     canSwitchPersona
   }), [language, org, session, params, go, back, home, languageId, setLanguage, languages, act, toast, details, recent, openPassage,
-    name, blocks, inboxView, welcomeView, markWelcomed, acceptTerms, invite, openOrganization, openDev, canSwitchPersona]);
+    name, blocks, inboxView, welcomeView, markWelcomed, acceptTerms, invite, firstContact, openOrganization, openDev, canSwitchPersona]);
   const syncSources = useMemo(() => ({ language: language.syncStatus, org: org.syncStatus }), [language.syncStatus, org.syncStatus]);
 
   const screen = nav.current.screen;

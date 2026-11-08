@@ -82,3 +82,33 @@ export async function attestPulled(orgId: string, streamId: string, afterSeq: nu
   if (!isText(text, 1_000_000) || !isText(kid, 64) || !isText(sig, 200)) throw new NearbyCallError(res.status);
   return { text, kid, sig };
 }
+
+export interface JoinRequest {
+  /** The newcomer's two-link chain: the inviter's certificate and the invite link. */
+  chain: unknown[];
+  /** The install key's signature over the First contact text. */
+  proof: string;
+  profileId: string;
+  /** A UUID, the same at every try, so a repeat is a repeat. */
+  requestId: string;
+  /** An ordinary invite's token, for someone a pass no longer takes (decision 59). */
+  token?: string;
+}
+
+/**
+ * `POST /api/nearby/join` (docs/nearby-sync-plan.md 14.1, 6), signed out: a local person's
+ * first contact. The status and body as the Worker answered, for the caller to read
+ * (session/firstContactModel.ts); `OfflineError` when it cannot be reached. Nothing is logged:
+ * the answer may hold a session.
+ */
+export async function joinNearby(request: JoinRequest): Promise<{ status: number; body: unknown }> {
+  if (apiUrl === null) throw new Error('No Worker is set up for this build (EXPO_PUBLIC_API_URL).');
+  let res: Response;
+  try {
+    res = await fetch(`${apiUrl}/api/nearby/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request) });
+  } catch (e) {
+    // i18n-ignore: the error's message, for diagnostics
+    throw new OfflineError(e instanceof Error ? e.message : 'The Worker could not be reached.');
+  }
+  return { status: res.status, body: await res.json().catch(() => null) as unknown };
+}
