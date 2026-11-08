@@ -224,17 +224,20 @@ describe('--publish', () => {
     }
   });
 
-  it('keeps a newer current build, leaves a file already there, refuses a current record it did not write, and writes nothing on a dry run', async () => {
+  it('keeps a newer current build, leaves a file already there and the record that describes it, refuses a current record it did not write, and writes nothing on a dry run', async () => {
     const newer = fakes();
     newer.bucket.set(CURRENT, { body: JSON.stringify({ name: 'r30-l1-p1-ffffffff.apk', versionCode: 99 }), type: 'application/json' });
     await publish({ ...base, fetch: newer.fetch });
     expect(JSON.parse(newer.bucket.get(CURRENT)!.body as string).versionCode).toBe(99);
     expect(newer.bucket.has(NAME)).toBe(true);
 
+    // A file already there is the one current.json describes, or none: the record never takes this build's sha256 and size for another's bytes.
     const there = fakes();
     there.bucket.set(NAME, { body: apk(), type: APK_TYPE });
+    there.bucket.set(CURRENT, { body: JSON.stringify({ name: NAME, versionCode: 30, sha256: 'old', bytes: 7 }), type: 'application/json' });
     await publish({ ...base, fetch: there.fetch });
-    expect(there.writes().map((c) => c.url.replace(/^.*\/apks\//, ''))).toEqual([CURRENT]);
+    expect(there.writes()).toEqual([]);
+    expect(JSON.parse(there.bucket.get(CURRENT)!.body as string)).toEqual({ name: NAME, versionCode: 30, sha256: 'old', bytes: 7 });
 
     const odd = fakes();
     odd.bucket.set(CURRENT, { body: 'hello', type: 'text/plain' });

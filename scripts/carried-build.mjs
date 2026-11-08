@@ -267,12 +267,13 @@ export async function publish({
   }
   const already = await bucket.head(name);
   const record = { name, versionCode: code, fingerprint: String(fingerprint).toLowerCase(), ...versions, sha256: hash, bytes: bytes.length, publishedAt: now().toISOString() };
-  const moves = !current || current.versionCode < code;
+  // A file already there was published with its own record: this build's sha256 and size describe other bytes.
+  const moves = !already && (!current || current.versionCode < code);
   if (dryRun) {
     log(`dry run: would put ${name} (${bytes.length} bytes, sha256 ${hash}) in the APK bucket${already ? ', which has it already' : ''}${moves ? `, and record version code ${code} as current` : ''}.`);
     return { name, record, wrote: false };
   }
-  if (already) log(`${name} is in the APK bucket already; it is left as it is.`);
+  if (already) log(`${name} is in the APK bucket already; it and the current record are left as they are.`);
   else {
     await bucket.put(name, bytes, APK_TYPE, { 'content-disposition': `attachment; filename="${name}"` });
     const stored = await bucket.head(name);
@@ -282,7 +283,7 @@ export async function publish({
   if (moves) {
     await bucket.put(CURRENT, JSON.stringify(record, null, 2), 'application/json');
     log(`Version code ${code} is the current carried build.`);
-  } else {
+  } else if (!already) {
     log(`Version code ${current.versionCode} stays the current carried build, as it is newer than ${code}.`);
   }
   return { name, record, wrote: true };
