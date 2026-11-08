@@ -347,6 +347,9 @@ export class NearbyRoom {
 
   private heardSalt(salt: string): void {
     this.salts = { current: salt, previous: this.salts.current };
+    // An echo stands only while it names one of these two, so a recording made while a teammate was live stops drawing a connection.
+    // A live teammate's next advert echoes again, since it still names the previous salt until it hears the new one.
+    for (const h of this.heard.values()) h.echoed = false;
     this.usedR.clear();
     for (const s of [...this.nonces.keys()]) if (s !== this.salts.current && s !== this.salts.previous) this.nonces.delete(s);
   }

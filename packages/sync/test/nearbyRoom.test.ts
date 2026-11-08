@@ -133,6 +133,29 @@ describe.each(STORES)('a room on the %s store', (_name, make) => {
     expect(air.maskRepeats).toEqual([]);
   });
 
+  it('an echo holds only while it names this phone\'s current or previous salt: a replay after two rotations draws no connection', async () => {
+    // Why: an echo once heard stood for the whole run, so a recording made while the teammate was live drew a connection for good.
+    const [a, b] = await rooms(2);
+    await unit(b!.phone, 'b1');
+    // Sam's phone hears Ana's salt and echoes it in its next advert, which a scanner far away records; then it goes.
+    air.scan();
+    await b!.room.tick(time.now());
+    const recorded = air.adverts.filter((ad) => ad.peer === b!.radio.name).at(-1)!;
+    await b!.room.stop();
+    const replayed = async (rotations: number) => {
+      for (let i = 0; i < rotations; i++) air.rotate(a!.radio.name);
+      const before = a!.radio.calls.openPipe;
+      for (let i = 0; i < 15; i++) {
+        air.replay(recorded);
+        await turn(air, time, [a!], false);
+      }
+      return a!.radio.calls.openPipe - before;
+    };
+    // While it names Ana's salt, it is an echo, and Ana tries to connect; after two rotations it names neither of her salts.
+    expect(await replayed(0)).toBeGreaterThan(0);
+    expect(await replayed(2)).toBe(0);
+  });
+
   it('a tap connects where no echo came', async () => {
     const [a, b] = await rooms(2, [{}, { caps: { advertise: true } }]);
     await unit(b!.phone, 'b1');
