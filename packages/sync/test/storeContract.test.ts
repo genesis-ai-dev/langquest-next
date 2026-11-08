@@ -494,8 +494,8 @@ describe.each(impls)('%s nearby contract', (_name, make) => {
     const use = await store.nearbyUse('o', 'p');
     const sized = (...events: LocalEvent[]) => events.reduce((n, l) => n + JSON.stringify(l.event).length, 0);
     expect([...use].sort((a, b) => (a.who < b.who ? -1 : 1))).toEqual([
-      { who: 'actor:sam', rows: 2, bytes: sized(batchRow, nearby('b2', '000000000000004:000000:d1', { actorId: 'sam' })), manifestBytes: 0 },
-      { who: 'claim:K2', rows: 1, bytes: sized(claimRow), manifestBytes: 0 }
+      { who: 'actor:sam', rows: 2, bytes: sized(batchRow, nearby('b2', '000000000000004:000000:d1', { actorId: 'sam' })), manifestBytes: 0, keys: [] },
+      { who: 'claim:K2', rows: 1, bytes: sized(claimRow), manifestBytes: 0, keys: [] }
     ]);
   });
 
@@ -506,7 +506,26 @@ describe.each(impls)('%s nearby contract', (_name, make) => {
     await store.commit({ batches: [batch('p', 'K1', 1, 'sam', 'x'.repeat(10)), batch('p', 'K2', 1, 'sam', 'y'.repeat(5)), batch('p', 'K3', 1, 'ana', 'z'.repeat(7)), batch('elsewhere', 'K1', 1, 'sam', 'w'.repeat(100))] });
     const use = await store.nearbyUse('o', 'p');
     expect(use.find((u) => u.who === 'actor:sam')).toMatchObject({ rows: 1, manifestBytes: 15 });
-    expect(use.find((u) => u.who === 'actor:ana')).toEqual({ who: 'actor:ana', rows: 0, bytes: 0, manifestBytes: 7 });
+    expect(use.find((u) => u.who === 'actor:ana')).toEqual({ who: 'actor:ana', rows: 0, bytes: 0, manifestBytes: 7, keys: ['K3'] });
+  });
+
+  it('counts a newcomer\'s rows and manifests by the pass in the chain kept with its batch, and names its keys', async () => {
+    // Why: one inviter can mint any number of newcomers offline, so they share one budget per pass (docs/nearby-sync-plan.md 5.4).
+    const store = await make();
+    const chain = (passId: unknown) => JSON.stringify([{ kind: 'worker@1' }, { kind: 'invite@1', body: { pass: { body: { passId } } } }]);
+    const batch = (key: string, n: number, actorId: string, manifest: string, c: string) => ({ orgId: 'o', streamId: 'p', key, n, deviceId: 'd1', actorId, firstHlc: null, manifest, sig: 's', chain: c });
+    await store.commit({ batches: [batch('N1', 1, 'n1', 'x'.repeat(10), chain('P')), batch('N2', 4, 'n2', 'y'.repeat(5), chain('P')), batch('N3', 1, 'n3', 'z', chain(7)), batch('N4', 1, 'n4', 'w', 'not json')] });
+    const row = (id: string, actorId: string, key: string, n: number): LocalEvent => ({ ...nearby(id, `00000000000000${id.length}:000000:d1`, { actorId }), via: { batch: n, key } });
+    const rows = [row('a', 'n1', 'N1', 1), row('bb', 'n2', 'N2', 4), row('ccc', 'n2', 'N2', 9), row('dddd', 'n3', 'N3', 1)];
+    await store.commit({ receive: rows });
+    const use = await store.nearbyUse('o', 'p');
+    const pass = use.find((u) => u.who === 'pass:P')!;
+    expect(pass).toMatchObject({ rows: 2, bytes: JSON.stringify(rows[0]!.event).length + JSON.stringify(rows[1]!.event).length, manifestBytes: 15 });
+    expect([...pass.keys].sort()).toEqual(['N1', 'N2']);
+    // A row under a number no batch here holds, a pass id that is not text, and a chain that is not JSON each count as the author's.
+    expect(use.find((u) => u.who === 'actor:n2')).toMatchObject({ rows: 1 });
+    expect(use.find((u) => u.who === 'actor:n3')).toMatchObject({ rows: 1, manifestBytes: 1, keys: ['N3'] });
+    expect(use.find((u) => u.who === 'actor:n4')).toMatchObject({ rows: 0, manifestBytes: 1, keys: ['N4'] });
   });
 });
 

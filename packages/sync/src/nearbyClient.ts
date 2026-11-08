@@ -1,7 +1,7 @@
 import { clockCloseEnough, decodeHlc, entityKeyOf, validateEvent, type AnyEvent, type LanguageState } from '@langquest-next/core';
 import {
   applyFloor, checkChain, countBatch, doorFactsOf, doorKeptReads, isCounted, NEARBY_VECTOR_MAX_RANGES, nearbyCopy, nearbyDoor, nearbyLookUpRefusal, parseAttestation, parseBatchManifest,
-  parseVector, revokedLater, type DoorFacts, type NearbyPeople, type NearbyVector, type NearbyVia, type PageFacts, type RevocationList
+  parseVector, revokedLater, type DoorFacts, type InviteLink, type NearbyPeople, type NearbyVector, type NearbyVia, type PageFacts, type RevocationList
 } from '@langquest-next/core/nearby';
 import type { Diagnostics } from './diagnostics';
 import { deliverNearby, departureOf, departureRows } from './nearbyDeliver';
@@ -12,7 +12,7 @@ import {
 } from './nearbyIntake';
 import { batchPageOf, nextClaimsOf, signBatch } from './nearbySender';
 import { applyRevocationList, attestNearby, isServerVerdict, replaceBareManifest, settleBatches, sweepNearby, type NearbyHost, type NearbyPlatform } from './nearbyUpkeep';
-import { nearbyBudgetOf, type EventStore, type KeptRecord, type LocalEvent, type NearbyUse, type Transport, type WriteBatch } from './types';
+import { nearbyBudgetOf, passIdOfChain, type EventStore, type KeptRecord, type LocalEvent, type NearbyUse, type Transport, type WriteBatch } from './types';
 
 /**
  * Nearby sharing's half of a `SyncClient` (docs/nearby-sync-plan.md 5.4, 5.7, 5.12): signing,
@@ -194,6 +194,8 @@ const byId = (rows: readonly LocalEvent[]) => new Map(rows.map((l) => [l.event.i
 
 class NearbyClient implements NearbyPart {
   private useNow: Map<string, NearbyUse> | null = null;
+  /** Signer keys kept under each budget, as `useNow` counts them: a pass's newcomers here. */
+  private keysNow = new Map<string, Set<string>>();
   /** The door ran over the rows under this reducer, in this client's life. */
   private doorChecked = false;
   private readonly farAhead = new Map<string, string>();
@@ -288,11 +290,12 @@ class NearbyClient implements NearbyPart {
   async startNearbyBudget(): Promise<void> {
     const use = await this.port.store.nearbyUse(this.port.orgId, this.port.streamId);
     this.useNow = new Map(use.map((u) => [u.who, u]));
+    this.keysNow = new Map(use.map((u) => [u.who, new Set(u.keys)]));
   }
 
   private async overBudget(who: string, events: readonly AnyEvent[], budget: NearbyIntake['budget'], manifestChars = 0): Promise<boolean> {
     if (!this.useNow) await this.startNearbyBudget();
-    const use = this.useNow!.get(who) ?? { rows: 0, bytes: 0, manifestBytes: 0 };
+    const use = this.useNow!.get(who) ?? { rows: 0, bytes: 0, manifestBytes: 0, keys: [] };
     let bytes = use.bytes;
     for (const e of events) {
       // An event too deep to write out spends nothing here: it cannot pass its digest, and this runs before anything has judged it.
@@ -301,17 +304,19 @@ class NearbyClient implements NearbyPart {
     return use.rows + events.length > budget.maxRows || bytes > budget.maxBytes || (manifestChars > 0 && use.manifestBytes + manifestChars > budget.maxManifestBytes);
   }
 
-  private spend(rows: readonly LocalEvent[]): void {
+  private spend(rows: readonly LocalEvent[], passId?: string | null): void {
     for (const l of rows) {
-      const who = nearbyBudgetOf(l.event.actorId, l.via);
-      const use = this.useNow?.get(who) ?? { who, rows: 0, bytes: 0, manifestBytes: 0 };
+      const who = nearbyBudgetOf(l.event.actorId, l.via, passId);
+      const use = this.useNow?.get(who) ?? { who, rows: 0, bytes: 0, manifestBytes: 0, keys: [] };
       this.useNow?.set(who, { ...use, rows: use.rows + 1, bytes: use.bytes + JSON.stringify(l.event).length });
     }
   }
 
-  private spendManifest(who: string, chars: number): void {
-    const use = this.useNow?.get(who) ?? { who, rows: 0, bytes: 0, manifestBytes: 0 };
+  /** A manifest kept under `who`, signed by `key`. */
+  private spendManifest(who: string, key: string, chars: number): void {
+    const use = this.useNow?.get(who) ?? { who, rows: 0, bytes: 0, manifestBytes: 0, keys: [] };
     this.useNow?.set(who, { ...use, manifestBytes: use.manifestBytes + chars });
+    this.keysNow.set(who, (this.keysNow.get(who) ?? new Set()).add(key));
   }
 
   /**
@@ -333,12 +338,20 @@ class NearbyClient implements NearbyPart {
     if (!manifest) return nearbyDropped('bad manifest');
     const { key, n, floor } = manifest;
     if (isCounted(await this.vector(), key, n)) return { ...nearbyDropped('already counted'), outcome: 'ignored', counted: true };
-    // A manifest with no ids is exempt from its budget: only a signer's newest bare one stays, so it costs one row however many come, and its floor must travel.
-    if (await this.overBudget(`actor:${manifest.actorId}`, page.events, intake.budget, manifest.events.length > 0 ? page.manifest.length : 0)) return nearbyDropped('over budget', { overBudget: true });
+    // A newcomer's batches spend their pass's budget, read here from a chain not yet checked: one naming another pass fails its check below, so it can only drop its own page.
+    const passId = passIdOfChain(page.chain);
+    const who = nearbyBudgetOf(manifest.actorId, undefined, passId);
+    // A member's manifest with no ids is exempt: only a signer's newest bare one stays, so it costs one row however many come, and its floor must travel.
+    // A newcomer's is not, since one pass can mint any number of newcomers offline, each with a bare manifest of its own.
+    if (await this.overBudget(who, page.events, intake.budget, manifest.events.length > 0 || passId ? page.manifest.length : 0)) return nearbyDropped('over budget', { overBudget: true });
     // 2 to 4.
     const checked = await checkBatchPage(manifest, page, intake, streamId);
     if ('reason' in checked) return nearbyDropped(checked.reason);
+    const pass = checked.verdict.ok && checked.verdict.links === 2 ? (page.chain[1] as InviteLink).body.pass.body : null;
     return this.port.exclusive(async () => {
+      // A pass lets in `maxUses` people, so no more than that many newcomers' keys under it are kept here.
+      const newcomers = pass ? this.keysNow.get(who) : undefined;
+      if (pass && !newcomers?.has(key) && (newcomers?.size ?? 0) >= pass.maxUses) return nearbyDropped('more newcomers than the pass lets in', { overBudget: true });
       await this.doorAgainOnce(intake);
       const held = await store.batchesAfter(orgId, streamId, key, n - 1, 2);
       const same = held.find((b) => b.n === n);
@@ -359,15 +372,17 @@ class NearbyClient implements NearbyPart {
       const ownCount = key === intake.ownKey ? await this.number(this.port.key('nearbyCount', key)) : null;
       const isNewest = held.every((b) => b.n <= n);
       const firstHlc = door.rows.reduce<string | null>((low, { event: e }) => (low === null || e.hlc < low ? e.hlc : low), null);
-      const bare = folded.rows.length === 0 && isNewest ? await replaceBareManifest(this.host, key, n) : {};
+      // A bare manifest from someone this phone no longer lets in (removed, or let in by an inviter since revoked or removed) is not kept, so it does not spread.
+      const keep = folded.rows.length > 0 || (isNewest && people.privilegesIn(manifest.actorId, streamId).size > 0);
+      const bare = folded.rows.length === 0 && keep ? await replaceBareManifest(this.host, key, n) : {};
       await this.commitNearby({
         receive: folded.rows,
         events: folded.rejected,
-        ...(folded.rows.length > 0 || isNewest ? { batches: [{ orgId, streamId, key, n, deviceId: manifest.deviceId, actorId: manifest.actorId, firstHlc, manifest: page.manifest, sig: page.sig, chain: JSON.stringify(chainAsSigned(page.chain)) }] } : {}),
+        ...(keep ? { batches: [{ orgId, streamId, key, n, deviceId: manifest.deviceId, actorId: manifest.actorId, firstHlc, manifest: page.manifest, sig: page.sig, chain: JSON.stringify(chainAsSigned(page.chain)) }] } : {}),
         ...bare,
         meta: { ...this.port.clockMeta(), ...this.vectorMeta(vector), ...(ownCount !== null && ownCount < n ? { [this.port.key('nearbyCount', key)]: String(n) } : {}), ...bare.meta }
-      }, folded);
-      if (!same && folded.rows.length > 0) this.spendManifest(`actor:${manifest.actorId}`, page.manifest.length);
+      }, folded, passId);
+      if (!same && (folded.rows.length > 0 || (keep && passId))) this.spendManifest(who, key, page.manifest.length);
       return { outcome: 'taken' as const, kept: folded.rows.length, refused: [...checked.refused, ...door.refused], counted, ...(folded.farAhead ? { farAhead: folded.farAhead } : {}) };
     });
   }
@@ -485,7 +500,7 @@ class NearbyClient implements NearbyPart {
   }
 
   /** The page's one commit. It carries no cursor, because only the server moves a cursor. A commit that fails leaves the fold ahead of the log, so it folds again. */
-  private async commitNearby(batch: WriteBatch, folded: NearbyFolded): Promise<void> {
+  private async commitNearby(batch: WriteBatch, folded: NearbyFolded, passId?: string | null): Promise<void> {
     if (folded.rows.length > 0) batch.meta = { ...batch.meta, [HELD_KEY]: '1' };
     try {
       await this.port.commit(batch);
@@ -495,7 +510,7 @@ class NearbyClient implements NearbyPart {
     }
     if (folded.rows.length > 0) this.phone.held = true;
     this.port.compareFromNow();
-    this.spend(folded.rows);
+    this.spend(folded.rows, passId);
     if (folded.refold) await this.port.refold('other');
   }
 

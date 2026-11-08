@@ -197,13 +197,23 @@ export interface NearbyUse {
   rows: number;
   bytes: number;
   manifestBytes: number;
+  /** The signer keys whose manifests are kept under it: for a pass, its newcomers here. */
+  keys: string[];
 }
 
 /**
- * Whose budget a nearby row spends: a batch row its author's, and a claim its claimer's,
- * never the event's author, so that a teammate cannot spend Sam's budget by naming him.
+ * Whose budget a nearby row spends: a claim its claimer's, never the event's author, so that
+ * a teammate cannot spend Sam's budget by naming him; a batch row under a newcomer's chain its
+ * pass's, since one inviter can mint any number of newcomers offline; any other its author's.
  */
-export const nearbyBudgetOf = (actorId: string, via: NearbyVia | undefined): string => (via && 'claim' in via ? `claim:${via.claim.key}` : `actor:${actorId}`);
+export const nearbyBudgetOf = (actorId: string, via: NearbyVia | undefined, passId?: string | null): string =>
+  (via && 'claim' in via ? `claim:${via.claim.key}` : passId ? `pass:${passId}` : `actor:${actorId}`);
+
+/** A two-link chain's pass id, as written, checked by nothing here: which budget a newcomer's batches spend. */
+export function passIdOfChain(chain: unknown): string | null {
+  const id = Array.isArray(chain) && chain.length === 2 ? (chain[1] as { body?: { pass?: { body?: { passId?: unknown } } } } | null)?.body?.pass?.body?.passId : null;
+  return typeof id === 'string' && id !== '' ? id : null;
+}
 
 export interface AppendResult {
   id: string;

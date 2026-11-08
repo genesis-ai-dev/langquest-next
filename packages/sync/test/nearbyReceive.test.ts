@@ -1,13 +1,16 @@
 import { encodeHlc, foldLanguage, emptyLanguageState, newCommandId, REDUCER_VERSION, type AnyEvent, type LanguageState } from '@langquest-next/core';
-import { isCounted, manifestText, NEARBY_BUDGET, nearbyBytes, parseVector, type NearbyVia, type RevocationList } from '@langquest-next/core/nearby';
 import {
-  LANG, LANG2, NOW, ORG, STORES, claimsOf, eventBy, everyone, intakeFor, manifestOf, pageOf, phone, recordingBy, rowOf, signerOf, statusOf, teammate, unitBy, vectorOf, wallClock, watched, type Teammate
+  base64urlEncode, isCounted, issueInviteLink, joinPassBody, manifestText, NEARBY_BUDGET, NEARBY_VECTOR_MAX_KEYS, nearbyBytes, newcomerProfileId, parseVector,
+  type NearbyPeople, type NearbyVia, type RevocationList, type WorkerLink
+} from '@langquest-next/core/nearby';
+import {
+  LANG, LANG2, NOW, ORG, STORES, claimsOf, eventBy, everyone, intakeFor, manifestOf, pageOf, phone, recordingBy, rowOf, signerOf, statusOf, teammate, unitBy, vectorOf, wallClock, watched, worker, type Teammate
 } from './nearbyFixtures';
 import { MemoryStore } from '../src/memoryStore';
 import { nearbyClient } from '../src/nearbyClient';
 import { LANGUAGE_MATERIALIZER } from '../src/syncClient';
 import { FakeServer } from '../src/testing/fakeServer';
-import { fakeSigner } from '../src/testing/memoryNearbyLink';
+import { fakeSha256, fakeSigner } from '../src/testing/memoryNearbyLink';
 import type { EventStore, LocalEvent } from '../src/types';
 
 /**
@@ -938,6 +941,90 @@ describe.each(STORES)('the budget per signer on the %s store', (_name, make) => 
     // Both rows are here now by pull. Its page is whole, with the budget free again.
     expect(await client.receiveNearby(two, intake)).toMatchObject({ outcome: 'taken', kept: 0, counted: true });
     expect(isCounted(await vectorOf(client), sam.key, 2)).toBe(true);
+  });
+
+  /** Newcomers Ana let in offline under one pass, each with a chain of two links, a key and an id of its own. */
+  async function newcomers(count: number, o: { maxUses?: number } = {}) {
+    const ana = await teammate('ana');
+    ana.chain = await worker.certify({ installKey: ana.key, profileId: 'ana', deviceId: ana.deviceId }, { orgId: ORG, privileges: ['invite_members', 'translate', 'view_status'] });
+    const body = (await joinPassBody({ orgId: ORG, languageId: LANG, inviter: 'ana', inviterKey: ana.key, roles: [{ roleId: 'translator', privileges: ['translate', 'view_status'] }], nowMs: NOW }, fakeSha256))!;
+    const pass = await worker.signPass({ ...body, maxUses: o.maxUses ?? body.maxUses });
+    return Promise.all(Array.from({ length: count }, async (_, i): Promise<Teammate> => {
+      const crypto = fakeSigner(`newcomer-${i}`);
+      const idSalt = base64urlEncode(new Uint8Array(16).fill(i + 1));
+      const profileId = (await newcomerProfileId(crypto.publicKey, idSalt, fakeSha256))!;
+      const ask = { installKey: crypto.publicKey, idSalt, profileId, deviceId: `d-new-${i}`, name: `Newcomer ${i}` };
+      const link = await issueInviteLink({ inviterLink: ana.chain[0] as WorkerLink, pass, ask, roleId: 'translator', now: NOW, sha256: fakeSha256, sign: ana.crypto.sign });
+      if (!link.ok) throw new Error(link.reason);
+      return { profileId, deviceId: ask.deviceId, crypto, key: crypto.publicKey, chain: [ana.chain[0]!, link.link] };
+    }));
+  }
+  const bare = (who: Teammate, n = 1) => pageOf(who, n, [], { floor: n });
+  const keptOf = async (who: Teammate) => (await store.batchesAfter(ORG, LANG, who.key, 0, 10)).length;
+
+  it('newcomers under one pass share its rows, and its bytes of manifest, bare ones too', async () => {
+    // Why: one inviter can mint any number of newcomers offline, so a budget each would be no budget at all.
+    const client = await myPhone();
+    const [one, two, three] = await newcomers(3);
+    expect(await client.receiveNearby(await pageOf(one!, 1, units(one!, 2)), intakeFor({ budget: budget(3) }))).toMatchObject({ kept: 2 });
+    expect(await client.receiveNearby(await pageOf(two!, 1, units(two!, 2)), intakeFor({ budget: budget(3) }))).toMatchObject({ outcome: 'dropped', overBudget: true });
+    expect(await client.receiveNearby(await pageOf(sam, 1, units(sam, 3)), intakeFor({ budget: budget(3) }))).toMatchObject({ kept: 3 });
+
+    const size = (await bare(two!)).manifest.length;
+    const room = { ...budget(100), maxManifestBytes: (await pageOf(one!, 1, units(one!, 2))).manifest.length + size + 10 };
+    expect(await client.receiveNearby(await bare(two!), intakeFor({ budget: room }))).toMatchObject({ outcome: 'taken', counted: true });
+    expect(await client.receiveNearby(await bare(three!), intakeFor({ budget: room }))).toMatchObject({ outcome: 'dropped', overBudget: true });
+    // A member's bare manifest still gets through, so a floor travels.
+    expect(await client.receiveNearby(await bare(ana, 1), intakeFor({ budget: { ...room, maxManifestBytes: 1 } }))).toMatchObject({ outcome: 'taken' });
+  });
+
+  it('keeps no more newcomers under a pass than it lets in, counted from the store when a session starts', async () => {
+    // The security review's probe: 12 newcomers under one pass of 10 uses, each with an empty manifest.
+    const client = await myPhone();
+    const flood = await newcomers(12, { maxUses: 10 });
+    const receipts = [];
+    for (const who of flood) receipts.push(await client.receiveNearby(await bare(who), intakeFor()));
+    expect(receipts.slice(0, 10).every((r) => r.outcome === 'taken')).toBe(true);
+    expect(receipts.slice(10)).toMatchObject([{ outcome: 'dropped', overBudget: true }, { outcome: 'dropped', overBudget: true }]);
+    expect(await keptOf(flood[10]!)).toBe(0);
+    expect(isCounted(await vectorOf(client), flood[11]!.key, 1)).toBe(false);
+    // A newcomer already held goes on.
+    expect(await client.receiveNearby(await pageOf(flood[0]!, 2, [unitBy(flood[0]!, 'x')]), intakeFor())).toMatchObject({ kept: 1 });
+
+    const later = phone(server, store, mine);
+    await later.load();
+    await later.startNearbyBudget();
+    expect(await later.receiveNearby(await bare(flood[11]!), intakeFor())).toMatchObject({ outcome: 'dropped', overBudget: true });
+    expect(await later.receiveNearby(await pageOf(flood[1]!, 2, [unitBy(flood[1]!, 'y')]), intakeFor())).toMatchObject({ kept: 1 });
+    const use = (await store.nearbyUse(ORG, LANG)).find((u) => u.who.startsWith('pass:'))!;
+    expect(use).toMatchObject({ rows: 2 });
+    expect(use.keys).toHaveLength(10);
+  });
+
+  it('does not keep a bare manifest from someone this phone no longer lets in, so it does not spread', async () => {
+    const client = await myPhone();
+    const [cut] = await newcomers(1);
+    const nobody: NearbyPeople = { privilegesIn: () => new Set(), languageListed: () => true };
+    for (const who of [cut!, sam]) {
+      expect(await client.receiveNearby(await bare(who, 3), intakeFor({ people: () => nobody }))).toMatchObject({ outcome: 'taken', kept: 0 });
+      expect(await keptOf(who)).toBe(0);
+      expect(await client.nearbyBatchPage(who.key, 3)).toBeNull();
+    }
+    expect(await client.nearbyUncounted(new Map())).toEqual([]);
+  });
+
+  it('a flood of signers past the vector\'s cap leaves the vector readable, and what it counted stays counted', async () => {
+    // Why: past 4,096 keys the stored vector read back as nothing, so a flood of signers reset it on every phone.
+    const client = await myPhone();
+    const held = Object.fromEntries(Array.from({ length: NEARBY_VECTOR_MAX_KEYS - 2 }, (_, i) => [fakeSigner(`old-${i}`).publicKey, { mark: 1, ahead: [] }]));
+    await store.commit({ meta: { [`nearbyVector:${ORG}/${LANG}`]: JSON.stringify(held) } });
+    const signers = await Promise.all(Array.from({ length: 6 }, (_, i) => teammate(`late-${i}`)));
+    for (const who of signers) expect(await client.receiveNearby(await bare(who), intakeFor())).toMatchObject({ outcome: 'taken' });
+    const vector = await vectorOf(client);
+    expect(vector.size).toBe(NEARBY_VECTOR_MAX_KEYS);
+    expect(isCounted(vector, Object.keys(held)[0]!, 1)).toBe(true);
+    expect(isCounted(vector, signers[1]!.key, 1)).toBe(true);
+    expect(isCounted(vector, signers[2]!.key, 1)).toBe(false);
   });
 });
 

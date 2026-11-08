@@ -104,6 +104,21 @@ describe('the vector', () => {
     expect(applyFloor(v, 'other', 5).get(KEY_A)).toEqual(v.get(KEY_A));
   });
 
+  it('past the cap on keys a new signer gets no entry, by number or floor, so the stored vector still parses', () => {
+    // Why: a vector over the cap reads back as nothing, so 4,097 signers would reset what a phone counts as received.
+    const keys = Array.from({ length: NEARBY_VECTOR_MAX_KEYS }, (_, i) => keyOf(i));
+    const at = keys.reduce<NearbyVector>((v, key) => countBatch(v, key, 1, big), none);
+    expect(at.size).toBe(NEARBY_VECTOR_MAX_KEYS);
+    const newcomer = keyOf(NEARBY_VECTOR_MAX_KEYS);
+    expect(countBatch(at, newcomer, 1, big)).toBe(at);
+    expect(applyFloor(at, newcomer, 5)).toBe(at);
+    // Those already in still move.
+    expect(countBatch(at, keys[0]!, 2, big).get(keys[0]!)).toEqual({ mark: 2, ahead: [] });
+    expect(applyFloor(at, keys[1]!, 5).get(keys[1]!)).toEqual({ mark: 5, ahead: [] });
+    expect(parseVector(JSON.parse(JSON.stringify(Object.fromEntries(countBatch(at, newcomer, 1, big)))), big)?.size).toBe(NEARBY_VECTOR_MAX_KEYS);
+    expect(countBatch(at, newcomer, 1, { ...big, maxKeys: NEARBY_VECTOR_MAX_KEYS + 1 }).size).toBe(NEARBY_VECTOR_MAX_KEYS + 1);
+  });
+
   it('a floor below the mark, or not a number, changes nothing', () => {
     const v = count([1, 2]);
     for (const floor of [0, 2, -1, 1.5, NaN, Infinity, 2 ** 53]) expect(applyFloor(v, KEY_A, floor)).toBe(v);

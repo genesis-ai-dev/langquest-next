@@ -1,5 +1,5 @@
 import { WriteQueue } from './writeQueue';
-import { nearbyBudgetOf, type EventStore, type KeptKind, type KeptRecord, type LocalEvent, type NearbyAttestRow, type NearbyBatchRow, type NearbyUse, type WriteBatch } from './types';
+import { nearbyBudgetOf, passIdOfChain, type EventStore, type KeptKind, type KeptRecord, type LocalEvent, type NearbyAttestRow, type NearbyBatchRow, type NearbyUse, type WriteBatch } from './types';
 
 /**
  * A row as SQLite gives it back: no property holding undefined. An event carrying
@@ -199,17 +199,23 @@ export class MemoryStore implements EventStore {
 
   async nearbyUse(orgId: string, streamId: string): Promise<NearbyUse[]> {
     const use = new Map<string, NearbyUse>();
+    const at = (who: string) => use.get(who) ?? use.set(who, { who, rows: 0, bytes: 0, manifestBytes: 0, keys: [] }).get(who)!;
+    // The same answer as `nearbyBudgetOf`, with each batch's pass read from the chain kept with it.
+    const passOf = new Map<string, string | null>();
+    for (const b of this.batchesOf(orgId, streamId)) {
+      let chain: unknown = null;
+      try { chain = JSON.parse(b.chain); } catch { /* counted as its author's */ }
+      const passId = passIdOfChain(chain);
+      passOf.set(`${b.key}\u0000${b.n}`, passId);
+      const held = at(nearbyBudgetOf(b.actorId, undefined, passId));
+      held.manifestBytes += b.manifest.length;
+      if (!held.keys.includes(b.key)) held.keys.push(b.key);
+    }
     for (const l of this.stream(orgId, streamId)) {
       if (l.status !== 'nearby') continue;
-      const who = nearbyBudgetOf(l.event.actorId, l.via);
-      const held = use.get(who) ?? { who, rows: 0, bytes: 0, manifestBytes: 0 };
-      use.set(who, { ...held, rows: held.rows + 1, bytes: held.bytes + JSON.stringify(l.event).length });
-    }
-    for (const b of this.nearbyBatches.values()) {
-      if (b.orgId !== orgId || b.streamId !== streamId) continue;
-      const who = `actor:${b.actorId}`;
-      const held = use.get(who) ?? { who, rows: 0, bytes: 0, manifestBytes: 0 };
-      use.set(who, { ...held, manifestBytes: held.manifestBytes + b.manifest.length });
+      const held = at(nearbyBudgetOf(l.event.actorId, l.via, l.via && 'batch' in l.via ? passOf.get(`${l.via.key}\u0000${l.via.batch}`) : null));
+      held.rows += 1;
+      held.bytes += JSON.stringify(l.event).length;
     }
     return [...use.values()];
   }

@@ -309,19 +309,32 @@ export class SqliteStore implements EventStore {
   }
 
   async nearbyUse(orgId: string, streamId: string): Promise<NearbyUse[]> {
-    // The same answer as `nearbyBudgetOf`: a claim spends its claimer's budget, and a batch row its author's.
-    const rows = await this.db.all<{ who: string; n: number; bytes: number; manifest_bytes: number }>(
-      `select who, sum(n) as n, sum(bytes) as bytes, sum(manifest_bytes) as manifest_bytes from (
-         select case when json_extract(via, '$.claim.key') is not null then 'claim:' || json_extract(via, '$.claim.key') else 'actor:' || json_extract(json, '$.actorId') end as who,
-                count(*) as n, sum(length(json)) as bytes, 0 as manifest_bytes
-         from events where org_id = ? and stream_id = ? and status = 'nearby' group by who
-         union all
-         select 'actor:' || actor_id as who, 0 as n, 0 as bytes, sum(length(manifest)) as manifest_bytes
-         from nearby_batches where org_id = ? and stream_id = ? group by actor_id
-       ) group by who`,
-      [orgId, streamId, orgId, streamId]
+    // The same answer as `nearbyBudgetOf`, with each batch's pass read from the chain kept with it (`passIdOfChain`).
+    const p = `json_extract(b.chain, '$[1].body.pass.body.passId')`;
+    const who = `case when json_valid(b.chain) and json_array_length(b.chain) = 2 and json_type(b.chain, '$[1].body.pass.body.passId') = 'text' and ${p} <> ''
+      then 'pass:' || ${p} else 'actor:' || b.actor_id end`;
+    const rows = await this.db.all<{ who: string; n: number; bytes: number }>(
+      `select case when json_extract(e.via, '$.claim.key') is not null then 'claim:' || json_extract(e.via, '$.claim.key')
+                   when b.chain is not null then ${who} else 'actor:' || json_extract(e.json, '$.actorId') end as who,
+              count(*) as n, sum(length(e.json)) as bytes
+       from events e left join nearby_batches b on b.org_id = e.org_id and b.stream_id = e.stream_id
+         and b.signer_key = json_extract(e.via, '$.key') and b.n = json_extract(e.via, '$.batch')
+       where e.org_id = ? and e.stream_id = ? and e.status = 'nearby' group by 1`,
+      [orgId, streamId]
     );
-    return rows.map((r) => ({ who: r.who, rows: Number(r.n), bytes: Number(r.bytes), manifestBytes: Number(r.manifest_bytes) }));
+    const kept = await this.db.all<{ who: string; signer_key: string; manifest_bytes: number }>(
+      `select ${who} as who, b.signer_key, sum(length(b.manifest)) as manifest_bytes from nearby_batches b where b.org_id = ? and b.stream_id = ? group by 1, 2`,
+      [orgId, streamId]
+    );
+    const use = new Map<string, NearbyUse>();
+    const at = (w: string) => use.get(w) ?? use.set(w, { who: w, rows: 0, bytes: 0, manifestBytes: 0, keys: [] }).get(w)!;
+    for (const r of rows) Object.assign(at(r.who), { rows: Number(r.n), bytes: Number(r.bytes) });
+    for (const r of kept) {
+      const held = at(r.who);
+      held.manifestBytes += Number(r.manifest_bytes);
+      held.keys.push(r.signer_key);
+    }
+    return [...use.values()];
   }
 
   async getMany(ids: readonly string[]): Promise<LocalEvent[]> {

@@ -93,23 +93,27 @@ function settled(start: number, ranges: readonly (readonly [number, number])[]):
 
 const withEntry = (vector: NearbyVector, key: string, entry: NearbyVectorEntry): NearbyVector => new Map(vector).set(key, entry);
 
+/** A key not yet in a full vector gets no entry, so the vector stays one `parseVector` reads. */
+const full = (vector: NearbyVector, key: string, maxKeys = NEARBY_VECTOR_MAX_KEYS) => !vector.has(key) && vector.size >= maxKeys;
+
 /**
  * Records a whole batch's number. Past the cap on ranges it records no number that
  * neither fills nor extends one, so a hostile sender can fragment the list but
- * cannot force a gap closed, and under-recording costs only a re-send.
+ * cannot force a gap closed, and under-recording costs only a re-send. Past the cap
+ * on keys it records no new signer, or the stored vector would read as nothing.
  */
-export function countBatch(vector: NearbyVector, key: string, n: number, opts: { maxRanges: number }): NearbyVector {
-  if (!Number.isSafeInteger(n) || n < 1 || isCounted(vector, key, n)) return vector;
+export function countBatch(vector: NearbyVector, key: string, n: number, opts: { maxRanges: number; maxKeys?: number }): NearbyVector {
+  if (!Number.isSafeInteger(n) || n < 1 || isCounted(vector, key, n) || full(vector, key, opts.maxKeys)) return vector;
   const { mark, ahead } = vector.get(key) ?? { mark: 0, ahead: [] };
   const touches = n === mark + 1 || ahead.some(([from, to]) => n === from - 1 || n === to + 1);
   if (!touches && ahead.length >= opts.maxRanges) return vector;
   return withEntry(vector, key, settled(mark, [...ahead, [n, n]]));
 }
 
-/** A signer's own word that nothing of its at or below `floor` is still unsent on its phone. It can hurt only its own entry. */
-export function applyFloor(vector: NearbyVector, key: string, floor: number): NearbyVector {
+/** A signer's own word that nothing of its at or below `floor` is still unsent on its phone. It can hurt only its own entry, and adds none past the cap on keys. */
+export function applyFloor(vector: NearbyVector, key: string, floor: number, opts: { maxKeys?: number } = {}): NearbyVector {
   const { mark, ahead } = vector.get(key) ?? { mark: 0, ahead: [] };
-  if (!Number.isSafeInteger(floor) || floor <= mark) return vector;
+  if (!Number.isSafeInteger(floor) || floor <= mark || full(vector, key, opts.maxKeys)) return vector;
   return withEntry(vector, key, settled(floor, ahead));
 }
 
