@@ -124,7 +124,9 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // 2026-11-08), 4.92 MB then: it took all chunks 1.4 KB past 4.92 MB, its
 // words in 16 catalogs and the New password and More settings rows; a first
 // visit stays under its own budget.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024;
+// Raised by 2 KB with joining offline's identity side (Carl, 2026-11-08), 1.0 KB
+// past 4.93 MB then: the first visit's growth below, which every chunk counts too.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 2 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -138,7 +140,13 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024;
 // MB before): 6 KB is its English words in the catalog every visit carries,
 // and the rest the stubs the web takes in their place (the Sync row, the
 // History line) and its flow edges; the screen loads when opened.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024;
+// Raised by 4 KB with joining offline's identity side (Carl, 2026-11-08), 3.0 KB
+// past 3.94 MB then: who the app runs as (a session, or a local person) and the
+// serverSession split every client takes, the scanner's Let someone in code,
+// the join call, and the stubs the web takes for the local person, the
+// membership overlay and first contact; the record, the gate and first contact
+// themselves stay in .android files.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 4 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
