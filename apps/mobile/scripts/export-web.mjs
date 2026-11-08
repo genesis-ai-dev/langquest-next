@@ -126,7 +126,11 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // visit stays under its own budget.
 // Raised by 2 KB with joining offline's identity side (Carl, 2026-11-08), 1.0 KB
 // past 4.93 MB then: the first visit's growth below, which every chunk counts too.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 2 * 1024;
+// Raised by 34 KB with joining offline's screens (Carl, 2026-11-08), 34 KB past then: the first
+// visit's growth below, and 17 KB in the nearby chunk for Let someone in and Join without internet,
+// which the web never opens but the screen map names; their QR code, radios and passes stay in
+// .android files.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 36 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -146,7 +150,12 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 2 * 1024;
 // the join call, and the stubs the web takes for the local person, the
 // membership overlay and first contact; the record, the gate and first contact
 // themselves stay in .android files.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 4 * 1024;
+// Raised by 19 KB with joining offline's screens (Carl, 2026-11-08), 18.x KB past then: about 10 KB is the
+// English words of Let someone in, Join without internet, a local person's Me and Sign In, and New
+// password's warning, in the catalog every visit carries; the rest is Me's and Sign In's local-person
+// branches, the sign-in guard and the stubs the web takes for both screens' hooks. Both screens load
+// when opened, and their radios, passes and the join itself stay in .android files.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 23 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
