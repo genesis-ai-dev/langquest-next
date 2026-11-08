@@ -9,7 +9,7 @@ import { writeFileSync } from 'node:fs';
 import {
   EVENT_PAYLOAD_MAX_BYTES, EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, ORG_EVENT_TYPES, PRIVILEGES, emptyOrgState, entityKeyOf, eventSizeError, idAuthor, jsonbTextBytes, languageOfOrgEvent, mayReadLanguage, mayWriteFiles, privilegeAllows, privilegeFor, privilegesOfFixedRole, validateEvent, type AnyEvent, type OrgState, type Privilege, type Role
 } from '@langquest-next/core';
-import { base64urlDecode, isServerEventId } from '@langquest-next/core/nearby';
+import { base64urlDecode, filesNamedBy, isServerEventId } from '@langquest-next/core/nearby';
 import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture } from '../packages/core/test/fixtures';
 import { GENERATIONS } from '../packages/core/test/nearbyVectors';
 
@@ -265,6 +265,14 @@ const authorIds = [...new Set([
 ])].map((id) => ({ id, author: idAuthor(id) }));
 if (!authorIds.some((r) => r.author === UUID) || !authorIds.some((r) => r.author === null)) throw new Error('the id author cases must name someone and no one');
 
+// The files an event names (docs/nearby-sync-plan.md section 6, Files): every valid fixture and
+// variant, as sorted `hash:format` rows, a voice note's format left to the log (null).
+const namedFiles = [...events, ...broken.filter((e) => validateEvent(e) === null)]
+  .map((e) => ({ type: e.type, payload: e.payload, files: filesNamedBy(e).map((f) => `${f.hash}:${f.format ?? ''}`).sort() }));
+if (!namedFiles.some((r) => r.files.some((f) => f.endsWith(':'))) || !namedFiles.some((r) => r.files.some((f) => f.endsWith(':wav')))) {
+  throw new Error('the named-file cases must hold a voice note and a card: add one to packages/core/test/fixtures.ts');
+}
+
 // Generations of a discovery key (5.12, Generations): the golden vector from its newest down.
 const hex = (b64url: string) => Buffer.from(base64urlDecode(b64url)!).toString('hex');
 const generations = GENERATIONS.map((key, steps) => ({ steps, key: hex(key) }));
@@ -378,6 +386,12 @@ writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r json
       raise exception '_id_author disagrees with idAuthor: % (sql says %)', r, public._id_author(r->>'id');
     end if;
   end loop;
+  for r in select * from jsonb_array_elements(${sql(namedFiles)}) loop
+    if (select coalesce(jsonb_agg(f.hash || ':' || coalesce(f.format, '') order by f.hash || ':' || coalesce(f.format, '') collate "C"), '[]'::jsonb)
+        from public._event_files(r->>'type', r->'payload') f) is distinct from r->'files' then
+      raise exception '_event_files disagrees with filesNamedBy: %', r;
+    end if;
+  end loop;
   for r in select * from jsonb_array_elements(${sql(generations)}) loop
     if encode(public._discovery_key_below(decode('${generations[0]!.key}', 'hex'), (r->>'steps')::int), 'hex') is distinct from r->>'key' then
       raise exception '_discovery_key_below disagrees with the generations vector: %', r;
@@ -412,5 +426,5 @@ end $$;
 rollback;
 select ${rows.length} as payload_checks, ${perms.length + single.length} as permission_checks, ${scopedLanguage.length} as scope_checks,
   ${entities.length} as entity_checks, ${sizes.length} as size_checks, ${access.length} as access_checks, ${serverIds.length} as server_id_checks,
-  ${authorIds.length} as id_author_checks, ${generations.length} as generation_checks;
+  ${authorIds.length} as id_author_checks, ${generations.length} as generation_checks, ${namedFiles.length} as named_file_checks;
 `);

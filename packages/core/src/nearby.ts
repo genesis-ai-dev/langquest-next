@@ -9,3 +9,4 @@ export * from './nearbySend';
 export * from './nearbyDoor';
 export * from './nearbyHoldings';
 export * from './nearbyGenerations';
+export * from './nearbyFilesNamed';

@@ -50,6 +50,7 @@ const SMOKES = [
   'server/rlsReadSmoke.sql',
   'server/timingJobsSmoke.sql',
   'server/nearbySmoke.sql',
+  'server/nearbyRelaySmoke.sql',
   'server/surfaceSmoke.sql',
   'server/snapshotPurgeSmoke.sql',
   'server/cronSmoke.sql'
