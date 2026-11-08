@@ -303,12 +303,16 @@ class LanguageNearbyFiles implements NearbyFilesPart {
     const hashes = this.marksHere().map((m) => m.hash).filter((h) => present.has(h));
     if (hashes.length === 0) return;
     const { store, orgId, languageId } = this.port.o;
-    for (;;) {
-      const page = await store.confirmedAfter(orgId, languageId, this.namedSeq, NAMED_PAGE);
+    // Rows this phone's push or delivery confirmed can sit above events the pull has not brought yet, so the
+    // look moves on only as far as the pull: past the cursor it reads those rows again at the next sync.
+    const cursor = await store.cursor(orgId, languageId);
+    for (let after = this.namedSeq; ;) {
+      const page = await store.confirmedAfter(orgId, languageId, after, NAMED_PAGE);
       for (const { event } of page) {
         for (const f of filesNamedBy(event)) if (!this.named.has(f.hash)) this.named.set(f.hash, event.id);
-        this.namedSeq = Math.max(this.namedSeq, event.serverSeq ?? 0);
+        after = Math.max(after, event.serverSeq ?? 0);
       }
+      this.namedSeq = Math.max(this.namedSeq, Math.min(after, cursor));
       if (page.length < NAMED_PAGE) break;
     }
     const redacted = this.port.client.getState().redactions;

@@ -7,6 +7,7 @@ import { nearbyFiles, type NearbyFetchFile } from '../src/nearbyFiles';
 import { nearbyKeepOf } from '../src/nearbyKeep';
 import { MemoryNearbyMarks } from '../src/nearbyMarks';
 import { FakeServer } from '../src/testing/fakeServer';
+import type { Transport } from '../src/types';
 
 // A language session's nearby files (docs/nearby-sync-plan.md 5.6; section 8's freeing-space,
 // hold and Teams rows): marks, own-file counts, level 2, a confirmed backup going, shedding and
@@ -91,7 +92,7 @@ async function until(ok: () => boolean | Promise<boolean>, ms = 3000): Promise<v
   }
 }
 
-async function setUp(over: { choice?: HoldChoice | null; mayUpload?: boolean; limits?: LanguageSessionOptions['limits']; preset?: NearbyMark[]; upload?: LanguageSessionOptions['upload'] } = {}) {
+async function setUp(over: { choice?: HoldChoice | null; mayUpload?: boolean; limits?: LanguageSessionOptions['limits']; preset?: NearbyMark[]; upload?: LanguageSessionOptions['upload']; transport?: (t: Transport) => Transport } = {}) {
   const server = new FakeServer();
   const marks = new MemoryNearbyMarks();
   await marks.put(over.preset ?? []);
@@ -99,7 +100,7 @@ async function setUp(over: { choice?: HoldChoice | null; mayUpload?: boolean; li
   const wall = { t: 0 };
   const choice = { now: over.choice === undefined ? ({ hold: true } as HoldChoice | null) : over.choice };
   const session = await LanguageSession.open({
-    orgId: 'org1', languageId: 'luke', actorId: 'akol', deviceId: 'phone', store: new MemoryStore(), transport: server.transportFor(), files: f.files,
+    orgId: 'org1', languageId: 'luke', actorId: 'akol', deviceId: 'phone', store: new MemoryStore(), transport: (over.transport ?? ((t) => t))(server.transportFor()), files: f.files,
     upload: over.upload ?? (async (ref: BlobRef) => { server.storeBlob('org1', 'luke', ref.hash, f.sizes.get(ref.hash) ?? 0); }),
     download: async () => {},
     limits: over.limits ?? { minFreeBytes: 500 * MB, maxTotalBytes: 2048 * MB },
@@ -133,7 +134,19 @@ async function setUp(over: { choice?: HoldChoice | null; mayUpload?: boolean; li
     await moves.landed(file, stage!.stagingUri, size);
   };
   const keep = nearbyKeepOf({ nearbyMeta: (k) => session.client.nearbyMeta(k), writeNearbyMeta: (r) => session.client.writeNearbyMeta(r) }, { orgId: 'org1', streamId: 'luke' });
-  return { server, session, marks, ...f, moves, land, keep, choice };
+  /** Sam records again on his own phone, which pulls first. */
+  const samRecords = async (id: string, unitId: string, hash: string) => {
+    const again = await LanguageSession.open({
+      orgId: 'org1', languageId: 'luke', actorId: 'sam', deviceId: 'sam-phone', store: new MemoryStore(), transport: server.transportFor(), files: phoneFiles().files,
+      upload: async () => {}, download: async () => {}, limits: { minFreeBytes: 0, maxTotalBytes: Number.MAX_SAFE_INTEGER },
+      client: { clock: new HlcClock('sam-phone', () => (wall.t += 1)), newId: () => `s${(wall.t += 1)}` }
+    });
+    await again.sync();
+    await again.append('v1.RecordingAdded', recording(id, unitId, hash));
+    await again.sync();
+    again.close();
+  };
+  return { server, session, marks, ...f, moves, land, keep, choice, samRecords };
 }
 
 const chainOf = (profileId: string) => [{ kind: 'worker@1', kid: 'k', body: { profileId }, sig: SIG }] as unknown as ChainLink[];
@@ -200,6 +213,31 @@ describe('nearby files: marks and what counts as this person\'s (5.2, 5.4)', () 
     const naming = server.log.find((e) => e.type === 'v1.RecordingAdded' && JSON.stringify(e.payload).includes(SAMS))!;
     expect(uploaded.find((r) => r.hash === SAMS)?.namedBy).toBe(naming.id);
     expect(uploaded.find((r) => r.hash === MINE)?.namedBy).toBeUndefined();
+    session.close();
+  });
+
+  it('a viewer whose own push lands above an unpulled gap still finds the event in that gap that names a teammate\'s file', async () => {
+    // Why: the look for naming events moves forward by serverSeq. A row confirmed by this phone's push or by
+    // delivery can sit above events the pull has not brought yet, and moving past it would skip them for good.
+    const uploaded: BlobRef[] = [];
+    const behind = { on: false };
+    const FRESH = H('f');
+    const { session, land, server, samRecords } = await setUp({
+      mayUpload: false, upload: async (ref) => { uploaded.push(ref); },
+      transport: (t) => ({ ...t, pull: async (...a) => (behind.on ? [] : t.pull(...a)) })
+    });
+    await samRecords('rf', 'Luke 3', FRESH);
+    await land(FRESH, 4 * MB);
+    behind.on = true;
+    await session.append('v1.UnitAdded', unit('Luke 4'));
+    await session.sync();
+    behind.on = false;
+    await session.sync();
+    session.start();
+    session.triggerUpload();
+    await until(() => uploaded.some((r) => r.hash === FRESH));
+    const naming = server.log.find((e) => e.type === 'v1.RecordingAdded' && JSON.stringify(e.payload).includes(FRESH))!;
+    expect(uploaded.find((r) => r.hash === FRESH)?.namedBy).toBe(naming.id);
     session.close();
   });
 });
