@@ -50,6 +50,11 @@ describe('which merges the phone app needs', () => {
     expect(changesTheApp([])).toBe(false);
   });
 
+  it("not the test helpers in packages/sync/src/testing (PR 357), unless the merge also changes the app", () => {
+    expect(changesTheApp(['packages/sync/src/testing/fakeServer.ts', 'packages/sync/src/testing/fleet/fleet.ts'])).toBe(false);
+    expect(changesTheApp(['packages/sync/src/testing/fakeServer.ts', 'packages/sync/src/session.ts'])).toBe(true);
+  });
+
   it('a catch-up takes every merge after the branch starts that is not a new build and changes the app', () => {
     const merges = [
       { sha: 'a1', files: ['apps/mobile/src/a.ts'] },
@@ -58,6 +63,15 @@ describe('which merges the phone app needs', () => {
       { sha: 'a4', files: ['packages/core/src/b.ts', 'docs/x.md'] }
     ];
     expect(mergesToCopy(merges, ['r2'])).toEqual(['a1', 'a4']);
+  });
+});
+
+describe('pushing a copy', () => {
+  it('runs no hook, so that a copy that fails a check still gets its pull request, which is what tries it again (PR 357)', () => {
+    const script = readFileSync('scripts/release-branches.mjs', 'utf8');
+    const pushes = script.split('\n').filter((line) => /'push'.*\bbranch\b/.test(line));
+    expect(pushes).toHaveLength(3); // the first push, the push that takes main's machinery, and Claude's commits
+    for (const line of pushes) expect(line).toContain("'--no-verify'");
   });
 });
 

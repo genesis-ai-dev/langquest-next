@@ -7624,6 +7624,22 @@ failed and labelled the copy for a person, while Claude was still working
 workflow's timeout), the hourly run leaves a copy with a conflict and
 `copy-claude` to the Claude that the try started.
 
+Amended (2026-11-06, Carl Sauder): the copy of PR 357 onto `release/ios` kept
+the branch's `apps/admin/src/sources/ops.ts` in a conflict and took main's
+`apps/admin/test/ops.test.ts`, so the pre-push hook failed in the workflow's
+first push. That left no pull request and stopped the job before Android. The
+hourly run only looks at open copies and a merge is copied once, so nothing
+tried it again, and Carl asked how such a copy is ever corrected. So:
+- The first push of a copy runs no hook, as the push of Claude's commits
+  already did. The copy's pull request then always opens, its checks run what
+  the hook would, and a copy they fail goes to Claude and then a person. A
+  first push that fails for another reason, such as the network, is still not
+  tried again. The hourly push that gives an open copy main's machinery runs
+  no hook either, or a copy with failing tests could never take it.
+- `packages/sync/src/testing/` no longer counts as what the phone app runs.
+  It is Node-only test helpers that the app never imports, and PR 357 was
+  copied only because it changed two of them.
+
 
 ## 156. Store builds come only from the EAS workflow on merges into main
 
@@ -10811,3 +10827,76 @@ with `none`, rise after this among phones on an older reducer (then hold the
 version longer); or the tables grow past the database plan regardless (then a
 short key in `snapshot_units`' indexes, which hold 4.5 of its 7.7 GB, or 89's
 pieces in object storage).
+
+Amended (2026-11-06, Carl Sauder): an older snapshot now goes 6 hours after a
+newer one comes out, not 24 (migration
+`20261106120000_snapshot_window_and_copies.sql`), which amends 88 as well. The
+window serves only a whole-snapshot download that has not stopped: a phone
+filling from the cut reads the newest, and a phone that tries again asks for
+the newest and drops pieces of any other, so 88's phone that resumes later that
+day was never helped by it. 40 MB at 2 KB/s is about 5.5 hours, so 6 hours is
+the floor. A language writing one an hour keeps about 7 copies, not 25. Carl
+chose this now rather than once builds from before the cut are below the
+minimum version: until then those phones always read pieces, so a slower one
+on a big language can see its download go stale and start over.
+Reverse if: `snapshot` records with `stale` rise on `cold` first downloads.
+
+Amended (2026-11-06, Carl Sauder): an old version's last copy now goes 45 days
+after it was replaced, whoever still reports it, and a development build no
+longer holds a version. As first built, one install seen every 14 days held its
+version's copies for every language with no end, even a phone below the minimum
+version, whose diagnostics pass the gate (154) though it may not download. 45
+days allows for the three-week minimum-version cycle in 151 with a margin; it is
+a judgment, not a measurement. Past it, a phone still on that version pulls the
+log on a first download or a restarted fill, and its own work is safe.
+
+Amended (2026-11-06, Carl Sauder): an old version's last copy now waits 14 days
+after it was replaced, not 7, so one timer runs from the later of the replacement
+and the last phone seen on it. Carl pointed out that a store build in review can
+carry a version no phone has reported yet; 7 days could take its copy before
+approval. Shortening to 1 day was turned down for that reason, and so was having
+the release pipeline record each build's reducer, since one number covers it. A
+review over 14 days past the replacement, or a build cut from an older commit,
+still finds no copy: a new install on a slow link then pulls the log and its work
+is safe. At about one bump a week this keeps one or two versions nobody reports;
+at early October's three a week, five or six, each a copy per language.
+
+## 205. Key terms are spotted in a take by matching audio to the team's recorded renderings, on the phone
+
+Date: 2026-11-05 · By: Ryder Wishart · Status: accepted
+
+Reason: a partner team on the 2026-11-05 call (users of Render) said a
+missed key term is usually found at the consultant stage, and the draft is
+redone from the start; they want the check while drafting, against key-term
+recordings made before the book begins (LAN-228). The app holds key terms
+per language (`KeyTermDefined`, text renderings in `KeyTermRenderingAdded`,
+a manual tie in `KeyTermLinked`) and only the translator's tagging says
+whether a take has one. Of the ways to detect a term automatically,
+fixed-vocabulary keyword spotting (the sub-megabyte models) is ruled out:
+its size comes from thousands of labelled recordings per word, and the
+words are each team's target-language renderings, for which no data exists.
+Speech recognition then text matching is ruled out on the phone for the
+same reason, since ultra low-resource languages have no recognizer, and on
+a server it would send recordings to a third party, which changes the Play
+"Shared" answers (decision 49). Query-by-example is what remains and fits:
+the team records each rendering two or three times, and a matcher slides
+those clips over the take and reports a confidence. The term and the take
+are usually spoken by the same translator or a small team, the easy case
+for acoustic matching; both inputs are content-addressed blobs (decision
+4), so a result keyed by take hash, rendering hash and matcher version is
+derived, cached per device and recomputable, never synced as status
+(PLAN.md section 4). The matcher runs in the native `microphone-energy`
+module after a take is saved, not during recording. The output is a hint
+("3 of 4 key terms heard"), never a gate, because renderings inflect, get
+paraphrased or split across clauses; the translator's tie or dismissal
+remains the record (`KeyTermLinked`) and calibrates the threshold for that
+language locally. The shipped rendering event is text-only and keeps its
+shape; recorded renderings are a new versioned event. Stages: the audio
+rendering event, then an evaluation set from a partner language, then MFCC
+features with subsequence DTW (no model to download), then a small
+pretrained multilingual encoder only if that misses the bar, keeping the
+DTW, cache and screen.
+Reverse if: a partner language gains a usable recognizer and the organization
+opts in to server transcription (then text matching can run in Aquilla and
+feed the same hint), or MFCC matching is wrong often enough across speakers
+that the encoder download is the cheaper cost.
