@@ -200,7 +200,7 @@ describe('the shell asks for a certificate once nearby is on', () => {
     expect(fake.calls).toHaveLength(1);
   });
 
-  it('keeps nothing, and says nothing, while the Worker answers 503 (a local Worker with no NEARBY_SIGNING_KEY)', async () => {
+  it('keeps nothing, and notes it in diagnostics, while the Worker answers 503 (a local Worker with no NEARBY_SIGNING_KEY)', async () => {
     fake.answer = async () => ({ kind: 'later', status: 503 });
     const s = await shell();
     s.serverSays({ orgFeatures: { o1: ['nearby', 'nearby_join'] } });
@@ -211,6 +211,7 @@ describe('the shell asks for a certificate once nearby is on', () => {
     expect(s.phone.holdsCertificate(ME, 'o1')).toBe(false);
     expect(await (fake.store as MemoryStore).meta(`nearbyCertAsked:${ME}`) ?? null).toBeNull();
     expect(await (fake.store as MemoryStore).meta(`nearbyChain:${ME}`) ?? null).toBeNull();
-    expect(fake.noted).toEqual([]);
+    expect(fake.noted.length).toBeGreaterThan(0);
+    expect(new Set(fake.noted)).toEqual(new Set(['nearby certificate: the Worker cannot sign certificates yet (503)']));
   });
 });

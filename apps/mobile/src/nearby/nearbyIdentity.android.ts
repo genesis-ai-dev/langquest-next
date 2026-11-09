@@ -154,8 +154,12 @@ async function ask(input: IdentityInput, key: InstallKey, languages: string[], f
   // Proof that this phone holds the key, over a text with no time in it: field clocks are wrong.
   const proof = signWith(key.seed, nearbyBytes('certRequest', certRequestText({ profileId: actorId, deviceId, publicKey: key.publicKey })));
   const call = await requestCertificate({ publicKey: key.publicKey, deviceId, languages, proof });
-  // 429 or 503: keep what is held, and ask again at the next check.
-  if (call.kind === 'later') return false;
+  // 429 or 503: keep what is held, and ask again at the next check. A 503 is a Worker with no
+  // signing key, which never mends by itself, so it is noted: otherwise nearby sync fails silently.
+  if (call.kind === 'later') {
+    if (call.status === 503) noteExpected('nearby certificate', new Error('the Worker cannot sign certificates yet (503)'));
+    return false;
+  }
   const answer = certificateAnswerOf(call.body);
   if (!answer) { noteExpected('nearby certificate', new Error('an answer the Worker would not send')); return false; }
 

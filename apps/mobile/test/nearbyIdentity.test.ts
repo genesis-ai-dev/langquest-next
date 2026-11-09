@@ -261,6 +261,8 @@ describe('the nearby identity', () => {
     fake.answer = async () => ({ kind: 'later', status: 503 });
     await input(p);
     expect(await p.phone.readChains(ME)).toEqual({});
+    // A Worker with no signing key answers 503 for good: diagnostics must show it, or nearby sync fails silently.
+    expect(fake.noted).toContain('nearby certificate: the Worker cannot sign certificates yet (503)');
     fake.answer = issued();
     await input(p);
     expect(fake.calls).toHaveLength(2);
