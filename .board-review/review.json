@@ -2,13 +2,21 @@
   "kind": "screen",
   "ask": "Is this fix good to merge, knowing the after pictures come from tonight's film run?",
   "problem": "The nightly tutorial film run failed twice over. The Answer feedback video could not be filmed. The Use the help video was held back because the number on the bell looked cut off.",
-  "found": "Run 42705526881 already had pull request 376 (LAN-187). It fixed a different problem, so it is not the cause. The Answer feedback film looks for a row ending in the words Feedback to hear. A change from LAN-19, merged minutes before the run, added a small On this device button to each My Work row. The row's name now ends with those words, so the film never found it. The bell's lit circle in help mode stopped at the bell's edge, but the new count sits over its corner. That left the number half dimmed. No open pull request or branch covers either problem, and I found no work on LAN-208 in the repository.",
+  "found": "Pull request 376 was in that run; it fixed something else. A new button on My Work rows hid the Feedback row from the film. The bell's count sat outside its help-mode light. No open pull request covers either.",
   "changed": "The Answer feedback film now finds the row wherever the words sit in its name. In help mode the lit circle around the bell now also covers its count, so the number shows clearly.",
   "why": "The checks stay on. I fixed the film step and the real screen problem instead of setting the frame check aside. I considered moving the count inside the bell, but that would change how the app looks. I could not run the app or the checks here because the project tools are not installed. Tonight's film run will show the after frames.",
   "touches": "Only the bell's help-mode highlight when it shows a count, and one tutorial film step. No decision log entry needed.",
   "pictures": [
-    {"file": "before-work.png", "label": "Before: My Work rows now end with the On this device button, so the film step could not find the Feedback row"},
-    {"file": "before-help.png", "label": "Before: the bell's count is half dimmed in help mode"}
+    {
+      "file": "before-work.png",
+      "label": "Before: My Work rows now end with the On this device button, so the film step could not find the Feedback row"
+    },
+    {
+      "file": "before-help.png",
+      "label": "Before: the bell's count is half dimmed in help mode"
+    }
   ],
-  "guess": {"answer": "looks_good"}
+  "guess": {
+    "answer": "looks_good"
+  }
 }
