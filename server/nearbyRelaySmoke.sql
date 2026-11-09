@@ -285,8 +285,8 @@ select pg_temp.accepted(pg_temp.u('0b'), pg_temp.k(2), pg_temp.ev('rl-u4', 'rl-L
 insert into public.sign_in_codes (code_hash, profile_id, issued_by, expires_at, lost) values
   (repeat('1', 64), pg_temp.u('0e')::uuid, pg_temp.u('0a')::uuid, now() + interval '1 hour', true),
   (repeat('2', 64), pg_temp.u('0f')::uuid, pg_temp.u('0a')::uuid, now() + interval '1 hour', false);
-insert into auth.sessions (user_id, created_at, updated_at, aal) values
-  (pg_temp.u('0e')::uuid, now(), now(), 'aal1'), (pg_temp.u('0b')::uuid, now(), now(), 'aal1'), (pg_temp.u('0f')::uuid, now(), now(), 'aal1');
+insert into auth.sessions (id, user_id, created_at, updated_at, aal) values
+  (gen_random_uuid(), pg_temp.u('0e')::uuid, now(), now(), 'aal1'), (gen_random_uuid(), pg_temp.u('0b')::uuid, now(), now(), 'aal1'), (gen_random_uuid(), pg_temp.u('0f')::uuid, now(), now(), 'aal1');
 do $$ declare r record; v jsonb; begin
   select * into r from public.take_sign_in_code_v2(repeat('1', 64));
   if r.profile_id is distinct from pg_temp.u('0e')::uuid or not r.lost then raise exception 'the lost code''s answer: %', r; end if;
@@ -390,7 +390,7 @@ end $$;
 -- 11. An email account's keys through New password's lost choice, and staff:
 -- idempotent, the list written once, and later relayed work refused.
 do $$ declare v_sessions int; begin
-  insert into auth.sessions (user_id, created_at, updated_at, aal) values (pg_temp.u('11')::uuid, now(), now(), 'aal1');
+  insert into auth.sessions (id, user_id, created_at, updated_at, aal) values (gen_random_uuid(), pg_temp.u('11')::uuid, now(), now(), 'aal1');
   if public.revoke_install_keys(pg_temp.u('11'), 'New password: a phone was lost') <> 1 then raise exception 'the reset revoked nothing'; end if;
   if exists (select 1 from auth.sessions where user_id = pg_temp.u('11')::uuid) then raise exception 'a revoke left the person signed in'; end if;
   if public.revoke_install_keys(pg_temp.u('11'), 'New password: a phone was lost') <> 0 then raise exception 'a second revoke revoked again'; end if;
@@ -455,7 +455,7 @@ end $$;
 insert into public.install_keys (public_key, profile_id, install_id) values (pg_temp.k(9), pg_temp.u('0f')::uuid, 'dev-9');
 insert into public.sign_in_codes (code_hash, profile_id, issued_by, expires_at, lost) values
   (repeat('3', 64), pg_temp.u('0f')::uuid, pg_temp.u('0a')::uuid, now() + interval '1 hour', true);
-insert into auth.sessions (user_id, created_at, updated_at, aal) values (pg_temp.u('0f')::uuid, now(), now(), 'aal1'), (pg_temp.u('0d')::uuid, now(), now(), 'aal1');
+insert into auth.sessions (id, user_id, created_at, updated_at, aal) values (gen_random_uuid(), pg_temp.u('0f')::uuid, now(), now(), 'aal1'), (gen_random_uuid(), pg_temp.u('0d')::uuid, now(), now(), 'aal1');
 do $$ declare r record; v_seq bigint; begin
   select * into r from public.take_sign_in_code(repeat('3', 64));
   if r.profile_id is distinct from pg_temp.u('0f')::uuid or r.email is null then raise exception 'the password branch''s answer: %', r; end if;
