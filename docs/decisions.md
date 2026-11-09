@@ -2572,6 +2572,10 @@ turning links off also stops links and tokens already out (75).
 Amended (2026-10-13, Carl Sauder): an answered "needs changes" no longer
 counts toward `done` (96).
 
+Amended (2026-11-09, Ryder Wishart): an app with the `record` scope may
+also add versions and passages made in it, as the token's person (205).
+Outside reviews still never clear a checkpoint.
+
 ## 73. Languages and regions are LangQuest v2's reference tables, filled from Glottolog itself and kept outside the event log
 
 Date: 2026-10-08 · By: Caleb Koster · Status: partly superseded by 78
@@ -10853,3 +10857,61 @@ review over 14 days past the replacement, or a build cut from an older commit,
 still finds no copy: a new install on a slow link then pulls the log and its work
 is safe. At about one bump a week this keeps one or two versions nobody reports;
 at early October's three a week, five or six, each a copy per language.
+
+## 205. An app writes back work made in it: versions from pieces it uploads, and passages added to a book, each once per Idempotency-Key
+
+Date: 2026-11-09 · By: Ryder Wishart · Status: accepted
+
+Reason: the link to Aquilla went one way (AQU-2443). Aquilla reads a
+language's passages and takes through the API (101), but a take recorded in
+Aquilla, or a cell added there, never came back, so LangQuest stopped being
+the language's oral-first home. Partners want back translation and checks
+in Aquilla with the work kept in LangQuest (the NLCI demo of 2026-11-05).
+Aquilla's write-back runs on its server and retries; it asked for a
+version-create and a passage-create route, and an idempotency key. Chosen
+(`apps/web/worker/agent/contribute.ts`):
+- **A new scope, `record`.** Writes are as the token's person, as every
+  API write is (70, 72), and need what their phone would: `translate` for a
+  version, `manage_templates` for a passage. `can.record` says which the
+  token may do in each language. A token that cannot read still writes,
+  and is answered without the passage.
+- **A version is what Publish makes.** `PUT …/languages/{id}/audio` stores
+  one piece (AAC in MP4 or WAV, 20 MB, 2000 an hour per token) as a voice
+  note is stored. `POST …/passages/{unitId}/versions` names the pieces in
+  playing order, and the Worker appends `v1.RecordingAdded` for each new
+  piece and core `publishVersion`'s events: the take, its submission, and
+  the note on what changed ("Recorded in <app>" unless the app says).
+  It continues the latest version and replaces no draft (83): a draft on a
+  phone is its recorder's to finish. A piece is audio the token uploaded in
+  the last six hours, or a piece of a version of the same passage, for the
+  reason voice notes are held to it (77): naming other audio would hand out
+  a link to it.
+- **A passage is `v1.UnitAdded`**, as a coordinator adds one by hand,
+  under a book (or chapter or folder), after a unit or at the end of it.
+  Its `order` is a string between its neighbours'. Its unit id has no
+  template prefix, so no template hides it and it has no verses.
+- **Idempotency.** Both need an `Idempotency-Key` header (Aquilla sends
+  its event id). The new take id and unit id, and so every event id, come
+  from the token, the passage or language, and the key. A retry finds what
+  the first try made and answers it with `duplicate: true`, and the
+  database answers a re-sent event as a duplicate. The same key with a
+  different body is `409 idempotency_conflict`, never answered as the first.
+  No table of keys is kept: the log is the record.
+- **Nothing is deleted from outside.** LangQuest stays the authority for
+  removal; an app that drops a take or a cell keeps that to itself.
+- No new event type: the database's checks are the phone's, and the
+  migration (`20261109120000_api_record_scope.sql`) only lets the token
+  tables hold the scope. The change feed shows the app its own write as
+  `passage.version.submitted` or `unit.created`; it knows the `takeId` or
+  `unitId` it was given.
+Rejected: one event per piece pushed by the app (it would need the
+envelope, the HLC and the privilege rules of a phone); a table of keys
+with stored answers (ids from the key do the same with nothing to expire);
+a new event for outside versions (phones and reports would need a second
+shape of the same thing); taking comments, notes and assignments back in
+the same change (they have their own shapes; a later entry if Aquilla
+needs them).
+Reverse if: apps need to replace a phone's draft, or to divide books by
+template ids (then the passage route takes a unit id from the template), or
+outside versions need their recorder's own name (then the version carries
+it, as a review's `givenBy` does).

@@ -14,7 +14,8 @@ import {
   type LinkView, type PassageListQuery, type Refusal, type ReviewLink, type VoiceNote
 } from './view';
 import { EXTERNAL_KEY_MAX } from '@langquest-next/core';
-import { readVoiceNote } from './voice';
+import { readAudio, readVoiceNote } from './voice';
+import { parseIdempotencyKey, parsePassage, parseVersion } from './contribute';
 
 /**
  * `/api/v1/*`: the access-token API for apps and agents (docs/agent-api.md,
@@ -28,8 +29,8 @@ export interface OrgStub {
   read(grant: Grant, q: AgentQuery): Promise<Answer<unknown>>;
   write(grant: Grant, w: AgentWrite): Promise<Answer<unknown>>;
   access(profileId: string): Promise<OrgAccess | null>;
-  /** Count one voice note upload against a token's or link's hourly uploads; false when they are spent. */
-  spend(key: string): Promise<boolean>;
+  /** Count one upload against a token's or link's hourly uploads (a voice note, or a piece of a version); false when they are spent. */
+  spend(key: string, what?: 'voiceNote' | 'audio'): Promise<boolean>;
   /** Count one write that is not an event (a review link made with a token) against the token's writes. */
   spendWrite(key: string): Promise<boolean>;
   /** Is the link open: not revoked or expired, and its sharer can still record (decisions.md 75)? */
@@ -52,7 +53,7 @@ export interface AgentDeps {
   /** The profile a Supabase access token belongs to (the connect page's session). */
   profileOf(jwt: string): Promise<string | null>;
   org(orgId: string): OrgStub;
-  /** Store a voice note under the language and record it, returning its hash; null when file storage is not set up. */
+  /** Store audio (a voice note, or a piece of a version) under the language and record it, returning its hash; null when file storage is not set up. */
   saveVoiceNote: ((orgId: string, languageId: string, bytes: Uint8Array<ArrayBuffer>, format: VoiceNote['format']) => Promise<string>) | null;
   /** False when this caller (by address) has asked too often. The device endpoints and review links need no sign-in. */
   publicAllowed?(request: Request, what: 'device' | 'link'): Promise<boolean>;
@@ -81,7 +82,7 @@ const TOUCH_EVERY_MS = 5 * 60 * 1000;
  */
 const CORS = {
   'access-control-allow-origin': '*',
-  'access-control-allow-headers': 'authorization, content-type, mcp-protocol-version, mcp-session-id',
+  'access-control-allow-headers': 'authorization, content-type, idempotency-key, mcp-protocol-version, mcp-session-id',
   'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'access-control-expose-headers': 'mcp-session-id'
 };
@@ -191,6 +192,9 @@ function index(url: URL) {
       review: `POST ${base}/languages/{languageId}/passages/{unitId}/reviews`,
       release: `POST ${base}/languages/{languageId}/passages/{unitId}/releases`,
       voiceNote: `PUT ${base}/languages/{languageId}/voice-notes (m4a or WAV body)`,
+      audio: `PUT ${base}/languages/{languageId}/audio (m4a or WAV body: one piece of a version, needs the record scope)`,
+      addVersion: `POST ${base}/languages/{languageId}/passages/{unitId}/versions (Idempotency-Key header; body: { "pieces": [ … ], "note": "…" })`,
+      addPassage: `POST ${base}/languages/{languageId}/passages (Idempotency-Key header; body: { "label": "…", "parentUnitId": "…", "afterUnitId": "…" })`,
       externalValues: `GET ${base}/languages/{languageId}/external-values?keyPrefix=&changedSince=ISO&after= (values your apps store with the language; LangQuest keeps them and never acts on them)`,
       externalValue: `PUT | GET | DELETE ${base}/languages/{languageId}/external-values/{key} (PUT body: { "data": { … } }, at most 4 KB)`,
       reviewLink: `POST ${base}/review-links`,
@@ -229,6 +233,7 @@ async function tokenRoute(request: Request, parts: string[], url: URL, auth: { g
     return one ? json(200, one) : fail(404, 'no_language', 'This token cannot open that language.');
   }
   if (parts[2] === 'voice-notes' && parts.length === 3 && request.method === 'PUT') return voiceNote(request, grant, languageId, deps);
+  if (parts[2] === 'audio' && parts.length === 3 && request.method === 'PUT') return audioPiece(request, grant, languageId, deps);
   if (parts[2] === 'external-values') return externalValuesRoute(request, parts.slice(3).join('/'), url, grant, languageId, deps);
   if (parts[2] === 'changes' && parts.length === 3 && get) return changesRoute(url, grant, languageId, deps);
   if (parts[2] !== 'passages') return fail(404, 'not_found', 'Not found. GET /api/v1 lists what is here.');
@@ -236,14 +241,28 @@ async function tokenRoute(request: Request, parts: string[], url: URL, auth: { g
     const query = passageQueryFrom(url);
     return isRefusal(query) ? fail(query.status, query.code, query.error) : answer(await org.read(grant, { op: 'passages', languageId, query }));
   }
+  if (parts.length === 3 && request.method === 'POST') {
+    const key = parseIdempotencyKey(request.headers.get('idempotency-key'));
+    if (isRefusal(key)) return fail(key.status, key.code, key.error);
+    const b = await body(request);
+    const input = b ? parsePassage(b, key) : null;
+    if (!input) return fail(400, 'bad_request', 'Send a JSON object.');
+    return isRefusal(input) ? fail(input.status, input.code, input.error) : answer(await org.write(grant, { op: 'addPassage', languageId, input }));
+  }
   const last = parts[parts.length - 1];
-  const action = parts.length > 4 && (last === 'reviews' || last === 'releases') ? last : undefined;
+  const action = parts.length > 4 && (last === 'reviews' || last === 'releases' || last === 'versions') ? last : undefined;
   const unitId = parts.slice(3, action ? -1 : undefined).join('/');
   if (!unitId) return fail(404, 'not_found', 'Not found.');
   if (get && !action) return answer(await org.read(grant, { op: 'passage', languageId, unitId }));
-  if (request.method !== 'POST' || !action) return fail(405, 'method', 'Use GET for a passage, POST for its reviews or releases.');
+  if (request.method !== 'POST' || !action) return fail(405, 'method', 'Use GET for a passage, POST for its reviews, releases or versions.');
+  const key = action === 'versions' ? parseIdempotencyKey(request.headers.get('idempotency-key')) : null;
+  if (isRefusal(key)) return fail(key.status, key.code, key.error);
   const b = await body(request);
   if (!b) return fail(400, 'bad_request', 'Send a JSON object.');
+  if (action === 'versions') {
+    const input = parseVersion(b, key!, auth.token.clientName ?? auth.token.name);
+    return isRefusal(input) ? fail(input.status, input.code, input.error) : answer(await org.write(grant, { op: 'version', languageId, unitId, input }));
+  }
   if (action === 'reviews') {
     const input = parseReview(b);
     return isRefusal(input) ? fail(input.status, input.code, input.error) : answer(await org.write(grant, { op: 'review', languageId, unitId, input }));
@@ -337,6 +356,23 @@ async function voiceNote(request: Request, grant: Grant, languageId: string, dep
   const hash = await deps.saveVoiceNote(grant.orgId, languageId, read.bytes, read.note.format);
   // Send this object back as the review's voiceNote.
   return json(200, { voiceNote: { hash, ...read.note } });
+}
+
+/** One piece of a version made in another app (contribute.ts): stored like a voice note, named in the version within six hours. */
+async function audioPiece(request: Request, grant: Grant, languageId: string, deps: AgentDeps): Promise<Response> {
+  if (!deps.saveVoiceNote) return fail(503, 'unavailable', 'File storage is not set up here.');
+  const org = deps.org(grant.orgId);
+  const can = await org.read(grant, { op: 'can', languageId });
+  if (!can.ok) return answer(can);
+  if (!(can.data as { record: { versions: boolean } }).record.versions) {
+    return fail(403, 'scope', 'Pieces go into versions, and this token cannot add versions in this language: it needs the record scope, and its person must translate there.');
+  }
+  if (!(await org.spend(grant.tokenId, 'audio'))) return fail(429, 'rate_limited', 'This token has uploaded as much audio as it may this hour. Try again later.');
+  const read = await readAudio(request, 'A piece');
+  if ('error' in read) return fail(read.status, 'bad_audio', read.error);
+  const hash = await deps.saveVoiceNote(grant.orgId, languageId, read.bytes, read.note.format);
+  // Send this object back, with durationMs for an m4a piece, in the version's pieces.
+  return json(200, { audio: { hash, ...read.note } });
 }
 
 // ---- the device flow (RFC 8628) ----------------------------------------------------
@@ -493,6 +529,9 @@ async function tokenSpec(b: Record<string, unknown>, profileId: string, deps: Ag
   }
   if (scopes.includes('external_values') && !reach.some((l) => l.mayStoreValues)) {
     return { error: 'The external_values scope stores values as you, and you cannot translate, review or fill reference material in any of these languages.' };
+  }
+  if (scopes.includes('record') && !reach.some((l) => l.mayRecord)) {
+    return { error: 'The record scope adds versions and passages as you, and you cannot translate or divide the books in any of these languages.' };
   }
   let expiresAt: string | null = null;
   if (b['expiresInDays'] !== undefined && b['expiresInDays'] !== null) {

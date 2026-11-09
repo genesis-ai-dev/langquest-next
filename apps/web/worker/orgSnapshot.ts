@@ -45,8 +45,8 @@ export class OrgSnapshot extends DurableObject<Env> {
     return this.agentFor(orgId, origin).write(grant, w);
   }
 
-  async agentSpend(orgId: string, key: string): Promise<boolean> {
-    return this.agentFor(orgId, '').spend(key);
+  async agentSpend(orgId: string, key: string, what?: 'voiceNote' | 'audio'): Promise<boolean> {
+    return this.agentFor(orgId, '').spend(key, what);
   }
 
   async agentSpendWrite(orgId: string, key: string): Promise<boolean> {

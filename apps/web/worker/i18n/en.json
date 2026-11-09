@@ -130,7 +130,8 @@
       "read": "Read every passage shared for review, with its versions and reviews",
       "review": "Record reviews as you: listener feedback, or a review step in the flow, with a comment or a voice note",
       "release": "Say where a version is published (live in an app or on a site), or taken down",
-      "externalValues": "Store the app's own values with your languages, as you. LangQuest keeps them and never acts on them"
+      "externalValues": "Store the app's own values with your languages, as you. LangQuest keeps them and never acts on them",
+      "record": "Add recordings made in the app as you: new versions of passages, and new passages in a book"
     }
   },
   "videos": {

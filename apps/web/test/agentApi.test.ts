@@ -13,6 +13,7 @@ import { referenceOf } from '../worker/agent/view';
 import { hashSecret } from '../worker/agent/tokens';
 import type { ReviewLink } from '../worker/agent/view';
 import { sniffVoiceNote } from '../worker/agent/voice';
+import { orderBetween } from '../worker/agent/contribute';
 import { MemoryCache, OrgFolder, type Source } from '../worker/orgFolder';
 import { LanguageRecordsKeeper } from '../worker/languageRecords';
 import { check, compileAll, openApiProblems, uncovered } from './openapiCheck';
@@ -305,10 +306,11 @@ function setup() {
     saveVoiceNote: async (_o, _l, bytes) => (await hashSecret(String.fromCharCode(...bytes))),
     now: () => now
   };
-  const call = async (method: string, path: string, auth?: string, body?: unknown, raw?: Uint8Array) => {
+  const call = async (method: string, path: string, auth?: string, body?: unknown, raw?: Uint8Array, headers: Record<string, string> = {}) => {
     const res = await handleAgentApi(new Request(`https://lq.test${path}`, {
       method,
       headers: {
+        ...headers,
         ...(auth ? { authorization: `Bearer ${auth}` } : {}),
         ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
         ...(raw ? { 'content-type': 'audio/mp4', 'content-length': String(raw.length) } : {})
@@ -989,7 +991,7 @@ describe('the device flow', () => {
     const done = await poll();
     expect(done.body).toMatchObject({ access_token: asked.body.device_code, token_type: 'Bearer', scope: 'read review', language_ids: ['din'] });
     const langs = await call('GET', '/api/v1/languages', done.body.access_token);
-    expect(langs.body.map((l: any) => [l.languageId, l.can])).toEqual([['din', { read: 'all', review: true, release: false, externalValues: { read: true, write: false } }]]);
+    expect(langs.body.map((l: any) => [l.languageId, l.can])).toEqual([['din', { read: 'all', review: true, release: false, externalValues: { read: true, write: false }, record: { versions: false, passages: false } }]]);
     expect(store.tokens[0]!.tokenHash).toBe(await hashSecret(asked.body.device_code));
     expect(store.tokens[0]!.clientName).toBe('Every Language Listener');
   });
@@ -1293,6 +1295,128 @@ describe('webhooks and the change feed (decisions.md 101)', () => {
     expect(referenceOf('bsb/GEN.1.1-2.3~org')).toEqual({ book: 'GEN', chapter: 1, verse: 1, endChapter: 2, endVerse: 3 });
     expect(referenceOf('bsb/MAT.5')).toEqual({ book: 'MAT', chapter: 5, verse: null, endChapter: 5, endVerse: null });
     expect(referenceOf('bsb/MRK')).toEqual({ book: 'MRK', chapter: null, verse: null, endChapter: null, endVerse: null });
+  });
+});
+
+describe('work made in another app, written back (decisions.md 205)', () => {
+  type Call = ReturnType<typeof setup>['call'];
+  /** Upload pieces as an app does, each with the length it knows. */
+  async function pieces(call: Call, t: string, names: string[]) {
+    const out = [];
+    for (const n of names) {
+      const up = await call('PUT', '/api/v1/languages/din/audio', t, undefined, m4a(n));
+      if (up.status !== 200) throw new Error(JSON.stringify(up.body));
+      out.push({ ...up.body.audio, durationMs: 1200 });
+    }
+    return out;
+  }
+  const keyed = (key: string) => ({ 'idempotency-key': key });
+  const addVersion = (call: Call, t: string, unitId: string, key: string | null, body: unknown) =>
+    call('POST', `/api/v1/languages/din/passages/${unitId}/versions`, t, body, undefined, key === null ? {} : keyed(key));
+  const addPassage = (call: Call, t: string, key: string, body: unknown) => call('POST', '/api/v1/languages/din/passages', t, body, undefined, keyed(key));
+  const takesOf = (log: Log, unitId: string) => (log.streams.get('din') ?? []).filter((e) => e.type === 'v1.TakeComposed' && (e.payload as { unitId: string }).unitId === unitId);
+
+  it('adds a version from uploaded pieces as the token\'s person, shared for review, and a retry records nothing new', async () => {
+    const { call, token, log } = setup();
+    const t = await token('tr', { scopes: ['read', 'record'] });
+    const sent = await pieces(call, t, ['aq-1', 'aq-2']);
+    const first = await addVersion(call, t, 'd4', 'aquilla-event-1', { pieces: sent });
+    expect(first.status).toBe(200);
+    expect(first.body).toMatchObject({ unitId: 'd4', duplicate: false, passage: { status: 'in_review', version: { n: 1, takeId: first.body.takeId, durationMs: 2400 } } });
+    expect(first.body.passage.audio.map((a: { hash: string }) => a.hash)).toEqual(sent.map((p) => p.hash));
+    expect(takesOf(log, 'd4')).toMatchObject([{ actorId: 'tr', deviceId: expect.stringMatching(/^api-/) }]);
+    // A retry after a lost answer finds the version made, so the app can store takeId either way.
+    const again = await addVersion(call, t, 'd4', 'aquilla-event-1', { pieces: sent });
+    expect(again.body).toMatchObject({ takeId: first.body.takeId, duplicate: true });
+    expect(takesOf(log, 'd4')).toHaveLength(1);
+    // The same key never stands for something else.
+    const other = await pieces(call, t, ['aq-3']);
+    expect((await addVersion(call, t, 'd4', 'aquilla-event-1', { pieces: other })).body.code).toBe('idempotency_conflict');
+    expect((await addVersion(call, t, 'd4', null, { pieces: other })).body.code).toBe('idempotency_key');
+    expect((await addVersion(call, t, 'd4', 'k2', { pieces: [] })).status).toBe(400);
+  });
+
+  it('continues the latest version with a note on what changed, and leaves a draft on a phone to whoever recorded it', async () => {
+    const { call, token, log } = setup();
+    const t = await token('tr', { scopes: ['read', 'record'] });
+    const next = await addVersion(call, t, 'd2', 'e-2', { pieces: await pieces(call, t, ['d2-new']) });
+    expect(next.body.passage).toMatchObject({ status: 'in_review', version: { n: 2 } });
+    const response = (log.streams.get('din') ?? []).find((e) => e.type === 'v1.ResponseRecorded');
+    expect(response?.payload).toEqual({ takeId: next.body.takeId, respondsToTakeId: 'take-d2', note: 'Recorded in test' });
+    // The same pieces as the latest version is no new version.
+    expect((await addVersion(call, t, 'd2', 'e-3', { pieces: next.body.passage.audio.map((a: { hash: string }) => ({ hash: a.hash, format: 'm4a', durationMs: 1 })) })).body.code).toBe('unchanged');
+    // d3 has tr's draft and no version: the new version starts afresh, and the draft stays.
+    const d3 = await addVersion(call, t, 'd3', 'e-4', { pieces: await pieces(call, t, ['d3-new']), note: 'From the Aquilla session' });
+    expect(d3.body.passage.version.n).toBe(1);
+    expect((log.streams.get('din') ?? []).some((e) => e.type === 'v1.TakeArchived')).toBe(false);
+  });
+
+  it('names only audio it uploaded, or pieces of the passage\'s own versions, never other audio in the language', async () => {
+    const { call, token } = setup();
+    const t = await token('tr', { scopes: ['read', 'record'] });
+    const fresh = await pieces(call, t, ['mine']);
+    // d1's pieces may move into another version of d1, as an edit keeps the parts it does not change...
+    const d1 = await addVersion(call, t, 'd1', 'k1', { pieces: [card('d1a'), ...fresh] });
+    expect(d1.body.passage.version.n).toBe(2);
+    // ...but d2's may not go into d4: that would hand out a link to them.
+    expect((await addVersion(call, t, 'd4', 'k2', { pieces: [card('d2a')] })).body.code).toBe('bad_piece');
+  });
+
+  it('adds a passage to a book after the one named, or at the end, and a retry finds it', async () => {
+    const { call, token } = setup();
+    const t = await token('admin', { scopes: ['read', 'record'] });
+    const made = await addPassage(call, t, 'cell-9', { label: 'Luke 2b', afterUnitId: 'd2' });
+    expect(made.status).toBe(200);
+    expect(made.body).toMatchObject({ duplicate: false, passage: { label: 'Luke 2b', path: ['Luke'], status: 'not_started', reference: null } });
+    const unitId = made.body.unitId as string;
+    const end = await addPassage(call, t, 'cell-10', { label: 'Luke 5', parentUnitId: 'book' });
+    const list = await call('GET', '/api/v1/languages/din/passages', t);
+    expect(list.body.passages.map((p: { unitId: string }) => p.unitId)).toEqual(['d1', 'd2', unitId, 'd3', 'd4', end.body.unitId]);
+    expect((await addPassage(call, t, 'cell-9', { label: 'Luke 2b', afterUnitId: 'd2' })).body).toMatchObject({ unitId, duplicate: true });
+    expect((await addPassage(call, t, 'cell-9', { label: 'Luke 2c', afterUnitId: 'd2' })).body.code).toBe('idempotency_conflict');
+    // A passage cannot hold another, and a place must be given.
+    expect((await addPassage(call, t, 'cell-11', { label: 'x', parentUnitId: 'd1' })).status).toBe(400);
+    expect((await addPassage(call, t, 'cell-12', { label: 'x' })).status).toBe(400);
+    expect((await addPassage(call, t, 'cell-13', { label: 'x', afterUnitId: 'nope' })).body.code).toBe('no_unit');
+    // The new passage takes versions like any other.
+    const v = await addVersion(call, t, unitId, 'take-1', { pieces: await pieces(call, t, ['new-cell']) });
+    expect(v.body.passage).toMatchObject({ unitId, version: { n: 1 } });
+  });
+
+  it('finds a place between any two orders, in printable characters, so a passage goes where it was put', () => {
+    expect(orderBetween('d2', 'd3')).toBe('d2O');
+    expect(orderBetween('b0001p00012', 'b0002')).toBe('b0001w');
+    expect(orderBetween('a', 'a!')).toBeNull();
+    expect(orderBetween('b', 'a')).toBeNull();
+    let seed = 7;
+    const rand = () => (seed = (seed * 48271) % 2147483647) / 2147483647;
+    const word = () => Array.from({ length: Math.floor(rand() * 6) }, () => String.fromCharCode(0x21 + Math.floor(rand() * 94))).join('');
+    for (let i = 0; i < 2000; i++) {
+      const [lo, hi] = [word(), rand() < 0.2 ? null : word()];
+      if (hi !== null && !(lo < hi)) continue;
+      const mid = orderBetween(lo, hi);
+      if (mid === null) {
+        expect(hi).toMatch(new RegExp(`^${lo.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&')}!+$`));
+        continue;
+      }
+      expect(mid > lo && (hi === null || mid < hi)).toBe(true);
+      expect(mid).toMatch(/^[\x21-\x7e]+$/);
+    }
+  });
+
+  it('needs the record scope and a person who translates for versions, or divides the books for passages', async () => {
+    const { call, token } = setup();
+    const reader = await token('tr', { scopes: ['read'] });
+    expect((await call('PUT', '/api/v1/languages/din/audio', reader, undefined, m4a('x'))).body.code).toBe('scope');
+    expect((await addVersion(call, reader, 'd4', 'k', { pieces: [card('ab')] })).body.code).toBe('scope');
+    // A reviewer neither translates nor divides books, so cannot be given the scope at all.
+    expect((await call('POST', '/api/v1/session/tokens', 'jwt:rev', { orgId: ORG, name: 'x', scopes: ['record'] })).status).toBe(400);
+    // A translator adds versions, not passages; a token without read still writes, and is answered without the passage.
+    const tr = await token('tr', { scopes: ['record'] });
+    expect((await call('GET', '/api/v1/languages/din', await token('tr', { scopes: ['read', 'record'] }))).body.can.record).toEqual({ versions: true, passages: false });
+    expect((await addPassage(call, tr, 'p', { label: 'x', parentUnitId: 'book' })).body.code).toBe('privilege');
+    const blind = await addVersion(call, tr, 'd4', 'k', { pieces: await pieces(call, tr, ['blind']) });
+    expect(blind.body).toMatchObject({ unitId: 'd4', duplicate: false, passage: null, takeId: expect.any(String) });
   });
 });
 

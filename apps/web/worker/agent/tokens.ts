@@ -6,7 +6,7 @@
  */
 
 /** What a token may do. `read` includes `read:published`. */
-export const SCOPES = ['read:published', 'read', 'review', 'release', 'external_values'] as const;
+export const SCOPES = ['read:published', 'read', 'review', 'release', 'external_values', 'record'] as const;
 export type Scope = (typeof SCOPES)[number];
 
 export const SCOPE_TEXT: Record<Scope, string> = {
@@ -14,7 +14,8 @@ export const SCOPE_TEXT: Record<Scope, string> = {
   read: 'Read every passage shared for review, with its versions and reviews',
   review: 'Record reviews as you: listener feedback, or a review step in the flow, with a comment or a voice note',
   release: 'Say where a version is published (live in an app or on a site), or taken down',
-  external_values: 'Save the app\'s own data in LangQuest. LangQuest stores and retrieves it for you but does not use it'
+  external_values: 'Save the app\'s own data in LangQuest. LangQuest stores and retrieves it for you but does not use it',
+  record: 'Add recordings made in the app as you: new versions of passages, and new passages in a book'
 };
 
 /** May this token read the external values of the languages it reaches (decisions.md 79)? A token that writes them may read them back. */

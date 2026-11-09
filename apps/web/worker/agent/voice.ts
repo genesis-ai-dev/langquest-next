@@ -32,12 +32,22 @@ export function sniffVoiceNote(bytes: Uint8Array): Omit<VoiceNote, 'hash'> | nul
 
 /** Read a request's body as a voice note, or the reason it is not one. */
 export async function readVoiceNote(request: Request): Promise<{ bytes: Uint8Array<ArrayBuffer>; note: Omit<VoiceNote, 'hash'> } | { status: number; error: string }> {
+  return readAudio(request, 'A voice note');
+}
+
+/**
+ * Read a request's body as audio phones play (a voice note, or a piece of
+ * a version made in another app), or the reason it is not. `what` names it
+ * in the reason, such as "A piece".
+ */
+export async function readAudio(request: Request, what: string): Promise<{ bytes: Uint8Array<ArrayBuffer>; note: Omit<VoiceNote, 'hash'> } | { status: number; error: string }> {
+  const name = what.replace(/^A /, 'the ').toLowerCase();
   const length = Number(request.headers.get('content-length') ?? NaN);
-  if (!Number.isFinite(length)) return { status: 411, error: 'Send Content-Length with the voice note.' };
-  if (length > MAX_VOICE_NOTE_BYTES) return { status: 413, error: 'A voice note can be at most 20 MB.' };
+  if (!Number.isFinite(length)) return { status: 411, error: `Send Content-Length with ${name}.` };
+  if (length > MAX_VOICE_NOTE_BYTES) return { status: 413, error: `${what} can be at most 20 MB.` };
   const bytes = new Uint8Array(await request.arrayBuffer());
-  if (bytes.length === 0 || bytes.length > MAX_VOICE_NOTE_BYTES) return { status: 400, error: 'Send the voice note as the body.' };
+  if (bytes.length === 0 || bytes.length > MAX_VOICE_NOTE_BYTES) return { status: 400, error: `Send ${name} as the body.` };
   const note = sniffVoiceNote(bytes);
-  if (!note) return { status: 415, error: 'A voice note must be AAC in MP4 (.m4a) or WAV.' };
+  if (!note) return { status: 415, error: `${what} must be AAC in MP4 (.m4a) or WAV.` };
   return { bytes, note };
 }

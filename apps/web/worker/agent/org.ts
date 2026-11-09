@@ -1,8 +1,9 @@
 import { languageInfo, languageName, privilegesFor, mayViewLanguage, orgLanguages, type AnyEvent, type OrgState } from '@langquest-next/core';
+import { passageEvents, versionEvents, type PassageInput, type VersionInput } from './contribute';
 import type { AppendResult } from '@langquest-next/sync';
 import type { OrgFolder } from '../orgFolder';
 import type { LanguageRecords } from '../languageRecords';
-import type { Grant } from './tokens';
+import { canRead, type Grant } from './tokens';
 import type { ChangePage, DeliveryOut, WebhookDispatcher } from './dispatch';
 import type { WebhookRecord } from './store';
 import {
@@ -23,15 +24,21 @@ export type AgentQuery =
 export type AgentWrite =
   | { op: 'review'; languageId: string; unitId: string; input: ReviewInput }
   | { op: 'release'; languageId: string; unitId: string; input: ReleaseInput }
-  | { op: 'externalValue'; languageId: string; key: string; data: Record<string, unknown> | null };
+  | { op: 'externalValue'; languageId: string; key: string; data: Record<string, unknown> | null }
+  /** Work made in another app (contribute.ts, decisions.md 205). */
+  | { op: 'version'; languageId: string; unitId: string; input: VersionInput }
+  | { op: 'addPassage'; languageId: string; input: PassageInput };
 
 export type Answer<T> = { ok: true; data: T } | (Refusal & { ok: false });
 
 export interface OrgAccess {
   orgId: string;
   name: string;
-  /** Languages the person may view, whether they may review there (what the review scope needs), and store values (the external_values scope). */
-  languages: { languageId: string; name: string; mayReview: boolean; mayStoreValues: boolean }[];
+  /**
+   * Languages the person may view, whether they may review there (what the review scope needs), store values (the external_values
+   * scope), and add versions or passages (the record scope).
+   */
+  languages: { languageId: string; name: string; mayReview: boolean; mayStoreValues: boolean; mayRecord: boolean }[];
 }
 
 /** Writes one token (or one review link) may make in an hour, across every language. */
@@ -42,6 +49,12 @@ export const WRITES_PER_HOUR = 600;
  * this is much lower than the writes (decisions.md 75).
  */
 export const UPLOADS_PER_HOUR = 100;
+/**
+ * Pieces of versions one token may upload in an hour (PUT …/audio): a
+ * session in another app sent back as it was recorded, a few hundred
+ * versions of a few pieces each.
+ */
+export const AUDIO_UPLOADS_PER_HOUR = 2000;
 const HOUR_MS = 60 * 60 * 1000;
 /**
  * Server receipts the object remembers: each is the database's stamp on an
@@ -56,6 +69,9 @@ export const RECEIPTS_KEPT = 20_000;
  * before (decisions.md 188). One it has kept is remembered like a receipt.
  */
 export const V2_RECHECK_MS = 15 * 60 * 1000;
+
+/** What adding a version or a passage answers: the version's takeId (a version), the passage, and whether it was there already. */
+export interface Contributed { takeId?: string; unitId: string; duplicate: boolean; passage: PassageDetail | null }
 
 const no = (r: Refusal): Answer<never> => ({ ok: false, ...r });
 const yes = <T>(data: T): Answer<T> => ({ ok: true, data });
@@ -142,7 +158,10 @@ export class AgentOrg {
         .filter((l) => mayViewLanguage(org, profileId, l.languageId))
         .map((l) => {
           const privs = privilegesFor(org, profileId, l.languageId);
-          return { languageId: l.languageId, name: languageName(org, l.languageId), mayReview: privs.has('review') || privs.has('translate'), mayStoreValues: mayStoreValues(privs) };
+          return {
+            languageId: l.languageId, name: languageName(org, l.languageId), mayReview: privs.has('review') || privs.has('translate'), mayStoreValues: mayStoreValues(privs),
+            mayRecord: privs.has('translate') || privs.has('manage_templates')
+          };
         })
     };
   }
@@ -168,10 +187,13 @@ export class AgentOrg {
     return isRefusal(detail) ? no(detail) : yes(detail);
   }
 
-  async write(grant: Grant, w: AgentWrite): Promise<Answer<{ eventId: string; duplicate: boolean; passage: PassageDetail | null } | ExternalValueOut | { key: string; deleted: true }>> {
+  async write(grant: Grant, w: AgentWrite): Promise<Answer<
+    { eventId: string; duplicate: boolean; passage: PassageDetail | null } | ExternalValueOut | { key: string; deleted: true } | Contributed
+  >> {
     const held = await this.language(w.languageId, true);
     if (!held) return no({ status: 404, code: 'no_language', error: 'This token cannot open that language.' });
     if (w.op === 'externalValue') return this.storeValue(grant, held, w);
+    if (w.op === 'version' || w.op === 'addPassage') return this.contribute(grant, held, w);
     const ctx = { grant, org: held.org, records: held.records, languageId: w.languageId, unitId: w.unitId, now: this.now() };
     const event = w.op === 'review' ? await reviewEvent(ctx, w.input) : await releaseEvent(ctx, w.input);
     if (isRefusal(event)) return no(event);
@@ -189,6 +211,37 @@ export class AgentOrg {
       })
       : null;
     return yes({ eventId: event.id, duplicate: appended.data, passage: passage && !isRefusal(passage) ? passage : null });
+  }
+
+  /**
+   * A version or a passage made in another app (contribute.ts). One write
+   * against the token's hour, however many events it takes; a retry that
+   * finds it made answers it again and counts nothing.
+   */
+  private async contribute(grant: Grant, held: { org: OrgState; records: LanguageRecords }, w: Extract<AgentWrite, { op: 'version' | 'addPassage' }>): Promise<Answer<Contributed>> {
+    const ctx = { grant, org: held.org, records: held.records, languageId: w.languageId, now: this.now() };
+    const made = w.op === 'version' ? await versionEvents(ctx, w.unitId, w.input) : await passageEvents(ctx, w.input);
+    if (isRefusal(made)) return no(made);
+    if (made.events.length) {
+      if (!this.allowWrite(grant.tokenId)) {
+        return no({ status: 429, code: 'rate_limited', error: `This token has made ${WRITES_PER_HOUR} writes in the last hour. Try again later.` });
+      }
+      const results = await this.deps.append(made.events);
+      const refused = results.find((r) => !r.accepted);
+      if (refused || results.length !== made.events.length) return no({ status: 403, code: 'refused', error: `The server refused it: ${refused?.reason ?? 'no answer'}.` });
+    }
+    const unitId = 'takeId' in made ? (w as { unitId: string }).unitId : made.unitId;
+    const after = await this.language(w.languageId, true);
+    const passage = after && canRead(grant)
+      ? await passageFor(grant, grant.orgId, w.languageId, after.records, unitId, this.deps.sign, this.receivedIn(w.languageId)).catch((e: unknown) => {
+        console.error(`agent read-back ${w.languageId}/${unitId}:`, e);
+        return null;
+      })
+      : null;
+    return yes({
+      ...('takeId' in made ? { takeId: made.takeId } : {}), unitId, duplicate: made.duplicate,
+      passage: passage && !isRefusal(passage) ? passage : null
+    });
   }
 
   /** Store a value, or delete its key with null, and answer with what the fold now holds (decisions.md 79). */
@@ -244,9 +297,9 @@ export class AgentOrg {
     return this.deps.webhooks;
   }
 
-  /** Count an upload (a voice note) against a token's or a link's hourly uploads. */
-  async spend(key: string): Promise<boolean> {
-    return this.allow(`upload:${key}`, UPLOADS_PER_HOUR);
+  /** Count an upload against a token's or a link's hourly uploads: a voice note, or a piece of a version (`audio`). */
+  async spend(key: string, what: 'voiceNote' | 'audio' = 'voiceNote'): Promise<boolean> {
+    return what === 'audio' ? this.allow(`audio:${key}`, AUDIO_UPLOADS_PER_HOUR) : this.allow(`upload:${key}`, UPLOADS_PER_HOUR);
   }
 
   /** Count a write that is not an event (a review link shared with a token) against the token's writes. */

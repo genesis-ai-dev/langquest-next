@@ -130,7 +130,8 @@
       "read": "Membaca setiap perikop yang dibagikan untuk diperiksa, beserta versi dan pemeriksaannya",
       "review": "Mencatat pemeriksaan atas nama Anda: masukan pendengar, atau tahap pemeriksaan dalam alur, dengan komentar atau catatan suara",
       "release": "Menyebutkan di mana sebuah versi diterbitkan (tayang di aplikasi atau situs), atau diturunkan",
-      "externalValues": "Menyimpan nilai milik aplikasi itu sendiri bersama bahasa-bahasa Anda, atas nama Anda. LangQuest menyimpannya dan tidak pernah bertindak berdasarkan nilai itu"
+      "externalValues": "Menyimpan nilai milik aplikasi itu sendiri bersama bahasa-bahasa Anda, atas nama Anda. LangQuest menyimpannya dan tidak pernah bertindak berdasarkan nilai itu",
+      "record": "Menambahkan rekaman yang dibuat di aplikasi itu atas nama Anda: versi baru perikop, dan perikop baru dalam sebuah kitab"
     }
   },
   "videos": {

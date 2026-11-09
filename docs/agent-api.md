@@ -1,8 +1,8 @@
 # The LangQuest API, review links, and MCP
 
-Other apps, AI agents and people without an account can take part in a translation's review. Why it is built this way: `docs/decisions.md` 70 (tokens), 72 (reviews, releases, review links), 79 (external values), 85 (the passage list), 86 (the OpenAPI document), 101 (webhooks and the change feed), 109 (a listening app's approved audio) and 188 (when the server received each thing, and when LangQuest v2's did).
+Other apps, AI agents and people without an account can take part in a translation's review. Why it is built this way: `docs/decisions.md` 70 (tokens), 72 (reviews, releases, review links), 79 (external values), 85 (the passage list), 86 (the OpenAPI document), 101 (webhooks and the change feed), 109 (a listening app's approved audio), 188 (when the server received each thing, and when LangQuest v2's did) and 205 (versions and passages made in another app).
 
-- **Partner apps and agents** use an access token. They read passages, record reviews, report where a version is published, and store values of their own with a language.
+- **Partner apps and agents** use an access token. They read passages, record reviews, report where a version is published, store values of their own with a language, and add versions and passages recorded in the app.
 - **Anyone with a review link** (`/r/<code>`, shared on WhatsApp, say) can hear one version and answer, with any name.
 
 Base address: `https://next.langquest.org/api/v1` (preview: `next-preview.langquest.org`). `GET /api/v1` lists every endpoint.
@@ -11,7 +11,7 @@ Base address: `https://next.langquest.org/api/v1` (preview: `next-preview.langqu
 
 ## What outside writes become
 
-Everything written from outside is one of three events in the organization's log. The team sees the first two on the passage.
+Everything written from outside is one of these in the organization's log. The team sees all but external values on the passage.
 
 - **A review** (`v1.ReviewRecorded`, given by link). It is either:
   - **listener feedback** (kind `listener`): never clears or blocks a step, but "needs changes" asks the translator to respond; or
@@ -20,6 +20,10 @@ Everything written from outside is one of three events in the organization's log
   A review from outside never clears a checkpoint. Checkpoints need a review given in the app.
 - **A release** (`v1.VersionReleased`): "version 3 is live in the Every Language app", or taken down. It is a fact, not a verdict. Only the approved version can go live.
 - **An external value** (`v1.ExternalValueSet`): a value an app stores with a language under a key it chooses, such as play counts or a playlist. LangQuest keeps it and never acts on it: it changes no status and completes or blocks no step.
+- **A version** recorded in another app: the same events the app's Publish appends, so the version is shared for review like any other.
+- **A passage** added to a book in another app (`v1.UnitAdded`), as a coordinator adds one by hand.
+
+Nothing is deleted from outside. LangQuest decides what is removed.
 
 **Approved** always means the passage's *approved version*: the newest version every step approved by reviews of that very version. The team's own status can say "approved" while a newer recording waits for review. The approved version is still the older one, and that is what a listening app plays and a partner releases.
 
@@ -34,6 +38,7 @@ A token belongs to one person in one organization. **It can never do more than t
 | `review` | Record reviews: listener feedback, or a flow step, with a comment or voice note. Share review links (with `read`). | to review or translate |
 | `release` | Report where a version is published, or taken down. | to assign work (a coordinator) |
 | `external_values` | Store, read and delete the app's own values with a language. | to translate, review or fill reference material |
+| `record` | Add versions of passages, and passages in a book, recorded in the app. | to translate (versions), to divide the books (passages) |
 
 A token can be limited to some languages. It never expires unless given an expiry, and is revoked on `/connect`, or by the app itself with `DELETE /api/v1/token` (an app's "Disconnect"). Only its hash is stored.
 
@@ -41,7 +46,7 @@ A token can be limited to some languages. It never expires unless given an expir
 
 A token inside a phone app or a web page can be read by anyone who wants it. They can watch the traffic or unpack the app.
 
-- **`review`, `release` and `external_values` tokens belong on a server.** A listening app should send its listeners' reactions to its own backend. The backend checks its own users and limits, then calls this API with the token. It passes its user id as `reviewerId`.
+- **`review`, `release`, `external_values` and `record` tokens belong on a server.** A listening app should send its listeners' reactions to its own backend. The backend checks its own users and limits, then calls this API with the token. It passes its user id as `reviewerId`.
 - **A `read:published` token alone** exposes only approved audio, so it may ship inside an app if the organization's license allows. The audio links play without a token anyway.
 
 ### Making one
@@ -65,7 +70,7 @@ curl -H "$T" https://next.langquest.org/api/v1/languages/LANG/passages/UNIT     
 ```
 
 - **`/me`** gives the token, its organization (`org: { id, name }`, to label the connection) and its languages.
-- **Languages** say what the token can do there: `can: { read: "all" | "published" | null, review, release, externalValues: { read, write } }`.
+- **Languages** say what the token can do there: `can: { read: "all" | "published" | null, review, release, externalValues: { read, write }, record: { versions, passages } }`.
 - **The passage list** returns `{ passages, nextAfter }`, in display order. Each passage has `unitId`, `label`, `path` (book, chapter), `kind`, `order` (sorts as plain strings), `reference` (below), `status` (`not_started`, `drafting`, `in_review`, `feedback`, `approved`), `version`, `approvedVersion`, `releases`, `listenerFeedback` and `updatedAt`.
   - `version` is the latest version with `read`, and the approved one with `read:published` alone.
   - **Pages:** 100 passages at a time, or `limit` (1 to 500). Pass `nextAfter` as `after` for the next page. `nextAfter` is null when nothing more matches.
@@ -135,6 +140,52 @@ curl -X POST -H "$T" -H 'content-type: application/json' \
 - `takeId` defaults to the approved version, and only that version can go live.
 - `{"live": false}` takes any version down.
 - A newer approved version does not inherit a release. The passage shows where each version is live.
+
+### Versions and passages from another app
+
+An app where people also record (Aquilla, say) sends its work back. Both routes need the `record` scope and an `Idempotency-Key` header. Use your own id for the change, such as the id of the event in your app that made it.
+
+- The new ids come from the token and the key. A retry with the same key finds what the first try made, and answers it again with `duplicate: true`. Store the `takeId` or `unitId` either way.
+- The same key with a different body is `409 idempotency_conflict`. It is never answered as the first one.
+- Each counts as one write against the token's hour.
+- The change feed shows your own write as `passage.version.submitted` or `unit.created`. You know its id, so skip it.
+- Nothing is deleted through the API. If your app drops a take or a cell, LangQuest keeps it; show the difference in your app.
+
+**A version.** Upload each piece of the take, then name them in playing order:
+
+```bash
+curl -X PUT -H "$T" -H 'content-type: audio/mp4' --data-binary @piece1.m4a \
+  https://next.langquest.org/api/v1/languages/LANG/audio
+# → { "audio": { "hash": "…", "format": "m4a", "durationMs": 0 } }
+curl -X POST -H "$T" -H 'content-type: application/json' -H 'Idempotency-Key: aquilla-evt-8812' \
+  https://next.langquest.org/api/v1/languages/LANG/passages/UNIT/versions \
+  -d '{"pieces":[{"hash":"…","format":"m4a","durationMs":4100},{"hash":"…","format":"m4a","durationMs":3800}]}'
+# → { "takeId": "take:api-ver-…", "unitId": "UNIT", "duplicate": false, "passage": { … } }
+```
+
+- A piece is AAC in MP4 or WAV, up to 20 MB, with a `Content-Length`. A token uploads at most 2000 pieces an hour.
+- `durationMs` is read from a WAV file and is 0 for m4a. Send the real length in `pieces`.
+- Each piece must be audio you uploaded in the last six hours, or a piece of a version of this passage (`400 bad_piece` otherwise). Naming other audio would hand out a link to it.
+- The person behind the token must translate in the language. The version is recorded as them, and is shared for review at once, as the app's Publish does.
+- It continues the passage's latest version and replaces no draft: a draft on a phone stays with whoever recorded it.
+- `note` says what changed, for the team. When the passage already has a version and you leave it out, it is "Recorded in <your app's name>".
+- The same pieces as the latest version is `409 unchanged`.
+
+**A passage.**
+
+```bash
+curl -X POST -H "$T" -H 'content-type: application/json' -H 'Idempotency-Key: aquilla-evt-8813' \
+  https://next.langquest.org/api/v1/languages/LANG/passages \
+  -d '{"label":"Luke 1:5-25","afterUnitId":"UNIT"}'
+# → { "unitId": "api-…", "duplicate": false, "passage": { … } }
+```
+
+- `afterUnitId` is the unit it follows; `parentUnitId` is the book (or chapter, or folder) that holds it. Send either or both. With `parentUnitId` alone, it goes at the end.
+- A passage cannot hold another (`400`).
+- The person behind the token must be able to divide the language's books (a coordinator).
+- The new passage has no verses (`reference` is null) and no template hides it. It takes versions like any other.
+
+Not on MCP yet.
 
 ## Review links
 
@@ -283,7 +334,7 @@ Errors are JSON: `{ "error": "what happened, in words", "code": "short_code" }`.
 | `401` | missing, unknown, revoked or expired token |
 | `403` | a scope or role that does not allow it |
 | `404` | not there, or not visible to this token |
-| `409` | not approved, or not that version |
+| `409` | not approved, or not that version; an Idempotency-Key used for something else; a version with the same pieces as the latest |
 | `410` | a closed review link, or a change-feed cursor older than 90 days |
 | `413` | an external value's data over 4096 bytes |
 | `429` | a write or request limit |
@@ -301,7 +352,8 @@ The device endpoints use OAuth's error codes.
 | Per-organization reads and writes, limits | `apps/web/worker/agent/org.ts`, in the `OrgSnapshot` Durable Object |
 | MCP | `apps/web/worker/agent/mcp.ts` |
 | `/connect` | `apps/web/worker/agent/connectPage.ts` |
-| Voice note checks | `apps/web/worker/agent/voice.ts` |
+| Voice note and audio checks | `apps/web/worker/agent/voice.ts` |
+| Versions and passages from another app | `apps/web/worker/agent/contribute.ts`; scope in `supabase/migrations/20261109120000_api_record_scope.sql` |
 | Tables (service role only) | `supabase/migrations/20261008000000_api_tokens.sql`, `20261008140000_review_links_releases.sql`, `20261013120000_api_webhooks.sql` (also the poke) |
 | When the server received it (`uploadedAt`, `v2UploadedAt`) | `received_times` in `supabase/migrations/20261029160000_received_times.sql`, asked once a page (`receivedTimes` in `apps/web/worker/agent/store.ts`) and remembered by the organization's object (`agent/org.ts`); v2's stamps kept by the import (`v2_import.stamps`, `Fact.stamps` in `packages/v2-import`) |
 | Approved version, releases, links per step | core `approvedVersion`, `releasesOf`, `stepAllowsLinks`; events `v1.VersionReleased`, `v1.FlowStepLinksSet` |

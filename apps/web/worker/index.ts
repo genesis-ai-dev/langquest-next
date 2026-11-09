@@ -284,7 +284,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
           read: (grant, q) => plain(object.agentRead(orgId, grant, q, url.origin)),
           write: (grant, w) => plain(object.agentWrite(orgId, grant, w, url.origin)),
           access: (profileId) => plain(object.agentAccess(orgId, profileId)),
-          spend: (key) => plain(object.agentSpend(orgId, key)),
+          spend: (key, what) => plain(object.agentSpend(orgId, key, what)),
           spendWrite: (key) => plain(object.agentSpendWrite(orgId, key)),
           linkOpen: (link) => plain(object.agentLinkOpen(orgId, link)),
           mayRevokeLink: (profileId, link) => plain(object.agentMayRevokeLink(orgId, profileId, link)),
@@ -298,13 +298,13 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
           webhookDeliveries: (webhookId) => plain(object.agentWebhookDeliveries(orgId, webhookId))
         };
       },
-      // Named by its hash like every file (decision 69); R2 checks the bytes against it.
       publicAllowed: async (req, what) => {
         const limiter = what === 'device' ? env.DEVICE_RATE_LIMIT : env.LINK_RATE_LIMIT;
         if (!limiter) return true;
         const { success } = await limiter.limit({ key: req.headers.get('cf-connecting-ip') ?? 'unknown' });
         return success;
       },
+      // Named by its hash like every file (decision 69); R2 checks the bytes against it. Pieces of versions are kept the same way.
       saveVoiceNote: async (orgId, languageId, bytes, format) => {
         const hash = await sha256Hex(bytes);
         const { size } = await r2Bucket(env.BLOBS).put(`${orgId}/${languageId}/${hash}.${format}`, bytes, bytes.length, hash, format === 'm4a' ? 'audio/mp4' : 'audio/wav');

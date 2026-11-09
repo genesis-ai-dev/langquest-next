@@ -1,6 +1,7 @@
 import { EXTERNAL_KEY_MAX, KIND_STATE_LABEL } from '@langquest-next/core';
 import { LINK_DAYS, LINK_MAX_DAYS } from './links';
-import { UPLOADS_PER_HOUR, WRITES_PER_HOUR } from './org';
+import { AUDIO_UPLOADS_PER_HOUR, UPLOADS_PER_HOUR, WRITES_PER_HOUR } from './org';
+import { IDEMPOTENCY_KEY_MAX, MAX_VERSION_PIECES } from './contribute';
 import { SCOPE_TEXT, SCOPES, TOKEN_PREFIX } from './tokens';
 import {
   CHANGES_PAGE, CHANGES_PAGE_MAX, DELIVERIES_KEPT, DELIVERY_TIMEOUT_MS, SECRET_PREFIX, UNIT_IDS_PER_DELIVERY, WEBHOOK_EVENTS, WEBHOOKS_PER_TOKEN
@@ -51,6 +52,10 @@ const UNIT_ID = {
 const VALUE_KEY = {
   name: 'key', in: 'path', required: true, schema: text(undefined, { maxLength: EXTERNAL_KEY_MAX }),
   description: 'A key your app chose: segments of letters, digits and . _ ~ : @ + - joined by /. Start it with your app\'s own name, such as org.example.app/plays/….'
+};
+const IDEMPOTENCY_KEY = {
+  name: 'Idempotency-Key', in: 'header', required: true, schema: text(undefined, { minLength: 1, maxLength: IDEMPOTENCY_KEY_MAX, pattern: '^[\\x21-\\x7e]+$' }),
+  description: 'Your own id for this change, such as the id of the event in your app that made it. A retry with the same key finds what the first made and records nothing (duplicate: true). The same key with a different body is 409 idempotency_conflict.'
 };
 const WEBHOOK_ID = { name: 'webhookId', in: 'path', required: true, schema: text(), description: 'A webhookId from POST /webhooks.' };
 const CHANGED_SINCE = { name: 'changedSince', in: 'query', schema: time(), description: 'Only what changed after this time. Pass the newest updatedAt (or at) you have seen to follow changes.' };
@@ -107,7 +112,11 @@ function schemas(): Record<string, Schema> {
       languageId: text(), name: text(), code: text(), country: nullable(text()),
       can: obj({
         read: nullable(text('all with read, published with read:published alone.', { enum: ['all', 'published'] })),
-        review: bool(), release: bool(), externalValues: obj({ read: bool(), write: bool() })
+        review: bool(), release: bool(), externalValues: obj({ read: bool(), write: bool() }),
+        record: obj({
+          versions: bool('Add versions of passages: the record scope, and its person translates here.'),
+          passages: bool('Add passages: the record scope, and its person divides this language\'s books.')
+        })
       }, [], 'What this token can do here, given its scopes and its person\'s privileges today.')
     }),
     Me: obj({ token: ref('Token'), org: obj({ id: text(), name: text() }, [], 'The organization the token belongs to.'), languages: list(ref('Language')) }),
@@ -218,6 +227,31 @@ function schemas(): Record<string, Schema> {
       eventId: text(), duplicate: bool('True when this was already recorded, so nothing new was.'),
       passage: nullable(ref('PassageDetail'))
     }),
+    Audio: obj({
+      hash: text(undefined, { pattern: '^[0-9a-f]{64}$' }), format: text(undefined, { enum: ['m4a', 'wav'] }),
+      durationMs: int('Read from a WAV file; 0 for m4a, so send the real length in the version\'s pieces.', { minimum: 0 })
+    }, [], 'A piece of a version just uploaded.'),
+    VersionInput: obj({
+      pieces: list(obj({
+        hash: text(undefined, { pattern: '^[0-9a-f]{64}$' }), format: text(undefined, { enum: ['m4a', 'wav'] }),
+        durationMs: { type: 'number', minimum: 0, description: 'How long it plays, in ms.' }
+      }), 'In playing order. Each is what PUT …/audio returned in the last six hours, or a piece of a version of this passage.', { minItems: 1, maxItems: MAX_VERSION_PIECES, uniqueItems: true }),
+      note: text('What changed, for the team. "Recorded in <your app>" when left out.', { minLength: 1, maxLength: 4000 })
+    }, ['note']),
+    PassageInput: {
+      ...obj({
+        label: text('What the team will call it, such as "Luke 1:5-25".', { minLength: 1, maxLength: 200 }),
+        parentUnitId: text('The book (or chapter, or folder) that holds it. The parent of afterUnitId when left out.', { minLength: 1, maxLength: 400 }),
+        afterUnitId: text('The unit it comes after. The end of parentUnitId when left out.', { minLength: 1, maxLength: 400 })
+      }, ['parentUnitId', 'afterUnitId']),
+      anyOf: [{ required: ['parentUnitId'] }, { required: ['afterUnitId'] }]
+    },
+    Contributed: obj({
+      takeId: text('The new version\'s id (a version only): the takeId the passage list and the change feed give it.'),
+      unitId: text('The passage: for a new passage, its new unitId.'),
+      duplicate: bool('True when this Idempotency-Key had made it already, so nothing new was recorded.'),
+      passage: nullable(ref('PassageDetail'))
+    }, ['takeId'], 'What was added. passage is null for a token without a read scope.'),
     ExternalValue: obj({
       key: text(),
       data: nullable({ type: 'object', description: 'Null when the key was deleted (listed only with changedSince).' }),
@@ -292,6 +326,13 @@ function paths(): Record<string, Schema> {
           { name: 'after', in: 'query', schema: text('The nextAfter of the page before.') }
         ],
         responses: { 200: json(ref('PassagePage'), 'A page of passages.'), ...ERRORS }
+      },
+      post: {
+        ...auth, operationId: 'addPassage', parameters: [LANGUAGE_ID, IDEMPOTENCY_KEY],
+        summary: 'Add a passage to a book, made in your app, as the token\'s person. Needs the record scope, and a person who divides this language\'s books.',
+        description: `It goes after afterUnitId, or at the end of parentUnitId. Its unitId is new and has no verses (reference is null). One write of the token's ${WRITES_PER_HOUR} an hour.`,
+        requestBody: body(ref('PassageInput')),
+        responses: { 200: json(ref('Contributed'), 'Added; unitId is the new passage.'), ...ERRORS }
       }
     },
     '/languages/{languageId}/passages/{unitId}': {
@@ -317,6 +358,24 @@ function paths(): Record<string, Schema> {
         description: 'Only the approved version can go live (409 not_approved).',
         requestBody: body(ref('ReleaseInput')),
         responses: { 200: json(ref('WriteResult'), 'Recorded; passage shows it.'), ...ERRORS }
+      }
+    },
+    '/languages/{languageId}/passages/{unitId}/versions': {
+      post: {
+        ...auth, operationId: 'addVersion', parameters: [LANGUAGE_ID, UNIT_ID, IDEMPOTENCY_KEY],
+        summary: 'Add a version of a passage, recorded in your app, as the token\'s person. Needs the record scope.',
+        description: `Upload each piece first with PUT …/audio. The version is shared for review at once, as the app's Publish does, and continues the passage's latest version; it replaces no draft. The same pieces as the latest version is 409 unchanged. One write of the token's ${WRITES_PER_HOUR} an hour.`,
+        requestBody: body(ref('VersionInput')),
+        responses: { 200: json(ref('Contributed'), 'Added; takeId is the new version.'), ...ERRORS }
+      }
+    },
+    '/languages/{languageId}/audio': {
+      put: {
+        ...auth, operationId: 'uploadAudio', parameters: [LANGUAGE_ID],
+        summary: 'Upload one piece of a version, to name in POST …/versions within six hours. Needs the record scope.',
+        description: `AAC in MP4 or WAV, at most 20 MB, with Content-Length. A token uploads at most ${AUDIO_UPLOADS_PER_HOUR} pieces an hour.`,
+        requestBody: { required: true, content: { 'audio/mp4': { schema: text(undefined, { format: 'binary' }) }, 'audio/wav': { schema: text(undefined, { format: 'binary' }) } } },
+        responses: { 200: json(obj({ audio: ref('Audio') }), 'Send audio back, with its real durationMs, in the version\'s pieces.'), ...ERRORS }
       }
     },
     '/languages/{languageId}/voice-notes': {

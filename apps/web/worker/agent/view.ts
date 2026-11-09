@@ -20,7 +20,11 @@ export interface LanguageView {
   code: string;
   country: string | null;
   /** What this token can do here, given its scopes and the person's privileges today. */
-  can: { read: 'all' | 'published' | null; review: boolean; release: boolean; externalValues: { read: boolean; write: boolean } };
+  can: {
+    read: 'all' | 'published' | null; review: boolean; release: boolean; externalValues: { read: boolean; write: boolean };
+    /** With the record scope: add versions (the person translates) and passages (the person divides the books). */
+    record: { versions: boolean; passages: boolean };
+  };
 }
 
 export interface PassageSummary {
@@ -237,7 +241,9 @@ function abilities(grant: Grant, org: OrgState, languageId: string): LanguageVie
     // Recorded like a check logged from outside the app: review or translate (core privilegeFor, via link).
     review: (privs.has('review') || privs.has('translate')) && grant.scopes.includes('review'),
     release: privs.has('assign_work') && grant.scopes.includes('release'),
-    externalValues: { read: canReadValues(grant), write: mayStoreValues(privs) && grant.scopes.includes('external_values') }
+    externalValues: { read: canReadValues(grant), write: mayStoreValues(privs) && grant.scopes.includes('external_values') },
+    // Work made in another app (contribute.ts, decisions.md 205): versions as a translator makes them, passages as a coordinator adds them.
+    record: { versions: privs.has('translate') && grant.scopes.includes('record'), passages: privs.has('manage_templates') && grant.scopes.includes('record') }
   };
 }
 
