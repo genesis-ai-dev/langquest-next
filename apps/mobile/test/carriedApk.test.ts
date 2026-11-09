@@ -1,5 +1,5 @@
 import { carriedApkName, CARRIED_APK_PATH } from '@langquest-next/core';
-import { apkCheck, apkGet, apkStale, letInVersionsWords } from '../src/nearby/carriedApkModel';
+import { apkCheck, apkGet, apkStale, joinRows, letInVersionsWords } from '../src/nearby/carriedApkModel';
 import { carriedApkAddress } from '../src/server/carriedApkModel';
 
 /**
@@ -13,6 +13,18 @@ import { carriedApkAddress } from '../src/server/carriedApkModel';
 const base = { reducer: 21, lines: 1, protocol: { min: 1, max: 1 }, fingerprint: '4989edff0a1b2c3d' };
 const NOW = carriedApkName(base)!;
 const OLDER = carriedApkName({ ...base, reducer: 20 })!;
+
+describe('Share nearby\'s rows', () => {
+  it('offers Get the install file beside Let someone in, on the same terms, and only with a file to name', () => {
+    expect(joinRows(null, NOW)).toEqual({ letIn: 'ready', installFile: true });
+    // A run-out pass keeps both rows: Let someone in disabled, the file still got online, which renews the pass.
+    expect(joinRows('expired', NOW)).toEqual({ letIn: 'expired', installFile: true });
+    expect(joinRows(null, null)).toEqual({ letIn: 'ready', installFile: false });
+    for (const why of ['loading', 'not-in-build', 'no-pass', 'no-role', 'read-only', 'permissions', 'wifi-off'] as const) {
+      expect(joinRows(why, NOW)).toEqual({ letIn: null, installFile: false });
+    }
+  });
+});
 
 describe('getting the file', () => {
   it('builds the Worker address for a carried build name, and nothing for any other name or no Worker', () => {

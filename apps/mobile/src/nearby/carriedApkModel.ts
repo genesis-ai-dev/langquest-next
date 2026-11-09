@@ -1,8 +1,10 @@
+import type { LetInWhyNot } from './letInModel';
+
 /**
  * The carried build's install file on a carrier's phone (docs/nearby-sync-plan.md 14.4,
- * "Checking before leaving town"), as pure rules: when Let someone in offers to get it, when the
- * file the person got last is for an older version, what a file they chose says, and how a
- * refusal over versions is worded. Nothing here calls anything, so every rule is tested without
+ * "Checking before leaving town"), as pure rules: when Share nearby offers Get the install file,
+ * when that screen offers to get it, when the file the person got last is for an older version,
+ * what a file they chose says, and how a refusal over versions is worded. Nothing here calls anything, so every rule is tested without
  * a phone. The app never downloads or installs the file: the phone's browser does, and the person.
  */
 
@@ -54,4 +56,15 @@ export function letInVersionsWords(installFile: string | null):
   | { key: 'nearby.letIn.end.versions'; file: string }
   | { key: 'nearby.letIn.end.versionsUnnamed' } {
   return installFile !== null ? { key: 'nearby.letIn.end.versions', file: installFile } : { key: 'nearby.letIn.end.versionsUnnamed' };
+}
+
+/**
+ * Share nearby's two rows for joining without internet (docs/nearby-sync-plan.md 14.1, 14.4): Let
+ * someone in for a phone holding a pass while the organization has joining on, disabled once the
+ * pass runs out; and Get the install file above it on the same terms, where this phone has a file
+ * to name. That one stays pressable on a run-out pass: it is done online, which renews the pass.
+ */
+export function joinRows(whyNot: LetInWhyNot | null, needed: string | null): { letIn: 'ready' | 'expired' | null; installFile: boolean } {
+  const letIn = whyNot === null ? 'ready' : whyNot === 'expired' ? 'expired' : null;
+  return { letIn, installFile: letIn !== null && needed !== null };
 }
