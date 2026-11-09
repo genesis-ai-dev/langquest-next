@@ -402,7 +402,9 @@ export function LetSomeoneIn(ctx: Ctx) {
               <Group>
                 {roles.map((r, i) => (
                   <HelpRow key={r.roleId} of="nearby.letInRole">
+                    {/* A choice, not a way somewhere: a check on the chosen role, as other pickers draw it, and no arrow. */}
                     <Row label={r.name} role="radio" selected={state.roleId === r.roleId} checked={state.roleId === r.roleId}
+                      right={state.roleId === r.roleId ? <Ico name="check" size={20} color={C.primary} strokeWidth={3} /> : <View />}
                       help={t('nearby.letIn.roleHelp')} onPress={() => actions.choose(r.roleId)} last={i === roles.length - 1} />
                   </HelpRow>
                 ))}
