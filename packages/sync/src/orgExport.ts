@@ -5,7 +5,7 @@ import {
 } from '@langquest-next/core';
 
 /**
- * The organization export (decisions.md 205, docs/org-export.md): everything
+ * The organization export (decisions.md 206, docs/org-export.md): everything
  * an organization holds, read from its folded streams and laid out so a
  * person can use it without the app. Pure: the server job folds the streams,
  * calls `planOrgExport`, then writes the text files and copies each audio

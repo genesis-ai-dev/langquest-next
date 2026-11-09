@@ -2,7 +2,7 @@
 
 An organization admin can take everything the organization holds out of
 LangQuest as one zip, without the app, an engineer or a request to us
-(LAN-227, decisions.md 205). This page is the format: partners may rely on it.
+(LAN-227, decisions.md 206). This page is the format: partners may rely on it.
 The format version is in `README.txt` and `manifest.json` (`format`), now `1`.
 A version-1 file keeps its meaning: columns may be added at the end of a
 sheet, never renamed, removed or reordered, without a new version.

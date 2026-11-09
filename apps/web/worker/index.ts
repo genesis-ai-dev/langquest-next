@@ -313,7 +313,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         return hash;
       }
     },
-    // The organization export (orgExports.ts, decisions.md 205): an admin asks, the job container builds one zip in R2.
+    // The organization export (orgExports.ts, decisions.md 206): an admin asks, the job container builds one zip in R2.
     orgExports: {
       serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
       profileOf,

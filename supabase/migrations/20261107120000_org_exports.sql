@@ -1,4 +1,4 @@
--- The organization export (decisions.md 205, docs/org-export.md): one row per
+-- The organization export (decisions.md 206, docs/org-export.md): one row per
 -- request by an organization admin, kept as a private row, never an event
 -- (decision 48's pattern). The Worker writes it with the service role after
 -- checking the admin; the export job (job container, `org_export`) claims

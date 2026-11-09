@@ -1,5 +1,5 @@
 /**
- * The organization export job (decisions.md 205, docs/org-export.md): takes
+ * The organization export job (decisions.md 206, docs/org-export.md): takes
  * the oldest queued request in `org_exports`, folds the organization, writes
  * the zip (audio folders, manifest, spreadsheets, the raw event log) and puts
  * it in R2 in parts through the Worker (apps/web/worker/orgExports.ts), then

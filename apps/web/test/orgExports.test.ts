@@ -9,7 +9,7 @@ import { exportKey, handleOrgExports, KEEP_MS, LINK_MS, type ExportBucket, type 
 import { fixture, NOW } from '../../../packages/sync/test/orgExportFixture';
 
 /**
- * The organization export (decisions.md 205): the zip opens in a real unzip
+ * The organization export (decisions.md 206): the zip opens in a real unzip
  * tool, the job writes what the log holds, and the door lets only the
  * organization's own admin ask, with links that expire.
  */

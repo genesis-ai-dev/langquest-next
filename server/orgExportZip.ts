@@ -6,7 +6,7 @@ import { crc32 } from 'node:zlib';
  * handed whole, its header written with the size and checksum, and the
  * central directory at the end. Over 4 GB or 65,535 files it writes the zip64
  * records, which every unzip tool of this decade reads. The organization
- * export's archive (decisions.md 205, docs/org-export.md).
+ * export's archive (decisions.md 206, docs/org-export.md).
  */
 
 const U32 = 0xffffffff;

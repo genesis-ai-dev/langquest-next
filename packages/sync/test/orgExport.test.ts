@@ -8,7 +8,7 @@ import { planOrgExport, safeName } from '../src/orgExport';
 import { fixture, NAMES, NOW } from './orgExportFixture';
 
 /**
- * The export's promise (decisions.md 205): the manifest says what the log
+ * The export's promise (decisions.md 206): the manifest says what the log
  * says. A fixture organization with one language is exported and every row,
  * every audio file and every count is checked against its events.
  */

@@ -1,4 +1,4 @@
-// The organization export as the admin sees it (decisions.md 205, docs/org-export.md): what the Worker says of a
+// The organization export as the admin sees it (decisions.md 206, docs/org-export.md): what the Worker says of a
 // request, and the one line that says where it stands. Pure, so a test reads it without a screen.
 
 /** What the Worker answers for one export (apps/web/worker/orgExports.ts `ExportRow`). */

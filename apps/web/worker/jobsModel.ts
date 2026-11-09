@@ -39,7 +39,7 @@ export const JOBS = {
   // The comments on the tutorial videos, kept for Claude's nightly look (server/tutorialComments.ts, decisions.md 186):
   // a day's comments, a page of 100 a call, and at most 20 Linear issues.
   'tutorial-comments': { job: 'tutorial_comments', entrypoint: ['node', 'comments.mjs'], timeLimitMs: 60 * 60_000 },
-  // The organization export (server/orgExport.ts, decisions.md 205): started when an admin asks, builds one zip a request.
+  // The organization export (server/orgExport.ts, decisions.md 206): started when an admin asks, builds one zip a request.
   'org-export': { job: 'org_export', entrypoint: ['node', 'orgexport.mjs'], timeLimitMs: 240 * 60_000 }
 } as const satisfies Record<string, JobSpec>;
 

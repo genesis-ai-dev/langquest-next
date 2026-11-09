@@ -74,6 +74,7 @@ import { useOrganizations } from '../account/useOrganizations';
 import { useUnsent } from '../account/useUnsent';
 import { deleteThisAccount } from '../account/deleteThisAccount';
 import { a11yState } from '../ui/a11yModel';
+import { reportLink } from '../passage/reportLinkModel';
 
 // ---- Inbox (INBOX-1, INBOX-2) ---------------------------------------------------------------
 
@@ -315,7 +316,7 @@ export function InboxHome(ctx: Ctx) {
               if (target.kind === 'person') ctx.go(canAssign ? 'edit_member' : 'members_list', canAssign ? { memberId: target.profileId } : undefined);
               // A version or review opens itself, over its passage (UI audit, finding 113); a note or request, the passage.
               else if (target.unitId && target.languageId) {
-                ctx.openPassage(target.unitId, target.languageId, target.kind === 'version' || target.kind === 'review' ? { reported: `${target.kind}:${target.id}` } : undefined);
+                ctx.openPassage(target.unitId, target.languageId, target.kind === 'version' || target.kind === 'review' ? { reported: reportLink(target.kind, target.id) } : undefined);
               }
             }} />}>
           <View style={styles.requestBody}>

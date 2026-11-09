@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
- * The organization export's door (decisions.md 205, docs/org-export.md).
+ * The organization export's door (decisions.md 206, docs/org-export.md).
  * An organization admin asks for an export, a job builds one zip in R2, and
  * the admin downloads it from a short-lived link. The job reaches this door
  * with the service key to put the zip in the bucket in parts (a Worker takes

@@ -6,7 +6,7 @@ import {
 import { planOrgExport } from '../src/orgExport';
 
 /**
- * A fuller organization for the export (decisions.md 205): every kind of voice
+ * A fuller organization for the export (decisions.md 206): every kind of voice
  * note, verse labels, a WAV part, a cleaned part, a key term, roles at two
  * scopes, a passage across two chapters and one outside the Bible. Each lands
  * in the manifest with its file beside the passage it belongs to.

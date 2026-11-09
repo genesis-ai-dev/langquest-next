@@ -1,4 +1,4 @@
-// Export all data (decisions.md 205, docs/org-export.md): an organization admin chooses the whole organization or
+// Export all data (decisions.md 206, docs/org-export.md): an organization admin chooses the whole organization or
 // some languages, and gets one zip made on the server: recordings in folders, a list of every recording, progress
 // sheets and the full record. It shows how far the zip is and a Download when it is ready.
 import { useCallback, useEffect, useState } from 'react';

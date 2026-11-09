@@ -1,6 +1,6 @@
 import { fraction, isOpen, lineOf, type ExportItem } from '../src/org/exportModel';
 
-/** What the admin reads of an export in the making (decisions.md 205). */
+/** What the admin reads of an export in the making (decisions.md 206). */
 const item = (over: Partial<ExportItem>): ExportItem => ({ id: 'x', languageIds: null, status: 'running', createdAt: '2026-11-07T00:00:00Z', progress: null, sizeBytes: null, expiresAt: null, ...over });
 
 describe('export status', () => {
