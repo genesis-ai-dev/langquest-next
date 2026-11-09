@@ -12324,3 +12324,27 @@ workflow, since it is in the field too.
 Reverse if: carried files go out of date faster than carriers can replace
 them (section 14.3), China cannot reach the address, or a phone installed
 from one does not take Play updates.
+
+Amended (2026-11-09, Carl Sauder): a carrier now finds and checks the file
+from Let someone in, instead of seeing only its name (Carl's choices, all
+four). Get the install file, while online, opens `<Worker>/apk/<name>` in the
+phone's browser, which downloads it; the app still downloads and installs
+nothing, and a line says to get it before going offline, that the new phone
+must allow apps from other sources, and to pass it by Quick Share (Google
+Play services on both phones), SD card or USB; offline the button is
+disabled and says it needs the internet. The press keeps the name in one
+phone-wide meta row, `carriedApkOpened`, holding no person, organization or
+time; while the name this phone needs differs, Let someone in says the file
+is for an older version, and Share nearby says so while online, because a
+carrier who leaves town with an old file can let nobody in. Check my file
+opens Android's system picker and compares only the chosen file's name with
+the one needed, since the name is the versions; a right file is remembered
+as got. That adds `expo-document-picker`, Android only (excluded from iPhone
+autolinking), with `copyToCacheDirectory` off so nothing is copied or read:
+`expo-file-system`'s picker gives only the file's address, not its name. It
+needs no permission, and no Play Console answer changes
+(`docs/play-store-declarations.md`). A version refusal now names the file on
+the inviter's phone and tells the newcomer to get the inviter's file, from
+the session report's existing `versionsDiffer`, with the wire unchanged. On
+a disguised phone one more line, in `src/disguise/i18n`, says the browser's
+history shows where the file came from. Plan 14.4 has the details.

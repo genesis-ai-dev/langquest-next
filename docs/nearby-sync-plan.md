@@ -3462,17 +3462,39 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
   reads must stay read-only. A carrier downloads the file with their browser while online.
   The app does not download it, which keeps clear of Play's rules on apps downloading
   APKs, which are not confirmed. Whether China can reach this is untested (section 11).
-- **Checking before leaving town.** Let someone in names the file this phone needs by
-  those versions alone, so a carrier can compare it with the file they hold. A help line
-  says: "When everyone you came for is in, delete this file. You need internet to get it
-  again." It gives no reason, and does not mention a disguise (decision 171's amendment of
-  2026-10-29). A carrier whose own phone wears a disguise sees one more line, only on
-  their screen, through an `.android` stub: the new phone will show LangQuest until they
-  choose another look under More settings. Nothing crosses the link about a disguise.
+- **Checking before leaving town** (decision 240, amended 2026-11-09). Let someone in
+  names the file this phone needs by those versions alone, and says the file in Downloads
+  must have exactly this name: any other name is the wrong version. This part sits below
+  the steps, and is away while a code is up or a phone is on the line.
+  - *Getting it.* While online, Get the install file opens `<Worker>/apk/<name>` in the
+    phone's browser (`Linking.openURL`; the address is built in `src/server/carriedApk.ts`),
+    which downloads it. A line says to download it before going offline, that the new phone
+    must allow installing apps from other sources, and to send it by Quick Share (which needs
+    Google Play services on both phones), SD card or USB. Offline the button is disabled,
+    with a line saying it needs the internet. The app requests nothing there itself.
+  - *Too old.* The press keeps the name in one phone-wide meta row, `carriedApkOpened`,
+    which holds no person, organization or time. While the name this phone needs differs
+    from it, Let someone in says the file got before is for an older version and to get the
+    new one before going offline, and Share nearby says the same as a line while online. The
+    words go when the two match again; the row stays, so the next version is caught too.
+  - *Check my file.* Opens Android's system file picker (`expo-document-picker`, which needs
+    no permission; the file is not copied) and compares only the chosen file's name with the
+    one needed: "This is the right file", which is then remembered as got, or "This file is
+    for a different version: you need <name>". `expo-file-system`'s picker was not enough: it
+    gives the picked file's address, not its name.
+  - A help line says: "When everyone you came for is in, delete this file. You need internet
+    to get it again." It gives no reason, and does not mention a disguise (decision 171's
+    amendment of 2026-10-29). A carrier whose own phone wears a disguise sees two more lines,
+    only on their screen, through an `.android` stub: the new phone will show LangQuest until
+    they choose another look under More settings, and the browser's history and download
+    list show where the file came from. Nothing crosses the link about a disguise.
 - **When they still differ.** A starting copy moves only between phones on the same
-  reducer and lines versions. Hello compares them, and the screen names the file needed.
-  Teammates on other versions still exchange events as usual once the newcomer has a
-  starting copy.
+  reducer and lines versions. Hello compares them (`versionsDiffer` in the session report;
+  the wire is unchanged), and both screens say so: the inviter's that their app is a
+  different version and that they need this phone's file, by name; the newcomer's that its
+  app is a different version from the teammate's, and to get the install file from them,
+  install it and scan a new code. Teammates on other versions still exchange events as usual
+  once the newcomer has a starting copy.
 - **After install.** A carried build uses the `production` channel, so when the phone gets
   online it takes over-the-air updates like any other.
 
