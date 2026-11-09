@@ -193,7 +193,7 @@ export function MyWork(ctx: Ctx) {
   // The sidebar names the organization on a desktop; the subtitle then need not.
   const orgName = useOrgInChrome() ? '' : ctx.org.state?.org?.value.name ?? '';
   const language = languageId ? languageName(ctx.org.state, languageId) : '';
-  const bell = canGo(ctx, 'inbox_home') ? <Bell count={ctx.inbox.unread} onPress={() => ctx.go('inbox_home', { from: 'my_work' })} /> : null;
+  const bell = canGo(ctx, 'inbox_home') ? <Bell count={ctx.inbox.unread} stale={ctx.inbox.unreadStale} onPress={() => ctx.go('inbox_home', { from: 'my_work' })} /> : null;
   const header = (
     <Header title={t('work.title')} sub={[language, orgName].filter(Boolean).join(' · ') || undefined}
       {...(orgName ? { subNode: <OrgLine text={[language, orgName].filter(Boolean).join(' · ')} orgName={orgName} orgId={ctx.language.orgId} style={txt.xs} /> } : {})}
