@@ -1,5 +1,7 @@
 import { carriedApkName, CARRIED_APK_PATH } from '@langquest-next/core';
-import { apkCheck, apkGet, apkStale, joinRows, letInVersionsWords } from '../src/nearby/carriedApkModel';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { APK_REMINDER_WORDS, apkCheck, apkGet, apkReminder, apkStale, joinRows, letInVersionsWords } from '../src/nearby/carriedApkModel';
 import { carriedApkAddress } from '../src/server/carriedApkModel';
 
 /**
@@ -52,6 +54,47 @@ describe('a file got for an older version', () => {
     expect(apkStale(NOW, NOW)).toBe(false);
     expect(apkStale(NOW, null)).toBe(false);
     expect(apkStale(null, OLDER)).toBe(false);
+    // Not read yet: nothing is known to be old.
+    expect(apkStale(NOW, undefined)).toBe(false);
+  });
+});
+
+describe('Sync reminding a carrier to get the file', () => {
+  const url = `https://next.example/apk/${NOW}`;
+  const at = (over: Partial<Parameters<typeof apkReminder>[0]> = {}) =>
+    apkReminder({ letIn: null, needed: NOW, url, opened: null, online: true, ...over });
+
+  it('reminds someone who can let a new person in, while online, when the file was never got or is for an older version', () => {
+    expect(at()).toBe('not-got');
+    expect(at({ opened: OLDER })).toBe('older');
+    // A run-out pass still shows A new person on Share nearby; getting the file online renews it.
+    expect(at({ letIn: 'expired' })).toBe('not-got');
+  });
+
+  it('is gone once the right file is got, and before the remembered name is read', () => {
+    expect(at({ opened: NOW })).toBeNull();
+    expect(at({ opened: undefined })).toBeNull();
+  });
+
+  it('shows only while online, never offline or before the server was tried', () => {
+    expect(at({ online: false })).toBeNull();
+    expect(at({ online: null })).toBeNull();
+  });
+
+  it('shows only on the terms that show A new person, and only with a file to get', () => {
+    for (const why of ['loading', 'not-in-build', 'no-pass', 'no-role', 'read-only', 'permissions', 'wifi-off'] as const) {
+      expect(at({ letIn: why }), why).toBeNull();
+    }
+    expect(at({ needed: null })).toBeNull();
+    expect(at({ url: null })).toBeNull();
+  });
+
+  it('has its words in English, as Carl gave them', () => {
+    const en = JSON.parse(readFileSync(join(import.meta.dirname, '../src/i18n/en.json'), 'utf8')) as { nearby: { installFile: Record<string, string> } };
+    const words = Object.fromEntries(Object.entries(APK_REMINDER_WORDS).map(([k, key]) => [k, en.nearby.installFile[key.split('.').pop()!]]));
+    expect(words).toEqual({ 'not-got': 'Install file for a new person: not got yet', older: 'Install file for a new person: for an older version' });
+    expect(en.nearby.installFile).toMatchObject({ getIt: 'Get it', remind: 'Get the install file before you go offline' });
+    expect(typeof en.nearby.installFile['lineHelp']).toBe('string');
   });
 });
 

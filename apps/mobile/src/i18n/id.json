@@ -7690,10 +7690,11 @@
     "newPerson": "Orang baru",
     "newPersonLine": "Berikan aplikasi kepada orang baru, lalu izinkan mereka bergabung dengan tim dari ponsel ini.",
     "row": "Berbagi di sekitar",
-    "rowSub": "Perbarui ponsel rekan tim tanpa internet",
-    "rowSubJoin": "Perbarui ponsel rekan tim, atau izinkan orang baru masuk, tanpa internet",
-    "rowHelp": "Membuka Berbagi di sekitar, tempat ponsel yang berdekatan saling memperbarui tanpa internet.",
-    "rowHelpJoin": "Membuka Berbagi di sekitar, tempat ponsel yang berdekatan saling memperbarui tanpa internet, dan tempat Anda memberikan aplikasi kepada orang baru serta mengizinkan mereka bergabung dengan tim.",
+    "rowSub": "Bagikan kemajuan kerja dengan rekan tim tanpa internet",
+    "rowSubJoin": "Bagikan kemajuan kerja dengan rekan tim, atau izinkan orang baru masuk, tanpa internet",
+    "rowHelp": "Membuka Berbagi di sekitar, tempat ponsel yang berdekatan saling mengirim dan menerima kemajuan kerja tanpa internet.",
+    "rowHelpJoin": "Membuka Berbagi di sekitar, tempat ponsel yang berdekatan saling mengirim dan menerima kemajuan kerja tanpa internet, dan tempat Anda memberikan aplikasi kepada orang baru serta mengizinkan mereka bergabung dengan tim.",
+    "rowHelpRemind": "Membuka Berbagi di sekitar, tempat ponsel yang berdekatan saling mengirim dan menerima kemajuan kerja tanpa internet, dan tempat Anda memberikan aplikasi kepada orang baru serta mengizinkan mereka bergabung dengan tim. Ponsel ini belum memiliki file instalasi yang kini diperlukan ponsel orang baru: dapatkan di sana sebelum Anda tanpa internet.",
     "why": {
       "loading": "Memeriksa ponsel ini…",
       "notInBuild": "Versi aplikasi ini tidak bisa berbagi di sekitar. Perbarui dari toko aplikasi.",
@@ -7871,7 +7872,12 @@
       "intro": "Ponsel baru perlu LangQuest terpasang sebelum Anda dapat mengizinkan pemiliknya masuk. Dapatkan file-nya di sini selagi ada internet, lalu bawa.",
       "rowSub": "Sebelum Anda tanpa internet",
       "rowHelp": "Membuka Dapatkan file instalasi, tempat Anda mengunduh dan memeriksa file untuk memasang LangQuest di ponsel baru. Lakukan selagi ada internet.",
-      "linkHelp": "Membuka Dapatkan file instalasi, tempat Anda mengunduh dan memeriksa file untuk memasang LangQuest di ponsel baru."
+      "linkHelp": "Membuka Dapatkan file instalasi, tempat Anda mengunduh dan memeriksa file untuk memasang LangQuest di ponsel baru.",
+      "remind": "Dapatkan file instalasi sebelum Anda tanpa internet",
+      "notGot": "File instalasi untuk orang baru: belum didapatkan",
+      "older": "File instalasi untuk orang baru: untuk versi lama",
+      "getIt": "Dapatkan",
+      "lineHelp": "Ponsel orang baru memasang LangQuest dari file ini. Ponsel ini belum mendapatkan file untuk versi ini: dapatkan selagi Anda punya internet, agar bisa memberikannya kepada orang baru tanpa internet."
     },
     "join": {
       "intro": "Bergabung dengan tim Anda dari ponsel rekan tim, tanpa internet. Akun Anda dibuat saat ponsel Anda pertama kali tersambung ke internet.",

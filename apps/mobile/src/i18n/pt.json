@@ -8380,10 +8380,11 @@
     "newPerson": "Uma pessoa nova",
     "newPersonLine": "Dê o app a uma pessoa nova e depois deixe-a entrar na equipe por este celular.",
     "row": "Compartilhar por perto",
-    "rowSub": "Atualize os celulares dos colegas de equipe sem internet",
-    "rowSubJoin": "Atualize os celulares dos colegas de equipe, ou deixe uma pessoa nova entrar, sem internet",
-    "rowHelp": "Abre Compartilhar por perto, onde celulares próximos se atualizam entre si sem internet.",
-    "rowHelpJoin": "Abre Compartilhar por perto, onde celulares próximos se atualizam entre si sem internet, e onde você dá o app a uma pessoa nova e a deixa entrar na equipe.",
+    "rowSub": "Compartilhe o progresso do trabalho com os colegas de equipe sem internet",
+    "rowSubJoin": "Compartilhe o progresso do trabalho com os colegas de equipe, ou deixe uma pessoa nova entrar, sem internet",
+    "rowHelp": "Abre Compartilhar por perto, onde celulares próximos enviam e recebem o progresso do trabalho uns dos outros sem internet.",
+    "rowHelpJoin": "Abre Compartilhar por perto, onde celulares próximos enviam e recebem o progresso do trabalho uns dos outros sem internet, e onde você dá o app a uma pessoa nova e a deixa entrar na equipe.",
+    "rowHelpRemind": "Abre Compartilhar por perto, onde celulares próximos enviam e recebem o progresso do trabalho uns dos outros sem internet, e onde você dá o app a uma pessoa nova e a deixa entrar na equipe. Este celular ainda não tem o arquivo de instalação de que o celular de uma pessoa nova precisa agora: baixe-o lá antes de ficar sem internet.",
     "why": {
       "loading": "Verificando este celular…",
       "notInBuild": "Esta versão do app não consegue compartilhar por perto. Atualize pela loja.",
@@ -8561,7 +8562,12 @@
       "intro": "Um celular novo precisa ter o LangQuest instalado antes que você possa deixar a pessoa entrar. Pegue o arquivo aqui enquanto tem internet e leve-o com você.",
       "rowSub": "Antes de ficar sem internet",
       "rowHelp": "Abre Baixar o arquivo de instalação, onde você baixa e verifica o arquivo com que um celular novo instala o LangQuest. Faça isso enquanto tem internet.",
-      "linkHelp": "Abre Baixar o arquivo de instalação, onde você baixa e verifica o arquivo com que um celular novo instala o LangQuest."
+      "linkHelp": "Abre Baixar o arquivo de instalação, onde você baixa e verifica o arquivo com que um celular novo instala o LangQuest.",
+      "remind": "Baixe o arquivo de instalação antes de ficar sem internet",
+      "notGot": "Arquivo de instalação para uma pessoa nova: ainda não baixado",
+      "older": "Arquivo de instalação para uma pessoa nova: de uma versão anterior",
+      "getIt": "Baixar",
+      "lineHelp": "O celular de uma pessoa nova instala o LangQuest a partir deste arquivo. Este celular ainda não baixou o desta versão: baixe-o enquanto tem internet, para poder passá-lo a uma pessoa nova sem internet."
     },
     "join": {
       "intro": "Entre na sua equipe pelo celular de um colega, sem internet. A sua conta é criada na primeira vez que o seu celular se conectar à internet.",

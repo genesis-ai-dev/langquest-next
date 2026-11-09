@@ -862,7 +862,12 @@ protocol version.
   it holds the install file's too-old line, Get the install file (before going offline) and
   Let someone in (once their app is installed). The Sync row keeps its name and badge; its
   line names both jobs on the same terms, else teammates' phones alone, and a reason while it
-  cannot run (`nearbyRowWords`).
+  cannot run (`nearbyRowWords`). Its words say work goes both ways (Carl's words, 2026-11-09):
+  "Share work progress with teammates, or bring in a new person, without the internet", else
+  "Share work progress with teammates without the internet", with help to match. While it can
+  be pressed, online, and this phone lacks the install file it needs now, a small amber line
+  under it says "Get the install file before you go offline" (14.4, "Reminded while online");
+  tapping the row still opens Share nearby.
 - It asks for its permissions with a line saying why (section 9), and shows teammates who
   also have it open, with name and picture. Phones with equal summaries never connect, so
   a phone works out who it sees from the tag in the broadcast, and from what it already
@@ -3473,14 +3478,15 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
   reads must stay read-only. A carrier downloads the file with their browser while online.
   The app does not download it, which keeps clear of Play's rules on apps downloading
   APKs, which are not confirmed. Whether China can reach this is untested (section 11).
-- **Checking before leaving town** (decision 240, amended twice 2026-11-09). Getting the
+- **Checking before leaving town** (decision 240, amended three times 2026-11-09). Getting the
   file is done online before a trip, and letting someone in is done in the field, so each
   has a screen of its own (Carl's choice). Get the install file (`get_install_file`) names
   the file this phone needs by those versions alone, and says the file in Downloads must
   have exactly this name: any other name is the wrong version. Share nearby opens it from
   a row above Let someone in, on the same terms (a pass held, joining on, Android), with a
   line saying it is for before going offline; Let someone in opens it from a line at its
-  top saying the new phone needs LangQuest installed first. Let someone in keeps only the
+  top saying the new phone needs LangQuest installed first; and Sync's Ready for offline
+  card opens it from its reminder line (below). Let someone in keeps only the
   field: the role, Show the code, the code, the pictures, the one tap and the words of a
   version refusal.
   - *Getting it.* While online, Get the install file, that screen's one main button, opens `<Worker>/apk/<name>` in the
@@ -3495,6 +3501,18 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
     get the new one before going offline, and Share nearby says the same as a line while
     online, under A new person, above its Get the install file row. The words go when the two match again; the
     row stays, so the next version is caught too.
+  - *Reminded while online* (Carl's choice, 2026-11-09). Sync reminds a carrier before they
+    leave, on Share nearby's terms for A new person (`joinRows`), only while online (the
+    server just reached and the file can be got, `apkGet`), and only while this phone has
+    not got the file it needs now: never got (no `carriedApkOpened`) or got for an older
+    version (`apkStale`); nothing shows before the meta row is read. Its Ready for offline
+    card gets a line, "Install file for a new person: not got yet" or "Install file for a
+    new person: for an older version", with a Get it link to Get the install file
+    (`sync_status → get_install_file`), and the Share nearby row a small amber line, "Get the
+    install file before you go offline" (5.8). Both go once the right file is got, by
+    pressing Get the install file or a right file under Check my file. The rule is
+    `apkReminder` in `carriedApkModel.ts`; what reads nearby state is in `.android` files
+    (`InstallFileReminder`, `NearbyRow`) with plain stubs elsewhere.
   - *Check my file.* Opens Android's system file picker (`expo-document-picker`, which needs
     no permission; the file is not copied) and compares only the chosen file's name with the
     one needed: "This is the right file", which is then remembered as got, or "This file is

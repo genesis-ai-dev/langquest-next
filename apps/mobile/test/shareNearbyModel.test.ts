@@ -23,15 +23,31 @@ const view = (over: Partial<Omit<Parameters<typeof nearbyViewOf>[0], 'run'>> = {
 
 describe('the Share nearby row on Sync', () => {
   it('names a new person only where Share nearby offers Let someone in, and says why not while it cannot run', () => {
-    expect(nearbyRowWords(null, null)).toEqual({ sub: 'nearby.rowSubJoin', help: 'nearby.rowHelpJoin' });
+    const plain = { sub: 'nearby.rowSub', help: 'nearby.rowHelp', remind: null };
+    const join = { sub: 'nearby.rowSubJoin', help: 'nearby.rowHelpJoin', remind: null };
+    expect(nearbyRowWords(null, null, null)).toEqual(join);
     // A run-out pass still shows Let someone in on Share nearby, disabled, so the row still names it.
-    expect(nearbyRowWords(null, 'expired')).toEqual({ sub: 'nearby.rowSubJoin', help: 'nearby.rowHelpJoin' });
+    expect(nearbyRowWords(null, 'expired', null)).toEqual(join);
     for (const why of ['loading', 'not-in-build', 'no-pass', 'no-role', 'read-only'] as const) {
-      expect(nearbyRowWords(null, why), why).toEqual({ sub: 'nearby.rowSub', help: 'nearby.rowHelp' });
+      expect(nearbyRowWords(null, why, null), why).toEqual(plain);
     }
-    expect(nearbyRowWords('android-too-old', null)).toEqual({ sub: 'nearby.why.androidTooOld', help: 'nearby.rowHelp' });
-    expect(nearbyRowWords('no-key', 'no-pass')).toEqual({ sub: 'nearby.why.noKey', help: 'nearby.rowHelp' });
-    for (const k of ['rowSub', 'rowSubJoin', 'rowHelp', 'rowHelpJoin']) expect(has(en, `nearby.${k}`), k).toBe(true);
+    expect(nearbyRowWords('android-too-old', null, null)).toEqual({ sub: 'nearby.why.androidTooOld', help: 'nearby.rowHelp', remind: null });
+    expect(nearbyRowWords('no-key', 'no-pass', null)).toEqual({ sub: 'nearby.why.noKey', help: 'nearby.rowHelp', remind: null });
+    for (const k of ['rowSub', 'rowSubJoin', 'rowHelp', 'rowHelpJoin', 'rowHelpRemind', 'installFile.remind']) expect(has(en, `nearby.${k}`), k).toBe(true);
+    // Carl's words: work goes both ways.
+    expect(en.nearby).toMatchObject({
+      rowSub: 'Share work progress with teammates without the internet',
+      rowSubJoin: 'Share work progress with teammates, or bring in a new person, without the internet'
+    });
+  });
+
+  it('adds the amber reminder to get the install file while the row can be pressed, and says so in help', () => {
+    for (const reminder of ['not-got', 'older'] as const) {
+      expect(nearbyRowWords(null, null, reminder), reminder).toEqual({ sub: 'nearby.rowSubJoin', help: 'nearby.rowHelpRemind', remind: 'nearby.installFile.remind' });
+      expect(nearbyRowWords(null, 'expired', reminder).remind, reminder).toBe('nearby.installFile.remind');
+      // A row that cannot run is disabled: its reason, not a reminder.
+      expect(nearbyRowWords('android-too-old', null, reminder).remind, reminder).toBeNull();
+    }
   });
 });
 

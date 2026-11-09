@@ -6,6 +6,8 @@ export interface CarriedApkHandle {
   needed: string | null;
   /** Where the phone's browser gets it, or null with no Worker for this build. */
   url: string | null;
+  /** The name of the file the person last got, or checked and found right: null if none, undefined until it is read. */
+  opened: string | null | undefined;
   /** The file the person got before is for an older version (`apkStale`). */
   stale: boolean;
   /** What the file last chosen under Check my file said, with its name, until the screen closes. */
@@ -14,7 +16,7 @@ export interface CarriedApkHandle {
 }
 
 const NOTHING = (): void => undefined;
-const NOT_HERE: CarriedApkHandle = { needed: null, url: null, stale: false, checked: null, actions: { get: NOTHING, check: NOTHING } };
+const NOT_HERE: CarriedApkHandle = { needed: null, url: null, opened: null, stale: false, checked: null, actions: { get: NOTHING, check: NOTHING } };
 
 /**
  * Only an Android phone lets someone in, so only Android's file (useCarriedApk.android.ts) names a

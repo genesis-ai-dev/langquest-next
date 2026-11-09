@@ -8380,10 +8380,11 @@
     "newPerson": "Une nouvelle personne",
     "newPersonLine": "Donnez l’application à une nouvelle personne, puis laissez-la rejoindre l’équipe depuis ce téléphone.",
     "row": "Partager à proximité",
-    "rowSub": "Mettre à jour les téléphones de vos coéquipiers sans Internet",
-    "rowSubJoin": "Mettre à jour les téléphones de vos coéquipiers, ou faire entrer une nouvelle personne, sans Internet",
-    "rowHelp": "Ouvre Partager à proximité, où les téléphones proches se mettent à jour entre eux sans Internet.",
-    "rowHelpJoin": "Ouvre Partager à proximité, où les téléphones proches se mettent à jour entre eux sans Internet, et où vous donnez l’application à une nouvelle personne et la laissez rejoindre l’équipe.",
+    "rowSub": "Partager l’avancement du travail avec vos coéquipiers sans Internet",
+    "rowSubJoin": "Partager l’avancement du travail avec vos coéquipiers, ou faire entrer une nouvelle personne, sans Internet",
+    "rowHelp": "Ouvre Partager à proximité, où les téléphones proches s’envoient et reçoivent l’un de l’autre l’avancement du travail sans Internet.",
+    "rowHelpJoin": "Ouvre Partager à proximité, où les téléphones proches s’envoient et reçoivent l’un de l’autre l’avancement du travail sans Internet, et où vous donnez l’application à une nouvelle personne et la laissez rejoindre l’équipe.",
+    "rowHelpRemind": "Ouvre Partager à proximité, où les téléphones proches s’envoient et reçoivent l’un de l’autre l’avancement du travail sans Internet, et où vous donnez l’application à une nouvelle personne et la laissez rejoindre l’équipe. Ce téléphone n’a pas encore le fichier d’installation dont le téléphone d’une nouvelle personne a besoin maintenant : obtenez-le là avant d’être sans internet.",
     "why": {
       "loading": "Vérification de ce téléphone…",
       "notInBuild": "Cette version de l’application ne peut pas partager à proximité. Mettez-la à jour depuis le store.",
@@ -8561,7 +8562,12 @@
       "intro": "Un nouveau téléphone doit avoir LangQuest installé avant que vous puissiez faire entrer son propriétaire. Obtenez le fichier ici tant que vous avez internet, et emportez-le.",
       "rowSub": "Avant d’être sans internet",
       "rowHelp": "Ouvre Obtenir le fichier d’installation, où vous téléchargez et vérifiez le fichier qui installe LangQuest sur un nouveau téléphone. Faites-le tant que vous avez internet.",
-      "linkHelp": "Ouvre Obtenir le fichier d’installation, où vous téléchargez et vérifiez le fichier qui installe LangQuest sur un nouveau téléphone."
+      "linkHelp": "Ouvre Obtenir le fichier d’installation, où vous téléchargez et vérifiez le fichier qui installe LangQuest sur un nouveau téléphone.",
+      "remind": "Obtenez le fichier d’installation avant d’être sans internet",
+      "notGot": "Fichier d’installation pour une nouvelle personne : pas encore obtenu",
+      "older": "Fichier d’installation pour une nouvelle personne : pour une version plus ancienne",
+      "getIt": "L’obtenir",
+      "lineHelp": "Le téléphone d’une nouvelle personne installe LangQuest à partir de ce fichier. Ce téléphone n’a pas encore celui de cette version : obtenez-le tant que vous avez internet, pour pouvoir le donner à une nouvelle personne hors ligne."
     },
     "join": {
       "intro": "Rejoignez votre équipe depuis le téléphone d’un coéquipier, sans Internet. Votre compte est créé la première fois que votre téléphone se connecte à Internet.",

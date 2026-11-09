@@ -8035,10 +8035,11 @@
     "newPerson": "Mtu mpya",
     "newPersonLine": "Mpe mtu mpya programu, kisha umruhusu ajiunge na timu kupitia simu hii.",
     "row": "Shiriki karibu",
-    "rowSub": "Sasisha simu za wenzako wa timu bila intaneti",
-    "rowSubJoin": "Sasisha simu za wenzako wa timu, au mruhusu mtu mpya aingie, bila intaneti",
-    "rowHelp": "Hufungua Shiriki karibu, ambapo simu zilizo karibu zinasasishana bila intaneti.",
-    "rowHelpJoin": "Hufungua Shiriki karibu, ambapo simu zilizo karibu zinasasishana bila intaneti, na ambapo unampa mtu mpya programu na kumruhusu ajiunge na timu.",
+    "rowSub": "Shiriki maendeleo ya kazi na wenzako wa timu bila intaneti",
+    "rowSubJoin": "Shiriki maendeleo ya kazi na wenzako wa timu, au mruhusu mtu mpya aingie, bila intaneti",
+    "rowHelp": "Hufungua Shiriki karibu, ambapo simu zilizo karibu hutumiana na kupokeana maendeleo ya kazi bila intaneti.",
+    "rowHelpJoin": "Hufungua Shiriki karibu, ambapo simu zilizo karibu hutumiana na kupokeana maendeleo ya kazi bila intaneti, na ambapo unampa mtu mpya programu na kumruhusu ajiunge na timu.",
+    "rowHelpRemind": "Hufungua Shiriki karibu, ambapo simu zilizo karibu hutumiana na kupokeana maendeleo ya kazi bila intaneti, na ambapo unampa mtu mpya programu na kumruhusu ajiunge na timu. Simu hii bado haina faili ya kusakinisha ambayo simu ya mtu mpya inahitaji sasa: ipate huko kabla hujakosa intaneti.",
     "why": {
       "loading": "Inakagua simu hii…",
       "notInBuild": "Toleo hili la programu haliwezi kushiriki karibu. Lisasishe kutoka dukani.",
@@ -8216,7 +8217,12 @@
       "intro": "Simu mpya inahitaji LangQuest iwe imesakinishwa kabla hujamruhusu mwenye simu aingie. Pata faili hapa ukiwa bado na intaneti, na uende nayo.",
       "rowSub": "Kabla hujakosa intaneti",
       "rowHelp": "Hufungua Pata faili ya kusakinisha, ambapo unapakua na kukagua faili ambayo simu mpya husakinisha LangQuest kwayo. Fanya hivyo ukiwa bado na intaneti.",
-      "linkHelp": "Hufungua Pata faili ya kusakinisha, ambapo unapakua na kukagua faili ambayo simu mpya husakinisha LangQuest kwayo."
+      "linkHelp": "Hufungua Pata faili ya kusakinisha, ambapo unapakua na kukagua faili ambayo simu mpya husakinisha LangQuest kwayo.",
+      "remind": "Pata faili ya kusakinisha kabla hujakosa intaneti",
+      "notGot": "Faili ya kusakinisha kwa mtu mpya: bado haijapatikana",
+      "older": "Faili ya kusakinisha kwa mtu mpya: ni ya toleo la zamani",
+      "getIt": "Ipate",
+      "lineHelp": "Simu ya mtu mpya husakinisha LangQuest kutoka kwa faili hii. Simu hii bado haijapata faili ya toleo hili: ipate ukiwa bado na intaneti, ili uweze kumpa mtu mpya bila intaneti."
     },
     "join": {
       "intro": "Jiunge na timu yako kupitia simu ya mwenzako wa timu, bila intaneti. Akaunti yako inatengenezwa mara ya kwanza simu yako itakapofika kwenye intaneti.",

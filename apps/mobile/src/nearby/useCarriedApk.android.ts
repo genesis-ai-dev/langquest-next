@@ -49,5 +49,5 @@ export function useCarriedApk(): CarriedApkHandle {
   }, [needed]);
 
   const actions = useMemo(() => ({ get, check: () => { void check(); } }), [get, check]);
-  return useMemo(() => ({ needed, url, stale: apkStale(needed, opened), checked, actions }), [needed, url, opened, checked, actions]);
+  return useMemo(() => ({ needed, url, opened, stale: apkStale(needed, opened), checked, actions }), [needed, url, opened, checked, actions]);
 }

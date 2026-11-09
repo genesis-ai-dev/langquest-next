@@ -8380,10 +8380,11 @@
     "newPerson": "Una persona nueva",
     "newPersonLine": "Dale la app a una persona nueva y luego déjala unirse al equipo desde este teléfono.",
     "row": "Compartir cerca",
-    "rowSub": "Pon al día los teléfonos de tus compañeros sin internet",
-    "rowSubJoin": "Pon al día los teléfonos de tus compañeros, o deja entrar a una persona nueva, sin internet",
-    "rowHelp": "Abre Compartir cerca, donde los teléfonos cercanos se ponen al día entre sí sin internet.",
-    "rowHelpJoin": "Abre Compartir cerca, donde los teléfonos cercanos se ponen al día entre sí sin internet, y donde le das la app a una persona nueva y la dejas unirse al equipo.",
+    "rowSub": "Comparte el avance del trabajo con tus compañeros sin internet",
+    "rowSubJoin": "Comparte el avance del trabajo con tus compañeros, o deja entrar a una persona nueva, sin internet",
+    "rowHelp": "Abre Compartir cerca, donde los teléfonos cercanos se envían y reciben el avance del trabajo entre sí sin internet.",
+    "rowHelpJoin": "Abre Compartir cerca, donde los teléfonos cercanos se envían y reciben el avance del trabajo entre sí sin internet, y donde le das la app a una persona nueva y la dejas unirse al equipo.",
+    "rowHelpRemind": "Abre Compartir cerca, donde los teléfonos cercanos se envían y reciben el avance del trabajo entre sí sin internet, y donde le das la app a una persona nueva y la dejas unirse al equipo. Este teléfono aún no tiene el archivo de instalación que necesita ahora el teléfono de una persona nueva: consíguelo allí antes de quedarte sin internet.",
     "why": {
       "loading": "Revisando este teléfono…",
       "notInBuild": "Esta versión de la app no puede compartir cerca. Actualízala desde la tienda.",
@@ -8561,7 +8562,12 @@
       "intro": "Un teléfono nuevo necesita LangQuest instalado antes de que puedas dejar entrar a su dueño. Consigue el archivo aquí mientras tienes internet y llévalo contigo.",
       "rowSub": "Antes de quedarte sin internet",
       "rowHelp": "Abre Conseguir el archivo de instalación, donde descargas y revisas el archivo con el que un teléfono nuevo instala LangQuest. Hazlo mientras tienes internet.",
-      "linkHelp": "Abre Conseguir el archivo de instalación, donde descargas y revisas el archivo con el que un teléfono nuevo instala LangQuest."
+      "linkHelp": "Abre Conseguir el archivo de instalación, donde descargas y revisas el archivo con el que un teléfono nuevo instala LangQuest.",
+      "remind": "Consigue el archivo de instalación antes de quedarte sin internet",
+      "notGot": "Archivo de instalación para una persona nueva: aún no lo tienes",
+      "older": "Archivo de instalación para una persona nueva: es de una versión anterior",
+      "getIt": "Conseguirlo",
+      "lineHelp": "El teléfono de una persona nueva instala LangQuest con este archivo. Este teléfono aún no tiene el de esta versión: consíguelo mientras tienes internet, para dárselo a una persona nueva sin conexión."
     },
     "join": {
       "intro": "Únete a tu equipo desde el teléfono de un compañero, sin internet. Tu cuenta se crea la primera vez que tu teléfono se conecte a internet.",

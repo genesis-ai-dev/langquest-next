@@ -3,7 +3,7 @@ import type { LetInWhyNot } from './letInModel';
 /**
  * The carried build's install file on a carrier's phone (docs/nearby-sync-plan.md 14.4,
  * "Checking before leaving town"), as pure rules: when Share nearby offers Get the install file,
- * when that screen offers to get it, when the file the person got last is for an older version,
+ * when that screen offers to get it, when Sync reminds a carrier to get it, when the file the person got last is for an older version,
  * what a file they chose says, and how a refusal over versions is worded. Nothing here calls anything, so every rule is tested without
  * a phone. The app never downloads or installs the file: the phone's browser does, and the person.
  */
@@ -32,8 +32,8 @@ export function apkGet(o: { needed: string | null; url: string | null; online: b
  * The file the person got before is for an older version: a name remembered, and not the one this
  * phone needs now. The words go when the two match again, and never show before the first press.
  */
-export function apkStale(needed: string | null, opened: string | null): boolean {
-  return needed !== null && opened !== null && opened !== needed;
+export function apkStale(needed: string | null, opened: string | null | undefined): boolean {
+  return needed !== null && opened !== null && opened !== undefined && opened !== needed;
 }
 
 /**
@@ -68,3 +68,28 @@ export function joinRows(whyNot: LetInWhyNot | null, needed: string | null): { l
   const letIn = whyNot === null ? 'ready' : whyNot === 'expired' ? 'expired' : null;
   return { letIn, installFile: letIn !== null && needed !== null };
 }
+
+/**
+ * Why Sync reminds a carrier to get the install file (docs/nearby-sync-plan.md 14.4, "Reminded
+ * while online"): this phone never got one, or got one for an older version.
+ */
+export type ApkReminder = 'not-got' | 'older';
+
+/**
+ * Whether Sync reminds this person to get the install file while they still can: only where Share
+ * nearby shows A new person and Get the install file (`joinRows`), only while the server was just
+ * reached (`online` true) and the file can be got (`apkGet`), and only while the file this phone
+ * has is not the one it needs now. `opened` is undefined until the remembered name is read, so
+ * nothing shows before then. Getting the file, or a right file under Check my file, ends it.
+ */
+export function apkReminder(o: { letIn: LetInWhyNot | null; needed: string | null; url: string | null; opened: string | null | undefined; online: boolean | null }): ApkReminder | null {
+  if (!joinRows(o.letIn, o.needed).installFile || o.online !== true || apkGet(o) !== 'ready' || o.opened === undefined) return null;
+  if (o.opened === null) return 'not-got';
+  return apkStale(o.needed, o.opened) ? 'older' : null;
+}
+
+/** The line on Sync's Ready for offline card for each reminder. */
+export const APK_REMINDER_WORDS = {
+  'not-got': 'nearby.installFile.notGot',
+  older: 'nearby.installFile.older'
+} as const satisfies Record<ApkReminder, string>;

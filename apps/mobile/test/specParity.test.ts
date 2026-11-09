@@ -116,6 +116,7 @@ const APP_ONLY: Record<string, string> = {
   'share_nearby->let_someone_in': 'Let someone in: a new phone with no internet joins the team from a teammate\'s; the demo has no such flow (docs/nearby-sync-plan.md 14.1)',
   'share_nearby->get_install_file': 'Get the install file: the file a new phone installs LangQuest from, got and checked online before a trip; the demo has no such flow (docs/nearby-sync-plan.md 14.4)',
   'let_someone_in->get_install_file': 'the new phone needs LangQuest installed first: Let someone in links to where the file is got (docs/nearby-sync-plan.md 14.4)',
+  'sync_status->get_install_file': 'while online, Ready for offline says when this phone lacks the install file a new person needs, and Get it opens where it is got (docs/nearby-sync-plan.md 14.4)',
   'scan_qr->join_offline': 'a scanned Let someone in code opens the new phone\'s progress screen (docs/nearby-sync-plan.md 14.1, 3)',
   'join_offline->scan_qr': 'a code that did not let them in: scan a new one from the teammate\'s phone (docs/nearby-sync-plan.md 14.1, 3)',
   'sign_in->join_offline': 'a starting copy a drop left unfinished: Sign In leads back to finishing it, and no other account signs in over it (docs/nearby-sync-plan.md 14.1)',

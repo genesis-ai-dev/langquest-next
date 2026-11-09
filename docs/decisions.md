@@ -12358,3 +12358,10 @@ its too-old line; Let someone in opens it from a line at its top saying the
 new phone needs the app installed first, and keeps the role, the code, the
 pictures, the one tap and the version refusal's words. What the screen does
 is unchanged. Plan 14.4 has the details.
+
+Amended (2026-11-09, Carl Sauder): while online, Sync reminds someone who can
+let a new person in, and whose phone has never got the file it needs now or
+got one for an older version, to get it: a line on the Ready for offline card
+with a Get it link to Get the install file, and an amber line on the Share
+nearby row (Carl's choice), until the right file is got (`apkReminder`, plan
+14.4).
