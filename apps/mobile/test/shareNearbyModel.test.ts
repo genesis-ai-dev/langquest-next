@@ -44,7 +44,9 @@ describe('Share nearby\'s states', () => {
   it('then a stop that latched, then running, level or sharing, then starting', () => {
     expect(stageOf(view({}, { stopped: 'idle' }))).toEqual({ t: 'stopped', why: 'idle' });
     expect(stageOf(view({}, { running: true }))).toEqual({ t: 'running', level: false, sharing: false });
-    expect(stageOf(view({}, { running: true, level: true }))).toEqual({ t: 'running', level: true, sharing: false });
+    expect(stageOf(view({}, { running: true, level: true, met: true }))).toEqual({ t: 'running', level: true, sharing: false });
+    // Level with nobody heard this run is still looking for teammates (5.11).
+    expect(stageOf(view({}, { running: true, level: true }))).toEqual({ t: 'running', level: false, sharing: false });
     expect(stageOf(view({}, { running: true, current: { tag: 't', role: 'i', eventsIn: 0, eventsOut: 0, filesIn: 0, filesOut: 0 } }))).toMatchObject({ sharing: true });
     expect(stageOf(view())).toEqual({ t: 'starting' });
   });

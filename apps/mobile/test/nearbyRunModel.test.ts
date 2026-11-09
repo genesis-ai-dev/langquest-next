@@ -152,6 +152,26 @@ describe('teammates and what came across', () => {
     expect(s).toMatchObject({ clockOff: true, farAhead: [{ actorId: 'kim', hlc: '9' }], newerAppNeeded: false });
   });
 
+  it('says "Up to date" only once this run heard someone: level with nobody heard is still looking (5.11)', () => {
+    const upToDate = (s: NearbyRunState) => nearbyViewOf({
+      offered: true, whyNot: null, radiosOff: [], permissions: { state: 'granted', step: { t: 'ready' } }, worn, run: s, holding: 0, hold: true, carry: NOTHING_TO_CARRY
+    }).level;
+    const level = { t: 'room' as const, report: { t: 'level' as const }, worn };
+    // Nobody ever heard: the room is level at once, and the screen keeps looking.
+    const alone = run({ t: 'started' }, level);
+    expect(upToDate(alone)).toBe(false);
+    // Someone heard after the room went level, with nothing to swap: the room says level no more, and the screen is up to date.
+    expect(upToDate(nearbyRunReducer(alone, seen(['t1'])))).toBe(true);
+    // One who echoed no salt, or connected to this phone, was met too.
+    expect(upToDate(run({ t: 'started' }, { t: 'room', report: { t: 'maybe', tag: 't2' }, worn }, level))).toBe(true);
+    expect(upToDate(run({ t: 'started' }, { t: 'room', report: { t: 'session', tag: null, role: 'r' }, worn }, { t: 'room', report: { t: 'ended', tag: null, report: report({ role: 'r' }) }, worn }, level))).toBe(true);
+    // Met and gone stays met; a new run starts with nobody heard again.
+    const met = run({ t: 'started' }, seen(['t1']), seen([]), level);
+    expect(upToDate(met)).toBe(true);
+    const again = run({ t: 'started' }, seen(['t1']), { t: 'room', report: { t: 'stopped', why: 'asked' }, worn }, { t: 'started' }, level);
+    expect(upToDate(again)).toBe(false);
+  });
+
   it('learns a responder\'s teammate from its report, and marks a session that did not end well as missed', () => {
     let s = run({ t: 'started' }, { t: 'room', report: { t: 'session', tag: null, role: 'r' }, worn });
     s = nearbyRunReducer(s, { t: 'room', report: { t: 'ended', tag: null, report: report({ role: 'r', ended: { how: 'dropped' }, newerAppNeeded: true }) }, worn });

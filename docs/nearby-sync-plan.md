@@ -1135,7 +1135,9 @@ bringing up Wi-Fi:
   anyone. A phone that heard the other under an older generation does not wait, because the
   other cannot hear it (section 5.12, Generations).
 - **Stop when level.** Once nobody in range has anything new, the screen says "Up to date"
-  and stops connecting. It keeps listening in short bursts, up to the room's idle limit
+  and stops connecting. With nobody heard since the radios started, the room is level at once,
+  and the screen stays on "Looking for teammates" (`nearbyRunModel`'s `met`), or "Up to date"
+  would tell a person alone that they are done. It keeps listening in short bursts, up to the room's idle limit
   (section 5.8), so a teammate who arrives is still found. A disguised phone stops instead
   (section 5.8). Android reportedly allows at
   most 5 scan starts per 30 seconds, failing silently, and downgrades a scan left running

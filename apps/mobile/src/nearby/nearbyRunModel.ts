@@ -204,8 +204,13 @@ export interface NearbyRunState {
   warnedOnce: boolean;
   stopped: NearbyStop | null;
   running: boolean;
-  /** "Up to date". */
+  /** The room says nobody in range has anything new. "Up to date" only once `met` too. */
   level: boolean;
+  /**
+   * This run heard someone: a teammate who echoed, one waiting on a tap, or a session. With nobody
+   * heard the room is level at once, and "Up to date" would tell the person they are done (5.11).
+   */
+  met: boolean;
   teammates: NearbyTeammate[];
   sessions: NearbySessionLine[];
   current: NearbyProgress | null;
@@ -220,7 +225,7 @@ export interface NearbyRunState {
 }
 
 export const NEARBY_RUN_START: NearbyRunState = {
-  pressed: false, warned: false, warnedOnce: false, stopped: null, running: false, level: false, teammates: [], sessions: [], current: null,
+  pressed: false, warned: false, warnedOnce: false, stopped: null, running: false, level: false, met: false, teammates: [], sessions: [], current: null,
   farAhead: [], clockOff: false, newerAppNeeded: false, findError: null
 };
 
@@ -275,7 +280,7 @@ const stranger = (tag: string): NearbyTeammate => ({ tag, key: null, profileId: 
 function halted(s: NearbyRunState, stopped: NearbyStop | null, worn: boolean): NearbyRunState {
   const pressCleared = worn && stopped !== null;
   return {
-    ...s, running: false, current: null, teammates: [], level: false, stopped: stopped ?? s.stopped,
+    ...s, running: false, current: null, teammates: [], level: false, met: false, stopped: stopped ?? s.stopped,
     ...(pressCleared ? { pressed: false, warned: false } : {})
   };
 }
@@ -291,15 +296,15 @@ function roomReported(s: NearbyRunState, e: RoomReport, worn: boolean, names: Re
         return { tag: seen.tag, key, profileId, older: seen.older, state: before && before.state !== 'maybe' ? before.state : 'here' };
       });
       const waiting = s.teammates.filter((t) => (t.state === 'maybe' || t.state === 'exchanging') && !e.seen.some((x) => x.tag === t.tag));
-      return { ...s, teammates: [...list, ...waiting] };
+      return { ...s, teammates: [...list, ...waiting], met: s.met || list.length > 0 };
     }
     case 'maybe':
       if (s.teammates.some((t) => t.tag === e.tag)) return s;
-      return { ...s, teammates: [...s.teammates, { ...stranger(e.tag), state: 'maybe' }] };
+      return { ...s, teammates: [...s.teammates, { ...stranger(e.tag), state: 'maybe' }], met: true };
     case 'session': {
       const current: NearbyProgress = { tag: e.tag, role: e.role, eventsIn: 0, eventsOut: 0, filesIn: 0, filesOut: 0 };
       const teammates = e.tag === null ? s.teammates : withTeammate(s.teammates, e.tag, (t) => ({ ...t, state: 'exchanging' }), () => stranger(e.tag!));
-      return { ...s, current, teammates, level: false };
+      return { ...s, current, teammates, level: false, met: true };
     }
     case 'ended': {
       const r = e.report;
@@ -375,7 +380,7 @@ export interface NearbyView {
   needsPress: boolean;
   running: boolean;
   stopped: NearbyStop | null;
-  /** "Up to date". */
+  /** "Up to date": level, with someone heard this run. */
   level: boolean;
   teammates: readonly NearbyTeammate[];
   sessions: readonly NearbySessionLine[];
@@ -429,7 +434,7 @@ export function nearbyViewOf(f: NearbyViewFacts): NearbyView {
   const { run } = f;
   return {
     offered: f.offered, whyNot: f.whyNot, radiosOff: f.radiosOff, permissions: f.permissions, worn: f.worn,
-    needsPress: f.worn && !run.pressed, running: run.running, stopped: run.stopped, level: run.level, teammates: run.teammates,
+    needsPress: f.worn && !run.pressed, running: run.running, stopped: run.stopped, level: run.level && run.met, teammates: run.teammates,
     sessions: run.sessions, current: run.current, holding: f.holding, farAhead: run.farAhead, clockOff: run.clockOff,
     newerAppNeeded: run.newerAppNeeded, findError: run.findError, hold: f.hold, carry: f.carry
   };
