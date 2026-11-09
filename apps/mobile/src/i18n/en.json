@@ -355,7 +355,8 @@
     "new_password": "New Password",
     "share_nearby": "Share nearby",
     "let_someone_in": "Let someone in",
-    "join_offline": "Join without internet"
+    "join_offline": "Join without internet",
+    "get_install_file": "Get the install file"
   },
   "native": {
     "microphone": "LangQuest records your voice to translate passages.",
@@ -8104,7 +8105,7 @@
     },
     "clockOff": "A teammate's clock and this phone's differ by more than five minutes. Check the date and time on both phones.",
     "newerApp": "A teammate's phone needs a newer version of the app to share with this one. Update the app from the store, or get the newer version from a teammate.",
-    "apkOld": "The install file you got for Let someone in is for an older version. Get the new one there before you go offline.",
+    "apkOld": "The install file you got is for an older version. Get the new one before you go offline.",
     "tooOld": "This app is too old to share. Update it from the store.",
     "farAhead": "{{name}}'s phone has a date far in the future. Their work waits until it reaches the server.",
     "olderFromServer": "Older work will come from the server.",
@@ -8141,6 +8142,7 @@
       "rowSub": "A new phone joins the team from this one, without internet",
       "rowHelp": "Opens Let someone in, where a new phone with no internet joins your team from this phone.",
       "intro": "A new person with LangQuest on their phone joins your team from this phone, without internet. Choose their role, show them the code, and let them in once the pictures match.",
+      "needsApp": "The new phone needs LangQuest installed first.",
       "why": {
         "loading": "Checking this phone…",
         "notInBuild": "Only Android phones can let someone in.",
@@ -8203,6 +8205,12 @@
         "noCertificate": "This phone must connect to the internet once before it can let anyone in.",
         "failed": "Something went wrong on this phone. Make a new code."
       }
+    },
+    "installFile": {
+      "intro": "A new person's phone needs LangQuest installed before you can let them in. Get the file here while you have internet, and take it with you.",
+      "rowSub": "Before you go offline: the file a new phone installs LangQuest from",
+      "rowHelp": "Opens Get the install file, where you download and check the file a new phone installs LangQuest from. Do it while you have internet.",
+      "linkHelp": "Opens Get the install file, where you download and check the file a new phone installs LangQuest from."
     },
     "join": {
       "intro": "Join your team from a teammate's phone, without internet. Your account is made the first time your phone reaches the internet.",

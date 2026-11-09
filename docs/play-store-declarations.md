@@ -413,9 +413,9 @@ member taps once after both compare two pictures.
   name that holds only version numbers. A carrier downloads it with a browser while online and
   passes it on by Quick Share, SD card or USB; the app never downloads or installs an APK, and
   `REQUEST_INSTALL_PACKAGES` stays out of it. Carried builds use the alpha track, as drafts.
-- **Finding and checking the file** (decision 240, amended 2026-11-09). Let someone in opens
-  that address in the phone's own browser (Get the install file); the app makes no request to
-  it. It remembers the name of the file last opened, in one row on the phone holding only that
+- **Finding and checking the file** (decision 240, amended 2026-11-09). Get the install file,
+  a screen opened from Share nearby and Let someone in, opens that address in the phone's own
+  browser; the app makes no request to it. It remembers the name of the file last opened, in one row on the phone holding only that
   name (no person, organization or time), to say when the file is for an older version. Check
   my file opens Android's system file picker through `expo-document-picker`, Expo's module for
   it, and reads only the chosen file's name: the file is not copied, opened or read, and nothing

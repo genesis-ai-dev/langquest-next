@@ -19,5 +19,5 @@ Android only behind `nearbyKey.android.ts`), `nearbySecrets` (the
 Keystore names, and each person's discovery keys, which `lock` seals),
 `localPerson` (joining offline's local person, kept outside any session,
 Android only behind `localPerson.android.ts`), and `carriedApk` (the Worker
-address of the carried build's install file, which Let someone in opens in
-the phone's browser; the app itself requests nothing there).
+address of the carried build's install file, which Get the install file
+opens in the phone's browser; the app itself requests nothing there).

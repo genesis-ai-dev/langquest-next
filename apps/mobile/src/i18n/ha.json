@@ -355,7 +355,8 @@
     "new_password": "Sabuwar Kalmar Sirri",
     "share_nearby": "Raba da na kusa",
     "let_someone_in": "Shigar da wani",
-    "join_offline": "Shiga ba tare da intanet ba"
+    "join_offline": "Shiga ba tare da intanet ba",
+    "get_install_file": "Samu fayil ɗin girkawa"
   },
   "native": {
     "microphone": "LangQuest yana naɗar muryarku don fassara nassosi.",
@@ -8104,7 +8105,7 @@
     },
     "clockOff": "Agogon wani abokin aiki da na wannan waya sun bambanta da fiye da minti biyar. Duba kwanan wata da lokaci a wayoyin biyu.",
     "newerApp": "Wayar wani abokin aiki tana buƙatar sabuwar sigar manhajar kafin ta raba da wannan. Sabunta manhajar daga shago, ko ka karɓi sabuwar sigar daga abokin aiki.",
-    "apkOld": "Fayil ɗin girkawa da ka samu don Shigar da wani na tsohuwar sigar ne. Ka samu sabon a can kafin ka rasa intanet.",
+    "apkOld": "Fayil ɗin girkawa da ka samu na tsohuwar sigar ne. Ka samu sabon kafin ka rasa intanet.",
     "tooOld": "Wannan manhaja ta tsufa da yawa don rabawa. Sabunta ta daga shago.",
     "farAhead": "Wayar {{name}} tana da kwanan wata mai nisa a nan gaba. Aikinsu zai jira har sai ya iso sabar.",
     "olderFromServer": "Tsohon aiki zai zo daga sabar.",
@@ -8141,6 +8142,7 @@
       "rowSub": "Sabuwar waya tana shiga tawagar daga wannan, ba tare da intanet ba",
       "rowHelp": "Yana buɗe Shigar da wani, inda sabuwar waya mara intanet take shiga tawagarka daga wannan waya.",
       "intro": "Sabon mutum mai LangQuest a wayarsa yana shiga tawagarka daga wannan waya, ba tare da intanet ba. Zaɓi matsayinsa, nuna masa lambar, sannan ka shigar da shi idan hotunan sun yi daidai.",
+      "needsApp": "Dole ne a fara girka LangQuest a sabuwar wayar.",
       "why": {
         "loading": "Ana duba wannan waya…",
         "notInBuild": "Wayoyin Android ne kaɗai za su iya shigar da wani.",
@@ -8203,6 +8205,12 @@
         "noCertificate": "Dole wannan waya ta haɗa da intanet sau ɗaya kafin ta iya shigar da kowa.",
         "failed": "Wani abu ya lalace a wannan waya. Ka yi sabuwar lamba."
       }
+    },
+    "installFile": {
+      "intro": "Sabuwar waya tana buƙatar an girka LangQuest a kanta kafin ka shigar da mai ita. Ka samu fayil ɗin a nan yayin da kake da intanet, ka tafi da shi.",
+      "rowSub": "Kafin ka rasa intanet: fayil ɗin da sabuwar waya ke girka LangQuest da shi",
+      "rowHelp": "Yana buɗe Samu fayil ɗin girkawa, inda kake sauke kuma ka duba fayil ɗin da sabuwar waya ke girka LangQuest da shi. Ka yi haka yayin da kake da intanet.",
+      "linkHelp": "Yana buɗe Samu fayil ɗin girkawa, inda kake sauke kuma ka duba fayil ɗin da sabuwar waya ke girka LangQuest da shi."
     },
     "join": {
       "intro": "Ka shiga tawagarka daga wayar abokin aiki, ba tare da intanet ba. Za a buɗe asusunka a karon farko da wayarka ta sami intanet.",

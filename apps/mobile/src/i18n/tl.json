@@ -355,7 +355,8 @@
     "new_password": "Bagong Password",
     "share_nearby": "Ibahagi sa malapit",
     "let_someone_in": "Magpapasok ng isang tao",
-    "join_offline": "Sumali nang walang internet"
+    "join_offline": "Sumali nang walang internet",
+    "get_install_file": "Kunin ang install file"
   },
   "native": {
     "microphone": "Nire-record ng LangQuest ang iyong boses para isalin ang mga sipi.",
@@ -8104,7 +8105,7 @@
     },
     "clockOff": "Mahigit limang minuto ang pagkakaiba ng orasan sa telepono ng isang kasamahan at sa teleponong ito. Tingnan ang petsa at oras sa parehong telepono.",
     "newerApp": "Kailangan ng telepono ng isang kasamahan ang mas bagong bersiyon ng app para makapagbahagi sa teleponong ito. I-update ang app mula sa store, o kunin ang mas bagong bersiyon mula sa isang kasamahan.",
-    "apkOld": "Para sa lumang bersiyon ang install file na nakuha mo para sa Magpapasok ng isang tao. Kunin doon ang bago bago ka mawalan ng internet.",
+    "apkOld": "Para sa lumang bersiyon ang install file na nakuha mo. Kunin ang bago bago ka mawalan ng internet.",
     "tooOld": "Masyadong luma ang app na ito para makapagbahagi. I-update ito mula sa store.",
     "farAhead": "Malayo sa hinaharap ang petsa sa telepono ni {{name}}. Maghihintay ang kanilang gawa hanggang makarating ito sa server.",
     "olderFromServer": "Manggagaling sa server ang mas lumang gawa.",
@@ -8141,6 +8142,7 @@
       "rowSub": "Sasali sa pangkat ang isang bagong telepono mula rito, nang walang internet",
       "rowHelp": "Binubuksan ang Magpapasok ng isang tao, kung saan sasali sa pangkat mo ang isang bagong teleponong walang internet mula sa teleponong ito.",
       "intro": "Ang isang bagong tao na may LangQuest sa telepono niya ay sasali sa pangkat mo mula sa teleponong ito, nang walang internet. Piliin ang tungkulin niya, ipakita sa kanya ang code, at papasukin siya kapag magkapareho ang mga larawan.",
+      "needsApp": "Kailangang may naka-install na LangQuest muna ang bagong telepono.",
       "why": {
         "loading": "Sinusuri ang teleponong ito…",
         "notInBuild": "Mga Android na telepono lang ang makapagpapapasok ng tao.",
@@ -8203,6 +8205,12 @@
         "noCertificate": "Kailangang kumonekta muna sa internet nang isang beses ang teleponong ito bago ito makapagpapasok ng kahit sino.",
         "failed": "May nangyaring mali sa teleponong ito. Gumawa ng bagong code."
       }
+    },
+    "installFile": {
+      "intro": "Kailangang may naka-install na LangQuest ang bagong telepono bago mo mapapasok ang may-ari nito. Kunin dito ang file habang may internet ka, at dalhin mo.",
+      "rowSub": "Bago ka mawalan ng internet: ang file na pag-i-install ng LangQuest sa bagong telepono",
+      "rowHelp": "Binubuksan ang Kunin ang install file, kung saan mo dina-download at sinusuri ang file na pag-i-install ng LangQuest sa bagong telepono. Gawin ito habang may internet ka.",
+      "linkHelp": "Binubuksan ang Kunin ang install file, kung saan mo dina-download at sinusuri ang file na pag-i-install ng LangQuest sa bagong telepono."
     },
     "join": {
       "intro": "Sumali sa pangkat mo mula sa telepono ng isang kasamahan, nang walang internet. Gagawin ang account mo sa unang beses na makakonekta sa internet ang telepono mo.",

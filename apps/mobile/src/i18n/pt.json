@@ -357,7 +357,8 @@
     "new_password": "Nova senha",
     "share_nearby": "Compartilhar por perto",
     "let_someone_in": "Deixar alguém entrar",
-    "join_offline": "Participar sem internet"
+    "join_offline": "Participar sem internet",
+    "get_install_file": "Baixar o arquivo de instalação"
   },
   "native": {
     "microphone": "O LangQuest grava a sua voz para traduzir passagens.",
@@ -8449,7 +8450,7 @@
     },
     "clockOff": "O relógio de um colega e o deste celular estão diferentes em mais de cinco minutos. Confira a data e a hora nos dois celulares.",
     "newerApp": "O celular de um colega precisa de uma versão mais nova do app para compartilhar com este. Atualize o app pela loja ou pegue a versão mais nova com um colega.",
-    "apkOld": "O arquivo de instalação que você pegou para Deixar alguém entrar é de uma versão anterior. Pegue o novo lá antes de ficar sem internet.",
+    "apkOld": "O arquivo de instalação que você pegou é de uma versão anterior. Pegue o novo antes de ficar sem internet.",
     "tooOld": "Este app é antigo demais para compartilhar. Atualize pela loja.",
     "farAhead": "O celular de {{name}} está com uma data muito no futuro. O trabalho dessa pessoa espera até chegar ao servidor.",
     "olderFromServer": "O trabalho mais antigo virá do servidor.",
@@ -8486,6 +8487,7 @@
       "rowSub": "Um celular novo entra na equipe por este, sem internet",
       "rowHelp": "Abre Deixar alguém entrar, onde um celular novo sem internet entra na sua equipe por este celular.",
       "intro": "Uma pessoa nova com o LangQuest no celular entra na sua equipe por este celular, sem internet. Escolha a função dela, mostre o código e deixe-a entrar quando as imagens forem iguais.",
+      "needsApp": "O celular novo precisa ter o LangQuest instalado primeiro.",
       "why": {
         "loading": "Verificando este celular…",
         "notInBuild": "Só celulares Android podem deixar alguém entrar.",
@@ -8548,6 +8550,12 @@
         "noCertificate": "Este celular precisa se conectar à internet uma vez antes de poder deixar alguém entrar.",
         "failed": "Algo deu errado neste celular. Crie um código novo."
       }
+    },
+    "installFile": {
+      "intro": "Um celular novo precisa ter o LangQuest instalado antes que você possa deixar a pessoa entrar. Pegue o arquivo aqui enquanto tem internet e leve-o com você.",
+      "rowSub": "Antes de ficar sem internet: o arquivo com que um celular novo instala o LangQuest",
+      "rowHelp": "Abre Baixar o arquivo de instalação, onde você baixa e verifica o arquivo com que um celular novo instala o LangQuest. Faça isso enquanto tem internet.",
+      "linkHelp": "Abre Baixar o arquivo de instalação, onde você baixa e verifica o arquivo com que um celular novo instala o LangQuest."
     },
     "join": {
       "intro": "Entre na sua equipe pelo celular de um colega, sem internet. A sua conta é criada na primeira vez que o seu celular se conectar à internet.",

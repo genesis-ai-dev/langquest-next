@@ -55,7 +55,9 @@ export const SCREEN_IDS = [
   // App only: phones near each other bring each other up to date with no internet (docs/nearby-sync-plan.md 5.8)
   'share_nearby',
   // App only: a teammate's phone lets a new person in with no internet, and the new phone's progress (docs/nearby-sync-plan.md 14.1)
-  'let_someone_in', 'join_offline'
+  'let_someone_in', 'join_offline',
+  // App only: getting and checking the install file a new phone needs, online before a trip (docs/nearby-sync-plan.md 14.4)
+  'get_install_file'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -460,6 +462,11 @@ export const EDGES: Edge[] = [
   // App only: joining without internet (docs/nearby-sync-plan.md 14.1, experimental)
   e('share_nearby', 'let_someone_in'), // tap Let someone in
   e('let_someone_in', 'share_nearby', 'back'),
+  // App only: the install file, got and checked online before a trip (docs/nearby-sync-plan.md 14.4, experimental)
+  e('share_nearby', 'get_install_file'), // tap Get the install file, or the line saying the file got is too old
+  e('get_install_file', 'share_nearby', 'back'),
+  e('let_someone_in', 'get_install_file'), // tap Get the install file under the new phone needing the app first
+  e('get_install_file', 'let_someone_in', 'back'),
   e('scan_qr', 'join_offline', undefined, 'guest'), // scan a teammate's Let someone in code
   e('join_offline', 'scan_qr', undefined, 'guest'), // tap Scan a new code
   e('join_offline', 'sign_in', 'back', 'guest'), // tap Back

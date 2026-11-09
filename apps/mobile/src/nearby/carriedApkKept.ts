@@ -4,7 +4,7 @@ import { CARRIED_APK_OPENED_KEY } from './carriedApkModel';
 /**
  * The name of the carried build's file the person last went to get, or checked and found right
  * (docs/nearby-sync-plan.md 14.4), kept in one phone-wide meta row that holds nothing but that
- * name. Read once, then held here, so Let someone in and Share nearby see a press at once.
+ * name. Read once, then held here, so Get the install file and Share nearby see a press at once.
  */
 let opened: string | null = null;
 let loading: Promise<void> | null = null;

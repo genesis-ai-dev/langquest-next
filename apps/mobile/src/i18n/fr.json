@@ -357,7 +357,8 @@
     "new_password": "Nouveau mot de passe",
     "share_nearby": "Partager à proximité",
     "let_someone_in": "Faire entrer quelqu’un",
-    "join_offline": "Rejoindre sans Internet"
+    "join_offline": "Rejoindre sans Internet",
+    "get_install_file": "Obtenir le fichier d’installation"
   },
   "native": {
     "microphone": "LangQuest enregistre votre voix pour traduire des passages.",
@@ -8449,7 +8450,7 @@
     },
     "clockOff": "L’horloge d’un coéquipier et celle de ce téléphone diffèrent de plus de cinq minutes. Vérifiez la date et l’heure sur les deux téléphones.",
     "newerApp": "Le téléphone d’un coéquipier a besoin d’une version plus récente de l’application pour partager avec celui-ci. Mettez à jour l’application depuis le store, ou obtenez la version récente auprès d’un coéquipier.",
-    "apkOld": "Le fichier d’installation que vous avez obtenu pour Faire entrer quelqu’un est pour une version plus ancienne. Obtenez le nouveau là-bas avant d’être sans internet.",
+    "apkOld": "Le fichier d’installation que vous avez obtenu est pour une version plus ancienne. Obtenez le nouveau avant d’être sans internet.",
     "tooOld": "Cette application est trop ancienne pour partager. Mettez-la à jour depuis le store.",
     "farAhead": "Le téléphone de {{name}} a une date très en avance. Son travail attend d’arriver au serveur.",
     "olderFromServer": "Le travail plus ancien viendra du serveur.",
@@ -8486,6 +8487,7 @@
       "rowSub": "Un nouveau téléphone rejoint l’équipe depuis celui-ci, sans Internet",
       "rowHelp": "Ouvre Faire entrer quelqu’un, où un nouveau téléphone sans Internet rejoint votre équipe depuis ce téléphone.",
       "intro": "Une nouvelle personne qui a LangQuest sur son téléphone rejoint votre équipe depuis ce téléphone, sans Internet. Choisissez son rôle, montrez-lui le code, et faites-la entrer quand les images sont les mêmes.",
+      "needsApp": "Le nouveau téléphone doit d’abord avoir LangQuest installé.",
       "why": {
         "loading": "Vérification de ce téléphone…",
         "notInBuild": "Seuls les téléphones Android peuvent faire entrer quelqu’un.",
@@ -8548,6 +8550,12 @@
         "noCertificate": "Ce téléphone doit se connecter une fois à Internet avant de pouvoir faire entrer quelqu’un.",
         "failed": "Un problème est survenu sur ce téléphone. Créez un nouveau code."
       }
+    },
+    "installFile": {
+      "intro": "Un nouveau téléphone doit avoir LangQuest installé avant que vous puissiez faire entrer son propriétaire. Obtenez le fichier ici tant que vous avez internet, et emportez-le.",
+      "rowSub": "Avant d’être sans internet : le fichier qui installe LangQuest sur un nouveau téléphone",
+      "rowHelp": "Ouvre Obtenir le fichier d’installation, où vous téléchargez et vérifiez le fichier qui installe LangQuest sur un nouveau téléphone. Faites-le tant que vous avez internet.",
+      "linkHelp": "Ouvre Obtenir le fichier d’installation, où vous téléchargez et vérifiez le fichier qui installe LangQuest sur un nouveau téléphone."
     },
     "join": {
       "intro": "Rejoignez votre équipe depuis le téléphone d’un coéquipier, sans Internet. Votre compte est créé la première fois que votre téléphone se connecte à Internet.",

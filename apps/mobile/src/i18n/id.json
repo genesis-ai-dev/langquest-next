@@ -353,7 +353,8 @@
     "new_password": "Kata Sandi Baru",
     "share_nearby": "Berbagi di sekitar",
     "let_someone_in": "Izinkan seseorang masuk",
-    "join_offline": "Gabung tanpa internet"
+    "join_offline": "Gabung tanpa internet",
+    "get_install_file": "Dapatkan file instalasi"
   },
   "native": {
     "microphone": "LangQuest merekam suara Anda untuk menerjemahkan perikop.",
@@ -7759,7 +7760,7 @@
     },
     "clockOff": "Jam ponsel rekan tim dan jam ponsel ini berbeda lebih dari lima menit. Periksa tanggal dan jam di kedua ponsel.",
     "newerApp": "Ponsel rekan tim memerlukan versi aplikasi yang lebih baru untuk berbagi dengan ponsel ini. Perbarui aplikasi dari toko aplikasi, atau dapatkan versi yang lebih baru dari rekan tim.",
-    "apkOld": "File instalasi yang Anda dapatkan untuk Izinkan seseorang masuk adalah untuk versi lama. Dapatkan yang baru di sana sebelum Anda tanpa internet.",
+    "apkOld": "File instalasi yang Anda dapatkan adalah untuk versi lama. Dapatkan yang baru sebelum Anda tanpa internet.",
     "tooOld": "Aplikasi ini terlalu lama untuk berbagi. Perbarui dari toko aplikasi.",
     "farAhead": "Ponsel {{name}} memakai tanggal yang jauh di masa depan. Pekerjaannya menunggu sampai tiba di server.",
     "olderFromServer": "Pekerjaan yang lebih lama akan datang dari server.",
@@ -7796,6 +7797,7 @@
       "rowSub": "Ponsel baru bergabung dengan tim dari ponsel ini, tanpa internet",
       "rowHelp": "Membuka Izinkan seseorang masuk, tempat ponsel baru tanpa internet bergabung dengan tim Anda dari ponsel ini.",
       "intro": "Orang baru yang punya LangQuest di ponselnya bergabung dengan tim Anda dari ponsel ini, tanpa internet. Pilih perannya, tunjukkan kodenya, dan izinkan dia masuk jika gambarnya sama.",
+      "needsApp": "Ponsel baru perlu LangQuest terpasang terlebih dahulu.",
       "why": {
         "loading": "Memeriksa ponsel ini…",
         "notInBuild": "Hanya ponsel Android yang bisa mengizinkan seseorang masuk.",
@@ -7858,6 +7860,12 @@
         "noCertificate": "Ponsel ini harus tersambung ke internet sekali sebelum bisa mengizinkan siapa pun masuk.",
         "failed": "Ada yang salah di ponsel ini. Buat kode baru."
       }
+    },
+    "installFile": {
+      "intro": "Ponsel baru perlu LangQuest terpasang sebelum Anda dapat mengizinkan pemiliknya masuk. Dapatkan file-nya di sini selagi ada internet, lalu bawa.",
+      "rowSub": "Sebelum Anda tanpa internet: file untuk memasang LangQuest di ponsel baru",
+      "rowHelp": "Membuka Dapatkan file instalasi, tempat Anda mengunduh dan memeriksa file untuk memasang LangQuest di ponsel baru. Lakukan selagi ada internet.",
+      "linkHelp": "Membuka Dapatkan file instalasi, tempat Anda mengunduh dan memeriksa file untuk memasang LangQuest di ponsel baru."
     },
     "join": {
       "intro": "Bergabung dengan tim Anda dari ponsel rekan tim, tanpa internet. Akun Anda dibuat saat ponsel Anda pertama kali tersambung ke internet.",

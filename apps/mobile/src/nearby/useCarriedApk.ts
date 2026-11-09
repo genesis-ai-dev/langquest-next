@@ -1,6 +1,6 @@
 import type { ApkCheck } from './carriedApkModel';
 
-/** The carried build's install file as Let someone in and Share nearby take it (docs/nearby-sync-plan.md 14.4). */
+/** The carried build's install file as Get the install file, Let someone in and Share nearby take it (docs/nearby-sync-plan.md 14.4). */
 export interface CarriedApkHandle {
   /** The file that installs this phone's versions (core `carriedApkNameHere`), or null where the app runs on no fingerprint. */
   needed: string | null;

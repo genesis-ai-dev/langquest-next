@@ -355,7 +355,8 @@
     "new_password": "Nenosiri Jipya",
     "share_nearby": "Shiriki karibu",
     "let_someone_in": "Mruhusu mtu aingie",
-    "join_offline": "Jiunge bila intaneti"
+    "join_offline": "Jiunge bila intaneti",
+    "get_install_file": "Pata faili ya kusakinisha"
   },
   "native": {
     "microphone": "LangQuest hurekodi sauti yako ili kutafsiri vifungu.",
@@ -8104,7 +8105,7 @@
     },
     "clockOff": "Saa ya simu ya mwenzako na ya simu hii zinatofautiana kwa zaidi ya dakika tano. Angalia tarehe na saa kwenye simu zote mbili.",
     "newerApp": "Simu ya mwenzako inahitaji toleo jipya zaidi la programu ili kushiriki na hii. Sasisha programu kutoka dukani, au pata toleo jipya kutoka kwa mwenzako.",
-    "apkOld": "Faili ya kusakinisha uliyopata kwa ajili ya Mruhusu mtu aingie ni ya toleo la zamani. Pata mpya hapo kabla hujakosa intaneti.",
+    "apkOld": "Faili ya kusakinisha uliyopata ni ya toleo la zamani. Pata mpya kabla hujakosa intaneti.",
     "tooOld": "Programu hii ni ya zamani mno kushiriki. Isasishe kutoka dukani.",
     "farAhead": "Simu ya {{name}} ina tarehe ya mbali sana mbeleni. Kazi yake inasubiri hadi ifike kwenye seva.",
     "olderFromServer": "Kazi ya zamani zaidi itakuja kutoka kwenye seva.",
@@ -8141,6 +8142,7 @@
       "rowSub": "Simu mpya inajiunga na timu kupitia hii, bila intaneti",
       "rowHelp": "Hufungua Mruhusu mtu aingie, ambapo simu mpya isiyo na intaneti inajiunga na timu yako kupitia simu hii.",
       "intro": "Mtu mpya mwenye LangQuest kwenye simu yake anajiunga na timu yako kupitia simu hii, bila intaneti. Chagua jukumu lake, mwonyeshe msimbo, na umruhusu aingie picha zikifanana.",
+      "needsApp": "Simu mpya inahitaji LangQuest iwe imesakinishwa kwanza.",
       "why": {
         "loading": "Inaangalia simu hii…",
         "notInBuild": "Simu za Android pekee ndizo zinaweza kumruhusu mtu aingie.",
@@ -8203,6 +8205,12 @@
         "noCertificate": "Simu hii lazima iunganishwe kwenye intaneti mara moja kabla ya kuweza kumruhusu mtu yeyote aingie.",
         "failed": "Kuna tatizo limetokea kwenye simu hii. Tengeneza msimbo mpya."
       }
+    },
+    "installFile": {
+      "intro": "Simu mpya inahitaji LangQuest iwe imesakinishwa kabla hujamruhusu mwenye simu aingie. Pata faili hapa ukiwa bado na intaneti, na uende nayo.",
+      "rowSub": "Kabla hujakosa intaneti: faili ambayo simu mpya husakinisha LangQuest kwayo",
+      "rowHelp": "Hufungua Pata faili ya kusakinisha, ambapo unapakua na kukagua faili ambayo simu mpya husakinisha LangQuest kwayo. Fanya hivyo ukiwa bado na intaneti.",
+      "linkHelp": "Hufungua Pata faili ya kusakinisha, ambapo unapakua na kukagua faili ambayo simu mpya husakinisha LangQuest kwayo."
     },
     "join": {
       "intro": "Jiunge na timu yako kupitia simu ya mwenzako wa timu, bila intaneti. Akaunti yako inatengenezwa mara ya kwanza simu yako itakapofika kwenye intaneti.",

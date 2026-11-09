@@ -95,7 +95,12 @@ internet adds two more on the same terms (docs/nearby-sync-plan.md 14.1): Let
 someone in (`let_someone_in`, from Share nearby for someone holding a pass for
 the language), whose code, one tap and two pictures let a new phone in, and
 Join without internet (`join_offline`, a guest screen from Scan a code), the
-new phone's progress through the ask and the starting copy.
+new phone's progress through the ask and the starting copy. Get the install
+file (`get_install_file`, from Share nearby and from Let someone in's line
+that the new phone needs the app first; docs/nearby-sync-plan.md 14.4) is the
+part done online before a trip: the file's exact name, Get the install file
+as its one main button, Check my file, the too-old word and how to pass the
+file on. Let someone in keeps only the field: role, code, pictures, one tap.
 
 ### Not ported yet
 

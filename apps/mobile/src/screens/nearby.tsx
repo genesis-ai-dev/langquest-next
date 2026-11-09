@@ -5,18 +5,20 @@
 // Android for anything until a button is pressed. A phone that wears a cover waits for a press,
 // and its own words stay in src/disguise/i18n behind NearbyCoverNotes (decision 171 as amended).
 // Joining without internet (14.1) adds Let someone in, from here, and the new phone's progress
-// screen, a guest screen from Scan a code; both are app only and labelled experimental.
+// screen, a guest screen from Scan a code; both are app only and labelled experimental. Get the
+// install file (14.4), from here and from Let someone in, is the job done online before a trip,
+// apart from Let someone in's in the field.
 // Not split by platform: only Android offers the way in (NearbyRow.android.tsx), and elsewhere
 // useNearby says it is not in this build. Loads the first time it is opened (lazyScreens.tsx).
 import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { LetInCode } from '../nearby/LetInCode';
 import { ChosenPicture } from '../auth/patternPad';
-import { apkGet, letInVersionsWords } from '../nearby/carriedApkModel';
+import { apkGet, joinRows, letInVersionsWords } from '../nearby/carriedApkModel';
 import { joinName, type JoinEnd, type NotEmptyWhy } from '../nearby/joinOfflineModel';
 import type { LetInEnd, LetInWhyNot } from '../nearby/letInModel';
 import { useJoinOffline } from '../nearby/useJoinOffline';
-import { useCarriedApk, type CarriedApkHandle } from '../nearby/useCarriedApk';
+import { useCarriedApk } from '../nearby/useCarriedApk';
 import { useLetIn, useLetInOffered } from '../nearby/useLetIn';
 import { HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
@@ -31,7 +33,8 @@ import type { Ctx } from '../shell/ctx';
 import { LetInCoverNote } from '../shell/LetInCoverNote';
 import { NearbyCoverNotes } from '../shell/NearbyCoverNotes';
 import { contractsFor } from '../shell/screenContracts';
-import { Badge, Banner, Card, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, Row, Screen, SectionLabel, SmallBtn, type IconName } from '../ui/kit';
+import { useAppCovered } from '../shell/useAppCovered';
+import { Badge, Banner, Card, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, Row, Screen, SectionLabel, SmallBtn, type IconName } from '../ui/kit';
 import { personLook } from '../ui/people';
 import { usePerson } from '../ui/usePerson';
 import { PersonAvatar } from '../ui/UserChip';
@@ -67,23 +70,30 @@ export function ShareNearby(ctx: Ctx) {
         <Row icon="layers" label={t('nearby.hold')} help={t('nearby.holdHelp')} role="switch" checked={view.hold}
           onPress={() => { void actions.setHold(!view.hold); }} last />
       </Group>
-      <LetInRow ctx={ctx} />
+      <JoinRows ctx={ctx} needed={apk.needed} />
     </Screen>
   );
 }
 
 /**
- * Let someone in, for a person holding a pass for this language while the organization has joining
- * on (docs/nearby-sync-plan.md 14.1, 3); hidden otherwise. A run-out pass keeps the row, disabled,
- * saying the phone needs the server again; the row keeps its onPress so help mode can explain it.
+ * Joining without internet's two rows, for a person holding a pass for this language while the
+ * organization has joining on (docs/nearby-sync-plan.md 14.1, 3; 14.4); hidden otherwise (`joinRows`).
+ * Get the install file is done before going offline; Let someone in, in the field. A run-out pass
+ * keeps Let someone in, disabled, saying the phone needs the server again; the row keeps its
+ * onPress so help mode can explain it.
  */
-function LetInRow(props: { ctx: Ctx }) {
+function JoinRows(props: { ctx: Ctx; needed: string | null }) {
   const whyNot = useLetInOffered(props.ctx);
-  if (whyNot !== null && whyNot !== 'expired') return null;
+  const rows = joinRows(whyNot, props.needed);
+  if (rows.letIn === null) return null;
   return (
     <Group>
-      <Row icon="people" label={t('screens.let_someone_in')} sub={whyNot === 'expired' ? t('nearby.letIn.why.expired') : t('nearby.letIn.rowSub')}
-        help={t('nearby.letIn.rowHelp')} disabled={whyNot !== null} onPress={() => { if (whyNot === null) props.ctx.go('let_someone_in'); }} last />
+      {rows.installFile ? (
+        <Row icon="download" label={t('screens.get_install_file')} sub={t('nearby.installFile.rowSub')}
+          help={t('nearby.installFile.rowHelp')} onPress={() => props.ctx.go('get_install_file')} />
+      ) : null}
+      <Row icon="people" label={t('screens.let_someone_in')} sub={rows.letIn === 'expired' ? t('nearby.letIn.why.expired') : t('nearby.letIn.rowSub')}
+        help={t('nearby.letIn.rowHelp')} disabled={rows.letIn !== 'ready'} onPress={() => { if (rows.letIn === 'ready') props.ctx.go('let_someone_in'); }} last />
     </Group>
   );
 }
@@ -176,20 +186,29 @@ function StageCard(props: { stage: NearbyStage; view: NearbyView; actions: Nearb
 
 /**
  * Lines that hold whatever the state: a clock out by minutes, a newer app needed, a stamp far ahead
- * (5.4), and, while the phone is online, an install file got for an older version (14.4).
+ * (5.4), and, while the phone is online, an install file got for an older version (14.4), with the
+ * way to Get the install file under it.
  */
 function Warnings(props: { ctx: Ctx; view: NearbyView; apkOld: boolean }) {
   const { view, ctx } = props;
   const lines = [
-    props.apkOld ? t('nearby.apkOld') : null,
     ctx.language.tooOld ? t('nearby.tooOld') : null,
     view.newerAppNeeded ? t('nearby.newerApp') : null,
     view.clockOff ? t('nearby.clockOff') : null,
     ...view.farAhead.map((f) => t('nearby.farAhead', { name: ctx.name(f.actorId) }))
   ].filter((l): l is string => l !== null);
-  if (lines.length === 0) return null;
+  if (lines.length === 0 && !props.apkOld) return null;
   return (
     <Card>
+      {props.apkOld ? (
+        <View>
+          <View style={styles.line}>
+            <Ico name="warning" size={20} color={TINT.amberText} />
+            <Text style={[txt.sm, { flex: 1 }]}>{t('nearby.apkOld')}</Text>
+          </View>
+          <LinkBtn label={t('screens.get_install_file')} help={t('nearby.installFile.linkHelp')} onPress={() => ctx.go('get_install_file')} />
+        </View>
+      ) : null}
       {lines.map((l) => (
         <View key={l} style={styles.line}>
           <Ico name="warning" size={20} color={TINT.amberText} />
@@ -363,6 +382,8 @@ export function LetSomeoneIn(ctx: Ctx) {
   const apk = useCarriedApk();
   const { stage } = state;
   const running = stage.t === 'starting' || stage.t === 'showing' || stage.t === 'connected' || stage.t === 'copying';
+  // Away while a code is up or a phone is on the line, so the code and the one tap stay in view.
+  const between = whyNot !== 'not-in-build' && (whyNot !== null || stage.t === 'choose' || stage.t === 'ended' || stage.t === 'done');
   let footer: ReactNode = null;
   if (whyNot === null && stage.t === 'asked') {
     footer = (
@@ -386,6 +407,18 @@ export function LetSomeoneIn(ctx: Ctx) {
           <Badge label={t('nearby.experimental')} tone="amber" />
         </View>
         <Text style={txt.sm}>{t('nearby.letIn.intro')}</Text>
+        {between ? (
+          <>
+            <View style={styles.line}>
+              <Ico name="download" size={20} color={C.muted} />
+              <Text style={[txt.sm, { flex: 1 }]}>{t('nearby.letIn.needsApp')}</Text>
+            </View>
+            {apk.needed !== null ? (
+              <LinkBtn label={t('screens.get_install_file')} help={t('nearby.installFile.linkHelp')} onPress={() => ctx.go('get_install_file')} />
+            ) : null}
+            <LetInCoverNote worn={worn} part="look" />
+          </>
+        ) : null}
       </Card>
       {whyNot !== null ? (
         <Card>
@@ -445,9 +478,6 @@ export function LetSomeoneIn(ctx: Ctx) {
           {running ? <Text style={txt.smMuted}>{t('nearby.letIn.stayOpen')}</Text> : null}
         </>
       )}
-      {/* Below the steps, and away while a code is up or a phone is on the line, so the code and the one tap stay in view. */}
-      {whyNot !== 'not-in-build' && (whyNot !== null || stage.t === 'choose' || stage.t === 'ended' || stage.t === 'done')
-        ? <InstallFile apk={apk} online={ctx.language.online} worn={worn} /> : null}
     </Screen>
   );
 }
@@ -458,46 +488,63 @@ function versionsWords(installFile: string | null): string {
   return w.key === 'nearby.letIn.end.versions' ? t(w.key, { file: w.file }) : t(w.key);
 }
 
+// ---- Get the install file (docs/nearby-sync-plan.md 14.4) --------------------------------
+
 /**
- * The carried build this phone's versions need (14.4): its name, exactly, so a carrier can compare
- * it with the file they hold; the browser download while online, with how it reaches the new
- * phone; a check of a file they hold, by its name alone; and a word when the file they got
- * before is for an older version. Nothing here downloads or installs anything.
+ * Get the install file, from Share nearby and Let someone in: the job done online before a trip.
+ * The carried build this phone's versions need, by its exact name, so a carrier can compare it with
+ * the file they hold; the browser download while online, its one main button; a check of a file
+ * they hold, by its name alone; a word when the file they got before is for an older version; and
+ * how the file reaches the new phone. Nothing here downloads or installs anything.
  */
-function InstallFile(props: { apk: CarriedApkHandle; online: boolean | null; worn: boolean }) {
-  const { apk } = props;
-  if (apk.needed === null) return null;
-  const get = apkGet({ needed: apk.needed, url: apk.url, online: props.online });
+export function GetInstallFile(ctx: Ctx) {
+  const apk = useCarriedApk();
+  const { worn } = useAppCovered();
+  const get = apkGet({ needed: apk.needed, url: apk.url, online: ctx.language.online });
   return (
-    <Card>
-      <Text style={txt.body}>{t('nearby.letIn.file', { file: apk.needed })}</Text>
-      <Text style={txt.sm}>{t('nearby.letIn.fileExact')}</Text>
-      {apk.stale ? (
+    <Screen header={<Header title={t('screens.get_install_file')} onBack={ctx.back} />}
+      footer={get !== null ? <PrimaryBtn label={t('nearby.letIn.get')} icon="download" disabled={get === 'offline'} help={t('nearby.letIn.getHelp')} onPress={apk.actions.get} /> : undefined}>
+      <Card>
         <View style={styles.line}>
-          <Ico name="warning" size={20} color={TINT.amberText} />
-          <Text style={[txt.sm, { flex: 1 }]}>{t('nearby.letIn.fileOld')}</Text>
+          <Ico name="download" size={22} color={C.primary} />
+          <Text style={[txt.body, { flex: 1, fontWeight: '700' }]}>{t('screens.get_install_file')}</Text>
+          <Badge label={t('nearby.experimental')} tone="amber" />
         </View>
-      ) : null}
-      {get !== null ? (
+        <Text style={txt.sm}>{t('nearby.installFile.intro')}</Text>
+      </Card>
+      {apk.needed !== null ? (
         <>
-          <GhostBtn label={t('nearby.letIn.get')} icon="download" disabled={get === 'offline'} help={t('nearby.letIn.getHelp')} onPress={apk.actions.get} />
-          {get === 'offline' ? <Text style={[txt.sm, { color: TINT.amberText }]}>{t('nearby.letIn.getOffline')}</Text> : null}
-          <Text style={txt.smMuted}>{t('nearby.letIn.getLine')}</Text>
+          <Card>
+            <Text style={txt.body}>{t('nearby.letIn.file', { file: apk.needed })}</Text>
+            <Text style={txt.sm}>{t('nearby.letIn.fileExact')}</Text>
+            {apk.stale ? (
+              <View style={styles.line}>
+                <Ico name="warning" size={20} color={TINT.amberText} />
+                <Text style={[txt.sm, { flex: 1 }]}>{t('nearby.letIn.fileOld')}</Text>
+              </View>
+            ) : null}
+            {get === 'offline' ? <Text style={[txt.sm, { color: TINT.amberText }]}>{t('nearby.letIn.getOffline')}</Text> : null}
+          </Card>
+          <Card>
+            <GhostBtn label={t('nearby.letIn.check')} icon="folder" help={t('nearby.letIn.checkHelp')} onPress={apk.actions.check} />
+            {apk.checked ? (
+              <View style={styles.line}>
+                <Ico name={apk.checked.result === 'right' ? 'check' : 'warning'} size={20} color={apk.checked.result === 'right' ? TINT.greenText : TINT.amberText} />
+                <View style={{ flex: 1 }}>
+                  <Text style={txt.sm}>{apk.checked.result === 'right' ? t('nearby.letIn.checkRight') : t('nearby.letIn.checkOther', { file: apk.needed })}</Text>
+                  <Text style={txt.smMuted}>{t('nearby.letIn.checkChose', { name: apk.checked.name })}</Text>
+                </View>
+              </View>
+            ) : null}
+          </Card>
+          <Card>
+            <Text style={txt.sm}>{t('nearby.letIn.getLine')}</Text>
+            <Text style={txt.smMuted}>{t('nearby.letIn.fileHelp')}</Text>
+            <LetInCoverNote worn={worn} part="file" />
+          </Card>
         </>
       ) : null}
-      <GhostBtn label={t('nearby.letIn.check')} icon="folder" help={t('nearby.letIn.checkHelp')} onPress={apk.actions.check} />
-      {apk.checked ? (
-        <View style={styles.line}>
-          <Ico name={apk.checked.result === 'right' ? 'check' : 'warning'} size={20} color={apk.checked.result === 'right' ? TINT.greenText : TINT.amberText} />
-          <View style={{ flex: 1 }}>
-            <Text style={txt.sm}>{apk.checked.result === 'right' ? t('nearby.letIn.checkRight') : t('nearby.letIn.checkOther', { file: apk.needed })}</Text>
-            <Text style={txt.smMuted}>{t('nearby.letIn.checkChose', { name: apk.checked.name })}</Text>
-          </View>
-        </View>
-      ) : null}
-      <Text style={txt.smMuted}>{t('nearby.letIn.fileHelp')}</Text>
-      <LetInCoverNote worn={props.worn} />
-    </Card>
+    </Screen>
   );
 }
 
@@ -593,4 +640,4 @@ export function JoinOffline(ctx: Ctx) {
   );
 }
 
-export const contracts = contractsFor('share_nearby', 'let_someone_in', 'join_offline');
+export const contracts = contractsFor('share_nearby', 'let_someone_in', 'join_offline', 'get_install_file');
