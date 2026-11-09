@@ -1,10 +1,10 @@
 import {
-  buildIndexes, CommandError, commands, decodeHlc, derivePassage, encodeHlc, privilegesFor, validateEvent,
-  type AnyEvent, type EventSpec, type LanguageState, type OrgState
+  buildIndexes, CommandError, commands, decodeHlc, derivePassage, encodeHlc, LISTENER_KIND, mayViewLanguage, privilegesFor, recordedCard, validateEvent,
+  type AnyEvent, type EventSpec, type LanguageState, type NoteAnchor, type OrgState
 } from '@langquest-next/core';
 import { positionIn, type LanguageRecords } from '../languageRecords';
-import { sha256Hex, type Grant } from './tokens';
-import { languageAccess, VOICE_NOTE_FRESH_MS, type Refusal } from './view';
+import { canRead, sha256Hex, type Grant } from './tokens';
+import { languageAccess, parseVoiceNotes, reviewableKinds, VOICE_NOTE_FRESH_MS, type Refusal, type VoiceNote } from './view';
 
 /**
  * Work made in another app, written back into LangQuest (decisions.md 205):
@@ -20,6 +20,22 @@ export interface AudioPiece {
   hash: string;
   format: 'm4a' | 'wav';
   durationMs: number;
+}
+
+/**
+ * Is this audio new: uploaded through the API in the last six hours and
+ * named by nothing in the language yet, or one of `own` (pieces already on
+ * this passage)? Naming any other audio would hand out a link to it, as
+ * with voice notes (decisions.md 77).
+ */
+async function newAudio(records: LanguageRecords, hashes: readonly string[], now: number, own: ReadonlySet<string> = new Set()): Promise<boolean> {
+  const ask = hashes.filter((h) => !own.has(h));
+  if (!ask.length) return true;
+  const { named, stored } = await records.files(ask);
+  return !ask.some((h) => {
+    const at = stored.get(h);
+    return named.has(h) || (at !== undefined && decodeHlc(at).wallMs < now - VOICE_NOTE_FRESH_MS);
+  });
 }
 
 /** Pieces one version may hold: a long passage recorded in short parts. */
@@ -154,13 +170,8 @@ export async function versionEvents(ctx: Context, unitId: string, input: Version
   const s = derivePassage(state, unitId, idx);
   // A piece is new audio from PUT …/audio, or a piece of a version of this very passage: naming any other audio would hand out a link to it.
   const ownPieces = new Set(s.versions.flatMap((v) => v.cardHashes));
-  const { named, stored } = await records.files(hashes.filter((h) => !ownPieces.has(h)));
-  for (const p of input.pieces) {
-    if (ownPieces.has(p.hash)) continue;
-    const at = stored.get(p.hash);
-    if (named.has(p.hash) || (at !== undefined && decodeHlc(at).wallMs < ctx.now - VOICE_NOTE_FRESH_MS)) {
-      return refuse(400, 'bad_piece', 'Each piece must be audio you uploaded with PUT …/audio in the last six hours, or a piece of a version of this passage.');
-    }
+  if (!(await newAudio(records, hashes, ctx.now, ownPieces))) {
+    return refuse(400, 'bad_piece', 'Each piece must be audio you uploaded with PUT …/audio in the last six hours, or a piece of a version of this passage.');
   }
   const latest = s.latest;
   let specs: EventSpec[];
@@ -286,4 +297,205 @@ export async function passageEvents(ctx: Context, input: PassageInput): Promise<
     id: `${unitId}:0`, type: 'v1.UnitAdded', payload: { unitId, parentUnitId, kind: 'passage', label: input.label, order }
   }]);
   return 'status' in events ? events : { unitId, duplicate: false, events };
+}
+
+// ---- notes and comments ---------------------------------------------------------------
+
+export interface NoteInput {
+  text?: string;
+  /** A spoken note, as PUT …/voice-notes or PUT …/audio returned it. */
+  voiceNote?: VoiceNote;
+  /** The version it is about; the passage when left out (unless atMs is given: then the latest version). */
+  takeId?: string;
+  /** Where in that version, ms from its start. */
+  atMs?: number;
+  /** A verse it is about, "chapter:verse". */
+  verse?: string;
+  /** The note it answers (its noteId). */
+  replyTo?: string;
+  /** Who wrote it in the app, shown before the words. */
+  authorName?: string;
+  key: string;
+}
+
+export function parseNote(body: unknown, key: string): NoteInput | Refusal {
+  const b = (body ?? {}) as Record<string, unknown>;
+  for (const [k, max] of [['text', 4000], ['takeId', 200], ['verse', 20], ['replyTo', 300], ['authorName', 120]] as const) {
+    if (b[k] !== undefined && !str(b[k], max)) return refuse(400, 'bad_request', `${k} must be non-empty text of at most ${max} characters.`);
+  }
+  if (b['verse'] !== undefined && !/^[1-9][0-9]{0,2}:[1-9][0-9]{0,2}$/.test(b['verse'] as string)) return refuse(400, 'bad_request', 'verse is "chapter:verse", such as "3:16".');
+  if (b['atMs'] !== undefined && !(Number.isInteger(b['atMs']) && (b['atMs'] as number) >= 0)) return refuse(400, 'bad_request', 'atMs is a whole number of ms from the start of the version.');
+  if (b['verse'] !== undefined && (b['takeId'] !== undefined || b['atMs'] !== undefined)) return refuse(400, 'bad_request', 'A note is about a verse, or a version (with atMs), not both.');
+  const voice = b['voiceNote'] === undefined ? undefined : parseVoiceNotes([b['voiceNote']]);
+  if (voice === null) return refuse(400, 'bad_request', 'voiceNote is what PUT …/voice-notes or PUT …/audio returned.');
+  if (b['text'] === undefined && !voice) return refuse(400, 'bad_request', 'A note needs text, a voiceNote, or both.');
+  const pick = (k: string) => (b[k] !== undefined ? { [k]: typeof b[k] === 'string' ? (b[k] as string).trim() : b[k] } : {});
+  return { key, ...pick('text'), ...pick('takeId'), ...pick('atMs'), ...pick('verse'), ...pick('replyTo'), ...pick('authorName'), ...(voice ? { voiceNote: voice[0]! } : {}) } as NoteInput;
+}
+
+/** The part of a version playing `atMs` in, and how far into it as the app writes it ("m:ss", review.tsx noteMoment). */
+function momentIn(state: LanguageState, cardHashes: readonly string[], atMs: number): { part: string; at: string } | null {
+  let start = 0;
+  for (const hash of cardHashes) {
+    const length = recordedCard(state, hash)?.durationMs ?? 0;
+    if (atMs < start + length || hash === cardHashes[cardHashes.length - 1]) {
+      const s = Math.max(0, Math.round((atMs - start) / 1000));
+      return { part: hash, at: `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` };
+    }
+    start += length;
+  }
+  return null;
+}
+
+/** What a note, request or back translation write answers: its id, and whether it was there already. */
+export interface Made { id: string; duplicate: boolean; events: AnyEvent[] }
+
+/**
+ * A comment from another app (core `addNote`): on the passage, a moment
+ * in a version, or a verse, or an answer to a note, with words, a voice
+ * note or both. Needs the review or record scope, and a person who may add
+ * notes (translate, review or fill reference material). Its id comes from
+ * the token, the passage and the Idempotency-Key.
+ */
+export async function noteEvents(ctx: Context, unitId: string, input: NoteInput): Promise<Made | Refusal> {
+  const { grant, org, records, languageId } = ctx;
+  if (!grant.scopes.includes('review') && !grant.scopes.includes('record')) return refuse(403, 'scope', 'Notes need the "review" or "record" scope.');
+  if (!languageAccess(grant, org, languageId)) return refuse(404, 'no_language', 'This token cannot open that language.');
+  const privs = privilegesFor(org, grant.profileId, languageId);
+  if (!privs.has('translate') && !privs.has('review') && !privs.has('fill_reference')) {
+    return refuse(403, 'privilege', 'The account behind this token cannot translate, review or fill reference material in this language, which adding notes needs.');
+  }
+  if (positionIn(records.passages, unitId) < 0) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
+  const state = await records.view([unitId]);
+  const idx = buildIndexes(state);
+  if (!idx.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
+  const commandId = `api-note-${(await sha256Hex([grant.tokenId, unitId, input.key].join('\n'))).slice(0, 32)}`;
+  const noteId = `note:${commandId}`;
+  const name = input.authorName;
+  const text = input.text !== undefined ? (name ? `${name}: ${input.text}` : input.text) : name ? `From ${name}` : undefined;
+  const made = state.notes[noteId];
+  if (made) {
+    return made.unitId === unitId && made.text === text && made.blobHash === input.voiceNote?.hash
+      ? { id: noteId, duplicate: true, events: [] }
+      : refuse(409, 'idempotency_conflict', 'This Idempotency-Key already made another note. Use a new key for a new note.');
+  }
+  const s = derivePassage(state, unitId, idx);
+  let anchor: NoteAnchor = { kind: 'passage' };
+  if (input.verse) anchor = { kind: 'verse', verse: input.verse };
+  else if (input.takeId !== undefined || input.atMs !== undefined) {
+    const v = input.takeId !== undefined ? s.versions.find((x) => x.takeId === input.takeId) : canRead(grant, true) ? s.latest : undefined;
+    if (!v) return refuse(404, 'no_version', input.takeId !== undefined ? 'That takeId is not a version of this passage.' : 'This passage has no version yet.');
+    const moment = input.atMs !== undefined ? momentIn(state, v.cardHashes, input.atMs) : null;
+    anchor = { kind: 'version', takeId: v.takeId, ...(moment ?? {}) };
+  }
+  if (input.replyTo !== undefined) {
+    const to = state.notes[input.replyTo];
+    if (!to || to.unitId !== unitId) return refuse(404, 'no_note', 'There is no note with that replyTo on this passage.');
+    anchor = { ...anchor, replyTo: input.replyTo };
+  }
+  if (input.voiceNote && !(await newAudio(records, [input.voiceNote.hash], ctx.now))) {
+    return refuse(400, 'bad_request', 'voiceNote must be one you just uploaded.');
+  }
+  const specs = commands(state, idx).addNote({
+    commandId, unitId, anchor, ...(text !== undefined ? { text } : {}), ...(input.voiceNote ? { blobHash: input.voiceNote.hash } : {})
+  });
+  // A voice note's file is m4a unless the log says otherwise (blobs.ts voiceNoteOf).
+  if (input.voiceNote?.format === 'wav' && state.audioFormats[input.voiceNote.hash]?.value !== 'wav') {
+    specs.push({ id: `${commandId}:fmt`, type: 'v1.AudioFormatSet', payload: { hash: input.voiceNote.hash, format: 'wav' } });
+  }
+  const events = envelopes(ctx, specs);
+  return 'status' in events ? events : { id: noteId, duplicate: false, events };
+}
+
+// ---- assignments ----------------------------------------------------------------------
+
+export interface RequestInput {
+  what: 'record' | 'review';
+  /** For a review: a kind in the language's flow. */
+  kindId?: string;
+  /** A person in the language (GET …/people), or a review team; exactly one. */
+  profileId?: string;
+  teamId?: string;
+  note?: string;
+  key: string;
+}
+
+export function parseRequest(body: unknown, key: string): RequestInput | Refusal {
+  const b = (body ?? {}) as Record<string, unknown>;
+  if (b['what'] !== 'record' && b['what'] !== 'review') return refuse(400, 'bad_request', 'what is "record" or "review".');
+  for (const [k, max] of [['kindId', 100], ['profileId', 200], ['teamId', 200], ['note', 4000]] as const) {
+    if (b[k] !== undefined && !str(b[k], max)) return refuse(400, 'bad_request', `${k} must be non-empty text of at most ${max} characters.`);
+  }
+  if ((b['profileId'] === undefined) === (b['teamId'] === undefined)) return refuse(400, 'bad_request', 'Ask one person (profileId) or one team (teamId).');
+  if (b['what'] === 'review' && b['kindId'] === undefined) return refuse(400, 'bad_request', 'A review request names its kindId: a kind in the language\'s flow.');
+  const pick = (k: string) => (b[k] !== undefined ? { [k]: (b[k] as string).trim() } : {});
+  return { what: b['what'], key, ...pick('kindId'), ...pick('profileId'), ...pick('teamId'), ...pick('note') } as RequestInput;
+}
+
+/** May the token ask people for work here: the assign scope, and a person who sends work to reviewers or assigns it. */
+export const mayAssign = (grant: Grant, privs: ReadonlySet<string>): boolean =>
+  grant.scopes.includes('assign') && (privs.has('send_to_reviewers') || privs.has('assign_work'));
+
+/**
+ * An assignment from another app (core `ask`): someone in the language,
+ * or a review team, asked to record the passage or review it for a kind.
+ * Its id comes from the token, the passage and the Idempotency-Key.
+ */
+export async function requestEvents(ctx: Context, unitId: string, input: RequestInput): Promise<Made | Refusal> {
+  const { grant, org, records, languageId } = ctx;
+  if (!grant.scopes.includes('assign')) return refuse(403, 'scope', 'This token was not given the "assign" scope.');
+  if (!languageAccess(grant, org, languageId)) return refuse(404, 'no_language', 'This token cannot open that language.');
+  if (!mayAssign(grant, privilegesFor(org, grant.profileId, languageId))) {
+    return refuse(403, 'privilege', 'The account behind this token cannot send work to reviewers or assign it in this language.');
+  }
+  if (positionIn(records.passages, unitId) < 0) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
+  const state = await records.view([unitId]);
+  const idx = buildIndexes(state);
+  if (!idx.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
+  const commandId = `api-req-${(await sha256Hex([grant.tokenId, unitId, input.key].join('\n'))).slice(0, 32)}`;
+  const requestId = `req:${commandId}`;
+  const made = state.requests[requestId];
+  if (made) {
+    return made.unitId === unitId && made.what === input.what && made.profileId === input.profileId && made.teamId === input.teamId && made.kindId === input.kindId
+      ? { id: requestId, duplicate: true, events: [] }
+      : refuse(409, 'idempotency_conflict', 'This Idempotency-Key already made another request. Use a new key for a new request.');
+  }
+  if (input.profileId !== undefined && !(org.members[input.profileId] && mayViewLanguage(org, input.profileId, languageId))) {
+    return refuse(404, 'no_person', 'There is nobody with that profileId in this language (GET …/people lists them).');
+  }
+  if (input.teamId !== undefined && !state.teams[input.teamId]) return refuse(404, 'no_team', 'There is no review team with that teamId in this language.');
+  if (input.kindId !== undefined && (input.kindId === LISTENER_KIND || !reviewableKinds(state, unitId).has(input.kindId))) {
+    return refuse(400, 'no_kind', 'kindId must be a kind in this language\'s flow.');
+  }
+  let specs: EventSpec[];
+  try {
+    specs = commands(state, idx).ask({
+      commandId, unitId, what: input.what,
+      ...(input.kindId !== undefined ? { kindId: input.kindId } : {}), ...(input.profileId !== undefined ? { profileId: input.profileId } : {}),
+      ...(input.teamId !== undefined ? { teamId: input.teamId } : {}), ...(input.note !== undefined ? { note: input.note } : {})
+    });
+  } catch (e) {
+    if (e instanceof CommandError) return refuse(400, 'bad_request', e.message);
+    throw e;
+  }
+  const events = envelopes(ctx, specs);
+  return 'status' in events ? events : { id: requestId, duplicate: false, events };
+}
+
+/** Who a token may ask for work in a language, and the review teams: GET …/people (names are added by http.ts). */
+export interface PeopleOut {
+  people: { profileId: string; name?: string; can: { translate: boolean; review: boolean } }[];
+  teams: { teamId: string; name: string; kindId: string | null; members: string[] }[];
+}
+
+export function peopleIn(org: OrgState, state: LanguageState, languageId: string): PeopleOut {
+  const people = Object.keys(org.members).filter((p) => mayViewLanguage(org, p, languageId)).sort().map((profileId) => {
+    const privs = privilegesFor(org, profileId, languageId);
+    return { profileId, can: { translate: privs.has('translate'), review: privs.has('review') } };
+  });
+  const teams = Object.entries(state.teams ?? {}).map(([teamId, t]) => ({
+    teamId, name: t.name.value, kindId: t.kindId?.value ?? null,
+    members: Object.entries(t.members).filter(([, m]) => m.value).map(([p]) => p).sort()
+  })).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  return { people, teams };
 }

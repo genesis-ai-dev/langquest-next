@@ -1,5 +1,7 @@
 import { languageInfo, languageName, privilegesFor, mayViewLanguage, orgLanguages, type AnyEvent, type OrgState } from '@langquest-next/core';
-import { passageEvents, versionEvents, type PassageInput, type VersionInput } from './contribute';
+import {
+  noteEvents, passageEvents, peopleIn, requestEvents, versionEvents, type NoteInput, type PassageInput, type PeopleOut, type RequestInput, type VersionInput
+} from './contribute';
 import type { AppendResult } from '@langquest-next/sync';
 import type { OrgFolder } from '../orgFolder';
 import type { LanguageRecords } from '../languageRecords';
@@ -19,7 +21,9 @@ export type AgentQuery =
   | { op: 'passages'; languageId: string; query: PassageListQuery }
   | { op: 'passage'; languageId: string; unitId: string }
   | { op: 'externalValues'; languageId: string; filter: ExternalValueFilter }
-  | { op: 'externalValue'; languageId: string; key: string };
+  | { op: 'externalValue'; languageId: string; key: string }
+  /** Who may be asked for work, and the review teams (contribute.ts). */
+  | { op: 'people'; languageId: string };
 
 export type AgentWrite =
   | { op: 'review'; languageId: string; unitId: string; input: ReviewInput }
@@ -27,7 +31,9 @@ export type AgentWrite =
   | { op: 'externalValue'; languageId: string; key: string; data: Record<string, unknown> | null }
   /** Work made in another app (contribute.ts, decisions.md 205). */
   | { op: 'version'; languageId: string; unitId: string; input: VersionInput }
-  | { op: 'addPassage'; languageId: string; input: PassageInput };
+  | { op: 'addPassage'; languageId: string; input: PassageInput }
+  | { op: 'note'; languageId: string; unitId: string; input: NoteInput }
+  | { op: 'request'; languageId: string; unitId: string; input: RequestInput };
 
 export type Answer<T> = { ok: true; data: T } | (Refusal & { ok: false });
 
@@ -38,7 +44,7 @@ export interface OrgAccess {
    * Languages the person may view, whether they may review there (what the review scope needs), store values (the external_values
    * scope), and add versions or passages (the record scope).
    */
-  languages: { languageId: string; name: string; mayReview: boolean; mayStoreValues: boolean; mayRecord: boolean }[];
+  languages: { languageId: string; name: string; mayReview: boolean; mayStoreValues: boolean; mayRecord: boolean; mayAssign: boolean }[];
 }
 
 /** Writes one token (or one review link) may make in an hour, across every language. */
@@ -71,7 +77,7 @@ export const RECEIPTS_KEPT = 20_000;
 export const V2_RECHECK_MS = 15 * 60 * 1000;
 
 /** What adding a version or a passage answers: the version's takeId (a version), the passage, and whether it was there already. */
-export interface Contributed { takeId?: string; unitId: string; duplicate: boolean; passage: PassageDetail | null }
+export interface Contributed { takeId?: string; noteId?: string; requestId?: string; unitId: string; duplicate: boolean; passage: PassageDetail | null }
 
 const no = (r: Refusal): Answer<never> => ({ ok: false, ...r });
 const yes = <T>(data: T): Answer<T> => ({ ok: true, data });
@@ -160,18 +166,24 @@ export class AgentOrg {
           const privs = privilegesFor(org, profileId, l.languageId);
           return {
             languageId: l.languageId, name: languageName(org, l.languageId), mayReview: privs.has('review') || privs.has('translate'), mayStoreValues: mayStoreValues(privs),
-            mayRecord: privs.has('translate') || privs.has('manage_templates')
+            mayRecord: privs.has('translate') || privs.has('manage_templates'),
+            mayAssign: privs.has('send_to_reviewers') || privs.has('assign_work')
           };
         })
     };
   }
 
-  async read(grant: Grant, q: AgentQuery): Promise<Answer<LanguageView[] | LanguageView['can'] | { passages: PassageListItem[]; nextAfter: string | null } | PassageDetail | ExternalValueOut | ReturnType<typeof externalValuesFor>>> {
+  async read(grant: Grant, q: AgentQuery): Promise<Answer<LanguageView[] | LanguageView['can'] | { passages: PassageListItem[]; nextAfter: string | null } | PassageDetail | ExternalValueOut | ReturnType<typeof externalValuesFor> | PeopleOut>> {
     if (q.op === 'languages') return yes(languagesFor(grant, await this.folder.orgOnly()));
     const held = await this.language(q.languageId);
     const can = held ? languageAccess(grant, held.org, q.languageId) : null;
     if (!held || !can) return no({ status: 404, code: 'no_language', error: 'This token cannot open that language.' });
     if (q.op === 'can') return yes(can);
+    if (q.op === 'people') {
+      // Whom an app may ask for work, and whom a note may name: the team's own, so the read scope or assign.
+      if (can.read !== 'all' && !can.assign) return no({ status: 403, code: 'scope', error: 'The people of a language need the read or assign scope.' });
+      return yes(peopleIn(held.org, held.records.shared, q.languageId));
+    }
     if (q.op === 'externalValues' || q.op === 'externalValue') {
       if (!can.externalValues.read) return no({ status: 403, code: 'scope', error: 'Reading external values needs the read or external_values scope.' });
       if (q.op === 'externalValues') return yes(externalValuesFor(held.records.shared, q.filter));
@@ -193,7 +205,7 @@ export class AgentOrg {
     const held = await this.language(w.languageId, true);
     if (!held) return no({ status: 404, code: 'no_language', error: 'This token cannot open that language.' });
     if (w.op === 'externalValue') return this.storeValue(grant, held, w);
-    if (w.op === 'version' || w.op === 'addPassage') return this.contribute(grant, held, w);
+    if (w.op === 'version' || w.op === 'addPassage' || w.op === 'note' || w.op === 'request') return this.contribute(grant, held, w);
     const ctx = { grant, org: held.org, records: held.records, languageId: w.languageId, unitId: w.unitId, now: this.now() };
     const event = w.op === 'review' ? await reviewEvent(ctx, w.input) : await releaseEvent(ctx, w.input);
     if (isRefusal(event)) return no(event);
@@ -218,9 +230,14 @@ export class AgentOrg {
    * against the token's hour, however many events it takes; a retry that
    * finds it made answers it again and counts nothing.
    */
-  private async contribute(grant: Grant, held: { org: OrgState; records: LanguageRecords }, w: Extract<AgentWrite, { op: 'version' | 'addPassage' }>): Promise<Answer<Contributed>> {
+  private async contribute(
+    grant: Grant, held: { org: OrgState; records: LanguageRecords }, w: Extract<AgentWrite, { op: 'version' | 'addPassage' | 'note' | 'request' }>
+  ): Promise<Answer<Contributed>> {
     const ctx = { grant, org: held.org, records: held.records, languageId: w.languageId, now: this.now() };
-    const made = w.op === 'version' ? await versionEvents(ctx, w.unitId, w.input) : await passageEvents(ctx, w.input);
+    const made = w.op === 'version' ? await versionEvents(ctx, w.unitId, w.input)
+      : w.op === 'addPassage' ? await passageEvents(ctx, w.input)
+        : w.op === 'note' ? await noteEvents(ctx, w.unitId, w.input)
+          : await requestEvents(ctx, w.unitId, w.input);
     if (isRefusal(made)) return no(made);
     if (made.events.length) {
       if (!this.allowWrite(grant.tokenId)) {
@@ -230,7 +247,7 @@ export class AgentOrg {
       const refused = results.find((r) => !r.accepted);
       if (refused || results.length !== made.events.length) return no({ status: 403, code: 'refused', error: `The server refused it: ${refused?.reason ?? 'no answer'}.` });
     }
-    const unitId = 'takeId' in made ? (w as { unitId: string }).unitId : made.unitId;
+    const unitId = w.op === 'addPassage' ? (made as { unitId: string }).unitId : w.unitId;
     const after = await this.language(w.languageId, true);
     const passage = after && canRead(grant)
       ? await passageFor(grant, grant.orgId, w.languageId, after.records, unitId, this.deps.sign, this.receivedIn(w.languageId)).catch((e: unknown) => {
@@ -238,8 +255,9 @@ export class AgentOrg {
         return null;
       })
       : null;
+    const id = 'takeId' in made ? { takeId: made.takeId } : 'id' in made ? (w.op === 'note' ? { noteId: made.id } : { requestId: made.id }) : {};
     return yes({
-      ...('takeId' in made ? { takeId: made.takeId } : {}), unitId, duplicate: made.duplicate,
+      ...id, unitId, duplicate: made.duplicate,
       passage: passage && !isRefusal(passage) ? passage : null
     });
   }

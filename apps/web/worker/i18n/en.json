@@ -131,7 +131,8 @@
       "review": "Record reviews as you: listener feedback, or a review step in the flow, with a comment or a voice note",
       "release": "Say where a version is published (live in an app or on a site), or taken down",
       "externalValues": "Store the app's own values with your languages, as you. LangQuest keeps them and never acts on them",
-      "record": "Add recordings made in the app as you: new versions of passages, and new passages in a book"
+      "record": "Add recordings made in the app as you: new versions of passages, and new passages in a book",
+      "assign": "Ask people in your languages, as you, to record a passage or review it"
     }
   },
   "videos": {

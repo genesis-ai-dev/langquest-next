@@ -14,7 +14,7 @@ export function connectPage(cfg: { supabaseUrl: string; anonKey: string }, langu
   const w = pageWords(language, 'connect');
   const info = languageChoices().find((l) => l.code === language)!;
   const h = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
-  const scopeKey: Record<Scope, keyof typeof w.scopes> = { 'read:published': 'readPublished', read: 'read', review: 'review', release: 'release', external_values: 'externalValues', record: 'record' };
+  const scopeKey: Record<Scope, keyof typeof w.scopes> = { 'read:published': 'readPublished', read: 'read', review: 'review', release: 'release', external_values: 'externalValues', record: 'record', assign: 'assign' };
   const scopeText = Object.fromEntries(SCOPES.map((s) => [s, w.scopes[scopeKey[s]]]));
   const config = JSON.stringify({ ...cfg, scopes: SCOPES, scopeText, words: w, english: language === 'en' }).replace(/</g, '\\u003c');
   const choices = languageChoices().map((l) => `<option value="${l.code}"${l.code === language ? ' selected' : ''}>${h(l.name)}</option>`).join('');

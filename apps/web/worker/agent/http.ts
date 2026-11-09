@@ -15,7 +15,7 @@ import {
 } from './view';
 import { EXTERNAL_KEY_MAX } from '@langquest-next/core';
 import { readAudio, readVoiceNote } from './voice';
-import { parseIdempotencyKey, parsePassage, parseVersion } from './contribute';
+import { parseIdempotencyKey, parseNote, parsePassage, parseRequest, parseVersion, type PeopleOut } from './contribute';
 
 /**
  * `/api/v1/*`: the access-token API for apps and agents (docs/agent-api.md,
@@ -195,6 +195,9 @@ function index(url: URL) {
       audio: `PUT ${base}/languages/{languageId}/audio (m4a or WAV body: one piece of a version, needs the record scope)`,
       addVersion: `POST ${base}/languages/{languageId}/passages/{unitId}/versions (Idempotency-Key header; body: { "pieces": [ … ], "note": "…" })`,
       addPassage: `POST ${base}/languages/{languageId}/passages (Idempotency-Key header; body: { "label": "…", "parentUnitId": "…", "afterUnitId": "…" })`,
+      addNote: `POST ${base}/languages/{languageId}/passages/{unitId}/notes (Idempotency-Key header; body: { "text": "…", "takeId": "…", "atMs": 0, "verse": "3:16", "replyTo": "…" })`,
+      askForWork: `POST ${base}/languages/{languageId}/passages/{unitId}/requests (Idempotency-Key header; body: { "what": "review", "kindId": "…", "profileId": "…" })`,
+      people: `GET ${base}/languages/{languageId}/people (who may be asked for work, and the review teams)`,
       externalValues: `GET ${base}/languages/{languageId}/external-values?keyPrefix=&changedSince=ISO&after= (values your apps store with the language; LangQuest keeps them and never acts on them)`,
       externalValue: `PUT | GET | DELETE ${base}/languages/{languageId}/external-values/{key} (PUT body: { "data": { … } }, at most 4 KB)`,
       reviewLink: `POST ${base}/review-links`,
@@ -236,6 +239,17 @@ async function tokenRoute(request: Request, parts: string[], url: URL, auth: { g
   if (parts[2] === 'audio' && parts.length === 3 && request.method === 'PUT') return audioPiece(request, grant, languageId, deps);
   if (parts[2] === 'external-values') return externalValuesRoute(request, parts.slice(3).join('/'), url, grant, languageId, deps);
   if (parts[2] === 'changes' && parts.length === 3 && get) return changesRoute(url, grant, languageId, deps);
+  if (parts[2] === 'people' && parts.length === 3 && get) {
+    const people = await org.read(grant, { op: 'people', languageId });
+    if (!people.ok) return answer(people);
+    const out = people.data as PeopleOut;
+    const names = await deps.store.profileNames(out.people.map((p) => p.profileId));
+    for (const p of out.people) {
+      const name = names[p.profileId];
+      if (name) p.name = name;
+    }
+    return json(200, out);
+  }
   if (parts[2] !== 'passages') return fail(404, 'not_found', 'Not found. GET /api/v1 lists what is here.');
   if (parts.length === 3 && get) {
     const query = passageQueryFrom(url);
@@ -250,18 +264,26 @@ async function tokenRoute(request: Request, parts: string[], url: URL, auth: { g
     return isRefusal(input) ? fail(input.status, input.code, input.error) : answer(await org.write(grant, { op: 'addPassage', languageId, input }));
   }
   const last = parts[parts.length - 1];
-  const action = parts.length > 4 && (last === 'reviews' || last === 'releases' || last === 'versions') ? last : undefined;
+  const action = parts.length > 4 && (last === 'reviews' || last === 'releases' || last === 'versions' || last === 'notes' || last === 'requests') ? last : undefined;
   const unitId = parts.slice(3, action ? -1 : undefined).join('/');
   if (!unitId) return fail(404, 'not_found', 'Not found.');
   if (get && !action) return answer(await org.read(grant, { op: 'passage', languageId, unitId }));
-  if (request.method !== 'POST' || !action) return fail(405, 'method', 'Use GET for a passage, POST for its reviews, releases or versions.');
-  const key = action === 'versions' ? parseIdempotencyKey(request.headers.get('idempotency-key')) : null;
+  if (request.method !== 'POST' || !action) return fail(405, 'method', 'Use GET for a passage, POST for its reviews, releases, versions, notes or requests.');
+  const key = action === 'versions' || action === 'notes' || action === 'requests' ? parseIdempotencyKey(request.headers.get('idempotency-key')) : null;
   if (isRefusal(key)) return fail(key.status, key.code, key.error);
   const b = await body(request);
   if (!b) return fail(400, 'bad_request', 'Send a JSON object.');
   if (action === 'versions') {
     const input = parseVersion(b, key!, auth.token.clientName ?? auth.token.name);
     return isRefusal(input) ? fail(input.status, input.code, input.error) : answer(await org.write(grant, { op: 'version', languageId, unitId, input }));
+  }
+  if (action === 'notes') {
+    const input = parseNote(b, key!);
+    return isRefusal(input) ? fail(input.status, input.code, input.error) : answer(await org.write(grant, { op: 'note', languageId, unitId, input }));
+  }
+  if (action === 'requests') {
+    const input = parseRequest(b, key!);
+    return isRefusal(input) ? fail(input.status, input.code, input.error) : answer(await org.write(grant, { op: 'request', languageId, unitId, input }));
   }
   if (action === 'reviews') {
     const input = parseReview(b);
@@ -532,6 +554,9 @@ async function tokenSpec(b: Record<string, unknown>, profileId: string, deps: Ag
   }
   if (scopes.includes('record') && !reach.some((l) => l.mayRecord)) {
     return { error: 'The record scope adds versions and passages as you, and you cannot translate or divide the books in any of these languages.' };
+  }
+  if (scopes.includes('assign') && !reach.some((l) => l.mayAssign)) {
+    return { error: 'The assign scope asks people for work as you, and you cannot send work to reviewers or assign it in any of these languages.' };
   }
   let expiresAt: string | null = null;
   if (b['expiresInDays'] !== undefined && b['expiresInDays'] !== null) {

@@ -63,6 +63,8 @@ export interface AgentStore {
   touchToken(id: string, at: string): Promise<void>;
   /** tokenId -> what its app is called (its client name, else the token's name), for tokens of this organization. */
   tokenNames(orgId: string, ids: string[]): Promise<Record<string, string>>;
+  /** People's names as they set them (profiles.display_name), for GET …/people. Ids with no profile are left out. */
+  profileNames(ids: string[]): Promise<Record<string, string>>;
   insertGrant(grant: Omit<DeviceGrant, 'id' | 'createdAt' | 'lastPolledAt' | 'approvedAt' | 'deniedAt' | 'tokenId'> & { deviceCodeHash: string }): Promise<DeviceGrant>;
   grantByUserCode(userCode: string): Promise<(DeviceGrant & { deviceCodeHash: string }) | null>;
   grantByDeviceHash(hash: string): Promise<(DeviceGrant & { deviceCodeHash: string }) | null>;
@@ -177,6 +179,15 @@ export function supabaseAgentStore(service: SupabaseClient): AgentStore {
       if (uuids.length === 0) return {};
       const data = must('api_tokens names', await service.from('api_tokens').select('id, name, client_name').eq('org_id', orgId).in('id', uuids));
       return Object.fromEntries((data as Row[]).map((r) => [r['id'] as string, ((r['client_name'] as string | null) ?? (r['name'] as string))]));
+    },
+    async profileNames(ids) {
+      const out: Record<string, string> = {};
+      // A language's people, a few hundred at most; asked in slices so the query string stays short.
+      for (let i = 0; i < ids.length; i += 200) {
+        const data = must('profiles names', await service.from('profiles').select('id, display_name').in('id', ids.slice(i, i + 200)));
+        for (const r of data as Row[]) out[r['id'] as string] = r['display_name'] as string;
+      }
+      return out;
     },
     async insertGrant(g) {
       const data = must('api_device_grants insert', await service.from('api_device_grants').insert({

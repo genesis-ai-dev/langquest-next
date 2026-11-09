@@ -131,7 +131,8 @@
       "review": "Registrar revisiones en tu nombre: comentarios de oyentes, o un paso de revisión del flujo, con un comentario o una nota de voz",
       "release": "Indicar dónde se publica una versión (en vivo en una app o en un sitio), o cuándo se retira",
       "externalValues": "Guardar los valores propios de la app con tus idiomas, en tu nombre. LangQuest los guarda y nunca actúa sobre ellos",
-      "record": "Añadir grabaciones hechas en la aplicación, en su nombre: nuevas versiones de pasajes y pasajes nuevos en un libro"
+      "record": "Añadir grabaciones hechas en la aplicación, en su nombre: nuevas versiones de pasajes y pasajes nuevos en un libro",
+      "assign": "Pedir, en su nombre, a personas de sus idiomas que graben un pasaje o lo revisen"
     }
   },
   "videos": {

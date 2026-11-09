@@ -2572,9 +2572,9 @@ turning links off also stops links and tokens already out (75).
 Amended (2026-10-13, Carl Sauder): an answered "needs changes" no longer
 counts toward `done` (96).
 
-Amended (2026-11-09, Ryder Wishart): an app with the `record` scope may
-also add versions and passages made in it, as the token's person (205).
-Outside reviews still never clear a checkpoint.
+Amended (2026-11-09, Ryder Wishart): an app may also add versions,
+passages, notes, back translations and requests for work made in it, as
+the token's person (205). Outside reviews still never clear a checkpoint.
 
 ## 73. Languages and regions are LangQuest v2's reference tables, filled from Glottolog itself and kept outside the event log
 
@@ -10858,7 +10858,7 @@ still finds no copy: a new install on a slow link then pulls the log and its wor
 is safe. At about one bump a week this keeps one or two versions nobody reports;
 at early October's three a week, five or six, each a copy per language.
 
-## 205. An app writes back work made in it: versions from pieces it uploads, and passages added to a book, each once per Idempotency-Key
+## 205. An app writes back work made in it: versions, passages, notes, back translations and requests, as the token's person, each once per Idempotency-Key
 
 Date: 2026-11-09 · By: Ryder Wishart · Status: accepted
 
@@ -10868,7 +10868,9 @@ Aquilla, or a cell added there, never came back, so LangQuest stopped being
 the language's oral-first home. Partners want back translation and checks
 in Aquilla with the work kept in LangQuest (the NLCI demo of 2026-11-05).
 Aquilla's write-back runs on its server and retries; it asked for a
-version-create and a passage-create route, and an idempotency key. Chosen
+version-create and a passage-create route, and an idempotency key. Ryder
+put everything Aquilla does that LangQuest can use in scope: comments,
+notes and assignments as well (Joel's question on AQU-2443). Chosen
 (`apps/web/worker/agent/contribute.ts`):
 - **A new scope, `record`.** Writes are as the token's person, as every
   API write is (70, 72), and need what their phone would: `translate` for a
@@ -10890,9 +10892,25 @@ version-create and a passage-create route, and an idempotency key. Chosen
   under a book (or chapter or folder), after a unit or at the end of it.
   Its `order` is a string between its neighbours'. Its unit id has no
   template prefix, so no template hides it and it has no verses.
-- **Idempotency.** Both need an `Idempotency-Key` header (Aquilla sends
-  its event id). The new take id and unit id, and so every event id, come
-  from the token, the passage or language, and the key. A retry finds what
+- **A comment is `v1.NoteAdded`** (core `addNote`), on the passage, a
+  moment of a version (`atMs`, kept as the part and the time in it, as the
+  app's player writes it), a verse, or in answer to a note. It goes with
+  the `review` or `record` scope, from whoever may add notes. Its writer's
+  name in the other app goes before the words: the note has no field for
+  it, and the token's person is its author.
+- **A back translation is a review of outcome `recorded`** with its audio
+  as `pieces` (core `produceContent`), only for a kind that makes content.
+  Such a kind still takes a verdict through the API, as before.
+- **An assignment is `v1.RequestMade`** (core `ask`), to a person or a
+  review team, under a new scope, `assign`, for a person who sends work to
+  reviewers or assigns it. `GET …/languages/{id}/people` gives whom to ask:
+  everyone who may open the language, their names from `profiles`, what
+  they may do there, and the review teams. It needs `read` or `assign`;
+  the person behind the token sees the same people in the app.
+- **Idempotency.** These writes need an `Idempotency-Key` header (Aquilla
+  sends its event id). The new take, unit, note and request ids, and so
+  every event id, come from the token, the passage or language, and the
+  key. A review keeps its own retry rule (72). A retry finds what
   the first try made and answers it with `duplicate: true`, and the
   database answers a re-sent event as a duplicate. The same key with a
   different body is `409 idempotency_conflict`, never answered as the first.
@@ -10901,16 +10919,16 @@ version-create and a passage-create route, and an idempotency key. Chosen
   removal; an app that drops a take or a cell keeps that to itself.
 - No new event type: the database's checks are the phone's, and the
   migration (`20261109120000_api_record_scope.sql`) only lets the token
-  tables hold the scope. The change feed shows the app its own write as
+  tables hold the two scopes. The change feed shows the app its own write as
   `passage.version.submitted` or `unit.created`; it knows the `takeId` or
   `unitId` it was given.
 Rejected: one event per piece pushed by the app (it would need the
 envelope, the HLC and the privilege rules of a phone); a table of keys
 with stored answers (ids from the key do the same with nothing to expire);
 a new event for outside versions (phones and reports would need a second
-shape of the same thing); taking comments, notes and assignments back in
-the same change (they have their own shapes; a later entry if Aquilla
-needs them).
+shape of the same thing); notes in the passage list (they are written back, but not read back through the
+API yet; a later entry if Aquilla needs to show them); a name field on
+notes (a new versioned event for one label).
 Reverse if: apps need to replace a phone's draft, or to divide books by
 template ids (then the passage route takes a unit id from the template), or
 outside versions need their recorder's own name (then the version carries

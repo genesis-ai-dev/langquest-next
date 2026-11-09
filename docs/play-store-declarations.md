@@ -98,7 +98,11 @@ AI agent with an access token (docs/agent-api.md, decisions.md 72): a person
 approves it on the connect page, it reads only what that person can read, and
 Play does not count a transfer the user starts and expects as sharing.
 Feedback that app sends back is a review in the organization's log, already
-collected as other user-generated content. Review links (`/r/<code>`) are a
+collected as other user-generated content. So is other work it sends back
+(decisions.md 205): versions recorded in it (voice recordings), passages,
+notes (messages, voice recordings) and requests for work, all written as
+the person who connected it. The names it can read of the people in a
+language are the names that person already sees in the app. Review links (`/r/<code>`) are a
 web page outside the Android app: a person shares one, and whoever answers
 on it gives a name, a comment and perhaps a voice note, which reach the app
 as reviews (name, messages, voice recordings: types already declared). **Processed ephemerally: No** for

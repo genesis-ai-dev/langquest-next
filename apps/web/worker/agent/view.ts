@@ -24,6 +24,10 @@ export interface LanguageView {
     read: 'all' | 'published' | null; review: boolean; release: boolean; externalValues: { read: boolean; write: boolean };
     /** With the record scope: add versions (the person translates) and passages (the person divides the books). */
     record: { versions: boolean; passages: boolean };
+    /** Add notes and comments: the review or record scope. */
+    notes: boolean;
+    /** Ask people for work: the assign scope. */
+    assign: boolean;
   };
 }
 
@@ -243,7 +247,10 @@ function abilities(grant: Grant, org: OrgState, languageId: string): LanguageVie
     release: privs.has('assign_work') && grant.scopes.includes('release'),
     externalValues: { read: canReadValues(grant), write: mayStoreValues(privs) && grant.scopes.includes('external_values') },
     // Work made in another app (contribute.ts, decisions.md 205): versions as a translator makes them, passages as a coordinator adds them.
-    record: { versions: privs.has('translate') && grant.scopes.includes('record'), passages: privs.has('manage_templates') && grant.scopes.includes('record') }
+    record: { versions: privs.has('translate') && grant.scopes.includes('record'), passages: privs.has('manage_templates') && grant.scopes.includes('record') },
+    // Comments go with review or record, from whoever may add notes; asking for work with assign (contribute.ts).
+    notes: (grant.scopes.includes('review') || grant.scopes.includes('record')) && (privs.has('translate') || privs.has('review') || privs.has('fill_reference')),
+    assign: grant.scopes.includes('assign') && (privs.has('send_to_reviewers') || privs.has('assign_work'))
   };
 }
 
@@ -525,13 +532,18 @@ export interface VoiceNote {
 
 /** Clips one review may carry: enough for a careful listener, not a channel for files. */
 export const MAX_VOICE_NOTES = 10;
+/** Pieces of one back translation (or other content a kind produces), as a version may hold. */
+export const MAX_PRODUCED_PIECES = 200;
 
 export interface ReviewInput {
   /** A kind in the language's flow, or `listener` (the default): feedback that never clears a step. */
   kindId?: string;
-  outcome: 'looks_good' | 'needs_changes';
+  /** `recorded`: content a kind produces (a back translation), its audio in `pieces`; never a verdict. */
+  outcome: 'looks_good' | 'needs_changes' | 'recorded';
   comment?: string;
   voiceNotes?: VoiceNote[];
+  /** For `recorded`: the content's audio in playing order, uploaded with PUT …/audio or …/voice-notes (decisions.md 205). */
+  pieces?: VoiceNote[];
   /** The caller's own id for whoever gave it (a listener, a device). Only a hash reaches the log. */
   reviewerId: string;
   /** Shown to the team as who gave it. */
@@ -571,27 +583,33 @@ function parseVoiceNote(v: unknown): VoiceNote | null {
 }
 
 /** `voiceNotes`: what PUT …/voice-notes returned, each with `atMs` if it is about a moment. Undefined when none; null when malformed. */
-export function parseVoiceNotes(v: unknown): VoiceNote[] | null | undefined {
+export function parseVoiceNotes(v: unknown, max = MAX_VOICE_NOTES): VoiceNote[] | null | undefined {
   if (v === undefined) return undefined;
-  if (!Array.isArray(v) || v.length > MAX_VOICE_NOTES) return null;
+  if (!Array.isArray(v) || v.length > max) return null;
   const out = v.map(parseVoiceNote);
   return out.some((n) => n === null) || new Set(out.map((n) => n!.hash)).size !== out.length ? null : (out as VoiceNote[]);
 }
 
 export function parseReview(body: unknown): ReviewInput | Refusal {
   const b = (body ?? {}) as Record<string, unknown>;
-  if (b['outcome'] !== 'looks_good' && b['outcome'] !== 'needs_changes') return refuse(400, 'bad_request', 'outcome must be "looks_good" or "needs_changes".');
+  if (b['outcome'] !== 'looks_good' && b['outcome'] !== 'needs_changes' && b['outcome'] !== 'recorded') {
+    return refuse(400, 'bad_request', 'outcome must be "looks_good", "needs_changes", or "recorded" (a back translation, with pieces).');
+  }
   if (!str(b['reviewerId'], 200)) return refuse(400, 'bad_request', 'reviewerId is required: your id for whoever gave it, such as a listener or device (at most 200 characters).');
   for (const [k, max] of [['kindId', 100], ['takeId', 200], ['comment', 4000], ['reviewerName', 120], ['submissionId', 64]] as const) {
     if (!optStr(b[k], max)) return refuse(400, 'bad_request', `${k} must be non-empty text of at most ${max} characters.`);
   }
   const voiceNotes = parseVoiceNotes(b['voiceNotes']);
   if (voiceNotes === null) return refuse(400, 'bad_request', `voiceNotes is a list of at most ${MAX_VOICE_NOTES}, each what PUT …/voice-notes returned, with atMs (a whole number) if it is about a moment.`);
+  const pieces = b['pieces'] === undefined ? undefined : Array.isArray(b['pieces']) && b['pieces'].length > 0 ? parseVoiceNotes(b['pieces'], MAX_PRODUCED_PIECES) ?? null : null;
+  if (b['outcome'] === 'recorded' ? !pieces?.length || voiceNotes?.length : b['pieces'] !== undefined) {
+    return refuse(400, 'bad_request', `A recorded review (a back translation) sends its audio as pieces: 1 to ${MAX_PRODUCED_PIECES}, each what PUT …/audio returned, and no voiceNotes. Other outcomes send no pieces.`);
+  }
   const pick = (k: string) => (b[k] !== undefined ? { [k]: b[k] as string } : {});
   return {
     outcome: b['outcome'], reviewerId: b['reviewerId'] as string,
     ...pick('kindId'), ...pick('takeId'), ...pick('comment'), ...pick('reviewerName'), ...pick('submissionId'),
-    ...(voiceNotes?.length ? { voiceNotes } : {})
+    ...(voiceNotes?.length ? { voiceNotes } : {}), ...(pieces?.length ? { pieces: pieces.map(({ atMs: _a, ...p }) => p) } : {})
   };
 }
 
@@ -640,11 +658,14 @@ async function fresh(records: LanguageRecords, notes: VoiceNote[] | undefined, n
  * The payload every outside review shares: given by link, by whoever is
  * named, with the voice note where phones will play it.
  */
-function reviewPayload(input: Pick<ReviewInput, 'outcome' | 'comment' | 'voiceNotes'>, takeId: string, kindId: string, givenBy: string, reviewId: string) {
+function reviewPayload(input: Pick<ReviewInput, 'outcome' | 'comment' | 'voiceNotes' | 'pieces'>, takeId: string, kindId: string, givenBy: string, reviewId: string) {
   // Voice notes are review artifacts: each card carries its own format, so phones play WAV and m4a alike, and its moment.
-  const artifacts = (input.voiceNotes ?? [])
-    .map((n) => ({ hash: n.hash, durationMs: n.durationMs, format: n.format, ...(n.atMs !== undefined ? { atMs: n.atMs } : {}) }))
-    .sort((a, b) => (a.atMs ?? -1) - (b.atMs ?? -1));
+  // Produced content (a back translation) is its pieces, in the order given (core produceContent).
+  const artifacts = input.pieces
+    ? input.pieces.map((n) => ({ hash: n.hash, durationMs: n.durationMs, format: n.format }))
+    : (input.voiceNotes ?? [])
+      .map((n) => ({ hash: n.hash, durationMs: n.durationMs, format: n.format, ...(n.atMs !== undefined ? { atMs: n.atMs } : {}) }))
+      .sort((a, b) => (a.atMs ?? -1) - (b.atMs ?? -1));
   return {
     reviewId, takeId, kindId, outcome: input.outcome, via: 'link', people: 1, givenBy,
     ...(input.comment !== undefined ? { comment: input.comment } : {}),
@@ -684,7 +705,12 @@ export async function reviewEvent(ctx: WriteContext, input: ReviewInput): Promis
   const kindId = input.kindId ?? LISTENER_KIND;
   // A review from outside is given by link: where its step takes no links it is kept but completes nothing (passage.ts, decisions.md 77).
   if (!reviewableKinds(state, unitId).has(kindId)) return refuse(400, 'no_kind', `kindId must be "${LISTENER_KIND}" or a kind in this language's flow.`);
+  // Content (a back translation) comes only from a kind that produces it (core produceContent); such a kind still takes a verdict, as before.
+  if (input.outcome === 'recorded' && (kindId === LISTENER_KIND || !kindOf(state, kindId).produces)) {
+    return refuse(400, 'no_kind', 'Only a kind that makes content, such as a back translation, takes outcome "recorded".');
+  }
   if (!(await fresh(records, input.voiceNotes, ctx.now))) return refuse(400, 'bad_request', 'voiceNotes must be ones you just uploaded.');
+  if (!(await fresh(records, input.pieces, ctx.now))) return refuse(400, 'bad_piece', 'pieces must be audio you just uploaded with PUT …/audio.');
   const reviewer = (await sha256Hex(`${grant.tokenId}\n${input.reviewerId}`)).slice(0, 16);
   const reviewId = `${kindId === LISTENER_KIND ? LISTENER_KIND : 'review'}-${(await sha256Hex([grant.tokenId, takeId, reviewer, kindId, input.submissionId ?? input.outcome].join('\n'))).slice(0, 32)}`;
   const givenBy = input.reviewerName?.trim() || `Listener ${reviewer.slice(0, 6)}`;

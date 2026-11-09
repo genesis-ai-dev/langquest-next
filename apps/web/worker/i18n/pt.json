@@ -131,7 +131,8 @@
       "review": "Registrar revisões em seu nome: comentários de ouvintes, ou uma etapa de revisão do fluxo, com um comentário ou uma nota de voz",
       "release": "Dizer onde uma versão está publicada (ativa em um aplicativo ou site), ou retirada",
       "externalValues": "Guardar os valores do próprio aplicativo junto com os seus idiomas, em seu nome. O LangQuest os guarda e nunca age com base neles",
-      "record": "Adicionar gravações feitas no aplicativo, em seu nome: novas versões de passagens e novas passagens em um livro"
+      "record": "Adicionar gravações feitas no aplicativo, em seu nome: novas versões de passagens e novas passagens em um livro",
+      "assign": "Pedir, em seu nome, a pessoas dos seus idiomas que gravem uma passagem ou a revisem"
     }
   },
   "videos": {

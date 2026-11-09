@@ -7,7 +7,7 @@ import {
   CHANGES_PAGE, CHANGES_PAGE_MAX, DELIVERIES_KEPT, DELIVERY_TIMEOUT_MS, SECRET_PREFIX, UNIT_IDS_PER_DELIVERY, WEBHOOK_EVENTS, WEBHOOKS_PER_TOKEN
 } from './webhooks';
 import {
-  API_STATUSES, EXTERNAL_DATA_MAX_BYTES, EXTERNAL_VALUES_PAGE, MAX_VOICE_NOTES, PASSAGE_INCLUDES, PASSAGES_PAGE, PASSAGES_PAGE_MAX
+  API_STATUSES, EXTERNAL_DATA_MAX_BYTES, EXTERNAL_VALUES_PAGE, MAX_PRODUCED_PIECES, MAX_VOICE_NOTES, PASSAGE_INCLUDES, PASSAGES_PAGE, PASSAGES_PAGE_MAX
 } from './view';
 
 /**
@@ -116,7 +116,9 @@ function schemas(): Record<string, Schema> {
         record: obj({
           versions: bool('Add versions of passages: the record scope, and its person translates here.'),
           passages: bool('Add passages: the record scope, and its person divides this language\'s books.')
-        })
+        }),
+        notes: bool('Add notes and comments: the review or record scope, and its person translates, reviews or fills reference material here.'),
+        assign: bool('Ask people for work: the assign scope, and its person sends work to reviewers or assigns it here.')
       }, [], 'What this token can do here, given its scopes and its person\'s privileges today.')
     }),
     Me: obj({ token: ref('Token'), org: obj({ id: text(), name: text() }, [], 'The organization the token belongs to.'), languages: list(ref('Language')) }),
@@ -205,7 +207,7 @@ function schemas(): Record<string, Schema> {
       hash: text(undefined, { pattern: '^[0-9a-f]{64}$' }), format: text(undefined, { enum: ['m4a', 'wav'] }), durationMs: int(undefined, { minimum: 0 })
     }, [], 'A voice note just uploaded.'),
     ReviewInput: obj({
-      outcome: text('needs_changes asks the translator to respond.', { enum: ['looks_good', 'needs_changes'] }),
+      outcome: text('needs_changes asks the translator to respond. recorded is content a kind makes (a back translation), sent as pieces; only a kind that makes content takes it.', { enum: ['looks_good', 'needs_changes', 'recorded'] }),
       reviewerId: text('Your own id for whoever gave it, such as a listener or a device. Only a hash is kept. One answer per reviewer, version, kind and outcome.', { minLength: 1, maxLength: 200 }),
       kindId: text('listener (the default, which never clears a step) or a kindId from the passage\'s steps. To answer a request, send its kindId.', { minLength: 1, maxLength: 100 }),
       takeId: text('The version heard; the passage\'s version when left out.', { minLength: 1, maxLength: 200 }),
@@ -215,8 +217,12 @@ function schemas(): Record<string, Schema> {
       voiceNotes: list(obj({
         hash: text(undefined, { pattern: '^[0-9a-f]{64}$' }), format: text(undefined, { enum: ['m4a', 'wav'] }),
         durationMs: { type: 'number', minimum: 0 }, atMs: int('Where in the version it is about, ms from the start.', { minimum: 0 })
-      }, ['durationMs', 'atMs']), 'What PUT …/voice-notes returned, each attached within six hours of its upload.', { maxItems: MAX_VOICE_NOTES, uniqueItems: true })
-    }, ['kindId', 'takeId', 'comment', 'reviewerName', 'submissionId', 'voiceNotes']),
+      }, ['durationMs', 'atMs']), 'What PUT …/voice-notes returned, each attached within six hours of its upload.', { maxItems: MAX_VOICE_NOTES, uniqueItems: true }),
+      pieces: list(obj({
+        hash: text(undefined, { pattern: '^[0-9a-f]{64}$' }), format: text(undefined, { enum: ['m4a', 'wav'] }),
+        durationMs: { type: 'number', minimum: 0 }
+      }, ['durationMs']), 'With outcome recorded only: the content\'s audio in playing order, what PUT …/audio returned within six hours.', { minItems: 1, maxItems: MAX_PRODUCED_PIECES, uniqueItems: true })
+    }, ['kindId', 'takeId', 'comment', 'reviewerName', 'submissionId', 'voiceNotes', 'pieces']),
     ReleaseInput: obj({
       live: bool('true: it is published there; false: it was taken down.'),
       channel: text('Where, such as "Every Language app".', { minLength: 1, maxLength: 60 }),
@@ -246,12 +252,39 @@ function schemas(): Record<string, Schema> {
       }, ['parentUnitId', 'afterUnitId']),
       anyOf: [{ required: ['parentUnitId'] }, { required: ['afterUnitId'] }]
     },
+    NoteInput: obj({
+      text: text('The words. Text, voiceNote or both.', { minLength: 1, maxLength: 4000 }),
+      voiceNote: obj({
+        hash: text(undefined, { pattern: '^[0-9a-f]{64}$' }), format: text(undefined, { enum: ['m4a', 'wav'] }), durationMs: { type: 'number', minimum: 0 }
+      }, ['durationMs'], 'A spoken note: what PUT …/voice-notes or PUT …/audio returned, within six hours.'),
+      takeId: text('The version it is about. With atMs alone, the latest version.', { minLength: 1, maxLength: 200 }),
+      atMs: int('Where in the version, ms from its start.', { minimum: 0 }),
+      verse: text('A verse it is about instead, "chapter:verse".', { pattern: '^[1-9][0-9]{0,2}:[1-9][0-9]{0,2}$' }),
+      replyTo: text('The noteId it answers.', { minLength: 1, maxLength: 300 }),
+      authorName: text('Who wrote it in your app; shown before the words.', { minLength: 1, maxLength: 120 })
+    }, ['text', 'voiceNote', 'takeId', 'atMs', 'verse', 'replyTo', 'authorName']),
+    RequestInput: obj({
+      what: text(undefined, { enum: ['record', 'review'] }),
+      kindId: text('For a review: a kindId from the passage\'s steps.', { minLength: 1, maxLength: 100 }),
+      profileId: text('Someone from GET …/people. Send profileId or teamId.', { minLength: 1, maxLength: 200 }),
+      teamId: text('A review team from GET …/people.', { minLength: 1, maxLength: 200 }),
+      note: text(undefined, { minLength: 1, maxLength: 4000 })
+    }, ['kindId', 'profileId', 'teamId', 'note']),
+    People: obj({
+      people: list(obj({
+        profileId: text(), name: text('As they set it in LangQuest.'),
+        can: obj({ translate: bool(), review: bool() }, [], 'What they may do in this language.')
+      }, ['name']), 'Everyone who may open the language.'),
+      teams: list(obj({ teamId: text(), name: text(), kindId: nullable(text('The kind it usually reviews; null for any.')), members: list(text(), 'profileIds.') }))
+    }),
     Contributed: obj({
       takeId: text('The new version\'s id (a version only): the takeId the passage list and the change feed give it.'),
+      noteId: text('The new note\'s id (a note only); send it as replyTo to answer it.'),
+      requestId: text('The new request\'s id (a request only).'),
       unitId: text('The passage: for a new passage, its new unitId.'),
       duplicate: bool('True when this Idempotency-Key had made it already, so nothing new was recorded.'),
       passage: nullable(ref('PassageDetail'))
-    }, ['takeId'], 'What was added. passage is null for a token without a read scope.'),
+    }, ['takeId', 'noteId', 'requestId'], 'What was added. passage is null for a token without a read scope.'),
     ExternalValue: obj({
       key: text(),
       data: nullable({ type: 'object', description: 'Null when the key was deleted (listed only with changedSince).' }),
@@ -367,6 +400,31 @@ function paths(): Record<string, Schema> {
         description: `Upload each piece first with PUT …/audio. The version is shared for review at once, as the app's Publish does, and continues the passage's latest version; it replaces no draft. The same pieces as the latest version is 409 unchanged. One write of the token's ${WRITES_PER_HOUR} an hour.`,
         requestBody: body(ref('VersionInput')),
         responses: { 200: json(ref('Contributed'), 'Added; takeId is the new version.'), ...ERRORS }
+      }
+    },
+    '/languages/{languageId}/passages/{unitId}/notes': {
+      post: {
+        ...auth, operationId: 'addNote', parameters: [LANGUAGE_ID, UNIT_ID, IDEMPOTENCY_KEY],
+        summary: 'Add a note or comment on a passage, a moment in a version, or a verse, or answer a note, as the token\'s person. Needs the review or record scope.',
+        description: `The team sees it where they see their own notes. One write of the token's ${WRITES_PER_HOUR} an hour.`,
+        requestBody: body(ref('NoteInput')),
+        responses: { 200: json(ref('Contributed'), 'Added; noteId is the new note.'), ...ERRORS }
+      }
+    },
+    '/languages/{languageId}/passages/{unitId}/requests': {
+      post: {
+        ...auth, operationId: 'askForWork', parameters: [LANGUAGE_ID, UNIT_ID, IDEMPOTENCY_KEY],
+        summary: 'Ask someone in the language, or a review team, to record the passage or review it, as the token\'s person. Needs the assign scope.',
+        description: `It shows in their app as work asked of them, and in requests on the passage. One write of the token's ${WRITES_PER_HOUR} an hour.`,
+        requestBody: body(ref('RequestInput')),
+        responses: { 200: json(ref('Contributed'), 'Asked; requestId is the new request.'), ...ERRORS }
+      }
+    },
+    '/languages/{languageId}/people': {
+      get: {
+        ...auth, operationId: 'listPeople', parameters: [LANGUAGE_ID],
+        summary: 'Who may open the language, with their names, and its review teams: whom to ask for work. Needs read or assign.',
+        responses: { 200: json(ref('People'), 'People and teams.'), ...ERRORS }
       }
     },
     '/languages/{languageId}/audio': {

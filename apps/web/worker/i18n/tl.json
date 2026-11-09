@@ -131,7 +131,8 @@
       "review": "Magtala ng mga pagrepaso bilang ikaw: puna ng tagapakinig, o isang hakbang ng pagrepaso sa daloy, na may komento o voice note",
       "release": "Sabihin kung saan na-publish ang isang bersiyon (live sa isang app o site), o kung ibinaba ito",
       "externalValues": "Itago ang sariling mga value ng app kasama ng iyong mga wika, bilang ikaw. Pinapanatili ito ng LangQuest at hindi kailanman ginagamit",
-      "record": "Magdagdag ng mga recording na ginawa sa app bilang ikaw: mga bagong bersyon ng mga talata, at mga bagong talata sa isang aklat"
+      "record": "Magdagdag ng mga recording na ginawa sa app bilang ikaw: mga bagong bersyon ng mga talata, at mga bagong talata sa isang aklat",
+      "assign": "Hilingin sa mga tao sa iyong mga wika, bilang ikaw, na i-record o suriin ang isang talata"
     }
   },
   "videos": {

@@ -180,6 +180,8 @@ class MemoryStore implements AgentStore {
   async tokenNames(orgId: string, ids: string[]) {
     return Object.fromEntries(this.tokens.filter((t) => t.orgId === orgId && ids.includes(t.id)).map((t) => [t.id, t.clientName ?? t.name]));
   }
+  readonly names: Record<string, string> = { admin: 'Ada Admin', tr: 'Tomas Translator', rev: 'Rita Reviewer' };
+  async profileNames(ids: string[]) { return Object.fromEntries(ids.filter((id) => this.names[id]).map((id) => [id, this.names[id]!])); }
   async insertGrant(g: Parameters<AgentStore['insertGrant']>[0]) {
     const row = { ...g, id: `g${++this.n}`, createdAt: new Date(T0).toISOString(), lastPolledAt: null, approvedAt: null, deniedAt: null, tokenId: null };
     this.grants.push(row);
@@ -991,7 +993,7 @@ describe('the device flow', () => {
     const done = await poll();
     expect(done.body).toMatchObject({ access_token: asked.body.device_code, token_type: 'Bearer', scope: 'read review', language_ids: ['din'] });
     const langs = await call('GET', '/api/v1/languages', done.body.access_token);
-    expect(langs.body.map((l: any) => [l.languageId, l.can])).toEqual([['din', { read: 'all', review: true, release: false, externalValues: { read: true, write: false }, record: { versions: false, passages: false } }]]);
+    expect(langs.body.map((l: any) => [l.languageId, l.can])).toEqual([['din', { read: 'all', review: true, release: false, externalValues: { read: true, write: false }, record: { versions: false, passages: false }, notes: true, assign: false }]]);
     expect(store.tokens[0]!.tokenHash).toBe(await hashSecret(asked.body.device_code));
     expect(store.tokens[0]!.clientName).toBe('Every Language Listener');
   });
@@ -1381,6 +1383,71 @@ describe('work made in another app, written back (decisions.md 205)', () => {
     // The new passage takes versions like any other.
     const v = await addVersion(call, t, unitId, 'take-1', { pieces: await pieces(call, t, ['new-cell']) });
     expect(v.body.passage).toMatchObject({ unitId, version: { n: 1 } });
+  });
+
+  const post = (call: Call, t: string, path: string, key: string, body: unknown) => call('POST', `/api/v1/languages/din/passages/${path}`, t, body, undefined, keyed(key));
+
+  it('adds a comment on a moment of a version, a verse or the passage, and an answer to it, once per key', async () => {
+    const { call, token, log } = setup();
+    const t = await token('rev', { scopes: ['read', 'review'] });
+    // d2's version is two parts of 1.5 s and 2.5 s: 2 s in is half a second into the second part.
+    const first = await post(call, t, 'd2/notes', 'c-1', { text: 'Verse 2 is too fast', atMs: 2000, authorName: 'Anita' });
+    expect(first.status).toBe(200);
+    expect(first.body).toMatchObject({ unitId: 'd2', duplicate: false, noteId: expect.stringMatching(/^note:api-note-/) });
+    const notes = () => (log.streams.get('din') ?? []).filter((e) => e.type === 'v1.NoteAdded').map((e) => ({ actorId: e.actorId, ...(e.payload as Record<string, unknown>) }));
+    expect(notes()[0]).toMatchObject({
+      actorId: 'rev', unitId: 'd2', text: 'Anita: Verse 2 is too fast', onTakeId: 'take-d2',
+      anchor: { kind: 'version', takeId: 'take-d2', part: card('d2b').hash, at: '0:01' }
+    });
+    expect((await post(call, t, 'd2/notes', 'c-1', { text: 'Verse 2 is too fast', atMs: 2000, authorName: 'Anita' })).body.duplicate).toBe(true);
+    expect((await post(call, t, 'd2/notes', 'c-1', { text: 'Something else' })).body.code).toBe('idempotency_conflict');
+    const reply = await post(call, t, 'd2/notes', 'c-2', { text: 'Agreed', replyTo: first.body.noteId });
+    const verse = await post(call, t, 'd2/notes', 'c-3', { text: 'Check the name', verse: '2:4' });
+    const spoken = await call('PUT', '/api/v1/languages/din/voice-notes', t, undefined, m4a('spoken-comment'));
+    await post(call, t, 'd2/notes', 'c-4', { voiceNote: spoken.body.voiceNote });
+    expect([reply.status, verse.status]).toEqual([200, 200]);
+    expect(notes().slice(1).map((n) => n['anchor'])).toEqual([{ kind: 'passage', replyTo: first.body.noteId }, { kind: 'verse', verse: '2:4' }, { kind: 'passage' }]);
+    expect(notes()).toHaveLength(4);
+    expect((await post(call, t, 'd2/notes', 'c-5', { text: 'x', replyTo: 'nope' })).body.code).toBe('no_note');
+    expect((await post(call, t, 'd2/notes', 'c-6', {})).status).toBe(400);
+    expect((await post(call, await token('rev', { scopes: ['read'] }), 'd2/notes', 'c-7', { text: 'x' })).body.code).toBe('scope');
+  });
+
+  it('records a back translation as content of the kind that makes it, from pieces it uploaded', async () => {
+    const { call, token, log } = setup();
+    log.add('din', 'v1.FlowStepSet', { stepId: 'peer_only/s3', order: 's02', kindIds: ['bt'], checkpoint: false });
+    const t = await token('tr', { scopes: ['read', 'review', 'record'] });
+    const sent = await pieces(call, t, ['bt-1', 'bt-2']);
+    const bt = await call('POST', '/api/v1/languages/din/passages/d2/reviews', t, { kindId: 'bt', outcome: 'recorded', reviewerId: 'bezily', reviewerName: 'Bezily', pieces: sent, comment: 'In the beginning…' });
+    expect(bt.status).toBe(200);
+    const review = log.reviews('din').find((r) => r['kindId'] === 'bt');
+    expect(review).toMatchObject({ actorId: 'tr', outcome: 'recorded', takeId: 'take-d2', givenBy: 'Bezily', comment: 'In the beginning…', artifacts: sent.map((p) => ({ hash: p.hash, format: 'm4a', durationMs: 1200 })) });
+    // Only a kind that makes content takes it, from audio just uploaded, and a verdict sends no pieces.
+    expect((await call('POST', '/api/v1/languages/din/passages/d2/reviews', t, { kindId: 'peer', outcome: 'recorded', reviewerId: 'b', pieces: await pieces(call, t, ['bt-3']) })).body.code).toBe('no_kind');
+    expect((await call('POST', '/api/v1/languages/din/passages/d2/reviews', t, { kindId: 'bt', outcome: 'recorded', reviewerId: 'c', pieces: [card('d1a')] })).body.code).toBe('bad_piece');
+    expect((await call('POST', '/api/v1/languages/din/passages/d2/reviews', t, { kindId: 'bt', outcome: 'recorded', reviewerId: 'c' })).status).toBe(400);
+  });
+
+  it('asks a person or a team for work, chosen from the language\'s people, once per key', async () => {
+    const { call, token, log } = setup();
+    log.add('din', 'v1.ReviewTeamDefined', { teamId: 'elders', name: 'Elders' });
+    log.add('din', 'v1.ReviewTeamMemberSet', { teamId: 'elders', profileId: 'rev', member: true });
+    const t = await token('admin', { scopes: ['read', 'assign'] });
+    const people = await call('GET', '/api/v1/languages/din/people', t);
+    expect(people.body.people).toContainEqual({ profileId: 'rev', name: 'Rita Reviewer', can: { translate: false, review: true } });
+    expect(people.body.people.map((p: { profileId: string }) => p.profileId)).toEqual(['admin', 'dinka', 'rev', 'tr']);
+    expect(people.body.teams).toEqual([{ teamId: 'elders', name: 'Elders', kindId: null, members: ['rev'] }]);
+    const asked = await post(call, t, 'd2/requests', 'a-1', { what: 'review', kindId: 'peer', profileId: 'rev', note: 'From Aquilla' });
+    expect(asked.status).toBe(200);
+    expect(asked.body.passage.requests).toMatchObject([{ requestId: asked.body.requestId, what: 'review', kindId: 'peer', note: 'From Aquilla', forYou: false }]);
+    expect((await post(call, t, 'd2/requests', 'a-1', { what: 'review', kindId: 'peer', profileId: 'rev', note: 'From Aquilla' })).body.duplicate).toBe(true);
+    expect((await post(call, t, 'd4/requests', 'a-2', { what: 'record', teamId: 'elders' })).status).toBe(200);
+    expect((await post(call, t, 'd4/requests', 'a-3', { what: 'record', profileId: 'stranger' })).body.code).toBe('no_person');
+    expect((await post(call, t, 'd4/requests', 'a-4', { what: 'review', kindId: 'listener', profileId: 'rev' })).body.code).toBe('no_kind');
+    expect((await post(call, t, 'd4/requests', 'a-5', { what: 'review', profileId: 'rev' })).status).toBe(400);
+    // A reviewer neither sends work to reviewers nor assigns it, so cannot be given the scope; people need read or assign.
+    expect((await call('POST', '/api/v1/session/tokens', 'jwt:rev', { orgId: ORG, name: 'x', scopes: ['assign'] })).status).toBe(400);
+    expect((await call('GET', '/api/v1/languages/din/people', await token('tr', { scopes: ['record'] }))).body.code).toBe('scope');
   });
 
   it('finds a place between any two orders, in printable characters, so a passage goes where it was put', () => {

@@ -131,7 +131,8 @@
       "review": "Rekodi ukaguzi kwa niaba yako: maoni ya wasikilizaji, au hatua ya ukaguzi katika mtiririko, pamoja na maoni au ujumbe wa sauti",
       "release": "Sema toleo limechapishwa wapi (linapatikana katika programu au tovuti), au limeondolewa",
       "externalValues": "Hifadhi thamani za programu yenyewe pamoja na lugha zako, kwa niaba yako. LangQuest inazihifadhi na haizitumii kamwe",
-      "record": "Ongeza rekodi zilizofanywa kwenye programu, kwa niaba yako: matoleo mapya ya vifungu, na vifungu vipya katika kitabu"
+      "record": "Ongeza rekodi zilizofanywa kwenye programu, kwa niaba yako: matoleo mapya ya vifungu, na vifungu vipya katika kitabu",
+      "assign": "Waombe watu katika lugha zako, kwa niaba yako, warekodi kifungu au wakikague"
     }
   },
   "videos": {
