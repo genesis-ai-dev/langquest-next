@@ -175,6 +175,11 @@ export class NearbyRoom {
   private idleMs = 0;
   private waitMs = 0;
   private lastTick: number | null = null;
+  /**
+   * Someone met this run, as the screen counts it: a phone that echoed this phone's salt, one the
+   * person tapped, or a session that began. Not a phone merely heard: a played-back advert is
+   * heard, and a disguised phone must not stop at level having found nobody (5.8, `stopWhenLevel`).
+   */
   private everMet = false;
   private level = false;
   private chosen: string | null = null;
@@ -247,7 +252,10 @@ export class NearbyRoom {
   /** The screen answered "A teammate may be nearby". */
   tap(tag: string): void {
     const h = this.heard.get(tag);
-    if (h) h.tapped = true;
+    if (h) {
+      h.tapped = true;
+      this.everMet = true;
+    }
     this.tally.taps += 1;
   }
 
@@ -367,8 +375,10 @@ export class NearbyRoom {
     if (echoes || this.scanOnly()) h.echoed = true;
     this.heard.set(seen.tag, h);
     this.heardTags.add(seen.tag);
-    if (h.echoed) this.echoedTags.add(seen.tag);
-    this.everMet = true;
+    if (h.echoed) {
+      this.echoedTags.add(seen.tag);
+      this.everMet = true;
+    }
     this.showTeammates();
   }
 
@@ -491,6 +501,7 @@ export class NearbyRoom {
     });
     this.session = session;
     this.began.set(session, this.now);
+    this.everMet = true;
     this.opt.report({ t: 'session', tag, role: 'i' });
     void this.finish(session, tag, mine, seen.summary);
   }
@@ -525,6 +536,7 @@ export class NearbyRoom {
         this.saltRelease = release;
         void this.opt.radio.holdSalt(true).catch(() => undefined);
         void this.holdScan(true);
+        this.everMet = true;
         this.opt.report({ t: 'session', tag: null, role: 'r' });
         return true;
       }

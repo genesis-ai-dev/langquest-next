@@ -207,7 +207,8 @@ export interface NearbyRunState {
   /** The room says nobody in range has anything new. "Up to date" only once `met` too. */
   level: boolean;
   /**
-   * This run heard someone: a teammate who echoed, one waiting on a tap, or a session. With nobody
+   * This run met someone, as the room counts it (`everMet`): a teammate who echoed, one the person
+   * tapped (one waiting on a tap may be a played-back advert), or a session. With nobody
    * heard the room is level at once, and "Up to date" would tell the person they are done (5.11).
    */
   met: boolean;
@@ -300,7 +301,7 @@ function roomReported(s: NearbyRunState, e: RoomReport, worn: boolean, names: Re
     }
     case 'maybe':
       if (s.teammates.some((t) => t.tag === e.tag)) return s;
-      return { ...s, teammates: [...s.teammates, { ...stranger(e.tag), state: 'maybe' }], met: true };
+      return { ...s, teammates: [...s.teammates, { ...stranger(e.tag), state: 'maybe' }] };
     case 'session': {
       const current: NearbyProgress = { tag: e.tag, role: e.role, eventsIn: 0, eventsOut: 0, filesIn: 0, filesOut: 0 };
       const teammates = e.tag === null ? s.teammates : withTeammate(s.teammates, e.tag, (t) => ({ ...t, state: 'exchanging' }), () => stranger(e.tag!));
@@ -351,7 +352,7 @@ export function nearbyRunReducer(s: NearbyRunState, a: NearbyRunAction): NearbyR
       if (!s.current) return s;
       return { ...s, current: { ...s.current, eventsIn: a.report.got.events, eventsOut: a.report.sent.events, filesIn: a.report.files.got, filesOut: a.report.files.served } };
     case 'tapped':
-      return { ...s, teammates: s.teammates.map((t) => (t.tag === a.tag && t.state === 'maybe' ? { ...t, state: 'here' } : t)) };
+      return { ...s, teammates: s.teammates.map((t) => (t.tag === a.tag && t.state === 'maybe' ? { ...t, state: 'here' } : t)), met: s.met || s.teammates.some((t) => t.tag === a.tag) };
     case 'find-error':
       return { ...s, findError: a.code };
   }

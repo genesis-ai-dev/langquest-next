@@ -162,8 +162,11 @@ describe('teammates and what came across', () => {
     expect(upToDate(alone)).toBe(false);
     // Someone heard after the room went level, with nothing to swap: the room says level no more, and the screen is up to date.
     expect(upToDate(nearbyRunReducer(alone, seen(['t1'])))).toBe(true);
-    // One who echoed no salt, or connected to this phone, was met too.
-    expect(upToDate(run({ t: 'started' }, { t: 'room', report: { t: 'maybe', tag: 't2' }, worn }, level))).toBe(true);
+    // One who echoed no salt may be a played-back advert: met only once the person taps it, as the room counts it.
+    const maybe = { t: 'room' as const, report: { t: 'maybe' as const, tag: 't2' }, worn };
+    expect(upToDate(run({ t: 'started' }, maybe, level))).toBe(false);
+    expect(upToDate(run({ t: 'started' }, maybe, { t: 'tapped', tag: 't2' }, level))).toBe(true);
+    // One who connected to this phone was met too.
     expect(upToDate(run({ t: 'started' }, { t: 'room', report: { t: 'session', tag: null, role: 'r' }, worn }, { t: 'room', report: { t: 'ended', tag: null, report: report({ role: 'r' }) }, worn }, level))).toBe(true);
     // Met and gone stays met; a new run starts with nobody heard again.
     const met = run({ t: 'started' }, seen(['t1']), seen([]), level);

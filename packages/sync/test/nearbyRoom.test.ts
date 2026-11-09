@@ -133,6 +133,28 @@ describe.each(STORES)('a room on the %s store', (_name, make) => {
     expect(air.maskRepeats).toEqual([]);
   });
 
+  it('a disguised room that heard only a played-back advert does not stop at "Up to date"; a tap on it, like a real teammate, counts as met', async () => {
+    // Why: any phone heard counted as met, so a replay alone stopped a disguised phone at level with nobody found.
+    const [a, b] = await rooms(2, [{ room: { stopWhenLevel: true } }, {}]);
+    await unit(b!.phone, 'b1');
+    await b!.room.tick(time.now());
+    const recorded = air.adverts.find((ad) => ad.peer === b!.radio.name)!;
+    await b!.room.stop();
+    for (let i = 0; i < 40; i++) {
+      air.replay(recorded);
+      await turn(air, time, [a!], false);
+    }
+    expect(a!.events.some((e) => e.t === 'level')).toBe(true);
+    expect(stopped(a!)).toBeUndefined();
+    expect(a!.room.isRunning).toBe(true);
+    // The person answered "A teammate may be nearby": that is someone met, and level now stops it.
+    const maybe = a!.events.find((e) => e.t === 'maybe') as { tag: string };
+    // It tries the tapped phone, which is gone, and once nobody is left to try it is level and stops.
+    a!.room.tap(maybe.tag);
+    for (let i = 0; i < 40 && !stopped(a!); i++) await turn(air, time, [a!], false);
+    expect(stopped(a!)).toEqual({ t: 'stopped', why: 'level' });
+  });
+
   it('an echo holds only while it names this phone\'s current or previous salt: a replay after two rotations draws no connection', async () => {
     // Why: an echo once heard stood for the whole run, so a recording made while the teammate was live drew a connection for good.
     const [a, b] = await rooms(2);
