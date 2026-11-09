@@ -4,7 +4,7 @@
   "problem": "The nightly tutorial film run failed twice over. The Answer feedback video could not be filmed. The Use the help video was held back because the number on the bell looked cut off.",
   "found": "Pull request 376 was in that run; it fixed something else. A new button on My Work rows hid the Feedback row from the film. The bell's count sat outside its help-mode light. No open pull request covers either.",
   "changed": "The Answer feedback film now finds the row wherever the words sit in its name. In help mode the lit circle around the bell now also covers its count, so the number shows clearly.",
-  "why": "The checks stay on. I fixed the film step and the real screen problem instead of setting the frame check aside. I considered moving the count inside the bell, but that would change how the app looks. I could not run the app or the checks here because the project tools are not installed. Tonight's film run will show the after frames.",
+  "why": "The checks stay on; I fixed the film step and the real screen fault. Moving the count inside the bell would change the look. I could not run the app here, so tonight's film shows the after frames.",
   "touches": "Only the bell's help-mode highlight when it shows a count, and one tutorial film step. No decision log entry needed.",
   "pictures": [
     {
