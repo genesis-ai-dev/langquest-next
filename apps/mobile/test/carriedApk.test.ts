@@ -44,10 +44,13 @@ describe('a file got for an older version', () => {
 });
 
 describe('checking a file by its name', () => {
-  it('takes only the exact name as right: a copy the browser renamed or any other version is not', () => {
+  it('takes the exact name, or the same name a browser numbered for a second download, as right, and any other version as not', () => {
     expect(apkCheck(NOW, NOW)).toBe('right');
     expect(apkCheck(OLDER, NOW)).toBe('other');
-    expect(apkCheck(NOW.replace('.apk', ' (1).apk'), NOW)).toBe('other');
+    // Chrome saves a second download of the same file as "name (1).apk": same versions, same file.
+    expect(apkCheck(NOW.replace('.apk', ' (1).apk'), NOW)).toBe('right');
+    expect(apkCheck(NOW.replace('.apk', '(12).apk'), NOW)).toBe('right');
+    expect(apkCheck(OLDER.replace('.apk', ' (1).apk'), NOW)).toBe('other');
     expect(apkCheck(NOW.toUpperCase(), NOW)).toBe('other');
     expect(apkCheck('LangQuest.apk', NOW)).toBe('other');
   });

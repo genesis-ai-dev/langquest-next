@@ -34,11 +34,15 @@ export function apkStale(needed: string | null, opened: string | null): boolean 
   return needed !== null && opened !== null && opened !== needed;
 }
 
-/** What a chosen file's name says: the right file, or one for another version. Exact: any other name is the wrong version. */
+/**
+ * What a chosen file's name says: the right file, or one for another version. The name must be
+ * this one, but for the number a browser adds to a second download of the same file
+ * ("name (1).apk"), which changes no version. Any other name is the wrong version.
+ */
 export type ApkCheck = 'right' | 'other';
 
 export function apkCheck(chosen: string, needed: string): ApkCheck {
-  return chosen === needed ? 'right' : 'other';
+  return chosen.replace(/ ?\(\d+\)(?=\.apk$)/, '') === needed ? 'right' : 'other';
 }
 
 /**
