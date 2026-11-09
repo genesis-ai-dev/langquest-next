@@ -149,7 +149,10 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Raised by 1 KB with Share nearby's two jobs (Carl, 2026-11-09), 689 bytes past then: the first
 // visit's growth below, and the two headed sections and the Sync row's rule in the nearby chunk,
 // which the web never opens.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 48 * 1024;
+// Raised by 2 KB with the Sync reminders to get the install file (Carl, 2026-11-09, decision 240
+// amended again), 1,189 bytes past then: the first visit's growth below, and the reminder's rule
+// in the model the nearby chunk carries, which the web never opens.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 50 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -185,7 +188,10 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 48 * 1024;
 // Raised by 1 KB with Share nearby's two jobs (Carl, 2026-11-09), 255 bytes past then: their
 // English words (the intro, the two headings and their lines, the Sync row's second line and help)
 // in the catalog every visit carries; the screen loads when opened.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 29 * 1024;
+// Raised by 1 KB with the Sync reminders to get the install file and the Sync row's new words (Carl,
+// 2026-11-09), 251 bytes past then: their English words (the two lines on Ready for offline, Get it,
+// the row's amber line and help) in the catalog every visit carries, and the card's stub.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 30 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
