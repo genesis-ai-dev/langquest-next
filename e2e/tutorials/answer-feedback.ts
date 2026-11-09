@@ -23,7 +23,7 @@ export const answerFeedback: Tutorial = {
     },
     {
       screen: 'my_work',
-      part: (page) => button(page, /Feedback to hear$/),
+      part: (page) => button(page, /Feedback to hear/),
       say: 'Feedback to hear means a check came back with changes to make. Tap it.',
       tap: true,
       until: (page) => id(page, 'primary-action').waitFor({ timeout: 30_000 }),

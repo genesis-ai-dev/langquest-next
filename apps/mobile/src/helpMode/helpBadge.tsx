@@ -32,7 +32,8 @@ function useLit(what: HelpLit | null, id: string) {
 }
 
 /** Put inside a part that calls useHelpSpot: lights it and numbers it while help is on. `inset` puts the number just inside (a row in a card). */
-export function HelpBadge(props: { spot: HelpSpot<unknown>; inset?: boolean }) {
+/** `bleed` lights that much more above and to the right, for a count that hangs past the part's corner (the bell's badge). */
+export function HelpBadge(props: { spot: HelpSpot<unknown>; inset?: boolean; bleed?: number }) {
   const id = useId();
   const clip = useContext(HelpClipContext);
   const rows = useContext(HelpRowContext);
@@ -41,7 +42,7 @@ export function HelpBadge(props: { spot: HelpSpot<unknown>; inset?: boolean }) {
   const what = useMemo<HelpLit | null>(() => (part ? { kind: 'part', part, mark: props.inset ? 'inset' : 'corner', ...(clip ? { clip } : {}), ...(rows ? { rows } : {}), ...(quiet ? { quiet } : {}) } : null),
     [part, props.inset, clip, rows, quiet]);
   const lit = useLit(what, id);
-  return part ? <View ref={lit.ref} onLayout={lit.onLayout} collapsable={false} style={[touches.none, styles.box]} /> : null;
+  return part ? <View ref={lit.ref} onLayout={lit.onLayout} collapsable={false} style={[touches.none, styles.box, props.bleed ? { top: -props.bleed, right: -props.bleed } : null]} /> : null;
 }
 
 /** Keeps a control lit while help is on without numbering it: the ? that turns help off. */

@@ -34,7 +34,7 @@ export function Bell(props: { count: number; stale?: boolean; onPress: () => voi
           <Text style={styles.badgeText}>{shape.n > 99 ? t('work.bell.overMax', { max: formatNumber(99) }) : formatNumber(shape.n)}</Text>
         </View>
       ) : shape.kind === 'dot' ? <View style={[styles.badge, styles.badgeStale, styles.badgeDot, touches.none]} /> : null}
-      <HelpBadge spot={spot} />
+      <HelpBadge spot={spot} {...(shape.kind !== 'none' ? { bleed: 8 } : {})} />
     </Pressable>
   );
 }
