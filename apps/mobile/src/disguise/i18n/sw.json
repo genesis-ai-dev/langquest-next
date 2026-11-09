@@ -38,7 +38,8 @@
       "left": "Kushiriki kumesimama kwa sababu umetoka kwenye programu.",
       "run": "Kushiriki kumesimama baada ya dakika kumi.",
       "level": "Imesasishwa. Kushiriki kumesimama.",
-      "letInLook": "Simu mpya itaonyesha LangQuest hadi wachague mwonekano mwingine kwenye Mipangilio zaidi."
+      "letInLook": "Simu mpya itaonyesha LangQuest hadi wachague mwonekano mwingine kwenye Mipangilio zaidi.",
+      "apkTrace": "Historia ya kivinjari na orodha yake ya vipakuliwa vinaonyesha faili ya kusakinisha ilikotoka. Unaweza kuvifuta baadaye."
     }
   },
   "native": {

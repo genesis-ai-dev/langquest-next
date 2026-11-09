@@ -38,7 +38,8 @@
       "left": "Partage arrêté parce que vous avez quitté l’application.",
       "run": "Partage arrêté après dix minutes.",
       "level": "À jour. Partage arrêté.",
-      "letInLook": "Le nouveau téléphone affichera LangQuest jusqu’à ce qu’on choisisse une autre apparence dans Autres réglages."
+      "letInLook": "Le nouveau téléphone affichera LangQuest jusqu’à ce qu’on choisisse une autre apparence dans Autres réglages.",
+      "apkTrace": "L’historique et la liste des téléchargements du navigateur montrent d’où vient le fichier d’installation. Vous pourrez les effacer ensuite."
     }
   },
   "native": {

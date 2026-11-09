@@ -8,14 +8,15 @@
 // screen, a guest screen from Scan a code; both are app only and labelled experimental.
 // Not split by platform: only Android offers the way in (NearbyRow.android.tsx), and elsewhere
 // useNearby says it is not in this build. Loads the first time it is opened (lazyScreens.tsx).
-import { LINES_VERSION, REDUCER_VERSION } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { LetInCode } from '../nearby/LetInCode';
 import { ChosenPicture } from '../auth/patternPad';
+import { apkGet, letInVersionsWords } from '../nearby/carriedApkModel';
 import { joinName, type JoinEnd, type NotEmptyWhy } from '../nearby/joinOfflineModel';
 import type { LetInEnd, LetInWhyNot } from '../nearby/letInModel';
 import { useJoinOffline } from '../nearby/useJoinOffline';
+import { useCarriedApk, type CarriedApkHandle } from '../nearby/useCarriedApk';
 import { useLetIn, useLetInOffered } from '../nearby/useLetIn';
 import { HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
@@ -45,6 +46,7 @@ export function ShareNearby(ctx: Ctx) {
   /** A person by name and picture; someone this phone cannot put a name to is "A teammate" (5.8). */
   const who = (profileId: string | null) => (profileId ? ctx.name(profileId) : t('nearby.aTeammate'));
   const main = mainAction(stage, actions);
+  const apk = useCarriedApk();
   return (
     <Screen header={<Header title={t('screens.share_nearby')} onBack={ctx.back} />}
       footer={main ? <PrimaryBtn label={main.label} icon={main.icon} help={main.help} onPress={main.onPress} /> : undefined}>
@@ -57,7 +59,7 @@ export function ShareNearby(ctx: Ctx) {
         <Text style={txt.sm}>{t('nearby.intro')}</Text>
       </Card>
       <StageCard stage={stage} view={view} actions={actions} who={who} />
-      <Warnings ctx={ctx} view={view} />
+      <Warnings ctx={ctx} view={view} apkOld={apk.stale && ctx.language.online === true} />
       <Teammates view={view} actions={actions} who={who} look={look} />
       <CameAcross sessions={view.sessions} who={who} />
       {view.whyNot === null ? <CarryCard carry={view.carry} holding={view.holding} who={who} /> : null}
@@ -172,10 +174,14 @@ function StageCard(props: { stage: NearbyStage; view: NearbyView; actions: Nearb
   }
 }
 
-/** Lines that hold whatever the state: a clock out by minutes, a newer app needed, a stamp far ahead (5.4). */
-function Warnings(props: { ctx: Ctx; view: NearbyView }) {
+/**
+ * Lines that hold whatever the state: a clock out by minutes, a newer app needed, a stamp far ahead
+ * (5.4), and, while the phone is online, an install file got for an older version (14.4).
+ */
+function Warnings(props: { ctx: Ctx; view: NearbyView; apkOld: boolean }) {
   const { view, ctx } = props;
   const lines = [
+    props.apkOld ? t('nearby.apkOld') : null,
     ctx.language.tooOld ? t('nearby.tooOld') : null,
     view.newerAppNeeded ? t('nearby.newerApp') : null,
     view.clockOff ? t('nearby.clockOff') : null,
@@ -353,7 +359,8 @@ function TwoPictures(props: { pictures: [number, number] }) {
  * Then this phone sends them a starting copy. Nothing runs until Show the code is pressed.
  */
 export function LetSomeoneIn(ctx: Ctx) {
-  const { whyNot, roles, state, code, secondsLeft, installFile, worn, actions } = useLetIn(ctx);
+  const { whyNot, roles, state, code, secondsLeft, worn, actions } = useLetIn(ctx);
+  const apk = useCarriedApk();
   const { stage } = state;
   const running = stage.t === 'starting' || stage.t === 'showing' || stage.t === 'connected' || stage.t === 'copying';
   let footer: ReactNode = null;
@@ -380,14 +387,6 @@ export function LetSomeoneIn(ctx: Ctx) {
         </View>
         <Text style={txt.sm}>{t('nearby.letIn.intro')}</Text>
       </Card>
-      {installFile !== null && whyNot !== 'not-in-build' ? (
-        // The carried build this phone's versions need, named by versions alone, so a carrier can compare it with the file they hold (14.4).
-        <Card>
-          <Text style={txt.body}>{t('nearby.letIn.file', { file: installFile })}</Text>
-          <Text style={txt.smMuted}>{t('nearby.letIn.fileHelp')}</Text>
-          <LetInCoverNote worn={worn} />
-        </Card>
-      ) : null}
       {whyNot !== null ? (
         <Card>
           <View style={styles.line}>
@@ -433,8 +432,7 @@ export function LetSomeoneIn(ctx: Ctx) {
             <Banner icon="check" tone="green" title={t('nearby.letIn.done', { name: stage.name })} body={t('nearby.letIn.doneLine')} />
           ) : null}
           {stage.t === 'ended' ? (
-            <Banner icon="info" tone="amber" title={stage.why === 'versions'
-              ? t('nearby.letIn.end.versions', { version: installFile ?? `${REDUCER_VERSION}.${LINES_VERSION}` }) : t(LET_IN_END[stage.why])} />
+            <Banner icon="info" tone="amber" title={stage.why === 'versions' ? versionsWords(apk.needed) : t(LET_IN_END[stage.why])} />
           ) : null}
           {state.turnedAway ? (
             <View style={styles.line}>
@@ -445,7 +443,59 @@ export function LetSomeoneIn(ctx: Ctx) {
           {running ? <Text style={txt.smMuted}>{t('nearby.letIn.stayOpen')}</Text> : null}
         </>
       )}
+      {/* Below the steps, and away while a code is up or a phone is on the line, so the code and the one tap stay in view. */}
+      {whyNot !== 'not-in-build' && (whyNot !== null || stage.t === 'choose' || stage.t === 'ended' || stage.t === 'done')
+        ? <InstallFile apk={apk} online={ctx.language.online} worn={worn} /> : null}
     </Screen>
+  );
+}
+
+/** The new phone runs other versions: the file it needs, by this phone's name for it. */
+function versionsWords(installFile: string | null): string {
+  const w = letInVersionsWords(installFile);
+  return w.key === 'nearby.letIn.end.versions' ? t(w.key, { file: w.file }) : t(w.key);
+}
+
+/**
+ * The carried build this phone's versions need (14.4): its name, exactly, so a carrier can compare
+ * it with the file they hold; the browser download while online, with how it reaches the new
+ * phone; a check of a file they hold, by its name alone; and a word when the file they got
+ * before is for an older version. Nothing here downloads or installs anything.
+ */
+function InstallFile(props: { apk: CarriedApkHandle; online: boolean | null; worn: boolean }) {
+  const { apk } = props;
+  if (apk.needed === null) return null;
+  const get = apkGet({ needed: apk.needed, url: apk.url, online: props.online });
+  return (
+    <Card>
+      <Text style={txt.body}>{t('nearby.letIn.file', { file: apk.needed })}</Text>
+      <Text style={txt.sm}>{t('nearby.letIn.fileExact')}</Text>
+      {apk.stale ? (
+        <View style={styles.line}>
+          <Ico name="warning" size={20} color={TINT.amberText} />
+          <Text style={[txt.sm, { flex: 1 }]}>{t('nearby.letIn.fileOld')}</Text>
+        </View>
+      ) : null}
+      {get !== null ? (
+        <>
+          <GhostBtn label={t('nearby.letIn.get')} icon="download" disabled={get === 'offline'} help={t('nearby.letIn.getHelp')} onPress={apk.actions.get} />
+          {get === 'offline' ? <Text style={[txt.sm, { color: TINT.amberText }]}>{t('nearby.letIn.getOffline')}</Text> : null}
+          <Text style={txt.smMuted}>{t('nearby.letIn.getLine')}</Text>
+        </>
+      ) : null}
+      <GhostBtn label={t('nearby.letIn.check')} icon="folder" help={t('nearby.letIn.checkHelp')} onPress={apk.actions.check} />
+      {apk.checked ? (
+        <View style={styles.line}>
+          <Ico name={apk.checked.result === 'right' ? 'check' : 'warning'} size={20} color={apk.checked.result === 'right' ? TINT.greenText : TINT.amberText} />
+          <View style={{ flex: 1 }}>
+            <Text style={txt.sm}>{apk.checked.result === 'right' ? t('nearby.letIn.checkRight') : t('nearby.letIn.checkOther', { file: apk.needed })}</Text>
+            <Text style={txt.smMuted}>{t('nearby.letIn.checkChose', { name: apk.checked.name })}</Text>
+          </View>
+        </View>
+      ) : null}
+      <Text style={txt.smMuted}>{t('nearby.letIn.fileHelp')}</Text>
+      <LetInCoverNote worn={props.worn} />
+    </Card>
   );
 }
 

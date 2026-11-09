@@ -38,7 +38,8 @@
       "left": "Sharing stopped because you left the app.",
       "run": "Sharing stopped after ten minutes.",
       "level": "Up to date. Sharing stopped.",
-      "letInLook": "The new phone will show LangQuest until they choose another look under More settings."
+      "letInLook": "The new phone will show LangQuest until they choose another look under More settings.",
+      "apkTrace": "Your browser's history and download list show where the install file came from. You can clear them afterwards."
     }
   },
   "native": {

@@ -413,8 +413,19 @@ member taps once after both compare two pictures.
   name that holds only version numbers. A carrier downloads it with a browser while online and
   passes it on by Quick Share, SD card or USB; the app never downloads or installs an APK, and
   `REQUEST_INSTALL_PACKAGES` stays out of it. Carried builds use the alpha track, as drafts.
-- **Permissions, content and audience** are unchanged: no permission, SDK or diagnostic is added,
-  and the new person joins the same organization's work by invitation, as before.
+- **Finding and checking the file** (decision 240, amended 2026-11-09). Let someone in opens
+  that address in the phone's own browser (Get the install file); the app makes no request to
+  it. It remembers the name of the file last opened, in one row on the phone holding only that
+  name (no person, organization or time), to say when the file is for an older version. Check
+  my file opens Android's system file picker through `expo-document-picker`, Expo's module for
+  it, and reads only the chosen file's name: the file is not copied, opened or read, and nothing
+  about it leaves the phone. The picker needs no permission (the module adds only a `<queries>`
+  entry for the `OPEN_DOCUMENT` intent, which is not a permission) and has no config plugin; it
+  is linked on Android only (`expo.autolinking.ios.exclude`). It collects nothing: Data safety
+  "Files and docs" stays not collected, since nothing is sent off the phone.
+- **Permissions, content and audience** are unchanged: no permission or diagnostic is added,
+  only that SDK, which sends nothing, and the new person joins the same organization's work by
+  invitation, as before.
 
 Share nearby's diagnostics (`docs/diagnostics.md`, the `nearby` kind in the facts block):
 on Android, a record when a room stops, when a session ends, when Find fails and when the
@@ -504,7 +515,7 @@ this block.
     "@expo/metro-runtime", "@langquest-next/core", "@langquest-next/sync", "@noble/ciphers", "@noble/curves", "@noble/hashes",
     "@react-native-async-storage/async-storage", "@react-navigation/native",
     "@react-navigation/native-stack", "@supabase/supabase-js", "d3-geo", "expo", "expo-audio",
-    "expo-alternate-app-icons", "expo-application", "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",
+    "expo-alternate-app-icons", "expo-application", "expo-camera", "expo-crypto", "expo-dev-client", "expo-document-picker", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",
     "expo-notifications", "expo-screen-orientation", "expo-secure-store", "expo-sqlite", "expo-status-bar", "expo-updates",
     "html-to-image", "i18n-iso-countries", "i18next", "lucide-react-native", "onnxruntime-web", "react", "react-dom", "react-i18next", "react-native", "react-native-qrcode-svg",
     "react-native-safe-area-context", "react-native-screens", "react-native-svg",

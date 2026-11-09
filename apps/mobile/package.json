@@ -21,6 +21,7 @@
     "expo-camera": "~57.0.6",
     "expo-crypto": "~57.0.3",
     "expo-dev-client": "~57.0.19",
+    "expo-document-picker": "~57.0.3",
     "expo-file-system": "~57.0.7",
     "expo-keep-awake": "~57.0.2",
     "expo-localization": "~57.0.2",
@@ -78,7 +79,8 @@
     "autolinking": {
       "ios": {
         "exclude": [
-          "expo-alternate-app-icons"
+          "expo-alternate-app-icons",
+          "expo-document-picker"
         ]
       }
     }

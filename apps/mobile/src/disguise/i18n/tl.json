@@ -38,7 +38,8 @@
       "left": "Huminto ang pagbabahagi dahil umalis ka sa app.",
       "run": "Huminto ang pagbabahagi pagkalipas ng sampung minuto.",
       "level": "Napapanahon. Huminto ang pagbabahagi.",
-      "letInLook": "LangQuest ang ipapakita ng bagong telepono hanggang pumili sila ng ibang itsura sa Iba pang setting."
+      "letInLook": "LangQuest ang ipapakita ng bagong telepono hanggang pumili sila ng ibang itsura sa Iba pang setting.",
+      "apkTrace": "Makikita sa history at listahan ng download ng browser kung saan galing ang install file. Puwede mo itong burahin pagkatapos."
     }
   },
   "native": {

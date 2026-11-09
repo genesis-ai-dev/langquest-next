@@ -38,7 +38,8 @@
       "left": "O compartilhamento parou porque você saiu do app.",
       "run": "O compartilhamento parou depois de dez minutos.",
       "level": "Atualizado. O compartilhamento parou.",
-      "letInLook": "O celular novo vai mostrar LangQuest até escolherem outra aparência em Mais configurações."
+      "letInLook": "O celular novo vai mostrar LangQuest até escolherem outra aparência em Mais configurações.",
+      "apkTrace": "O histórico e a lista de downloads do navegador mostram de onde veio o arquivo de instalação. Você pode apagá-los depois."
     }
   },
   "native": {

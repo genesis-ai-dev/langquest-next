@@ -38,7 +38,8 @@
       "left": "Berbagi berhenti karena Anda keluar dari aplikasi.",
       "run": "Berbagi berhenti setelah sepuluh menit.",
       "level": "Sudah terbaru. Berbagi berhenti.",
-      "letInLook": "Ponsel baru akan menampilkan LangQuest sampai pemiliknya memilih tampilan lain di Pengaturan lain."
+      "letInLook": "Ponsel baru akan menampilkan LangQuest sampai pemiliknya memilih tampilan lain di Pengaturan lain.",
+      "apkTrace": "Riwayat browser dan daftar unduhannya menunjukkan asal file instalasi. Anda bisa menghapusnya setelah itu."
     }
   },
   "native": {

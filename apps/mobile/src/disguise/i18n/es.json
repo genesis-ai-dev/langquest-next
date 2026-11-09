@@ -38,7 +38,8 @@
       "left": "Se dejó de compartir porque saliste de la app.",
       "run": "Se dejó de compartir después de diez minutos.",
       "level": "Al día. Se dejó de compartir.",
-      "letInLook": "El teléfono nuevo mostrará LangQuest hasta que elijan otro aspecto en Más ajustes."
+      "letInLook": "El teléfono nuevo mostrará LangQuest hasta que elijan otro aspecto en Más ajustes.",
+      "apkTrace": "El historial y la lista de descargas del navegador muestran de dónde vino el archivo de instalación. Puedes borrarlos después."
     }
   },
   "native": {
