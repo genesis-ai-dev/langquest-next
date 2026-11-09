@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { access, forgetSignIns, viewerState } from '../src/auth';
 import { csp, page } from '../src/page';
 import { GROUPS, OPS_IDS, OWN_CALL_IDS } from '../src/pageOps';
-import { GROUP_HELP, SECTION_HELP } from '../src/pageHelp';
+import { GROUP_HELP, HELP, SECTION_HELP } from '../src/pageHelp';
 import { ok, settle } from '../src/section';
 import { handle } from '../src/index';
 import type { Env } from '../src/env';
@@ -166,6 +166,23 @@ describe('the API', () => {
     expect(html).toContain("localStorage.setItem(OPEN_KEY");
     // The same key the app keeps its session under.
     expect(sessionStorageKey('https://abc.supabase.co')).toBe('sb-abc-auth-token');
+  });
+
+  it('shows first downloads that went wrong beside how long first downloads take, with hover text', async () => {
+    const html = await (await handle(new Request('https://next.langquest.org/ops-dashboard'), fullEnv)).text();
+    const table = html.indexOf('<h3>First downloads that fell back or started over</h3>');
+    expect(table).toBeGreaterThan(html.indexOf('<h3>Time to a usable Map</h3>'));
+    expect(table).toBeLessThan(html.indexOf('<h3>Stuck phones</h3>'));
+    expect(HELP['First downloads that fell back or started over']).toBeTruthy();
+  });
+
+  it('shows phones by build first among the builds, and snapshot copies beside the snapshots, with hover text', async () => {
+    const html = await (await handle(new Request('https://next.langquest.org/ops-dashboard'), fullEnv)).text();
+    expect(html.indexOf('<h3>Phones by build</h3>')).toBeGreaterThan(0);
+    expect(html.indexOf('<h3>Phones by build</h3>')).toBeLessThan(html.indexOf('<h3>Updates in the field, 14 days</h3>'));
+    expect(html.indexOf('<h3>Snapshot copies</h3>')).toBeGreaterThan(html.indexOf('<h3>Snapshots</h3>'));
+    expect(html.indexOf('<h3>Snapshot copies</h3>')).toBeLessThan(html.indexOf('<h3>Largest languages</h3>'));
+    for (const heading of ['Phones by build', 'Snapshot copies', 'Languages with the most copies']) expect(HELP[heading], heading).toBeTruthy();
   });
 
   it('describes every section and every part, for their hover text', () => {

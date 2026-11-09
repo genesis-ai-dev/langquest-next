@@ -69,10 +69,11 @@ export const copyBranch = (platform, first, last = null) =>
 
 /** Where the phone app's code is: what Metro bundles into an OTA update, and the dependencies it pins. */
 const APP_FILES = [/^apps\/mobile\//, /^packages\/(core|sync)\/src\//, /^package(-lock)?\.json$/];
-/** In apps/mobile but not in the phone's bundle: tests, scripts, the website's files, EAS's own settings, docs. */
+/** In those folders but not in the phone's bundle: tests, scripts, the website's files, EAS's own settings, docs, the Node-only test helpers of packages/sync. */
 const NOT_APP_FILES = [
   /^apps\/mobile\/(\.claude|\.eas|dist[^/]*|explorer|public|scripts|test)\//,
   /^apps\/mobile\/(store-builds\.json|\.env\.(development|preview|example)|LICENSE)$/,
+  /^packages\/sync\/src\/testing\//,
   /\.md$/, /\.web\.tsx?$/, /\.test\.tsx?$/
 ];
 
@@ -394,7 +395,10 @@ function copy(platform, shas) {
   const conflict = done < shas.length;
   // An empty commit gives the pull request something to show; Claude does the copy.
   if (git('rev-parse', 'HEAD') === base) git('commit', '--quiet', '--allow-empty', '-m', `Copy ${shas[0].slice(0, 8)} onto ${branchOf(platform)}: needs a hand with a conflict`);
-  git('push', '--quiet', '--force', 'origin', branch);
+  // No hook runs: the pull request's checks run what the hooks would, and a
+  // copy they fail goes to Claude (fixFailedCopies). A hook that stopped this
+  // push would leave no pull request, so nothing would ever try the copy again.
+  git('push', '--quiet', '--no-verify', '--force', 'origin', branch);
   // The labels: Claude's starts Claude on every copy; made the first time each is needed.
   makeLabel(CLAUDE_LABEL);
   if (conflict) makeLabel(CONFLICT_LABEL);
@@ -604,7 +608,8 @@ function freshenCopies(platform) {
     takeMachinery();
     if (git('rev-parse', 'HEAD') === before) continue;
     // Not forced: a push that Claude made meanwhile wins, and the next hour tries again.
-    if (run('git', ['push', '--quiet', 'origin', branch], { allowFail: true }).status !== 0) {
+    // No hook runs, as a copy whose tests fail would then never take main's.
+    if (run('git', ['push', '--quiet', '--no-verify', 'origin', branch], { allowFail: true }).status !== 0) {
       console.log(`#${number}: could not take main's release workflows and scripts (${branch} moved), so the next run tries again`);
       continue;
     }

@@ -21,7 +21,7 @@ const hoursAgo = (h: number) => new Date(NOW - h * 3_600_000).toISOString();
 const quiet = (over: Partial<QuietAccounts> = {}): QuietAccounts => ({ count: 0, markedCount: 0, accounts: [], marked: [], ...over });
 
 const fleet = (over: Partial<Fleet> = {}): Fleet => ({
-  updates: [], versions: [], web: [], toMap: [], stuck: [], quiet: quiet(), ...over
+  updates: [], versions: [], web: [], builds: [], toMap: [], firstDownloads: [], stuck: [], quiet: quiet(), ...over
 });
 
 describe('builds and stuck phones', () => {
@@ -234,11 +234,13 @@ function fakeQuery(answers: [string, unknown][]): Query {
 describe('reading as diag_reader', () => {
   it('turns off only the sections whose functions a database lacks', async () => {
     const s = await opsSections(fakeQuery([
-      ['jsonb_build_object(\n  \'updates\'', fleet()],
+      ['jsonb_build_object(\n  \'builds\'', fleet()],
       ['rejNotMember', []], ['arrivalsSampled', []], ['fold_canary', []], ['totals', {}]
     ]));
     expect(s.fleet.state).toBe('ok');
     expect(s.safety.state).toBe('ok');
+    // Before its migration the rest of the section still shows.
+    expect(s.safety.data!.copies).toBeNull();
     expect(s.worker.state).toBe('ok');
     for (const id of ['people', 'cron', 'dbdetail', 'push', 'integrations', 'support', 'security'] as const) {
       expect(s[id]).toMatchObject({ state: 'off', setup: expect.stringContaining('20261023100000_ops_dashboard.sql') });
@@ -415,12 +417,12 @@ describe('quiet installs by account (decisions.md 162)', () => {
   };
 
   it('reads diag.ops_quiet_accounts into the fleet section, and counts what the database sends as numbers', async () => {
-    const s = await opsSections(fakeQuery([['jsonb_build_object(\n  \'updates\'', { ...fleet(), quiet: undefined }], ['ops_quiet_accounts', row]]));
+    const s = await opsSections(fakeQuery([['jsonb_build_object(\n  \'builds\'', { ...fleet(), quiet: undefined }], ['ops_quiet_accounts', row]]));
     expect(s.fleet).toMatchObject({ state: 'ok', data: { quiet: { count: 3, markedCount: 34, accounts: row.accounts, marked: row.marked } } });
   });
 
   it('keeps the fleet section when a database lacks the function, without a quiet count', async () => {
-    const s = await opsSections(fakeQuery([['jsonb_build_object(\n  \'updates\'', { ...fleet(), quiet: undefined }]]));
+    const s = await opsSections(fakeQuery([['jsonb_build_object(\n  \'builds\'', { ...fleet(), quiet: undefined }]]));
     expect(s.fleet).toMatchObject({ state: 'ok', data: { quiet: null } });
   });
 });

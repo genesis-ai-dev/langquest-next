@@ -136,13 +136,27 @@ Object.assign(RENDER, {
     ], p.lag);
     h += '<h3>Snapshots</h3><p>' + num(p.snapshots.overdue) + ' overdue (decision 88) · ' + num(p.snapshots.oldReducer) + ' on an older reducer · ' + num(p.snapshots.noCut) + ' not cut by passage yet</p>' +
       table([{ h: 'Language', v: (l) => esc(l.name || l.languageId) + ' <small>' + orgLink(l.orgId, 'org') + '</small>' }, { h: 'Events past it', n: true, v: (l) => num(l.behind) }, { h: 'Age', n: true, v: (l) => l.ageMinutes === null ? '–' : ms(l.ageMinutes * 60000) }], p.snapshots.worst);
+    if (d.copies) {
+      h += '<h3>Snapshot copies</h3><p>' + num(d.copies.total.snapshots) + ' copies of ' + num(d.copies.total.languages) + ' languages on ' + num(d.copies.total.versions) + ' reducer versions, ' + num(d.copies.total.pieces) + ' pieces, ' + bytes(d.copies.total.chars) + ' before compression</p>' + table([
+        { h: 'Reducer', v: (v) => esc(String(v.reducer)) }, { h: 'Languages', n: true, v: (v) => num(v.languages) }, { h: 'Copies', n: true, v: (v) => num(v.snapshots) },
+        { h: 'Pieces', n: true, v: (v) => num(v.pieces) }, { h: 'Size', n: true, v: (v) => bytes(v.chars) }, { h: 'Newest', v: (v) => when(v.newestAt) }, { h: 'Oldest', v: (v) => when(v.oldestAt) }
+      ], d.copies.byVersion) +
+      '<h3>Languages with the most copies</h3>' + table([
+        { h: 'Language', v: (l) => esc(l.name || l.languageId) + ' <small>' + orgLink(l.orgId, 'org') + '</small>' }, { h: 'Copies', n: true, v: (l) => num(l.snapshots) },
+        { h: 'Per reducer', v: (l) => l.perVersion.map((p) => esc(String(p.reducer)) + ': ' + num(p.snapshots)).join(' · ') }, { h: 'Size', n: true, v: (l) => bytes(l.chars) }
+      ], d.copies.languages);
+    }
     h += '<h3>Largest languages</h3>' + table([
       { h: 'Language', v: (l) => esc(l.name || l.languageId) + ' <small>' + orgLink(l.orgId, 'org') + '</small>' }, { h: 'Events', n: true, v: (l) => num(l.events) }, { h: 'Snapshot', n: true, v: (l) => bytes(l.snapshotBytes) }
     ], p.largest);
     return h;
   },
   fleet(d) {
-    let h = '<h3>Updates in the field, 14 days</h3>' + table([
+    let h = '<h3>Phones by build</h3>' + table([
+      { h: 'Platform', v: (b) => esc(b.platform) }, { h: 'Version', v: (b) => '<code>' + esc(b.version) + '</code>' }, { h: 'Reducer', v: (b) => esc(b.reducers || '–') },
+      { h: 'Last day', n: true, v: (b) => num(b.day) }, { h: 'Last 7 days', n: true, v: (b) => num(b.week) }, { h: 'Last 14 days', n: true, v: (b) => num(b.fortnight) }
+    ], d.builds || []);
+    h += '<h3>Updates in the field, 14 days</h3>' + table([
       { h: 'Update', v: (u) => '<code>' + esc(u.update) + '</code>' }, { h: 'Channel', v: (u) => esc(u.channel || '–') }, { h: 'Runtime', v: (u) => '<small>' + esc(u.runtime || '–') + '</small>' },
       { h: 'Installs', n: true, v: (u) => num(u.installs) }, { h: 'Crashed', n: true, v: (u) => '<span class="' + (u.crashed ? 'warn' : '') + '">' + num(u.crashed) + '</span>' },
       { h: 'Crash-free', n: true, v: (u) => share(u.installs - u.crashed, u.installs) }, { h: 'First seen', v: (u) => when(u.firstSeen) }
@@ -152,6 +166,11 @@ Object.assign(RENDER, {
     h += '<h3>Time to a usable Map</h3><p class="muted">open: a language\'s first full download; fill: a big language, until its Map shows.</p>' + table([
       { h: 'Day', v: (r) => esc(r.day) }, { h: 'Kind', v: (r) => esc(r.kind) }, { h: 'Count', n: true, v: (r) => num(r.count) }, { h: 'p50', n: true, v: (r) => hours(r.p50Ms) }, { h: 'p95', n: true, v: (r) => hours(r.p95Ms) }
     ], d.toMap.slice().reverse().slice(0, 14));
+    h += '<h3>First downloads that fell back or started over</h3>' + table([
+      { h: 'Day', v: (r) => esc(r.day) },
+      { h: 'What went wrong', v: (r) => (r.what === 'fallback' ? 'Took the whole snapshot' : r.what === 'restart' ? 'Started over' : 'No snapshot for reducer') + ' <code>' + esc(r.reason) + '</code>' },
+      { h: 'Count', n: true, v: (r) => num(r.count) }, { h: 'Installs', n: true, v: (r) => num(r.installs) }
+    ], (d.firstDownloads || []).slice(0, 20));
     h += '<h3>Stuck phones</h3>' + table([
       { h: 'Install', v: (s) => installLink(s.install) }, { h: 'Unsent for', n: true, v: (s) => s.unsentMin ? ms(s.unsentMin * 60000) : '–' },
       { h: 'Download stuck', n: true, v: (s) => s.stuckMin ? ms(s.stuckMin * 60000) : '–' }, { h: 'Free', n: true, v: (s) => s.freeMb === null ? '–' : num(s.freeMb) + ' MB' },
