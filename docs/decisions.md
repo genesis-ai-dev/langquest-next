@@ -12348,3 +12348,13 @@ the inviter's phone and tells the newcomer to get the inviter's file, from
 the session report's existing `versionsDiffer`, with the wire unchanged. On
 a disguised phone one more line, in `src/disguise/i18n`, says the browser's
 history shows where the file came from. Plan 14.4 has the details.
+
+Amended (2026-11-09, Carl Sauder): the file is now got and checked on a
+screen of its own, Get the install file (`get_install_file`), not on Let
+someone in, because the two jobs happen at different times: getting the file
+online before a trip, letting someone in in the field (Carl's choice). Share
+nearby opens it from a row above Let someone in, on the same terms, and from
+its too-old line; Let someone in opens it from a line at its top saying the
+new phone needs the app installed first, and keeps the role, the code, the
+pictures, the one tap and the version refusal's words. What the screen does
+is unchanged. Plan 14.4 has the details.
