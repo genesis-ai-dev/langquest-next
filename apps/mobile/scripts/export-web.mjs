@@ -142,7 +142,11 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // decision 240 as amended), 2,900 bytes past then: the first visit's growth below, and the install
 // file part, its rules and the stub the web takes for its hook in the nearby chunk, which the web
 // never opens; the browser link, the meta row and the file picker stay in .android files.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 44 * 1024;
+// Raised by 3 KB with Get the install file split from Let someone in (Carl, 2026-11-09, decision 240
+// amended again), 2,845 bytes past then: the new screen, Share nearby's second row and Let someone
+// in's line in the nearby chunk, which the web never opens; the words in all 16 catalogs; and the
+// screen's id and edges in the flow. A first visit stays under its own budget (163 bytes left).
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 47 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
