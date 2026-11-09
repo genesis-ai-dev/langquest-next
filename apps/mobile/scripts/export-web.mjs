@@ -135,7 +135,10 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Raised by 1 KB with Remove me from this phone and a helper's code for a local person (Carl,
 // 2026-11-08), 337 bytes past then: their English words in the catalog every visit carries, and
 // sign-in's id for the code; the row and the removal stay in .android files.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 40 * 1024;
+// Raised by 1 KB with the SQL driver asking a native call again after a lookup that missed (Carl,
+// 2026-11-09), 250 bytes past then: the store every client opens steps a write through prepare, run
+// and finalize, each asked again, so expo-modules-core's unlocked lookup cannot drop or repeat it.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 41 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
