@@ -3,14 +3,41 @@ import * as SQLite from 'expo-sqlite';
 import { Platform } from 'react-native';
 import { isTestBuild } from '../build/testBuild';
 
-/** Statements on one connection: the database, or a transaction's own connection. */
+/**
+ * expo-modules-core finds a database or statement from its id in a table that the JavaScript
+ * thread grows while expo-sqlite's queue reads it, with no lock (`SharedObjectRegistry`'s
+ * `toNativeObject`). A lookup made while the table grows can miss, and the call is refused as
+ * "Cannot use shared object that was already released" though the object is alive: seen on an
+ * Android emulator as E-QLI101 under Share nearby, which makes many shared objects. The lookup
+ * comes before the call's native body, so nothing ran, and the call is asked again. A real
+ * release, or any other error, still reaches the caller.
+ */
+async function native<T>(call: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await call();
+    } catch (e) {
+      // i18n-ignore: the end of expo-modules-core's message, matched, never shown; three tries in all.
+      if (attempt >= 3 || !String(e).includes('already released')) throw e;
+    }
+  }
+}
+
+/** Statements on one connection: the database, or a transaction's own connection. Each native call is asked again after a missed lookup (above). */
 function statements(db: SQLite.SQLiteDatabase): Pick<SqlDriver, 'run' | 'all'> {
   return {
+    // Step by step, so a write that ran is never run again because a later step's lookup missed.
     run: async (sql, params = []) => {
-      await db.runAsync(sql, params as SQLite.SQLiteBindParams);
+      const statement = await native(() => db.prepareAsync(sql));
+      try {
+        await native(() => statement.executeAsync(params as SQLite.SQLiteBindParams));
+      } finally {
+        await native(() => statement.finalizeAsync());
+      }
     },
+    // A read is asked again whole: reading twice changes nothing.
     all: async <T,>(sql: string, params: unknown[] = []) =>
-      db.getAllAsync<T>(sql, params as SQLite.SQLiteBindParams)
+      native(() => db.getAllAsync<T>(sql, params as SQLite.SQLiteBindParams))
   };
 }
 
@@ -60,11 +87,12 @@ function preparedRun(db: SQLite.SQLiteDatabase): SqlDriver['run'] {
   return async (sql, params = []) => {
     let statement = cache.get(sql);
     if (!statement) {
-      statement = db.prepareAsync(sql);
+      statement = native(() => db.prepareAsync(sql));
       cache.set(sql, statement);
       statement.catch(() => cache.delete(sql));
     }
-    await (await statement).executeAsync(params as SQLite.SQLiteBindParams);
+    const prepared = await statement;
+    await native(() => prepared.executeAsync(params as SQLite.SQLiteBindParams));
   };
 }
 
@@ -87,12 +115,12 @@ export function writeConnectionDriver(db: SQLite.SQLiteDatabase, writer: SQLite.
     ...statements(db),
     transaction: (fn) => {
       const next = queue.then(async () => {
-        await writer.execAsync('BEGIN IMMEDIATE');
+        await native(() => writer.execAsync('BEGIN IMMEDIATE'));
         try {
           await fn(tx);
-          await writer.execAsync('COMMIT');
+          await native(() => writer.execAsync('COMMIT'));
         } catch (e) {
-          await writer.execAsync('ROLLBACK').catch(() => {});
+          await native(() => writer.execAsync('ROLLBACK')).catch(() => {});
           throw e;
         }
       });
