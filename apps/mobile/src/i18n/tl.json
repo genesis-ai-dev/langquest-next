@@ -8029,10 +8029,16 @@
   },
   "nearby": {
     "experimental": "Sinusubukan pa",
-    "intro": "Ang mga teleponong magkakalapit ay nagpapanahon sa isa't isa, mga pagbabago at rekording sa magkabilang direksiyon, nang walang internet. Panatilihing bukas ang screen na ito hanggang sabihin nitong Napapanahon.",
+    "intro": "Gumagana nang walang internet: gawing napapanahon ang telepono ng mga kasamahan, o bigyan ng app ang isang bagong tao at pasalihin siya sa pangkat.",
+    "withTeammates": "Kasama ang mga kasamahan",
+    "withTeammatesLine": "Nagpapanahon sa isa't isa ang mga teleponong may LangQuest na. Panatilihin itong bukas hanggang sabihin nitong Napapanahon.",
+    "newPerson": "Isang bagong tao",
+    "newPersonLine": "Bigyan ng app ang isang bagong tao, saka siya pasalihin sa pangkat mula sa teleponong ito.",
     "row": "Ibahagi sa malapit",
     "rowSub": "Gawing napapanahon ang telepono ng mga kasamahan nang walang internet",
+    "rowSubJoin": "Gawing napapanahon ang telepono ng mga kasamahan, o magpapasok ng bagong tao, nang walang internet",
     "rowHelp": "Binubuksan ang Ibahagi sa malapit, kung saan nagpapanahon sa isa't isa ang mga teleponong magkakalapit nang walang internet.",
+    "rowHelpJoin": "Binubuksan ang Ibahagi sa malapit, kung saan nagpapanahon sa isa't isa ang mga teleponong magkakalapit nang walang internet, at kung saan mo binibigyan ng app ang isang bagong tao at pinasasali siya sa pangkat.",
     "why": {
       "loading": "Sinusuri ang teleponong ito…",
       "notInBuild": "Hindi makapagbahagi sa malapit ang bersiyong ito ng app. I-update ito mula sa store.",
@@ -8139,7 +8145,7 @@
       "deliveryRefused": "Hindi tinanggap ng server ang gawa ni {{name}} mula sa teleponong ito: {{reason}}. Mananatili ito rito at ipapadala ulit sa bawat sync."
     },
     "letIn": {
-      "rowSub": "Sasali sa pangkat ang isang bagong telepono mula rito, nang walang internet",
+      "rowSub": "Kapag naka-install na ang app sa telepono niya",
       "rowHelp": "Binubuksan ang Magpapasok ng isang tao, kung saan sasali sa pangkat mo ang isang bagong teleponong walang internet mula sa teleponong ito.",
       "intro": "Ang isang bagong tao na may LangQuest sa telepono niya ay sasali sa pangkat mo mula sa teleponong ito, nang walang internet. Piliin ang tungkulin niya, ipakita sa kanya ang code, at papasukin siya kapag magkapareho ang mga larawan.",
       "needsApp": "Kailangang may naka-install na LangQuest muna ang bagong telepono.",
@@ -8208,7 +8214,7 @@
     },
     "installFile": {
       "intro": "Kailangang may naka-install na LangQuest ang bagong telepono bago mo mapapasok ang may-ari nito. Kunin dito ang file habang may internet ka, at dalhin mo.",
-      "rowSub": "Bago ka mawalan ng internet: ang file na pag-i-install ng LangQuest sa bagong telepono",
+      "rowSub": "Bago ka mawalan ng internet",
       "rowHelp": "Binubuksan ang Kunin ang install file, kung saan mo dina-download at sinusuri ang file na pag-i-install ng LangQuest sa bagong telepono. Gawin ito habang may internet ka.",
       "linkHelp": "Binubuksan ang Kunin ang install file, kung saan mo dina-download at sinusuri ang file na pag-i-install ng LangQuest sa bagong telepono."
     },

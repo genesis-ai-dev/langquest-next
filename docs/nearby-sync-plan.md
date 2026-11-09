@@ -852,6 +852,17 @@ protocol version.
   `flow.test.ts`, the `SCREENS` map through `lazyScreen`, a `screens.share_nearby` title
   in 16 catalogs, and a top-level function in `src/screens/nearby.tsx` with
   `contractsFor`. PLAN.md section 13 and `docs/ux/demo-parity.md` get a row.
+- **Two jobs, said as two** (Carl's choice, 2026-11-09). Share nearby brings teammates'
+  phones up to date, and, with joining without internet (14.1), gives a new person the app
+  and lets them join. A short intro names both; then two headed sections, each with a line
+  saying what it is for. "With teammates": phones that already have LangQuest bring each
+  other up to date, kept open until Up to date; it holds the stage, warnings, teammates, what
+  came across, Ready to carry and Hold teammates' recordings. "A new person", shown only on
+  Let someone in's terms (`joinRows`): give them the app, then let them join from this phone;
+  it holds the install file's too-old line, Get the install file (before going offline) and
+  Let someone in (once their app is installed). The Sync row keeps its name and badge; its
+  line names both jobs on the same terms, else teammates' phones alone, and a reason while it
+  cannot run (`nearbyRowWords`).
 - It asks for its permissions with a line saying why (section 9), and shows teammates who
   also have it open, with name and picture. Phones with equal summaries never connect, so
   a phone works out who it sees from the tag in the broadcast, and from what it already
@@ -3482,7 +3493,7 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
     which holds no person, organization or time. While the name this phone needs differs
     from it, Get the install file says the file got before is for an older version and to
     get the new one before going offline, and Share nearby says the same as a line while
-    online, with a link to Get the install file. The words go when the two match again; the
+    online, under A new person, above its Get the install file row. The words go when the two match again; the
     row stays, so the next version is caught too.
   - *Check my file.* Opens Android's system file picker (`expo-document-picker`, which needs
     no permission; the file is not copied) and compares only the chosen file's name with the

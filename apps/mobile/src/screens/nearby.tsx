@@ -1,6 +1,8 @@
-// Share nearby (app only, no demo screen; docs/nearby-sync-plan.md 5.8, 5.11): phones near each
-// other bring each other up to date, events and recordings both ways, with no internet. Opened
-// from Sync while the organization has it on; labelled experimental (section 5.10). The radios
+// Share nearby (app only, no demo screen; docs/nearby-sync-plan.md 5.8, 5.11) does two jobs with
+// no internet, each under its own heading: With teammates, phones near each other bring each other
+// up to date, events and recordings both ways; A new person, shown on Let someone in's terms, gets
+// the app and joins the team from this phone. Opened from Sync while the organization has it on;
+// labelled experimental (section 5.10). The radios
 // run only while this screen is open and on screen (useNearby, `radiosMayRun`); nothing here asks
 // Android for anything until a button is pressed. A phone that wears a cover waits for a press,
 // and its own words stay in src/disguise/i18n behind NearbyCoverNotes (decision 171 as amended).
@@ -61,8 +63,9 @@ export function ShareNearby(ctx: Ctx) {
         </View>
         <Text style={txt.sm}>{t('nearby.intro')}</Text>
       </Card>
+      <Job label={t('nearby.withTeammates')} line={t('nearby.withTeammatesLine')} />
       <StageCard stage={stage} view={view} actions={actions} who={who} />
-      <Warnings ctx={ctx} view={view} apkOld={apk.stale && ctx.language.online === true} />
+      <Warnings ctx={ctx} view={view} />
       <Teammates view={view} actions={actions} who={who} look={look} />
       <CameAcross sessions={view.sessions} who={who} />
       {view.whyNot === null ? <CarryCard carry={view.carry} holding={view.holding} who={who} /> : null}
@@ -70,31 +73,54 @@ export function ShareNearby(ctx: Ctx) {
         <Row icon="layers" label={t('nearby.hold')} help={t('nearby.holdHelp')} role="switch" checked={view.hold}
           onPress={() => { void actions.setHold(!view.hold); }} last />
       </Group>
-      <JoinRows ctx={ctx} needed={apk.needed} />
+      <JoinRows ctx={ctx} needed={apk.needed} apkOld={apk.stale && ctx.language.online === true} />
     </Screen>
   );
 }
 
+/** One of Share nearby's two jobs: its heading, and a line saying what it is for. */
+function Job(props: { label: string; line: string }) {
+  return (
+    <View style={{ gap: space.xs }}>
+      <SectionLabel label={props.label} />
+      <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{props.line}</Text>
+    </View>
+  );
+}
+
 /**
- * Joining without internet's two rows, for a person holding a pass for this language while the
- * organization has joining on (docs/nearby-sync-plan.md 14.1, 3; 14.4); hidden otherwise (`joinRows`).
- * Get the install file is done before going offline; Let someone in, in the field. A run-out pass
- * keeps Let someone in, disabled, saying the phone needs the server again; the row keeps its
+ * A new person: joining without internet's two rows under their heading, for a person holding a
+ * pass for this language while the organization has joining on (docs/nearby-sync-plan.md 14.1, 3;
+ * 14.4); hidden otherwise (`joinRows`). Get the install file is done before going offline; Let
+ * someone in, in the field, once the new phone has the app. While online, an install file got for
+ * an older version says so above them (14.4), with Get the install file the row below. A run-out
+ * pass keeps Let someone in, disabled, saying the phone needs the server again; the row keeps its
  * onPress so help mode can explain it.
  */
-function JoinRows(props: { ctx: Ctx; needed: string | null }) {
+function JoinRows(props: { ctx: Ctx; needed: string | null; apkOld: boolean }) {
   const whyNot = useLetInOffered(props.ctx);
   const rows = joinRows(whyNot, props.needed);
   if (rows.letIn === null) return null;
   return (
-    <Group>
-      {rows.installFile ? (
-        <Row icon="download" label={t('screens.get_install_file')} sub={t('nearby.installFile.rowSub')}
-          help={t('nearby.installFile.rowHelp')} onPress={() => props.ctx.go('get_install_file')} />
+    <>
+      <Job label={t('nearby.newPerson')} line={t('nearby.newPersonLine')} />
+      {props.apkOld ? (
+        <Card>
+          <View style={styles.line}>
+            <Ico name="warning" size={20} color={TINT.amberText} />
+            <Text style={[txt.sm, { flex: 1 }]}>{t('nearby.apkOld')}</Text>
+          </View>
+        </Card>
       ) : null}
-      <Row icon="people" label={t('screens.let_someone_in')} sub={rows.letIn === 'expired' ? t('nearby.letIn.why.expired') : t('nearby.letIn.rowSub')}
-        help={t('nearby.letIn.rowHelp')} disabled={rows.letIn !== 'ready'} onPress={() => { if (rows.letIn === 'ready') props.ctx.go('let_someone_in'); }} last />
-    </Group>
+      <Group>
+        {rows.installFile ? (
+          <Row icon="download" label={t('screens.get_install_file')} sub={t('nearby.installFile.rowSub')}
+            help={t('nearby.installFile.rowHelp')} onPress={() => props.ctx.go('get_install_file')} />
+        ) : null}
+        <Row icon="people" label={t('screens.let_someone_in')} sub={rows.letIn === 'expired' ? t('nearby.letIn.why.expired') : t('nearby.letIn.rowSub')}
+          help={t('nearby.letIn.rowHelp')} disabled={rows.letIn !== 'ready'} onPress={() => { if (rows.letIn === 'ready') props.ctx.go('let_someone_in'); }} last />
+      </Group>
+    </>
   );
 }
 
@@ -185,11 +211,10 @@ function StageCard(props: { stage: NearbyStage; view: NearbyView; actions: Nearb
 }
 
 /**
- * Lines that hold whatever the state: a clock out by minutes, a newer app needed, a stamp far ahead
- * (5.4), and, while the phone is online, an install file got for an older version (14.4), with the
- * way to Get the install file under it.
+ * Lines that hold whatever the state: this app too old to share, a clock out by minutes, a newer
+ * app needed, a stamp far ahead (5.4).
  */
-function Warnings(props: { ctx: Ctx; view: NearbyView; apkOld: boolean }) {
+function Warnings(props: { ctx: Ctx; view: NearbyView }) {
   const { view, ctx } = props;
   const lines = [
     ctx.language.tooOld ? t('nearby.tooOld') : null,
@@ -197,18 +222,9 @@ function Warnings(props: { ctx: Ctx; view: NearbyView; apkOld: boolean }) {
     view.clockOff ? t('nearby.clockOff') : null,
     ...view.farAhead.map((f) => t('nearby.farAhead', { name: ctx.name(f.actorId) }))
   ].filter((l): l is string => l !== null);
-  if (lines.length === 0 && !props.apkOld) return null;
+  if (lines.length === 0) return null;
   return (
     <Card>
-      {props.apkOld ? (
-        <View>
-          <View style={styles.line}>
-            <Ico name="warning" size={20} color={TINT.amberText} />
-            <Text style={[txt.sm, { flex: 1 }]}>{t('nearby.apkOld')}</Text>
-          </View>
-          <LinkBtn label={t('screens.get_install_file')} help={t('nearby.installFile.linkHelp')} onPress={() => ctx.go('get_install_file')} />
-        </View>
-      ) : null}
       {lines.map((l) => (
         <View key={l} style={styles.line}>
           <Ico name="warning" size={20} color={TINT.amberText} />

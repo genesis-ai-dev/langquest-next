@@ -8374,10 +8374,16 @@
   },
   "nearby": {
     "experimental": "Experimental",
-    "intro": "Celulares perto um do outro se atualizam entre si, com mudanças e gravações nos dois sentidos, sem internet. Deixe esta tela aberta até aparecer Atualizado.",
+    "intro": "Funciona sem internet: atualize os celulares dos colegas de equipe, ou dê o app a uma pessoa nova e deixe-a entrar na equipe.",
+    "withTeammates": "Com colegas de equipe",
+    "withTeammatesLine": "Celulares que já têm o LangQuest se atualizam entre si. Deixe isto aberto até aparecer Atualizado.",
+    "newPerson": "Uma pessoa nova",
+    "newPersonLine": "Dê o app a uma pessoa nova e depois deixe-a entrar na equipe por este celular.",
     "row": "Compartilhar por perto",
     "rowSub": "Atualize os celulares dos colegas de equipe sem internet",
+    "rowSubJoin": "Atualize os celulares dos colegas de equipe, ou deixe uma pessoa nova entrar, sem internet",
     "rowHelp": "Abre Compartilhar por perto, onde celulares próximos se atualizam entre si sem internet.",
+    "rowHelpJoin": "Abre Compartilhar por perto, onde celulares próximos se atualizam entre si sem internet, e onde você dá o app a uma pessoa nova e a deixa entrar na equipe.",
     "why": {
       "loading": "Verificando este celular…",
       "notInBuild": "Esta versão do app não consegue compartilhar por perto. Atualize pela loja.",
@@ -8484,7 +8490,7 @@
       "deliveryRefused": "O servidor não aceitou o trabalho de {{name}} vindo deste celular: {{reason}}. Ele fica aqui e é enviado de novo a cada sincronização."
     },
     "letIn": {
-      "rowSub": "Um celular novo entra na equipe por este, sem internet",
+      "rowSub": "Depois que o app estiver instalado no celular dela",
       "rowHelp": "Abre Deixar alguém entrar, onde um celular novo sem internet entra na sua equipe por este celular.",
       "intro": "Uma pessoa nova com o LangQuest no celular entra na sua equipe por este celular, sem internet. Escolha a função dela, mostre o código e deixe-a entrar quando as imagens forem iguais.",
       "needsApp": "O celular novo precisa ter o LangQuest instalado primeiro.",
@@ -8553,7 +8559,7 @@
     },
     "installFile": {
       "intro": "Um celular novo precisa ter o LangQuest instalado antes que você possa deixar a pessoa entrar. Pegue o arquivo aqui enquanto tem internet e leve-o com você.",
-      "rowSub": "Antes de ficar sem internet: o arquivo com que um celular novo instala o LangQuest",
+      "rowSub": "Antes de ficar sem internet",
       "rowHelp": "Abre Baixar o arquivo de instalação, onde você baixa e verifica o arquivo com que um celular novo instala o LangQuest. Faça isso enquanto tem internet.",
       "linkHelp": "Abre Baixar o arquivo de instalação, onde você baixa e verifica o arquivo com que um celular novo instala o LangQuest."
     },

@@ -8029,10 +8029,16 @@
   },
   "nearby": {
     "experimental": "Experimental",
-    "intro": "Phones near each other bring each other up to date, changes and recordings both ways, with no internet. Keep this screen open until it says Up to date.",
+    "intro": "Works without the internet: bring teammates' phones up to date, or give a new person the app and let them join the team.",
+    "withTeammates": "With teammates",
+    "withTeammatesLine": "Phones that already have LangQuest bring each other up to date. Keep this open until it says Up to date.",
+    "newPerson": "A new person",
+    "newPersonLine": "Give a new person the app, then let them join the team from this phone.",
     "row": "Share nearby",
-    "rowSub": "Bring teammates' phones up to date without the internet",
+    "rowSub": "Update teammates' phones without the internet",
+    "rowSubJoin": "Update teammates' phones, or bring in a new person, without the internet",
     "rowHelp": "Opens Share nearby, where phones near each other bring each other up to date without the internet.",
+    "rowHelpJoin": "Opens Share nearby, where phones near each other bring each other up to date without the internet, and where you give a new person the app and let them join the team.",
     "why": {
       "loading": "Checking this phone…",
       "notInBuild": "This version of the app cannot share nearby. Update it from the store.",
@@ -8139,7 +8145,7 @@
       "deliveryRefused": "The server would not take {{name}}'s work from this phone: {{reason}}. It stays here and goes again at each sync."
     },
     "letIn": {
-      "rowSub": "A new phone joins the team from this one, without internet",
+      "rowSub": "Once their app is installed",
       "rowHelp": "Opens Let someone in, where a new phone with no internet joins your team from this phone.",
       "intro": "A new person with LangQuest on their phone joins your team from this phone, without internet. Choose their role, show them the code, and let them in once the pictures match.",
       "needsApp": "The new phone needs LangQuest installed first.",
@@ -8208,7 +8214,7 @@
     },
     "installFile": {
       "intro": "A new person's phone needs LangQuest installed before you can let them in. Get the file here while you have internet, and take it with you.",
-      "rowSub": "Before you go offline: the file a new phone installs LangQuest from",
+      "rowSub": "Before you go offline",
       "rowHelp": "Opens Get the install file, where you download and check the file a new phone installs LangQuest from. Do it while you have internet.",
       "linkHelp": "Opens Get the install file, where you download and check the file a new phone installs LangQuest from."
     },

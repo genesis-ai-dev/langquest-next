@@ -4,7 +4,7 @@ import { originsOf, originWords } from '../src/nearby/nearbyHistoryModel';
 import { nearbyViewOf, NEARBY_RUN_START, type NearbyRunState, type NearbyView } from '../src/nearby/nearbyRunModel';
 import { NOTHING_TO_CARRY } from '../src/nearby/readyToCarryModel';
 import {
-  endedWords, linesShown, PERMISSION_WORDS, RADIO_WORDS, SEEN_WORDS, stageOf, STOP_WORDS, teammatesShown, TEAMMATE_WORDS, WHY_NOT_WORDS
+  endedWords, linesShown, nearbyRowWords, PERMISSION_WORDS, RADIO_WORDS, SEEN_WORDS, stageOf, STOP_WORDS, teammatesShown, TEAMMATE_WORDS, WHY_NOT_WORDS
 } from '../src/nearby/shareNearbyModel';
 
 // Share nearby's states (docs/nearby-sync-plan.md 5.8, section 8): tested through the model, since
@@ -19,6 +19,20 @@ const has = (tree: Tree, key: string) => typeof key.split('.').reduce<Tree | str
 const view = (over: Partial<Omit<Parameters<typeof nearbyViewOf>[0], 'run'>> = {}, run: Partial<NearbyRunState> = {}): NearbyView => nearbyViewOf({
   offered: true, whyNot: null, radiosOff: [], permissions: { state: 'granted', step: { t: 'ready' } }, worn: false, holding: 0, hold: true, carry: NOTHING_TO_CARRY,
   ...over, run: { ...NEARBY_RUN_START, ...run }
+});
+
+describe('the Share nearby row on Sync', () => {
+  it('names a new person only where Share nearby offers Let someone in, and says why not while it cannot run', () => {
+    expect(nearbyRowWords(null, null)).toEqual({ sub: 'nearby.rowSubJoin', help: 'nearby.rowHelpJoin' });
+    // A run-out pass still shows Let someone in on Share nearby, disabled, so the row still names it.
+    expect(nearbyRowWords(null, 'expired')).toEqual({ sub: 'nearby.rowSubJoin', help: 'nearby.rowHelpJoin' });
+    for (const why of ['loading', 'not-in-build', 'no-pass', 'no-role', 'read-only'] as const) {
+      expect(nearbyRowWords(null, why), why).toEqual({ sub: 'nearby.rowSub', help: 'nearby.rowHelp' });
+    }
+    expect(nearbyRowWords('android-too-old', null)).toEqual({ sub: 'nearby.why.androidTooOld', help: 'nearby.rowHelp' });
+    expect(nearbyRowWords('no-key', 'no-pass')).toEqual({ sub: 'nearby.why.noKey', help: 'nearby.rowHelp' });
+    for (const k of ['rowSub', 'rowSubJoin', 'rowHelp', 'rowHelpJoin']) expect(has(en, `nearby.${k}`), k).toBe(true);
+  });
 });
 
 describe('Share nearby\'s states', () => {

@@ -7684,10 +7684,16 @@
   },
   "nearby": {
     "experimental": "Uji coba",
-    "intro": "Ponsel yang berdekatan saling memperbarui, perubahan dan rekaman ke dua arah, tanpa internet. Biarkan layar ini terbuka sampai muncul tulisan Sudah terbaru.",
+    "intro": "Berfungsi tanpa internet: perbarui ponsel rekan tim, atau berikan aplikasi kepada orang baru dan izinkan mereka bergabung dengan tim.",
+    "withTeammates": "Dengan rekan tim",
+    "withTeammatesLine": "Ponsel yang sudah memiliki LangQuest saling memperbarui. Biarkan ini terbuka sampai muncul tulisan Sudah terbaru.",
+    "newPerson": "Orang baru",
+    "newPersonLine": "Berikan aplikasi kepada orang baru, lalu izinkan mereka bergabung dengan tim dari ponsel ini.",
     "row": "Berbagi di sekitar",
     "rowSub": "Perbarui ponsel rekan tim tanpa internet",
+    "rowSubJoin": "Perbarui ponsel rekan tim, atau izinkan orang baru masuk, tanpa internet",
     "rowHelp": "Membuka Berbagi di sekitar, tempat ponsel yang berdekatan saling memperbarui tanpa internet.",
+    "rowHelpJoin": "Membuka Berbagi di sekitar, tempat ponsel yang berdekatan saling memperbarui tanpa internet, dan tempat Anda memberikan aplikasi kepada orang baru serta mengizinkan mereka bergabung dengan tim.",
     "why": {
       "loading": "Memeriksa ponsel ini…",
       "notInBuild": "Versi aplikasi ini tidak bisa berbagi di sekitar. Perbarui dari toko aplikasi.",
@@ -7794,7 +7800,7 @@
       "deliveryRefused": "Server tidak menerima pekerjaan {{name}} dari ponsel ini: {{reason}}. Pekerjaan itu tetap di sini dan dikirim lagi setiap kali disinkronkan."
     },
     "letIn": {
-      "rowSub": "Ponsel baru bergabung dengan tim dari ponsel ini, tanpa internet",
+      "rowSub": "Setelah aplikasinya terpasang di ponsel mereka",
       "rowHelp": "Membuka Izinkan seseorang masuk, tempat ponsel baru tanpa internet bergabung dengan tim Anda dari ponsel ini.",
       "intro": "Orang baru yang punya LangQuest di ponselnya bergabung dengan tim Anda dari ponsel ini, tanpa internet. Pilih perannya, tunjukkan kodenya, dan izinkan dia masuk jika gambarnya sama.",
       "needsApp": "Ponsel baru perlu LangQuest terpasang terlebih dahulu.",
@@ -7863,7 +7869,7 @@
     },
     "installFile": {
       "intro": "Ponsel baru perlu LangQuest terpasang sebelum Anda dapat mengizinkan pemiliknya masuk. Dapatkan file-nya di sini selagi ada internet, lalu bawa.",
-      "rowSub": "Sebelum Anda tanpa internet: file untuk memasang LangQuest di ponsel baru",
+      "rowSub": "Sebelum Anda tanpa internet",
       "rowHelp": "Membuka Dapatkan file instalasi, tempat Anda mengunduh dan memeriksa file untuk memasang LangQuest di ponsel baru. Lakukan selagi ada internet.",
       "linkHelp": "Membuka Dapatkan file instalasi, tempat Anda mengunduh dan memeriksa file untuk memasang LangQuest di ponsel baru."
     },

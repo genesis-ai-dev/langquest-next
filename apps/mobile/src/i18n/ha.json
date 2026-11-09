@@ -8029,10 +8029,16 @@
   },
   "nearby": {
     "experimental": "Na gwaji",
-    "intro": "Wayoyin da ke kusa da juna suna sabunta juna, canje-canje da naɗe-naɗe ta ɓangarorin biyu, ba tare da intanet ba. Ka bar wannan shafin a buɗe har sai ya ce Komai sabo ne.",
+    "intro": "Yana aiki ba tare da intanet ba: sabunta wayoyin abokan aiki, ko ka ba sabon mutum manhajar ka bar shi ya shiga tawagar.",
+    "withTeammates": "Tare da abokan aiki",
+    "withTeammatesLine": "Wayoyin da tuni suke da LangQuest suna sabunta juna. Ka bar wannan a buɗe har sai ya ce Komai sabo ne.",
+    "newPerson": "Sabon mutum",
+    "newPersonLine": "Ka ba sabon mutum manhajar, sannan ka bar shi ya shiga tawagar daga wannan waya.",
     "row": "Raba da na kusa",
     "rowSub": "Sabunta wayoyin abokan aiki ba tare da intanet ba",
+    "rowSubJoin": "Sabunta wayoyin abokan aiki, ko shigar da sabon mutum, ba tare da intanet ba",
     "rowHelp": "Yana buɗe Raba da na kusa, inda wayoyin da ke kusa da juna suke sabunta juna ba tare da intanet ba.",
+    "rowHelpJoin": "Yana buɗe Raba da na kusa, inda wayoyin da ke kusa da juna suke sabunta juna ba tare da intanet ba, kuma inda kake ba sabon mutum manhajar ka bar shi ya shiga tawagar.",
     "why": {
       "loading": "Ana duba wannan waya…",
       "notInBuild": "Wannan sigar manhajar ba za ta iya rabawa da na kusa ba. Sabunta ta daga shago.",
@@ -8139,7 +8145,7 @@
       "deliveryRefused": "Sabar ba ta karɓi aikin {{name}} daga wannan waya ba: {{reason}}. Zai zauna a nan, kuma za a sake aikawa da shi a kowace daidaitawa."
     },
     "letIn": {
-      "rowSub": "Sabuwar waya tana shiga tawagar daga wannan, ba tare da intanet ba",
+      "rowSub": "Bayan an girka manhajar a wayarsa",
       "rowHelp": "Yana buɗe Shigar da wani, inda sabuwar waya mara intanet take shiga tawagarka daga wannan waya.",
       "intro": "Sabon mutum mai LangQuest a wayarsa yana shiga tawagarka daga wannan waya, ba tare da intanet ba. Zaɓi matsayinsa, nuna masa lambar, sannan ka shigar da shi idan hotunan sun yi daidai.",
       "needsApp": "Dole ne a fara girka LangQuest a sabuwar wayar.",
@@ -8208,7 +8214,7 @@
     },
     "installFile": {
       "intro": "Sabuwar waya tana buƙatar an girka LangQuest a kanta kafin ka shigar da mai ita. Ka samu fayil ɗin a nan yayin da kake da intanet, ka tafi da shi.",
-      "rowSub": "Kafin ka rasa intanet: fayil ɗin da sabuwar waya ke girka LangQuest da shi",
+      "rowSub": "Kafin ka rasa intanet",
       "rowHelp": "Yana buɗe Samu fayil ɗin girkawa, inda kake sauke kuma ka duba fayil ɗin da sabuwar waya ke girka LangQuest da shi. Ka yi haka yayin da kake da intanet.",
       "linkHelp": "Yana buɗe Samu fayil ɗin girkawa, inda kake sauke kuma ka duba fayil ɗin da sabuwar waya ke girka LangQuest da shi."
     },

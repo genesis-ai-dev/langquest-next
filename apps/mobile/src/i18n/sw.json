@@ -8029,10 +8029,16 @@
   },
   "nearby": {
     "experimental": "Majaribio",
-    "intro": "Simu zilizo karibu zinasasishana, mabadiliko na rekodi pande zote mbili, bila intaneti. Acha skrini hii wazi hadi iseme Imesasishwa.",
+    "intro": "Inafanya kazi bila intaneti: sasisha simu za wenzako wa timu, au mpe mtu mpya programu na umruhusu ajiunge na timu.",
+    "withTeammates": "Na wenzako wa timu",
+    "withTeammatesLine": "Simu ambazo tayari zina LangQuest zinasasishana. Acha hii wazi hadi iseme Imesasishwa.",
+    "newPerson": "Mtu mpya",
+    "newPersonLine": "Mpe mtu mpya programu, kisha umruhusu ajiunge na timu kupitia simu hii.",
     "row": "Shiriki karibu",
     "rowSub": "Sasisha simu za wenzako wa timu bila intaneti",
+    "rowSubJoin": "Sasisha simu za wenzako wa timu, au mruhusu mtu mpya aingie, bila intaneti",
     "rowHelp": "Hufungua Shiriki karibu, ambapo simu zilizo karibu zinasasishana bila intaneti.",
+    "rowHelpJoin": "Hufungua Shiriki karibu, ambapo simu zilizo karibu zinasasishana bila intaneti, na ambapo unampa mtu mpya programu na kumruhusu ajiunge na timu.",
     "why": {
       "loading": "Inakagua simu hii…",
       "notInBuild": "Toleo hili la programu haliwezi kushiriki karibu. Lisasishe kutoka dukani.",
@@ -8139,7 +8145,7 @@
       "deliveryRefused": "Seva haikupokea kazi ya {{name}} kutoka simu hii: {{reason}}. Inabaki hapa na itatumwa tena kila unaposawazisha."
     },
     "letIn": {
-      "rowSub": "Simu mpya inajiunga na timu kupitia hii, bila intaneti",
+      "rowSub": "Programu ikishasakinishwa kwenye simu yake",
       "rowHelp": "Hufungua Mruhusu mtu aingie, ambapo simu mpya isiyo na intaneti inajiunga na timu yako kupitia simu hii.",
       "intro": "Mtu mpya mwenye LangQuest kwenye simu yake anajiunga na timu yako kupitia simu hii, bila intaneti. Chagua jukumu lake, mwonyeshe msimbo, na umruhusu aingie picha zikifanana.",
       "needsApp": "Simu mpya inahitaji LangQuest iwe imesakinishwa kwanza.",
@@ -8208,7 +8214,7 @@
     },
     "installFile": {
       "intro": "Simu mpya inahitaji LangQuest iwe imesakinishwa kabla hujamruhusu mwenye simu aingie. Pata faili hapa ukiwa bado na intaneti, na uende nayo.",
-      "rowSub": "Kabla hujakosa intaneti: faili ambayo simu mpya husakinisha LangQuest kwayo",
+      "rowSub": "Kabla hujakosa intaneti",
       "rowHelp": "Hufungua Pata faili ya kusakinisha, ambapo unapakua na kukagua faili ambayo simu mpya husakinisha LangQuest kwayo. Fanya hivyo ukiwa bado na intaneti.",
       "linkHelp": "Hufungua Pata faili ya kusakinisha, ambapo unapakua na kukagua faili ambayo simu mpya husakinisha LangQuest kwayo."
     },
