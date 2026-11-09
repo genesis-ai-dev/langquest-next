@@ -1,0 +1,22 @@
+{
+ "kind": "structure",
+ "ask": "Is it right to fix the night test, not the app, so it waits for the server's fresh copy?",
+ "problem": "The night test for removing a version failed once. The removed version still showed as Version 1 on the passage.",
+ "found": "By design, a phone that already holds a version in its saved copy keeps showing it after removal. It waits until the server writes a newer saved copy. The test never waited for that. Other removal tests do wait. Whether it passes depends on when the server last wrote a copy. Pull request 394 does not touch this.",
+ "changed": "Nothing changes for people. The test now waits until the removal is uploaded, then asks the server for a fresh saved copy, as the note removal test does.",
+ "why": "A moderator's own phone shows a removed version for a while until the new copy exists. That is a recorded choice, so I kept it. I could not run the test here, as it needs Docker. The nightly run will confirm.",
+ "touches": "Only the test file for moderation.",
+ "pictures": [
+  {
+   "file": "before.png",
+   "label": "Failed run: the passage still shows Version 1 after removal"
+  }
+ ],
+ "guess": {
+  "answer": "looks_good"
+ },
+ "linear": {
+  "comment": "Cause: the test did not wait for the server's fresh saved copy after removal, so a phone with the version in its saved copy kept showing it. Test now waits for it. Not fixed by PR 394. See the draft pull request.",
+  "state": "In Progress"
+ }
+}
