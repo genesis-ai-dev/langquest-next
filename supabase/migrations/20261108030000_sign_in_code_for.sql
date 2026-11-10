@@ -1,5 +1,5 @@
 -- A helper's code that names who it is for (docs/nearby-sync-plan.md 14.1,
--- 6 "After"; decision 238). A local person whose key no longer signs in
+-- 6 "After"; decision 239). A local person whose key no longer signs in
 -- (`needsCode`) gets their session from a helper's code, and their phone
 -- takes only a session for their own id (server/auth.ts setSession). Taken
 -- first and refused on the phone, a code made for someone else would be spent

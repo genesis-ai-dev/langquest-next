@@ -148,7 +148,7 @@ Phones keep the log as before.
 
 Amended (2026-11-08, Carl Sauder): an event comes from its author, or from a
 phone holding the author's valid signature, unless it is a redaction
-(docs/nearby-sync-plan.md section 6, decision 230). A phone that reaches the
+(docs/nearby-sync-plan.md section 6, decision 231). A phone that reaches the
 server sends teammates' signed work through the Worker's `POST /api/relay`,
 which appends it as each author through `append_events`, so a shared phone
 still pushes only its actor's own pending work, and nobody's work is sent
@@ -8588,6 +8588,12 @@ partners and users real trouble. So:
 - **Sent means sent.** Offline, asking someone, a review and a published
   version say who gets it when the device is connected.
 
+Amended (2026-11-06, Caleb Koster): My Work's to-do rows end with the same
+download button as a Map row, for the passage each is about (LAN-19), so
+"On this device" shows before the passage opens. It is on the rows of the
+Then list and the "record again" row; the lead card, the join, divide and
+language rows, and the waiting and recent lists have none.
+
 Amended (2026-11-07, Carl Sauder): teammates' recordings held here count
 in the upload bar and the Waiting list too (`docs/nearby-sync-plan.md` 5.8):
 a phone holding backups shows the amber bar while offline and lists other
@@ -10803,7 +10809,7 @@ people (then stop passing unknown addresses to v2).
 
 Amended (2026-11-08, Carl Sauder): New password can revoke the person's
 nearby install keys, for "A phone of mine was lost or taken"
-(docs/nearby-sync-plan.md section 6, decision 231): `password-reset`'s
+(docs/nearby-sync-plan.md section 6, decision 232): `password-reset`'s
 `choose` takes an optional `lost`, which builds before it never send, and
 calls `revoke_install_keys` before setting the password, giving the code
 back if that fails so the person can retry. The authority is the mailbox,
@@ -11142,7 +11148,47 @@ still finds no copy: a new install on a slow link then pulls the log and its wor
 is safe. At about one bump a week this keeps one or two versions nobody reports;
 at early October's three a week, five or six, each a copy per language.
 
-## 205. A nearby phone is not a server: a teammate's work moves phone to phone, and only the server confirms it
+## 205. Key terms are spotted in a take by matching audio to the team's recorded renderings, on the phone
+
+Date: 2026-11-05 · By: Ryder Wishart · Status: accepted
+
+Reason: a partner team on the 2026-11-05 call (users of Render) said a
+missed key term is usually found at the consultant stage, and the draft is
+redone from the start; they want the check while drafting, against key-term
+recordings made before the book begins (LAN-228). The app holds key terms
+per language (`KeyTermDefined`, text renderings in `KeyTermRenderingAdded`,
+a manual tie in `KeyTermLinked`) and only the translator's tagging says
+whether a take has one. Of the ways to detect a term automatically,
+fixed-vocabulary keyword spotting (the sub-megabyte models) is ruled out:
+its size comes from thousands of labelled recordings per word, and the
+words are each team's target-language renderings, for which no data exists.
+Speech recognition then text matching is ruled out on the phone for the
+same reason, since ultra low-resource languages have no recognizer, and on
+a server it would send recordings to a third party, which changes the Play
+"Shared" answers (decision 49). Query-by-example is what remains and fits:
+the team records each rendering two or three times, and a matcher slides
+those clips over the take and reports a confidence. The term and the take
+are usually spoken by the same translator or a small team, the easy case
+for acoustic matching; both inputs are content-addressed blobs (decision
+4), so a result keyed by take hash, rendering hash and matcher version is
+derived, cached per device and recomputable, never synced as status
+(PLAN.md section 4). The matcher runs in the native `microphone-energy`
+module after a take is saved, not during recording. The output is a hint
+("3 of 4 key terms heard"), never a gate, because renderings inflect, get
+paraphrased or split across clauses; the translator's tie or dismissal
+remains the record (`KeyTermLinked`) and calibrates the threshold for that
+language locally. The shipped rendering event is text-only and keeps its
+shape; recorded renderings are a new versioned event. Stages: the audio
+rendering event, then an evaluation set from a partner language, then MFCC
+features with subsequence DTW (no model to download), then a small
+pretrained multilingual encoder only if that misses the bar, keeping the
+DTW, cache and screen.
+Reverse if: a partner language gains a usable recognizer and the organization
+opts in to server transcription (then text matching can run in Aquilla and
+feed the same hint), or MFCC matching is wrong often enough across speakers
+that the encoder download is the cheaper cost.
+
+## 206. A nearby phone is not a server: a teammate's work moves phone to phone, and only the server confirms it
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11176,7 +11222,7 @@ nothing nearby) and the fleet's `villageMonth`, `wrongDate`, `fiveInRoom` and
 Reverse if: a phone back from town ever folds to something the server's log
 does not give, or a nearby row is ever found in a checkpoint or the outbox.
 
-## 206. `nearby` is a fourth status on the events table, and `via` says how a teammate's row came
+## 207. `nearby` is a fourth status on the events table, and `via` says how a teammate's row came
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11203,7 +11249,7 @@ until the server confirms them (210 has the numbers).
 Reverse if: a `pending` or `confirmed` row is ever downgraded by a teammate's
 copy, or a nearby row is ever pushed.
 
-## 207. Each phone numbers the batches it signs, and a teammate counts what it received by signer and number
+## 208. Each phone numbers the batches it signs, and a teammate counts what it received by signer and number
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11229,7 +11275,7 @@ them.
 Reverse if: the real-phone test finds a phone restored from a backup keeps
 its install key (plan section 11).
 
-## 208. A batch counts only when it is whole, gaps stay open, and the signer's own floor closes them
+## 209. A batch counts only when it is whole, gaps stay open, and the signer's own floor closes them
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11261,7 +11307,7 @@ meeting after that took none.
 Reverse if: open gaps make rooms in the field keep talking without moving
 anything.
 
-## 209. New ids name their author, and a teammate's phone takes only work whose ids are bound to who wrote it
+## 210. New ids name their author, and a teammate's phone takes only work whose ids are bound to who wrote it
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11290,7 +11336,7 @@ the agent API now show their author's profile id.
 Reverse if: an id over the 256-character limit turns up, or a command site
 is found minting ids the lint rule does not see.
 
-## 210. A phone takes at most 70,000 rows and 50 MB of nearby work per signer
+## 211. A phone takes at most 70,000 rows and 50 MB of nearby work per signer
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11337,7 +11383,7 @@ does not spread; and `countBatch` and `applyFloor` add no key past
 `NEARBY_VECTOR_MAX_KEYS`, since a stored vector over that cap read back as
 nothing and reset what the phone counted as received.
 
-## 211. Each install makes one Ed25519 key for nearby sync, and the server keeps it per person
+## 212. Each install makes one Ed25519 key for nearby sync, and the server keeps it per person
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11375,7 +11421,7 @@ answer covers it (`docs/play-store-declarations.md`).
 Reverse if: the real-phone test finds a restored phone keeps its key, or
 Ed25519 in Hermes is too slow for one check per batch (plan section 11).
 
-## 212. The Worker signs one certificate per person and organization, naming that organization alone
+## 213. The Worker signs one certificate per person and organization, naming that organization alone
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11422,7 +11468,7 @@ after a 429 or 503. An organization the answer does not name goes as before,
 so turning one off still reaches the phone. This is what makes
 `scripts/nearby-signing-key.sh --rotate` safe for phones built before it.
 
-## 213. A certificate is a chain of signed links, checked with no server
+## 214. A certificate is a chain of signed links, checked with no server
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11446,7 +11492,7 @@ sticks.
 Reverse if: a link kind the field needs cannot be added without phones
 refusing it, or the security review finds a splice.
 
-## 214. Nearby sync is off for everyone and turned on per organization, in `org_features`, and the phone learns it from `get_user_state`
+## 215. Nearby sync is off for everyone and turned on per organization, in `org_features`, and the phone learns it from `get_user_state`
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11476,7 +11522,7 @@ Reverse if: an admin toggle is wanted while it is still experimental, or
 the default becomes on (then the records list the organizations that turned
 it off).
 
-## 215. The Worker vouches for pulled work, and a phone claims only as far as that runs unbroken
+## 216. The Worker vouches for pulled work, and a phone claims only as far as that runs unbroken
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11502,7 +11548,7 @@ Reverse if: attesting costs a phone's syncs more than the claims save
 teammates, or a receiver needs to pass a claim on (then an ability in
 Hello).
 
-## 216. The Worker signs a revocation list per organization, and phones carry it to each other
+## 217. The Worker signs a revocation list per organization, and phones carry it to each other
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11542,7 +11588,7 @@ so the list carries them and the next certificate call makes a new
 discovery generation due. An access token already issued lives until it
 expires.
 
-## 217. A language's discovery key rotates as a one-way hash chain, and a phone hands a newer one on once
+## 218. A language's discovery key rotates as a one-way hash chain, and a phone hands a newer one on once
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11573,7 +11619,7 @@ Reverse if: the real-phone test finds a team stuck on old generations after
 a trip to town, or the security review finds the hand-on reaches a removed
 member.
 
-## 218. Nearby sync moves work over our own link on Android's own APIs: Bluetooth LE to find, Wi-Fi Direct to move, a local-only hotspot if that fails, and Bluetooth for events if neither comes up
+## 219. Nearby sync moves work over our own link on Android's own APIs: Bluetooth LE to find, Wi-Fi Direct to move, a local-only hotspot if that fails, and Bluetooth for events if neither comes up
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11635,7 +11681,7 @@ the native link sends no goodbye on a link whose other side has not proven
 the keys (`LinkSession.close`), so only the proven link ever seals under an
 attempt's keys.
 
-## 219. Phones open sealed, and a phone shows and connects to a teammate only after hearing its own salt echoed
+## 220. Phones open sealed, and a phone shows and connects to a teammate only after hearing its own salt echoed
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11675,7 +11721,7 @@ own salt changes; a live teammate's next advert echoes again, since it
 names the previous salt until it hears the new one, and a recording stops
 counting once it names neither.
 
-## 220. When space runs short, a phone frees files in three levels, and a teammate's file is marked, never inferred
+## 221. When space runs short, a phone frees files in three levels, and a teammate's file is marked, never inferred
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11712,7 +11758,7 @@ section 14 and 60 are amended with it.
 Reverse if: field phones lose last copies of teammates' work to level 2
 before anyone reaches the server (then the order or the 500 MB line moves).
 
-## 221. Every phone takes everything, unless its person turns off "Hold teammates' recordings"
+## 222. Every phone takes everything, unless its person turns off "Hold teammates' recordings"
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11746,7 +11792,7 @@ phone a month, which is arithmetic, not a measurement.
 Reverse if: teams in the field run out of room carrying everything, or ask
 for the row to be per language or per role.
 
-## 222. A backup goes, on every phone, as soon as the server confirms it
+## 223. A backup goes, on every phone, as soon as the server confirms it
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11768,7 +11814,7 @@ Reverse if: reviewers on the way back from town lose audio they meant to
 review (then a backup in a passage open for review waits for space
 pressure).
 
-## 223. A holdings entry is signed by its owner and says whether it holds teammates' recordings
+## 224. A holdings entry is signed by its owner and says whether it holds teammates' recordings
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11802,7 +11848,7 @@ leaves out an entry whose key and holder, or first link's key and person,
 are on the list, or whose person has only removed entries in the fold, so
 no file is shed or counted as safe for its sake.
 
-## 224. A phone keeps who it last finished with and what both said, never when it met anyone
+## 225. A phone keeps who it last finished with and what both said, never when it met anyone
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11824,7 +11870,7 @@ database out (`configureAndroidBackup`), and a test holds that.
 Reverse if: partner order without times makes teams of five take many more
 sessions than the fleet's scenarios show.
 
-## 225. A disguised phone is offered Share nearby, but its radios run only after a press, stop sooner, and never behind the cover
+## 226. A disguised phone is offered Share nearby, but its radios run only after a press, stop sooner, and never behind the cover
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11856,7 +11902,7 @@ Reverse if: the real-phone test finds the prompts name the launcher alias
 (then the warning changes), or people under a disguise are found broadcasting
 behind the cover.
 
-## 226. Share nearby is a screen of its own, labelled experimental, opened from Sync on an Android phone whose organization has it on
+## 227. Share nearby is a screen of its own, labelled experimental, opened from Sync on an Android phone whose organization has it on
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11883,7 +11929,7 @@ Reverse if: the experiment ends (then the badge goes, and admins may get the
 toggle), or people miss teammates because the screen stopped (then the idle
 limit moves).
 
-## 227. The web app may take 3.94 MB on a first visit and 4.92 MB in all, for nearby sync
+## 228. The web app may take 3.94 MB on a first visit and 4.92 MB in all, for nearby sync
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11903,7 +11949,7 @@ files), which is also why diagnostics' `nearby` kind lives there (229).
 Reverse if: a later change needs room and nearby's share can move behind a
 chunk the web never loads.
 
-## 228. A required `android-native` job compiles, tests and lints the nearby module when it, the app's package.json or the lockfile changes
+## 229. A required `android-native` job compiles, tests and lints the nearby module when it, the app's package.json or the lockfile changes
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11930,7 +11976,7 @@ module's JUnit tests read their vectors with a parser of their own, so
 Reverse if: the module leaves the repository, or the job's run time holds up
 pull requests that never touch it.
 
-## 229. Share nearby's diagnostics record counts, durations and the module's codes, and nothing that names a teammate or a disguise
+## 230. Share nearby's diagnostics record counts, durations and the module's codes, and nothing that names a teammate or a disguise
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
 
@@ -11976,7 +12022,7 @@ A plain phone's run past ten minutes is the cost; `stop` still says idle or
 wait. The server's allowlist keeps `run` and `level`, which no build now
 sends.
 
-## 230. A phone that reaches the server delivers teammates' signed work on their authors' behalf
+## 231. A phone that reaches the server delivers teammates' signed work on their authors' behalf
 
 Date: 2026-11-08 · By: Carl Sauder · Status: accepted
 
@@ -12015,7 +12061,7 @@ Reverse if: carried work proves to land wrongly attributed or refused for
 passing reasons in the field, or the relay's cost on the database outgrows
 what delivery saves.
 
-## 231. Work signed by a key later revoked is accepted when dated before the revocation, up to 50,000 events and 100 MB per revoked key
+## 232. Work signed by a key later revoked is accepted when dated before the revocation, up to 50,000 events and 100 MB per revoked key
 
 Date: 2026-11-08 · By: Carl Sauder · Status: accepted
 
@@ -12049,7 +12095,7 @@ Amended (2026-11-08, Carl Sauder): every revocation now ends the person's
 sessions, not only staff's (216 as amended), the password branch's lost
 code revokes too, and suspending an account revokes its keys.
 
-## 232. The relay carries no redaction and no stamp more than a day ahead
+## 233. The relay carries no redaction and no stamp more than a day ahead
 
 Date: 2026-11-08 · By: Carl Sauder · Status: accepted
 
@@ -12075,7 +12121,7 @@ author's own push still gets `CLOCK_AHEAD` and restamps.
 Reverse if: honest work with far-ahead dates is refused often enough in the
 field that a longer limit is worth the slow path it costs.
 
-## 233. An author's phone does not tell teammates of a refusal; their copies settle at the server
+## 234. An author's phone does not tell teammates of a refusal; their copies settle at the server
 
 Date: 2026-11-08 · By: Carl Sauder · Status: accepted
 
@@ -12090,7 +12136,7 @@ new protocol version.
 Reverse if: teams offline for long see refused work on their screens long
 enough to matter.
 
-## 234. A join pass lets a member let a new person in offline, one pass to a window, and it stops only by itself
+## 235. A join pass lets a member let a new person in offline, one pass to a window, and it stops only by itself
 
 Date: 2026-11-08 · By: Carl Sauder · Status: accepted
 
@@ -12134,7 +12180,7 @@ Amended (2026-11-08, Carl Sauder): a suspended inviter's pass stops too:
 ahead (final security review), and suspending revokes the inviter's key, so
 the pass stays stopped after they are let back.
 
-## 235. A newcomer's id comes from their key, and the code they scan holds no pass or key
+## 236. A newcomer's id comes from their key, and the code they scan holds no pass or key
 
 Date: 2026-11-08 · By: Carl Sauder · Status: accepted
 
@@ -12160,7 +12206,7 @@ Reverse if: field tests show the pictures do not catch a wrong phone, or a
 newcomer's key is lost often enough that an id they could recover is worth
 what it costs.
 
-## 236. A starting copy holds state, member names and the library documents the language uses, on allowlists that fail closed, until the server's first download replaces it
+## 237. A starting copy holds state, member names and the library documents the language uses, on allowlists that fail closed, until the server's first download replaces it
 
 Date: 2026-11-08 · By: Carl Sauder · Status: accepted
 
@@ -12191,7 +12237,7 @@ a newcomer takes organization state from a phone.
 Reverse if: Carl confirms the terms for publishers' documents (then widen
 the allowlist), or newcomers can do too little without source audio.
 
-## 237. A newcomer works as a local person with no session until first contact, which makes their account with their own id
+## 238. A newcomer works as a local person with no session until first contact, which makes their account with their own id
 
 Date: 2026-11-08 · By: Carl Sauder · Status: accepted
 
@@ -12232,7 +12278,7 @@ cut short can be done again; with no record the app is back at Sign In.
 Their unsent events stay in the log, and push sends only the signed-in
 person's own, so nothing ever goes as them.
 
-## 238. Proof of a key signs a chain's account in until the key's first session
+## 239. Proof of a key signs a chain's account in until the key's first session
 
 Date: 2026-11-08 · By: Carl Sauder · Status: accepted
 
@@ -12264,7 +12310,7 @@ spent and that person's key sign-in closed for nothing. A build that sends
 no id is answered by `take_sign_in_code_v2` as before. Migration
 `20261108030000_sign_in_code_for.sql`.
 
-## 239. A deleted account's bare id is kept, so no chain can bring it back
+## 240. A deleted account's bare id is kept, so no chain can bring it back
 
 Date: 2026-11-08 · By: Carl Sauder · Status: accepted
 
@@ -12280,7 +12326,7 @@ so account deletion (46) and Data safety stay true (section 9). Migration
 Reverse if: deletion must leave no trace of an id at all, then refuse ids by
 another proof.
 
-## 240. A carried build is the newcomer's install file: made when the reducer, lines or protocol version or the Android fingerprint changes, fetched from Play and served from an R2 bucket of its own
+## 241. A carried build is the newcomer's install file: made when the reducer, lines or protocol version or the Android fingerprint changes, fetched from Play and served from an R2 bucket of its own
 
 Date: 2026-11-08 · By: Carl Sauder · Status: accepted
 

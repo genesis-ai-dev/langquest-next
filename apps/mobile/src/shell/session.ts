@@ -239,6 +239,8 @@ export interface Tab {
   screen: ScreenId;
   label: string;
   badge?: number;
+  /** The badge's count could not be fully read (LAN-221): "n+", or "?" when nothing is known. */
+  badgeStale?: boolean;
 }
 
 /**
@@ -252,7 +254,7 @@ export interface Tab {
  * Viewer looking in) has no Inbox: nothing ever arrives there for them
  * (decision 71 amended, decision 158).
  */
-export function tabsFor(s: Session, counts: { forYou: number; unread: number } = { forYou: 0, unread: 0 }, opts: { wide?: boolean } = {}): Tab[] {
+export function tabsFor(s: Session, counts: { forYou: number; unread: number; unreadStale?: boolean } = { forYou: 0, unread: 0 }, opts: { wide?: boolean } = {}): Tab[] {
   const tabs: Tab[] = [];
   const hasMyWork = homeScreenFor(s) === 'my_work';
   if (hasMyWork) tabs.push({ id: 'work', screen: 'my_work', label: t('account.tabs.work') });
@@ -260,7 +262,7 @@ export function tabsFor(s: Session, counts: { forYou: number; unread: number } =
   if (opts.wide && !s.hasNoOrg && s.can('view_status')) tabs.push({ id: 'reports', screen: 'reports_home', label: t('account.tabs.reports') });
   const manage = manageHomeFor(s);
   if (manage) tabs.push({ id: 'manage', screen: manage, label: t('account.tabs.manage') });
-  if (!hasMyWork && !s.readOnly) tabs.push({ id: 'inbox', screen: 'inbox_home', label: t('account.tabs.inbox'), badge: counts.unread });
+  if (!hasMyWork && !s.readOnly) tabs.push({ id: 'inbox', screen: 'inbox_home', label: t('account.tabs.inbox'), badge: counts.unread, badgeStale: counts.unreadStale === true });
   tabs.push({ id: 'me', screen: 'settings_home', label: t('account.tabs.me') });
   return tabs;
 }

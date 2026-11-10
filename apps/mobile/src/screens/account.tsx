@@ -68,6 +68,7 @@ import { AppIconRow } from '../shell/AppIconRow';
 import { NearbyRow } from '../shell/NearbyRow';
 import { useNotificationsOffered } from '../shell/useNotificationsOffered';
 import { PersonAvatar } from '../ui/UserChip';
+import { useSignInBlocked } from '../sync/useSignInBlocked';
 import { iconCounts, standingTitle, syncStanding, type SyncStanding } from '../sync/syncStanding';
 import { LanguageRow } from '../account/uiLanguage';
 import { inSeveral, refusedHere, remoteRowView, speed, syncSummary } from '../account/model';
@@ -81,6 +82,7 @@ import { useOrganizations } from '../account/useOrganizations';
 import { useUnsent } from '../account/useUnsent';
 import { deleteThisAccount } from '../account/deleteThisAccount';
 import { a11yState } from '../ui/a11yModel';
+import { reportLink } from '../passage/reportLinkModel';
 
 // ---- Inbox (INBOX-1, INBOX-2) ---------------------------------------------------------------
 
@@ -322,7 +324,7 @@ export function InboxHome(ctx: Ctx) {
               if (target.kind === 'person') ctx.go(canAssign ? 'edit_member' : 'members_list', canAssign ? { memberId: target.profileId } : undefined);
               // A version or review opens itself, over its passage (UI audit, finding 113); a note or request, the passage.
               else if (target.unitId && target.languageId) {
-                ctx.openPassage(target.unitId, target.languageId, target.kind === 'version' || target.kind === 'review' ? { reported: `${target.kind}:${target.id}` } : undefined);
+                ctx.openPassage(target.unitId, target.languageId, target.kind === 'version' || target.kind === 'review' ? { reported: reportLink(target.kind, target.id) } : undefined);
               }
             }} />}>
           <View style={styles.requestBody}>
@@ -1027,7 +1029,7 @@ export function SyncStatus(ctx: Ctx) {
   const offlineSummaryNow = useOfflineSummary(ctx);
   const pendingEvents = (ins?.pending.length ?? 0) + (orgIns?.pending.length ?? 0);
   const rejected = refusedHere(ins, orgIns, logged);
-  const standing = syncStanding(language);
+  const standing = syncStanding(language, useSignInBlocked());
   const offlineFirst = ctx.params['show'] === 'offline';
   const [details, setDetails] = useState(false);
   const syncNow = async () => {
@@ -1144,10 +1146,10 @@ function clock(hlc: string): string {
 /** The store a phone updates from; none on the web, which is always the newest. */
 const STORE = Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : null;
 
-const STANDING_COLOR: Record<SyncStanding, string> = { live: C.green, checking: C.faint, offline: C.amber, refused: C.red, tooOld: C.amber };
+const STANDING_COLOR: Record<SyncStanding, string> = { live: C.green, checking: C.faint, offline: C.amber, refused: C.red, tooOld: C.amber, signIn: C.amber };
 
 function standingHelp(s: SyncStanding): string {
-  return s === 'live' ? t('account.sync.help.live') : s === 'offline' ? t('account.sync.help.offline')
+  return s === 'signIn' ? t('account.sync.help.signIn') : s === 'live' ? t('account.sync.help.live') : s === 'offline' ? t('account.sync.help.offline')
     : s === 'checking' ? t('account.sync.help.checking') : s === 'tooOld' ? t('account.sync.help.tooOld') : t('account.sync.help.refused');
 }
 

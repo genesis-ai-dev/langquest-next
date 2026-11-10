@@ -542,8 +542,8 @@ function OrgWork(props: Who & {
   const acceptTerms = useCallback((actorId = props.actorId) => recordUserEvent(actorId, 'v1.TermsAccepted'), [props.actorId]);
   const openDev = useCallback(() => setDevOpen(true), []);
   const inboxView = useMemo(
-    () => ({ updates: inbox.updates, unread: inbox.unread, isRead: inbox.isRead, markRead: inbox.markRead }),
-    [inbox.updates, inbox.unread, inbox.isRead, inbox.markRead]
+    () => ({ updates: inbox.updates, unread: inbox.unread, unreadStale: inbox.unreadStale, isRead: inbox.isRead, markRead: inbox.markRead }),
+    [inbox.updates, inbox.unread, inbox.unreadStale, inbox.isRead, inbox.markRead]
   );
   const { data: welcomeData, refresh: refreshWelcome } = welcomeBack;
   const welcomeView = useMemo(() => (hasWelcome(welcomeData) ? { data: welcomeData, refresh: refreshWelcome } : null), [welcomeData, refreshWelcome]);
@@ -608,7 +608,7 @@ function OrgWork(props: Who & {
   useEffect(() => {
     if (kind === 'phone' && (screen === 'reports_home' || screen === 'reports_language')) nav.reset({ screen: homeScreenFor(session) });
   }, [kind, screen, nav, session]);
-  const tabs = tabsFor(session, { forYou: inbox.forYou, unread: inbox.unread }, { wide });
+  const tabs = tabsFor(session, { forYou: inbox.forYou, unread: inbox.unread, unreadStale: inbox.unreadStale }, { wide });
   // The lit tab is the one you came from (the bottom of the stack), so a
   // passage opened from My Work stays under My Work.
   const bottom = nav.stack[0]?.screen;

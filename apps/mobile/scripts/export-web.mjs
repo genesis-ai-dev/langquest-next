@@ -139,17 +139,17 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // 2026-11-09), 250 bytes past then: the store every client opens steps a write through prepare, run
 // and finalize, each asked again, so expo-modules-core's unlocked lookup cannot drop or repeat it.
 // Raised by 3 KB with getting and checking the install file on Let someone in (Carl, 2026-11-09,
-// decision 240 as amended), 2,900 bytes past then: the first visit's growth below, and the install
+// decision 241 as amended), 2,900 bytes past then: the first visit's growth below, and the install
 // file part, its rules and the stub the web takes for its hook in the nearby chunk, which the web
 // never opens; the browser link, the meta row and the file picker stay in .android files.
-// Raised by 3 KB with Get the install file split from Let someone in (Carl, 2026-11-09, decision 240
+// Raised by 3 KB with Get the install file split from Let someone in (Carl, 2026-11-09, decision 241
 // amended again), 2,845 bytes past then: the new screen, Share nearby's second row and Let someone
 // in's line in the nearby chunk, which the web never opens; the words in all 16 catalogs; and the
 // screen's id and edges in the flow. A first visit stays under its own budget (163 bytes left).
 // Raised by 1 KB with Share nearby's two jobs (Carl, 2026-11-09), 689 bytes past then: the first
 // visit's growth below, and the two headed sections and the Sync row's rule in the nearby chunk,
 // which the web never opens.
-// Raised by 2 KB with the Sync reminders to get the install file (Carl, 2026-11-09, decision 240
+// Raised by 2 KB with the Sync reminders to get the install file (Carl, 2026-11-09, decision 241
 // amended again), 1,189 bytes past then: the first visit's growth below, and the reminder's rule
 // in the model the nearby chunk carries, which the web never opens.
 const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 50 * 1024;
@@ -182,7 +182,7 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 50 * 1024;
 // Raised by 1 KB with Remove me from this phone and a helper's code for a local person (Carl,
 // 2026-11-08), 23 bytes past then: their English words in the catalog every visit carries.
 // Raised by 2 KB with getting and checking the install file on Let someone in (Carl, 2026-11-09,
-// decision 240 as amended), 1,054 bytes past then: its English words (the download, the name
+// decision 241 as amended), 1,054 bytes past then: its English words (the download, the name
 // check, a file too old, and both phones' words on a version refusal) in the catalog every visit
 // carries; the screen loads when opened.
 // Raised by 1 KB with Share nearby's two jobs (Carl, 2026-11-09), 255 bytes past then: their
@@ -191,7 +191,10 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 50 * 1024;
 // Raised by 1 KB with the Sync reminders to get the install file and the Sync row's new words (Carl,
 // 2026-11-09), 251 bytes past then: their English words (the two lines on Ready for offline, Get it,
 // the row's amber line and help) in the catalog every visit carries, and the card's stub.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 30 * 1024;
+// Raised by 2 KB more for LAN-221 (3.9 MB to 3.902 MB on main): a grey Inbox badge and a
+// "Sign-in not renewed" state on the sync icon took the first visit 1 KB over
+// when merged with main.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 32 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
