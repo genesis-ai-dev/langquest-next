@@ -173,6 +173,9 @@ describe('teammates and what came across', () => {
     expect(upToDate(met)).toBe(true);
     const again = run({ t: 'started' }, seen(['t1']), { t: 'room', report: { t: 'stopped', why: 'asked' }, worn }, { t: 'started' }, level);
     expect(upToDate(again)).toBe(false);
+    // Found on two emulators: opened again, the screen said the last run's "Up to date" until the room started.
+    expect(upToDate(nearbyRunReducer(met, { t: 'reopened', worn }))).toBe(false);
+    expect(upToDate(nearbyRunReducer(met, { t: 'reopened', worn: !worn }))).toBe(false);
   });
 
   it('learns a responder\'s teammate from its report, and marks a session that did not end well as missed', () => {

@@ -338,8 +338,11 @@ export function nearbyRunReducer(s: NearbyRunState, a: NearbyRunAction): NearbyR
       // A lock clears the press; typing the code does not set it again, so only a new press restarts (Carl's answer 15).
       if (!a.worn || (!s.pressed && !s.running)) return s;
       return { ...halted(s, 'left', true), pressed: false, warned: false };
-    case 'reopened':
-      return a.worn ? s : { ...s, stopped: null };
+    case 'reopened': {
+      // Opened again is a new run: the last one's "Up to date" said nothing of who is nearby now.
+      const fresh = { ...s, level: false, met: false };
+      return a.worn ? fresh : { ...fresh, stopped: null };
+    }
     case 'look-again':
       return nearbyRunReducer(s, { t: 'press', worn: a.worn });
     case 'started':
