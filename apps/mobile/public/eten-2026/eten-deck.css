@@ -100,7 +100,7 @@ b, strong { font-weight: 650; color: inherit; }
 .hint b { color: var(--violet-soft); }
 
 /* ---------- Cover ---------- */
-.cover h1 { max-width: 1250px; }
+.cover h1 { max-width: 880px; font-size: 86px; }
 .cover .dek { margin-top: 40px; max-width: 900px; font-size: 34px; line-height: 1.42; color: var(--dim); }
 .cover .phones { position: absolute; right: 90px; top: 70px; width: 430px; height: 760px; }
 .cover .phones .ph { position: absolute; }
