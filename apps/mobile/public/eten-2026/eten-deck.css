@@ -202,3 +202,28 @@ body.blank::after { content: ''; position: fixed; inset: 0; background: #000; z-
   html, body { overflow: visible; height: auto; }
   .nav, .notes-pane { display: none; }
 }
+
+/* ---------- LangQuest → Aquilla feed (pane 12) ---------- */
+.feed { display: flex; align-items: center; gap: 24px; margin-top: 30px; height: 210px; }
+.feed .end { display: flex; flex-direction: column; align-items: center; gap: 12px; flex: none; width: 200px; }
+.feed .end span { font: 600 24px var(--body); letter-spacing: .06em; color: #fff; }
+.tile { display: grid; place-items: center; width: 150px; height: 150px; border-radius: 36px; box-shadow: 0 24px 60px oklch(0.1 0.05 290 / 0.55), inset 0 0 0 1.5px oklch(1 0 0 / 0.28); }
+.tile svg { width: 82%; height: 82%; display: block; }
+.tile.lq { background: #0b0818; }
+.tile.aq { background: linear-gradient(135deg, #5aa9ff, #2563eb 60%, #14306b); color: #fff; animation: recv 2.8s ease-in-out infinite; }
+@keyframes recv { 0%, 100% { box-shadow: 0 24px 60px oklch(0.1 0.05 290 / 0.55), inset 0 0 0 1.5px oklch(1 0 0 / 0.28), 0 0 0 0 oklch(0.8 0.13 228 / 0); } 50% { box-shadow: 0 24px 60px oklch(0.1 0.05 290 / 0.55), inset 0 0 0 1.5px oklch(1 0 0 / 0.5), 0 0 0 16px oklch(0.8 0.13 228 / 0.28); } }
+.lane { position: relative; flex: 1; height: 100%; }
+.lane::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; border-top: 3px dashed oklch(1 0 0 / 0.4); }
+.pkt { position: absolute; top: 50%; left: 0; width: 120px; height: 64px; margin-top: -32px; opacity: 0; animation: travel 4.2s linear infinite; animation-delay: var(--d); }
+.pkt span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 14px; border-radius: 14px; background: #fff; }
+.pkt .a i { flex: 1; border-radius: 3px; background: #6b48c8; height: 40%; }
+.pkt .a i:nth-child(2) { height: 80%; } .pkt .a i:nth-child(3) { height: 55%; } .pkt .a i:nth-child(4) { height: 90%; } .pkt .a i:nth-child(5) { height: 35%; }
+.pkt .t { flex-direction: column; align-items: flex-start; justify-content: center; gap: 7px; opacity: 0; animation: show 4.2s linear infinite; animation-delay: var(--d); }
+.pkt .t u { display: block; height: 7px; border-radius: 4px; background: #14306b; width: 100%; text-decoration: none; }
+.pkt .t u:nth-child(2) { width: 78%; } .pkt .t u:nth-child(3) { width: 52%; }
+.pkt .a { animation: hide 4.2s linear infinite; animation-delay: var(--d); }
+@keyframes travel { 0% { left: 0; opacity: 0; } 8% { opacity: 1; } 90% { opacity: 1; } 100% { left: calc(100% - 120px); opacity: 0; } }
+@keyframes hide { 0%, 44% { opacity: 1; } 56%, 100% { opacity: 0; } }
+@keyframes show { 0%, 44% { opacity: 0; } 56%, 100% { opacity: 1; } }
+.impress-enabled .step:not(.active) .feed *, .impress-enabled .step:not(.active) .tile { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .pkt, .pkt span, .tile.aq { animation: none; } .pkt { opacity: 1; left: 40%; } .pkt:nth-child(n+2) { display: none; } .pkt .t { opacity: 1; } .pkt .a { opacity: 0; } }
