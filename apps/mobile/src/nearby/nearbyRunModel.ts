@@ -36,6 +36,7 @@ export const NEARBY_START_MS = 20_000;
 export class NearbyStartHeld extends Error {
   override name = 'NearbyStartHeld';
   constructor(readonly at: string) {
+    // i18n-ignore: a diagnostic, never shown
     super(`a room's start waited on ${at}`);
   }
 }
