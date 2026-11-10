@@ -4,7 +4,7 @@ import { NavigationContext } from '@react-navigation/native';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
-import { noteChainName } from '../account/useAccount';
+import { noteChainName } from '../account/chainNames';
 import { noteExpected } from '../diagnostics/report';
 import type { NativeCapabilities } from '../../modules/nearby-link';
 import type { Ctx } from '../shell/ctx';

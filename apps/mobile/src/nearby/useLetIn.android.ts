@@ -3,7 +3,7 @@ import type { NearbySession } from '@langquest-next/sync/nearby';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { noteChainName } from '../account/useAccount';
+import { noteChainName } from '../account/chainNames';
 import { noteExpected } from '../diagnostics/report';
 import type { Ctx } from '../shell/ctx';
 import { useAppCovered } from '../shell/useAppCovered';
