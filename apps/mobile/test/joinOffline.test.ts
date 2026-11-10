@@ -1,4 +1,4 @@
-import { afterCopy, afterGrant, askingRecord, JOIN_START, joinEndOf, joinName, joinReducer, notEmptyWhy, seedsFor, type JoinAction, type JoinStage } from '../src/nearby/joinOfflineModel';
+import { afterCopy, afterGrant, askingRecord, goOnOnline, JOIN_START, joinEndOf, joinName, joinReducer, notEmptyWhy, seedsFor, type JoinAction, type JoinStage } from '../src/nearby/joinOfflineModel';
 import { keepGrant, setWhenWhole, type GrantStores } from '../src/nearby/joinGrant';
 import type { LocalPerson } from '../src/session/localPersonModel';
 import { inviteChain, KEY, person } from './localPersonFixtures';
@@ -99,6 +99,13 @@ describe('the grant and the copy', () => {
     expect(afterCopy(person({ stage: 'ready' }), true)).toBeNull();
   });
 
+  // Carl, 2026-11-09: online, a copy left part way needs no teammate. Found on two emulators: such a person sat on the join screen online and never reached the server.
+  it('sets a person whose copy stopped part way once the server answers, and no one else', () => {
+    const filling = afterGrant(asked, grant.chain)!;
+    expect(goOnOnline(filling)).toEqual({ ...filling, stage: 'ready' });
+    for (const stage of ['asking', 'ready', 'joined', 'done'] as const) expect(goOnOnline(person({ stage }))).toBeNull();
+  });
+
   it('seeds the names the copy gave, with the person\'s own, and leaves out what is not a name', () => {
     const seeds = new Map(seedsFor({ profileId: 'n1', orgId: 'o', languageId: 'l', name: ' Nyibol ', names: { ana: 'Ana', blank: ' ', bad: 3 as unknown as string } }));
     expect(JSON.parse(seeds.get('profile-directory:n1')!)).toEqual({ ana: 'Ana', n1: 'Nyibol' });
@@ -129,6 +136,18 @@ describe('the progress screen', () => {
     expect(run(...granted, { t: 'copied', whole: false })).toEqual({ t: 'unfinished' });
     expect(run(...granted, { t: 'copied', whole: false }, { t: 'look' }, { t: 'look-stopped' })).toEqual({ t: 'unfinished' });
     expect(run({ t: 'checked', notEmpty: null, code: true, filling: false }, { t: 'start' }, { t: 'ended', why: 'not-let-in' })).toEqual({ t: 'ended', why: 'not-let-in' });
+  });
+
+  it('goes on when the server answers while the copy is left to finish, and not before the grant', () => {
+    const left: JoinAction[] = [{ t: 'checked', notEmpty: null, code: false, filling: true }];
+    expect(run(...left, { t: 'online' })).toEqual({ t: 'whole' });
+    expect(run(...left, { t: 'look' }, { t: 'online' })).toEqual({ t: 'whole' });
+    expect(run(...left, { t: 'look' }, { t: 'wifi-off' }, { t: 'online' })).toEqual({ t: 'whole' });
+    // Before the grant there is no one to set: the server's answer changes nothing.
+    expect(run({ t: 'checked', notEmpty: null, code: true, filling: false }, { t: 'online' })).toEqual({ t: 'name' });
+    expect(run({ t: 'checked', notEmpty: null, code: true, filling: false }, { t: 'start' }, { t: 'online' })).toEqual({ t: 'connecting' });
+    // A copy still coming goes on coming; the screen goes on only once it has stopped.
+    expect(run({ t: 'checked', notEmpty: null, code: true, filling: false }, { t: 'start' }, { t: 'granted' }, { t: 'online' })).toEqual({ t: 'copying', parts: 0 });
   });
 
   it('reads how a session ended for someone not let in', () => {

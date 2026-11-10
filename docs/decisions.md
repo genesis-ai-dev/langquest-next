@@ -12287,6 +12287,16 @@ cut short can be done again; with no record the app is back at Sign In.
 Their unsent events stay in the log, and push sends only the signed-in
 person's own, so nothing ever goes as them.
 
+Amended (2026-11-09, Carl Sauder): once the server answers, a newcomer whose
+starting copy stopped part way is set all the same, rather than waiting for
+a teammate to finish it. First contact runs only once the person is set, so
+on two emulators such a person sat online on the join screen and never
+reached the server. The server's first download replaces the copy anyway,
+and first contact checks the chain as before, so setting them early costs
+nothing but a weak link right after it, which is what anyone signing in for
+the first time on one has. Offline, the copy still finishes before the
+person is set (plan 14.1, 5 "Identity").
+
 ## 239. Proof of a key signs a chain's account in until the key's first session
 
 Date: 2026-11-08 · By: Carl Sauder · Status: accepted

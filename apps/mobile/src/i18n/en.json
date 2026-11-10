@@ -8255,7 +8255,7 @@
       "compare": "Your teammate's phone shows two pictures. If they are the same as these, your teammate lets you in.",
       "copying": "You are in. Getting a starting copy of the team's work… Parts: {{n, number}}",
       "unfinished": "You are in, but the starting copy is not complete",
-      "unfinishedLine": "Any teammate with Share nearby open on the same version of the app can finish it.",
+      "unfinishedLine": "Any teammate with Share nearby open on the same version of the app can finish it. Or it finishes by itself when this phone reaches the internet.",
       "look": "Look for teammates",
       "lookHelp": "Finds a teammate's phone nearby to finish the starting copy.",
       "looking": "Looking for a teammate with Share nearby open…",

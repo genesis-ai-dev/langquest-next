@@ -5,9 +5,12 @@ import { AppState } from 'react-native';
 import { noteExpected } from '../diagnostics/report';
 import { heldJoinCode, onJoinCode, takeJoinCode } from '../invites/heldJoinCode';
 import type { JoinCode } from '../invites/inviteCode';
-import { readLocalPerson } from '../server/localPerson';
+import { keepLocalPerson, readLocalPerson } from '../server/localPerson';
+import { serverHealth } from '../server/reachability';
+import { CHECK_TIMEOUT_MS, isServerAnswer } from '../sync/reachModel';
+import { onWake } from '../sync/wake';
 import { useAppCovered } from '../shell/useAppCovered';
-import { JOIN_START, joinEndOf, joinName, joinReducer } from './joinOfflineModel';
+import { goOnOnline, JOIN_START, joinEndOf, joinName, joinReducer } from './joinOfflineModel';
 import { finishUnfinished, joinWithCode, phoneNotEmpty, unfinishedCopy } from './nearbyJoin.android';
 import { nearbyRadio } from './nearbyLink.android';
 import { radiosMayRun } from './nearbyModel';
@@ -19,6 +22,8 @@ import { useFocus } from './useNearby.android';
 import type { JoinOfflineHandle } from './useJoinOffline';
 
 const KEEP_AWAKE = 'nearby-join';
+/** While a copy is left to finish, how often this screen asks whether the server answers, besides on opening and a network change. */
+const ONLINE_CHECK_MS = 30_000;
 /** A code scanned longer ago than this is past its two minutes on the inviter's phone. */
 const CODE_FRESH_MS = 120_000;
 
@@ -171,6 +176,36 @@ export function useJoinOffline(): JoinOfflineHandle {
   useEffect(() => {
     if (stage.t !== 'looking' && room.current === null) deactivateKeepAwake(KEEP_AWAKE).catch(() => undefined);
   }, [stage.t]);
+
+  // A copy left to finish needs no teammate once the server answers (Carl, 2026-11-09): the person is set, the app
+  // starts as them, first contact makes their account, and the server's first download fills in the rest.
+  const leftToFinish = stage.t === 'unfinished' || stage.t === 'looking' || stage.t === 'wifi-off';
+  useEffect(() => {
+    if (!leftToFinish || !open) return;
+    let live = true;
+    let asking = false;
+    const ask = async () => {
+      if (asking) return;
+      asking = true;
+      try {
+        if (!isServerAnswer(await serverHealth(CHECK_TIMEOUT_MS)) || !live) return;
+        const person = await readLocalPerson();
+        const next = person ? goOnOnline(person) : null;
+        if (!next || !live) return;
+        attempt.current += 1;
+        await stopRoom();
+        if (await keepLocalPerson(next)) dispatch({ t: 'online' });
+      } catch (e) {
+        noteExpected('join: online', e);
+      } finally {
+        asking = false;
+      }
+    };
+    void ask();
+    const timer = setInterval(() => { void ask(); }, ONLINE_CHECK_MS);
+    const unwake = onWake(() => { void ask(); });
+    return () => { live = false; clearInterval(timer); unwake(); };
+  }, [leftToFinish, open, stopRoom]);
 
   const stale = code !== null && Date.now() - code.at > CODE_FRESH_MS;
   const actions = useMemo(() => ({

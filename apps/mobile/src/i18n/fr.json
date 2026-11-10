@@ -8600,7 +8600,7 @@
       "compare": "Le téléphone de votre coéquipier montre deux images. Si ce sont les mêmes que celles-ci, votre coéquipier vous fait entrer.",
       "copying": "Vous êtes entré. Réception d’une copie de départ du travail de l’équipe… Parties : {{n, number}}",
       "unfinished": "Vous êtes entré, mais la copie de départ n’est pas complète",
-      "unfinishedLine": "Tout coéquipier avec Partager à proximité ouvert sur la même version de l’application peut la terminer.",
+      "unfinishedLine": "Tout coéquipier avec Partager à proximité ouvert sur la même version de l’application peut la terminer. Sinon, elle se termine d’elle-même quand ce téléphone accède à Internet.",
       "look": "Chercher des coéquipiers",
       "lookHelp": "Trouve le téléphone d’un coéquipier à proximité pour terminer la copie de départ.",
       "looking": "Recherche d’un coéquipier avec Partager à proximité ouvert…",

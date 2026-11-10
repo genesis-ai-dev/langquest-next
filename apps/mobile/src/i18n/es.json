@@ -8600,7 +8600,7 @@
       "compare": "El teléfono de tu compañero muestra dos imágenes. Si son iguales a estas, tu compañero te deja entrar.",
       "copying": "Ya entraste. Recibiendo una copia inicial del trabajo del equipo… Partes: {{n, number}}",
       "unfinished": "Ya entraste, pero la copia inicial no está completa",
-      "unfinishedLine": "Cualquier compañero con Compartir cerca abierto en la misma versión de la app puede terminarla.",
+      "unfinishedLine": "Cualquier compañero con Compartir cerca abierto en la misma versión de la app puede terminarla. O se termina sola cuando este teléfono llegue a internet.",
       "look": "Buscar compañeros",
       "lookHelp": "Busca el teléfono de un compañero cercano para terminar la copia inicial.",
       "looking": "Buscando un compañero con Compartir cerca abierto…",

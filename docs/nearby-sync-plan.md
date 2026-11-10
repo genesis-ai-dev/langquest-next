@@ -3258,7 +3258,13 @@ it does today (decision 54).
      `signedIn` for routing and a new `serverSession`, at about 6 call sites. Finish the
      copy before setting the person, because `Shell` remounts on the actor id. Until then,
      a progress screen, which `GUEST_SCREENS` lists, keeps progress so a dropped link
-     resumes.
+     resumes. Once the server answers, though, a copy left part way needs no teammate
+     (Carl, 2026-11-09): the progress screen asks the server's health on opening, on a
+     network change and every 30 seconds while the copy is left to finish, and at the
+     first answer sets the person all the same (`goOnOnline`). The app starts as them,
+     first contact makes their account, and the server's first download fills in what
+     the copy did not. Found on two emulators: such a person sat online on that screen and
+     never reached the server, since first contact runs only once the person is set.
    - **Membership.** An overlay of the chain's membership (`withChainMembership`) on
      `org.state` at `Workspace` means nothing below it changes, and `privilegesFor` gives
      real answers. It gives the link's signed privileges, not the fold's role of that id,

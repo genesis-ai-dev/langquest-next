@@ -8255,7 +8255,7 @@
       "compare": "Dalawang larawan ang ipinapakita sa telepono ng kasamahan mo. Kung kapareho ang mga ito ng mga larawang narito, papasukin ka ng kasamahan mo.",
       "copying": "Nakapasok ka na. Kinukuha ang panimulang kopya ng gawa ng pangkat… Mga bahagi: {{n, number}}",
       "unfinished": "Nakapasok ka na, pero hindi pa kumpleto ang panimulang kopya",
-      "unfinishedLine": "Matatapos ito ng sinumang kasamahang nakabukas ang Ibahagi sa malapit at may parehong bersiyon ng app.",
+      "unfinishedLine": "Matatapos ito ng sinumang kasamahang nakabukas ang Ibahagi sa malapit at may parehong bersiyon ng app. O kusa itong matatapos kapag nakakonekta sa internet ang teleponong ito.",
       "look": "Maghanap ng mga kasamahan",
       "lookHelp": "Naghahanap ng telepono ng kasamahang malapit para matapos ang panimulang kopya.",
       "looking": "Naghahanap ng kasamahang nakabukas ang Ibahagi sa malapit…",

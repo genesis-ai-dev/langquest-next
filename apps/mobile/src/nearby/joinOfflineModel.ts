@@ -50,6 +50,15 @@ export function afterCopy(held: LocalPerson, whole: boolean): LocalPerson | null
 }
 
 /**
+ * The record once the server answers while the copy is left to finish (Carl, 2026-11-09): `ready`
+ * all the same, so the app starts as them, first contact makes their account, and the server's
+ * first download fills in what the copy did not. Only a granted person whose copy is not whole.
+ */
+export function goOnOnline(held: LocalPerson): LocalPerson | null {
+  return held.stage === 'filling' ? { ...held, stage: 'ready' } : null;
+}
+
+/**
  * What the app reads at its first start as this person, written before `ready`: the organization
  * open, the language worked in, the welcome for joining, and the names the copy's members go by,
  * with the person's own and the inviter's (the chain names both). Plain `AsyncStorage` pairs.
@@ -119,7 +128,7 @@ export type JoinStage =
   | { t: 'asked'; pictures: [number, number] | null }
   /** Let in: the starting copy comes. */
   | { t: 'copying'; parts: number }
-  /** Let in, the copy not whole: any teammate on the same versions can finish it. */
+  /** Let in, the copy not whole: any teammate on the same versions can finish it, or the server once it answers. */
   | { t: 'unfinished' }
   /** Looking for a teammate to finish the copy. */
   | { t: 'looking' }
@@ -138,6 +147,8 @@ export type JoinAction =
   | { t: 'granted' }
   | { t: 'part' }
   | { t: 'copied'; whole: boolean }
+  /** The server answered while the copy is left to finish: the person is set, and the server fills in the rest. */
+  | { t: 'online' }
   | { t: 'ended'; why: JoinEnd }
   | { t: 'again'; code: boolean };
 
@@ -169,6 +180,8 @@ export function joinReducer(s: JoinStage, a: JoinAction): JoinStage {
       return s.t === 'copying' ? { t: 'copying', parts: s.parts + 1 } : s;
     case 'copied':
       return a.whole ? { t: 'whole' } : { t: 'unfinished' };
+    case 'online':
+      return s.t === 'unfinished' || s.t === 'looking' || s.t === 'wifi-off' ? { t: 'whole' } : s;
     case 'ended':
       // After the grant a drop leaves the copy to finish, never a new code.
       if (s.t === 'copying' || s.t === 'unfinished' || s.t === 'looking' || s.t === 'whole') return s.t === 'whole' ? s : { t: 'unfinished' };
