@@ -99,8 +99,9 @@ async function setUp(over: { choice?: HoldChoice | null; org?: OrgState; mayUplo
   const f = phoneFiles();
   const wall = { t: 0 };
   const choice = { now: over.choice === undefined ? ({ hold: true } as HoldChoice | null) : over.choice };
-  const session = await LanguageSession.open({
-    orgId: 'org1', languageId: 'luke', actorId: 'akol', deviceId: 'phone', store: new MemoryStore(), transport: (over.transport ?? ((t) => t))(server.transportFor()), files: f.files,
+  const store = new MemoryStore();
+  const openAkol = () => LanguageSession.open({
+    orgId: 'org1', languageId: 'luke', actorId: 'akol', deviceId: 'phone', store, transport: (over.transport ?? ((t) => t))(server.transportFor()), files: f.files,
     upload: over.upload ?? (async (ref: BlobRef) => { server.storeBlob('org1', 'luke', ref.hash, f.sizes.get(ref.hash) ?? 0); }),
     download: async () => {},
     limits: over.limits ?? { minFreeBytes: 500 * MB, maxTotalBytes: 2048 * MB },
@@ -110,6 +111,7 @@ async function setUp(over: { choice?: HoldChoice | null; org?: OrgState; mayUplo
     holdChoice: () => choice.now,
     mayUpload: () => over.mayUpload ?? true
   });
+  const session = await openAkol();
   // Sam records two passages on his own phone; the server has the events but not his files.
   const sam = await LanguageSession.open({
     orgId: 'org1', languageId: 'luke', actorId: 'sam', deviceId: 'sam-phone', store: new MemoryStore(), transport: server.transportFor(), files: phoneFiles().files,
@@ -146,7 +148,7 @@ async function setUp(over: { choice?: HoldChoice | null; org?: OrgState; mayUplo
     await again.sync();
     again.close();
   };
-  return { server, session, marks, ...f, moves, land, keep, choice, samRecords };
+  return { server, session, marks, ...f, moves, land, keep, choice, samRecords, openAkol };
 }
 
 const chainOf = (profileId: string) => [{ kind: 'worker@1', kid: 'k', body: { profileId }, sig: SIG }] as unknown as ChainLink[];
@@ -168,6 +170,17 @@ describe('nearby files: marks and what counts as this person\'s (5.2, 5.4)', () 
     expect(session.status.pendingUp).toBe(1);
     expect(await session.lost([MINE, SAMS])).toEqual({ safe: 0, unsent: 1, unitIds: ['Luke 1'] });
     session.close();
+  });
+
+  // Found on two emulators: after a restart the Sync badge counted one fewer to send, with the same files here.
+  it('a restart counts the teammates\' recordings held here again, before anything else moves', async () => {
+    const { session, land, openAkol } = await setUp({ upload: () => new Promise(() => {}) });
+    await land(SAMS, 4 * MB);
+    await until(() => session.status.holding === 1);
+    session.close();
+    const again = await openAkol();
+    await until(() => again.status.holding === 1);
+    again.close();
   });
 
   it('a lost teammate\'s file is not this person\'s to record again; a lost own file is', async () => {

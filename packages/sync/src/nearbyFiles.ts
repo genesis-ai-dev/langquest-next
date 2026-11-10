@@ -141,6 +141,8 @@ class LanguageNearbyFiles implements NearbyFilesPart {
 
   async load(): Promise<void> {
     for (const m of await this.platform.marks.all()) this.all.set(m.hash, m);
+    // "Holding N" from what is here at open, or a restart counts teammates' recordings as none until something moves.
+    if (this.all.size > 0) void this.holding().then((n) => { if (!this.port.closed()) this.port.holding(n); }).catch(() => {});
   }
 
   start(): void { this.worker.start(); }
