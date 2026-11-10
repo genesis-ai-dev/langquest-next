@@ -29,6 +29,8 @@ export interface CarryFacts {
   holdings: ReadonlyMap<string, { files: readonly string[] }>;
   /** Files on this phone now, by hash. */
   present: ReadonlySet<string>;
+  /** Of the files teammates hold, those this phone knows the server has stored: they need no carrying (5.6), and a holdings entry may be older than that. */
+  onServer?: ReadonlySet<string>;
   /** Batches held here (`batchKeys`). */
   batches: readonly { key: string; actorId: string; firstHlc: string | null }[];
   /** Install keys of teammates heard on this screen now. */
@@ -107,7 +109,7 @@ export function readyToCarryOf(f: CarryFacts): ReadyToCarry {
   const theirs = [...f.holdings].filter(([key]) => key !== f.myKey).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   const inRange = new Set(f.inRange.filter((k): k is string => k !== null));
   const missingFiles = new Set<string>();
-  for (const [, entry] of theirs) for (const file of entry.files) if (!f.present.has(file)) missingFiles.add(file);
+  for (const [, entry] of theirs) for (const file of entry.files) if (!f.present.has(file) && !f.onServer?.has(file)) missingFiles.add(file);
   let coming = 0;
   const elsewhere = new Map<string | null, number>();
   for (const file of missingFiles) {

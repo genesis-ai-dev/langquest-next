@@ -894,6 +894,8 @@ protocol version.
   is missing and why: no room, a file nobody in range has, pulled changes that can be
   shared only after this phone next reaches the server, or "This phone holds as much of
   Sam's work as it can. The rest stays on Sam's phone until someone reaches the internet."
+  A file this phone knows the server has stored is never missing, whatever an older
+  holdings entry says, since it needs no carrying (found on two emulators, 2026-11-09).
   It lists teammates from the vector, holdings and the language's members, not from who met
   whom, because no phone can know about work on a phone it has not met since. Each shows as
   "today", "since you were last online" or "not since you were last online", and those not

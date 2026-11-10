@@ -32,6 +32,15 @@ describe('Ready to carry', () => {
     expect(r.elsewhere).toEqual([{ profileId: 'sam', files: 1 }, { profileId: null, files: 1 }]);
   });
 
+  // Found on two emulators: a new person was told a recording was missing that the server had stored, from a teammate's older holdings.
+  it('counts nothing the server has stored as missing: it needs no carrying, whatever an older holdings entry says', () => {
+    const r = readyToCarryOf(facts({
+      names: new Map([['K-sam', 'sam']]), holdings: new Map([['K-sam', { files: ['a', 'b'] }]]), present: new Set(), onServer: new Set(['a'])
+    }));
+    expect(r).toMatchObject({ missing: 1, elsewhere: [{ profileId: 'sam', files: 1 }] });
+    expect(readyToCarryOf(facts({ holdings: new Map([['K-sam', { files: ['a'] }]]), onServer: new Set(['a']) })).everything).toBe(true);
+  });
+
   it('never counts this phone\'s own entry, and says when the row is off, there is no room, or pulled rows wait', () => {
     expect(readyToCarryOf(facts({ holdings: new Map([['K-me', { files: ['gone'] }]]) })).everything).toBe(true);
     expect(readyToCarryOf(facts({ hold: false }))).toMatchObject({ everything: false, notAllRecordings: true });

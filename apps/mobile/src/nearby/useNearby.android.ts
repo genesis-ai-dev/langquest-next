@@ -253,7 +253,7 @@ export function useNearby(ctx: Ctx): NearbyHandle {
     noRoom: run.sessions.some((l) => l.noRoom), olderFromServer: run.sessions.some((l) => l.olderFromServer), farAhead: run.farAhead,
     todayStartMs: new Date().setHours(0, 0, 0, 0),
     myKey: stored?.myKey ?? null, names: stored?.names ?? new Map(), vectorKeys: stored?.vectorKeys ?? [], holdings: stored?.holdings ?? new Map(),
-    batches: stored?.batches ?? [], pulledUnshared: stored?.pulledUnshared ?? false, lastOnlineMs: stored?.lastOnlineMs ?? null
+    batches: stored?.batches ?? [], pulledUnshared: stored?.pulledUnshared ?? false, lastOnlineMs: stored?.lastOnlineMs ?? null, ...(stored?.onServer ? { onServer: stored.onServer } : {})
   }), [actorId, members, present, run.teammates, hold, run.sessions, run.farAhead, stored]);
 
   const view = useMemo(
