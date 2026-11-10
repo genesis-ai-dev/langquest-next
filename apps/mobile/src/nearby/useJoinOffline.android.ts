@@ -14,7 +14,7 @@ import { radiosMayRun } from './nearbyModel';
 import { androidSdk, askingForNearby, askNearbyPermissions, checkNearbyPermissions, openNearbySettings } from './nearbyPermissions.android';
 import { missingPermissions, permissionsStateOf } from './nearbyPermissionsModel';
 import { nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.android';
-import { NEARBY_TICK_MS } from './nearbyRunModel';
+import { NEARBY_START_MS, NEARBY_TICK_MS, NearbyStartHeld, startWithin } from './nearbyRunModel';
 import { useFocus } from './useNearby.android';
 import type { JoinOfflineHandle } from './useJoinOffline';
 
@@ -154,10 +154,15 @@ export function useJoinOffline(): JoinOfflineHandle {
       });
       room.current = { room: r, ticker: setInterval(() => { void r.tick(Date.now()).catch((e: unknown) => noteExpected('join: tick', e)); }, NEARBY_TICK_MS) };
       activateKeepAwakeAsync(KEEP_AWAKE).catch((e: unknown) => noteExpected('join: keep awake', e));
-      await r.start(Date.now());
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await startWithin(r.start(Date.now()), new Promise<void>((done) => { timer = setTimeout(done, NEARBY_START_MS); }), () => r.startingAt);
+      } finally {
+        clearTimeout(timer);
+      }
       if (!still()) await stopRoom();
     } catch (e) {
-      noteExpected('join: look', e);
+      noteExpected('join: look', e, e instanceof NearbyStartHeld ? e.at : undefined);
       await stopRoom();
       dispatch({ t: 'look-stopped' });
     }

@@ -26,6 +26,26 @@ export const NEARBY_RUN_LIMIT_MS = 10 * 60_000;
 export const NEARBY_TICK_MS = 2_000;
 /** A session's progress redraws the screen at most this often. */
 export const NEARBY_PROGRESS_MS = 250;
+/**
+ * How long a room may take to start: reading this phone's summary waits on the language's turn,
+ * and a turn held by work that never settles would otherwise leave "Starting…" up for good.
+ */
+export const NEARBY_START_MS = 20_000;
+
+/** A room's start did not finish in time; `at` is what it waited on (`NearbyRoom.startingAt`), for diagnostics. */
+export class NearbyStartHeld extends Error {
+  override name = 'NearbyStartHeld';
+  constructor(readonly at: string) {
+    super(`a room's start waited on ${at}`);
+  }
+}
+
+/** `start`, failed with `NearbyStartHeld` if `deadline` comes first. The caller stops the room, so a late start turns nothing on. */
+export async function startWithin(start: Promise<void>, deadline: Promise<void>, at: () => string | null): Promise<void> {
+  const late = deadline.then(() => { throw new NearbyStartHeld(at() ?? 'unknown'); });
+  late.catch(() => undefined);
+  await Promise.race([start, late]);
+}
 /** Lines of what came across, newest last. */
 export const NEARBY_SESSIONS_KEPT = 20;
 

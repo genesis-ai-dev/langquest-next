@@ -931,6 +931,14 @@ protocol version.
   that one pause, as the recorder's `askingForMicrophone` does, or the fallback would cancel
   itself. A disguised phone never sees that dialog and ignores no pause. The upload bar is
   hidden on this screen, since its tap would push Sync over it.
+- **A start has 20 seconds** (`NEARBY_START_MS`). Reading this phone's summary waits on the
+  language's turn, and a turn held by work that never settled left "Starting…" up with no
+  button on two emulators (2026-11-09; what held it was not found). Past the deadline the
+  room stops, the screen offers Look again, and an `expected` record's code names what the
+  start waited on (`NearbyRoom.startingAt`: `summary`, `peers` or `find`). After each of a
+  start's waits the room goes on only while still running, so a stop during one turns no
+  radio on later. Opened again, the screen starts a new run with nobody heard, so it never
+  shows the last run's "Up to date" while it starts.
 - **Under a disguise, only after a press** (Carl's answer 15). A disguised phone stays
   mounted under its calculator and fires no `blur` (decision 171), so a person coming back
   would otherwise get a calculator that broadcasts, exchanges and holds the screen awake.

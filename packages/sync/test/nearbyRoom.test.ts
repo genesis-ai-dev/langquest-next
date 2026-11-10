@@ -4,7 +4,7 @@ import { FakeServer } from '../src/testing/fakeServer';
 import { fakeSha256, fakeSigner, memoryNearbyAir, type MemoryFiles, type MemoryNearbyAir } from '../src/testing/memoryNearbyLink';
 import type { EventStore } from '../src/types';
 import { LANG, ORG, STORES, teammate, type Teammate } from './nearbyFixtures';
-import { DISCOVERY, newTime, roomFor, testPhone, turn, unit, type TestRoom } from './nearbyKit';
+import { DISCOVERY, newTime, roomFacts, roomFor, testPhone, turn, unit, type TestRoom } from './nearbyKit';
 
 /**
  * The room's loop (docs/nearby-sync-plan.md 5.8, 5.11, 5.12), on memory radios and simulated
@@ -38,6 +38,25 @@ describe.each(STORES)('a room on the %s store', (_name, make) => {
     for (const r of out) await r.room.start(time.now());
     return out;
   };
+
+  // Found on two emulators: a start held on its summary stayed on "Starting…", and a stop meanwhile let it turn the radios on after.
+  it('a room stopped while its start waits turns no radio on once the wait ends, and says where it waited', async () => {
+    const p = await testPhone(server, make(), people[0]!, shelf);
+    const real = roomFacts(p);
+    let release!: () => void;
+    const held = new Promise<void>((done) => { release = done; });
+    const r = roomFor(p, air, time, { room: { facts: { ...real, summary: async () => { await held; return real.summary(); } } } });
+    const starting = r.room.start(time.now());
+    for (let i = 0; i < 100 && r.room.startingAt !== 'summary'; i++) await new Promise((done) => setTimeout(done, 0));
+    expect(r.room.startingAt).toBe('summary');
+    await r.room.stop();
+    expect(stopped(r)).toEqual({ t: 'stopped', why: 'asked' });
+    release();
+    await starting;
+    expect(r.radio.calls.startFind).toBe(0);
+    expect(r.room.isRunning).toBe(false);
+    expect(r.room.startingAt).toBeNull();
+  });
 
   it('two teammates show only once echoed, the lower tag connects, and both end up to date', async () => {
     const [a, b] = await rooms(2);

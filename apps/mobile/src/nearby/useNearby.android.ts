@@ -22,7 +22,7 @@ import {
 import { nearbyDiagFor, nearbyNamesOf, nearbyOfferedFor, nearbyPiecesFor, nearbyRoomOf } from './nearbyRun.android';
 import { copySourceOf } from './nearbyJoin.android';
 import {
-  NEARBY_PROGRESS_MS, NEARBY_RUN_START, NEARBY_TICK_MS, nearbyRunReducer, nearbyViewOf, type NearbyHandle, type NearbyWhyNot
+  NEARBY_PROGRESS_MS, NEARBY_RUN_START, NEARBY_START_MS, NEARBY_TICK_MS, NearbyStartHeld, nearbyRunReducer, nearbyViewOf, startWithin, type NearbyHandle, type NearbyWhyNot
 } from './nearbyRunModel';
 import { readyToCarryOf } from './readyToCarryModel';
 
@@ -194,7 +194,13 @@ export function useNearby(ctx: Ctx): NearbyHandle {
       const copy = copySourceOf({ actorId, language: open.client, org: orgClient.current() });
       room = nearbyRoomOf({ radio, pieces: got.pieces, language: open, actorId, orgId, languageId, worn, report, progress, copy });
       held.current = { room, ticker: null };
-      await room.start(Date.now());
+      const starting = room;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await startWithin(starting.start(Date.now()), new Promise<void>((done) => { timer = setTimeout(done, NEARBY_START_MS); }), () => starting.startingAt);
+      } finally {
+        clearTimeout(timer);
+      }
       if (!still()) {
         // Stopped while it started: `stop` may have found nothing to stop yet, and a stopped room stops again as nothing.
         release(room);
@@ -207,7 +213,7 @@ export function useNearby(ctx: Ctx): NearbyHandle {
       const ticking = room;
       held.current.ticker = setInterval(() => { void ticking.tick(Date.now()).catch((e: unknown) => noteExpected('nearby: tick', e)); }, NEARBY_TICK_MS);
     } catch (e) {
-      noteExpected('nearby: start', e);
+      noteExpected('nearby: start', e, e instanceof NearbyStartHeld ? e.at : undefined);
       const room = release(null);
       if (room) await room.stop().catch(() => undefined);
       if (mine === attempt.current) dispatch({ t: 'failed' });

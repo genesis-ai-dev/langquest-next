@@ -198,6 +198,7 @@ export class NearbyRoom {
   private readonly heardTags = new Set<string>();
   private readonly echoedTags = new Set<string>();
   private readonly began = new Map<NearbyRoomSession, number>();
+  private startWait: 'summary' | 'peers' | 'find' | null = null;
 
   constructor(options: NearbyRoomOptions) {
     this.opt = options;
@@ -206,6 +207,11 @@ export class NearbyRoom {
 
   get isRunning(): boolean {
     return this.running;
+  }
+
+  /** What a start waits on, while it does: this phone's summary (the language's turn), its peers, or the radios. */
+  get startingAt(): 'summary' | 'peers' | 'find' | null {
+    return this.startWait;
   }
 
   async start(now: number): Promise<void> {
@@ -315,13 +321,27 @@ export class NearbyRoom {
     return true;
   }
 
+  /**
+   * Each wait can outlast a stop (the summary waits on the language's turn), so after each the
+   * room goes on only if still running, and radios a stop could not yet stop are stopped here.
+   */
   private async startFind(): Promise<void> {
-    this.summary = await this.opt.facts.summary();
-    this.peers = await this.opt.facts.peers();
-    const r = this.freshR();
-    await this.opt.radio.startFind({
-      kFind: this.gens[0]!.kFind, scanKeys: this.gens.map((g) => g.kFind), payload: findPayload(this.myTag, this.summary, this.echoFor(r)), r: base64urlDecode(r)!, tunables: this.opt.find
-    });
+    try {
+      this.startWait = 'summary';
+      this.summary = await this.opt.facts.summary();
+      if (!this.running) return;
+      this.startWait = 'peers';
+      this.peers = await this.opt.facts.peers();
+      if (!this.running) return;
+      this.startWait = 'find';
+      const r = this.freshR();
+      await this.opt.radio.startFind({
+        kFind: this.gens[0]!.kFind, scanKeys: this.gens.map((g) => g.kFind), payload: findPayload(this.myTag, this.summary, this.echoFor(r)), r: base64urlDecode(r)!, tunables: this.opt.find
+      });
+      if (!this.running) await this.opt.radio.stopAll();
+    } finally {
+      this.startWait = null;
+    }
   }
 
   private async refreshFind(): Promise<void> {
@@ -617,7 +637,9 @@ export class NearbyRoom {
   private async restartFind(): Promise<void> {
     await this.opt.radio.stopFind();
     this.scanHeld = false;
+    if (!this.running) return;
     if (!await this.gensFromKeys()) return this.halt('no-key');
+    if (!this.running) return;
     this.heard.clear();
     await this.startFind();
   }

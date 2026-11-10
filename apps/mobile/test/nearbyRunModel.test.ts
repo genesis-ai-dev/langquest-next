@@ -1,7 +1,7 @@
 import { NOTHING_TO_CARRY } from '../src/nearby/readyToCarryModel';
 import { radiosMayRun, type RadiosGate } from '../src/nearby/nearbyModel';
 import {
-  certOrgSeqOf, listedKey, mergeFarAhead, namesOf, NEARBY_RUN_LIMIT_MS, NEARBY_RUN_START, NEARBY_SESSIONS_KEPT, nearbyOffered, nearbyRunReducer, nearbyViewOf,
+  certOrgSeqOf, listedKey, mergeFarAhead, NearbyStartHeld, startWithin, namesOf, NEARBY_RUN_LIMIT_MS, NEARBY_RUN_START, NEARBY_SESSIONS_KEPT, nearbyOffered, nearbyRunReducer, nearbyViewOf,
   orgSeqHereOf, radiosFor, roomLimitsFor, sessionLineOf, swapOf, type NearbyRunAction, type NearbyRunState, type SessionReportLike
 } from '../src/nearby/nearbyRunModel';
 
@@ -266,5 +266,21 @@ describe('what the screen is handed', () => {
     const pressed = run({ t: 'press', worn: true }, { t: 'started' });
     expect(nearbyViewOf({ ...facts, run: pressed })).toMatchObject({ needsPress: false, running: true });
     expect(nearbyViewOf({ ...facts, worn: false, run: NEARBY_RUN_START }).needsPress).toBe(false);
+  });
+});
+
+// Found on two emulators: a start held on the language's turn left "Starting…" up for good, with no button.
+describe('a start that does not finish in time', () => {
+  it('fails, naming where it waited, so the screen offers Look again', async () => {
+    const never = new Promise<void>(() => undefined);
+    const err = await startWithin(never, Promise.resolve(), () => 'summary').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(NearbyStartHeld);
+    expect((err as NearbyStartHeld).at).toBe('summary');
+    expect((err as Error).name).toBe('NearbyStartHeld');
+  });
+
+  it('a start in time goes on, and its own failure is its own', async () => {
+    await expect(startWithin(Promise.resolve(), new Promise<void>(() => undefined), () => null)).resolves.toBeUndefined();
+    await expect(startWithin(Promise.reject(new Error('BLUETOOTH_OFF')), new Promise<void>(() => undefined), () => 'find')).rejects.toThrow('BLUETOOTH_OFF');
   });
 });
