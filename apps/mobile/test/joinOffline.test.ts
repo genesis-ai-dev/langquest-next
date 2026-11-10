@@ -150,6 +150,16 @@ describe('the progress screen', () => {
     expect(run({ t: 'checked', notEmpty: null, code: true, filling: false }, { t: 'start' }, { t: 'granted' }, { t: 'online' })).toEqual({ t: 'copying', parts: 0 });
   });
 
+  it('says when the teammate met runs another version, and keeps saying so while looking on', () => {
+    const left: JoinAction[] = [{ t: 'checked', notEmpty: null, code: false, filling: true }, { t: 'look' }];
+    expect(run(...left, { t: 'other-version' })).toEqual({ t: 'looking', otherVersion: true });
+    expect(run(...left, { t: 'other-version' }, { t: 'look-stopped' })).toEqual({ t: 'unfinished', otherVersion: true });
+    expect(run(...left, { t: 'other-version' }, { t: 'look-stopped' }, { t: 'look' })).toEqual({ t: 'looking', otherVersion: true });
+    expect(run(...left, { t: 'other-version' }, { t: 'copied', whole: true })).toEqual({ t: 'whole' });
+    // Only while a copy is left to finish.
+    expect(run({ t: 'checked', notEmpty: null, code: true, filling: false }, { t: 'other-version' })).toEqual({ t: 'name' });
+  });
+
   it('reads how a session ended for someone not let in', () => {
     const base = { versionsDiffer: false, clockOff: false, join: { granted: false, refused: null } };
     expect(joinEndOf({ ...base, ended: { how: 'heard', reason: 'stopped' } })).toBe('not-let-in');

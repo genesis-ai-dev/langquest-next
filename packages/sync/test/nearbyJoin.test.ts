@@ -284,6 +284,34 @@ describe.each(STORES)('letting someone in, on the %s store', (_name, make) => {
     expect(ri2.peer).toMatchObject({ profileId: s.n.profileId, name: 'Nyibol' });
     expect(rn2.peer?.name).toBeUndefined();
   });
+
+  // The newcomer was left looking, beside a teammate who could never finish the copy, and was not told why.
+  it('a teammate on another version gives no copy, and the newcomer\'s report says that is why', async () => {
+    const s = await setUp();
+    let parts = 0;
+    const realSend = s.pair.b.send.bind(s.pair.b);
+    s.pair.b.send = async (bytes) => {
+      const p = parseMessage(bytes);
+      if (p.kind === 'message' && p.message.t === 'copy-part' && ++parts === 2) s.pair.drop();
+      return realSend(bytes);
+    };
+    await run(s.a.p, s.n.p, s.pair, s.join, s.copy);
+    expect(await s.n.p.client.holdsCopy()).toBe(false);
+    const holder: Teammate = { ...s.n.who, chain: s.granted[0]!.chain };
+    const again = memoryNearbyPair({ time, kind: 'wifi-direct' });
+    // The teammate runs a newer reducer: its hello says so.
+    const send = again.b.send.bind(again.b);
+    again.b.send = async (bytes) => {
+      const p = parseMessage(bytes);
+      return send(p.kind === 'message' && p.message.t === 'hello' ? encodeMessage({ ...p.message, reducerVersion: p.message.reducerVersion + 1 }) : bytes);
+    };
+    const [rn2] = await settled<[NearbySessionReport, NearbySessionReport]>(time,
+      sessionFor(s.n.p, 'i', again.a, time, { chain: holder.chain, signer: { publicKey: holder.key, sign: holder.crypto.sign, sha256: fakeSha256, chainFor: () => holder.chain }, takeCopy: s.n.target }).run(),
+      sessionFor(s.a.p, 'r', again.b, time, { copy: s.copy }).run());
+    expect(rn2.copy).toBeNull();
+    expect(rn2.copyRefused).toBe('versions');
+    expect(await s.n.p.client.holdsCopy()).toBe(false);
+  });
 });
 
 describe('a sender\'s answers and a newcomer\'s keep', () => {

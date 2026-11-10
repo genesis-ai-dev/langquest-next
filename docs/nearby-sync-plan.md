@@ -3179,7 +3179,10 @@ it does today (decision 54).
      Find, because the newcomer now holds the chain and key.
 4. **The starting copy** (Carl's answer, 2026-11-06). The inviter's phone, or any
    teammate's whose read gate passes the chain as Hello's does and that runs the same
-   reducer and lines versions as the newcomer, sends the following. It takes the language
+   reducer and lines versions as the newcomer, sends the following. A newcomer looking for
+   a teammate to finish the copy who meets one on other versions asks nothing of them, and
+   its screen says that teammate cannot finish it but one on the same version, or the
+   internet, can (`copyRefused: 'versions'`). It takes the language
    from the checked chain, never from `copy-ask`, and answers `copy-no` with `not-allowed`
    for any other stream.
    - **State:** the part of the organization this language needs and the language

@@ -8606,6 +8606,8 @@
       "looking": "Procurando um colega com o Compartilhar por perto aberto…",
       "stopLooking": "Parar de procurar",
       "stopLookingHelp": "Para de procurar. Você pode procurar de novo depois.",
+      "otherVersion": "O app de um colega é de outra versão",
+      "otherVersionLine": "O telefone dele não consegue terminar sua cópia inicial. Um colega com a mesma versão consegue, ou a internet.",
       "whole": "Você entrou",
       "installFile": "Este celular não precisa mais do arquivo de instalação. Você pode apagá-lo, a não ser que vá passá-lo adiante.",
       "scan": "Ler um código novo",

@@ -148,6 +148,7 @@ export function useJoinOffline(): JoinOfflineHandle {
       if (!got.ok || !still()) { dispatch({ t: 'look-stopped' }); return; }
       dispatch({ t: 'look' });
       const report = (e: NearbyRoomEvent) => {
+        if (e.t === 'ended' && e.report.copyRefused === 'versions') dispatch({ t: 'other-version' });
         if (e.t === 'ended' && e.report.copy?.whole) {
           void finishUnfinished(person, true).then((ready) => { if (ready) dispatch({ t: 'copied', whole: true }); void stopRoom(); });
         }

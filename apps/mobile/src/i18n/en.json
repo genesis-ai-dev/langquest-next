@@ -8261,6 +8261,8 @@
       "looking": "Looking for a teammate with Share nearby open…",
       "stopLooking": "Stop looking",
       "stopLookingHelp": "Stops looking. You can look again later.",
+      "otherVersion": "A teammate's app is a different version",
+      "otherVersionLine": "Their phone cannot finish your starting copy. A teammate on the same version can, or the internet will.",
       "whole": "You are in",
       "installFile": "This phone no longer needs the install file. You can delete it, unless you will pass it on.",
       "scan": "Scan a new code",

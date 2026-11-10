@@ -651,6 +651,8 @@ export function JoinOffline(ctx: Ctx) {
       {stage.t === 'copying' ? <Waiting text={t('nearby.join.copying', { n: stage.parts })} /> : null}
       {stage.t === 'unfinished' ? <Banner icon="info" tone="amber" title={t('nearby.join.unfinished')} body={t('nearby.join.unfinishedLine')} /> : null}
       {stage.t === 'looking' ? <Waiting text={t('nearby.join.looking')} /> : null}
+      {(stage.t === 'unfinished' || stage.t === 'looking') && stage.otherVersion
+        ? <Banner icon="info" tone="amber" title={t('nearby.join.otherVersion')} body={t('nearby.join.otherVersionLine')} /> : null}
       {stage.t === 'whole' ? <Banner icon="check" tone="green" title={t('nearby.join.whole')} body={t('nearby.join.installFile')} /> : null}
       {stage.t === 'ended' ? <Banner icon="info" tone="amber" title={t(JOIN_END[stage.why])} /> : null}
     </Screen>

@@ -8606,6 +8606,8 @@
       "looking": "Buscando un compañero con Compartir cerca abierto…",
       "stopLooking": "Dejar de buscar",
       "stopLookingHelp": "Deja de buscar. Puedes volver a buscar después.",
+      "otherVersion": "La app de un compañero es de otra versión",
+      "otherVersionLine": "Su teléfono no puede terminar tu copia inicial. Puede hacerlo un compañero con la misma versión, o internet.",
       "whole": "Ya entraste",
       "installFile": "Este teléfono ya no necesita el archivo de instalación. Puedes borrarlo, a menos que vayas a pasárselo a alguien.",
       "scan": "Escanear un código nuevo",

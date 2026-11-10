@@ -8606,6 +8606,8 @@
       "looking": "Recherche d’un coéquipier avec Partager à proximité ouvert…",
       "stopLooking": "Arrêter de chercher",
       "stopLookingHelp": "Arrête de chercher. Vous pourrez chercher à nouveau plus tard.",
+      "otherVersion": "L’application d’un coéquipier est d’une autre version",
+      "otherVersionLine": "Son téléphone ne peut pas terminer ta copie de départ. Un coéquipier sur la même version le peut, ou Internet.",
       "whole": "Vous êtes entré",
       "installFile": "Ce téléphone n’a plus besoin du fichier d’installation. Vous pouvez le supprimer, sauf si vous allez le transmettre.",
       "scan": "Scanner un nouveau code",

@@ -128,10 +128,13 @@ export type JoinStage =
   | { t: 'asked'; pictures: [number, number] | null }
   /** Let in: the starting copy comes. */
   | { t: 'copying'; parts: number }
-  /** Let in, the copy not whole: any teammate on the same versions can finish it, or the server once it answers. */
-  | { t: 'unfinished' }
+  /**
+   * Let in, the copy not whole: any teammate on the same versions can finish it, or the server once it answers.
+   * `otherVersion`: a teammate met while looking runs another version of the app, which can never finish it.
+   */
+  | { t: 'unfinished'; otherVersion?: true }
   /** Looking for a teammate to finish the copy. */
-  | { t: 'looking' }
+  | { t: 'looking'; otherVersion?: true }
   /** Whole: the person is set, and the app starts over as them. */
   | { t: 'whole' }
   | { t: 'ended'; why: JoinEnd };
@@ -143,6 +146,8 @@ export type JoinAction =
   | { t: 'wifi-off' }
   | { t: 'look' }
   | { t: 'look-stopped' }
+  /** A teammate met while looking runs another version: no copy can come from them. */
+  | { t: 'other-version' }
   | { t: 'asked'; pictures: [number, number] }
   | { t: 'granted' }
   | { t: 'part' }
@@ -169,9 +174,11 @@ export function joinReducer(s: JoinStage, a: JoinAction): JoinStage {
     case 'wifi-off':
       return s.t === 'connecting' || s.t === 'name' || s.t === 'unfinished' || s.t === 'looking' ? { t: 'wifi-off' } : s;
     case 'look':
-      return s.t === 'unfinished' || s.t === 'wifi-off' ? { t: 'looking' } : s;
+      return s.t === 'unfinished' ? { t: 'looking', ...(s.otherVersion ? { otherVersion: true as const } : {}) } : s.t === 'wifi-off' ? { t: 'looking' } : s;
     case 'look-stopped':
-      return s.t === 'looking' ? { t: 'unfinished' } : s;
+      return s.t === 'looking' ? { t: 'unfinished', ...(s.otherVersion ? { otherVersion: true as const } : {}) } : s;
+    case 'other-version':
+      return s.t === 'looking' || s.t === 'unfinished' ? { ...s, otherVersion: true } : s;
     case 'asked':
       return s.t === 'connecting' || s.t === 'asked' ? { t: 'asked', pictures: a.pictures } : s;
     case 'granted':

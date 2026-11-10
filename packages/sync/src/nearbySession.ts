@@ -918,7 +918,13 @@ export class NearbySession {
   /** After an ordinary Hello: a newcomer whose copy is not whole yet asks a teammate that offers one, on the same versions. */
   private async askCopy(): Promise<void> {
     const target = this.opt.takeCopy;
-    if (!target || !this.theirHello?.can.includes('starting-copy') || !this.sameVersions()) return;
+    if (!target || !this.theirHello?.can.includes('starting-copy')) return;
+    // A teammate on another version can never finish it: say so, so the newcomer is told why and looks for another.
+    if (!this.sameVersions()) {
+      this.report.versionsDiffer = true;
+      this.report.copyRefused = 'versions';
+      return;
+    }
     await this.takeCopyFrom(target);
   }
 

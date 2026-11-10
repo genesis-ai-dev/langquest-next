@@ -8261,6 +8261,8 @@
       "looking": "Naghahanap ng kasamahang nakabukas ang Ibahagi sa malapit…",
       "stopLooking": "Huminto sa paghahanap",
       "stopLookingHelp": "Humihinto sa paghahanap. Puwede kang maghanap ulit mamaya.",
+      "otherVersion": "Iba ang bersiyon ng app ng isang kasamahan",
+      "otherVersionLine": "Hindi matatapos ng telepono niya ang panimulang kopya mo. Kaya ito ng kasamahang may parehong bersiyon, o ng internet.",
       "whole": "Nakapasok ka na",
       "installFile": "Hindi na kailangan ng teleponong ito ang install file. Puwede mo itong burahin, maliban kung ipapasa mo ito sa iba.",
       "scan": "Mag-scan ng bagong code",
