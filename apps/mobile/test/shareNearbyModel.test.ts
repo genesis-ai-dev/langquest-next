@@ -12,7 +12,7 @@ import {
 
 const ROOT = join(import.meta.dirname, '..');
 type Tree = { [k: string]: string | Tree };
-const en = JSON.parse(readFileSync(join(ROOT, 'src/i18n/en.json'), 'utf8')) as Tree;
+const en = { ...JSON.parse(readFileSync(join(ROOT, 'src/i18n/en.json'), 'utf8')), ...JSON.parse(readFileSync(join(ROOT, 'src/nearby/i18n/en.json'), 'utf8')) } as Tree;
 const disguiseEn = JSON.parse(readFileSync(join(ROOT, 'src/disguise/i18n/en.json'), 'utf8')) as Tree;
 const has = (tree: Tree, key: string) => typeof key.split('.').reduce<Tree | string | undefined>((at, k) => (typeof at === 'object' ? at[k] : undefined), tree) === 'string';
 

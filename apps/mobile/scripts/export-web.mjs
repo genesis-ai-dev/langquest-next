@@ -72,11 +72,17 @@ if (process.env.NO_SPEECH_MODEL !== '1') {
 }
 
 // The other languages' words, fetched by a browser when someone picks one
-// (src/i18n/catalogs.web.ts), so a first visit downloads English only.
+// (src/i18n/catalogs.web.ts), so a first visit downloads English only. Nearby
+// sync's words (src/nearby/i18n) join each file, since the web bundles only
+// their English, with the nearby screens (src/nearby/nearbyWords.web.ts).
 const catalogs = path.join(app, 'src/i18n');
+const nearbyWords = path.join(app, 'src/nearby/i18n');
 fs.mkdirSync(path.join(dist, 'i18n'), { recursive: true });
 for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') && f !== 'en.json')) {
-  fs.writeFileSync(path.join(dist, 'i18n', name), JSON.stringify(JSON.parse(fs.readFileSync(path.join(catalogs, name), 'utf8'))));
+  const words = JSON.parse(fs.readFileSync(path.join(catalogs, name), 'utf8'));
+  const nearby = path.join(nearbyWords, name);
+  if (fs.existsSync(nearby)) Object.assign(words, JSON.parse(fs.readFileSync(nearby, 'utf8')));
+  fs.writeFileSync(path.join(dist, 'i18n', name), JSON.stringify(words));
 }
 
 // Two fitness functions (decisions.md 58): the JavaScript a first visit
@@ -156,7 +162,9 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // 4,505 bytes past then: the starting copy's checkpoint, the copy-short line and its words in all 16
 // catalogs, names from checked chains, the join link's route, the start deadline and Ready to carry's
 // server check, most of it in the nearby chunk, which the web never opens; and main's own growth.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 55 * 1024;
+// Lowered by 5 KB with a trim pass (Carl, 2026-11-10): nearby sync's words left the catalogs and
+// join each language's file the web serves, so a fetched catalog no longer duplicates them.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 50 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -201,7 +209,11 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 55 * 1024;
 // Raised by 3 KB with the fixes from the two-emulator test (Carl, 2026-11-09), 2,460 bytes past then,
 // with main merged in: the copy-short line in the catalog every visit carries, names from checked
 // chains laid under the directory, the join link's route, and the start deadline's stub.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 35 * 1024;
+// Lowered by 21 KB with a trim pass (Carl, 2026-11-10), 22,348 bytes less then: nearby sync's
+// English words (15.4 KB) come with the nearby screens (src/nearby/nearbyWords.web.ts), not with
+// every visit; the get_user_state readers left nearbyModel.ts (5.8 KB, now nearbyFlagModel.ts), and
+// the token check left firstContactModel.ts (1.9 KB, now tokenModel.ts).
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 14 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

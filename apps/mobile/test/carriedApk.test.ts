@@ -90,7 +90,7 @@ describe('Sync reminding a carrier to get the file', () => {
   });
 
   it('has its words in English, as Carl gave them', () => {
-    const en = JSON.parse(readFileSync(join(import.meta.dirname, '../src/i18n/en.json'), 'utf8')) as { nearby: { installFile: Record<string, string> } };
+    const en = JSON.parse(readFileSync(join(import.meta.dirname, '../src/nearby/i18n/en.json'), 'utf8')) as { nearby: { installFile: Record<string, string> } };
     const words = Object.fromEntries(Object.entries(APK_REMINDER_WORDS).map(([k, key]) => [k, en.nearby.installFile[key.split('.').pop()!]]));
     expect(words).toEqual({ 'not-got': 'Install file for a new person: not got yet', older: 'Install file for a new person: for an older version' });
     expect(en.nearby.installFile).toMatchObject({ getIt: 'Get it', remind: 'Get the install file before you go offline' });

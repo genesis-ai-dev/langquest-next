@@ -65,18 +65,7 @@ export function afterJoin(p: LocalPerson, answer: JoinAnswer, now: number): { pe
   return { person: rest, adopt: answer.session };
 }
 
-/** The `sub` of a Supabase access token, or null: a session is adopted only when it is this very id. */
-export function tokenSubject(jwt: string): string | null {
-  const part = jwt.split('.')[1];
-  if (!part) return null;
-  try {
-    const padded = part.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(part.length / 4) * 4, '=');
-    const claims = JSON.parse(globalThis.atob(padded)) as unknown;
-    return isObject(claims) && typeof claims['sub'] === 'string' ? claims['sub'] : null;
-  } catch {
-    return null;
-  }
-}
+export { tokenSubject } from './tokenModel';
 
 /** Why first contact cannot go on here, which no retry mends: the install key is gone or is not this person's, or someone else is signed in. */
 export type FirstContactBlock = 'keyLost' | 'otherAccount';

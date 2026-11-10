@@ -36,8 +36,9 @@ config.watcher = {
   additionalExts: (config.watcher?.additionalExts ?? []).filter((ext) => !envExts.has(ext))
 };
 config.resolver.assetExts.push('wasm');
-// In development the browser fetches the other languages' words from here;
-// an export copies them beside the page (src/i18n/catalogs.web.ts).
+// In development the browser fetches the other languages' words from here,
+// with nearby sync's merged in; an export copies them beside the page
+// (src/i18n/catalogs.web.ts, scripts/export-web.mjs).
 const path = require('node:path');
 const fs = require('node:fs');
 config.server.enhanceMiddleware = (middleware) => (req, res, next) => {
@@ -47,8 +48,11 @@ config.server.enhanceMiddleware = (middleware) => (req, res, next) => {
   if (catalog) {
     const file = path.join(__dirname, 'src/i18n', `${catalog[1]}.json`);
     if (fs.existsSync(file)) {
+      const words = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const nearby = path.join(__dirname, 'src/nearby/i18n', `${catalog[1]}.json`);
+      if (fs.existsSync(nearby)) Object.assign(words, JSON.parse(fs.readFileSync(nearby, 'utf8')));
       res.setHeader('Content-Type', 'application/json');
-      res.end(fs.readFileSync(file));
+      res.end(JSON.stringify(words));
       return;
     }
   }

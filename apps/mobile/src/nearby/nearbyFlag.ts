@@ -1,4 +1,4 @@
-import { orgFeaturesOf, revokedSeqsOf } from './nearbyModel';
+import { orgFeaturesOf, revokedSeqsOf } from './nearbyFlagModel';
 
 /**
  * Which of this person's organizations have nearby sync on, as `get_user_state` said this

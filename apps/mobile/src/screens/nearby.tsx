@@ -43,6 +43,8 @@ import { PersonAvatar } from '../ui/UserChip';
 import { Text } from '../ui/text';
 import { txt } from '../ui/textStyles';
 import { C, space, TINT } from '../ui/theme';
+// The words these screens show (the web loads them only here, src/nearby/nearbyWords.web.ts).
+import '../nearby/nearbyWords';
 
 export function ShareNearby(ctx: Ctx) {
   const { view, actions } = useNearby(ctx);

@@ -11958,6 +11958,17 @@ install file screen, Share nearby's two jobs, the Sync reminders, the fixes
 from the two-emulator test, and main's own 2 KB for LAN-221 merged in. A
 trim pass before the branch merges is still worth doing.
 
+Amended (2026-11-10, Carl Sauder): the trim pass lowered them to 3.94 MB
+and 14 KB on a first visit (about 3.95 MB) and 4.93 MB and 50 KB in all.
+Nearby sync's words left the catalogs for `src/nearby/i18n`, as the
+disguise's did (171): a phone loads them at start, the web bundles their
+English only with the nearby screens and serves the other languages' inside
+each catalog file it already fetches. The two small parts of nearby code every
+client read (the user-state flags, the token check) left the modules they
+were in, so the rest no longer loads on the web. What the first visit still
+carries for nearby sync, about 53 KB over main, is the shared sync path this
+entry already names, and the local person's Me and Sign In branches.
+
 ## 229. A required `android-native` job compiles, tests and lints the nearby module when it, the app's package.json or the lockfile changes
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
