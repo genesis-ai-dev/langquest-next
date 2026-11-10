@@ -1,6 +1,6 @@
 # NAV-061, Android's back button (docs/ui-test-suite/03-home-and-navigation.md):
 # the system Back steps out of Something else?, Versions, Ask someone, the
-# record, the chapter grid and the map one level at a time, as the header's
+# record, the book's passages and the map one level at a time, as the header's
 # Back and ✕ do (NAV-060 runs those on the web); the map's Back goes to My
 # Work, where the first Back says how to leave. P-ASIDE: its Peer check is
 # not asked yet, so "Someone else should do this" is offered. iOS has no
@@ -28,8 +28,11 @@ tags:
       - tapOn:
           id: "tab-map"
       - tapOn: "Luke"
-      - tapOn: "16"
-      - tapOn: ${P_ASIDE}
+      - runFlow:
+          file: ../common/show-passage.yaml
+          env:
+            ROW: "${P_ASIDE}\\..*"
+      - tapOn: "${P_ASIDE}\\..*"
       - extendedWaitUntil:
           visible: "Versions and history"
           timeout: 30000
@@ -54,11 +57,11 @@ tags:
       - back
       - assertVisible: "Versions and history"
       - assertNotVisible: "Asked"
-      # 5. The record, then the chapter grid, then the map.
+      # 5. The record, then the book's passages, then the map.
       - back
       - assertVisible:
           id: "tab-map"
-      - assertVisible: "Chapter 16.*|16"
+      - assertVisible: "${P_ASIDE}\\..*"
       - back
       - assertVisible: "Find.*"
       # 6. Back on the tab's own page goes to My Work, the first screen (decision 137); never out of the app or a blank screen.

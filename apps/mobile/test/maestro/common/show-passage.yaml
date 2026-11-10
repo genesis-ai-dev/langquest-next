@@ -1,0 +1,25 @@
+# Bring a passage's row into view on a book's page. A book divided into
+# passages lists them as rows, 25 at a time (decisions.md 166), so show more
+# until ROW (a pattern for the row's label) is there, then centre it.
+appId: com.frontierrnd.langquestnext
+---
+- repeat:
+    while:
+      notVisible: ${ROW}
+    times: 5
+    commands:
+      # 25 rows take a slow emulator more than 20 s to scroll past.
+      - scrollUntilVisible:
+          element: "Show .* more.*|${ROW}"
+          direction: DOWN
+          timeout: 60000
+      - runFlow:
+          when:
+            notVisible: ${ROW}
+          commands:
+            - tapOn: "Show .* more.*"
+- scrollUntilVisible:
+    element: ${ROW}
+    direction: DOWN
+    centerElement: true
+    timeout: 60000

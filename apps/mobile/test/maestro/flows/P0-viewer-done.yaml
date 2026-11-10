@@ -36,9 +36,19 @@ tags:
     timeout: 30000
 - assertVisible: "Peer check, looks good"
 - assertVisible: "Back translation, looks good"
-- assertVisible: "Community check, looks good"
-- assertVisible: "Consultant check, looks good"
-- assertVisible: "Final approval, looks good"
+# The later checks' cards sit below the player and the first two: bring each up.
+- scrollUntilVisible:
+    element: "Community check, looks good"
+    direction: DOWN
+    centerElement: true
+- scrollUntilVisible:
+    element: "Consultant check, looks good"
+    direction: DOWN
+    centerElement: true
+- scrollUntilVisible:
+    element: "Final approval, looks good"
+    direction: DOWN
+    centerElement: true
 # Read only: no record, check, ask or main action.
 - assertNotVisible: "Do the .*"
 - assertNotVisible: "Ask .*"

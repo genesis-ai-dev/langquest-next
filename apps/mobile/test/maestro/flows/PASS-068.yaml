@@ -99,7 +99,7 @@ tags:
           waitToSettleTimeoutMs: 0
       - assertVisible:
           id: "toast"
-          text: ".*${TREV_NAME} will see it on their My Work.*"
+          text: ".*Asked ${TREV_NAME}\\. They get it when this device is connected\\..*"
       - assertVisible: "Peer check, asked ${TREV_NAME}|asked ${TREV_NAME}"
       # My Work's sync icon counts what waits to send ("Offline, 3 to send").
       - tapOn:
