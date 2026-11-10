@@ -4,6 +4,7 @@ import { NavigationContext } from '@react-navigation/native';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
+import { noteChainName } from '../account/useAccount';
 import { noteExpected } from '../diagnostics/report';
 import type { NativeCapabilities } from '../../modules/nearby-link';
 import type { Ctx } from '../shell/ctx';
@@ -177,6 +178,8 @@ export function useNearby(ctx: Ctx): NearbyHandle {
       const report = (e: NearbyRoomEvent) => {
         dispatch({ t: 'room', report: e, worn, names: names.current });
         if (e.t === 'ended') void nearbyNamesOf(open, orgId).then((n) => { names.current = n; }).catch(() => undefined);
+        // Someone let in offline, met before the server knows them: their chain names them (14.1, 5).
+        if (e.t === 'ended' && e.report.peer?.name) void noteChainName(actorId, e.report.peer.profileId, e.report.peer.name).catch((x: unknown) => noteExpected('nearby: chain name', x));
         if (e.t === 'ended' || e.t === 'level') readCarry();
         // A stop of its own (idle, the run limit, "Up to date" on a worn phone): nothing more to stop here.
         if (e.t === 'stopped' && room) release(room);

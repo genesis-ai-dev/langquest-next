@@ -3,6 +3,7 @@ import type { NearbySession } from '@langquest-next/sync/nearby';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { AppState } from 'react-native';
+import { noteChainName } from '../account/useAccount';
 import { noteExpected } from '../diagnostics/report';
 import type { Ctx } from '../shell/ctx';
 import { useAppCovered } from '../shell/useAppCovered';
@@ -103,6 +104,7 @@ export function useLetIn(ctx: Ctx): LetInHandle {
     if (!gate.current) return;
     dispatch({ t: 'host' });
     activateKeepAwakeAsync(KEEP_AWAKE).catch((e: unknown) => noteExpected('let in: keep awake', e));
+    const asked: { who: { profileId: string; name: string } | null } = { who: null };
     try {
       const out = await letInWithPass({
         radio, actorId, orgId, languageId, roleId, pass: pass as unknown as JoinPass, org, inspectOrg: () => ctx.org.inspect(),
@@ -112,6 +114,7 @@ export function useLetIn(ctx: Ctx): LetInHandle {
           showing: (uri, until) => { setNow(Date.now()); dispatch({ t: 'showing', uri, until }); },
           connected: () => dispatch({ t: 'connected' }),
           tap: (who) => new Promise<boolean>((resolve) => {
+            asked.who = who;
             answer.current = resolve;
             dispatch({ t: 'asked', name: who.name, pictures: who.pictures });
           }),
@@ -120,6 +123,8 @@ export function useLetIn(ctx: Ctx): LetInHandle {
           still
         }
       });
+      // The person just let in shows under the name they gave, until the server knows them (14.1, 5).
+      if (out.report?.join?.granted && asked.who) void noteChainName(actorId, asked.who.profileId, asked.who.name).catch((x: unknown) => noteExpected('let in: name', x));
       if (mine !== attempt.current) return;
       if (out.why) dispatch({ t: 'ended', why: out.why });
       else if (out.report) dispatch({ t: 'ended', why: letInEndOf(out.report) });

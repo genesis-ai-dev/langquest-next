@@ -3,6 +3,7 @@ import { SyncScheduler } from '@langquest-next/sync';
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 import { reportError } from '../diagnostics/report';
+import { keepChainName, withChainNames } from './chainNamesModel';
 import { accountOutbox, queueAccountAction } from './accountData';
 import { profileNameToSave } from '../auth/accounts';
 import type { AccountAction } from '@langquest-next/sync';
@@ -48,6 +49,35 @@ function publishDirectory(actorId: string, value: Record<string, string>) {
   for (const hear of directoryListeners) hear();
 }
 
+/** Names from checked chains, by account, under the directory (chainNamesModel.ts). */
+const chainNames = new Map<string, Record<string, string>>();
+const chainNamesKey = (actorId: string) => `chain-names:${actorId}`;
+
+async function heldChainNames(actorId: string): Promise<Record<string, string>> {
+  const held = chainNames.get(actorId);
+  if (held) return held;
+  let read: Record<string, string> = {};
+  try {
+    const raw = JSON.parse((await AsyncStorage.getItem(chainNamesKey(actorId))) ?? '{}') as unknown;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) for (const [id, n] of Object.entries(raw)) if (typeof n === 'string') read[id] = n;
+  } catch { read = {}; }
+  const now = chainNames.get(actorId) ?? read;
+  chainNames.set(actorId, now);
+  return now;
+}
+
+/**
+ * Someone let in offline, named by their checked chain (docs/nearby-sync-plan.md 14.1, 5
+ * "Teammates"): shown under that name wherever the directory has none, until the server knows them.
+ */
+export async function noteChainName(actorId: string, profileId: string, name: string): Promise<void> {
+  const next = keepChainName(await heldChainNames(actorId), profileId, name);
+  if (!next) return;
+  chainNames.set(actorId, next);
+  for (const hear of directoryListeners) hear();
+  await AsyncStorage.setItem(chainNamesKey(actorId), JSON.stringify(next));
+}
+
 /**
  * Give this account a profile name when it has none, so the people it works
  * with see a name (profileNameToSave). Read from the server, never the
@@ -84,11 +114,12 @@ export function useProfileName(actorId: string, email: string | null) {
 
 /** Everyone's profile name this account may see; read again when `refresh` changes (someone joined). */
 export function useDisplayNames(actorId: string, refresh = '') {
-  const [names, setNames] = useState<Record<string, string>>(() => directories.get(actorId) ?? {});
+  const [names, setNames] = useState<Record<string, string>>(() => withChainNames(directories.get(actorId) ?? {}, chainNames.get(actorId) ?? {}));
   useEffect(() => {
-    const hear = () => setNames(directories.get(actorId) ?? {});
+    const hear = () => setNames(withChainNames(directories.get(actorId) ?? {}, chainNames.get(actorId) ?? {}));
     directoryListeners.add(hear);
     hear();
+    if (!chainNames.has(actorId)) void heldChainNames(actorId).then(hear).catch(() => undefined);
     return () => { directoryListeners.delete(hear); };
   }, [actorId]);
   useEffect(() => {

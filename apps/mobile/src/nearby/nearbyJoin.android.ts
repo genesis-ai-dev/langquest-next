@@ -225,7 +225,7 @@ export interface InviterHooks {
   showing(uri: string, until: number): void;
   connected(): void;
   /** The one tap: the chosen role, or null for No. */
-  tap(who: { name: string; pictures: [number, number] }): Promise<boolean>;
+  tap(who: { name: string; profileId: string; pictures: [number, number] }): Promise<boolean>;
   progress(report: Readonly<NearbySessionReport>): void;
   /** Another phone tried the code after the link was taken, and was refused. */
   turnedAway(): void;
@@ -284,7 +284,7 @@ export async function letInWithPass(o: {
       join: {
         as: 'inviter', pass: o.pass, discovery: { key: findKey.key, gen: findKey.gen, floor: findKey.floor },
         // The role was chosen before the code was shown; the tap only says yes or no.
-        tap: async (who) => ((await hooks.tap({ name: who.name, pictures: who.pictures })) ? o.roleId : null),
+        tap: async (who) => ((await hooks.tap({ name: who.name, profileId: who.profileId, pictures: who.pictures })) ? o.roleId : null),
         stop: (roleId) => joinPassStop(o.pass, roleId, { now: Date.now(), org: o.org, orgSeqHere, certOrgSeq, ...(revoked ? { revoked: revoked.list } : {}) })
       }
     });
