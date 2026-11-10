@@ -3044,10 +3044,12 @@
       "notYet": "ยังไม่มาถึง จะแสดงที่นี่เอง",
       "keepGoing": "ทำต่อที่ {{passage}}",
       "goToMyWork": "ไปที่งานของฉัน",
+      "continueWithout": "ทำต่อโดยไม่รอ",
       "recordings_other": "เสียงที่อัด {{count, number}} รายการ",
       "passages_other": "{{count, number}} ตอน",
       "checkAgainHelp": "หางานของคุณจากแอปเดิมอีกครั้ง",
       "goToMyWorkHelp": "เปิดรายการสิ่งที่คุณต้องทำต่อไป",
+      "continueWithoutHelp": "เปิดแอปตอนนี้ งานของคุณจากแอปเดิมยังคงจะมาถึง",
       "differentHelp": "โครงการ เควสต์ และคะแนนจากแอปเดิม มีหน้าตาอย่างไรในแอปนี้"
     },
     "invite": {

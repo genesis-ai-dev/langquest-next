@@ -3142,12 +3142,14 @@
       "notYet": "Bado haijafika. Itaonekana hapa yenyewe.",
       "keepGoing": "Endelea na {{passage}}",
       "goToMyWork": "Nenda Kazi Yangu",
+      "continueWithout": "Endelea bila hiyo",
       "recordings_one": "rekodi {{count, number}}",
       "recordings_other": "rekodi {{count, number}}",
       "passages_one": "Kifungu {{count, number}}",
       "passages_other": "Vifungu {{count, number}}",
       "checkAgainHelp": "Hutafuta tena kazi yako kutoka programu ya zamani.",
       "goToMyWorkHelp": "Hufungua orodha ya mambo yako ya kufanya yanayofuata.",
+      "continueWithoutHelp": "Hufungua programu sasa. Kazi yako kutoka programu ya zamani bado itakuja.",
       "differentHelp": "Jinsi Miradi, Quest na kura za programu ya zamani zinavyoonekana katika hii."
     },
     "invite": {

@@ -3142,12 +3142,14 @@
       "notYet": "Bai iso ba tukuna. Zai bayyana a nan da kansa.",
       "keepGoing": "Ci gaba da {{passage}}",
       "goToMyWork": "Je zuwa Aikina",
+      "continueWithout": "Ci gaba ba tare da shi ba",
       "recordings_one": "naɗi {{count, number}}",
       "recordings_other": "naɗe-naɗe {{count, number}}",
       "passages_one": "Nassi {{count, number}}",
       "passages_other": "Nassosi {{count, number}}",
       "checkAgainHelp": "Yana sake neman aikinku daga tsohuwar manhaja.",
       "goToMyWorkHelp": "Yana buɗe jerin abin da za ku yi na gaba.",
+      "continueWithoutHelp": "Yana buɗe manhajar yanzu. Aikinku daga tsohuwar manhaja zai zo duk da haka.",
       "differentHelp": "Yadda projects, quests da ƙuri'u na tsohuwar manhaja suke a wannan."
     },
     "invite": {

@@ -358,5 +358,25 @@ reset role;
 delete from diag.records where install_id in ('dg_dT2', 'dg_dT3');
 delete from diag.installs where install_id in ('dg_dT2', 'dg_dT3');
 
+-- A person from v2 on Welcome back: where each of their projects stands (LAN-250).
+insert into v2_import.orgs (org_id, name) values ('dg_v2org', 'To be named');
+insert into v2_import.arrivals (profile_id, projects)
+  values ('dg_v2p', '[{"id":"dg_v2a","name":"Never placed"},{"id":"dg_v2b","name":"Left behind"},{"id":"dg_v2c","name":"Placed"}]');
+insert into v2_import.placements (project_id, org_id) values ('dg_v2b', null), ('dg_v2c', 'dg_v2org');
+set role diag_reader;
+do $$
+declare v jsonb;
+begin
+  select jsonb_object_agg(x.project_id, x.state) into v from diag.v2_person('dg_v2p') x;
+  if v is distinct from '{"dg_v2a": "not_on_board", "dg_v2b": "not_coming_over", "dg_v2c": "unconfirmed"}'::jsonb then
+    raise exception 'v2_person: %', v;
+  end if;
+  if exists (select 1 from diag.v2_person('dg_nobody')) then raise exception 'v2_person of someone not from v2'; end if;
+end $$;
+reset role;
+delete from v2_import.placements where project_id in ('dg_v2b', 'dg_v2c');
+delete from v2_import.arrivals where profile_id = 'dg_v2p';
+delete from v2_import.orgs where org_id = 'dg_v2org';
+
 select set_config('request.jwt.claim.sub', '', false);
 \echo 'diag-smoke ok'

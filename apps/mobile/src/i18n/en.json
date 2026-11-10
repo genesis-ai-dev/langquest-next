@@ -3142,12 +3142,14 @@
       "notYet": "Not here yet. It shows up here by itself.",
       "keepGoing": "Keep going on {{passage}}",
       "goToMyWork": "Go to My Work",
+      "continueWithout": "Continue without it",
       "recordings_one": "{{count, number}} recording",
       "recordings_other": "{{count, number}} recordings",
       "passages_one": "{{count, number}} passage",
       "passages_other": "{{count, number}} passages",
       "checkAgainHelp": "Looks again for your work from the old app.",
       "goToMyWorkHelp": "Opens your list of what to do next.",
+      "continueWithoutHelp": "Opens the app now. Your work from the old app still comes over.",
       "differentHelp": "How the old app's projects, quests and votes look in this one."
     },
     "invite": {

@@ -3142,12 +3142,14 @@
       "notYet": "Wala pa rito. Kusa itong lalabas dito.",
       "keepGoing": "Ituloy ang {{passage}}",
       "goToMyWork": "Pumunta sa Aking Gawain",
+      "continueWithout": "Magpatuloy nang wala ito",
       "recordings_one": "{{count, number}} rekording",
       "recordings_other": "{{count, number}} rekording",
       "passages_one": "{{count, number}} sipi",
       "passages_other": "{{count, number}} sipi",
       "checkAgainHelp": "Hinahanap muli ang iyong gawain mula sa lumang app.",
       "goToMyWorkHelp": "Binubuksan ang listahan mo ng mga susunod na gagawin.",
+      "continueWithoutHelp": "Binubuksan na ang app. Darating pa rin ang gawain mo mula sa lumang app.",
       "differentHelp": "Kung ano ang itsura rito ng mga proyekto, quest at boto ng lumang app."
     },
     "invite": {

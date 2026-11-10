@@ -3142,12 +3142,14 @@
       "notYet": "ገና አልደረሰም። ራሱ እዚህ ይታያል።",
       "keepGoing": "በ{{passage}} ይቀጥሉ",
       "goToMyWork": "ወደ «ሥራዬ» ይሂዱ",
+      "continueWithout": "ያለ እሱ ይቀጥሉ",
       "recordings_one": "{{count, number}} ቀረጻ",
       "recordings_other": "{{count, number}} ቀረጻዎች",
       "passages_one": "{{count, number}} ክፍል",
       "passages_other": "{{count, number}} ክፍሎች",
       "checkAgainHelp": "ከአሮጌው መተግበሪያ የመጣውን ሥራዎን እንደገና ይፈልጋል።",
       "goToMyWorkHelp": "ቀጥሎ የሚሠሩትን ዝርዝር ይከፍታል።",
+      "continueWithoutHelp": "መተግበሪያውን አሁን ይከፍታል። ከድሮው መተግበሪያ ያለው ሥራዎ አሁንም ይመጣል።",
       "differentHelp": "የአሮጌው መተግበሪያ ፕሮጀክቶች፣ ኩዌስቶች እና ድምጾች በዚህኛው እንዴት እንደሚታዩ።"
     },
     "invite": {

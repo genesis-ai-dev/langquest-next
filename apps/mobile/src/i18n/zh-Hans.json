@@ -3044,10 +3044,12 @@
       "notYet": "还没有到。到了会自动显示在这里。",
       "keepGoing": "继续 {{passage}}",
       "goToMyWork": "前往“我的工作”",
+      "continueWithout": "先不等了，继续",
       "recordings_other": "{{count, number}} 段录音",
       "passages_other": "{{count, number}} 个经段",
       "checkAgainHelp": "再查找一次你在旧应用中的工作。",
       "goToMyWorkHelp": "打开你接下来要做的事情列表。",
+      "continueWithoutHelp": "现在打开应用。你在旧应用里的工作仍会转过来。",
       "differentHelp": "旧应用中的项目、任务和投票在这里是什么样子。"
     },
     "invite": {

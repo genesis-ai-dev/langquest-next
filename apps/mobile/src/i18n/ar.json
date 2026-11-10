@@ -3534,6 +3534,7 @@
       "notYet": "لم يصل بعد. سيظهر هنا تلقائيًا.",
       "keepGoing": "تابع {{passage}}",
       "goToMyWork": "اذهب إلى «عملي»",
+      "continueWithout": "تابع من دونه",
       "recordings_zero": "{{count, number}} تسجيل",
       "recordings_one": "تسجيل واحد",
       "recordings_two": "تسجيلان",
@@ -3548,6 +3549,7 @@
       "passages_other": "{{count, number}} مقطع",
       "checkAgainHelp": "يبحث مرة أخرى عن عملك من التطبيق القديم.",
       "goToMyWorkHelp": "يفتح قائمتك بما تفعله بعد ذلك.",
+      "continueWithoutHelp": "يفتح التطبيق الآن. عملك من التطبيق القديم سيصل مع ذلك.",
       "differentHelp": "كيف تبدو المشاريع والمهام والأصوات من التطبيق القديم في هذا التطبيق."
     },
     "invite": {

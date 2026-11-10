@@ -3142,12 +3142,14 @@
       "notYet": "এখনও আসেনি। এটি নিজে থেকেই এখানে দেখা যাবে।",
       "keepGoing": "{{passage}}-এ কাজ চালিয়ে যান",
       "goToMyWork": "আমার কাজে যান",
+      "continueWithout": "এটি ছাড়াই চালিয়ে যান",
       "recordings_one": "{{count, number}}টি রেকর্ডিং",
       "recordings_other": "{{count, number}}টি রেকর্ডিং",
       "passages_one": "{{count, number}}টি অংশ",
       "passages_other": "{{count, number}}টি অংশ",
       "checkAgainHelp": "পুরনো অ্যাপ থেকে আপনার কাজ আবার খোঁজে।",
       "goToMyWorkHelp": "এরপর কী করবেন তার তালিকা খোলে।",
+      "continueWithoutHelp": "এখনই অ্যাপটি খোলে। পুরোনো অ্যাপের আপনার কাজ তবুও আসবে।",
       "differentHelp": "পুরনো অ্যাপের প্রজেক্ট, কোয়েস্ট আর ভোট এখানে কেমন দেখায়।"
     },
     "invite": {

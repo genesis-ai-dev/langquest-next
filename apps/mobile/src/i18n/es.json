@@ -3240,6 +3240,7 @@
       "notYet": "Todavía no ha llegado. Aparecerá aquí por sí solo.",
       "keepGoing": "Seguir con {{passage}}",
       "goToMyWork": "Ir a Mi trabajo",
+      "continueWithout": "Continuar sin ello",
       "recordings_one": "{{count, number}} grabación",
       "recordings_many": "{{count, number}} grabaciones",
       "recordings_other": "{{count, number}} grabaciones",
@@ -3248,6 +3249,7 @@
       "passages_other": "{{count, number}} pasajes",
       "checkAgainHelp": "Vuelve a buscar tu trabajo de la app antigua.",
       "goToMyWorkHelp": "Abre tu lista de lo que sigue por hacer.",
+      "continueWithoutHelp": "Abre la app ahora. Tu trabajo de la app anterior seguirá llegando.",
       "differentHelp": "Cómo se ven en esta app los proyectos, misiones y votos de la app antigua."
     },
     "invite": {

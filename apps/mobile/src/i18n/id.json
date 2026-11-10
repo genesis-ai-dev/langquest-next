@@ -3044,10 +3044,12 @@
       "notYet": "Belum tiba. Akan muncul di sini dengan sendirinya.",
       "keepGoing": "Lanjutkan {{passage}}",
       "goToMyWork": "Ke Pekerjaan Saya",
+      "continueWithout": "Lanjutkan tanpa itu",
       "recordings_other": "{{count, number}} rekaman",
       "passages_other": "{{count, number}} perikop",
       "checkAgainHelp": "Mencari lagi pekerjaan Anda dari aplikasi lama.",
       "goToMyWorkHelp": "Membuka daftar hal yang perlu Anda kerjakan berikutnya.",
+      "continueWithoutHelp": "Membuka aplikasi sekarang. Pekerjaan Anda dari aplikasi lama tetap akan datang.",
       "differentHelp": "Seperti apa proyek, misi, dan suara dari aplikasi lama di aplikasi ini."
     },
     "invite": {
