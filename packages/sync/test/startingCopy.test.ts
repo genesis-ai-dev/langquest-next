@@ -176,6 +176,25 @@ describe.each([['memory', () => new MemoryStore() as EventStore], ['SQLite', sql
       await expect(memory.client.adoptStartingCopy({ serverSeq: -1, state: {} })).rejects.toThrow();
     });
 
+    // Found on two emulators: a language under `checkpointEvery` events, with no server snapshot, had no checkpoint, so every copy stopped after the organization.
+    it('a sender whose language is too young for a checkpoint takes one to give, holding only confirmed work', async () => {
+      const server = new FakeServer();
+      server.serverCut = true;
+      await language(server, 12);
+      const t = await teammate(server);
+      expect(await t.store.meta('snapshotSeq:org1/p1')).toBeFalsy();
+      const confirmed = comparable(await whole(t.client, t.store));
+      await t.client.append('v1.NoteAdded', { noteId: 'unsent', unitId: 'u01', anchor: { kind: 'passage' }, text: 'not sent yet' });
+      const n = await newcomer(server, t.client, { on: false });
+      const seq = server.head('org1', 'p1');
+      expect(await n.store.meta('startingCopy:org1/p1')).toBe(String(seq));
+      expect(n.client.fillProgress()).toBeNull();
+      expect(comparable(await whole(n.client, n.store))).toEqual(confirmed);
+      // The sender loses nothing: its unsent note is still its own, and still to send.
+      expect((await whole(t.client, t.store)).notes['unsent']).toBeDefined();
+      expect(await t.store.unconfirmedCount('org1', 'p1')).toBe(1);
+    });
+
     it('a sender still filling in, or with no checkpoint, has no copy to give, and refuses passages it has not filled', async () => {
       const server = new FakeServer();
       server.serverCut = true;

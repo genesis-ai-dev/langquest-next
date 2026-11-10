@@ -1931,15 +1931,24 @@ export class SyncClient<S = LanguageState> {
   /**
    * What a starting copy of this stream carries, for a sender: a language kept on disk gives its
    * checkpoint, which holds only confirmed work, its lines, and the passages it has rows for; any
-   * other stream its confirmed fold. Null when it has none to give: a fill still running, or a
-   * language kept on disk with no checkpoint.
+   * other stream its confirmed fold. A language kept on disk with none yet, because it is younger
+   * than `checkpointEvery` and the server had no snapshot, takes one now. Null when it has none
+   * to give: a fill still running, or nothing from the server.
    */
   startingCopy(): Promise<StartingCopy | null> {
     return this.exclusive(async () => {
       const { store, orgId, streamId } = this.opts;
-      const base = await this.localSnapshot();
+      let base = await this.localSnapshot();
       if (this.kept) {
-        if (!base || this.fill?.active()) return null;
+        if (this.fill?.active()) return null;
+        if (!base && !(await this.holdsStartingCopy())) {
+          const cursor = await store.cursor(orgId, streamId);
+          if (cursor > 0) {
+            await this.checkpoint(cursor);
+            base = await this.localSnapshot();
+          }
+        }
+        if (!base) return null;
         const lines = (await store.keptAll(orgId, streamId, LINE)).map((r) => JSON.parse(r.json) as { unitId: string });
         const units = (await store.keptUnits(orgId, streamId, PART_KINDS)).filter((u) => u !== '').map((unitId) => ({ unitId, rows: 1 }));
         return { serverSeq: base.serverSeq, state: base.state, kept: { lines, units: [...units, { unitId: '', rows: 1 }] } };

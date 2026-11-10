@@ -3180,7 +3180,12 @@ it does today (decision 54).
      skips audio and filled rows, and refuses passages it has not filled. Checkpoint and
      part rows hold only confirmed work. Line rows do not, because `KeptLines` works them
      out from live state, and verdict rows have `unitId` '' where the server's cut files
-     them under a passage. Both are accepted, since the copy is replaced later. The
+     them under a passage. Both are accepted, since the copy is replaced later. A language
+     kept on disk writes its first checkpoint only at `checkpointEvery` (2,000) confirmed
+     events, and one the server has no snapshot of pulls every event, so a young language
+     has none: asked for a copy, the sender takes one then, which holds only confirmed work
+     and prunes as any checkpoint does. Without it every copy of such a language stopped
+     after the organization (found on two emulators, 2026-11-09). The
      organization part is `newcomerOrgState(state, languageId)`, a pure function in core
      that starts empty and copies an allowlist: the organization, `roles`, `license`,
      `library`, `recommendations`, this language, and live members at organization scope
@@ -3230,7 +3235,10 @@ it does today (decision 54).
    then brings everything newer as `nearby`, and audio follows section 5.6. Only a newcomer takes an
    organization state from a phone; everyone else still gets it only from the server. A
    link's row source throws `OfflineError` on a drop and never answers null, or `KeptFill`
-   reads it as a gone cut and drops the language. Once the copy has committed, the progress
+   reads it as a gone cut and drops the language. A sender that gives no organization or
+   language (`copyServed.stateRefused`: its own download still running, or nothing from the
+   server yet) still lets the person in, and its screen says so (`copy-short`): they are in,
+   and any teammate with Share nearby open can finish the copy. Once the copy has committed, the progress
    screen says one line, to everyone: "This phone no longer needs the install file. You can
    delete it, unless you will pass it on."
 5. **Working.** The app runs with a *local person*: an actor id and no server session, in
@@ -3252,7 +3260,11 @@ it does today (decision 54).
      throws `OfflineError` until first contact, because `pushNow` marks anything the
      server answers as rejected. Events stay `pending`.
    - **Teammates.** Their events are `pending` here and reach teammates as `nearby`, shown
-     under the name in their chain. Teammates see them by name only until first contact,
+     under the name in their chain: the session reports it (`peer.name`, from a two-link
+     chain only), so does the inviter's tap, and the app keeps it under
+     `chain-names:<actorId>`, laid under the directory, which a read from the server
+     replaces whole, so the server's name wins once it has one (`chainNamesModel.ts`).
+     Teammates see them by name only until first contact,
      and cannot ask them for work yet. Account changes wait in the account outbox
      (`durableOutbox.ts`), which already gives a retryable error with no session.
    - **Me.** No Sign out, no notification switch, no Switch or new organization. "Remove
