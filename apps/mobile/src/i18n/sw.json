@@ -8208,6 +8208,7 @@
         "refused": "Simu hii haikuweza kumruhusu aingie kwa jukumu hilo. Unganisha kwenye intaneti mara moja, kisha ujaribu tena.",
         "dropped": "Muunganisho ulikatika kabla hajaruhusiwa kuingia. Tengeneza msimbo mpya.",
         "droppedAfter": "Ameingia, lakini muunganisho ulikatika. Mwenzako yeyote wa timu aliyefungua Shiriki karibu anaweza kumaliza nakala yake ya kuanzia.",
+        "copyShort": "Ameingia, lakini simu hii haikuwa na nakala ya kuanzia ya kumpa bado. Mwenzako yeyote wa timu aliyefungua Shiriki karibu anaweza kuimaliza.",
         "stopped": "Msimbo umeondoka kwa sababu uliondoka kwenye skrini hii. Tengeneza mpya.",
         "noCertificate": "Simu hii lazima iunganishwe kwenye intaneti mara moja kabla ya kuweza kumruhusu mtu yeyote aingie.",
         "failed": "Kuna tatizo limetokea kwenye simu hii. Tengeneza msimbo mpya."

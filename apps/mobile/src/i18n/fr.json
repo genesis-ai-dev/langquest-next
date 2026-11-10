@@ -8553,6 +8553,7 @@
         "refused": "Ce téléphone n’a pas pu faire entrer cette personne avec ce rôle. Connectez-vous une fois à Internet, puis réessayez.",
         "dropped": "La connexion a été coupée avant que la personne soit entrée. Créez un nouveau code.",
         "droppedAfter": "La personne est entrée, mais la connexion a été coupée. Tout coéquipier avec Partager à proximité ouvert peut terminer sa copie de départ.",
+        "copyShort": "La personne est entrée, mais ce téléphone n'avait pas encore de copie de départ à lui donner. Tout coéquipier avec Partager à proximité ouvert peut la terminer.",
         "stopped": "Le code n’existe plus car vous avez quitté cet écran. Créez-en un nouveau.",
         "noCertificate": "Ce téléphone doit se connecter une fois à Internet avant de pouvoir faire entrer quelqu’un.",
         "failed": "Un problème est survenu sur ce téléphone. Créez un nouveau code."

@@ -8553,6 +8553,7 @@
         "refused": "Este teléfono no pudo dejarlo entrar con ese rol. Conéctate a internet una vez y vuelve a intentarlo.",
         "dropped": "La conexión se cortó antes de que entrara. Crea un código nuevo.",
         "droppedAfter": "Ya entró, pero la conexión se cortó. Cualquier compañero con Compartir cerca abierto puede terminar su copia inicial.",
+        "copyShort": "Ya entró, pero este teléfono aún no tenía una copia inicial para darle. Cualquier compañero con Compartir cerca abierto puede terminarla.",
         "stopped": "El código ya no sirve porque saliste de esta pantalla. Crea uno nuevo.",
         "noCertificate": "Este teléfono debe conectarse a internet una vez antes de poder dejar entrar a alguien.",
         "failed": "Algo salió mal en este teléfono. Crea un código nuevo."

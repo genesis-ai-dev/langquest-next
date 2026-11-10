@@ -5,7 +5,7 @@ import {
 import { chainAsSigned, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbySigned, type NearbySigner } from './nearbyIntake';
 import { nearbyCodeOf, type NearbyDiagCode } from './nearbyDiag';
 import type { NearbyKeep } from './nearbyKeep';
-import { CopyRefused, StartingCopySender, takeStartingCopy, type CopyAsker, type NearbyCopySource, type StartingCopyTaken, type StartingCopyTarget } from './nearbyCopy';
+import { CopyRefused, StartingCopySender, takeStartingCopy, type CopyAsker, type CopyNoReason, type NearbyCopySource, type StartingCopyTaken, type StartingCopyTarget } from './nearbyCopy';
 import type { HostDetails, HostOptions, NearbyCrypto, NearbyLink, NearbyRadio } from './nearbyLink';
 import { attemptKeysOf, checkOpeningI, checkOpeningR, findTagOf, makeOpeningI, makeOpeningR, openingKeyOf, openingPinOf, sameBytes, sessionKeysOf, type NearbySessionKeys } from './nearbyOpening';
 import { encodeMessage, NEARBY_HOLDINGS_MESSAGE_FILES, parseMessage, type Message } from './nearbyWire';
@@ -255,7 +255,8 @@ export type NearbySessionEnd =
 export interface NearbySessionReport {
   role: NearbyRole;
   ended: NearbySessionEnd;
-  peer: { installKey: string; profileId: string; deviceId: string; tag: string } | null;
+  /** Who was met; `name` only from a two-link chain, which names someone let in offline before the server knows them (14.1, 5, "Teammates"). */
+  peer: { installKey: string; profileId: string; deviceId: string; tag: string; name?: string } | null;
   /** The tag worked out from a chain that checked, when the read gate or the tag heard then refused it: the room does not pick that phone again. */
   refusedTag: string | null;
   /** Their hello said a range this build shares nothing with: get a newer app from a teammate or the store. */
@@ -292,8 +293,8 @@ export interface NearbySessionReport {
   /** What this phone took of a starting copy, and why a teammate gave no more. */
   copy: StartingCopyTaken | null;
   copyRefused: string | null;
-  /** Parts of a starting copy this phone sent, and asks it answered with `copy-no`. */
-  copyServed: { parts: number; no: number };
+  /** Parts of a starting copy this phone sent, asks it answered with `copy-no`, and why it gave no organization or language, which leaves the copy short. */
+  copyServed: { parts: number; no: number; stateRefused: CopyNoReason | null };
 }
 
 const emptyReport = (role: NearbyRole): NearbySessionReport => ({
@@ -303,7 +304,7 @@ const emptyReport = (role: NearbyRole): NearbySessionReport => ({
   files: { got: 0, served: 0, answeredNo: 0, toldNo: 0, failed: 0, noRoom: false, cutBackups: false },
   holdings: { taken: 0, dropped: 0, sent: 0 },
   older: false, farAhead: [], handedKey: null, handedKeyRefused: 0, revokedTaken: null, revokedDropped: 0, finals: null, changed: false,
-  join: null, versionsDiffer: false, copy: null, copyRefused: null, copyServed: { parts: 0, no: 0 }
+  join: null, versionsDiffer: false, copy: null, copyRefused: null, copyServed: { parts: 0, no: 0, stateRefused: null }
 });
 
 /** Who hosts what, in the order tried, ending with the pipe (5.12, The short Bluetooth exchange). Both sides work this out from `arrange`, so they agree. */
@@ -735,7 +736,7 @@ export class NearbySession {
     this.report.refusedTag = null;
     this.verdict = verdict;
     this.theirHello = hello;
-    this.report.peer = { installKey: holder.installKey, profileId: holder.profileId, deviceId: holder.deviceId, tag };
+    this.report.peer = { installKey: holder.installKey, profileId: holder.profileId, deviceId: holder.deviceId, tag, ...(holder.name ? { name: holder.name } : {}) };
     this.report.clockOff = Math.abs(hello.wallMs - opt.port.nearbyWallNow) > CLOCK_AHEAD_TOLERANCE_MS;
     await opt.keep.noteName(holder.installKey, holder.profileId);
   }
@@ -882,6 +883,7 @@ export class NearbySession {
     }
     if (typeof answer === 'string') {
       report.copyServed.no += 1;
+      if (ask.part === 'state') report.copyServed.stateRefused ??= answer;
       await this.send({ t: 'copy-no', reason: answer });
       return;
     }

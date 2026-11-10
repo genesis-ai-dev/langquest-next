@@ -7863,6 +7863,7 @@
         "refused": "Ponsel ini tidak bisa mengizinkan mereka masuk dengan peran itu. Sambungkan ke internet sekali, lalu coba lagi.",
         "dropped": "Sambungan terputus sebelum mereka diizinkan masuk. Buat kode baru.",
         "droppedAfter": "Mereka sudah masuk, tetapi sambungan terputus. Rekan tim mana pun yang membuka Berbagi di sekitar bisa menyelesaikan salinan awal mereka.",
+        "copyShort": "Mereka sudah masuk, tetapi ponsel ini belum punya salinan awal untuk diberikan. Rekan tim mana pun yang membuka Berbagi di sekitar bisa menyelesaikannya.",
         "stopped": "Kode hilang karena Anda meninggalkan layar ini. Buat kode baru.",
         "noCertificate": "Ponsel ini harus tersambung ke internet sekali sebelum bisa mengizinkan siapa pun masuk.",
         "failed": "Ada yang salah di ponsel ini. Buat kode baru."

@@ -8553,6 +8553,7 @@
         "refused": "Este celular não conseguiu deixar a pessoa entrar com essa função. Conecte-se à internet uma vez e tente de novo.",
         "dropped": "A conexão caiu antes de a pessoa entrar. Crie um código novo.",
         "droppedAfter": "A pessoa entrou, mas a conexão caiu. Qualquer colega com o Compartilhar por perto aberto pode terminar a cópia inicial dela.",
+        "copyShort": "A pessoa entrou, mas este telefone ainda não tinha uma cópia inicial para dar a ela. Qualquer colega com o Compartilhar por perto aberto pode terminá-la.",
         "stopped": "O código não vale mais porque você saiu desta tela. Crie um novo.",
         "noCertificate": "Este celular precisa se conectar à internet uma vez antes de poder deixar alguém entrar.",
         "failed": "Algo deu errado neste celular. Crie um código novo."

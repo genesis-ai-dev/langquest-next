@@ -372,6 +372,7 @@ const LET_IN_END = {
   'refused': 'nearby.letIn.end.refused',
   'dropped': 'nearby.letIn.end.dropped',
   'dropped-after': 'nearby.letIn.end.droppedAfter',
+  'copy-short': 'nearby.letIn.end.copyShort',
   'stopped': 'nearby.letIn.end.stopped',
   'no-certificate': 'nearby.letIn.end.noCertificate',
   'failed': 'nearby.letIn.end.failed'

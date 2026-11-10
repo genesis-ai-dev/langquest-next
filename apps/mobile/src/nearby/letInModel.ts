@@ -87,6 +87,8 @@ export type LetInEnd =
   | 'dropped'
   /** Let in, and the link dropped during the copy: any teammate can finish it. */
   | 'dropped-after'
+  /** Let in, but this phone had no copy of the organization or language to give yet: any teammate can finish it. */
+  | 'copy-short'
   /** The phone was locked or left, or the screen closed: the code is gone (5.8). */
   | 'stopped'
   /** This phone holds no certificate or discovery key for the language: it needs the server first. */
@@ -96,8 +98,9 @@ export type LetInEnd =
 /** What a session's report says of how it ended, on the inviter's side. */
 export function letInEndOf(r: {
   ended: { how: string; reason?: string; detail?: string }; versionsDiffer: boolean; clockOff: boolean; join: { granted: boolean; refused: string | null } | null;
+  copyServed?: { stateRefused: string | null };
 }): LetInEnd | 'done' {
-  if (r.join?.granted) return r.ended.how === 'done' ? 'done' : 'dropped-after';
+  if (r.join?.granted) return r.ended.how !== 'done' ? 'dropped-after' : r.copyServed?.stateRefused ? 'copy-short' : 'done';
   if (r.versionsDiffer) return 'versions';
   if (r.clockOff) return 'clock';
   if (r.join?.refused === 'not let in') return 'said-no';

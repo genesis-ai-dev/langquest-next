@@ -136,6 +136,18 @@ describe.each(STORES)('letting someone in, on the %s store', (_name, make) => {
     expect(s.n.names).toEqual([{ ana: 'Ana' }]);
     expect(rn.copy).toMatchObject({ whole: true });
     expect(ri.copyServed.parts).toBeGreaterThan(0);
+    expect(ri.copyServed.stateRefused).toBeNull();
+  });
+
+  // Found on two emulators: the inviter refused the language's state and still said the newcomer could work now.
+  it('an inviter with no copy of the language to give lets them in and its report says why the copy is short', async () => {
+    const s = await setUp();
+    const [rn, ri] = await run(s.a.p, s.n.p, s.pair, s.join, { ...s.copy, language: { startingCopy: async () => null } });
+    expect(rn.join?.granted).toBe(true);
+    expect(rn.copyRefused).toBe('not-filled');
+    expect(await s.n.p.client.holdsCopy()).toBe(false);
+    expect(ri.copyServed.stateRefused).toBe('not-filled');
+    expect(ri.ended).toEqual({ how: 'done' });
   });
 
   it('before the tap nothing the inviter sent holds its pass, chain, key, id or device, and a No sends none of it', async () => {
@@ -268,6 +280,9 @@ describe.each(STORES)('letting someone in, on the %s store', (_name, make) => {
     expect(rn2.ended).toEqual({ how: 'done' });
     expect(rn2.copy).toMatchObject({ whole: true });
     expect(Object.keys((s.n.p.client.getState() as LanguageState).recordings)).toEqual(['by:ana:r1']);
+    // Found on two emulators: the teammate showed them as "Someone". Their chain names them, and the report says so.
+    expect(ri2.peer).toMatchObject({ profileId: s.n.profileId, name: 'Nyibol' });
+    expect(rn2.peer?.name).toBeUndefined();
   });
 });
 

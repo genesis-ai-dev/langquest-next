@@ -8208,6 +8208,7 @@
         "refused": "This phone could not let them in under that role. Connect to the internet once, then try again.",
         "dropped": "The connection dropped before they were let in. Make a new code.",
         "droppedAfter": "They are in, but the connection dropped. Any teammate with Share nearby open can finish their starting copy.",
+        "copyShort": "They are in, but this phone had no starting copy to give them yet. Any teammate with Share nearby open can finish it.",
         "stopped": "The code is gone because you left this screen. Make a new one.",
         "noCertificate": "This phone must connect to the internet once before it can let anyone in.",
         "failed": "Something went wrong on this phone. Make a new code."

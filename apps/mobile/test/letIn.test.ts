@@ -85,6 +85,9 @@ describe('the screen', () => {
     const base = { versionsDiffer: false, clockOff: false, join: { granted: false, refused: null as string | null } };
     expect(letInEndOf({ ...base, join: { granted: true, refused: null }, ended: { how: 'done' } })).toBe('done');
     expect(letInEndOf({ ...base, join: { granted: true, refused: null }, ended: { how: 'dropped' } })).toBe('dropped-after');
+    // Let in, but this phone had no copy of the language or organization to give: a teammate finishes it.
+    expect(letInEndOf({ ...base, join: { granted: true, refused: null }, ended: { how: 'done' }, copyServed: { stateRefused: 'not-filled' } })).toBe('copy-short');
+    expect(letInEndOf({ ...base, join: { granted: true, refused: null }, ended: { how: 'done' }, copyServed: { stateRefused: null } })).toBe('done');
     expect(letInEndOf({ ...base, join: { granted: false, refused: 'not let in' }, ended: { how: 'said', reason: 'stopped' } })).toBe('said-no');
     expect(letInEndOf({ ...base, join: { granted: false, refused: 'pass expired' }, ended: { how: 'said', reason: 'identity' } })).toBe('refused');
     expect(letInEndOf({ ...base, versionsDiffer: true, ended: { how: 'said', reason: 'protocol' } })).toBe('versions');

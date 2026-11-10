@@ -8208,6 +8208,7 @@
         "refused": "Hindi sila mapapasok ng teleponong ito sa tungkuling iyon. Kumonekta sa internet nang isang beses, saka subukan ulit.",
         "dropped": "Naputol ang koneksiyon bago sila nakapasok. Gumawa ng bagong code.",
         "droppedAfter": "Nakapasok na sila, pero naputol ang koneksiyon. Matatapos ang panimulang kopya nila ng sinumang kasamahang nakabukas ang Ibahagi sa malapit.",
+        "copyShort": "Nakapasok na sila, pero wala pang panimulang kopyang maibibigay sa kanila ang teleponong ito. Matatapos ito ng sinumang kasamahang nakabukas ang Ibahagi sa malapit.",
         "stopped": "Nawala ang code dahil umalis ka sa screen na ito. Gumawa ng bago.",
         "noCertificate": "Kailangang kumonekta muna sa internet nang isang beses ang teleponong ito bago ito makapagpapasok ng kahit sino.",
         "failed": "May nangyaring mali sa teleponong ito. Gumawa ng bagong code."

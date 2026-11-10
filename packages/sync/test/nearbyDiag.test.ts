@@ -33,7 +33,7 @@ describe('nearby diagnostics: the fields', () => {
       got: { pages: 3, events: 40, refused: 1, droppedPages: 0, overBudget: 0, counted: 40 }, sent: { batches: 1, claims: 0, events: 12, skipped: 0 },
       files: { got: 2, served: 1, answeredNo: 0, toldNo: 0, failed: 1, noRoom: true, cutBackups: false }, holdings: { taken: 1, dropped: 0, sent: 1 },
       older: false, farAhead: [{ actorId: 'sam', hlc: '1' }], handedKey: null, handedKeyRefused: 0, revokedTaken: null, revokedDropped: 0, finals: null, changed: true,
-      join: null, versionsDiffer: false, copy: null, copyRefused: null, copyServed: { parts: 0, no: 0 }
+      join: null, versionsDiffer: false, copy: null, copyRefused: null, copyServed: { parts: 0, no: 0, stateRefused: null }
     } satisfies NearbySessionReport;
     const d = sessionDiagOf(report, 5_000);
     expect(d.t).toEqual({ event: 'session', role: 'i', end: 'heard', bye: 'busy', code: 'LINK_DROPPED', link: 'hotspot' });
