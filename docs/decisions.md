@@ -11949,6 +11949,15 @@ files), which is also why diagnostics' `nearby` kind lives there (229).
 Reverse if: a later change needs room and nearby's share can move behind a
 chunk the web never loads.
 
+Amended (2026-11-09, Carl Sauder): the budgets now stand at about 3.97 MB
+on a first visit (3.94 MB and 35 KB) and about 4.98 MB in all (4.93 MB and
+55 KB). Carl chose that each later nearby change raise them by what it
+measured rather than wait for a trim, and each raise's reason sits beside
+the number in `export-web.mjs`: joining offline, the carried build and its
+install file screen, Share nearby's two jobs, the Sync reminders, the fixes
+from the two-emulator test, and main's own 2 KB for LAN-221 merged in. A
+trim pass before the branch merges is still worth doing.
+
 ## 229. A required `android-native` job compiles, tests and lints the nearby module when it, the app's package.json or the lockfile changes
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted

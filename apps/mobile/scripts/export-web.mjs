@@ -152,7 +152,11 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Raised by 2 KB with the Sync reminders to get the install file (Carl, 2026-11-09, decision 241
 // amended again), 1,189 bytes past then: the first visit's growth below, and the reminder's rule
 // in the model the nearby chunk carries, which the web never opens.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 50 * 1024;
+// Raised by 5 KB with the fixes from the two-emulator test and main merged in (Carl, 2026-11-09),
+// 4,505 bytes past then: the starting copy's checkpoint, the copy-short line and its words in all 16
+// catalogs, names from checked chains, the join link's route, the start deadline and Ready to carry's
+// server check, most of it in the nearby chunk, which the web never opens; and main's own growth.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 55 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -194,7 +198,10 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 50 * 1024;
 // Raised by 2 KB more for LAN-221 (3.9 MB to 3.902 MB on main): a grey Inbox badge and a
 // "Sign-in not renewed" state on the sync icon took the first visit 1 KB over
 // when merged with main.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 32 * 1024;
+// Raised by 3 KB with the fixes from the two-emulator test (Carl, 2026-11-09), 2,460 bytes past then,
+// with main merged in: the copy-short line in the catalog every visit carries, names from checked
+// chains laid under the directory, the join link's route, and the start deadline's stub.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 35 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
