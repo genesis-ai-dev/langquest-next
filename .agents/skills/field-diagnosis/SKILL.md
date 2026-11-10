@@ -39,7 +39,11 @@ role on a hosted database (`DIAG_DATABASE_URL`) or the local database.
    If the person never opened a language (no organization yet, a join
    request waiting, stuck at sign-in or on the organization stream), use
    `npm run diag -- org <org>` (every member's phones, and members never
-   heard from) or `npm run diag -- person <profileId>`.
+   heard from) or `npm run diag -- person <profileId>`. Someone from
+   LangQuest v2 waiting on Welcome back: `person` lists their v2 projects
+   and where each stands; a project the transfer board never confirmed is
+   never read by the import, so it waits until someone transfers it.
+   `timeline <installId>` names the install's profile id.
 3. **Narrow** to one phone: `--install <id>` on the report, then
    `npm run diag -- timeline <id> --days 3` to see the order of events
    around when it went wrong (sync outcomes, snapshot, transfer tallies,
