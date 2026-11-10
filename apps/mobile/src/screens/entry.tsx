@@ -694,7 +694,8 @@ export function ScanQr(ctx: Ctx) {
   const [scanning, setScanning] = useState(false);
   const scanned = useRef(false);
   const autoStarted = useRef(false);
-  const [error, setError] = useState('');
+  // A Let someone in link opened from outside the app by someone already on this phone (routingModel `joinLinkRoute`).
+  const [error, setError] = useState(() => (parseKey(ctx.params['code'] ?? '')?.kind === 'join' && !ctx.session.isGuest ? t('entry.scan.joinNotGuest') : ''));
   const [localBusy, setLocalBusy] = useState(false);
   const [localDone, setLocalDone] = useState('');
   const guest = ctx.session.isGuest;

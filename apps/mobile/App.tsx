@@ -527,7 +527,7 @@ function OrgWork(props: Who & {
   const { invite, firstContact } = props;
   // Links still open screens for a local person; asking "Join as you?" and the Inbox's pushes wait for a server session.
   useIncoming({
-    nav, invite, signedIn: props.serverSession, onboardingLoaded: onboarding.loaded, actorId: props.actorId, orgId: props.orgId,
+    nav, invite, signedIn: props.serverSession, guest: session.isGuest, onboardingLoaded: onboarding.loaded, actorId: props.actorId, orgId: props.orgId,
     homeIsWork, toast, openTask, openOrganization: props.openOrganization
   });
   useTestProbes({ org, language, languageId, orgId: props.orgId, go, openTask });
