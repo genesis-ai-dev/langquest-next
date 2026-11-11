@@ -10,7 +10,7 @@
 // in the field that none of it came along.
 import { languageName, offlineByUnit, unitTitle, type UnitOffline } from '@langquest-next/core';
 import { deriveKinds, passageSummary } from '../i18n/coreText';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
@@ -25,7 +25,7 @@ import { formatNumber } from '../i18n/format';
 import { STUDY_FILES_OFFLINE } from '../study/studyFiles';
 import { C, onColor, radius, space, TINT } from '../ui/theme';
 import { keptOfflineMap, offlineLine, type KeptOffline, type OfflineOverview } from './offlineText';
-import { offlineLook, type OfflineLook } from './offlineModel';
+import { fillBanner, offlineLook, type FillSeen, type OfflineLook } from './offlineModel';
 import { useStudyRevision } from './useOfflineSummary';
 import { WaveArrow } from './transit';
 import { useSyncStatus } from './useSyncStatus';
@@ -165,18 +165,26 @@ export function BookOfflineLine(props: { ready: number; count: number; checking:
  * and the Sync screen show it; it goes once every passage is here.
  */
 export function FillBanner(props: { ctx: Ctx }) {
-  const fill = props.ctx.language.fill;
-  if (!fill || fill.total === 0) return null;
+  const { fill, languageId } = props.ctx.language;
+  // Kept once shown, so the finished fill stays in place, as tall as it was (fillBanner, LAN-253).
+  const [seen, setSeen] = useState<FillSeen | null>(null);
+  const [height, setHeight] = useState(0);
+  if (fill && fill.total > 0 && (seen?.languageId !== languageId || seen.total !== fill.total)) setSeen({ languageId, total: fill.total });
+  const shown = fillBanner(fill, seen, languageId);
+  if (!shown) return null;
   const offline = isOffline(props.ctx.language.online);
-  const count = t('offline.fill.count', { filled: fill.filled, total: fill.total });
-  const body = sentences(count, offline ? t('offline.connectToFinish') : t('offline.stayConnected'));
+  const count = t('offline.fill.count', { filled: shown.filled, total: shown.total });
+  const title = t(shown.done ? 'offline.onDevice' : 'offline.fill.title');
+  const body = shown.done ? count : sentences(count, offline ? t('offline.connectToFinish') : t('offline.stayConnected'));
   return (
-    <Card accessibilityLabel={t('shell.a11y.labelDetail', { label: t('offline.fill.title'), detail: body })}>
-      <Block icon="download" tint={offline ? TINT.amberText : C.primary} bg={offline ? TINT.amber : C.light} title={t('offline.fill.title')} body={body} />
-      <HelpInfo label={t('offline.fill.title')} detail={t('offline.fill.barHelp')}>
-        <ProgressBar value={(fill.filled / fill.total) * 100} />
-      </HelpInfo>
-    </Card>
+    <View onLayout={(e) => { if (!shown.done) setHeight(e.nativeEvent.layout.height); }} style={{ minHeight: shown.done ? height : 0 }}>
+      <Card style={{ flexGrow: 1 }} accessibilityLabel={t('shell.a11y.labelDetail', { label: title, detail: body })}>
+        <Block icon={shown.done ? 'check' : 'download'} tint={shown.done ? TINT.greenText : offline ? TINT.amberText : C.primary} bg={shown.done ? TINT.green : offline ? TINT.amber : C.light} title={title} body={body} />
+        <HelpInfo label={title} detail={t('offline.fill.barHelp')}>
+          <ProgressBar value={(shown.filled / shown.total) * 100} />
+        </HelpInfo>
+      </Card>
+    </View>
   );
 }
 

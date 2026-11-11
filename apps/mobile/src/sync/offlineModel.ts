@@ -23,3 +23,21 @@ export function offlineLook(u: KeptOffline | 'checking', o: { offline: boolean; 
     ? { kind: 'downloading', label: t('offline.passage.downloadingCount', { here, total }) }
     : { kind: 'partial', label: t('offline.passage.onlySomeHere', { here, count: total }) };
 }
+
+/** The language download a screen has shown its banner for: which language, and how many passages it had to fill. */
+export type FillSeen = { languageId: string; total: number };
+
+/**
+ * What the first-download banner shows (decisions.md 147): the fill while it
+ * runs, then, once this screen has shown it, the finished fill in the same
+ * place until the person leaves the screen. Taken away the moment the last
+ * passage arrived, the list under it moved up by the banner's height while
+ * someone was tapping a row, and the tap missed (LAN-253). Nothing for a
+ * fill this screen never showed, or one of another language.
+ */
+export function fillBanner(fill: { filled: number; total: number } | null, seen: FillSeen | null, languageId: string):
+  { filled: number; total: number; done: boolean } | null {
+  if (fill && fill.total > 0) return { filled: fill.filled, total: fill.total, done: false };
+  if (!fill && seen && seen.languageId === languageId) return { filled: seen.total, total: seen.total, done: true };
+  return null;
+}

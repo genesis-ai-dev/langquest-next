@@ -6986,6 +6986,13 @@ rows are still inserted into `snapshot_units` and the old ones deleted, since
 the table is keyed by the snapshot's seq and a new seq is a new row;
 decision 88's retention is as it was.
 
+Amended (2026-11-11, Caleb Koster): once a screen has shown "Downloading
+this language", the banner stays where it is when the last passage arrives,
+as "On this device" with a full bar and the same height, until the person
+leaves the screen. Taken away at once, it moved the list under it up by its
+height mid-tap: on the web the tap landed on nothing, and on a phone it can
+land on the row below (LAN-253, the nightly's STUDY-030).
+
 ## 148. A local stack runs the projection pass in the job container too, and the Edge Function is push-delivery
 
 Date: 2026-10-20 · By: Carl Sauder · Status: accepted
