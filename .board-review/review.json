@@ -1,11 +1,11 @@
 {
   "kind": "screen",
   "ask": "Should the download card stay as \"On this device\" until people leave the Map, so taps don't miss?",
-  "problem": "On a new phone or browser, a tap on a passage in the Map sometimes did nothing. The nightly test hit this: it tapped a passage, and the passage never opened.",
-  "found": "On a new device, the Map shows a \"Downloading this language\" card above the list. When the last passage arrives, the card vanished at once. The whole list then jumped up by the card's height. A tap made at that moment started on one spot and ended on another. On the web that tap opens nothing. On a phone it can open the row below. The nightly machine was busy, so its tap was slow enough to be caught. I made it happen every time here by holding a tap while the download finished.",
-  "changed": "When the download finishes, the card stays where it is. It turns green, says \"On this device\" and shows a full bar. It keeps the same height, so the list never moves. It goes away when the person leaves the screen. The same holds on the Sync part of Settings.",
-  "why": "Things should not move under a person's finger. Keeping finished items in place is the usual way apps avoid this. I first checked for a late server answer, like the one in LAN-252. The tap itself was fine and the passage was allowed to open. The lost tap came only from the list moving. I did not change the test. It now passes because the screen no longer moves.",
-  "touches": "The download card on the Map and in Settings. No new text to translate: it reuses \"On this device\" and the passage count.",
+  "problem": "On a new device, tapping a passage on the Map sometimes did nothing. The nightly test hit this.",
+  "found": "When the download finished, the card above the list vanished and the list jumped up. A tap made at that moment started on one spot and ended on another, so it opened nothing. I made it happen every time here.",
+  "changed": "When the download finishes, the card stays put. It turns green, says \"On this device\" and keeps its height, so the list never moves. It goes away when you leave the screen.",
+  "why": "Things should not move under a finger; keeping finished items in place is the usual fix. I checked for a late server answer first, like LAN-252. It was not that. The test is unchanged.",
+  "touches": "The download card on the Map and in Settings. No new text to translate.",
   "pictures": [
     {
       "file": "downloading.png",
