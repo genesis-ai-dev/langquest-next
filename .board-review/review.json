@@ -1,37 +1,18 @@
 {
-  "kind": "question",
-  "ask": "Which issues should we make for building a template as people go?",
-  "problem": "Some teams do not know their template before they start. They want to divide books, or add books, folders and stories, while they translate.",
-  "found": "I could not test on a phone or browser. This comes from the code. Leads and admins can divide a book. Adding books, folders or stories works only in the template editor under Manage, not from the map.",
-  "changed": "Nothing yet. No code changed. This card only holds pictures and a question.",
-  "why": "You asked for a walk-through and a question before anything is built. I looked at the map, the book page, the divide screens, the template editor and the flow map in the code.",
-  "touches": "Nothing today. Option 2 would change who may edit the organization's templates.",
+  "kind": "screen",
+  "ask": "Should I build this Add a book button on the map, and the same for folders and stories?",
+  "problem": "Teams that do not know their template cannot add a book, folder or story while they translate. They must leave the map and open the template editor.",
+  "found": "The test failed because the sandbox's network re-signs secure traffic and the sign-up service did not trust it. I fixed that. Both flows now run in the browser at phone width. No phone simulator here.",
+  "changed": "Nothing in the app yet. The first picture is the real map today. The second is the same screen with the proposed button drawn in. Other pictures show the flows that work today.",
+  "why": "The button sits at the end of the book list, where a team notices a missing book. It opens the same short sheet the template editor uses today. Folders and stories would get the same button on an outline language's map.",
+  "touches": "Only people who may edit templates would see it. It saves a new template version, as Done does today. I also added a setup script and a short note in the testing guide so later agents can run browser tests.",
   "pictures": [
-    {
-      "file": "flow-divide.png",
-      "label": "Dividing a book today"
-    },
-    {
-      "file": "flow-template.png",
-      "label": "Adding books, folders and stories today"
-    }
+    {"file": "d1-before-end-of-list.png", "label": "Before: the map's book list today"},
+    {"file": "d2-after-end-of-list.png", "label": "After: with the proposed Add a book button"},
+    {"file": "a3-book-waits.png", "label": "Today: a book waits to be divided"},
+    {"file": "a5-own-way.png", "label": "Today: dividing a book your own way"},
+    {"file": "b6-outline-parts.png", "label": "Today: a folder and a lesson in a new outline template"},
+    {"file": "c2-add-a-book.png", "label": "Today: the Add a book sheet, only inside the template editor"}
   ],
-  "options": [
-    {
-      "label": "Make two issues: add parts from the map",
-      "result": "One issue adds a folder or story from the map of an outline language. One adds a missing book from the map of a Bible language. Dividing stays as it is.",
-      "picture": "option-a.png"
-    },
-    {
-      "label": "Make three issues: also let language leads divide",
-      "result": "The two issues above, plus one so language leads can divide waiting books. This changes who may edit templates, so it needs a choice first.",
-      "picture": "option-b.png"
-    },
-    {
-      "label": "Make no issues until you test on a phone",
-      "result": "Nothing is built. You walk both flows on a phone and write here what felt slow or hard.",
-      "picture": "option-c.png"
-    }
-  ],
-  "recommended": 0
+  "guess": {"answer": "looks_good"}
 }
