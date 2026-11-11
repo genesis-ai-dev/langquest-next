@@ -1,0 +1,23 @@
+{
+  "kind": "screen",
+  "ask": "Does My Work look right offline, with the notice above the join request?",
+  "problem": "A nightly test failed. A coordinator offline switched to a language not yet on their phone. My Work showed only a join request and never said the language was missing.",
+  "found": "My Work showed the missing language notice only when the screen was otherwise empty. A join request was on screen when its answer came back before the phone went offline. Then the notice was hidden. This depended on timing, so the test failed only sometimes. The test also had a weak check: a hidden copy of the notice on the map counted as shown.",
+  "changed": "Offline, My Work now always says the language is not on this device yet. Join requests and news from other languages still show below it. The test now always includes a join request and checks My Work itself.",
+  "why": "The join request belongs to the whole organization, not to the language. So it should not hide news about the language. I found the cause instead of setting the test aside. I made the failure happen on purpose with the old code, then saw it pass with the fix.",
+  "touches": "Only My Work, and only while offline with a language not yet on the phone.",
+  "pictures": [
+    {"file": "before.png", "label": "Before: only the join request, no word that Alpha is missing"},
+    {"file": "after.png", "label": "After: the notice first, the join request below"}
+  ],
+  "links": [
+    {"label": "Pull request", "url": "https://github.com/genesis-ai-dev/langquest-next/pull/417"},
+    {"label": "Failed nightly run", "url": "https://github.com/genesis-ai-dev/langquest-next/actions/runs/42946892947"},
+    {"label": "Linear issue", "url": "https://linear.app/frontierrandd/issue/LAN-251"}
+  ],
+  "linear": {
+    "comment": "Found the cause. My Work showed \"Alpha isn't on this device yet\" only when nothing else was on screen. When the join request from NAV-019 loaded before the phone went offline, it hid the notice. Like LAN-252, this was a timing race on a server answer. The test also matched the Map's hidden copy of the notice, so it usually passed. Fix: the notice now shows next to organization rows. The test always has the join request and checks My Work's own text. Reproduced on the old code; the fix passes, and all 49 tests in that file pass. PR: https://github.com/genesis-ai-dev/langquest-next/pull/417",
+    "state": "In Progress"
+  },
+  "guess": {"answer": "looks_good"}
+}
