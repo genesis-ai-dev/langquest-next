@@ -4,7 +4,9 @@ Short how-to videos, one per thing a person does in LangQuest ("Record a
 passage", "Invite your team"), in every app language. Each is a script in
 `e2e/tutorials/` that the app plays through on the web export, filmed frame by
 frame, with a computer voice saying the script's lines. Decision 177 says why
-they are made this way.
+they are made this way. `docs/tutorial-teaching.md` says what a video owes the
+person watching: every script starts from what they came to do, not from the
+screen.
 
 ## Making them
 
