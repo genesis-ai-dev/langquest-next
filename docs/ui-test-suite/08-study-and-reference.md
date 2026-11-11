@@ -703,7 +703,7 @@ Known issue (2026-10-12, found automating it): offline, a passage whose Bible wa
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- The organization recommends an uploaded Bible (LAN-229, decision 206): the Hindi IRV as USFM files (Jonah, and Luke 15 and 16), and a small English Bible. The automated test builds this world with `e2e/ui/usfm-helpers.ts` from real eBible.org files (`e2e/fixtures/usfm`).
+- The organization recommends an uploaded Bible (LAN-229, decision 207): the Hindi IRV as USFM files (Jonah, and Luke 15 and 16), and a small English Bible. The automated test builds this world with `e2e/ui/usfm-helpers.ts` from real eBible.org files (`e2e/fixtures/usfm`).
 
 Steps:
 1. Open P-SUBMITTED (Luke 15:11-32) and its Bible chip.
@@ -711,7 +711,7 @@ Steps:
 
 Expected:
 - The picker lists both Bibles. The chip then reads "Bible: IRV. Choose another".
-- The verses of Luke 15:11-32 show in Hindi, with the file's section headings above the verses they lead to (decision 207), and the Bible's copyright line.
+- The verses of Luke 15:11-32 show in Hindi, with the file's section headings above the verses they lead to (decision 208), and the Bible's copyright line.
 - No raw USFM marker (a backslash) shows anywhere on the screen.
 
 ### STUDY-038 More Bibles opens the uploaded Bible with the file's books, headings, poetry and notes

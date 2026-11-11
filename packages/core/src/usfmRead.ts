@@ -1,5 +1,5 @@
 /**
- * Reading USFM into what a person reads (decision 207, LAN-230): chapters of
+ * Reading USFM into what a person reads (decision 208, LAN-230): chapters of
  * verses, each with its headings, its lines (a paragraph, a line of poetry)
  * and its notes. Pure: text in, a book out. One walk over the markers serves
  * the upload's check (`usfm.ts`) and the reader, so what was checked is what

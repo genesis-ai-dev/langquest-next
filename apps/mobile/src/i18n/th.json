@@ -7719,5 +7719,28 @@
     "fileHelp": "One file. Tap to take it out of the list.",
     "rightsHelp": "Check this box only if your team may share this text.",
     "shareHelp": "Turn this on to let other organizations follow this Bible."
+  },
+  "orgExport": {
+    "title": "ส่งออกข้อมูลทั้งหมด",
+    "sub": "ไฟล์ zip เดียว: การบันทึกเสียงในโฟลเดอร์ รายการของทุกการบันทึก ตารางความคืบหน้า และบันทึกฉบับเต็ม",
+    "whole": "ทั้งองค์กร",
+    "some": "เฉพาะบางภาษา",
+    "start": "สร้างไฟล์ zip",
+    "waiting": "รอเริ่มต้น",
+    "reading": "กำลังอ่านองค์กร",
+    "audio": "กำลังเพิ่มการบันทึก: {{done}} จาก {{total}}",
+    "log": "กำลังเพิ่มบันทึกฉบับเต็ม",
+    "ready": "พร้อมดาวน์โหลด",
+    "download": "ดาวน์โหลด",
+    "failed": "การส่งออกไม่เสร็จ ลองอีกครั้ง",
+    "started": "เริ่มส่งออกแล้ว",
+    "problem": "เริ่มการส่งออกไม่ได้",
+    "expired": "ลบแล้วหลังผ่านไป 7 วัน",
+    "keep": "ไฟล์ zip ที่เสร็จแล้วเก็บไว้ 7 วัน",
+    "help": "เปิดหน้าสำหรับดาวน์โหลดข้อมูลทั้งหมดขององค์กรเป็นไฟล์ zip เดียว",
+    "wholeHelp": "ส่งออกทุกภาษาขององค์กร",
+    "someHelp": "เลือกภาษาที่จะส่งออก",
+    "languageHelp": "รวมหรือไม่รวมภาษานี้",
+    "downloadHelp": "ดาวน์โหลดไฟล์ zip ที่เสร็จแล้ว"
   }
 }

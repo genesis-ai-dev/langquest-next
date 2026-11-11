@@ -1,4 +1,4 @@
-// An uploaded Bible in the reader (LAN-230, decision 207): a passage's rows from
+// An uploaded Bible in the reader (LAN-230, decision 208): a passage's rows from
 // a book's file, how the Bible's numbering sits against the passage, and how
 // a verse's pieces stack up on screen. Pure: no React Native.
 import { readUsfm, versesOf, type UsfmBookDoc, type UsfmHeading, type UsfmPiece, type UsfmRead, type UsfmVerse, type Verse, type VerseRange, type VersificationDoc } from '@langquest-next/core';

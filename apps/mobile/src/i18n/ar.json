@@ -9444,5 +9444,28 @@
     "fileHelp": "One file. Tap to take it out of the list.",
     "rightsHelp": "Check this box only if your team may share this text.",
     "shareHelp": "Turn this on to let other organizations follow this Bible."
+  },
+  "orgExport": {
+    "title": "تصدير كل البيانات",
+    "sub": "ملف zip واحد: تسجيلات في مجلدات، وقائمة بكل تسجيل، وجداول التقدم، والسجل الكامل.",
+    "whole": "المنظمة كلها",
+    "some": "بعض اللغات فقط",
+    "start": "إنشاء ملف zip",
+    "waiting": "في انتظار البدء",
+    "reading": "جارٍ قراءة المنظمة",
+    "audio": "جارٍ إضافة التسجيلات: {{done}} من {{total}}",
+    "log": "جارٍ إضافة السجل الكامل",
+    "ready": "جاهز للتنزيل",
+    "download": "تنزيل",
+    "failed": "لم يكتمل التصدير. حاول مرة أخرى.",
+    "started": "بدأ التصدير.",
+    "problem": "تعذّر بدء التصدير.",
+    "expired": "أُزيل بعد 7 أيام.",
+    "keep": "يبقى ملف zip المكتمل 7 أيام.",
+    "help": "يفتح صفحة لتنزيل كل بيانات المنظمة في ملف zip واحد.",
+    "wholeHelp": "تصدير كل لغات المنظمة.",
+    "someHelp": "اختر اللغات التي تريد تصديرها.",
+    "languageHelp": "أضف هذه اللغة أو استبعدها.",
+    "downloadHelp": "ينزّل ملف zip المكتمل."
   }
 }
