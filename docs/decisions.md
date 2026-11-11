@@ -3899,6 +3899,18 @@ it arrive, and by every whole read until it is copied (`looksFor`). Only
 files v2 says it has are asked for again, so the 15-minute pass does not
 go back to asking for the 10,000 absent ones (amended 2026-10-20).
 
+Amended (2026-11-11, Caleb Koster): Welcome back no longer holds someone
+whose v2 work is still on its way. A v2 project comes over only once
+someone confirms it on the transfer board, which can take days: one person
+waited four days on Welcome back with Check again as the only way on
+(LAN-250). While nothing has arrived, Welcome back also offers Continue
+without it, which opens the app as it opens for anyone new ("What brings
+you here?", along the existing Welcome back to home edge). It does not
+mark them welcomed, so the app opens on Welcome back until their work is
+here, and then says so. The waiting rows say the LangQuest team is moving
+the work, not that it comes by itself. `diag.v2_person` (`npm run diag --
+person`) tells support where each of a person's v2 projects stands.
+
 ## 95. The app's UI tests run on Maestro on phones and Playwright on the web; Jev stays for journeys judged by outcome
 
 Date: 2026-10-12 · By: Carl Sauder · Status: partly superseded by 102
