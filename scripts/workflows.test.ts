@@ -38,7 +38,7 @@ describe('GitHub Actions workflows', () => {
     // dropped only tells the team 15 minutes later.
     // phone-tests.yml runs the phone flows on an emulator and a simulator
     // against a test server that lives only for the run, and files in Linear
-    // with the Claude plan's token and the Linear key alone (decision 206).
+    // with the Claude plan's token and the Linear key alone (decision 207).
     const scheduled = workflows.filter((w) => /^\s+schedule:\s*$/m.test(w.text)).map((w) => w.f).sort();
     expect(scheduled).toEqual(['guardrails.yml', 'phone-tests.yml', 'release-branches.yml', 'tutorial-review.yml', 'tutorials.yml', 'user-issues.yml']);
   });

@@ -8,7 +8,7 @@ import {
   phoneOutcomes, PICTURE, runKey, safeName, safeNames, shotFor, slug
 } from './phone-tests.mjs';
 
-// The nightly phone tests' report (decision 206). These tests hold what keeps
+// The nightly phone tests' report (decision 207). These tests hold what keeps
 // it worth reading: every failed flow is found with its picture, filed once
 // per phone and only once, a failure that stays quiet stays quiet, one outage
 // is one issue, and Claude's words reach the summary only in the shape asked.

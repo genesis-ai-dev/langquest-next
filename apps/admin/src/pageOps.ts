@@ -70,7 +70,7 @@ export const OPS_SECTIONS = [
   { id: 'tutorials', title: 'Tutorial videos', src: 'ops.youtube_channels and ops.tutorial_videos (decisions.md 180)' },
   { id: 'videofeedback', title: 'Feedback on the videos', src: 'ops.tutorial_inputs and ops.tutorial_suggestions: comments, code changes and notes, and what Claude suggests each night (decisions.md 186)' },
   { id: 'userissues', title: 'User issues', src: 'ops.user_issues: what the watch filed in Linear, closed there, or found already fixed, with the pull request (decisions.md 202)' },
-  { id: 'phonetests', title: 'Phone tests', src: 'GitHub: the phone-tests release that .github/workflows/phone-tests.yml writes each night (decision 206)' }
+  { id: 'phonetests', title: 'Phone tests', src: 'GitHub: the phone-tests release that .github/workflows/phone-tests.yml writes each night (decision 207)' }
 ] as const;
 
 export const OPS_SCRIPT = String.raw`
@@ -452,7 +452,7 @@ Object.assign(RENDER, {
       { h: 'Found', v: (r) => when(r.firstAt) }
     ], d.issues);
   },
-  // Last night's phone tests (sources/phonetests.ts, decision 206): each phone's count, the nights before, and each failed screen with its picture.
+  // Last night's phone tests (sources/phonetests.ts, decision 207): each phone's count, the nights before, and each failed screen with its picture.
   phonetests(d) {
     const safe = (u) => /^https:\/\/(github\.com|linear\.app)\//.test(String(u || ''));
     const out = (href, text) => safe(href) ? '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + text + '</a>' : text;

@@ -1,6 +1,6 @@
 #!/bin/bash
 # An Android emulator on a GitHub Linux runner, for the nightly phone tests
-# (.github/workflows/phone-tests.yml, decision 206):
+# (.github/workflows/phone-tests.yml, decision 207):
 #
 #   bash scripts/ci-android-emulator.sh <log file>
 #   bash scripts/ci-android-emulator.sh --kvm     only give the runner KVM

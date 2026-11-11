@@ -2,7 +2,7 @@ import { hoursAgo, ok, type Alert, type Section } from '../section';
 import type { GitHubEnv } from './github';
 
 /**
- * The nightly phone tests (.github/workflows/phone-tests.yml, decision 206):
+ * The nightly phone tests (.github/workflows/phone-tests.yml, decision 207):
  * last night's phone flows on an Android emulator and an iPhone simulator,
  * as the run left them in the repository's public `phone-tests` release
  * (scripts/phone-tests.mjs publish): summary.json for the night, history.json

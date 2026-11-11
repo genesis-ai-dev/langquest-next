@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * The nightly phone tests' report (.github/workflows/phone-tests.yml,
- * decision 206). Each night the phone flows (apps/mobile/test/maestro) run
+ * decision 207). Each night the phone flows (apps/mobile/test/maestro) run
  * on an Android emulator and an iPhone simulator; this turns what they left
  * into one summary, files each failure in Linear, and puts the summary and a
  * picture of each failed screen where the ops dashboard reads them.
