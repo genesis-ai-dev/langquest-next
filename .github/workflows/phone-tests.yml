@@ -67,6 +67,9 @@ env:
   # What `supabase start` leaves out: none of it is used by the tests.
   SUPABASE_EXCLUDE: studio,imgproxy,vector,logflare,supavisor
   MAESTRO_VERSION: '2.8.0'
+  # Maestro's driver on a fresh simulator or emulator: its default limit was
+  # too short for the first start on a GitHub Mac (2026-11-11). Milliseconds.
+  MAESTRO_DRIVER_STARTUP_TIMEOUT: '600000'
   CLOUDFLARED_VERSION: '2026.7.3'
   # A pull request runs the smoke flows; a night runs them all.
   FLOW_TAGS: ${{ github.event_name == 'pull_request' && 'smoke' || inputs.flows || '' }}
