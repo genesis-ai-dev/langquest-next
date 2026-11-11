@@ -1,4 +1,4 @@
-// A key term's recorded examples (decision 205). A term can be said more than
+// A key term's recorded examples (decision 206). A term can be said more than
 // one way, depending on context, and a language may have no written form, so
 // each way is its own card: its clips together, and its own button to record
 // it again. "Add a different way" starts another card. The later check

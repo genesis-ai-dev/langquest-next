@@ -1,6 +1,6 @@
 # Key-term evaluation sets
 
-The bar for the key-term check (decision 205, LAN-228). A set is a folder of
+The bar for the key-term check (decision 206, LAN-228). A set is a folder of
 short recordings from a partner language, with the truth written down. The
 script measures each matcher against it; nothing here is app code.
 

@@ -126,7 +126,7 @@ export interface Commands {
   markStudyStep(c: { commandId: string; unitId: string; guideId: string; stepId: string; done: boolean }): EventSpec[];
   defineKind(c: RecordEvents['v1.ReviewKindDefined'] & { commandId: string }): EventSpec[];
   /** Tie key terms to a take (TERM-4): the draft being recorded, or a version as it is published. */
-  /** Record a spoken example of a term (decision 205); the Key Term screen asks for two or three. */
+  /** Record a spoken example of a term (decision 206); the Key Term screen asks for two or three. */
   addKeyTermAudio(c: { commandId: string; termId: string; blobHash: string; durationMs: number; wayId: string; duringTakeId?: string }): EventSpec[];
   linkKeyTerms(c: { commandId: string; takeId: string; termIds: string[]; note?: string; adjustmentId?: string }): EventSpec[];
   /** A new term (TERM-6): the term, its first rendering, and why, as its first adjustment. */

@@ -1,4 +1,4 @@
-// How a key term's recorded examples are grouped (decision 205). A term can
+// How a key term's recorded examples are grouped (decision 206). A term can
 // be said more than one way, depending on context, and a language may be oral
 // only, so a "way" is whatever the clips' `wayId` says, written or not. Clips
 // with one wayId are repeats of one way. A written rendering the team made
