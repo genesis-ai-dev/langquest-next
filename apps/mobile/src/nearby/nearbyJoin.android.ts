@@ -187,6 +187,7 @@ export async function joinWithCode(radio: PhoneRadio, code: JoinCode, name: stri
       granted: async (g) => {
         // Left meanwhile, or someone signed in while the inviter decided: no grant is kept, so no local person comes
         // over another account and locks it out (14.1, 3: only a phone with nobody on it; security review, 2026-11-10).
+        // i18n-ignore: the error's message, for diagnostics
         if (!hooks.still() || await phoneNotEmpty(worn)) throw new OfflineError('the join was left');
         const next = await keepGrant(asked, g, {
           keepLocalPerson, keepChains, keepFindKeys, seed: (pairs) => AsyncStorage.multiSet(pairs),
