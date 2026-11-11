@@ -85,8 +85,9 @@ tags:
 # History's Undo puts the checkpoint back, so JRN-006 finds P-CHECK as the
 # fixture left it. (The toast's message and that the next step, the final
 # approval, is offered are checked by JRN-006.)
+# The card reads out the reason too: "Consultant check, moved past · <reason>".
 - extendedWaitUntil:
-    visible: "Consultant check, moved past"
+    visible: "Consultant check, moved past.*"
     timeout: 20000
 - tapOn: "Versions and history"
 - tapOn: "History.*"

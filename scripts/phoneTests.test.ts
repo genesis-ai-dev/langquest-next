@@ -80,6 +80,15 @@ describe('shotFor', () => {
     expect(shotFor(files, 'REC-020')).toBe('/r/a/screenshot-❌-2-(REC-020).png');
     expect(shotFor(files, 'SYNC-015')).toBeNull();
   });
+  it('takes the last step\'s picture from the flow\'s own folder (Maestro 2.8)', () => {
+    const dir = '/r/2026-11-11_231018/P0 A reviewer reviews- looks good';
+    const files = [
+      `${dir}/screenshots/step-012-tapOn.png`, `${dir}/screenshots/step-079-assertCondition-Consultant_check,_moved.png`,
+      '/r/2026-11-11_231018/P0 Another flow/screenshots/step-099-assertCondition.png'
+    ];
+    expect(shotFor(files, 'P0 A reviewer reviews: looks good')).toBe(files[1]);
+    expect(shotFor(files, 'P0 Nothing here')).toBeNull();
+  });
   it('finds the picture after its folder and name went through safeName', () => {
     const files = ['/r/2026-11-11_222406/P0 A reviewer reviews- looks good/screenshot-❌-5-(P0 A reviewer reviews- looks good).png'];
     expect(shotFor(files, 'P0 A reviewer reviews: looks good')).toBe(files[0]);

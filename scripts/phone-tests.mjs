@@ -121,16 +121,26 @@ export function safeNames(dir) {
 }
 
 /**
- * The screenshot Maestro took when a flow failed (`screenshot-❌-<time>-(<flow>).png`
- * in its output), or the newest picture that names the flow. The name may
- * have gone through safeName on its way to the report.
+ * The picture of the screen where a flow failed. Maestro 2.8 keeps a folder
+ * per flow, named after it, with `screenshots/step-<n>-<command>.png` for the
+ * step that failed: the highest step wins. Older Maestro wrote
+ * `screenshot-❌-<time>-(<flow>).png`: the failed one wins, else the newest
+ * that names the flow. The name may have gone through safeName on its way here.
  */
 export function shotFor(files, name) {
-  const named = files.filter((f) => f.endsWith('.png') && (basename(f).includes(`(${name})`) || basename(f).includes(`(${safeName(name)})`)));
+  const names = new Set([name, safeName(name)]);
+  const pngs = files.filter((f) => f.endsWith('.png'));
+  const steps = pngs.filter((f) => {
+    const parts = f.split(/[\\/]/);
+    return parts.at(-2) === 'screenshots' && names.has(parts.at(-3) ?? '') && /^step-\d+/.test(basename(f));
+  });
+  if (steps.length) return [...steps].sort((a, b) => stepOf(b) - stepOf(a))[0];
+  const named = pngs.filter((f) => [...names].some((n) => basename(f).includes(`(${n})`)));
   const failed = named.filter((f) => basename(f).includes('❌'));
   const pick = (list) => [...list].sort((a, b) => basename(b).localeCompare(basename(a)))[0] ?? null;
   return pick(failed) ?? pick(named);
 }
+const stepOf = (f) => Number(/^step-(\d+)/.exec(basename(f))?.[1] ?? -1);
 
 const readJson = (file, fallback) => {
   try {
