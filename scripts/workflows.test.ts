@@ -22,7 +22,7 @@ describe('GitHub Actions workflows', () => {
     expect(workflows.filter((w) => PRODUCTION_KEY.test(w.text)).map((w) => w.f)).toEqual([]);
   });
 
-  it('still have the scheduled test runs, release-branch tidying, tutorial filming, the look at the videos\' feedback and the watch for user issues, which hold no production key', () => {
+  it('still have the scheduled test runs, the phone tests, release-branch tidying, tutorial filming, the look at the videos\' feedback and the watch for user issues, which hold no production key', () => {
     // release-branches.yml deletes a release branch once its new build is
     // public (decisions.md 155); it holds a GitHub App token for this
     // repository only, and a late or dropped run only keeps a branch longer.
@@ -36,7 +36,10 @@ describe('GitHub Actions workflows', () => {
     // key, and reads the diagnostics only through the Worker's
     // /api/user-issues, the same way (decision 202). A run that is late or
     // dropped only tells the team 15 minutes later.
+    // phone-tests.yml runs the phone flows on an emulator and a simulator
+    // against a test server that lives only for the run, and files in Linear
+    // with the Claude plan's token and the Linear key alone (decision 207).
     const scheduled = workflows.filter((w) => /^\s+schedule:\s*$/m.test(w.text)).map((w) => w.f).sort();
-    expect(scheduled).toEqual(['guardrails.yml', 'release-branches.yml', 'tutorial-review.yml', 'tutorials.yml', 'user-issues.yml']);
+    expect(scheduled).toEqual(['guardrails.yml', 'phone-tests.yml', 'release-branches.yml', 'tutorial-review.yml', 'tutorials.yml', 'user-issues.yml']);
   });
 });

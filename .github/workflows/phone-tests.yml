@@ -1,0 +1,347 @@
+# The nightly phone tests (decision 207, docs/testing.md): the phone flows
+# (apps/mobile/test/maestro) on an Android emulator and an iPhone simulator,
+# on GitHub's own machines, which cost nothing on a public repository. The web
+# suite already runs nightly in guardrails.yml; this is what only a phone shows.
+#
+# android:    one Linux machine (it has KVM): the test server (local Supabase,
+#             the app's Worker), the Android test build, the emulator, the flows.
+# ios-server: a Linux machine with the same test server, for the iPhone: a Mac
+#             machine on GitHub cannot run Docker. It opens a Cloudflare quick
+#             tunnel (no account) in front of a gate that lets in only this
+#             run's token (scripts/phone-tunnel.mjs), and serves until the
+#             iPhone job ends.
+# ios:        a Mac machine: the iPhone test build, the simulator, the flows;
+#             127.0.0.1:54421 and :8787, where the test build looks, go through
+#             the tunnel to the test server.
+# report:     each failed flow's last screen; Claude says in one sentence what
+#             went wrong (the Claude plan's token, CLAUDE_CODE_OAUTH_TOKEN; no
+#             API key); one Linear issue per failing flow and phone, under
+#             LAN-210, with its picture (scripts/phone-tests.mjs); the summary
+#             and pictures in this repository's `phone-tests` release, which
+#             the ops dashboard's Phone tests section reads. Off main it files
+#             and publishes nothing (a dry run).
+#
+# Every account and passage is made up, on a test server that lives only for
+# the run: nothing here reaches production, and the workflow holds no
+# production key (scripts/workflows.test.ts). Flows that need a voice into the
+# microphone, or a person in the middle, are left out and listed as not run
+# (scripts/maestro-plan.mjs).
+name: phone-tests
+
+on:
+  schedule:
+    # 08:30 UTC (1:30 AM in Arizona, 12:30 AM Pacific): after the web nightly
+    # (02:30 UTC) and the filming (20:10 UTC) have finished with their machines.
+    - cron: '30 8 * * *'
+  workflow_dispatch:
+    inputs:
+      phones:
+        description: Which phones
+        type: choice
+        options: [both, android, ios]
+        default: both
+      flows:
+        description: "Only flows with these tags (for example smoke), or empty for all"
+        required: false
+        default: ''
+  # A change to the phone tests themselves runs the smoke flows on both phones.
+  pull_request:
+    paths:
+      - .github/workflows/phone-tests.yml
+      - scripts/phone-tests.mjs
+      - scripts/phone-tunnel.mjs
+      - scripts/ci-android-emulator.sh
+      - scripts/phone-tests-wait.sh
+      - scripts/maestro-build.mjs
+      - scripts/maestro-ui.mjs
+      - scripts/maestro-plan.mjs
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phone-tests-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # What `supabase start` leaves out: none of it is used by the tests.
+  SUPABASE_EXCLUDE: studio,imgproxy,vector,logflare,supavisor
+  MAESTRO_VERSION: '2.8.0'
+  CLOUDFLARED_VERSION: '2026.7.3'
+  # A pull request runs the smoke flows; a night runs them all.
+  FLOW_TAGS: ${{ github.event_name == 'pull_request' && 'smoke' || inputs.flows || '' }}
+
+jobs:
+  android:
+    name: Android emulator
+    if: github.event_name != 'workflow_dispatch' || inputs.phones != 'ios'
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      CI: 'true'
+      RESULTS: e2e/results/maestro/android/nightly
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Make room on the disk (the stack, Gradle and the emulator need about 25 GB)
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost /usr/share/swift /opt/hostedtoolcache/CodeQL
+          df -h /
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Keep the stack's ports out of the outbound port range
+        run: bash scripts/ci-reserve-ports.sh
+      - uses: ./.github/actions/docker-images
+        with:
+          phase: restore
+          job-images: 'true'
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Start the test server (local Supabase, the library, push delivery)
+        run: bash scripts/ci-retry-pull.sh npm run db:start
+      - name: Start the app's Worker on :8787 in the background
+        run: (setsid nohup bash e2e/ui-web.sh 8787 > "$RUNNER_TEMP/worker.log" 2>&1 &)
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: phone-tests-gradle-${{ hashFiles('package-lock.json', 'apps/mobile/app.json') }}
+          restore-keys: phone-tests-gradle-
+      - name: Build the Android test app
+        id: build
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          node scripts/maestro-build.mjs --platform android --build-only --abi x86_64
+      - name: Start the Android emulator
+        run: bash scripts/ci-android-emulator.sh "$RUNNER_TEMP/emulator.log"
+      - name: Install Maestro
+        run: |
+          curl -fsSL https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Wait for the Worker
+        run: bash scripts/phone-tests-wait.sh worker "$RUNNER_TEMP/worker.log"
+      - name: Install the app
+        run: |
+          adb install -r "${{ steps.build.outputs.app }}"
+          mkdir -p "$RESULTS"
+          printf '{"device":"Pixel 6","os":"Android %s"}\n' "$(adb shell getprop ro.build.version.release | tr -d '\r')" > "$RESULTS/device.json"
+      - name: The phone flows
+        run: npm run test:ui:phone -- --platform android --device emulator-5554 --label nightly ${FLOW_TAGS:+--tags "$FLOW_TAGS"}
+      - name: Keep the logs
+        if: always()
+        run: |
+          mkdir -p "$RESULTS/logs"
+          adb logcat -d > "$RESULTS/logs/logcat.txt" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/worker.log "$RUNNER_TEMP"/emulator.log "$RESULTS/logs/" 2>/dev/null || true
+          rm -f "$RESULTS/world.json"
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: phone-tests-android
+          path: ${{ env.RESULTS }}
+          if-no-files-found: ignore
+      - uses: ./.github/actions/docker-images
+        if: always()
+        with: { phase: save, job-images: 'true' }
+
+  # A value made for this run and handed only to the two iPhone jobs: the
+  # tunnel's gate lets in nothing without it. Never printed, never in an artifact.
+  ios-key:
+    name: Tunnel key
+    if: github.event_name != 'workflow_dispatch' || inputs.phones != 'android'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      token: ${{ steps.key.outputs.token }}
+    steps:
+      - id: key
+        run: echo "token=$(openssl rand -hex 32)" >> "$GITHUB_OUTPUT"
+
+  ios-server:
+    name: iPhone test server
+    needs: ios-key
+    runs-on: ubuntu-latest
+    timeout-minutes: 200
+    permissions:
+      contents: read
+      # Reads this run's jobs, to stop when the iPhone job has ended.
+      actions: read
+    env:
+      CI: 'true'
+      PHONE_TUNNEL_TOKEN: ${{ needs.ios-key.outputs.token }}
+      GH_TOKEN: ${{ github.token }}
+      SERVER: ${{ github.workspace }}/.phone-server
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Keep the stack's ports out of the outbound port range
+        run: bash scripts/ci-reserve-ports.sh
+      - uses: ./.github/actions/docker-images
+        with:
+          phase: restore
+          job-images: 'true'
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Start the test server (local Supabase, the library, push delivery)
+        run: bash scripts/ci-retry-pull.sh npm run db:start
+      - name: Start the app's Worker on :8787 in the background
+        run: (setsid nohup bash e2e/ui-web.sh 8787 > "$RUNNER_TEMP/worker.log" 2>&1 &)
+      - name: Wait for the Worker
+        run: bash scripts/phone-tests-wait.sh worker "$RUNNER_TEMP/worker.log"
+      - name: The test accounts and passages
+        run: npx tsx scripts/ui-fixture.ts --out "$SERVER/world.json"
+      - name: Open the tunnel
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/cloudflared" "https://github.com/cloudflare/cloudflared/releases/download/$CLOUDFLARED_VERSION/cloudflared-linux-amd64"
+          chmod +x "$RUNNER_TEMP/cloudflared"
+          (setsid nohup node scripts/phone-tunnel.mjs serve --port 9000 > "$RUNNER_TEMP/gate.log" 2>&1 &)
+          (setsid nohup "$RUNNER_TEMP/cloudflared" tunnel --no-autoupdate --url http://127.0.0.1:9000 > "$RUNNER_TEMP/cloudflared.log" 2>&1 &)
+          bash scripts/phone-tests-wait.sh tunnel "$RUNNER_TEMP/cloudflared.log" "$SERVER/tunnel.json"
+      - name: Hand the address and the accounts to the iPhone job
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: phone-tests-ios-server
+          path: ${{ env.SERVER }}
+          retention-days: 1
+      - name: Serve until the iPhone job ends
+        run: bash scripts/phone-tests-wait.sh job "iPhone simulator" 190
+      - name: Keep the logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: phone-tests-ios-server-logs
+          path: |
+            ${{ runner.temp }}/worker.log
+            ${{ runner.temp }}/gate.log
+            ${{ runner.temp }}/cloudflared.log
+          if-no-files-found: ignore
+      - uses: ./.github/actions/docker-images
+        if: always()
+        with: { phase: save, job-images: 'true' }
+
+  ios:
+    name: iPhone simulator
+    needs: ios-key
+    runs-on: macos-26
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      # Downloads the test server's address from this run, once it is there.
+      actions: read
+    env:
+      CI: 'true'
+      PHONE_TUNNEL_TOKEN: ${{ needs.ios-key.outputs.token }}
+      GH_TOKEN: ${{ github.token }}
+      RESULTS: e2e/results/maestro/ios/nightly
+      SERVER: ${{ github.workspace }}/.phone-server
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Xcode and the simulators it has
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes
+      - name: Build the iPhone test app
+        id: build
+        run: node scripts/maestro-build.mjs --platform ios --build-only --abi arm64
+      - name: Start the iPhone simulator
+        run: bash scripts/phone-tests-wait.sh simulator "${{ steps.build.outputs.app }}" "$RESULTS/device.json"
+      - name: Install Maestro
+        run: |
+          curl -fsSL https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Wait for the test server
+        run: bash scripts/phone-tests-wait.sh server "$SERVER"
+      - name: Reach the test server through the tunnel
+        run: |
+          url="$(node -p "require('$SERVER/tunnel.json').url")"
+          (nohup node scripts/phone-tunnel.mjs connect --url "$url" > "$RUNNER_TEMP/tunnel.log" 2>&1 &)
+          bash scripts/phone-tests-wait.sh local "$RUNNER_TEMP/tunnel.log"
+          cp "$SERVER/world.json" "$RESULTS/world.json"
+      - name: The phone flows
+        run: npm run test:ui:phone -- --platform ios --device "$UDID" --label nightly --reuse-world ${FLOW_TAGS:+--tags "$FLOW_TAGS"}
+      - name: Keep the logs
+        if: always()
+        run: |
+          mkdir -p "$RESULTS/logs"
+          cp "$RUNNER_TEMP"/tunnel.log "$RESULTS/logs/" 2>/dev/null || true
+          [ -n "${UDID:-}" ] && xcrun simctl spawn "$UDID" log show --last 30m --style compact --predicate 'process == "LangQuestNext"' > "$RESULTS/logs/simulator.log" 2>/dev/null || true
+          rm -f "$RESULTS/world.json"
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: phone-tests-ios
+          path: ${{ env.RESULTS }}
+          if-no-files-found: ignore
+
+  report:
+    name: Report
+    needs: [android, ios, ios-server]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      # The phone-tests release, on main only.
+      contents: write
+    env:
+      OUT: .phone-tests
+      ON_MAIN: ${{ github.ref == 'refs/heads/main' }}
+      HAS_CLAUDE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24 }
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: phone-tests-*
+          path: .phone-results
+      - name: What each phone did
+        id: summary
+        run: |
+          for p in android ios; do [ -d ".phone-results/phone-tests-$p" ] && mv ".phone-results/phone-tests-$p" ".phone-results/$p"; done
+          node scripts/phone-tests.mjs summary --in .phone-results --out "$OUT" --sha "$GITHUB_SHA" \
+            --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --event "$GITHUB_EVENT_NAME" \
+            --status "android=${{ needs.android.result }},ios=${{ needs.ios.result }}"
+      - name: Claude looks at each failed screen
+        if: steps.summary.outputs.failures != '0' && env.HAS_CLAUDE_TOKEN == 'true'
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: |
+            Tonight some phone UI test flows failed. .phone-tests/failures.json lists them: the phone (android or ios), the flow's name, its file in apps/mobile/test/maestro/flows, Maestro's error, and the picture of the screen when it failed (.phone-tests/shots/<shot>; it can be null). The pictures show a test server with made-up people and data.
+            For each failed flow, read the flow file and the error, and look at the picture. Then write .phone-tests/look.json: a JSON array with one object for each failed flow, {"platform": "<as given>", "flow": "<the name as given>", "what": "<one sentence>", "cause": "app" | "test" | "machine"}.
+            "what" says what the screen shows and what the flow expected to find there. Write it in ASD-STE100 Simplified Technical English: at most 25 words, active voice, words a person on the team understands without the code, no file names.
+            "cause" is "app" when the app did something wrong, "test" when the app looks right and the flow expected something that is no longer there, and "machine" when the phone or the test server failed (a blank screen, a system dialog, no connection).
+            Write only that file.
+          claude_args: --allowedTools "Read,Glob,Grep,Write"
+      - name: Add Claude's words
+        run: node scripts/phone-tests.mjs look --out "$OUT"
+      - name: Tell Linear
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          DRY: ${{ github.ref != 'refs/heads/main' && '--dry-run' || '' }}
+        run: node scripts/phone-tests.mjs linear --out "$OUT" $DRY
+      - name: Put the summary where the ops dashboard reads it
+        if: env.ON_MAIN == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/phone-tests.mjs publish --out "$OUT"
+      - name: The run's summary page
+        if: always()
+        run: '[ -f "$OUT/summary.json" ] && node scripts/phone-tests.mjs markdown --out "$OUT" >> "$GITHUB_STEP_SUMMARY" || true'
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: phone-tests-report
+          path: ${{ env.OUT }}
+          if-no-files-found: ignore
