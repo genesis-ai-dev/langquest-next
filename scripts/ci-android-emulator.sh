@@ -45,10 +45,15 @@ kvm
 
 yes | sdkmanager --licenses > /dev/null 2>&1 || true
 sdkmanager --install "$IMAGE" emulator platform-tools > /dev/null
+# One place for the AVD, for avdmanager and the emulator alike: on the Ubuntu
+# 26.04 image avdmanager did not put it in ~/.android/avd (2026-11-11).
+export ANDROID_AVD_HOME="$HOME/.android/avd"
+mkdir -p "$ANDROID_AVD_HOME"
 echo no | avdmanager create avd --force -n "$AVD" -k "$IMAGE" -d pixel_6 > /dev/null
 # A bigger data partition and more memory than the defaults: the app keeps its
 # languages in SQLite and the files the flows record.
-CONFIG="$HOME/.android/avd/$AVD.avd/config.ini"
+CONFIG="$ANDROID_AVD_HOME/$AVD.avd/config.ini"
+[ -f "$CONFIG" ] || { echo "::error::avdmanager made no $CONFIG"; avdmanager list avd || true; exit 1; }
 {
   echo 'disk.dataPartition.size=6G'
   echo 'hw.ramSize=4096'
