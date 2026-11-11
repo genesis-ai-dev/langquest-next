@@ -2,22 +2,39 @@
   "kind": "screen",
   "ask": "Is it fine to ask the server again, a few times, when loading the review steps fails?",
   "problem": "In the nightly test run, adding a language got stuck on the review step. It said there were no ways to check, and Continue could not be tapped.",
-  "found": "The app fetches the review steps from the server once, when the screen opens. If that one request failed, it never tried again. The server was busy that night, so one request failed. The screen then wrongly said there were none. This is the same kind of problem as the welcome screen issue from last night. I made the same failure happen on purpose and got the exact same stuck screen.",
+  "found": "The app asked the server for the review steps only once. That night the busy server failed that one request, and the app never asked again. I made it fail on purpose and got the same stuck screen.",
   "changed": "When the request fails, the app now asks again up to five times, waiting longer each time. While it waits, the screen says Loading instead of saying there are no ways to check. With one failed request, the review steps now show and Continue works.",
   "why": "One failed request should not leave a person stuck. Asking again a few times is the usual fix. The same fix also covers the list of steps other organizations share. I did not set the test aside, because the cause was in the app. I added a test that makes the first request fail, so this stays fixed.",
   "touches": "Every screen that shows library material now asks again after a failed request. Offline, people still see the 'not connected' note at once.",
   "pictures": [
-    { "file": "before.png", "label": "Before: one failed request leaves the review step empty" },
-    { "file": "after.png", "label": "After: the same failed request, and the review steps show" }
+    {
+      "file": "before.png",
+      "label": "Before: one failed request leaves the review step empty"
+    },
+    {
+      "file": "after.png",
+      "label": "After: the same failed request, and the review steps show"
+    }
   ],
   "links": [
-    { "label": "Pull request", "url": "https://github.com/genesis-ai-dev/langquest-next/pull/418" },
-    { "label": "Nightly run that failed", "url": "https://github.com/genesis-ai-dev/langquest-next/actions/runs/42946892947" },
-    { "label": "Linear issue", "url": "https://linear.app/frontierrandd/issue/LAN-254" }
+    {
+      "label": "Pull request",
+      "url": "https://github.com/genesis-ai-dev/langquest-next/pull/418"
+    },
+    {
+      "label": "Nightly run that failed",
+      "url": "https://github.com/genesis-ai-dev/langquest-next/actions/runs/42946892947"
+    },
+    {
+      "label": "Linear issue",
+      "url": "https://linear.app/frontierrandd/issue/LAN-254"
+    }
   ],
   "linear": {
     "comment": "Found the cause: New language's review step reads the review flows' documents from the server once. Under nightly load that one read failed, it was never retried, and the screen said \"No ways to check to choose from yet.\" with Continue off. Same kind of race as LAN-252. Reproduced by failing that read once (new test SETUP-080): same stuck screen. Fix: the library reads ask again up to five times, and the step says Loading while waiting. PR: https://github.com/genesis-ai-dev/langquest-next/pull/418",
     "state": "In Progress"
   },
-  "guess": { "answer": "looks_good" }
+  "guess": {
+    "answer": "looks_good"
+  }
 }
