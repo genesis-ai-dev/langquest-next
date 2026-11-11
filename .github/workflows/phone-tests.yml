@@ -100,10 +100,15 @@ jobs:
             ~/.gradle/wrapper
           key: phone-tests-gradle-${{ hashFiles('package-lock.json', 'apps/mobile/app.json') }}
           restore-keys: phone-tests-gradle-
+      # The generated project gives Gradle 512 MB of metaspace, which the
+      # release build's lint ran out of on 2026-11-11 (then hung for an hour).
+      # The machine has 16 GB; the user's gradle.properties wins over the project's.
       - name: Build the Android test app
         id: build
-        timeout-minutes: 90
+        timeout-minutes: 45
         run: |
+          mkdir -p ~/.gradle
+          printf 'org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=2g\nkotlin.daemon.jvmargs=-Xmx3g\n' >> ~/.gradle/gradle.properties
           export JAVA_HOME="$JAVA_HOME_17_X64"
           node scripts/maestro-build.mjs --platform android --build-only --abi x86_64
       - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
