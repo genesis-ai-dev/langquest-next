@@ -2,6 +2,7 @@ import { SHOWN, type AnyEvent } from './events';
 import { LIBRARY_KINDS } from './libraryDocs';
 import { ORG_STREAM, PRIVILEGES, TARGET_SCOPES } from './orgTerms';
 import { isLicense, LICENSES } from './license';
+import { MAX_KEY_TERM_AUDIO_MS } from './materials';
 
 /**
  * Shape checks for envelopes and known payloads. The server runs the same
@@ -281,6 +282,9 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('termId', 'term') ?? (typeof p['gloss'] === 'string' ? null : 'gloss must be a string') ?? strArray('unitScope');
     case 'v1.KeyTermRenderingAdded':
       return str('termId', 'renderingId', 'rendering') ?? (typeof p['context'] === 'string' ? null : 'context must be a string');
+    case 'v1.KeyTermAudioRenderingAdded':
+      return str('termId', 'renderingId', 'blobHash', 'wayId') ?? optStr('duringTakeId') ??
+        (typeof p['durationMs'] === 'number' && Number.isInteger(p['durationMs']) && p['durationMs'] > 0 && p['durationMs'] <= MAX_KEY_TERM_AUDIO_MS ? null : 'durationMs must be a whole number of milliseconds up to 30000');
     case 'v1.KeyTermAdjusted':
       return str('termId', 'adjustmentId') ?? (typeof p['note'] === 'string' ? null : 'note must be a string') ?? optStr('blobHash', 'duringTakeId');
     case 'v1.KeyTermLinked':
@@ -400,6 +404,7 @@ export function entityKeyOf(e: AnyEvent): string | null {
     case 'v1.RequestMade': return `request:${String(p['requestId'])}`;
     case 'v1.NoteAdded': return `note:${String(p['noteId'])}`;
     case 'v1.KeyTermRenderingAdded': return `rendering:${String(p['termId'])}/${String(p['renderingId'])}`;
+    case 'v1.KeyTermAudioRenderingAdded': return `audiorendering:${String(p['termId'])}/${String(p['renderingId'])}`;
     case 'v1.KeyTermAdjusted': return `adjustment:${String(p['termId'])}/${String(p['adjustmentId'])}`;
     case 'v1.AudioFormatSet': return `audioformat:${String(p['hash'])}`;
     default: return null;

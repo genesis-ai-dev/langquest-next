@@ -1,4 +1,4 @@
-# R8 keep rules for release builds (LAN-111, decisions.md 207). R8 removes and
+# R8 keep rules for release builds (LAN-111, decisions.md 208). R8 removes and
 # renames what it cannot see being used; these classes are reached by name.
 
 # ONNX Runtime (the speech model): its native library calls Java classes and

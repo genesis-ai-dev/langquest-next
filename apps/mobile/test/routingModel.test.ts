@@ -1,5 +1,5 @@
 import { deriveSession, tabsFor } from '../src/shell/session';
-import { addressSection } from '../src/shell/routingModel';
+import { addressSection, leaveLateWelcome } from '../src/shell/routingModel';
 import { pathFor, sectionOfPath } from '../src/web/webPaths';
 import { ORG, roleSession } from './sessions';
 
@@ -79,5 +79,19 @@ describe('WEB-019 a refresh never opens a section the person may not open, per r
     for (const p of ['/work', '/map', '/map/language', '/reports', '/manage', '/inbox', '/settings']) {
       expect(addressSection(sectionOfPath(p), stranger, true)).toBeNull();
     }
+  });
+});
+
+describe('a welcome the server answered late (AUTH-058, LAN-252)', () => {
+  it('goes on to the home while the welcome is still the one screen', () => {
+    expect(leaveLateWelcome('welcome', 1, false, true)).toBe(true);
+  });
+  it('leaves the welcome alone when nothing came late, or the person is still to be welcomed', () => {
+    expect(leaveLateWelcome('welcome', 1, false, false)).toBe(false);
+    expect(leaveLateWelcome('welcome', 1, true, true)).toBe(false);
+  });
+  it('never moves someone already past it', () => {
+    expect(leaveLateWelcome('vision', 2, false, true)).toBe(false);
+    expect(leaveLateWelcome('my_work', 1, false, true)).toBe(false);
   });
 });

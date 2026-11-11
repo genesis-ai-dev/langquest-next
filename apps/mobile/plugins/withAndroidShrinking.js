@@ -1,4 +1,4 @@
-// Android code shrinking for release builds (LAN-111, decisions.md 207): R8
+// Android code shrinking for release builds (LAN-111, decisions.md 208): R8
 // shrinks and renames the app's code, and shrinks resources. The keep rules
 // are in android-shrinking-rules.pro, next to this file. Expo copies
 // app.json's plugin options into every build, so the long rule text lives in
