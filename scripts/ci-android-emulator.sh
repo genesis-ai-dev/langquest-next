@@ -45,6 +45,9 @@ kvm
 
 yes | sdkmanager --licenses > /dev/null 2>&1 || true
 sdkmanager --install "$IMAGE" emulator platform-tools > /dev/null
+# adb for the job's later steps and Maestro: the Ubuntu 26.04 image has it on
+# no PATH of its own (2026-11-11).
+[ -n "${GITHUB_PATH:-}" ] && printf '%s\n' "$SDK/platform-tools" "$SDK/emulator" >> "$GITHUB_PATH"
 # One place for the AVD, for avdmanager and the emulator alike: on the Ubuntu
 # 26.04 image avdmanager did not put it in ~/.android/avd (2026-11-11).
 export ANDROID_AVD_HOME="$HOME/.android/avd"
