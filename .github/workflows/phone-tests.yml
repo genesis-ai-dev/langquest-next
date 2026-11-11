@@ -89,6 +89,29 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
+      # The build first, alone on the machine: Gradle and the stack together
+      # fight for its four cores. Only main's runs keep Gradle's cache, so
+      # pull requests read it and do not fill the repository's cache space.
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        id: gradle
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: phone-tests-gradle-${{ hashFiles('package-lock.json', 'apps/mobile/app.json') }}
+          restore-keys: phone-tests-gradle-
+      - name: Build the Android test app
+        id: build
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          node scripts/maestro-build.mjs --platform android --build-only --abi x86_64
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        if: github.ref == 'refs/heads/main' && steps.gradle.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: phone-tests-gradle-${{ hashFiles('package-lock.json', 'apps/mobile/app.json') }}
       - name: Keep the stack's ports out of the outbound port range
         run: bash scripts/ci-reserve-ports.sh
       - uses: ./.github/actions/docker-images
@@ -101,18 +124,6 @@ jobs:
         run: bash scripts/ci-retry-pull.sh npm run db:start
       - name: Start the app's Worker on :8787 in the background
         run: (setsid nohup bash e2e/ui-web.sh 8787 > "$RUNNER_TEMP/worker.log" 2>&1 &)
-      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: phone-tests-gradle-${{ hashFiles('package-lock.json', 'apps/mobile/app.json') }}
-          restore-keys: phone-tests-gradle-
-      - name: Build the Android test app
-        id: build
-        run: |
-          export JAVA_HOME="$JAVA_HOME_17_X64"
-          node scripts/maestro-build.mjs --platform android --build-only --abi x86_64
       - name: Start the Android emulator
         run: bash scripts/ci-android-emulator.sh "$RUNNER_TEMP/emulator.log"
       - name: Install Maestro
