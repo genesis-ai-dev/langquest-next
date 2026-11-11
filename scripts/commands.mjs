@@ -72,6 +72,7 @@ export const GROUPS = [
     title: 'Data and support',
     scripts: {
       diag: 'field diagnostics: a person, a language, an error code, the server jobs',
+      'key-terms:eval': "precision and recall of each key-term matcher on a set of partner clips (eval/key-terms/README.md)",
       moderation: 'open content reports, and acting on them',
       'global-viewer': 'Global Viewers: grant on a call, revoke, reset a lost authenticator, list (docs/global-viewers.md)',
       'org-verification': "organizations' blue checks: list requests, grant, decline, revoke (docs/verified-organizations.md)",

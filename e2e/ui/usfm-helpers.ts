@@ -1,5 +1,5 @@
 // What 08-usfm-bible needs in its world: an uploaded Bible (LAN-229, LAN-230,
-// decisions 207 and 208) in the organization's library, as the upload screen
+// decisions 208 and 209) in the organization's library, as the upload screen
 // publishes it, recommended to every language, and one small English Bible
 // beside it so the Bible picker has a choice. Built per world, as an admin
 // would, from real USFM files: Jonah as eBible.org publishes it (core's test
