@@ -8323,5 +8323,28 @@
       "badItem": "Choisissez un de vos propres éléments du même type.",
       "offline": "Impossible de joindre LangQuest. Vérifiez votre connexion et réessayez."
     }
+  },
+  "orgExport": {
+    "title": "Exporter toutes les données",
+    "sub": "Un zip : enregistrements dans des dossiers, la liste de chaque enregistrement, des feuilles de progression et l'historique complet.",
+    "whole": "Toute l'organisation",
+    "some": "Seulement certaines langues",
+    "start": "Créer le zip",
+    "waiting": "En attente de démarrage",
+    "reading": "Lecture de l'organisation",
+    "audio": "Ajout des enregistrements : {{done}} sur {{total}}",
+    "log": "Ajout de l'historique complet",
+    "ready": "Prêt à télécharger",
+    "download": "Télécharger",
+    "failed": "L'export ne s'est pas terminé. Réessayez.",
+    "started": "L'export a commencé.",
+    "problem": "Impossible de lancer l'export.",
+    "expired": "Supprimé après 7 jours.",
+    "keep": "Un zip terminé reste disponible 7 jours.",
+    "help": "Ouvre une page pour télécharger toutes les données de l'organisation dans un zip.",
+    "wholeHelp": "Exporte toutes les langues de l'organisation.",
+    "someHelp": "Choisissez les langues à exporter.",
+    "languageHelp": "Inclut ou exclut cette langue.",
+    "downloadHelp": "Télécharge le zip terminé."
   }
 }

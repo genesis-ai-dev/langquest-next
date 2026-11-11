@@ -3,6 +3,7 @@ import type { OrgStub } from './agent/http';
 import { supabaseAgentStore } from './agent/store';
 import { sha256Hex } from './agent/tokens';
 import { r2Bucket } from './r2';
+import { r2ExportBucket, supabaseExportStore } from './orgExports';
 import { serviceClient, type Env } from './env';
 import { claimsVerifier, sessionLiveCheck } from './identity';
 import { publishLangQuestTimings } from './timings';
@@ -311,6 +312,26 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         await recordBlob(orgId, languageId, hash, size);
         return hash;
       }
+    },
+    // The organization export (orgExports.ts, decisions.md 206): an admin asks, the job container builds one zip in R2.
+    orgExports: {
+      serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
+      profileOf,
+      // Organization-scope Manage roles: the Organization Admin role, and no other (core `SEED_ROLES`).
+      mayExport: async (orgId, profileId) => {
+        const { data, error } = await serviceClient(env).rpc('org_privileges', { p_org: orgId, p_profile: profileId, p_language: null });
+        if (error) throw new Error(`org_privileges: ${error.message}`);
+        return Array.isArray(data) && data.includes('manage_roles');
+      },
+      languagesOf: async (orgId) => {
+        const { data, error } = await serviceClient(env).from('stream_cursors').select('stream_id').eq('org_id', orgId);
+        if (error) throw new Error(`stream_cursors: ${error.message}`);
+        return (data as { stream_id: string }[]).map((r) => r.stream_id);
+      },
+      store: supabaseExportStore(serviceClient(env)),
+      bucket: r2ExportBucket(env.BLOBS),
+      start: () => env.JOBS.get(env.JOBS.idFromName('org-export')).run({ again: true }),
+      now: () => Date.now()
     },
     // The filming saying its films are in: the intake starts, and the publish after it (tutorialFilmed.ts, decisions.md 192).
     tutorialFilmed: {

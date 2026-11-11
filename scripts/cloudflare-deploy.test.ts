@@ -100,7 +100,7 @@ describe('cloudflare deploy', () => {
     expect(classes).toContain('JobRunner');
   });
 
-  it('serves people at app. and keeps next. as the alias that machines still name (decision 206)', () => {
+  it('serves people at app. and keeps next. as the alias that machines still name (decision 207)', () => {
     // Why: the first route is API_URL, the webhook poke and the YouTube callback, which do not move with people;
     // and a phone that does not declare a host the Worker serves opens its links in the browser.
     const config = parseJsonc(read('apps/web/wrangler.jsonc'));

@@ -41,7 +41,7 @@ First filled in: 2026-09-30, Caleb Koster, with Claude.
 
 These stay at `next.langquest.org` after the web app moved to
 `app.langquest.org`: the host is an alias of the same Worker, so what they
-serve is the same, and no Play Console answer changes (decisions.md 206).
+serve is the same, and no Play Console answer changes (decisions.md 207).
 Before `next.` ever redirects, change them here, in `apps/mobile/src/auth/legal.ts`
 and in Play Console.
 

@@ -40,7 +40,7 @@ not the app.
 | preview | `https://next-preview.langquest.org` | the same |
 
 Both production hosts are one Worker, so a browser at either has the page and
-API of its own origin (decisions.md 206). A browser's storage belongs to its
+API of its own origin (decisions.md 207). A browser's storage belongs to its
 origin, so work and sign-in do not carry from one to the other.
 
 ## Where settings live
