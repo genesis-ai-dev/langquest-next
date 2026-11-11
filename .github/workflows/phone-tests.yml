@@ -206,6 +206,9 @@ jobs:
         with:
           name: phone-tests-ios-server
           path: ${{ env.SERVER }}
+          # The folder's name starts with a dot, which upload-artifact leaves out unless told.
+          include-hidden-files: true
+          if-no-files-found: error
           retention-days: 1
       - name: Serve until the iPhone job ends
         run: bash scripts/phone-tests-wait.sh job "iPhone simulator" 190
@@ -344,4 +347,5 @@ jobs:
         with:
           name: phone-tests-report
           path: ${{ env.OUT }}
+          include-hidden-files: true
           if-no-files-found: ignore

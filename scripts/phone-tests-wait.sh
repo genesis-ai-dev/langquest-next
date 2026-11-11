@@ -91,11 +91,21 @@ case "$mode" in
         echo "The test server is up."
         exit 0
       fi
-      status="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" \
-        --jq '.jobs[] | select(.name == "iPhone test server") | .status' 2>/dev/null | head -1 || true)"
-      if [ "$status" = completed ]; then
+      job="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" \
+        --jq '.jobs[] | select(.name == "iPhone test server") | [.status, ([.steps[]? | select(.name | startswith("Hand the address")) | .conclusion] | first // "")] | join(" ")' 2>/dev/null | head -1 || true)"
+      if [ "${job%% *}" = completed ]; then
         echo "::error::The iPhone test server's job ended without starting the server: read its log"
         exit 1
+      fi
+      # Handed over, yet not downloadable three times running: the artifact is
+      # missing its files, and waiting longer will not bring them.
+      if [ "${job#* }" = success ]; then
+        handed=$((${handed:-0} + 1))
+        if [ "$handed" -ge 3 ]; then
+          echo "::error::The iPhone test server handed over its artifact, but it has no tunnel.json"
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n phone-tests-ios-server -D "$dir" 2>&1 | tail -5 || true
+          exit 1
+        fi
       fi
       sleep 20
     done
