@@ -185,7 +185,7 @@ material has. Web first; on a phone it edits text and records step audio.
 ## Upload your own Bible (USFM)
 
 An admin with Manage Reference opens **Setup → Reference Material → Add
-material → Upload Bible files** on the web (decisions.md 205, LAN-229).
+material → Upload Bible files** on the web (decisions.md 206, LAN-229).
 
 1. **Files.** `.usfm`, `.sfm`, `.ptx` or `.txt` files, or one zip (opened in
    the browser; `src/usfm/zipModel.ts`). `checkUsfm` (`packages/core/src/usfm.ts`)
@@ -202,7 +202,7 @@ material → Upload Bible files** on the web (decisions.md 205, LAN-229).
    `material`), through the library's outbox like any item. Nothing goes to
    the live library from anywhere but the admin's own publish.
 
-**Reading it** (decision 206, LAN-230). An uploaded Bible is a Bible everywhere: recommend it in **Bibles**, find it under **More Bibles**, read it beside a passage. It is text only, and phones keep the books of the passages in their offline scope. Verses stay rows with their numbers. Section headings stand above a verse, poetry stacks in its lines, and footnotes and cross references show under the verse with a letter in the text; no marker ever shows (`packages/core/src/usfmRead.ts`, `src/usfm/UsfmVerse.tsx`). Book names come from the file (`\toc2`, `\h`, `\toc1`, `\mt`). A Bible numbered otherwise maps to the passage and says how it numbers it; a passage's verses its file lacks are named above the text.
+**Reading it** (decision 207, LAN-230). An uploaded Bible is a Bible everywhere: recommend it in **Bibles**, find it under **More Bibles**, read it beside a passage. It is text only, and phones keep the books of the passages in their offline scope. Verses stay rows with their numbers. Section headings stand above a verse, poetry stacks in its lines, and footnotes and cross references show under the verse with a letter in the text; no marker ever shows (`packages/core/src/usfmRead.ts`, `src/usfm/UsfmVerse.tsx`). Book names come from the file (`\toc2`, `\h`, `\toc1`, `\mt`). A Bible numbered otherwise maps to the passage and says how it numbers it; a passage's verses its file lacks are named above the text.
 
 Not built: checking verse numbers against the chosen numbering at upload, and splitting a file that holds several books.
 

@@ -8385,6 +8385,12 @@ partners and users real trouble. So:
 - **Sent means sent.** Offline, asking someone, a review and a published
   version say who gets it when the device is connected.
 
+Amended (2026-11-06, Caleb Koster): My Work's to-do rows end with the same
+download button as a Map row, for the passage each is about (LAN-19), so
+"On this device" shows before the passage opens. It is on the rows of the
+Then list and the "record again" row; the lead card, the join, divide and
+language rows, and the waiting and recent lists have none.
+
 ## 167. The nightly mutation run is four shards of core's files, dealt by what each costs, and one merged score
 
 Date: 2026-10-26 · By: Carl Sauder · Status: accepted
@@ -10854,24 +10860,64 @@ still finds no copy: a new install on a slow link then pulls the log and its wor
 is safe. At about one bump a week this keeps one or two versions nobody reports;
 at early October's three a week, five or six, each a copy per language.
 
-## 205. An organization's own Bible, uploaded as USFM files, is two new library formats, `usfmBible@1` and `usfmBook@1`, and no shipped format changes
+## 205. Key terms are spotted in a take by matching audio to the team's recorded renderings, on the phone
+
+Date: 2026-11-05 · By: Ryder Wishart · Status: accepted
+
+Reason: a partner team on the 2026-11-05 call (users of Render) said a
+missed key term is usually found at the consultant stage, and the draft is
+redone from the start; they want the check while drafting, against key-term
+recordings made before the book begins (LAN-228). The app holds key terms
+per language (`KeyTermDefined`, text renderings in `KeyTermRenderingAdded`,
+a manual tie in `KeyTermLinked`) and only the translator's tagging says
+whether a take has one. Of the ways to detect a term automatically,
+fixed-vocabulary keyword spotting (the sub-megabyte models) is ruled out:
+its size comes from thousands of labelled recordings per word, and the
+words are each team's target-language renderings, for which no data exists.
+Speech recognition then text matching is ruled out on the phone for the
+same reason, since ultra low-resource languages have no recognizer, and on
+a server it would send recordings to a third party, which changes the Play
+"Shared" answers (decision 49). Query-by-example is what remains and fits:
+the team records each rendering two or three times, and a matcher slides
+those clips over the take and reports a confidence. The term and the take
+are usually spoken by the same translator or a small team, the easy case
+for acoustic matching; both inputs are content-addressed blobs (decision
+4), so a result keyed by take hash, rendering hash and matcher version is
+derived, cached per device and recomputable, never synced as status
+(PLAN.md section 4). The matcher runs in the native `microphone-energy`
+module after a take is saved, not during recording. The output is a hint
+("3 of 4 key terms heard"), never a gate, because renderings inflect, get
+paraphrased or split across clauses; the translator's tie or dismissal
+remains the record (`KeyTermLinked`) and calibrates the threshold for that
+language locally. The shipped rendering event is text-only and keeps its
+shape; recorded renderings are a new versioned event. Stages: the audio
+rendering event, then an evaluation set from a partner language, then MFCC
+features with subsequence DTW (no model to download), then a small
+pretrained multilingual encoder only if that misses the bar, keeping the
+DTW, cache and screen.
+Reverse if: a partner language gains a usable recognizer and the organization
+opts in to server transcription (then text matching can run in Aquilla and
+feed the same hint), or MFCC matching is wrong often enough across speakers
+that the encoder download is the cheaper cost.
+
+## 206. An organization's own Bible, uploaded as USFM files, is two new library formats, `usfmBible@1` and `usfmBook@1`, and no shipped format changes
 
 Date: 2026-11-06 · By: Caleb Koster · Status: accepted
 
 Reason: Go Forth North India asked (LAN-229) to upload the team's USFM files and have them show as a reference Bible. `source@1` could not hold them without change: it carries a provider (library or Bible Brain), audio, timings and an `offline` flag that mean nothing for text a team uploads, and about 25 places read it (offered Bibles, coverage, timings, the reader). Changing its shape would break shipped documents, so an upload is its own versioned pair (decision 36, PLAN.md section 6). `usfmBible@1` is the header: name, abbreviation, language, numbering (a `versification@1` hash), who holds the rights, the license, `rightsConfirmed: true` and the books with their counts. `usfmBook@1` is one book: its verses as plain text and the file as uploaded. A book is its own document because a library document is at most 4 MB (`_library_store`) and a whole Bible is more; the check refuses a file over 1.8 MB (core `MAX_BOOK_BYTES`). The file is kept untouched beside the plain verses so LAN-230 can show paragraphs, headings and notes without a second upload. Both are published under kind `material`, so a Bible is an organization library item that shows in Setup → Reference Material and that the admin may share for other organizations to follow, as any item. Checking is core (`checkUsfm`, pure; problems are codes the app says in the reader's language); reading a zip and picking files are web only (`apps/mobile/src/usfm/`), as the guide editor's uploads are (decision 69), and the documents go out through the library's own outbox, so no new route, table or job. The migration `20261106140000_usfm_bibles.sql` only adds the two formats to `_library_store`. Publishing needs Manage Reference at the organization level and the uploader's confirmation that the team may share the text; the item takes the organization's license (`docs/licensing.md`). Not built, because it is LAN-230: the reader does not open a `usfmBible@1` yet, so translators do not see it beside a passage, and coverage and the "offered Bibles" counts do not take it in. Not built either: a check that verse numbers fit the chosen numbering, and splitting a file that holds several books.
 Reverse if: admins upload Bibles with several books in one file often (then split on `\id`), or LAN-230 finds the plain verses never used (then drop them and keep only the file).
 
-Amended (2026-11-06, Caleb Koster): LAN-230 built what this entry left out; decision 206 says how the reader opens these documents. The plain verses stay: coverage and a chip's marks read them without reading the file.
+Amended (2026-11-06, Caleb Koster): LAN-230 built what this entry left out; decision 207 says how the reader opens these documents. The plain verses stay: coverage and a chip's marks read them without reading the file.
 
-## 206. An uploaded Bible is read as a Bible through one view (`sourceOf`), and one walk over the USFM serves the check and the reader
+## 207. An uploaded Bible is read as a Bible through one view (`sourceOf`), and one walk over the USFM serves the check and the reader
 
 Date: 2026-11-06 · By: Caleb Koster · Status: accepted
 
 Reason: Go Forth North India asked (LAN-230, meeting of 4 November 2026) to be sure LangQuest shows their USFM files as a real Bible. Two things had to be chosen.
 
-How about 25 places that offer, list, count or read a `source@1` take a `usfmBible@1`. A second branch in each would drift, and copying an upload into `source@1` and `sourceBook@1` would undo decision 205. Core `sourceOf(doc)` gives whatever is a Bible as one shape, `BibleSource`: a `source@1` as it is, an upload as text in the library, kept on the phone, with no audio (`uploaded: true`). Nothing stored changes; the view is made on reading, one object per document so memos hold. `refKindOf` says `source`, so recommendations, My Bibles, More Bibles, coverage, Get ready and offline keeping all take it. Phones keep the books of the passages in their offline scope, as they do a library source's. A `usfmBible@1`'s dependencies load like a `source@1`'s: its numbering comes along and its books wait until a passage reads one (`docStore.ts`), or listing Bibles would fetch every book.
+How about 25 places that offer, list, count or read a `source@1` take a `usfmBible@1`. A second branch in each would drift, and copying an upload into `source@1` and `sourceBook@1` would undo decision 206. Core `sourceOf(doc)` gives whatever is a Bible as one shape, `BibleSource`: a `source@1` as it is, an upload as text in the library, kept on the phone, with no audio (`uploaded: true`). Nothing stored changes; the view is made on reading, one object per document so memos hold. `refKindOf` says `source`, so recommendations, My Bibles, More Bibles, coverage, Get ready and offline keeping all take it. Phones keep the books of the passages in their offline scope, as they do a library source's. A `usfmBible@1`'s dependencies load like a `source@1`'s: its numbering comes along and its books wait until a passage reads one (`docStore.ts`), or listing Bibles would fetch every book.
 
 How the file is read. The first check read a file line by line, with `\v` found only at a line's start, and put a mid-verse `\s` and an alternate number (`\va`) into a verse's words; a split verse (`\v 4a`, `\v 4b`) was refused as out of order, and aligned text (`\zaln-s`) left raw markers. `usfmRead.ts` walks markers, not lines, and gives chapters of verses, each with its headings, lines (prose or poetry, how far in, a space before) and notes. `checkUsfm` now walks with it, so what was checked is what shows. Tests hold it on real books (Jonah in the Hindi IRV and the WEB, in `packages/core/test/fixtures/usfm`), the edge cases Aquila's USFM import got wrong (AQU-1465, AQU-1363, AQU-1400, AQU-1295), and any text at all: it never throws and no backslash reaches a word a person reads. Both whole Bibles were also run through it by hand, about 62,000 verses.
 
-What a person sees. Verses stay rows with their numbers, as a Bible Brain text Bible's do, because a row is what takes a tap, a note, a key word and a highlight; a verse's poetry lines stack in its row, its headings stand above the row and its notes below. Paragraph breaks are a space before the row. Notes are always shown under their verse, with a letter in the text: a letter in a line is too small to tap (touch targets are 48pt), and a translator needs them. A split verse is one row (its verse is what a note and a passage name), each part keeping its number in the text. `row.text` stays plain words, so key words, word search and the record work unchanged. A Bible numbered otherwise maps through `mapRange` as any source does, and says so above the verses ("This Bible numbers these verses 2:1-2"), and says which of the passage's verses its file does not have: that is where the upload's missing numbering check (decision 205) reaches the person it matters to. A chapter the file lacks no longer hides the rest of a passage. More Bibles lists an upload with its file's book names and only the chapters it has, opens at the passage's chapter, marks the passage's verses and brings the first into view; this last part holds for every Bible there.
+What a person sees. Verses stay rows with their numbers, as a Bible Brain text Bible's do, because a row is what takes a tap, a note, a key word and a highlight; a verse's poetry lines stack in its row, its headings stand above the row and its notes below. Paragraph breaks are a space before the row. Notes are always shown under their verse, with a letter in the text: a letter in a line is too small to tap (touch targets are 48pt), and a translator needs them. A split verse is one row (its verse is what a note and a passage name), each part keeping its number in the text. `row.text` stays plain words, so key words, word search and the record work unchanged. A Bible numbered otherwise maps through `mapRange` as any source does, and says so above the verses ("This Bible numbers these verses 2:1-2"), and says which of the passage's verses its file does not have: that is where the upload's missing numbering check (decision 206) reaches the person it matters to. A chapter the file lacks no longer hides the rest of a passage. More Bibles lists an upload with its file's book names and only the chapters it has, opens at the passage's chapter, marks the passage's verses and brings the first into view; this last part holds for every Bible there.
 Reverse if: translators find the rows too broken up to read poetry or long paragraphs (then a reading view that runs verses on, as the passage's text bar already does, becomes the default), or an upload's notes crowd the reader (then a switch for them).

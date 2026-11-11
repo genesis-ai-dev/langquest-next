@@ -123,6 +123,9 @@ const TOTAL_BUDGET_BYTES = 4.95 * 1024 * 1024;
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
 // microphone opens has to be loaded with the recorder.
 // Lowered to 3.9 MB with the icons above: 5.70 MB to 3.71 MB.
+// Raised by 2 KB (3.9 MB to 3.902 MB) for LAN-221: a grey Inbox badge and a
+// "Sign-in not renewed" state on the sync icon took the first visit 1 KB over
+// when merged with main.
 // Raised to 3.95 MB for uploaded USFM Bibles (LAN-229, LAN-230): reading a book
 // (core `usfmRead.ts`) has to be there when a translator opens a passage, which
 // is a first visit's screen, and the check and the words came with it. The

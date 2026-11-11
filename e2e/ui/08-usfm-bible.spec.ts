@@ -1,5 +1,5 @@
 // 08 · Study and reference, the uploaded Bible (docs/ui-test-suite/08-study-and-reference.md,
-// STUDY-037 and STUDY-038; LAN-230, decisions 205 and 206): an organization's Bible that
+// STUDY-037 and STUDY-038; LAN-230, decisions 206 and 207): an organization's Bible that
 // came as USFM files shows as a Bible, with the file's book names, headings, lines of
 // poetry and notes, and never a raw marker. One world for the file (usfm-helpers.ts).
 //

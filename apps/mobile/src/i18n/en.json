@@ -3527,7 +3527,8 @@
         "checking": "Connected",
         "offline": "Offline",
         "refused": "Not syncing",
-        "tooOld": "Update to receive"
+        "tooOld": "Update to receive",
+        "signIn": "Sign-in not renewed"
       },
       "help": {
         "live": "Changes from your team arrive as they happen, and yours go out right away.",
@@ -3536,7 +3537,8 @@
         "refused": "The server is not accepting changes from this device. Your work is still kept here.",
         "tooOld": "This app is too old to receive your team’s changes. Update it from the store.",
         "toReceive": "Recordings from others that this device is still downloading.",
-        "refusedLine": "Changes the server would not accept, usually because a permission changed. They stay on this device; open Details to see each one."
+        "refusedLine": "Changes the server would not accept, usually because a permission changed. They stay on this device; open Details to see each one.",
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "To receive",
       "refusedLine": "Refused",

@@ -3527,7 +3527,8 @@
         "checking": "Nakakonekta",
         "offline": "Offline",
         "refused": "Hindi nagsi-sync",
-        "tooOld": "I-update para makatanggap"
+        "tooOld": "I-update para makatanggap",
+        "signIn": "Sign-in not renewed"
       },
       "help": {
         "live": "Dumarating ang mga pagbabago mula sa iyong pangkat habang nangyayari ang mga ito, at agad na naipapadala ang sa iyo.",
@@ -3536,7 +3537,8 @@
         "refused": "Hindi tumatanggap ang server ng mga pagbabago mula sa device na ito. Itinatago pa rin dito ang iyong gawain.",
         "tooOld": "Masyadong luma ang app na ito para matanggap ang mga pagbabago ng iyong pangkat. I-update ito mula sa store.",
         "toReceive": "Mga rekording mula sa iba na dina-download pa ng device na ito.",
-        "refusedLine": "Mga pagbabagong hindi tinanggap ng server, kadalasan dahil nagbago ang isang pahintulot. Nananatili ang mga ito sa device na ito; buksan ang Mga Detalye para makita ang bawat isa."
+        "refusedLine": "Mga pagbabagong hindi tinanggap ng server, kadalasan dahil nagbago ang isang pahintulot. Nananatili ang mga ito sa device na ito; buksan ang Mga Detalye para makita ang bawat isa.",
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "Tatanggapin",
       "refusedLine": "Tinanggihan",
