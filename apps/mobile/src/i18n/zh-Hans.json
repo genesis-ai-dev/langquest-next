@@ -3413,7 +3413,8 @@
         "checking": "已连接",
         "offline": "离线",
         "refused": "未同步",
-        "tooOld": "更新后才能接收"
+        "tooOld": "更新后才能接收",
+        "signIn": "Sign-in not renewed"
       },
       "help": {
         "live": "团队的更改会即时到达，你的更改也会立刻发出。",
@@ -3422,7 +3423,8 @@
         "refused": "服务器不接受本设备的更改。你的工作仍保存在这里。",
         "tooOld": "这个应用版本太旧，收不到团队的更改。请到应用商店更新。",
         "toReceive": "本设备仍在下载的他人录音。",
-        "refusedLine": "服务器未接受的更改，通常是因为权限有变。它们留在本设备上；打开“详细信息”查看每一项。"
+        "refusedLine": "服务器未接受的更改，通常是因为权限有变。它们留在本设备上；打开“详细信息”查看每一项。",
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "待接收",
       "refusedLine": "被拒绝",
