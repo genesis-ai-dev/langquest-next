@@ -227,3 +227,13 @@ body.blank::after { content: ''; position: fixed; inset: 0; background: #000; z-
 @keyframes show { 0%, 44% { opacity: 0; } 56%, 100% { opacity: 1; } }
 .impress-enabled .step:not(.active) .feed *, .impress-enabled .step:not(.active) .tile { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) { .pkt, .pkt span, .tile.aq { animation: none; } .pkt { opacity: 1; left: 40%; } .pkt:nth-child(n+2) { display: none; } .pkt .t { opacity: 1; } .pkt .a { opacity: 0; } }
+
+/* ---------- Final pane: app download QR codes ---------- */
+.stores { position: absolute; left: 50%; top: 270px; transform: translateX(-50%); display: flex; gap: 70px; padding: 44px 64px 48px; border-radius: 36px; background: oklch(0.15 0.04 290 / 0.94); box-shadow: 0 0 0 1px var(--line-strong), 0 30px 90px oklch(0.05 0.02 264 / 0.7); }
+.store { display: flex; flex-direction: column; align-items: center; gap: 30px; color: inherit; text-decoration: none; pointer-events: auto; }
+.store .qr { display: block; width: 340px; height: 340px; border-radius: 22px; background: #fff; }
+.badge { display: inline-flex; align-items: center; gap: 16px; width: 340px; height: 96px; padding: 0 26px; border-radius: 18px; background: #000; box-shadow: inset 0 0 0 2px oklch(1 0 0 / 0.6); color: #fff; }
+.badge svg { width: 46px; height: 46px; flex: none; }
+.badge span { display: flex; flex-direction: column; line-height: 1.05; text-align: left; }
+.badge small { font: 500 19px var(--body); }
+.badge b { font: 600 36px var(--body); letter-spacing: -.01em; }
