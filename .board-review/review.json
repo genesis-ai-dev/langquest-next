@@ -1,0 +1,23 @@
+{
+  "kind": "screen",
+  "ask": "Is it fine that a second phone now skips the welcome once the server says it was already seen?",
+  "problem": "Someone who starts an organization and then signs in on a second phone sees the welcome again. The nightly test for this got stuck on that welcome.",
+  "found": "Nothing merged since the last nightly caused it. A new phone asks the server if the person was already welcomed, and waits 4 seconds. On the busy test machine the answer came late. A late yes was ignored, so the welcome stayed. If the question failed, the app took it as no. The other three failed tests from that night have different causes.",
+  "changed": "If the yes comes late, the welcome is replaced by My Work, as long as the person has not moved on. A failed question is now asked again a few times.",
+  "why": "This fixes the real race instead of setting the test aside. People in the field with slow networks hit the same thing. Making the 4 seconds longer would only make the race rarer and slow every first sign-in. The other three failures need their own manager: NAV-023 opened the wrong language, STUDY-030 never found its Bible screen, and SETUP-016 had no review steps to choose from.",
+  "touches": "The first sign-in on any new phone, for people already welcomed on another phone.",
+  "pictures": [
+    {"file": "before.png", "label": "Before: the second phone stays on the welcome"},
+    {"file": "diagram.png", "label": "What changes"}
+  ],
+  "links": [
+    {"label": "Pull request", "url": "https://github.com/genesis-ai-dev/langquest-next/pull/416"},
+    {"label": "Failed nightly run", "url": "https://github.com/genesis-ai-dev/langquest-next/actions/runs/42946892947"},
+    {"label": "LAN-252", "url": "https://linear.app/frontierrandd/issue/LAN-252"}
+  ],
+  "linear": {
+    "comment": "Finding: product race, not a flaky test. A device new to an account asks the server whether it was already welcomed and routes after 4 s; under nightly load the answer came late and a late yes was ignored, so the second device stayed on Welcome. A read sent before the sign-in was attached also counted as no. Fix: the read retries, and a late yes moves an untouched welcome to the home. Nothing merged since the last green nightly caused it (only the ETEN deck changed). NAV-023 (LAN-251), STUDY-030 (LAN-253) and SETUP-016 (LAN-254) fail differently and are not covered. PR: https://github.com/genesis-ai-dev/langquest-next/pull/416",
+    "state": "In Progress"
+  },
+  "guess": {"answer": "looks_good"}
+}
