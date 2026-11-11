@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { allowed, connect, HEALTH_PATH, passOn, serve, TARGET_HEADER, TOKEN_HEADER } from './phone-tunnel.mjs';
 
 // The nightly iPhone run reaches its test server through a public tunnel
-// (decision 207). These tests hold what keeps that safe and working: nothing
+// (decision 206). These tests hold what keeps that safe and working: nothing
 // passes without the run's token, the token never reaches the servers, each
 // request reaches the server it names with the Host that server expects, and
 // WebSocket upgrades (Supabase Realtime) pass both ways.

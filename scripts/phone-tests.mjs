@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * The nightly phone tests' report (.github/workflows/phone-tests.yml,
- * decision 207). Each night the phone flows (apps/mobile/test/maestro) run
+ * decision 206). Each night the phone flows (apps/mobile/test/maestro) run
  * on an Android emulator and an iPhone simulator; this turns what they left
  * into one summary, files each failure in Linear, and puts the summary and a
  * picture of each failed screen where the ops dashboard reads them.
@@ -245,6 +245,10 @@ export function phoneLinearApi(key) {
         { input: { teamId: ids.teamId, parentId: ids.parentId, title, description } });
       return data.issueCreate.issue.identifier;
     },
+    /** An issue's address in Linear, for the dashboard's link. */
+    async urlOf(identifier) {
+      return (await gql(key, `query($id: String!) { issue(id: $id) { url } }`, { id: identifier })).issue?.url ?? null;
+    },
     /** Puts a picture in Linear's own storage and returns its address, so an issue keeps its picture after the release drops it. */
     async upload(file) {
       const bytes = readFileSync(file);
@@ -296,6 +300,21 @@ export async function file(api, summary, shotsDir) {
       const title = `${PREFIX}${runKey(p)}`;
       const id = issueOf.get(title) ?? open(title);
       if (id) p.issue = id;
+    }
+  }
+  // Each issue's address, once each, for the dashboard's links.
+  if (api.urlOf) {
+    const urls = new Map();
+    const urlOf = async (id) => {
+      if (!urls.has(id)) urls.set(id, await api.urlOf(id).catch(() => null));
+      return urls.get(id);
+    };
+    for (const p of summary.platforms) {
+      for (const x of [p, ...p.flows]) {
+        if (!x.issue) continue;
+        const url = await urlOf(x.issue);
+        if (url) x.issueUrl = url;
+      }
     }
   }
   if (!said.length) said.push('nothing new to tell Linear');

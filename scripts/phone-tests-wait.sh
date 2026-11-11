@@ -1,6 +1,6 @@
 #!/bin/bash
 # The waits of the nightly phone tests (.github/workflows/phone-tests.yml,
-# decision 207), each with its limit, so a step that cannot finish fails
+# decision 206), each with its limit, so a step that cannot finish fails
 # with what it waited for instead of hanging until the job's own limit.
 #
 #   worker <log>                   the app's Worker answers on :8787 (5 min)

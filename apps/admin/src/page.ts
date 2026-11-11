@@ -78,6 +78,14 @@ pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padd
 .fb img { max-width: 100%; max-height: 420px; border-radius: 8px; border: 1px solid var(--line); margin-top: 6px; display: block; }
 .tag { display:inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--bg); color: var(--muted); margin-inline-end: 4px; }
 .tag.bad { color: var(--red); background: var(--redbg); } .tag.good { color: var(--green); background: var(--greenbg); }
+.tag.warn { color: var(--amber); background: var(--amberbg); }
+.shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 8px 0 12px; }
+.shot { margin: 0; background: var(--bg); border-radius: 12px; padding: 10px; min-width: 0; }
+.shot img { width: 100%; border-radius: 8px; border: 1px solid var(--line); display: block; background: var(--card); }
+.shot .noshot { aspect-ratio: 9 / 19; display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; border: 1px dashed var(--line); border-radius: 8px; }
+.shot figcaption { margin-top: 8px; font-size: 13px; overflow-wrap: anywhere; } .shot figcaption p { margin: 6px 0; } .shot figcaption a { white-space: nowrap; }
+.nightrow { display: flex; align-items: center; gap: 4px; margin: 4px 0; } .nightrow span { width: 64px; font-size: 12px; color: var(--muted); } .nightrow small { font-size: 11px; color: var(--muted); }
+.night { width: 18px; height: 18px; border-radius: 4px; background: var(--line); display: inline-block; } .night.good { background: var(--green); } .night.bad { background: var(--red); }
 .wide { grid-column: 1 / -1; }
 .diag-inline { border-inline-start: 3px solid var(--line); padding-inline-start: 12px; margin: 6px 0 4px; }
 /* Where each build and update is (sources/pipeline.ts): stages left to right, an arrow between, each build a card in its stage. */
@@ -429,6 +437,7 @@ function show(id, s) {
   // The container's answer lives in the Jobs table, not as a part of its own.
   $('body-' + g.id).innerHTML = g.parts.filter((p) => p !== 'container').map((p) => partHtml(g, p)).join('');
   if (g.parts.includes('feedback')) wireScreenshots();
+  if (g.parts.includes('phonetests')) wirePhoneShots();
   annotate($('body-' + g.id));
   applyOpen(g.id);
   attention();
