@@ -743,6 +743,25 @@ Expected:
   opens: "Cluster · 2 languages", with Alpha and Bravo.
 - Step 5: toast "Group {run} ungrouped. Its languages are still here."
 
+### SETUP-080 New language's review step waits out a server that fails once
+Roles: ADMIN · Priority: P1 · Platforms: Web · Run: Auto
+
+Under load a read of the review flows' documents can fail once. One
+failure must not leave the step at "No ways to check to choose from yet."
+(LAN-254).
+
+Preconditions (in addition to the global ones):
+- The library is seeded (G2). (Leave with ✕ at the end.)
+- The first read of a review flow's document fails (the test answers it
+  with a server error).
+
+Steps:
+1. Set up a new language "India {run}" as in SETUP-010, up to "How will
+   recordings get checked?" (step 5).
+
+Expected:
+- "Standard Bible Flow" shows, and Continue can be tapped.
+
 ## Get ready
 
 ### SETUP-022 Get a language ready, question by question
