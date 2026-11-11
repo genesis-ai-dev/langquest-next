@@ -9,7 +9,7 @@
  * --build-only builds the app without a device and prints where it is (an
  * .apk, or a simulator .app), for a machine that starts its emulator or
  * simulator after the build: the nightly phone tests (.github/workflows/
- * phone-tests.yml, decision 207). --abi builds Android's native code for one
+ * phone-tests.yml, decision 208). --abi builds Android's native code for one
  * processor only (the emulator's), which takes a quarter of the time.
  *
  * A release build with its JavaScript inside, pointed at the local stack

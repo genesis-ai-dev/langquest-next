@@ -1,4 +1,4 @@
-# The nightly phone tests (decision 207, docs/testing.md): the phone flows
+# The nightly phone tests (decision 208, docs/testing.md): the phone flows
 # (apps/mobile/test/maestro) on an Android emulator and an iPhone simulator,
 # on GitHub's own machines, which cost nothing on a public repository. The web
 # suite already runs nightly in guardrails.yml; this is what only a phone shows.
