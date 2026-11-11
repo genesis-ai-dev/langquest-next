@@ -20,7 +20,7 @@ import type { ListenHooks } from '../recording/useListenLoop';
 import { ourWord, type OurWord } from './model';
 
 /** What the tile says the team's word is: the word, that it was only said, or that there is none. */
-export function wordLine(word: OurWord): string {
+function wordLine(word: OurWord): string {
   return word.kind === 'text' ? word.text : word.kind === 'voice' ? t('keyTerms.tiles.recorded') : t('keyTerms.tiles.noWord');
 }
 
