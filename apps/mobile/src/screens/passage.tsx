@@ -32,6 +32,7 @@ import { txt } from '../ui/textStyles';
 import { shareText } from '../ui/share';
 import { anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, gridKindIds, guestMessage, historySummary, listenersOf, nextQuestionType, nobodyElseReviews, questionTypeLabel, reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText, type RowAction } from '../passage/recordTextModel';
 import { PassagePath } from '../passage/path';
+import { parseReportLink } from '../passage/reportLinkModel';
 import { AskCheckCard, TheyAnswer } from '../passage/askParts';
 import { askInput, askDoneText, askModel, TEAM, type AskPicks } from '../passage/askModel';
 import {
@@ -247,10 +248,10 @@ export function PassageRecord(ctx: Ctx) {
   useEffect(() => {
     if (!reportedParam || !v || reportedOpened.current === reportedParam) return;
     reportedOpened.current = reportedParam;
-    const [kind, id] = reportedParam.split(':');
+    const link = parseReportLink(reportedParam);
     const at = { unitId: v.unitId, languageId: v.languageId };
-    if (kind === 'version' && id) goRef.current('version_detail', { ...at, takeId: id });
-    else if (kind === 'review' && id) goRef.current('review_detail', { ...at, reviewId: id });
+    if (link?.kind === 'version') goRef.current('version_detail', { ...at, takeId: link.id });
+    else if (link?.kind === 'review') goRef.current('review_detail', { ...at, reviewId: link.id });
   }, [reportedParam, !!v]); // eslint-disable-line react-hooks/exhaustive-deps -- once per arrival with the param; v is new on every draw
   useHardwareBack(page !== 'path', () => setPage('path'));
   const [historyShown, setHistoryShown] = useState(HISTORY_STEP);
