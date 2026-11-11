@@ -3,7 +3,7 @@ import { chapterStage, chapterTone, type PassageFacts } from '../src/reference/c
 import { needsConnection, openableLanguages } from '../src/map/mapModel';
 import { EDGES } from '../src/shell/flow';
 import { edgeAllowed, tabsFor } from '../src/shell/session';
-import { nextSub, readiness, readySteps, updateTarget, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat } from '../src/work/homeModel';
+import { nextSub, readiness, readySteps, updateTarget, waitingWhat, waitingWho, workEmpty, workIcon, workSub, workTarget, workWhat } from '../src/work/homeModel';
 import { offlineCount } from '../src/account/meModel';
 import { inSeveral } from '../src/account/model';
 import { roleSession } from './sessions';
@@ -75,6 +75,22 @@ describe('the simple My Work (decision 71)', () => {
     expect(waitingWho({ what: 'review', kindId: 'peer' }, opts)).toBe('someone');
     expect(waitingWhat({ what: 'record' }, opts.checkName)).toBe('Recording');
     expect(waitingWhat({ what: 'review', kindId: 'peer' }, opts.checkName)).toBe('Peer check');
+  });
+
+  it('says a language is not on this device even beside a join request (LAN-251)', () => {
+    // Why: a join request or another language's news is the organization's, not
+    // the open language's; with one on screen, offline My Work showed only it
+    // and never said Alpha had not come down yet (NAV-023).
+    const away = { open: 'alpha', pulled: false, online: false, loaded: true, passages: 0, gettingReady: false };
+    expect(workEmpty(away)).toBe('notHere');
+    expect(workEmpty({ ...away, others: 1 })).toBe('notHere');
+    expect(workEmpty({ ...away, loaded: false, others: 2 })).toBe('notHere');
+    // Online, a language with no passages is "not set up" only when nothing else shows.
+    const unset = { ...away, pulled: true, online: true };
+    expect(workEmpty(unset)).toBe('noPassages');
+    expect(workEmpty({ ...unset, others: 1 })).toBeNull();
+    // On this phone, with passages: nothing to explain.
+    expect(workEmpty({ ...away, passages: 3, others: 1 })).toBeNull();
   });
 });
 
