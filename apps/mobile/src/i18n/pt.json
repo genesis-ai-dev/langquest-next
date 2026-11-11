@@ -3637,7 +3637,8 @@
         "checking": "Conectado",
         "offline": "Offline",
         "refused": "Sem sincronização",
-        "tooOld": "Atualize para receber"
+        "tooOld": "Atualize para receber",
+        "signIn": "Sign-in not renewed"
       },
       "help": {
         "live": "As alterações da sua equipe chegam na hora, e as suas saem imediatamente.",
@@ -3646,7 +3647,8 @@
         "refused": "O servidor não está aceitando alterações deste dispositivo. Seu trabalho continua guardado aqui.",
         "tooOld": "Este app é antigo demais para receber as mudanças da sua equipe. Atualize pela loja.",
         "toReceive": "Gravações de outras pessoas que este dispositivo ainda está baixando.",
-        "refusedLine": "Alterações que o servidor não aceitou, geralmente porque uma permissão mudou. Ficam neste dispositivo; abra Detalhes para ver cada uma."
+        "refusedLine": "Alterações que o servidor não aceitou, geralmente porque uma permissão mudou. Ficam neste dispositivo; abra Detalhes para ver cada uma.",
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "A receber",
       "refusedLine": "Recusadas",

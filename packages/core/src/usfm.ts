@@ -2,7 +2,7 @@ import { BIBLE_BOOKS } from './catalogData';
 import { USFM_BOOKS, usfmOf } from './versification';
 
 /**
- * Reading one USFM file (decision 205, docs/reference-material.md): the
+ * Reading one USFM file (decision 206, docs/reference-material.md): the
  * check an admin sees before a Bible is published as organization
  * reference material. Pure: text in, a book and what is wrong with it out.
  *

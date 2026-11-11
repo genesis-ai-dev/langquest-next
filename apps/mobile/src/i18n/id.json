@@ -3417,7 +3417,8 @@
         "checking": "Terhubung",
         "offline": "Luring",
         "refused": "Tidak menyinkronkan",
-        "tooOld": "Perbarui untuk menerima"
+        "tooOld": "Perbarui untuk menerima",
+        "signIn": "Sign-in not renewed"
       },
       "help": {
         "live": "Perubahan dari tim Anda langsung tiba, dan perubahan Anda langsung terkirim.",
@@ -3426,7 +3427,8 @@
         "refused": "Server tidak menerima perubahan dari perangkat ini. Pekerjaan Anda tetap tersimpan di sini.",
         "tooOld": "Aplikasi ini terlalu lama untuk menerima perubahan tim Anda. Perbarui dari toko aplikasi.",
         "toReceive": "Rekaman dari orang lain yang masih diunduh perangkat ini.",
-        "refusedLine": "Perubahan yang tidak diterima server, biasanya karena izin berubah. Tetap ada di perangkat ini; buka Detail untuk melihat masing-masing."
+        "refusedLine": "Perubahan yang tidak diterima server, biasanya karena izin berubah. Tetap ada di perangkat ini; buka Detail untuk melihat masing-masing.",
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "Akan diterima",
       "refusedLine": "Ditolak",
