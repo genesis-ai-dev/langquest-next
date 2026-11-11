@@ -1,0 +1,44 @@
+{
+  "kind": "screen",
+  "ask": "Should the download card stay as \"On this device\" until people leave the Map, so taps don't miss?",
+  "problem": "On a new phone or browser, a tap on a passage in the Map sometimes did nothing. The nightly test hit this: it tapped a passage, and the passage never opened.",
+  "found": "On a new device, the Map shows a \"Downloading this language\" card above the list. When the last passage arrives, the card vanished at once. The whole list then jumped up by the card's height. A tap made at that moment started on one spot and ended on another. On the web that tap opens nothing. On a phone it can open the row below. The nightly machine was busy, so its tap was slow enough to be caught. I made it happen every time here by holding a tap while the download finished.",
+  "changed": "When the download finishes, the card stays where it is. It turns green, says \"On this device\" and shows a full bar. It keeps the same height, so the list never moves. It goes away when the person leaves the screen. The same holds on the Sync part of Settings.",
+  "why": "Things should not move under a person's finger. Keeping finished items in place is the usual way apps avoid this. I first checked for a late server answer, like the one in LAN-252. The tap itself was fine and the passage was allowed to open. The lost tap came only from the list moving. I did not change the test. It now passes because the screen no longer moves.",
+  "touches": "The download card on the Map and in Settings. No new text to translate: it reuses \"On this device\" and the passage count.",
+  "pictures": [
+    {
+      "file": "downloading.png",
+      "label": "While downloading (same before and after)"
+    },
+    {
+      "file": "before.png",
+      "label": "Before: the card vanished, the list jumped up, and the held tap opened nothing"
+    },
+    {
+      "file": "after.png",
+      "label": "After: the card turns green and stays, the list does not move, and the tap opens the passage"
+    }
+  ],
+  "links": [
+    {
+      "label": "Pull request",
+      "url": "https://github.com/genesis-ai-dev/langquest-next/pull/419"
+    },
+    {
+      "label": "Nightly run that failed",
+      "url": "https://github.com/genesis-ai-dev/langquest-next/actions/runs/42946892947"
+    },
+    {
+      "label": "Linear issue LAN-253",
+      "url": "https://linear.app/frontierrandd/issue/LAN-253"
+    }
+  ],
+  "guess": {
+    "answer": "looks_good"
+  },
+  "linear": {
+    "comment": "Found the cause. On a new device the Map shows \"Downloading this language\" above the list. When the last passage arrived, that card vanished and the list jumped up about 125 px. A tap in progress then landed on empty space: the click counted, but nothing opened. On a phone the same jump can open the row below. The nightly machine was busy enough to catch it, and I reproduced it every time here by holding a tap while the download finished. It was not a late server answer like LAN-252. Fix: the finished card stays in place as \"On this device\", at the same height, until the screen is left. The test is unchanged. PR: https://github.com/genesis-ai-dev/langquest-next/pull/419",
+    "state": "In Progress"
+  }
+}
