@@ -4,7 +4,7 @@
 // and what the person picked, this says which chapters of which sources
 // fall inside the offline scope. Fetching, hashing and the index are
 // offline.ts; nothing here touches storage, files or the network.
-import { isHash, libraryItemView, recommendedFor, type LanguageState, type OrgState, type SourceBookDoc, type SourceDoc } from '@langquest-next/core';
+import { isHash, libraryItemView, recommendedFor, type LanguageState, type OrgState, type SourceBookDoc, type BibleSource } from '@langquest-next/core';
 import type { BlobFile } from '../sync/blobs';
 import { chaptersOf, filesetsFor, unitCoordinates, type SourceOption } from './model';
 
@@ -56,7 +56,7 @@ export function sourceHashes(org: Pick<OrgState, 'library' | 'recommendations'> 
  */
 export function offlineOptions(
   org: Pick<OrgState, 'library' | 'recommendations'> | null | undefined, state: LanguageState, mine: readonly (MyPick & { kind: string })[],
-  getDoc: (h: string) => SourceDoc | null
+  getDoc: (h: string) => BibleSource | null
 ): SourceOption[] {
   const out: SourceOption[] = [];
   const library = org?.library ?? {};
@@ -65,7 +65,7 @@ export function offlineOptions(
   for (const itemId of ids) {
     const hash = libraryItemView(library, itemId)?.current;
     const doc = hash ? getDoc(hash) : null;
-    if (doc && doc.format === 'source@1') out.push({ itemId, kind: 'library', from: recs.get(itemId) ?? 'mine', name: doc.name, abbreviation: doc.abbreviation, language: doc.language, doc, docHash: hash! });
+    if (doc) out.push({ itemId, kind: 'library', from: recs.get(itemId) ?? 'mine', name: doc.name, abbreviation: doc.abbreviation, language: doc.language, doc, docHash: hash! });
   }
   return out.filter((o) => o.doc?.offline === 'allowed');
 }

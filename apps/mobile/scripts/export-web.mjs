@@ -115,8 +115,9 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // own budget. Raised to 4.9 MB when the fixes from Carl's UI review
 // (LAN-125 to LAN-144, 2026-11-02) took it 2 KB past 4.85 MB: they too are
 // screens' code (a Bible pane that follows the voice, hints, New cluster, a
-// third way to join), and a first visit stays under its own budget.
-const TOTAL_BUDGET_BYTES = 4.9 * 1024 * 1024;
+// third way to join), and a first visit stays under its own budget. Raised to
+// 4.95 MB when uploaded USFM Bibles (LAN-229, LAN-230) took it past 4.9 MB.
+const TOTAL_BUDGET_BYTES = 4.95 * 1024 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -133,7 +134,11 @@ const TOTAL_BUDGET_BYTES = 4.9 * 1024 * 1024;
 // server only): moving it there took 12 KB off this bundle.
 // The key-term check's recorded-example event (decision 207, LAN-228) fits in
 // the same 3.925 MB: its core rules are small, and its evaluation code stays out.
-const FIRST_VISIT_BUDGET_BYTES = 3.925 * 1024 * 1024;
+// Raised to 3.95 MB for uploaded USFM Bibles (LAN-229, LAN-230): reading a book
+// (core `usfmRead.ts`) has to be there when a translator opens a passage, which
+// is a first visit's screen, and the check and the words came with it. The
+// upload's own sheet stays in the Setup screens' file.
+const FIRST_VISIT_BUDGET_BYTES = 3.95 * 1024 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

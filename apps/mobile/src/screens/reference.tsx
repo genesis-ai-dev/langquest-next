@@ -14,8 +14,8 @@
 // One main action per screen, the rest one labelled tap away (decision 56).
 // Pure reading lives in src/reference/ (model.ts, coverage.ts, timings.ts, offered.ts).
 import {
-  derivePassage, keyTermsForUnit, languageName, type libraryUnitRange, materialsFor, unitTitle,
-  type RecommendationSource, type SourceDoc, type TemplateDoc, type VersificationDoc
+  derivePassage, keyTermsForUnit, languageName, type libraryUnitRange, materialsFor, sourceOf, unitTitle,
+  type RecommendationSource, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -38,7 +38,7 @@ import {
   offlineLine, orgLevelCan, recActions, recLabel, recOn, recState, recTone,
   sourceFacts, sourceFromBible, sourceSummary, testamentLines, timingsNeeded, type Level
 } from '../reference/model';
-import { bibleBrainIds, bibleLine, offeredBibleLanguages, providerName, readySources, splitBibles } from '../reference/biblesModel';
+import { bibleBrainIds, bibleLine, offeredBibleLanguages, providerName, readySources, sourceProviderName, splitBibles } from '../reference/biblesModel';
 import { withoutEmpty } from '../reference/offeredLanguagesModel';
 import { timingsOffer, bookTimingLine, failReason, jobView, publicationLine, timedBookCount, type JobOutcome } from '../reference/timingsModel';
 import { KIND_FILTERS, activeFilterCount, filterGuides, filterOptions, guideItems, guideLine, guideRows, kindFilterLabel, type KindFilter } from '../reference/guidesModel';
@@ -139,7 +139,7 @@ export function ReferenceBibles(ctx: Ctx) {
     : below ? t('reference.bibles.noneRecommendedBelow') : t('reference.bibles.noneRecommendedYet');
 
   const card = ({ r }: (typeof on)[number]) => {
-    const doc = r.doc as SourceDoc;
+    const doc = sourceOf(r.doc)!;
     const facts = sourceFacts(doc, docs.get, doc.provider.kind === 'biblebrain' ? heldDetail(doc.provider.bibleId) : null);
     const st = recState(ctx.org.state?.recommendations, ctx.language.state, level, r.it.itemId);
     const label = recLabel(st, level);
@@ -152,7 +152,7 @@ export function ReferenceBibles(ctx: Ctx) {
             <Text style={[txt.h3, styles.titleText]}>{r.it.name}</Text>
             <Badge label={label} tone={recTone(st)} />
           </View>
-          <Text style={txt.xs}>{[doc.abbreviation, languageLabel(doc.language), providerName(doc.provider.kind), sourceLine(r.it)].join(' · ')}</Text>
+          <Text style={txt.xs}>{[doc.abbreviation, languageLabel(doc.language), sourceProviderName(doc), sourceLine(r.it)].join(' · ')}</Text>
           <Text style={txt.sm}>{sourceSummary(facts)}</Text>
           {canAct ? <RecButtons ctx={ctx} level={level} itemId={r.it.itemId} name={r.it.name} rec={rec} /> : null}
         </Card>
@@ -254,7 +254,7 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
     }
   }
 
-  const readyDoc = readyPicked ? readyDocs.get(readyPicked.latest_hash) as SourceDoc | null : null;
+  const readyDoc = readyPicked ? sourceOf(readyDocs.get(readyPicked.latest_hash)) : null;
   const facts = picked ? sourceFacts(sourceFromBible(picked, '0'.repeat(64)), () => null, picked)
     : readyDoc ? sourceFacts(readyDoc, readyDocs.get) : null;
   const unpick = () => { setPicked(null); setReadyPicked(null); };
@@ -291,7 +291,7 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
               : (
                 <Group>
                   {ready.map((s, i) => {
-                    const doc = readyDocs.get(s.latest_hash) as SourceDoc;
+                    const doc = sourceOf(readyDocs.get(s.latest_hash))!;
                     return (
                       <HelpRow key={`${s.org_id}/${s.item_id}`} of="reference.readyBible">
                         <Row icon="book" label={s.name} disabled={busy} last={i === ready.length - 1}
@@ -344,7 +344,7 @@ export function ReferenceSource(ctx: Ctx) {
   const { lib, rows, docs } = useRefItems(ctx, (it) => it.itemId === itemId);
   const row = rows[0];
   const it = row?.it ?? null;
-  const source = row?.doc?.format === 'source@1' ? row.doc : null;
+  const source = sourceOf(row?.doc);
   // This one Bible's books and their timings, to say what each book has (sources load without them).
   const bookDocs = useLibraryDocs(lib.orgId, source?.books.map((b) => b.doc) ?? []);
   const canAct = canActAt(ctx, level);
@@ -396,7 +396,7 @@ export function ReferenceSource(ctx: Ctx) {
 
   const timedBooks = timedBookCount(facts);
   return (
-    <Screen header={<Header title={it.name} sub={[source.abbreviation, languageLabel(source.language), providerName(source.provider.kind)].join(' · ')} onBack={ctx.back} />}
+    <Screen header={<Header title={it.name} sub={[source.abbreviation, languageLabel(source.language), sourceProviderName(source)].join(' · ')} onBack={ctx.back} />}
       footer={mayAsk ? <PrimaryBtn label={t('reference.source.generate')} icon="clock" help={t('reference.source.generateHelp')} onPress={() => void ask()} busy={asking} /> : undefined}>
       <Card>
         <View style={styles.titleRow}>
@@ -420,11 +420,13 @@ export function ReferenceSource(ctx: Ctx) {
       ) : null}
       <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{sourceLine(it)}</Text>
 
-      <Disclosure icon="clock" title={t('reference.source.timingsByBook')} summary={t('reference.source.booksTimed', { timed: timedBooks, count: facts.books.length })} {...booksOpen}>
-        {facts.books.map((b, i) => (
-          <Row key={b.book} label={b.name} last={i === facts.books.length - 1} sub={bookTimingLine(facts, b)} />
-        ))}
-      </Disclosure>
+      {source.uploaded ? null : (
+        <Disclosure icon="clock" title={t('reference.source.timingsByBook')} summary={t('reference.source.booksTimed', { timed: timedBooks, count: facts.books.length })} {...booksOpen}>
+          {facts.books.map((b, i) => (
+            <Row key={b.book} label={b.name} last={i === facts.books.length - 1} sub={bookTimingLine(facts, b)} />
+          ))}
+        </Disclosure>
+      )}
 
       {source.provider.kind === 'biblebrain' && canManage ? (
         <>

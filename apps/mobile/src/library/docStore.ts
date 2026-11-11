@@ -207,10 +207,10 @@ export async function loadDocs(orgId: string, hashes: (string | null | undefined
     const next = new Set<string>();
     if (opts.deps === false) break;
     for (const doc of out.values()) {
-      if (doc.format === 'versification@1' || doc.format === 'sourceBook@1') continue;
+      if (doc.format === 'versification@1' || doc.format === 'sourceBook@1' || doc.format === 'usfmBook@1') continue;
       // A source's books (and their timings) and a collection's guides load when a passage reads
       // them; only the numbering comes along. FIA's English guides alone are 1,525 documents (65 MB).
-      const deps = doc.format === 'source@1' || doc.format === 'collection@1' ? [doc.versification] : doc.deps;
+      const deps = doc.format === 'source@1' || doc.format === 'usfmBible@1' || doc.format === 'collection@1' ? [doc.versification] : doc.deps;
       for (const d of deps) if (!seen.has(d)) next.add(d);
     }
     want = [...next];

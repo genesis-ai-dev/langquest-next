@@ -16,7 +16,7 @@
 // first, and nothing new is fetched past the cap. Like every transfer, this
 // waits while the microphone is open and while offline. A browser gets the
 // files through the Worker (throughWorker.ts, decisions.md 201).
-import type { SourceDoc } from '@langquest-next/core';
+import { sourceOf, type LibraryDoc } from '@langquest-next/core';
 import { classifyTransferFailure } from '@langquest-next/sync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
@@ -171,7 +171,7 @@ export async function pass(language: LanguageHandle, org: OrgHandle, session: Se
   const mine: MyBible[] = mineRaw ? (JSON.parse(mineRaw) as MyBible[]) : [];
   const hashes = sourceHashes(org.state, state, mine);
   const docs: Map<string, unknown> = hashes.size ? await loadDocs(language.orgId, [...hashes], { deps: false }).catch(() => new Map()) : new Map();
-  const getDoc = (h: string) => (docs.get(h) as SourceDoc | undefined) ?? null;
+  const getDoc = (h: string) => sourceOf(docs.get(h) as LibraryDoc | undefined);
   const options = offlineOptions(org.state, state, mine, getDoc);
   // Only the books the scope's passages are in (a source lists all it has).
   const bookHashes = bookHashesFor(scope, options);
