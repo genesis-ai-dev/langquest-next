@@ -400,12 +400,12 @@ test('STUDY-017 Key words in the workspace', async ({ page }) => {
   await open(page, world(), 'TRANS');
   await openWorkspace(page);
   await tabChip(page, 'Key words').click();
-  // A tile for each word: the word and the team's word (here none yet).
-  await expect(button(page, /^heaven\. No word yet\.$/)).toBeVisible();
+  // A tile for each word: the word and the team's word (STUDY-016 added "ijuru").
+  await expect(button(page, /^heaven\. Your word: ijuru$/)).toBeVisible();
   await expect(button(page, 'Add a key word')).toBeVisible();
   await expect(button(page, 'All key words')).toBeVisible();
-  // The step shows the Bible's text, and the team has no word for it yet: nothing to put in the text, so no switch.
-  await expect(byId(page, 'toggle-our-words-in-bible')).toHaveCount(0);
+  // The step shows the Bible's text and the team has a word: the switch for putting it in the text is there.
+  await expect(byId(page, 'toggle-our-words-in-bible')).toBeVisible();
   await button(page, /^heaven\. /).click();
   // The word opens in a sheet over the workspace, with where it is here, never another screen.
   await expect(byId(page, 'sheet')).toBeVisible();
@@ -512,6 +512,7 @@ test('STUDY-023 A key term\'s page', async ({ page }) => {
   await recordParts(page, 1);
   await tabChip(page, 'Key words').click();
   await button(page, /^heaven\. /).click();
+  await button(page, "Open the word's page").click();
   await expect(text(page, 'heaven')).toBeVisible();
   await expect(text(page, 'Alpha key word')).toBeVisible();
   await expect(text(page, 'God\'s dwelling, or God himself')).toBeVisible();
@@ -529,6 +530,7 @@ test('STUDY-024 Tie a key term to the draft', async ({ page }) => {
   await openWorkspace(page);
   await tabChip(page, 'Key words').click();
   await button(page, /^heaven\. /).click();
+  await button(page, "Open the word's page").click();
   await button(page, 'Tie to your draft').click();
   await sawToast(page, 'Tied heaven to your draft.');
   await expect(button(page, 'Tied to your draft').or(text(page, 'Tied to your draft')).first()).toBeVisible();
@@ -557,6 +559,7 @@ test('STUDY-025 Tying when someone else is drafting too', async ({ page }) => {
   await openWorkspace(page);
   await tabChip(page, 'Key words').click();
   await button(page, /^compassion\. /).click();
+  await button(page, "Open the word's page").click();
   await button(page, 'Tie to your draft').click();
   await sawToast(page, 'Tied compassion to your draft.');
   await expectSent(page, w);
@@ -573,6 +576,7 @@ test('STUDY-026 Adjust or add a rendering, with why', async ({ page }) => {
   await openWorkspace(page);
   await tabChip(page, 'Key words').click();
   await button(page, /^heaven\. /).click();
+  await button(page, "Open the word's page").click();
   await button(page, 'Change or add a word').click();
   await expect(text(page, 'Alpha · “heaven”')).toBeVisible();
   await expect(text(page, `Recorded as part of ${world().passages['P-SUBMITTED'].label}, and tied to your draft.`)).toBeVisible();
