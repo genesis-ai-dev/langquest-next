@@ -5,7 +5,7 @@ Other apps, AI agents and people without an account can take part in a translati
 - **Partner apps and agents** use an access token. They read passages, record reviews, report where a version is published, and store values of their own with a language.
 - **Anyone with a review link** (`/r/<code>`, shared on WhatsApp, say) can hear one version and answer, with any name.
 
-Base address: `https://app.langquest.org/api/v1` (preview: `next-preview.langquest.org`). `GET /api/v1` lists every endpoint. `https://next.langquest.org` is the same Worker, kept as an alias: an existing token, MCP setup or review link keeps working there, with nothing to change yet (decisions.md 207).
+Base address: `https://app.langquest.org/api/v1` (preview: `next-preview.langquest.org`). `GET /api/v1` lists every endpoint. `https://next.langquest.org` is the same Worker, kept as an alias: an existing token, MCP setup or review link keeps working there, with nothing to change yet (decisions.md 208).
 
 **Reference:** `GET /api/v1/openapi.json` is the API as OpenAPI 3.1: every route, parameter, request and response field. It needs no token, so client generators and API tools can read it directly. This guide explains what the API is for and how to use it; when the two differ in a detail, the OpenAPI document is right, because the tests hold the API to it. It leaves out `/api/v1/session/*` and `/api/v1/links/*`, which only LangQuest's own connect and review pages call.
 

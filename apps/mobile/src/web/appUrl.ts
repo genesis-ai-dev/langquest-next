@@ -8,7 +8,7 @@ import { Platform } from 'react-native';
  * without one keeps the `langquestnext://` links. Changing the domain is
  * this setting plus the steps in decisions.md 58. It stays on next. after the
  * web app moved to app.langquest.org, until older phones can read app. links
- * (decisions.md 207).
+ * (decisions.md 208).
  */
 export const APP_URL: string | null = process.env.EXPO_PUBLIC_APP_URL?.replace(/\/$/, '')
   ?? (Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : null);

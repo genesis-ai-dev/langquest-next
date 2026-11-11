@@ -11,7 +11,7 @@
   "workers_dev": false,
   "preview_urls": false,
   // The app's addresses, on the langquest.org zone in this account (decisions.md
-  // 58, 207): people use app.; next. stays as an alias, and stays first because
+  // 58, 208): people use app.; next. stays as an alias, and stays first because
   // API_URL, the webhook poke and the YouTube sign-in callback name it until the
   // last step in docs/cloudflare.md moves them. A deploy attaches each route and
   // takes over its DNS name, so this list decides what app. serves.
