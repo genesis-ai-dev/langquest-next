@@ -22,12 +22,15 @@
  *            nights) and the pictures in the repository's `phone-tests`
  *            release (gh, GH_TOKEN), and removes pictures older than 14 days
  *   markdown --out <dir>   the run's summary page, for $GITHUB_STEP_SUMMARY
+ *   safe-names <dir>       renames what Maestro wrote there so GitHub takes it
+ *            as an artifact: no " : < > | * ? in a name (a flow's name, which
+ *            Maestro puts in its folders, may hold a colon)
  *
  * The release is public, as the repository is: the pictures show the test
  * server's made-up organization and people only, never anyone's real work.
  */
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dryApi, flags, linearApi, plan, PREFIX } from './nightly-report.mjs';
@@ -95,12 +98,35 @@ function walk(dir) {
   });
 }
 
+/** A name GitHub's artifacts take: each character they refuse becomes "-". */
+export const safeName = (name) => name.replace(/[":<>|*?\r\n]/g, '-');
+
+/**
+ * Renames every file and folder under `dir` whose name GitHub's artifacts
+ * refuse, deepest first. Returns how many it renamed.
+ */
+export function safeNames(dir) {
+  if (!existsSync(dir)) return 0;
+  let renamed = 0;
+  for (const f of readdirSync(dir)) {
+    const p = join(dir, f);
+    if (statSync(p).isDirectory()) renamed += safeNames(p);
+    const safe = safeName(f);
+    if (safe !== f) {
+      renameSync(p, join(dir, safe));
+      renamed++;
+    }
+  }
+  return renamed;
+}
+
 /**
  * The screenshot Maestro took when a flow failed (`screenshot-❌-<time>-(<flow>).png`
- * in its output), or the newest picture that names the flow.
+ * in its output), or the newest picture that names the flow. The name may
+ * have gone through safeName on its way to the report.
  */
 export function shotFor(files, name) {
-  const named = files.filter((f) => f.endsWith('.png') && basename(f).includes(`(${name})`));
+  const named = files.filter((f) => f.endsWith('.png') && (basename(f).includes(`(${name})`) || basename(f).includes(`(${safeName(name)})`)));
   const failed = named.filter((f) => basename(f).includes('❌'));
   const pick = (list) => [...list].sort((a, b) => basename(b).localeCompare(basename(a)))[0] ?? null;
   return pick(failed) ?? pick(named);
@@ -389,10 +415,15 @@ export function markdown(summary) {
 
 async function main() {
   const [command, ...rest] = process.argv.slice(2);
+  if (command === 'safe-names') {
+    if (!rest[0]) throw new Error('safe-names needs a folder');
+    console.log(`Renamed ${safeNames(rest[0])} names GitHub's artifacts refuse.`);
+    return;
+  }
   const opt = flags(rest);
   const out = opt.out;
   if (!out || !['summary', 'look', 'linear', 'publish', 'markdown'].includes(command)) {
-    console.error('usage: phone-tests.mjs summary|look|linear|publish|markdown --out <dir> (see the file\'s header)');
+    console.error('usage: phone-tests.mjs summary|look|linear|publish|markdown --out <dir>, or safe-names <dir> (see the file\'s header)');
     process.exit(2);
   }
   const summaryFile = join(out, 'summary.json');

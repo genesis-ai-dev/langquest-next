@@ -1,11 +1,11 @@
-import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { PREFIX } from './nightly-report.mjs';
 import {
   addLook, addToHistory, file, flowKey, HISTORY_NIGHTS, junitFlows, MANY, markdown, nightSummary, oldShots,
-  phoneOutcomes, PICTURE, runKey, shotFor, slug
+  phoneOutcomes, PICTURE, runKey, safeName, safeNames, shotFor, slug
 } from './phone-tests.mjs';
 
 // The nightly phone tests' report (decision 206). These tests hold what keeps
@@ -79,6 +79,21 @@ describe('shotFor', () => {
     const files = ['/r/a/screenshot-❌-2-(REC-020).png', '/r/a/screenshot-3-(REC-020).png', '/r/a/screenshot-❌-9-(REC-0201).png', '/r/a/commands-(REC-020).json'];
     expect(shotFor(files, 'REC-020')).toBe('/r/a/screenshot-❌-2-(REC-020).png');
     expect(shotFor(files, 'SYNC-015')).toBeNull();
+  });
+  it('finds the picture after its folder and name went through safeName', () => {
+    const files = ['/r/2026-11-11_222406/P0 A reviewer reviews- looks good/screenshot-❌-5-(P0 A reviewer reviews- looks good).png'];
+    expect(shotFor(files, 'P0 A reviewer reviews: looks good')).toBe(files[0]);
+  });
+  it('renames what GitHub\'s artifacts refuse, folders and files alike', () => {
+    const root = mkdtempSync(join(tmpdir(), 'safe-'));
+    const deep = join(root, 'run', 'P0 A: b?');
+    mkdirSync(deep, { recursive: true });
+    writeFileSync(join(deep, 'screenshot-❌-1-(P0 A: b?).png'), '');
+    writeFileSync(join(root, 'report.xml'), '');
+    expect(safeNames(root)).toBe(2);
+    expect(existsSync(join(root, 'run', 'P0 A- b-', 'screenshot-❌-1-(P0 A- b-).png'))).toBe(true);
+    expect(existsSync(join(root, 'report.xml'))).toBe(true);
+    expect(safeName('a "b" <c> | d * e')).toBe('a -b- -c- - d - e');
   });
   it('makes a name safe for a file', () => {
     expect(slug('P0 A viewer: Done (é)')).toBe('p0-a-viewer-done-e');

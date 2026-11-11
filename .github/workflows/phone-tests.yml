@@ -158,6 +158,7 @@ jobs:
           adb logcat -d > "$RESULTS/logs/logcat.txt" 2>/dev/null || true
           cp "$RUNNER_TEMP"/worker.log "$RUNNER_TEMP"/emulator.log "$RESULTS/logs/" 2>/dev/null || true
           rm -f "$RESULTS/world.json"
+          node scripts/phone-tests.mjs safe-names "$RESULTS" || true
       - name: Keep the results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -293,6 +294,7 @@ jobs:
           cp "$RUNNER_TEMP"/tunnel.log "$RESULTS/logs/" 2>/dev/null || true
           [ -n "${UDID:-}" ] && xcrun simctl spawn "$UDID" log show --last 30m --style compact --predicate 'process == "LangQuestNext"' > "$RESULTS/logs/simulator.log" 2>/dev/null || true
           rm -f "$RESULTS/world.json"
+          node scripts/phone-tests.mjs safe-names "$RESULTS" || true
       - name: Keep the results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
