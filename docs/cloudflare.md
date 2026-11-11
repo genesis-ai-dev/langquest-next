@@ -250,9 +250,10 @@ The website (`langquest-website`), any time after step 5:
    `/reset-password`, `/registration-confirmation`, `/notifications`,
    `/privacy`, `/terms`, `/account-deletion`, `/api/export` and
    `/.well-known/*`. Link the old website to `legacy-app.langquest.org`.
-9. On `/en/next/privacy` and `/en/next/delete-account`, add a line at the top
-   that links to the legacy page. The paths stay, so Play Console needs no
-   change.
+9. On `/en/next/delete-account`, add a line at the top that links to the
+   legacy page. `/en/next/privacy` now redirects to the app's own
+   `next.langquest.org/privacy` (website pull request 167). The paths stay, so
+   Play Console needs no change.
 
 Later, in this order:
 
