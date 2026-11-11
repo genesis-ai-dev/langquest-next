@@ -8,6 +8,7 @@
 // Tests that change a name or sign out use their own session or put the
 // name back, so the tests after them see the fixture as it was built.
 import type { Browser, Page } from '@playwright/test';
+import { UI_LANGUAGES } from '@langquest-next/core';
 import {
   addNoteUI, catalog, deleteNew, languageLoaded, openHistory, quietDevice, quietDevServer, toTabs, expectAccountSent, freshSession, newAccount, noteAs, openOnce, saveName, say, stateFor, type NewAccount
 } from './account-helpers';
@@ -505,11 +506,11 @@ test('ACCT-025 New organization opens Create Organization', async ({ page }) => 
 
 // ---- The app's language --------------------------------------------------------------------------
 
-const LANGUAGES: [string, string | null][] = [
-  ['English', null], ['Español', 'Spanish'], ['Português (Brasil)', 'Portuguese (Brazil)'], ['Français', 'French'], ['العربية', 'Arabic'],
-  ['Kiswahili', 'Swahili'], ['Hausa', 'Hausa'], ['አማርኛ', 'Amharic'], ['हिन्दी', 'Hindi'], ['বাংলা', 'Bengali'], ['नेपाली', 'Nepali'],
-  ['Bahasa Indonesia', 'Indonesian'], ['简体中文', 'Chinese (Simplified)'], ['ไทย', 'Thai'], ['မြန်မာ', 'Burmese'], ['Tagalog', 'Tagalog']
-];
+// Every language the app offers (core's UI_LANGUAGES), each with its name in English (the sheet's second line;
+// none for English, which is showing). Adding a language needs no change here.
+const LANGUAGES: [string, string | null][] = UI_LANGUAGES.map((l) => [
+  l.name, l.code === 'en' ? null : say(catalog('en'), `uiLanguage.names.${l.code === 'zh-Hans' ? 'zhHans' : l.code}`)
+]);
 
 async function openLanguageSheet(page: Page) {
   await openMe(page);
@@ -517,11 +518,11 @@ async function openLanguageSheet(page: Page) {
   await expect(text(page, 'Choose the language LangQuest speaks to you in.')).toBeVisible();
 }
 
-test('ACCT-026 The Language sheet lists sixteen languages', async ({ page }) => {
+test('ACCT-026 The Language sheet lists every app language', async ({ page }) => {
   await openAs(page, world(), 'TRANS');
   await openLanguageSheet(page);
   const radios = page.getByRole('radio').locator('visible=true');
-  await expect(radios).toHaveCount(17);
+  await expect(radios).toHaveCount(LANGUAGES.length + 1); // the follow-the-phone row, then one row per language
   await expect(radios.nth(0)).toHaveText(/^Same as this browser\s*Now English$/);
   const rows = await radios.allInnerTexts();
   LANGUAGES.forEach(([own, english], i) => {
