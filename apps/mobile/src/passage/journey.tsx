@@ -23,7 +23,7 @@ import { commaList, versionTitle, when, type PassageView } from './passageView';
 import { shadow } from '../ui/shadow';
 import { C, radius, space, target, TINT, withAlpha } from '../ui/theme';
 import {
-  currentStepId, kindLineText, lastReviewOn, ledTo, madeAfter, oldKindLineText, oldStepState, oldStepSummary, pathState, reviewMark,
+  answerAttachments, currentStepId, kindLineText, lastReviewOn, ledTo, madeAfter, oldKindLineText, oldStepState, oldStepSummary, pathState, reviewMark,
   stepSummary, versionCaption, type NameFn, type PathState
 } from './recordTextModel';
 import { a11yState } from '../ui/a11yModel';
@@ -376,12 +376,17 @@ function ReviewAttachments(props: { ctx: Ctx; v: PassageView; review: ReviewView
   const { ctx, v, review } = props;
   const makes = v.kind(review.kindId).produces;
   const parts = review.artifacts ?? [];
-  if (!review.comment && !review.commentBlobHash && parts.length === 0) return null;
+  const answer = answerAttachments(review);
+  if (!review.comment && !review.commentBlobHash && parts.length === 0 && !answer.note && !answer.blobHash) return null;
   return (
     <View style={{ gap: space.xs }}>
       {review.comment ? <Text style={[txt.xs, { fontStyle: 'italic' }]} numberOfLines={2}>{t('passage.quote', { text: review.comment })}</Text> : null}
       {review.commentBlobHash ? (
         <ClipRow ctx={ctx} hashes={[review.commentBlobHash]} label={t('passage.journey.voiceFeedback')} playLabel={t('passage.journey.playVoiceFeedback')} />
+      ) : null}
+      {answer.note ? <Text style={[txt.xs, { fontStyle: 'italic' }]} numberOfLines={2}>{t('passage.quote', { text: answer.note })}</Text> : null}
+      {answer.blobHash ? (
+        <ClipRow ctx={ctx} hashes={[answer.blobHash]} label={t('passage.review.answerAloud')} playLabel={t('passage.review.answerAloud')} />
       ) : null}
       {parts.length > 0 ? (
         <ClipRow ctx={ctx} hashes={parts.map((c) => c.hash)}

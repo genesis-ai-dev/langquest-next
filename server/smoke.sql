@@ -273,7 +273,7 @@ select set_config('request.jwt.claim.sub', '', false);
 select public.put_snapshot('org1', 'L1', 1, 3, '{"v":"old"}'::jsonb);
 select public.put_snapshot('org1', 'L1', 1, 5, '{"v":"new"}'::jsonb);
 -- The one before stays for a phone part-way through downloading it, until
--- the newer one has been out for 24 hours (decisions.md 88); the job takes
+-- the newer one has been out for 6 hours (decisions.md 88, amended); the job takes
 -- it then (ops.purge_snapshots, server/snapshotPurgeSmoke.sql).
 do $$ declare n int; begin
   select count(*) into n from public.snapshots where stream_id = 'L1';
@@ -282,7 +282,7 @@ do $$ declare n int; begin
   perform public.put_snapshot('org1', 'L1', 1, 7, '{"v":"newer"}'::jsonb);
   perform ops.purge_snapshots();
   if exists (select 1 from public.snapshots where stream_id = 'L1' and server_seq = 3) then
-    raise exception 'a snapshot whose successor is 24 hours old should be gone';
+    raise exception 'a snapshot whose successor is past the window should be gone';
   end if;
   if not exists (select 1 from public.snapshots where stream_id = 'L1' and server_seq = 5) then
     raise exception 'the previous snapshot should stay while its successor is new';
