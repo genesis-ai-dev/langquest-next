@@ -82,6 +82,9 @@ jobs:
       RESULTS: e2e/results/maestro/android/nightly
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # First, so a machine without KVM fails in a minute, not after the build.
+      - name: Give the runner KVM (the emulator needs it)
+        run: bash scripts/ci-android-emulator.sh --kvm
       - name: Make room on the disk (the stack, Gradle and the emulator need about 25 GB)
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost /usr/share/swift /opt/hostedtoolcache/CodeQL

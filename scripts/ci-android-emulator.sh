@@ -3,6 +3,7 @@
 # (.github/workflows/phone-tests.yml, decision 206):
 #
 #   bash scripts/ci-android-emulator.sh <log file>
+#   bash scripts/ci-android-emulator.sh --kvm     only give the runner KVM
 #
 # GitHub's Linux runners have KVM, which the emulator needs to run at a
 # usable speed; the runner's user is given the device first. The system
@@ -14,18 +15,33 @@
 # ANDROID_API picks the Android version (35 by default). The emulator's own
 # output goes to the log file, which the workflow keeps.
 set -euo pipefail
-LOG="${1:?usage: ci-android-emulator.sh <log file>}"
+
+# KVM for the runner's user. The udev rule is the usual way; when the node is
+# still not writable after it (the Ubuntu 26.04 image on 2026-11-11), the
+# mode is set directly. A runner with no /dev/kvm at all fails here.
+kvm() {
+  if [ ! -e /dev/kvm ]; then
+    echo "::error::This runner has no /dev/kvm ($(grep -cE 'vmx|svm' /proc/cpuinfo || true) CPUs show vmx or svm; image ${ImageOS:-?} ${ImageVersion:-?}): it cannot run the Android emulator at speed"
+    exit 1
+  fi
+  echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules > /dev/null
+  sudo udevadm control --reload-rules
+  sudo udevadm trigger --name-match=kvm
+  sudo udevadm settle --timeout=30 || true
+  [ -w /dev/kvm ] || sudo chmod 666 /dev/kvm
+  [ -w /dev/kvm ] || { echo "::error::/dev/kvm is there but not writable ($(ls -l /dev/kvm)): this runner cannot run the Android emulator at speed"; exit 1; }
+  echo "KVM: $(ls -l /dev/kvm)"
+}
+if [ "${1:-}" = --kvm ]; then kvm; exit 0; fi
+
+LOG="${1:?usage: ci-android-emulator.sh <log file> | --kvm}"
 API="${ANDROID_API:-35}"
 IMAGE="system-images;android-${API};google_apis;x86_64"
 AVD=phone-tests
 SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:?the Android SDK is not set up}}"
 export PATH="$SDK/cmdline-tools/latest/bin:$SDK/emulator:$SDK/platform-tools:$PATH"
 
-# KVM for the runner's user.
-echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules > /dev/null
-sudo udevadm control --reload-rules
-sudo udevadm trigger --name-match=kvm
-[ -w /dev/kvm ] || { echo "::error::/dev/kvm is not there or not writable: this runner cannot run the Android emulator at speed"; exit 1; }
+kvm
 
 yes | sdkmanager --licenses > /dev/null 2>&1 || true
 sdkmanager --install "$IMAGE" emulator platform-tools > /dev/null
