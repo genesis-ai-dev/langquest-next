@@ -10950,7 +10950,7 @@ from what that organization says it needs).
 
 ## 207. A recorded key-term example is a way of saying the term, needs no written form, and lists the passages it was recorded in
 
-Date: 2026-11-06 · By: Caleb Koster · Status: accepted
+Date: 2026-11-11 · By: Caleb Koster · Status: accepted
 
 Reason: stages 1 and 2 of 205 (LAN-228). Stage 1 is
 `v1.KeyTermAudioRenderingAdded { termId, renderingId, blobHash, durationMs,
