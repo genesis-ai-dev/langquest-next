@@ -5,10 +5,14 @@ appId: com.frontierrnd.langquestnext
 - extendedWaitUntil:
     visible: "Email or sign-in name"
     timeout: 60000
-- tapOn: "Email or sign-in name"
+# The fields by their IDs: on an iPhone the label's text matches first, and a
+# tap on it does not put the cursor in the field (iOS 26 simulator, 2026-11-11).
+- tapOn:
+    id: "sign-in-name"
 - eraseText: 80
 - inputText: ${EMAIL}
-- tapOn: "Password"
+- tapOn:
+    id: "sign-in-password"
 - eraseText: 80
 - inputText: ${PASSWORD}
 - runFlow:
