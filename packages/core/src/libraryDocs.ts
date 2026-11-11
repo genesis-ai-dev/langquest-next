@@ -407,7 +407,7 @@ export interface LabelsDoc {
 }
 
 /**
- * A Bible an organization uploaded as USFM files (decision 206): the
+ * A Bible an organization uploaded as USFM files (decision 207): the
  * header of `usfmBible@1`, one `usfmBook@1` per book. Unlike `source@1`
  * it has no provider, no audio and no timings; it is text the team holds
  * and says it may share. Showing it beside a passage is LAN-230.

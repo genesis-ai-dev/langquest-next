@@ -7983,6 +7983,29 @@
       "offline": "LangQuestን ማግኘት አልተቻለም። ግንኙነትዎን ፈትሸው እንደገና ይሞክሩ።"
     }
   },
+  "orgExport": {
+    "title": "ሁሉንም መረጃ ላክ",
+    "sub": "አንድ ዚፕ፦ በአቃፊዎች ውስጥ ቅጂዎች፣ የእያንዳንዱ ቅጂ ዝርዝር፣ የእድገት ሉሆች እና ሙሉ መዝገብ።",
+    "whole": "መላው ድርጅት",
+    "some": "አንዳንድ ቋንቋዎች ብቻ",
+    "start": "ዚፕ ሥራ",
+    "waiting": "ለመጀመር በመጠበቅ ላይ",
+    "reading": "ድርጅቱን በማንበብ ላይ",
+    "audio": "ቅጂዎችን በመጨመር ላይ፦ {{done}} ከ {{total}}",
+    "log": "ሙሉ መዝገቡን በመጨመር ላይ",
+    "ready": "ለማውረድ ዝግጁ",
+    "download": "አውርድ",
+    "failed": "ላኪያው አልተጠናቀቀም። እንደገና ሞክር።",
+    "started": "ላኪያው ተጀምሯል።",
+    "problem": "ላኪያውን መጀመር አልተቻለም።",
+    "expired": "ከ7 ቀን በኋላ ተወግዷል።",
+    "keep": "የተጠናቀቀ ዚፕ ለ7 ቀን ይቆያል።",
+    "help": "የድርጅቱን ሁሉንም መረጃ በአንድ ዚፕ ለማውረድ ገጽ ይከፍታል።",
+    "wholeHelp": "የድርጅቱን ሁሉንም ቋንቋዎች ላክ።",
+    "someHelp": "የሚላኩ ቋንቋዎችን ምረጥ።",
+    "languageHelp": "ይህን ቋንቋ አካትት ወይም ተው።",
+    "downloadHelp": "የተጠናቀቀውን ዚፕ ያወርዳል።"
+  },
   "usfm": {
     "title": "Upload a Bible",
     "intro": "Add your team's own Bible from USFM files. Use one file for each book, or one zip with many books.",
