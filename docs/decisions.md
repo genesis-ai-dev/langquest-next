@@ -8385,6 +8385,12 @@ partners and users real trouble. So:
 - **Sent means sent.** Offline, asking someone, a review and a published
   version say who gets it when the device is connected.
 
+Amended (2026-11-06, Caleb Koster): My Work's to-do rows end with the same
+download button as a Map row, for the passage each is about (LAN-19), so
+"On this device" shows before the passage opens. It is on the rows of the
+Then list and the "record again" row; the lead card, the join, divide and
+language rows, and the waiting and recent lists have none.
+
 ## 167. The nightly mutation run is four shards of core's files, dealt by what each costs, and one merged score
 
 Date: 2026-10-26 · By: Carl Sauder · Status: accepted
@@ -10854,7 +10860,47 @@ still finds no copy: a new install on a slow link then pulls the log and its wor
 is safe. At about one bump a week this keeps one or two versions nobody reports;
 at early October's three a week, five or six, each a copy per language.
 
-## 205. Android release builds are shrunk with R8, with keep rules for the native modules
+## 205. Key terms are spotted in a take by matching audio to the team's recorded renderings, on the phone
+
+Date: 2026-11-05 · By: Ryder Wishart · Status: accepted
+
+Reason: a partner team on the 2026-11-05 call (users of Render) said a
+missed key term is usually found at the consultant stage, and the draft is
+redone from the start; they want the check while drafting, against key-term
+recordings made before the book begins (LAN-228). The app holds key terms
+per language (`KeyTermDefined`, text renderings in `KeyTermRenderingAdded`,
+a manual tie in `KeyTermLinked`) and only the translator's tagging says
+whether a take has one. Of the ways to detect a term automatically,
+fixed-vocabulary keyword spotting (the sub-megabyte models) is ruled out:
+its size comes from thousands of labelled recordings per word, and the
+words are each team's target-language renderings, for which no data exists.
+Speech recognition then text matching is ruled out on the phone for the
+same reason, since ultra low-resource languages have no recognizer, and on
+a server it would send recordings to a third party, which changes the Play
+"Shared" answers (decision 49). Query-by-example is what remains and fits:
+the team records each rendering two or three times, and a matcher slides
+those clips over the take and reports a confidence. The term and the take
+are usually spoken by the same translator or a small team, the easy case
+for acoustic matching; both inputs are content-addressed blobs (decision
+4), so a result keyed by take hash, rendering hash and matcher version is
+derived, cached per device and recomputable, never synced as status
+(PLAN.md section 4). The matcher runs in the native `microphone-energy`
+module after a take is saved, not during recording. The output is a hint
+("3 of 4 key terms heard"), never a gate, because renderings inflect, get
+paraphrased or split across clauses; the translator's tie or dismissal
+remains the record (`KeyTermLinked`) and calibrates the threshold for that
+language locally. The shipped rendering event is text-only and keeps its
+shape; recorded renderings are a new versioned event. Stages: the audio
+rendering event, then an evaluation set from a partner language, then MFCC
+features with subsequence DTW (no model to download), then a small
+pretrained multilingual encoder only if that misses the bar, keeping the
+DTW, cache and screen.
+Reverse if: a partner language gains a usable recognizer and the organization
+opts in to server transcription (then text matching can run in Aquilla and
+feed the same hint), or MFCC matching is wrong often enough across speakers
+that the encoder download is the cheaper cost.
+
+## 206. Android release builds are shrunk with R8, with keep rules for the native modules
 
 Date: 2026-11-06 · By: Caleb Koster · Status: accepted
 
@@ -10870,4 +10916,3 @@ R8's mapping file, and Play reads it from there, so no upload step is added.
 The change is native: it needs a new store build and changes the fingerprint.
 Reverse if: a release build loses a feature to over-shrinking that a keep rule
 cannot fix, or Play stops reading the mapping file from the bundle.
-
