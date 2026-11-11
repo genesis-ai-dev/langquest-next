@@ -85,31 +85,27 @@ case "$mode" in
     ;;
 
   server)
-    dir="$1"
+    dir="$1" last=""
     while until_limit 3600; do
-      if gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n phone-tests-ios-server -D "$dir" > /dev/null 2>&1 && [ -f "$dir/tunnel.json" ]; then
-        echo "The test server is up."
-        exit 0
+      # A download that works but has no tunnel.json will not get better; a
+      # download that fails may be the artifact not listed yet, or GitHub
+      # having a bad hour (HTTP 502 on 2026-11-11), so that one is retried.
+      if last="$(gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n phone-tests-ios-server -D "$dir" 2>&1)"; then
+        if [ -f "$dir/tunnel.json" ]; then echo "The test server is up."; exit 0; fi
+        echo "::error::The iPhone test server's artifact has no tunnel.json"
+        ls -la "$dir" || true
+        exit 1
       fi
       job="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" \
-        --jq '.jobs[] | select(.name == "iPhone test server") | [.status, ([.steps[]? | select(.name | startswith("Hand the address")) | .conclusion] | first // "")] | join(" ")' 2>/dev/null | head -1 || true)"
-      if [ "${job%% *}" = completed ]; then
+        --jq '.jobs[] | select(.name == "iPhone test server") | .status' 2>/dev/null | head -1 || true)"
+      if [ "$job" = completed ]; then
         echo "::error::The iPhone test server's job ended without starting the server: read its log"
         exit 1
       fi
-      # Handed over, yet not downloadable three times running: the artifact is
-      # missing its files, and waiting longer will not bring them.
-      if [ "${job#* }" = success ]; then
-        handed=$((${handed:-0} + 1))
-        if [ "$handed" -ge 3 ]; then
-          echo "::error::The iPhone test server handed over its artifact, but it has no tunnel.json"
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n phone-tests-ios-server -D "$dir" 2>&1 | tail -5 || true
-          exit 1
-        fi
-      fi
       sleep 20
     done
-    echo "::error::The iPhone test server was not up after 60 minutes"
+    echo "::error::The iPhone test server was not up after 60 minutes. The last download said:"
+    printf '%s\n' "$last" | tail -5
     exit 1
     ;;
 
