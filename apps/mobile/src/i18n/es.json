@@ -6824,7 +6824,7 @@
       "guide": "Guía",
       "guideHint": "Los pasos de la guía de estudio para este pasaje.",
       "terms": "Palabras clave",
-      "termsHint": "Palabras que se dicen igual cada vez: escucha cada una y di la tuya.",
+      "termsHint": "Palabras que se dicen igual cada vez: toca una para oírla y ver dónde se usa.",
       "notes": "Notas",
       "notesHint": "Las notas del equipo sobre este pasaje.",
       "earlier": "Antes",
@@ -7178,29 +7178,25 @@
       "verseTermsHelp": "Las palabras subrayadas son palabras clave: toca una para abrirla.",
       "verseTermsMarkedHelp": "Las palabras subrayadas son palabras clave.",
       "verseTiedHelp": "Una marca después de una palabra clave significa que está ligada a tu borrador.",
-      "verseDotHelp": "Reproduce la Biblia desde este versículo."
+      "verseDotHelp": "Reproduce la Biblia desde este versículo.",
+      "ourWord": "Tu palabra: {{word}}",
+      "verseOursHelp": "Una palabra verde después de una palabra clave es cómo lo dice tu equipo."
     },
     "keyWords": {
       "none": "Todavía no hay palabras clave en este pasaje.",
       "noneAdd": "Todavía no hay palabras clave en este pasaje. Agrega una que tu equipo deba decir igual cada vez.",
-      "elsewhere": "En otras partes del libro",
       "add": "Agregar una palabra clave",
       "addHint": "Una palabra que tu equipo debe decir igual cada vez.",
       "all": "Todas las palabras clave",
-      "hear": "Escuchar {{term}}",
       "hearHelp": "Reproduce el versículo donde está.",
       "noVerseAudio": "Esta Biblia no tiene audio para ese versículo.",
-      "hearLabel": "Escuchar {{term}} en la Biblia",
       "openHelp": "Qué significa, cómo la dice tu equipo y por qué.",
-      "termLabel": "{{term}}. {{refs}}",
-      "termLabelWord": "{{term}}. {{refs}}. Tu palabra: {{word}}",
       "yourWord": "Tu palabra",
       "yourWordHelp": "Reproduce cómo dice tu equipo {{term}}.",
       "pauseYourWord": "Pausar tu palabra para {{term}}",
       "playYourWord": "Reproducir tu palabra para {{term}}",
       "sayYours": "Di la tuya",
       "sayYoursHelp": "Graba cómo se dice {{term}} en tu idioma.",
-      "sayYoursLabel": "Di tu palabra para {{term}}",
       "saved": "Tu palabra para {{term}} está guardada.",
       "sayTitle": "Tu palabra para “{{term}}”",
       "saySub": "Di cómo se dice en {{language}}. Tu equipo la escucha cada vez que aparece esta palabra.",
@@ -7850,6 +7846,23 @@
       "fromList": "De {{name}}",
       "fromListSub": "Qué significa y la grabación de {{name}}",
       "fromListHelp": "Abre lo que {{name}} dice que significa la palabra, con su grabación."
+    },
+    "tiles": {
+      "recorded": "Palabra grabada",
+      "noWord": "todavía no hay palabra",
+      "label": "{{term}}. Tu palabra: {{word}}",
+      "labelRecorded": "{{term}}. Tu palabra está grabada.",
+      "labelNone": "{{term}}. Todavía no hay palabra.",
+      "openHelp": "Abre {{term}}: qué significa, dónde se usa y cómo lo dice tu equipo.",
+      "inBible": "Mostrar nuestras palabras en el texto de la Biblia",
+      "inBibleHelp": "Muestra la palabra de tu equipo después de cada palabra clave en la Biblia."
+    },
+    "ours": {
+      "afterDone": "Puedes abrir los pasajes y la página de esta palabra después de pulsar Listo.",
+      "openPage": "Abrir la página de la palabra",
+      "openPageHelp": "Abre la página de {{term}}, donde puedes cambiar tu palabra.",
+      "saidIn": "Dicha en {{where}}",
+      "usedIn": "Usada en {{where}}"
     }
   },
   "clusters": {

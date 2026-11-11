@@ -6824,7 +6824,7 @@
       "guide": "Guia",
       "guideHint": "As etapas do guia de estudo para esta passagem.",
       "terms": "Palavras-chave",
-      "termsHint": "Palavras para dizer sempre do mesmo jeito: ouça cada uma e diga a sua.",
+      "termsHint": "Palavras para dizer sempre da mesma forma: toque numa para a ouvir e ver onde é usada.",
       "notes": "Notas",
       "notesHint": "As notas da equipe sobre esta passagem.",
       "earlier": "Anteriores",
@@ -7178,29 +7178,25 @@
       "verseTermsHelp": "As palavras sublinhadas são palavras-chave: toque em uma para abrir.",
       "verseTermsMarkedHelp": "As palavras sublinhadas são palavras-chave.",
       "verseTiedHelp": "Um visto depois de uma palavra-chave quer dizer que ela está ligada ao seu rascunho.",
-      "verseDotHelp": "Toca a Bíblia a partir deste versículo."
+      "verseDotHelp": "Toca a Bíblia a partir deste versículo.",
+      "ourWord": "A sua palavra: {{word}}",
+      "verseOursHelp": "Uma palavra verde depois de uma palavra-chave é como a sua equipa a diz."
     },
     "keyWords": {
       "none": "Ainda não há palavras-chave nesta passagem.",
       "noneAdd": "Ainda não há palavras-chave nesta passagem. Adicione uma que a sua equipe deve dizer sempre do mesmo jeito.",
-      "elsewhere": "Em outras partes do livro",
       "add": "Adicionar uma palavra-chave",
       "addHint": "Uma palavra que a sua equipe deve dizer sempre do mesmo jeito.",
       "all": "Todas as palavras-chave",
-      "hear": "Ouvir {{term}}",
       "hearHelp": "Toca o versículo em que ela está.",
       "noVerseAudio": "Esta Bíblia não tem áudio para esse versículo.",
-      "hearLabel": "Ouvir {{term}} na Bíblia",
       "openHelp": "O que significa, como a sua equipe diz e por quê.",
-      "termLabel": "{{term}}. {{refs}}",
-      "termLabelWord": "{{term}}. {{refs}}. A sua palavra: {{word}}",
       "yourWord": "A sua palavra",
       "yourWordHelp": "Toca como a sua equipe diz {{term}}.",
       "pauseYourWord": "Pausar a sua palavra para {{term}}",
       "playYourWord": "Tocar a sua palavra para {{term}}",
       "sayYours": "Dizer a sua",
       "sayYoursHelp": "Gravar como o seu idioma diz {{term}}.",
-      "sayYoursLabel": "Dizer a sua palavra para {{term}}",
       "saved": "A sua palavra para {{term}} foi salva.",
       "sayTitle": "A sua palavra para “{{term}}”",
       "saySub": "Diga como se diz em {{language}}. A sua equipe ouve isso sempre que esta palavra aparecer.",
@@ -7850,6 +7846,23 @@
       "fromList": "De {{name}}",
       "fromListSub": "O que significa e a gravação de {{name}}",
       "fromListHelp": "Abre o que {{name}} diz que a palavra significa, com a gravação."
+    },
+    "tiles": {
+      "recorded": "Palavra gravada",
+      "noWord": "ainda sem palavra",
+      "label": "{{term}}. A sua palavra: {{word}}",
+      "labelRecorded": "{{term}}. A sua palavra está gravada.",
+      "labelNone": "{{term}}. Ainda sem palavra.",
+      "openHelp": "Abre {{term}}: o que significa, onde é usada e como a sua equipa a diz.",
+      "inBible": "Mostrar as nossas palavras no texto da Bíblia",
+      "inBibleHelp": "Mostra a palavra da sua equipa depois de cada palavra-chave na Bíblia."
+    },
+    "ours": {
+      "afterDone": "Pode abrir as passagens e a página desta palavra depois de tocar em Pronto.",
+      "openPage": "Abrir a página da palavra",
+      "openPageHelp": "Abre a página de {{term}}, onde pode mudar a sua palavra.",
+      "saidIn": "Dita em {{where}}",
+      "usedIn": "Usada em {{where}}"
     }
   },
   "clusters": {

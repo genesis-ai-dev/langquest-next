@@ -400,13 +400,20 @@ test('STUDY-017 Key words in the workspace', async ({ page }) => {
   await open(page, world(), 'TRANS');
   await openWorkspace(page);
   await tabChip(page, 'Key words').click();
-  await expect(button(page, /^heaven\. Luke 15:18, 21/)).toBeVisible();
+  // A tile for each word: the word and the team's word (here none yet).
+  await expect(button(page, /^heaven\. No word yet\.$/)).toBeVisible();
   await expect(button(page, 'Add a key word')).toBeVisible();
   await expect(button(page, 'All key words')).toBeVisible();
-  // The world's Bible (the built-in BSB) has no verse timings, so no word offers to play its verse (finding 41).
-  await expect(button(page, 'Hear heaven in the Bible')).toHaveCount(0);
+  // The step shows the Bible's text, and the team has no word for it yet: nothing to put in the text, so no switch.
+  await expect(byId(page, 'toggle-our-words-in-bible')).toHaveCount(0);
   await button(page, /^heaven\. /).click();
-  await expect(text(page, 'heaven')).toBeVisible();
+  // The word opens in a sheet over the workspace, with where it is here, never another screen.
+  await expect(byId(page, 'sheet')).toBeVisible();
+  await expect(text(page, 'Alpha key word')).toBeVisible();
+  await expect(text(page, 'Luke 15:18, 21')).toBeVisible();
+  // The world's Bible (the built-in BSB) has no verse timings, so no verse offers to play (finding 41).
+  await expect(button(page, 'Play Luke 15:18')).toHaveCount(0);
+  await button(page, "Open the word's page").click();
   await expect(text(page, 'Alpha key word')).toBeVisible();
 });
 
@@ -420,7 +427,9 @@ test('STUDY-018 Say your word for a key word', async ({ page }) => {
   await open(page, w, 'TRANS');
   await openWorkspace(page);
   await tabChip(page, 'Key words').click();
-  await button(page, 'Say your word for son').click();
+  // The tile opens its sheet, where a word with no word yet offers Say yours.
+  await button(page, /^son\. No word yet\.$/).click();
+  await button(page, 'Say yours').click();
   await expect(text(page, 'Your word for “son”')).toBeVisible();
   await expect(text(page, 'Say how Alpha says it. Your team hears it whenever this word comes up.')).toBeVisible();
   await expect(button(page, 'Add your word')).toBeDisabled();

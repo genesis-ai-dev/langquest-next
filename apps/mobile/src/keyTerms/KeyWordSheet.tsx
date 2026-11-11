@@ -90,7 +90,7 @@ export function KeyWordMeaning(props: { list: KeyWordList; word: KeyWordDoc; onW
 }
 
 /** A verse of the open passage the word is in: a tap plays it. */
-function VerseChip(props: { label: string; onPress: () => void }) {
+export function VerseChip(props: { label: string; onPress: () => void }) {
   const spot = useHelpSpot(props.label, t('reference.keyWords.hearHelp'), props.onPress);
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('keyTerms.sheet.playVerse', { verse: props.label })}

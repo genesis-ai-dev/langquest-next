@@ -9,8 +9,10 @@
 // a third, half, two thirds, the recorder as one line), opening at half and
 // staying where it was left. The reference takes whatever is attached, one
 // chip each: the Bible (play, Back 10 s, a Bible picker, notes on verses and
-// moments), the guide, key words (hear each, say yours, add one), notes, and
-// everything recorded so far. Playing the Bible while recording pauses the
+// moments), the guide, key words (a tile for each, the team's word on it; a tap opens its
+// sheet over the recorder, never another screen, so a key word never ends a
+// recording, LAN-233, decision 207; a switch there puts the team's words in the
+// Bible's text), notes, and everything recorded so far. Playing the Bible while recording pauses the
 // microphone and recording resumes when it stops (listen, speak, listen;
 // LAN-23). The recorder shows the parts recorded under one card and the
 // next part lit; when the passage has verses they are grouped into cards by
@@ -67,6 +69,8 @@ import { CardList, RecordButton, RecorderProblem, SaveProblem, type ListedCard }
 import { SplitPane } from '../recording/SplitPane';
 import { MIN_BOTTOM, MIN_BOTTOM_RECORDING, rememberedSplit } from '../recording/splitModel';
 import { useListenLoop } from '../recording/useListenLoop';
+import { ourWords } from '../keyTerms/model';
+import { useOurWordsInBible } from '../keyTerms/useOurWordsInBible';
 import { RecordingView } from '../recording/RecordingView';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { VerseTile } from '../recording/verseParts';
@@ -587,6 +591,10 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     const extra = unitTerms.filter((t) => tied.has(t.termId) && !shown.includes(t));
     return [...shown, ...extra];
   }, [sourceWords, unitTerms, tied]);
+  // The team's words after each key word in the Bible's text, when chosen and this step shows the text (LAN-233).
+  const [oursInBible, setOursInBible] = useOurWordsInBible();
+  const showOurs = shows.bibleText && oursInBible;
+  const ours = useMemo(() => ourWords(unitTerms), [unitTerms]);
   const guide = useStudyGuide(ctx, unitId);
   const study = useMemo(() => (guide ? studyProgress(state, p, guide) : null), [state, p, guide]);
   // Notes and earlier work from the steps the recording shows (decisions.md 130).
@@ -773,7 +781,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
               {chip === 'bible' ? (
                 <HelpQuiet>
                 <BiblePane ctx={ctx} v={v} bible={bible} terms={unitTerms} tied={tied} canNote={!recording} selected={verse} onSelect={setVerse}
-                  hear={shows.bibleAudio} read={shows.bibleText} scroll={styles.paneBody}
+                  hear={shows.bibleAudio} read={shows.bibleText} scroll={styles.paneBody} listen={loop.hooks} {...(showOurs ? { ours } : {})}
                   footer={<ReferenceRecordings ctx={ctx} unitId={unitId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
                   {...(recording ? {} : {
                     onTerm: (termId: string) => ctx.go('key_term_detail', { ...scope, termId, ...(draft ? { draftId: draft.takeId } : {}) }),
@@ -790,6 +798,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                   </>
                 ) : chip === 'terms' ? (
                   <KeyWordsPane ctx={ctx} v={v} terms={trayTerms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} bibleLanguage={bible.option?.language} draftTakeId={draft?.takeId} canTie={canTie} disabled={blocked}
+                    listen={loop.hooks} recording={recording}
+                    {...(shows.bibleText && chipIds.includes('bible') ? { ourWordsInBible: { on: oursInBible, onChange: setOursInBible } } : {})}
                     canHear={chipIds.includes('bible') && bible.timed && !bible.audioAbsent}
                     onHear={(key) => { if (!bible.playVerse(key)) return false; setChip('bible'); setVerse(key); return true; }}
                     allTerms={() => ctx.go('key_terms', scope)}

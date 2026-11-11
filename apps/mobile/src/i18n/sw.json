@@ -6556,7 +6556,7 @@
       "guide": "Mwongozo",
       "guideHint": "Hatua za mwongozo wa kujifunza kwa kifungu hiki.",
       "terms": "Maneno muhimu",
-      "termsHint": "Maneno ya kusema kwa njia ileile kila mara: sikia kila moja, na useme lako.",
+      "termsHint": "Maneno ya kusema kwa njia ile ile kila mara: gusa moja ulisikie na uone linapotumika.",
       "notes": "Madokezo",
       "notesHint": "Madokezo ya timu kuhusu kifungu hiki.",
       "earlier": "Za awali",
@@ -6890,29 +6890,25 @@
       "verseTermsHelp": "Maneno yaliyopigiwa mstari ni maneno muhimu: gusa moja ili kulifungua.",
       "verseTermsMarkedHelp": "Maneno yaliyopigiwa mstari ni maneno muhimu.",
       "verseTiedHelp": "Alama ya vema baada ya neno muhimu inamaanisha limeunganishwa na rasimu yako.",
-      "verseDotHelp": "Inacheza Biblia kuanzia mstari huu."
+      "verseDotHelp": "Inacheza Biblia kuanzia mstari huu.",
+      "ourWord": "Neno lenu: {{word}}",
+      "verseOursHelp": "Neno la kijani baada ya neno muhimu ni jinsi timu yenu inavyolisema."
     },
     "keyWords": {
       "none": "Bado hakuna maneno muhimu katika kifungu hiki.",
       "noneAdd": "Bado hakuna maneno muhimu katika kifungu hiki. Ongeza moja ambalo timu yako inapaswa kulisema kwa njia ileile kila mara.",
-      "elsewhere": "Mahali pengine katika kitabu",
       "add": "Ongeza neno muhimu",
       "addHint": "Neno ambalo timu yako inapaswa kulisema kwa njia ileile kila mara.",
       "all": "Maneno muhimu yote",
-      "hear": "Sikia {{term}}",
       "hearHelp": "Inacheza mstari lilimo.",
       "noVerseAudio": "Biblia hii haina sauti ya mstari huo.",
-      "hearLabel": "Sikia {{term}} katika Biblia",
       "openHelp": "Linamaanisha nini, timu yako inalisemaje, na kwa nini.",
-      "termLabel": "{{term}}. {{refs}}",
-      "termLabelWord": "{{term}}. {{refs}}. Neno lenu: {{word}}",
       "yourWord": "Neno lenu",
       "yourWordHelp": "Inacheza jinsi timu yako inavyosema {{term}}.",
       "pauseYourWord": "Sitisha neno lenu la {{term}}",
       "playYourWord": "Cheza neno lenu la {{term}}",
       "sayYours": "Sema lenu",
       "sayYoursHelp": "Rekodi jinsi lugha yako inavyosema {{term}}.",
-      "sayYoursLabel": "Sema neno lenu la {{term}}",
       "saved": "Neno lenu la {{term}} limehifadhiwa.",
       "sayTitle": "Neno lenu la “{{term}}”",
       "saySub": "Sema jinsi {{language}} inavyolisema. Timu yako inalisikia kila neno hili linapotokea.",
@@ -7530,6 +7526,23 @@
       "fromList": "Kutoka {{name}}",
       "fromListSub": "Maana yake, na rekodi ya {{name}}",
       "fromListHelp": "Hufungua maana ya neno kama {{name}} inavyolieleza, pamoja na rekodi yake."
+    },
+    "tiles": {
+      "recorded": "Neno lililorekodiwa",
+      "noWord": "bado hakuna neno",
+      "label": "{{term}}. Neno lenu: {{word}}",
+      "labelRecorded": "{{term}}. Neno lenu limerekodiwa.",
+      "labelNone": "{{term}}. Bado hakuna neno.",
+      "openHelp": "Hufungua {{term}}: maana yake, mahali linapotumika, na jinsi timu yenu inavyolisema.",
+      "inBible": "Onyesha maneno yetu katika maandishi ya Biblia",
+      "inBibleHelp": "Huonyesha neno la timu yenu baada ya kila neno muhimu katika Biblia."
+    },
+    "ours": {
+      "afterDone": "Mnaweza kufungua vifungu na ukurasa wa neno hili baada ya kubonyeza Nimemaliza.",
+      "openPage": "Fungua ukurasa wa neno",
+      "openPageHelp": "Hufungua ukurasa wa {{term}}, ambapo mnaweza kubadilisha neno lenu.",
+      "saidIn": "Lilisemwa katika {{where}}",
+      "usedIn": "Limetumika katika {{where}}"
     }
   },
   "clusters": {

@@ -110,3 +110,84 @@ export function adjustmentReady(note: string, hash: string | null): boolean {
 export function adjustDuringTake(draftTakeId: string | null | undefined, passage: Pick<PassageState, 'latest'> | null): string | undefined {
   return draftTakeId ?? passage?.latest?.takeId;
 }
+
+// ---- the team's words for a term (LAN-233) ----------------------------------------------------
+
+/** The latest voice recording of the term in this language: what a tile's ▶ plays. */
+export function termVoice(term: Pick<KeyTermView, 'adjustments'>): string | undefined {
+  return [...term.adjustments].reverse().find((a) => a.blobHash)?.blobHash;
+}
+
+/**
+ * The team's word for a term as a tile or a chip in the Bible shows it: the
+ * newest written word (with the newest voice, to play), else a word that was
+ * only said, else none yet.
+ */
+export type OurWord =
+  | { kind: 'text'; text: string; voice?: string }
+  | { kind: 'voice'; voice: string }
+  | { kind: 'none' };
+
+export function ourWord(term: Pick<KeyTermView, 'renderings' | 'adjustments'>): OurWord {
+  const voice = termVoice(term);
+  const text = [...term.renderings].reverse().find((r) => r.rendering.trim())?.rendering.trim();
+  if (text) return { kind: 'text', text, ...(voice ? { voice } : {}) };
+  return voice ? { kind: 'voice', voice } : { kind: 'none' };
+}
+
+/** The word for each term that has one, by term id: what the Bible's chips read. */
+export function ourWords(terms: readonly Pick<KeyTermView, 'termId' | 'renderings' | 'adjustments'>[]): Map<string, OurWord> {
+  const out = new Map<string, OurWord>();
+  for (const term of terms) {
+    const word = ourWord(term);
+    if (word.kind !== 'none') out.set(term.termId, word);
+  }
+  return out;
+}
+
+/** One word the team has for a term, with the version it was said in and the versions that used it. */
+export interface TermWord {
+  /** The rendering's id, or the change's id for a word that was only said. */
+  id: string;
+  /** Written; empty for a word that was only said. */
+  rendering: string;
+  context: string;
+  /** The recording of it, when it was said. */
+  voice?: string;
+  /** The version it was said or written during, when the term's change named one. */
+  saidIn?: { unitId: string; takeId: string; title: string; n: number | null };
+  /** The versions that tied the term in with this word. */
+  usedIn: TermUse[];
+}
+
+/** The command that made a rendering and its change: `rendering:<id>` and `adjustment:<id>` share `<id>`. */
+const commandOf = (id: string) => id.slice(id.indexOf(':') + 1);
+
+/**
+ * The team's words for a term, newest first: each written rendering with the
+ * change made with it (its voice, the version it was said in), and each
+ * change that holds a voice and no rendering (a word that was only said). A
+ * change with neither (a note on why) is not a word. `uses` says which
+ * version tied the term in with which word (`KeyTermLinked.adjustmentId`);
+ * `versionOf` finds a take's version (`versionOfTake`).
+ */
+export function termWords(
+  term: Pick<KeyTermView, 'renderings' | 'adjustments'>, uses: readonly TermUse[],
+  versionOf: (takeId: string) => { unitId: string; takeId: string; title: string; n: number | null } | null
+): TermWord[] {
+  const writtenIn = new Set(term.renderings.filter((r) => r.rendering.trim()).map((r) => commandOf(r.renderingId)));
+  const changeOf = new Map(term.adjustments.map((a) => [commandOf(a.adjustmentId), a]));
+  const make = (id: string, rendering: string, context: string, a: KeyTermView['adjustments'][number] | undefined): { word: TermWord; hlc: string } => {
+    const saidIn = a?.duringTakeId ? versionOf(a.duringTakeId) : null;
+    return {
+      hlc: a?.hlc ?? '',
+      word: { id, rendering, context, ...(a?.blobHash ? { voice: a.blobHash } : {}), ...(saidIn ? { saidIn } : {}), usedIn: a ? uses.filter((u) => u.adjustmentId === a.adjustmentId) : [] }
+    };
+  };
+  const made = [
+    // A rendering with no change of its own is older than any that has one.
+    ...term.renderings.filter((r) => r.rendering.trim()).map((r) => make(r.renderingId, r.rendering.trim(), r.context.trim(), changeOf.get(commandOf(r.renderingId)))),
+    ...term.adjustments.filter((a) => a.blobHash && !writtenIn.has(commandOf(a.adjustmentId))).map((a) => make(a.adjustmentId, '', '', a))
+  ];
+  return made.map((m, i) => ({ m, i })).sort((x, y) => (x.m.hlc < y.m.hlc ? -1 : x.m.hlc > y.m.hlc ? 1 : x.i - y.i)).map((x) => x.m.word).reverse();
+}

@@ -6824,7 +6824,7 @@
       "guide": "Guide",
       "guideHint": "Les étapes du guide d’étude pour ce passage.",
       "terms": "Mots clés",
-      "termsHint": "Des mots à dire toujours de la même façon : écoutez chacun, et dites le vôtre.",
+      "termsHint": "Des mots à dire de la même façon à chaque fois : touchez-en un pour l'entendre et voir où il est utilisé.",
       "notes": "Notes",
       "notesHint": "Les notes de l’équipe sur ce passage.",
       "earlier": "Avant",
@@ -7178,29 +7178,25 @@
       "verseTermsHelp": "Les mots soulignés sont des mots clés : touchez-en un pour l’ouvrir.",
       "verseTermsMarkedHelp": "Les mots soulignés sont des mots clés.",
       "verseTiedHelp": "Une coche après un mot clé signifie qu’il est lié à votre brouillon.",
-      "verseDotHelp": "Lit la Bible à partir de ce verset."
+      "verseDotHelp": "Lit la Bible à partir de ce verset.",
+      "ourWord": "Votre mot : {{word}}",
+      "verseOursHelp": "Un mot vert après un mot clé est la façon dont votre équipe le dit."
     },
     "keyWords": {
       "none": "Pas encore de mots clés dans ce passage.",
       "noneAdd": "Pas encore de mots clés dans ce passage. Ajoutez-en un que votre équipe devrait dire toujours de la même façon.",
-      "elsewhere": "Ailleurs dans le livre",
       "add": "Ajouter un mot clé",
       "addHint": "Un mot que votre équipe devrait dire toujours de la même façon.",
       "all": "Tous les mots clés",
-      "hear": "Écouter {{term}}",
       "hearHelp": "Fait entendre le verset où il se trouve.",
       "noVerseAudio": "Cette Bible n’a pas d’audio pour ce verset.",
-      "hearLabel": "Écouter {{term}} dans la Bible",
       "openHelp": "Ce qu’il veut dire, comment votre équipe le dit, et pourquoi.",
-      "termLabel": "{{term}}. {{refs}}",
-      "termLabelWord": "{{term}}. {{refs}}. Votre mot : {{word}}",
       "yourWord": "Votre mot",
       "yourWordHelp": "Fait entendre comment votre équipe dit {{term}}.",
       "pauseYourWord": "Mettre en pause votre mot pour {{term}}",
       "playYourWord": "Écouter votre mot pour {{term}}",
       "sayYours": "Dites le vôtre",
       "sayYoursHelp": "Enregistrez comment votre langue dit {{term}}.",
-      "sayYoursLabel": "Dites votre mot pour {{term}}",
       "saved": "Votre mot pour {{term}} est sauvegardé.",
       "sayTitle": "Votre mot pour « {{term}} »",
       "saySub": "Dites comment on le dit en {{language}}. Votre équipe l’entend chaque fois que ce mot apparaît.",
@@ -7850,6 +7846,23 @@
       "fromList": "De {{name}}",
       "fromListSub": "Ce qu’il veut dire, et l’enregistrement de {{name}}",
       "fromListHelp": "Ouvre le sens du mot d’après {{name}}, avec son enregistrement."
+    },
+    "tiles": {
+      "recorded": "Mot enregistré",
+      "noWord": "pas encore de mot",
+      "label": "{{term}}. Votre mot : {{word}}",
+      "labelRecorded": "{{term}}. Votre mot est enregistré.",
+      "labelNone": "{{term}}. Pas encore de mot.",
+      "openHelp": "Ouvre {{term}} : ce que cela veut dire, où c'est utilisé et comment votre équipe le dit.",
+      "inBible": "Afficher nos mots dans le texte de la Bible",
+      "inBibleHelp": "Affiche le mot de votre équipe après chaque mot clé dans la Bible."
+    },
+    "ours": {
+      "afterDone": "Vous pourrez ouvrir les passages et la page de ce mot après avoir appuyé sur Terminé.",
+      "openPage": "Ouvrir la page du mot",
+      "openPageHelp": "Ouvre la page de {{term}}, où vous pouvez changer votre mot.",
+      "saidIn": "Dit dans {{where}}",
+      "usedIn": "Utilisé dans {{where}}"
     }
   },
   "clusters": {

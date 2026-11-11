@@ -348,16 +348,17 @@ Preconditions:
 
 Steps:
 1. Tap the "Key words" chip.
-2. Tap the listen icon on a word ("Hear {term} in the Bible").
-3. Tap the word itself.
+2. Tap a word's tile.
+3. In the sheet, tap a verse it is in, and "Open the word's page".
 
 Expected:
-- Each word shows where it is in the passage (for example "Luke 15:18, 21") and, on the right, "Your word" (a voice rendering), the written rendering, or "Say yours".
-- Step 2 switches to the "Bible" chip, selects the verse, and plays from it. In the study the footer then reads "Back to Key words", and it and the phone's Back return to the Key words chip.
-- When the Bible's audio has no verse timings (the built-in BSB, so the automated run), no word shows the listen icon. When the word's verse cannot be played, the pane stays and the toast reads "This Bible has no audio for that verse."
-- Step 3 opens the term's page (STUDY-023).
+- Each word is a tile (LAN-233, decision 207): the key word small on top, the team's word big under it ("Recorded word" when it was only said, "no word yet" in amber when there is none), and ▶ on the right when there is a voice. The tiles wrap onto more lines and never scroll sideways.
+- Step 2 opens a sheet over the workspace, never another screen: the meaning, where the word is in the passage (for example "Luke 15:18, 21"), the team's words with the version each was said in and the versions that used it, every passage it is in, and how other languages say it.
+- Step 3's verse plays from the Bible and switches to the "Bible" chip, with the selected verse. In the study the footer then reads "Back to Key words", and it and the phone's Back return to the Key words chip. When the Bible's audio has no verse timings (the built-in BSB, so the automated run), the verses are plain text and no verse plays. When the verse cannot be played, the pane stays and the toast reads "This Bible has no audio for that verse."
+- "Open the word's page" opens the term's page (STUDY-023).
 - "Add a key word" and "All key words" are at the end of the list.
 - With no words, the pane reads "No key words in this passage yet. Add one your team should say the same way every time." (for those who may add) or "No key words in this passage yet." (others).
+- The workspace chip "Show our words in the Bible text" is on the Key words chip only where the step shows the Bible's text and the team has a word for a key word. On, the Bible shows the team's word as a small green chip after each key word; the choice is kept for the whole device.
 
 Fixed (2026-10-28, UI audit finding 41): the listen icon switched to the Bible chip even when nothing could play, and the study's footer then led to the guide, not back to Key words (`reference.tsx`, `study.tsx`, `translate.tsx`, `btWorkspace.tsx`).
 
@@ -365,10 +366,10 @@ Fixed (2026-10-28, UI audit finding 41): the listen icon switched to the Bible c
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- STUDY-017's Key words chip shows a word with "Say yours".
+- STUDY-017's Key words chip shows a tile that says "no word yet".
 
 Steps:
-1. Tap "Say yours" (accessibility label "Say your word for {term}").
+1. Tap the tile of a word with "no word yet", then "Say yours" in its sheet.
 2. In the sheet "Your word for “{term}”", try "Add your word".
 3. Tap "Say it", say the word, stop.
 4. Tap "Add your word".
@@ -377,9 +378,9 @@ Expected:
 - The sheet's sub reads "Say how Alpha says it. Your team hears it whenever this word comes up." (with the meaning first when the term has one).
 - "Add your word" is disabled until something is said or typed ("Or type it"). Until then what is said is a draft only TRANS sees, kept as it is made (decision 127).
 - Step 4 shows "Your word for {term} is saved.", with no Undo (grow-only, as STUDY-016).
-- The row now shows "Your word", which plays it.
+- The tile now shows ▶, which plays it ("Play your word for {term}").
 - The change is recorded with the passage and, when a draft is open, tied to that draft.
-- While recording, "Say yours" and "Add a key word" are disabled.
+- While recording, the sheet offers no "Say yours", and "Add a key word" is disabled.
 
 ### STUDY-019 Reviewers and viewers cannot change key words
 Roles: REV, VIEW · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto

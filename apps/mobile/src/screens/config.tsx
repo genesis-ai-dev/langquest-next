@@ -21,11 +21,11 @@ import {
   CommandError, commands, CUSTOM_FLOW, deriveFlow, derivePassage, keyTermsFor, keyTermView, languageName,
   followerItemId, materialView, privilegesFor, recommendedFor,
   unitTitle,
-  type EventSpec, type FlowDoc, type FlowStep, type KeyTermView, type KeyWordDoc, type KindDef, type LanguageState, type LibraryDoc, type LibraryItemView, type MaterialView, type Privilege, type VersificationDoc
+  type EventSpec, type FlowDoc, type FlowStep, type KeyTermView, type KeyWordDoc, type KindDef, type LibraryDoc, type LibraryItemView, type MaterialView, type Privilege, type VersificationDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
@@ -69,6 +69,7 @@ import { useKeyWordLists } from '../keyTerms/useKeyWordLists';
 import { KeyWordChips, KeyWordFinder } from '../keyTerms/KeyWordFinder';
 import { ownTermId, ownWordOf, shortName, wordOfTermId, type KeyWordList } from '../keyTerms/listsModel';
 import { useWordPage, type WordPage } from '../keyTerms/useWordPage';
+import { useTermPassages } from '../keyTerms/useTermPassages';
 import { WordNotesSection, WordPassagesSection } from '../keyTerms/WordPageSections';
 import { plainMeaning, type KeyWordFilter } from '../keyTerms/searchModel';
 import { othersSay, bibleMissing } from '../helps/helpsModel';
@@ -1671,27 +1672,6 @@ export function KeyTerms(ctx: Ctx) {
       </Sheet>
     </Screen>
   );
-}
-
-/** The language with every passage a key term was tied in or changed during read in, for its uses; null until read. */
-function useTermPassages(ctx: Ctx, termId: string, term: KeyTermView | null): LanguageState | null {
-  const [view, setView] = useState<LanguageState | null>(null);
-  const { state, passagesLinkingTerm, passageOfTake, withPassages } = ctx.language;
-  useEffect(() => {
-    if (!state || !term) return;
-    let current = true;
-    void (async () => {
-      const units = new Set(await passagesLinkingTerm(termId));
-      for (const a of term.adjustments) {
-        const u = a.duringTakeId ? await passageOfTake(a.duringTakeId) : null;
-        if (u) units.add(u);
-      }
-      const read = await withPassages([...units]);
-      if (current) setView(read);
-    })().catch(() => { /* read again on the next change */ });
-    return () => { current = false; };
-  }, [state, term, termId, passagesLinkingTerm, passageOfTake, withPassages]);
-  return view;
 }
 
 export function KeyTermDetail(ctx: Ctx) {
