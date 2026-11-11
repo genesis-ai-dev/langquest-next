@@ -183,6 +183,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.MaterialLocked': 'manage_reference',
   'v1.KeyTermDefined': 'fill_reference',
   'v1.KeyTermRenderingAdded': 'fill_reference',
+  'v1.KeyTermAudioRenderingAdded': 'fill_reference',
   'v1.KeyTermAdjusted': 'fill_reference',
   'v1.KeyTermLinked': 'fill_reference',
   'v1.ReferenceSet': 'manage_reference',
