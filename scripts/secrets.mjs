@@ -345,10 +345,12 @@ function easState(environment, wanted) {
 /**
  * Creates or updates an EAS variable with secret visibility. The value goes
  * to eas as an argument, the only way it takes one, so it is briefly in this
- * machine's process list; it is never printed.
+ * machine's process list; it is never printed. eas runs from node_modules
+ * itself, not through npx, which would write its arguments, the value too, to
+ * npm's debug log on disk (security review, 2026-11-10).
  */
 function setEasSecret(environment, name, value) {
-  const result = spawnSync('npx', ['eas', 'env:set', environment, '--name', name, '--value', value, '--visibility', 'secret', '--type', 'string', '--scope', 'project', '--non-interactive'],
+  const result = spawnSync(join(root, 'node_modules', '.bin', 'eas'), ['env:set', environment, '--name', name, '--value', value, '--visibility', 'secret', '--type', 'string', '--scope', 'project', '--non-interactive'],
     { cwd: join(root, EAS_PROJECT), encoding: 'utf8' });
   if (result.status !== 0) throw new Error(failure(result.stdout, result.stderr).replaceAll(value, `<${name}>`) || `eas env:set ${name} failed`);
 }

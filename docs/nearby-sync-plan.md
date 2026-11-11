@@ -672,6 +672,23 @@ disguised phone; the typed name a QR holder could copy; what a taken phone holds
 browser's download entry and history, the APK's own label and icon, and Settings → Apps;
 and the open items in section 13.
 
+**The pre-merge review (2026-11-10)** ran on the whole branch in six parts: the Worker and
+SQL, core's trust rules and the opening, a session against a hostile teammate, the native
+module, identity and joining on the phone, and the install file with the build pipeline.
+Signatures, chains, passes, the opening, the door, the server's grants and what a starting
+copy carries held. It found four problems of medium weight, all fixed: a revocation's number
+reused after an account deletion, so phones ignored the new list (decision 217); holdings with
+no cap per pass, so one pass's newcomers could grow Have past what a link carries (224); Sign
+out in `joined`, which reopened into the newcomer's work with no lock (238); and secrets passed
+to `npx`, which writes its arguments to npm's debug log, the Worker's signing key among them
+(`scripts/dotenvx-set.mjs` now takes a value on stdin). Fixed too: a room stopped before its
+start had read the radio turned it on after; a join left while the inviter decided kept the
+grant; a newcomer kept every Have sent during a copy; a page already counted never counted as
+a drop; silent hotspot candidates held every place, and a copied `ready` could prove a second
+(219); a parent a carrier added went to the server (231); and the install file sat in the
+browser's cache for an hour. Section 11 has what needs a real phone, and section 13 what stays
+open.
+
 ### 5.6 Audio
 
 The list a phone asks for follows the purposes in section 1, in order:
@@ -2753,7 +2770,8 @@ Wi-Fi standing in for the trip to town.
 - **If it fails.** Nothing merges. The link is fixed or rethought on the branch, and the
   test runs again. A finding about joining offline need not hold up the rest:
   `nearby_join` stays off until it is fixed.
-- **The security review runs again** on the code before the merge.
+- **The security review runs again** on the code before the merge. Done on 2026-11-10
+  (section 5.5); run it again if the real-phone test changes the link.
 
 **The merge.** A person merges, with this done first, in this order:
 
@@ -2979,9 +2997,11 @@ For joining offline (section 14):
 | Does Android developer verification get in the way of installing offline? | It expands globally in 2027, and Google's page does not cover this. |
 | Does `GET generatedApks` give a universal APK on the `alpha` track without waiting for review, may `PLAY_REVIEW_KEY` read it, and how big is the file? | Section 14.4 depends on it. Someone with the key tries it first on an existing build (Carl's answer, 2026-11-06). The file holds four ABIs and the speech models, and carriers download it on town connections. |
 | Does a QR code with this payload scan on 2 GB phones in poor light, and does the camera's scanner work with no Play services? | Section 14.1 keeps the payload small for this reason. |
-| What do Files by Google, common makers' file managers and Chrome's download list show for this APK? | The neutral name only stops a casual look (section 14.4). |
+| What do Files by Google, common makers' file managers and Chrome's download list show for this APK? | The neutral name only stops a casual look (section 14.4). If a file manager draws the app's own icon beside it, the line a disguised carrier sees (`apkTrace`) must say so (security review, 2026-11-10). |
 | Can a phone read a starting copy from another reducer version? | The fallback if carried files often go out of date (section 14.3). |
 | How long does a starting copy take for a big language on a 2 GB phone? | Koro Miyan has about 160,000 rows (decision 143). |
+| How large is the largest text in a big language's starting copy? | `COPY_TEXT_MAX_CHARS` lets a sender make a newcomer join 256 million characters, more than a 2 GB phone holds. It should be a few times the largest real one, once measured (security review, 2026-11-10). |
+| Do Bluetooth connections that never turn on notifications use up a phone's connection places, or stop it advertising, or does Android drop them? | The GATT server reacts only to a disconnect, so a stranger's silent connections are held until they leave (security review, 2026-11-10). If they block teammates, the module cancels a connection with no pipe after a few seconds. |
 
 ## 12. Decisions this touches
 
@@ -3074,7 +3094,10 @@ belongs: section 2 for Carl's answers, and sections 5 to 14 for the rest.
 | Which phones, and whose stack, for the real-phone test? | Carl | Section 7 lists the kinds of phone. It needs someone's own Supabase and Worker. Nobody has been named. |
 | Are the terms clear for publishers' documents to go in a starting copy? | Carl, whenever he can | They stay out until he confirms, and `study@2` with them, so a team's own guides also wait for first contact, and the allowlist fails closed (answer 19, section 14.1). If he confirms, widen `STARTING_COPY_FORMATS` and `mayGoInStartingCopy`. Nothing waits on this. |
 | Is the amber upload bar right on a phone holding backups? | Carl, when it ships | It counts them, as true of this phone (section 5.8). He should be told, so he can object. |
-| Is decision 168's amendment acceptable? | Caleb, and the security review | Carl's answer stands unless the review finds a reason (section 5.5). A copied key with a live pass can let in a new person with no manage privilege, and he should know that too. |
+| Is decision 168's amendment acceptable? | Caleb | Carl's answer stands: the pre-merge security review (2026-11-10) found no reason against it (section 5.5). A copied key with a live pass can let in a new person with no manage privilege, and he should know that too. |
+| A teammate holding any of the Worker's attestations can push a phone's claim mark past rows it never got. Fix it, or accept it? | Carl | Open (security review, 2026-11-10). Honest teammates then send that phone no claims below the mark, so work confirmed in town reaches it only from the server; nothing is lost or wrongly confirmed. A fix signs `afterSeq` into the attestation and moves the mark only over rows held or on the page, which changes the Worker's answer, so it waits for his word. |
+| Check my file says "This is the right file" from the name alone. Check the file's signer, or change the words? | Carl | Section 14.3 accepts that a newcomer cannot verify an APK, but the carrier's phone runs the real app and could compare the file's signing certificate with its own (`PackageManager.getPackageArchiveInfo`), a native call. Short of that, the words could say the name is right. Nothing changed (security review, 2026-11-10). |
+| Smaller items the pre-merge security review left open | Carl, after the first release | A certificate call racing a revocation could sign a fresh key within about 100 ms (both could take one lock on the person). A phone serves a file by hash from any language whose fold names it, looser than the server's rule per stream, though the asker must know the hash. A member could backdate one-event batches so every carrier delivers theirs first, 25 a sync. Teammates' certificates show a newcomer their other languages before first contact, as the organization stream shows members. |
 | Follow-up issue, "A lost shared phone: other people's keys stay good" (section 6). Should a helper's code say a shared phone is gone? | Carl raises it with Caleb, after the first release | Only the named person is revoked for now (answer 20), and the list holds pairs. A taken shared phone's private key is gone for all of its people, but the others' rows stay good. A third question in a new `issue_sign_in_code_v3`, "Was the shared phone lost too?", with v2 left as no, would revoke every row with that key. It changes the helper flow (decision 59), so it needs Caleb. The issue does not exist yet. |
 | A pass fetched late in its 90-day window has little time left, so should an answer also hold the next window's pass in that window's last 30 days? | Carl | Answer 17 is built as worded, so a phone that last reached the server near a window's end can hold a pass with days left, and every pass ends on the same date. Holding the next window's too would keep a team leaving town able to let someone in, at the cost of up to 20 uses in that time. Not built unless he says so (section 14.1). |
 | What ends the experiment? | Carl, later | A follow-up issue, as decision 53 asks. A suggested test: teams have used it offline for a month, the test's numbers hold in the field, and no work was lost or wrongly confirmed. |

@@ -140,6 +140,19 @@ begin
   end if;
 end $$;
 
+-- The leaver held the revocation list's newest number. Their rows went with them, and the next
+-- revocation still takes a higher number, or every phone holding the old list would ignore the new
+-- one (security review, 2026-11-10).
+do $$ declare b text := 'd0000000-0000-0000-0000-00000000000b'; begin
+  if public._revoked_seq('del-test-org') <> 1 then raise exception 'the list''s number went down with the leaver'; end if;
+  if public._revoke_install_keys(b::uuid, 'smoke') <> 2 then raise exception 'expected two keys revoked'; end if;
+  if (select array_agg(seq order by seq) from public.install_key_revocations where org_id = 'del-test-org') <> array[2, 3]::bigint[]
+     or public._revoked_seq('del-test-org') <> 3 then
+    raise exception 'a revocation after the deletion reused a number: %',
+      (select array_agg(seq order by seq) from public.install_key_revocations where org_id = 'del-test-org');
+  end if;
+end $$;
+
 -- Staff answer an emailed request; the app cannot.
 do $$ begin
   if has_function_privilege('authenticated', 'public.delete_account_for_email(text)', 'execute')

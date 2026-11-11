@@ -12,6 +12,16 @@ export function isLocalIdentity(p: LocalPerson | null | undefined): p is LocalPe
   return !!p && (p.stage === 'ready' || p.stage === 'joined');
 }
 
+/**
+ * Is first contact still open for this person, so that they may not sign out (section 14.1, 5
+ * "Me")? `ready`, and `joined` too, though it has a session: a session that goes in `joined` leaves
+ * the phone running as the record, so a sign-out with the lock would open straight back into their
+ * work with no lock asked, and first contact would join again (security review, 2026-11-10).
+ */
+export function firstContactOpen(p: LocalPerson | null | undefined, actorId: string): boolean {
+  return isLocalIdentity(p) && p.profileId === actorId;
+}
+
 /** Who the app runs as (section 14.1, 5 "Identity"): `signedIn` routes, `serverSession` is what the server would take. */
 export interface Identity {
   actorId: string;

@@ -129,6 +129,8 @@ export interface NewcomerHooks {
   progress(): void;
   /** Asked again after each await: false stops the join (the screen closed or went to the background). */
   still(): boolean;
+  /** The join's session while it runs, then null, so leaving the screen stops it (5.8: radios stop on blur). */
+  onSession?(session: NearbySession | null): void;
 }
 
 export interface NewcomerOutcome {
@@ -183,6 +185,9 @@ export async function joinWithCode(radio: PhoneRadio, code: JoinCode, name: stri
       as: 'newcomer', idSalt: asked.idSalt, profileId: asked.profileId, name: asked.name,
       pictures: hooks.pictures,
       granted: async (g) => {
+        // Left meanwhile, or someone signed in while the inviter decided: no grant is kept, so no local person comes
+        // over another account and locks it out (14.1, 3: only a phone with nobody on it; security review, 2026-11-10).
+        if (!hooks.still() || await phoneNotEmpty(worn)) throw new OfflineError('the join was left');
         const next = await keepGrant(asked, g, {
           keepLocalPerson, keepChains, keepFindKeys, seed: (pairs) => AsyncStorage.multiSet(pairs),
           missed: (what) => noteExpected('join', new Error(`the ${what} was not kept`))
@@ -193,8 +198,13 @@ export async function joinWithCode(radio: PhoneRadio, code: JoinCode, name: stri
       }
     }
   });
-  const report = await session.run();
-  return { report, ready: await finishIfWhole(granted, report) };
+  hooks.onSession?.(session);
+  try {
+    const report = await session.run();
+    return { report, ready: await finishIfWhole(granted, report) };
+  } finally {
+    hooks.onSession?.(null);
+  }
 }
 
 /** Set the person once the copy is whole, and only then (section 7, phase 6). */

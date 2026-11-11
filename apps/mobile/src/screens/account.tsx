@@ -61,6 +61,7 @@ import { LOCKS_ON_SIGN_OUT, lockAndSignOut, rememberPassword, setAccountPassword
 import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
 import { useLocalPerson } from '../shell/useLocalPerson';
 import { membershipOf } from '../session/localPersonModel';
+import { firstContactOpen } from '../session/identityModel';
 import { firstContactWords } from '../session/firstContactWords';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { runningBuildLabel } from '../shell/updateStatus';
@@ -396,9 +397,11 @@ export function SettingsHome(ctx: Ctx) {
     : p.refusedEvents > 0 ? t('account.me.moreRefusedEvents', { n: p.refusedEvents })
     : waiting > 0 ? t('account.me.morePending', { count: waiting }) : moreSettingsSub();
   const local = ctx.session.isLocal;
+  // Joined has a session but first contact is still open: the card stays, and Sign out does not come yet.
+  const finishing = firstContactOpen(useLocalPerson(), ctx.session.actorId);
   return (
     <Screen header={<Header title={t('account.me.title')} />}>
-      {local ? <LocalPersonCard ctx={ctx} name={name} /> : null}
+      {local || finishing ? <LocalPersonCard ctx={ctx} name={name} /> : null}
       <Group>
         <Row icon="user" label={name} sub={t('account.me.nameSub')} help={t('account.me.nameHelp')} onPress={() => ctx.go('profile_edit')} />
         {inSeveral(orgs) && !local ? <SwitchOrgRow ctx={ctx} orgName={orgName} several /> : null}
@@ -409,8 +412,9 @@ export function SettingsHome(ctx: Ctx) {
         <Row icon="settings" label={t('account.me.more')} sub={moreSub} help={t('account.me.moreHelp')} onPress={() => ctx.go('settings_more')}
           {...(waiting > 0 ? { badge: formatNumber(waiting) } : {})} last />
       </Group>
-      {/* Someone let in offline cannot sign out: their work has no account to wait under until first contact (14.1, 5 "Me"). */}
-      {local ? null : <DangerLink label={t('account.me.signOut')} onPress={() => ctx.go('sign_out_confirm')} />}
+      {/* Someone let in offline cannot sign out: their work has no account to wait under until first contact (14.1, 5 "Me"),
+          and in joined a session gone leaves the phone running as them with no lock (security review, 2026-11-10). */}
+      {local || finishing ? null : <DangerLink label={t('account.me.signOut')} onPress={() => ctx.go('sign_out_confirm')} />}
     </Screen>
   );
 }
@@ -813,6 +817,8 @@ function OrgWay(props: { icon: IconName; label: string; sub: string; help: strin
  */
 export function SignOutConfirm(ctx: Ctx) {
   const { online, refused } = ctx.language;
+  // Reached from a scanner's "Not me" as well as Me: someone whose first contact is still open does not sign out (14.1, 5 "Me").
+  const finishing = firstContactOpen(useLocalPerson(), ctx.session.actorId);
   const waiting = useUnsent(ctx);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -853,6 +859,7 @@ export function SignOutConfirm(ctx: Ctx) {
     await signOutThisDevice();
   }
   async function signOut() {
+    if (finishing) return;
     if (needsPattern) { choose(); return; }
     setBusy(true);
     setError('');
@@ -890,7 +897,8 @@ export function SignOutConfirm(ctx: Ctx) {
             ? t('account.signOut.forgets')
             : online === false && !LOCKS_ON_SIGN_OUT ? '' : t('account.signOut.anytime');
   // A browser needs the server to let you back in, so offline it says so; a phone has the lock.
-  const why = !blocked && online === false && !LOCKS_ON_SIGN_OUT ? [reason, t('account.signOut.offlineBackIn')].filter(Boolean).join(' ') : reason;
+  const why = finishing ? t('account.me.local.finishing')
+    : !blocked && online === false && !LOCKS_ON_SIGN_OUT ? [reason, t('account.signOut.offlineBackIn')].filter(Boolean).join(' ') : reason;
   if (choosing === 'picture') {
     return (
       <Screen header={<HelpTop />} bodyStyle={styles.centered}
@@ -925,7 +933,7 @@ export function SignOutConfirm(ctx: Ctx) {
       footer={
         <>
           <PrimaryBtn label={busy ? t('account.signOut.signingOut') : t('account.signOut.button')} tone="red" onPress={() => void signOut()}
-            disabled={blocked || busy || (LOCKS_ON_SIGN_OUT && lock.ways === null)} />
+            disabled={finishing || blocked || busy || (LOCKS_ON_SIGN_OUT && lock.ways === null)} />
           <GhostBtn label={t('common.cancel')} help={t('help.details.cancel')} onPress={ctx.back} />
         </>
       }>

@@ -1,6 +1,6 @@
 import { CLOCK_AHEAD_TOLERANCE_MS, LINES_VERSION, NEARBY_PROTOCOL, pickProtocol, REDUCER_VERSION } from '@langquest-next/core';
 import {
-  base64urlEncode, checkChain, handedKeyHolds, issueInviteLink, joinPictures, newcomerProfileId, type JoinPass, type WorkerLink, holdingsFilesHash, holdingsText, isBase64url, mergeHoldings, NEARBY_BUDGET, NEARBY_HOLDINGS_MAX_FILES, NEARBY_OPENING_BYTES, nearbyBytes, parseRevocationList, proofText, signedBy, summaryOf, summaryText, withMyHolding, type ChainLink, type ChainVerdict, type DiscoveryKey, type HoldingEntry, type Holdings, type RevocationList, type WantedFile
+  base64urlEncode, checkChain, handedKeyHolds, issueInviteLink, joinPictures, newcomerProfileId, type JoinPass, type WorkerLink, holdingsFilesHash, holdingsText, isBase64url, mergeHoldings, NEARBY_BUDGET, NEARBY_HOLDINGS_MAX_FILES, NEARBY_HOLDINGS_MAX_KEYS, type InviteLink, NEARBY_OPENING_BYTES, nearbyBytes, parseRevocationList, proofText, signedBy, summaryOf, summaryText, withMyHolding, type ChainLink, type ChainVerdict, type DiscoveryKey, type HoldingEntry, type Holdings, type RevocationList, type WantedFile
 } from '@langquest-next/core/nearby';
 import { chainAsSigned, type NearbyGate, type NearbyIntake, type NearbyPage, type NearbyReceipt, type NearbySigned, type NearbySigner } from './nearbyIntake';
 import { nearbyCodeOf, type NearbyDiagCode } from './nearbyDiag';
@@ -9,7 +9,7 @@ import { CopyRefused, StartingCopySender, takeStartingCopy, type CopyAsker, type
 import type { HostDetails, HostOptions, NearbyCrypto, NearbyLink, NearbyRadio } from './nearbyLink';
 import { attemptKeysOf, checkOpeningI, checkOpeningR, findTagOf, makeOpeningI, makeOpeningR, openingKeyOf, openingPinOf, sameBytes, sessionKeysOf, type NearbySessionKeys } from './nearbyOpening';
 import { encodeMessage, NEARBY_HOLDINGS_MESSAGE_FILES, parseMessage, type Message } from './nearbyWire';
-import { OfflineError } from './types';
+import { OfflineError, passIdOfChain } from './types';
 
 /**
  * One talk between two phones, over any `NearbyLink` (docs/nearby-sync-plan.md 5.3, 5.12).
@@ -119,6 +119,9 @@ export interface NearbySessionTunables {
   /** On a QR link, from Hello to the grant: the ask and the inviter's tap. */
   joinTapMs: number;
 }
+
+/** The parts one holdings entry takes at most, and one more. */
+const HOLDINGS_PARTS_MAX = Math.ceil(NEARBY_HOLDINGS_MAX_FILES / NEARBY_HOLDINGS_MESSAGE_FILES) + 1;
 
 export const NEARBY_SESSION_DEFAULTS: NearbySessionTunables = {
   openCloseMinMs: 2_000, openCloseMaxMs: 6_000, replyMs: 8_000, stallMs: 60_000, fileStallMs: 600_000, busyAfterDrops: 36, backupLimitMs: 120_000, attemptMs: 30_000, byeMs: 2_000, handOnMaxSteps: 1_000, joinTapMs: 180_000
@@ -606,6 +609,18 @@ export class NearbySession {
   }
 
   /** One message off a link. Nothing a teammate sends gets past here as anything but a `Message`, a `bye` from them, or this phone's own `bye`. */
+  /**
+   * The joiner's first message, on a link this phone hosts, or a drop after `replyMs`: the joiner sends `ready` at
+   * once, so a connection that says nothing is a stranger's, and is closed (unproven, with no goodbye) to free its
+   * place. Four silent connections from another app on this phone once held a hotspot's every place for the whole
+   * attempt (security review, 2026-11-10).
+   */
+  private readyWithin(link: NearbyLink): Promise<Message> {
+    const late = this.opt.time.sleep(this.tune.replyMs).then((): never => { throw new OfflineError('no ready in time'); });
+    late.catch(() => undefined);
+    return Promise.race([this.readOne(link), late]);
+  }
+
   private async readOne(link: NearbyLink): Promise<Message> {
     for (;;) {
       const bytes = await link.receive();
@@ -898,7 +913,8 @@ export class NearbySession {
       for (;;) {
         const m = await this.takeLink();
         if (m.t === 'copy-part' || m.t === 'copy-no') return m;
-        if (m.t === 'have' && !this.opt.join) this.stash.push(m);
+        // One Have comes per session: a second while a newcomer waits on a part is a teammate filling its memory (security review, 2026-11-10).
+        if (m.t === 'have' && !this.opt.join && !this.stash.some((x) => x.t === 'have')) this.stash.push(m);
         else if (m.t === 'copy-ask') await this.send({ t: 'copy-no', reason: 'not-allowed' });
         else throw new SayBye('protocol', `${m.t} during a copy`);
       }
@@ -1058,7 +1074,7 @@ export class NearbySession {
         await link.secure(sealedFor(attempt));
         const ready = encodeMessage({ t: 'ready' });
         const hosting = plan[attempt]!.host === me;
-        const heard = hosting ? await this.readOne(link) : (await Promise.all([link.send(ready), this.readOne(link)]))[1];
+        const heard = hosting ? await this.readyWithin(link) : (await Promise.all([link.send(ready), this.readOne(link)]))[1];
         if (heard.t !== 'ready') throw new OfflineError('no ready');
         if (hosting && !finished && attempt === at) await link.send(ready);
         if (finished || attempt !== at) throw new OfflineError('a later attempt took over');
@@ -1267,16 +1283,33 @@ export class NearbySession {
     this.report.holdings.sent += 1;
   }
 
-  /** Parts of one entry as they come. A part that does not go on from the last starts over, and what it dropped counts. */
+  /**
+   * Parts of one entry as they come. A part that does not go on from the last starts over, and what it dropped counts.
+   * A key not held yet is kept only under `NEARBY_HOLDINGS_MAX_KEYS` in all, and a newcomer's only while its pass has
+   * fewer than `maxUses` keys here, as batches are: one pass can mint any number of newcomers offline, and their
+   * entries, kept for good and spread, once grew Have past what a link carries (security review, 2026-11-10).
+   */
   private holdingsReader(heard: Map<string, HoldingEntry>): (m: Message) => Promise<void> {
-    let open: { key: string; counter: number; files: string[]; bad: boolean } | null = null;
+    let open: { key: string; counter: number; files: string[]; bad: boolean; parts: number } | null = null;
+    // Bounds on what an honest phone sends, so endless parts or entries cannot hold the session open (security review, 2026-11-10).
+    let entries = 0;
+    const keys = new Set([...this.holdings.keys(), ...heard.keys()]);
+    const underPass = new Map<string, number>();
+    for (const e of [...this.holdings.values(), ...heard.values()]) {
+      const passId = passIdOfChain(e.chain);
+      if (passId) underPass.set(passId, (underPass.get(passId) ?? 0) + 1);
+    }
+    const room = (key: string, pass: { passId: string; maxUses: number } | null): boolean =>
+      keys.has(key) || (keys.size < NEARBY_HOLDINGS_MAX_KEYS && (!pass || (underPass.get(pass.passId) ?? 0) < pass.maxUses));
     return async (m) => {
       if (m.t !== 'holdings') throw new SayBye('protocol', `${m.t} in holdings`);
       if (!open || open.key !== m.key || open.counter !== m.counter) {
         if (open) this.report.holdings.dropped += 1;
-        open = { key: m.key, counter: m.counter, files: [], bad: false };
+        if (++entries > NEARBY_HOLDINGS_MAX_KEYS + 1) throw new SayBye('protocol', 'more holdings entries than a phone keeps');
+        open = { key: m.key, counter: m.counter, files: [], bad: false, parts: 0 };
       }
       const entry = open;
+      if (++entry.parts > HOLDINGS_PARTS_MAX) throw new SayBye('protocol', 'more parts than one entry takes');
       for (const hash of m.files) {
         const last = entry.files[entry.files.length - 1];
         if (entry.bad || (last !== undefined && last >= hash) || entry.files.length >= NEARBY_HOLDINGS_MAX_FILES) { entry.bad = true; break; }
@@ -1289,16 +1322,20 @@ export class NearbySession {
       const good = !entry.bad && m.hold !== undefined && m.sig !== undefined && m.chain !== undefined && m.key !== this.crypto.publicKey
         ? await this.holdingHolds(m.key, m.counter, entry.files, m.hold, m.sig, m.chain)
         : false;
-      if (!good) {
+      if (!good || !room(m.key, good.pass)) {
         this.report.holdings.dropped += 1;
         return;
+      }
+      if (!keys.has(m.key)) {
+        keys.add(m.key);
+        if (good.pass) underPass.set(good.pass.passId, (underPass.get(good.pass.passId) ?? 0) + 1);
       }
       heard.set(m.key, { counter: m.counter, files: entry.files, hold: m.hold!, sig: m.sig!, chain: chainAsSigned(m.chain!) });
     };
   }
 
-  /** Outside any lock, before `mergeHoldings`, one entry at a time, and a failure never ends the session. */
-  private async holdingHolds(key: string, counter: number, files: readonly string[], hold: boolean, sig: string, chain: ChainLink[]): Promise<boolean> {
+  /** Outside any lock, before `mergeHoldings`, one entry at a time, and a failure never ends the session. Holds: the pass of a newcomer's chain, or null for a member's. */
+  private async holdingHolds(key: string, counter: number, files: readonly string[], hold: boolean, sig: string, chain: ChainLink[]): Promise<false | { pass: { passId: string; maxUses: number } | null }> {
     const { opt, crypto } = this;
     const verdict = await checkChain(chain, {
       rootKeys: opt.rootKeys, orgId: opt.orgId, languageId: opt.languageId, now: null, verify: crypto.verify, sha256: crypto.sha256, ...(this.revoked ? { revoked: this.revoked.list } : {})
@@ -1307,7 +1344,9 @@ export class NearbySession {
     // A person removed, or let in by an inviter since revoked or removed, holds nothing that counts as a copy: Hello's own read gate.
     if (opt.gate.people(verdict).privilegesIn(verdict.holder.profileId, opt.languageId).size === 0) return false;
     const filesHash = await holdingsFilesHash(files, crypto.sha256);
-    return signedBy(crypto.verify, key, nearbyBytes('holdings', holdingsText({ orgId: opt.orgId, streamId: opt.languageId, key, counter, filesHash, hold })), sig);
+    if (!await signedBy(crypto.verify, key, nearbyBytes('holdings', holdingsText({ orgId: opt.orgId, streamId: opt.languageId, key, counter, filesHash, hold })), sig)) return false;
+    const pass = verdict.links === 2 ? (chain[1] as InviteLink).body.pass.body : null;
+    return { pass: pass ? { passId: pass.passId, maxUses: pass.maxUses } : null };
   }
 
   /** Written once for the step, and only what moved. */
@@ -1390,7 +1429,9 @@ export class NearbySession {
     if (receipt.counted) got.counted += 1;
     if (receipt.kept > 0) this.report.changed = true;
     if (receipt.overBudget) got.overBudget += 1;
-    if (receipt.outcome !== 'dropped') return;
+    // A page already counted is ignored, and counts as a drop: an honest sender sends only what Have says is not, and
+    // the same page sent again and again once held this phone's only session open (security review, 2026-11-10).
+    if (receipt.outcome === 'taken') return;
     got.droppedPages += 1;
     if (got.droppedPages >= this.tune.busyAfterDrops) throw new SayBye('busy', 'too many dropped pages');
   }

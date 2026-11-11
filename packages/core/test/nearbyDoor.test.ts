@@ -75,6 +75,16 @@ describe('the door refuses, in its order', () => {
     expectRefusal({ ...e, id: 'by:sam:x\u0000' } as unknown as AnyEvent, /U\+0000/);
   });
 
+  it('1: a parent that is not an event id, which went to the server as the text of an object (security review, 2026-11-10)', () => {
+    const e = one('v1.TakeArchived');
+    for (const parentEventId of [{ x: 1 }, 7, true, ['p']]) expectRefusal({ ...e, parentEventId } as unknown as AnyEvent, /parent/);
+    // A falsy one is not signed, and `nearbyCopy` drops it, so it is no refusal.
+    for (const parentEventId of [undefined, null, '', 0, false]) {
+      expect(nearbyDoor({ ...e, parentEventId } as unknown as AnyEvent, context())).toBeNull();
+      expect('parentEventId' in nearbyCopy({ ...e, parentEventId } as unknown as AnyEvent)).toBe(false);
+    }
+  });
+
   it('2: what validateEvent refuses, before anything reads the payload', () => {
     const e = one('v1.ReviewRecorded');
     for (const payload of [null, 'nope', 5, []]) expectRefusal({ ...e, payload } as unknown as AnyEvent, /payload must be an object/);

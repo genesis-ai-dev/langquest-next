@@ -64,6 +64,16 @@ function hasUnstorableChar(s: string): boolean {
  * is believed to fail a whole page at the relay. Iterative, so no depth can
  * overflow the stack.
  */
+/**
+ * A parent that is not an event id: signed only if truthy (`eventText` hashes `parentEventId || undefined`), so a
+ * falsy one is dropped by `nearbyCopy`, and a truthy one that is not a string is refused, at the door and at the
+ * relay, or it went to the server as the text of an object or a number (security review, 2026-11-10).
+ */
+export function nearbyParentError(e: unknown): string | null {
+  const parent = (e as { parentEventId?: unknown } | null)?.parentEventId;
+  return parent && typeof parent !== 'string' ? 'a parent that is not an event id' : null;
+}
+
 export function nearbyPayloadError(v: unknown): string | null {
   const stack: { x: unknown; depth: number }[] = [{ x: v, depth: 0 }];
   while (stack.length > 0) {

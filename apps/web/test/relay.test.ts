@@ -150,6 +150,23 @@ describe('POST /api/relay', () => {
     ]);
   });
 
+  it('sends only the envelope its author signed: a parent a carrier added is dropped, and one signed that is not an id refused', async () => {
+    // The security review's (2026-11-10): the digest hashes a parent only when truthy, so a carrier could add a false or
+    // an empty one, and the server kept it as the text 'false'.
+    const plain = note(sam);
+    const odd = note(sam, { parentEventId: { x: 1 } as unknown as string });
+    const batch = await batchOf(sam, 1, [plain, odd], { carrying: [{ ...plain, parentEventId: false } as unknown as typeof plain, odd] });
+    let sent: unknown[] = [];
+    const { deps } = setup({}, { answer: (_author, events) => { sent = events; return { data: events.map((e, i) => ({ id: e.id, accepted: true, server_seq: 100 + i, reason: null })), error: null }; } });
+    const out = await (await handleRelay(post(relayBody([batch])), deps)).json() as Answer;
+    expect(sent).toHaveLength(1);
+    expect('parentEventId' in (sent[0] as object)).toBe(false);
+    expect(out.batches[0]!.verdicts).toEqual([
+      { id: odd.id, accepted: false, serverSeq: null, reason: 'malformed envelope: a parent that is not an event id' },
+      { id: plain.id, accepted: true, serverSeq: 100, reason: null }
+    ]);
+  });
+
   it('refuses, one by one, a signed event under another author, another device or another stream, and sends the rest', async () => {
     // Why: the signature proves only what the key holder signed. A copied key can sign anyone's
     // events, so each must be the manifest's author and device, in the stream the request names.

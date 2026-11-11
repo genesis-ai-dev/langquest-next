@@ -1,4 +1,4 @@
-import type { NearbyRoom, NearbyRoomEvent } from '@langquest-next/sync/nearby';
+import type { NearbyRoom, NearbyRoomEvent, NearbySession } from '@langquest-next/sync/nearby';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { AppState } from 'react-native';
@@ -67,6 +67,8 @@ export function useJoinOffline(): JoinOfflineHandle {
   gate.current = open;
   const attempt = useRef(0);
   const room = useRef<{ room: NearbyRoom; ticker: ReturnType<typeof setInterval> } | null>(null);
+  /** The join's session while it runs: leaving stops it, as it stops the room. */
+  const joining = useRef<NearbySession | null>(null);
 
   const stopRoom = useCallback(async () => {
     const held = room.current;
@@ -80,10 +82,11 @@ export function useJoinOffline(): JoinOfflineHandle {
   useEffect(() => {
     if (open) return;
     attempt.current += 1;
+    joining.current?.stop();
     void stopRoom();
     if (stage.t === 'looking') dispatch({ t: 'look-stopped' });
   }, [open, stopRoom, stage.t]);
-  useEffect(() => () => { attempt.current += 1; void stopRoom(); }, [stopRoom]);
+  useEffect(() => () => { attempt.current += 1; joining.current?.stop(); void stopRoom(); }, [stopRoom]);
 
   /** Android's radios, asked after the press; true once allowed. */
   const permitted = useCallback(async (): Promise<boolean> => {
@@ -118,7 +121,8 @@ export function useJoinOffline(): JoinOfflineHandle {
         pictures: (p) => { setPictures(p); dispatch({ t: 'asked', pictures: p }); },
         granted: () => dispatch({ t: 'granted' }),
         progress: () => dispatch({ t: 'part' }),
-        still
+        still,
+        onSession: (s) => { joining.current = s; }
       });
       setCode(heldJoinCode());
       if (out.why === 'not-empty') { check(); return; }

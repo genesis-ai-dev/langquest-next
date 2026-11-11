@@ -3,7 +3,7 @@ import { decodeHlc, isHlc } from './hlc';
 import { EVENT_PRIVILEGE, ORG_EVENT_TYPES, privilegeAllows, privilegeFor, privilegesFor, type OrgState } from './org';
 import { ORG_STREAM, PERSON_ORG, type Privilege } from './orgTerms';
 import type { LanguageState } from './state';
-import { nearbyPayloadError } from './nearbySigning';
+import { nearbyParentError, nearbyPayloadError } from './nearbySigning';
 import { entityKeyOf, eventSizeError, idAuthor, validateEvent } from './validate';
 
 /**
@@ -118,7 +118,7 @@ export function nearbyDoor(e: AnyEvent, ctx: NearbyDoorContext): DoorRefusal | n
   const refuse = (reason: string): DoorRefusal => ({ reason, retry: false });
   if (typeof e !== 'object' || e === null || Array.isArray(e)) return refuse('not an event');
   // 1 to 3: the event's own form.
-  const form = nearbyPayloadError(e) ?? validateEvent(e) ?? eventSizeError(e);
+  const form = nearbyPayloadError(e) ?? nearbyParentError(e) ?? validateEvent(e) ?? eventSizeError(e);
   if (form !== null) return refuse(form);
   // 4. `events.id` is unique across streams, so this also stops a row planted here under an id the server later sends in another stream.
   if (e.orgId !== ctx.orgId || e.orgId === PERSON_ORG) return refuse('wrong organization');

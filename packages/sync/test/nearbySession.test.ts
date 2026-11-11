@@ -1,6 +1,7 @@
 import { createHmac, hkdfSync } from 'node:crypto';
 import {
-  base64urlEncode, concatBytes, isCounted, NEARBY_OPENING_BYTES, nearbyBytes, openingMaskInput, revocationText, utf8Encode, withMyHolding, type RevocationList
+  base64urlEncode, concatBytes, isCounted, issueInviteLink, joinPassBody, NEARBY_OPENING_BYTES, nearbyBytes, newcomerProfileId, openingMaskInput, revocationText, utf8Encode,
+  withMyHolding, type HoldingEntry, type RevocationList, type WorkerLink
 } from '@langquest-next/core/nearby';
 import * as v from '../../core/test/nearbyVectors';
 import { arrangePlan, mayHandOn, type NearbySessionReport } from '../src/nearbySession';
@@ -352,6 +353,22 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
       expect(rb.ended).toMatchObject({ how: 'said', reason });
     });
 
+    it('the same page sent again and again ends the session as busy, rather than holding it open', async () => {
+      // The security review's (2026-11-10): a page already counted was ignored and never counted as a drop.
+      const [a, b] = await two();
+      await unit(a, 'a1');
+      const pair = pairOf();
+      const send = pair.a.send.bind(pair.a);
+      pair.a.send = async (bytes) => {
+        const p = parseMessage(bytes);
+        if (p.kind === 'message' && p.message.t === 'batch') for (let i = 0; i < 40; i++) await send(bytes);
+        return send(bytes);
+      };
+      const [, rb] = await run(a, b, pair);
+      expect(rb.ended).toMatchObject({ how: 'said', reason: 'busy' });
+      expect(rb.got.events).toBe(1);
+    });
+
     it('a message no phone here knows is ignored, and so are phase 6\'s', async () => {
       const [a, b] = await two();
       await unit(a, 'a1');
@@ -482,6 +499,37 @@ describe.each(STORES)('a session on the %s store', (_name, make) => {
     expect([ra.ended.how, rb.ended.how]).toEqual(['done', 'done']);
     expect(rb.holdings.dropped).toBe(2);
     expect((await b.keep.holdings()).size).toBe(0);
+  });
+
+  it('keeps no more newcomers\' entries under a pass than it lets in, and a member\'s whatever the pass has used', async () => {
+    // Why: one pass can mint any number of newcomers offline. Their entries were kept for good and spread,
+    // until Have grew past what a link carries and every session for the language failed (security review, 2026-11-10).
+    const [a, b] = await two();
+    const ana = await teammate('ana');
+    ana.chain = await worker.certify({ installKey: ana.key, profileId: 'ana', deviceId: ana.deviceId }, { orgId: ORG, privileges: ['invite_members', 'translate', 'view_status'] });
+    const body = (await joinPassBody({ orgId: ORG, languageId: LANG, inviter: 'ana', inviterKey: ana.key, roles: [{ roleId: 'translator', privileges: ['translate', 'view_status'] }], nowMs: NOW }, fakeSha256))!;
+    const pass = await worker.signPass({ ...body, maxUses: 3 });
+    const entries = new Map<string, HoldingEntry>();
+    for (let i = 0; i < 5; i++) {
+      const crypto = fakeSigner(`flood-${i}`);
+      const idSalt = base64urlEncode(new Uint8Array(16).fill(i + 1));
+      const profileId = (await newcomerProfileId(crypto.publicKey, idSalt, fakeSha256))!;
+      const ask = { installKey: crypto.publicKey, idSalt, profileId, deviceId: `d-flood-${i}`, name: `Flood ${i}` };
+      const link = await issueInviteLink({ inviterLink: ana.chain[0] as WorkerLink, pass, ask, roleId: 'translator', now: NOW, sha256: fakeSha256, sign: ana.crypto.sign });
+      if (!link.ok) throw new Error(link.reason);
+      const mine = await withMyHolding(new Map(), ['abcde'[i]!.repeat(64)], { key: crypto.publicKey, orgId: ORG, streamId: LANG, chain: [ana.chain[0]!, link.link], hold: false, sign: crypto.sign, sha256: fakeSha256 });
+      entries.set(crypto.publicKey, mine.get(crypto.publicKey)!);
+    }
+    const cy = await teammate('cy');
+    const cys = (await withMyHolding(new Map(), ['c'.repeat(64)], { key: cy.key, orgId: ORG, streamId: LANG, chain: cy.chain, hold: false, sign: cy.crypto.sign, sha256: fakeSha256 })).get(cy.key)!;
+    await a.keep.saveHoldings(new Map([...entries, [cy.key, cys]]));
+    const [ra, rb] = await run(a, b, pairOf());
+    expect([ra.ended.how, rb.ended.how]).toEqual(['done', 'done']);
+    const held = await b.keep.holdings();
+    // Three of the five under the pass, and a member's entry whatever the pass has used.
+    expect([...entries.keys()].filter((k) => held.has(k))).toHaveLength(3);
+    expect(held.get(cy.key)).toEqual(cys);
+    expect(rb.holdings.dropped).toBe(2);
   });
 
   it('drops an entry whose hold field was turned on after its owner signed it off, or that another key signed', async () => {

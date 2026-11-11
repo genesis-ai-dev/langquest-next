@@ -199,6 +199,8 @@ export class NearbyRoom {
   private readonly echoedTags = new Set<string>();
   private readonly began = new Map<NearbyRoomSession, number>();
   private startWait: 'summary' | 'peers' | 'find' | null = null;
+  /** Moves at every start and every stop, so a start whose stop came before it set `running` turns nothing on. */
+  private starts = 0;
 
   constructor(options: NearbyRoomOptions) {
     this.opt = options;
@@ -216,6 +218,7 @@ export class NearbyRoom {
 
   async start(now: number): Promise<void> {
     if (this.running) return;
+    const mine = ++this.starts;
     this.now = now;
     this.startedAt = now;
     this.lastTick = null;
@@ -226,7 +229,11 @@ export class NearbyRoom {
     this.heardTags.clear();
     this.echoedTags.clear();
     this.caps = await this.opt.radio.capabilities();
-    if (!await this.gensFromKeys()) {
+    // Stopped while it waited, before `running`: `halt` found nothing to stop, so nothing starts (security review, 2026-11-10).
+    if (mine !== this.starts) return;
+    const keyed = await this.gensFromKeys();
+    if (mine !== this.starts) return;
+    if (!keyed) {
       this.note(roomDiagOf(this.tally, 'no-key', 0, this.caps));
       this.opt.report({ t: 'stopped', why: 'no-key' });
       return;
@@ -252,6 +259,7 @@ export class NearbyRoom {
   }
 
   stop(): Promise<void> {
+    this.starts += 1;
     return this.halt('asked');
   }
 

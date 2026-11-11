@@ -285,6 +285,33 @@ describe.each(STORES)('letting someone in, on the %s store', (_name, make) => {
     expect(rn2.peer?.name).toBeUndefined();
   });
 
+  // The security review's: a newcomer kept every Have a teammate sent while it waited on a part, with no limit.
+  it('a second Have while the newcomer waits on its copy ends the session before the copy is taken', async () => {
+    const s = await setUp();
+    let parts = 0;
+    const realSend = s.pair.b.send.bind(s.pair.b);
+    s.pair.b.send = async (bytes) => {
+      const p = parseMessage(bytes);
+      if (p.kind === 'message' && p.message.t === 'copy-part' && ++parts === 2) s.pair.drop();
+      return realSend(bytes);
+    };
+    await run(s.a.p, s.n.p, s.pair, s.join, s.copy);
+    const holder: Teammate = { ...s.n.who, chain: s.granted[0]!.chain };
+    const again = memoryNearbyPair({ time, kind: 'wifi-direct' });
+    const send = again.b.send.bind(again.b);
+    again.b.send = async (bytes) => {
+      const p = parseMessage(bytes);
+      if (p.kind === 'message' && p.message.t === 'have') await send(bytes);
+      return send(bytes);
+    };
+    const [rn2] = await settled<[NearbySessionReport, NearbySessionReport]>(time,
+      sessionFor(s.n.p, 'i', again.a, time, { chain: holder.chain, signer: { publicKey: holder.key, sign: holder.crypto.sign, sha256: fakeSha256, chainFor: () => holder.chain }, takeCopy: s.n.target }).run(),
+      sessionFor(s.a.p, 'r', again.b, time, { copy: s.copy }).run());
+    expect(rn2.ended).toMatchObject({ how: 'said', reason: 'protocol' });
+    expect(rn2.copy?.whole ?? false).toBe(false);
+    expect(await s.n.p.client.holdsCopy()).toBe(false);
+  });
+
   // The newcomer was left looking, beside a teammate who could never finish the copy, and was not told why.
   it('a teammate on another version gives no copy, and the newcomer\'s report says that is why', async () => {
     const s = await setUp();

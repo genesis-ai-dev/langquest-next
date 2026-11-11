@@ -49,6 +49,8 @@ describe('the APK route', () => {
     expect(APK_CONTENT_TYPE).toBe('application/vnd.android.package-archive');
     expect(res.headers.get('content-disposition')).toBe(`attachment; filename="${NAME}"`);
     expect(res.headers.get('content-length')).toBe(String(apk.length));
+    // No copy kept in the browser's cache, a trace on a phone that may wear a disguise.
+    expect(res.headers.get('cache-control')).toBe('private, no-store');
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(apk);
     // The name holds versions only: nothing in it names the app or an organization.
     expect(NAME).toMatch(/^r\d+-l\d+-p\d+-[0-9a-f]{8}\.apk$/);

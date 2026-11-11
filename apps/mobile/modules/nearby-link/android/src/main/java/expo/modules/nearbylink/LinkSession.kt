@@ -60,6 +60,13 @@ class LinkSession(
   @Volatile private var ended: NearbyCode? = null
   /** True once a frame from the other side opened: it holds this link's keys. */
   @Volatile private var proven = false
+  /**
+   * Asked once, as the first frame opens: false when another link under the same keys proved them first, and this one
+   * then ends unproven, with no goodbye. A hotspot hands up every connection under one attempt's keys, and a replayed
+   * `ready` could prove a second, whose goodbye would then repeat the link's nonce under the same key (security review,
+   * 2026-11-10). Set by `Hosted` before the link is handed on, so before `secure` starts the reader.
+   */
+  @Volatile var firstProof: (() -> Boolean)? = null
   /** True when the other side said goodbye: `receive` then gives null once the queue is empty. */
   @Volatile private var clean = false
   private val messages = ArrayDeque<ByteArray>()
@@ -284,6 +291,7 @@ class LinkSession(
         val h = open.header(head)
         val sealedBody = readFully(h.len + Frame.TAG) ?: return stop(NearbyCode.LINK_DROPPED)
         val body = open.body(sealedBody)
+        if (!proven && firstProof?.invoke() == false) return stop(NearbyCode.LINK_DROPPED)
         proven = true
         when (h.type) {
           Frame.MESSAGE -> queue(body)

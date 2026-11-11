@@ -28,8 +28,8 @@ printf "alter role diag_reader with login password '%s';\n" "$pw" > "$sql"
 npx supabase db query --linked -f "$sql" > /dev/null
 echo "✓ diag_reader can log in on $ref"
 
-DOTENVX_NO_NATIVE=true npx dotenvx set DIAG_DATABASE_URL \
-  "postgresql://diag_reader.$ref:$pw@$host:5432/postgres" -f "$file" -fk .env.keys > /dev/null
+# On stdin, not as an argument, which npx would write to npm's debug log.
+printf '%s' "postgresql://diag_reader.$ref:$pw@$host:5432/postgres" | node scripts/dotenvx-set.mjs DIAG_DATABASE_URL "$file" secret
 git add "$file"
 git commit -q -m "Hosted diagnostics access for diag_reader" -- "$file"
 echo "✓ DIAG_DATABASE_URL encrypted in $file and committed"

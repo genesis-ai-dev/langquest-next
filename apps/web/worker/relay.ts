@@ -1,6 +1,6 @@
 import type { AnyEvent } from '@langquest-next/core';
 import {
-  checkChain, eventDigest, NEARBY_BATCH_MAX_EVENTS, nearbyBytes, nearbyPayloadError, parseBatchManifest, signedBy, type BatchManifest, type Sha256, type Verify
+  checkChain, eventDigest, NEARBY_BATCH_MAX_EVENTS, nearbyBytes, nearbyCopy, nearbyParentError, nearbyPayloadError, parseBatchManifest, signedBy, type BatchManifest, type Sha256, type Verify
 } from '@langquest-next/core/nearby';
 import type { RpcAnswer } from './nearby';
 import { accountFromChain, type AccountDeps, type CheckedJoin } from './nearbyJoin';
@@ -125,13 +125,16 @@ async function checkBatch(raw: unknown, orgId: string, streamId: string, deps: R
     // Postgres cannot keep a NUL or a lone surrogate, and one would fail the whole call (server/nearbyRelaySmoke.sql).
     const malformed = nearbyPayloadError(e);
     if (malformed !== null) { no(id, `invalid payload: ${malformed}`); continue; }
+    const parent = nearbyParentError(e);
+    if (parent !== null) { no(id, `malformed envelope: ${parent}`); continue; }
     const ev = e as AnyEvent;
     let digest = '';
     try { digest = await eventDigest(ev, deps.sha256); } catch { /* the mismatch below */ }
     if (digest !== digests.get(id)) { no(id, 'malformed envelope: not the event its manifest signed'); continue; }
     if (ev.actorId !== manifest.actorId || ev.deviceId !== manifest.deviceId) { no(id, 'actorId does not match caller'); continue; }
     if (ev.orgId !== orgId || ev.streamId !== streamId) { no(id, 'malformed envelope: another stream'); continue; }
-    out.events.push(ev);
+    // The envelope as signed, and nothing else: a carrier could add a falsy parent the digest does not see (security review, 2026-11-10).
+    out.events.push(nearbyCopy(ev));
   }
   return out;
 }

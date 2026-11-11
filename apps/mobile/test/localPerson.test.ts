@@ -1,7 +1,7 @@
 import {
   foldKnows, localPersonText, mayKeepLocalPerson, membershipOf, overlayFor, parseLocalPerson, recordDone, type LocalPerson
 } from '../src/session/localPersonModel';
-import { identityOf, isLocalIdentity } from '../src/session/identityModel';
+import { firstContactOpen, identityOf, isLocalIdentity } from '../src/session/identityModel';
 import { emptyOrgState, privilegesFor, type OrgState, type Privilege } from '@langquest-next/core';
 import { withChainMembership } from '@langquest-next/core/nearby';
 import { deriveSession } from '../src/shell/session';
@@ -87,6 +87,13 @@ describe('who the app runs as', () => {
     expect(identityOf(auth, local)).toEqual({ actorId: 'newcomer-1', email: auth.email, signedIn: true, serverSession: true, local });
     // Someone else's session never takes the local person's record with it.
     expect(identityOf({ id: 'other' }, local)).toMatchObject({ actorId: 'other', serverSession: true, local: null });
+  });
+
+  it('offers no sign-out until first contact is over, joined too, since a session gone there runs as the record with no lock', () => {
+    for (const stage of ['ready', 'joined'] as const) expect(firstContactOpen(person({ stage }), 'newcomer-1')).toBe(true);
+    for (const stage of ['asking', 'filling', 'done'] as const) expect(firstContactOpen(person({ stage }), 'newcomer-1')).toBe(false);
+    expect(firstContactOpen(person({ stage: 'joined' }), 'someone-else')).toBe(false);
+    expect(firstContactOpen(null, 'newcomer-1')).toBe(false);
   });
 });
 

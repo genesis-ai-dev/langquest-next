@@ -71,16 +71,16 @@ do $$ declare v text; n int; begin
   select count(*) into n from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = any (array[
     'org_feature_grant', 'org_feature_revoke', 'org_feature_list', 'nearby_certificate_facts',
     '_org_feature_on', '_discovery_generation', '_discovery_key_below', '_id_author',
-    'relay_append_events', '_revoke_install_keys', 'revoke_install_keys', 'install_keys_staff_revoke', 'install_key_list', 'install_key_limit_raise',
+    'relay_append_events', '_revoke_install_keys', '_revoked_seq', '_revocation_seq_kept', 'revoke_install_keys', 'install_keys_staff_revoke', 'install_key_list', 'install_key_limit_raise',
     '_install_key_person', '_event_files', 'blob_named_by',
     '_manage_privileges', '_org_joins_on', '_newcomer_profile_id', '_pass_body_error', 'pass_refusal', '_redeem_invite_row',
     'redeem_pass_for', 'nearby_join_state', 'nearby_join_finish']);
-  if n <> 26 then raise exception 'expected the nearby service functions, found %', n; end if;
+  if n <> 28 then raise exception 'expected the nearby service functions, found %', n; end if;
   select string_agg(p.proname, ', ' order by p.proname) into v from pg_proc p
    where p.pronamespace = 'public'::regnamespace and p.proname = any (array[
      'org_feature_grant', 'org_feature_revoke', 'org_feature_list', 'nearby_certificate_facts',
      '_org_feature_on', '_discovery_generation', '_discovery_key_below', '_id_author',
-     'relay_append_events', '_revoke_install_keys', 'revoke_install_keys', 'install_keys_staff_revoke', 'install_key_list', 'install_key_limit_raise',
+     'relay_append_events', '_revoke_install_keys', '_revoked_seq', '_revocation_seq_kept', 'revoke_install_keys', 'install_keys_staff_revoke', 'install_key_list', 'install_key_limit_raise',
      '_install_key_person', '_event_files', 'blob_named_by',
      '_manage_privileges', '_org_joins_on', '_newcomer_profile_id', '_pass_body_error', 'pass_refusal', '_redeem_invite_row',
      'redeem_pass_for', 'nearby_join_state', 'nearby_join_finish'])
@@ -88,7 +88,7 @@ do $$ declare v text; n int; begin
           or has_function_privilege('public', p.oid, 'execute') or not has_function_privilege('service_role', p.oid, 'execute'));
   if v is not null then raise exception 'nearby functions not the service role''s alone: %', v; end if;
   select string_agg(t, ', ' order by t) into v from unnest(array[
-    'org_features', 'install_keys', 'install_key_revocations', 'language_discovery_chains', 'language_discovery_keys', 'deleted_profile_ids']) t
+    'org_features', 'install_keys', 'install_key_revocations', 'install_key_revocation_seqs', 'language_discovery_chains', 'language_discovery_keys', 'deleted_profile_ids']) t
    where has_table_privilege('anon', 'public.' || t, 'select') or has_table_privilege('authenticated', 'public.' || t, 'select')
       or has_table_privilege('anon', 'public.' || t, 'insert') or has_table_privilege('authenticated', 'public.' || t, 'insert')
       or not (select c.relrowsecurity from pg_class c where c.oid = ('public.' || t)::regclass);

@@ -32,8 +32,9 @@ function headersFor(name: string, object: R2Object): Headers {
   headers.set('content-disposition', `attachment; filename="${name}"`);
   headers.set('etag', object.httpEtag);
   headers.set('accept-ranges', 'bytes');
-  // A name stands for its versions, and a carried build of the same versions is rare, so an hour is enough.
-  headers.set('cache-control', 'public, max-age=3600');
+  // Kept in no cache: the download list is trace enough on a carrier's phone, which may wear a disguise
+  // (security review, 2026-11-10). A Worker's answer is not cached at the edge either way.
+  headers.set('cache-control', 'private, no-store');
   return headers;
 }
 

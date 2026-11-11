@@ -58,6 +58,27 @@ describe.each(STORES)('a room on the %s store', (_name, make) => {
     expect(r.room.startingAt).toBeNull();
   });
 
+  // The security review's: a stop while the radio's abilities or the keys were still being read found nothing running to stop.
+  it('a room stopped before its start has read the radio and the keys turns no radio on after', async () => {
+    const p = await testPhone(server, make(), people[0]!, shelf);
+    const r = roomFor(p, air, time);
+    const capabilities = r.radio.capabilities.bind(r.radio);
+    let release!: () => void;
+    const held = new Promise<void>((done) => { release = done; });
+    r.radio.capabilities = async () => { await held; return capabilities(); };
+    const starting = r.room.start(time.now());
+    await r.room.stop();
+    release();
+    await starting;
+    expect(r.radio.calls.startFind).toBe(0);
+    expect(r.room.isRunning).toBe(false);
+    // A later start, as Look again makes, still runs.
+    await r.room.start(time.now());
+    expect(r.room.isRunning).toBe(true);
+    expect(r.radio.calls.startFind).toBe(1);
+    await r.room.stop();
+  });
+
   it('two teammates show only once echoed, the lower tag connects, and both end up to date', async () => {
     const [a, b] = await rooms(2);
     await unit(a!.phone, 'a1');

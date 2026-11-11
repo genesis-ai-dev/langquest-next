@@ -11588,6 +11588,16 @@ so the list carries them and the next certificate call makes a new
 discovery generation due. An access token already issued lives until it
 expires.
 
+Amended (2026-11-10, Carl Sauder): a revocation's `seq` was `max(seq) + 1`,
+and the rows go with a deleted account, so when the deleted person held the
+newest numbers the next revocation reused one, and every phone that held the
+old list ignored the new one (pre-merge security review). The number now
+comes from `install_key_revocation_seqs`, a counter per organization that a
+trigger raises with every row and that deletion never lowers
+(`_revoked_seq`, migration `20261110000000_nearby_revoked_seq.sql`); the
+rows still go with the account, so nothing more is kept. A list may now skip
+numbers, and an organization whose rows all went still says its number.
+
 ## 218. A language's discovery key rotates as a one-way hash chain, and a phone hands a newer one on once
 
 Date: 2026-11-07 · By: Carl Sauder · Status: accepted
@@ -11680,6 +11690,15 @@ the host seals nothing on a link until the joiner's `ready` has opened, and
 the native link sends no goodbye on a link whose other side has not proven
 the keys (`LinkSession.close`), so only the proven link ever seals under an
 attempt's keys.
+
+Amended (2026-11-10, Carl Sauder): on a hotspot, where every connection is a
+candidate under one attempt's keys, only the first candidate to open a frame
+counts as proven; any other ends at its first frame, unproven and with no
+goodbye (`LinkSession.firstProof`), so a copied `ready` cannot make a second
+link seal under the same key and nonce. The host also drops a candidate that
+sends no `ready` within `replyMs`, so four silent connections from another
+app on the phone no longer hold every place for the whole attempt
+(pre-merge security review).
 
 ## 220. Phones open sealed, and a phone shows and connects to a teammate only after hearing its own salt echoed
 
@@ -11847,6 +11866,15 @@ and the files part reads stored entries through `holdingsInForce`, which
 leaves out an entry whose key and holder, or first link's key and person,
 are on the list, or whose person has only removed entries in the fold, so
 no file is shed or counted as safe for its sake.
+
+Amended (2026-11-10, Carl Sauder): a phone keeps a holdings entry for a key
+it does not hold yet only below `NEARBY_HOLDINGS_MAX_KEYS` in all, and a
+newcomer's only while its pass has fewer than `maxUses` keys here, as batches
+already were (decision 211's amendment). One pass could mint any number of
+newcomers offline, and their entries, kept for good and spread, could grow
+Have past what a link carries, so every session for the language failed. A
+session also ends at more parts for one entry, or more entries, than an
+honest phone sends (pre-merge security review).
 
 ## 225. A phone keeps who it last finished with and what both said, never when it met anyone
 
@@ -12081,6 +12109,12 @@ Reverse if: carried work proves to land wrongly attributed or refused for
 passing reasons in the field, or the relay's cost on the database outgrows
 what delivery saves.
 
+Amended (2026-11-10, Carl Sauder): the relay sends `append_events` only the
+envelope its author signed (`nearbyCopy`). A digest hashes a parent only when
+truthy, so a carrier could add a false or empty `parentEventId` and the server
+kept it as text; and a truthy parent that is not a string is refused, at the
+relay and at the door (`nearbyParentError`; pre-merge security review).
+
 ## 232. Work signed by a key later revoked is accepted when dated before the revocation, up to 50,000 events and 100 MB per revoked key
 
 Date: 2026-11-08 · By: Carl Sauder · Status: accepted
@@ -12307,6 +12341,16 @@ and first contact checks the chain as before, so setting them early costs
 nothing but a weak link right after it, which is what anyone signing in for
 the first time on one has. Offline, the copy still finishes before the
 person is set (plan 14.1, 5 "Identity").
+
+Amended (2026-11-10, Carl Sauder): Sign out waits until first contact is
+over, in `joined` too, though that stage has a session (`firstContactOpen`).
+A session gone in `joined` leaves the phone running as the record, so a
+sign-out with the lock opened straight back into the newcomer's work with no
+lock asked, and first contact joined again (pre-merge security review). Me
+shows the local person's card in its place, and Sign out reached from a
+scanner says the phone is finishing setting up. A join left while the
+inviter decides keeps no grant, and the join's session stops with the
+screen, so no local person is written once someone has signed in.
 
 ## 239. Proof of a key signs a chain's account in until the key's first session
 

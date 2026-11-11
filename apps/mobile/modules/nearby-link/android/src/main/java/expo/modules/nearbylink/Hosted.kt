@@ -38,6 +38,14 @@ class Hosted(
 
   private fun proven(): Boolean = adopted.any { it.isProven }
 
+  /** The one candidate that proves the attempt's keys first; any other ends at its first frame (`LinkSession.firstProof`). */
+  private var prover: LinkSession? = null
+
+  private fun claimProof(s: LinkSession): Boolean = synchronized(lock) {
+    if (prover == null) prover = s
+    prover === s
+  }
+
   fun acceptLoop() {
     Thread({
       while (!down) {
@@ -61,6 +69,7 @@ class Hosted(
         }
         tune(socket)
         val session = adopt(socket, this)
+        if (candidates) session.firstProof = { claimProof(session) }
         val kept = synchronized(lock) {
           if (down) {
             false

@@ -119,6 +119,35 @@ class HostedTest {
     assertEquals(0, tornDown.get())
   }
 
+  /**
+   * Why (security review, 2026-11-10): every candidate shares the attempt's keys, so the joiner's first frame copied onto
+   * a second connection opened there too, and the second's goodbye then repeated the link's nonce under the same key.
+   * Two joiners under the same keys send the same bytes, as a copy would.
+   */
+  @Test fun onAHotspotOnlyTheFirstCandidateToProveTheKeysIsProvenAndACopyEndsWithNoGoodbye() {
+    val h = hostedOn(true)
+    val joiner = session(connect(h), "joiner")
+    val first = next(h)
+    val copier = session(connect(h), "copier")
+    val second = next(h)
+    for (j in listOf(joiner, copier)) j.secure(keyA, keyB)
+    for (c in listOf(first, second)) c.secure(keyB, keyA)
+    joiner.send(byteArrayOf(7))
+    assertArrayEquals(byteArrayOf(7), first.receive())
+    copier.send(byteArrayOf(7))
+    eventually("the copy's connection ended") { second.isEnded }
+    assertFalse(second.isProven)
+    assertTrue(first.isProven)
+    second.close()
+    // Nothing sealed came back to the copier: a goodbye would read as a clean end (null); its link only drops.
+    try {
+      copier.receive()
+      fail("a goodbye came, sealed under the link's key and nonce")
+    } catch (e: NearbyException) {
+      assertEquals(NearbyCode.LINK_DROPPED, e.code)
+    }
+  }
+
   @Test fun aHotspotHoldsOnlySoManyCandidatesAtOnce() {
     val h = hostedOn(true)
     repeat(4) { connect(h); next(h) }

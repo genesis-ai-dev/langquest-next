@@ -258,4 +258,14 @@ describe('the ops dashboard\'s Hyperdrive config', () => {
     const committed = read(WORKERS.admin);
     expect(committed).toMatch(new RegExp(`"binding": "DIAG", "id": "(${HYPERDRIVE_PLACEHOLDER}|[0-9a-f]{32})"`));
   });
+  it('never hands a value to npx, which writes its arguments to npm\'s debug log on disk (security review, 2026-11-10)', () => {
+    const scripts = readdirSync(new URL('../scripts', import.meta.url)).filter((f) => /\.(sh|mjs)$/.test(f));
+    for (const file of scripts) {
+      const text = read(`scripts/${file}`);
+      expect(text, file).not.toMatch(/npx dotenvx set/);
+      expect(text, file).not.toMatch(/'npx', \['eas', 'env:(set|create|update)'/);
+    }
+    // env-update passes the value on stdin, to the one helper that calls dotenvx's own set.
+    expect(read('scripts/env-update.sh')).toContain(`printf '%s' "$value" | node scripts/dotenvx-set.mjs "$key" "$src" secret`);
+  });
 });
