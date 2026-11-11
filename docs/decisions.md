@@ -10950,7 +10950,7 @@ from what that organization says it needs).
 
 ## 207. An organization's own Bible, uploaded as USFM files, is two new library formats, `usfmBible@1` and `usfmBook@1`, and no shipped format changes
 
-Date: 2026-11-06 · By: Caleb Koster · Status: accepted
+Date: 2026-11-11 · By: Caleb Koster · Status: accepted
 
 Reason: Go Forth North India asked (LAN-229) to upload the team's USFM files and have them show as a reference Bible. `source@1` could not hold them without change: it carries a provider (library or Bible Brain), audio, timings and an `offline` flag that mean nothing for text a team uploads, and about 25 places read it (offered Bibles, coverage, timings, the reader). Changing its shape would break shipped documents, so an upload is its own versioned pair (decision 36, PLAN.md section 6). `usfmBible@1` is the header: name, abbreviation, language, numbering (a `versification@1` hash), who holds the rights, the license, `rightsConfirmed: true` and the books with their counts. `usfmBook@1` is one book: its verses as plain text and the file as uploaded. A book is its own document because a library document is at most 4 MB (`_library_store`) and a whole Bible is more; the check refuses a file over 1.8 MB (core `MAX_BOOK_BYTES`). The file is kept untouched beside the plain verses so LAN-230 can show paragraphs, headings and notes without a second upload. Both are published under kind `material`, so a Bible is an organization library item that shows in Setup → Reference Material and that the admin may share for other organizations to follow, as any item. Checking is core (`checkUsfm`, pure; problems are codes the app says in the reader's language); reading a zip and picking files are web only (`apps/mobile/src/usfm/`), as the guide editor's uploads are (decision 69), and the documents go out through the library's own outbox, so no new route, table or job. The migration `20261106140000_usfm_bibles.sql` only adds the two formats to `_library_store`. Publishing needs Manage Reference at the organization level and the uploader's confirmation that the team may share the text; the item takes the organization's license (`docs/licensing.md`). Not built, because it is LAN-230: the reader does not open a `usfmBible@1` yet, so translators do not see it beside a passage, and coverage and the "offered Bibles" counts do not take it in. Not built either: a check that verse numbers fit the chosen numbering, and splitting a file that holds several books.
 Reverse if: admins upload Bibles with several books in one file often (then split on `\id`), or LAN-230 finds the plain verses never used (then drop them and keep only the file).
@@ -10959,7 +10959,7 @@ Amended (2026-11-06, Caleb Koster): LAN-230 built what this entry left out; deci
 
 ## 208. An uploaded Bible is read as a Bible through one view (`sourceOf`), and one walk over the USFM serves the check and the reader
 
-Date: 2026-11-06 · By: Caleb Koster · Status: accepted
+Date: 2026-11-11 · By: Caleb Koster · Status: accepted
 
 Reason: Go Forth North India asked (LAN-230, meeting of 4 November 2026) to be sure LangQuest shows their USFM files as a real Bible. Two things had to be chosen.
 
