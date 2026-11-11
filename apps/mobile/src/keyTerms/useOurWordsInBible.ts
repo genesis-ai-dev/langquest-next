@@ -1,5 +1,5 @@
 // Whether the Bible's text shows the team's word after each key word (LAN-233,
-// decisions.md 207): one choice for every passage, kept on the device and
+// decisions.md 208): one choice for every passage, kept on the device and
 // there after a restart, as the Bible chosen last is (sources/useSourceChoice.ts).
 import { useChoice } from '../sources/useSourceChoice';
 

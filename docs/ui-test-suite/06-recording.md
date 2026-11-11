@@ -1118,7 +1118,7 @@ Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split 
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 LAN-233: a tap on a key word's row opened its page and so ended the recording
-session. A key word now opens as a sheet over the workspace (decision 207).
+session. A key word now opens as a sheet over the workspace (decision 208).
 
 Preconditions:
 - P-Q3's workspace is open on the "Key words" chip. The team has the key word "Lord" with the word "Nkosi" for Luke 13.

@@ -125,7 +125,7 @@ describe('an adjustment', () => {
   });
 });
 
-// The team's words on the recorder's tiles and in the Bible's text (LAN-233, decision 207).
+// The team's words on the recorder's tiles and in the Bible's text (LAN-233, decision 208).
 describe('the team\'s word for a key word', () => {
   const rendering = (id: string, rendering: string, context = '') => ({ renderingId: `rendering:${id}`, rendering, context });
   const change = (id: string, hlc: string, extra: { blobHash?: string; duringTakeId?: string } = {}) => ({ adjustmentId: `adjustment:${id}`, note: 'n', actorId: 'a', hlc, ...extra });
@@ -192,6 +192,22 @@ describe('the team\'s words for a key word, with where each was said and used', 
     expect(words.find((w) => w.id === 'rendering:c3')!.usedIn.map((u) => u.takeId)).toEqual(['tk3']);
     // A version that tied the term in without naming a word belongs to none of them.
     expect(words.find((w) => w.id === 'adjustment:c2')!.usedIn).toEqual([]);
+  });
+
+  it('adds the clips recorded as examples of a way: to the written word of that way, else as a word that was only said', () => {
+    const clip = (renderingId: string, wayId: string, blobHash: string, duringTakeId?: string) => ({ renderingId, blobHash, durationMs: 1000, actorId: 'a', wayId, ...(duringTakeId ? { duringTakeId } : {}) });
+    const words = termWords({ ...term, audioRenderings: [clip('e1', 'rendering:c3', 'x1'), clip('e2', 'rendering:c3', 'x2'), clip('e3', 'way:new', 'x3', 'tk2')] }, [], versionOf);
+    // The newest clip of the way becomes the voice of the written word that had none.
+    expect(words.find((w) => w.id === 'rendering:c3')).toMatchObject({ rendering: 'baba', voice: 'x2' });
+    // A word whose own change holds a voice keeps it.
+    expect(words.find((w) => w.id === 'rendering:c1')).toMatchObject({ voice: 'h1' });
+    expect(words.find((w) => w.id === 'way:new')).toMatchObject({ rendering: '', voice: 'x3', saidIn: { takeId: 'tk2', n: 2 } });
+  });
+
+  it('plays a recorded example for a term with no written word and no voice in a change', () => {
+    const only = { renderings: [], adjustments: [], audioRenderings: [{ renderingId: 'e1', blobHash: 'x1', durationMs: 1000, actorId: 'a', wayId: 'way:1' }] };
+    expect(termVoice(only)).toBe('x1');
+    expect(ourWord(only)).toEqual({ kind: 'voice', voice: 'x1' });
   });
 
   it('puts a rendering with no change of its own before those that have one, and has nothing for a term with no word', () => {

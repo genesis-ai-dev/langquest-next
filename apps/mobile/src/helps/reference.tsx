@@ -369,7 +369,7 @@ export function BibleBar(props: { bible: Bible; onOpen: () => void }) {
 // ---- key words --------------------------------------------------------------------------
 
 /**
- * The Key words chip (a-wsTerms; LAN-233, decision 207): the team's words as
+ * The Key words chip (a-wsTerms; LAN-233, decision 208): the team's words as
  * tiles that wrap, each with the key word, the team's word and ▶ for its
  * voice ("no word yet" in amber when there is none). A tap on a tile opens
  * its sheet over the recorder (keyTerms/KeyTermSheet.tsx), where it is used,

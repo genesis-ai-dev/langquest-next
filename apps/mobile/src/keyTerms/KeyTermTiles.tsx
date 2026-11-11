@@ -1,4 +1,4 @@
-// The team's words on the recorder's Key words chip (LAN-233, decision 207):
+// The team's words on the recorder's Key words chip (LAN-233, decision 208):
 // one tile for each key word, the word small and muted on top, the team's
 // word big under it, ▶ on the right when there is a voice. A word with no
 // word yet is amber. Tiles wrap onto more lines and never scroll sideways

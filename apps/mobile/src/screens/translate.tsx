@@ -11,7 +11,7 @@
 // chip each: the Bible (play, Back 10 s, a Bible picker, notes on verses and
 // moments), the guide, key words (a tile for each, the team's word on it; a tap opens its
 // sheet over the recorder, never another screen, so a key word never ends a
-// recording, LAN-233, decision 207; a switch there puts the team's words in the
+// recording, LAN-233, decision 208; a switch there puts the team's words in the
 // Bible's text), notes, and everything recorded so far. Playing the Bible while recording pauses the
 // microphone and recording resumes when it stops (listen, speak, listen;
 // LAN-23). The recorder shows the parts recorded under one card and the

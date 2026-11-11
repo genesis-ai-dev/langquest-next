@@ -1,5 +1,5 @@
 // A key word, opened from its tile on the recorder's Key words chip (LAN-233,
-// decision 207). It is a sheet over the recorder and never another screen, so
+// decision 208). It is a sheet over the recorder and never another screen, so
 // a recording goes on under it: the word and what it means; where it is in
 // this passage (a tap plays that verse); the team's words for it, each with
 // its voice, the version it was said in and the versions that used it; every

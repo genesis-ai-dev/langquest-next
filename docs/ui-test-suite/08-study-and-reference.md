@@ -352,7 +352,7 @@ Steps:
 3. In the sheet, tap a verse it is in, and "Open the word's page".
 
 Expected:
-- Each word is a tile (LAN-233, decision 207): the key word small on top, the team's word big under it ("Recorded word" when it was only said, "no word yet" in amber when there is none), and ▶ on the right when there is a voice. The tiles wrap onto more lines and never scroll sideways.
+- Each word is a tile (LAN-233, decision 208): the key word small on top, the team's word big under it ("Recorded word" when it was only said, "no word yet" in amber when there is none), and ▶ on the right when there is a voice. The tiles wrap onto more lines and never scroll sideways.
 - Step 2 opens a sheet over the workspace, never another screen: the meaning, where the word is in the passage (for example "Luke 15:18, 21"), the team's words with the version each was said in and the versions that used it, every passage it is in, and how other languages say it.
 - Step 3's verse plays from the Bible and switches to the "Bible" chip, with the selected verse. In the study the footer then reads "Back to Key words", and it and the phone's Back return to the Key words chip. When the Bible's audio has no verse timings (the built-in BSB, so the automated run), the verses are plain text and no verse plays. When the verse cannot be played, the pane stays and the toast reads "This Bible has no audio for that verse."
 - "Open the word's page" opens the term's page (STUDY-023).

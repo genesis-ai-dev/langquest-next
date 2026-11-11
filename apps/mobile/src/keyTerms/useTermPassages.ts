@@ -15,7 +15,7 @@ export function useTermPassages(ctx: Ctx, termId: string, term: KeyTermView | nu
     let current = true;
     void (async () => {
       const units = new Set(await passagesLinkingTerm(termId));
-      for (const a of term.adjustments) {
+      for (const a of [...term.adjustments, ...term.audioRenderings]) {
         const u = a.duringTakeId ? await passageOfTake(a.duringTakeId) : null;
         if (u) units.add(u);
       }
