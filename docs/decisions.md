@@ -10917,9 +10917,12 @@ is public, so they cost nothing, and the team sees every run. Decided
   web suite's jobs do (`scripts/ci-android-emulator.sh`). GitHub's Mac
   machines have no Docker, so the iPhone's stack runs on a Linux job of the
   same run and the Mac reaches it through a Cloudflare quick tunnel. The
-  tunnel needs no account or key, and a small gate on the Linux side lets
-  in only requests with a token made for that run, handed to both jobs as a
-  job output (`scripts/phone-tunnel.mjs`). The Mac maps the stack's ports
+  tunnel needs no account or key. A small gate on the Linux side lets in
+  only requests with a token it makes for the run, and gives that token
+  only to a job that shows an OIDC token GitHub signed for this repository,
+  this workflow and this run (`scripts/phone-tunnel.mjs`). A job output or
+  a job's env would have shown the token in the public logs (the first run
+  did), so it is in neither. The Mac maps the stack's ports
   back to localhost, so the test build is the one `npm run test:ui:build`
   makes (decision 95, amended 2026-10-13).
 - **Every flow but `voice`.** The plan's skips stay (`maestro-plan.mjs`),

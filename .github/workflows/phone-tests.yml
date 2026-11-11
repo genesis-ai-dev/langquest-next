@@ -102,6 +102,7 @@ jobs:
           restore-keys: phone-tests-gradle-
       - name: Build the Android test app
         id: build
+        timeout-minutes: 90
         run: |
           export JAVA_HOME="$JAVA_HOME_17_X64"
           node scripts/maestro-build.mjs --platform android --build-only --abi x86_64
@@ -157,22 +158,14 @@ jobs:
         if: always()
         with: { phase: save, job-images: 'true' }
 
-  # A value made for this run and handed only to the two iPhone jobs: the
-  # tunnel's gate lets in nothing without it. Never printed, never in an artifact.
-  ios-key:
-    name: Tunnel key
-    if: github.event_name != 'workflow_dispatch' || inputs.phones != 'android'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      token: ${{ steps.key.outputs.token }}
-    steps:
-      - id: key
-        run: echo "token=$(openssl rand -hex 32)" >> "$GITHUB_OUTPUT"
-
+  # The iPhone's test server, reached through a public tunnel. Its gate lets
+  # in nothing without a token it makes in the step that starts it and gives
+  # only to a job GitHub signs an OIDC token for, in this run
+  # (scripts/phone-tunnel.mjs). A job's env and outputs show in the public
+  # logs, so the token is in neither.
   ios-server:
     name: iPhone test server
-    needs: ios-key
+    if: github.event_name != 'workflow_dispatch' || inputs.phones != 'android'
     runs-on: ubuntu-latest
     timeout-minutes: 200
     permissions:
@@ -181,7 +174,6 @@ jobs:
       actions: read
     env:
       CI: 'true'
-      PHONE_TUNNEL_TOKEN: ${{ needs.ios-key.outputs.token }}
       GH_TOKEN: ${{ github.token }}
       SERVER: ${{ github.workspace }}/.phone-server
     steps:
@@ -209,7 +201,9 @@ jobs:
         run: |
           curl -fsSL -o "$RUNNER_TEMP/cloudflared" "https://github.com/cloudflare/cloudflared/releases/download/$CLOUDFLARED_VERSION/cloudflared-linux-amd64"
           chmod +x "$RUNNER_TEMP/cloudflared"
-          (setsid nohup node scripts/phone-tunnel.mjs serve --port 9000 > "$RUNNER_TEMP/gate.log" 2>&1 &)
+          token="$(openssl rand -hex 32)"
+          (PHONE_TUNNEL_TOKEN="$token" setsid nohup node scripts/phone-tunnel.mjs serve --port 9000 > "$RUNNER_TEMP/gate.log" 2>&1 &)
+          unset token
           (setsid nohup "$RUNNER_TEMP/cloudflared" tunnel --no-autoupdate --url http://127.0.0.1:9000 > "$RUNNER_TEMP/cloudflared.log" 2>&1 &)
           bash scripts/phone-tests-wait.sh tunnel "$RUNNER_TEMP/cloudflared.log" "$SERVER/tunnel.json"
       - name: Hand the address and the accounts to the iPhone job
@@ -239,16 +233,17 @@ jobs:
 
   ios:
     name: iPhone simulator
-    needs: ios-key
+    if: github.event_name != 'workflow_dispatch' || inputs.phones != 'android'
     runs-on: macos-26
     timeout-minutes: 180
     permissions:
       contents: read
       # Downloads the test server's address from this run, once it is there.
       actions: read
+      # An OIDC token for this job, which the test server's gate trades for its token.
+      id-token: write
     env:
       CI: 'true'
-      PHONE_TUNNEL_TOKEN: ${{ needs.ios-key.outputs.token }}
       GH_TOKEN: ${{ github.token }}
       RESULTS: e2e/results/maestro/ios/nightly
       SERVER: ${{ github.workspace }}/.phone-server
