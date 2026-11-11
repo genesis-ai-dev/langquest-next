@@ -1,4 +1,4 @@
-// The bar for the key-term check (decision 206, LAN-228 stage 2): a set of
+// The bar for the key-term check (decision 207, LAN-228 stage 2): a set of
 // recorded term examples and passages whose content is known, and the
 // precision and recall of a matcher over them. Pure: bytes and numbers in,
 // numbers and text out. `scripts/key-term-eval.ts` reads the set from disk.
@@ -107,7 +107,7 @@ export function reportFor(matcher: Pick<Matcher, 'id' | 'version'>, pairs: reado
   return { matcher: matcher.id, version: matcher.version, threshold, overall: tally(pairs, threshold), perTerm, best };
 }
 
-/** What a matcher has to reach before it ships (decision 206). Both numbers are for the team to confirm. */
+/** What a matcher has to reach before it ships (decision 207). Both numbers are for the team to confirm. */
 export interface Bar {
   precision: number;
   recall: number;

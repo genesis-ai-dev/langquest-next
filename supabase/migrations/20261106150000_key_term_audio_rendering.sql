@@ -1,4 +1,4 @@
--- v1.KeyTermAudioRenderingAdded: a spoken example of a key term (decisions.md 206).
+-- v1.KeyTermAudioRenderingAdded: a spoken example of a key term (decisions.md 207).
 --
 --   v1.KeyTermAudioRenderingAdded { termId, renderingId, blobHash, durationMs, wayId, duringTakeId? }
 --

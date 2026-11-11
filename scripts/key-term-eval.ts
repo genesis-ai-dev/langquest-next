@@ -1,4 +1,4 @@
-// The bar for the key-term check (decision 206): precision and recall of each
+// The bar for the key-term check (decision 207): precision and recall of each
 // matcher over a set of term examples and passages with known contents.
 //
 //   npm run key-terms:eval -- eval/key-terms/<set>

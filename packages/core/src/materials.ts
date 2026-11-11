@@ -29,7 +29,7 @@ export type MaterialEvents = {
   'v1.MaterialLocked': { materialId: string; locked: boolean };
   'v1.KeyTermDefined': { termId: string; term: string; gloss: string; unitScope: string[] };
   'v1.KeyTermRenderingAdded': { termId: string; renderingId: string; rendering: string; context: string };
-  // A spoken example of a term (decision 206). wayId groups repeats of one way of saying it.
+  // A spoken example of a term (decision 207). wayId groups repeats of one way of saying it.
   'v1.KeyTermAudioRenderingAdded': { termId: string; renderingId: string; blobHash: string; durationMs: number; wayId: string; duringTakeId?: string };
   'v1.KeyTermAdjusted': { termId: string; adjustmentId: string; note: string; blobHash?: string; duringTakeId?: string };
   'v1.KeyTermLinked': { takeId: string; termId: string; note?: string; adjustmentId?: string };

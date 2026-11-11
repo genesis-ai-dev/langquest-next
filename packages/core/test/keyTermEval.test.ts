@@ -5,7 +5,7 @@ import {
 
 /**
  * Why: this is the bar stages 3 and 4 of the key-term check are judged by
- * (decision 206). If precision or recall were miscounted, a weak matcher
+ * (decision 207). If precision or recall were miscounted, a weak matcher
  * could ship or a good one be thrown out, so the arithmetic is pinned here.
  */
 const clip = (id: string): EvalClip => ({ id, samples: new Float32Array(10), sampleRate: 16000 });

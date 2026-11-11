@@ -9,7 +9,7 @@ import type { AnyEvent } from '../src/events';
 
 /**
  * Why: a recorded example of a key term is what a later check listens for
- * (decision 206). It must fold the same on every phone in any order, refuse
+ * (decision 207). It must fold the same on every phone in any order, refuse
  * a malformed payload, and leave the written rendering's shape alone.
  */
 describe('v1.KeyTermAudioRenderingAdded', () => {

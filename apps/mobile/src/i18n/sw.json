@@ -7989,5 +7989,28 @@
       "badItem": "Chagua kimojawapo cha vipengele vyako vya aina hiyo hiyo.",
       "offline": "Imeshindwa kufikia LangQuest. Angalia muunganisho wako ujaribu tena."
     }
+  },
+  "orgExport": {
+    "title": "Hamisha data zote",
+    "sub": "Zip moja: rekodi katika folda, orodha ya kila rekodi, jedwali za maendeleo na kumbukumbu kamili.",
+    "whole": "Shirika lote",
+    "some": "Lugha chache tu",
+    "start": "Tengeneza zip",
+    "waiting": "Inasubiri kuanza",
+    "reading": "Inasoma shirika",
+    "audio": "Inaongeza rekodi: {{done}} kati ya {{total}}",
+    "log": "Inaongeza kumbukumbu kamili",
+    "ready": "Tayari kupakua",
+    "download": "Pakua",
+    "failed": "Uhamishaji haukukamilika. Jaribu tena.",
+    "started": "Uhamishaji umeanza.",
+    "problem": "Uhamishaji haukuweza kuanza.",
+    "expired": "Imeondolewa baada ya siku 7.",
+    "keep": "Zip iliyokamilika hukaa siku 7.",
+    "help": "Hufungua ukurasa wa kupakua data yote ya shirika kama zip moja.",
+    "wholeHelp": "Hamisha lugha zote za shirika.",
+    "someHelp": "Chagua lugha za kuhamisha.",
+    "languageHelp": "Jumuisha au acha lugha hii.",
+    "downloadHelp": "Hupakua zip iliyokamilika."
   }
 }
