@@ -2792,6 +2792,17 @@
       "changes_other": "{{count, number}} ለውጦች",
       "latestBy": "የመጨረሻው በ{{name}}፣ {{when}}",
       "playExplanation": "ማብራሪያውን ያጫውቱ",
+      "examples": "በ{{language}} ይናገሩት",
+      "examplesCount": "ተቀርጿል፦ {{count, number}} ከ{{want, number}}",
+      "wayN": "መንገድ {{n, number}}",
+      "recordThisWay": "ይህን መንገድ ይቅረጹ",
+      "recordAgain": "ይህን መንገድ እንደገና ይቅረጹ",
+      "addWay": "ሌላ የመናገሪያ መንገድ ያክሉ",
+      "addWayHelp": "ቡድንዎ ይህን ቃል በሌላ ቦታ የሚናገርበትን ሌላ መንገድ ያክሉ፤ ለምሳሌ ሌላ ትርጉም ሲኖረው።",
+      "wayUsedIn": "የሚውልበት",
+      "wayPassageHelp": "ይህን መንገድ በቦታው ለመስማት {{passage}} ይክፈቱ",
+      "playExample": "ምሳሌ {{n, number}} ያጫውቱ",
+      "exampleSaved": "ምሳሌው ተቀምጧል",
       "openVersion": "ስሪት {{n, number}}ን ይክፈቱ",
       "adjustTitle": "{{language}} · «{{term}}»",
       "adjustSubTie": "እንደ {{passage}} አካል ተመዝግቦ ከረቂቅዎ ጋር ተያይዟል።",
@@ -3523,7 +3534,8 @@
         "checking": "ተገናኝቷል",
         "offline": "ከመስመር ውጭ",
         "refused": "እያሰመረ አይደለም",
-        "tooOld": "ለመቀበል ያዘምኑ"
+        "tooOld": "ለመቀበል ያዘምኑ",
+        "signIn": "Sign-in not renewed"
       },
       "help": {
         "live": "የቡድንዎ ለውጦች ወዲያውኑ ይደርሳሉ፣ የእርስዎም ወዲያውኑ ይላካሉ።",
@@ -3532,7 +3544,8 @@
         "refused": "አገልጋዩ ከዚህ መሣሪያ ለውጦችን እየተቀበለ አይደለም። ሥራዎ አሁንም እዚህ ተቀምጧል።",
         "tooOld": "ይህ መተግበሪያ የቡድንዎን ለውጦች ለመቀበል በጣም አሮጌ ነው። ከመደብሩ ያዘምኑት።",
         "toReceive": "ይህ መሣሪያ አሁንም እያወረዳቸው ያሉ የሌሎች ቅጂዎች።",
-        "refusedLine": "አገልጋዩ ያልተቀበላቸው ለውጦች፣ ብዙውን ጊዜ ፈቃድ ስለተቀየረ። በዚህ መሣሪያ ላይ ይቆያሉ፤ እያንዳንዱን ለማየት ዝርዝሮችን ይክፈቱ።"
+        "refusedLine": "አገልጋዩ ያልተቀበላቸው ለውጦች፣ ብዙውን ጊዜ ፈቃድ ስለተቀየረ። በዚህ መሣሪያ ላይ ይቆያሉ፤ እያንዳንዱን ለማየት ዝርዝሮችን ይክፈቱ።",
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "የሚቀበሉ",
       "refusedLine": "ውድቅ የተደረጉ",
@@ -7976,5 +7989,28 @@
       "badItem": "ተመሳሳይ ዓይነት ካላቸው የራስዎ ንጥሎች አንዱን ይምረጡ።",
       "offline": "LangQuestን ማግኘት አልተቻለም። ግንኙነትዎን ፈትሸው እንደገና ይሞክሩ።"
     }
+  },
+  "orgExport": {
+    "title": "ሁሉንም መረጃ ላክ",
+    "sub": "አንድ ዚፕ፦ በአቃፊዎች ውስጥ ቅጂዎች፣ የእያንዳንዱ ቅጂ ዝርዝር፣ የእድገት ሉሆች እና ሙሉ መዝገብ።",
+    "whole": "መላው ድርጅት",
+    "some": "አንዳንድ ቋንቋዎች ብቻ",
+    "start": "ዚፕ ሥራ",
+    "waiting": "ለመጀመር በመጠበቅ ላይ",
+    "reading": "ድርጅቱን በማንበብ ላይ",
+    "audio": "ቅጂዎችን በመጨመር ላይ፦ {{done}} ከ {{total}}",
+    "log": "ሙሉ መዝገቡን በመጨመር ላይ",
+    "ready": "ለማውረድ ዝግጁ",
+    "download": "አውርድ",
+    "failed": "ላኪያው አልተጠናቀቀም። እንደገና ሞክር።",
+    "started": "ላኪያው ተጀምሯል።",
+    "problem": "ላኪያውን መጀመር አልተቻለም።",
+    "expired": "ከ7 ቀን በኋላ ተወግዷል።",
+    "keep": "የተጠናቀቀ ዚፕ ለ7 ቀን ይቆያል።",
+    "help": "የድርጅቱን ሁሉንም መረጃ በአንድ ዚፕ ለማውረድ ገጽ ይከፍታል።",
+    "wholeHelp": "የድርጅቱን ሁሉንም ቋንቋዎች ላክ።",
+    "someHelp": "የሚላኩ ቋንቋዎችን ምረጥ።",
+    "languageHelp": "ይህን ቋንቋ አካትት ወይም ተው።",
+    "downloadHelp": "የተጠናቀቀውን ዚፕ ያወርዳል።"
   }
 }

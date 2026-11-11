@@ -8385,6 +8385,12 @@ partners and users real trouble. So:
 - **Sent means sent.** Offline, asking someone, a review and a published
   version say who gets it when the device is connected.
 
+Amended (2026-11-06, Caleb Koster): My Work's to-do rows end with the same
+download button as a Map row, for the passage each is about (LAN-19), so
+"On this device" shows before the passage opens. It is on the rows of the
+Then list and the "record again" row; the lead card, the join, divide and
+language rows, and the waiting and recent lists have none.
+
 ## 167. The nightly mutation run is four shards of core's files, dealt by what each costs, and one merged score
 
 Date: 2026-10-26 · By: Carl Sauder · Status: accepted
@@ -10853,3 +10859,122 @@ review over 14 days past the replacement, or a build cut from an older commit,
 still finds no copy: a new install on a slow link then pulls the log and its work
 is safe. At about one bump a week this keeps one or two versions nobody reports;
 at early October's three a week, five or six, each a copy per language.
+
+## 205. Key terms are spotted in a take by matching audio to the team's recorded renderings, on the phone
+
+Date: 2026-11-05 · By: Ryder Wishart · Status: accepted
+
+Reason: a partner team on the 2026-11-05 call (users of Render) said a
+missed key term is usually found at the consultant stage, and the draft is
+redone from the start; they want the check while drafting, against key-term
+recordings made before the book begins (LAN-228). The app holds key terms
+per language (`KeyTermDefined`, text renderings in `KeyTermRenderingAdded`,
+a manual tie in `KeyTermLinked`) and only the translator's tagging says
+whether a take has one. Of the ways to detect a term automatically,
+fixed-vocabulary keyword spotting (the sub-megabyte models) is ruled out:
+its size comes from thousands of labelled recordings per word, and the
+words are each team's target-language renderings, for which no data exists.
+Speech recognition then text matching is ruled out on the phone for the
+same reason, since ultra low-resource languages have no recognizer, and on
+a server it would send recordings to a third party, which changes the Play
+"Shared" answers (decision 49). Query-by-example is what remains and fits:
+the team records each rendering two or three times, and a matcher slides
+those clips over the take and reports a confidence. The term and the take
+are usually spoken by the same translator or a small team, the easy case
+for acoustic matching; both inputs are content-addressed blobs (decision
+4), so a result keyed by take hash, rendering hash and matcher version is
+derived, cached per device and recomputable, never synced as status
+(PLAN.md section 4). The matcher runs in the native `microphone-energy`
+module after a take is saved, not during recording. The output is a hint
+("3 of 4 key terms heard"), never a gate, because renderings inflect, get
+paraphrased or split across clauses; the translator's tie or dismissal
+remains the record (`KeyTermLinked`) and calibrates the threshold for that
+language locally. The shipped rendering event is text-only and keeps its
+shape; recorded renderings are a new versioned event. Stages: the audio
+rendering event, then an evaluation set from a partner language, then MFCC
+features with subsequence DTW (no model to download), then a small
+pretrained multilingual encoder only if that misses the bar, keeping the
+DTW, cache and screen.
+Reverse if: a partner language gains a usable recognizer and the organization
+opts in to server transcription (then text matching can run in Aquilla and
+feed the same hint), or MFCC matching is wrong often enough across speakers
+that the encoder download is the cheaper cost.
+
+## 206. An organization admin takes all their data out as one zip made by a server job, in a fixed documented format
+
+Date: 2026-11-07 · By: Caleb Koster · Status: accepted
+
+Reason: LAN-227 (asked for by Ryder): an organization must know everything it
+put into LangQuest can leave with it, whole and usable, without asking us.
+The access-token API (70) reads one passage at a time and cannot hand out a
+whole organization; the reports' CSVs hold counts, not recordings. So an
+organization admin (organization-scope Manage roles, the Organization Admin
+role and no other) asks for **Export all data** in the web app, on the
+organization's home, for the whole organization or some of its languages.
+Where it runs: a job in the job container (`org-export`, `server/orgExport.ts`,
+decision 141), not the organization's Durable Object. The object has a 128 MB
+isolate and a request's time limit (decision 132); a zip of several hundred
+recordings, or a Bible's, fits neither, and the job container has 4 GiB and
+hours. The job folds each language as the projection pass does (`foldStream`),
+reads each recording from R2 through the Worker by hash, and writes one zip
+in parts (R2 multipart, 32 MiB a part, through `/api/org-exports/:id/upload`,
+because a Worker takes 100 MB of request body at most), so no archive sits in
+memory or on disk and no phone is involved. The admin sees progress and a
+Download link, an hour long and signed with a key derived from the service
+key as blob links are (`worker/orgExports.ts`); the zip is deleted after 7
+days. A request is a private row in `org_exports` (the pattern of decision
+48), not an event: no new event type. One export at a time per organization.
+What is in it, and how it is laid out, is `docs/org-export.md`, which partners
+may rely on: recordings as standard audio in folders by language, book,
+chapter and passage with readable names; a manifest (CSV and JSON) of every
+recording and every voice note; spreadsheets by language, book, person, month
+and passage; people, passages, reviews, notes and key terms; and the raw event
+log as JSON lines, which is the guarantee: the rest is a reading of it.
+What is read is core's own (`planOrgExport`, pure, in `packages/sync` where only servers use it, so the phone and web bundle does not carry it): it uses
+`derivePassage`, `approvedVersion` and `languageReport`, so a figure in a sheet
+is the figure the dashboard shows. `packages/sync/test/orgExport.test.ts`
+checks a fixture organization's manifest against its event log, and
+`apps/web/test/orgExports.test.ts` unzips what the job writes with a real tool.
+The format is versioned (`EXPORT_FORMAT_VERSION`): a column may be added, never
+renamed or removed, without a new version. Not built here, as the issue says:
+importing an export back in, scheduled exports, and per-person data requests.
+The phone does not offer it (a browser saves a zip; a phone has no place to).
+Choosing the job over the Durable Object, and the Organization home over the
+Reports section for the button, were the recommended options on the question
+card; Caleb asked for the issue to be built as written and did not rule on
+either, so both are open to change.
+Reverse if: exports are small enough for the Durable Object to stream (then
+the job and its multipart door are needless), or an organization needs a
+format this one does not give (add a version beside it, or a tailored export
+from what that organization says it needs).
+
+## 207. A recorded key-term example is a way of saying the term, needs no written form, and lists the passages it was recorded in
+
+Date: 2026-11-11 · By: Caleb Koster · Status: accepted
+
+Reason: stages 1 and 2 of 205 (LAN-228). Stage 1 is
+`v1.KeyTermAudioRenderingAdded { termId, renderingId, blobHash, durationMs,
+wayId, duringTakeId? }`, the new versioned event 205 calls for: grow-only, one
+entry per (term, renderingId), fill_reference like the other key-term events,
+its audio a voice note (m4a unless `v1.AudioFormatSet` says otherwise, 77). The
+microphone and the sharing are what voice notes already use, so the Play
+answers do not change (49). A source term can be said more than one way in the
+target language, depending on context, and a language may be oral only, so a
+way cannot depend on written text: `wayId` names the way a clip is an example
+of (repeats share it, different ways differ), and is the id of a written
+rendering when the team wrote one, else an id the phone makes. A clip also names
+the take being drafted when it was recorded (`duringTakeId`, as a key-term
+adjustment does), so each way lists the passages it was recorded in, and a tap
+opens the version in context. Nothing makes a team record before a book: a word
+and its ways can be added in the key words list ahead of time, or on the word's
+page as passages come. The later check accepts a take that holds any way, and
+can say which. The shipped `v1.KeyTermLinked` keeps its shape.
+
+Stage 2 is the bar: `scripts/key-term-eval.ts` (`npm run key-terms:eval`)
+reports each matcher's precision and recall on a set of partner clips with known
+contents (`eval/key-terms/README.md`); "always heard" and "never heard" are the
+floor. The starting bar, precision and recall of 0.8 each, is a guess for the
+team to confirm against the first real set; the first real set needs partner
+clips.
+Reverse if: the first real set shows no matcher reaching the bar on two or more
+partner languages, or teams will not record examples.

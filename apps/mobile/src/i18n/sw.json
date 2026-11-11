@@ -2792,6 +2792,17 @@
       "changes_other": "Mabadiliko {{count, number}}",
       "latestBy": "la karibuni na {{name}}, {{when}}",
       "playExplanation": "Cheza maelezo",
+      "examples": "Isemeni kwa {{language}}",
+      "examplesCount": "Zilizorekodiwa: {{count, number}} kati ya {{want, number}}",
+      "wayN": "Njia ya {{n, number}}",
+      "recordThisWay": "Rekodi njia hii",
+      "recordAgain": "Rekodi njia hii tena",
+      "addWay": "Ongeza njia nyingine ya kulisema",
+      "addWayHelp": "Ongeza njia nyingine timu yako inasema neno hili mahali pengine, kwa mfano linapomaanisha kitu kingine.",
+      "wayUsedIn": "Inatumika katika",
+      "wayPassageHelp": "Fungua {{passage}} kusikia njia hii katika muktadha",
+      "playExample": "Cheza mfano {{n, number}}",
+      "exampleSaved": "Mfano umehifadhiwa",
       "openVersion": "Fungua Toleo la {{n, number}}",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Linaandikwa kama sehemu ya {{passage}}, na kuunganishwa na rasimu yako.",
@@ -3523,7 +3534,8 @@
         "checking": "Imeunganishwa",
         "offline": "Nje ya mtandao",
         "refused": "Haisawazishi",
-        "tooOld": "Sasisha ili kupokea"
+        "tooOld": "Sasisha ili kupokea",
+        "signIn": "Sign-in not renewed"
       },
       "help": {
         "live": "Mabadiliko ya timu yako yanafika papo hapo, na yako yanatumwa mara moja.",
@@ -3532,7 +3544,8 @@
         "refused": "Seva haikubali mabadiliko kutoka kifaa hiki. Kazi yako bado imehifadhiwa hapa.",
         "tooOld": "Programu hii ni ya zamani mno kupokea mabadiliko ya timu yako. Isasishe kutoka dukani.",
         "toReceive": "Rekodi za wengine ambazo kifaa hiki bado kinapakua.",
-        "refusedLine": "Mabadiliko ambayo seva haikukubali, kwa kawaida kwa sababu ruhusa imebadilika. Yanabaki kwenye kifaa hiki; fungua Maelezo kuona kila moja."
+        "refusedLine": "Mabadiliko ambayo seva haikukubali, kwa kawaida kwa sababu ruhusa imebadilika. Yanabaki kwenye kifaa hiki; fungua Maelezo kuona kila moja.",
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "Za kupokea",
       "refusedLine": "Yamekataliwa",
@@ -7976,5 +7989,28 @@
       "badItem": "Chagua kimojawapo cha vipengele vyako vya aina hiyo hiyo.",
       "offline": "Imeshindwa kufikia LangQuest. Angalia muunganisho wako ujaribu tena."
     }
+  },
+  "orgExport": {
+    "title": "Hamisha data zote",
+    "sub": "Zip moja: rekodi katika folda, orodha ya kila rekodi, jedwali za maendeleo na kumbukumbu kamili.",
+    "whole": "Shirika lote",
+    "some": "Lugha chache tu",
+    "start": "Tengeneza zip",
+    "waiting": "Inasubiri kuanza",
+    "reading": "Inasoma shirika",
+    "audio": "Inaongeza rekodi: {{done}} kati ya {{total}}",
+    "log": "Inaongeza kumbukumbu kamili",
+    "ready": "Tayari kupakua",
+    "download": "Pakua",
+    "failed": "Uhamishaji haukukamilika. Jaribu tena.",
+    "started": "Uhamishaji umeanza.",
+    "problem": "Uhamishaji haukuweza kuanza.",
+    "expired": "Imeondolewa baada ya siku 7.",
+    "keep": "Zip iliyokamilika hukaa siku 7.",
+    "help": "Hufungua ukurasa wa kupakua data yote ya shirika kama zip moja.",
+    "wholeHelp": "Hamisha lugha zote za shirika.",
+    "someHelp": "Chagua lugha za kuhamisha.",
+    "languageHelp": "Jumuisha au acha lugha hii.",
+    "downloadHelp": "Hupakua zip iliyokamilika."
   }
 }

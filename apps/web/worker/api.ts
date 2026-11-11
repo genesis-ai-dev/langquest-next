@@ -5,6 +5,7 @@ import { handleBlobs, type BlobDeps } from './blobs';
 import { handleHelpAudio } from './helpAudio';
 import { handleTutorialVideo } from './tutorialVideos';
 import { handleTutorialReview, REVIEW_PATH, type ReviewDeps } from './tutorialReview';
+import { handleOrgExports, type ExportDeps } from './orgExports';
 import { FILMED_PATH, handleTutorialFilmed, type FilmedDeps } from './tutorialFilmed';
 import { handleUserIssues, USER_ISSUES_PATH, type UserIssuesDeps } from './userIssues';
 import { handleLanguoids, type LanguoidDeps } from './languoids';
@@ -37,6 +38,8 @@ export interface ApiDeps {
   tutorialReview?: ReviewDeps;
   /** The filming saying its films are in (`/api/tutorial-filmed`, tutorialFilmed.ts); without it that route answers 503. */
   tutorialFilmed?: FilmedDeps;
+  /** The organization export's door (`/api/orgs/:org/exports`, `/api/org-exports/`, orgExports.ts, decisions.md 206); without it those routes answer 503. */
+  orgExports?: ExportDeps;
   /** The watch for user issues (`/api/user-issues`, userIssues.ts); without it that route answers 503. */
   userIssues?: UserIssuesDeps;
 }
@@ -87,7 +90,7 @@ export async function handleApi(request: Request, deps: ApiDeps): Promise<Respon
   if (path === '/api/v1' || path.startsWith('/api/v1/')) {
     return deps.agent ? handleAgentApi(request, deps.agent) : json(503, { error: 'The API is not set up here.' });
   }
-  if (request.method === 'OPTIONS') return withCors(request, new Response(null, { status: 204, headers: { 'access-control-allow-methods': 'GET, HEAD, PUT' } }));
+  if (request.method === 'OPTIONS') return withCors(request, new Response(null, { status: 204, headers: { 'access-control-allow-methods': 'GET, HEAD, PUT, POST' } }));
   return withCors(request, await answer(request, deps));
 }
 
@@ -105,6 +108,9 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
   if (url.pathname === FILMED_PATH) return deps.tutorialFilmed ? handleTutorialFilmed(request, deps.tutorialFilmed) : json(503, { error: 'The tutorial intake is not set up here.' });
   if (url.pathname === '/api/languoids') {
     return deps.languoids ? handleLanguoids(request, deps.languoids) : json(503, { error: 'The language list is not set up here.' });
+  }
+  if (/^\/api\/orgs\/[^/]+\/exports(\/|$)/.test(url.pathname) || url.pathname.startsWith('/api/org-exports/')) {
+    return deps.orgExports ? handleOrgExports(request, deps.orgExports) : json(503, { error: 'Exports are not set up here.' });
   }
   const match = /^\/api\/orgs\/([^/]+)\/reports$/.exec(url.pathname);
   if (!match) return json(404, { error: 'Not found.' });

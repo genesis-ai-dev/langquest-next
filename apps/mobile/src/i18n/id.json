@@ -2694,6 +2694,17 @@
       "changes_other": "{{count, number}} perubahan",
       "latestBy": "terakhir oleh {{name}}, {{when}}",
       "playExplanation": "Putar penjelasan",
+      "examples": "Ucapkan dalam {{language}}",
+      "examplesCount": "Terekam: {{count, number}} dari {{want, number}}",
+      "wayN": "Cara {{n, number}}",
+      "recordThisWay": "Rekam cara ini",
+      "recordAgain": "Rekam cara ini lagi",
+      "addWay": "Tambah cara lain mengucapkannya",
+      "addWayHelp": "Tambahkan cara lain tim Anda mengucapkan kata ini di tempat lain, misalnya saat artinya berbeda.",
+      "wayUsedIn": "Dipakai di",
+      "wayPassageHelp": "Buka {{passage}} untuk mendengar cara ini dalam konteksnya",
+      "playExample": "Putar contoh {{n, number}}",
+      "exampleSaved": "Contoh disimpan",
       "openVersion": "Buka Versi {{n, number}}",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Dicatat sebagai bagian dari {{passage}}, dan dikaitkan dengan draf Anda.",
@@ -3413,7 +3424,8 @@
         "checking": "Terhubung",
         "offline": "Luring",
         "refused": "Tidak menyinkronkan",
-        "tooOld": "Perbarui untuk menerima"
+        "tooOld": "Perbarui untuk menerima",
+        "signIn": "Sign-in not renewed"
       },
       "help": {
         "live": "Perubahan dari tim Anda langsung tiba, dan perubahan Anda langsung terkirim.",
@@ -3422,7 +3434,8 @@
         "refused": "Server tidak menerima perubahan dari perangkat ini. Pekerjaan Anda tetap tersimpan di sini.",
         "tooOld": "Aplikasi ini terlalu lama untuk menerima perubahan tim Anda. Perbarui dari toko aplikasi.",
         "toReceive": "Rekaman dari orang lain yang masih diunduh perangkat ini.",
-        "refusedLine": "Perubahan yang tidak diterima server, biasanya karena izin berubah. Tetap ada di perangkat ini; buka Detail untuk melihat masing-masing."
+        "refusedLine": "Perubahan yang tidak diterima server, biasanya karena izin berubah. Tetap ada di perangkat ini; buka Detail untuk melihat masing-masing.",
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "Akan diterima",
       "refusedLine": "Ditolak",
@@ -7631,5 +7644,28 @@
       "badItem": "Pilih salah satu item Anda sendiri dengan jenis yang sama.",
       "offline": "Tidak bisa menghubungi LangQuest. Periksa koneksi Anda dan coba lagi."
     }
+  },
+  "orgExport": {
+    "title": "Ekspor semua data",
+    "sub": "Satu zip: rekaman dalam folder, daftar setiap rekaman, lembar kemajuan, dan catatan lengkap.",
+    "whole": "Seluruh organisasi",
+    "some": "Hanya beberapa bahasa",
+    "start": "Buat zip",
+    "waiting": "Menunggu untuk dimulai",
+    "reading": "Membaca organisasi",
+    "audio": "Menambahkan rekaman: {{done}} dari {{total}}",
+    "log": "Menambahkan catatan lengkap",
+    "ready": "Siap diunduh",
+    "download": "Unduh",
+    "failed": "Ekspor tidak selesai. Coba lagi.",
+    "started": "Ekspor telah dimulai.",
+    "problem": "Ekspor tidak dapat dimulai.",
+    "expired": "Dihapus setelah 7 hari.",
+    "keep": "Zip yang selesai disimpan selama 7 hari.",
+    "help": "Membuka halaman untuk mengunduh semua data organisasi dalam satu zip.",
+    "wholeHelp": "Mengekspor semua bahasa organisasi.",
+    "someHelp": "Pilih bahasa yang akan diekspor.",
+    "languageHelp": "Sertakan atau lewati bahasa ini.",
+    "downloadHelp": "Mengunduh zip yang sudah selesai."
   }
 }

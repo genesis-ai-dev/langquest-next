@@ -2890,6 +2890,17 @@
       "changes_other": "{{count, number}} modifications",
       "latestBy": "la dernière par {{name}}, {{when}}",
       "playExplanation": "Écouter l’explication",
+      "examples": "Dites-le en {{language}}",
+      "examplesCount": "Enregistrés : {{count, number}} sur {{want, number}}",
+      "wayN": "Façon {{n, number}}",
+      "recordThisWay": "Enregistrer cette façon",
+      "recordAgain": "Enregistrer à nouveau cette façon",
+      "addWay": "Ajouter une autre façon de le dire",
+      "addWayHelp": "Ajoutez une autre façon dont votre équipe dit ce mot ailleurs, par exemple quand il a un autre sens.",
+      "wayUsedIn": "Utilisée dans",
+      "wayPassageHelp": "Ouvrir {{passage}} pour entendre cette façon en contexte",
+      "playExample": "Écouter l’exemple {{n, number}}",
+      "exampleSaved": "Exemple enregistré",
       "openVersion": "Ouvrir la version {{n, number}}",
       "adjustTitle": "{{language}} · « {{term}} »",
       "adjustSubTie": "Noté dans le cadre de {{passage}}, et lié à votre brouillon.",
@@ -3633,7 +3644,8 @@
         "checking": "Connecté",
         "offline": "Hors ligne",
         "refused": "Pas de synchronisation",
-        "tooOld": "Mettez à jour pour recevoir"
+        "tooOld": "Mettez à jour pour recevoir",
+        "signIn": "Sign-in not renewed"
       },
       "help": {
         "live": "Les modifications de votre équipe arrivent en temps réel, et les vôtres partent aussitôt.",
@@ -3642,7 +3654,8 @@
         "refused": "Le serveur n’accepte pas les modifications de cet appareil. Votre travail reste gardé ici.",
         "tooOld": "Cette application est trop ancienne pour recevoir les changements de votre équipe. Mettez-la à jour depuis le store.",
         "toReceive": "Enregistrements d’autres personnes que cet appareil télécharge encore.",
-        "refusedLine": "Modifications que le serveur n’a pas acceptées, souvent parce qu’une permission a changé. Elles restent sur cet appareil ; ouvrez Détails pour les voir."
+        "refusedLine": "Modifications que le serveur n’a pas acceptées, souvent parce qu’une permission a changé. Elles restent sur cet appareil ; ouvrez Détails pour les voir.",
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "À recevoir",
       "refusedLine": "Refusés",
@@ -8321,5 +8334,28 @@
       "badItem": "Choisissez un de vos propres éléments du même type.",
       "offline": "Impossible de joindre LangQuest. Vérifiez votre connexion et réessayez."
     }
+  },
+  "orgExport": {
+    "title": "Exporter toutes les données",
+    "sub": "Un zip : enregistrements dans des dossiers, la liste de chaque enregistrement, des feuilles de progression et l'historique complet.",
+    "whole": "Toute l'organisation",
+    "some": "Seulement certaines langues",
+    "start": "Créer le zip",
+    "waiting": "En attente de démarrage",
+    "reading": "Lecture de l'organisation",
+    "audio": "Ajout des enregistrements : {{done}} sur {{total}}",
+    "log": "Ajout de l'historique complet",
+    "ready": "Prêt à télécharger",
+    "download": "Télécharger",
+    "failed": "L'export ne s'est pas terminé. Réessayez.",
+    "started": "L'export a commencé.",
+    "problem": "Impossible de lancer l'export.",
+    "expired": "Supprimé après 7 jours.",
+    "keep": "Un zip terminé reste disponible 7 jours.",
+    "help": "Ouvre une page pour télécharger toutes les données de l'organisation dans un zip.",
+    "wholeHelp": "Exporte toutes les langues de l'organisation.",
+    "someHelp": "Choisissez les langues à exporter.",
+    "languageHelp": "Inclut ou exclut cette langue.",
+    "downloadHelp": "Télécharge le zip terminé."
   }
 }

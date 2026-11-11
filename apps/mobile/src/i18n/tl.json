@@ -2792,6 +2792,17 @@
       "changes_other": "{{count, number}} pagbabago",
       "latestBy": "pinakahuli ni {{name}}, {{when}}",
       "playExplanation": "I-play ang paliwanag",
+      "examples": "Sabihin ito sa {{language}}",
+      "examplesCount": "Na-record: {{count, number}} sa {{want, number}}",
+      "wayN": "Paraan {{n, number}}",
+      "recordThisWay": "I-record ang paraang ito",
+      "recordAgain": "I-record muli ang paraang ito",
+      "addWay": "Magdagdag ng ibang paraan ng pagsabi",
+      "addWayHelp": "Magdagdag ng isa pang paraan ng koponan ninyo sa pagsabi ng salitang ito sa ibang lugar, tulad kapag iba ang kahulugan.",
+      "wayUsedIn": "Ginamit sa",
+      "wayPassageHelp": "Buksan ang {{passage}} para marinig ang paraang ito sa konteksto",
+      "playExample": "I-play ang halimbawa {{n, number}}",
+      "exampleSaved": "Nai-save ang halimbawa",
       "openVersion": "Buksan ang Bersiyon {{n, number}}",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Naitala bilang bahagi ng {{passage}}, at nakatali sa iyong borador.",
@@ -3523,7 +3534,8 @@
         "checking": "Nakakonekta",
         "offline": "Offline",
         "refused": "Hindi nagsi-sync",
-        "tooOld": "I-update para makatanggap"
+        "tooOld": "I-update para makatanggap",
+        "signIn": "Sign-in not renewed"
       },
       "help": {
         "live": "Dumarating ang mga pagbabago mula sa iyong pangkat habang nangyayari ang mga ito, at agad na naipapadala ang sa iyo.",
@@ -3532,7 +3544,8 @@
         "refused": "Hindi tumatanggap ang server ng mga pagbabago mula sa device na ito. Itinatago pa rin dito ang iyong gawain.",
         "tooOld": "Masyadong luma ang app na ito para matanggap ang mga pagbabago ng iyong pangkat. I-update ito mula sa store.",
         "toReceive": "Mga rekording mula sa iba na dina-download pa ng device na ito.",
-        "refusedLine": "Mga pagbabagong hindi tinanggap ng server, kadalasan dahil nagbago ang isang pahintulot. Nananatili ang mga ito sa device na ito; buksan ang Mga Detalye para makita ang bawat isa."
+        "refusedLine": "Mga pagbabagong hindi tinanggap ng server, kadalasan dahil nagbago ang isang pahintulot. Nananatili ang mga ito sa device na ito; buksan ang Mga Detalye para makita ang bawat isa.",
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "Tatanggapin",
       "refusedLine": "Tinanggihan",
@@ -7976,5 +7989,28 @@
       "badItem": "Pumili ng isa sa sarili mong item na pareho ang uri.",
       "offline": "Hindi maabot ang LangQuest. Tingnan ang iyong koneksiyon at subukan ulit."
     }
+  },
+  "orgExport": {
+    "title": "I-export ang lahat ng data",
+    "sub": "Isang zip: mga recording sa mga folder, listahan ng bawat recording, mga sheet ng progreso at ang buong talaan.",
+    "whole": "Ang buong organisasyon",
+    "some": "Ilang wika lang",
+    "start": "Gawin ang zip",
+    "waiting": "Naghihintay na magsimula",
+    "reading": "Binabasa ang organisasyon",
+    "audio": "Dinadagdag ang mga recording: {{done}} sa {{total}}",
+    "log": "Dinadagdag ang buong talaan",
+    "ready": "Handa nang i-download",
+    "download": "I-download",
+    "failed": "Hindi natapos ang export. Subukan ulit.",
+    "started": "Nagsimula na ang export.",
+    "problem": "Hindi masimulan ang export.",
+    "expired": "Inalis pagkatapos ng 7 araw.",
+    "keep": "Ang natapos na zip ay nananatili nang 7 araw.",
+    "help": "Nagbubukas ng pahina para i-download ang lahat ng data ng organisasyon bilang isang zip.",
+    "wholeHelp": "I-export ang lahat ng wika ng organisasyon.",
+    "someHelp": "Piliin kung aling mga wika ang i-eexport.",
+    "languageHelp": "Isama o huwag isama ang wikang ito.",
+    "downloadHelp": "Dina-download ang natapos na zip."
   }
 }

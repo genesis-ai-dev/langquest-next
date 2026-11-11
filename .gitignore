@@ -43,3 +43,6 @@ stryker.log
 apps/web/jobs/dist/
 /.old-sync/
 apps/web/.wrangler.noc.jsonc
+
+# Key-term evaluation sets hold partner recordings (eval/key-terms/README.md).
+eval/key-terms/*/

@@ -2792,6 +2792,17 @@
       "changes_other": "{{count, number}} changes",
       "latestBy": "latest by {{name}}, {{when}}",
       "playExplanation": "Play the explanation",
+      "examples": "Say it in {{language}}",
+      "examplesCount": "Recorded: {{count, number}} of {{want, number}}",
+      "wayN": "Way {{n, number}}",
+      "recordThisWay": "Record this way",
+      "recordAgain": "Record this way again",
+      "addWay": "Add a different way of saying it",
+      "addWayHelp": "Add another way your team says this word in a different place, such as when it means something else.",
+      "wayUsedIn": "Used in",
+      "wayPassageHelp": "Open {{passage}} to hear this way in its place",
+      "playExample": "Play example {{n, number}}",
+      "exampleSaved": "Example saved",
       "openVersion": "Open Version {{n, number}}",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Recorded as part of {{passage}}, and tied to your draft.",
@@ -3523,7 +3534,8 @@
         "checking": "Connected",
         "offline": "Offline",
         "refused": "Not syncing",
-        "tooOld": "Update to receive"
+        "tooOld": "Update to receive",
+        "signIn": "Sign-in not renewed"
       },
       "help": {
         "live": "Changes from your team arrive as they happen, and yours go out right away.",
@@ -3532,7 +3544,8 @@
         "refused": "The server is not accepting changes from this device. Your work is still kept here.",
         "tooOld": "This app is too old to receive your team’s changes. Update it from the store.",
         "toReceive": "Recordings from others that this device is still downloading.",
-        "refusedLine": "Changes the server would not accept, usually because a permission changed. They stay on this device; open Details to see each one."
+        "refusedLine": "Changes the server would not accept, usually because a permission changed. They stay on this device; open Details to see each one.",
+        "signIn": "Your sign-in could not be renewed yet. Changes wait on this device and send once it works."
       },
       "toReceive": "To receive",
       "refusedLine": "Refused",
@@ -7976,5 +7989,28 @@
       "badItem": "Choose one of your own items of the same kind.",
       "offline": "Could not reach LangQuest. Check your connection and try again."
     }
+  },
+  "orgExport": {
+    "title": "Export all data",
+    "sub": "One zip: recordings in folders, a list of every recording, progress sheets and the full record.",
+    "whole": "The whole organization",
+    "some": "Only some languages",
+    "start": "Make the zip",
+    "waiting": "Waiting to start",
+    "reading": "Reading the organization",
+    "audio": "Adding recordings: {{done}} of {{total}}",
+    "log": "Adding the full record",
+    "ready": "Ready to download",
+    "download": "Download",
+    "failed": "The export did not finish. Try again.",
+    "started": "The export has started.",
+    "problem": "The export could not start.",
+    "expired": "Removed after 7 days.",
+    "keep": "A finished zip stays for 7 days.",
+    "help": "Opens a page to download all the organization's data as one zip.",
+    "wholeHelp": "Export every language of the organization.",
+    "someHelp": "Choose which languages to export.",
+    "languageHelp": "Include or leave out this language.",
+    "downloadHelp": "Downloads the finished zip."
   }
 }

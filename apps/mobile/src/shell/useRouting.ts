@@ -7,7 +7,7 @@ import { navRef, type Nav } from './nav';
 import { AUTH_SCREENS, GUEST_SCREENS, homeScreenFor, postSignInScreen, type Session } from './session';
 import { sectionAtLoad } from '../web/webHistory';
 import { useWebHistory } from '../web/useWebHistory';
-import { addressSection, routeOutcome } from './routingModel';
+import { addressSection, leaveLateWelcome, routeOutcome } from './routingModel';
 import type { Arrival } from './useOpenOrganization';
 import { routeReached } from '../diagnostics/authDiag';
 
@@ -30,6 +30,8 @@ export function useRouting(o: {
   /** The server lists no organization for this person (useOpenOrganization). */
   noOrganizations: boolean;
   arrival: Arrival | null; openTask: (languageId: string, unitId: string) => void; setLanguage: (languageId: string) => void;
+  /** The server said "already welcomed" after routing had shown the welcome (useOnboarding). */
+  welcomedLate?: boolean;
 }) {
   const { nav, session, loaded, signedIn, ready } = o;
   // Web: the section the address named when the page loaded (a refresh), if this person may open it (webHistory.ts).
@@ -62,6 +64,12 @@ export function useRouting(o: {
       if (cachedHome && nav.current.screen === cachedHome) nav.reset({ screen: home });
     }
   }, [loaded, signedIn, session, cachedHome, homeKey, nav]);
+  // Welcomed on another device, but that answer came after routing: on to the home (LAN-252).
+  useEffect(() => {
+    if (signedIn && leaveLateWelcome(nav.current.screen, nav.stack.length, session.isFirstTime, !!o.welcomedLate)) {
+      nav.reset({ screen: postSignInScreen(session) });
+    }
+  });
   // `nav.current` follows a reset one render late. This effect runs every render, so
   // a second render before that left a person on Sign In who had just been sent to
   // the section in the address, and sent them to the home instead (WEB-018).
