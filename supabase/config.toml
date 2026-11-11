@@ -445,7 +445,7 @@ verify_jwt = false
 [remotes.production]
 project_id = "xymxnebdwtbkfxlbylch"
 
-# The web app's addresses (decisions.md 205). Applied by `config push`, by hand
+# The web app's addresses (decisions.md 206). Applied by `config push`, by hand
 # (docs/environments.md). The app's sign-in sends no redirect today, so these
 # guard what Auth's own emails may link to.
 [remotes.production.auth]

@@ -184,7 +184,7 @@ rotate the legacy secret out only after clients have refreshed.
 
 ## Moving the web app to app.langquest.org
 
-Target (decisions.md 205, LAN-219):
+Target (decisions.md 206, LAN-219):
 
 | Host | Serves | Where it is set |
 | --- | --- | --- |
