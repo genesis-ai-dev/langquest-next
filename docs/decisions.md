@@ -10987,7 +10987,7 @@ Reason: LAN-233: a translator recording a passage wants the team's word for
 each key word in front of them, and a tap on a key word row must not stop the
 recording. The old row opened the word's own page (`key_term_detail`), and
 leaving the workspace ends the recording session on purpose (no microphone
-behind another screen, `useListenLoop`'s `useScreenShowing`). Caleb saw three
+behind another screen, `useListenLoop`'s `useScreenShowing`). Caleb saw four
 mockups and chose: tiles on the Key words chip (the key word small and muted,
 the team's word big and green, ▶ for a recorded voice, "no word yet" in amber),
 not a band above the chips, which he found too busy.
