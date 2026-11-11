@@ -8976,6 +8976,17 @@ nothing fixed the app picks, but its form may tell a determined scanner, and
 the system's own names and address are not the app's to hide. Caleb should see
 this, since this is his entry.
 
+Amended (2026-11-10, Carl Sauder): Scan a code's camera never runs behind the
+cover either. A phone that wears a disguise locks it on going to the
+background and keeps the app mounted under it, so a link opened then (an
+invite, or a Let someone in link with someone on the phone) landed on Scan a
+code under the cover, and the screen opened the camera at once, or asked for
+it in a prompt naming the real app, over the calculator. The screen now waits
+until the code lifts the cover before it opens or asks (`cameraOnOpen`), and
+draws the camera only while nothing covers the app (`cameraShows`), so coming
+back covered to an open scanner turns it off (security review, 2026-11-10).
+Caleb should see this, since this is his entry.
+
 ## 172. FIA's key words are a key-word list per language, picked apart from FIA's guides, shown where a passage links or says them, and every reference list can be searched
 
 Date: 2026-10-26 · By: Caleb Koster · Status: accepted

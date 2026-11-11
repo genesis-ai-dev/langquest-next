@@ -25,9 +25,11 @@ import { licenseText } from '../i18n/coreText';
 import { t, Trans } from '../i18n';
 import { formatPercent } from '../i18n/format';
 import { inviteCard, scanVerdict } from '../invites/heldInvite';
+import { cameraOnOpen, cameraShows } from '../invites/scanCameraModel';
 import { parseKey } from '../invites/inviteCode';
 import { holdJoinCode } from '../invites/heldJoinCode';
 import { useLocalPerson } from '../shell/useLocalPerson';
+import { useAppCovered } from '../shell/useAppCovered';
 import { useHoldsPasses } from '../nearby/useHoldsPasses';
 import type { Ctx } from '../shell/ctx';
 import { askResetLink, createAccountWithEmail, resetPassword, signInWithEmail, signInWithKey, waitText } from '../auth/signInFlow';
@@ -694,6 +696,8 @@ export function ScanQr(ctx: Ctx) {
   const [scanning, setScanning] = useState(false);
   const scanned = useRef(false);
   const autoStarted = useRef(false);
+  // A disguised phone's cover in front of this screen: no camera behind it (scanCameraModel.ts, decisions.md 171).
+  const { covered } = useAppCovered();
   // A Let someone in link opened from outside the app by someone already on this phone (routingModel `joinLinkRoute`).
   const [error, setError] = useState(() => (parseKey(ctx.params['code'] ?? '')?.kind === 'join' && !ctx.session.isGuest ? t('entry.scan.joinNotGuest') : ''));
   const [localBusy, setLocalBusy] = useState(false);
@@ -711,13 +715,14 @@ export function ScanQr(ctx: Ctx) {
   // What the server says about the held key; null when it cannot be asked.
   const { preview, asked } = useInvitePreview(invite);
 
-  // Nothing read yet: open the camera, so pointing it is the only step.
+  // Nothing read yet: open the camera, so pointing it is the only step; under a cover, once the code lifts it.
   useEffect(() => {
-    if (autoStarted.current || Platform.OS === 'web' || !permission || held || signinCode) return;
+    const step = cameraOnOpen({ decided: autoStarted.current, web: Platform.OS === 'web', covered, permission, held: !!held, signinCode: !!signinCode });
+    if (step === 'later') return;
     autoStarted.current = true;
-    if (permission.granted) { setScanning(true); return; }
-    if (permission.canAskAgain) void requestPermission().then((r) => { if (r.granted) setScanning(true); });
-  }, [permission, held, signinCode, requestPermission]);
+    if (step === 'start') setScanning(true);
+    else if (step === 'ask') void requestPermission().then((r) => { if (r.granted) setScanning(true); });
+  }, [permission, held, signinCode, requestPermission, covered]);
 
   async function read(value: string) {
     const key = parseKey(value);
@@ -819,7 +824,7 @@ export function ScanQr(ctx: Ctx) {
       {signinCode ? <SignInKey ctx={ctx} code={signinCode} onCancel={() => setSigninCode(null)} /> : (
         <>
           <View style={styles.viewfinder}>
-            {scanning && permission?.granted ? (
+            {cameraShows(scanning, !!permission?.granted, covered) ? (
               <CameraView style={StyleSheet.absoluteFill} facing="back"
                 barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
                 onBarcodeScanned={({ data }) => {

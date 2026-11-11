@@ -685,9 +685,10 @@ to `npx`, which writes its arguments to npm's debug log, the Worker's signing ke
 start had read the radio turned it on after; a join left while the inviter decided kept the
 grant; a newcomer kept every Have sent during a copy; a page already counted never counted as
 a drop; silent hotspot candidates held every place, and a copied `ready` could prove a second
-(219); a parent a carrier added went to the server (231); and the install file sat in the
-browser's cache for an hour. Section 11 has what needs a real phone, and section 13 what stays
-open.
+(219); a parent a carrier added went to the server (231); the install file sat in the
+browser's cache for an hour; and a link opened while a disguised phone was locked landed on
+Scan a code under the cover, which opened the camera there (171). Section 11 has what needs a
+real phone, and section 13 what stays open.
 
 ### 5.6 Audio
 
