@@ -3,6 +3,7 @@ import type { OrgStub } from './agent/http';
 import { supabaseAgentStore } from './agent/store';
 import { sha256Hex } from './agent/tokens';
 import { r2Bucket } from './r2';
+import { r2ExportBucket, supabaseExportStore } from './orgExports';
 import { serviceClient, type Env } from './env';
 import { claimsVerifier, sessionLiveCheck } from './identity';
 import { publishLangQuestTimings } from './timings';
@@ -189,7 +190,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
     if (error) console.error(`ops_tutorial_list ${language}:`, error.message);
     return videosPage(language, error ? null : pageVideos(data));
   }
-  // The videos the help page can link, in the app's language (LAN-244, decisions.md 206): the same list as /videos, as JSON.
+  // The videos the help page can link, in the app's language (LAN-244, decisions.md 207): the same list as /videos, as JSON.
   if (url.pathname === '/api/tutorial-links' && request.method === 'GET') {
     const [{ pageVideos }, { pageLanguage }] = await Promise.all([import('./videosPage'), import('./i18n/pages')]);
     const language = pageLanguage(request);
@@ -198,7 +199,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
       console.error(`ops_tutorial_list ${language}:`, error.message);
       return Response.json({ language, videos: [] }, { status: 503, headers: { 'cache-control': 'no-store' } });
     }
-    // Only the language asked for: a language with no approved catalog is answered in English, and its people get no English video (decision 206).
+    // Only the language asked for: a language with no approved catalog is answered in English, and its people get no English video (decision 207).
     const exact = url.searchParams.get('lang') === language;
     const videos = (exact ? pageVideos(data) : []).map((v) => ({ tutorial: v.tutorial, sha256: v.sha256, youtube: v.youtube }));
     return Response.json({ language, videos }, { headers: { 'cache-control': 'public, max-age=300' } });
@@ -325,6 +326,26 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         await recordBlob(orgId, languageId, hash, size);
         return hash;
       }
+    },
+    // The organization export (orgExports.ts, decisions.md 207): an admin asks, the job container builds one zip in R2.
+    orgExports: {
+      serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
+      profileOf,
+      // Organization-scope Manage roles: the Organization Admin role, and no other (core `SEED_ROLES`).
+      mayExport: async (orgId, profileId) => {
+        const { data, error } = await serviceClient(env).rpc('org_privileges', { p_org: orgId, p_profile: profileId, p_language: null });
+        if (error) throw new Error(`org_privileges: ${error.message}`);
+        return Array.isArray(data) && data.includes('manage_roles');
+      },
+      languagesOf: async (orgId) => {
+        const { data, error } = await serviceClient(env).from('stream_cursors').select('stream_id').eq('org_id', orgId);
+        if (error) throw new Error(`stream_cursors: ${error.message}`);
+        return (data as { stream_id: string }[]).map((r) => r.stream_id);
+      },
+      store: supabaseExportStore(serviceClient(env)),
+      bucket: r2ExportBucket(env.BLOBS),
+      start: () => env.JOBS.get(env.JOBS.idFromName('org-export')).run({ again: true }),
+      now: () => Date.now()
     },
     // The filming saying its films are in: the intake starts, and the publish after it (tutorialFilmed.ts, decisions.md 192).
     tutorialFilmed: {

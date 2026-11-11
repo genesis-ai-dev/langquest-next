@@ -8329,5 +8329,28 @@
     "watch": "Assistir no YouTube",
     "download": "Baixar o vídeo",
     "help": "O vídeo desta tela."
+  },
+  "orgExport": {
+    "title": "Exportar todos os dados",
+    "sub": "Um zip: gravações em pastas, uma lista de cada gravação, planilhas de progresso e o registro completo.",
+    "whole": "A organização inteira",
+    "some": "Só algumas línguas",
+    "start": "Criar o zip",
+    "waiting": "Aguardando para começar",
+    "reading": "Lendo a organização",
+    "audio": "Adicionando gravações: {{done}} de {{total}}",
+    "log": "Adicionando o registro completo",
+    "ready": "Pronto para baixar",
+    "download": "Baixar",
+    "failed": "A exportação não terminou. Tente de novo.",
+    "started": "A exportação começou.",
+    "problem": "Não foi possível iniciar a exportação.",
+    "expired": "Removido após 7 dias.",
+    "keep": "Um zip pronto fica guardado por 7 dias.",
+    "help": "Abre uma página para baixar todos os dados da organização em um zip.",
+    "wholeHelp": "Exporta todas as línguas da organização.",
+    "someHelp": "Escolha quais línguas exportar.",
+    "languageHelp": "Inclui ou deixa de fora esta língua.",
+    "downloadHelp": "Baixa o zip pronto."
   }
 }
