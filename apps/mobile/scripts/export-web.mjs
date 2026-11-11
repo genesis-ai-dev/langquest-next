@@ -131,6 +131,8 @@ const TOTAL_BUDGET_BYTES = 4.9 * 1024 * 1024;
 // took a first visit under 1 KB past the budget, and LAN-221's lines above sit
 // beside them. The export plan itself stays out of the app (packages/sync,
 // server only): moving it there took 12 KB off this bundle.
+// The key-term check's recorded-example event (decision 207, LAN-228) fits in
+// the same 3.925 MB: its core rules are small, and its evaluation code stays out.
 const FIRST_VISIT_BUDGET_BYTES = 3.925 * 1024 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));

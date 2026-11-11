@@ -113,7 +113,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   passage_reference: { emits:['v1.PassageReferenceLinked'],reads:['library','recommendedFor','passageLink','linkedTo','materialsFor','derivePassage','keyTermsForUnit'],rpcs:['library_get_documents'] },
   key_terms: { emits:['v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],reads:['keyTermsFor'] },
   // On a passage: its verses with the word, and other languages' words for it from their logs on this phone (demo ADR-042).
-  key_term_detail: { emits:['v1.KeyTermAdjusted','v1.KeyTermLinked','v1.KeyTermRenderingAdded'],reads:['keyTermView','keyTermsFor'] },
+  key_term_detail: { emits:['v1.KeyTermAdjusted','v1.KeyTermLinked','v1.KeyTermRenderingAdded','v1.KeyTermAudioRenderingAdded'],reads:['keyTermView','keyTermsFor'] },
   // Using a library flow for a language; Undo restores the flow and steps it had.
   flows_home: { emits:['v1.FlowSelected','v1.ReviewKindDefined','v1.FlowStepSet','v1.FlowStepRemoved',
     'v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
