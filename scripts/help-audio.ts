@@ -46,7 +46,7 @@ const csv = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s)
 
 /**
  * The app's words in a language, with the Android disguise's, kept apart so an iPhone build has none
- * (decisions.md 171), and nearby sync's, kept apart so the web need not carry them (decision 230).
+ * (decisions.md 171), and nearby sync's, kept apart so the web need not carry them (decision 232).
  */
 function catalogOf(language: string): Tree {
   let words = JSON.parse(readFileSync(join('apps/mobile/src/i18n', `${language}.json`), 'utf8')) as Tree;

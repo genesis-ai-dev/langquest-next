@@ -26,7 +26,7 @@ First filled in: 2026-09-30, Caleb Koster, with Claude.
 | Free or paid | Free (cannot become paid later) |
 | Declarations | Developer Program Policies; US export laws: the app complies. Besides HTTPS it has its own encryption, all standard algorithms: on Android, Share nearby's protocol between phones (AES-256-GCM under keys from an X25519 exchange, HKDF and HMAC with SHA-256, Ed25519 signatures; `docs/nearby-sync-plan.md` 5.12), and on any phone the sign-out lock (decisions.md 168). See "Encryption" below |
 | Developer account | The organization account (D-U-N-S) that publishes LangQuest v2; not subject to the 12-tester rule for new personal accounts |
-| Track | Production: every new build that a merge to `main` makes goes to production review and is public once approved, with no staged rollout (decisions.md 157, which replaced decision 45's internal testing only). Carried builds (decisions.md 243) go to the alpha track as drafts, are never released there or sent to review, and their Play-signed universal APK is offered at `https://next.langquest.org/apk/<name>` for phones with no Play Store or no internet (Distribution, below) |
+| Track | Production: every new build that a merge to `main` makes goes to production review and is public once approved, with no staged rollout (decisions.md 157, which replaced decision 45's internal testing only). Carried builds (decisions.md 245) go to the alpha track as drafts, are never released there or sent to review, and their Play-signed universal APK is offered at `https://next.langquest.org/apk/<name>` for phones with no Play Store or no internet (Distribution, below) |
 | Managed publishing | Off |
 | Category | Productivity (a work tool for translation teams) |
 | Tags | Up to five that fit from Google's list (team collaboration, voice recorder, translation, Bible) |
@@ -103,7 +103,7 @@ Expected rating: about Teen / 12+ with "Users Interact".
 | --- | --- |
 | Collects or shares required data types | Yes |
 | Encrypted in transit | Yes: Supabase, the app's Cloudflare Worker (reports, decisions.md 44; recordings and guide media, kept in Cloudflare R2, decisions.md 69), Bible text and audio (Bible Brain's CDN, OpenBible) over HTTPS; no cleartext allowed. Phone to phone (Share nearby, Android), every message and file is encrypted with the app's own protocol, AES-256-GCM under keys from an X25519 exchange that only phones holding the language's discovery key can open, over Bluetooth LE, Wi-Fi Direct or a local-only hotspot; nothing readable goes out before the other phone proves it holds that key |
-| Account creation | Username, password and other authentication: an email and password (someone with a LangQuest v2 account signs in with that account's email and password, which our server checks with LangQuest v2, our own app, once; decisions.md 94); or, for someone joining by invite with no email, the invite itself (a one-time QR code) makes the account, and they get back in with a one-time code from someone who can invite them, or with their sign-in name and a password if they set one (docs/invites-and-accounts.md, decisions.md 59); or, on Android in an organization with joining offline on, for someone a teammate let in with no internet, an account made the first time their phone reaches our server, from the teammate's signed invitation, with an id that follows from a key their phone made, and signed in once by proof of that key, after which they get back in as other looked-after accounts do (decisions.md 240, 241); no OAuth. LangQuest's own Global Viewer accounts (support staff, decisions.md 158) also enter a code from an authenticator app; no user of the app is asked for one, and nothing new is collected from users |
+| Account creation | Username, password and other authentication: an email and password (someone with a LangQuest v2 account signs in with that account's email and password, which our server checks with LangQuest v2, our own app, once; decisions.md 94); or, for someone joining by invite with no email, the invite itself (a one-time QR code) makes the account, and they get back in with a one-time code from someone who can invite them, or with their sign-in name and a password if they set one (docs/invites-and-accounts.md, decisions.md 59); or, on Android in an organization with joining offline on, for someone a teammate let in with no internet, an account made the first time their phone reaches our server, from the teammate's signed invitation, with an id that follows from a key their phone made, and signed in once by proof of that key, after which they get back in as other looked-after accounts do (decisions.md 242, 243); no OAuth. LangQuest's own Global Viewer accounts (support staff, decisions.md 158) also enter a code from an authenticator app; no user of the app is asked for one, and nothing new is collected from users |
 | Account deletion URL | https://next.langquest.org/delete-account |
 | Delete some data without deleting the account | No. Account data is deleted with the account; an organization's work belongs to it, and requests about it go to its admins |
 
@@ -298,7 +298,7 @@ Connect leave it out. The Android build is the same as before
 changes.
 
 Nearby sync, phase 2 (`docs/nearby-sync-plan.md` sections 5.5, 5.10 and 9;
-decisions.md 214 to 220): on Android, the first time someone on a phone
+decisions.md 216 to 222): on Android, the first time someone on a phone
 belongs to an organization that LangQuest staff turned nearby sync on for,
 the app makes one Ed25519 key for that install (`@noble/curves`, code inside
 the app with no network, its randomness from `expo-crypto`) and keeps it in
@@ -323,7 +323,7 @@ answer. No screen shows any of this until phase 3, and no permission or SDK
 that collects data is added, so the other answers are unchanged.
 
 Nearby sync, phase 3: the link and the screen (`docs/nearby-sync-plan.md` sections 4, 5.6,
-5.8, 5.9 and 9; decisions.md 221 to 232). On Android, an organization that LangQuest staff
+5.8, 5.9 and 9; decisions.md 223 to 234). On Android, an organization that LangQuest staff
 turned nearby on for sees Share nearby under Sync, labelled experimental. While someone has it
 open, the phone finds teammates who also have it open on the same language and passes the
 team's unsent work between the two phones, with no internet.
@@ -377,7 +377,7 @@ team's unsent work between the two phones, with no internet.
   members.
 
 Nearby sync, phase 6: joining offline (`docs/nearby-sync-plan.md` sections 9, 14;
-decisions.md 237 to 243). On Android, in an organization that LangQuest staff turned both
+decisions.md 239 to 245). On Android, in an organization that LangQuest staff turned both
 `nearby` and `nearby_join` on for, a member who may invite can let a new person in with no
 internet, from Let someone in; the new phone scans a code, the person types their name, and the
 member taps once after both compare two pictures.
@@ -413,7 +413,7 @@ member taps once after both compare two pictures.
   name that holds only version numbers. A carrier downloads it with a browser while online and
   passes it on by Quick Share, SD card or USB; the app never downloads or installs an APK, and
   `REQUEST_INSTALL_PACKAGES` stays out of it. Carried builds use the alpha track, as drafts.
-- **Finding and checking the file** (decision 243, amended 2026-11-09). Get the install file,
+- **Finding and checking the file** (decision 245, amended 2026-11-09). Get the install file,
   a screen opened from Share nearby and Let someone in, opens that address in the phone's own
   browser; the app makes no request to it. It remembers the name of the file last opened, in one row on the phone holding only that
   name (no person, organization or time), to say when the file is for an older version. Check

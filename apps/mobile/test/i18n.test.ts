@@ -11,7 +11,7 @@ import { appFiles, findModuleScopeT, findUiText, keysNamed } from './uiText';
 // English, with the plural forms that language needs. The Android phone's
 // disguise keeps its words apart (src/disguise/i18n, decisions.md 171), so
 // that an iPhone build carries none of them, and nearby sync keeps its own
-// apart (src/nearby/i18n, decision 230), so that the web need not carry them
+// apart (src/nearby/i18n, decision 232), so that the web need not carry them
 // on every visit; both are held to the same rules.
 
 const ROOT = join(import.meta.dirname, '..');

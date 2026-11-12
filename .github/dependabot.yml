@@ -1,4 +1,4 @@
-# Upgrade pull requests, once a week (decisions.md 245). Security updates
+# Upgrade pull requests, once a week (decisions.md 247). Security updates
 # come as soon as GitHub has an advisory and wait for nothing; version updates
 # wait three days after a release, so a hijacked or broken release has
 # usually been pulled before it gets here. Majors and the Expo SDK move by
@@ -6,7 +6,7 @@
 # `npx expo install --fix` on an SDK upgrade, which needs a store build.
 #
 # A new Node image for the job runner fails scripts/toolchain.test.ts until
-# .node-version, eas.json and the EAS workflows name the same version (244);
+# .node-version, eas.json and the EAS workflows name the same version (246);
 # the test lists them.
 version: 2
 updates:

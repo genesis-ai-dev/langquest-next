@@ -18,6 +18,7 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.security.MessageDigest
 import java.util.concurrent.Callable
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -104,8 +105,12 @@ class LinkSessionTest {
       }
     }
     var endedWith: NearbyCode? = null
+    // `end` wakes the waiting receive under its lock and calls `onEnded` after closing the
+    // stream, so the receive can fail before `onEnded` has run: wait for it (the latch also
+    // makes `endedWith` visible to this thread).
+    val ended = CountDownLatch(1)
     val a = LinkSession("a", "test", SocketTransport(client), LinkTunables(), listOf(tmp.root))
-    val b = LinkSession("b", "test", failing, LinkTunables(), listOf(tmp.root), onEnded = { _, code -> endedWith = code })
+    val b = LinkSession("b", "test", failing, LinkTunables(), listOf(tmp.root), onEnded = { _, code -> endedWith = code; ended.countDown() })
     opened.add(a)
     opened.add(b)
     secure(a, b)
@@ -118,6 +123,7 @@ class LinkSessionTest {
       val c = e.cause as NearbyException
       assertTrue("${c.code}", c.code in DROP_CODES)
     }
+    assertTrue("onEnded ran", ended.await(5, TimeUnit.SECONDS))
     assertEquals(NearbyCode.INTERNAL, endedWith)
     expectCode(*DROP_CODES.toTypedArray()) { b.send(byteArrayOf(1)) }
   }

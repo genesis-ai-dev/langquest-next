@@ -2,7 +2,7 @@
  * What `get_user_state` says of nearby sync (docs/nearby-sync-plan.md 5.5): each organization's
  * features and its newest revocation list. Apart from nearbyModel.ts because every client reads
  * the user state (nearbyFlag.ts), and the web, which never runs nearby sync, need not load the
- * rest of it (the web budget, decision 230). Pure.
+ * rest of it (the web budget, decision 232). Pure.
  */
 
 /** `orgFeatures` of `get_user_state`'s answer, or null from a server before the field: then nothing is known, and nothing is dropped. */

@@ -8,7 +8,7 @@
 # Durable Object (apps/web/worker/jobs.ts) starts a job by naming its bundle
 # as the entrypoint and passes the database URL and key as environment.
 # The Node version is the repository's .node-version, held equal by
-# scripts/toolchain.test.ts (decisions.md 244).
+# scripts/toolchain.test.ts (decisions.md 246).
 FROM node:24.22.3-slim
 RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client ffmpeg && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
