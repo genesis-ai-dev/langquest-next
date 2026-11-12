@@ -116,12 +116,13 @@ export function SignIn(ctx: Ctx) {
       {/* Two ways in that never combine (the demo's ADR-031): the fields, or a code. */}
       <Card>
         {/* In a browser the cursor starts here, so typing can start at once (LAN-138). A phone keeps its keyboard down: it would cover the other ways in. */}
+        {/* The IDs are for the phone tests: on an iPhone a tap on the label above a field does not put the cursor in it. */}
         <Field label={t('entry.signIn.namePlaceholder')} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" help={t('entry.signIn.nameHelp')}
-          autoFocus={Platform.OS === 'web'} />
+          autoFocus={Platform.OS === 'web'} testID="sign-in-name" />
         {/* The button stays off until this can be an email or a sign-in name: say why. */}
         {nameNeedsFix(email) ? <Text style={txt.error}>{t('entry.signIn.nameHint')}</Text> : null}
         <Field label={t('entry.fields.password')} value={password} onChangeText={setPassword} secure autoCapitalize="none" help={t('entry.signIn.passwordHelp')}
-          onSubmit={() => { if (ready && !busy) void submit(); }} />
+          onSubmit={() => { if (ready && !busy) void submit(); }} testID="sign-in-password" />
         <LinkBtn label={t('entry.signIn.forgot')} help={t('entry.signIn.forgotHelp')} style={{ alignSelf: 'flex-end' }}
           onPress={() => ctx.go('forgot_password', email.trim() ? { email: email.trim() } : undefined)} />
         {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}

@@ -5,7 +5,7 @@ Other apps, AI agents and people without an account can take part in a translati
 - **Partner apps and agents** use an access token. They read passages, record reviews, report where a version is published, and store values of their own with a language.
 - **Anyone with a review link** (`/r/<code>`, shared on WhatsApp, say) can hear one version and answer, with any name.
 
-Base address: `https://app.langquest.org/api/v1` (preview: `next-preview.langquest.org`). `GET /api/v1` lists every endpoint. `https://next.langquest.org` is the same Worker, kept as an alias: an existing token, MCP setup or review link keeps working there, with nothing to change yet (decisions.md 208).
+Base address: `https://app.langquest.org/api/v1` (preview: `next-preview.langquest.org`). `GET /api/v1` lists every endpoint. `https://next.langquest.org` is the same Worker, kept as an alias: an existing token, MCP setup or review link keeps working there, with nothing to change yet (decisions.md 210).
 
 **Reference:** `GET /api/v1/openapi.json` is the API as OpenAPI 3.1: every route, parameter, request and response field. It needs no token, so client generators and API tools can read it directly. This guide explains what the API is for and how to use it; when the two differ in a detail, the OpenAPI document is right, because the tests hold the API to it. It leaves out `/api/v1/session/*` and `/api/v1/links/*`, which only LangQuest's own connect and review pages call.
 
@@ -98,6 +98,20 @@ A phone that was offline for three days sends three days of work at once. The wo
 - `uploadedAt`: when LangQuest Next received it from the import.
 
 `v2UploadedAt` is `null` for work made in LangQuest Next, and where v2 kept no time (it is filled in by the import's next whole read, at 03:15 UTC, for work that came over earlier).
+
+### Recorded or uploaded
+
+Each audio file and each version has an `origin` (decisions.md 188, amended 2026-11-12). Partners pay recording teams by the chapter, and also upload old archives, so they need to tell the two apart.
+
+| `origin` | On an audio file | On a version |
+| --- | --- | --- |
+| `app_recording` | Recorded in an app: LangQuest Next, or LangQuest v2's app. | Every part was recorded. |
+| `web_upload` | A file uploaded to LangQuest v2's website, not recorded in an app. | Every part was uploaded. |
+| `mixed` | — | Some parts were recorded and some uploaded. |
+
+- LangQuest Next takes no uploaded audio yet, so all its own work is `app_recording`.
+- The import knows a recording by the name v2's app gives it, a UUID. Every other file was uploaded. The asset's name is not used, because people choose it.
+- Uploads that came over before `origin` existed show `web_upload` after the import's next whole read, at 03:15 UTC.
 
 Releases and external values are written only through this API, so their `at` is the server's clock as well.
 
@@ -304,5 +318,6 @@ The device endpoints use OAuth's error codes.
 | Voice note checks | `apps/web/worker/agent/voice.ts` |
 | Tables (service role only) | `supabase/migrations/20261008000000_api_tokens.sql`, `20261008140000_review_links_releases.sql`, `20261013120000_api_webhooks.sql` (also the poke) |
 | When the server received it (`uploadedAt`, `v2UploadedAt`) | `received_times` in `supabase/migrations/20261029160000_received_times.sql`, asked once a page (`receivedTimes` in `apps/web/worker/agent/store.ts`) and remembered by the organization's object (`agent/org.ts`); v2's stamps kept by the import (`v2_import.stamps`, `Fact.stamps` in `packages/v2-import`) |
+| Recorded or uploaded (`origin`) | `wantOrigin` in `apps/web/worker/agent/view.ts`, from the import's `upload:<hash>` stamps (`webUploaded` in `packages/v2-import/src/rows.ts`) |
 | Approved version, releases, links per step | core `approvedVersion`, `releasesOf`, `stepAllowsLinks`; events `v1.VersionReleased`, `v1.FlowStepLinksSet` |
 | Tests | `apps/web/test/agentApi.test.ts`, `packages/core/test/externalReview.test.ts` |

@@ -1607,7 +1607,7 @@ iPhone store build, which is a native change, so phones on older builds
 keep opening the web app.
 
 Amended (2026-11-06, Caleb Koster): the web app's address is now
-`app.langquest.org`, with `next.langquest.org` as an alias (208).
+`app.langquest.org`, with `next.langquest.org` as an alias (210).
 
 ## 59. Joining by invite needs no password, and whoever can invite you can get you back in
 
@@ -9745,6 +9745,32 @@ Reverse if: a language's `v1.TakeSubmitted` scan shows in the database's
 statement times (then a partial index on the take id, built concurrently);
 or partners need the stamp in the change feed or webhooks too.
 
+Amended (2026-11-12, Caleb Koster): each audio file and version also says
+how it was made, as `origin`. Every Language pays recording teams per
+chapter by when the audio arrived, and its staff also upload archives
+recorded before LangQuest. They told the two apart by the v2 asset's name,
+which the API does not give and which goes away with v2 (Every Language,
+2026-11-12; Caleb: "add the origin field"). The import knows a recording
+by the name v2's app gives it, a UUID (`recordedInApp` in
+`packages/v2-import/src/rows.ts`); no version of the app names a recording
+any other way, except old iPhone builds' `recording-<UUID>`. Every other
+name is a file someone uploaded: v2's website names its uploads from the
+time (`<milliseconds>-…`, four shapes from four screens), and names under
+`content/` come from no v2 code. On v2 production that day, 1,096,018 of
+1,228,354 names were recordings. The asset's name is not used, since
+people choose it. For a file that is not
+a recording the import keeps one more stamp, `upload:<hash>` (when v2 got
+it), in `v2_import.stamps` beside the others: no migration and no event,
+and the first whole read after this merges marks the uploads that came
+over before. The API gives `origin` on `audio`, `approvedAudio`, `version`
+and `versions`: `app_recording`, `web_upload`, or on a version `mixed`,
+since the import makes one version of a chapter from every recording in
+it. Next takes no uploaded audio yet, so its own work is `app_recording`;
+an upload added to Next later marks its own parts. Rejected: a yes-or-no
+on the version, which cannot say `mixed`; and a list of the website's
+name shapes, which already missed two of its four screens and would miss
+the next one, where the app's own shape has held since 2025-10-13.
+
 ## 189. Each YouTube channel's trailer is a 48-second film of today's app in its language, made each night when it changes, and the publish job sets it
 
 Date: 2026-10-29 · By: Caleb Koster · Status: accepted
@@ -10723,6 +10749,12 @@ developer had to look, and Claude never did); the whole timeline in the
 issue (too long to read on a phone, and Claude still could not see the
 screenshot); the voice note (Claude cannot hear it).
 
+Amended (2026-11-12, Carl Sauder): the ops dashboard no longer reads the
+watch's runs apart (`FREQUENT_WORKFLOWS`). Reading main's latest 40 runs and
+then leaving the watch's out still let it, with release-branches, fill the
+40 within about 8 hours, so it now reads the latest run of each workflow on
+its own (decision 209).
+
 ## 203. A study step shows the pictures and maps its text asks for, linked or not, and the rest after its text
 
 Date: 2026-11-03 · By: Caleb Koster · Status: accepted
@@ -10982,9 +11014,116 @@ clips.
 Reverse if: the first real set shows no matcher reaching the bar on two or more
 partner languages, or teams will not record examples.
 
-## 208. The web app is at app.langquest.org, next.langquest.org stays as an alias, and links move only once phones can read them
+## 208. The phone flows run each night on GitHub's own Android and Mac machines, file each failure in Linear with its screen, and show the night on the ops dashboard
 
-Date: 2026-11-11 · By: Caleb Koster · Status: accepted
+Date: 2026-11-11 · By: Caleb Koster · Status: partly superseded by 209
+
+Reason: Caleb (2026-11-11, thread "Nightly phone UI tests") asked for the
+whole app's UI to be tested each night on an iPhone and an Android phone,
+not only on the web, with each problem filed as a new Linear issue and a
+picture summary on the ops dashboard. Decision 95 wanted the P0 flows on
+both phones, but they ran only by hand before a store release. Caleb chose
+GitHub's hosted machines over his Mac or a paid device farm: the repository
+is public, so they cost nothing, and the team sees every run. Decided
+(`.github/workflows/phone-tests.yml`, `scripts/phone-tests.mjs`):
+- **Android on Linux, iPhone on a Mac.** The Android emulator runs on
+  `ubuntu-latest` (it has KVM) beside the local stack and the Worker, as the
+  web suite's jobs do (`scripts/ci-android-emulator.sh`). GitHub's Mac
+  machines have no Docker, so the iPhone's stack runs on a Linux job of the
+  same run and the Mac reaches it through a Cloudflare quick tunnel. The
+  tunnel needs no account or key. A small gate on the Linux side lets in
+  only requests with a token it makes for the run, and gives that token
+  only to a job that shows an OIDC token GitHub signed for this repository,
+  this workflow and this run (`scripts/phone-tunnel.mjs`). A job output or
+  a job's env would have shown the token in the public logs (the first run
+  did), so it is in neither. The Mac maps the stack's ports
+  back to localhost, so the test build is the one `npm run test:ui:build`
+  makes (decision 95, amended 2026-10-13).
+- **Every flow but `voice`.** The plan's skips stay (`maestro-plan.mjs`),
+  and the report lists each flow not run and why. Voice flows need a
+  microphone the machines do not have; they come in a later step.
+- **Linear like the web nightly.** Each failed flow is one issue per phone,
+  "Nightly: <flow> [Android emulator]", under LAN-210, with the failed
+  screen's picture uploaded to Linear. The same title is found again, not
+  filed twice, and gets a comment when it passes (`scripts/nightly-report.mjs`
+  `plan`). More than 10 failures on one phone, or a run that broke before
+  its flows, is one issue for that phone's run.
+- **Claude says what went wrong.** When a flow fails, Claude (the repository's
+  `CLAUDE_CODE_OAUTH_TOKEN`, as in 202) reads the failure and its screen and
+  writes one sentence and a cause: the app, the flow, or the test machine.
+  The run files and reports without it if it fails.
+- **The night is kept in a public release.** `phone-tests` holds
+  `summary.json`, `history.json` (30 nights) and the failed screens (14
+  days). The ops dashboard's Phone tests section reads it with no new key,
+  and passes the pictures on through its own API, because the page shows
+  only its own-origin images. The pictures show the test server's made-up
+  people only.
+- **Not a gate.** A pull request that changes the workflow or its scripts
+  runs the `smoke` flows, files nothing and publishes nothing. No PR waits
+  for the phones. Nothing here touches production (141).
+Reverse if: GitHub's machines make the runs flaky enough that a failure is
+more often the machine than the app (then run them on the team's Mac or a
+device farm), or the repository goes private and the macOS minutes cost more
+than a device farm.
+
+## 209. Every nightly suite leaves one line on its run, and the ops dashboard shows last night's suites together in Releases, a failed test as a watch
+
+Date: 2026-11-12 · By: Carl Sauder · Status: accepted
+
+Reason: reviewing PR #421 (208) on 2026-11-12, Carl asked whether a report
+on CI belonged on the ops dashboard, a production-only page about running
+LangQuest, and why the other nightly tests had none there. The team merged
+#421 as it was and Carl chose these follow-ups. What the review found:
+208's Phone tests section, second on the page, made each failed phone flow
+a problem, the level of a failed deploy or a full disk, whatever Claude
+said the cause was; it kept the nights in a public GitHub release that only
+the phone tests wrote, so the report job held `contents: write` beside
+Claude's step; and the web nightly, the larger suite, had nothing there. The
+guardrails nightly failed every night from at least 2026-11-06 to 11-12 (the
+web UI suite, two tests a night, each filed in Linear), and the dashboard
+could not show it: it read main's latest 40 runs, and the watch for user
+issues (every 15 minutes) and release-branches (hourly) filled those within
+about 8 hours. The ops dashboard keeps what in CI needs a person (160, 190);
+the detail of a failed test stays in Linear. Decided:
+- **One line per suite, on its own run.** Each nightly reporter leaves a
+  notice annotation titled "Nightly: <suite>": how many passed, or that the
+  suite broke and why in a sentence, then the Linear issue of each failure
+  with its address (`scripts/nightly-report.mjs` `nightNotice` for the web
+  UI suite, the fleet simulation and the mutation tests;
+  `scripts/phone-tests.mjs notices`, one for each phone). It is written
+  whatever Linear answered. As in 190, the run already holds the words, so
+  there is no second store to disagree with GitHub's.
+- **A part of Releases, not a section.** Nightly tests sits after Code and
+  deploys (`apps/admin/src/sources/nightly.ts`): for each nightly workflow
+  (`NIGHTLIES`: `guardrails.yml`, `phone-tests.yml`), its latest completed
+  scheduled run on main and each suite's counts and issues. A failed test
+  is a watch: a developer acts on it from Linear, and nobody's work waits
+  on it. A suite that broke, a reporting job that failed and left no line,
+  or a nightly whose latest scheduled run is more than 36 hours old is a
+  problem. Code and deploys raises nothing for a failed scheduled run of
+  those workflows when every job that failed in it is one these lines say
+  (`saidByNightly`), which would say it twice; any other job failing there,
+  such as `checks` or the flake report, is still said.
+- **No release and no picture route.** The Phone tests section,
+  `/ops/api/phonetests/shot/<name>` and the `phone-tests` release's
+  `summary.json` and `history.json` are gone; the report job only reads
+  (`contents: read`), and so does the token Claude's step gets. Each failed
+  screen is in its Linear issue and the run's artifacts.
+- **Code and deploys reads each workflow on its own**: the repository's
+  active workflows, then the latest run on main of each (`ownWorkflows`), so
+  no workflow's schedule pushes another out. That is about ten calls to
+  GitHub for each refresh instead of three; `ADMIN_GITHUB_TOKEN` keeps them
+  under GitHub's limit.
+Supersedes 208's bullet "The night is kept in a public release" and its
+dashboard section; the rest of 208 stands. Amends 202 (how the dashboard
+reads the watch's runs).
+Reverse if: staff need a night's failures on the page without opening
+Linear, when the part shows more of each line; or GitHub stops keeping
+annotations (190).
+
+## 210. The web app is at app.langquest.org, next.langquest.org stays as an alias, and links move only once phones can read them
+
+Date: 2026-11-12 · By: Caleb Koster · Status: accepted
 
 Reason: Caleb agreed the hostnames on 2026-11-02 and 2026-11-03 (LAN-219):
 `app.langquest.org` is the Next web app, `langquest.org` is the landing page,

@@ -4,7 +4,7 @@
  * amended). The app stores list the same addresses; change them there too if
  * they move, and keep the pages' text in step with what the code keeps. They
  * stay on next.langquest.org, which still serves them, as the stores' answers do
- * (decisions.md 208).
+ * (decisions.md 210).
  */
 export const PRIVACY_URL = 'https://next.langquest.org/privacy';
 export const DELETE_ACCOUNT_URL = 'https://next.langquest.org/delete-account';
