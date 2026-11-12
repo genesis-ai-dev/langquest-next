@@ -291,7 +291,7 @@ web browsing, app interactions beyond diagnostics, other personal info.
   next step, checks, reviews) from the test account, showing the app's own
   purple theme unaltered.
 
-## Android code shrinking (LAN-111, decisions.md 209)
+## Android code shrinking (LAN-111, decisions.md 210)
 
 Release builds for Android run R8, which shrinks and renames the app's code
 and removes unused resources (`./plugins/withAndroidShrinking`, which uses

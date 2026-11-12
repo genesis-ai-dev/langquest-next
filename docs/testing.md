@@ -173,8 +173,8 @@ These keep the suite fast enough to run and stable enough to trust.
 | PR (CI `server`) | `db:test`, `test:integration` | under 15 min |
 | PR (CI `web-smoke`) | the export in three engines | under 20 min |
 | PR (CI `ui-web`) | `@p0` web tests on the export, in four shards of two browsers, cut by recorded duration | under 20 min |
-| Nightly (CI) | the whole web suite, `@quarantine` apart; fleet `normalDay`; Stryker on core | not blocking; failures filed in Linear, unassigned (`scripts/nightly-report.mjs`) |
-| Nightly (CI, `phone-tests`) | every Maestro flow but `voice`, on an Android emulator and an iPhone simulator; a PR that changes the workflow or its scripts runs the `smoke` flows | not blocking; each failure filed in Linear under LAN-210 with its screen (`scripts/phone-tests.mjs`); the ops dashboard's Phone tests section shows the night (decision 208) |
+| Nightly (CI) | the whole web suite, `@quarantine` apart; fleet `normalDay`; Stryker on core | not blocking; failures filed in Linear, unassigned (`scripts/nightly-report.mjs`); the ops dashboard's Nightly tests part shows last night (decision 209) |
+| Nightly (CI, `phone-tests`) | every Maestro flow but `voice`, on an Android emulator and an iPhone simulator; a PR that changes the workflow or its scripts runs the `smoke` flows | not blocking; each failure filed in Linear under LAN-210 with its screen (`scripts/phone-tests.mjs`); the ops dashboard's Nightly tests part shows the night (decisions 208, 209) |
 | `npm run ship` | typecheck, then `@p0` web tests on the local stack (`SHIP_UNTESTED=1` skips, loudly) | |
 | Store release | full web suite, every Maestro flow on both phones, the run sheet | |
 
