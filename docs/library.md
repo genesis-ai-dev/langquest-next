@@ -16,7 +16,7 @@ An item is one of six kinds:
 | --- | --- | --- |
 | `template` | `template@1`, `template@2` (a Bible broken up book by book, decision 74) | Manage Content Templates |
 | `flow` | `flow@1` | Manage Review Flows |
-| `material` | `study@1`, `study@2`, `collection@1`, `source@1`, `usfmBible@1` with `usfmBook@1` (a Bible uploaded as USFM files, decision 208), `material@1` (a key-word list is `material@1` of kind `key_terms`, decision 172) | Manage Reference Material (guides: Write a guide) |
+| `material` | `study@1`, `study@2`, `collection@1`, `source@1`, `usfmBible@1` with `usfmBook@1` (a Bible uploaded as USFM files, decision 209), `material@1` (a key-word list is `material@1` of kind `key_terms`, decision 172) | Manage Reference Material (guides: Write a guide) |
 | `versification` | `versification@1` (Copenhagen Alliance JSON) | Manage Content Templates |
 | `names` | `names@1` (a language's names for the Bible's books, decision 193) | Manage Content Templates |
 | `labels` | `labels@1` (what an organization's items are called in one language, decision 195) | Manage Org Structure |

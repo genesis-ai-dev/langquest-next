@@ -185,7 +185,7 @@ material has. Web first; on a phone it edits text and records step audio.
 ## Upload your own Bible (USFM)
 
 An admin with Manage Reference opens **Setup → Reference Material → Add
-material → Upload Bible files** on the web (decisions.md 208, LAN-229).
+material → Upload Bible files** on the web (decisions.md 209, LAN-229).
 
 1. **Files.** `.usfm`, `.sfm`, `.ptx` or `.txt` files, or one zip (opened in
    the browser; `src/usfm/zipModel.ts`). `checkUsfm` (`packages/core/src/usfm.ts`)
