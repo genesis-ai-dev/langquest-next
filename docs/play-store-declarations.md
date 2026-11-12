@@ -39,6 +39,12 @@ First filled in: 2026-09-30, Caleb Koster, with Claude.
 
 ## Policy addresses
 
+These stay at `next.langquest.org` after the web app moved to
+`app.langquest.org`: the host is an alias of the same Worker, so what they
+serve is the same, and no Play Console answer changes (decisions.md 210).
+Before `next.` ever redirects, change them here, in `apps/mobile/src/auth/legal.ts`
+and in Play Console.
+
 | Field | Answer |
 | --- | --- |
 | Privacy policy | https://next.langquest.org/privacy (`apps/mobile/public/privacy.html`, served with the web app) |
@@ -291,7 +297,7 @@ web browsing, app interactions beyond diagnostics, other personal info.
   next step, checks, reviews) from the test account, showing the app's own
   purple theme unaltered.
 
-## Android code shrinking (LAN-111, decisions.md 210)
+## Android code shrinking (LAN-111, decisions.md 211)
 
 Release builds for Android run R8, which shrinks and renames the app's code
 and removes unused resources (`./plugins/withAndroidShrinking`, which uses
