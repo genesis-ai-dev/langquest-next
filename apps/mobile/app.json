@@ -19,6 +19,7 @@
       "bundleIdentifier": "com.frontierrnd.langquestnext",
       "buildNumber": "4",
       "associatedDomains": [
+        "applinks:app.langquest.org",
         "applinks:next.langquest.org",
         "applinks:next-preview.langquest.org"
       ],
@@ -55,6 +56,16 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
+            {
+              "scheme": "https",
+              "host": "app.langquest.org",
+              "pathPrefix": "/invite"
+            },
+            {
+              "scheme": "https",
+              "host": "app.langquest.org",
+              "pathPrefix": "/signin"
+            },
             {
               "scheme": "https",
               "host": "next.langquest.org",

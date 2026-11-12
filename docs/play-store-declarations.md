@@ -39,6 +39,12 @@ First filled in: 2026-09-30, Caleb Koster, with Claude.
 
 ## Policy addresses
 
+These stay at `next.langquest.org` after the web app moved to
+`app.langquest.org`: the host is an alias of the same Worker, so what they
+serve is the same, and no Play Console answer changes (decisions.md 210).
+Before `next.` ever redirects, change them here, in `apps/mobile/src/auth/legal.ts`
+and in Play Console.
+
 | Field | Answer |
 | --- | --- |
 | Privacy policy | https://next.langquest.org/privacy (`apps/mobile/public/privacy.html`, served with the web app) |
