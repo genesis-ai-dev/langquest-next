@@ -1,6 +1,6 @@
 import { CUSTOM_FLOW, ORG_STREAM, parseRef, refId, templateUnits, type Card, type Role, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import type { Fact, Said } from './reconcile';
-import { bucketName, isoTime, metadataOf, type V2Asset, type V2ProjectRows, type V2Quest } from './rows';
+import { bucketName, isoTime, metadataOf, recordedInApp, type V2Asset, type V2ProjectRows, type V2Quest } from './rows';
 
 /**
  * One v2 project as facts (docs/v2-import.md section 4): what it says now,
@@ -243,7 +243,9 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
    * When v2's server got a part's files (decisions.md 188): each file's
    * segment (`segment:<hash>`, its `uploaded_at`) and its audio
    * (`file:<hash>`, `audio_uploaded_at`), the earliest where two segments
-   * name one file; null where v2 has no stamp.
+   * name one file; null where v2 has no stamp. A file that v2's app did
+   * not record (an upload) also has `upload:<hash>`, so the API can tell it
+   * from a recording.
    */
   const fileStamps = (a: V2Asset) => (): Record<string, string | null> => {
     const out: Record<string, string | null> = {};
@@ -253,6 +255,8 @@ export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
         if (!file) continue;
         out[`segment:${file.hash}`] = earliest(out[`segment:${file.hash}`], c.uploaded_at);
         out[`file:${file.hash}`] = earliest(out[`file:${file.hash}`], c.audio_uploaded_at);
+        // The uploader set the asset's created_at, so it stands in when the segment has no stamp.
+        if (!recordedInApp(raw)) out[`upload:${file.hash}`] = earliest(out[`upload:${file.hash}`], c.uploaded_at ?? a.created_at);
       }
     }
     return out;
