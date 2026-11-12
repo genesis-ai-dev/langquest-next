@@ -25,7 +25,9 @@
 #           section 7).
 # nightly:  the whole web UI suite, a fleet scenario and Stryker on core,
 #           on a schedule; not blocking, but each job files its failures in
-#           Linear (scripts/nightly-report.mjs; a dry run off main). The
+#           Linear (scripts/nightly-report.mjs; a dry run off main) and
+#           leaves one line on the run, which the ops dashboard's Nightly
+#           tests part reads (decisions.md 209). The
 #           flake tracker reads the last runs' reports and files the tests
 #           that do not pass every time (scripts/ui-flake-report.mjs).
 # gate:     passes when checks, unit, coverage and every needed job passed;
@@ -609,7 +611,7 @@ jobs:
         if: always()
         with: { phase: save, job-images: 'true' }
       # An issue per failing test, or one for the run when it broke as a whole.
-      - name: Tell Linear
+      - name: Tell Linear and the ops dashboard
         if: always()
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
@@ -709,7 +711,7 @@ jobs:
         with:
           name: fleet-normalDay
           path: fleet-normalDay.json
-      - name: Tell Linear
+      - name: Tell Linear and the ops dashboard
         if: always()
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
@@ -772,7 +774,7 @@ jobs:
           name: mutation-core
           path: reports/mutation
           if-no-files-found: ignore
-      - name: Tell Linear
+      - name: Tell Linear and the ops dashboard
         if: always()
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}

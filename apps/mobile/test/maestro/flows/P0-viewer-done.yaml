@@ -36,7 +36,8 @@ tags:
     timeout: 30000
 - assertVisible: "Peer check, looks good"
 - assertVisible: "Back translation, looks good"
-# The later checks' cards sit below the player and the first two: bring each up.
+# The later checks' cards sit below the player and the first two, under the
+# fold on a 6-inch phone (Pixel 6, 2026-11-11): bring each up.
 - scrollUntilVisible:
     element: "Community check, looks good"
     direction: DOWN
