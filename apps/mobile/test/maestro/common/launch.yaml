@@ -15,6 +15,14 @@ appId: com.frontierrnd.langquestnext
 - launchApp:
     clearState: true
     clearKeychain: true
+# A box an earlier flow left open on an iPhone ("Open in “LangQuest Next”?")
+# covers the app.
+- runFlow:
+    when:
+      platform: iOS
+      visible: "Open in .*"
+    commands:
+      - tapOn: "Cancel"
 # On a slow emulator Android can kill the app's process as it starts, just after
 # Maestro clears its data and sets its permissions (`am_kill … remove task`, then
 # `am_process_start_timeout`), and leaves a blank window. A healthy cold start

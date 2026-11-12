@@ -50,7 +50,12 @@ tags:
 # Override: P-CHECK waits at the Consultant check, a checkpoint.
 - tapOn:
     id: "header-back"
-- tapOn: "Find.*"
+# The field by its ID, once the way back has finished: on an iPhone the field
+# was still moving under the tap, which then missed it (run 9, 2026-11-12).
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    id: "map-search"
 - eraseText: 40
 - inputText: ${P_CHECK.split(':')[0]}
 - runFlow:
