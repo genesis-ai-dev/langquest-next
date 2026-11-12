@@ -172,7 +172,7 @@ export function BiblePane(props: {
                       <Fragment key={i}>
                         <Text {...(onTerm ? { onPress: () => onTerm(part.termId!), accessibilityRole: 'link' as const } : {})}
                           accessibilityLabel={tied ? t('reference.bible.keyWordTied', { word: part.text }) : t('reference.bible.keyWord', { word: part.text })}
-                          style={[styles.term, tied && { color: TINT.greenText }]}>{part.text}{tied ? ' ✓' : ''}</Text>
+                          style={[styles.term, tied && { color: TINT.greenText }]}>{part.text}{tied ? `${NBSP}✓` : ''}</Text>
                         {ours ? <OurWordChip ctx={ctx} term={part.text} word={ours} playable={!helpOn} {...(props.listen ? { listen: props.listen } : {})} /> : null}
                       </Fragment>
                     );
@@ -251,12 +251,14 @@ function AddNoteHere(props: { label: string; onPress: () => void }) {
  */
 function OurWordChip(props: { ctx: Ctx; term: string; word: OurWord; playable: boolean; listen?: ListenHooks }) {
   if (props.word.kind === 'voice') return <OurVoiceChip ctx={props.ctx} term={props.term} hash={props.word.voice} playable={props.playable} {...(props.listen ? { listen: props.listen } : {})} />;
-  if (props.word.kind === 'text') return <Text style={styles.ourChip} accessibilityLabel={t('reference.bible.ourWord', { word: props.word.text })}>{`${NBSP}${props.word.text}${NBSP}`}</Text>;
+  if (props.word.kind === 'text') return <Text style={styles.ourChip} accessibilityLabel={t('reference.bible.ourWord', { word: props.word.text })}>{`${NBSP}${props.word.text}${NARROW_NBSP}`}</Text>;
   return null;
 }
 
-/** Keeps a chip on the line of its key word and the punctuation after it. */
+/** Keeps a key word, its tick and its chip on one line; the punctuation after them joins the chip. */
 const NBSP = '\u00A0';
+/** The chip's narrow end, which no line breaks after. */
+const NARROW_NBSP = '\u202F';
 const PLAY = '\u25B6';
 const PAUSE = '\u275A\u275A';
 
@@ -265,7 +267,7 @@ function OurVoiceChip(props: { ctx: Ctx; term: string; hash: string; playable: b
   return (
     <Text onPress={props.playable && clip.available ? clip.toggle : undefined} accessibilityRole="button"
       accessibilityLabel={clip.playing ? t('reference.keyWords.pauseYourWord', { term: props.term }) : t('reference.keyWords.playYourWord', { term: props.term })}
-      style={styles.ourChip}>{`${NBSP}${clip.playing ? PAUSE : PLAY}${NBSP}${t('keyTerms.tiles.recorded')}${NBSP}`}</Text>
+      style={styles.ourChip}>{`${NBSP}${clip.playing ? PAUSE : PLAY}${NBSP}${t('keyTerms.tiles.recorded')}${NARROW_NBSP}`}</Text>
   );
 }
 
