@@ -34,6 +34,7 @@ const VOICE_NOTE_FIELD: Partial<Record<EventType, string>> = {
   'v1.DepartureRecorded': 'reasonBlobHash',
   'v1.NoteAdded': 'blobHash',
   'v1.ResponseRecorded': 'blobHash',
+  'v1.KeyTermAudioRenderingAdded': 'blobHash',
   'v1.KeyTermAdjusted': 'blobHash',
   'v1.MaterialFieldSet': 'blobHash'
 };
@@ -241,6 +242,9 @@ function collectRefs(state: LanguageState): Map<string, BlobRef> {
       if (a.blobHash && !out.has(a.blobHash)) out.set(a.blobHash, { hash: a.blobHash, format: voice(a.blobHash), unitId });
     }
   }
+  for (const t of Object.values(state.keyTerms)) {
+    for (const a of Object.values(t.audioRenderings ?? {})) if (!out.has(a.blobHash)) out.set(a.blobHash, { hash: a.blobHash, format: voice(a.blobHash), unitId: a.duringTakeId ? state.takes[a.duringTakeId]?.unitId ?? '' : '' });
+  }
   for (const [takeId, r] of Object.entries(state.responses)) {
     const unitId = state.takes[takeId]?.unitId ?? '';
     if (r.blobHash && !out.has(r.blobHash)) out.set(r.blobHash, { hash: r.blobHash, format: voice(r.blobHash), unitId });
@@ -348,6 +352,10 @@ function audioIndex(state: Pick<LanguageState, 'materials' | 'keyTerms'>, refs: 
       if (!adjustment.blobHash) continue;
       if (term.unitScope.length === 0) everywhere.push(adjustment.blobHash);
       else for (const unitId of term.unitScope) add(byScope, unitId, adjustment.blobHash);
+    }
+    for (const a of Object.values(term.audioRenderings ?? {})) {
+      if (term.unitScope.length === 0) everywhere.push(a.blobHash);
+      else for (const unitId of term.unitScope) add(byScope, unitId, a.blobHash);
     }
   }
   return { own, byScope, everywhere };

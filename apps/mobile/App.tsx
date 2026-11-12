@@ -521,7 +521,7 @@ function OrgWork(props: Who & {
   useRouting({
     nav, session, signedIn: props.signedIn, actorId: props.actorId, orgId: props.orgId, noOrganizations: props.noOrganizations, arrival: props.arrival, openTask, setLanguage,
     loaded: foldsSettled(org.state !== null && org.settled, language.state !== null, props.noOrganizations),
-    ready: onboarding.loaded && welcomeBack.loaded
+    ready: onboarding.loaded && welcomeBack.loaded, welcomedLate: onboarding.welcomedLate
   });
   const homeIsWork = homeScreenFor(session) === 'my_work';
   const { invite, firstContact } = props;
