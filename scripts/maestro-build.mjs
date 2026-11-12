@@ -94,11 +94,22 @@ if (platform === 'android') {
   patch(join(app, 'ios/LangQuestNext/Supporting/Expo.plist'), '<key>EXUpdatesEnabled</key>\n    <true/>',
     '<key>EXUpdatesEnabled</key>\n    <false/>', 'updates off');
   if (buildOnly) {
-    // A simulator build needs no signing; the JavaScript is bundled by Xcode's own build phase, with these settings.
+    // The simulator build is signed to run locally, with no team, as `expo run:ios` signs one.
+    // A build with no signing at all has no entitlements, and the keychain refuses the sign-in
+    // ("A required entitlement isn't present", iOS 26 simulator, 2026-11-11). A build with no
+    // team cannot have associated domains, and no flow needs them: the flows open
+    // langquestnext:// links. The JavaScript is bundled by Xcode's own build phase, with these settings.
+    const entitlements = join(app, 'ios/LangQuestNext/LangQuestNext.entitlements');
+    const text = readFileSync(entitlements, 'utf8');
+    const kept = text.replace(/\s*<key>com\.apple\.developer\.associated-domains<\/key>\s*<array>[\s\S]*?<\/array>/, '');
+    if (kept !== text) {
+      writeFileSync(entitlements, kept);
+      console.log('ios/LangQuestNext/LangQuestNext.entitlements: no associated domains (a build with no team cannot have them)');
+    }
     run('pod', ['install'], join(app, 'ios'));
     run('node', ['scripts/with-env.mjs', 'development', 'xcodebuild', '-workspace', 'ios/LangQuestNext.xcworkspace', '-scheme', 'LangQuestNext',
       '-configuration', 'Release', '-sdk', 'iphonesimulator', '-destination', 'generic/platform=iOS Simulator',
-      '-derivedDataPath', 'ios/build', 'CODE_SIGNING_ALLOWED=NO', ...(abi ? [`ARCHS=${abi}`, 'ONLY_ACTIVE_ARCH=NO'] : []), '-quiet', 'build']);
+      '-derivedDataPath', 'ios/build', ...(abi ? [`ARCHS=${abi}`, 'ONLY_ACTIVE_ARCH=NO'] : []), '-quiet', 'build']);
     built(join(app, 'ios/build/Build/Products/Release-iphonesimulator/LangQuestNext.app'));
   } else {
     run('node', ['scripts/with-env.mjs', 'development', 'npx', 'expo', 'run:ios', '--configuration', 'Release', '--device', device, '--no-bundler']);
