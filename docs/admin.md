@@ -1,6 +1,6 @@
 # The ops dashboard
 
-`https://next.langquest.org/ops-dashboard` shows staff what is going on
+`https://app.langquest.org/ops-dashboard` shows staff what is going on
 with LangQuest in one page: what phones and browsers report, how the
 server's own jobs are doing, and what each service LangQuest runs on says
 about its part. Its API is `/ops/api/*` on the same host. It is a Worker of
@@ -125,7 +125,7 @@ the page loads to exactly one section.
 | Expiry dates | each provider token's end date where its provider reports one (Cloudflare, GitHub), Apple's certificates and provisioning profiles, and the dates in `apps/admin/expiry.json` | the tokens; the file needs nothing |
 | Capacity and cost | the database's size and growth (the fold canary records sizes nightly) against its provisioned disk (`SUPABASE_DB_LIMIT_GB`, 64 GB), R2's growth, and this month's Workers, Durable Object and R2 usage against the plan's allowance (`apps/admin/src/sources/storage.ts` `ALLOWANCE`) | `DIAG_DATABASE_URL`; `ADMIN_CLOUDFLARE_TOKEN` |
 | Filming (Tutorial videos) | GitHub: the run of `.github/workflows/tutorials.yml` on `main` filming now (a run held behind it is counted, not shown), or the latest, and each job of it: Grace's pieces, then each app language waiting its turn (five film at once), filming with the step it is on, done or failed, when it started, how long it took, and its log. No alerts: a failed run is said under Code and deploys | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
-| Code and deploys | `main` on GitHub, the latest run of each workflow on `main`, and the commit `next.langquest.org/version.json` says it serves. A web app still behind `main` 45 minutes after a merge that changed a file it is built from (its watch paths, `docs/cloudflare.md`) is a problem: the deploy failed (as every Workers Build did from 2026-10-16 to 10-19). A failed run of this repository's own (a push, a schedule or a run by hand) that says what only a person can fix, in an annotation titled "Needs you: …" (Gemini's credit or key for the tutorial videos, `e2e/tutorials/needs-you.mjs`; the Claude token of `tutorial-review.yml` and `user-issues.yml`), is a problem with an Open link to the page that fixes it; the next run that works takes it away. A pull request's runs are never read for it. Each of the repository's active workflows is read on its own (`ownWorkflows`), so one that runs every few minutes cannot push the others out; a failed scheduled run of a nightly test workflow raises nothing here when every job that failed in it is one Nightly tests says (`saidByNightly`) | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit (about ten calls a refresh) |
+| Code and deploys | `main` on GitHub, the latest run of each workflow on `main`, and the commit `app.langquest.org/version.json` says it serves. A web app still behind `main` 45 minutes after a merge that changed a file it is built from (its watch paths, `docs/cloudflare.md`) is a problem: the deploy failed (as every Workers Build did from 2026-10-16 to 10-19). A failed run of this repository's own (a push, a schedule or a run by hand) that says what only a person can fix, in an annotation titled "Needs you: …" (Gemini's credit or key for the tutorial videos, `e2e/tutorials/needs-you.mjs`; the Claude token of `tutorial-review.yml` and `user-issues.yml`), is a problem with an Open link to the page that fixes it; the next run that works takes it away. A pull request's runs are never read for it. Each of the repository's active workflows is read on its own (`ownWorkflows`), so one that runs every few minutes cannot push the others out; a failed scheduled run of a nightly test workflow raises nothing here when every job that failed in it is one Nightly tests says (`saidByNightly`) | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit (about ten calls a refresh) |
 | Nightly tests (Releases) | GitHub: for `guardrails.yml` and `phone-tests.yml` (`apps/admin/src/sources/nightly.ts` `NIGHTLIES`), the latest completed scheduled run on `main`, and the line each reporting job left on it, an annotation titled "Nightly: <suite>" (`scripts/nightly-report.mjs` `nightNotice`, decisions.md 209): the web UI suite, the fleet simulation, the mutation tests and each phone, with how many passed or why it broke, and the Linear issue of each failure. The detail of a failure is in Linear. A failed test is a watch; a suite that broke, a reporting job that failed and left no line, or a nightly last run more than 36 hours ago is a problem | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
 | Cloudflare | each Worker's requests, errors and CPU over the last day (GraphQL Analytics), its latest deploy and its latest Workers Build | `ADMIN_CLOUDFLARE_TOKEN` |
 | Supabase | for LangQuest Next (`SUPABASE_PROJECTS`; v2 is left off): project status, each service's health, Edge Functions, and counts from the day's logs (API 5xx, Edge Function 5xx, Postgres errors, Auth 5xx), with the errors grouped: a Postgres error by its SQLSTATE (named), role, client and the RPC a PostgREST call named; a server error by method, the path's first parts (ids hidden) and status. Never a log message, which can quote what someone typed | `ADMIN_SUPABASE_TOKEN` |
@@ -212,12 +212,12 @@ or its Workers Build), that Worker is only the placeholder step 1 makes,
 and `/ops-dashboard` answers 503 saying it is not deployed. The admin Worker binds back to the app Worker's `JobStatus`
 entrypoint (`APP_JOBS`); until the app Worker with that entrypoint is
 deployed, the Job container section says it could not ask. Check: `curl -s -o /dev/null -w '%{http_code}\n'
-https://next.langquest.org/ops-dashboard` says `200`.
+https://app.langquest.org/ops-dashboard` says `200`.
 
 ### 4. Let yourself in
 
 You need a Global Viewer account with its authenticator set up
-(`docs/global-viewers.md`). Open `https://next.langquest.org/ops-dashboard`
+(`docs/global-viewers.md`). Open `https://app.langquest.org/ops-dashboard`
 and sign in with it, then enter your code. The database sections fill in;
 the others say "Not connected" until step 5.
 

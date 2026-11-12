@@ -5,7 +5,7 @@ Other apps, AI agents and people without an account can take part in a translati
 - **Partner apps and agents** use an access token. They read passages, record reviews, report where a version is published, and store values of their own with a language.
 - **Anyone with a review link** (`/r/<code>`, shared on WhatsApp, say) can hear one version and answer, with any name.
 
-Base address: `https://next.langquest.org/api/v1` (preview: `next-preview.langquest.org`). `GET /api/v1` lists every endpoint.
+Base address: `https://app.langquest.org/api/v1` (preview: `next-preview.langquest.org`). `GET /api/v1` lists every endpoint. `https://next.langquest.org` is the same Worker, kept as an alias: an existing token, MCP setup or review link keeps working there, with nothing to change yet (decisions.md 210).
 
 **Reference:** `GET /api/v1/openapi.json` is the API as OpenAPI 3.1: every route, parameter, request and response field. It needs no token, so client generators and API tools can read it directly. This guide explains what the API is for and how to use it; when the two differ in a detail, the OpenAPI document is right, because the tests hold the API to it. It leaves out `/api/v1/session/*` and `/api/v1/links/*`, which only LangQuest's own connect and review pages call.
 
@@ -46,7 +46,7 @@ A token inside a phone app or a web page can be read by anyone who wants it. The
 
 ### Making one
 
-- **Yourself:** open `https://next.langquest.org/connect`. It uses the web app's session if this browser has one; otherwise sign in. Choose scopes and languages, and copy the token, which is shown once.
+- **Yourself:** open `https://app.langquest.org/connect`. It uses the web app's session if this browser has one; otherwise sign in. Choose scopes and languages, and copy the token, which is shown once.
 - **An app asks** (OAuth device flow, RFC 8628):
   1. `POST /api/v1/device/code` with `{"clientName": "…", "scopes": [...]}`. You get back `device_code` (secret), `user_code`, `verification_uri_complete`, `interval` (5 s) and `expires_in` (10 min).
   2. Show the person the link and code. On `/connect` they see the app's name, marked unverified, and what it asks for. Scopes that write start unticked. They choose languages and expiry, then approve or deny. They can narrow the request, never widen it.
@@ -57,11 +57,11 @@ A token inside a phone app or a web page can be read by anyone who wants it. The
 
 ```bash
 T='Authorization: Bearer lqp_…'
-curl -H "$T" https://next.langquest.org/api/v1/me
-curl -H "$T" 'https://next.langquest.org/api/v1/languages/LANG/passages?status=approved&changedSince=2026-10-01T00:00:00Z'
-curl -H "$T" 'https://next.langquest.org/api/v1/languages/LANG/passages?status=in_review&include=steps,requests'
-curl -H "$T" 'https://next.langquest.org/api/v1/languages/LANG/passages?unitIds=UNIT1&unitIds=UNIT2&include=audio,reviews'
-curl -H "$T" https://next.langquest.org/api/v1/languages/LANG/passages/UNIT     # URL-encode the unit id
+curl -H "$T" https://app.langquest.org/api/v1/me
+curl -H "$T" 'https://app.langquest.org/api/v1/languages/LANG/passages?status=approved&changedSince=2026-10-01T00:00:00Z'
+curl -H "$T" 'https://app.langquest.org/api/v1/languages/LANG/passages?status=in_review&include=steps,requests'
+curl -H "$T" 'https://app.langquest.org/api/v1/languages/LANG/passages?unitIds=UNIT1&unitIds=UNIT2&include=audio,reviews'
+curl -H "$T" https://app.langquest.org/api/v1/languages/LANG/passages/UNIT     # URL-encode the unit id
 ```
 
 - **`/me`** gives the token, its organization (`org: { id, name }`, to label the connection) and its languages.
@@ -123,7 +123,7 @@ Writes are recorded as the token's person, from a device of the token's own. A t
 
 ```bash
 curl -X POST -H "$T" -H 'content-type: application/json' \
-  https://next.langquest.org/api/v1/languages/LANG/passages/UNIT/reviews \
+  https://app.langquest.org/api/v1/languages/LANG/passages/UNIT/reviews \
   -d '{"outcome":"needs_changes","reviewerId":"user-8d1f","reviewerName":"Mary K.","comment":"Verse 3 is hard to follow"}'
 ```
 
@@ -142,7 +142,7 @@ curl -X POST -H "$T" -H 'content-type: application/json' \
 
 ```bash
 curl -X POST -H "$T" -H 'content-type: application/json' \
-  https://next.langquest.org/api/v1/languages/LANG/passages/UNIT/releases \
+  https://app.langquest.org/api/v1/languages/LANG/passages/UNIT/releases \
   -d '{"channel":"Every Language app","live":true,"url":"https://…"}'
 ```
 
@@ -167,9 +167,9 @@ Someone who may send work to reviewers, and may review or translate, shares a li
 **Making one**, from the app (signed in) or with a token that has `read` and `review`:
 
 ```bash
-curl -X POST -H "$T" -H 'content-type: application/json' https://next.langquest.org/api/v1/review-links \
+curl -X POST -H "$T" -H 'content-type: application/json' https://app.langquest.org/api/v1/review-links \
   -d '{"languageId":"LANG","unitId":"UNIT","kindId":"community","counts":true,"label":"Women'"'"'s fellowship"}'
-# → { "url": "https://next.langquest.org/r/…", "id": "…", "expiresAt": "…", … }
+# → { "url": "https://app.langquest.org/r/…", "id": "…", "expiresAt": "…", … }
 ```
 
 - `counts`: whether answers count toward the step (`true`) or are listener feedback (`false`).
@@ -193,10 +193,10 @@ An app's own values, stored with a language under keys the app chooses. LangQues
 ```bash
 K='org.everylanguage.listening/plays/MRK.1.1-8/2026-10-08'
 curl -X PUT -H "$T" -H 'content-type: application/json' \
-  https://next.langquest.org/api/v1/languages/LANG/external-values/$K -d '{"data":{"count":12}}'
-curl -H "$T" https://next.langquest.org/api/v1/languages/LANG/external-values/$K
-curl -H "$T" 'https://next.langquest.org/api/v1/languages/LANG/external-values?keyPrefix=org.everylanguage.listening/plays/'
-curl -X DELETE -H "$T" https://next.langquest.org/api/v1/languages/LANG/external-values/$K
+  https://app.langquest.org/api/v1/languages/LANG/external-values/$K -d '{"data":{"count":12}}'
+curl -H "$T" https://app.langquest.org/api/v1/languages/LANG/external-values/$K
+curl -H "$T" 'https://app.langquest.org/api/v1/languages/LANG/external-values?keyPrefix=org.everylanguage.listening/plays/'
+curl -X DELETE -H "$T" https://app.langquest.org/api/v1/languages/LANG/external-values/$K
 ```
 
 - **Writing needs the `external_values` scope; reading needs `read` or `external_values`.**
@@ -217,8 +217,8 @@ A webhook says "something changed in this language, read from here". It never ca
 ### The change feed
 
 ```bash
-curl -H "$T" https://next.langquest.org/api/v1/languages/LANG/changes            # → { changes: [], cursor: "812", more: false }
-curl -H "$T" 'https://next.langquest.org/api/v1/languages/LANG/changes?after=812'
+curl -H "$T" https://app.langquest.org/api/v1/languages/LANG/changes            # → { changes: [], cursor: "812", more: false }
+curl -H "$T" 'https://app.langquest.org/api/v1/languages/LANG/changes?after=812'
 ```
 
 1. List the passages, then ask for the feed without `after`. You get the `cursor` to start from.
@@ -233,7 +233,7 @@ curl -H "$T" 'https://next.langquest.org/api/v1/languages/LANG/changes?after=812
 ### Webhooks
 
 ```bash
-curl -X POST -H "$T" -H 'content-type: application/json' https://next.langquest.org/api/v1/webhooks \
+curl -X POST -H "$T" -H 'content-type: application/json' https://app.langquest.org/api/v1/webhooks \
   -d '{"url":"https://app.example/langquest","events":["passage.version.submitted","passage.status.changed","unit.deleted","token.revoked"]}'
 # → { "webhookId": "…", "secret": "whsec_…", "webhook": { … } }   (the secret is shown once)
 ```
@@ -277,11 +277,11 @@ LangQuest usually delivers within seconds. If the database's nudge to LangQuest'
 ## MCP (Claude, ChatGPT and other agents)
 
 ```json
-{ "mcpServers": { "langquest": { "type": "http", "url": "https://next.langquest.org/api/v1/mcp",
+{ "mcpServers": { "langquest": { "type": "http", "url": "https://app.langquest.org/api/v1/mcp",
   "headers": { "Authorization": "Bearer lqp_…" } } } }
 ```
 
-In Claude Code: `claude mcp add --transport http langquest https://next.langquest.org/api/v1/mcp --header "Authorization: Bearer lqp_…"`.
+In Claude Code: `claude mcp add --transport http langquest https://app.langquest.org/api/v1/mcp --header "Authorization: Bearer lqp_…"`.
 
 - The tools are `whoami`, `list_languages`, `list_passages`, `get_passage`, `record_review`, `report_release`, `set_external_value` and `get_external_values`. An agent sees only the tools its scopes allow.
 - `list_passages` takes what the list route takes, with `unitIds` and `include` as arrays, and returns the same `{ passages, nextAfter }`.

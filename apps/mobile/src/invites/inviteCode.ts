@@ -40,10 +40,10 @@ function linkParams(raw: string, path: 'invite' | 'signin'): string | null {
 }
 
 /**
- * The hosts the app's links are made at: the two it declares for universal links and app links (app.json,
+ * The hosts the app's links are made at: the ones it declares for universal links and app links (app.json,
  * associatedDomains and intentFilters) and the address this build was given (appUrl.ts).
  */
-const DECLARED_HOSTS = ['next.langquest.org', 'next-preview.langquest.org'];
+const DECLARED_HOSTS = ['app.langquest.org', 'next.langquest.org', 'next-preview.langquest.org'];
 function appHosts(): Set<string> {
   const hosts = new Set(DECLARED_HOSTS);
   try {
