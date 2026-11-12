@@ -62,7 +62,7 @@ config.server.enhanceMiddleware = (middleware) => (req, res, next) => {
 // react-native-screens freezes the screens under the top one with
 // react-freeze (`freezeOnBlur`, decision 119). Its 1.0.4 loops on React 19.1
 // and later (software-mansion/react-freeze#44): the app gets a mended
-// `Freeze` instead (src/shell/freeze.tsx, decision 250), until react-freeze
+// `Freeze` instead (src/shell/freeze.tsx, decision 251), until react-freeze
 // publishes the fix (test/freezeShim.test.ts says when).
 const FREEZE = path.join(__dirname, 'src/shell/freeze.tsx');
 const resolveBefore = config.resolver.resolveRequest;

@@ -4,7 +4,7 @@ import { Fragment, Suspense, use, useRef, type ReactNode } from 'react';
  * react-freeze's `Freeze`, which react-native-screens uses to freeze the
  * screens under the top one (`freezeOnBlur`, decision 119), mended for
  * React 19.1 and later: Metro gives react-native-screens this file when it
- * asks for `react-freeze` (metro.config.js, decision 250).
+ * asks for `react-freeze` (metro.config.js, decision 251).
  *
  * react-freeze 1.0.4 freezes by throwing `{ then() {} }`, a thenable that
  * never settles. On React 19.1 and later, two frozen boundaries can hand

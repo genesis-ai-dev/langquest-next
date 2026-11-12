@@ -5,7 +5,7 @@ Oral Bible translation, rebuilt on an append-only event log. Read
 
 ## Local development
 
-Requires Docker via colima (`colima start`) and the Node in `.node-version` (24, with the npm 11 it ships, which writes the lockfile). CI, EAS, Cloudflare and the job image use the same version (decisions.md 246); fnm reads that file.
+Requires Docker via colima (`colima start`) and the Node in `.node-version` (24, with the npm 11 it ships, which writes the lockfile). CI, EAS, Cloudflare and the job image use the same version (decisions.md 247); fnm reads that file.
 
 ```bash
 npm install

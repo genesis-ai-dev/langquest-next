@@ -6,7 +6,7 @@ import { join } from 'node:path';
  * react-native-screens freezes the screens under the top one with react-freeze (`freezeOnBlur`,
  * decision 119), whose 1.0.4 re-commits frozen screens without end on React 19.1 and later
  * (software-mansion/react-freeze#44): opening a passage from a book's list left a phone on a blank
- * page. Metro hands react-native-screens the app's mended `Freeze` instead (decision 250). The
+ * page. Metro hands react-native-screens the app's mended `Freeze` instead (decision 251). The
  * phone flows that caught it (JRN-006, MAP-031) show the behaviour; these hold the redirect in
  * place and say when react-freeze moves on, so it can go.
  */
@@ -15,7 +15,7 @@ const require = createRequire(import.meta.url);
 const APP = join(import.meta.dirname, '..');
 const SHIM = join(APP, 'src/shell/freeze.tsx');
 
-describe('the react-freeze redirect (decision 250)', () => {
+describe('the react-freeze redirect (decision 251)', () => {
   const config = require(join(APP, 'metro.config.js'));
   const asked: string[] = [];
   const context = { resolveRequest: (_c: unknown, name: string) => { asked.push(name); return { type: 'sourceFile', filePath: `/resolved/${name}` }; } };
@@ -43,6 +43,6 @@ describe('the react-freeze redirect (decision 250)', () => {
     const screens = readFileSync(require.resolve('react-native-screens/src/components/helpers/DelayedFreeze.tsx'), 'utf8');
     expect(screens).toMatch(/from 'react-freeze'/);
     const version = require('react-freeze/package.json').version;
-    expect(version, 'react-freeze has moved past 1.0.4: if it fixes software-mansion/react-freeze#44, remove src/shell/freeze.tsx and its redirect in metro.config.js (decision 250)').toBe('1.0.4');
+    expect(version, 'react-freeze has moved past 1.0.4: if it fixes software-mansion/react-freeze#44, remove src/shell/freeze.tsx and its redirect in metro.config.js (decision 251)').toBe('1.0.4');
   });
 });

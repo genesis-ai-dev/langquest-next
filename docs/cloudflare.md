@@ -39,7 +39,7 @@ an older commit, which is not a failed deploy. Change both together.
 
 Leave the default dependency install on. It is `npm clean-install` on the
 Node in `.node-version`, with the npm that `packageManager` in
-`package.json` names (decisions.md 246), the only setting that chooses
+`package.json` names (decisions.md 247), the only setting that chooses
 Cloudflare's npm. Before that pin it used the build image's npm, 10.9.2
 since Cloudflare's 2026-10-14 image update, which refuses a lockfile with a
 peer it would resolve differently: every build failed from 2026-10-16 to
