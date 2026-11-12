@@ -4,7 +4,9 @@
 # with what it waited for instead of hanging until the job's own limit.
 #
 #   worker <log>                   the app's Worker answers on :8787 (5 min)
-#   tunnel <log> <tunnel.json>     cloudflared has its address; writes it (2 min)
+#   tunnel <cloudflared> <origin> <log> <tunnel.json>
+#                                  starts a quick tunnel to origin and writes its
+#                                  address (2 min a try, 3 tries)
 #   job "<job name>" <minutes>     a job of this run has ended (the test server
 #                                  serves until the iPhone job ends)
 #   simulator <app> <device.json>  makes, boots and installs an iPhone simulator;
@@ -35,19 +37,30 @@ case "$mode" in
     ;;
 
   tunnel)
-    log="$1" out="$2"
-    while until_limit 120; do
-      url="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$log" | head -1 || true)"
-      if [ -n "$url" ]; then
-        mkdir -p "$(dirname "$out")"
-        printf '{"url":"%s"}\n' "$url" > "$out"
-        echo "The tunnel is open."
-        exit 0
-      fi
-      sleep 2
+    bin="$1" origin="$2" log="$3" out="$4"
+    # cloudflared asks api.trycloudflare.com for a quick tunnel, and the ask can
+    # time out (2026-11-12): cloudflared then names that host in its error and
+    # stops. Only a tunnel's own address counts, and a failed ask is made again.
+    for try in 1 2 3; do
+      if [ "$try" -gt 1 ]; then mv "$log" "$log.$((try - 1))"; fi
+      (setsid nohup "$bin" tunnel --no-autoupdate --url "$origin" > "$log" 2>&1 &)
+      start=$SECONDS
+      while [ $((SECONDS - start)) -lt 120 ]; do
+        url="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$log" | grep -vx 'https://api\.trycloudflare\.com' | head -1 || true)"
+        if [ -n "$url" ]; then
+          mkdir -p "$(dirname "$out")"
+          printf '{"url":"%s"}\n' "$url" > "$out"
+          echo "The tunnel is open."
+          exit 0
+        fi
+        if grep -q 'failed to request quick Tunnel' "$log"; then break; fi
+        sleep 2
+      done
+      echo "::warning::cloudflared gave no tunnel address (try $try of 3)"
+      tail -5 "$log" || true
+      pkill -f "$bin tunnel" || true
     done
-    echo "::error::cloudflared gave no tunnel address in 2 minutes"
-    tail -40 "$log" || true
+    echo "::error::cloudflared gave no tunnel address in 3 tries"
     exit 1
     ;;
 

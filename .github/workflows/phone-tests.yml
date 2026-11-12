@@ -216,8 +216,7 @@ jobs:
           token="$(openssl rand -hex 32)"
           (PHONE_TUNNEL_TOKEN="$token" setsid nohup node scripts/phone-tunnel.mjs serve --port 9000 > "$RUNNER_TEMP/gate.log" 2>&1 &)
           unset token
-          (setsid nohup "$RUNNER_TEMP/cloudflared" tunnel --no-autoupdate --url http://127.0.0.1:9000 > "$RUNNER_TEMP/cloudflared.log" 2>&1 &)
-          bash scripts/phone-tests-wait.sh tunnel "$RUNNER_TEMP/cloudflared.log" "$SERVER/tunnel.json"
+          bash scripts/phone-tests-wait.sh tunnel "$RUNNER_TEMP/cloudflared" http://127.0.0.1:9000 "$RUNNER_TEMP/cloudflared.log" "$SERVER/tunnel.json"
       - name: Hand the address and the accounts to the iPhone job
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -237,7 +236,7 @@ jobs:
           path: |
             ${{ runner.temp }}/worker.log
             ${{ runner.temp }}/gate.log
-            ${{ runner.temp }}/cloudflared.log
+            ${{ runner.temp }}/cloudflared.log*
           if-no-files-found: ignore
       - uses: ./.github/actions/docker-images
         if: always()
