@@ -8,13 +8,13 @@
   "main": "src/index.ts",
   "account_id": "6a80496d1e59948a9cbaa3c643ba81d7",
   "compatibility_date": "2026-10-01",
-  // global_fetch_strictly_public: next.langquest.org is another Worker on the
+  // global_fetch_strictly_public: app.langquest.org is another Worker on the
   // same zone, which a Worker can fetch only over the public path.
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "workers_dev": false,
   "preview_urls": false,
   // No address of its own: the app's Worker hands it /ops-dashboard and
-  // /ops/api/* on next.langquest.org through its OPS service binding
+  // /ops/api/* on the app's addresses through its OPS service binding
   // (apps/web/worker/ops.ts), so nothing reaches it any other way. No preview
   // copy: preview has no database of its own for it to read yet.
   "observability": { "enabled": true },
@@ -31,7 +31,7 @@
     "CLOUDFLARE_ACCOUNT_ID": "6a80496d1e59948a9cbaa3c643ba81d7",
     "CLOUDFLARE_WORKERS": "langquest-next,langquest-next-invite-email,langquest-next-admin",
     // Its /version.json names the commit it was built from (apps/mobile/scripts/export-web.mjs).
-    "APP_URL": "https://next.langquest.org",
+    "APP_URL": "https://app.langquest.org",
     "PREVIEW_URL": "https://next-preview.langquest.org",
     // The recordings bucket (apps/web/wrangler.jsonc r2_buckets), for its size.
     "R2_BUCKET": "langquest-next-blobs",
