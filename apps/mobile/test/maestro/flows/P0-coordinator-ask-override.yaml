@@ -96,6 +96,7 @@ tags:
     index: 0
 - tapOn:
     id: "header-close"
-- extendedWaitUntil:
-    visible: "Consultant check, next"
-    timeout: 20000
+# The passage opens at its top again, with the card under the fold.
+- scrollUntilVisible:
+    element: "Consultant check, next"
+    direction: DOWN
