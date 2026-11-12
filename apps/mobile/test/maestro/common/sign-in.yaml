@@ -31,6 +31,16 @@ appId: com.frontierrnd.langquestnext
     notVisible: "Signing in…"
     timeout: 60000
 # iOS offers to keep the password in the system's keychain: say no, it covers the screen.
+# On a simulator's first sign-in the box took 20 s to show, and while it shows
+# Maestro reads only the box (run 11, 2026-11-12): wait for it.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible: "Save Password\\?"
+          timeout: 30000
+          optional: true
 - runFlow:
     when:
       visible: "Save Password\\?"

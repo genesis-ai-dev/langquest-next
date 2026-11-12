@@ -95,6 +95,7 @@ tags:
           id: "header-back"
       - waitForAnimationToEnd:
           timeout: 5000
+- runFlow: ../common/close-map-keyboard.yaml
 - tapOn:
     id: "tab-me"
 - tapOn: "Sign out"
@@ -150,7 +151,9 @@ tags:
 - assertVisible: ".*${TRANS_FIRST}.*"
 - tapOn:
     id: "header-close"
-# REV's Sync shows nothing refused.
+# REV's Sync shows nothing refused. Back to the tabs as above.
+- waitForAnimationToEnd:
+    timeout: 5000
 - runFlow:
     when:
       notVisible:
@@ -158,6 +161,9 @@ tags:
     commands:
       - tapOn:
           id: "header-back"
+      - waitForAnimationToEnd:
+          timeout: 5000
+- runFlow: ../common/close-map-keyboard.yaml
 - tapOn:
     id: "tab-me"
 - tapOn: "More settings.*"
