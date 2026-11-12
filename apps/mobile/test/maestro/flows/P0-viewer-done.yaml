@@ -37,8 +37,13 @@ tags:
 - assertVisible: "Peer check, looks good"
 - assertVisible: "Back translation, looks good"
 - assertVisible: "Community check, looks good"
-- assertVisible: "Consultant check, looks good"
-- assertVisible: "Final approval, looks good"
+# The last two cards sit below the fold on a 6-inch phone (Pixel 6, 2026-11-11).
+- scrollUntilVisible:
+    element: "Consultant check, looks good"
+    direction: DOWN
+- scrollUntilVisible:
+    element: "Final approval, looks good"
+    direction: DOWN
 # Read only: no record, check, ask or main action.
 - assertNotVisible: "Do the .*"
 - assertNotVisible: "Ask .*"

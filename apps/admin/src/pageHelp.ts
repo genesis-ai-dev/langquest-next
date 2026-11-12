@@ -9,6 +9,7 @@
 
 /** Each section of the page (pageOps.ts GROUPS), on its title. */
 export const GROUP_HELP: Record<string, string> = {
+  phonetests: 'Last night\'s UI tests on phones: the phone flows run on an Android emulator and an iPhone simulator on GitHub, against a test server with made-up people. Each failed flow shows the screen it stopped on, what Claude says went wrong, and its Linear issue.',
   userissues: 'Problems people hit in the app, as the watch for user issues found them every 15 minutes: each one it filed in Linear (assigned to a developer, whose phone tells them), its state there, and the pull request that fixed it; and those a merged pull request had already fixed, which it did not file. Close an issue in Linear and the watch stops; it reopens it only when people hit the problem on a build made after the fix.',
   lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
   safety: 'Whether people\'s work is reaching the server and being kept: work the server refused, how late work arrives, phones with a wrong clock, the nightly check that stored snapshots match a fresh fold, and languages the server has fallen behind on.',
@@ -58,11 +59,18 @@ export const SECTION_HELP: Record<string, string> = {
   lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
   filming: 'Where the filming is: the run of tutorials.yml on GitHub filming now, or the latest. It starts at 20:10 UTC each night and when a change to the videos is merged into main; five languages film at once, each trying every video and filming only those that changed. Log opens a language\'s job on GitHub. As each language finishes, its new films come in, and the wide ones go up on YouTube at once.',
   tutorials: 'Each app language\'s YouTube channel and whether LangQuest may post to it, and every video made that is not on YouTube yet: ready to choose, or chosen and waiting for its turn.',
+  phonetests: 'The phone tests of the last night (.github/workflows/phone-tests.yml, 08:30 UTC). Each failed flow gets one Linear issue for each phone; the same failure the next night adds nothing, and a pass adds a comment. Flows that need a voice or a person in the middle do not run.',
   userissues: 'One row for each Linear issue the watch filed or added to, open ones first, and one for each problem it found already fixed. Fixed by is the pull request Linear links to the issue, or the newest merge into main that names it.',
   videofeedback: 'What came in about the videos (comments on YouTube, code changes merged into main, notes left here) and what Claude suggests doing about it each night: a change to a video\'s script, screens or voice, to the app\'s code, or a new video. Accept, edit or reject each; an accepted code change goes to Linear. Reply to comments in YouTube Studio.'
 };
 
 export const HELP: Record<string, string> = {
+  // ---- phone tests (sources/phonetests.ts)
+  'Android emulator flows passed': 'Phone flows that passed on the Android emulator last night, of those that ran. "broke" means the run stopped as a whole: the test server, the build or the emulator.',
+  'iPhone simulator flows passed': 'Phone flows that passed on the iPhone simulator last night, of those that ran. "broke" means the run stopped as a whole: the test server, the tunnel, the build or the simulator.',
+  'flows not run': 'Flows left out last night and why: they need a voice into the microphone, a person in the middle of the flow, or the other phone.',
+  'Each night': 'One square for each night, oldest on the left: green when every flow that ran passed, red when one failed or the run broke. Click one for its run on GitHub.',
+  'Failed screens': 'The screen each failed flow stopped on, what Claude says went wrong, whether the app, the flow or the test machine is to blame, and the Linear issue. Error is what Maestro said.',
   // ---- where each build and update is (sources/pipeline.ts)
   'Building on EAS': 'Store builds EAS is making now, and the newest one when it failed.',
   TestFlight: 'iPhone builds uploaded to Apple and not sent for review: Apple processing them, or waiting while an older build is in App Review. The hourly step sends only the newest once the review ends.',
