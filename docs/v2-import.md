@@ -279,6 +279,13 @@ weeks ago, so a wait counted from the recording was over before it began.
   said again for them (`Fact.stamps`, decisions.md 188). The access-token
   API gives them as `v2UploadedAt`, beside `uploadedAt`, Next's own stamp
   from when the import appended the work (`docs/agent-api.md`).
+- **Recorded or uploaded.** v2's app names a recording by a UUID; v2's
+  website names an uploaded file from the time, as `<milliseconds>-…`
+  (`recordedInApp` in `rows.ts`). For a file
+  that v2's app did not record, the import keeps one more stamp,
+  `upload:<hash>`: when v2 got it. The API gives every audio file and
+  version an `origin` from it (`web_upload`, `app_recording`, or `mixed`
+  for a version with both; decisions.md 188, amended 2026-11-12).
 - **Trying it.** `npm run v2 -- try --project <id>` maps projects and checks
   every event against the app's rules, writing nothing;
   `V2_IMPORT_FILES_DIR` keeps files in a folder instead of R2, for a whole

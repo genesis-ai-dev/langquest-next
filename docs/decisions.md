@@ -9742,6 +9742,32 @@ Reverse if: a language's `v1.TakeSubmitted` scan shows in the database's
 statement times (then a partial index on the take id, built concurrently);
 or partners need the stamp in the change feed or webhooks too.
 
+Amended (2026-11-12, Caleb Koster): each audio file and version also says
+how it was made, as `origin`. Every Language pays recording teams per
+chapter by when the audio arrived, and its staff also upload archives
+recorded before LangQuest. They told the two apart by the v2 asset's name,
+which the API does not give and which goes away with v2 (Every Language,
+2026-11-12; Caleb: "add the origin field"). The import knows a recording
+by the name v2's app gives it, a UUID (`recordedInApp` in
+`packages/v2-import/src/rows.ts`); no version of the app names a recording
+any other way, except old iPhone builds' `recording-<UUID>`. Every other
+name is a file someone uploaded: v2's website names its uploads from the
+time (`<milliseconds>-…`, four shapes from four screens), and names under
+`content/` come from no v2 code. On v2 production that day, 1,096,018 of
+1,228,354 names were recordings. The asset's name is not used, since
+people choose it. For a file that is not
+a recording the import keeps one more stamp, `upload:<hash>` (when v2 got
+it), in `v2_import.stamps` beside the others: no migration and no event,
+and the first whole read after this merges marks the uploads that came
+over before. The API gives `origin` on `audio`, `approvedAudio`, `version`
+and `versions`: `app_recording`, `web_upload`, or on a version `mixed`,
+since the import makes one version of a chapter from every recording in
+it. Next takes no uploaded audio yet, so its own work is `app_recording`;
+an upload added to Next later marks its own parts. Rejected: a yes-or-no
+on the version, which cannot say `mixed`; and a list of the website's
+name shapes, which already missed two of its four screens and would miss
+the next one, where the app's own shape has held since 2025-10-13.
+
 ## 189. Each YouTube channel's trailer is a 48-second film of today's app in its language, made each night when it changes, and the publish job sets it
 
 Date: 2026-10-29 · By: Caleb Koster · Status: accepted
@@ -10720,6 +10746,12 @@ developer had to look, and Claude never did); the whole timeline in the
 issue (too long to read on a phone, and Claude still could not see the
 screenshot); the voice note (Claude cannot hear it).
 
+Amended (2026-11-12, Carl Sauder): the ops dashboard no longer reads the
+watch's runs apart (`FREQUENT_WORKFLOWS`). Reading main's latest 40 runs and
+then leaving the watch's out still let it, with release-branches, fill the
+40 within about 8 hours, so it now reads the latest run of each workflow on
+its own (decision 209).
+
 ## 203. A study step shows the pictures and maps its text asks for, linked or not, and the rest after its text
 
 Date: 2026-11-03 · By: Caleb Koster · Status: accepted
@@ -10981,7 +11013,7 @@ partner languages, or teams will not record examples.
 
 ## 208. The phone flows run each night on GitHub's own Android and Mac machines, file each failure in Linear with its screen, and show the night on the ops dashboard
 
-Date: 2026-11-11 · By: Caleb Koster · Status: accepted
+Date: 2026-11-11 · By: Caleb Koster · Status: partly superseded by 209
 
 Reason: Caleb (2026-11-11, thread "Nightly phone UI tests") asked for the
 whole app's UI to be tested each night on an iPhone and an Android phone,
@@ -11031,9 +11063,64 @@ more often the machine than the app (then run them on the team's Mac or a
 device farm), or the repository goes private and the macOS minutes cost more
 than a device farm.
 
-## 209. An organization's own Bible, uploaded as USFM files, is two new library formats, `usfmBible@1` and `usfmBook@1`, and no shipped format changes
+## 209. Every nightly suite leaves one line on its run, and the ops dashboard shows last night's suites together in Releases, a failed test as a watch
 
-Date: 2026-11-11 · By: Caleb Koster · Status: accepted
+Date: 2026-11-12 · By: Carl Sauder · Status: accepted
+
+Reason: reviewing PR #421 (208) on 2026-11-12, Carl asked whether a report
+on CI belonged on the ops dashboard, a production-only page about running
+LangQuest, and why the other nightly tests had none there. The team merged
+#421 as it was and Carl chose these follow-ups. What the review found:
+208's Phone tests section, second on the page, made each failed phone flow
+a problem, the level of a failed deploy or a full disk, whatever Claude
+said the cause was; it kept the nights in a public GitHub release that only
+the phone tests wrote, so the report job held `contents: write` beside
+Claude's step; and the web nightly, the larger suite, had nothing there. The
+guardrails nightly failed every night from at least 2026-11-06 to 11-12 (the
+web UI suite, two tests a night, each filed in Linear), and the dashboard
+could not show it: it read main's latest 40 runs, and the watch for user
+issues (every 15 minutes) and release-branches (hourly) filled those within
+about 8 hours. The ops dashboard keeps what in CI needs a person (160, 190);
+the detail of a failed test stays in Linear. Decided:
+- **One line per suite, on its own run.** Each nightly reporter leaves a
+  notice annotation titled "Nightly: <suite>": how many passed, or that the
+  suite broke and why in a sentence, then the Linear issue of each failure
+  with its address (`scripts/nightly-report.mjs` `nightNotice` for the web
+  UI suite, the fleet simulation and the mutation tests;
+  `scripts/phone-tests.mjs notices`, one for each phone). It is written
+  whatever Linear answered. As in 190, the run already holds the words, so
+  there is no second store to disagree with GitHub's.
+- **A part of Releases, not a section.** Nightly tests sits after Code and
+  deploys (`apps/admin/src/sources/nightly.ts`): for each nightly workflow
+  (`NIGHTLIES`: `guardrails.yml`, `phone-tests.yml`), its latest completed
+  scheduled run on main and each suite's counts and issues. A failed test
+  is a watch: a developer acts on it from Linear, and nobody's work waits
+  on it. A suite that broke, a reporting job that failed and left no line,
+  or a nightly whose latest scheduled run is more than 36 hours old is a
+  problem. Code and deploys raises nothing for a failed scheduled run of
+  those workflows when every job that failed in it is one these lines say
+  (`saidByNightly`), which would say it twice; any other job failing there,
+  such as `checks` or the flake report, is still said.
+- **No release and no picture route.** The Phone tests section,
+  `/ops/api/phonetests/shot/<name>` and the `phone-tests` release's
+  `summary.json` and `history.json` are gone; the report job only reads
+  (`contents: read`), and so does the token Claude's step gets. Each failed
+  screen is in its Linear issue and the run's artifacts.
+- **Code and deploys reads each workflow on its own**: the repository's
+  active workflows, then the latest run on main of each (`ownWorkflows`), so
+  no workflow's schedule pushes another out. That is about ten calls to
+  GitHub for each refresh instead of three; `ADMIN_GITHUB_TOKEN` keeps them
+  under GitHub's limit.
+Supersedes 208's bullet "The night is kept in a public release" and its
+dashboard section; the rest of 208 stands. Amends 202 (how the dashboard
+reads the watch's runs).
+Reverse if: staff need a night's failures on the page without opening
+Linear, when the part shows more of each line; or GitHub stops keeping
+annotations (190).
+
+## 210. An organization's own Bible, uploaded as USFM files, is two new library formats, `usfmBible@1` and `usfmBook@1`, and no shipped format changes
+
+Date: 2026-11-12 · By: Caleb Koster · Status: accepted
 
 Reason: Go Forth North India asked (LAN-229) to upload the team's USFM files and have them show as a reference Bible. `source@1` could not hold them without change: it carries a provider (library or Bible Brain), audio, timings and an `offline` flag that mean nothing for text a team uploads, and about 25 places read it (offered Bibles, coverage, timings, the reader). Changing its shape would break shipped documents, so an upload is its own versioned pair (decision 36, PLAN.md section 6). `usfmBible@1` is the header: name, abbreviation, language, numbering (a `versification@1` hash), who holds the rights, the license, `rightsConfirmed: true` and the books with their counts. `usfmBook@1` is one book: its verses as plain text and the file as uploaded. A book is its own document because a library document is at most 4 MB (`_library_store`) and a whole Bible is more; the check refuses a file over 1.8 MB (core `MAX_BOOK_BYTES`). The file is kept untouched beside the plain verses so LAN-230 can show paragraphs, headings and notes without a second upload. Both are published under kind `material`, so a Bible is an organization library item that shows in Setup → Reference Material and that the admin may share for other organizations to follow, as any item. Checking is core (`checkUsfm`, pure; problems are codes the app says in the reader's language); reading a zip and picking files are web only (`apps/mobile/src/usfm/`), as the guide editor's uploads are (decision 69), and the documents go out through the library's own outbox, so no new route, table or job. The migration `20261106140000_usfm_bibles.sql` only adds the two formats to `_library_store`. Publishing needs Manage Reference at the organization level and the uploader's confirmation that the team may share the text; the item takes the organization's license (`docs/licensing.md`). Not built, because it is LAN-230: the reader does not open a `usfmBible@1` yet, so translators do not see it beside a passage, and coverage and the "offered Bibles" counts do not take it in. Not built either: a check that verse numbers fit the chosen numbering, and splitting a file that holds several books.
 Reverse if: admins upload Bibles with several books in one file often (then split on `\id`), or LAN-230 finds the plain verses never used (then drop them and keep only the file).

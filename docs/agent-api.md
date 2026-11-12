@@ -99,6 +99,20 @@ A phone that was offline for three days sends three days of work at once. The wo
 
 `v2UploadedAt` is `null` for work made in LangQuest Next, and where v2 kept no time (it is filled in by the import's next whole read, at 03:15 UTC, for work that came over earlier).
 
+### Recorded or uploaded
+
+Each audio file and each version has an `origin` (decisions.md 188, amended 2026-11-12). Partners pay recording teams by the chapter, and also upload old archives, so they need to tell the two apart.
+
+| `origin` | On an audio file | On a version |
+| --- | --- | --- |
+| `app_recording` | Recorded in an app: LangQuest Next, or LangQuest v2's app. | Every part was recorded. |
+| `web_upload` | A file uploaded to LangQuest v2's website, not recorded in an app. | Every part was uploaded. |
+| `mixed` | — | Some parts were recorded and some uploaded. |
+
+- LangQuest Next takes no uploaded audio yet, so all its own work is `app_recording`.
+- The import knows a recording by the name v2's app gives it, a UUID. Every other file was uploaded. The asset's name is not used, because people choose it.
+- Uploads that came over before `origin` existed show `web_upload` after the import's next whole read, at 03:15 UTC.
+
 Releases and external values are written only through this API, so their `at` is the server's clock as well.
 
 ## Writing
@@ -304,5 +318,6 @@ The device endpoints use OAuth's error codes.
 | Voice note checks | `apps/web/worker/agent/voice.ts` |
 | Tables (service role only) | `supabase/migrations/20261008000000_api_tokens.sql`, `20261008140000_review_links_releases.sql`, `20261013120000_api_webhooks.sql` (also the poke) |
 | When the server received it (`uploadedAt`, `v2UploadedAt`) | `received_times` in `supabase/migrations/20261029160000_received_times.sql`, asked once a page (`receivedTimes` in `apps/web/worker/agent/store.ts`) and remembered by the organization's object (`agent/org.ts`); v2's stamps kept by the import (`v2_import.stamps`, `Fact.stamps` in `packages/v2-import`) |
+| Recorded or uploaded (`origin`) | `wantOrigin` in `apps/web/worker/agent/view.ts`, from the import's `upload:<hash>` stamps (`webUploaded` in `packages/v2-import/src/rows.ts`) |
 | Approved version, releases, links per step | core `approvedVersion`, `releasesOf`, `stepAllowsLinks`; events `v1.VersionReleased`, `v1.FlowStepLinksSet` |
 | Tests | `apps/web/test/agentApi.test.ts`, `packages/core/test/externalReview.test.ts` |

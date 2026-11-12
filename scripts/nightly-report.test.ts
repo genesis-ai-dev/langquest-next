@@ -1,16 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import {
   apply,
+  issuesOf,
   jobKey,
   jobOutcomes,
   lastVerdict,
   MANY,
+  nightLine,
+  nightNotice,
   plan,
   PREFIX,
   testsOf,
   turnComment,
   UI_RUN,
-  uiOutcomes
+  uiBroke,
+  uiOutcomes,
+  withUrls
 } from './nightly-report.mjs';
 
 // The report exists so a red night is seen. These tests hold what keeps it
@@ -165,5 +170,45 @@ describe('what to tell Linear', () => {
     expect(done).toEqual([`create ${PREFIX}A-1 x [phone]`, `comment ${open.id} ${turnComment('passed', SHA, URL)}`]);
     expect(lines).toEqual([`opened LAN-9: ${PREFIX}A-1 x [phone]`, 'LAN-1: Nightly passed']);
     expect(await apply(api, [])).toEqual(['nothing new to tell Linear']);
+  });
+});
+
+describe('the line on the run (decision 209)', () => {
+  it('says the counts, or that the suite broke, or how a job without counts ended, then each issue', () => {
+    expect(nightLine({ ran: 682, passed: 680, broke: null, issues: [{ id: 'LAN-260', url: 'https://linear.app/t/issue/LAN-260/x' }, { id: 'LAN-261', url: null }] }))
+      .toBe('680 of 682 passed\nLAN-260 https://linear.app/t/issue/LAN-260/x\nLAN-261');
+    expect(nightLine({ ran: null, passed: null, broke: 'The job failed and left no report:\n  the suite did not run.', issues: [] }))
+      .toBe('Broke: The job failed and left no report: the suite did not run.');
+    expect(nightLine({ ran: null, passed: null, ok: true, broke: null })).toBe('Passed');
+    expect(nightLine({ ran: null, passed: null, ok: false, broke: null, issues: [{ id: 'LAN-5', url: null }] })).toBe('Failed\nLAN-5');
+  });
+
+  it('is a notice GitHub reads as one annotation: a title with its colon escaped, and lines escaped', () => {
+    expect(nightNotice('Web UI suite', { ran: 2, passed: 1, broke: null, issues: [{ id: 'LAN-1', url: null }] }))
+      .toBe('::notice title=Nightly%3A Web UI suite::1 of 2 passed%0ALAN-1');
+    expect(nightNotice('a, b', { ran: null, passed: null, broke: '100% down', issues: [] })).toBe('::notice title=Nightly%3A a%2C b::Broke: 100%25 down');
+  });
+
+  it('says a UI run broke for the same reasons it is filed as one issue', () => {
+    const ok = testsOf(report(spec('A-1 x', 'passed')));
+    const many = testsOf(report(...Array.from({ length: MANY + 1 }, (_, i) => spec(`F-${i} x`, 'failed'))));
+    expect(uiBroke(ok, 'success')).toBeNull();
+    expect(uiBroke(testsOf(report(spec('A-1 x', 'failed'))), 'failure')).toBeNull();
+    expect(uiBroke(null, 'failure')).toMatch(/left no report/);
+    expect(uiBroke(many, 'failure')).toBe(`${MANY + 1} tests failed, which is one cause rather than ${MANY + 1}.`);
+    expect(uiBroke(ok, 'failure')).toMatch(/a step around the tests broke/);
+  });
+
+  it('names the issue of each failure: the one opened now, or the newest open one, once each', async () => {
+    const failing = { key: 'A-1 x [phone]', passed: false, body: 'b' };
+    const known = [issue('B-2 y [phone]', { identifier: 'LAN-3' }), issue('B-2 y [phone]', { identifier: 'LAN-4', createdAt: '2026-10-20T00:00:00Z' }),
+      issue('C-3 z [phone]', { identifier: 'LAN-5', stateType: 'completed' })];
+    const outcomes = [failing, { key: 'B-2 y [phone]', passed: false, body: 'b' }, { key: 'C-3 z [phone]', passed: false, body: 'b' }, { key: 'D-4 w [phone]', passed: true }];
+    const created = new Map<string, string>();
+    await apply({ create: async () => 'LAN-9', comment: async () => {} }, plan(known, outcomes, SHA, URL), created);
+    expect(issuesOf(known, outcomes, created)).toEqual(['LAN-9', 'LAN-4']);
+    expect(created.get(`${PREFIX}C-3 z [phone]`)).toBe('LAN-9');
+    expect(await withUrls({ urlOf: async (id: string) => (id === 'LAN-9' ? 'https://linear.app/t/issue/LAN-9' : Promise.reject(new Error('no'))) }, ['LAN-9', 'LAN-4']))
+      .toEqual([{ id: 'LAN-9', url: 'https://linear.app/t/issue/LAN-9' }, { id: 'LAN-4', url: null }]);
   });
 });
