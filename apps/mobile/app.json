@@ -119,6 +119,7 @@
       "expo-notifications",
       "./plugins/withSceneLifecycle",
       "./plugins/withAndroidAppIcons",
+      "./plugins/withAndroidShrinking",
       [
         "expo-localization",
         {

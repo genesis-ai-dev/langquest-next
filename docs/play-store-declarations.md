@@ -297,6 +297,16 @@ web browsing, app interactions beyond diagnostics, other personal info.
   next step, checks, reviews) from the test account, showing the app's own
   purple theme unaltered.
 
+## Android code shrinking (LAN-111, decisions.md 211)
+
+Release builds for Android run R8, which shrinks and renames the app's code
+and removes unused resources (`./plugins/withAndroidShrinking`, which uses
+`expo-build-properties`; Play's warning "your app's code isn't shrunk",
+due February 2027). It collects, stores and sends nothing, adds no
+permission and no SDK that talks to a server, so no Play Console answer
+changes. The R8 mapping file is part of the app bundle, so Play's crash and
+ANR reports stay readable without a separate upload.
+
 ## Facts the check holds
 
 The test compares this block with the code. When it fails, find the Play
@@ -314,6 +324,7 @@ this block.
   "plugins": [
     "./plugins/withSceneLifecycle",
     "./plugins/withAndroidAppIcons",
+    "./plugins/withAndroidShrinking",
     "expo-audio {\"enableBackgroundPlayback\":false,\"microphonePermission\":\"LangQuest records your voice to translate passages.\"}",
     "expo-camera {\"cameraPermission\":\"LangQuest uses the camera to scan invite QR codes.\"}",
     "expo-localization {\"supportedLocales\":[\"en\",\"es\",\"pt-BR\",\"fr\",\"ar\",\"sw\",\"ha\",\"am\",\"hi\",\"bn\",\"ne\",\"id\",\"zh-Hans\",\"th\",\"my\",\"fil\"]}",
@@ -325,7 +336,7 @@ this block.
     "@expo/metro-runtime", "@langquest-next/core", "@langquest-next/sync", "@noble/ciphers", "@noble/hashes",
     "@react-native-async-storage/async-storage", "@react-navigation/native",
     "@react-navigation/native-stack", "@supabase/supabase-js", "d3-geo", "expo", "expo-audio",
-    "expo-alternate-app-icons", "expo-application", "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",
+    "expo-alternate-app-icons", "expo-application", "expo-build-properties", "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",
     "expo-notifications", "expo-screen-orientation", "expo-secure-store", "expo-sqlite", "expo-status-bar", "expo-updates",
     "html-to-image", "i18n-iso-countries", "i18next", "lucide-react-native", "onnxruntime-web", "react", "react-dom", "react-i18next", "react-native", "react-native-qrcode-svg",
     "react-native-safe-area-context", "react-native-screens", "react-native-svg",

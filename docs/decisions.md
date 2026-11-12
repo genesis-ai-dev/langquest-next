@@ -11170,3 +11170,20 @@ change, which breaks scanning on phones already in the field.
 Reverse if: `app.` causes a problem that `next.` does not (then remove its route,
 and the legacy app can have the name back). `next.` may redirect once its traffic
 has moved and browsers there have drained, as `docs/cloudflare.md` says.
+
+## 211. Android release builds are shrunk with R8, with keep rules for the native modules
+
+Date: 2026-11-12 · By: Caleb Koster · Status: accepted
+
+Reason: Play Console warns that the app's code isn't shrunk (deadline
+February 2027), and without a mapping file every upload shows "no
+deobfuscation file". `apps/mobile/plugins/withAndroidShrinking.js` turns on R8
+and resource shrinking for release builds through `expo-build-properties`; its
+keep rules are in `apps/mobile/plugins/android-shrinking-rules.pro` (ONNX
+Runtime, our `microphone-energy` module, and Expo modules and records, which
+are found by reflection). The rules sit in a file so app.json, which Expo copies
+into every build, names only the plugin. The bundle (AAB) that EAS builds carries
+R8's mapping file, and Play reads it from there, so no upload step is added.
+The change is native: it needs a new store build and changes the fingerprint.
+Reverse if: a release build loses a feature to over-shrinking that a keep rule
+cannot fix, or Play stops reading the mapping file from the bundle.

@@ -1,0 +1,15 @@
+{
+  "kind": "needs_you",
+  "ask": "Can you test voice, recording, playback, sync and QR scan on a phone with the release build?",
+  "problem": "Google Play warns that the Android app's code is not shrunk. The deadline is February 2027. Crash reports are also unreadable.",
+  "found": "Android builds had no shrinking turned on. I built a release app here with shrinking on. The speech model, our audio part and the camera and database parts all kept their names. This machine has no phone emulator, so I could not run the app.",
+  "changed": "People see no change. The Android app gets smaller. The shrinking tool now keeps the speech model, audio and camera parts safe. Play gets the crash map from the app bundle by itself.",
+  "why": "I used the standard Expo setting and put the keep list in its own file. A separate map upload is not needed, because the bundle carries the map. I also updated the store answers file. No Play Console answer changes. I added decision 205 to the log.",
+  "touches": "Needs a new Android store build; I started none. Not tested: recording, voice, playback, sync, QR scan.",
+  "pictures": [
+    {
+      "file": "diagram.png",
+      "label": "What changes in the Android app"
+    }
+  ]
+}
