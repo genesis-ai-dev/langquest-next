@@ -9742,6 +9742,32 @@ Reverse if: a language's `v1.TakeSubmitted` scan shows in the database's
 statement times (then a partial index on the take id, built concurrently);
 or partners need the stamp in the change feed or webhooks too.
 
+Amended (2026-11-12, Caleb Koster): each audio file and version also says
+how it was made, as `origin`. Every Language pays recording teams per
+chapter by when the audio arrived, and its staff also upload archives
+recorded before LangQuest. They told the two apart by the v2 asset's name,
+which the API does not give and which goes away with v2 (Every Language,
+2026-11-12; Caleb: "add the origin field"). The import knows a recording
+by the name v2's app gives it, a UUID (`recordedInApp` in
+`packages/v2-import/src/rows.ts`); no version of the app names a recording
+any other way, except old iPhone builds' `recording-<UUID>`. Every other
+name is a file someone uploaded: v2's website names its uploads from the
+time (`<milliseconds>-…`, four shapes from four screens), and names under
+`content/` come from no v2 code. On v2 production that day, 1,096,018 of
+1,228,354 names were recordings. The asset's name is not used, since
+people choose it. For a file that is not
+a recording the import keeps one more stamp, `upload:<hash>` (when v2 got
+it), in `v2_import.stamps` beside the others: no migration and no event,
+and the first whole read after this merges marks the uploads that came
+over before. The API gives `origin` on `audio`, `approvedAudio`, `version`
+and `versions`: `app_recording`, `web_upload`, or on a version `mixed`,
+since the import makes one version of a chapter from every recording in
+it. Next takes no uploaded audio yet, so its own work is `app_recording`;
+an upload added to Next later marks its own parts. Rejected: a yes-or-no
+on the version, which cannot say `mixed`; and a list of the website's
+name shapes, which already missed two of its four screens and would miss
+the next one, where the app's own shape has held since 2025-10-13.
+
 ## 189. Each YouTube channel's trailer is a 48-second film of today's app in its language, made each night when it changes, and the publish job sets it
 
 Date: 2026-10-29 · By: Caleb Koster · Status: accepted
