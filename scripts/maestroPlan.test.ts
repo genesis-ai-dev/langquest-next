@@ -3,7 +3,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { flowTags, plannedSkips, skipReport } from './maestro-plan.mjs';
+import { flowTags, plannedSkips, skippedFlows, skipReport } from './maestro-plan.mjs';
 
 const FLOWS = join(__dirname, '../apps/mobile/test/maestro/flows');
 const flows = readdirSync(FLOWS).filter((f) => f.endsWith('.yaml')).map((f) => ({ name: f.replace(/\.yaml$/, ''), body: readFileSync(join(FLOWS, f), 'utf8') }));
@@ -54,4 +54,15 @@ describe('the flows carry the tags the rules need', () => {
       if (insists) expect(flowTags(f.body)).toContain('android-only');
     });
   }
+});
+
+describe('skippedFlows', () => {
+  it('lists each flow left out once, with the first rule that leaves it out', () => {
+    const out = skippedFlows(plannedSkips({ platform: 'ios' }), [
+      { name: 'REC-026', tags: ['rec', 'voice'] }, { name: 'NOORG-010', tags: ['noorg', 'android-only'] }, { name: 'ACCT-008', tags: ['acct'] },
+      { name: 'BOTH', tags: ['voice', 'wrapped'] }
+    ]);
+    expect(out.map((s) => [s.flow, s.tag])).toEqual([['REC-026', 'voice'], ['NOORG-010', 'android-only'], ['BOTH', 'voice']]);
+    expect(out[0]!.why).toMatch(/microphone/);
+  });
 });

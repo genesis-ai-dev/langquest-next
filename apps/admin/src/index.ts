@@ -12,6 +12,7 @@ import { expoSection } from './sources/expo';
 import { googlePlaySection } from './sources/googleplay';
 import { codeSection } from './sources/github';
 import { filmingSection } from './sources/filming';
+import { phoneShot, phoneTestsSection } from './sources/phonetests';
 import { supabaseSection } from './sources/supabase';
 import { containerSection } from './sources/container';
 import { expirySection } from './sources/expiry';
@@ -60,7 +61,8 @@ const PROVIDERS: Record<string, (env: Env) => Promise<Section>> = {
   adoption: (env) => adoptionSection(env),
   pipeline: (env) => pipelineSection(env),
   container: (env) => containerSection(env),
-  filming: (env) => filmingSection(env)
+  filming: (env) => filmingSection(env),
+  phonetests: (env) => phoneTestsSection(env)
 };
 
 /** The sections read as diag_reader in one connection, with what each says when that connection fails. */
@@ -164,6 +166,17 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       const type = mediaType(bytes);
       if (!type || (file[2] === 'voice') !== type.startsWith('audio/')) return json({ error: 'Not a file this page shows' }, 415);
       return new Response(bytes, { headers: { 'content-type': type, 'cache-control': 'private, max-age=300', ...SECURITY_HEADERS } });
+    } catch (e) {
+      return json({ error: errorText(e) }, 502);
+    }
+  }
+  // A failed screen from last night's phone tests (sources/phonetests.ts), kept in the repository's public release.
+  const phone = /^phonetests\/shot\/([^/]+)$/.exec(section);
+  if (phone) {
+    try {
+      const shot = await phoneShot(env, phone[1]!);
+      if (!shot.body) return json({ error: 'No such picture' }, shot.status);
+      return new Response(shot.body, { headers: { 'content-type': 'image/png', 'cache-control': 'private, max-age=3600', ...SECURITY_HEADERS } });
     } catch (e) {
       return json({ error: errorText(e) }, 502);
     }
