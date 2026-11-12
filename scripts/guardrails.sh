@@ -41,7 +41,7 @@ else
 fi
 
 # CI and Cloudflare run the Node in .node-version and its npm 11 (decisions.md
-# 242). An older Node or npm here can pass what fails there, or rewrite the
+# 244). An older Node or npm here can pass what fails there, or rewrite the
 # lockfile in a shape CI refuses, so this stops on a different major.
 step "Is this the Node and npm that CI uses?"
 want=$(cat .node-version)

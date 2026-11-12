@@ -52,6 +52,7 @@
     "env:eas": "scripts/eas-env.sh",
     "secrets": "node scripts/secrets.mjs",
     "diag": "tsx scripts/diag.ts",
+    "key-terms:eval": "tsx scripts/key-term-eval.ts",
     "moderation": "tsx scripts/moderation.ts",
     "global-viewer": "tsx scripts/global-viewer.ts",
     "org-verification": "tsx scripts/org-verification.ts",

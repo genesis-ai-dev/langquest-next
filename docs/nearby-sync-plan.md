@@ -449,8 +449,8 @@ build has used. A bare actor prefix would not do, because today's event ids are 
   stays under the 256 limit.
 - **The rule.** `idAuthor(id)` in core has a SQL twin and a parity block. An event id, or
   the id a create makes, that carries `by:<x>:` with `x` not the event's `actorId` is
-  refused. For `rendering:` and `adjustment:` keys it reads the part after the term, which
-  is shared by design (decision 75). The rule is in the door and in `append_events`, for
+  refused. For `rendering:`, `adjustment:` and `audiorendering:` keys it reads the part after
+  the term, which is shared by design (decision 75). The rule is in the door and in `append_events`, for
   callers only, after "actorId does not match caller" and before the id lookup, with a
   reason starting `malformed envelope`, so it reads as `INVALID`. `by:` is reserved from
   that migration on. Any other id behaves as today, so old builds keep their results
@@ -516,7 +516,7 @@ Traps in today's code, each of which needs a test:
 | A dropped copy (section 5.7) | `foldLocal` marks lines owed only for events in the log and for rejected rows, so a removed leftover leaves its passage's line worked out from the old copy. | Call `lines.touched` on dropped events before refolding. |
 | A passage not filled in | `touchedAt` only queues these, and `isLoaded` stays false, so a nearby review changes no line and the screen says the passage is not here. Filling needs the server. | In this release a phone mid-download cannot review an unfilled passage. Allowing it is a later, small change. |
 | A pruned event coming back | With pulls not feeding the vector, a phone back from town gets an event again from a teammate who holds it as nearby. The guard no longer knows that id. | The fold tolerates it (invariant 3), and redactions hold through `state.redactions`. The row sits as nearby until the next sweep, blocks the fast path offline and inflates the count. Accepted, and tested. |
-| Memory on a kept language | Decision 143's bound assumes checkpoints shed. Nearby entries stay in memory until settled, every load folds them, and "every phone takes everything" multiplies this by team size over a month. They must not shed without audio rows, because `LanguageFiles.plan` finds their files only through memory. | Read `load` and `foldMs` on the village scenario before phase 3 (section 7), with one member at the budget above. Read 2026-11-07 (`villageMonth`, seed 1, 5 phones, 300 passages, 30 days; Node on the build machine, not a phone): without that member each phone held about 1,830 nearby rows and its app opened in 29 to 45 ms. With one member's notes at 68,000 rows (70,302 unconfirmed rows on every phone, 42.7 MB of event JSON, a fold of 42 MB as JSON) it opened in 6.2 to 6.4 s, `foldMs` all of it, kept and memory phones alike, and one sync in town took 48.7 s of CPU. The fleet's `MemoryStore` sorts the whole stream for each page it reads, which inflates those two; the same 70,300 rows on the app's SQLite store open in 1.03 s, against 0.55 s for `foldLanguage` alone. A 2 GB phone running Hermes is slower than this machine by a factor nobody has measured here, so a phone would wait several seconds on every open for the month, and hold a fold of that size in memory, on every phone in the team. These numbers go to Carl (decision 211); the budget is not lowered. |
+| Memory on a kept language | Decision 143's bound assumes checkpoints shed. Nearby entries stay in memory until settled, every load folds them, and "every phone takes everything" multiplies this by team size over a month. They must not shed without audio rows, because `LanguageFiles.plan` finds their files only through memory. | Read `load` and `foldMs` on the village scenario before phase 3 (section 7), with one member at the budget above. Read 2026-11-07 (`villageMonth`, seed 1, 5 phones, 300 passages, 30 days; Node on the build machine, not a phone): without that member each phone held about 1,830 nearby rows and its app opened in 29 to 45 ms. With one member's notes at 68,000 rows (70,302 unconfirmed rows on every phone, 42.7 MB of event JSON, a fold of 42 MB as JSON) it opened in 6.2 to 6.4 s, `foldMs` all of it, kept and memory phones alike, and one sync in town took 48.7 s of CPU. The fleet's `MemoryStore` sorts the whole stream for each page it reads, which inflates those two; the same 70,300 rows on the app's SQLite store open in 1.03 s, against 0.55 s for `foldLanguage` alone. A 2 GB phone running Hermes is slower than this machine by a factor nobody has measured here, so a phone would wait several seconds on every open for the month, and hold a fold of that size in memory, on every phone in the team. These numbers go to Carl (decision 213); the budget is not lowered. |
 
 ### 5.5 Who to trust
 
@@ -677,15 +677,15 @@ SQL, core's trust rules and the opening, a session against a hostile teammate, t
 module, identity and joining on the phone, and the install file with the build pipeline.
 Signatures, chains, passes, the opening, the door, the server's grants and what a starting
 copy carries held. It found four problems of medium weight, all fixed: a revocation's number
-reused after an account deletion, so phones ignored the new list (decision 217); holdings with
-no cap per pass, so one pass's newcomers could grow Have past what a link carries (224); Sign
-out in `joined`, which reopened into the newcomer's work with no lock (238); and secrets passed
+reused after an account deletion, so phones ignored the new list (decision 219); holdings with
+no cap per pass, so one pass's newcomers could grow Have past what a link carries (226); Sign
+out in `joined`, which reopened into the newcomer's work with no lock (240); and secrets passed
 to `npx`, which writes its arguments to npm's debug log, the Worker's signing key among them
 (`scripts/dotenvx-set.mjs` now takes a value on stdin). Fixed too: a room stopped before its
 start had read the radio turned it on after; a join left while the inviter decided kept the
 grant; a newcomer kept every Have sent during a copy; a page already counted never counted as
 a drop; silent hotspot candidates held every place, and a copied `ready` could prove a second
-(219); a parent a carrier added went to the server (231); the install file sat in the
+(221); a parent a carrier added went to the server (233); the install file sat in the
 browser's cache for an hour; and a link opened while a disguised phone was locked landed on
 Scan a code under the cover, which opened the camera there (171). Section 11 has what needs a
 real phone, and section 13 what stays open.
@@ -2315,7 +2315,7 @@ these; they say where the code differs from the text or what the text left out.
   native work must add all three.
 - The manifests a signer has stored have a budget of their own,
   `NEARBY_BUDGET.maxManifestBytes`, 50 MB, beside Carl's rows and bytes, which are unchanged
-  (decision 209).
+  (decision 211).
 - A nearby undo of an unbound target holds its slot until delivery settles it.
   Section 5.7's prose says "the sweep or delivery"; the table there stands as written.
 
@@ -3533,7 +3533,7 @@ The carried APK holds the team's JavaScript, so no update has to travel (Carl's 
   reads must stay read-only. A carrier downloads the file with their browser while online.
   The app does not download it, which keeps clear of Play's rules on apps downloading
   APKs, which are not confirmed. Whether China can reach this is untested (section 11).
-- **Checking before leaving town** (decision 241, amended three times 2026-11-09). Getting the
+- **Checking before leaving town** (decision 243, amended three times 2026-11-09). Getting the
   file is done online before a trip, and letting someone in is done in the field, so each
   has a screen of its own (Carl's choice). Get the install file (`get_install_file`) names
   the file this phone needs by those versions alone, and says the file in Downloads must

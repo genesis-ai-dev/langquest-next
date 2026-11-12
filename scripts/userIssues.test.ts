@@ -99,7 +99,7 @@ describe('user-issues.mjs', () => {
     expect(jobs['fix']).toContain('run: node "$RUNNER_TEMP/watch/user-issues.mjs" fix-patch .user-issues');
     expect(jobs['fix']).toContain('max-parallel: 1');
     // The checks hold no secret and share no cache that the patch could write to; setup-node caches on
-    // its own when package.json names a packageManager, so the job turns that off (decisions.md 242).
+    // its own when package.json names a packageManager, so the job turns that off (decisions.md 244).
     // The paths are refused before anything of the patch runs.
     expect(jobs['check']).not.toMatch(/secrets\.|(?<!package-manager-)cache:/);
     expect(jobs['check']).toContain('package-manager-cache: false');

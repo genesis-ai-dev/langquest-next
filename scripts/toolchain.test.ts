@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * One Node version for every place that installs or runs this code
- * (decisions.md 242): `.node-version` says it, GitHub CI and Cloudflare's
+ * (decisions.md 244): `.node-version` says it, GitHub CI and Cloudflare's
  * builds read that file, and the places that cannot read it (EAS builds and
  * workflows, the job image) name the same version. npm is the one that Node
  * version ships with, named exactly in `packageManager` so Cloudflare's builds
@@ -66,7 +66,7 @@ describe('the toolchain', () => {
       }
   });
 
-  it('type-checks with TypeScript 7 and lends the TypeScript 6 API to the tools that need one (decisions.md 244)', () => {
+  it('type-checks with TypeScript 7 and lends the TypeScript 6 API to the tools that need one (decisions.md 246)', () => {
     // Two installed packages ship a `tsc`: TypeScript 7 (`@typescript/native`) and the TypeScript 6
     // that `@typescript/typescript6` re-exports. npm links the direct dependency's; this holds it.
     expect(execFileSync('node_modules/.bin/tsc', ['-v'], { encoding: 'utf8' })).toMatch(/^Version 7\./);

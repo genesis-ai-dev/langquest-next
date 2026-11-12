@@ -46,6 +46,7 @@ const OPTIONAL: Partial<Record<string, string[]>> = {
   'v1.CardCleanUpSet': ['cleanedHash', 'cleanedFormat', 'tool', 'limitDb'],
   'v1.MaterialDefined': ['templateRef'],
   'v1.MaterialFieldSet': ['text', 'blobHash'],
+  'v1.KeyTermAudioRenderingAdded': ['duringTakeId'],
   'v1.KeyTermAdjusted': ['blobHash', 'duringTakeId'],
   'v1.KeyTermLinked': ['note', 'adjustmentId'],
   'v1.Redacted': ['reason'],
@@ -146,6 +147,10 @@ const broken: AnyEvent[] = events.flatMap((e) => {
       for (const limitDb of [0, -1, 12, 12.5, 100, 100.5, '12', Infinity]) variants.push({ ...p, use: 'original', tool: 'dfn3', limitDb }, { ...p, use: 'cleaned', cleanedHash: 'x', cleanedFormat: 'wav', tool: 'dfn3', limitDb });
       break;
     }
+    case 'v1.KeyTermAudioRenderingAdded':
+      for (const durationMs of [0, -1, 1, 900.5, 30000, 30001, '900', null, Infinity]) variants.push({ ...p, durationMs });
+      variants.push({ ...p, blobHash: '' }, { ...p, renderingId: '' }, { ...p, termId: 7 }, { ...p, wayId: 'way:x' }, { ...p, wayId: '' }, { ...p, wayId: 7 }, { ...p, duringTakeId: 'take1' }, { ...p, duringTakeId: '' }, { ...p, duringTakeId: 7 });
+      break;
     case 'v1.VersionReleased':
       variants.push({ ...p, live: 1 }, { ...p, channel: '' }, { ...p, channel: 'x'.repeat(61) }, { ...p, channel: '🎧'.repeat(60) }, { ...p, url: '' }, { ...p, url: ' ' });
       break;
@@ -259,6 +264,7 @@ const authorIds = [...new Set([
   'xby:a:b', 'Take:by:a:b', 'take1:by:a:b', 'BY:a:b', ' by:a:b', 'by :a:b', 'take-by:a:b', 'take:x1:by:a:b',
   'rendering:t/by:b:r', 'rendering:by:t:x/by:b:r', 'rendering:by:t:x/r', 'rendering:t/r', 'rendering:by:x', 'rendering:by:x:y',
   'adjustment:term/by:c:1', 'adjustment:by:a:t/by:a:x:y/z', 'rendering:t/rendering:u/by:d:e', 'rendering:/by:e:f',
+  'audiorendering:t/audio:by:g:h', 'audiorendering:by:t:x/audio:by:g:h', 'audiorendering:by:t:x/audio:h', 'audiorenderings:t/by:g:h',
   'take:by:🎧:x', 'by:é:x', 'by:a\nb:c', `${UUID}:3`, 'e1', '', 'api-x', 'invite:x',
   ...events.flatMap((e) => [e.id, entityKeyOf(e) ?? '']),
   ...events.flatMap((e) => { const k = entityKeyOf(e); return k ? [k.replace(/:/, `:by:${UUID}:`)] : []; })

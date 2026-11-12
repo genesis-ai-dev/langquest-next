@@ -206,6 +206,7 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.StudyStepMarked` | unitId, guideId, stepId, done | register per (unit, guide, step) |
 | `v1.MaterialDefined` / `v1.MaterialFieldSet` / `v1.MaterialLocked` | materialId, kind, title, scope {unitId?, stepId?}, templateRef? / materialId, fieldId, text? / blobHash? / materialId, locked | earliest wins / register per (material, field) / register per material |
 | `v1.KeyTermDefined` / `v1.KeyTermRenderingAdded` / `v1.KeyTermAdjusted` / `v1.KeyTermLinked` | termId, term, gloss, unitScope[] / renderingId… / adjustmentId, note, blobHash?, duringTakeId? / takeId, termId, note?, adjustmentId? | all grow-only |
+| `v1.KeyTermAudioRenderingAdded` | termId, renderingId (the clip), blobHash, durationMs, duringTakeId? (the take being drafted, so a way lists its passages), wayId (the way of saying the term it repeats; a written rendering's id, or one the phone made) | grow-only; a recorded example of how the language says a term, for the heard / not heard hint (decision 207); `KeyTermRenderingAdded` stays the written one |
 | `v1.ReferenceSet` | itemId, state (recommended, hidden, inherit) | register per item; the language's say on a library item (decision 62) |
 | `v1.ReferenceLanguageSet` | language | register; the language the team's reference material is in, before which `sourceCode` stands (decision 84) |
 | `v1.ReferenceLanguageAdded` | language, added | register per language; another language the team's reference material may be in, beside the main one (decision 130) |
@@ -252,7 +253,7 @@ Local events table adds `status: 'pending' | 'confirmed' | 'rejected' | 'nearby'
 and `rejectReason`. `nearby` is a teammate's event that came from their phone
 and that the server has not confirmed: folded, never pushed, never in a
 checkpoint, with `via` saying which signed batch or attested claim brought it
-(docs/nearby-sync-plan.md 5.2, decisions.md 207).
+(docs/nearby-sync-plan.md 5.2, decisions.md 209).
 
 ## 8. Conflict rules
 
@@ -290,7 +291,7 @@ below is the contract they satisfy; a Workers front end can wrap them later.
 - Blobs: `PUT /blobs/:hash` idempotent, `GET /blobs/:hash`. Presence of a blob
   is independent of presence of the events that reference it.
 - Amended (2026-11-08, Carl Sauder): delivery (docs/nearby-sync-plan.md
-  section 6, decision 231). An event comes from its author, or from a phone
+  section 6, decision 233). An event comes from its author, or from a phone
   holding the author's valid signature, unless it is a redaction. The Worker's `POST /api/relay` takes teammates'
   signed batches, checks each chain and signature, and appends them as each
   author through `relay_append_events`, which wraps `append_events`; a phone

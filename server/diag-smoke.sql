@@ -358,7 +358,7 @@ reset role;
 delete from diag.records where install_id in ('dg_dT2', 'dg_dT3');
 delete from diag.installs where install_id in ('dg_dT2', 'dg_dT3');
 
--- 8. Share nearby (20261107020000_diag_nearby.sql): rooms, sessions, Find's
+-- 8. Share nearby (20261112020000_diag_nearby.sql): rooms, sessions, Find's
 -- codes and why the screen could not run go in through the allowlist, which
 -- keeps the module's codes and nothing that names a teammate, and the reports
 -- read them for the language and for the organization.

@@ -48,3 +48,15 @@ export function orgListRetryMs(failures: number): number | null {
 export function joinLinkRoute(someoneHere: boolean, url: string): { screen: 'join_offline' } | { screen: 'scan_qr'; params: { code: string } } {
   return someoneHere ? { screen: 'scan_qr', params: { code: url } } : { screen: 'join_offline' };
 }
+
+/**
+ * A welcome shown only because the server's "already welcomed" came late
+ * (useOnboarding: a new device routes after a few seconds without it) is
+ * left for the home once that answer is in, while it is still the one
+ * screen. Without this the person was welcomed again, and a second device
+ * signed in to a new organization stayed on "Welcome" (AUTH-058, LAN-252).
+ * Someone already past it (Get started, What is LangQuest?) is not moved.
+ */
+export function leaveLateWelcome(screen: ScreenId, stackLength: number, isFirstTime: boolean, welcomedLate: boolean): boolean {
+  return welcomedLate && !isFirstTime && screen === 'welcome' && stackLength === 1;
+}

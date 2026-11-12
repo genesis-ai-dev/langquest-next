@@ -1101,7 +1101,7 @@ export function recordAudioHashes(state: LanguageState): Set<string> {
   for (const d of Object.values(state.departures ?? {})) add(d.reasonBlobHash);
   for (const r of Object.values(state.requests ?? {})) add(r.noteBlobHash);
   for (const r of Object.values(state.responses ?? {})) add(r.blobHash);
-  for (const t of Object.values(state.keyTerms ?? {})) for (const a of Object.values(t.adjustments)) add(a.blobHash);
+  for (const t of Object.values(state.keyTerms ?? {})) { for (const a of Object.values(t.adjustments)) add(a.blobHash); for (const a of Object.values(t.audioRenderings ?? {})) add(a.blobHash); }
   return out;
 }
 

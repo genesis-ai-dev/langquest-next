@@ -1,5 +1,5 @@
 import { deriveSession, tabsFor } from '../src/shell/session';
-import { addressSection, joinLinkRoute } from '../src/shell/routingModel';
+import { addressSection, joinLinkRoute, leaveLateWelcome } from '../src/shell/routingModel';
 import { pathFor, sectionOfPath } from '../src/web/webPaths';
 import { ORG, roleSession } from './sessions';
 
@@ -90,5 +90,19 @@ describe('a Let someone in link opened from outside the app (docs/nearby-sync-pl
   });
   it('takes anyone signed in to the scanner, with the link, which says why it is not for them', () => {
     expect(joinLinkRoute(true, url)).toEqual({ screen: 'scan_qr', params: { code: url } });
+  });
+});
+
+describe('a welcome the server answered late (AUTH-058, LAN-252)', () => {
+  it('goes on to the home while the welcome is still the one screen', () => {
+    expect(leaveLateWelcome('welcome', 1, false, true)).toBe(true);
+  });
+  it('leaves the welcome alone when nothing came late, or the person is still to be welcomed', () => {
+    expect(leaveLateWelcome('welcome', 1, false, false)).toBe(false);
+    expect(leaveLateWelcome('welcome', 1, true, true)).toBe(false);
+  });
+  it('never moves someone already past it', () => {
+    expect(leaveLateWelcome('vision', 2, false, true)).toBe(false);
+    expect(leaveLateWelcome('my_work', 1, false, true)).toBe(false);
   });
 });

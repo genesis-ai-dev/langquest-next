@@ -428,7 +428,7 @@ end $$;
 
 -- ---- the certificate call's facts, with passes ------------------------------------------
 
--- Restated from 20261107010000_nearby_identity.sql with one field more per
+-- Restated from 20261112010000_nearby_identity.sql with one field more per
 -- organization: `passes`, when both features are on there (_org_joins_on),
 -- for each language the phone named where the person holds Invite, looked
 -- after or not (Carl's answer 18): `held`, their privileges there, and
@@ -587,7 +587,7 @@ begin
   return next;
 end $$;
 
--- Restated from 20261108000000_nearby_relay.sql with the same signature and
+-- Restated from 20261112030000_nearby_relay.sql with the same signature and
 -- answers; a code taken also ends key sign-in for every key of that person
 -- (14.1, The session), so a helper's code on another phone ends it too.
 create or replace function public.take_sign_in_code_v2(p_code_hash text)
