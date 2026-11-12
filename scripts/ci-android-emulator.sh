@@ -71,6 +71,12 @@ for _ in $(seq 1 120); do
   if [ "$(adb shell getprop sys.boot_completed 2> /dev/null | tr -d '\r')" = 1 ]; then
     adb shell input keyevent 82 || true
     adb shell settings put global stay_on_while_plugged_in 7 || true
+    # The image's own Google SDK setup app can stop answering on a slow first
+    # boot, and Android's "isn't responding" box then covers every screen (run 9,
+    # 2026-11-12). The flows need neither: the app is turned off, and Android
+    # shows no error boxes.
+    adb shell pm disable-user --user 0 com.google.android.googlesdksetup > /dev/null 2>&1 || true
+    adb shell settings put global hide_error_dialogs 1 || true
     echo "The emulator is up: $(adb shell getprop ro.build.version.release | tr -d '\r') (API $API)"
     exit 0
   fi

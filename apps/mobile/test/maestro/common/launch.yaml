@@ -80,6 +80,13 @@ appId: com.frontierrnd.langquestnext
             visible: "Toggle element inspector"
           commands:
             - back
+# On a slow emulator a system app can stop answering, and Android's "isn't
+# responding" box covers the app (com.google.android.googlesdksetup, 2026-11-12).
+- runFlow:
+    when:
+      visible: ".* isn't responding"
+    commands:
+      - tapOn: "Close app"
 - extendedWaitUntil:
     visible: "Create Account|Join your team|My Work|Next for you|Progress|Me"
     timeout: 60000
