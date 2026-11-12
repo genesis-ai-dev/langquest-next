@@ -73,6 +73,12 @@ const DRIVE: { [K in keyof Commands]: (c: Commands, s: LanguageState) => EventSp
   defineKeyTerm: (c) => c.defineKeyTerm({ commandId: CMD, termId: 'kt-1', term: 'word', gloss: '', unitScope: [], rendering: 'r', note: 'why' }),
   // A term someone else named: the part after the term is what says whose this is (decision 75).
   adjustKeyTermRendering: (c) => c.adjustKeyTermRendering({ commandId: CMD, termId: newCommandId(OTHER, 'term'), rendering: 'r', note: 'why' }),
+  // A spoken example of a term someone else named (decision 207): the term has to be here first.
+  addKeyTermAudio: (_c, s) => {
+    const termId = newCommandId(OTHER, 'term');
+    const named = foldLanguage(commands(s).defineKeyTerm({ commandId: newCommandId(OTHER, 'kt'), termId, term: 'word', gloss: '', unitScope: [], note: 'why' }).map((spec) => stamp(spec, OTHER)), s);
+    return commands(named).addKeyTermAudio({ commandId: CMD, termId, blobHash: HASH, durationMs: 900, wayId: 'way-1' });
+  },
   defineMaterial: (c) => c.defineMaterial({ commandId: CMD, materialId: 'm1', kind: 'note', title: 'T', scope: {}, fields: [{ fieldId: 'f', text: 'x' }] }),
   setMaterialFields: (c) => c.setMaterialFields({ commandId: CMD, materialId: 'm1', fields: [{ fieldId: 'f', text: 'x' }] }),
   lockMaterial: (c) => c.lockMaterial({ commandId: CMD, materialId: 'm1', locked: true }),

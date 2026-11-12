@@ -21,7 +21,8 @@ const context = (over: Partial<NearbyDoorContext> = {}): NearbyDoorContext => ({
 /** The field in a create that holds the id it makes. */
 const CREATED_ID: Partial<Record<string, string>> = {
   'v1.RecordingAdded': 'recordingId', 'v1.TakeComposed': 'takeId', 'v1.ResponseRecorded': 'takeId', 'v1.ReviewRecorded': 'reviewId', 'v1.DepartureRecorded': 'departureId',
-  'v1.RequestMade': 'requestId', 'v1.NoteAdded': 'noteId', 'v1.KeyTermRenderingAdded': 'renderingId', 'v1.KeyTermAdjusted': 'adjustmentId'
+  'v1.RequestMade': 'requestId', 'v1.NoteAdded': 'noteId', 'v1.KeyTermRenderingAdded': 'renderingId', 'v1.KeyTermAdjusted': 'adjustmentId',
+  'v1.KeyTermAudioRenderingAdded': 'renderingId'
 };
 
 /** A fixture as a current build makes it on this language's stream: its ids name `actor`, and its clock is its own. */

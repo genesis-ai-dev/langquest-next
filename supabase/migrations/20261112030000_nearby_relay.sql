@@ -420,7 +420,7 @@ returns table (hash text, format text) language sql immutable parallel safe set 
     select p->>v.field, null
     from (values ('v1.ReviewRecorded', 'commentBlobHash'), ('v1.RequestMade', 'noteBlobHash'), ('v1.DepartureRecorded', 'reasonBlobHash'),
                  ('v1.NoteAdded', 'blobHash'), ('v1.ResponseRecorded', 'blobHash'), ('v1.KeyTermAdjusted', 'blobHash'),
-                 ('v1.MaterialFieldSet', 'blobHash')) v (type, field)
+                 ('v1.KeyTermAudioRenderingAdded', 'blobHash'), ('v1.MaterialFieldSet', 'blobHash')) v (type, field)
     where v.type = p_type and jsonb_typeof(p->v.field) = 'string' and p->>v.field <> ''
   ) f;
 $$;

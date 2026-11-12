@@ -387,11 +387,12 @@ $$;
 -- Whose id this is, or null when it names nobody: core idAuthor
 -- (packages/core/src/validate.ts), held to it by scripts/record-parity-sql.ts.
 -- New builds mint `by:<actorId>:<random>`; terms may come in front
--- (`take:by:...`), and a key under a key term reads from after the term, which
--- is shared by design (decision 75).
+-- (`take:by:...`), and a key under a key term (a rendering, an adjustment or a
+-- spoken example) reads from after the term, which is shared by design
+-- (decision 75).
 create or replace function public._id_author(p_id text)
 returns text language sql immutable parallel safe set search_path = '' as $$
-  select (regexp_match(regexp_replace(p_id, '^(?:rendering|adjustment):[^/]*/', ''), '^(?:(?!by:)[a-z]+:)*by:([^:]+):'))[1];
+  select (regexp_match(regexp_replace(p_id, '^(?:rendering|adjustment|audiorendering):[^/]*/', ''), '^(?:(?!by:)[a-z]+:)*by:([^:]+):'))[1];
 $$;
 
 -- Restated from 20261026200000_write_allowance_and_scoped_reads.sql with one

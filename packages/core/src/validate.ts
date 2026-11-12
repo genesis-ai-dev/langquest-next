@@ -411,7 +411,7 @@ export function entityKeyOf(e: AnyEvent): string | null {
   }
 }
 
-const AFTER_TERM = /^(?:rendering|adjustment):[^/]*\//;
+const AFTER_TERM = /^(?:rendering|adjustment|audiorendering):[^/]*\//;
 const AUTHORED = /^(?:(?!by:)[a-z]+:)*by:([^:]+):/;
 
 /**
@@ -420,8 +420,8 @@ const AUTHORED = /^(?:(?!by:)[a-z]+:)*by:([^:]+):/;
  * nearby phones hand ids to teammates before the server has seen them, and the
  * server gives an id to whoever arrives first. It reads an event id, an id with its
  * terms in front (`take:by:...`), or an entity key (`take:take:by:...`). A key
- * under a key term reads from after the term, which is shared by design (decision
- * 75). The answer depends only on the text, so no other author can make an id that
+ * under a key term (a rendering, an adjustment, or a spoken example, decision 207)
+ * reads from after the term, which is shared by design (decision 75). The answer depends only on the text, so no other author can make an id that
  * reads as someone's and equals theirs. Every step here holds in a Postgres regular
  * expression too, for the twin.
  */

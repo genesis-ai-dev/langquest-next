@@ -164,7 +164,10 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // server check, most of it in the nearby chunk, which the web never opens; and main's own growth.
 // Lowered by 5 KB with a trim pass (Carl, 2026-11-10): nearby sync's words left the catalogs and
 // join each language's file the web serves, so a fetched catalog no longer duplicates them.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 50 * 1024;
+// Raised by 15 KB with main merged in (Carl, 2026-11-12), 13,852 bytes past then: main's
+// organization export sheet and recorded key-term examples, whose own budget main kept at
+// 4.9 MB; with nearby sync's chunks they no longer fit the branch's.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 65 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -221,8 +224,9 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 50 * 1024;
 // English words (15.4 KB) come with the nearby screens (src/nearby/nearbyWords.web.ts), not with
 // every visit; the get_user_state readers left nearbyModel.ts (5.8 KB, now nearbyFlagModel.ts), and
 // the token check left firstContactModel.ts (1.9 KB, now tokenModel.ts).
-// Merging main (2026-11-12) adds main's raise above to this branch's: PROVISIONAL
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 14 * 1024 + 23 * 1024;
+// Raised by 5 KB with main merged in (Carl, 2026-11-12), 4,024 bytes past then: main's
+// organization export and recorded key-term examples above, on top of nearby sync's budget.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 19 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

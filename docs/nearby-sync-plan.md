@@ -449,8 +449,8 @@ build has used. A bare actor prefix would not do, because today's event ids are 
   stays under the 256 limit.
 - **The rule.** `idAuthor(id)` in core has a SQL twin and a parity block. An event id, or
   the id a create makes, that carries `by:<x>:` with `x` not the event's `actorId` is
-  refused. For `rendering:` and `adjustment:` keys it reads the part after the term, which
-  is shared by design (decision 75). The rule is in the door and in `append_events`, for
+  refused. For `rendering:`, `adjustment:` and `audiorendering:` keys it reads the part after
+  the term, which is shared by design (decision 75). The rule is in the door and in `append_events`, for
   callers only, after "actorId does not match caller" and before the id lookup, with a
   reason starting `malformed envelope`, so it reads as `INVALID`. `by:` is reserved from
   that migration on. Any other id behaves as today, so old builds keep their results

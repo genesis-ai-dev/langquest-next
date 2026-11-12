@@ -264,6 +264,7 @@ const authorIds = [...new Set([
   'xby:a:b', 'Take:by:a:b', 'take1:by:a:b', 'BY:a:b', ' by:a:b', 'by :a:b', 'take-by:a:b', 'take:x1:by:a:b',
   'rendering:t/by:b:r', 'rendering:by:t:x/by:b:r', 'rendering:by:t:x/r', 'rendering:t/r', 'rendering:by:x', 'rendering:by:x:y',
   'adjustment:term/by:c:1', 'adjustment:by:a:t/by:a:x:y/z', 'rendering:t/rendering:u/by:d:e', 'rendering:/by:e:f',
+  'audiorendering:t/audio:by:g:h', 'audiorendering:by:t:x/audio:by:g:h', 'audiorendering:by:t:x/audio:h', 'audiorenderings:t/by:g:h',
   'take:by:🎧:x', 'by:é:x', 'by:a\nb:c', `${UUID}:3`, 'e1', '', 'api-x', 'invite:x',
   ...events.flatMap((e) => [e.id, entityKeyOf(e) ?? '']),
   ...events.flatMap((e) => { const k = entityKeyOf(e); return k ? [k.replace(/:/, `:by:${UUID}:`)] : []; })
