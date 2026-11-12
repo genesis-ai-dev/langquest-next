@@ -3,8 +3,8 @@
  * The nightly phone tests' report (.github/workflows/phone-tests.yml,
  * decision 208). Each night the phone flows (apps/mobile/test/maestro) run
  * on an Android emulator and an iPhone simulator; this turns what they left
- * into one summary, files each failure in Linear, and puts the summary and a
- * picture of each failed screen where the ops dashboard reads them.
+ * into one summary, files each failure in Linear with a picture of its
+ * screen, and leaves one line per phone on the run for the ops dashboard.
  *
  *   summary  --in <dir> --out <dir> --sha <sha> --url <run> [--event <e>] [--status android=success,ios=failure]
  *            reads <in>/android and <in>/ios (each phone job's results:
@@ -18,34 +18,31 @@
  *            a phone's run when it broke as a whole; a failure that stays adds
  *            nothing, a turn either way is a comment. Writes each issue's id
  *            into the summary.
- *   publish  --out <dir>   puts summary.json, history.json (the last 30
- *            nights) and the pictures in the repository's `phone-tests`
- *            release (gh, GH_TOKEN), and removes pictures older than 14 days
+ *   notices  --out <dir>   prints each phone's line for the ops dashboard's
+ *            Nightly tests part: a notice titled "Nightly: <phone> flows"
+ *            (nightly-report.mjs `nightNotice`, decision 209)
  *   markdown --out <dir>   the run's summary page, for $GITHUB_STEP_SUMMARY
  *   safe-names <dir>       renames what Maestro wrote there so GitHub takes it
  *            as an artifact: no " : < > | * ? in a name (a flow's name, which
  *            Maestro puts in its folders, may hold a colon)
  *
- * The release is public, as the repository is: the pictures show the test
- * server's made-up organization and people only, never anyone's real work.
+ * The pictures go to Linear and to the run's artifacts, which are public as
+ * the repository is: they show the test server's made-up organization and
+ * people only, never anyone's real work.
  */
-import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dryApi, flags, linearApi, plan, PREFIX } from './nightly-report.mjs';
+import { dryApi, flags, linearApi, nightNotice, plan, PREFIX } from './nightly-report.mjs';
 
 export const PLATFORMS = {
   android: { label: 'Android emulator', short: 'Android' },
   ios: { label: 'iPhone simulator', short: 'iPhone' }
 };
-export const RELEASE = 'phone-tests';
 /** More failing flows than this on one phone is one cause (the server or the phone down), filed once. */
 export const MANY = 10;
 /** The Linear issue the nightly failures are filed under. */
 export const PARENT = 'LAN-210';
-export const HISTORY_NIGHTS = 30;
-export const SHOT_DAYS = 14;
 export const CAUSES = ['app', 'test', 'machine'];
 const FLOWS_DIR = 'apps/mobile/test/maestro/flows';
 
@@ -235,7 +232,7 @@ function flowBody(p, flow, summary) {
     flow.error ?? 'failed',
     '```',
     '',
-    `Here: \`npm run test:ui:build -- --platform ${p.platform} --device ${avd}\`, then \`npm run test:ui:phone -- --platform ${p.platform}${file ? ` --flow ${file}` : ''}\`. The run's pictures and logs are in its \`phone-tests-${p.platform}\` artifact, and the ops dashboard's Phone tests section shows the last night.`,
+    `Here: \`npm run test:ui:build -- --platform ${p.platform} --device ${avd}\`, then \`npm run test:ui:phone -- --platform ${p.platform}${file ? ` --flow ${file}` : ''}\`. The run's pictures and logs are in its \`phone-tests-${p.platform}\` artifact.`,
     '',
     NEXT
   ].join('\n');
@@ -275,17 +272,14 @@ export function phoneLinearApi(key) {
   return {
     issues: base.issues,
     comment: base.comment,
+    urlOf: base.urlOf,
     async create(title, description) {
       ids ??= await gql(key, `query($id: String!) { issue(id: $id) { id team { id } } }`, { id: PARENT }).then((d) => ({ parentId: d.issue.id, teamId: d.issue.team.id }));
       const data = await gql(key, `mutation($input: IssueCreateInput!) { issueCreate(input: $input) { issue { identifier } } }`,
         { input: { teamId: ids.teamId, parentId: ids.parentId, title, description } });
       return data.issueCreate.issue.identifier;
     },
-    /** An issue's address in Linear, for the dashboard's link. */
-    async urlOf(identifier) {
-      return (await gql(key, `query($id: String!) { issue(id: $id) { url } }`, { id: identifier })).issue?.url ?? null;
-    },
-    /** Puts a picture in Linear's own storage and returns its address, so an issue keeps its picture after the release drops it. */
+    /** Puts a picture in Linear's own storage and returns its address, so an issue keeps its picture after the run's artifacts expire. */
     async upload(file) {
       const bytes = readFileSync(file);
       const data = await gql(key, `mutation($type: String!, $name: String!, $size: Int!) { fileUpload(contentType: $type, filename: $name, size: $size) { uploadFile { uploadUrl assetUrl headers { key value } } } }`,
@@ -338,7 +332,7 @@ export async function file(api, summary, shotsDir) {
       if (id) p.issue = id;
     }
   }
-  // Each issue's address, once each, for the dashboard's links.
+  // Each issue's address, once each, for the line on the run.
   if (api.urlOf) {
     const urls = new Map();
     const urlOf = async (id) => {
@@ -357,52 +351,22 @@ export async function file(api, summary, shotsDir) {
   return said;
 }
 
-// --- The release the ops dashboard reads ----------------------------------------------
+// --- The line on the run -------------------------------------------------------------
 
-/** The night added to the history, newest first, at most HISTORY_NIGHTS. */
-export function addToHistory(history, summary) {
-  const night = {
-    at: summary.at, sha: summary.sha, url: summary.url, event: summary.event,
-    platforms: summary.platforms.map((p) => ({ platform: p.platform, status: p.status, broke: Boolean(p.broke), ran: p.ran, passed: p.passed, failed: p.failed }))
-  };
-  const before = Array.isArray(history) ? history.filter((n) => n && n.url !== summary.url) : [];
-  return [night, ...before].slice(0, HISTORY_NIGHTS);
-}
+/** The suite's name on a phone's line. */
+export const phoneSuite = (p) => `${PLATFORMS[p.platform].label} flows`;
 
-/** The release's pictures older than SHOT_DAYS, by the day their name starts with. */
-export function oldShots(names, now = new Date()) {
-  const cutoff = new Date(now.getTime() - SHOT_DAYS * 86_400_000).toISOString().slice(0, 10).replace(/-/g, '');
-  return names.filter((n) => /^\d{8}-.+\.png$/.test(n) && n.slice(0, 8) < cutoff);
-}
-
-function gh(args, { input, quiet } = {}) {
-  const r = spawnSync('gh', args, { encoding: 'utf8', input, stdio: [input ? 'pipe' : 'ignore', 'pipe', quiet ? 'pipe' : 'inherit'] });
-  return { ok: r.status === 0, out: r.stdout ?? '' };
-}
-
-function publish(out) {
-  const repo = process.env.GITHUB_REPOSITORY;
-  if (!repo) throw new Error('GITHUB_REPOSITORY is not set');
-  const summary = readJson(join(out, 'summary.json'), null);
-  if (!summary) throw new Error(`${out}/summary.json is missing`);
-  if (!gh(['release', 'view', RELEASE, '--repo', repo], { quiet: true }).ok) {
-    if (!gh(['release', 'create', RELEASE, '--repo', repo, '--prerelease', '--latest=false', '--title', 'Nightly phone tests',
-      '--notes', 'What the nightly phone tests found (.github/workflows/phone-tests.yml): summary.json for the last night, history.json for the last 30, and a picture of each failed screen. The ops dashboard reads them. Made-up test data only.']).ok) {
-      throw new Error(`could not make the ${RELEASE} release`);
-    }
-  }
-  const tmp = join(out, 'release');
-  mkdirSync(tmp, { recursive: true });
-  gh(['release', 'download', RELEASE, '--repo', repo, '-p', 'history.json', '-D', tmp, '--clobber'], { quiet: true });
-  writeFileSync(join(out, 'history.json'), JSON.stringify(addToHistory(readJson(join(tmp, 'history.json'), []), summary), null, 2));
-  const shots = existsSync(join(out, 'shots')) ? readdirSync(join(out, 'shots')).map((f) => join(out, 'shots', f)) : [];
-  // Pictures first, so the summary never names one that is not there yet.
-  for (const files of [shots, [join(out, 'history.json'), join(out, 'summary.json')]]) {
-    if (files.length && !gh(['release', 'upload', RELEASE, '--repo', repo, '--clobber', ...files]).ok) throw new Error('could not upload to the release');
-  }
-  const names = JSON.parse(gh(['release', 'view', RELEASE, '--repo', repo, '--json', 'assets'], { quiet: true }).out || '{"assets":[]}').assets.map((a) => a.name);
-  for (const name of oldShots(names)) gh(['release', 'delete-asset', RELEASE, name, '--repo', repo, '--yes']);
-  console.log(`put ${shots.length} picture(s), summary.json and history.json in the ${RELEASE} release`);
+/**
+ * Each phone's line for the ops dashboard (nightly-report.mjs `nightLine`):
+ * its counts, or why it broke, and the Linear issue of each failure.
+ */
+export function phoneNights(summary) {
+  return summary.platforms.filter((p) => !(p.status === 'skipped' && !p.ran)).map((p) => {
+    const filed = p.broke ? [p] : p.flows.filter((f) => !f.passed);
+    const issues = [];
+    for (const x of filed) if (x.issue && !issues.some((i) => i.id === x.issue)) issues.push({ id: x.issue, url: x.issueUrl ?? null });
+    return { suite: phoneSuite(p), night: { ran: p.ran, passed: p.passed, broke: p.broke, issues } };
+  });
 }
 
 // --- The run's summary page --------------------------------------------------------------
@@ -432,8 +396,8 @@ async function main() {
   }
   const opt = flags(rest);
   const out = opt.out;
-  if (!out || !['summary', 'look', 'linear', 'publish', 'markdown'].includes(command)) {
-    console.error('usage: phone-tests.mjs summary|look|linear|publish|markdown --out <dir>, or safe-names <dir> (see the file\'s header)');
+  if (!out || !['summary', 'look', 'linear', 'notices', 'markdown'].includes(command)) {
+    console.error('usage: phone-tests.mjs summary|look|linear|notices|markdown --out <dir>, or safe-names <dir> (see the file\'s header)');
     process.exit(2);
   }
   const summaryFile = join(out, 'summary.json');
@@ -463,8 +427,8 @@ async function main() {
     const api = opt['dry-run'] ? dryApi() : phoneLinearApi(key);
     for (const line of await file(api, summary, join(out, 'shots'))) console.log(line);
     writeFileSync(summaryFile, JSON.stringify(summary, null, 2));
-  } else if (command === 'publish') {
-    publish(out);
+  } else if (command === 'notices') {
+    for (const { suite, night } of phoneNights(summary)) console.log(nightNotice(suite, night));
   } else {
     process.stdout.write(markdown(summary));
   }

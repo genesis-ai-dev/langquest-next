@@ -16,10 +16,10 @@
 # report:     each failed flow's last screen; Claude says in one sentence what
 #             went wrong (the Claude plan's token, CLAUDE_CODE_OAUTH_TOKEN; no
 #             API key); one Linear issue per failing flow and phone, under
-#             LAN-210, with its picture (scripts/phone-tests.mjs); the summary
-#             and pictures in this repository's `phone-tests` release, which
-#             the ops dashboard's Phone tests section reads. Off main it files
-#             and publishes nothing (a dry run).
+#             LAN-210, with its picture (scripts/phone-tests.mjs); and one
+#             line per phone on the run, which the ops dashboard's Nightly
+#             tests part reads from GitHub (decision 209). Off main it files
+#             nothing (a dry run).
 #
 # Every account and passage is made up, on a test server that lives only for
 # the run: nothing here reaches production, and the workflow holds no
@@ -308,12 +308,12 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Reads the code and the phones' artifacts, nothing more: Claude's step
+    # gets this token too.
     permissions:
-      # The phone-tests release, on main only.
-      contents: write
+      contents: read
     env:
       OUT: .phone-tests
-      ON_MAIN: ${{ github.ref == 'refs/heads/main' }}
       HAS_CLAUDE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -351,11 +351,10 @@ jobs:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           DRY: ${{ github.ref != 'refs/heads/main' && '--dry-run' || '' }}
         run: node scripts/phone-tests.mjs linear --out "$OUT" $DRY
-      - name: Put the summary where the ops dashboard reads it
-        if: env.ON_MAIN == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/phone-tests.mjs publish --out "$OUT"
+      - name: Each phone's line for the ops dashboard
+        # Whatever Linear said: the dashboard reads the night from these lines (decision 209).
+        if: always() && steps.summary.outcome == 'success'
+        run: node scripts/phone-tests.mjs notices --out "$OUT"
       - name: The run's summary page
         if: always()
         run: '[ -f "$OUT/summary.json" ] && node scripts/phone-tests.mjs markdown --out "$OUT" >> "$GITHUB_STEP_SUMMARY" || true'

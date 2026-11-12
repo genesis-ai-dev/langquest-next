@@ -2,9 +2,9 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from '
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { PREFIX } from './nightly-report.mjs';
+import { nightLine, PREFIX } from './nightly-report.mjs';
 import {
-  addLook, addToHistory, file, flowKey, HISTORY_NIGHTS, junitFlows, MANY, markdown, nightSummary, oldShots,
+  addLook, file, flowKey, junitFlows, MANY, markdown, nightSummary, phoneNights,
   phoneOutcomes, PICTURE, runKey, safeName, safeNames, shotFor, slug
 } from './phone-tests.mjs';
 
@@ -227,20 +227,24 @@ describe('filing in Linear', () => {
   });
 });
 
-describe('history and pictures', () => {
-  it('keeps the newest nights first, a run once, and at most HISTORY_NIGHTS', () => {
-    const { summary } = night({ android: 'success' }, (root) => results(root, 'android', { shots: [] }));
-    const old = Array.from({ length: HISTORY_NIGHTS + 5 }, (_, i) => ({ at: `2026-10-${String(i + 1).padStart(2, '0')}`, url: `u${i}`, platforms: [] }));
-    const history = addToHistory([{ url: RUN, at: 'again' }, ...old], summary);
-    expect(history).toHaveLength(HISTORY_NIGHTS);
-    expect(history[0]).toMatchObject({ at: AT.toISOString(), sha: SHA, url: RUN, platforms: [{ platform: 'android', passed: 2, failed: 1, broke: false }] });
-    expect(history.filter((n) => n.url === RUN)).toHaveLength(1);
-    expect(addToHistory(null, summary)).toHaveLength(1);
+describe('the line on the run and the run\'s page', () => {
+  it('gives each phone its counts and the Linear issue of each failed flow (decision 209)', async () => {
+    const { summary, shots } = night({ android: 'failure', ios: 'success' }, (root) => {
+      results(root, 'android');
+      results(root, 'ios', { junit: JUNIT.replace('status="ERROR"', 'status="SUCCESS"').replace(/<failure>[\s\S]*?<\/failure>/, ''), shots: [] });
+    });
+    await file(fakeLinear([]).api, summary, shots);
+    const nights = phoneNights(summary);
+    expect(nights.map((n) => n.suite)).toEqual(['Android emulator flows', 'iPhone simulator flows']);
+    expect(nightLine(nights[0]!.night)).toBe('2 of 3 passed\nLAN-401 https://linear.app/team/issue/LAN-401');
+    expect(nightLine(nights[1]!.night)).toBe('3 of 3 passed');
   });
 
-  it('drops pictures older than 14 days, and nothing else', () => {
-    expect(oldShots(['20261028-android-a.png', '20261029-ios-b.png', 'summary.json', 'history.json', '20261111-android-c.png'], AT))
-      .toEqual(['20261028-android-a.png']);
+  it('says a phone broke, with its run\'s issue rather than one per flow', () => {
+    const { summary } = night({ android: 'failure' }, (root) => results(root, 'android', { junit: '' }));
+    summary.platforms[0]!.issue = 'LAN-402';
+    const [n] = phoneNights(summary);
+    expect(nightLine(n!.night)).toMatch(/^Broke: The Android emulator job failed before the flows ran to the end, and left no report\.\nLAN-402$/);
   });
 
   it('writes the run\'s page: each phone\'s counts and each failure', () => {

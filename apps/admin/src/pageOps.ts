@@ -17,10 +17,9 @@
 export const GROUPS = [
   { id: 'lookup', title: 'Look up', src: 'An error code someone read out (E-…), an email or profile id, an install id, or an organization or language name', parts: [] },
   { id: 'userissues', title: 'User issues', src: 'What the watch for user issues filed in Linear or found already fixed, each issue\'s state and the pull request that fixed it', wide: true, parts: ['userissues'] },
-  { id: 'phonetests', title: 'Phone tests', src: 'Last night\'s UI tests on an Android emulator and an iPhone simulator: what passed, a picture of each failed screen, and its Linear issue', wide: true, parts: ['phonetests'] },
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true, parts: ['safety'] },
   { id: 'phones', title: 'Phones and browsers', src: 'What installs report, the builds they run and how often each crashes, and phones that are stuck or quiet', wide: true, parts: ['clients', 'fleet'] },
-  { id: 'releases', title: 'Releases', src: 'Where each store build and update is now, main and its CI, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['pipeline', 'code', 'releases', 'expo', 'adoption'] },
+  { id: 'releases', title: 'Releases', src: 'Where each store build and update is now, main and its CI, last night\'s tests, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['pipeline', 'code', 'nightly', 'releases', 'expo', 'adoption'] },
   { id: 'jobs', title: 'Server jobs', src: 'Each job\'s runs and whether it runs now, pg_cron, push delivery, and the v2 import', wide: true, parts: ['jobs', 'container', 'cron', 'push', 'v2'] },
   { id: 'database', title: 'Database', src: 'Connections, cache, slow calls, largest tables, long transactions, and the Supabase project', parts: ['database', 'dbdetail', 'supabase'] },
   { id: 'traffic', title: 'Workers and traffic', src: 'Each Cloudflare Worker\'s requests, errors and latest build, and the app Worker\'s routes', parts: ['cloudflare', 'worker'] },
@@ -39,14 +38,14 @@ export const PART_TITLES: Record<string, string> = {
   database: 'Health', dbdetail: 'Where the space goes', supabase: 'Supabase project', cloudflare: 'Cloudflare Workers', worker: 'App Worker routes, last 24 h',
   storage: 'Storage and backups', capacity: 'Capacity and cost', support: 'Queue', feedback: 'Feedback', security: 'Global Viewers and limits',
   integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store', filming: 'Filming', tutorials: 'Channels and videos', videofeedback: 'Feedback and suggestions',
-  userissues: 'Problems people hit'
+  userissues: 'Problems people hit', nightly: 'Nightly tests'
 };
 
 /** Read as diag_reader in one call (/ops/api/ops). */
 export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security', 'tutorials', 'videofeedback', 'userissues'] as const;
 
 /** Each from its own call (/ops/api/<id>), like the providers. */
-export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'filming', 'pipeline', 'phonetests'] as const;
+export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption', 'filming', 'pipeline', 'nightly'] as const;
 
 export const OPS_SECTIONS = [
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true },
@@ -70,7 +69,7 @@ export const OPS_SECTIONS = [
   { id: 'tutorials', title: 'Tutorial videos', src: 'ops.youtube_channels and ops.tutorial_videos (decisions.md 180)' },
   { id: 'videofeedback', title: 'Feedback on the videos', src: 'ops.tutorial_inputs and ops.tutorial_suggestions: comments, code changes and notes, and what Claude suggests each night (decisions.md 186)' },
   { id: 'userissues', title: 'User issues', src: 'ops.user_issues: what the watch filed in Linear, closed there, or found already fixed, with the pull request (decisions.md 202)' },
-  { id: 'phonetests', title: 'Phone tests', src: 'GitHub: the phone-tests release that .github/workflows/phone-tests.yml writes each night (decision 208)' }
+  { id: 'nightly', title: 'Nightly tests', src: 'GitHub: the line each nightly suite leaves on its latest scheduled run on main (decisions.md 209)' }
 ] as const;
 
 export const OPS_SCRIPT = String.raw`
@@ -452,67 +451,20 @@ Object.assign(RENDER, {
       { h: 'Found', v: (r) => when(r.firstAt) }
     ], d.issues);
   },
-  // Last night's phone tests (sources/phonetests.ts, decision 208): each phone's count, the nights before, and each failed screen with its picture.
-  phonetests(d) {
-    const safe = (u) => /^https:\/\/(github\.com|linear\.app)\//.test(String(u || ''));
-    const out = (href, text) => safe(href) ? '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + text + '</a>' : text;
-    if (!d.night) return '<p class="muted">No nightly phone run on main yet. It runs each night at 08:30 UTC; ' + out(d.workflow, 'Run workflow') + ' on GitHub starts one now.</p>';
-    const n = d.night;
-    const CAUSE = { app: ['App problem', 'bad'], test: ['The flow needs a change', 'warn'], machine: ['Test machine problem', ''] };
-    const notRun = n.platforms.flatMap((p) => p.notRun.map((x) => ({ p, x })));
-    let h = '<p>' + out(n.url, 'The last run') + ', ' + when(n.at) + ', on <code>' + esc(String(n.sha).slice(0, 8)) + '</code></p>';
-    h += '<div class="stats">' + n.platforms.map((p) => stat(p.broke ? 'broke' : num(p.passed) + ' of ' + num(p.ran), p.label + ' flows passed',
-      p.broke || p.failed ? 'bad' : '', [p.device, p.os].filter(Boolean).join(', ') || 'last night')).join('') +
-      stat(num(notRun.length), 'flows not run', '', 'last night') + '</div>';
-    if (d.history.length > 1) {
-      const nights = d.history.slice(0, 14).reverse();
-      h += '<h3>Each night</h3><div class="nights">' + [['android', 'Android'], ['ios', 'iPhone']].map(([pf, label]) => '<div class="nightrow"><span>' + label + '</span>' + nights.map((night) => {
-        const p = night.platforms.find((x) => x.platform === pf);
-        const tone = !p ? '' : p.broke || p.failed ? 'bad' : 'good';
-        const title = day(night.at) + ': ' + (!p ? 'did not run' : p.broke ? 'broke' : num(p.passed) + ' of ' + num(p.ran) + ' passed');
-        return safe(night.url) ? '<a class="night ' + tone + '" href="' + esc(night.url) + '" target="_blank" rel="noopener" title="' + esc(title) + '" aria-label="' + esc(title) + '"></a>' : '';
-      }).join('') + '</div>').join('') +
-        '<div class="nightrow"><span></span><small>' + esc(day(nights[0].at)) + ' to ' + esc(day(nights[nights.length - 1].at)) + ', newest on the right</small></div></div>';
-    }
-    for (const p of n.platforms.filter((x) => x.broke)) h += '<p class="notice red">' + esc(p.label) + ': ' + esc(p.broke) + (p.issue ? ' ' + out(p.issueUrl, esc(p.issue)) : '') + '</p>';
-    const failed = n.platforms.flatMap((p) => p.flows.filter((f) => !f.passed).map((f) => ({ p, f })));
-    if (failed.length) {
-      h += '<h3>Failed screens</h3><div class="shots">' + failed.map(({ p, f }) => {
-        const cause = CAUSE[f.cause];
-        return '<figure class="shot">' + (f.shot ? '<img data-phone-shot="' + esc(f.shot) + '" alt="' + esc(p.label + ': the screen when ' + f.name + ' failed') + '">' : '<div class="noshot muted">No picture</div>') +
-          '<figcaption><b>' + esc(f.name) + '</b><br><small>' + esc(p.label) + (f.file ? ' · <code>' + esc(f.file) + '</code>' : '') + '</small>' +
-          (f.what ? '<p>' + esc(f.what) + '</p>' : '') +
-          '<p>' + (cause ? '<span class="tag ' + cause[1] + '">' + cause[0] + '</span>' : '') + (f.issue ? out(f.issueUrl, esc(f.issue)) : '<span class="muted">not filed</span>') + '</p>' +
-          '<details><summary>Error</summary><pre>' + esc(f.error || '') + '</pre></details></figcaption></figure>';
-      }).join('') + '</div>';
-    } else if (!n.platforms.some((p) => p.broke)) h += '<p class="good">Every flow that ran passed.</p>';
-    if (notRun.length) {
-      h += '<details><summary>' + num(notRun.length) + ' flows not run, and why</summary>' +
-        table([{ h: 'Phone', v: (r) => esc(r.p.label) }, { h: 'Flow', v: (r) => '<code>' + esc(r.x.flow) + '</code>' }, { h: 'Why', v: (r) => esc(r.x.why) }], notRun) + '</details>';
-    }
-    return h;
+  // Last night's tests, every suite together (sources/nightly.ts, decisions.md 209): counts and Linear issues; the detail is in Linear.
+  nightly(d) {
+    const issue = (i) => /^https:\/\/linear\.app\//.test(String(i.url || '')) ? '<a href="' + esc(i.url) + '" target="_blank" rel="noopener noreferrer">' + esc(i.id) + '</a>' : esc(i.id);
+    const result = (s) => s.broke ? '<span class="bad">broke: ' + esc(s.broke) + '</span>'
+      : '<span class="' + (s.failed ? 'warn' : 'good') + '">' + (s.ran !== null ? num(s.passed) + ' of ' + num(s.ran) + ' passed' : s.failed ? 'failed' : 'passed') + '</span>';
+    const rows = d.runs.flatMap((r) => r.run ? r.suites.map((s) => ({ r, s })) : [{ r, s: null }]);
+    return table([
+      { h: 'Suite', v: (x) => x.s ? esc(x.s.suite) + '<br><small>' + esc(x.r.title) + '</small>' : esc(x.r.title) },
+      { h: 'Last night', v: (x) => x.r.run ? '<a href="' + esc(x.r.run.url) + '" target="_blank" rel="noopener">' + when(x.r.run.at) + '</a><br><small><code>' + esc(x.r.run.sha) + '</code></small>' : '<span class="muted">no scheduled run on main yet</span>' },
+      { h: 'Result', v: (x) => x.s ? result(x.s) : '' },
+      { h: 'Linear', v: (x) => x.s ? x.s.issues.map(issue).join(', ') : '' }
+    ], rows) + '<p class="muted">Each failure, with its error and screen, is in its Linear issue.</p>';
   }
 });
-
-/** Each failed screen's picture on the Phone tests section, fetched with the person's token (the page shows only its own-origin images). */
-function wirePhoneShots() {
-  for (const img of document.querySelectorAll('img[data-phone-shot]')) {
-    if (img.getAttribute('src')) continue;
-    (async () => {
-      try {
-        const t = await token();
-        const res = await fetch('/ops/api/phonetests/shot/' + encodeURIComponent(img.dataset.phoneShot), { headers: { authorization: 'Bearer ' + t } });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        img.src = URL.createObjectURL(await res.blob());
-      } catch (err) {
-        const note = document.createElement('div');
-        note.className = 'noshot muted';
-        note.textContent = 'Could not load the picture (' + err.message + ')';
-        img.replaceWith(note);
-      }
-    })();
-  }
-}
 
 // ---- the few actions (decisions.md 162): the app Worker checks the person again and records each ----
 async function post(action) {
