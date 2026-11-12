@@ -213,7 +213,11 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 50 * 1024;
 // English words (15.4 KB) come with the nearby screens (src/nearby/nearbyWords.web.ts), not with
 // every visit; the get_user_state readers left nearbyModel.ts (5.8 KB, now nearbyFlagModel.ts), and
 // the token check left firstContactModel.ts (1.9 KB, now tokenModel.ts).
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 14 * 1024;
+// Raised by 20 KB with the library upgrades (Carl, 2026-11-11), 20,164 bytes past then, measured
+// package by package from the source maps: lucide-react-native 1.52 to 1.70 (7.6 KB), i18next 26.4
+// to 26.7 (6.6 KB), React Navigation 7.20 to 7.21 (2.2 KB), supabase-js 2.117 to 2.119 (1.9 KB) and
+// react-i18next 17.0 to 17.1 (1.5 KB). All the chunks together came out 1.9 KB smaller.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 34 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

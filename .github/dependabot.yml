@@ -1,0 +1,68 @@
+# Upgrade pull requests, once a week (decisions.md 243). Security updates
+# come as soon as GitHub has an advisory and wait for nothing; version updates
+# wait three days after a release, so a hijacked or broken release has
+# usually been pulled before it gets here. Majors and the Expo SDK move by
+# hand: Expo's packages, React and React Native move together with
+# `npx expo install --fix` on an SDK upgrade, which needs a store build.
+#
+# A new Node image for the job runner fails scripts/toolchain.test.ts until
+# .node-version, eas.json and the EAS workflows name the same version (242);
+# the test lists them.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 3
+    open-pull-requests-limit: 5
+    groups:
+      dev-tools:
+        dependency-type: development
+        update-types: [minor, patch]
+      app:
+        dependency-type: production
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+      # The Expo SDK's set (`npx expo install --check` lists it).
+      - dependency-name: 'expo'
+      - dependency-name: 'expo-*'
+      - dependency-name: '@expo/*'
+      - dependency-name: 'react'
+      - dependency-name: 'react-dom'
+      - dependency-name: 'react-native'
+      - dependency-name: 'react-native-safe-area-context'
+      - dependency-name: 'react-native-screens'
+      - dependency-name: 'react-native-svg'
+      - dependency-name: 'react-native-view-shot'
+      - dependency-name: 'react-native-web'
+      - dependency-name: '@react-native-async-storage/async-storage'
+      - dependency-name: '@types/react'
+      # Chosen with the speech model (decisions.md 135); it moves with the model, not alone.
+      - dependency-name: 'onnxruntime-web'
+
+  - package-ecosystem: github-actions
+    directories: ['/', '/.github/actions/*']
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 3
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: docker
+    directory: /apps/web/jobs
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 3
+    ignore:
+      - dependency-name: 'node'
+        update-types: ['version-update:semver-major']

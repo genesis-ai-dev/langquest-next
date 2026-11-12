@@ -1,4 +1,6 @@
+import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 
 /**
@@ -62,6 +64,18 @@ describe('the toolchain', () => {
         if (uses.startsWith('./')) continue;
         expect(uses, path).toMatch(/^[\w.-]+\/[\w./-]+@[0-9a-f]{40} # v\d+(\.\d+)*$/);
       }
+  });
+
+  it('type-checks with TypeScript 7 and lends the TypeScript 6 API to the tools that need one (decisions.md 244)', () => {
+    // Two installed packages ship a `tsc`: TypeScript 7 (`@typescript/native`) and the TypeScript 6
+    // that `@typescript/typescript6` re-exports. npm links the direct dependency's; this holds it.
+    expect(execFileSync('node_modules/.bin/tsc', ['-v'], { encoding: 'utf8' })).toMatch(/^Version 7\./);
+    expect(execFileSync('node_modules/.bin/tsc6', ['-v'], { encoding: 'utf8' })).toMatch(/^Version 6\./);
+    expect(createRequire(import.meta.url)('typescript').version).toMatch(/^6\./);
+    const pkg = JSON.parse(read('package.json'));
+    const mobile = JSON.parse(read('apps/mobile/package.json'));
+    expect(pkg.devDependencies.typescript).toBe(mobile.devDependencies.typescript);
+    expect(pkg.devDependencies['@typescript/native']).toMatch(/^npm:typescript@7\.\d+\.\d+$/);
   });
 
   it('installs with the npm that Node ships with, and types only the Node it runs on', () => {

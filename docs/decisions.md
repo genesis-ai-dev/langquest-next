@@ -12525,3 +12525,46 @@ on its own when `packageManager` is set. `scripts/toolchain.test.ts` holds
 all of this, so a new Node patch is a change to the files it names.
 Reverse if: a Node security release waits on these pins for more than a
 week, which would argue for a major-only pin wherever the place allows one.
+
+## 243. Dependabot opens upgrade pull requests weekly, three days after a release; majors and the Expo SDK move by hand
+
+Date: 2026-11-11 · By: Carl Sauder · Status: accepted
+
+Reason: the review of 2026-11-06 found no version updates configured, only
+GitHub's security alerts (37 open), so every upgrade waited for someone to
+look. `.github/dependabot.yml` now opens grouped pull requests every Monday
+for npm (development tools and the app's libraries, minor and patch), the
+GitHub Actions (by commit, with the release in a comment, as 242 asks) and
+the job image's Node. Version updates wait three days after a release
+(`cooldown`), the window in which a hijacked or broken release has usually
+been pulled; security updates come at once. Carl's upgrades on 2026-11-11
+kept the same rule by hand (`npm install --before`). Majors are ignored,
+and so are the Expo SDK's packages, React and React Native, which move
+together with `npx expo install --fix` on an SDK upgrade and need a store
+build; `onnxruntime-web` moves with the speech model (135). A new Node image
+fails `scripts/toolchain.test.ts` until `.node-version`, `eas.json` and the
+EAS workflows name the same version, so that pull request is finished by
+hand. Every pull request passes the guardrails like any other.
+Reverse if: the pull requests go unmerged for weeks, which says the team
+would rather upgrade in batches, or a release that broke the app reached a
+pull request after three days.
+
+## 244. TypeScript 7 type-checks; the TypeScript 6 API stays for the tools that need one
+
+Date: 2026-11-11 · By: Carl Sauder · Status: accepted
+
+Reason: TypeScript 7 (Go) checked all ten projects with no error on
+2026-11-06, `apps/mobile` in 6.6 s instead of 38.5 s, but it ships no API
+until 7.1, and typescript-eslint, eas-cli's Expo config and Expo's CLI
+`require('typescript')`. Following Microsoft's side-by-side setup,
+`@typescript/native` is TypeScript 7 and gives `tsc` (`npm run typecheck`,
+the pre-push hook, `admin:deploy`, `email:typecheck`), and `typescript` is
+`@typescript/typescript6`, which re-exports TypeScript 6 and gives `tsc6`
+and the editors' `tsserver`; `apps/mobile` names the same. Both packages
+install a `tsc`, and npm links the direct dependency's, so
+`scripts/toolchain.test.ts` checks that `tsc` is 7 and `typescript` is 6.
+The `overrides` entry still hands eas-cli that TypeScript 6. On Carl's
+machine the ten projects took 55 s with TypeScript 6 and 11 s with 7.
+Reverse if: TypeScript 7 reports an error that TypeScript 6 does not, or the
+reverse, in code both should accept; or 7.1 ships an API that
+typescript-eslint uses, when `typescript` becomes 7 alone.
