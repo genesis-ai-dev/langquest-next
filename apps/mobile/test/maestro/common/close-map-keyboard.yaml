@@ -1,0 +1,18 @@
+# Put the Map's keyboard away on an iPhone. When a passage closes, iOS gives
+# the Map's search field its cursor back, and the keyboard covers the tabs: a
+# tap on Me pressed the keyboard's Search key (run 11, 2026-11-12). A tap on a
+# title does not close it, and Maestro does not see the keyboard, so the flow
+# puts the cursor in the field and presses Search, which closes the keyboard.
+appId: com.frontierrnd.langquestnext
+---
+- runFlow:
+    when:
+      platform: iOS
+      visible:
+        id: "map-search"
+    commands:
+      - tapOn:
+          id: "map-search"
+      - pressKey: Enter
+      - waitForAnimationToEnd:
+          timeout: 5000

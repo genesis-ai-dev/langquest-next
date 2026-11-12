@@ -276,7 +276,13 @@ export async function openPassage(page: Page, world: UiWorld, key: keyof UiWorld
   // The field by its test id too, so the passage opens in any interface language (A11Y-019).
   const search = visible(page.getByRole('searchbox')).or(visible(page.getByPlaceholder(/Search|Find/))).or(visible(page.getByTestId('map-search'))).first();
   await expect(search.or(lang).first()).toBeVisible({ timeout: 60_000 });
-  if (!(await search.isVisible())) await lang.click();
+  // Under load a tap on the language's card can open nothing on a device that has just signed in
+  // (REC-004's second device stayed on All languages for 20 s, guardrails run of 2026-11-12, the
+  // runner's CPU at 0% idle), as a tap on a row can below: the tap is made again until the map is open.
+  await expect(async () => {
+    if (!(await search.isVisible())) await lang.click({ timeout: 5_000 });
+    await expect(search).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 30_000 });
   await search.fill(label.replace(/^Luke /, 'Luke '));
   // The passage is open when its title is the screen's heading; the row's own words are no sign of it.
   // Under load the list can move between finding the row and the tap landing (the search filters a
