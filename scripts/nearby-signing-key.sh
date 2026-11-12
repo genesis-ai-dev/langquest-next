@@ -17,7 +17,7 @@
 # appends, so phones built before it still trust what the old key signed: they
 # cannot check the new key's chains until an update carries its public half,
 # and until then keep the chains and discovery keys they hold
-# (apps/mobile/src/nearby/nearbyIdentity.android.ts, decisions.md 215 as
+# (apps/mobile/src/nearby/nearbyIdentity.android.ts, decisions.md 217 as
 # amended), while newer phones trust both.
 #
 # After it: npm run secrets -- <env> puts the key on the app Worker; merging
