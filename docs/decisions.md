@@ -12549,6 +12549,17 @@ Reverse if: the pull requests go unmerged for weeks, which says the team
 would rather upgrade in batches, or a release that broke the app reached a
 pull request after three days.
 
+Amended (2026-11-12, Carl Sauder): a tool that pins a dependency with a
+known flaw has it lifted by `overrides` to a fixed release in the same
+major, so `npm audit` shows nothing high or critical. eas-cli 27 pins
+`node-forge` 1.4.0 (certificates it parses with our signing credentials),
+`joi` 17.11.0, `tar` 7.5.19, `nanoid` 3.3.8 and `minimatch` 5.1.2; they are
+1.4.3, 17.13.9, 7.5.22, 3.3.20 and 5.1.9, and keyed by major
+(`minimatch@5`) where another copy of another major lives in the same
+subtree. An override goes when the tool's own pin passes `npm audit`, and
+none crosses a major: the remaining moderate findings (`minimatch` 9 and
+10 under Expo's tooling) wait for their packages.
+
 ## 244. TypeScript 7 type-checks; the TypeScript 6 API stays for the tools that need one
 
 Date: 2026-11-11 · By: Carl Sauder · Status: accepted
