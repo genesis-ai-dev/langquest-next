@@ -77,7 +77,7 @@ jobs:
         run: echo "list=$(node -e 'console.log(JSON.stringify((process.env.ASKED || process.env.NIGHTLY_LANGUAGES).split(",").map((l) => l.trim()).filter(Boolean)))')" >> "$GITHUB_OUTPUT"
       # Films a run before this one put in the release without saying so (one
       # cut off, or one from before the Worker listened) go up now, not at midnight.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ github.ref == 'refs/heads/main' }}
         with: { sparse-checkout: e2e/tutorials }
       - name: Tell LangQuest the films already in the release
@@ -100,9 +100,9 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
       - name: Grace's pieces, said once for every language
         env:
@@ -145,9 +145,9 @@ jobs:
       LANGUAGE: ${{ matrix.language }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with: { node-version: 24, cache: npm }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version-file: .node-version, cache: npm }
       - run: npm ci
       - name: Keep the stack's ports out of the outbound port range
         run: bash scripts/ci-reserve-ports.sh
@@ -212,7 +212,7 @@ jobs:
           exit "$status"
       - name: Keep the lines translated here
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: lines-${{ matrix.language }}
           path: ${{ runner.temp }}/lines
@@ -249,7 +249,7 @@ jobs:
       # the frame check, each film's check.json and the stills it found something wrong in (frame-check.ts).
       - name: Keep the logs and each step's picture
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: tutorials-${{ matrix.language }}
           path: |

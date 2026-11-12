@@ -30,7 +30,7 @@ describe('the store build guard', () => {
     const build = JSON.parse(readFileSync('apps/mobile/eas.json', 'utf8')).build;
     expect(build.carried).toEqual({ extends: 'production', android: { buildType: 'app-bundle' } });
     expect(Object.keys(build)).toEqual(['development', 'simulator', 'preview', 'production', 'carried']);
-    expect(build.production).toEqual({ node: '24.21.0', autoIncrement: true, channel: 'production', environment: 'production' });
+    expect(build.production).toEqual({ node: '24.22.3', autoIncrement: true, channel: 'production', environment: 'production' });
   });
 
   it('lets every other profile build', () => {

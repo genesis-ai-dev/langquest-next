@@ -40,12 +40,13 @@ on:
       - '!apps/mobile/public/**'
       - '!**/*.md'
 
-# Node 24, as on developer machines and in GitHub CI: its npm 11 wrote the
-# lockfile, and the image's default npm stops at `npm ci` with "Missing:
-# typescript@5.9.3 from lock file". Builds take theirs from eas.json.
+# Node 24 (.node-version, held by scripts/toolchain.test.ts), as on developer
+# machines and in GitHub CI: its npm 11 wrote the lockfile, and the image's
+# default npm stops at `npm ci` with "Missing: typescript@5.9.3 from lock
+# file". Builds take theirs from eas.json.
 defaults:
   tools:
-    node: '24'
+    node: '24.22.3'
 
 jobs:
   checks:
