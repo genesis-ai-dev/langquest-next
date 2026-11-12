@@ -94,8 +94,14 @@ tags:
 - extendedWaitUntil:
     visible: "Consultant check, moved past.*"
     timeout: 20000
+# Each tap once the screen has settled: on an iPhone the history was still
+# opening, and a tap aimed at Undo opened an entry (run 10, 2026-11-12).
 - tapOn: "Versions and history"
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn: "History.*"
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn:
     text: "Undo"
     index: 0
