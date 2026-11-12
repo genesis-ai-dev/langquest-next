@@ -251,10 +251,12 @@ function AddNoteHere(props: { label: string; onPress: () => void }) {
  */
 function OurWordChip(props: { ctx: Ctx; term: string; word: OurWord; playable: boolean; listen?: ListenHooks }) {
   if (props.word.kind === 'voice') return <OurVoiceChip ctx={props.ctx} term={props.term} hash={props.word.voice} playable={props.playable} {...(props.listen ? { listen: props.listen } : {})} />;
-  if (props.word.kind === 'text') return <Text style={styles.ourChip} accessibilityLabel={t('reference.bible.ourWord', { word: props.word.text })}>{` ${props.word.text} `}</Text>;
+  if (props.word.kind === 'text') return <Text style={styles.ourChip} accessibilityLabel={t('reference.bible.ourWord', { word: props.word.text })}>{`${NBSP}${props.word.text}${NBSP}`}</Text>;
   return null;
 }
 
+/** Keeps a chip on the line of its key word and the punctuation after it. */
+const NBSP = '\u00A0';
 const PLAY = '\u25B6';
 const PAUSE = '\u275A\u275A';
 
@@ -263,7 +265,7 @@ function OurVoiceChip(props: { ctx: Ctx; term: string; hash: string; playable: b
   return (
     <Text onPress={props.playable && clip.available ? clip.toggle : undefined} accessibilityRole="button"
       accessibilityLabel={clip.playing ? t('reference.keyWords.pauseYourWord', { term: props.term }) : t('reference.keyWords.playYourWord', { term: props.term })}
-      style={styles.ourChip}>{` ${clip.playing ? PAUSE : PLAY} ${t('keyTerms.tiles.recorded')} `}</Text>
+      style={styles.ourChip}>{`${NBSP}${clip.playing ? PAUSE : PLAY}${NBSP}${t('keyTerms.tiles.recorded')}${NBSP}`}</Text>
   );
 }
 
