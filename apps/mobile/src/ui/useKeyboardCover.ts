@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Dimensions, Keyboard, LayoutAnimation, Platform, type KeyboardEvent, type View } from 'react-native';
+import { Dimensions, Keyboard, type KeyboardEvent, LayoutAnimation, Platform, type ViewInstance } from 'react-native';
 import { keyboardCover, keyboardTop } from './keyboardModel';
 
 /**
@@ -11,7 +11,7 @@ import { keyboardCover, keyboardTop } from './keyboardModel';
  * moves with it, in the keyboard's own time; Android says once it is there.
  */
 export function useKeyboardCover() {
-  const ref = useRef<View>(null);
+  const ref = useRef<ViewInstance>(null);
   const top = useRef<number | null>(null);
   const shown = useRef(0);
   const [covered, setCovered] = useState(0);

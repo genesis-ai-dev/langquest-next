@@ -106,7 +106,6 @@
         }
       ],
       "expo-notifications",
-      "./plugins/withSceneLifecycle",
       "./plugins/withAndroidAppIcons",
       [
         "expo-localization",

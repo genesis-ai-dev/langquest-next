@@ -502,7 +502,6 @@ this block.
   ],
   "moduleFeatures": ["android.hardware.bluetooth required=false", "android.hardware.bluetooth_le required=false", "android.hardware.wifi.direct required=false"],
   "plugins": [
-    "./plugins/withSceneLifecycle",
     "./plugins/withAndroidAppIcons",
     "expo-audio {\"enableBackgroundPlayback\":false,\"microphonePermission\":\"LangQuest records your voice to translate passages.\"}",
     "expo-camera {\"cameraPermission\":\"LangQuest uses the camera to scan invite QR codes.\"}",

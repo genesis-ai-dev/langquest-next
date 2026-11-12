@@ -164,7 +164,9 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // server check, most of it in the nearby chunk, which the web never opens; and main's own growth.
 // Lowered by 5 KB with a trim pass (Carl, 2026-11-10): nearby sync's words left the catalogs and
 // join each language's file the web serves, so a fetched catalog no longer duplicates them.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 50 * 1024;
+// Raised by 50 KB with Expo SDK 58 (Carl, 2026-11-11, decision 245), 50,620 bytes past then:
+// the first visit's growth below, which every chunk counts too.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 100 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
@@ -217,7 +219,12 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 50 * 1024;
 // package by package from the source maps: lucide-react-native 1.52 to 1.70 (7.6 KB), i18next 26.4
 // to 26.7 (6.6 KB), React Navigation 7.20 to 7.21 (2.2 KB), supabase-js 2.117 to 2.119 (1.9 KB) and
 // react-i18next 17.0 to 17.1 (1.5 KB). All the chunks together came out 1.9 KB smaller.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 34 * 1024;
+// Raised by 52 KB with Expo SDK 58 (Carl, 2026-11-11, decision 245), 52,380 bytes past then, by
+// package from the source maps: React DOM 19.2 to 19.3 (28.5 KB), react-native-svg 15.15 to 15.16
+// (5.5 KB), expo (3.4 KB), expo-audio (2.2 KB), expo-sqlite (1.5 KB), safe-area-context (1.4 KB),
+// expo-file-system (1.3 KB), expo-status-bar (1.1 KB) and React Navigation under React 19.3 (1.5 KB).
+// None of it is the app's code.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 86 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
