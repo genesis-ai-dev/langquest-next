@@ -219,7 +219,7 @@ jobs:
           if-no-files-found: ignore
       # The frame check is Claude Code, as Sonnet, signed in with the Claude plan's token (frame-check.ts).
       - name: Claude Code, for the frame check
-        run: npm install -g @anthropic-ai/claude-code@2.1.316
+        run: npm install -g @anthropic-ai/claude-code@2.1.319
       - name: Try every video, and film the ones that changed
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

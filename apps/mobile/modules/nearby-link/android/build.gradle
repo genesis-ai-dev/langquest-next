@@ -48,6 +48,6 @@ android {
 
 dependencies {
   // Already in every build through expo-modules-core; named here because the radio classes use it.
-  implementation 'androidx.annotation:annotation:1.9.1'
+  implementation 'androidx.annotation:annotation:1.11.0'
   testImplementation 'junit:junit:4.13.2'
 }
