@@ -7,7 +7,7 @@
 -- the keys go on every organization's revocation list, which teammates take
 -- from the next phone back from town; the next certificate call for any of
 -- the organization's languages makes a new discovery generation; and their
--- sessions end. pass_refusal (20261108020000) refuses a suspended inviter's
+-- sessions end. pass_refusal (20261112050000) refuses a suspended inviter's
 -- pass.
 --
 -- Restated from 20261006000000_baseline.sql with the same signature and

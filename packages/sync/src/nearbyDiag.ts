@@ -147,8 +147,8 @@ export const emptyRoomTally = (): NearbyRoomTally => ({
 export const NEARBY_ROOM_MS_CAP = 10 * 60_000;
 
 /**
- * Stops only a disguised phone makes, at its run limit and at "Up to date" (decision 226), read
- * as a stop by asking, so a worn phone's record is one a plain phone also makes (decision 230).
+ * Stops only a disguised phone makes, at its run limit and at "Up to date" (decision 228), read
+ * as a stop by asking, so a worn phone's record is one a plain phone also makes (decision 232).
  */
 const STOP_RECORDED: Record<string, string> = { run: 'asked', level: 'asked' };
 

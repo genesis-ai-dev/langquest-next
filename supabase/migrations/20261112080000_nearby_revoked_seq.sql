@@ -1,8 +1,8 @@
 -- A revocation list's number only goes up (security review, 2026-11-10;
--- docs/nearby-sync-plan.md 5.12, Revocation; decision 217).
+-- docs/nearby-sync-plan.md 5.12, Revocation; decision 219).
 --
 -- A new row's seq was max(seq) + 1, and revocations go with a deleted account
--- (on delete cascade, 20261108020000_nearby_join.sql), so when the deleted
+-- (on delete cascade, 20261112050000_nearby_join.sql), so when the deleted
 -- person held the newest numbers the next revocation reused one. Phones take a
 -- list only above the seq they hold, so every phone that held the old list
 -- ignored the new one, and a stolen phone's key went on passing Hello there.
@@ -44,7 +44,7 @@ $$;
 revoke all on function public._revoked_seq(text) from public, anon, authenticated;
 grant execute on function public._revoked_seq(text) to service_role;
 
--- Restated from 20261108000000_nearby_relay.sql: the seq is one past
+-- Restated from 20261112030000_nearby_relay.sql: the seq is one past
 -- _revoked_seq, under the same lock, and a pair already listed takes no number.
 create or replace function public._revoke_install_keys(p_profile uuid, p_by text)
 returns int language plpgsql security definer set search_path = '' as $$
@@ -76,7 +76,7 @@ begin
   return cardinality(v_keys);
 end $$;
 
--- Restated from 20261108020000_nearby_join.sql: `revokedSeq` is _revoked_seq.
+-- Restated from 20261112050000_nearby_join.sql: `revokedSeq` is _revoked_seq.
 create or replace function public.nearby_certificate_facts(p_profile text, p_install text, p_key text, p_languages text[] default '{}')
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
@@ -199,7 +199,7 @@ begin
   return jsonb_build_object('revoked', false, 'limited', false, 'orgs', v_out);
 end $$;
 
--- Restated from 20261107010000_nearby_identity.sql: `nearbyRevokedSeq` reads
+-- Restated from 20261112010000_nearby_identity.sql: `nearbyRevokedSeq` reads
 -- _revoked_seq, so an organization whose rows all went still says its number.
 create or replace function public.get_user_state()
 returns jsonb language sql stable security definer set search_path = '' as $$

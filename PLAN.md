@@ -252,7 +252,7 @@ Local events table adds `status: 'pending' | 'confirmed' | 'rejected' | 'nearby'
 and `rejectReason`. `nearby` is a teammate's event that came from their phone
 and that the server has not confirmed: folded, never pushed, never in a
 checkpoint, with `via` saying which signed batch or attested claim brought it
-(docs/nearby-sync-plan.md 5.2, decisions.md 207).
+(docs/nearby-sync-plan.md 5.2, decisions.md 209).
 
 ## 8. Conflict rules
 
@@ -290,7 +290,7 @@ below is the contract they satisfy; a Workers front end can wrap them later.
 - Blobs: `PUT /blobs/:hash` idempotent, `GET /blobs/:hash`. Presence of a blob
   is independent of presence of the events that reference it.
 - Amended (2026-11-08, Carl Sauder): delivery (docs/nearby-sync-plan.md
-  section 6, decision 231). An event comes from its author, or from a phone
+  section 6, decision 233). An event comes from its author, or from a phone
   holding the author's valid signature, unless it is a redaction. The Worker's `POST /api/relay` takes teammates'
   signed batches, checks each chain and signature, and appends them as each
   author through `relay_append_events`, which wraps `append_events`; a phone

@@ -3,7 +3,7 @@ import en from './i18n/en.json';
 
 /**
  * Nearby sync's words (src/nearby/i18n), kept out of the app's catalogs so the web, which never
- * runs nearby sync, does not carry them on every visit (the web budget, decision 228). A phone
+ * runs nearby sync, does not carry them on every visit (the web budget, decision 230). A phone
  * loads them all at start (src/i18n/catalogs.ts imports this), and they join the app's words for
  * the language showing, as the disguise's do (src/disguise/disguiseWords.ts). The web's are in
  * nearbyWords.web.ts.
