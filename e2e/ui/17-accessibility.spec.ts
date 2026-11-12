@@ -40,9 +40,7 @@ interface ScreenAudit { screen: string; who: string; targets: Target[]; small: S
  * the source). React Native Web ignores hitSlop, so the web measures the
  * frame; these are listed, not failed, when frame + slop reaches 48.
  */
-const HIT_SLOP: { match: (t: Target) => boolean; slop: number; where: string }[] = [
-  { match: (t) => /^Hear /.test(t.name) && t.w >= 40, slop: 4, where: 'simple/reference.tsx key word Hear (hitSlop 4)' }
-];
+const HIT_SLOP: { match: (t: Target) => boolean; slop: number; where: string }[] = [];
 
 let walked: Promise<ScreenAudit[]> | null = null;
 

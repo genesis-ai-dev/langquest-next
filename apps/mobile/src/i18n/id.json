@@ -6299,7 +6299,7 @@
       "guide": "Panduan",
       "guideHint": "Langkah-langkah panduan studi untuk perikop ini.",
       "terms": "Kata kunci",
-      "termsHint": "Kata-kata yang diucapkan dengan cara yang sama setiap kali: dengarkan tiap kata, lalu ucapkan padanan Anda.",
+      "termsHint": "Kata yang diucapkan sama setiap kali: ketuk satu untuk mendengarnya dan melihat di mana dipakai.",
       "notes": "Catatan",
       "notesHint": "Catatan tim tentang perikop ini.",
       "earlier": "Sebelumnya",
@@ -6613,29 +6613,25 @@
       "verseTermsHelp": "Kata yang bergaris bawah adalah kata kunci: ketuk salah satunya untuk membukanya.",
       "verseTermsMarkedHelp": "Kata yang bergaris bawah adalah kata kunci.",
       "verseTiedHelp": "Centang setelah kata kunci berarti kata itu dikaitkan dengan draf Anda.",
-      "verseDotHelp": "Memutar Alkitab dari ayat ini."
+      "verseDotHelp": "Memutar Alkitab dari ayat ini.",
+      "ourWord": "Kata Anda: {{word}}",
+      "verseOursHelp": "Kata hijau setelah kata kunci adalah cara tim Anda mengucapkannya."
     },
     "keyWords": {
       "none": "Belum ada kata kunci dalam perikop ini.",
       "noneAdd": "Belum ada kata kunci dalam perikop ini. Tambahkan kata yang harus diucapkan tim Anda dengan cara yang sama setiap kali.",
-      "elsewhere": "Di bagian lain kitab ini",
       "add": "Tambah kata kunci",
       "addHint": "Kata yang harus diucapkan tim Anda dengan cara yang sama setiap kali.",
       "all": "Semua kata kunci",
-      "hear": "Dengarkan {{term}}",
       "hearHelp": "Memutar ayat tempat kata itu muncul.",
       "noVerseAudio": "Alkitab ini tidak punya audio untuk ayat itu.",
-      "hearLabel": "Dengarkan {{term}} dalam Alkitab",
       "openHelp": "Artinya, cara tim Anda mengucapkannya, dan alasannya.",
-      "termLabel": "{{term}}. {{refs}}",
-      "termLabelWord": "{{term}}. {{refs}}. Kata Anda: {{word}}",
       "yourWord": "Kata Anda",
       "yourWordHelp": "Memutar cara tim Anda mengucapkan {{term}}.",
       "pauseYourWord": "Jeda kata Anda untuk {{term}}",
       "playYourWord": "Putar kata Anda untuk {{term}}",
       "sayYours": "Ucapkan kata Anda",
       "sayYoursHelp": "Rekam cara bahasa Anda mengucapkan {{term}}.",
-      "sayYoursLabel": "Ucapkan kata Anda untuk {{term}}",
       "saved": "Kata Anda untuk {{term}} tersimpan.",
       "sayTitle": "Kata Anda untuk “{{term}}”",
       "saySub": "Ucapkan bagaimana {{language}} menyebutnya. Tim Anda mendengarnya setiap kali kata ini muncul.",
@@ -7221,6 +7217,23 @@
       "fromList": "Dari {{name}}",
       "fromListSub": "Artinya, dan rekaman {{name}}",
       "fromListHelp": "Membuka arti kata ini seperti yang dijelaskan {{name}}, dengan rekamannya."
+    },
+    "tiles": {
+      "recorded": "Kata rekaman",
+      "noWord": "belum ada kata",
+      "label": "{{term}}. Kata Anda: {{word}}",
+      "labelRecorded": "{{term}}. Kata Anda sudah direkam.",
+      "labelNone": "{{term}}. Belum ada kata.",
+      "openHelp": "Membuka {{term}}: artinya, di mana dipakai, dan bagaimana tim Anda mengucapkannya.",
+      "inBible": "Tampilkan kata kami di teks Alkitab",
+      "inBibleHelp": "Menampilkan kata tim Anda setelah setiap kata kunci di Alkitab."
+    },
+    "ours": {
+      "afterDone": "Anda bisa membuka ayat-ayatnya dan halaman kata ini setelah menekan Selesai.",
+      "openPage": "Buka halaman kata",
+      "openPageHelp": "Membuka halaman {{term}}, tempat Anda bisa mengubah kata Anda.",
+      "saidIn": "Diucapkan di {{where}}",
+      "usedIn": "Dipakai di {{where}}"
     }
   },
   "clusters": {

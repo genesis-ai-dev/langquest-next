@@ -2,11 +2,12 @@
 // the study reader show it (decision 71; demo ADR-035, ADR-036; demo
 // simple/translator.tsx Workspace, TermsRef, EarlierRef, StudyDoc): the
 // Bible (play, Back 10 s, a Bible picker, the verses with the one playing
-// lit, a note on a verse or a moment), key words (hear each, your word or
-// say yours, add a word), notes, and everything recorded so far.
+// lit, a note on a verse or a moment, the team's words after the key words
+// when switched on), key words (a tile for each with the team's word, its
+// sheet, add a word), notes, and everything recorded so far.
 import { commands, keyTermsFor, notePart, noteHelp, RECORD_STEP, replyOf, type KeyTermView, type KeyWordDoc, type NoteAnchor, type PassageNote, type PassageState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
@@ -15,7 +16,7 @@ import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Field, Ico, LinkBtn, PlayGlyph, PrimaryBtn, SectionLabel, Sheet } from '../ui/kit';
+import { Field, Group, Ico, LinkBtn, PlayGlyph, PrimaryBtn, Row, SectionLabel, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { versionTitle, when, type PassageView } from '../passage/passageView';
 import { markTerms } from '../recording/workspaceModel';
@@ -44,7 +45,10 @@ import { draftKey, EMPTY_NOTE, isNoteDraft, isRecord } from '../drafts/draftMode
 import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
 import { usePassageKeyWords } from '../keyTerms/usePassageKeyWords';
-import { KeyWordSheet } from '../keyTerms/lazySheets';
+import { KeyTermSheet, KeyWordSheet } from '../keyTerms/lazySheets';
+import { KeyTermTiles } from '../keyTerms/KeyTermTiles';
+import { ourWord, type OurWord } from '../keyTerms/model';
+import type { ListenHooks } from '../recording/useListenLoop';
 import { ListWordRow } from '../keyTerms/KeyWordRows';
 import { ownTermId, shortName, type KeyWordList, type WordHere } from '../keyTerms/listsModel';
 import { a11yState } from '../ui/a11yModel';
@@ -57,7 +61,12 @@ const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
 /** The Bible chip: the player card, then the verses with the one playing lit (a-wsHalf). */
 export function BiblePane(props: {
   ctx: Ctx; v: PassageView; bible: Bible; terms?: readonly Pick<KeyTermView, 'termId' | 'term'>[]; tied?: ReadonlySet<string>;
-  onTerm?: (termId: string) => void; canNote: boolean; onMoreBibles?: () => void; selected: string | null; onSelect: (key: string | null) => void;
+  onTerm?: (termId: string) => void;
+  /** The team's word after each key word it has one for (LAN-233): a small green chip, which plays when the word was only said. */
+  ours?: ReadonlyMap<string, OurWord>;
+  /** A voice played from a chip pauses the microphone first. */
+  listen?: ListenHooks;
+  canNote: boolean; onMoreBibles?: () => void; selected: string | null; onSelect: (key: string | null) => void;
   header?: ReactNode;
   /** Under the text: the passage's own reference recordings. */
   footer?: ReactNode;
@@ -153,14 +162,19 @@ export function BiblePane(props: {
               <HelpRow of="reference.verse">
                 <Verse row={row} here={here} selected={sel} notes={n} onPress={() => tap(row)} timed={bible.hasAudio && bible.timed}
                   {...(sel && props.canNote ? { below: <AddNoteHere label={noteHereLabel(row.key)} onPress={note} /> } : {})}
-                  terms={termIds.length === 0 ? null : props.onTerm ? 'open' : 'marked'} tied={termIds.some((id) => props.tied?.has(id))}>
+                  terms={termIds.length === 0 ? null : props.onTerm ? 'open' : 'marked'} tied={termIds.some((id) => props.tied?.has(id))}
+                  ours={termIds.some((id) => props.ours?.has(id))}>
                   {parts.map((part, i) => {
                     if (!part.termId) return <Text key={i}>{part.text}</Text>;
                     const tied = props.tied?.has(part.termId) ?? false;
+                    const ours = props.ours?.get(part.termId);
                     return (
-                      <Text key={i} {...(onTerm ? { onPress: () => onTerm(part.termId!), accessibilityRole: 'link' as const } : {})}
-                        accessibilityLabel={tied ? t('reference.bible.keyWordTied', { word: part.text }) : t('reference.bible.keyWord', { word: part.text })}
-                        style={[styles.term, tied && { color: TINT.greenText }]}>{part.text}{tied ? ' ✓' : ''}</Text>
+                      <Fragment key={i}>
+                        <Text {...(onTerm ? { onPress: () => onTerm(part.termId!), accessibilityRole: 'link' as const } : {})}
+                          accessibilityLabel={tied ? t('reference.bible.keyWordTied', { word: part.text }) : t('reference.bible.keyWord', { word: part.text })}
+                          style={[styles.term, tied && { color: TINT.greenText }]}>{part.text}{tied ? `${NBSP}✓` : ''}</Text>
+                        {ours ? <OurWordChip ctx={ctx} term={part.text} word={ours} playable={!helpOn} {...(props.listen ? { listen: props.listen } : {})} /> : null}
+                      </Fragment>
                     );
                   })}
                 </Verse>
@@ -229,12 +243,42 @@ function AddNoteHere(props: { label: string; onPress: () => void }) {
   );
 }
 
+/**
+ * The team's word, as a small green chip right after the key word in a verse
+ * (LAN-233): the word as written, or for a word that was only said a chip that
+ * plays it. It sits in the verse's own line of text, so it is no bigger than
+ * its words; the key word's tile holds the big tap target.
+ */
+function OurWordChip(props: { ctx: Ctx; term: string; word: OurWord; playable: boolean; listen?: ListenHooks }) {
+  if (props.word.kind === 'voice') return <OurVoiceChip ctx={props.ctx} term={props.term} hash={props.word.voice} playable={props.playable} {...(props.listen ? { listen: props.listen } : {})} />;
+  if (props.word.kind === 'text') return <Text style={styles.ourChip} accessibilityLabel={t('reference.bible.ourWord', { word: props.word.text })}>{`${NBSP}${props.word.text}${NARROW_NBSP}`}</Text>;
+  return null;
+}
+
+/** Keeps a key word, its tick and its chip on one line; the punctuation after them joins the chip. */
+const NBSP = '\u00A0';
+/** The chip's narrow end, which no line breaks after. */
+const NARROW_NBSP = '\u202F';
+const PLAY = '\u25B6';
+const PAUSE = '\u275A\u275A';
+
+function OurVoiceChip(props: { ctx: Ctx; term: string; hash: string; playable: boolean; listen?: ListenHooks }) {
+  const clip = useClip(props.ctx.language, [props.hash], props.listen ? { listen: props.listen } : undefined);
+  return (
+    <Text onPress={props.playable && clip.available ? clip.toggle : undefined} accessibilityRole="button"
+      accessibilityLabel={clip.playing ? t('reference.keyWords.pauseYourWord', { term: props.term }) : t('reference.keyWords.playYourWord', { term: props.term })}
+      style={styles.ourChip}>{`${NBSP}${clip.playing ? PAUSE : PLAY}${NBSP}${t('keyTerms.tiles.recorded')}${NARROW_NBSP}`}</Text>
+  );
+}
+
 function Verse(props: {
   row: VerseRow; here: boolean; selected: boolean; notes: number; timed: boolean; onPress: () => void; children: ReactNode;
   /** Drawn under the verse: Add a note here, when it is chosen. */
   below?: ReactNode;
   /** Key words in it: `open` when a tap opens one, `marked` when they are only underlined. */
   terms?: 'open' | 'marked' | null; tied?: boolean;
+  /** The team's word shows after a key word in it (LAN-233). */
+  ours?: boolean;
 }) {
   const r = props.row;
   const verse = r.key.includes(':') ? r.key.slice(r.key.indexOf(':') + 1) : r.key;
@@ -243,6 +287,7 @@ function Verse(props: {
     props.timed ? t('reference.bible.verseHelpTimed') : t('reference.bible.verseHelp'),
     props.terms === 'open' ? t('reference.bible.verseTermsHelp') : props.terms === 'marked' ? t('reference.bible.verseTermsMarkedHelp') : null,
     props.tied ? t('reference.bible.verseTiedHelp') : null,
+    props.ours ? t('reference.bible.verseOursHelp') : null,
     props.notes ? t('reference.bible.verseNotesHelp') : null
   ].filter(Boolean).join(' ');
   const spot = useHelpSpot(t('reference.bible.verse', { verse }), detail, props.onPress);
@@ -327,21 +372,20 @@ export function BibleBar(props: { bible: Bible; onOpen: () => void }) {
 
 // ---- key words --------------------------------------------------------------------------
 
-/** The latest voice recording of the term in this language: what "Your word" plays. */
-function voiceOf(term: KeyTermView): string | undefined {
-  return [...term.adjustments].reverse().find((a) => a.blobHash)?.blobHash;
-}
-
 /**
- * The Key words chip (a-wsTerms): each word with where it is in the passage,
- * a listen icon that plays its verse, and the language's word: "Your word"
- * plays it, "Say yours" records it (TERM-5, adjustKeyTermRendering). A tap
- * on the word opens it (renderings, why, Tie to your draft). Under the
- * team's words, a section per key-word list the team uses ("From FIA ·
- * English", decision 172): its words on this passage, each with its short
- * meaning, the verses it is in and ▶ for the list's recording; a tap opens
- * the word's sheet, where it can be made the team's own. A list's word the
- * team already has shows with the team's words.
+ * The Key words chip (a-wsTerms; LAN-233, decision 208): the team's words as
+ * tiles that wrap, each with the key word, the team's word and ▶ for its
+ * voice ("no word yet" in amber when there is none). A tap on a tile opens
+ * its sheet over the recorder (keyTerms/KeyTermSheet.tsx), where it is used,
+ * the team's words, other languages' words and the rest; it never leaves the
+ * screen, so a recording goes on. A word played here pauses the microphone
+ * first (`listen`). Under the tiles, when this step shows the Bible's text, a
+ * switch puts the team's word after each key word in it. Under the team's
+ * words, a section per key-word list the team uses ("From FIA · English",
+ * decision 172): its words on this passage, each with its short meaning, the
+ * verses it is in and ▶ for the list's recording; a tap opens the word's
+ * sheet, where it can be made the team's own. A list's word the team already
+ * has shows with the team's words.
  */
 export function KeyWordsPane(props: {
   ctx: Ctx; v: PassageView; terms: KeyTermView[]; rows: VerseRow[] | null; draftTakeId: string | undefined;
@@ -359,6 +403,12 @@ export function KeyWordsPane(props: {
   bibleName?: string;
   /** ISO 639-3: the language of `rows`, so a list in that language finds its words in them. */
   bibleLanguage?: string;
+  /** The recorder's listen loop: a word played here pauses the microphone first, and it carries on after. */
+  listen?: ListenHooks;
+  /** Recording now: a word's sheet stays over the recorder, and what would leave the screen waits for Done. */
+  recording?: boolean;
+  /** The switch that puts the team's words in the Bible's text; left out where the step does not show the text. */
+  ourWordsInBible?: { on: boolean; onChange: (on: boolean) => void };
 }) {
   const { ctx, v } = props;
   const canEdit = ctx.session.can('fill_reference') || ctx.session.can('manage_reference');
@@ -366,6 +416,7 @@ export function KeyWordsPane(props: {
   const [saying, setSaying] = useState<KeyTermView | null>(null);
   const [adding, setAdding] = useState(false);
   const [opened, setOpened] = useState<WordHere | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null);
   const book = bookOf(v.title);
   const where = (term: KeyTermView): string[] => (props.rows ?? []).filter((r) => markTerms(r.text, [term]).some((p) => p.termId)).map((r) => r.key);
   const fromLists = usePassageKeyWords(ctx, v.unitId, { rows: props.rows, rowsLanguage: props.bibleLanguage ?? null });
@@ -377,6 +428,8 @@ export function KeyWordsPane(props: {
   const sections = fromLists.lists
     .map((list) => ({ list, words: fromLists.words.filter((w) => w.list === list) }))
     .filter((s) => s.words.length > 0);
+  const viewed = viewing ? terms.find((x) => x.termId === viewing) ?? null : null;
+  const viewedKeys = viewed ? where(viewed) : [];
   const hereLine = (w: WordHere): string => {
     if (!w.verses.length) return t('keyTerms.lists.inPassage');
     const verses = `${book} ${verseRefs(w.verses)}`;
@@ -390,18 +443,13 @@ export function KeyWordsPane(props: {
       ) : (
         <View style={{ gap: space.sm }}>
           {sections.length ? <SectionLabel label={t('keyTerms.lists.here')} /> : null}
-          <View style={styles.card}>
-            {terms.map((term, i) => {
-              const keys = where(term);
-              return (
-                <HelpRow key={term.termId} of="reference.keyWord">
-                  <TermRow ctx={ctx} term={term} refs={keys.length ? `${book} ${verseRefs(keys)}` : term.gloss || t('reference.keyWords.elsewhere')} last={i === terms.length - 1}
-                    {...(props.canHear && keys[0] ? { onHear: () => hearAt(keys[0]!) } : {})} canEdit={canEdit && !props.disabled} onSay={() => setSaying(term)}
-                    onOpen={() => ctx.go('key_term_detail', { unitId: v.unitId, languageId: v.languageId, termId: term.termId, ...(props.draftTakeId ? { draftId: props.draftTakeId } : {}) })} />
-                </HelpRow>
-              );
-            })}
-          </View>
+          <KeyTermTiles ctx={ctx} terms={terms} onOpen={(term) => setViewing(term.termId)} {...(props.listen ? { listen: props.listen } : {})} />
+          {props.ourWordsInBible && terms.some((x) => ourWord(x).kind !== 'none') ? (
+            <Group>
+              <Row testID="toggle-our-words-in-bible" label={t('keyTerms.tiles.inBible')} sub={t('keyTerms.tiles.inBibleHelp')} role="switch" checked={props.ourWordsInBible.on}
+                onPress={() => props.ourWordsInBible!.onChange(!props.ourWordsInBible!.on)} last />
+            </Group>
+          ) : null}
         </View>
       )}
       {sections.map((s) => (
@@ -418,6 +466,20 @@ export function KeyWordsPane(props: {
         </View>
       ))}
       {props.allTerms ? <LinkBtn label={t('reference.keyWords.all')} style={{ alignSelf: 'center' }} help={t('reference.keyWords.allHelp')} onPress={props.allTerms} /> : null}
+      {viewed ? (
+        <KeyTermSheet ctx={ctx} term={viewed} recording={!!props.recording} {...(props.listen ? { listen: props.listen } : {})}
+          verses={{ keys: viewedKeys, book, refs: verseRefs(viewedKeys), ...(props.canHear && viewedKeys.length ? { onPlay: (key: string) => { setViewing(null); hearAt(key); } } : {}) }}
+          {...(canEdit && !props.disabled && !props.recording ? { onSay: () => { setViewing(null); setSaying(viewed); } } : {})}
+          {...(props.recording ? {} : {
+            onPage: () => { setViewing(null); ctx.go('key_term_detail', { unitId: v.unitId, languageId: v.languageId, termId: viewed.termId, ...(props.draftTakeId ? { draftId: props.draftTakeId } : {}) }); },
+            onOpenPassage: (p: { unitId: string; takeId: string | null }) => {
+              setViewing(null);
+              if (p.takeId) ctx.go('version_detail', { unitId: p.unitId, languageId: v.languageId, takeId: p.takeId });
+              else ctx.go('passage_record', { unitId: p.unitId, languageId: v.languageId });
+            }
+          })}
+          onClose={() => setViewing(null)} />
+      ) : null}
       {saying ? <SayYoursSheet ctx={ctx} v={v} term={saying} draftTakeId={props.draftTakeId} canTie={props.canTie} onClose={() => setSaying(null)} /> : null}
       {adding ? <AddWordSheet ctx={ctx} v={v} draftTakeId={props.draftTakeId} rows={props.rows} bibleName={props.bibleName ?? ''} onClose={() => setAdding(false)} /> : null}
       {opened ? (
@@ -458,61 +520,6 @@ export function ListWordSheet(props: {
     );
   }
   return <KeyWordSheet ctx={ctx} list={list} word={props.word} onClose={props.onClose} {...(props.verses ? { verses: props.verses } : {})} {...(canEdit ? { onAdd: setAdding } : {})} {...(props.onPage ? { onPage: props.onPage } : {})} />;
-}
-
-/** One of the team's words. `onHear` only when the Bible can play a verse it is in. */
-function TermRow(props: { ctx: Ctx; term: KeyTermView; refs: string; last: boolean; canEdit: boolean; onHear?: () => void; onSay: () => void; onOpen: () => void }) {
-  const term = props.term;
-  const voice = voiceOf(term);
-  const rendering = term.renderings[term.renderings.length - 1]?.rendering;
-  const hear = useHelpSpot(t('reference.keyWords.hear', { term: term.term }), t('reference.keyWords.hearHelp'), props.onHear);
-  const open = useHelpSpot(term.term, t('reference.keyWords.openHelp'), props.onOpen);
-  return (
-    <View style={[styles.termRow, !props.last && ps.rowBorder]}>
-      {props.onHear ? (
-        <Pressable onPress={hear.onPress} accessibilityRole="button" accessibilityLabel={t('reference.keyWords.hearLabel', { term: term.term })} hitSlop={4} style={({ pressed }) => [styles.hear, pressed && ps.pressed]}>
-          <Ico name="listen" size={22} color={TINT.amberText} />
-          <HelpBadge spot={hear} />
-        </Pressable>
-      ) : null}
-      <Pressable onPress={open.onPress} accessibilityRole="button"
-        accessibilityLabel={rendering ? t('reference.keyWords.termLabelWord', { term: term.term, refs: props.refs, word: rendering }) : t('reference.keyWords.termLabel', { term: term.term, refs: props.refs })}
-        style={({ pressed }) => [{ flex: 1, minWidth: 0, minHeight: target.min, justifyContent: 'center' }, pressed && ps.pressed]}>
-        <Text style={styles.termName} numberOfLines={1}>{term.term}</Text>
-        <Text style={txt.smMuted}>{props.refs}{rendering && voice ? ` · ${rendering}` : ''}</Text>
-        <HelpBadge spot={open} />
-      </Pressable>
-      {voice ? <YourWord ctx={props.ctx} hash={voice} term={term.term} />
-        : rendering ? <Text style={[styles.yourWord, { maxWidth: 120 }]} numberOfLines={2}>{rendering}</Text>
-        : props.canEdit ? <View style={{ flexShrink: 1, maxWidth: '40%' }}><SayYours onPress={props.onSay} term={term.term} /></View> : null}
-    </View>
-  );
-}
-
-function YourWord(props: { ctx: Ctx; hash: string; term: string }) {
-  const clip = useClip(props.ctx.language, [props.hash]);
-  const spot = useHelpSpot(t('reference.keyWords.yourWord'), t('reference.keyWords.yourWordHelp', { term: props.term }), clip.toggle);
-  return (
-    <Pressable onPress={spot.onPress} disabled={!clip.available} accessibilityRole="button"
-      accessibilityLabel={clip.playing ? t('reference.keyWords.pauseYourWord', { term: props.term }) : t('reference.keyWords.playYourWord', { term: props.term })}
-      style={({ pressed }) => [styles.wordBtn, !clip.available && ps.off, pressed && ps.pressed]}>
-      <PlayGlyph playing={clip.playing} loading={clip.loading} size={14} color={TINT.greenText} strokeWidth={3} fill={TINT.greenText} />
-      <Text style={styles.yourWord}>{t('reference.keyWords.yourWord')}</Text>
-      <HelpBadge spot={spot} />
-    </Pressable>
-  );
-}
-
-function SayYours(props: { onPress: () => void; term: string }) {
-  const spot = useHelpSpot(t('reference.keyWords.sayYours'), t('reference.keyWords.sayYoursHelp', { term: props.term }), props.onPress);
-  return (
-    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('reference.keyWords.sayYoursLabel', { term: props.term })}
-      style={({ pressed }) => [styles.wordBtn, pressed && ps.pressed]}>
-      <Ico name="mic" size={16} color={C.primary} />
-      <Text style={[styles.yourWord, { color: C.primary, flexShrink: 1 }]}>{t('reference.keyWords.sayYours')}</Text>
-      <HelpBadge spot={spot} />
-    </Pressable>
-  );
 }
 
 /** Say (or type) the language's word for a key term: kept as a draft only you see until Add your word (decision 127). */
@@ -890,11 +897,7 @@ const styles = StyleSheet.create({
   pick: { minHeight: 40, paddingHorizontal: space.md, borderRadius: radius.full, borderWidth: 1.5, borderColor: TINT.noteBorder, backgroundColor: TINT.note,
     flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 110 },
   bar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm + 2, paddingHorizontal: space.lg, backgroundColor: C.card, borderBottomWidth: 1, borderColor: C.border },
-  termRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 56, paddingHorizontal: space.sm, paddingVertical: space.xs },
-  hear: { width: target.min, height: target.min, alignItems: 'center', justifyContent: 'center' },
-  termName: { fontSize: T.base, fontWeight: '800', color: C.dark },
-  wordBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: target.min, paddingHorizontal: space.sm },
-  yourWord: { fontSize: T.sm, fontWeight: '700', color: TINT.greenText },
+  ourChip: { fontSize: T.xs, fontWeight: '700', color: TINT.greenText, backgroundColor: TINT.green },
   noteCard: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 1, borderColor: C.border, padding: space.md + 2, gap: space.sm },
   noteText: { fontSize: T.base, lineHeight: 25, color: C.dark },
   where: { backgroundColor: C.card, borderLeftWidth: 3, borderColor: C.primary, borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: space.sm },

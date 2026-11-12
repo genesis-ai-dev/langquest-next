@@ -33,7 +33,8 @@ export function WordPassagesSection(props: {
   ctx: Ctx; passages: readonly WordPassage[]; own: boolean; loading: boolean;
   /** "FIA": the list that links it, for "Linked by FIA". */
   listName: string | null;
-  onOpen: (p: WordPassage) => void;
+  /** Leaves out the tap where the screen must not go elsewhere (the sheet over a recording, LAN-233). */
+  onOpen?: (p: WordPassage) => void;
 }) {
   const [filter, setFilter] = useState<Filter>('all');
   const [n, setN] = useState(FIRST);
@@ -71,7 +72,7 @@ export function WordPassagesSection(props: {
           <Group>
             {shown.slice(0, n).map((p, i, a) => (
               <HelpRow key={p.unitId} of="keyTerms.wordPassage">
-                <Row label={p.label} sub={whereLine(p, props.listName)} onPress={() => props.onOpen(p)} last={i === a.length - 1}
+                <Row label={p.label} sub={whereLine(p, props.listName)} {...(props.onOpen ? { onPress: () => props.onOpen!(p) } : {})} last={i === a.length - 1}
                   help={p.takeId ? t('keyTerms.page.openVersionHelp') : t('keyTerms.page.openPassageHelp')}
                   below={<View style={{ flexDirection: 'row' }}><StatusBadge p={p} /></View>} />
               </HelpRow>

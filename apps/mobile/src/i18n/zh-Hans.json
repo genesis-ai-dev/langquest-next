@@ -6299,7 +6299,7 @@
       "guide": "指南",
       "guideHint": "学习指南中关于这个经段的步骤。",
       "terms": "关键词",
-      "termsHint": "每次都要用同样说法的词：逐个听一听，再说出你的说法。",
+      "termsHint": "每次都要说得一样的词：点一个来听，并看它用在哪里。",
       "notes": "备注",
       "notesHint": "团队对这个经段的备注。",
       "earlier": "之前的",
@@ -6613,29 +6613,25 @@
       "verseTermsHelp": "带下划线的是关键词：点按可以打开。",
       "verseTermsMarkedHelp": "带下划线的是关键词。",
       "verseTiedHelp": "关键词后面有勾，表示它已关联到你的草稿。",
-      "verseDotHelp": "从这一节开始播放圣经。"
+      "verseDotHelp": "从这一节开始播放圣经。",
+      "ourWord": "你的说法：{{word}}",
+      "verseOursHelp": "关键词后面的绿色词是你的团队的说法。"
     },
     "keyWords": {
       "none": "这个经段还没有关键词。",
       "noneAdd": "这个经段还没有关键词。添加一个你的团队每次都要用同样说法的词。",
-      "elsewhere": "这卷书的其他地方",
       "add": "添加关键词",
       "addHint": "你的团队每次都要用同样说法的词。",
       "all": "所有关键词",
-      "hear": "听{{term}}",
       "hearHelp": "播放它所在的经节。",
       "noVerseAudio": "这本圣经没有那节经文的音频。",
-      "hearLabel": "在圣经中听{{term}}",
       "openHelp": "它的意思、你的团队怎么说，以及为什么。",
-      "termLabel": "{{term}}。{{refs}}",
-      "termLabelWord": "{{term}}。{{refs}}。你的说法：{{word}}",
       "yourWord": "你的说法",
       "yourWordHelp": "播放你的团队怎么说{{term}}。",
       "pauseYourWord": "暂停你对{{term}}的说法",
       "playYourWord": "播放你对{{term}}的说法",
       "sayYours": "说出你的说法",
       "sayYoursHelp": "录下你的语言怎么说{{term}}。",
-      "sayYoursLabel": "说出你对{{term}}的说法",
       "saved": "你对{{term}}的说法已保存。",
       "sayTitle": "你对“{{term}}”的说法",
       "saySub": "说出{{language}}怎么说它。以后每次遇到这个词，你的团队都会听到。",
@@ -7221,6 +7217,23 @@
       "fromList": "来自{{name}}",
       "fromListSub": "它的意思，以及{{name}}的录音",
       "fromListHelp": "打开{{name}}对这个词的解释和录音。"
+    },
+    "tiles": {
+      "recorded": "已录的说法",
+      "noWord": "还没有说法",
+      "label": "{{term}}。你的说法：{{word}}",
+      "labelRecorded": "{{term}}。你的说法已录好。",
+      "labelNone": "{{term}}。还没有说法。",
+      "openHelp": "打开{{term}}：它的意思、用在哪里，以及你的团队怎么说。",
+      "inBible": "在圣经经文中显示我们的说法",
+      "inBibleHelp": "在圣经里每个关键词后面显示你团队的说法。"
+    },
+    "ours": {
+      "afterDone": "按“完成”之后，你可以打开经文段落和这个词的页面。",
+      "openPage": "打开这个词的页面",
+      "openPageHelp": "打开{{term}}的页面，你可以在那里修改你的说法。",
+      "saidIn": "说于{{where}}",
+      "usedIn": "用于{{where}}"
     }
   },
   "clusters": {

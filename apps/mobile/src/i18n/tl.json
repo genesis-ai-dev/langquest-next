@@ -6567,7 +6567,7 @@
       "guide": "Gabay",
       "guideHint": "Ang mga hakbang ng gabay sa pag-aaral para sa siping ito.",
       "terms": "Mahahalagang salita",
-      "termsHint": "Mga salitang sasabihin sa parehong paraan tuwina: pakinggan ang bawat isa, at sabihin ang sa iyo.",
+      "termsHint": "Mga salitang dapat sabihin sa parehong paraan sa bawat pagkakataon: pindutin ang isa para marinig ito at makita kung saan ito ginagamit.",
       "notes": "Mga tala",
       "notesHint": "Ang mga tala ng pangkat sa siping ito.",
       "earlier": "Dati",
@@ -6901,29 +6901,25 @@
       "verseTermsHelp": "Mahahalagang salita ang mga salitang may salungguhit: i-tap ang isa para buksan ito.",
       "verseTermsMarkedHelp": "Mahahalagang salita ang mga salitang may salungguhit.",
       "verseTiedHelp": "Kapag may tsek pagkatapos ng isang mahalagang salita, nakaugnay ito sa iyong borador.",
-      "verseDotHelp": "Pinapatugtog ang Bibliya mula sa talatang ito."
+      "verseDotHelp": "Pinapatugtog ang Bibliya mula sa talatang ito.",
+      "ourWord": "Ang iyong salita: {{word}}",
+      "verseOursHelp": "Ang berdeng salita pagkatapos ng mahalagang salita ay kung paano ito sinasabi ng iyong team."
     },
     "keyWords": {
       "none": "Wala pang mahahalagang salita sa siping ito.",
       "noneAdd": "Wala pang mahahalagang salita sa siping ito. Magdagdag ng isang dapat sabihin ng iyong pangkat sa parehong paraan tuwina.",
-      "elsewhere": "Sa ibang bahagi ng aklat",
       "add": "Magdagdag ng mahalagang salita",
       "addHint": "Isang salitang dapat sabihin ng iyong pangkat sa parehong paraan tuwina.",
       "all": "Lahat ng mahahalagang salita",
-      "hear": "Pakinggan ang {{term}}",
       "hearHelp": "Pinapatugtog ang talatang kinalalagyan nito.",
       "noVerseAudio": "Walang audio ang Bibliyang ito para sa talatang iyon.",
-      "hearLabel": "Pakinggan ang {{term}} sa Bibliya",
       "openHelp": "Ang kahulugan nito, kung paano ito sinasabi ng iyong pangkat, at kung bakit.",
-      "termLabel": "{{term}}. {{refs}}",
-      "termLabelWord": "{{term}}. {{refs}}. Ang iyong salita: {{word}}",
       "yourWord": "Ang iyong salita",
       "yourWordHelp": "Pinapatugtog kung paano sinasabi ng iyong pangkat ang {{term}}.",
       "pauseYourWord": "I-pause ang iyong salita para sa {{term}}",
       "playYourWord": "I-play ang iyong salita para sa {{term}}",
       "sayYours": "Sabihin ang sa iyo",
       "sayYoursHelp": "I-record kung paano sinasabi ng iyong wika ang {{term}}.",
-      "sayYoursLabel": "Sabihin ang iyong salita para sa {{term}}",
       "saved": "Nai-save ang iyong salita para sa {{term}}.",
       "sayTitle": "Ang iyong salita para sa “{{term}}”",
       "saySub": "Sabihin kung paano ito sinasabi sa {{language}}. Maririnig ito ng iyong pangkat tuwing lalabas ang salitang ito.",
@@ -7541,6 +7537,23 @@
       "fromList": "Mula sa {{name}}",
       "fromListSub": "Ang kahulugan nito, at ang rekording ng {{name}}",
       "fromListHelp": "Binubuksan ang sinasabi ng {{name}} na kahulugan ng salita, kasama ang rekording nito."
+    },
+    "tiles": {
+      "recorded": "Nirekord na salita",
+      "noWord": "wala pang salita",
+      "label": "{{term}}. Ang iyong salita: {{word}}",
+      "labelRecorded": "{{term}}. Naka-record na ang iyong salita.",
+      "labelNone": "{{term}}. Wala pang salita.",
+      "openHelp": "Binubuksan ang {{term}}: ang kahulugan nito, kung saan ito ginagamit, at kung paano ito sinasabi ng iyong team.",
+      "inBible": "Ipakita ang aming mga salita sa teksto ng Bibliya",
+      "inBibleHelp": "Ipinapakita ang salita ng iyong team pagkatapos ng bawat mahalagang salita sa Bibliya."
+    },
+    "ours": {
+      "afterDone": "Mabubuksan mo ang mga talata at ang pahina ng salitang ito pagkatapos mong pindutin ang Tapos na.",
+      "openPage": "Buksan ang pahina ng salita",
+      "openPageHelp": "Binubuksan ang pahina ng {{term}}, kung saan mapapalitan mo ang iyong salita.",
+      "saidIn": "Sinabi sa {{where}}",
+      "usedIn": "Ginamit sa {{where}}"
     }
   },
   "clusters": {

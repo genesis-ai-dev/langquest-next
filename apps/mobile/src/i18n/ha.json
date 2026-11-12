@@ -6567,7 +6567,7 @@
       "guide": "Jagora",
       "guideHint": "Matakan jagorar nazari na wannan nassi.",
       "terms": "Muhimman kalmomi",
-      "termsHint": "Kalmomin da ake faɗa haka kowane lokaci: ji kowace, ku faɗi taku.",
+      "termsHint": "Kalmomin da ake faɗa iri ɗaya kowane lokaci: taɓa ɗaya don jin ta da ganin inda ake amfani da ita.",
       "notes": "Bayanai",
       "notesHint": "Bayanan tawagar game da wannan nassi.",
       "earlier": "Na baya",
@@ -6901,29 +6901,25 @@
       "verseTermsHelp": "Kalmomin da aka ja layi a ƙarƙashinsu muhimman kalmomi ne: taɓa ɗaya don buɗe ta.",
       "verseTermsMarkedHelp": "Kalmomin da aka ja layi a ƙarƙashinsu muhimman kalmomi ne.",
       "verseTiedHelp": "Alamar ✓ bayan muhimmiyar kalma tana nufin an haɗa ta da daftarinku.",
-      "verseDotHelp": "Yana kunna Littafi Mai Tsarki daga wannan aya."
+      "verseDotHelp": "Yana kunna Littafi Mai Tsarki daga wannan aya.",
+      "ourWord": "Kalmarku: {{word}}",
+      "verseOursHelp": "Koren kalma bayan muhimmiyar kalma ita ce yadda ƙungiyarku ke faɗinta."
     },
     "keyWords": {
       "none": "Babu muhimman kalmomi a wannan nassi tukuna.",
       "noneAdd": "Babu muhimman kalmomi a wannan nassi tukuna. Ku ƙara wadda ya kamata tawagarku ta riƙa faɗa haka kowane lokaci.",
-      "elsewhere": "A wasu wurare a littafin",
       "add": "Ƙara muhimmiyar kalma",
       "addHint": "Kalmar da ya kamata tawagarku ta riƙa faɗa haka kowane lokaci.",
       "all": "Dukan muhimman kalmomi",
-      "hear": "Ji {{term}}",
       "hearHelp": "Yana kunna ayar da take ciki.",
       "noVerseAudio": "Wannan Littafi Mai Tsarki ba shi da sauti na wannan aya.",
-      "hearLabel": "Ji {{term}} a Littafi Mai Tsarki",
       "openHelp": "Abin da take nufi, yadda tawagarku take faɗinta, da dalili.",
-      "termLabel": "{{term}}. {{refs}}",
-      "termLabelWord": "{{term}}. {{refs}}. Kalmarku: {{word}}",
       "yourWord": "Kalmarku",
       "yourWordHelp": "Yana kunna yadda tawagarku take faɗin {{term}}.",
       "pauseYourWord": "Dakatar da kalmarku ta {{term}}",
       "playYourWord": "Kunna kalmarku ta {{term}}",
       "sayYours": "Faɗi taku",
       "sayYoursHelp": "Ku naɗa yadda harshenku yake faɗin {{term}}.",
-      "sayYoursLabel": "Faɗi kalmarku ta {{term}}",
       "saved": "An ajiye kalmarku ta {{term}}.",
       "sayTitle": "Kalmarku ta “{{term}}”",
       "saySub": "Ku faɗi yadda {{language}} yake faɗinta. Tawagarku za ta ji ta duk lokacin da wannan kalma ta fito.",
@@ -7541,6 +7537,23 @@
       "fromList": "Daga {{name}}",
       "fromListSub": "Ma'anarta, da naɗin {{name}}",
       "fromListHelp": "Yana buɗe abin da {{name}} ya ce kalmar take nufi, tare da naɗinsa."
+    },
+    "tiles": {
+      "recorded": "Kalmar da aka naɗa",
+      "noWord": "babu kalma tukuna",
+      "label": "{{term}}. Kalmarku: {{word}}",
+      "labelRecorded": "{{term}}. An naɗa kalmarku.",
+      "labelNone": "{{term}}. Babu kalma tukuna.",
+      "openHelp": "Yana buɗe {{term}}: ma'anarsa, inda ake amfani da ita, da yadda ƙungiyarku ke faɗinta.",
+      "inBible": "Nuna kalmominmu a rubutun Littafi Mai Tsarki",
+      "inBibleHelp": "Yana nuna kalmar ƙungiyarku bayan kowace muhimmiyar kalma a Littafi Mai Tsarki."
+    },
+    "ours": {
+      "afterDone": "Za ku iya buɗe ayoyin da shafin wannan kalma bayan kun danna An gama.",
+      "openPage": "Buɗe shafin kalmar",
+      "openPageHelp": "Yana buɗe shafin {{term}}, inda za ku iya canza kalmarku.",
+      "saidIn": "An faɗa a {{where}}",
+      "usedIn": "An yi amfani da ita a {{where}}"
     }
   },
   "clusters": {

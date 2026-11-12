@@ -2,8 +2,8 @@
 // rendering note, where a term was used, and when a draft can be tied.
 import { describe, expect, it } from 'vitest';
 import {
-  adjustDuringTake, adjustmentNote, adjustmentReady, defineTermInput, EMPTY_TERM_DRAFT, firstRenderingNote, groupTerms, termDraftReady,
-  termUsedIn, tieState, versionOfTake
+  adjustDuringTake, adjustmentNote, adjustmentReady, defineTermInput, EMPTY_TERM_DRAFT, firstRenderingNote, groupTerms, ourWord, ourWords, termDraftReady,
+  termUsedIn, termVoice, termWords, tieState, versionOfTake, type TermUse
 } from '../src/keyTerms/model';
 import { language } from './configFixtures';
 
@@ -122,5 +122,97 @@ describe('an adjustment', () => {
     expect(adjustDuringTake(null, { latest: { takeId: 'v1' } } as never)).toBe('v1');
     expect(adjustDuringTake(undefined, { latest: null } as never)).toBeUndefined();
     expect(adjustDuringTake(null, null)).toBeUndefined();
+  });
+});
+
+// The team's words on the recorder's tiles and in the Bible's text (LAN-233, decision 208).
+describe('the team\'s word for a key word', () => {
+  const rendering = (id: string, rendering: string, context = '') => ({ renderingId: `rendering:${id}`, rendering, context });
+  const change = (id: string, hlc: string, extra: { blobHash?: string; duringTakeId?: string } = {}) => ({ adjustmentId: `adjustment:${id}`, note: 'n', actorId: 'a', hlc, ...extra });
+
+  it('is the newest written word, with the newest voice to play', () => {
+    const word = ourWord({ renderings: [rendering('c1', 'tata'), rendering('c2', ' baba ')], adjustments: [change('c1', '1', { blobHash: 'h1' }), change('c2', '2')] });
+    expect(word).toEqual({ kind: 'text', text: 'baba', voice: 'h1' });
+  });
+
+  it('is a recorded word when it was only said, and none when there is nothing', () => {
+    expect(ourWord({ renderings: [], adjustments: [change('c1', '1', { blobHash: 'h1' })] })).toEqual({ kind: 'voice', voice: 'h1' });
+    expect(ourWord({ renderings: [rendering('c1', '  ')], adjustments: [change('c1', '1')] })).toEqual({ kind: 'none' });
+    expect(ourWord({ renderings: [], adjustments: [] })).toEqual({ kind: 'none' });
+  });
+
+  it('keeps the newest voice of the term', () => {
+    expect(termVoice({ adjustments: [change('c1', '1', { blobHash: 'h1' }), change('c2', '2'), change('c3', '3', { blobHash: 'h3' })] })).toBe('h3');
+    expect(termVoice({ adjustments: [change('c1', '1')] })).toBeUndefined();
+  });
+
+  it('is listed for the Bible by term, leaving out the words not yet said', () => {
+    const terms = [
+      { termId: 'a', renderings: [rendering('c1', 'tata')], adjustments: [] },
+      { termId: 'b', renderings: [], adjustments: [] },
+      { termId: 'c', renderings: [], adjustments: [change('c2', '1', { blobHash: 'h' })] }
+    ];
+    expect([...ourWords(terms)]).toEqual([['a', { kind: 'text', text: 'tata' }], ['c', { kind: 'voice', voice: 'h' }]]);
+  });
+});
+
+describe('the team\'s words for a key word, with where each was said and used', () => {
+  const use = (takeId: string, adjustmentId: string | undefined, n: number): TermUse => ({ takeId, unitId: 'luke15', title: 'Luke 15:11-32', n, by: 'a', hlc: '1', ...(adjustmentId ? { adjustmentId } : {}) });
+  const versionOf = (takeId: string) => (takeId === 'gone' ? null : { unitId: 'luke15', takeId, title: 'Luke 15:11-32', n: takeId === 'tk2' ? 2 : 1 });
+  const term = {
+    renderings: [
+      { renderingId: 'rendering:c1', rendering: 'tata', context: 'said of God' },
+      { renderingId: 'rendering:c3', rendering: 'baba', context: '' }
+    ],
+    adjustments: [
+      { adjustmentId: 'adjustment:c1', note: 'n', actorId: 'a', hlc: '1', blobHash: 'h1', duringTakeId: 'tk1' },
+      // A voice with no rendering: a word that was only said.
+      { adjustmentId: 'adjustment:c2', note: 'n', actorId: 'a', hlc: '2', blobHash: 'h2', duringTakeId: 'tk2' },
+      { adjustmentId: 'adjustment:c3', note: 'n', actorId: 'a', hlc: '3', duringTakeId: 'gone' },
+      // A note of why, with neither a rendering nor a voice: not a word.
+      { adjustmentId: 'adjustment:c4', note: 'why', actorId: 'a', hlc: '4' }
+    ]
+  };
+
+  it('lists each word newest first with its voice, context and the version it was said in', () => {
+    const words = termWords(term, [], versionOf);
+    expect(words.map((w) => w.id)).toEqual(['rendering:c3', 'adjustment:c2', 'rendering:c1']);
+    expect(words[2]).toMatchObject({ rendering: 'tata', context: 'said of God', voice: 'h1', saidIn: { takeId: 'tk1', n: 1 } });
+    // Said and not written.
+    expect(words[1]).toMatchObject({ rendering: '', voice: 'h2', saidIn: { takeId: 'tk2', n: 2 } });
+    // A version that no longer exists is not named, and a word with no voice has none.
+    expect(words[0]).toMatchObject({ rendering: 'baba' });
+    expect(words[0]).not.toHaveProperty('saidIn');
+    expect(words[0]).not.toHaveProperty('voice');
+  });
+
+  it('says which versions used which word, by the change each version tied the term in with', () => {
+    const words = termWords(term, [use('tk1', 'adjustment:c1', 1), use('tk2', 'adjustment:c1', 2), use('tk3', 'adjustment:c3', 3), use('tk4', undefined, 4)], versionOf);
+    expect(words.find((w) => w.id === 'rendering:c1')!.usedIn.map((u) => u.takeId)).toEqual(['tk1', 'tk2']);
+    expect(words.find((w) => w.id === 'rendering:c3')!.usedIn.map((u) => u.takeId)).toEqual(['tk3']);
+    // A version that tied the term in without naming a word belongs to none of them.
+    expect(words.find((w) => w.id === 'adjustment:c2')!.usedIn).toEqual([]);
+  });
+
+  it('adds the clips recorded as examples of a way: to the written word of that way, else as a word that was only said', () => {
+    const clip = (renderingId: string, wayId: string, blobHash: string, duringTakeId?: string) => ({ renderingId, blobHash, durationMs: 1000, actorId: 'a', wayId, ...(duringTakeId ? { duringTakeId } : {}) });
+    const words = termWords({ ...term, audioRenderings: [clip('e1', 'rendering:c3', 'x1'), clip('e2', 'rendering:c3', 'x2'), clip('e3', 'way:new', 'x3', 'tk2')] }, [], versionOf);
+    // The newest clip of the way becomes the voice of the written word that had none.
+    expect(words.find((w) => w.id === 'rendering:c3')).toMatchObject({ rendering: 'baba', voice: 'x2' });
+    // A word whose own change holds a voice keeps it.
+    expect(words.find((w) => w.id === 'rendering:c1')).toMatchObject({ voice: 'h1' });
+    expect(words.find((w) => w.id === 'way:new')).toMatchObject({ rendering: '', voice: 'x3', saidIn: { takeId: 'tk2', n: 2 } });
+  });
+
+  it('plays a recorded example for a term with no written word and no voice in a change', () => {
+    const only = { renderings: [], adjustments: [], audioRenderings: [{ renderingId: 'e1', blobHash: 'x1', durationMs: 1000, actorId: 'a', wayId: 'way:1' }] };
+    expect(termVoice(only)).toBe('x1');
+    expect(ourWord(only)).toEqual({ kind: 'voice', voice: 'x1' });
+  });
+
+  it('puts a rendering with no change of its own before those that have one, and has nothing for a term with no word', () => {
+    const words = termWords({ renderings: [{ renderingId: 'old', rendering: 'ancient', context: '' }, { renderingId: 'rendering:c9', rendering: 'new', context: '' }], adjustments: [{ adjustmentId: 'adjustment:c9', note: 'n', actorId: 'a', hlc: '9' }] }, [], versionOf);
+    expect(words.map((w) => w.rendering)).toEqual(['new', 'ancient']);
+    expect(termWords({ renderings: [], adjustments: [{ adjustmentId: 'adjustment:c4', note: 'why', actorId: 'a', hlc: '4' }] }, [], versionOf)).toEqual([]);
   });
 });

@@ -6567,7 +6567,7 @@
       "guide": "Guide",
       "guideHint": "The study guide's steps for this passage.",
       "terms": "Key words",
-      "termsHint": "Words to say the same way every time: hear each, and say yours.",
+      "termsHint": "Words to say the same way every time: tap one to hear it and see where it is used.",
       "notes": "Notes",
       "notesHint": "The team's notes on this passage.",
       "earlier": "Earlier",
@@ -6901,29 +6901,25 @@
       "verseTermsHelp": "Underlined words are key words: tap one to open it.",
       "verseTermsMarkedHelp": "Underlined words are key words.",
       "verseTiedHelp": "A tick after a key word means it is tied to your draft.",
-      "verseDotHelp": "Plays the Bible from this verse."
+      "verseDotHelp": "Plays the Bible from this verse.",
+      "ourWord": "Your word: {{word}}",
+      "verseOursHelp": "A green word after a key word is how your team says it."
     },
     "keyWords": {
       "none": "No key words in this passage yet.",
       "noneAdd": "No key words in this passage yet. Add one your team should say the same way every time.",
-      "elsewhere": "Elsewhere in the book",
       "add": "Add a key word",
       "addHint": "A word your team should say the same way every time.",
       "all": "All key words",
-      "hear": "Hear {{term}}",
       "hearHelp": "Plays the verse it is in.",
       "noVerseAudio": "This Bible has no audio for that verse.",
-      "hearLabel": "Hear {{term}} in the Bible",
       "openHelp": "What it means, how your team says it, and why.",
-      "termLabel": "{{term}}. {{refs}}",
-      "termLabelWord": "{{term}}. {{refs}}. Your word: {{word}}",
       "yourWord": "Your word",
       "yourWordHelp": "Plays how your team says {{term}}.",
       "pauseYourWord": "Pause your word for {{term}}",
       "playYourWord": "Play your word for {{term}}",
       "sayYours": "Say yours",
       "sayYoursHelp": "Record how your language says {{term}}.",
-      "sayYoursLabel": "Say your word for {{term}}",
       "saved": "Your word for {{term}} is saved.",
       "sayTitle": "Your word for “{{term}}”",
       "saySub": "Say how {{language}} says it. Your team hears it whenever this word comes up.",
@@ -7541,6 +7537,23 @@
       "fromList": "From {{name}}",
       "fromListSub": "What it means, and {{name}}'s recording",
       "fromListHelp": "Opens what {{name}} says the word means, with its recording."
+    },
+    "tiles": {
+      "recorded": "Recorded word",
+      "noWord": "no word yet",
+      "label": "{{term}}. Your word: {{word}}",
+      "labelRecorded": "{{term}}. Your word is recorded.",
+      "labelNone": "{{term}}. No word yet.",
+      "openHelp": "Opens {{term}}: what it means, where it is used, and how your team says it.",
+      "inBible": "Show our words in the Bible text",
+      "inBibleHelp": "Shows your team's word after each key word in the Bible."
+    },
+    "ours": {
+      "afterDone": "You can open the passages and this word's page after you press Done.",
+      "openPage": "Open the word's page",
+      "openPageHelp": "Opens the page for {{term}}, where you can change your word.",
+      "saidIn": "Said in {{where}}",
+      "usedIn": "Used in {{where}}"
     }
   },
   "clusters": {

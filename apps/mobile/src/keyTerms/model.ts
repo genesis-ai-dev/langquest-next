@@ -110,3 +110,100 @@ export function adjustmentReady(note: string, hash: string | null): boolean {
 export function adjustDuringTake(draftTakeId: string | null | undefined, passage: Pick<PassageState, 'latest'> | null): string | undefined {
   return draftTakeId ?? passage?.latest?.takeId;
 }
+
+// ---- the team's words for a term (LAN-233) ----------------------------------------------------
+
+/** What the team's words are read from: a term's renderings and the changes made with them, and the clips recorded as examples of a way of saying it (decision 207). */
+type TermWordsOf = Pick<KeyTermView, 'renderings' | 'adjustments'> & Partial<Pick<KeyTermView, 'audioRenderings'>>;
+
+/** The latest voice recording of the term in this language: what a tile's ▶ plays (a recorded example when no word was said in a change). */
+export function termVoice(term: Pick<KeyTermView, 'adjustments'> & Partial<Pick<KeyTermView, 'audioRenderings'>>): string | undefined {
+  return [...term.adjustments].reverse().find((a) => a.blobHash)?.blobHash ?? term.audioRenderings?.[term.audioRenderings.length - 1]?.blobHash;
+}
+
+/**
+ * The team's word for a term as a tile or a chip in the Bible shows it: the
+ * newest written word (with the newest voice, to play), else a word that was
+ * only said, else none yet.
+ */
+export type OurWord =
+  | { kind: 'text'; text: string; voice?: string }
+  | { kind: 'voice'; voice: string }
+  | { kind: 'none' };
+
+export function ourWord(term: TermWordsOf): OurWord {
+  const voice = termVoice(term);
+  const text = [...term.renderings].reverse().find((r) => r.rendering.trim())?.rendering.trim();
+  if (text) return { kind: 'text', text, ...(voice ? { voice } : {}) };
+  return voice ? { kind: 'voice', voice } : { kind: 'none' };
+}
+
+/** The word for each term that has one, by term id: what the Bible's chips read. */
+export function ourWords(terms: readonly (TermWordsOf & Pick<KeyTermView, 'termId'>)[]): Map<string, OurWord> {
+  const out = new Map<string, OurWord>();
+  for (const term of terms) {
+    const word = ourWord(term);
+    if (word.kind !== 'none') out.set(term.termId, word);
+  }
+  return out;
+}
+
+/** One word the team has for a term, with the version it was said in and the versions that used it. */
+export interface TermWord {
+  /** The rendering's id, or the change's id for a word that was only said. */
+  id: string;
+  /** Written; empty for a word that was only said. */
+  rendering: string;
+  context: string;
+  /** The recording of it, when it was said. */
+  voice?: string;
+  /** The version it was said or written during, when the term's change named one. */
+  saidIn?: { unitId: string; takeId: string; title: string; n: number | null };
+  /** The versions that tied the term in with this word. */
+  usedIn: TermUse[];
+}
+
+/** The command that made a rendering and its change: `rendering:<id>` and `adjustment:<id>` share `<id>`. */
+const commandOf = (id: string) => id.slice(id.indexOf(':') + 1);
+
+/**
+ * The team's words for a term, newest first: each written rendering with the
+ * change made with it (its voice, the version it was said in), and each
+ * change that holds a voice and no rendering (a word that was only said). A
+ * change with neither (a note on why) is not a word. `uses` says which
+ * version tied the term in with which word (`KeyTermLinked.adjustmentId`);
+ * `versionOf` finds a take's version (`versionOfTake`).
+ */
+export function termWords(
+  term: TermWordsOf, uses: readonly TermUse[],
+  versionOf: (takeId: string) => { unitId: string; takeId: string; title: string; n: number | null } | null
+): TermWord[] {
+  const writtenIn = new Set(term.renderings.filter((r) => r.rendering.trim()).map((r) => commandOf(r.renderingId)));
+  const changeOf = new Map(term.adjustments.map((a) => [commandOf(a.adjustmentId), a]));
+  const make = (id: string, rendering: string, context: string, a: KeyTermView['adjustments'][number] | undefined): { word: TermWord; hlc: string } => {
+    const saidIn = a?.duringTakeId ? versionOf(a.duringTakeId) : null;
+    return {
+      hlc: a?.hlc ?? '',
+      word: { id, rendering, context, ...(a?.blobHash ? { voice: a.blobHash } : {}), ...(saidIn ? { saidIn } : {}), usedIn: a ? uses.filter((u) => u.adjustmentId === a.adjustmentId) : [] }
+    };
+  };
+  // A clip recorded as an example of a way of saying the term (decision 207) is that way's voice: a written word's when the way is
+  // that word's, else a word that was only said.
+  const clips = new Map<string, NonNullable<TermWordsOf['audioRenderings']>[number]>();
+  for (const c of term.audioRenderings ?? []) clips.set(c.wayId, c);
+  const made = [
+    // A rendering with no change of its own is older than any that has one.
+    ...term.renderings.filter((r) => r.rendering.trim()).map((r) => {
+      const m = make(r.renderingId, r.rendering.trim(), r.context.trim(), changeOf.get(commandOf(r.renderingId)));
+      const clip = clips.get(r.renderingId);
+      if (clip && !m.word.voice) m.word.voice = clip.blobHash;
+      return m;
+    }),
+    ...term.adjustments.filter((a) => a.blobHash && !writtenIn.has(commandOf(a.adjustmentId))).map((a) => make(a.adjustmentId, '', '', a)),
+    ...[...clips].filter(([wayId]) => !term.renderings.some((r) => r.renderingId === wayId && r.rendering.trim())).map(([wayId, c]) => {
+      const saidIn = c.duringTakeId ? versionOf(c.duringTakeId) : null;
+      return { hlc: '', word: { id: wayId, rendering: '', context: '', voice: c.blobHash, ...(saidIn ? { saidIn } : {}), usedIn: [] as TermUse[] } };
+    })
+  ];
+  return made.map((m, i) => ({ m, i })).sort((x, y) => (x.m.hlc < y.m.hlc ? -1 : x.m.hlc > y.m.hlc ? 1 : x.i - y.i)).map((x) => x.m.word).reverse();
+}

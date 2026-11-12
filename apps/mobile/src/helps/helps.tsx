@@ -29,6 +29,7 @@ import { styles as ps } from '../recording/blockStyles';
 import { BibleSheet, type Bible } from './BibleSheet';
 import { useBible } from './useBible';
 import { useClip } from '../audio/useClip';
+import type { ListenHooks } from '../recording/useListenLoop';
 import { textMissing } from './helpsModel';
 import { draftKey, EMPTY_NOTE, isNoteDraft } from '../drafts/draftModel';
 import { useDraft } from '../drafts/useDraft';
@@ -358,23 +359,27 @@ export function WhereItIs(props: { rows: readonly VerseRow[] | null; book: strin
  * principle 14): each language's word, what it means, and its recording
  * when the file is on this phone. Only languages this phone holds.
  */
-export function OthersSay(props: { ctx: Ctx; items: readonly OtherSays[]; loading: boolean; word: string }) {
+export function OthersSay(props: {
+  ctx: Ctx; items: readonly OtherSays[]; loading: boolean; word: string;
+  /** While recording: a word played here pauses the microphone first (LAN-233). */
+  listen?: ListenHooks;
+}) {
   return (
     <>
       <SectionLabel label={t('keyTerms.others.title')} />
       {props.loading ? <Text style={[txt.smMuted, styles.pad]}>{t('common.loading')}</Text>
         : props.items.length === 0 ? <Text style={[txt.smMuted, styles.pad]}>{t('keyTerms.others.none', { word: props.word.trim() })}</Text>
-        : props.items.map((o) => <HelpRow key={o.languageId} of="terms.other"><OtherCard ctx={props.ctx} o={o} /></HelpRow>)}
+        : props.items.map((o) => <HelpRow key={o.languageId} of="terms.other"><OtherCard ctx={props.ctx} o={o} {...(props.listen ? { listen: props.listen } : {})} /></HelpRow>)}
     </>
   );
 }
 
-function OtherCard(props: { ctx: Ctx; o: OtherSays }) {
+function OtherCard(props: { ctx: Ctx; o: OtherSays; listen?: ListenHooks }) {
   const { o } = props;
   const [failed, setFailed] = useState(false);
   return (
     <View style={styles.other}>
-      {o.voice && !failed ? <OtherVoice ctx={props.ctx} o={o} onFailed={() => setFailed(true)} /> : (
+      {o.voice && !failed ? <OtherVoice ctx={props.ctx} o={o} onFailed={() => setFailed(true)} {...(props.listen ? { listen: props.listen } : {})} /> : (
         <View style={styles.otherTile}><Ico name="globe" size={20} color={TINT.amberText} /></View>
       )}
       <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
@@ -392,12 +397,12 @@ function OtherCard(props: { ctx: Ctx; o: OtherSays }) {
  * server will not give it (not a member there, or offline) the play button
  * goes and the word stays.
  */
-function OtherVoice(props: { ctx: Ctx; o: OtherSays; onFailed: () => void }) {
+function OtherVoice(props: { ctx: Ctx; o: OtherSays; onFailed: () => void; listen?: ListenHooks }) {
   const { ctx, o } = props;
   const ref = { hash: o.voice!, format: (o.voiceFormat ?? 'm4a') as BlobFile['format'] };
   const { uri, stream } = useStreamedUri(ctx, o.languageId, ref);
   const [wanted, setWanted] = useState(false);
-  const clip = useClip(ctx.language, [], uri ? { uri } : undefined);
+  const clip = useClip(ctx.language, [], { ...(uri ? { uri } : {}), ...(props.listen ? { listen: props.listen } : {}) });
   useEffect(() => {
     if (!wanted || !uri) return;
     setWanted(false);
