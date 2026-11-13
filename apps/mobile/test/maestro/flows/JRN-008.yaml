@@ -49,8 +49,10 @@ tags:
     centerElement: true
 - tapOn:
     id: "invite-role-Translators"
-- extendedWaitUntil:
-    visible: "Ask them to scan this"
+# The code sits under the checks they will do: bring it up.
+- scrollUntilVisible:
+    element: "Ask them to scan this"
+    direction: DOWN
     timeout: 30000
 - tapOn: "Done"
 # Step 4: TRANS on Alpha's Peer check.
@@ -88,10 +90,11 @@ tags:
 # and the tab bar stays.
 - tapOn:
     id: "tab-map"
+# One language opens straight to its books (its name heads the Map); several are listed as "Name: …".
 - extendedWaitUntil:
-    visible: "${LANG_A}: .*"
+    visible: "${LANG_A}: .*|${LANG_A}"
     timeout: 30000
-- assertNotVisible: "${LANG_B}: .*"
+- assertNotVisible: "${LANG_B}: .*|${LANG_B}"
 - assertVisible:
     id: "tab-work"
 # Step 6: no join requests (they are organization scope).

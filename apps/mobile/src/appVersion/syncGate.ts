@@ -22,8 +22,12 @@ export function belowMinimum(): boolean {
   return tooOld;
 }
 
-/** What still reaches the server below the minimum: sending the phone's own work. */
-const SENDS = new Set<PropertyKey>(['append']);
+/**
+ * What still reaches the server below the minimum: sending the phone's own work, and teammates'
+ * signed work it carries (docs/nearby-sync-plan.md section 6; decision 154 as amended), since
+ * offline teams and lost phones are why delivery exists.
+ */
+const SENDS = new Set<PropertyKey>(['append', 'relay']);
 
 /** The transport, refusing every download while this version is below the minimum. */
 export function gated(transport: SupabaseTransport): SupabaseTransport {

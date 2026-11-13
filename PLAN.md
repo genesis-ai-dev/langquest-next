@@ -249,8 +249,11 @@ Smells to catch in review:
 }
 ```
 
-Local events table adds `status: 'pending' | 'confirmed' | 'rejected'` and
-`rejectReason`.
+Local events table adds `status: 'pending' | 'confirmed' | 'rejected' | 'nearby'`
+and `rejectReason`. `nearby` is a teammate's event that came from their phone
+and that the server has not confirmed: folded, never pushed, never in a
+checkpoint, with `via` saying which signed batch or attested claim brought it
+(docs/nearby-sync-plan.md 5.2, decisions.md 212).
 
 ## 8. Conflict rules
 
@@ -287,6 +290,13 @@ below is the contract they satisfy; a Workers front end can wrap them later.
   shows an upgrade state with nothing lost.
 - Blobs: `PUT /blobs/:hash` idempotent, `GET /blobs/:hash`. Presence of a blob
   is independent of presence of the events that reference it.
+- Amended (2026-11-08, Carl Sauder): delivery (docs/nearby-sync-plan.md
+  section 6, decision 236). An event comes from its author, or from a phone
+  holding the author's valid signature, unless it is a redaction. The Worker's `POST /api/relay` takes teammates'
+  signed batches, checks each chain and signature, and appends them as each
+  author through `relay_append_events`, which wraps `append_events`; a phone
+  delivers between push and pull. Someone who only views may upload a file
+  an accepted event names (`x-named-by` on the blob PUT).
 
 Migration option: this protocol can be served by PowerSync syncing a single
 immutable `events` table bucketed by stream, with the upload queue as the
@@ -524,6 +534,8 @@ gone (decision 63).
 | Who may use an organization's work, and what outsiders see | `v1.LicenseSet` in the organization stream (`orgLicense`, `LICENSE_INFO[..].terms`); outsiders read a projection, never the log | **added**, not in the demo (decision 38, docs/licensing.md); only ever opens |
 | Whether this phone sends field diagnostics | Settings › App › Send diagnostics, a switch row (`diag:off` in device meta, `src/diagnosticsSetting.ts`); diagnostics are never events | **added**, not in the demo (decision 39, docs/diagnostics.md); on by default, and off deletes what is waiting |
 | Reporting content or a person, and blocking someone | a flag on anything someone else made (`reportSheet.tsx`); `content_reports` and `user_blocks` rows sent through the account outbox, never events; a moderator removes content with `v1.Redacted`, staff act through `npm run moderation`; a blocked person's words and audio are hidden behind Show and their work still counts | **added**, not in the demo (decision 48); Google Play requires it |
+| Sharing work between phones with no internet | Share nearby (`share_nearby`), from Sync while the organization has it on, labelled experimental (`src/screens/nearby.tsx`, `src/nearby/`); rows a teammate's phone sent are `nearby` in the events table until the server confirms them, and "Hold teammates' recordings" is `nearbyHold` in device meta; nothing new is an event | **added**, not in the demo (docs/nearby-sync-plan.md 5.8); Android only, through `.android` files |
+| A new person joining a team with no internet | Let someone in (`let_someone_in`), from Share nearby for someone holding a join pass for the language, shows a code holding only how to reach the phone, a secret and a pin; the new phone scans it on Scan a code, types a name on Join without internet (`join_offline`, a guest screen), and one tap beside two matching pictures lets them in under a role with no manage privilege; a starting copy follows; they work as a local person (`nearby-local-person` in the Keystore) until first contact makes their account; Get the install file (`get_install_file`, from Share nearby, from Let someone in, and from Sync's Ready for offline card, which reminds a carrier while online when this phone lacks the file it needs) names the install file this phone's versions need (core `carriedApkName`, the carried build the Worker serves at `/apk/<name>`), which a carrier downloads in the browser while online, checks by name, and passes on outside the app; nothing new is an event | **added**, not in the demo (docs/nearby-sync-plan.md 14.1, 14.4); Android only, through `.android` files, behind `nearby_join` |
 
 ## 14. Blobs: the upload and download design for step 5
 
@@ -600,6 +612,23 @@ outside the offline scope, and not upload work. Unsynced recordings, kept
 units, and other languages' files are never touched. Downloads land in a
 `.part` staging name and are renamed only after their hash matches;
 startup deletes leftover staging files.
+
+Amended (2026-11-07, Carl Sauder): on Android, files that came from a
+teammate's phone over a nearby link (`docs/nearby-sync-plan.md` 5.6) are
+marked in the file ledger, and when space runs short they go in three
+levels: first the files `evictableBlobs` names, as above; then, only once
+those cannot free enough, marked files outside the offline scope (a marked
+file no reference names first, then backups, then files open for review,
+the most known copies first); never this person's own unsynced recordings,
+another person's on a shared phone, kept units, or a needed nearby file. So
+a backup can go before the server has it, possibly its last copy, because
+the person's own recording has to win. The 2 GB cap leaves marked files out
+of its total and frees from the first level only. A marked backup the server
+confirms at the size held here goes at once, on every phone, and with "Hold
+teammates' recordings" off a phone also sheds marked files outside what it
+needs and a small window of review once the server or another person keeps
+them (Carl's answer 14). Another language's marked level 2 files can go from
+the mark alone. Nearby files land in `<hash>.<format>.nearby.part`.
 
 Known v2 gap still open: no server-side garbage collection of blobs nothing
 references (a redacted recording's blobs stay in the bucket until that

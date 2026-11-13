@@ -297,7 +297,7 @@ var FunctionsClient = class {
         const hasContentTypeHeader = !!headers && Object.keys(headers).some((key) => key.toLowerCase() === "content-type");
         if (functionArgs && !hasContentTypeHeader) {
           if (typeof Blob !== "undefined" && functionArgs instanceof Blob || functionArgs instanceof ArrayBuffer) {
-            _headers["Content-Type"] = "application/octet-stream";
+            _headers["Content-Type"] = functionArgs.type || "application/octet-stream";
             body = functionArgs;
           } else if (typeof functionArgs === "string") {
             _headers["Content-Type"] = "text/plain";
@@ -506,7 +506,8 @@ async function fetchWithRetry(fetchImpl, url, request, retryEnabled) {
         signal: request.signal
       });
     } catch (fetchError) {
-      if ((fetchError === null || fetchError === void 0 ? void 0 : fetchError.name) === "AbortError" || (fetchError === null || fetchError === void 0 ? void 0 : fetchError.code) === "ABORT_ERR") throw fetchError;
+      var _request$signal;
+      if ((fetchError === null || fetchError === void 0 ? void 0 : fetchError.name) === "AbortError" || (fetchError === null || fetchError === void 0 ? void 0 : fetchError.code) === "ABORT_ERR" || (fetchError === null || fetchError === void 0 ? void 0 : fetchError.name) === "TimeoutError" && ((_request$signal = request.signal) === null || _request$signal === void 0 ? void 0 : _request$signal.aborted)) throw fetchError;
       if (!RETRYABLE_METHODS.includes(request.method)) throw fetchError;
       if (retryEnabled && attemptCount < DEFAULT_MAX_RETRIES) {
         const delay = getRetryDelay(attemptCount);
@@ -3910,6 +3911,30 @@ function toTransportFailure(cause, status, statusText) {
     statusText
   };
 }
+function withTimeout(fetch$1, timeout) {
+  if (timeout === void 0 || timeout <= 0) return fetch$1;
+  return (input, init) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    const existingSignal = init === null || init === void 0 ? void 0 : init.signal;
+    if (existingSignal) {
+      if (existingSignal.aborted) {
+        clearTimeout(timeoutId);
+        return fetch$1(input, init);
+      }
+      const abortHandler = () => {
+        clearTimeout(timeoutId);
+        controller.abort();
+      };
+      existingSignal.addEventListener("abort", abortHandler, { once: true });
+      return fetch$1(input, _objectSpread2(_objectSpread2({}, init), {}, { signal: controller.signal })).finally(() => {
+        clearTimeout(timeoutId);
+        existingSignal.removeEventListener("abort", abortHandler);
+      });
+    }
+    return fetch$1(input, _objectSpread2(_objectSpread2({}, init), {}, { signal: controller.signal })).finally(() => clearTimeout(timeoutId));
+  };
+}
 var PostgrestClient = class PostgrestClient2 {
   /**
   * Creates a PostgREST client.
@@ -3925,6 +3950,10 @@ var PostgrestClient = class PostgrestClient2 {
   *   When enabled, idempotent requests (GET, HEAD, OPTIONS) that fail with network
   *   errors or HTTP 503/520 responses will be automatically retried up to 3 times
   *   with exponential backoff (1s, 2s, 4s). Defaults to `true`.
+  * @param options.wrapFetch - Wraps every fetch this client uses, including a per-request
+  *   `fetch` passed to `from()`, and is carried over to clients returned by `schema()`.
+  *   Use it for headers or instrumentation that must reach every request regardless of
+  *   which fetch performs it.
   * @example Using supabase-js (recommended)
   * ```ts
   * import { createClient } from '@supabase/supabase-js'
@@ -3950,44 +3979,35 @@ var PostgrestClient = class PostgrestClient2 {
   * })
   * ```
   */
-  constructor(url, { headers = {}, schema, fetch: fetch$1, timeout, urlLengthLimit = 8e3, retry } = {}) {
+  constructor(url, { headers = {}, schema, fetch: fetch$1, timeout, urlLengthLimit = 8e3, retry, wrapFetch } = {}) {
     this.url = url;
     this.headers = new Headers(headers);
     this.schemaName = schema;
     this.urlLengthLimit = urlLengthLimit;
-    const originalFetch = fetch$1 !== null && fetch$1 !== void 0 ? fetch$1 : globalThis.fetch;
-    if (timeout !== void 0 && timeout > 0) this.fetch = (input, init) => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
-      const existingSignal = init === null || init === void 0 ? void 0 : init.signal;
-      if (existingSignal) {
-        if (existingSignal.aborted) {
-          clearTimeout(timeoutId);
-          return originalFetch(input, init);
-        }
-        const abortHandler = () => {
-          clearTimeout(timeoutId);
-          controller.abort();
-        };
-        existingSignal.addEventListener("abort", abortHandler, { once: true });
-        return originalFetch(input, _objectSpread2(_objectSpread2({}, init), {}, { signal: controller.signal })).finally(() => {
-          clearTimeout(timeoutId);
-          existingSignal.removeEventListener("abort", abortHandler);
-        });
-      }
-      return originalFetch(input, _objectSpread2(_objectSpread2({}, init), {}, { signal: controller.signal })).finally(() => clearTimeout(timeoutId));
-    };
-    else this.fetch = originalFetch;
+    this.timeout = timeout;
+    this.wrapFetch = wrapFetch;
+    this.baseFetch = fetch$1 !== null && fetch$1 !== void 0 ? fetch$1 : globalThis.fetch;
+    this.fetch = this.baseFetch ? this.decorateFetch(this.baseFetch) : void 0;
     this.retry = retry;
   }
-  from(relation) {
+  /**
+  * Applies the client's decorations to a fetch implementation: `wrapFetch`
+  * first, then the timeout guard, so the timeout bounds the whole wrapped call.
+  * The client-level fetch and every per-request `fetch` passed to `from()` go
+  * through this.
+  */
+  decorateFetch(fetch$1) {
+    return withTimeout(this.wrapFetch ? this.wrapFetch(fetch$1) : fetch$1, this.timeout);
+  }
+  from(relation, options) {
+    var _options$urlLengthLim, _options$retry;
     if (!relation || typeof relation !== "string" || relation.trim() === "") throw new Error("Invalid relation name: relation must be a non-empty string.");
     return new PostgrestQueryBuilder(new URL(`${this.url}/${relation}`), {
       headers: new Headers(this.headers),
       schema: this.schemaName,
-      fetch: this.fetch,
-      urlLengthLimit: this.urlLengthLimit,
-      retry: this.retry
+      fetch: (options === null || options === void 0 ? void 0 : options.fetch) ? this.decorateFetch(options.fetch) : this.fetch,
+      urlLengthLimit: (_options$urlLengthLim = options === null || options === void 0 ? void 0 : options.urlLengthLimit) !== null && _options$urlLengthLim !== void 0 ? _options$urlLengthLim : this.urlLengthLimit,
+      retry: (_options$retry = options === null || options === void 0 ? void 0 : options.retry) !== null && _options$retry !== void 0 ? _options$retry : this.retry
     });
   }
   /**
@@ -4003,7 +4023,9 @@ var PostgrestClient = class PostgrestClient2 {
     return new PostgrestClient2(this.url, {
       headers: this.headers,
       schema,
-      fetch: this.fetch,
+      fetch: this.baseFetch,
+      timeout: this.timeout,
+      wrapFetch: this.wrapFetch,
       urlLengthLimit: this.urlLengthLimit,
       retry: this.retry
     });
@@ -4380,7 +4402,7 @@ Suggested solution: ${env.workaround}`;
 var websocket_factory_default = WebSocketFactory;
 
 // node_modules/@supabase/realtime-js/dist/module/lib/version.js
-var version = "2.117.2";
+var version = "2.119.0";
 
 // node_modules/@supabase/realtime-js/dist/module/lib/constants.js
 var DEFAULT_VERSION = `realtime-js/${version}`;
@@ -4414,7 +4436,7 @@ var CONNECTION_STATE = {
 };
 
 // node_modules/@supabase/realtime-js/dist/module/lib/serializer.js
-var Serializer = class {
+var Serializer = class _Serializer {
   constructor(allowedMetadataKeys) {
     this.HEADER_LENGTH = 1;
     this.USER_BROADCAST_PUSH_META_LENGTH = 6;
@@ -4422,8 +4444,8 @@ var Serializer = class {
     this.BINARY_ENCODING = 0;
     this.JSON_ENCODING = 1;
     this.BROADCAST_EVENT = "broadcast";
-    this.allowedMetadataKeys = [];
-    this.allowedMetadataKeys = allowedMetadataKeys !== null && allowedMetadataKeys !== void 0 ? allowedMetadataKeys : [];
+    this.allowedMetadataKeys = _Serializer.DEFAULT_METADATA_KEYS;
+    this.allowedMetadataKeys = allowedMetadataKeys !== null && allowedMetadataKeys !== void 0 ? allowedMetadataKeys : _Serializer.DEFAULT_METADATA_KEYS;
   }
   encode(msg, callback) {
     if (msg.event === this.BROADCAST_EVENT && !(msg.payload instanceof ArrayBuffer) && typeof msg.payload.event === "string") {
@@ -4559,6 +4581,8 @@ var Serializer = class {
     return Object.fromEntries(Object.entries(obj).filter(([key]) => keys.includes(key)));
   }
 };
+Serializer.DEFAULT_METADATA_KEYS = ["persist"];
+var serializer_default = Serializer;
 
 // node_modules/@supabase/realtime-js/dist/module/lib/transformers.js
 var PostgresTypes;
@@ -5733,7 +5757,7 @@ var Presence = class _Presence {
     return JSON.parse(JSON.stringify(obj));
   }
 };
-var serializer_default = {
+var serializer_default2 = {
   HEADER_LENGTH: 1,
   META_LENGTH: 4,
   KINDS: { push: 0, reply: 1, broadcast: 2 },
@@ -5898,8 +5922,8 @@ var Socket = class {
     }
     this.sessionStore = opts.sessionStorage || envSessionStorage;
     this.establishedConnections = 0;
-    this.defaultEncoder = serializer_default.encode.bind(serializer_default);
-    this.defaultDecoder = serializer_default.decode.bind(serializer_default);
+    this.defaultEncoder = serializer_default2.encode.bind(serializer_default2);
+    this.defaultDecoder = serializer_default2.decode.bind(serializer_default2);
     this.closeWasClean = true;
     this.disconnecting = false;
     this.binaryType = opts.binaryType || "arraybuffer";
@@ -7299,7 +7323,7 @@ var RealtimeChannel = class _RealtimeChannel {
    *
    * @param event The name of the broadcast event
    * @param payload Payload to be sent (required)
-   * @param opts Options including timeout
+   * @param opts Options including timeout and persist
    * @returns Promise resolving to object with success status, and error details if failed
    *
    * @category Realtime
@@ -7321,6 +7345,17 @@ var RealtimeChannel = class _RealtimeChannel {
     url.pathname += `/${encodeURIComponent(this.subTopic)}/events/${encodeURIComponent(event)}`;
     if (this.private) {
       url.searchParams.set("private", "true");
+    }
+    if (opts.persist) {
+      if (!this.private) {
+        return Promise.reject(new Error("Realtime httpSend() cannot store a message on a public channel."));
+      }
+      const ttl = typeof opts.persist === "object" ? opts.persist.ttl : void 0;
+      if (ttl === void 0) {
+        url.searchParams.set("persist", "true");
+      } else {
+        url.searchParams.set("persist[ttl]", String(ttl));
+      }
     }
     const options = {
       method: "POST",
@@ -7349,6 +7384,7 @@ var RealtimeChannel = class _RealtimeChannel {
    * @param args.type The type of event to send
    * @param args.event The name of the event being sent
    * @param args.payload Payload to be sent
+   * @param args.persist Stores the broadcast for replay on a private channel
    * @param opts Options to be used during the send process
    *
    * @category Realtime
@@ -7392,6 +7428,15 @@ var RealtimeChannel = class _RealtimeChannel {
    */
   async send(args, opts = {}) {
     var _a, _b;
+    if (args.type === "broadcast" && args.persist && (!this.private || this.socket.vsn === VSN_1_0_0)) {
+      const persistError = this.private ? "Realtime send() cannot store a message with protocol 1.0.0. Use httpSend() or connect with vsn 2.0.0." : "Realtime send() cannot store a message on a public channel.";
+      if (this.socket.hasLogger()) {
+        this.socket.log("channel", persistError);
+      } else {
+        console.error(persistError);
+      }
+      return "error";
+    }
     if (!this.channelAdapter.canPush() && args.type === "broadcast") {
       const fallbackWarning = "Realtime send() is automatically falling back to REST API. This behavior will be deprecated in the future. Please use httpSend() explicitly for REST delivery.";
       if (this.socket.hasLogger()) {
@@ -7400,6 +7445,15 @@ var RealtimeChannel = class _RealtimeChannel {
         console.warn(fallbackWarning);
       }
       const { event, payload: endpoint_payload } = args;
+      if (args.persist) {
+        const persistError = "Realtime send() fell back to REST and cannot store this message. The batch endpoint does not support persistence. Use httpSend() or send after the channel is connected and subscribed.";
+        if (this.socket.hasLogger()) {
+          this.socket.log("channel", persistError);
+        } else {
+          console.error(persistError);
+        }
+        return "error";
+      }
       const headers = {
         apikey: this.socket.apiKey ? this.socket.apiKey : "",
         "Content-Type": "application/json"
@@ -7440,7 +7494,7 @@ var RealtimeChannel = class _RealtimeChannel {
           resolve("ok");
         }
         push.receive("ok", () => resolve("ok"));
-        push.receive("error", () => resolve("error"));
+        push.receive("error", (response) => resolve(args.persist && typeof (response === null || response === void 0 ? void 0 : response.error) === "string" ? response.error : "error"));
         push.receive("timeout", () => resolve("timed out"));
       });
     }
@@ -7891,7 +7945,7 @@ var RealtimeClient = class {
     this.headers = {};
     this.params = {};
     this.ref = 0;
-    this.serializer = new Serializer();
+    this.serializer = new serializer_default();
     this._manuallySetToken = false;
     this._authPromise = null;
     this._authGeneration = 0;
@@ -8381,7 +8435,7 @@ var RealtimeClient = class {
         defaultDecode = this.serializer.decode.bind(this.serializer);
         break;
       default:
-        throw new Error(`Unsupported serializer version: ${result.vsn}`);
+        throw new Error(`Unsupported serializer version: ${vsn}`);
     }
     result.vsn = vsn;
     result.encode = (_l = options === null || options === void 0 ? void 0 : options.encode) !== null && _l !== void 0 ? _l : defaultEncode;
@@ -9327,6 +9381,10 @@ var DEFAULT_FILE_OPTIONS = {
   contentType: "text/plain;charset=UTF-8",
   upsert: false
 };
+function mergeFileOptions(fileOptions) {
+  const definedOptions = Object.fromEntries(Object.entries(fileOptions !== null && fileOptions !== void 0 ? fileOptions : {}).filter(([, value]) => value !== void 0));
+  return _objectSpread22(_objectSpread22({}, DEFAULT_FILE_OPTIONS), definedOptions);
+}
 var StorageFileApi = class extends BaseApiClient {
   constructor(url, headers = {}, bucketId, fetch$1) {
     super(url, headers, fetch$1, "storage");
@@ -9343,22 +9401,15 @@ var StorageFileApi = class extends BaseApiClient {
     var _this = this;
     return _this.handleOperation(async () => {
       let body;
-      const options = _objectSpread22(_objectSpread22({}, DEFAULT_FILE_OPTIONS), fileOptions);
+      const options = mergeFileOptions(fileOptions);
       let headers = _objectSpread22(_objectSpread22({}, _this.headers), method === "POST" && { "x-upsert": String(options.upsert) });
       const metadata = options.metadata;
-      if (typeof Blob !== "undefined" && fileBody instanceof Blob) {
-        body = new FormData();
-        body.append("cacheControl", options.cacheControl);
-        if (metadata) body.append("metadata", _this.encodeMetadata(metadata));
-        body.append("", fileBody);
-      } else if (typeof FormData !== "undefined" && fileBody instanceof FormData) {
-        body = fileBody;
-        if (!body.has("cacheControl")) body.append("cacheControl", options.cacheControl);
-        if (metadata && !body.has("metadata")) body.append("metadata", _this.encodeMetadata(metadata));
-      } else {
+      if (typeof Blob !== "undefined" && fileBody instanceof Blob || typeof FormData !== "undefined" && fileBody instanceof FormData) body = _this.prepareUploadFormData(fileBody, options);
+      else {
         body = fileBody;
         headers["cache-control"] = `max-age=${options.cacheControl}`;
         headers["content-type"] = options.contentType;
+        if (options.contentEncoding) headers["content-encoding"] = options.contentEncoding;
         if (metadata) headers["x-metadata"] = _this.toBase64(_this.encodeMetadata(metadata));
         if ((typeof ReadableStream !== "undefined" && body instanceof ReadableStream || body && typeof body === "object" && "pipe" in body && typeof body.pipe === "function") && !options.duplex) options.duplex = "half";
       }
@@ -9380,7 +9431,7 @@ var StorageFileApi = class extends BaseApiClient {
   * @subcategory File Buckets
   * @param path The file path, including the file name. Should be of the format `folder/subfolder/filename.png`. The bucket must already exist before attempting to upload.
   * @param fileBody The body of the file to be stored in the bucket.
-  * @param fileOptions Optional file upload options including cacheControl, contentType, upsert, and metadata.
+  * @param fileOptions Optional file upload options including cacheControl, contentType, contentEncoding, upsert, and metadata.
   * @returns Promise with response containing file path, id, and fullPath or error
   *
   * @example Upload file
@@ -9451,7 +9502,7 @@ var StorageFileApi = class extends BaseApiClient {
   * @param path The file path, including the file name. Should be of the format `folder/subfolder/filename.png`. The bucket must already exist before attempting to upload.
   * @param token The token generated from `createSignedUploadUrl`
   * @param fileBody The body of the file to be stored in the bucket.
-  * @param fileOptions HTTP headers (cacheControl, contentType, etc.).
+  * @param fileOptions HTTP headers (cacheControl, contentType, contentEncoding, etc.).
   * **Note:** The `upsert` option has no effect here. To enable upsert behavior,
   * pass `{ upsert: true }` when calling `createSignedUploadUrl()` instead.
   * @returns Promise with response containing file path and fullPath or error
@@ -9489,22 +9540,15 @@ var StorageFileApi = class extends BaseApiClient {
     url.searchParams.set("token", token);
     return _this3.handleOperation(async () => {
       let body;
-      const options = _objectSpread22(_objectSpread22({}, DEFAULT_FILE_OPTIONS), fileOptions);
+      const options = mergeFileOptions(fileOptions);
       let headers = _objectSpread22(_objectSpread22({}, _this3.headers), { "x-upsert": String(options.upsert) });
       const metadata = options.metadata;
-      if (typeof Blob !== "undefined" && fileBody instanceof Blob) {
-        body = new FormData();
-        body.append("cacheControl", options.cacheControl);
-        if (metadata) body.append("metadata", _this3.encodeMetadata(metadata));
-        body.append("", fileBody);
-      } else if (typeof FormData !== "undefined" && fileBody instanceof FormData) {
-        body = fileBody;
-        if (!body.has("cacheControl")) body.append("cacheControl", options.cacheControl);
-        if (metadata && !body.has("metadata")) body.append("metadata", _this3.encodeMetadata(metadata));
-      } else {
+      if (typeof Blob !== "undefined" && fileBody instanceof Blob || typeof FormData !== "undefined" && fileBody instanceof FormData) body = _this3.prepareUploadFormData(fileBody, options);
+      else {
         body = fileBody;
         headers["cache-control"] = `max-age=${options.cacheControl}`;
         headers["content-type"] = options.contentType;
+        if (options.contentEncoding) headers["content-encoding"] = options.contentEncoding;
         if (metadata) headers["x-metadata"] = _this3.toBase64(_this3.encodeMetadata(metadata));
         if ((typeof ReadableStream !== "undefined" && body instanceof ReadableStream || body && typeof body === "object" && "pipe" in body && typeof body.pipe === "function") && !options.duplex) options.duplex = "half";
       }
@@ -9576,7 +9620,7 @@ var StorageFileApi = class extends BaseApiClient {
   * @subcategory File Buckets
   * @param path The relative file path. Should be of the format `folder/subfolder/filename.png`. The bucket must already exist before attempting to update.
   * @param fileBody The body of the file to be stored in the bucket.
-  * @param fileOptions Optional file upload options including cacheControl, contentType, and metadata.
+  * @param fileOptions Optional file upload options including cacheControl, contentType, contentEncoding, and metadata.
   * **Note:** The `upsert` option has no effect here. `update()` always replaces the
   * file at the given path, so the `x-upsert` header is not sent. To control upsert
   * behavior, use `upload()` instead.
@@ -9681,8 +9725,10 @@ var StorageFileApi = class extends BaseApiClient {
   * @subcategory File Buckets
   * @param fromPath The original file path, including the current file name. For example `folder/image.png`.
   * @param toPath The new file path, including the new file name. For example `folder/image-copy.png`.
-  * @param options The destination options.
+  * @param options The destination and metadata options.
   * @param options.sourceVersionId The version id of the source object to copy.
+  * @param options.copyMetadata Whether to copy the source metadata. Defaults to true. Set to false to apply metadata overrides; custom user metadata is not copied when false.
+  * @param options.metadata File metadata overrides, applied only when copyMetadata is false. Unspecified fields retain their source values.
   * @returns Promise with response containing copied file path or error
   *
   * @example Copy file
@@ -9703,6 +9749,18 @@ var StorageFileApi = class extends BaseApiClient {
   * }
   * ```
   *
+  * @example Copy file with content encoding
+  * ```js
+  * const { data, error } = await supabase
+  *   .storage
+  *   .from('documents')
+  *   .copy('source.txt.gz', 'copy.txt.gz', {
+  *     copyMetadata: false,
+  *     metadata: { contentEncoding: 'gzip' },
+  *   })
+  * ```
+  * The source must already contain gzip-encoded bytes. Copying changes metadata only.
+  *
   * @remarks
   * - RLS policy permissions required:
   *   - `buckets` table permissions: none
@@ -9712,12 +9770,15 @@ var StorageFileApi = class extends BaseApiClient {
   async copy(fromPath, toPath, options) {
     var _this7 = this;
     return _this7.handleOperation(async () => {
+      const copyOptions = options;
       return { path: (await post(_this7.fetch, `${_this7.url}/object/copy`, {
         bucketId: _this7.bucketId,
         sourceKey: fromPath,
         destinationKey: toPath,
         destinationBucket: options === null || options === void 0 ? void 0 : options.destinationBucket,
-        sourceVersionId: options === null || options === void 0 ? void 0 : options.sourceVersionId
+        sourceVersionId: options === null || options === void 0 ? void 0 : options.sourceVersionId,
+        copyMetadata: typeof (copyOptions === null || copyOptions === void 0 ? void 0 : copyOptions.copyMetadata) === "boolean" ? copyOptions.copyMetadata : void 0,
+        metadata: (copyOptions === null || copyOptions === void 0 ? void 0 : copyOptions.copyMetadata) === false ? copyOptions.metadata : void 0
       }, { headers: _this7.headers })).Key };
     });
   }
@@ -9971,6 +10032,14 @@ var StorageFileApi = class extends BaseApiClient {
   /**
   * Checks the existence of a file.
   *
+  * This reads the object's metadata, so the result is `false` only when Storage reports that the
+  * key does not exist: an error with code `NoSuchKey`, or an HTTP 404 with no error code. In that
+  * case `data` is `false` and `error` holds the original error.
+  *
+  * Every other failure throws instead of returning `false`, including an invalid or expired JWT
+  * (`InvalidJWT`), a missing bucket (`NoSuchBucket`) and network errors. With `throwOnError()`,
+  * a missing key throws as well.
+  *
   * @category Storage
   * @subcategory File Buckets
   * @param path The file path, including the file name. For example `folder/image.png`.
@@ -9985,26 +10054,16 @@ var StorageFileApi = class extends BaseApiClient {
   * ```
   */
   async exists(path) {
-    var _this11 = this;
-    const _path = _this11._getFinalPath(path);
-    try {
-      await head(_this11.fetch, `${_this11.url}/object/${_path}`, { headers: _this11.headers });
-      return {
-        data: true,
-        error: null
-      };
-    } catch (error) {
-      if (_this11.shouldThrowOnError) throw error;
-      if (isStorageError(error)) {
-        var _error$originalError;
-        const status = error instanceof StorageApiError ? error.status : error instanceof StorageUnknownError ? (_error$originalError = error.originalError) === null || _error$originalError === void 0 ? void 0 : _error$originalError.status : void 0;
-        if (status !== void 0 && [400, 404].includes(status)) return {
-          data: false,
-          error
-        };
-      }
-      throw error;
-    }
+    const { error } = await this.info(path);
+    if (!error) return {
+      data: true,
+      error: null
+    };
+    if (error instanceof StorageApiError && (error.code === "NoSuchKey" || error.status === 404 && error.code === void 0)) return {
+      data: false,
+      error
+    };
+    throw error;
   }
   /**
   * A simple convenience function to get the URL for an asset in a public bucket. If you do not want to use this function, you can construct the public URL by concatenating the bucket URL with the path to the asset.
@@ -10333,6 +10392,20 @@ var StorageFileApi = class extends BaseApiClient {
       return await post(_this15.fetch, `${_this15.url}/object/list-v2/${_this15.bucketId}`, body, { headers: _this15.headers }, parameters);
     });
   }
+  prepareUploadFormData(fileBody, options) {
+    const body = new FormData();
+    const files = [];
+    if (fileBody instanceof FormData) fileBody.forEach((value, name) => {
+      if (typeof value === "string") body.append(name, value);
+      else files.push([name, value]);
+    });
+    else files.push(["", fileBody]);
+    if (!body.has("cacheControl")) body.append("cacheControl", options.cacheControl);
+    if (options.metadata && !body.has("metadata")) body.append("metadata", this.encodeMetadata(options.metadata));
+    if (options.contentEncoding && !body.has("contentEncoding")) body.append("contentEncoding", options.contentEncoding);
+    for (const [name, file] of files) body.append(name, file);
+    return body;
+  }
   encodeMetadata(metadata) {
     return JSON.stringify(metadata);
   }
@@ -10356,7 +10429,7 @@ var StorageFileApi = class extends BaseApiClient {
     return query;
   }
 };
-var version2 = "2.117.2";
+var version2 = "2.119.0";
 var DEFAULT_HEADERS = { "X-Client-Info": `storage-js/${version2}` };
 var StorageBucketApi = class extends BaseApiClient {
   constructor(url, headers = {}, fetch$1, opts) {
@@ -11914,7 +11987,7 @@ var StorageClient = class extends StorageBucketApi {
 };
 
 // node_modules/@supabase/auth-js/dist/module/lib/version.js
-var version3 = "2.117.2";
+var version3 = "2.119.0";
 
 // node_modules/@supabase/auth-js/dist/module/lib/constants.js
 var AUTO_REFRESH_TICK_DURATION_MS = 30 * 1e3;
@@ -13455,6 +13528,8 @@ var GoTrueAdminApi = class {
   }
   /**
    * Delete a user. Requires a `service_role` key.
+   * Returns the user that was deleted. In cases of concurrent updates, the user object returned
+   * might not accurately reflect the user information at the time of deletion.
    *
    * @param id The user id you want to remove.
    * @param shouldSoftDelete If true, then the user will be soft-deleted from the auth schema. Soft deletion allows user identification from the hashed user ID but is not reversible.
@@ -13479,7 +13554,14 @@ var GoTrueAdminApi = class {
    * ```json
    * {
    *   "data": {
-   *     "user": {}
+   *     "user": {
+   *       "id": "715ed5db-f090-4b8c-a067-640ecee36aa0",
+   *       "aud": "authenticated",
+   *       "role": "authenticated",
+   *       "email": "example@email.com",
+   *       "created_at": "2024-01-01T00:00:00Z",
+   *       "updated_at": "2024-01-01T00:00:00Z"
+   *     }
    *   },
    *   "error": null
    * }
@@ -13488,13 +13570,18 @@ var GoTrueAdminApi = class {
   async deleteUser(id, shouldSoftDelete = false) {
     validateUUID(id);
     try {
-      return await _request(this.fetch, "DELETE", `${this.url}/admin/users/${id}`, {
+      const { data, error } = await this.getUserById(id);
+      if (error) {
+        return { data: { user: null }, error };
+      }
+      await _request(this.fetch, "DELETE", `${this.url}/admin/users/${id}`, {
         headers: this.headers,
         body: {
           should_soft_delete: shouldSoftDelete
         },
-        xform: _userResponse
+        noResolveJson: true
       });
+      return { data, error: null };
     } catch (error) {
       if (isAuthError(error)) {
         return { data: { user: null }, error };
@@ -15318,7 +15405,7 @@ var GoTrueClient = class _GoTrueClient {
    * Be aware that you may get back an error message that will not distinguish
    * between the cases where the account does not exist or that the
    * email/phone and password combination is wrong or that the account can only
-   * be accessed via social login.
+   * be accessed via social sign-in.
    *
    * @category Auth
    *
@@ -15501,7 +15588,7 @@ var GoTrueClient = class _GoTrueClient {
    * @category Auth
    *
    * @remarks
-   * - This method is used for signing in using [Social Login (OAuth) providers](/docs/guides/auth#configure-third-party-providers).
+   * - This method is used for signing in using [social sign-in (OAuth) providers](/docs/guides/auth/social-sign-in).
    * - It works by redirecting your application to the provider's authorization screen, before bringing back the user to your app.
    *
    * @example Sign in using a third-party provider
@@ -16233,7 +16320,7 @@ var GoTrueClient = class _GoTrueClient {
    *
    * Be aware that you may get back an error message that will not distinguish
    * between the cases where the account does not exist or, that the account
-   * can only be accessed via social login.
+   * can only be accessed via social sign-in.
    *
    * Do note that you will need to configure a Whatsapp sender on Twilio
    * if you are using phone sign in with the 'whatsapp' channel. The whatsapp
@@ -17748,12 +17835,31 @@ var GoTrueClient = class _GoTrueClient {
     return !!currentStorageContent;
   }
   /**
-   * Inside a browser context, `signOut()` will remove the logged in user from the browser session and log them out - removing all items from localstorage and then trigger a `"SIGNED_OUT"` event.
+   * Inside a browser context, `signOut()` will remove the logged in user from the browser session
+   * and log them out - removing all items from localstorage and then trigger a `"SIGNED_OUT"`
+   * event.
    *
-   * For server-side management, you can revoke all refresh tokens for a user by passing a user's JWT through to `auth.api.signOut(JWT: string)`.
-   * There is no way to revoke a user's access token jwt until it expires. It is recommended to set a shorter expiry on the jwt for this reason.
+   * For server-side management, you can revoke all refresh tokens for a user by passing a user's
+   * JWT through to `auth.api.signOut(JWT: string)`.
    *
-   * If using `others` scope, no `SIGNED_OUT` event is fired!
+   * There is no way to revoke a user's access token jwt until it expires. It is recommended to set
+   * a shorter expiry on the jwt for this reason.
+   *
+   * `signOut` behavior depends on the selected scope:
+   *
+   * - `local`: The local session is removed first and a `SIGNED_OUT` event is fired, then the client
+   *   makes a best-effort request to revoke the refresh token on the server. If the request fails,
+   *   the client is still signed out locally and the error is returned, but the server may retain
+   *   the refresh token until it expires.
+   *
+   * - `global`: All of the user's sessions are first invalidated on the server. Once the server
+   *   acknowledges the request, the local session is cleared. If server logout fails, the local
+   *   session is retained, no `SIGNED_OUT` event is triggered, and the server or network error is
+   *   returned. A 401, 403, or 404 response counts as a successful sign-out.
+   *
+   * - `others`: All other sessions are invalidated when the server accepts the request; the
+   *   current local session remains unchanged. In case of server or network failures, the error is
+   *   returned. A `SIGNED_OUT` event is never triggered, regardless of the outcome.
    *
    * **Warning:** the default `scope` is `'global'`. This signs the user out of
    * **every device they are currently signed in on**, not just the current
@@ -17771,7 +17877,13 @@ var GoTrueClient = class _GoTrueClient {
    *   usually what apps want on a "Sign out" button, especially when users
    *   sign in from multiple devices and do not expect signing out of one to
    *   terminate the others.
-   * - Since Supabase Auth uses JWTs for authentication, the access token JWT will be valid until it's expired. When the user signs out, Supabase revokes the refresh token and deletes the JWT from the client-side. This does not revoke the JWT and it will still be valid until it expires.
+   * - With the default `global` scope, `signOut()` while offline returns an error and keeps the user
+   *   signed in. To sign out regardless, fall back to `signOut({ scope: 'local' })` when the call
+   *   returns an error.
+   * - Since Supabase Auth uses JWTs for authentication, the access token JWT will be valid until
+   *   it's expired. When the user signs out, Supabase revokes the refresh token and deletes the
+   *   JWT from the client-side. This does not revoke the JWT and it will still be valid until it
+   *   expires.
    *
    * @example Sign out of every device (global – default)
    * ```js
@@ -17797,7 +17909,7 @@ var GoTrueClient = class _GoTrueClient {
     }
     return await this._signOut(options);
   }
-  async _signOut({ scope } = { scope: "global" }) {
+  async _signOut({ scope = "global" } = {}) {
     return await this._useSession(async (result) => {
       var _a;
       const removeCurrentSession = async () => {
@@ -17805,24 +17917,36 @@ var GoTrueClient = class _GoTrueClient {
       };
       const { data, error: sessionError } = result;
       if (sessionError && !isAuthSessionMissingError(sessionError)) {
+        if (scope === "local" && isAuthRetryableFetchError(sessionError)) {
+          await removeCurrentSession();
+        }
         return this._returnResult({ error: sessionError });
       }
       const accessToken = (_a = data.session) === null || _a === void 0 ? void 0 : _a.access_token;
-      if (accessToken) {
-        const { error } = await this.admin.signOut(accessToken, scope);
-        if (error) {
-          if (!(isAuthApiError(error) && (error.status === 404 || error.status === 401 || error.status === 403) || isAuthSessionMissingError(error))) {
-            if (scope !== "others") {
-              await removeCurrentSession();
-            }
-            return this._returnResult({ error });
-          }
+      let removeError = null;
+      const finish = (value) => {
+        if (removeError) {
+          throw removeError.thrown;
+        }
+        return value;
+      };
+      if (scope === "local") {
+        try {
+          await removeCurrentSession();
+        } catch (thrown) {
+          removeError = { thrown };
         }
       }
-      if (scope !== "others") {
+      if (accessToken) {
+        const { error } = await this.admin.signOut(accessToken, scope);
+        if (error && !(isAuthApiError(error) && (error.status === 404 || error.status === 401 || error.status === 403) || isAuthSessionMissingError(error))) {
+          return finish(this._returnResult({ error }));
+        }
+      }
+      if (scope === "global") {
         await removeCurrentSession();
       }
-      return this._returnResult({ error: null });
+      return finish(this._returnResult({ error: null }));
     });
   }
   /**  *
@@ -17910,9 +18034,9 @@ var GoTrueClient = class _GoTrueClient {
    * ```
    *
    * @exampleDescription Store OAuth provider tokens on sign in
-   * When using [OAuth (Social Login)](/docs/guides/auth/social-login) you sometimes wish to get access to the provider's access token and refresh token, in order to call provider APIs in the name of the user.
+   * When using [OAuth (social sign-in)](/docs/guides/auth/social-sign-in) you sometimes wish to get access to the provider's access token and refresh token, in order to call provider APIs in the name of the user.
    *
-   * For example, if you are using [Sign in with Google](/docs/guides/auth/social-login/auth-google) you may want to use the provider token to call Google APIs on behalf of the user. Supabase Auth does not keep track of the provider access and refresh token, but does return them for you once, immediately after sign in. You can use the `onAuthStateChange` method to listen for the presence of the provider tokens and store them in local storage. You can further send them to your server's APIs for use on the backend.
+   * For example, if you are using [Sign in with Google](/docs/guides/auth/social-sign-in/auth-google) you may want to use the provider token to call Google APIs on behalf of the user. Supabase Auth does not keep track of the provider access and refresh token, but does return them for you once, immediately after sign in. You can use the `onAuthStateChange` method to listen for the presence of the provider tokens and store them in local storage. You can further send them to your server's APIs for use on the backend.
    *
    * Finally, make sure you remove them from local storage on the `SIGNED_OUT` event. If the OAuth provider supports token revocation, make sure you call those APIs either from the frontend or schedule them to be called on the backend.
    *
@@ -20034,7 +20158,7 @@ var AuthClient = GoTrueClient_default;
 var AuthClient_default = AuthClient;
 
 // node_modules/@supabase/supabase-js/dist/index.mjs
-var version4 = "2.117.2";
+var version4 = "2.119.0";
 var JS_ENV = "";
 var JS_RUNTIME_VERSION;
 if (typeof Deno !== "undefined") {
@@ -20558,7 +20682,8 @@ var SupabaseClient = class {
     this.rest = new PostgrestClient(new URL("rest/v1", baseUrl).href, {
       headers: this.headers,
       schema: settings.db.schema,
-      fetch: this.fetch,
+      fetch: resolveFetch4(settings.global.fetch),
+      wrapFetch: (fetch$1) => fetchWithAuth(supabaseKey, supabaseUrl, this._getSessionToken.bind(this), fetch$1, settings.tracePropagation),
       timeout: settings.db.timeout,
       urlLengthLimit: settings.db.urlLengthLimit,
       retry: settings.db.retry
@@ -20578,10 +20703,24 @@ var SupabaseClient = class {
   /**
   * Perform a query on a table or a view.
   *
+  * A per-request `fetch` is wrapped the same way as the client-level fetch: the
+  * `apikey`, `Authorization` and trace headers are added before it is called.
+  * The same applies to clients returned by `.schema()`.
+  *
   * @param relation - The table or view name to query
+  * @param options - Per-request options that override client-level defaults
+  *
+  * @example Per-request fetch options
+  * ```ts
+  * const { data } = await supabase
+  *   .from('countries', {
+  *     fetch: (input, init) => fetch(input, { ...init, cache: 'force-cache' }),
+  *   })
+  *   .select('*')
+  * ```
   */
-  from(relation) {
-    return this.rest.from(relation);
+  from(relation, options) {
+    return this.rest.from(relation, options);
   }
   /**
   * Select a schema to query or perform an function (rpc) call.

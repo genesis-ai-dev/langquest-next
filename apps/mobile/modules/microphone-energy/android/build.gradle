@@ -36,6 +36,8 @@ android {
   defaultConfig {
     versionCode 1
     versionName "0.6.3"
+    // Release builds shrink with R8 from Expo SDK 58; these rules go with the module (proguard-rules.pro).
+    consumerProguardFiles 'proguard-rules.pro'
   }
   lintOptions {
     abortOnError false

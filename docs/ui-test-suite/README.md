@@ -426,6 +426,27 @@ is also running (the runner otherwise takes the one booted simulator). SYNC-027 
 cut the network on iOS, and SYNC-026's "N of M" line passes too fast on a
 local stack to catch; both stay manual there.
 
+**Phone results (2026-11-10, Android, the nearby-sync branch with main
+merged), test build:** the first full run passed 16 of the 25 flows it can
+hold. The nine others had fallen behind main since 2026-10-25, not broken by
+the branch: a checkpoint row that now names its reason, "Continue the peer
+check" for a review kept on the phone, an offline ask's toast (decision
+166), a book of passages listed 25 at a time instead of a chapter grid
+(decision 166), the invite code under the checks to choose, one language's
+Map opening straight on its books, cards under the passage's player, and two
+flows that need a passage another changes first (now in `config.yaml`'s
+`flowsOrder`). Updated, a full run on a fresh world passed 23 of 25:
+NAV-061's paging needed more than 20 s to scroll a page of rows (now 60 s,
+`common/show-passage.yaml`), and the sign-out flow failed once, its note
+uploaded before the runner's airplane-mode cut caught up; both then passed
+on a fresh world. SYNC-027 passes whole with the runner's airplane-mode cut. SYNC-026 reaches "N of M" but not the speed
+line, which passes too fast on a local stack. The voice flows were tried on
+WSL with a PulseAudio null sink as the default source and the emulator's
+`-allow-host-audio`: the emulator read the sink, but the recorder heard no
+speech, and WSLg's audio server stopped answering afterwards (`wsl
+--shutdown` brings it back). A slow emulator shows "System UI isn't
+responding" right after a cold boot: let its load fall below 3 before a run.
+
 **Quarantine and flake rates.** Retries are off, so a test that fails without
 a product cause is tagged `@quarantine` (with an issue and an owner in a
 comment), runs on its own in the nightly workflow, and is left out of the

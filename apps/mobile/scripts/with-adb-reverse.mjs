@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 // Runs a command (`expo start`, `expo run:android`) and, while it runs, keeps
-// every attached Android device's local Supabase port forwarded to this
-// machine: `npm start` and `npm run android -- …` wrap themselves in it.
+// every attached Android device's local Supabase and Worker ports forwarded to
+// this machine: `npm start` and `npm run android -- …` wrap themselves in it.
 //
 // `.env.development` points the app at `http://127.0.0.1:54421`. Inside the
 // emulator that address is the emulator itself, so sign-in fails with a
 // network error. `adb reverse` maps the device's port onto this machine's.
+// The same holds for the app's Worker (EXPO_PUBLIC_API_URL, `npm run dev` on
+// :8787): unforwarded, nearby certificates, file uploads, Reports and the Bible
+// routes fail as offline while everything Supabase answers works.
 // It is lost when the emulator restarts, and the emulator is often booted by
 // the command itself, so one `adb reverse` up front is not enough: this
 // repeats it every few seconds for whatever devices are attached.
@@ -25,6 +28,12 @@ export function localPort(url) {
   }
   if (!['127.0.0.1', 'localhost', '[::1]'].includes(u.hostname)) return null;
   return Number(u.port || (u.protocol === 'https:' ? 443 : 80));
+}
+
+/** The ports to forward: the local Supabase's and the local Worker's, once each. */
+export function forwardedPorts(env) {
+  const ports = [localPort(env.EXPO_PUBLIC_SUPABASE_URL), localPort(env.EXPO_PUBLIC_API_URL)];
+  return [...new Set(ports.filter((p) => p !== null))];
 }
 
 const adb = (args) =>
@@ -50,7 +59,7 @@ function keepForwarded(port) {
       const r = await adb(['-s', serial, 'reverse', `tcp:${port}`, `tcp:${port}`]);
       if (!r.error && !done.has(serial)) {
         done.add(serial);
-        console.log(`[adb] ${serial}: 127.0.0.1:${port} forwarded to this machine's Supabase`);
+        console.log(`[adb] ${serial}: 127.0.0.1:${port} forwarded to this machine`);
       }
     }
     for (const serial of done) if (!serials.includes(serial)) done.delete(serial);
@@ -66,8 +75,8 @@ function main() {
     console.error('usage: with-adb-reverse.mjs <command> [args…]');
     process.exit(2);
   }
-  const port = localPort(process.env.EXPO_PUBLIC_SUPABASE_URL);
-  const stop = port ? keepForwarded(port) : () => {};
+  const stops = forwardedPorts(process.env).map(keepForwarded);
+  const stop = () => { for (const s of stops) s(); };
   const child = spawn(command, args, { stdio: 'inherit' });
   // Ctrl-C already reaches the child through the terminal; wait for it to exit.
   process.on('SIGINT', () => {});

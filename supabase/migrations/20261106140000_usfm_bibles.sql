@@ -1,4 +1,4 @@
--- LAN-229 (decisions.md 211): an organization's own Bible, uploaded as USFM
+-- LAN-229 (decisions.md 252): an organization's own Bible, uploaded as USFM
 -- files on the web, is two library document formats: `usfmBible@1` (name,
 -- language, numbering, rights, the books) and `usfmBook@1` (one book's verses
 -- and its file). _library_store, from 20261030110000_library_labels.sql's,

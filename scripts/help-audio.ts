@@ -44,11 +44,17 @@ export function helpLines(language: string, catalog: Tree): { key: string; text:
 
 const csv = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
 
-/** The app's words in a language, with the Android disguise's, kept apart so an iPhone build has none (decisions.md 171). */
+/**
+ * The app's words in a language, with the Android disguise's, kept apart so an iPhone build has none
+ * (decisions.md 171), and nearby sync's, kept apart so the web need not carry them (decision 233).
+ */
 function catalogOf(language: string): Tree {
-  const own = JSON.parse(readFileSync(join('apps/mobile/src/i18n', `${language}.json`), 'utf8')) as Tree;
-  const disguise = join('apps/mobile/src/disguise/i18n', `${language}.json`);
-  return existsSync(disguise) ? merged(own, JSON.parse(readFileSync(disguise, 'utf8')) as Tree) : own;
+  let words = JSON.parse(readFileSync(join('apps/mobile/src/i18n', `${language}.json`), 'utf8')) as Tree;
+  for (const dir of ['apps/mobile/src/disguise/i18n', 'apps/mobile/src/nearby/i18n']) {
+    const file = join(dir, `${language}.json`);
+    if (existsSync(file)) words = merged(words, JSON.parse(readFileSync(file, 'utf8')) as Tree);
+  }
+  return words;
 }
 
 function merged(a: Tree, b: Tree): Tree {

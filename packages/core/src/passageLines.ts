@@ -269,6 +269,16 @@ export function waitingOf(lines: PassageLines, state: Pick<LanguageState, 'units
   return out.sort((a, b) => (a.request.hlc > b.request.hlc ? -1 : a.request.hlc < b.request.hlc ? 1 : a.request.id > b.request.id ? -1 : a.request.id < b.request.id ? 1 : 0));
 }
 
+/** A recording nobody has checked. One rule, so that what the app suggests and what a phone fetches cannot drift apart. */
+export function isOpenForReview(s: Pick<PassageLine, 'recorded' | 'reviewed' | 'steps'>): boolean {
+  return s.recorded && !s.reviewed && s.steps.length > 0;
+}
+
+/** The passages open for review, in the order the app offers them. */
+export function openForReviewOf(lines: Pick<PassageLines, 'get'>, passages: readonly string[]): string[] {
+  return passages.filter((id) => isOpenForReview(lines.get(id)));
+}
+
 /**
  * Something real to do when nothing is waiting (ONB-7): a translator gets
  * the first passage nobody recorded; a reviewer the first recording nobody
@@ -280,7 +290,7 @@ export function upNextOf(lines: PassageLines, passages: readonly string[], opts:
     if (u) return { kind: 'record', unitId: u };
   }
   if (opts.canReview) {
-    const u = passages.find((id) => { const s = lines.get(id); return s.recorded && !s.reviewed && s.steps.length > 0; });
+    const u = passages.find((id) => isOpenForReview(lines.get(id)));
     if (u) return { kind: 'review', unitId: u };
   }
   return null;

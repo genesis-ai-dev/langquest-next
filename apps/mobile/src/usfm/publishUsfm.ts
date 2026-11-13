@@ -1,4 +1,4 @@
-// Publishing an uploaded Bible (LAN-229, decision 211): each book is kept as a
+// Publishing an uploaded Bible (LAN-229, decision 252): each book is kept as a
 // document, then the Bible's header names them and becomes an organization
 // library item, shared for other organizations to follow when the admin says so.
 // Nothing is sent to the server by hand: documents go out through the library's

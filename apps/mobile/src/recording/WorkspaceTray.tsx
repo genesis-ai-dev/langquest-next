@@ -3,7 +3,7 @@
 // language's rendering and "Tie to your draft", the study's progress with
 // each step one tap away, notes (Add a note by voice or text; ones about
 // older versions marked), and the version history.
-import { commands, keyTermView, type KeyTermView, type PassageNote } from '@langquest-next/core';
+import { newCommandId, commands, keyTermView, type KeyTermView, type PassageNote } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -126,7 +126,7 @@ function TermsTab(props: { ctx: Ctx; v: PassageView; terms: KeyTermView[]; tied:
     try {
       // TERM-4: ties the term to the take being recorded; publishing carries
       // it onto the version. A tie is grow-only, so there is no Undo.
-      await ctx.act(commands(state, indexesFor(state)).linkKeyTerms({ commandId: Crypto.randomUUID(), takeId: props.draftTakeId, termIds: [termId] }),
+      await ctx.act(commands(state, indexesFor(state)).linkKeyTerms({ commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), takeId: props.draftTakeId, termIds: [termId] }),
         t('recording.tray.tied'));
     } catch { /* ctx.act said what went wrong */ }
     finally { setTying(null); }
@@ -266,7 +266,7 @@ function NoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void }) {
     setBusy(true);
     try {
       const specs = commands(state, indexesFor(state)).addNote({
-        commandId: Crypto.randomUUID(), unitId: v.unitId, anchor: { kind: 'passage' }, ...(step ? { kindId: step } : {}),
+        commandId: newCommandId(ctx.session.actorId, Crypto.randomUUID()), unitId: v.unitId, anchor: { kind: 'passage' }, ...(step ? { kindId: step } : {}),
         ...(text.trim() ? { text: text.trim() } : {}), ...(hash ? { blobHash: hash } : {})
       });
       // No toast offers Undo (decision 134): History's Undo on your own note takes it back.

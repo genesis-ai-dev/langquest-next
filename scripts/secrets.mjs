@@ -61,16 +61,22 @@ export const ADMIN_KEYS = ['ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_SUPABASE_TOKEN', 'AD
  * on the team can replace it with their own plan's. APP_STORE_REVIEW_KEY is the App Store
  * Connect key (App Manager) that sends new iPhone builds to App Review, and PLAY_REVIEW_KEY the
  * Google Play service account key that moves new Android builds from internal testing to
- * production review: production's go to EAS (EAS_KEYS).
+ * production review: production's go to EAS (EAS_KEYS). NEARBY_SIGNING_KEY is the app Worker's
+ * Ed25519 key for nearby sync's certificates and attestations (docs/nearby-sync-plan.md 5.12), one
+ * compact JWK with its kid, made by scripts/nearby-signing-key.sh, whose public half is in the
+ * Worker's NEARBY_CERT_KEYS var and the app's EXPO_PUBLIC_NEARBY_CERT_KEYS. APK_R2_ACCESS_KEY_ID and
+ * APK_R2_SECRET_ACCESS_KEY are the S3 credentials of an R2 token limited to the carried builds'
+ * bucket, with which scripts/carried-build.mjs checks for and puts each carried APK
+ * (docs/nearby-sync-plan.md 14.4): production's go to EAS (EAS_KEYS).
  */
-export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'APP_STORE_REVIEW_KEY', 'PLAY_REVIEW_KEY', ...ADMIN_KEYS];
+export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'GEMINI_API_KEY', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'APP_STORE_REVIEW_KEY', 'PLAY_REVIEW_KEY', 'APK_R2_ACCESS_KEY_ID', 'APK_R2_SECRET_ACCESS_KEY', 'NEARBY_SIGNING_KEY', ...ADMIN_KEYS];
 export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET'];
 /**
  * Placed when the file has them, never required: the Worker answers without
  * them (the Bible routes say 503), so neither a deploy nor this script waits
  * for one. Not in the Worker's `secrets.required` for the same reason.
  */
-export const OPTIONAL_KEYS = ['BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY'];
+export const OPTIONAL_KEYS = ['BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', 'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'LINEAR_API_KEY', 'NEARBY_SIGNING_KEY'];
 
 /** The repository whose Actions secrets this script sets: the Gemini key and the Claude token, which no production system reads (decisions.md 183, 186). */
 export const GITHUB_REPO = 'genesis-ai-dev/langquest-next';
@@ -79,11 +85,14 @@ export const GITHUB_REPO = 'genesis-ai-dev/langquest-next';
  * Production's secrets for EAS, which its workflows read on Expo's servers:
  * the App Store key that `scripts/app-store-review.mjs` sends new iPhone
  * builds to App Review with, and the Play key that `scripts/play-review.mjs`
- * sends new Android builds to production review with (decisions.md 157).
- * Each is an EAS variable with secret visibility, readable by EAS's jobs and
- * builds only, never in a UI.
+ * sends new Android builds to production review with (decisions.md 157),
+ * and that `scripts/carried-build.mjs` fetches each carried build's APK
+ * with, for reading only; and the APK bucket's limited R2 token, with which
+ * that script puts the APK there (docs/nearby-sync-plan.md 14.4). Each is
+ * an EAS variable with secret visibility, readable by EAS's jobs and builds
+ * only, never in a UI.
  */
-export const EAS_KEYS = ['APP_STORE_REVIEW_KEY', 'PLAY_REVIEW_KEY'];
+export const EAS_KEYS = ['APP_STORE_REVIEW_KEY', 'PLAY_REVIEW_KEY', 'APK_R2_ACCESS_KEY_ID', 'APK_R2_SECRET_ACCESS_KEY'];
 /** The folder that holds the EAS project (eas.json, the project id), where `eas env:*` runs. */
 export const EAS_PROJECT = 'apps/mobile';
 /** Destinations that `--only` can apply alone. */
@@ -175,7 +184,9 @@ export function destinations(environment, values, ref, serviceRoleKey) {
         // Connect YouTube and the publish job (decisions.md 180): both or neither, as one is no use alone.
         ...(values.YOUTUBE_CLIENT_ID && values.YOUTUBE_CLIENT_SECRET ? { YOUTUBE_CLIENT_ID: values.YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET: values.YOUTUBE_CLIENT_SECRET } : {}),
         // An accepted code change to Linear (decisions.md 186).
-        ...(values.LINEAR_API_KEY ? { LINEAR_API_KEY: values.LINEAR_API_KEY } : {})
+        ...(values.LINEAR_API_KEY ? { LINEAR_API_KEY: values.LINEAR_API_KEY } : {}),
+        // Nearby sync's certificates and attestations (apps/web/worker/nearby.ts): 503 until it is here.
+        ...(values.NEARBY_SIGNING_KEY ? { NEARBY_SIGNING_KEY: values.NEARBY_SIGNING_KEY } : {})
       },
       'invite-email': { INVITE_RELAY_SECRET: values.INVITE_RELAY_SECRET },
       // The ops dashboard's provider tokens, each optional. Its database login is not a Worker
@@ -334,10 +345,12 @@ function easState(environment, wanted) {
 /**
  * Creates or updates an EAS variable with secret visibility. The value goes
  * to eas as an argument, the only way it takes one, so it is briefly in this
- * machine's process list; it is never printed.
+ * machine's process list; it is never printed. eas runs from node_modules
+ * itself, not through npx, which would write its arguments, the value too, to
+ * npm's debug log on disk (security review, 2026-11-10).
  */
 function setEasSecret(environment, name, value) {
-  const result = spawnSync('npx', ['eas', 'env:set', environment, '--name', name, '--value', value, '--visibility', 'secret', '--type', 'string', '--scope', 'project', '--non-interactive'],
+  const result = spawnSync(join(root, 'node_modules', '.bin', 'eas'), ['env:set', environment, '--name', name, '--value', value, '--visibility', 'secret', '--type', 'string', '--scope', 'project', '--non-interactive'],
     { cwd: join(root, EAS_PROJECT), encoding: 'utf8' });
   if (result.status !== 0) throw new Error(failure(result.stdout, result.stderr).replaceAll(value, `<${name}>`) || `eas env:set ${name} failed`);
 }

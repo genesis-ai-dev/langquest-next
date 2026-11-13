@@ -100,6 +100,15 @@ describe('secrets', () => {
     expect(OPTIONAL_KEYS).toContain('LINEAR_API_KEY');
   });
 
+  it('gives the app\'s Worker the nearby signing key when the file has it, and nowhere else; a deploy never waits for it', () => {
+    const wanted = destinations('production', { ...values, NEARBY_SIGNING_KEY: '{"kid":"k1"}' }, 'ref', 'k');
+    expect(wanted.workers.app).toMatchObject({ NEARBY_SIGNING_KEY: '{"kid":"k1"}' });
+    expect(JSON.stringify({ ...wanted, workers: { ...wanted.workers, app: {} } })).not.toContain('NEARBY_SIGNING_KEY');
+    expect(Object.keys(destinations('preview', values, 'ref', 'k').workers.app)).not.toContain('NEARBY_SIGNING_KEY');
+    expect(OPTIONAL_KEYS).toContain('NEARBY_SIGNING_KEY');
+    expect(read('apps/web/wrangler.jsonc')).not.toMatch(/"required": \[[^\]]*NEARBY_SIGNING_KEY/);
+  });
+
   it('gives GitHub the Gemini key for the nightly filming and the Claude token for the nightly look and frame check, from production\'s file only, and nothing else', () => {
     expect(destinations('production', { ...values, GEMINI_API_KEY: 'g' }, 'ref', 'k').github).toEqual({ GEMINI_API_KEY: 'g' });
     expect(destinations('production', { ...values, GEMINI_API_KEY: 'g', CLAUDE_CODE_OAUTH_TOKEN: 'sk-oat' }, 'ref', 'k').github)
@@ -248,5 +257,15 @@ describe('the ops dashboard\'s Hyperdrive config', () => {
   it('holds the committed config to a placeholder or a real id', () => {
     const committed = read(WORKERS.admin);
     expect(committed).toMatch(new RegExp(`"binding": "DIAG", "id": "(${HYPERDRIVE_PLACEHOLDER}|[0-9a-f]{32})"`));
+  });
+  it('never hands a value to npx, which writes its arguments to npm\'s debug log on disk (security review, 2026-11-10)', () => {
+    const scripts = readdirSync(new URL('../scripts', import.meta.url)).filter((f) => /\.(sh|mjs)$/.test(f));
+    for (const file of scripts) {
+      const text = read(`scripts/${file}`);
+      expect(text, file).not.toMatch(/npx dotenvx set/);
+      expect(text, file).not.toMatch(/'npx', \['eas', 'env:(set|create|update)'/);
+    }
+    // env-update passes the value on stdin, to the one helper that calls dotenvx's own set.
+    expect(read('scripts/env-update.sh')).toContain(`printf '%s' "$value" | node scripts/dotenvx-set.mjs "$key" "$src" secret`);
   });
 });

@@ -28,8 +28,12 @@ const noSupabase = {
   paths: [{ name: '@supabase/supabase-js', allowTypeImports: true, message: `Call a function in src/server instead; types are fine (${D105}).` }],
   patterns: [{ regex: '(^|/)server/supabase$', message: `Only src/server talks to Supabase: add a function there (${D105}).` }]
 };
-/** A package is used through its entry, never its files. */
-const noDeepPackage = { regex: '^@langquest-next/[^/]+/', message: 'Import the package, not its files: export what you need from its index.' };
+/**
+ * A package is used through its entry, never its files. `@langquest-next/sync/nearby` and `@langquest-next/core/nearby`
+ * are entries of their own, which the web bundle must not carry, so only `.android` files import them
+ * (`nearbyOnAndroid` below; decisions.md 104, docs/nearby-sync-plan.md 5.12).
+ */
+const noDeepPackage = { regex: '^@langquest-next/(?!(sync|core)/nearby$)[^/]+/', message: 'Import the package, not its files: export what you need from its index.' };
 /** Icons come one file each through src/ui/icons: lucide's own entry brings every icon it has. */
 const noIconBarrel = {
   paths: [{ name: 'lucide-react-native', allowTypeImports: true, message: 'Import icons from src/ui/icons, which takes each from its own file: the package itself brings all 1,800-odd (1.5 MB on the web).' }]
@@ -135,12 +139,45 @@ const rolePolicies = [
   mayNotImport('server', ['screen', 'component', 'hook'], 'src/server holds plain calls: no components or hooks')
 ];
 const HOOK_EXPORT = '/^(use[A-Z]|[A-Z]\\w*Context$)/';
+/**
+ * A commandId names its author, or a teammate holding it before the server does could take it first, and the
+ * events and ids made from it inherit that (docs/nearby-sync-plan.md 5.4). Only newCommandId mints one; everything
+ * else passes one along or adds to its end. A name this rule cannot see costs sharing, not integrity: a row that is
+ * not bound is left unsigned (isBoundToAuthor).
+ */
+const COMMAND_ID_MESSAGE = 'A commandId comes from newCommandId(actorId, ...) in @langquest-next/core, so what it makes names its author; pass one along as `commandId`, or add to its end with `${commandId}:...` (docs/nearby-sync-plan.md 5.4).';
+const SPEC_ID_MESSAGE = 'An event spec\'s own id names its author: newCommandId(actorId, ...) from @langquest-next/core (docs/nearby-sync-plan.md 5.4).';
+const boundCommandIds = [
+  ...[
+    "Property[key.name='commandId'] > CallExpression:not([callee.name='newCommandId'])",
+    "Property[key.name='commandId'] > Literal",
+    "Property[key.name='commandId'] > Identifier:not([name='commandId'])",
+    "Property[key.name='commandId'] > MemberExpression:not([property.name='commandId'])",
+    "Property[key.name='commandId'] > TemplateLiteral:not([expressions.0.name='commandId'], [expressions.0.property.name='commandId'])",
+    "VariableDeclarator[id.name='commandId'] > CallExpression:not([callee.name='newCommandId'])",
+    "VariableDeclarator[id.name='commandId'] > TemplateLiteral:not([expressions.0.name='commandId'], [expressions.0.property.name='commandId'])",
+    "CallExpression[callee.name='restoreChecks'] > CallExpression[callee.property.name='randomUUID']"
+  ].map((selector) => ({ selector, message: COMMAND_ID_MESSAGE })),
+  ...[
+    "ObjectExpression:has(> Property[key.name=/^(type|payload)$/]) > Property[key.name='id'] > CallExpression:not([callee.name='newCommandId'])",
+    "TSAsExpression[typeAnnotation.typeName.name='EventSpec'] > ObjectExpression > Property[key.name='id'] > CallExpression:not([callee.name='newCommandId'])",
+    "CallExpression[callee.name='passageLinkSpec'] > CallExpression[callee.property.name='randomUUID']"
+  ].map((selector) => ({ selector, message: SPEC_ID_MESSAGE }))
+];
+
 const hookExportsOnly = [
   `ExportNamedDeclaration > FunctionDeclaration[id.name!=${HOOK_EXPORT}]`,
   `ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[id.name!=${HOOK_EXPORT}]`,
   'ExportNamedDeclaration > ClassDeclaration', 'ExportNamedDeclaration > TSEnumDeclaration', 'ExportDefaultDeclaration',
   `ExportNamedDeclaration[exportKind!='type'] > ExportSpecifier[exportKind!='type'][exported.name!=${HOOK_EXPORT}]`
 ].map((selector) => ({ selector, message: `A use<Thing> file exports hooks (and the contexts they read) only: put this in a module or model beside it (${ROLE}).` }));
+/** Nearby sync runs on Android alone, so its entries stay out of every other bundle: Metro takes a `.android` file only for Android. */
+const NEARBY_ENTRY = '/^@langquest-next.(sync|core).nearby$/';
+const nearbyOnAndroid = [
+  `ImportDeclaration[source.value=${NEARBY_ENTRY}]`, `ExportNamedDeclaration[source.value=${NEARBY_ENTRY}]`,
+  `ExportAllDeclaration[source.value=${NEARBY_ENTRY}]`, `ImportExpression[source.value=${NEARBY_ENTRY}]`
+].map((selector) => ({ selector, message: `Only a .android file imports the nearby entries, so the web and iPhone bundles do not carry them: put this behind a .android file and a plain stub beside it (${D104}, docs/nearby-sync-plan.md 5.12).` }));
+const ANDROID_HOOKS = 'apps/mobile/src/**/use[A-Z]*.android.{ts,tsx}';
 const noHookExports = [
   'ExportNamedDeclaration > FunctionDeclaration[id.name=/^use[A-Z]/]',
   'ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[id.name=/^use[A-Z]/]',
@@ -189,8 +226,8 @@ export default [
   // Core says what the data means: pure TypeScript, nothing imported.
   { files: ['packages/core/src/**/*.ts'], rules: { 'no-restricted-imports': ['error', { patterns: [{ regex: '^(?!\\.)', message: 'packages/core is pure: no I/O and no dependencies (AGENTS.md).' }] }] } },
   // Sync keeps and moves it: core, supabase-js and its own files; a platform comes in as an argument.
-  { files: ['packages/sync/src/**/*.ts'], rules: { 'no-restricted-imports': ['error', { patterns: [{ regex: '^(?!\\.|@langquest-next/core$|@supabase/supabase-js$)', message: `packages/sync imports only core, supabase-js and its own files: pass the platform in (${D104}).` }] }] } },
-  { files: ['packages/sync/src/testing/**/*.ts'], rules: { 'no-restricted-imports': ['error', { patterns: [{ regex: '^(?!\\.|node:|@langquest-next/core$|@supabase/supabase-js$)', message: `packages/sync/src/testing runs in Node: its own files, core, supabase-js and Node built-ins (${D104}).` }] }] } },
+  { files: ['packages/sync/src/**/*.ts'], rules: { 'no-restricted-imports': ['error', { patterns: [{ regex: '^(?!\\.|@langquest-next/core(/nearby)?$|@supabase/supabase-js$)', message: `packages/sync imports only core, supabase-js and its own files: pass the platform in (${D104}).` }] }] } },
+  { files: ['packages/sync/src/testing/**/*.ts'], rules: { 'no-restricted-imports': ['error', { patterns: [{ regex: '^(?!\\.|node:|@langquest-next/core(/nearby)?$|@supabase/supabase-js$)', message: `packages/sync/src/testing runs in Node: its own files, core, supabase-js and Node built-ins (${D104}).` }] }] } },
 
   // The app, general to specific.
   { files: OUTSIDE, rules: { 'no-restricted-imports': ['error', outsideTheApp] } },
@@ -227,6 +264,12 @@ export default [
   },
   { files: ['apps/mobile/src/**/*.tsx'], ignores: [HOOKS], rules: { 'react-refresh/only-export-components': ['error', { allowConstantExport: true }] } },
   { files: ['apps/mobile/src/screens/*.tsx'], rules: { 'react-refresh/only-export-components': ['error', { allowConstantExport: true, allowExportNames: ['contracts'] }] } },
-  { files: [HOOKS], rules: { 'no-restricted-syntax': ['error', ...hookExportsOnly] } },
-  { files: ['apps/mobile/src/**/*.ts'], ignores: [HOOKS], rules: { 'no-restricted-syntax': ['error', ...noHookExports] } }
+  // no-restricted-syntax does not merge across blocks either, so each block has every list it needs.
+  { files: ['apps/mobile/src/**/*.tsx'], rules: { 'no-restricted-syntax': ['error', ...boundCommandIds, ...nearbyOnAndroid] } },
+  { files: [HOOKS], rules: { 'no-restricted-syntax': ['error', ...hookExportsOnly, ...boundCommandIds, ...nearbyOnAndroid] } },
+  { files: ['apps/mobile/src/**/*.ts'], ignores: [HOOKS], rules: { 'no-restricted-syntax': ['error', ...noHookExports, ...boundCommandIds, ...nearbyOnAndroid] } },
+  // The same lists for .android files, which may import the nearby entries.
+  { files: ['apps/mobile/src/**/*.android.tsx'], ignores: [ANDROID_HOOKS], rules: { 'no-restricted-syntax': ['error', ...boundCommandIds] } },
+  { files: [ANDROID_HOOKS], rules: { 'no-restricted-syntax': ['error', ...hookExportsOnly, ...boundCommandIds] } },
+  { files: ['apps/mobile/src/**/*.android.ts'], ignores: [ANDROID_HOOKS], rules: { 'no-restricted-syntax': ['error', ...noHookExports, ...boundCommandIds] } }
 ];

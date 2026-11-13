@@ -352,7 +352,11 @@
     "cluster_home": "Kundi",
     "global_viewer": "Mtazamaji wa Kimataifa",
     "forgot_password": "Umesahau Nenosiri",
-    "new_password": "Nenosiri Jipya"
+    "new_password": "Nenosiri Jipya",
+    "share_nearby": "Shiriki karibu",
+    "let_someone_in": "Mruhusu mtu aingie",
+    "join_offline": "Jiunge bila intaneti",
+    "get_install_file": "Pata faili ya kusakinisha"
   },
   "native": {
     "microphone": "LangQuest hurekodi sauti yako ili kutafsiri vifungu.",
@@ -2884,7 +2888,11 @@
       "createAccountHelp": "Hufungua fomu ya barua pepe yako na nenosiri jipya.",
       "browseHelp": "Ona kazi za tafsiri ambazo mashirika yanashiriki hadharani. Hakuna akaunti inayohitajika.",
       "forgot": "Umesahau nenosiri?",
-      "forgotHelp": "Hufungua ukurasa ambapo unapata kiungo kwa barua pepe ili uchague nenosiri jipya."
+      "forgotHelp": "Hufungua ukurasa ambapo unapata kiungo kwa barua pepe ili uchague nenosiri jipya.",
+      "localHere": "Mtu amejiunga na timu kwenye simu hii bila intaneti. Hakuna mtu mwingine anayeweza kuingia hapa hadi simu yake ifike kwenye intaneti mara moja.",
+      "joiningTitle": "{{name}} anajiunga kwenye simu hii",
+      "goOnJoining": "Endelea kujiunga",
+      "goOnJoiningHelp": "Hufungua skrini inayomaliza kujiunga na timu kutoka kwenye simu ya mwenzako wa timu."
     },
     "terms": {
       "title": "Masharti na Faragha",
@@ -3013,7 +3021,9 @@
       "notNowHelp": "Husahau mwaliko huu na kurudi kwenye kazi yako.",
       "whoJoins": "Nani anajiunga?",
       "someoneNew": "Mtu mpya",
-      "someoneNewHelp": "Kwa mtu ambaye bado hayupo kwenye simu hii: akaunti mpya. Kisha, andika jina lake."
+      "someoneNewHelp": "Kwa mtu ambaye bado hayupo kwenye simu hii: akaunti mpya. Kisha, andika jina lake.",
+      "joinNotGuest": "Msimbo huu huruhusu simu mpya kujiunga na timu. Simu hii tayari ina mtu.",
+      "localJoined": "Imekamilika. Kazi yako inaenda kwenye seva kama yako."
     },
     "signInKey": {
       "notGuestTitle": "Huu ni msimbo wa kuingia",
@@ -3029,6 +3039,7 @@
       "notValid": "Msimbo huu si sahihi.",
       "expiredOrUsed": "Msimbo huu umeisha muda au tayari umetumika. Omba mpya.",
       "codeBusy": "Imeshindwa kutumia msimbo huu. Tafadhali jaribu tena.",
+      "forSomeoneElse": "Msimbo huu ulitengenezwa kwa ajili ya mtu mwingine. Omba msimbo uliotengenezwa kwa ajili yako.",
       "scanElseHelp": "Huacha msimbo huu na kufungua kisoma msimbo tena.",
       "signOutHelp": "Hufungua kutoka, ili mtu wa msimbo huu aweze kuingia kwenye kifaa hiki.",
       "buttonHelp": "Hukuingiza kwenye kifaa hiki kwa msimbo huu. Hakuna cha kuandika.",
@@ -3238,7 +3249,10 @@
       "signInFailed": "Nenosiri lako jipya limewekwa. Ingia nalo.",
       "changedTitle": "Nenosiri limebadilishwa",
       "changedBody": "Kuanzia sasa, {{email}} inaingia kwa nenosiri jipya.",
-      "doneHelp": "Hurudi kwenye skrini yako kuu."
+      "doneHelp": "Hurudi kwenye skrini yako kuu.",
+      "lost": "Simu yangu moja ilipotea au ilichukuliwa",
+      "lostSub": "Simu za wenzako wa timu zinaacha kuamini kazi ya simu hiyo yenye tarehe baada ya sasa, na simu zako nyingine zinahitaji kuingia upya ili kushiriki karibu.",
+      "lostLetIn": "Ikiwa ulimruhusu mtu yeyote aingie kutoka kwenye simu ile ambaye bado hajafika kwenye intaneti, seva itamkataa. Kazi yake inabaki kwenye simu yake, na mtu anayeweza kualika watu anaweza kumruhusu aingie tena kwa mwaliko."
     }
   },
   "account": {
@@ -3377,7 +3391,33 @@
       "nameHelp": "Hufungua wasifu wako, ili ubadilishe jina ambalo timu yako inaona.",
       "offlineHelp": "Huonyesha kile kifaa hiki kinahifadhi kwa ajili ya kufanya kazi bila mtandao.",
       "tourHelp": "Hufungua kadi tatu fupi kuhusu LangQuest ni ya nini.",
-      "moreHelp": "Hufungua mipangilio ya nenosiri, arifa, usawazishaji na akaunti yako. Namba inamaanisha mabadiliko yanayosubiri kutumwa."
+      "moreHelp": "Hufungua mipangilio ya nenosiri, arifa, usawazishaji na akaunti yako. Namba inamaanisha mabadiliko yanayosubiri kutumwa.",
+      "local": {
+        "title": "{{name}}, ulijiunga bila intaneti",
+        "letInBy": "{{name}} alikuruhusu uingie kutoka kwenye simu yake.",
+        "letIn": "Mwenzako wa timu alikuruhusu uingie kutoka kwenye simu yake.",
+        "waiting": "Akaunti yako inatengenezwa mara ya kwanza simu hii itakapofika kwenye intaneti. Hadi wakati huo kazi yako inasubiri hapa.",
+        "joining": "Inafikia seva…",
+        "finishing": "Umeingia. Inamaliza kuandaa simu hii…",
+        "needsCode": "Akaunti yako iko tayari. Ingia kama {{name}} kwa msimbo kutoka kwa mtu kwenye timu yako.",
+        "needsCodeLine": "Mwombe mwenzako wa timu afungue Msaidie kuingia, kisha soma msimbo wake hapa.",
+        "keyLost": "Simu hii imepoteza ufunguo uliotumika kukuruhusu uingie. Kazi yako bado iko hapa. Omba msaada kwa mtu kwenye timu yako.",
+        "otherAccount": "Mtu mwingine ameingia kwenye simu hii. Kazi yako bado iko hapa.",
+        "refusedLine": "Kazi yako iko salama kwenye simu hii. Omba mwaliko kwa mtu anayeweza kualika watu, kisha uusome hapa.",
+        "workSafe": "Kazi yako inahifadhiwa kwenye simu hii na kwenye simu za wenzako hadi ifike kwenye seva.",
+        "retry": "Jaribu sasa",
+        "retryHelp": "Huuliza seva tena sasa, ikiwa simu hii ina intaneti.",
+        "scan": "Soma msimbo",
+        "scanHelp": "Hufungua kisomaji kwa ajili ya mwaliko au msimbo wa kuingia wa mwenzako wa timu.",
+        "refused": {
+          "expired": "Seva imekukataa: kibali ulichoruhusiwa kuingia nacho kilikuwa kimeisha muda.",
+          "used": "Seva imekukataa: kibali ulichoruhusiwa kuingia nacho kilikuwa kimeshatumika.",
+          "off": "Seva imekukataa: shirika lako limezima kujiunga bila intaneti.",
+          "notFound": "Seva imekukataa: haikijui kibali ulichoruhusiwa kuingia nacho.",
+          "retired": "Seva imekukataa: jukumu lako halitumiki tena, au mwenzako aliyekuruhusu uingie hawezi tena kulitoa.",
+          "other": "Seva imekukataa."
+        }
+      }
     },
     "more": {
       "noEmail": "Bado hakuna barua pepe",
@@ -3416,6 +3456,16 @@
       "blockedCount_other": "Watu {{count, number}}",
       "deleteAccount": "Futa akaunti",
       "deleteSub": "Akaunti yako na jina lako, milele",
+      "removeMe": "Niondoe kwenye simu hii",
+      "removeMeSub": "Badala ya kutoka: simu hii inakusahau",
+      "removeMeHelp": "Inauliza kwanza. Kisha simu hii inakusahau na kurudi kwenye Ingia.",
+      "removeMeTitle": "Ungependa kumwondoa {{name}} kwenye simu hii?",
+      "removeMeUnsent": "Bado haijatumwa kutoka simu hii: {{things}}. Isipokuwa simu ya mwenzako imeibeba, itapotea.",
+      "removeMeBody": "Simu hii inakusahau wewe na ufunguo wako, na kurudi kwenye Ingia. Ili ufanye kazi hapa tena, mtu lazima akuruhusu uingie tena, kama mtu mpya.",
+      "removeMeButton": "Niondoe",
+      "removing": "Inaondoa…",
+      "lostPhoneSub": "Inakutumia kiungo kwa barua pepe ili uchague nenosiri jipya na kuacha kuiamini simu hiyo",
+      "lostPhoneSent": "Kiungo kimetumwa kwa {{email}}. Kifungue, chagua nenosiri jipya na uwashe “Simu yangu moja ilipotea au ilichukuliwa”.",
       "testing": "Majaribio",
       "personaSub": "Ingia kama mtafsiri, mkaguzi au msimamizi wa majaribio",
       "syncHelp": "Huonyesha kinachosubiri kutumwa au kupakuliwa. Namba inamaanisha mabadiliko yanayosubiri kutumwa.",
