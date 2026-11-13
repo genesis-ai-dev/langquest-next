@@ -171,7 +171,9 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // the first visit's growth below, which every chunk counts too.
 // Both raises together with nearby sync merged in (Carl, 2026-11-12): the upgrades come to 49,438
 // bytes over nearby sync's 65 KB, 1,762 bytes under the two together.
-const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 115 * 1024;
+// Raised by 3 KB with back translation's two rows (Caleb Koster, 2026-11-13, LAN-234), 1 KB past then:
+// the same words and rows' model as the first visit's raise below, which every chunk counts too.
+const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 118 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
