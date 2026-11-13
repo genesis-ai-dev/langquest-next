@@ -4777,6 +4777,7 @@
       "sendReport": "Sends your report.",
       "sendReview": "Sends your feedback to the person who made it.",
       "signOut": "Signs you out of this phone.",
+      "startExport": "Starts the export and downloads the file.",
       "startPart": "Starts a new part here.",
       "termContext": "Type where or when it is used.",
       "termRendering": "Type the word as this language says it.",
