@@ -3253,7 +3253,8 @@
       "downloading": "Dina-download ang update…",
       "downloadingPercent": "Dina-download ang update… {{percent}}",
       "webReady": "Handa na ang bagong bersiyon ng LangQuest. I-reload para magamit ito.",
-      "storeBuild": "build mula sa store",
+      "storeBuild": "build mula sa store {{version}}",
+      "noUpdate": "walang update",
       "updateBuild": "update {{id}}",
       "unknownBuild": "hindi alam ang update"
     },
