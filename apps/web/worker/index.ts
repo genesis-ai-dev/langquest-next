@@ -225,7 +225,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
     if (error) console.error(`ops_tutorial_list ${language}:`, error.message);
     return videosPage(language, error ? null : pageVideos(data));
   }
-  // The videos the help page can link, in the app's language (LAN-244, decisions.md 252): the same list as /videos, as JSON.
+  // The videos the help page can link, in the app's language (LAN-244, decisions.md 253): the same list as /videos, as JSON.
   if (url.pathname === '/api/tutorial-links' && request.method === 'GET') {
     const [{ pageVideos }, { pageLanguage }] = await Promise.all([import('./videosPage'), import('./i18n/pages')]);
     const language = pageLanguage(request);
@@ -234,7 +234,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
       console.error(`ops_tutorial_list ${language}:`, error.message);
       return Response.json({ language, videos: [] }, { status: 503, headers: { 'cache-control': 'no-store' } });
     }
-    // Only the language asked for: a language with no approved catalog is answered in English, and its people get no English video (decision 252).
+    // Only the language asked for: a language with no approved catalog is answered in English, and its people get no English video (decision 253).
     const exact = url.searchParams.get('lang') === language;
     const videos = (exact ? pageVideos(data) : []).map((v) => ({ tutorial: v.tutorial, sha256: v.sha256, youtube: v.youtube }));
     return Response.json({ language, videos }, { headers: { 'cache-control': 'public, max-age=300' } });
@@ -374,7 +374,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
         return hash;
       }
     },
-    // The organization export (orgExports.ts, decisions.md 252): an admin asks, the job container builds one zip in R2.
+    // The organization export (orgExports.ts, decisions.md 253): an admin asks, the job container builds one zip in R2.
     orgExports: {
       serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
       profileOf,

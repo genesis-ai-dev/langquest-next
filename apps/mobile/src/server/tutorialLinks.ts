@@ -3,7 +3,7 @@ import type { LinkVideo } from '@langquest-next/core';
 
 /**
  * The tutorial videos chosen for a language, from the app's own server
- * (LAN-244, decisions.md 252). Null when there is no address to ask, or
+ * (LAN-244, decisions.md 253). Null when there is no address to ask, or
  * nothing answered: the help page then shows no link.
  */
 export async function tutorialVideos(origin: string | null, language: string): Promise<LinkVideo[] | null> {
