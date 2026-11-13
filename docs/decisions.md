@@ -9973,6 +9973,19 @@ Code changes, notes and answered suggestions keep their year. A comment
 Claude has not looked at within 30 days, because the look stopped running,
 is lost to it.
 
+Amended (2026-11-13, Caleb Koster): the dashboard shows the videos as three
+lists in place of the filming table and the suggestion cards: what an admin
+must do (accept, edit or reject a suggestion, merge a fix, look at a held or
+failing film, post a reply, publish, connect a channel, turn a language on),
+what the workers do now and tonight, and every video in each app language
+with its state and a day-by-day timeline. Caleb asked for these lists so one
+page says what waits on him and what waits on a job. The history comes from
+`ops.tutorial_videos`, which already keeps every film (`diag.ops_tutorial_films`,
+migration `20261113234000_tutorial_films.sql`); the causes, holds, failures
+and slots from the nightly's `status-<language>.json` in the public release;
+a fix's state from its suggestion. A suggested reply shows for 14 days,
+since nothing records that someone posted it.
+
 ## 187. Every tutorial video can be downloaded from LangQuest, by a link that lasts and from a page of them all; YouTube's descriptions give both
 
 Date: 2026-10-29 · By: Caleb Koster · Status: accepted

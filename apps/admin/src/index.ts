@@ -11,7 +11,7 @@ import { appStoreSection } from './sources/appstore';
 import { expoSection } from './sources/expo';
 import { googlePlaySection } from './sources/googleplay';
 import { codeSection } from './sources/github';
-import { filmingSection } from './sources/filming';
+import { videosSection } from './sources/videos';
 import { nightlySection } from './sources/nightly';
 import { supabaseSection } from './sources/supabase';
 import { containerSection } from './sources/container';
@@ -61,7 +61,7 @@ const PROVIDERS: Record<string, (env: Env) => Promise<Section>> = {
   adoption: (env) => adoptionSection(env),
   pipeline: (env) => pipelineSection(env),
   container: (env) => containerSection(env),
-  filming: (env) => filmingSection(env),
+  videos: (env) => videosSection(env),
   nightly: (env) => nightlySection(env)
 };
 

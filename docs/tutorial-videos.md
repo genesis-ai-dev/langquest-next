@@ -310,7 +310,7 @@ the videos (decision 186). Three kinds of input:
   change that only alters how a screen looks needs nothing, since the
   nightly filming films that video again by itself.
 - **Notes** the team leaves on the ops dashboard: Tutorial videos →
-  Feedback and suggestions → Add a note, about a video or one not made yet.
+  What came in, and notes → Add a note, about a video or one not made yet.
 
 Each night at 10:00 UTC `.github/workflows/tutorial-review.yml` has Claude
 look at what is open. `scripts/tutorial-review.mjs fetch` gets it from the
@@ -362,3 +362,25 @@ The looks' runs are in the dashboard's Server jobs as `tutorial_review`
 (one the Worker refused is `bad_review`), and the comments job's as
 `tutorial_comments`. Run either by hand: Run workflow on GitHub, or Run now
 on the dashboard.
+
+
+### On the ops dashboard
+
+Tutorial videos → Videos, your list and the workers' list
+(`apps/admin/src/sources/videos.ts`) puts it all in three lists:
+
+- **For an admin**: suggestions to accept, edit or reject; fix pull requests
+  to merge; held or failing films to look at; suggested replies to post
+  (shown 14 days, since nothing records a reply); films to publish;
+  channels to connect; paused languages (not in `NIGHTLY_LANGUAGES`).
+- **Workers, now and tonight**: the filming run, or the next one at 20:10
+  UTC; videos a screen change slots for tonight's check; fixes Claude
+  writes; comments Claude reads; films waiting for YouTube's daily limit.
+- **By video**: in one app language, each video's states (the most urgent
+  first) and a timeline of the last 14 or 60 days: new films coloured by
+  what made them, uploads, comments, suggestions, fixes, holds.
+
+It reads `diag.ops_tutorial_films()`, `ops_tutorial_feedback()` and
+`ops_tutorials()`, each language's `status-<language>.json` from the
+release, the filming run, and `tutorials.yml` on GitHub. A list built
+without one of them says which.

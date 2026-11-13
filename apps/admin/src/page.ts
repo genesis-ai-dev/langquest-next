@@ -80,6 +80,27 @@ pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padd
 .tag.bad { color: var(--red); background: var(--redbg); } .tag.good { color: var(--green); background: var(--greenbg); }
 .wide { grid-column: 1 / -1; }
 .diag-inline { border-inline-start: 3px solid var(--line); padding-inline-start: 12px; margin: 6px 0 4px; }
+/* Tutorial videos (sources/videos.ts): the admin's list and the workers' list side by side, then each video with its states and a day-by-day timeline. */
+.vl { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.vl > div { min-width: 0; }
+.vi { border: 1px solid var(--line); border-inline-start-width: 4px; border-radius: 8px; padding: 8px 10px; margin: 6px 0; background: var(--card); }
+.vi.bad { border-inline-start-color: var(--red); color: inherit; } .vi.warn { border-inline-start-color: var(--amber); color: inherit; } .vi.info { border-inline-start-color: var(--primary); }
+.vi p { margin: 4px 0; } .vi small { color: var(--muted); }
+.tag.warn { color: var(--amber); background: var(--amberbg); } .tag.info { color: var(--primary); background: var(--bg); }
+.vtools { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin: 8px 0; } .vtools label { margin: 0 0 4px; } .vtools select { width: auto; }
+.vrow { display: grid; grid-template-columns: minmax(180px, 280px) 1fr; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding: 4px 0; }
+.vrow b { font-weight: 600; font-size: 13px; } .vrow .tag { font-size: 11px; }
+.tl { display: grid; gap: 1px; min-height: 22px; align-items: center; }
+.tl.d14 { grid-template-columns: repeat(14, 1fr); } .tl.d60 { grid-template-columns: repeat(60, 1fr); }
+.tl > span { display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; min-height: 22px; align-items: center; background: var(--bg); border-radius: 3px; }
+.tl > span.wk { background: var(--line); }
+.tl.days > span { background: none; font-size: 10px; color: var(--muted); min-height: 0; }
+.mk { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--grey); text-decoration: none; }
+.mk.film.app { background: #8E44AD; } .mk.film.script { background: var(--primary); } .mk.film.tool { background: var(--grey); } .mk.film.new, .mk.film.asked, .mk.film.unknown { background: var(--muted); }
+.mk.up { background: var(--green); border-radius: 2px; } .mk.comment { background: #2F80ED; border-radius: 50% 50% 50% 0; }
+.mk.suggested, .mk.decided { background: var(--amber); transform: rotate(45deg); border-radius: 1px; width: 8px; height: 8px; } .mk.fix { background: var(--amber); border-radius: 2px; }
+.mk.held, .mk.failed { background: var(--red); border-radius: 1px; }
+.vkey { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: 6px 0; } .vkey span { display: inline-flex; gap: 4px; align-items: center; }
 /* Where each build and update is (sources/pipeline.ts): stages left to right, an arrow between, each build a card in its stage. */
 .lane { margin: 6px 0 14px; }
 .flow { display: flex; align-items: stretch; gap: 0; margin: 4px 0; }
