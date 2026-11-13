@@ -1,1 +1,0 @@
-{"comment":"Cause: the test. It expected seeded events on the phone, but a phone opened after a snapshot cut stores none. Not PR 364, not a product fault. Fix: TRANS records first on the phone. Draft PR https://github.com/genesis-ai-dev/langquest-next/pull/400","state":"In Progress"}
