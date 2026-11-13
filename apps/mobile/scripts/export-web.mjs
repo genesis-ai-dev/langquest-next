@@ -241,7 +241,9 @@ const TOTAL_BUDGET_BYTES = 4.93 * 1024 * 1024 + 115 * 1024;
 // None of it is the app's code.
 // Both raises together with nearby sync merged in (Carl, 2026-11-12): the upgrades come to 72,051
 // bytes over nearby sync's 19 KB, 1,677 bytes under the two together.
-const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 91 * 1024;
+// Raised by 2 KB with back translation's two rows (Caleb Koster, 2026-11-13, LAN-234), 1 KB past then
+// with main merged in: the six new English words in the catalog every visit carries, and the rows' model.
+const FIRST_VISIT_BUDGET_BYTES = 3.94 * 1024 * 1024 + 93 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
