@@ -7856,6 +7856,19 @@ public build's and the server-calls check is main's. Taking the guard from
 main instead was rejected: it is the phone app's build code, which a copy
 leaves as the public build has it.
 
+Amended (2026-11-13, Carl Sauder): from the merge of nearby sync on, every
+copy in which Claude made commits (PRs 434, 437, 439, 440, 441 and 444) ended
+with "its commits could not be pushed ... error: 400". The dependency upgrades
+in that merge moved `actions/checkout` from v4.4.0 to v7.0.1. That version
+keeps its token in a file that an `includeIf` entry pulls into the repository's
+git config. Claude's action removes the checkout's token from the local config
+and from plain `include.path` files, but not from that one. So the push of
+Claude's commits (`pushCopy`, which brings its own header) sent two
+Authorization headers, and GitHub refused it. The copy workflow's checkout now
+keeps no credential (`persist-credentials: false`, as `user-issues.yml`
+already did), and `scripts/releaseBranches.test.ts` holds it there. The
+repository is public, so the workflow's fetches need none.
+
 ## 156. Store builds come only from the EAS workflow on merges into main
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted

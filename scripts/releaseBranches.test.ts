@@ -219,6 +219,15 @@ describe('a copy with a conflict', () => {
     expect(readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8')).toMatch(/^  pull_request:\n    types: \[labeled\]/m);
   });
 
+  it('pushes Claude\'s commits with one credential, so the checkout keeps none of its own', () => {
+    // PRs 434 to 444 (2026-11-13): actions/checkout v7 keeps its token in a file that an includeIf entry pulls in, which
+    // Claude's action does not remove, so finish-copy's push sent two Authorization headers and GitHub answered 400.
+    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
+    const checkout = /\n {6}- uses: actions\/checkout@[^\n]*\n((?: {8}.*\n)+)/.exec(yml)?.[1] ?? '';
+    expect(checkout).toMatch(/^ {10}persist-credentials: false$/m);
+    expect(readFileSync('scripts/release-branches.mjs', 'utf8')).toMatch(/GIT_CONFIG_KEY_0: 'http\.https:\/\/github\.com\/\.extraheader'/);
+  });
+
   it('Claude signs in with the Claude plan token, or an API key, and the workflow comments instead when there is neither', () => {
     const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
     expect(yml).toMatch(/HAS_CLAUDE_KEY: \$\{\{ secrets\.CLAUDE_CODE_OAUTH_TOKEN != '' \|\| secrets\.ANTHROPIC_API_KEY != '' \}\}/);
