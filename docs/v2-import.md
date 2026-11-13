@@ -319,8 +319,15 @@ the plain welcome or "What brings you here?":
    go back), a collapsed "What's different", and Keep going, which opens
    what is waiting for them first, else the passage they recorded last.
 4. Nothing here yet: their projects show as on their way, "Keep recording
-   in the old app until it's here", and Check again. When one arrives, its
+   in the old app until it's here", Check again, and Continue without it,
+   which opens the app as it opens for anyone new ("What brings you
+   here?"). A project comes over only once someone confirms it on the
+   transfer board, which can take days (LAN-250), so they are never held
+   on this screen. Continuing does not mark them welcomed: the app opens
+   on Welcome back until their work is here. When one arrives, its
    organization opens and the screen says it is here.
+   `npm run diag -- person <profileId>` tells support where each of their
+   projects stands (`docs/diagnostics.md`).
 
 Someone whose v2 projects all stay behind gets the ordinary welcome. Leaving
 Welcome back (Keep going or Go to My Work) marks them welcomed, as Welcome

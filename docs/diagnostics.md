@@ -184,6 +184,12 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   `push_last_error` (a fixed code), and `projection_marks` `projected_at`.
 - `diag.v2_import_status()`: the v2 import per project, running, cut off,
   failed or done, with its counts; no messages, no names.
+- `diag.v2_person(profile)`: one account's v2 projects, as Welcome back
+  sees them, and where each stands: not on the transfer board, Not coming
+  over, on the board and not confirmed, confirmed and not transferred yet,
+  transferred and not projected, here without a membership, or here
+  (migration `20261110000000_diag_v2_person.sql`, LAN-250). `person` shows
+  it, and `timeline` names the install's profile id to ask it with.
 - The ops dashboard's report functions (migration
   `20261023100000_ops_dashboard.sql`, `docs/ops-dashboard-plan.md`):
   `diag.ops_people`, `ops_orgs`, `ops_org`, `ops_pipeline`, `ops_cron`,
@@ -209,7 +215,7 @@ npm run diag -- find "Dinka"                       # org and language ids by nam
 npm run diag -- report "LangQuest Sample" Dinka    # the report, signals first
 npm run diag -- report <org> <lang> --days 30 --install <id> --json
 npm run diag -- org "LangQuest Sample"            # every member's phones, whatever they opened
-npm run diag -- person <profileId>                 # one account: no organization yet, a join request waiting
+npm run diag -- person <profileId>                 # one account: no organization yet, a join request waiting, v2 work on its way
 npm run diag -- jobs                               # the server's own jobs; --job <name> for its runs
 npm run diag -- inbox "LangQuest Sample"          # push delivery for an organization
 npm run diag -- v2                                 # the v2 import, per project
