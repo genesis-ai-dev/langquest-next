@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { posix } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { afterLive, afterMerge, atLeast, changesTheApp, CLAUDE_LABEL, CONFLICT_LABEL, commitOfCopy, commitsOfCopy, conflictNote, copyBranch, copyResult, DISPATCH_EVENT, FIX_TRIES, isTry, listedRebuilds, MACHINERY, mergeName, mergesToCopy, needsHand, nextForCopy, PERSON_LABEL, servesAnother, newBuildPublic, platformsFrom, startFrom, storeVersion } from './release-branches.mjs';
 
@@ -229,6 +230,17 @@ describe('a copy with a conflict', () => {
   it('each copy also takes main\'s server-calls check, which reads main\'s server on a release branch', () => {
     // PR 344 (2026-11-05) failed: the release branch's own server-calls check read its old server.
     expect(MACHINERY).toEqual(expect.arrayContaining(['scripts/server-calls.mjs', 'scripts/serverCalls.test.ts']));
+  });
+
+  it('takes every file its machinery imports, so main\'s machinery runs on a branch from before any of main\'s changes', () => {
+    // PRs 437 and 441 (2026-11-13) failed: main's serverCalls.test.ts imported the store build guard, which a copy does not take,
+    // and release/ios's guard, from before carried builds, had no FIELD_PROFILES.
+    const local = /(?:from|import\()\s*'(\.{1,2}\/[^']+)'/g;
+    for (const file of MACHINERY.filter((f) => /\.(m?js|ts)$/.test(f))) {
+      for (const [, spec] of readFileSync(file, 'utf8').matchAll(local)) {
+        expect(MACHINERY, `${file} imports ${spec}`).toContain(posix.normalize(posix.join(posix.dirname(file), spec)));
+      }
+    }
   });
 
   it('a copy whose checks failed, or that Claude did not finish, gets Claude again up to 3 times, then a person', () => {

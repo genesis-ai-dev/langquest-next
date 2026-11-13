@@ -1,6 +1,10 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { refusal } from '../apps/mobile/scripts/store-build-guard.mjs';
+import { FIELD_PROFILES, refusal } from '../apps/mobile/scripts/store-build-guard.mjs';
+import { FIELD_PROFILES as HELD, releaseBranch } from './server-calls.mjs';
+
+const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { encoding: 'utf8' }).trim();
 
 /**
  * Store builds come only from the EAS workflow on merges into main
@@ -31,6 +35,12 @@ describe('the store build guard', () => {
     expect(build.carried).toEqual({ extends: 'production', android: { buildType: 'app-bundle' } });
     expect(Object.keys(build)).toEqual(['development', 'simulator', 'preview', 'production', 'carried']);
     expect(build.production).toEqual({ node: '24.22.3', autoIncrement: true, channel: 'production', environment: 'production' });
+  });
+
+  // On a release branch the guard is the public build's and scripts/server-calls.mjs is main's
+  // (decisions.md 155), so the two need not agree there; on main they must.
+  it.skipIf(releaseBranch(process.env, branch))('holds the profiles whose server calls scripts/server-calls.mjs keeps', () => {
+    expect(FIELD_PROFILES).toEqual(HELD);
   });
 
   it('lets every other profile build', () => {

@@ -7833,7 +7833,7 @@ tried it again, and Carl asked how such a copy is ever corrected. So:
 
 
 Amended (2026-11-08, Carl Sauder): a phone with no Play Store gets a carried
-file after a native change (245), because this entry deletes
+file after a native change (246), because this entry deletes
 `release/android` once the new build is public, and over-the-air updates
 after a native change reach the old runtime only through that branch, so
 such a phone would otherwise get nothing for good until a newer file exists
@@ -7841,6 +7841,20 @@ such a phone would otherwise get nothing for good until a newer file exists
 merge touching the files nearby sync added is copied to `release/android`,
 where they do not exist, and conflicts, so such merges wait until it is
 public (section 7). Caleb should see this, since 155 is his entry.
+
+Amended (2026-11-13, Carl Sauder): the copies onto `release/ios` in PRs 437
+and 441 failed `unit`. Nearby sync had made `scripts/serverCalls.test.ts`
+import `FIELD_PROFILES` from `apps/mobile/scripts/store-build-guard.mjs`. A
+copy takes that test from main as machinery, but keeps the release branch's
+guard, which on a branch from before carried builds has no such export. So
+the machinery may import only machinery: `scripts/releaseBranches.test.ts`
+fails when a file in `MACHINERY` imports a local file that is not in it. The
+check that the guard holds the same two profiles as the server-calls check
+moved to `scripts/storeBuildGuard.test.ts`, which a release branch keeps at
+its own version, and is skipped on a release branch, where the guard is the
+public build's and the server-calls check is main's. Taking the guard from
+main instead was rejected: it is the phone app's build code, which a copy
+leaves as the public build has it.
 
 ## 156. Store builds come only from the EAS workflow on merges into main
 
