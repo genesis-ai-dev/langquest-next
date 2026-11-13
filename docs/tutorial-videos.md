@@ -319,9 +319,13 @@ Claude (`anthropics/claude-code-action`, following the `tutorial-review`
 skill in `.agents/skills`) puts each comment into English with a reply in
 its own language, and suggests what to change: a video's script, screens or
 voice, the app's code, or a new video. Every input ends in a suggestion or
-with a line saying why none. `send` hands the look to the Worker, which
-checks it (`parseReview` in `server/tutorialFeedback.ts`) before the
-database takes it.
+with a line saying why none. `check` holds the look against what the
+Worker takes and what is open; when the Worker would refuse it, or lose part
+of it, Claude is asked once to mend it from the list of problems. `send`
+hands the look to the Worker, which checks it (`parseReview` in
+`server/tutorialFeedback.ts`) before the database takes it. A look still
+refused is kept with the run for 14 days (`review.json` and
+`problems.txt`), for a person to read.
 
 A person decides each suggestion on the dashboard: Accept, Edit (change
 what it says first), or Reject with why, which the next look reads before
