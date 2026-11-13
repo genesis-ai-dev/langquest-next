@@ -58,7 +58,7 @@ export function useLibrary(ctx: Ctx) {
     }
   }, [library, run]);
 
-  const setSharing = useCallback((it: LibraryItemView, shared: boolean, subscribable: boolean) =>
+  const setSharing = useCallback((it: Pick<LibraryItemView, 'itemId' | 'kind'>, shared: boolean, subscribable: boolean) =>
     run([{ type: 'v1.LibrarySharingSet', payload: { itemId: it.itemId, kind: it.kind, shared, subscribable: shared && subscribable } }]), [run]);
 
   const archive = useCallback((it: LibraryItemView, archived: boolean) =>

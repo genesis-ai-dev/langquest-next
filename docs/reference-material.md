@@ -182,6 +182,37 @@ material has. Web first; on a phone it edits text and records step audio.
 - **Publishing** needs Manage Reference; core `validateDoc` runs first and
   any problem is said in plain words with a link to where to fix it.
 
+## Upload your own Bible (USFM)
+
+An admin with Manage Reference opens **Setup → Reference Material → Add
+material → Upload Bible files** on the web (decisions.md 253, LAN-229).
+
+1. **Files.** `.usfm`, `.sfm`, `.ptx` or `.txt` files, or one zip (opened in
+   the browser; `src/usfm/zipModel.ts`). `checkUsfm` (`packages/core/src/usfm.ts`)
+   reads each: no `\id`, an unknown or front-matter book code, no chapters,
+   no verses, a chapter or verse repeated or out of order, broken letters, a
+   file over 1.8 MB, a book given twice. Each problem is a code the sheet says
+   in plain words; a file with one cannot be published.
+2. **About it.** Name, short name, language, the numbering its verses follow
+   (LangQuest's versifications, English first), who holds the rights, and the
+   uploader's confirmation that the team may share the text. The item takes
+   the organization's license. **Share with other organizations** is off
+   until the admin turns it on.
+3. **Publish.** One `usfmBook@1` per book, then a `usfmBible@1` item (kind
+   `material`), through the library's outbox like any item. Nothing goes to
+   the live library from anywhere but the admin's own publish.
+
+The reading was checked against Aquilla's USFM importer and its sample files
+(decision 253, amended): `\v` is found anywhere in a line, milestones, notes,
+headings and Psalm titles stay out of the verse words, a file with several
+books is read as several, and UTF-16 files work.
+
+**Waits on LAN-230:** the reader does not open a `usfmBible@1` yet, so
+translators do not see it beside a passage, and the offered-Bibles counts and
+coverage leave it out. Paragraphs, headings and notes are kept in each book's
+`usfm` text for that work. Also not built: checking verse numbers against the
+chosen numbering, and splitting a file that holds several books.
+
 ## Where the code is
 
 | Part | Where |
@@ -191,5 +222,6 @@ material has. Web first; on a phone it edits text and records step audio.
 | Bible Brain routes | `apps/web/worker/bible.ts` |
 | Reader, sources, explore, record of use | `apps/mobile/src/sources/` |
 | Admin: recommendations, coverage, passage links, timings | `apps/mobile/src/screens/config.tsx`, `apps/mobile/src/reference/` |
+| USFM Bible upload | `packages/core/src/usfm.ts`, `apps/mobile/src/usfm/` |
 | Guide editor | `apps/mobile/src/guides/`; reading `study@2` in `apps/mobile/src/study/` |
 | Seeding LangQuest's sources | `scripts/library-seed.ts`, `scripts/sources-seed.ts` |

@@ -39,6 +39,8 @@ import { Badge, Banner, Card, Chip, ChipRow, ChipWrap, Disclosure, EmptyState, F
 import { txt } from '../ui/textStyles';
 import { useOpenDetail } from '../ui/useLayout';
 import { ImportRows } from '../imports/ImportRows';
+import { canPickUsfm } from '../usfm/files';
+import { UsfmSheet } from '../usfm/UsfmSheet';
 import { MoveItem } from '../moves/MoveItem';
 import { MoveOffers } from '../moves/MoveOffers';
 import { OrgLine } from '../verified/VerifiedSeal';
@@ -925,6 +927,7 @@ export function ReferenceHome(ctx: Ctx) {
   // What translators are offered at this level (screens/reference.tsx).
   const offered = useMemo(() => recommendedFor(ctx.org.state?.recommendations, languageView ? state : null), [ctx.org.state, state, languageView]);
   const [adding, setAdding] = useState(false);
+  const [uploading, setUploading] = useState(false);
   if (!state || !view) return <Screen header={<Header title={t('config.reference.title')} onBack={ctx.back} />}><EmptyState title={t('common.loading')} /></Screen>;
 
   const own = languageView && language ? language : null;
@@ -958,7 +961,9 @@ export function ReferenceHome(ctx: Ctx) {
     { key: 'here', icon: 'note', label: t('config.reference.add.here'), sub: t('config.reference.add.hereSub'), go: () => ctx.go('material_editor', params) },
     ...(mayWrite ? [
       { key: 'guide', icon: 'sparkle' as const, label: t('config.reference.writeGuide'), sub: t('config.reference.writeGuideSub'), go: () => ctx.go('guide_editor', params) },
-      { key: 'verses', icon: 'book' as const, label: t('config.reference.add.byVerses'), sub: t('config.reference.add.byVersesSub'), go: () => ctx.go('material_editor', { itemId: 'new', ...params }) }
+      { key: 'verses', icon: 'book' as const, label: t('config.reference.add.byVerses'), sub: t('config.reference.add.byVersesSub'), go: () => ctx.go('material_editor', { itemId: 'new', ...params }) },
+      // LAN-229: the team's own Bible as USFM files; uploads are a web job, as the guide editor's are.
+      ...(canPickUsfm ? [{ key: 'usfm', icon: 'book' as const, label: t('config.reference.add.usfm'), sub: t('config.reference.add.usfmSub'), go: () => setUploading(true) }] : [])
     ] : [])
   ];
   const add = () => (addChoices.length === 1 ? addChoices[0]!.go() : setAdding(true));
@@ -1012,6 +1017,7 @@ export function ReferenceHome(ctx: Ctx) {
           <Capped items={view.general} empty={t('config.reference.noGeneral')} render={generalRow} />
         </>
       ) : null}
+      {uploading ? <UsfmSheet visible onClose={() => setUploading(false)} ctx={ctx} lib={lib} orgName={orgName(ctx)} /> : null}
       <Sheet visible={adding} title={t('config.reference.addMaterial')} onClose={() => setAdding(false)}>
         <Group>
           {/* help-each: each row makes a different kind */}

@@ -406,6 +406,44 @@ export interface LabelsDoc {
   deps: string[];
 }
 
+/**
+ * A Bible an organization uploaded as USFM files (decision 253): the
+ * header of `usfmBible@1`, one `usfmBook@1` per book. Unlike `source@1`
+ * it has no provider, no audio and no timings; it is text the team holds
+ * and says it may share. Showing it beside a passage is LAN-230.
+ */
+export interface UsfmBibleDoc {
+  format: 'usfmBible@1';
+  name: string;
+  abbreviation: string;
+  /** ISO 639-3 language of the text. */
+  language: string;
+  /** The numbering its chapters and verses follow (a `versification@1`). */
+  versification: string;
+  /** Who holds the rights, as the uploader wrote it; shown with the text. */
+  copyright: string;
+  /** Library license id the item is published under (`docs/licensing.md`). */
+  license?: string;
+  /** The uploader confirmed they may share this text. Always true: a Bible is not published without it. */
+  rightsConfirmed: true;
+  /** The books it has, in canon order; `doc` is the book's `usfmBook@1`. */
+  books: { book: string; name: string; doc: string; chapters: number; verses: number }[];
+  deps: string[];
+}
+
+/** One book of an uploaded Bible: its verses as plain text, and the file it came from, untouched. */
+export interface UsfmBookDoc {
+  format: 'usfmBook@1';
+  book: string;
+  name: string;
+  chapters: { chapter: number; verses: [number, number, string][] }[];
+  /** Which reading of the file made `chapters` (`USFM_PARSER_VERSION`), so a later reading can tell and read `usfm` again. */
+  parser: number;
+  /** The USFM file as uploaded, so markup, headings and notes can be shown later without another upload. */
+  usfm: string;
+  deps: string[];
+}
+
 /** One book of a source: per chapter its verses (open text), its audio and the verse timings for that audio. */
 export interface SourceBookDoc {
   format: 'sourceBook@1';
@@ -444,7 +482,7 @@ export interface TimingDoc {
 }
 
 export type LibraryDoc = TemplateDocV1 | TemplateDocV2 | FlowDoc | StudyDoc | StudyDoc2 | CollectionDoc | MaterialDoc | SourceDoc | SourceBookDoc | TimingDoc | VersificationDoc
-  | NamesDoc | LabelsDoc;
+  | NamesDoc | LabelsDoc | UsfmBibleDoc | UsfmBookDoc;
 
 /** The library kind a document is published under. */
 export function kindOfDoc(doc: LibraryDoc): LibraryKind {
@@ -508,6 +546,10 @@ export function referencedDocs(doc: LibraryDoc): string[] {
       for (const c of doc.chapters) if (c.timing) out.add(c.timing);
       break;
     case 'timing@1': out.add(doc.versification); break;
+    case 'usfmBible@1':
+      out.add(doc.versification);
+      for (const b of doc.books) out.add(b.doc);
+      break;
     default: break;
   }
   return [...out].sort();
@@ -707,6 +749,36 @@ export function validateDoc(value: unknown): string | null {
       if (!Array.isArray(d['segments']) || !(d['segments'] as unknown[]).every((g) => isObj(g) && Number.isInteger(g['verseStart']) && Number.isInteger(g['verseEnd']) &&
         typeof g['startMs'] === 'number' && typeof g['endMs'] === 'number' && (g['endMs'] as number) >= (g['startMs'] as number))) {
         return 'segments need verseStart, verseEnd, startMs and endMs';
+      }
+      break;
+    }
+    case 'usfmBible@1': {
+      if (!str(d['name']) || !str(d['abbreviation']) || !str(d['language'])) return 'a Bible needs a name, an abbreviation and a language';
+      if (!/^[a-z0-9-]{2,40}$/.test(String(d['language']))) return 'language must be a language code';
+      if (!isHash(d['versification'])) return 'a Bible names its numbering';
+      if (typeof d['copyright'] !== 'string') return 'copyright must be text';
+      if (!optStr(d['license'])) return 'license must be a string';
+      if (d['rightsConfirmed'] !== true) return 'the uploader must confirm they may share the text';
+      if (!Array.isArray(d['books']) || (d['books'] as unknown[]).length === 0) return 'a Bible needs at least one book';
+      const seen = new Set<string>();
+      for (const b of d['books'] as unknown[]) {
+        if (!isObj(b) || !/^[A-Z0-9]{3}$/.test(String(b['book'])) || !str(b['name']) || !isHash(b['doc']) ||
+          !Number.isInteger(b['chapters']) || !Number.isInteger(b['verses'])) return 'books need a USFM code, a name, a document and counts';
+        if (seen.has(b['book'] as string)) return `book ${String(b['book'])} is listed twice`;
+        seen.add(b['book'] as string);
+      }
+      break;
+    }
+    case 'usfmBook@1': {
+      if (!/^[A-Z0-9]{3}$/.test(String(d['book'])) || !str(d['name'])) return 'a book needs a USFM code and a name';
+      if (typeof d['usfm'] !== 'string') return 'a book keeps its USFM text';
+      if (!Number.isInteger(d['parser'])) return 'a book says which reading of the file made its verses';
+      if (!Array.isArray(d['chapters']) || (d['chapters'] as unknown[]).length === 0) return 'a book needs chapters';
+      for (const c of d['chapters'] as unknown[]) {
+        if (!isObj(c) || !Number.isInteger(c['chapter']) || !Array.isArray(c['verses']) ||
+          !(c['verses'] as unknown[]).every((v) => Array.isArray(v) && v.length === 3 && Number.isInteger(v[0]) && Number.isInteger(v[1]) && typeof v[2] === 'string')) {
+          return 'verses are [verseStart, verseEnd, text]';
+        }
       }
       break;
     }
