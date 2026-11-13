@@ -3978,7 +3978,11 @@
         "askedWho": "{{who}} ተጠይቋል",
         "asked": "ተጠይቋል",
         "next": "ቀጣይ",
-        "afterDone": "ከጨረሱ በኋላ"
+        "afterDone": "ከጨረሱ በኋላ",
+        "made": "ተሠርቷል",
+        "checked": "ተፈትሿል",
+        "afterMade": "ከተሠራ በኋላ",
+        "checkedBy": "በ{{check}}"
       },
       "help": {
         "study": "ከመቅረጽዎ በፊት የጥናት መመሪያውን በአንድነት ይለፉ። ምንም ነገር እሱን አይጠብቅም።",
@@ -3998,7 +4002,9 @@
         "checkpoint": "መቆለፊያው፦ ከእሱ በኋላ ካሉት ደረጃዎች በፊት ማለፍ አለበት።"
       },
       "thenTheTeam": "ከዚያ ቡድኑ",
-      "teamHears": "ከዚያ ቡድኑ ሊሰማው ይችላል"
+      "teamHears": "ከዚያ ቡድኑ ሊሰማው ይችላል",
+      "makeIt": "{{what}} · መስራት",
+      "checkIt": "{{what}} · መፈተሽ"
     },
     "quote": "«{{text}}»",
     "journey": {

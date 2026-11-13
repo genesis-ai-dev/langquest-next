@@ -4105,7 +4105,11 @@
         "askedWho": "pedida a {{who}}",
         "asked": "pedida",
         "next": "próxima",
-        "afterDone": "quando você terminar"
+        "afterDone": "quando você terminar",
+        "made": "feita",
+        "checked": "conferida",
+        "afterMade": "depois de feita",
+        "checkedBy": "na {{check}}"
       },
       "help": {
         "study": "Façam juntos o guia de estudo antes de gravar. Nada fica esperando por ele.",
@@ -4125,7 +4129,9 @@
         "checkpoint": "O cadeado: precisa passar antes das etapas seguintes."
       },
       "thenTheTeam": "Depois a equipe",
-      "teamHears": "Depois a equipe pode ouvir"
+      "teamHears": "Depois a equipe pode ouvir",
+      "makeIt": "{{what}} · fazer",
+      "checkIt": "{{what}} · conferir"
     },
     "quote": "“{{text}}”",
     "journey": {
