@@ -202,7 +202,8 @@ was filmed from, its script, each step's look and why it was made
   (`SCREENS` in `apps/mobile/App.tsx`) imports, on and on, as the web export
   resolves it (`e2e/tutorials/screens.ts`); a file that four or more of the
   twenty screen modules import (the kit, the theme, the catalogs) is shared,
-  and is named only when no screen's own code changed.
+  as are the app's packages, and is named only when no screen's own code
+  changed.
 - No film yet, a film framed as films no longer are, or a person named it.
 
 A change merged into main that touched a screen's own code **slots** every

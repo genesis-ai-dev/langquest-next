@@ -53,6 +53,9 @@ describe('why a video is filmed again', () => {
       { kind: 'screen', steps: [3], screens: ['workspace'], changes: [{ sha: sha(3), pr: 403, subject: 'Merge pull request #403 from x/y' }], shared: true });
     expect(whyFilm(night({ film: { look: 'L', frame: 'F', script: 'S' }, tried: { look: 'M', steps: ['a', 'b', 'c'] }, changes: null }))[0]).toEqual(
       { kind: 'screen', steps: [1, 2, 3], screens: ['my_work', 'workspace'], changes: [] });
+    // Nothing found at all: no change is named, and none is called shared.
+    expect(whyFilm(night({ tried: { look: 'M', steps: ['a', 'b', 'y'] }, changes: [change(2, 400, ['docs/decisions.md'])] }))[0]).toEqual(
+      { kind: 'screen', steps: [3], screens: ['workspace'], changes: [] });
   });
 
   it('gives every cause that applies, in a line each', () => {
@@ -133,6 +136,7 @@ describe('the code that draws each screen', () => {
     expect(app.own.get('my_work')).toContain('apps/mobile/src/screens/work.tsx');
     expect(app.own.get('workspace')).toContain('apps/mobile/src/screens/translate.tsx');
     expect(app.shared).toContain('apps/mobile/src/ui/kit.tsx');
+    expect(app.shared).toContain('package-lock.json');
     expect(app.own.get('my_work')).not.toContain('apps/mobile/src/ui/kit.tsx');
     // Every screen a video shows has code of its own.
     for (const t of Object.values(TUTORIALS)) for (const screen of stepScreens(t)) expect(app.own.get(screen)?.size, `${t.id}: ${screen}`).toBeGreaterThan(0);

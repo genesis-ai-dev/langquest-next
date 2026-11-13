@@ -9812,9 +9812,10 @@ four or more of the twenty modules share) slots the video; the night's try
 films it when its words changed and clears the slot when they did not. A
 slot does not film by itself: from 30 October to 13 November, 80 merges
 would have slotted 15 to 46 of the 47 English videos on each day with a
-merge, and YouTube takes about 100 uploads a day for fifteen languages. Step pictures from two nights were
-compared to catch what the words miss, and differ by themselves (a person's
-colour, a QR code, a waveform, a toast), so they decide nothing. Each
+merge, and YouTube takes about 100 uploads a day for fifteen languages.
+Step pictures from two nights were compared to catch what the words miss,
+and differ by themselves (a person's colour, a QR code, a waveform, a
+toast), so they decide nothing. Each
 language's `status-<language>.json` in the release gives every video's
 film, causes, tonight's try and slots. The filming checks out main's whole
 history to find the changes. Reverse if: slots cleared as the same turn out

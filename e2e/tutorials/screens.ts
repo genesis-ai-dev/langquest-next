@@ -16,6 +16,8 @@ import type { Tutorial } from './tutorial';
 export const SHARED = 4;
 
 const APP = 'apps/mobile/App.tsx';
+/** Where the app's packages are named and pinned. */
+const PACKAGES = ['apps/mobile/package.json', 'package-lock.json'];
 /** As Metro resolves an import for the web: the web's own file first, then the file any platform takes. */
 const ENDINGS = ['.web.tsx', '.web.ts', '.tsx', '.ts', '.web.js', '.js', '.json', '/index.web.tsx', '/index.web.ts', '/index.tsx', '/index.ts', '/index.js'];
 
@@ -102,7 +104,8 @@ export function screenCode(files: Files): ScreenCode {
   }
   const reach = new Map<string, number>();
   for (const code of byModule.values()) for (const f of code) reach.set(f, (reach.get(f) ?? 0) + 1);
-  const shared = new Set([...reach].filter(([, n]) => n >= SHARED).map(([f]) => f));
+  // The packages every screen is built with are shared code too: an upgrade can change how any screen reads.
+  const shared = new Set([...[...reach].filter(([, n]) => n >= SHARED).map(([f]) => f), ...PACKAGES]);
   const own = new Map<string, Set<string>>();
   for (const [screen, module] of screens) {
     const code = byModule.get(module);

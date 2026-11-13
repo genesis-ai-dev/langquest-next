@@ -137,9 +137,8 @@ export function whyFilm(t: Tonight): Cause[] {
     const steps = changedSteps(t.film.steps, t.tried.steps);
     const screens = [...new Set(steps.map((n) => t.screens[n - 1]).filter((s): s is string => !!s))];
     const own = touching(t.changes ?? [], ownCode(t.code, screens));
-    why.push(own.length || !t.changes
-      ? { kind: 'screen', steps, screens, changes: own }
-      : { kind: 'screen', steps, screens, changes: touching(t.changes, t.code.shared), shared: true });
+    const shared = own.length ? [] : touching(t.changes ?? [], t.code.shared);
+    why.push(shared.length ? { kind: 'screen', steps, screens, changes: shared, shared: true } : { kind: 'screen', steps, screens, changes: own });
   }
   return why;
 }
