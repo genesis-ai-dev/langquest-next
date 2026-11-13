@@ -47,14 +47,6 @@ tags:
     visible:
       id: "toast"
     timeout: 20000
-# The upload bar, over every screen while the request waits to go up and for
-# 4 s after (decision 166), moves the screens below it by its height as it
-# goes: a tap aimed before then lands 52 pt low (on an iPhone the search field
-# missed, the Luke 13 list stayed; run 43342922443, 2026-11-13).
-- extendedWaitUntil:
-    notVisible:
-      id: "upload-bar"
-    timeout: 30000
 # Override: P-CHECK waits at the Consultant check, a checkpoint.
 - tapOn:
     id: "header-back"

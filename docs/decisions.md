@@ -8613,6 +8613,20 @@ row still nearby ("Came from Sam's phone, not on the server yet"), read from
 row status; a claim row says only that it came from Sam's phone. No other
 list marks it.
 
+Amended (2026-11-12, Carl Sauder): "All uploaded" stays until the person
+moves to another screen, at least four seconds, and the bar goes only then.
+The bar sits above the screens, so as it went every screen moved up by its
+height (52 pt), four seconds after the last upload, a moment nobody could
+see coming. A tap aimed just before landed on whatever had moved under it:
+the phone tests' did (an iPhone missed the map's search field, and two of
+four Backs hit nothing, in run 43342922443), and so could a person's. Going
+as one screen gives way to the next, it never moves a screen in use
+(`DoneMark`, sync/uploadsModel.ts). It still pushes the screen down when
+something starts to wait, mostly just after the person's own tap. Floating
+it over the foot of the screen like the toast would cover what is there,
+and moving it into the headers (the reversal above) would lose its words
+and leave screens without a header without it.
+
 ## 167. The nightly mutation run is four shards of core's files, dealt by what each costs, and one merged score
 
 Date: 2026-10-26 · By: Carl Sauder · Status: accepted
