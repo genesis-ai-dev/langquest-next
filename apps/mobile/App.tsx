@@ -103,6 +103,8 @@ import { useReadOnlyHandles } from './src/shell/useReadOnlyHandles';
 import { ReadOnlyContext } from './src/session/useReadOnly';
 import { wireBase } from './src/shell/wiring';
 import { AppCover } from './src/shell/AppCover';
+import { AppLockGate } from './src/shell/AppLockGate';
+import { useAppLockSignOut } from './src/shell/useAppLockSignOut';
 
 // What the base folders need from folders above them (decisions.md 105), once, before anything draws.
 wireBase();
@@ -380,6 +382,8 @@ export default function App() {
     <SafeAreaProvider>
       {/* On Android, a disguised phone opens on its calculator or notepad, before sign-in and everything else (decisions.md 171). */}
       <AppCover>
+      {/* On a phone, whoever turned the app lock on draws their pattern each time the app opens (decisions.md 200). */}
+      <AppLockGate actorId={who === undefined ? undefined : who.signedIn ? who.actorId : null}>
       <SafeAreaView style={styles.root}>
         <StatusBar style="dark" />
         <UpdateBanner />
@@ -403,6 +407,7 @@ export default function App() {
           </ErrorBoundary>
         )}
       </SafeAreaView>
+      </AppLockGate>
       </AppCover>
     </SafeAreaProvider>
   );
@@ -583,6 +588,8 @@ function OrgWork(props: Who & {
     canSwitchPersona
   }), [language, org, session, params, go, back, home, languageId, setLanguage, languages, act, toast, details, recent, openPassage,
     name, blocks, inboxView, welcomeView, markWelcomed, acceptTerms, invite, firstContact, openOrganization, openDev, canSwitchPersona]);
+  // The app lock's Forgot? signs out as Sign Out does (decisions.md 200).
+  useAppLockSignOut(ctx);
   const syncSources = useMemo(() => ({ language: language.syncStatus, org: org.syncStatus }), [language.syncStatus, org.syncStatus]);
 
   const screen = nav.current.screen;
