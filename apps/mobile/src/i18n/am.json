@@ -3267,7 +3267,8 @@
       "downloading": "ዝማኔውን በማውረድ ላይ…",
       "downloadingPercent": "ዝማኔውን በማውረድ ላይ… {{percent}}",
       "webReady": "አዲስ የLangQuest ስሪት ዝግጁ ነው። ለመጠቀም ገጹን እንደገና ይጫኑ።",
-      "storeBuild": "የመደብር ስሪት",
+      "storeBuild": "የመደብር ስሪት {{version}}",
+      "noUpdate": "ምንም ዝማኔ የለም",
       "updateBuild": "ዝማኔ {{id}}",
       "unknownBuild": "ያልታወቀ ዝማኔ"
     },

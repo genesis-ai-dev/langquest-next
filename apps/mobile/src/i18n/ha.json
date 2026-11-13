@@ -3267,7 +3267,8 @@
       "downloading": "Ana sauke sabuntawa…",
       "downloadingPercent": "Ana sauke sabuntawa… {{percent}}",
       "webReady": "Sabuwar sigar LangQuest ta shirya. Ku sake loda shafin don amfani da ita.",
-      "storeBuild": "ginin shago",
+      "storeBuild": "ginin shago {{version}}",
+      "noUpdate": "babu sabuntawa",
       "updateBuild": "sabuntawa {{id}}",
       "unknownBuild": "sabuntawa ba a sani ba"
     },

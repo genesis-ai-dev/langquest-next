@@ -5369,6 +5369,25 @@ the time and Done; screen readers hear the status with how many parts are
 kept so far. In back translation the source part stays named above, on its
 player.
 
+Amended (2026-11-13, Caleb Koster): an admin of the language may delete any
+version, not only their own. An admin is someone who holds `manage_roles`
+there: an Organization Admin, or the Organization Admin role given for one
+language (a Language Admin). Coordinators, translators and reviewers still
+delete only what they published. Reason: Caleb asked that an admin can
+remove work so that a passage looks as if nobody had worked on it yet, for
+example work brought from LangQuest v2 that should not count (Every
+Language's Berom team lost most of its v2 audio, 2026-11-13). Imported work
+is published under the v2 person's name, and that person may never sign in
+here, so only an admin can clear it. When a passage's last version is
+deleted, the passage shows as not started (`recorded` is false). It is the
+same tombstone as before: the version keeps its number, and the history
+still shows it and who deleted it, so nothing is lost (hidden, never
+deleted). Caleb chose this over a new "clear the whole passage" button,
+because the Delete button and its ask-first sheet already exist, and each
+of Berom's imported passages has one version. The server already accepted
+`v1.TakeArchived` from anyone who may translate, so only core
+(`canDeleteVersion`, `deleteVersion`'s `admin`) and the app change.
+
 ## 125. Parts split by the room and the voice the microphone hears, nothing said is thrown away, and there is no microphone setup
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -7814,7 +7833,7 @@ tried it again, and Carl asked how such a copy is ever corrected. So:
 
 
 Amended (2026-11-08, Carl Sauder): a phone with no Play Store gets a carried
-file after a native change (245), because this entry deletes
+file after a native change (246), because this entry deletes
 `release/android` once the new build is public, and over-the-air updates
 after a native change reach the old runtime only through that branch, so
 such a phone would otherwise get nothing for good until a newer file exists
@@ -7822,6 +7841,20 @@ such a phone would otherwise get nothing for good until a newer file exists
 merge touching the files nearby sync added is copied to `release/android`,
 where they do not exist, and conflicts, so such merges wait until it is
 public (section 7). Caleb should see this, since 155 is his entry.
+
+Amended (2026-11-13, Carl Sauder): the copies onto `release/ios` in PRs 437
+and 441 failed `unit`. Nearby sync had made `scripts/serverCalls.test.ts`
+import `FIELD_PROFILES` from `apps/mobile/scripts/store-build-guard.mjs`. A
+copy takes that test from main as machinery, but keeps the release branch's
+guard, which on a branch from before carried builds has no such export. So
+the machinery may import only machinery: `scripts/releaseBranches.test.ts`
+fails when a file in `MACHINERY` imports a local file that is not in it. The
+check that the guard holds the same two profiles as the server-calls check
+moved to `scripts/storeBuildGuard.test.ts`, which a release branch keeps at
+its own version, and is skipped on a release branch, where the guard is the
+public build's and the server-calls check is main's. Taking the guard from
+main instead was rejected: it is the phone app's build code, which a copy
+leaves as the public build has it.
 
 ## 156. Store builds come only from the EAS workflow on merges into main
 
@@ -8013,6 +8046,14 @@ an exception to this entry's "every new build goes to production review",
 and it uses up a version code, so later store builds simply number higher
 (docs/nearby-sync-plan.md 14.4). Caleb should see this, since 157 is his
 entry.
+
+Amended (2026-11-13, Carl Sauder): the app reads the time back from a store
+build's version and shows it on Sync, with the build number, beside the OTA
+update's id and time (`storeVersionTime` in
+`apps/mobile/src/shell/updateStatus.ts`). The phone's settings show only the
+store version and nothing else shows the update, so a tester needs both to
+say which code they run. A new form for the version needs that reader
+changed too; a version it cannot read shows no date, never a wrong one.
 
 ## 158. Global Viewers read every organization, read-only, and only on a session verified with an authenticator
 

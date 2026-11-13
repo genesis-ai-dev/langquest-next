@@ -150,6 +150,24 @@ Global Viewers need (docs/global-viewers.md).
 read back, so it only checks that they exist, and sets them again on every
 apply.
 
+It runs wrangler with the `langquest-email` auth profile
+(`scripts/cloudflare-deploy.mjs`), not the one a plain `npx wrangler login`
+signs in. Make it once, signed in to the account the Workers name
+(`account_id` in each `wrangler.jsonc`):
+
+```
+npx wrangler auth create langquest-email
+```
+
+When wrangler cannot list a Worker's secrets or find the Hyperdrive config,
+signed out or offline, the script stops before comparing and says why, with
+wrangler's own words. Until 2026-11-13 it read such a failure as an empty
+list, so every Worker secret and the Hyperdrive config showed as missing, and
+a yes would have set them all again and made a second config. Only a Worker
+that does not exist counts as having no secrets; it gets a line of its own,
+since every Worker of a deployed environment exists and a missing one most
+often means the wrong account.
+
 ## The nearby signing key
 
 `NEARBY_SIGNING_KEY` is the app Worker's Ed25519 private key for nearby sync

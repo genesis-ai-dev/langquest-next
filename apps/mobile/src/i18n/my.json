@@ -3166,7 +3166,8 @@
       "downloading": "အပ်ဒိတ် ဒေါင်းလုဒ်လုပ်နေသည်…",
       "downloadingPercent": "အပ်ဒိတ် ဒေါင်းလုဒ်လုပ်နေသည်… {{percent}}",
       "webReady": "LangQuest ဗားရှင်းအသစ် အသင့်ဖြစ်ပြီ။ သုံးရန် ပြန်ဖွင့်ပါ။",
-      "storeBuild": "စတိုး ဗားရှင်း",
+      "storeBuild": "စတိုး ဗားရှင်း {{version}}",
+      "noUpdate": "အပ်ဒိတ် မရှိ",
       "updateBuild": "အပ်ဒိတ် {{id}}",
       "unknownBuild": "အပ်ဒိတ် မသိ"
     },
